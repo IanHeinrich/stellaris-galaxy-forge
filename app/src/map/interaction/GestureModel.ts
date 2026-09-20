@@ -32,10 +32,7 @@ function nebulaCursor(pick: NebulaPick): string {
   }
 }
 
-/**
- * ADR 0003: no modes; what is under the pointer at press (star, port band, lane, nebula ring,
- * handle or centre, nothing) decides.
- */
+/** No modes: what is under the pointer at press decides what a drag does. */
 export class GestureModel implements MapModel {
   private press: Press | null = null;
   private drag: Drag | null = null;

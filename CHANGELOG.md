@@ -8,6 +8,8 @@ release is made.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-20
+
 ### Changed
 
 - A nebula is moved by dragging its ring, and resized only by the four
