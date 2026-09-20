@@ -3,8 +3,8 @@
 All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the version
 numbers follow [Semantic Versioning](https://semver.org/). Entries under
-Unreleased ship with the next release; `docs/engineering-rules.md` says how a
-release is made.
+Unreleased ship with the next release. `docs/engineering-rules.md` says how
+a release is made.
 
 ## [Unreleased]
 
@@ -12,17 +12,18 @@ release is made.
 
 ### Added
 
-- The app checks for a newer release at launch and shows a badge with a
-  dialog to install and restart, open the releases page, skip the version
-  or decide later; the Help menu adds the app's version, a manual check
-  and a switch for the check at launch.
+- The app checks for a newer release at launch and shows a badge. The
+  dialog installs and restarts, opens the releases page, skips the
+  version or leaves the decision for later.
+- The Help menu adds the app's version, a manual check and a switch for
+  the check at launch.
 
 ## [0.5.2] - 2026-09-20
 
 ### Changed
 
 - A nebula is moved by dragging its ring, and resized only by the four
-  handles that appear on the ring once it is selected; its name and
+  handles that appear on the ring once it is selected. Its name and
   centre marker now just select it. A nebula whose name sits on a star
   could not be dragged without moving the star first. The cursor shows a
   move arrow on the ring and a resize arrow on a handle.
@@ -35,10 +36,11 @@ release is made.
   "Browse…" button beside one sentence about opening a save as a save or
   as a scenario, in place of the keyboard hints and the two rows at the
   end of the list.
-- A save opens with hyperlanes, systems, names, system details, empires and
-  nebulae drawn and every other layer off; layers you switch on yourself
-  still stay on across opens, and Reset to defaults restores the set for
-  the kind of document that is open. Scenarios keep their defaults.
+- A save opens with hyperlanes, systems, names, system details, empires
+  and nebulae drawn, and every other layer off. Layers you switch on
+  yourself still stay on across opens. Reset to defaults restores the
+  set for the kind of document that is open. Scenarios keep their
+  defaults.
 - The open screen no longer lists dynamic scenarios (the game's own
   `setup_scenario` files and any other `.txt` without a
   `static_galaxy_scenario` block), which the editor cannot open. A static
@@ -46,13 +48,13 @@ release is made.
 
 ## [0.5.0]
 
-Launch as Stellaris Galaxy Forge: the project takes its new name (crates
-`sgf-core`, `sgf-gamedata` and `sgf-cli`, and the `sgf` command line),
-macOS universal builds are published beside Windows and Linux, the New
-scenario dialog gains three starting points, waystations and waylines are
-drawn from a save, gateways and L-Gates get bypass badges, the shell
-sweep lands, a spawn point can be reserved for a human player or the AI,
-and the fixes below close the release out.
+Launch as Stellaris Galaxy Forge. The crates are `sgf-core`,
+`sgf-gamedata` and `sgf-cli`, the command line is `sgf`, and macOS
+universal builds are published beside Windows and Linux. The New scenario
+dialog gains three starting points, waystations and waylines are drawn
+from a save, and gateways and L-Gates get bypass badges. The shell sweep
+lands, a spawn point can be reserved for a human player or the AI, and the
+fixes below close the release out.
 
 ### Added
 
@@ -78,66 +80,66 @@ and the fixes below close the release out.
   at full strength, and a bypass badge keeps its star at every zoom as a
   notable point of interest does.
 - Shell sweep: number keys 7, 8 and 9 toggle points of interest, nebulae
-  and issue highlights; the status bar says when the document was saved
-  and follows lane hover and ring drag; Backspace goes back in the
-  inspector; long flag lists gain a filter; station and megastructure
-  rows gain a focus button; fleet rows show planet-killer and disabled
-  states; kind chips explain each special kind; the Game data menu lists
+  and issue highlights. The status bar says when the document was saved
+  and follows lane hover and ring drag. Backspace goes back in the
+  inspector. Long flag lists gain a filter. Station and megastructure
+  rows gain a focus button. Fleet rows show planet-killer and disabled
+  states. Kind chips explain each special kind. The Game data menu lists
   diagnostics.
 - A spawn point can be held for the AI as well as for a human player,
-  one at a time, and clearing the spawn point takes the reservation with
-  it; reserving every other spawn point for the AI pins the human player
-  to one system. A zero base with a modifier that adds weight counts as
-  a spawn point, so a mod's AI start can be reserved without its weight
+  one at a time. Clearing the spawn point takes the reservation with it.
+  Reserving every other spawn point for the AI pins the human player to
+  one system. A zero base with a modifier that adds weight counts as a
+  spawn point, so a mod's AI start can be reserved without its weight
   being touched.
 
 ### Changed
 
 - A spawn point held for a human player is marked with a person, one
   held for the AI with a robot, and an open one with both, on the map
-  and on the Spawns button, in place of the triangle; the mark keeps one
+  and on the Spawns button, in place of the triangle. The mark keeps one
   colour throughout.
 - The group buttons are plain pills: each switches the bar's layers of
-  its group on or off and remembers nothing; day-one claims switch
-  Empires on with them and go off with it; a shown point-of-interest
+  its group on or off and remembers nothing. Day-one claims switch
+  Empires on with them and go off with it. A shown point-of-interest
   kind switches its layer on. Nebulae has a bar toggle on both kinds of
   document, Empires closes the Initializers frame, and undo and redo
   stack.
 - Moving a nebula in a save moves the cloud alone, as in a scenario: its
   systems stay where they are and its member list follows the new
   radius, with the same warning a system crossing a boundary gets.
-- The planet list leads with the star under a system-total band; an
-  artless star shows its class texture or a radiant glyph and an artless
-  planet the map's neutral marker; a random habitable class and the
-  empire's ideal class count and tint as habitable, and the random
+- The planet list leads with the star under a system-total band. An
+  artless star shows its class texture or a radiant glyph, and an
+  artless planet the map's neutral marker. A random habitable class and
+  the empire's ideal class count and tint as habitable, and the random
   classes say what they draw from. Script paths truncate with the full
-  path on hover, and the search field says what each kind can find with
-  its key as a badge.
-- The changes list wraps instead of truncating and fills its tab, the
-  initializer browser has a close button beside its search, and the
-  Changes rows, the initializer list and the inspector's drill rows can
-  be operated from the keyboard; every dialog dismisses on a press
-  outside it the same way.
+  path on hover. The search field says what each kind can find, with its
+  key as a badge.
+- The changes list wraps instead of truncating and fills its tab. The
+  initializer browser has a close button beside its search. The Changes
+  rows, the initializer list and the inspector's drill rows can be
+  operated from the keyboard. Every dialog dismisses on a press outside
+  it the same way.
 - Which layers are shown and the mesh slider's value persist per machine
-  like the other hand-set preferences; what a document decides does not.
-- Reads, searches and the registry getters run off the main thread, and
-  the inspector's details are resolved once the document lock is
-  released, so an edit no longer waits on them; edits, undo and redo
-  stay in order.
+  like the other hand-set preferences. What a document decides does not.
+- An edit no longer waits on a read, a search or the inspector's
+  details. Reads, searches and the registry getters run off the main
+  thread, and the inspector's details are resolved once the document
+  lock is released. Edits, undo and redo stay in order.
 - The status bar says why auto-reload is off or incomplete, and how many
-  times a file changed before a pause; a mod whose descriptor cannot be
-  read is named on the Open screen's scenario list.
+  times a file changed before a pause.
+- A mod whose descriptor cannot be read is named on the Open screen's
+  scenario list.
 - Resetting a lane's length is one op and the core computes
-  `floor(distance)`; `sgf lane normalise <doc> <a> <b>` does the same
+  `floor(distance)`. `sgf lane normalise <doc> <a> <b>` does the same
   from the command line.
 - Preventing a lane between two systems the file already links is
   refused with a message that says so, and a missing save or scenario
   file is reported as not found whatever the operating system calls it.
 - Bypass map icons take their frame from the install's `common/bypass`
   definitions, and a leviathan badge names the country the initializer
-  really spawns; the built-in tables are only the no-game-data fallback
-  (the vanilla dragon now reads "Voidwyrm", as the game's own files
-  say).
+  really spawns. The built-in tables are only the no-game-data fallback.
+  The vanilla dragon now reads "Voidwyrm", as the game's own files say.
 
 ### Removed
 
@@ -151,47 +153,48 @@ and the fixes below close the release out.
 
 - `sgf validate` on a scenario reported nothing: it projected the file
   as a save. It now opens the document as the app does and prints the
-  document's own issues too; `sgf inspect` and `sgf roundtrip` say they
-  read saves only instead of failing on the archive.
+  document's own issues too.
+- `sgf inspect` and `sgf roundtrip` say they read saves only, instead of
+  failing on the archive.
 - Removing a nebula that an earlier edit in the same session had moved,
-  resized or renamed was refused with "empty section" and rolled back;
-  the erased statement is now seen as gone.
+  resized or renamed was refused with "empty section" and rolled back.
+  The erased statement is now seen as gone.
 - A new scenario named with a quote or a backslash wrote a file the game
-  could not read; the name is refused, and an exported scenario's file
+  could not read. The name is refused, and an exported scenario's file
   stem drops those characters.
 - Removing lane pairs on a scenario accepted pairs that were not linked
-  and recorded an inverse that would have added them; both formats now
+  and recorded an inverse that would have added them. Both formats now
   refuse the same input, and a lane removal's inverse never names a
   system the galaxy does not hold.
 - Renaming a scenario system that had no name recorded an inverse that
-  wrote an empty name; undo now removes the statement. An empty name is
+  wrote an empty name. Undo now removes the statement. An empty name is
   refused everywhere a name is required.
 - A mod that redefines a vanilla country behind the same flag or event
   target lost to vanilla, and which file won could depend on an
-  initializer key's spelling; the last file wins, in the game's own
+  initializer key's spelling. The last file wins, in the game's own
   order. A prescripted country defined in a later file no longer loses
   to an earlier one whose definition name sorted first.
 - A day-one script that gives a system away inside a scope the reader
-  cannot follow claimed every system its loop matched; it now claims
+  cannot follow claimed every system its loop matched. It now claims
   nothing there. A `link_wormholes` pairs with the spawn it follows, a
   wormhole spawned inside a `while` lands on the initializer's own
   system, and two elsewhere-spawns that both link back to an
   initializer's own system each pair once.
 - The inspector's Contents tab stayed on "Reading the system's
-  contents…" for ever when the read failed; it now says the read failed
+  contents…" for ever when the read failed. It now says the read failed
   and tries again after the next edit.
 - Editing a scenario header field rebuilt the whole map and reset the
   camera to the galaxy fit.
 - A failed game-data load (a wrong path) left the old data loaded but
-  the file watcher gone until the next successful load; a file change
+  the file watcher gone until the next successful load. A file change
   arriving while no data is loaded no longer stops the watcher for good.
 - With the Scripts or Initializers layer off, a system carrying both an
   initializer gateway and a scripted wormhole still showed the hidden
   one.
 - An empire's name kept the scale of its placeholder when the localised
-  name arrived, so long names overflowed their region; the labels also
-  relayout the moment the Empires layer flips instead of waiting for a
-  zoom.
+  name arrived, so long names overflowed their region.
+- The empire labels relayout the moment the Empires layer flips, instead
+  of waiting for a zoom.
 - A scenario system whose initializer names its star class (a black
   hole, a pulsar) is drawn with that star on the map and in its planet
   list, in place of the generic star.
@@ -205,7 +208,7 @@ and the fixes below close the release out.
   read that failed cached an empty set for the session, and a search
   that failed read as "no results".
 - Opening a second document while one was still loading closed the Open
-  dialog with nothing opened; the dialog now stays and says so.
+  dialog with nothing opened. The dialog now stays and says so.
 - Clicking a group heading or the hint line in the search palette closed
   it, and a dialog no longer outlines its first choice before the
   keyboard reaches it.
@@ -221,13 +224,13 @@ groups.
 
 ### Added
 
-- Scripted ownership: the scripts a scenario's initializers reach are
-  indexed (spawned initializers, scripted effects, events, on-actions,
-  prescripted countries), and a system whose chain sets an owner at
+- Scripted ownership: a system whose script chain sets an owner at
   galaxy generation is drawn as that empire's territory, with the name
   and flag colours its `create_country` and the localisation give it, in
-  vanilla and in mods. The empire browser lists them beside the save's
-  empires.
+  vanilla and in mods. The scripts a scenario's initializers reach are
+  indexed (spawned initializers, scripted effects, events, on-actions,
+  prescripted countries). The empire browser lists them beside the
+  save's empires.
 - Scripts section in a scenario system's inspector: every script that
   reaches the system, tagged as running at generation, on day 1 or
   later, one row per script with every line that names the system, and
@@ -261,10 +264,10 @@ groups.
   inspector, with "Set as spawn point" and "Remove spawn point" in its
   right-click menu for every selected system at once. Setting, weighting
   and clearing are ops of their own, so assigning an initializer no
-  longer drops an author's weight; a system can be reserved for a human
-  player (the `factor = 0 is_ai = yes` modifier the game reads); a
+  longer drops an author's weight. A system can be reserved for a human
+  player (the `factor = 0 is_ai = yes` modifier the game reads). A
   weight's modifiers and `spawn_design` are read from the file and shown
-  with the reservation they express; and the galaxy view shows the core
+  with the reservation they express. The galaxy view shows the core
   radius. `sgf spawn weight|reserve` on the command line.
 - Scenario bypasses: the wormholes and gateways an initializer places at
   its own system, and the ones the day-one events place at systems their
@@ -274,13 +277,13 @@ groups.
   galaxy panel where the game places them at random instead.
 - A scenario's map and inspector say what the file holds and what the
   scripts add. The layer bar splits into three framed groups, Scenario,
-  Initializers and Scripts, each layer belonging to exactly one: star
-  classes, colonies and day-one claims are their own toggles,
+  Initializers and Scripts, each layer belonging to exactly one. Star
+  classes, colonies and day-one claims are their own toggles.
   Initializers (`0`) and Scripts (backtick) each have a master that
-  strips their layers and folds their sections, the initializer legend
-  opens as a flyout beside the scrolling Layers menu, and every section
-  and territory row carries the chip of the group that feeds it, with
-  teal for derived, read-only information. A save keeps its flat bar and
+  strips their layers and folds their sections. The initializer legend
+  opens as a flyout beside the scrolling Layers menu. Every section and
+  territory row carries the chip of the group that feeds it, with teal
+  for derived, read-only information. A save keeps its flat bar and
   gains the star class and colony toggles.
 - Nebulae can be added, removed, resized and renamed, in saves and
   scenarios, with membership kept in step on every change and refreshed
@@ -340,36 +343,36 @@ initializer browser, and the open screen with campaigns and scenarios.
   each point-of-interest kind is a layer of its own with a select-all
   row that reads mixed.
 - Inspector navigator: a breadcrumb stack with Overview, Contents, Lanes
-  and Data tabs; a system view with game-art planet rows (class icon,
+  and Data tabs. A system view carries game-art planet rows (class icon,
   size and pop glyphs, deposits), station, military and utility fleet
-  rows with a ship-size badge, megastructures, initializer and flags;
-  galaxy, multi-selection and lane views on the same anatomy. Empires
-  are grouped by type with pan-to-capital, select-and-fit and an eye
-  that hides a territory; points of interest are grouped by kind and by
-  initializer file; Issues keeps the at-load baseline behind a filter,
-  so only new issues are counted.
+  rows with a ship-size badge, megastructures, initializer and flags.
+  Galaxy, multi-selection and lane views share the same anatomy.
+- Empires are grouped by type with pan-to-capital, select-and-fit and an
+  eye that hides a territory. Points of interest are grouped by kind and
+  by initializer file. Issues keeps the at-load baseline behind a
+  filter, so only new issues are counted.
 - Search palette: hits grouped by kind with icons and sublines, prefixes
   and Tab cycling, Shift+Enter to add to the selection, recent hits on
   an empty query, and systems, countries, planets, fleets, stations and
   nebulae found by their localised and templated names. It works with no
   document open, and a nebula hit pans the camera without selecting.
 - First launch pauses on a setup card that explains the game data, names
-  the install it found and offers Change or Continue; later launches
-  cover the load with a start screen. The File menu gains Open recent
-  and Campaigns, and the Game data pill opens a menu with the path,
-  Reload and the auto-load toggle.
+  the install it found and offers Change or Continue. Later launches
+  cover the load with a start screen.
+- The File menu gains Open recent and Campaigns, and the Game data pill
+  opens a menu with the path, Reload and the auto-load toggle.
 - Static galaxy scenarios (`map/setup_scenarios/*.txt`) open, edit and
   save beside `.sav` files, byte for byte outside the edited statements:
   move systems, add and cut lanes, move nebulae. A scenario can also add
   and delete systems, name them and give them an initializer chosen from
   the loaded game data, vanilla and mod. New scenario from scratch,
-  export a save as a scenario, or open a save as one; `sgf
-  export-scenario` and `sgf new-scenario` on the command line. A
-  scenario system's initializer gives the map and the inspector what it
-  will spawn: the star, the planets and moons, their resources,
+  export a save as a scenario, or open a save as one. `sgf
+  export-scenario` and `sgf new-scenario` on the command line.
+- A scenario system's initializer gives the map and the inspector what
+  it will spawn: the star, the planets and moons, their resources,
   megastructures, dig sites and a starbase. The map labels an unnamed
   system with its initializer, faded, with a legend that hides chosen
-  initializers; a named system keeps its label at every zoom. The
+  initializers. A named system keeps its label at every zoom. The
   galactic core is drawn as a ring on both kinds.
 - Initializer browser: a large overlay for choosing a scenario system's
   initializer, with search across key, name, star class, usage, mod and
@@ -385,16 +388,17 @@ initializer browser, and the open screen with campaigns and scenarios.
   every scenario file from your mods, the playset and the install with
   its system count and who overrides it. A save row opens as a save, or
   as a scenario from its "as scenario" button, with Shift+Enter or from
-  the File menu; activating it asks which. Opening or reloading either
+  the File menu. Activating it asks which. Opening or reloading either
   kind shows one loading overlay with the file name, the phase and a
   progress bar.
-- A default initializer per machine, set from the browser; right-click
+- A default initializer per machine, set from the browser. Right-click
   on empty space places a new system with it, with the last used one, or
-  from the browser. The Game data menu lists the loaded mods.
+  from the browser.
+- The Game data menu lists the loaded mods.
 
 ### Changed
 
-- The middle mouse button drags the camera; a left drag on empty space
+- The middle mouse button drags the camera. A left drag on empty space
   no longer pans, so it is free for the marquee.
 - A system name is no longer hidden because another label overlaps it.
 
@@ -423,7 +427,7 @@ Steam Cloud awareness.
 - The map draws with your own install's art and names: star sprites by
   class, the game's map icons, and localised system, empire, planet and
   fleet names, matching your DLC and the mods active for the save.
-  Nothing is bundled; with no install to read, the map falls back to
+  Nothing is bundled. With no install to read, the map falls back to
   procedural stars and generated names.
 - Empire territories drawn as the game draws them: a region per country
   from discs clipped against foreign systems and lane bands severed by
@@ -433,7 +437,7 @@ Steam Cloud awareness.
 - Special systems from the save's flags, initializers and sectors:
   leviathans, enclaves, marauders, fallen empires, landmarks and
   uniques, each with a halo and ring on its star, the kind's game art on
-  a plate, a label at every zoom and a tooltip; marauder clans and
+  a plate, a label at every zoom and a tooltip. Marauder clans and
   fallen empires are marked by their territory instead. The legend
   counts each kind and selects it.
 - System details under each star when zoomed in, laid out after the
@@ -486,19 +490,19 @@ corpus.
 
 ### Added
 
-- Open a Stellaris `.sav` and see its galaxy. One pass over the
-  gamestate indexes every statement by counting braces, never
-  indentation, and builds the galaxy from it; the map fills the window,
+- Open a Stellaris `.sav` and see its galaxy. The map fills the window,
   a drag or the middle mouse button pans, the wheel zooms on the
-  pointer, and Home fits the whole galaxy.
+  pointer, and Home fits the whole galaxy. One pass over the gamestate
+  indexes every statement by counting braces and builds the galaxy from
+  it.
 - Move a system by dragging its star, with a ghost of the system and its
-  lanes following the pointer; Shift+Arrow nudges by one unit and
+  lanes following the pointer. Shift+Arrow nudges by one unit and
   Ctrl+Shift+Arrow by ten, and exact x and y can be typed in the panel.
-  Moving recomputes the stored length of every lane on both of its ends,
-  and nothing inside the system moves, because planets, fleets and
-  stations are stored relative to their star.
+  Moving recomputes the stored length of every lane on both of its ends.
+  Nothing inside the system moves, because planets, fleets and stations
+  are stored relative to their star.
 - Add a hyperlane by dragging from the ring that appears around a
-  zoomed-in star, or by Shift+dragging at any zoom; the rubber line
+  zoomed-in star, or by Shift+dragging at any zoom. The rubber line
   snaps to the nearest system and refuses a pair that is already linked.
   A new lane gets the length the game's own generator would write, the
   whole number just below the distance between the two stars.
@@ -512,27 +516,27 @@ corpus.
 - Connect as mesh: a Delaunay beta-skeleton with a sparse-to-dense
   slider that previews the lanes it would add before any is applied.
 - Every edit is undoable, with Ctrl+Z, Ctrl+Y and buttons whose tooltips
-  name the edit they would apply, and the Changes panel lists every edit
-  since the file was opened, oldest first, with the undone ones greyed;
-  clicking an entry steps back to that point.
+  name the edit they would apply. The Changes panel lists every edit
+  since the file was opened, oldest first, with the undone ones greyed.
+  Clicking an entry steps back to that point.
 - A validator runs when a save opens and after every edit, with its
-  counts in the status bar: a lane listed on one end only, a lane to a
+  counts in the status bar. A lane listed on one end only, a lane to a
   system that does not exist and a lane from a system to itself are
-  errors; a duplicate lane entry, a system with no lanes, a system
+  errors. A duplicate lane entry, a system with no lanes, a system
   outside the galaxy radius, a stored length that disagrees with the
   distance and a galaxy split into more pieces than it had are warnings.
 - Save (Ctrl+S) and Save as (Ctrl+Shift+S) write the file with a backup:
   the new bytes go to a file beside the old one, the old one is renamed
   `<name>.sav.bak-<timestamp>`, and only then does the new file take its
-  place; a failed write puts the original back. Unsaved edits are
+  place. A failed write puts the original back. Unsaved edits are
   guarded when you open another document, close one or close the window.
 - The save is edited as bytes. Only the statements you changed differ,
   and everything else, including whatever a mod or a newer game version
-  put there, is copied out untouched; a save opened and written back
+  put there, is copied out untouched. A save opened and written back
   with no edits is byte-identical to the original, and a test asserts
   it.
 - System names appear as you zoom in and thin out where they would
-  overlap; a selected or hovered system keeps its name whatever else is
+  overlap. A selected or hovered system keeps its name whatever else is
   on screen.
 - The `sgf` command line does the same edits from a terminal, in place
   and with the same backup unless `-o` names an output: `inspect`,

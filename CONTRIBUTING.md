@@ -1,8 +1,8 @@
 # Contributing
 
-Thanks for taking an interest. This page covers bug reports, feature
-requests and pull requests. The rules the code itself follows are in
-[docs/engineering-rules.md](docs/engineering-rules.md); read that before
+This page covers bug reports, feature requests and pull requests. The
+rules the code itself follows are in
+[docs/engineering-rules.md](docs/engineering-rules.md). Read that before
 changing anything under `crates/` or `app/`.
 
 ## Reporting a bug
@@ -15,23 +15,21 @@ Open an issue with:
   are running.
 - For a save that opens wrongly or saves wrongly: the `.sav` file if you
   are willing to share it, or the `gamestate` size and the section the
-  error names if not. A save from a mod set is fine; the editor is meant
+  error names if not. A save from a mod set is fine. The editor is meant
   to cope with content it does not understand.
 - For a scenario: the `.txt` file and the mod it came from.
 - For a crash or a refused save: the message the app showed, word for
   word, and the backup path it named.
 
 If an edited save misbehaves in the game, say which edit you made and
-what the game did; that is the report that matters most, because the
-game is the only judge of what a save means.
+what the game did. That is the report I most want.
 
 ## Asking for a feature
 
-Read the Scope section of the README first. Editing grows slowly and
-only when it can be done properly; showing grows freely. A request to
-see more of a save is likely to be picked up; a request to edit a new
-kind of thing needs a description of what the game does with it, how it
-can be checked in-game, and what should happen on undo.
+Read the Scope section of the README first. I pick up requests to show
+more of a save readily. A request to edit a new kind of thing needs
+three things: what the game does with it, how it can be checked in-game,
+and what undo should do.
 
 ## Pull requests
 
@@ -47,8 +45,8 @@ can be checked in-game, and what should happen on undo.
    cd app && npm test && npm run lint && npm run build
    ```
 
-   `cargo test --workspace` also rewrites `app/src/generated/`; commit what
-   it writes and never edit those files by hand.
+   `cargo test --workspace` also rewrites `app/src/generated/`. Commit
+   what it writes and never edit those files by hand.
 3. Add an entry to `CHANGELOG.md` under `## [Unreleased]`, written for a
    user, or ask for the `skip-changelog` label if the change is invisible
    to one. The `Changelog entry` check enforces this.
@@ -63,7 +61,7 @@ commit. Write them as a sentence saying what changed and why.
 ## What will not be merged
 
 - Anything that re-serialises a save, a section or an entity from a
-  typed model. The file is edited as bytes; see the non-negotiables in
+  typed model. The file is edited as bytes. See the non-negotiables in
   the engineering rules.
 - Anything that bundles game or mod content. Definitions, localisation
   and art are read from the user's install at runtime.
