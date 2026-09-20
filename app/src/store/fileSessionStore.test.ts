@@ -500,6 +500,34 @@ describe("scenario documents", () => {
     expect(useRecentsStore.getState().recents).toHaveLength(0);
   });
 
+  it("a painted galaxy turns the Paint a Galaxy profile on; a plain open turns it off again", async () => {
+    const painted = SCENARIO_RESULT.galaxy.systems.map((s, i) =>
+      i === 0
+        ? {
+            ...s,
+            spawn_weight: 0,
+            spawn_script: { paint_a_galaxy: { kind: "sol" as const, random_value: 0 } },
+          }
+        : s,
+    );
+    mocked.openScenarioText.mockResolvedValueOnce({
+      ...SCENARIO_RESULT,
+      path: null,
+      galaxy: { ...SCENARIO_RESULT.galaxy, systems: painted },
+    });
+    await session().openScenarioText("Spiral", "x");
+    expect(session().paintProfile).toBe(true);
+
+    await session().close();
+    expect(session().paintProfile).toBe(false);
+
+    session().setPaintProfile(true);
+    expect(session().paintProfile).toBe(true);
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().requestOpen(SCENARIO_PATH);
+    expect(session().paintProfile).toBe(false);
+  });
+
   it("scenario text is refused while a dirty session is kept", async () => {
     await session().openSave(OPEN_RESULT.path);
     await edit();

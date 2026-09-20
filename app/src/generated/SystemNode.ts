@@ -2,6 +2,7 @@
 import type { Lane } from "./Lane";
 import type { NameTemplate } from "./NameTemplate";
 import type { SpawnModifier } from "./SpawnModifier";
+import type { SpawnScript } from "./SpawnScript";
 
 export type SystemNode = { id: number, name: NameTemplate, x: number, y: number, star_class: string, lanes: Array<Lane>, 
 /**
@@ -22,6 +23,12 @@ spawn_weight: number | null,
  * reservation each one states is acted on. Always empty for a save.
  */
 spawn_modifiers: Array<SpawnModifier>, 
+/**
+ * The recognised meaning of a scripted weight source: what the scenario system's
+ * `spawn_weight` says through a script value its `add` names. `None` when it names
+ * none this editor reads, and always for a save.
+ */
+spawn_script: SpawnScript | null, 
 /**
  * The scenario system's `spawn_design`, the empire design the generator seats here;
  * it ignores the spawn weight beside it. Always `None` for a save.

@@ -1,0 +1,61 @@
+static_galaxy_scenario = {
+	name = "Painted Reach"
+	priority = 10
+	supports_shape = elliptical
+	supports_shape = spiral_2
+	supports_shape = spiral_3
+	supports_shape = spiral_4
+	supports_shape = spiral_6
+	supports_shape = ring
+	supports_shape = bar
+	supports_shape = cartwheel
+	supports_shape = cluster
+	supports_shape = starburst
+	random_hyperlanes = no
+	num_wormhole_pairs = { min = 0 max = 5 }
+	num_wormhole_pairs_default = 1
+	num_gateways = { min = 0 max = 5 }
+	num_gateways_default = 1
+	num_hyperlanes = { min = 0.5 max = 3 }
+	num_hyperlanes_default = 1
+	colonizable_planet_odds = 1.0
+	primitive_odds = 1.0
+	fallen_empire_max = 6
+	marauder_empire_max = 3
+	extra_crisis_strength = { 10 25 }
+	num_empires = { min = 0 max = 3 }
+	num_empire_default = 3
+	advanced_empire_default = 0
+	nomad_empire_default = 0
+	nomad_empire_max = 3
+	fallen_empire_default = 0
+	marauder_empire_default = 1
+	crisis_strength = 0.5
+	system = { id = "0" position = { x = 0 y = 120 } name = "Alpha" initializer = random_empire_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|3| } }
+	system = { id = "1" position = { x = 110 y = 40 } name = "Beta" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| } }
+	system = { id = "2" position = { x = 70 y = -100 } name = "Gamma" initializer = random_empire_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| } }
+	system = { id = "3" position = { x = -70 y = -100 } name = "Sol" initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| } }
+	system = { id = "4" position = { x = -110 y = 40 } name = "Delta" initializer = custom_starting_init_01 effect = { set_star_flag = painted_galaxy_custom_initializer } }
+	system = { id = "5" position = { x = 40 y = 80 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_automatic_initializer } }
+	system = { id = "6" position = { x = -40 y = 80 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_automatic_initializer } }
+	system = { id = "7" position = { x = 20 y = -20 } name = "Ingress" effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster } }
+	system = { id = "8" position = { x = -160 y = -160 } name = "Egress" effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster } }
+	system = { id = "9" position = { x = 0 y = -180 } name = "Old Seat" effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_n set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_1 } }
+	system = { id = "10" position = { x = 150 y = -30 } name = "Void" }
+	system = { id = "11" position = { x = -150 y = -30 } }
+	add_hyperlane = { from = "0" to = "5" }
+	add_hyperlane = { from = "0" to = "6" }
+	add_hyperlane = { from = "5" to = "1" }
+	add_hyperlane = { from = "6" to = "4" }
+	add_hyperlane = { from = "1" to = "10" }
+	add_hyperlane = { from = "10" to = "2" }
+	add_hyperlane = { from = "2" to = "7" }
+	add_hyperlane = { from = "7" to = "3" }
+	add_hyperlane = { from = "3" to = "11" }
+	add_hyperlane = { from = "11" to = "4" }
+	add_hyperlane = { from = "3" to = "9" }
+	add_hyperlane = { from = "9" to = "2" }
+	add_hyperlane = { from = "11" to = "8" }
+	nebula = { name = " " position = { x = 0 y = 100 } radius = 30 }
+	nebula = { name = " " position = { x = -150 y = -120 } radius = 40 }
+}

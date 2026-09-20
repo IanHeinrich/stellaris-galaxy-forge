@@ -44,3 +44,34 @@ pub enum SpawnReservationPreset {
     Human,
     Ai,
 }
+
+/// The recognised meaning of a scripted weight source: a `spawn_weight` whose `add`
+/// names a script value rather than a number, read into the seat it stands for. A
+/// system carries one or none; its `base` and `modifier` blocks are read beside it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum SpawnScript {
+    /// Paint a Galaxy's `add = value:painted_galaxy_spawn_weight|…|`, which its
+    /// companion mod resolves to a weight: what kind of seat the parameters name, and
+    /// the `RANDOM_VALUE` the mod varies the weight by.
+    PaintAGalaxy {
+        kind: PaintSpawnKind,
+        random_value: u8,
+    },
+}
+
+/// The seat a Paint a Galaxy spawn system offers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum PaintSpawnKind {
+    /// Any empire may be seated here.
+    Enabled,
+    /// `PREFERRED=yes`: seated before the enabled systems.
+    Preferred,
+    /// `RESERVED=<letter>`: held for the empire the letter names.
+    Reserved(String),
+    /// `SOL=yes`: held for an empire whose home is Sol.
+    Sol,
+}

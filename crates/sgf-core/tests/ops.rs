@@ -675,6 +675,8 @@ fn a_save_takes(op: &Op) -> bool {
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
         | Op::SetSpawnReservation { .. }
+        | Op::SetSpawnScript { .. }
+        | Op::SetSpawnScripts { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -689,7 +691,9 @@ fn reclassifies(op: &Op) -> bool {
         | Op::RemoveSystem { .. }
         | Op::SetSystemName { .. }
         | Op::SetInitializer { .. }
-        | Op::SetInitializers { .. } => true,
+        | Op::SetInitializers { .. }
+        | Op::SetSpawnScript { .. }
+        | Op::SetSpawnScripts { .. } => true,
         Op::MoveSystem { .. }
         | Op::AddLane { .. }
         | Op::AddLanes { .. }
@@ -726,7 +730,9 @@ fn stales_details(op: &Op) -> bool {
         Op::AddSystem { .. }
         | Op::RemoveSystem { .. }
         | Op::SetInitializer { .. }
-        | Op::SetInitializers { .. } => true,
+        | Op::SetInitializers { .. }
+        | Op::SetSpawnScript { .. }
+        | Op::SetSpawnScripts { .. } => true,
         Op::MoveSystem { .. }
         | Op::AddLane { .. }
         | Op::AddLanes { .. }
@@ -865,6 +871,13 @@ fn one_of_each() -> Vec<Op> {
         Op::SetSpawnReservation {
             id: 0,
             reserve: Some(SpawnReservationPreset::Human),
+        },
+        Op::SetSpawnScript {
+            id: 0,
+            script: None,
+        },
+        Op::SetSpawnScripts {
+            entries: vec![(0, None)],
         },
         Op::PreventLane { a: 0, b: 1 },
         Op::UnpreventLane { a: 0, b: 1 },

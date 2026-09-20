@@ -1,6 +1,7 @@
 import { Circle, Container, type FederatedPointerEvent, Graphics } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
+import { spawnScriptLabel } from "../../lib/paint";
 import { isAiReserved, isHumanReserved, isSpawnPoint } from "../../lib/spawn";
 import { GHOST_ALPHA } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
@@ -176,7 +177,10 @@ export class SpawnsLayer implements MapLayer {
     if (!s || !isSpawnPoint(s)) return;
     this.hovered = id;
     const name = this.ctx.nodeName(s.name);
-    const weight = `Spawn point · weight ${s.spawn_weight ?? 0}`;
+    const weight =
+      s.spawn_script === null
+        ? `Spawn point · weight ${s.spawn_weight ?? 0}`
+        : `Spawn point · Paint a Galaxy ${spawnScriptLabel(s.spawn_script)}`;
     const held = note(seatOf(s));
     useMapChromeStore.getState().showTooltip({
       x: at.x,

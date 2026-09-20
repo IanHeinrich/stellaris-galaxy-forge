@@ -18,7 +18,9 @@ use crate::cst;
 use crate::document::{self, Document};
 use crate::format;
 use crate::overlay::{Anchor, OverlayError};
-use crate::projections::galaxy::{GalaxyGraph, Lane, ProjectionError, SpawnReservationPreset};
+use crate::projections::galaxy::{
+    GalaxyGraph, Lane, ProjectionError, SpawnReservationPreset, SpawnScript,
+};
 use crate::session::Session;
 use crate::views::DocumentKind;
 
@@ -214,6 +216,24 @@ pub enum Op {
         id: u32,
         reserve: Option<SpawnReservationPreset>,
     },
+    /// The scripted seat a system's `spawn_weight` states, in the dialect the script
+    /// names: `Some` writes the whole statement afresh in that dialect's exact text,
+    /// where the one standing was or beside the initializer when there was none, and
+    /// writes the dialect's basic starting initializer beside it when the system names
+    /// no `initializer`; `None` removes the `spawn_weight` statement. The `effect`
+    /// block is left byte for byte. The inverse names the script alone, so an
+    /// initializer written with it comes back from the bytes undo replays, not from
+    /// the op. Scenario documents only.
+    SetSpawnScript {
+        id: u32,
+        script: Option<SpawnScript>,
+    },
+    /// Several systems' scripted seats as one undo step, each entry an id and the
+    /// script to write there; every entry follows the [`Op::SetSpawnScript`] rules.
+    /// Scenario documents only.
+    SetSpawnScripts {
+        entries: Vec<(u32, Option<SpawnScript>)>,
+    },
     /// One `prevent_hyperlane` statement, barring the generator from linking `a` and `b`.
     /// A pair the file already links is refused: a file that both lays and forbids a lane
     /// leaves the generator undefined, so the lane goes first. Scenario documents only.
@@ -261,6 +281,8 @@ impl Op {
             Self::SetSpawnWeight { .. } => "SetSpawnWeight",
             Self::SetSpawnWeights { .. } => "SetSpawnWeights",
             Self::SetSpawnReservation { .. } => "SetSpawnReservation",
+            Self::SetSpawnScript { .. } => "SetSpawnScript",
+            Self::SetSpawnScripts { .. } => "SetSpawnScripts",
             Self::PreventLane { .. } => "PreventLane",
             Self::UnpreventLane { .. } => "UnpreventLane",
         }
@@ -269,8 +291,9 @@ impl Op {
     /// Whether this op leaves the details of the systems it touched stale. The
     /// projection is keyed by the systems the graph holds, so an op that adds or removes
     /// one stales it, and a scenario system's planets and resources come from its
-    /// initializer, so an op that writes one stales it too. A save's details are read
-    /// from sections no op writes, which is why none of these ops is one a save takes.
+    /// initializer, so an op that writes one stales it too, a scripted seat included
+    /// because it may bring an initializer with it. A save's details are read from
+    /// sections no op writes, which is why none of these ops is one a save takes.
     pub const fn stales_details(&self) -> bool {
         matches!(
             self,
@@ -278,6 +301,8 @@ impl Op {
                 | Self::RemoveSystem { .. }
                 | Self::SetInitializer { .. }
                 | Self::SetInitializers { .. }
+                | Self::SetSpawnScript { .. }
+                | Self::SetSpawnScripts { .. }
         )
     }
 
@@ -373,6 +398,10 @@ pub enum OpError {
     InvalidRadius { radius: f64, reason: String },
     #[error("spawn weight {weight} is invalid: {reason}")]
     InvalidWeight { weight: f64, reason: String },
+    #[error("system {0}'s spawn weight is script; change its spawn kind instead")]
+    ScriptedSpawn(u32),
+    #[error("a reserved seat is named by one letter, not {0:?}")]
+    InvalidSeatLetter(String),
     #[error("no lanes given")]
     Empty,
     #[error("system {0} is listed more than once")]

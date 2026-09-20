@@ -11,6 +11,7 @@ import type { OpenResult } from "../generated/OpenResult";
 import type { Progress } from "../generated/Progress";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SaveResult } from "../generated/SaveResult";
+import { isPaintMade } from "../lib/paint";
 import { fileName } from "../lib/paths";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -54,6 +55,11 @@ export interface FileSessionState {
   cloudAcknowledged: string | null;
   /** A save waiting for the user to say which way to open it. */
   pendingOpen: string | null;
+  /**
+   * Whether new spawn points are written in Paint a Galaxy's shape: on when the open document
+   * was painted, and otherwise the user's choice. Never changes bytes already written.
+   */
+  paintProfile: boolean;
 
   /** Resolves true when the document opened; false when it failed, or another open was in flight. */
   openSave(path: string): Promise<boolean>;
@@ -81,6 +87,7 @@ export interface FileSessionState {
   /** What an edit reported about the file it belongs to. */
   noteEdit(patch: { issues: Issue[]; dirty: boolean }): void;
   setError(message: string | null): void;
+  setPaintProfile(on: boolean): void;
 }
 
 const INITIAL = {
@@ -103,6 +110,7 @@ const INITIAL = {
   cloud: false,
   cloudAcknowledged: null as string | null,
   pendingOpen: null as string | null,
+  paintProfile: false,
 } satisfies Partial<FileSessionState>;
 
 const CLOUD_WARNING =
@@ -236,6 +244,10 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
   setError(message) {
     set({ error: message, errorKind: null });
   },
+
+  setPaintProfile(on) {
+    set({ paintProfile: on });
+  },
 }));
 
 export function isSavePath(path: string): boolean {
@@ -278,6 +290,7 @@ async function openDocument(
       meta: result.meta,
       capabilities: result.capabilities,
       issues: result.issues,
+      paintProfile: isPaintMade(result.galaxy.systems),
     });
     if (result.path !== null) {
       useRecentsStore.getState().noteOpened({

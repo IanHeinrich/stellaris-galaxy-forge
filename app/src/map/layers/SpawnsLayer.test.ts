@@ -139,6 +139,21 @@ describe("the spawn points layer", () => {
     expect(useMapChromeStore.getState().tooltip).toBeNull();
   });
 
+  it("marks a seat Paint a Galaxy scripts, and names the seat rather than its zero weight", () => {
+    const scripted: SystemNode = {
+      ...weighted(2, 40, 0),
+      spawn_script: { paint_a_galaxy: { kind: { reserved: "b" }, random_value: 1 } },
+    };
+    const layer = drawn([scripted, PLAIN]);
+    expect(marks(layer)).toEqual([40]);
+
+    markOf(layer, 40).emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toMatchObject({
+      title: "S2",
+      lines: ["Spawn point · Paint a Galaxy reserved B"],
+    });
+  });
+
   it("draws every seat in the one colour, leaving the figure to say who holds it", () => {
     const layer = drawn([reserved(START), aiReserved(weighted(3, 60, 5)), weighted(2, 40, 5)]);
     for (const x of [START.x, 40, 60]) expect(markColor(markOf(layer, x))).toBe(0xfbbf24);

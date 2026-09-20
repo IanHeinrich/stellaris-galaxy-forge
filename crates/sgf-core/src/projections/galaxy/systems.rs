@@ -5,7 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::projections::galaxy::{SpawnModifier, display_template};
+use crate::projections::galaxy::{SpawnModifier, SpawnScript, display_template};
 use crate::projections::name::NameTemplate;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -89,6 +89,10 @@ pub struct SystemNode {
     /// Their triggers are script this editor reads and never rewrites; only the
     /// reservation each one states is acted on. Always empty for a save.
     pub spawn_modifiers: Vec<SpawnModifier>,
+    /// The recognised meaning of a scripted weight source: what the scenario system's
+    /// `spawn_weight` says through a script value its `add` names. `None` when it names
+    /// none this editor reads, and always for a save.
+    pub spawn_script: Option<SpawnScript>,
     /// The scenario system's `spawn_design`, the empire design the generator seats here;
     /// it ignores the spawn weight beside it. Always `None` for a save.
     pub spawn_design: Option<String>,

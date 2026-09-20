@@ -44,6 +44,7 @@ export function ContextMenu() {
   const selectNebula = useEditorStore((s) => s.selectNebula);
   const removeSystem = useEditorStore((s) => s.removeSystem);
   const capabilities = useFileSessionStore((s) => s.capabilities);
+  const paint = useFileSessionStore((s) => s.paintProfile);
   const systems = useGalaxyStore((s) => s.systems);
   const menuTarget = contextMenu?.target;
   const named = useSystemNames(
@@ -155,8 +156,10 @@ export function ContextMenu() {
     const cuttable = linkedTo(systems, target.id, selection).length;
     const initializerTargets = selection.length > 1 && inSelection ? selection : [target.id];
     // Only a system with an initializer can carry a weight, so a mixed selection weighs the rest.
-    const weighable = spawnTargets(initializerTargets, systems);
-    const weighted = weighable.length > 0 && weighable.every((s) => s.spawn_weight !== null);
+    const weighable = spawnTargets(initializerTargets, systems, paint);
+    const weighted =
+      weighable.length > 0 &&
+      weighable.every((s) => s.spawn_weight !== null || s.spawn_script !== null);
     return (
       <div
         ref={ref}
@@ -232,7 +235,7 @@ export function ContextMenu() {
             disabled={weighable.length === 0}
             title={weighable.length === 0 ? NEEDS_INITIALIZER : undefined}
             onClick={() => {
-              const op = spawnPointsOp(initializerTargets, systems, !weighted);
+              const op = spawnPointsOp(initializerTargets, systems, !weighted, paint);
               if (op !== null) void applyOp(op);
               closeContextMenu();
             }}

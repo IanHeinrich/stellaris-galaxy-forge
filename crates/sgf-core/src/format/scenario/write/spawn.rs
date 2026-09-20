@@ -2,18 +2,20 @@
 //! empire by. The `modifier` blocks beside a base are script this editor reads and never
 //! rewrites, so an edit here touches the `base` alone, except for the two modifiers the
 //! editor writes itself, `modifier = { factor = 0 is_ai = yes|no }`, which hold the
-//! system for a human player or for the AI by barring the other from it.
+//! system for a human player or for the AI by barring the other from it. A scripted
+//! seat is the whole statement in its dialect's text, written and taken back whole.
 
 use std::collections::BTreeSet;
 
 use crate::Span;
 use crate::cst::Node;
 use crate::emit::coord;
+use crate::format::scenario::paint;
 use crate::format::scenario::spawn::{modifier, preset, tests_ai};
 use crate::keys::scenario as keys;
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::plural;
-use crate::projections::galaxy::SpawnReservationPreset;
+use crate::projections::galaxy::{SpawnReservationPreset, SpawnScript};
 use crate::session::Session;
 
 /// The modifier a reserved system carries: the kind of empire it names is given a weight
@@ -84,8 +86,9 @@ pub(super) fn set_reservation(
     id: u32,
     reserve: Option<SpawnReservationPreset>,
 ) -> Result<Planned, OpError> {
-    if !s.graph.systems.contains_key(&id) {
-        return Err(OpError::UnknownSystem(id));
+    let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
+    if reserve.is_some() && system.spawn_script.is_some() {
+        return Err(OpError::ScriptedSpawn(id));
     }
     let edit = plan.edit(&s.doc, id)?;
     let previous = write_reservation(edit, reserve)?;
@@ -103,8 +106,55 @@ pub(super) fn set_reservation(
     })
 }
 
+pub(super) fn set_script(
+    plan: &mut Plan,
+    s: &Session,
+    id: u32,
+    script: Option<&SpawnScript>,
+) -> Result<Planned, OpError> {
+    let (description, previous) = write_script(plan, s, id, script)?;
+    Ok(Planned {
+        description,
+        inverse: Op::SetSpawnScript {
+            id,
+            script: previous.1,
+        },
+    })
+}
+
+pub(super) fn set_scripts(
+    plan: &mut Plan,
+    s: &Session,
+    entries: &[(u32, Option<SpawnScript>)],
+) -> Result<Planned, OpError> {
+    if entries.is_empty() {
+        return Err(OpError::Empty);
+    }
+    let mut seen = BTreeSet::new();
+    for (id, _) in entries {
+        if !seen.insert(*id) {
+            return Err(OpError::DuplicateSystem(*id));
+        }
+    }
+    let mut one = String::new();
+    let mut previous = Vec::with_capacity(entries.len());
+    for (id, script) in entries {
+        let (description, was) = write_script(plan, s, *id, script.as_ref())?;
+        one = description;
+        previous.push(was);
+    }
+    let description = match entries.len() {
+        1 => one,
+        n => format!("Set the scripted spawn of {}", plural(n, "system")),
+    };
+    Ok(Planned {
+        description,
+        inverse: Op::SetSpawnScripts { entries: previous },
+    })
+}
+
 /// Write one system's spawn weight, returning what to call the change and the entry that
-/// puts it back.
+/// puts it back. A weight that is script is not a number to set: only its kind changes.
 fn write_weight(
     plan: &mut Plan,
     s: &Session,
@@ -114,12 +164,11 @@ fn write_weight(
     if let Some(base) = base {
         check_weight(base)?;
     }
-    let previous = s
-        .graph
-        .systems
-        .get(&id)
-        .ok_or(OpError::UnknownSystem(id))?
-        .spawn_weight;
+    let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
+    if base.is_some() && system.spawn_script.is_some() {
+        return Err(OpError::ScriptedSpawn(id));
+    }
+    let previous = system.spawn_weight;
     let edit = plan.edit(&s.doc, id)?;
     let mut released = false;
     match (base, block(edit)?) {
@@ -161,6 +210,57 @@ fn write_weight(
         (None, true) => format!("Cleared system {id}'s spawn weight and its reservation"),
     };
     Ok((description, (id, previous)))
+}
+
+/// Write one system's scripted seat whole, returning what to call the change and the
+/// entry that puts it back. A seat needs a starting initializer, so a system naming
+/// none is given the dialect's basic one, before the weight as the dialect orders them.
+/// A block of modifiers is script this editor does not rewrite, so a seat is neither
+/// written over one nor cleared with one.
+fn write_script(
+    plan: &mut Plan,
+    s: &Session,
+    id: u32,
+    script: Option<&SpawnScript>,
+) -> Result<(String, (u32, Option<SpawnScript>)), OpError> {
+    if let Some(script) = script {
+        paint::check(script)?;
+    }
+    let previous = s
+        .graph
+        .systems
+        .get(&id)
+        .ok_or(OpError::UnknownSystem(id))?
+        .spawn_script
+        .clone();
+    let edit = plan.edit(&s.doc, id)?;
+    let standing = block(edit)?;
+    if let Some(block) = &standing
+        && previous.is_none()
+        && let Some(&modifier) = block.modifiers.first()
+    {
+        return Err(edit.parse_error(
+            modifier.start,
+            "spawn_weight carries modifiers this editor does not rewrite; clear its spawn weight first",
+        ));
+    }
+    match (script, standing) {
+        (Some(script), standing) => {
+            if edit.entity()?.find(keys::INITIALIZER, &edit.buf).is_none() {
+                let after = last_of_id_name_position(edit)?;
+                let text = format!("{} = {}", keys::INITIALIZER, paint::basic_initializer(id));
+                insert_after(edit, after, &text);
+            }
+            let text = paint::weight_statement(script);
+            match standing {
+                Some(block) => replace_statement(edit, block.statement, &text),
+                None => insert_statement(edit, &text)?,
+            }
+        }
+        (None, Some(block)) => edit.remove_statement(block.statement),
+        (None, None) => {}
+    }
+    Ok((paint::description(id, script), (id, previous)))
 }
 
 /// Hold the system for one kind of empire, taking back the preset it holds now and
@@ -291,13 +391,32 @@ fn append(edit: &mut Edit, block: &Block, text: &str) {
     }
 }
 
-/// Write `text` as a statement of the system: beside its `initializer`, or its
-/// `position` when it names none, in the shape the statement it joins is written in.
+/// Write `text` as a statement of the system: beside its `initializer`, or after its
+/// `name` and `position` when it names none.
 fn insert_statement(edit: &mut Edit, text: &str) -> Result<(), OpError> {
     let after = match edit.entity()?.find(keys::INITIALIZER, &edit.buf) {
         Some(node) => node.span().end,
-        None => edit.value(&[keys::POSITION])?.end,
+        None => last_of_id_name_position(edit)?,
     };
+    insert_after(edit, after, text);
+    Ok(())
+}
+
+/// Where a statement that follows the ones every system opens with goes: after the
+/// `position`, or after the `name` when the file writes that second.
+fn last_of_id_name_position(edit: &Edit) -> Result<usize, OpError> {
+    let position = edit.value(&[keys::POSITION])?.end;
+    let name = edit
+        .entity()?
+        .find(keys::NAME, &edit.buf)
+        .map_or(0, |node| node.span().end);
+    Ok(position.max(name))
+}
+
+/// Write `text` as the statement following the one ending at `after`, in the shape that
+/// statement is written in: on a line of its own when that one ends its line, else
+/// beside it. Two statements written after the same one land in the order written.
+fn insert_after(edit: &mut Edit, after: usize, text: &str) {
     if ends_line(edit, after) {
         let indent = edit.indent(after);
         let line = [&indent[..], text.as_bytes(), b"\n"].concat();
@@ -306,7 +425,6 @@ fn insert_statement(edit: &mut Edit, text: &str) -> Result<(), OpError> {
     } else {
         edit.insert(after, format!(" {text}").into_bytes());
     }
-    Ok(())
 }
 
 /// Whether nothing but whitespace stands between `at` and the end of its line, so a

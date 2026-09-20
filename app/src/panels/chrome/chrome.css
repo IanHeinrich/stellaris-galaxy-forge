@@ -517,3 +517,10 @@ button.badge.update-badge {
 button.badge.update-badge:hover {
   border-color: var(--accent);
 }
+
+.paint-badge {
+  flex: none;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+}

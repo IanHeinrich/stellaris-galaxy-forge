@@ -27,4 +27,13 @@ describe("isSpawnPoint", () => {
     expect(isSpawnPoint({ ...weighable(1), spawn_weight: 10 })).toBe(true);
     expect(isSpawnPoint(weighable(1))).toBe(false);
   });
+
+  it("counts a zero base whose weight a script names, as Paint a Galaxy writes a seat", () => {
+    const scripted = {
+      ...weighable(1),
+      spawn_weight: 0,
+      spawn_script: { paint_a_galaxy: { kind: "enabled" as const, random_value: 1 } },
+    };
+    expect(isSpawnPoint(scripted)).toBe(true);
+  });
 });

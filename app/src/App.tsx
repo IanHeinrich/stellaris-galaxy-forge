@@ -11,6 +11,7 @@ import { browseInitializers } from "./panels/initializers/entry";
 import { confirmRemoveNebula } from "./panels/inspector/nebula";
 import { Dock } from "./panels/chrome/Dock";
 import { FileMenu } from "./panels/chrome/FileMenu";
+import { PaintBadge } from "./panels/chrome/PaintBadge";
 import { GameDataPanel } from "./panels/chrome/GameDataPanel";
 import { HelpMenu } from "./panels/chrome/HelpMenu";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
@@ -59,15 +60,18 @@ function FileState() {
     );
   }
   return (
-    <span className="file-name" title={path ?? undefined}>
-      {fileName(path) || (title ?? "")}
-      {dirty && (
-        <span className="dirty-marker" title="Unsaved changes">
-          {" "}
-          ●
-        </span>
-      )}
-    </span>
+    <>
+      <span className="file-name" title={path ?? undefined}>
+        {fileName(path) || (title ?? "")}
+        {dirty && (
+          <span className="dirty-marker" title="Unsaved changes">
+            {" "}
+            ●
+          </span>
+        )}
+      </span>
+      <PaintBadge />
+    </>
   );
 }
 

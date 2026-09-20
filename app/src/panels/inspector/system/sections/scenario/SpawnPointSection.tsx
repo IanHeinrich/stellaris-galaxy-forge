@@ -7,9 +7,11 @@ import {
   isSpawnPoint,
   isSpawnWeight,
 } from "../../../../../lib/spawn";
+import { useFileSessionStore } from "../../../../../store/fileSessionStore";
 import { useApplyOp } from "../../../../useApplyOp";
 import { Chip, Field, Section } from "../../../parts";
 import { useEditableSystem } from "../../editable";
+import { ScriptedSeat } from "./ScriptedSeat";
 import {
   DEFAULT_SPAWN_WEIGHT,
   modifierAmount,
@@ -36,13 +38,16 @@ export function SpawnPointSection({ system }: { system: SystemNode }) {
 
 function SpawnPoint({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
+  const paint = useFileSessionStore((s) => s.paintProfile);
   const [refused, setRefused] = useState(false);
   const weight = system.spawn_weight;
-  const none = system.initializer === "";
-  const set = (next: number | null) => applyOp(spawnPointOp(system, next));
+  const scripted = system.spawn_script !== null;
+  const none = system.initializer === "" && !paint;
+  const toggle = (on: boolean) =>
+    applyOp(spawnPointOp(system, on ? DEFAULT_SPAWN_WEIGHT : null, paint || scripted));
   const commit = (next: number) => {
     setRefused(!isSpawnWeight(next));
-    if (isSpawnWeight(next)) set(next);
+    if (isSpawnWeight(next)) applyOp(spawnPointOp(system, next, false));
   };
   return (
     <>
@@ -50,13 +55,13 @@ function SpawnPoint({ system }: { system: SystemNode }) {
         <label>
           <input
             type="checkbox"
-            checked={weight !== null}
+            checked={scripted || weight !== null}
             disabled={none}
-            onChange={() => set(weight === null ? DEFAULT_SPAWN_WEIGHT : null)}
+            onChange={() => toggle(!scripted && weight === null)}
           />
           Spawn point
         </label>
-        {weight !== null && (
+        {!scripted && weight !== null && (
           <>
             <span className="k">weight</span>
             <Field
@@ -72,7 +77,7 @@ function SpawnPoint({ system }: { system: SystemNode }) {
       </div>
       {refused && <div className="muted ins-hint">A spawn weight must be more than zero.</div>}
       {none && <div className="muted ins-hint">{NEEDS_INITIALIZER}</div>}
-      <Reservation system={system} />
+      {scripted ? <ScriptedSeat system={system} /> : <Reservation system={system} />}
       <Modifiers system={system} />
     </>
   );

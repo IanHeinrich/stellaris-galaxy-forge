@@ -5,6 +5,7 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
+import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { SYSTEMS, editResult, node } from "./fixture";
 
@@ -49,6 +50,37 @@ describe("adding and removing systems", () => {
       spawn_weight: 1,
     });
     expect(editor().selection).toEqual([9]);
+  });
+
+  it("addSystemAt under the Paint a Galaxy profile writes the seat as script once the id is known", async () => {
+    useFileSessionStore.setState({ paintProfile: true });
+    const added = node(13, "", 10, -4, "sc_g");
+    mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [added] } }));
+    mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [added] } }));
+    mocked.getSystem.mockResolvedValueOnce({ system: added, neighbours: [], nebula: null });
+
+    expect(await editor().addSystemAt(10, -4, "empire_init_01", 1)).toBe(true);
+
+    expect(mocked.applyOp).toHaveBeenNthCalledWith(1, {
+      type: "AddSystem",
+      id: null,
+      x: 10,
+      y: -4,
+      name: null,
+      initializer: "empire_init_01",
+      spawn_weight: null,
+    });
+    expect(mocked.applyOp).toHaveBeenNthCalledWith(2, {
+      type: "SetSpawnScript",
+      id: 13,
+      script: { paint_a_galaxy: { kind: "enabled", random_value: 3 } },
+    });
+    expect(editor().selection).toEqual([13]);
+
+    mocked.applyOp.mockClear();
+    mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [added] } }));
+    await editor().addSystemAt(10, -4, null, null);
+    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
   });
 
   it("a refused AddSystem selects nothing", async () => {

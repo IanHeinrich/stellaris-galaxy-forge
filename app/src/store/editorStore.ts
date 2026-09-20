@@ -8,6 +8,7 @@ import type { SearchHit } from "../generated/SearchHit";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { documentCapabilities, supports } from "../lib/capabilities";
+import { enabledScript } from "../lib/paint";
 import {
   linkedPairs,
   linkedSystems,
@@ -314,6 +315,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   async addSystemAt(x, y, initializer = null, spawnWeight = null) {
+    // Under the Paint a Galaxy profile the weight is the site's script, written once the id is known.
+    const paint = useFileSessionStore.getState().paintProfile && spawnWeight !== null;
     const op: Op = {
       type: "AddSystem",
       id: null,
@@ -321,11 +324,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       y,
       name: null,
       initializer,
-      spawn_weight: spawnWeight,
+      spawn_weight: paint ? null : spawnWeight,
     };
     if (!(await get().applyOp(op))) return false;
     const [added] = lastEdited;
-    if (added) await get().select(added.id);
+    if (!added) return true;
+    if (paint) {
+      const script: Op = { type: "SetSpawnScript", id: added.id, script: enabledScript(added) };
+      if (!(await get().applyOp(script))) return false;
+    }
+    await get().select(added.id);
     return true;
   },
 

@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Made system 3018 a Paint a Galaxy spawn (enabled)
+inverse: SetSpawnScript { id: 3018, script: None }
+
+--- scenario
++++ scenario
+@@ -43,7 +43,7 @@
+ 		name = "Iridonia"
+ 		position = { x = 40 y = 75 }
+ 		initializer = random_empire_init_01
+-		spawn_weight = { base = 1 }
++		spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|8| }
+ 		effect = {
+ 			log = "Success system [This.GetName]"
+ 		}
