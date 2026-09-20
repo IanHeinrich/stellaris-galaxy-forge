@@ -263,3 +263,28 @@ cd app && npm test && npm run lint && npm run build
 Every pull request adds an entry to `CHANGELOG.md` under `## [Unreleased]`
 or carries the `skip-changelog` label. The pull request template lists the
 in-game checks that go with a change to the galaxy.
+
+## Acknowledgements
+
+- [paint-a-galaxy](https://github.com/oatmealproblem/paint-a-galaxy) by
+  Oatmeal Problem (MIT): a browser tool for drawing a galaxy and exporting
+  it as a static galaxy scenario. The New scenario dialog links to it and
+  opens its export. Reading its source confirmed two facts this editor
+  relies on: which way a scenario's `position` runs, and that the game
+  assigns initializers in the order the `system` statements are listed.
+- The facts about the save format and the install were measured from the
+  game's own files. For the edge cases of how mods layer over the install
+  (load order, `replace_path`) and of the script dialect,
+  [Irony Mod Manager](https://github.com/bcssov/IronyModManager),
+  [CWTools](https://github.com/cwtools/cwtools) and
+  [jomini](https://github.com/rakaly/jomini) were the references checked
+  against. No code from any of them is used.
+- The libraries doing the heavy lifting: [Tauri](https://tauri.app),
+  [React](https://react.dev), [PixiJS](https://pixijs.com),
+  [Zustand](https://github.com/pmndrs/zustand) and
+  [Delaunator](https://github.com/mapbox/delaunator) in the app;
+  [insta](https://insta.rs) and [proptest](https://proptest-rs.github.io/proptest/)
+  in the tests.
+
+Nothing from the game is bundled. Stellaris is a Paradox Interactive
+title; this project is not affiliated with or endorsed by Paradox.
