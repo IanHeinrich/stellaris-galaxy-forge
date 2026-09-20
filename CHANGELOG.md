@@ -8,6 +8,8 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-20
+
 ### Changed
 
 - Backups are capped at eight per file: the original, the three newest
