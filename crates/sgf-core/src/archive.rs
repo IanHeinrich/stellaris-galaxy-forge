@@ -6,12 +6,11 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
-use time::OffsetDateTime;
-use time::macros::format_description;
 use ts_rs::TS;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, DateTime, ZipArchive, ZipWriter};
 
+use crate::backup;
 use crate::cst;
 use crate::scan::{self, ScanError, Value};
 
@@ -226,10 +225,14 @@ fn temp_beside(path: &Path) -> Result<NamedTempFile, Error> {
     NamedTempFile::new_in(dir).map_err(|source| io_err(path, source))
 }
 
-/// Rename any file at `path` out of the way, then move `tmp` into its place.
+/// Rename any file at `path` out of the way, then move `tmp` into its place. A `tmp` that
+/// already matches the file byte for byte is dropped instead, leaving the file untouched.
 fn persist(path: &Path, tmp: NamedTempFile) -> Result<Option<PathBuf>, Error> {
+    if path.exists() && same_bytes(path, &tmp).unwrap_or(false) {
+        return Ok(None);
+    }
     let backup = if path.exists() {
-        let backup = backup_path(path);
+        let backup = backup::path_for(path);
         fs::rename(path, &backup).map_err(|source| io_err(path, source))?;
         Some(backup)
     } else {
@@ -247,7 +250,30 @@ fn persist(path: &Path, tmp: NamedTempFile) -> Result<Option<PathBuf>, Error> {
         }
         return Err(io_err(path, e.error));
     }
+    if backup.is_some() {
+        backup::prune(path);
+    }
     Ok(backup)
+}
+
+fn same_bytes(path: &Path, tmp: &NamedTempFile) -> io::Result<bool> {
+    let mut existing = File::open(path)?;
+    let mut fresh = tmp.reopen()?;
+    if existing.metadata()?.len() != fresh.metadata()?.len() {
+        return Ok(false);
+    }
+    let mut left = vec![0u8; STEP];
+    let mut right = vec![0u8; STEP];
+    loop {
+        let n = existing.read(&mut left)?;
+        if n == 0 {
+            return Ok(true);
+        }
+        fresh.read_exact(&mut right[..n])?;
+        if left[..n] != right[..n] {
+            return Ok(false);
+        }
+    }
 }
 
 fn open(path: &Path) -> Result<ZipArchive<BufReader<File>>, Error> {
@@ -275,31 +301,6 @@ fn read_member(
         .read_to_end(&mut buf)
         .map_err(|source| io_err(path, source))?;
     Ok(buf)
-}
-
-fn backup_path(path: &Path) -> PathBuf {
-    let now = OffsetDateTime::now_local().unwrap_or_else(|_| OffsetDateTime::now_utc());
-    let stamp = now
-        .format(format_description!(
-            "[year][month][day]-[hour][minute][second]"
-        ))
-        .unwrap_or_else(|_| "unknown".to_owned());
-    let base = path.file_name().map(|n| n.to_owned()).unwrap_or_default();
-    // Never reuse a backup name: a second save in the same second must not
-    // overwrite the only copy of the original.
-    let mut n = 0u32;
-    loop {
-        let mut name = base.clone();
-        name.push(format!(".bak-{stamp}"));
-        if n > 0 {
-            name.push(format!("-{n}"));
-        }
-        let candidate = path.with_file_name(name);
-        if !candidate.exists() {
-            return candidate;
-        }
-        n += 1;
-    }
 }
 
 fn io_err(path: &Path, source: io::Error) -> Error {

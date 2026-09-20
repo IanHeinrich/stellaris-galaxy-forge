@@ -60,7 +60,8 @@ and generated names rather than corrupting anything.
   Everything else, including anything from mods or a newer game version
   the editor does not understand, is copied out byte for byte. A load
   then save with no edits is byte-identical.
-- Every save leaves the previous file beside it as a timestamped backup.
+- Every save leaves the previous file beside it as a timestamped backup,
+  eight per file at most.
 - Every edit is undoable and listed in a change log.
 - A validator flags anything the game could not cope with, before you
   save.
@@ -229,7 +230,8 @@ old bytes sat in the original file. Every edit records how to undo
 itself, so undo and redo are edits too. Saving writes the original bytes
 out again into a new file, with the patches spliced in at their offsets.
 It then renames the old file to a backup and moves the new one into
-place. Open and save with nothing changed and the output is byte-for-byte
+place, keeping the original, the newest three and a spread of the rest.
+Open and save with nothing changed and the output is byte-for-byte
 the input.
 
 ```mermaid

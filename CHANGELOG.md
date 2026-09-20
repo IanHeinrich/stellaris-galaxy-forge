@@ -8,6 +8,13 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- Backups are capped at eight per file: the original, the three newest
+  and four spread over the time between. Older ones in between are
+  deleted as new ones arrive.
+- A save that changes nothing writes nothing and makes no backup.
+
 ## [0.6.0] - 2026-09-20
 
 ### Added
