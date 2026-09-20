@@ -1,3 +1,4 @@
+import type { NebulaPick } from "../picking";
 import type { LaneTarget, MapInput, MapIntent, MapModel } from "./MapIntent";
 import { groupOf, pastThreshold, pressFrom, type Press } from "./press";
 
@@ -16,11 +17,22 @@ function idleCursor(input: MapInput): string {
   if (input.zone === "port" || (input.zone === "star" && input.shift)) return "crosshair";
   if (input.zone === "star") return "move";
   if (input.midpointHit) return "pointer";
-  if (input.nebula) return input.nebula.part === "centre" ? "move" : "pointer";
+  if (input.nebula) return nebulaCursor(input.nebula);
   return "";
 }
 
-/** ADR 0003: no modes; what is under the pointer at press (star, port band, lane, nothing) decides. */
+function nebulaCursor(pick: NebulaPick): string {
+  switch (pick.part) {
+    case "ring":
+      return "move";
+    case "handle":
+      return pick.axis === "y" ? "ns-resize" : "ew-resize";
+    case "centre":
+      return "pointer";
+  }
+}
+
+/** No modes: what is under the pointer at press decides what a drag does. */
 export class GestureModel implements MapModel {
   private press: Press | null = null;
   private drag: Drag | null = null;
@@ -209,9 +221,14 @@ function dragFrom(press: Press): Drag {
     if (press.shift) return press.lane ? { kind: "none" } : { kind: "marquee" };
     if (press.nebula) {
       const index = press.nebula.index;
-      return press.nebula.part === "centre"
-        ? { kind: "nebula", index }
-        : { kind: "nebulaRadius", index };
+      switch (press.nebula.part) {
+        case "ring":
+          return { kind: "nebula", index };
+        case "handle":
+          return { kind: "nebulaRadius", index };
+        case "centre":
+          return { kind: "none" };
+      }
     }
     return { kind: "none" };
   }

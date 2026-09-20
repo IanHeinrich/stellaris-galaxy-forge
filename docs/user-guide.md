@@ -215,11 +215,13 @@ flagged stale and there is no length to reset.
 
 Switch the Nebulae layer on to see them; it starts off.
 
-- Drag a nebula's centre marker to move the cloud. The systems stay where
-  they are, and the nebula's member list is rewritten to whatever its
-  radius now covers.
-- Drag its ring to resize it, or press `[` and `]` to change the selected
-  nebula's radius by one, or by five with Shift.
+- Drag a nebula's ring to move the cloud; its name and centre marker only
+  select it, so a nebula sitting on a star can still be moved. The systems
+  stay where they are, and the nebula's member list is rewritten to
+  whatever its radius now covers.
+- Select a nebula and drag one of the four handles on its ring to resize
+  it, or press `[` and `]` to change the selected nebula's radius by one,
+  or by five with Shift.
 - With a nebula selected, Shift+Arrow moves it as it moves a selection,
   and Delete removes it once you have agreed to what leaves with it.
 - Click a nebula to select it. The Inspector shows its name, its centre,

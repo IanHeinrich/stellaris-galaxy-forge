@@ -114,14 +114,14 @@ describe("pickNebula", () => {
     expect(pickNebula([CLOUD], cam, { x: 47, y: 0 }, null)).toBeNull();
   });
 
-  it("offers the four cardinal handles only while the nebula is selected", () => {
-    for (const at of [
-      { x: 40, y: 0 },
-      { x: -40, y: 0 },
-      { x: 0, y: 40 },
-      { x: 0, y: -40 },
-    ]) {
-      expect(pickNebula([CLOUD], cam, at, 0)).toEqual({ index: 0, part: "handle" });
+  it("offers the four cardinal handles, each naming its axis, only while the nebula is selected", () => {
+    for (const [at, axis] of [
+      [{ x: 40, y: 0 }, "x"],
+      [{ x: -40, y: 0 }, "x"],
+      [{ x: 0, y: 40 }, "y"],
+      [{ x: 0, y: -40 }, "y"],
+    ] as const) {
+      expect(pickNebula([CLOUD], cam, at, 0)).toEqual({ index: 0, part: "handle", axis });
       expect(pickNebula([CLOUD], cam, at, null)).toEqual({ index: 0, part: "ring" });
     }
   });

@@ -37,7 +37,7 @@ export class InteractionController {
   private panFrom: { sx: number; sy: number } | null = null;
   /** The systems a lane drag would start from once the button is down; the snap skips them. */
   private laneFrom: number[] | null = null;
-  /** Offset from the pointer to the pressed system's centre, so a move keeps the grab point. */
+  /** Offset from the pointer to the pressed system's or nebula's centre, so a move keeps the grab point. */
   private grab = { dx: 0, dy: 0 };
   private hoverLane: LaneRef | null = null;
   private readonly gesture = new GestureReporter();
@@ -265,7 +265,7 @@ export class InteractionController {
       this.laneFrom = pressed ? (groupOf(input.selection, pressed.id) ?? [pressed.id]) : null;
       const grabbed =
         pressed ??
-        (input.nebula?.part === "centre"
+        (input.nebula?.part === "ring"
           ? useGalaxyStore.getState().nebulae[input.nebula.index]
           : undefined);
       this.grab = grabbed

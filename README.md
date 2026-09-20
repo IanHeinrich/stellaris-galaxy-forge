@@ -76,8 +76,8 @@ and generated names rather than corrupting anything.
 Move a system and its lanes come with it; draw a lane by dragging from
 the ring that appears around a star when you zoom in; cut a lane at its
 midpoint; select a cluster and connect it as a mesh or cut every lane
-between its members. Nebulae are dragged by their centre and resized by
-their ring.
+between its members. Nebulae are dragged by their ring and resized by
+the handles that appear on it when one is selected.
 
 <p>
   <img src="docs/media/inspector.png" height="420" alt="The inspector for a selected system: position, hyperlanes with stored and actual lengths, bypasses, planets, fleets, flags and initializer">
