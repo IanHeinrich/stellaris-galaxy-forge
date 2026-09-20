@@ -53,8 +53,8 @@ path renames aside as the backup, and the editor's bytes take its place.
   exceptions to it; `app/src/panels/README.md` states which folder owns
   which slice of the UI and which stylesheet.
 - `app/src/generated/`: TypeScript types exported by ts-rs. Generated:
-  regenerate with `cargo test --workspace` (both `sgf-core` and
-  `sgf-gamedata` export types); never hand-edit.
+  regenerate with `cargo test --workspace` (`sgf-core`, `sgf-gamedata` and
+  `sgf-app`, via its `views.rs`, all export types); never hand-edit.
 - `testdata/`: save corpus via git-lfs (`2206.11.16.sav`, Stellaris
   4.4, early game). Personal saves are never committed without asking;
   larger local saves are found via `SGF_CORPUS_DIR`.
@@ -102,9 +102,18 @@ path renames aside as the backup, and the editor's bytes take its place.
 - Tags are never made by hand; the `release.yml` workflow does it. To
   rebuild a release for an existing tag, use the Actions tab: the
   `Release` workflow, "Run workflow", enter the tag.
-- macOS is disabled until the repo is public. `ci.yml` and `release.yml`
-  each carry a commented-out macOS matrix entry; uncomment both and add
-  `Checks (macos-latest)` to the required checks once the repo is public.
+- The repository secrets `TAURI_SIGNING_PRIVATE_KEY` and
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` sign the bundles for the updater.
+  The public key is compiled into every build (`plugins.updater.pubkey`
+  in `app/src-tauri/tauri.conf.json`), so the private key is never
+  regenerated: a new key would stop every installed copy from updating.
+- `createUpdaterArtifacts` lives in `app/src-tauri/tauri.release.conf.json`
+  and is merged in with `--config` only by the release workflow, so a
+  local `npm run tauri build` needs no key and produces no `.sig` files.
+- The `publish` job writes `latest.json` from the merged assets and the
+  changelog section, and the app reads it from
+  `releases/latest/download/latest.json`, so a release must be the latest
+  to be offered (a future prerelease would need `--latest=false`).
 
 ## Testing: outside-in first
 

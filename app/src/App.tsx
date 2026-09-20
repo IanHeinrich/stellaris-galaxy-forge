@@ -12,6 +12,7 @@ import { confirmRemoveNebula } from "./panels/inspector/nebula";
 import { Dock } from "./panels/chrome/Dock";
 import { FileMenu } from "./panels/chrome/FileMenu";
 import { GameDataPanel } from "./panels/chrome/GameDataPanel";
+import { HelpMenu } from "./panels/chrome/HelpMenu";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
 import { LayerToggles } from "./panels/chrome/LayerToggles";
 import { Launch } from "./panels/file/Launch";
@@ -19,6 +20,8 @@ import { NewScenarioDialog } from "./panels/file/NewScenarioDialog";
 import { OpenModeDialog } from "./panels/file/OpenModeDialog";
 import { MapTooltip } from "./panels/overlays/MapTooltip";
 import { NewNebulaDialog } from "./panels/overlays/NewNebulaDialog";
+import { UpdateBadge } from "./panels/chrome/UpdateBadge";
+import { UpdateDialog } from "./panels/overlays/UpdateDialog";
 import { OpenSave } from "./panels/file/OpenSave";
 import { SEARCH_INPUT_ID, Search } from "./panels/search/Search";
 import { StatusBar } from "./panels/chrome/StatusBar";
@@ -35,6 +38,7 @@ import { useEditorStore } from "./store/editorStore";
 import { useFileSessionStore } from "./store/fileSessionStore";
 import { useGameDataStore } from "./store/gameDataStore";
 import { useLayoutStore } from "./store/layoutStore";
+import { useUpdateStore } from "./store/updateStore";
 
 function FileState() {
   const path = useFileSessionStore((s) => s.path);
@@ -83,6 +87,8 @@ function TopBar() {
       <LayerToggles />
       <LayersMenu />
       <GameDataPanel />
+      <HelpMenu />
+      <UpdateBadge />
     </header>
   );
 }
@@ -98,6 +104,7 @@ function App() {
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
   const nebulaPrompt = useEditorStore((s) => s.nebulaPrompt);
+  const updateDialog = useUpdateStore((s) => s.dialog);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -144,6 +151,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    void useUpdateStore.getState().start();
+  }, []);
+
+  useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested(async (e) => {
       if (!(await useFileSessionStore.getState().confirmDiscard())) e.preventDefault();
     });
@@ -163,6 +174,7 @@ function App() {
           {scenarioDialog && <NewScenarioDialog />}
           {nebulaPrompt && <NewNebulaDialog />}
           <OpenModeDialog />
+          {updateDialog && <UpdateDialog />}
           <InitializerBrowser />
         </div>
         {status === "ready" && <Dock />}

@@ -18,6 +18,9 @@ export const PREF_KEYS = {
   initializerDefault: "sgf.initializers.default",
   nebulaRadius: "sgf.nebula.radius",
   meshBeta: "sgf.mesh.beta",
+  skippedUpdate: "sgf.update.skipped",
+  noticedUpdate: "sgf.update.noticed",
+  checkAtStart: "sgf.update.checkAtStart",
 } as const;
 
 /** The collapse memory of one browser list, which keys on the list's name. */

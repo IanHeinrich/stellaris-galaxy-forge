@@ -505,3 +505,15 @@ button.master.init[aria-pressed="mixed"] {
 .game-data-pill.error .menu-label::before {
   color: var(--warn);
 }
+
+/* The update's one seat in the top bar, in the accent the app keeps for "there is something here". */
+button.badge.update-badge {
+  color: var(--accent);
+  background: rgba(255, 209, 102, 0.1);
+  border: 1px solid var(--accent-dim);
+  border-radius: 8px;
+}
+
+button.badge.update-badge:hover {
+  border-color: var(--accent);
+}

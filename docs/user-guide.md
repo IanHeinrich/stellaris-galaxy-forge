@@ -21,6 +21,7 @@ likely to need it.
   - [Closing](#closing)
 - [Continuing your campaign](#continuing-your-campaign)
 - [Restoring the original](#restoring-the-original)
+- [Updates](#updates)
 - [Command line](#command-line)
 
 ## Using it
@@ -441,6 +442,30 @@ Every save from the app leaves the previous file next to it as
 `<name>.sav.bak-<stamp>`. To go back, delete or move the edited `.sav`
 and rename the backup to `<name>.sav`. If you saved several times there
 is one backup per save; the earliest stamp is the untouched original.
+
+## Updates
+
+The app checks for a newer release when it starts. A badge appears in the
+top bar when one is found; click it to open a dialog with the release
+notes and four buttons:
+
+- **Install and restart** downloads the update, checks it against the
+  project's public key, and applies it. It asks about unsaved changes
+  first, since the app has to close to run the install, then reopens
+  itself on the new version.
+- **Open releases page** takes you to the GitHub release instead.
+- **Skip this version** hides the badge for that release; a later one
+  still shows it.
+- **Later** closes the dialog without deciding either way, so the badge
+  stays.
+
+The portable zip and the `.deb` and `.rpm` packages cannot install an
+update themselves, so their dialog offers Open releases page, Skip this
+version and Later, and no Install and restart.
+
+The Help menu names the app's version, checks for an update right away
+with "Check for updates…", and has a "Check for updates at start" switch
+for the check the app makes on launch.
 
 ## Command line
 

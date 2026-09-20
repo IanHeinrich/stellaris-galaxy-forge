@@ -58,6 +58,12 @@ export const getCountryTypes = command("getCountryTypes");
 export const getResourceIcons = command("getResourceIcons");
 export const getTextures = command("getTextures");
 export const getSystemDetails = command("getSystemDetails");
+export const checkForUpdate = command("checkForUpdate");
+export const installUpdate = command("installUpdate");
+export const appVersion = command("appVersion");
 
 /** The two pure helpers keep their real behaviour: tests assert on the messages they produce. */
 export { errorMessage, isSgfError } from "../errors";
+
+/** Not a command either: the releases URL is the constant the store holds before any check. */
+export { RELEASES_URL } from "../update";

@@ -108,9 +108,22 @@ jobs:
         run: npm ci
         working-directory: app
 
+      - name: Signing key present
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set; the bundles could not be signed for the updater."
+            exit 1
+          fi
+
       - name: App bundles
         shell: bash
-        run: npm run tauri build -- ${{ matrix.tauri-args }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri build -- --config src-tauri/tauri.release.conf.json ${{ matrix.tauri-args }}
         working-directory: app
 
       - name: Collect the bundles
@@ -118,7 +131,8 @@ jobs:
         run: |
           mkdir -p dist
           find target -path '*/release/bundle/*' -type f \
-            \( -name '*.exe' -o -name '*.msi' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' \) \
+            \( -name '*.exe' -o -name '*.msi' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' \
+               -o -name '*.sig' -o -name '*.app.tar.gz' \) \
             -print0 |
           while IFS= read -r -d '' f; do
             name=$(basename "$f")
@@ -196,6 +210,54 @@ jobs:
           pattern: assets-*
           path: assets
           merge-multiple: true
+
+      - name: Update manifest
+        shell: bash
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          v=$(tr -d '[:space:]' < VERSION)
+          base="https://github.com/$REPO/releases/download/$TAG"
+          notes=$(bash scripts/changelog.sh notes "$v")
+
+          # The collect step replaced spaces with dots, so match on the suffix only.
+          pick() { ls -1 assets | grep -E -- "$1\$" | head -n 1 || true; }
+          nsis=$(pick '_x64-setup\.exe')
+          msi=$(pick '\.msi')
+          appimage=$(pick '\.AppImage')
+          macapp=$(pick '\.app\.tar\.gz')
+
+          platforms='{}'
+          add() {
+            local key="$1" name="$2"
+            if [ -z "$name" ]; then
+              echo "::error::No asset for the updater platform $key."
+              exit 1
+            fi
+            if [ ! -f "assets/$name.sig" ]; then
+              echo "::error::$name has no signature; was TAURI_SIGNING_PRIVATE_KEY set?"
+              exit 1
+            fi
+            platforms=$(jq -n --argjson p "$platforms" --arg k "$key" \
+              --arg url "$base/$name" --arg sig "$(cat "assets/$name.sig")" \
+              '$p + {($k): {url: $url, signature: $sig}}')
+          }
+
+          # The updater asks for {os}-{arch}-{installer} first, then {os}-{arch}; it never
+          # asks for darwin-universal, so both macOS keys point at the one universal bundle.
+          add windows-x86_64-nsis "$nsis"
+          add windows-x86_64-msi "$msi"
+          add windows-x86_64 "$nsis"
+          add linux-x86_64-appimage "$appimage"
+          add linux-x86_64 "$appimage"
+          add darwin-aarch64 "$macapp"
+          add darwin-x86_64 "$macapp"
+
+          jq -n --arg version "$v" --arg notes "$notes" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson platforms "$platforms" \
+            '{version: $version, notes: $notes, pub_date: $pub_date, platforms: $platforms}' \
+            > assets/latest.json
+          cat assets/latest.json
 
       - name: Checksums
         shell: bash

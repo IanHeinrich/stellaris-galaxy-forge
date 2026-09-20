@@ -7,3 +7,4 @@ export * from "./errors";
 export * from "./gamedata";
 export * from "./session";
 export * from "./textures";
+export * from "./update";
