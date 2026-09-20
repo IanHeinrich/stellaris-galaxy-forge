@@ -107,6 +107,30 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
 }
 
 #[test]
+fn scenario_text_opens_as_an_unsaved_scenario_named_from_its_header() {
+    let text = std::fs::read(GRAMMAR).expect("read the grammar fixture");
+    let mut session = export::open_scenario_text(text).expect("open the scenario text");
+    assert_eq!(session.kind(), DocumentKind::Scenario);
+    assert_eq!(session.title(), "sgf_grammar");
+    assert_eq!(session.path, None);
+    assert!(session.is_dirty());
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("from_text.txt");
+    session.save_as(&path).expect("save_as names the file");
+    assert_eq!(session.path.as_deref(), Some(path.as_path()));
+}
+
+#[test]
+fn scenario_text_without_a_static_galaxy_scenario_block_is_refused() {
+    let error = export::open_scenario_text(b"hello = 1".to_vec()).expect_err("not a scenario file");
+    assert!(
+        error.to_string().contains("static_galaxy_scenario"),
+        "{error}"
+    );
+}
+
+#[test]
 fn a_new_scenario_is_a_header_with_nothing_in_it() {
     let mut session = export::new_scenario("sgf_test", 0.0).expect("new scenario");
     assert_eq!(session.kind(), DocumentKind::Scenario);

@@ -61,6 +61,8 @@ export interface FileSessionState {
   openScenarioFrom(path: string): Promise<boolean>;
   /** Starts an empty, unsaved scenario. */
   newScenario(name: string, radius: number, coreRadius: number): Promise<boolean>;
+  /** Opens scenario `text`, as Paint a Galaxy sends it, as a new, unsaved scenario. */
+  openScenarioText(name: string, text: string): Promise<boolean>;
   /** Opens `path`, asking first how a save is to be opened. */
   requestOpen(path: string): Promise<void>;
   /** Answers the pending open; null cancels it. */
@@ -121,6 +123,11 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
   async newScenario(name, radius, coreRadius) {
     if (get().saving || !(await get().confirmDiscard())) return false;
     return openDocument(null, () => ipc.newScenario(name, radius, coreRadius), name);
+  },
+
+  async openScenarioText(name, text) {
+    if (get().saving || !(await get().confirmDiscard())) return false;
+    return openDocument(null, () => ipc.openScenarioText(text), name);
   },
 
   async requestOpen(path) {

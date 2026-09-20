@@ -1,12 +1,12 @@
 import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import * as ipc from "../../api/ipc";
+import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
 
 export const MAX_RADIUS = 460;
-export const PAINT_URL = "https://oatmealproblem.github.io/paint-a-galaxy/";
 const DEFAULT_NAME = "new_galaxy";
 
 /** The galaxy sizes the generator offers, by the radius each one lays out. */
@@ -54,10 +54,8 @@ const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
   {
     id: "paint",
     title: "Paint a galaxy",
-    copy:
-      "Draw systems and lanes in your browser with paint-a-galaxy by Oatmeal Problem, export its " +
-      "scenario file, then open that file here.",
-    primary: "Open a file…",
+    copy: "Draw systems and lanes in Paint a Galaxy right here, then send the galaxy to Forge.",
+    primary: "Open Paint a Galaxy",
   },
 ];
 
@@ -68,8 +66,8 @@ const STEPS: Record<Route, string[]> = {
     "Open that save here as a scenario.",
   ],
   paint: [
-    "Draw your galaxy on paint-a-galaxy and export its scenario file.",
-    "Open the exported file here.",
+    "Draw your galaxy in Paint a Galaxy, by Oatmeal Problem.",
+    "Click Send to Stellaris Galaxy Forge: the galaxy opens here as an unsaved scenario.",
   ],
 };
 
@@ -175,6 +173,10 @@ export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
       .openUrl(PAINT_URL)
       .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
   };
+  const openFile = () => {
+    useLayoutStore.getState().hideScenarioDialog();
+    void useFileSessionStore.getState().pickAndOpen();
+  };
 
   return (
     <div className="route-help">
@@ -184,9 +186,14 @@ export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
         ))}
       </ol>
       {route === "paint" && (
-        <button type="button" className="link route-link" onClick={openSite}>
-          Open paint-a-galaxy by Oatmeal Problem ↗
-        </button>
+        <div className="route-links">
+          <button type="button" className="link route-link" onClick={openSite}>
+            Open Paint a Galaxy in the browser ↗
+          </button>
+          <button type="button" className="link route-link" onClick={openFile}>
+            Open a file exported earlier…
+          </button>
+        </div>
       )}
     </div>
   );
@@ -205,7 +212,7 @@ function start(route: Route, blank: Blank): void {
       void file.pickAndOpen("scenario");
       break;
     case "paint":
-      void file.pickAndOpen();
+      useLayoutStore.getState().showPaintPanel();
       break;
   }
 }

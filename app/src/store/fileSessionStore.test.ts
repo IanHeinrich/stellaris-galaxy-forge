@@ -23,6 +23,7 @@ const mocked = {
   openSave: vi.mocked(ipc.openSave),
   openAsScenario: vi.mocked(ipc.openAsScenario),
   newScenario: vi.mocked(ipc.newScenario),
+  openScenarioText: vi.mocked(ipc.openScenarioText),
   exportScenario: vi.mocked(ipc.exportScenario),
   getSystem: vi.mocked(ipc.getSystem),
   closeSave: vi.mocked(ipc.closeSave),
@@ -487,6 +488,25 @@ describe("scenario documents", () => {
     );
     expect(mocked.saveAs).toHaveBeenCalledWith("C:/mods/map/setup_scenarios/my_galaxy.txt");
     expect(session().path).toBe("C:/mods/map/setup_scenarios/my_galaxy.txt");
+  });
+
+  it("scenario text sent from elsewhere opens unsaved under the name it came with", async () => {
+    mocked.openScenarioText.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    expect(await session().openScenarioText("Spiral", "static_galaxy_scenario = {}")).toBe(true);
+    expect(mocked.openScenarioText).toHaveBeenCalledWith("static_galaxy_scenario = {}");
+    expect(session().kind).toBe("scenario");
+    expect(session().path).toBeNull();
+    expect(session().title).toBe(SCENARIO_RESULT.title);
+    expect(useRecentsStore.getState().recents).toHaveLength(0);
+  });
+
+  it("scenario text is refused while a dirty session is kept", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    await edit();
+    mocked.confirm.mockResolvedValueOnce(false);
+    expect(await session().openScenarioText("Spiral", "x")).toBe(false);
+    expect(mocked.openScenarioText).not.toHaveBeenCalled();
+    expect(session().kind).toBe("save");
   });
 
   it("exporting writes a second file and leaves the save's own path, edits and save time alone", async () => {

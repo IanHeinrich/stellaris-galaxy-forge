@@ -134,6 +134,12 @@ pub fn open_save_as_scenario(
     Session::from_document(None, Document::from_scenario_bytes(text)?)
 }
 
+/// Open scenario text received from elsewhere (e.g. Paint a Galaxy) as a new, unsaved
+/// scenario; the title comes from the text's own `name` header field.
+pub fn open_scenario_text(text: Vec<u8>) -> Result<Session, SessionError> {
+    Session::from_document(None, Document::from_scenario_bytes(text)?)
+}
+
 /// Every undirected lane once, lower id first, ascending.
 fn lane_pairs(galaxy: &Galaxy) -> Vec<(u32, u32)> {
     let mut pairs = BTreeSet::new();

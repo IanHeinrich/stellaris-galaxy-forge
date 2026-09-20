@@ -54,6 +54,11 @@ export function openAsScenario(path: string): Promise<OpenResult> {
   return invoke<OpenResult>("open_as_scenario", { path });
 }
 
+/** Open scenario text, as Paint a Galaxy sends it, as a new, unsaved scenario named by its own `name`. */
+export function openScenarioText(text: string): Promise<OpenResult> {
+  return invoke<OpenResult>("open_scenario_text", { text });
+}
+
 /** Start an empty, unsaved scenario; `radius` sizes the canvas until systems give it an extent, `coreRadius` is written to the file. */
 export function newScenario(name: string, radius: number, coreRadius: number): Promise<OpenResult> {
   return invoke<OpenResult>("new_scenario", { name, radius, coreRadius });

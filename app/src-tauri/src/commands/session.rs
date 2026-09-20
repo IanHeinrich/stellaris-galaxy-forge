@@ -42,6 +42,19 @@ pub async fn open_as_scenario<R: Runtime>(
     .await
 }
 
+/// Open scenario text received from elsewhere (e.g. Paint a Galaxy) as a new, unsaved
+/// scenario. Emits `sgf://progress`.
+#[tauri::command]
+pub async fn open_scenario_text<R: Runtime>(
+    app: AppHandle<R>,
+    text: String,
+) -> Result<OpenResult, SgfError> {
+    install(app, move |_| {
+        Ok(export::open_scenario_text(text.into_bytes())?)
+    })
+    .await
+}
+
 /// Start an empty, unsaved scenario called `name`; `radius` sizes the map's canvas
 /// until systems give it an extent of its own, `core_radius` is written to the header.
 /// Emits `sgf://progress`.
