@@ -80,6 +80,9 @@ pub enum Command {
         /// Localise system names from the install instead of writing the save's own keys.
         #[arg(long)]
         gamedata: bool,
+        /// Whose conventions the scenario follows; `paint-a-galaxy` needs that mod.
+        #[arg(long, value_enum, default_value_t = Profile::Plain)]
+        profile: Profile,
     },
     /// Write an empty static galaxy scenario script to start from.
     NewScenario {
@@ -88,6 +91,9 @@ pub enum Command {
         /// The galactic core's radius, written as `core_radius`.
         #[arg(long, default_value_t = 0.0)]
         core_radius: f64,
+        /// Whose conventions the scenario follows; `paint-a-galaxy` needs that mod.
+        #[arg(long, value_enum, default_value_t = Profile::Plain)]
+        profile: Profile,
     },
     /// Load a save and write it out unchanged.
     Roundtrip {
@@ -282,6 +288,13 @@ pub enum Reservation {
     Human,
     Ai,
     None,
+}
+
+/// Whose conventions `sgf export-scenario` and `sgf new-scenario` write in.
+#[derive(Clone, Copy, ValueEnum)]
+pub enum Profile {
+    Plain,
+    PaintAGalaxy,
 }
 
 #[derive(Subcommand)]

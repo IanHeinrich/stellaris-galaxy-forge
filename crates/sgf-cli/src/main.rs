@@ -35,17 +35,20 @@ fn run(cli: Cli) -> commands::Run {
             name,
             install,
             gamedata,
+            profile,
         }) => commands::export::run(
             &sav,
             &out,
             name.as_deref(),
             gamedata.then(|| install.options()).as_ref(),
+            profile,
         ),
         Some(Command::NewScenario {
             name,
             out,
             core_radius,
-        }) => commands::export::create(&name, core_radius, &out),
+            profile,
+        }) => commands::export::create(&name, core_radius, &out, profile),
         Some(Command::Roundtrip {
             input,
             output,

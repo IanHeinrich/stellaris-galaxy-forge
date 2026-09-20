@@ -309,6 +309,10 @@
   margin: 3px 0 0;
 }
 
+.open-dialog-body .setup-check {
+  margin: 10px 0;
+}
+
 .setup-check > span {
   display: flex;
   flex-direction: column;

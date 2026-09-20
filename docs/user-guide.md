@@ -355,20 +355,34 @@ overrides it; or use "Browse…" and pick any `.txt`. A save row can be
 opened as a scenario instead of as a save (the "as scenario" button, or
 Shift+Enter), which turns that galaxy into one you can edit and start a
 fresh campaign from, and "Export as scenario…" in the File menu does the
-same for the open save.
+same for the open save. Beside it, "Export as scenario for Paint a
+Galaxy…" writes the same file under that mod's profile; for a scenario
+already open, the File menu's "Paint a Galaxy spawn points" check item
+switches which shape a new spawn point is written in without touching
+the file's existing bytes.
 
 "New scenario…" offers three ways to start. A blank canvas takes a name,
 a galaxy size (or a radius of your own) and a core radius, and gives you
-an empty file to place every system in yourself. A galaxy from the game
-has you start a new game in Stellaris at the size and shape you want,
-save on day one and open that save here, which hands you the generator's
-layout, names and empires to edit. Painting one opens the site by Oatmeal
-Problem in a panel inside Forge, where drawing systems and lanes and
-clicking "Send to Stellaris Galaxy Forge" opens the galaxy here as an
-unsaved scenario; the dialog's "Open Paint a Galaxy in the browser ↗"
-link and the panel's own "Open in browser ↗" link remain for using the
-website directly, and "Open a file exported earlier…" for importing a
-downloaded file.
+an empty file to place every system in yourself; its "Compatible with the
+Paint a Galaxy mod" checkbox, off by default, writes spawn points in that
+mod's shape and a header sized for its fixes, for a map that then needs
+the mod. A galaxy from the game has you start a new game in Stellaris at
+the size and shape you want, save on day one and open that save here,
+which hands you the generator's layout, names and empires to edit.
+Painting one opens the site by Oatmeal Problem in a panel inside Forge,
+where drawing systems and lanes and clicking "Send to Stellaris Galaxy
+Forge" opens the galaxy here as an unsaved scenario; the dialog's "Open
+Paint a Galaxy in the browser ↗" link and the panel's own "Open in
+browser ↗" link remain for using the website directly, and "Open a file
+exported earlier…" for importing a downloaded file.
+
+A file written or opened under the Paint a Galaxy profile carries a
+"Paint a Galaxy" badge beside its name in the top bar. Once game data is
+loaded, the badge turns into a warning — "Paint a Galaxy mod not
+enabled" — when the mod (Steam Workshop 3532904115) is not among the
+mods your Stellaris launcher playset has enabled; such a file still opens
+here and its spawn points still show, but the game cannot resolve its
+scripted spawn weights without the mod running.
 
 What can be edited: everything a save's galaxy offers, move systems, add
 and cut lanes, add, move, resize, rename and remove nebulae, and, because a
@@ -377,9 +391,15 @@ Systems can be added, deleted and named. Each can be given an initializer,
 which is what the game will place there: the star, its planets and moons,
 their resources, megastructures, dig sites and starbase, all of which the
 inspector and the map show before the game is ever started. A system can
-carry a spawn weight, or be held for a human player or for the AI. The
-scenario's header keys are listed and edited one by one, and a pair of
-systems can be barred from ever being linked.
+carry a spawn weight, or be held for a human player or for the AI; in a
+Paint a Galaxy file, or once the File menu's "Paint a Galaxy spawn
+points" check item is on, a system marked as a spawn point from then on
+offers its seat's kind — enabled, preferred, reserved A–Z or Sol — from a
+select instead, since the mod computes the spawn weight from the kind
+rather than reading a number; an existing spawn point keeps its base
+weight until you change it yourself. The scenario's header keys are
+listed and edited one by one, and a pair of systems can be barred from
+ever being linked.
 
 The initializer browser: Shift+I, the inspector, or the map's right-click
 menu ("Set initializer…" on a system, "New system from…" on empty space)

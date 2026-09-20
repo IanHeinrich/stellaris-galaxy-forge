@@ -94,8 +94,31 @@ describe("the blank canvas", () => {
 
     button(<RouteFoot route="blank" blank={BLANK} />, "Create").props.onClick();
 
-    expect(newScenario).toHaveBeenCalledWith(BLANK.name, BLANK.radius, BLANK.coreRadius);
+    expect(newScenario).toHaveBeenCalledWith(BLANK.name, BLANK.radius, BLANK.coreRadius, undefined);
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);
+  });
+
+  it("offers the Paint a Galaxy profile as a box that starts unchecked, and says what it costs", () => {
+    const html = renderToStaticMarkup(<NewScenarioDialog />);
+    const box = html.match(/<input type="checkbox"[^>]*>/)![0];
+    expect(box).not.toContain("checked=");
+    expect(html).toContain("Compatible with the Paint a Galaxy mod");
+    expect(html).toContain("The map then needs that mod; leave this off for a plain scenario.");
+  });
+
+  it("creates the scenario under the Paint a Galaxy profile once the box is checked", () => {
+    const newScenario = vi.fn();
+    useFileSessionStore.setState({ newScenario });
+
+    const blank = { ...BLANK, profile: "paint_a_galaxy" as const };
+    button(<RouteFoot route="blank" blank={blank} />, "Create").props.onClick();
+
+    expect(newScenario).toHaveBeenCalledWith(
+      BLANK.name,
+      BLANK.radius,
+      BLANK.coreRadius,
+      "paint_a_galaxy",
+    );
   });
 });
 

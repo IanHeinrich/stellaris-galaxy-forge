@@ -3,17 +3,30 @@
 //! own numbers; callers undo the map's axis signs before coming here.
 
 use crate::emit::coord;
+use crate::format::scenario::paint;
+use crate::projections::galaxy::SpawnScript;
 
 /// What a `system` statement carries.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SystemStmt<'a> {
+pub struct SystemStmt {
     pub id: u32,
-    pub name: &'a str,
+    pub name: String,
     pub x: f64,
     pub y: f64,
-    pub initializer: Option<&'a str>,
-    /// `spawn_weight = { base = N }`, the mark of an empire spawn point.
-    pub spawn_weight: Option<f64>,
+    pub initializer: Option<String>,
+    pub spawn: SpawnStmt,
+    /// The body of an `effect = { … }` block, written last as Paint a Galaxy does.
+    pub effect: Option<String>,
+}
+
+/// The `spawn_weight` a `system` statement carries, the mark of an empire spawn point.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SpawnStmt {
+    None,
+    /// `spawn_weight = { base = N }`.
+    Base(f64),
+    /// A scripted weight, written as the script's dialect renders it.
+    Script(SpawnScript),
 }
 
 /// The header scalars a generated scenario opens with.
@@ -25,7 +38,7 @@ pub struct ScenarioOptions {
 }
 
 /// `system = { id = "3019" name = "" position = { x = 12 y = -34 } … }` on one line.
-pub fn system_stmt(indent: &[u8], s: &SystemStmt<'_>) -> Vec<u8> {
+pub fn system_stmt(indent: &[u8], s: &SystemStmt) -> Vec<u8> {
     let mut out = String::with_capacity(96);
     out.push_str(&format!(
         "system = {{ id = \"{}\" name = \"{}\" position = {{ x = {} y = {} }}",
@@ -34,11 +47,21 @@ pub fn system_stmt(indent: &[u8], s: &SystemStmt<'_>) -> Vec<u8> {
         coord(s.x),
         coord(s.y)
     ));
-    if let Some(initializer) = s.initializer.filter(|i| !i.is_empty()) {
+    if let Some(initializer) = s.initializer.as_deref().filter(|i| !i.is_empty()) {
         out.push_str(&format!(" initializer = {initializer}"));
     }
-    if let Some(weight) = s.spawn_weight {
-        out.push_str(&format!(" spawn_weight = {{ base = {} }}", coord(weight)));
+    match &s.spawn {
+        SpawnStmt::None => {}
+        SpawnStmt::Base(weight) => {
+            out.push_str(&format!(" spawn_weight = {{ base = {} }}", coord(*weight)));
+        }
+        SpawnStmt::Script(script) => {
+            out.push(' ');
+            out.push_str(&paint::weight_statement(script));
+        }
+    }
+    if let Some(effect) = &s.effect {
+        out.push_str(&format!(" effect = {{ {effect} }}"));
     }
     out.push_str(" }\n");
     line(indent, out.as_bytes())
@@ -124,16 +147,18 @@ fn line(indent: &[u8], text: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::projections::galaxy::PaintSpawnKind;
 
     #[test]
     fn statements_take_the_mods_one_line_shape() {
         let plain = SystemStmt {
             id: 3019,
-            name: "",
+            name: String::new(),
             x: 12.0,
             y: -34.5,
             initializer: None,
-            spawn_weight: None,
+            spawn: SpawnStmt::None,
+            effect: None,
         };
         assert_eq!(
             system_stmt(b"\t", &plain),
@@ -141,14 +166,26 @@ mod tests {
         );
         let spawn = SystemStmt {
             id: 7,
-            name: "Tatooine",
-            initializer: Some("random_empire_init_01"),
-            spawn_weight: Some(1.0),
-            ..plain
+            name: "Tatooine".into(),
+            initializer: Some("random_empire_init_01".into()),
+            spawn: SpawnStmt::Base(1.0),
+            ..plain.clone()
         };
         assert_eq!(
             system_stmt(b"", &spawn),
             b"system = { id = \"7\" name = \"Tatooine\" position = { x = 12 y = -34.5 } initializer = random_empire_init_01 spawn_weight = { base = 1 } }\n"
+        );
+        let scripted = SystemStmt {
+            spawn: SpawnStmt::Script(SpawnScript::PaintAGalaxy {
+                kind: PaintSpawnKind::Enabled,
+                random_value: 4,
+            }),
+            effect: Some("set_star_flag = empire_cluster".into()),
+            ..plain
+        };
+        assert_eq!(
+            system_stmt(b"", &scripted),
+            b"system = { id = \"3019\" name = \"\" position = { x = 12 y = -34.5 } spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|4| } effect = { set_star_flag = empire_cluster } }\n"
         );
         assert_eq!(
             hyperlane_stmt(b"\t", 4231, 4234),

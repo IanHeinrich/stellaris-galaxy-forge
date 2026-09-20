@@ -12,7 +12,7 @@ use sgf_gamedata::scripts::ScenarioOwners;
 use sgf_gamedata::views::GameDataSummary;
 
 mod common;
-use common::{SAMPLE, have_install, invoke, kind, webview};
+use common::{SAMPLE, have_install, invoke, invoke_raw, kind, webview};
 
 const GRAMMAR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -320,6 +320,100 @@ fn scenario_documents_open_start_and_export() {
     assert_eq!(reopened.kind, DocumentKind::Scenario);
     assert_eq!(reopened.title, "exported");
     assert_eq!(reopened.galaxy.systems.len(), 791);
+}
+
+#[test]
+fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands() {
+    let w = webview();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let idiom = "value:painted_galaxy_spawn_weight";
+
+    let fresh: OpenResult = invoke(
+        &w,
+        "new_scenario",
+        json!({ "name": "sgf_painted", "radius": 300.0, "coreRadius": 75.0, "profile": "paint_a_galaxy" }),
+    )
+    .expect("new scenario");
+    assert_eq!(fresh.title, "sgf_painted");
+    assert!(
+        fresh
+            .galaxy
+            .header
+            .iter()
+            .any(|f| f.key == "priority" && f.value == "10"),
+        "{:?}",
+        fresh.galaxy.header
+    );
+    assert!(
+        fresh
+            .galaxy
+            .header
+            .iter()
+            .any(|f| f.key == "nomad_empire_max" && f.value == "0"),
+        "{:?}",
+        fresh.galaxy.header
+    );
+
+    let as_scenario: OpenResult = invoke(
+        &w,
+        "open_as_scenario",
+        json!({ "path": SAMPLE, "profile": "paint_a_galaxy" }),
+    )
+    .expect("open as scenario");
+    assert_eq!(as_scenario.galaxy.systems.len(), 791);
+    let seated = as_scenario
+        .galaxy
+        .systems
+        .iter()
+        .filter(|s| s.spawn_script.is_some())
+        .count();
+    assert!(seated > 1, "{seated}");
+    let refused = invoke_raw(
+        &w,
+        "open_as_scenario",
+        json!({ "path": SAMPLE, "profile": "crayon" }),
+    )
+    .expect_err("an unknown profile is refused, not read as plain");
+    assert!(
+        refused.to_string().contains("unknown variant `crayon`"),
+        "{refused}"
+    );
+    let plain: OpenResult =
+        invoke(&w, "open_as_scenario", json!({ "path": SAMPLE })).expect("open as scenario");
+    assert!(
+        plain
+            .galaxy
+            .systems
+            .iter()
+            .all(|s| s.spawn_script.is_none())
+    );
+
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    let painted = dir
+        .path()
+        .join("painted.txt")
+        .to_string_lossy()
+        .into_owned();
+    invoke::<SaveResult>(
+        &w,
+        "export_scenario",
+        json!({ "path": painted, "profile": "paint_a_galaxy" }),
+    )
+    .expect("export");
+    let text = std::fs::read_to_string(&painted).unwrap();
+    assert!(
+        text.contains(idiom) && text.contains("painted_galaxy_wormhole_1"),
+        "{}",
+        &text[..300]
+    );
+    let exported = dir.path().join("plain.txt").to_string_lossy().into_owned();
+    invoke::<SaveResult>(&w, "export_scenario", json!({ "path": exported })).expect("export");
+    let text = std::fs::read_to_string(&exported).unwrap();
+    assert!(
+        !text.contains(idiom) && text.starts_with("static_galaxy_scenario = {"),
+        "{}",
+        &text[..300]
+    );
 }
 
 #[test]

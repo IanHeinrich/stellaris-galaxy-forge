@@ -676,6 +676,104 @@ fn export_scenario_writes_a_file_that_opens_as_the_saves_galaxy() {
 }
 
 #[test]
+fn the_paint_a_galaxy_profile_is_opt_in_on_both_scenario_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    let plain_path = dir.path().join("plain.txt");
+    let paint_path = dir.path().join("paint.txt");
+    let fresh_path = dir.path().join("fresh.txt");
+
+    let out = sgf(&["export-scenario", SAMPLE, plain_path.to_str().unwrap()]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let plain = std::fs::read_to_string(&plain_path).unwrap();
+    assert!(
+        !plain.contains("value:painted_galaxy_spawn_weight"),
+        "{}",
+        &plain[..300]
+    );
+    assert!(!plain.contains("painted_galaxy_rl_basic"));
+    assert!(plain.starts_with(
+        "static_galaxy_scenario = {
+"
+    ));
+
+    let out = sgf(&[
+        "export-scenario",
+        SAMPLE,
+        paint_path.to_str().unwrap(),
+        "--profile",
+        "paint-a-galaxy",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(stdout(&out).contains("791 system(s)"), "{}", stdout(&out));
+    let paint = std::fs::read_to_string(&paint_path).unwrap();
+    assert!(
+        paint.contains("value:painted_galaxy_spawn_weight"),
+        "{}",
+        &paint[..300]
+    );
+    assert!(paint.contains("set_star_flag = painted_galaxy_wormhole_1"));
+    assert!(paint.starts_with("# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod"));
+    let validated = sgf(&["validate", paint_path.to_str().unwrap()]);
+    assert_eq!(
+        validated.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&validated.stderr)
+    );
+
+    let out = sgf(&[
+        "new-scenario",
+        "sgf_painted",
+        fresh_path.to_str().unwrap(),
+        "--profile",
+        "paint-a-galaxy",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let fresh = std::fs::read_to_string(&fresh_path).unwrap();
+    assert!(
+        fresh.contains(
+            "	priority = 10
+	supports_shape = elliptical
+	supports_shape = spiral_2
+"
+        ),
+        "{fresh}"
+    );
+    assert!(
+        fresh.contains(
+            "	nomad_empire_max = 0
+"
+        ),
+        "{fresh}"
+    );
+
+    let out = sgf(&[
+        "new-scenario",
+        "sgf_odd",
+        fresh_path.to_str().unwrap(),
+        "--profile",
+        "crayon",
+    ]);
+    assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("paint-a-galaxy"));
+}
+
+#[test]
 fn new_scenario_writes_an_empty_scenario_that_opens() {
     let dir = tempfile::tempdir().unwrap();
     let out_path = dir.path().join("fresh.txt");

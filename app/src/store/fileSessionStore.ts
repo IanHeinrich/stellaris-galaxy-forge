@@ -11,6 +11,7 @@ import type { OpenResult } from "../generated/OpenResult";
 import type { Progress } from "../generated/Progress";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SaveResult } from "../generated/SaveResult";
+import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import { isPaintMade } from "../lib/paint";
 import { fileName } from "../lib/paths";
 import { useGalaxyStore } from "./galaxyStore";
@@ -64,9 +65,14 @@ export interface FileSessionState {
   /** Resolves true when the document opened; false when it failed, or another open was in flight. */
   openSave(path: string): Promise<boolean>;
   /** Opens the save at `path` as a new, unsaved scenario; the save itself is untouched. */
-  openScenarioFrom(path: string): Promise<boolean>;
-  /** Starts an empty, unsaved scenario. */
-  newScenario(name: string, radius: number, coreRadius: number): Promise<boolean>;
+  openScenarioFrom(path: string, profile?: ScenarioProfile): Promise<boolean>;
+  /** Starts an empty, unsaved scenario, written under `profile`; left out, a plain one. */
+  newScenario(
+    name: string,
+    radius: number,
+    coreRadius: number,
+    profile?: ScenarioProfile,
+  ): Promise<boolean>;
   /** Opens scenario `text`, as Paint a Galaxy sends it, as a new, unsaved scenario. */
   openScenarioText(name: string, text: string): Promise<boolean>;
   /** Opens `path`, asking first how a save is to be opened. */
@@ -81,7 +87,7 @@ export interface FileSessionState {
   save(): Promise<void>;
   saveAs(): Promise<void>;
   /** Writes the open save's galaxy as a scenario file beside it; the session stays on the save. */
-  exportScenario(): Promise<void>;
+  exportScenario(profile?: ScenarioProfile): Promise<void>;
   /** Resolves true when it is safe to discard the session: not dirty, or the user confirmed. */
   confirmDiscard(): Promise<boolean>;
   /** What an edit reported about the file it belongs to. */
@@ -124,13 +130,18 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     return openDocument(path, () => ipc.openSave(path));
   },
 
-  openScenarioFrom(path) {
-    return openDocument(null, () => ipc.openAsScenario(path), fileName(path));
+  openScenarioFrom(path, profile) {
+    return openDocument(null, () => ipc.openAsScenario(path, profile), fileName(path), profile);
   },
 
-  async newScenario(name, radius, coreRadius) {
+  async newScenario(name, radius, coreRadius, profile) {
     if (get().saving || !(await get().confirmDiscard())) return false;
-    return openDocument(null, () => ipc.newScenario(name, radius, coreRadius), name);
+    return openDocument(
+      null,
+      () => ipc.newScenario(name, radius, coreRadius, profile),
+      name,
+      profile,
+    );
   },
 
   async openScenarioText(name, text) {
@@ -212,7 +223,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     await writeSave(() => ipc.saveAs(picked));
   },
 
-  async exportScenario() {
+  async exportScenario(profile) {
     const { status, saving, kind, title } = get();
     if (status !== "ready" || saving || kind !== "save") return;
     const picked = await saveDialog({
@@ -222,7 +233,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     if (picked === null) return;
     // The export is a second file: the session keeps its own path, and its edits stay unsaved.
     await runWrite(
-      () => ipc.exportScenario(picked),
+      () => ipc.exportScenario(picked, profile),
       () => ({}),
     );
   },
@@ -262,11 +273,15 @@ function defaultName(title: string | null, extension: string): string | undefine
 /** The open a late answer still belongs to; a newer open leaves the older one's to nobody. */
 let opens = 0;
 
-/** The one path every open takes: `path` is the file it comes from, null for a new document. */
+/**
+ * The one path every open takes: `path` is the file it comes from, null for a new document, and
+ * `profile` what a new one is written under, which a file with no systems yet cannot show.
+ */
 async function openDocument(
   path: string | null,
   load: () => Promise<OpenResult>,
   name?: string,
+  profile?: ScenarioProfile,
 ): Promise<boolean> {
   const { getState, setState } = useFileSessionStore;
   // One document opens at a time: a second ask is refused rather than queued behind it.
@@ -290,7 +305,7 @@ async function openDocument(
       meta: result.meta,
       capabilities: result.capabilities,
       issues: result.issues,
-      paintProfile: isPaintMade(result.galaxy.systems),
+      paintProfile: profile === "paint_a_galaxy" || isPaintMade(result.galaxy.systems),
     });
     if (result.path !== null) {
       useRecentsStore.getState().noteOpened({

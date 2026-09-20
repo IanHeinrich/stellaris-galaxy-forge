@@ -3,21 +3,29 @@
 //! unsaved scenario. The save itself is never rewritten (ADR 0004, decision 4).
 //!
 //! One generator serves all three, so a file written here reads back through
-//! `Document::from_scenario_bytes` into the same systems, positions and lanes.
+//! `Document::from_scenario_bytes` into the same systems, positions and lanes. The
+//! galaxy is first drafted, statement by statement, then rendered; a profile decorates
+//! the draft in between, so the plain output never depends on one.
+
+mod paint;
 
 use std::collections::BTreeSet;
 use std::path::Path;
+
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::archive;
 use crate::as_u32;
 use crate::document::{self, Document, SaveOutcome};
 use crate::format::scenario::emit::{
-    FOOTER, ScenarioOptions, SystemStmt, header, hyperlane_stmt, nebula_stmt, system_stmt,
+    FOOTER, ScenarioOptions, header, hyperlane_stmt, nebula_stmt, system_stmt,
 };
+pub use crate::format::scenario::emit::{SpawnStmt as SpawnDraft, SystemStmt as SystemDraft};
 use crate::format::scenario::index::{self as scenario, SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
 use crate::keys::scenario as keys;
 use crate::ops::rules::check_name;
-use crate::projections::galaxy::{Galaxy, ProjectionError};
+use crate::projections::galaxy::{Galaxy, GalaxyGraph, ProjectionError};
 use crate::projections::name::NameTemplate;
 use crate::search::NameResolver;
 use crate::session::{Session, SessionError};
@@ -32,43 +40,105 @@ const SYSTEMS_PER_EMPIRE: usize = 60;
 const MIN_EMPIRES: u32 = 1;
 const MAX_EMPIRES: u32 = 30;
 
+/// Whose conventions a written scenario follows. `Plain` is the game's alone; the
+/// other writes what a companion mod reads on top of it, and the map then needs
+/// that mod.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum ScenarioProfile {
+    #[default]
+    Plain,
+    /// Spawn points in Paint a Galaxy's scripted shape and a header sized for its
+    /// mod's fixes (Steam Workshop 3532904115).
+    PaintAGalaxy,
+}
+
+/// A scenario file before it is text: the header, one entry per system in file
+/// order, each undirected lane once and each nebula.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Draft {
+    pub header: Vec<u8>,
+    pub systems: Vec<SystemDraft>,
+    pub lanes: Vec<(u32, u32)>,
+    pub nebulae: Vec<NebulaDraft>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NebulaDraft {
+    pub name: String,
+    pub x: f64,
+    pub y: f64,
+    pub radius: f64,
+}
+
 /// A whole scenario file: the header, one `system` statement per system in file order,
 /// one `add_hyperlane` per undirected lane and one `nebula` per cloud.
-///
-/// A lane to itself or to a system the galaxy does not hold is skipped, since the game
-/// would refuse it.
 pub fn scenario_text(
-    galaxy: &Galaxy,
+    graph: &GalaxyGraph,
     options: &ScenarioOptions,
     resolve: NameResolver<'_>,
+    profile: ScenarioProfile,
 ) -> Vec<u8> {
-    let mut out = header(options);
-    for system in galaxy.order.iter().filter_map(|id| galaxy.systems.get(id)) {
-        let name = name_of(&system.name, resolve);
-        out.extend(system_stmt(
-            INDENT,
-            &SystemStmt {
-                id: system.id,
-                name: &name,
-                x: system.x * SCENARIO_X_SIGN,
-                y: system.y * SCENARIO_Y_SIGN,
-                initializer: Some(system.initializer.as_str()).filter(|i| !i.is_empty()),
-                spawn_weight: None,
-            },
-        ));
+    let mut draft = draft(graph, options, resolve);
+    if profile == ScenarioProfile::PaintAGalaxy {
+        paint::decorate(&mut draft, options, graph, &graph.countries);
+    }
+    render(&draft)
+}
+
+/// The galaxy as the plain profile writes it. A lane to itself or to a system the
+/// galaxy does not hold is skipped, since the game would refuse it.
+pub fn draft(galaxy: &Galaxy, options: &ScenarioOptions, resolve: NameResolver<'_>) -> Draft {
+    let systems = galaxy
+        .order
+        .iter()
+        .filter_map(|id| galaxy.systems.get(id))
+        .map(|system| SystemDraft {
+            id: system.id,
+            name: name_of(&system.name, resolve),
+            x: system.x * SCENARIO_X_SIGN,
+            y: system.y * SCENARIO_Y_SIGN,
+            initializer: Some(system.initializer.clone()).filter(|i| !i.is_empty()),
+            spawn: SpawnDraft::None,
+            effect: None,
+        })
+        .collect();
+    let nebulae = galaxy
+        .nebulae
+        .iter()
+        .map(|nebula| NebulaDraft {
+            name: name_of(&nebula.name, resolve),
+            x: nebula.x * SCENARIO_X_SIGN,
+            y: nebula.y * SCENARIO_Y_SIGN,
+            radius: nebula.radius,
+        })
+        .collect();
+    Draft {
+        header: header(options),
+        systems,
+        lanes: lane_pairs(galaxy),
+        nebulae,
+    }
+}
+
+/// The draft as file text.
+pub fn render(draft: &Draft) -> Vec<u8> {
+    let mut out = draft.header.clone();
+    for system in &draft.systems {
+        out.extend(system_stmt(INDENT, system));
     }
     out.push(b'\n');
-    for (a, b) in lane_pairs(galaxy) {
+    for &(a, b) in &draft.lanes {
         out.extend(hyperlane_stmt(INDENT, a, b));
     }
     out.push(b'\n');
-    for nebula in &galaxy.nebulae {
-        let name = name_of(&nebula.name, resolve);
+    for nebula in &draft.nebulae {
         out.extend(nebula_stmt(
             INDENT,
-            &name,
-            nebula.x * SCENARIO_X_SIGN,
-            nebula.y * SCENARIO_Y_SIGN,
+            &nebula.name,
+            nebula.x,
+            nebula.y,
             nebula.radius,
         ));
     }
@@ -97,14 +167,22 @@ pub fn write_scenario(path: &Path, text: &[u8]) -> Result<SaveOutcome, document:
 }
 
 /// A scenario with no systems, never saved: the header and its closing brace.
-pub fn new_scenario(name: &str, core_radius: f64) -> Result<Session, SessionError> {
+pub fn new_scenario(
+    name: &str,
+    core_radius: f64,
+    profile: ScenarioProfile,
+) -> Result<Session, SessionError> {
     check_name(name)
         .map_err(|_| document::Error::Scenario(scenario::Error::InvalidName(name.to_owned())))?;
-    let mut text = header(&ScenarioOptions {
+    let options = ScenarioOptions {
         name: name.to_owned(),
         core_radius,
         num_empires: (0, MIN_EMPIRES),
-    });
+    };
+    let mut text = match profile {
+        ScenarioProfile::Plain => header(&options),
+        ScenarioProfile::PaintAGalaxy => paint::header(&options, 0, 0),
+    };
     text.extend_from_slice(FOOTER);
     Session::from_document(None, Document::from_scenario_bytes(text)?)
 }
@@ -114,6 +192,7 @@ pub fn new_scenario(name: &str, core_radius: f64) -> Result<Session, SessionErro
 pub fn open_save_as_scenario(
     path: &Path,
     resolve: NameResolver<'_>,
+    profile: ScenarioProfile,
 ) -> Result<Session, SessionError> {
     let save = Session::open(path)?;
     if save.kind() != DocumentKind::Save {
@@ -130,7 +209,12 @@ pub fn open_save_as_scenario(
         .unwrap_or_default()
         .to_string_lossy()
         .into_owned();
-    let text = scenario_text(&save.graph, &options_for(&save.graph, &name), resolve);
+    let text = scenario_text(
+        &save.graph,
+        &options_for(&save.graph, &name),
+        resolve,
+        profile,
+    );
     Session::from_document(None, Document::from_scenario_bytes(text)?)
 }
 

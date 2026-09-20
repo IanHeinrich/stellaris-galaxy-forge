@@ -20,13 +20,12 @@ const RANDOM_VALUE: &str = "RANDOM_VALUE";
 const YES: &str = "yes";
 
 /// The mod's random-list initializer for an empty system near a spawn.
-#[allow(dead_code)]
 pub(crate) const RL_BASIC: &str = "painted_galaxy_rl_basic";
+/// The star flag a system given [`RL_BASIC`] carries, so the mod knows it chose it.
+pub(crate) const AUTOMATIC_INITIALIZER_FLAG: &str = "painted_galaxy_automatic_initializer";
 /// The star flag both ends of the n-th wormhole pair carry, `n` appended.
-#[allow(dead_code)]
 pub(crate) const WORMHOLE_FLAG_PREFIX: &str = "painted_galaxy_wormhole_";
 /// The star flag beside it that keeps an empire from spawning on the pair.
-#[allow(dead_code)]
 pub(crate) const EMPIRE_CLUSTER: &str = "empire_cluster";
 
 /// The starting initializers the mod's minimum asks of a spawn system, one per residue.

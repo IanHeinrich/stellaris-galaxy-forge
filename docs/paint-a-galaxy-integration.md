@@ -94,6 +94,111 @@ unfamiliar version can fall back instead of failing.
    Import remain the bridge between them. The companion mod needs no
    change for any of this.
 
+## What Forge writes under the Paint a Galaxy profile
+
+Writing in Paint a Galaxy's dialect is opt-in everywhere: a scenario written
+without it is byte-identical to one written before this profile existed. It
+is chosen by the "Compatible with the Paint a Galaxy mod" checkbox on the New
+scenario dialog's blank route (off by default), the File menu item "Export
+as scenario for Paint a Galaxy…" beside the plain "Export as scenario…", and
+the CLI's `--profile paint-a-galaxy` flag on `export-scenario` and
+`new-scenario` (default `plain`). `crates/sgf-core/src/export/paint.rs` is
+the one module that writes it, laid over a plain draft; the exact statement
+shapes below are drawn from it.
+
+The header opens with a comment naming Forge and the mod, then the block
+`generate_galaxy_txt.ts` writes for `S` spawn systems and `systems` systems
+in total, plus Forge's own `core_radius`:
+
+```
+# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
+static_galaxy_scenario = {
+	name = "<name>"
+	priority = 10
+	supports_shape = elliptical
+	supports_shape = spiral_2
+	supports_shape = spiral_3
+	supports_shape = spiral_4
+	supports_shape = spiral_6
+	supports_shape = ring
+	supports_shape = bar
+	supports_shape = cartwheel
+	supports_shape = cluster
+	supports_shape = starburst
+	random_hyperlanes = no
+	num_wormhole_pairs = { min = 0 max = 5 }
+	num_wormhole_pairs_default = 1
+	num_gateways = { min = 0 max = 5 }
+	num_gateways_default = 1
+	num_hyperlanes = { min = 0.5 max = 3 }
+	num_hyperlanes_default = 1
+	colonizable_planet_odds = 1.0
+	primitive_odds = 1.0
+	fallen_empire_max = 6
+	marauder_empire_max = 3
+	extra_crisis_strength = { 10 25 }
+	num_empires = { min = 0 max = <S-1> }
+	num_empire_default = <S-1>
+	advanced_empire_default = <round((S-1)/8)>
+	nomad_empire_default = <round((S-1)/10)>
+	nomad_empire_max = <S-1>
+	fallen_empire_default = <band>
+	marauder_empire_default = <band>
+	crisis_strength = <band>
+	core_radius = <Forge's own>
+```
+
+`fallen_empire_default` / `marauder_empire_default` / `crisis_strength` come
+from a band on the system count: below 400 systems 0 / 1 / 0.5, from 400 1 /
+1 / 0.75, from 600 2 / 2 / 1.0, from 800 3 / 2 / 1.25, from 1000 4 / 3 / 1.5.
+
+Spawn systems are the capitals of the playable ("default") countries, union
+every system that already carries a Paint a Galaxy script, union every
+system with a spawn weight above zero. Each is written, in ascending id
+order as position `i`:
+
+```
+spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|n| }
+```
+
+`n = i % 10`. A system that already carries a preferred, reserved or Sol
+script keeps that script's kind and random value rather than being reset to
+plain "enabled". A spawn system with no `initializer` is given
+`random_empire_init_0N` (`N` = `id % 6 + 1`). Every empty system
+within two lane jumps of a spawn, and still without an `initializer`, gets
+the mod's random-list filler and the flag that names it automatic:
+
+```
+initializer = painted_galaxy_rl_basic
+effect = { set_star_flag = painted_galaxy_automatic_initializer }
+```
+
+Each wormhole pair (`BypassLink::Wormhole`) is flagged on both ends, `n`
+counting the pairs from 1:
+
+```
+effect = { set_star_flag = painted_galaxy_wormhole_<n> set_star_flag = empire_cluster }
+```
+
+Preferred, reserved and Sol seats are not chosen at export; the seat kind
+is changed afterwards in the inspector's Spawn point section. Custom-
+initializer and fallen-empire flags are not written.
+
+## What Forge reads
+
+A system reads as a Paint a Galaxy spawn when its `spawn_weight`'s `add`
+scalar starts with `value:painted_galaxy_spawn_weight|`; what follows is
+read as `|KEY|value|` pairs (`PREFERRED|yes`, `RESERVED|<letter>`,
+`SOL|yes`, `RANDOM_VALUE|n`), and a key this editor does not know is passed
+over rather than rejected, so a parameter a later Paint a Galaxy build adds
+still reads back as a seat. A reserved seat's letter is written as one
+lowercase ASCII letter, matching the star flags Paint a Galaxy itself uses;
+on read, whatever follows `RESERVED|` is taken as the letter. Because the
+mod resolves the weight from the seat kind rather than from a number,
+setting a base spawn weight or a human/AI reservation on a system that
+already carries a script is refused; its Paint a Galaxy spawn kind is what
+changes instead.
+
 ## Limitations
 
 - WKWebView (macOS) and WebView2 (Windows) partition third-party iframe
