@@ -321,7 +321,13 @@ path on hover.
 
 The first save's backup is the file you opened, byte for byte. Each
 later save backs up the file the save before it wrote, so the earliest
-stamp is the untouched original.
+stamp is the untouched original. A save that changes nothing writes
+nothing and leaves no backup.
+
+Backups are capped at eight per file. The original is always kept, and
+so are the three newest. The rest are thinned to four spread evenly over
+the time between, so a burst of saves collapses to one and a long
+session keeps a backup from every part of it.
 
 "Save as…" (Ctrl+Shift+S) writes to a path you choose, which then becomes
 the open file. A backup is made only if a file already existed there.
@@ -441,7 +447,8 @@ same way and has no special handling for them.
 Every save from the app leaves the previous file next to it as
 `<name>.sav.bak-<stamp>`. To go back, delete or move the edited `.sav`
 and rename the backup to `<name>.sav`. If you saved several times there
-is one backup per save; the earliest stamp is the untouched original.
+are up to eight backups (see "Saving" above). The earliest stamp is the
+untouched original.
 
 ## Updates
 

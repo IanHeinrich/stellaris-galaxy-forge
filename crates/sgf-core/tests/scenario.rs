@@ -146,7 +146,7 @@ fn the_grammar_fixture_projects_into_the_galaxy() {
 }
 
 #[test]
-fn saving_an_untouched_scenario_is_byte_identical_and_backs_up() {
+fn saving_an_untouched_scenario_is_byte_identical_and_writes_nothing_twice() {
     let original = std::fs::read(FIXTURE).expect("read the fixture");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("scenario_grammar.txt");
@@ -157,15 +157,7 @@ fn saving_an_untouched_scenario_is_byte_identical_and_backs_up() {
     assert_eq!(std::fs::read(&path).unwrap(), original);
 
     let outcome = session.save_as(&path).expect("save over the written file");
-    let backup = outcome.backup.expect("a backup of the displaced file");
-    assert!(
-        backup
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .contains(".bak-")
-    );
-    assert_eq!(std::fs::read(&backup).unwrap(), original);
+    assert_eq!(outcome.backup, None, "identical bytes make no backup");
     assert_eq!(std::fs::read(&path).unwrap(), original);
 }
 

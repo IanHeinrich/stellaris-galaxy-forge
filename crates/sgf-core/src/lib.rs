@@ -4,6 +4,7 @@
 //! keyed to original offsets (see `docs/adr/0001-document-model.md`).
 
 pub mod archive;
+mod backup;
 pub mod cst;
 pub mod document;
 pub mod emit;
