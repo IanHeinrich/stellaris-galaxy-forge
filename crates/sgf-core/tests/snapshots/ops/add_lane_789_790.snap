@@ -1,0 +1,42 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Added lane 789 <-> 790 (length 794)
+touched: [789, 790]
+inverse: RemoveLane { a: 789, b: 790 }
+… and 4 other issues
+
+--- gamestate
++++ gamestate
+@@ -82446,6 +82446,15 @@
+ 			1029 
+ 		}
+ 		star_class="sc_trinary_3"
++		hyperlane=
++		{
++			
++			{
++				to=790
++				length=794
++			}
++ 
++		}
+ 		natural_wormholes=
+ 		{
+ 			12 
+@@ -82506,6 +82515,15 @@
+ 			1062 1063 1064 1065 1066 1067 1068 
+ 		}
+ 		star_class="sc_neutron_star"
++		hyperlane=
++		{
++			
++			{
++				to=789
++				length=794
++			}
++ 
++		}
+ 		asteroid_belts=
+ 		{

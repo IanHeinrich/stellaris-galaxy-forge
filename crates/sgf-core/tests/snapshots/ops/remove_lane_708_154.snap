@@ -1,0 +1,45 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Removed lane 708 <-> 154 (4 entries)
+touched: [154, 708]
+inverse: AddLane { a: 708, b: 154, bridge: false }
+… and 4 other issues
+
+--- gamestate
++++ gamestate
+@@ -39794,16 +39794,6 @@
+ 				length=27
+ 			}
+  
+-			{
+-				to=708
+-				length=22
+-			}
+- 
+-			{
+-				to=708
+-				length=22
+-			}
+- 
+ 		}
+ 		asteroid_belts=
+ 		{
+@@ -77030,16 +77020,6 @@
+ 				to=470
+ 				length=24
+ 				bridge=yes
+-			}
+- 
+-			{
+-				to=154
+-				length=22
+-			}
+- 
+-			{
+-				to=154
+-				length=22
+ 			}
+  
+ 		}

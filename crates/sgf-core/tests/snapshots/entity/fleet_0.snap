@@ -1,0 +1,39 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+fleet 0 at []
+label: shipclass_starbase_name
+bytes: 1715 dirty: false span: 16993568..16995283
+= Ship class: shipclass_starbase @ship_class
+= Military power: 691.60937 @military_power
+= Hit points: 10000 @hit_points
+> Ships x1 of ship @ships
+  name = block[2] @8..162
+  name.key = Quoted shipclass_starbase_name @21..50
+  ships = list[1] @165..185
+  combat = block[5] @188..494
+  combat.start_date = Date 0.01.01 @467..490
+  fleet_stats = block[1] @497..590
+  ground_support_stance = Quoted selective @593..626
+  ship_class = Ident shipclass_starbase @629..658
+  space_fauna_growth_stance = Ident excessive @661..696
+  mia_from = block[3] @699..751
+  mia_from.x = Int 0 @716..719
+  mia_from.y = Int 0 @723..726
+  mia_from.origin = Null 4294967295 @730..747
+  movement_manager = block[8] @754..1398
+  movement_manager.state = Ident move_idle @1072..1087
+  settings = block[4] @1401..1494
+  settings.station = Bool yes @1418..1429
+  settings.weapon = Bool yes @1433..1443
+  settings.valid_for_combat = Bool yes @1447..1467
+  settings.orbital_station = Bool yes @1471..1490
+  hit_points = Decimal 10000.00000 @1497..1519
+  military_power = Decimal 691.60937 @1522..1546
+  diplomacy_weight = Decimal 691.60937 @1549..1575
+  cached_killed_ships = Int 0 @1578..1599
+  cached_disabled_ships = Int 0 @1602..1625
+  cached_disengaged_ships = Int 0 @1628..1653
+  cached_combined_removed_ships = Int 0 @1656..1687
+  commanding_armada = Null none @1690..1712

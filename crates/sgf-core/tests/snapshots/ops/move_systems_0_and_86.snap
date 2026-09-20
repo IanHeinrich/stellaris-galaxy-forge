@@ -1,0 +1,147 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Moved 2 systems; updated 16 lane lengths
+touched: [0, 64, 86, 112, 200, 246, 752]
+inverse: MoveSystems { moves: [SystemMove { id: 0, x: -144.22, y: 57.36 }, SystemMove { id: 86, x: -153.47, y: 30.99 }] }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28844,8 +28844,8 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=-144.22
+-			y=57.36
++			x=-134.22
++			y=67.36
+ 			origin=4294967295
+ 			randomized=yes
+ 			visual_height=3.65056
+@@ -28869,12 +28869,12 @@
+ 			
+ 			{
+ 				to=752
+-				length=33
++				length=47
+ 			}
+  
+ 			{
+ 				to=200
+-				length=27
++				length=21
+ 			}
+  
+ 			{
+@@ -28884,12 +28884,12 @@
+  
+ 			{
+ 				to=64
+-				length=21
++				length=11
+ 			}
+  
+ 			{
+ 				to=246
+-				length=17
++				length=21
+ 			}
+  
+ 		}
+@@ -33460,7 +33460,7 @@
+ 			
+ 			{
+ 				to=0
+-				length=21
++				length=11
+ 			}
+  
+ 			{
+@@ -34936,8 +34936,8 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=-153.47
+-			y=30.99
++			x=-143.47
++			y=40.99
+ 			origin=4294967295
+ 			randomized=yes
+ 			visual_height=3.65056
+@@ -34968,17 +34968,17 @@
+  
+ 			{
+ 				to=246
+-				length=26
++				length=12
+ 			}
+  
+ 			{
+ 				to=752
+-				length=19
++				length=28
+ 			}
+  
+ 			{
+ 				to=112
+-				length=17
++				length=28
+ 				bridge=yes
+ 			}
+  
+@@ -36776,7 +36776,7 @@
+  
+ 			{
+ 				to=86
+-				length=17
++				length=28
+ 				bridge=yes
+ 			}
+  
+@@ -43030,7 +43030,7 @@
+  
+ 			{
+ 				to=0
+-				length=27
++				length=21
+ 			}
+  
+ 			{
+@@ -46180,7 +46180,7 @@
+ 			
+ 			{
+ 				to=86
+-				length=26
++				length=12
+ 			}
+  
+ 			{
+@@ -46190,7 +46190,7 @@
+  
+ 			{
+ 				to=0
+-				length=17
++				length=21
+ 			}
+  
+ 		}
+@@ -80039,7 +80039,7 @@
+ 			
+ 			{
+ 				to=0
+-				length=33
++				length=47
+ 			}
+  
+ 			{
+@@ -80049,7 +80049,7 @@
+  
+ 			{
+ 				to=86
+-				length=19
++				length=28
+ 			}
+  
+ 		}

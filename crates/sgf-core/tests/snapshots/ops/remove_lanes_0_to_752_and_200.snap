@@ -1,0 +1,52 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Removed 2 lane(s) from 0 to 752, 200 (4 entries)
+touched: [0, 200, 752]
+inverse: AddLanes { from: 0, to: [(752, false), (200, false)] }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28868,16 +28868,6 @@
+ 		{
+ 			
+ 			{
+-				to=752
+-				length=33
+-			}
+- 
+-			{
+-				to=200
+-				length=27
+-			}
+- 
+-			{
+ 				to=86
+ 				length=27
+ 			}
+@@ -43029,11 +43019,6 @@
+ 			}
+  
+ 			{
+-				to=0
+-				length=27
+-			}
+- 
+-			{
+ 				to=659
+ 				length=25
+ 			}
+@@ -80037,11 +80022,6 @@
+ 		hyperlane=
+ 		{
+ 			
+-			{
+-				to=0
+-				length=33
+-			}
+- 
+ 			{
+ 				to=323
+ 				length=21

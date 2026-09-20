@@ -1,0 +1,12 @@
+starbase_hut = {
+	icon_frame = 2
+	icon = ship_size_military_1
+}
+
+starbase_roamer = {
+	icon_frame = -1
+}
+
+science = {
+	icon = ship_size_science
+}

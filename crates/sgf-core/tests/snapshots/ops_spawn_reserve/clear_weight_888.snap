@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/ops_spawn_reserve.rs
+expression: "report(&session, &result)"
+---
+Cleared system 888's spawn weight and its reservation
+inverse: SetSpawnWeight { id: 888, base: Some(1.0) }
+
+--- scenario
++++ scenario
+@@ -50,7 +50,7 @@
+ 	}
+ 	system = { id = "9" name = "Lonely" position = { x = -90 y = 90 } }
+ 	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { modifier = { add = 10000 has_country_flag = sgf_grammar } } }
+-	system = { id = "888" name = "Reserved" position = { x = 90 y = -60 } initializer = custom_starting_init_01 spawn_weight = { base = 1 modifier = { factor = 0 is_ai = yes } } }
++	system = { id = "888" name = "Reserved" position = { x = 90 y = -60 } initializer = custom_starting_init_01 }
+ 
+ 	add_hyperlane = { from = "1" to = "2" }
+ 	add_hyperlane = { from = "2" to = "1" }

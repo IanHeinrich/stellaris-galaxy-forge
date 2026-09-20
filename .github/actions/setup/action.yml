@@ -1,0 +1,34 @@
+name: Set up the toolchains
+description: Linux Tauri prerequisites, the Rust toolchain with its cache, and Node 22.
+
+inputs:
+  components:
+    description: Rust components to add, comma separated.
+    required: false
+    default: ""
+  targets:
+    description: Rust targets to add, comma separated.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Linux Tauri prerequisites
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: ${{ inputs.components }}
+        targets: ${{ inputs.targets }}
+    - uses: Swatinem/rust-cache@v2
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: app/package-lock.json

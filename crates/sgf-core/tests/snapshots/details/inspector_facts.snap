@@ -1,0 +1,58 @@
+---
+source: crates/sgf-core/tests/details.rs
+expression: report
+---
+system 217
+  resources: energy 13, minerals 13, engineering 5
+  starbase starbase_level_starport STARBASE_STATION_NAME_FORMAT_NON_PRIMARY owner=Some(0) shipyard=true modules=[shipyard, solar_panel_network] buildings=[crew_quarters]
+  planet 0 NAME_Sol pc_g_star pops=0 deposits: energy 5
+  planet 1 NAME_Mercury pc_molten pops=0 deposits: energy 3
+  planet 3 NAME_Earth pc_continental pops=5445 deposits: -
+  planet 5 NAME_Mars pc_barren pops=0 deposits: minerals 3
+  planet 12 NAME_Europa pc_frozen pops=0 deposits: engineering 2
+  planet 14 NAME_Callisto pc_frozen pops=0 deposits: engineering 3
+  planet 16 NAME_Titan pc_frozen pops=0 deposits: minerals 5
+  planet 17 NAME_Uranus pc_gas_giant pops=0 deposits: energy 5
+  planet 19 NAME_Triton pc_frozen pops=0 deposits: minerals 5
+  fleet 0 shipclass_starbase_name ships=1 military=false sizes: starbase_starport 1
+  fleet 369 shipclass_mining_station_name ships=1 military=false sizes: mining_station 1
+  fleet 370 shipclass_mining_station_name ships=1 military=false sizes: mining_station 1
+  fleet 371 shipclass_mining_station_name ships=1 military=false sizes: mining_station 1
+  fleet 372 shipclass_mining_station_name ships=1 military=false sizes: mining_station 1
+  fleet 373 shipclass_research_station_name ships=1 military=false sizes: research_station 1
+
+system 448
+  resources: energy 4
+  planet 339 NAME_Sirius_A pc_a_star pops=0 deposits: energy 2
+  planet 340 NAME_Sirius_B pc_f_star pops=0 deposits: energy 2
+  fleet 3 %SEQ% ships=3 military=true sizes: corvette 3
+
+system 614
+  resources: physics 2
+  planet 210 STAR_NAME_1_OF_1 pc_m_star pops=0 deposits: physics 2
+  fleet 1 PREFIX_NAME_FORMAT ships=1 military=false sizes: science 1
+
+system 521
+  resources: energy 4, trade_value 3, alloys 1, minerals 4, engineering 2
+  starbase starbase_level_citadel STARBASE_STATION_NAME_FORMAT_NON_PRIMARY owner=Some(16777230) shipyard=true modules=[shipyard, shipyard, shipyard, hangar_bay, gun_battery, gun_battery] buildings=[target_uplink_computer, defense_grid, capital_yards]
+  planet 483 STAR_NAME_1_OF_1 pc_k_star pops=0 deposits: energy 4
+  planet 485 ASTEROID_NAME_FORMAT pc_asteroid pops=0 deposits: trade_value 3
+  planet 489 NAME_Celestial_Throne pc_gaia pops=11500 deposits: -
+  planet 490 NAME_The_Mistake pc_broken pops=0 deposits: alloys 1
+  planet 491 NAME_Sky_Temple pc_gaia pops=6800 deposits: -
+  planet 494 PLANET_NAME_FORMAT pc_barren_cold pops=0 deposits: minerals 4
+  planet 496 PLANET_NAME_FORMAT pc_gas_giant pops=0 deposits: engineering 2
+  fleet 56 shipclass_starbase_name ships=13 military=false sizes: starbase_deep_space_citadel_3 1, military_station_small_fallen_empire 12
+  fleet 58 MOL3_FLEET_ImbhsVoidfarers ships=25 military=true sizes: small_ship_fallen_empire 19, large_ship_fallen_empire 6
+  fleet 59 MOL3_SHIP_Gohala ships=1 military=true sizes: colossus 1
+  fleet 60 MOL3_SHIP_FinAlv ships=1 military=false sizes: constructor 1
+  fleet 61 MOL3_SHIP_FinEll ships=1 military=false sizes: constructor 1
+  fleet 62 MOL3_SHIP_Nimbhlog ships=1 military=false sizes: constructor 1
+  fleet 63 shipclass_starbase_name ships=13 military=false sizes: starbase_deep_space_citadel_3 1, military_station_small_fallen_empire 12
+  fleet 64 shipclass_starbase_name ships=11 military=false sizes: starbase_citadel 1, military_station_small_fallen_empire 10
+  fleet 451 shipclass_mining_station_name ships=1 military=false sizes: mining_station 1
+  fleet 452 shipclass_mining_station_name ships=1 military=false sizes: mining_station 1
+  fleet 454 shipclass_mining_station_name ships=1 military=false sizes: mining_station 1
+  fleet 455 shipclass_mining_station_name ships=1 military=false sizes: mining_station 1
+  fleet 477 shipclass_research_station_name ships=1 military=false sizes: research_station 1
+  fleet 532 TRANS_FLEET_NAME ships=20 military=false sizes: transport 20

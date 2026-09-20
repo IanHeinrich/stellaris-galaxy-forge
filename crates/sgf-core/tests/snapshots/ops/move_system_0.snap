@@ -1,0 +1,100 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Moved Gamma Refuge (#0) from (-144.22, 57.36) to (-150, 60); updated 10 lane lengths
+touched: [0, 64, 86, 200, 246, 752]
+inverse: MoveSystem { id: 0, x: -144.22, y: 57.36 }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28844,8 +28844,8 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=-144.22
+-			y=57.36
++			x=-150
++			y=60
+ 			origin=4294967295
+ 			randomized=yes
+ 			visual_height=3.65056
+@@ -28869,27 +28869,27 @@
+ 			
+ 			{
+ 				to=752
+-				length=33
++				length=30
+ 			}
+  
+ 			{
+ 				to=200
+-				length=27
++				length=24
+ 			}
+  
+ 			{
+ 				to=86
+-				length=27
++				length=29
+ 			}
+  
+ 			{
+ 				to=64
+-				length=21
++				length=26
+ 			}
+  
+ 			{
+ 				to=246
+-				length=17
++				length=23
+ 			}
+  
+ 		}
+@@ -33460,7 +33460,7 @@
+ 			
+ 			{
+ 				to=0
+-				length=21
++				length=26
+ 			}
+  
+ 			{
+@@ -34963,7 +34963,7 @@
+ 			
+ 			{
+ 				to=0
+-				length=27
++				length=29
+ 			}
+  
+ 			{
+@@ -43030,7 +43030,7 @@
+  
+ 			{
+ 				to=0
+-				length=27
++				length=24
+ 			}
+  
+ 			{
+@@ -46190,7 +46190,7 @@
+  
+ 			{
+ 				to=0
+-				length=17
++				length=23
+ 			}
+  
+ 		}
+@@ -80039,7 +80039,7 @@
+ 			
+ 			{
+ 				to=0
+-				length=33
++				length=30
+ 			}
+  
+ 			{

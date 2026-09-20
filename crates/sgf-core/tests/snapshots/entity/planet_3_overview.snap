@@ -1,0 +1,44 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+planet 3 at []
+label: NAME_Earth
+bytes: 745 dirty: false span: 1198835..1199580
+= Class: pc_continental @planet_class
+= Size: 18 @planet_size
+= Owner: 0 -> country 0 @owner
+= Orbits: 217 -> system 217 @coordinate.origin
+= Colonised: 2016.05.09 @colonize_date
+= Colony: 0 -> colony 0 @colony
+= Pops: 5445 (borrowed)
+= Deposits: d_mesopotamian_urban_corridor, d_boswash_metropolitan_axis, d_mauritanian_security_zone, d_great_albertan_crater, d_scandinavian_reclamation_sector, d_saharan_irrigation_project, d_pearl_river_agglomerate, d_great_pacific_garbage_patch, d_failing_infrastructure_earth, d_decrepit_dwellings @deposits
+> Deposits x10 of deposit @deposits
+> Flags x1 @flags
+  colony = Int 0 @10..18
+  planet_class = Quoted pc_continental @22..51
+  planet_size = Int 18 @55..69
+  colonize_date = Date 2016.05.09 @73..102
+  carrier_binary_flags = Int 1 @106..128
+  build_queue = Int 0 @132..145
+  name = block[1] @149..185
+  name.key = Quoted NAME_Earth @164..180
+  binary_flags = Int 75 @189..204
+  coordinate = block[3] @208..272
+  coordinate.x = Decimal 14.0274 @229..238
+  coordinate.y = Decimal 89.0964 @243..252
+  coordinate.origin = Int 217 @257..267
+  orbit = Int 90 @276..284
+  last_bombardment = Date 0.01.01 @288..317
+  owner = Int 0 @321..328
+  original_owner = Int 0 @332..348
+  controller = Int 0 @352..364
+  moons = list[1] @368..391
+  planet_orbitals = list[0] @395..421
+  bombardment_damage = Int 0 @425..445
+  timed_modifier = block[1] @449..566
+  flags = block[1] @570..612
+  flags.planet_earth = Int 62808000 @586..607
+  entity = Int 3 @616..624
+  entity_name = Quoted continental_planet_earth_entity @628..673
+  deposits = list[10] @677..741

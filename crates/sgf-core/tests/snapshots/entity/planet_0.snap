@@ -1,0 +1,37 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+planet 0 at []
+label: NAME_Sol
+bytes: 528 dirty: false span: 1197239..1197767
+= Class: pc_g_star @planet_class
+= Size: 30 @planet_size
+= Orbits: 217 -> system 217 @coordinate.origin
+= Deposits: d_energy_5 @deposits
+> Deposits x1 of deposit @deposits
+> Flags x2 @flags
+  planet_class = Quoted pc_g_star @10..34
+  planet_size = Int 30 @38..52
+  carrier_binary_flags = Int 3 @56..78
+  build_queue = Int 172 @82..97
+  name = block[1] @101..135
+  name.key = Quoted NAME_Sol @116..130
+  binary_flags = Int 73 @139..154
+  coordinate = block[3] @158..210
+  coordinate.x = Int 0 @179..182
+  coordinate.y = Int 0 @187..190
+  coordinate.origin = Int 217 @195..205
+  orbit = Int 0 @214..221
+  last_bombardment = Date 0.01.01 @225..254
+  controller = Int 0 @258..270
+  planet_orbitals = list[0] @274..300
+  shipclass_orbital_station = Int 369 @304..333
+  orbital_defence = Int 0 @337..354
+  bombardment_damage = Int 0 @358..378
+  flags = block[2] @382..464
+  flags.starting_mining_target = Int 62808000 @398..429
+  flags.starting_deposit = Int 62808000 @434..459
+  entity = Int 0 @468..476
+  surveyed_by = Int 0 @480..493
+  deposits = list[1] @497..524

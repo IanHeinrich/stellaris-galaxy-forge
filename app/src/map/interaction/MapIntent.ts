@@ -1,0 +1,94 @@
+import type { LaneRef, SelectionMode } from "../../store/editorStore";
+import type { ContextTarget } from "../../store/mapChromeStore";
+import type { NebulaPick } from "../picking";
+import type { Zone } from "../picking/zones";
+
+/** Pointer travel before a press becomes a drag rather than a click. */
+export const DRAG_THRESHOLD_PX = 4;
+
+export type InputKind = "down" | "move" | "up" | "cancel";
+
+/** A system a lane drag would snap to; `valid` is false when it is already linked to the start. */
+export interface LaneTarget {
+  id: number;
+  valid: boolean;
+}
+
+/** One pointer event resolved against the map: screen and world position plus the pick. */
+export interface MapInput {
+  kind: InputKind;
+  sx: number;
+  sy: number;
+  wx: number;
+  wy: number;
+  /** 0 left, 2 right; -1 on a move. */
+  button: number;
+  shift: boolean;
+  /** Ctrl, or Cmd on a Mac. */
+  ctrl: boolean;
+  /** The store's selection, so a drag from a selected star can act on the whole group. */
+  selection: number[];
+  system: number | null;
+  /** Where on `system` the pointer is; null when no system is under it. */
+  zone: Zone | null;
+  /** `lane` is the nearest lane within tolerance, looked up only when no system is under the pointer. */
+  lane: LaneRef | null;
+  /** The pointer is on the hovered lane's midpoint "×". */
+  midpointHit: boolean;
+  /** Nearest system inside the snap radius other than the pressed group; null when nothing is pressed. */
+  snap: LaneTarget | null;
+  /** The nebula part under the pointer, looked up only when no system and no lane is. */
+  nebula: NebulaPick | null;
+}
+
+/** What the control model asks of the map. Edits become ops; previews stay on the map. */
+export interface MapIntent {
+  select(id: number): void;
+  toggleSelect(id: number): void;
+  selectLane(lane: LaneRef): void;
+  clearSelection(): void;
+  /** The marquee's corners in screen pixels, in press order. */
+  previewMarquee(sx0: number, sy0: number, sx1: number, sy1: number): void;
+  /** Drops the marquee rectangle, whether or not it selected anything. */
+  endMarquee(): void;
+  /** Selects every system inside the world rectangle, `x0 <= x1` and `y0 <= y1`. */
+  selectInRect(wx0: number, wy0: number, wx1: number, wy1: number, mode: SelectionMode): void;
+  previewMove(id: number, x: number, y: number): void;
+  commitMove(id: number, x: number, y: number): void;
+  /** Rigid move of `ids` by a world offset from the press point. */
+  previewMoveGroup(ids: number[], dx: number, dy: number): void;
+  commitMoveGroup(ids: number[], dx: number, dy: number): void;
+  cancelMove(): void;
+  previewLane(from: number, x: number, y: number, target: LaneTarget | null): void;
+  /** Rubber lines from every system in `from` to the same point or target. */
+  previewLanes(from: number[], x: number, y: number, target: LaneTarget | null): void;
+  /** Drops the rubber line, whether or not the lane was connected. */
+  endLane(): void;
+  connect(a: number, b: number): void;
+  /** Connects `target` to every system in `ids` not yet linked to it. */
+  connectMany(ids: number[], target: number): void;
+  cut(a: number, b: number): void;
+  selectNebula(index: number): void;
+  /** The nebula's centre follows the pointer; the controller keeps the grab offset. */
+  previewNebula(index: number, x: number, y: number): void;
+  commitNebula(index: number, x: number, y: number): void;
+  /** The pointer's world point, which the controller reads as a radius about the fixed centre. */
+  previewNebulaRadius(index: number, x: number, y: number): void;
+  commitNebulaRadius(index: number, x: number, y: number): void;
+  /** Drops the ghost ring, whether or not the drag changed anything. */
+  endNebula(): void;
+  contextMenu(target: ContextTarget, sx: number, sy: number): void;
+}
+
+/**
+ * A control model turns inputs into intents. Returning "pan" from a move asks the controller
+ * to pan the camera by the pointer's travel.
+ */
+export interface MapModel {
+  handle(input: MapInput, intent: MapIntent): "consumed" | "pan";
+  cursor(): string;
+  /** True while a drag is in progress. */
+  busy(): boolean;
+  /** Drops any half-finished action, clearing its preview through `intent`. */
+  reset(intent: MapIntent): void;
+}

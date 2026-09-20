@@ -1,0 +1,6 @@
+---
+source: crates/sgf-core/tests/search.rs
+expression: "report(&s.search(\"commonwealth\", 5, &no_loc))"
+---
+Country #17 Commonwealth of Man · type=default systems=5 → #4 at (143.51, 9.31)
+Fleet #50332312 TRANS FLEET NAME · owner=Commonwealth of Man → #4 at (143.51, 9.31)

@@ -1,0 +1,84 @@
+.ins-script-where {
+  color: var(--fg-muted);
+}
+
+/* A path is read from its end, so the room it lacks is taken off the front. */
+.ins-script-path {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.ins-script-actions {
+  display: flex;
+  gap: 2px;
+  align-self: start;
+}
+
+.ins-script-actions button {
+  padding: 0 3px;
+  font-size: 12px;
+  opacity: 0;
+}
+
+.ins-script-actions .link {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  font-size: 14px;
+}
+
+.ins-prow:hover .ins-script-actions button,
+.ins-script-site:hover .ins-script-actions button,
+.ins-init-line .ins-script-actions button,
+.ins-script-actions button:focus-visible {
+  opacity: 1;
+}
+
+.ins-script-row {
+  list-style: none;
+  cursor: pointer;
+}
+
+.ins-script-row::-webkit-details-marker {
+  display: none;
+}
+
+.ins-script .tri::before {
+  content: "\25b8";
+}
+
+.ins-script[open] .tri::before {
+  content: "\25be";
+}
+
+.ins-script-count {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ins-script-sites {
+  padding: 2px 0 4px 32px;
+}
+
+.ins-script-site {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 2px 4px;
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: var(--fg-muted);
+}
+
+.ins-script-site:hover {
+  background: var(--bg-elevated);
+}
+
+.ins-script-site .ins-script-line {
+  white-space: nowrap;
+}

@@ -1,0 +1,22 @@
+sc_sun = {
+	class = sun_star
+	planet = { key = pc_sun_star }
+	spawn_odds = 30
+}
+
+sc_ember = {
+	class = ember_star
+	color = hsv { 0.1 0.8 1.0 }
+	planet = { key = pc_ember_star }
+}
+
+sc_pit = {
+	class = pit
+	icon_scale = 2.0
+	planet = { key = pc_pit }
+}
+
+sc_vanilla_only = {
+	class = m_star
+	planet = { key = pc_m_star }
+}

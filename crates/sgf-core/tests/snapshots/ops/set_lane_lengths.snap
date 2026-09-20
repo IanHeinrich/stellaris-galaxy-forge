@@ -1,0 +1,47 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Set 2 lane lengths
+touched: [0, 752, 760, 788]
+inverse: SetLaneLengths { lanes: [LaneLength { a: 0, b: 752, length: 33.0 }, LaneLength { a: 788, b: 760, length: 20.70131 }] }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28869,7 +28869,7 @@
+ 			
+ 			{
+ 				to=752
+-				length=33
++				length=40
+ 			}
+  
+ 			{
+@@ -80039,7 +80039,7 @@
+ 			
+ 			{
+ 				to=0
+-				length=33
++				length=40
+ 			}
+  
+ 			{
+@@ -80577,7 +80577,7 @@
+  
+ 			{
+ 				to=788
+-				length=20.70131
++				length=21.5
+ 			}
+  
+ 		}
+@@ -82393,7 +82393,7 @@
+ 			
+ 			{
+ 				to=760
+-				length=20.70131
++				length=21.5
+ 			}
+  
+ 		}

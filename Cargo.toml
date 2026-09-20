@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "app/src-tauri"]
+
+[workspace.package]
+version = "0.5.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/IanHeinrich/stellaris-galaxy-forge"
+
+[workspace.dependencies]
+sgf-core = { path = "crates/sgf-core" }
+sgf-gamedata = { path = "crates/sgf-gamedata" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

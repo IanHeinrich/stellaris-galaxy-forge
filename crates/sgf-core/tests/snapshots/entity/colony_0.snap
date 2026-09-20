@@ -1,0 +1,48 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+colony 0 at []
+label: colony #0
+bytes: 3534 dirty: false span: 1057881..1061415
+  automation = block[2] @8..579
+  automation.enabled = Bool no @27..37
+  pop_groups = list[6] @582..628
+  pop_jobs = list[28] @631..764
+  kill_pop = Date 0.01.01 @767..787
+  districts = list[4] @790..820
+  army_build_queue = Int 1 @823..841
+  governor = Int 190 @844..856
+  army = list[5] @859..891
+  spawned_armies = list[5] @894..936
+  pop_to_kill_from_devastation = Int 29 @939..970
+  stability = Decimal 84.8542 @973..990
+  crime = Int 0 @993..1000
+  amenities = Decimal 9049.6875 @1003..1022
+  amenities_usage = Int 3800 @1025..1045
+  free_amenities = Decimal 5249.6875 @1048..1072
+  free_housing = Decimal 699.5 @1075..1093
+  total_housing = Int 5600 @1096..1114
+  housing_usage = Decimal 4900.5 @1117..1137
+  employable_pops = Int 5445 @1140..1160
+  civilian = Int 2145 @1163..1176
+  num_sapient_pops = Int 5445 @1179..1200
+  manual_designation_changed_date = Date 0.01.01 @1203..1246
+  final_designation = Quoted col_capital @1249..1280
+  ascension_tier = Int 0 @1283..1299
+  species_refs = list[1] @1302..1338
+  species_information = block[1] @1341..1412
+  upkeep = block[4] @1415..1498
+  upkeep.energy = Int 26 @1430..1439
+  upkeep.minerals = Int 36 @1443..1454
+  upkeep.food = Decimal 54.42 @1458..1468
+  upkeep.consumer_goods = Decimal 37.7105 @1472..1494
+  produces = block[10] @1501..1744
+  profits = block[10] @1747..1990
+  buildings_cache = list[4] @1993..2029
+  last_month_growth_data = block[3] @2032..2808
+  current_month_growth_data = block[2] @2811..3464
+  carrier = block[2] @3467..3513
+  carrier.type = Ident planet @3483..3494
+  carrier.reference = Int 3 @3498..3509
+  binary_flags = Int 72 @3516..3531

@@ -1,0 +1,34 @@
+/* Over the whole window, not just the map: nothing else is worth reading while a document opens. */
+.loading-scrim {
+  position: fixed;
+  z-index: 10;
+  cursor: progress;
+}
+
+.loading-card {
+  gap: 8px;
+}
+
+.loading-card h1 {
+  margin: 0;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A fixed-width fill swept across the bar while the backend reports no fraction. */
+.progress-bar.indeterminate .progress-fill {
+  width: 35%;
+  transition: none;
+  animation: loading-sweep 1.1s ease-in-out infinite;
+}
+
+@keyframes loading-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(286%);
+  }
+}

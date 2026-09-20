@@ -1,0 +1,15 @@
+		hyperlane=
+		{
+			
+			{
+				to=752
+				length=33
+			}
+ 
+			{
+				to=200
+				length=27
+				bridge=yes
+			}
+ 
+		}

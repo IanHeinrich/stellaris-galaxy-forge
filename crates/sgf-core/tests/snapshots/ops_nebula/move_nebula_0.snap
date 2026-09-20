@@ -1,0 +1,39 @@
+---
+source: crates/sgf-core/tests/ops_nebula.rs
+expression: "report(&session, &result)"
+---
+Moved Phantom Streak Miasma to (76.15, -126.85); its radius now covers 8 systems (was 8)
+touched: [140, 348, 455, 463, 484, 753]
+inverse: MoveNebula { index: 0, x: 66.15, y: -136.85 }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -6042,8 +6042,8 @@
+ {
+ 	coordinate=
+ 	{
+-		x=66.15
+-		y=-136.85
++		x=76.15
++		y=-126.85
+ 		origin=4294967295
+ 		randomized=yes
+ 		visual_height=3.65056
+@@ -6054,13 +6054,13 @@
+ 	}
+ 	radius=30
+ 	galactic_object=108
+-	galactic_object=140
+ 	galactic_object=164
+ 	galactic_object=181
+-	galactic_object=348
+ 	galactic_object=438
+-	galactic_object=463
++	galactic_object=455
++	galactic_object=484
+ 	galactic_object=623
++	galactic_object=753
+ }
+ nebula=
+ {

@@ -1,0 +1,507 @@
+.layer-icon {
+  display: block;
+  pointer-events: none;
+}
+
+.top-bar .layer-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.top-bar .layer-text {
+  font-size: 19px;
+}
+
+.layer-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  pointer-events: none;
+}
+
+button.icon[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: rgba(255, 209, 102, 0.1);
+}
+
+button.icon[aria-pressed="mixed"] {
+  color: var(--accent-dim);
+  border-color: var(--border);
+  background: rgba(255, 209, 102, 0.04);
+}
+
+/* A toggle for what the scripts decide reads as derived even while it is on. */
+button.icon.src[aria-pressed="true"] {
+  color: var(--src);
+  border-color: var(--src-dim);
+  background: var(--src-bg);
+}
+button.icon.src[aria-pressed="mixed"] {
+  color: var(--src-dim);
+  border-color: var(--border);
+  background: var(--src-bg);
+}
+
+/* A toggle for what an initializer places reads as derived in its own hue. */
+button.icon.init[aria-pressed="true"] {
+  color: var(--init);
+  border-color: var(--init-dim);
+  background: var(--init-bg);
+}
+button.icon.init[aria-pressed="mixed"] {
+  color: var(--init-dim);
+  border-color: var(--border);
+  background: var(--init-bg);
+}
+
+/* A master flips its whole group, so it reads as a pill rather than as one more layer icon. */
+button.master {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 9px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+button.master:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+button.master.src[aria-pressed="true"] {
+  color: var(--bg);
+  background: var(--src);
+  border-color: var(--src);
+}
+
+button.master.src[aria-pressed="mixed"] {
+  color: var(--src);
+  background: var(--src-bg);
+  border-color: var(--src-dim);
+}
+
+button.master.init[aria-pressed="true"] {
+  color: var(--bg);
+  background: var(--init);
+  border-color: var(--init);
+}
+
+button.master.init[aria-pressed="mixed"] {
+  color: var(--init);
+  background: var(--init-bg);
+  border-color: var(--init-dim);
+}
+
+.layer-toggles {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Each source is framed, with its name sitting on the frame's top edge. */
+.layer-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.layer-group.src {
+  border-color: var(--src-dim);
+}
+
+.layer-group.init {
+  border-color: var(--init-dim);
+}
+
+.layer-group-label {
+  position: absolute;
+  top: -6px;
+  left: 7px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+  background: var(--bg-panel);
+  pointer-events: none;
+}
+
+.layer-group.src .layer-group-label {
+  color: var(--src);
+}
+
+.layer-group.init .layer-group-label {
+  color: var(--init);
+}
+
+.menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.menu-label {
+  height: 34px;
+  padding: 0 8px;
+  background: none;
+  border-color: transparent;
+}
+
+.menu-label[aria-expanded="true"] {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
+
+.menu-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 4;
+  min-width: 240px;
+  max-width: min(560px, calc(100vw - 16px));
+  margin-top: 4px;
+  padding: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.menu-pop.right {
+  left: auto;
+  right: 0;
+}
+
+/* The Layers menu outgrows the window on a scenario, so its body scrolls and its foot stays put.
+   The pop hangs var(--bar-h) minus 6px below the viewport: a 34px label centred in the bar, plus its 4px. */
+.menu-pop[aria-label="Layers"] {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - (var(--bar-h) - 6px) - 16px);
+}
+
+.menu-pop[aria-label="Layers"] > :not(.menu-body) {
+  flex: none;
+}
+
+.menu-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* A row whose own control is followed by the chevron that opens something beside the menu. */
+.menu-row {
+  display: flex;
+  align-items: center;
+}
+
+.menu-row .menu-item {
+  min-width: 0;
+}
+
+.menu-chevron {
+  flex: none;
+  width: 18px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  color: var(--fg-muted);
+  background: none;
+  border: none;
+}
+
+.menu-chevron:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+.menu-chevron[aria-expanded="true"] {
+  color: var(--init);
+}
+
+/* The initializers legend hangs beside the menu, scrolling on its own. */
+.menu-flyout {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-height: calc(100vh - (var(--bar-h) - 6px) - 16px);
+  padding: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.menu-flyout > :not(.menu-list) {
+  flex: none;
+}
+
+.menu-flyout .menu-list {
+  max-height: none;
+  min-height: 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 22px;
+  padding: 0 6px;
+  text-align: left;
+  background: none;
+  border: none;
+}
+
+.menu-item.sub {
+  padding-left: 24px;
+}
+
+/* A diagnostic's message is a path or two: one line, cut with an ellipsis, whole in the tooltip. */
+.menu-item.diag > .muted {
+  flex: none;
+}
+.menu-item.diag > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.menu-item kbd,
+.menu-item .count,
+.menu-item .swatch {
+  margin-left: auto;
+}
+
+.menu-item .count {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+
+/* The initializers legend: hundreds of keys scroll inside the menu rather than past it. */
+.menu-list {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.menu-search {
+  width: 100%;
+  height: 22px;
+  margin: 2px 0 4px;
+  padding: 0 6px;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.menu-item .eye {
+  width: 12px;
+  color: var(--fg-muted);
+}
+
+.menu-item .layer-icon,
+.menu-item .layer-text {
+  width: 16px;
+  color: var(--fg-muted);
+}
+
+.menu-item[aria-pressed="true"] .eye,
+.menu-item[aria-pressed="true"] .layer-icon,
+.menu-item[aria-pressed="true"] .layer-text {
+  color: var(--accent);
+}
+
+.menu-item[aria-pressed="mixed"] .eye,
+.menu-item[aria-pressed="mixed"] .layer-icon {
+  color: var(--accent-dim);
+}
+
+/* A row for what a source decides reads in that source's hue, as its icon in the bar does. */
+.menu-item.src[aria-pressed="true"] .eye,
+.menu-item.src[aria-pressed="true"] .layer-icon,
+.menu-item.src[aria-pressed="true"] .layer-text {
+  color: var(--src);
+}
+
+.menu-item.src[aria-pressed="mixed"] .eye,
+.menu-item.src[aria-pressed="mixed"] .layer-icon {
+  color: var(--src-dim);
+}
+
+.menu-item.init[aria-pressed="true"] .eye,
+.menu-item.init[aria-pressed="true"] .layer-icon,
+.menu-item.init[aria-pressed="true"] .layer-text {
+  color: var(--init);
+}
+
+.menu-item.init[aria-pressed="mixed"] .eye,
+.menu-item.init[aria-pressed="mixed"] .layer-icon {
+  color: var(--init-dim);
+}
+
+/* The master heads its section rather than listing beside the layers it switches. */
+.menu-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+  padding: 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
+
+/* The group's switch on its heading line: the key, then the pill that reads on, mixed or off. */
+.menu-section .master-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.menu-section .master-pill > span {
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.menu-section .master-pill.src[aria-pressed="true"] > span {
+  color: var(--bg);
+  background: var(--src);
+  border-color: var(--src);
+}
+
+.menu-section .master-pill.src[aria-pressed="mixed"] > span {
+  color: var(--src);
+  background: var(--src-bg);
+  border-color: var(--src-dim);
+}
+
+.menu-section .master-pill.init[aria-pressed="true"] > span {
+  color: var(--bg);
+  background: var(--init);
+  border-color: var(--init);
+}
+
+.menu-section .master-pill.init[aria-pressed="mixed"] > span {
+  color: var(--init);
+  background: var(--init-bg);
+  border-color: var(--init-dim);
+}
+
+.menu-section .master-pill:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menu-section.src {
+  color: var(--src);
+}
+
+.menu-section.init {
+  color: var(--init);
+}
+
+.menu-rule {
+  margin: 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Undo and redo stack in one column to spare the bar's width; a hairline keeps them two buttons. */
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.toolbar button {
+  min-width: 34px;
+  height: 19px;
+  padding: 0 6px;
+  font-size: 15px;
+  line-height: 1;
+  border: none;
+  border-radius: 0;
+}
+
+.toolbar button + button {
+  border-top: 1px solid var(--border);
+}
+
+.toolbar button[aria-pressed="true"] {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+.menu-file {
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-detail {
+  margin-left: auto;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.menu-note {
+  padding: 2px 6px;
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.game-data-pill .menu-label::before {
+  content: "●";
+  margin-right: 6px;
+  color: var(--fg-muted);
+}
+
+.game-data-pill.ready .menu-label::before {
+  color: #6ec96e;
+}
+
+.game-data-pill.loading .menu-label::before {
+  color: var(--accent);
+}
+
+.game-data-pill.error .menu-label::before {
+  color: var(--warn);
+}

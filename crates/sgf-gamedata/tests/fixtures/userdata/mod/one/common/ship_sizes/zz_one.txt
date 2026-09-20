@@ -1,0 +1,4 @@
+# Redefines a vanilla key from a differently-named file: last wins.
+science = {
+	icon = ship_size_science_modded
+}

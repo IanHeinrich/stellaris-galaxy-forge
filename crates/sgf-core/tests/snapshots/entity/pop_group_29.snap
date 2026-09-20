@@ -1,0 +1,31 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+pop_group 29 at []
+label: pop_group #29
+bytes: 541 dirty: false span: 71589..72130
+  can_procreate = Bool yes @9..26
+  can_crossbreed = Bool yes @29..47
+  can_vote = Bool yes @50..62
+  can_fill_worker_job = Bool yes @65..88
+  can_fill_specialist_job = Bool yes @91..118
+  can_fill_ruler_job = Bool yes @121..143
+  key = block[3] @146..251
+  key.species = Int 2868903937 @158..176
+  key.category = Quoted civilian @180..199
+  planet = Int 0 @254..262
+  size = Int 1945 @265..274
+  last_month_growth = Int 3 @277..296
+  month_start_size = Int 1945 @299..320
+  last_month_growth_details = block[4] @323..436
+  last_month_growth_details.key.1 = Quoted GROWTH_CAT_GROWTH @357..380
+  last_month_growth_details.value.1 = Int 3 @384..391
+  last_month_growth_details.key.2 = Quoted GROWTH_CAT_PROMOTION @395..421
+  last_month_growth_details.value.2 = Int 0 @425..432
+  fraction = Decimal 0.35 @439..452
+  habitability = Int 1 @455..469
+  happiness = Decimal 0.99 @472..486
+  power = Decimal 48.625 @489..501
+  crime = Decimal 0.389 @504..515
+  housing_usage = Decimal 1750.5 @518..538

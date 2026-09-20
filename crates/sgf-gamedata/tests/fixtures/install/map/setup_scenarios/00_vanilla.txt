@@ -1,0 +1,8 @@
+static_galaxy_scenario = {
+	name = "Fixture Vanilla"
+	priority = 5
+	num_empires = { min = 0 max = 1 }
+	num_empire_default = 1
+
+	system = { id = "0" name = "Fixture_Vanilla_0" position = { x = 0 y = 0 } }
+}

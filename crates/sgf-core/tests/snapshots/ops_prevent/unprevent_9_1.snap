@@ -1,0 +1,19 @@
+---
+source: crates/sgf-core/tests/ops_prevent.rs
+expression: "report(&session, &result)"
+---
+Unprevented lane 1 <-> 9 (1 statements)
+touched: [1, 9]
+inverse: PreventLane { a: 1, b: 9 }
+warning system_isolated: system 9 has no hyperlanes
+… and 1 other issues
+
+--- scenario
++++ scenario
+@@ -58,7 +58,6 @@
+ 	add_hyperlane = { from = "1" to = "16" }
+ 	add_hyperlane = { from = "16" to = "111" }
+ 	add_hyperlane = { from = "111" to = "3018" }
+-	prevent_hyperlane = { from = "9" to = "1" }
+ 	add_hyperlane = { from = "3018" to = "512" }
+ 	add_hyperlane = { from = "512" to = "888" }

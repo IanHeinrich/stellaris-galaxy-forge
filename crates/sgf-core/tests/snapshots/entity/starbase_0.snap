@@ -1,0 +1,38 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+starbase 0 at []
+label: starbase #0
+bytes: 435 dirty: false span: 1018680..1019115
+= Level: starbase_level_starport @level
+= Type: sshipyard @type
+= Name: STARBASE_STATION_NAME_FORMAT_NON_PRIMARY (borrowed)
+= Hull: 10000 / 10000 (borrowed)
+= Station: 0 -> ship 0 @station
+= Shipyard: yes @modules
+= Construction: starbase_shipyard @construction_type
+= Build queue: 2 @build_queue
+= Shipyard queue: 3 @shipyard_build_queue
+> Modules x2 @modules
+> Buildings x1 @buildings
+> Orbitals x3 @orbitals
+  level = Quoted starbase_level_starport @10..41
+  type = Quoted sshipyard @45..61
+  modules = block[2] @65..122
+  modules.0 = Ident shipyard @83..93
+  modules.1 = Ident solar_panel_network @97..118
+  buildings = block[1] @126..165
+  buildings.0 = Ident crew_quarters @146..161
+  build_queue = Int 2 @169..182
+  shipyard_build_queue = Int 3 @186..208
+  ship_design_implementation = block[3] @212..305
+  ship_design_implementation.design = Int 13 @249..258
+  ship_design_implementation.upgrade = Null 4294967295 @263..281
+  ship_design_implementation.growth_stage = Int 0 @286..300
+  station = Int 0 @309..318
+  orbitals = block[3] @322..392
+  orbitals.0 = Null 4294967295 @341..353
+  orbitals.1 = Null 4294967295 @358..370
+  orbitals.2 = Null 4294967295 @375..387
+  construction_type = Ident starbase_shipyard @396..431

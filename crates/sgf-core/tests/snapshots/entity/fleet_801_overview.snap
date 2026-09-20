@@ -1,0 +1,41 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+fleet 801 at []
+label: PREFIX_NAME_FORMAT
+bytes: 3272 dirty: false span: 19022860..19026132
+= Ship class: shipclass_colonizer @ship_class
+= Hit points: 500 @hit_points
+= Order: colonize_planet_order -> planet 254 @current_order
+= Stance: evasive @fleet_stance
+> Ships x1 of ship @ships
+  name = block[2] @10..688
+  name.key = Quoted PREFIX_NAME_FORMAT @23..47
+  ships = list[1] @691..714
+  combat = block[5] @717..1023
+  combat.start_date = Date 0.01.01 @996..1019
+  fleet_stats = block[1] @1026..1119
+  ground_support_stance = Quoted selective @1122..1155
+  fleet_stance = Ident evasive @1158..1178
+  ship_class = Ident shipclass_colonizer @1181..1211
+  space_fauna_growth_stance = Ident excessive @1214..1249
+  mia_from = block[3] @1252..1304
+  mia_from.x = Int 0 @1269..1272
+  mia_from.y = Int 0 @1276..1279
+  mia_from.origin = Null 4294967295 @1283..1300
+  movement_manager = block[9] @1307..2344
+  order_id = Int 1 @2347..2357
+  current_order = block[1] @2360..2983
+  settings = block[3] @2986..3057
+  settings.civilian = Bool yes @3003..3015
+  settings.mobile = Bool yes @3019..3029
+  settings.valid_for_combat = Bool yes @3033..3053
+  hit_points = Decimal 500.00000 @3060..3080
+  military_power = Decimal 0.00000 @3083..3105
+  diplomacy_weight = Decimal 0.00000 @3108..3132
+  cached_killed_ships = Int 0 @3135..3156
+  cached_disabled_ships = Int 0 @3159..3182
+  cached_disengaged_ships = Int 0 @3185..3210
+  cached_combined_removed_ships = Int 0 @3213..3244
+  commanding_armada = Null none @3247..3269

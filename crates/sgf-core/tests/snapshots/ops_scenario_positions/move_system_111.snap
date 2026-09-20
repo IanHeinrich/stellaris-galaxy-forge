@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/ops_scenario_positions.rs
+expression: "report(&session, &result)"
+---
+Moved Corellia (#111) from (25, 18) to (30, 20)
+touched: [111]
+inverse: MoveSystem { id: 111, x: 25.0, y: 18.0 }
+… and 1 other issues
+
+--- scenario
++++ scenario
+@@ -35,7 +35,7 @@
+ 	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
+ 	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+ 	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
+-	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }
++	system = { id = "111" name = "NAME_Corellia" position = { x = 30 y = 20 } spawn_design = my_design }
+ 
+ 	# a multi-line system with an effect block
+ 	system = {

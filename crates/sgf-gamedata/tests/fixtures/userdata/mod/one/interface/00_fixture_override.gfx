@@ -1,0 +1,6 @@
+spriteTypes = {
+	spriteType = {
+		name = "GFX_fixture_flat"
+		texturefile = "gfx/interface/icons/fixture_flat_override.dds"
+	}
+}

@@ -1,0 +1,19 @@
+create_fixture_empire = {
+	create_country = {
+		name = "NAME_Fixture_Empire"
+		type = default
+		flag = {
+			icon = { category = "synthetic" file = "flag_synthetic_1.dds" }
+			background = { category = "backgrounds" file = "00_solid.dds" }
+			colors = { "fixture_red" "fixture_red" "null" "null" }
+		}
+		effect = {
+			set_country_flag = fixture_empire
+		}
+	}
+	# The effect the capital calls also reads the capital's own star flag.
+	if = {
+		limit = { has_star_flag = fixture_beacon }
+		set_global_flag = fixture_capital_made
+	}
+}

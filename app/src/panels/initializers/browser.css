@@ -1,0 +1,322 @@
+/* The initializer browser: a large overlay over the map for choosing what a system spawns. */
+.ib-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(5, 7, 13, 0.7);
+}
+
+.ib {
+  --ins-rule: #1a2436;
+  width: min(1200px, 94vw);
+  height: min(860px, 92%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.ib-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ib-head {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 44px 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ib-close {
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.ib-search {
+  width: 100%;
+}
+
+.ib-hint {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.ib-cols {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 400px;
+}
+
+.ib-tree {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 6px 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+
+.ib-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 12px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+}
+
+.ib-group:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  border-color: transparent;
+}
+
+.ib-group.active {
+  background: var(--bg-elevated);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.ib-group-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ib-count,
+.ib-badge {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: 10.5px;
+}
+
+.ib-list {
+  min-height: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+
+.ib-list:focus-visible {
+  outline: 1px solid var(--accent-dim);
+  outline-offset: -1px;
+}
+
+.ib-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto 22px;
+  align-items: center;
+  column-gap: 8px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.ib-row:hover {
+  background: var(--bg-elevated);
+}
+
+.ib-row.active {
+  background: var(--bg-elevated);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.ib-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  overflow: hidden;
+}
+
+.ib-star img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ib-names {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ib-key {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ib-label {
+  min-width: 0;
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ib-badges {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ib-badge.kind {
+  color: var(--accent-dim);
+}
+
+.ib-badge.file {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ib-current {
+  color: var(--accent);
+  font-size: 10.5px;
+}
+
+.ib-default {
+  color: var(--fg-muted);
+  font-size: 10.5px;
+}
+
+.ib-pin {
+  padding: 0;
+  opacity: 0.45;
+}
+
+.ib-pin.on,
+.ib-row:hover .ib-pin,
+.ib-row.active .ib-pin {
+  opacity: 1;
+}
+
+.ib-pin.on,
+.ib-pin-button.on,
+.ib-default-button.on {
+  color: var(--accent);
+}
+
+.ib-pin-button,
+.ib-default-button {
+  flex: none;
+}
+
+.ib-empty {
+  padding: 8px 12px;
+}
+
+.ib-detail {
+  min-height: 0;
+  padding: 10px 14px;
+  overflow-y: auto;
+}
+
+.ib-detail-head {
+  margin-bottom: 6px;
+}
+
+.ib-detail-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ib-totals {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ins-rule);
+}
+
+.ib-totals .k {
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+
+.ib-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 0;
+  font-size: 11.5px;
+}
+
+.ib-fact {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.ib-fact .k {
+  color: var(--fg-muted);
+}
+
+.ib-country {
+  display: block;
+}
+
+.ib-weight {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  font-size: 11.5px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.ib-weight input {
+  width: 72px;
+}
+
+.ib-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.ib-hints {
+  flex: 1;
+  min-width: 0;
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ib-assign {
+  flex: none;
+}

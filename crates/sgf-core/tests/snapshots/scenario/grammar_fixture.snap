@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/scenario.rs
+expression: report
+---
+radius 128 core 10 components 2
+system 1 "Galactic Center" literal (0, 0) init=misc_system_init_01 nebula=Some(0) lanes=[(2, 56.0), (16, 103.0)]
+system 2 "Coruscant" literal (0, -56) init=custom_starting_init_01 nebula=Some(0) lanes=[(1, 56.0)]
+system 16 "" (-54, -88.5) init= nebula=None lanes=[(1, 103.0), (111, 132.0)]
+system 111 "NAME_Corellia" (25, 18) init= nebula=Some(0) lanes=[(16, 132.0), (3018, 58.0)]
+system 3018 "Iridonia" literal (40, 75) init=random_empire_init_01 nebula=None lanes=[(111, 58.0), (512, 99.0)]
+system 9 "Lonely" literal (-90, 90) init= nebula=Some(1) lanes=[]
+system 512 "Flagged" literal (70, -20) init=misc_system_init_02 nebula=None lanes=[(3018, 99.0), (888, 44.0)]
+system 888 "Reserved" literal (90, -60) init=custom_starting_init_01 nebula=None lanes=[(512, 44.0)]
+nebula "NAME_N_Heart_Galaxy" (0, 0) r=60 systems=[1, 2, 111]
+nebula "Far Cloud" (-90, 90) r=20 systems=[9]
+warning system_isolated: system 9 has no hyperlanes
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
+warning position_range: system 111 position was a range and will be fixed on move

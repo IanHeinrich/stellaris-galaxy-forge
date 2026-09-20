@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/ops_scenario_positions.rs
+expression: "report(&session, &result)"
+---
+Set N Heart Galaxy radius to 30 (was 60); 2 systems left
+touched: [2, 111]
+inverse: SetNebulaRadius { index: 0, radius: 60.0 }
+warning position_range: system 111 position was a range and will be fixed on move
+… and 1 other issues
+
+--- scenario
++++ scenario
+@@ -62,6 +62,6 @@
+ 	add_hyperlane = { from = "3018" to = "512" }
+ 	add_hyperlane = { from = "512" to = "888" }
+ 
+-	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = 0 y = 0 } radius = 60 }
++	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = 0 y = 0 } radius = 30 }
+ 	nebula = { name = "Far Cloud" position = { x = -90 y = 90 } radius = 20 }
+ }

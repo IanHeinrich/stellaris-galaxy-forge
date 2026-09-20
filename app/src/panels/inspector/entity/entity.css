@@ -1,0 +1,58 @@
+.ins-drow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  border-bottom: 1px solid var(--ins-rule);
+  cursor: pointer;
+}
+
+.ins-drow .l1 {
+  flex: 1;
+}
+
+.ins-drow::after {
+  content: "›";
+  color: var(--fg-muted);
+}
+
+.ins-drow:hover {
+  background: var(--bg-elevated);
+}
+
+.ins-drow.static,
+.ins-drow.static:hover {
+  background: none;
+  cursor: default;
+}
+
+.ins-drow.static::after {
+  content: "";
+}
+
+.ins-raw {
+  margin-left: 4px;
+  font-size: 9.5px;
+  text-transform: uppercase;
+}
+
+.ins-source {
+  max-height: 60vh;
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.45;
+  /* A scenario writes a whole system on one line: it wraps rather than scrolling sideways. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.ins-source .ins-changed {
+  color: var(--fg);
+  background: var(--accent-dim);
+}

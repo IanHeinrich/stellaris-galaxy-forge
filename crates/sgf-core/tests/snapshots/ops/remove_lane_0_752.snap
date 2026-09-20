@@ -1,0 +1,35 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Removed lane 0 <-> 752 (2 entries)
+touched: [0, 752]
+inverse: AddLane { a: 0, b: 752, bridge: false }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28868,11 +28868,6 @@
+ 		{
+ 			
+ 			{
+-				to=752
+-				length=33
+-			}
+- 
+-			{
+ 				to=200
+ 				length=27
+ 			}
+@@ -80037,11 +80032,6 @@
+ 		hyperlane=
+ 		{
+ 			
+-			{
+-				to=0
+-				length=33
+-			}
+- 
+ 			{
+ 				to=323
+ 				length=21

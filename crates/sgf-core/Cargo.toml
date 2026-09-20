@@ -1,0 +1,22 @@
+[package]
+name = "sgf-core"
+description = "Stellaris save document model: lossless byte-level editing, projections, ops"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+dirs = "7.0.0"
+memchr = "2.8.3"
+serde = { version = "1", features = ["derive"] }
+tempfile = "3.27.0"
+thiserror = "2.0.20"
+time = { version = "0.3.55", features = ["formatting", "local-offset", "macros"] }
+ts-rs = "12"
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[dev-dependencies]
+insta = "1.48.0"
+proptest = "1.11.0"
+similar = "3.2.0"

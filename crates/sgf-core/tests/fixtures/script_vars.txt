@@ -1,0 +1,2 @@
+@planet_standard_scale = 11
+entity_scale = @planet_standard_scale

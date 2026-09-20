@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/ops_nebula.rs
+expression: "report(&session, &result)"
+---
+Renamed nebula 0 from "Sea of Ghosts" to "NAME_N_Maw"
+touched: []
+inverse: SetNebulaName { index: 0, name: "Sea of Ghosts" }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -6050,7 +6050,7 @@
+ 	}
+ 	name=
+ 	{
+-		key="Phantom_Streak_Miasma"
++		key="NAME_N_Maw"
+ 	}
+ 	radius=30
+ 	galactic_object=108

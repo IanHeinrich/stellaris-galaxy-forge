@@ -1,0 +1,29 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Set lane 0 <-> 752 length from 33 to 40 (2 entries)
+touched: [0, 752]
+inverse: SetLaneLength { a: 0, b: 752, length: 33.0 }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28869,7 +28869,7 @@
+ 			
+ 			{
+ 				to=752
+-				length=33
++				length=40
+ 			}
+  
+ 			{
+@@ -80039,7 +80039,7 @@
+ 			
+ 			{
+ 				to=0
+-				length=33
++				length=40
+ 			}
+  
+ 			{

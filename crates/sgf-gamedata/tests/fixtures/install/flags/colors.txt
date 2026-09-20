@@ -1,0 +1,5 @@
+colors = {
+	fixture_navy = { flag = rgb { 10 20 30 } map = rgb { 40 50 60 } ship = rgb { 70 80 90 } }
+	fixture_teal = { flag = hsv { 0.5 0.6 0.7 } map = hsv { 0.5 0.6 0.7 } ship = hsv { 0.5 0.6 0.7 } }
+	fixture_red = { flag = rgb { 200 30 30 } map = rgb { 200 30 30 } ship = rgb { 200 30 30 } }
+}

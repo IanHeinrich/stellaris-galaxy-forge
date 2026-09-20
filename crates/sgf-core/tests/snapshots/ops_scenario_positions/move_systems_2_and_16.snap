@@ -1,0 +1,22 @@
+---
+source: crates/sgf-core/tests/ops_scenario_positions.rs
+expression: "report(&session, &result)"
+---
+Moved 2 systems
+touched: [2, 16]
+inverse: MoveSystems { moves: [SystemMove { id: 2, x: 0.0, y: -56.0 }, SystemMove { id: 16, x: -54.0, y: -88.5 }] }
+… and 2 other issues
+
+--- scenario
++++ scenario
+@@ -33,8 +33,8 @@
+ 
+ 	### Systems, one per line in the mod's shape
+ 	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
+-	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+-	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
++	system = { id = "2" name = "Coruscant" position = { x = 1 y = -50 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
++	system = { id = "16" name = "" position = { x = -50 y = -80 z = 4 } }
+ 	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }
+ 
+ 	# a multi-line system with an effect block

@@ -1,0 +1,12 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: "format!(\"{ranges:#?}\")"
+---
+[
+    "\t\t\tx=-150\n\t\t\ty=60\n",
+    "\t\t\t\tlength=30\n",
+    "\t\t\t\tlength=24\n",
+    "\t\t\t\tlength=29\n",
+    "\t\t\t\tlength=26\n",
+    "\t\t\t\tlength=23\n",
+]

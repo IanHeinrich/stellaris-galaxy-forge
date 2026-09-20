@@ -1,0 +1,4 @@
+NGraphics = {
+	BORDER_SYSTEM_RADIUS = 40.0 # fixture value, not the game's default
+	BORDER_HYPERLANE_THICKNESS = 15.0
+}

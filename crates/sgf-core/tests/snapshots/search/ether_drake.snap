@@ -1,0 +1,5 @@
+---
+source: crates/sgf-core/tests/search.rs
+expression: "report(&s.search(\"ether drake\", 5, &no_loc))"
+---
+Fleet #242 Ether Drake · owner=Voidwyrm → #74 at (8.92, -241.24)

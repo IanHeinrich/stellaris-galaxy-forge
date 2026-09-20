@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/ops_scenario_positions.rs
+expression: "report(&session, &result)"
+---
+Added nebula "Test Cloud" at (0, -56) radius 20; 1 system joined
+touched: [2]
+inverse: RemoveNebula { index: 2 }
+… and 2 other issues
+
+--- scenario
++++ scenario
+@@ -64,4 +64,5 @@
+ 
+ 	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = 0 y = 0 } radius = 60 }
+ 	nebula = { name = "Far Cloud" position = { x = -90 y = 90 } radius = 20 }
++	nebula = { name = "Test Cloud" position = { x = 0 y = -56 } radius = 20 }
+ }

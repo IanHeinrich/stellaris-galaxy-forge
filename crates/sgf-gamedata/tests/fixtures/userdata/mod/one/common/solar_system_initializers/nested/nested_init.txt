@@ -1,0 +1,4 @@
+nested_init = {
+	class = "sc_sun"
+	usage = misc_system_init
+}

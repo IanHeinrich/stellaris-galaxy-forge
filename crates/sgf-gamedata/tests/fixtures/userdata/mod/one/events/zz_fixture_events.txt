@@ -1,0 +1,231 @@
+namespace = fixture
+
+# A commented reference the scanner must never see:
+# has_star_flag = fixture_beacon
+
+event = {
+	id = fixture.1
+	hide_window = yes
+	is_triggered_only = yes
+	trigger = {
+		any_system = {
+			has_star_flag = fixture_beacon
+		}
+	}
+	immediate = {
+		set_global_flag = fixture_beacon_seen
+	}
+}
+
+event = {
+	id = fixture.2
+	is_triggered_only = yes
+	trigger = {
+		any_system = {
+			has_star_flag = fixture_region
+		}
+	}
+}
+
+event = {
+	id = fixture.3
+	is_triggered_only = yes
+	immediate = {
+		event_target:fixture_planet_target = {
+			set_planet_flag = fixture_seen
+		}
+		# The same event reaches the same system a second way.
+		if = {
+			limit = { has_star_flag = fixture_probe }
+			set_global_flag = fixture_probe_seen
+		}
+	}
+}
+
+event = {
+	id = fixture.4
+	is_triggered_only = yes
+	immediate = {
+		event_target:fixture_country_target = {
+			set_country_flag = fixture_seen
+		}
+	}
+}
+
+# Day one: the game-start sweep, the branch it rules out, and two events it
+# fires: one a month out, one the next day.
+event = {
+	id = fixture.5
+	is_triggered_only = yes
+	immediate = {
+		every_system = {
+			limit = { NOT = { exists = starbase } }
+			if = {
+				limit = {
+					has_star_flag = fixture_claimed
+					has_global_flag = fixture_map_spawned
+				}
+				create_starbase = {
+					size = starbase_hut
+					owner = event_target:fixture_empire
+				}
+			}
+			else_if = {
+				limit = {
+					has_star_flag = fixture_scoped
+					is_capital = yes
+				}
+				set_owner = prev
+			}
+		}
+		country_event = { id = fixture.6 days = 40 }
+		country_event = { id = fixture.7 days = 1 }
+	}
+}
+
+event = {
+	id = fixture.6
+	is_triggered_only = yes
+	immediate = {
+		every_system = {
+			if = {
+				limit = { has_star_flag = fixture_late }
+				set_owner = event_target:fixture_empire
+			}
+		}
+	}
+}
+
+event = {
+	id = fixture.7
+	is_triggered_only = yes
+	immediate = {
+		every_system = {
+			limit = { has_star_flag = fixture_outer }
+			every_system = {
+				limit = { has_star_flag = fixture_inner }
+				create_starbase = {
+					size = starbase_hut
+					owner = event_target:fixture_empire
+				}
+			}
+		}
+	}
+}
+
+# Day one: a wormhole whose two ends are systems a star flag picks out, a
+# ruined gateway on every system carrying its flag, and a pair the game
+# places wherever it likes.
+event = {
+	id = fixture.8
+	is_triggered_only = yes
+	immediate = {
+		random_system = {
+			limit = { has_star_flag = wh_a }
+			save_event_target_as = wh_a_sys
+		}
+		random_system = {
+			limit = { has_star_flag = wh_b }
+			spawn_natural_wormhole = {
+				bypass_type = wormhole
+				random_pos = no
+				orbit_angle = 360
+			}
+			event_target:wh_a_sys = {
+				spawn_natural_wormhole = {
+					bypass_type = wormhole
+					random_pos = no
+					orbit_angle = 360
+				}
+				link_wormholes = prev
+			}
+		}
+	}
+}
+
+event = {
+	id = fixture.9
+	is_triggered_only = yes
+	immediate = {
+		every_system = {
+			limit = { has_star_flag = gate_here }
+			spawn_megastructure = {
+				type = gateway_ruined
+			}
+		}
+	}
+}
+
+event = {
+	id = fixture.10
+	is_triggered_only = yes
+	immediate = {
+		random_system = {
+			limit = { has_natural_wormhole = no }
+			random_system = {
+				limit = {
+					has_natural_wormhole = no
+					distance = {
+						source = prev
+						max_distance = 200
+					}
+				}
+				prev = {
+					spawn_natural_wormhole = {
+						bypass_type = wormhole
+						random_pos = yes
+						orbit_angle = 360
+					}
+				}
+				spawn_natural_wormhole = {
+					bypass_type = wormhole
+					random_pos = yes
+					orbit_angle = 360
+				}
+				link_wormholes = prev
+			}
+		}
+	}
+}
+
+# A mouth spawned back through `prev`: it lands on the system of the loop the
+# inner one was entered from, not on the inner one's.
+event = {
+	id = fixture.12
+	is_triggered_only = yes
+	immediate = {
+		random_system = {
+			limit = { has_star_flag = wh_prev }
+			random_system = {
+				limit = { has_natural_wormhole = no }
+				prev = {
+					spawn_natural_wormhole = {
+						bypass_type = wormhole
+						random_pos = no
+						orbit_angle = 360
+					}
+				}
+			}
+		}
+	}
+}
+
+# A gateway spawned through scopes this reader cannot follow: the system it
+# lands on is the country's capital, not the system the loop is on.
+event = {
+	id = fixture.13
+	is_triggered_only = yes
+	immediate = {
+		every_system = {
+			limit = { has_star_flag = gate_elsewhere }
+			random_country = {
+				limit = { has_country_flag = fixture_empire }
+				solar_system = {
+					spawn_megastructure = {
+						type = gateway_final
+					}
+				}
+			}
+		}
+	}
+}

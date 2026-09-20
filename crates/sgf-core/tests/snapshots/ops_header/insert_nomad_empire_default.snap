@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/ops_header.rs
+expression: "report(&session, &result)"
+---
+Added header nomad_empire_default = 1
+inverse: SetHeaderField { key: "nomad_empire_default", value: None }
+
+--- scenario
++++ scenario
+@@ -32,6 +32,7 @@
+ 	}
+ 
+ 	### Systems, one per line in the mod's shape
++	nomad_empire_default = 1
+ 	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
+ 	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+ 	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }

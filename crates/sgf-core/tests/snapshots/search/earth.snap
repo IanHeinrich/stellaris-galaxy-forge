@@ -1,0 +1,5 @@
+---
+source: crates/sgf-core/tests/search.rs
+expression: "report(&s.search(\"earth\", 5, &no_loc))"
+---
+Planet #3 Earth · class=pc_continental → #217 at (397.39, -180.25)

@@ -1,0 +1,38 @@
+# Rust
+target/
+
+# Node
+node_modules/
+app/dist/
+
+# Tauri
+app/src-tauri/gen/schemas/
+
+# Reference tool and local saves (only testdata/*.sav is tracked, via LFS)
+*.exe
+*.sav
+!testdata/*.sav
+*.sav.bak-*
+
+# Local env / editor
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Assistant tooling is per-developer and stays out of the repo
+CLAUDE.md
+.claude/
+AGENTS.md
+.cursor/
+.cursorrules
+.windsurfrules
+.github/copilot-instructions.md
+.aider*
+
+# Local git hooks (run `git lfs install` after cloning)
+.githooks/
+
+# Local scratch notes
+.scratch/

@@ -1,0 +1,61 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Removed 2 lanes
+touched: [0, 86, 112, 752]
+inverse: AddLanePairs { lanes: [LanePair { a: 0, b: 752, bridge: false }, LanePair { a: 86, b: 112, bridge: true }] }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28868,11 +28868,6 @@
+ 		{
+ 			
+ 			{
+-				to=752
+-				length=33
+-			}
+- 
+-			{
+ 				to=200
+ 				length=27
+ 			}
+@@ -34976,12 +34971,6 @@
+ 				length=19
+ 			}
+  
+-			{
+-				to=112
+-				length=17
+-				bridge=yes
+-			}
+- 
+ 		}
+ 		discovery=
+ 		{
+@@ -36774,12 +36763,6 @@
+ 				length=19
+ 			}
+  
+-			{
+-				to=86
+-				length=17
+-				bridge=yes
+-			}
+- 
+ 		}
+ 		asteroid_belts=
+ 		{
+@@ -80037,11 +80020,6 @@
+ 		hyperlane=
+ 		{
+ 			
+-			{
+-				to=0
+-				length=33
+-			}
+- 
+ 			{
+ 				to=323
+ 				length=21

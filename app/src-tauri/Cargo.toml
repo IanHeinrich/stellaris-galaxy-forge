@@ -1,0 +1,30 @@
+[package]
+name = "sgf-app"
+description = "Stellaris Galaxy Forge desktop shell (Tauri 2)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+# Unique lib name so it does not collide with the bin on Windows.
+name = "sgf_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+notify-debouncer-mini = "0.7.0"
+sgf-core.workspace = true
+sgf-gamedata.workspace = true
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tokio = { version = "1.53.1", features = ["sync", "time"] }
+
+[dev-dependencies]
+serde = "1"
+serde_json = "1"
+tauri = { version = "2", features = ["test"] }
+tempfile = "3.27.0"

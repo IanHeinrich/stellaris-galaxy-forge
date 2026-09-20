@@ -1,0 +1,4 @@
+ambient_object=
+		{
+			54 55 56 57 
+		}

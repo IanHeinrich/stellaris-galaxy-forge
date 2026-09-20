@@ -1,0 +1,375 @@
+.ins-position {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ins-position .k {
+  color: var(--fg-muted);
+}
+
+.ins-position .coord {
+  width: 78px;
+}
+
+.ins-spawn-point {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0;
+  padding: 4px 6px;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+}
+
+.ins-spawn-point label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-muted);
+}
+
+.ins-spawn-point .k {
+  margin-left: auto;
+}
+
+.ins-spawn-point .coord {
+  width: 78px;
+}
+
+.ins-spawn-modifier {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 6px;
+  padding: 2px 4px;
+  font-size: 11.5px;
+}
+
+.ins-spawn-modifier .num {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ins-spawn-modifier .mono {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ins-prevented {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 4px;
+}
+
+.ins-prevent-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ins-prevent-add .k {
+  flex: 1;
+}
+
+.ins-prevent-add input {
+  width: 64px;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.ins-prow {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 4px;
+  border-bottom: 1px solid var(--ins-rule);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ins-prow:hover {
+  background: var(--bg-elevated);
+}
+
+.ins-prow.wide,
+.ins-total.wide {
+  grid-template-columns: 24px 1fr;
+}
+
+/* The lines live in the second cell; without this a long one stretches the row instead of eliding. */
+.ins-prow > :nth-child(2),
+.ins-total > :nth-child(2) {
+  min-width: 0;
+}
+
+.ins-prow.moon {
+  padding-left: 22px;
+}
+
+.ins-prow .pi,
+.ins-prow .stn,
+.ins-prow .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.ins-prow .pi {
+  border-radius: 50%;
+  box-shadow:
+    inset -4px -4px 8px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.ins-prow .pi.mega {
+  border-radius: 3px;
+}
+
+.ins-prow.moon .pi {
+  width: 15px;
+  height: 15px;
+  justify-self: center;
+}
+
+.ins-prow .badge {
+  width: 20px;
+  height: 24px;
+  border-radius: 3px 3px 10px 10px;
+  color: #fff;
+  box-shadow:
+    inset 0 -6px 8px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.ins-prow img,
+.ins-total img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ins-prow .l1,
+.ins-total .l1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.ins-prow .l2,
+.ins-total .l2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: var(--fg-muted);
+}
+
+.ins-prow .l2 .ok,
+.ins-total .l2 .ok {
+  color: var(--ins-ok);
+}
+
+.ins-prow .sz,
+.ins-prow .pops,
+.ins-total .sz,
+.ins-total .pops {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--fg);
+}
+
+.ins-prow .rs,
+.ins-total .rs {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 110px;
+}
+
+.ins-prow .l3,
+.ins-total .l3 {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.res {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 4px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+}
+
+.res img {
+  width: 11px;
+  height: 11px;
+  object-fit: contain;
+}
+
+.res i {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--fg-muted);
+}
+
+.ins-prow.static {
+  cursor: default;
+}
+
+.ins-prow.static:hover {
+  background: none;
+}
+
+.ins-spawn-head {
+  padding: 6px 4px 2px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* The system's own line: a header band over its bodies, aligned to their grid. */
+.ins-total {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  column-gap: 8px;
+  align-items: center;
+  margin: 2px 0 4px;
+  padding: 5px 4px;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  text-align: left;
+}
+
+.ins-total .l1 {
+  font-weight: 600;
+}
+
+.ins-total .pi {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.ins-prow .pi.star {
+  display: grid;
+  place-items: center;
+  box-shadow: none;
+}
+
+.ins-prow .pi.star svg {
+  width: 78%;
+  height: 78%;
+  fill: rgba(255, 255, 255, 0.85);
+}
+
+.ins-total .pi.system {
+  display: grid;
+  place-items: center;
+  background: var(--bg-elevated);
+}
+
+.ins-total .pi.system svg {
+  width: 80%;
+  height: 80%;
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: 1.4;
+}
+
+.ins-total .pi.system circle {
+  fill: var(--fg-muted);
+  stroke: none;
+}
+
+.ins-lane {
+  display: grid;
+  grid-template-columns: 1fr 40px 46px 20px;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.ins-lane:hover {
+  background: var(--bg-elevated);
+}
+
+.ins-lane .num {
+  text-align: right;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ins-lane-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ins-flags {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  overflow-wrap: anywhere;
+}
+
+.ins-flags > div {
+  padding: 1px 2px;
+}
+
+.ins-prow .pi.ghost {
+  box-shadow: none;
+}
+
+.ins-unknown {
+  color: var(--fg-muted);
+}
+
+.ins-init-field {
+  width: 100%;
+}
+
+.ins-init-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ins-kind {
+  color: var(--fg-muted);
+}

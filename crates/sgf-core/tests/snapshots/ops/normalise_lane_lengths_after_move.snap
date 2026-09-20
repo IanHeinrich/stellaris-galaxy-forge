@@ -1,0 +1,70 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Normalised 3 lane lengths
+touched: [567, 590, 786, 787]
+inverse: SetLaneLengths { lanes: [LaneLength { a: 786, b: 567, length: 16.25946 }, LaneLength { a: 786, b: 590, length: 14.51034 }, LaneLength { a: 786, b: 787, length: 11.87566 }] }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -67732,7 +67732,7 @@
+  
+ 			{
+ 				to=786
+-				length=14.03876
++				length=16
+ 			}
+  
+ 		}
+@@ -69254,7 +69254,7 @@
+  
+ 			{
+ 				to=786
+-				length=13.10795
++				length=14
+ 			}
+  
+ 		}
+@@ -82229,8 +82229,8 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=-59.10617
+-			y=-192.19434
++			x=-60
++			y=-190
+ 			origin=4294967295
+ 			randomized=yes
+ 			visual_height=3.65056
+@@ -82258,17 +82258,17 @@
+ 			
+ 			{
+ 				to=567
+-				length=14.03876
++				length=16
+ 			}
+  
+ 			{
+ 				to=590
+-				length=13.10795
++				length=14
+ 			}
+  
+ 			{
+ 				to=787
+-				length=14.03876
++				length=11
+ 			}
+  
+ 		}
+@@ -82328,7 +82328,7 @@
+ 			
+ 			{
+ 				to=786
+-				length=14.03876
++				length=11
+ 			}
+  
+ 			{

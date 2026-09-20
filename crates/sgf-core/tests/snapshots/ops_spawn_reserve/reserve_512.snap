@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/ops_spawn_reserve.rs
+expression: "report(&session, &result)"
+---
+Reserved system 512 for a human player
+inverse: SetSpawnReservation { id: 512, reserve: None }
+
+--- scenario
++++ scenario
+@@ -49,7 +49,7 @@
+ 		}
+ 	}
+ 	system = { id = "9" name = "Lonely" position = { x = -90 y = 90 } }
+-	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { modifier = { add = 10000 has_country_flag = sgf_grammar } } }
++	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { modifier = { add = 10000 has_country_flag = sgf_grammar } modifier = { factor = 0 is_ai = yes } } }
+ 	system = { id = "888" name = "Reserved" position = { x = 90 y = -60 } initializer = custom_starting_init_01 spawn_weight = { base = 1 modifier = { factor = 0 is_ai = yes } } }
+ 
+ 	add_hyperlane = { from = "1" to = "2" }

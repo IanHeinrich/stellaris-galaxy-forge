@@ -1,0 +1,55 @@
+spriteTypes = {
+	spriteType = {
+		name = "GFX_fixture_flat"
+		texturefile = "gfx/interface/icons/fixture_flat.dds"
+	}
+
+	spriteType = {
+		name = "GFX_fixture_camel"
+		textureFile = "gfx/interface/icons/fixture_camel.dds"
+		noOfFrames = 3
+	}
+
+	spriteType = {
+		name = "GFX_fixture_sheet"
+		texturefile = "gfx/interface/icons/fixture_sheet.dds"
+		noOfFrames = 6
+	}
+
+	spriteType = {
+		name = "GFX_fixture_sheet_frame"
+		sprite_sheet_sprite_type = "GFX_fixture_sheet"
+		default_frame = 4
+	}
+
+	spriteType = {
+		name = "GFX_fixture_bgra"
+		texturefile = "gfx/interface/icons/bgra_4x4.dds"
+	}
+
+	spriteType = {
+		name = "GFX_fixture_dxt1"
+		texturefile = "gfx/interface/icons/dxt1_4x4.dds"
+	}
+
+	spriteType = {
+		name = "GFX_fixture_strip"
+		texturefile = "gfx/interface/icons/strip_8x4.dds"
+		noOfFrames = 2
+	}
+
+	spriteType = {
+		name = "GFX_fixture_cut"
+		texturefile = "gfx/interface/icons/truncated.dds"
+	}
+
+	spriteType = {
+		name = "GFX_fixture_empty"
+		texturefile = "gfx/interface/icons/empty.dds"
+	}
+
+	spriteType = {
+		name = "GFX_fixture_bom"
+		texturefile = "gfx/interface/icons/bom.dds"
+	}
+}

@@ -1,0 +1,105 @@
+# Capitals whose token no create_country claims: the identity resolver has
+# to fall through to the prescripted, custom-empire and bare routes.
+
+prescripted_capital_init = {
+	class = sc_sun
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			save_global_event_target_as = fixture_prescripted
+			set_owner = event_target:fixture_prescripted
+		}
+	}
+}
+
+custom_capital_init = {
+	class = sc_sun
+	usage = custom_empire
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			save_global_event_target_as = fixture_custom
+			set_owner = event_target:fixture_custom
+		}
+	}
+}
+
+bare_capital_init = {
+	class = sc_sun
+	usage = misc_system_init
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			save_global_event_target_as = fixture_bare
+			set_owner = event_target:fixture_bare
+		}
+	}
+}
+
+# A second initializer setting the same star flag as fallen_home: writing a
+# flag is not a reference, so neither may list the other.
+beacon_twin_init = {
+	class = sc_sun
+	usage = misc_system_init
+	init_effect = {
+		set_star_flag = fixture_beacon
+	}
+}
+
+# A region marker written as a plain initializer flag list, not set_star_flag.
+region_init = {
+	class = sc_sun
+	usage = misc_system_init
+	flags = { fixture_region }
+}
+
+# Targets saved on either side of the system's own scope.
+scope_probe_init = {
+	class = sc_sun
+	usage = misc_system_init
+	init_effect = {
+		set_star_flag = fixture_probe
+	}
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			save_global_event_target_as = fixture_planet_target
+			last_created_country = {
+				save_global_event_target_as = fixture_country_target
+			}
+		}
+	}
+}
+
+# A guardian: its country is named in a last_created_country sibling of the
+# create_country block, the way vanilla's leviathans write it.
+guardian_capital_init = {
+	class = sc_sun
+	usage = misc_system_init
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			create_country = {
+				name = "NAME_Fixture_Guardian"
+				type = guardian
+				flag = {
+					colors = { "fixture_red" "null" "null" "null" }
+				}
+			}
+			last_created_country = {
+				if = {
+					limit = { NOT = { has_modifier = fixture_power } }
+					add_modifier = { modifier = fixture_power days = -1 }
+				}
+				save_global_event_target_as = fixture_guardian
+				set_country_flag = fixture_guardian
+			}
+			set_owner = event_target:fixture_guardian
+		}
+	}
+}

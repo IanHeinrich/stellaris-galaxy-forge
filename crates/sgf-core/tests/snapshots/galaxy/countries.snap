@@ -1,0 +1,61 @@
+---
+source: crates/sgf-core/tests/galaxy.rs
+expression: "summary.join(\"\\n\")"
+---
+0 default capital Some(217) 1 systems: EMPIRE_DESIGN_humans1
+1 default capital Some(99) 4 systems: United
+16777218 default capital Some(393) 5 systems: EMPIRE_DESIGN_scyldari
+3 default capital Some(189) 5 systems: SPEC_Valmennax Consciousness
+16777220 default capital Some(192) 4 systems: Union of SPEC_Zelvan_system
+16777221 default capital Some(537) 5 systems: SPEC_Kreshhk Empire
+16777222 default capital Some(781) 4 systems: SPEC_Quenti Foundation
+16777223 default capital Some(590) 4 systems: United
+16777224 default capital Some(126) 5 systems: GrandDuchy of SPEC_Kaan-Visam_system
+16777225 default capital Some(8) 3 systems: EMPIRE_DESIGN_xt489
+10 default capital Some(302) 5 systems: SPEC_Omni Empire
+16777227 default capital Some(311) 6 systems: SPEC_Hiffnar Democratic
+16777228 default capital Some(558) 5 systems: SPEC_Mitron Hierarchy
+16777229 default capital Some(146) 5 systems: SPEC_red_thory Hive
+16777230 fallen_empire capital Some(521) 10 systems: SPEC_Cyggan Protectors
+15 fallen_empire capital Some(246) 5 systems: PRESCRIPTED_species_adjective_tebrid
+16 fallen_empire capital Some(58) 8 systems: SPEC_Ti-Zru Conservers
+17 default capital Some(4) 5 systems: NAME_Commonwealth_of_Man
+18 tiyanki_garrison capital None 0 systems: NAME_Placid_Leviathans
+19 voidworms capital None 0 systems: NAME_Voidworms
+20 dormant_marauders capital None 3 systems: SPEC_Hathgum Marauders
+21 dormant_marauders capital None 3 systems: SPEC_Bebaki Raiders
+22 enclave capital None 0 systems: Covenant of the_Shroud
+23 enclave capital None 0 systems: Conglomerated
+24 enclave capital None 0 systems: NAME_Curator_Order
+25 drone capital None 0 systems: NAME_Mineral_Extraction_Operation
+26 enclave capital None 0 systems: NAME_XuraCorp
+27 caravaneer_home capital None 1 systems: NAME_Caravaneer_Home
+28 caravaneer_fleet capital None 0 systems: NAME_Caravaneer_Fleet1_country
+29 caravaneer_fleet capital None 0 systems: NAME_Caravaneer_Fleet3
+30 guardian_fortress capital None 0 systems: NAME_Enigmatic_Fortress
+31 enclave capital None 0 systems: NAME_Muutagan_Merchant_Guild
+32 enclave capital None 0 systems: NAME_Artisan_Troupe
+33 faction capital None 0 systems: NAME_Lost_Swarm
+34 amoeba_garrison capital None 0 systems: NAME_Space_Amoebas_United
+35 enclave capital None 0 systems: NAME_Riggan_Commerce_Exchange
+36 guardian_dragon capital None 0 systems: NAME_Voidwyrm
+37 primitive capital Some(78) 0 systems: SPEC_Fiiral Civilization
+38 crystal capital None 0 systems: NAME_Prism
+39 neutral_faction capital None 0 systems: NAME_Hillos_fleet
+40 guardian_elderly_tiyanki capital None 0 systems: NAME_Tiyanki_Space_Whale_Ancient
+41 primitive capital Some(128) 0 systems: SPEC_Sandar Civilization
+42 guardian_scavenger_bot capital None 0 systems: NAME_Autonomous_Repurposer
+43 primitive capital Some(148) 0 systems: SPEC_Sejethari Civilization
+44 amoeba capital None 0 systems: NAME_Spaceborne_Organics
+45 tiyanki capital None 0 systems: NAME_Placid_Leviathans
+46 cloud capital None 0 systems: NAME_Enigmatic_Energy
+47 faction capital None 0 systems: NAME_Lone_Defender_country
+48 global_event capital None 0 systems: global_event_country
+49 shroud capital None 0 systems: NAME_The_Shroud
+50 shroud capital None 0 systems: name_animator
+51 default capital Some(786) 6 systems: Great
+52 default capital Some(787) 5 systems: SPEC_UqoPraknar Hegemony
+53 shroud_spirits capital None 0 systems: NAME_Creatures_of_the_Shroud
+54 vluur capital None 0 systems: NAME_VLUUR
+55 faction capital None 0 systems: NAME_Eternal_Watchers
+56 cutholoids capital None 0 systems: NAME_Cutholoids

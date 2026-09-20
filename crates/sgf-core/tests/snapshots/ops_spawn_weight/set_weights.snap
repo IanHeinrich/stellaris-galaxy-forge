@@ -1,0 +1,27 @@
+---
+source: crates/sgf-core/tests/ops_spawn_weight.rs
+expression: "report(&session, &result)"
+---
+Set the spawn weight of 3 systems
+inverse: SetSpawnWeights { entries: [(2, Some(0.0)), (512, None), (1, None)] }
+
+--- scenario
++++ scenario
+@@ -33,7 +33,7 @@
+ 
+ 	### Systems, one per line in the mod's shape
+ 	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
+-	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
++	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 4 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+ 	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
+ 	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }
+ 
+@@ -49,7 +49,7 @@
+ 		}
+ 	}
+ 	system = { id = "9" name = "Lonely" position = { x = -90 y = 90 } }
+-	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { modifier = { add = 10000 has_country_flag = sgf_grammar } } }
++	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { base = 2 modifier = { add = 10000 has_country_flag = sgf_grammar } } }
+ 	system = { id = "888" name = "Reserved" position = { x = 90 y = -60 } initializer = custom_starting_init_01 spawn_weight = { base = 1 modifier = { factor = 0 is_ai = yes } } }
+ 
+ 	add_hyperlane = { from = "1" to = "2" }

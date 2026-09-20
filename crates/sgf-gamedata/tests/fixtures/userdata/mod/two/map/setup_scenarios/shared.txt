@@ -1,0 +1,10 @@
+static_galaxy_scenario = {
+	name = "Fixture Shared Two"
+	priority = 5
+	num_empires = { min = 0 max = 1 }
+	num_empire_default = 1
+
+	system = { id = "0" name = "Fixture_Shared_Two_0" position = { x = 0 y = 0 } }
+	system = { id = "1" name = "Fixture_Shared_Two_1" position = { x = 10 y = 0 } }
+	system = { id = "2" name = "Fixture_Shared_Two_2" position = { x = 20 y = 0 } }
+}

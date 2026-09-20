@@ -1,0 +1,14 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+sector 0 at []
+label: NAME_Earth
+bytes: 138 dirty: false span: 24633962..24634100
+  name = block[1] @8..41
+  name.key = Quoted NAME_Earth @21..37
+  systems = list[1] @44..68
+  local_capital = Int 0 @71..86
+  owner = Int 0 @89..96
+  auto_expand = Bool yes @99..114
+  type = Quoted core_sector @117..135

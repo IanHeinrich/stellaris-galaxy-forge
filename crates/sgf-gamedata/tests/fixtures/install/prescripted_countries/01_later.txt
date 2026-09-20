@@ -1,0 +1,7 @@
+# The same initializer as 00_fixture.txt names, in a later file, under a
+# definition name that sorts before that file's.
+fixture_prescripted_twin_a = {
+	name = "EMPIRE_DESIGN_fixture_twin_late"
+	spawn_enabled = yes
+	initializer = "prescripted_twin_init"
+}

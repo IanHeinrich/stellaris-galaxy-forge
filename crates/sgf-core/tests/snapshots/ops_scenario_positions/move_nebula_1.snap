@@ -1,0 +1,19 @@
+---
+source: crates/sgf-core/tests/ops_scenario_positions.rs
+expression: "report(&session, &result)"
+---
+Moved Far Cloud to (-54, -88.5); its radius now covers 1 system (was 1)
+touched: [9, 16]
+inverse: MoveNebula { index: 1, x: -90.0, y: 90.0 }
+warning system_isolated: system 9 has no hyperlanes
+… and 1 other issues
+
+--- scenario
++++ scenario
+@@ -63,5 +63,5 @@
+ 	add_hyperlane = { from = "512" to = "888" }
+ 
+ 	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = 0 y = 0 } radius = 60 }
+-	nebula = { name = "Far Cloud" position = { x = -90 y = 90 } radius = 20 }
++	nebula = { name = "Far Cloud" position = { x = -54 y = -88.5 } radius = 20 }
+ }

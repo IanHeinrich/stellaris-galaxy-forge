@@ -1,0 +1,368 @@
+.inspector {
+  --ins-ok: #7bd88f;
+  --ins-rule: #1a2436;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: -10px;
+}
+
+.ins-tabs {
+  display: flex;
+  gap: 2px;
+  flex: none;
+  padding: 4px 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ins-tab {
+  padding: 4px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--fg-muted);
+  background: none;
+  border: none;
+  border-radius: 4px 4px 0 0;
+}
+
+.ins-tab.on {
+  color: var(--fg);
+  background: var(--bg-elevated);
+}
+
+.ins-body {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 10px;
+}
+
+.ins-crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 10.5px;
+  color: var(--fg-muted);
+  margin-bottom: 2px;
+}
+
+.ins-crumbs .sep {
+  margin: 0 2px;
+}
+
+.ins-crumbs .here {
+  color: var(--fg);
+}
+
+.ins-crumbs button.link {
+  padding: 0 2px;
+  font-size: 10.5px;
+}
+
+.ins-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+
+.ins-head .name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ins-head button.name {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 0;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+}
+
+.ins-head button.name:hover {
+  color: var(--accent);
+}
+
+.ins-pencil {
+  font-size: 10px;
+  color: var(--fg-muted);
+  opacity: 0;
+}
+
+.ins-head button.name:hover .ins-pencil,
+.ins-head button.name:focus-visible .ins-pencil {
+  opacity: 1;
+}
+
+.ins-head .ins-name-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.ins-close {
+  margin-left: auto;
+}
+
+.ins-sub {
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.ins-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+  padding: 0 2px;
+}
+
+.ins-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 6px;
+}
+
+.ins-sec {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 10px 0 4px;
+  padding: 0;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.ins-sec:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+/* A section header that opens a tab of its own: no chevron, so its title takes the tri's room. */
+.ins-sec.ins-sec-link {
+  padding-left: 15px;
+}
+
+.ins-sec .tri {
+  font-size: 9px;
+}
+
+.ins-sec::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.ins-kv {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 2px 8px;
+  align-items: baseline;
+}
+
+.ins-kv .k {
+  color: var(--fg-muted);
+}
+
+.ins-kv.mono,
+.ins-kv .mono {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  overflow-wrap: anywhere;
+}
+
+.ins-radius,
+.ins-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 2px;
+}
+
+.ins-radius .k,
+.ins-name .k {
+  color: var(--fg-muted);
+}
+
+.ins-radius .coord {
+  width: 78px;
+}
+
+.ins-header-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.ins-header-row input {
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.ins-header-row.add {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--ins-rule);
+}
+
+.ins-header-row.repeated {
+  grid-template-columns: 1fr 1fr;
+  opacity: 0.7;
+}
+
+.gi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  font-size: 10px;
+  color: var(--fg-muted);
+}
+
+.gi img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ins-more {
+  display: block;
+  padding: 2px;
+  font-size: 11px;
+}
+
+.ins-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ins-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.ins-bulk button {
+  width: 100%;
+  text-align: left;
+}
+
+.ins-empty,
+.ins-placeholder,
+.ins-hint {
+  padding: 4px 2px;
+  font-size: 11.5px;
+}
+
+.ins-warn {
+  margin-top: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  color: var(--warn);
+  border-left: 3px solid var(--warn);
+}
+
+.ins-focus {
+  padding: 0 4px;
+  font-size: 13px;
+  opacity: 0;
+}
+
+.ins-prow:hover .ins-focus,
+.ins-focus:focus-visible {
+  opacity: 1;
+}
+
+.ins-name-field {
+  width: 100%;
+}
+
+.ins-filter {
+  width: 100%;
+  height: 22px;
+  margin: 2px 0 4px;
+  padding: 0 6px;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+button.link.ins-drill {
+  padding: 0;
+  font: inherit;
+}
+
+.ins-badge {
+  margin-left: 4px;
+  font-size: 8px;
+  color: var(--accent);
+  vertical-align: middle;
+}
+
+input.coord {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+  width: 72px;
+  outline: none;
+}
+
+input.coord:focus {
+  border-color: var(--accent-dim);
+}
+
+input.coord:disabled {
+  opacity: 0.6;
+}
+
+.mesh-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mesh-row button {
+  width: 100%;
+}
+
+.mesh-slider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.mesh-slider input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}

@@ -1,0 +1,12 @@
+on_game_start = {
+	events = {
+		fixture.1 # sweep the beacons
+		fixture.3
+		fixture.5
+		fixture.8
+		fixture.9
+		fixture.10
+		fixture.12
+		fixture.13
+	}
+}

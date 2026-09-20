@@ -1,0 +1,263 @@
+# Redefines a vanilla key from a differently-named file: last wins.
+basic_init_01 = {
+	class = sc_ember
+	usage = misc_system_init
+	flags = { modded }
+}
+
+mod_one_init = {
+	class = sc_sun
+	usage = origin
+}
+
+empire_capital_init = {
+	class = sc_sun
+	usage = empire_init
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			if = {
+				limit = { NOT = { any_country = { has_country_flag = fixture_empire } } }
+				create_fixture_empire = yes
+			}
+			random_country = {
+				limit = { has_country_flag = fixture_empire }
+				save_global_event_target_as = fixture_empire
+			}
+			set_owner = event_target:fixture_empire
+			generate_owner_pops = yes
+			set_star_flag = fixture_beacon
+		}
+	}
+}
+
+empire_colony_init = {
+	class = sc_sun
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			set_owner = event_target:fixture_empire
+		}
+	}
+}
+
+# The planet gives the system to one empire and the starbase to another.
+contested_init = {
+	class = sc_sun
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			set_owner = event_target:fixture_empire
+			create_starbase = {
+				size = starbase_hut
+				owner = event_target:fixture_fallen
+			}
+		}
+	}
+}
+
+scoped_owner_init = {
+	class = sc_sun
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			set_owner = prev
+		}
+	}
+}
+
+# The moon is a colony outright; nothing else here owns anything.
+colony_only_init = {
+	class = sc_sun
+	planet = {
+		count = 1
+		class = star
+	}
+	planet = {
+		count = 1
+		class = pc_gas_giant
+		moon = {
+			count = 1
+			class = pc_barren
+			init_effect = {
+				create_colony = {
+					owner = event_target:fixture_empire
+				}
+			}
+		}
+	}
+}
+
+# The day-one sweep: a system only the game-start event can claim, the one
+# that seeds the flags it judges by, one already walled off by a starbase,
+# and one the event hands to a scope.
+sweep_flagged_init = {
+	class = sc_sun
+	flags = { fixture_claimed fixture_map }
+	init_effect = {
+	}
+}
+
+sweep_seeded_init = {
+	class = sc_sun
+	init_effect = {
+		set_global_flag = fixture_map_spawned
+		set_star_flag = fixture_claimed
+	}
+}
+
+sweep_walled_init = {
+	class = sc_sun
+	flags = { fixture_claimed }
+	init_effect = {
+		create_starbase = {
+			size = starbase_hut
+		}
+	}
+}
+
+sweep_scoped_init = {
+	class = sc_sun
+	flags = { fixture_scoped }
+}
+
+# Day-one bypasses: the two ends of a wormhole the game-start event links,
+# the system it puts a ruined gateway on, a shroud tunnel an initializer
+# spawns on its own system, and one whose far end is picked at random.
+wormhole_a_init = {
+	class = sc_sun
+	flags = { wh_a }
+}
+
+wormhole_b_init = {
+	class = sc_sun
+	flags = { wh_b }
+}
+
+gate_flag_init = {
+	class = sc_sun
+	flags = { gate_here }
+}
+
+tunnel_init = {
+	class = sc_sun
+	init_effect = {
+		spawn_natural_wormhole = {
+			bypass_type = shroud_tunnel
+			random_pos = no
+			orbit_angle = 360
+		}
+	}
+}
+
+random_gate_init = {
+	class = sc_sun
+	init_effect = {
+		spawn_natural_wormhole = {
+			bypass_type = wormhole
+			random_pos = no
+			orbit_angle = 360
+		}
+		random_system = {
+			limit = { has_natural_wormhole = no }
+			spawn_natural_wormhole = {
+				bypass_type = wormhole
+				random_pos = no
+				orbit_angle = 360
+			}
+			link_wormholes = prev
+		}
+	}
+}
+
+# The vanilla gate shape: the far end is picked first and the own system's
+# mouth is spawned back through `prev`, which the `NOR` guard does not name.
+chosen_gate_init = {
+	class = sc_sun
+	init_effect = {
+		random_system = {
+			limit = {
+				has_natural_wormhole = no
+				NOR = {
+					has_star_flag = wh_a
+					has_star_flag = wh_b
+				}
+			}
+			spawn_natural_wormhole = {
+				bypass_type = wormhole
+				random_pos = no
+				orbit_angle = 360
+			}
+			prev = {
+				spawn_natural_wormhole = {
+					bypass_type = wormhole
+					random_pos = no
+					orbit_angle = 270
+				}
+				link_wormholes = prev
+			}
+		}
+	}
+}
+
+# The far end of the day-one pair, on a system that also spawns a tunnel of
+# its own: the pairing must not take the tunnel for the wormhole.
+tunnel_b_init = {
+	class = sc_sun
+	flags = { wh_b }
+	init_effect = {
+		spawn_natural_wormhole = {
+			bypass_type = shroud_tunnel
+			random_pos = no
+			orbit_angle = 360
+		}
+	}
+}
+
+prev_wormhole_init = {
+	class = sc_sun
+	flags = { wh_prev }
+}
+
+gate_scope_init = {
+	class = sc_sun
+	flags = { gate_elsewhere }
+}
+
+# Two far ends, each spawned in a scope of its own and each linking back
+# here: two endpoints, two pairs.
+twin_gate_init = {
+	class = sc_sun
+	init_effect = {
+		spawn_natural_wormhole = {
+			bypass_type = wormhole
+			random_pos = no
+			orbit_angle = 90
+		}
+		spawn_natural_wormhole = {
+			bypass_type = wormhole
+			random_pos = no
+			orbit_angle = 270
+		}
+		event_target:fixture_far_a = {
+			spawn_natural_wormhole = {
+				bypass_type = wormhole
+				random_pos = no
+				orbit_angle = 90
+			}
+			link_wormholes = prev
+		}
+		event_target:fixture_far_b = {
+			spawn_natural_wormhole = {
+				bypass_type = wormhole
+				random_pos = no
+				orbit_angle = 270
+			}
+			link_wormholes = prev
+		}
+	}
+}

@@ -1,0 +1,12 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+system 0 at ["coordinate"]
+label: NAME_Gamma_Refuge
+bytes: 753 dirty: false span: 411768..412521
+  coordinate.x = Decimal -144.22 @27..36
+  coordinate.y = Decimal 57.36 @40..47
+  coordinate.origin = Null 4294967295 @51..68
+  coordinate.randomized = Bool yes @72..86
+  coordinate.visual_height = Decimal 3.65056 @90..111

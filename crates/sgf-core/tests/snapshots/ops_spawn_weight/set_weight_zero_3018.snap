@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/ops_spawn_weight.rs
+expression: "report(&session, &result)"
+---
+Set system 3018 spawn weight to 0
+inverse: SetSpawnWeight { id: 3018, base: Some(1.0) }
+
+--- scenario
++++ scenario
+@@ -43,7 +43,7 @@
+ 		name = "Iridonia"
+ 		position = { x = 40 y = 75 }
+ 		initializer = random_empire_init_01
+-		spawn_weight = { base = 1 }
++		spawn_weight = { base = 0 }
+ 		effect = {
+ 			log = "Success system [This.GetName]"
+ 		}

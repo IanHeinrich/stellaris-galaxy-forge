@@ -1,0 +1,67 @@
+#########################
+# Grammar fixture	#  a comment line holding tabs, braces { } and a "quote
+#########################
+
+static_galaxy_scenario = {
+	name = "sgf_grammar"
+	priority = 5
+	default = no
+	supports_shape = elliptical
+	num_empires = { min = 1 max = 2 }
+	num_empire_default = 1
+	fallen_empire_default = 0
+	fallen_empire_max = 0
+	marauder_empire_default = 0
+	marauder_empire_max = 0
+	advanced_empire_default = 0
+	colonizable_planet_odds = 1.0
+	primitive_odds = 1.0
+	num_wormhole_pairs = { min = 0 max = 0 }
+	num_wormhole_pairs_default = 0
+	num_gateways = { min = 0 max = 0 }
+	num_gateways_default = 0
+	num_hyperlanes_default = 0
+	random_hyperlanes = no
+	core_radius = 10
+	crisis_strength = 1.0
+	extra_crisis_strength = { 10 25 }
+
+	coordinate_transform = { # untransformed in the editor
+		x = { add = 0 }
+		y = { mul = 1 }
+	}
+
+	### Systems, one per line in the mod's shape
+	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
+	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
+	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }
+
+	# a multi-line system with an effect block
+	system = {
+		id = "3018"
+		name = "Iridonia"
+		position = { x = 40 y = 75 }
+		initializer = random_empire_init_01
+		spawn_weight = { base = 1 }
+		effect = {
+			log = "Success system [This.GetName]"
+		}
+	}
+	system = { id = "9" name = "Lonely" position = { x = -90 y = 90 } }
+	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { modifier = { add = 10000 has_country_flag = sgf_grammar } } }
+	system = { id = "888" name = "Reserved" position = { x = 90 y = -60 } initializer = custom_starting_init_01 spawn_weight = { base = 1 modifier = { factor = 0 is_ai = yes } } }
+
+	add_hyperlane = { from = "1" to = "2" }
+	add_hyperlane = { from = "2" to = "1" }
+	add_hyperlane = { from = "1" to = "16" }
+	add_hyperlane = { from = "1" to = "16" }
+	add_hyperlane = { from = "16" to = "111" }
+	add_hyperlane = { from = "111" to = "3018" }
+	prevent_hyperlane = { from = "9" to = "1" }
+	add_hyperlane = { from = "3018" to = "512" }
+	add_hyperlane = { from = "512" to = "888" }
+
+	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = 0 y = 0 } radius = 60 }
+	nebula = { name = "Far Cloud" position = { x = -90 y = 90 } radius = 20 }
+}

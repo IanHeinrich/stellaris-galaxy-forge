@@ -1,0 +1,52 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+ship 0 at []
+label: STARBASE_STATION_NAME_FORMAT_NON_PRIMARY
+bytes: 1534 dirty: false span: 12389163..12390697
+  fleet = Int 0 @8..15
+  name = block[2] @18..189
+  name.key = Quoted STARBASE_STATION_NAME_FORMAT_NON_PRIMARY @31..77
+  reserve = Int 0 @192..201
+  ship_design_implementation = block[3] @204..292
+  ship_design_implementation.design = Int 13 @239..248
+  ship_design_implementation.upgrade = Null 4294967295 @252..270
+  ship_design_implementation.growth_stage = Int 0 @274..288
+  graphical_culture = Quoted humanoid_01 @295..326
+  section.1 = block[5] @329..815
+  section.1.design = Quoted STARPORT_STARBASE_SECTION @345..379
+  section.1.slot = Quoted core @383..394
+  section.2 = block[2] @818..888
+  section.2.design = Quoted ASSEMBLYYARD_STARBASE_SECTION @834..872
+  section.2.slot = Quoted 1 @876..884
+  section.3 = block[2] @891..956
+  section.3.design = Quoted SCIENCE_STARBASE_SECTION @907..940
+  section.3.slot = Quoted 2 @944..952
+  coordinate = block[3] @959..1013
+  coordinate.x = Decimal 21.6 @978..984
+  coordinate.y = Decimal -21.6 @988..995
+  coordinate.origin = Int 217 @999..1009
+  target_coordinate = block[3] @1016..1077
+  target_coordinate.x = Decimal 21.6 @1042..1048
+  target_coordinate.y = Decimal -21.6 @1052..1059
+  target_coordinate.origin = Int 217 @1063..1073
+  post_move_angle = Decimal 0.78519 @1080..1103
+  hitpoints = Int 10000 @1106..1121
+  shield_hitpoints = Int 2250 @1124..1145
+  armor_hitpoints = Int 5800 @1148..1168
+  max_hitpoints = Int 10000 @1171..1190
+  max_shield_hitpoints = Int 2250 @1193..1218
+  max_armor_hitpoints = Int 5800 @1221..1245
+  rotation = Decimal 0.78519 @1248..1264
+  forward_x = Decimal -0.70696 @1267..1285
+  forward_y = Decimal 0.70726 @1288..1305
+  upgrade_progress = Int 0 @1308..1326
+  next_weapon_index = Int 24 @1329..1349
+  created_this_update = Bool no @1352..1374
+  targeting_module = list[0] @1377..1402
+  combat_action = Int 1 @1405..1420
+  disable_at_health = Int 0 @1423..1442
+  enable_at_health = Decimal 0.05 @1445..1466
+  construction_date = Date 2200.01.01 @1469..1501
+  maturation_date = Date 0.01.01 @1504..1531

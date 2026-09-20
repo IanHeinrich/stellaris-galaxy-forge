@@ -1,0 +1,19 @@
+[package]
+name = "sgf-cli"
+description = "sgf: command-line front end and test harness for sgf-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "sgf"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
+sgf-core.workspace = true
+sgf-gamedata.workspace = true
+
+[dev-dependencies]
+tempfile = "3.27.0"

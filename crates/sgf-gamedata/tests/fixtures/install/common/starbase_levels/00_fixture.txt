@@ -1,0 +1,8 @@
+starbase_level_hut = {
+	ship_size = starbase_hut
+}
+
+starbase_level_roamer = {
+	ship_size = starbase_roamer
+	display_empire_shield = yes
+}

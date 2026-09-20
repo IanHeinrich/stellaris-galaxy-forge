@@ -1,0 +1,7 @@
+modifier = {
+	factor = 0
+	num_systems < 200
+	weight >= 5
+	species != "ROBOT"
+	has_flag ?= yes
+}

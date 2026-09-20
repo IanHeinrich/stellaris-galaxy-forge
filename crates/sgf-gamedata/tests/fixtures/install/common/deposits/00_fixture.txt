@@ -1,0 +1,20 @@
+d_glow_2 = {
+	icon = d_glow
+	resources = {
+		category = orbital_mining_deposits
+		produces = {
+			trigger = {
+				exists = owner
+			}
+			glow = 1
+			glow = 1
+		}
+	}
+	station = shipclass_mining_station
+	is_for_colonizable = no
+}
+
+d_fixture_blocker = {
+	icon = d_fixture_blocker
+	category = deposit_cat_blockers
+}

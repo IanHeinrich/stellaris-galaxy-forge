@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+megastructure 11 at []
+label: megastructure #11
+bytes: 210 dirty: false span: 24623711..24623921
+= Type: interstellar_assembly_ruined @type
+= Orbits: 829 -> planet 829 @planet
+= System: 9 -> system 9 @coordinate.origin
+  type = Quoted interstellar_assembly_ruined @9..44
+  coordinate = block[3] @47..92
+  coordinate.x = Int 0 @66..69
+  coordinate.y = Int 0 @73..76
+  coordinate.origin = Int 9 @80..88
+  planet = Int 829 @95..105
+  orbitals = list[0] @108..125
+  build_queue = Null 4294967295 @128..150
+  dismantle_progress = Int 0 @153..173
+  dismantle_finish_date = Date 0.01.01 @176..207

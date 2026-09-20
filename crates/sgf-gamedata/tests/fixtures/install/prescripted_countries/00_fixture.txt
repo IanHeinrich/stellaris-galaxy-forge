@@ -1,0 +1,29 @@
+fixture_prescripted_empire = {
+	name = "EMPIRE_DESIGN_fixture"
+	adjective = "PRESCRIPTED_adjective_fixture"
+	spawn_enabled = yes
+	initializer = "prescripted_capital_init"
+	system_name = "NAME_Fixture_Home"
+	empire_flag = {
+		icon = {
+			category = "synthetic"
+			file = "flag_synthetic_3.dds"
+		}
+		background = {
+			category = "backgrounds"
+			file = "00_solid.dds"
+		}
+		colors = {
+			"fixture_teal"
+			"fixture_navy"
+			"null"
+			"null"
+		}
+	}
+}
+
+fixture_prescripted_twin_z = {
+	name = "EMPIRE_DESIGN_fixture_twin_early"
+	spawn_enabled = yes
+	initializer = "prescripted_twin_init"
+}

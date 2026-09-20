@@ -1,0 +1,42 @@
+name: Changelog
+
+on:
+  pull_request:
+    # labeled/unlabeled so adding the skip label re-runs this required check.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  changelog:
+    name: Changelog entry
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: CHANGELOG.md has a new entry
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set +e
+          git diff --quiet "origin/$BASE_REF...HEAD" -- CHANGELOG.md
+          status=$?
+          set -e
+          case "$status" in
+            0)
+              echo "::error::CHANGELOG.md has no new entry. Add one under [Unreleased] or label the PR skip-changelog."
+              exit 1
+              ;;
+            1) echo "CHANGELOG.md changed in this pull request." ;;
+            *)
+              echo "::error::git diff against origin/$BASE_REF failed with status $status."
+              exit "$status"
+              ;;
+          esac
+
+      - name: Changelog check skipped
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        run: 'echo "skipped: skip-changelog label"'

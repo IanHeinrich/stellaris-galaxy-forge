@@ -1,0 +1,5 @@
+broken_init = {
+	class = sc_sun
+	planet = {
+		count = 1
+	# the closing brace of the initializer is missing

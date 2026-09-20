@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/ops_header.rs
+expression: "report(&session, &result)"
+---
+Removed header supports_shape
+inverse: SetHeaderField { key: "supports_shape", value: Some("elliptical") }
+
+--- scenario
++++ scenario
+@@ -6,7 +6,6 @@
+ 	name = "sgf_grammar"
+ 	priority = 5
+ 	default = no
+-	supports_shape = elliptical
+ 	num_empires = { min = 1 max = 2 }
+ 	num_empire_default = 1
+ 	fallen_empire_default = 0

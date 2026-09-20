@@ -1,0 +1,21 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+megastructure 1 at []
+label: megastructure #1
+bytes: 238 dirty: false span: 24621396..24621634
+= Type: ring_world_ruined @type
+= Owner: 16777227 -> country 16777227 @owner
+= System: 311 -> system 311 @coordinate.origin
+  type = Quoted ring_world_ruined @8..32
+  coordinate = block[3] @35..96
+  coordinate.x = Decimal 45.20385 @54..64
+  coordinate.y = Decimal -0.00045 @68..78
+  coordinate.origin = Int 311 @82..92
+  owner = Int 16777227 @99..113
+  planet = Null 4294967295 @116..133
+  orbitals = list[0] @136..153
+  build_queue = Null 4294967295 @156..178
+  dismantle_progress = Int 0 @181..201
+  dismantle_finish_date = Date 0.01.01 @204..235

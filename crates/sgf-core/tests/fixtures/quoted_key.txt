@@ -1,0 +1,2 @@
+"tech_lasers_1"="1"
+"tech_industrial_storm_protection"="1"

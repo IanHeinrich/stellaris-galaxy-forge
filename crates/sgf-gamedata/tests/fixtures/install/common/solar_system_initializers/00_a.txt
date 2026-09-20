@@ -1,0 +1,93 @@
+@spawn_odds = 10
+
+# Plain generated system; mod one redefines it in a differently-named file.
+basic_init_01 = {
+	class = sc_sun
+	usage = misc_system_init
+	planet = {
+		count = 1
+		class = star
+	}
+}
+
+home_init = {
+	name = "NAME_Fixture"
+	class = sc_ember
+	usage = empire_init
+	flags = { empire_home_system }
+	planet = {
+		count = 1
+		class = star
+		orbit_distance = 0
+	}
+}
+
+lair_init = { # trailing comment on the key line
+	class = sc_pit
+	usage = misc_system_init
+	usage_odds = {
+		base = @spawn_odds
+		modifier = {
+			factor = 0
+			num_systems >= 200
+		}
+	}
+	max_instances = 1
+	flags = { guardian hostile_system }
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			set_name = "NAME_Lair"
+			create_country = {
+				name = "NAME_Beast"
+				type = lurker_beast
+				flag = {
+					icon = {
+						category = "synthetic"
+						file = "flag_synthetic_1.dds"
+					}
+				}
+			}
+		}
+	}
+}
+
+# Bodies, deposits, a dig site, a megastructure and a starbase, for the details tests.
+details_init = {
+	class = sc_sun
+	usage = misc_system_init
+	planet = {
+		name = "NAME_Fixture_Star"
+		class = pc_fixture_star
+		size = { min = 20 max = 30 }
+		init_effect = {
+			add_deposit = d_glow_2
+		}
+	}
+	planet = {
+		count = 2
+		class = pc_meadow
+		size = 16
+		starting_planet = yes
+		init_effect = {
+			add_deposit = d_fixture_blocker
+			random_list = {
+				50 = { add_deposit = d_glow_2 }
+			}
+			create_archaeological_site = fixture_digsite
+		}
+		moon = {
+			class = pc_meadow
+			init_effect = { add_deposit = d_glow_2 }
+		}
+	}
+	init_effect = {
+		spawn_megastructure = { type = "fixture_gateway" }
+		create_starbase = {
+			size = "starbase_fixture"
+			module = "shipyard"
+			building = "fixture_building"
+		}
+	}
+}

@@ -1,0 +1,31 @@
+---
+source: crates/sgf-core/tests/export.rs
+expression: "String::from_utf8(std::fs::read(&path).unwrap()).unwrap()"
+---
+static_galaxy_scenario = {
+	name = "sgf_test"
+	priority = 5
+	supports_shape = elliptical
+	default = no
+	num_empires = { min = 0 max = 1 }
+	num_empire_default = 1
+	fallen_empire_default = 0
+	fallen_empire_max = 0
+	marauder_empire_default = 0
+	marauder_empire_max = 0
+	nomad_empire_default = 0
+	nomad_empire_max = 0
+	advanced_empire_default = 0
+	colonizable_planet_odds = 1.0
+	primitive_odds = 1.0
+	num_wormhole_pairs = { min = 0 max = 0 }
+	num_wormhole_pairs_default = 0
+	num_gateways = { min = 0 max = 0 }
+	num_gateways_default = 0
+	num_hyperlanes_default = 0
+	random_hyperlanes = no
+	core_radius = 0
+	crisis_strength = 0.75
+	extra_crisis_strength = { 5 10 25 }
+
+}

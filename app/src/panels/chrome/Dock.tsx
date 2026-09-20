@@ -1,0 +1,143 @@
+import { useRef } from "react";
+import { documentCapabilities } from "../../lib/capabilities";
+import { useEmpireCount, usePointCount } from "../../store/browserRows";
+import { useEditorStore } from "../../store/editorStore";
+import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useLayoutStore, type DockTab } from "../../store/layoutStore";
+import { newIssues, useIssuesStore } from "../../store/issuesStore";
+import { DOCK_TAB_REGISTRY, dockTabsFor } from "./dockTabs";
+
+const PANEL_ID = "dock-panel";
+
+function tabId(tab: DockTab): string {
+  return `dock-tab-${tab}`;
+}
+
+/** The chosen tab, or the first one listed when the open document cannot answer for it. */
+function useShownTab(): DockTab {
+  const tab = useLayoutStore((s) => s.tab);
+  const tabs = dockTabsFor(useFileSessionStore(documentCapabilities));
+  return tabs.includes(tab) ? tab : tabs[0];
+}
+
+function Body({ tab }: { tab: DockTab }) {
+  const Panel = DOCK_TAB_REGISTRY[tab].component;
+  return <Panel />;
+}
+
+function Resizer() {
+  const setWidth = useLayoutStore((s) => s.setWidth);
+  const dragging = useRef(false);
+  return (
+    <div
+      className="dock-resizer"
+      role="separator"
+      aria-label="Resize the dock"
+      aria-orientation="vertical"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        dragging.current = true;
+      }}
+      onPointerMove={(e) => {
+        if (dragging.current) setWidth(window.innerWidth - e.clientX);
+      }}
+      onPointerUp={(e) => {
+        dragging.current = false;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }}
+      onPointerCancel={() => {
+        dragging.current = false;
+      }}
+    />
+  );
+}
+
+function TabStrip({ tab }: { tab: DockTab }) {
+  const setTab = useLayoutStore((s) => s.setTab);
+  const toggleDock = useLayoutStore((s) => s.toggleDock);
+  const issues = useFileSessionStore((s) => s.issues);
+  const changes = useEditorStore((s) => s.history.undo.length);
+  const capabilities = useFileSessionStore(documentCapabilities);
+  const baseline = useIssuesStore((s) => s.baseline);
+  const fresh = newIssues(issues, baseline);
+  const empires = useEmpireCount();
+  const points = usePointCount();
+  const counts: Record<DockTab, number | null> = {
+    inspector: null,
+    empires,
+    poi: points,
+    issues: fresh.length,
+    changes,
+  };
+  const errors = fresh.some((i) => i.severity === "error");
+  return (
+    <div className="dock-tabs">
+      <div className="dock-tablist" role="tablist" aria-label="Dock">
+        {dockTabsFor(capabilities).map((id) => {
+          const count = counts[id];
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={tabId(id)}
+              aria-controls={PANEL_ID}
+              aria-selected={tab === id}
+              className={tab === id ? "dock-tab on" : "dock-tab"}
+              title={DOCK_TAB_REGISTRY[id].label}
+              onClick={() => setTab(id)}
+            >
+              <span className="label">{DOCK_TAB_REGISTRY[id].short}</span>
+              {count !== null && count > 0 && (
+                <span className={id === "issues" && errors ? "count warn" : "count"}>{count}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        className="dock-collapse icon"
+        title="Collapse the dock (Tab)"
+        aria-label="Collapse the dock"
+        onClick={toggleDock}
+      >
+        ⇥
+      </button>
+    </div>
+  );
+}
+
+/** The full-height right dock: one tab strip over the panel the tab selects. */
+export function Dock() {
+  const tab = useShownTab();
+  const width = useLayoutStore((s) => s.width);
+  const collapsed = useLayoutStore((s) => s.collapsed);
+  const toggleDock = useLayoutStore((s) => s.toggleDock);
+
+  if (collapsed) {
+    return (
+      <aside className="dock collapsed">
+        <button
+          type="button"
+          className="dock-collapse icon"
+          title="Show the dock (Tab)"
+          aria-label="Show the dock"
+          onClick={toggleDock}
+        >
+          ⇤
+        </button>
+      </aside>
+    );
+  }
+  return (
+    <aside className="dock" style={{ width }}>
+      <Resizer />
+      <TabStrip tab={tab} />
+      <div className="dock-body" role="tabpanel" id={PANEL_ID} aria-labelledby={tabId(tab)}>
+        <Body tab={tab} />
+      </div>
+    </aside>
+  );
+}

@@ -1,0 +1,11 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+deposit 21 at []
+label: deposit #21
+bytes: 73 dirty: false span: 19265284..19265357
+  type = Quoted d_energy_5 @9..26
+  deposit_holder = block[2] @29..70
+  deposit_holder.type = Int 0 @52..58
+  deposit_holder.id = Int 0 @62..66

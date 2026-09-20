@@ -1,0 +1,78 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Added 3 lanes
+touched: [0, 1, 789, 790]
+inverse: RemoveLanePairs { lanes: [(789, 790), (789, 0), (1, 790)] }
+… and 4 other issues
+
+--- gamestate
++++ gamestate
+@@ -28892,6 +28892,12 @@
+ 				length=17
+ 			}
+  
++			{
++				to=789
++				length=222
++				bridge=yes
++			}
++ 
+ 		}
+ 		flags=
+ 		{
+@@ -28955,6 +28961,11 @@
+ 				length=19
+ 			}
+  
++			{
++				to=790
++				length=374
++			}
++ 
+ 		}
+ 		discovery=
+ 		{
+@@ -82446,6 +82457,21 @@
+ 			1029 
+ 		}
+ 		star_class="sc_trinary_3"
++		hyperlane=
++		{
++			
++			{
++				to=790
++				length=794
++			}
++ 
++			{
++				to=0
++				length=222
++				bridge=yes
++			}
++ 
++		}
+ 		natural_wormholes=
+ 		{
+ 			12 
+@@ -82506,6 +82532,20 @@
+ 			1062 1063 1064 1065 1066 1067 1068 
+ 		}
+ 		star_class="sc_neutron_star"
++		hyperlane=
++		{
++			
++			{
++				to=789
++				length=794
++			}
++ 
++			{
++				to=1
++				length=374
++			}
++ 
++		}
+ 		asteroid_belts=
+ 		{

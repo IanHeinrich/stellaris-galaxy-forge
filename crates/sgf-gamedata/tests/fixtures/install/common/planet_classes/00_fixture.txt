@@ -1,0 +1,18 @@
+pc_meadow = {
+	icon = GFX_planet_type_meadow
+	colonizable = yes
+	climate = "wet"
+}
+
+pc_fixture_star = {
+	icon = GFX_planet_type_fixture_star
+	star = yes
+}
+
+random_list = {
+	pc_meadow = { }
+}
+
+random_list = {
+	pc_meadow = { }
+}

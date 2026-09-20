@@ -1,0 +1,69 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+system 217 at []
+label: NAME_Sol
+bytes: 1177 dirty: false span: 584958..586135
+= Star class: sc_g @star_class
+= Initializer: sol_system_initializer @initializer
+= Sector: 0 -> sector 0 @sector
+= Inner radius: 320 @inner_radius
+= Outer radius: 420 @outer_radius
+> Planets x24 of planet
+> Hyperlanes x3 @hyperlane
+> Starbases x1 of starbase @starbases
+> Fleets present x6 of fleet @fleet_presence
+> Flags x6 @flags
+  coordinate = block[5] @10..118
+  coordinate.x = Decimal 397.39 @29..37
+  coordinate.y = Decimal -180.25 @41..50
+  coordinate.origin = Null 4294967295 @54..71
+  coordinate.randomized = Bool yes @75..89
+  coordinate.visual_height = Decimal 3.65056 @93..114
+  name = block[1] @121..152
+  name.key = Quoted NAME_Sol @134..148
+  planet.1 = Int 0 @155..163
+  planet.2 = Int 1 @166..174
+  planet.3 = Int 2 @177..185
+  planet.4 = Int 3 @188..196
+  planet.5 = Int 4 @199..207
+  planet.6 = Int 5 @210..218
+  planet.7 = Int 6 @221..229
+  planet.8 = Int 7 @232..240
+  planet.9 = Int 8 @243..251
+  planet.10 = Int 9 @254..262
+  planet.11 = Int 10 @265..274
+  planet.12 = Int 11 @277..286
+  planet.13 = Int 12 @289..298
+  planet.14 = Int 13 @301..310
+  planet.15 = Int 14 @313..322
+  planet.16 = Int 15 @325..334
+  planet.17 = Int 16 @337..346
+  planet.18 = Int 17 @349..358
+  planet.19 = Int 18 @361..370
+  planet.20 = Int 19 @373..382
+  planet.21 = Int 20 @385..394
+  planet.22 = Int 21 @397..406
+  planet.23 = Int 22 @409..418
+  planet.24 = Int 23 @421..430
+  star_class = Quoted sc_g @433..450
+  hyperlane = list[3] @453..586
+  asteroid_belts = list[2] @589..742
+  flags = block[6] @745..917
+  flags.empire_home_system = Int 62808000 @759..786
+  flags.sol_system = Int 62808000 @790..809
+  flags.sol = Int 62808000 @813..825
+  flags.galactic_landmark_system = Int 62808000 @829..862
+  flags.empire_cluster = Int 62808000 @866..889
+  flags.precursor_5 = Int 62808000 @893..913
+  initializer = Quoted sol_system_initializer @920..956
+  fleet_presence = list[6] @959..1008
+  inner_radius = Int 320 @1011..1027
+  outer_radius = Int 420 @1030..1046
+  has_access_to_relay_network = Bool yes @1049..1080
+  starbases = list[1] @1083..1107
+  sector = Int 0 @1110..1118
+  index = Int 53 @1121..1129
+  colonies = list[1] @1132..1155
+  storm = Null 4294967295 @1158..1174

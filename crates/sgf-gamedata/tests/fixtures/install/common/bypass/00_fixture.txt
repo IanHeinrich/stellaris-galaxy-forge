@@ -1,0 +1,8 @@
+fixture_gateway = {
+	name = FIXTURE_GATEWAY
+	icon_frame = 25
+}
+
+fixture_rift = {
+	name = FIXTURE_RIFT
+}

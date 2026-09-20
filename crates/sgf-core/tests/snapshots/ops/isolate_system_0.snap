@@ -1,0 +1,109 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Isolated Gamma Refuge (#0): removed 5 lane(s) (10 entries)
+touched: [0, 64, 86, 200, 246, 752]
+inverse: AddLanes { from: 0, to: [(752, false), (200, false), (86, false), (64, false), (246, false)] }
+warning system_isolated: system 0 has no hyperlanes
+warning disconnected: galaxy has 4 components, 3 at load; newly separated: 0
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28864,35 +28864,6 @@
+ 			6 7 8 9 
+ 		}
+ 		star_class="sc_m"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=752
+-				length=33
+-			}
+- 
+-			{
+-				to=200
+-				length=27
+-			}
+- 
+-			{
+-				to=86
+-				length=27
+-			}
+- 
+-			{
+-				to=64
+-				length=21
+-			}
+- 
+-			{
+-				to=246
+-				length=17
+-			}
+- 
+-		}
+ 		flags=
+ 		{
+ 			precursor_3=62808000
+@@ -33459,11 +33430,6 @@
+ 		{
+ 			
+ 			{
+-				to=0
+-				length=21
+-			}
+- 
+-			{
+ 				to=246
+ 				length=19
+ 			}
+@@ -34962,11 +34928,6 @@
+ 		{
+ 			
+ 			{
+-				to=0
+-				length=27
+-			}
+- 
+-			{
+ 				to=246
+ 				length=26
+ 			}
+@@ -43029,11 +42990,6 @@
+ 			}
+  
+ 			{
+-				to=0
+-				length=27
+-			}
+- 
+-			{
+ 				to=659
+ 				length=25
+ 			}
+@@ -46188,11 +46144,6 @@
+ 				length=19
+ 			}
+  
+-			{
+-				to=0
+-				length=17
+-			}
+- 
+ 		}
+ 		flags=
+ 		{
+@@ -80037,11 +79988,6 @@
+ 		hyperlane=
+ 		{
+ 			
+-			{
+-				to=0
+-				length=33
+-			}
+- 
+ 			{
+ 				to=323
+ 				length=21

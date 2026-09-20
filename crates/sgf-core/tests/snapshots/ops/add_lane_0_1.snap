@@ -1,0 +1,35 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Added lane 0 <-> 1 (length 264)
+touched: [0, 1]
+inverse: RemoveLane { a: 0, b: 1 }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28892,6 +28892,11 @@
+ 				length=17
+ 			}
+  
++			{
++				to=1
++				length=264
++			}
++ 
+ 		}
+ 		flags=
+ 		{
+@@ -28955,6 +28960,11 @@
+ 				length=19
+ 			}
+  
++			{
++				to=0
++				length=264
++			}
++ 
+ 		}
+ 		discovery=
+ 		{

@@ -1,0 +1,44 @@
+---
+source: crates/sgf-core/tests/ops_nebula.rs
+expression: "report(&session, &result)"
+---
+Removed nebula "Phantom Streak Miasma" (8 systems released)
+touched: [17, 30, 35, 59, 69, 108, 127, 130, 134, 140, 157, 164, 181, 248, 256, 277, 331, 348, 354, 360, 401, 415, 438, 461, 463, 503, 623, 625, 639, 780]
+inverse: AddNebula { x: 66.15, y: -136.85, radius: 30.0, name: Some("Phantom_Streak_Miasma") }
+warning lane_duplicate: system 401 lists a lane to 521 more than once
+warning lane_duplicate: system 521 lists a lane to 401 more than once
+… and 4 other issues
+
+--- gamestate
++++ gamestate
+@@ -6042,30 +6042,6 @@
+ {
+ 	coordinate=
+ 	{
+-		x=66.15
+-		y=-136.85
+-		origin=4294967295
+-		randomized=yes
+-		visual_height=3.65056
+-	}
+-	name=
+-	{
+-		key="Phantom_Streak_Miasma"
+-	}
+-	radius=30
+-	galactic_object=108
+-	galactic_object=140
+-	galactic_object=164
+-	galactic_object=181
+-	galactic_object=348
+-	galactic_object=438
+-	galactic_object=463
+-	galactic_object=623
+-}
+-nebula=
+-{
+-	coordinate=
+-	{
+ 		x=372.45
+ 		y=73.26
+ 		origin=4294967295

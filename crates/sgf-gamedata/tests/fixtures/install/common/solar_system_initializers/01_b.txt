@@ -1,0 +1,58 @@
+fallen_home = {
+	usage = fallen_empire_init
+	class = "rl_standard_stars"
+	flags = { ancient_wonders_system }
+	init_effect = {
+		set_star_flag = fixture_beacon
+	}
+	planet = {
+		count = 1
+		class = star
+		init_effect = {
+			create_country = {
+				name = "NAME_Fixture_Fallen"
+				type = fallen_empire
+				flag = {
+					icon = { category = "synthetic" file = "flag_synthetic_2.dds" }
+					colors = { "fixture_navy" "fixture_navy" "null" "null" }
+				}
+				effect = {
+					save_global_event_target_as = fixture_fallen
+				}
+			}
+			set_owner = event_target:fixture_fallen
+		}
+	}
+	neighbor_system = {
+		distance = { min = 0 max = 50 }
+		initializer = "fallen_colony"
+	}
+}
+
+fallen_colony = {
+	class = "rl_standard_stars"
+	spawn_system = {
+		min_distance >= 10
+		max_distance <= 30
+		initializer = fallen_outpost
+	}
+}
+
+fallen_outpost = {
+	class = sc_sun
+}
+
+trader_init = {
+	class = sc_sun
+	usage = misc_system_init
+	flags = { enclave }
+	init_effect = {
+		create_country = {
+			name = {
+				key = "NAME_Traders"
+				variable_string = "[Root.GetName]"
+			}
+			type = enclave
+		}
+	}
+}

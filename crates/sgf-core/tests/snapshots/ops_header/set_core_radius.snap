@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/ops_header.rs
+expression: "report(&session, &result)"
+---
+Set header core_radius to 25
+inverse: SetHeaderField { key: "core_radius", value: Some("10") }
+
+--- scenario
++++ scenario
+@@ -22,7 +22,7 @@
+ 	num_gateways_default = 0
+ 	num_hyperlanes_default = 0
+ 	random_hyperlanes = no
+-	core_radius = 10
++	core_radius = 25
+ 	crisis_strength = 1.0
+ 	extra_crisis_strength = { 10 25 }

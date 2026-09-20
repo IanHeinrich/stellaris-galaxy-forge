@@ -1,0 +1,19 @@
+# Line endings: everything text is LF; hooks and fixtures break on CRLF.
+* text=auto eol=lf
+*.rs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.sh text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+
+# Save corpus via git-lfs.
+testdata/*.sav filter=lfs diff=lfs merge=lfs -text
+
+# Binaries.
+*.png binary
+*.ico binary
+*.icns binary
+*.dds binary

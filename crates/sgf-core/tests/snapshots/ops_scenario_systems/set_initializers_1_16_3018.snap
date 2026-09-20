@@ -1,0 +1,31 @@
+---
+source: crates/sgf-core/tests/ops_scenario_systems.rs
+expression: "report(&session, &result)"
+---
+Set initializer of 3 systems
+touched: [1, 16, 3018]
+inverse: SetInitializers { entries: [InitializerSet { id: 1, initializer: Some("misc_system_init_01") }, InitializerSet { id: 16, initializer: None }, InitializerSet { id: 3018, initializer: Some("random_empire_init_01") }] }
+… and 2 other issues
+
+--- scenario
++++ scenario
+@@ -32,9 +32,9 @@
+ 	}
+ 
+ 	### Systems, one per line in the mod's shape
+-	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
++	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = sol_system_initializer }
+ 	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+-	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
++	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } initializer = random_empire_init_01 }
+ 	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }
+ 
+ 	# a multi-line system with an effect block
+@@ -42,7 +42,6 @@
+ 		id = "3018"
+ 		name = "Iridonia"
+ 		position = { x = 40 y = 75 }
+-		initializer = random_empire_init_01
+ 		spawn_weight = { base = 1 }
+ 		effect = {
+ 			log = "Success system [This.GetName]"

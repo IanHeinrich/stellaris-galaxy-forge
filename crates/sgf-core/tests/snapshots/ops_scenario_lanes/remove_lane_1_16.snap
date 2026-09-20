@@ -1,0 +1,21 @@
+---
+source: crates/sgf-core/tests/ops_scenario_lanes.rs
+expression: "report(&session, &result)"
+---
+Removed lane 1 <-> 16 (2 statements)
+touched: [1, 16]
+inverse: AddLane { a: 1, b: 16, bridge: false }
+warning disconnected: galaxy has 3 components, 2 at load; newly separated: 1, 2
+… and 2 other issues
+
+--- scenario
++++ scenario
+@@ -54,8 +54,6 @@
+ 
+ 	add_hyperlane = { from = "1" to = "2" }
+ 	add_hyperlane = { from = "2" to = "1" }
+-	add_hyperlane = { from = "1" to = "16" }
+-	add_hyperlane = { from = "1" to = "16" }
+ 	add_hyperlane = { from = "16" to = "111" }
+ 	add_hyperlane = { from = "111" to = "3018" }
+ 	prevent_hyperlane = { from = "9" to = "1" }

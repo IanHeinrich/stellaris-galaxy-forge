@@ -1,0 +1,6 @@
+---
+source: crates/sgf-core/tests/search.rs
+expression: "report(&s.search(\"miasma\", 5, &no_loc))"
+---
+Nebula #0 Phantom Streak Miasma · systems=8 → - at (66.15, -136.85)
+Nebula #5 Kanthares Miasma · systems=2 → - at (-183.18, 391.8)

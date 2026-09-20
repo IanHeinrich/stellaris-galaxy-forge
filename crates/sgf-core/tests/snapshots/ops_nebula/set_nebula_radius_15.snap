@@ -1,0 +1,27 @@
+---
+source: crates/sgf-core/tests/ops_nebula.rs
+expression: "report(&session, &shrunk)"
+---
+Set Phantom Streak Miasma radius to 15 (was 30); 6 systems left
+touched: [108, 140, 164, 181, 348, 463]
+inverse: SetNebulaRadius { index: 0, radius: 30.0 }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -6052,14 +6052,8 @@
+ 	{
+ 		key="Phantom_Streak_Miasma"
+ 	}
+-	radius=30
+-	galactic_object=108
+-	galactic_object=140
+-	galactic_object=164
+-	galactic_object=181
+-	galactic_object=348
++	radius=15
+ 	galactic_object=438
+-	galactic_object=463
+ 	galactic_object=623
+ }
+ nebula=

@@ -1,0 +1,106 @@
+.palette-field {
+  width: 100%;
+  padding-right: 26px;
+}
+
+/* The key that focuses the field, shown while it is idle. */
+.search-key {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  padding: 0 5px;
+  font: 11px/16px var(--font-mono, monospace);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.palette {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 2;
+  margin-top: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.palette-rows {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.palette-group {
+  padding: 6px 12px 2px;
+  font-size: 10px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.palette-row.active {
+  background: var(--bg-elevated);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.palette-icon {
+  flex: none;
+  color: var(--fg-muted);
+}
+
+.palette-row.active .palette-icon {
+  color: var(--accent);
+}
+
+.palette-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.palette-sub {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.palette-foot {
+  display: flex;
+  gap: 14px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 10.5px;
+  color: var(--fg-muted);
+}
+
+.palette-error {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+}
+
+.search {
+  position: relative;
+  width: min(360px, 28vw);
+}

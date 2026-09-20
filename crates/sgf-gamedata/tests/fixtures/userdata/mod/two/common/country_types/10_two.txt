@@ -1,0 +1,4 @@
+mod_two_enclave = {
+	is_enclave = yes
+	playable = no
+}

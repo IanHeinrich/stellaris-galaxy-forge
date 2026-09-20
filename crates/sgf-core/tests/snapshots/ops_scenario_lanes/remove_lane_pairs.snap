@@ -1,0 +1,27 @@
+---
+source: crates/sgf-core/tests/ops_scenario_lanes.rs
+expression: "report(&session, &result)"
+---
+Removed 2 lanes (3 statements)
+touched: [1, 2, 111, 3018]
+inverse: AddLanePairs { lanes: [LanePair { a: 1, b: 2, bridge: false }, LanePair { a: 111, b: 3018, bridge: false }] }
+warning system_isolated: system 2 has no hyperlanes
+warning disconnected: galaxy has 4 components, 2 at load; newly separated: 2, 512, 888, 3018
+warning position_range: system 111 position was a range and will be fixed on move
+… and 1 other issues
+
+--- scenario
++++ scenario
+@@ -52,12 +52,9 @@
+ 	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { modifier = { add = 10000 has_country_flag = sgf_grammar } } }
+ 	system = { id = "888" name = "Reserved" position = { x = 90 y = -60 } initializer = custom_starting_init_01 spawn_weight = { base = 1 modifier = { factor = 0 is_ai = yes } } }
+ 
+-	add_hyperlane = { from = "1" to = "2" }
+-	add_hyperlane = { from = "2" to = "1" }
+ 	add_hyperlane = { from = "1" to = "16" }
+ 	add_hyperlane = { from = "1" to = "16" }
+ 	add_hyperlane = { from = "16" to = "111" }
+-	add_hyperlane = { from = "111" to = "3018" }
+ 	prevent_hyperlane = { from = "9" to = "1" }
+ 	add_hyperlane = { from = "3018" to = "512" }
+ 	add_hyperlane = { from = "512" to = "888" }

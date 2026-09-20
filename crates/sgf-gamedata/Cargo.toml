@@ -1,0 +1,22 @@
+[package]
+name = "sgf-gamedata"
+description = "Read-only view of the user's Stellaris install and active mods: definitions and localisation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+base64 = "0.23.1"
+dirs = "7"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sgf-core.workspace = true
+texture2ddecoder = "0.1.2"
+thiserror = "2.0.20"
+ts-rs = "12"
+walkdir = "2"
+
+[dev-dependencies]
+tempfile = "3.27.0"

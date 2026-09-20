@@ -1,0 +1,211 @@
+import type { GalaxyDelta } from "../generated/GalaxyDelta";
+import type { Issue } from "../generated/Issue";
+import type { SpecialKind } from "../generated/SpecialKind";
+import type { LayerId } from "../lib/visual/layerIds";
+import { useDetailsStore } from "../store/detailsStore";
+import { useEditorStore } from "../store/editorStore";
+import { useFileSessionStore } from "../store/fileSessionStore";
+import { useGalaxyStore } from "../store/galaxyStore";
+import { useGameDataStore } from "../store/gameDataStore";
+import { useMapChromeStore } from "../store/mapChromeStore";
+import type { HighlightsLayer } from "./layers/HighlightsLayer";
+import type { MapLayer } from "./layers/MapLayer";
+import { layerShown } from "./layerVisibility";
+import { matchingSystems } from "./matchingSystems";
+
+const EMPTY_MATCH: ReadonlySet<number> = new Set();
+
+/** What a store change moves: the layers, and the camera and context work the controller owns. */
+export interface MapView {
+  readonly layers: readonly MapLayer[];
+  readonly highlights: HighlightsLayer;
+  /** Re-reads the stores into a new context and rebuilds every layer from it. */
+  rebuild(): void;
+  /** The same, unless nothing the layers draw moved. */
+  refreshContext(): void;
+  syncLayers(): void;
+  fit(): void;
+  fitSelection(): void;
+  focusOn(id: number): void;
+  panTo(x: number, y: number): void;
+  /** Makes the next tick hand the camera to the layers again. */
+  invalidate(): void;
+}
+
+/** When a binding applies besides the moment one of the fields it follows changes. */
+type Applied = "change" | "bind" | "layers";
+
+interface Binding {
+  when: Applied;
+  apply?: (view: MapView) => void;
+  subscribe: (view: MapView) => () => void;
+}
+
+interface Store<S> {
+  getState(): S;
+  subscribe(listener: (state: S, prev: S) => void): () => void;
+}
+
+/** The store fields the map follows, and what each moves when it changes. */
+const BINDINGS: Binding[] = [
+  watches(useGalaxyStore, (state, prev, view) => {
+    if (state.galaxy !== prev.galaxy) {
+      view.rebuild();
+      view.fit();
+    } else if (state.version !== prev.version && state.lastDelta) {
+      view.refreshContext();
+      applyDelta(view, state.lastDelta);
+    } else if (state.hiddenCountries !== prev.hiddenCountries) {
+      view.refreshContext();
+    }
+  }),
+  watches(useGameDataStore, (_state, _prev, view) => view.refreshContext()),
+  watches(useDetailsStore, (_state, _prev, view) => view.refreshContext()),
+
+  follows(
+    useEditorStore,
+    [(s) => s.selection],
+    (s, view) => view.highlights.setSelection(s.selection),
+    "bind",
+  ),
+  follows(useEditorStore, [(s) => s.hover], (s, view) => view.highlights.setHover(s.hover), "bind"),
+  follows(
+    useEditorStore,
+    [(s) => s.selection, (s) => s.hover],
+    (s, view) => pinLabels(view, s.selection, s.hover),
+    "layers",
+  ),
+  follows(
+    useEditorStore,
+    [(s) => s.selectedLane],
+    (s, view) => view.highlights.setSelectedLane(s.selectedLane),
+    "bind",
+  ),
+  follows(
+    useEditorStore,
+    [(s) => s.selectedNebula],
+    (s, view) => setSelectedNebula(view, s.selectedNebula),
+    "layers",
+  ),
+  follows(useEditorStore, [(s) => s.focus], (s, view) => {
+    if (s.focus) view.focusOn(s.focus.id);
+  }),
+  follows(useEditorStore, [(s) => s.pan], (s, view) => {
+    if (s.pan) view.panTo(s.pan.x, s.pan.y);
+  }),
+  follows(useEditorStore, [(s) => s.fitNonce], (_s, view) => view.fit()),
+  follows(useEditorStore, [(s) => s.fitSelectionNonce], (_s, view) => view.fitSelection()),
+
+  follows(
+    useMapChromeStore,
+    [(s) => s.layers],
+    (s, view) => applyLayerVisibility(view, s.layers),
+    "layers",
+  ),
+  follows(useMapChromeStore, [(s) => s.layers], (_s, view) => view.refreshContext()),
+  follows(
+    useMapChromeStore,
+    [(s) => s.lanePreview],
+    (s, view) => view.highlights.setLanePreview(s.lanePreview),
+    "bind",
+  ),
+  follows(
+    useMapChromeStore,
+    [(s) => s.shownKinds],
+    (s, view) => setShownKinds(view, s.shownKinds),
+    "layers",
+  ),
+  follows(useMapChromeStore, [(s) => s.hiddenInitializers], (_s, view) => view.refreshContext()),
+  follows(
+    useMapChromeStore,
+    [(s) => s.highlightInitializer],
+    (s, view) => setMatched(view, s.highlightInitializer),
+    "bind",
+  ),
+
+  follows(useFileSessionStore, [(s) => s.issues], (s, view) => setIssues(view, s.issues), "layers"),
+  follows(useFileSessionStore, [(s) => s.capabilities], (_s, view) => view.syncLayers()),
+  follows(useFileSessionStore, [(s) => s.kind], (_s, view) => {
+    view.refreshContext();
+    applyLayerVisibility(view, useMapChromeStore.getState().layers);
+  }),
+];
+
+/** Subscribes the map to every field it follows and applies the ones standing now. */
+export function bindViewState(view: MapView): () => void {
+  const offs = BINDINGS.map((binding) => {
+    if (binding.when !== "change") binding.apply?.(view);
+    return binding.subscribe(view);
+  });
+  return () => {
+    for (const off of offs) off();
+  };
+}
+
+/** Hands a freshly made set of layers the view state the standing ones hold. */
+export function dressLayers(view: MapView): void {
+  for (const binding of BINDINGS) {
+    if (binding.when === "layers") binding.apply?.(view);
+  }
+}
+
+function follows<S>(
+  store: Store<S>,
+  fields: ReadonlyArray<(state: S) => unknown>,
+  apply: (state: S, view: MapView) => void,
+  when: Applied = "change",
+): Binding {
+  return {
+    when,
+    apply: (view) => apply(store.getState(), view),
+    subscribe: (view) =>
+      store.subscribe((state, prev) => {
+        if (fields.some((field) => field(state) !== field(prev))) apply(state, view);
+      }),
+  };
+}
+
+/** For a store whose fields are read together, such as the three shapes a galaxy change takes. */
+function watches<S>(store: Store<S>, listen: (state: S, prev: S, view: MapView) => void): Binding {
+  return {
+    when: "change",
+    subscribe: (view) => store.subscribe((state, prev) => listen(state, prev, view)),
+  };
+}
+
+function applyDelta(view: MapView, delta: GalaxyDelta): void {
+  for (const layer of view.layers) layer.applyDelta(delta);
+  view.invalidate();
+}
+
+function pinLabels(view: MapView, selection: number[], hover: number | null): void {
+  const pinned = hover === null || selection.includes(hover) ? selection : [...selection, hover];
+  for (const layer of view.layers) layer.setPinned?.(pinned);
+  view.invalidate();
+}
+
+function setShownKinds(view: MapView, kinds: ReadonlySet<SpecialKind>): void {
+  for (const layer of view.layers) layer.setShownKinds?.(kinds);
+}
+
+function setSelectedNebula(view: MapView, index: number | null): void {
+  for (const layer of view.layers) layer.setSelectedNebula?.(index);
+}
+
+function setIssues(view: MapView, issues: readonly Issue[]): void {
+  for (const layer of view.layers) layer.setIssues?.(issues);
+}
+
+function setMatched(view: MapView, key: string | null): void {
+  const ids = key === null ? EMPTY_MATCH : matchingSystems(useGalaxyStore.getState().systems, key);
+  view.highlights.setMatched(ids);
+}
+
+function applyLayerVisibility(view: MapView, layers: Record<LayerId, boolean>): void {
+  const kind = useFileSessionStore.getState().kind;
+  for (const layer of view.layers) {
+    layer.setVisible(layerShown(layer.id, layers, kind));
+    layer.setDetailsShown?.(layers.details ?? true);
+  }
+  view.invalidate();
+}

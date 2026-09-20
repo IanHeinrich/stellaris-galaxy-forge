@@ -1,0 +1,13 @@
+# Same filename as vanilla's, and the descriptor's replace_path discards the
+# rest of the vanilla folder: sc_vanilla_only must disappear.
+sc_sun = {
+	class = sun_star
+	icon = g_star_modded
+	icon_scale = 1.5
+	planet = { key = pc_sun_star }
+}
+
+sc_two = {
+	class = two_star
+	planet = { key = pc_two_star }
+}

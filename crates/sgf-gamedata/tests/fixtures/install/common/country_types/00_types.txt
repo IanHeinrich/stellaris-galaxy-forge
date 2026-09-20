@@ -1,0 +1,43 @@
+default = {
+	playable = yes
+	is_space_critter = no
+	faction = {
+		hostile = no
+	}
+}
+
+fallen_empire = {
+	fallen_empire = yes
+	playable = no
+}
+
+enclave = {
+	is_enclave = yes
+	playable = no
+}
+
+lurker_beast = {
+	is_space_critter = yes
+	destroys_starbases = yes
+	faction = {
+		hostile = yes
+	}
+}
+
+roaming_fauna = {
+	is_space_critter = yes
+	destroys_starbases = yes
+	faction = {
+		hostile = no
+		space_creatures = yes
+	}
+}
+
+borderless_fauna = {
+	is_space_critter = yes
+	faction = {
+		hostile = yes
+		generate_borders = no
+		space_creatures = yes
+	}
+}

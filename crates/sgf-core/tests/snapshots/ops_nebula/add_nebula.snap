@@ -1,0 +1,46 @@
+---
+source: crates/sgf-core/tests/ops_nebula.rs
+expression: "report(&session, &result)"
+---
+Added nebula "SGF_Test_Nebula" at (-57.5, -305) radius 40; 4 systems joined
+touched: [113, 134, 600, 688]
+inverse: RemoveNebula { index: 9 }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -6175,7 +6175,6 @@
+ 		key="Demons_Eye_Nebula"
+ 	}
+ 	radius=30
+-	galactic_object=134
+ 	galactic_object=256
+ }
+ nebula=
+@@ -6212,6 +6211,26 @@
+ 	radius=25
+ 	galactic_object=17
+ }
++nebula=
++{
++	coordinate=
++	{
++		x=-57.5
++		y=-305
++		origin=4294967295
++		randomized=yes
++		visual_height=3.65056
++	}
++	name=
++	{
++		key="SGF_Test_Nebula"
++	}
++	radius=40
++	galactic_object=113
++	galactic_object=134
++	galactic_object=600
++	galactic_object=688
++}
+ pop=
+ {
+ }

@@ -1,0 +1,197 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to rebuild, e.g. v0.2.0
+        required: true
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  checks:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/ci.yml
+
+  version:
+    name: Tag if VERSION is new
+    runs-on: ubuntu-latest
+    needs: checks
+    if: github.event_name == 'push'
+    outputs:
+      released: ${{ steps.decide.outputs.released }}
+      tag: ${{ steps.decide.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether VERSION is new
+        id: decide
+        shell: bash
+        run: |
+          v=$(tr -d '[:space:]' < VERSION)
+          tag="v$v"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists; nothing to release"
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Release notes from CHANGELOG.md
+        if: steps.decide.outputs.released == 'true'
+        shell: bash
+        run: |
+          v=$(tr -d '[:space:]' < VERSION)
+          bash scripts/changelog.sh notes "$v" > notes.md
+
+      - name: Tag and draft release
+        if: steps.decide.outputs.released == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.decide.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "$tag"
+          git push origin "$tag"
+          gh release create "$tag" --draft --title "$tag" --notes-file notes.md
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: version
+    if: ${{ !cancelled() && (needs.version.outputs.released == 'true' || github.event_name == 'workflow_dispatch') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            tauri-args: ""
+            cli-asset: windows-x86_64
+          # 22.04 keeps the AppImage compatible with older glibc than the latest image has.
+          - os: ubuntu-22.04
+            tauri-args: ""
+            cli-asset: linux-x86_64
+          - os: macos-latest
+            tauri-args: --target universal-apple-darwin
+            cli-asset: macos-universal
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ needs.version.outputs.tag || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: ./.github/actions/setup
+        with:
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: App install
+        shell: bash
+        run: npm ci
+        working-directory: app
+
+      - name: Release status
+        id: release
+        shell: bash
+        run: |
+          info=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$TAG\") | \"id=\(.id)\ndraft=\(.draft)\"")
+          if [ -z "$info" ]; then
+            echo "::error::No release found for tag $TAG."
+            exit 1
+          fi
+          printf '%s\n' "$info" >> "$GITHUB_OUTPUT"
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          projectPath: app
+          releaseId: ${{ steps.release.outputs.id }}
+          tagName: ${{ env.TAG }}
+          releaseDraft: ${{ steps.release.outputs.draft }}
+          args: ${{ matrix.tauri-args }}
+
+      - name: sgf command-line tool
+        shell: bash
+        run: |
+          mkdir -p target/cli dist
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            cargo build --release -p sgf-cli --target aarch64-apple-darwin
+            cargo build --release -p sgf-cli --target x86_64-apple-darwin
+            lipo -create -output target/cli/sgf \
+              target/aarch64-apple-darwin/release/sgf \
+              target/x86_64-apple-darwin/release/sgf
+          else
+            cargo build --release -p sgf-cli
+            if [ -f target/release/sgf.exe ]; then
+              cp target/release/sgf.exe target/cli/
+            else
+              cp target/release/sgf target/cli/
+            fi
+          fi
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            (cd target/cli && 7z a "$GITHUB_WORKSPACE/dist/sgf-$TAG-${{ matrix.cli-asset }}.zip" sgf.exe)
+          else
+            tar -C target/cli -czf "dist/sgf-$TAG-${{ matrix.cli-asset }}.tar.gz" sgf
+          fi
+
+      - name: Portable app
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          exe="target/release/Stellaris Galaxy Forge.exe"
+          if [ ! -f "$exe" ]; then
+            exe="target/release/sgf-app.exe"
+          fi
+          if [ ! -f "$exe" ]; then
+            echo "::error::No application executable found in target/release."
+            exit 1
+          fi
+          mkdir -p dist "$RUNNER_TEMP/portable"
+          cp "$exe" "$RUNNER_TEMP/portable/"
+          (cd "$RUNNER_TEMP/portable" && 7z a "$GITHUB_WORKSPACE/dist/stellaris-galaxy-forge-$TAG-windows-x86_64-portable.zip" ./*.exe)
+
+      - name: Upload extras
+        shell: bash
+        run: gh release upload "$TAG" dist/* --clobber
+
+  publish:
+    name: Checksums and publish
+    runs-on: ubuntu-latest
+    needs: [version, build]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    env:
+      TAG: ${{ needs.version.outputs.tag || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Collect release assets
+        shell: bash
+        run: gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D assets
+
+      - name: Checksums
+        shell: bash
+        run: |
+          rm -f assets/SHA256SUMS
+          (cd assets && sha256sum * > ../SHA256SUMS)
+
+      - name: Publish
+        shell: bash
+        run: |
+          gh release upload "$TAG" SHA256SUMS -R "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest

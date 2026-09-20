@@ -1,0 +1,19 @@
+---
+source: crates/sgf-core/tests/ops_scenario_systems.rs
+expression: "report(&session, &result)"
+---
+Set system 2 initializer to misc_system_init_01
+touched: [2]
+inverse: SetInitializer { id: 2, initializer: Some("custom_starting_init_01") }
+… and 2 other issues
+
+--- scenario
++++ scenario
+@@ -33,7 +33,7 @@
+ 
+ 	### Systems, one per line in the mod's shape
+ 	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
+-	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
++	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = misc_system_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+ 	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
+ 	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }

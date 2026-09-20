@@ -1,0 +1,160 @@
+---
+source: crates/sgf-core/tests/ops.rs
+expression: "report(&session, &result)"
+---
+Isolated 2 systems; removed 8 lanes
+touched: [0, 64, 86, 112, 200, 246, 752]
+inverse: AddLanePairs { lanes: [LanePair { a: 0, b: 752, bridge: false }, LanePair { a: 0, b: 200, bridge: false }, LanePair { a: 0, b: 86, bridge: false }, LanePair { a: 0, b: 64, bridge: false }, LanePair { a: 0, b: 246, bridge: false }, LanePair { a: 86, b: 246, bridge: false }, LanePair { a: 86, b: 752, bridge: false }, LanePair { a: 86, b: 112, bridge: true }] }
+warning system_isolated: system 0 has no hyperlanes
+warning system_isolated: system 86 has no hyperlanes
+warning disconnected: galaxy has 5 components, 3 at load; newly separated: 0, 86
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -28864,35 +28864,6 @@
+ 			6 7 8 9 
+ 		}
+ 		star_class="sc_m"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=752
+-				length=33
+-			}
+- 
+-			{
+-				to=200
+-				length=27
+-			}
+- 
+-			{
+-				to=86
+-				length=27
+-			}
+- 
+-			{
+-				to=64
+-				length=21
+-			}
+- 
+-			{
+-				to=246
+-				length=17
+-			}
+- 
+-		}
+ 		flags=
+ 		{
+ 			precursor_3=62808000
+@@ -33459,11 +33430,6 @@
+ 		{
+ 			
+ 			{
+-				to=0
+-				length=21
+-			}
+- 
+-			{
+ 				to=246
+ 				length=19
+ 			}
+@@ -34958,31 +34924,6 @@
+ 		planet=1491
+ 		planet=1492
+ 		star_class="sc_g"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=0
+-				length=27
+-			}
+- 
+-			{
+-				to=246
+-				length=26
+-			}
+- 
+-			{
+-				to=752
+-				length=19
+-			}
+- 
+-			{
+-				to=112
+-				length=17
+-				bridge=yes
+-			}
+- 
+-		}
+ 		discovery=
+ 		{
+ 			15 
+@@ -36774,12 +36715,6 @@
+ 				length=19
+ 			}
+  
+-			{
+-				to=86
+-				length=17
+-				bridge=yes
+-			}
+- 
+ 		}
+ 		asteroid_belts=
+ 		{
+@@ -43029,11 +42964,6 @@
+ 			}
+  
+ 			{
+-				to=0
+-				length=27
+-			}
+- 
+-			{
+ 				to=659
+ 				length=25
+ 			}
+@@ -46179,20 +46109,10 @@
+ 		{
+ 			
+ 			{
+-				to=86
+-				length=26
+-			}
+- 
+-			{
+ 				to=64
+ 				length=19
+ 			}
+  
+-			{
+-				to=0
+-				length=17
+-			}
+- 
+ 		}
+ 		flags=
+ 		{
+@@ -80037,19 +79957,9 @@
+ 		hyperlane=
+ 		{
+ 			
+-			{
+-				to=0
+-				length=33
+-			}
+- 
+ 			{
+ 				to=323
+ 				length=21
+-			}
+- 
+-			{
+-				to=86
+-				length=19
+ 			}
+  
+ 		}

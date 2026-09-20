@@ -1,0 +1,163 @@
+//! The scenario's own keys: the scalars and blocks standing before the first system.
+//!
+//! A header statement is a slot like any other, named by its anchor, so a rewrite, an
+//! insertion before the first system and a removal all go through the overlay and the
+//! rebuild reads the result back.
+
+use super::index;
+use crate::cst;
+use crate::format::scenario::index::HeaderStmt;
+use crate::keys::scenario as keys;
+use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject};
+use crate::session::Session;
+
+pub(super) fn set_field(
+    plan: &mut Plan,
+    s: &Session,
+    key: &str,
+    value: Option<&str>,
+) -> Result<Planned, OpError> {
+    let header = &index(&s.doc).header;
+    let stmt = header.get(key).cloned();
+    let lines: Vec<u32> = header.all(key).map(|held| held.field.line).collect();
+    let insert_at = header.insert_at;
+    let indent = header.indent.clone();
+    let at = stmt.as_ref().map_or(insert_at, |held| held.anchor.start());
+    match (value.map(str::trim), stmt) {
+        (Some(raw), held) => {
+            check_key(key, at)?;
+            check_value(key, raw, at)?;
+            match held {
+                Some(held) => rewrite(plan, s, key, raw, &held),
+                None => Ok(insert(plan, key, raw, insert_at, indent)),
+            }
+        }
+        // Which of a repeated key's statements the inverse would put back is not the one
+        // this removed: the survivor takes the first slot the moment it is gone.
+        (None, Some(_)) if lines.len() > 1 => Err(refuse(
+            at,
+            format!(
+                "the header holds {key} {} times, on lines {}",
+                lines.len(),
+                lines
+                    .iter()
+                    .map(u32::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        )),
+        (None, Some(held)) => remove(plan, s, key, &held),
+        (None, None) => Err(refuse(at, format!("the header holds no {key} to remove"))),
+    }
+}
+
+/// The raw text goes where the value stands, block or scalar alike, so a key written as
+/// `x = 12` and one written as `x = { min = 1 max = 2 }` are the same rewrite. A key the
+/// header holds more than once is rewritten at its first statement, the one the game
+/// reads; the rest are left exactly as they stand.
+fn rewrite(
+    plan: &mut Plan,
+    s: &Session,
+    key: &str,
+    raw: &str,
+    stmt: &HeaderStmt,
+) -> Result<Planned, OpError> {
+    let edit = plan.edit_header(&s.doc, stmt.anchor)?;
+    let span = edit.entity()?.value_span();
+    edit.splices.push((span.range(), raw.as_bytes().to_vec()));
+    Ok(Planned {
+        description: format!("Set header {key} to {raw}"),
+        inverse: was(key, Some(stmt.field.value.clone())),
+    })
+}
+
+fn insert(plan: &mut Plan, key: &str, raw: &str, at: usize, indent: Vec<u8>) -> Planned {
+    let mut text = indent;
+    text.extend_from_slice(format!("{key} = {raw}\n").as_bytes());
+    plan.emit(Emitted::Header, at, text);
+    Planned {
+        description: format!("Added header {key} = {raw}"),
+        inverse: was(key, None),
+    }
+}
+
+fn remove(plan: &mut Plan, s: &Session, key: &str, stmt: &HeaderStmt) -> Result<Planned, OpError> {
+    plan.erase(&s.doc, Subject::Header(stmt.anchor), stmt.anchor)?;
+    Ok(Planned {
+        description: format!("Removed header {key}"),
+        inverse: was(key, Some(stmt.field.value.clone())),
+    })
+}
+
+fn was(key: &str, value: Option<String>) -> Op {
+    Op::SetHeaderField {
+        key: key.to_owned(),
+        value,
+    }
+}
+
+/// A key is written as it stands, so it has to be one bare token, and never one of the
+/// statements a scenario reads as an entity: `header set nebula 5` would otherwise leave
+/// a cloud of radius 0 at the galaxy's centre.
+fn check_key(key: &str, at: usize) -> Result<(), OpError> {
+    let separator =
+        |b: u8| b.is_ascii_whitespace() || matches!(b, b'{' | b'}' | b'=' | b'"' | b'#');
+    if key.is_empty() || key.bytes().any(separator) {
+        return Err(refuse(at, format!("{key:?} is not a header key")));
+    }
+    let entities = [
+        keys::SYSTEM,
+        keys::ADD_HYPERLANE,
+        keys::PREVENT_HYPERLANE,
+        keys::NEBULA,
+    ];
+    if entities.contains(&key) {
+        return Err(refuse(
+            at,
+            format!("{key} is a scenario statement, not a header key"),
+        ));
+    }
+    Ok(())
+}
+
+/// The text goes in as it stands, so `key = text` has to read back as the one statement
+/// it claims to be: it parses, it is the only statement, and its value ends where the
+/// text does, so nothing trails it and a `#` cannot comment out the statements sharing
+/// its line. The lexer runs an unterminated quote to the end of its input, so a quoted
+/// value is checked for its closing quote as well: the span alone cannot tell.
+fn check_value(key: &str, raw: &str, at: usize) -> Result<(), OpError> {
+    if raw.is_empty() {
+        return Err(refuse(at, "a header value may not be empty"));
+    }
+    if raw.contains(['\n', '\r']) {
+        return Err(refuse(at, "a header value may not hold a line break"));
+    }
+    let text = format!("{key} = {raw}");
+    let bytes = text.as_bytes();
+    let root = cst::parse_script(bytes, 0)
+        .map_err(|e| refuse(at, format!("{text} does not parse: {}", e.reason)))?;
+    let one = match root.children() {
+        [node] if node.key_str(bytes) == Some(key) => node,
+        _ => return Err(refuse(at, format!("{text} is not one statement"))),
+    };
+    if one.value_span().end != bytes.len() {
+        return Err(refuse(
+            at,
+            format!("{raw} holds more than one header value"),
+        ));
+    }
+    if let Some(span) = one.scalar_span() {
+        let scalar = span.slice(bytes);
+        if scalar.first() == Some(&b'"') && (scalar.len() < 2 || scalar.last() != Some(&b'"')) {
+            return Err(refuse(at, format!("{raw} leaves a quote open")));
+        }
+    }
+    Ok(())
+}
+
+fn refuse(at: usize, reason: impl Into<String>) -> OpError {
+    OpError::HeaderParse {
+        offset: at,
+        reason: reason.into(),
+    }
+}

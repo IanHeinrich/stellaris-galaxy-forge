@@ -1,0 +1,78 @@
+---
+source: crates/sgf-core/tests/ops_nebula.rs
+expression: "report(&session, &result)"
+---
+Moved Mihil (#455) from (100.07, -134.13) to (66.15, -136.85); updated 6 lane lengths; joined Phantom Streak Miasma
+touched: [108, 164, 455, 753]
+inverse: MoveSystem { id: 455, x: 100.07, y: -134.13 }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -6059,6 +6059,7 @@
+ 	galactic_object=181
+ 	galactic_object=348
+ 	galactic_object=438
++	galactic_object=455
+ 	galactic_object=463
+ 	galactic_object=623
+ }
+@@ -36488,7 +36489,7 @@
+  
+ 			{
+ 				to=455
+-				length=22
++				length=24
+ 			}
+  
+ 			{
+@@ -40487,7 +40488,7 @@
+  
+ 			{
+ 				to=455
+-				length=21
++				length=17
+ 			}
+  
+ 			{
+@@ -60144,8 +60145,8 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=100.07
+-			y=-134.13
++			x=66.15
++			y=-136.85
+ 			origin=4294967295
+ 			randomized=yes
+ 			visual_height=3.65056
+@@ -60183,17 +60184,17 @@
+ 			
+ 			{
+ 				to=753
+-				length=23
++				length=43
+ 			}
+  
+ 			{
+ 				to=108
+-				length=22
++				length=24
+ 			}
+  
+ 			{
+ 				to=164
+-				length=21
++				length=17
+ 			}
+  
+ 		}
+@@ -80118,7 +80119,7 @@
+  
+ 			{
+ 				to=455
+-				length=23
++				length=43
+ 			}
+  
+ 			{

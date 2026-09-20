@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  checks:
+    name: Checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: ./.github/actions/setup
+        with:
+          components: rustfmt, clippy
+
+      - name: Version file agrees with the manifests
+        run: bash scripts/version.sh check
+
+      - name: Rust format
+        run: cargo fmt --all -- --check
+      - name: Rust clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Rust tests
+        run: cargo test --workspace
+      - name: Generated TypeScript types are up to date
+        run: git diff --exit-code app/src/generated
+
+      - name: App install
+        run: npm ci
+        working-directory: app
+      - name: App lint
+        run: npm run lint
+        working-directory: app
+      - name: App tests
+        run: npm test
+        working-directory: app
+      - name: App build
+        run: npm run build
+        working-directory: app
+
+      - name: Tauri build (no bundle)
+        run: npm run tauri build -- --no-bundle
+        working-directory: app

@@ -1,0 +1,123 @@
+---
+source: crates/sgf-core/tests/ops_nebula.rs
+expression: "report(&session, &result)"
+---
+Moved Ascensions End (#108) from (83.2, -118.95) to (200, -50); updated 12 lane lengths; left Phantom Streak Miasma
+touched: [108, 164, 181, 438, 455, 484, 753]
+inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
+… and 6 other issues
+
+--- gamestate
++++ gamestate
+@@ -6053,7 +6053,6 @@
+ 		key="Phantom_Streak_Miasma"
+ 	}
+ 	radius=30
+-	galactic_object=108
+ 	galactic_object=140
+ 	galactic_object=164
+ 	galactic_object=181
+@@ -36452,8 +36451,8 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=83.2
+-			y=-118.95
++			x=200
++			y=-50
+ 			origin=4294967295
+ 			randomized=yes
+ 			visual_height=3.65056
+@@ -36478,32 +36477,32 @@
+ 			
+ 			{
+ 				to=164
+-				length=26
++				length=152
+ 			}
+  
+ 			{
+ 				to=438
+-				length=24
++				length=159
+ 			}
+  
+ 			{
+ 				to=455
+-				length=22
++				length=130
+ 			}
+  
+ 			{
+ 				to=181
+-				length=21
++				length=151
+ 			}
+  
+ 			{
+ 				to=484
+-				length=20
++				length=131
+ 			}
+  
+ 			{
+ 				to=753
+-				length=19
++				length=116
+ 			}
+  
+ 		}
+@@ -40482,7 +40481,7 @@
+ 			
+ 			{
+ 				to=108
+-				length=26
++				length=152
+ 			}
+  
+ 			{
+@@ -41697,7 +41696,7 @@
+  
+ 			{
+ 				to=108
+-				length=21
++				length=151
+ 			}
+  
+ 			{
+@@ -58998,7 +58997,7 @@
+ 			
+ 			{
+ 				to=108
+-				length=24
++				length=159
+ 			}
+  
+ 			{
+@@ -60188,7 +60187,7 @@
+  
+ 			{
+ 				to=108
+-				length=22
++				length=130
+ 			}
+  
+ 			{
+@@ -62109,7 +62108,7 @@
+  
+ 			{
+ 				to=108
+-				length=20
++				length=131
+ 			}
+  
+ 			{
+@@ -80123,7 +80122,7 @@
+  
+ 			{
+ 				to=108
+-				length=19
++				length=116
+ 			}
+  
+ 		}

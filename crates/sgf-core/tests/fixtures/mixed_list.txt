@@ -1,0 +1,14 @@
+intel=
+{
+	
+	{
+24 
+		{
+			intel=0
+			stale_intel=
+			{
+			}
+		}
+	}
+ 
+}
