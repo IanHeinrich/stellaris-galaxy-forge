@@ -4,13 +4,14 @@ use std::path::Path;
 use std::sync::Arc;
 
 use sgf_core::archive;
-use sgf_core::export::{self, ScenarioProfile};
+use sgf_core::export::{self, ExportReport, ScenarioOptions, ScenarioProfile};
 use sgf_core::library;
 use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
+use sgf_core::validate::Issue;
 use sgf_core::views::{
-    Capabilities, DocumentKind, EditResult, ErrorKind, GalaxyView, OpenResult, ProgressPhase,
-    SaveResult, SgfError,
+    Capabilities, DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult,
+    ProgressPhase, SaveResult, SgfError,
 };
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -29,20 +30,24 @@ pub async fn open_save<R: Runtime>(
 }
 
 /// Open the save at `path` as a new, unsaved scenario holding its galaxy; the save is
-/// untouched. `profile` is plain when absent. Emits `sgf://progress`.
+/// untouched, and what the scenario could not carry over follows its issues. `profile`
+/// is plain when absent. Emits `sgf://progress`.
 #[tauri::command]
 pub async fn open_as_scenario<R: Runtime>(
     app: AppHandle<R>,
     path: String,
     profile: Option<ScenarioProfile>,
 ) -> Result<OpenResult, SgfError> {
-    install(app, move |gd| {
+    install_reporting(app, move |gd| {
         let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-        Ok(export::open_save_as_scenario(
+        let sources = |initializer: &str| source_label(gd.as_deref(), initializer);
+        let (session, report) = export::open_save_as_scenario(
             Path::new(&path),
             &resolve,
+            &sources,
             profile.unwrap_or_default(),
-        )?)
+        )?;
+        Ok((session, report.issues()))
     })
     .await
 }
@@ -87,39 +92,36 @@ pub async fn export_scenario<R: Runtime>(
     app: AppHandle<R>,
     path: String,
     profile: Option<ScenarioProfile>,
-) -> Result<SaveResult, SgfError> {
+) -> Result<ExportResult, SgfError> {
     progress(&app, ProgressPhase::Write, START);
     let task_app = app.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || -> Result<SaveResult, SgfError> {
+    let result = tauri::async_runtime::spawn_blocking(move || -> Result<ExportResult, SgfError> {
         let state = task_app.state::<AppState>();
         let guard = lock(&state);
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        if session.kind() != DocumentKind::Save {
-            return Err(SgfError::new(
-                ErrorKind::Op,
-                "only a save can be exported as a scenario",
-            ));
-        }
+        let session = exportable(&guard)?;
         let gd = task_app.state::<GameDataState>().loaded();
         let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
+        let sources = |initializer: &str| source_label(gd.as_deref(), initializer);
         let path = Path::new(&path);
         let name = path
             .file_stem()
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_else(|| session.title());
-        let text = export::scenario_text(
+        let (text, report) = export::scenario_text(
             &session.graph,
-            &export::options_for(&session.graph, &name),
+            &export_options(session, &name),
             &resolve,
+            &sources,
             profile.unwrap_or_default(),
         );
         let outcome = export::write_scenario(path, &text)?;
-        Ok(SaveResult {
+        let save = SaveResult {
             path: outcome.path.to_string_lossy().into_owned(),
             cloud: library::is_cloud_save(&outcome.path),
             backup_path: outcome.backup.map(|p| p.to_string_lossy().into_owned()),
             dirty: session.is_dirty(),
-        })
+        };
+        Ok(ExportResult { save, report })
     })
     .await
     .map_err(join_error)??;
@@ -127,18 +129,84 @@ pub async fn export_scenario<R: Runtime>(
     Ok(result)
 }
 
+/// What exporting the open save would report, without writing anything. The report is
+/// the plain draft's, which every profile shares.
+#[tauri::command]
+pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportReport, SgfError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let guard = lock(&state);
+        let session = exportable(&guard)?;
+        let gd = app.state::<GameDataState>().loaded();
+        let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
+        let sources = |initializer: &str| source_label(gd.as_deref(), initializer);
+        let (_, report) = export::draft(
+            &session.graph,
+            &export_options(session, &session.title()),
+            &resolve,
+            &sources,
+        );
+        Ok(report)
+    })
+    .await
+    .map_err(join_error)?
+}
+
+/// The open session when it is a save, the only document an export reads.
+fn exportable(guard: &Option<Session>) -> Result<&Session, SgfError> {
+    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    if session.kind() != DocumentKind::Save {
+        return Err(SgfError::new(
+            ErrorKind::Op,
+            "only a save can be exported as a scenario",
+        ));
+    }
+    Ok(session)
+}
+
+/// The export's header options, naming the save's file as what it was exported from.
+fn export_options(session: &Session, name: &str) -> ScenarioOptions {
+    ScenarioOptions {
+        exported_from: session
+            .path
+            .as_deref()
+            .and_then(Path::file_name)
+            .map(|f| f.to_string_lossy().into_owned()),
+        ..export::options_for(&session.graph, name)
+    }
+}
+
+/// Which DLC or mod `initializer` needs, when game data is loaded and knows it.
+fn source_label(gd: Option<&GameData>, initializer: &str) -> Option<String> {
+    let gd = gd?;
+    gd.initializers
+        .get(initializer)?
+        .source_label(&gd.layout.install)
+}
+
 /// Build a session off the main thread, report it and make it the open one.
 async fn install<R: Runtime>(
     app: AppHandle<R>,
     build: impl FnOnce(Option<Arc<GameData>>) -> Result<Session, SgfError> + Send + 'static,
 ) -> Result<OpenResult, SgfError> {
+    install_reporting(app, move |gd| Ok((build(gd)?, Vec::new()))).await
+}
+
+/// As [`install`], for a build with issues of its own to add after the session's.
+async fn install_reporting<R: Runtime>(
+    app: AppHandle<R>,
+    build: impl FnOnce(Option<Arc<GameData>>) -> Result<(Session, Vec<Issue>), SgfError>
+    + Send
+    + 'static,
+) -> Result<OpenResult, SgfError> {
     progress(&app, ProgressPhase::Read, START);
     let gd = app.state::<GameDataState>().loaded();
-    let session = tauri::async_runtime::spawn_blocking(move || build(gd))
+    let (session, extra) = tauri::async_runtime::spawn_blocking(move || build(gd))
         .await
         .map_err(join_error)??;
     progress(&app, ProgressPhase::Validate, VALIDATE_AT);
-    let result = opened(&session)?;
+    let mut result = opened(&session)?;
+    result.issues.extend(extra);
     *lock(&app.state::<AppState>()) = Some(session);
     progress(&app, ProgressPhase::Done, DONE);
     Ok(result)

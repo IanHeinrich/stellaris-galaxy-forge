@@ -6,6 +6,8 @@ import * as ipc from "../api/ipc";
 import type { Capabilities } from "../generated/Capabilities";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { ErrorKind } from "../generated/ErrorKind";
+import type { ExportReport } from "../generated/ExportReport";
+import type { ExportResult } from "../generated/ExportResult";
 import type { Issue } from "../generated/Issue";
 import type { OpenResult } from "../generated/OpenResult";
 import type { Progress } from "../generated/Progress";
@@ -16,6 +18,9 @@ import { isPaintMade } from "../lib/paint";
 import { fileName } from "../lib/paths";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
+import { useIssuesStore } from "./issuesStore";
+import { PREF_KEYS } from "./prefKeys";
+import { isBoolean, readPref, writePref } from "./prefs";
 import { recentSubtitle, useRecentsStore } from "./recentsStore";
 
 export type Status = "empty" | "loading" | "ready" | "error";
@@ -48,6 +53,10 @@ export interface FileSessionState {
   dirty: boolean;
   saving: boolean;
   lastSave: SaveResult | null;
+  /** Where the last export landed and what it could not carry over; null until one is written. */
+  lastExport: ExportResult | null;
+  /** When the last export landed, by the machine's own clock. */
+  exportedAt: number | null;
   /** When the last save landed, by the machine's own clock. */
   savedAt: number | null;
   /** The open file sits where Steam Cloud may overwrite it with its cloud copy. */
@@ -56,6 +65,10 @@ export interface FileSessionState {
   cloudAcknowledged: string | null;
   /** A save waiting for the user to say which way to open it. */
   pendingOpen: string | null;
+  /** What an export would carry over, waiting for the user to confirm or cancel it. */
+  pendingExport: ExportReport | null;
+  /** Whether an export is written for the Paint a Galaxy mod: the user's choice, kept per machine. */
+  paintExport: boolean;
   /**
    * Whether new spawn points are written in Paint a Galaxy's shape: on when the open document
    * was painted, and otherwise the user's choice. Never changes bytes already written.
@@ -86,14 +99,17 @@ export interface FileSessionState {
   close(): Promise<void>;
   save(): Promise<void>;
   saveAs(): Promise<void>;
-  /** Writes the open save's galaxy as a scenario file beside it; the session stays on the save. */
-  exportScenario(profile?: ScenarioProfile): Promise<void>;
+  /** Previews what exporting the open save carries over, and asks whether to write it. */
+  exportScenario(): Promise<void>;
+  /** Answers the pending export: writes the scenario under `profile`, or cancels on null. */
+  confirmExport(profile: ScenarioProfile | null): Promise<void>;
   /** Resolves true when it is safe to discard the session: not dirty, or the user confirmed. */
   confirmDiscard(): Promise<boolean>;
   /** What an edit reported about the file it belongs to. */
   noteEdit(patch: { issues: Issue[]; dirty: boolean }): void;
   setError(message: string | null): void;
   setPaintProfile(on: boolean): void;
+  setPaintExport(on: boolean): void;
 }
 
 const INITIAL = {
@@ -112,10 +128,13 @@ const INITIAL = {
   dirty: false,
   saving: false,
   lastSave: null as SaveResult | null,
+  lastExport: null as ExportResult | null,
+  exportedAt: null as number | null,
   savedAt: null as number | null,
   cloud: false,
   cloudAcknowledged: null as string | null,
   pendingOpen: null as string | null,
+  pendingExport: null as ExportReport | null,
   paintProfile: false,
 } satisfies Partial<FileSessionState>;
 
@@ -125,6 +144,7 @@ const CLOUD_WARNING =
 
 export const useFileSessionStore = create<FileSessionState>((set, get) => ({
   ...INITIAL,
+  paintExport: readPref(PREF_KEYS.paintExport, false, isBoolean),
 
   openSave(path) {
     return openDocument(path, () => ipc.openSave(path));
@@ -223,9 +243,25 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     await writeSave(() => ipc.saveAs(picked));
   },
 
-  async exportScenario(profile) {
-    const { status, saving, kind, title } = get();
+  async exportScenario() {
+    const { status, saving, kind } = get();
     if (status !== "ready" || saving || kind !== "save") return;
+    const mine = opens;
+    try {
+      const report = await ipc.previewExport();
+      // A preview that lands after another document opened belongs to nobody.
+      if (mine !== opens || get().status !== "ready") return;
+      set({ pendingExport: report });
+    } catch (e) {
+      set({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
+    }
+  },
+
+  async confirmExport(profile) {
+    const { pendingExport, status, saving, kind, title } = get();
+    if (pendingExport === null || status !== "ready" || saving || kind !== "save") return;
+    set({ pendingExport: null });
+    if (profile === null) return;
     const picked = await saveDialog({
       defaultPath: defaultName(title, "txt"),
       filters: [SCENARIO_FILTER],
@@ -234,7 +270,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     // The export is a second file: the session keeps its own path, and its edits stay unsaved.
     await runWrite(
       () => ipc.exportScenario(picked, profile),
-      () => ({}),
+      (result) => ({ lastExport: result, exportedAt: Date.now() }),
     );
   },
 
@@ -249,7 +285,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
   },
 
   noteEdit({ issues, dirty }) {
-    set({ issues, dirty, error: null, errorKind: null });
+    set({ issues: withNotes(issues), dirty, error: null, errorKind: null });
   },
 
   setError(message) {
@@ -259,10 +295,21 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
   setPaintProfile(on) {
     set({ paintProfile: on });
   },
+
+  setPaintExport(on) {
+    set({ paintExport: on });
+    writePref(PREF_KEYS.paintExport, on);
+  },
 }));
 
 export function isSavePath(path: string): boolean {
   return path.toLowerCase().endsWith(".sav");
+}
+
+/** An edit's fresh findings, with the notes the document opened with kept after them. */
+function withNotes(issues: Issue[]): Issue[] {
+  const { notes } = useIssuesStore.getState();
+  return notes.length === 0 ? issues : [...issues, ...notes];
 }
 
 /** What a document with no file of its own is offered as a name. */
@@ -374,9 +421,9 @@ async function confirmCloudWrite(path: string): Promise<boolean> {
 }
 
 /** Runs `write`, reporting its progress until it settles; `settle` says what its result changes. */
-async function runWrite(
-  write: () => Promise<SaveResult>,
-  settle: (result: SaveResult) => Partial<FileSessionState>,
+async function runWrite<T>(
+  write: () => Promise<T>,
+  settle: (result: T) => Partial<FileSessionState>,
 ): Promise<void> {
   const { getState, setState } = useFileSessionStore;
   setState({ saving: true });
@@ -386,7 +433,7 @@ async function runWrite(
       if (getState().saving) setState({ progress });
     });
     const result = await write();
-    setState({ ...settle(result), lastSave: result, error: null, errorKind: null });
+    setState({ ...settle(result), error: null, errorKind: null });
   } catch (e) {
     setState({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
   } finally {
@@ -398,6 +445,7 @@ async function runWrite(
 /** Writes the session to its own file: where it lands becomes the session's path. */
 function writeSave(write: () => Promise<SaveResult>): Promise<void> {
   return runWrite(write, (result) => ({
+    lastSave: result,
     path: result.path,
     cloud: result.cloud,
     dirty: result.dirty,

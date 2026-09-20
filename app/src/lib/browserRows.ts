@@ -256,6 +256,8 @@ const ISSUE_TITLES: Record<IssueCode, string> = {
   nebula_membership: "Nebula membership does not match the position",
   coordinate_transform: "Coordinate transform is not applied",
   position_range: "Position written as a range the generator picks in",
+  export_dropped: "Not carried into the scenario",
+  home_initializer: "Home system with a non-generic initializer",
 };
 
 export function issueTitle(code: IssueCode): string {

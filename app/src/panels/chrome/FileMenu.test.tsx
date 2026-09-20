@@ -41,30 +41,28 @@ beforeEach(() => {
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
 });
 
-describe("the scenario exports", () => {
-  it("offers a plain export and one for Paint a Galaxy, both for an open save only", () => {
+describe("the scenario export", () => {
+  it("offers one export, for an open save only; the profile is the dialog's to ask", () => {
     expect(items()).toContain("Export as scenario…");
-    expect(html("Export as scenario for Paint a Galaxy…")).toContain("disabled=");
+    expect(items()).not.toContain("Paint a Galaxy…");
+    expect(html("Export as scenario…")).toContain("disabled=");
 
     open(OPEN_RESULT);
     expect(html("Export as scenario…")).not.toContain("disabled=");
-    expect(html("Export as scenario for Paint a Galaxy…")).not.toContain("disabled=");
 
     open(SCENARIO_RESULT);
-    expect(html("Export as scenario for Paint a Galaxy…")).toContain("disabled=");
+    expect(html("Export as scenario…")).toContain("disabled=");
   });
 
-  it("asks for the profile only from the Paint a Galaxy export", () => {
+  it("starts the export, which asks for the profile itself", () => {
     const exportScenario = vi.fn();
     open(OPEN_RESULT);
     useFileSessionStore.setState({ exportScenario });
 
     item("Export as scenario…").props.onClick();
+    expect(exportScenario).toHaveBeenCalledTimes(1);
     expect(exportScenario).toHaveBeenLastCalledWith();
-
-    item("Export as scenario for Paint a Galaxy…").props.onClick();
-    expect(exportScenario).toHaveBeenLastCalledWith("paint_a_galaxy");
-    expect(dismiss).toHaveBeenCalledTimes(2);
+    expect(dismiss).toHaveBeenCalledTimes(1);
   });
 
   it("keeps opening a save as a scenario plain", () => {

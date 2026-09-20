@@ -22,6 +22,7 @@ export const openAsScenario = command("openAsScenario");
 export const openScenarioText = command("openScenarioText");
 export const newScenario = command("newScenario");
 export const exportScenario = command("exportScenario");
+export const previewExport = command("previewExport");
 export const getSystem = command("getSystem");
 export const search = command("search");
 export const warmDetails = command("warmDetails");

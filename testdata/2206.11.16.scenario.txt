@@ -1,10 +1,22 @@
+# Exported by Stellaris Galaxy Forge from 2206.11.16.sav
+# Systems: 791 · Empire seats: 17 · Nebulae: 9
+# Not carried over: 6 wormhole pairs
 static_galaxy_scenario = {
 	name = "2206.11.16"
 	priority = 5
 	supports_shape = elliptical
+	supports_shape = ring
+	supports_shape = spiral_2
+	supports_shape = spiral_3
+	supports_shape = spiral_4
+	supports_shape = spiral_6
+	supports_shape = bar
+	supports_shape = starburst
+	supports_shape = cartwheel
+	supports_shape = spoked
 	default = no
-	num_empires = { min = 0 max = 13 }
-	num_empire_default = 13
+	num_empires = { min = 0 max = 16 }
+	num_empire_default = 16
 	fallen_empire_default = 0
 	fallen_empire_max = 0
 	marauder_empire_default = 0
@@ -28,11 +40,11 @@ static_galaxy_scenario = {
 	system = { id = "1" name = "Grugmora" position = { x = 119.83 y = 38.74 } initializer = ai_system_04 }
 	system = { id = "2" name = "Mili" position = { x = -78.27 y = 265.71 } initializer = ai_system_02 }
 	system = { id = "3" name = "Wanambis" position = { x = -197.59 y = -163.13 } initializer = ai_system_01 }
-	system = { id = "4" name = "NAME_Deneb" position = { x = 143.51 y = 9.31 } initializer = une_deneb_system }
+	system = { id = "4" name = "NAME_Deneb" position = { x = 143.51 y = 9.31 } initializer = une_deneb_system spawn_weight = { base = 1 } }
 	system = { id = "5" name = "Bir" position = { x = 34.62 y = 124.97 } initializer = ai_system_03 }
 	system = { id = "6" name = "Gaping_Maw" position = { x = 192.35 y = -238.8 } initializer = distantstars_init_06 }
 	system = { id = "7" name = "Girtab" position = { x = -97.27 y = -157.98 } initializer = basic_init_03 }
-	system = { id = "8" name = "PRESCRIPTED_system_name_xt489" position = { x = 62.72 y = -302.24 } initializer = random_empire_init_04 }
+	system = { id = "8" name = "PRESCRIPTED_system_name_xt489" position = { x = 62.72 y = -302.24 } initializer = random_empire_init_04 spawn_weight = { base = 1 } }
 	system = { id = "9" name = "Eibriri" position = { x = -121.05 y = -14.26 } initializer = megacorp_interstellar_assembly_init_01 }
 	system = { id = "10" name = "NAME_Tiyana_Vek" position = { x = 49.58 y = 130.32 } initializer = hostile_init_16 }
 	system = { id = "11" name = "VOIDWORM_SYSTEM_05" position = { x = 42.43 y = -420.36 } initializer = voidworms_spawn_system_tiny }
@@ -123,7 +135,7 @@ static_galaxy_scenario = {
 	system = { id = "96" name = "Borrbo" position = { x = 166.84 y = 179.1 } initializer = fallen_col_1 }
 	system = { id = "97" name = "Gol" position = { x = -22.28 y = 368.54 } initializer = living_planet_system }
 	system = { id = "98" name = "Gatria" position = { x = 105.31 y = 172.46 } initializer = ratling_1_1 }
-	system = { id = "99" name = "SPEC_RihiNar_system" position = { x = 125.32 y = 414.87 } initializer = random_empire_init_06 }
+	system = { id = "99" name = "SPEC_RihiNar_system" position = { x = 125.32 y = 414.87 } initializer = random_empire_init_06 spawn_weight = { base = 1 } }
 	system = { id = "100" name = "Illex" position = { x = 435.23 y = -19.75 } initializer = binary_init_02 }
 	system = { id = "101" name = "Etsceron" position = { x = 151.24 y = 167.95 } initializer = abandoned_gateways_01 }
 	system = { id = "102" name = "Suth" position = { x = 51.09 y = -227.48 } initializer = basic_init_05 }
@@ -150,7 +162,7 @@ static_galaxy_scenario = {
 	system = { id = "123" name = "Beyu" position = { x = -392.85 y = -169.39 } initializer = asteroid_init_01 }
 	system = { id = "124" name = "Rukbat" position = { x = 256.34 y = 284.27 } initializer = hostile_init_12 }
 	system = { id = "125" name = "Chigris" position = { x = 68.98 y = 202.99 } initializer = abandoned_gateways_01 }
-	system = { id = "126" name = "SPEC_Kaan-Visam_system" position = { x = -253.39 y = -229.26 } initializer = random_empire_init_01 }
+	system = { id = "126" name = "SPEC_Kaan-Visam_system" position = { x = -253.39 y = -229.26 } initializer = random_empire_init_01 spawn_weight = { base = 1 } }
 	system = { id = "127" name = "Nimirroth" position = { x = 361.27 y = 46.99 } initializer = basic_init_02 }
 	system = { id = "128" name = "Lando" position = { x = 186.12 y = 0.93 } initializer = pre_ftl_init_01 }
 	system = { id = "129" name = "Bythia" position = { x = 332.18 y = 27.44 } initializer = basic_init_04 }
@@ -170,7 +182,7 @@ static_galaxy_scenario = {
 	system = { id = "143" name = "Haramuth" position = { x = -137.22 y = -264.07 } initializer = trinary_init_02 }
 	system = { id = "144" name = "Emara" position = { x = 12.3 y = 135.12 } initializer = basic_init_04 }
 	system = { id = "145" name = "Yillion" position = { x = -90.07 y = -103.73 } initializer = trinary_init_02 }
-	system = { id = "146" name = "SPEC_red_thory_system" position = { x = 304.28 y = -112.61 } initializer = random_empire_init_03 }
+	system = { id = "146" name = "SPEC_red_thory_system" position = { x = 304.28 y = -112.61 } initializer = random_empire_init_03 spawn_weight = { base = 1 } }
 	system = { id = "147" name = "Tyastedore" position = { x = -179.85 y = -15.57 } initializer = special_init_08 }
 	system = { id = "148" name = "Delta_Cephei" position = { x = -299.3 y = -6.12 } initializer = collapse_system }
 	system = { id = "149" name = "Betria" position = { x = 99.46 y = -245.71 } initializer = trinary_init_02 }
@@ -213,10 +225,10 @@ static_galaxy_scenario = {
 	system = { id = "186" name = "Polgara" position = { x = -406.27 y = 129.45 } initializer = basic_init_01 }
 	system = { id = "187" name = "Wegmore" position = { x = 165.2 y = 23.46 } initializer = basic_init_02 }
 	system = { id = "188" name = "Hirim" position = { x = -116.09 y = -303.35 } initializer = basic_init_03 }
-	system = { id = "189" name = "SPEC_Valmennax_system" position = { x = -121.01 y = -92.61 } initializer = random_empire_init_03 }
+	system = { id = "189" name = "SPEC_Valmennax_system" position = { x = -121.01 y = -92.61 } initializer = random_empire_init_03 spawn_weight = { base = 1 } }
 	system = { id = "190" name = "Sidyr" position = { x = -339.69 y = -151.11 } initializer = basic_init_02 }
 	system = { id = "191" name = "Plessis" position = { x = 206.99 y = -88.51 } initializer = special_init_09 }
-	system = { id = "192" name = "SPEC_Zelvan_system" position = { x = -358.21 y = -113.42 } initializer = random_empire_init_06 }
+	system = { id = "192" name = "SPEC_Zelvan_system" position = { x = -358.21 y = -113.42 } initializer = random_empire_init_06 spawn_weight = { base = 1 } }
 	system = { id = "193" name = "T'u" position = { x = 278.87 y = -41.85 } initializer = hostile_init_12 }
 	system = { id = "194" name = "Shcher-bak" position = { x = 119.47 y = 2.77 } initializer = basic_init_01 }
 	system = { id = "195" name = "Pieplo" position = { x = -331.86 y = 293.12 } initializer = basic_init_06 }
@@ -241,7 +253,7 @@ static_galaxy_scenario = {
 	system = { id = "214" name = "Athuna" position = { x = 94.49 y = 361.28 } initializer = asteroid_init_01 }
 	system = { id = "215" name = "Siuruta" position = { x = 69.74 y = 152.06 } initializer = basic_init_04 }
 	system = { id = "216" name = "Pincoya" position = { x = -250.33 y = 153.85 } initializer = basic_init_03 }
-	system = { id = "217" name = "NAME_Sol" position = { x = 397.39 y = -180.25 } initializer = sol_system_initializer }
+	system = { id = "217" name = "NAME_Sol" position = { x = 397.39 y = -180.25 } initializer = sol_system_initializer spawn_weight = { base = 1 } }
 	system = { id = "218" name = "Burs" position = { x = -28.82 y = 302.86 } initializer = basic_init_03 }
 	system = { id = "219" name = "Ustir" position = { x = -210.54 y = 272.44 } initializer = basic_init_02 }
 	system = { id = "220" name = "Tozied" position = { x = 124.76 y = -20.22 } initializer = basic_init_04 }
@@ -326,7 +338,7 @@ static_galaxy_scenario = {
 	system = { id = "299" name = "Samnivik" position = { x = 219.26 y = 143.48 } initializer = hostile_init_amoeba }
 	system = { id = "300" name = "Dearum" position = { x = -214.08 y = 356.67 } initializer = basic_init_04 }
 	system = { id = "301" name = "Nietz" position = { x = -233.39 y = 104.7 } initializer = basic_init_03 }
-	system = { id = "302" name = "SPEC_Omni_system" position = { x = 161.48 y = 68.14 } initializer = random_empire_init_02 }
+	system = { id = "302" name = "SPEC_Omni_system" position = { x = 161.48 y = 68.14 } initializer = random_empire_init_02 spawn_weight = { base = 1 } }
 	system = { id = "303" name = "Aruz" position = { x = -12.74 y = -146.15 } initializer = basic_init_01 }
 	system = { id = "304" name = "Tronde" position = { x = 7.45 y = 208.65 } initializer = hostile_init_08 }
 	system = { id = "305" name = "Shashamar" position = { x = -112.36 y = -177.67 } initializer = basic_init_04 }
@@ -335,7 +347,7 @@ static_galaxy_scenario = {
 	system = { id = "308" name = "Oscurn" position = { x = 317.85 y = 122.97 } initializer = hostile_init_13 }
 	system = { id = "309" name = "Broons_Singularity" position = { x = 181.39 y = -76.37 } initializer = special_init_01 }
 	system = { id = "310" name = "Imdar" position = { x = 98.87 y = -424.01 } initializer = basic_init_02 }
-	system = { id = "311" name = "SPEC_Hiffnar_system" position = { x = 135.79 y = -39.69 } initializer = shattered_ring_start }
+	system = { id = "311" name = "SPEC_Hiffnar_system" position = { x = 135.79 y = -39.69 } initializer = shattered_ring_start spawn_weight = { base = 1 } }
 	system = { id = "312" name = "Salluria" position = { x = -54.97 y = 386.82 } initializer = trinary_init_01 }
 	system = { id = "313" name = "Busim" position = { x = 64.76 y = -237.65 } initializer = trinary_init_02 }
 	system = { id = "314" name = "Epsilon_Indi" position = { x = 41.65 y = -260.7 } initializer = basic_init_01 }
@@ -417,7 +429,7 @@ static_galaxy_scenario = {
 	system = { id = "390" name = "Escant" position = { x = -400.3 y = -92.18 } initializer = hostile_init_mining_drones }
 	system = { id = "391" name = "Braddam" position = { x = -277.13 y = 137.14 } initializer = special_init_08 }
 	system = { id = "392" name = "Flestia" position = { x = -118.5 y = -416.75 } initializer = hostile_init_03 }
-	system = { id = "393" name = "PRESCRIPTED_system_name_scyldari" position = { x = -184.02 y = 157.7 } initializer = random_empire_init_04 }
+	system = { id = "393" name = "PRESCRIPTED_system_name_scyldari" position = { x = -184.02 y = 157.7 } initializer = random_empire_init_04 spawn_weight = { base = 1 } }
 	system = { id = "394" name = "Hadar" position = { x = -85.11 y = -218.33 } initializer = basic_init_02 }
 	system = { id = "395" name = "Osmadin" position = { x = 92.18 y = 71.65 } initializer = neighbor_t2 }
 	system = { id = "396" name = "Nekkar" position = { x = -297.39 y = 90.06 } initializer = fallen_col_2 }
@@ -561,7 +573,7 @@ static_galaxy_scenario = {
 	system = { id = "534" name = "Dirban" position = { x = -242.22 y = -73.57 } initializer = basic_init_05 }
 	system = { id = "535" name = "Kazoo" position = { x = -409.69 y = -35.65 } initializer = basic_init_01 }
 	system = { id = "536" name = "Mazon_Del" position = { x = -104 y = -339.93 } initializer = special_init_08 }
-	system = { id = "537" name = "SPEC_Kreshhk_system" position = { x = 179.13 y = -158.04 } initializer = random_empire_init_05 }
+	system = { id = "537" name = "SPEC_Kreshhk_system" position = { x = 179.13 y = -158.04 } initializer = random_empire_init_05 spawn_weight = { base = 1 } }
 	system = { id = "538" name = "Ellor" position = { x = 201.65 y = -298.72 } initializer = basic_init_05 }
 	system = { id = "539" name = "Zaniah" position = { x = 70.32 y = -331.42 } initializer = basic_init_05 }
 	system = { id = "540" name = "Uzun" position = { x = -43.72 y = 336.52 } initializer = basic_init_02 }
@@ -582,7 +594,7 @@ static_galaxy_scenario = {
 	system = { id = "555" name = "Astarte" position = { x = 115.89 y = -251.07 } initializer = trinary_init_01 }
 	system = { id = "556" name = "Kuhlehm" position = { x = 50.79 y = 165.53 } initializer = basic_init_04 }
 	system = { id = "557" name = "Epsilon_Cygni" position = { x = 286.15 y = -92.68 } initializer = basic_init_01 }
-	system = { id = "558" name = "SPEC_Mitron_system" position = { x = 88.7 y = 98.58 } initializer = random_empire_init_06 }
+	system = { id = "558" name = "SPEC_Mitron_system" position = { x = 88.7 y = 98.58 } initializer = random_empire_init_06 spawn_weight = { base = 1 } }
 	system = { id = "559" name = "Iccni" position = { x = 95.69 y = -207.39 } initializer = basic_init_02 }
 	system = { id = "560" name = "Ginnog" position = { x = -150.78 y = 188 } initializer = basic_init_06 }
 	system = { id = "561" name = "Vilth" position = { x = -309.58 y = 166.26 } initializer = asteroid_init_01 }
@@ -614,7 +626,7 @@ static_galaxy_scenario = {
 	system = { id = "587" name = "Tuzhik" position = { x = 26.26 y = 171.06 } initializer = basic_init_02 }
 	system = { id = "588" name = "Beynus" position = { x = -261.48 y = 164.71 } initializer = basic_init_03 }
 	system = { id = "589" name = "Eltheen" position = { x = -35.31 y = -195.88 } initializer = basic_init_01 }
-	system = { id = "590" name = "SPEC_Salorim_system" position = { x = -66.74 y = -202.85 } initializer = random_empire_init_06 }
+	system = { id = "590" name = "SPEC_Salorim_system" position = { x = -66.74 y = -202.85 } initializer = random_empire_init_06 spawn_weight = { base = 1 } }
 	system = { id = "591" name = "Jinkath" position = { x = 4.37 y = 297.65 } initializer = basic_init_04 }
 	system = { id = "592" name = "Anastasia" position = { x = -224.79 y = -131.07 } initializer = basic_init_04 }
 	system = { id = "593" name = "Aphris" position = { x = -174.04 y = -100.02 } initializer = basic_init_04 }
@@ -805,13 +817,13 @@ static_galaxy_scenario = {
 	system = { id = "778" name = "Iram" position = { x = 115.57 y = -41.2 } initializer = neighbor_t1_first_colony }
 	system = { id = "779" name = "Rint_Beekun" position = { x = 19.14 y = 192.16 } initializer = basic_init_02 }
 	system = { id = "780" name = "Odlamon" position = { x = 229.18 y = 248.44 } initializer = fallen_holy_02 }
-	system = { id = "781" name = "SPEC_Quenti_system" position = { x = -65.1 y = 225.17 } initializer = random_empire_init_02 }
+	system = { id = "781" name = "SPEC_Quenti_system" position = { x = -65.1 y = 225.17 } initializer = random_empire_init_02 spawn_weight = { base = 1 } }
 	system = { id = "782" name = "Nunus" position = { x = -208.35 y = 203.63 } initializer = basic_init_06 }
 	system = { id = "783" name = "Epsilon_Eridani" position = { x = -112.29 y = 305.17 } initializer = basic_init_04 }
 	system = { id = "784" name = "Eglrarvis" position = { x = 428.64 y = -161.4 } initializer = basic_init_04 }
 	system = { id = "785" name = "Abdrade" position = { x = -450.63 y = 27.58 } initializer = basic_init_03 }
-	system = { id = "786" name = "Inegore" position = { x = -59.10617 y = -192.19434 } initializer = custom_starting_init_02 }
-	system = { id = "787" name = "Uchbiea" position = { x = -68.89234 y = -182.12868 } initializer = custom_starting_init_02 }
+	system = { id = "786" name = "Inegore" position = { x = -59.10617 y = -192.19434 } initializer = custom_starting_init_02 spawn_weight = { base = 1 } }
+	system = { id = "787" name = "Uchbiea" position = { x = -68.89234 y = -182.12868 } initializer = custom_starting_init_02 spawn_weight = { base = 1 } }
 	system = { id = "788" name = "Raprix" position = { x = -323.73055 y = 184.48043 } initializer = distar_sealed_1_1 }
 	system = { id = "789" name = "Gidzerak" position = { x = -339.74518 y = 163.59981 } initializer = distar_sealed_1_2 }
 	system = { id = "790" name = "NAME_Ultima_Vigilis" position = { x = 453.05424 y = 209.25465 } initializer = surveillance_supercomputer_system }

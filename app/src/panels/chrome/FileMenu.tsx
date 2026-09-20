@@ -96,11 +96,6 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
         disabled={!open || kind !== "save"}
         onClick={run(exportScenario)}
       />
-      <MenuItem
-        label="Export as scenario for Paint a Galaxy…"
-        disabled={!open || kind !== "save"}
-        onClick={run(() => exportScenario("paint_a_galaxy"))}
-      />
       <MenuItem label="Open save as scenario…" onClick={run(() => pickAndOpen("scenario"))} />
       <EyeRow
         pressed={paintProfile}

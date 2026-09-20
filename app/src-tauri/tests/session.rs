@@ -2,11 +2,14 @@
 use std::path::Path;
 
 use serde_json::json;
+use sgf_core::export::ExportReport;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::format::scenario::listings::{ScenarioListings, ScenarioSource};
 use sgf_core::library::CampaignListing;
+use sgf_core::validate::IssueCode;
 use sgf_core::views::{
-    DocumentKind, EditResult, ErrorKind, OpenResult, SaveFile, SaveResult, SearchHit, SystemDetail,
+    DocumentKind, EditResult, ErrorKind, ExportResult, OpenResult, SaveFile, SaveResult, SearchHit,
+    SystemDetail,
 };
 use sgf_gamedata::scripts::ScenarioOwners;
 use sgf_gamedata::views::GameDataSummary;
@@ -294,8 +297,21 @@ fn scenario_documents_open_start_and_export() {
     assert_eq!(as_scenario.title, "2206.11.16");
     assert!(as_scenario.path.is_none());
     assert_eq!(as_scenario.galaxy.systems.len(), 791);
+    let coded = |code: IssueCode| as_scenario.issues.iter().filter(|i| i.code == code).count();
     assert_eq!(
-        kind(invoke::<SaveResult>(
+        coded(IssueCode::ExportDropped),
+        1,
+        "{:?}",
+        as_scenario.issues
+    );
+    assert_eq!(
+        coded(IssueCode::HomeInitializer),
+        4,
+        "{:?}",
+        as_scenario.issues
+    );
+    assert_eq!(
+        kind(invoke::<ExportResult>(
             &w,
             "export_scenario",
             json!({ "path": dir.path().join("x.txt").to_string_lossy() })
@@ -303,18 +319,31 @@ fn scenario_documents_open_start_and_export() {
         ErrorKind::Op,
         "only a save exports"
     );
+    assert_eq!(
+        kind(invoke::<ExportReport>(&w, "preview_export", json!({}))),
+        ErrorKind::Op,
+        "only a save previews an export"
+    );
 
     invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    let preview: ExportReport = invoke(&w, "preview_export", json!({})).expect("preview");
     let out = dir
         .path()
         .join("exported.txt")
         .to_string_lossy()
         .into_owned();
-    let exported: SaveResult =
+    let exported: ExportResult =
         invoke(&w, "export_scenario", json!({ "path": out })).expect("export");
-    assert_eq!(exported.path, out);
-    assert!(exported.backup_path.is_none());
-    assert!(!exported.dirty, "export leaves the save session clean");
+    assert_eq!(exported.save.path, out);
+    assert!(exported.save.backup_path.is_none());
+    assert!(!exported.save.dirty, "export leaves the save session clean");
+    assert_eq!(exported.report.seats, 17);
+    assert_eq!(exported.report.dropped.wormhole_pairs, 6);
+    assert_eq!(exported.report.home_initializers.len(), 4);
+    assert_eq!(
+        preview, exported.report,
+        "the preview is the report the write gives"
+    );
     let reopened: OpenResult =
         invoke(&w, "open_save", json!({ "path": out })).expect("open the export");
     assert_eq!(reopened.kind, DocumentKind::Scenario);
@@ -394,7 +423,7 @@ fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands()
         .join("painted.txt")
         .to_string_lossy()
         .into_owned();
-    invoke::<SaveResult>(
+    invoke::<ExportResult>(
         &w,
         "export_scenario",
         json!({ "path": painted, "profile": "paint_a_galaxy" }),
@@ -407,10 +436,19 @@ fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands()
         &text[..300]
     );
     let exported = dir.path().join("plain.txt").to_string_lossy().into_owned();
-    invoke::<SaveResult>(&w, "export_scenario", json!({ "path": exported })).expect("export");
+    invoke::<ExportResult>(&w, "export_scenario", json!({ "path": exported })).expect("export");
     let text = std::fs::read_to_string(&exported).unwrap();
     assert!(
-        !text.contains(idiom) && text.starts_with("static_galaxy_scenario = {"),
+        !text.contains(idiom)
+            && text.starts_with(
+                "# Exported by Stellaris Galaxy Forge from 2206.11.16.sav
+"
+            )
+            && text.contains(
+                "
+static_galaxy_scenario = {
+"
+            ),
         "{}",
         &text[..300]
     );

@@ -3,15 +3,16 @@
 
 use std::path::Path;
 
-use sgf_core::export::{self, ScenarioProfile};
+use sgf_core::export::{self, ExportReport, ScenarioProfile};
 use sgf_core::session::Session;
 use sgf_gamedata::LoadOptions;
 
-use super::{Outcome, Run};
+use super::{Outcome, Run, join};
 use crate::cli::Profile;
 
-/// Export the save's galaxy as a scenario file. Names are the save's own keys unless
-/// `opts` names an install to localise them from.
+/// Export the save's galaxy as a scenario file, then say what it could not carry over.
+/// Names are the save's own keys unless `opts` names an install to localise them from,
+/// which also tells which DLC or mod each initializer needs.
 pub fn run(
     sav: &Path,
     out: &Path,
@@ -28,9 +29,19 @@ pub fn run(
         }
     });
     let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
+    let sources = |initializer: &str| {
+        let gd = gd.as_ref()?;
+        gd.initializers
+            .get(initializer)?
+            .source_label(&gd.layout.install)
+    };
     let name = name.map_or_else(|| stem(sav), str::to_owned);
-    let options = export::options_for(&session.graph, &name);
-    let text = export::scenario_text(&session.graph, &options, &resolve, profile.core());
+    let options = export::ScenarioOptions {
+        exported_from: sav.file_name().map(|f| f.to_string_lossy().into_owned()),
+        ..export::options_for(&session.graph, &name)
+    };
+    let (text, report) =
+        export::scenario_text(&session.graph, &options, &resolve, &sources, profile.core());
     let outcome = export::write_scenario(out, &text)?;
     println!(
         "{} system(s), {} hyperlane(s), {} nebula(e) as \"{name}\"",
@@ -42,7 +53,37 @@ pub fn run(
     if let Some(backup) = &outcome.backup {
         println!("backup {}", backup.display());
     }
+    if matches!(profile, Profile::Plain) {
+        print_report(&report);
+    }
     Ok(Outcome::Ok)
+}
+
+/// The seats written, what to look at, what was left out and what the map needs, then
+/// one line per category of system. Paint a Galaxy seats and flags its own, so the
+/// plain report does not describe its file.
+fn print_report(report: &ExportReport) {
+    println!("empire seats: {}", report.seats);
+    if !report.home_initializers.is_empty() {
+        println!(
+            "home initializers to review: {}",
+            join(
+                report
+                    .home_initializers
+                    .iter()
+                    .map(|h| format!("{} (system {})", h.initializer, h.system))
+            )
+        );
+    }
+    if let Some(dropped) = report.dropped.summary() {
+        println!("not carried over: {dropped}");
+    }
+    if let Some(needs) = report.needs() {
+        println!("needs: {needs}");
+    }
+    for count in &report.by_category {
+        println!("{}: {}", count.category, count.systems);
+    }
 }
 
 /// Write an empty scenario: the header and nothing else.

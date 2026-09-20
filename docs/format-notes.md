@@ -168,7 +168,15 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   `crisis_strength`, `extra_crisis_strength = { 10 25 }`, optional
   `supports_shape`. Optional `coordinate_transform = { x = { add sub mul
   div } y = { … } z = { … } }` is applied by the game before placing
-  systems; the editor shows positions untransformed and warns.
+  systems; the editor shows positions untransformed and warns. The
+  vanilla shapes (`map/galaxy/galaxy_shapes.txt`) are `elliptical`,
+  `ring`, `spiral_2`, `spiral_3`, `spiral_4`, `spiral_6`, `bar`,
+  `starburst`, `cartwheel`, `spoked`; a scenario is listed only while a
+  shape it names is selected, so Forge's export names all ten.
+- `#` comments are legal anywhere, including before the block; Forge's
+  export opens with a few that say where the file came from, its counts,
+  which DLC or mods its initializers need, and what the save had that the
+  file does not (wormhole pairs). The scenario index ignores them.
 - `system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 }
   initializer = canon_coruscant_system_initializer spawn_weight = { base
   = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } }`.

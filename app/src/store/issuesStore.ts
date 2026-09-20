@@ -10,9 +10,21 @@ export function issueKey(issue: Issue): string {
   return `${issue.code}:${issue.systems.join(",")}`;
 }
 
+/**
+ * The codes that are notes on how the document came to be, not findings the validator
+ * would make again: they stay out of the baseline, count as new, and outlive every edit.
+ */
+const NOTE_CODES: readonly IssueCode[] = ["export_dropped", "home_initializer"];
+
+export function isNote(issue: Issue): boolean {
+  return NOTE_CODES.includes(issue.code);
+}
+
 export interface IssuesState {
   /** Keys of the issues the save already had when it opened; the badge never counts them. */
   baseline: Set<string>;
+  /** The notes the document opened with, kept until it closes. */
+  notes: Issue[];
   filter: IssueFilter;
   /** The one code the tab lists, or every code. */
   code: IssueCode | null;
@@ -24,6 +36,7 @@ export interface IssuesState {
 
 export const useIssuesStore = create<IssuesState>((set) => ({
   baseline: new Set<string>(),
+  notes: [],
   filter: "new",
   code: null,
 
@@ -36,7 +49,13 @@ export const useIssuesStore = create<IssuesState>((set) => ({
   },
 
   setBaseline(issues) {
-    set({ baseline: new Set((issues ?? []).map(issueKey)), filter: "new", code: null });
+    const opened = issues ?? [];
+    set({
+      baseline: new Set(opened.filter((issue) => !isNote(issue)).map(issueKey)),
+      notes: opened.filter(isNote),
+      filter: "new",
+      code: null,
+    });
   },
 }));
 

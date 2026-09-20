@@ -8,15 +8,14 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::as_u32;
 use crate::emit::coord;
-use crate::export::{Draft, SpawnDraft, SystemDraft};
+use crate::export::{Draft, SpawnDraft, SystemDraft, report};
 use crate::format::scenario::emit::ScenarioOptions;
 use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, RL_BASIC, WORMHOLE_FLAG_PREFIX, basic_initializer,
 };
-use crate::projections::galaxy::{BypassLink, CountryNode, Galaxy, PaintSpawnKind, SpawnScript};
+use crate::projections::galaxy::{BypassLink, Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript};
 
 const NOTE: &str = "# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.";
-const DEFAULT_COUNTRY: &str = "default";
 const SET_STAR_FLAG: &str = "set_star_flag";
 /// How many lane jumps from a spawn an empty system is given [`RL_BASIC`].
 const NEIGHBOURHOOD: usize = 2;
@@ -24,18 +23,17 @@ const NEIGHBOURHOOD: usize = 2;
 const RANDOM_VALUES: usize = 10;
 
 /// Rewrite `draft` in Paint a Galaxy's shape: the spawn systems are the capitals of
-/// the playable countries and every system already marked as a spawn.
-pub(super) fn decorate(
-    draft: &mut Draft,
-    options: &ScenarioOptions,
-    galaxy: &Galaxy,
-    countries: &[CountryNode],
-) {
-    let spawns = spawn_systems(galaxy, countries);
+/// the playable countries and every system already marked as a spawn; a seat the plain
+/// profile wrote anywhere else is cleared.
+pub(super) fn decorate(draft: &mut Draft, options: &ScenarioOptions, graph: &GalaxyGraph) {
+    let spawns = spawn_systems(graph);
     draft.header = header(options, draft.systems.len(), spawns.len());
-    mark_spawns(draft, galaxy, &spawns);
+    for system in &mut draft.systems {
+        system.spawn = SpawnDraft::None;
+    }
+    mark_spawns(draft, graph, &spawns);
     fill_neighbours(draft, &spawns);
-    flag_wormholes(draft, &galaxy.bypasses);
+    flag_wormholes(draft, &graph.bypasses);
 }
 
 /// The header for `systems` systems of which `spawns` are spawn points, on Forge's
@@ -111,23 +109,19 @@ fn size_band(systems: usize) -> (u32, u32, &'static str) {
 }
 
 /// The capitals of the playable countries and every system marked as a spawn already,
-/// ascending; a capital the galaxy does not hold is not a system to write.
-fn spawn_systems(galaxy: &Galaxy, countries: &[CountryNode]) -> BTreeSet<u32> {
-    let capitals = countries
-        .iter()
-        .filter(|country| country.country_type == DEFAULT_COUNTRY)
-        .filter_map(|country| country.capital_system);
-    let marked = galaxy
-        .systems
-        .values()
-        .filter(|system| {
-            system.spawn_script.is_some() || system.spawn_weight.is_some_and(|w| w > 0.0)
-        })
-        .map(|system| system.id);
-    capitals
-        .chain(marked)
-        .filter(|id| galaxy.systems.contains_key(id))
-        .collect()
+/// ascending.
+fn spawn_systems(graph: &GalaxyGraph) -> BTreeSet<u32> {
+    let mut spawns = report::capitals(graph);
+    spawns.extend(
+        graph
+            .systems
+            .values()
+            .filter(|system| {
+                system.spawn_script.is_some() || system.spawn_weight.is_some_and(|w| w > 0.0)
+            })
+            .map(|system| system.id),
+    );
+    spawns
 }
 
 /// Each spawn system gets the enabled seat with the next random value, or keeps the
@@ -230,6 +224,7 @@ mod tests {
             name: "sgf_paint".into(),
             core_radius: 30.0,
             num_empires: (0, 1),
+            exported_from: None,
         };
         String::from_utf8(header(&options, systems, spawns)).unwrap()
     }
