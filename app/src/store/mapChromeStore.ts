@@ -1,8 +1,15 @@
 import { create } from "zustand";
+import type { DocumentKind } from "../generated/DocumentKind";
 import type { SpecialKind } from "../generated/SpecialKind";
 import { MESH_BETA } from "../lib/geometry/mesh";
 import { KIND_ORDER, kindOrder } from "../lib/special";
-import { DEFAULT_LAYERS, LAYER_IDS, LAYER_KEYS, type LayerId } from "../lib/visual/layerIds";
+import {
+  DEFAULT_LAYERS,
+  LAYER_IDS,
+  LAYER_KEYS,
+  defaultLayers,
+  type LayerId,
+} from "../lib/visual/layerIds";
 import {
   allKindsVisible,
   barKinds,
@@ -88,7 +95,9 @@ export interface MapChromeState {
   hideAllInitializers(keys: Iterable<string>): void;
   /** Toggles what the number key at `index` (0-based) is bound to. */
   toggleLayerKey(index: number): void;
-  /** Puts every layer and kind back to what the app starts with. */
+  /** Puts the layers the user has not set by hand onto what a document of `kind` opens with. */
+  openedAs(kind: DocumentKind): void;
+  /** Puts every layer and kind back to what the open document starts with. */
   resetLayers(): void;
   /** Turns every layer one source decides off, or on once any of them is off. */
   toggleGroup(source: Source): void;
@@ -130,10 +139,10 @@ function storedShownKinds(): SpecialKind[] {
   return storedKinds(PREF_KEYS.shownKinds) ?? DEFAULT_SHOWN_KINDS;
 }
 
-/** A stored layer state, keeping only this build's layers and defaulting the rest. */
-function storedLayers(): Record<LayerId, boolean> {
+/** A stored layer state over `base`, keeping only this build's layers and defaulting the rest. */
+function storedLayers(base: Record<LayerId, boolean>): Record<LayerId, boolean> {
   const stored = readPref<Record<string, boolean> | null>(PREF_KEYS.layers, null, isBooleanRecord);
-  const layers = { ...DEFAULT_LAYERS };
+  const layers = { ...base };
   if (stored === null) return layers;
   for (const id of LAYER_IDS) if (stored[id] !== undefined) layers[id] = stored[id];
   return layers;
@@ -162,7 +171,7 @@ function switchableGroup(source: Source) {
 
 export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   ...NO_OVERLAYS,
-  layers: storedLayers(),
+  layers: storedLayers(DEFAULT_LAYERS),
   shownKinds: new Set<SpecialKind>(storedShownKinds()),
   meshBeta: readPref(PREF_KEYS.meshBeta, MESH_BETA.gabriel, isFiniteNumber),
 
@@ -235,8 +244,13 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
     else get().toggleLayer(layer);
   },
 
+  openedAs(kind) {
+    set({ layers: storedLayers(defaultLayers(kind)) });
+  },
+
   resetLayers() {
-    const layers = { ...DEFAULT_LAYERS };
+    const kind = useFileSessionStore.getState().kind;
+    const layers = kind === null ? { ...DEFAULT_LAYERS } : defaultLayers(kind);
     const shownKinds = new Set<SpecialKind>(DEFAULT_SHOWN_KINDS);
     set({
       layers,

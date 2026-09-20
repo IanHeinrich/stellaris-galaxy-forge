@@ -165,7 +165,6 @@ describe("expand", () => {
       `campaign:${TERRAN.dir}`,
       `campaign:${VOID.dir}`,
       "save:C:/saves/void/a.sav",
-      "browse",
     ]);
 
     await screen().toggle(VOID.dir);
@@ -210,14 +209,12 @@ describe("scenarios", () => {
       `scenario:${shadowed.path}`,
       `scenario:${off.path}`,
       `scenario:${vanilla.path}`,
-      "new-scenario",
     ]);
     expect(rows.map((r) => (r.kind === "scenario" ? r.group : null))).toEqual([
       "My mods",
       "Workshop mods",
       "Workshop mods",
       "Install",
-      null,
     ]);
   });
 
@@ -241,7 +238,7 @@ describe("scenarios", () => {
     const scenarios = section("scenarios");
     expect(scenarios.notices).toEqual(["C:/user/mod/broken.mod: unexpected } at byte 12"]);
     expect(scenarios.note).toBeNull();
-    expect(scenarios.rows.map((r) => r.key)).toEqual([`scenario:${mine.path}`, "new-scenario"]);
+    expect(scenarios.rows.map((r) => r.key)).toEqual([`scenario:${mine.path}`]);
     expect(section("saves").notices).toEqual([]);
   });
 

@@ -53,9 +53,9 @@ system count, the mod it came from and whatever overrides it.
 The field at the top filters by empire, campaign, file, scenario or mod.
 The arrow keys move through the list, Enter opens the row, Shift+Enter
 opens a save as a scenario, and the left and right arrows fold a campaign
-open and shut. Two rows sit at the end of the list: "Browse…" for any
-`.sav` or scenario `.txt` file anywhere on the machine, and "New
-scenario…".
+open and shut. Two buttons sit along the foot of the screen: "New
+scenario…", and "Browse…" for any `.sav` or scenario `.txt` file anywhere
+on the machine.
 
 With a document already open, Ctrl+O brings the same list back as a
 dialog and Ctrl+Shift+O goes straight to a file picker. The File menu at
@@ -278,9 +278,12 @@ the game derives a wayline between two stations of one network joined by
 a lane or a bypass, and the map draws it as a dashed band along that lane
 with each station badged by its level.
 
-Everything is on when a document opens except nebulae, waylines and issue
-highlights, and, for a scenario, the day-one claims and day-one bypasses
-that the scripts add. A scenario splits both the bar and the menu into
+A save opens with hyperlanes, systems, names, system details, empires and
+nebulae on and everything else off. A scenario opens with everything on
+except nebulae, waylines, issue highlights and the day-one claims and
+day-one bypasses that the scripts add. A layer you switch on yourself
+stays on the next time you open a document, and "Reset to defaults" puts
+back the set for the kind of document that is open. A scenario splits both the bar and the menu into
 what the file itself says, what its initializers place and what the
 day-one scripts add, with an "all" button over each of the last two: `0`
 switches the initializer layers, `` ` `` the script ones.

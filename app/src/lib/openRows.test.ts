@@ -114,34 +114,24 @@ describe("filter", () => {
   it("keeps only what every section matches, across name, campaign, file and mod", () => {
     const terran = sections({ filter: "terran" });
     expect(rowKeys(terran, "recent")).toEqual([`recent:${RECENT.path}`]);
-    expect(rowKeys(terran, "saves")).toEqual([
-      `campaign:${TERRAN.dir}`,
-      `save:${save().path}`,
-      "browse",
-    ]);
-    expect(rowKeys(terran, "scenarios")).toEqual(["new-scenario"]);
+    expect(rowKeys(terran, "saves")).toEqual([`campaign:${TERRAN.dir}`, `save:${save().path}`]);
+    expect(rowKeys(terran, "scenarios")).toEqual([]);
 
     const other = sections({ filter: "other mod" });
-    expect(rowKeys(other, "scenarios")).toEqual(["scenario:C:/mods/b.txt", "new-scenario"]);
-    expect(rowKeys(other, "saves")).toEqual(["browse"]);
+    expect(rowKeys(other, "scenarios")).toEqual(["scenario:C:/mods/b.txt"]);
+    expect(rowKeys(other, "saves")).toEqual([]);
   });
 
   it("opens a collapsed campaign that holds a matching save", () => {
     const collapsed = sections({ expanded: null, filter: "2206.11.16.sav" });
-    expect(rowKeys(collapsed, "saves")).toEqual([
-      `campaign:${TERRAN.dir}`,
-      `save:${save().path}`,
-      "browse",
-    ]);
+    expect(rowKeys(collapsed, "saves")).toEqual([`campaign:${TERRAN.dir}`, `save:${save().path}`]);
   });
 
-  it("walks every row of every section in one list", () => {
+  it("walks every row of every section in one list, and lists no action rows", () => {
     expect(navigableRows(sections({ filter: "terran" })).map((r) => r.kind)).toEqual([
       "recent",
       "campaign",
       "save",
-      "browse",
-      "new-scenario",
     ]);
   });
 });

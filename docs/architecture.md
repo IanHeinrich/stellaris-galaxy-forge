@@ -4,6 +4,76 @@ How Stellaris Galaxy Forge holds a document in memory and how an edit
 travels from the map to the file. The README has the short version; the
 rules every change follows are in [engineering-rules.md](engineering-rules.md).
 
+## Where things live
+
+```
+stellaris-galaxy-forge/
+├── Cargo.toml                 workspace: crates/* and app/src-tauri
+├── VERSION                    the one version; scripts/version.sh copies it into the manifests
+├── CHANGELOG.md               Keep a Changelog; every PR adds to Unreleased
+├── crates/
+│   ├── sgf-core/              the document model; knows nothing about a UI
+│   │   ├── src/
+│   │   │   ├── archive.rs     the .sav zip: inflate gamestate and meta, backup-then-persist on write
+│   │   │   ├── document.rs    a loaded document: original bytes, index, overlay; sniffs save vs scenario
+│   │   │   ├── scan.rs        the one-pass index: spans of every statement and id-keyed block
+│   │   │   ├── lexer.rs       tokens: bare and quoted scalars, braces, equals
+│   │   │   ├── cst.rs         a concrete syntax tree for the statements an edit has to read
+│   │   │   ├── span.rs        byte ranges
+│   │   │   ├── overlay.rs     patches keyed to original offsets: replace a span or insert at one
+│   │   │   ├── emit/          writes the bytes of an edited statement, copying its indentation
+│   │   │   ├── format/        the Format trait; save/ and scenario/ are the only per-format code
+│   │   │   ├── ops/           every edit: the Op enum, its inverse, description and rules
+│   │   │   ├── projections/   caches read from the index: the galaxy graph, names, details
+│   │   │   ├── session.rs     document + graph + history; apply, undo, redo, save
+│   │   │   ├── validate.rs    what the game could not cope with, errors and warnings
+│   │   │   ├── search.rs      find systems and entities by name or id
+│   │   │   ├── entity/        addressing any entity in the file for the inspector
+│   │   │   ├── library.rs     small registers read from the save: colours, bypasses, ship sizes
+│   │   │   ├── export.rs      a save's galaxy written out as a scenario script
+│   │   │   ├── synth.rs       synthetic saves for stress tests
+│   │   │   ├── keys.rs        the statement keys the formats read
+│   │   │   └── views.rs       the IPC types; ts-rs exports them to app/src/generated
+│   │   └── tests/             outside-in: every op applied to the sample save, insta snapshots,
+│   │                          round-trip identity, corpus timing (SGF_CORPUS_DIR)
+│   ├── sgf-gamedata/          the user's install and mods, read at runtime
+│   │   ├── src/
+│   │   │   ├── install/       Steam discovery, mods, load order, override semantics
+│   │   │   ├── registries/    star and planet classes, colours, deposits, ship sizes, gfx
+│   │   │   ├── loc/           localisation files, language-keyed names
+│   │   │   ├── textures/      DDS decoding and the sprite cache
+│   │   │   ├── initializers.rs solar_system_initializers: what a system will spawn
+│   │   │   ├── scripts/       events, effects, on_actions: who claims what on day one
+│   │   │   ├── special.rs     leviathans, enclaves, marauders, fallen empires, landmarks
+│   │   │   ├── details.rs     planet, fleet and starbase readers for the inspector
+│   │   │   ├── resolver.rs    @variable expansion
+│   │   │   ├── reload.rs      the file watcher: a changed file rebuilds its registry
+│   │   │   └── views.rs       IPC types
+│   │   └── tests/             against a fixture mod in tests/fixtures, and the real install when present
+│   └── sgf-cli/               the sgf binary: cli.rs declares it, commands/ one file per verb
+├── app/
+│   ├── src-tauri/             the Tauri 2 shell (sgf-app)
+│   │   ├── src/commands/      the IPC surface: session, scenario, entity, gamedata, listing
+│   │   ├── src/state.rs       the open session, game data and texture cache behind mutexes
+│   │   ├── src/watch/         watches the open document's folder and the mod folders
+│   │   └── tests/             the commands end to end on the sample save
+│   └── src/                   React + TypeScript; a layer imports only from the ones below it
+│       ├── panels/            the React tree: chrome/ (top bar, dock, status bar), inspector/,
+│       │                      browser/ (empires, points of interest, issues, changes),
+│       │                      file/ (open screen, New scenario), initializers/, search/, overlays/
+│       ├── map/               the PixiJS renderer: Camera, MapController, interaction/, layers/, picking/
+│       ├── store/             Zustand stores, one per concern: session, editor, galaxy, game data, ...
+│       ├── lib/               pure helpers: geometry/, initializer/, details/, visual/, keys.ts
+│       ├── api/               one function per Tauri command
+│       └── generated/         ts-rs output; rewritten by cargo test --workspace, never edited
+├── docs/                      this file, the user guide, the engineering rules, the format
+│                              and game-data facts, adr/, media/
+├── scripts/                   version.sh and changelog.sh, used by the workflows
+├── testdata/                  the sample save (git-lfs), its scenario export, a grammar fixture
+└── .github/                   ci.yml (checks on three OSes), release.yml (tag, build, publish),
+                               changelog.yml, the PR template with the in-game checks
+```
+
 ## The pieces
 
 - **Rust core, `sgf-core`.** Opens a save or a scenario, indexes it, projects

@@ -27,6 +27,10 @@ import { useGameDataStore } from "./gameDataStore";
 import { useMapChromeStore } from "./mapChromeStore";
 
 const chrome = () => useMapChromeStore.getState();
+const onLayers = () =>
+  Object.entries(chrome().layers)
+    .filter(([, on]) => on)
+    .map(([id]) => id);
 const session = () => useFileSessionStore.getState();
 
 const stored = new Map<string, string>();
@@ -63,11 +67,7 @@ afterEach(() => {
 
 describe("layers", () => {
   it("starts with the map the game first shows and leviathans, enclaves and L-Gates", () => {
-    expect(
-      Object.entries(chrome().layers)
-        .filter(([, on]) => on)
-        .map(([id]) => id),
-    ).toEqual([
+    expect(onLayers()).toEqual([
       "lanes",
       "owners",
       "bypasses",
@@ -85,6 +85,46 @@ describe("layers", () => {
       "leviathan",
       "enclave",
     ]);
+  });
+
+  it("a save opens on the galaxy map the game itself draws, and nothing over it", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    expect(onLayers()).toEqual([
+      "nebulae",
+      "lanes",
+      "owners",
+      "systems",
+      "labels",
+      "details",
+      "highlights",
+    ]);
+  });
+
+  it("a scenario opens on the overlays its own scripts fill", async () => {
+    vi.mocked(ipc.openSave).mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().openSave(SCENARIO_RESULT.path);
+    expect(chrome().layers).toEqual(DEFAULT_LAYERS);
+  });
+
+  it("an open leaves the layers the user set by hand where they are", async () => {
+    chrome().toggleLayer("waylines");
+    chrome().toggleLayer("labels");
+    await session().openSave(OPEN_RESULT.path);
+    expect(chrome().layers.waylines).toBe(true);
+    expect(chrome().layers.labels).toBe(false);
+    expect(chrome().layers.classes).toBe(false);
+  });
+
+  it("reset over a save puts the save's own layers back", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    chrome().toggleLayer("bypasses");
+    chrome().toggleLayer("labels");
+
+    chrome().resetLayers();
+    expect(chrome().layers.bypasses).toBe(false);
+    expect(chrome().layers.classes).toBe(false);
+    expect(chrome().layers.labels).toBe(true);
+    expect(chrome().layers.nebulae).toBe(true);
   });
 
   it("toggles a layer and one point-of-interest kind, and resets both", () => {

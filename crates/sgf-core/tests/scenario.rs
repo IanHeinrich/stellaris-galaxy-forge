@@ -298,19 +298,11 @@ fn every_scenario_root_is_listed_with_its_name_count_and_overrides() {
         },
     ];
     let listings = list_scenarios_in(&roots);
-    assert_eq!(listings.len(), 3, "{listings:#?}");
+    // The commented-out example holds no `static_galaxy_scenario` block: not a static
+    // scenario, so not listed. Roots in the order given, files by name within each.
+    assert_eq!(listings.len(), 2, "{listings:#?}");
 
-    // Roots in the order given, files by name within each.
-    let example = &listings[0];
-    assert_eq!(example.name, "example");
-    assert_eq!(example.systems, 0);
-    assert_eq!(
-        example.error.as_deref(),
-        Some("the file holds no `static_galaxy_scenario` block")
-    );
-    assert_eq!(example.shadowed_by, None);
-
-    let winner = &listings[1];
+    let winner = &listings[0];
     assert_eq!(winner.name, "sgf_grammar");
     assert_eq!(winner.systems, 8);
     assert_eq!(winner.error, None);
@@ -320,7 +312,7 @@ fn every_scenario_root_is_listed_with_its_name_count_and_overrides() {
     assert!(winner.size > 0 && winner.modified > 0);
 
     // Vanilla loads first, so the mod's file of the same name is the one the game reads.
-    let shadowed = &listings[2];
+    let shadowed = &listings[1];
     assert_eq!(shadowed.source, ScenarioSource::Install);
     assert_eq!(shadowed.name, "sgf_grammar");
     assert_eq!(shadowed.systems, 8);

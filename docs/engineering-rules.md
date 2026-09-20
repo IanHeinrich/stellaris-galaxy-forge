@@ -3,8 +3,7 @@
 For contributors (people and tools alike).
 
 A desktop editor for Stellaris `.sav` files: a galaxy editor first (move
-systems, add/remove hyperlanes), then Tier 1 (guarded, schema-driven) and
-Tier 2 (raw) editing of every entity, then mod awareness. Rust core +
+systems, add/remove hyperlanes). Rust core +
 Tauri 2 shell + React/TypeScript UI with a PixiJS map. The architecture
 is `docs/architecture.md`, the user guide `docs/user-guide.md`, the format
 facts `docs/format-notes.md`, the
@@ -76,9 +75,11 @@ path renames aside as the backup, and the editor's bytes take its place.
   unset, so run it in release after touching the load path.
 - `SGF_REQUIRE_INSTALL=1` turns the tests that skip without a real
   Stellaris install into failures.
-- `ci.yml` runs all of the above on Windows and Ubuntu, on every PR, and
-  is also called by `release.yml` on every merge to `main`. It also runs
-  `bash scripts/version.sh check`.
+- `ci.yml` runs all of the above on Windows, Ubuntu and macOS, on every
+  PR, and is also called by `release.yml` on every push to `main`. It also
+  runs `bash scripts/version.sh check`. A change that touches only
+  documentation (`*.md`, `docs/`, `LICENSE`, the PR template) skips the
+  build; `ci-docs.yml` reports the required checks as passed for it.
 
 ## Releases
 
@@ -94,9 +95,10 @@ path renames aside as the backup, and the editor's bytes take its place.
   `patch`/`major`), then `bash scripts/changelog.sh release
   $(cat VERSION)`, which renames Unreleased to `## [x.y.z] - YYYY-MM-DD`
   and opens a fresh Unreleased. Review the diff, then open it as a PR.
-- Merging that PR to `main` runs the checks, tags `v<x.y.z>`, builds and
+- Merging that PR to `main` runs the checks and the three platform
+  builds side by side, and only once all of them pass tags `v<x.y.z>` and
   publishes a GitHub Release whose notes are that changelog section.
-  Merging anything else releases nothing.
+  Merging anything else runs the checks and releases nothing.
 - Tags are never made by hand; the `release.yml` workflow does it. To
   rebuild a release for an existing tag, use the Actions tab: the
   `Release` workflow, "Run workflow", enter the tag.

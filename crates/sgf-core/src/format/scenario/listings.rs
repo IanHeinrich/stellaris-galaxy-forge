@@ -12,7 +12,7 @@ use std::time::UNIX_EPOCH;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::format::scenario::index::ScenarioIndex;
+use crate::format::scenario::index::{self, ScenarioIndex};
 
 /// The layer name the install's own files are listed under, as `Layout` names it.
 const VANILLA: &str = "vanilla";
@@ -79,8 +79,9 @@ pub struct ScenarioListings {
     pub diagnostics: Vec<String>,
 }
 
-/// Every `*.txt` under each of `roots`, roots in the order given and files by name within
-/// each. A file that is not a scenario carries its error rather than being left out.
+/// Every static galaxy scenario `*.txt` under each of `roots`, roots in the order given
+/// and files by name within each. A dynamic scenario is another kind of file and is left
+/// out; a static one that could not be read carries its error rather than being left out.
 pub fn list_scenarios_in(roots: &[ScenarioRoot]) -> Vec<ScenarioListing> {
     let winners = Winners::of(roots);
     let mut listings = Vec::new();
@@ -88,7 +89,7 @@ pub fn list_scenarios_in(roots: &[ScenarioRoot]) -> Vec<ScenarioListing> {
         listings.extend(
             txt_files(&root.dir)
                 .iter()
-                .map(|path| listing(root, path, &winners)),
+                .filter_map(|path| listing(root, path, &winners)),
         );
     }
     listings
@@ -140,14 +141,14 @@ impl Winners {
     }
 }
 
-fn listing(root: &ScenarioRoot, path: &Path, winners: &Winners) -> ScenarioListing {
+fn listing(root: &ScenarioRoot, path: &Path, winners: &Winners) -> Option<ScenarioListing> {
     let stem = path
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let (name, systems, error) = read(path, &stem);
+    let (name, systems, error) = read(path, &stem)?;
     let (modified, size) = stat(path);
-    ScenarioListing {
+    Some(ScenarioListing {
         path: path.to_string_lossy().into_owned(),
         name,
         systems,
@@ -158,14 +159,15 @@ fn listing(root: &ScenarioRoot, path: &Path, winners: &Winners) -> ScenarioListi
         modified,
         size,
         error,
-    }
+    })
 }
 
-/// The scenario's name and system count, or the file stem and the reason it has neither.
-fn read(path: &Path, stem: &str) -> (String, u32, Option<String>) {
+/// The scenario's name and system count, or the file stem and the reason it has neither;
+/// `None` for a file that is not a static galaxy scenario at all.
+fn read(path: &Path, stem: &str) -> Option<(String, u32, Option<String>)> {
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
-        Err(e) => return (stem.to_owned(), 0, Some(e.to_string())),
+        Err(e) => return Some((stem.to_owned(), 0, Some(e.to_string()))),
     };
     match ScenarioIndex::build(&bytes) {
         Ok(index) => {
@@ -173,9 +175,10 @@ fn read(path: &Path, stem: &str) -> (String, u32, Option<String>) {
                 "" => stem.to_owned(),
                 name => name.to_owned(),
             };
-            (name, crate::as_u32(index.systems().count()), None)
+            Some((name, crate::as_u32(index.systems().count()), None))
         }
-        Err(e) => (stem.to_owned(), 0, Some(e.to_string())),
+        Err(index::Error::Dynamic | index::Error::NotAScenario) => None,
+        Err(e) => Some((stem.to_owned(), 0, Some(e.to_string()))),
     }
 }
 

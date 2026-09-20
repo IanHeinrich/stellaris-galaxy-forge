@@ -1,3 +1,4 @@
+import type { DocumentKind } from "../../generated/DocumentKind";
 import type { SpecialKind } from "../../generated/SpecialKind";
 
 export const LAYER_IDS = [
@@ -113,9 +114,9 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   highlights: "Highlights",
 };
 
-/** What is on when the app starts: the map as the game first shows it, with the scripts' day-one
- * overlays left off until asked for. `special` is always on because the shown point-of-interest
- * kinds decide what that layer draws. */
+/** What is on when the app starts, and what a scenario opens with: the map as the game first
+ * shows it, with the scripts' day-one overlays left off until asked for. `special` is always on
+ * because the shown point-of-interest kinds decide what that layer draws. */
 export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   nebulae: false,
   lanes: true,
@@ -135,3 +136,29 @@ export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   day_one_bypasses: false,
   highlights: true,
 };
+
+/** What a save opens with: the galaxy map the game itself draws, and nothing over it. */
+const SAVE_LAYERS: Record<LayerId, boolean> = {
+  nebulae: true,
+  lanes: true,
+  owners: true,
+  bypasses: false,
+  waylines: false,
+  systems: true,
+  classes: false,
+  special: false,
+  initializers: false,
+  spawns: false,
+  issues: false,
+  labels: true,
+  details: true,
+  colonies: false,
+  claims: false,
+  day_one_bypasses: false,
+  highlights: true,
+};
+
+/** What a document of `kind` opens with, under whatever the user has since set by hand. */
+export function defaultLayers(kind: DocumentKind): Record<LayerId, boolean> {
+  return { ...(kind === "save" ? SAVE_LAYERS : DEFAULT_LAYERS) };
+}

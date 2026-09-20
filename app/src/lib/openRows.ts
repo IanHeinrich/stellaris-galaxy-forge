@@ -46,12 +46,7 @@ export interface ScenarioRow {
   disabled: boolean;
 }
 
-export interface ActionRow {
-  kind: "browse" | "new-scenario";
-  key: string;
-}
-
-export type Row = RecentRow | CampaignRow | SaveRow | ScenarioRow | ActionRow;
+export type Row = RecentRow | CampaignRow | SaveRow | ScenarioRow;
 
 export interface Section {
   id: SectionId;
@@ -144,7 +139,6 @@ function savesSection(state: OpenLists, words: string[]): Section {
       rows.push({ kind: "save", key: `save:${file.path}`, file, empire: empireOf(file.meta) });
     }
   }
-  rows.push({ kind: "browse", key: "browse" });
   return {
     id: "saves",
     label: "Saves",
@@ -191,7 +185,6 @@ function scenariosSection(state: OpenLists, words: string[]): Section {
       });
     }
   }
-  rows.push({ kind: "new-scenario", key: "new-scenario" });
   return {
     id: "scenarios",
     label: "Scenarios",
@@ -213,11 +206,6 @@ export function openSections(state: OpenLists, recents: RecentDoc[]): Section[] 
     savesSection(state, words),
     scenariosSection(state, words),
   ];
-}
-
-/** What a section says it holds: its documents, not the actions at its foot. */
-export function sectionCount(section: Section): number {
-  return section.rows.filter((row) => row.kind !== "browse" && row.kind !== "new-scenario").length;
 }
 
 /** The rows the keyboard walks, in one list across the sections. */

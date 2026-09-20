@@ -84,8 +84,10 @@ function followSession(): void {
     useEditorStore.getState().resetSession();
     useMapChromeStore.getState().clearOverlays();
     // A save becomes ready with the issues it arrived with; that set is the baseline until it closes.
-    if (state.status === "ready") useIssuesStore.getState().setBaseline(state.issues);
-    else if (previous.status === "ready") useIssuesStore.getState().setBaseline(null);
+    if (state.status === "ready") {
+      if (state.kind !== null) useMapChromeStore.getState().openedAs(state.kind);
+      useIssuesStore.getState().setBaseline(state.issues);
+    } else if (previous.status === "ready") useIssuesStore.getState().setBaseline(null);
   });
 }
 

@@ -87,7 +87,8 @@ describe("editing nebulae", () => {
 
   it("addNebulaAt shows the nebulae layer, and leaves it on when it already was", async () => {
     mocked.applyOp.mockResolvedValue(editResult({ delta: { systems: [], nebulae: [cloud] } }));
-    expect(useMapChromeStore.getState().layers.nebulae).toBe(false);
+    const chrome = useMapChromeStore.getState();
+    useMapChromeStore.setState({ layers: { ...chrome.layers, nebulae: false } });
 
     await editor().addNebulaAt(60, -10);
     expect(useMapChromeStore.getState().layers.nebulae).toBe(true);

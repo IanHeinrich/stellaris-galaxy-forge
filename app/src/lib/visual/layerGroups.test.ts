@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import { KIND_ORDER } from "../special";
-import { DEFAULT_LAYERS, LAYER_IDS, type LayerId } from "./layerIds";
+import { LAYER_IDS, defaultLayers, type LayerId } from "./layerIds";
 import {
   NO_GAME_DATA_KEYS_TITLE,
   NO_GAME_DATA_TITLE,
@@ -85,9 +85,9 @@ describe("layer groups", () => {
 });
 
 describe("how much of a group is drawn", () => {
-  /** The layers the app starts with, with `off` turned off and `kinds` the only ones shown. */
+  /** The layers a scenario opens with, with `off` turned off and `kinds` the only ones shown. */
   function visible(off: LayerId[], kinds: SpecialKind[], on: LayerId[] = []): LayerVisibility {
-    const layers = { ...DEFAULT_LAYERS };
+    const layers = defaultLayers("scenario");
     for (const id of on) layers[id] = true;
     for (const id of off) layers[id] = false;
     return { layers, shownKinds: new Set(kinds) };

@@ -7,7 +7,6 @@ import { useLayoutStore } from "../../store/layoutStore";
 import {
   navigableRows,
   openSections,
-  sectionCount,
   type CampaignRow,
   type RecentRow,
   type Row,
@@ -206,22 +205,6 @@ export function RowBody({
       return <SaveBody row={row} onScenario={() => onScenario(row.file.path)} />;
     case "scenario":
       return <ScenarioBody row={row} />;
-    case "browse":
-      return (
-        <span className="open-main">
-          <span className="open-title">Browse…</span>
-          <span className="open-sub muted">
-            Any .sav or scenario .txt file, including ones outside the save folder
-          </span>
-        </span>
-      );
-    case "new-scenario":
-      return (
-        <span className="open-main">
-          <span className="open-title">New scenario…</span>
-          <span className="open-sub muted">An empty static galaxy to build from</span>
-        </span>
-      );
   }
 }
 
@@ -354,12 +337,6 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
       case "scenario":
         if (!row.disabled) open(row.listing.path, false);
         break;
-      case "browse":
-        browse();
-        break;
-      case "new-scenario":
-        newScenario();
-        break;
     }
   };
 
@@ -422,7 +399,7 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
               onClick={() => jumpTo(s.id)}
             >
               <span>{s.label}</span>
-              <span className="muted">{sectionCount(s)}</span>
+              <span className="muted">{s.rows.length}</span>
             </button>
           ))}
         </nav>
@@ -454,12 +431,16 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
         </div>
       </div>
       <div className="open-dialog-foot">
-        <div className="open-hints">
-          <span>↑↓ move</span>
-          <span>Enter opens · Shift+Enter opens a save as a scenario</span>
-          <span>←→ fold</span>
-          <kbd>Ctrl ⇧ O</kbd>
-          <span className="hint">Browse…</span>
+        <div className="setup-actions">
+          <span className="hint">
+            A save opens as a save, or as a scenario to start a new campaign from.
+          </span>
+          <button type="button" onClick={newScenario}>
+            New scenario…
+          </button>
+          <button type="button" onClick={browse}>
+            Browse…
+          </button>
         </div>
         {!modal && gameData !== "ready" && <GameDataLine />}
       </div>

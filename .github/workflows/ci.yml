@@ -2,6 +2,14 @@ name: CI
 
 on:
   pull_request:
+    # Documentation-only changes do not need the build; ci-docs.yml reports the checks for them.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".github/pull_request_template.md"
+      - ".gitattributes"
+      - ".gitignore"
   workflow_call:
 
 concurrency:
@@ -38,28 +46,32 @@ jobs:
       - name: Version file agrees with the manifests
         run: bash scripts/version.sh check
 
+      # Platform-independent checks run once, on Ubuntu; every runner still compiles and tests the workspace.
       - name: Rust format
+        if: matrix.os == 'ubuntu-latest'
         run: cargo fmt --all -- --check
       - name: Rust clippy
+        if: matrix.os == 'ubuntu-latest'
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Rust tests
         run: cargo test --workspace
       - name: Generated TypeScript types are up to date
+        if: matrix.os == 'ubuntu-latest'
         run: git diff --exit-code app/src/generated
 
       - name: App install
         run: npm ci
         working-directory: app
       - name: App lint
+        if: matrix.os == 'ubuntu-latest'
         run: npm run lint
         working-directory: app
       - name: App tests
+        if: matrix.os == 'ubuntu-latest'
         run: npm test
         working-directory: app
       - name: App build
+        if: matrix.os == 'ubuntu-latest'
         run: npm run build
         working-directory: app
 
-      - name: Tauri build (no bundle)
-        run: npm run tauri build -- --no-bundle
-        working-directory: app

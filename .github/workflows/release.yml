@@ -3,6 +3,14 @@ name: Release
 on:
   push:
     branches: [main]
+    # A documentation-only push needs no build and cannot be a release.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".github/pull_request_template.md"
+      - ".gitattributes"
+      - ".gitignore"
   workflow_dispatch:
     inputs:
       tag:
@@ -17,62 +25,57 @@ concurrency:
 permissions:
   contents: write
 
+# A push runs the checks and, when VERSION names a tag that does not exist yet, builds
+# every platform beside them. The tag and the release are made last, only once every
+# check and every build has passed. A dispatch rebuilds an existing tag's assets.
 jobs:
-  checks:
-    if: github.event_name == 'push'
-    uses: ./.github/workflows/ci.yml
-
   version:
-    name: Tag if VERSION is new
+    name: Version
     runs-on: ubuntu-latest
-    needs: checks
-    if: github.event_name == 'push'
     outputs:
       released: ${{ steps.decide.outputs.released }}
       tag: ${{ steps.decide.outputs.tag }}
+      ref: ${{ steps.decide.outputs.ref }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Decide whether VERSION is new
+      - name: Decide whether this push releases
         id: decide
         shell: bash
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
         run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if ! git rev-parse -q --verify "refs/tags/$DISPATCH_TAG" >/dev/null; then
+              echo "::error::Tag $DISPATCH_TAG does not exist."
+              exit 1
+            fi
+            echo "tag=$DISPATCH_TAG" >> "$GITHUB_OUTPUT"
+            echo "ref=$DISPATCH_TAG" >> "$GITHUB_OUTPUT"
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           v=$(tr -d '[:space:]' < VERSION)
           tag="v$v"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-            echo "$tag already exists; nothing to release"
+            echo "$tag already exists; checks only"
             echo "released=false" >> "$GITHUB_OUTPUT"
           else
             echo "released=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Release notes from CHANGELOG.md
-        if: steps.decide.outputs.released == 'true'
-        shell: bash
-        run: |
-          v=$(tr -d '[:space:]' < VERSION)
-          bash scripts/changelog.sh notes "$v" > notes.md
-
-      - name: Tag and draft release
-        if: steps.decide.outputs.released == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tag="${{ steps.decide.outputs.tag }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$tag" -m "$tag"
-          git push origin "$tag"
-          gh release create "$tag" --draft --title "$tag" --notes-file notes.md
+  checks:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/ci.yml
 
   build:
     name: Build (${{ matrix.os }})
     needs: version
-    if: ${{ !cancelled() && (needs.version.outputs.released == 'true' || github.event_name == 'workflow_dispatch') }}
+    if: needs.version.outputs.released == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -89,13 +92,12 @@ jobs:
             cli-asset: macos-universal
     runs-on: ${{ matrix.os }}
     env:
-      TAG: ${{ needs.version.outputs.tag || inputs.tag }}
-      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.version.outputs.tag }}
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.version.outputs.ref }}
 
       - uses: ./.github/actions/setup
         with:
@@ -106,31 +108,28 @@ jobs:
         run: npm ci
         working-directory: app
 
-      - name: Release status
-        id: release
+      - name: App bundles
+        shell: bash
+        run: npm run tauri build -- ${{ matrix.tauri-args }}
+        working-directory: app
+
+      - name: Collect the bundles
         shell: bash
         run: |
-          info=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$TAG\") | \"id=\(.id)\ndraft=\(.draft)\"")
-          if [ -z "$info" ]; then
-            echo "::error::No release found for tag $TAG."
-            exit 1
-          fi
-          printf '%s\n' "$info" >> "$GITHUB_OUTPUT"
-
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          projectPath: app
-          releaseId: ${{ steps.release.outputs.id }}
-          tagName: ${{ env.TAG }}
-          releaseDraft: ${{ steps.release.outputs.draft }}
-          args: ${{ matrix.tauri-args }}
+          mkdir -p dist
+          find target -path '*/release/bundle/*' -type f \
+            \( -name '*.exe' -o -name '*.msi' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' \) \
+            -print0 |
+          while IFS= read -r -d '' f; do
+            name=$(basename "$f")
+            cp "$f" "dist/${name// /.}"
+          done
+          ls -la dist
 
       - name: sgf command-line tool
         shell: bash
         run: |
-          mkdir -p target/cli dist
+          mkdir -p target/cli
           if [ "$RUNNER_OS" = "macOS" ]; then
             cargo build --release -p sgf-cli --target aarch64-apple-darwin
             cargo build --release -p sgf-cli --target x86_64-apple-darwin
@@ -163,35 +162,69 @@ jobs:
             echo "::error::No application executable found in target/release."
             exit 1
           fi
-          mkdir -p dist "$RUNNER_TEMP/portable"
+          mkdir -p "$RUNNER_TEMP/portable"
           cp "$exe" "$RUNNER_TEMP/portable/"
           (cd "$RUNNER_TEMP/portable" && 7z a "$GITHUB_WORKSPACE/dist/stellaris-galaxy-forge-$TAG-windows-x86_64-portable.zip" ./*.exe)
 
-      - name: Upload extras
-        shell: bash
-        run: gh release upload "$TAG" dist/* --clobber
+      - uses: actions/upload-artifact@v4
+        with:
+          name: assets-${{ matrix.os }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 3
 
   publish:
-    name: Checksums and publish
+    name: Tag and publish
     runs-on: ubuntu-latest
-    needs: [version, build]
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    needs: [version, checks, build]
+    if: >-
+      ${{ !cancelled()
+          && needs.version.outputs.released == 'true'
+          && needs.build.result == 'success'
+          && (needs.checks.result == 'success' || needs.checks.result == 'skipped') }}
     env:
-      TAG: ${{ needs.version.outputs.tag || inputs.tag }}
+      TAG: ${{ needs.version.outputs.tag }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Collect release assets
-        shell: bash
-        run: gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D assets
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.ref }}
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: assets-*
+          path: assets
+          merge-multiple: true
 
       - name: Checksums
         shell: bash
         run: |
           rm -f assets/SHA256SUMS
-          (cd assets && sha256sum * > ../SHA256SUMS)
+          (cd assets && sha256sum * > SHA256SUMS)
+          ls -la assets
 
-      - name: Publish
+      - name: Tag and release
+        if: github.event_name == 'push'
         shell: bash
         run: |
-          gh release upload "$TAG" SHA256SUMS -R "$GITHUB_REPOSITORY" --clobber
-          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest
+          # The token may only create a tag whose workflow files match main's; a push that
+          # changed .github/workflows during this run would make the tag push fail.
+          git fetch -q origin main
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ] &&
+             ! git diff --quiet "$GITHUB_SHA" origin/main -- .github/workflows; then
+            echo "::error::main changed its workflows while this release ran; push a version bump again."
+            exit 1
+          fi
+          v=$(tr -d '[:space:]' < VERSION)
+          bash scripts/changelog.sh notes "$v" > notes.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" --title "$TAG" --notes-file notes.md --latest assets/*
+
+      - name: Replace the assets of an existing release
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: gh release upload "$TAG" assets/* --clobber

@@ -1,0 +1,27 @@
+name: CI (docs only)
+
+# A pull request that changes only documentation skips the build (see the paths-ignore in
+# ci.yml) but the ruleset still requires the three check names; this reports them as passed.
+
+on:
+  pull_request:
+    paths:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".github/pull_request_template.md"
+      - ".gitattributes"
+      - ".gitignore"
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks (${{ matrix.os }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - run: echo "Documentation only; nothing to build."

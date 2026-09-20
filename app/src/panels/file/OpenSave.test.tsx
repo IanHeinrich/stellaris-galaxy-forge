@@ -110,10 +110,22 @@ describe("the open screen's footer", () => {
     useOpenScreenStore.setState({ ...useOpenScreenStore.getInitialState() });
   });
 
-  it("states plainly that Shift+Enter opens a save as a scenario", () => {
+  it("says in one sentence what opening a save can mean, and names no keys", () => {
     const html = renderToStaticMarkup(<OpenSave modal={false} />);
-    expect(html).toContain("Enter opens · Shift+Enter opens a save as a scenario");
-    expect(html).not.toContain("⇧↵ as scenario");
+    expect(html).toContain(
+      "A save opens as a save, or as a scenario to start a new campaign from.",
+    );
+    expect(html).not.toContain("↑↓ move");
+    expect(html).not.toContain("Enter opens");
+    expect(html).not.toContain("<kbd>");
+  });
+
+  it("carries New scenario and Browse as buttons, not as rows at the end of the list", () => {
+    const html = renderToStaticMarkup(<OpenSave modal={false} />);
+    expect(html).toContain('<button type="button">New scenario…</button>');
+    expect(html).toContain('<button type="button">Browse…</button>');
+    expect(html).not.toContain("open-row-browse");
+    expect(html).not.toContain("open-row-new-scenario");
   });
 });
 

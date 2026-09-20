@@ -8,6 +8,23 @@ release is made.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-20
+
+### Changed
+
+- The open screen's footer carries a "New scenario…" button and a
+  "Browse…" button beside one sentence about opening a save as a save or
+  as a scenario, in place of the keyboard hints and the two rows at the
+  end of the list.
+- A save opens with hyperlanes, systems, names, system details, empires and
+  nebulae drawn and every other layer off; layers you switch on yourself
+  still stay on across opens, and Reset to defaults restores the set for
+  the kind of document that is open. Scenarios keep their defaults.
+- The open screen no longer lists dynamic scenarios (the game's own
+  `setup_scenario` files and any other `.txt` without a
+  `static_galaxy_scenario` block), which the editor cannot open. A static
+  scenario that fails to read is still listed with the reason.
+
 ## [0.5.0]
 
 Launch as Stellaris Galaxy Forge: the project takes its new name (crates

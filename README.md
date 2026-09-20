@@ -12,19 +12,16 @@ so a new campaign starts from a galaxy drawn by hand.
 ## Limitations
 
 Beta. Only the galaxy map is editable today: empires, pops, fleets
-and techs are not. Save editing is the better tested half: it is checked
+and techs are not. Save editing is currently the better tested half: it is checked
 in-game on Stellaris 4.4 saves (4.4.6, all DLC, no mods), and Ironman
 saves have not been tested. Scenario editing has been checked in-game on
-the maps of a few mods and on saves exported as scenarios, but it is
-newer and has had less use, and a scenario built from scratch least of
-all. Anything the editor reads from scripts and events (which empire
-claims a scenario system on day one, which effects touch it, which
-wormholes and gateways an event places) is a best guess: it follows
+the maps of a few large mods and on saves exported as scenarios, but it is
+newer and has had less use. Anything the editor reads from scripts and events is a best guess: it follows
 initializers, star flags and event targets, cannot follow scripts that
 iterate over classes of systems or address them by name, and reads
 conditions as if they were true. macOS builds are published unsigned.
 
-What the editor can change, and what it only shows:
+What the editor can change vs what it only shows:
 
 | | In a save | In a scenario |
 |---|---|---|
@@ -59,7 +56,7 @@ and generated names rather than corrupting anything.
 - The file is edited as bytes. Only the statements you changed differ;
   everything else, including anything from mods or a newer game version
   the editor does not understand, is copied out byte for byte. A load
-  then save with no edits is byte-identical, and a test asserts it.
+  then save with no edits is byte-identical.
 - Every save leaves the previous file beside it as a timestamped backup.
 - Every edit is undoable and listed in a change log.
 - A validator flags anything the game could not cope with, before you
