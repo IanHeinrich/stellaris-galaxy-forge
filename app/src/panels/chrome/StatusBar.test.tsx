@@ -13,7 +13,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { OPEN_RESULT } from "../../store/fixture";
+import { OPEN_RESULT, exportReport, saveResult } from "../../store/fixture";
 import { StatusBar } from "./StatusBar";
 
 const bar = () => renderToStaticMarkup(<StatusBar />);
@@ -51,6 +51,49 @@ describe("the saved state", () => {
     expect(html).toContain("Saved 14:02");
     expect(html).toContain('title="Backup: C:/saves/terran.sav.bak"');
     expect(html).not.toContain("backup terran");
+  });
+
+  it("says when the export landed, with its own backup and what it left out in the tooltip", () => {
+    const dropped = exportReport({ dropped: { wormhole_pairs: 6, gateways: 0, lgates: 1 } });
+    const plain = saveResult({ path: "C:/mods/x.txt", dirty: true });
+    const backedUp = saveResult({ path: "C:/mods/x.txt", backup_path: "C:/mods/x.txt.bak" });
+    useFileSessionStore.setState({
+      dirty: true,
+      exportedAt: new Date(2026, 8, 19, 12, 3).getTime(),
+      lastExport: { save: plain, report: dropped },
+    });
+    let html = bar();
+    expect(html).toContain("Exported 12:03");
+    expect(html).not.toContain("Saved");
+    expect(html).toContain('title="Not carried over: 6 wormhole pairs, 1 L-Gate"');
+
+    useFileSessionStore.setState({ lastExport: { save: backedUp, report: dropped } });
+    expect(bar()).toContain(
+      'title="Backup: C:/mods/x.txt.bak\nNot carried over: 6 wormhole pairs, 1 L-Gate"',
+    );
+
+    useFileSessionStore.setState({ lastExport: { save: backedUp, report: exportReport() } });
+    html = bar();
+    expect(html).toContain("Exported 12:03");
+    expect(html).toContain('title="Backup: C:/mods/x.txt.bak"');
+
+    useFileSessionStore.setState({ lastExport: { save: plain, report: exportReport() } });
+    html = bar();
+    expect(html).toContain("Exported 12:03");
+    expect(html).not.toContain("title=");
+  });
+
+  it("keeps the save's backup and the export's apart", () => {
+    useFileSessionStore.setState({
+      dirty: false,
+      savedAt: new Date(2026, 8, 19, 14, 2).getTime(),
+      lastSave: saveResult({ path: "C:/saves/terran.sav", backup_path: "C:/saves/terran.sav.bak" }),
+      exportedAt: new Date(2026, 8, 19, 14, 5).getTime(),
+      lastExport: { save: saveResult({ path: "C:/mods/x.txt" }), report: exportReport() },
+    });
+    const html = bar();
+    expect(html).toContain('title="Backup: C:/saves/terran.sav.bak">Saved 14:02');
+    expect(html).toContain('<span class="muted">Exported 14:05');
   });
 });
 

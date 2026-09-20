@@ -15,6 +15,7 @@ import { PaintBadge } from "./panels/chrome/PaintBadge";
 import { GameDataPanel } from "./panels/chrome/GameDataPanel";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
 import { LayerToggles } from "./panels/chrome/LayerToggles";
+import { ExportDialog } from "./panels/file/ExportDialog";
 import { Launch } from "./panels/file/Launch";
 import { NewScenarioDialog } from "./panels/file/NewScenarioDialog";
 import { OpenModeDialog } from "./panels/file/OpenModeDialog";
@@ -170,6 +171,7 @@ function App() {
           {paintPanel && <PaintGalaxyPanel />}
           {nebulaPrompt && <NewNebulaDialog />}
           <OpenModeDialog />
+          <ExportDialog />
           <InitializerBrowser />
         </div>
         {status === "ready" && <Dock />}

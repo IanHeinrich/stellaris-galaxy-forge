@@ -5,9 +5,13 @@
 //! One generator serves all three, so a file written here reads back through
 //! `Document::from_scenario_bytes` into the same systems, positions and lanes. The
 //! galaxy is first drafted, statement by statement, then rendered; a profile decorates
-//! the draft in between, so the plain output never depends on one.
+//! the draft in between, so the plain output never depends on one. Drafting also
+//! reports what the file could not carry over (`report`), which a save's export writes
+//! as comment lines above the header.
 
 mod paint;
+pub mod policy;
+mod report;
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -18,10 +22,10 @@ use ts_rs::TS;
 use crate::archive;
 use crate::as_u32;
 use crate::document::{self, Document, SaveOutcome};
-use crate::format::scenario::emit::{
-    FOOTER, ScenarioOptions, header, hyperlane_stmt, nebula_stmt, system_stmt,
+use crate::format::scenario::emit::{FOOTER, header, hyperlane_stmt, nebula_stmt, system_stmt};
+pub use crate::format::scenario::emit::{
+    ScenarioOptions, SpawnStmt as SpawnDraft, SystemStmt as SystemDraft,
 };
-pub use crate::format::scenario::emit::{SpawnStmt as SpawnDraft, SystemStmt as SystemDraft};
 use crate::format::scenario::index::{self as scenario, SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
 use crate::keys::scenario as keys;
 use crate::ops::rules::check_name;
@@ -30,9 +34,17 @@ use crate::projections::name::NameTemplate;
 use crate::search::NameResolver;
 use crate::session::{Session, SessionError};
 use crate::views::DocumentKind;
+use policy::Category;
+pub use report::{CategoryCount, DroppedBypasses, ExportReport, HomeInitializer, SourceCount};
+
+/// Where an initializer comes from, for the "needs" line: a DLC's or a mod's name,
+/// `None` when it is vanilla or unknown.
+pub type SourceResolver<'a> = &'a dyn Fn(&str) -> Option<String>;
 
 /// Every statement of a generated scenario sits one tab inside the block.
 const INDENT: &[u8] = b"\t";
+/// The weight every empire seat is written with.
+const SEAT_WEIGHT: f64 = 1.0;
 
 /// Empire spawn points a galaxy is sized for: one per this many systems, clamped to
 /// [`MIN_EMPIRES`]..=[`MAX_EMPIRES`].
@@ -73,24 +85,35 @@ pub struct NebulaDraft {
 }
 
 /// A whole scenario file: the header, one `system` statement per system in file order,
-/// one `add_hyperlane` per undirected lane and one `nebula` per cloud.
+/// one `add_hyperlane` per undirected lane and one `nebula` per cloud, with the report
+/// of what the plain draft could not carry over.
 pub fn scenario_text(
     graph: &GalaxyGraph,
     options: &ScenarioOptions,
     resolve: NameResolver<'_>,
+    sources: SourceResolver<'_>,
     profile: ScenarioProfile,
-) -> Vec<u8> {
-    let mut draft = draft(graph, options, resolve);
+) -> (Vec<u8>, ExportReport) {
+    let (mut draft, report) = draft(graph, options, resolve, sources);
     if profile == ScenarioProfile::PaintAGalaxy {
-        paint::decorate(&mut draft, options, graph, &graph.countries);
+        paint::decorate(&mut draft, options, graph);
     }
-    render(&draft)
+    (render(&draft), report)
 }
 
-/// The galaxy as the plain profile writes it. A lane to itself or to a system the
-/// galaxy does not hold is skipped, since the game would refuse it.
-pub fn draft(galaxy: &Galaxy, options: &ScenarioOptions, resolve: NameResolver<'_>) -> Draft {
-    let systems = galaxy
+/// The galaxy as the plain profile writes it: an empire seat on every home system,
+/// everything else as the save holds it. A lane to itself or to a system the galaxy
+/// does not hold is skipped, since the game would refuse it.
+pub fn draft(
+    graph: &GalaxyGraph,
+    options: &ScenarioOptions,
+    resolve: NameResolver<'_>,
+    sources: SourceResolver<'_>,
+) -> (Draft, ExportReport) {
+    let galaxy: &Galaxy = graph;
+    let categories = report::categories(graph);
+    let report = report::build(graph, &categories, sources);
+    let systems: Vec<SystemDraft> = galaxy
         .order
         .iter()
         .filter_map(|id| galaxy.systems.get(id))
@@ -100,11 +123,14 @@ pub fn draft(galaxy: &Galaxy, options: &ScenarioOptions, resolve: NameResolver<'
             x: system.x * SCENARIO_X_SIGN,
             y: system.y * SCENARIO_Y_SIGN,
             initializer: Some(system.initializer.clone()).filter(|i| !i.is_empty()),
-            spawn: SpawnDraft::None,
+            spawn: match categories.get(&system.id) {
+                Some(Category::Home) => SpawnDraft::Base(SEAT_WEIGHT),
+                _ => SpawnDraft::None,
+            },
             effect: None,
         })
         .collect();
-    let nebulae = galaxy
+    let nebulae: Vec<NebulaDraft> = galaxy
         .nebulae
         .iter()
         .map(|nebula| NebulaDraft {
@@ -114,12 +140,37 @@ pub fn draft(galaxy: &Galaxy, options: &ScenarioOptions, resolve: NameResolver<'
             radius: nebula.radius,
         })
         .collect();
-    Draft {
-        header: header(options),
+    let mut text = match &options.exported_from {
+        Some(save) => comment_block(save, systems.len(), nebulae.len(), &report).into_bytes(),
+        None => Vec::new(),
+    };
+    text.extend(header(options));
+    let draft = Draft {
+        header: text,
         systems,
         lanes: lane_pairs(galaxy),
         nebulae,
+    };
+    (draft, report)
+}
+
+/// The lines above a save's export that say where it came from and what it lacks.
+fn comment_block(save: &str, systems: usize, nebulae: usize, report: &ExportReport) -> String {
+    let save: String = save.chars().filter(|c| !matches!(c, '\n' | '\r')).collect();
+    let mut lines = vec![
+        format!("# Exported by Stellaris Galaxy Forge from {save}"),
+        format!(
+            "# Systems: {systems} · Empire seats: {} · Nebulae: {nebulae}",
+            report.seats
+        ),
+    ];
+    if let Some(needs) = report.needs() {
+        lines.push(format!("# Needs: {needs} (initializers from DLC or mods)"));
     }
+    if let Some(dropped) = report.dropped.summary() {
+        lines.push(format!("# Not carried over: {dropped}"));
+    }
+    lines.iter().map(|line| format!("{line}\n")).collect()
 }
 
 /// The draft as file text.
@@ -146,13 +197,24 @@ pub fn render(draft: &Draft) -> Vec<u8> {
     out
 }
 
-/// The header `galaxy` is exported under: its own core radius, and empire slots sized
-/// from its systems (see [`SYSTEMS_PER_EMPIRE`]).
-pub fn options_for(galaxy: &Galaxy, name: &str) -> ScenarioOptions {
+/// The header `graph` is exported under: its own core radius and one empire slot per
+/// home system it holds, or, when it holds none, slots sized from its systems (see
+/// [`SYSTEMS_PER_EMPIRE`]). The game seats `max + 1` empires, so the count is one less
+/// than the seats.
+pub fn options_for(graph: &GalaxyGraph, name: &str) -> ScenarioOptions {
+    let seats = report::categories(graph)
+        .values()
+        .filter(|&&category| category == Category::Home)
+        .count();
+    let max = match seats {
+        0 => empire_slots(graph.systems.len()),
+        seats => as_u32(seats.saturating_sub(1)),
+    };
     ScenarioOptions {
         name: quotable(name),
-        core_radius: galaxy.core_radius,
-        num_empires: (0, empire_slots(galaxy.systems.len())),
+        core_radius: graph.core_radius,
+        num_empires: (0, max),
+        exported_from: None,
     }
 }
 
@@ -178,6 +240,7 @@ pub fn new_scenario(
         name: name.to_owned(),
         core_radius,
         num_empires: (0, MIN_EMPIRES),
+        exported_from: None,
     };
     let mut text = match profile {
         ScenarioProfile::Plain => header(&options),
@@ -187,13 +250,14 @@ pub fn new_scenario(
     Session::from_document(None, Document::from_scenario_bytes(text)?)
 }
 
-/// Open a save's galaxy as a new, unsaved scenario named after the save's file stem.
-/// The save is only read.
+/// Open a save's galaxy as a new, unsaved scenario named after the save's file stem,
+/// with the report of what the scenario lacks. The save is only read.
 pub fn open_save_as_scenario(
     path: &Path,
     resolve: NameResolver<'_>,
+    sources: SourceResolver<'_>,
     profile: ScenarioProfile,
-) -> Result<Session, SessionError> {
+) -> Result<(Session, ExportReport), SessionError> {
     let save = Session::open(path)?;
     if save.kind() != DocumentKind::Save {
         return Err(SessionError::Projection(ProjectionError::SectionField {
@@ -209,13 +273,13 @@ pub fn open_save_as_scenario(
         .unwrap_or_default()
         .to_string_lossy()
         .into_owned();
-    let text = scenario_text(
-        &save.graph,
-        &options_for(&save.graph, &name),
-        resolve,
-        profile,
-    );
-    Session::from_document(None, Document::from_scenario_bytes(text)?)
+    let options = ScenarioOptions {
+        exported_from: path.file_name().map(|f| f.to_string_lossy().into_owned()),
+        ..options_for(&save.graph, &name)
+    };
+    let (text, report) = scenario_text(&save.graph, &options, resolve, sources, profile);
+    let session = Session::from_document(None, Document::from_scenario_bytes(text)?)?;
+    Ok((session, report))
 }
 
 /// Open scenario text received from elsewhere (e.g. Paint a Galaxy) as a new, unsaved

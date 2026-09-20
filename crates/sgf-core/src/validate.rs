@@ -43,6 +43,12 @@ pub enum IssueCode {
     /// A scenario system writes an axis as a range the generator picks in; the map plots
     /// the midpoint and a move fixes the axis to a point.
     PositionRange,
+    /// Bypasses the save had (wormhole pairs, gateways, L-Gates) that a scenario cannot
+    /// state, so the export left them out.
+    ExportDropped,
+    /// An empire seat whose initializer is not one the generator seats any empire on,
+    /// so it may only fit the empire that started there.
+    HomeInitializer,
 }
 
 impl IssueCode {
@@ -57,7 +63,9 @@ impl IssueCode {
             | Self::Disconnected
             | Self::NebulaMembership
             | Self::CoordinateTransform
-            | Self::PositionRange => Severity::Warning,
+            | Self::PositionRange
+            | Self::ExportDropped
+            | Self::HomeInitializer => Severity::Warning,
         }
     }
 
@@ -73,6 +81,8 @@ impl IssueCode {
             Self::NebulaMembership => "nebula_membership",
             Self::CoordinateTransform => "coordinate_transform",
             Self::PositionRange => "position_range",
+            Self::ExportDropped => "export_dropped",
+            Self::HomeInitializer => "home_initializer",
         }
     }
 }

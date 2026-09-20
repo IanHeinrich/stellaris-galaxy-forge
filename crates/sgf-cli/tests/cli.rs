@@ -653,6 +653,18 @@ fn export_scenario_writes_a_file_that_opens_as_the_saves_galaxy() {
         "{text}"
     );
     assert!(text.contains(&format!("wrote {out_str}")), "{text}");
+    assert!(text.contains("\nempire seats: 17\n"), "{text}");
+    assert!(
+        text.contains("\nhome initializers to review: une_deneb_system (system 4), shattered_ring_start (system 311), custom_starting_init_02 (system 786), custom_starting_init_02 (system 787)\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nnot carried over: 6 wormhole pairs\n"),
+        "{text}"
+    );
+    assert!(!text.contains("\nneeds:"), "{text}");
+    assert!(text.contains("\nhome: 17\n"), "{text}");
+    assert!(text.ends_with("\ngeneric: 661\n"), "{text}");
     assert_eq!(std::fs::metadata(SAMPLE).unwrap().len(), before);
     assert_eq!(backups(dir.path()).len(), 0);
 
@@ -670,6 +682,17 @@ fn export_scenario_writes_a_file_that_opens_as_the_saves_galaxy() {
             .filter(|l| l.starts_with("\tsystem = "))
             .count(),
         791,
+        "{}",
+        &written[..200]
+    );
+    assert_eq!(
+        written.matches(" spawn_weight = { base = 1 }").count(),
+        17,
+        "{}",
+        &written[..200]
+    );
+    assert!(
+        written.starts_with("# Exported by Stellaris Galaxy Forge from 2206.11.16.sav\n"),
         "{}",
         &written[..200]
     );
@@ -696,10 +719,17 @@ fn the_paint_a_galaxy_profile_is_opt_in_on_both_scenario_commands() {
         &plain[..300]
     );
     assert!(!plain.contains("painted_galaxy_rl_basic"));
-    assert!(plain.starts_with(
-        "static_galaxy_scenario = {
+    assert!(
+        plain.contains(
+            "
+static_galaxy_scenario = {
+	name = \"2206.11.16\"
+	priority = 5
 "
-    ));
+        ),
+        "{}",
+        &plain[..300]
+    );
 
     let out = sgf(&[
         "export-scenario",
@@ -715,6 +745,12 @@ fn the_paint_a_galaxy_profile_is_opt_in_on_both_scenario_commands() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert!(stdout(&out).contains("791 system(s)"), "{}", stdout(&out));
+    assert!(!stdout(&out).contains("empire seats"), "{}", stdout(&out));
+    assert!(
+        !stdout(&out).contains("not carried over"),
+        "{}",
+        stdout(&out)
+    );
     let paint = std::fs::read_to_string(&paint_path).unwrap();
     assert!(
         paint.contains("value:painted_galaxy_spawn_weight"),

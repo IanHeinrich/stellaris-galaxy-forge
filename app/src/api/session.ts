@@ -10,6 +10,8 @@ import type { EntityKind } from "../generated/EntityKind";
 import type { EntitySchema } from "../generated/EntitySchema";
 import type { EntitySource } from "../generated/EntitySource";
 import type { EntityView } from "../generated/EntityView";
+import type { ExportReport } from "../generated/ExportReport";
+import type { ExportResult } from "../generated/ExportResult";
 import type { Op } from "../generated/Op";
 import type { OpenResult } from "../generated/OpenResult";
 import type { SaveFile } from "../generated/SaveFile";
@@ -76,8 +78,13 @@ export function newScenario(
 }
 
 /** Write the open save's galaxy as a scenario script at `path`; the session stays as it is. */
-export function exportScenario(path: string, profile?: ScenarioProfile): Promise<SaveResult> {
-  return invoke<SaveResult>("export_scenario", { path, ...profileArg(profile) });
+export function exportScenario(path: string, profile?: ScenarioProfile): Promise<ExportResult> {
+  return invoke<ExportResult>("export_scenario", { path, ...profileArg(profile) });
+}
+
+/** What exporting the open save would report, without writing anything. */
+export function previewExport(): Promise<ExportReport> {
+  return invoke<ExportReport>("preview_export");
 }
 
 /** One system with its neighbours resolved. Rejects with `SgfError` when no save is open or `id` is unknown. */

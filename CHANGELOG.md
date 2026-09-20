@@ -20,10 +20,26 @@ release is made.
   badge in the title bar names such a file and warns when the Paint a
   Galaxy mod is not among the enabled mods.
 - An opt-in "Paint a Galaxy" profile writes a scenario in that mod's own
-  shape: the New scenario dialog's checkbox, "Export as scenario for
-  Paint a Galaxy…" in the File menu and `--profile paint-a-galaxy` on the
-  CLI's `export-scenario` and `new-scenario` all reach it. Plain output,
-  the default everywhere, is unchanged.
+  shape: the New scenario dialog's checkbox, the Export dialog's checkbox
+  and `--profile paint-a-galaxy` on the CLI's `export-scenario` and
+  `new-scenario` all reach it. Plain output, the default everywhere, is
+  unchanged.
+- "Export as scenario…" seats the empires: every capital of a playable
+  country in the save gets `spawn_weight = { base = 1 }` and the header's
+  empire count is sized from those seats rather than from the system
+  count, so a new game on the export starts in one of them. The header
+  lists the scenario under every vanilla galaxy shape, not only
+  Elliptical.
+- The export reports what it could not carry. A dialog before the file
+  dialog shows the seats, the systems by category (homes, fallen empires,
+  marauders, ratlings, L-Cluster, guaranteed colonies, special, generic),
+  the save's wormhole pairs and any gateway or L-Gate no initializer
+  rebuilds, the DLC or mods its initializers come from when game data is
+  loaded, and home systems whose initializer is not a generic start. The
+  same facts open the written file as `#` comment lines, sit in the
+  status bar's new "Exported" tooltip, and, for a save opened as a
+  scenario, stay in the Issues panel until the document closes. The CLI
+  prints them after "wrote …".
 
 ## [0.5.2] - 2026-09-20
 

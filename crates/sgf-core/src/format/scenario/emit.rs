@@ -35,7 +35,24 @@ pub struct ScenarioOptions {
     pub name: String,
     pub core_radius: f64,
     pub num_empires: (u32, u32),
+    /// The file name of the save the scenario was exported from; `None` for one
+    /// started empty.
+    pub exported_from: Option<String>,
 }
+
+/// Every galaxy shape the game ships (`map/galaxy/galaxy_shapes.txt`), in its order.
+pub const VANILLA_SHAPES: [&str; 10] = [
+    "elliptical",
+    "ring",
+    "spiral_2",
+    "spiral_3",
+    "spiral_4",
+    "spiral_6",
+    "bar",
+    "starburst",
+    "cartwheel",
+    "spoked",
+];
 
 /// `system = { id = "3019" name = "" position = { x = 12 y = -34 } … }` on one line.
 pub fn system_stmt(indent: &[u8], s: &SystemStmt) -> Vec<u8> {
@@ -98,14 +115,19 @@ pub fn nebula_stmt(indent: &[u8], name: &str, x: f64, y: f64, radius: f64) -> Ve
 }
 
 /// The opening of a scenario file through its header scalars; statements follow, then
-/// [`FOOTER`]. Empire counts follow the vanilla example, everything random is off.
+/// [`FOOTER`]. Every vanilla shape is supported, empire counts follow the vanilla
+/// example, everything random is off.
 pub fn header(o: &ScenarioOptions) -> Vec<u8> {
     let (min, max) = o.num_empires;
+    let shapes: String = VANILLA_SHAPES
+        .iter()
+        .map(|shape| format!("\tsupports_shape = {shape}\n"))
+        .collect();
     format!(
         "static_galaxy_scenario = {{\n\
          \tname = \"{}\"\n\
          \tpriority = 5\n\
-         \tsupports_shape = elliptical\n\
+         {shapes}\
          \tdefault = no\n\
          \tnum_empires = {{ min = {min} max = {max} }}\n\
          \tnum_empire_default = {max}\n\
@@ -203,9 +225,17 @@ mod tests {
             name: "sgf_test".into(),
             core_radius: 30.0,
             num_empires: (1, 4),
+            exported_from: None,
         });
         let text = String::from_utf8(text).unwrap();
         assert!(text.starts_with("static_galaxy_scenario = {\n\tname = \"sgf_test\"\n"));
+        assert!(
+            text.contains(
+                "\tpriority = 5\n\tsupports_shape = elliptical\n\tsupports_shape = ring\n"
+            )
+        );
+        assert!(text.contains("\tsupports_shape = spoked\n\tdefault = no\n"));
+        assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
         assert!(text.contains("\tnum_empires = { min = 1 max = 4 }\n\tnum_empire_default = 4\n"));
         assert!(text.contains("\tcore_radius = 30\n"));
         assert!(text.ends_with("}\n\n"));

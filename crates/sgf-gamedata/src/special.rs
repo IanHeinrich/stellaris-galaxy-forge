@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use sgf_core::export::policy::is_generic_initializer;
 use sgf_core::format::save::details::DetailsProjection;
 use sgf_core::projections::galaxy::{CountryNode, GalaxyGraph, SystemNode, display_name};
 use sgf_core::session::Session;
@@ -33,26 +34,6 @@ pub const KIND_ORDER: [SpecialKind; 6] = [
     SpecialKind::FallenEmpire,
     SpecialKind::Landmark,
     SpecialKind::Unique,
-];
-
-/// Initializer prefixes of the game's standard generated systems.
-const GENERIC_INITIALIZER_PREFIXES: [&str; 16] = [
-    "basic_init",
-    "binary_init",
-    "trinary_init",
-    "asteroid_init",
-    "neighbor_",
-    "sol_neighbor",
-    "deneb_neighbor",
-    "random_empire_init",
-    "custom_starting_init",
-    "hostile_init",
-    "special_init",
-    "distantstars_init",
-    "prescripted_",
-    "sol_system_initializer",
-    "une_",
-    "empire_init",
 ];
 
 impl SpecialKind {
@@ -381,8 +362,5 @@ fn matches(node: &SystemNode, extra: &Enrichment<'_>, kind: SpecialKind) -> bool
 }
 
 fn is_unique_initializer(initializer: &str) -> bool {
-    !initializer.is_empty()
-        && !GENERIC_INITIALIZER_PREFIXES
-            .iter()
-            .any(|p| initializer.starts_with(p))
+    !initializer.is_empty() && !is_generic_initializer(initializer)
 }

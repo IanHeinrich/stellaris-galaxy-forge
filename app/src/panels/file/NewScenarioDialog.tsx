@@ -6,6 +6,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
+import { PAINT_CHECK, PAINT_WHY } from "./paintCopy";
 
 export const MAX_RADIUS = 460;
 const DEFAULT_NAME = "new_galaxy";
@@ -36,11 +37,6 @@ type Route = "blank" | "game" | "paint";
 
 /** The name and canvas size a blank scenario starts from, and the profile it is written under. */
 type Blank = { name: string; radius: number; coreRadius: number; profile?: ScenarioProfile };
-
-const PAINT_CHECK = "Compatible with the Paint a Galaxy mod";
-const PAINT_WHY =
-  "Writes spawn points in Paint a Galaxy's shape and a header sized for its fixes. The map then " +
-  "needs that mod; leave this off for a plain scenario.";
 
 const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
   {

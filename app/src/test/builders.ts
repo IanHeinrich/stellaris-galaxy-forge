@@ -1,3 +1,4 @@
+import type { ExportReport } from "../generated/ExportReport";
 import type { FleetSummary } from "../generated/FleetSummary";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitPlanetView } from "../generated/InitPlanetView";
@@ -33,6 +34,21 @@ export function systemNode(over: Partial<SystemNode> = {}): SystemNode {
     position_range: false,
     flags: [],
     owner: null,
+    ...over,
+  };
+}
+
+/** The report of an export that carried everything over; a test adds what it left out. */
+export function exportReport(over: Partial<ExportReport> = {}): ExportReport {
+  return {
+    seats: 17,
+    home_initializers: [],
+    dropped: { wormhole_pairs: 0, gateways: 0, lgates: 0 },
+    by_category: [
+      { category: "home", systems: 17 },
+      { category: "generic", systems: 774 },
+    ],
+    sources: [],
     ...over,
   };
 }

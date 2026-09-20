@@ -354,11 +354,21 @@ overrides it; or use "Browse…" and pick any `.txt`. A save row can be
 opened as a scenario instead of as a save (the "as scenario" button, or
 Shift+Enter), which turns that galaxy into one you can edit and start a
 fresh campaign from, and "Export as scenario…" in the File menu does the
-same for the open save. Beside it, "Export as scenario for Paint a
-Galaxy…" writes the same file under that mod's profile; for a scenario
-already open, the File menu's "Paint a Galaxy spawn points" check item
-switches which shape a new spawn point is written in without touching
-the file's existing bytes.
+same for the open save. That one first shows what the export will hold:
+how many empire seats it has (one spawn point on each empire's capital;
+the header's empire count is sized from them), how the systems fall into
+homes, fallen empires, marauders and the rest, what the file cannot carry
+(the save's wormhole pairs; gateways and L-Gates are rebuilt by their own
+initializers), which DLC or mods its initializers come from when game
+data is loaded, and any home system whose initializer is not a generic
+start. The dialog's "Compatible with the Paint a Galaxy mod" checkbox,
+remembered per machine, writes the same file under that mod's profile.
+The written file opens with those facts as `#` comment lines, and the
+status bar's "Exported" time shows them again in its tooltip. A save
+opened as a scenario lists the same warnings in the Issues panel until
+it is closed. For a scenario already open, the File menu's "Paint a
+Galaxy spawn points" check item switches which shape a new spawn point
+is written in without touching the file's existing bytes.
 
 "New scenario…" offers three ways to start. A blank canvas takes a name,
 a galaxy size (or a radius of your own) and a core radius, and gives you
@@ -415,7 +425,10 @@ one undo step.
 
 Exporting: `sgf export-scenario <sav> <out>` writes a save's galaxy out as a
 scenario script and leaves the save untouched; `--gamedata` localises the
-system names from your install instead of writing the save's own keys.
+system names from your install instead of writing the save's own keys
+and names the DLC or mod each initializer comes from. After "wrote …" it
+prints the export's report: empire seats, home initializers to review,
+what was not carried over, and the system count per category.
 `sgf new-scenario <name> <out>` writes an empty one to start from.
 
 A scenario's `position` runs the same way as a save's `coordinate`: an

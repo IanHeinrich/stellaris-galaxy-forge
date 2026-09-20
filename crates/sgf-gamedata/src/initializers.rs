@@ -1,7 +1,7 @@
 //! `common/solar_system_initializers`: what a system was generated from.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -116,6 +116,39 @@ pub struct Initializer {
     /// Every `create_archaeological_site` in the system's own effects, no planet's.
     pub sites: Vec<String>,
     pub starbase: Option<InitStarbase>,
+}
+
+impl Initializer {
+    /// What the initializer needs beyond the base game: the mod's directory name (a
+    /// workshop mod's numeric folder id; its descriptor name is not looked up yet), or
+    /// `None` when it is vanilla or from nowhere known. The loader does not yet layer
+    /// the install's `dlc/*` folders; a file read from one would label as that DLC's
+    /// folder name.
+    pub fn source_label(&self, install: &Path) -> Option<String> {
+        source_label(&self.source, install)
+    }
+}
+
+/// `<install>/dlc/<dlc>/…` is that DLC; anything else under `install` is vanilla; a
+/// path elsewhere is a mod, named by the directory its `common` sits in.
+fn source_label(source: &Path, install: &Path) -> Option<String> {
+    let parts: Vec<&str> = source
+        .components()
+        .filter_map(|c| match c {
+            Component::Normal(part) => part.to_str(),
+            _ => None,
+        })
+        .collect();
+    let position = |name: &str| parts.iter().rposition(|part| *part == name);
+    if let Some(dlc) = position("dlc").and_then(|i| parts.get(i + 1)) {
+        return Some((*dlc).to_owned());
+    }
+    if source.starts_with(install) {
+        return None;
+    }
+    position("common")
+        .and_then(|i| i.checked_sub(1))
+        .map(|i| parts[i].to_owned())
 }
 
 /// The `create_starbase` block: what the system is generated with.
@@ -463,4 +496,30 @@ fn spawns(node: &Node, src: &[u8]) -> Vec<String> {
         .filter_map(|block| block.find("initializer", src)?.scalar_str(src))
         .map(str::to_owned)
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_source_is_labelled_by_its_dlc_or_mod_and_vanilla_by_nothing() {
+        let install = Path::new("/games/Stellaris");
+        let label = |source: &str| source_label(Path::new(source), install);
+        assert_eq!(
+            label("/games/Stellaris/common/solar_system_initializers/00_basic.txt"),
+            None
+        );
+        assert_eq!(
+            label(
+                "/games/Stellaris/dlc/dlc021_distant_stars/common/solar_system_initializers/ds.txt"
+            ),
+            Some("dlc021_distant_stars".to_owned())
+        );
+        assert_eq!(
+            label("/mods/ugc_123/common/solar_system_initializers/mod.txt"),
+            Some("ugc_123".to_owned())
+        );
+        assert_eq!(label("/elsewhere/loose.txt"), None);
+    }
 }

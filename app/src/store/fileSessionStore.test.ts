@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Capabilities } from "../generated/Capabilities";
+import type { ExportReport } from "../generated/ExportReport";
 import type { Progress } from "../generated/Progress";
 import type { SaveResult } from "../generated/SaveResult";
-import { OPEN_RESULT, SCENARIO_RESULT, detailOf, editResult, saveResult } from "./fixture";
+import {
+  OPEN_RESULT,
+  SCENARIO_RESULT,
+  detailOf,
+  editResult,
+  exportReport,
+  saveResult,
+} from "./fixture";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -25,6 +33,7 @@ const mocked = {
   newScenario: vi.mocked(ipc.newScenario),
   openScenarioText: vi.mocked(ipc.openScenarioText),
   exportScenario: vi.mocked(ipc.exportScenario),
+  previewExport: vi.mocked(ipc.previewExport),
   getSystem: vi.mocked(ipc.getSystem),
   closeSave: vi.mocked(ipc.closeSave),
   applyOp: vi.mocked(ipc.applyOp),
@@ -45,6 +54,8 @@ const session = () => useFileSessionStore.getState();
 let progressHandler: ((p: Progress) => void) | null = null;
 let unlisten: ReturnType<typeof vi.fn<() => void>>;
 
+const stored = new Map<string, string>();
+
 bindStores();
 
 /** One applied edit, so the session is dirty. */
@@ -56,6 +67,11 @@ async function edit(): Promise<void> {
 beforeEach(() => {
   vi.clearAllMocks();
   progressHandler = null;
+  stored.clear();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => void stored.set(key, value),
+  });
   useGalaxyStore.getState().clear();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
@@ -550,15 +566,22 @@ describe("scenario documents", () => {
     expect(session().kind).toBe("save");
   });
 
-  it("exporting writes a second file and leaves the save's own path, edits and save time alone", async () => {
+  it("exporting previews the report, then writes a second file and leaves the save's own path, edits and save time alone", async () => {
     await session().openSave(OPEN_RESULT.path);
     await edit();
 
+    const report = exportReport({ dropped: { wormhole_pairs: 6, gateways: 0, lgates: 0 } });
+    mocked.previewExport.mockResolvedValueOnce(report);
+    await session().exportScenario();
+    expect(session().pendingExport).toEqual(report);
+    expect(mocked.saveDialog).not.toHaveBeenCalled();
+
     const exported = "C:/mods/map/setup_scenarios/test_empire.txt";
     mocked.saveDialog.mockResolvedValueOnce(exported);
-    const result = saveResult({ path: exported, dirty: true });
-    mocked.exportScenario.mockResolvedValueOnce(result);
-    await session().exportScenario();
+    const save = saveResult({ path: exported, dirty: true });
+    mocked.exportScenario.mockResolvedValueOnce({ save, report });
+    const before = Date.now();
+    await session().confirmExport("plain");
 
     expect(mocked.saveDialog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -566,38 +589,103 @@ describe("scenario documents", () => {
         filters: [{ name: "Stellaris static galaxy scenario", extensions: ["txt"] }],
       }),
     );
-    expect(mocked.exportScenario).toHaveBeenCalledWith(exported, undefined);
+    expect(mocked.exportScenario).toHaveBeenCalledWith(exported, "plain");
     const state = session();
+    expect(state.pendingExport).toBeNull();
     expect(state.path).toBe(OPEN_RESULT.path);
     expect(state.dirty).toBe(true);
     expect(state.saving).toBe(false);
-    expect(state.lastSave).toEqual(result);
+    expect(state.lastSave).toBeNull();
+    expect(state.lastExport).toEqual({ save, report });
+    expect(state.exportedAt).toBeGreaterThanOrEqual(before);
     expect(state.savedAt).toBeNull();
+
+    await session().openSave(OPEN_RESULT.path);
+    expect(session().lastExport).toBeNull();
+    expect(session().exportedAt).toBeNull();
   });
 
   it("exporting for Paint a Galaxy asks for that profile", async () => {
     await session().openSave(OPEN_RESULT.path);
+    useFileSessionStore.setState({ pendingExport: exportReport() });
     const exported = "C:/mods/map/setup_scenarios/test_empire.txt";
     mocked.saveDialog.mockResolvedValueOnce(exported);
-    mocked.exportScenario.mockResolvedValueOnce(saveResult({ path: exported }));
+    mocked.exportScenario.mockResolvedValueOnce({
+      save: saveResult({ path: exported }),
+      report: exportReport(),
+    });
 
-    await session().exportScenario("paint_a_galaxy");
+    await session().confirmExport("paint_a_galaxy");
 
     expect(mocked.exportScenario).toHaveBeenCalledWith(exported, "paint_a_galaxy");
     expect(session().paintProfile).toBe(false);
   });
 
+  it("the Paint a Galaxy export choice is kept per machine", () => {
+    expect(session().paintExport).toBe(false);
+    session().setPaintExport(true);
+    expect(session().paintExport).toBe(true);
+    expect(stored.get("sgf.export.paint")).toBe("true");
+  });
+
   it("a cancelled export writes nothing, and a scenario has nothing to export", async () => {
     await session().openSave(OPEN_RESULT.path);
-    mocked.saveDialog.mockResolvedValueOnce(null);
+    mocked.previewExport.mockResolvedValueOnce(exportReport());
     await session().exportScenario();
+    await session().confirmExport(null);
+    let state = session();
+    expect(state.pendingExport).toBeNull();
+    expect(state.saving).toBe(false);
+    expect(state.lastExport).toBeNull();
+    expect(mocked.saveDialog).not.toHaveBeenCalled();
+
+    mocked.previewExport.mockResolvedValueOnce(exportReport());
+    await session().exportScenario();
+    mocked.saveDialog.mockResolvedValueOnce(null);
+    await session().confirmExport("plain");
+    state = session();
+    expect(mocked.saveDialog).toHaveBeenCalledTimes(1);
     expect(mocked.exportScenario).not.toHaveBeenCalled();
+    expect(state.pendingExport).toBeNull();
+    expect(state.saving).toBe(false);
+    expect(state.lastExport).toBeNull();
 
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_PATH);
     await session().exportScenario();
-    expect(mocked.saveDialog).toHaveBeenCalledTimes(1);
-    expect(mocked.exportScenario).not.toHaveBeenCalled();
+    expect(mocked.previewExport).toHaveBeenCalledTimes(2);
+    expect(session().pendingExport).toBeNull();
+  });
+
+  it("confirming with nothing pending is a no-op", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    await session().confirmExport("plain");
+    const state = session();
+    expect(mocked.saveDialog).not.toHaveBeenCalled();
+    expect(state.saving).toBe(false);
+    expect(state.lastExport).toBeNull();
+    expect(state.pendingExport).toBeNull();
+  });
+
+  it("a preview that lands after another document opened raises no dialog", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    let land!: (report: ExportReport) => void;
+    mocked.previewExport.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
+    const previewing = session().exportScenario();
+    await session().openSave(OPEN_RESULT.path);
+    land(exportReport());
+    await previewing;
+    expect(session().pendingExport).toBeNull();
+    expect(session().status).toBe("ready");
+  });
+
+  it("a preview that fails reports the message and asks nothing", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    mocked.previewExport.mockRejectedValueOnce({ kind: "op", message: "no galaxy" });
+    await session().exportScenario();
+    expect(session().pendingExport).toBeNull();
+    expect(session().error).toBe("no galaxy");
+    expect(session().errorKind).toBe("op");
   });
 });
 

@@ -386,6 +386,24 @@
   min-width: 0;
 }
 
+.export-report {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 10px 0;
+  line-height: 1.45;
+}
+
+.export-report dt {
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.export-report dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .mode-choice {
   display: flex;
   flex-direction: column;

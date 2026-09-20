@@ -25,6 +25,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::open_scenario_text,
             commands::new_scenario,
             commands::export_scenario,
+            commands::preview_export,
             commands::get_system,
             commands::search,
             commands::warm_details,

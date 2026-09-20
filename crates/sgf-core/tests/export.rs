@@ -1,13 +1,15 @@
 //! Scenario export through the public API: the sample save's galaxy written out, read
 //! back and compared against the committed fixture.
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use sgf_core::document;
 use sgf_core::emit::rounded;
-use sgf_core::export::{self, ScenarioProfile};
+use sgf_core::export::policy::Category;
+use sgf_core::export::{self, DroppedBypasses, ExportReport, HomeInitializer, ScenarioProfile};
 use sgf_core::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
+use sgf_core::validate::{IssueCode, Severity};
 use sgf_core::views::DocumentKind;
 
 mod common;
@@ -22,9 +24,16 @@ const GRAMMAR: &str = concat!(
 );
 /// The fixture's name: the sample save's file stem, as the exporter defaults to.
 const NAME: &str = "2206.11.16";
+/// The save the fixture says it was exported from.
+const SAVE_FILE: &str = "2206.11.16.sav";
 
 /// No game data, so every name is written as the save holds it.
 fn no_names(_: &str) -> Option<String> {
+    None
+}
+
+/// No game data, so every initializer counts as vanilla.
+fn no_sources(_: &str) -> Option<String> {
     None
 }
 
@@ -39,20 +48,179 @@ fn lanes(galaxy: &Galaxy) -> BTreeSet<(u32, u32)> {
     pairs
 }
 
-fn exported(session: &Session, name: &str) -> Vec<u8> {
-    let options = export::options_for(&session.graph, name);
-    export::scenario_text(&session.graph, &options, &no_names, ScenarioProfile::Plain)
+/// The plain export as `sgf export-scenario` writes it from the sample save.
+fn exported(session: &Session, name: &str) -> (Vec<u8>, ExportReport) {
+    let options = export::ScenarioOptions {
+        exported_from: Some(SAVE_FILE.to_owned()),
+        ..export::options_for(&session.graph, name)
+    };
+    export::scenario_text(
+        &session.graph,
+        &options,
+        &no_names,
+        &no_sources,
+        ScenarioProfile::Plain,
+    )
+}
+
+/// The sample's bypasses as the save holds them: six wormhole pairs, each listed once;
+/// gateways all on an initializer that rebuilds them; L-Gates all on one that spawns
+/// `lgate_base`. So the plain export drops the pairs and nothing else.
+fn assert_sample_bypasses(galaxy: &Galaxy) {
+    let mut pairs = BTreeSet::new();
+    for link in &galaxy.bypasses {
+        match link {
+            BypassLink::Wormhole { a, b } => {
+                assert!(pairs.insert((a.min(b), a.max(b))), "{link:?} listed twice");
+            }
+            BypassLink::Gateway { system, .. } => {
+                let initializer = &galaxy.systems[system].initializer;
+                assert!(
+                    initializer.starts_with("abandoned_gateways"),
+                    "{system}: {initializer}"
+                );
+            }
+            BypassLink::LGate { system } => {
+                let initializer = galaxy.systems[system].initializer.as_str();
+                assert!(
+                    matches!(
+                        initializer,
+                        "distantstars_init_00" | "distantstars_init_01" | "distantstars_init_06"
+                    ) || initializer.starts_with("lgate"),
+                    "{system}: {initializer}"
+                );
+            }
+            BypassLink::Other { .. } => {}
+        }
+    }
+    assert_eq!(pairs.len(), 6);
+}
+
+/// The ids of the `system` lines that carry a base spawn weight of 1.
+fn seated(text: &str) -> BTreeSet<u32> {
+    text.lines()
+        .filter(|line| line.contains(" spawn_weight = { base = 1 }"))
+        .map(|line| {
+            let id = &line[line.find("id = \"").unwrap() + 6..];
+            id[..id.find('"').unwrap()].parse().unwrap()
+        })
+        .collect()
 }
 
 #[test]
 fn the_sample_exports_to_the_committed_fixture_and_reads_back_as_the_same_galaxy() {
     let save = common::open();
     let committed = std::fs::read(FIXTURE).expect("read the committed scenario fixture");
+    let (text, report) = exported(&save, NAME);
     assert_eq!(
-        exported(&save, NAME),
-        committed,
+        text, committed,
         "the fixture is generated: re-export it with `sgf export-scenario`"
     );
+    let text = String::from_utf8(text).expect("utf-8");
+
+    let capitals = default_capitals(&save);
+    let seats = capitals.len();
+    assert_eq!(seats, 17);
+    let empires = seats - 1;
+    assert!(
+        text.starts_with(&format!(
+            "# Exported by Stellaris Galaxy Forge from {SAVE_FILE}
+# Systems: 791 · Empire seats: {seats} · Nebulae: 9
+# Not carried over: 6 wormhole pairs
+static_galaxy_scenario = {{
+	name = \"{NAME}\"
+	priority = 5
+	supports_shape = elliptical
+	supports_shape = ring
+	supports_shape = spiral_2
+	supports_shape = spiral_3
+	supports_shape = spiral_4
+	supports_shape = spiral_6
+	supports_shape = bar
+	supports_shape = starburst
+	supports_shape = cartwheel
+	supports_shape = spoked
+	default = no
+	num_empires = {{ min = 0 max = {empires} }}
+	num_empire_default = {empires}
+"
+        )),
+        "{}",
+        &text[..800]
+    );
+    assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
+    assert_eq!(seated(&text), capitals);
+    assert_eq!(text.matches("spawn_weight").count(), seats);
+
+    assert_eq!(report.seats, seats as u32);
+    let home = |system: u32, initializer: &str| HomeInitializer {
+        system,
+        initializer: initializer.to_owned(),
+    };
+    assert_eq!(
+        report.home_initializers,
+        [
+            home(4, "une_deneb_system"),
+            home(311, "shattered_ring_start"),
+            home(786, "custom_starting_init_02"),
+            home(787, "custom_starting_init_02"),
+        ]
+    );
+    assert_sample_bypasses(&save.graph);
+    assert_eq!(
+        report.dropped,
+        DroppedBypasses {
+            wormhole_pairs: 6,
+            gateways: 0,
+            lgates: 0,
+        }
+    );
+    assert_eq!(report.sources, []);
+    let by_category: BTreeMap<Category, u32> = report
+        .by_category
+        .iter()
+        .map(|c| (c.category, c.systems))
+        .collect();
+    assert_eq!(by_category[&Category::Home], seats as u32);
+    assert_eq!(by_category.values().sum::<u32>(), 791);
+    assert!(
+        report
+            .by_category
+            .windows(2)
+            .all(|pair| pair[0].category < pair[1].category),
+        "{:?}",
+        report.by_category
+    );
+
+    let issues = report.issues();
+    assert!(issues.iter().all(|i| i.severity == Severity::Warning));
+    let dropped: Vec<&str> = issues
+        .iter()
+        .filter(|i| i.code == IssueCode::ExportDropped)
+        .map(|i| i.message.as_str())
+        .collect();
+    assert_eq!(
+        dropped,
+        ["6 wormhole pairs were not carried into the scenario"]
+    );
+    let homes: Vec<(&[u32], bool)> = issues
+        .iter()
+        .filter(|i| i.code == IssueCode::HomeInitializer)
+        .map(|i| {
+            let named = i.message.contains(&format!("system {} ", i.systems[0]));
+            (i.systems.as_slice(), named)
+        })
+        .collect();
+    assert_eq!(
+        homes,
+        [
+            (&[4][..], true),
+            (&[311][..], true),
+            (&[786][..], true),
+            (&[787][..], true)
+        ]
+    );
+    assert_eq!(issues.len(), 5);
 
     let scenario = Session::open(FIXTURE).expect("open the exported scenario");
     assert_eq!(scenario.kind(), DocumentKind::Scenario);
@@ -66,6 +234,11 @@ fn the_sample_exports_to_the_committed_fixture_and_reads_back_as_the_same_galaxy
             (rounded(system.x), rounded(system.y))
         );
         assert_eq!(written.initializer, system.initializer);
+        assert_eq!(
+            written.spawn_weight,
+            capitals.contains(id).then_some(1.0),
+            "{id}"
+        );
     }
     assert_eq!(lanes(&scenario.graph), lanes(&save.graph));
     assert_eq!(scenario.graph.nebulae.len(), 9);
@@ -79,13 +252,21 @@ fn the_sample_exports_to_the_committed_fixture_and_reads_back_as_the_same_galaxy
 
 #[test]
 fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
-    let mut session =
-        export::open_save_as_scenario(Path::new(common::SAMPLE), &no_names, ScenarioProfile::Plain)
-            .expect("open as scenario");
+    let (mut session, report) = export::open_save_as_scenario(
+        Path::new(common::SAMPLE),
+        &no_names,
+        &no_sources,
+        ScenarioProfile::Plain,
+    )
+    .expect("open as scenario");
     assert_eq!(session.kind(), DocumentKind::Scenario);
     assert_eq!(session.title(), NAME);
     assert_eq!(session.path, None);
     assert!(session.is_dirty());
+    assert_eq!(report, exported(&common::open(), NAME).1);
+    assert!(common::current(&session).starts_with(
+        format!("# Exported by Stellaris Galaxy Forge from {SAVE_FILE}\n").as_bytes()
+    ));
 
     let error = session
         .save_to(None)
@@ -102,9 +283,13 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
     assert_eq!(reopened.graph.order, session.graph.order);
     assert_eq!(lanes(&reopened.graph), lanes(&session.graph));
 
-    let error =
-        export::open_save_as_scenario(Path::new(GRAMMAR), &no_names, ScenarioProfile::Plain)
-            .expect_err("a scenario is not a save");
+    let error = export::open_save_as_scenario(
+        Path::new(GRAMMAR),
+        &no_names,
+        &no_sources,
+        ScenarioProfile::Plain,
+    )
+    .expect_err("a scenario is not a save");
     assert!(error.to_string().contains("already a scenario"), "{error}");
 }
 
@@ -250,10 +435,11 @@ fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flag
     assert_eq!(save.graph.systems[&neighbour].initializer, "");
     assert_eq!(default_capitals(&save), capitals);
     let options = export::options_for(&save.graph, NAME);
-    let text = export::scenario_text(
+    let (text, _) = export::scenario_text(
         &save.graph,
         &options,
         &no_names,
+        &no_sources,
         ScenarioProfile::PaintAGalaxy,
     );
     let text = String::from_utf8(text).expect("utf-8");
@@ -376,6 +562,65 @@ static_galaxy_scenario = {
 }
 
 #[test]
+fn the_paint_a_galaxy_profile_writes_no_base_weight_on_a_home_that_is_no_capital() {
+    let mut save = common::open();
+    let capitals = default_capitals(&save);
+    let country = save
+        .graph
+        .countries
+        .iter_mut()
+        .find(|c| c.country_type == "default" && c.capital_system.is_some())
+        .expect("a playable country with a capital");
+    let home = country.capital_system.take().expect("its capital");
+    assert!(
+        save.graph.systems[&home]
+            .flags
+            .iter()
+            .any(|f| f == "empire_home_system")
+    );
+    assert_eq!(default_capitals(&save).len(), capitals.len() - 1);
+
+    let options = export::options_for(&save.graph, NAME);
+    assert_eq!(options.num_empires, (0, capitals.len() as u32 - 1));
+    let (plain, _) = export::scenario_text(
+        &save.graph,
+        &options,
+        &no_names,
+        &no_sources,
+        ScenarioProfile::Plain,
+    );
+    let plain = String::from_utf8(plain).expect("utf-8");
+    assert_eq!(
+        seated(&plain),
+        capitals,
+        "the plain profile still seats the flagged home"
+    );
+
+    let (paint, _) = export::scenario_text(
+        &save.graph,
+        &options,
+        &no_names,
+        &no_sources,
+        ScenarioProfile::PaintAGalaxy,
+    );
+    let paint = String::from_utf8(paint).expect("utf-8");
+    assert!(!paint.contains("spawn_weight = { base = 1 }"), "{paint}");
+    assert_eq!(
+        paint
+            .matches("spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|")
+            .count(),
+        capitals.len() - 1
+    );
+    assert_eq!(
+        paint.matches(" spawn_weight = {").count(),
+        capitals.len() - 1
+    );
+    let reopened = export::open_scenario_text(paint.into_bytes()).expect("reads back");
+    assert_eq!(reopened.graph.systems[&home].spawn_weight, None);
+    assert_eq!(reopened.graph.systems[&home].spawn_script, None);
+}
+
+#[test]
 fn a_scenario_name_that_cannot_be_quoted_is_refused_or_dropped() {
     for name in ["My \"Best\" Galaxy", "back\\slash", "two\nlines", ""] {
         let error = export::new_scenario(name, 0.0, ScenarioProfile::Plain).expect_err("refused");
@@ -386,7 +631,7 @@ fn a_scenario_name_that_cannot_be_quoted_is_refused_or_dropped() {
     }
 
     let save = common::open();
-    let doc = document::Document::from_scenario_bytes(exported(&save, "My \"Best\" Galaxy"))
+    let doc = document::Document::from_scenario_bytes(exported(&save, "My \"Best\" Galaxy").0)
         .expect("an exported scenario reads back");
     let scenario = Session::from_document(None, doc).expect("project the exported scenario");
     assert_eq!(scenario.title(), "My Best Galaxy");
