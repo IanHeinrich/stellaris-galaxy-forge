@@ -27,6 +27,7 @@ export function systemNode(over: Partial<SystemNode> = {}): SystemNode {
     initializer: "",
     spawn_weight: null,
     spawn_modifiers: [],
+    spawn_script: null,
     spawn_design: null,
     prevented: [],
     position_range: false,

@@ -13,6 +13,12 @@ release is made.
 - Paint a Galaxy opens in a panel inside Forge, and a galaxy sent from it
   opens as an unsaved scenario. `docs/paint-a-galaxy-integration.md` is a
   spec for the host protocol, for the Paint a Galaxy side.
+- A scenario written by Paint a Galaxy is read faithfully: its scripted
+  spawn points (enabled, preferred, reserved, Sol) show as spawn points,
+  the inspector changes their kind, and marking a system a spawn point in
+  such a file writes Paint a Galaxy's own spawn script. A "Paint a Galaxy"
+  badge in the title bar names such a file and warns when the Paint a
+  Galaxy mod is not among the enabled mods.
 
 ## [0.5.2] - 2026-09-20
 

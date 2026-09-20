@@ -109,6 +109,8 @@ impl Format for Save {
             | Op::SetSpawnWeight { .. }
             | Op::SetSpawnWeights { .. }
             | Op::SetSpawnReservation { .. }
+            | Op::SetSpawnScript { .. }
+            | Op::SetSpawnScripts { .. }
             | Op::PreventLane { .. }
             | Op::UnpreventLane { .. } => false,
         }

@@ -86,6 +86,8 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetSpawnWeight { id, base } => spawn::set_weight(plan, s, *id, *base),
         Op::SetSpawnWeights { entries } => spawn::set_weights(plan, s, entries),
         Op::SetSpawnReservation { id, reserve } => spawn::set_reservation(plan, s, *id, *reserve),
+        Op::SetSpawnScript { id, script } => spawn::set_script(plan, s, *id, script.as_ref()),
+        Op::SetSpawnScripts { entries } => spawn::set_scripts(plan, s, entries),
         _ => Err(unsupported(op)),
     }
 }

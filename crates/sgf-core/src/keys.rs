@@ -138,6 +138,7 @@ pub(crate) mod scenario {
     pub(crate) const STATIC_GALAXY_SCENARIO: &str = "static_galaxy_scenario";
     pub(crate) const SYSTEM: &str = "system";
     pub(crate) const TO: &str = "to";
+    pub(crate) const VALUE_PREFIX: &str = "value:";
     pub(crate) const X: &str = "x";
     pub(crate) const Y: &str = "y";
 }

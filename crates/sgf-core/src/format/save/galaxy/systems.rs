@@ -67,6 +67,7 @@ pub(super) fn extract(
         initializer: read::text(node, keys::INITIALIZER, src),
         spawn_weight: None,
         spawn_modifiers: Vec::new(),
+        spawn_script: None,
         spawn_design: None,
         prevented: Vec::new(),
         position_range: false,

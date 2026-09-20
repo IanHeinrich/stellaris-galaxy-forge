@@ -505,3 +505,10 @@ button.master.init[aria-pressed="mixed"] {
 .game-data-pill.error .menu-label::before {
   color: var(--warn);
 }
+
+.paint-badge {
+  flex: none;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+}

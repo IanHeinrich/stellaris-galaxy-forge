@@ -24,6 +24,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
+import { scriptForKind } from "../../../lib/paint";
 import { isSpawnWeight } from "../../../lib/spawn";
 import { kindTitle } from "../../../lib/special";
 import { DETAILS_DEBOUNCE_MS } from "../../../store/batching";
@@ -313,15 +314,15 @@ describe("a scenario system's source", () => {
   });
 });
 
-describe("a scenario system's spawn weight", () => {
-  /** The system as the projection reports it once its statement carries `spawn_weight`. */
-  function withWeight(weight: number | null, initializer = "basic_init_01"): void {
-    mocked.getSystem.mockImplementation(async (id) => {
-      const detail = detailOf(id);
-      return { ...detail, system: { ...detail.system, spawn_weight: weight, initializer } };
-    });
-  }
+/** The system as the projection reports it once its statement carries `spawn_weight`. */
+function withWeight(weight: number | null, initializer = "basic_init_01"): void {
+  mocked.getSystem.mockImplementation(async (id) => {
+    const detail = detailOf(id);
+    return { ...detail, system: { ...detail.system, spawn_weight: weight, initializer } };
+  });
+}
 
+describe("a scenario system's spawn weight", () => {
   it("offers the toggle unchecked, checked with its weight, and disabled without an initializer", async () => {
     withWeight(null);
     await open("scenario");
@@ -348,14 +349,16 @@ describe("a scenario system's spawn weight", () => {
     await open("scenario");
     const system = useEditorStore.getState().inspected!.system;
 
-    await useEditorStore.getState().applyOp(spawnPointOp(system, DEFAULT_SPAWN_WEIGHT));
+    await useEditorStore.getState().applyOp(spawnPointOp(system, DEFAULT_SPAWN_WEIGHT, false));
     expect(mocked.applyOp).toHaveBeenLastCalledWith({
       type: "SetSpawnWeight",
       id: SYSTEM,
       base: 1,
     });
 
-    await useEditorStore.getState().applyOp(spawnPointOp({ ...system, spawn_weight: 1 }, null));
+    await useEditorStore
+      .getState()
+      .applyOp(spawnPointOp({ ...system, spawn_weight: 1 }, null, false));
     expect(mocked.applyOp).toHaveBeenLastCalledWith({
       type: "SetSpawnWeight",
       id: SYSTEM,
@@ -473,6 +476,76 @@ describe("a scenario system's spawn reservation", () => {
     expect(html).toContain("×2");
     expect(html).toContain("has_star_flag = empire_cluster");
     expect(html).toContain("player_design");
+  });
+});
+
+describe("a scenario system Paint a Galaxy seats", () => {
+  /** The system as the projection reads the site's `spawn_weight` idiom. */
+  function withScript(kind: "enabled" | "preferred" | "sol" | { reserved: string }): void {
+    mocked.getSystem.mockImplementation(async (id) => {
+      const detail = detailOf(id);
+      return {
+        ...detail,
+        system: {
+          ...detail.system,
+          spawn_weight: 0,
+          spawn_script: { paint_a_galaxy: { kind, random_value: 4 } },
+        },
+      };
+    });
+  }
+
+  it("offers the seat's kind in place of the weight and the reservations", async () => {
+    withScript({ reserved: "c" });
+    await open("scenario");
+    useInspectorStore.setState({ sections: { "system.initializer": false } });
+
+    const html = overview();
+    expect(html).toContain("Paint a Galaxy spawn: reserved C");
+    expect(html).toContain('<option value="reserved:c" selected="">reserved C</option>');
+    expect(html.match(/<option /g)).toHaveLength(29);
+    expect(html).toContain("the mod computes the spawn weight from the kind");
+    expect(html.match(/<input type="checkbox"[^>]*>/g)).toHaveLength(1);
+    expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
+    expect(html).not.toContain('aria-label="Spawn weight"');
+    expect(html).not.toContain("Reserve for a human player");
+    expect(html).not.toContain("Reserve for the AI");
+  });
+
+  it("selects the seat the file names, and the change it writes keeps the random value", async () => {
+    withScript("enabled");
+    await open("scenario");
+    const html = overview();
+    expect(html).toContain('<option value="enabled" selected="">enabled</option>');
+    expect(html).not.toContain('value="sol" selected=""');
+
+    const system = useEditorStore.getState().inspected!.system;
+    expect(scriptForKind("sol", system)).toEqual({
+      paint_a_galaxy: { kind: "sol", random_value: 4 },
+    });
+  });
+
+  it("turns the seat off through the script whatever the profile, and a plain system on through the weight", async () => {
+    withScript("preferred");
+    await open("scenario");
+    const system = useEditorStore.getState().inspected!.system;
+    for (const paint of [true, false]) {
+      expect(spawnPointOp(system, null, paint || system.spawn_script !== null)).toEqual({
+        type: "SetSpawnScript",
+        id: SYSTEM,
+        script: null,
+      });
+    }
+
+    withWeight(null);
+    await open("scenario");
+    const plain = useEditorStore.getState().inspected!.system;
+    expect(overview()).not.toContain("Paint a Galaxy spawn");
+    expect(spawnPointOp(plain, DEFAULT_SPAWN_WEIGHT, false)).toEqual({
+      type: "SetSpawnWeight",
+      id: SYSTEM,
+      base: 1,
+    });
   });
 });
 

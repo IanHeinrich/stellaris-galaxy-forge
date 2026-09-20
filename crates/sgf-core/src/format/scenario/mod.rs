@@ -7,6 +7,7 @@
 pub(crate) mod emit;
 pub mod index;
 pub mod listings;
+pub(crate) mod paint;
 pub(crate) mod spawn;
 pub(crate) mod write;
 
@@ -107,6 +108,8 @@ impl Format for Scenario {
             | Op::SetSpawnWeight { .. }
             | Op::SetSpawnWeights { .. }
             | Op::SetSpawnReservation { .. }
+            | Op::SetSpawnScript { .. }
+            | Op::SetSpawnScripts { .. }
             | Op::PreventLane { .. }
             | Op::UnpreventLane { .. } => true,
             Op::SetLaneLength { .. }
@@ -263,6 +266,9 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         initializer: read::text(node, keys::INITIALIZER, src),
         spawn_weight: spawn_weight(node, src),
         spawn_modifiers: spawn_modifiers(node, src),
+        spawn_script: node
+            .find(keys::SPAWN_WEIGHT, src)
+            .and_then(|weight| paint::recognise(weight, src)),
         spawn_design: read::scalar(node, keys::SPAWN_DESIGN, src).map(str::to_owned),
         prevented: Vec::new(),
         position_range: position_range(node, src),
