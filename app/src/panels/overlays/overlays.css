@@ -113,3 +113,54 @@
   margin-top: 2px;
   padding-top: 4px;
 }
+
+.update-dialog {
+  width: min(520px, 100%);
+  max-height: min(70vh, 640px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.update-dialog h1 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.update-dialog p {
+  margin: 0;
+}
+
+/* The release notes as the changelog wrote them: no renderer, so the text keeps its own breaks. */
+.update-notes {
+  max-height: 220px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.update-download {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}

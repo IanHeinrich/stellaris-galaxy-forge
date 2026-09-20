@@ -5,6 +5,7 @@ use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::scripts::{ScenarioBypasses, ScenarioOwners};
 use sgf_gamedata::textures::Textures;
+use tauri_plugin_updater::Update;
 
 #[derive(Default)]
 pub struct AppState(pub Mutex<Option<Session>>);
@@ -111,3 +112,18 @@ impl GameDataState {
 
 /// The on-disk PNG cache, created once for the app's lifetime.
 pub struct TextureState(pub Textures);
+
+/// The plugin's `Update` is the only thing that can install, and it does not cross
+/// IPC, so it is parked here between the two update commands.
+#[derive(Default)]
+pub struct UpdateState(Mutex<Option<Update>>);
+
+impl UpdateState {
+    pub fn put(&self, update: Option<Update>) {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = update;
+    }
+
+    pub fn take(&self) -> Option<Update> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).take()
+    }
+}

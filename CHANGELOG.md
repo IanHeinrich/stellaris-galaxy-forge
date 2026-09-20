@@ -8,6 +8,15 @@ release is made.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-20
+
+### Added
+
+- The app checks for a newer release at launch and shows a badge with a
+  dialog to install and restart, open the releases page, skip the version
+  or decide later; the Help menu adds the app's version, a manual check
+  and a switch for the check at launch.
+
 ## [0.5.2] - 2026-09-20
 
 ### Changed

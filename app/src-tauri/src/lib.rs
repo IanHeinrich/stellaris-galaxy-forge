@@ -2,6 +2,7 @@
 
 pub mod commands;
 pub mod state;
+pub mod views;
 pub mod watch;
 
 use sgf_gamedata::textures::Textures;
@@ -14,6 +15,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(state::GameDataState::default())
         .manage(state::TextureState(Textures::new(None)))
         .manage(watch::WatchState::default())
+        .manage(state::UpdateState::default())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::save_dirs,
             commands::list_saves,
@@ -61,6 +64,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_resource_icons,
             commands::get_textures,
             commands::get_system_details,
+            commands::check_for_update,
+            commands::install_update,
         ])
 }
 

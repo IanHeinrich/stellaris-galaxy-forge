@@ -6,12 +6,14 @@ pub mod gamedata;
 pub mod listing;
 pub mod scenario;
 pub mod session;
+pub mod update;
 
 pub use entity::*;
 pub use gamedata::*;
 pub use listing::*;
 pub use scenario::*;
 pub use session::*;
+pub use update::*;
 
 use std::sync::MutexGuard;
 

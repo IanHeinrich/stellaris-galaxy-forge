@@ -156,6 +156,14 @@ Download the latest release from
   `sgf-v<x.y.z>-linux-x86_64.tar.gz` or
   `sgf-v<x.y.z>-macos-universal.tar.gz`.
 
+The app checks for a newer release when it starts (the Help menu can turn
+this off, and "Check for updates…" checks right away) and shows a badge
+when one is found. The Windows installer or MSI, the Linux AppImage and
+the macOS app install the update themselves and restart; the portable zip
+and the `.deb`/`.rpm` packages send you to this page instead. Every
+update is verified against the project's public key before it is applied.
+The SmartScreen warning above applies to the downloaded installer too.
+
 `SHA256SUMS` in the release lists a checksum for every file, so you can
 verify a download before running it.
 

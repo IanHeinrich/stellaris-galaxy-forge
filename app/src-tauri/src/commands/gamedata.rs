@@ -114,7 +114,10 @@ pub fn open_script(
 
 /// The links the app itself offers. Only these are opened: the check keeps a URL that reached a
 /// view from elsewhere from being handed to the shell.
-const LINKS: &[&str] = &["https://oatmealproblem.github.io/paint-a-galaxy/"];
+const LINKS: &[&str] = &[
+    "https://oatmealproblem.github.io/paint-a-galaxy/",
+    super::update::RELEASES_URL,
+];
 
 /// Open one of the app's own links in the user's browser.
 #[tauri::command]
