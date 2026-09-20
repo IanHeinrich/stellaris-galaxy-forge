@@ -1,6 +1,6 @@
 # Stellaris Galaxy Forge
 
-A desktop editor for the Stellaris galaxy map. In a `.sav` file you can
+A desktop editor for the Stellaris galaxy map for both static scenarios and save files. In a `.sav` file you can
 move systems, add and cut hyperlanes, and add, resize and remove nebulae,
 then carry on playing the campaign; in a static galaxy scenario script
 (`map/setup_scenarios/*.txt`, the file a new campaign's galaxy can be
