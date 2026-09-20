@@ -77,6 +77,8 @@ function click(model: MapModel, intent: MapIntent, extra: Partial<MapInput>): vo
 const LANE = { a: 1, b: 2 };
 const RING = { index: 3, part: "ring" } as const;
 const CENTRE = { index: 3, part: "centre" } as const;
+const HANDLE_X = { index: 3, part: "handle", axis: "x" } as const;
+const HANDLE_Y = { index: 3, part: "handle", axis: "y" } as const;
 
 describe("GestureModel", () => {
   it("clicks select a system, a lane, or clear both", () => {
@@ -410,48 +412,71 @@ describe("GestureModel on a nebula", () => {
     ]);
   });
 
-  it("a drag on the ring previews the radius at each point and commits the last", () => {
+  it("a drag on the ring moves it, previewing each point and committing the last", () => {
     const model = new GestureModel();
     const intent = recorder();
     model.handle(at("down", 10, 10, { nebula: RING }), intent);
     model.handle(at("move", 30, 30), intent);
     expect(model.busy()).toBe(true);
+    expect(model.cursor()).toBe("grabbing");
     model.handle(at("move", 40, 45), intent);
     model.handle(at("up", 40, 45), intent);
     expect(intent.calls).toEqual([
-      ["previewNebulaRadius", 3, 30, 30],
-      ["previewNebulaRadius", 3, 40, 45],
-      ["commitNebulaRadius", 3, 40, 45],
+      ["previewNebula", 3, 30, 30],
+      ["previewNebula", 3, 40, 45],
+      ["commitNebula", 3, 40, 45],
     ]);
   });
 
-  it("a drag on a handle resizes too, and one on the centre moves it", () => {
+  it("a drag on a handle previews the radius at each point and commits the last", () => {
     const model = new GestureModel();
     const intent = recorder();
-    model.handle(at("down", 10, 10, { nebula: { index: 3, part: "handle" } }), intent);
+    model.handle(at("down", 10, 10, { nebula: HANDLE_X }), intent);
     model.handle(at("move", 30, 30), intent);
-    model.handle(at("up", 30, 30), intent);
-    model.handle(at("down", 10, 10, { nebula: CENTRE }), intent);
-    model.handle(at("move", 60, 20), intent);
     expect(model.cursor()).toBe("grabbing");
+    model.handle(at("move", 60, 20), intent);
     model.handle(at("up", 60, 20), intent);
     expect(intent.calls).toEqual([
       ["previewNebulaRadius", 3, 30, 30],
-      ["commitNebulaRadius", 3, 30, 30],
-      ["previewNebula", 3, 60, 20],
-      ["commitNebula", 3, 60, 20],
+      ["previewNebulaRadius", 3, 60, 20],
+      ["commitNebulaRadius", 3, 60, 20],
     ]);
+  });
+
+  it("a drag from the centre does nothing, though a click there still selects", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    model.handle(at("down", 10, 10, { nebula: CENTRE }), intent);
+    expect(model.handle(at("move", 30, 30), intent)).toBe("consumed");
+    expect(model.cursor()).toBe("");
+    model.handle(at("up", 60, 20), intent);
+    expect(intent.calls).toEqual([]);
+    click(model, intent, { nebula: CENTRE });
+    expect(intent.calls).toEqual([["selectNebula", 3]]);
+  });
+
+  it("idle cursor says move on the ring, a resize arrow along the handle's axis, pointer on the centre", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    const cursorAt = (extra: Partial<MapInput>) => {
+      model.handle(at("move", 5, 5, extra), intent);
+      return model.cursor();
+    };
+    expect(cursorAt({ nebula: RING })).toBe("move");
+    expect(cursorAt({ nebula: HANDLE_X })).toBe("ew-resize");
+    expect(cursorAt({ nebula: HANDLE_Y })).toBe("ns-resize");
+    expect(cursorAt({ nebula: CENTRE })).toBe("pointer");
   });
 
   it("reset mid-drag drops the ghost ring and commits nothing", () => {
     const model = new GestureModel();
     const intent = recorder();
-    model.handle(at("down", 10, 10, { nebula: CENTRE }), intent);
+    model.handle(at("down", 10, 10, { nebula: RING }), intent);
     model.handle(at("move", 30, 30), intent);
     model.reset(intent);
     expect(model.busy()).toBe(false);
     model.handle(at("up", 30, 30), intent);
-    model.handle(at("down", 10, 10, { nebula: RING }), intent);
+    model.handle(at("down", 10, 10, { nebula: HANDLE_Y }), intent);
     model.handle(at("move", 30, 30), intent);
     model.handle(at("cancel", 30, 30), intent);
     model.handle(at("up", 30, 30), intent);

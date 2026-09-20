@@ -42,9 +42,11 @@ export type NebulaPart = "centre" | "handle" | "ring";
 export interface NebulaPick {
   index: number;
   part: NebulaPart;
+  /** Which axis a handle lies on: `x` for the east and west handles, `y` for north and south. */
+  axis?: "x" | "y";
 }
 
-/** The four cardinal points of a nebula's ring, where its resize handles sit. */
+/** The four cardinal points of a nebula's ring, where its resize handles sit: +x, -x, +y, -y. */
 export function nebulaHandles(n: Nebula): Pt[] {
   return [
     { x: n.x + n.radius, y: n.y },
@@ -75,7 +77,7 @@ export function pickNebula(
     if (!hit) return;
     const rank = PART_RANK[hit.part];
     if (rank > bestRank || (rank === bestRank && hit.dist >= bestDist)) return;
-    best = { index, part: hit.part };
+    best = hit.axis ? { index, part: hit.part, axis: hit.axis } : { index, part: hit.part };
     bestRank = rank;
     bestDist = hit.dist;
   });
@@ -88,7 +90,7 @@ function hitOn(
   cam: Camera,
   at: Pt,
   selected: boolean,
-): { part: NebulaPart; dist: number } | null {
+): { part: NebulaPart; dist: number; axis?: "x" | "y" } | null {
   const toCentre = Math.hypot(n.x - at.x, n.y - at.y);
   const centrePx = toCentre * cam.scale;
   const centreHit = Math.max(
@@ -100,10 +102,15 @@ function hitOn(
   }
   if (selected) {
     let handlePx = Infinity;
-    for (const h of nebulaHandles(n)) {
-      handlePx = Math.min(handlePx, Math.hypot(h.x - at.x, h.y - at.y) * cam.scale);
-    }
-    if (handlePx <= NEBULA_HANDLE_HIT_PX) return { part: "handle", dist: handlePx };
+    let axis: "x" | "y" = "x";
+    nebulaHandles(n).forEach((h, i) => {
+      const px = Math.hypot(h.x - at.x, h.y - at.y) * cam.scale;
+      if (px < handlePx) {
+        handlePx = px;
+        axis = i < 2 ? "x" : "y";
+      }
+    });
+    if (handlePx <= NEBULA_HANDLE_HIT_PX) return { part: "handle", dist: handlePx, axis };
   }
   const ringPx = Math.abs(toCentre - n.radius) * cam.scale;
   return ringPx <= NEBULA_RING_HIT_PX ? { part: "ring", dist: ringPx } : null;

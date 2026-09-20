@@ -8,6 +8,14 @@ release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- A nebula is moved by dragging its ring, and resized only by the four
+  handles that appear on the ring once it is selected; its name and
+  centre marker now just select it. A nebula whose name sits on a star
+  could not be dragged without moving the star first. The cursor shows a
+  move arrow on the ring and a resize arrow on a handle.
+
 ## [0.5.1] - 2026-09-20
 
 ### Changed
