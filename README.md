@@ -103,8 +103,9 @@ Right-click empty space to add a system; pick what it spawns from the
 initializer browser, which lists everything your install and mods
 define; mark spawn points and hold them for a human player or the AI;
 bar a lane the generator must never draw. A save can be opened as a
-scenario, and an empty scenario or one from a paint-a-galaxy export can
-be started from the New scenario dialog.
+scenario, and an empty scenario, one drawn in Paint a Galaxy inside
+Forge, or one from a Paint a Galaxy export can be started from the New
+scenario dialog.
 
 <p>
   <img src="docs/media/scenario-inspector.png" height="420" alt="The inspector for a scenario system: spawn point and reservation, initializer, the planets it will spawn, hyperlanes and a prevent-lane control">

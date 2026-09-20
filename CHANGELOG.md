@@ -8,6 +8,12 @@ release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Paint a Galaxy opens in a panel inside Forge, and a galaxy sent from it
+  opens as an unsaved scenario. `docs/paint-a-galaxy-integration.md` is a
+  spec for the host protocol, for the Paint a Galaxy side.
+
 ## [0.5.2] - 2026-09-20
 
 ### Changed

@@ -17,6 +17,7 @@ import { LayerToggles } from "./panels/chrome/LayerToggles";
 import { Launch } from "./panels/file/Launch";
 import { NewScenarioDialog } from "./panels/file/NewScenarioDialog";
 import { OpenModeDialog } from "./panels/file/OpenModeDialog";
+import { PaintGalaxyPanel } from "./panels/file/PaintGalaxyPanel";
 import { MapTooltip } from "./panels/overlays/MapTooltip";
 import { NewNebulaDialog } from "./panels/overlays/NewNebulaDialog";
 import { OpenSave } from "./panels/file/OpenSave";
@@ -97,6 +98,7 @@ function App() {
   const status = useFileSessionStore((s) => s.status);
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
+  const paintPanel = useLayoutStore((s) => s.paintPanel);
   const nebulaPrompt = useEditorStore((s) => s.nebulaPrompt);
 
   useEffect(() => {
@@ -161,6 +163,7 @@ function App() {
           {status !== "ready" && <Launch />}
           {status === "ready" && openDialog && <OpenSave modal />}
           {scenarioDialog && <NewScenarioDialog />}
+          {paintPanel && <PaintGalaxyPanel />}
           {nebulaPrompt && <NewNebulaDialog />}
           <OpenModeDialog />
           <InitializerBrowser />

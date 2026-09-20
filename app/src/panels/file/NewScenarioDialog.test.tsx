@@ -9,15 +9,10 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"))
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import * as ipc from "../../api/ipc";
+import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
-import {
-  NewScenarioDialog,
-  PAINT_URL,
-  RouteCards,
-  RouteFoot,
-  RouteHelp,
-} from "./NewScenarioDialog";
+import { NewScenarioDialog, RouteCards, RouteFoot, RouteHelp } from "./NewScenarioDialog";
 
 const BLANK = { name: "new_galaxy", radius: 400, coreRadius: 100 };
 
@@ -64,7 +59,7 @@ describe("the three ways to start a scenario", () => {
     expect(html).toContain("Blank canvas");
     expect(html).toContain("A galaxy from the game");
     expect(html).toContain("Paint a galaxy");
-    expect(html).toContain("paint-a-galaxy by Oatmeal Problem");
+    expect(html).toContain("send the galaxy to Forge");
     expect(html).toContain('role="radiogroup"');
   });
 
@@ -125,16 +120,31 @@ describe("a galaxy from the game", () => {
 });
 
 describe("a painted galaxy", () => {
+  it("opens Paint a Galaxy in its panel in place of this dialog", () => {
+    const foot = <RouteFoot route="paint" blank={BLANK} />;
+    expect(renderToStaticMarkup(foot)).toContain("Open Paint a Galaxy");
+    button(foot, "Open Paint a Galaxy").props.onClick();
+
+    expect(useLayoutStore.getState().paintPanel).toBe(true);
+    expect(useLayoutStore.getState().scenarioDialog).toBe(false);
+  });
+
+  it("credits the author and says the galaxy arrives as an unsaved scenario", () => {
+    const html = renderToStaticMarkup(<RouteHelp route="paint" />);
+    expect(html).toContain("by Oatmeal Problem");
+    expect(html).toContain("opens here as an unsaved scenario");
+  });
+
   it("opens the site through the allowlisted link only", () => {
-    button(<RouteHelp route="paint" />, "Open paint-a-galaxy by Oatmeal Problem").props.onClick();
+    button(<RouteHelp route="paint" />, "Open Paint a Galaxy in the browser").props.onClick();
     expect(ipc.openUrl).toHaveBeenCalledWith(PAINT_URL);
   });
 
-  it("picks the exported file without asking how to open it", () => {
+  it("still picks a file exported earlier without asking how to open it", () => {
     const pickAndOpen = vi.fn();
     useFileSessionStore.setState({ pickAndOpen });
 
-    button(<RouteFoot route="paint" blank={BLANK} />, "Open a file…").props.onClick();
+    button(<RouteHelp route="paint" />, "Open a file exported earlier…").props.onClick();
 
     expect(pickAndOpen).toHaveBeenCalledWith();
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);

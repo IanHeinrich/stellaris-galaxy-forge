@@ -361,9 +361,13 @@ a galaxy size (or a radius of your own) and a core radius, and gives you
 an empty file to place every system in yourself. A galaxy from the game
 has you start a new game in Stellaris at the size and shape you want,
 save on day one and open that save here, which hands you the generator's
-layout, names and empires to edit. Painting one has you draw systems and
-lanes in paint-a-galaxy by Oatmeal Problem, export its scenario file and
-open that here; the dialog links to the site.
+layout, names and empires to edit. Painting one opens the site by Oatmeal
+Problem in a panel inside Forge, where drawing systems and lanes and
+clicking "Send to Stellaris Galaxy Forge" opens the galaxy here as an
+unsaved scenario; the dialog's "Open Paint a Galaxy in the browser ↗"
+link and the panel's own "Open in browser ↗" link remain for using the
+website directly, and "Open a file exported earlier…" for importing a
+downloaded file.
 
 What can be edited: everything a save's galaxy offers, move systems, add
 and cut lanes, add, move, resize, rename and remove nebulae, and, because a

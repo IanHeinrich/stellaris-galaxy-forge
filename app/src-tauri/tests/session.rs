@@ -322,6 +322,19 @@ fn scenario_documents_open_start_and_export() {
     assert_eq!(reopened.galaxy.systems.len(), 791);
 }
 
+#[test]
+fn scenario_text_opens_as_an_unsaved_scenario() {
+    let w = webview();
+    let text = std::fs::read_to_string(SCENARIO).expect("read the grammar fixture");
+
+    let opened: OpenResult =
+        invoke(&w, "open_scenario_text", json!({ "text": text })).expect("open the scenario text");
+    assert_eq!(opened.kind, DocumentKind::Scenario);
+    assert_eq!(opened.title, "sgf_grammar");
+    assert!(opened.path.is_none(), "never saved");
+    assert_eq!(opened.galaxy.systems.len(), 8);
+}
+
 /// A scenario has no details sections: a system's planets and resources are what its
 /// initializer defines, so this needs the install's definitions.
 #[test]

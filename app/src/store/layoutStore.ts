@@ -21,6 +21,8 @@ export interface LayoutState {
   openDialog: boolean;
   /** The "New scenario" dialog. */
   scenarioDialog: boolean;
+  /** Paint a Galaxy, embedded over the map. */
+  paintPanel: boolean;
   setTab(tab: DockTab): void;
   noteEventSource(inDock: boolean): void;
   /** Switches to the inspector for a selection made on the map or from search. */
@@ -33,6 +35,8 @@ export interface LayoutState {
   hideOpenDialog(): void;
   showScenarioDialog(): void;
   hideScenarioDialog(): void;
+  showPaintPanel(): void;
+  hidePaintPanel(): void;
 }
 
 function clampWidth(width: number): number {
@@ -47,6 +51,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   fromDock: false,
   openDialog: false,
   scenarioDialog: false,
+  paintPanel: false,
 
   setTab(tab) {
     set({ tab, previousTab: tab });
@@ -93,5 +98,13 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
 
   hideScenarioDialog() {
     if (get().scenarioDialog) set({ scenarioDialog: false });
+  },
+
+  showPaintPanel() {
+    set({ paintPanel: true });
+  },
+
+  hidePaintPanel() {
+    if (get().paintPanel) set({ paintPanel: false });
   },
 }));
