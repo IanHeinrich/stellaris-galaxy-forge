@@ -7,7 +7,7 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::coord;
 use crate::format;
-use crate::format::scenario::emit::{SystemStmt, system_stmt};
+use crate::format::scenario::emit::{SpawnStmt, SystemStmt, system_stmt};
 use crate::format::scenario::index::{SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
 use crate::keys::scenario as keys;
 use crate::ops::rules::systems::{decide_move, decide_moves};
@@ -87,11 +87,12 @@ pub(super) fn add_system(plan: &mut Plan, s: &Session, new: NewSystem) -> Result
         &system_indent(&s.doc, scenario),
         &SystemStmt {
             id,
-            name: name.unwrap_or(""),
+            name: name.unwrap_or("").to_owned(),
             x: x * SCENARIO_X_SIGN,
             y: y * SCENARIO_Y_SIGN,
-            initializer,
-            spawn_weight,
+            initializer: initializer.map(str::to_owned),
+            spawn: spawn_weight.map_or(SpawnStmt::None, SpawnStmt::Base),
+            effect: None,
         },
     );
     plan.emit(Emitted::System(id), scenario.insert_at, text);

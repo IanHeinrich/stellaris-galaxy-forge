@@ -4,7 +4,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use sgf_core::archive;
-use sgf_core::export;
+use sgf_core::export::{self, ScenarioProfile};
 use sgf_core::library;
 use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
@@ -29,15 +29,20 @@ pub async fn open_save<R: Runtime>(
 }
 
 /// Open the save at `path` as a new, unsaved scenario holding its galaxy; the save is
-/// untouched. Emits `sgf://progress`.
+/// untouched. `profile` is plain when absent. Emits `sgf://progress`.
 #[tauri::command]
 pub async fn open_as_scenario<R: Runtime>(
     app: AppHandle<R>,
     path: String,
+    profile: Option<ScenarioProfile>,
 ) -> Result<OpenResult, SgfError> {
     install(app, move |gd| {
         let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-        Ok(export::open_save_as_scenario(Path::new(&path), &resolve)?)
+        Ok(export::open_save_as_scenario(
+            Path::new(&path),
+            &resolve,
+            profile.unwrap_or_default(),
+        )?)
     })
     .await
 }
@@ -57,16 +62,17 @@ pub async fn open_scenario_text<R: Runtime>(
 
 /// Start an empty, unsaved scenario called `name`; `radius` sizes the map's canvas
 /// until systems give it an extent of its own, `core_radius` is written to the header.
-/// Emits `sgf://progress`.
+/// `profile` is plain when absent. Emits `sgf://progress`.
 #[tauri::command]
 pub async fn new_scenario<R: Runtime>(
     app: AppHandle<R>,
     name: String,
     radius: f64,
     core_radius: f64,
+    profile: Option<ScenarioProfile>,
 ) -> Result<OpenResult, SgfError> {
     install(app, move |_| {
-        let mut session = export::new_scenario(&name, core_radius)?;
+        let mut session = export::new_scenario(&name, core_radius, profile.unwrap_or_default())?;
         session.graph.galaxy_radius = radius;
         Ok(session)
     })
@@ -74,11 +80,13 @@ pub async fn new_scenario<R: Runtime>(
 }
 
 /// Write the open save's galaxy as a scenario script at `path`, backing up any file
-/// there; the session stays as it is. Emits `sgf://progress`.
+/// there; the session stays as it is. `profile` is plain when absent. Emits
+/// `sgf://progress`.
 #[tauri::command]
 pub async fn export_scenario<R: Runtime>(
     app: AppHandle<R>,
     path: String,
+    profile: Option<ScenarioProfile>,
 ) -> Result<SaveResult, SgfError> {
     progress(&app, ProgressPhase::Write, START);
     let task_app = app.clone();
@@ -103,6 +111,7 @@ pub async fn export_scenario<R: Runtime>(
             &session.graph,
             &export::options_for(&session.graph, &name),
             &resolve,
+            profile.unwrap_or_default(),
         );
         let outcome = export::write_scenario(path, &text)?;
         Ok(SaveResult {

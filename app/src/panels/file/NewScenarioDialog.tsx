@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import * as ipc from "../../api/ipc";
+import type { ScenarioProfile } from "../../generated/ScenarioProfile";
 import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
@@ -33,8 +34,13 @@ function clampCore(core: number, radius: number): number {
 
 type Route = "blank" | "game" | "paint";
 
-/** The name and canvas size a blank scenario starts from. */
-type Blank = { name: string; radius: number; coreRadius: number };
+/** The name and canvas size a blank scenario starts from, and the profile it is written under. */
+type Blank = { name: string; radius: number; coreRadius: number; profile?: ScenarioProfile };
+
+const PAINT_CHECK = "Compatible with the Paint a Galaxy mod";
+const PAINT_WHY =
+  "Writes spawn points in Paint a Galaxy's shape and a header sized for its fixes. The map then " +
+  "needs that mod; leave this off for a plain scenario.";
 
 const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
   {
@@ -206,7 +212,7 @@ function start(route: Route, blank: Blank): void {
   useLayoutStore.getState().hideScenarioDialog();
   switch (route) {
     case "blank":
-      void file.newScenario(blank.name, blank.radius, blank.coreRadius);
+      void file.newScenario(blank.name, blank.radius, blank.coreRadius, blank.profile);
       break;
     case "game":
       void file.pickAndOpen("scenario");
@@ -242,11 +248,17 @@ export function NewScenarioDialog() {
   const [preset, setPreset] = useState("medium");
   const [custom, setCustom] = useState(400);
   const [core, setCore] = useState<number | null>(null);
+  const [paint, setPaint] = useState(false);
 
   const radius =
     preset === "custom" ? clampRadius(custom) : (PRESETS.find((p) => p.id === preset)?.radius ?? 0);
   const coreRadius = clampCore(core ?? radius * CORE_FRACTION, radius);
-  const blank: Blank = { name: name.trim(), radius, coreRadius };
+  const blank: Blank = {
+    name: name.trim(),
+    radius,
+    coreRadius,
+    profile: paint ? "paint_a_galaxy" : undefined,
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -309,6 +321,17 @@ export function NewScenarioDialog() {
                 The radius only sizes the canvas until the systems you add give it an extent. The
                 core radius is written to the file and drawn as a ring: keep stars outside it.
               </div>
+              <label className="setup-check">
+                <input
+                  type="checkbox"
+                  checked={paint}
+                  onChange={(e) => setPaint(e.currentTarget.checked)}
+                />
+                <span>
+                  {PAINT_CHECK}
+                  <span className="setup-why">{PAINT_WHY}</span>
+                </span>
+              </label>
             </>
           ) : (
             <RouteHelp route={route} />

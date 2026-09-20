@@ -15,6 +15,7 @@ import type { OpenResult } from "../generated/OpenResult";
 import type { SaveFile } from "../generated/SaveFile";
 import type { SaveResult } from "../generated/SaveResult";
 import type { ScenarioListings } from "../generated/ScenarioListings";
+import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemDetails } from "../generated/SystemDetails";
@@ -49,9 +50,14 @@ export function openSave(path: string): Promise<OpenResult> {
   return invoke<OpenResult>("open_save", { path });
 }
 
+/** The `profile` argument of the commands that write a scenario; left out, they write a plain one. */
+function profileArg(profile?: ScenarioProfile): { profile?: ScenarioProfile } {
+  return profile === undefined ? {} : { profile };
+}
+
 /** Open the save at `path` as a new, unsaved scenario holding its galaxy; the save is untouched. */
-export function openAsScenario(path: string): Promise<OpenResult> {
-  return invoke<OpenResult>("open_as_scenario", { path });
+export function openAsScenario(path: string, profile?: ScenarioProfile): Promise<OpenResult> {
+  return invoke<OpenResult>("open_as_scenario", { path, ...profileArg(profile) });
 }
 
 /** Open scenario text, as Paint a Galaxy sends it, as a new, unsaved scenario named by its own `name`. */
@@ -60,13 +66,18 @@ export function openScenarioText(text: string): Promise<OpenResult> {
 }
 
 /** Start an empty, unsaved scenario; `radius` sizes the canvas until systems give it an extent, `coreRadius` is written to the file. */
-export function newScenario(name: string, radius: number, coreRadius: number): Promise<OpenResult> {
-  return invoke<OpenResult>("new_scenario", { name, radius, coreRadius });
+export function newScenario(
+  name: string,
+  radius: number,
+  coreRadius: number,
+  profile?: ScenarioProfile,
+): Promise<OpenResult> {
+  return invoke<OpenResult>("new_scenario", { name, radius, coreRadius, ...profileArg(profile) });
 }
 
 /** Write the open save's galaxy as a scenario script at `path`; the session stays as it is. */
-export function exportScenario(path: string): Promise<SaveResult> {
-  return invoke<SaveResult>("export_scenario", { path });
+export function exportScenario(path: string, profile?: ScenarioProfile): Promise<SaveResult> {
+  return invoke<SaveResult>("export_scenario", { path, ...profileArg(profile) });
 }
 
 /** One system with its neighbours resolved. Rejects with `SgfError` when no save is open or `id` is unknown. */

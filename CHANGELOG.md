@@ -19,6 +19,11 @@ release is made.
   such a file writes Paint a Galaxy's own spawn script. A "Paint a Galaxy"
   badge in the title bar names such a file and warns when the Paint a
   Galaxy mod is not among the enabled mods.
+- An opt-in "Paint a Galaxy" profile writes a scenario in that mod's own
+  shape: the New scenario dialog's checkbox, "Export as scenario for
+  Paint a Galaxy…" in the File menu and `--profile paint-a-galaxy` on the
+  CLI's `export-scenario` and `new-scenario` all reach it. Plain output,
+  the default everywhere, is unchanged.
 
 ## [0.5.2] - 2026-09-20
 

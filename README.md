@@ -105,7 +105,8 @@ define; mark spawn points and hold them for a human player or the AI;
 bar a lane the generator must never draw. A save can be opened as a
 scenario, and an empty scenario, one drawn in Paint a Galaxy inside
 Forge, or one from a Paint a Galaxy export can be started from the New
-scenario dialog.
+scenario dialog. A scenario can also be written for the Paint a Galaxy
+mod.
 
 <p>
   <img src="docs/media/scenario-inspector.png" height="420" alt="The inspector for a scenario system: spawn point and reservation, initializer, the planets it will spawn, hyperlanes and a prevent-lane control">

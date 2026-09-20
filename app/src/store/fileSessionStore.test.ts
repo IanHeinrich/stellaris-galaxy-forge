@@ -203,7 +203,7 @@ describe("openSave", () => {
         filters: [{ name: "Stellaris save", extensions: ["sav"] }],
       }),
     );
-    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav");
+    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", undefined);
     expect(mocked.openSave).not.toHaveBeenCalled();
     expect(session().pendingOpen).toBeNull();
   });
@@ -449,7 +449,7 @@ describe("scenario documents", () => {
     expect(mocked.openAsScenario).not.toHaveBeenCalled();
 
     await session().chooseOpenMode("scenario");
-    expect(mocked.openAsScenario).toHaveBeenCalledWith(OPEN_RESULT.path);
+    expect(mocked.openAsScenario).toHaveBeenCalledWith(OPEN_RESULT.path, undefined);
     expect(mocked.openSave).not.toHaveBeenCalled();
     expect(session().kind).toBe("scenario");
     expect(session().path).toBeNull();
@@ -469,9 +469,10 @@ describe("scenario documents", () => {
   it("a new scenario has no path, so Save asks where to put it", async () => {
     mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
     await session().newScenario("my_galaxy", 400, 100);
-    expect(mocked.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100);
+    expect(mocked.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100, undefined);
     expect(session().path).toBeNull();
     expect(session().title).toBe("my_galaxy");
+    expect(session().paintProfile).toBe(false);
 
     mocked.saveDialog.mockResolvedValueOnce("C:/mods/map/setup_scenarios/my_galaxy.txt");
     mocked.saveAs.mockResolvedValueOnce(
@@ -488,6 +489,18 @@ describe("scenario documents", () => {
     );
     expect(mocked.saveAs).toHaveBeenCalledWith("C:/mods/map/setup_scenarios/my_galaxy.txt");
     expect(session().path).toBe("C:/mods/map/setup_scenarios/my_galaxy.txt");
+  });
+
+  it("a new scenario under the Paint a Galaxy profile asks for it and turns the profile on", async () => {
+    mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    await session().newScenario("my_galaxy", 400, 100, "paint_a_galaxy");
+    expect(mocked.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100, "paint_a_galaxy");
+    expect(session().paintProfile).toBe(true);
+
+    mocked.openAsScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    await session().openScenarioFrom(OPEN_RESULT.path, "paint_a_galaxy");
+    expect(mocked.openAsScenario).toHaveBeenCalledWith(OPEN_RESULT.path, "paint_a_galaxy");
+    expect(session().paintProfile).toBe(true);
   });
 
   it("scenario text sent from elsewhere opens unsaved under the name it came with", async () => {
@@ -553,13 +566,25 @@ describe("scenario documents", () => {
         filters: [{ name: "Stellaris static galaxy scenario", extensions: ["txt"] }],
       }),
     );
-    expect(mocked.exportScenario).toHaveBeenCalledWith(exported);
+    expect(mocked.exportScenario).toHaveBeenCalledWith(exported, undefined);
     const state = session();
     expect(state.path).toBe(OPEN_RESULT.path);
     expect(state.dirty).toBe(true);
     expect(state.saving).toBe(false);
     expect(state.lastSave).toEqual(result);
     expect(state.savedAt).toBeNull();
+  });
+
+  it("exporting for Paint a Galaxy asks for that profile", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    const exported = "C:/mods/map/setup_scenarios/test_empire.txt";
+    mocked.saveDialog.mockResolvedValueOnce(exported);
+    mocked.exportScenario.mockResolvedValueOnce(saveResult({ path: exported }));
+
+    await session().exportScenario("paint_a_galaxy");
+
+    expect(mocked.exportScenario).toHaveBeenCalledWith(exported, "paint_a_galaxy");
+    expect(session().paintProfile).toBe(false);
   });
 
   it("a cancelled export writes nothing, and a scenario has nothing to export", async () => {
