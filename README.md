@@ -279,7 +279,7 @@ in-game checks that go with a change to the galaxy.
   [CWTools](https://github.com/cwtools/cwtools) and
   [jomini](https://github.com/rakaly/jomini) were the references checked
   against. No code from any of them is used.
-- The libraries doing the heavy lifting: [Tauri](https://tauri.app),
+- The libraries doing most of the work: [Tauri](https://tauri.app),
   [React](https://react.dev), [PixiJS](https://pixijs.com),
   [Zustand](https://github.com/pmndrs/zustand) and
   [Delaunator](https://github.com/mapbox/delaunator) in the app;
