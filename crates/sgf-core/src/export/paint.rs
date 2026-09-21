@@ -10,7 +10,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use crate::as_u32;
 use crate::emit::coord;
 use crate::export::{Draft, SpawnDraft, SystemDraft, report};
-use crate::format::scenario::emit::ScenarioOptions;
+use crate::format::scenario::emit::{ScenarioOptions, VANILLA_SHAPES};
 use crate::format::scenario::fe_zone::{self, FeZone, Site};
 use crate::format::scenario::header_counts::{fallen_count, is_reserved, seat_entries};
 use crate::format::scenario::paint::{
@@ -70,21 +70,10 @@ pub(super) fn header(
     let fallen_max = fallen_count(as_u32(zones));
     let (fallen, marauders, crisis) = size_band(systems);
     let fallen = fallen.min(fallen_max);
-    let shapes: String = [
-        "elliptical",
-        "spiral_2",
-        "spiral_3",
-        "spiral_4",
-        "spiral_6",
-        "ring",
-        "bar",
-        "cartwheel",
-        "cluster",
-        "starburst",
-    ]
-    .iter()
-    .map(|shape| format!("\tsupports_shape = {shape}\n"))
-    .collect();
+    let shapes: String = VANILLA_SHAPES
+        .iter()
+        .map(|shape| format!("\tsupports_shape = {shape}\n"))
+        .collect();
     format!(
         "# Written by Stellaris Galaxy Forge {HEADER_NOTE} (Steam Workshop 3532904115), which this map requires.\n\
          static_galaxy_scenario = {{\n\

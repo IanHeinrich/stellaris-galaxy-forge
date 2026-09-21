@@ -237,6 +237,20 @@ describe("the spawn points layer", () => {
     expect(tagsOf(layer).children.filter((c) => c instanceof Graphics)).toHaveLength(1);
   });
 
+  it("keeps the letters on the chip through a zoom, both scaling from the marker", () => {
+    const layer = drawn([scriptedNode(2, 40, { reserved: "b" })]);
+    const chip = tagsOf(layer).children.find((c) => c instanceof Graphics)!;
+    const letters = tagsOf(layer).children.find((c) => !(c instanceof Graphics))!;
+    const offset = () => ({ x: letters.x - chip.x, y: letters.y - chip.y });
+    const before = { ...offset(), scale: chip.scale.x };
+    viewport(layer, 4);
+    const grown = chip.scale.x / before.scale;
+    expect(grown).not.toBeCloseTo(1, 5);
+    expect(offset().x).toBeCloseTo(before.x * grown, 5);
+    expect(offset().y).toBeCloseTo(before.y * grown, 5);
+    expect(letters.scale.x).toBe(chip.scale.x);
+  });
+
   it("draws Sol's letters the same way as a reserved seat's", () => {
     const layer = drawn([scriptedNode(2, 40, "sol")]);
     expect(drawnText(tagsOf(layer))).toEqual(["Sol"]);

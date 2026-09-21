@@ -185,7 +185,16 @@ export class SpawnsLayer implements MapLayer {
     cam.childScale(markerScale(cam.scale), this.scale);
     for (const g of this.markers.values()) g.scale.set(this.scale.x, this.scale.y);
     for (const g of this.tags.values()) g.scale.set(this.scale.x, this.scale.y);
-    for (const label of this.tagLabels.values()) label.scale.set(this.scale.x, this.scale.y);
+    for (const [id, label] of this.tagLabels) {
+      const g = this.tags.get(id);
+      if (g) this.placeLabel(label, g.position);
+    }
+  }
+
+  /** The letters sit on the chip, whose offset from the marker grows with the marker's scale. */
+  private placeLabel(label: BitmapText, at: { x: number; y: number }): void {
+    label.position.set(at.x + TAG_OFFSET.x * this.scale.x, at.y + TAG_OFFSET.y * this.scale.y);
+    label.scale.set(this.scale.x, this.scale.y);
   }
 
   /** The dragged systems' marks follow their ghosts, dimmed. */
@@ -246,9 +255,8 @@ export class SpawnsLayer implements MapLayer {
     }
     const label = this.tagLabels.get(s.id);
     if (label) {
-      label.position.set(at.x + TAG_OFFSET.x * this.scale.x, at.y + TAG_OFFSET.y * this.scale.y);
+      this.placeLabel(label, at);
       label.alpha = ghosted ? GHOST_ALPHA : 1;
-      label.scale.set(this.scale.x, this.scale.y);
     }
   }
 
