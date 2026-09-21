@@ -774,7 +774,10 @@ fn mark_spawns(
                 }
             });
         system.spawn = SpawnDraft::Script(script);
-        if system.initializer.is_none() || review.contains(&system.id) {
+        // The game seats no empire on a seat naming that empire's own initializer,
+        // so the player's seat, whose empire brings its home, gets a generic one.
+        if system.initializer.is_none() || review.contains(&system.id) || player == Some(system.id)
+        {
             system.initializer = Some(basic_initializer(system.id).to_owned());
         }
     }

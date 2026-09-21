@@ -244,7 +244,7 @@ static_galaxy_scenario = {
 	system = { id = "214" name = "Athuna" position = { x = 94.49 y = 361.28 } initializer = asteroid_init_01 }
 	system = { id = "215" name = "Siuruta" position = { x = 69.74 y = 152.06 } initializer = basic_init_04 }
 	system = { id = "216" name = "Pincoya" position = { x = -250.33 y = 153.85 } initializer = basic_init_03 }
-	system = { id = "217" name = "NAME_Sol" position = { x = 397.39 y = -180.25 } initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } } }
+	system = { id = "217" name = "NAME_Sol" position = { x = 397.39 y = -180.25 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } } }
 	system = { id = "218" name = "Burs" position = { x = -28.82 y = 302.86 } initializer = basic_init_03 }
 	system = { id = "219" name = "Ustir" position = { x = -210.54 y = 272.44 } initializer = basic_init_02 }
 	system = { id = "220" name = "Tozied" position = { x = 124.76 y = -20.22 } initializer = basic_init_04 }

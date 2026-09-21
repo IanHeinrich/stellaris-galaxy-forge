@@ -667,15 +667,12 @@ static_galaxy_scenario = {
             player: true,
         })
     );
-    assert_eq!(
-        galaxy.systems[&player].initializer,
-        "sol_system_initializer"
-    );
-    // The Sol seat takes only the United Nations of Earth, so the player's capital is
-    // a preferred seat with the marker the first empire placed draws.
+    // The game seated the UNE elsewhere while its seat named the Sol initializer, the
+    // UNE's own, so the seat gets a generic start and the empire brings its home.
+    assert_eq!(galaxy.systems[&player].initializer, "random_empire_init_02");
     assert!(
         text.contains(
-            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } } }
+            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } } }
 "
         ),
         "{text}"
@@ -846,7 +843,7 @@ static_galaxy_scenario = {{
         );
         assert!(!system.initializer.is_empty(), "{id}");
         let expected = match save.graph.systems[id].initializer.as_str() {
-            own if own.is_empty() || review.contains(id) => {
+            own if own.is_empty() || review.contains(id) || player => {
                 format!("random_empire_init_0{}", id % 6 + 1)
             }
             own => own.to_owned(),

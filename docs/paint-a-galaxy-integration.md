@@ -201,7 +201,11 @@ kinds can pin a seat to an arbitrary empire: Sol and a reserved letter are
 the seat heavier than every other by far, so the first empire placed draws
 it. The site's importer reads the kind by substring and discards
 modifiers, so a round trip through the site degrades this seat to a plain
-preferred one. The report names the seat as `player_seat`. A system that
+preferred one. The report names the seat as `player_seat`. The player's
+seat is always given a generic `random_empire_init_0N` start, whatever the
+save's capital had: in my test the game would not seat the United Nations
+of Earth on a seat that named `sol_system_initializer`, the UNE's own
+initializer, and put it on the next seat instead. A system that
 already carries a preferred, reserved or Sol script keeps that script's kind
 and random value rather than being reset to plain "enabled". A spawn system
 with no `initializer`, or one whose initializer the report lists under
