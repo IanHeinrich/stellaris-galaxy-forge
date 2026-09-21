@@ -379,8 +379,12 @@ data is loaded, and any home system whose initializer is not a generic
 start. The dialog carries the same "For the Paint a Galaxy mod" checkbox
 as the blank canvas below, and the written file opens with those facts
 as `#` comment lines; the status bar's "Exported" time shows them again
-in its tooltip. A save opened as a scenario lists the same warnings in
-the Issues panel until it is closed.
+in its tooltip. The "Open as" question a picked save asks carries the
+same checkbox under "Edit as scenario", and "Open save as scenario…"
+in the File menu follows the standing choice, so a save taken into the
+editor as a scenario is converted for the mod the same way as an export.
+A save opened as a scenario lists the same warnings in the Issues panel
+until it is closed.
 
 "New scenario…" offers three ways to start. A blank canvas takes a name,
 a galaxy size (or a radius of your own) and a core radius, and gives you
@@ -390,7 +394,18 @@ writes spawn points in that mod's shape and a header sized for its
 fixes. A galaxy from the game has you start a new game in Stellaris at
 the size and shape you want, save on day one and open that save here,
 which hands you the generator's layout, names and empires to edit. The
-"Paint a galaxy" card opens paint-a-galaxy by Oatmeal Problem in your
+same checkbox sits under that card's steps. Ticked, the save is
+converted for the mod: each fallen empire's capital and the cluster
+around it are left out and a typed zone of that empire's kind is placed
+at the old capital, on an anchor system added for it, so the mod
+rebuilds the fallen empire where it stood. Your own capital becomes the
+Sol seat, so player 1 starts there whatever their empire. The L-Cluster
+is left out because the game adds its own, and the header's empire,
+fallen empire, marauder and nomad counts are taken from the save's setup
+screen. The Export as scenario report and the file's comment lines say
+what was done. Unticked, the save opens as a plain scenario with its
+fallen empire systems kept. The "Paint a galaxy" card opens
+paint-a-galaxy by Oatmeal Problem in your
 browser, where you draw systems and lanes and download the scenario file
 it exports. "Open a Paint a Galaxy file…" on the same card opens that
 file here.
@@ -399,9 +414,9 @@ The checkbox is ticked by default because custom galaxies hit
 game-breaking bugs in the generator that the Paint a Galaxy mod fixes.
 Keep it ticked for any map you will play. If you write scenarios for a
 mod of your own, untick it once.
-Unticking it, on the blank canvas or on the Export as scenario dialog,
-turns it off in both places, and ticking either one turns it back on in
-both. Under the checkbox the app shows the mod's status: not
+Unticking it, on the blank canvas, under "A galaxy from the game" or on
+the Export as scenario dialog, turns it off in every place, and ticking
+any one turns it back on in all of them. Under the checkbox the app shows the mod's status: not
 installed, with a link to subscribe on the Steam Workshop, installed but
 not enabled in your playset, or enabled. The status keeps itself
 current, so subscribing while the app is open is enough.
@@ -454,7 +469,9 @@ comes from the Reserved Spawns submod on the Steam Workshop, so subscribe
 to it only if you reserve seats. Issues warns when a reserved seat exists
 and the submod is not enabled, with a button to its Workshop page, and
 the warning counts against a save. Sol is a reserved seat the United
-Nations of Earth counts as holding. On the map a reserved seat shows its
+Nations of Earth counts as holding, and the mod seats player 1 there
+whatever their empire, which is why a save converted for the mod makes
+your capital the Sol seat. On the map a reserved seat shows its
 letter, Sol shows "Sol" and a preferred seat gets a star. The human and
 AI reservations are hidden under the layer because the mod does not read
 them. A system that still carries a plain weight in such a file shows a

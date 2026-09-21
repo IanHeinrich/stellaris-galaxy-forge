@@ -99,8 +99,11 @@ export interface FileSessionState {
   requestOpen(path: string): Promise<void>;
   /** Answers the pending open; null cancels it. */
   chooseOpenMode(mode: OpenMode | null): Promise<void>;
-  /** With a `mode`, the picker filters to `.sav` and skips straight to that mode, no dialog. */
-  pickAndOpen(mode?: OpenMode): Promise<void>;
+  /**
+   * With a `mode`, the picker filters to `.sav` and skips straight to that mode, no dialog;
+   * `profile` is what a scenario made from the pick is written under.
+   */
+  pickAndOpen(mode?: OpenMode, profile?: ScenarioProfile): Promise<void>;
   /** Picks a scenario file and opens it as `openScenario` would; resolves true once it is open. */
   pickAndOpenScenario(options?: { paint?: boolean }): Promise<boolean>;
   /** Re-reads the open file from disk, discarding unsaved changes on confirmation. */
@@ -192,10 +195,12 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     const path = get().pendingOpen;
     set({ pendingOpen: null });
     if (path === null || mode === null) return;
-    await (mode === "scenario" ? get().openScenarioFrom(path) : get().openSave(path));
+    await (mode === "scenario"
+      ? get().openScenarioFrom(path, standingProfile())
+      : get().openSave(path));
   },
 
-  async pickAndOpen(mode) {
+  async pickAndOpen(mode, profile) {
     if (get().saving || !(await get().confirmDiscard())) return;
     const [defaultPath] = await ipc.saveDirs().catch(() => []);
     const picked = await open({
@@ -211,7 +216,9 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     if (mode === undefined) {
       await routeOpen(picked);
     } else {
-      await (mode === "scenario" ? get().openScenarioFrom(picked) : get().openSave(picked));
+      await (mode === "scenario"
+        ? get().openScenarioFrom(picked, profile ?? standingProfile())
+        : get().openSave(picked));
     }
   },
 
@@ -403,6 +410,11 @@ function replaceNotes(code: NoteCode, notes: AppIssue[]): void {
   if (same) return;
   useIssuesStore.getState().setNotes(code, notes);
   setState({ issues: [...issues.filter((issue) => issue.code !== code), ...notes] });
+}
+
+/** The profile the standing "For the Paint a Galaxy mod" choice asks for when a save becomes a scenario. */
+function standingProfile(): ScenarioProfile | undefined {
+  return useFileSessionStore.getState().paintChoice ? "paint_a_galaxy" : undefined;
 }
 
 /** What a document with no file of its own is offered as a name. */

@@ -35,7 +35,7 @@ function clampCore(core: number, radius: number): number {
 
 type Route = "blank" | "game" | "paint";
 
-/** The name and canvas size a blank scenario starts from, and the profile it is written under. */
+/** The name and canvas size a blank scenario starts from, and the profile a new one is written under. */
 type Blank = { name: string; radius: number; coreRadius: number; profile?: ScenarioProfile };
 
 const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
@@ -195,6 +195,7 @@ export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
           <li key={step}>{step}</li>
         ))}
       </ol>
+      {route === "game" && <PaintChoice />}
       {route === "paint" && (
         <div className="route-links">
           <button type="button" className="link route-link" onClick={openFile}>
@@ -216,7 +217,7 @@ function start(route: Route, blank: Blank): void {
       void file.newScenario(blank.name, blank.radius, blank.coreRadius, blank.profile);
       break;
     case "game":
-      void file.pickAndOpen("scenario");
+      void file.pickAndOpen("scenario", blank.profile);
       break;
   }
 }

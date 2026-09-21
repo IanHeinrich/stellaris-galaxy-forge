@@ -1,47 +1,59 @@
 import type { FormEvent } from "react";
-import type { Category } from "../../generated/Category";
 import type { ExportReport } from "../../generated/ExportReport";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { Dialog } from "../overlays/Dialog";
-import { droppedSummary } from "./exportReport";
+import {
+  CATEGORY_LABELS,
+  countsSummary,
+  droppedSummary,
+  fallenEmpiresSummary,
+  homeInitializerLines,
+  omittedLines,
+  seatsSummary,
+} from "./exportReport";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
-
-const CATEGORY_LABELS: Record<Category, string> = {
-  home: "Home",
-  fallen_empire: "Fallen empire",
-  marauder: "Marauder",
-  ratling: "Ratling",
-  l_cluster: "L-Cluster",
-  guaranteed_colony: "Guaranteed colony",
-  special: "Special",
-  generic: "Generic",
-};
 
 /** What the export carries over and what it leaves out, one row per fact that applies. */
 export function ExportReportRows({ report }: { report: ExportReport }) {
   const systems = useGalaxyStore((s) => s.systems);
   const names = useGameDataStore((s) => s.names);
+  const nameOf = (id: number) =>
+    systems.has(id) ? systemNameOf(systems, names, id) : `system ${id}`;
   const dropped = droppedSummary(report.dropped);
+  const fallen = fallenEmpiresSummary(report);
+  const omitted = omittedLines(report);
+  const counts = countsSummary(report);
   const needs = report.sources.map((s) => s.source).join(", ");
-  const homes = report.home_initializers
-    .map((h) => {
-      const where = systems.has(h.system)
-        ? systemNameOf(systems, names, h.system)
-        : `system ${h.system}`;
-      return `${h.initializer} (${where})`;
-    })
-    .join(", ");
+  const homes = homeInitializerLines(report, nameOf);
   return (
     <dl className="export-report">
-      <dt>Empire seats</dt>
-      <dd>{report.seats}</dd>
+      <dt>Seats</dt>
+      <dd>{seatsSummary(report, nameOf)}</dd>
       <dt>Systems</dt>
       <dd>
         {report.by_category.map((c) => `${CATEGORY_LABELS[c.category]} ${c.systems}`).join(" · ")}
       </dd>
+      {fallen !== null && (
+        <>
+          <dt>Fallen empires</dt>
+          <dd>{fallen}</dd>
+        </>
+      )}
+      {omitted.length > 0 && (
+        <>
+          <dt>Left out</dt>
+          <dd>{omitted.join(" ")}</dd>
+        </>
+      )}
+      {counts !== null && (
+        <>
+          <dt>Counts</dt>
+          <dd>{counts}</dd>
+        </>
+      )}
       {dropped !== null && (
         <>
           <dt>Not carried over</dt>
@@ -54,10 +66,16 @@ export function ExportReportRows({ report }: { report: ExportReport }) {
           <dd>{needs}</dd>
         </>
       )}
-      {homes !== "" && (
+      {homes.review !== "" && (
         <>
           <dt>Home initializers to review</dt>
-          <dd>{homes}</dd>
+          <dd>{homes.review}</dd>
+        </>
+      )}
+      {homes.replaced.length > 0 && (
+        <>
+          <dt>Home initializers replaced</dt>
+          <dd>{homes.replaced.join(" ")}</dd>
         </>
       )}
     </dl>

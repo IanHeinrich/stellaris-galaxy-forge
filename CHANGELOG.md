@@ -58,6 +58,11 @@ a release is made.
   the other end. A scenario saved into the mod's
   folder is checked for another file listing the same name. After a save
   into the mod the status bar says how to start the map in Stellaris.
+- A save opened or exported as a Paint a Galaxy scenario keeps its
+  fallen empires as typed zones at their old capitals, seats the player
+  at their old capital, leaves the L-Cluster to the game and takes the
+  header's counts from the save's own setup. The report and the file's
+  comment lines say what was done.
 - The seat select reads Enabled, Preferred, Sol, then Reserved A to Z,
   with a line saying what the mod does with each. The map shows a
   reserved seat's letter and a star on a preferred one. The vanilla

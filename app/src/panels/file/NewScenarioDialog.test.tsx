@@ -157,7 +157,7 @@ describe("the blank canvas", () => {
 });
 
 describe("a galaxy from the game", () => {
-  it("picks a save and opens it as a scenario", () => {
+  it("picks a save and opens it as a plain scenario while the box is unticked", () => {
     const pickAndOpen = vi.fn();
     useFileSessionStore.setState({ pickAndOpen });
 
@@ -165,14 +165,34 @@ describe("a galaxy from the game", () => {
     expect(renderToStaticMarkup(foot)).toContain("Open a save…");
     button(foot, "Open a save…").props.onClick();
 
-    expect(pickAndOpen).toHaveBeenCalledWith("scenario");
+    expect(pickAndOpen).toHaveBeenCalledWith("scenario", undefined);
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);
   });
 
-  it("says in two steps where that save comes from", () => {
+  it("opens the save under the Paint a Galaxy profile once the box is checked", () => {
+    const pickAndOpen = vi.fn();
+    useFileSessionStore.setState({ pickAndOpen });
+
+    const blank = { ...BLANK, profile: "paint_a_galaxy" as const };
+    button(<RouteFoot route="game" blank={blank} />, "Open a save…").props.onClick();
+
+    expect(pickAndOpen).toHaveBeenCalledWith("scenario", "paint_a_galaxy");
+  });
+
+  it("says in two steps where that save comes from, with the Paint a Galaxy box under them", () => {
     const html = renderToStaticMarkup(<RouteHelp route="game" />);
     expect(html).toContain("save on day one");
     expect(html).toContain("Open that save here as a scenario.");
+    expect(html).toContain("For the Paint a Galaxy mod");
+    expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
+
+    useFileSessionStore.setState({ paintChoice: false });
+    const unticked = renderToStaticMarkup(<RouteHelp route="game" />);
+    expect(unticked.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
+    expect(unticked).toContain('class="setup-warn" role="alert"');
+    expect(renderToStaticMarkup(<RouteHelp route="paint" />)).not.toContain(
+      "For the Paint a Galaxy mod",
+    );
   });
 });
 

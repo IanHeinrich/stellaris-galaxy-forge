@@ -216,6 +216,7 @@ describe("openSave", () => {
   it("pickAndOpen with mode 'scenario' filters to .sav and skips the mode dialog", async () => {
     mocked.saveDirs.mockResolvedValue(["C:/saves"]);
     mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
+    useFileSessionStore.setState({ paintChoice: false });
     mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
 
     await session().pickAndOpen("scenario");
@@ -230,6 +231,40 @@ describe("openSave", () => {
     expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", undefined);
     expect(mocked.openSave).not.toHaveBeenCalled();
     expect(session().pendingOpen).toBeNull();
+  });
+
+  it("a save taken as a scenario follows the standing Paint a Galaxy choice on every route", async () => {
+    mocked.saveDirs.mockResolvedValue(["C:/saves"]);
+    mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
+    useFileSessionStore.setState({ paintChoice: true });
+
+    mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
+    await session().pickAndOpen("scenario");
+    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/picked.sav", "paint_a_galaxy");
+
+    mocked.open.mockResolvedValueOnce("C:/saves/other.sav");
+    await session().pickAndOpen();
+    await session().chooseOpenMode("scenario");
+    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/other.sav", "paint_a_galaxy");
+
+    useFileSessionStore.setState({ paintChoice: false });
+    mocked.open.mockResolvedValueOnce("C:/saves/plain.sav");
+    await session().pickAndOpen();
+    await session().chooseOpenMode("scenario");
+    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/plain.sav", undefined);
+  });
+
+  it("pickAndOpen with a profile opens the picked save as a scenario written under it", async () => {
+    mocked.saveDirs.mockResolvedValue(["C:/saves"]);
+    mocked.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null, painted: true });
+    mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
+
+    await session().pickAndOpen("scenario", "paint_a_galaxy");
+
+    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "paint_a_galaxy");
+    expect(session().painted).toBe(true);
+    expect(session().paintChosen).toBe(true);
+    expect(getPaintLayer()).toBe(true);
   });
 });
 
@@ -606,6 +641,7 @@ describe("scenario documents", () => {
   });
 
   it("a save asks first: as a scenario, as a save, or not at all", async () => {
+    useFileSessionStore.setState({ paintChoice: false });
     mocked.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null });
     await session().requestOpen(OPEN_RESULT.path);
     expect(session().pendingOpen).toBe(OPEN_RESULT.path);

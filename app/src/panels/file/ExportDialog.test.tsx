@@ -14,7 +14,14 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { ExportDialog, ExportForm, ExportReportRows } from "./ExportDialog";
 import { PaintChoice } from "./PaintChoice";
-import { droppedSummary } from "./exportReport";
+import {
+  countsSummary,
+  droppedSummary,
+  fallenEmpiresSummary,
+  homeInitializerLines,
+  omittedLines,
+  seatsSummary,
+} from "./exportReport";
 
 const FULL = exportReport({
   seats: 17,
@@ -34,6 +41,36 @@ const FULL = exportReport({
     { source: "my_mod", systems: 2 },
   ],
 });
+
+/** The sample save converted for the mod: three fallen empires, the player at Sol, the L-Cluster left out. */
+const PAINTED = exportReport({
+  fallen_empires: [
+    {
+      name: "Ancient Caretakers",
+      kind: "materialist",
+      systems_left_out: 5,
+      anchor: 792,
+      exact: true,
+    },
+    {
+      name: "Holy Guardians",
+      kind: "spiritualist",
+      systems_left_out: 13,
+      anchor: 793,
+      exact: true,
+    },
+    { name: "Custodian Matrix", kind: "machine", systems_left_out: 11, anchor: 791, exact: true },
+  ],
+  player_seat: 217,
+  omitted: [{ category: "l_cluster", systems: 9 }],
+  setup_from_save: true,
+  home_initializers: [
+    { system: 311, initializer: "shattered_ring_start", replaced: true },
+    { system: 12, initializer: "void_dwellers_start", replaced: false },
+  ],
+});
+
+const id = (system: number) => `system ${system}`;
 
 const row = (label: string, value: string) => `<dt>${label}</dt><dd>${value}</dd>`;
 
@@ -70,7 +107,7 @@ beforeEach(() => {
 describe("the report", () => {
   it("lists the seats, the systems by category, and everything the export left out or needs", () => {
     const html = renderToStaticMarkup(<ExportReportRows report={FULL} />);
-    expect(html).toContain(row("Empire seats", "17"));
+    expect(html).toContain(row("Seats", "17 seats."));
     expect(html).toContain(
       row("Systems", "Home 17 · Fallen empire 28 · L-Cluster 9 · Generic 737"),
     );
@@ -102,11 +139,132 @@ describe("the report", () => {
 
   it("leaves out the rows with nothing to say", () => {
     const html = renderToStaticMarkup(<ExportReportRows report={exportReport()} />);
-    expect(html).toContain(row("Empire seats", "17"));
+    expect(html).toContain(row("Seats", "17 seats."));
     expect(html).toContain(row("Systems", "Home 17 · Generic 774"));
+    expect(html).not.toContain("Fallen empires");
+    expect(html).not.toContain("Left out");
+    expect(html).not.toContain("Counts");
     expect(html).not.toContain("Not carried over");
     expect(html).not.toContain("Needs");
     expect(html).not.toContain("Home initializers to review");
+    expect(html).not.toContain("Home initializers replaced");
+  });
+
+  it("says what a conversion for the mod did with the seats, the fallen empires and the rest", () => {
+    const html = renderToStaticMarkup(<ExportReportRows report={PAINTED} />);
+    expect(html).toContain(
+      row("Seats", "17 seats. Your capital, system 217, is the Sol seat: player 1 spawns there."),
+    );
+    expect(html).toContain(
+      row(
+        "Fallen empires",
+        "3 fallen empire zones at the old capitals: Materialist, Spiritualist, Machine. " +
+          "29 systems left out for the mod to rebuild. 3 anchor systems added.",
+      ),
+    );
+    expect(html).toContain(row("Left out", "9 L-Cluster systems left out: the game adds its own."));
+    expect(html).toContain(row("Counts", "Counts from the save&#x27;s setup."));
+    expect(html).toContain(row("Home initializers to review", "void_dwellers_start (system 12)"));
+    expect(html).toContain(
+      row(
+        "Home initializers replaced",
+        "system 311 had shattered_ring_start, replaced with a generic start.",
+      ),
+    );
+  });
+
+  it("names the player's capital from the galaxy", () => {
+    useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
+    const html = renderToStaticMarkup(
+      <ExportReportRows report={exportReport({ player_seat: 2 })} />,
+    );
+    expect(html).toContain("Your capital, Barnard, is the Sol seat");
+  });
+
+  it("words each row of the conversion, plural or singular, and each zone that missed its spot", () => {
+    expect(seatsSummary(exportReport({ seats: 1 }), id)).toBe("1 seat.");
+    expect(seatsSummary(exportReport({ player_seat: 217 }), id)).toBe(
+      "17 seats. Your capital, system 217, is the Sol seat: player 1 spawns there.",
+    );
+
+    expect(fallenEmpiresSummary(exportReport())).toBeNull();
+    expect(
+      fallenEmpiresSummary(
+        exportReport({
+          fallen_empires: [
+            {
+              name: "Holy Guardians",
+              kind: "spiritualist",
+              systems_left_out: 1,
+              anchor: 5,
+              exact: false,
+            },
+          ],
+        }),
+      ),
+    ).toBe(
+      "1 fallen empire zone at the old capital: Spiritualist. 1 system left out for the mod to " +
+        "rebuild. 1 placed nearby: the old spot was not clear.",
+    );
+    expect(
+      fallenEmpiresSummary(
+        exportReport({
+          fallen_empires: [
+            {
+              name: "Ancient Caretakers",
+              kind: "materialist",
+              systems_left_out: 5,
+              anchor: 792,
+              exact: true,
+            },
+            {
+              name: "Holy Guardians",
+              kind: "spiritualist",
+              systems_left_out: 13,
+              anchor: 793,
+              exact: false,
+            },
+            {
+              name: "Custodian Matrix",
+              kind: "machine",
+              systems_left_out: 11,
+              anchor: null,
+              exact: false,
+            },
+          ],
+        }),
+      ),
+    ).toBe(
+      "3 fallen empire zones at the old capitals: Materialist, Spiritualist, Machine. " +
+        "29 systems left out for the mod to rebuild. 1 anchor system added. " +
+        "1 placed nearby: the old spot was not clear. Custodian Matrix has no clear spot within reach.",
+    );
+
+    expect(omittedLines(exportReport())).toEqual([]);
+    expect(
+      omittedLines(
+        exportReport({
+          omitted: [
+            { category: "l_cluster", systems: 1 },
+            { category: "marauder", systems: 4 },
+          ],
+        }),
+      ),
+    ).toEqual([
+      "1 L-Cluster system left out: the game adds its own.",
+      "4 Marauder systems left out: the game adds its own.",
+    ]);
+
+    expect(countsSummary(exportReport())).toBeNull();
+    expect(countsSummary(exportReport({ setup_from_save: true }))).toBe(
+      "Counts from the save's setup.",
+    );
+
+    expect(homeInitializerLines(exportReport(), id)).toEqual({ review: "", replaced: [] });
+    expect(homeInitializerLines(PAINTED, id)).toEqual({
+      review: "void_dwellers_start (system 12)",
+      replaced: ["system 311 had shattered_ring_start, replaced with a generic start."],
+    });
   });
 
   it("words the dropped bypasses as the file's own comment does", () => {
