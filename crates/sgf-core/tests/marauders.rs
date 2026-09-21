@@ -16,6 +16,10 @@ const FIXTURE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/paint_a_galaxy.txt"
 );
+const PAINT_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/2206.11.16.paint.txt"
+);
 
 const VOID: &str = "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" }";
 const UNNAMED: &str = "id = \"11\" position = { x = -150 y = -30 } }";
@@ -239,4 +243,89 @@ fn the_sample_saves_two_clans_read_from_their_initializers_and_raise_no_issue() 
     assert_eq!(next_free_clan(&save.graph), Some(3));
     let issues = save.validate();
     assert!(marauder_issues(&issues).is_empty(), "{issues:?}");
+}
+
+#[test]
+fn a_home_with_two_raid_bases_hyperlaned_to_it_raises_no_issue() {
+    let session = open_edited_all(&[
+        (
+            VOID,
+            "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
+        ),
+        (
+            "initializer = random_empire_init_02",
+            "initializer = marauder_1_2",
+        ),
+        (
+            "initializer = random_empire_init_03",
+            "initializer = marauder_1_3",
+        ),
+    ]);
+    let issues = session.validate();
+    assert!(
+        coded(&issues, IssueCode::MarauderBasesMissing).is_empty(),
+        "{issues:?}"
+    );
+}
+
+#[test]
+fn a_home_with_one_raid_base_beside_it_is_reported_with_one() {
+    let session = open_edited_all(&[
+        (
+            VOID,
+            "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
+        ),
+        (
+            "initializer = random_empire_init_02",
+            "initializer = marauder_1_2",
+        ),
+    ]);
+    let issues = session.validate();
+    let missing = coded(&issues, IssueCode::MarauderBasesMissing);
+    assert_eq!(missing.len(), 1, "{issues:?}");
+    assert_eq!(
+        missing[0].message,
+        "Void is the marauder clan 1 home with one raid base beside it. A clan is its home and two bases hyperlaned to it."
+    );
+    assert_eq!(missing[0].severity, Severity::Warning);
+    assert_eq!(missing[0].systems, [10]);
+}
+
+#[test]
+fn a_home_with_two_bases_but_one_not_hyperlaned_still_raises_the_issue() {
+    let session = open_edited_all(&[
+        (
+            VOID,
+            "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
+        ),
+        (
+            "initializer = random_empire_init_02",
+            "initializer = marauder_1_2",
+        ),
+        (
+            "initializer = custom_starting_init_01",
+            "initializer = marauder_1_3",
+        ),
+    ]);
+    let issues = session.validate();
+    let missing = coded(&issues, IssueCode::MarauderBasesMissing);
+    assert_eq!(missing.len(), 1, "{issues:?}");
+    assert_eq!(
+        missing[0].message,
+        "Void is the marauder clan 1 home with one raid base beside it. A clan is its home and two bases hyperlaned to it."
+    );
+    assert_eq!(missing[0].severity, Severity::Warning);
+    assert_eq!(missing[0].systems, [10]);
+}
+
+#[test]
+fn the_paint_fixture_exports_both_clans_complete_and_raises_no_bases_missing_issue() {
+    let session = Session::open(PAINT_FIXTURE).expect("open the paint fixture");
+    assert_eq!(homes(&session.graph).get(&1), Some(&vec![13]));
+    assert_eq!(homes(&session.graph).get(&2), Some(&vec![12]));
+    let issues = session.validate();
+    assert!(
+        coded(&issues, IssueCode::MarauderBasesMissing).is_empty(),
+        "{issues:?}"
+    );
 }

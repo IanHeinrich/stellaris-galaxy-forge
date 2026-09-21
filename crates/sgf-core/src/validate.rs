@@ -100,6 +100,9 @@ pub enum IssueCode {
     /// A marauder raid base with no hyperlane to its clan's home, so nothing spawns
     /// there.
     MarauderBaseOrphan,
+    /// A marauder clan's home with fewer than two raid bases of its clan hyperlaned to
+    /// it, so the clan is incomplete.
+    MarauderBasesMissing,
     /// A marauder clan's home stands within [`marauder::SEAT_CLEARANCE`] of a seat, so
     /// the raids hit that empire first.
     MarauderNearSeat,
@@ -131,7 +134,8 @@ impl IssueCode {
             | Self::SeatLetterDuplicate
             | Self::LClusterSystem
             | Self::MarauderHomeDuplicate
-            | Self::MarauderBaseOrphan => Severity::Warning,
+            | Self::MarauderBaseOrphan
+            | Self::MarauderBasesMissing => Severity::Warning,
             Self::SolSeatMismatch | Self::MarauderNearSeat | Self::FeLinkFar => Severity::Info,
         }
     }
@@ -164,6 +168,7 @@ impl IssueCode {
             Self::LClusterSystem => "l_cluster_system",
             Self::MarauderHomeDuplicate => "marauder_home_duplicate",
             Self::MarauderBaseOrphan => "marauder_base_orphan",
+            Self::MarauderBasesMissing => "marauder_bases_missing",
             Self::MarauderNearSeat => "marauder_near_seat",
         }
     }
@@ -535,11 +540,8 @@ fn marauders(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         .collect();
     bases.sort_unstable_by_key(|(base, _)| base.id);
     for (base, clan) in bases {
-        let beside_home = base.lanes.iter().any(|lane| {
-            g.systems
-                .get(&lane.to)
-                .is_some_and(|other| other.marauder == Some(MarauderRole::Home(clan)))
-        });
+        let beside_home =
+            !marauder::neighbours_with_role(g, base, MarauderRole::Home(clan)).is_empty();
         if !beside_home {
             issues.push(Issue::new(
                 IssueCode::MarauderBaseOrphan,
@@ -548,6 +550,36 @@ fn marauders(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                     label(base)
                 ),
                 vec![base.id],
+            ));
+        }
+    }
+    marauders_bases_missing(g, issues);
+}
+
+/// Every marauder clan home with fewer than two raid bases of its clan hyperlaned to
+/// it: a clan is its home and two bases beside it, and nothing adds the missing ones.
+fn marauders_bases_missing(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    for (clan, homes) in marauder::homes(g) {
+        for id in homes {
+            let Some(home) = g.systems.get(&id) else {
+                continue;
+            };
+            let bases = marauder::neighbours_with_role(g, home, MarauderRole::Base(clan));
+            if bases.len() >= 2 {
+                continue;
+            }
+            let count = match bases.len() {
+                0 => "no raid bases",
+                1 => "one raid base",
+                _ => unreachable!("fewer than two"),
+            };
+            issues.push(Issue::new(
+                IssueCode::MarauderBasesMissing,
+                format!(
+                    "{} is the marauder clan {clan} home with {count} beside it. A clan is its home and two bases hyperlaned to it.",
+                    label(home)
+                ),
+                vec![home.id],
             ));
         }
     }

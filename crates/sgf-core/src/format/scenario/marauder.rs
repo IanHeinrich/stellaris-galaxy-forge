@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::format::scenario::fe_zone;
-use crate::projections::galaxy::Galaxy;
+use crate::projections::galaxy::{Galaxy, SystemNode};
 
 /// How many clans the game's initializers name.
 pub const CLANS: u8 = 3;
@@ -92,6 +92,23 @@ pub fn clan_count(galaxy: &Galaxy) -> u32 {
 /// Whether a home at `home` stands within [`SEAT_CLEARANCE`] of a seat at `seat`.
 pub fn near_seat(home: (f64, f64), seat: (f64, f64)) -> bool {
     fe_zone::distance(home, seat) < SEAT_CLEARANCE
+}
+
+/// The systems hyperlaned to `system` that carry `role`, ascending by id.
+pub fn neighbours_with_role(galaxy: &Galaxy, system: &SystemNode, role: MarauderRole) -> Vec<u32> {
+    let mut ids: Vec<u32> = system
+        .lanes
+        .iter()
+        .filter(|lane| {
+            galaxy
+                .systems
+                .get(&lane.to)
+                .is_some_and(|other| other.marauder == Some(role))
+        })
+        .map(|lane| lane.to)
+        .collect();
+    ids.sort_unstable();
+    ids
 }
 
 #[cfg(test)]
