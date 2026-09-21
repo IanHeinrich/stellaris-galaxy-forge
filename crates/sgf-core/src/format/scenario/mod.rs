@@ -9,11 +9,13 @@ pub mod fe_zone;
 pub mod header_counts;
 pub mod index;
 pub mod listings;
+pub mod marauder;
 pub mod paint;
 pub(crate) mod spawn;
 pub(crate) mod write;
 
 pub use fe_zone::{FeDirection, FeKind, FeZone};
+pub use marauder::MarauderRole;
 pub use paint::is_painted;
 
 use std::collections::{HashMap, HashSet};
@@ -213,6 +215,8 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
         num_empire_default: scenario.header.num_empire_default,
         fallen_empire_max: scenario.header.fallen_empire_max,
         fallen_empire_default: scenario.header.fallen_empire_default,
+        marauder_empire_max: scenario.header.marauder_empire_max,
+        marauder_empire_default: scenario.header.marauder_empire_default,
         setup: None,
         player_country: None,
     };
@@ -272,6 +276,7 @@ fn add_prevented(systems: &mut HashMap<u32, SystemNode>, statements: &[LaneStmt]
 
 fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
     let (x, y) = position(node, src);
+    let initializer = read::text(node, keys::INITIALIZER, src);
     SystemNode {
         id,
         name: name(node, src),
@@ -282,7 +287,8 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         nebula: None,
         bypass_ids: Vec::new(),
         planet_count: 0,
-        initializer: read::text(node, keys::INITIALIZER, src),
+        marauder: marauder::role(&initializer),
+        initializer,
         spawn_weight: spawn_weight(node, src),
         spawn_modifiers: spawn_modifiers(node, src),
         spawn_script: node

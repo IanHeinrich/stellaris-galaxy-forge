@@ -26,7 +26,7 @@ static_galaxy_scenario = {
 	colonizable_planet_odds = 1.0
 	primitive_odds = 1.0
 	fallen_empire_max = 0
-	marauder_empire_max = 3
+	marauder_empire_max = 0
 	extra_crisis_strength = { 10 25 }
 	num_empires = { min = 0 max = 0 }
 	num_empire_default = 0
@@ -34,7 +34,7 @@ static_galaxy_scenario = {
 	nomad_empire_default = 0
 	nomad_empire_max = 0
 	fallen_empire_default = 0
-	marauder_empire_default = 1
+	marauder_empire_default = 0
 	crisis_strength = 0.5
 	core_radius = 0
 

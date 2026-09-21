@@ -267,6 +267,9 @@ const ISSUE_TITLES: Record<AppIssueCode, string> = {
   l_cluster_system: "System where the game places the L-Cluster",
   scenario_name_duplicate: "Scenario name used by another file in the mod",
   reserved_spawns_missing: "Reserved seats without the Reserved Spawns submod",
+  marauder_home_duplicate: "Marauder clan with two homes",
+  marauder_base_orphan: "Marauder raid base without its clan",
+  marauder_near_seat: "Marauder clan beside a seat",
 };
 
 export function issueTitle(code: AppIssueCode): string {

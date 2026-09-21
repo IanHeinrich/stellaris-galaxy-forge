@@ -5,7 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::format::scenario::FeZone;
+use crate::format::scenario::{FeZone, MarauderRole};
 use crate::projections::galaxy::{SpawnModifier, SpawnScript, display_template};
 use crate::projections::name::NameTemplate;
 
@@ -80,6 +80,9 @@ pub struct SystemNode {
     pub bypass_ids: Vec<u32>,
     pub planet_count: u32,
     pub initializer: String,
+    /// What the initializer makes of the system for the marauders: a clan's home or one
+    /// of its raid bases. Read the same way from a save and a scenario.
+    pub marauder: Option<MarauderRole>,
     /// A scenario system's `spawn_weight = { base = N }`, the weight the generator gives
     /// this system when it places an empire. `None` when the statement states no `base`,
     /// which includes a `spawn_weight` carrying only `modifier` entries: those are script

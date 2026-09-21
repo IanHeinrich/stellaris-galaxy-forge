@@ -10,8 +10,9 @@ use std::collections::BTreeMap;
 
 use crate::format::scenario::fe_zone;
 use crate::format::scenario::header_counts::{
-    HeaderMismatch, header_mismatch, seat_counts, zone_count,
+    HeaderMismatch, header_mismatch, is_seat, seat_counts, zone_count,
 };
+use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::paint::SOL_INITIALIZER;
 use crate::guides::Guide;
 use crate::ops::rules::fe_zone::label;
@@ -82,6 +83,15 @@ pub enum IssueCode {
     SolSeatMismatch,
     /// A system stands where the game builds the L-Cluster at galaxy generation.
     LClusterSystem,
+    /// Two or more systems carry the same marauder clan's home initializer, and the
+    /// clan spawns from only one of them.
+    MarauderHomeDuplicate,
+    /// A marauder raid base with no hyperlane to its clan's home, so nothing spawns
+    /// there.
+    MarauderBaseOrphan,
+    /// A marauder clan's home stands within [`marauder::SEAT_CLEARANCE`] of a seat, so
+    /// the raids hit that empire first.
+    MarauderNearSeat,
 }
 
 impl IssueCode {
@@ -105,8 +115,10 @@ impl IssueCode {
             | Self::FeZoneNoAutomatic
             | Self::HeaderEmpireCount
             | Self::SeatLetterDuplicate
-            | Self::LClusterSystem => Severity::Warning,
-            Self::SolSeatMismatch => Severity::Info,
+            | Self::LClusterSystem
+            | Self::MarauderHomeDuplicate
+            | Self::MarauderBaseOrphan => Severity::Warning,
+            Self::SolSeatMismatch | Self::MarauderNearSeat => Severity::Info,
         }
     }
 
@@ -132,6 +144,9 @@ impl IssueCode {
             Self::SeatLetterDuplicate => "seat_letter_duplicate",
             Self::SolSeatMismatch => "sol_seat_mismatch",
             Self::LClusterSystem => "l_cluster_system",
+            Self::MarauderHomeDuplicate => "marauder_home_duplicate",
+            Self::MarauderBaseOrphan => "marauder_base_orphan",
+            Self::MarauderNearSeat => "marauder_near_seat",
         }
     }
 }
@@ -273,6 +288,7 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
         seats(g, &mut issues);
         automatic_zones(g, &mut issues);
         l_cluster(g, &mut issues);
+        marauders(g, &mut issues);
     }
 
     let components = g.components();
@@ -370,14 +386,19 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
     seated.sort_unstable_by_key(|system| system.id);
     let (seats, reserved) = seat_counts(g);
     let zones = zone_count(g);
-    let message = header_mismatch(g, seats, reserved, zones).map(|mismatch| match mismatch {
-        HeaderMismatch::Empires { allowed } => format!(
-            "Header allows {allowed} empires but the file has {seats} seats. Update the empire counts."
-        ),
-        HeaderMismatch::FallenEmpires { allowed } => format!(
-            "Header allows {allowed} fallen empires but the map has {zones} fallen empire zones. Update the empire counts."
-        ),
-    });
+    let clans = marauder::clan_count(g);
+    let message =
+        header_mismatch(g, seats, reserved, zones, clans).map(|mismatch| match mismatch {
+            HeaderMismatch::Empires { allowed } => format!(
+                "Header allows {allowed} empires but the file has {seats} seats. Update the empire counts."
+            ),
+            HeaderMismatch::FallenEmpires { allowed } => format!(
+                "Header allows {allowed} fallen empires but the map has {zones} fallen empire zones. Update the empire counts."
+            ),
+            HeaderMismatch::Marauders { allowed } => format!(
+                "Header allows {allowed} marauder clans but the map has {clans} clan homes. Update the empire counts."
+            ),
+        });
     if let Some(message) = message {
         issues.push(Issue::new(
             IssueCode::HeaderEmpireCount,
@@ -430,6 +451,95 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
             ),
             systems,
         ));
+    }
+    marauders_near_seats(g, issues);
+}
+
+/// Every marauder clan home standing within reach of a seat, which its raids hit first.
+fn marauders_near_seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    let mut seats: Vec<&SystemNode> = g.systems.values().filter(|s| is_seat(s)).collect();
+    seats.sort_unstable_by_key(|seat| seat.id);
+    for (clan, homes) in marauder::homes(g) {
+        for id in homes {
+            let Some(home) = g.systems.get(&id) else {
+                continue;
+            };
+            for seat in &seats {
+                if seat.id != home.id && marauder::near_seat((home.x, home.y), (seat.x, seat.y)) {
+                    issues.push(Issue::new(
+                        IssueCode::MarauderNearSeat,
+                        format!(
+                            "Marauder clan {clan}'s home is within {} of the seat {}. Raids hit that empire first.",
+                            marauder::SEAT_CLEARANCE,
+                            label(seat)
+                        ),
+                        vec![home.id, seat.id],
+                    ));
+                }
+            }
+        }
+    }
+}
+
+/// What the marauder initializers say against each other: one home per clan, and a raid
+/// base beside its clan's home, else the mod adds nothing there.
+fn marauders(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    for (clan, homes) in marauder::homes(g) {
+        if homes.len() < 2 {
+            continue;
+        }
+        let names: Vec<String> = homes
+            .iter()
+            .filter_map(|id| g.systems.get(id))
+            .map(label)
+            .collect();
+        let count = match homes.len() {
+            2 => "two".to_owned(),
+            n => n.to_string(),
+        };
+        issues.push(Issue::new(
+            IssueCode::MarauderHomeDuplicate,
+            format!(
+                "Marauder clan {clan} has {count} homes: {}. Only one spawns.",
+                listed(&names)
+            ),
+            homes,
+        ));
+    }
+    let mut bases: Vec<(&SystemNode, u8)> = g
+        .systems
+        .values()
+        .filter_map(|system| match system.marauder {
+            Some(MarauderRole::Base(clan)) => Some((system, clan)),
+            _ => None,
+        })
+        .collect();
+    bases.sort_unstable_by_key(|(base, _)| base.id);
+    for (base, clan) in bases {
+        let beside_home = base.lanes.iter().any(|lane| {
+            g.systems
+                .get(&lane.to)
+                .is_some_and(|other| other.marauder == Some(MarauderRole::Home(clan)))
+        });
+        if !beside_home {
+            issues.push(Issue::new(
+                IssueCode::MarauderBaseOrphan,
+                format!(
+                    "{} is a raid base of clan {clan} with no clan home beside it. Nothing spawns there.",
+                    label(base)
+                ),
+                vec![base.id],
+            ));
+        }
+    }
+}
+
+/// `a`, `a and b`, `a, b and c`.
+fn listed(names: &[String]) -> String {
+    match names {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
     }
 }
 

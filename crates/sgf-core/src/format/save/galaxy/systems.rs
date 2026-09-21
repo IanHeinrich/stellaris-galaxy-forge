@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use crate::cst::Node;
+use crate::format::scenario::marauder;
 use crate::projections::galaxy::{Lane, ProjectionError, SystemNode};
 use crate::projections::read;
 use crate::scan::Index;
@@ -54,6 +55,7 @@ pub(super) fn extract(
             });
         }
     }
+    let initializer = read::text(node, keys::INITIALIZER, src);
     Ok(SystemNode {
         id,
         name: read::name(node, src),
@@ -64,7 +66,8 @@ pub(super) fn extract(
         nebula: None,
         bypass_ids: read::ids(node, keys::BYPASSES, src),
         planet_count: as_u32(node.find_all(keys::PLANET, src).count()),
-        initializer: read::text(node, keys::INITIALIZER, src),
+        marauder: marauder::role(&initializer),
+        initializer,
         spawn_weight: None,
         spawn_modifiers: Vec::new(),
         spawn_script: None,

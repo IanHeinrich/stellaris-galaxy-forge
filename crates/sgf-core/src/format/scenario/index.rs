@@ -81,6 +81,8 @@ pub struct ScenarioHeader {
     pub num_empire_default: Option<u32>,
     pub fallen_empire_max: Option<u32>,
     pub fallen_empire_default: Option<u32>,
+    pub marauder_empire_max: Option<u32>,
+    pub marauder_empire_default: Option<u32>,
     /// `coordinate_transform` is present, so the positions in the file are not the ones
     /// the game plots.
     pub has_coordinate_transform: bool,
@@ -361,6 +363,9 @@ fn read_scalars(header: &mut ScenarioHeader) {
     let num_empire_default = scalar(keys::NUM_EMPIRE_DEFAULT).and_then(|s| s.parse().ok());
     let fallen_empire_max = scalar(keys::FALLEN_EMPIRE_MAX).and_then(|s| s.parse().ok());
     let fallen_empire_default = scalar(keys::FALLEN_EMPIRE_DEFAULT).and_then(|s| s.parse().ok());
+    let marauder_empire_max = scalar(keys::MARAUDER_EMPIRE_MAX).and_then(|s| s.parse().ok());
+    let marauder_empire_default =
+        scalar(keys::MARAUDER_EMPIRE_DEFAULT).and_then(|s| s.parse().ok());
     let num_empires_max = header
         .get(keys::NUM_EMPIRES)
         .and_then(|stmt| block_field(keys::NUM_EMPIRES, &stmt.field.value, keys::MAX));
@@ -371,6 +376,8 @@ fn read_scalars(header: &mut ScenarioHeader) {
     header.num_empire_default = num_empire_default;
     header.fallen_empire_max = fallen_empire_max;
     header.fallen_empire_default = fallen_empire_default;
+    header.marauder_empire_max = marauder_empire_max;
+    header.marauder_empire_default = marauder_empire_default;
 }
 
 /// One number inside a header block, `key = { … field = N … }`, read from the raw text.

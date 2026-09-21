@@ -1,11 +1,12 @@
 //! The empire counts a Paint a Galaxy header carries and the issues a painted scenario
-//! raises about its seats: the header against the seats and the fallen empire zones, a
-//! reserved letter or Sol on two systems, a Sol seat off the Sol initializer, and a
-//! system inside the L-Cluster's circle on any scenario.
+//! raises about its seats: the header against the seats, the fallen empire zones and
+//! the marauder clan homes, a reserved letter or Sol on two systems, a Sol seat off the
+//! Sol initializer, and a system inside the L-Cluster's circle on any scenario.
 
 use sgf_core::document::Document;
 use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts, zone_count};
 use sgf_core::format::scenario::listings::sibling_names;
+use sgf_core::format::scenario::marauder::clan_count;
 use sgf_core::guides::{Guide, L_CLUSTER};
 use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
@@ -46,8 +47,9 @@ fn coded(issues: &[Issue], code: IssueCode) -> Vec<&Issue> {
 fn counts_op(session: &Session) -> Op {
     let (seats, reserved) = seat_counts(&session.graph);
     let zones = zone_count(&session.graph);
+    let clans = clan_count(&session.graph);
     Op::SetHeaderKeys {
-        entries: empire_counts(seats, reserved, zones)
+        entries: empire_counts(seats, reserved, zones, clans)
             .into_iter()
             .map(|(key, value)| (key.to_owned(), value))
             .collect(),
@@ -59,10 +61,13 @@ fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
     let session = open();
     assert_eq!(seat_counts(&session.graph), (4, 2));
     assert_eq!(zone_count(&session.graph), 2);
+    assert_eq!(clan_count(&session.graph), 0);
     assert_eq!(session.graph.num_empires_max, Some(3));
     assert_eq!(session.graph.num_empire_default, Some(3));
     assert_eq!(session.graph.fallen_empire_max, Some(6));
     assert_eq!(session.graph.fallen_empire_default, Some(0));
+    assert_eq!(session.graph.marauder_empire_max, Some(3));
+    assert_eq!(session.graph.marauder_empire_default, Some(1));
     let issues = session.validate();
     let header = coded(&issues, IssueCode::HeaderEmpireCount);
     assert_eq!(header.len(), 1, "{issues:?}");
@@ -79,6 +84,7 @@ fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
     let save = common::open();
     assert_eq!(save.graph.num_empires_max, None);
     assert_eq!(save.graph.fallen_empire_max, None);
+    assert_eq!(save.graph.marauder_empire_max, None);
     let plain = common::scenario::open();
     for session in [&save, &plain] {
         let issues = session.validate();
@@ -89,7 +95,7 @@ fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
 }
 
 #[test]
-fn updating_the_counts_rewrites_the_seven_keys_as_one_step_and_clears_the_issue() {
+fn updating_the_counts_rewrites_the_nine_keys_as_one_step_and_clears_the_issue() {
     let session = open();
     let op = counts_op(&session);
     assert_eq!(
@@ -103,6 +109,8 @@ fn updating_the_counts_rewrites_the_seven_keys_as_one_step_and_clears_the_issue(
                 ("nomad_empire_max".to_owned(), "3".to_owned()),
                 ("fallen_empire_max".to_owned(), "2".to_owned()),
                 ("fallen_empire_default".to_owned(), "2".to_owned()),
+                ("marauder_empire_default".to_owned(), "0".to_owned()),
+                ("marauder_empire_max".to_owned(), "0".to_owned()),
             ]
         }
     );
@@ -123,6 +131,8 @@ fn updating_the_counts_rewrites_the_seven_keys_as_one_step_and_clears_the_issue(
                 ("nomad_empire_max".to_owned(), "3".to_owned()),
                 ("fallen_empire_max".to_owned(), "6".to_owned()),
                 ("fallen_empire_default".to_owned(), "0".to_owned()),
+                ("marauder_empire_default".to_owned(), "1".to_owned()),
+                ("marauder_empire_max".to_owned(), "3".to_owned()),
             ]
         }
     );
@@ -130,6 +140,8 @@ fn updating_the_counts_rewrites_the_seven_keys_as_one_step_and_clears_the_issue(
     assert_eq!(session.graph.num_empire_default, Some(1));
     assert_eq!(session.graph.fallen_empire_max, Some(2));
     assert_eq!(session.graph.fallen_empire_default, Some(2));
+    assert_eq!(session.graph.marauder_empire_max, Some(0));
+    assert_eq!(session.graph.marauder_empire_default, Some(0));
     assert_eq!(session.history().undo.len(), 1);
     let header = session
         .edit_result(result)
@@ -222,9 +234,13 @@ fn a_wrong_maximum_is_reported_even_when_the_default_fits() {
 #[test]
 fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
     let seats_fit = ("num_empire_default = 3", "num_empire_default = 1");
+    let no_clans = ("marauder_empire_max = 3", "marauder_empire_max = 0");
+    let no_clan_default = ("marauder_empire_default = 1", "marauder_empire_default = 0");
     let fits = open_edited_all(&[
         seats_fit,
         ("fallen_empire_max = 6", "fallen_empire_max = 2"),
+        no_clans,
+        no_clan_default,
     ]);
     assert_eq!(fits.graph.fallen_empire_max, Some(2));
     assert!(coded(&fits.validate(), IssueCode::HeaderEmpireCount).is_empty());
@@ -258,9 +274,30 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
     let unreadable = open_edited_all(&[
         seats_fit,
         ("fallen_empire_max = 6", "fallen_empire_max = @al"),
+        no_clans,
+        no_clan_default,
     ]);
     assert_eq!(unreadable.graph.fallen_empire_max, None);
     assert!(coded(&unreadable.validate(), IssueCode::HeaderEmpireCount).is_empty());
+
+    let fallen_fit = ("fallen_empire_max = 6", "fallen_empire_max = 2");
+    let max_high = open_edited_all(&[seats_fit, fallen_fit]);
+    let issues = max_high.validate();
+    let header = coded(&issues, IssueCode::HeaderEmpireCount);
+    assert_eq!(header.len(), 1, "{issues:?}");
+    assert_eq!(
+        header[0].message,
+        "Header allows 3 marauder clans but the map has 0 clan homes. Update the empire counts."
+    );
+
+    let default_high = open_edited_all(&[seats_fit, fallen_fit, no_clans]);
+    let issues = default_high.validate();
+    let header = coded(&issues, IssueCode::HeaderEmpireCount);
+    assert_eq!(header.len(), 1, "{issues:?}");
+    assert_eq!(
+        header[0].message,
+        "Header allows 1 marauder clans but the map has 0 clan homes. Update the empire counts."
+    );
 }
 
 #[test]

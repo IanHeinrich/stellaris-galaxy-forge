@@ -33,36 +33,54 @@ pub(super) fn extract(raw: Vec<RawCountry>) -> (Vec<CountryNode>, HashMap<u32, u
     (countries, capitals)
 }
 
-/// The system each wanted colony sits in, from `planets.planet`: a planet's `colony` and
-/// its `coordinate.origin`.
+/// The system each wanted capital sits in, from `planets.planet` and its
+/// `coordinate.origin`. A country's `capital` names a planet's `colony` id in a save that
+/// writes `colony` on its planets, and the planet's own id in one that writes none, so
+/// the planets are read both ways and the `colony` reading is used whenever any planet
+/// carries the key.
 pub(super) fn colony_systems(
     doc: &Document,
     wanted: &HashSet<u32>,
 ) -> Result<HashMap<u32, u32>, ProjectionError> {
-    let mut systems = HashMap::new();
+    let mut by_colony = HashMap::new();
+    let mut by_planet = HashMap::new();
     if wanted.is_empty() {
-        return Ok(systems);
+        return Ok(by_colony);
     }
     let src = doc.original();
     let Some(inner) = doc.inner_index(keys::PLANETS)? else {
-        return Ok(systems);
+        return Ok(by_colony);
     };
     let colony_key = format!("{}=", keys::COLONY);
+    let mut colonies_written = false;
     for entity in inner.entities(keys::PLANET) {
-        let Some(colony) = colony_id(entity.stmt.slice(src), colony_key.as_bytes()) else {
-            continue;
-        };
-        if !wanted.contains(&colony) {
+        let colony = colony_id(entity.stmt.slice(src), colony_key.as_bytes());
+        colonies_written |= colony.is_some();
+        let colony = colony.filter(|colony| wanted.contains(colony));
+        let planet = u32::try_from(entity.id)
+            .ok()
+            .filter(|id| wanted.contains(id));
+        if colony.is_none() && planet.is_none() {
             continue;
         }
         let Some(node) = read::entity_node(entity, src, keys::PLANETS)? else {
             continue;
         };
-        if let Some(origin) = read::origin(&node, src) {
-            systems.insert(colony, origin);
+        let Some(origin) = read::origin(&node, src) else {
+            continue;
+        };
+        if let Some(colony) = colony {
+            by_colony.insert(colony, origin);
+        }
+        if let Some(planet) = planet {
+            by_planet.insert(planet, origin);
         }
     }
-    Ok(systems)
+    Ok(if colonies_written {
+        by_colony
+    } else {
+        by_planet
+    })
 }
 
 /// A planet's own `colony=<id>` read from its bytes, so that the planets table (a quarter

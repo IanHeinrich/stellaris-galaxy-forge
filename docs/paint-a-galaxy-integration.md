@@ -289,6 +289,29 @@ rule again and keeps the `count` candidates farthest from each other and
 from the preferred zones, as one op. `fe_zone::candidate_count` is the
 most it can keep.
 
+### Marauder clans
+
+A marauder clan is one system whose initializer is `marauder_N_1`, N being
+1, 2 or 3 (the game's `marauder_initializers.txt`). That initializer's
+`init_effect` creates the clan's country and flags the system
+`marauder_capital_N`. The clan's two raid bases are `marauder_N_2` and
+`marauder_N_3`. In a random galaxy the home spawns them itself with
+`neighbor_system`. In a static galaxy nothing does, so on day one Paint a
+Galaxy adds the two bases beside every `marauder_capital_N` system that
+has no `marauder_system` hyperlane neighbour. Only three clans exist, and
+a clan spawns from its home alone, so the map decides how many there are.
+
+Forge reads the role from the initializer on every system, in a save and
+in a scenario alike (`SystemNode.marauder`, `Home(N)` or `Base(N)`), and
+reports on any scenario a clan with two homes (only one spawns) and a
+raid base with no hyperlane to its clan's home (nothing spawns there). On
+a painted map it also notes, as information, a home within 30 of a seat,
+since that empire takes the raids first. "Update empire counts" writes
+`marauder_empire_max` and `marauder_empire_default` as the number of
+clans with a home, beside the seven keys above, and the header check
+reports a `marauder_empire_max` that is not that number or a default
+above it.
+
 ## What Forge reads
 
 A system reads as a Paint a Galaxy spawn when its `spawn_weight`'s `add`

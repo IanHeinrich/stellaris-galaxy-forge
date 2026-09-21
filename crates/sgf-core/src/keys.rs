@@ -140,6 +140,8 @@ pub(crate) mod scenario {
     pub(crate) const ID: &str = "id";
     pub(crate) const IS_AI: &str = "is_ai";
     pub(crate) const INITIALIZER: &str = "initializer";
+    pub(crate) const MARAUDER_EMPIRE_DEFAULT: &str = "marauder_empire_default";
+    pub(crate) const MARAUDER_EMPIRE_MAX: &str = "marauder_empire_max";
     pub(crate) const MAX: &str = "max";
     pub(crate) const MIN: &str = "min";
     pub(crate) const MODIFIER: &str = "modifier";

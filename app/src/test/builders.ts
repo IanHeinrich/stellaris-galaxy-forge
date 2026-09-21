@@ -31,6 +31,7 @@ export function systemNode(over: Partial<SystemNode> = {}): SystemNode {
     spawn_script: null,
     fe_zone: null,
     wormhole_pair: null,
+    marauder: null,
     spawn_design: null,
     prevented: [],
     position_range: false,

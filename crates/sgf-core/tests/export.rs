@@ -494,7 +494,7 @@ static_galaxy_scenario = {
 	colonizable_planet_odds = 0.25
 	primitive_odds = 0.25
 	fallen_empire_max = 6
-	marauder_empire_max = 3
+	marauder_empire_max = 2
 "
         ),
         "{}",

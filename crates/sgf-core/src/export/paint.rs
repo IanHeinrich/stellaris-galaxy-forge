@@ -18,6 +18,7 @@ use crate::export::{Draft, ExportReport, FallenEmpireReport, SpawnDraft, SystemD
 use crate::format::scenario::emit::{ScenarioOptions, VANILLA_SHAPES};
 use crate::format::scenario::fe_zone::{self, FeDirection, FeKind, FeZone, Site};
 use crate::format::scenario::header_counts::{fallen_count, seat_entries};
+use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, HEADER_NOTE, RL_BASIC, WORMHOLE_FLAG_PREFIX,
     basic_initializer,
@@ -34,12 +35,10 @@ const NEIGHBOURHOOD: usize = 2;
 /// The `RANDOM_VALUE` a spawn system's weight is varied by cycles through this many.
 const RANDOM_VALUES: usize = 10;
 /// The most marauder empires the mod's header allows.
-const MARAUDER_MAX: u32 = 3;
 /// The most wormhole pairs and gateways the header allows unless the save asked for more.
 const BYPASS_MAX: u32 = 5;
 const FALLEN_EMPIRE: &str = "fallen_empire";
 const AWAKENED_FALLEN_EMPIRE: &str = "awakened_fallen_empire";
-const DORMANT_MARAUDERS: &str = "dormant_marauders";
 /// How far from a fallen empire's capital its unowned systems (the holy worlds) reach.
 const CLUSTER_REACH: f64 = 120.0;
 /// How far a created anchor keeps from every system the draft holds.
@@ -91,6 +90,7 @@ pub(super) fn decorate(
         .filter(|system| matches!(&system.spawn, SpawnDraft::Script(script) if is_reserved_script(script)))
         .count();
     let all_zones = as_u32(typed.len() + zones.len());
+    let clans = clan_count(draft);
     let counts = match &graph.setup {
         Some(setup) => HeaderCounts::from_setup(
             setup,
@@ -99,13 +99,14 @@ pub(super) fn decorate(
             as_u32(reserved),
             as_u32(typed.len()),
             all_zones,
-            as_u32(marauder_count(graph)),
+            clans,
         ),
         None => HeaderCounts::sized(
             draft.systems.len(),
             as_u32(spawns.len()),
             as_u32(reserved),
             all_zones,
+            clans,
         ),
     };
     report.setup_from_save = graph.setup.is_some();
@@ -136,8 +137,8 @@ pub(super) struct HeaderCounts {
 impl HeaderCounts {
     /// Sized by the map alone: `seats` seats of which `reserved` are held for one
     /// empire, `zones` fallen empire zones, and the band on `systems` for the rest.
-    pub(super) fn sized(systems: usize, seats: u32, reserved: u32, zones: u32) -> Self {
-        let (fallen, marauders, crisis) = size_band(systems);
+    pub(super) fn sized(systems: usize, seats: u32, reserved: u32, zones: u32, clans: u32) -> Self {
+        let (fallen, crisis) = size_band(systems);
         let fallen_max = fallen_count(zones);
         Self {
             seats,
@@ -145,7 +146,7 @@ impl HeaderCounts {
             empires: None,
             fallen_max,
             fallen_default: fallen.min(fallen_max),
-            marauders,
+            marauders: clans,
             crisis,
             wormhole_pairs: 1,
             gateways: 1,
@@ -157,7 +158,7 @@ impl HeaderCounts {
     }
 
     /// Sized by the save's setup screen: its counts and odds as set, `typed` fallen
-    /// empires as the default, and the `marauders` the save holds unless it holds none.
+    /// empires as the default, and the marauder `clans` whose homes the map holds.
     fn from_setup(
         setup: &GameSetup,
         systems: usize,
@@ -165,9 +166,9 @@ impl HeaderCounts {
         reserved: u32,
         typed: u32,
         zones: u32,
-        marauders: u32,
+        clans: u32,
     ) -> Self {
-        let sized = Self::sized(systems, seats, reserved, zones);
+        let sized = Self::sized(systems, seats, reserved, zones, clans);
         Self {
             empires: Some([
                 setup.num_empires,
@@ -175,10 +176,6 @@ impl HeaderCounts {
                 setup.num_nomad_empires,
             ]),
             fallen_default: typed.min(sized.fallen_max),
-            marauders: match marauders {
-                0 => sized.marauders,
-                n => n.min(MARAUDER_MAX),
-            },
             wormhole_pairs: setup.num_wormhole_pairs,
             gateways: setup.num_gateways,
             hyperlanes: setup.num_hyperlanes,
@@ -230,7 +227,7 @@ pub(super) fn header(options: &ScenarioOptions, counts: &HeaderCounts) -> Vec<u8
          \tcolonizable_planet_odds = {}\n\
          \tprimitive_odds = {}\n\
          \tfallen_empire_max = {}\n\
-         \tmarauder_empire_max = {MARAUDER_MAX}\n\
+         \tmarauder_empire_max = {}\n\
          \textra_crisis_strength = {{ 10 25 }}\n\
          {seats}\
          \tfallen_empire_default = {}\n\
@@ -247,6 +244,7 @@ pub(super) fn header(options: &ScenarioOptions, counts: &HeaderCounts) -> Vec<u8
         odds(counts.colonizable_planet_odds),
         odds(counts.primitive_odds),
         counts.fallen_max,
+        counts.marauders,
         counts.fallen_default,
         counts.marauders,
         counts.crisis,
@@ -274,14 +272,14 @@ fn odds(value: f64) -> String {
     }
 }
 
-/// Fallen empires, marauder empires and crisis strength by galaxy size.
-fn size_band(systems: usize) -> (u32, u32, &'static str) {
+/// Fallen empires and crisis strength by galaxy size.
+fn size_band(systems: usize) -> (u32, &'static str) {
     match systems {
-        1000.. => (4, 3, "1.5"),
-        800.. => (3, 2, "1.25"),
-        600.. => (2, 2, "1.0"),
-        400.. => (1, 1, "0.75"),
-        _ => (0, 1, "0.5"),
+        1000.. => (4, "1.5"),
+        800.. => (3, "1.25"),
+        600.. => (2, "1.0"),
+        400.. => (1, "0.75"),
+        _ => (0, "0.5"),
     }
 }
 
@@ -311,12 +309,18 @@ fn player_capital(graph: &GalaxyGraph) -> Option<u32> {
         .capital_system
 }
 
-fn marauder_count(graph: &GalaxyGraph) -> usize {
-    graph
-        .countries
+/// The marauder clans whose home systems the draft holds: the most the game can spawn.
+fn clan_count(draft: &Draft) -> u32 {
+    let clans: BTreeSet<u8> = draft
+        .systems
         .iter()
-        .filter(|country| country.country_type == DORMANT_MARAUDERS)
-        .count()
+        .filter_map(|system| system.initializer.as_deref())
+        .filter_map(|initializer| match marauder::role(initializer) {
+            Some(MarauderRole::Home(clan)) => Some(clan),
+            _ => None,
+        })
+        .collect();
+    as_u32(clans.len())
 }
 
 fn is_reserved_script(script: &SpawnScript) -> bool {
@@ -778,7 +782,7 @@ mod tests {
     }
 
     fn header_text(systems: usize, spawns: u32, zones: u32) -> String {
-        let counts = HeaderCounts::sized(systems, spawns, 0, zones);
+        let counts = HeaderCounts::sized(systems, spawns, 0, zones, 2);
         String::from_utf8(header(&options(), &counts)).unwrap()
     }
 
@@ -813,11 +817,11 @@ mod tests {
         for (systems, band) in [
             (
                 399,
-                "fallen_empire_default = 0\n\tmarauder_empire_default = 1\n\tcrisis_strength = 0.5",
+                "fallen_empire_default = 0\n\tmarauder_empire_default = 2\n\tcrisis_strength = 0.5",
             ),
             (
                 400,
-                "fallen_empire_default = 1\n\tmarauder_empire_default = 1\n\tcrisis_strength = 0.75",
+                "fallen_empire_default = 1\n\tmarauder_empire_default = 2\n\tcrisis_strength = 0.75",
             ),
             (
                 600,
@@ -829,7 +833,7 @@ mod tests {
             ),
             (
                 1000,
-                "fallen_empire_default = 4\n\tmarauder_empire_default = 3\n\tcrisis_strength = 1.5",
+                "fallen_empire_default = 4\n\tmarauder_empire_default = 2\n\tcrisis_strength = 1.5",
             ),
         ] {
             assert!(header_text(systems, 4, 6).contains(band), "{systems}");
@@ -871,7 +875,7 @@ mod tests {
         let crowded = HeaderCounts::from_setup(&setup, 300, 4, 3, 0, 0, 0);
         let text = String::from_utf8(header(&options(), &crowded)).unwrap();
         assert!(
-            text.contains("\tnum_empires = { min = 0 max = 3 }\n\tnum_empire_default = 0\n\tadvanced_empire_default = 3\n\tnomad_empire_default = 2\n\tnomad_empire_max = 3\n\tfallen_empire_default = 0\n\tmarauder_empire_default = 1\n\tcrisis_strength = 0.5\n"),
+            text.contains("\tnum_empires = { min = 0 max = 3 }\n\tnum_empire_default = 0\n\tadvanced_empire_default = 3\n\tnomad_empire_default = 2\n\tnomad_empire_max = 3\n\tfallen_empire_default = 0\n\tmarauder_empire_default = 0\n\tcrisis_strength = 0.5\n"),
             "{text}"
         );
         assert!(text.contains("\tfallen_empire_max = 0\n"), "{text}");
