@@ -8,18 +8,15 @@ import {
 } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
-import { countryRegions, type Region } from "../../lib/geometry/territory";
 import { BASE_SITES, basesBeside, clanOf, isHome } from "../../lib/marauder";
+import { MARAUDER_COLOR } from "../../lib/visual/ownerColors";
 import { GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
-import { TerritoryShapes } from "./TerritoryShapes";
 
-/** The one colour every clan's territory and home tag is painted in. */
-export const MARAUDER_COLOR = 0xef4444;
 const CHIP_ALPHA = 0.95;
 
 /** The glyph the home's tag carries. */
@@ -48,14 +45,12 @@ const TAG_STYLE = new TextStyle({
   fill: 0x111827,
 });
 
-const CLAN_COLORS = { fill: MARAUDER_COLOR, outline: MARAUDER_COLOR };
-
 interface Pt {
   x: number;
   y: number;
 }
 
-/** Only a scenario places clans by initializer; a save's clans are painted as its owners. */
+/** Only a scenario places clans by initializer; a save's clans are its own countries. */
 function drawn(ctx: RenderContext): boolean {
   return ctx.kind === "scenario";
 }
@@ -78,64 +73,10 @@ function raidBasesLine(names: readonly string[]): string {
     : `Raid bases: ${listed}`;
 }
 
-/** A clan's key among the owners: negative, so it never reads as a country's id. */
-function clanKey(clan: number): number {
-  return -clan;
-}
-
-/** The systems as they stand, a dragged one at its ghost. */
-function atGhosts(systems: Systems, ghosts: ReadonlyMap<number, MoveGhost>): Iterable<SystemNode> {
-  if (ghosts.size === 0) return systems.values();
-  return [...systems.values()].map((s) => {
-    const ghost = ghosts.get(s.id);
-    return ghost ? { ...s, x: ghost.x, y: ghost.y } : s;
-  });
-}
-
-/**
- * The clans' territories, computed the way the owners' are and from the same picture of the
- * map: each clan's systems (a home and the bases hyperlaned to it) are the clan's, every other
- * system stays its scripted owner's, and only the clans are painted. A clan's region and an
- * empire's then settle their overlaps, a lane band across a clan above all, by one rule.
- */
-export function clanRegions(
-  systems: Systems,
-  ghosts: ReadonlyMap<number, MoveGhost>,
-  ctx: RenderContext,
-): Map<number, Region> {
-  const clanOfSystem = new Map<number, number>();
-  for (const s of systems.values()) {
-    if (!isHome(s) || s.marauder === null) continue;
-    const clan = clanOf(s.marauder);
-    clanOfSystem.set(s.id, clan);
-    for (const base of basesBeside(s, systems)) clanOfSystem.set(base.id, clan);
-  }
-  if (clanOfSystem.size === 0) return new Map();
-  const clans = new Set(clanOfSystem.values());
-  const params = {
-    radius: ctx.border.system_radius,
-    laneHalfWidth: ctx.border.hyperlane_thickness / 2,
-  };
-  const regions = countryRegions(
-    atGhosts(systems, ghosts),
-    params,
-    new Set([...clans].map(clanKey)),
-    (s) => {
-      const clan = clanOfSystem.get(s.id);
-      return clan === undefined ? s.owner : clanKey(clan);
-    },
-  );
-  const byClan = new Map<number, Region>();
-  for (const clan of clans) {
-    const region = regions.get(clanKey(clan));
-    if (region) byClan.set(clan, region);
-  }
-  return byClan;
-}
-
 /**
  * The marauder clans a scenario places, above the systems: a tag beside each clan home, which
- * names the clan and its raid bases while the pointer is on it.
+ * names the clan and its raid bases while the pointer is on it. The clans' territories are
+ * the owners layer's, from the composed ownership.
  */
 export class MarauderLayer implements MapLayer {
   readonly id = "marauders" as const;
@@ -282,65 +223,5 @@ export class MarauderLayer implements MapLayer {
       label.visible = false;
       this.freeLabels.push(label);
     }
-  }
-}
-
-/**
- * The clans' territories, beneath the lanes and systems and painted the way a save's owners
- * are: each clan's home and the bases hyperlaned to it, filled and edged in the marauder colour.
- */
-export class MarauderTerritoryLayer implements MapLayer {
-  readonly id = "marauders" as const;
-  readonly container = new Container();
-  private readonly painter = new TerritoryShapes();
-  private ctx: RenderContext = EMPTY_CONTEXT;
-  private systems: Systems = EMPTY_CONTEXT.systems;
-  private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
-
-  constructor() {
-    this.container.eventMode = "none";
-    this.container.addChild(this.painter.fills, this.painter.edges);
-  }
-
-  rebuild(ctx: RenderContext): void {
-    const prev = this.ctx;
-    this.ctx = ctx;
-    this.systems = ctx.systems;
-    if (ctx.systems === prev.systems && drawn(ctx) === drawn(prev) && ctx.border === prev.border) {
-      return;
-    }
-    this.redraw();
-  }
-
-  /** At most three clans: finding the ones a delta touches indexes every system, as painting them all does. */
-  applyDelta(): void {
-    this.redraw();
-  }
-
-  onViewport(cam: Camera): void {
-    this.painter.setUnit(cam.scale);
-  }
-
-  /** A dragged system's clan is repainted about its ghost, dimmed. */
-  setDragState(drag: DragState | null): void {
-    this.ghosts = drag?.byId ?? NO_GHOSTS;
-    this.painter.setDimmed(this.ghosts.size > 0);
-    this.redraw();
-  }
-
-  setVisible(v: boolean): void {
-    this.container.visible = v;
-  }
-
-  destroy(): void {
-    this.painter.destroy();
-    this.container.destroy({ children: true });
-  }
-
-  private redraw(): void {
-    const regions = drawn(this.ctx)
-      ? clanRegions(this.systems, this.ghosts, this.ctx)
-      : new Map<number, Region>();
-    this.painter.sync(regions, () => CLAN_COLORS);
   }
 }

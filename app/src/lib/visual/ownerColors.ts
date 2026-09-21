@@ -33,6 +33,11 @@ export interface OwnerColors {
   fill: number;
 }
 
+/** The one colour every marauder clan's territory and home tag is painted in. */
+export const MARAUDER_COLOR = 0xef4444;
+
+export const MARAUDER_COLORS: OwnerColors = { outline: MARAUDER_COLOR, fill: MARAUDER_COLOR };
+
 const FILL_DARKEN = 0.35;
 
 function mapColor(

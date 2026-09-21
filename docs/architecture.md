@@ -169,6 +169,20 @@ each overlay slot in place of the original span it replaces (or at its
 insertion offset), into a new file beside the old one; the old file is
 renamed to `<name>.sav.bak-<stamp>` and the new one moved into place.
 
+## Ownership
+
+Who owns a system comes from three places. The structure the text itself
+carries lives in `sgf-core`: a save's countries and the systems they
+hold, and a scenario's marauder roles and fallen empire zones, read
+from the initializers and flags it names. What that text means at game
+start lives in `sgf-gamedata`: the scripted owners and day-one claims
+its initializer chains and events hand out. The app's
+`lib/ownership.ts` merges the two in `composeOwnership` into one owner
+table, where a scenario's marauder clan (a home and the raid bases
+hyperlaned to it) is one synthetic owner and the scripted marauder
+country behind it is dropped, and one map layer paints every owner in
+that table.
+
 ## The format seam
 
 A save and a scenario share the byte model, the index, the graph, the

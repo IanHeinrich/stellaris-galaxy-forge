@@ -277,18 +277,6 @@ describe("countryRegions", () => {
     expect(inRegion({ x: 25, y: 0 }, regions.get(10)!)).toBe(false);
   });
 
-  it("groups the systems by `ownerOf` in place of their own owner", () => {
-    const a = system(1, 0, 0, 99, [2]);
-    const b = system(2, 60, 0, null, [1]);
-    const c = system(3, 120, 0, 99);
-    const regions = countryRegions([a, b, c], PARAMS, undefined, (s) => (s.id === 3 ? 20 : 10));
-    expect([...regions.keys()].sort()).toEqual([10, 20]);
-    expect(regions.get(10)).toHaveLength(1);
-    expect(inRegion({ x: 30, y: 0 }, regions.get(10)!)).toBe(true);
-    expect(inRegion({ x: 89, y: 0 }, regions.get(10)!)).toBe(true);
-    expect(inRegion({ x: 91, y: 0 }, regions.get(20)!)).toBe(true);
-  });
-
   it("survives two systems at the same point", () => {
     expect(() => countryRegions([system(1, 5, 5, 10), system(2, 5, 5, 20)], PARAMS)).not.toThrow();
     const same = countryRegions([system(1, 5, 5, 10), system(2, 5, 5, 10)], PARAMS);

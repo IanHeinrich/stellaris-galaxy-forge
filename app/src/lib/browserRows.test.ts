@@ -5,6 +5,7 @@ import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { Issue } from "../generated/Issue";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { SpecialSystem } from "../generated/SpecialSystem";
+import { composeOwnership } from "./ownership";
 import {
   empireGroups,
   issueGroups,
@@ -102,7 +103,15 @@ function special(id: number, extra: Partial<SpecialSystem> = {}): SpecialSystem 
 }
 
 describe("the Empires tab", () => {
-  const groups = empireGroups(COUNTRIES, TYPES, LOOKUPS);
+  const ownership = composeOwnership({
+    kind: "save",
+    systems: new Map(),
+    countries: COUNTRIES,
+    countryTypes: TYPES,
+    mapColors: new Map(),
+    countryName: LOOKUPS.countryName,
+  });
+  const groups = empireGroups(COUNTRIES, TYPES, LOOKUPS, ownership);
   const byKey = new Map(groups.map((g) => [g.key, g]));
 
   it("groups by type, drops the fauna and the enclaves, and sorts the biggest first", () => {
@@ -110,8 +119,8 @@ describe("the Empires tab", () => {
     expect(byKey.get("empire")?.rows.map((r) => r.name)).toEqual(["Blorg", "Humans"]);
     expect(byKey.get("fallen")?.rows.map((r) => r.name)).toEqual(["Keepers"]);
     expect(byKey.get("awakened")?.rows.map((r) => r.name)).toEqual(["Awoken"]);
-    expect(groups.flatMap((g) => g.rows).map((r) => r.country.id)).not.toContain(4);
-    expect(groups.flatMap((g) => g.rows).map((r) => r.country.id)).not.toContain(5);
+    expect(groups.flatMap((g) => g.rows).map((r) => r.id)).not.toContain(4);
+    expect(groups.flatMap((g) => g.rows).map((r) => r.id)).not.toContain(5);
   });
 
   it("sublines the capital and the system count, and falls back to the central system", () => {

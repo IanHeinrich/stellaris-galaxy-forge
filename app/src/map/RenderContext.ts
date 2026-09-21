@@ -19,6 +19,7 @@ import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
 import type { CountryTypes } from "../lib/countryKinds";
+import { clanSystemsOf, NO_OWNERSHIP, type OwnerEntry, type Ownership } from "../lib/ownership";
 import { bypassLinks } from "../lib/scenarioBypasses";
 import {
   displayNameIn,
@@ -33,6 +34,7 @@ import { getPaintLayer, useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
+import { currentOwnership } from "../store/ownership";
 import { SpatialGrid } from "../lib/spatialGrid";
 
 export type Systems = ReadonlyMap<number, SystemNode>;
@@ -65,7 +67,10 @@ export interface RenderContext {
   readonly coreRadius: number;
   readonly grid: SpatialGrid;
   readonly countries: ReadonlyMap<number, CountryNode>;
-  /** Countries whose territory the map leaves unpainted. */
+  /** Each system's owner from every source at once, and what each owner is; see `composeOwnership`. */
+  readonly owners: ReadonlyMap<number, number>;
+  readonly table: ReadonlyMap<number, OwnerEntry>;
+  /** Owners whose territory the map leaves unpainted. */
   readonly hiddenCountries: ReadonlySet<number>;
   readonly countryName: (id: number) => string;
   /** Localised text for a name key, or its stripped form without game data. */
@@ -95,7 +100,10 @@ export interface RenderContext {
   readonly starTints: boolean;
   /** Whether a system's plate carries its owner's emblem, capital mark and colonised worlds. */
   readonly coloniesShown: boolean;
-  /** Systems a day-one script claimed, while those claims are hidden: they draw as unowned. */
+  /**
+   * Systems that draw as unowned: the ones a day-one script claimed while those claims are
+   * hidden, and a scenario's marauder clans while the marauders layer is off.
+   */
   readonly hiddenOwners: ReadonlySet<number>;
   readonly specialWithGameData: boolean;
   readonly border: BorderDefines;
@@ -123,6 +131,8 @@ const SOURCES = [
   "coreRadius",
   "grid",
   "countries",
+  "owners",
+  "table",
   "hiddenCountries",
   "names",
   "starClasses",
@@ -202,6 +212,36 @@ function claimedIn(owners: ScenarioOwners | null): ReadonlySet<number> {
   return claimedSystems;
 }
 
+let clansFrom: Ownership = NO_OWNERSHIP;
+let clanSystems: ReadonlySet<number> = NO_OWNERS;
+
+/** The systems of the clans a scenario places, as one instance per ownership. */
+function clansIn(ownership: Ownership): ReadonlySet<number> {
+  if (ownership !== clansFrom) {
+    clansFrom = ownership;
+    const ids = clanSystemsOf(ownership);
+    clanSystems = ids.size === 0 ? NO_OWNERS : ids;
+  }
+  return clanSystems;
+}
+
+let hiddenFrom: readonly [ReadonlySet<number>, ReadonlySet<number>] = [NO_OWNERS, NO_OWNERS];
+let hiddenUnion: ReadonlySet<number> = NO_OWNERS;
+
+/** The hidden claims and the hidden clans together, as one instance per pair. */
+function hiddenOwnersIn(
+  claimed: ReadonlySet<number>,
+  clans: ReadonlySet<number>,
+): ReadonlySet<number> {
+  if (claimed !== hiddenFrom[0] || clans !== hiddenFrom[1]) {
+    hiddenFrom = [claimed, clans];
+    if (claimed.size === 0) hiddenUnion = clans;
+    else if (clans.size === 0) hiddenUnion = claimed;
+    else hiddenUnion = new Set([...claimed, ...clans]);
+  }
+  return hiddenUnion;
+}
+
 export const EMPTY_CONTEXT: RenderContext = Object.freeze({
   galaxy: null,
   kind: null,
@@ -215,6 +255,8 @@ export const EMPTY_CONTEXT: RenderContext = Object.freeze({
   coreRadius: 0,
   grid: EMPTY_GRID,
   countries: new Map<number, CountryNode>(),
+  owners: NO_OWNERSHIP.owners,
+  table: NO_OWNERSHIP.table,
   hiddenCountries: new Set<number>(),
   countryName: (id: number) => `#${id}`,
   displayName: stripped,
@@ -260,6 +302,7 @@ export function renderContext(): RenderContext {
   };
   const ready = data.status === "ready";
   const kind = useFileSessionStore.getState().kind;
+  const ownership = currentOwnership();
   return Object.freeze({
     galaxy: galaxy.galaxy,
     kind,
@@ -276,6 +319,8 @@ export function renderContext(): RenderContext {
     coreRadius: galaxy.galaxy?.core_radius ?? 0,
     grid: galaxy.grid ?? EMPTY_GRID,
     countries: galaxy.countries,
+    owners: ownership.owners,
+    table: ownership.table,
     hiddenCountries: galaxy.hiddenCountries,
     countryName: galaxy.countryName,
     displayName: (key: string) => displayNameIn(names, key),
@@ -293,11 +338,13 @@ export function renderContext(): RenderContext {
     initializerClasses: data.initializerClasses,
     hiddenInitializers: chrome.layers.initializers ? chrome.hiddenInitializers : NO_KEYS,
     initializerLabels: kind === "scenario" && chrome.layers.initializers,
-    territoriesShown: chrome.layers.owners && galaxy.countries.size > 0,
+    territoriesShown: chrome.layers.owners && ownership.table.size > 0,
     starTints: chrome.layers.classes,
     coloniesShown: chrome.layers.colonies,
-    hiddenOwners:
+    hiddenOwners: hiddenOwnersIn(
       kind === "scenario" && !chrome.layers.claims ? claimedIn(data.scenarioOwners) : NO_OWNERS,
+      chrome.layers.marauders ? NO_OWNERS : clansIn(ownership),
+    ),
     specialWithGameData: data.specialWithGameData,
     border: data.summary?.border ?? VANILLA_BORDER,
     gameDataReady: ready,

@@ -6,6 +6,7 @@ import type { CountryTypes } from "../lib/countryKinds";
 import { templateName } from "../lib/names";
 import { centralOwnedSystem, systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
+import { currentOwnership, useOwnership } from "./ownership";
 
 export {
   EMPIRE_GROUPS,
@@ -72,7 +73,7 @@ export function empireGroups(
   countries: ReadonlyMap<number, CountryNode>,
   types: CountryTypes,
 ): rows.EmpireGroup[] {
-  return rows.empireGroups(countries, types, currentLookups());
+  return rows.empireGroups(countries, types, currentLookups(), currentOwnership());
 }
 
 export function pointGroups(
@@ -89,12 +90,13 @@ export function useEmpireCount(): number {
   const systems = useGalaxyStore((s) => s.systems);
   const types = useGameDataStore((s) => s.countryTypes);
   const names = useGameDataStore((s) => s.names);
+  const ownership = useOwnership();
   return useMemo(
     () =>
       rows
-        .empireGroups(countries, types, rowLookups(systems, names))
+        .empireGroups(countries, types, rowLookups(systems, names), ownership)
         .reduce((n, g) => n + g.rows.length, 0),
-    [countries, systems, types, names],
+    [countries, systems, types, names, ownership],
   );
 }
 

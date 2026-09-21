@@ -64,8 +64,11 @@ describe("a scenario system's marauder clan", () => {
     expect(sections(overview())).toContain("Marauder clan 2");
     useFileSessionStore.setState({ painted: true });
     const html = overview();
-    expect(html.indexOf("Fallen empire zone")).toBeLessThan(html.indexOf("Marauder clan 2"));
-    expect(html.indexOf("Marauder clan 2")).toBeLessThan(html.indexOf("marauder_2_1"));
+    const titles = sections(html);
+    expect(titles.indexOf("Fallen empire zone")).toBeLessThan(titles.indexOf("Marauder clan 2"));
+    expect(html.indexOf('class="ins-sec-title">Marauder clan 2')).toBeLessThan(
+      html.indexOf("marauder_2_1"),
+    );
   });
 
   it("is absent for a system that is no marauder's", async () => {
