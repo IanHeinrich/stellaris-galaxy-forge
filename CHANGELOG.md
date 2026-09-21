@@ -10,13 +10,17 @@ a release is made.
 
 ### Added
 
-- Custom static maps that work in the game. Stellaris ships bugs in its
-  static galaxy generator, and the Paint a Galaxy mod fixes them, so a
-  new scenario is written for that mod unless you say otherwise. The app
-  tells you whether the mod is installed and enabled, links to it on the
-  Workshop, saves your map into the mod's folder where the game finds it
-  and says how to start it. A map made without the mod carries a warning
-  that it will break in-game.
+- Full support for the Paint a Galaxy mod, which is what lets a custom
+  static galaxy actually work in Stellaris. The game's own static galaxy
+  generator ships bugs that leave empires, fallen empires and marauders
+  in the wrong places or missing, and the mod fixes them. The editor now
+  reads and writes everything the mod understands: its spawn points,
+  fallen empire zones and their connections, wormhole pairs and header
+  counts. A new scenario is written for the mod unless you say otherwise.
+  The app tells you whether the mod is installed and enabled, links to
+  it on the Workshop, saves your map into the mod's folder where the
+  game finds it and says how to start it. A map made without the mod
+  carries a warning that it will break in-game.
 - Every empire seat is one you placed. A scenario made with Paint a Galaxy
   opens with its seats intact, and the seat select says what the mod
   does with each kind, so a preferred seat, a reserved letter or the Sol
