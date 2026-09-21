@@ -5,6 +5,9 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::format::scenario::marauder::MARAUDER_PREFIX;
+use crate::format::scenario::paint::SOL_INITIALIZER;
+
 /// Initializer prefixes of the game's standard generated systems.
 const GENERIC_INITIALIZER_PREFIXES: [&str; 16] = [
     "basic_init",
@@ -20,13 +23,13 @@ const GENERIC_INITIALIZER_PREFIXES: [&str; 16] = [
     "special_init",
     "distantstars_init",
     "prescripted_",
-    "sol_system_initializer",
+    SOL_INITIALIZER,
     "une_",
     "empire_init",
 ];
 
 /// Initializers the generator seats any empire on.
-const GENERIC_HOME_PREFIXES: [&str; 2] = ["random_empire_init_", "sol_system_initializer"];
+const GENERIC_HOME_PREFIXES: [&str; 2] = ["random_empire_init_", SOL_INITIALIZER];
 const FALLEN_EMPIRE_PREFIXES: [&str; 2] = ["fallen_", "ai_system_"];
 /// Vanilla initializers that `spawn_megastructure` an `lgate_base` besides those named
 /// after it (`distant_stars_initializers.txt`).
@@ -97,7 +100,7 @@ pub fn classify(initializer: &str, flags: &[String], is_capital: bool) -> Catego
         Category::Home
     } else if starts(&FALLEN_EMPIRE_PREFIXES) {
         Category::FallenEmpire
-    } else if initializer.starts_with("marauder_") || has("marauder_system") {
+    } else if initializer.starts_with(MARAUDER_PREFIX) || has("marauder_system") {
         Category::Marauder
     } else if initializer.starts_with("ratling_") {
         Category::Ratling

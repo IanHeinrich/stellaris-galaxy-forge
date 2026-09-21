@@ -1,15 +1,10 @@
 //! Custom connections: the `painted_galaxy_fe_custom_connection` star flags in a
 //! system's `effect` block that Paint a Galaxy lays a fallen empire's hyperlanes by.
-//! A system's connection flags come out whole and go back in at the end of the block,
-//! in the shape its statements are written in; every other statement of the block
-//! stays byte for byte.
 
 use std::collections::BTreeSet;
 
-use super::fe_zone::{append, block, statement};
-use super::spawn::insert_after;
+use super::flags::rewrite_flags;
 use crate::format::scenario::fe_link::{self, FeLinkFlags, MOST_IDS, flags, is_link_flag};
-use crate::keys::scenario as keys;
 use crate::ops::rules::fe_zone::label;
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::galaxy::SystemNode;
@@ -121,38 +116,9 @@ pub(super) fn set_flags(
     })
 }
 
-/// Take every connection flag off `id` and write `link`'s at the end of the block,
-/// writing the block when the system has none and removing it when nothing else stood
-/// in it.
 fn write_flags(plan: &mut Plan, s: &Session, id: u32, link: &FeLinkFlags) -> Result<(), OpError> {
     let edit = plan.edit(&s.doc, id)?;
-    let flags = flags(link);
-    let Some(block) = block(edit, is_link_flag)? else {
-        if !flags.is_empty() {
-            let statements: Vec<String> = flags.iter().map(|f| statement(f)).collect();
-            let text = format!("{} = {{ {} }}", keys::EFFECT, statements.join(" "));
-            let last = edit
-                .entity()?
-                .children()
-                .last()
-                .ok_or_else(|| edit.parse_error(0, "empty system"))?
-                .span()
-                .end;
-            insert_after(edit, last, &text);
-        }
-        return Ok(());
-    };
-    if flags.is_empty() && block.zone_flags.len() == block.children {
-        edit.remove_statement(block.statement);
-        return Ok(());
-    }
-    for span in &block.zone_flags {
-        edit.remove_statement(*span);
-    }
-    for flag in flags {
-        append(edit, &block, &statement(&flag));
-    }
-    Ok(())
+    rewrite_flags(edit, |flag, _| is_link_flag(flag), &flags(link))
 }
 
 fn count(systems: usize) -> String {

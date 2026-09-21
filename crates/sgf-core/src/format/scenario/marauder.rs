@@ -18,7 +18,7 @@ pub const CLANS: u8 = 3;
 /// How close to a seat a clan's home may stand before its raids hit that empire first.
 pub const SEAT_CLEARANCE: f64 = 30.0;
 
-const PREFIX: &str = "marauder_";
+pub(crate) const MARAUDER_PREFIX: &str = "marauder_";
 const HOME: &str = "1";
 const BASES: [&str; 2] = ["2", "3"];
 
@@ -44,7 +44,7 @@ impl MarauderRole {
 /// `marauder_N_2` or `_3` one of its bases, for N up to [`CLANS`]. Anything else is no
 /// marauder system this editor knows.
 pub fn role(initializer: &str) -> Option<MarauderRole> {
-    let rest = initializer.strip_prefix(PREFIX)?;
+    let rest = initializer.strip_prefix(MARAUDER_PREFIX)?;
     let (clan, site) = rest.split_once('_')?;
     let clan: u8 = clan.parse().ok()?;
     if clan == 0 || clan > CLANS {
@@ -61,7 +61,7 @@ pub fn role(initializer: &str) -> Option<MarauderRole> {
 
 /// The initializer that makes a system clan `clan`'s home.
 pub fn home_initializer(clan: u8) -> String {
-    format!("{PREFIX}{clan}_{HOME}")
+    format!("{MARAUDER_PREFIX}{clan}_{HOME}")
 }
 
 /// Clan → the systems carrying its home, ascending; a clan with none is absent.

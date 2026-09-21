@@ -1,16 +1,10 @@
 //! Wormhole pairs: the `painted_galaxy_wormhole_<n>` star flag both ends of a pair carry
-//! in their `effect` block, with `empire_cluster` beside it. The pair's flags come out
-//! whole and go back in at the end of the block, in the shape its statements are
-//! written in; every other statement of the block stays byte for byte.
+//! in their `effect` block, with `empire_cluster` beside it.
 
-use super::fe_zone::{Block, append, block, statement};
-use super::spawn::insert_after;
-use crate::Span;
-use crate::format::scenario::fe_zone::SET_STAR_FLAG;
+use super::flags::rewrite_flags;
 use crate::format::scenario::paint::{EMPIRE_CLUSTER, WORMHOLE_FLAG_PREFIX, is_wormhole_flag};
-use crate::keys::scenario as keys;
 use crate::ops::rules::fe_zone::label;
-use crate::ops::{Edit, Op, OpError, Plan, Planned};
+use crate::ops::{Op, OpError, Plan, Planned};
 use crate::session::Session;
 
 pub(super) fn set_pair(
@@ -88,61 +82,16 @@ fn inverse(previous: Vec<(u32, Option<u32>)>) -> Op {
 /// each, and write the pair's two flags at the end of the block.
 fn write_end(plan: &mut Plan, s: &Session, id: u32, pair: Option<u32>) -> Result<(), OpError> {
     let edit = plan.edit(&s.doc, id)?;
-    let Some(block) = block(edit, is_wormhole_flag)? else {
-        if let Some(n) = pair {
-            let text = format!(
-                "{} = {{ {} {} }}",
-                keys::EFFECT,
-                statement(&flag(n)),
-                statement(EMPIRE_CLUSTER)
-            );
-            let last = edit
-                .entity()?
-                .children()
-                .last()
-                .ok_or_else(|| edit.parse_error(0, "empty system"))?
-                .span()
-                .end;
-            insert_after(edit, last, &text);
-        }
-        return Ok(());
-    };
-    let removed = paired_flags(edit, &block);
-    if pair.is_none() && removed.len() == block.children {
-        edit.remove_statement(block.statement);
-        return Ok(());
-    }
-    for span in &removed {
-        edit.remove_statement(*span);
-    }
-    if let Some(n) = pair {
-        append(edit, &block, &statement(&flag(n)));
-        append(edit, &block, &statement(EMPIRE_CLUSTER));
-    }
-    Ok(())
+    let new_flags: Vec<String> = pair
+        .into_iter()
+        .flat_map(|n| [flag(n), EMPIRE_CLUSTER.to_owned()])
+        .collect();
+    rewrite_flags(edit, paired, &new_flags)
 }
 
-/// The wormhole flags of the block and the `empire_cluster` written right after each,
-/// in file order.
-fn paired_flags(edit: &Edit, block: &Block) -> Vec<Span> {
-    let Ok(Some(effect)) = edit.entity().map(|node| node.find(keys::EFFECT, &edit.buf)) else {
-        return block.zone_flags.clone();
-    };
-    let children = effect.children();
-    let mut spans = Vec::new();
-    for (i, child) in children.iter().enumerate() {
-        if !block.zone_flags.contains(&child.span()) {
-            continue;
-        }
-        spans.push(child.span());
-        if let Some(next) = children.get(i + 1)
-            && next.key_str(&edit.buf) == Some(SET_STAR_FLAG)
-            && next.scalar_str(&edit.buf) == Some(EMPIRE_CLUSTER)
-        {
-            spans.push(next.span());
-        }
-    }
-    spans
+/// A wormhole flag, or the `empire_cluster` written right after one.
+fn paired(flag: &str, before: Option<&str>) -> bool {
+    is_wormhole_flag(flag) || (flag == EMPIRE_CLUSTER && before.is_some_and(is_wormhole_flag))
 }
 
 fn flag(pair: u32) -> String {
