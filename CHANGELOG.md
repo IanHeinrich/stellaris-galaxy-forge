@@ -8,6 +8,8 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-21
+
 ### Added
 
 - Full Paint a Galaxy integration. This mod fixes native Stellaris spawn
