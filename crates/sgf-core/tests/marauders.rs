@@ -287,7 +287,7 @@ fn a_home_with_one_raid_base_beside_it_is_reported_with_one() {
         missing[0].message,
         "Void is the marauder clan 1 home with one raid base beside it. A clan is its home and two bases hyperlaned to it."
     );
-    assert_eq!(missing[0].severity, Severity::Warning);
+    assert_eq!(missing[0].severity, Severity::Info);
     assert_eq!(missing[0].systems, [10]);
 }
 
@@ -314,7 +314,7 @@ fn a_home_with_two_bases_but_one_not_hyperlaned_still_raises_the_issue() {
         missing[0].message,
         "Void is the marauder clan 1 home with one raid base beside it. A clan is its home and two bases hyperlaned to it."
     );
-    assert_eq!(missing[0].severity, Severity::Warning);
+    assert_eq!(missing[0].severity, Severity::Info);
     assert_eq!(missing[0].systems, [10]);
 }
 
