@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { newSystemRows } from "../../lib/initializer/initializerBrowser";
 import { useEditorStore } from "../../store/editorStore";
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useFileSessionStore, usePaintLayer } from "../../store/fileSessionStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSystemNames } from "../../store/browserRows";
 import { linkedTo, unlinkedTo, useGalaxyStore } from "../../store/galaxyStore";
@@ -44,7 +44,7 @@ export function ContextMenu() {
   const selectNebula = useEditorStore((s) => s.selectNebula);
   const removeSystem = useEditorStore((s) => s.removeSystem);
   const capabilities = useFileSessionStore((s) => s.capabilities);
-  const paint = useFileSessionStore((s) => s.paintProfile);
+  const paint = usePaintLayer();
   const systems = useGalaxyStore((s) => s.systems);
   const menuTarget = contextMenu?.target;
   const named = useSystemNames(

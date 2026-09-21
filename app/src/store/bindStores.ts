@@ -9,6 +9,7 @@ import { useInspectorStore } from "./inspectorStore";
 import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
+import { usePaintModStore } from "./paintModStore";
 
 let bound = false;
 
@@ -16,8 +17,9 @@ let bound = false;
  * Subscribes the stores that follow one another: what the open file decides for the
  * selection, the issue baseline, the map chrome and the entities read from it, what a
  * source with nothing drawing decides for the inspector's sections filled from it, what
- * the dock's Issues tab borrows from the map, and what each side of the game data owes
- * the other. Called once, where the app boots.
+ * the dock's Issues tab borrows from the map, what each side of the game data owes
+ * the other, and what a fresh read of the launcher says about the Paint a Galaxy mod.
+ * Called once, where the app boots.
  */
 export function bindStores(): void {
   if (bound) return;
@@ -28,6 +30,16 @@ export function bindStores(): void {
   followEntities();
   followDetails();
   followScenarioInitializers();
+  followPaintMod();
+}
+
+// Game data landing, at start or on a reload, means the launcher's playset was read again.
+function followPaintMod(): void {
+  useGameDataStore.subscribe((state, previous) => {
+    if (state.summary !== previous.summary && state.summary !== null) {
+      void usePaintModStore.getState().refresh();
+    }
+  });
 }
 
 function followEntities(): void {

@@ -95,11 +95,13 @@ export function MenuItem({
   label,
   shortcut,
   disabled,
+  title,
   onClick,
 }: {
   label: string;
   shortcut?: string;
   disabled?: boolean;
+  title?: string;
   onClick: () => void;
 }) {
   return (
@@ -108,6 +110,7 @@ export function MenuItem({
       role="menuitem"
       className="menu-item"
       disabled={disabled}
+      title={title}
       onClick={onClick}
     >
       <span>{label}</span>

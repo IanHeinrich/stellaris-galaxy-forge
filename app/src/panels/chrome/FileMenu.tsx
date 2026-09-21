@@ -1,11 +1,12 @@
-import { fileName } from "../../lib/paths";
+import { fileName, isUnder } from "../../lib/paths";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useLayoutStore } from "../../store/layoutStore";
+import { usePaintModStore } from "../../store/paintModStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
 import { formatWhen } from "../file/launchData";
 import "./chrome.css";
-import { EyeRow, Menu, MenuItem } from "./Menu";
+import { Menu, MenuItem } from "./Menu";
 
 const RECENT = 4;
 
@@ -39,8 +40,7 @@ ${doc.subtitle}`}
   );
 }
 
-const PAINT_TOGGLE_TITLE =
-  "Changes how new spawn points are written; existing bytes are never touched.";
+const SUBSCRIBE_FIRST = "Subscribe to the Paint a Galaxy mod on the Steam Workshop first";
 
 /** Every file action, for the open menu: `dismiss` closes it once a command is taken. */
 export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
@@ -54,11 +54,15 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
   const exportScenario = useFileSessionStore((s) => s.exportScenario);
   const pickAndOpen = useFileSessionStore((s) => s.pickAndOpen);
   const kind = useFileSessionStore((s) => s.kind);
-  const paintProfile = useFileSessionStore((s) => s.paintProfile);
-  const setPaintProfile = useFileSessionStore((s) => s.setPaintProfile);
+  const path = useFileSessionStore((s) => s.path);
+  const saveIntoPaintMod = useFileSessionStore((s) => s.saveIntoPaintMod);
+  const modKnown = usePaintModStore((s) => s.known);
+  const paintDir = usePaintModStore((s) => s.paintMod?.scenarios_dir ?? null);
   const showOpenDialog = useLayoutStore((s) => s.showOpenDialog);
   const showScenarioDialog = useLayoutStore((s) => s.showScenarioDialog);
   const open = status === "ready";
+  const modMissing = modKnown && paintDir === null;
+  const inPaintMod = path !== null && paintDir !== null && isUnder(path, paintDir);
 
   const run = (action: () => Promise<void>) => () => {
     dismiss();
@@ -92,19 +96,17 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
       <MenuItem label="Save" shortcut="Ctrl S" disabled={!open || !dirty} onClick={run(save)} />
       <MenuItem label="Save as…" shortcut="Ctrl ⇧ S" disabled={!open} onClick={run(saveAs)} />
       <MenuItem
+        label="Save into the Paint a Galaxy mod…"
+        disabled={!open || kind !== "scenario" || paintDir === null || inPaintMod}
+        title={modMissing ? SUBSCRIBE_FIRST : undefined}
+        onClick={run(saveIntoPaintMod)}
+      />
+      <MenuItem
         label="Export as scenario…"
         disabled={!open || kind !== "save"}
         onClick={run(exportScenario)}
       />
       <MenuItem label="Open save as scenario…" onClick={run(() => pickAndOpen("scenario"))} />
-      <EyeRow
-        pressed={paintProfile}
-        disabled={!open || kind !== "scenario"}
-        title={PAINT_TOGGLE_TITLE}
-        onClick={() => setPaintProfile(!paintProfile)}
-      >
-        <span>Paint a Galaxy spawn points</span>
-      </EyeRow>
       <MenuItem label="Close" shortcut="Ctrl W" disabled={!open} onClick={run(close)} />
     </>
   );

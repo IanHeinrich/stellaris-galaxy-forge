@@ -12,6 +12,7 @@ import * as ipc from "../../api/ipc";
 import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
+import { usePaintModStore } from "../../store/paintModStore";
 import { NewScenarioDialog, RouteCards, RouteFoot, RouteHelp } from "./NewScenarioDialog";
 
 const BLANK = { name: "new_galaxy", radius: 400, coreRadius: 100 };
@@ -48,9 +49,18 @@ const checked = (tree: ReactNode) =>
     .filter((el) => el.type === "button")
     .map((el) => (el.props as { "aria-checked": boolean })["aria-checked"]);
 
+const stored = new Map<string, string>();
+
 beforeEach(() => {
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
+  vi.clearAllMocks();
+  stored.clear();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => void stored.set(key, value),
+  });
+  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState(), paintChoice: true });
   useLayoutStore.setState({ ...useLayoutStore.getInitialState(), scenarioDialog: true });
+  usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
 });
 
 describe("the three ways to start a scenario", () => {
@@ -98,12 +108,29 @@ describe("the blank canvas", () => {
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);
   });
 
-  it("offers the Paint a Galaxy profile as a box that starts unchecked, and says what it costs", () => {
-    const html = renderToStaticMarkup(<NewScenarioDialog />);
-    const box = html.match(/<input type="checkbox"[^>]*>/)![0];
-    expect(box).not.toContain("checked=");
-    expect(html).toContain("Compatible with the Paint a Galaxy mod");
-    expect(html).toContain("The map then needs that mod; leave this off for a plain scenario.");
+  it("offers the Paint a Galaxy choice as a box that follows the standing choice, and says why", () => {
+    let html = renderToStaticMarkup(<NewScenarioDialog />);
+    expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
+    expect(html).toContain("For the Paint a Galaxy mod");
+    expect(html).toContain(
+      "The mod fixes generator bugs the game ships with, so a map for your own play belongs in it.",
+    );
+    expect(html).toContain("A scenario for your own mod leaves this off.");
+
+    useFileSessionStore.setState({ paintChoice: false });
+    html = renderToStaticMarkup(<NewScenarioDialog />);
+    expect(html.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
+  });
+
+  it("shows the mod's state under the box only while it is ticked", () => {
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: "C:/mods/pag/map/setup_scenarios", enabled: true },
+    });
+    expect(renderToStaticMarkup(<NewScenarioDialog />)).toContain("Paint a Galaxy mod enabled ✓");
+
+    useFileSessionStore.setState({ paintChoice: false });
+    expect(renderToStaticMarkup(<NewScenarioDialog />)).not.toContain("paint-mod-status");
   });
 
   it("creates the scenario under the Paint a Galaxy profile once the box is checked", () => {
@@ -158,16 +185,29 @@ describe("a painted galaxy", () => {
     expect(html).toContain("Download the scenario file");
   });
 
-  it("picks a file exported from Paint a Galaxy without asking how to open it", () => {
-    const pickAndOpen = vi.fn();
-    useFileSessionStore.setState({ pickAndOpen });
+  it("picks a file exported from Paint a Galaxy as painted, and closes once it is open", async () => {
+    const pickAndOpenScenario = vi.fn(async () => true);
+    useFileSessionStore.setState({ pickAndOpenScenario });
 
     button(
       <RouteHelp route="paint" />,
       "Open a file exported from Paint a Galaxy…",
     ).props.onClick();
 
-    expect(pickAndOpen).toHaveBeenCalledWith();
-    expect(useLayoutStore.getState().scenarioDialog).toBe(false);
+    await vi.waitFor(() => expect(useLayoutStore.getState().scenarioDialog).toBe(false));
+    expect(pickAndOpenScenario).toHaveBeenCalledWith({ paint: true });
+  });
+
+  it("stays open when nothing was opened: no file picked, or the discard refused", async () => {
+    const pickAndOpenScenario = vi.fn(async () => false);
+    useFileSessionStore.setState({ pickAndOpenScenario });
+
+    button(
+      <RouteHelp route="paint" />,
+      "Open a file exported from Paint a Galaxy…",
+    ).props.onClick();
+
+    await vi.waitFor(() => expect(pickAndOpenScenario).toHaveBeenCalledTimes(1));
+    expect(useLayoutStore.getState().scenarioDialog).toBe(true);
   });
 });

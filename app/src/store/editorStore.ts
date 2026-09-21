@@ -21,7 +21,7 @@ import {
 } from "./galaxyStore";
 import { useDetailsStore } from "./detailsStore";
 import { useEntityStore } from "./entityStore";
-import { useFileSessionStore } from "./fileSessionStore";
+import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore, type EntityRef } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
@@ -316,7 +316,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   async addSystemAt(x, y, initializer = null, spawnWeight = null) {
     // Under the Paint a Galaxy profile the weight is the site's script, written once the id is known.
-    const paint = useFileSessionStore.getState().paintProfile && spawnWeight !== null;
+    const paint = getPaintLayer() && spawnWeight !== null;
     const op: Op = {
       type: "AddSystem",
       id: null,

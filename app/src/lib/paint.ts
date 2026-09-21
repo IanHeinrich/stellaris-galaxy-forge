@@ -3,10 +3,12 @@
  * its spawn script names.
  */
 
-import type { ModView } from "../generated/ModView";
+import type { DocumentKind } from "../generated/DocumentKind";
+import type { PaintModView } from "../generated/PaintModView";
 import type { PaintSpawnKind } from "../generated/PaintSpawnKind";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemNode } from "../generated/SystemNode";
+import { isUnder } from "./paths";
 
 /** The published site; also the one address the shell's `open_url` allows. */
 export const PAINT_URL = "https://oatmealproblem.github.io/paint-a-galaxy/";
@@ -14,11 +16,28 @@ export const PAINT_URL = "https://oatmealproblem.github.io/paint-a-galaxy/";
 /** The companion mod on the Steam Workshop, whose fixes a painted galaxy needs. */
 export const PAINT_MOD_WORKSHOP_ID = "3532904115";
 
-const PAINT_MOD_NAME = "paint a galaxy";
+/** The mod's Workshop page; the other address the shell's `open_url` allows. */
+export const PAINT_WORKSHOP_URL = `https://steamcommunity.com/sharedfiles/filedetails/?id=${PAINT_MOD_WORKSHOP_ID}`;
 
-/** Whether the site painted this galaxy: any system spawns through its script. */
-export function isPaintMade(systems: readonly SystemNode[]): boolean {
-  return systems.some((s) => s.spawn_script !== null);
+/** The facts of the open document the Paint a Galaxy layer is derived from. */
+export interface PaintDocument {
+  kind: DocumentKind | null;
+  path: string | null;
+  /** The file carries the site's scripts or flags, or Forge's header for the mod. */
+  painted: boolean;
+  /** The user asked for the mod's profile when this document was started or opened. */
+  paintChosen: boolean;
+}
+
+/**
+ * Whether the open document is written for the Paint a Galaxy mod: a scenario that is painted,
+ * was chosen as one, or lives in the mod's own scenarios folder. Never a save.
+ */
+export function paintLayer(doc: PaintDocument, paintMod: PaintModView | null): boolean {
+  if (doc.kind !== "scenario") return false;
+  if (doc.painted || doc.paintChosen) return true;
+  const dir = paintMod?.scenarios_dir ?? null;
+  return doc.path !== null && dir !== null && isUnder(doc.path, dir);
 }
 
 /** The seat a script offers, in a word or two. */
@@ -74,15 +93,4 @@ export function scriptForKind(key: string, system: SystemNode): SpawnScript {
 /** The script a system is marked with when made a spawn point under the profile. */
 export function enabledScript(system: SystemNode): SpawnScript {
   return scriptForKind("enabled", system);
-}
-
-/**
- * Whether the companion mod is in the launcher's playset: the Workshop copy by its id, or a
- * local copy by its name. A listed mod whose files are not found still counts, since the
- * launcher enabled it and the files may sit in a library this editor does not know.
- */
-export function isPaintModEnabled(mods: readonly ModView[]): boolean {
-  return mods.some(
-    (m) => m.id === `ugc_${PAINT_MOD_WORKSHOP_ID}` || m.name.toLowerCase().includes(PAINT_MOD_NAME),
-  );
 }

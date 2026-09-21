@@ -76,7 +76,7 @@ describe("a scenario system's spawn point item", () => {
 
   it("takes it under the Paint a Galaxy profile, whose op supplies the initializer", async () => {
     await openEmptySystem();
-    useFileSessionStore.setState({ paintProfile: true });
+    useFileSessionStore.setState({ painted: true });
 
     const html = menu();
     const item = html.match(/<button[^>]*>Set as spawn point<\/button>/)![0];

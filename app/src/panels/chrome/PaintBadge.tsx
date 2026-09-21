@@ -1,26 +1,34 @@
-import { PAINT_MOD_WORKSHOP_ID, isPaintModEnabled } from "../../lib/paint";
-import { useFileSessionStore } from "../../store/fileSessionStore";
-import { useGameDataStore } from "../../store/gameDataStore";
+import { usePaintLayer } from "../../store/fileSessionStore";
+import { usePaintModStore } from "../../store/paintModStore";
 import "./chrome.css";
+import { openPaintWorkshop, paintModStatusTitle } from "./paintMod";
 
 const PROFILE_TITLE = "Spawn points are written for the Paint a Galaxy mod";
 
-const MOD_MISSING_TITLE =
-  `This scenario needs the Paint a Galaxy mod (Steam Workshop ${PAINT_MOD_WORKSHOP_ID}), ` +
-  "which is not among the mods enabled in your Stellaris launcher playset. Its spawn points are " +
-  "read only with that mod enabled.";
-
 /**
- * That the open document is written for the Paint a Galaxy mod, and a warning when the loaded
- * game data says the launcher's playset lacks it. No game data means unknown, not missing.
+ * That the open document is written for the Paint a Galaxy mod, and a warning when the launcher
+ * lacks it. Not yet asked means unknown, not missing.
  */
 export function PaintBadge() {
-  const paint = useFileSessionStore((s) => s.paintProfile);
-  const mods = useGameDataStore((s) => s.summary?.mods ?? null);
+  const paint = usePaintLayer();
+  const known = usePaintModStore((s) => s.known);
+  const paintMod = usePaintModStore((s) => s.paintMod);
   if (!paint) return null;
-  if (mods !== null && !isPaintModEnabled(mods)) {
+  if (known && paintMod === null) {
     return (
-      <span className="badge warn paint-badge" title={MOD_MISSING_TITLE}>
+      <button
+        type="button"
+        className="badge warn paint-badge"
+        title={paintModStatusTitle(paintMod)}
+        onClick={openPaintWorkshop}
+      >
+        ⚠ Paint a Galaxy mod not installed
+      </button>
+    );
+  }
+  if (known && paintMod !== null && !paintMod.enabled) {
+    return (
+      <span className="badge warn paint-badge" title={paintModStatusTitle(paintMod)}>
         ⚠ Paint a Galaxy mod not enabled
       </span>
     );

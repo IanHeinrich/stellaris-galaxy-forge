@@ -11,7 +11,8 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { OPEN_RESULT, exportReport } from "../../store/fixture";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { ExportDialog, ExportForm, ExportReportRows } from "./ExportDialog";
+import { usePaintModStore } from "../../store/paintModStore";
+import { ExportDialog, ExportForm, ExportProfileCheck, ExportReportRows } from "./ExportDialog";
 import { droppedSummary } from "./exportReport";
 
 const FULL = exportReport({
@@ -52,9 +53,17 @@ function form(tree: ReactNode): ReactElement<{ onSubmit: (e: unknown) => void }>
   return found!;
 }
 
+const stored = new Map<string, string>();
+
 beforeEach(() => {
+  stored.clear();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => void stored.set(key, value),
+  });
   useGalaxyStore.getState().clear();
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState(), paintExport: false });
+  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState(), paintChoice: false });
+  usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
 });
 
 describe("the report", () => {
@@ -116,14 +125,34 @@ describe("the dialog", () => {
     const html = renderToStaticMarkup(<ExportDialog />);
     expect(html).toContain('aria-label="Export as scenario"');
     expect(html).toContain("Not carried over");
-    expect(html).toContain("Compatible with the Paint a Galaxy mod");
-    expect(html).toContain("The map then needs that mod; leave this off for a plain scenario.");
+    expect(html).toContain("For the Paint a Galaxy mod");
+    expect(html).toContain("A scenario for your own mod leaves this off.");
     expect(html.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
 
-    useFileSessionStore.setState({ paintExport: true });
+    useFileSessionStore.setState({ paintChoice: true });
     expect(
       renderToStaticMarkup(<ExportDialog />).match(/<input type="checkbox"[^>]*>/)![0],
     ).toContain("checked=");
+  });
+
+  it("shows the mod's state under the box only while it is ticked", () => {
+    useFileSessionStore.setState({ pendingExport: FULL });
+    usePaintModStore.setState({ known: true, paintMod: null });
+    expect(renderToStaticMarkup(<ExportDialog />)).not.toContain("paint-mod-status");
+
+    useFileSessionStore.setState({ paintChoice: true });
+    const html = renderToStaticMarkup(<ExportDialog />);
+    expect(html).toContain("paint-mod-status");
+    expect(html).toContain("Paint a Galaxy mod on the Steam Workshop");
+  });
+
+  it("ticking the box is the standing choice, kept per machine", () => {
+    const box = elements(<ExportProfileCheck />).find(
+      (el): el is ReactElement<{ onChange: (e: unknown) => void }> => el.type === "input",
+    )!;
+    box.props.onChange({ currentTarget: { checked: true } });
+    expect(useFileSessionStore.getState().paintChoice).toBe(true);
+    expect(stored.get("sgf.paint.profile")).toBe("true");
   });
 
   it("exports under the profile the box says on submit, and Cancel answers with none", () => {
@@ -135,7 +164,7 @@ describe("the dialog", () => {
     expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(confirmExport).toHaveBeenLastCalledWith("plain");
 
-    useFileSessionStore.setState({ paintExport: true });
+    useFileSessionStore.setState({ paintChoice: true });
     form(<ExportForm report={FULL} />).props.onSubmit({ preventDefault });
     expect(confirmExport).toHaveBeenLastCalledWith("paint_a_galaxy");
 

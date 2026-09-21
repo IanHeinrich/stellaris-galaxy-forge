@@ -4,6 +4,7 @@ import type { ScenarioProfile } from "../../generated/ScenarioProfile";
 import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
+import { PaintModStatus } from "../chrome/PaintModStatus";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
 import { PAINT_CHECK, PAINT_WHY } from "./paintCopy";
@@ -178,12 +179,15 @@ function openPaintSite(): void {
     .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
 }
 
+/** Picks the site's export and opens it as painted; the dialog stays until a file is open. */
+async function openPaintedFile(): Promise<void> {
+  const opened = await useFileSessionStore.getState().pickAndOpenScenario({ paint: true });
+  if (opened) useLayoutStore.getState().hideScenarioDialog();
+}
+
 /** What the chosen route asks of the user before the file it wants exists. */
 export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
-  const openFile = () => {
-    useLayoutStore.getState().hideScenarioDialog();
-    void useFileSessionStore.getState().pickAndOpen();
-  };
+  const openFile = () => void openPaintedFile();
 
   return (
     <div className="route-help">
@@ -252,7 +256,8 @@ export function NewScenarioDialog() {
   const [preset, setPreset] = useState("medium");
   const [custom, setCustom] = useState(400);
   const [core, setCore] = useState<number | null>(null);
-  const [paint, setPaint] = useState(false);
+  const paint = useFileSessionStore((s) => s.paintChoice);
+  const setPaintChoice = useFileSessionStore((s) => s.setPaintChoice);
 
   const radius =
     preset === "custom" ? clampRadius(custom) : (PRESETS.find((p) => p.id === preset)?.radius ?? 0);
@@ -329,11 +334,12 @@ export function NewScenarioDialog() {
                 <input
                   type="checkbox"
                   checked={paint}
-                  onChange={(e) => setPaint(e.currentTarget.checked)}
+                  onChange={(e) => setPaintChoice(e.currentTarget.checked)}
                 />
                 <span>
                   {PAINT_CHECK}
                   <span className="setup-why">{PAINT_WHY}</span>
+                  {paint && <PaintModStatus />}
                 </span>
               </label>
             </>

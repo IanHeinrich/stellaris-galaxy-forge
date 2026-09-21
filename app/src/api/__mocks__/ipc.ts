@@ -43,6 +43,7 @@ export const getEntitySchema = command("getEntitySchema");
 export const getScenarioOwners = command("getScenarioOwners");
 export const getScenarioBypasses = command("getScenarioBypasses");
 export const getSystemScripts = command("getSystemScripts");
+export const paintMod = command("paintMod");
 export const openScript = command("openScript");
 export const openUrl = command("openUrl");
 export const getNames = command("getNames");

@@ -4,10 +4,10 @@ import { systemNode } from "../test/builders";
 import {
   PAINT_MOD_WORKSHOP_ID,
   PAINT_SPAWN_KINDS,
+  PAINT_WORKSHOP_URL,
   enabledScript,
-  isPaintMade,
-  isPaintModEnabled,
   paintKindKey,
+  paintLayer,
   scriptForKind,
   spawnScriptLabel,
 } from "./paint";
@@ -18,14 +18,6 @@ function scripted(id: number, kind: SpawnScript["paint_a_galaxy"]["kind"], rando
 }
 
 describe("a painted galaxy", () => {
-  it("is one where any system spawns through the site's script", () => {
-    expect(isPaintMade([systemNode({ id: 0 }), scripted(1, "enabled")])).toBe(true);
-    expect(isPaintMade([systemNode({ id: 0 }), systemNode({ id: 1, spawn_weight: 2 })])).toBe(
-      false,
-    );
-    expect(isPaintMade([])).toBe(false);
-  });
-
   it("names each seat, a reserved letter in capitals", () => {
     expect(spawnScriptLabel(scripted(1, "enabled").spawn_script!)).toBe("enabled");
     expect(spawnScriptLabel(scripted(1, "preferred").spawn_script!)).toBe("preferred");
@@ -60,23 +52,47 @@ describe("a painted galaxy", () => {
   });
 });
 
-describe("the companion mod", () => {
-  const mod = (id: string, name: string, status = "loaded") => ({ id, name, dir: null, status });
-
-  it("is enabled when the playset lists the Workshop copy or a local copy by name", () => {
-    expect(PAINT_MOD_WORKSHOP_ID).toBe("3532904115");
-    expect(isPaintModEnabled([mod("ugc_1", "UI Overhaul"), mod("ugc_3532904115", "PaG")])).toBe(
-      true,
-    );
-    expect(isPaintModEnabled([mod("local_7", "Paint a Galaxy")])).toBe(true);
-    expect(isPaintModEnabled([mod("local_7", "My paint A GALAXY fork")])).toBe(true);
-    expect(isPaintModEnabled([mod("ugc_3532904115", "PaG", "missing")])).toBe(true);
+describe("the Paint a Galaxy layer", () => {
+  const DIR = "C:\\mods\\pag\\map\\setup_scenarios";
+  const mod = (scenarios_dir: string | null, enabled = true) => ({ scenarios_dir, enabled });
+  const doc = (over: Partial<Parameters<typeof paintLayer>[0]> = {}) => ({
+    kind: "scenario" as const,
+    path: null,
+    painted: false,
+    paintChosen: false,
+    ...over,
   });
 
-  it("is not enabled when the playset lists neither", () => {
-    expect(isPaintModEnabled([])).toBe(false);
-    expect(isPaintModEnabled([mod("ugc_1", "UI Overhaul"), mod("ugc_35329041150", "Galaxy")])).toBe(
+  it("links the mod's Workshop page by its id", () => {
+    expect(PAINT_MOD_WORKSHOP_ID).toBe("3532904115");
+    expect(PAINT_WORKSHOP_URL).toBe(
+      "https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115",
+    );
+  });
+
+  it("is on for a painted scenario, or one the user chose as such, whatever the mod says", () => {
+    expect(paintLayer(doc({ painted: true }), null)).toBe(true);
+    expect(paintLayer(doc({ paintChosen: true }), null)).toBe(true);
+    expect(paintLayer(doc(), null)).toBe(false);
+    expect(paintLayer(doc(), mod(DIR))).toBe(false);
+  });
+
+  it("is on for a plain scenario saved inside the mod's scenarios folder", () => {
+    expect(paintLayer(doc({ path: `${DIR}\\mine.txt` }), mod(DIR))).toBe(true);
+    expect(paintLayer(doc({ path: "c:/mods/pag/map/setup_scenarios/mine.txt" }), mod(DIR))).toBe(
+      true,
+    );
+    expect(
+      paintLayer(doc({ path: "C:\\mods\\mine\\map\\setup_scenarios\\mine.txt" }), mod(DIR)),
+    ).toBe(false);
+    expect(paintLayer(doc({ path: `${DIR}\\mine.txt` }), mod(null))).toBe(false);
+    expect(paintLayer(doc({ path: `${DIR}\\mine.txt` }), null)).toBe(false);
+  });
+
+  it("is never on for a save, or before a document is open", () => {
+    expect(paintLayer(doc({ kind: "save", painted: true, paintChosen: true }), mod(DIR))).toBe(
       false,
     );
+    expect(paintLayer(doc({ kind: null, paintChosen: true }), mod(DIR))).toBe(false);
   });
 });

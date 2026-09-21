@@ -21,9 +21,10 @@ import { onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
 import { bindStores } from "./bindStores";
 import { useEditorStore } from "./editorStore";
-import { useFileSessionStore } from "./fileSessionStore";
+import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { laneCount, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
+import { usePaintModStore } from "./paintModStore";
 import { useRecentsStore } from "./recentsStore";
 
 const mocked = {
@@ -75,6 +76,7 @@ beforeEach(() => {
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
   useRecentsStore.setState({ recents: [] });
+  usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
   unlisten = vi.fn<() => void>();
   mocked.onProgress.mockImplementation(async (h) => {
     progressHandler = h;
@@ -440,6 +442,7 @@ describe("Steam Cloud", () => {
 
 describe("scenario documents", () => {
   const SCENARIO_PATH = SCENARIO_RESULT.path;
+  const PAINT_DIR = "C:/mods/pag/map/setup_scenarios";
 
   it("opening a scenario file takes its kind, title and capabilities, and has no save header", async () => {
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
@@ -487,7 +490,7 @@ describe("scenario documents", () => {
     expect(mocked.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100, undefined);
     expect(session().path).toBeNull();
     expect(session().title).toBe("my_galaxy");
-    expect(session().paintProfile).toBe(false);
+    expect(getPaintLayer()).toBe(false);
 
     mocked.saveDialog.mockResolvedValueOnce("C:/mods/map/setup_scenarios/my_galaxy.txt");
     mocked.saveAs.mockResolvedValueOnce(
@@ -506,43 +509,174 @@ describe("scenario documents", () => {
     expect(session().path).toBe("C:/mods/map/setup_scenarios/my_galaxy.txt");
   });
 
-  it("a new scenario under the Paint a Galaxy profile asks for it and turns the profile on", async () => {
+  it("a new scenario under the Paint a Galaxy profile asks for it and turns the layer on", async () => {
     mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
     await session().newScenario("my_galaxy", 400, 100, "paint_a_galaxy");
     expect(mocked.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100, "paint_a_galaxy");
-    expect(session().paintProfile).toBe(true);
+    expect(session().paintChosen).toBe(true);
+    expect(getPaintLayer()).toBe(true);
 
     mocked.openAsScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
     await session().openScenarioFrom(OPEN_RESULT.path, "paint_a_galaxy");
     expect(mocked.openAsScenario).toHaveBeenCalledWith(OPEN_RESULT.path, "paint_a_galaxy");
-    expect(session().paintProfile).toBe(true);
+    expect(getPaintLayer()).toBe(true);
+
+    mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    await session().newScenario("my_galaxy", 400, 100);
+    expect(session().paintChosen).toBe(false);
+    expect(getPaintLayer()).toBe(false);
   });
 
-  it("a painted galaxy turns the Paint a Galaxy profile on; a plain open turns it off again", async () => {
-    const painted = SCENARIO_RESULT.galaxy.systems.map((s, i) =>
-      i === 0
-        ? {
-            ...s,
-            spawn_weight: 0,
-            spawn_script: { paint_a_galaxy: { kind: "sol" as const, random_value: 0 } },
-          }
-        : s,
-    );
-    mocked.openSave.mockResolvedValueOnce({
-      ...SCENARIO_RESULT,
-      galaxy: { ...SCENARIO_RESULT.galaxy, systems: painted },
-    });
-    await session().openSave(SCENARIO_PATH);
-    expect(session().paintProfile).toBe(true);
+  it("a painted file turns the layer on without a profile; a plain open turns it off again", async () => {
+    mocked.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, painted: true });
+    await session().requestOpen(SCENARIO_PATH);
+    expect(session().painted).toBe(true);
+    expect(session().paintChosen).toBe(false);
+    expect(getPaintLayer()).toBe(true);
 
     await session().close();
-    expect(session().paintProfile).toBe(false);
+    expect(session().painted).toBe(false);
+    expect(getPaintLayer()).toBe(false);
 
-    session().setPaintProfile(true);
-    expect(session().paintProfile).toBe(true);
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH);
-    expect(session().paintProfile).toBe(false);
+    expect(getPaintLayer()).toBe(false);
+  });
+
+  it("a file the site exported is opened as painted even when no seat was set", async () => {
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().openScenario(SCENARIO_PATH, { paint: true });
+    expect(mocked.openSave).toHaveBeenCalledWith(SCENARIO_PATH);
+    expect(session().painted).toBe(false);
+    expect(session().paintChosen).toBe(true);
+    expect(getPaintLayer()).toBe(true);
+
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().openScenario(SCENARIO_PATH);
+    expect(session().paintChosen).toBe(false);
+  });
+
+  it("picking a painted file asks to discard before the picker, and opens what is picked as painted", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    await edit();
+    mocked.confirm.mockResolvedValueOnce(false);
+    expect(await session().pickAndOpenScenario({ paint: true })).toBe(false);
+    expect(mocked.open).not.toHaveBeenCalled();
+    expect(session().kind).toBe("save");
+
+    mocked.confirm.mockResolvedValueOnce(true);
+    mocked.open.mockResolvedValueOnce(null);
+    expect(await session().pickAndOpenScenario({ paint: true })).toBe(false);
+    expect(mocked.open).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: [{ name: "Stellaris static galaxy scenario", extensions: ["txt"] }],
+      }),
+    );
+    expect(session().kind).toBe("save");
+
+    mocked.confirm.mockResolvedValueOnce(true);
+    mocked.open.mockResolvedValueOnce(SCENARIO_PATH);
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    expect(await session().pickAndOpenScenario({ paint: true })).toBe(true);
+    expect(mocked.openSave).toHaveBeenLastCalledWith(SCENARIO_PATH);
+    expect(session().kind).toBe("scenario");
+    expect(session().paintChosen).toBe(true);
+    expect(getPaintLayer()).toBe(true);
+  });
+
+  it("reloading keeps what was said of the file at open, since the bytes cannot say it", async () => {
+    mocked.openSave.mockResolvedValue(SCENARIO_RESULT);
+    await session().openScenario(SCENARIO_PATH, { paint: true });
+    expect(getPaintLayer()).toBe(true);
+
+    await session().reload();
+    expect(mocked.openSave).toHaveBeenCalledTimes(2);
+    expect(session().paintChosen).toBe(true);
+    expect(getPaintLayer()).toBe(true);
+
+    await session().openScenario(SCENARIO_PATH);
+    await session().reload();
+    expect(session().paintChosen).toBe(false);
+    expect(getPaintLayer()).toBe(false);
+    mocked.openSave.mockResolvedValue(OPEN_RESULT);
+  });
+
+  it("a plain scenario inside the mod's scenarios folder is on the layer; the same file elsewhere is not", async () => {
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: PAINT_DIR, enabled: true },
+    });
+    mocked.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: `${PAINT_DIR}/mine.txt` });
+    await session().requestOpen(`${PAINT_DIR}/mine.txt`);
+    expect(getPaintLayer()).toBe(true);
+
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().requestOpen(SCENARIO_PATH);
+    expect(getPaintLayer()).toBe(false);
+
+    mocked.openSave.mockResolvedValueOnce({ ...OPEN_RESULT, path: `${PAINT_DIR}/mine.sav` });
+    await session().openSave(`${PAINT_DIR}/mine.sav`);
+    expect(getPaintLayer()).toBe(false);
+  });
+
+  it("a new scenario on the layer is offered the mod's scenarios folder; an existing file keeps its path", async () => {
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: PAINT_DIR, enabled: true },
+    });
+    mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    await session().newScenario("my_galaxy", 400, 100, "paint_a_galaxy");
+
+    mocked.saveDialog.mockResolvedValueOnce(null);
+    await session().saveAs();
+    expect(mocked.saveDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ defaultPath: `${PAINT_DIR}/my_galaxy.txt` }),
+    );
+
+    mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    await session().newScenario("my_galaxy", 400, 100);
+    mocked.saveDialog.mockResolvedValueOnce(null);
+    await session().saveAs();
+    expect(mocked.saveDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ defaultPath: "my_galaxy.txt" }),
+    );
+
+    mocked.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, painted: true });
+    await session().requestOpen(SCENARIO_PATH);
+    mocked.saveDialog.mockResolvedValueOnce(null);
+    await session().saveAs();
+    expect(mocked.saveDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ defaultPath: SCENARIO_PATH }),
+    );
+  });
+
+  it("saving into the mod offers its folder under the file's own name, and does nothing without one", async () => {
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().requestOpen(SCENARIO_PATH);
+    await session().saveIntoPaintMod();
+    expect(mocked.saveDialog).not.toHaveBeenCalled();
+
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: "C:\\mods\\pag\\map\\setup_scenarios", enabled: false },
+    });
+    const landed = "C:\\mods\\pag\\map\\setup_scenarios\\my_galaxy.txt";
+    mocked.saveDialog.mockResolvedValueOnce(landed);
+    mocked.saveAs.mockResolvedValueOnce(saveResult({ path: landed }));
+    await session().saveIntoPaintMod();
+    expect(mocked.saveDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        defaultPath: landed,
+        filters: [{ name: "Stellaris static galaxy scenario", extensions: ["txt"] }],
+      }),
+    );
+    expect(mocked.saveAs).toHaveBeenCalledWith(landed);
+    expect(session().path).toBe(landed);
+    expect(getPaintLayer()).toBe(true);
+
+    await session().openSave(OPEN_RESULT.path);
+    await session().saveIntoPaintMod();
+    expect(mocked.saveDialog).toHaveBeenCalledTimes(1);
   });
 
   it("exporting previews the report, then writes a second file and leaves the save's own path, edits and save time alone", async () => {
@@ -584,7 +718,7 @@ describe("scenario documents", () => {
     expect(session().exportedAt).toBeNull();
   });
 
-  it("exporting for Paint a Galaxy asks for that profile", async () => {
+  it("exporting for Paint a Galaxy asks for that profile, and offers the mod's folder when known", async () => {
     await session().openSave(OPEN_RESULT.path);
     useFileSessionStore.setState({ pendingExport: exportReport() });
     const exported = "C:/mods/map/setup_scenarios/test_empire.txt";
@@ -596,15 +730,36 @@ describe("scenario documents", () => {
 
     await session().confirmExport("paint_a_galaxy");
 
+    expect(mocked.saveDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ defaultPath: "Test Empire.txt" }),
+    );
     expect(mocked.exportScenario).toHaveBeenCalledWith(exported, "paint_a_galaxy");
-    expect(session().paintProfile).toBe(false);
+    expect(getPaintLayer()).toBe(false);
+
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: PAINT_DIR, enabled: true },
+    });
+    useFileSessionStore.setState({ pendingExport: exportReport() });
+    mocked.saveDialog.mockResolvedValueOnce(null);
+    await session().confirmExport("paint_a_galaxy");
+    expect(mocked.saveDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ defaultPath: `${PAINT_DIR}/Test Empire.txt` }),
+    );
+
+    useFileSessionStore.setState({ pendingExport: exportReport() });
+    mocked.saveDialog.mockResolvedValueOnce(null);
+    await session().confirmExport("plain");
+    expect(mocked.saveDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ defaultPath: "Test Empire.txt" }),
+    );
   });
 
-  it("the Paint a Galaxy export choice is kept per machine", () => {
-    expect(session().paintExport).toBe(false);
-    session().setPaintExport(true);
-    expect(session().paintExport).toBe(true);
-    expect(stored.get("sgf.export.paint")).toBe("true");
+  it("the Paint a Galaxy choice starts on and is kept per machine", () => {
+    expect(session().paintChoice).toBe(true);
+    session().setPaintChoice(false);
+    expect(session().paintChoice).toBe(false);
+    expect(stored.get("sgf.paint.profile")).toBe("false");
   });
 
   it("a cancelled export writes nothing, and a scenario has nothing to export", async () => {

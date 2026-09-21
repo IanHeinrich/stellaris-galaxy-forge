@@ -7,7 +7,7 @@ import {
   isSpawnPoint,
   isSpawnWeight,
 } from "../../../../../lib/spawn";
-import { useFileSessionStore } from "../../../../../store/fileSessionStore";
+import { usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useApplyOp } from "../../../../useApplyOp";
 import { Chip, Field, Section } from "../../../parts";
 import { useEditableSystem } from "../../editable";
@@ -38,7 +38,7 @@ export function SpawnPointSection({ system }: { system: SystemNode }) {
 
 function SpawnPoint({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
-  const paint = useFileSessionStore((s) => s.paintProfile);
+  const paint = usePaintLayer();
   const [refused, setRefused] = useState(false);
   const weight = system.spawn_weight;
   const scripted = system.spawn_script !== null;

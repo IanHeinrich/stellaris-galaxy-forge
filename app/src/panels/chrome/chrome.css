@@ -524,3 +524,52 @@ button.badge.update-badge:hover {
   border: 1px solid var(--border);
   color: var(--fg-muted);
 }
+
+button.badge.paint-badge {
+  cursor: pointer;
+}
+
+button.badge.paint-badge:hover {
+  border-color: var(--warn);
+}
+
+/* The mod's state in one line, wherever the choice for it is made. */
+.paint-mod-status {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg-muted);
+}
+
+.paint-mod-status.warn {
+  color: var(--warn);
+}
+
+.paint-mod-status button.link {
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* One row under the top bar, in the muted register of the status bar. */
+.paint-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.paint-notice > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.paint-notice button.link {
+  padding: 0;
+}

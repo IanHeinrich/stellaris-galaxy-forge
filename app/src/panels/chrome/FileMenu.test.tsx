@@ -10,6 +10,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
+import { usePaintModStore } from "../../store/paintModStore";
 import { FileMenuItems } from "./FileMenu";
 
 /** What the menu is told once a command is taken; a toggle leaves it open. */
@@ -33,12 +34,13 @@ function html(label: string): string {
 }
 
 function open(result: typeof OPEN_RESULT): void {
-  useFileSessionStore.setState({ status: "ready", kind: result.kind });
+  useFileSessionStore.setState({ status: "ready", kind: result.kind, path: result.path });
 }
 
 beforeEach(() => {
   dismiss = vi.fn<() => void>();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
+  usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
 });
 
 describe("the scenario export", () => {
@@ -74,31 +76,52 @@ describe("the scenario export", () => {
   });
 });
 
-describe("the Paint a Galaxy spawn points check item", () => {
-  it("is dead until a scenario is open, and says what it changes", () => {
-    const title =
-      'title="Changes how new spawn points are written; existing bytes are never touched."';
-    expect(html("Paint a Galaxy spawn points")).toContain("disabled=");
-    expect(html("Paint a Galaxy spawn points")).toContain(title);
+describe("saving into the Paint a Galaxy mod", () => {
+  const DIR = "C:/mods/pag/map/setup_scenarios";
+  const LABEL = "Save into the Paint a Galaxy mod…";
+
+  it("is dead until a scenario is open and the mod's folder is known", () => {
+    expect(items()).not.toContain("Paint a Galaxy spawn points");
+    expect(html(LABEL)).toContain("disabled=");
+    expect(html(LABEL)).not.toContain("title=");
+
+    open(SCENARIO_RESULT);
+    expect(html(LABEL)).toContain("disabled=");
+
+    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: false } });
+    expect(html(LABEL)).not.toContain("disabled=");
 
     open(OPEN_RESULT);
-    expect(html("Paint a Galaxy spawn points")).toContain("disabled=");
-
-    open(SCENARIO_RESULT);
-    expect(html("Paint a Galaxy spawn points")).not.toContain("disabled=");
-    expect(html("Paint a Galaxy spawn points")).toContain(title);
+    expect(html(LABEL)).toContain("disabled=");
   });
 
-  it("reads the profile and toggles it", () => {
+  it("says to subscribe first when the mod is not installed", () => {
     open(SCENARIO_RESULT);
-    expect(html("Paint a Galaxy spawn points")).toContain('aria-pressed="false"');
+    usePaintModStore.setState({ known: true, paintMod: null });
+    expect(html(LABEL)).toContain("disabled=");
+    expect(html(LABEL)).toContain(
+      'title="Subscribe to the Paint a Galaxy mod on the Steam Workshop first"',
+    );
+  });
 
-    item("Paint a Galaxy spawn points").props.onClick();
-    expect(useFileSessionStore.getState().paintProfile).toBe(true);
-    expect(html("Paint a Galaxy spawn points")).toContain('aria-pressed="true"');
+  it("has nothing to do for a file already inside the mod's folder", () => {
+    open(SCENARIO_RESULT);
+    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: true } });
+    useFileSessionStore.setState({ path: `${DIR}/mine.txt` });
+    expect(html(LABEL)).toContain("disabled=");
 
-    item("Paint a Galaxy spawn points").props.onClick();
-    expect(useFileSessionStore.getState().paintProfile).toBe(false);
-    expect(dismiss).not.toHaveBeenCalled();
+    useFileSessionStore.setState({ path: null });
+    expect(html(LABEL)).not.toContain("disabled=");
+  });
+
+  it("saves into the mod and closes the menu", () => {
+    const saveIntoPaintMod = vi.fn();
+    open(SCENARIO_RESULT);
+    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: true } });
+    useFileSessionStore.setState({ saveIntoPaintMod });
+
+    item(LABEL).props.onClick();
+    expect(saveIntoPaintMod).toHaveBeenCalledTimes(1);
+    expect(dismiss).toHaveBeenCalledTimes(1);
   });
 });

@@ -53,7 +53,7 @@ describe("adding and removing systems", () => {
   });
 
   it("addSystemAt under the Paint a Galaxy profile writes the seat as script once the id is known", async () => {
-    useFileSessionStore.setState({ paintProfile: true });
+    useFileSessionStore.setState({ kind: "scenario", painted: true });
     const added = node(13, "", 10, -4, "sc_g");
     mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [added] } }));
     mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [added] } }));

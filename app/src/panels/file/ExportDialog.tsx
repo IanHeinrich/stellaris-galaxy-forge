@@ -4,6 +4,7 @@ import type { ExportReport } from "../../generated/ExportReport";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { PaintModStatus } from "../chrome/PaintModStatus";
 import { Dialog } from "../overlays/Dialog";
 import { droppedSummary } from "./exportReport";
 import "./open.css";
@@ -64,20 +65,21 @@ export function ExportReportRows({ report }: { report: ExportReport }) {
   );
 }
 
-/** Whether the file is written for the Paint a Galaxy mod; the choice is kept per machine. */
+/** Whether the file is written for the Paint a Galaxy mod: the user's standing choice. */
 export function ExportProfileCheck() {
-  const paint = useFileSessionStore((s) => s.paintExport);
-  const setPaintExport = useFileSessionStore((s) => s.setPaintExport);
+  const paint = useFileSessionStore((s) => s.paintChoice);
+  const setPaintChoice = useFileSessionStore((s) => s.setPaintChoice);
   return (
     <label className="setup-check">
       <input
         type="checkbox"
         checked={paint}
-        onChange={(e) => setPaintExport(e.currentTarget.checked)}
+        onChange={(e) => setPaintChoice(e.currentTarget.checked)}
       />
       <span>
         {PAINT_CHECK}
         <span className="setup-why">{PAINT_WHY}</span>
+        {paint && <PaintModStatus />}
       </span>
     </label>
   );
@@ -85,7 +87,7 @@ export function ExportProfileCheck() {
 
 /** The report, the profile box and the two ways out; Enter exports under the profile the box says. */
 export function ExportForm({ report }: { report: ExportReport }) {
-  const paint = useFileSessionStore((s) => s.paintExport);
+  const paint = useFileSessionStore((s) => s.paintChoice);
   const confirmExport = useFileSessionStore((s) => s.confirmExport);
 
   const submit = (e: FormEvent) => {

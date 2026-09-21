@@ -1,15 +1,16 @@
 # Paint a Galaxy integration
 
-Reference for embedding Paint a Galaxy (PaG, `oatmealproblem/paint-a-galaxy`,
-MIT) inside Stellaris Galaxy Forge, and for the postMessage protocol between
-the two. Audience: the Paint a Galaxy maintainer and Forge contributors.
-Forge's side of the protocol lives in `app/src/lib/paint.ts` (the message
-parser), `app/src/panels/file/paintMessage.ts` (the acceptance logic) and
-`app/src/panels/file/PaintGalaxyPanel.tsx` (the panel).
+What Stellaris Galaxy Forge writes and reads for Paint a Galaxy (PaG,
+`oatmealproblem/paint-a-galaxy`, MIT), and a proposal for embedding the site
+inside Forge with a postMessage protocol between the two. Audience: the Paint
+a Galaxy maintainer and Forge contributors.
 
 ## Protocol
 
-Forge loads PaG in an iframe at:
+Neither side implements this yet: it stays here as a proposal for the
+Paint a Galaxy maintainer.
+
+Forge would load PaG in an iframe at:
 
 ```
 <PaG URL>?embeddedMode=true&parentAppName=Stellaris%20Galaxy%20Forge
@@ -41,8 +42,8 @@ PaG → Forge, the galaxy itself:
 }
 ```
 
-`name` is optional: a missing, non-string or blank `name` is shown to the
-user as "Painted galaxy".
+`name` is optional: a missing, non-string or blank `name` would be shown to
+the user as "Painted galaxy".
 
 PaG → Forge, optional, posted on load:
 
@@ -65,7 +66,7 @@ on receiving `ready`:
 }
 ```
 
-Forge accepts a message only when all of the following hold: `event.origin`
+Forge would accept a message only when all of the following hold: `event.origin`
 is the PaG origin, `event.source === iframe.contentWindow`,
 `source === "paint-a-galaxy"`, `type === "galaxy"`, and `txt` is a non-empty
 string. Unknown `type` values are ignored rather than treated as errors, so
@@ -96,15 +97,14 @@ unfamiliar version can fall back instead of failing.
 
 ## What Forge writes under the Paint a Galaxy profile
 
-Writing in Paint a Galaxy's dialect is opt-in everywhere: a scenario written
-without it is byte-identical to one written before this profile existed. It
-is chosen by the "Compatible with the Paint a Galaxy mod" checkbox on the New
-scenario dialog's blank route (off by default), the File menu item "Export
-as scenario for Paint a Galaxy…" beside the plain "Export as scenario…", and
-the CLI's `--profile paint-a-galaxy` flag on `export-scenario` and
-`new-scenario` (default `plain`). `crates/sgf-core/src/export/paint.rs` is
-the one module that writes it, laid over a plain draft; the exact statement
-shapes below are drawn from it.
+A scenario written without Paint a Galaxy's dialect is byte-identical to one
+written before this profile existed. The dialect is chosen by the "For the
+Paint a Galaxy mod" checkbox, which the New scenario dialog's blank route and
+the Export as scenario dialog share (ticked by default, remembered per
+machine), and by the CLI's `--profile paint-a-galaxy` flag on
+`export-scenario` and `new-scenario` (default `plain`).
+`crates/sgf-core/src/export/paint.rs` is the one module that writes it, laid
+over a plain draft; the exact statement shapes below are drawn from it.
 
 The header opens with a comment naming Forge and the mod, then the block
 `generate_galaxy_txt.ts` writes for `S` spawn systems and `systems` systems
@@ -199,19 +199,6 @@ setting a base spawn weight or a human/AI reservation on a system that
 already carries a script is refused; its Paint a Galaxy spawn kind is what
 changes instead.
 
-## Limitations
-
-- WKWebView (macOS) and WebView2 (Windows) partition third-party iframe
-  storage from the embedding app's own storage. A project painted inside
-  Forge is not the same IndexedDB project as one painted on
-  oatmealproblem.github.io in the user's regular browser, and a
-  private-browsing or blocked-storage setup makes PaG show its own storage
-  error inside the panel.
-- Until PaG ships embedded mode, the panel shows the ordinary site and
-  Download still downloads a file; Forge falls back to "Open in browser"
-  plus opening a downloaded file. Forge's side can be tested against a
-  local page that posts the `galaxy` message, reached by setting
-  `VITE_PAINT_URL` at build time.
-- Keyboard events inside the cross-origin frame never reach Forge, so Esc
-  closes the panel only while focus is on the panel's own head row; the
-  Close button always works.
+Forge treats a scenario as painted, and turns its Paint a Galaxy layer on,
+when the `painted_galaxy_` prefix appears anywhere in the text or the
+header carries the comment Forge itself writes under the profile.

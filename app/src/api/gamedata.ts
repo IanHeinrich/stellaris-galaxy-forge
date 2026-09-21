@@ -11,6 +11,7 @@ import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
 import type { MapColor } from "../generated/MapColor";
 import type { NameTemplate } from "../generated/NameTemplate";
+import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { ResourceIcon } from "../generated/ResourceIcon";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
@@ -60,6 +61,11 @@ export function getScenarioOwners(): Promise<ScenarioOwners | null> {
 /** The wormholes and gateways the initializers and day-one events place; null on a save or without game data. */
 export function getScenarioBypasses(): Promise<ScenarioBypasses | null> {
   return invoke<ScenarioBypasses | null>("get_scenario_bypasses");
+}
+
+/** The Paint a Galaxy mod on this machine: where its scenarios go and whether the playset loads it; null when it is not installed. */
+export function paintMod(): Promise<PaintModView | null> {
+  return invoke<PaintModView | null>("paint_mod");
 }
 
 /** Open a game-data file in the shell's editor, or show it in its folder; refused outside the loaded roots. */

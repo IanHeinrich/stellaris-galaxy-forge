@@ -1,5 +1,5 @@
-/** The Paint a Galaxy profile as a checkbox: its label, and what ticking it costs. */
-export const PAINT_CHECK = "Compatible with the Paint a Galaxy mod";
+/** The Paint a Galaxy choice as a checkbox: its label, and why it is on by default. */
+export const PAINT_CHECK = "For the Paint a Galaxy mod";
 export const PAINT_WHY =
-  "Writes spawn points in Paint a Galaxy's shape and a header sized for its fixes. The map then " +
-  "needs that mod; leave this off for a plain scenario.";
+  "The mod fixes generator bugs the game ships with, so a map for your own play belongs in it. " +
+  "A scenario for your own mod leaves this off.";

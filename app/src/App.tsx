@@ -12,6 +12,7 @@ import { confirmRemoveNebula } from "./panels/inspector/nebula";
 import { Dock } from "./panels/chrome/Dock";
 import { FileMenu } from "./panels/chrome/FileMenu";
 import { PaintBadge } from "./panels/chrome/PaintBadge";
+import { PaintNotice } from "./panels/chrome/PaintNotice";
 import { GameDataPanel } from "./panels/chrome/GameDataPanel";
 import { HelpMenu } from "./panels/chrome/HelpMenu";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
@@ -40,6 +41,7 @@ import { useEditorStore } from "./store/editorStore";
 import { useFileSessionStore } from "./store/fileSessionStore";
 import { useGameDataStore } from "./store/gameDataStore";
 import { useLayoutStore } from "./store/layoutStore";
+import { usePaintModStore } from "./store/paintModStore";
 import { useUpdateStore } from "./store/updateStore";
 
 function FileState() {
@@ -160,6 +162,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    void usePaintModStore.getState().refresh();
+  }, []);
+
+  useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested(async (e) => {
       if (!(await useFileSessionStore.getState().confirmDiscard())) e.preventDefault();
     });
@@ -169,6 +175,7 @@ function App() {
   return (
     <div className="app">
       <TopBar />
+      <PaintNotice />
       <div className="main">
         <div className="map-area">
           <MapCanvas />

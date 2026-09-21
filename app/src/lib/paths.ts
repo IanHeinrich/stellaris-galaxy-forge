@@ -21,3 +21,10 @@ export function isUnder(path: string, root: string): boolean {
   const base = normalise(root);
   return base !== "" && (under === base || under.startsWith(`${base}/`));
 }
+
+/** `name` inside `dir`, with the separator `dir` already uses; a bare name when `dir` is empty. */
+export function joinPath(dir: string, name: string): string {
+  if (dir === "") return name;
+  const separator = dir.includes("\\") ? "\\" : "/";
+  return `${dir.replace(/[\\/]+$/, "")}${separator}${name}`;
+}

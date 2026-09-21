@@ -14,11 +14,12 @@ import type { Progress } from "../generated/Progress";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SaveResult } from "../generated/SaveResult";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
-import { isPaintMade } from "../lib/paint";
-import { fileName } from "../lib/paths";
+import { paintLayer } from "../lib/paint";
+import { fileName, joinPath } from "../lib/paths";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
+import { usePaintModStore } from "./paintModStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, readPref, writePref } from "./prefs";
 import { recentSubtitle, useRecentsStore } from "./recentsStore";
@@ -67,16 +68,17 @@ export interface FileSessionState {
   pendingOpen: string | null;
   /** What an export would carry over, waiting for the user to confirm or cancel it. */
   pendingExport: ExportReport | null;
-  /** Whether an export is written for the Paint a Galaxy mod: the user's choice, kept per machine. */
-  paintExport: boolean;
-  /**
-   * Whether new spawn points are written in Paint a Galaxy's shape: on when the open document
-   * was painted, and otherwise the user's choice. Never changes bytes already written.
-   */
-  paintProfile: boolean;
+  /** The user's standing choice, kept per machine: new files are written for the Paint a Galaxy mod. */
+  paintChoice: boolean;
+  /** The open scenario carries Paint a Galaxy's scripts or flags, or Forge's header for the mod. */
+  painted: boolean;
+  /** The open scenario was started or opened under the mod's profile, whatever its bytes say. */
+  paintChosen: boolean;
 
   /** Resolves true when the document opened; false when it failed, or another open was in flight. */
   openSave(path: string): Promise<boolean>;
+  /** Opens the scenario file at `path`; `paint` says the file is known to be the site's. */
+  openScenario(path: string, options?: { paint?: boolean }): Promise<boolean>;
   /** Opens the save at `path` as a new, unsaved scenario; the save itself is untouched. */
   openScenarioFrom(path: string, profile?: ScenarioProfile): Promise<boolean>;
   /** Starts an empty, unsaved scenario, written under `profile`; left out, a plain one. */
@@ -92,11 +94,15 @@ export interface FileSessionState {
   chooseOpenMode(mode: OpenMode | null): Promise<void>;
   /** With a `mode`, the picker filters to `.sav` and skips straight to that mode, no dialog. */
   pickAndOpen(mode?: OpenMode): Promise<void>;
+  /** Picks a scenario file and opens it as `openScenario` would; resolves true once it is open. */
+  pickAndOpenScenario(options?: { paint?: boolean }): Promise<boolean>;
   /** Re-reads the open file from disk, discarding unsaved changes on confirmation. */
   reload(): Promise<void>;
   close(): Promise<void>;
   save(): Promise<void>;
   saveAs(): Promise<void>;
+  /** Save As into the Paint a Galaxy mod's scenarios folder; nothing when that folder is unknown. */
+  saveIntoPaintMod(): Promise<void>;
   /** Previews what exporting the open save carries over, and asks whether to write it. */
   exportScenario(): Promise<void>;
   /** Answers the pending export: writes the scenario under `profile`, or cancels on null. */
@@ -106,8 +112,7 @@ export interface FileSessionState {
   /** What an edit reported about the file it belongs to. */
   noteEdit(patch: { issues: Issue[]; dirty: boolean }): void;
   setError(message: string | null): void;
-  setPaintProfile(on: boolean): void;
-  setPaintExport(on: boolean): void;
+  setPaintChoice(on: boolean): void;
 }
 
 const INITIAL = {
@@ -133,7 +138,8 @@ const INITIAL = {
   cloudAcknowledged: null as string | null,
   pendingOpen: null as string | null,
   pendingExport: null as ExportReport | null,
-  paintProfile: false,
+  painted: false,
+  paintChosen: false,
 } satisfies Partial<FileSessionState>;
 
 const CLOUD_WARNING =
@@ -142,10 +148,15 @@ const CLOUD_WARNING =
 
 export const useFileSessionStore = create<FileSessionState>((set, get) => ({
   ...INITIAL,
-  paintExport: readPref(PREF_KEYS.paintExport, false, isBoolean),
+  paintChoice: readPref(PREF_KEYS.paintProfile, true, isBoolean),
 
   openSave(path) {
     return openDocument(path, () => ipc.openSave(path));
+  },
+
+  async openScenario(path, options) {
+    if (get().saving || !(await get().confirmDiscard())) return false;
+    return openDocument(path, () => ipc.openSave(path), undefined, undefined, options?.paint);
   },
 
   openScenarioFrom(path, profile) {
@@ -194,10 +205,18 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     }
   },
 
+  async pickAndOpenScenario(options) {
+    if (get().saving || !(await get().confirmDiscard())) return false;
+    const picked = await open({ filters: [SCENARIO_FILTER], multiple: false, directory: false });
+    if (typeof picked !== "string") return false;
+    return openDocument(picked, () => ipc.openSave(picked), undefined, undefined, options?.paint);
+  },
+
   async reload() {
-    const { path, saving } = get();
+    const { path, saving, paintChosen } = get();
     if (path === null || saving || !(await get().confirmDiscard())) return;
-    await get().openSave(path);
+    // What the user said of the file when opening it is not in its bytes, so it is said again.
+    await openDocument(path, () => ipc.openSave(path), undefined, undefined, paintChosen);
   },
 
   async close() {
@@ -226,14 +245,15 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     const { status, saving, kind, path, title } = get();
     if (status !== "ready" || saving) return;
     const filter = kind === "scenario" ? SCENARIO_FILTER : SAVE_FILTER;
-    const picked = await saveDialog({
-      defaultPath: path ?? defaultName(title, filter.extensions[0]),
-      filters: [filter],
-    });
-    if (picked === null) return;
-    const cloud = await ipc.isCloudSave(picked).catch(() => false);
-    if (cloud && !(await confirmCloudWrite(picked))) return;
-    await writeSave(() => ipc.saveAs(picked));
+    await saveTo(path ?? newFilePath(title, filter.extensions[0], getPaintLayer()), filter);
+  },
+
+  async saveIntoPaintMod() {
+    const { status, saving, kind, path, title } = get();
+    const dir = paintScenariosDir();
+    if (status !== "ready" || saving || kind !== "scenario" || dir === null) return;
+    const name = fileName(path) || defaultName(title, "txt");
+    await saveTo(name === undefined ? dir : joinPath(dir, name), SCENARIO_FILTER);
   },
 
   async exportScenario() {
@@ -256,7 +276,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     set({ pendingExport: null });
     if (profile === null) return;
     const picked = await saveDialog({
-      defaultPath: defaultName(title, "txt"),
+      defaultPath: newFilePath(title, "txt", profile === "paint_a_galaxy"),
       filters: [SCENARIO_FILTER],
     });
     if (picked === null) return;
@@ -285,15 +305,22 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     set({ error: message, errorKind: null });
   },
 
-  setPaintProfile(on) {
-    set({ paintProfile: on });
-  },
-
-  setPaintExport(on) {
-    set({ paintExport: on });
-    writePref(PREF_KEYS.paintExport, on);
+  setPaintChoice(on) {
+    set({ paintChoice: on });
+    writePref(PREF_KEYS.paintProfile, on);
   },
 }));
+
+/** Whether the open document is written for the Paint a Galaxy mod, for a component. */
+export function usePaintLayer(): boolean {
+  const paintMod = usePaintModStore((s) => s.paintMod);
+  return useFileSessionStore((s) => paintLayer(s, paintMod));
+}
+
+/** The same fact outside React. */
+export function getPaintLayer(): boolean {
+  return paintLayer(useFileSessionStore.getState(), usePaintModStore.getState().paintMod);
+}
 
 export function isSavePath(path: string): boolean {
   return path.toLowerCase().endsWith(".sav");
@@ -310,6 +337,18 @@ function defaultName(title: string | null, extension: string): string | undefine
   return title === null ? undefined : `${title}.${extension}`;
 }
 
+/** The Paint a Galaxy mod's scenarios folder on this machine; null until known. */
+function paintScenariosDir(): string | null {
+  return usePaintModStore.getState().paintMod?.scenarios_dir ?? null;
+}
+
+/** Where a new file is offered: inside the mod's scenarios folder when it is written for the mod. */
+function newFilePath(title: string | null, extension: string, forPaintMod: boolean) {
+  const name = defaultName(title, extension);
+  const dir = forPaintMod ? paintScenariosDir() : null;
+  return dir !== null && name !== undefined ? joinPath(dir, name) : name;
+}
+
 /** The open a late answer still belongs to; a newer open leaves the older one's to nobody. */
 let opens = 0;
 
@@ -322,6 +361,7 @@ async function openDocument(
   load: () => Promise<OpenResult>,
   name?: string,
   profile?: ScenarioProfile,
+  paint = profile === "paint_a_galaxy",
 ): Promise<boolean> {
   const { getState, setState } = useFileSessionStore;
   // One document opens at a time: a second ask is refused rather than queued behind it.
@@ -345,7 +385,8 @@ async function openDocument(
       meta: result.meta,
       capabilities: result.capabilities,
       issues: result.issues,
-      paintProfile: profile === "paint_a_galaxy" || isPaintMade(result.galaxy.systems),
+      painted: result.painted,
+      paintChosen: paint,
     });
     if (result.path !== null) {
       useRecentsStore.getState().noteOpened({
@@ -402,6 +443,18 @@ async function routeOpen(path: string): Promise<void> {
     return;
   }
   setState({ pendingOpen: path });
+}
+
+/** Asks where the file goes, starting at `defaultPath`, and writes it there. */
+async function saveTo(
+  defaultPath: string | undefined,
+  filter: { name: string; extensions: string[] },
+): Promise<void> {
+  const picked = await saveDialog({ defaultPath, filters: [filter] });
+  if (picked === null) return;
+  const cloud = await ipc.isCloudSave(picked).catch(() => false);
+  if (cloud && !(await confirmCloudWrite(picked))) return;
+  await writeSave(() => ipc.saveAs(picked));
 }
 
 /** Resolves true when `path` may be written: already acknowledged this session, or the user agreed now. */

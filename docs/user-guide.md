@@ -325,6 +325,11 @@ stamp is the untouched original.
 
 "Save as…" (Ctrl+Shift+S) writes to a path you choose, which then becomes
 the open file. A backup is made only if a file already existed there.
+Saving a new Paint a Galaxy scenario this way opens in the mod's own
+`map/setup_scenarios` folder. File → "Save into the Paint a Galaxy
+mod…" saves an already-open scenario there too. Steam can replace a
+workshop mod's folder when it updates, so keep a copy of a map you care
+about elsewhere as well.
 
 ### Steam Cloud saves
 
@@ -362,37 +367,48 @@ homes, fallen empires, marauders and the rest, what the file cannot carry
 (the save's wormhole pairs; gateways and L-Gates are rebuilt by their own
 initializers), which DLC or mods its initializers come from when game
 data is loaded, and any home system whose initializer is not a generic
-start. The dialog's "Compatible with the Paint a Galaxy mod" checkbox,
-remembered per machine, writes the same file under that mod's profile.
-The written file opens with those facts as `#` comment lines, and the
-status bar's "Exported" time shows them again in its tooltip. A save
-opened as a scenario lists the same warnings in the Issues panel until
-it is closed. For a scenario already open, the File menu's "Paint a
-Galaxy spawn points" check item switches which shape a new spawn point
-is written in without touching the file's existing bytes.
+start. The dialog carries the same "For the Paint a Galaxy mod" checkbox
+as the blank canvas below, and the written file opens with those facts
+as `#` comment lines; the status bar's "Exported" time shows them again
+in its tooltip. A save opened as a scenario lists the same warnings in
+the Issues panel until it is closed.
 
 "New scenario…" offers three ways to start. A blank canvas takes a name,
 a galaxy size (or a radius of your own) and a core radius, and gives you
-an empty file to place every system in yourself; its "Compatible with the
-Paint a Galaxy mod" checkbox, off by default, writes spawn points in that
-mod's shape and a header sized for its fixes, for a map that then needs
-the mod. A galaxy from the game has you start a new game in Stellaris at
+an empty file to place every system in yourself; its "For the Paint a
+Galaxy mod" checkbox, ticked by default and remembered per machine,
+writes spawn points in that mod's shape and a header sized for its
+fixes. A galaxy from the game has you start a new game in Stellaris at
 the size and shape you want, save on day one and open that save here,
-which hands you the generator's layout, names and empires to edit.
-Painting one opens the site by Oatmeal Problem in a panel inside Forge,
-where drawing systems and lanes and clicking "Send to Stellaris Galaxy
-Forge" opens the galaxy here as an unsaved scenario; the dialog's "Open
-Paint a Galaxy in the browser ↗" link and the panel's own "Open in
-browser ↗" link remain for using the website directly, and "Open a file
-exported earlier…" for importing a downloaded file.
+which hands you the generator's layout, names and empires to edit. The
+"Paint a galaxy" card opens paint-a-galaxy by Oatmeal Problem in your
+browser, where you draw systems and lanes and download the scenario file
+it exports; "Open a file exported from Paint a Galaxy…" on the same card
+opens that file here.
 
-A file written or opened under the Paint a Galaxy profile carries a
-"Paint a Galaxy" badge beside its name in the top bar. Once game data is
-loaded, the badge turns into a warning — "Paint a Galaxy mod not
-enabled" — when the mod (Steam Workshop 3532904115) is not among the
-mods your Stellaris launcher playset has enabled; such a file still opens
-here and its spawn points still show, but the game cannot resolve its
-scripted spawn weights without the mod running.
+The checkbox is ticked by default because the Paint a Galaxy mod fixes
+generator bugs the game ships with, so a map for your own play belongs
+in it. If you write scenarios for a mod of your own, untick it once.
+Unticking it, on the blank canvas or on the Export as scenario dialog,
+turns it off in both places, and ticking either one turns it back on in
+both. Under the checkbox the app shows the mod's status: not
+installed, with the steps to subscribe on the Steam Workshop and enable
+it in the launcher's playset, installed but not enabled, or enabled.
+
+A scenario whose Paint a Galaxy layer is on carries a "Paint a Galaxy"
+badge beside its name in the top bar. The layer turns itself on for a
+file that already carries the mod's scripts or flags or the header Forge
+writes for it, for one that sits inside the mod's own
+`map/setup_scenarios` folder, for one you created with the checkbox
+ticked, and for one opened from the Paint a galaxy card. There is no
+switch for it otherwise. The badge warns when the mod (Steam Workshop
+3532904115) is not enabled in your launcher's playset. When the mod is
+not installed at all, clicking the badge opens its Workshop page.
+
+A scenario whose layer is off shows a one-line notice under the top bar
+that for your own play the map belongs in the Paint a Galaxy mod, with
+the mod's status, a "Save into the Paint a Galaxy mod…" button and "Not
+for me", which hides the notice for good on this machine.
 
 What can be edited: everything a save's galaxy offers, move systems, add
 and cut lanes, add, move, resize, rename and remove nebulae, and, because a
@@ -402,11 +418,10 @@ which is what the game will place there: the star, its planets and moons,
 their resources, megastructures, dig sites and starbase, all of which the
 inspector and the map show before the game is ever started. A system can
 carry a spawn weight, or be held for a human player or for the AI; in a
-Paint a Galaxy file, or once the File menu's "Paint a Galaxy spawn
-points" check item is on, a system marked as a spawn point from then on
-offers its seat's kind — enabled, preferred, reserved A–Z or Sol — from a
-select instead, since the mod computes the spawn weight from the kind
-rather than reading a number; an existing spawn point keeps its base
+scenario whose Paint a Galaxy layer is on, marking a system as a spawn
+point offers its seat's kind — enabled, preferred, reserved A–Z or Sol —
+from a select instead, since the mod computes the spawn weight from the
+kind rather than reading a number; an existing spawn point keeps its base
 weight until you change it yourself. The scenario's header keys are
 listed and edited one by one, and a pair of systems can be barred from
 ever being linked.
