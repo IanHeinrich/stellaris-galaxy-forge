@@ -10,87 +10,54 @@ a release is made.
 
 ### Added
 
-- Export as scenario shows a report before writing: the empire seats it
-  made, how the systems were sorted, what could not be carried over and
-  where each initializer comes from. The report is also written into the
-  file as comments.
-- Scenarios made with Paint a Galaxy open with their spawn points intact.
-  The inspector edits a scripted spawn point's kind, and new spawn points
-  in such a file use the mod's script.
-- A "For the Paint a Galaxy mod" checkbox in the New scenario and Export
-  dialogs, ticked by default because the mod fixes game-breaking bugs in
-  the galaxy generator. Under it the app says whether the mod is
-  installed and enabled, with a link to the Workshop, and notices when
-  a subscription lands. Unticking it shows a warning that the map will
-  break in-game without the mod.
-- A Paint a Galaxy scenario is recognised by its content or by living in
-  the mod's folder. The title bar shows a badge and warns when the mod is
-  missing. A plain scenario gets a notice offering to save it into the
-  mod, with "Not for me" to hide it.
-- Save As for a new Paint a Galaxy scenario opens in the mod's folder, and
-  File → "Save into the Paint a Galaxy mod…" saves an open one there.
-- Fallen empire zones for the Paint a Galaxy mod: the empty rings where it
-  creates a fallen empire's systems at game start. Add one from a system's
-  menu or on empty space, drag it, and set its type, direction, distance
-  and fallback in the inspector. A ring that would cover a system is
-  refused, or reported in Issues if a move brings one in. "Fit fallen
-  empire zones…" chooses how many of the mod's automatic zones to place,
-  spread across the map.
-  A zone's own warnings show in its inspector section.
-- A fallen empire zone can be linked to the systems the mod should lay
-  its hyperlanes from. Select the zone's system and right-click another
-  to link or unlink it, or right-click the ring with a system selected.
-  The map draws each link as a lane with a hint of the ring's colour. Links
-  are edited on the map like hyperlanes: hover a link for its ×, drag
-  from a system's edge onto the ring, or from the ring's edge onto a
-  system. The
-  inspector lists the links with an × each and "Use nearest instead"
-  hands the zone back to the mod. Issues reports a zone with links from
-  nobody, a link to no zone, two zones on one link and a link from far
-  away. A save opened or exported as a Paint a Galaxy scenario links each
-  zone to the systems its old cluster had lanes to.
-- A Game setup section in the galaxy inspector edits a scenario's empire,
-  wormhole, gateway and hyperlane counts as min, max and default fields,
-  and which galaxy shapes the map is listed under.
-  "Update counts" sizes the fallen empire counts from the zones as well
-  as the AI empire counts from the seats, and Issues says when the header
-  allows more fallen empires than there are zones.
-- A seat's initializer says that an empire spawning there brings its own
-  starting system, keeping what the initializer spawns around it.
+- Paint a Galaxy. Regular users' custom static maps need the mod, which
+  fixes game-breaking bugs in the galaxy generator. A "For the Paint a
+  Galaxy mod" checkbox, ticked by default, is on New scenario, Export
+  and Open as scenario. Under it the app says whether the mod is
+  installed and enabled, with a link to the Workshop. Unticking it warns
+  that the map will break in-game without the mod. A scenario for the
+  mod is recognised by its content or by living in the mod's folder,
+  the title bar shows a badge and warns when the mod is missing, and
+  Save As and "Save into the Paint a Galaxy mod…" put the file where the
+  mod reads it.
+- Spawn points for the mod. Scenarios made with Paint a Galaxy open with
+  their seats intact. The seat select reads Enabled, Preferred, Sol,
+  then Reserved A to Z, with a line saying what the mod does with each.
+  The map shows a reserved seat's letter and a star on a preferred one.
+  Issues warns when a reserved seat exists without the Reserved Spawns
+  submod. Two selected systems can be joined as a wormhole pair.
+- Fallen empire zones: the rings where the mod builds a fallen empire at
+  game start. Add one from a system's menu or on empty space, drag it,
+  and set its kind, direction and distance in the inspector. Inside the
+  ring a ghost shows the systems the mod will build there. "Fit fallen
+  empire zones…" spreads the mod's automatic zones across the map. A
+  zone can be linked to the systems the mod lays its hyperlanes from,
+  edited on the map like hyperlanes: hover a link for its ×, or drag
+  between a system and the ring. Issues reports a ring that covers a
+  system, overlapping rings, and links that lead nowhere.
+- Marauder clans in any scenario, no mod needed. "Add marauder clan
+  here" creates a home and its two raid bases, "Make these marauder clan
+  N" turns three selected systems into one, and "Remove marauder clan N"
+  sets them back. The map shows a clan as an empire with a skull emblem
+  and a black border, like the game. Issues reports a clan missing its
+  bases, with a fix, a duplicate home, an orphaned base and a home
+  beside a seat.
+- A save opened or exported as a Paint a Galaxy scenario keeps its
+  fallen empires as typed zones at their old capitals, linked to the
+  systems their clusters reached, seats the player at their old capital,
+  leaves the L-Cluster to the game and takes the header's counts from
+  the save's own setup. Export shows a report first and writes it into
+  the file as comments.
+- A Game setup section in the galaxy inspector edits a scenario's
+  empire, fallen empire, marauder, wormhole, gateway and hyperlane
+  counts, and which galaxy shapes the map is listed under. "Update
+  counts" sizes them from the seats, zones and clans, and Issues says
+  when the header and the map disagree.
 - A save with unresolved warnings or errors opens the Issues tab and
   asks before writing. "Save anyway" keeps it quiet until a new issue
   appears.
-- Two guide layers under "Overlays": "Map border" draws where the map
-  ends and "L-Cluster" the circle the game builds the L-Cluster in. Both
-  are on for a scenario and off for a save.
-- Paint a Galaxy: an "Update counts" button rewrites the header's empire
-  counts from the seats when Issues says they no longer match. Two
-  selected systems can be linked as a wormhole pair and unlinked again,
-  the day-one bypasses layer comes on to show it, and the inspector names
-  the other end. A scenario saved into the mod's
-  folder is checked for another file listing the same name. After a save
-  into the mod the status bar says how to start the map in Stellaris.
-- Marauder clans in a scenario, no mod needed. "Add marauder clan here"
-  on empty space creates a home and its two raid bases, and "Make these
-  marauder clan N", in the menu or the selection's actions, makes three
-  selected systems one, the one linked to both others as the home.
-  "Remove marauder clan N" sets all three back to random. The map shows
-  a clan as an empire with a skull emblem and a black border, like the
-  game, under a "Marauder clans" layer. The Empires tab lists the clans,
-  each with an eye and a select. The
-  inspector names or adds a home's bases, renumbers or removes the clan,
-  and names a base's home. Issues reports a home missing its bases, with
-  a fix, a duplicate home, an orphaned base and a home beside a seat.
-- A save opened or exported as a Paint a Galaxy scenario keeps its
-  fallen empires as typed zones at their old capitals, seats the player
-  at their old capital, leaves the L-Cluster to the game and takes the
-  header's counts from the save's own setup. The report and the file's
-  comment lines say what was done.
-- The seat select reads Enabled, Preferred, Sol, then Reserved A to Z,
-  with a line saying what the mod does with each. The map shows a
-  reserved seat's letter and a star on a preferred one. Issues warns
-  when a reserved seat exists and the Reserved Spawns submod is not
-  enabled in the playset.
+- Two guide layers under "Overlays": "Map border" and "L-Cluster". Every
+  icon on the map names itself on hover.
 
 ### Changed
 
