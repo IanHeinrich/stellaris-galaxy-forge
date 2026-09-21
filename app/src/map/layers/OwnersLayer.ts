@@ -3,7 +3,7 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { SystemNode } from "../../generated/SystemNode";
 import { SAVE_X_SIGN, SAVE_Y_SIGN, clamp } from "../../lib/geometry/geometry";
-import { drawsBorders, territoryKind } from "../../lib/countryKinds";
+import { drawsBorders, isMarauder, territoryKind } from "../../lib/countryKinds";
 import {
   affectedCountries,
   countryRegions,
@@ -236,10 +236,15 @@ export class OwnersLayer implements MapLayer {
     };
   }
 
-  /** The countries the game paints a territory for; the others' systems only clip. */
+  /**
+   * The countries the game paints a territory for; the others' systems only clip. A scenario's
+   * marauder clans are painted by the marauders layer from their initializers, not here.
+   */
   private bordered(): Set<number> {
     const ids = new Set<number>();
+    const scenario = this.ctx.kind === "scenario";
     for (const c of this.ctx.countries.values()) {
+      if (scenario && isMarauder(c)) continue;
       if (drawsBorders(c, this.ctx.countryTypes)) ids.add(c.id);
     }
     return ids;

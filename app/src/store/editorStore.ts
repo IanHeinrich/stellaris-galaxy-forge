@@ -19,7 +19,20 @@ import {
   NO_FREE_DIRECTION,
   snapFeZone,
 } from "../lib/feZone";
-import { ALL_CLANS_PLACED, homeInitializer, nextFreeClan } from "../lib/marauder";
+import {
+  ALL_CLANS_PLACED,
+  BASES_NEED_LANES,
+  baseInitializer,
+  basesBeside,
+  baseSite,
+  clanHomes,
+  clanInUse,
+  clanSystems,
+  homeInitializer,
+  missingBaseSites,
+  nextFreeClan,
+  placeBases,
+} from "../lib/marauder";
 import { enabledScript, nextWormholePair, sharedWormholePair } from "../lib/paint";
 import {
   linkedPairs,
@@ -147,12 +160,16 @@ export interface EditorState {
     initializer?: string | null,
     spawnWeight?: number | null,
   ): Promise<boolean>;
-  /** Adds a system at a world point carrying the next free marauder clan's home initializer. */
+  /** Adds the next free marauder clan at a world point: its home there, two raid bases beside it. */
   addMarauderClanAt(point: { x: number; y: number }): Promise<boolean>;
-  /** Gives `id` the next free marauder clan's home initializer, and shows the clans. */
-  makeMarauderHome(id: number): Promise<boolean>;
-  /** Takes a marauder home's or raid base's initializer away, leaving the system random. */
-  removeMarauderClan(id: number): Promise<boolean>;
+  /** Makes `home` and the two `bases` hyperlaned to it the next free marauder clan, in one op. */
+  makeMarauderClan(home: number, bases: [number, number]): Promise<boolean>;
+  /** Sets every system of clan `clan` back to random, in one op. */
+  removeMarauderClan(clan: number): Promise<boolean>;
+  /** Adds the raid bases `home` is missing beside it, each hyperlaned to it. */
+  addMarauderBases(home: number): Promise<boolean>;
+  /** Renumbers the clan `home` heads, its bases with it, in one op; refused when `to` is in use. */
+  renumberMarauderClan(home: number, to: number): Promise<boolean>;
   /** Removes a system and every lane touching it, once the user has confirmed. */
   removeSystem(id: number): Promise<void>;
   /** Writes the fallen empire zone `id` anchors, or removes it with null. */
@@ -383,25 +400,79 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
       return false;
     }
-    if (!(await get().addSystemAt(point.x, point.y, homeInitializer(clan)))) return false;
+    const home = await addSystem(point, homeInitializer(clan));
+    if (home === null) return false;
+    if (!(await get().addMarauderBases(home))) return false;
     useMapChromeStore.getState().showLayer("marauders");
+    await get().select(home);
     return true;
   },
 
-  async makeMarauderHome(id) {
+  async makeMarauderClan(home, bases) {
     const clan = nextFreeClan(systems());
     if (clan === null) {
       useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
       return false;
     }
-    const op: Op = { type: "SetInitializer", id, initializer: homeInitializer(clan) };
+    const lanes = systems().get(home)?.lanes ?? [];
+    if (!bases.every((base) => lanes.some((lane) => lane.to === base))) {
+      useFileSessionStore.getState().setError(BASES_NEED_LANES);
+      return false;
+    }
+    const [second, third] = [...bases].sort((a, b) => a - b);
+    const op: Op = {
+      type: "SetInitializers",
+      entries: [
+        { id: home, initializer: homeInitializer(clan) },
+        { id: second, initializer: baseInitializer(clan, 2) },
+        { id: third, initializer: baseInitializer(clan, 3) },
+      ],
+    };
     if (!(await get().applyOp(op))) return false;
     useMapChromeStore.getState().showLayer("marauders");
     return true;
   },
 
-  async removeMarauderClan(id) {
-    return get().applyOp({ type: "SetInitializer", id, initializer: null });
+  async removeMarauderClan(clan) {
+    const entries = clanSystems(clan, systems()).map((id) => ({ id, initializer: null }));
+    if (entries.length === 0) return false;
+    return get().applyOp({ type: "SetInitializers", entries });
+  },
+
+  async renumberMarauderClan(home, to) {
+    const system = systems().get(home);
+    if (!system?.marauder || !("home" in system.marauder)) return false;
+    if ((clanHomes(systems()).get(to) ?? []).some((id) => id !== home)) {
+      useFileSessionStore.getState().setError(clanInUse(to));
+      return false;
+    }
+    const entries = [
+      { id: home, initializer: homeInitializer(to) },
+      ...basesBeside(system, systems()).map((base) => ({
+        id: base.id,
+        initializer: baseInitializer(to, baseSite(base)),
+      })),
+    ];
+    return get().applyOp({ type: "SetInitializers", entries });
+  },
+
+  async addMarauderBases(home) {
+    const system = systems().get(home);
+    if (!system?.marauder || !("home" in system.marauder)) return false;
+    const clan = system.marauder.home;
+    const added: number[] = [];
+    for (const site of placeBases(
+      system,
+      missingBaseSites(system, systems()),
+      systems().values(),
+    )) {
+      const id = await addSystem(site, baseInitializer(clan, site.site));
+      if (id === null) return false;
+      added.push(id);
+    }
+    if (added.length === 0) return true;
+    const lanes: Op = { type: "AddLanes", from: home, to: added.map((id) => [id, false]) };
+    return get().applyOp(lanes);
   },
 
   async removeSystem(id) {
@@ -601,6 +672,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
 /** The session a late answer still belongs to; a document closing or opening leaves it to nobody. */
 let session = 0;
+
+/** Adds one nameless system with `initializer` at a point, answering its id, or null when refused. */
+async function addSystem(
+  point: { x: number; y: number },
+  initializer: string,
+): Promise<number | null> {
+  const op: Op = {
+    type: "AddSystem",
+    id: null,
+    x: point.x,
+    y: point.y,
+    name: null,
+    initializer,
+    spawn_weight: null,
+  };
+  if (!(await useEditorStore.getState().applyOp(op))) return null;
+  return lastEdited[0]?.id ?? null;
+}
 
 export const NEEDS_A_SYSTEM =
   "Add a system first. A fallen empire zone belongs to one of your systems.";

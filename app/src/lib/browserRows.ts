@@ -274,6 +274,7 @@ const ISSUE_TITLES: Record<AppIssueCode, string> = {
   marauder_home_duplicate: "Marauder clan with two homes",
   marauder_base_orphan: "Marauder raid base without its clan",
   marauder_near_seat: "Marauder clan beside a seat",
+  marauder_bases_missing: "Marauder clan missing its raid bases",
 };
 
 export function issueTitle(code: AppIssueCode): string {

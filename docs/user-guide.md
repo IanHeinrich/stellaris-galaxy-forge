@@ -459,6 +459,26 @@ map under, from the loaded game data's shapes plus any the file names
 that it lacks. The rest of the header is listed and edited key by key,
 and a pair of systems can be barred from ever being linked.
 
+Marauder clans need no mod: the game's own initializers place them. A
+clan is three systems: a home carrying `marauder_N_1` and two raid bases
+carrying `marauder_N_2` and `marauder_N_3`, each hyperlaned to the home.
+Right-click empty space and choose "Add marauder clan here" to create
+all three, the home at the click and the bases 20 and 25 units out. Or
+select three systems, right-click the one to be the home and choose
+"Make these marauder clan N". With fewer or more selected the item says
+how many to select, and it refuses two bases without a lane to the home.
+"Remove marauder clan N" on any of the three sets all of them back to
+random. The map paints each clan's systems as a territory in the clan's
+colour, the way a save's empires are painted, and tags the home with a
+crossed-swords chip. Both are the "Marauder clans" layer, listed beside
+the fallen empire zones. The inspector's Marauder clan section names the
+two bases with links to them, or says which is missing and offers to add
+it, renumbers the clan and removes it. A base's section names its home,
+or warns that nothing spawns there without one. Issues reports a home
+missing its bases, with an "Add the raid bases" button, a clan with two
+homes, a base with no lane to its home, and a home within 30 of a seat.
+"Update counts" sets the header's marauder counts from the homes.
+
 In a scenario whose Paint a Galaxy layer is on, a spawn point is a seat
 the mod fills by kind, so the inspector offers the kind from a select
 instead of a weight. Enabled means any empire may start there. Preferred
@@ -523,24 +543,6 @@ you placed or edited are yours and are never replaced. A save taken
 into a scenario gets only the zones its own fallen empires ask for, at
 their old capitals. A painted map with no zones at all shows in Issues,
 with a button that opens the same dialog.
-
-Marauder clans. Right-click empty space and choose "Add marauder clan
-here" to place the next free clan's home, or right-click a system and
-choose "Make this the marauder clan N home". The same menu offers
-"Remove marauder clan N" on a home and "Remove marauder raid base" on a
-base, which set the system back to random. The map paints a disc in the
-clan's colour around each home, wide enough to cover its raid bases, and
-tags the home with a crossed-swords chip. Until bases of the clan are
-linked to the home it also draws two ghost bases on dashed lanes. All of
-this is the "Marauder clans" layer, with its eye row beside the fallen
-empire zones. A clan is one system carrying its home initializer, which
-creates the clan at game start. On day one the Paint a Galaxy mod adds the
-two raid bases beside the home, linked by hyperlane, unless they are
-already there. The inspector's Marauder clan section lists the bases,
-renumbers the clan and removes it. A raid base's section names its home,
-or warns that nothing spawns there without one. Issues reports a clan
-with two homes, a base with no lane to its home, and a home within 30 of
-a seat. "Update counts" sets the header's marauder counts from the homes.
 
 Before a save, Forge warns when the map still has warnings or errors,
 opens the Issues tab and offers "Save anyway". Once you have saved

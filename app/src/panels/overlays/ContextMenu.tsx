@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { addFeZoneRefusal } from "../../lib/feZone";
 import { newSystemRows } from "../../lib/initializer/initializerBrowser";
-import { ALL_CLANS_PLACED, nextFreeClan } from "../../lib/marauder";
+import { ALL_CLANS_PLACED, clanMenuItem, clanOf, nextFreeClan } from "../../lib/marauder";
 import { nearestSystem, useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore, usePaintLayer } from "../../store/fileSessionStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
@@ -43,7 +43,7 @@ export function ContextMenu() {
   const cutLanesToSelected = useEditorStore((s) => s.cutLanesToSelected);
   const addSystemAt = useEditorStore((s) => s.addSystemAt);
   const addMarauderClanAt = useEditorStore((s) => s.addMarauderClanAt);
-  const makeMarauderHome = useEditorStore((s) => s.makeMarauderHome);
+  const makeMarauderClan = useEditorStore((s) => s.makeMarauderClan);
   const removeMarauderClan = useEditorStore((s) => s.removeMarauderClan);
   const promptNebulaAt = useEditorStore((s) => s.promptNebulaAt);
   const selectNebula = useEditorStore((s) => s.selectNebula);
@@ -104,7 +104,7 @@ export function ContextMenu() {
   const canCreate = supports(documentCapabilities({ capabilities }), "create_systems");
   const canNebulae = supports(documentCapabilities({ capabilities }), "nebulae");
   const zones = canCreate && paint;
-  const freeClan = zones ? nextFreeClan(systems) : null;
+  const freeClan = canCreate ? nextFreeClan(systems) : null;
 
   if (target.kind === "space") {
     if (!canCreate && !canNebulae) return null;
@@ -186,20 +186,22 @@ export function ContextMenu() {
             >
               Fit fallen empire zones…
             </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="menu-item"
-              disabled={freeClan === null}
-              title={freeClan === null ? ALL_CLANS_PLACED : undefined}
-              onClick={() => {
-                void addMarauderClanAt({ x: target.x, y: target.y });
-                closeContextMenu();
-              }}
-            >
-              Add marauder clan here
-            </button>
           </>
+        )}
+        {canCreate && (
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item context-menu-separated"
+            disabled={freeClan === null}
+            title={freeClan === null ? ALL_CLANS_PLACED : undefined}
+            onClick={() => {
+              void addMarauderClanAt({ x: target.x, y: target.y });
+              closeContextMenu();
+            }}
+          >
+            Add marauder clan here
+          </button>
         )}
       </div>
     );
@@ -220,7 +222,8 @@ export function ContextMenu() {
       weighable.every((s) => s.spawn_weight !== null || s.spawn_script !== null);
     const zoneRefusal = system === undefined ? null : addFeZoneRefusal(system, systems);
     const role = system?.marauder ?? null;
-    const homeClan = zones && role === null ? freeClan : null;
+    const clanItem =
+      canCreate && role === null ? clanMenuItem(target.id, selection, freeClan) : null;
     return (
       <div
         ref={ref}
@@ -327,28 +330,30 @@ export function ContextMenu() {
             Add fallen empire zone
           </button>
         )}
-        {homeClan !== null && (
+        {clanItem !== null && (
           <button
             type="button"
             role="menuitem"
+            disabled={clanItem.bases === null}
+            title={clanItem.hint}
             onClick={() => {
-              void makeMarauderHome(target.id);
+              if (clanItem.bases !== null) void makeMarauderClan(target.id, clanItem.bases);
               closeContextMenu();
             }}
           >
-            Make this the marauder clan {homeClan} home
+            {clanItem.label}
           </button>
         )}
-        {zones && role !== null && (
+        {canCreate && role !== null && (
           <button
             type="button"
             role="menuitem"
             onClick={() => {
-              void removeMarauderClan(target.id);
+              void removeMarauderClan(clanOf(role));
               closeContextMenu();
             }}
           >
-            {"home" in role ? `Remove marauder clan ${role.home}` : "Remove marauder raid base"}
+            Remove marauder clan {clanOf(role)}
           </button>
         )}
         {canCreate && (

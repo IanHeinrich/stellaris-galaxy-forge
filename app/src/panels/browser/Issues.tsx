@@ -53,9 +53,11 @@ function CodeFilter({ codes }: { codes: AppIssueCode[] }) {
 }
 
 /** What a row can do about its issue, by code; most codes have nothing but the jump. */
-function IssueFix({ code }: { code: AppIssueCode }) {
+function IssueFix({ issue }: { issue: AppIssue }) {
   const updateEmpireCounts = useEditorStore((s) => s.updateEmpireCounts);
   const promptFeZoneFit = useEditorStore((s) => s.promptFeZoneFit);
+  const addMarauderBases = useEditorStore((s) => s.addMarauderBases);
+  const { code } = issue;
   const fix =
     code === "header_empire_count"
       ? { label: "Update counts", run: updateEmpireCounts }
@@ -63,7 +65,9 @@ function IssueFix({ code }: { code: AppIssueCode }) {
         ? { label: "Fit zones…", run: promptFeZoneFit }
         : code === "reserved_spawns_missing"
           ? { label: "Subscribe ↗", run: openReservedSpawnsWorkshop }
-          : null;
+          : code === "marauder_bases_missing" && issue.systems.length > 0
+            ? { label: "Add the raid bases", run: () => addMarauderBases(issue.systems[0]) }
+            : null;
   if (fix === null) return null;
   return (
     <button type="button" className="browser-fix" onClick={() => void fix.run()}>
@@ -139,7 +143,7 @@ export function Issues() {
               onName={() => void go(issue)}
               actions={
                 <>
-                  <IssueFix code={issue.code} />
+                  <IssueFix issue={issue} />
                   <Action glyph="⌖" label="Focus these systems" onClick={() => void go(issue)} />
                 </>
               }
