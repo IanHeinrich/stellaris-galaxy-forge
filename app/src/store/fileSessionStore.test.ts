@@ -995,7 +995,7 @@ describe("scenario documents", () => {
   it("notes the reserved seats while the launcher says the Reserved Spawns submod is not enabled", async () => {
     const seated = (kind: PaintSpawnKind): SystemNode => ({
       ...SYSTEMS[2],
-      spawn_script: { paint_a_galaxy: { kind, random_value: 2 } },
+      spawn_script: { paint_a_galaxy: { kind, random_value: 2, player: false } },
     });
     const codes = () => session().issues.map((issue) => issue.code);
     const mod = (reserved_spawns: boolean) => ({

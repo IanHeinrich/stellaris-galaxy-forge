@@ -19,42 +19,59 @@ import {
 } from "./paint";
 
 /** A system seated by the site's script. */
-function scripted(id: number, kind: SpawnScript["paint_a_galaxy"]["kind"], random_value = 3) {
-  return systemNode({ id, spawn_script: { paint_a_galaxy: { kind, random_value } } });
+function scripted(
+  id: number,
+  kind: SpawnScript["paint_a_galaxy"]["kind"],
+  random_value = 3,
+  player = false,
+) {
+  return systemNode({ id, spawn_script: { paint_a_galaxy: { kind, random_value, player } } });
+}
+
+/** The site's script alone, as the helpers that read one take it. */
+function script(kind: SpawnScript["paint_a_galaxy"]["kind"], player = false): SpawnScript {
+  return scripted(1, kind, 3, player).spawn_script!;
 }
 
 describe("a painted galaxy", () => {
-  it("names each seat, a reserved letter in capitals", () => {
-    expect(spawnScriptLabel(scripted(1, "enabled").spawn_script!)).toBe("enabled");
-    expect(spawnScriptLabel(scripted(1, "preferred").spawn_script!)).toBe("preferred");
-    expect(spawnScriptLabel(scripted(1, { reserved: "a" }).spawn_script!)).toBe("reserved A");
-    expect(spawnScriptLabel(scripted(1, "sol").spawn_script!)).toBe("Sol");
+  it("names each seat, a reserved letter in capitals and the player's by its weight", () => {
+    expect(spawnScriptLabel(script("enabled"))).toBe("enabled");
+    expect(spawnScriptLabel(script("preferred"))).toBe("preferred");
+    expect(spawnScriptLabel(script("preferred", true))).toBe("player");
+    expect(spawnScriptLabel(script({ reserved: "a" }))).toBe("reserved A");
+    expect(spawnScriptLabel(script("sol"))).toBe("Sol");
   });
 
   it("offers every seat once, keyed so a select can round-trip the kind", () => {
-    expect(PAINT_SPAWN_KINDS).toHaveLength(29);
+    expect(PAINT_SPAWN_KINDS).toHaveLength(30);
     expect(PAINT_SPAWN_KINDS[0]).toEqual({ key: "enabled", label: "Enabled" });
     expect(PAINT_SPAWN_KINDS[1]).toEqual({ key: "preferred", label: "Preferred" });
-    expect(PAINT_SPAWN_KINDS[2]).toEqual({ key: "sol", label: "Sol" });
-    expect(PAINT_SPAWN_KINDS[3]).toEqual({ key: "reserved:a", label: "Reserved A" });
-    expect(PAINT_SPAWN_KINDS[28]).toEqual({ key: "reserved:z", label: "Reserved Z" });
-    expect(paintKindKey("preferred")).toBe("preferred");
-    expect(paintKindKey({ reserved: "B" })).toBe("reserved:b");
+    expect(PAINT_SPAWN_KINDS[2]).toEqual({ key: "player", label: "Player" });
+    expect(PAINT_SPAWN_KINDS[3]).toEqual({ key: "sol", label: "Sol" });
+    expect(PAINT_SPAWN_KINDS[4]).toEqual({ key: "reserved:a", label: "Reserved A" });
+    expect(PAINT_SPAWN_KINDS[29]).toEqual({ key: "reserved:z", label: "Reserved Z" });
+    expect(paintKindKey(script("preferred"))).toBe("preferred");
+    expect(paintKindKey(script("preferred", true))).toBe("player");
+    expect(paintKindKey(script({ reserved: "B" }))).toBe("reserved:b");
     for (const { key } of PAINT_SPAWN_KINDS) {
-      expect(paintKindKey(scriptForKind(key, systemNode()).paint_a_galaxy.kind)).toBe(key);
+      expect(paintKindKey(scriptForKind(key, systemNode()))).toBe(key);
     }
   });
 
   it("describes what each kind means, a reserved letter's sentence ending before its submod", () => {
-    expect(paintKindDescription("enabled")).toBe("Any empire may start here.");
-    expect(paintKindDescription("preferred")).toContain("Filled before enabled seats.");
-    expect(paintKindDescription("sol")).toContain(
+    expect(paintKindDescription(script("enabled"))).toBe("Any empire may start here.");
+    expect(paintKindDescription(script("preferred"))).toContain("Filled before enabled seats.");
+    expect(paintKindDescription(script("preferred", true))).toBe(
+      "The preferred seat with a weight the first empire placed is all but sure to draw. In " +
+        "single player that is you. Paint a Galaxy's site drops the weight when it imports the file.",
+    );
+    expect(paintKindDescription(script("sol"))).toContain(
       'Only the United Nations of Earth, or an empire with the "Reserved Spawn Sol" trait, starts here.',
     );
-    expect(paintKindDescription({ reserved: "c" })).toBe(
+    expect(paintKindDescription(script({ reserved: "c" }))).toBe(
       'Only an empire whose species has the "Reserved Spawn C" trait starts here.',
     );
-    expect(paintKindDescription({ reserved: "c" })).not.toContain("The trait comes from");
+    expect(paintKindDescription(script({ reserved: "c" }))).not.toContain("The trait comes from");
   });
 
   it("links the Reserved Spawns submod by its id", () => {
@@ -71,15 +88,27 @@ describe("a painted galaxy", () => {
 
   it("keeps a system's random value across a change of seat, and spreads a new one by id", () => {
     expect(scriptForKind("reserved:c", scripted(7, "enabled", 4))).toEqual({
-      paint_a_galaxy: { kind: { reserved: "c" }, random_value: 4 },
+      paint_a_galaxy: { kind: { reserved: "c" }, random_value: 4, player: false },
     });
     expect(scriptForKind("preferred", systemNode({ id: 23 }))).toEqual({
-      paint_a_galaxy: { kind: "preferred", random_value: 3 },
+      paint_a_galaxy: { kind: "preferred", random_value: 3, player: false },
     });
     expect(enabledScript(systemNode({ id: 10 }))).toEqual({
-      paint_a_galaxy: { kind: "enabled", random_value: 0 },
+      paint_a_galaxy: { kind: "enabled", random_value: 0, player: false },
     });
     expect(() => scriptForKind("nowhere", systemNode())).toThrow();
+  });
+
+  it("seats the player as a preferred seat with the weight, which any other seat drops", () => {
+    expect(scriptForKind("player", systemNode({ id: 23 }))).toEqual({
+      paint_a_galaxy: { kind: "preferred", random_value: 3, player: true },
+    });
+    expect(scriptForKind("preferred", scripted(7, "preferred", 4, true))).toEqual({
+      paint_a_galaxy: { kind: "preferred", random_value: 4, player: false },
+    });
+    expect(scriptForKind("sol", scripted(7, "preferred", 4, true))).toEqual({
+      paint_a_galaxy: { kind: "sol", random_value: 4, player: false },
+    });
   });
 });
 
@@ -148,7 +177,7 @@ describe("the seats a galaxy's scripts add up to", () => {
     const systems = [
       scripted(1, "enabled"),
       scripted(2, "preferred"),
-      scripted(3, "preferred"),
+      scripted(3, "preferred", 3, true),
       scripted(4, { reserved: "c" }),
       scripted(5, { reserved: "a" }),
       scripted(6, "sol"),
@@ -159,6 +188,7 @@ describe("the seats a galaxy's scripts add up to", () => {
       preferred: 2,
       reserved: ["A", "C"],
       sol: true,
+      player: true,
       safeAi: 2,
     });
   });
@@ -169,6 +199,7 @@ describe("the seats a galaxy's scripts add up to", () => {
       preferred: 0,
       reserved: [],
       sol: false,
+      player: false,
       safeAi: 0,
     });
     expect(seatSummary([scripted(1, { reserved: "b" })])).toEqual({
@@ -176,6 +207,7 @@ describe("the seats a galaxy's scripts add up to", () => {
       preferred: 0,
       reserved: ["B"],
       sol: false,
+      player: false,
       safeAi: 0,
     });
   });

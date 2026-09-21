@@ -23,8 +23,10 @@ function optionLabel(k: { key: string; label: string }, others: ReturnType<typeo
   const inUse =
     k.key === "sol"
       ? others.sol
-      : k.key.startsWith(RESERVED_PREFIX) &&
-        others.reserved.includes(k.key.slice(RESERVED_PREFIX.length).toUpperCase());
+      : k.key === "player"
+        ? others.player
+        : k.key.startsWith(RESERVED_PREFIX) &&
+          others.reserved.includes(k.key.slice(RESERVED_PREFIX.length).toUpperCase());
   return inUse ? `${k.label} · in use` : k.label;
 }
 
@@ -50,7 +52,7 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
           Seat
           <select
             aria-label="Spawn kind"
-            value={paintKindKey(kind)}
+            value={paintKindKey(script)}
             disabled={!editable}
             onChange={(e) =>
               applyOp({
@@ -76,7 +78,7 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
         </label>
       </div>
       <div className="muted ins-hint">
-        {paintKindDescription(kind)}
+        {paintKindDescription(script)}
         {reserved && (
           <>
             {" The trait comes from the "}

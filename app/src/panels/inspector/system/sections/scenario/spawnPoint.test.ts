@@ -58,20 +58,22 @@ describe("weighing a selection", () => {
     expect(spawnPointsOp([1], map, true, true)).toEqual({
       type: "SetSpawnScript",
       id: 1,
-      script: { paint_a_galaxy: { kind: "enabled", random_value: 1 } },
+      script: { paint_a_galaxy: { kind: "enabled", random_value: 1, player: false } },
     });
     expect(spawnPointsOp([0, 1], map, true, true)).toEqual({
       type: "SetSpawnScripts",
       entries: [
-        [0, { paint_a_galaxy: { kind: "enabled", random_value: 0 } }],
-        [1, { paint_a_galaxy: { kind: "enabled", random_value: 1 } }],
+        [0, { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } }],
+        [1, { paint_a_galaxy: { kind: "enabled", random_value: 1, player: false } }],
       ],
     });
     expect(spawnPointsOp([1], map, true, false)).toBeNull();
   });
 
   it("under the Paint a Galaxy profile keeps the seat a system already has", () => {
-    const preferred = { paint_a_galaxy: { kind: "preferred" as const, random_value: 7 } };
+    const preferred = {
+      paint_a_galaxy: { kind: "preferred" as const, random_value: 7, player: false },
+    };
     const seated = { ...weighable(3), spawn_weight: 0, spawn_script: preferred };
     const map = systems(seated, weighable(0));
 
@@ -79,7 +81,7 @@ describe("weighing a selection", () => {
       type: "SetSpawnScripts",
       entries: [
         [3, preferred],
-        [0, { paint_a_galaxy: { kind: "enabled", random_value: 0 } }],
+        [0, { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } }],
       ],
     });
     expect(spawnPointOp(seated, 1, true)).toEqual({
@@ -95,7 +97,7 @@ describe("weighing a selection", () => {
     expect(spawnPointOp(weighable(12), 1, true)).toEqual({
       type: "SetSpawnScript",
       id: 12,
-      script: { paint_a_galaxy: { kind: "enabled", random_value: 2 } },
+      script: { paint_a_galaxy: { kind: "enabled", random_value: 2, player: false } },
     });
     expect(spawnPointOp(weighable(12), null, true)).toEqual({
       type: "SetSpawnScript",
@@ -110,8 +112,8 @@ describe("weighing a selection", () => {
     expect(spawnPointsOp([0, 12], map, true, true)).toEqual({
       type: "SetSpawnScripts",
       entries: [
-        [0, { paint_a_galaxy: { kind: "enabled", random_value: 0 } }],
-        [12, { paint_a_galaxy: { kind: "enabled", random_value: 2 } }],
+        [0, { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } }],
+        [12, { paint_a_galaxy: { kind: "enabled", random_value: 2, player: false } }],
       ],
     });
     expect(spawnPointsOp([0, 12], map, false, true)).toEqual({
@@ -124,7 +126,7 @@ describe("weighing a selection", () => {
     expect(spawnPointsOp([0], map, true, true)).toEqual({
       type: "SetSpawnScript",
       id: 0,
-      script: { paint_a_galaxy: { kind: "enabled", random_value: 0 } },
+      script: { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } },
     });
   });
 });

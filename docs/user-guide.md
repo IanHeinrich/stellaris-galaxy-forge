@@ -504,7 +504,9 @@ United Nations of Earth, or an empire with the submod's Sol trait, can
 take, so a save converted for the mod makes your capital the player's
 seat rather than the Sol one: a preferred seat weighted so the first
 empire placed, you in single player, starts there. On the map a reserved seat shows its
-letter, Sol shows "Sol" and a preferred seat gets a star. A system that
+letter, Sol shows "Sol", a preferred seat gets a star and the player's
+seat a "P". The seat kind select offers Player beside Preferred, and Issues
+warns when two systems hold it. A system that
 still carries a plain weight in such a file shows a "Use a Paint a Galaxy
 seat" button that converts it. The Game setup section sums up the seats
 and the safe number of AI empires. When the

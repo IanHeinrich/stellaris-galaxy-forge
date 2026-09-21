@@ -7,7 +7,7 @@ import {
   TextStyle,
 } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
-import type { PaintSpawnKind } from "../../generated/PaintSpawnKind";
+import type { SpawnScript } from "../../generated/SpawnScript";
 import type { SystemNode } from "../../generated/SystemNode";
 import { spawnScriptLabel } from "../../lib/paint";
 import { isSpawnPoint } from "../../lib/spawn";
@@ -47,9 +47,10 @@ const TAG_STYLE = new TextStyle({
 /** What a scripted seat's kind draws beside the marker: nothing for an enabled seat. */
 type Tag = "star" | { letters: string } | null;
 
-function tagOf(kind: PaintSpawnKind): Tag {
+function tagOf(script: SpawnScript): Tag {
+  const { kind, player } = script.paint_a_galaxy;
   if (kind === "enabled") return null;
-  if (kind === "preferred") return "star";
+  if (kind === "preferred") return player ? { letters: "P" } : "star";
   if (kind === "sol") return { letters: "Sol" };
   return { letters: kind.reserved.toUpperCase() };
 }
@@ -61,7 +62,7 @@ function tagKey(tag: Tag): string {
   return `letters:${tag.letters}`;
 }
 
-/** The rounded tag a reserved or Sol seat draws its letters over. */
+/** The rounded tag a reserved, Sol or player seat draws its letters over. */
 function drawChip(g: Graphics): void {
   const { x, y } = TAG_OFFSET;
   g.roundRect(x - CHIP.width / 2, y - CHIP.height / 2, CHIP.width, CHIP.height, CHIP.radius).fill({
@@ -206,7 +207,7 @@ export class SpawnsLayer implements MapLayer {
 
   /** The scripted seat's kind, drawn beside the marker and moved, dimmed or dropped with it. */
   private placeTag(s: SystemNode, at: { x: number; y: number }, ghosted: boolean): void {
-    const tag = s.spawn_script === null ? null : tagOf(s.spawn_script.paint_a_galaxy.kind);
+    const tag = s.spawn_script === null ? null : tagOf(s.spawn_script);
     const key = tagKey(tag);
     if (this.tagKeys.get(s.id) !== key) {
       this.tagKeys.set(s.id, key);

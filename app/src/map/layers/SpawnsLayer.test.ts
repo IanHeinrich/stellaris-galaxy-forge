@@ -55,10 +55,11 @@ function scriptedNode(
   id: number,
   x: number,
   kind: SpawnScript["paint_a_galaxy"]["kind"],
+  player = false,
 ): SystemNode {
   return {
     ...weighted(id, x, 0),
-    spawn_script: { paint_a_galaxy: { kind, random_value: 1 } },
+    spawn_script: { paint_a_galaxy: { kind, random_value: 1, player } },
   };
 }
 
@@ -145,7 +146,7 @@ describe("the spawn points layer", () => {
   it("marks a seat Paint a Galaxy scripts, and names the seat rather than its zero weight", () => {
     const scripted: SystemNode = {
       ...weighted(2, 40, 0),
-      spawn_script: { paint_a_galaxy: { kind: { reserved: "b" }, random_value: 1 } },
+      spawn_script: { paint_a_galaxy: { kind: { reserved: "b" }, random_value: 1, player: false } },
     };
     const layer = drawn([scripted, PLAIN]);
     expect(marks(layer)).toEqual([40]);
@@ -201,6 +202,16 @@ describe("the spawn points layer", () => {
     const layer = drawn([scriptedNode(2, 40, "preferred")]);
     expect(drawnText(tagsOf(layer))).toEqual([]);
     expect(tagsOf(layer).children.filter((c) => c instanceof Graphics)).toHaveLength(1);
+  });
+
+  it("draws a P over the chip beside the player's seat, and names the seat while hovered", () => {
+    const layer = drawn([scriptedNode(2, 40, "preferred", true)]);
+    expect(drawnText(tagsOf(layer))).toEqual(["P"]);
+
+    markOf(layer, 40).emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toMatchObject({
+      lines: ["Spawn point · Paint a Galaxy player"],
+    });
   });
 
   it("draws no tag beside an enabled seat's marker", () => {

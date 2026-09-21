@@ -32,7 +32,9 @@ describe("isSpawnPoint", () => {
     const scripted = {
       ...weighable(1),
       spawn_weight: 0,
-      spawn_script: { paint_a_galaxy: { kind: "enabled" as const, random_value: 1 } },
+      spawn_script: {
+        paint_a_galaxy: { kind: "enabled" as const, random_value: 1, player: false },
+      },
     };
     expect(isSpawnPoint(scripted)).toBe(true);
   });

@@ -301,6 +301,7 @@ const ISSUE_TITLES: Record<AppIssueCode, string> = {
   header_empire_count: "Header empire counts do not match the seats",
   seat_letter_duplicate: "Reserved seat used twice",
   sol_seat_mismatch: "Sol seat and Sol initializer disagree",
+  player_seat_duplicate: "Player seat used twice",
   l_cluster_system: "System where the game places the L-Cluster",
   scenario_name_duplicate: "Scenario name used by another file in the mod",
   reserved_spawns_missing: "Reserved seats without the Reserved Spawns submod",

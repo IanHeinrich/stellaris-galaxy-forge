@@ -57,9 +57,9 @@ export function paintLayer(doc: PaintDocument, paintMod: PaintModView | null): b
 
 /** The seat a script offers, in a word or two. */
 export function spawnScriptLabel(script: SpawnScript): string {
-  const { kind } = script.paint_a_galaxy;
+  const { kind, player } = script.paint_a_galaxy;
   if (kind === "enabled") return "enabled";
-  if (kind === "preferred") return "preferred";
+  if (kind === "preferred") return player ? "player" : "preferred";
   if (kind === "sol") return "Sol";
   return `reserved ${kind.reserved.toUpperCase()}`;
 }
@@ -73,10 +73,14 @@ export interface PaintSpawnKindOption {
 const RESERVED_PREFIX = "reserved:";
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 
-/** Every seat the site knows: enabled, preferred, Sol, then one reservation per letter. */
+/**
+ * Every seat the site knows: enabled, preferred, the player's, Sol, then one reservation per
+ * letter.
+ */
 export const PAINT_SPAWN_KINDS: readonly PaintSpawnKindOption[] = [
   { key: "enabled", label: "Enabled" },
   { key: "preferred", label: "Preferred" },
+  { key: "player", label: "Player" },
   { key: "sol", label: "Sol" },
   ...[...LETTERS].map((letter) => ({
     key: `${RESERVED_PREFIX}${letter}`,
@@ -88,8 +92,15 @@ export const PAINT_SPAWN_KINDS: readonly PaintSpawnKindOption[] = [
  * What a seat's kind means, in the site's own terms. For a reserved letter the sentence ends
  * before naming the trait's submod, which a caller with a link to offer appends itself.
  */
-export function paintKindDescription(kind: PaintSpawnKind): string {
+export function paintKindDescription(script: SpawnScript): string {
+  const { kind, player } = script.paint_a_galaxy;
   if (kind === "enabled") return "Any empire may start here.";
+  if (kind === "preferred" && player) {
+    return (
+      "The preferred seat with a weight the first empire placed is all but sure to draw. In " +
+      "single player that is you. Paint a Galaxy's site drops the weight when it imports the file."
+    );
+  }
   if (kind === "preferred") {
     return (
       "Filled before enabled seats. In single player the player is seated first, so with one " +
@@ -106,15 +117,24 @@ export function paintKindDescription(kind: PaintSpawnKind): string {
   return `Only an empire whose species has the "Reserved Spawn ${kind.reserved.toUpperCase()}" trait starts here.`;
 }
 
-/** The select key of a kind; a reserved letter is lower-cased, as the site writes it. */
-export function paintKindKey(kind: PaintSpawnKind): string {
+/**
+ * The select key of a script's seat: the player's is a preferred seat with the weight, and a
+ * reserved letter is lower-cased, as the site writes it.
+ */
+export function paintKindKey(script: SpawnScript): string {
+  const { kind, player } = script.paint_a_galaxy;
+  if (kind === "preferred" && player) return "player";
   if (typeof kind === "string") return kind;
   return `${RESERVED_PREFIX}${kind.reserved.toLowerCase()}`;
 }
 
-function kindOf(key: string): PaintSpawnKind {
-  if (key === "enabled" || key === "preferred" || key === "sol") return key;
-  if (key.startsWith(RESERVED_PREFIX)) return { reserved: key.slice(RESERVED_PREFIX.length) };
+function seatOf(key: string): { kind: PaintSpawnKind; player: boolean } {
+  if (key === "player") return { kind: "preferred", player: true };
+  if (key === "enabled" || key === "preferred" || key === "sol")
+    return { kind: key, player: false };
+  if (key.startsWith(RESERVED_PREFIX)) {
+    return { kind: { reserved: key.slice(RESERVED_PREFIX.length) }, player: false };
+  }
   throw new Error(`Unknown Paint a Galaxy spawn kind: ${key}`);
 }
 
@@ -124,7 +144,7 @@ function kindOf(key: string): PaintSpawnKind {
  */
 export function scriptForKind(key: string, system: SystemNode): SpawnScript {
   const random_value = system.spawn_script?.paint_a_galaxy.random_value ?? system.id % 10;
-  return { paint_a_galaxy: { kind: kindOf(key), random_value } };
+  return { paint_a_galaxy: { ...seatOf(key), random_value } };
 }
 
 /** The script a system is marked with when made a spawn point under the profile. */
@@ -134,7 +154,7 @@ export function enabledScript(system: SystemNode): SpawnScript {
 
 /** The same for a system not yet in the galaxy, from the id it will take. */
 export function enabledScriptFor(id: number): SpawnScript {
-  return { paint_a_galaxy: { kind: "enabled", random_value: id % 10 } };
+  return { paint_a_galaxy: { kind: "enabled", random_value: id % 10, player: false } };
 }
 
 /** The id the core gives the next added system: one past the highest in use, 1 when none is. */
@@ -167,6 +187,8 @@ export interface SeatSummary {
   /** Reserved letters in use, uppercase and deduplicated, ascending. */
   reserved: string[];
   sol: boolean;
+  /** A preferred seat carries the player's weight. */
+  player: boolean;
   /** AI empires the seats leave room for once the player and the reserved seats are set aside. */
   safeAi: number;
 }
@@ -176,18 +198,22 @@ export function seatSummary(systems: Iterable<SystemNode>): SeatSummary {
   let seats = 0;
   let preferred = 0;
   let sol = false;
+  let player = false;
   const reserved = new Set<string>();
   for (const system of systems) {
-    const kind = system.spawn_script?.paint_a_galaxy.kind;
-    if (kind === undefined || kind === null) continue;
+    const script = system.spawn_script?.paint_a_galaxy;
+    if (script === undefined) continue;
+    const { kind } = script;
     seats++;
-    if (kind === "preferred") preferred++;
-    else if (kind === "sol") sol = true;
+    if (kind === "preferred") {
+      preferred++;
+      if (script.player) player = true;
+    } else if (kind === "sol") sol = true;
     else if (typeof kind !== "string") reserved.add(kind.reserved.toUpperCase());
   }
   const reservedLetters = [...reserved].sort();
   const safeAi = Math.max(0, seats - reservedLetters.length - (sol ? 1 : 0) - 1);
-  return { seats, preferred, reserved: reservedLetters, sol, safeAi };
+  return { seats, preferred, reserved: reservedLetters, sol, player, safeAi };
 }
 
 /** The systems seated by a reserved letter, in the galaxy's order; a Sol seat is not one. */

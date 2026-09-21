@@ -439,7 +439,10 @@ describe("a scenario system's spawn modifiers", () => {
 
 describe("a scenario system Paint a Galaxy seats", () => {
   /** The system as the projection reads the site's `spawn_weight` idiom. */
-  function withScript(kind: "enabled" | "preferred" | "sol" | { reserved: string }): void {
+  function withScript(
+    kind: "enabled" | "preferred" | "sol" | { reserved: string },
+    player = false,
+  ): void {
     mocked.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
       return {
@@ -447,7 +450,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
         system: {
           ...detail.system,
           spawn_weight: 0,
-          spawn_script: { paint_a_galaxy: { kind, random_value: 4 } },
+          spawn_script: { paint_a_galaxy: { kind, random_value: 4, player } },
         },
       };
     });
@@ -462,7 +465,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     expect(html).toContain(">Seat<");
     expect(html).toContain('<optgroup label="Reserved for one empire">');
     expect(html).toContain('<option value="reserved:c" selected="">Reserved C</option>');
-    expect(html.match(/<option /g)).toHaveLength(29);
+    expect(html.match(/<option /g)).toHaveLength(30);
     expect(html).toContain("Only an empire whose species has the");
     expect(html).toContain("Reserved Spawn C");
     expect(html).toContain("trait starts here.");
@@ -485,6 +488,14 @@ describe("a scenario system Paint a Galaxy seats", () => {
     await open("scenario");
     expect(overview()).toContain("Filled before enabled seats.");
 
+    withScript("preferred", true);
+    await open("scenario");
+    const player = overview();
+    expect(player).toContain('<option value="player" selected="">Player</option>');
+    expect(player).toContain("In single player that is you.");
+    expect(player).toContain("site drops the weight when it imports the file.");
+    expect(player).not.toContain("Filled before enabled seats.");
+
     withScript("sol");
     await open("scenario");
     const html = overview();
@@ -494,23 +505,29 @@ describe("a scenario system Paint a Galaxy seats", () => {
     expect(html).toContain(">Local Cluster mod</button>");
   });
 
-  it("marks a reserved letter or Sol as in use only when another system already holds it", async () => {
+  it("marks a reserved letter, Sol or the player's seat as in use only when another system already holds it", async () => {
     withScript({ reserved: "c" });
     await open("scenario");
     const systems = new Map(useGalaxyStore.getState().systems);
     systems.set(2, {
       ...systems.get(2)!,
-      spawn_script: { paint_a_galaxy: { kind: { reserved: "c" }, random_value: 1 } },
+      spawn_script: { paint_a_galaxy: { kind: { reserved: "c" }, random_value: 1, player: false } },
     });
     systems.set(3, {
       ...systems.get(3)!,
-      spawn_script: { paint_a_galaxy: { kind: "sol", random_value: 1 } },
+      spawn_script: { paint_a_galaxy: { kind: "sol", random_value: 1, player: false } },
+    });
+    systems.set(4, {
+      ...systems.get(4)!,
+      spawn_script: { paint_a_galaxy: { kind: "preferred", random_value: 1, player: true } },
     });
     useGalaxyStore.setState({ systems });
 
     const html = overview();
     expect(html).toContain('<option value="reserved:c" selected="">Reserved C · in use</option>');
     expect(html).toContain('<option value="sol">Sol · in use</option>');
+    expect(html).toContain('<option value="player">Player · in use</option>');
+    expect(html).toContain('<option value="preferred">Preferred</option>');
     expect(html).toContain('<option value="reserved:a">Reserved A</option>');
   });
 
@@ -523,7 +540,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
 
     const system = useEditorStore.getState().inspected!.system;
     expect(scriptForKind("sol", system)).toEqual({
-      paint_a_galaxy: { kind: "sol", random_value: 4 },
+      paint_a_galaxy: { kind: "sol", random_value: 4, player: false },
     });
   });
 
@@ -572,7 +589,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     expect(mocked.applyOp).toHaveBeenLastCalledWith({
       type: "SetSpawnScript",
       id: SYSTEM,
-      script: { paint_a_galaxy: { kind: "enabled", random_value: SYSTEM % 10 } },
+      script: { paint_a_galaxy: { kind: "enabled", random_value: SYSTEM % 10, player: false } },
     });
   });
 });

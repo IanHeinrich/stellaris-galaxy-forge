@@ -191,11 +191,13 @@ describe("the scenario header", () => {
           ...SCENARIO_RESULT.galaxy.systems.slice(0, 4),
           {
             ...SCENARIO_RESULT.galaxy.systems[4],
-            spawn_script: { paint_a_galaxy: { kind: "preferred", random_value: 1 } },
+            spawn_script: { paint_a_galaxy: { kind: "preferred", random_value: 1, player: false } },
           },
           {
             ...SCENARIO_RESULT.galaxy.systems[5],
-            spawn_script: { paint_a_galaxy: { kind: { reserved: "b" }, random_value: 2 } },
+            spawn_script: {
+              paint_a_galaxy: { kind: { reserved: "b" }, random_value: 2, player: false },
+            },
           },
         ],
       },

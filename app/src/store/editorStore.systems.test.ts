@@ -71,7 +71,7 @@ describe("adding and removing systems", () => {
       name: null,
       initializer: "empire_init_01",
       spawn_weight: null,
-      spawn_script: { paint_a_galaxy: { kind: "enabled", random_value: 6 } },
+      spawn_script: { paint_a_galaxy: { kind: "enabled", random_value: 6, player: false } },
     });
     expect(editor().selection).toEqual([6]);
 

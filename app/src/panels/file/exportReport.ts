@@ -35,11 +35,11 @@ export function droppedSummary(dropped: DroppedBypasses): string | null {
 /** A system's name for a sentence; `nameOf` is the galaxy's, falling back to the id. */
 export type NameOf = (system: number) => string;
 
-/** `17 seats. Your capital, Sol, is the preferred seat: the first empire placed starts there.` */
+/** `17 seats. Your capital, Sol, is the player's seat: the first empire placed starts there.` */
 export function seatsSummary(report: ExportReport, nameOf: NameOf): string {
   const seats = `${plural(report.seats, "seat")}.`;
   if (report.player_seat === null) return seats;
-  return `${seats} Your capital, ${nameOf(report.player_seat)}, is the preferred seat: the first empire placed starts there.`;
+  return `${seats} Your capital, ${nameOf(report.player_seat)}, is the player's seat: the first empire placed starts there.`;
 }
 
 /**

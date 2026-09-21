@@ -164,7 +164,7 @@ describe("the report", () => {
     expect(html).toContain(
       row(
         "Seats",
-        "17 seats. Your capital, system 217, is the preferred seat: the first empire placed starts there.",
+        "17 seats. Your capital, system 217, is the player&#x27;s seat: the first empire placed starts there.",
       ),
     );
     expect(html).toContain(
@@ -191,13 +191,13 @@ describe("the report", () => {
     const html = renderToStaticMarkup(
       <ExportReportRows report={exportReport({ player_seat: 2 })} />,
     );
-    expect(html).toContain("Your capital, Barnard, is the preferred seat");
+    expect(html).toContain("Your capital, Barnard, is the player&#x27;s seat");
   });
 
   it("words each row of the conversion, plural or singular, and each zone that missed its spot", () => {
     expect(seatsSummary(exportReport({ seats: 1 }), id)).toBe("1 seat.");
     expect(seatsSummary(exportReport({ player_seat: 217 }), id)).toBe(
-      "17 seats. Your capital, system 217, is the preferred seat: the first empire placed starts there.",
+      "17 seats. Your capital, system 217, is the player's seat: the first empire placed starts there.",
     );
 
     expect(fallenEmpiresSummary(exportReport())).toBeNull();
