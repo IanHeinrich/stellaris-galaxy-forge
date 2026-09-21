@@ -19,6 +19,7 @@ import {
   NO_FREE_DIRECTION,
   snapFeZone,
 } from "../lib/feZone";
+import { ALL_CLANS_PLACED, homeInitializer, nextFreeClan } from "../lib/marauder";
 import { enabledScript, nextWormholePair, sharedWormholePair } from "../lib/paint";
 import {
   linkedPairs,
@@ -146,6 +147,12 @@ export interface EditorState {
     initializer?: string | null,
     spawnWeight?: number | null,
   ): Promise<boolean>;
+  /** Adds a system at a world point carrying the next free marauder clan's home initializer. */
+  addMarauderClanAt(point: { x: number; y: number }): Promise<boolean>;
+  /** Gives `id` the next free marauder clan's home initializer, and shows the clans. */
+  makeMarauderHome(id: number): Promise<boolean>;
+  /** Takes a marauder home's or raid base's initializer away, leaving the system random. */
+  removeMarauderClan(id: number): Promise<boolean>;
   /** Removes a system and every lane touching it, once the user has confirmed. */
   removeSystem(id: number): Promise<void>;
   /** Writes the fallen empire zone `id` anchors, or removes it with null. */
@@ -368,6 +375,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
     await get().select(added.id);
     return true;
+  },
+
+  async addMarauderClanAt(point) {
+    const clan = nextFreeClan(systems());
+    if (clan === null) {
+      useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
+      return false;
+    }
+    if (!(await get().addSystemAt(point.x, point.y, homeInitializer(clan)))) return false;
+    useMapChromeStore.getState().showLayer("marauders");
+    return true;
+  },
+
+  async makeMarauderHome(id) {
+    const clan = nextFreeClan(systems());
+    if (clan === null) {
+      useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
+      return false;
+    }
+    const op: Op = { type: "SetInitializer", id, initializer: homeInitializer(clan) };
+    if (!(await get().applyOp(op))) return false;
+    useMapChromeStore.getState().showLayer("marauders");
+    return true;
+  },
+
+  async removeMarauderClan(id) {
+    return get().applyOp({ type: "SetInitializer", id, initializer: null });
   },
 
   async removeSystem(id) {

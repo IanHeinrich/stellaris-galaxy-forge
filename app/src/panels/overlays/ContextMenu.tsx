@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { addFeZoneRefusal } from "../../lib/feZone";
 import { newSystemRows } from "../../lib/initializer/initializerBrowser";
+import { ALL_CLANS_PLACED, nextFreeClan } from "../../lib/marauder";
 import { nearestSystem, useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore, usePaintLayer } from "../../store/fileSessionStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
@@ -41,6 +42,9 @@ export function ContextMenu() {
   const connectSelectedTo = useEditorStore((s) => s.connectSelectedTo);
   const cutLanesToSelected = useEditorStore((s) => s.cutLanesToSelected);
   const addSystemAt = useEditorStore((s) => s.addSystemAt);
+  const addMarauderClanAt = useEditorStore((s) => s.addMarauderClanAt);
+  const makeMarauderHome = useEditorStore((s) => s.makeMarauderHome);
+  const removeMarauderClan = useEditorStore((s) => s.removeMarauderClan);
   const promptNebulaAt = useEditorStore((s) => s.promptNebulaAt);
   const selectNebula = useEditorStore((s) => s.selectNebula);
   const removeSystem = useEditorStore((s) => s.removeSystem);
@@ -100,6 +104,7 @@ export function ContextMenu() {
   const canCreate = supports(documentCapabilities({ capabilities }), "create_systems");
   const canNebulae = supports(documentCapabilities({ capabilities }), "nebulae");
   const zones = canCreate && paint;
+  const freeClan = zones ? nextFreeClan(systems) : null;
 
   if (target.kind === "space") {
     if (!canCreate && !canNebulae) return null;
@@ -181,6 +186,19 @@ export function ContextMenu() {
             >
               Fit fallen empire zones…
             </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="menu-item"
+              disabled={freeClan === null}
+              title={freeClan === null ? ALL_CLANS_PLACED : undefined}
+              onClick={() => {
+                void addMarauderClanAt({ x: target.x, y: target.y });
+                closeContextMenu();
+              }}
+            >
+              Add marauder clan here
+            </button>
           </>
         )}
       </div>
@@ -201,6 +219,8 @@ export function ContextMenu() {
       weighable.length > 0 &&
       weighable.every((s) => s.spawn_weight !== null || s.spawn_script !== null);
     const zoneRefusal = system === undefined ? null : addFeZoneRefusal(system, systems);
+    const role = system?.marauder ?? null;
+    const homeClan = zones && role === null ? freeClan : null;
     return (
       <div
         ref={ref}
@@ -305,6 +325,30 @@ export function ContextMenu() {
             }}
           >
             Add fallen empire zone
+          </button>
+        )}
+        {homeClan !== null && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              void makeMarauderHome(target.id);
+              closeContextMenu();
+            }}
+          >
+            Make this the marauder clan {homeClan} home
+          </button>
+        )}
+        {zones && role !== null && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              void removeMarauderClan(target.id);
+              closeContextMenu();
+            }}
+          >
+            {"home" in role ? `Remove marauder clan ${role.home}` : "Remove marauder raid base"}
           </button>
         )}
         {canCreate && (

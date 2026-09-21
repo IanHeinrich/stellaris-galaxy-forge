@@ -58,6 +58,13 @@ a release is made.
   the other end. A scenario saved into the mod's
   folder is checked for another file listing the same name. After a save
   into the mod the status bar says how to start the map in Stellaris.
+- Marauder clans in a Paint a Galaxy scenario. "Add marauder clan here"
+  on empty space and "Make this the marauder clan N home" on a system
+  place one of the three clans, and the menu removes one again. A
+  "Marauder clans" layer paints each clan's territory, tags its home and
+  previews the raid bases the mod adds beside it. The inspector renumbers
+  or removes a clan and names a base's home. Issues reports a duplicate
+  home, an orphaned base and a home beside a seat.
 - A save opened or exported as a Paint a Galaxy scenario keeps its
   fallen empires as typed zones at their old capitals, seats the player
   at their old capital, leaves the L-Cluster to the game and takes the

@@ -128,3 +128,68 @@ describe("the fallen empire zone items", () => {
     expect(item).toContain("This system already anchors a zone");
   });
 });
+
+describe("the marauder clan items", () => {
+  /** The fixture galaxy as a Paint a Galaxy scenario, with the given systems as clan homes. */
+  async function openWithHomes(homes: Record<number, number>): Promise<void> {
+    vi.mocked(ipc.openSave).mockResolvedValue({
+      ...SCENARIO_RESULT,
+      painted: true,
+      galaxy: {
+        ...SCENARIO_RESULT.galaxy,
+        systems: SCENARIO_RESULT.galaxy.systems.map((s) =>
+          s.id in homes
+            ? { ...s, initializer: `marauder_${homes[s.id]}_1`, marauder: { home: homes[s.id] } }
+            : s,
+        ),
+      },
+    });
+    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
+  }
+
+  it("adds the next free clan on empty space, and names it on a system's menu, only under the layer", async () => {
+    await openWithHomes({ 0: 1 });
+    const chrome = useMapChromeStore.getState();
+    chrome.openContextMenu({ target: { kind: "space", x: 0, y: 200 }, x: 0, y: 0 });
+    const space = menu().match(/<button[^>]*>Add marauder clan here<\/button>/)![0];
+    expect(space).not.toContain("disabled=");
+    chrome.openContextMenu({ target: { kind: "system", id: 3 }, x: 0, y: 0 });
+    expect(menu()).toContain(">Make this the marauder clan 2 home</button>");
+
+    useFileSessionStore.setState({ painted: false });
+    chrome.openContextMenu({ target: { kind: "space", x: 0, y: 200 }, x: 0, y: 0 });
+    expect(menu()).not.toContain("marauder clan");
+    chrome.openContextMenu({ target: { kind: "system", id: 3 }, x: 0, y: 0 });
+    expect(menu()).not.toContain("marauder clan");
+  });
+
+  it("offers to remove the clan on a home, and the base on a raid base, in the home item's place", async () => {
+    await openWithHomes({ 0: 1 });
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
+    let html = menu();
+    expect(html).toContain(">Remove marauder clan 1</button>");
+    expect(html).not.toContain("Make this the marauder clan");
+
+    const systems = new Map(useGalaxyStore.getState().systems);
+    systems.set(2, { ...systems.get(2)!, initializer: "marauder_1_2", marauder: { base: 1 } });
+    useGalaxyStore.setState({ systems });
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 2 }, x: 0, y: 0 });
+    html = menu();
+    expect(html).toContain(">Remove marauder raid base</button>");
+    expect(html).not.toContain("Make this the marauder clan");
+
+    useFileSessionStore.setState({ painted: false });
+    expect(menu()).not.toContain("marauder");
+  });
+
+  it("disables the empty-space item and hides the system item once all three clans are placed", async () => {
+    await openWithHomes({ 0: 1, 1: 2, 2: 3 });
+    const chrome = useMapChromeStore.getState();
+    chrome.openContextMenu({ target: { kind: "space", x: 0, y: 200 }, x: 0, y: 0 });
+    const space = menu().match(/<button[^>]*>Add marauder clan here<\/button>/)![0];
+    expect(space).toContain("disabled=");
+    expect(space).toContain('title="All three clans are placed"');
+    chrome.openContextMenu({ target: { kind: "system", id: 3 }, x: 0, y: 0 });
+    expect(menu()).not.toContain("marauder clan");
+  });
+});

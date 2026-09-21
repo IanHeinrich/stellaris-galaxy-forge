@@ -21,19 +21,21 @@ import { EMPHASIS_COLOR, symbolKey } from "../../lib/visual/specialStyle";
 import { MAP_FONT } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
 import type { MapLayer } from "./MapLayer";
+import {
+  strokeUnit,
+  TERRITORY_EDGE_ALPHA,
+  TERRITORY_EDGE_PX,
+  TERRITORY_FILL_ALPHA,
+} from "./territoryStyle";
 
-const FILL_ALPHA = 0.55;
-const EDGE_PX = 6;
-const EDGE_ALPHA = 0.95;
+const FILL_ALPHA = TERRITORY_FILL_ALPHA;
+const EDGE_PX = TERRITORY_EDGE_PX;
+const EDGE_ALPHA = TERRITORY_EDGE_ALPHA;
 const HALO_PX = 10;
 const HALO_ALPHA = 0.25;
 const EMPHASIS_PX = 3;
 const EMPHASIS_GLOW_PX = 18;
 const EMPHASIS_GLOW_ALPHA = 0.3;
-/** Strokes hold their screen width until a pixel spans this many world units, then stop growing. */
-const STROKE_MAX_UNIT = 2;
-/** The stroke width is snapped to steps of √2 so zooming redraws it rarely. */
-const STROKE_STEPS_PER_OCTAVE = 2;
 const LABEL_FONT_PX = 32;
 /** One shared instance: PixiJS keys a stroked dynamic bitmap font by the style object. */
 const LABEL_STYLE = new TextStyle({
@@ -75,13 +77,6 @@ interface CountryShape {
   badge: Container;
   emblem: Sprite;
   label: BitmapText;
-}
-
-/** World units per screen pixel for the strokes, capped and snapped. */
-function strokeUnit(camScale: number): number {
-  const wanted = Math.min(STROKE_MAX_UNIT, 1 / camScale);
-  const step = Math.round(Math.log2(wanted) * STROKE_STEPS_PER_OCTAVE);
-  return Math.pow(2, step / STROKE_STEPS_PER_OCTAVE);
 }
 
 function smoothstep(t: number): number {

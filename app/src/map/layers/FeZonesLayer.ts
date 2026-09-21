@@ -9,6 +9,7 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { MoveGhost } from "../moveGhosts";
 import { FE_ZONE_RING_HIT_PX } from "../picking/zones";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { GHOST_STAR_RADIUS, seededBy } from "./ghostSeed";
 import type { DragState, MapLayer } from "./MapLayer";
 
 /** The zones' hue: a magenta no other layer uses, so a ring reads as the mod's, not the game's. */
@@ -88,33 +89,15 @@ const SPAWN_GHOST_ALPHA_FRACTION = 1 / 3;
 
 /** The home star's radius: hollow, so the centre text stays legible drawn over it. */
 const HOME_STAR_RADIUS = 3.5;
-const SATELLITE_RADIUS = 1.4;
+const SATELLITE_RADIUS = GHOST_STAR_RADIUS;
 const SATELLITE_MIN_DISTANCE = 15;
 const SATELLITE_DISTANCE_SPAN = 10;
 const SATELLITE_COUNT_MIN = 4;
 const SATELLITE_COUNT_OPTIONS = 3;
 
-/** A tiny deterministic generator: the same seed always yields the same sequence. */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Spreads an id's bits before it seeds the generator, so consecutive ids do not draw alike. */
-function hashId(id: number): number {
-  let x = Math.imul(id ^ (id >>> 16), 0x45d9f3b);
-  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
-  return (x ^ (x >>> 16)) >>> 0;
-}
-
 /** The satellites the mod hyperlanes to the home star, offset from the centre, by anchor id. */
 function spawnSatellites(id: number): Array<{ x: number; y: number }> {
-  const rand = mulberry32(hashId(id));
+  const rand = seededBy(id);
   const count = SATELLITE_COUNT_MIN + Math.floor(rand() * SATELLITE_COUNT_OPTIONS);
   const step = (Math.PI * 2) / count;
   const points: Array<{ x: number; y: number }> = [];

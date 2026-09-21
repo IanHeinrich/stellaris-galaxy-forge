@@ -17,6 +17,7 @@ import { MegastructureSection } from "./sections/Megastructures";
 import { PlanetSection } from "./sections/Planets";
 import { ResourceSection } from "./sections/Resources";
 import { FeZoneSection } from "./sections/scenario/FeZoneSection";
+import { MarauderSection } from "./sections/scenario/MarauderSection";
 import { ScriptsTab, SCRIPTS_TAB_TITLE } from "./sections/scenario/ScriptsTab";
 import { SpawnPointSection } from "./sections/scenario/SpawnPointSection";
 import { WormholePairSection } from "./sections/scenario/WormholePairSection";
@@ -85,6 +86,7 @@ function ScenarioOverview({
       <OverviewHead detail={detail} />
       <SpawnPointSection system={system} />
       <FeZoneSection system={system} />
+      <MarauderSection system={system} />
       <WormholePairSection system={system} />
       <InitializerSection system={system} spawn={planets === 0} />
       {details &&

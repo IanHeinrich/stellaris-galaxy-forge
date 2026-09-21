@@ -150,6 +150,14 @@ function glyphOf(id: LayerId): ReactNode {
           <path d="M3.9 12.1 7 8.9" />
         </Glyph>
       );
+    case "marauders":
+      return (
+        <Glyph>
+          <path d="M3 3l8.6 8.6M13 3 4.4 11.6" />
+          <path d="M2.6 13.4 4.4 11.6M13.4 13.4 11.6 11.6" />
+          <path d="M2.2 10.4l1.4 1.4M13.8 10.4l-1.4 1.4" />
+        </Glyph>
+      );
     case "mapBorder":
       return (
         <Glyph>

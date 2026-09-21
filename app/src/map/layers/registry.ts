@@ -10,6 +10,7 @@ import { IssuesLayer } from "./IssuesLayer";
 import { LabelsLayer } from "./LabelsLayer";
 import { LanesLayer } from "./LanesLayer";
 import type { MapLayer } from "./MapLayer";
+import { MarauderLayer, MarauderTerritoryLayer } from "./MarauderLayer";
 import { NebulaeLayer } from "./NebulaeLayer";
 import { OwnersLayer } from "./OwnersLayer";
 import { SpawnsLayer } from "./SpawnsLayer";
@@ -40,6 +41,7 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "lCluster", create: () => new LClusterLayer() },
   { id: "nebulae", requires: "nebulae", create: () => new NebulaeLayer() },
   { id: "feZones", requires: "create_systems", create: () => new FeZonesLayer() },
+  { id: "marauders", requires: "create_systems", create: () => new MarauderTerritoryLayer() },
   { id: "lanes", create: () => new LanesLayer() },
   { id: "waylines", requires: "waylines", create: () => new WaylinesLayer() },
   { id: "owners", requires: "empires", create: () => new OwnersLayer() },
@@ -52,6 +54,7 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "labels", create: () => new LabelsLayer() },
   { id: "initializers", requires: "create_systems" },
   { id: "spawns", requires: "create_systems", create: () => new SpawnsLayer() },
+  { id: "marauders", requires: "create_systems", create: () => new MarauderLayer() },
   { id: "details", create: () => new DetailsLayer() },
   { id: "colonies" },
   { id: "special", requires: "special", create: () => new SpecialLayer() },
