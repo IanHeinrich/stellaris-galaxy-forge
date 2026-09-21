@@ -153,6 +153,8 @@ pub(crate) struct RawCountry {
     pub colors: Vec<String>,
     pub flag_icon: Option<FlagRef>,
     pub flag_background: Option<FlagRef>,
+    /// The keys of the `flags` map.
+    pub flags: Vec<String>,
     /// The fleets of `fleets_manager.owned_fleets`.
     pub owned_fleets: Vec<u32>,
 }
@@ -204,6 +206,17 @@ fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
                 .collect()
         })
         .unwrap_or_default();
+    let flags = node
+        .find(keys::FLAGS, src)
+        .map(|flags| {
+            flags
+                .children()
+                .iter()
+                .filter_map(|c| c.key_str(src))
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default();
     RawCountry {
         id,
         name: node
@@ -214,6 +227,7 @@ fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
         colors,
         flag_icon: layer(keys::ICON),
         flag_background: layer(keys::BACKGROUND),
+        flags,
         owned_fleets,
     }
 }

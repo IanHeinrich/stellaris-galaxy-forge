@@ -21,6 +21,10 @@ pub struct CountryNode {
     pub colors: Vec<String>,
     pub flag_icon: Option<FlagRef>,
     pub flag_background: Option<FlagRef>,
+    /// The keys of the save's `flags` map: the country flags scripts test.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub flags: Vec<String>,
 }
 
 /// A flag layer as `flag.icon` or `flag.background` names it: a category folder and a

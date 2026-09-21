@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use sgf_core::export::{self, ExportReport, ScenarioProfile};
+use sgf_core::projections::galaxy::PaintSpawnKind;
 use sgf_core::session::Session;
 use sgf_gamedata::LoadOptions;
 
@@ -74,7 +75,11 @@ pub fn run(
 /// empire's zone, and where the header's counts come from.
 fn print_paint_report(report: &ExportReport) {
     if let Some(seat) = report.player_seat {
-        println!("player seat: system {seat} (preferred, weighted for the first empire placed)");
+        let kind = match report.player_seat_kind {
+            Some(PaintSpawnKind::Sol) => "Sol seat, certain for the United Nations of Earth",
+            _ => "preferred seat, weighted: the likeliest start, not a certain one",
+        };
+        println!("player seat: system {seat} ({kind})");
     }
     for fallen in &report.fallen_empires {
         let anchor = match (fallen.anchor, fallen.exact) {

@@ -6,11 +6,14 @@
 //! [`SpawnScript`]; writing turns one back into the exact text the app emits, so a file
 //! it painted and one this editor edited read the same to the mod.
 //!
-//! The mod's kinds cannot pin a seat to an arbitrary empire: `spawn_weight` is a
-//! weighted draw over the free seats, in placement order, and the player's country is
-//! placed first. The player's seat is a preferred seat with `modifier = { add =
-//! 100000 }` beside the value, heavier than any other by far, so the first empire
-//! placed draws it. The app's importer keeps the kind and drops the modifier.
+//! `spawn_weight` is a weighted draw over the free seats, in placement order, and an
+//! empire whose origin needs special placement is seated before the player, so a weight
+//! alone never makes a seat certain. The player's seat carries a `modifier` beside the
+//! value that outweighs every other seat by far, under the condition the mod's own
+//! script puts on the kind: none for a preferred seat, the United Nations of Earth's
+//! `human_1` flag for the Sol seat, the submod's trait for a reserved letter. Only the
+//! Sol seat and a reserved letter are certain, because every other empire weighs them
+//! at zero. The app's importer keeps the kind and drops the modifier.
 //!
 //! A wormhole pair is `set_star_flag = painted_galaxy_wormhole_<n>` on both of its
 //! ends, with `empire_cluster` beside it to keep empires off them; the mod joins the
@@ -37,8 +40,12 @@ const RANDOM_MODULO: &str = "RANDOM_MODULO";
 const RANDOM_VALUE: &str = "RANDOM_VALUE";
 const YES: &str = "yes";
 /// What the player's seat adds to its weight, against the mod's 110 to 120 for a
-/// preferred seat.
+/// preferred seat and 1000 for a Sol or reserved one.
 const PLAYER_SEAT_WEIGHT: u32 = 100000;
+/// The country flag the United Nations of Earth carries, which the mod's Sol seat asks for.
+pub(crate) const UNE_FLAG: &str = "human_1";
+/// What the Reserved Spawns submod's trait for letter `x` starts with, `x` appended.
+const RESERVED_TRAIT_PREFIX: &str = "trait_painted_galaxy_reserved_spawn_";
 
 /// The mod's random-list initializer for an empty system near a spawn.
 pub(crate) const RL_BASIC: &str = "painted_galaxy_rl_basic";
@@ -126,14 +133,6 @@ pub(crate) fn recognise(weight: &Node, src: &[u8]) -> Option<SpawnScript> {
     let params = params.strip_suffix('|').unwrap_or(params);
     let mut kind = PaintSpawnKind::Enabled;
     let mut random_value = 0;
-    let player = has_player_marker(weight, src);
-    if params.is_empty() {
-        return Some(SpawnScript::PaintAGalaxy {
-            kind,
-            random_value,
-            player,
-        });
-    }
     let parts: Vec<&str> = params.split('|').collect();
     for pair in parts.as_chunks::<2>().0 {
         match (pair[0], pair[1]) {
@@ -144,6 +143,7 @@ pub(crate) fn recognise(weight: &Node, src: &[u8]) -> Option<SpawnScript> {
             _ => {}
         }
     }
+    let player = player_marker(weight, src, &kind);
     Some(SpawnScript::PaintAGalaxy {
         kind,
         random_value,
@@ -151,18 +151,46 @@ pub(crate) fn recognise(weight: &Node, src: &[u8]) -> Option<SpawnScript> {
     })
 }
 
-/// Whether a `spawn_weight` block carries the player's marker: exactly one `modifier`,
-/// holding `add = 100000` and nothing else. Any other modifier content is foreign script.
-pub(crate) fn has_player_marker(weight: &Node, src: &[u8]) -> bool {
+/// Whether a `spawn_weight` block carries the player's marker for `kind`: exactly one
+/// `modifier`, holding `add = 100000` and the kind's [`condition`] in either order, and
+/// nothing else. Any other modifier content is foreign script, and an enabled seat has
+/// no marker.
+pub(crate) fn player_marker(weight: &Node, src: &[u8], kind: &PaintSpawnKind) -> bool {
     let modifiers: Vec<&Node> = weight.find_all(keys::MODIFIER, src).collect();
     let [only] = modifiers[..] else {
         return false;
     };
-    let [add] = only.children() else {
+    let Some(condition) = condition(kind) else {
         return false;
     };
-    add.key_str(src) == Some(keys::ADD)
-        && add.scalar_str(src) == Some(PLAYER_SEAT_WEIGHT.to_string().as_str())
+    let mut expected = vec![(keys::ADD, PLAYER_SEAT_WEIGHT.to_string())];
+    expected.extend(condition);
+    let mut found: Vec<(&str, String)> = only
+        .children()
+        .iter()
+        .filter_map(|child| Some((child.key_str(src)?, child.scalar_str(src)?.to_owned())))
+        .collect();
+    if found.len() != only.children().len() {
+        return false;
+    }
+    expected.sort_unstable();
+    found.sort_unstable();
+    expected == found
+}
+
+/// The trigger the marker carries beside its weight, as the mod's own script conditions
+/// the kind: nothing for a preferred seat, and `None` for an enabled one, which has no
+/// marker.
+fn condition(kind: &PaintSpawnKind) -> Option<Option<(&'static str, String)>> {
+    match kind {
+        PaintSpawnKind::Enabled => None,
+        PaintSpawnKind::Preferred => Some(None),
+        PaintSpawnKind::Sol => Some(Some((keys::HAS_COUNTRY_FLAG, UNE_FLAG.to_owned()))),
+        PaintSpawnKind::Reserved(letter) => Some(Some((
+            keys::HAS_TRAIT,
+            format!("{RESERVED_TRAIT_PREFIX}{letter}"),
+        ))),
+    }
 }
 
 impl PaintSpawnKind {
@@ -205,17 +233,21 @@ pub(crate) fn render(script: &SpawnScript) -> String {
 }
 
 /// The whole `spawn_weight` statement a scripted system carries, on one line, the
-/// player's marker after the value.
+/// player's marker for its kind after the value.
 pub(crate) fn weight_statement(script: &SpawnScript) -> String {
-    let SpawnScript::PaintAGalaxy { player, .. } = script;
-    let marker = if *player {
-        format!(
-            " {} = {{ {} = {PLAYER_SEAT_WEIGHT} }}",
-            keys::MODIFIER,
-            keys::ADD
-        )
-    } else {
-        String::new()
+    let SpawnScript::PaintAGalaxy { kind, player, .. } = script;
+    let marker = match condition(kind) {
+        Some(condition) if *player => {
+            let trigger = condition
+                .map(|(key, value)| format!(" {key} = {value}"))
+                .unwrap_or_default();
+            format!(
+                " {} = {{ {} = {PLAYER_SEAT_WEIGHT}{trigger} }}",
+                keys::MODIFIER,
+                keys::ADD
+            )
+        }
+        _ => String::new(),
     };
     format!(
         "{} = {{ {} = 0 {} = {}{marker} }}",
@@ -233,13 +265,17 @@ pub(crate) fn basic_initializer(id: u32) -> &'static str {
 }
 
 /// Whether a script is one Paint a Galaxy can read back: a reserved seat is named by
-/// one lowercase ASCII letter, as its flags are.
+/// one lowercase ASCII letter, as its flags are, and an enabled seat has no marker to
+/// make it the player's.
 pub(crate) fn check(script: &SpawnScript) -> Result<(), OpError> {
-    let SpawnScript::PaintAGalaxy { kind, .. } = script;
+    let SpawnScript::PaintAGalaxy { kind, player, .. } = script;
     if let PaintSpawnKind::Reserved(letter) = kind
         && !valid_letter(letter)
     {
         return Err(OpError::InvalidSeatLetter(letter.clone()));
+    }
+    if *player && matches!(kind, PaintSpawnKind::Enabled) {
+        return Err(OpError::EnabledSeatPlayer);
     }
     Ok(())
 }
@@ -263,15 +299,19 @@ pub(crate) fn description(id: u32, script: Option<&SpawnScript>) -> String {
 }
 
 /// The kind as the descriptions name it: `enabled`, `preferred`, `reserved b` or `Sol`,
-/// and `preferred, the player's seat` for the player's.
+/// with `, the player's seat` after the kind of the player's.
 pub(crate) fn label(script: &SpawnScript) -> String {
     let SpawnScript::PaintAGalaxy { kind, player, .. } = script;
-    match kind {
+    let kind = match kind {
         PaintSpawnKind::Enabled => "enabled".to_owned(),
-        PaintSpawnKind::Preferred if *player => "preferred, the player's seat".to_owned(),
         PaintSpawnKind::Preferred => "preferred".to_owned(),
         PaintSpawnKind::Reserved(letter) => format!("reserved {letter}"),
         PaintSpawnKind::Sol => "Sol".to_owned(),
+    };
+    if *player {
+        format!("{kind}, the player's seat")
+    } else {
+        kind
     }
 }
 
@@ -295,11 +335,20 @@ mod tests {
     }
 
     fn player(random_value: u8) -> SpawnScript {
+        seat(PaintSpawnKind::Preferred, random_value)
+    }
+
+    fn seat(kind: PaintSpawnKind, random_value: u8) -> SpawnScript {
         SpawnScript::PaintAGalaxy {
-            kind: PaintSpawnKind::Preferred,
+            kind,
             random_value,
             player: true,
         }
+    }
+
+    fn read(text: &str) -> Option<SpawnScript> {
+        let root = parse_script(text.as_bytes(), 0).expect("parse");
+        recognise(&root.children()[0], text.as_bytes())
     }
 
     #[test]
@@ -351,10 +400,6 @@ mod tests {
             statement,
             "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } }"
         );
-        let read = |text: &str| {
-            let root = parse_script(text.as_bytes(), 0).expect("parse");
-            recognise(&root.children()[0], text.as_bytes())
-        };
         assert_eq!(read(&statement), Some(player(7)));
         assert_eq!(label(&player(7)), "preferred, the player's seat");
         let value = "add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7|";
@@ -366,6 +411,8 @@ mod tests {
             "modifier = { add = 100000 } modifier = { add = 100000 }",
             "modifier = { add = 100000 } modifier = { factor = 0 is_ai = yes }",
             "modifier = { }",
+            "modifier = { add = 100000 has_country_flag = human_1 }",
+            "modifier = { add = 100000 has_trait = trait_painted_galaxy_reserved_spawn_a }",
         ] {
             let text = format!("spawn_weight = {{ base = 0 {value} {foreign} }}");
             assert_eq!(
@@ -374,6 +421,78 @@ mod tests {
                 "{foreign}"
             );
         }
+    }
+
+    #[test]
+    fn the_sol_and_reserved_seats_carry_the_marker_under_their_own_condition() {
+        let sol = seat(PaintSpawnKind::Sol, 0);
+        let statement = weight_statement(&sol);
+        assert_eq!(
+            statement,
+            "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 has_country_flag = human_1 } }"
+        );
+        assert_eq!(read(&statement), Some(sol.clone()));
+        assert_eq!(label(&sol), "Sol, the player's seat");
+        let reserved = seat(PaintSpawnKind::Reserved("b".to_owned()), 1);
+        let statement = weight_statement(&reserved);
+        assert_eq!(
+            statement,
+            "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|b|RANDOM_MODULO|3|RANDOM_VALUE|1| modifier = { add = 100000 has_trait = trait_painted_galaxy_reserved_spawn_b } }"
+        );
+        assert_eq!(read(&statement), Some(reserved.clone()));
+        assert_eq!(label(&reserved), "reserved b, the player's seat");
+
+        // The two statements of the marker are read in either order.
+        let sol_value =
+            "add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0|";
+        let swapped = format!(
+            "spawn_weight = {{ base = 0 {sol_value} modifier = {{ has_country_flag = human_1 add = 100000 }} }}"
+        );
+        assert_eq!(read(&swapped), Some(sol));
+        let reserved_value =
+            "add = value:painted_galaxy_spawn_weight|RESERVED|b|RANDOM_MODULO|3|RANDOM_VALUE|1|";
+        let swapped = format!(
+            "spawn_weight = {{ base = 0 {reserved_value} modifier = {{ has_trait = trait_painted_galaxy_reserved_spawn_b add = 100000 }} }}"
+        );
+        assert_eq!(read(&swapped), Some(reserved));
+
+        // A marker of another kind's shape is foreign script.
+        for foreign in [
+            "modifier = { add = 100000 }",
+            "modifier = { add = 100000 has_country_flag = human_2 }",
+            "modifier = { add = 100000 has_trait = trait_painted_galaxy_reserved_spawn_sol }",
+            "modifier = { add = 100000 has_country_flag = human_1 factor = 1 }",
+            "modifier = { add = 1000 has_country_flag = human_1 }",
+            "modifier = { has_country_flag = human_1 }",
+            "modifier = { add = 100000 or = { has_country_flag = human_1 } }",
+        ] {
+            let text = format!("spawn_weight = {{ base = 0 {sol_value} {foreign} }}");
+            assert_eq!(
+                read(&text),
+                Some(script(PaintSpawnKind::Sol, 0)),
+                "{foreign}"
+            );
+        }
+        for foreign in [
+            "modifier = { add = 100000 }",
+            "modifier = { add = 100000 has_trait = trait_painted_galaxy_reserved_spawn_c }",
+            "modifier = { add = 100000 has_country_flag = human_1 }",
+        ] {
+            let text = format!("spawn_weight = {{ base = 0 {reserved_value} {foreign} }}");
+            assert_eq!(
+                read(&text),
+                Some(script(PaintSpawnKind::Reserved("b".to_owned()), 1)),
+                "{foreign}"
+            );
+        }
+        // An enabled seat has no marker, so the shape beside one is foreign too.
+        let enabled = "add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|4|";
+        let text = format!("spawn_weight = {{ base = 0 {enabled} modifier = {{ add = 100000 }} }}");
+        assert_eq!(read(&text), Some(script(PaintSpawnKind::Enabled, 4)));
+        assert_eq!(
+            weight_statement(&seat(PaintSpawnKind::Enabled, 4)),
+            weight_statement(&script(PaintSpawnKind::Enabled, 4))
+        );
     }
 
     #[test]
@@ -429,5 +548,11 @@ mod tests {
                 "{letter:?}"
             );
         }
+        assert!(check(&seat(PaintSpawnKind::Sol, 0)).is_ok());
+        assert!(check(&seat(PaintSpawnKind::Reserved("a".to_owned()), 0)).is_ok());
+        assert!(matches!(
+            check(&seat(PaintSpawnKind::Enabled, 0)),
+            Err(OpError::EnabledSeatPlayer)
+        ));
     }
 }

@@ -1,7 +1,7 @@
 //! The empire counts a Paint a Galaxy header carries and the issues a painted scenario
 //! raises about its seats: the header against the seats, the fallen empire zones and
 //! the marauder clan homes, a reserved letter or Sol on two systems, the player's seat
-//! on two, a Sol seat off the Sol initializer, and a system inside the L-Cluster's
+//! on two, a Sol seat on the Sol initializer, and a system inside the L-Cluster's
 //! circle on any scenario.
 
 use sgf_core::document::Document;
@@ -79,7 +79,9 @@ fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
     assert_eq!(header[0].severity, Severity::Warning);
     assert!(header[0].systems.is_empty());
     assert!(coded(&issues, IssueCode::SeatLetterDuplicate).is_empty());
-    assert!(coded(&issues, IssueCode::SolSeatMismatch).is_empty());
+    // The fixture's Sol seat names the Sol initializer, which the game will not seat
+    // the United Nations of Earth on.
+    assert_eq!(coded(&issues, IssueCode::SolSeatMismatch).len(), 1);
     assert!(coded(&issues, IssueCode::LClusterSystem).is_empty());
 
     let save = common::open();
@@ -329,76 +331,79 @@ fn a_letter_or_sol_on_two_systems_names_them_all() {
         "Reserved SOL is on 2 systems: only one empire holds the trait."
     );
     assert_eq!(duplicate[0].systems, [3, 10]);
-    assert!(coded(&issues, IssueCode::SolSeatMismatch).is_empty());
+    let mismatch = coded(&issues, IssueCode::SolSeatMismatch);
+    assert_eq!(mismatch.len(), 2, "{issues:?}");
+    assert_eq!(mismatch[1].systems, [10]);
 }
 
 #[test]
-fn a_sol_seat_and_the_sol_initializer_go_together() {
-    let session = open_edited(
+fn a_sol_seat_on_the_sol_initializer_is_a_seat_the_une_cannot_take() {
+    let issues = open().validate();
+    let mismatch = coded(&issues, IssueCode::SolSeatMismatch);
+    assert_eq!(mismatch.len(), 1, "{issues:?}");
+    assert_eq!(
+        mismatch[0].message,
+        "Sol has a Sol seat and the Sol initializer: the game will not seat the United Nations of Earth on a seat naming its own initializer. Give it a generic start."
+    );
+    assert_eq!(mismatch[0].severity, Severity::Warning);
+    assert_eq!(mismatch[0].systems, [3]);
+
+    // A generic start on the Sol seat clears it, with or without the marker.
+    let generic = open_edited(
         "name = \"Sol\" initializer = sol_system_initializer",
         "name = \"Sol\" initializer = random_empire_init_04",
     );
-    let issues = session.validate();
-    let mismatch = coded(&issues, IssueCode::SolSeatMismatch);
-    assert_eq!(mismatch.len(), 1, "{issues:?}");
-    assert_eq!(
-        mismatch[0].message,
-        "Sol has a Sol seat but not the Sol initializer."
+    let issues = generic.validate();
+    assert!(
+        coded(&issues, IssueCode::SolSeatMismatch).is_empty(),
+        "{issues:?}"
     );
-    assert_eq!(mismatch[0].severity, Severity::Info);
-    assert_eq!(mismatch[0].systems, [3]);
-
-    let session = open_edited(
-        "name = \"Beta\" initializer = random_empire_init_02",
-        "name = \"Beta\" initializer = sol_system_initializer",
+    let marked = open_edited(
+        "name = \"Sol\" initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| }",
+        "name = \"Sol\" initializer = random_empire_init_04 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 has_country_flag = human_1 } }",
     );
-    let issues = session.validate();
-    let mismatch = coded(&issues, IssueCode::SolSeatMismatch);
-    assert_eq!(mismatch.len(), 1, "{issues:?}");
-    assert_eq!(
-        mismatch[0].message,
-        "Beta has the Sol initializer but its seat is not Sol."
-    );
-    assert_eq!(mismatch[0].systems, [1]);
-
-    let unseated = open_edited(
-        "name = \"Void\" }",
-        "name = \"Void\" initializer = sol_system_initializer }",
-    );
-    assert!(coded(&unseated.validate(), IssueCode::SolSeatMismatch).is_empty());
-
-    // The export seats the player on Sol's initializer, so the player's seat is exempt;
-    // a Sol seat off the initializer is not, marker or no marker.
-    let players = open_edited(
-        "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| }",
-        "name = \"Beta\" initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 } }",
-    );
-    let issues = players.validate();
+    let issues = marked.validate();
     assert!(
         coded(&issues, IssueCode::SolSeatMismatch).is_empty(),
         "{issues:?}"
     );
     assert!(coded(&issues, IssueCode::PlayerSeatDuplicate).is_empty());
-    let sol_off = open_edited(
-        "name = \"Sol\" initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| }",
-        "name = \"Sol\" initializer = random_empire_init_04 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 } }",
+
+    // The Sol initializer is a landmark anywhere else: on a seat of another kind, on
+    // the player's preferred seat, or on no seat at all.
+    let landmark = open_edited(
+        "name = \"Beta\" initializer = random_empire_init_02",
+        "name = \"Beta\" initializer = sol_system_initializer",
     );
-    let issues = sol_off.validate();
-    let mismatch = coded(&issues, IssueCode::SolSeatMismatch);
-    assert_eq!(mismatch.len(), 1);
-    assert_eq!(mismatch[0].systems, [3]);
+    let only_the_fixtures = |session: &Session| {
+        let issues = session.validate();
+        let mismatch = coded(&issues, IssueCode::SolSeatMismatch);
+        assert_eq!(mismatch.len(), 1, "{issues:?}");
+        assert_eq!(mismatch[0].systems, [3]);
+    };
+    only_the_fixtures(&landmark);
+    let players = open_edited(
+        "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| }",
+        "name = \"Beta\" initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 } }",
+    );
+    only_the_fixtures(&players);
+    let unseated = open_edited(
+        "name = \"Void\" }",
+        "name = \"Void\" initializer = sol_system_initializer }",
+    );
+    only_the_fixtures(&unseated);
 }
 
 #[test]
 fn the_players_seat_on_two_systems_names_them_both() {
     let session = open_edited_all(&[
         (
-            "RANDOM_MODULO|10|RANDOM_VALUE|3| }",
-            "RANDOM_MODULO|10|RANDOM_VALUE|3| modifier = { add = 100000 } }",
-        ),
-        (
             "PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| }",
             "PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 } }",
+        ),
+        (
+            "RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| }",
+            "RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| modifier = { add = 100000 has_trait = trait_painted_galaxy_reserved_spawn_a } }",
         ),
     ]);
     let issues = session.validate();
@@ -406,10 +411,10 @@ fn the_players_seat_on_two_systems_names_them_both() {
     assert_eq!(duplicate.len(), 1, "{issues:?}");
     assert_eq!(
         duplicate[0].message,
-        "The player's seat is on 2 systems: the first empire placed takes only one."
+        "The player's seat is on 2 systems: the player starts on only one."
     );
     assert_eq!(duplicate[0].severity, Severity::Warning);
-    assert_eq!(duplicate[0].systems, [0, 1]);
+    assert_eq!(duplicate[0].systems, [1, 2]);
     assert_eq!(seat_counts(&session.graph), (4, 2));
 }
 

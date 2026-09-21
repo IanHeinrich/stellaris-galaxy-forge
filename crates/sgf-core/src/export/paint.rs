@@ -23,8 +23,8 @@ use crate::format::scenario::fe_zone::{self, FeDirection, FeKind, FeZone, Site};
 use crate::format::scenario::header_counts::{fallen_count, seat_entries};
 use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::paint::{
-    AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, HEADER_NOTE, RL_BASIC, WORMHOLE_FLAG_PREFIX,
-    basic_initializer,
+    AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, HEADER_NOTE, RL_BASIC, UNE_FLAG,
+    WORMHOLE_FLAG_PREFIX, basic_initializer,
 };
 use crate::keys::scenario as keys;
 use crate::projections::galaxy::{
@@ -65,7 +65,7 @@ const FE_KINDS: [(&str, FeKind); 6] = [
 /// Rewrite `draft` in Paint a Galaxy's shape: each fallen empire's cluster is left out
 /// for a typed zone at its old capital; the spawn systems are the capitals of the
 /// playable countries and every system already marked as a spawn, the player's capital
-/// as the preferred seat; a seat the plain profile wrote anywhere else is cleared. `report`
+/// as the player's seat; a seat the plain profile wrote anywhere else is cleared. `report`
 /// gains what the profile did, and drops only the wormhole pairs it could not flag.
 pub(super) fn decorate(
     draft: &mut Draft,
@@ -79,7 +79,7 @@ pub(super) fn decorate(
     for system in &mut draft.systems {
         system.spawn = SpawnDraft::None;
     }
-    mark_spawns(draft, report, graph, &spawns, player_capital(graph));
+    mark_spawns(draft, report, graph, &spawns, player_seat(graph));
     fill_neighbours(draft, &spawns);
     report.dropped.wormhole_pairs = flag_wormholes(draft, &graph.bypasses);
     // Only the zones the save's own fallen empires ask for: the map is not filled with
@@ -301,14 +301,21 @@ fn spawn_systems(graph: &GalaxyGraph) -> BTreeSet<u32> {
     spawns
 }
 
-/// The capital of the player's country, when the save names one.
-fn player_capital(graph: &GalaxyGraph) -> Option<u32> {
+/// The capital of the player's country, when the save names one, and the seat it
+/// takes: the Sol seat when the country carries the United Nations of Earth's flag,
+/// which only that empire weighs above zero, else a preferred seat.
+fn player_seat(graph: &GalaxyGraph) -> Option<(u32, PaintSpawnKind)> {
     let player = graph.player_country?;
-    graph
+    let country = graph
         .countries
         .iter()
-        .find(|country| country.id == player)?
-        .capital_system
+        .find(|country| country.id == player)?;
+    let kind = if country.flags.iter().any(|flag| flag == UNE_FLAG) {
+        PaintSpawnKind::Sol
+    } else {
+        PaintSpawnKind::Preferred
+    };
+    Some((country.capital_system?, kind))
 }
 
 /// The marauder clans whose home systems the draft holds: the most the game can spawn.
@@ -735,16 +742,17 @@ fn nearest_system(draft: &Draft, at: (f64, f64)) -> Option<u32> {
 }
 
 /// Each spawn system gets the enabled seat with the next random value, the player's
-/// capital the player's seat, or keeps the script it already carries. The player's
-/// seat is a preferred seat with a weight the first empire placed, the player, is all
-/// but sure to draw; the mod's Sol seat would take only the United Nations of Earth. A
-/// seat with no initializer, or one the report says to review, gets a generic start.
+/// capital the player's seat of `player`'s kind, or keeps the script it already
+/// carries. The Sol seat is certain for the United Nations of Earth, since every other
+/// empire weighs it at zero; a preferred seat is only the likeliest start, since an
+/// empire whose origin needs special placement is seated before the player. A seat
+/// with no initializer, or one the report says to review, gets a generic start.
 fn mark_spawns(
     draft: &mut Draft,
     report: &mut ExportReport,
     galaxy: &Galaxy,
     spawns: &BTreeSet<u32>,
-    player: Option<u32>,
+    player: Option<(u32, PaintSpawnKind)>,
 ) {
     let seat: HashMap<u32, usize> = spawns.iter().enumerate().map(|(i, &id)| (id, i)).collect();
     let review: HashSet<u32> = report
@@ -761,30 +769,27 @@ fn mark_spawns(
             .get(&system.id)
             .and_then(|s| s.spawn_script.clone())
             .unwrap_or_else(|| {
-                let players = player == Some(system.id);
-                let kind = if players {
-                    PaintSpawnKind::Preferred
-                } else {
-                    PaintSpawnKind::Enabled
-                };
+                let players = player.as_ref().filter(|(id, _)| *id == system.id);
                 SpawnScript::PaintAGalaxy {
-                    kind,
+                    kind: players.map_or(PaintSpawnKind::Enabled, |(_, kind)| kind.clone()),
                     random_value: (i % RANDOM_VALUES) as u8,
-                    player: players,
+                    player: players.is_some(),
                 }
             });
         system.spawn = SpawnDraft::Script(script);
         // The game seats no empire on a seat naming that empire's own initializer,
         // so the player's seat, whose empire brings its home, gets a generic one.
-        if system.initializer.is_none() || review.contains(&system.id) || player == Some(system.id)
-        {
+        let players = player.as_ref().is_some_and(|(id, _)| *id == system.id);
+        if system.initializer.is_none() || review.contains(&system.id) || players {
             system.initializer = Some(basic_initializer(system.id).to_owned());
         }
     }
     for home in &mut report.home_initializers {
         home.replaced = seat.contains_key(&home.system);
     }
-    report.player_seat = player.filter(|id| seat.contains_key(id));
+    let player = player.filter(|(id, _)| seat.contains_key(id));
+    report.player_seat = player.as_ref().map(|(id, _)| *id);
+    report.player_seat_kind = player.map(|(_, kind)| kind);
 }
 
 /// Every empty system within [`NEIGHBOURHOOD`] jumps of a spawn gets the mod's

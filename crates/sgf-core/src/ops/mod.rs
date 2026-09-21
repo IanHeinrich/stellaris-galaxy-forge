@@ -481,6 +481,10 @@ pub enum OpError {
     #[error("a reserved seat is named by one letter, not {0:?}")]
     InvalidSeatLetter(String),
     #[error(
+        "an enabled seat has no marker to make it the player's; choose a preferred, Sol or reserved seat"
+    )]
+    EnabledSeatPlayer,
+    #[error(
         "Fallen empire zone from {anchor} is blocked by {blocker}: the mod needs the ring empty"
     )]
     FeZoneBlocked { anchor: String, blocker: String },

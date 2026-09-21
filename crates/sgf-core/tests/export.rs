@@ -658,12 +658,25 @@ static_galaxy_scenario = {
         .expect("the capital of country 0");
     assert_eq!(save.graph.player_country, Some(0));
     assert_eq!(report.player_seat, Some(player));
+    assert_eq!(report.player_seat_kind, Some(PaintSpawnKind::Sol));
     assert_eq!(player, 217);
+    // The player is the United Nations of Earth, so its capital is the Sol seat, which
+    // only the UNE weighs above zero.
+    assert!(
+        save.graph
+            .countries
+            .iter()
+            .find(|c| c.id == 0)
+            .expect("country 0")
+            .flags
+            .iter()
+            .any(|flag| flag == "human_1")
+    );
     assert_eq!(
         galaxy.systems[&player].spawn_script,
         Some(SpawnScript::PaintAGalaxy {
-            kind: PaintSpawnKind::Preferred,
-            random_value: 7,
+            kind: PaintSpawnKind::Sol,
+            random_value: 0,
             player: true,
         })
     );
@@ -672,12 +685,12 @@ static_galaxy_scenario = {
     assert_eq!(galaxy.systems[&player].initializer, "random_empire_init_02");
     assert!(
         text.contains(
-            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } } }
+            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 has_country_flag = human_1 } } }
 "
         ),
         "{text}"
     );
-    assert_eq!(text.matches("modifier = { add = 100000 }").count(), 1);
+    assert_eq!(text.matches("modifier = {").count(), 1);
     let players: Vec<u32> = galaxy
         .systems
         .values()
@@ -685,7 +698,7 @@ static_galaxy_scenario = {
             matches!(
                 s.spawn_script,
                 Some(SpawnScript::PaintAGalaxy {
-                    kind: PaintSpawnKind::Preferred,
+                    kind: PaintSpawnKind::Sol,
                     player: true,
                     ..
                 })
@@ -694,20 +707,21 @@ static_galaxy_scenario = {
         .map(|s| s.id)
         .collect();
     assert_eq!(players, [player]);
-    let preferred = galaxy
+    let others = galaxy
         .systems
         .values()
         .filter(|s| {
             matches!(
                 s.spawn_script,
                 Some(SpawnScript::PaintAGalaxy {
-                    kind: PaintSpawnKind::Preferred,
+                    kind: PaintSpawnKind::Enabled,
+                    player: false,
                     ..
                 })
             )
         })
         .count();
-    assert_eq!(preferred, 1);
+    assert_eq!(others, 16);
     assert_eq!(report.home_initializers.len(), 4);
     assert!(report.home_initializers.iter().all(|h| h.replaced));
     for home in &report.home_initializers {
@@ -717,7 +731,7 @@ static_galaxy_scenario = {
         );
     }
     let issues = sgf_core::validate::validate(&reopened.graph);
-    // Sol's initializer stands on the player's seat by design, so it is no mismatch.
+    // The Sol seat stands on a generic start, so it is no mismatch.
     assert!(
         !issues.iter().any(|i| matches!(
             i.code,
@@ -740,6 +754,74 @@ static_galaxy_scenario = {
     assert!(
         isolated.iter().all(|id| isolated_before.contains(id)),
         "{isolated:?} beyond {isolated_before:?}"
+    );
+}
+
+/// The sample with the player's `human_1` country flag taken out: a player that is not
+/// the United Nations of Earth.
+fn sample_without_une_flag() -> Session {
+    common::open_edited(|bytes| {
+        let flag = b"\t\t\thuman_1=62808000\n";
+        let at = bytes
+            .windows(flag.len())
+            .position(|w| w == flag)
+            .expect("the UNE flag in the sample");
+        bytes.drain(at..at + flag.len());
+    })
+}
+
+#[test]
+fn a_player_that_is_not_the_une_gets_a_preferred_seat() {
+    let save = sample_without_une_flag();
+    assert_eq!(save.graph.player_country, Some(0));
+    assert!(
+        save.graph
+            .countries
+            .iter()
+            .find(|c| c.id == 0)
+            .expect("country 0")
+            .flags
+            .iter()
+            .all(|flag| flag != "human_1")
+    );
+    let (text, report) = exported_as(&save, NAME, ScenarioProfile::PaintAGalaxy);
+    let text = String::from_utf8(text).expect("utf-8");
+    assert_eq!(report.player_seat, Some(217));
+    assert_eq!(report.player_seat_kind, Some(PaintSpawnKind::Preferred));
+    assert!(
+        text.contains(
+            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } } }
+"
+        ),
+        "{text}"
+    );
+    assert_eq!(text.matches("modifier = {").count(), 1);
+    // Without a reserved seat every seat is open, and the header counts say so.
+    assert!(
+        text.contains(
+            "	num_empires = { min = 0 max = 16 }
+	num_empire_default = 13
+"
+        ),
+        "{}",
+        &text[..1200]
+    );
+    let reopened = reopen(text.into_bytes());
+    assert_eq!(
+        reopened.graph.systems[&217].spawn_script,
+        Some(SpawnScript::PaintAGalaxy {
+            kind: PaintSpawnKind::Preferred,
+            random_value: 7,
+            player: true,
+        })
+    );
+    let issues = sgf_core::validate::validate(&reopened.graph);
+    assert!(
+        !issues.iter().any(|i| matches!(
+            i.code,
+            IssueCode::SolSeatMismatch | IssueCode::PlayerSeatDuplicate
+        )),
+        "{issues:?}"
     );
 }
 
@@ -789,7 +871,7 @@ static_galaxy_scenario = {{
         &text[..400]
     );
 
-    // 17 seats, the player's preferred: the setup's 13 empires fit under the 15
+    // 17 seats, the player's the Sol seat: the setup's 13 empires fit under the 15
     // seats any empire may take, and its advanced and nomad counts stand as set.
     assert_eq!(capitals.len(), 17, "{capitals:?}");
     assert!(
@@ -827,16 +909,16 @@ static_galaxy_scenario = {{
     for (i, id) in capitals.iter().enumerate() {
         let system = &reopened.graph.systems[id];
         let player = report.player_seat == Some(*id);
-        let kind = if player {
-            PaintSpawnKind::Preferred
+        let (kind, random_value) = if player {
+            (PaintSpawnKind::Sol, 0)
         } else {
-            PaintSpawnKind::Enabled
+            (PaintSpawnKind::Enabled, (i % 10) as u8)
         };
         assert_eq!(
             system.spawn_script,
             Some(SpawnScript::PaintAGalaxy {
                 kind,
-                random_value: (i % 10) as u8,
+                random_value,
                 player,
             }),
             "{id}"

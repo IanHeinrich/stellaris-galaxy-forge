@@ -28,6 +28,7 @@ pub(super) fn extract(raw: Vec<RawCountry>) -> (Vec<CountryNode>, HashMap<u32, u
             colors: country.colors,
             flag_icon: country.flag_icon,
             flag_background: country.flag_background,
+            flags: country.flags,
         });
     }
     (countries, capitals)

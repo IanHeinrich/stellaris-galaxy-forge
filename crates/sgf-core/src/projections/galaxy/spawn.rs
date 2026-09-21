@@ -34,8 +34,10 @@ pub enum SpawnScript {
     PaintAGalaxy {
         kind: PaintSpawnKind,
         random_value: u8,
-        /// The player's seat: a `modifier = { add = 100000 }` beside the value makes it
-        /// the heaviest by far, so the first empire placed, the player, draws it.
+        /// The player's seat: a `modifier` beside the value adds 100000 for the seat's
+        /// holder, under the condition the kind takes (none for a preferred seat, the
+        /// `human_1` country flag for Sol, the submod's trait for a reserved letter), so
+        /// that holder outweighs every other empire by far. An enabled seat has none.
         #[serde(default)]
         player: bool,
     },
@@ -52,6 +54,7 @@ pub enum PaintSpawnKind {
     Preferred,
     /// `RESERVED=<letter>`: held for the empire the letter names.
     Reserved(String),
-    /// `SOL=yes`: held for an empire whose home is Sol.
+    /// `SOL=yes`: held for the United Nations of Earth, or an empire with the submod's
+    /// Sol trait.
     Sol,
 }

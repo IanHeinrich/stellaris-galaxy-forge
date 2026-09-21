@@ -8,7 +8,9 @@ import type { PaintSpawnKind } from "./PaintSpawnKind";
  */
 export type SpawnScript = { "paint_a_galaxy": { kind: PaintSpawnKind, random_value: number, 
 /**
- * The player's seat: a `modifier = { add = 100000 }` beside the value makes it
- * the heaviest by far, so the first empire placed, the player, draws it.
+ * The player's seat: a `modifier` beside the value adds 100000 for the seat's
+ * holder, under the condition the kind takes (none for a preferred seat, the
+ * `human_1` country flag for Sol, the submod's trait for a reserved letter), so
+ * that holder outweighs every other empire by far. An enabled seat has none.
  */
 player: boolean, } };

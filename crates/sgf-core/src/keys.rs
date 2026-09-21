@@ -137,6 +137,7 @@ pub(crate) mod scenario {
     pub(crate) const FALLEN_EMPIRE_MAX: &str = "fallen_empire_max";
     pub(crate) const FROM: &str = "from";
     pub(crate) const HAS_COUNTRY_FLAG: &str = "has_country_flag";
+    pub(crate) const HAS_TRAIT: &str = "has_trait";
     pub(crate) const ID: &str = "id";
     pub(crate) const INITIALIZER: &str = "initializer";
     pub(crate) const MARAUDER_EMPIRE_DEFAULT: &str = "marauder_empire_default";

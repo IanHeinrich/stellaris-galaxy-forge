@@ -4,6 +4,7 @@ import type { DroppedBypasses } from "./DroppedBypasses";
 import type { FallenEmpireReport } from "./FallenEmpireReport";
 import type { HomeInitializer } from "./HomeInitializer";
 import type { OmittedCount } from "./OmittedCount";
+import type { PaintSpawnKind } from "./PaintSpawnKind";
 import type { SourceCount } from "./SourceCount";
 
 /**
@@ -38,11 +39,16 @@ fallen_empire_zones: number,
  */
 fallen_empires: Array<FallenEmpireReport>, 
 /**
- * The player's capital, written as the player's seat: Paint a Galaxy's preferred
- * seat with a weight the first empire placed draws. `None` for the plain profile
- * or a save with no player.
+ * The player's capital, written as the player's seat with the marker its kind
+ * takes. `None` for the plain profile or a save with no player.
  */
 player_seat: number | null, 
+/**
+ * The seat's kind: Sol for the United Nations of Earth, the only empire that
+ * weighs it above zero, so the start is certain; preferred for any other empire,
+ * weighted to be the likeliest start, not a certain one.
+ */
+player_seat_kind: PaintSpawnKind | null, 
 /**
  * Systems left out because the game adds its own, ascending by category.
  */

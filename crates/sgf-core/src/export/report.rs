@@ -10,7 +10,7 @@ use ts_rs::TS;
 use crate::export::SourceResolver;
 use crate::export::policy::{Category, builds_gateway, builds_lgate, classify, is_generic_home};
 use crate::format::scenario::fe_zone::FeKind;
-use crate::projections::galaxy::{BypassLink, GalaxyGraph};
+use crate::projections::galaxy::{BypassLink, GalaxyGraph, PaintSpawnKind};
 use crate::validate::{Issue, IssueCode};
 use crate::{as_u32, plural};
 
@@ -36,10 +36,13 @@ pub struct ExportReport {
     /// The save's fallen empires, each left out for the mod to rebuild in a typed zone
     /// at its old capital; empty for the plain profile.
     pub fallen_empires: Vec<FallenEmpireReport>,
-    /// The player's capital, written as the player's seat: Paint a Galaxy's preferred
-    /// seat with a weight the first empire placed draws. `None` for the plain profile
-    /// or a save with no player.
+    /// The player's capital, written as the player's seat with the marker its kind
+    /// takes. `None` for the plain profile or a save with no player.
     pub player_seat: Option<u32>,
+    /// The seat's kind: Sol for the United Nations of Earth, the only empire that
+    /// weighs it above zero, so the start is certain; preferred for any other empire,
+    /// weighted to be the likeliest start, not a certain one.
+    pub player_seat_kind: Option<PaintSpawnKind>,
     /// Systems left out because the game adds its own, ascending by category.
     pub omitted: Vec<OmittedCount>,
     /// Whether the header's counts come from the save's own setup screen.
@@ -257,6 +260,7 @@ pub(super) fn build(
         fallen_empire_zones: 0,
         fallen_empires: Vec::new(),
         player_seat: None,
+        player_seat_kind: None,
         omitted: Vec::new(),
         setup_from_save: false,
     }

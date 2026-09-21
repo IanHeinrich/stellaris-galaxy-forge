@@ -44,8 +44,12 @@ fn script(kind: PaintSpawnKind, random_value: u8) -> Option<SpawnScript> {
 }
 
 fn player(random_value: u8) -> Option<SpawnScript> {
+    seat(PaintSpawnKind::Preferred, random_value)
+}
+
+fn seat(kind: PaintSpawnKind, random_value: u8) -> Option<SpawnScript> {
     Some(SpawnScript::PaintAGalaxy {
-        kind: PaintSpawnKind::Preferred,
+        kind,
         random_value,
         player: true,
     })
@@ -196,6 +200,75 @@ fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
     assert_eq!(session.graph.systems[&1].spawn_script, player(1));
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(common::current(&session), bytes());
+}
+
+/// The Sol seat's marker asks for the United Nations of Earth's flag and a reserved
+/// letter's for the submod's trait, so each is the seat of its holder alone. An
+/// enabled seat has no marker to carry.
+#[test]
+fn the_sol_and_reserved_seats_carry_their_own_marker_and_an_enabled_one_has_none() {
+    let mut session = open();
+    let result = session
+        .apply(set(1, seat(PaintSpawnKind::Sol, 0)))
+        .expect("Sol");
+    assert_eq!(
+        session.graph.systems[&1].spawn_script,
+        seat(PaintSpawnKind::Sol, 0)
+    );
+    assert!(text(&session).contains(
+        "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 has_country_flag = human_1 } } }"
+    ));
+    common::snapshot("script_1_sol_player", &plain_report(&session, &result));
+    round_trip(open(), set(1, seat(PaintSpawnKind::Sol, 0)));
+    session
+        .apply(set(1, script(PaintSpawnKind::Enabled, 4)))
+        .expect("replace the Sol seat");
+    assert!(!text(&session).contains("human_1"));
+    session.undo().expect("undo").expect("an op to undo");
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(common::current(&session), bytes());
+
+    let result = session
+        .apply(set(1, seat(reserved("a"), 2)))
+        .expect("reserved");
+    assert_eq!(
+        session.graph.systems[&1].spawn_script,
+        seat(reserved("a"), 2)
+    );
+    assert!(text(&session).contains(
+        "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| modifier = { add = 100000 has_trait = trait_painted_galaxy_reserved_spawn_a } } }"
+    ));
+    common::snapshot(
+        "script_1_reserved_a_player",
+        &plain_report(&session, &result),
+    );
+    round_trip(open(), set(1, seat(reserved("a"), 2)));
+    session
+        .apply(set(1, None))
+        .expect("clear the reserved seat");
+    assert!(text(&session).contains("name = \"Beta\" initializer = random_empire_init_02 }"));
+    session.undo().expect("undo").expect("an op to undo");
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(common::current(&session), bytes());
+
+    let error = session
+        .apply(set(1, seat(PaintSpawnKind::Enabled, 4)))
+        .expect_err("an enabled seat is nobody's");
+    assert!(matches!(error, OpError::EnabledSeatPlayer), "{error}");
+    assert_eq!(
+        error.to_string(),
+        "an enabled seat has no marker to make it the player's; choose a preferred, Sol or reserved seat"
+    );
+    let error = session
+        .apply(Op::SetSpawnScripts {
+            entries: vec![
+                (10, script(PaintSpawnKind::Sol, 0)),
+                (1, seat(PaintSpawnKind::Enabled, 4)),
+            ],
+        })
+        .expect_err("an enabled seat is nobody's");
+    assert!(matches!(error, OpError::EnabledSeatPlayer), "{error}");
+    assert!(!session.is_dirty());
 }
 
 #[test]
@@ -466,6 +539,41 @@ fn a_plain_weight_with_the_markers_shape_is_still_a_block_of_modifiers() {
     session
         .apply(result.entry.inverse)
         .expect("apply the inverse");
+    assert_eq!(common::current(&session), text.as_bytes());
+}
+
+/// A marker of another kind's shape is no marker: the block is script and the seat
+/// reads as its kind alone.
+#[test]
+fn a_marker_of_another_kinds_shape_is_neither_read_nor_rewritten() {
+    let text = "static_galaxy_scenario = {
+	name = \"modifiers\"
+	system = {
+		id = \"7\"
+		position = { x = 1 y = 2 }
+		initializer = random_empire_init_01
+		spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 } }
+	}
+}
+";
+    let doc = Document::from_scenario_bytes(text.as_bytes().to_vec()).expect("index");
+    let mut session = Session::from_document(None, doc).expect("open");
+    assert_eq!(
+        session.graph.systems[&7].spawn_script,
+        script(PaintSpawnKind::Sol, 0)
+    );
+    for op in [
+        set(7, None),
+        set(7, seat(PaintSpawnKind::Sol, 0)),
+        Op::SetSpawnWeight { id: 7, base: None },
+    ] {
+        let name = op.name();
+        let error = session.apply(op).expect_err(name);
+        assert!(
+            matches!(error, OpError::Parse { system: 7, .. }),
+            "{name}: {error}"
+        );
+    }
     assert_eq!(common::current(&session), text.as_bytes());
 }
 

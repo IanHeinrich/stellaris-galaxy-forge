@@ -92,8 +92,8 @@ pub enum IssueCode {
     /// Two or more seats carry the player's marker, which the first empire placed draws
     /// once.
     PlayerSeatDuplicate,
-    /// A Sol seat stands on a system without the game's Sol initializer, or that
-    /// initializer carries a seat that is not Sol.
+    /// A Sol seat stands on a system naming the game's Sol initializer, and the game
+    /// never seats an empire on a seat naming that empire's own initializer.
     SolSeatMismatch,
     /// A system stands where the game builds the L-Cluster at galaxy generation.
     LClusterSystem,
@@ -136,11 +136,12 @@ impl IssueCode {
             | Self::HeaderEmpireCount
             | Self::SeatLetterDuplicate
             | Self::PlayerSeatDuplicate
+            | Self::SolSeatMismatch
             | Self::LClusterSystem
             | Self::MarauderHomeDuplicate
             | Self::MarauderBaseOrphan
             | Self::MarauderBasesMissing => Severity::Warning,
-            Self::SolSeatMismatch | Self::MarauderNearSeat | Self::FeLinkFar => Severity::Info,
+            Self::MarauderNearSeat | Self::FeLinkFar => Severity::Info,
         }
     }
 
@@ -441,7 +442,6 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         let Some(SpawnScript::PaintAGalaxy { kind, player, .. }) = &system.spawn_script else {
             continue;
         };
-        let sol = matches!(kind, PaintSpawnKind::Sol);
         match kind {
             PaintSpawnKind::Reserved(letter) => {
                 holders.entry(letter.clone()).or_default().push(system.id);
@@ -452,24 +452,13 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         if *player {
             players.push(system.id);
         }
-        // The export seats the player on Sol's initializer by design, so that is no
-        // mismatch.
-        let sol_initializer = system.initializer == SOL_INITIALIZER;
-        if sol != sol_initializer && !(*player && sol_initializer) {
-            let message = if sol {
-                format!(
-                    "{} has a Sol seat but not the Sol initializer.",
-                    label(system)
-                )
-            } else {
-                format!(
-                    "{} has the Sol initializer but its seat is not Sol.",
-                    label(system)
-                )
-            };
+        if matches!(kind, PaintSpawnKind::Sol) && system.initializer == SOL_INITIALIZER {
             issues.push(Issue::new(
                 IssueCode::SolSeatMismatch,
-                message,
+                format!(
+                    "{} has a Sol seat and the Sol initializer: the game will not seat the United Nations of Earth on a seat naming its own initializer. Give it a generic start.",
+                    label(system)
+                ),
                 vec![system.id],
             ));
         }
@@ -492,7 +481,7 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         issues.push(Issue::new(
             IssueCode::PlayerSeatDuplicate,
             format!(
-                "The player's seat is on {} systems: the first empire placed takes only one.",
+                "The player's seat is on {} systems: the player starts on only one.",
                 players.len()
             ),
             players,
