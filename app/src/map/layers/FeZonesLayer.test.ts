@@ -140,6 +140,23 @@ describe("the fallen empire zones layer", () => {
     expect(drawOps(spawnGhostsAt(other, -40))).not.toEqual(firstOps);
   });
 
+  it("draws each kind's satellites as the mod's tree: the first tier laned to the home, the rest to a satellite", () => {
+    // The lanes are the first stroke; the satellites' discs and the home star follow.
+    const ghostLanes = (layer: FeZonesLayer) => drawOps(spawnGhostsAt(layer, -40))[0].segments;
+    const lanes = ghostLanes(drawn([anchored(0, 0, { kind: "materialist" })]));
+    expect(lanes).toHaveLength(7);
+    const fromHome = lanes.filter(([ax, ay]) => ax === 0 && ay === 0);
+    expect(fromHome).toHaveLength(3);
+    for (const [, , bx, by] of lanes) {
+      const reach = Math.hypot(bx, by);
+      expect(reach).toBeGreaterThanOrEqual(15);
+      expect(reach).toBeLessThanOrEqual(25);
+    }
+    const machine = ghostLanes(drawn([anchored(0, 0, { kind: "machine" })]));
+    expect(machine).toHaveLength(4);
+    expect(machine.every(([ax, ay]) => ax === 0 && ay === 0)).toBe(true);
+  });
+
   it("fills the ring whose anchor is selected", () => {
     const layer = drawn([ZONED]);
     expect(fills(ringAt(layer, -40))).toBe(0);

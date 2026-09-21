@@ -139,8 +139,83 @@ const HOME_STAR_RADIUS = 3.5;
 const SATELLITE_RADIUS = 1.4;
 const SATELLITE_MIN_DISTANCE = 15;
 const SATELLITE_DISTANCE_SPAN = 10;
-const SATELLITE_COUNT_MIN = 4;
-const SATELLITE_COUNT_OPTIONS = 3;
+
+/** One satellite the mod spawns: its bearing range from the home, and the satellite it lanes to. */
+interface Satellite {
+  readonly angle: readonly [number, number];
+  /** Index into the kind's list, or `null` for the home. */
+  readonly parent: number | null;
+}
+
+const sat = (min: number, max: number, parent: number | null = null): Satellite => ({
+  angle: [min, max],
+  parent,
+});
+
+/**
+ * What the mod spawns around each kind's home, from its own event: every satellite 15 to 25
+ * from the home at these bearings, the first tier laned to the home and the rest to the
+ * satellite that spawned before it. The random kind gets three short chains.
+ */
+const SPAWN_TREES: Readonly<Record<FeKind, readonly Satellite[]>> = {
+  materialist: [
+    sat(0, 20),
+    sat(100, 120),
+    sat(50, 70, 1),
+    sat(150, 170, 1),
+    sat(250, 260),
+    sat(200, 220, 4),
+    sat(300, 320, 4),
+  ],
+  spiritualist: [
+    sat(60, 80),
+    sat(0, 20, 0),
+    sat(120, 140, 0),
+    sat(240, 260),
+    sat(180, 200, 3),
+    sat(300, 320, 3),
+  ],
+  xenophile: [
+    sat(0, 20),
+    sat(100, 120),
+    sat(50, 70, 1),
+    sat(150, 170, 1),
+    sat(250, 270),
+    sat(200, 220, 4),
+    sat(300, 320, 4),
+  ],
+  xenophobe: [
+    sat(40, 50),
+    sat(0, 10, 0),
+    sat(80, 90, 0),
+    sat(120, 130, 2),
+    sat(200, 210),
+    sat(160, 170, 4),
+    sat(240, 250, 4),
+    sat(280, 290, 6),
+    sat(320, 330),
+  ],
+  machine: [sat(0, 30), sat(90, 120), sat(180, 210), sat(270, 300)],
+  hive: [
+    sat(40, 50),
+    sat(0, 10, 0),
+    sat(80, 90, 0),
+    sat(160, 170),
+    sat(120, 130, 3),
+    sat(200, 210, 3),
+    sat(280, 290),
+    sat(240, 250, 6),
+    sat(320, 330, 6),
+  ],
+  random: [
+    sat(0, 20),
+    sat(60, 80, 0),
+    sat(120, 140),
+    sat(180, 200, 2),
+    sat(240, 260),
+    sat(300, 320, 4),
+  ],
+};
 
 /** A tiny deterministic generator: the same seed always yields the same sequence. */
 function mulberry32(seed: number): () => number {
@@ -160,30 +235,29 @@ function hashId(id: number): number {
   return (x ^ (x >>> 16)) >>> 0;
 }
 
-/** The satellites the mod hyperlanes to the home star, offset from the centre, by anchor id. */
-function spawnSatellites(id: number): Array<{ x: number; y: number }> {
+/** The kind's satellites placed about the home, one roll of the mod's ranges, seeded by anchor id. */
+function spawnSatellites(id: number, kind: FeKind): Array<{ x: number; y: number }> {
   const rand = mulberry32(hashId(id));
-  const count = SATELLITE_COUNT_MIN + Math.floor(rand() * SATELLITE_COUNT_OPTIONS);
-  const step = (Math.PI * 2) / count;
-  const points: Array<{ x: number; y: number }> = [];
-  for (let i = 0; i < count; i++) {
-    const angle = i * step + (rand() - 0.5) * step * 0.6;
+  return SPAWN_TREES[kind].map(({ angle: [min, max] }) => {
+    const bearing = ((min + rand() * (max - min)) * Math.PI) / 180;
     const distance = SATELLITE_MIN_DISTANCE + rand() * SATELLITE_DISTANCE_SPAN;
-    points.push({ x: Math.cos(angle) * distance, y: Math.sin(angle) * distance });
-  }
-  return points;
+    return { x: Math.cos(bearing) * distance, y: -Math.sin(bearing) * distance };
+  });
 }
 
 /**
  * The zone's ghost system, stable for a given anchor id: a hollow home star at the centre and
- * its satellites, each joined to it by a faint ghost lane.
+ * the kind's satellites, each joined by a faint ghost lane to the home or to its parent.
  */
-function drawSpawnGhosts(g: Graphics, id: number): void {
+function drawSpawnGhosts(g: Graphics, id: number, kind: FeKind): void {
   g.clear();
-  const satellites = spawnSatellites(id);
-  for (const sat of satellites) g.moveTo(0, 0).lineTo(sat.x, sat.y);
+  const satellites = spawnSatellites(id, kind);
+  SPAWN_TREES[kind].forEach(({ parent }, i) => {
+    const from = parent === null ? { x: 0, y: 0 } : satellites[parent];
+    g.moveTo(from.x, from.y).lineTo(satellites[i].x, satellites[i].y);
+  });
   g.stroke({ color: RING.color, alpha: 1, pixelLine: true });
-  for (const sat of satellites) g.circle(sat.x, sat.y, SATELLITE_RADIUS).fill(RING.color);
+  for (const at of satellites) g.circle(at.x, at.y, SATELLITE_RADIUS).fill(RING.color);
   g.circle(0, 0, HOME_STAR_RADIUS).stroke({ color: RING.color, alpha: 1, pixelLine: true });
 }
 
@@ -318,7 +392,7 @@ export class FeZonesLayer implements MapLayer {
     draw(g, at.x - centre.x, at.y - centre.y, this.selection.has(s.id));
     g.position.set(centre.x, centre.y);
     g.alpha = ghost || !zone.preferred ? GHOST_ALPHA : 1;
-    this.placeSpawnGhosts(s.id, centre, g.alpha);
+    this.placeSpawnGhosts(s.id, zone.kind, centre, g.alpha);
     this.placeTag(s.id, centreText(zone.kind), centre, g.alpha);
     this.placeLinks(s, centre, g.alpha);
   }
@@ -376,11 +450,17 @@ export class FeZonesLayer implements MapLayer {
     this.freeLinks.push(g);
   }
 
-  private placeSpawnGhosts(id: number, at: { x: number; y: number }, ringAlpha: number): void {
+  private placeSpawnGhosts(
+    id: number,
+    kind: FeKind,
+    at: { x: number; y: number },
+    ringAlpha: number,
+  ): void {
     let g = this.spawnGhosts.get(id);
-    if (!g) {
-      g = this.freeSpawnGhosts.pop() ?? this.makeSpawnGhosts();
-      drawSpawnGhosts(g, id);
+    if (!g || g.label !== kind) {
+      g ??= this.freeSpawnGhosts.pop() ?? this.makeSpawnGhosts();
+      g.label = kind;
+      drawSpawnGhosts(g, id, kind);
       g.visible = true;
       this.spawnGhostsContainer.addChild(g);
       this.spawnGhosts.set(id, g);
