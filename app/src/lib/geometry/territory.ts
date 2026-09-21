@@ -1,4 +1,4 @@
-import polygonClipping, { type MultiPolygon, type Pair, type Polygon } from "polygon-clipping";
+import polygonClipping, { type Geom, type MultiPolygon, type Pair } from "polygon-clipping";
 import polylabel from "polylabel";
 import type { Pt } from "./hull";
 
@@ -36,16 +36,26 @@ export interface LabelAnchor {
   height: number;
 }
 
-interface Lane {
-  ax: number;
-  ay: number;
-  bx: number;
-  by: number;
+/** A lane both ends of which share an owner; `key` is its end ids as `min-max`. */
+export interface Lane {
+  key: string;
+  a: TerritorySystem;
+  b: TerritorySystem;
   length: number;
   owner: number;
 }
 
-const DEFAULT_SEGMENTS = 24;
+/** What one system or lane contributes to its country: its snapped rings and the point they are centred on. */
+export interface Piece {
+  rings: Pair[][];
+  x: number;
+  y: number;
+}
+
+/** A country's pieces by source: a disc under its system's id, a band under its lane's key. */
+export type Pieces = Map<string, Piece>;
+
+const DEFAULT_SEGMENTS = 16;
 const LABEL_PRECISION = 1;
 const EPS2 = 1e-12;
 const CELL_OFFSET = 1 << 15;
@@ -76,65 +86,133 @@ export function countryRegions(
   params: TerritoryParams,
   only?: ReadonlySet<number>,
 ): Map<number, Region> {
-  const radius = params.radius;
-  const segments = params.segments ?? DEFAULT_SEGMENTS;
-  const byId = new Map<number, TerritorySystem>();
-  const owned: TerritorySystem[] = [];
-  const cell = Math.max(2 * radius, 1);
-  const systemGrid = new Buckets<TerritorySystem>(cell);
-  for (const s of systems) {
-    byId.set(s.id, s);
-    systemGrid.add(s.x, s.y, s.x, s.y, s);
-    if (s.owner !== null) owned.push(s);
-  }
-
-  const pieces = new Map<number, Pair[][]>();
-  const collect = (owner: number, piece: Pair[]): void => {
-    const snapped = snapRing(piece);
-    if (snapped.length < 3) return;
-    const list = pieces.get(owner);
-    if (list) list.push(snapped);
-    else pieces.set(owner, [snapped]);
-  };
-  const wanted = (owner: number): boolean => only === undefined || only.has(owner);
-
-  for (const s of owned) {
-    const owner = s.owner as number;
-    if (!wanted(owner)) continue;
-    let disc = ngon(s.x, s.y, radius, segments);
-    const reach = 2 * radius;
-    systemGrid.forEachIn(s.x - reach, s.y - reach, s.x + reach, s.y + reach, (f) => {
-      if (f.id === s.id || f.owner === owner) return;
-      const d2 = dist2(s.x, s.y, f.x, f.y);
-      if (d2 < reach * reach && d2 > EPS2) disc = keepNearer(disc, s.x, s.y, f.x, f.y);
-    });
-    collect(owner, disc);
-  }
-
-  for (const l of sameOwnerLanes(owned, byId)) {
-    if (!wanted(l.owner)) continue;
-    const band = bandOf(l, params.laneHalfWidth);
-    if (band === null) continue;
-    const pad = laneReach(l.length, params);
-    const foreign: TerritorySystem[] = [];
-    systemGrid.forEachIn(
-      Math.min(l.ax, l.bx) - pad,
-      Math.min(l.ay, l.by) - pad,
-      Math.max(l.ax, l.bx) + pad,
-      Math.max(l.ay, l.by) + pad,
-      (f) => {
-        if (f.owner !== l.owner) foreign.push(f);
-      },
-    );
-    for (const piece of severBand(band, l, foreign)) collect(l.owner, piece);
-  }
-
   const regions = new Map<number, Region>();
-  for (const [owner, list] of pieces) {
-    const region = toRegion(unionOf(list, owner));
+  for (const [owner, pieces] of countryPieces(systems, params, only)) {
+    const region = regionOf(polygonsOf(pieces.values()), owner);
     if (region.length > 0) regions.set(owner, region);
   }
   return regions;
+}
+
+/** Every country's pieces, or with `only` those countries' alone; see `countryRegions`. */
+export function countryPieces(
+  systems: Iterable<TerritorySystem>,
+  params: TerritoryParams,
+  only?: ReadonlySet<number>,
+): Map<number, Pieces> {
+  const index = new SystemIndex(systems, params);
+  const owned = index.owned().filter((s) => only === undefined || only.has(s.owner as number));
+  const out = new Map<number, Pieces>();
+  const piecesOf = (owner: number): Pieces => {
+    let pieces = out.get(owner);
+    if (!pieces) out.set(owner, (pieces = new Map()));
+    return pieces;
+  };
+  for (const s of owned) piecesOf(s.owner as number).set(String(s.id), index.disc(s));
+  for (const l of index.lanes(owned)) piecesOf(l.owner).set(l.key, index.band(l));
+  return out;
+}
+
+/** Each ring of each piece as a polygon, ready to union. */
+export function polygonsOf(pieces: Iterable<Piece>): Geom[] {
+  const polygons: Geom[] = [];
+  for (const piece of pieces) for (const ring of piece.rings) polygons.push([ring]);
+  return polygons;
+}
+
+/** The union of `geoms` as outer rings of at least `MIN_RING_AREA`, unclosed; holes and slivers are dropped. */
+export function regionOf(geoms: Geom[], owner: number): Region {
+  return toRegion(unionOf(geoms, owner));
+}
+
+/** One galaxy's systems, indexed so a piece finds the systems of other owners that clip it. */
+export class SystemIndex {
+  private readonly byId = new Map<number, TerritorySystem>();
+  private readonly grid: Buckets<TerritorySystem>;
+  private readonly reach: number;
+
+  constructor(
+    systems: Iterable<TerritorySystem>,
+    private readonly params: TerritoryParams,
+  ) {
+    this.reach = 2 * params.radius;
+    this.grid = new Buckets(Math.max(this.reach, 1));
+    for (const s of systems) {
+      this.byId.set(s.id, s);
+      this.grid.add(s.x, s.y, s.x, s.y, s);
+    }
+  }
+
+  owned(): TerritorySystem[] {
+    const out: TerritorySystem[] = [];
+    for (const s of this.byId.values()) if (s.owner !== null) out.push(s);
+    return out;
+  }
+
+  /** Each lane between two systems of one owner among `owned`, once. */
+  lanes(owned: TerritorySystem[]): Lane[] {
+    return sameOwnerLanes(owned, this.byId);
+  }
+
+  /** The disc of `s`, cut back to the bisectors of every system of another owner within reach. */
+  disc(s: TerritorySystem): Piece {
+    const reach = this.reach;
+    let disc = ngon(s.x, s.y, this.params.radius, this.params.segments ?? DEFAULT_SEGMENTS);
+    this.grid.forEachIn(s.x - reach, s.y - reach, s.x + reach, s.y + reach, (f) => {
+      if (f.id === s.id || f.owner === s.owner) return;
+      const d2 = dist2(s.x, s.y, f.x, f.y);
+      if (d2 < reach * reach && d2 > EPS2) disc = keepNearer(disc, s.x, s.y, f.x, f.y);
+    });
+    return { rings: snapped([disc]), x: s.x, y: s.y };
+  }
+
+  /** Whether a system at (`x`, `y`) can clip the disc of `s`. */
+  clipsDisc(s: TerritorySystem, x: number, y: number): boolean {
+    return dist2(s.x, s.y, x, y) < this.reach * this.reach;
+  }
+
+  /** The band of `l`, severed wherever a system of another owner is nearer than both of its ends. */
+  band(l: Lane): Piece {
+    const x = (l.a.x + l.b.x) / 2;
+    const y = (l.a.y + l.b.y) / 2;
+    const band = bandOf(l, this.params.laneHalfWidth);
+    if (band === null) return { rings: [], x, y };
+    const foreign: TerritorySystem[] = [];
+    const box = laneBox(l, this.params);
+    this.grid.forEachIn(box.minX, box.minY, box.maxX, box.maxY, (f) => {
+      if (f.owner !== l.owner) foreign.push(f);
+    });
+    return { rings: snapped(severBand(band, l, foreign)), x, y };
+  }
+
+  /** Whether a system at (`x`, `y`) is among the ones `band(l)` is severed by. */
+  seversBand(l: Lane, x: number, y: number): boolean {
+    const box = laneBox(l, this.params);
+    return this.grid.covers(box.minX, box.minY, box.maxX, box.maxY, x, y);
+  }
+}
+
+/** The box a lane's band looks for foreign systems in: its ends padded by the lane's reach. */
+function laneBox(
+  l: Lane,
+  params: TerritoryParams,
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  const pad = laneReach(l.length, params);
+  return {
+    minX: Math.min(l.a.x, l.b.x) - pad,
+    minY: Math.min(l.a.y, l.b.y) - pad,
+    maxX: Math.max(l.a.x, l.b.x) + pad,
+    maxY: Math.max(l.a.y, l.b.y) + pad,
+  };
+}
+
+function snapped(rings: Pair[][]): Pair[][] {
+  const out: Pair[][] = [];
+  for (const ring of rings) {
+    const snap = snapRing(ring);
+    if (snap.length >= 3) out.push(snap);
+  }
+  return out;
 }
 
 /**
@@ -300,14 +378,8 @@ class Neighbourhood {
       this.discs.add(s.x, s.y, s.x, s.y, s);
     }
     for (const l of sameOwnerLanes(owned, systems)) {
-      const pad = laneReach(l.length, params);
-      this.bands.add(
-        Math.min(l.ax, l.bx) - pad,
-        Math.min(l.ay, l.by) - pad,
-        Math.max(l.ax, l.bx) + pad,
-        Math.max(l.ay, l.by) + pad,
-        l,
-      );
+      const box = laneBox(l, params);
+      this.bands.add(box.minX, box.minY, box.maxX, box.maxY, l);
     }
   }
 
@@ -327,7 +399,7 @@ class Neighbourhood {
     this.bands.forEachIn(s.x, s.y, s.x, s.y, (l) => {
       if (out.has(l.owner)) return;
       const pad = laneReach(l.length, this.params);
-      const q = closestOnSegment(s.x, s.y, l.ax, l.ay, l.bx, l.by);
+      const q = closestOnSegment(s.x, s.y, l.a.x, l.a.y, l.b.x, l.b.y);
       if (dist2(s.x, s.y, q[0], q[1]) < pad * pad) out.add(l.owner);
     });
   }
@@ -351,10 +423,9 @@ function sameOwnerLanes(
       if (!b || b.owner !== a.owner) continue;
       if (a.id > b.id && b.lanes.some((l) => l.to === a.id)) continue;
       lanes.push({
-        ax: a.x,
-        ay: a.y,
-        bx: b.x,
-        by: b.y,
+        key: a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`,
+        a,
+        b,
         length: Math.hypot(b.x - a.x, b.y - a.y),
         owner: a.owner as number,
       });
@@ -375,13 +446,13 @@ function ngon(cx: number, cy: number, radius: number, segments: number): Pair[] 
 /** The rectangle of half-width `halfWidth` around a lane; null for a zero-length lane. */
 function bandOf(l: Lane, halfWidth: number): Pair[] | null {
   if (l.length === 0) return null;
-  const nx = (-(l.by - l.ay) / l.length) * halfWidth;
-  const ny = ((l.bx - l.ax) / l.length) * halfWidth;
+  const nx = (-(l.b.y - l.a.y) / l.length) * halfWidth;
+  const ny = ((l.b.x - l.a.x) / l.length) * halfWidth;
   return [
-    [l.ax - nx, l.ay - ny],
-    [l.bx - nx, l.by - ny],
-    [l.bx + nx, l.by + ny],
-    [l.ax + nx, l.ay + ny],
+    [l.a.x - nx, l.a.y - ny],
+    [l.b.x - nx, l.b.y - ny],
+    [l.b.x + nx, l.b.y + ny],
+    [l.a.x + nx, l.a.y + ny],
   ];
 }
 
@@ -394,12 +465,12 @@ function severBand(band: Pair[], l: Lane, foreign: TerritorySystem[]): Pair[][] 
   for (const f of foreign) {
     const next: Pair[][] = [];
     for (const piece of pieces) {
-      if (allNearer(piece, l.ax, l.ay, f.x, f.y) || allNearer(piece, l.bx, l.by, f.x, f.y)) {
+      if (allNearer(piece, l.a.x, l.a.y, f.x, f.y) || allNearer(piece, l.b.x, l.b.y, f.x, f.y)) {
         next.push(piece);
         continue;
       }
-      const nearA = keepNearer(piece, l.ax, l.ay, f.x, f.y);
-      const nearB = keepNearer(piece, l.bx, l.by, f.x, f.y);
+      const nearA = keepNearer(piece, l.a.x, l.a.y, f.x, f.y);
+      const nearB = keepNearer(piece, l.b.x, l.b.y, f.x, f.y);
       if (nearA.length >= 3) next.push(nearA);
       if (nearB.length >= 3) next.push(nearB);
     }
@@ -451,7 +522,7 @@ function cut(p: Pair, q: Pair, fp: number, fq: number): Pair {
   return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
 }
 
-function snapRing(ring: Pair[]): Pair[] {
+export function snapRing(ring: Pair[]): Pair[] {
   const out: Pair[] = [];
   for (const [x, y] of ring) {
     const p: Pair = [Math.round(x / SNAP) * SNAP, Math.round(y / SNAP) * SNAP];
@@ -487,7 +558,7 @@ function dist2(ax: number, ay: number, bx: number, by: number): number {
   return dx * dx + dy * dy;
 }
 
-function ringArea(ring: Pt[]): number {
+export function ringArea(ring: Pt[]): number {
   let sum = 0;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     sum += (ring[j].x + ring[i].x) * (ring[j].y - ring[i].y);
@@ -495,17 +566,17 @@ function ringArea(ring: Pt[]): number {
   return sum / 2;
 }
 
-/** Unions the pieces at once, or one by one when the clipper gives up, leaving out only the pieces it rejects. */
-function unionOf(pieces: Pair[][], owner: number): MultiPolygon {
-  const polygons: Polygon[] = pieces.map((ring) => [ring]);
+/** Unions the geometries at once, or one by one when the clipper gives up, leaving out only the ones it rejects. */
+export function unionOf(geoms: Geom[], owner: number): MultiPolygon {
+  if (geoms.length === 0) return [];
   try {
-    return polygonClipping.union(polygons[0], ...polygons.slice(1));
+    return polygonClipping.union(geoms[0], ...geoms.slice(1));
   } catch {
     let merged: MultiPolygon = [];
     let dropped = 0;
-    for (const polygon of polygons) {
+    for (const geom of geoms) {
       try {
-        merged = polygonClipping.union(merged, polygon);
+        merged = polygonClipping.union(merged, geom);
       } catch {
         dropped++;
       }
@@ -562,6 +633,18 @@ class Buckets<T> {
         if (bucket) for (const item of bucket) fn(item);
       }
     }
+  }
+
+  /** Whether `forEachIn` over the box would visit an item at (`x`, `y`). */
+  covers(minX: number, minY: number, maxX: number, maxY: number, x: number, y: number): boolean {
+    const cx = this.cellOf(x);
+    const cy = this.cellOf(y);
+    return (
+      cx >= this.cellOf(minX) &&
+      cx <= this.cellOf(maxX) &&
+      cy >= this.cellOf(minY) &&
+      cy <= this.cellOf(maxY)
+    );
   }
 
   private cellOf(v: number): number {

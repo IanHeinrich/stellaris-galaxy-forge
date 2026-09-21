@@ -12,7 +12,8 @@ a release is made.
 
 - Moving a system on a save with many empires no longer hitches on
   release. The territories are recomputed in a worker and the outlines
-  follow a beat later.
+  follow a beat later. The recompute itself is cheaper too, since only
+  the pieces of territory near the moved system are rebuilt.
 
 ## [0.6.1] - 2026-09-20
 
