@@ -1,7 +1,7 @@
 //! The Paint a Galaxy profile, laid over a plain draft: the header its companion mod
 //! sizes its fixes by, its spawn idiom on every spawn system, its random-list
-//! initializer on the empty systems around them, its flags on wormhole pairs, and the
-//! fallen empire zones the mod itself would place. Everything written here is what
+//! initializer on the empty systems around them and its flags on wormhole pairs.
+//! Everything written here is what
 //! `generate_galaxy_txt.ts` in the app writes for the same map, so the mod treats the
 //! file as one it painted.
 //!
@@ -34,7 +34,6 @@ const SET_STAR_FLAG: &str = "set_star_flag";
 const NEIGHBOURHOOD: usize = 2;
 /// The `RANDOM_VALUE` a spawn system's weight is varied by cycles through this many.
 const RANDOM_VALUES: usize = 10;
-/// The most marauder empires the mod's header allows.
 /// The most wormhole pairs and gateways the header allows unless the save asked for more.
 const BYPASS_MAX: u32 = 5;
 const FALLEN_EMPIRE: &str = "fallen_empire";
@@ -80,16 +79,16 @@ pub(super) fn decorate(
     mark_spawns(draft, report, graph, &spawns, player_capital(graph));
     fill_neighbours(draft, &spawns);
     flag_wormholes(draft, &graph.bypasses);
-    let zones = fe_zone_candidates(draft, graph, &typed);
-    place_fe_zones(draft, &zones);
-    report.fallen_empire_zones = as_u32(zones.len());
+    // Only the zones the save's own fallen empires ask for: the map is not filled with
+    // the mod's candidates, which "Fit fallen empire zones" places on request.
+    report.fallen_empire_zones = 0;
 
     let reserved = draft
         .systems
         .iter()
         .filter(|system| matches!(&system.spawn, SpawnDraft::Script(script) if is_reserved_script(script)))
         .count();
-    let all_zones = as_u32(typed.len() + zones.len());
+    let all_zones = as_u32(typed.len());
     let clans = clan_count(draft);
     let counts = match &graph.setup {
         Some(setup) => HeaderCounts::from_setup(
@@ -717,44 +716,6 @@ fn flag_wormholes(draft: &mut Draft, bypasses: &[BypassLink]) {
                 ],
             );
         }
-    }
-}
-
-/// The zones the mod would place by itself, on the systems it would anchor them to. A
-/// system the galaxy already gives a zone, or one given a typed zone here, keeps it and
-/// anchors no other.
-fn fe_zone_candidates(
-    draft: &Draft,
-    galaxy: &Galaxy,
-    typed: &BTreeMap<u32, FeZone>,
-) -> Vec<(u32, FeZone)> {
-    let sites: Vec<Site<'_>> = draft
-        .systems
-        .iter()
-        .map(|system| Site {
-            id: system.id,
-            x: system.x,
-            y: system.y,
-            zone: typed.get(&system.id).or_else(|| {
-                galaxy
-                    .systems
-                    .get(&system.id)
-                    .and_then(|s| s.fe_zone.as_ref())
-            }),
-        })
-        .collect();
-    fe_zone::candidates(&sites)
-}
-
-fn place_fe_zones(draft: &mut Draft, zones: &[(u32, FeZone)]) {
-    let index: HashMap<u32, usize> = draft
-        .systems
-        .iter()
-        .enumerate()
-        .map(|(i, system)| (system.id, i))
-        .collect();
-    for (id, zone) in zones {
-        add_flags(&mut draft.systems[index[id]], fe_zone::flags(zone));
     }
 }
 

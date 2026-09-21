@@ -513,16 +513,16 @@ the ring with ordinary systems when no fallen empire lands there. A
 ring that would cover a system is refused, and one
 that later comes to cover a system after a move shows in Issues.
 
-The mod also places fallen empires in rings you did not draw. Export as
-scenario adds those automatic zones the way Paint a Galaxy itself does,
-one per system where a ring of radius 30 fits, and they are drawn faint.
-To choose how many there are, right-click empty space and pick "Fit
-fallen empire zones…", or use the button in the scenario section of the
-inspector. A slider sets the number, from none to every ring that fits,
-and Forge spreads them as far apart as it can. Fitting again replaces
-the automatic zones in one undoable step. Zones you placed or edited
-are yours and are never replaced. A painted map with no automatic zones
-shows in Issues, with a button that opens the same dialog.
+The mod can also seat fallen empires in rings you did not draw, and
+these automatic zones are drawn faint. To place some, right-click empty
+space and pick "Fit fallen empire zones…", or use the button in the
+scenario section of the inspector. A slider sets the number, from none
+to every ring that fits, and Forge spreads them as far apart as it can.
+Fitting again replaces the automatic zones in one undoable step. Zones
+you placed or edited are yours and are never replaced. A save taken
+into a scenario gets only the zones its own fallen empires ask for, at
+their old capitals. A painted map with no zones at all shows in Issues,
+with a button that opens the same dialog.
 
 Before a save, Forge warns when the map still has warnings or errors,
 opens the Issues tab and offers "Save anyway". Once you have saved

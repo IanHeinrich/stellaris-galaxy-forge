@@ -493,7 +493,7 @@ static_galaxy_scenario = {
 	num_hyperlanes_default = 0.75
 	colonizable_planet_odds = 0.25
 	primitive_odds = 0.25
-	fallen_empire_max = 6
+	fallen_empire_max = 3
 	marauder_empire_max = 2
 "
         ),
@@ -794,7 +794,7 @@ static_galaxy_scenario = {
 }
 
 #[test]
-fn the_paint_a_galaxy_profile_places_the_mods_own_fallen_empire_zones() {
+fn the_paint_a_galaxy_profile_places_only_the_saves_own_fallen_empires() {
     let save = common::open();
     let options = export::options_for(&save.graph, NAME);
     let (plain, report) = export::scenario_text(
@@ -870,12 +870,14 @@ fn the_paint_a_galaxy_profile_places_the_mods_own_fallen_empire_zones() {
         }
         centres.push((*id, centre));
     }
-    assert_eq!(centres.len() as u32, report.fallen_empire_zones + typed);
-    assert!(report.fallen_empire_zones > 0);
+    assert_eq!(centres.len() as u32, typed);
     assert_eq!(
-        fe_zone::candidates(&fe_zone::sites(galaxy)),
-        [],
-        "every anchor the rule would take already has one"
+        report.fallen_empire_zones, 0,
+        "a save's export places only the zones its fallen empires ask for"
+    );
+    assert!(
+        !fe_zone::candidates(&fe_zone::sites(galaxy)).is_empty(),
+        "the mod's candidates stay available to Fit"
     );
     let issues = sgf_core::validate::validate(&reopened.graph);
     assert!(

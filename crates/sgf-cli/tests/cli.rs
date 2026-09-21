@@ -770,7 +770,7 @@ static_galaxy_scenario = {
         "{text}"
     );
     assert!(!text.contains("\nleft out:"), "{text}");
-    assert!(text.contains("\nfallen empire zones: "), "{text}");
+    assert!(!text.contains("\nfallen empire zones: "), "{text}");
     let paint = std::fs::read_to_string(&paint_path).unwrap();
     assert!(
         paint.contains("value:painted_galaxy_spawn_weight"),

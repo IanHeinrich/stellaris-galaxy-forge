@@ -33,9 +33,9 @@ a release is made.
   creates a fallen empire's systems at game start. Add one from a system's
   menu or on empty space, drag it, and set its type, direction, distance
   and fallback in the inspector. A ring that would cover a system is
-  refused, or reported in Issues if a move brings one in. Export as
-  scenario adds the mod's automatic zones. "Fit fallen empire zones…"
-  chooses how many automatic zones to place, spread across the map.
+  refused, or reported in Issues if a move brings one in. "Fit fallen
+  empire zones…" chooses how many of the mod's automatic zones to place,
+  spread across the map.
   A zone's own warnings show in its inspector section.
 - A Game setup section in the galaxy inspector edits a scenario's empire,
   wormhole, gateway and hyperlane counts as min, max and default fields,

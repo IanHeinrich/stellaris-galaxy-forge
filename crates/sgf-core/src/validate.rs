@@ -567,15 +567,11 @@ fn automatic_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         .systems
         .values()
         .any(|system| system.spawn_script.is_some() || system.fe_zone.is_some());
-    let automatic = g
-        .systems
-        .values()
-        .any(|system| system.fe_zone.as_ref().is_some_and(|zone| !zone.preferred));
-    if painted && !automatic {
+    let zoned = g.systems.values().any(|system| system.fe_zone.is_some());
+    if painted && !zoned {
         issues.push(Issue::new(
             IssueCode::FeZoneNoAutomatic,
-            "No automatic fallen empire zones. Refresh them so the game has rings to choose from."
-                .to_owned(),
+            "No fallen empire zones. Fit some so the game has rings to choose from.".to_owned(),
             Vec::new(),
         ));
     }
