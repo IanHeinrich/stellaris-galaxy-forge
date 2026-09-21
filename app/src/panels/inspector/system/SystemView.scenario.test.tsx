@@ -488,9 +488,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     withScript("sol");
     await open("scenario");
     const html = overview();
-    expect(html).toContain(
-      "United Nations of Earth counts as holding it. Set the initializer to Sol instead",
-    );
+    expect(html).toContain("trait, starts here. Set the initializer to Sol instead");
     expect(html).not.toContain("The trait comes from the");
     expect(html).toContain("Give this seat the Sol initializer and Alpha Centauri");
     expect(html).toContain(">Local Cluster mod</button>");
