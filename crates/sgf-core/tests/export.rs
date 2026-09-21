@@ -595,14 +595,15 @@ static_galaxy_scenario = {
     }
 
     // Each zone takes the custom connections of the kept systems that had a lane into
-    // the cluster it replaces, under the ids 0, 1 and 2, and no other system links.
+    // the cluster it replaces and stand within the mod's reach of the ring, under the
+    // ids 0, 1 and 2, and no other system links.
     assert_eq!(
         report
             .fallen_empires
             .iter()
             .map(|f| f.links)
             .collect::<Vec<_>>(),
-        [8, 7, 13]
+        [6, 7, 12]
     );
     for (i, (anchor, fe)) in anchors.iter().zip(&report.fallen_empires).enumerate() {
         let link = &galaxy.systems[anchor].fe_link;
@@ -639,6 +640,10 @@ static_galaxy_scenario = {
                 "{} links to {n} but had no lane into a cluster",
                 system.id
             );
+            let anchor = &galaxy.systems[&anchors[usize::from(*n)]];
+            let centre = fe_zone::centre((anchor.x, anchor.y), &typed[&anchor.id]);
+            let reach = (system.x - centre.0).hypot(system.y - centre.1);
+            assert!(reach <= 100.0, "{} links to {n} from {reach}", system.id);
         }
     }
 

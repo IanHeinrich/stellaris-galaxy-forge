@@ -18,7 +18,7 @@ use crate::emit::{coord, rounded};
 use crate::export::policy::Category;
 use crate::export::{Draft, ExportReport, FallenEmpireReport, SpawnDraft, SystemDraft, report};
 use crate::format::scenario::emit::{ScenarioOptions, VANILLA_SHAPES};
-use crate::format::scenario::fe_link::{self, FeLinkFlags, MOST_IDS, TO_PREFIX};
+use crate::format::scenario::fe_link::{self, FeLinkFlags, LINK_REACH, MOST_IDS, TO_PREFIX};
 use crate::format::scenario::fe_zone::{self, FeDirection, FeKind, FeZone, Site};
 use crate::format::scenario::header_counts::{fallen_count, seat_entries};
 use crate::format::scenario::marauder::{self, MarauderRole};
@@ -492,9 +492,11 @@ fn place_fallen_empires(
         };
         let links = match placed {
             Some((anchor, _)) if !neighbours.is_empty() && next_link < MOST_IDS => {
-                link_neighbours(draft, anchor, &neighbours, next_link);
+                let centre = *centres.last().expect("the placed zone's centre");
+                let near = within_reach(draft, &neighbours, centre);
+                link_neighbours(draft, anchor, &near, next_link);
                 next_link += 1;
-                as_u32(neighbours.len())
+                as_u32(near.len())
             }
             _ => 0,
         };
@@ -531,6 +533,65 @@ fn cluster_neighbours(
         )
         .filter(|id| !clustered.contains(id))
         .collect()
+}
+
+/// The neighbours worth linking: those within the mod's own reach of the zone's centre
+/// whose lane to the ring would cross no kept lane, or the nearest one when none is. The
+/// old cluster reached up to [`CLUSTER_REACH`] out and the new one stays inside its ring,
+/// so a lane to the far side of the old cluster would cross empty space and other lanes,
+/// which the game's own generator never lays.
+fn within_reach(draft: &Draft, neighbours: &BTreeSet<u32>, centre: (f64, f64)) -> BTreeSet<u32> {
+    let at = |id: u32| {
+        draft
+            .systems
+            .iter()
+            .find(|system| system.id == id)
+            .map(|system| (system.x, system.y))
+    };
+    let mut by_distance: Vec<(f64, u32, (f64, f64))> = neighbours
+        .iter()
+        .filter_map(|&id| at(id).map(|point| (fe_zone::distance(point, centre), id, point)))
+        .collect();
+    by_distance.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+    let crosses_a_lane = |id: u32, from: (f64, f64)| {
+        let reach = fe_zone::distance(from, centre);
+        let t = (reach - fe_zone::FE_ZONE_RADIUS).max(0.0) / reach;
+        let to = (
+            from.0 + (centre.0 - from.0) * t,
+            from.1 + (centre.1 - from.1) * t,
+        );
+        draft.lanes.iter().any(|&(a, b)| {
+            a != id
+                && b != id
+                && at(a)
+                    .zip(at(b))
+                    .is_some_and(|(p, q)| segments_cross(from, to, p, q))
+        })
+    };
+    let near: BTreeSet<u32> = by_distance
+        .iter()
+        .filter(|(distance, id, from)| *distance <= LINK_REACH && !crosses_a_lane(*id, *from))
+        .map(|(_, id, _)| *id)
+        .collect();
+    if near.is_empty() {
+        by_distance
+            .first()
+            .map(|(_, id, _)| *id)
+            .into_iter()
+            .collect()
+    } else {
+        near
+    }
+}
+
+/// Whether the open segments `a`–`b` and `c`–`d` cross.
+fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
+    let side = |p: (f64, f64), q: (f64, f64), r: (f64, f64)| {
+        (q.0 - p.0) * (r.1 - p.1) - (q.1 - p.1) * (r.0 - p.0)
+    };
+    let (s1, s2) = (side(c, d, a), side(c, d, b));
+    let (s3, s4) = (side(a, b, c), side(a, b, d));
+    (s1 > 0.0) != (s2 > 0.0) && (s3 > 0.0) != (s4 > 0.0)
 }
 
 /// The anchor takes custom connections under `id` and each of `neighbours` links to it.

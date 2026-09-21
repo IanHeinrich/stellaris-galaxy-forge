@@ -401,7 +401,7 @@ static_galaxy_scenario = {
 	system = { id = "377" name = "Kastra" position = { x = -15.1 y = -181.14 } initializer = basic_init_01 }
 	system = { id = "378" name = "Wagha" position = { x = -59.08 y = 165.13 } initializer = basic_init_01 }
 	system = { id = "379" name = "Brynnis" position = { x = 142.25 y = 72.64 } initializer = trinary_init_02 }
-	system = { id = "380" name = "Thoth" position = { x = -236.51 y = 17.81 } initializer = binary_init_02 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }
+	system = { id = "380" name = "Thoth" position = { x = -236.51 y = 17.81 } initializer = binary_init_02 }
 	system = { id = "381" name = "Aldib" position = { x = 255.68 y = -194.66 } initializer = basic_init_04 }
 	system = { id = "382" name = "P94-L_Singularity" position = { x = -64.92 y = -241.27 } initializer = special_init_01 }
 	system = { id = "383" name = "Eiol" position = { x = 315.76 y = 170.62 } initializer = basic_init_02 }
@@ -451,7 +451,7 @@ static_galaxy_scenario = {
 	system = { id = "430" name = "Nishpan" position = { x = -10.55 y = 385.59 } initializer = special_init_08 }
 	system = { id = "431" name = "Eriga" position = { x = -304.07 y = 37.29 } initializer = basic_init_03 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 } }
 	system = { id = "432" name = "Vhallas" position = { x = -384.97 y = 103.89 } initializer = basic_init_03 }
-	system = { id = "433" name = "Regulus" position = { x = 105.38 y = 269.18 } initializer = basic_init_02 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_2 } }
+	system = { id = "433" name = "Regulus" position = { x = 105.38 y = 269.18 } initializer = basic_init_02 }
 	system = { id = "434" name = "Feldazir" position = { x = 217.97 y = -97.76 } initializer = binary_init_02 }
 	system = { id = "435" name = "Rothbelek" position = { x = -160.55 y = 120.1 } initializer = marauder_2_3 }
 	system = { id = "436" name = "Helam" position = { x = -382.06 y = 160.49 } initializer = asteroid_init_01 }
@@ -777,7 +777,7 @@ static_galaxy_scenario = {
 	system = { id = "767" name = "Chiminol" position = { x = -127.43 y = 153.07 } initializer = basic_init_01 }
 	system = { id = "768" name = "Edasich" position = { x = -126.71 y = -160.48 } initializer = basic_init_04 }
 	system = { id = "769" name = "Unaria" position = { x = 223.44 y = 119.94 } initializer = basic_init_01 }
-	system = { id = "770" name = "Phonok" position = { x = -239.8 y = 90.58 } initializer = basic_init_04 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }
+	system = { id = "770" name = "Phonok" position = { x = -239.8 y = 90.58 } initializer = basic_init_04 }
 	system = { id = "771" name = "Merope" position = { x = 314.53 y = 219.36 } initializer = basic_init_04 }
 	system = { id = "772" name = "Hixam" position = { x = -249.3 y = 132.27 } initializer = binary_init_01 }
 	system = { id = "773" name = "Doria" position = { x = -54.12 y = -394.57 } initializer = basic_init_01 }
