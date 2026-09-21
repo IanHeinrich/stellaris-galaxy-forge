@@ -11,6 +11,8 @@ use crate::Diagnostic;
 
 /// Where Steam unpacks workshop items for Stellaris (app id 281990).
 const WORKSHOP_CONTENT: &str = "steamapps/workshop/content/281990";
+/// Paint a Galaxy's Steam Workshop item.
+pub const PAINT_MOD_WORKSHOP_ID: &str = "3532904115";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModInfo {
@@ -36,6 +38,34 @@ impl ModStatus {
             Self::Missing => "missing",
         }
     }
+}
+
+/// Where Paint a Galaxy is on this machine and whether the playset loads it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PaintMod {
+    /// The mod's content directory, `None` when the launcher lists it but its files are gone.
+    pub dir: Option<PathBuf>,
+    pub enabled: bool,
+}
+
+/// Paint a Galaxy among `enabled` and `installed`: the Workshop item by id, or a copy
+/// of any provenance by name. `None` when the launcher knows of no copy.
+pub fn find_paint_mod(installed: &[ModInfo], enabled: &[ModInfo]) -> Option<PaintMod> {
+    let in_playset = enabled.iter().any(is_paint_mod);
+    let mut copies = enabled.iter().chain(installed).filter(|m| is_paint_mod(m));
+    let first = copies.next()?;
+    Some(PaintMod {
+        dir: first
+            .dir
+            .clone()
+            .or_else(|| copies.find_map(|m| m.dir.clone())),
+        enabled: in_playset,
+    })
+}
+
+fn is_paint_mod(m: &ModInfo) -> bool {
+    m.id.strip_prefix("ugc_") == Some(PAINT_MOD_WORKSHOP_ID)
+        || m.name.to_lowercase().contains("paint a galaxy")
 }
 
 #[derive(Deserialize)]
@@ -226,5 +256,64 @@ fn descriptor_fields(root: &Node, src: &[u8]) -> Descriptor {
             .filter_map(|n| n.scalar_str(src))
             .map(str::to_owned)
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn info(id: &str, name: &str, dir: Option<&str>) -> ModInfo {
+        ModInfo {
+            id: id.to_owned(),
+            name: name.to_owned(),
+            dir: dir.map(PathBuf::from),
+            replace_paths: Vec::new(),
+            status: if dir.is_some() {
+                ModStatus::Loaded
+            } else {
+                ModStatus::Missing
+            },
+        }
+    }
+
+    #[test]
+    fn paint_a_galaxy_is_found_by_workshop_id_or_name_and_the_playset_says_enabled() {
+        let other = info("ugc_1121692237", "UI Overhaul Dynamic", Some("/mods/ui"));
+        let workshop = info("ugc_3532904115", "PaG", Some("/workshop/3532904115"));
+        let local = info("local_pag", "Paint A Galaxy (dev copy)", Some("/mods/pag"));
+        let found = |dir: &str, enabled: bool| {
+            Some(PaintMod {
+                dir: Some(PathBuf::from(dir)),
+                enabled,
+            })
+        };
+
+        assert_eq!(find_paint_mod(std::slice::from_ref(&other), &[]), None);
+        let installed = [other.clone(), workshop.clone()];
+        assert_eq!(
+            find_paint_mod(&installed, std::slice::from_ref(&other)),
+            found("/workshop/3532904115", false)
+        );
+        assert_eq!(
+            find_paint_mod(&installed, std::slice::from_ref(&workshop)),
+            found("/workshop/3532904115", true)
+        );
+        assert_eq!(
+            find_paint_mod(std::slice::from_ref(&local), &[]),
+            found("/mods/pag", false)
+        );
+
+        let missing = info("ugc_3532904115", "Paint a Galaxy", None);
+        assert_eq!(
+            find_paint_mod(
+                std::slice::from_ref(&missing),
+                std::slice::from_ref(&missing)
+            ),
+            Some(PaintMod {
+                dir: None,
+                enabled: true,
+            })
+        );
     }
 }

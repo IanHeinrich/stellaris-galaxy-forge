@@ -3,6 +3,8 @@
 //! their hands off a scripted weight.
 
 use sgf_core::document::Document;
+use sgf_core::export::{self, ScenarioProfile};
+use sgf_core::format::scenario::is_painted;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnReservationPreset, SpawnScript};
 use sgf_core::session::Session;
@@ -13,6 +15,10 @@ use common::diff::{plain_report, plain_snapshot, round_trip};
 const FIXTURE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/paint_a_galaxy.txt"
+);
+const PLAIN: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/2206.11.16.scenario.txt"
 );
 
 fn open() -> Session {
@@ -369,4 +375,19 @@ fn the_grammar_fixture_still_takes_a_plain_base_and_a_script_on_its_own_line() {
         set(16, script(reserved("z"), 4)),
     );
     round_trip(common::scenario::open(), set(16, script(reserved("z"), 4)));
+}
+
+#[test]
+fn a_file_is_painted_by_the_mods_names_or_forges_header_for_it() {
+    assert!(is_painted(&bytes()));
+    assert!(!is_painted(
+        &std::fs::read(PLAIN).expect("read the plain fixture")
+    ));
+
+    let empty = |profile| {
+        let session = export::new_scenario("sgf_new", 0.0, profile).expect("new scenario");
+        common::current(&session)
+    };
+    assert!(is_painted(&empty(ScenarioProfile::PaintAGalaxy)));
+    assert!(!is_painted(&empty(ScenarioProfile::Plain)));
 }

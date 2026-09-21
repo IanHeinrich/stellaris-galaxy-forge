@@ -31,7 +31,6 @@ const mocked = {
   openSave: vi.mocked(ipc.openSave),
   openAsScenario: vi.mocked(ipc.openAsScenario),
   newScenario: vi.mocked(ipc.newScenario),
-  openScenarioText: vi.mocked(ipc.openScenarioText),
   exportScenario: vi.mocked(ipc.exportScenario),
   previewExport: vi.mocked(ipc.previewExport),
   getSystem: vi.mocked(ipc.getSystem),
@@ -519,16 +518,6 @@ describe("scenario documents", () => {
     expect(session().paintProfile).toBe(true);
   });
 
-  it("scenario text sent from elsewhere opens unsaved under the name it came with", async () => {
-    mocked.openScenarioText.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
-    expect(await session().openScenarioText("Spiral", "static_galaxy_scenario = {}")).toBe(true);
-    expect(mocked.openScenarioText).toHaveBeenCalledWith("static_galaxy_scenario = {}");
-    expect(session().kind).toBe("scenario");
-    expect(session().path).toBeNull();
-    expect(session().title).toBe(SCENARIO_RESULT.title);
-    expect(useRecentsStore.getState().recents).toHaveLength(0);
-  });
-
   it("a painted galaxy turns the Paint a Galaxy profile on; a plain open turns it off again", async () => {
     const painted = SCENARIO_RESULT.galaxy.systems.map((s, i) =>
       i === 0
@@ -539,12 +528,11 @@ describe("scenario documents", () => {
           }
         : s,
     );
-    mocked.openScenarioText.mockResolvedValueOnce({
+    mocked.openSave.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
-      path: null,
       galaxy: { ...SCENARIO_RESULT.galaxy, systems: painted },
     });
-    await session().openScenarioText("Spiral", "x");
+    await session().openSave(SCENARIO_PATH);
     expect(session().paintProfile).toBe(true);
 
     await session().close();
@@ -555,15 +543,6 @@ describe("scenario documents", () => {
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH);
     expect(session().paintProfile).toBe(false);
-  });
-
-  it("scenario text is refused while a dirty session is kept", async () => {
-    await session().openSave(OPEN_RESULT.path);
-    await edit();
-    mocked.confirm.mockResolvedValueOnce(false);
-    expect(await session().openScenarioText("Spiral", "x")).toBe(false);
-    expect(mocked.openScenarioText).not.toHaveBeenCalled();
-    expect(session().kind).toBe("save");
   });
 
   it("exporting previews the report, then writes a second file and leaves the save's own path, edits and save time alone", async () => {

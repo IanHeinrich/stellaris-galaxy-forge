@@ -37,6 +37,12 @@ fn no_sources(_: &str) -> Option<String> {
     None
 }
 
+/// The session a written scenario reads back as.
+fn reopen(text: Vec<u8>) -> Session {
+    let doc = document::Document::from_scenario_bytes(text).expect("the text reads back");
+    Session::from_document(None, doc).expect("project the scenario")
+}
+
 /// Every undirected lane once, ascending.
 fn lanes(galaxy: &Galaxy) -> BTreeSet<(u32, u32)> {
     let mut pairs = BTreeSet::new();
@@ -294,30 +300,6 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
 }
 
 #[test]
-fn scenario_text_opens_as_an_unsaved_scenario_named_from_its_header() {
-    let text = std::fs::read(GRAMMAR).expect("read the grammar fixture");
-    let mut session = export::open_scenario_text(text).expect("open the scenario text");
-    assert_eq!(session.kind(), DocumentKind::Scenario);
-    assert_eq!(session.title(), "sgf_grammar");
-    assert_eq!(session.path, None);
-    assert!(session.is_dirty());
-
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("from_text.txt");
-    session.save_as(&path).expect("save_as names the file");
-    assert_eq!(session.path.as_deref(), Some(path.as_path()));
-}
-
-#[test]
-fn scenario_text_without_a_static_galaxy_scenario_block_is_refused() {
-    let error = export::open_scenario_text(b"hello = 1".to_vec()).expect_err("not a scenario file");
-    assert!(
-        error.to_string().contains("static_galaxy_scenario"),
-        "{error}"
-    );
-}
-
-#[test]
 fn a_new_scenario_is_a_header_with_nothing_in_it() {
     let mut session =
         export::new_scenario("sgf_test", 0.0, ScenarioProfile::Plain).expect("new scenario");
@@ -490,8 +472,7 @@ static_galaxy_scenario = {
         capitals.len()
     );
 
-    let reopened =
-        export::open_scenario_text(text.into_bytes()).expect("the profile's text reads back");
+    let reopened = reopen(text.into_bytes());
     assert_eq!(reopened.graph.order, save.graph.order);
     for (i, id) in capitals.iter().enumerate() {
         let system = &reopened.graph.systems[id];
@@ -615,7 +596,7 @@ fn the_paint_a_galaxy_profile_writes_no_base_weight_on_a_home_that_is_no_capital
         paint.matches(" spawn_weight = {").count(),
         capitals.len() - 1
     );
-    let reopened = export::open_scenario_text(paint.into_bytes()).expect("reads back");
+    let reopened = reopen(paint.into_bytes());
     assert_eq!(reopened.graph.systems[&home].spawn_weight, None);
     assert_eq!(reopened.graph.systems[&home].spawn_script, None);
 }

@@ -15,7 +15,7 @@ use crate::install::mods::{self, ModInfo};
 use crate::{Diagnostic, GameData};
 
 /// Where a layer keeps its scenarios, and the `replace_path` that hides the layers below.
-const SCENARIO_DIR: [&str; 2] = ["map", "setup_scenarios"];
+pub(crate) const SCENARIO_DIR: [&str; 2] = ["map", "setup_scenarios"];
 
 /// Every layer that may hold scenarios, in the order the Open screen lists them. A
 /// directory already listed is not listed again, so a user mod the playset enables

@@ -364,6 +364,7 @@ fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands()
     )
     .expect("new scenario");
     assert_eq!(fresh.title, "sgf_painted");
+    assert!(fresh.painted, "the header names the mod");
     assert!(
         fresh
             .galaxy
@@ -390,6 +391,7 @@ fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands()
     )
     .expect("open as scenario");
     assert_eq!(as_scenario.galaxy.systems.len(), 791);
+    assert!(as_scenario.painted);
     let seated = as_scenario
         .galaxy
         .systems
@@ -416,8 +418,18 @@ fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands()
             .iter()
             .all(|s| s.spawn_script.is_none())
     );
+    assert!(!plain.painted);
+    let unpainted: OpenResult = invoke(
+        &w,
+        "new_scenario",
+        json!({ "name": "sgf_plain", "radius": 300.0, "coreRadius": 75.0 }),
+    )
+    .expect("new scenario");
+    assert!(!unpainted.painted);
 
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    let save: OpenResult =
+        invoke(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    assert!(!save.painted, "a save is never scanned");
     let painted = dir
         .path()
         .join("painted.txt")
@@ -452,19 +464,13 @@ static_galaxy_scenario = {
         "{}",
         &text[..300]
     );
-}
 
-#[test]
-fn scenario_text_opens_as_an_unsaved_scenario() {
-    let w = webview();
-    let text = std::fs::read_to_string(SCENARIO).expect("read the grammar fixture");
-
-    let opened: OpenResult =
-        invoke(&w, "open_scenario_text", json!({ "text": text })).expect("open the scenario text");
-    assert_eq!(opened.kind, DocumentKind::Scenario);
-    assert_eq!(opened.title, "sgf_grammar");
-    assert!(opened.path.is_none(), "never saved");
-    assert_eq!(opened.galaxy.systems.len(), 8);
+    let reopened: OpenResult =
+        invoke(&w, "open_save", json!({ "path": painted })).expect("open the painted export");
+    assert!(reopened.painted);
+    let reopened: OpenResult =
+        invoke(&w, "open_save", json!({ "path": exported })).expect("open the plain export");
+    assert!(!reopened.painted);
 }
 
 /// A scenario has no details sections: a system's planets and resources are what its

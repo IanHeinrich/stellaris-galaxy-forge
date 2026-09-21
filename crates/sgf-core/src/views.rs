@@ -130,6 +130,9 @@ pub struct OpenResult {
     /// See [`SaveFile::cloud`].
     pub cloud: bool,
     pub kind: DocumentKind,
+    /// The scenario carries Paint a Galaxy's scripts or flags, or Forge's header for
+    /// that mod; false for a save.
+    pub painted: bool,
     /// The document's own name: the empire's, or the scenario's `name`.
     pub title: String,
     /// The save header; `None` for a scenario.

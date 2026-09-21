@@ -11,8 +11,8 @@ use sgf_gamedata::install::layers::Layer;
 use sgf_gamedata::special::{SpecialKind, SpecialSystem, SpecialSystems};
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
-    CountryTypeView, DepositView, GameDataSummary, InitializerView, MapColor, ResourceIcon,
-    StarClassView,
+    CountryTypeView, DepositView, GameDataSummary, InitializerView, MapColor, PaintModView,
+    ResourceIcon, StarClassView,
 };
 use tauri::Manager;
 
@@ -80,6 +80,11 @@ fn game_data_commands_degrade_without_an_install() {
     let w = webview();
 
     invoke::<Vec<String>>(&w, "save_dirs", json!({})).expect("save dirs");
+    let paint: Option<PaintModView> =
+        invoke(&w, "paint_mod", json!({})).expect("the launcher's files, or none");
+    if let Some(dir) = paint.and_then(|p| p.scenarios_dir) {
+        assert!(dir.ends_with("setup_scenarios"), "{dir}");
+    }
 
     assert_eq!(
         kind(invoke::<SpecialSystems>(

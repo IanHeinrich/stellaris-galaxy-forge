@@ -11,11 +11,11 @@ use crate::emit::coord;
 use crate::export::{Draft, SpawnDraft, SystemDraft, report};
 use crate::format::scenario::emit::ScenarioOptions;
 use crate::format::scenario::paint::{
-    AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, RL_BASIC, WORMHOLE_FLAG_PREFIX, basic_initializer,
+    AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, HEADER_NOTE, RL_BASIC, WORMHOLE_FLAG_PREFIX,
+    basic_initializer,
 };
 use crate::projections::galaxy::{BypassLink, Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript};
 
-const NOTE: &str = "# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.";
 const SET_STAR_FLAG: &str = "set_star_flag";
 /// How many lane jumps from a spawn an empty system is given [`RL_BASIC`].
 const NEIGHBOURHOOD: usize = 2;
@@ -57,7 +57,7 @@ pub(super) fn header(options: &ScenarioOptions, systems: usize, spawns: usize) -
     .map(|shape| format!("\tsupports_shape = {shape}\n"))
     .collect();
     format!(
-        "{NOTE}\n\
+        "# Written by Stellaris Galaxy Forge {HEADER_NOTE} (Steam Workshop 3532904115), which this map requires.\n\
          static_galaxy_scenario = {{\n\
          \tname = \"{}\"\n\
          \tpriority = 10\n\

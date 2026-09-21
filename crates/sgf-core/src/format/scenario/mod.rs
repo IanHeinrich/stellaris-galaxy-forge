@@ -11,6 +11,8 @@ pub(crate) mod paint;
 pub(crate) mod spawn;
 pub(crate) mod write;
 
+pub use paint::is_painted;
+
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 

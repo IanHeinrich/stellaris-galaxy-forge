@@ -19,7 +19,6 @@ export const listCampaignSaves = command("listCampaignSaves");
 export const listScenarios = command("listScenarios");
 export const openSave = command("openSave");
 export const openAsScenario = command("openAsScenario");
-export const openScenarioText = command("openScenarioText");
 export const newScenario = command("newScenario");
 export const exportScenario = command("exportScenario");
 export const previewExport = command("previewExport");

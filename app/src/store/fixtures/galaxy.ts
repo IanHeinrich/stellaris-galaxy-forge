@@ -65,6 +65,7 @@ export const OPEN_RESULT: OpenResult & { path: string } = {
   path: "C:/saves/test/2206.11.16.sav",
   cloud: false,
   kind: "save",
+  painted: false,
   title: "Test Empire",
   meta: {
     name: "Test Empire",

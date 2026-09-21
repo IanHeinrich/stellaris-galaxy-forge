@@ -6,7 +6,8 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::initializers::{InitPlanet, Initializer, SpawnedCountry};
-use crate::install::mods::ModInfo;
+use crate::install::mods::{ModInfo, PaintMod};
+use crate::install::scenarios::SCENARIO_DIR;
 use crate::registries::bypasses::BypassDef;
 use crate::registries::colors::ColorDef;
 use crate::registries::country_types::CountryType;
@@ -36,6 +37,31 @@ impl From<&ModInfo> for ModView {
             name: m.name.clone(),
             dir: m.dir.as_ref().map(|d| d.display().to_string()),
             status: m.status.as_str().to_owned(),
+        }
+    }
+}
+
+/// Where Paint a Galaxy keeps its scenarios on this machine, whether or not the
+/// directory exists, and whether the playset loads the mod.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PaintModView {
+    /// `None` when the launcher lists the mod but its files are gone.
+    pub scenarios_dir: Option<String>,
+    pub enabled: bool,
+}
+
+impl From<&PaintMod> for PaintModView {
+    fn from(m: &PaintMod) -> Self {
+        Self {
+            scenarios_dir: m.dir.as_ref().map(|dir| {
+                SCENARIO_DIR
+                    .iter()
+                    .fold(dir.clone(), |p, part| p.join(part))
+                    .display()
+                    .to_string()
+            }),
+            enabled: m.enabled,
         }
     }
 }

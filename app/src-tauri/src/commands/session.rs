@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use sgf_core::archive;
 use sgf_core::export::{self, ExportReport, ScenarioOptions, ScenarioProfile};
+use sgf_core::format::scenario::is_painted;
 use sgf_core::library;
 use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
@@ -48,19 +49,6 @@ pub async fn open_as_scenario<R: Runtime>(
             profile.unwrap_or_default(),
         )?;
         Ok((session, report.issues()))
-    })
-    .await
-}
-
-/// Open scenario text received from elsewhere (e.g. Paint a Galaxy) as a new, unsaved
-/// scenario. Emits `sgf://progress`.
-#[tauri::command]
-pub async fn open_scenario_text<R: Runtime>(
-    app: AppHandle<R>,
-    text: String,
-) -> Result<OpenResult, SgfError> {
-    install(app, move |_| {
-        Ok(export::open_scenario_text(text.into_bytes())?)
     })
     .await
 }
@@ -213,9 +201,9 @@ async fn install_reporting<R: Runtime>(
 }
 
 fn opened(session: &Session) -> Result<OpenResult, SgfError> {
-    let meta = match session.kind() {
-        DocumentKind::Save => Some(archive::parse_meta(session.doc.meta())?),
-        DocumentKind::Scenario => None,
+    let (meta, painted) = match session.kind() {
+        DocumentKind::Save => (Some(archive::parse_meta(session.doc.meta())?), false),
+        DocumentKind::Scenario => (None, is_painted(session.doc.original())),
     };
     Ok(OpenResult {
         path: session
@@ -224,6 +212,7 @@ fn opened(session: &Session) -> Result<OpenResult, SgfError> {
             .map(|p| p.to_string_lossy().into_owned()),
         cloud: session.path.as_deref().is_some_and(library::is_cloud_save),
         kind: session.kind(),
+        painted,
         title: session.title(),
         meta,
         galaxy: GalaxyView::from(&session.graph),

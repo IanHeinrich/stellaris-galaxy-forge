@@ -59,7 +59,7 @@ describe("the three ways to start a scenario", () => {
     expect(html).toContain("Blank canvas");
     expect(html).toContain("A galaxy from the game");
     expect(html).toContain("Paint a galaxy");
-    expect(html).toContain("send the galaxy to Forge");
+    expect(html).toContain("download its scenario file");
     expect(html).toContain('role="radiogroup"');
   });
 
@@ -143,31 +143,29 @@ describe("a galaxy from the game", () => {
 });
 
 describe("a painted galaxy", () => {
-  it("opens Paint a Galaxy in its panel in place of this dialog", () => {
+  it("opens the site through the allowlisted link, and leaves the dialog open", () => {
     const foot = <RouteFoot route="paint" blank={BLANK} />;
-    expect(renderToStaticMarkup(foot)).toContain("Open Paint a Galaxy");
-    button(foot, "Open Paint a Galaxy").props.onClick();
+    expect(renderToStaticMarkup(foot)).toContain("Open Paint a Galaxy in your browser");
+    button(foot, "Open Paint a Galaxy in your browser").props.onClick();
 
-    expect(useLayoutStore.getState().paintPanel).toBe(true);
-    expect(useLayoutStore.getState().scenarioDialog).toBe(false);
+    expect(ipc.openUrl).toHaveBeenCalledWith(PAINT_URL);
+    expect(useLayoutStore.getState().scenarioDialog).toBe(true);
   });
 
-  it("credits the author and says the galaxy arrives as an unsaved scenario", () => {
+  it("credits the author and says to download and open the scenario file", () => {
     const html = renderToStaticMarkup(<RouteHelp route="paint" />);
     expect(html).toContain("by Oatmeal Problem");
-    expect(html).toContain("opens here as an unsaved scenario");
+    expect(html).toContain("Download the scenario file");
   });
 
-  it("opens the site through the allowlisted link only", () => {
-    button(<RouteHelp route="paint" />, "Open Paint a Galaxy in the browser").props.onClick();
-    expect(ipc.openUrl).toHaveBeenCalledWith(PAINT_URL);
-  });
-
-  it("still picks a file exported earlier without asking how to open it", () => {
+  it("picks a file exported from Paint a Galaxy without asking how to open it", () => {
     const pickAndOpen = vi.fn();
     useFileSessionStore.setState({ pickAndOpen });
 
-    button(<RouteHelp route="paint" />, "Open a file exported earlier…").props.onClick();
+    button(
+      <RouteHelp route="paint" />,
+      "Open a file exported from Paint a Galaxy…",
+    ).props.onClick();
 
     expect(pickAndOpen).toHaveBeenCalledWith();
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);

@@ -56,8 +56,10 @@ const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
   {
     id: "paint",
     title: "Paint a galaxy",
-    copy: "Draw systems and lanes in Paint a Galaxy right here, then send the galaxy to Forge.",
-    primary: "Open Paint a Galaxy",
+    copy:
+      "Draw the galaxy in Paint a Galaxy, by Oatmeal Problem, download its scenario file and open " +
+      "it here.",
+    primary: "Open Paint a Galaxy in your browser ↗",
   },
 ];
 
@@ -69,7 +71,8 @@ const STEPS: Record<Route, string[]> = {
   ],
   paint: [
     "Draw your galaxy in Paint a Galaxy, by Oatmeal Problem.",
-    "Click Send to Stellaris Galaxy Forge: the galaxy opens here as an unsaved scenario.",
+    "Download the scenario file it exports.",
+    "Open it here.",
   ],
 };
 
@@ -168,13 +171,15 @@ export function RouteCards({ route, onRoute }: { route: Route; onRoute: (route: 
   );
 }
 
+/** Opens the site in the user's browser, through the allowlisted address only. */
+function openPaintSite(): void {
+  void ipc
+    .openUrl(PAINT_URL)
+    .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
+}
+
 /** What the chosen route asks of the user before the file it wants exists. */
 export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
-  const openSite = () => {
-    void ipc
-      .openUrl(PAINT_URL)
-      .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
-  };
   const openFile = () => {
     useLayoutStore.getState().hideScenarioDialog();
     void useFileSessionStore.getState().pickAndOpen();
@@ -189,11 +194,8 @@ export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
       </ol>
       {route === "paint" && (
         <div className="route-links">
-          <button type="button" className="link route-link" onClick={openSite}>
-            Open Paint a Galaxy in the browser ↗
-          </button>
           <button type="button" className="link route-link" onClick={openFile}>
-            Open a file exported earlier…
+            Open a file exported from Paint a Galaxy…
           </button>
         </div>
       )}
@@ -213,10 +215,16 @@ function start(route: Route, blank: Blank): void {
     case "game":
       void file.pickAndOpen("scenario");
       break;
-    case "paint":
-      useLayoutStore.getState().showPaintPanel();
-      break;
   }
+}
+
+/** The paint route's primary opens the site and leaves the dialog open for a file to come back to. */
+function primaryAction(route: Route, blank: Blank): void {
+  if (route === "paint") {
+    openPaintSite();
+    return;
+  }
+  start(route, blank);
 }
 
 export function RouteFoot({ route, blank }: { route: Route; blank: Blank }) {
@@ -228,7 +236,7 @@ export function RouteFoot({ route, blank }: { route: Route; blank: Blank }) {
       <button
         type="button"
         disabled={route === "blank" && blank.name === ""}
-        onClick={() => start(route, blank)}
+        onClick={() => primaryAction(route, blank)}
       >
         {ROUTES.find((r) => r.id === route)?.primary}
       </button>
@@ -258,7 +266,7 @@ export function NewScenarioDialog() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    start(route, blank);
+    primaryAction(route, blank);
   };
 
   return (
