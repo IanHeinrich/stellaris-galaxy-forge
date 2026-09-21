@@ -9,9 +9,11 @@ import {
   linkedAnchors,
   linkedTo,
   linkRefusal,
+  linkSegment,
   linkSelectedLabel,
   linkToZoneLabel,
   takesCustomLinks,
+  toRing,
   unlinkRefusal,
 } from "./feLinks";
 
@@ -91,6 +93,24 @@ describe("custom connections", () => {
     expect(linkChange(a, a)).toBeNull();
     expect(linkChange({ ...a, fe_zone: null }, linked(5))).toBeNull();
     expect(linkChange(anchor(1, null), linked(5))).toBe("link");
+  });
+
+  it("draws a link from the system to the nearest point of the ring, and none from inside it", () => {
+    expect(toRing({ x: 100, y: 0 }, { x: 0, y: 0 })).toEqual({
+      a: { x: 100, y: 0 },
+      b: { x: 30, y: 0 },
+    });
+    expect(toRing({ x: 0, y: -50 }, { x: 0, y: 0 })).toEqual({
+      a: { x: 0, y: -50 },
+      b: { x: 0, y: -30 },
+    });
+    expect(toRing({ x: 20, y: 0 }, { x: 0, y: 0 })).toBeNull();
+    expect(toRing({ x: 0, y: 0 }, { x: 0, y: 0 })).toBeNull();
+    expect(linkSegment(anchor(1, 4), linked(5))).toEqual({
+      a: { x: 0, y: 0 },
+      b: { x: -10, y: 0 },
+    });
+    expect(linkSegment({ ...anchor(1, 4), fe_zone: null }, linked(5))).toBeNull();
   });
 
   it("words the two menus' items after the anchor and after the selected system", () => {

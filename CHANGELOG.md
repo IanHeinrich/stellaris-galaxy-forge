@@ -40,7 +40,10 @@ a release is made.
 - A fallen empire zone can be linked to the systems the mod should lay
   its hyperlanes from. Select the zone's system and right-click another
   to link or unlink it, or right-click the ring with a system selected.
-  The map draws a dashed line from each linked system to the ring. The
+  The map draws each link as a lane with a hint of the ring's colour. Links
+  are edited on the map like hyperlanes: hover a link for its ×, drag
+  from a system's edge onto the ring, or from the ring's edge onto a
+  system. The
   inspector lists the links with an × each and "Use nearest instead"
   hands the zone back to the mod. Issues reports a zone with links from
   nobody, a link to no zone, two zones on one link and a link from far

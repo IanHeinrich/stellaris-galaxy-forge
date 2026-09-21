@@ -547,12 +547,21 @@ the ring with ordinary systems when no fallen empire lands there. A
 ring that would cover a system is refused, and one
 that later comes to cover a system after a move shows in Issues.
 
-You can choose which systems the fallen empire connects to. Select the
-zone's system, then right-click another system and choose "Link to
-<system>'s fallen empire zone", or right-click the ring with a system
-selected and choose "Link <system> to this zone". The same items unlink
-a linked system. The map draws a dashed line from each linked system to
-the ring. The Connections block of the Fallen empire zone section lists
+You can choose which systems the fallen empire connects to. The map
+draws each link as a lane from the system to the ring, in the lanes'
+own look with a hint of the ring's colour, and links are edited on the
+map the way hyperlanes are. Hover a link for its × and
+click it to unlink. Drag from a system's edge (the ring that appears
+around the star when zoomed in, or Shift+drag from the star) onto the
+zone's ring to link it, or from the ring's edge (the band just outside
+the ring, or Shift+drag from the ring) onto a system. The rubber line
+snaps to the ring or the system and shows as invalid when the two are
+already linked. A drag from a selected group links every system in it.
+The right-click menus do the same: select the zone's system, then
+right-click another system and choose "Link to <system>'s fallen empire
+zone", or right-click the ring with a system selected and choose "Link
+<system> to this zone". The same items unlink a linked system. The
+Connections block of the Fallen empire zone section lists
 the linked systems, each with a way to it and an × to unlink it, and
 "Use nearest instead" gives the zone back to the mod. A linked system's
 own inspector has a Fallen empire links section naming the zones it

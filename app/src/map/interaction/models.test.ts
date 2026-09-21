@@ -27,10 +27,8 @@ function recorder(): MapIntent & { calls: Call[] } {
     commitMoveGroup: rec("commitMoveGroup"),
     cancelMove: rec("cancelMove"),
     previewLane: rec("previewLane"),
-    previewLanes: rec("previewLanes"),
     endLane: rec("endLane"),
     connect: rec("connect"),
-    connectMany: rec("connectMany"),
     cut: rec("cut"),
     selectNebula: rec("selectNebula"),
     previewNebula: rec("previewNebula"),
@@ -63,8 +61,9 @@ function at(
     ctrl: false,
     selection: [],
     system: null,
-    zone: extra.system === undefined || extra.system === null ? null : "star",
-    lane: null,
+    zone:
+      extra.system !== undefined && extra.system !== null ? "star" : extra.feZone ? "ring" : null,
+    edge: null,
     midpointHit: false,
     snap: null,
     feZone: null,
@@ -80,11 +79,17 @@ function click(model: MapModel, intent: MapIntent, extra: Partial<MapInput>): vo
 }
 
 const LANE = { a: 1, b: 2 };
+const LANE_EDGE = { kind: "lane", lane: LANE } as const;
+const LINK = { kind: "feLink", anchor: 9, system: 4 } as const;
 const RING = { index: 3, part: "ring" } as const;
 const CENTRE = { index: 3, part: "centre" } as const;
 const HANDLE_X = { index: 3, part: "handle", axis: "x" } as const;
 const HANDLE_Y = { index: 3, part: "handle", axis: "y" } as const;
-const ZONE = { anchor: 9 } as const;
+const ZONE = { anchor: 9, zone: "ring" } as const;
+const ZONE_PORT = { anchor: 9, zone: "port" } as const;
+const ONE = { kind: "systems", ids: [7] } as const;
+const FROM_ZONE = { kind: "feZone", anchor: 9 } as const;
+const AT_ZONE = { kind: "feZone", anchor: 9, valid: true } as const;
 
 describe("GestureModel", () => {
   it("clicks select a system, a lane, or clear both", () => {
@@ -92,7 +97,7 @@ describe("GestureModel", () => {
     const intent = recorder();
     click(model, intent, { system: 7 });
     click(model, intent, { system: 8, zone: "port" });
-    click(model, intent, { lane: LANE });
+    click(model, intent, { edge: LANE_EDGE });
     click(model, intent, {});
     expect(intent.calls).toEqual([
       ["select", 7],
@@ -170,13 +175,13 @@ describe("GestureModel", () => {
     model.handle(at("down", 10, 10, { system: 7, zone: "port" }), intent);
     model.handle(at("move", 30, 30), intent);
     expect(model.cursor()).toBe("crosshair");
-    const snap = { id: 9, valid: true };
+    const snap = { kind: "system", id: 9, valid: true } as const;
     model.handle(at("move", 60, 60, { snap }), intent);
     model.handle(at("up", 60, 60, { snap }), intent);
     expect(intent.calls).toEqual([
-      ["previewLane", 7, 30, 30, null],
-      ["previewLane", 7, 60, 60, snap],
-      ["connect", 7, 9],
+      ["previewLane", ONE, 30, 30, null],
+      ["previewLane", ONE, 60, 60, snap],
+      ["connect", ONE, snap],
       ["endLane"],
     ]);
   });
@@ -184,13 +189,13 @@ describe("GestureModel", () => {
   it("shift-drag from the star also grows a lane", () => {
     const model = new GestureModel();
     const intent = recorder();
-    const snap = { id: 9, valid: true };
+    const snap = { kind: "system", id: 9, valid: true } as const;
     model.handle(at("down", 10, 10, { system: 7, shift: true }), intent);
     model.handle(at("move", 60, 60, { snap, shift: true }), intent);
     model.handle(at("up", 60, 60, { snap, shift: true }), intent);
     expect(intent.calls).toEqual([
-      ["previewLane", 7, 60, 60, snap],
-      ["connect", 7, 9],
+      ["previewLane", ONE, 60, 60, snap],
+      ["connect", ONE, snap],
       ["endLane"],
     ]);
   });
@@ -201,14 +206,14 @@ describe("GestureModel", () => {
     model.handle(at("down", 10, 10, { system: 7, zone: "port" }), intent);
     model.handle(at("move", 30, 30), intent);
     model.handle(at("up", 30, 30), intent);
-    const linked = { id: 9, valid: false };
+    const linked = { kind: "system", id: 9, valid: false } as const;
     model.handle(at("down", 10, 10, { system: 7, zone: "port" }), intent);
     model.handle(at("move", 60, 60, { snap: linked }), intent);
     model.handle(at("up", 60, 60, { snap: linked }), intent);
     expect(intent.calls).toEqual([
-      ["previewLane", 7, 30, 30, null],
+      ["previewLane", ONE, 30, 30, null],
       ["endLane"],
-      ["previewLane", 7, 60, 60, linked],
+      ["previewLane", ONE, 60, 60, linked],
       ["endLane"],
     ]);
   });
@@ -217,7 +222,7 @@ describe("GestureModel", () => {
     const model = new GestureModel();
     const intent = recorder();
     model.handle(at("down", 10, 10, { system: 7, zone: "port" }), intent);
-    model.handle(at("move", 60, 60, { snap: { id: 9, valid: true } }), intent);
+    model.handle(at("move", 60, 60, { snap: { kind: "system", id: 9, valid: true } }), intent);
     model.handle(at("up", 60, 60, { system: 9 }), intent);
     expect(intent.calls.map((c) => c[0])).toEqual(["previewLane", "connect", "endLane"]);
   });
@@ -225,18 +230,18 @@ describe("GestureModel", () => {
   it("shift-click or a click on the midpoint button cuts a lane", () => {
     const model = new GestureModel();
     const intent = recorder();
-    click(model, intent, { lane: LANE, shift: true });
-    click(model, intent, { lane: LANE, midpointHit: true });
+    click(model, intent, { edge: LANE_EDGE, shift: true });
+    click(model, intent, { edge: LANE_EDGE, midpointHit: true });
     expect(intent.calls).toEqual([
-      ["cut", 1, 2],
-      ["cut", 1, 2],
+      ["cut", LANE_EDGE],
+      ["cut", LANE_EDGE],
     ]);
   });
 
   it("right-click opens the context menu for a system, a lane or empty space", () => {
     const model = new GestureModel();
     const intent = recorder();
-    for (const extra of [{ system: 7 }, { lane: LANE }, {}]) {
+    for (const extra of [{ system: 7 }, { edge: LANE_EDGE }, {}]) {
       model.handle(at("down", 10, 20, { ...extra, button: 2 }), intent);
       model.handle(at("up", 10, 20, { ...extra, button: 2 }), intent);
     }
@@ -257,8 +262,12 @@ describe("GestureModel", () => {
     expect(cursorAt({ system: 7 })).toBe("move");
     expect(cursorAt({ system: 7, shift: true })).toBe("crosshair");
     expect(cursorAt({ system: 7, zone: "port" })).toBe("crosshair");
-    expect(cursorAt({ lane: LANE, midpointHit: true })).toBe("pointer");
-    expect(cursorAt({ lane: LANE })).toBe("");
+    expect(cursorAt({ edge: LANE_EDGE, midpointHit: true })).toBe("pointer");
+    expect(cursorAt({ edge: LANE_EDGE })).toBe("");
+    expect(cursorAt({ edge: LINK, midpointHit: true })).toBe("pointer");
+    expect(cursorAt({ edge: LINK })).toBe("");
+    expect(cursorAt({ feZone: ZONE_PORT, zone: "port" })).toBe("crosshair");
+    expect(cursorAt({ feZone: ZONE, shift: true })).toBe("crosshair");
     expect(cursorAt({})).toBe("");
   });
 
@@ -272,13 +281,13 @@ describe("GestureModel", () => {
     expect(model.busy()).toBe(false);
     model.handle(at("up", 30, 30), intent);
     model.handle(at("down", 10, 10, { system: 7, zone: "port" }), intent);
-    model.handle(at("move", 30, 30, { snap: { id: 9, valid: true } }), intent);
+    model.handle(at("move", 30, 30, { snap: { kind: "system", id: 9, valid: true } }), intent);
     model.handle(at("cancel", 30, 30), intent);
-    model.handle(at("up", 30, 30, { snap: { id: 9, valid: true } }), intent);
+    model.handle(at("up", 30, 30, { snap: { kind: "system", id: 9, valid: true } }), intent);
     expect(intent.calls).toEqual([
       ["previewMove", 7, 30, 30],
       ["cancelMove"],
-      ["previewLane", 7, 30, 30, { id: 9, valid: true }],
+      ["previewLane", ONE, 30, 30, { kind: "system", id: 9, valid: true }],
       ["endLane"],
     ]);
   });
@@ -320,7 +329,7 @@ describe("GestureModel", () => {
   it("shift-drag from a lane draws no marquee and does nothing", () => {
     const model = new GestureModel();
     const intent = recorder();
-    model.handle(at("down", 10, 10, { lane: LANE, shift: true }), intent);
+    model.handle(at("down", 10, 10, { edge: LANE_EDGE, shift: true }), intent);
     expect(model.handle(at("move", 30, 30, { shift: true }), intent)).toBe("consumed");
     model.handle(at("up", 30, 30, { shift: true }), intent);
     expect(intent.calls).toEqual([]);
@@ -357,20 +366,20 @@ describe("GestureModel", () => {
     const model = new GestureModel();
     const intent = recorder();
     const selection = [7, 8];
-    const snap = { id: 9, valid: true };
+    const snap = { kind: "system", id: 9, valid: true } as const;
     model.handle(at("down", 10, 10, { system: 7, zone: "port", selection }), intent);
     model.handle(at("move", 60, 60, { snap, selection }), intent);
     expect(model.cursor()).toBe("crosshair");
     model.handle(at("up", 60, 60, { snap, selection }), intent);
-    const linked = { id: 9, valid: false };
+    const linked = { kind: "system", id: 9, valid: false } as const;
     model.handle(at("down", 10, 10, { system: 7, shift: true, selection }), intent);
     model.handle(at("move", 60, 60, { snap: linked, shift: true, selection }), intent);
     model.handle(at("up", 60, 60, { snap: linked, shift: true, selection }), intent);
     expect(intent.calls).toEqual([
-      ["previewLanes", selection, 60, 60, snap],
-      ["connectMany", selection, 9],
+      ["previewLane", { kind: "systems", ids: selection }, 60, 60, snap],
+      ["connect", { kind: "systems", ids: selection }, snap],
       ["endLane"],
-      ["previewLanes", selection, 60, 60, linked],
+      ["previewLane", { kind: "systems", ids: selection }, 60, 60, linked],
       ["endLane"],
     ]);
   });
@@ -411,7 +420,7 @@ describe("GestureModel on a nebula", () => {
     const model = new GestureModel();
     const intent = recorder();
     click(model, intent, { system: 7, nebula: RING });
-    click(model, intent, { lane: LANE, nebula: RING });
+    click(model, intent, { edge: LANE_EDGE, nebula: RING });
     expect(intent.calls).toEqual([
       ["select", 7],
       ["selectLane", LANE],
@@ -542,6 +551,84 @@ describe("GestureModel on a nebula", () => {
     model.handle(at("down", 10, 20, { feZone: ZONE, button: 2 }), intent);
     model.handle(at("up", 10, 20, { feZone: ZONE, button: 2 }), intent);
     expect(intent.calls).toEqual([["contextMenu", { kind: "feZone", anchor: 9 }, 10, 20]]);
+  });
+
+  it("shift-click or a click on the midpoint button unlinks a system from a zone", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    click(model, intent, { edge: LINK, midpointHit: true });
+    click(model, intent, { edge: LINK, shift: true });
+    expect(intent.calls).toEqual([
+      ["cut", LINK],
+      ["cut", LINK],
+    ]);
+  });
+
+  it("a click on a link selects its zone's anchor, and a right-click opens the zone's menu", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    click(model, intent, { edge: LINK });
+    model.handle(at("down", 10, 20, { edge: LINK, button: 2 }), intent);
+    model.handle(at("up", 10, 20, { edge: LINK, button: 2 }), intent);
+    expect(intent.calls).toEqual([
+      ["selectFeZone", 9],
+      ["contextMenu", { kind: "feZone", anchor: 9 }, 10, 20],
+    ]);
+  });
+
+  it("a port drag dropped on a zone's ring links the system, unless the ring refuses it", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    model.handle(at("down", 10, 10, { system: 7, zone: "port" }), intent);
+    model.handle(at("move", 60, 60, { snap: AT_ZONE }), intent);
+    model.handle(at("up", 60, 60, { snap: AT_ZONE }), intent);
+    const refused = { ...AT_ZONE, valid: false };
+    model.handle(at("down", 10, 10, { system: 7, zone: "port" }), intent);
+    model.handle(at("move", 60, 60, { snap: refused }), intent);
+    model.handle(at("up", 60, 60, { snap: refused }), intent);
+    expect(intent.calls).toEqual([
+      ["previewLane", ONE, 60, 60, AT_ZONE],
+      ["connect", ONE, AT_ZONE],
+      ["endLane"],
+      ["previewLane", ONE, 60, 60, refused],
+      ["endLane"],
+    ]);
+  });
+
+  it("a drag from a zone's port grows a link that snaps to a system and links it on release", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    const snap = { kind: "system", id: 4, valid: true } as const;
+    model.handle(at("down", 10, 10, { feZone: ZONE_PORT, zone: "port" }), intent);
+    model.handle(at("move", 30, 30), intent);
+    expect(model.cursor()).toBe("crosshair");
+    model.handle(at("move", 60, 60, { snap }), intent);
+    model.handle(at("up", 60, 60, { snap }), intent);
+    expect(intent.calls).toEqual([
+      ["previewLane", FROM_ZONE, 30, 30, null],
+      ["previewLane", FROM_ZONE, 60, 60, snap],
+      ["connect", FROM_ZONE, snap],
+      ["endLane"],
+    ]);
+  });
+
+  it("shift-drag from the ring band also grows a link, while a plain drag there moves the ring", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    const snap = { kind: "system", id: 4, valid: true } as const;
+    model.handle(at("down", 10, 10, { feZone: ZONE, shift: true }), intent);
+    model.handle(at("move", 60, 60, { snap, shift: true }), intent);
+    model.handle(at("up", 60, 60, { snap, shift: true }), intent);
+    model.handle(at("down", 10, 10, { feZone: ZONE }), intent);
+    model.handle(at("move", 60, 60, { snap }), intent);
+    model.handle(at("up", 60, 60, { snap }), intent);
+    expect(intent.calls).toEqual([
+      ["previewLane", FROM_ZONE, 60, 60, snap],
+      ["connect", FROM_ZONE, snap],
+      ["endLane"],
+      ["previewFeZone", 9, 60, 60],
+      ["commitFeZone", 9, 60, 60],
+    ]);
   });
 
   it("shift-drag over a nebula still draws a marquee", () => {

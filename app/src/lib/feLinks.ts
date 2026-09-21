@@ -9,6 +9,7 @@
  */
 
 import type { SystemNode } from "../generated/SystemNode";
+import { FE_ZONE_RADIUS, feZoneCentre, type Pt } from "./feZone";
 
 /** What the ring's menu and the inspector offer to give a zone back to the mod's own rule. */
 export const USE_NEAREST_LABEL = "Use nearest systems instead";
@@ -19,6 +20,28 @@ export const USE_NEAREST_SHORT_LABEL = "Use nearest instead";
 /** Whether `system` anchors a zone and takes custom connections for it under an id. */
 export function takesCustomLinks(system: SystemNode): boolean {
   return system.fe_link.custom && system.fe_link.id !== null && system.fe_zone !== null;
+}
+
+export interface Segment {
+  a: Pt;
+  b: Pt;
+}
+
+/** The line from `from` to the nearest point of a zone's ring about `centre`; null from inside the ring. */
+export function toRing(from: Pt, centre: Pt): Segment | null {
+  const d = Math.hypot(centre.x - from.x, centre.y - from.y);
+  if (d <= FE_ZONE_RADIUS) return null;
+  const t = FE_ZONE_RADIUS / d;
+  return {
+    a: { x: from.x, y: from.y },
+    b: { x: centre.x + (from.x - centre.x) * t, y: centre.y + (from.y - centre.y) * t },
+  };
+}
+
+/** The line the map draws a link along, from `system` to the ring `anchor` anchors; null without a zone. */
+export function linkSegment(anchor: SystemNode, system: Pt): Segment | null {
+  if (anchor.fe_zone === null) return null;
+  return toRing(system, feZoneCentre(anchor, anchor.fe_zone));
 }
 
 /** Whether `system` links to the id `anchor` takes, whatever else the anchor's flags say. */
