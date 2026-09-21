@@ -8,11 +8,11 @@ use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
 use ts_rs::TS;
 
-use crate::Diagnostic;
 use crate::install::layers::Layout;
 use crate::install::script::{self, Def};
 use crate::registries::registry::{FromDef, Registry};
 use crate::scripts::init_bypasses::bypasses;
+use crate::{Diagnostic, GameData};
 
 pub use crate::scripts::init_bypasses::{InitBypass, InitBypasses, PartnerRef};
 
@@ -124,6 +124,15 @@ impl Initializer {
     /// `None` when it is vanilla or from nowhere known.
     pub fn source_label(&self, install: &Path) -> Option<String> {
         source_label(&self.source, install)
+    }
+}
+
+impl GameData {
+    /// Which DLC or mod `initializer` needs, when this install knows it.
+    pub fn initializer_source(&self, initializer: &str) -> Option<String> {
+        self.initializers
+            .get(initializer)?
+            .source_label(&self.layout.install)
     }
 }
 
