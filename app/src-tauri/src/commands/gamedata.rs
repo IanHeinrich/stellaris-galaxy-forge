@@ -155,7 +155,7 @@ pub async fn paint_mod<R: Runtime>(app: AppHandle<R>) -> Result<Option<PaintModV
         let mut diagnostics = Vec::new();
         let installed = mods::installed_mods(&user_dir, &libraries, &mut diagnostics);
         let enabled = mods::enabled_mods(&user_dir, &libraries, &mut diagnostics);
-        Ok(mods::find_paint_mod(&installed, &enabled)
+        Ok(mods::find_paint_mod(&installed, &enabled, &libraries)
             .as_ref()
             .map(PaintModView::from))
     })

@@ -4,9 +4,9 @@ import { PAINT_WORKSHOP_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 
 export const PAINT_MOD_NOT_INSTALLED =
-  "Subscribe to the Paint a Galaxy mod on the Steam Workshop, then enable it in the launcher's playset.";
+  "The Paint a Galaxy mod is not installed. Subscribe to it on the Steam Workshop, then enable it in your playset.";
 export const PAINT_MOD_NOT_ENABLED =
-  "Paint a Galaxy mod installed. Enable it in the launcher's playset.";
+  "The Paint a Galaxy mod is installed but not enabled. Turn it on in your playset in the launcher.";
 export const PAINT_MOD_ENABLED = "Paint a Galaxy mod enabled ✓";
 
 /** The one sentence on the mod's state, for a title. */

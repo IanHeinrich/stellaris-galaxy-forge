@@ -60,15 +60,15 @@ describe("the notice for a scenario outside the mod", () => {
     expect(notice()).toBe("");
   });
 
-  it("says why the map belongs in the mod, with the mod's state and the way in", () => {
+  it("says the map needs the mod, with the mod's state and the way in", () => {
     open(SCENARIO_RESULT);
     usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: true } });
 
     const html = notice();
     expect(html).toContain('class="paint-notice"');
     expect(html).toContain(
-      "For your own play this map belongs in the Paint a Galaxy mod, which fixes generator bugs " +
-        "the game ships with.",
+      "Custom galaxies hit game-breaking bugs without the Paint a Galaxy mod. Save this map into " +
+        "the mod unless it belongs to a mod of your own.",
     );
     expect(html).toContain("Paint a Galaxy mod enabled ✓");
     expect(html).toContain("Save into the Paint a Galaxy mod…");
@@ -86,13 +86,13 @@ describe("the notice for a scenario outside the mod", () => {
     usePaintModStore.setState({ known: true, paintMod: null });
 
     const html = notice();
-    expect(html).toContain("1. Subscribe to the ");
-    expect(html).toContain("2. Enable it in the launcher&#x27;s playset.");
+    expect(html).toContain("Subscribe to the ");
+    expect(html).toContain("then enable it in your playset.");
     expect(button("Save into the Paint a Galaxy mod…").props.disabled).toBe(true);
 
     usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: false } });
     expect(notice()).toContain(
-      "Paint a Galaxy mod installed. Enable it in the launcher&#x27;s playset.",
+      "The Paint a Galaxy mod is installed but not enabled. Turn it on in your playset in the launcher.",
     );
     expect(button("Save into the Paint a Galaxy mod…").props.disabled).toBe(false);
   });

@@ -3,7 +3,7 @@ import { usePaintModStore } from "../../store/paintModStore";
 import "./chrome.css";
 import { openPaintWorkshop, paintModStatusTitle } from "./paintMod";
 
-const PROFILE_TITLE = "Spawn points are written for the Paint a Galaxy mod";
+const PROFILE_TITLE = "This scenario is set up for the Paint a Galaxy mod";
 
 /**
  * That the open document is written for the Paint a Galaxy mod, and a warning when the launcher

@@ -126,7 +126,7 @@ describe("the dialog", () => {
     expect(html).toContain('aria-label="Export as scenario"');
     expect(html).toContain("Not carried over");
     expect(html).toContain("For the Paint a Galaxy mod");
-    expect(html).toContain("A scenario for your own mod leaves this off.");
+    expect(html).toContain("Untick it only if the map is for a mod of your own.");
     expect(html.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
 
     useFileSessionStore.setState({ paintChoice: true });

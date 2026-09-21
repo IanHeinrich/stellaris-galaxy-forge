@@ -27,14 +27,14 @@ describe("the mod's status line", () => {
     expect(status()).toBe("");
   });
 
-  it("gives the two steps when the mod is not installed, the first a link to the Workshop", () => {
+  it("says to subscribe and enable when the mod is not installed, with a link to the Workshop", () => {
     usePaintModStore.setState({ known: true, paintMod: null });
 
     const html = status();
     expect(html).toContain('class="paint-mod-status warn"');
-    expect(html).toContain("1. Subscribe to the ");
+    expect(html).toContain("Subscribe to the ");
     expect(html).toContain(">Paint a Galaxy mod on the Steam Workshop ↗</button>");
-    expect(html).toContain("2. Enable it in the launcher&#x27;s playset.");
+    expect(html).toContain("then enable it in your playset.");
 
     const link = elements(<PaintModStatus />).find((el) => el.type === "button")!;
     (link.props as { onClick: () => void }).onClick();
@@ -49,7 +49,7 @@ describe("the mod's status line", () => {
     const html = status();
     expect(html).toContain('class="paint-mod-status warn"');
     expect(html).toContain(
-      "Paint a Galaxy mod installed. Enable it in the launcher&#x27;s playset.",
+      "The Paint a Galaxy mod is installed but not enabled. Turn it on in your playset in the launcher.",
     );
     expect(html).not.toContain("<button");
   });

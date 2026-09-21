@@ -10,40 +10,24 @@ a release is made.
 
 ### Added
 
-- Export as scenario opens a report before writing: the empire seats it
-  created, how systems split into homes, fallen empires, marauders and
-  the rest, what it could not carry over such as wormhole pairs, and
-  which DLC or mod each initializer comes from. The written file carries
-  the same report as `#` comment lines, and `sgf export-scenario
-  --gamedata` prints it too.
-- A scenario written by Paint a Galaxy reads back faithfully. Its
-  scripted spawn points, enabled, preferred, reserved A-Z and Sol, show
-  as spawn points, the inspector changes a scripted point's kind from a
-  select, and marking a new spawn point in such a file writes Paint a
-  Galaxy's own spawn script.
-- A "For the Paint a Galaxy mod" checkbox, ticked by default and
-  remembered per machine, appears in the New scenario dialog's blank
-  route and in the Export as scenario dialog. Unticking it in either
-  place turns it off in both. Under the checkbox the app shows the mod's
-  status: not installed, with the steps to subscribe on the Steam
-  Workshop and enable it in the launcher's playset, installed but not
-  enabled, or enabled.
-- The Paint a Galaxy layer turns on by itself, never by a switch, for a
-  scenario that already carries the mod's scripts or flags, sits inside
-  the mod's own `map/setup_scenarios` folder, was created with the
-  checkbox ticked, or was opened from the Paint a galaxy card. With it
-  on, a new spawn point is
-  written in the mod's shape, and existing bytes are never rewritten. A
-  title bar badge names the layer and warns when the mod is not enabled,
-  or opens the Workshop page when it is not installed. A plain scenario
-  shows a one-line notice to save into the mod instead, with a "Save
-  into the Paint a Galaxy mod…" button and a "Not for me" that hides the
-  notice for good on that machine.
-- Save As for a new Paint a Galaxy scenario opens in the mod's
-  `map/setup_scenarios` folder, and File → "Save into the Paint a Galaxy
-  mod…" saves an open one there. Steam can replace a workshop mod's
-  folder when it updates, so keep a copy of a map you care about
-  elsewhere too.
+- Export as scenario shows a report before writing: the empire seats it
+  made, how the systems were sorted, what could not be carried over and
+  where each initializer comes from. The report is also written into the
+  file as comments.
+- Scenarios made with Paint a Galaxy open with their spawn points intact.
+  The inspector edits a scripted spawn point's kind, and new spawn points
+  in such a file use the mod's script.
+- A "For the Paint a Galaxy mod" checkbox in the New scenario and Export
+  dialogs, ticked by default because the mod fixes game-breaking bugs in
+  the galaxy generator. Under it the app says whether the mod is
+  installed and enabled, with a link to the Workshop, and notices when
+  a subscription lands.
+- A Paint a Galaxy scenario is recognised by its content or by living in
+  the mod's folder. The title bar shows a badge and warns when the mod is
+  missing. A plain scenario gets a notice offering to save it into the
+  mod, with "Not for me" to hide it.
+- Save As for a new Paint a Galaxy scenario opens in the mod's folder, and
+  File → "Save into the Paint a Galaxy mod…" saves an open one there.
 
 ## [0.6.0] - 2026-09-20
 

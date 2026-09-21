@@ -58,8 +58,8 @@ const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
     id: "paint",
     title: "Paint a galaxy",
     copy:
-      "Draw the galaxy in Paint a Galaxy, by Oatmeal Problem, download its scenario file and open " +
-      "it here.",
+      "Draw your galaxy in Paint a Galaxy, by Oatmeal Problem. Download the scenario file and " +
+      "open it here.",
     primary: "Open Paint a Galaxy in your browser ↗",
   },
 ];
@@ -72,8 +72,8 @@ const STEPS: Record<Route, string[]> = {
   ],
   paint: [
     "Draw your galaxy in Paint a Galaxy, by Oatmeal Problem.",
-    "Download the scenario file it exports.",
-    "Open it here.",
+    "Download the scenario file.",
+    "Open it here with the button below.",
   ],
 };
 
@@ -199,7 +199,7 @@ export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
       {route === "paint" && (
         <div className="route-links">
           <button type="button" className="link route-link" onClick={openFile}>
-            Open a file exported from Paint a Galaxy…
+            Open a Paint a Galaxy file…
           </button>
         </div>
       )}

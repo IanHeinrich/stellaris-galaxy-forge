@@ -55,7 +55,7 @@ describe("the Paint a Galaxy badge", () => {
     const html = badge();
     expect(html).toContain(">Paint a Galaxy</span>");
     expect(html).toContain('class="badge paint-badge"');
-    expect(html).toContain('title="Spawn points are written for the Paint a Galaxy mod"');
+    expect(html).toContain('title="This scenario is set up for the Paint a Galaxy mod"');
     expect(html).not.toContain("⚠");
   });
 
@@ -67,7 +67,7 @@ describe("the Paint a Galaxy badge", () => {
     expect(html).toContain("⚠ Paint a Galaxy mod not enabled");
     expect(html).toContain('<span class="badge warn paint-badge"');
     expect(html).toContain(
-      'title="Paint a Galaxy mod installed. Enable it in the launcher&#x27;s playset."',
+      'title="The Paint a Galaxy mod is installed but not enabled. Turn it on in your playset in the launcher."',
     );
   });
 
@@ -79,7 +79,7 @@ describe("the Paint a Galaxy badge", () => {
     expect(html).toContain("⚠ Paint a Galaxy mod not installed");
     expect(html).toContain('<button type="button" class="badge warn paint-badge"');
     expect(html).toContain(
-      "Subscribe to the Paint a Galaxy mod on the Steam Workshop, then enable",
+      "The Paint a Galaxy mod is not installed. Subscribe to it on the Steam Workshop",
     );
 
     const button = elements(<PaintBadge />).find((el) => el.type === "button")!;

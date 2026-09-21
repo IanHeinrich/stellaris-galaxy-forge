@@ -49,18 +49,36 @@ pub struct PaintMod {
 }
 
 /// Paint a Galaxy among `enabled` and `installed`: the Workshop item by id, or a copy
-/// of any provenance by name. `None` when the launcher knows of no copy.
-pub fn find_paint_mod(installed: &[ModInfo], enabled: &[ModInfo]) -> Option<PaintMod> {
+/// of any provenance by name. Steam unpacks a new subscription into a library before
+/// the launcher has registered it, so the Workshop folder counts as installed too.
+/// `None` when neither knows of a copy.
+pub fn find_paint_mod(
+    installed: &[ModInfo],
+    enabled: &[ModInfo],
+    libraries: &[PathBuf],
+) -> Option<PaintMod> {
     let in_playset = enabled.iter().any(is_paint_mod);
     let mut copies = enabled.iter().chain(installed).filter(|m| is_paint_mod(m));
-    let first = copies.next()?;
-    Some(PaintMod {
-        dir: first
-            .dir
-            .clone()
-            .or_else(|| copies.find_map(|m| m.dir.clone())),
-        enabled: in_playset,
-    })
+    let downloaded = || {
+        libraries
+            .iter()
+            .map(|lib| lib.join(WORKSHOP_CONTENT).join(PAINT_MOD_WORKSHOP_ID))
+            .find(|p| p.is_dir())
+    };
+    match copies.next() {
+        Some(first) => Some(PaintMod {
+            dir: first
+                .dir
+                .clone()
+                .or_else(|| copies.find_map(|m| m.dir.clone()))
+                .or_else(downloaded),
+            enabled: in_playset,
+        }),
+        None => downloaded().map(|dir| PaintMod {
+            dir: Some(dir),
+            enabled: false,
+        }),
+    }
 }
 
 fn is_paint_mod(m: &ModInfo) -> bool {
@@ -289,18 +307,18 @@ mod tests {
             })
         };
 
-        assert_eq!(find_paint_mod(std::slice::from_ref(&other), &[]), None);
+        assert_eq!(find_paint_mod(std::slice::from_ref(&other), &[], &[]), None);
         let installed = [other.clone(), workshop.clone()];
         assert_eq!(
-            find_paint_mod(&installed, std::slice::from_ref(&other)),
+            find_paint_mod(&installed, std::slice::from_ref(&other), &[]),
             found("/workshop/3532904115", false)
         );
         assert_eq!(
-            find_paint_mod(&installed, std::slice::from_ref(&workshop)),
+            find_paint_mod(&installed, std::slice::from_ref(&workshop), &[]),
             found("/workshop/3532904115", true)
         );
         assert_eq!(
-            find_paint_mod(std::slice::from_ref(&local), &[]),
+            find_paint_mod(std::slice::from_ref(&local), &[], &[]),
             found("/mods/pag", false)
         );
 
@@ -308,10 +326,45 @@ mod tests {
         assert_eq!(
             find_paint_mod(
                 std::slice::from_ref(&missing),
-                std::slice::from_ref(&missing)
+                std::slice::from_ref(&missing),
+                &[]
             ),
             Some(PaintMod {
                 dir: None,
+                enabled: true,
+            })
+        );
+    }
+
+    #[test]
+    fn a_fresh_workshop_download_counts_as_installed_before_the_launcher_lists_it() {
+        let library = tempfile::tempdir().unwrap();
+        let unpacked = library
+            .path()
+            .join(WORKSHOP_CONTENT)
+            .join(PAINT_MOD_WORKSHOP_ID);
+        let libraries = [library.path().to_path_buf()];
+
+        assert_eq!(find_paint_mod(&[], &[], &libraries), None);
+
+        fs::create_dir_all(&unpacked).unwrap();
+        assert_eq!(
+            find_paint_mod(&[], &[], &libraries),
+            Some(PaintMod {
+                dir: Some(unpacked.clone()),
+                enabled: false,
+            })
+        );
+
+        let listed = info("ugc_3532904115", "Paint a Galaxy", None);
+        assert_eq!(
+            find_paint_mod(
+                std::slice::from_ref(&listed),
+                std::slice::from_ref(&listed),
+                &libraries
+            ),
+            Some(PaintMod {
+                dir: Some(unpacked),
                 enabled: true,
             })
         );

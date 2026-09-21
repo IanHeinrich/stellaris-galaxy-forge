@@ -383,17 +383,19 @@ the size and shape you want, save on day one and open that save here,
 which hands you the generator's layout, names and empires to edit. The
 "Paint a galaxy" card opens paint-a-galaxy by Oatmeal Problem in your
 browser, where you draw systems and lanes and download the scenario file
-it exports; "Open a file exported from Paint a Galaxy…" on the same card
-opens that file here.
+it exports. "Open a Paint a Galaxy file…" on the same card opens that
+file here.
 
-The checkbox is ticked by default because the Paint a Galaxy mod fixes
-generator bugs the game ships with, so a map for your own play belongs
-in it. If you write scenarios for a mod of your own, untick it once.
+The checkbox is ticked by default because custom galaxies hit
+game-breaking bugs in the generator that the Paint a Galaxy mod fixes.
+Keep it ticked for any map you will play. If you write scenarios for a
+mod of your own, untick it once.
 Unticking it, on the blank canvas or on the Export as scenario dialog,
 turns it off in both places, and ticking either one turns it back on in
 both. Under the checkbox the app shows the mod's status: not
-installed, with the steps to subscribe on the Steam Workshop and enable
-it in the launcher's playset, installed but not enabled, or enabled.
+installed, with a link to subscribe on the Steam Workshop, installed but
+not enabled in your playset, or enabled. The status keeps itself
+current, so subscribing while the app is open is enough.
 
 A scenario whose Paint a Galaxy layer is on carries a "Paint a Galaxy"
 badge beside its name in the top bar. The layer turns itself on for a
@@ -406,9 +408,10 @@ switch for it otherwise. The badge warns when the mod (Steam Workshop
 not installed at all, clicking the badge opens its Workshop page.
 
 A scenario whose layer is off shows a one-line notice under the top bar
-that for your own play the map belongs in the Paint a Galaxy mod, with
-the mod's status, a "Save into the Paint a Galaxy mod…" button and "Not
-for me", which hides the notice for good on this machine.
+that it needs the Paint a Galaxy mod unless it belongs to a mod of your
+own, with the mod's status, a "Save into the Paint a Galaxy mod…"
+button and "Not for me", which hides the notice for good on this
+machine.
 
 What can be edited: everything a save's galaxy offers, move systems, add
 and cut lanes, add, move, resize, rename and remove nebulae, and, because a

@@ -69,7 +69,7 @@ describe("the three ways to start a scenario", () => {
     expect(html).toContain("Blank canvas");
     expect(html).toContain("A galaxy from the game");
     expect(html).toContain("Paint a galaxy");
-    expect(html).toContain("download its scenario file");
+    expect(html).toContain("Download the scenario file");
     expect(html).toContain('role="radiogroup"');
   });
 
@@ -113,9 +113,9 @@ describe("the blank canvas", () => {
     expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
     expect(html).toContain("For the Paint a Galaxy mod");
     expect(html).toContain(
-      "The mod fixes generator bugs the game ships with, so a map for your own play belongs in it.",
+      "Custom galaxies hit game-breaking bugs in the generator that this mod fixes.",
     );
-    expect(html).toContain("A scenario for your own mod leaves this off.");
+    expect(html).toContain("Untick it only if the map is for a mod of your own.");
 
     useFileSessionStore.setState({ paintChoice: false });
     html = renderToStaticMarkup(<NewScenarioDialog />);
@@ -185,14 +185,11 @@ describe("a painted galaxy", () => {
     expect(html).toContain("Download the scenario file");
   });
 
-  it("picks a file exported from Paint a Galaxy as painted, and closes once it is open", async () => {
+  it("picks a Paint a Galaxy file as painted, and closes once it is open", async () => {
     const pickAndOpenScenario = vi.fn(async () => true);
     useFileSessionStore.setState({ pickAndOpenScenario });
 
-    button(
-      <RouteHelp route="paint" />,
-      "Open a file exported from Paint a Galaxy…",
-    ).props.onClick();
+    button(<RouteHelp route="paint" />, "Open a Paint a Galaxy file…").props.onClick();
 
     await vi.waitFor(() => expect(useLayoutStore.getState().scenarioDialog).toBe(false));
     expect(pickAndOpenScenario).toHaveBeenCalledWith({ paint: true });
@@ -202,10 +199,7 @@ describe("a painted galaxy", () => {
     const pickAndOpenScenario = vi.fn(async () => false);
     useFileSessionStore.setState({ pickAndOpenScenario });
 
-    button(
-      <RouteHelp route="paint" />,
-      "Open a file exported from Paint a Galaxy…",
-    ).props.onClick();
+    button(<RouteHelp route="paint" />, "Open a Paint a Galaxy file…").props.onClick();
 
     await vi.waitFor(() => expect(pickAndOpenScenario).toHaveBeenCalledTimes(1));
     expect(useLayoutStore.getState().scenarioDialog).toBe(true);

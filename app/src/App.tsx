@@ -161,8 +161,13 @@ function App() {
     void useUpdateStore.getState().start();
   }, []);
 
+  useEffect(() => usePaintModStore.getState().watch(), []);
+
   useEffect(() => {
-    void usePaintModStore.getState().refresh();
+    const unlisten = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (focused) void usePaintModStore.getState().refresh();
+    });
+    return () => void unlisten.then((f) => f());
   }, []);
 
   useEffect(() => {

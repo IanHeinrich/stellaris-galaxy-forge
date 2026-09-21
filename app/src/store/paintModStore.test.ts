@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../api/ipc");
 
 import * as ipc from "../api/ipc";
-import { usePaintModStore } from "./paintModStore";
+import { PAINT_MOD_POLL_MS, usePaintModStore } from "./paintModStore";
 
 const mocked = { paintMod: vi.mocked(ipc.paintMod) };
 
@@ -58,5 +58,46 @@ describe("the Paint a Galaxy mod's status", () => {
     usePaintModStore.getState().dismissNotice();
     expect(usePaintModStore.getState().noticeDismissed).toBe(true);
     expect(stored.get("sgf.paint.noticeDismissed")).toBe("true");
+  });
+
+  it("keeps asking while the mod is missing, and stops once it is enabled", async () => {
+    vi.useFakeTimers();
+    try {
+      mocked.paintMod.mockResolvedValueOnce(null);
+      const stop = usePaintModStore.getState().watch();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mocked.paintMod).toHaveBeenCalledTimes(1);
+      expect(usePaintModStore.getState().paintMod).toBeNull();
+
+      mocked.paintMod.mockResolvedValueOnce({ ...INSTALLED, enabled: false });
+      await vi.advanceTimersByTimeAsync(PAINT_MOD_POLL_MS);
+      expect(mocked.paintMod).toHaveBeenCalledTimes(2);
+      expect(usePaintModStore.getState().paintMod).toEqual({ ...INSTALLED, enabled: false });
+
+      mocked.paintMod.mockResolvedValueOnce(INSTALLED);
+      await vi.advanceTimersByTimeAsync(PAINT_MOD_POLL_MS);
+      expect(mocked.paintMod).toHaveBeenCalledTimes(3);
+      expect(usePaintModStore.getState().paintMod).toEqual(INSTALLED);
+
+      await vi.advanceTimersByTimeAsync(PAINT_MOD_POLL_MS * 3);
+      expect(mocked.paintMod).toHaveBeenCalledTimes(3);
+      stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops asking when told to", async () => {
+    vi.useFakeTimers();
+    try {
+      mocked.paintMod.mockResolvedValue(null);
+      const stop = usePaintModStore.getState().watch();
+      await vi.advanceTimersByTimeAsync(0);
+      stop();
+      await vi.advanceTimersByTimeAsync(PAINT_MOD_POLL_MS * 3);
+      expect(mocked.paintMod).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

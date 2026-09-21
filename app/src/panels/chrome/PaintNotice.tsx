@@ -4,8 +4,8 @@ import "./chrome.css";
 import { PaintModStatus } from "./PaintModStatus";
 
 const WHY =
-  "For your own play this map belongs in the Paint a Galaxy mod, which fixes generator bugs the " +
-  "game ships with.";
+  "Custom galaxies hit game-breaking bugs without the Paint a Galaxy mod. Save this map into " +
+  "the mod unless it belongs to a mod of your own.";
 
 /** One row under the top bar for a scenario outside the mod, until the user says it is not for them. */
 export function PaintNotice() {

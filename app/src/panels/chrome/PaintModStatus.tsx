@@ -10,11 +10,11 @@ export function PaintModStatus() {
   if (paintMod === null) {
     return (
       <span className="paint-mod-status warn">
-        1. Subscribe to the{" "}
+        Subscribe to the{" "}
         <button type="button" className="link" onClick={openPaintWorkshop}>
           Paint a Galaxy mod on the Steam Workshop ↗
         </button>{" "}
-        2. Enable it in the launcher's playset.
+        then enable it in your playset.
       </span>
     );
   }
