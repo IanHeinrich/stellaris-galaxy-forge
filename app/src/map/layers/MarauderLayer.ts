@@ -1,26 +1,26 @@
-import { BitmapText, Container, Graphics, TextStyle } from "pixi.js";
+import {
+  BitmapText,
+  Container,
+  type FederatedPointerEvent,
+  Graphics,
+  Rectangle,
+  TextStyle,
+} from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
-import { countryRegions, smoothRegion, type Region } from "../../lib/geometry/territory";
-import { basesBeside, clanOf, isHome } from "../../lib/marauder";
+import { countryRegions, type Region } from "../../lib/geometry/territory";
+import { BASE_SITES, basesBeside, clanOf, isHome } from "../../lib/marauder";
 import { GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
-import {
-  strokeUnit,
-  TERRITORY_EDGE_ALPHA,
-  TERRITORY_EDGE_PX,
-  TERRITORY_FILL_ALPHA,
-} from "./territoryStyle";
+import { TerritoryShapes } from "./TerritoryShapes";
 
-/** The seat chips' amber, which the home's tag shares so a home reads as a spawn of the mod's. */
-const COLOR = 0xfbbf24;
-const ALPHA = 0.95;
-
-/** One colour per clan, by clan number, for the territory the map paints around its systems. */
-export const CLAN_COLORS: readonly number[] = [0xef4444, 0x22d3ee, 0xa3e635];
+/** The one colour every clan's territory and home tag is painted in. */
+export const MARAUDER_COLOR = 0xef4444;
+const CHIP_ALPHA = 0.95;
 
 /** The glyph the home's tag carries. */
 export const HOME_TAG = "⚔";
@@ -28,6 +28,15 @@ export const HOME_TAG = "⚔";
 /** Tag centre relative to the star, in marker units: the seat chip's mirror, clear of the ring. */
 const TAG_OFFSET = { x: 12, y: -12 };
 const CHIP = { width: 12, height: 9, radius: 2 };
+const HIT_PAD = 2;
+
+/** The chip's own hit area, around its offset centre, so the star's hover and drag stay free. */
+const HIT = new Rectangle(
+  TAG_OFFSET.x - CHIP.width / 2 - HIT_PAD,
+  TAG_OFFSET.y - CHIP.height / 2 - HIT_PAD,
+  CHIP.width + 2 * HIT_PAD,
+  CHIP.height + 2 * HIT_PAD,
+);
 
 const NO_GHOSTS: ReadonlyMap<number, MoveGhost> = new Map();
 
@@ -39,6 +48,8 @@ const TAG_STYLE = new TextStyle({
   fill: 0x111827,
 });
 
+const CLAN_COLORS = { fill: MARAUDER_COLOR, outline: MARAUDER_COLOR };
+
 interface Pt {
   x: number;
   y: number;
@@ -49,67 +60,98 @@ function drawn(ctx: RenderContext): boolean {
   return ctx.kind === "scenario";
 }
 
-function clanColor(clan: number): number {
-  return CLAN_COLORS[clan - 1] ?? CLAN_COLORS[0];
-}
-
 function drawChip(g: Graphics): void {
   const { x, y } = TAG_OFFSET;
   g.clear();
   g.roundRect(x - CHIP.width / 2, y - CHIP.height / 2, CHIP.width, CHIP.height, CHIP.radius).fill({
-    color: COLOR,
-    alpha: ALPHA,
+    color: MARAUDER_COLOR,
+    alpha: CHIP_ALPHA,
+  });
+}
+
+/** The tooltip's line on the raid bases hyperlaned to the home, and how many of the two are not. */
+function raidBasesLine(names: readonly string[]): string {
+  if (names.length === 0) return "Raid bases: missing";
+  const listed = names.join(", ");
+  return names.length < BASE_SITES.length
+    ? `Raid bases: ${listed}, one missing`
+    : `Raid bases: ${listed}`;
+}
+
+/** A clan's key among the owners: negative, so it never reads as a country's id. */
+function clanKey(clan: number): number {
+  return -clan;
+}
+
+/** The systems as they stand, a dragged one at its ghost. */
+function atGhosts(systems: Systems, ghosts: ReadonlyMap<number, MoveGhost>): Iterable<SystemNode> {
+  if (ghosts.size === 0) return systems.values();
+  return [...systems.values()].map((s) => {
+    const ghost = ghosts.get(s.id);
+    return ghost ? { ...s, x: ghost.x, y: ghost.y } : s;
   });
 }
 
 /**
- * The clans' territories, computed the way the owners' are: every system re-owned by the clan
- * it belongs to (a home and the bases hyperlaned to it) or by nobody, so each clan's systems
- * claim their discs and lane bands and every other system clips them. Dragged systems are
- * taken at their ghost.
+ * The clans' territories, computed the way the owners' are and from the same picture of the
+ * map: each clan's systems (a home and the bases hyperlaned to it) are the clan's, every other
+ * system stays its scripted owner's, and only the clans are painted. A clan's region and an
+ * empire's then settle their overlaps, a lane band across a clan above all, by one rule.
  */
 export function clanRegions(
   systems: Systems,
   ghosts: ReadonlyMap<number, MoveGhost>,
   ctx: RenderContext,
 ): Map<number, Region> {
-  const owner = new Map<number, number>();
+  const clanOfSystem = new Map<number, number>();
   for (const s of systems.values()) {
     if (!isHome(s) || s.marauder === null) continue;
     const clan = clanOf(s.marauder);
-    owner.set(s.id, clan);
-    for (const base of basesBeside(s, systems)) owner.set(base.id, clan);
+    clanOfSystem.set(s.id, clan);
+    for (const base of basesBeside(s, systems)) clanOfSystem.set(base.id, clan);
   }
-  if (owner.size === 0) return new Map();
-  const reowned: SystemNode[] = [];
-  for (const s of systems.values()) {
-    const ghost = ghosts.get(s.id);
-    reowned.push({ ...s, x: ghost?.x ?? s.x, y: ghost?.y ?? s.y, owner: owner.get(s.id) ?? null });
-  }
+  if (clanOfSystem.size === 0) return new Map();
+  const clans = new Set(clanOfSystem.values());
   const params = {
     radius: ctx.border.system_radius,
     laneHalfWidth: ctx.border.hyperlane_thickness / 2,
   };
-  return countryRegions(reowned, params, new Set(owner.values()));
+  const regions = countryRegions(
+    atGhosts(systems, ghosts),
+    params,
+    new Set([...clans].map(clanKey)),
+    (s) => {
+      const clan = clanOfSystem.get(s.id);
+      return clan === undefined ? s.owner : clanKey(clan);
+    },
+  );
+  const byClan = new Map<number, Region>();
+  for (const clan of clans) {
+    const region = regions.get(clanKey(clan));
+    if (region) byClan.set(clan, region);
+  }
+  return byClan;
 }
 
 /**
- * The marauder clans a scenario places, above the systems: a tag beside each clan home.
+ * The marauder clans a scenario places, above the systems: a tag beside each clan home, which
+ * names the clan and its raid bases while the pointer is on it.
  */
 export class MarauderLayer implements MapLayer {
   readonly id = "marauders" as const;
   readonly container = new Container();
-  private readonly tagsContainer = new Container({ label: "tags", eventMode: "none" });
+  private readonly tagsContainer = new Container({ label: "tags" });
   private readonly chips = new Map<number, Graphics>();
   private readonly labels = new Map<number, BitmapText>();
   private readonly freeLabels: BitmapText[] = [];
   private ctx: RenderContext = EMPTY_CONTEXT;
   private systems: Systems = EMPTY_CONTEXT.systems;
   private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
+  private hovered: number | null = null;
   private readonly scale = { x: 1, y: 1 };
 
   constructor() {
-    this.container.eventMode = "none";
+    this.container.eventMode = "passive";
     this.container.addChild(this.tagsContainer);
   }
 
@@ -167,9 +209,7 @@ export class MarauderLayer implements MapLayer {
     const alpha = ghost ? GHOST_ALPHA : 1;
     let chip = this.chips.get(s.id);
     if (!chip) {
-      chip = new Graphics();
-      drawChip(chip);
-      this.tagsContainer.addChild(chip);
+      chip = this.makeChip(s.id);
       this.chips.set(s.id, chip);
     }
     chip.position.set(at.x, at.y);
@@ -184,6 +224,37 @@ export class MarauderLayer implements MapLayer {
     }
     this.placeLabel(label, at);
     label.alpha = alpha;
+  }
+
+  private makeChip(id: number): Graphics {
+    const g = new Graphics();
+    drawChip(g);
+    g.eventMode = "static";
+    g.cursor = "help";
+    g.hitArea = HIT;
+    g.on("pointerover", (e: FederatedPointerEvent) => this.hover(id, e.global));
+    g.on("pointerout", () => this.unhover(id));
+    this.tagsContainer.addChild(g);
+    return g;
+  }
+
+  private hover(id: number, at: Pt): void {
+    const s = this.systems.get(id);
+    if (!s || !isHome(s) || s.marauder === null) return;
+    this.hovered = id;
+    const bases = basesBeside(s, this.systems).map((base) => this.ctx.nodeName(base.name));
+    useMapChromeStore.getState().showTooltip({
+      x: at.x,
+      y: at.y,
+      title: `Marauder clan ${clanOf(s.marauder)} home`,
+      lines: [raidBasesLine(bases)],
+    });
+  }
+
+  private unhover(id: number): void {
+    if (this.hovered !== id) return;
+    this.hovered = null;
+    useMapChromeStore.getState().hideTooltip();
   }
 
   /** The glyph sits on the chip, whose offset from the star grows with the marker's scale. */
@@ -201,6 +272,7 @@ export class MarauderLayer implements MapLayer {
   private remove(id: number): void {
     const chip = this.chips.get(id);
     if (chip) {
+      this.unhover(id);
       this.chips.delete(id);
       chip.destroy();
     }
@@ -213,31 +285,21 @@ export class MarauderLayer implements MapLayer {
   }
 }
 
-interface ClanShape {
-  smoothed: Region;
-  fill: Graphics;
-  edge: Graphics;
-}
-
 /**
  * The clans' territories, beneath the lanes and systems and painted the way a save's owners
- * are: each clan's home and the bases hyperlaned to it, filled and edged in the clan's colour.
- * There are at most three, so every change redraws them all.
+ * are: each clan's home and the bases hyperlaned to it, filled and edged in the marauder colour.
  */
 export class MarauderTerritoryLayer implements MapLayer {
   readonly id = "marauders" as const;
   readonly container = new Container();
-  private readonly fills = new Container({ label: "fills" });
-  private readonly edges = new Container({ label: "edges" });
-  private readonly shapes = new Map<number, ClanShape>();
+  private readonly painter = new TerritoryShapes();
   private ctx: RenderContext = EMPTY_CONTEXT;
   private systems: Systems = EMPTY_CONTEXT.systems;
   private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
-  private unit = 1;
 
   constructor() {
     this.container.eventMode = "none";
-    this.container.addChild(this.fills, this.edges);
+    this.container.addChild(this.painter.fills, this.painter.edges);
   }
 
   rebuild(ctx: RenderContext): void {
@@ -250,21 +312,19 @@ export class MarauderTerritoryLayer implements MapLayer {
     this.redraw();
   }
 
+  /** At most three clans: finding the ones a delta touches indexes every system, as painting them all does. */
   applyDelta(): void {
     this.redraw();
   }
 
-  /** The edge holds its screen width, so every shape is redrawn when the snapped width changes. */
   onViewport(cam: Camera): void {
-    const unit = strokeUnit(cam.scale);
-    if (unit === this.unit) return;
-    this.unit = unit;
-    for (const [clan, shape] of this.shapes) this.drawEdge(clan, shape);
+    this.painter.setUnit(cam.scale);
   }
 
   /** A dragged system's clan is repainted about its ghost, dimmed. */
   setDragState(drag: DragState | null): void {
     this.ghosts = drag?.byId ?? NO_GHOSTS;
+    this.painter.setDimmed(this.ghosts.size > 0);
     this.redraw();
   }
 
@@ -273,6 +333,7 @@ export class MarauderTerritoryLayer implements MapLayer {
   }
 
   destroy(): void {
+    this.painter.destroy();
     this.container.destroy({ children: true });
   }
 
@@ -280,47 +341,6 @@ export class MarauderTerritoryLayer implements MapLayer {
     const regions = drawn(this.ctx)
       ? clanRegions(this.systems, this.ghosts, this.ctx)
       : new Map<number, Region>();
-    for (const clan of [...this.shapes.keys()]) if (!regions.has(clan)) this.remove(clan);
-    for (const [clan, region] of regions) this.show(clan, region);
-  }
-
-  private show(clan: number, region: Region): void {
-    let shape = this.shapes.get(clan);
-    if (!shape) {
-      shape = { smoothed: [], fill: new Graphics(), edge: new Graphics() };
-      this.fills.addChild(shape.fill);
-      this.edges.addChild(shape.edge);
-      this.shapes.set(clan, shape);
-    }
-    shape.smoothed = smoothRegion(region);
-    const dragged = this.ghosts.size > 0;
-    shape.fill.alpha = dragged ? GHOST_ALPHA : 1;
-    shape.edge.alpha = dragged ? GHOST_ALPHA : 1;
-    shape.fill.clear();
-    for (const polygon of shape.smoothed) {
-      shape.fill
-        .poly(polygon[0], true)
-        .fill({ color: clanColor(clan), alpha: TERRITORY_FILL_ALPHA });
-    }
-    this.drawEdge(clan, shape);
-  }
-
-  private drawEdge(clan: number, { edge, smoothed }: ClanShape): void {
-    edge.clear();
-    for (const polygon of smoothed) edge.poly(polygon[0], true);
-    edge.stroke({
-      color: clanColor(clan),
-      width: TERRITORY_EDGE_PX * this.unit,
-      alpha: TERRITORY_EDGE_ALPHA,
-      join: "round",
-    });
-  }
-
-  private remove(clan: number): void {
-    const shape = this.shapes.get(clan);
-    if (!shape) return;
-    this.shapes.delete(clan);
-    shape.fill.destroy();
-    shape.edge.destroy();
+    this.painter.sync(regions, () => CLAN_COLORS);
   }
 }

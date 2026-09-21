@@ -8,7 +8,6 @@ import {
   affectedCountries,
   countryRegions,
   regionLabelAnchor,
-  smoothRegion,
   type LabelAnchor,
   type Region,
   type TerritoryParams,
@@ -21,18 +20,8 @@ import { EMPHASIS_COLOR, symbolKey } from "../../lib/visual/specialStyle";
 import { MAP_FONT } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
 import type { MapLayer } from "./MapLayer";
-import {
-  strokeUnit,
-  TERRITORY_EDGE_ALPHA,
-  TERRITORY_EDGE_PX,
-  TERRITORY_FILL_ALPHA,
-} from "./territoryStyle";
+import { TerritoryShapes } from "./TerritoryShapes";
 
-const FILL_ALPHA = TERRITORY_FILL_ALPHA;
-const EDGE_PX = TERRITORY_EDGE_PX;
-const EDGE_ALPHA = TERRITORY_EDGE_ALPHA;
-const HALO_PX = 10;
-const HALO_ALPHA = 0.25;
 const EMPHASIS_PX = 3;
 const EMPHASIS_GLOW_PX = 18;
 const EMPHASIS_GLOW_ALPHA = 0.3;
@@ -65,14 +54,9 @@ const EMBLEM_MAX_SIZE = 180;
 const EMBLEM_WIDTH_RATIO = 0.35;
 const FADE_MS = 450;
 
+/** What the layer draws for a country over the territory the painter holds for it. */
 interface CountryShape {
-  region: Region;
-  /** The drawn outline: `region` with its corners rounded off. */
-  smoothed: Region;
   anchor: LabelAnchor | null;
-  colors: OwnerColors;
-  fill: Graphics;
-  edge: Graphics;
   emphasis: Graphics;
   badge: Container;
   emblem: Sprite;
@@ -106,8 +90,7 @@ export class OwnersLayer implements MapLayer {
   readonly container = new Container();
   /** The painted regions, hidden with the layer; the emphasis between them and the badges stays. */
   private readonly territories = new Container({ label: "territories" });
-  private readonly fills = new Container({ label: "fills" });
-  private readonly edges = new Container({ label: "edges" });
+  private readonly painter = new TerritoryShapes();
   private readonly emphases = new Container({ label: "emphases" });
   private readonly badges = new Container({ label: "badges" });
   private emphasised = new Set<number>();
@@ -118,7 +101,6 @@ export class OwnersLayer implements MapLayer {
   private countryIndex = new Map<number, number>();
   private readonly shapes = new Map<number, CountryShape>();
   private readonly emblemKeys = new Map<number, string>();
-  private unit = 1;
   private fade = 1;
   private fadeTarget = 1;
   private fading = false;
@@ -126,7 +108,7 @@ export class OwnersLayer implements MapLayer {
   private readonly unsubscribeTextures: () => void;
 
   constructor() {
-    this.territories.addChild(this.fills, this.edges);
+    this.territories.addChild(this.painter.fills, this.painter.edges);
     this.container.addChild(this.territories, this.emphases, this.badges);
     this.unsubscribeTextures = onTextures((keys) => this.onTexturesLanded(keys));
   }
@@ -157,9 +139,7 @@ export class OwnersLayer implements MapLayer {
       this.refreshEmphasis();
       return;
     }
-    if (ctx.mapColors !== prev.mapColors) {
-      for (const [id, shape] of this.shapes) this.paint(id, shape);
-    }
+    if (ctx.mapColors !== prev.mapColors) this.painter.recolor((id) => this.colorsOf(id));
     if (ctx.mapColors !== prev.mapColors || ctx.special !== prev.special) {
       for (const [id, shape] of this.shapes) this.placeEmblem(id, shape);
     }
@@ -195,13 +175,8 @@ export class OwnersLayer implements MapLayer {
   }
 
   onViewport(cam: Camera): void {
-    const unit = strokeUnit(cam.scale);
-    if (unit !== this.unit) {
-      this.unit = unit;
-      for (const [id, shape] of this.shapes) {
-        this.drawEdge(shape);
-        this.drawEmphasis(id, shape);
-      }
+    if (this.painter.setUnit(cam.scale)) {
+      for (const [id, shape] of this.shapes) this.drawEmphasis(id, shape);
     }
     if (this.shown) this.fadeTowards(labelTier(cam.scale) === "none" ? 1 : 0);
   }
@@ -220,6 +195,7 @@ export class OwnersLayer implements MapLayer {
   destroy(): void {
     this.unsubscribeTextures();
     Ticker.shared.remove(this.fadeTick, this);
+    this.painter.destroy();
     this.container.destroy({ children: true });
   }
 
@@ -269,30 +245,15 @@ export class OwnersLayer implements MapLayer {
       const badge = new Container();
       badge.addChild(emblem, label);
       badge.visible = false;
-      shape = {
-        region,
-        smoothed: [],
-        anchor: null,
-        colors: { outline: 0, fill: 0 },
-        fill: new Graphics(),
-        edge: new Graphics(),
-        emphasis: new Graphics(),
-        badge,
-        emblem,
-        label,
-      };
-      this.fills.addChild(shape.fill);
-      this.edges.addChild(shape.edge);
+      shape = { anchor: null, emphasis: new Graphics(), badge, emblem, label };
       this.emphases.addChild(shape.emphasis);
       this.badges.addChild(badge);
       this.shapes.set(id, shape);
       this.retext(id, shape);
     }
-    shape.region = region;
-    shape.smoothed = smoothRegion(region);
+    this.painter.show(id, region, this.colorsOf(id));
     shape.anchor = regionLabelAnchor(region);
     this.placeEmblem(id, shape);
-    this.paint(id, shape);
     this.drawEmphasis(id, shape);
     this.applyHidden(id, shape);
   }
@@ -304,8 +265,7 @@ export class OwnersLayer implements MapLayer {
 
   private applyHidden(id: number, shape: CountryShape): void {
     const shown = !this.ctx.hiddenCountries.has(id);
-    shape.fill.visible = shown;
-    shape.edge.visible = shown;
+    this.painter.setHidden(id, !shown);
     shape.emphasis.visible = shown;
     shape.badge.visible = shown && shape.anchor !== null;
   }
@@ -313,38 +273,19 @@ export class OwnersLayer implements MapLayer {
   private remove(id: number): void {
     const shape = this.shapes.get(id);
     if (!shape) return;
-    shape.fill.destroy();
-    shape.edge.destroy();
+    this.painter.remove(id);
     shape.emphasis.destroy();
     shape.badge.destroy({ children: true });
     this.shapes.delete(id);
     this.emblemKeys.delete(id);
   }
 
-  private paint(id: number, shape: CountryShape): void {
-    shape.colors = ownerColors(
+  private colorsOf(id: number): OwnerColors {
+    return ownerColors(
       this.ctx.countries.get(id),
       this.countryIndex.get(id) ?? 0,
       this.ctx.mapColors,
     );
-    this.drawFill(shape);
-    this.drawEdge(shape);
-  }
-
-  private drawFill({ fill, smoothed, colors }: CountryShape): void {
-    fill.clear();
-    for (const polygon of smoothed) {
-      fill.poly(polygon[0], true).fill({ color: colors.fill, alpha: FILL_ALPHA });
-    }
-  }
-
-  private drawEdge({ edge, smoothed, colors }: CountryShape): void {
-    edge.clear();
-    const color = colors.outline;
-    for (const polygon of smoothed) edge.poly(polygon[0], true);
-    edge.stroke({ color, width: HALO_PX * this.unit, alpha: HALO_ALPHA, join: "round" });
-    for (const polygon of smoothed) edge.poly(polygon[0], true);
-    edge.stroke({ color, width: EDGE_PX * this.unit, alpha: EDGE_ALPHA, join: "round" });
   }
 
   /** Clans and fallen empires are marked by their borders while the special layer shows their kind. */
@@ -359,18 +300,20 @@ export class OwnersLayer implements MapLayer {
     this.applyVisibility();
   }
 
-  private drawEmphasis(id: number, { emphasis, smoothed }: CountryShape): void {
+  private drawEmphasis(id: number, { emphasis }: CountryShape): void {
     emphasis.clear();
     if (!this.emphasised.has(id)) return;
+    const smoothed = this.painter.shape(id)?.smoothed ?? [];
+    const unit = this.painter.unit;
     for (const polygon of smoothed) emphasis.poly(polygon[0], true);
     emphasis.stroke({
       color: EMPHASIS_COLOR,
-      width: EMPHASIS_GLOW_PX * this.unit,
+      width: EMPHASIS_GLOW_PX * unit,
       alpha: EMPHASIS_GLOW_ALPHA,
       join: "round",
     });
     for (const polygon of smoothed) emphasis.poly(polygon[0], true);
-    emphasis.stroke({ color: EMPHASIS_COLOR, width: EMPHASIS_PX * this.unit, join: "round" });
+    emphasis.stroke({ color: EMPHASIS_COLOR, width: EMPHASIS_PX * unit, join: "round" });
   }
 
   private placeEmblem(id: number, shape: CountryShape): void {

@@ -6,6 +6,11 @@ import type { Pt } from "./hull";
 /** Multipolygon: polygons → rings (outer only, holes dropped) → unclosed points. */
 export type Region = Pt[][][];
 
+/** Whose a system is, for a caller grouping systems by something other than their owner. */
+export type OwnerOf = (s: SystemNode) => number | null;
+
+const ownOwner: OwnerOf = (s) => s.owner;
+
 export interface TerritoryParams {
   /** Reach of a system's disc, in world units. */
   radius: number;
@@ -61,12 +66,13 @@ const MAX_BAND_PIECES = 64;
  * same-owner discs overlap freely; each same-owner lane claims a band, severed wherever such a
  * system is nearer than both ends of the lane. Pieces of one country are unioned into a
  * `Region` of hole-free polygons. With `only`, regions are computed for those countries alone;
- * every system of another owner still clips.
+ * every system of another owner still clips. `ownerOf` says whose each system is.
  */
 export function countryRegions(
   systems: Iterable<SystemNode>,
   params: TerritoryParams,
   only?: ReadonlySet<number>,
+  ownerOf: OwnerOf = ownOwner,
 ): Map<number, Region> {
   const radius = params.radius;
   const segments = params.segments ?? DEFAULT_SEGMENTS;
@@ -77,7 +83,7 @@ export function countryRegions(
   for (const s of systems) {
     byId.set(s.id, s);
     systemGrid.add(s.x, s.y, s.x, s.y, s);
-    if (s.owner !== null) owned.push(s);
+    if (ownerOf(s) !== null) owned.push(s);
   }
 
   const pieces = new Map<number, Pair[][]>();
@@ -91,19 +97,19 @@ export function countryRegions(
   const wanted = (owner: number): boolean => only === undefined || only.has(owner);
 
   for (const s of owned) {
-    const owner = s.owner as number;
+    const owner = ownerOf(s) as number;
     if (!wanted(owner)) continue;
     let disc = ngon(s.x, s.y, radius, segments);
     const reach = 2 * radius;
     systemGrid.forEachIn(s.x - reach, s.y - reach, s.x + reach, s.y + reach, (f) => {
-      if (f.id === s.id || f.owner === owner) return;
+      if (f.id === s.id || ownerOf(f) === owner) return;
       const d2 = dist2(s.x, s.y, f.x, f.y);
       if (d2 < reach * reach && d2 > EPS2) disc = keepNearer(disc, s.x, s.y, f.x, f.y);
     });
     collect(owner, disc);
   }
 
-  for (const l of sameOwnerLanes(owned, byId)) {
+  for (const l of sameOwnerLanes(owned, byId, ownerOf)) {
     if (!wanted(l.owner)) continue;
     const band = bandOf(l, params.laneHalfWidth);
     if (band === null) continue;
@@ -115,7 +121,7 @@ export function countryRegions(
       Math.max(l.ax, l.bx) + pad,
       Math.max(l.ay, l.by) + pad,
       (f) => {
-        if (f.owner !== l.owner) foreign.push(f);
+        if (ownerOf(f) !== l.owner) foreign.push(f);
       },
     );
     for (const piece of severBand(band, l, foreign)) collect(l.owner, piece);
@@ -291,7 +297,7 @@ class Neighbourhood {
       owned.push(s);
       this.discs.add(s.x, s.y, s.x, s.y, s);
     }
-    for (const l of sameOwnerLanes(owned, systems)) {
+    for (const l of sameOwnerLanes(owned, systems, ownOwner)) {
       const pad = laneReach(l.length, params);
       this.bands.add(
         Math.min(l.ax, l.bx) - pad,
@@ -332,12 +338,17 @@ function laneReach(length: number, params: TerritoryParams): number {
 }
 
 /** Each lane between two systems of one owner, once. */
-function sameOwnerLanes(owned: SystemNode[], byId: ReadonlyMap<number, SystemNode>): Lane[] {
+function sameOwnerLanes(
+  owned: SystemNode[],
+  byId: ReadonlyMap<number, SystemNode>,
+  ownerOf: OwnerOf,
+): Lane[] {
   const lanes: Lane[] = [];
   for (const a of owned) {
+    const owner = ownerOf(a) as number;
     for (const lane of a.lanes) {
       const b = byId.get(lane.to);
-      if (!b || b.owner !== a.owner) continue;
+      if (!b || ownerOf(b) !== owner) continue;
       if (a.id > b.id && b.lanes.some((l) => l.to === a.id)) continue;
       lanes.push({
         ax: a.x,
@@ -345,7 +356,7 @@ function sameOwnerLanes(owned: SystemNode[], byId: ReadonlyMap<number, SystemNod
         bx: b.x,
         by: b.y,
         length: Math.hypot(b.x - a.x, b.y - a.y),
-        owner: a.owner as number,
+        owner,
       });
     }
   }
