@@ -70,12 +70,7 @@ and generated names rather than corrupting anything.
 
 ## In a save
 
-<p>
-  <img src="docs/media/move-system.gif" width="49%" alt="Dragging a star: the system and its lanes follow the pointer">
-  <img src="docs/media/draw-lane.gif" width="49%" alt="Drawing a lane from the ring around a star to a neighbour">
-  <img src="docs/media/cut-lane.gif" width="49%" alt="Cutting a lane from its midpoint">
-  <img src="docs/media/connect-selection.gif" width="49%" alt="Connecting a selection as a mesh, previewed before it is applied">
-</p>
+![Moving a system, drawing a lane, cutting a lane and connecting a selection](docs/media/save-editing.gif)
 
 Move a system and its lanes come with it. Draw a lane by dragging from
 the ring that appears around a star when you zoom in. Cut a lane at its
@@ -84,24 +79,17 @@ between its members. Nebulae are dragged by their ring and resized by
 the handles that appear on it when one is selected.
 
 <p>
-  <img src="docs/media/inspector.png" height="420" alt="The inspector for a selected system: position, hyperlanes with stored and actual lengths, bypasses, planets, fleets, flags and initializer">
   <img src="docs/media/system-details.png" height="220" alt="A system zoomed in on the map: its star, name plate, station and resource counts">
   <img src="docs/media/layers-menu.png" height="420" alt="The Layers menu: map layers, overlays and editing highlights, each with its number key">
 </p>
 
-The inspector shows everything the save holds about the selected system,
-and the map draws each system's planets, stations and resources as you
+The map draws each system's planets, stations and resources as you
 zoom in, with the art and names from your own install. The Layers menu
 switches each drawn layer on and off, with a number key for the main ones.
 
 ## In a scenario
 
-<p>
-  <img src="docs/media/add-system.gif" width="49%" alt="Adding a system from the right-click menu and giving it an initializer">
-  <img src="docs/media/spawn-point.gif" width="49%" alt="Marking a system as a spawn point and reserving it for a human player">
-  <img src="docs/media/prevent-lane.gif" width="49%" alt="Barring the generator from ever linking two systems">
-  <img src="docs/media/initializer-browser.png" width="49%" alt="The initializer browser listing every initializer the install and mods define">
-</p>
+![Adding a system, setting a spawn point, preventing a lane and browsing initializers](docs/media/scenario-editing.gif)
 
 Right-click empty space to add a system. Pick what it spawns from the
 initializer browser, which lists everything your install and mods
@@ -111,12 +99,12 @@ scenario. An empty scenario or one from a paint-a-galaxy export can be
 started from the New scenario dialog.
 
 <p>
-  <img src="docs/media/scenario-inspector.png" height="420" alt="The inspector for a scenario system: spawn point and reservation, initializer, the planets it will spawn, hyperlanes and a prevent-lane control">
+  <img src="docs/media/inspectors.png" height="420" alt="The inspector for a save system beside the inspector for a scenario system: position, hyperlanes, planets, fleets and flags on one side, spawn point, initializer, the planets it will spawn and a prevent-lane control on the other">
   <img src="docs/media/scripts-tab.png" height="200" alt="The Scripts tab listing the initializer and scripted effects that touch a system, with the file and line each comes from">
 </p>
 
-The inspector shows what a scenario system will spawn before the game is
-ever started, and the Scripts tab lists the initializer, events and
+The inspector shows everything a save holds about a system, or what a
+scenario system will spawn before the game is ever started. The Scripts tab lists the initializer, events and
 effects that reach it, with the file and line each comes from. That list
 is a best guess (see Limitations).
 
