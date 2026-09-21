@@ -12,31 +12,27 @@ a release is made.
 
 ### Added
 
-- Full support for the Paint a Galaxy mod, which is what makes a custom
-  static galaxy work in Stellaris: the game's own generator misplaces or
-  drops empires, fallen empires and marauders, and the mod fixes that.
-  The editor reads and writes everything the mod understands. A new
-  scenario is written for the mod unless you untick the box, the app
-  says whether the mod is installed, saves your map where the mod reads
-  it and says how to start it.
-- Fallen empires where you want them. Place a zone, drag it, choose its
-  kind, and see the systems the mod will build there. Connect it to your
-  systems by dragging, as you draw a hyperlane, or let the mod pick the
-  nearest.
-- Marauder clans, no mod needed. Add one on empty space or from three
-  selected systems. The map shows it as the game does, skull emblem and
-  black border.
-- A finished game as a fresh start. A save opened or exported as a Paint
-  a Galaxy scenario keeps its fallen empires and their neighbours, seats
-  the player at their old capital and sets the new game's defaults from
-  the save's own settings.
-- The new game's setup, from the editor. A Game setup section edits the
-  counts a scenario offers and the galaxy shapes it is listed under.
-  "Update counts" sets them from the map.
-- No saving a broken map by accident: a file with unresolved issues asks
-  first.
-- Guide layers for the map's edge and the L-Cluster, and every map icon
-  says what it is on hover.
+- Support for the Paint a Galaxy mod. Custom static galaxies need it:
+  the game's own generator puts empires, fallen empires and marauders in
+  the wrong places or leaves them out, and the mod fixes that. New
+  scenarios are written for the mod by default. The app shows whether
+  the mod is installed and enabled, saves the map into the mod's folder
+  and says how to start it in the game.
+- Fallen empire zones. Place a ring where the mod should build a fallen
+  empire, drag it, choose its kind and see the systems the mod will
+  create there. Connect the zone to your systems by dragging, the same
+  way as a hyperlane, or leave the mod to link the nearest ones.
+- Marauder clans. Add one on empty space or make one from three
+  selected systems. They work without the mod and are drawn the way the
+  game draws them.
+- Opening a save as a scenario keeps the fallen empires and their
+  neighbouring systems, puts the player at their old capital and sets
+  the new game's defaults from the save's settings.
+- A Game setup section in the galaxy inspector for the counts a scenario
+  offers and the galaxy shapes it is listed under, with an "Update
+  counts" button that fills them in from the map.
+- Saving a file with unresolved issues asks first.
+- Map border and L-Cluster guide layers, and tooltips on every map icon.
 
 ### Changed
 
