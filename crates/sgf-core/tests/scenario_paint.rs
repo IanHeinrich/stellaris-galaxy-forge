@@ -432,6 +432,43 @@ fn a_scripted_seat_with_a_modifier_beside_it_is_neither_cleared_nor_written_over
     assert_eq!(common::current(&session), text.as_bytes());
 }
 
+/// A plain weight beside the marker's shape is not the player's seat: without the
+/// dialect's value the modifier is script this editor keeps, so the block is refused.
+#[test]
+fn a_plain_weight_with_the_markers_shape_is_still_a_block_of_modifiers() {
+    let text = "static_galaxy_scenario = {
+	name = \"modifiers\"
+	system = {
+		id = \"7\"
+		position = { x = 1 y = 2 }
+		initializer = random_empire_init_01
+		spawn_weight = { base = 10 modifier = { add = 100000 } }
+	}
+}
+";
+    let doc = Document::from_scenario_bytes(text.as_bytes().to_vec()).expect("index");
+    let mut session = Session::from_document(None, doc).expect("open");
+    assert_eq!(session.graph.systems[&7].spawn_script, None);
+    assert_eq!(session.graph.systems[&7].spawn_weight, Some(10.0));
+    let error = session.apply(set(7, player(7))).expect_err("seat");
+    assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
+    assert_eq!(common::current(&session), text.as_bytes());
+
+    // The base alone is the editor's to clear, and the modifier stays.
+    let result = session
+        .apply(Op::SetSpawnWeight { id: 7, base: None })
+        .expect("clear the base");
+    assert!(
+        common::current(&session)
+            .windows(b"modifier = { add = 100000 }".len())
+            .any(|w| w == b"modifier = { add = 100000 }")
+    );
+    session
+        .apply(result.entry.inverse)
+        .expect("apply the inverse");
+    assert_eq!(common::current(&session), text.as_bytes());
+}
+
 /// The player's marker beside a foreign modifier is no marker: the block is script and
 /// the seat reads as a plain preferred one.
 #[test]

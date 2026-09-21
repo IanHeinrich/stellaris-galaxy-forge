@@ -260,7 +260,9 @@ fn block(edit: &Edit) -> Result<Option<Block>, OpError> {
     if node.scalar_span().is_some() {
         return Err(edit.parse_error(node.span().start, "spawn_weight is not a block"));
     }
-    let foreign_modifiers = if paint::has_player_marker(node, &edit.buf) {
+    // The marker is the script's own text only beside the dialect's value.
+    let scripted = paint::recognise(node, &edit.buf).is_some();
+    let foreign_modifiers = if scripted && paint::has_player_marker(node, &edit.buf) {
         Vec::new()
     } else {
         node.find_all(keys::MODIFIER, &edit.buf)
