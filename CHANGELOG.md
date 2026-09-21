@@ -12,27 +12,28 @@ a release is made.
 
 ### Added
 
-- Support for the Paint a Galaxy mod. Custom static galaxies need it:
-  the game's own generator puts empires, fallen empires and marauders in
-  the wrong places or leaves them out, and the mod fixes that. New
-  scenarios are written for the mod by default. The app shows whether
-  the mod is installed and enabled, saves the map into the mod's folder
-  and says how to start it in the game.
-- Fallen empire zones. Place a ring where the mod should build a fallen
-  empire, drag it, choose its kind and see the systems the mod will
-  create there. Connect the zone to your systems by dragging, the same
-  way as a hyperlane, or leave the mod to link the nearest ones.
-- Marauder clans. Add one on empty space or make one from three
-  selected systems. They work without the mod and are drawn the way the
-  game draws them.
-- Opening a save as a scenario keeps the fallen empires and their
-  neighbouring systems, puts the player at their old capital and sets
-  the new game's defaults from the save's settings.
-- A Game setup section in the galaxy inspector for the counts a scenario
-  offers and the galaxy shapes it is listed under, with an "Update
-  counts" button that fills them in from the map.
-- Saving a file with unresolved issues asks first.
-- Map border and L-Cluster guide layers, and tooltips on every map icon.
+- Full Paint a Galaxy integration. This mod fixes native Stellaris spawn
+  issues, ensuring custom empires actually appear. The editor now tracks
+  your installation, supports all mod-specific data, and automatically
+  saves scenarios to the correct directory.
+- Custom Fallen Empire placement. Create, move, and configure Fallen
+  Empire zones. Connect them to your network by manually drawing
+  hyperlanes or letting the mod auto-link to the nearest systems.
+- Native Marauder clans. Spawn clans in empty space or across three
+  selected systems without needing any mods. The map displays them
+  exactly as the game does, complete with black borders and skull
+  emblems.
+- Turn finished saves into fresh scenarios. Export an existing save to
+  create a custom scenario that retains the original Fallen Empires,
+  starts you at your old capital, and inherits the previous game's
+  settings.
+- In-editor game setup. Configure galaxy shapes and entity counts for new
+  scenarios directly in the app. An "Update counts" button automatically
+  syncs these values based on your current map.
+- Save validation. The editor now prompts for confirmation before you
+  accidentally save a map with unresolved issues.
+- UI enhancements. Added visual guide layers for the map edge and
+  L-Cluster, alongside detailed hover tooltips for all map icons.
 
 ### Changed
 
