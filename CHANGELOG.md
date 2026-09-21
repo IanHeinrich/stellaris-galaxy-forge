@@ -10,49 +10,31 @@ a release is made.
 
 ### Added
 
-- Full support for the Paint a Galaxy mod, which is what lets a custom
-  static galaxy actually work in Stellaris. The game's own static galaxy
-  generator ships bugs that leave empires, fallen empires and marauders
-  in the wrong places or missing, and the mod fixes them. The editor now
-  reads and writes everything the mod understands: its spawn points,
-  fallen empire zones and their connections, wormhole pairs and header
-  counts. A new scenario is written for the mod unless you say otherwise.
-  The app tells you whether the mod is installed and enabled, links to
-  it on the Workshop, saves your map into the mod's folder where the
-  game finds it and says how to start it. A map made without the mod
-  carries a warning that it will break in-game.
-- Every empire seat is one you placed. A scenario made with Paint a Galaxy
-  opens with its seats intact, and the seat select says what the mod
-  does with each kind, so a preferred seat, a reserved letter or the Sol
-  seat for player 1 does what you expect. Two systems can be joined as a
-  wormhole pair.
-- Fallen empires where you want them. Place a zone from a system's menu
-  or on empty space, drag it, choose its kind, and the map shows the
-  systems the mod will build there, so a ring never lands on your own
-  systems. Choose which of your systems the fallen empire connects to by
-  dragging between a system and the ring, the way you draw a hyperlane,
-  or let the mod link the nearest ones.
-- Marauder clans without a mod. Add a clan on empty space or make one from
-  three selected systems, and the map shows it as the game does, with a
-  skull emblem and a black border, so you can see at a glance where the
-  raids will come from. Issues catches a clan that would not spawn
-  whole.
-- Turn a finished game into a fresh start. A save opened or exported as
-  a Paint a Galaxy scenario keeps its fallen empires where they were,
-  connected to the same neighbours, seats the player at their old
-  capital, leaves the L-Cluster to the game and sets the new game's
-  defaults from the save's own settings. A report says what was done,
-  and the file carries it as comments.
-- The new game's setup screen, from the editor. A Game setup section
-  edits the empire, fallen empire, marauder, wormhole, gateway and
-  hyperlane counts a scenario offers, and which galaxy shapes it is
-  listed under. "Update counts" sets them from what is on the map, and
-  Issues says when the two disagree.
-- No more saving a broken map by accident. A file with unresolved
-  warnings or errors opens the Issues tab and asks first. "Save anyway"
-  is remembered until a new issue appears.
-- Where the map ends and where the L-Cluster goes, as guide layers, and
-  every icon on the map says what it is when you hover it.
+- Full support for the Paint a Galaxy mod, which is what makes a custom
+  static galaxy work in Stellaris: the game's own generator misplaces or
+  drops empires, fallen empires and marauders, and the mod fixes that.
+  The editor reads and writes everything the mod understands. A new
+  scenario is written for the mod unless you untick the box, the app
+  says whether the mod is installed, saves your map where the mod reads
+  it and says how to start it.
+- Fallen empires where you want them. Place a zone, drag it, choose its
+  kind, and see the systems the mod will build there. Connect it to your
+  systems by dragging, as you draw a hyperlane, or let the mod pick the
+  nearest.
+- Marauder clans, no mod needed. Add one on empty space or from three
+  selected systems. The map shows it as the game does, skull emblem and
+  black border.
+- A finished game as a fresh start. A save opened or exported as a Paint
+  a Galaxy scenario keeps its fallen empires and their neighbours, seats
+  the player at their old capital and sets the new game's defaults from
+  the save's own settings.
+- The new game's setup, from the editor. A Game setup section edits the
+  counts a scenario offers and the galaxy shapes it is listed under.
+  "Update counts" sets them from the map.
+- No saving a broken map by accident: a file with unresolved issues asks
+  first.
+- Guide layers for the map's edge and the L-Cluster, and every map icon
+  says what it is on hover.
 
 ### Changed
 
