@@ -12,7 +12,7 @@ use crate::Diagnostic;
 /// Where Steam unpacks workshop items for Stellaris (app id 281990).
 const WORKSHOP_CONTENT: &str = "steamapps/workshop/content/281990";
 /// Paint a Galaxy's Steam Workshop item.
-pub const PAINT_MOD_WORKSHOP_ID: &str = "3532904115";
+pub const PAINT_MOD_WORKSHOP_ID: &str = sgf_core::format::scenario::paint::WORKSHOP_ID;
 /// The Reserved Spawns submod's Steam Workshop item, whose traits a reserved seat's empire holds.
 pub const RESERVED_SPAWNS_WORKSHOP_ID: &str = "3762808682";
 
