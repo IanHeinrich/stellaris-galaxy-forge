@@ -8,6 +8,8 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-21
+
 ### Added
 
 - Full support for the Paint a Galaxy mod, which is what makes a custom
