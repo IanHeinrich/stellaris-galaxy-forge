@@ -27,6 +27,7 @@ describe("adding and removing systems", () => {
       name: null,
       initializer: null,
       spawn_weight: null,
+      spawn_script: null,
     });
     expect(useGalaxyStore.getState().systems.get(9)).toEqual(added);
     expect(editor().selection).toEqual([9]);
@@ -48,20 +49,21 @@ describe("adding and removing systems", () => {
       name: null,
       initializer: "empire_init_01",
       spawn_weight: 1,
+      spawn_script: null,
     });
     expect(editor().selection).toEqual([9]);
   });
 
-  it("addSystemAt under the Paint a Galaxy profile writes the seat as script once the id is known", async () => {
+  it("addSystemAt under the Paint a Galaxy profile writes the seat as script in the one op, keyed to the next id", async () => {
     useFileSessionStore.setState({ kind: "scenario", painted: true });
-    const added = node(13, "", 10, -4, "sc_g");
-    mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [added] } }));
+    const added = node(6, "", 10, -4, "sc_g");
     mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [added] } }));
     mocked.getSystem.mockResolvedValueOnce({ system: added, neighbours: [], nebula: null });
 
     expect(await editor().addSystemAt(10, -4, "empire_init_01", 1)).toBe(true);
 
-    expect(mocked.applyOp).toHaveBeenNthCalledWith(1, {
+    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
+    expect(mocked.applyOp).toHaveBeenCalledWith({
       type: "AddSystem",
       id: null,
       x: 10,
@@ -69,13 +71,9 @@ describe("adding and removing systems", () => {
       name: null,
       initializer: "empire_init_01",
       spawn_weight: null,
+      spawn_script: { paint_a_galaxy: { kind: "enabled", random_value: 6 } },
     });
-    expect(mocked.applyOp).toHaveBeenNthCalledWith(2, {
-      type: "SetSpawnScript",
-      id: 13,
-      script: { paint_a_galaxy: { kind: "enabled", random_value: 3 } },
-    });
-    expect(editor().selection).toEqual([13]);
+    expect(editor().selection).toEqual([6]);
 
     mocked.applyOp.mockClear();
     mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [added] } }));

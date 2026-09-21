@@ -228,7 +228,7 @@ describe("openSave", () => {
         filters: [{ name: "Stellaris save", extensions: ["sav"] }],
       }),
     );
-    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", undefined);
+    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "plain");
     expect(mocked.openSave).not.toHaveBeenCalled();
     expect(session().pendingOpen).toBeNull();
   });
@@ -251,7 +251,7 @@ describe("openSave", () => {
     mocked.open.mockResolvedValueOnce("C:/saves/plain.sav");
     await session().pickAndOpen();
     await session().chooseOpenMode("scenario");
-    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/plain.sav", undefined);
+    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/plain.sav", "plain");
   });
 
   it("pickAndOpen with a profile opens the picked save as a scenario written under it", async () => {
@@ -265,6 +265,24 @@ describe("openSave", () => {
     expect(session().painted).toBe(true);
     expect(session().paintChosen).toBe(true);
     expect(getPaintLayer()).toBe(true);
+  });
+
+  it("pickAndOpen with an explicit plain profile opens plain even while the standing choice is on", async () => {
+    mocked.saveDirs.mockResolvedValue(["C:/saves"]);
+    mocked.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null });
+    useFileSessionStore.setState({ paintChoice: true });
+    mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
+
+    await session().pickAndOpen("scenario", "plain");
+
+    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "plain");
+    expect(session().paintChosen).toBe(false);
+    expect(getPaintLayer()).toBe(false);
+
+    mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    await session().newScenario("my_galaxy", 400, 100, "plain");
+    expect(mocked.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100, "plain");
+    expect(getPaintLayer()).toBe(false);
   });
 });
 
@@ -649,7 +667,7 @@ describe("scenario documents", () => {
     expect(mocked.openAsScenario).not.toHaveBeenCalled();
 
     await session().chooseOpenMode("scenario");
-    expect(mocked.openAsScenario).toHaveBeenCalledWith(OPEN_RESULT.path, undefined);
+    expect(mocked.openAsScenario).toHaveBeenCalledWith(OPEN_RESULT.path, "plain");
     expect(mocked.openSave).not.toHaveBeenCalled();
     expect(session().kind).toBe("scenario");
     expect(session().path).toBeNull();
@@ -669,7 +687,7 @@ describe("scenario documents", () => {
   it("a new scenario has no path, so Save asks where to put it", async () => {
     mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
     await session().newScenario("my_galaxy", 400, 100);
-    expect(mocked.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100, undefined);
+    expect(mocked.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100, "plain");
     expect(session().path).toBeNull();
     expect(session().title).toBe("my_galaxy");
     expect(getPaintLayer()).toBe(false);
@@ -727,7 +745,7 @@ describe("scenario documents", () => {
 
   it("a file the site exported is opened as painted even when no seat was set", async () => {
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    await session().openScenario(SCENARIO_PATH, { paint: true });
+    await session().openScenario(SCENARIO_PATH, "paint_a_galaxy");
     expect(mocked.openSave).toHaveBeenCalledWith(SCENARIO_PATH);
     expect(session().painted).toBe(false);
     expect(session().paintChosen).toBe(true);
@@ -742,13 +760,13 @@ describe("scenario documents", () => {
     await session().openSave(OPEN_RESULT.path);
     await edit();
     mocked.confirm.mockResolvedValueOnce(false);
-    expect(await session().pickAndOpenScenario({ paint: true })).toBe(false);
+    expect(await session().pickAndOpenScenario("paint_a_galaxy")).toBe(false);
     expect(mocked.open).not.toHaveBeenCalled();
     expect(session().kind).toBe("save");
 
     mocked.confirm.mockResolvedValueOnce(true);
     mocked.open.mockResolvedValueOnce(null);
-    expect(await session().pickAndOpenScenario({ paint: true })).toBe(false);
+    expect(await session().pickAndOpenScenario("paint_a_galaxy")).toBe(false);
     expect(mocked.open).toHaveBeenCalledWith(
       expect.objectContaining({
         filters: [{ name: "Stellaris static galaxy scenario", extensions: ["txt"] }],
@@ -759,7 +777,7 @@ describe("scenario documents", () => {
     mocked.confirm.mockResolvedValueOnce(true);
     mocked.open.mockResolvedValueOnce(SCENARIO_PATH);
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    expect(await session().pickAndOpenScenario({ paint: true })).toBe(true);
+    expect(await session().pickAndOpenScenario("paint_a_galaxy")).toBe(true);
     expect(mocked.openSave).toHaveBeenLastCalledWith(SCENARIO_PATH);
     expect(session().kind).toBe("scenario");
     expect(session().paintChosen).toBe(true);
@@ -768,7 +786,7 @@ describe("scenario documents", () => {
 
   it("reloading keeps what was said of the file at open, since the bytes cannot say it", async () => {
     mocked.openSave.mockResolvedValue(SCENARIO_RESULT);
-    await session().openScenario(SCENARIO_PATH, { paint: true });
+    await session().openScenario(SCENARIO_PATH, "paint_a_galaxy");
     expect(getPaintLayer()).toBe(true);
 
     await session().reload();

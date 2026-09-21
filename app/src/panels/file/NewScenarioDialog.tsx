@@ -36,7 +36,7 @@ function clampCore(core: number, radius: number): number {
 type Route = "blank" | "game" | "paint";
 
 /** The name and canvas size a blank scenario starts from, and the profile a new one is written under. */
-type Blank = { name: string; radius: number; coreRadius: number; profile?: ScenarioProfile };
+type Blank = { name: string; radius: number; coreRadius: number; profile: ScenarioProfile };
 
 const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
   {
@@ -180,7 +180,7 @@ function openPaintSite(): void {
 
 /** Picks the site's export and opens it as painted; the dialog stays until a file is open. */
 async function openPaintedFile(): Promise<void> {
-  const opened = await useFileSessionStore.getState().pickAndOpenScenario({ paint: true });
+  const opened = await useFileSessionStore.getState().pickAndOpenScenario("paint_a_galaxy");
   if (opened) useLayoutStore.getState().hideScenarioDialog();
 }
 
@@ -265,7 +265,7 @@ export function NewScenarioDialog() {
     name: name.trim(),
     radius,
     coreRadius,
-    profile: paint ? "paint_a_galaxy" : undefined,
+    profile: paint ? "paint_a_galaxy" : "plain",
   };
 
   const submit = (e: FormEvent) => {

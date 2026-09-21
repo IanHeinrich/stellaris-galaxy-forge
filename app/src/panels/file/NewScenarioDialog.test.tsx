@@ -15,7 +15,7 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { NewScenarioDialog, RouteCards, RouteFoot, RouteHelp } from "./NewScenarioDialog";
 
-const BLANK = { name: "new_galaxy", radius: 400, coreRadius: 100 };
+const BLANK = { name: "new_galaxy", radius: 400, coreRadius: 100, profile: "plain" as const };
 
 const noop = () => undefined;
 
@@ -104,7 +104,7 @@ describe("the blank canvas", () => {
 
     button(<RouteFoot route="blank" blank={BLANK} />, "Create").props.onClick();
 
-    expect(newScenario).toHaveBeenCalledWith(BLANK.name, BLANK.radius, BLANK.coreRadius, undefined);
+    expect(newScenario).toHaveBeenCalledWith(BLANK.name, BLANK.radius, BLANK.coreRadius, "plain");
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);
   });
 
@@ -165,7 +165,7 @@ describe("a galaxy from the game", () => {
     expect(renderToStaticMarkup(foot)).toContain("Open a save…");
     button(foot, "Open a save…").props.onClick();
 
-    expect(pickAndOpen).toHaveBeenCalledWith("scenario", undefined);
+    expect(pickAndOpen).toHaveBeenCalledWith("scenario", "plain");
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);
   });
 
@@ -219,7 +219,7 @@ describe("a painted galaxy", () => {
     button(<RouteHelp route="paint" />, "Open a Paint a Galaxy file…").props.onClick();
 
     await vi.waitFor(() => expect(useLayoutStore.getState().scenarioDialog).toBe(false));
-    expect(pickAndOpenScenario).toHaveBeenCalledWith({ paint: true });
+    expect(pickAndOpenScenario).toHaveBeenCalledWith("paint_a_galaxy");
   });
 
   it("stays open when nothing was opened: no file picked, or the discard refused", async () => {

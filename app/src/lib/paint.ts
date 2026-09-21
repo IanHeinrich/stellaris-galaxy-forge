@@ -132,6 +132,20 @@ export function enabledScript(system: SystemNode): SpawnScript {
   return scriptForKind("enabled", system);
 }
 
+/** The same for a system not yet in the galaxy, from the id it will take. */
+export function enabledScriptFor(id: number): SpawnScript {
+  return { paint_a_galaxy: { kind: "enabled", random_value: id % 10 } };
+}
+
+/** The id the core gives the next added system: one past the highest in use, 1 when none is. */
+export function nextSystemId(systems: Iterable<SystemNode>): number {
+  let highest = 0;
+  for (const system of systems) {
+    if (system.id > highest) highest = system.id;
+  }
+  return highest + 1;
+}
+
 /**
  * The scenario header's `name`, unquoted: the string the game lists the scenario under. `null`
  * while the header states no such key.

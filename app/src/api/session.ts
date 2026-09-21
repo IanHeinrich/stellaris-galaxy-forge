@@ -53,14 +53,9 @@ export function openSave(path: string): Promise<OpenResult> {
   return invoke<OpenResult>("open_save", { path });
 }
 
-/** The `profile` argument of the commands that write a scenario; left out, they write a plain one. */
-function profileArg(profile?: ScenarioProfile): { profile?: ScenarioProfile } {
-  return profile === undefined ? {} : { profile };
-}
-
 /** Open the save at `path` as a new, unsaved scenario holding its galaxy; the save is untouched. */
-export function openAsScenario(path: string, profile?: ScenarioProfile): Promise<OpenResult> {
-  return invoke<OpenResult>("open_as_scenario", { path, ...profileArg(profile) });
+export function openAsScenario(path: string, profile: ScenarioProfile): Promise<OpenResult> {
+  return invoke<OpenResult>("open_as_scenario", { path, profile });
 }
 
 /** Start an empty, unsaved scenario; `radius` sizes the canvas until systems give it an extent, `coreRadius` is written to the file. */
@@ -68,14 +63,14 @@ export function newScenario(
   name: string,
   radius: number,
   coreRadius: number,
-  profile?: ScenarioProfile,
+  profile: ScenarioProfile,
 ): Promise<OpenResult> {
-  return invoke<OpenResult>("new_scenario", { name, radius, coreRadius, ...profileArg(profile) });
+  return invoke<OpenResult>("new_scenario", { name, radius, coreRadius, profile });
 }
 
 /** Write the open save's galaxy as a scenario script at `path`; the session stays as it is. */
-export function exportScenario(path: string, profile?: ScenarioProfile): Promise<ExportResult> {
-  return invoke<ExportResult>("export_scenario", { path, ...profileArg(profile) });
+export function exportScenario(path: string, profile: ScenarioProfile): Promise<ExportResult> {
+  return invoke<ExportResult>("export_scenario", { path, profile });
 }
 
 /** What exporting the open save would report, without writing anything. */

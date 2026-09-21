@@ -3,7 +3,7 @@ import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
-import { noteReservedSpawns, useFileSessionStore } from "./fileSessionStore";
+import { getPaintLayer, noteReservedSpawns, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useIssuesStore } from "./issuesStore";
@@ -35,6 +35,7 @@ export function bindStores(): void {
 
 // Game data landing, at start or on a reload, means the launcher's playset was read again, and
 // what it says of the playset decides whether the open scenario's reserved seats are noted.
+// The launcher is polled only while something on screen would change with its answer.
 function followPaintMod(): void {
   useGameDataStore.subscribe((state, previous) => {
     if (state.summary !== previous.summary && state.summary !== null) {
@@ -46,6 +47,36 @@ function followPaintMod(): void {
       noteReservedSpawns();
     }
   });
+
+  let stopWatch: (() => void) | null = null;
+  const syncWatch = () => {
+    const wanted = paintModPollWanted();
+    if (wanted && stopWatch === null) {
+      stopWatch = usePaintModStore.getState().watch();
+    } else if (!wanted && stopWatch !== null) {
+      stopWatch();
+      stopWatch = null;
+    }
+  };
+  usePaintModStore.subscribe(syncWatch);
+  useFileSessionStore.subscribe(syncWatch);
+  useLayoutStore.subscribe(syncWatch);
+}
+
+/**
+ * Whether a fresh answer about the mod could change what is on screen: the mod is not enabled,
+ * and either a Paint a Galaxy choice is ticked in an open dialog, or a scenario is open that is
+ * on the mod's layer (the badge warns until the mod is enabled) or off it with the notice still up.
+ */
+function paintModPollWanted(): boolean {
+  const { paintMod, noticeDismissed } = usePaintModStore.getState();
+  if (paintMod?.enabled === true) return false;
+  const file = useFileSessionStore.getState();
+  if (useLayoutStore.getState().scenarioDialog || file.pendingExport !== null) {
+    return file.paintChoice;
+  }
+  if (file.status !== "ready" || file.kind !== "scenario") return false;
+  return getPaintLayer() || !noticeDismissed;
 }
 
 function followEntities(): void {

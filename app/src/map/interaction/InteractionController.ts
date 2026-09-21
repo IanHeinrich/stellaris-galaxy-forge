@@ -1,12 +1,10 @@
 import type { Op } from "../../generated/Op";
-import type { SystemNode } from "../../generated/SystemNode";
 import { isEditableTarget } from "../../lib/keys";
 import { useEditorStore } from "../../store/editorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
-import { linkRefusal } from "../../lib/feLinks";
 import { feDirectionLabel, feZoneRefusal } from "../../lib/feZone";
 import type { Camera, Pt } from "../Camera";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
@@ -157,14 +155,7 @@ export class InteractionController {
         if (this.feZoneSeq === seq) clearFeZone();
       });
     };
-    const name = (s: SystemNode) => useGalaxyStore.getState().systemName(s.id);
-    // One at a time: each link rewrites the zone's whole list from the state the last one left.
-    const linkAll = async (anchor: number, ids: number[]) => {
-      for (const id of [...ids].sort((a, b) => a - b)) {
-        const [a, s] = [systems().get(anchor), systems().get(id)];
-        if (a && s && linkRefusal(a, s, name) === null) await editor().linkToFeZone(anchor, id);
-      }
-    };
+    const linkAll = (anchor: number, ids: number[]) => editor().linkToFeZoneAll(anchor, ids);
 
     this.intent = {
       select: (id) => {

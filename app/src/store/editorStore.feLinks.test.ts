@@ -47,6 +47,22 @@ describe("a fallen empire zone's custom connections", () => {
     expect(useMapChromeStore.getState().layers.feZones).toBe(false);
   });
 
+  it("linkToFeZoneAll links a selection in one op, skipping the anchor and the already linked", async () => {
+    expect(await editor().linkToFeZoneAll(3, [4, 0, 3, 5, 1, 0])).toBe(true);
+    expect(setFeLinks).toHaveBeenCalledTimes(1);
+    expect(setFeLinks).toHaveBeenCalledWith(3, [5, 0, 1, 4]);
+    expect(sessionError()).toBeNull();
+    expect(useMapChromeStore.getState().layers.feZones).toBe(true);
+  });
+
+  it("linkToFeZoneAll reports the first refusal only when nothing could be linked", async () => {
+    expect(await editor().linkToFeZoneAll(3, [3, 5])).toBe(false);
+    expect(sessionError()).toBe("Sirius cannot link to its own zone");
+    expect(await editor().linkToFeZoneAll(3, [])).toBe(false);
+    expect(await editor().linkToFeZoneAll(99, [0])).toBe(false);
+    expect(setFeLinks).not.toHaveBeenCalled();
+  });
+
   it("unlinkFromFeZone sends the rest of the zone's links, and refuses a system not linked", async () => {
     place(ALSO_LINKED);
     expect(await editor().unlinkFromFeZone(3, 5)).toBe(true);

@@ -84,9 +84,9 @@ export interface FileSessionState {
 
   /** Resolves true when the document opened; false when it failed, or another open was in flight. */
   openSave(path: string): Promise<boolean>;
-  /** Opens the scenario file at `path`; `paint` says the file is known to be the site's. */
-  openScenario(path: string, options?: { paint?: boolean }): Promise<boolean>;
-  /** Opens the save at `path` as a new, unsaved scenario; the save itself is untouched. */
+  /** Opens the scenario file at `path`, taken as written under `profile`; left out, as its bytes say. */
+  openScenario(path: string, profile?: ScenarioProfile): Promise<boolean>;
+  /** Opens the save at `path` as a new, unsaved scenario under `profile`; the save itself is untouched. */
   openScenarioFrom(path: string, profile?: ScenarioProfile): Promise<boolean>;
   /** Starts an empty, unsaved scenario, written under `profile`; left out, a plain one. */
   newScenario(
@@ -101,11 +101,12 @@ export interface FileSessionState {
   chooseOpenMode(mode: OpenMode | null): Promise<void>;
   /**
    * With a `mode`, the picker filters to `.sav` and skips straight to that mode, no dialog;
-   * `profile` is what a scenario made from the pick is written under.
+   * `profile` is what a scenario made from the pick is written under, the standing choice
+   * when left out.
    */
   pickAndOpen(mode?: OpenMode, profile?: ScenarioProfile): Promise<void>;
   /** Picks a scenario file and opens it as `openScenario` would; resolves true once it is open. */
-  pickAndOpenScenario(options?: { paint?: boolean }): Promise<boolean>;
+  pickAndOpenScenario(profile?: ScenarioProfile): Promise<boolean>;
   /** Re-reads the open file from disk, discarding unsaved changes on confirmation. */
   reload(): Promise<void>;
   close(): Promise<void>;
@@ -167,23 +168,24 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     return openDocument(path, () => ipc.openSave(path));
   },
 
-  async openScenario(path, options) {
+  async openScenario(path, profile) {
     if (get().saving || !(await get().confirmDiscard())) return false;
-    return openDocument(path, () => ipc.openSave(path), undefined, undefined, options?.paint);
+    return openDocument(path, () => ipc.openSave(path), { profile });
   },
 
-  openScenarioFrom(path, profile) {
-    return openDocument(null, () => ipc.openAsScenario(path, profile), fileName(path), profile);
+  openScenarioFrom(path, profile = "plain") {
+    return openDocument(null, () => ipc.openAsScenario(path, profile), {
+      name: fileName(path),
+      profile,
+    });
   },
 
-  async newScenario(name, radius, coreRadius, profile) {
+  async newScenario(name, radius, coreRadius, profile = "plain") {
     if (get().saving || !(await get().confirmDiscard())) return false;
-    return openDocument(
-      null,
-      () => ipc.newScenario(name, radius, coreRadius, profile),
+    return openDocument(null, () => ipc.newScenario(name, radius, coreRadius, profile), {
       name,
       profile,
-    );
+    });
   },
 
   async requestOpen(path) {
@@ -200,7 +202,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
       : get().openSave(path));
   },
 
-  async pickAndOpen(mode, profile) {
+  async pickAndOpen(mode, profile = standingProfile()) {
     if (get().saving || !(await get().confirmDiscard())) return;
     const [defaultPath] = await ipc.saveDirs().catch(() => []);
     const picked = await open({
@@ -217,23 +219,25 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
       await routeOpen(picked);
     } else {
       await (mode === "scenario"
-        ? get().openScenarioFrom(picked, profile ?? standingProfile())
+        ? get().openScenarioFrom(picked, profile)
         : get().openSave(picked));
     }
   },
 
-  async pickAndOpenScenario(options) {
+  async pickAndOpenScenario(profile) {
     if (get().saving || !(await get().confirmDiscard())) return false;
     const picked = await open({ filters: [SCENARIO_FILTER], multiple: false, directory: false });
     if (typeof picked !== "string") return false;
-    return openDocument(picked, () => ipc.openSave(picked), undefined, undefined, options?.paint);
+    return openDocument(picked, () => ipc.openSave(picked), { profile });
   },
 
   async reload() {
     const { path, saving, paintChosen } = get();
     if (path === null || saving || !(await get().confirmDiscard())) return;
     // What the user said of the file when opening it is not in its bytes, so it is said again.
-    await openDocument(path, () => ipc.openSave(path), undefined, undefined, paintChosen);
+    await openDocument(path, () => ipc.openSave(path), {
+      profile: paintChosen ? "paint_a_galaxy" : "plain",
+    });
   },
 
   async close() {
@@ -413,8 +417,8 @@ function replaceNotes(code: NoteCode, notes: AppIssue[]): void {
 }
 
 /** The profile the standing "For the Paint a Galaxy mod" choice asks for when a save becomes a scenario. */
-function standingProfile(): ScenarioProfile | undefined {
-  return useFileSessionStore.getState().paintChoice ? "paint_a_galaxy" : undefined;
+function standingProfile(): ScenarioProfile {
+  return useFileSessionStore.getState().paintChoice ? "paint_a_galaxy" : "plain";
 }
 
 /** What a document with no file of its own is offered as a name. */
@@ -437,16 +441,22 @@ function newFilePath(title: string | null, extension: string, forPaintMod: boole
 /** The open a late answer still belongs to; a newer open leaves the older one's to nobody. */
 let opens = 0;
 
+/** What an open says of its document beyond its bytes: the name it loads under, and its profile. */
+interface OpenOptions {
+  /** Named for the loading overlay; left out, the file's own name. */
+  name?: string;
+  /** What the document is written under; left out, the layer follows its bytes alone. */
+  profile?: ScenarioProfile;
+}
+
 /**
  * The one path every open takes: `path` is the file it comes from, null for a new document, and
- * `profile` what a new one is written under, which a file with no systems yet cannot show.
+ * `profile` what it is written under, which a file with no systems yet cannot show.
  */
 async function openDocument(
   path: string | null,
   load: () => Promise<OpenResult>,
-  name?: string,
-  profile?: ScenarioProfile,
-  paint = profile === "paint_a_galaxy",
+  { name, profile }: OpenOptions = {},
 ): Promise<boolean> {
   const { getState, setState } = useFileSessionStore;
   // One document opens at a time: a second ask is refused rather than queued behind it.
@@ -471,7 +481,7 @@ async function openDocument(
       capabilities: result.capabilities,
       issues: result.issues,
       painted: result.painted,
-      paintChosen: paint,
+      paintChosen: profile === "paint_a_galaxy",
     });
     if (result.path !== null) {
       useRecentsStore.getState().noteOpened({

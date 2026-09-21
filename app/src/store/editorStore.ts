@@ -39,7 +39,7 @@ import {
   nextFreeClan,
   placeBases,
 } from "../lib/marauder";
-import { enabledScript, nextWormholePair, sharedWormholePair } from "../lib/paint";
+import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
 import {
   linkedPairs,
   linkedSystems,
@@ -199,6 +199,11 @@ export interface EditorState {
   unlinkWormholePair(a: number, b: number): Promise<boolean>;
   /** Adds `system` to the systems the mod lays hyperlanes from into the zone `anchor` anchors. */
   linkToFeZone(anchor: number, system: number): Promise<boolean>;
+  /**
+   * Adds every one of `ids` that can be linked to the zone `anchor` anchors, in one edit; the
+   * ones that cannot are left out, and only when none can is the first refusal reported.
+   */
+  linkToFeZoneAll(anchor: number, ids: number[]): Promise<boolean>;
   /** Takes `system` out of the systems linked to the zone `anchor` anchors. */
   unlinkFromFeZone(anchor: number, system: number): Promise<boolean>;
   /** Gives the zone `anchor` anchors back to the mod's own rule: no custom connections at all. */
@@ -386,7 +391,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   async addSystemAt(x, y, initializer = null, spawnWeight = null) {
-    // Under the Paint a Galaxy profile the weight is the site's script, written once the id is known.
+    // Under the Paint a Galaxy profile the weight is the site's script, keyed to the id the core will give.
     const paint = getPaintLayer() && spawnWeight !== null;
     const op: Op = {
       type: "AddSystem",
@@ -396,15 +401,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       name: null,
       initializer,
       spawn_weight: paint ? null : spawnWeight,
+      spawn_script: paint ? enabledScriptFor(nextSystemId(systems().values())) : null,
     };
     if (!(await get().applyOp(op))) return false;
     const [added] = lastEdited;
-    if (!added) return true;
-    if (paint) {
-      const script: Op = { type: "SetSpawnScript", id: added.id, script: enabledScript(added) };
-      if (!(await get().applyOp(script))) return false;
-    }
-    await get().select(added.id);
+    if (added) await get().select(added.id);
     return true;
   },
 
@@ -597,15 +598,27 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return get().applyOp({ type: "SetWormholePair", a, b, pair: null });
   },
 
-  async linkToFeZone(anchor, system) {
-    const [a, s] = [systems().get(anchor), systems().get(system)];
-    if (!a || !s) return false;
-    const refusal = linkRefusal(a, s, systemName);
-    if (refusal !== null) {
-      useFileSessionStore.getState().setError(refusal);
+  linkToFeZone(anchor, system) {
+    return get().linkToFeZoneAll(anchor, [system]);
+  },
+
+  async linkToFeZoneAll(anchor, ids) {
+    const a = systems().get(anchor);
+    if (!a) return false;
+    const linkable: number[] = [];
+    let refusal: string | null = null;
+    for (const id of [...new Set(ids)].sort((x, y) => x - y)) {
+      const s = systems().get(id);
+      if (!s) continue;
+      const why = linkRefusal(a, s, systemName);
+      if (why === null) linkable.push(id);
+      else refusal ??= why;
+    }
+    if (linkable.length === 0) {
+      if (refusal !== null) useFileSessionStore.getState().setError(refusal);
       return false;
     }
-    const linked = [...linkedToFeZone(a, systems()).map((l) => l.id), system];
+    const linked = [...linkedToFeZone(a, systems()).map((l) => l.id), ...linkable];
     return setFeLinks(anchor, linked);
   },
 
@@ -731,6 +744,7 @@ async function addSystem(
     name: null,
     initializer,
     spawn_weight: null,
+    spawn_script: null,
   };
   if (!(await useEditorStore.getState().applyOp(op))) return null;
   return lastEdited[0]?.id ?? null;
