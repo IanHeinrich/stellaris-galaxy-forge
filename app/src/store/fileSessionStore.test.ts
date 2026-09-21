@@ -679,6 +679,48 @@ describe("scenario documents", () => {
     expect(mocked.saveDialog).toHaveBeenCalledTimes(1);
   });
 
+  it("says what to do next once a file lands in the mod's folder, named by the header's size", async () => {
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().requestOpen(SCENARIO_PATH);
+    useGalaxyStore.setState({ header: [{ key: "name", value: '"Elysium"', line: 1 }] });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: PAINT_DIR, enabled: true },
+    });
+
+    const landed = `${PAINT_DIR}/my_galaxy.txt`;
+    mocked.saveDialog.mockResolvedValueOnce(landed);
+    mocked.saveAs.mockResolvedValueOnce(saveResult({ path: landed }));
+    await session().saveIntoPaintMod();
+
+    expect(session().notice).toBe(
+      "Saved into the Paint a Galaxy mod. In Stellaris, start a new game, choose the Elliptical " +
+        "shape and the size Elysium.",
+    );
+  });
+
+  it("says nothing next when the header names no size, or the file lands outside the mod's folder", async () => {
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().requestOpen(SCENARIO_PATH);
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: PAINT_DIR, enabled: true },
+    });
+
+    mocked.saveDialog.mockResolvedValueOnce(`${PAINT_DIR}/my_galaxy.txt`);
+    mocked.saveAs.mockResolvedValueOnce(saveResult({ path: `${PAINT_DIR}/my_galaxy.txt` }));
+    await session().saveIntoPaintMod();
+    expect(session().notice).toBeNull();
+
+    useGalaxyStore.setState({ header: [{ key: "name", value: '"Elysium"', line: 1 }] });
+    mocked.saveDialog.mockResolvedValueOnce("C:/mods/mine/map/setup_scenarios/elsewhere.txt");
+    mocked.saveAs.mockResolvedValueOnce(
+      saveResult({ path: "C:/mods/mine/map/setup_scenarios/elsewhere.txt" }),
+    );
+    await session().saveAs();
+    expect(session().notice).toBeNull();
+  });
+
   it("exporting previews the report, then writes a second file and leaves the save's own path, edits and save time alone", async () => {
     await session().openSave(OPEN_RESULT.path);
     await edit();

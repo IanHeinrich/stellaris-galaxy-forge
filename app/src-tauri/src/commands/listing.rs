@@ -90,3 +90,11 @@ pub async fn list_scenarios<R: Runtime>(
 pub fn is_cloud_save(path: String) -> bool {
     library::is_cloud_save(Path::new(&path))
 }
+
+/// Every other scenario in the directory of `path`, as file name and header `name`.
+#[tauri::command]
+pub async fn sibling_scenario_names(path: String) -> Result<Vec<(String, String)>, SgfError> {
+    tauri::async_runtime::spawn_blocking(move || listings::sibling_names(Path::new(&path)))
+        .await
+        .map_err(join_error)
+}

@@ -4,6 +4,7 @@
  */
 
 import type { DocumentKind } from "../generated/DocumentKind";
+import type { HeaderField } from "../generated/HeaderField";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PaintSpawnKind } from "../generated/PaintSpawnKind";
 import type { SpawnScript } from "../generated/SpawnScript";
@@ -25,6 +26,13 @@ export const PAINT_WORKSHOP_URL = `https://steamcommunity.com/sharedfiles/filede
  */
 export const RESERVED_SPAWNS_WORKSHOP_URL =
   "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682";
+
+/**
+ * The Local Cluster submod on the Steam Workshop, the usual workaround for Sol having no
+ * Sol-specific neighbours under the site's script; also allowlisted in the shell's `open_url`.
+ */
+export const LOCAL_CLUSTER_WORKSHOP_URL =
+  "https://steamcommunity.com/sharedfiles/filedetails/?id=3634498401";
 
 /** The facts of the open document the Paint a Galaxy layer is derived from. */
 export interface PaintDocument {
@@ -121,4 +129,48 @@ export function scriptForKind(key: string, system: SystemNode): SpawnScript {
 /** The script a system is marked with when made a spawn point under the profile. */
 export function enabledScript(system: SystemNode): SpawnScript {
   return scriptForKind("enabled", system);
+}
+
+/**
+ * The scenario header's `name`, unquoted: the string the game lists the scenario under. `null`
+ * while the header states no such key.
+ */
+export function scenarioHeaderName(header: readonly HeaderField[]): string | null {
+  const field = header.find((f) => f.key === "name");
+  if (field === undefined) return null;
+  const value = field.value.trim();
+  return value.length >= 2 && value.startsWith('"') && value.endsWith('"')
+    ? value.slice(1, -1)
+    : value;
+}
+
+/** What a painted galaxy's scripted seats add up to. */
+export interface SeatSummary {
+  /** Every system a script seats, of any kind. */
+  seats: number;
+  preferred: number;
+  /** Reserved letters in use, uppercase and deduplicated, ascending. */
+  reserved: string[];
+  sol: boolean;
+  /** AI empires the seats leave room for once the player and the reserved seats are set aside. */
+  safeAi: number;
+}
+
+/** The seats a galaxy's scripted systems add up to, for the header section's summary line. */
+export function seatSummary(systems: Iterable<SystemNode>): SeatSummary {
+  let seats = 0;
+  let preferred = 0;
+  let sol = false;
+  const reserved = new Set<string>();
+  for (const system of systems) {
+    const kind = system.spawn_script?.paint_a_galaxy.kind;
+    if (kind === undefined || kind === null) continue;
+    seats++;
+    if (kind === "preferred") preferred++;
+    else if (kind === "sol") sol = true;
+    else if (typeof kind !== "string") reserved.add(kind.reserved.toUpperCase());
+  }
+  const reservedLetters = [...reserved].sort();
+  const safeAi = Math.max(0, seats - reservedLetters.length - (sol ? 1 : 0) - 1);
+  return { seats, preferred, reserved: reservedLetters, sol, safeAi };
 }

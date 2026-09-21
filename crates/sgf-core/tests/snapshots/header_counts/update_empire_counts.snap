@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Update empire counts
+inverse: SetHeaderKeys { entries: [("num_empires", "{ min = 0 max = 3 }"), ("num_empire_default", "3"), ("advanced_empire_default", "0"), ("nomad_empire_default", "0"), ("nomad_empire_max", "3")] }
+
+--- scenario
++++ scenario
+@@ -24,7 +24,7 @@
+ 	marauder_empire_max = 3
+ 	extra_crisis_strength = { 10 25 }
+ 	num_empires = { min = 0 max = 3 }
+-	num_empire_default = 3
++	num_empire_default = 1
+ 	advanced_empire_default = 0
+ 	nomad_empire_default = 0
+ 	nomad_empire_max = 3

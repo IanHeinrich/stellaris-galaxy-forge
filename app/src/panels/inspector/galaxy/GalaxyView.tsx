@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
+import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
 import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
 import { useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useGalaxyVersion } from "../../../store/browserRows";
 import { laneCount, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -94,17 +95,44 @@ function AddHeaderRow({ header }: { header: readonly HeaderField[] }) {
   );
 }
 
+const LISTED_AS_SIZE =
+  "Listed in-game as a galaxy size. Start a new game with the Elliptical shape and this size.";
+
+/** `Seats N · preferred P · reserved A, C · Sol · safe AI empires K`, parts left out while zero. */
+function seatSummaryLine({ seats, preferred, reserved, sol, safeAi }: SeatSummary): string | null {
+  if (seats === 0) return null;
+  const parts = [`Seats ${seats}`];
+  if (preferred > 0) parts.push(`preferred ${preferred}`);
+  if (reserved.length > 0) parts.push(`reserved ${reserved.join(", ")}`);
+  if (sol) parts.push("Sol");
+  if (safeAi > 0) parts.push(`safe AI empires ${safeAi}`);
+  return parts.join(" · ");
+}
+
 /** Every key the scenario's own header holds, in file order, duplicates as the file writes them. */
-function HeaderSection({ header }: { header: readonly HeaderField[] }) {
+function HeaderSection({
+  header,
+  paint,
+  seatsLine,
+}: {
+  header: readonly HeaderField[];
+  paint: boolean;
+  seatsLine: string | null;
+}) {
   return (
     <Section id="galaxy.header" title="Scenario header" count={header.length}>
-      {header.map((field, i) =>
-        isRepeatedKey(header, i) ? (
-          <RepeatedRow key={headerRowKey(field, i)} field={field} />
-        ) : (
-          <HeaderRow key={headerRowKey(field, i)} field={field} />
-        ),
-      )}
+      {header.map((field, i) => {
+        const repeated = isRepeatedKey(header, i);
+        return (
+          <Fragment key={headerRowKey(field, i)}>
+            {repeated ? <RepeatedRow field={field} /> : <HeaderRow field={field} />}
+            {paint && !repeated && field.key === "name" && (
+              <div className="muted ins-hint">{LISTED_AS_SIZE}</div>
+            )}
+          </Fragment>
+        );
+      })}
+      {paint && seatsLine !== null && <div className="muted ins-hint">{seatsLine}</div>}
       <AddHeaderRow header={header} />
     </Section>
   );
@@ -124,6 +152,7 @@ export function GalaxyView() {
   const countries = useGalaxyStore((s) => s.countries);
   const nebulae = useGalaxyStore((s) => s.nebulae);
   const placed = useGameDataStore((s) => s.scenarioBypasses);
+  const paint = usePaintLayer();
   useGalaxyVersion();
 
   const scenario = kind === "scenario";
@@ -131,6 +160,7 @@ export function GalaxyView() {
     ? bypassLinks(placed, true, true).length
     : (galaxy?.bypasses.length ?? 0);
   const random = scenario ? randomBypassLine(placed) : null;
+  const seatsLine = paint ? seatSummaryLine(seatSummary(systems.values())) : null;
   if (galaxy === null) return <Empty>Open a save to look at its galaxy.</Empty>;
   return (
     <>
@@ -164,7 +194,7 @@ export function GalaxyView() {
         </Properties>
         {random && <div className="muted ins-hint">{random}</div>}
       </Section>
-      {kind === "scenario" && <HeaderSection header={header} />}
+      {kind === "scenario" && <HeaderSection header={header} paint={paint} seatsLine={seatsLine} />}
       <Section id="galaxy.file" title="File">
         <Properties>
           <PropertyRow label="Name">{path === null ? "not saved yet" : fileName(path)}</PropertyRow>

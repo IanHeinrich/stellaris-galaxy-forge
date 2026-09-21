@@ -6,9 +6,10 @@
 
 pub(crate) mod emit;
 pub mod fe_zone;
+pub mod header_counts;
 pub mod index;
 pub mod listings;
-pub(crate) mod paint;
+pub mod paint;
 pub(crate) mod spawn;
 pub(crate) mod write;
 
@@ -33,7 +34,7 @@ use crate::projections::name::{NameTemplate, looks_like_key};
 use crate::projections::read;
 use crate::session::Session;
 use crate::validate::{Issue, IssueCode};
-use crate::views::Capabilities;
+use crate::views::{Capabilities, DocumentKind};
 
 pub(crate) struct Scenario;
 
@@ -109,6 +110,7 @@ impl Format for Scenario {
             | Op::SetInitializer { .. }
             | Op::SetInitializers { .. }
             | Op::SetHeaderField { .. }
+            | Op::SetHeaderKeys { .. }
             | Op::SetSpawnWeight { .. }
             | Op::SetSpawnWeights { .. }
             | Op::SetSpawnReservation { .. }
@@ -116,6 +118,8 @@ impl Format for Scenario {
             | Op::SetSpawnScripts { .. }
             | Op::SetFeZone { .. }
             | Op::SetFeZones { .. }
+            | Op::SetWormholePair { .. }
+            | Op::SetWormholeEnds { .. }
             | Op::PreventLane { .. }
             | Op::UnpreventLane { .. } => true,
             Op::SetLaneLength { .. }
@@ -203,7 +207,11 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
         galaxy_radius,
         core_radius: scenario.header.core_radius.unwrap_or(0.0),
         header: scenario.header.fields(),
+        kind: DocumentKind::Scenario,
+        num_empires_max: scenario.header.num_empires_max,
+        num_empire_default: scenario.header.num_empire_default,
     };
+    galaxy.bypasses = paint::wormhole_pairs(&galaxy);
     let mut nebulae = Vec::new();
     for &anchor in scenario.nebulae() {
         let (src, node) = statement(doc, anchor)?;
@@ -279,6 +287,9 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         fe_zone: node
             .find(keys::EFFECT, src)
             .and_then(|effect| fe_zone::parse(fe_zone::star_flags(effect, src))),
+        wormhole_pair: node
+            .find(keys::EFFECT, src)
+            .and_then(|effect| paint::wormhole_pair(fe_zone::star_flags(effect, src))),
         prevented: Vec::new(),
         position_range: position_range(node, src),
         flags: Vec::new(),

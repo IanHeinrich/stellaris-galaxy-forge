@@ -188,6 +188,15 @@ pub enum Op {
         key: String,
         value: Option<String>,
     },
+    /// Several header keys as one undo step, each written as [`Op::SetHeaderField`]
+    /// writes one with `Some`: rewritten in place, or inserted before the first system
+    /// when the header lacks it. A key listed twice is refused. The inverse carries the
+    /// raw text each key displaced, so a key this added is not among them: undo puts
+    /// the bytes back exactly, the inverse only describes the change. Scenario
+    /// documents only.
+    SetHeaderKeys {
+        entries: Vec<(String, String)>,
+    },
     /// The `base` of a system's `spawn_weight`, the weight the generator places an empire
     /// by; `None` removes it, and with it the preset reservation
     /// [`Op::SetSpawnReservation`] writes, and the whole statement when no other
@@ -252,6 +261,23 @@ pub enum Op {
     SetFeZones {
         entries: Vec<(u32, Option<FeZone>)>,
     },
+    /// The Paint a Galaxy wormhole pair joining `a` and `b`: `Some(n)` takes every
+    /// wormhole flag off both systems and writes `painted_galaxy_wormhole_n` with
+    /// `empire_cluster` beside it on each; `None` takes the wormhole flags off both.
+    /// An `empire_cluster` goes with the wormhole flag it stands right after, and any
+    /// other is left where it is. The two systems must differ and exist, and a number
+    /// another system already carries is refused. The inverse puts both systems' pairs
+    /// back, each as its own entry. Scenario documents only.
+    SetWormholePair {
+        a: u32,
+        b: u32,
+        pair: Option<u32>,
+    },
+    /// One system's wormhole pair alone: what a [`Op::SetWormholePair`] inverts to when
+    /// the two ends held different numbers, or one held none. Scenario documents only.
+    SetWormholeEnds {
+        entries: Vec<(u32, Option<u32>)>,
+    },
     /// One `prevent_hyperlane` statement, barring the generator from linking `a` and `b`.
     /// A pair the file already links is refused: a file that both lays and forbids a lane
     /// leaves the generator undefined, so the lane goes first. Scenario documents only.
@@ -296,6 +322,7 @@ impl Op {
             Self::SetInitializer { .. } => "SetInitializer",
             Self::SetInitializers { .. } => "SetInitializers",
             Self::SetHeaderField { .. } => "SetHeaderField",
+            Self::SetHeaderKeys { .. } => "SetHeaderKeys",
             Self::SetSpawnWeight { .. } => "SetSpawnWeight",
             Self::SetSpawnWeights { .. } => "SetSpawnWeights",
             Self::SetSpawnReservation { .. } => "SetSpawnReservation",
@@ -303,6 +330,8 @@ impl Op {
             Self::SetSpawnScripts { .. } => "SetSpawnScripts",
             Self::SetFeZone { .. } => "SetFeZone",
             Self::SetFeZones { .. } => "SetFeZones",
+            Self::SetWormholePair { .. } => "SetWormholePair",
+            Self::SetWormholeEnds { .. } => "SetWormholeEnds",
             Self::PreventLane { .. } => "PreventLane",
             Self::UnpreventLane { .. } => "UnpreventLane",
         }
@@ -327,9 +356,16 @@ impl Op {
     }
 
     /// Whether this op can have moved how the systems it touched are classified: the
-    /// initializer a classification is read from, or the name it is labelled by.
+    /// initializer a classification is read from, the name it is labelled by, or the
+    /// star flags the scripts place a wormhole by.
     pub const fn reclassifies(&self) -> bool {
-        self.stales_details() || matches!(self, Self::SetSystemName { .. })
+        self.stales_details()
+            || matches!(
+                self,
+                Self::SetSystemName { .. }
+                    | Self::SetWormholePair { .. }
+                    | Self::SetWormholeEnds { .. }
+            )
     }
 }
 
@@ -428,6 +464,10 @@ pub enum OpError {
     FeZoneBlocked { anchor: String, blocker: String },
     #[error("Fallen empire zone from {anchor} is off the map")]
     FeZoneOffMap { anchor: String },
+    #[error("system {0} cannot be paired with itself")]
+    WormholeSelf(u32),
+    #[error("wormhole pair {0} is already in use")]
+    WormholePairInUse(u32),
     #[error("no lanes given")]
     Empty,
     #[error("system {0} is listed more than once")]

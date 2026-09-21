@@ -70,6 +70,7 @@ pub(super) fn extract(
         spawn_script: None,
         spawn_design: None,
         fe_zone: None,
+        wormhole_pair: None,
         prevented: Vec::new(),
         position_range: false,
         flags,

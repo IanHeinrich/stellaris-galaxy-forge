@@ -6,6 +6,7 @@ use std::sync::Arc;
 use sgf_core::archive;
 use sgf_core::export::{self, ExportReport, ScenarioOptions, ScenarioProfile};
 use sgf_core::format::scenario::fe_zone::{self, FeZone};
+use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts};
 use sgf_core::format::scenario::is_painted;
 use sgf_core::library;
 use sgf_core::ops::Op;
@@ -260,6 +261,25 @@ pub fn fe_zone_recompute(
         ));
     }
     Ok(fe_zone::recompute(&fe_zone::sites(&session.graph)))
+}
+
+/// The five empire-count header keys and the values Paint a Galaxy's formulas give
+/// the open scenario's seats, for the app to apply as one `SetHeaderKeys`.
+#[tauri::command]
+pub fn header_empire_counts(state: State<'_, AppState>) -> Result<Vec<(String, String)>, SgfError> {
+    let guard = lock(&state);
+    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    if session.kind() != DocumentKind::Scenario {
+        return Err(SgfError::new(
+            ErrorKind::Op,
+            "only a scenario has empire counts",
+        ));
+    }
+    let (seats, reserved) = seat_counts(&session.graph);
+    Ok(empire_counts(seats, reserved)
+        .into_iter()
+        .map(|(key, value)| (key.to_owned(), value))
+        .collect())
 }
 
 #[tauri::command]

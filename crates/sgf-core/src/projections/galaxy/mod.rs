@@ -20,6 +20,7 @@ use ts_rs::TS;
 
 use crate::cst::CstError;
 use crate::projections::name::NameTemplate;
+use crate::views::DocumentKind;
 
 pub use bypasses::BypassLink;
 pub use countries::{CountryNode, FlagRef};
@@ -91,6 +92,12 @@ pub struct Galaxy {
     pub core_radius: f64,
     /// A scenario's header keys as they currently read, in file order; empty for a save.
     pub header: Vec<HeaderField>,
+    /// Which document the galaxy was read from, for the checks that apply to one kind.
+    pub kind: DocumentKind,
+    /// A scenario header's `num_empires.max` and `num_empire_default`, where it states
+    /// them; always `None` for a save.
+    pub num_empires_max: Option<u32>,
+    pub num_empire_default: Option<u32>,
 }
 
 /// A save's galaxy: the plain values plus the state only a `.sav` carries.

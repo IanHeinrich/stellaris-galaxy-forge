@@ -100,6 +100,10 @@ pub struct SystemNode {
     /// The Paint a Galaxy fallen empire zone this scenario system anchors, read from the
     /// `set_star_flag`s of its `effect` block. Always `None` for a save.
     pub fe_zone: Option<FeZone>,
+    /// The Paint a Galaxy wormhole pair this scenario system is one end of, read from
+    /// the `painted_galaxy_wormhole_<n>` flag of its `effect` block. Always `None` for
+    /// a save.
+    pub wormhole_pair: Option<u32>,
     /// The systems this scenario system is `prevent_hyperlane`d from, ascending and
     /// deduplicated, mirrored on both ends. A pair can be both linked and prevented,
     /// which is the file's state, not one the projection collapses. Always empty for a

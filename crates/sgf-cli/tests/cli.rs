@@ -119,7 +119,7 @@ fn validate_reports_warnings_and_passes_a_vanilla_save() {
         "{text}"
     );
     assert!(
-        text.contains("validate: 6 warning(s), 0 error(s)"),
+        text.contains("validate: 6 warning(s), 0 error(s), 0 note(s)"),
         "{text}"
     );
 }
@@ -350,7 +350,7 @@ fn move_writes_the_edited_save_to_the_output_path() {
         "{text}"
     );
     assert!(
-        text.contains("validate: 6 warning(s), 0 error(s)"),
+        text.contains("validate: 6 warning(s), 0 error(s), 0 note(s)"),
         "{text}"
     );
     assert!(text.contains(&format!("wrote {out_str}")), "{text}");

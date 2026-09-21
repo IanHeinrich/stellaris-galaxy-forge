@@ -106,6 +106,7 @@ impl Format for Save {
             | Op::SetInitializer { .. }
             | Op::SetInitializers { .. }
             | Op::SetHeaderField { .. }
+            | Op::SetHeaderKeys { .. }
             | Op::SetSpawnWeight { .. }
             | Op::SetSpawnWeights { .. }
             | Op::SetSpawnReservation { .. }
@@ -113,6 +114,8 @@ impl Format for Save {
             | Op::SetSpawnScripts { .. }
             | Op::SetFeZone { .. }
             | Op::SetFeZones { .. }
+            | Op::SetWormholePair { .. }
+            | Op::SetWormholeEnds { .. }
             | Op::PreventLane { .. }
             | Op::UnpreventLane { .. } => false,
         }

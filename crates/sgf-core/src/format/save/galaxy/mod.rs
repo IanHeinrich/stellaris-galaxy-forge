@@ -21,6 +21,7 @@ use crate::document::Document;
 use crate::projections::galaxy::{Galaxy, GalaxyGraph, ProjectionError};
 use crate::projections::read;
 use crate::scan::{Index, Section, Value};
+use crate::views::DocumentKind;
 use crate::{NULL_ID, keys};
 
 impl Galaxy {
@@ -86,6 +87,9 @@ impl Galaxy {
             galaxy_radius,
             core_radius,
             header: Vec::new(),
+            kind: DocumentKind::Save,
+            num_empires_max: None,
+            num_empire_default: None,
         };
         galaxy.assign_nebulae();
         galaxy.refresh_stale(&ids);

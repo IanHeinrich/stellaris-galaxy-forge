@@ -12,6 +12,7 @@ use crate::emit::coord;
 use crate::export::{Draft, SpawnDraft, SystemDraft, report};
 use crate::format::scenario::emit::ScenarioOptions;
 use crate::format::scenario::fe_zone::{self, Site};
+use crate::format::scenario::header_counts::{empire_counts, is_reserved};
 use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, HEADER_NOTE, RL_BASIC, WORMHOLE_FLAG_PREFIX,
     basic_initializer,
@@ -30,7 +31,11 @@ const RANDOM_VALUES: usize = 10;
 /// zones were written.
 pub(super) fn decorate(draft: &mut Draft, options: &ScenarioOptions, graph: &GalaxyGraph) -> u32 {
     let spawns = spawn_systems(graph);
-    draft.header = header(options, draft.systems.len(), spawns.len());
+    let reserved = spawns
+        .iter()
+        .filter(|id| graph.systems.get(id).is_some_and(is_reserved))
+        .count();
+    draft.header = header(options, draft.systems.len(), spawns.len(), reserved);
     for system in &mut draft.systems {
         system.spawn = SpawnDraft::None;
     }
@@ -40,10 +45,18 @@ pub(super) fn decorate(draft: &mut Draft, options: &ScenarioOptions, graph: &Gal
     place_fe_zones(draft, graph)
 }
 
-/// The header for `systems` systems of which `spawns` are spawn points, on Forge's
-/// own `core_radius`.
-pub(super) fn header(options: &ScenarioOptions, systems: usize, spawns: usize) -> Vec<u8> {
-    let empires = as_u32(spawns.saturating_sub(1));
+/// The header for `systems` systems of which `spawns` are seats and `reserved` of those
+/// are held for one empire, on Forge's own `core_radius`.
+pub(super) fn header(
+    options: &ScenarioOptions,
+    systems: usize,
+    spawns: usize,
+    reserved: usize,
+) -> Vec<u8> {
+    let counts: String = empire_counts(as_u32(spawns), as_u32(reserved))
+        .iter()
+        .map(|(key, value)| format!("\t{key} = {value}\n"))
+        .collect();
     let (fallen, marauders, crisis) = size_band(systems);
     let shapes: String = [
         "elliptical",
@@ -78,27 +91,16 @@ pub(super) fn header(options: &ScenarioOptions, systems: usize, spawns: usize) -
          \tfallen_empire_max = 6\n\
          \tmarauder_empire_max = 3\n\
          \textra_crisis_strength = {{ 10 25 }}\n\
-         \tnum_empires = {{ min = 0 max = {empires} }}\n\
-         \tnum_empire_default = {empires}\n\
-         \tadvanced_empire_default = {}\n\
-         \tnomad_empire_default = {}\n\
-         \tnomad_empire_max = {empires}\n\
+         {counts}\
          \tfallen_empire_default = {fallen}\n\
          \tmarauder_empire_default = {marauders}\n\
          \tcrisis_strength = {crisis}\n\
          \tcore_radius = {}\n\
          \n",
         options.name,
-        share(empires, 8),
-        share(empires, 10),
         coord(options.core_radius)
     )
     .into_bytes()
-}
-
-/// `round(empires / part)`, as the app sizes the advanced and nomad empires.
-fn share(empires: u32, part: u32) -> u32 {
-    (f64::from(empires) / f64::from(part)).round() as u32
 }
 
 /// Fallen empires, marauder empires and crisis strength by galaxy size.
@@ -259,14 +261,14 @@ mod tests {
             num_empires: (0, 1),
             exported_from: None,
         };
-        String::from_utf8(header(&options, systems, spawns)).unwrap()
+        String::from_utf8(header(&options, systems, spawns, 0)).unwrap()
     }
 
     #[test]
     fn the_header_counts_empires_from_the_spawns_and_sizes_the_rest_by_systems() {
         let text = header_text(791, 12);
         assert!(text.starts_with("# Written by Stellaris Galaxy Forge"));
-        assert!(text.contains("\tnum_empires = { min = 0 max = 11 }\n\tnum_empire_default = 11\n\tadvanced_empire_default = 1\n\tnomad_empire_default = 1\n\tnomad_empire_max = 11\n\tfallen_empire_default = 2\n\tmarauder_empire_default = 2\n\tcrisis_strength = 1.0\n\tcore_radius = 30\n"), "{text}");
+        assert!(text.contains("\tnum_empires = { min = 0 max = 11 }\n\tnum_empire_default = 6\n\tadvanced_empire_default = 1\n\tnomad_empire_default = 1\n\tnomad_empire_max = 11\n\tfallen_empire_default = 2\n\tmarauder_empire_default = 2\n\tcrisis_strength = 1.0\n\tcore_radius = 30\n"), "{text}");
         assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
 
         let none = header_text(0, 0);

@@ -261,6 +261,10 @@ const ISSUE_TITLES: Record<IssueCode, string> = {
   fe_zone_blocked: "Fallen empire zone covers a system",
   fe_zone_overlap: "Fallen empire zones overlap",
   fe_zone_off_map: "Fallen empire zone lies off the map",
+  header_empire_count: "Header empire counts do not match the seats",
+  seat_letter_duplicate: "Reserved seat used twice",
+  sol_seat_mismatch: "Sol seat and Sol initializer disagree",
+  l_cluster_system: "System where the game places the L-Cluster",
 };
 
 export function issueTitle(code: IssueCode): string {

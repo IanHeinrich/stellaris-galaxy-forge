@@ -121,6 +121,8 @@ const LINKS: &[&str] = &[
     PAINT_MOD_WORKSHOP_URL,
     // Reserved Spawns submod, whose "Reserved Spawn A"-"Z" traits a reserved seat's empire needs.
     "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682",
+    // Local Cluster submod, the usual workaround for Sol having no Sol-specific neighbours.
+    "https://steamcommunity.com/sharedfiles/filedetails/?id=3634498401",
     super::update::RELEASES_URL,
 ];
 /// Paint a Galaxy's Steam Workshop page, whose id must match `mods::PAINT_MOD_WORKSHOP_ID`.

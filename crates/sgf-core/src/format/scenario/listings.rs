@@ -215,3 +215,21 @@ fn txt_files(dir: &Path) -> Vec<PathBuf> {
     files.sort();
     files
 }
+
+/// The other scenarios in `path`'s directory, as file name and header `name`, in file
+/// order; a file that does not read as a static galaxy scenario is passed over.
+pub fn sibling_names(path: &Path) -> Vec<(String, String)> {
+    let Some(dir) = path.parent() else {
+        return Vec::new();
+    };
+    let own = path.file_name();
+    txt_files(dir)
+        .into_iter()
+        .filter(|file| file.file_name() != own)
+        .filter_map(|file| {
+            let bytes = fs::read(&file).ok()?;
+            let index = ScenarioIndex::build(&bytes).ok()?;
+            Some((file_name(&file), index.header.name))
+        })
+        .collect()
+}

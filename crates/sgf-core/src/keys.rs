@@ -114,6 +114,7 @@ pub(crate) const Y: &str = "y";
 pub(crate) mod scenario {
     pub(crate) const ADD: &str = "add";
     pub(crate) const ADD_HYPERLANE: &str = "add_hyperlane";
+    pub(crate) const ADVANCED_EMPIRE_DEFAULT: &str = "advanced_empire_default";
     pub(crate) const BASE: &str = "base";
     pub(crate) const COORDINATE_TRANSFORM: &str = "coordinate_transform";
     pub(crate) const CORE_RADIUS: &str = "core_radius";
@@ -129,6 +130,10 @@ pub(crate) mod scenario {
     pub(crate) const MODIFIER: &str = "modifier";
     pub(crate) const NAME: &str = "name";
     pub(crate) const NEBULA: &str = "nebula";
+    pub(crate) const NOMAD_EMPIRE_DEFAULT: &str = "nomad_empire_default";
+    pub(crate) const NOMAD_EMPIRE_MAX: &str = "nomad_empire_max";
+    pub(crate) const NUM_EMPIRES: &str = "num_empires";
+    pub(crate) const NUM_EMPIRE_DEFAULT: &str = "num_empire_default";
     pub(crate) const POSITION: &str = "position";
     pub(crate) const PREVENT_HYPERLANE: &str = "prevent_hyperlane";
     pub(crate) const RADIUS: &str = "radius";

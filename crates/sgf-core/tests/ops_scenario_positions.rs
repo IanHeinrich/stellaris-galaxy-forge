@@ -266,7 +266,10 @@ fn is_a_nebula_op(op: &Op) -> bool {
         | Op::SetSpawnScript { .. }
         | Op::SetSpawnScripts { .. }
         | Op::SetFeZone { .. }
-        | Op::SetFeZones { .. } => false,
+        | Op::SetFeZones { .. }
+        | Op::SetHeaderKeys { .. }
+        | Op::SetWormholePair { .. }
+        | Op::SetWormholeEnds { .. } => false,
     }
 }
 

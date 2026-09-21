@@ -32,6 +32,9 @@ function exportedTitle({ save, report }: ExportResult): string | undefined {
   if (save.backup_path !== null) lines.push(`Backup: ${save.backup_path}`);
   const dropped = droppedSummary(report.dropped);
   if (dropped !== null) lines.push(`Not carried over: ${dropped}`);
+  if (report.fallen_empire_zones > 0) {
+    lines.push(`Fallen empire zones: ${report.fallen_empire_zones} automatic`);
+  }
   return lines.length === 0 ? undefined : lines.join("\n");
 }
 
@@ -160,6 +163,7 @@ function Hint() {
 export function StatusBar() {
   const status = useFileSessionStore((s) => s.status);
   const error = useFileSessionStore((s) => s.error);
+  const notice = useFileSessionStore((s) => s.notice);
   const dirty = useFileSessionStore((s) => s.dirty);
   const lastSave = useFileSessionStore((s) => s.lastSave);
   const lastExport = useFileSessionStore((s) => s.lastExport);
@@ -186,6 +190,7 @@ export function StatusBar() {
       <IssueBadge />
       <AutoReloadBadge />
       {error && <span className="warn">{error}</span>}
+      {!error && notice && <span className="muted">{notice}</span>}
       <span className="spacer" />
       <Selected />
       <Hint />

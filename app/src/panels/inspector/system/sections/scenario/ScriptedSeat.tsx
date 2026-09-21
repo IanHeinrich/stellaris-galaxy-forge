@@ -4,10 +4,12 @@ import {
   paintKindDescription,
   paintKindKey,
   scriptForKind,
+  seatSummary,
 } from "../../../../../lib/paint";
+import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { useApplyOp } from "../../../../useApplyOp";
 import { useEditableSystem } from "../../editable";
-import { openReservedSpawnsWorkshop } from "../../../../chrome/paintMod";
+import { openLocalClusterWorkshop, openReservedSpawnsWorkshop } from "../../../../chrome/paintMod";
 
 const RESERVED_PREFIX = "reserved:";
 
@@ -15,6 +17,16 @@ const [PLAIN_KINDS, RESERVED_KINDS] = [
   PAINT_SPAWN_KINDS.filter((k) => !k.key.startsWith(RESERVED_PREFIX)),
   PAINT_SPAWN_KINDS.filter((k) => k.key.startsWith(RESERVED_PREFIX)),
 ];
+
+/** `k`'s label, marked "in use" when a system other than the one being edited already holds it. */
+function optionLabel(k: { key: string; label: string }, others: ReturnType<typeof seatSummary>) {
+  const inUse =
+    k.key === "sol"
+      ? others.sol
+      : k.key.startsWith(RESERVED_PREFIX) &&
+        others.reserved.includes(k.key.slice(RESERVED_PREFIX.length).toUpperCase());
+  return inUse ? `${k.label} · in use` : k.label;
+}
 
 /**
  * The seat a Paint a Galaxy spawn system offers, as its script names it. The mod seats players
@@ -24,10 +36,13 @@ const [PLAIN_KINDS, RESERVED_KINDS] = [
 export function ScriptedSeat({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
   const editable = useEditableSystem();
+  const systems = useGalaxyStore((s) => s.systems);
   const script = system.spawn_script;
   if (script === null) return null;
   const kind = script.paint_a_galaxy.kind;
   const reserved = typeof kind !== "string";
+  const sol = kind === "sol";
+  const others = seatSummary([...systems.values()].filter((other) => other.id !== system.id));
   return (
     <>
       <div className="ins-spawn-point">
@@ -47,13 +62,13 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
           >
             {PLAIN_KINDS.map((k) => (
               <option key={k.key} value={k.key}>
-                {k.label}
+                {optionLabel(k, others)}
               </option>
             ))}
             <optgroup label="Reserved for one empire">
               {RESERVED_KINDS.map((k) => (
                 <option key={k.key} value={k.key}>
-                  {k.label}
+                  {optionLabel(k, others)}
                 </option>
               ))}
             </optgroup>
@@ -69,6 +84,15 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
               Reserved Spawns submod ↗
             </button>
             .
+          </>
+        )}
+        {sol && (
+          <>
+            {" The mod gives Sol no Sol-specific neighbours. The "}
+            <button type="button" className="link" onClick={openLocalClusterWorkshop}>
+              Local Cluster mod
+            </button>
+            {" is the usual workaround."}
           </>
         )}
       </div>

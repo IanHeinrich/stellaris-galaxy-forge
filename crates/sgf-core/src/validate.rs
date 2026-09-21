@@ -6,9 +6,15 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use std::collections::BTreeMap;
+
 use crate::format::scenario::fe_zone;
+use crate::format::scenario::header_counts::{header_mismatch, seat_counts};
+use crate::format::scenario::paint::SOL_INITIALIZER;
+use crate::guides::Guide;
 use crate::ops::rules::fe_zone::label;
-use crate::projections::galaxy::{GalaxyGraph, Nebula, SystemNode};
+use crate::projections::galaxy::{GalaxyGraph, Nebula, PaintSpawnKind, SpawnScript, SystemNode};
+use crate::views::DocumentKind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -16,6 +22,8 @@ use crate::projections::galaxy::{GalaxyGraph, Nebula, SystemNode};
 pub enum Severity {
     Error,
     Warning,
+    /// Worth a look, not a fault: the file works as it stands.
+    Info,
 }
 
 impl fmt::Display for Severity {
@@ -23,6 +31,7 @@ impl fmt::Display for Severity {
         f.write_str(match self {
             Self::Error => "error",
             Self::Warning => "warning",
+            Self::Info => "info",
         })
     }
 }
@@ -58,6 +67,16 @@ pub enum IssueCode {
     FeZoneOverlap,
     /// A fallen empire zone's centre lies beyond the canvas the mod paints on.
     FeZoneOffMap,
+    /// A Paint a Galaxy header allows more empires than the seats can take, or caps
+    /// them at other than the seats less one.
+    HeaderEmpireCount,
+    /// Two or more seats reserve the same letter, or Sol, which one empire holds.
+    SeatLetterDuplicate,
+    /// A Sol seat stands on a system without the game's Sol initializer, or that
+    /// initializer carries a seat that is not Sol.
+    SolSeatMismatch,
+    /// A system stands where the game builds the L-Cluster at galaxy generation.
+    LClusterSystem,
 }
 
 impl IssueCode {
@@ -77,7 +96,11 @@ impl IssueCode {
             | Self::HomeInitializer
             | Self::FeZoneBlocked
             | Self::FeZoneOverlap
-            | Self::FeZoneOffMap => Severity::Warning,
+            | Self::FeZoneOffMap
+            | Self::HeaderEmpireCount
+            | Self::SeatLetterDuplicate
+            | Self::LClusterSystem => Severity::Warning,
+            Self::SolSeatMismatch => Severity::Info,
         }
     }
 
@@ -98,6 +121,10 @@ impl IssueCode {
             Self::FeZoneBlocked => "fe_zone_blocked",
             Self::FeZoneOverlap => "fe_zone_overlap",
             Self::FeZoneOffMap => "fe_zone_off_map",
+            Self::HeaderEmpireCount => "header_empire_count",
+            Self::SeatLetterDuplicate => "seat_letter_duplicate",
+            Self::SolSeatMismatch => "sol_seat_mismatch",
+            Self::LClusterSystem => "l_cluster_system",
         }
     }
 }
@@ -235,6 +262,10 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
     }
 
     fe_zones(g, &mut issues);
+    if g.kind == DocumentKind::Scenario {
+        seats(g, &mut issues);
+        l_cluster(g, &mut issues);
+    }
 
     let components = g.components();
     if components.len() > g.baseline_components {
@@ -311,6 +342,95 @@ fn fe_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                     vec![anchor.id, other.id],
                 ));
             }
+        }
+    }
+}
+
+/// What Paint a Galaxy's seats say against each other and against the header: the
+/// header's counts must fit the seats, one letter and Sol reserve one seat each, and a
+/// Sol seat and the Sol initializer go together. A map with no scripted seat is not the
+/// mod's, so none of this applies to it.
+fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    let mut seated: Vec<&SystemNode> = g
+        .systems
+        .values()
+        .filter(|system| system.spawn_script.is_some())
+        .collect();
+    if seated.is_empty() {
+        return;
+    }
+    seated.sort_unstable_by_key(|system| system.id);
+    let (seats, reserved) = seat_counts(g);
+    if let Some(allowed) = header_mismatch(g, seats, reserved) {
+        issues.push(Issue::new(
+            IssueCode::HeaderEmpireCount,
+            format!(
+                "Header allows {allowed} empires but the file has {seats} seats. Update the empire counts."
+            ),
+            Vec::new(),
+        ));
+    }
+    let mut holders: BTreeMap<String, Vec<u32>> = BTreeMap::new();
+    for system in &seated {
+        let Some(SpawnScript::PaintAGalaxy { kind, .. }) = &system.spawn_script else {
+            continue;
+        };
+        let sol = matches!(kind, PaintSpawnKind::Sol);
+        match kind {
+            PaintSpawnKind::Reserved(letter) => {
+                holders.entry(letter.clone()).or_default().push(system.id);
+            }
+            PaintSpawnKind::Sol => holders.entry("Sol".to_owned()).or_default().push(system.id),
+            PaintSpawnKind::Enabled | PaintSpawnKind::Preferred => {}
+        }
+        if sol != (system.initializer == SOL_INITIALIZER) {
+            let message = if sol {
+                format!(
+                    "{} has a Sol seat but not the Sol initializer.",
+                    label(system)
+                )
+            } else {
+                format!(
+                    "{} has the Sol initializer but its seat is not Sol.",
+                    label(system)
+                )
+            };
+            issues.push(Issue::new(
+                IssueCode::SolSeatMismatch,
+                message,
+                vec![system.id],
+            ));
+        }
+    }
+    for (letter, systems) in holders {
+        if systems.len() < 2 {
+            continue;
+        }
+        issues.push(Issue::new(
+            IssueCode::SeatLetterDuplicate,
+            format!(
+                "Reserved {} is on {} systems: only one empire holds the trait.",
+                letter.to_uppercase(),
+                systems.len()
+            ),
+            systems,
+        ));
+    }
+}
+
+/// Every system inside the circle the game builds the L-Cluster in.
+fn l_cluster(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    let guide = Guide::l_cluster();
+    for system in g.systems.values() {
+        if guide.contains(system.x, system.y) {
+            issues.push(Issue::new(
+                IssueCode::LClusterSystem,
+                format!(
+                    "{} sits where the game places the L-Cluster.",
+                    label(system)
+                ),
+                vec![system.id],
+            ));
         }
     }
 }

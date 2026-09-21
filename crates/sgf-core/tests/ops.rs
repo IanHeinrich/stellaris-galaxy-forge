@@ -679,6 +679,9 @@ fn a_save_takes(op: &Op) -> bool {
         | Op::SetSpawnScripts { .. }
         | Op::SetFeZone { .. }
         | Op::SetFeZones { .. }
+        | Op::SetHeaderKeys { .. }
+        | Op::SetWormholePair { .. }
+        | Op::SetWormholeEnds { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -695,7 +698,9 @@ fn reclassifies(op: &Op) -> bool {
         | Op::SetInitializer { .. }
         | Op::SetInitializers { .. }
         | Op::SetSpawnScript { .. }
-        | Op::SetSpawnScripts { .. } => true,
+        | Op::SetSpawnScripts { .. }
+        | Op::SetWormholePair { .. }
+        | Op::SetWormholeEnds { .. } => true,
         Op::MoveSystem { .. }
         | Op::AddLane { .. }
         | Op::AddLanes { .. }
@@ -716,6 +721,7 @@ fn reclassifies(op: &Op) -> bool {
         | Op::SetNebulaRadius { .. }
         | Op::SetNebulaName { .. }
         | Op::SetHeaderField { .. }
+        | Op::SetHeaderKeys { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
         | Op::SetSpawnReservation { .. }
@@ -758,11 +764,14 @@ fn stales_details(op: &Op) -> bool {
         | Op::SetNebulaName { .. }
         | Op::SetSystemName { .. }
         | Op::SetHeaderField { .. }
+        | Op::SetHeaderKeys { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
         | Op::SetSpawnReservation { .. }
         | Op::SetFeZone { .. }
         | Op::SetFeZones { .. }
+        | Op::SetWormholePair { .. }
+        | Op::SetWormholeEnds { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -887,6 +896,17 @@ fn one_of_each() -> Vec<Op> {
         },
         Op::SetFeZone { id: 0, zone: None },
         Op::SetFeZones {
+            entries: vec![(0, None)],
+        },
+        Op::SetHeaderKeys {
+            entries: vec![("name".to_owned(), "\"x\"".to_owned())],
+        },
+        Op::SetWormholePair {
+            a: 0,
+            b: 1,
+            pair: None,
+        },
+        Op::SetWormholeEnds {
             entries: vec![(0, None)],
         },
         Op::PreventLane { a: 0, b: 1 },

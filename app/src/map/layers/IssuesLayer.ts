@@ -10,6 +10,7 @@ const RADIUS = 18;
 const WIDTH = 2;
 const ALPHA = 0.85;
 export const SEVERITY_COLOR: Record<Severity, number> = {
+  info: 0x60a5fa,
   warning: 0xf59e0b,
   error: 0xef4444,
 };

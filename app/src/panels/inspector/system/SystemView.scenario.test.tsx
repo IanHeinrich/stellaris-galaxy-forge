@@ -530,10 +530,33 @@ describe("a scenario system Paint a Galaxy seats", () => {
 
     withScript("sol");
     await open("scenario");
-    expect(overview()).toContain(
+    const html = overview();
+    expect(html).toContain(
       "United Nations of Earth counts as holding it. Set the initializer to Sol instead",
     );
-    expect(overview()).not.toContain("The trait comes from the");
+    expect(html).not.toContain("The trait comes from the");
+    expect(html).toContain("The mod gives Sol no Sol-specific neighbours.");
+    expect(html).toContain(">Local Cluster mod</button>");
+  });
+
+  it("marks a reserved letter or Sol as in use only when another system already holds it", async () => {
+    withScript({ reserved: "c" });
+    await open("scenario");
+    const systems = new Map(useGalaxyStore.getState().systems);
+    systems.set(2, {
+      ...systems.get(2)!,
+      spawn_script: { paint_a_galaxy: { kind: { reserved: "c" }, random_value: 1 } },
+    });
+    systems.set(3, {
+      ...systems.get(3)!,
+      spawn_script: { paint_a_galaxy: { kind: "sol", random_value: 1 } },
+    });
+    useGalaxyStore.setState({ systems });
+
+    const html = overview();
+    expect(html).toContain('<option value="reserved:c" selected="">Reserved C · in use</option>');
+    expect(html).toContain('<option value="sol">Sol · in use</option>');
+    expect(html).toContain('<option value="reserved:a">Reserved A</option>');
   });
 
   it("selects the seat the file names, and the change it writes keeps the random value", async () => {

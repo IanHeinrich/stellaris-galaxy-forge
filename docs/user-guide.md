@@ -329,7 +329,9 @@ Saving a new Paint a Galaxy scenario this way opens in the mod's own
 `map/setup_scenarios` folder. File → "Save into the Paint a Galaxy
 mod…" saves an already-open scenario there too. Steam can replace a
 workshop mod's folder when it updates, so keep a copy of a map you care
-about elsewhere as well.
+about elsewhere as well. Once the file lands there the status bar says
+what to do next: start a new game in Stellaris, choose the Elliptical
+shape, and pick the size the scenario's header names it under.
 
 ### Steam Cloud saves
 
@@ -465,6 +467,14 @@ After moving systems around, right-click empty space and choose
 "Recompute automatic fallen empire zones" to redo them in one undoable
 step. Editing an automatic zone makes it yours, and yours are never
 recomputed.
+
+The mod has limits of its own, from its Workshop page: the Advanced
+Neighbors setting has no effect, every precursor is on regardless of
+settings (the Precursor Selection mod works around it), Sol gets no
+Sol-specific neighbours (the Local Cluster mod is the usual
+workaround), nomads with random homes do not start in a nomad system,
+and the game adds systems the map did not have: guaranteed worlds,
+marauders, fallen empires, and some events.
 
 The initializer browser: Shift+I, the inspector, or the map's right-click
 menu ("Set initializer…" on a system, "New system from…" on empty space)

@@ -244,7 +244,7 @@ pub fn new_scenario(
     };
     let mut text = match profile {
         ScenarioProfile::Plain => header(&options),
-        ScenarioProfile::PaintAGalaxy => paint::header(&options, 0, 0),
+        ScenarioProfile::PaintAGalaxy => paint::header(&options, 0, 0, 0),
     };
     text.extend_from_slice(FOOTER);
     Session::from_document(None, Document::from_scenario_bytes(text)?)

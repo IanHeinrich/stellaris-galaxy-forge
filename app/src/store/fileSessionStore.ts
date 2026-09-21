@@ -14,8 +14,8 @@ import type { Progress } from "../generated/Progress";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SaveResult } from "../generated/SaveResult";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
-import { paintLayer } from "../lib/paint";
-import { fileName, joinPath } from "../lib/paths";
+import { paintLayer, scenarioHeaderName } from "../lib/paint";
+import { fileName, isUnder, joinPath } from "../lib/paths";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
@@ -42,6 +42,8 @@ export interface FileSessionState {
   error: string | null;
   /** The error's kind, alongside its message; null whenever `error` is. */
   errorKind: ErrorKind | null;
+  /** A plain status message, such as what a save into the Paint a Galaxy mod says to do next. */
+  notice: string | null;
   path: string | null;
   /** The format of the open document; null until one is open. */
   kind: DocumentKind | null;
@@ -112,6 +114,7 @@ export interface FileSessionState {
   /** What an edit reported about the file it belongs to. */
   noteEdit(patch: { issues: Issue[]; dirty: boolean }): void;
   setError(message: string | null): void;
+  setNotice(message: string | null): void;
   setPaintChoice(on: boolean): void;
 }
 
@@ -122,6 +125,7 @@ const INITIAL = {
   settling: false,
   error: null as string | null,
   errorKind: null as ErrorKind | null,
+  notice: null as string | null,
   path: null as string | null,
   kind: null as DocumentKind | null,
   title: null as string | null,
@@ -305,6 +309,10 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     set({ error: message, errorKind: null });
   },
 
+  setNotice(message) {
+    set({ notice: message });
+  },
+
   setPaintChoice(on) {
     set({ paintChoice: on });
     writePref(PREF_KEYS.paintProfile, on);
@@ -454,7 +462,25 @@ async function saveTo(
   if (picked === null) return;
   const cloud = await ipc.isCloudSave(picked).catch(() => false);
   if (cloud && !(await confirmCloudWrite(picked))) return;
-  await writeSave(() => ipc.saveAs(picked));
+  if (await writeSave(() => ipc.saveAs(picked))) noteSavedIntoPaintMod();
+}
+
+/**
+ * The "now what": once the file the session just wrote sits inside the Paint a Galaxy mod's
+ * scenarios folder, says how to find it in Stellaris. Silent when the header names no size yet.
+ */
+function noteSavedIntoPaintMod(): void {
+  const { getState, setState } = useFileSessionStore;
+  const { kind, path } = getState();
+  const dir = paintScenariosDir();
+  if (kind !== "scenario" || path === null || dir === null || !isUnder(path, dir)) return;
+  const name = scenarioHeaderName(useGalaxyStore.getState().header);
+  if (name === null) return;
+  setState({
+    notice:
+      "Saved into the Paint a Galaxy mod. In Stellaris, start a new game, choose the Elliptical " +
+      `shape and the size ${name}.`,
+  });
 }
 
 /** Resolves true when `path` may be written: already acknowledged this session, or the user agreed now. */
@@ -466,30 +492,36 @@ async function confirmCloudWrite(path: string): Promise<boolean> {
   return ok;
 }
 
-/** Runs `write`, reporting its progress until it settles; `settle` says what its result changes. */
+/**
+ * Runs `write`, reporting its progress until it settles; `settle` says what its result changes.
+ * Resolves true once the write landed, so a caller can act on a save that actually happened.
+ */
 async function runWrite<T>(
   write: () => Promise<T>,
   settle: (result: T) => Partial<FileSessionState>,
-): Promise<void> {
+): Promise<boolean> {
   const { getState, setState } = useFileSessionStore;
   setState({ saving: true });
   let unlisten: (() => void) | null = null;
+  let ok = false;
   try {
     unlisten = await onProgress((progress) => {
       if (getState().saving) setState({ progress });
     });
     const result = await write();
     setState({ ...settle(result), error: null, errorKind: null });
+    ok = true;
   } catch (e) {
     setState({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
   } finally {
     unlisten?.();
     setState({ saving: false, progress: null });
   }
+  return ok;
 }
 
 /** Writes the session to its own file: where it lands becomes the session's path. */
-function writeSave(write: () => Promise<SaveResult>): Promise<void> {
+function writeSave(write: () => Promise<SaveResult>): Promise<boolean> {
   return runWrite(write, (result) => ({
     lastSave: result,
     path: result.path,

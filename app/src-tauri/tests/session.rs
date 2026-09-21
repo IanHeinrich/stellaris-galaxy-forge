@@ -12,7 +12,7 @@ use sgf_core::views::{
     DocumentKind, EditResult, ErrorKind, ExportResult, OpenResult, SaveFile, SaveResult, SearchHit,
     SystemDetail,
 };
-use sgf_gamedata::scripts::ScenarioOwners;
+use sgf_gamedata::scripts::{BypassSource, ScenarioBypasses, ScenarioOwners};
 use sgf_gamedata::views::GameDataSummary;
 
 mod common;
@@ -408,6 +408,123 @@ fn fe_zone_recompute_keeps_the_placed_zones_and_offers_the_rest() {
         again.is_empty(),
         "a second pass has nothing to change: {again:?}"
     );
+}
+
+#[test]
+fn header_empire_counts_sizes_the_keys_by_the_seats_and_the_app_applies_them_as_one_step() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<Vec<(String, String)>>(
+            &w,
+            "header_empire_counts",
+            json!({})
+        )),
+        ErrorKind::NoSession
+    );
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    assert_eq!(
+        kind(invoke::<Vec<(String, String)>>(
+            &w,
+            "header_empire_counts",
+            json!({})
+        )),
+        ErrorKind::Op,
+        "a save has no header"
+    );
+
+    let opened: OpenResult =
+        invoke(&w, "open_save", json!({ "path": PAINTED })).expect("open the painted fixture");
+    assert!(
+        opened
+            .issues
+            .iter()
+            .any(|issue| issue.code == IssueCode::HeaderEmpireCount),
+        "{:?}",
+        opened.issues
+    );
+    let entries: Vec<(String, String)> =
+        invoke(&w, "header_empire_counts", json!({})).expect("counts");
+    assert_eq!(
+        entries,
+        [
+            ("num_empires".to_owned(), "{ min = 0 max = 3 }".to_owned()),
+            ("num_empire_default".to_owned(), "1".to_owned()),
+            ("advanced_empire_default".to_owned(), "0".to_owned()),
+            ("nomad_empire_default".to_owned(), "0".to_owned()),
+            ("nomad_empire_max".to_owned(), "3".to_owned()),
+        ]
+    );
+    let edited: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "SetHeaderKeys", "entries": entries } }),
+    )
+    .expect("apply the counts");
+    assert_eq!(edited.entry.description, "Update empire counts");
+    assert!(edited.dirty);
+    assert!(
+        edited
+            .issues
+            .iter()
+            .all(|issue| issue.code != IssueCode::HeaderEmpireCount),
+        "{:?}",
+        edited.issues
+    );
+    assert_eq!(edited.history.undo.len(), 1);
+}
+
+#[test]
+fn the_scenarios_beside_a_file_are_listed_without_a_session() {
+    let w = webview();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mine = dir.path().join("mine.txt");
+    std::fs::copy(PAINTED, &mine).expect("copy the painted fixture");
+    std::fs::copy(GRAMMAR, dir.path().join("grammar.txt")).expect("copy the grammar fixture");
+    std::fs::write(dir.path().join("notes.txt"), "not a scenario").expect("write");
+    let names: Vec<(String, String)> = invoke(
+        &w,
+        "sibling_scenario_names",
+        json!({ "path": mine.to_string_lossy() }),
+    )
+    .expect("siblings");
+    assert_eq!(
+        names,
+        [("grammar.txt".to_owned(), "sgf_grammar".to_owned())]
+    );
+}
+
+#[test]
+fn a_painted_scenarios_wormhole_pairs_are_drawn_without_game_data_and_follow_the_op() {
+    let w = webview();
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": PAINTED })).expect("open");
+    let pairs = |w: &_| -> Vec<(u32, Option<u32>)> {
+        let placed: Option<ScenarioBypasses> =
+            invoke(w, "get_scenario_bypasses", json!({})).expect("bypasses");
+        placed
+            .expect("a scenario lists its flagged pairs")
+            .bypasses
+            .iter()
+            .filter(|end| {
+                end.source
+                    == BypassSource::DayOne {
+                        event: "painted_galaxy_wormhole.1".to_owned(),
+                    }
+            })
+            .map(|end| (end.system, end.partner))
+            .collect()
+    };
+    assert_eq!(
+        pairs(&w),
+        [(7, Some(8)), (8, Some(7)), (12, Some(13)), (13, Some(12))]
+    );
+    let edited: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "SetWormholePair", "a": 12, "b": 13, "pair": null } }),
+    )
+    .expect("remove a pair");
+    assert!(edited.reclassifies, "the app re-reads the bypasses");
+    assert_eq!(pairs(&w), [(7, Some(8)), (8, Some(7))]);
 }
 
 #[test]

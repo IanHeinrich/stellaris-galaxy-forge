@@ -68,7 +68,7 @@ fn write_zone(
     let previous = system.fe_zone.clone();
     let description = describe(system, zone);
     let edit = plan.edit(&s.doc, id)?;
-    match (block(edit)?, zone) {
+    match (block(edit, is_zone_flag)?, zone) {
         (Some(block), Some(zone)) => {
             for span in &block.zone_flags {
                 edit.remove_statement(*span);
@@ -111,25 +111,25 @@ fn describe(system: &SystemNode, zone: Option<&FeZone>) -> String {
     }
 }
 
-fn statement(flag: &str) -> String {
+pub(super) fn statement(flag: &str) -> String {
     format!("{SET_STAR_FLAG} = {flag}")
 }
 
 /// The `effect` block of the statement being edited, as spans: the CST borrows the
 /// buffer the splices then rewrite, so nothing but offsets is carried out of it.
-struct Block {
+pub(super) struct Block {
     /// `effect = { … }`, key through closing brace.
-    statement: Span,
+    pub statement: Span,
     /// The braces and what stands between them.
-    value: Span,
+    pub value: Span,
     /// How many statements the block holds.
-    children: usize,
-    last_child: Option<Span>,
-    /// The `set_star_flag` statements naming a zone flag, in file order.
-    zone_flags: Vec<Span>,
+    pub children: usize,
+    pub last_child: Option<Span>,
+    /// The `set_star_flag` statements naming a flag `of_interest` picks, in file order.
+    pub zone_flags: Vec<Span>,
 }
 
-fn block(edit: &Edit) -> Result<Option<Block>, OpError> {
+pub(super) fn block(edit: &Edit, of_interest: fn(&str) -> bool) -> Result<Option<Block>, OpError> {
     let Some(node) = edit.entity()?.find(keys::EFFECT, &edit.buf) else {
         return Ok(None);
     };
@@ -143,7 +143,7 @@ fn block(edit: &Edit) -> Result<Option<Block>, OpError> {
         last_child: node.children().last().map(|child| child.span()),
         zone_flags: node
             .find_all(SET_STAR_FLAG, &edit.buf)
-            .filter(|flag| flag.scalar_str(&edit.buf).is_some_and(is_zone_flag))
+            .filter(|flag| flag.scalar_str(&edit.buf).is_some_and(of_interest))
             .map(|flag| flag.span())
             .collect(),
     }))
@@ -152,7 +152,7 @@ fn block(edit: &Edit) -> Result<Option<Block>, OpError> {
 /// Write `text` as the block's last statement, in the shape the one standing last is
 /// written in. A flag removed from that place is removed up to where it ended, so a
 /// statement written there follows what stands before it.
-fn append(edit: &mut Edit, block: &Block, text: &str) {
+pub(super) fn append(edit: &mut Edit, block: &Block, text: &str) {
     match block.last_child {
         Some(child) if starts_line(edit, child.start) => {
             let indent = edit.indent(child.start);

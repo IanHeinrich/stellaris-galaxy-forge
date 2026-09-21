@@ -5,13 +5,19 @@
 //! resolves to a weight from the `|KEY|value|` pairs. Reading turns the pairs into a
 //! [`SpawnScript`]; writing turns one back into the exact text the app emits, so a file
 //! it painted and one this editor edited read the same to the mod.
+//!
+//! A wormhole pair is `set_star_flag = painted_galaxy_wormhole_<n>` on both of its
+//! ends, with `empire_cluster` beside it to keep empires off them; the mod joins the
+//! two systems carrying one number at game start.
+
+use std::collections::BTreeMap;
 
 use memchr::memmem;
 
 use crate::cst::Node;
 use crate::keys::scenario as keys;
 use crate::ops::OpError;
-use crate::projections::galaxy::{PaintSpawnKind, SpawnScript};
+use crate::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
 
 /// What every spawn script, star flag and initializer of the mod's dialect starts with.
 const PREFIX: &str = "painted_galaxy_";
@@ -33,6 +39,8 @@ pub(crate) const AUTOMATIC_INITIALIZER_FLAG: &str = "painted_galaxy_automatic_in
 pub(crate) const WORMHOLE_FLAG_PREFIX: &str = "painted_galaxy_wormhole_";
 /// The star flag beside it that keeps an empire from spawning on the pair.
 pub(crate) const EMPIRE_CLUSTER: &str = "empire_cluster";
+/// The game's own initializer for Sol, the one a Sol seat is meant to stand on.
+pub const SOL_INITIALIZER: &str = "sol_system_initializer";
 
 /// The starting initializers the mod's minimum asks of a spawn system, one per residue.
 const BASIC_INITIALIZERS: [&str; 6] = [
@@ -43,6 +51,53 @@ const BASIC_INITIALIZERS: [&str; 6] = [
     "random_empire_init_05",
     "random_empire_init_06",
 ];
+
+/// The pair number of the first `painted_galaxy_wormhole_<n>` among `flags`.
+pub fn wormhole_pair<'a>(flags: impl Iterator<Item = &'a str>) -> Option<u32> {
+    flags.filter_map(wormhole_pair_of).next()
+}
+
+/// The pair number a star flag names, `None` for any other flag.
+pub fn wormhole_pair_of(flag: &str) -> Option<u32> {
+    flag.strip_prefix(WORMHOLE_FLAG_PREFIX)?.parse().ok()
+}
+
+/// Whether a star flag names a wormhole pair.
+pub fn is_wormhole_flag(flag: &str) -> bool {
+    flag.starts_with(WORMHOLE_FLAG_PREFIX)
+}
+
+/// Every pair whose number stands on exactly two systems, as the links the map draws,
+/// lower id first and ascending by number. A number on one system or on three is no
+/// pair the mod can join.
+pub fn wormhole_pairs(galaxy: &Galaxy) -> Vec<BypassLink> {
+    let mut ends: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+    for system in galaxy.systems.values() {
+        if let Some(pair) = system.wormhole_pair {
+            ends.entry(pair).or_default().push(system.id);
+        }
+    }
+    ends.into_values()
+        .filter_map(|mut ids| {
+            ids.sort_unstable();
+            match ids[..] {
+                [a, b] => Some(BypassLink::Wormhole { a, b }),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+/// The number the next wormhole pair takes: one past the highest in use, 1 on a map
+/// with none.
+pub fn next_wormhole_pair(galaxy: &Galaxy) -> u32 {
+    galaxy
+        .systems
+        .values()
+        .filter_map(|system| system.wormhole_pair)
+        .max()
+        .map_or(1, |highest| highest.saturating_add(1))
+}
 
 /// Whether `bytes` carry the mod's dialect anywhere, or Forge's header for the mod.
 pub fn is_painted(bytes: &[u8]) -> bool {

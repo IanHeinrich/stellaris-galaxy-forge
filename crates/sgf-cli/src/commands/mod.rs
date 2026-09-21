@@ -57,15 +57,16 @@ pub fn saves_only(command: &str, path: &Path) -> Option<Outcome> {
 
 /// Print every issue and the summary line; returns the number of errors.
 pub fn print_issues(issues: &[Issue]) -> usize {
-    let (mut errors, mut warnings) = (0, 0);
+    let (mut errors, mut warnings, mut notes) = (0, 0, 0);
     for issue in issues {
         match issue.severity {
             Severity::Error => errors += 1,
             Severity::Warning => warnings += 1,
+            Severity::Info => notes += 1,
         }
         println!("{} {}: {}", issue.severity, issue.code, issue.message);
     }
-    println!("validate: {warnings} warning(s), {errors} error(s)");
+    println!("validate: {warnings} warning(s), {errors} error(s), {notes} note(s)");
     errors
 }
 

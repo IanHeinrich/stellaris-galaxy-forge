@@ -9,6 +9,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import * as ipc from "../../api/ipc";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { SCENARIO_RESULT } from "../../store/fixture";
+import { useGalaxyStore } from "../../store/galaxyStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { elements } from "../../test/elements";
 import { PaintBadge } from "./PaintBadge";
@@ -36,6 +37,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
+  useGalaxyStore.getState().clear();
 });
 
 describe("the Paint a Galaxy badge", () => {
@@ -101,5 +103,22 @@ describe("the Paint a Galaxy badge", () => {
     withMod({ scenarios_dir: DIR, enabled: true });
     useFileSessionStore.setState({ status: "ready", kind: "scenario", path: `${DIR}/mine.txt` });
     expect(badge()).toContain(">Paint a Galaxy</span>");
+  });
+
+  it("names the size the header lists the scenario under, in a second tooltip line", () => {
+    openPainted();
+    withMod({ scenarios_dir: DIR, enabled: true });
+    useGalaxyStore.setState({ header: [{ key: "name", value: '"Elysium"', line: 1 }] });
+
+    expect(badge()).toContain(
+      'title="This scenario is set up for the Paint a Galaxy mod\nListed in-game as Elysium"',
+    );
+  });
+
+  it("carries no second line while the header names no size yet", () => {
+    openPainted();
+    withMod({ scenarios_dir: DIR, enabled: true });
+
+    expect(badge()).toContain('title="This scenario is set up for the Paint a Galaxy mod"');
   });
 });

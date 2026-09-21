@@ -438,22 +438,18 @@ static_galaxy_scenario = {
         &text[..300]
     );
 
-    assert!(capitals.len() > 1, "{capitals:?}");
-    let empires = capitals.len() - 1;
+    // 17 seats, none reserved: the mod's formulas give a default of half the cap and an
+    // eighth and a tenth of it for the advanced and nomad empires.
+    assert_eq!(capitals.len(), 17, "{capitals:?}");
     assert!(
-        text.contains(&format!(
-            "	num_empires = {{ min = 0 max = {empires} }}
-	num_empire_default = {empires}
+        text.contains(
+            "	num_empires = { min = 0 max = 16 }
+	num_empire_default = 8
+	advanced_empire_default = 2
+	nomad_empire_default = 2
+	nomad_empire_max = 16
 "
-        )),
-        "{}",
-        &text[..1200]
-    );
-    assert!(
-        text.contains(&format!(
-            "	nomad_empire_max = {empires}
-"
-        )),
+        ),
         "{}",
         &text[..1200]
     );

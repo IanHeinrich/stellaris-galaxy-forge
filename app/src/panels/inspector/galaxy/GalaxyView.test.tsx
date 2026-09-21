@@ -143,4 +143,41 @@ describe("the scenario header", () => {
 
     expect(galaxy()).not.toContain("Scenario header");
   });
+
+  it("says nothing about the mod's listing or the seats for a plain scenario", async () => {
+    await open("scenario");
+
+    const html = galaxy();
+    expect(html).not.toContain("Listed in-game as a galaxy size");
+    expect(html).not.toContain("Seats");
+  });
+
+  it("names the size the mod lists the scenario under, and sums up its scripted seats", async () => {
+    mocked.openAsScenario.mockResolvedValueOnce({
+      ...SCENARIO_RESULT,
+      painted: true,
+      galaxy: {
+        ...SCENARIO_RESULT.galaxy,
+        header: HEADER,
+        systems: [
+          ...SCENARIO_RESULT.galaxy.systems.slice(0, 4),
+          {
+            ...SCENARIO_RESULT.galaxy.systems[4],
+            spawn_script: { paint_a_galaxy: { kind: "preferred", random_value: 1 } },
+          },
+          {
+            ...SCENARIO_RESULT.galaxy.systems[5],
+            spawn_script: { paint_a_galaxy: { kind: { reserved: "b" }, random_value: 2 } },
+          },
+        ],
+      },
+    });
+    await open("scenario");
+
+    const html = galaxy();
+    expect(html).toContain(
+      "Listed in-game as a galaxy size. Start a new game with the Elliptical shape and this size.",
+    );
+    expect(html).toContain("Seats 2 · preferred 1 · reserved B");
+  });
 });

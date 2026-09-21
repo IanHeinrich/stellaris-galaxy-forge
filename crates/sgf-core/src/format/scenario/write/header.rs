@@ -4,8 +4,11 @@
 //! insertion before the first system and a removal all go through the overlay and the
 //! rebuild reads the result back.
 
+use std::collections::BTreeSet;
+
 use super::index;
 use crate::cst;
+use crate::format::scenario::header_counts::KEYS;
 use crate::format::scenario::index::HeaderStmt;
 use crate::keys::scenario as keys;
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject};
@@ -49,6 +52,48 @@ pub(super) fn set_field(
         (None, Some(held)) => remove(plan, s, key, &held),
         (None, None) => Err(refuse(at, format!("the header holds no {key} to remove"))),
     }
+}
+
+/// Every entry written as [`set_field`] writes one with `Some`, as one undo step: the
+/// inverse carries the raw text each key displaced, and nothing for a key the header
+/// lacked.
+pub(super) fn set_fields(
+    plan: &mut Plan,
+    s: &Session,
+    entries: &[(String, String)],
+) -> Result<Planned, OpError> {
+    if entries.is_empty() {
+        return Err(OpError::Empty);
+    }
+    let mut seen = BTreeSet::new();
+    for (key, _) in entries {
+        if !seen.insert(key.as_str()) {
+            return Err(refuse(
+                index(&s.doc).header.insert_at,
+                format!("{key} is listed more than once"),
+            ));
+        }
+    }
+    let mut previous = Vec::with_capacity(entries.len());
+    for (key, value) in entries {
+        let planned = set_field(plan, s, key, Some(value))?;
+        if let Op::SetHeaderField {
+            key,
+            value: Some(value),
+        } = planned.inverse
+        {
+            previous.push((key, value));
+        }
+    }
+    let counts = seen.len() == KEYS.len() && KEYS.iter().all(|key| seen.contains(key));
+    Ok(Planned {
+        description: if counts {
+            "Update empire counts".to_owned()
+        } else {
+            format!("Set {} header keys", entries.len())
+        },
+        inverse: Op::SetHeaderKeys { entries: previous },
+    })
 }
 
 /// The raw text goes where the value stands, block or scalar alike, so a key written as

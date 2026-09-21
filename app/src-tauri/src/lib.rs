@@ -33,6 +33,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::warm_details,
             commands::apply_op,
             commands::fe_zone_recompute,
+            commands::header_empire_counts,
+            commands::sibling_scenario_names,
             commands::undo,
             commands::redo,
             commands::save,

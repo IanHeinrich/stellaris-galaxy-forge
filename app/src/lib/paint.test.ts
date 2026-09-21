@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { HeaderField } from "../generated/HeaderField";
 import type { SpawnScript } from "../generated/SpawnScript";
 import { systemNode } from "../test/builders";
 import {
+  LOCAL_CLUSTER_WORKSHOP_URL,
   PAINT_MOD_WORKSHOP_ID,
   PAINT_SPAWN_KINDS,
   PAINT_WORKSHOP_URL,
@@ -10,7 +12,9 @@ import {
   paintKindDescription,
   paintKindKey,
   paintLayer,
+  scenarioHeaderName,
   scriptForKind,
+  seatSummary,
   spawnScriptLabel,
 } from "./paint";
 
@@ -54,6 +58,12 @@ describe("a painted galaxy", () => {
   it("links the Reserved Spawns submod by its id", () => {
     expect(RESERVED_SPAWNS_WORKSHOP_URL).toBe(
       "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682",
+    );
+  });
+
+  it("links the Local Cluster submod by its id", () => {
+    expect(LOCAL_CLUSTER_WORKSHOP_URL).toBe(
+      "https://steamcommunity.com/sharedfiles/filedetails/?id=3634498401",
     );
   });
 
@@ -113,5 +123,54 @@ describe("the Paint a Galaxy layer", () => {
       false,
     );
     expect(paintLayer(doc({ kind: null, paintChosen: true }), mod(DIR))).toBe(false);
+  });
+});
+
+describe("the scenario header's name", () => {
+  it("unquotes the header's name key", () => {
+    const header: HeaderField[] = [{ key: "name", value: '"My Galaxy"', line: 2 }];
+    expect(scenarioHeaderName(header)).toBe("My Galaxy");
+  });
+
+  it("is null when the header states no name", () => {
+    expect(scenarioHeaderName([])).toBeNull();
+  });
+});
+
+describe("the seats a galaxy's scripts add up to", () => {
+  it("counts every scripted system and every kind it names", () => {
+    const systems = [
+      scripted(1, "enabled"),
+      scripted(2, "preferred"),
+      scripted(3, "preferred"),
+      scripted(4, { reserved: "c" }),
+      scripted(5, { reserved: "a" }),
+      scripted(6, "sol"),
+      systemNode({ id: 7 }),
+    ];
+    expect(seatSummary(systems)).toEqual({
+      seats: 6,
+      preferred: 2,
+      reserved: ["A", "C"],
+      sol: true,
+      safeAi: 2,
+    });
+  });
+
+  it("leaves out what a plain galaxy never scripts, and floors safe AI empires at zero", () => {
+    expect(seatSummary([systemNode({ id: 1 }), systemNode({ id: 2 })])).toEqual({
+      seats: 0,
+      preferred: 0,
+      reserved: [],
+      sol: false,
+      safeAi: 0,
+    });
+    expect(seatSummary([scripted(1, { reserved: "b" })])).toEqual({
+      seats: 1,
+      preferred: 0,
+      reserved: ["B"],
+      sol: false,
+      safeAi: 0,
+    });
   });
 });

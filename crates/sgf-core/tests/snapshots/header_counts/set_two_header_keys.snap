@@ -1,0 +1,25 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set 2 header keys
+inverse: SetHeaderKeys { entries: [("num_empire_default", "3")] }
+
+--- scenario
++++ scenario
+@@ -24,13 +24,14 @@
+ 	marauder_empire_max = 3
+ 	extra_crisis_strength = { 10 25 }
+ 	num_empires = { min = 0 max = 3 }
+-	num_empire_default = 3
++	num_empire_default = 2
+ 	advanced_empire_default = 0
+ 	nomad_empire_default = 0
+ 	nomad_empire_max = 3
+ 	fallen_empire_default = 0
+ 	marauder_empire_default = 1
+ 	crisis_strength = 0.5
++	core_radius = 40
+ 	system = { id = "0" position = { x = 0 y = 120 } name = "Alpha" initializer = random_empire_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|3| } }
+ 	system = { id = "1" position = { x = 110 y = 40 } name = "Beta" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| } }
+ 	system = { id = "2" position = { x = 70 y = -100 } name = "Gamma" initializer = random_empire_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| } }

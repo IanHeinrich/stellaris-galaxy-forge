@@ -81,6 +81,12 @@ describe("the saved state", () => {
     html = bar();
     expect(html).toContain("Exported 12:03");
     expect(html).not.toContain("title=");
+
+    useFileSessionStore.setState({
+      lastExport: { save: plain, report: exportReport({ fallen_empire_zones: 5 }) },
+    });
+    html = bar();
+    expect(html).toContain('title="Fallen empire zones: 5 automatic"');
   });
 
   it("keeps the save's backup and the export's apart", () => {
@@ -94,6 +100,18 @@ describe("the saved state", () => {
     const html = bar();
     expect(html).toContain('title="Backup: C:/saves/terran.sav.bak">Saved 14:02');
     expect(html).toContain('<span class="muted">Exported 14:05');
+  });
+});
+
+describe("the notice", () => {
+  it("shows a plain status message, and yields to an error", () => {
+    useFileSessionStore.setState({ notice: "Saved into the Paint a Galaxy mod." });
+    expect(bar()).toContain('<span class="muted">Saved into the Paint a Galaxy mod.</span>');
+
+    useFileSessionStore.setState({ error: "something went wrong" });
+    const html = bar();
+    expect(html).toContain('<span class="warn">something went wrong</span>');
+    expect(html).not.toContain("Saved into the Paint a Galaxy mod.");
   });
 });
 
