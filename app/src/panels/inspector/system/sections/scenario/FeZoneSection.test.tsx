@@ -6,6 +6,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../../../../api/__mocks__/
 vi.mock("../../../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../../../test/zustandSnapshot"));
 
+import type { FeLinkFlags } from "../../../../../generated/FeLinkFlags";
 import type { FeZone } from "../../../../../generated/FeZone";
 import { newFeZone } from "../../../../../lib/feZone";
 import { bindStores } from "../../../../../store/bindStores";
@@ -20,6 +21,9 @@ import {
   FALLBACK_LABEL,
   FE_ZONE_INTRO,
   KIND_HINT,
+  LINK_HINT,
+  NEAREST_NOTE,
+  NONE_LINKED,
 } from "./FeZoneSection";
 
 bindStores();
@@ -27,17 +31,29 @@ bindStores();
 /** The text as the static renderer escapes it. */
 const escaped = (text: string) => text.replace(/'/g, "&#x27;");
 
-/** Opens the scenario under the Paint a Galaxy layer, with `SYSTEM` anchoring `zone`. */
-async function openWith(zone: FeZone | null): Promise<void> {
+const NO_LINKS: FeLinkFlags = { custom: false, id: null, to: [] };
+
+/**
+ * Opens the scenario under the Paint a Galaxy layer, with `SYSTEM` anchoring `zone` and
+ * carrying `fe_link`, and the fixture systems `linked` linking to id 1.
+ */
+async function openWith(
+  zone: FeZone | null,
+  fe_link: FeLinkFlags = NO_LINKS,
+  linked: number[] = [],
+): Promise<void> {
   mocked.getSystem.mockImplementation(async (id) => {
     const detail = detailOf(id);
-    return { ...detail, system: { ...detail.system, fe_zone: zone } };
+    return { ...detail, system: { ...detail.system, fe_zone: zone, fe_link } };
   });
   await open("scenario");
   useFileSessionStore.setState({ painted: true });
   const systems = new Map(useGalaxyStore.getState().systems);
   const anchor = systems.get(SYSTEM)!;
-  systems.set(SYSTEM, { ...anchor, fe_zone: zone });
+  systems.set(SYSTEM, { ...anchor, fe_zone: zone, fe_link });
+  for (const id of linked) {
+    systems.set(id, { ...systems.get(id)!, fe_link: { ...NO_LINKS, to: [1] } });
+  }
   useGalaxyStore.setState({ systems });
 }
 
@@ -111,6 +127,35 @@ describe("a scenario system's fallen empire zone", () => {
     expect(html).not.toContain(">None<");
   });
 
+  it("says the mod links the zone to its nearest systems, and how to link one by hand", async () => {
+    await openWith(newFeZone("n"));
+    const html = overview();
+    expect(html).toContain("Connections");
+    expect(html).toContain(NEAREST_NOTE);
+    expect(html).toContain(LINK_HINT);
+    expect(html).not.toContain("Use nearest instead");
+  });
+
+  it("lists the linked systems with a link and an unlink each, and offers the mod's own rule", async () => {
+    await openWith(newFeZone("n"), { custom: true, id: 1, to: [] }, [3, 0]);
+    const html = overview();
+    expect(html).not.toContain(NEAREST_NOTE);
+    expect(html).toMatch(
+      /<button[^>]*>Sol<\/button><button[^>]*aria-label="Unlink Sol"[^>]*>×<\/button>/,
+    );
+    expect(html).toMatch(/<button[^>]*>Sirius<\/button><button[^>]*aria-label="Unlink Sirius"/);
+    expect(html.indexOf(">Sol</button>")).toBeLessThan(html.indexOf(">Sirius</button>"));
+    expect(html).toContain(">Use nearest instead</button>");
+    expect(html).not.toContain(NONE_LINKED);
+  });
+
+  it("says when a zone takes custom connections and nothing links to it", async () => {
+    await openWith(newFeZone("n"), { custom: true, id: 1, to: [] });
+    const html = overview();
+    expect(html).toContain(NONE_LINKED);
+    expect(html).toContain(">Use nearest instead</button>");
+  });
+
   it("says when the zone is the mod's own, and that a change takes it over", async () => {
     await openWith({ ...newFeZone("n"), preferred: false });
     expect(overview()).toContain(AUTOMATIC_NOTE);
@@ -133,10 +178,24 @@ describe("a scenario system's fallen empire zone", () => {
           message: "Fallen empire zone from Sol is blocked by Barnard's Star.",
           systems: [0, 2],
         },
+        {
+          severity: "warning",
+          code: "fe_link_isolated",
+          message: "Alpha Centauri takes custom connections but no system links to it.",
+          systems: [1],
+        },
+        {
+          severity: "info",
+          code: "fe_link_far",
+          message: "Deneb is 140 from the fallen empire zone it links to.",
+          systems: [5, 1],
+        },
       ],
     });
     const html = overview();
     expect(html).toContain("Fallen empire zones from Sol and Alpha Centauri overlap");
     expect(html).not.toContain("is blocked by");
+    expect(html).toContain("takes custom connections but no system links to it");
+    expect(html).not.toContain("is 140 from");
   });
 });

@@ -138,6 +138,15 @@ export function feZoneCandidateCount(): Promise<number> {
 }
 
 /**
+ * Link `linked` and no other system to the fallen empire zone `anchor` anchors, as one
+ * `SetFeLinks`; empty, the zone goes back to the mod's own rule. Rejects with `SgfError` (kind
+ * `op`) when `anchor` anchors no zone.
+ */
+export function setFeLinks(anchor: number, linked: number[]): Promise<EditResult> {
+  return invoke<EditResult>("set_fe_links", { anchor, linked });
+}
+
+/**
  * The five empire-count header keys and the values Paint a Galaxy's formulas give the open
  * scenario's seats, for one `SetHeaderKeys`. Rejects with `SgfError` (kind `op`) on a save.
  */

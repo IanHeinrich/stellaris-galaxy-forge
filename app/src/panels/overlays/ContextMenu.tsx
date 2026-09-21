@@ -1,5 +1,13 @@
 import { useEffect, useRef } from "react";
+import type { SystemNode } from "../../generated/SystemNode";
 import { documentCapabilities, supports } from "../../lib/capabilities";
+import {
+  linkChange,
+  linkSelectedLabel,
+  linkToZoneLabel,
+  takesCustomLinks,
+  USE_NEAREST_LABEL,
+} from "../../lib/feLinks";
 import { addFeZoneRefusal } from "../../lib/feZone";
 import { newSystemRows } from "../../lib/initializer/initializerBrowser";
 import { ALL_CLANS_PLACED, clanMenuItem, clanOf, nextFreeClan } from "../../lib/marauder";
@@ -53,6 +61,9 @@ export function ContextMenu() {
   const addFeZone = useEditorStore((s) => s.addFeZone);
   const addFeZoneAt = useEditorStore((s) => s.addFeZoneAt);
   const promptFeZoneFit = useEditorStore((s) => s.promptFeZoneFit);
+  const linkToFeZone = useEditorStore((s) => s.linkToFeZone);
+  const unlinkFromFeZone = useEditorStore((s) => s.unlinkFromFeZone);
+  const resetFeLinks = useEditorStore((s) => s.resetFeLinks);
   const capabilities = useFileSessionStore((s) => s.capabilities);
   const paint = usePaintLayer();
   const systems = useGalaxyStore((s) => s.systems);
@@ -70,6 +81,7 @@ export function ContextMenu() {
             ? [anchorForSpace.id]
             : NO_SYSTEMS,
   );
+  const [selectedName] = useSystemNames(selection.length === 1 ? selection : NO_SYSTEMS);
   const gameData = useGameDataStore((s) => s.status === "ready");
   const defaultKey = useInitializerBrowserStore((s) => s.defaultKey);
   useInitializerBrowserStore((s) => s.recent);
@@ -105,6 +117,19 @@ export function ContextMenu() {
   const canNebulae = supports(documentCapabilities({ capabilities }), "nebulae");
   const zones = canCreate && paint;
   const freeClan = canCreate ? nextFreeClan(systems) : null;
+  const selected = selection.length === 1 ? systems.get(selection[0]) : undefined;
+  const linkItem = (anchor: SystemNode | undefined, system: SystemNode | undefined) => {
+    if (!zones || !anchor || !system) return null;
+    const change = linkChange(anchor, system);
+    if (change === null) return null;
+    return {
+      change,
+      run: () =>
+        void (change === "link"
+          ? linkToFeZone(anchor.id, system.id)
+          : unlinkFromFeZone(anchor.id, system.id)),
+    };
+  };
 
   if (target.kind === "space") {
     if (!canCreate && !canNebulae) return null;
@@ -224,6 +249,7 @@ export function ContextMenu() {
     const role = system?.marauder ?? null;
     const clanItem =
       canCreate && role === null ? clanMenuItem(target.id, selection, freeClan) : null;
+    const link = linkItem(selected, system);
     return (
       <div
         ref={ref}
@@ -330,6 +356,18 @@ export function ContextMenu() {
             Add fallen empire zone
           </button>
         )}
+        {link !== null && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              link.run();
+              closeContextMenu();
+            }}
+          >
+            {linkToZoneLabel(link.change, selectedName)}
+          </button>
+        )}
         {clanItem !== null && (
           <button
             type="button"
@@ -413,6 +451,9 @@ export function ContextMenu() {
 
   if (target.kind === "feZone") {
     const name = named[0];
+    const anchor = systems.get(target.anchor);
+    const link = linkItem(anchor, selected);
+    const custom = anchor !== undefined && takesCustomLinks(anchor);
     return (
       <div
         ref={ref}
@@ -443,6 +484,32 @@ export function ContextMenu() {
         >
           Select {name}
         </button>
+        {link !== null && (
+          <button
+            type="button"
+            role="menuitem"
+            className="context-menu-separated"
+            onClick={() => {
+              link.run();
+              closeContextMenu();
+            }}
+          >
+            {linkSelectedLabel(link.change, selectedName)}
+          </button>
+        )}
+        {custom && (
+          <button
+            type="button"
+            role="menuitem"
+            className={link === null ? "context-menu-separated" : undefined}
+            onClick={() => {
+              void resetFeLinks(target.anchor);
+              closeContextMenu();
+            }}
+          >
+            {USE_NEAREST_LABEL}
+          </button>
+        )}
       </div>
     );
   }

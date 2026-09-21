@@ -57,7 +57,10 @@ function IssueFix({ issue }: { issue: AppIssue }) {
   const updateEmpireCounts = useEditorStore((s) => s.updateEmpireCounts);
   const promptFeZoneFit = useEditorStore((s) => s.promptFeZoneFit);
   const addMarauderBases = useEditorStore((s) => s.addMarauderBases);
+  const resetFeLinks = useEditorStore((s) => s.resetFeLinks);
+  const dropDanglingFeLinks = useEditorStore((s) => s.dropDanglingFeLinks);
   const { code } = issue;
+  const [first] = issue.systems;
   const fix =
     code === "header_empire_count"
       ? { label: "Update counts", run: updateEmpireCounts }
@@ -65,9 +68,13 @@ function IssueFix({ issue }: { issue: AppIssue }) {
         ? { label: "Fit zones…", run: promptFeZoneFit }
         : code === "reserved_spawns_missing"
           ? { label: "Subscribe ↗", run: openReservedSpawnsWorkshop }
-          : code === "marauder_bases_missing" && issue.systems.length > 0
-            ? { label: "Add the raid bases", run: () => addMarauderBases(issue.systems[0]) }
-            : null;
+          : code === "marauder_bases_missing" && first !== undefined
+            ? { label: "Add the raid bases", run: () => addMarauderBases(first) }
+            : code === "fe_link_isolated" && first !== undefined
+              ? { label: "Use nearest systems", run: () => resetFeLinks(first) }
+              : code === "fe_link_dangling" && first !== undefined
+                ? { label: "Unlink", run: () => dropDanglingFeLinks(first) }
+                : null;
   if (fix === null) return null;
   return (
     <button type="button" className="browser-fix" onClick={() => void fix.run()}>

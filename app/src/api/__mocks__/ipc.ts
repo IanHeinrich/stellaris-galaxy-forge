@@ -28,6 +28,7 @@ export const warmDetails = command("warmDetails");
 export const applyOp = command("applyOp");
 export const feZoneFit = command("feZoneFit");
 export const feZoneCandidateCount = command("feZoneCandidateCount");
+export const setFeLinks = command("setFeLinks");
 export const headerEmpireCounts = command("headerEmpireCounts");
 export const siblingScenarioNames = command("siblingScenarioNames");
 export const undo = command("undo");

@@ -46,6 +46,29 @@ function spawnGhostsAt(layer: FeZonesLayer, x: number): Graphics {
   return g;
 }
 
+function linksAt(layer: FeZonesLayer, x: number): Graphics | undefined {
+  const links = childByLabel(layer.container, "links");
+  return links.children.find(
+    (c): c is Graphics => c instanceof Graphics && c.visible && Math.abs(c.x - x) < 1e-6,
+  );
+}
+
+/** Every dash of the links about their centre, as `[fromX, fromY, toX, toY]`. */
+function dashes(links: Graphics | undefined): number[][] {
+  if (!links) return [];
+  return drawOps(links).flatMap((op) => op.segments);
+}
+
+/** An anchor whose zone takes custom connections under `id`. */
+function taking(id: number, node: SystemNode): SystemNode {
+  return { ...node, fe_link: { custom: true, id, to: [] } };
+}
+
+/** A system linked to the id `to`. */
+function linked(node: SystemNode, ...to: number[]): SystemNode {
+  return { ...node, fe_link: { custom: false, id: null, to } };
+}
+
 function fills(ring: Graphics): number {
   return drawOps(ring).filter((op) => op.action === "fill").length;
 }
@@ -158,5 +181,80 @@ describe("the fallen empire zones layer", () => {
     expect(useMapChromeStore.getState().tooltip).toMatchObject({
       lines: [`Random · S1 · the mod creates the empire's systems here · ${AUTOMATIC_NOTE}`],
     });
+  });
+
+  it("draws a dashed line from each linked system to the nearest point of its zone's ring, in the ring's colour", () => {
+    // S2 stands at the ring's centre, which the core never allows, so it gets no line.
+    const layer = drawn([taking(2, ZONED), linked(PLAIN, 2), linked(mapNode(2, -40, "S2"), 2)]);
+    const links = linksAt(layer, -40)!;
+    const ops = drawOps(links);
+    expect(ops.map((op) => [op.action, op.color, op.alpha])).toEqual([["stroke", 0xf0abfc, 0.75]]);
+    const segments = dashes(links);
+    expect(segments[0].slice(0, 2)).toEqual([30, 0]);
+    const last = segments[segments.length - 1];
+    expect(last[2]).toBeCloseTo(240);
+    expect(last[3]).toBe(0);
+    expect(segments.length).toBeGreaterThan(20);
+    for (const [ax, ay, bx, by] of segments) {
+      expect(ay).toBe(0);
+      expect(by).toBe(0);
+      expect(bx).toBeGreaterThan(ax);
+    }
+    expect(links.alpha).toBe(1);
+  });
+
+  it("draws no line for a zone that links by the mod's rule, or takes custom connections from nobody", () => {
+    expect(linksAt(drawn([ZONED, linked(PLAIN, 2)]), -40)).toBeUndefined();
+    expect(linksAt(drawn([taking(2, ZONED), PLAIN]), -40)).toBeUndefined();
+    expect(linksAt(drawn([taking(2, ZONED), linked(PLAIN, 3)]), -40)).toBeUndefined();
+  });
+
+  it("draws the lines of an automatic zone as a ghost, like its ring", () => {
+    const layer = drawn([taking(2, anchored(0, 0, { preferred: false })), linked(PLAIN, 2)]);
+    expect(linksAt(layer, -40)!.alpha).toBe(GHOST_ALPHA);
+  });
+
+  it("follows a delta that links, moves, unlinks and drops a linked system", () => {
+    const layer = drawn([taking(2, ZONED), PLAIN]);
+    expect(linksAt(layer, -40)).toBeUndefined();
+
+    layer.applyDelta({ systems: [linked(PLAIN, 2)] });
+    expect(dashes(linksAt(layer, -40)).pop()![2]).toBeCloseTo(240);
+
+    layer.applyDelta({ systems: [{ ...linked(PLAIN, 2), x: 100 }] });
+    expect(dashes(linksAt(layer, -40)).pop()![2]).toBeCloseTo(140);
+
+    layer.applyDelta({ systems: [PLAIN] });
+    expect(linksAt(layer, -40)).toBeUndefined();
+
+    layer.applyDelta({ systems: [linked(PLAIN, 2)] });
+    layer.applyDelta({ systems: [], removed: [1] });
+    expect(linksAt(layer, -40)).toBeUndefined();
+  });
+
+  it("takes the lines away when the zone goes back to the mod's rule, and moves them with the ring", () => {
+    const layer = drawn([taking(2, ZONED), linked(PLAIN, 2)]);
+    layer.applyDelta({ systems: [taking(2, anchored(0, 0, { direction: "n" }))] });
+    expect(linksAt(layer, -40)).toBeUndefined();
+    const moved = linksAt(layer, 0)!;
+    expect([moved.x, moved.y]).toEqual([0, -40]);
+    expect(
+      dashes(moved)[0]
+        .slice(0, 2)
+        .map((v) => Math.round(v)),
+    ).toEqual([29, 6]);
+
+    layer.applyDelta({ systems: [ZONED] });
+    expect(linksAt(layer, -40)).toBeUndefined();
+    expect(linksAt(layer, 0)).toBeUndefined();
+  });
+
+  it("moves a line's end with the linked system's ghost while it is dragged", () => {
+    const layer = drawn([taking(2, ZONED), linked(PLAIN, 2)]);
+    const ghost = { id: 1, x: 100, y: 0 };
+    layer.setDragState({ ghosts: [ghost], byId: new Map([[1, ghost]]) });
+    expect(dashes(linksAt(layer, -40)).pop()![2]).toBeCloseTo(140);
+    layer.setDragState(null);
+    expect(dashes(linksAt(layer, -40)).pop()![2]).toBeCloseTo(240);
   });
 });

@@ -12,7 +12,7 @@ import { bindStores } from "../../store/bindStores";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { OPEN_RESULT, SCENARIO_RESULT, node } from "../../store/fixture";
+import { OPEN_RESULT, SCENARIO_RESULT, detailOf, node } from "../../store/fixture";
 import type { MarauderRole } from "../../generated/MarauderRole";
 import { newFeZone } from "../../lib/feZone";
 import { clanOf } from "../../lib/marauder";
@@ -129,6 +129,88 @@ describe("the fallen empire zone items", () => {
     const item = menu().match(/<button[^>]*>Add fallen empire zone<\/button>/)![0];
     expect(item).toContain("disabled=");
     expect(item).toContain("This system already anchors a zone");
+  });
+});
+
+describe("the fallen empire link items", () => {
+  /**
+   * The fixture galaxy as a Paint a Galaxy scenario: Sol anchoring a zone west at 40 that takes
+   * custom connections under id 1 when `custom`, and Deneb linked to that id.
+   */
+  async function openLinked(custom: boolean): Promise<void> {
+    const [sol, ...rest] = SCENARIO_RESULT.galaxy.systems;
+    const systems = [
+      {
+        ...sol,
+        fe_zone: newFeZone("w"),
+        fe_link: { custom, id: custom ? 1 : null, to: [] },
+      },
+      ...rest.map((s) =>
+        s.id === 5 ? { ...s, fe_link: { custom: false, id: null, to: [1] } } : s,
+      ),
+    ];
+    vi.mocked(ipc.openSave).mockResolvedValue({
+      ...SCENARIO_RESULT,
+      painted: true,
+      galaxy: { ...SCENARIO_RESULT.galaxy, systems },
+    });
+    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
+    vi.mocked(ipc.getSystem).mockImplementation(async (id) => detailOf(id));
+  }
+
+  const on = (id: number) =>
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id }, x: 0, y: 0 });
+  const onRing = (anchor: number) =>
+    useMapChromeStore
+      .getState()
+      .openContextMenu({ target: { kind: "feZone", anchor }, x: 0, y: 0 });
+
+  it("offers a link or an unlink on a system while one selected system anchors a zone", async () => {
+    await openLinked(true);
+    const editor = useEditorStore.getState();
+    on(3);
+    expect(menu()).not.toContain("&#x27;s fallen empire zone");
+
+    await editor.setSelection([0], "replace");
+    on(3);
+    expect(menu()).toContain(">Link to Sol&#x27;s fallen empire zone</button>");
+    on(5);
+    expect(menu()).toContain(">Unlink from Sol&#x27;s fallen empire zone</button>");
+    on(0);
+    expect(menu()).not.toContain("Sol&#x27;s fallen empire zone");
+
+    await editor.setSelection([3], "replace");
+    on(5);
+    expect(menu()).not.toContain("&#x27;s fallen empire zone");
+    await editor.setSelection([0, 3], "replace");
+    on(5);
+    expect(menu()).not.toContain("&#x27;s fallen empire zone");
+  });
+
+  it("offers to link or unlink the one selected system on a ring, and the mod's own rule while the zone takes links", async () => {
+    await openLinked(true);
+    const editor = useEditorStore.getState();
+    onRing(0);
+    let html = menu();
+    expect(html).not.toContain("to this zone");
+    expect(html).toContain(">Use nearest systems instead</button>");
+
+    await editor.setSelection([3], "replace");
+    onRing(0);
+    expect(menu()).toContain(">Link Sirius to this zone</button>");
+    await editor.setSelection([5], "replace");
+    onRing(0);
+    expect(menu()).toContain(">Unlink Deneb from this zone</button>");
+    await editor.setSelection([0], "replace");
+    onRing(0);
+    expect(menu()).not.toContain("this zone</button>");
+
+    await openLinked(false);
+    await useEditorStore.getState().setSelection([3], "replace");
+    onRing(0);
+    html = menu();
+    expect(html).toContain(">Link Sirius to this zone</button>");
+    expect(html).not.toContain("Use nearest systems instead");
   });
 });
 

@@ -2,6 +2,7 @@ import { BitmapText, Container, type FederatedPointerEvent, Graphics, TextStyle 
 import type { FeKind } from "../../generated/FeKind";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
+import { linkedTo, takesCustomLinks } from "../../lib/feLinks";
 import { FE_ZONE_RADIUS, feKindLabel, feZoneCentre } from "../../lib/feZone";
 import { GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
@@ -46,6 +47,11 @@ class RingBand {
   }
 }
 
+/** How much of each dash step is drawn, on the ring and on the lines to its linked systems. */
+const DASH_FRACTION = 0.6;
+/** One dash step along a line, in world units: the ring's own arc step, so both read alike. */
+const LINE_DASH_STEP = (Math.PI * 2 * FE_ZONE_RADIUS) / DASHES;
+
 function dashedRing(g: Graphics): void {
   const step = (Math.PI * 2) / DASHES;
   for (let i = 0; i < DASHES; i++) {
@@ -55,9 +61,41 @@ function dashedRing(g: Graphics): void {
       0,
       FE_ZONE_RADIUS,
       start,
-      start + step * 0.6,
+      start + step * DASH_FRACTION,
     );
   }
+}
+
+/** A dashed straight from `from` to `to`, both about the graphics' origin; the last dash reaches `to`. */
+function dashedLine(
+  g: Graphics,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): void {
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  if (length === 0) return;
+  const ux = (to.x - from.x) / length;
+  const uy = (to.y - from.y) / length;
+  for (let at = 0; at < length; at += LINE_DASH_STEP) {
+    const last = at + LINE_DASH_STEP >= length;
+    const end = last ? length : at + LINE_DASH_STEP * DASH_FRACTION;
+    g.moveTo(from.x + ux * at, from.y + uy * at).lineTo(from.x + ux * end, from.y + uy * end);
+  }
+}
+
+/**
+ * The lines from each linked system to the nearest point of the ring, drawn about the centre. A
+ * system inside the ring gets none: the core refuses a ring over a system.
+ */
+function drawLinks(g: Graphics, linked: ReadonlyArray<{ x: number; y: number }>): void {
+  g.clear();
+  for (const at of linked) {
+    const d = Math.hypot(at.x, at.y);
+    if (d <= FE_ZONE_RADIUS) continue;
+    const t = FE_ZONE_RADIUS / d;
+    dashedLine(g, { x: at.x * t, y: at.y * t }, at);
+  }
+  g.stroke({ ...RING, pixelLine: true });
 }
 
 /** The ring and the line back to the anchor, drawn about the centre. */
@@ -144,13 +182,19 @@ function drawSpawnGhosts(g: Graphics, id: number): void {
  * system names, tied to its anchor by a line, with the ring's name and the kind's full label
  * at the centre, over a faint ghost of the home star and satellites the mod spawns there. A
  * ring the mod offered rather than the user placed is drawn as a ghost until a change makes it
- * theirs.
+ * theirs. A zone that takes custom connections has a dashed line from each linked system to
+ * the nearest point of its ring.
  */
 export class FeZonesLayer implements MapLayer {
   readonly id = "feZones" as const;
   readonly container = new Container();
   private readonly rings = new Map<number, Graphics>();
   private readonly bands = new Map<number, RingBand>();
+  private readonly linksContainer = new Container({ label: "links", eventMode: "none" });
+  private readonly links = new Map<number, Graphics>();
+  private readonly freeLinks: Graphics[] = [];
+  /** The systems each anchor's lines are drawn from, so a change to one redraws the anchor. */
+  private readonly linkedIds = new Map<number, number[]>();
   private readonly spawnGhostsContainer = new Container({
     label: "spawnGhosts",
     eventMode: "none",
@@ -170,6 +214,7 @@ export class FeZonesLayer implements MapLayer {
 
   constructor() {
     this.container.eventMode = "passive";
+    this.container.addChild(this.linksContainer);
     this.container.addChild(this.spawnGhostsContainer);
     this.container.addChild(this.tagsContainer);
   }
@@ -186,8 +231,18 @@ export class FeZonesLayer implements MapLayer {
   }
 
   applyDelta(d: GalaxyDelta): void {
+    // The lines read the linked systems' positions, so the layer's own view takes the delta too.
+    const systems = new Map(this.systems);
+    for (const id of d.removed ?? []) systems.delete(id);
+    for (const s of d.systems) systems.set(s.id, s);
+    this.systems = systems;
     for (const id of d.removed ?? []) this.remove(id);
     for (const s of d.systems) this.place(s);
+    const touched = new Set([...(d.removed ?? []), ...d.systems.map((s) => s.id)]);
+    for (const id of this.anchorsLinkedFrom(touched, d.systems)) {
+      const anchor = this.systems.get(id);
+      if (anchor && !touched.has(id)) this.place(anchor);
+    }
   }
 
   onViewport(cam: Camera): void {
@@ -198,11 +253,12 @@ export class FeZonesLayer implements MapLayer {
     for (const band of this.bands.values()) band.band = FE_ZONE_RING_HIT_PX / cam.scale;
   }
 
-  /** A dragged anchor's ring follows its ghost, dimmed. */
+  /** A dragged anchor's ring follows its ghost, dimmed; a dragged linked system takes its line along. */
   setDragState(drag: DragState | null): void {
     const byId = drag?.byId ?? NO_GHOSTS;
     const affected = new Set([...this.ghosts.keys(), ...byId.keys()]);
     this.ghosts = byId;
+    for (const id of this.anchorsLinkedFrom(affected, [])) affected.add(id);
     for (const id of affected) {
       const s = this.systems.get(id);
       if (s) this.place(s);
@@ -245,6 +301,60 @@ export class FeZonesLayer implements MapLayer {
     g.alpha = ghost || !zone.preferred ? GHOST_ALPHA : 1;
     this.placeSpawnGhosts(s.id, centre, g.alpha);
     this.placeTag(s.id, centreText(zone.kind), centre, g.alpha);
+    this.placeLinks(s, centre, g.alpha);
+  }
+
+  /**
+   * The anchors whose lines a change to `ids` moves: those drawn from one of them, and those
+   * `changed` now links to.
+   */
+  private anchorsLinkedFrom(ids: ReadonlySet<number>, changed: readonly SystemNode[]): Set<number> {
+    const anchors = new Set<number>();
+    for (const [anchor, linked] of this.linkedIds) {
+      if (linked.some((id) => ids.has(id))) anchors.add(anchor);
+    }
+    const wanted = new Set(changed.flatMap((s) => s.fe_link.to));
+    if (wanted.size > 0) {
+      for (const s of this.systems.values()) {
+        if (takesCustomLinks(s) && wanted.has(s.fe_link.id as number)) anchors.add(s.id);
+      }
+    }
+    return anchors;
+  }
+
+  private placeLinks(anchor: SystemNode, centre: { x: number; y: number }, alpha: number): void {
+    const linked = takesCustomLinks(anchor) ? linkedTo(anchor, this.systems) : [];
+    if (linked.length === 0) {
+      this.releaseLinks(anchor.id);
+      return;
+    }
+    let g = this.links.get(anchor.id);
+    if (!g) {
+      g = this.freeLinks.pop() ?? new Graphics();
+      g.visible = true;
+      this.linksContainer.addChild(g);
+      this.links.set(anchor.id, g);
+    }
+    const ends = linked.map((s) => {
+      const at = this.ghosts.get(s.id) ?? s;
+      return { x: at.x - centre.x, y: at.y - centre.y };
+    });
+    drawLinks(g, ends);
+    g.position.set(centre.x, centre.y);
+    g.alpha = alpha;
+    this.linkedIds.set(
+      anchor.id,
+      linked.map((s) => s.id),
+    );
+  }
+
+  private releaseLinks(id: number): void {
+    this.linkedIds.delete(id);
+    const g = this.links.get(id);
+    if (!g) return;
+    this.links.delete(id);
+    g.visible = false;
+    this.freeLinks.push(g);
   }
 
   private placeSpawnGhosts(id: number, at: { x: number; y: number }, ringAlpha: number): void {
@@ -350,5 +460,6 @@ export class FeZonesLayer implements MapLayer {
     this.bands.delete(id);
     this.releaseTag(id);
     this.releaseSpawnGhosts(id);
+    this.releaseLinks(id);
   }
 }

@@ -533,6 +533,22 @@ the ring with ordinary systems when no fallen empire lands there. A
 ring that would cover a system is refused, and one
 that later comes to cover a system after a move shows in Issues.
 
+You can choose which systems the fallen empire connects to. Select the
+zone's system, then right-click another system and choose "Link to
+<system>'s fallen empire zone", or right-click the ring with a system
+selected and choose "Link <system> to this zone". The same items unlink
+a linked system. The map draws a dashed line from each linked system to
+the ring. The Connections block of the Fallen empire zone section lists
+the linked systems, each with a way to it and an × to unlink it, and
+"Use nearest instead" gives the zone back to the mod. A linked system's
+own inspector has a Fallen empire links section naming the zones it
+links to. Without links the mod gives each of the fallen empire's
+systems a hyperlane to its nearest neighbour within 100. With links it
+lays a hyperlane from each linked system to the nearest system of the
+fallen empire and no other, from any distance. Issues reports a zone
+that takes links from no system, a link to a zone that no longer
+exists, two zones sharing a link and a link from farther than 100.
+
 The mod can also seat fallen empires in rings you did not draw, and
 these automatic zones are drawn faint. To place some, right-click empty
 space and pick "Fit fallen empire zones…", or use the button in the
@@ -541,8 +557,9 @@ to every ring that fits, and Forge spreads them as far apart as it can.
 Fitting again replaces the automatic zones in one undoable step. Zones
 you placed or edited are yours and are never replaced. A save taken
 into a scenario gets only the zones its own fallen empires ask for, at
-their old capitals. A painted map with no zones at all shows in Issues,
-with a button that opens the same dialog.
+their old capitals. Each of those zones comes linked to the systems its
+old cluster had hyperlanes to. A painted map with no zones at all shows
+in Issues, with a button that opens the same dialog.
 
 Before a save, Forge warns when the map still has warnings or errors,
 opens the Issues tab and offers "Save anyway". Once you have saved

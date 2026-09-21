@@ -49,7 +49,7 @@ const PAINTED = exportReport({
       name: "Ancient Caretakers",
       kind: "materialist",
       systems_left_out: 5,
-      links: 0,
+      links: 3,
       anchor: 792,
       exact: true,
     },
@@ -57,11 +57,18 @@ const PAINTED = exportReport({
       name: "Holy Guardians",
       kind: "spiritualist",
       systems_left_out: 13,
-      links: 0,
+      links: 1,
       anchor: 793,
       exact: true,
     },
-    { name: "Custodian Matrix", kind: "machine", systems_left_out: 11, links: 0, anchor: 791, exact: true },
+    {
+      name: "Custodian Matrix",
+      kind: "machine",
+      systems_left_out: 11,
+      links: 0,
+      anchor: 791,
+      exact: true,
+    },
   ],
   player_seat: 217,
   omitted: [{ category: "l_cluster", systems: 9 }],
@@ -161,7 +168,8 @@ describe("the report", () => {
       row(
         "Fallen empires",
         "3 fallen empire zones at the old capitals: Materialist, Spiritualist, Machine. " +
-          "29 systems left out for the mod to rebuild. 3 anchor systems added.",
+          "29 systems left out for the mod to rebuild. 3 anchor systems added. " +
+          "Ancient Caretakers linked to 3 systems. Holy Guardians linked to 1 system.",
       ),
     );
     expect(html).toContain(row("Left out", "9 L-Cluster systems left out: the game adds its own."));

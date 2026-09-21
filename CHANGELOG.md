@@ -37,6 +37,15 @@ a release is made.
   empire zones…" chooses how many of the mod's automatic zones to place,
   spread across the map.
   A zone's own warnings show in its inspector section.
+- A fallen empire zone can be linked to the systems the mod should lay
+  its hyperlanes from. Select the zone's system and right-click another
+  to link or unlink it, or right-click the ring with a system selected.
+  The map draws a dashed line from each linked system to the ring. The
+  inspector lists the links with an × each and "Use nearest instead"
+  hands the zone back to the mod. Issues reports a zone with links from
+  nobody, a link to no zone, two zones on one link and a link from far
+  away. A save opened or exported as a Paint a Galaxy scenario links each
+  zone to the systems its old cluster had lanes to.
 - A Game setup section in the galaxy inspector edits a scenario's empire,
   wormhole, gateway and hyperlane counts as min, max and default fields,
   and which galaxy shapes the map is listed under.

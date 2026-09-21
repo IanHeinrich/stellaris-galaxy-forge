@@ -61,6 +61,7 @@ export function fallenEmpiresSummary(report: ExportReport): string | null {
   if (nearby > 0) parts.push(`${nearby} placed nearby: the old spot was not clear.`);
   for (const fe of empires) {
     if (fe.anchor === null) parts.push(`${fe.name} has no clear spot within reach.`);
+    if (fe.links > 0) parts.push(`${fe.name} linked to ${plural(fe.links, "system")}.`);
   }
   return parts.join(" ");
 }

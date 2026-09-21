@@ -244,11 +244,16 @@ or `awakened_fallen_empire` with a capital, ascending by country id:
   within 200 of the capital whose nearest clear grid position lies closest
   to it, and the report says `exact = false`. When no such position exists
   the cluster is still left out and the report's `anchor` is `None`.
+- The kept systems that had a lane into the cluster are linked to the zone
+  by custom connections, under the ids 0, 1, 2… in fallen empire order, so
+  the mod lays the fallen empire's hyperlanes where the save had them. A
+  kept system in no cluster is the only kind linked, and the report's
+  `links` counts them.
 
 The automatic candidates then run over what is left, keeping their 60 from
 every typed centre, and `fallen_empire_default` is the number of typed zones.
 The report lists each fallen empire as `FallenEmpireReport { name, kind,
-systems_left_out, anchor, exact }`.
+systems_left_out, anchor, exact, links }`.
 
 ### Fallen empire zones
 
@@ -271,12 +276,31 @@ that orientation, and its satellites 15–25 units around it. A missing kind
 reads as `random`, a missing distance as 40, and Forge reads them the same
 way.
 
-Forge edits only the `painted_galaxy_fe_spawn*` flags of the anchor's
-`effect` block. Every other flag stays where it is, including the
-`painted_galaxy_fe_custom_connection*` flags, which Forge neither writes
-nor shows. A zone whose ring of radius 30 would contain a system, or whose
-centre lies beyond ±470, is refused. Every change made in Forge sets
-`painted_galaxy_fe_spawn_preferred`.
+Forge edits only the `painted_galaxy_fe_spawn*` and
+`painted_galaxy_fe_custom_connection*` flags of a system's `effect`
+block. Every other flag stays where it is. A zone whose ring of radius 30
+would contain a system, or whose centre lies beyond ±470, is refused.
+Every change made in Forge sets `painted_galaxy_fe_spawn_preferred`.
+
+By default the mod gives each system of the new fallen empire a hyperlane
+to its mutually nearest outside system within 100. Custom connections
+override that. The anchor carries `painted_galaxy_fe_custom_connections`
+and `painted_galaxy_fe_custom_connection_id_<n>`, and every system
+carrying `painted_galaxy_fe_custom_connection_to_<n>` gets a hyperlane to
+the nearest system of the fallen empire built in that zone, from any
+distance. The custom flag with no system linked to it leaves the fallen
+empire with no hyperlanes at all. The ids run from 0 to 99, an id is
+galaxy-wide, and the mod stops at the first `_id_` flag an anchor
+carries, so one anchor takes one id. Forge reads the flags into
+`SystemNode.fe_link` (`custom`, `id`, `to`). `SetFeLinks { anchor,
+linked }` writes the whole set of systems linked to a zone: the anchor
+keeps the id it has or takes the lowest free one, every listed system
+gets the `_to_` flag and every other system loses it. An empty list
+clears the anchor's custom flag and id. `SetFeLinkFlags` is the exact
+inverse. Issues report a zone that takes custom connections with nothing
+linked, a link whose id no zone takes, two zones on one id and, as
+information, a link from farther than 100. A system inside the ring is
+already refused as a blocked zone.
 
 Automatic candidates follow Paint a Galaxy's own rule. For every system
 that anchors no zone, in direction order e, se, s, sw, w, nw, n, ne, the
@@ -298,8 +322,11 @@ A marauder clan is one system whose initializer is `marauder_N_1`, N being
 `marauder_N_3`. In a random galaxy the home spawns them itself with
 `neighbor_system`. In a static galaxy nothing does, so on day one Paint a
 Galaxy adds the two bases beside every `marauder_capital_N` system that
-has no `marauder_system` hyperlane neighbour. Only three clans exist, and
-a clan spawns from its home alone, so the map decides how many there are.
+has no `marauder_system` hyperlane neighbour. Forge does not rely on that:
+it treats a clan as three systems and adds the two bases itself, each
+hyperlaned to the home. A clan drawn that way spawns the same on a plain
+scenario and a painted one. Only three clans exist, and a clan spawns
+from its home alone, so the map decides how many there are.
 
 Forge reads the role from the initializer on every system, in a save and
 in a scenario alike (`SystemNode.marauder`, `Home(N)` or `Base(N)`), and

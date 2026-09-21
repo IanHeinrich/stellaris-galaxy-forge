@@ -179,6 +179,7 @@ export const SECTION_SOURCES: Readonly<Record<string, Source>> = {
   "system.initializer": "initializers",
   "system.spawn": "scenario",
   "system.feZone": "scenario",
+  "system.feLinks": "scenario",
   "system.marauder": "scenario",
   "system.wormholePair": "scenario",
   "system.planets": "initializers",

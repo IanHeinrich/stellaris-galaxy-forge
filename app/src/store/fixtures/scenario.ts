@@ -3,9 +3,12 @@ import type { ReferenceVia } from "../../generated/ReferenceVia";
 import type { ScenarioBypasses } from "../../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../../generated/ScenarioOwners";
 import type { ScriptSite } from "../../generated/ScriptSite";
+import type { SystemNode } from "../../generated/SystemNode";
 import type { SystemOwner } from "../../generated/SystemOwner";
 import type { SystemScripts } from "../../generated/SystemScripts";
+import { newFeZone } from "../../lib/feZone";
 import { name } from "../../test/builders";
+import { SYSTEMS } from "./galaxy";
 
 /** The territory a scenario's scripts hand out, with the synthetic id the backend gives it. */
 export const TERRITORY: CountryNode = {
@@ -261,4 +264,17 @@ export const SYSTEM_SCRIPTS: SystemScripts = {
     },
   ],
   truncated: false,
+};
+
+/** Sirius anchoring a zone south at 40 whose connections it takes under id 2. */
+export const FE_LINK_ANCHOR: SystemNode = {
+  ...SYSTEMS[3],
+  fe_zone: newFeZone("s"),
+  fe_link: { custom: true, id: 2, to: [] },
+};
+
+/** Deneb, linked to the zone `FE_LINK_ANCHOR` anchors. */
+export const FE_LINKED: SystemNode = {
+  ...SYSTEMS[5],
+  fe_link: { custom: false, id: null, to: [2] },
 };

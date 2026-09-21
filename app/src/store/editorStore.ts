@@ -11,6 +11,12 @@ import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { documentCapabilities, supports } from "../lib/capabilities";
 import {
+  linkedAnchors,
+  linkedTo as linkedToFeZone,
+  linkRefusal,
+  unlinkRefusal,
+} from "../lib/feLinks";
+import {
   feZoneBlocked,
   feZoneCentre,
   feZoneRefusal,
@@ -191,6 +197,14 @@ export interface EditorState {
   linkWormholePair(a: number, b: number): Promise<boolean>;
   /** Takes the pair `a` and `b` share away from both; nothing when they share none. */
   unlinkWormholePair(a: number, b: number): Promise<boolean>;
+  /** Adds `system` to the systems the mod lays hyperlanes from into the zone `anchor` anchors. */
+  linkToFeZone(anchor: number, system: number): Promise<boolean>;
+  /** Takes `system` out of the systems linked to the zone `anchor` anchors. */
+  unlinkFromFeZone(anchor: number, system: number): Promise<boolean>;
+  /** Gives the zone `anchor` anchors back to the mod's own rule: no custom connections at all. */
+  resetFeLinks(anchor: number): Promise<boolean>;
+  /** Takes `system` off every connection id no zone anchor takes; its links to zones stay. */
+  dropDanglingFeLinks(system: number): Promise<boolean>;
   /** Adds a lane between every unlinked pair of selected systems, up to `CONNECT_ALL_MAX` of them. */
   connectSelected(): Promise<void>;
   /** Adds the missing lanes of the β-skeleton over the selected systems at the chrome's `meshBeta`. */
@@ -583,6 +597,49 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return get().applyOp({ type: "SetWormholePair", a, b, pair: null });
   },
 
+  async linkToFeZone(anchor, system) {
+    const [a, s] = [systems().get(anchor), systems().get(system)];
+    if (!a || !s) return false;
+    const refusal = linkRefusal(a, s, systemName);
+    if (refusal !== null) {
+      useFileSessionStore.getState().setError(refusal);
+      return false;
+    }
+    const linked = [...linkedToFeZone(a, systems()).map((l) => l.id), system];
+    return setFeLinks(anchor, linked);
+  },
+
+  async unlinkFromFeZone(anchor, system) {
+    const [a, s] = [systems().get(anchor), systems().get(system)];
+    if (!a || !s) return false;
+    const refusal = unlinkRefusal(a, s, systemName);
+    if (refusal !== null) {
+      useFileSessionStore.getState().setError(refusal);
+      return false;
+    }
+    const linked = linkedToFeZone(a, systems())
+      .map((l) => l.id)
+      .filter((id) => id !== system);
+    return setFeLinks(anchor, linked);
+  },
+
+  async resetFeLinks(anchor) {
+    if (!systems().has(anchor)) return false;
+    return setFeLinks(anchor, []);
+  },
+
+  async dropDanglingFeLinks(system) {
+    const s = systems().get(system);
+    if (!s) return false;
+    const taken = new Set(linkedAnchors(s, systems()).map((a) => a.fe_link.id));
+    const to = s.fe_link.to.filter((id) => taken.has(id));
+    if (to.length === s.fe_link.to.length) return true;
+    return get().applyOp({
+      type: "SetFeLinkFlags",
+      entries: [[system, { ...s.fe_link, to }]],
+    });
+  },
+
   async connectSelected() {
     const { selection } = get();
     if (selection.length > CONNECT_ALL_MAX) return;
@@ -632,20 +689,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
-  async applyOp(op) {
-    const reclassifies = await enqueue(async () => {
-      try {
-        const result = await ipc.applyOp(op);
-        applyEdit(result);
-        return result.reclassifies;
-      } catch (e) {
-        useFileSessionStore.getState().setError(ipc.errorMessage(e));
-        return null;
-      }
-    });
-    if (reclassifies === null) return false;
-    if (reclassifies) await reclassify();
-    return true;
+  applyOp(op) {
+    return runEdit(() => ipc.applyOp(op));
   },
 
   async undo() {
@@ -722,6 +767,35 @@ export function nearestSystem(
     }
   }
   return best;
+}
+
+/** Runs one edit command through the queue and applies its result, on `applyOp`'s terms. */
+async function runEdit(edit: () => Promise<EditResult>): Promise<boolean> {
+  const reclassifies = await enqueue(async () => {
+    try {
+      const result = await edit();
+      applyEdit(result);
+      return result.reclassifies;
+    } catch (e) {
+      useFileSessionStore.getState().setError(ipc.errorMessage(e));
+      return null;
+    }
+  });
+  if (reclassifies === null) return false;
+  if (reclassifies) await reclassify();
+  return true;
+}
+
+/** Writes the zone's whole set of linked systems, and shows the rings once it has. */
+async function setFeLinks(anchor: number, linked: number[]): Promise<boolean> {
+  const applied = await runEdit(() => ipc.setFeLinks(anchor, linked));
+  if (applied) useMapChromeStore.getState().showLayer("feZones");
+  return applied;
+}
+
+/** A system's name for a refusal, as the status bar shows it. */
+function systemName(s: SystemNode): string {
+  return useGalaxyStore.getState().systemName(s.id);
 }
 
 let edits: Promise<unknown> = Promise.resolve();
