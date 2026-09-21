@@ -10,7 +10,7 @@ import {
 } from "../../lib/feLinks";
 import { addFeZoneRefusal } from "../../lib/feZone";
 import { newSystemRows } from "../../lib/initializer/initializerBrowser";
-import { ALL_CLANS_PLACED, clanMenuItem, clanOf, nextFreeClan } from "../../lib/marauder";
+import { ALL_CLANS_PLACED, clanOf, nextFreeClan, REMOVE_CLAN_HINT } from "../../lib/marauder";
 import { nearestSystem, useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore, usePaintLayer } from "../../store/fileSessionStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
@@ -22,7 +22,11 @@ import {
   spawnWeightFor,
   useInitializerBrowserStore,
 } from "../../store/initializerBrowserStore";
-import { BulkActions, WormholePairButton } from "../inspector/selection/BulkActions";
+import {
+  BulkActions,
+  MarauderClanButton,
+  WormholePairButton,
+} from "../inspector/selection/BulkActions";
 import {
   NEEDS_INITIALIZER,
   spawnPointsOp,
@@ -51,7 +55,6 @@ export function ContextMenu() {
   const cutLanesToSelected = useEditorStore((s) => s.cutLanesToSelected);
   const addSystemAt = useEditorStore((s) => s.addSystemAt);
   const addMarauderClanAt = useEditorStore((s) => s.addMarauderClanAt);
-  const makeMarauderClan = useEditorStore((s) => s.makeMarauderClan);
   const removeMarauderClan = useEditorStore((s) => s.removeMarauderClan);
   const promptNebulaAt = useEditorStore((s) => s.promptNebulaAt);
   const selectNebula = useEditorStore((s) => s.selectNebula);
@@ -60,7 +63,6 @@ export function ContextMenu() {
   const setFeZone = useEditorStore((s) => s.setFeZone);
   const addFeZone = useEditorStore((s) => s.addFeZone);
   const addFeZoneAt = useEditorStore((s) => s.addFeZoneAt);
-  const promptFeZoneFit = useEditorStore((s) => s.promptFeZoneFit);
   const linkToFeZone = useEditorStore((s) => s.linkToFeZone);
   const unlinkFromFeZone = useEditorStore((s) => s.unlinkFromFeZone);
   const resetFeLinks = useEditorStore((s) => s.resetFeLinks);
@@ -187,31 +189,17 @@ export function ContextMenu() {
           </button>
         )}
         {zones && (
-          <>
-            <button
-              type="button"
-              role="menuitem"
-              className="menu-item context-menu-separated"
-              onClick={() => {
-                void addFeZoneAt({ x: target.x, y: target.y });
-                closeContextMenu();
-              }}
-            >
-              Add fallen empire zone{named[0] !== undefined && `, anchored to ${named[0]}`}
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="menu-item"
-              title="Place the mod's automatic zones, as many as you choose, spread across the map."
-              onClick={() => {
-                void promptFeZoneFit();
-                closeContextMenu();
-              }}
-            >
-              Fit fallen empire zones…
-            </button>
-          </>
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item context-menu-separated"
+            onClick={() => {
+              void addFeZoneAt({ x: target.x, y: target.y });
+              closeContextMenu();
+            }}
+          >
+            Add fallen empire zone{named[0] !== undefined && `, anchored to ${named[0]}`}
+          </button>
         )}
         {canCreate && (
           <button
@@ -247,8 +235,9 @@ export function ContextMenu() {
       weighable.every((s) => s.spawn_weight !== null || s.spawn_script !== null);
     const zoneRefusal = system === undefined ? null : addFeZoneRefusal(system, systems);
     const role = system?.marauder ?? null;
-    const clanItem =
-      canCreate && role === null ? clanMenuItem(target.id, selection, freeClan) : null;
+    const clanMembers = inSelection ? selection : selection.length === 0 ? [target.id] : null;
+    const clanInBulk = inSelection && selection.length === 3;
+    const clanItem = canCreate && role === null && !clanInBulk ? clanMembers : null;
     const link = linkItem(selected, system);
     return (
       <div
@@ -369,29 +358,21 @@ export function ContextMenu() {
           </button>
         )}
         {clanItem !== null && (
-          <button
-            type="button"
-            role="menuitem"
-            disabled={clanItem.bases === null}
-            title={clanItem.hint}
-            onClick={() => {
-              if (clanItem.bases !== null) void makeMarauderClan(target.id, clanItem.bases);
-              closeContextMenu();
-            }}
-          >
-            {clanItem.label}
-          </button>
+          <MarauderClanButton ids={clanItem} afterRun={closeContextMenu} itemRole="menuitem" />
         )}
         {canCreate && role !== null && (
           <button
             type="button"
             role="menuitem"
+            className="hinted"
+            title={REMOVE_CLAN_HINT}
             onClick={() => {
               void removeMarauderClan(clanOf(role));
               closeContextMenu();
             }}
           >
             Remove marauder clan {clanOf(role)}
+            <span className="muted">{REMOVE_CLAN_HINT}</span>
           </button>
         )}
         {canCreate && (

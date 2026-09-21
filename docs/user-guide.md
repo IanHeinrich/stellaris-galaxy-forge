@@ -464,20 +464,24 @@ clan is three systems: a home carrying `marauder_N_1` and two raid bases
 carrying `marauder_N_2` and `marauder_N_3`, each hyperlaned to the home.
 Right-click empty space and choose "Add marauder clan here" to create
 all three, the home at the click and the bases 20 and 25 units out. Or
-select three systems, right-click the one to be the home and choose
-"Make these marauder clan N". With fewer or more selected the item says
-how many to select, and it refuses two bases without a lane to the home.
+select three systems and right-click any of them: "Make these marauder
+clan N" makes the one with a hyperlane to both others the home. The
+same button is in the inspector while three systems are selected. With
+fewer or more selected the menu item says how many to select, and both
+refuse three systems none of which is linked to the other two. Making
+a clan replaces the three initializers, star class included, and
 "Remove marauder clan N" on any of the three sets all of them back to
-random. The map paints each clan's systems as a territory in the clan's
-colour, the way a save's empires are painted, and tags the home with a
-crossed-swords chip. Both are the "Marauder clans" layer, listed beside
-the fallen empire zones. The inspector's Marauder clan section names the
-two bases with links to them, or says which is missing and offers to add
-it, renumbers the clan and removes it. A base's section names its home,
-or warns that nothing spawns there without one. Issues reports a home
-missing its bases, with an "Add the raid bases" button, a clan with two
-homes, a base with no lane to its home, and a home within 30 of a seat.
-"Update counts" sets the header's marauder counts from the homes.
+random, so Undo is the way back to what they were. The map paints each
+clan's systems as a territory in the clan's colour, the way a save's
+empires are painted, and tags the home with a crossed-swords chip. Both
+are the "Marauder clans" layer, listed beside the fallen empire zones.
+The inspector's Marauder clan section names the two bases with links to
+them, or says which is missing and offers to add it, renumbers the clan
+and removes it. A base's section names its home, or warns that nothing
+spawns there without one. Issues reports a home missing its bases, with
+an "Add the raid bases" button, a clan with two homes, a base with no
+lane to its home, and a home within 30 of a seat. "Update counts" sets
+the header's marauder counts from the homes.
 
 In a scenario whose Paint a Galaxy layer is on, a spawn point is a seat
 the mod fills by kind, so the inspector offers the kind from a select

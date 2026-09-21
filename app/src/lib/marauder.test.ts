@@ -7,10 +7,12 @@ import {
   basesBeside,
   CLANS,
   clanHomes,
+  clanMenuItem,
   clanOf,
   clanSystems,
   homeBeside,
   homeInitializer,
+  middleOf,
   missingBaseSites,
   nextFreeClan,
   placeBases,
@@ -142,5 +144,65 @@ describe("placeBases", () => {
   it("places only the sites asked for", () => {
     expect(placeBases(at(1, 0, 0), [3], []).map((p) => p.site)).toEqual([3]);
     expect(placeBases(at(1, 0, 0), [], [])).toEqual([]);
+  });
+});
+
+describe("middleOf and clanMenuItem", () => {
+  /** 1 is linked to 2 and 3, and 4 to 2 alone, so 1-2-3 has a middle and 2-3-4 has none. */
+  const linked = systems(
+    systemNode({ id: 1, lanes: lanes(2, 3) }),
+    systemNode({ id: 2, lanes: lanes(1, 4) }),
+    systemNode({ id: 3, lanes: lanes(1) }),
+    systemNode({ id: 4, lanes: lanes(2) }),
+  );
+  /** 5, 6 and 7 are each linked to both others. */
+  const triangle = systems(
+    systemNode({ id: 7, lanes: lanes(5, 6) }),
+    systemNode({ id: 5, lanes: lanes(6, 7) }),
+    systemNode({ id: 6, lanes: lanes(5, 7) }),
+  );
+
+  it("names the one system linked to both others, whichever is asked first", () => {
+    expect(middleOf([1, 2, 3], linked)).toBe(1);
+    expect(middleOf([3, 2, 1], linked)).toBe(1);
+    expect(middleOf([2, 3, 4], linked)).toBeNull();
+    expect(middleOf([1, 2, 9], linked)).toBeNull();
+  });
+
+  it("takes the lowest id of a triangle", () => {
+    expect(middleOf([7, 6, 5], triangle)).toBe(5);
+  });
+
+  it("says how many more systems to select, or that all clans are placed", () => {
+    expect(clanMenuItem([], linked, 1)).toEqual({
+      label: "Add marauder clan",
+      hint: "Select two more systems to make a clan",
+      clan: null,
+    });
+    expect(clanMenuItem([1], linked, 1).hint).toBe("Select two more systems to make a clan");
+    expect(clanMenuItem([1, 2], linked, 1).hint).toBe("Select one more system");
+    expect(clanMenuItem([1, 2, 3, 4], linked, 1).hint).toBe("Select exactly three systems");
+    expect(clanMenuItem([1, 2, 3], linked, null)).toEqual({
+      label: "Add marauder clan",
+      hint: "All three clans are placed",
+      clan: null,
+    });
+  });
+
+  it("makes the middle system the home and the others its bases, in selection order", () => {
+    expect(clanMenuItem([3, 1, 2], linked, 2)).toEqual({
+      label: "Make these marauder clan 2",
+      hint: "Replaces the three initializers, star class included",
+      clan: { home: 1, bases: [3, 2] },
+    });
+    expect(clanMenuItem([7, 6, 5], triangle, 1).clan).toEqual({ home: 5, bases: [7, 6] });
+  });
+
+  it("refuses three systems none of which is linked to the other two, and says why", () => {
+    expect(clanMenuItem([2, 3, 4], linked, 1)).toEqual({
+      label: "Make these marauder clan 1",
+      hint: "The home needs a hyperlane to both bases",
+      clan: null,
+    });
   });
 });

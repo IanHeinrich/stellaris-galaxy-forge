@@ -111,7 +111,6 @@ describe("the fallen empire zone items", () => {
     expect(menu()).toContain(">Add fallen empire zone</button>");
     chrome.openContextMenu({ target: { kind: "space", x: 0, y: 200 }, x: 0, y: 0 });
     expect(menu()).toContain(">Add fallen empire zone, anchored to ");
-    expect(menu()).toContain(">Fit fallen empire zones…</button>");
     chrome.openContextMenu({ target: { kind: "feZone", anchor: 0 }, x: 0, y: 0 });
     expect(menu()).toContain(">Remove fallen empire zone</button>");
     expect(menu()).toContain(">Select Sol</button>");
@@ -252,7 +251,15 @@ describe("the marauder clan items", () => {
     expect(full).toContain('title="All three clans are placed"');
   });
 
-  it("asks for three selected systems before it makes a clan, and says how many more", async () => {
+  /** The clan item: its label, the hint under it, and whether it is disabled. */
+  const clanItem = (html: string) => {
+    const m = html.match(
+      /<button([^>]*)>((?:Add|Make these) marauder clan[^<]*)<span class="muted">([^<]*)<\/span><\/button>/,
+    )!;
+    return { label: m[2], hint: m[3], disabled: m[1].includes("disabled="), title: m[1] };
+  };
+
+  it("asks for three selected systems before it makes a clan, and says how many more under the label", async () => {
     await openWithClans({});
     const chrome = useMapChromeStore.getState();
     const editor = useEditorStore.getState();
@@ -260,42 +267,85 @@ describe("the marauder clan items", () => {
       chrome.openContextMenu({ target: { kind: "system", id }, x: 0, y: 0 });
 
     on(1);
-    expect(item(menu(), "Add marauder clan")).toContain(
-      'title="Select two more systems to make a clan"',
-    );
+    expect(clanItem(menu())).toMatchObject({
+      label: "Add marauder clan",
+      hint: "Select two more systems to make a clan",
+      disabled: true,
+    });
+    expect(clanItem(menu()).title).toContain('title="Select two more systems to make a clan"');
     await editor.setSelection([1], "replace");
     on(1);
-    expect(item(menu(), "Add marauder clan")).toContain(
-      'title="Select two more systems to make a clan"',
-    );
+    expect(clanItem(menu()).hint).toBe("Select two more systems to make a clan");
     await editor.setSelection([1, 2], "replace");
     on(1);
-    expect(item(menu(), "Add marauder clan")).toContain('title="Select one more system"');
+    expect(clanItem(menu())).toMatchObject({ hint: "Select one more system", disabled: true });
     await editor.setSelection([1, 2, 3, 4], "replace");
     on(1);
-    expect(item(menu(), "Add marauder clan")).toContain('title="Select exactly three systems"');
-    for (const html of [menu()]) expect(item(html, "Add marauder clan")).toContain("disabled=");
+    expect(clanItem(menu())).toMatchObject({
+      hint: "Select exactly three systems",
+      disabled: true,
+    });
   });
 
-  it("makes the right-clicked one of three selected systems the home of the next free clan", async () => {
+  it("offers no clan item on a system outside a selection", async () => {
+    await openWithClans({});
+    await useEditorStore.getState().setSelection([1, 2], "replace");
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 3 }, x: 0, y: 0 });
+    expect(menu()).not.toContain("marauder clan");
+  });
+
+  it("makes the one of three selected systems linked to both others the home, whichever is right-clicked", async () => {
     await openWithClans({ 0: { home: 1 } });
-    await useEditorStore.getState().setSelection([1, 2, 3], "replace");
-    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 1 }, x: 0, y: 0 });
-    const html = menu();
-    expect(item(html, "Make these marauder clan 2")).not.toContain("disabled=");
-    expect(html).not.toContain("Add marauder clan");
+    await useEditorStore.getState().setSelection([0, 1, 2], "replace");
+    for (const id of [0, 1, 2]) {
+      useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id }, x: 0, y: 0 });
+      const html = menu();
+      expect(clanItem(html)).toMatchObject({
+        label: "Make these marauder clan 2",
+        hint: "Replaces the three initializers, star class included",
+        disabled: false,
+      });
+      expect(clanItem(html).title).toContain(
+        'title="Replaces the three initializers, star class included"',
+      );
+      expect(html).not.toContain("Add marauder clan");
+    }
   });
 
-  it("offers to remove the clan on a home and on a raid base, and no clan-making item", async () => {
+  it("refuses three selected systems none of which is linked to the other two, and says why", async () => {
+    await openWithClans({});
+    await useEditorStore.getState().setSelection([0, 2, 3], "replace");
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 2 }, x: 0, y: 0 });
+    expect(clanItem(menu())).toMatchObject({
+      label: "Make these marauder clan 1",
+      hint: "The home needs a hyperlane to both bases",
+      disabled: true,
+    });
+  });
+
+  it("refuses three selected systems once all three clans are placed, and says so", async () => {
+    await openWithClans({ 3: { home: 1 }, 4: { home: 2 }, 5: { home: 3 } });
+    await useEditorStore.getState().setSelection([0, 1, 2], "replace");
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 1 }, x: 0, y: 0 });
+    expect(clanItem(menu())).toMatchObject({
+      label: "Add marauder clan",
+      hint: "All three clans are placed",
+      disabled: true,
+    });
+  });
+
+  it("offers to remove the clan on a home and on a raid base, saying what that does, and no clan-making item", async () => {
     await openWithClans({ 0: { home: 1 }, 2: { base: 1 } });
+    const remove =
+      '<button type="button" role="menuitem" class="hinted" title="The three systems become random. Undo puts back what they were">Remove marauder clan 1<span class="muted">The three systems become random. Undo puts back what they were</span></button>';
     useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
     let html = menu();
-    expect(html).toContain(">Remove marauder clan 1</button>");
+    expect(html).toContain(remove);
     expect(html).not.toContain("marauder clan here");
     expect(html).not.toContain("Add marauder clan");
     useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 2 }, x: 0, y: 0 });
     html = menu();
-    expect(html).toContain(">Remove marauder clan 1</button>");
+    expect(html).toContain(remove);
     expect(html).not.toContain("Add marauder clan");
   });
 });

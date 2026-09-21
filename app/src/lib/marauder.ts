@@ -32,6 +32,15 @@ export const ALL_CLANS_PLACED = "All three clans are placed";
 /** Why three selected systems cannot be made a clan. */
 export const BASES_NEED_LANES = "Both raid bases need a hyperlane to the home";
 
+/** Why three selected systems have no home among them: none is linked to the other two. */
+export const HOME_NEEDS_LANES = "The home needs a hyperlane to both bases";
+
+/** What making a clan of three systems does to them. */
+export const MAKE_CLAN_HINT = "Replaces the three initializers, star class included";
+
+/** What removing a clan does to its systems. */
+export const REMOVE_CLAN_HINT = "The three systems become random. Undo puts back what they were";
+
 /** Why a clan cannot take a number: another home already carries it. */
 export function clanInUse(clan: number): string {
   return `Clan ${clan} is in use`;
@@ -172,25 +181,43 @@ export function placeBases(
   return placed;
 }
 
-/** What the selection makes of "Add marauder clan": the two bases to send, or why not, with the label. */
+/**
+ * The one of `ids` with a hyperlane to each of the others: the home of the clan they would make.
+ * The lowest id when more than one qualifies, null when none does.
+ */
+export function middleOf(
+  ids: readonly number[],
+  systems: ReadonlyMap<number, SystemNode>,
+): number | null {
+  const middles = ids.filter((id) => {
+    const lanes = systems.get(id)?.lanes ?? [];
+    return ids.every((other) => other === id || lanes.some((lane) => lane.to === other));
+  });
+  return middles.length === 0 ? null : Math.min(...middles);
+}
+
+export interface ClanMenuItem {
+  label: string;
+  /** What the item does when enabled, or why it is disabled. */
+  hint: string;
+  /** The home and its two bases, null while the item is disabled. */
+  clan: { home: number; bases: [number, number] } | null;
+}
+
+/** What `selection` makes of "Add marauder clan": the clan to make, or why not, with the label and hint. */
 export function clanMenuItem(
-  home: number,
   selection: readonly number[],
+  systems: ReadonlyMap<number, SystemNode>,
   freeClan: number | null,
-): { label: string; hint: string | undefined; bases: [number, number] | null } {
-  const disabled = (hint: string) => ({ label: "Add marauder clan", hint, bases: null });
-  const others = selection.filter((id) => id !== home);
-  if (!selection.includes(home)) {
-    if (selection.length === 0) return disabled("Select two more systems to make a clan");
-    return disabled("Right-click one of the selected systems to make it the home");
-  }
-  if (others.length === 0) return disabled("Select two more systems to make a clan");
-  if (others.length === 1) return disabled("Select one more system");
-  if (others.length > 2) return disabled("Select exactly three systems");
+): ClanMenuItem {
+  const disabled = (hint: string, label = "Add marauder clan") => ({ label, hint, clan: null });
+  if (selection.length <= 1) return disabled("Select two more systems to make a clan");
+  if (selection.length === 2) return disabled("Select one more system");
+  if (selection.length > 3) return disabled("Select exactly three systems");
   if (freeClan === null) return disabled(ALL_CLANS_PLACED);
-  return {
-    label: `Make these marauder clan ${freeClan}`,
-    hint: undefined,
-    bases: [others[0], others[1]],
-  };
+  const label = `Make these marauder clan ${freeClan}`;
+  const home = middleOf(selection, systems);
+  if (home === null) return disabled(HOME_NEEDS_LANES, label);
+  const [second, third] = selection.filter((id) => id !== home);
+  return { label, hint: MAKE_CLAN_HINT, clan: { home, bases: [second, third] } };
 }

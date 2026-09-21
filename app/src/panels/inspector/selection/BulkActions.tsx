@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { MESH_BETA } from "../../../lib/geometry/mesh";
 import { CONNECT_ALL_MAX, useEditorStore } from "../../../store/editorStore";
 import { documentCapabilities, supports } from "../../../lib/capabilities";
+import { clanMenuItem, nextFreeClan } from "../../../lib/marauder";
 import { sharedWormholePair } from "../../../lib/paint";
 import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useMapChromeStore } from "../../../store/mapChromeStore";
@@ -99,7 +100,41 @@ export function BulkActions({
           itemRole={itemRole}
         />
       )}
+      {supports(capabilities, "create_systems") && selection.length === 3 && (
+        <MarauderClanButton ids={selection} afterRun={afterRun} itemRole={itemRole} />
+      )}
     </>
+  );
+}
+
+/** Three selected systems on a scenario: made the next free marauder clan, the middle one its home. */
+export function MarauderClanButton({
+  ids,
+  afterRun,
+  itemRole,
+}: {
+  ids: readonly number[];
+  afterRun?: () => void;
+  itemRole?: "menuitem";
+}) {
+  const makeMarauderClan = useEditorStore((s) => s.makeMarauderClan);
+  const systems = useGalaxyStore((s) => s.systems);
+  const item = clanMenuItem(ids, systems, nextFreeClan(systems));
+  return (
+    <button
+      type="button"
+      role={itemRole}
+      className="hinted"
+      disabled={item.clan === null}
+      title={item.hint}
+      onClick={() => {
+        if (item.clan !== null) void makeMarauderClan(item.clan.home, item.clan.bases);
+        afterRun?.();
+      }}
+    >
+      {item.label}
+      <span className="muted">{item.hint}</span>
+    </button>
   );
 }
 
