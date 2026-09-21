@@ -278,12 +278,20 @@ in-game checks that go with a change to the galaxy.
 
 ## Acknowledgements
 
-- [paint-a-galaxy](https://github.com/oatmealproblem/paint-a-galaxy) by
-  Oatmeal Problem (MIT): a browser tool for drawing a galaxy and exporting
-  it as a static galaxy scenario. The New scenario dialog links to it and
-  opens its export. Reading its source confirmed two facts this editor
-  relies on: which way a scenario's `position` runs, and that the game
-  assigns initializers in the order the `system` statements are listed.
+- [Paint a Galaxy](https://github.com/oatmealproblem/paint-a-galaxy) by
+  Oatmeal Problem (MIT), and its
+  [companion mod](https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115)
+  on the Steam Workshop. Custom static galaxies for regular play are not
+  possible without that mod: the game's own generator breaks on a
+  hand-made map (wrong homeworlds, no marauders, no fallen empires,
+  Sol without its neighbours), and the mod fixes each of those in script.
+  Everything this editor writes for a playable scenario, from the seat
+  scripts to the fallen empire zones and wormhole pairs, is the mod's
+  format, and its scripts and source were the reference for how they
+  behave. The New scenario dialog links to the site and opens its export.
+  Reading the site's source also confirmed two facts this editor relies
+  on: which way a scenario's `position` runs, and that the game assigns
+  initializers in the order the `system` statements are listed.
 - The facts about the save format and the install were measured from the
   game's own files. For the edge cases of how mods layer over the install
   (load order, `replace_path`) and of the script dialect,
