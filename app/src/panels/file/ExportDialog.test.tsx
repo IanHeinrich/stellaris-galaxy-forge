@@ -162,7 +162,10 @@ describe("the report", () => {
   it("says what a conversion for the mod did with the seats, the fallen empires and the rest", () => {
     const html = renderToStaticMarkup(<ExportReportRows report={PAINTED} />);
     expect(html).toContain(
-      row("Seats", "17 seats. Your capital, system 217, is the Sol seat: player 1 spawns there."),
+      row(
+        "Seats",
+        "17 seats. Your capital, system 217, is the preferred seat: the first empire placed starts there.",
+      ),
     );
     expect(html).toContain(
       row(
@@ -188,13 +191,13 @@ describe("the report", () => {
     const html = renderToStaticMarkup(
       <ExportReportRows report={exportReport({ player_seat: 2 })} />,
     );
-    expect(html).toContain("Your capital, Barnard, is the Sol seat");
+    expect(html).toContain("Your capital, Barnard, is the preferred seat");
   });
 
   it("words each row of the conversion, plural or singular, and each zone that missed its spot", () => {
     expect(seatsSummary(exportReport({ seats: 1 }), id)).toBe("1 seat.");
     expect(seatsSummary(exportReport({ player_seat: 217 }), id)).toBe(
-      "17 seats. Your capital, system 217, is the Sol seat: player 1 spawns there.",
+      "17 seats. Your capital, system 217, is the preferred seat: the first empire placed starts there.",
     );
 
     expect(fallenEmpiresSummary(exportReport())).toBeNull();

@@ -36,7 +36,7 @@ pub struct ExportReport {
     /// The save's fallen empires, each left out for the mod to rebuild in a typed zone
     /// at its old capital; empty for the plain profile.
     pub fallen_empires: Vec<FallenEmpireReport>,
-    /// The player's capital, written as the Sol seat; `None` for the plain profile or
+    /// The player's capital, written as the preferred seat; `None` for the plain profile or
     /// a save with no player.
     pub player_seat: Option<u32>,
     /// Systems left out because the game adds its own, ascending by category.

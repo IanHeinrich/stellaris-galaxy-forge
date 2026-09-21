@@ -186,9 +186,14 @@ spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|
 ```
 
 `n = i % 10`. The capital of the player's country (the first `player`
-entry of the save) is written as the Sol seat instead,
-`SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0`, so the mod seats player 1 there
-whatever their empire; the report names it as `player_seat`. A system that
+entry of the save) is written as the preferred seat instead,
+`PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|n`. The mod weighs a preferred
+seat at 110 to 120 against 10 to 20 for an enabled one, and the first
+country placed takes the heaviest free seat, so in single player that is
+where the player starts. The Sol seat is not used for this: its weight is
+zero for every empire but the United Nations of Earth or one carrying the
+Reserved Spawns submod's Sol trait. The report names the seat as
+`player_seat`. A system that
 already carries a preferred, reserved or Sol script keeps that script's kind
 and random value rather than being reset to plain "enabled". A spawn system
 with no `initializer`, or one whose initializer the report lists under

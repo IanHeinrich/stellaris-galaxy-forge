@@ -74,7 +74,7 @@ pub fn run(
 /// empire's zone, and where the header's counts come from.
 fn print_paint_report(report: &ExportReport) {
     if let Some(seat) = report.player_seat {
-        println!("player seat: system {seat} (Sol)");
+        println!("player seat: system {seat} (preferred)");
     }
     for fallen in &report.fallen_empires {
         let anchor = match (fallen.anchor, fallen.exact) {

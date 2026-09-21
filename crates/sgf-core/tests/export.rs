@@ -661,28 +661,30 @@ static_galaxy_scenario = {
     assert_eq!(
         galaxy.systems[&player].spawn_script,
         Some(SpawnScript::PaintAGalaxy {
-            kind: PaintSpawnKind::Sol,
-            random_value: 0,
+            kind: PaintSpawnKind::Preferred,
+            random_value: 7,
         })
     );
     assert_eq!(
         galaxy.systems[&player].initializer,
         "sol_system_initializer"
     );
-    let sols = galaxy
+    // The Sol seat takes only the United Nations of Earth, so the player's capital is
+    // the preferred seat, the one heaviest for the first country placed.
+    let preferred = galaxy
         .systems
         .values()
         .filter(|s| {
             matches!(
                 s.spawn_script,
                 Some(SpawnScript::PaintAGalaxy {
-                    kind: PaintSpawnKind::Sol,
+                    kind: PaintSpawnKind::Preferred,
                     ..
                 })
             )
         })
         .count();
-    assert_eq!(sols, 1);
+    assert_eq!(preferred, 1);
     assert_eq!(report.home_initializers.len(), 4);
     assert!(report.home_initializers.iter().all(|h| h.replaced));
     for home in &report.home_initializers {
@@ -794,7 +796,7 @@ static_galaxy_scenario = {{
     for (i, id) in capitals.iter().enumerate() {
         let system = &reopened.graph.systems[id];
         let (kind, random_value) = if report.player_seat == Some(*id) {
-            (PaintSpawnKind::Sol, 0)
+            (PaintSpawnKind::Preferred, (i % 10) as u8)
         } else {
             (PaintSpawnKind::Enabled, (i % 10) as u8)
         };

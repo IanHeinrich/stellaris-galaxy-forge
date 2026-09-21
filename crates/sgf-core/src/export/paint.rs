@@ -65,7 +65,7 @@ const FE_KINDS: [(&str, FeKind); 6] = [
 /// Rewrite `draft` in Paint a Galaxy's shape: each fallen empire's cluster is left out
 /// for a typed zone at its old capital; the spawn systems are the capitals of the
 /// playable countries and every system already marked as a spawn, the player's capital
-/// as the Sol seat; a seat the plain profile wrote anywhere else is cleared. `report`
+/// as the preferred seat; a seat the plain profile wrote anywhere else is cleared. `report`
 /// gains what the profile did, and drops only the wormhole pairs it could not flag.
 pub(super) fn decorate(
     draft: &mut Draft,
@@ -735,7 +735,9 @@ fn nearest_system(draft: &Draft, at: (f64, f64)) -> Option<u32> {
 }
 
 /// Each spawn system gets the enabled seat with the next random value, the player's
-/// capital the Sol seat, or keeps the script it already carries. A seat with no
+/// capital the preferred seat, or keeps the script it already carries. The preferred
+/// seat is the heaviest, and the first country placed takes the heaviest free seat;
+/// the mod's Sol seat would take only the United Nations of Earth. A seat with no
 /// initializer, or one the report says to review, gets a generic start.
 fn mark_spawns(
     draft: &mut Draft,
@@ -760,7 +762,7 @@ fn mark_spawns(
             .and_then(|s| s.spawn_script.clone())
             .unwrap_or_else(|| {
                 let kind = if player == Some(system.id) {
-                    PaintSpawnKind::Sol
+                    PaintSpawnKind::Preferred
                 } else {
                     PaintSpawnKind::Enabled
                 };

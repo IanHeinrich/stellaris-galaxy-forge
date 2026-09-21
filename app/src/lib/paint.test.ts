@@ -49,8 +49,7 @@ describe("a painted galaxy", () => {
     expect(paintKindDescription("enabled")).toBe("Any empire may start here.");
     expect(paintKindDescription("preferred")).toContain("Filled before enabled seats.");
     expect(paintKindDescription("sol")).toContain(
-      "The mod seats player 1 here, whatever their empire. Like a reserved seat, and the United " +
-        "Nations of Earth counts as holding it.",
+      'Only the United Nations of Earth, or an empire with the "Reserved Spawn Sol" trait, starts here.',
     );
     expect(paintKindDescription({ reserved: "c" })).toBe(
       'Only an empire whose species has the "Reserved Spawn C" trait starts here.',

@@ -751,7 +751,10 @@ static_galaxy_scenario = {
     assert!(text.contains("765 system(s)"), "{text}");
     assert!(!text.contains("empire seats"), "{text}");
     assert!(!text.contains("not carried over"), "{text}");
-    assert!(text.contains("\nplayer seat: system 217 (Sol)\n"), "{text}");
+    assert!(
+        text.contains("\nplayer seat: system 217 (preferred)\n"),
+        "{text}"
+    );
     assert!(
         text.contains("\nfallen empire PRESCRIPTED_species_adjective_tebrid: machine, 11 system(s) left out, anchor 791 at the old capital, linked to 6 system(s)\n"),
         "{text}"

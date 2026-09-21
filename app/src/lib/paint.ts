@@ -98,8 +98,8 @@ export function paintKindDescription(kind: PaintSpawnKind): string {
   }
   if (kind === "sol") {
     return (
-      "The mod seats player 1 here, whatever their empire. Like a reserved seat, and the United " +
-      "Nations of Earth counts as holding it. Set the initializer to Sol instead unless this is " +
+      'Only the United Nations of Earth, or an empire with the "Reserved Spawn Sol" trait, starts ' +
+      "here. Set the initializer to Sol instead unless this is " +
       "a modded Sol."
     );
   }
