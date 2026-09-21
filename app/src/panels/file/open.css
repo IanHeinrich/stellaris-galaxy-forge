@@ -425,6 +425,23 @@
   line-height: 1.45;
 }
 
+/* The scenario choice and the option that only applies to it, boxed as one. */
+.mode-group {
+  margin: 10px 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.mode-group .mode-choice {
+  margin: 0;
+}
+
+.mode-option {
+  padding: 6px 12px 8px;
+  border-top: 1px dashed var(--border);
+}
+
 .mode-name {
   font-weight: 600;
 }
