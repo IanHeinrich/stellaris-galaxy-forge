@@ -10,54 +10,45 @@ a release is made.
 
 ### Added
 
-- Paint a Galaxy. Regular users' custom static maps need the mod, which
-  fixes game-breaking bugs in the galaxy generator. A "For the Paint a
-  Galaxy mod" checkbox, ticked by default, is on New scenario, Export
-  and Open as scenario. Under it the app says whether the mod is
-  installed and enabled, with a link to the Workshop. Unticking it warns
-  that the map will break in-game without the mod. A scenario for the
-  mod is recognised by its content or by living in the mod's folder,
-  the title bar shows a badge and warns when the mod is missing, and
-  Save As and "Save into the Paint a Galaxy mod…" put the file where the
-  mod reads it.
-- Spawn points for the mod. Scenarios made with Paint a Galaxy open with
-  their seats intact. The seat select reads Enabled, Preferred, Sol,
-  then Reserved A to Z, with a line saying what the mod does with each.
-  The map shows a reserved seat's letter and a star on a preferred one.
-  Issues warns when a reserved seat exists without the Reserved Spawns
-  submod. Two selected systems can be joined as a wormhole pair.
-- Fallen empire zones: the rings where the mod builds a fallen empire at
-  game start. Add one from a system's menu or on empty space, drag it,
-  and set its kind, direction and distance in the inspector. Inside the
-  ring a ghost shows the systems the mod will build there. "Fit fallen
-  empire zones…" spreads the mod's automatic zones across the map. A
-  zone can be linked to the systems the mod lays its hyperlanes from,
-  edited on the map like hyperlanes: hover a link for its ×, or drag
-  between a system and the ring. Issues reports a ring that covers a
-  system, overlapping rings, and links that lead nowhere.
-- Marauder clans in any scenario, no mod needed. "Add marauder clan
-  here" creates a home and its two raid bases, "Make these marauder clan
-  N" turns three selected systems into one, and "Remove marauder clan N"
-  sets them back. The map shows a clan as an empire with a skull emblem
-  and a black border, like the game. Issues reports a clan missing its
-  bases, with a fix, a duplicate home, an orphaned base and a home
-  beside a seat.
-- A save opened or exported as a Paint a Galaxy scenario keeps its
-  fallen empires as typed zones at their old capitals, linked to the
-  systems their clusters reached, seats the player at their old capital,
-  leaves the L-Cluster to the game and takes the header's counts from
-  the save's own setup. Export shows a report first and writes it into
-  the file as comments.
-- A Game setup section in the galaxy inspector edits a scenario's
-  empire, fallen empire, marauder, wormhole, gateway and hyperlane
-  counts, and which galaxy shapes the map is listed under. "Update
-  counts" sizes them from the seats, zones and clans, and Issues says
-  when the header and the map disagree.
-- A save with unresolved warnings or errors opens the Issues tab and
-  asks before writing. "Save anyway" keeps it quiet until a new issue
-  appears.
-- Two guide layers under "Overlays": "Map border" and "L-Cluster". Every
-  icon on the map names itself on hover.
+- Custom static maps that work in the game. Stellaris ships bugs in its
+  static galaxy generator, and the Paint a Galaxy mod fixes them, so a
+  new scenario is written for that mod unless you say otherwise. The app
+  tells you whether the mod is installed and enabled, links to it on the
+  Workshop, saves your map into the mod's folder where the game finds it
+  and says how to start it. A map made without the mod carries a warning
+  that it will break in-game.
+- Every empire seat is one you placed. A scenario made with Paint a Galaxy
+  opens with its seats intact, and the seat select says what the mod
+  does with each kind, so a preferred seat, a reserved letter or the Sol
+  seat for player 1 does what you expect. Two systems can be joined as a
+  wormhole pair.
+- Fallen empires where you want them. Place a zone from a system's menu
+  or on empty space, drag it, choose its kind, and the map shows the
+  systems the mod will build there, so a ring never lands on your own
+  systems. Choose which of your systems the fallen empire connects to by
+  dragging between a system and the ring, the way you draw a hyperlane,
+  or let the mod link the nearest ones.
+- Marauder clans without a mod. Add a clan on empty space or make one from
+  three selected systems, and the map shows it as the game does, with a
+  skull emblem and a black border, so you can see at a glance where the
+  raids will come from. Issues catches a clan that would not spawn
+  whole.
+- Turn a finished game into a fresh start. A save opened or exported as
+  a Paint a Galaxy scenario keeps its fallen empires where they were,
+  connected to the same neighbours, seats the player at their old
+  capital, leaves the L-Cluster to the game and sets the new game's
+  defaults from the save's own settings. A report says what was done,
+  and the file carries it as comments.
+- The new game's setup screen, from the editor. A Game setup section
+  edits the empire, fallen empire, marauder, wormhole, gateway and
+  hyperlane counts a scenario offers, and which galaxy shapes it is
+  listed under. "Update counts" sets them from what is on the map, and
+  Issues says when the two disagree.
+- No more saving a broken map by accident. A file with unresolved
+  warnings or errors opens the Issues tab and asks first. "Save anyway"
+  is remembered until a new issue appears.
+- Where the map ends and where the L-Cluster goes, as guide layers, and
+  every icon on the map says what it is when you hover it.
 
 ### Changed
 
