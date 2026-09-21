@@ -88,6 +88,22 @@ a release is made.
   does not read them. Issues warns when a reserved seat exists and the
   Reserved Spawns submod is not enabled in the playset.
 
+### Changed
+
+- Moving a system on a save with many empires no longer hitches on
+  release. The territories are recomputed in a worker and the outlines
+  follow a beat later. The recompute itself is cheaper too, since only
+  the pieces of territory near the moved system are rebuilt.
+
+## [0.6.1] - 2026-09-20
+
+### Changed
+
+- Backups are capped at eight per file: the original, the three newest
+  and four spread over the time between. Older ones in between are
+  deleted as new ones arrive.
+- A save that changes nothing writes nothing and makes no backup.
+
 ## [0.6.0] - 2026-09-20
 
 ### Added

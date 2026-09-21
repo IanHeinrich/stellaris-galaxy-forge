@@ -169,7 +169,7 @@ fn inspect_and_roundtrip_refuse_a_scenario() {
 }
 
 #[test]
-fn roundtrip_check_is_byte_identical_and_backs_up() {
+fn roundtrip_check_is_byte_identical_and_writes_nothing_twice() {
     let dir = tempfile::tempdir().unwrap();
     let out_path = dir.path().join("copy.sav");
     let out_str = out_path.to_str().unwrap();
@@ -199,9 +199,12 @@ fn roundtrip_check_is_byte_identical_and_backs_up() {
         stdout(&out)
     );
     let backups = backups(dir.path());
-    assert_eq!(backups.len(), 1, "{backups:?}");
-    assert!(backups[0].starts_with("copy.sav.bak-"), "{backups:?}");
-    assert!(stdout(&out).contains("backup "), "{}", stdout(&out));
+    assert_eq!(
+        backups.len(),
+        0,
+        "identical bytes make no backup: {backups:?}"
+    );
+    assert!(!stdout(&out).contains("backup "), "{}", stdout(&out));
 }
 
 #[test]
