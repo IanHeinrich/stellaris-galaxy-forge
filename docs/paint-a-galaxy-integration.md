@@ -350,9 +350,8 @@ still reads back as a seat. A reserved seat's letter is written as one
 lowercase ASCII letter, matching the star flags Paint a Galaxy itself uses;
 on read, whatever follows `RESERVED|` is taken as the letter. Because the
 mod resolves the weight from the seat kind rather than from a number,
-setting a base spawn weight or a human/AI reservation on a system that
-already carries a script is refused; its Paint a Galaxy spawn kind is what
-changes instead.
+setting a base spawn weight on a system that already carries a script is
+refused; its Paint a Galaxy spawn kind is what changes instead.
 
 Forge treats a scenario as painted, and turns its Paint a Galaxy layer on,
 when the `painted_galaxy_` prefix appears anywhere in the text or the

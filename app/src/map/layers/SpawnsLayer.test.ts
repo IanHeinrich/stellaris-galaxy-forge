@@ -3,27 +3,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { SpawnScript } from "../../generated/SpawnScript";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { AI_RESERVED_NOTE, RESERVED_NOTE, SpawnsLayer } from "./SpawnsLayer";
-import {
-  childByLabel,
-  drawOps,
-  drawnText,
-  mapContext,
-  mapNode,
-  strokes,
-  viewport,
-} from "./fixture";
+import { SpawnsLayer } from "./SpawnsLayer";
+import { childByLabel, drawnText, mapContext, mapNode, strokes, viewport } from "./fixture";
 
 function weighted(id: number, x: number, weight: number | null): SystemNode {
   return { ...mapNode(id, x, `S${id}`), spawn_weight: weight };
-}
-
-/** The same spawn point, with a modifier holding it for a human player. */
-function reserved(node: SystemNode): SystemNode {
-  return {
-    ...node,
-    spawn_modifiers: [{ factor: null, add: null, trigger: "", reservation: "human" }],
-  };
 }
 
 /** The mod idiom: a base of zero, one empire's modifier adding all the weight. */
@@ -31,16 +15,16 @@ function addedTo(node: SystemNode): SystemNode {
   return {
     ...node,
     spawn_modifiers: [
-      { factor: null, add: 10000, trigger: "has_country_flag = x", reservation: null },
+      { factor: null, add: 10000, trigger: "has_country_flag = x", country_flag: "x" },
     ],
   };
 }
 
-/** The same spawn point, with a modifier holding it for the AI. */
-function aiReserved(node: SystemNode): SystemNode {
+/** The same spawn point, with an author's own modifier the editor shows and never reads into. */
+function scaled(node: SystemNode): SystemNode {
   return {
     ...node,
-    spawn_modifiers: [{ factor: null, add: null, trigger: "", reservation: "ai" }],
+    spawn_modifiers: [{ factor: 0, add: null, trigger: "is_ai = yes", country_flag: null }],
   };
 }
 
@@ -50,13 +34,6 @@ const PLAIN = weighted(1, 20, null);
 /** The colour the mark is stroked in, as the graphics context recorded it. */
 function markColor(mark: Graphics): number | undefined {
   return strokes(mark)[0]?.color;
-}
-
-/** The mark's shape and colour, as the graphics context recorded them. */
-function fingerprint(mark: Graphics): string {
-  return drawOps(mark)
-    .map((op) => `${op.action}:${op.color}(${op.steps.join(",")})`)
-    .join(" ");
 }
 
 /** The mark on `id`, as the pointer would find it. */
@@ -180,55 +157,19 @@ describe("the spawn points layer", () => {
     });
   });
 
-  it("draws every seat in the one colour, leaving the figure to say who holds it", () => {
-    const layer = drawn([reserved(START), aiReserved(weighted(3, 60, 5)), weighted(2, 40, 5)]);
+  it("draws every seat in the one colour, whatever modifiers the file adds to it", () => {
+    const layer = drawn([scaled(START), addedTo(weighted(3, 60, 0)), weighted(2, 40, 5)]);
     for (const x of [START.x, 40, 60]) expect(markColor(markOf(layer, x))).toBe(0xfbbf24);
   });
 
-  it("draws an open seat, a human player's and the AI's as three marks of their own", () => {
-    const layer = drawn([weighted(1, 20, 5), reserved(weighted(2, 40, 5)), aiReserved(START)]);
-    const open = fingerprint(markOf(layer, 20));
-    const human = fingerprint(markOf(layer, 40));
-    const ai = fingerprint(markOf(layer, START.x));
-
-    expect(new Set([open, human, ai]).size).toBe(3);
-  });
-
-  it("redraws the mark when the seat passes from a human player to the AI", () => {
-    const layer = drawn([reserved(START)]);
-    const human = fingerprint(markOf(layer, START.x));
-
-    layer.applyDelta({ systems: [aiReserved(START)] });
-    expect(fingerprint(markOf(layer, START.x))).not.toBe(human);
-  });
-
-  it("says the seat is held for a human player after the weight, and stops saying so", () => {
-    const layer = drawn([reserved(START)]);
+  it("says only the weight while the pointer is on a seat with a modifier", () => {
+    const layer = drawn([scaled(START)]);
     const mark = markOf(layer, START.x);
 
-    mark.emit("pointerover", { global: { x: 4, y: 6 } } as never);
-    expect(useMapChromeStore.getState().tooltip).toMatchObject({
-      lines: [`Spawn point · weight 10 · ${RESERVED_NOTE}`],
-    });
-    mark.emit("pointerout", {} as never);
-
-    layer.rebuild(mapContext([START]));
-    expect(markColor(markOf(layer, START.x))).toBe(0xfbbf24);
     mark.emit("pointerover", { global: { x: 4, y: 6 } } as never);
     expect(useMapChromeStore.getState().tooltip).toMatchObject({
       lines: ["Spawn point · weight 10"],
     });
-  });
-
-  it("says the seat is held for the AI after the weight", () => {
-    const layer = drawn([aiReserved(START)]);
-    const mark = markOf(layer, START.x);
-
-    mark.emit("pointerover", { global: { x: 4, y: 6 } } as never);
-    expect(useMapChromeStore.getState().tooltip).toMatchObject({
-      lines: [`Spawn point · weight 10 · ${AI_RESERVED_NOTE}`],
-    });
-    expect(AI_RESERVED_NOTE).toBe("reserved for the AI");
   });
 
   it("draws a reserved seat's letter over a rounded tag beside the marker", () => {

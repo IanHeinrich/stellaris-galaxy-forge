@@ -17,6 +17,6 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A nebula added, resized, moved, renamed or removed shows in-game with the members the editor listed
 - [ ] A cut lane between two waystations ends the wayline and the game loads without complaint
 - [ ] A scenario loads with the intended orientation (no mirrored galaxy)
-- [ ] A scenario system with a new initializer, spawn weight or reservation spawns as written
+- [ ] A scenario system with a new initializer or spawn weight spawns as written
 - [ ] A prevented lane is not generated; an edited header key takes effect
 - [ ] An edited scenario in a local mod is picked up by auto-reload while the app is open

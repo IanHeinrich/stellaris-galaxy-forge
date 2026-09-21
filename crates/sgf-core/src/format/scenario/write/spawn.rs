@@ -1,9 +1,7 @@
 //! Spawn weights: `spawn_weight = { base = N }`, the weight the generator seats an
 //! empire by. The `modifier` blocks beside a base are script this editor reads and never
-//! rewrites, so an edit here touches the `base` alone, except for the two modifiers the
-//! editor writes itself, `modifier = { factor = 0 is_ai = yes|no }`, which hold the
-//! system for a human player or for the AI by barring the other from it. A scripted
-//! seat is the whole statement in its dialect's text, written and taken back whole.
+//! rewrites, so an edit here touches the `base` alone. A scripted seat is the whole
+//! statement in its dialect's text, written and taken back whole.
 
 use std::collections::BTreeSet;
 
@@ -11,27 +9,11 @@ use crate::Span;
 use crate::cst::Node;
 use crate::emit::coord;
 use crate::format::scenario::paint;
-use crate::format::scenario::spawn::{modifier, preset, tests_ai};
 use crate::keys::scenario as keys;
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::plural;
-use crate::projections::galaxy::{SpawnReservationPreset, SpawnScript};
+use crate::projections::galaxy::SpawnScript;
 use crate::session::Session;
-
-/// The modifier a reserved system carries: the kind of empire it names is given a weight
-/// of zero there, so only the other kind can be placed in it.
-fn preset_modifier(preset: SpawnReservationPreset) -> String {
-    let is_ai = match preset {
-        SpawnReservationPreset::Human => "yes",
-        SpawnReservationPreset::Ai => "no",
-    };
-    format!(
-        "{} = {{ {} = 0 {} = {is_ai} }}",
-        keys::MODIFIER,
-        keys::FACTOR,
-        keys::IS_AI
-    )
-}
 
 pub(super) fn set_weight(
     plan: &mut Plan,
@@ -77,32 +59,6 @@ pub(super) fn set_weights(
     Ok(Planned {
         description,
         inverse: Op::SetSpawnWeights { entries: previous },
-    })
-}
-
-pub(super) fn set_reservation(
-    plan: &mut Plan,
-    s: &Session,
-    id: u32,
-    reserve: Option<SpawnReservationPreset>,
-) -> Result<Planned, OpError> {
-    let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
-    if reserve.is_some() && system.spawn_script.is_some() {
-        return Err(OpError::ScriptedSpawn(id));
-    }
-    let edit = plan.edit(&s.doc, id)?;
-    let previous = write_reservation(edit, reserve)?;
-    let description = match reserve {
-        Some(SpawnReservationPreset::Human) => format!("Reserved system {id} for a human player"),
-        Some(SpawnReservationPreset::Ai) => format!("Reserved system {id} for the AI"),
-        None => format!("Released system {id}'s reservation"),
-    };
-    Ok(Planned {
-        description,
-        inverse: Op::SetSpawnReservation {
-            id,
-            reserve: previous,
-        },
     })
 }
 
@@ -170,7 +126,6 @@ fn write_weight(
     }
     let previous = system.spawn_weight;
     let edit = plan.edit(&s.doc, id)?;
-    let mut released = false;
     match (base, block(edit)?) {
         (Some(base), Some(block)) => match block.base {
             Some(_) => edit.set_value(&[keys::SPAWN_WEIGHT, keys::BASE], coord(base))?,
@@ -186,28 +141,16 @@ fn write_weight(
             ),
         )?,
         // A block of modifiers alone states no base, so there is nothing to clear.
-        (None, Some(block)) => {
-            // A reservation is written inside the weight, so it goes with the weight.
-            let preset = block.preset.map(|(span, _)| span);
-            released = preset.is_some();
-            let script = block.modifiers.len() - usize::from(released);
-            if script == 0 && (block.base.is_some() || released) {
-                edit.remove_statement(block.statement);
-            } else {
-                if let Some(span) = block.base {
-                    edit.remove_statement(span);
-                }
-                if let Some(span) = preset {
-                    edit.remove_statement(span);
-                }
-            }
-        }
+        (None, Some(block)) => match block.base {
+            Some(_) if block.modifiers.is_empty() => edit.remove_statement(block.statement),
+            Some(span) => edit.remove_statement(span),
+            None => {}
+        },
         (None, None) => {}
     }
-    let description = match (base, released) {
-        (Some(base), _) => format!("Set system {id} spawn weight to {}", coord(base)),
-        (None, false) => format!("Cleared system {id} spawn weight"),
-        (None, true) => format!("Cleared system {id}'s spawn weight and its reservation"),
+    let description = match base {
+        Some(base) => format!("Set system {id} spawn weight to {}", coord(base)),
+        None => format!("Cleared system {id} spawn weight"),
     };
     Ok((description, (id, previous)))
 }
@@ -263,47 +206,6 @@ fn write_script(
     Ok((paint::description(id, script), (id, previous)))
 }
 
-/// Hold the system for one kind of empire, taking back the preset it holds now and
-/// saying which that was. A modifier that tests the AI in a form this editor does not
-/// read is script that may well be a reservation of its own, so the op stops rather than
-/// write a second one beside it.
-fn write_reservation(
-    edit: &mut Edit,
-    reserve: Option<SpawnReservationPreset>,
-) -> Result<Option<SpawnReservationPreset>, OpError> {
-    let Some(block) = block(edit)? else {
-        if let Some(preset) = reserve {
-            insert_statement(
-                edit,
-                &format!(
-                    "{} = {{ {} = 1 {} }}",
-                    keys::SPAWN_WEIGHT,
-                    keys::BASE,
-                    preset_modifier(preset)
-                ),
-            )?;
-        }
-        return Ok(None);
-    };
-    let standing = block.preset.map(|(_, preset)| preset);
-    if standing == reserve {
-        return Ok(standing);
-    }
-    if let (Some(_), Some((span, trigger))) = (reserve, &block.ai) {
-        return Err(edit.parse_error(
-            span.start,
-            format!("a spawn_weight modifier already tests the AI: {trigger}"),
-        ));
-    }
-    match (block.preset, reserve) {
-        (Some((span, _)), Some(preset)) => replace_statement(edit, span, &preset_modifier(preset)),
-        (Some((span, _)), None) => edit.remove_statement(span),
-        (None, Some(preset)) => append(edit, &block, &preset_modifier(preset)),
-        (None, None) => {}
-    }
-    Ok(standing)
-}
-
 /// The `spawn_weight` block of the statement being edited, as spans: the CST borrows the
 /// buffer the splices then rewrite, so nothing but offsets is carried out of it.
 struct Block {
@@ -314,12 +216,7 @@ struct Block {
     /// The `base = N` statement, when the block states one.
     base: Option<Span>,
     modifiers: Vec<Span>,
-    /// The first modifier this editor wrote itself, and which of the two it is.
-    preset: Option<(Span, SpawnReservationPreset)>,
-    /// The first modifier testing `is_ai` that is not one of those, and its trigger.
-    ai: Option<(Span, String)>,
     first_child: Option<Span>,
-    last_child: Option<Span>,
 }
 
 fn block(edit: &Edit) -> Result<Option<Block>, OpError> {
@@ -329,21 +226,15 @@ fn block(edit: &Edit) -> Result<Option<Block>, OpError> {
     if node.scalar_span().is_some() {
         return Err(edit.parse_error(node.span().start, "spawn_weight is not a block"));
     }
-    let modifiers: Vec<&Node> = node.find_all(keys::MODIFIER, &edit.buf).collect();
     Ok(Some(Block {
         statement: node.span(),
         value: node.value_span(),
         base: node.find(keys::BASE, &edit.buf).map(Node::span),
-        preset: modifiers
-            .iter()
-            .find_map(|m| preset(m, &edit.buf).map(|preset| (m.span(), preset))),
-        ai: modifiers
-            .iter()
-            .find(|m| preset(m, &edit.buf).is_none() && tests_ai(m, &edit.buf))
-            .map(|m| (m.span(), modifier(m, &edit.buf).trigger)),
-        modifiers: modifiers.iter().map(|m| m.span()).collect(),
+        modifiers: node
+            .find_all(keys::MODIFIER, &edit.buf)
+            .map(Node::span)
+            .collect(),
         first_child: node.children().first().map(Node::span),
-        last_child: node.children().last().map(Node::span),
     }))
 }
 
@@ -375,20 +266,6 @@ fn replace_statement(edit: &mut Edit, span: Span, text: &str) {
         edit.insert(span.end, format!(" {text}").into_bytes());
     }
     edit.remove_statement(span);
-}
-
-/// Write `text` as the block's last statement.
-fn append(edit: &mut Edit, block: &Block, text: &str) {
-    match block.last_child {
-        Some(child) if starts_line(edit, child.start) => {
-            let indent = edit.indent(child.start);
-            let line = [&indent[..], text.as_bytes(), b"\n"].concat();
-            let at = edit.line_end(child.end);
-            edit.insert_lines(at, line);
-        }
-        Some(child) => edit.insert(child.end, format!(" {text}").into_bytes()),
-        None => edit.insert(block.value.start + 1, format!(" {text}").into_bytes()),
-    }
 }
 
 /// Write `text` as a statement of the system: beside its `initializer`, or after its

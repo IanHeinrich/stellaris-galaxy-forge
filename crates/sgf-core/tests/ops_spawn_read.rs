@@ -1,13 +1,11 @@
 //! What the grammar fixture's spawn weights read as: the numbers, the trigger text and
-//! what each modifier reserves.
-
-use sgf_core::projections::galaxy::SpawnReservation;
+//! the country flag a modifier holds the system for.
 
 mod common;
 use common::scenario::open;
 
 #[test]
-fn a_modifier_is_read_as_its_numbers_its_trigger_text_and_what_it_reserves() {
+fn a_modifier_is_read_as_its_numbers_its_trigger_text_and_its_country_flag() {
     let session = open();
     let modifiers = |id: u32| session.graph.systems[&id].spawn_modifiers.clone();
 
@@ -17,22 +15,19 @@ fn a_modifier_is_read_as_its_numbers_its_trigger_text_and_what_it_reserves() {
     assert_eq!(flagged.factor, None);
     assert_eq!(flagged.add, Some(10000.0));
     assert_eq!(flagged.trigger, "has_country_flag = galactic_empire");
-    assert_eq!(
-        flagged.reservation,
-        Some(SpawnReservation::CountryFlag("galactic_empire".to_owned()))
-    );
+    assert_eq!(flagged.country_flag.as_deref(), Some("galactic_empire"));
 
-    let [reserved] = &modifiers(888)[..] else {
+    let [scripted] = &modifiers(888)[..] else {
         panic!("system 888 has one modifier")
     };
-    assert_eq!(reserved.factor, Some(0.0));
-    assert_eq!(reserved.add, None);
-    assert_eq!(reserved.trigger, "is_ai = yes");
-    assert_eq!(reserved.reservation, Some(SpawnReservation::Human));
+    assert_eq!(scripted.factor, Some(0.0));
+    assert_eq!(scripted.add, None);
+    assert_eq!(scripted.trigger, "is_ai = yes");
+    assert_eq!(scripted.country_flag, None);
 
     assert_eq!(
-        modifiers(512)[0].reservation,
-        Some(SpawnReservation::CountryFlag("sgf_grammar".to_owned()))
+        modifiers(512)[0].country_flag.as_deref(),
+        Some("sgf_grammar")
     );
     assert!(modifiers(3018).is_empty());
     assert!(modifiers(1).is_empty());

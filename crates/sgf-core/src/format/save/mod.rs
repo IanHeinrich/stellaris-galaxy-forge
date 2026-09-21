@@ -110,7 +110,6 @@ impl Format for Save {
             | Op::SetHeaderList { .. }
             | Op::SetSpawnWeight { .. }
             | Op::SetSpawnWeights { .. }
-            | Op::SetSpawnReservation { .. }
             | Op::SetSpawnScript { .. }
             | Op::SetSpawnScripts { .. }
             | Op::SetFeZone { .. }

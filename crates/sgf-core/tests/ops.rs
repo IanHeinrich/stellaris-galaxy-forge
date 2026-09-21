@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use sgf_core::document::Document;
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::ops::{InitializerSet, LaneLength, LanePair, Op, OpError, SystemMove};
-use sgf_core::projections::galaxy::{GalaxyGraph, SpawnReservationPreset};
+use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
 use sgf_core::validate::Severity;
 
@@ -675,7 +675,6 @@ fn a_save_takes(op: &Op) -> bool {
         | Op::SetHeaderField { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
-        | Op::SetSpawnReservation { .. }
         | Op::SetSpawnScript { .. }
         | Op::SetSpawnScripts { .. }
         | Op::SetFeZone { .. }
@@ -729,7 +728,6 @@ fn reclassifies(op: &Op) -> bool {
         | Op::SetHeaderList { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
-        | Op::SetSpawnReservation { .. }
         | Op::SetFeZone { .. }
         | Op::SetFeZones { .. }
         | Op::SetFeLinks { .. }
@@ -775,7 +773,6 @@ fn stales_details(op: &Op) -> bool {
         | Op::SetHeaderList { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
-        | Op::SetSpawnReservation { .. }
         | Op::SetFeZone { .. }
         | Op::SetFeZones { .. }
         | Op::SetWormholePair { .. }
@@ -892,10 +889,6 @@ fn one_of_each() -> Vec<Op> {
         Op::SetSpawnWeight { id: 0, base: None },
         Op::SetSpawnWeights {
             entries: vec![(0, None)],
-        },
-        Op::SetSpawnReservation {
-            id: 0,
-            reserve: Some(SpawnReservationPreset::Human),
         },
         Op::SetSpawnScript {
             id: 0,

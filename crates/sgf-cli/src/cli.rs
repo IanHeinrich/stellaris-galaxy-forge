@@ -271,23 +271,6 @@ pub enum SpawnCommand {
         #[command(flatten)]
         out: OutArg,
     },
-    /// Bar the AI from the system (`human`), bar human players from it (`ai`), or take
-    /// whichever reservation stands back (`none`).
-    Reserve {
-        sav: PathBuf,
-        id: u32,
-        who: Reservation,
-        #[command(flatten)]
-        out: OutArg,
-    },
-}
-
-/// Who `sgf spawn reserve` holds a system for.
-#[derive(Clone, Copy, ValueEnum)]
-pub enum Reservation {
-    Human,
-    Ai,
-    None,
 }
 
 /// Whose conventions `sgf export-scenario` and `sgf new-scenario` write in.

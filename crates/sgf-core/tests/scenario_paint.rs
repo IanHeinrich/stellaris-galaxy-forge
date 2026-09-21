@@ -8,7 +8,7 @@ use sgf_core::format::scenario::fe_link::{self, FeLinkFlags};
 use sgf_core::format::scenario::fe_zone::{self, FE_ZONE_DISTANCES, FeDirection, FeKind, FeZone};
 use sgf_core::format::scenario::is_painted;
 use sgf_core::ops::{Op, OpError};
-use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnReservationPreset, SpawnScript};
+use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 
 mod common;
@@ -291,7 +291,7 @@ fn several_scripts_are_one_undo_step() {
 }
 
 #[test]
-fn a_plain_weight_or_reservation_is_refused_on_a_scripted_system() {
+fn a_plain_weight_is_refused_on_a_scripted_system() {
     let mut session = open();
     for op in [
         Op::SetSpawnWeight {
@@ -300,10 +300,6 @@ fn a_plain_weight_or_reservation_is_refused_on_a_scripted_system() {
         },
         Op::SetSpawnWeights {
             entries: vec![(10, Some(1.0)), (1, Some(1.0))],
-        },
-        Op::SetSpawnReservation {
-            id: 1,
-            reserve: Some(SpawnReservationPreset::Human),
         },
     ] {
         let name = op.name();
@@ -355,13 +351,6 @@ fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
     assert_eq!(system.spawn_weight, None);
     common::snapshot("clear_weight_2", &plain_report(&session, &result));
     round_trip(open(), Op::SetSpawnWeight { id: 2, base: None });
-
-    session
-        .apply(Op::SetSpawnReservation {
-            id: 2,
-            reserve: None,
-        })
-        .expect("nothing to release");
 }
 
 /// The plain path is unchanged: on the grammar fixture a weight is still `base = N`,

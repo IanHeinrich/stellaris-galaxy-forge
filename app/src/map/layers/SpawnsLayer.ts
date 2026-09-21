@@ -10,7 +10,7 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { PaintSpawnKind } from "../../generated/PaintSpawnKind";
 import type { SystemNode } from "../../generated/SystemNode";
 import { spawnScriptLabel } from "../../lib/paint";
-import { isAiReserved, isHumanReserved, isSpawnPoint } from "../../lib/spawn";
+import { isSpawnPoint } from "../../lib/spawn";
 import { GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { useMapChromeStore } from "../../store/mapChromeStore";
@@ -20,17 +20,7 @@ import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
 const MARKER = { size: 4.5, width: 1.5, alpha: 0.95, dot: 1.4 };
 
-/** Who holds the seat: nobody, a human player, or the AI. */
-type Seat = "open" | "human" | "ai";
-
-/** One amber for every seat: the figure says who holds it. */
 const MARKER_COLOR = 0xfbbf24;
-
-/** What the tooltip adds after the weight for a seat held for a human player. */
-export const RESERVED_NOTE = "reserved for a human player";
-
-/** What the tooltip adds after the weight for a seat held for the AI. */
-export const AI_RESERVED_NOTE = "reserved for the AI";
 
 /** Marker centre relative to the star, in marker units: clear of the ring, opposite the bypasses. */
 const OFFSET = { x: -12, y: -12 };
@@ -92,25 +82,15 @@ function drawStar(g: Graphics): void {
   g.poly(points).fill({ color: MARKER_COLOR, alpha: MARKER.alpha });
 }
 
-function seatOf(s: SystemNode): Seat {
-  if (isHumanReserved(s)) return "human";
-  if (isAiReserved(s)) return "ai";
-  return "open";
+/** A seat the generator may give to a human player or the AI: the robot behind the person's shoulder. */
+function drawSeat(g: Graphics): void {
+  const { x, y } = OFFSET;
+  const s = MARKER.size;
+  drawRobot(g, x + s * 0.5, y - s * 0.35, s * 0.7, MARKER_COLOR);
+  drawPerson(g, x - s * 0.35, y + s * 0.2, s * 0.8, MARKER_COLOR);
 }
 
-function note(seat: Seat): string | null {
-  if (seat === "human") return RESERVED_NOTE;
-  if (seat === "ai") return AI_RESERVED_NOTE;
-  return null;
-}
-
-/** An open seat, which the generator may give to either: the robot behind the person's shoulder. */
-function drawOpen(g: Graphics, x: number, y: number, s: number, color: number): void {
-  drawRobot(g, x + s * 0.5, y - s * 0.35, s * 0.7, color);
-  drawPerson(g, x - s * 0.35, y + s * 0.2, s * 0.8, color);
-}
-
-/** A human player's seat: a head over a pair of shoulders. */
+/** The person: a head over a pair of shoulders. */
 function drawPerson(g: Graphics, x: number, y: number, s: number, color: number): void {
   g.circle(x, y - s * 0.46, s * 0.36)
     .fill({ color, alpha: MARKER.alpha })
@@ -118,7 +98,7 @@ function drawPerson(g: Graphics, x: number, y: number, s: number, color: number)
     .stroke({ color, width: MARKER.width, alpha: MARKER.alpha });
 }
 
-/** The AI's seat: a square head with two eyes and a stub of an antenna. */
+/** The robot: a square head with two eyes and a stub of an antenna. */
 function drawRobot(g: Graphics, x: number, y: number, s: number, color: number): void {
   g.moveTo(x, y - s)
     .lineTo(x, y - s * 0.62)
@@ -127,16 +107,6 @@ function drawRobot(g: Graphics, x: number, y: number, s: number, color: number):
     .circle(x - s * 0.33, y + s * 0.08, MARKER.dot * 0.55)
     .circle(x + s * 0.33, y + s * 0.08, MARKER.dot * 0.55)
     .fill({ color, alpha: MARKER.alpha });
-}
-
-function draw(g: Graphics, seat: Seat): void {
-  const { x, y } = OFFSET;
-  const s = MARKER.size;
-  const color = MARKER_COLOR;
-  g.clear();
-  if (seat === "human") drawPerson(g, x, y, s, color);
-  else if (seat === "ai") drawRobot(g, x, y, s, color);
-  else drawOpen(g, x, y, s, color);
 }
 
 /**
@@ -148,7 +118,6 @@ export class SpawnsLayer implements MapLayer {
   readonly id = "spawns" as const;
   readonly container = new Container();
   private readonly markers = new Map<number, Graphics>();
-  private readonly seats = new Map<number, Seat>();
   private readonly tagsContainer = new Container({ label: "tags" });
   private readonly tags = new Map<number, Graphics>();
   private readonly tagLabels = new Map<number, BitmapText>();
@@ -224,12 +193,8 @@ export class SpawnsLayer implements MapLayer {
     let g = this.markers.get(s.id);
     if (!g) {
       g = this.makeMarker(s.id);
+      drawSeat(g);
       this.markers.set(s.id, g);
-    }
-    const seat = seatOf(s);
-    if (this.seats.get(s.id) !== seat) {
-      this.seats.set(s.id, seat);
-      draw(g, seat);
     }
     const ghost = this.ghosts.get(s.id);
     const at = ghost ?? s;
@@ -318,12 +283,11 @@ export class SpawnsLayer implements MapLayer {
       s.spawn_script === null
         ? `Spawn point · weight ${s.spawn_weight ?? 0}`
         : `Spawn point · Paint a Galaxy ${spawnScriptLabel(s.spawn_script)}`;
-    const held = note(seatOf(s));
     useMapChromeStore.getState().showTooltip({
       x: at.x,
       y: at.y,
       title: name === "" ? "Spawn point" : name,
-      lines: [held === null ? weight : `${weight} · ${held}`],
+      lines: [weight],
     });
   }
 
@@ -339,7 +303,6 @@ export class SpawnsLayer implements MapLayer {
     this.unhover(id);
     g.destroy();
     this.markers.delete(id);
-    this.seats.delete(id);
     this.releaseTag(id);
     this.tagKeys.delete(id);
   }

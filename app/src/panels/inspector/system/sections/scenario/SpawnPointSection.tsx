@@ -1,13 +1,7 @@
 import { useState } from "react";
-import type { SpawnReservationPreset } from "../../../../../generated/SpawnReservationPreset";
 import type { SystemNode } from "../../../../../generated/SystemNode";
 import { enabledScript } from "../../../../../lib/paint";
-import {
-  isAiReserved,
-  isHumanReserved,
-  isSpawnPoint,
-  isSpawnWeight,
-} from "../../../../../lib/spawn";
+import { isSpawnWeight } from "../../../../../lib/spawn";
 import { usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useApplyOp } from "../../../../useApplyOp";
 import { Chip, Field, Section } from "../../../parts";
@@ -15,12 +9,10 @@ import { useEditableSystem } from "../../editable";
 import { ScriptedSeat } from "./ScriptedSeat";
 import {
   DEFAULT_SPAWN_WEIGHT,
+  flagLabel,
   modifierAmount,
   NEEDS_INITIALIZER,
-  NEEDS_SPAWN_POINT,
-  reservationLabel,
   spawnPointOp,
-  spawnReservationOp,
 } from "./spawnPoint";
 
 /**
@@ -98,57 +90,14 @@ function SpawnPoint({ system }: { system: SystemNode }) {
         </>
       )}
       {scripted && <ScriptedSeat system={system} />}
-      {!scripted && !paint && <Reservation system={system} />}
       <Modifiers system={system} />
     </>
   );
 }
 
 /**
- * Holding the system for one kind of empire: the presets
- * `modifier = { factor = 0 is_ai = yes }` and its mirror, which bar the other kind. They are
- * exclusive, so checking one takes the other back.
- */
-function Reservation({ system }: { system: SystemNode }) {
-  const applyOp = useApplyOp();
-  const editable = useEditableSystem();
-  const drawn = isSpawnPoint(system);
-  const human = isHumanReserved(system);
-  const ai = isAiReserved(system);
-  const set = (preset: SpawnReservationPreset, on: boolean) =>
-    applyOp(spawnReservationOp(system.id, on ? preset : null));
-  return (
-    <>
-      <div className="ins-spawn-point">
-        <label>
-          <input
-            type="checkbox"
-            checked={human}
-            disabled={!drawn || !editable}
-            onChange={() => set("human", !human)}
-          />
-          Reserve for a human player
-        </label>
-      </div>
-      <div className="ins-spawn-point">
-        <label>
-          <input
-            type="checkbox"
-            checked={ai}
-            disabled={!drawn || !editable}
-            onChange={() => set("ai", !ai)}
-          />
-          Reserve for the AI
-        </label>
-      </div>
-      {!drawn && <div className="muted ins-hint">{NEEDS_SPAWN_POINT}</div>}
-    </>
-  );
-}
-
-/**
  * The rest of the `spawn_weight` block as the file states it: triggers this editor reads and
- * never rewrites, so every one is shown, whether or not it names someone it seats.
+ * never rewrites, so every one is shown, whether or not it names an empire.
  */
 function Modifiers({ system }: { system: SystemNode }) {
   const modifiers = system.spawn_modifiers;
@@ -162,7 +111,7 @@ function Modifiers({ system }: { system: SystemNode }) {
         <div className="ins-spawn-modifier" key={i}>
           <span className="num">{modifierAmount(m)}</span>
           <span className="mono">{m.trigger}</span>
-          {m.reservation !== null && <Chip>{reservationLabel(m.reservation)}</Chip>}
+          {m.country_flag !== null && <Chip>{flagLabel(m.country_flag)}</Chip>}
         </div>
       ))}
       {system.spawn_design !== null && (
