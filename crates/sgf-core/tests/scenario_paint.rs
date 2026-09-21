@@ -36,7 +36,19 @@ fn text(session: &Session) -> String {
 }
 
 fn script(kind: PaintSpawnKind, random_value: u8) -> Option<SpawnScript> {
-    Some(SpawnScript::PaintAGalaxy { kind, random_value })
+    Some(SpawnScript::PaintAGalaxy {
+        kind,
+        random_value,
+        player: false,
+    })
+}
+
+fn player(random_value: u8) -> Option<SpawnScript> {
+    Some(SpawnScript::PaintAGalaxy {
+        kind: PaintSpawnKind::Preferred,
+        random_value,
+        player: true,
+    })
 }
 
 fn reserved(letter: &str) -> PaintSpawnKind {
@@ -141,6 +153,49 @@ fn each_kind_rewrites_the_weight_of_a_scripted_system_whole() {
         session.graph.systems[&1].spawn_script,
         script(reserved("c"), 1)
     );
+}
+
+/// The player's seat is the preferred script with `modifier = { add = 100000 }` beside
+/// it: the marker is the script's own text, so the seat is replaced and cleared whole
+/// like any other.
+#[test]
+fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
+    let mut session = open();
+    let result = session.apply(set(1, player(1))).expect("player");
+    assert_eq!(session.graph.systems[&1].spawn_script, player(1));
+    assert_eq!(session.graph.systems[&1].spawn_weight, Some(0.0));
+    assert!(text(&session).contains(
+        "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 } } }"
+    ));
+    common::snapshot("script_1_player", &plain_report(&session, &result));
+    round_trip(open(), set(1, player(1)));
+
+    session
+        .apply(set(1, script(PaintSpawnKind::Enabled, 4)))
+        .expect("replace the player's seat");
+    assert_eq!(
+        session.graph.systems[&1].spawn_script,
+        script(PaintSpawnKind::Enabled, 4)
+    );
+    assert!(!text(&session).contains("100000"));
+    session.undo().expect("undo").expect("an op to undo");
+    session
+        .apply(set(1, None))
+        .expect("clear the player's seat");
+    assert_eq!(session.graph.systems[&1].spawn_script, None);
+    assert!(text(&session).contains("name = \"Beta\" initializer = random_empire_init_02 }"));
+    session.undo().expect("undo").expect("an op to undo");
+
+    let result = session
+        .apply(Op::SetSpawnWeight { id: 1, base: None })
+        .expect("clear the weight of the player's seat");
+    assert_eq!(session.graph.systems[&1].spawn_script, None);
+    assert_eq!(session.graph.systems[&1].spawn_weight, None);
+    assert_eq!(result.entry.inverse, set(1, player(1)));
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(session.graph.systems[&1].spawn_script, player(1));
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(common::current(&session), bytes());
 }
 
 #[test]
@@ -374,6 +429,41 @@ fn a_scripted_seat_with_a_modifier_beside_it_is_neither_cleared_nor_written_over
         .apply(Op::SetSpawnWeight { id: 7, base: None })
         .expect_err("clear the base");
     assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
+    assert_eq!(common::current(&session), text.as_bytes());
+}
+
+/// The player's marker beside a foreign modifier is no marker: the block is script and
+/// the seat reads as a plain preferred one.
+#[test]
+fn the_players_marker_beside_a_foreign_modifier_is_neither_read_nor_rewritten() {
+    let text = "static_galaxy_scenario = {
+	name = \"modifiers\"
+	system = {
+		id = \"7\"
+		position = { x = 1 y = 2 }
+		initializer = random_empire_init_01
+		spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } modifier = { factor = 0 has_country_flag = keep_out } }
+	}
+}
+";
+    let doc = Document::from_scenario_bytes(text.as_bytes().to_vec()).expect("index");
+    let mut session = Session::from_document(None, doc).expect("open");
+    assert_eq!(
+        session.graph.systems[&7].spawn_script,
+        script(PaintSpawnKind::Preferred, 7)
+    );
+    for op in [
+        set(7, None),
+        set(7, player(7)),
+        Op::SetSpawnWeight { id: 7, base: None },
+    ] {
+        let name = op.name();
+        let error = session.apply(op).expect_err(name);
+        assert!(
+            matches!(error, OpError::Parse { system: 7, .. }),
+            "{name}: {error}"
+        );
+    }
     assert_eq!(common::current(&session), text.as_bytes());
 }
 

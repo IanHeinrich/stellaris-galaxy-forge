@@ -6,6 +6,12 @@
 //! [`SpawnScript`]; writing turns one back into the exact text the app emits, so a file
 //! it painted and one this editor edited read the same to the mod.
 //!
+//! The mod's kinds cannot pin a seat to an arbitrary empire: `spawn_weight` is a
+//! weighted draw over the free seats, in placement order, and the player's country is
+//! placed first. The player's seat is a preferred seat with `modifier = { add =
+//! 100000 }` beside the value, heavier than any other by far, so the first empire
+//! placed draws it. The app's importer keeps the kind and drops the modifier.
+//!
 //! A wormhole pair is `set_star_flag = painted_galaxy_wormhole_<n>` on both of its
 //! ends, with `empire_cluster` beside it to keep empires off them; the mod joins the
 //! two systems carrying one number at game start.
@@ -30,6 +36,9 @@ const SOL: &str = "SOL";
 const RANDOM_MODULO: &str = "RANDOM_MODULO";
 const RANDOM_VALUE: &str = "RANDOM_VALUE";
 const YES: &str = "yes";
+/// What the player's seat adds to its weight, against the mod's 110 to 120 for a
+/// preferred seat.
+const PLAYER_SEAT_WEIGHT: u32 = 100000;
 
 /// The mod's random-list initializer for an empty system near a spawn.
 pub(crate) const RL_BASIC: &str = "painted_galaxy_rl_basic";
@@ -117,8 +126,13 @@ pub(crate) fn recognise(weight: &Node, src: &[u8]) -> Option<SpawnScript> {
     let params = params.strip_suffix('|').unwrap_or(params);
     let mut kind = PaintSpawnKind::Enabled;
     let mut random_value = 0;
+    let player = has_player_marker(weight, src);
     if params.is_empty() {
-        return Some(SpawnScript::PaintAGalaxy { kind, random_value });
+        return Some(SpawnScript::PaintAGalaxy {
+            kind,
+            random_value,
+            player,
+        });
     }
     let parts: Vec<&str> = params.split('|').collect();
     for pair in parts.as_chunks::<2>().0 {
@@ -130,7 +144,25 @@ pub(crate) fn recognise(weight: &Node, src: &[u8]) -> Option<SpawnScript> {
             _ => {}
         }
     }
-    Some(SpawnScript::PaintAGalaxy { kind, random_value })
+    Some(SpawnScript::PaintAGalaxy {
+        kind,
+        random_value,
+        player,
+    })
+}
+
+/// Whether a `spawn_weight` block carries the player's marker: exactly one `modifier`,
+/// holding `add = 100000` and nothing else. Any other modifier content is foreign script.
+pub(crate) fn has_player_marker(weight: &Node, src: &[u8]) -> bool {
+    let modifiers: Vec<&Node> = weight.find_all(keys::MODIFIER, src).collect();
+    let [only] = modifiers[..] else {
+        return false;
+    };
+    let [add] = only.children() else {
+        return false;
+    };
+    add.key_str(src) == Some(keys::ADD)
+        && add.scalar_str(src) == Some(PLAYER_SEAT_WEIGHT.to_string().as_str())
 }
 
 impl PaintSpawnKind {
@@ -153,7 +185,9 @@ impl PaintSpawnKind {
 
 /// The `add` value for a script, exactly as Paint a Galaxy writes it.
 pub(crate) fn render(script: &SpawnScript) -> String {
-    let SpawnScript::PaintAGalaxy { kind, random_value } = script;
+    let SpawnScript::PaintAGalaxy {
+        kind, random_value, ..
+    } = script;
     let params = match kind {
         PaintSpawnKind::Enabled => {
             format!("{RANDOM_MODULO}|10|{RANDOM_VALUE}|{random_value}")
@@ -170,10 +204,21 @@ pub(crate) fn render(script: &SpawnScript) -> String {
     format!("{}{SPAWN_WEIGHT_VALUE}|{params}|", keys::VALUE_PREFIX)
 }
 
-/// The whole `spawn_weight` statement a scripted system carries, on one line.
+/// The whole `spawn_weight` statement a scripted system carries, on one line, the
+/// player's marker after the value.
 pub(crate) fn weight_statement(script: &SpawnScript) -> String {
+    let SpawnScript::PaintAGalaxy { player, .. } = script;
+    let marker = if *player {
+        format!(
+            " {} = {{ {} = {PLAYER_SEAT_WEIGHT} }}",
+            keys::MODIFIER,
+            keys::ADD
+        )
+    } else {
+        String::new()
+    };
     format!(
-        "{} = {{ {} = 0 {} = {} }}",
+        "{} = {{ {} = 0 {} = {}{marker} }}",
         keys::SPAWN_WEIGHT,
         keys::BASE,
         keys::ADD,
@@ -217,11 +262,13 @@ pub(crate) fn description(id: u32, script: Option<&SpawnScript>) -> String {
     }
 }
 
-/// The kind as the descriptions name it: `enabled`, `preferred`, `reserved b` or `Sol`.
+/// The kind as the descriptions name it: `enabled`, `preferred`, `reserved b` or `Sol`,
+/// and `preferred, the player's seat` for the player's.
 pub(crate) fn label(script: &SpawnScript) -> String {
-    let SpawnScript::PaintAGalaxy { kind, .. } = script;
+    let SpawnScript::PaintAGalaxy { kind, player, .. } = script;
     match kind {
         PaintSpawnKind::Enabled => "enabled".to_owned(),
+        PaintSpawnKind::Preferred if *player => "preferred, the player's seat".to_owned(),
         PaintSpawnKind::Preferred => "preferred".to_owned(),
         PaintSpawnKind::Reserved(letter) => format!("reserved {letter}"),
         PaintSpawnKind::Sol => "Sol".to_owned(),
@@ -240,7 +287,19 @@ mod tests {
     }
 
     fn script(kind: PaintSpawnKind, random_value: u8) -> SpawnScript {
-        SpawnScript::PaintAGalaxy { kind, random_value }
+        SpawnScript::PaintAGalaxy {
+            kind,
+            random_value,
+            player: false,
+        }
+    }
+
+    fn player(random_value: u8) -> SpawnScript {
+        SpawnScript::PaintAGalaxy {
+            kind: PaintSpawnKind::Preferred,
+            random_value,
+            player: true,
+        }
     }
 
     #[test]
@@ -283,6 +342,38 @@ mod tests {
             weight_statement(&script(PaintSpawnKind::Enabled, 3)),
             "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|3| }"
         );
+    }
+
+    #[test]
+    fn the_players_seat_is_the_marker_alone_beside_a_preferred_value() {
+        let statement = weight_statement(&player(7));
+        assert_eq!(
+            statement,
+            "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } }"
+        );
+        let read = |text: &str| {
+            let root = parse_script(text.as_bytes(), 0).expect("parse");
+            recognise(&root.children()[0], text.as_bytes())
+        };
+        assert_eq!(read(&statement), Some(player(7)));
+        assert_eq!(label(&player(7)), "preferred, the player's seat");
+        let value = "add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7|";
+        for foreign in [
+            "modifier = { add = 100000 factor = 1 }",
+            "modifier = { add = 100001 }",
+            "modifier = { add = 100000.0 }",
+            "modifier = { factor = 100000 }",
+            "modifier = { add = 100000 } modifier = { add = 100000 }",
+            "modifier = { add = 100000 } modifier = { factor = 0 is_ai = yes }",
+            "modifier = { }",
+        ] {
+            let text = format!("spawn_weight = {{ base = 0 {value} {foreign} }}");
+            assert_eq!(
+                read(&text),
+                Some(script(PaintSpawnKind::Preferred, 7)),
+                "{foreign}"
+            );
+        }
     }
 
     #[test]

@@ -34,6 +34,10 @@ pub enum SpawnScript {
     PaintAGalaxy {
         kind: PaintSpawnKind,
         random_value: u8,
+        /// The player's seat: a `modifier = { add = 100000 }` beside the value makes it
+        /// the heaviest by far, so the first empire placed, the player, draws it.
+        #[serde(default)]
+        player: bool,
     },
 }
 

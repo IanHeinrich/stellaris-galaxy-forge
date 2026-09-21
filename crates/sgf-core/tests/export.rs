@@ -548,7 +548,7 @@ static_galaxy_scenario = {
         [11, 5, 13]
     );
 
-    let reopened = reopen(text.into_bytes());
+    let reopened = reopen(text.clone().into_bytes());
     let galaxy: &Galaxy = &reopened.graph;
     let typed = assert_paint_export_holds_together(&save.graph, &reopened.graph, &report);
     assert_eq!(typed.keys().copied().collect::<Vec<_>>(), anchors);
@@ -658,11 +658,13 @@ static_galaxy_scenario = {
         .expect("the capital of country 0");
     assert_eq!(save.graph.player_country, Some(0));
     assert_eq!(report.player_seat, Some(player));
+    assert_eq!(player, 217);
     assert_eq!(
         galaxy.systems[&player].spawn_script,
         Some(SpawnScript::PaintAGalaxy {
             kind: PaintSpawnKind::Preferred,
             random_value: 7,
+            player: true,
         })
     );
     assert_eq!(
@@ -670,7 +672,31 @@ static_galaxy_scenario = {
         "sol_system_initializer"
     );
     // The Sol seat takes only the United Nations of Earth, so the player's capital is
-    // the preferred seat, the one heaviest for the first country placed.
+    // a preferred seat with the marker the first empire placed draws.
+    assert!(
+        text.contains(
+            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } } }
+"
+        ),
+        "{text}"
+    );
+    assert_eq!(text.matches("modifier = { add = 100000 }").count(), 1);
+    let players: Vec<u32> = galaxy
+        .systems
+        .values()
+        .filter(|s| {
+            matches!(
+                s.spawn_script,
+                Some(SpawnScript::PaintAGalaxy {
+                    kind: PaintSpawnKind::Preferred,
+                    player: true,
+                    ..
+                })
+            )
+        })
+        .map(|s| s.id)
+        .collect();
+    assert_eq!(players, [player]);
     let preferred = galaxy
         .systems
         .values()
@@ -694,6 +720,14 @@ static_galaxy_scenario = {
         );
     }
     let issues = sgf_core::validate::validate(&reopened.graph);
+    // Sol's initializer stands on the player's seat by design, so it is no mismatch.
+    assert!(
+        !issues.iter().any(|i| matches!(
+            i.code,
+            IssueCode::SolSeatMismatch | IssueCode::PlayerSeatDuplicate
+        )),
+        "{issues:?}"
+    );
     let isolated: Vec<u32> = issues
         .iter()
         .filter(|i| i.code == IssueCode::SystemIsolated)
@@ -795,14 +829,19 @@ static_galaxy_scenario = {{
     let review: BTreeSet<u32> = report.home_initializers.iter().map(|h| h.system).collect();
     for (i, id) in capitals.iter().enumerate() {
         let system = &reopened.graph.systems[id];
-        let (kind, random_value) = if report.player_seat == Some(*id) {
-            (PaintSpawnKind::Preferred, (i % 10) as u8)
+        let player = report.player_seat == Some(*id);
+        let kind = if player {
+            PaintSpawnKind::Preferred
         } else {
-            (PaintSpawnKind::Enabled, (i % 10) as u8)
+            PaintSpawnKind::Enabled
         };
         assert_eq!(
             system.spawn_script,
-            Some(SpawnScript::PaintAGalaxy { kind, random_value }),
+            Some(SpawnScript::PaintAGalaxy {
+                kind,
+                random_value: (i % 10) as u8,
+                player,
+            }),
             "{id}"
         );
         assert!(!system.initializer.is_empty(), "{id}");

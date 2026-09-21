@@ -405,8 +405,8 @@ converted for the mod: each fallen empire's capital and the cluster
 around it are left out and a typed zone of that empire's kind is placed
 at the old capital, on an anchor system added for it, so the mod
 rebuilds the fallen empire where it stood. Your own capital becomes the
-preferred seat, the heaviest one, and the first empire placed takes the
-heaviest free seat, so in single player you start there. The L-Cluster
+player's seat. That is a preferred seat weighted so that the first empire
+placed starts there, and in single player that is you. The L-Cluster
 is left out because the game adds its own, and the header's empire,
 fallen empire, marauder and nomad counts are taken from the save's setup
 screen. The Export as scenario report and the file's comment lines say
@@ -493,16 +493,17 @@ the header's marauder counts from the homes.
 In a scenario whose Paint a Galaxy layer is on, a spawn point is a seat
 the mod fills by kind, so the inspector offers the kind from a select
 instead of a weight. Enabled means any empire may start there. Preferred
-seats are filled first, and in single player the player is seated first,
-so one preferred seat is where you start. Reserved A to Z seats only an
+seats are favoured, but the draw is random, so a preferred seat alone
+does not decide where you start. Reserved A to Z seats only an
 empire whose species carries the matching Reserved Spawn trait, which
 comes from the Reserved Spawns submod on the Steam Workshop, so subscribe
 to it only if you reserve seats. Issues warns when a reserved seat exists
 and the submod is not enabled, with a button to its Workshop page, and
 the warning counts against a save. Sol is a reserved seat that only the
 United Nations of Earth, or an empire with the submod's Sol trait, can
-take, so a save converted for the mod makes your capital a preferred
-seat rather than the Sol one. On the map a reserved seat shows its
+take, so a save converted for the mod makes your capital the player's
+seat rather than the Sol one: a preferred seat weighted so the first
+empire placed, you in single player, starts there. On the map a reserved seat shows its
 letter, Sol shows "Sol" and a preferred seat gets a star. A system that
 still carries a plain weight in such a file shows a "Use a Paint a Galaxy
 seat" button that converts it. The Game setup section sums up the seats

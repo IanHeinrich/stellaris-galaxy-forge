@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Set the scripted spawn of 3 systems
-inverse: SetSpawnScripts { entries: [(0, Some(PaintAGalaxy { kind: Enabled, random_value: 3 })), (1, Some(PaintAGalaxy { kind: Preferred, random_value: 1 })), (11, None)] }
+inverse: SetSpawnScripts { entries: [(0, Some(PaintAGalaxy { kind: Enabled, random_value: 3, player: false })), (1, Some(PaintAGalaxy { kind: Preferred, random_value: 1, player: false })), (11, None)] }
 
 --- scenario
 +++ scenario

@@ -1,7 +1,8 @@
 //! The empire counts a Paint a Galaxy header carries and the issues a painted scenario
 //! raises about its seats: the header against the seats, the fallen empire zones and
-//! the marauder clan homes, a reserved letter or Sol on two systems, a Sol seat off the
-//! Sol initializer, and a system inside the L-Cluster's circle on any scenario.
+//! the marauder clan homes, a reserved letter or Sol on two systems, the player's seat
+//! on two, a Sol seat off the Sol initializer, and a system inside the L-Cluster's
+//! circle on any scenario.
 
 use sgf_core::document::Document;
 use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts, zone_count};
@@ -365,6 +366,51 @@ fn a_sol_seat_and_the_sol_initializer_go_together() {
         "name = \"Void\" initializer = sol_system_initializer }",
     );
     assert!(coded(&unseated.validate(), IssueCode::SolSeatMismatch).is_empty());
+
+    // The export seats the player on Sol's initializer, so the player's seat is exempt;
+    // a Sol seat off the initializer is not, marker or no marker.
+    let players = open_edited(
+        "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| }",
+        "name = \"Beta\" initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 } }",
+    );
+    let issues = players.validate();
+    assert!(
+        coded(&issues, IssueCode::SolSeatMismatch).is_empty(),
+        "{issues:?}"
+    );
+    assert!(coded(&issues, IssueCode::PlayerSeatDuplicate).is_empty());
+    let sol_off = open_edited(
+        "name = \"Sol\" initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| }",
+        "name = \"Sol\" initializer = random_empire_init_04 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 } }",
+    );
+    let issues = sol_off.validate();
+    let mismatch = coded(&issues, IssueCode::SolSeatMismatch);
+    assert_eq!(mismatch.len(), 1);
+    assert_eq!(mismatch[0].systems, [3]);
+}
+
+#[test]
+fn the_players_seat_on_two_systems_names_them_both() {
+    let session = open_edited_all(&[
+        (
+            "RANDOM_MODULO|10|RANDOM_VALUE|3| }",
+            "RANDOM_MODULO|10|RANDOM_VALUE|3| modifier = { add = 100000 } }",
+        ),
+        (
+            "PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| }",
+            "PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 } }",
+        ),
+    ]);
+    let issues = session.validate();
+    let duplicate = coded(&issues, IssueCode::PlayerSeatDuplicate);
+    assert_eq!(duplicate.len(), 1, "{issues:?}");
+    assert_eq!(
+        duplicate[0].message,
+        "The player's seat is on 2 systems: the first empire placed takes only one."
+    );
+    assert_eq!(duplicate[0].severity, Severity::Warning);
+    assert_eq!(duplicate[0].systems, [0, 1]);
+    assert_eq!(seat_counts(&session.graph), (4, 2));
 }
 
 #[test]

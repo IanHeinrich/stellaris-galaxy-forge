@@ -201,6 +201,7 @@ mod tests {
             spawn: SpawnStmt::Script(SpawnScript::PaintAGalaxy {
                 kind: PaintSpawnKind::Enabled,
                 random_value: 4,
+                player: false,
             }),
             effect: Some("set_star_flag = empire_cluster".into()),
             ..plain

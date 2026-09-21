@@ -186,14 +186,22 @@ spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|
 ```
 
 `n = i % 10`. The capital of the player's country (the first `player`
-entry of the save) is written as the preferred seat instead,
-`PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|n`. The mod weighs a preferred
-seat at 110 to 120 against 10 to 20 for an enabled one, and the first
-country placed takes the heaviest free seat, so in single player that is
-where the player starts. The Sol seat is not used for this: its weight is
-zero for every empire but the United Nations of Earth or one carrying the
-Reserved Spawns submod's Sol trait. The report names the seat as
-`player_seat`. A system that
+entry of the save) is written as the player's seat instead:
+
+```
+spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|n| modifier = { add = 100000 } }
+```
+
+`spawn_weight` is a weighted random draw over the free seats, in placement
+order, and the player's country is placed first. The mod weighs a preferred
+seat at 110 to 120 against 10 to 20 for an enabled one, so a plain preferred
+seat is the player's only about a third of the time. None of the mod's own
+kinds can pin a seat to an arbitrary empire: Sol and a reserved letter are
+1000 but need the UNE's flag or a trait. The unconditional `modifier` makes
+the seat heavier than every other by far, so the first empire placed draws
+it. The site's importer reads the kind by substring and discards
+modifiers, so a round trip through the site degrades this seat to a plain
+preferred one. The report names the seat as `player_seat`. A system that
 already carries a preferred, reserved or Sol script keeps that script's kind
 and random value rather than being reset to plain "enabled". A spawn system
 with no `initializer`, or one whose initializer the report lists under
@@ -218,6 +226,17 @@ effect = { set_star_flag = painted_galaxy_wormhole_<n> set_star_flag = empire_cl
 Preferred and reserved seats are not chosen at export; the seat kind is
 changed afterwards in the inspector's Spawn point section. The
 custom-initializer flag is not written.
+
+The statements the profile writes on a system, beside the header above:
+
+```
+spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|n| }
+spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|n| modifier = { add = 100000 } }
+initializer = random_empire_init_0N
+initializer = painted_galaxy_rl_basic
+effect = { set_star_flag = painted_galaxy_automatic_initializer }
+effect = { set_star_flag = painted_galaxy_wormhole_<n> set_star_flag = empire_cluster }
+```
 
 ### Fallen empires from a save
 
@@ -357,7 +376,10 @@ scalar starts with `value:painted_galaxy_spawn_weight|`; what follows is
 read as `|KEY|value|` pairs (`PREFERRED|yes`, `RESERVED|<letter>`,
 `SOL|yes`, `RANDOM_VALUE|n`), and a key this editor does not know is passed
 over rather than rejected, so a parameter a later Paint a Galaxy build adds
-still reads back as a seat. A reserved seat's letter is written as one
+still reads back as a seat. The seat is the player's when the block carries
+exactly one `modifier` and that modifier holds `add = 100000` and nothing
+else. Any other modifier content is foreign script: the seat reads as its
+kind alone and the block is neither rewritten nor cleared. A reserved seat's letter is written as one
 lowercase ASCII letter, matching the star flags Paint a Galaxy itself uses;
 on read, whatever follows `RESERVED|` is taken as the letter. Because the
 mod resolves the weight from the seat kind rather than from a number,

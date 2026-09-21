@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Made system 0 a Paint a Galaxy spawn (preferred)
-inverse: SetSpawnScript { id: 0, script: Some(PaintAGalaxy { kind: Enabled, random_value: 3 }) }
+inverse: SetSpawnScript { id: 0, script: Some(PaintAGalaxy { kind: Enabled, random_value: 3, player: false }) }
 
 --- scenario
 +++ scenario

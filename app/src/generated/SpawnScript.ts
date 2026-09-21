@@ -6,4 +6,9 @@ import type { PaintSpawnKind } from "./PaintSpawnKind";
  * names a script value rather than a number, read into the seat it stands for. A
  * system carries one or none; its `base` and `modifier` blocks are read beside it.
  */
-export type SpawnScript = { "paint_a_galaxy": { kind: PaintSpawnKind, random_value: number, } };
+export type SpawnScript = { "paint_a_galaxy": { kind: PaintSpawnKind, random_value: number, 
+/**
+ * The player's seat: a `modifier = { add = 100000 }` beside the value makes it
+ * the heaviest by far, so the first empire placed, the player, draws it.
+ */
+player: boolean, } };

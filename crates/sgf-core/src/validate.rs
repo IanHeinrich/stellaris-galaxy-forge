@@ -89,6 +89,9 @@ pub enum IssueCode {
     HeaderEmpireCount,
     /// Two or more seats reserve the same letter, or Sol, which one empire holds.
     SeatLetterDuplicate,
+    /// Two or more seats carry the player's marker, which the first empire placed draws
+    /// once.
+    PlayerSeatDuplicate,
     /// A Sol seat stands on a system without the game's Sol initializer, or that
     /// initializer carries a seat that is not Sol.
     SolSeatMismatch,
@@ -132,6 +135,7 @@ impl IssueCode {
             | Self::FeLinkShared
             | Self::HeaderEmpireCount
             | Self::SeatLetterDuplicate
+            | Self::PlayerSeatDuplicate
             | Self::LClusterSystem
             | Self::MarauderHomeDuplicate
             | Self::MarauderBaseOrphan
@@ -164,6 +168,7 @@ impl IssueCode {
             Self::FeLinkFar => "fe_link_far",
             Self::HeaderEmpireCount => "header_empire_count",
             Self::SeatLetterDuplicate => "seat_letter_duplicate",
+            Self::PlayerSeatDuplicate => "player_seat_duplicate",
             Self::SolSeatMismatch => "sol_seat_mismatch",
             Self::LClusterSystem => "l_cluster_system",
             Self::MarauderHomeDuplicate => "marauder_home_duplicate",
@@ -395,9 +400,9 @@ fn fe_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
 }
 
 /// What Paint a Galaxy's seats say against each other and against the header: the
-/// header's counts must fit the seats, one letter and Sol reserve one seat each, and a
-/// Sol seat and the Sol initializer go together. A map with no scripted seat is not the
-/// mod's, so none of this applies to it.
+/// header's counts must fit the seats, one letter and Sol reserve one seat each, the
+/// player's marker is on one seat, and a Sol seat and the Sol initializer go together.
+/// A map with no scripted seat is not the mod's, so none of this applies to it.
 fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
     let mut seated: Vec<&SystemNode> = g
         .systems
@@ -431,8 +436,9 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         ));
     }
     let mut holders: BTreeMap<String, Vec<u32>> = BTreeMap::new();
+    let mut players = Vec::new();
     for system in &seated {
-        let Some(SpawnScript::PaintAGalaxy { kind, .. }) = &system.spawn_script else {
+        let Some(SpawnScript::PaintAGalaxy { kind, player, .. }) = &system.spawn_script else {
             continue;
         };
         let sol = matches!(kind, PaintSpawnKind::Sol);
@@ -443,7 +449,13 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
             PaintSpawnKind::Sol => holders.entry("Sol".to_owned()).or_default().push(system.id),
             PaintSpawnKind::Enabled | PaintSpawnKind::Preferred => {}
         }
-        if sol != (system.initializer == SOL_INITIALIZER) {
+        if *player {
+            players.push(system.id);
+        }
+        // The export seats the player on Sol's initializer by design, so that is no
+        // mismatch.
+        let sol_initializer = system.initializer == SOL_INITIALIZER;
+        if sol != sol_initializer && !(*player && sol_initializer) {
             let message = if sol {
                 format!(
                     "{} has a Sol seat but not the Sol initializer.",
@@ -474,6 +486,16 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                 systems.len()
             ),
             systems,
+        ));
+    }
+    if players.len() > 1 {
+        issues.push(Issue::new(
+            IssueCode::PlayerSeatDuplicate,
+            format!(
+                "The player's seat is on {} systems: the first empire placed takes only one.",
+                players.len()
+            ),
+            players,
         ));
     }
     marauders_near_seats(g, issues);

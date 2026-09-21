@@ -752,7 +752,9 @@ static_galaxy_scenario = {
     assert!(!text.contains("empire seats"), "{text}");
     assert!(!text.contains("not carried over"), "{text}");
     assert!(
-        text.contains("\nplayer seat: system 217 (preferred)\n"),
+        text.contains(
+            "\nplayer seat: system 217 (preferred, weighted for the first empire placed)\n"
+        ),
         "{text}"
     );
     assert!(

@@ -38,8 +38,9 @@ fallen_empire_zones: number,
  */
 fallen_empires: Array<FallenEmpireReport>, 
 /**
- * The player's capital, written as the preferred seat; `None` for the plain profile or
- * a save with no player.
+ * The player's capital, written as the player's seat: Paint a Galaxy's preferred
+ * seat with a weight the first empire placed draws. `None` for the plain profile
+ * or a save with no player.
  */
 player_seat: number | null, 
 /**

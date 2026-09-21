@@ -1,7 +1,8 @@
 //! Spawn weights: `spawn_weight = { base = N }`, the weight the generator seats an
 //! empire by. The `modifier` blocks beside a base are script this editor reads and never
 //! rewrites, so an edit here touches the `base` alone. A scripted seat is the whole
-//! statement in its dialect's text, written and taken back whole.
+//! statement in its dialect's text, written and taken back whole, the player's marker
+//! with it.
 
 use std::collections::BTreeSet;
 
@@ -163,7 +164,7 @@ fn write_weight(
         )?,
         // A block of modifiers alone states no base, so there is nothing to clear.
         (None, Some(block)) => match block.base {
-            Some(_) if block.modifiers.is_empty() => {
+            Some(_) if block.foreign_modifiers.is_empty() => {
                 edit.remove_statement(block.statement);
                 removed_block = true;
             }
@@ -226,9 +227,10 @@ fn write_script(
 }
 
 /// A `modifier` block is script this editor keeps byte for byte, so nothing rewrites
-/// the statement around one.
+/// the statement around one. The player's marker is the script's own text and is not
+/// one.
 fn refuse_modifiers(edit: &Edit, block: &Block) -> Result<(), OpError> {
-    match block.modifiers.first() {
+    match block.foreign_modifiers.first() {
         Some(&modifier) => Err(edit.parse_error(
             modifier.start,
             "spawn_weight carries modifiers this editor does not rewrite; edit the block by hand",
@@ -246,7 +248,8 @@ struct Block {
     value: Span,
     /// The `base = N` statement, when the block states one.
     base: Option<Span>,
-    modifiers: Vec<Span>,
+    /// The `modifier` blocks that are script, the player's marker not among them.
+    foreign_modifiers: Vec<Span>,
     first_child: Option<Span>,
 }
 
@@ -257,14 +260,18 @@ fn block(edit: &Edit) -> Result<Option<Block>, OpError> {
     if node.scalar_span().is_some() {
         return Err(edit.parse_error(node.span().start, "spawn_weight is not a block"));
     }
+    let foreign_modifiers = if paint::has_player_marker(node, &edit.buf) {
+        Vec::new()
+    } else {
+        node.find_all(keys::MODIFIER, &edit.buf)
+            .map(Node::span)
+            .collect()
+    };
     Ok(Some(Block {
         statement: node.span(),
         value: node.value_span(),
         base: node.find(keys::BASE, &edit.buf).map(Node::span),
-        modifiers: node
-            .find_all(keys::MODIFIER, &edit.buf)
-            .map(Node::span)
-            .collect(),
+        foreign_modifiers,
         first_child: node.children().first().map(Node::span),
     }))
 }

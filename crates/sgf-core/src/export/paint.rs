@@ -735,10 +735,10 @@ fn nearest_system(draft: &Draft, at: (f64, f64)) -> Option<u32> {
 }
 
 /// Each spawn system gets the enabled seat with the next random value, the player's
-/// capital the preferred seat, or keeps the script it already carries. The preferred
-/// seat is the heaviest, and the first country placed takes the heaviest free seat;
-/// the mod's Sol seat would take only the United Nations of Earth. A seat with no
-/// initializer, or one the report says to review, gets a generic start.
+/// capital the player's seat, or keeps the script it already carries. The player's
+/// seat is a preferred seat with a weight the first empire placed, the player, is all
+/// but sure to draw; the mod's Sol seat would take only the United Nations of Earth. A
+/// seat with no initializer, or one the report says to review, gets a generic start.
 fn mark_spawns(
     draft: &mut Draft,
     report: &mut ExportReport,
@@ -761,7 +761,8 @@ fn mark_spawns(
             .get(&system.id)
             .and_then(|s| s.spawn_script.clone())
             .unwrap_or_else(|| {
-                let kind = if player == Some(system.id) {
+                let players = player == Some(system.id);
+                let kind = if players {
                     PaintSpawnKind::Preferred
                 } else {
                     PaintSpawnKind::Enabled
@@ -769,6 +770,7 @@ fn mark_spawns(
                 SpawnScript::PaintAGalaxy {
                     kind,
                     random_value: (i % RANDOM_VALUES) as u8,
+                    player: players,
                 }
             });
         system.spawn = SpawnDraft::Script(script);
