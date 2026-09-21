@@ -107,8 +107,10 @@ machine), and by the CLI's `--profile paint-a-galaxy` flag on
 over a plain draft; the exact statement shapes below are drawn from it.
 
 The header opens with a comment naming Forge and the mod, then the block
-`generate_galaxy_txt.ts` writes for `S` spawn systems and `systems` systems
-in total, plus Forge's own `core_radius`:
+`generate_galaxy_txt.ts` writes for `S` spawn systems (`R` of them reserved
+for one empire) and `systems` systems in total, plus Forge's own
+`core_radius`. A save's export takes its defaults from the save's own setup
+screen (the top-level `galaxy` block) where the placeholders below name it:
 
 ```
 # Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
@@ -126,37 +128,52 @@ static_galaxy_scenario = {
 	supports_shape = cartwheel
 	supports_shape = spoked
 	random_hyperlanes = no
-	num_wormhole_pairs = { min = 0 max = 5 }
-	num_wormhole_pairs_default = 1
-	num_gateways = { min = 0 max = 5 }
-	num_gateways_default = 1
+	num_wormhole_pairs = { min = 0 max = <max(5, setup)> }
+	num_wormhole_pairs_default = <setup, else 1>
+	num_gateways = { min = 0 max = <max(5, setup)> }
+	num_gateways_default = <setup, else 1>
 	num_hyperlanes = { min = 0.5 max = 3 }
-	num_hyperlanes_default = 1
-	colonizable_planet_odds = 1.0
-	primitive_odds = 1.0
+	num_hyperlanes_default = <setup, else 1>
+	colonizable_planet_odds = <setup habitability, else 1.0>
+	primitive_odds = <setup primitive, else 1.0>
 	fallen_empire_max = <min(Z, 6)>
 	marauder_empire_max = 3
 	extra_crisis_strength = { 10 25 }
 	num_empires = { min = 0 max = <S-1> }
-	num_empire_default = <S-1>
-	advanced_empire_default = <round((S-1)/8)>
-	nomad_empire_default = <round((S-1)/10)>
+	num_empire_default = <min(setup, S-R-1), else min(round((S-1)/2), S-R-1)>
+	advanced_empire_default = <min(setup, S-1), else round((S-1)/8)>
+	nomad_empire_default = <min(setup, S-1), else round((S-1)/10)>
 	nomad_empire_max = <S-1>
-	fallen_empire_default = <band>
-	marauder_empire_default = <band>
+	fallen_empire_default = <typed zones, else band>
+	marauder_empire_default = <marauder countries, else band>
 	crisis_strength = <band>
 	core_radius = <Forge's own>
 ```
 
+`supports_shape` lists the ten vanilla shapes in the game's order, with the
+save's own shape moved to the front (the plain profile does the same, and
+nothing else in its header changes). The setup's `primitive` and
+`habitability` are passed through as set, on the game's own scale, without
+conversion. `marauder_empire_default` is the number of `dormant_marauders`
+countries the save holds, at most 3, or the band when it holds none.
+
+Without a setup (a scenario re-exported, or a new empty scenario)
 `fallen_empire_default` / `marauder_empire_default` / `crisis_strength` come
 from a band on the system count: below 400 systems 0 / 1 / 0.5, from 400 1 /
 1 / 0.75, from 600 2 / 2 / 1.0, from 800 3 / 2 / 1.25, from 1000 4 / 3 / 1.5.
-`fallen_empire_max` is the number of fallen empire zones the export places,
-`Z`, capped at the six kinds the mod knows, and `fallen_empire_default` is
-capped at that too. "Update counts" in the editor writes both fallen keys as
+`crisis_strength` is always the band. `fallen_empire_max` is the number of
+fallen empire zones the export places, `Z`, typed and automatic together,
+capped at the six kinds the mod knows, and `fallen_empire_default` is capped
+at that too. "Update counts" in the editor writes both fallen keys as
 `min(Z, 6)` over every zone the map holds, and the validator warns when
 `fallen_empire_max` is not that number or `fallen_empire_default` exceeds
 the zones.
+
+The L-Cluster's systems (`Category::LCluster`: an `lcluster*` initializer or
+flag) are left out under both profiles, with their lanes, since the game adds
+its own; a save's comment block says `# Left out: N L-Cluster systems (the
+game adds its own)`. Marauders, ratlings, enclaves, guardians and guaranteed
+colonies are kept.
 
 Spawn systems are the capitals of the playable ("default") countries, union
 every system that already carries a Paint a Galaxy script, union every
@@ -167,12 +184,18 @@ order as position `i`:
 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|n| }
 ```
 
-`n = i % 10`. A system that already carries a preferred, reserved or Sol
-script keeps that script's kind and random value rather than being reset to
-plain "enabled". A spawn system with no `initializer` is given
-`random_empire_init_0N` (`N` = `id % 6 + 1`). Every empty system
-within two lane jumps of a spawn, and still without an `initializer`, gets
-the mod's random-list filler and the flag that names it automatic:
+`n = i % 10`. The capital of the player's country (the first `player`
+entry of the save) is written as the Sol seat instead,
+`SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0`, so the mod seats player 1 there
+whatever their empire; the report names it as `player_seat`. A system that
+already carries a preferred, reserved or Sol script keeps that script's kind
+and random value rather than being reset to plain "enabled". A spawn system
+with no `initializer`, or one whose initializer the report lists under
+`home_initializers` (a home that is not a generic start, such as
+`shattered_ring_start`), is given `random_empire_init_0N` (`N` = `id % 6 +
+1`), and the report's entry says `replaced`. Every empty system within two
+lane jumps of a spawn, and still without an `initializer`, gets the mod's
+random-list filler and the flag that names it automatic:
 
 ```
 initializer = painted_galaxy_rl_basic
@@ -186,9 +209,46 @@ counting the pairs from 1:
 effect = { set_star_flag = painted_galaxy_wormhole_<n> set_star_flag = empire_cluster }
 ```
 
-Preferred, reserved and Sol seats are not chosen at export; the seat kind
-is changed afterwards in the inspector's Spawn point section. The
+Preferred and reserved seats are not chosen at export; the seat kind is
+changed afterwards in the inspector's Spawn point section. The
 custom-initializer flag is not written.
+
+### Fallen empires from a save
+
+A save's fallen empires are not copied. The mod rebuilds a fallen empire at
+game start from a typed zone, so for every country of type `fallen_empire`
+or `awakened_fallen_empire` with a capital, ascending by country id:
+
+- Its cluster is left out: the capital, every system the country owns, every
+  fallen empire system (`fallen_*` or `ai_system_*` initializer) within 120
+  of the capital, and every generic system inside the ring of 30 the mod
+  fills at the capital. A playable capital or a system already in an earlier
+  cluster is never taken. A kept system that loses its last lane to the
+  cluster gets one to its nearest kept system.
+- A typed, preferred zone is centred on the old capital's exact position.
+  Its kind follows the capital's initializer by the mod's own table
+  (`events/painted_galaxy_fe.txt`): `fallen_1` materialist, `fallen_2`
+  spiritualist, `fallen_3` xenophile, `fallen_4` xenophobe, `fallen_machine`
+  machine, `fallen_hive` hive, anything else random.
+- The zone's anchor is a system created for it: the next free id (max id + 1,
+  ascending per fallen empire), an empty name (the game names it),
+  `initializer = painted_galaxy_rl_basic`, the automatic-initializer flag
+  followed by the zone's flags (`preferred`, typed, no `fallback`), and one
+  lane to its nearest kept system. The anchor stands at `capital − offset`
+  for the first distance of 40, 50, 30, 60, 70, … 200 with a direction whose
+  anchor lies on the map, at least 20 from every kept system and outside
+  every ring; among the directions at that distance, the one farthest from
+  its nearest kept system wins.
+- When the ring at the capital is not clear (a seat, a marauder camp or
+  another cluster's system inside it), the zone goes on the existing system
+  within 200 of the capital whose nearest clear grid position lies closest
+  to it, and the report says `exact = false`. When no such position exists
+  the cluster is still left out and the report's `anchor` is `None`.
+
+The automatic candidates then run over what is left, keeping their 60 from
+every typed centre, and `fallen_empire_default` is the number of typed zones.
+The report lists each fallen empire as `FallenEmpireReport { name, kind,
+systems_left_out, anchor, exact }`.
 
 ### Fallen empire zones
 

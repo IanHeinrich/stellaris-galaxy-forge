@@ -66,6 +66,20 @@ impl Category {
             Self::Generic => "generic",
         }
     }
+
+    /// The category as a report line names it.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Home => "home",
+            Self::FallenEmpire => "fallen empire",
+            Self::Marauder => "marauder",
+            Self::Ratling => "ratling",
+            Self::LCluster => "L-Cluster",
+            Self::GuaranteedColony => "guaranteed colony",
+            Self::Special => "special",
+            Self::Generic => "generic",
+        }
+    }
 }
 
 impl std::fmt::Display for Category {

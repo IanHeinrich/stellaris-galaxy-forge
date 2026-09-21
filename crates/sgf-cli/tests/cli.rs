@@ -744,13 +744,33 @@ static_galaxy_scenario = {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert!(stdout(&out).contains("791 system(s)"), "{}", stdout(&out));
-    assert!(!stdout(&out).contains("empire seats"), "{}", stdout(&out));
+    let text = stdout(&out);
+    assert!(text.contains("765 system(s)"), "{text}");
+    assert!(!text.contains("empire seats"), "{text}");
+    assert!(!text.contains("not carried over"), "{text}");
+    assert!(text.contains("\nplayer seat: system 217 (Sol)\n"), "{text}");
     assert!(
-        !stdout(&out).contains("not carried over"),
-        "{}",
-        stdout(&out)
+        text.contains("\nfallen empire PRESCRIPTED_species_adjective_tebrid: machine, 11 system(s) left out, anchor 791 at the old capital\n"),
+        "{text}"
     );
+    assert!(
+        text.contains("\nfallen empire SPEC_Ti-Zru Conservers: materialist, 5 system(s) left out, anchor 792 at the old capital\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nfallen empire SPEC_Cyggan Protectors: spiritualist, 13 system(s) left out, anchor 793 at the old capital\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nhome initializers replaced by a generic start: une_deneb_system (system 4), shattered_ring_start (system 311), custom_starting_init_02 (system 786), custom_starting_init_02 (system 787)\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nheader counts: from the save's setup\n"),
+        "{text}"
+    );
+    assert!(!text.contains("\nleft out:"), "{text}");
+    assert!(text.contains("\nfallen empire zones: "), "{text}");
     let paint = std::fs::read_to_string(&paint_path).unwrap();
     assert!(
         paint.contains("value:painted_galaxy_spawn_weight"),
@@ -758,7 +778,17 @@ static_galaxy_scenario = {
         &paint[..300]
     );
     assert!(paint.contains("set_star_flag = painted_galaxy_wormhole_1"));
+    assert!(paint.contains("set_star_flag = painted_galaxy_fe_spawn_machine"));
     assert!(paint.starts_with("# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod"));
+    assert_eq!(
+        paint,
+        std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../testdata/2206.11.16.paint.txt"
+        ))
+        .unwrap(),
+        "the fixture is generated: re-export it with `sgf export-scenario --profile paint-a-galaxy`"
+    );
     let validated = sgf(&["validate", paint_path.to_str().unwrap()]);
     assert_eq!(
         validated.status.code(),

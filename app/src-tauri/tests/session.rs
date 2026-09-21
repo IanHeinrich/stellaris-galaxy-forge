@@ -592,7 +592,8 @@ fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands()
         json!({ "path": SAMPLE, "profile": "paint_a_galaxy" }),
     )
     .expect("open as scenario");
-    assert_eq!(as_scenario.galaxy.systems.len(), 791);
+    // 791 systems, less the three fallen empires' clusters, plus their three anchors.
+    assert_eq!(as_scenario.galaxy.systems.len(), 765);
     assert!(as_scenario.painted);
     let seated = as_scenario
         .galaxy

@@ -3,4 +3,8 @@
 /**
  * An empire seat whose initializer may only fit the empire that started there.
  */
-export type HomeInitializer = { system: number, initializer: string, };
+export type HomeInitializer = { system: number, initializer: string, 
+/**
+ * Whether the Paint a Galaxy profile rewrote it to a generic start.
+ */
+replaced: boolean, };

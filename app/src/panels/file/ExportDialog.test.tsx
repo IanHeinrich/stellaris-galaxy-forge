@@ -19,8 +19,8 @@ import { droppedSummary } from "./exportReport";
 const FULL = exportReport({
   seats: 17,
   home_initializers: [
-    { system: 311, initializer: "shattered_ring_start" },
-    { system: 12, initializer: "void_dwellers_start" },
+    { system: 311, initializer: "shattered_ring_start", replaced: false },
+    { system: 12, initializer: "void_dwellers_start", replaced: false },
   ],
   dropped: { wormhole_pairs: 6, gateways: 0, lgates: 1 },
   by_category: [
@@ -88,8 +88,8 @@ describe("the report", () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     const report = exportReport({
       home_initializers: [
-        { system: 2, initializer: "shattered_ring_start" },
-        { system: 311, initializer: "void_dwellers_start" },
+        { system: 2, initializer: "shattered_ring_start", replaced: false },
+        { system: 311, initializer: "void_dwellers_start", replaced: false },
       ],
     });
     expect(renderToStaticMarkup(<ExportReportRows report={report} />)).toContain(

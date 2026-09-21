@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 pub mod diff;
+pub mod paint;
 pub mod scenario;
 
 use std::path::PathBuf;

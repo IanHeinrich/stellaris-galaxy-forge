@@ -55,6 +55,11 @@ pub fn run(
     }
     if matches!(profile, Profile::Plain) {
         print_report(&report);
+    } else {
+        print_paint_report(&report);
+    }
+    if let Some(omitted) = report.omitted_summary() {
+        println!("left out: {omitted} (the game adds its own)");
     }
     if report.fallen_empire_zones > 0 {
         println!(
@@ -63,6 +68,40 @@ pub fn run(
         );
     }
     Ok(Outcome::Ok)
+}
+
+/// What the Paint a Galaxy profile seated and rebuilt: the player's seat, each fallen
+/// empire's zone, and where the header's counts come from.
+fn print_paint_report(report: &ExportReport) {
+    if let Some(seat) = report.player_seat {
+        println!("player seat: system {seat} (Sol)");
+    }
+    for fallen in &report.fallen_empires {
+        let anchor = match (fallen.anchor, fallen.exact) {
+            (Some(anchor), true) => format!("anchor {anchor} at the old capital"),
+            (Some(anchor), false) => format!("anchor {anchor} nearby, the old spot was not clear"),
+            (None, _) => "nowhere to go".to_owned(),
+        };
+        println!(
+            "fallen empire {}: {}, {} system(s) left out, {anchor}",
+            fallen.name,
+            fallen.kind.as_str(),
+            fallen.systems_left_out
+        );
+    }
+    let replaced = report.home_initializers.iter().filter(|h| h.replaced);
+    let replaced: Vec<String> = replaced
+        .map(|h| format!("{} (system {})", h.initializer, h.system))
+        .collect();
+    if !replaced.is_empty() {
+        println!(
+            "home initializers replaced by a generic start: {}",
+            replaced.join(", ")
+        );
+    }
+    if report.setup_from_save {
+        println!("header counts: from the save's setup");
+    }
 }
 
 /// The seats written, what to look at, what was left out and what the map needs, then

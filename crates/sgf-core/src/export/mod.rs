@@ -35,7 +35,10 @@ use crate::search::NameResolver;
 use crate::session::{Session, SessionError};
 use crate::views::DocumentKind;
 use policy::Category;
-pub use report::{CategoryCount, DroppedBypasses, ExportReport, HomeInitializer, SourceCount};
+pub use report::{
+    CategoryCount, DroppedBypasses, ExportReport, FallenEmpireReport, HomeInitializer,
+    OmittedCount, SourceCount,
+};
 
 /// Where an initializer comes from, for the "needs" line: a DLC's or a mod's name,
 /// `None` when it is vanilla or unknown.
@@ -96,14 +99,15 @@ pub fn scenario_text(
 ) -> (Vec<u8>, ExportReport) {
     let (mut draft, mut report) = draft(graph, options, resolve, sources);
     if profile == ScenarioProfile::PaintAGalaxy {
-        report.fallen_empire_zones = paint::decorate(&mut draft, options, graph);
+        paint::decorate(&mut draft, &mut report, options, graph, resolve);
     }
     (render(&draft), report)
 }
 
 /// The galaxy as the plain profile writes it: an empire seat on every home system,
-/// everything else as the save holds it. A lane to itself or to a system the galaxy
-/// does not hold is skipped, since the game would refuse it.
+/// everything else as the save holds it but the L-Cluster, which the game adds by
+/// itself. A lane to itself or to a system the draft does not hold is skipped, since
+/// the game would refuse it.
 pub fn draft(
     graph: &GalaxyGraph,
     options: &ScenarioOptions,
@@ -112,10 +116,22 @@ pub fn draft(
 ) -> (Draft, ExportReport) {
     let galaxy: &Galaxy = graph;
     let categories = report::categories(graph);
-    let report = report::build(graph, &categories, sources);
+    let mut report = report::build(graph, &categories, sources);
+    let omitted: BTreeSet<u32> = categories
+        .iter()
+        .filter(|(_, category)| **category == Category::LCluster)
+        .map(|(id, _)| *id)
+        .collect();
+    if !omitted.is_empty() {
+        report.omitted.push(OmittedCount {
+            category: Category::LCluster,
+            systems: as_u32(omitted.len()),
+        });
+    }
     let systems: Vec<SystemDraft> = galaxy
         .order
         .iter()
+        .filter(|id| !omitted.contains(id))
         .filter_map(|id| galaxy.systems.get(id))
         .map(|system| SystemDraft {
             id: system.id,
@@ -144,14 +160,45 @@ pub fn draft(
         Some(save) => comment_block(save, systems.len(), nebulae.len(), &report).into_bytes(),
         None => Vec::new(),
     };
-    text.extend(header(options));
+    let mut plain = header(options);
+    if let Some(setup) = &galaxy.setup {
+        shape_first(&mut plain, &setup.shape);
+    }
+    text.extend(plain);
     let draft = Draft {
         header: text,
         systems,
-        lanes: lane_pairs(galaxy),
+        lanes: lane_pairs(galaxy, &omitted),
         nebulae,
     };
     (draft, report)
+}
+
+/// Move the `supports_shape` line naming `shape` ahead of the others, when the header
+/// lists it.
+fn shape_first(header: &mut Vec<u8>, shape: &str) {
+    let Ok(text) = std::str::from_utf8(header) else {
+        return;
+    };
+    let line = format!(
+        "	supports_shape = {shape}
+"
+    );
+    let Some(at) = text.find(&line) else {
+        return;
+    };
+    let first = text
+        .find("	supports_shape = ")
+        .expect("the line found is one");
+    if first == at {
+        return;
+    }
+    let mut moved = String::with_capacity(text.len());
+    moved.push_str(&text[..first]);
+    moved.push_str(&line);
+    moved.push_str(&text[first..at]);
+    moved.push_str(&text[at + line.len()..]);
+    *header = moved.into_bytes();
 }
 
 /// The lines above a save's export that say where it came from and what it lacks.
@@ -169,6 +216,9 @@ fn comment_block(save: &str, systems: usize, nebulae: usize, report: &ExportRepo
     }
     if let Some(dropped) = report.dropped.summary() {
         lines.push(format!("# Not carried over: {dropped}"));
+    }
+    if let Some(omitted) = report.omitted_summary() {
+        lines.push(format!("# Left out: {omitted} (the game adds its own)"));
     }
     lines.iter().map(|line| format!("{line}\n")).collect()
 }
@@ -244,7 +294,9 @@ pub fn new_scenario(
     };
     let mut text = match profile {
         ScenarioProfile::Plain => header(&options),
-        ScenarioProfile::PaintAGalaxy => paint::header(&options, 0, 0, 0, 0),
+        ScenarioProfile::PaintAGalaxy => {
+            paint::header(&options, &paint::HeaderCounts::sized(0, 0, 0, 0))
+        }
     };
     text.extend_from_slice(FOOTER);
     Session::from_document(None, Document::from_scenario_bytes(text)?)
@@ -282,12 +334,17 @@ pub fn open_save_as_scenario(
     Ok((session, report))
 }
 
-/// Every undirected lane once, lower id first, ascending.
-fn lane_pairs(galaxy: &Galaxy) -> Vec<(u32, u32)> {
+/// Every undirected lane between systems the draft holds once, lower id first,
+/// ascending.
+fn lane_pairs(galaxy: &Galaxy, omitted: &BTreeSet<u32>) -> Vec<(u32, u32)> {
     let mut pairs = BTreeSet::new();
+    let held = |id: u32| galaxy.systems.contains_key(&id) && !omitted.contains(&id);
     for system in galaxy.order.iter().filter_map(|id| galaxy.systems.get(id)) {
+        if !held(system.id) {
+            continue;
+        }
         for lane in &system.lanes {
-            if lane.to != system.id && galaxy.systems.contains_key(&lane.to) {
+            if lane.to != system.id && held(lane.to) {
                 pairs.insert((system.id.min(lane.to), system.id.max(lane.to)));
             }
         }
@@ -297,7 +354,7 @@ fn lane_pairs(galaxy: &Galaxy) -> Vec<(u32, u32)> {
 
 /// The localised name when the resolver knows the key, else the no-game-data stand-in,
 /// which keeps a key a key so the game can still look it up.
-fn name_of(name: &NameTemplate, resolve: NameResolver<'_>) -> String {
+pub(super) fn name_of(name: &NameTemplate, resolve: NameResolver<'_>) -> String {
     let text = match resolve(&name.key) {
         Some(text) if !name.literal => text,
         _ => name.stand_in(),

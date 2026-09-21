@@ -249,8 +249,59 @@ pub fn is_off_map(centre: (f64, f64)) -> bool {
     centre.0.abs() > FE_ZONE_EXTENT || centre.1.abs() > FE_ZONE_EXTENT
 }
 
-fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
+pub fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
     (a.0 - b.0).hypot(a.1 - b.1)
+}
+
+/// The zone flagged `kind` and `preferred` whose centre lies nearest `point`, over every
+/// anchor of `anchors`, every direction and every distance the mod accepts: its ring
+/// holds none of `sites`, stands its own width from every centre in `placed` and lies on
+/// the map. An anchor that already carries a zone is passed over. `None` when no such
+/// zone exists.
+pub fn nearest_zone(
+    point: (f64, f64),
+    kind: FeKind,
+    anchors: &[Site<'_>],
+    sites: &[Site<'_>],
+    placed: &[(f64, f64)],
+) -> Option<(u32, FeZone)> {
+    let mut by_reach: Vec<&Site<'_>> = anchors.iter().filter(|site| site.zone.is_none()).collect();
+    by_reach.sort_by(|a, b| {
+        distance(a.position(), point)
+            .total_cmp(&distance(b.position(), point))
+            .then(a.id.cmp(&b.id))
+    });
+    let farthest = f64::from(*FE_ZONE_DISTANCES.last().expect("distances"));
+    let mut best: Option<(f64, u32, FeZone)> = None;
+    for anchor in by_reach {
+        let reach = distance(anchor.position(), point) - farthest;
+        if best.as_ref().is_some_and(|(near, _, _)| reach >= *near) {
+            break;
+        }
+        for &d in &FE_ZONE_DISTANCES {
+            for direction in FeDirection::ALL {
+                let zone = FeZone {
+                    direction,
+                    kind,
+                    distance: d,
+                    preferred: true,
+                    fallback: false,
+                };
+                let c = centre(anchor.position(), &zone);
+                let off = distance(c, point);
+                if best.as_ref().is_some_and(|(near, _, _)| off >= *near) {
+                    continue;
+                }
+                let clear = !is_off_map(c)
+                    && !sites.iter().any(|other| inside(c, other.position()))
+                    && !placed.iter().any(|&other| overlaps(c, other));
+                if clear {
+                    best = Some((off, anchor.id, zone));
+                }
+            }
+        }
+    }
+    best.map(|(_, id, zone)| (id, zone))
 }
 
 /// A system as the automatic rule sees it: where it stands and the zone it anchors.
@@ -421,5 +472,64 @@ fn automatic(direction: FeDirection) -> FeZone {
         distance: DEFAULT_DISTANCE,
         preferred: false,
         fallback: false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn site(id: u32, x: f64, y: f64) -> Site<'static> {
+        Site {
+            id,
+            x,
+            y,
+            zone: None,
+        }
+    }
+
+    #[test]
+    fn the_nearest_zone_to_a_point_is_the_clear_grid_position_closest_to_it() {
+        let sites = [site(1, 0.0, 0.0), site(2, 100.0, 0.0), site(3, 0.0, 100.0)];
+        let (anchor, zone) = nearest_zone((-42.0, 0.0), FeKind::Hive, &sites, &sites, &[])
+            .expect("a clear position within reach");
+        assert_eq!(anchor, 1);
+        assert_eq!(
+            zone,
+            FeZone {
+                direction: FeDirection::E,
+                kind: FeKind::Hive,
+                distance: 40,
+                preferred: true,
+                fallback: false,
+            }
+        );
+        assert_eq!(centre((0.0, 0.0), &zone), (-40.0, 0.0));
+
+        let (anchor, zone) = nearest_zone((100.0, 40.0), FeKind::Random, &sites, &sites, &[])
+            .expect("a clear position within reach");
+        assert_eq!(
+            (anchor, zone.direction, zone.distance),
+            (2, FeDirection::S, 40)
+        );
+
+        let blocked = nearest_zone(
+            (100.0, 40.0),
+            FeKind::Random,
+            &sites,
+            &sites,
+            &[(100.0, 40.0)],
+        )
+        .expect("the next position out");
+        assert_ne!(centre((100.0, 0.0), &blocked.1), (100.0, 40.0));
+        assert!(!overlaps(
+            centre(sites[blocked.0 as usize - 1].position(), &blocked.1),
+            (100.0, 40.0)
+        ));
+
+        let far = [site(9, 460.0, 460.0)];
+        let (_, zone) = nearest_zone((470.0, 470.0), FeKind::Random, &far, &far, &[])
+            .expect("a centre on the map");
+        assert!(!is_off_map(centre((460.0, 460.0), &zone)));
     }
 }

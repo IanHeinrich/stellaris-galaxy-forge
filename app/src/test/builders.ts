@@ -52,6 +52,10 @@ export function exportReport(over: Partial<ExportReport> = {}): ExportReport {
     ],
     sources: [],
     fallen_empire_zones: 0,
+    fallen_empires: [],
+    player_seat: null,
+    omitted: [],
+    setup_from_save: false,
     ...over,
   };
 }

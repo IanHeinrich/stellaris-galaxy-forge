@@ -15,9 +15,15 @@ use sgf_core::views::DocumentKind;
 
 mod common;
 
+use common::paint::{assert_paint_export_holds_together, left_out};
+
 const FIXTURE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/2206.11.16.scenario.txt"
+);
+const PAINT_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/2206.11.16.paint.txt"
 );
 const GRAMMAR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -55,19 +61,18 @@ fn lanes(galaxy: &Galaxy) -> BTreeSet<(u32, u32)> {
     pairs
 }
 
-/// The plain export as `sgf export-scenario` writes it from the sample save.
-fn exported(session: &Session, name: &str) -> (Vec<u8>, ExportReport) {
+/// The export as `sgf export-scenario` writes it from the sample save under `profile`.
+fn exported_as(session: &Session, name: &str, profile: ScenarioProfile) -> (Vec<u8>, ExportReport) {
     let options = export::ScenarioOptions {
         exported_from: Some(SAVE_FILE.to_owned()),
         ..export::options_for(&session.graph, name)
     };
-    export::scenario_text(
-        &session.graph,
-        &options,
-        &no_names,
-        &no_sources,
-        ScenarioProfile::Plain,
-    )
+    export::scenario_text(&session.graph, &options, &no_names, &no_sources, profile)
+}
+
+/// The plain export as `sgf export-scenario` writes it from the sample save.
+fn exported(session: &Session, name: &str) -> (Vec<u8>, ExportReport) {
+    exported_as(session, name, ScenarioProfile::Plain)
 }
 
 /// The sample's bypasses as the save holds them: six wormhole pairs, each listed once;
@@ -163,6 +168,7 @@ static_galaxy_scenario = {{
     let home = |system: u32, initializer: &str| HomeInitializer {
         system,
         initializer: initializer.to_owned(),
+        replaced: false,
     };
     assert_eq!(
         report.home_initializers,
@@ -183,6 +189,10 @@ static_galaxy_scenario = {{
         }
     );
     assert_eq!(report.sources, []);
+    assert_eq!(report.omitted, []);
+    assert_eq!(report.fallen_empires, []);
+    assert_eq!(report.player_seat, None);
+    assert!(!report.setup_from_save);
     let by_category: BTreeMap<Category, u32> = report
         .by_category
         .iter()
@@ -255,6 +265,30 @@ static_galaxy_scenario = {{
     let mut scenario = scenario;
     scenario.save_as(&path).expect("save the scenario back out");
     assert_eq!(std::fs::read(&path).unwrap(), committed);
+
+    // The save's shape leads the list; the sample's is elliptical, which leads anyway.
+    let mut ring = common::open();
+    ring.graph.setup.as_mut().expect("the sample's setup").shape = "ring".to_owned();
+    let (text, report) = exported(&ring, NAME);
+    let text = String::from_utf8(text).expect("utf-8");
+    assert!(
+        text.contains(
+            "	priority = 5
+	supports_shape = ring
+	supports_shape = elliptical
+	supports_shape = spiral_2
+"
+        ),
+        "{}",
+        &text[..800]
+    );
+    assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
+    assert_eq!(text.matches("\tsupports_shape = ring\n").count(), 1);
+    assert_eq!(
+        text.lines().count(),
+        committed.split(|&b| b == b'\n').count() - 1
+    );
+    assert_eq!(report, exported(&save, NAME).1);
 }
 
 #[test]
@@ -403,6 +437,220 @@ fn default_capitals(save: &Session) -> BTreeSet<u32> {
         .collect()
 }
 
+/// The sample's fallen empires: country id, capital, and the kind the mod's table gives
+/// the capital's initializer.
+fn sample_fallen_empires(save: &Session) -> Vec<(u32, u32, FeKind)> {
+    let mut fallen: Vec<(u32, u32, FeKind)> = save
+        .graph
+        .countries
+        .iter()
+        .filter(|c| c.country_type == "fallen_empire")
+        .map(|c| {
+            let capital = c.capital_system.expect("a fallen empire's capital");
+            let kind = match save.graph.systems[&capital].initializer.as_str() {
+                "fallen_1" => FeKind::Materialist,
+                "fallen_2" => FeKind::Spiritualist,
+                "fallen_machine" => FeKind::Machine,
+                other => panic!("{other}"),
+            };
+            (c.id, capital, kind)
+        })
+        .collect();
+    fallen.sort_unstable_by_key(|f| f.0);
+    fallen
+}
+
+#[test]
+fn the_paint_a_galaxy_export_of_the_sample_matches_its_fixture_and_holds_together() {
+    let save = common::open();
+    let committed =
+        std::fs::read(PAINT_FIXTURE).expect("read the committed Paint a Galaxy fixture");
+    let (text, report) = exported_as(&save, NAME, ScenarioProfile::PaintAGalaxy);
+    assert_eq!(
+        text, committed,
+        "the fixture is generated: re-export it with `sgf export-scenario --profile paint-a-galaxy`"
+    );
+    let text = String::from_utf8(text).expect("utf-8");
+    assert!(
+        text.starts_with(
+            "# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
+static_galaxy_scenario = {
+	name = \"2206.11.16\"
+	priority = 10
+	supports_shape = elliptical
+"
+        ),
+        "{}",
+        &text[..300]
+    );
+    assert!(
+        text.contains(
+            "	num_wormhole_pairs = { min = 0 max = 5 }
+	num_wormhole_pairs_default = 1
+	num_gateways = { min = 0 max = 5 }
+	num_gateways_default = 1
+	num_hyperlanes = { min = 0.5 max = 3 }
+	num_hyperlanes_default = 0.75
+	colonizable_planet_odds = 0.25
+	primitive_odds = 0.25
+	fallen_empire_max = 6
+	marauder_empire_max = 3
+"
+        ),
+        "{}",
+        &text[..1200]
+    );
+    assert!(
+        text.contains(
+            "	num_empires = { min = 0 max = 16 }
+	num_empire_default = 13
+	advanced_empire_default = 0
+	nomad_empire_default = 2
+	nomad_empire_max = 16
+	fallen_empire_default = 3
+	marauder_empire_default = 2
+	crisis_strength = 1.0
+	core_radius = 112.5
+"
+        ),
+        "{}",
+        &text[..1200]
+    );
+    assert!(report.setup_from_save);
+    assert_eq!(report.omitted, []);
+
+    let fallen = sample_fallen_empires(&save);
+    assert_eq!(
+        fallen.iter().map(|f| f.2).collect::<Vec<_>>(),
+        [FeKind::Machine, FeKind::Materialist, FeKind::Spiritualist]
+    );
+    let max_id = *save.graph.systems.keys().max().unwrap();
+    assert_eq!(max_id, 790);
+    let anchors: Vec<u32> = (1..=3).map(|i| max_id + i).collect();
+    assert_eq!(report.fallen_empires.len(), 3);
+    for (i, ((country, capital, kind), fe)) in fallen.iter().zip(&report.fallen_empires).enumerate()
+    {
+        assert_eq!(fe.kind, *kind, "{country}");
+        assert_eq!(fe.anchor, Some(anchors[i]), "{country}");
+        assert!(fe.exact, "{country}");
+        let named = save.graph.countries.iter().find(|c| c.id == *country);
+        assert_eq!(fe.name, named.unwrap().name_key, "{capital}");
+    }
+    assert_eq!(
+        report
+            .fallen_empires
+            .iter()
+            .map(|f| f.systems_left_out)
+            .collect::<Vec<_>>(),
+        [11, 5, 13]
+    );
+
+    let reopened = reopen(text.into_bytes());
+    let galaxy: &Galaxy = &reopened.graph;
+    let typed = assert_paint_export_holds_together(&save.graph, &reopened.graph, &report);
+    assert_eq!(typed.keys().copied().collect::<Vec<_>>(), anchors);
+    let missing = left_out(&save.graph, galaxy);
+    for (country, capital, _) in &fallen {
+        assert!(missing.contains(capital), "{country}: {capital} is written");
+        for system in save.graph.systems.values() {
+            if system.owner == Some(*country) {
+                assert!(missing.contains(&system.id), "{country} owns {}", system.id);
+            }
+        }
+    }
+    let mut kept_order: Vec<u32> = save
+        .graph
+        .order
+        .iter()
+        .filter(|id| !missing.contains(id))
+        .copied()
+        .collect();
+    kept_order.extend(&anchors);
+    assert_eq!(galaxy.order, kept_order);
+    for (anchor, (_, capital, _)) in anchors.iter().zip(&fallen) {
+        let system = &galaxy.systems[anchor];
+        assert_eq!(system.initializer, "painted_galaxy_rl_basic");
+        assert_eq!(system.name.key, "");
+        assert_eq!(system.lanes.len(), 1, "{anchor}: {:?}", system.lanes);
+        assert_eq!(system.spawn_script, None);
+        let (effect, _) = reopened.scenario_system_effect(*anchor).expect("flags");
+        assert!(
+            effect.contains("{ set_star_flag = painted_galaxy_automatic_initializer set_star_flag = painted_galaxy_fe_spawn "),
+            "{anchor}: {effect}"
+        );
+        assert!(
+            effect.ends_with("set_star_flag = painted_galaxy_fe_spawn_preferred }"),
+            "{anchor}: {effect}"
+        );
+        let zone = &typed[anchor];
+        assert_eq!(zone.distance, 40);
+        let centre = fe_zone::centre((system.x, system.y), zone);
+        let old = &save.graph.systems[capital];
+        let off = (centre.0 - old.x).hypot(centre.1 - old.y);
+        assert!(off < 0.01, "{anchor}: {centre:?} is {off} from {capital}");
+    }
+
+    let player = save
+        .graph
+        .countries
+        .iter()
+        .find(|c| c.id == 0)
+        .and_then(|c| c.capital_system)
+        .expect("the capital of country 0");
+    assert_eq!(save.graph.player_country, Some(0));
+    assert_eq!(report.player_seat, Some(player));
+    assert_eq!(
+        galaxy.systems[&player].spawn_script,
+        Some(SpawnScript::PaintAGalaxy {
+            kind: PaintSpawnKind::Sol,
+            random_value: 0,
+        })
+    );
+    assert_eq!(
+        galaxy.systems[&player].initializer,
+        "sol_system_initializer"
+    );
+    let sols = galaxy
+        .systems
+        .values()
+        .filter(|s| {
+            matches!(
+                s.spawn_script,
+                Some(SpawnScript::PaintAGalaxy {
+                    kind: PaintSpawnKind::Sol,
+                    ..
+                })
+            )
+        })
+        .count();
+    assert_eq!(sols, 1);
+    assert_eq!(report.home_initializers.len(), 4);
+    assert!(report.home_initializers.iter().all(|h| h.replaced));
+    for home in &report.home_initializers {
+        assert_eq!(
+            galaxy.systems[&home.system].initializer,
+            format!("random_empire_init_0{}", home.system % 6 + 1)
+        );
+    }
+    let issues = sgf_core::validate::validate(&reopened.graph);
+    let isolated: Vec<u32> = issues
+        .iter()
+        .filter(|i| i.code == IssueCode::SystemIsolated)
+        .flat_map(|i| i.systems.clone())
+        .collect();
+    let isolated_before: Vec<u32> = save
+        .graph
+        .systems
+        .values()
+        .filter(|s| s.lanes.is_empty())
+        .map(|s| s.id)
+        .collect();
+    assert!(
+        isolated.iter().all(|id| isolated_before.contains(id)),
+        "{isolated:?} beyond {isolated_before:?}"
+    );
+}
+
 #[test]
 fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flags_wormholes() {
     let committed = common::open();
@@ -418,7 +666,7 @@ fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flag
     assert_eq!(save.graph.systems[&neighbour].initializer, "");
     assert_eq!(default_capitals(&save), capitals);
     let options = export::options_for(&save.graph, NAME);
-    let (text, _) = export::scenario_text(
+    let (text, report) = export::scenario_text(
         &save.graph,
         &options,
         &no_names,
@@ -438,14 +686,14 @@ static_galaxy_scenario = {
         &text[..300]
     );
 
-    // 17 seats, none reserved: the mod's formulas give a default of half the cap and an
-    // eighth and a tenth of it for the advanced and nomad empires.
+    // 17 seats, the player's reserved as Sol: the setup's 13 empires fit under the 15
+    // seats any empire may take, and its advanced and nomad counts stand as set.
     assert_eq!(capitals.len(), 17, "{capitals:?}");
     assert!(
         text.contains(
             "	num_empires = { min = 0 max = 16 }
-	num_empire_default = 8
-	advanced_empire_default = 2
+	num_empire_default = 13
+	advanced_empire_default = 0
 	nomad_empire_default = 2
 	nomad_empire_max = 16
 "
@@ -455,7 +703,7 @@ static_galaxy_scenario = {
     );
     assert!(
         text.contains(
-            "	fallen_empire_default = 2
+            "	fallen_empire_default = 3
 	marauder_empire_default = 2
 	crisis_strength = 1.0
 	core_radius = 112.5
@@ -470,20 +718,26 @@ static_galaxy_scenario = {
     );
 
     let reopened = reopen(text.into_bytes());
-    assert_eq!(reopened.graph.order, save.graph.order);
+    let missing = left_out(&save.graph, &reopened.graph);
+    assert!(!missing.contains(&neighbour));
+    let review: BTreeSet<u32> = report.home_initializers.iter().map(|h| h.system).collect();
     for (i, id) in capitals.iter().enumerate() {
         let system = &reopened.graph.systems[id];
+        let (kind, random_value) = if report.player_seat == Some(*id) {
+            (PaintSpawnKind::Sol, 0)
+        } else {
+            (PaintSpawnKind::Enabled, (i % 10) as u8)
+        };
         assert_eq!(
             system.spawn_script,
-            Some(SpawnScript::PaintAGalaxy {
-                kind: PaintSpawnKind::Enabled,
-                random_value: (i % 10) as u8,
-            }),
+            Some(SpawnScript::PaintAGalaxy { kind, random_value }),
             "{id}"
         );
         assert!(!system.initializer.is_empty(), "{id}");
         let expected = match save.graph.systems[id].initializer.as_str() {
-            "" => format!("random_empire_init_0{}", id % 6 + 1),
+            own if own.is_empty() || review.contains(id) => {
+                format!("random_empire_init_0{}", id % 6 + 1)
+            }
             own => own.to_owned(),
         };
         assert_eq!(system.initializer, expected, "{id}");
@@ -491,7 +745,7 @@ static_galaxy_scenario = {
 
     let near = within(&save.graph, &capitals, 2);
     let mut filled = 0;
-    for id in &save.graph.order {
+    for id in save.graph.order.iter().filter(|id| !missing.contains(id)) {
         let written = &reopened.graph.systems[id];
         let own = &save.graph.systems[id].initializer;
         let filler = own.is_empty() && near.contains(id) && !capitals.contains(id);
@@ -565,12 +819,14 @@ fn the_paint_a_galaxy_profile_places_the_mods_own_fallen_empire_zones() {
         ScenarioProfile::PaintAGalaxy,
     );
     let text = String::from_utf8_lossy(&paint);
+    let typed = report.fallen_empires.len() as u32;
+    assert_eq!(typed, 3);
     assert_eq!(
         text.matches("set_star_flag = painted_galaxy_fe_spawn ")
             .count() as u32,
-        report.fallen_empire_zones
+        report.fallen_empire_zones + typed
     );
-    let fallen_max = report.fallen_empire_zones.min(6);
+    let fallen_max = (report.fallen_empire_zones + typed).min(6);
     assert!(
         text.contains(&format!("\tfallen_empire_max = {fallen_max}\n")),
         "{}",
@@ -578,18 +834,27 @@ fn the_paint_a_galaxy_profile_places_the_mods_own_fallen_empire_zones() {
     );
     let reopened = reopen(paint.clone());
     let galaxy: &Galaxy = &reopened.graph;
+    let anchors: BTreeSet<u32> = report
+        .fallen_empires
+        .iter()
+        .filter_map(|f| f.anchor)
+        .collect();
     let mut centres = Vec::new();
     for id in &galaxy.order {
         let anchor = &galaxy.systems[id];
         let Some(zone) = &anchor.fe_zone else {
             continue;
         };
-        assert_eq!(zone.kind, FeKind::Random, "{id}");
-        assert_eq!(zone.distance, 40, "{id}");
-        assert!(!zone.preferred && !zone.fallback, "{id}");
         let centre = fe_zone::centre((anchor.x, anchor.y), zone);
+        if anchors.contains(id) {
+            assert!(zone.preferred, "{id}");
+        } else {
+            assert_eq!(zone.kind, FeKind::Random, "{id}");
+            assert_eq!(zone.distance, 40, "{id}");
+            assert!(!zone.preferred && !zone.fallback, "{id}");
+            assert!(centre.0.hypot(centre.1) >= 130.0, "{id}: {centre:?}");
+        }
         assert!(!fe_zone::is_off_map(centre), "{id}: {centre:?}");
-        assert!(centre.0.hypot(centre.1) >= 130.0, "{id}: {centre:?}");
         for system in galaxy.systems.values() {
             assert!(
                 !fe_zone::inside(centre, (system.x, system.y)),
@@ -605,7 +870,7 @@ fn the_paint_a_galaxy_profile_places_the_mods_own_fallen_empire_zones() {
         }
         centres.push((*id, centre));
     }
-    assert_eq!(centres.len() as u32, report.fallen_empire_zones);
+    assert_eq!(centres.len() as u32, report.fallen_empire_zones + typed);
     assert!(report.fallen_empire_zones > 0);
     assert_eq!(
         fe_zone::candidates(&fe_zone::sites(galaxy)),

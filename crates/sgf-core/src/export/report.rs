@@ -9,6 +9,7 @@ use ts_rs::TS;
 
 use crate::export::SourceResolver;
 use crate::export::policy::{Category, builds_gateway, builds_lgate, classify, is_generic_home};
+use crate::format::scenario::fe_zone::FeKind;
 use crate::projections::galaxy::{BypassLink, GalaxyGraph};
 use crate::validate::{Issue, IssueCode};
 use crate::{as_u32, plural};
@@ -32,6 +33,16 @@ pub struct ExportReport {
     /// Fallen empire zones the Paint a Galaxy profile placed by the mod's own rule;
     /// 0 for the plain profile, which writes none.
     pub fallen_empire_zones: u32,
+    /// The save's fallen empires, each left out for the mod to rebuild in a typed zone
+    /// at its old capital; empty for the plain profile.
+    pub fallen_empires: Vec<FallenEmpireReport>,
+    /// The player's capital, written as the Sol seat; `None` for the plain profile or
+    /// a save with no player.
+    pub player_seat: Option<u32>,
+    /// Systems left out because the game adds its own, ascending by category.
+    pub omitted: Vec<OmittedCount>,
+    /// Whether the header's counts come from the save's own setup screen.
+    pub setup_from_save: bool,
 }
 
 /// An empire seat whose initializer may only fit the empire that started there.
@@ -40,6 +51,31 @@ pub struct ExportReport {
 pub struct HomeInitializer {
     pub system: u32,
     pub initializer: String,
+    /// Whether the Paint a Galaxy profile rewrote it to a generic start.
+    pub replaced: bool,
+}
+
+/// A fallen empire the Paint a Galaxy profile left out and gave a typed zone.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct FallenEmpireReport {
+    pub name: String,
+    pub kind: FeKind,
+    /// The capital and the cluster around it.
+    pub systems_left_out: u32,
+    /// The system anchoring the zone: one added for it, or an existing one when the old
+    /// spot was not clear. `None` when no clear spot was found within reach.
+    pub anchor: Option<u32>,
+    /// Whether the zone's centre is the old capital's exact position.
+    pub exact: bool,
+}
+
+/// How many systems of one [`Category`] the export left out.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct OmittedCount {
+    pub category: Category,
+    pub systems: u32,
 }
 
 /// Bypasses the save had that the scenario does not state.
@@ -97,6 +133,21 @@ impl ExportReport {
             )
         }));
         issues
+    }
+
+    /// `9 L-Cluster systems`, or `None` when nothing was left out.
+    pub fn omitted_summary(&self) -> Option<String> {
+        let parts: Vec<String> = self
+            .omitted
+            .iter()
+            .map(|count| {
+                plural(
+                    count.systems as usize,
+                    &format!("{} system", count.category.label()),
+                )
+            })
+            .collect();
+        (!parts.is_empty()).then(|| parts.join(", "))
     }
 
     /// `dlc021_distant_stars, my_mod`, or `None` when every initializer is vanilla.
@@ -180,6 +231,7 @@ pub(super) fn build(
             home_initializers.push(HomeInitializer {
                 system: id,
                 initializer: initializer.clone(),
+                replaced: false,
             });
         }
         if let Some(source) = sources(initializer) {
@@ -199,6 +251,10 @@ pub(super) fn build(
             .map(|(source, systems)| SourceCount { source, systems })
             .collect(),
         fallen_empire_zones: 0,
+        fallen_empires: Vec::new(),
+        player_seat: None,
+        omitted: Vec::new(),
+        setup_from_save: false,
     }
 }
 
