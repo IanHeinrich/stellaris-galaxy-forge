@@ -1,6 +1,7 @@
 import { BitmapText, Graphics } from "pixi.js";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FeZone } from "../../generated/FeZone";
+import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
 import { newFeZone } from "../../lib/feZone";
 import { GHOST_ALPHA } from "../../lib/visual/style";
@@ -81,6 +82,17 @@ function drawn(nodes: readonly SystemNode[], paintLayer = true): FeZonesLayer {
   return layer;
 }
 
+/** One edit as the controller runs it: a rebuild on the document after `delta`, then the delta. */
+function edit(layer: FeZonesLayer, nodes: readonly SystemNode[], delta: GalaxyDelta): SystemNode[] {
+  const after = new Map(nodes.map((n) => [n.id, n]));
+  for (const id of delta.removed ?? []) after.delete(id);
+  for (const s of delta.systems) after.set(s.id, s);
+  const next = [...after.values()];
+  layer.rebuild(mapContext(next, { paintLayer: true }));
+  layer.applyDelta(delta);
+  return next;
+}
+
 beforeEach(() => {
   useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
 });
@@ -99,16 +111,28 @@ describe("the fallen empire zones layer", () => {
   });
 
   it("follows a delta that adds, moves and removes a zone", () => {
-    const layer = drawn([ZONED, PLAIN]);
-    layer.applyDelta({ systems: [anchored(1, 200, { direction: "n", distance: 60 })] });
+    let nodes = [ZONED, PLAIN];
+    const layer = drawn(nodes);
+    nodes = edit(layer, nodes, { systems: [anchored(1, 200, { direction: "n", distance: 60 })] });
     expect(rings(layer).map((g) => [g.x, g.y])).toEqual([
       [-40, 0],
       [200, -60],
     ]);
-    layer.applyDelta({ systems: [{ ...ZONED, fe_zone: null }] });
+    nodes = edit(layer, nodes, { systems: [{ ...ZONED, fe_zone: null }] });
     expect(rings(layer).map((g) => [g.x, g.y])).toEqual([[200, -60]]);
-    layer.applyDelta({ systems: [], removed: [1] });
+    edit(layer, nodes, { systems: [], removed: [1] });
     expect(rings(layer)).toEqual([]);
+  });
+
+  it("redraws only the ring an edit touches, and that once", () => {
+    const nodes = [ZONED, anchored(1, 200)];
+    const layer = drawn(nodes);
+    const moved = vi.spyOn(ringAt(layer, 160), "clear");
+    const still = vi.spyOn(ringAt(layer, -40), "clear");
+    edit(layer, nodes, { systems: [anchored(1, 200, { distance: 60 })] });
+    expect(moved).toHaveBeenCalledTimes(1);
+    expect(still).not.toHaveBeenCalled();
+    expect(rings(layer).map((g) => g.x)).toEqual([-40, 140]);
   });
 
   it("draws a placed zone in full and an automatic one as a ghost", () => {
@@ -122,10 +146,10 @@ describe("the fallen empire zones layer", () => {
     expect(tagAt(layer, -40).text).toBe("Fallen empire zone");
     expect(tagAt(layer, 160).text).toBe("Fallen empire zone\nMaterialist");
 
-    layer.applyDelta({ systems: [anchored(1, 200, { kind: "hive" })] });
+    const nodes = edit(layer, [ZONED], { systems: [anchored(1, 200, { kind: "hive" })] });
     expect(tagAt(layer, 160).text).toBe("Fallen empire zone\nHive");
 
-    layer.applyDelta({ systems: [anchored(1, 200)] });
+    edit(layer, nodes, { systems: [anchored(1, 200)] });
     expect(tagAt(layer, 160).text).toBe("Fallen empire zone");
   });
 
@@ -226,26 +250,39 @@ describe("the fallen empire zones layer", () => {
   });
 
   it("follows a delta that links, moves, unlinks and drops a linked system", () => {
-    const layer = drawn([taking(2, ZONED), PLAIN]);
+    let nodes = [taking(2, ZONED), PLAIN];
+    const layer = drawn(nodes);
     expect(linksAt(layer, -40)).toBeUndefined();
 
-    layer.applyDelta({ systems: [linked(PLAIN, 2)] });
+    nodes = edit(layer, nodes, { systems: [linked(PLAIN, 2)] });
     expect(dashes(linksAt(layer, -40)).pop()![2]).toBeCloseTo(240);
 
-    layer.applyDelta({ systems: [{ ...linked(PLAIN, 2), x: 100 }] });
+    nodes = edit(layer, nodes, { systems: [{ ...linked(PLAIN, 2), x: 100 }] });
     expect(dashes(linksAt(layer, -40)).pop()![2]).toBeCloseTo(140);
 
-    layer.applyDelta({ systems: [PLAIN] });
+    nodes = edit(layer, nodes, { systems: [PLAIN] });
     expect(linksAt(layer, -40)).toBeUndefined();
 
-    layer.applyDelta({ systems: [linked(PLAIN, 2)] });
-    layer.applyDelta({ systems: [], removed: [1] });
+    nodes = edit(layer, nodes, { systems: [linked(PLAIN, 2)] });
+    edit(layer, nodes, { systems: [], removed: [1] });
     expect(linksAt(layer, -40)).toBeUndefined();
   });
 
-  it("takes the lines away when the zone goes back to the mod's rule, and moves them with the ring", () => {
+  it("re-strokes the links only when the zoom crosses a step of the lanes' look", () => {
     const layer = drawn([taking(2, ZONED), linked(PLAIN, 2)]);
-    layer.applyDelta({ systems: [taking(2, anchored(0, 0, { direction: "n" }))] });
+    const clear = vi.spyOn(linksAt(layer, -40)!, "clear");
+    viewport(layer, 1.01);
+    expect(clear).not.toHaveBeenCalled();
+    viewport(layer, 2);
+    expect(clear).toHaveBeenCalledTimes(1);
+    viewport(layer, 2.01);
+    expect(clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the lines away when the zone goes back to the mod's rule, and moves them with the ring", () => {
+    const nodes = [taking(2, ZONED), linked(PLAIN, 2)];
+    const layer = drawn(nodes);
+    const north = edit(layer, nodes, { systems: [taking(2, anchored(0, 0, { direction: "n" }))] });
     expect(linksAt(layer, -40)).toBeUndefined();
     const moved = linksAt(layer, 0)!;
     expect([moved.x, moved.y]).toEqual([0, -40]);
@@ -255,7 +292,7 @@ describe("the fallen empire zones layer", () => {
         .map((v) => Math.round(v)),
     ).toEqual([29, 6]);
 
-    layer.applyDelta({ systems: [ZONED] });
+    edit(layer, north, { systems: [ZONED] });
     expect(linksAt(layer, -40)).toBeUndefined();
     expect(linksAt(layer, 0)).toBeUndefined();
   });
