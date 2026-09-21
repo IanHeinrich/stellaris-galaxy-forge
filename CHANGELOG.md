@@ -22,9 +22,10 @@ a release is made.
   exactly as the game does, complete with black borders and skull
   emblems.
 - Turn finished saves into fresh scenarios. Export an existing save to
-  create a custom scenario that retains the original Fallen Empires,
-  starts you at your old capital, and inherits the previous game's
-  settings.
+  create a custom scenario that retains the original Fallen Empires and
+  inherits the previous game's settings. The United Nations of Earth
+  starts at its old capital. Any other empire's old capital is the
+  likeliest start, not a certain one.
 - In-editor game setup. Configure galaxy shapes and entity counts for new
   scenarios directly in the app. An "Update counts" button automatically
   syncs these values based on your current map.

@@ -606,10 +606,6 @@ workaround), nomads with random homes do not start in a nomad system,
 and the game adds systems the map did not have: guaranteed worlds,
 marauders, fallen empires, and some events.
 
-In my test the seat's neighbours came through as the file names them,
-Alpha Centauri beside the empire's home, so check the neighbours before
-reaching for Local Cluster.
-
 The initializer browser: Shift+I, the inspector, or the map's right-click
 menu ("Set initializer…" on a system, "New system from…" on empty space)
 opens a full-window list of every initializer your install and mods

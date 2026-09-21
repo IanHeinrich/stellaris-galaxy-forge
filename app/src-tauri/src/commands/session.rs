@@ -304,10 +304,10 @@ pub fn header_empire_counts(state: State<'_, AppState>) -> Result<Vec<(String, S
             "only a scenario has empire counts",
         ));
     }
-    let (seats, reserved) = seat_counts(&session.graph);
+    let seats = seat_counts(&session.graph);
     let zones = zone_count(&session.graph);
     let clans = clan_count(&session.graph);
-    Ok(empire_counts(seats, reserved, zones, clans)
+    Ok(empire_counts(seats, zones, clans)
         .into_iter()
         .map(|(key, value)| (key.to_owned(), value))
         .collect())

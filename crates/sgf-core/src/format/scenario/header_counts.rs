@@ -1,7 +1,8 @@
 //! The empire counts a Paint a Galaxy header carries, sized by the seats the map holds
 //! the way the app's `generate_galaxy_txt.ts` sizes them: `S` seats of which `R` are
 //! reserved for one empire (a reserved letter or Sol) leave `S - R - 1` seats any
-//! empire may take, and the defaults are shares of `S - 1`. The fallen empire counts
+//! empire may take, the `1` the player's own seat, which is already among the `R`
+//! when it is reserved; the defaults are shares of `S - 1`. The fallen empire counts
 //! follow the zones the same way: one fallen empire per zone, up to the six kinds the
 //! mod knows. The marauder counts follow the clan homes: each home spawns its clan, so
 //! no more can appear than are placed.
@@ -25,18 +26,56 @@ pub const KEYS: [&str; 9] = [
 /// The most fallen empires the mod can seat: it knows six kinds.
 pub const MOST_FALLEN_EMPIRES: u32 = 6;
 
-/// The header values for `seats` seats of which `reserved` are held for one empire,
-/// `zones` fallen empire zones and `clans` marauder clan homes, each as the raw text
-/// right of `=`.
-pub fn empire_counts(
-    seats: u32,
-    reserved: u32,
-    zones: u32,
-    clans: u32,
-) -> Vec<(&'static str, String)> {
+/// A map's seats, how many are reserved, and whether the player's seat is one of those.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SeatCounts {
+    pub seats: u32,
+    pub reserved: u32,
+    /// The player's marker is on a Sol or reserved seat, so `reserved` already counts it.
+    pub player_on_reserved: bool,
+}
+
+impl SeatCounts {
+    /// `seats` seats with `scripts`: how many are reserved, and whether the player's is one.
+    pub fn from_scripts<'a>(
+        seats: u32,
+        scripts: impl IntoIterator<Item = &'a SpawnScript>,
+    ) -> Self {
+        let mut reserved = 0;
+        let mut player_on_reserved = false;
+        for script in scripts {
+            if is_reserved_script(script) {
+                reserved += 1;
+                player_on_reserved |= holds_player(script);
+            }
+        }
+        Self {
+            seats,
+            reserved,
+            player_on_reserved,
+        }
+    }
+
+    /// The most empires the seats hold: all but the player's.
+    pub fn most(self) -> u32 {
+        self.seats.saturating_sub(1)
+    }
+
+    /// The seats any empire may take: less the reserved ones and the player's, counted once.
+    pub fn safe(self) -> u32 {
+        let player = if self.player_on_reserved { 0 } else { 1 };
+        self.seats
+            .saturating_sub(self.reserved)
+            .saturating_sub(player)
+    }
+}
+
+/// The header values for `seats`, `zones` fallen empire zones and `clans` marauder clan
+/// homes, each as the raw text right of `=`.
+pub fn empire_counts(seats: SeatCounts, zones: u32, clans: u32) -> Vec<(&'static str, String)> {
     let fallen = fallen_count(zones).to_string();
     let marauders = clans.to_string();
-    let mut entries = seat_entries(seats, reserved);
+    let mut entries = seat_entries(seats);
     entries.push((keys::FALLEN_EMPIRE_MAX, fallen.clone()));
     entries.push((keys::FALLEN_EMPIRE_DEFAULT, fallen));
     entries.push((keys::MARAUDER_EMPIRE_DEFAULT, marauders.clone()));
@@ -45,9 +84,9 @@ pub fn empire_counts(
 }
 
 /// The first five of [`KEYS`], the ones sized by the seats.
-pub fn seat_entries(seats: u32, reserved: u32) -> Vec<(&'static str, String)> {
-    let most = seats.saturating_sub(1);
-    let safe = seats.saturating_sub(reserved).saturating_sub(1);
+pub fn seat_entries(seats: SeatCounts) -> Vec<(&'static str, String)> {
+    let most = seats.most();
+    let safe = seats.safe();
     vec![
         (keys::NUM_EMPIRES, format!("{{ min = 0 max = {most} }}")),
         (
@@ -65,11 +104,14 @@ pub fn fallen_count(zones: u32) -> u32 {
     zones.min(MOST_FALLEN_EMPIRES)
 }
 
-/// How many seats `galaxy` holds and how many of them are reserved.
-pub fn seat_counts(galaxy: &Galaxy) -> (u32, u32) {
+/// The seats `galaxy` holds, the reserved ones and the player's among them.
+pub fn seat_counts(galaxy: &Galaxy) -> SeatCounts {
     let seats = galaxy.systems.values().filter(|s| is_seat(s)).count();
-    let reserved = galaxy.systems.values().filter(|s| is_reserved(s)).count();
-    (crate::as_u32(seats), crate::as_u32(reserved))
+    let scripts = galaxy
+        .systems
+        .values()
+        .filter_map(|s| s.spawn_script.as_ref());
+    SeatCounts::from_scripts(crate::as_u32(seats), scripts)
 }
 
 /// How many fallen empire zones `galaxy` holds, placed by hand or by the rule.
@@ -97,18 +139,17 @@ pub enum HeaderMismatch {
     Marauders { allowed: u32 },
 }
 
-/// The header's own counts as the file states them, checked against `seats`,
-/// `reserved`, `zones` and `clans`; the seats are checked first, then the fallen
-/// empires, then the marauders.
+/// The header's own counts as the file states them, checked against `seats`, `zones`
+/// and `clans`; the seats are checked first, then the fallen empires, then the
+/// marauders.
 pub fn header_mismatch(
     galaxy: &Galaxy,
-    seats: u32,
-    reserved: u32,
+    seats: SeatCounts,
     zones: u32,
     clans: u32,
 ) -> Option<HeaderMismatch> {
-    let most = seats.saturating_sub(1);
-    let safe = seats.saturating_sub(reserved).saturating_sub(1);
+    let most = seats.most();
+    let safe = seats.safe();
     let empires = match (galaxy.num_empires_max, galaxy.num_empire_default) {
         (Some(max), _) if max != most => Some(max),
         (_, Some(default)) if default > safe => Some(default),
@@ -138,15 +179,21 @@ pub fn is_seat(system: &SystemNode) -> bool {
     system.spawn_script.is_some() || system.spawn_weight.is_some_and(|w| w > 0.0)
 }
 
-/// A seat one empire holds by trait: a reserved letter or Sol.
-pub fn is_reserved(system: &SystemNode) -> bool {
+/// A script seating one empire by trait: a reserved letter or Sol.
+pub fn is_reserved_script(script: &SpawnScript) -> bool {
     matches!(
-        system.spawn_script,
-        Some(SpawnScript::PaintAGalaxy {
+        script,
+        SpawnScript::PaintAGalaxy {
             kind: PaintSpawnKind::Reserved(_) | PaintSpawnKind::Sol,
             ..
-        })
+        }
     )
+}
+
+/// A script carrying the player's marker.
+pub fn holds_player(script: &SpawnScript) -> bool {
+    let SpawnScript::PaintAGalaxy { player, .. } = script;
+    *player
 }
 
 /// `round(most / part)`, as the app sizes the advanced and nomad empires.
@@ -158,10 +205,18 @@ fn share(most: u32, part: u32) -> u32 {
 mod tests {
     use super::*;
 
+    fn counts(seats: u32, reserved: u32, player_on_reserved: bool) -> SeatCounts {
+        SeatCounts {
+            seats,
+            reserved,
+            player_on_reserved,
+        }
+    }
+
     #[test]
     fn the_counts_follow_the_apps_formulas_and_never_go_below_zero() {
         let text = |seats, reserved, zones, clans| -> Vec<String> {
-            empire_counts(seats, reserved, zones, clans)
+            empire_counts(counts(seats, reserved, false), zones, clans)
                 .into_iter()
                 .map(|(k, v)| format!("{k} = {v}"))
                 .collect()

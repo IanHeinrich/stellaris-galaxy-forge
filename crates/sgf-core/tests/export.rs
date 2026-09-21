@@ -9,6 +9,7 @@ use sgf_core::export::policy::Category;
 use sgf_core::export::{self, DroppedBypasses, ExportReport, HomeInitializer, ScenarioProfile};
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeKind};
+use sgf_core::format::scenario::header_counts::{SeatCounts, seat_counts};
 use sgf_core::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
@@ -691,6 +692,18 @@ static_galaxy_scenario = {
         "{text}"
     );
     assert_eq!(text.matches("modifier = {").count(), 1);
+    // The Sol seat is the one reserved seat and the player's, so the player is set
+    // aside once: 16 of the 17 seats are open, and the setup's 13 empires stand.
+    let seats = seat_counts(galaxy);
+    assert_eq!(
+        seats,
+        SeatCounts {
+            seats: 17,
+            reserved: 1,
+            player_on_reserved: true,
+        }
+    );
+    assert_eq!(seats.safe(), 16);
     let players: Vec<u32> = galaxy
         .systems
         .values()
@@ -815,6 +828,17 @@ fn a_player_that_is_not_the_une_gets_a_preferred_seat() {
             player: true,
         })
     );
+    // The player's preferred seat is one of the 17 open ones, so 16 are left to the AI.
+    let seats = seat_counts(&reopened.graph);
+    assert_eq!(
+        seats,
+        SeatCounts {
+            seats: 17,
+            reserved: 0,
+            player_on_reserved: false,
+        }
+    );
+    assert_eq!(seats.safe(), 16);
     let issues = sgf_core::validate::validate(&reopened.graph);
     assert!(
         !issues.iter().any(|i| matches!(
@@ -871,7 +895,7 @@ static_galaxy_scenario = {{
         &text[..400]
     );
 
-    // 17 seats, the player's the Sol seat: the setup's 13 empires fit under the 15
+    // 17 seats, the player's the Sol seat: the setup's 13 empires fit under the 16
     // seats any empire may take, and its advanced and nomad counts stand as set.
     assert_eq!(capitals.len(), 17, "{capitals:?}");
     assert!(

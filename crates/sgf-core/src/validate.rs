@@ -414,14 +414,14 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         return;
     }
     seated.sort_unstable_by_key(|system| system.id);
-    let (seats, reserved) = seat_counts(g);
+    let seats = seat_counts(g);
     let zones = zone_count(g);
     let clans = marauder::clan_count(g);
-    let message =
-        header_mismatch(g, seats, reserved, zones, clans).map(|mismatch| match mismatch {
-            HeaderMismatch::Empires { allowed } => format!(
-                "Header allows {allowed} empires but the file has {seats} seats. Update the empire counts."
-            ),
+    let message = header_mismatch(g, seats, zones, clans).map(|mismatch| match mismatch {
+        HeaderMismatch::Empires { allowed } => format!(
+            "Header allows {allowed} empires but the file has {} seats. Update the empire counts.",
+            seats.seats
+        ),
             HeaderMismatch::FallenEmpires { allowed } => format!(
                 "Header allows {allowed} fallen empires but the map has {zones} fallen empire zones. Update the empire counts."
             ),

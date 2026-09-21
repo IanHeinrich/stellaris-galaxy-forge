@@ -26,6 +26,7 @@ use crate::format::scenario::emit::{FOOTER, header, hyperlane_stmt, nebula_stmt,
 pub use crate::format::scenario::emit::{
     ScenarioOptions, SpawnStmt as SpawnDraft, SystemStmt as SystemDraft,
 };
+use crate::format::scenario::header_counts::SeatCounts;
 use crate::format::scenario::index::{self as scenario, SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
 use crate::keys::scenario as keys;
 use crate::ops::rules::check_name;
@@ -301,7 +302,8 @@ pub fn new_scenario(
     let mut text = match profile {
         ScenarioProfile::Plain => header(&options),
         ScenarioProfile::PaintAGalaxy => {
-            paint::header(&options, &paint::HeaderCounts::sized(0, 0, 0, 0, 0))
+            let seats = SeatCounts::from_scripts(0, []);
+            paint::header(&options, &paint::HeaderCounts::sized(0, seats, 0, 0))
         }
     };
     text.extend_from_slice(FOOTER);

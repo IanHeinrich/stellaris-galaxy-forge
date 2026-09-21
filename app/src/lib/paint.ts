@@ -209,7 +209,7 @@ export interface SeatSummary {
   sol: boolean;
   /** A seat of any kind carries its holder's weight. */
   player: boolean;
-  /** AI empires the seats leave room for once the player and the reserved seats are set aside. */
+  /** AI empires the seats leave room for once the reserved seats and the player's are set aside. */
   safeAi: number;
 }
 
@@ -219,19 +219,23 @@ export function seatSummary(systems: Iterable<SystemNode>): SeatSummary {
   let preferred = 0;
   let sol = false;
   let player = false;
+  let playerOnReserved = false;
   const reserved = new Set<string>();
   for (const system of systems) {
     const script = system.spawn_script?.paint_a_galaxy;
     if (script === undefined) continue;
     const { kind } = script;
+    const isReserved = kind === "sol" || typeof kind !== "string";
     seats++;
     if (script.player) player = true;
+    if (script.player && isReserved) playerOnReserved = true;
     if (kind === "preferred") preferred++;
     else if (kind === "sol") sol = true;
     else if (typeof kind !== "string") reserved.add(kind.reserved.toUpperCase());
   }
   const reservedLetters = [...reserved].sort();
-  const safeAi = Math.max(0, seats - reservedLetters.length - (sol ? 1 : 0) - 1);
+  const playersOwn = playerOnReserved ? 0 : 1;
+  const safeAi = Math.max(0, seats - reservedLetters.length - (sol ? 1 : 0) - playersOwn);
   return { seats, preferred, reserved: reservedLetters, sol, player, safeAi };
 }
 

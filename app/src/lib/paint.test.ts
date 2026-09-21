@@ -223,8 +223,22 @@ describe("the seats a galaxy's scripts add up to", () => {
       reserved: ["A", "C"],
       sol: true,
       player: true,
-      safeAi: 2,
+      safeAi: 3,
     });
+  });
+
+  it("sets the player's seat aside once: not again when it is a reserved one", () => {
+    const safeAi = (playerOn: "sol" | "reserved" | "preferred" | null) =>
+      seatSummary([
+        scripted(1, "enabled"),
+        scripted(2, "preferred", 0, playerOn === "preferred"),
+        scripted(3, { reserved: "a" }, 0, playerOn === "reserved"),
+        scripted(4, "sol", 0, playerOn === "sol"),
+      ]).safeAi;
+    expect(safeAi("sol")).toBe(2);
+    expect(safeAi("reserved")).toBe(2);
+    expect(safeAi("preferred")).toBe(1);
+    expect(safeAi(null)).toBe(1);
   });
 
   it("leaves out what a plain galaxy never scripts, and floors safe AI empires at zero", () => {

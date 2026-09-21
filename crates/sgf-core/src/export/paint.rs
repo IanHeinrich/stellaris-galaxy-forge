@@ -20,7 +20,7 @@ use crate::export::{Draft, ExportReport, FallenEmpireReport, SpawnDraft, SystemD
 use crate::format::scenario::emit::{ScenarioOptions, VANILLA_SHAPES};
 use crate::format::scenario::fe_link::{self, FeLinkFlags, LINK_REACH, MOST_IDS, TO_PREFIX};
 use crate::format::scenario::fe_zone::{self, FeDirection, FeKind, FeZone, Site};
-use crate::format::scenario::header_counts::{fallen_count, seat_entries};
+use crate::format::scenario::header_counts::{SeatCounts, fallen_count, seat_entries};
 use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, HEADER_NOTE, RL_BASIC, UNE_FLAG,
@@ -86,30 +86,26 @@ pub(super) fn decorate(
     // the mod's candidates, which "Fit fallen empire zones" places on request.
     report.fallen_empire_zones = 0;
 
-    let reserved = draft
+    let scripts = draft
         .systems
         .iter()
-        .filter(|system| matches!(&system.spawn, SpawnDraft::Script(script) if is_reserved_script(script)))
-        .count();
+        .filter_map(|system| match &system.spawn {
+            SpawnDraft::Script(script) => Some(script),
+            _ => None,
+        });
+    let seats = SeatCounts::from_scripts(as_u32(spawns.len()), scripts);
     let all_zones = as_u32(typed.len());
     let clans = clan_count(draft);
     let counts = match &graph.setup {
         Some(setup) => HeaderCounts::from_setup(
             setup,
             draft.systems.len(),
-            as_u32(spawns.len()),
-            as_u32(reserved),
+            seats,
             as_u32(typed.len()),
             all_zones,
             clans,
         ),
-        None => HeaderCounts::sized(
-            draft.systems.len(),
-            as_u32(spawns.len()),
-            as_u32(reserved),
-            all_zones,
-            clans,
-        ),
+        None => HeaderCounts::sized(draft.systems.len(), seats, all_zones, clans),
     };
     report.setup_from_save = graph.setup.is_some();
     draft.header = header(options, &counts);
@@ -118,8 +114,7 @@ pub(super) fn decorate(
 /// What the header's counts are sized from: the seats, the zones, and either the save's
 /// setup screen or the band on the system count.
 pub(super) struct HeaderCounts {
-    seats: u32,
-    reserved: u32,
+    seats: SeatCounts,
     /// `num_empire_default`, `advanced_empire_default` and `nomad_empire_default` as
     /// the setup asked, or `None` for the seats' shares.
     empires: Option<[u32; 3]>,
@@ -137,14 +132,13 @@ pub(super) struct HeaderCounts {
 }
 
 impl HeaderCounts {
-    /// Sized by the map alone: `seats` seats of which `reserved` are held for one
-    /// empire, `zones` fallen empire zones, and the band on `systems` for the rest.
-    pub(super) fn sized(systems: usize, seats: u32, reserved: u32, zones: u32, clans: u32) -> Self {
+    /// Sized by the map alone: `seats`, `zones` fallen empire zones, and the band on
+    /// `systems` for the rest.
+    pub(super) fn sized(systems: usize, seats: SeatCounts, zones: u32, clans: u32) -> Self {
         let (fallen, crisis) = size_band(systems);
         let fallen_max = fallen_count(zones);
         Self {
             seats,
-            reserved,
             empires: None,
             fallen_max,
             fallen_default: fallen.min(fallen_max),
@@ -164,13 +158,12 @@ impl HeaderCounts {
     fn from_setup(
         setup: &GameSetup,
         systems: usize,
-        seats: u32,
-        reserved: u32,
+        seats: SeatCounts,
         typed: u32,
         zones: u32,
         clans: u32,
     ) -> Self {
-        let sized = Self::sized(systems, seats, reserved, zones, clans);
+        let sized = Self::sized(systems, seats, zones, clans);
         Self {
             empires: Some([
                 setup.num_empires,
@@ -191,10 +184,10 @@ impl HeaderCounts {
 
 /// The header for `counts`, on Forge's own `core_radius`.
 pub(super) fn header(options: &ScenarioOptions, counts: &HeaderCounts) -> Vec<u8> {
-    let mut entries = seat_entries(counts.seats, counts.reserved);
+    let mut entries = seat_entries(counts.seats);
     if let Some([empires, advanced, nomads]) = counts.empires {
-        let most = counts.seats.saturating_sub(1);
-        let safe = most.saturating_sub(counts.reserved);
+        let most = counts.seats.most();
+        let safe = counts.seats.safe();
         for (key, value) in &mut entries {
             let count = match *key {
                 keys::NUM_EMPIRE_DEFAULT => empires.min(safe),
@@ -330,16 +323,6 @@ fn clan_count(draft: &Draft) -> u32 {
         })
         .collect();
     as_u32(clans.len())
-}
-
-fn is_reserved_script(script: &SpawnScript) -> bool {
-    matches!(
-        script,
-        SpawnScript::PaintAGalaxy {
-            kind: PaintSpawnKind::Reserved(_) | PaintSpawnKind::Sol,
-            ..
-        }
-    )
 }
 
 /// A fallen empire as the save holds it: where its capital stands in the draft, which
@@ -882,8 +865,16 @@ mod tests {
         }
     }
 
+    fn seats(seats: u32, reserved: u32, player_on_reserved: bool) -> SeatCounts {
+        SeatCounts {
+            seats,
+            reserved,
+            player_on_reserved,
+        }
+    }
+
     fn header_text(systems: usize, spawns: u32, zones: u32) -> String {
-        let counts = HeaderCounts::sized(systems, spawns, 0, zones, 2);
+        let counts = HeaderCounts::sized(systems, seats(spawns, 0, false), zones, 2);
         String::from_utf8(header(&options(), &counts)).unwrap()
     }
 
@@ -957,7 +948,7 @@ mod tests {
             primitive: 0.25,
             habitability: 0.5,
         };
-        let counts = HeaderCounts::from_setup(&setup, 791, 17, 1, 3, 9, 2);
+        let counts = HeaderCounts::from_setup(&setup, 791, seats(17, 1, false), 3, 9, 2);
         let text = String::from_utf8(header(&options(), &counts)).unwrap();
         assert!(
             text.contains("\tpriority = 10\n\tsupports_shape = spiral_4\n\tsupports_shape = elliptical\n\tsupports_shape = ring\n\tsupports_shape = spiral_2\n\tsupports_shape = spiral_3\n\tsupports_shape = spiral_6\n"),
@@ -973,7 +964,7 @@ mod tests {
             "{text}"
         );
 
-        let crowded = HeaderCounts::from_setup(&setup, 300, 4, 3, 0, 0, 0);
+        let crowded = HeaderCounts::from_setup(&setup, 300, seats(4, 3, false), 0, 0, 0);
         let text = String::from_utf8(header(&options(), &crowded)).unwrap();
         assert!(
             text.contains("\tnum_empires = { min = 0 max = 3 }\n\tnum_empire_default = 0\n\tadvanced_empire_default = 3\n\tnomad_empire_default = 2\n\tnomad_empire_max = 3\n\tfallen_empire_default = 0\n\tmarauder_empire_default = 0\n\tcrisis_strength = 0.5\n"),

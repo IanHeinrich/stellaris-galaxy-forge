@@ -1,11 +1,13 @@
 //! The empire counts a Paint a Galaxy header carries and the issues a painted scenario
-//! raises about its seats: the header against the seats, the fallen empire zones and
-//! the marauder clan homes, a reserved letter or Sol on two systems, the player's seat
-//! on two, a Sol seat on the Sol initializer, and a system inside the L-Cluster's
-//! circle on any scenario.
+//! raises about its seats: the header against the seats, the player's seat set aside
+//! once, the fallen empire zones and the marauder clan homes, a reserved letter or Sol
+//! on two systems, the player's seat on two, a Sol seat on the Sol initializer, and a
+//! system inside the L-Cluster's circle on any scenario.
 
 use sgf_core::document::Document;
-use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts, zone_count};
+use sgf_core::format::scenario::header_counts::{
+    SeatCounts, empire_counts, seat_counts, zone_count,
+};
 use sgf_core::format::scenario::listings::sibling_names;
 use sgf_core::format::scenario::marauder::clan_count;
 use sgf_core::guides::{Guide, L_CLUSTER};
@@ -45,12 +47,19 @@ fn coded(issues: &[Issue], code: IssueCode) -> Vec<&Issue> {
     issues.iter().filter(|issue| issue.code == code).collect()
 }
 
+fn seats(seats: u32, reserved: u32, player_on_reserved: bool) -> SeatCounts {
+    SeatCounts {
+        seats,
+        reserved,
+        player_on_reserved,
+    }
+}
+
 fn counts_op(session: &Session) -> Op {
-    let (seats, reserved) = seat_counts(&session.graph);
     let zones = zone_count(&session.graph);
     let clans = clan_count(&session.graph);
     Op::SetHeaderKeys {
-        entries: empire_counts(seats, reserved, zones, clans)
+        entries: empire_counts(seat_counts(&session.graph), zones, clans)
             .into_iter()
             .map(|(key, value)| (key.to_owned(), value))
             .collect(),
@@ -60,7 +69,7 @@ fn counts_op(session: &Session) -> Op {
 #[test]
 fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
     let session = open();
-    assert_eq!(seat_counts(&session.graph), (4, 2));
+    assert_eq!(seat_counts(&session.graph), seats(4, 2, false));
     assert_eq!(zone_count(&session.graph), 2);
     assert_eq!(clan_count(&session.graph), 0);
     assert_eq!(session.graph.num_empires_max, Some(3));
@@ -317,7 +326,7 @@ fn a_letter_or_sol_on_two_systems_names_them_all() {
         "Reserved A is on 2 systems: only one empire holds the trait."
     );
     assert_eq!(duplicate[0].systems, [2, 11]);
-    assert_eq!(seat_counts(&session.graph), (5, 3));
+    assert_eq!(seat_counts(&session.graph), seats(5, 3, false));
 
     let session = open_edited(
         "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" }",
@@ -415,7 +424,71 @@ fn the_players_seat_on_two_systems_names_them_both() {
     );
     assert_eq!(duplicate[0].severity, Severity::Warning);
     assert_eq!(duplicate[0].systems, [1, 2]);
-    assert_eq!(seat_counts(&session.graph), (4, 2));
+    assert_eq!(seat_counts(&session.graph), seats(4, 2, true));
+}
+
+#[test]
+fn the_players_seat_is_set_aside_once_whichever_kind_it_is() {
+    let default_two = (
+        "num_empires = { min = 0 max = 3 }\n\tnum_empire_default = 3",
+        "num_empires = { min = 0 max = 3 }\n\tnum_empire_default = 2",
+    );
+    let sol = (
+        "SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| }",
+        "SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 has_country_flag = human_1 } }",
+    );
+    let letter = (
+        "RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| }",
+        "RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| modifier = { add = 100000 has_trait = trait_painted_galaxy_reserved_spawn_a } }",
+    );
+    let preferred = (
+        "PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| }",
+        "PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 } }",
+    );
+    let default_of = |session: &Session| match counts_op(session) {
+        Op::SetHeaderKeys { entries } => entries[1].clone(),
+        op => panic!("{op:?}"),
+    };
+    let header_issue = |session: &Session| {
+        let issues = session.validate();
+        let header = coded(&issues, IssueCode::HeaderEmpireCount);
+        assert_eq!(header.len(), 1, "{issues:?}");
+        header[0].message.clone()
+    };
+
+    // The player's seat is the Sol seat: it is among the two reserved, so the other
+    // two seats are open.
+    let on_sol = open_edited_all(&[default_two, sol]);
+    assert_eq!(seat_counts(&on_sol.graph), seats(4, 2, true));
+    assert_eq!(
+        default_of(&on_sol),
+        ("num_empire_default".to_owned(), "2".to_owned())
+    );
+    assert_eq!(
+        header_issue(&on_sol),
+        "Header allows 6 fallen empires but the map has 2 fallen empire zones. Update the empire counts."
+    );
+    let on_letter = open_edited_all(&[default_two, letter]);
+    assert_eq!(seat_counts(&on_letter.graph), seats(4, 2, true));
+    assert_eq!(default_of(&on_letter), default_of(&on_sol));
+
+    // The player's seat is a preferred one: it takes one of the two open seats.
+    let on_preferred = open_edited_all(&[default_two, preferred]);
+    assert_eq!(seat_counts(&on_preferred.graph), seats(4, 2, false));
+    assert_eq!(
+        default_of(&on_preferred),
+        ("num_empire_default".to_owned(), "1".to_owned())
+    );
+    assert_eq!(
+        header_issue(&on_preferred),
+        "Header allows 2 empires but the file has 4 seats. Update the empire counts."
+    );
+
+    // No seat carries the player's marker: the player takes some open seat.
+    let unmarked = open_edited_all(&[default_two]);
+    assert_eq!(seat_counts(&unmarked.graph), seats(4, 2, false));
+    assert_eq!(default_of(&unmarked), default_of(&on_preferred));
+    assert_eq!(header_issue(&unmarked), header_issue(&on_preferred));
 }
 
 #[test]
