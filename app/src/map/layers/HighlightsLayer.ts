@@ -7,7 +7,7 @@ import { portCapable as portsAt } from "../../lib/visual/labels";
 import { ghostLaneSegments, type MoveGhost, type Pt } from "../moveGhosts";
 import type { FeZonePreview } from "../feZonePreview";
 import type { NebulaPreview } from "../nebulaPreview";
-import { FE_ZONE_RADIUS } from "../../lib/feZone";
+import { FE_DIRECTIONS, FE_ZONE_DISTANCES, FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { ORIGIN_ALPHA } from "../../lib/visual/style";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
@@ -35,6 +35,12 @@ const GHOST_RING_DASHES = 48;
 /** The dashed ring a zone drag proposes: the zones' own hue, or the refusal's where it cannot go. */
 const GHOST_ZONE = { color: 0xf0abfc, alpha: 0.9 };
 const GHOST_ZONE_BLOCKED = { color: 0xf87171, alpha: 0.9 };
+/** The grid a zone drag chooses from, under the ghost ring: faint rays and one dot per slot. */
+const FE_GRID_RAY = { color: GHOST_ZONE.color, alpha: 0.15 };
+const FE_GRID_RAY_LENGTH = FE_ZONE_DISTANCES[FE_ZONE_DISTANCES.length - 1];
+const FE_GRID_DOT = { color: GHOST_ZONE.color, alpha: 0.35, radiusPx: 2.5 };
+const FE_GRID_DOT_BLOCKED = { color: GHOST_ZONE_BLOCKED.color, alpha: 0.35, radiusPx: 2.5 };
+const FE_GRID_SNAPPED_RADIUS_PX = 4.5;
 const ORIGIN_MARK = { color: 0xffffff, alpha: 0.3, armPx: 7 };
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
@@ -177,6 +183,7 @@ export class HighlightsLayer implements MapLayer {
   private readonly previewLines = new Graphics();
   private readonly laneLines = new Graphics();
   private readonly marqueeBox = new Graphics();
+  private readonly feZoneGrid = new Graphics();
   private readonly ghostRing = new Graphics();
   private readonly origin = originCross();
   private readonly coreRing = new Graphics();
@@ -207,6 +214,7 @@ export class HighlightsLayer implements MapLayer {
       this.laneLines,
       this.previewLines,
       this.marqueeBox,
+      this.feZoneGrid,
       this.ghostRing,
       this.port,
       this.hover,
@@ -260,6 +268,7 @@ export class HighlightsLayer implements MapLayer {
       this.portCapable = portCapable;
       this.placeAll();
       this.drawLanes();
+      this.drawFeZoneGrid();
     }
   }
 
@@ -320,6 +329,7 @@ export class HighlightsLayer implements MapLayer {
     this.feZone = preview;
     this.placeAll();
     this.drawGhostRing();
+    this.drawFeZoneGrid();
   }
 
   setMarquee(rect: WorldRect | null): void {
@@ -416,6 +426,44 @@ export class HighlightsLayer implements MapLayer {
     const edge = ringEdge(z.anchor, z, FE_ZONE_RADIUS);
     g.moveTo(z.anchor.x, z.anchor.y).lineTo(edge.x, edge.y);
     g.stroke({ ...style, pixelLine: true });
+  }
+
+  /**
+   * The grid a zone drag chooses from, under the ghost ring: eight faint rays to distance 200,
+   * a faint dot at every clear slot, a faint hollow circle at every blocked one, and the snapped
+   * slot as a brighter, slightly larger dot. Dot radii stay constant in screen pixels.
+   */
+  private drawFeZoneGrid(): void {
+    const g = this.feZoneGrid;
+    g.clear();
+    const z = this.feZone;
+    if (!z) return;
+    for (const { key: direction } of FE_DIRECTIONS) {
+      const tip = feZoneCentre(z.anchor, { direction, distance: FE_GRID_RAY_LENGTH });
+      g.moveTo(z.anchor.x, z.anchor.y).lineTo(tip.x, tip.y);
+    }
+    g.stroke({ ...FE_GRID_RAY, pixelLine: true });
+    const dotRadius = FE_GRID_DOT.radiusPx / this.camScale;
+    for (const slot of z.slots) {
+      if (slot.direction === z.direction && slot.distance === z.distance) continue;
+      if (slot.clear) {
+        g.circle(slot.x, slot.y, dotRadius).fill({
+          color: FE_GRID_DOT.color,
+          alpha: FE_GRID_DOT.alpha,
+        });
+      } else {
+        g.circle(slot.x, slot.y, dotRadius).stroke({
+          color: FE_GRID_DOT_BLOCKED.color,
+          alpha: FE_GRID_DOT_BLOCKED.alpha,
+          pixelLine: true,
+        });
+      }
+    }
+    const snappedStyle = z.blocked || z.offMap ? GHOST_ZONE_BLOCKED : GHOST_ZONE;
+    g.circle(z.x, z.y, FE_GRID_SNAPPED_RADIUS_PX / this.camScale).fill({
+      color: snappedStyle.color,
+      alpha: snappedStyle.alpha,
+    });
   }
 
   /** A world-space circle of the core radius, stroked one screen pixel wide at any zoom. */

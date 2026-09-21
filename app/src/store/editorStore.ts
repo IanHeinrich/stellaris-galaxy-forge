@@ -525,10 +525,13 @@ async function placeFeZone(id: number, zone: FeZone): Promise<boolean> {
 }
 
 /** The system nearest a world point, wherever it is; null for a galaxy with none. */
-function nearestSystem(point: { x: number; y: number }): SystemNode | null {
+export function nearestSystem(
+  point: { x: number; y: number },
+  among: Iterable<SystemNode> = systems().values(),
+): SystemNode | null {
   let best: SystemNode | null = null;
   let bestD2 = Infinity;
-  for (const s of systems().values()) {
+  for (const s of among) {
     const d2 = (s.x - point.x) ** 2 + (s.y - point.y) ** 2;
     if (d2 < bestD2) {
       bestD2 = d2;

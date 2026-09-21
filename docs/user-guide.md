@@ -441,17 +441,21 @@ them. A system that still carries a plain weight in such a file shows a
 A fallen empire zone is empty space. When the game starts, the Paint a
 Galaxy mod creates a fallen empire's home system at the centre of the
 zone and its other systems around it, then links them by hyperlane to
-systems nearby. Nothing already on the map is used or moved, so the ring
-must stay clear of your systems. The map draws each zone as a dashed ring
-of radius 30 with a line to the system it is measured from, in one of
-eight compass directions at a distance from 30 to 200. Right-click a
-system and choose "Add fallen empire zone", or right-click empty space
-and choose "Fallen empire zone here". Drag the ring to move it between
-the positions the mod accepts. Clicking the ring selects its system, and
-the inspector's Fallen empire zone section sets the type of empire
-(random, or one of the six kinds), the direction, the distance and
-whether the mod should fill the ring with ordinary systems when no fallen
-empire lands there. A ring that would cover a system is refused, and one
+systems nearby. Nothing already on the map is used or moved, so the
+ring must stay clear of your systems. The map draws each zone as a
+dashed ring of radius 30 with a line to the system it is measured from,
+in one of eight compass directions at a distance from 30 to 200. Every
+zone belongs to one of your systems, which the mod measures the ring
+from. Right-click a system and choose "Add fallen empire zone", or
+right-click empty space and choose "Fallen empire zone here". Drag
+the ring to move it: the mod can only place a fallen empire at eight
+compass directions and distances from 30 to 200, so the map shows
+those positions while you drag and the ring snaps to the nearest clear
+one. Clicking the ring selects its system, and the inspector's Fallen
+empire zone section sets the type of empire (random, or one of the six
+kinds), the direction, the distance and whether the mod should fill
+the ring with ordinary systems when no fallen empire lands there. A
+ring that would cover a system is refused, and one
 that later comes to cover a system after a move shows in Issues.
 
 The mod also places fallen empires in rings you did not draw. Export as

@@ -1,9 +1,26 @@
 import type { FeDirection } from "../generated/FeDirection";
 import type { SystemNode } from "../generated/SystemNode";
-import { feZoneBlocked, feZoneCentre, feZoneOffMap, snapFeZone } from "../lib/feZone";
+import {
+  FE_DIRECTIONS,
+  FE_ZONE_DISTANCES,
+  feZoneBlocked,
+  feZoneCentre,
+  feZoneOffMap,
+  snapFeZone,
+} from "../lib/feZone";
 import type { Systems } from "./RenderContext";
 
-/** The ring a drag is proposing for one zone: where it snapped to, and what stands in its way. */
+/** One position on the mod's 8 × 18 grid around an anchor: where it sits, and whether it is free. */
+export interface FeZoneSlot {
+  direction: FeDirection;
+  distance: number;
+  x: number;
+  y: number;
+  /** Whether the ring here is clear of every system and stays on the mod's canvas. */
+  clear: boolean;
+}
+
+/** The ring a drag is proposing for one zone: where it snapped to, what stands in its way, and the grid it chose from. */
 export interface FeZonePreview {
   anchor: { x: number; y: number };
   direction: FeDirection;
@@ -15,6 +32,50 @@ export interface FeZonePreview {
   blocked: SystemNode | null;
   /** Whether the ring would leave the mod's canvas. */
   offMap: boolean;
+  /** Every position the mod accepts around the anchor: all 8 directions × 18 distances. */
+  slots: FeZoneSlot[];
+}
+
+interface SlotsCache {
+  systems: Systems;
+  anchorId: number;
+  anchorX: number;
+  anchorY: number;
+  slots: FeZoneSlot[];
+}
+
+let slotsCache: SlotsCache | null = null;
+
+/**
+ * All 144 positions on the mod's grid around `anchor`. A drag calls this on every pointer move,
+ * but the grid depends only on the anchor and the systems, both fixed for the drag's length, so
+ * the last result is kept and reused while they stay the same object and position.
+ */
+function feZoneSlots(
+  systems: Systems,
+  anchorId: number,
+  anchor: { x: number; y: number },
+): FeZoneSlot[] {
+  const cached = slotsCache;
+  if (
+    cached &&
+    cached.systems === systems &&
+    cached.anchorId === anchorId &&
+    cached.anchorX === anchor.x &&
+    cached.anchorY === anchor.y
+  ) {
+    return cached.slots;
+  }
+  const slots: FeZoneSlot[] = [];
+  for (const { key: direction } of FE_DIRECTIONS) {
+    for (const distance of FE_ZONE_DISTANCES) {
+      const centre = feZoneCentre(anchor, { direction, distance });
+      const clear = feZoneBlocked(centre, systems, anchorId) === null && !feZoneOffMap(centre);
+      slots.push({ direction, distance, x: centre.x, y: centre.y, clear });
+    }
+  }
+  slotsCache = { systems, anchorId, anchorX: anchor.x, anchorY: anchor.y, slots };
+  return slots;
 }
 
 /**
@@ -36,5 +97,6 @@ export function feZonePreview(
     ...centre,
     blocked: feZoneBlocked(centre, systems, anchorId),
     offMap: feZoneOffMap(centre),
+    slots: feZoneSlots(systems, anchorId, anchor),
   };
 }

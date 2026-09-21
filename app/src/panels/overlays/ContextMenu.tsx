@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { addFeZoneRefusal } from "../../lib/feZone";
 import { newSystemRows } from "../../lib/initializer/initializerBrowser";
-import { useEditorStore } from "../../store/editorStore";
+import { nearestSystem, useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore, usePaintLayer } from "../../store/fileSessionStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSystemNames } from "../../store/browserRows";
@@ -53,6 +53,8 @@ export function ContextMenu() {
   const paint = usePaintLayer();
   const systems = useGalaxyStore((s) => s.systems);
   const menuTarget = contextMenu?.target;
+  const anchorForSpace =
+    menuTarget?.kind === "space" ? nearestSystem(menuTarget, systems.values()) : null;
   const named = useSystemNames(
     menuTarget?.kind === "system"
       ? [menuTarget.id]
@@ -60,7 +62,9 @@ export function ContextMenu() {
         ? [menuTarget.anchor]
         : menuTarget?.kind === "lane"
           ? [menuTarget.lane.a, menuTarget.lane.b]
-          : NO_SYSTEMS,
+          : anchorForSpace
+            ? [anchorForSpace.id]
+            : NO_SYSTEMS,
   );
   const gameData = useGameDataStore((s) => s.status === "ready");
   const defaultKey = useInitializerBrowserStore((s) => s.defaultKey);
@@ -163,7 +167,7 @@ export function ContextMenu() {
                 closeContextMenu();
               }}
             >
-              Fallen empire zone here
+              Fallen empire zone here{named[0] !== undefined && `, from ${named[0]}`}
             </button>
             <button
               type="button"

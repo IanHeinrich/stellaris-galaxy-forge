@@ -1,4 +1,4 @@
-import { Graphics } from "pixi.js";
+import { BitmapText, Graphics } from "pixi.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FeZone } from "../../generated/FeZone";
 import type { SystemNode } from "../../generated/SystemNode";
@@ -6,7 +6,7 @@ import { newFeZone } from "../../lib/feZone";
 import { GHOST_ALPHA } from "../../lib/visual/style";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { AUTOMATIC_NOTE, FeZonesLayer } from "./FeZonesLayer";
-import { childByLabel, drawOps, drawnText, mapContext, mapNode, viewport } from "./fixture";
+import { childByLabel, drawOps, mapContext, mapNode, viewport } from "./fixture";
 
 /** An anchor at `x` whose ring lies east at 40: centred at (x - 40, 0) unless `over` says otherwise. */
 function anchored(id: number, x: number, over: Partial<FeZone> = {}): SystemNode {
@@ -26,6 +26,24 @@ function ringAt(layer: FeZonesLayer, x: number): Graphics {
   const ring = rings(layer).find((g) => Math.abs(g.x - x) < 1e-6);
   if (!ring) throw new Error(`no ring at ${x}`);
   return ring;
+}
+
+function tagAt(layer: FeZonesLayer, x: number): BitmapText {
+  const tags = childByLabel(layer.container, "tags");
+  const tag = tags.children.find(
+    (c): c is BitmapText => c instanceof BitmapText && Math.abs(c.x - x) < 1e-6,
+  );
+  if (!tag) throw new Error(`no tag at ${x}`);
+  return tag;
+}
+
+function spawnGhostsAt(layer: FeZonesLayer, x: number): Graphics {
+  const ghosts = childByLabel(layer.container, "spawnGhosts");
+  const g = ghosts.children.find(
+    (c): c is Graphics => c instanceof Graphics && Math.abs(c.x - x) < 1e-6,
+  );
+  if (!g) throw new Error(`no spawn ghosts at ${x}`);
+  return g;
 }
 
 function fills(ring: Graphics): number {
@@ -75,14 +93,27 @@ describe("the fallen empire zones layer", () => {
     expect(ringAt(layer, 160).alpha).toBe(GHOST_ALPHA);
   });
 
-  it("writes the kind's tag at the centre, and nothing for a random one", () => {
+  it("writes 'Fallen empire zone' at every ring's centre, with the kind's label below unless it is random", () => {
     const layer = drawn([ZONED, anchored(1, 200, { kind: "materialist" })]);
-    const tags = childByLabel(layer.container, "tags");
-    expect(drawnText(tags)).toEqual(["Mat"]);
+    expect(tagAt(layer, -40).text).toBe("Fallen empire zone");
+    expect(tagAt(layer, 160).text).toBe("Fallen empire zone\nMaterialist");
+
     layer.applyDelta({ systems: [anchored(1, 200, { kind: "hive" })] });
-    expect(drawnText(tags)).toEqual(["Hive"]);
+    expect(tagAt(layer, 160).text).toBe("Fallen empire zone\nHive");
+
     layer.applyDelta({ systems: [anchored(1, 200)] });
-    expect(drawnText(tags)).toEqual([]);
+    expect(tagAt(layer, 160).text).toBe("Fallen empire zone");
+  });
+
+  it("draws a stable scatter of spawn ghosts, seeded by the anchor id", () => {
+    const first = drawn([ZONED]);
+    const again = drawn([ZONED]);
+    const other = drawn([anchored(7, 0)]);
+
+    const firstOps = drawOps(spawnGhostsAt(first, -40));
+    expect(firstOps.length).toBeGreaterThan(0);
+    expect(drawOps(spawnGhostsAt(again, -40))).toEqual(firstOps);
+    expect(drawOps(spawnGhostsAt(other, -40))).not.toEqual(firstOps);
   });
 
   it("fills the ring whose anchor is selected", () => {

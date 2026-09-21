@@ -99,7 +99,10 @@ describe("a scenario system's fallen empire zone", () => {
     expect(html).toContain('<option value="60" selected="">60</option>');
     expect(html.match(/<option value="\d+"/g)).toHaveLength(18);
     expect(html).toContain(KIND_HINT);
-    expect(html).toContain("Where the ring sits, measured from Alpha Centauri.");
+    expect(html).toContain(
+      "Where the ring sits, measured from Alpha Centauri. The mod can only place a fallen " +
+        "empire at these eight directions and distances.",
+    );
     expect(html).toContain(FALLBACK_LABEL);
     expect(html.match(/<input type="checkbox"[^>]*>/g)!.pop()).toContain("checked=");
     expect(html).toContain(FALLBACK_HINT);

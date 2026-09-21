@@ -19,7 +19,8 @@ export const FE_ZONE_INTRO =
   "A fallen empire zone is empty space. When the game starts, the Paint a Galaxy mod creates a " +
   "fallen empire's home system at the centre of the ring and its other systems around it, then " +
   "links them by hyperlane to systems nearby. Nothing already on the map is used or moved, so " +
-  "the ring must stay clear of your systems.";
+  "the ring must stay clear of your systems. Every zone belongs to one of your systems, which " +
+  "the mod measures the ring from, so add a zone from the system you want it near.";
 
 export const ADD_ZONE_HINT =
   "Marks empty space nearby where the mod will create a fallen empire's systems at game start.";
@@ -37,9 +38,12 @@ export const AUTOMATIC_NOTE =
   "Automatic. The mod may use this ring if it needs more zones than you placed. Any change " +
   "makes it yours.";
 
-/** Where the ring sits, measured from the anchor by name. */
+/** Where the ring sits, measured from the anchor by name, and what grid it is confined to. */
 function placementHint(anchor: string): string {
-  return `Where the ring sits, measured from ${anchor}.`;
+  return (
+    `Where the ring sits, measured from ${anchor}. The mod can only place a fallen empire at ` +
+    "these eight directions and distances."
+  );
 }
 
 /**

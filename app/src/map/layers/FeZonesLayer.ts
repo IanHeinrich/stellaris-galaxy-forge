@@ -1,7 +1,8 @@
 import { BitmapText, Container, type FederatedPointerEvent, Graphics, TextStyle } from "pixi.js";
+import type { FeKind } from "../../generated/FeKind";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
-import { FE_ZONE_RADIUS, feKindLabel, feKindTag, feZoneCentre } from "../../lib/feZone";
+import { FE_ZONE_RADIUS, feKindLabel, feZoneCentre } from "../../lib/feZone";
 import { GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { useMapChromeStore } from "../../store/mapChromeStore";
@@ -29,7 +30,7 @@ export const AUTOMATIC_NOTE = "automatic";
 /** One shared instance: PixiJS keys a stroked dynamic bitmap font by the style object. */
 const TAG_STYLE = new TextStyle({
   fontFamily: MAP_FONT,
-  fontSize: 11,
+  fontSize: 9,
   fontWeight: "700",
   fill: 0xf5d0fe,
 });
@@ -77,16 +78,85 @@ function drawn(ctx: RenderContext): boolean {
   return ctx.kind === "scenario" && ctx.paintLayer;
 }
 
+/** The centre text: the ring's name, and the kind's full label below it unless it is random. */
+function centreText(kind: FeKind): string {
+  return kind === "random" ? FE_ZONE_TITLE : `${FE_ZONE_TITLE}\n${feKindLabel(kind)}`;
+}
+
+/** How much fainter the spawn ghosts are drawn than the ring that carries them. */
+const SPAWN_GHOST_ALPHA_FRACTION = 1 / 3;
+
+/** The home star's radius: hollow, so the centre text stays legible drawn over it. */
+const HOME_STAR_RADIUS = 3.5;
+const SATELLITE_RADIUS = 1.4;
+const SATELLITE_MIN_DISTANCE = 15;
+const SATELLITE_DISTANCE_SPAN = 10;
+const SATELLITE_COUNT_MIN = 4;
+const SATELLITE_COUNT_OPTIONS = 3;
+
+/** A tiny deterministic generator: the same seed always yields the same sequence. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Spreads an id's bits before it seeds the generator, so consecutive ids do not draw alike. */
+function hashId(id: number): number {
+  let x = Math.imul(id ^ (id >>> 16), 0x45d9f3b);
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
+  return (x ^ (x >>> 16)) >>> 0;
+}
+
+/** The satellites the mod hyperlanes to the home star, offset from the centre, by anchor id. */
+function spawnSatellites(id: number): Array<{ x: number; y: number }> {
+  const rand = mulberry32(hashId(id));
+  const count = SATELLITE_COUNT_MIN + Math.floor(rand() * SATELLITE_COUNT_OPTIONS);
+  const step = (Math.PI * 2) / count;
+  const points: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < count; i++) {
+    const angle = i * step + (rand() - 0.5) * step * 0.6;
+    const distance = SATELLITE_MIN_DISTANCE + rand() * SATELLITE_DISTANCE_SPAN;
+    points.push({ x: Math.cos(angle) * distance, y: Math.sin(angle) * distance });
+  }
+  return points;
+}
+
+/**
+ * The zone's ghost system, stable for a given anchor id: a hollow home star at the centre and
+ * its satellites, each joined to it by a faint ghost lane.
+ */
+function drawSpawnGhosts(g: Graphics, id: number): void {
+  g.clear();
+  const satellites = spawnSatellites(id);
+  for (const sat of satellites) g.moveTo(0, 0).lineTo(sat.x, sat.y);
+  g.stroke({ color: RING.color, alpha: 1, pixelLine: true });
+  for (const sat of satellites) g.circle(sat.x, sat.y, SATELLITE_RADIUS).fill(RING.color);
+  g.circle(0, 0, HOME_STAR_RADIUS).stroke({ color: RING.color, alpha: 1, pixelLine: true });
+}
+
 /**
  * Paint a Galaxy's fallen empire zones: a dashed ring of empty space at the point each anchor
- * system names, tied to its anchor by a line, with the kind's tag at the centre. A ring the
- * mod offered rather than the user placed is drawn as a ghost until a change makes it theirs.
+ * system names, tied to its anchor by a line, with the ring's name and the kind's full label
+ * at the centre, over a faint ghost of the home star and satellites the mod spawns there. A
+ * ring the mod offered rather than the user placed is drawn as a ghost until a change makes it
+ * theirs.
  */
 export class FeZonesLayer implements MapLayer {
   readonly id = "feZones" as const;
   readonly container = new Container();
   private readonly rings = new Map<number, Graphics>();
   private readonly bands = new Map<number, RingBand>();
+  private readonly spawnGhostsContainer = new Container({
+    label: "spawnGhosts",
+    eventMode: "none",
+  });
+  private readonly spawnGhosts = new Map<number, Graphics>();
+  private readonly freeSpawnGhosts: Graphics[] = [];
   private readonly tagsContainer = new Container({ label: "tags" });
   private readonly tags = new Map<number, BitmapText>();
   private readonly freeTags: BitmapText[] = [];
@@ -100,6 +170,7 @@ export class FeZonesLayer implements MapLayer {
 
   constructor() {
     this.container.eventMode = "passive";
+    this.container.addChild(this.spawnGhostsContainer);
     this.container.addChild(this.tagsContainer);
   }
 
@@ -172,14 +243,38 @@ export class FeZonesLayer implements MapLayer {
     draw(g, at.x - centre.x, at.y - centre.y, this.selection.has(s.id));
     g.position.set(centre.x, centre.y);
     g.alpha = ghost || !zone.preferred ? GHOST_ALPHA : 1;
-    this.placeTag(s.id, feKindTag(zone.kind), centre, g.alpha);
+    this.placeSpawnGhosts(s.id, centre, g.alpha);
+    this.placeTag(s.id, centreText(zone.kind), centre, g.alpha);
+  }
+
+  private placeSpawnGhosts(id: number, at: { x: number; y: number }, ringAlpha: number): void {
+    let g = this.spawnGhosts.get(id);
+    if (!g) {
+      g = this.freeSpawnGhosts.pop() ?? this.makeSpawnGhosts();
+      drawSpawnGhosts(g, id);
+      g.visible = true;
+      this.spawnGhostsContainer.addChild(g);
+      this.spawnGhosts.set(id, g);
+    }
+    g.position.set(at.x, at.y);
+    g.alpha = ringAlpha * SPAWN_GHOST_ALPHA_FRACTION;
+  }
+
+  private makeSpawnGhosts(): Graphics {
+    const g = new Graphics();
+    g.eventMode = "none";
+    return g;
+  }
+
+  private releaseSpawnGhosts(id: number): void {
+    const g = this.spawnGhosts.get(id);
+    if (!g) return;
+    this.spawnGhosts.delete(id);
+    g.visible = false;
+    this.freeSpawnGhosts.push(g);
   }
 
   private placeTag(id: number, text: string, at: { x: number; y: number }, alpha: number): void {
-    if (text === "") {
-      this.releaseTag(id);
-      return;
-    }
     let tag = this.tags.get(id);
     if (!tag) {
       tag = this.freeTags.pop() ?? this.makeTag();
@@ -254,5 +349,6 @@ export class FeZonesLayer implements MapLayer {
     this.rings.delete(id);
     this.bands.delete(id);
     this.releaseTag(id);
+    this.releaseSpawnGhosts(id);
   }
 }
