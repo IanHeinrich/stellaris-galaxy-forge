@@ -5,7 +5,9 @@ import type { LaneTarget } from "../interaction/MapIntent";
 import { MIDPOINT_HIT_PX, PORT_INNER, PORT_OUTER } from "../picking/zones";
 import { portCapable as portsAt } from "../../lib/visual/labels";
 import { ghostLaneSegments, type MoveGhost, type Pt } from "../moveGhosts";
+import type { FeZonePreview } from "../feZonePreview";
 import type { NebulaPreview } from "../nebulaPreview";
+import { FE_ZONE_RADIUS } from "../../lib/feZone";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { ORIGIN_ALPHA } from "../../lib/visual/style";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
@@ -30,6 +32,9 @@ const MARQUEE = { color: 0xffd166, strokeAlpha: 0.9, fillAlpha: 0.08 };
 /** The dashed ring a nebula drag proposes, until the pointer comes up. */
 const GHOST_RING = { color: 0xc4b5fd, alpha: 0.9 };
 const GHOST_RING_DASHES = 48;
+/** The dashed ring a zone drag proposes: the zones' own hue, or the refusal's where it cannot go. */
+const GHOST_ZONE = { color: 0xf0abfc, alpha: 0.9 };
+const GHOST_ZONE_BLOCKED = { color: 0xf87171, alpha: 0.9 };
 const ORIGIN_MARK = { color: 0xffffff, alpha: 0.3, armPx: 7 };
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
@@ -83,6 +88,16 @@ function dashedCircle(g: Graphics, x: number, y: number, r: number, dashes: numb
       start + step * 0.6,
     );
   }
+}
+
+const GHOST_ZONE_DASHES = 32;
+
+/** Where the line from `from` meets a ring of `radius` about `centre`. */
+function ringEdge(from: Pt, centre: Pt, radius: number): Pt {
+  const d = Math.hypot(centre.x - from.x, centre.y - from.y);
+  if (d === 0) return centre;
+  const t = Math.max(0, d - radius) / d;
+  return { x: from.x + (centre.x - from.x) * t, y: from.y + (centre.y - from.y) * t };
 }
 
 /** The galaxy origin: a reference point for a document whose canvas may be empty. */
@@ -177,6 +192,7 @@ export class HighlightsLayer implements MapLayer {
   private lanePreview: Array<[number, number]> | null = null;
   private marquee: WorldRect | null = null;
   private nebula: NebulaPreview | null = null;
+  private feZone: FeZonePreview | null = null;
   private hoverLane: LaneRef | null = null;
   private selectedLane: LaneRef | null = null;
   private camScale = 1;
@@ -299,6 +315,13 @@ export class HighlightsLayer implements MapLayer {
     this.drawGhostRing();
   }
 
+  /** The ring a zone drag is proposing, with the system it would cover ringed as leaving. */
+  setFeZonePreview(preview: FeZonePreview | null): void {
+    this.feZone = preview;
+    this.placeAll();
+    this.drawGhostRing();
+  }
+
   setMarquee(rect: WorldRect | null): void {
     this.marquee = rect;
     this.drawMarquee();
@@ -333,7 +356,11 @@ export class HighlightsLayer implements MapLayer {
     this.ghostRings.place(this.ghosts);
     this.matchedRings.place([...this.matched].map((id) => this.systems.get(id)));
     this.joiningRings.place((this.nebula?.joining ?? []).map((id) => this.systems.get(id)));
-    this.leavingRings.place((this.nebula?.leaving ?? []).map((id) => this.systems.get(id)));
+    const covered = this.feZone?.blocked;
+    this.leavingRings.place([
+      ...(this.nebula?.leaving ?? []).map((id) => this.systems.get(id)),
+      ...(covered ? [covered] : []),
+    ]);
   }
 
   private place(g: Graphics, id: number | null): void {
@@ -378,9 +405,17 @@ export class HighlightsLayer implements MapLayer {
     const g = this.ghostRing;
     g.clear();
     const n = this.nebula;
-    if (!n || n.radius <= 0) return;
-    dashedCircle(g, n.x, n.y, n.radius, GHOST_RING_DASHES);
-    g.stroke({ ...GHOST_RING, pixelLine: true });
+    if (n && n.radius > 0) {
+      dashedCircle(g, n.x, n.y, n.radius, GHOST_RING_DASHES);
+      g.stroke({ ...GHOST_RING, pixelLine: true });
+    }
+    const z = this.feZone;
+    if (!z) return;
+    const style = z.blocked || z.offMap ? GHOST_ZONE_BLOCKED : GHOST_ZONE;
+    dashedCircle(g, z.x, z.y, FE_ZONE_RADIUS, GHOST_ZONE_DASHES);
+    const edge = ringEdge(z.anchor, z, FE_ZONE_RADIUS);
+    g.moveTo(z.anchor.x, z.anchor.y).lineTo(edge.x, edge.y);
+    g.stroke({ ...style, pixelLine: true });
   }
 
   /** A world-space circle of the core radius, stroked one screen pixel wide at any zoom. */

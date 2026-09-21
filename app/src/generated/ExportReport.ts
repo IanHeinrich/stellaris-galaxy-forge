@@ -24,4 +24,9 @@ by_category: Array<CategoryCount>,
 /**
  * Sorted by source.
  */
-sources: Array<SourceCount>, };
+sources: Array<SourceCount>, 
+/**
+ * Fallen empire zones the Paint a Galaxy profile placed by the mod's own rule;
+ * 0 for the plain profile, which writes none.
+ */
+fallen_empire_zones: number, };

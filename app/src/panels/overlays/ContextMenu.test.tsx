@@ -13,6 +13,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { OPEN_RESULT, SCENARIO_RESULT, node } from "../../store/fixture";
+import { newFeZone } from "../../lib/feZone";
 import { ContextMenu } from "./ContextMenu";
 
 bindStores();
@@ -82,5 +83,48 @@ describe("a scenario system's spawn point item", () => {
     const item = html.match(/<button[^>]*>Set as spawn point<\/button>/)![0];
     expect(item).not.toContain("disabled=");
     expect(item).not.toContain("choose one first");
+  });
+});
+
+describe("the fallen empire zone items", () => {
+  /** The fixture galaxy as a Paint a Galaxy scenario, Sol anchoring a zone west at 40. */
+  async function openPainted(): Promise<void> {
+    const sol = { ...SCENARIO_RESULT.galaxy.systems[0], fe_zone: newFeZone("w") };
+    vi.mocked(ipc.openSave).mockResolvedValue({
+      ...SCENARIO_RESULT,
+      painted: true,
+      galaxy: {
+        ...SCENARIO_RESULT.galaxy,
+        systems: [sol, ...SCENARIO_RESULT.galaxy.systems.slice(1)],
+      },
+    });
+    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
+  }
+
+  it("are offered on a system, on empty space and on a ring only under the Paint a Galaxy layer", async () => {
+    await openPainted();
+    const chrome = useMapChromeStore.getState();
+    chrome.openContextMenu({ target: { kind: "system", id: 3 }, x: 0, y: 0 });
+    expect(menu()).toContain(">Add fallen empire zone</button>");
+    chrome.openContextMenu({ target: { kind: "space", x: 0, y: 200 }, x: 0, y: 0 });
+    expect(menu()).toContain(">Fallen empire zone here</button>");
+    expect(menu()).toContain(">Recompute automatic fallen empire zones</button>");
+    chrome.openContextMenu({ target: { kind: "feZone", anchor: 0 }, x: 0, y: 0 });
+    expect(menu()).toContain(">Remove fallen empire zone</button>");
+    expect(menu()).toContain(">Select Sol</button>");
+
+    useFileSessionStore.setState({ painted: false });
+    chrome.openContextMenu({ target: { kind: "system", id: 3 }, x: 0, y: 0 });
+    expect(menu()).not.toContain("fallen empire zone");
+    chrome.openContextMenu({ target: { kind: "space", x: 0, y: 200 }, x: 0, y: 0 });
+    expect(menu()).not.toContain("allen empire zone");
+  });
+
+  it("refuses a second zone on an anchor, and says so", async () => {
+    await openPainted();
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
+    const item = menu().match(/<button[^>]*>Add fallen empire zone<\/button>/)![0];
+    expect(item).toContain("disabled=");
+    expect(item).toContain("This system already anchors a zone");
   });
 });

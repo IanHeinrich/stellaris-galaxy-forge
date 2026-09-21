@@ -12,6 +12,7 @@ import type { EntitySource } from "../generated/EntitySource";
 import type { EntityView } from "../generated/EntityView";
 import type { ExportReport } from "../generated/ExportReport";
 import type { ExportResult } from "../generated/ExportResult";
+import type { FeZone } from "../generated/FeZone";
 import type { Op } from "../generated/Op";
 import type { OpenResult } from "../generated/OpenResult";
 import type { SaveFile } from "../generated/SaveFile";
@@ -120,6 +121,15 @@ export function getEntitySchema(kind: EntityKind): Promise<EntitySchema> {
 /** Apply one edit to the session. Rejects with `SgfError` (kind `op`) when a precondition fails. */
 export function applyOp(op: Op): Promise<EditResult> {
   return invoke<EditResult>("apply_op", { op });
+}
+
+/**
+ * The entries of one `SetFeZones` that removes the stale automatic fallen empire zones and adds
+ * the ones the Paint a Galaxy mod would offer; empty when the zones already stand as the mod
+ * would place them.
+ */
+export function feZoneRecompute(): Promise<Array<[number, FeZone | null]>> {
+  return invoke<Array<[number, FeZone | null]>>("fe_zone_recompute");
 }
 
 /** Undo the last edit; resolves null when there is nothing to undo. */

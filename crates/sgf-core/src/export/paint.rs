@@ -1,8 +1,9 @@
 //! The Paint a Galaxy profile, laid over a plain draft: the header its companion mod
 //! sizes its fixes by, its spawn idiom on every spawn system, its random-list
-//! initializer on the empty systems around them, and its flags on wormhole pairs.
-//! Everything written here is what `generate_galaxy_txt.ts` in the app writes for the
-//! same map, so the mod treats the file as one it painted.
+//! initializer on the empty systems around them, its flags on wormhole pairs, and the
+//! fallen empire zones the mod itself would place. Everything written here is what
+//! `generate_galaxy_txt.ts` in the app writes for the same map, so the mod treats the
+//! file as one it painted.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
@@ -10,6 +11,7 @@ use crate::as_u32;
 use crate::emit::coord;
 use crate::export::{Draft, SpawnDraft, SystemDraft, report};
 use crate::format::scenario::emit::ScenarioOptions;
+use crate::format::scenario::fe_zone::{self, Site};
 use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, HEADER_NOTE, RL_BASIC, WORMHOLE_FLAG_PREFIX,
     basic_initializer,
@@ -24,8 +26,9 @@ const RANDOM_VALUES: usize = 10;
 
 /// Rewrite `draft` in Paint a Galaxy's shape: the spawn systems are the capitals of
 /// the playable countries and every system already marked as a spawn; a seat the plain
-/// profile wrote anywhere else is cleared.
-pub(super) fn decorate(draft: &mut Draft, options: &ScenarioOptions, graph: &GalaxyGraph) {
+/// profile wrote anywhere else is cleared. Returns how many automatic fallen empire
+/// zones were written.
+pub(super) fn decorate(draft: &mut Draft, options: &ScenarioOptions, graph: &GalaxyGraph) -> u32 {
     let spawns = spawn_systems(graph);
     draft.header = header(options, draft.systems.len(), spawns.len());
     for system in &mut draft.systems {
@@ -34,6 +37,7 @@ pub(super) fn decorate(draft: &mut Draft, options: &ScenarioOptions, graph: &Gal
     mark_spawns(draft, graph, &spawns);
     fill_neighbours(draft, &spawns);
     flag_wormholes(draft, &graph.bypasses);
+    place_fe_zones(draft, graph)
 }
 
 /// The header for `systems` systems of which `spawns` are spawn points, on Forge's
@@ -203,6 +207,35 @@ fn flag_wormholes(draft: &mut Draft, bypasses: &[BypassLink]) {
             );
         }
     }
+}
+
+/// The zones the mod would place by itself, on the systems it would anchor them to. A
+/// system the galaxy already gives a zone keeps it and anchors no other.
+fn place_fe_zones(draft: &mut Draft, galaxy: &Galaxy) -> u32 {
+    let sites: Vec<Site<'_>> = draft
+        .systems
+        .iter()
+        .map(|system| Site {
+            id: system.id,
+            x: system.x,
+            y: system.y,
+            zone: galaxy
+                .systems
+                .get(&system.id)
+                .and_then(|s| s.fe_zone.as_ref()),
+        })
+        .collect();
+    let candidates = fe_zone::candidates(&sites);
+    let index: HashMap<u32, usize> = draft
+        .systems
+        .iter()
+        .enumerate()
+        .map(|(i, system)| (system.id, i))
+        .collect();
+    for (id, zone) in &candidates {
+        add_flags(&mut draft.systems[index[id]], fe_zone::flags(zone));
+    }
+    as_u32(candidates.len())
 }
 
 fn add_flags(system: &mut SystemDraft, flags: impl IntoIterator<Item = String>) {

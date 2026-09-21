@@ -26,6 +26,7 @@ export const getSystem = command("getSystem");
 export const search = command("search");
 export const warmDetails = command("warmDetails");
 export const applyOp = command("applyOp");
+export const feZoneRecompute = command("feZoneRecompute");
 export const undo = command("undo");
 export const redo = command("redo");
 export const closeSave = command("closeSave");

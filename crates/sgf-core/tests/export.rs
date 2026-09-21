@@ -7,6 +7,7 @@ use sgf_core::document;
 use sgf_core::emit::rounded;
 use sgf_core::export::policy::Category;
 use sgf_core::export::{self, DroppedBypasses, ExportReport, HomeInitializer, ScenarioProfile};
+use sgf_core::format::scenario::fe_zone::{self, FeKind};
 use sgf_core::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
@@ -540,6 +541,80 @@ static_galaxy_scenario = {
         }
     }
     assert_eq!(pairs, 6);
+}
+
+#[test]
+fn the_paint_a_galaxy_profile_places_the_mods_own_fallen_empire_zones() {
+    let save = common::open();
+    let options = export::options_for(&save.graph, NAME);
+    let (plain, report) = export::scenario_text(
+        &save.graph,
+        &options,
+        &no_names,
+        &no_sources,
+        ScenarioProfile::Plain,
+    );
+    assert_eq!(report.fallen_empire_zones, 0);
+    assert!(
+        !String::from_utf8(plain)
+            .unwrap()
+            .contains("painted_galaxy_fe_spawn")
+    );
+
+    let (paint, report) = export::scenario_text(
+        &save.graph,
+        &options,
+        &no_names,
+        &no_sources,
+        ScenarioProfile::PaintAGalaxy,
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&paint)
+            .matches("set_star_flag = painted_galaxy_fe_spawn ")
+            .count() as u32,
+        report.fallen_empire_zones
+    );
+    let reopened = reopen(paint);
+    let galaxy: &Galaxy = &reopened.graph;
+    let mut centres = Vec::new();
+    for id in &galaxy.order {
+        let anchor = &galaxy.systems[id];
+        let Some(zone) = &anchor.fe_zone else {
+            continue;
+        };
+        assert_eq!(zone.kind, FeKind::Random, "{id}");
+        assert_eq!(zone.distance, 40, "{id}");
+        assert!(!zone.preferred && !zone.fallback, "{id}");
+        let centre = fe_zone::centre((anchor.x, anchor.y), zone);
+        assert!(!fe_zone::is_off_map(centre), "{id}: {centre:?}");
+        assert!(centre.0.hypot(centre.1) >= 130.0, "{id}: {centre:?}");
+        for system in galaxy.systems.values() {
+            assert!(
+                !fe_zone::inside(centre, (system.x, system.y)),
+                "{id}: {} stands in the ring at {centre:?}",
+                system.id
+            );
+        }
+        for &(other, other_centre) in &centres {
+            assert!(
+                !fe_zone::overlaps(centre, other_centre),
+                "{id} and {other} overlap at {centre:?} and {other_centre:?}"
+            );
+        }
+        centres.push((*id, centre));
+    }
+    assert_eq!(centres.len() as u32, report.fallen_empire_zones);
+    assert!(report.fallen_empire_zones > 0);
+    assert_eq!(
+        fe_zone::candidates(&fe_zone::sites(galaxy)),
+        [],
+        "every anchor the rule would take already has one"
+    );
+    assert!(
+        sgf_core::validate::validate(&reopened.graph)
+            .iter()
+            .all(|issue| !issue.code.as_str().starts_with("fe_zone"))
+    );
 }
 
 #[test]

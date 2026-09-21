@@ -56,6 +56,12 @@ pub fn run(
     if matches!(profile, Profile::Plain) {
         print_report(&report);
     }
+    if report.fallen_empire_zones > 0 {
+        println!(
+            "fallen empire zones: {} automatic",
+            report.fallen_empire_zones
+        );
+    }
     Ok(Outcome::Ok)
 }
 

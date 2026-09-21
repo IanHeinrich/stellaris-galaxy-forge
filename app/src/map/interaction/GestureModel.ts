@@ -11,12 +11,14 @@ type Drag =
   | { kind: "lane"; from: number; target: LaneTarget | null }
   | { kind: "lanes"; from: number[]; target: LaneTarget | null }
   | { kind: "nebula"; index: number }
-  | { kind: "nebulaRadius"; index: number };
+  | { kind: "nebulaRadius"; index: number }
+  | { kind: "feZone"; anchor: number };
 
 function idleCursor(input: MapInput): string {
   if (input.zone === "port" || (input.zone === "star" && input.shift)) return "crosshair";
   if (input.zone === "star") return "move";
   if (input.midpointHit) return "pointer";
+  if (input.feZone) return "move";
   if (input.nebula) return nebulaCursor(input.nebula);
   return "";
 }
@@ -65,6 +67,7 @@ export class GestureModel implements MapModel {
       case "moveGroup":
       case "nebula":
       case "nebulaRadius":
+      case "feZone":
       case "pan":
         return "grabbing";
       default:
@@ -93,6 +96,9 @@ export class GestureModel implements MapModel {
       case "nebulaRadius":
         intent.endNebula();
         break;
+      case "feZone":
+        intent.endFeZone();
+        break;
     }
     this.press = null;
     this.drag = null;
@@ -105,6 +111,8 @@ export class GestureModel implements MapModel {
         intent.contextMenu({ kind: "system", id: input.system }, input.sx, input.sy);
       } else if (input.lane) {
         intent.contextMenu({ kind: "lane", lane: input.lane }, input.sx, input.sy);
+      } else if (input.feZone) {
+        intent.contextMenu({ kind: "feZone", anchor: input.feZone.anchor }, input.sx, input.sy);
       } else if (input.nebula) {
         intent.contextMenu({ kind: "nebula", index: input.nebula.index }, input.sx, input.sy);
       } else {
@@ -153,6 +161,9 @@ export class GestureModel implements MapModel {
       case "nebulaRadius":
         intent.previewNebulaRadius(this.drag.index, input.wx, input.wy);
         return "consumed";
+      case "feZone":
+        intent.previewFeZone(this.drag.anchor, input.wx, input.wy);
+        return "consumed";
     }
   }
 
@@ -197,6 +208,9 @@ export class GestureModel implements MapModel {
       case "nebulaRadius":
         intent.commitNebulaRadius(drag.index, input.wx, input.wy);
         break;
+      case "feZone":
+        intent.commitFeZone(drag.anchor, input.wx, input.wy);
+        break;
     }
   }
 
@@ -208,6 +222,8 @@ export class GestureModel implements MapModel {
       intent.cut(press.lane.a, press.lane.b);
     } else if (press.lane) {
       intent.selectLane(press.lane);
+    } else if (press.feZone) {
+      intent.selectFeZone(press.feZone.anchor);
     } else if (press.nebula) {
       intent.selectNebula(press.nebula.index);
     } else if (!press.ctrl && !press.shift) {
@@ -219,6 +235,7 @@ export class GestureModel implements MapModel {
 function dragFrom(press: Press): Drag {
   if (press.system === null) {
     if (press.shift) return press.lane ? { kind: "none" } : { kind: "marquee" };
+    if (press.feZone) return { kind: "feZone", anchor: press.feZone.anchor };
     if (press.nebula) {
       const index = press.nebula.index;
       switch (press.nebula.part) {

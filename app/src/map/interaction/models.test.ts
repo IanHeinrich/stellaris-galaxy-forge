@@ -38,6 +38,10 @@ function recorder(): MapIntent & { calls: Call[] } {
     previewNebulaRadius: rec("previewNebulaRadius"),
     commitNebulaRadius: rec("commitNebulaRadius"),
     endNebula: rec("endNebula"),
+    selectFeZone: rec("selectFeZone"),
+    previewFeZone: rec("previewFeZone"),
+    commitFeZone: rec("commitFeZone"),
+    endFeZone: rec("endFeZone"),
     contextMenu: rec("contextMenu"),
   };
 }
@@ -63,6 +67,7 @@ function at(
     lane: null,
     midpointHit: false,
     snap: null,
+    feZone: null,
     nebula: null,
     ...extra,
   };
@@ -79,6 +84,7 @@ const RING = { index: 3, part: "ring" } as const;
 const CENTRE = { index: 3, part: "centre" } as const;
 const HANDLE_X = { index: 3, part: "handle", axis: "x" } as const;
 const HANDLE_Y = { index: 3, part: "handle", axis: "y" } as const;
+const ZONE = { anchor: 9 } as const;
 
 describe("GestureModel", () => {
   it("clicks select a system, a lane, or clear both", () => {
@@ -499,6 +505,43 @@ describe("GestureModel on a nebula", () => {
       ["contextMenu", { kind: "nebula", index: 3 }, 10, 20],
       ["contextMenu", { kind: "space", x: 10, y: 20 }, 10, 20],
     ]);
+  });
+
+  it("a click on a zone's ring selects its anchor, and a drag moves the ring and commits the last point", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    click(model, intent, { feZone: ZONE });
+    model.handle(at("down", 10, 10, { feZone: ZONE }), intent);
+    model.handle(at("move", 30, 30), intent);
+    expect(model.cursor()).toBe("grabbing");
+    model.handle(at("move", 40, 45), intent);
+    model.handle(at("up", 40, 45), intent);
+    expect(intent.calls).toEqual([
+      ["selectFeZone", 9],
+      ["previewFeZone", 9, 30, 30],
+      ["previewFeZone", 9, 40, 45],
+      ["commitFeZone", 9, 40, 45],
+    ]);
+  });
+
+  it("Escape drops a ring drag without committing it", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    model.handle(at("down", 10, 10, { feZone: ZONE }), intent);
+    model.handle(at("move", 30, 30), intent);
+    model.reset(intent);
+    model.handle(at("up", 30, 30), intent);
+    expect(intent.calls).toEqual([["previewFeZone", 9, 30, 30], ["endFeZone"]]);
+  });
+
+  it("right-click on a ring targets the zone by its anchor, and the ring's cursor says it moves", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    model.handle(at("move", 10, 20, { feZone: ZONE }), intent);
+    expect(model.cursor()).toBe("move");
+    model.handle(at("down", 10, 20, { feZone: ZONE, button: 2 }), intent);
+    model.handle(at("up", 10, 20, { feZone: ZONE, button: 2 }), intent);
+    expect(intent.calls).toEqual([["contextMenu", { kind: "feZone", anchor: 9 }, 10, 20]]);
   });
 
   it("shift-drag over a nebula still draws a marquee", () => {

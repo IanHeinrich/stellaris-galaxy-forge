@@ -76,6 +76,7 @@ describe("layers", () => {
       "special",
       "initializers",
       "spawns",
+      "feZones",
       "labels",
       "details",
       "colonies",

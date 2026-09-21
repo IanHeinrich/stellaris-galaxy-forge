@@ -30,6 +30,8 @@ export type ContextTarget =
   | { kind: "system"; id: number }
   | { kind: "lane"; lane: LaneRef }
   | { kind: "nebula"; index: number }
+  /** A fallen empire zone's ring, named by the system that anchors it. */
+  | { kind: "feZone"; anchor: number }
   | { kind: "space"; x: number; y: number };
 
 /** A context menu for a system, a lane or empty space, anchored in map-area pixels. */

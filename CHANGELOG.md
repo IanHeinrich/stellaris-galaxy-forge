@@ -28,6 +28,18 @@ a release is made.
   mod, with "Not for me" to hide it.
 - Save As for a new Paint a Galaxy scenario opens in the mod's folder, and
   File → "Save into the Paint a Galaxy mod…" saves an open one there.
+- Fallen empire zones for the Paint a Galaxy mod: the empty rings where it
+  creates a fallen empire's systems at game start. Add one from a system's
+  menu or on empty space, drag it, and set its type, direction, distance
+  and fallback in the inspector. A ring that would cover a system is
+  refused, or reported in Issues if a move brings one in. Export as
+  scenario adds the mod's automatic zones, and "Recompute automatic
+  fallen empire zones" redoes them after edits.
+- The seat select reads Enabled, Preferred, Sol, then Reserved A to Z,
+  with a line saying what the mod does with each. The map shows a
+  reserved seat's letter and a star on a preferred one. The vanilla
+  human and AI reservations are hidden under the layer, since the mod
+  does not read them.
 
 ## [0.6.0] - 2026-09-20
 

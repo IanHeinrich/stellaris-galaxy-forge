@@ -94,9 +94,9 @@ pub fn scenario_text(
     sources: SourceResolver<'_>,
     profile: ScenarioProfile,
 ) -> (Vec<u8>, ExportReport) {
-    let (mut draft, report) = draft(graph, options, resolve, sources);
+    let (mut draft, mut report) = draft(graph, options, resolve, sources);
     if profile == ScenarioProfile::PaintAGalaxy {
-        paint::decorate(&mut draft, options, graph);
+        report.fallen_empire_zones = paint::decorate(&mut draft, options, graph);
     }
     (render(&draft), report)
 }

@@ -32,6 +32,8 @@ export interface MapLayer {
   setShownKinds?(kinds: ReadonlySet<SpecialKind>): void;
   /** The selected nebula, by file-order index, drawn with its resize handles; `null` when none. */
   setSelectedNebula?(index: number | null): void;
+  /** The selected systems, for a layer that draws what one of them owns differently. */
+  setSelection?(ids: readonly number[]): void;
   /** The validator's latest findings. */
   setIssues?(issues: readonly Issue[]): void;
   /** Systems whose label is placed before any other, whatever their rank. */

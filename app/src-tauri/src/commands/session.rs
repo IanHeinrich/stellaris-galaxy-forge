@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use sgf_core::archive;
 use sgf_core::export::{self, ExportReport, ScenarioOptions, ScenarioProfile};
+use sgf_core::format::scenario::fe_zone::{self, FeZone};
 use sgf_core::format::scenario::is_painted;
 use sgf_core::library;
 use sgf_core::ops::Op;
@@ -241,6 +242,24 @@ pub fn apply_op(state: State<'_, AppState>, op: Op) -> Result<EditResult, SgfErr
     let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
     let result = session.apply(op)?;
     Ok(session.edit_result(result))
+}
+
+/// The entries of one `SetFeZones` op that replace the open scenario's automatic
+/// fallen empire zones with the ones Paint a Galaxy's own rule would place now; the
+/// zones the map author placed by hand are not among them. The app applies the op.
+#[tauri::command]
+pub fn fe_zone_recompute(
+    state: State<'_, AppState>,
+) -> Result<Vec<(u32, Option<FeZone>)>, SgfError> {
+    let guard = lock(&state);
+    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    if session.kind() != DocumentKind::Scenario {
+        return Err(SgfError::new(
+            ErrorKind::Op,
+            "only a scenario has fallen empire zones",
+        ));
+    }
+    Ok(fe_zone::recompute(&fe_zone::sites(&session.graph)))
 }
 
 #[tauri::command]

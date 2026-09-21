@@ -239,7 +239,9 @@ pub enum Op {
     /// flag out of the system's `effect` block and writes the zone's flags at its end,
     /// writing the block when the system has none; `None` takes the zone flags out, and
     /// the block with them when nothing else stood in it. Every other statement of the
-    /// block is left byte for byte. Scenario documents only.
+    /// block is left byte for byte. A zone whose ring holds another system, or whose
+    /// centre lies off the map, is refused: the mod builds the fallen empire's systems
+    /// in that ring at game start. Scenario documents only.
     SetFeZone {
         id: u32,
         zone: Option<FeZone>,
@@ -420,6 +422,12 @@ pub enum OpError {
     ScriptedSpawn(u32),
     #[error("a reserved seat is named by one letter, not {0:?}")]
     InvalidSeatLetter(String),
+    #[error(
+        "Fallen empire zone from {anchor} is blocked by {blocker}: the mod needs the ring empty"
+    )]
+    FeZoneBlocked { anchor: String, blocker: String },
+    #[error("Fallen empire zone from {anchor} is off the map")]
+    FeZoneOffMap { anchor: String },
     #[error("no lanes given")]
     Empty,
     #[error("system {0} is listed more than once")]

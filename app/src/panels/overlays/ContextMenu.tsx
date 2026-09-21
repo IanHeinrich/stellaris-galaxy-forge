@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
+import { addFeZoneRefusal } from "../../lib/feZone";
 import { newSystemRows } from "../../lib/initializer/initializerBrowser";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore, usePaintLayer } from "../../store/fileSessionStore";
@@ -43,6 +44,11 @@ export function ContextMenu() {
   const promptNebulaAt = useEditorStore((s) => s.promptNebulaAt);
   const selectNebula = useEditorStore((s) => s.selectNebula);
   const removeSystem = useEditorStore((s) => s.removeSystem);
+  const select = useEditorStore((s) => s.select);
+  const setFeZone = useEditorStore((s) => s.setFeZone);
+  const addFeZone = useEditorStore((s) => s.addFeZone);
+  const addFeZoneAt = useEditorStore((s) => s.addFeZoneAt);
+  const recomputeFeZones = useEditorStore((s) => s.recomputeFeZones);
   const capabilities = useFileSessionStore((s) => s.capabilities);
   const paint = usePaintLayer();
   const systems = useGalaxyStore((s) => s.systems);
@@ -50,9 +56,11 @@ export function ContextMenu() {
   const named = useSystemNames(
     menuTarget?.kind === "system"
       ? [menuTarget.id]
-      : menuTarget?.kind === "lane"
-        ? [menuTarget.lane.a, menuTarget.lane.b]
-        : NO_SYSTEMS,
+      : menuTarget?.kind === "feZone"
+        ? [menuTarget.anchor]
+        : menuTarget?.kind === "lane"
+          ? [menuTarget.lane.a, menuTarget.lane.b]
+          : NO_SYSTEMS,
   );
   const gameData = useGameDataStore((s) => s.status === "ready");
   const defaultKey = useInitializerBrowserStore((s) => s.defaultKey);
@@ -87,6 +95,7 @@ export function ContextMenu() {
   const { target } = contextMenu;
   const canCreate = supports(documentCapabilities({ capabilities }), "create_systems");
   const canNebulae = supports(documentCapabilities({ capabilities }), "nebulae");
+  const zones = canCreate && paint;
 
   if (target.kind === "space") {
     if (!canCreate && !canNebulae) return null;
@@ -143,6 +152,32 @@ export function ContextMenu() {
             New nebula here
           </button>
         )}
+        {zones && (
+          <>
+            <button
+              type="button"
+              role="menuitem"
+              className="menu-item context-menu-separated"
+              onClick={() => {
+                void addFeZoneAt({ x: target.x, y: target.y });
+                closeContextMenu();
+              }}
+            >
+              Fallen empire zone here
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="menu-item"
+              onClick={() => {
+                void recomputeFeZones();
+                closeContextMenu();
+              }}
+            >
+              Recompute automatic fallen empire zones
+            </button>
+          </>
+        )}
       </div>
     );
   }
@@ -160,6 +195,7 @@ export function ContextMenu() {
     const weighted =
       weighable.length > 0 &&
       weighable.every((s) => s.spawn_weight !== null || s.spawn_script !== null);
+    const zoneRefusal = system === undefined ? null : addFeZoneRefusal(system, systems);
     return (
       <div
         ref={ref}
@@ -244,6 +280,20 @@ export function ContextMenu() {
             {weighable.length > 1 && ` (${weighable.length} systems)`}
           </button>
         )}
+        {zones && (
+          <button
+            type="button"
+            role="menuitem"
+            disabled={zoneRefusal !== null}
+            title={zoneRefusal ?? undefined}
+            onClick={() => {
+              void addFeZone(target.id);
+              closeContextMenu();
+            }}
+          >
+            Add fallen empire zone
+          </button>
+        )}
         {canCreate && (
           <button
             type="button"
@@ -294,6 +344,42 @@ export function ContextMenu() {
           }}
         >
           Delete nebula
+        </button>
+      </div>
+    );
+  }
+
+  if (target.kind === "feZone") {
+    const name = named[0];
+    return (
+      <div
+        ref={ref}
+        className="context-menu"
+        role="menu"
+        aria-label={`Fallen empire zone of ${name}`}
+        onKeyDown={onKeyDown}
+        style={{ left: contextMenu.x, top: contextMenu.y }}
+      >
+        <div className="context-menu-header">Fallen empire zone</div>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            void setFeZone(target.anchor, null);
+            closeContextMenu();
+          }}
+        >
+          Remove fallen empire zone
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            void select(target.anchor);
+            closeContextMenu();
+          }}
+        >
+          Select {name}
         </button>
       </div>
     );

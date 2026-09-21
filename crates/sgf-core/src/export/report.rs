@@ -29,6 +29,9 @@ pub struct ExportReport {
     pub by_category: Vec<CategoryCount>,
     /// Sorted by source.
     pub sources: Vec<SourceCount>,
+    /// Fallen empire zones the Paint a Galaxy profile placed by the mod's own rule;
+    /// 0 for the plain profile, which writes none.
+    pub fallen_empire_zones: u32,
 }
 
 /// An empire seat whose initializer may only fit the empire that started there.
@@ -195,6 +198,7 @@ pub(super) fn build(
             .into_iter()
             .map(|(source, systems)| SourceCount { source, systems })
             .collect(),
+        fallen_empire_zones: 0,
     }
 }
 

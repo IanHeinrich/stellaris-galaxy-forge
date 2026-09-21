@@ -420,14 +420,47 @@ Systems can be added, deleted and named. Each can be given an initializer,
 which is what the game will place there: the star, its planets and moons,
 their resources, megastructures, dig sites and starbase, all of which the
 inspector and the map show before the game is ever started. A system can
-carry a spawn weight, or be held for a human player or for the AI; in a
-scenario whose Paint a Galaxy layer is on, marking a system as a spawn
-point offers its seat's kind — enabled, preferred, reserved A–Z or Sol —
-from a select instead, since the mod computes the spawn weight from the
-kind rather than reading a number; an existing spawn point keeps its base
-weight until you change it yourself. The scenario's header keys are
-listed and edited one by one, and a pair of systems can be barred from
-ever being linked.
+carry a spawn weight, or be held for a human player or for the AI. The
+scenario's header keys are listed and edited one by one, and a pair of
+systems can be barred from ever being linked.
+
+In a scenario whose Paint a Galaxy layer is on, a spawn point is a seat
+the mod fills by kind, so the inspector offers the kind from a select
+instead of a weight. Enabled means any empire may start there. Preferred
+seats are filled first, and in single player the player is seated first,
+so one preferred seat is where you start. Reserved A to Z seats only an
+empire whose species carries the matching Reserved Spawn trait, which
+comes from the Reserved Spawns submod on the Steam Workshop, so subscribe
+to it only if you reserve seats. Sol is a reserved seat the United
+Nations of Earth counts as holding. On the map a reserved seat shows its
+letter, Sol shows "Sol" and a preferred seat gets a star. The human and
+AI reservations are hidden under the layer because the mod does not read
+them. A system that still carries a plain weight in such a file shows a
+"Use a Paint a Galaxy seat" button that converts it.
+
+A fallen empire zone is empty space. When the game starts, the Paint a
+Galaxy mod creates a fallen empire's home system at the centre of the
+zone and its other systems around it, then links them by hyperlane to
+systems nearby. Nothing already on the map is used or moved, so the ring
+must stay clear of your systems. The map draws each zone as a dashed ring
+of radius 30 with a line to the system it is measured from, in one of
+eight compass directions at a distance from 30 to 200. Right-click a
+system and choose "Add fallen empire zone", or right-click empty space
+and choose "Fallen empire zone here". Drag the ring to move it between
+the positions the mod accepts. Clicking the ring selects its system, and
+the inspector's Fallen empire zone section sets the type of empire
+(random, or one of the six kinds), the direction, the distance and
+whether the mod should fill the ring with ordinary systems when no fallen
+empire lands there. A ring that would cover a system is refused, and one
+that later comes to cover a system after a move shows in Issues.
+
+The mod also places fallen empires in rings you did not draw. Export as
+scenario adds those automatic zones the way Paint a Galaxy itself does,
+one per system where a ring of radius 30 fits, and they are drawn faint.
+After moving systems around, right-click empty space and choose
+"Recompute automatic fallen empire zones" to redo them in one undoable
+step. Editing an automatic zone makes it yours, and yours are never
+recomputed.
 
 The initializer browser: Shift+I, the inspector, or the map's right-click
 menu ("Set initializer…" on a system, "New system from…" on empty space)

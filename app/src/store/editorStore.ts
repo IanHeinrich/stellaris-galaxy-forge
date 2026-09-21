@@ -2,12 +2,23 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
+import type { FeDirection } from "../generated/FeDirection";
+import type { FeZone } from "../generated/FeZone";
 import type { HistoryView } from "../generated/HistoryView";
 import type { Op } from "../generated/Op";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { documentCapabilities, supports } from "../lib/capabilities";
+import {
+  feZoneBlocked,
+  feZoneCentre,
+  feZoneRefusal,
+  firstFreeDirection,
+  newFeZone,
+  NO_FREE_DIRECTION,
+  snapFeZone,
+} from "../lib/feZone";
 import { enabledScript } from "../lib/paint";
 import {
   linkedPairs,
@@ -135,6 +146,16 @@ export interface EditorState {
   ): Promise<boolean>;
   /** Removes a system and every lane touching it, once the user has confirmed. */
   removeSystem(id: number): Promise<void>;
+  /** Writes the fallen empire zone `id` anchors, or removes it with null. */
+  setFeZone(id: number, zone: FeZone | null): Promise<boolean>;
+  /** Gives `id` a zone in the first clear direction at the default distance, and selects it. */
+  addFeZone(id: number): Promise<boolean>;
+  /** Anchors a zone on the system nearest a world point, its ring snapped to the point. */
+  addFeZoneAt(point: { x: number; y: number }): Promise<boolean>;
+  /** Moves the ring `id` anchors, keeping its kind; the zone becomes the user's own. */
+  moveFeZone(id: number, direction: FeDirection, distance: number): Promise<boolean>;
+  /** Replaces the automatic zones with the ones the mod would offer now. */
+  recomputeFeZones(): Promise<void>;
   /** Adds a lane between every unlinked pair of selected systems, up to `CONNECT_ALL_MAX` of them. */
   connectSelected(): Promise<void>;
   /** Adds the missing lanes of the β-skeleton over the selected systems at the chrome's `meshBeta`. */
@@ -347,6 +368,58 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     await get().applyOp({ type: "RemoveSystem", id });
   },
 
+  async setFeZone(id, zone) {
+    return get().applyOp({ type: "SetFeZone", id, zone });
+  },
+
+  async addFeZone(id) {
+    const anchor = systems().get(id);
+    if (!anchor) return false;
+    const direction = firstFreeDirection(anchor, systems());
+    if (direction === null) {
+      useFileSessionStore.getState().setError(NO_FREE_DIRECTION);
+      return false;
+    }
+    return placeFeZone(id, newFeZone(direction));
+  },
+
+  async addFeZoneAt(point) {
+    const anchor = nearestSystem(point);
+    if (!anchor) return false;
+    const snapped = snapFeZone(anchor, point);
+    const blocked = feZoneBlocked(feZoneCentre(anchor, snapped), systems(), anchor.id);
+    if (blocked !== null) {
+      const name = useGalaxyStore.getState().systemName;
+      useFileSessionStore.getState().setError(feZoneRefusal(blocked, (s) => name(s.id)));
+      return false;
+    }
+    const zone = anchor.fe_zone ?? newFeZone(snapped.direction, snapped.distance);
+    return placeFeZone(anchor.id, { ...zone, ...snapped, preferred: true });
+  },
+
+  async moveFeZone(id, direction, distance) {
+    const zone = systems().get(id)?.fe_zone;
+    if (!zone) return false;
+    return get().setFeZone(id, { ...zone, direction, distance, preferred: true });
+  },
+
+  async recomputeFeZones() {
+    let entries: Array<[number, FeZone | null]>;
+    try {
+      entries = await ipc.feZoneRecompute();
+    } catch (e) {
+      useFileSessionStore.getState().setError(ipc.errorMessage(e));
+      return;
+    }
+    if (entries.length === 0) {
+      useFileSessionStore.getState().setError(NOTHING_TO_RECOMPUTE);
+      return;
+    }
+    if (await get().applyOp({ type: "SetFeZones", entries })) {
+      useMapChromeStore.getState().showLayer("feZones");
+    }
+  },
+
   async connectSelected() {
     const { selection } = get();
     if (selection.length > CONNECT_ALL_MAX) return;
@@ -436,6 +509,34 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
 /** The session a late answer still belongs to; a document closing or opening leaves it to nobody. */
 let session = 0;
+
+/** What the status bar says when the automatic zones already stand as the mod would place them. */
+export const NOTHING_TO_RECOMPUTE =
+  "The automatic fallen empire zones are already as the mod would place them.";
+
+/** Writes a zone by hand, shows the rings, and selects the anchor so the inspector shows it. */
+async function placeFeZone(id: number, zone: FeZone): Promise<boolean> {
+  const editor = useEditorStore.getState();
+  if (!(await editor.setFeZone(id, zone))) return false;
+
+  useMapChromeStore.getState().showLayer("feZones");
+  await editor.select(id);
+  return true;
+}
+
+/** The system nearest a world point, wherever it is; null for a galaxy with none. */
+function nearestSystem(point: { x: number; y: number }): SystemNode | null {
+  let best: SystemNode | null = null;
+  let bestD2 = Infinity;
+  for (const s of systems().values()) {
+    const d2 = (s.x - point.x) ** 2 + (s.y - point.y) ** 2;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = s;
+    }
+  }
+  return best;
+}
 
 let edits: Promise<unknown> = Promise.resolve();
 

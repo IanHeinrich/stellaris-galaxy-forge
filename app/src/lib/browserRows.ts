@@ -258,6 +258,9 @@ const ISSUE_TITLES: Record<IssueCode, string> = {
   position_range: "Position written as a range the generator picks in",
   export_dropped: "Not carried into the scenario",
   home_initializer: "Home system with a non-generic initializer",
+  fe_zone_blocked: "Fallen empire zone covers a system",
+  fe_zone_overlap: "Fallen empire zones overlap",
+  fe_zone_off_map: "Fallen empire zone lies off the map",
 };
 
 export function issueTitle(code: IssueCode): string {

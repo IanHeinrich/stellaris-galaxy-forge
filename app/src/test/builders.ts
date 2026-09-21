@@ -50,6 +50,7 @@ export function exportReport(over: Partial<ExportReport> = {}): ExportReport {
       { category: "generic", systems: 774 },
     ],
     sources: [],
+    fallen_empire_zones: 0,
     ...over,
   };
 }

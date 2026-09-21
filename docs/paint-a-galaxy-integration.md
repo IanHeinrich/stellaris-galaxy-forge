@@ -181,8 +181,45 @@ effect = { set_star_flag = painted_galaxy_wormhole_<n> set_star_flag = empire_cl
 ```
 
 Preferred, reserved and Sol seats are not chosen at export; the seat kind
-is changed afterwards in the inspector's Spawn point section. Custom-
-initializer and fallen-empire flags are not written.
+is changed afterwards in the inspector's Spawn point section. The
+custom-initializer flag is not written.
+
+### Fallen empire zones
+
+A zone is star flags on an anchor system:
+
+```
+effect = { set_star_flag = painted_galaxy_fe_spawn
+           set_star_flag = painted_galaxy_fe_spawn_<e|se|s|sw|w|nw|n|ne>
+           set_star_flag = painted_galaxy_fe_spawn_<random|materialist|spiritualist|xenophobe|xenophile|machine|hive>
+           set_star_flag = painted_galaxy_fe_spawn_distance_<30..200 step 10>
+           set_star_flag = painted_galaxy_fe_spawn_preferred    # placed by the user
+           set_star_flag = painted_galaxy_fe_spawn_fallback }   # fill with random systems if unused
+```
+
+The zone's centre is the anchor's position plus, for distance `d` and
+`k = d/√2`: e (−d, 0), se (−k, +k), s (0, +d), sw (+k, +k), w (+d, 0),
+nw (+k, −k), n (0, −d), ne (−k, −k). At game start the mod spawns the
+fallen empire's home system there with `spawn_system` at exactly `d` in
+that orientation, and its satellites 15–25 units around it. A missing kind
+reads as `random`, a missing distance as 40, and Forge reads them the same
+way.
+
+Forge edits only the `painted_galaxy_fe_spawn*` flags of the anchor's
+`effect` block. Every other flag stays where it is, including the
+`painted_galaxy_fe_custom_connection*` flags, which Forge neither writes
+nor shows. A zone whose ring of radius 30 would contain a system, or whose
+centre lies beyond ±470, is refused. Every change made in Forge sets
+`painted_galaxy_fe_spawn_preferred`.
+
+Automatic candidates follow Paint a Galaxy's own rule. For every system
+that anchors no zone, in direction order e, se, s, sw, w, nw, n, ne, the
+first direction whose centre `C` at distance 40 has `|C| ≥ 130`,
+`dist(C, (−420, −420)) ≥ 100`, `|C.x|, |C.y| ≤ 470`, no system within 30
+and no accepted zone centre within 60 becomes a `random`, non-preferred
+zone. Export as scenario runs it over a save's systems, and "Recompute
+automatic fallen empire zones" removes every non-preferred zone and runs
+it again as one op.
 
 ## What Forge reads
 

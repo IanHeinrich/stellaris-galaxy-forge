@@ -1,0 +1,115 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../../../../api/ipc");
+vi.mock("../../../../../api/events");
+vi.mock("@tauri-apps/plugin-dialog", () => import("../../../../../api/__mocks__/dialog"));
+vi.mock("../../../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
+vi.mock("zustand", () => import("../../../../../test/zustandSnapshot"));
+
+import type { FeZone } from "../../../../../generated/FeZone";
+import { newFeZone } from "../../../../../lib/feZone";
+import { bindStores } from "../../../../../store/bindStores";
+import { detailOf, SYSTEMS } from "../../../../../store/fixture";
+import { useFileSessionStore } from "../../../../../store/fileSessionStore";
+import { useGalaxyStore } from "../../../../../store/galaxyStore";
+import { mocked, open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
+import {
+  ADD_ZONE_HINT,
+  AUTOMATIC_NOTE,
+  FALLBACK_HINT,
+  FALLBACK_LABEL,
+  FE_ZONE_INTRO,
+  KIND_HINT,
+} from "./FeZoneSection";
+
+bindStores();
+
+/** The text as the static renderer escapes it. */
+const escaped = (text: string) => text.replace(/'/g, "&#x27;");
+
+/** Opens the scenario under the Paint a Galaxy layer, with `SYSTEM` anchoring `zone`. */
+async function openWith(zone: FeZone | null): Promise<void> {
+  mocked.getSystem.mockImplementation(async (id) => {
+    const detail = detailOf(id);
+    return { ...detail, system: { ...detail.system, fe_zone: zone } };
+  });
+  await open("scenario");
+  useFileSessionStore.setState({ painted: true });
+  const systems = new Map(useGalaxyStore.getState().systems);
+  const anchor = systems.get(SYSTEM)!;
+  systems.set(SYSTEM, { ...anchor, fe_zone: zone });
+  useGalaxyStore.setState({ systems });
+}
+
+beforeEach(resetStores);
+
+describe("a scenario system's fallen empire zone", () => {
+  it("is offered only under the Paint a Galaxy layer, after the spawn point", async () => {
+    await open("scenario");
+    expect(sections(overview())).not.toContain("Fallen empire zone");
+
+    useFileSessionStore.setState({ painted: true });
+    const html = overview();
+    expect(sections(html)).toContain("Fallen empire zone");
+    expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("Fallen empire zone"));
+    expect(html.indexOf("Fallen empire zone")).toBeLessThan(html.indexOf("basic_init_01"));
+    expect(html).toContain(escaped(FE_ZONE_INTRO));
+  });
+
+  it("says None and offers to add a zone where there is room", async () => {
+    await openWith(null);
+    const html = overview();
+    expect(html).toContain(">None<");
+    const button = html.match(/<button[^>]*>Add zone<\/button>/)![0];
+    expect(button).not.toContain("disabled=");
+    expect(html).toContain(escaped(ADD_ZONE_HINT));
+  });
+
+  it("refuses to add a zone where every ring at distance 40 would cover a system, and says why", async () => {
+    await openWith(null);
+    const anchor = SYSTEMS[SYSTEM];
+    const systems = new Map(useGalaxyStore.getState().systems);
+    // A system on every compass point at 40, so no ring is clear.
+    [0, 45, 90, 135, 180, 225, 270, 315].forEach((deg, i) => {
+      const a = (deg * Math.PI) / 180;
+      const s = {
+        ...SYSTEMS[0],
+        id: 100 + i,
+        x: anchor.x + 40 * Math.cos(a),
+        y: anchor.y + 40 * Math.sin(a),
+      };
+      systems.set(s.id, s);
+    });
+    useGalaxyStore.setState({ systems });
+    const button = overview().match(/<button[^>]*>Add zone<\/button>/)![0];
+    expect(button).toContain("disabled=");
+    expect(button).toContain("No clear space for a ring at distance 40");
+  });
+
+  it("shows the zone's type, direction, distance and fallback, each with its hint", async () => {
+    await openWith({ ...newFeZone("se", 60), kind: "materialist", fallback: true });
+    const html = overview();
+    expect(html).toContain('<option value="materialist" selected="">Materialist</option>');
+    expect(
+      html.match(
+        /<option value="(random|materialist|spiritualist|xenophobe|xenophile|machine|hive)"/g,
+      ),
+    ).toHaveLength(7);
+    expect(html).toContain('<option value="se" selected="">South-east</option>');
+    expect(html).toContain('<option value="60" selected="">60</option>');
+    expect(html.match(/<option value="\d+"/g)).toHaveLength(18);
+    expect(html).toContain(KIND_HINT);
+    expect(html).toContain("Where the ring sits, measured from Alpha Centauri.");
+    expect(html).toContain(FALLBACK_LABEL);
+    expect(html.match(/<input type="checkbox"[^>]*>/g)!.pop()).toContain("checked=");
+    expect(html).toContain(FALLBACK_HINT);
+    expect(html).not.toContain(AUTOMATIC_NOTE);
+    expect(html).toContain(">Remove zone</button>");
+    expect(html).not.toContain(">None<");
+  });
+
+  it("says when the zone is the mod's own, and that a change takes it over", async () => {
+    await openWith({ ...newFeZone("n"), preferred: false });
+    expect(overview()).toContain(AUTOMATIC_NOTE);
+  });
+});

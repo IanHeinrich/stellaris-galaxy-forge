@@ -505,7 +505,7 @@ fn a_zone_is_written_at_the_end_of_the_effect_and_the_other_flags_stay() {
 fn several_zones_are_one_undo_step() {
     let entries = vec![
         (9, None),
-        (11, Some(zone(FeDirection::Nw, FeKind::Spiritualist, 120))),
+        (11, Some(zone(FeDirection::Nw, FeKind::Spiritualist, 160))),
         (
             12,
             Some(FeZone {
@@ -650,7 +650,7 @@ fn a_custom_connection_flag_survives_a_removal_on_its_own_line() {
     );
     session.apply(set_zone(7, None)).expect("remove 7");
     session
-        .apply(set_zone(8, Some(zone(FeDirection::N, FeKind::Hive, 30))))
+        .apply(set_zone(8, Some(zone(FeDirection::N, FeKind::Hive, 40))))
         .expect("add 8");
     assert_eq!(
         text(&session),
@@ -667,7 +667,7 @@ fn a_custom_connection_flag_survives_a_removal_on_its_own_line() {
 	system = {
 		id = \"8\"
 		position = { x = 3 y = 4 }
-		effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_n set_star_flag = painted_galaxy_fe_spawn_hive set_star_flag = painted_galaxy_fe_spawn_distance_30 set_star_flag = painted_galaxy_fe_spawn_preferred }
+		effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_n set_star_flag = painted_galaxy_fe_spawn_hive set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_preferred }
 	}
 }
 "

@@ -4,6 +4,7 @@ import { supports } from "../../lib/capabilities";
 import type { LayerId } from "../../lib/visual/layerIds";
 import { BypassesLayer } from "./BypassesLayer";
 import { DetailsLayer } from "./DetailsLayer";
+import { FeZonesLayer } from "./FeZonesLayer";
 import { IssuesLayer } from "./IssuesLayer";
 import { LabelsLayer } from "./LabelsLayer";
 import { LanesLayer } from "./LanesLayer";
@@ -35,6 +36,7 @@ export interface DrawnLayerEntry extends LayerEntry {
  */
 export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "nebulae", requires: "nebulae", create: () => new NebulaeLayer() },
+  { id: "feZones", requires: "create_systems", create: () => new FeZonesLayer() },
   { id: "lanes", create: () => new LanesLayer() },
   { id: "waylines", requires: "waylines", create: () => new WaylinesLayer() },
   { id: "owners", requires: "empires", create: () => new OwnersLayer() },

@@ -32,6 +32,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::search,
             commands::warm_details,
             commands::apply_op,
+            commands::fe_zone_recompute,
             commands::undo,
             commands::redo,
             commands::save,

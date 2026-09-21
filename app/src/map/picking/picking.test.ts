@@ -3,7 +3,8 @@ import { name, systemNode } from "../../test/builders";
 import type { Nebula } from "../../generated/Nebula";
 import type { SystemNode } from "../../generated/SystemNode";
 import { Camera } from "../Camera";
-import { pickLane, pickNebula, pickSystem, snapTarget } from "./index";
+import { pickFeZone, pickLane, pickNebula, pickSystem, snapTarget } from "./index";
+import { newFeZone } from "../../lib/feZone";
 import { SpatialGrid } from "../../lib/spatialGrid";
 
 const node = (id: number, x: number, y: number, to: number[] = []): SystemNode =>
@@ -163,5 +164,34 @@ describe("pickNebula", () => {
     const shrunk = nebula(0, 0, 1);
     expect(pickNebula([shrunk], cam, { x: 2, y: 0 }, null)).toEqual({ index: 0, part: "centre" });
     expect(pickNebula([shrunk], cam, { x: 5, y: 0 }, null)).toEqual({ index: 0, part: "ring" });
+  });
+});
+
+describe("pickFeZone", () => {
+  /** An anchor at the origin whose ring, east at 40, is centred on (-40, 0). */
+  const anchored = { ...node(1, 0, 0), fe_zone: newFeZone("e") };
+  const cam = camera(1);
+
+  it("picks the ring band and nothing inside or outside it, naming the anchor", () => {
+    const { systems } = world([anchored, node(2, 200, 0)]);
+    expect(pickFeZone(systems, cam, { x: -10, y: 0 })).toEqual({ anchor: 1 });
+    expect(pickFeZone(systems, cam, { x: -40, y: 33 })).toEqual({ anchor: 1 });
+    expect(pickFeZone(systems, cam, { x: -76, y: 0 })).toEqual({ anchor: 1 });
+    expect(pickFeZone(systems, cam, { x: -40, y: 0 })).toBeNull();
+    expect(pickFeZone(systems, cam, { x: -20, y: 0 })).toBeNull();
+    expect(pickFeZone(systems, cam, { x: -78, y: 0 })).toBeNull();
+  });
+
+  it("reaches further in world units when zoomed out", () => {
+    const { systems } = world([anchored]);
+    expect(pickFeZone(systems, camera(0.5), { x: -81, y: 0 })).toEqual({ anchor: 1 });
+    expect(pickFeZone(systems, camera(0.5), { x: -84, y: 0 })).toBeNull();
+  });
+
+  it("takes the nearer of two rings, and ignores a system that anchors none", () => {
+    const twin = { ...node(2, 20, 0), fe_zone: newFeZone("e") };
+    const { systems } = world([anchored, twin, node(3, -40, 0)]);
+    expect(pickFeZone(systems, cam, { x: -8, y: 0 })).toEqual({ anchor: 1 });
+    expect(pickFeZone(systems, cam, { x: 12, y: 0 })).toEqual({ anchor: 2 });
   });
 });

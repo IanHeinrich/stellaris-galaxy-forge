@@ -5,6 +5,12 @@
 //! share the prefix, all inside the anchor's `effect` block. Reading folds them into a
 //! [`FeZone`]; writing turns one back into the flags in the mod's order. A flag the mod
 //! does not accept is passed over and the mod's own default stands in for it.
+//!
+//! A zone is empty space: at game start the mod creates the fallen empire's home system
+//! at the zone's centre and its other systems around it, so the ring of
+//! [`FE_ZONE_RADIUS`] around the centre must hold no system. [`candidates`] is the
+//! mod's own rule for the zones it places by itself, copied so that the two tools
+//! agree on a map.
 
 use std::f64::consts::SQRT_2;
 
@@ -12,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::cst::Node;
+use crate::projections::galaxy::Galaxy;
 
 pub(crate) const SET_STAR_FLAG: &str = "set_star_flag";
 const FLAG: &str = "painted_galaxy_fe_spawn";
@@ -27,6 +34,17 @@ pub const FE_ZONE_DISTANCES: [u16; 18] = [
     30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
 ];
 const DEFAULT_DISTANCE: u16 = 40;
+/// How far apart two centres must stand for both rings to be empty.
+const ZONE_SPACING: f64 = 2.0 * FE_ZONE_RADIUS;
+/// How far from the origin an automatic centre must stand: the mod's core guide plus
+/// the radius.
+const CORE_CLEARANCE: f64 = 100.0 + FE_ZONE_RADIUS;
+/// Where the mod's L-Cluster guide stands and how far an automatic centre keeps from
+/// it: the guide's 70 plus the radius.
+const L_CLUSTER: (f64, f64) = (-420.0, -420.0);
+const L_CLUSTER_CLEARANCE: f64 = 70.0 + FE_ZONE_RADIUS;
+/// How far from the origin, on either axis, a centre may lie.
+pub const FE_ZONE_EXTENT: f64 = 470.0;
 
 /// Which way from the anchor the zone's centre lies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -214,4 +232,128 @@ pub fn centre(anchor: (f64, f64), zone: &FeZone) -> (f64, f64) {
 /// `painted_galaxy_fe_` start and are not.
 pub fn is_zone_flag(flag: &str) -> bool {
     flag == FLAG || flag.starts_with(FLAG_PREFIX)
+}
+
+/// Whether `point` lies inside the ring around `centre`, which the mod needs empty.
+pub fn inside(centre: (f64, f64), point: (f64, f64)) -> bool {
+    distance(centre, point) < FE_ZONE_RADIUS
+}
+
+/// Whether two rings share any space.
+pub fn overlaps(a: (f64, f64), b: (f64, f64)) -> bool {
+    distance(a, b) < ZONE_SPACING
+}
+
+/// Whether a centre lies beyond the canvas the mod paints on.
+pub fn is_off_map(centre: (f64, f64)) -> bool {
+    centre.0.abs() > FE_ZONE_EXTENT || centre.1.abs() > FE_ZONE_EXTENT
+}
+
+fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
+    (a.0 - b.0).hypot(a.1 - b.1)
+}
+
+/// A system as the automatic rule sees it: where it stands and the zone it anchors.
+#[derive(Debug, Clone, Copy)]
+pub struct Site<'a> {
+    pub id: u32,
+    pub x: f64,
+    pub y: f64,
+    pub zone: Option<&'a FeZone>,
+}
+
+impl Site<'_> {
+    fn position(&self) -> (f64, f64) {
+        (self.x, self.y)
+    }
+
+    fn centre(&self) -> Option<(f64, f64)> {
+        self.zone.map(|zone| centre(self.position(), zone))
+    }
+}
+
+/// Every system of `galaxy` as the automatic rule sees it, in file order.
+pub fn sites(galaxy: &Galaxy) -> Vec<Site<'_>> {
+    galaxy
+        .order
+        .iter()
+        .filter_map(|id| galaxy.systems.get(id))
+        .map(|system| Site {
+            id: system.id,
+            x: system.x,
+            y: system.y,
+            zone: system.fe_zone.as_ref(),
+        })
+        .collect()
+}
+
+/// The zones the mod would place by itself, in system order: for every system that
+/// anchors none, the first direction whose centre at the default distance keeps clear
+/// of the core, the L-Cluster and the map's edge, holds no system in its ring, and
+/// stands its own width from every zone already placed or accepted before it. A system
+/// gets at most one; a system that anchors a zone already is left as it is.
+pub fn candidates(sites: &[Site<'_>]) -> Vec<(u32, FeZone)> {
+    let mut accepted: Vec<(f64, f64)> = sites.iter().filter_map(Site::centre).collect();
+    let mut out = Vec::new();
+    for site in sites.iter().filter(|site| site.zone.is_none()) {
+        let Some(zone) = FeDirection::ALL.into_iter().find_map(|direction| {
+            let zone = automatic(direction);
+            let c = centre(site.position(), &zone);
+            let clear = distance(c, (0.0, 0.0)) >= CORE_CLEARANCE
+                && distance(c, L_CLUSTER) >= L_CLUSTER_CLEARANCE
+                && !is_off_map(c)
+                && !sites.iter().any(|other| inside(c, other.position()))
+                && !accepted.iter().any(|&placed| overlaps(c, placed));
+            clear.then_some(zone)
+        }) else {
+            continue;
+        };
+        accepted.push(centre(site.position(), &zone));
+        out.push((site.id, zone));
+    }
+    out
+}
+
+/// The entries of one `SetFeZones` that replace every automatic zone with what
+/// [`candidates`] places once those zones are gone: `None` for each automatic zone,
+/// then the candidates, an anchor that loses one and gains one being a single entry.
+/// A zone the map author placed by hand is not touched.
+pub fn recompute(sites: &[Site<'_>]) -> Vec<(u32, Option<FeZone>)> {
+    let automatic = |site: &Site<'_>| site.zone.is_some_and(|zone| !zone.preferred);
+    let kept: Vec<Site<'_>> = sites
+        .iter()
+        .map(|site| Site {
+            zone: site.zone.filter(|zone| zone.preferred),
+            ..*site
+        })
+        .collect();
+    let mut entries: Vec<(u32, Option<FeZone>)> = sites
+        .iter()
+        .filter(|site| automatic(site))
+        .map(|site| (site.id, None))
+        .collect();
+    for (id, zone) in candidates(&kept) {
+        match entries.iter_mut().find(|(anchor, _)| *anchor == id) {
+            Some(entry) => entry.1 = Some(zone),
+            None => entries.push((id, Some(zone))),
+        }
+    }
+    entries.retain(|(id, zone)| {
+        let current = sites
+            .iter()
+            .find(|site| site.id == *id)
+            .and_then(|site| site.zone);
+        zone.as_ref() != current
+    });
+    entries
+}
+
+fn automatic(direction: FeDirection) -> FeZone {
+    FeZone {
+        direction,
+        kind: FeKind::Random,
+        distance: DEFAULT_DISTANCE,
+        preferred: false,
+        fallback: false,
+    }
 }

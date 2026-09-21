@@ -2,13 +2,17 @@ import type { Op } from "../../generated/Op";
 import { isEditableTarget } from "../../lib/keys";
 import { useEditorStore, type LaneRef } from "../../store/editorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
+import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
+import { useInspectorStore } from "../../store/inspectorStore";
+import { feDirectionLabel, feZoneRefusal } from "../../lib/feZone";
 import type { Camera, Pt } from "../Camera";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
 import type { DragState, MapLayer } from "../layers/MapLayer";
 import type { MoveGhost } from "../moveGhosts";
+import { feZonePreview, type FeZonePreview } from "../feZonePreview";
 import { nebulaPreview, type NebulaGeometry, type NebulaPreview } from "../nebulaPreview";
-import { pickLane, pickNebula, pickSystem, snapTarget } from "../picking";
+import { pickFeZone, pickLane, pickNebula, pickSystem, snapTarget } from "../picking";
 import { GestureModel } from "./GestureModel";
 import { GestureReporter } from "./gesture";
 import type { InputKind, MapInput, MapIntent, MapModel } from "./MapIntent";
@@ -20,6 +24,23 @@ const editor = () => useEditorStore.getState();
 function readout(preview: NebulaPreview): string {
   const unit = preview.total === 1 ? "system" : "systems";
   return `${preview.total} ${unit} (+${preview.joining.length} −${preview.leaving.length})`;
+}
+
+/** The inspector section a click on a ring opens; the section's own id. */
+const FE_ZONE_SECTION = "system.feZone";
+
+/** What the cursor says while a ring is dragged: where it would snap, and what is in the way. */
+function zoneReadout(preview: FeZonePreview): MapTooltip["lines"] {
+  if (preview.blocked) {
+    return [feZoneRefusal(preview.blocked, (s) => useGalaxyStore.getState().systemName(s.id))];
+  }
+  return preview.offMap ? [feZoneRefusal(null, () => "")] : [];
+}
+
+/** Opens a section the user has folded, leaving one that is open alone. */
+function expandSection(id: string): void {
+  const inspector = useInspectorStore.getState();
+  if (inspector.collapsed(id, false)) inspector.toggleSection(id, false);
 }
 
 function dragState(ghosts: MoveGhost[]): DragState | null {
@@ -43,6 +64,7 @@ export class InteractionController {
   private readonly gesture = new GestureReporter();
   private moveSeq = 0;
   private nebulaSeq = 0;
+  private feZoneSeq = 0;
   /** The readout this controller put up, so a drag only ever takes down its own tooltip. */
   private nebulaTip: MapTooltip | null = null;
   /** The pointer in world units, rewritten per event rather than allocated. */
@@ -103,6 +125,33 @@ export class InteractionController {
       const seq = ++this.nebulaSeq;
       void applied.finally(() => {
         if (this.nebulaSeq === seq) clearNebula();
+      });
+    };
+
+    const clearFeZone = () => {
+      highlights.setFeZonePreview(null);
+      const chrome = useMapChromeStore.getState();
+      if (this.nebulaTip && chrome.tooltip === this.nebulaTip) chrome.hideTooltip();
+      this.nebulaTip = null;
+    };
+    const showFeZonePreview = (anchor: number, wx: number, wy: number) => {
+      this.feZoneSeq++;
+      const preview = feZonePreview(systems(), anchor, { x: wx, y: wy });
+      highlights.setFeZonePreview(preview);
+      if (!preview) return;
+      const at = cam.worldToScreen(wx, wy);
+      this.nebulaTip = {
+        x: at.x,
+        y: at.y,
+        title: `${feDirectionLabel(preview.direction)} · ${preview.distance}`,
+        lines: zoneReadout(preview),
+      };
+      useMapChromeStore.getState().showTooltip(this.nebulaTip);
+    };
+    const settleFeZone = (applied: Promise<unknown>) => {
+      const seq = ++this.feZoneSeq;
+      void applied.finally(() => {
+        if (this.feZoneSeq === seq) clearFeZone();
       });
     };
 
@@ -178,6 +227,20 @@ export class InteractionController {
         else clearNebula();
       },
       endNebula: () => clearNebula(),
+      selectFeZone: (anchor) => {
+        void editor().select(anchor);
+        expandSection(FE_ZONE_SECTION);
+      },
+      previewFeZone: (anchor, x, y) => showFeZonePreview(anchor, x, y),
+      commitFeZone: (anchor, x, y) => {
+        const preview = feZonePreview(systems(), anchor, { x, y });
+        if (!preview) {
+          clearFeZone();
+          return;
+        }
+        settleFeZone(editor().moveFeZone(anchor, preview.direction, preview.distance));
+      },
+      endFeZone: () => clearFeZone(),
       cut: (a, b) => {
         this.hoverLane = null;
         highlights.setHoverLane(null);
@@ -206,9 +269,13 @@ export class InteractionController {
       system === null
         ? pickLane(systems, this.cam, w, this.hoverLane)
         : { lane: null, midpointHit: false };
-    const shown = useMapChromeStore.getState().layers.nebulae;
+    const layers = useMapChromeStore.getState().layers;
+    const feZone =
+      layers.feZones && getPaintLayer() && system === null && lane === null
+        ? pickFeZone(systems, this.cam, w)
+        : null;
     const nebula =
-      shown && system === null && lane === null
+      layers.nebulae && system === null && lane === null && feZone === null
         ? pickNebula(nebulae, this.cam, w, editor().selectedNebula)
         : null;
     return {
@@ -225,6 +292,7 @@ export class InteractionController {
       zone,
       lane,
       midpointHit,
+      feZone,
       snap:
         this.laneFrom === null || !grid
           ? null

@@ -1,6 +1,6 @@
 import type { LaneRef, SelectionMode } from "../../store/editorStore";
 import type { ContextTarget } from "../../store/mapChromeStore";
-import type { NebulaPick } from "../picking";
+import type { FeZonePick, NebulaPick } from "../picking";
 import type { Zone } from "../picking/zones";
 
 /** Pointer travel before a press becomes a drag rather than a click. */
@@ -37,7 +37,9 @@ export interface MapInput {
   midpointHit: boolean;
   /** Nearest system inside the snap radius other than the pressed group; null when nothing is pressed. */
   snap: LaneTarget | null;
-  /** The nebula part under the pointer, looked up only when no system and no lane is. */
+  /** A fallen empire zone's ring under the pointer, looked up only when no system and no lane is. */
+  feZone: FeZonePick | null;
+  /** The nebula part under the pointer, looked up only when no system, lane or ring is. */
   nebula: NebulaPick | null;
 }
 
@@ -77,6 +79,13 @@ export interface MapIntent {
   commitNebulaRadius(index: number, x: number, y: number): void;
   /** Drops the ghost ring, whether or not the drag changed anything. */
   endNebula(): void;
+  /** A click on a zone's ring selects the system that anchors it. */
+  selectFeZone(anchor: number): void;
+  /** The ring follows the pointer, snapped to the mod's grid around the same anchor. */
+  previewFeZone(anchor: number, x: number, y: number): void;
+  commitFeZone(anchor: number, x: number, y: number): void;
+  /** Drops the previewed ring, whether or not the drag changed anything. */
+  endFeZone(): void;
   contextMenu(target: ContextTarget, sx: number, sy: number): void;
 }
 

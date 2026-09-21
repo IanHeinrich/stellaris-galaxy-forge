@@ -142,6 +142,14 @@ function glyphOf(id: LayerId): ReactNode {
           <path d="M2.2 14.6v-1.7a3.4 3.4 0 0 1 6.8 0v1.7Z" fill="currentColor" stroke="none" />
         </Glyph>
       );
+    case "feZones":
+      return (
+        <Glyph>
+          <circle cx="10" cy="6" r="4.2" strokeDasharray="2 1.6" />
+          <circle cx="3" cy="13" r="1.4" fill="currentColor" stroke="none" />
+          <path d="M3.9 12.1 7 8.9" />
+        </Glyph>
+      );
     case "nebulae":
       return (
         <Glyph>

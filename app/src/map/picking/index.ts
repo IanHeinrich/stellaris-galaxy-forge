@@ -4,8 +4,10 @@ import type { LaneRef } from "../../store/editorStore";
 import { unlinkedTo } from "../../store/galaxyStore";
 import type { Camera, Pt } from "../Camera";
 import type { LaneTarget } from "../interaction/MapIntent";
+import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
 import { nearestLane } from "./nearestLane";
 import {
+  FE_ZONE_RING_HIT_PX,
   LANE_PICK_RADIUS_PX,
   MIDPOINT_HIT_PX,
   NEBULA_CENTRE_HIT_PX,
@@ -114,6 +116,31 @@ function hitOn(
   }
   const ringPx = Math.abs(toCentre - n.radius) * cam.scale;
   return ringPx <= NEBULA_RING_HIT_PX ? { part: "ring", dist: ringPx } : null;
+}
+
+/** A fallen empire zone under the pointer, named by the system that anchors it. */
+export interface FeZonePick {
+  anchor: number;
+}
+
+/**
+ * The zone whose ring band a world point is on, the nearest ring winning where two overlap.
+ * Inside the ring is not a hit: the zone is empty space, and a click there clears the
+ * selection or starts a marquee as it would anywhere else.
+ */
+export function pickFeZone(systems: Systems, cam: Camera, at: Pt): FeZonePick | null {
+  let best: FeZonePick | null = null;
+  let bestPx = FE_ZONE_RING_HIT_PX;
+  for (const s of systems.values()) {
+    if (s.fe_zone === null) continue;
+    const c = feZoneCentre(s, s.fe_zone);
+    const px = Math.abs(Math.hypot(c.x - at.x, c.y - at.y) - FE_ZONE_RADIUS) * cam.scale;
+    if (px <= bestPx) {
+      bestPx = px;
+      best = { anchor: s.id };
+    }
+  }
+  return best;
 }
 
 /** The system under a world point, and whether the point is on its star or its port band. */

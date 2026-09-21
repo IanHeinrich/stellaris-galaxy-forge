@@ -8,6 +8,7 @@ import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
+import { usePaintModStore } from "../store/paintModStore";
 import type { HighlightsLayer } from "./layers/HighlightsLayer";
 import type { MapLayer } from "./layers/MapLayer";
 import { layerShown } from "./layerVisibility";
@@ -77,6 +78,12 @@ const BINDINGS: Binding[] = [
   ),
   follows(
     useEditorStore,
+    [(s) => s.selection],
+    (s, view) => setSelection(view, s.selection),
+    "layers",
+  ),
+  follows(
+    useEditorStore,
     [(s) => s.selectedLane],
     (s, view) => view.highlights.setSelectedLane(s.selectedLane),
     "bind",
@@ -129,6 +136,12 @@ const BINDINGS: Binding[] = [
     view.refreshContext();
     applyLayerVisibility(view, useMapChromeStore.getState().layers);
   }),
+  follows(
+    useFileSessionStore,
+    [(s) => s.painted, (s) => s.paintChosen, (s) => s.path],
+    (_s, view) => view.refreshContext(),
+  ),
+  follows(usePaintModStore, [(s) => s.paintMod], (_s, view) => view.refreshContext()),
 ];
 
 /** Subscribes the map to every field it follows and applies the ones standing now. */
@@ -182,6 +195,10 @@ function pinLabels(view: MapView, selection: number[], hover: number | null): vo
   const pinned = hover === null || selection.includes(hover) ? selection : [...selection, hover];
   for (const layer of view.layers) layer.setPinned?.(pinned);
   view.invalidate();
+}
+
+function setSelection(view: MapView, ids: readonly number[]): void {
+  for (const layer of view.layers) layer.setSelection?.(ids);
 }
 
 function setShownKinds(view: MapView, kinds: ReadonlySet<SpecialKind>): void {

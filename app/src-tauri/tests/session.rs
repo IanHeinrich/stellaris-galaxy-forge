@@ -4,6 +4,7 @@ use std::path::Path;
 use serde_json::json;
 use sgf_core::export::ExportReport;
 use sgf_core::format::save::details::SystemDetails;
+use sgf_core::format::scenario::FeZone;
 use sgf_core::format::scenario::listings::{ScenarioListings, ScenarioSource};
 use sgf_core::library::CampaignListing;
 use sgf_core::validate::IssueCode;
@@ -349,6 +350,64 @@ fn scenario_documents_open_start_and_export() {
     assert_eq!(reopened.kind, DocumentKind::Scenario);
     assert_eq!(reopened.title, "exported");
     assert_eq!(reopened.galaxy.systems.len(), 791);
+}
+
+const PAINTED: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/paint_a_galaxy.txt"
+);
+
+#[test]
+fn fe_zone_recompute_keeps_the_placed_zones_and_offers_the_rest() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<Vec<(u32, Option<FeZone>)>>(
+            &w,
+            "fe_zone_recompute",
+            json!({})
+        )),
+        ErrorKind::NoSession
+    );
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    assert_eq!(
+        kind(invoke::<Vec<(u32, Option<FeZone>)>>(
+            &w,
+            "fe_zone_recompute",
+            json!({})
+        )),
+        ErrorKind::Op,
+        "a save has no zones"
+    );
+
+    let opened: OpenResult =
+        invoke(&w, "open_save", json!({ "path": PAINTED })).expect("open the painted fixture");
+    assert!(opened.painted);
+    let entries: Vec<(u32, Option<FeZone>)> =
+        invoke(&w, "fe_zone_recompute", json!({})).expect("recompute");
+    assert!(!entries.is_empty());
+    assert!(
+        entries
+            .iter()
+            .all(|(id, zone)| *id != 9 && *id != 12 && zone.is_some()),
+        "{entries:?}"
+    );
+    let edited: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "SetFeZones", "entries": entries } }),
+    )
+    .expect("apply the entries");
+    assert_eq!(
+        edited.entry.description,
+        "Recompute automatic fallen empire zones"
+    );
+    assert!(edited.dirty);
+    let again: Vec<(u32, Option<FeZone>)> =
+        invoke(&w, "fe_zone_recompute", json!({})).expect("recompute again");
+    assert!(
+        again.is_empty(),
+        "a second pass has nothing to change: {again:?}"
+    );
 }
 
 #[test]

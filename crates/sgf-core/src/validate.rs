@@ -6,7 +6,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::projections::galaxy::{GalaxyGraph, Nebula};
+use crate::format::scenario::fe_zone;
+use crate::ops::rules::fe_zone::label;
+use crate::projections::galaxy::{GalaxyGraph, Nebula, SystemNode};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -49,6 +51,13 @@ pub enum IssueCode {
     /// An empire seat whose initializer is not one the generator seats any empire on,
     /// so it may only fit the empire that started there.
     HomeInitializer,
+    /// A system stands in the ring of a Paint a Galaxy fallen empire zone, where the
+    /// mod builds the fallen empire's systems at game start.
+    FeZoneBlocked,
+    /// Two fallen empire zones share space, so the mod cannot fill both.
+    FeZoneOverlap,
+    /// A fallen empire zone's centre lies beyond the canvas the mod paints on.
+    FeZoneOffMap,
 }
 
 impl IssueCode {
@@ -65,7 +74,10 @@ impl IssueCode {
             | Self::CoordinateTransform
             | Self::PositionRange
             | Self::ExportDropped
-            | Self::HomeInitializer => Severity::Warning,
+            | Self::HomeInitializer
+            | Self::FeZoneBlocked
+            | Self::FeZoneOverlap
+            | Self::FeZoneOffMap => Severity::Warning,
         }
     }
 
@@ -83,6 +95,9 @@ impl IssueCode {
             Self::PositionRange => "position_range",
             Self::ExportDropped => "export_dropped",
             Self::HomeInitializer => "home_initializer",
+            Self::FeZoneBlocked => "fe_zone_blocked",
+            Self::FeZoneOverlap => "fe_zone_overlap",
+            Self::FeZoneOffMap => "fe_zone_off_map",
         }
     }
 }
@@ -219,6 +234,8 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
         }
     }
 
+    fe_zones(g, &mut issues);
+
     let components = g.components();
     if components.len() > g.baseline_components {
         let systems = g.separated_systems(&components);
@@ -236,6 +253,66 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
 
     sort(&mut issues);
     issues
+}
+
+/// Every fallen empire zone's ring must hold no system, its centre must lie on the map
+/// and no two rings may share space. A save's systems anchor no zone, so this finds
+/// nothing there.
+fn fe_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    let mut anchors: Vec<(&SystemNode, (f64, f64), bool)> = g
+        .systems
+        .values()
+        .filter_map(|system| {
+            let zone = system.fe_zone.as_ref()?;
+            let centre = fe_zone::centre((system.x, system.y), zone);
+            Some((system, centre, !zone.preferred))
+        })
+        .collect();
+    anchors.sort_unstable_by_key(|(anchor, _, _)| anchor.id);
+    let recompute = |automatic: bool| {
+        if automatic {
+            " Recompute automatic zones to clear it."
+        } else {
+            ""
+        }
+    };
+    for (i, &(anchor, centre, automatic)) in anchors.iter().enumerate() {
+        if fe_zone::is_off_map(centre) {
+            issues.push(Issue::new(
+                IssueCode::FeZoneOffMap,
+                format!("Fallen empire zone from {} is off the map.", label(anchor)),
+                vec![anchor.id],
+            ));
+        }
+        for blocker in g.systems.values() {
+            if blocker.id != anchor.id && fe_zone::inside(centre, (blocker.x, blocker.y)) {
+                issues.push(Issue::new(
+                    IssueCode::FeZoneBlocked,
+                    format!(
+                        "Fallen empire zone from {} is blocked by {}: the mod needs the ring empty.{}",
+                        label(anchor),
+                        label(blocker),
+                        recompute(automatic)
+                    ),
+                    vec![anchor.id, blocker.id],
+                ));
+            }
+        }
+        for &(other, other_centre, other_automatic) in &anchors[i + 1..] {
+            if fe_zone::overlaps(centre, other_centre) {
+                issues.push(Issue::new(
+                    IssueCode::FeZoneOverlap,
+                    format!(
+                        "Fallen empire zones from {} and {} overlap: the mod cannot fill both.{}",
+                        label(anchor),
+                        label(other),
+                        recompute(automatic || other_automatic)
+                    ),
+                    vec![anchor.id, other.id],
+                ));
+            }
+        }
+    }
 }
 
 /// By code, then by the systems involved: the order every issue list is reported in.

@@ -29,7 +29,7 @@ import {
   type Names,
 } from "../lib/names";
 import { useDetailsStore } from "../store/detailsStore";
-import { useFileSessionStore } from "../store/fileSessionStore";
+import { getPaintLayer, useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
@@ -51,6 +51,8 @@ export interface RenderContext {
   readonly galaxy: GalaxyView | null;
   /** The open document's format, or null while nothing is open. */
   readonly kind: DocumentKind | null;
+  /** Whether the document is written for the Paint a Galaxy mod, whose zones the map draws. */
+  readonly paintLayer: boolean;
   readonly systems: Systems;
   readonly nebulae: readonly Nebula[];
   readonly bypasses: readonly BypassLink[];
@@ -111,6 +113,7 @@ export interface RenderContext {
 const SOURCES = [
   "galaxy",
   "kind",
+  "paintLayer",
   "systems",
   "nebulae",
   "bypasses",
@@ -202,6 +205,7 @@ function claimedIn(owners: ScenarioOwners | null): ReadonlySet<number> {
 export const EMPTY_CONTEXT: RenderContext = Object.freeze({
   galaxy: null,
   kind: null,
+  paintLayer: false,
   systems: new Map<number, SystemNode>(),
   nebulae: NOTHING,
   bypasses: NOTHING,
@@ -259,6 +263,7 @@ export function renderContext(): RenderContext {
   return Object.freeze({
     galaxy: galaxy.galaxy,
     kind,
+    paintLayer: getPaintLayer(),
     systems: galaxy.systems,
     nebulae: galaxy.nebulae,
     bypasses:

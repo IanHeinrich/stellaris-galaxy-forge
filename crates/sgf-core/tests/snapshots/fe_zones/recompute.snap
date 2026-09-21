@@ -1,0 +1,39 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Recompute automatic fallen empire zones
+inverse: SetFeZones { entries: [(0, None), (1, None), (2, None), (3, None), (4, None), (8, None), (10, None), (11, None), (13, None)] }
+
+--- scenario
++++ scenario
+@@ -31,20 +31,20 @@
+ 	fallen_empire_default = 0
+ 	marauder_empire_default = 1
+ 	crisis_strength = 0.5
+-	system = { id = "0" position = { x = 0 y = 120 } name = "Alpha" initializer = random_empire_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|3| } }
+-	system = { id = "1" position = { x = 110 y = 40 } name = "Beta" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| } }
+-	system = { id = "2" position = { x = 70 y = -100 } name = "Gamma" initializer = random_empire_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| } }
+-	system = { id = "3" position = { x = -70 y = -100 } name = "Sol" initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| } }
+-	system = { id = "4" position = { x = -110 y = 40 } name = "Delta" initializer = custom_starting_init_01 effect = { set_star_flag = painted_galaxy_custom_initializer } }
++	system = { id = "0" position = { x = 0 y = 120 } name = "Alpha" initializer = random_empire_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|3| } effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_se set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
++	system = { id = "1" position = { x = 110 y = 40 } name = "Beta" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| } effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_s set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
++	system = { id = "2" position = { x = 70 y = -100 } name = "Gamma" initializer = random_empire_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| } effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_w set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
++	system = { id = "3" position = { x = -70 y = -100 } name = "Sol" initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| } effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_e set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
++	system = { id = "4" position = { x = -110 y = 40 } name = "Delta" initializer = custom_starting_init_01 effect = { set_star_flag = painted_galaxy_custom_initializer set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_e set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
+ 	system = { id = "5" position = { x = 40 y = 80 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_automatic_initializer } }
+ 	system = { id = "6" position = { x = -40 y = 80 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_automatic_initializer } }
+ 	system = { id = "7" position = { x = 20 y = -20 } name = "Ingress" effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster } }
+-	system = { id = "8" position = { x = -160 y = -160 } name = "Egress" effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster } }
++	system = { id = "8" position = { x = -160 y = -160 } name = "Egress" effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_e set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
+ 	system = { id = "9" position = { x = 0 y = -180 } name = "Old Seat" effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_n set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_preferred } }
+-	system = { id = "10" position = { x = 150 y = -30 } name = "Void" }
+-	system = { id = "11" position = { x = -150 y = -30 } }
++	system = { id = "10" position = { x = 150 y = -30 } name = "Void" effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_s set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
++	system = { id = "11" position = { x = -150 y = -30 } effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_e set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
+ 	system = { id = "12" position = { x = 120 y = 150 } name = "High Seat" initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_automatic_initializer set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_se set_star_flag = painted_galaxy_fe_spawn_materialist set_star_flag = painted_galaxy_fe_spawn_distance_60 set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_spawn_fallback } }
+-	system = { id = "13" position = { x = -120 y = 150 } name = "Low Seat" effect = { set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster } }
++	system = { id = "13" position = { x = -120 y = 150 } name = "Low Seat" effect = { set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_e set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
+ 	add_hyperlane = { from = "0" to = "5" }
+ 	add_hyperlane = { from = "0" to = "6" }
+ 	add_hyperlane = { from = "5" to = "1" }

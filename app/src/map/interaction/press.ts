@@ -1,5 +1,5 @@
 import type { LaneRef } from "../../store/editorStore";
-import type { NebulaPick } from "../picking";
+import type { FeZonePick, NebulaPick } from "../picking";
 import { DRAG_THRESHOLD_PX, type MapInput } from "./MapIntent";
 import type { Zone } from "../picking/zones";
 
@@ -13,6 +13,7 @@ export interface Press {
   zone: Zone | null;
   lane: LaneRef | null;
   midpointHit: boolean;
+  feZone: FeZonePick | null;
   nebula: NebulaPick | null;
   shift: boolean;
   ctrl: boolean;
@@ -29,6 +30,7 @@ export function pressFrom(input: MapInput): Press {
     zone: input.zone,
     lane: input.lane,
     midpointHit: input.midpointHit,
+    feZone: input.feZone,
     nebula: input.nebula,
     shift: input.shift,
     ctrl: input.ctrl,

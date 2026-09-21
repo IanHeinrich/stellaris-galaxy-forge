@@ -9,6 +9,7 @@ use super::spawn::{insert_after, starts_line};
 use crate::Span;
 use crate::format::scenario::fe_zone::{FeZone, SET_STAR_FLAG, flags, is_zone_flag};
 use crate::keys::scenario as keys;
+use crate::ops::rules::fe_zone::{decide_set, label};
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::projections::galaxy::SystemNode;
 use crate::session::Session;
@@ -62,6 +63,7 @@ fn write_zone(
     id: u32,
     zone: Option<&FeZone>,
 ) -> Result<(String, (u32, Option<FeZone>)), OpError> {
+    decide_set(&s.graph, id, zone)?;
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
     let previous = system.fe_zone.clone();
     let description = describe(system, zone);
@@ -101,12 +103,7 @@ fn write_zone(
 }
 
 fn describe(system: &SystemNode, zone: Option<&FeZone>) -> String {
-    let name = system.display_name();
-    let label = if name.is_empty() {
-        format!("system {}", system.id)
-    } else {
-        name
-    };
+    let label = label(system);
     match (system.fe_zone.is_some(), zone.is_some()) {
         (false, true) => format!("Add fallen empire zone to {label}"),
         (true, false) => format!("Remove fallen empire zone from {label}"),
