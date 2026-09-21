@@ -22,6 +22,7 @@ import { Launch } from "./panels/file/Launch";
 import { NewScenarioDialog } from "./panels/file/NewScenarioDialog";
 import { OpenModeDialog } from "./panels/file/OpenModeDialog";
 import { MapTooltip } from "./panels/overlays/MapTooltip";
+import { FeZoneFitDialog } from "./panels/overlays/FeZoneFitDialog";
 import { NewNebulaDialog } from "./panels/overlays/NewNebulaDialog";
 import { UpdateBadge } from "./panels/chrome/UpdateBadge";
 import { UpdateDialog } from "./panels/overlays/UpdateDialog";
@@ -111,6 +112,7 @@ function App() {
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
   const nebulaPrompt = useEditorStore((s) => s.nebulaPrompt);
+  const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
   const updateDialog = useUpdateStore((s) => s.dialog);
 
   useEffect(() => {
@@ -190,6 +192,7 @@ function App() {
           {status === "ready" && openDialog && <OpenSave modal />}
           {scenarioDialog && <NewScenarioDialog />}
           {nebulaPrompt && <NewNebulaDialog />}
+          {feZoneFitPrompt && <FeZoneFitDialog />}
           <OpenModeDialog />
           {updateDialog && <UpdateDialog />}
           <ExportDialog />

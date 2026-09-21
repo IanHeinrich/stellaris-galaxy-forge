@@ -8,12 +8,13 @@ import * as ipc from "../api/ipc";
 import type { FeZone } from "../generated/FeZone";
 import { NO_FREE_DIRECTION, newFeZone } from "../lib/feZone";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
-import { NOTHING_TO_RECOMPUTE } from "./editorStore";
+import { NEEDS_A_SYSTEM, NOTHING_TO_FIT } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { SYSTEMS, editResult } from "./fixture";
 
-const feZoneRecompute = vi.mocked(ipc.feZoneRecompute);
+const feZoneFit = vi.mocked(ipc.feZoneFit);
+const feZoneCandidateCount = vi.mocked(ipc.feZoneCandidateCount);
 
 /** Puts `zone` on the fixture system `id`, as the galaxy the store reads. */
 function anchor(id: number, zone: FeZone | null): void {
@@ -75,6 +76,13 @@ describe("fallen empire zones", () => {
     expect(useMapChromeStore.getState().layers.feZones).toBe(false);
   });
 
+  it("addFeZoneAt on a galaxy with no systems says to add one first", async () => {
+    useGalaxyStore.setState({ systems: new Map() });
+    expect(await editor().addFeZoneAt({ x: 10, y: 10 })).toBe(false);
+    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(sessionError()).toBe(NEEDS_A_SYSTEM);
+  });
+
   it("addFeZoneAt anchors the nearest system and snaps the ring to the mod's grid", async () => {
     // Nearest to (-40, 100) is Deneb (-40, 40); the point is 60 south of it.
     answersWith(5, newFeZone("s", 60));
@@ -127,36 +135,61 @@ describe("fallen empire zones", () => {
     expect(sessionError()).toBe("ring covers Sol");
   });
 
-  it("recomputeFeZones applies what the backend answers as one SetFeZones, and shows the rings", async () => {
+  it("fitFeZones applies what the backend answers as one SetFeZones, and shows the rings", async () => {
     const entries: Array<[number, FeZone | null]> = [
       [3, { ...newFeZone("n"), preferred: false }],
       [5, null],
     ];
-    feZoneRecompute.mockResolvedValueOnce(entries);
+    feZoneFit.mockResolvedValueOnce(entries);
     mocked.applyOp.mockResolvedValueOnce(editResult());
 
-    await editor().recomputeFeZones();
+    await editor().fitFeZones(2);
 
+    expect(feZoneFit).toHaveBeenCalledWith(2);
     expect(mocked.applyOp).toHaveBeenCalledWith({ type: "SetFeZones", entries });
     expect(useMapChromeStore.getState().layers.feZones).toBe(true);
   });
 
-  it("recomputeFeZones sends nothing when there is nothing to change, and says so", async () => {
-    feZoneRecompute.mockResolvedValueOnce([]);
+  it("fitFeZones sends nothing when there is nothing to change, and says so", async () => {
+    feZoneFit.mockResolvedValueOnce([]);
 
-    await editor().recomputeFeZones();
+    await editor().fitFeZones(1);
 
     expect(mocked.applyOp).not.toHaveBeenCalled();
-    expect(sessionError()).toBe(NOTHING_TO_RECOMPUTE);
+    expect(sessionError()).toBe(NOTHING_TO_FIT);
     expect(useMapChromeStore.getState().layers.feZones).toBe(false);
   });
 
-  it("recomputeFeZones reports a backend that refused to answer", async () => {
-    feZoneRecompute.mockRejectedValueOnce({ kind: "op", message: "not a scenario" });
+  it("fitFeZones reports a backend that refused to answer", async () => {
+    feZoneFit.mockRejectedValueOnce({ kind: "op", message: "not a scenario" });
 
-    await editor().recomputeFeZones();
+    await editor().fitFeZones(1);
 
     expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(sessionError()).toBe("not a scenario");
+  });
+
+  it("promptFeZoneFit asks over the mod's candidates and the automatic zones standing, and the fit clears it", async () => {
+    anchor(3, { ...newFeZone("n"), preferred: false });
+    anchor(4, { ...newFeZone("e"), preferred: false });
+    anchor(5, newFeZone("s"));
+    feZoneCandidateCount.mockResolvedValueOnce(7);
+
+    await editor().promptFeZoneFit();
+    expect(editor().feZoneFitPrompt).toEqual({ candidates: 7, automatic: 2 });
+
+    editor().cancelFeZoneFit();
+    expect(editor().feZoneFitPrompt).toBeNull();
+
+    feZoneCandidateCount.mockResolvedValueOnce(7);
+    await editor().promptFeZoneFit();
+    feZoneFit.mockResolvedValueOnce([]);
+    await editor().fitFeZones(3);
+    expect(editor().feZoneFitPrompt).toBeNull();
+
+    feZoneCandidateCount.mockRejectedValueOnce({ kind: "op", message: "not a scenario" });
+    await editor().promptFeZoneFit();
+    expect(editor().feZoneFitPrompt).toBeNull();
     expect(sessionError()).toBe("not a scenario");
   });
 });

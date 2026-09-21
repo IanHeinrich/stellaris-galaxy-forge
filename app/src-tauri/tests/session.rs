@@ -4,7 +4,7 @@ use std::path::Path;
 use serde_json::json;
 use sgf_core::export::ExportReport;
 use sgf_core::format::save::details::SystemDetails;
-use sgf_core::format::scenario::FeZone;
+use sgf_core::format::scenario::fe_zone::{self, FeZone};
 use sgf_core::format::scenario::listings::{ScenarioListings, ScenarioSource};
 use sgf_core::library::CampaignListing;
 use sgf_core::validate::IssueCode;
@@ -358,39 +358,63 @@ const PAINTED: &str = concat!(
 );
 
 #[test]
-fn fe_zone_recompute_keeps_the_placed_zones_and_offers_the_rest() {
+fn fe_zone_fit_keeps_the_placed_zones_and_spreads_the_count_asked_for() {
     let w = webview();
     assert_eq!(
         kind(invoke::<Vec<(u32, Option<FeZone>)>>(
             &w,
-            "fe_zone_recompute",
-            json!({})
+            "fe_zone_fit",
+            json!({ "count": 2 })
         )),
+        ErrorKind::NoSession
+    );
+    assert_eq!(
+        kind(invoke::<usize>(&w, "fe_zone_candidate_count", json!({}))),
         ErrorKind::NoSession
     );
     invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
     assert_eq!(
         kind(invoke::<Vec<(u32, Option<FeZone>)>>(
             &w,
-            "fe_zone_recompute",
-            json!({})
+            "fe_zone_fit",
+            json!({ "count": 2 })
         )),
         ErrorKind::Op,
         "a save has no zones"
+    );
+    assert_eq!(
+        kind(invoke::<usize>(&w, "fe_zone_candidate_count", json!({}))),
+        ErrorKind::Op
     );
 
     let opened: OpenResult =
         invoke(&w, "open_save", json!({ "path": PAINTED })).expect("open the painted fixture");
     assert!(opened.painted);
+    let count: usize = invoke(&w, "fe_zone_candidate_count", json!({})).expect("count");
+    assert_eq!(count, 9);
     let entries: Vec<(u32, Option<FeZone>)> =
-        invoke(&w, "fe_zone_recompute", json!({})).expect("recompute");
-    assert!(!entries.is_empty());
+        invoke(&w, "fe_zone_fit", json!({ "count": 2 })).expect("fit two");
+    assert_eq!(entries.len(), 2, "{entries:?}");
     assert!(
         entries
             .iter()
             .all(|(id, zone)| *id != 9 && *id != 12 && zone.is_some()),
         "{entries:?}"
     );
+    let centres: Vec<(f64, f64)> = entries
+        .iter()
+        .map(|(id, zone)| {
+            let system = opened
+                .galaxy
+                .systems
+                .iter()
+                .find(|system| system.id == *id)
+                .expect("the anchor");
+            fe_zone::centre((system.x, system.y), zone.as_ref().unwrap())
+        })
+        .collect();
+    let apart = (centres[0].0 - centres[1].0).hypot(centres[0].1 - centres[1].1);
+    assert!(apart > 60.0, "{entries:?} lie {apart} apart");
     let edited: EditResult = invoke(
         &w,
         "apply_op",
@@ -403,7 +427,7 @@ fn fe_zone_recompute_keeps_the_placed_zones_and_offers_the_rest() {
     );
     assert!(edited.dirty);
     let again: Vec<(u32, Option<FeZone>)> =
-        invoke(&w, "fe_zone_recompute", json!({})).expect("recompute again");
+        invoke(&w, "fe_zone_fit", json!({ "count": 2 })).expect("fit two again");
     assert!(
         again.is_empty(),
         "a second pass has nothing to change: {again:?}"

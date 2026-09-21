@@ -77,6 +77,8 @@ describe("layers", () => {
       "initializers",
       "spawns",
       "feZones",
+      "mapBorder",
+      "lCluster",
       "labels",
       "details",
       "colonies",

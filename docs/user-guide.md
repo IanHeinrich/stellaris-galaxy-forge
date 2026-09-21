@@ -276,6 +276,13 @@ details and colonies under "Map"; empires, bypasses, points of interest
 with a row per kind, and nebulae under "Overlays"; and issue highlights
 under "Editing". "Reset to defaults" at the foot puts them all back.
 
+Two guides sit under "Overlays" as well, on by default for a scenario
+and off for a save. "Map border" draws where the map ends: the ±500
+square a scenario's coordinates must fall in, or a save's galaxy radius.
+"L-Cluster" draws the circle the game builds the L-Cluster in, which is
+the same spot for every galaxy size, or on a save that already has one a
+circle around its systems.
+
 A save with waystations also offers a Waylines layer under "Overlays":
 the game derives a wayline between two stations of one network joined by
 a lane or a bypass, and the map draws it as a dashed band along that lane
@@ -438,7 +445,21 @@ Nations of Earth counts as holding. On the map a reserved seat shows its
 letter, Sol shows "Sol" and a preferred seat gets a star. The human and
 AI reservations are hidden under the layer because the mod does not read
 them. A system that still carries a plain weight in such a file shows a
-"Use a Paint a Galaxy seat" button that converts it.
+"Use a Paint a Galaxy seat" button that converts it. The Scenario header
+section sums up the seats and the safe number of AI empires, and when the
+header's empire counts no longer match them an "Update counts" button
+there and on the issue's row in Issues rewrites the five count keys the
+way the mod's formulas do.
+
+Two selected systems can be made a wormhole pair, which the mod opens on
+day one: choose "Link as wormhole pair" from the right-click menu or the
+selection's actions, and "Unlink wormhole pair" parts them again. The
+inspector's Wormhole pair section names the other end, with a link that
+selects it, or says the partner is missing.
+
+A scenario saved into the mod's folder is checked against the other
+files there: when another file's header lists the same name, Issues
+notes it, because the game shows one size per name.
 
 A fallen empire zone is empty space. When the game starts, the Paint a
 Galaxy mod creates a fallen empire's home system at the centre of the
@@ -463,10 +484,17 @@ that later comes to cover a system after a move shows in Issues.
 The mod also places fallen empires in rings you did not draw. Export as
 scenario adds those automatic zones the way Paint a Galaxy itself does,
 one per system where a ring of radius 30 fits, and they are drawn faint.
-After moving systems around, right-click empty space and choose
-"Recompute automatic fallen empire zones" to redo them in one undoable
-step. Editing an automatic zone makes it yours, and yours are never
-recomputed.
+To choose how many there are, right-click empty space and pick "Fit
+fallen empire zones…", or use the button in the scenario section of the
+inspector. A slider sets the number, from none to every ring that fits,
+and Forge spreads them as far apart as it can. Fitting again replaces
+the automatic zones in one undoable step. Zones you placed or edited
+are yours and are never replaced. A painted map with no automatic zones
+shows in Issues, with a button that opens the same dialog.
+
+Before a save, Forge warns when the map still has warnings or errors,
+opens the Issues tab and offers "Save anyway". Once you have saved
+anyway it stays quiet until a new issue appears.
 
 The mod has limits of its own, from its Workshop page: the Advanced
 Neighbors setting has no effect, every precursor is on regardless of

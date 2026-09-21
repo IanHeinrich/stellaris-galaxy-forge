@@ -3,6 +3,7 @@ import type { Capabilities } from "../generated/Capabilities";
 import type { ExportReport } from "../generated/ExportReport";
 import type { Progress } from "../generated/Progress";
 import type { SaveResult } from "../generated/SaveResult";
+import { duplicateNameNote } from "../lib/issues";
 import {
   OPEN_RESULT,
   SCENARIO_RESULT,
@@ -24,6 +25,8 @@ import { useEditorStore } from "./editorStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { laneCount, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
+import { useIssuesStore } from "./issuesStore";
+import { useLayoutStore } from "./layoutStore";
 import { usePaintModStore } from "./paintModStore";
 import { useRecentsStore } from "./recentsStore";
 
@@ -39,6 +42,7 @@ const mocked = {
   applyOp: vi.mocked(ipc.applyOp),
   save: vi.mocked(ipc.save),
   saveAs: vi.mocked(ipc.saveAs),
+  siblingScenarioNames: vi.mocked(ipc.siblingScenarioNames),
   isCloudSave: vi.mocked(ipc.isCloudSave),
   getSpecialSystems: vi.mocked(ipc.getSpecialSystems),
   getScenarioOwners: vi.mocked(ipc.getScenarioOwners),
@@ -376,6 +380,7 @@ describe("Steam Cloud", () => {
     mocked.openSave.mockResolvedValueOnce({ ...OPEN_RESULT, path: CLOUD_PATH, cloud: true });
     await session().openSave(CLOUD_PATH);
     await edit();
+    useFileSessionStore.setState({ issues: [] });
     mocked.confirm.mockClear();
   }
 
@@ -413,6 +418,7 @@ describe("Steam Cloud", () => {
     expect(session().cloud).toBe(true);
 
     await edit();
+    useFileSessionStore.setState({ issues: [] });
     await session().save();
     expect(mocked.confirm).toHaveBeenCalledTimes(1);
     expect(mocked.save).toHaveBeenCalledTimes(2);
@@ -420,6 +426,7 @@ describe("Steam Cloud", () => {
 
   it("saveAs asks the Rust side about the picked path and warns only for a cloud one", async () => {
     await session().openSave(OPEN_RESULT.path);
+    useFileSessionStore.setState({ issues: [] });
     expect(session().cloud).toBe(false);
 
     mocked.saveDialog.mockResolvedValueOnce(CLOUD_PATH);
@@ -437,6 +444,126 @@ describe("Steam Cloud", () => {
     expect(mocked.confirm).toHaveBeenCalledTimes(1);
     expect(mocked.saveAs).toHaveBeenCalledWith("C:/saves/other.sav");
     expect(session().cloud).toBe(false);
+  });
+});
+
+describe("unresolved issues", () => {
+  const ISOLATED = OPEN_RESULT.issues[0];
+  const ISSUE_DIALOG = {
+    title: "2206.11.16.sav",
+    kind: "warning",
+    okLabel: "Save anyway",
+    cancelLabel: "Cancel",
+  };
+
+  beforeEach(async () => {
+    useLayoutStore.setState({ tab: "inspector", collapsed: false });
+    await session().openSave(OPEN_RESULT.path);
+    await edit();
+  });
+
+  it("save shows the Issues tab and asks; cancel writes nothing", async () => {
+    useLayoutStore.getState().toggleDock();
+    mocked.confirm.mockResolvedValueOnce(false);
+    await session().save();
+
+    expect(mocked.confirm).toHaveBeenCalledTimes(1);
+    expect(mocked.confirm).toHaveBeenCalledWith(
+      "This map has 1 unresolved issue. Save anyway?",
+      ISSUE_DIALOG,
+    );
+    expect(useLayoutStore.getState().tab).toBe("issues");
+    expect(useLayoutStore.getState().collapsed).toBe(false);
+    expect(mocked.save).not.toHaveBeenCalled();
+    expect(session().dirty).toBe(true);
+    expect(session().dismissedIssues).toEqual([]);
+  });
+
+  it("Save anyway writes, and the same issues do not ask again", async () => {
+    mocked.confirm.mockResolvedValueOnce(true);
+    mocked.save.mockResolvedValue(saveResult({ dirty: false }));
+    await session().save();
+    expect(mocked.confirm).toHaveBeenCalledTimes(1);
+    expect(mocked.save).toHaveBeenCalledTimes(1);
+    expect(session().dismissedIssues).toEqual(["system_isolated:5"]);
+
+    await edit();
+    await session().save();
+    expect(mocked.confirm).toHaveBeenCalledTimes(1);
+    expect(mocked.save).toHaveBeenCalledTimes(2);
+  });
+
+  it("an issue with another code or other systems asks again", async () => {
+    mocked.save.mockResolvedValue(saveResult({ dirty: false }));
+    await session().save();
+    expect(mocked.confirm).toHaveBeenCalledTimes(1);
+
+    session().noteEdit({ issues: [ISOLATED, { ...ISOLATED, systems: [3] }], dirty: true });
+    await session().save();
+    expect(mocked.confirm).toHaveBeenCalledTimes(2);
+    expect(mocked.confirm).toHaveBeenLastCalledWith(
+      "This map has 2 unresolved issues. Save anyway?",
+      ISSUE_DIALOG,
+    );
+
+    session().noteEdit({
+      issues: [ISOLATED, { ...ISOLATED, severity: "error", code: "disconnected" }],
+      dirty: true,
+    });
+    await session().save();
+    expect(mocked.confirm).toHaveBeenCalledTimes(3);
+    expect(mocked.save).toHaveBeenCalledTimes(3);
+  });
+
+  it("info issues and notes never ask", async () => {
+    useFileSessionStore.setState({
+      issues: [{ ...ISOLATED, severity: "info" }, duplicateNameNote("Elysium", "other.txt")],
+    });
+    mocked.save.mockResolvedValueOnce(saveResult({ dirty: false }));
+    await session().save();
+    expect(mocked.confirm).not.toHaveBeenCalled();
+    expect(mocked.save).toHaveBeenCalledTimes(1);
+    expect(useLayoutStore.getState().tab).toBe("inspector");
+  });
+
+  it("saveAs and saving into the mod ask once, before the picker", async () => {
+    mocked.confirm.mockResolvedValueOnce(false);
+    await session().saveAs();
+    expect(mocked.confirm).toHaveBeenCalledTimes(1);
+    expect(mocked.saveDialog).not.toHaveBeenCalled();
+
+    mocked.confirm.mockResolvedValueOnce(true);
+    mocked.saveDialog.mockResolvedValueOnce("C:/saves/other.sav");
+    mocked.saveAs.mockResolvedValueOnce(saveResult({ path: "C:/saves/other.sav" }));
+    await session().saveAs();
+    expect(mocked.confirm).toHaveBeenCalledTimes(2);
+    expect(mocked.saveAs).toHaveBeenCalledTimes(1);
+
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().requestOpen(SCENARIO_RESULT.path);
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: "C:/mods/pag/map/setup_scenarios", enabled: true },
+    });
+    mocked.confirm.mockResolvedValueOnce(false);
+    await session().saveIntoPaintMod();
+    expect(mocked.confirm).toHaveBeenCalledTimes(3);
+    expect(mocked.saveDialog).toHaveBeenCalledTimes(1);
+  });
+
+  it("opening or closing a document forgets what was dismissed", async () => {
+    mocked.save.mockResolvedValue(saveResult({ dirty: false }));
+    await session().save();
+    expect(session().dismissedIssues).toEqual(["system_isolated:5"]);
+
+    await session().openSave(OPEN_RESULT.path);
+    expect(session().dismissedIssues).toEqual([]);
+    await edit();
+    await session().save();
+    expect(mocked.confirm).toHaveBeenCalledTimes(2);
+
+    await session().close();
+    expect(session().dismissedIssues).toEqual([]);
   });
 });
 
@@ -719,6 +846,73 @@ describe("scenario documents", () => {
     );
     await session().saveAs();
     expect(session().notice).toBeNull();
+  });
+
+  it("notes every other file in the mod's folder that lists the same name, on open and again on save", async () => {
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: PAINT_DIR, enabled: true },
+    });
+    const mine = `${PAINT_DIR}/my_galaxy.txt`;
+    mocked.openSave.mockResolvedValueOnce({
+      ...SCENARIO_RESULT,
+      path: mine,
+      galaxy: {
+        ...SCENARIO_RESULT.galaxy,
+        header: [{ key: "name", value: '"Elysium"', line: 1 }],
+      },
+    });
+    mocked.siblingScenarioNames.mockResolvedValueOnce([
+      ["other.txt", "Elysium"],
+      ["third.txt", "Arcadia"],
+    ]);
+    await session().requestOpen(mine);
+    await vi.waitFor(() => expect(session().issues).toHaveLength(2));
+    expect(mocked.siblingScenarioNames).toHaveBeenCalledWith(mine);
+    expect(session().issues[1]).toEqual({
+      severity: "warning",
+      code: "scenario_name_duplicate",
+      message:
+        'Another file in the mod lists the same name "Elysium": other.txt. ' +
+        "The game shows one size per name.",
+      systems: [],
+    });
+    expect(useIssuesStore.getState().notes).toEqual([session().issues[1]]);
+
+    mocked.applyOp.mockResolvedValueOnce(editResult({ issues: [] }));
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    expect(session().issues.map((issue) => issue.code)).toEqual(["scenario_name_duplicate"]);
+
+    mocked.save.mockResolvedValueOnce(saveResult({ path: mine, dirty: false }));
+    mocked.siblingScenarioNames.mockResolvedValueOnce([["other.txt", "Renamed"]]);
+    await session().save();
+    await vi.waitFor(() => expect(session().issues).toEqual([]));
+    expect(useIssuesStore.getState().notes).toEqual([]);
+  });
+
+  it("notes nothing for a scenario outside the mod's folder, or when the folder cannot be read", async () => {
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: PAINT_DIR, enabled: true },
+    });
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().requestOpen(SCENARIO_PATH);
+    expect(mocked.siblingScenarioNames).not.toHaveBeenCalled();
+
+    const mine = `${PAINT_DIR}/my_galaxy.txt`;
+    mocked.openSave.mockResolvedValueOnce({
+      ...SCENARIO_RESULT,
+      path: mine,
+      galaxy: {
+        ...SCENARIO_RESULT.galaxy,
+        header: [{ key: "name", value: '"Elysium"', line: 1 }],
+      },
+    });
+    mocked.siblingScenarioNames.mockRejectedValueOnce(new Error("unreadable"));
+    await session().requestOpen(mine);
+    await vi.waitFor(() => expect(mocked.siblingScenarioNames).toHaveBeenCalledWith(mine));
+    expect(session().issues.map((issue) => issue.code)).toEqual(["system_isolated"]);
+    expect(session().error).toBeNull();
   });
 
   it("exporting previews the report, then writes a second file and leaves the save's own path, edits and save time alone", async () => {

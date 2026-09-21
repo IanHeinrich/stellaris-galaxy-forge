@@ -107,8 +107,8 @@ describe("the fallen empire zone items", () => {
     chrome.openContextMenu({ target: { kind: "system", id: 3 }, x: 0, y: 0 });
     expect(menu()).toContain(">Add fallen empire zone</button>");
     chrome.openContextMenu({ target: { kind: "space", x: 0, y: 200 }, x: 0, y: 0 });
-    expect(menu()).toContain(">Fallen empire zone here, from ");
-    expect(menu()).toContain(">Recompute automatic fallen empire zones</button>");
+    expect(menu()).toContain(">Add fallen empire zone, anchored to ");
+    expect(menu()).toContain(">Fit fallen empire zones…</button>");
     chrome.openContextMenu({ target: { kind: "feZone", anchor: 0 }, x: 0, y: 0 });
     expect(menu()).toContain(">Remove fallen empire zone</button>");
     expect(menu()).toContain(">Select Sol</button>");

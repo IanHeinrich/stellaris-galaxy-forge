@@ -314,25 +314,27 @@ pub fn candidates(sites: &[Site<'_>]) -> Vec<(u32, FeZone)> {
     out
 }
 
-/// The entries of one `SetFeZones` that replace every automatic zone with what
-/// [`candidates`] places once those zones are gone: `None` for each automatic zone,
-/// then the candidates, an anchor that loses one and gains one being a single entry.
-/// A zone the map author placed by hand is not touched.
-pub fn recompute(sites: &[Site<'_>]) -> Vec<(u32, Option<FeZone>)> {
+/// How many zones [`candidates`] would place once the automatic ones are gone: the most
+/// [`fit`] can keep.
+pub fn candidate_count(sites: &[Site<'_>]) -> usize {
+    candidates(&placed_only(sites)).len()
+}
+
+/// The entries of one `SetFeZones` that replace every automatic zone with `count` of
+/// what [`candidates`] places once those zones are gone: `None` for each automatic
+/// zone, then the chosen candidates, an anchor that loses one and gains one being a
+/// single entry. The candidates kept are spread over the map by farthest-point
+/// sampling from the zones the map author placed by hand, or from the edge of the map
+/// when there are none. A placed zone is not touched.
+pub fn fit(sites: &[Site<'_>], count: usize) -> Vec<(u32, Option<FeZone>)> {
     let automatic = |site: &Site<'_>| site.zone.is_some_and(|zone| !zone.preferred);
-    let kept: Vec<Site<'_>> = sites
-        .iter()
-        .map(|site| Site {
-            zone: site.zone.filter(|zone| zone.preferred),
-            ..*site
-        })
-        .collect();
+    let kept = placed_only(sites);
     let mut entries: Vec<(u32, Option<FeZone>)> = sites
         .iter()
         .filter(|site| automatic(site))
         .map(|site| (site.id, None))
         .collect();
-    for (id, zone) in candidates(&kept) {
+    for (id, zone) in spread(&kept, candidates(&kept), count) {
         match entries.iter_mut().find(|(anchor, _)| *anchor == id) {
             Some(entry) => entry.1 = Some(zone),
             None => entries.push((id, Some(zone))),
@@ -346,6 +348,70 @@ pub fn recompute(sites: &[Site<'_>]) -> Vec<(u32, Option<FeZone>)> {
         zone.as_ref() != current
     });
     entries
+}
+
+fn placed_only<'a>(sites: &[Site<'a>]) -> Vec<Site<'a>> {
+    sites
+        .iter()
+        .map(|site| Site {
+            zone: site.zone.filter(|zone| zone.preferred),
+            ..*site
+        })
+        .collect()
+}
+
+/// `count` of `candidates`, in their own order, chosen by farthest-point sampling: the
+/// chosen centres start as the placed zones' centres, and each pick is the candidate
+/// whose centre lies farthest from the nearest chosen one, the lower anchor id on a
+/// tie. With no placed zone the first pick is the candidate farthest from the origin.
+fn spread(sites: &[Site<'_>], candidates: Vec<(u32, FeZone)>, count: usize) -> Vec<(u32, FeZone)> {
+    if count >= candidates.len() {
+        return candidates;
+    }
+    let mut chosen: Vec<(f64, f64)> = sites.iter().filter_map(Site::centre).collect();
+    let centre_of = |id: u32, zone: &FeZone| {
+        let site = sites
+            .iter()
+            .find(|site| site.id == id)
+            .expect("a candidate's anchor");
+        centre(site.position(), zone)
+    };
+    let mut remaining: Vec<(u32, (f64, f64))> = candidates
+        .iter()
+        .map(|(id, zone)| (*id, centre_of(*id, zone)))
+        .collect();
+    let mut picked: Vec<u32> = Vec::with_capacity(count);
+    while picked.len() < count {
+        let score = |c: (f64, f64)| {
+            if chosen.is_empty() {
+                return distance(c, (0.0, 0.0));
+            }
+            chosen
+                .iter()
+                .map(|&placed| distance(c, placed))
+                .fold(f64::INFINITY, f64::min)
+        };
+        let mut best: Option<(usize, u32, f64)> = None;
+        for (i, &(id, c)) in remaining.iter().enumerate() {
+            let s = score(c);
+            let better = match best {
+                None => true,
+                Some((_, best_id, best_score)) => {
+                    s > best_score || (s == best_score && id < best_id)
+                }
+            };
+            if better {
+                best = Some((i, id, s));
+            }
+        }
+        let (i, id, _) = best.expect("count is below the candidate count");
+        chosen.push(remaining.swap_remove(i).1);
+        picked.push(id);
+    }
+    candidates
+        .into_iter()
+        .filter(|(id, _)| picked.contains(id))
+        .collect()
 }
 
 fn automatic(direction: FeDirection) -> FeZone {

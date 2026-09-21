@@ -1,5 +1,4 @@
-import type { Issue } from "../../generated/Issue";
-import type { IssueCode } from "../../generated/IssueCode";
+import type { AppIssue, AppIssueCode } from "../../lib/issues";
 import { issueGroups, issueTitle } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -31,7 +30,7 @@ function FilterButton({ filter, count }: { filter: IssueFilter; count: number })
   );
 }
 
-function CodeFilter({ codes }: { codes: IssueCode[] }) {
+function CodeFilter({ codes }: { codes: AppIssueCode[] }) {
   const code = useIssuesStore((s) => s.code);
   const setCode = useIssuesStore((s) => s.setCode);
   if (codes.length < 2) return null;
@@ -40,7 +39,7 @@ function CodeFilter({ codes }: { codes: IssueCode[] }) {
       className="browser-code-filter"
       aria-label="Filter by code"
       value={code ?? ""}
-      onChange={(e) => setCode(e.target.value === "" ? null : (e.target.value as IssueCode))}
+      onChange={(e) => setCode(e.target.value === "" ? null : (e.target.value as AppIssueCode))}
     >
       <option value="">Every kind</option>
       {codes.map((c) => (
@@ -49,6 +48,24 @@ function CodeFilter({ codes }: { codes: IssueCode[] }) {
         </option>
       ))}
     </select>
+  );
+}
+
+/** What a row can do about its issue, by code; most codes have nothing but the jump. */
+function IssueFix({ code }: { code: AppIssueCode }) {
+  const updateEmpireCounts = useEditorStore((s) => s.updateEmpireCounts);
+  const promptFeZoneFit = useEditorStore((s) => s.promptFeZoneFit);
+  const fix =
+    code === "header_empire_count"
+      ? { label: "Update counts", run: updateEmpireCounts }
+      : code === "fe_zone_no_automatic"
+        ? { label: "Fit zones…", run: promptFeZoneFit }
+        : null;
+  if (fix === null) return null;
+  return (
+    <button type="button" className="browser-fix" onClick={() => void fix.run()}>
+      {fix.label}
+    </button>
   );
 }
 
@@ -69,7 +86,7 @@ export function Issues() {
   if (status !== "ready") return null;
   const nameOf = (id: number): string => systemNameOf(systems, names, id);
   // The jump selects the system it lands on, so the whole set is put back afterwards.
-  const go = async (issue: Issue): Promise<void> => {
+  const go = async (issue: AppIssue): Promise<void> => {
     if (issue.systems.length === 0) return;
     await jumpTo(issue.systems[0]);
     await setSelection(issue.systems, "replace");
@@ -118,7 +135,10 @@ export function Issues() {
               title={issue.message}
               onName={() => void go(issue)}
               actions={
-                <Action glyph="⌖" label="Focus these systems" onClick={() => void go(issue)} />
+                <>
+                  <IssueFix code={issue.code} />
+                  <Action glyph="⌖" label="Focus these systems" onClick={() => void go(issue)} />
+                </>
               }
             />
           ))}

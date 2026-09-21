@@ -13,6 +13,8 @@ export const LAYER_IDS = [
   "initializers",
   "spawns",
   "feZones",
+  "mapBorder",
+  "lCluster",
   "details",
   "colonies",
   "claims",
@@ -39,6 +41,8 @@ export const TOGGLEABLE_LAYERS: readonly LayerId[] = [
   "nebulae",
   "issues",
   "initializers",
+  "mapBorder",
+  "lCluster",
 ];
 
 /** The layers with their own icon toggle in the top bar. */
@@ -85,6 +89,8 @@ export const LAYER_GROUPS: ReadonlyArray<{ label: string; layers: readonly Layer
       "spawns",
       "feZones",
       "nebulae",
+      "mapBorder",
+      "lCluster",
     ],
   },
   { label: "Editing", layers: ["issues"] },
@@ -108,6 +114,8 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   initializers: "Initializer keys",
   spawns: "Spawn points",
   feZones: "Fallen empire zones",
+  mapBorder: "Map border",
+  lCluster: "L-Cluster",
   issues: "Issue highlights",
   labels: "Names",
   details: "System details",
@@ -118,8 +126,9 @@ export const LAYER_LABELS: Record<LayerId, string> = {
 };
 
 /** What is on when the app starts, and what a scenario opens with: the map as the game first
- * shows it, with the scripts' day-one overlays left off until asked for. `special` is always on
- * because the shown point-of-interest kinds decide what that layer draws. */
+ * shows it, with the scripts' day-one overlays left off until asked for, and the two guides on
+ * because a scenario is drawn to fit them. `special` is always on because the shown
+ * point-of-interest kinds decide what that layer draws. */
 export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   nebulae: false,
   lanes: true,
@@ -132,6 +141,8 @@ export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   initializers: true,
   spawns: true,
   feZones: true,
+  mapBorder: true,
+  lCluster: true,
   issues: false,
   labels: true,
   details: true,
@@ -154,6 +165,8 @@ const SAVE_LAYERS: Record<LayerId, boolean> = {
   initializers: false,
   spawns: false,
   feZones: false,
+  mapBorder: false,
+  lCluster: false,
   issues: false,
   labels: true,
   details: true,

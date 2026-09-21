@@ -150,6 +150,19 @@ function glyphOf(id: LayerId): ReactNode {
           <path d="M3.9 12.1 7 8.9" />
         </Glyph>
       );
+    case "mapBorder":
+      return (
+        <Glyph>
+          <rect x="2.6" y="2.6" width="10.8" height="10.8" strokeDasharray="2.2 1.6" />
+        </Glyph>
+      );
+    case "lCluster":
+      return (
+        <Glyph>
+          <circle cx="8" cy="8" r="5.4" strokeDasharray="2.2 1.6" />
+          <path d="M6.4 5.4v5.2h3.2" />
+        </Glyph>
+      );
     case "nebulae":
       return (
         <Glyph>

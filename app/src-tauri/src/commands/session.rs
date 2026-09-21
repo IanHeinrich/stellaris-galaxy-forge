@@ -246,13 +246,29 @@ pub fn apply_op(state: State<'_, AppState>, op: Op) -> Result<EditResult, SgfErr
 }
 
 /// The entries of one `SetFeZones` op that replace the open scenario's automatic
-/// fallen empire zones with the ones Paint a Galaxy's own rule would place now; the
-/// zones the map author placed by hand are not among them. The app applies the op.
+/// fallen empire zones with `count` of the ones Paint a Galaxy's own rule would place
+/// now, spread over the map; the zones the map author placed by hand are not among
+/// them. The app applies the op.
 #[tauri::command]
-pub fn fe_zone_recompute(
+pub fn fe_zone_fit(
     state: State<'_, AppState>,
+    count: usize,
 ) -> Result<Vec<(u32, Option<FeZone>)>, SgfError> {
     let guard = lock(&state);
+    let session = scenario(&guard)?;
+    Ok(fe_zone::fit(&fe_zone::sites(&session.graph), count))
+}
+
+/// How many automatic fallen empire zones Paint a Galaxy's rule can place on the open
+/// scenario: the most `fe_zone_fit` accepts.
+#[tauri::command]
+pub fn fe_zone_candidate_count(state: State<'_, AppState>) -> Result<usize, SgfError> {
+    let guard = lock(&state);
+    let session = scenario(&guard)?;
+    Ok(fe_zone::candidate_count(&fe_zone::sites(&session.graph)))
+}
+
+fn scenario(guard: &Option<Session>) -> Result<&Session, SgfError> {
     let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
     if session.kind() != DocumentKind::Scenario {
         return Err(SgfError::new(
@@ -260,7 +276,7 @@ pub fn fe_zone_recompute(
             "only a scenario has fallen empire zones",
         ));
     }
-    Ok(fe_zone::recompute(&fe_zone::sites(&session.graph)))
+    Ok(session)
 }
 
 /// The five empire-count header keys and the values Paint a Galaxy's formulas give

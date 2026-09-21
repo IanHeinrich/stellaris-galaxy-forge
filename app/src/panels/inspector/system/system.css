@@ -391,3 +391,12 @@
 .ins-kind {
   color: var(--fg-muted);
 }
+
+.ins-fe-zone-intro {
+  margin: 0 0 6px;
+  padding-left: 14px;
+}
+
+.ins-fe-zone-intro li + li {
+  margin-top: 3px;
+}

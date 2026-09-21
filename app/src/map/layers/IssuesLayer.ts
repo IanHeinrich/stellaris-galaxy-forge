@@ -1,7 +1,7 @@
 import { Container, Graphics } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
-import type { Issue } from "../../generated/Issue";
 import type { Severity } from "../../generated/Severity";
+import type { AppIssue } from "../../lib/issues";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { markerScale, type MapLayer } from "./MapLayer";
@@ -21,7 +21,7 @@ function draw(g: Graphics, severity: Severity): void {
 }
 
 /** Errors win over warnings for a system named by both. */
-export function worstSeverityBySystem(issues: readonly Issue[]): Map<number, Severity> {
+export function worstSeverityBySystem(issues: readonly AppIssue[]): Map<number, Severity> {
   const worst = new Map<number, Severity>();
   for (const issue of issues) {
     for (const id of issue.systems) {
@@ -56,7 +56,7 @@ export class IssuesLayer implements MapLayer {
     for (const s of d.systems) this.rings.get(s.id)?.position.set(s.x, s.y);
   }
 
-  setIssues(issues: readonly Issue[]): void {
+  setIssues(issues: readonly AppIssue[]): void {
     this.severities = worstSeverityBySystem(issues);
     this.place();
   }

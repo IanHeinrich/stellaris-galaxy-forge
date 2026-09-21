@@ -279,11 +279,23 @@ fn a_candidate_keeps_clear_of_the_core_the_l_cluster_the_edge_systems_and_other_
     );
 }
 
+fn centre_of(sites: &[Site<'_>], id: u32, zone: &FeZone) -> (f64, f64) {
+    let site = sites.iter().find(|site| site.id == id).expect("the anchor");
+    fe_zone::centre((site.x, site.y), zone)
+}
+
+fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
+    (a.0 - b.0).hypot(a.1 - b.1)
+}
+
 #[test]
-fn recomputing_keeps_the_placed_zones_and_replaces_the_automatic_ones() {
+fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_ones() {
     let session = open();
-    let entries = fe_zone::recompute(&fe_zone::sites(&session.graph));
-    assert!(!entries.is_empty());
+    let sites = fe_zone::sites(&session.graph);
+    assert_eq!(fe_zone::candidate_count(&sites), 9);
+    let entries = fe_zone::fit(&sites, usize::MAX);
+    assert_eq!(entries.len(), 9);
+    assert_eq!(entries, fe_zone::fit(&sites, 9));
     assert!(entries.iter().all(|(id, zone)| {
         *id != 9 && *id != 12 && zone.as_ref().is_some_and(|z| !z.preferred)
     }));
@@ -300,7 +312,7 @@ fn recomputing_keeps_the_placed_zones_and_replaces_the_automatic_ones() {
     round_trip(open(), Op::SetFeZones { entries });
 
     let session = open_with_automatic_9();
-    let entries = fe_zone::recompute(&fe_zone::sites(&session.graph));
+    let entries = fe_zone::fit(&fe_zone::sites(&session.graph), usize::MAX);
     assert_eq!(
         entries.iter().find(|(id, _)| *id == 9),
         Some(&(9, Some(automatic(FeDirection::E)))),
@@ -310,12 +322,77 @@ fn recomputing_keeps_the_placed_zones_and_replaces_the_automatic_ones() {
     assert!(entries.iter().all(|(id, _)| *id != 12));
 
     let mut session = open();
-    let entries = fe_zone::recompute(&fe_zone::sites(&session.graph));
+    let entries = fe_zone::fit(&fe_zone::sites(&session.graph), usize::MAX);
     session
         .apply(Op::SetFeZones { entries })
-        .expect("recompute applies");
+        .expect("fit applies");
     assert!(
-        fe_zone::recompute(&fe_zone::sites(&session.graph)).is_empty(),
+        fe_zone::fit(&fe_zone::sites(&session.graph), usize::MAX).is_empty(),
         "a second pass has nothing left to change"
+    );
+}
+
+#[test]
+fn fitting_a_count_spreads_that_many_candidates_away_from_the_placed_zones() {
+    let mut session = open();
+    session
+        .apply(Op::SetFeZones {
+            entries: fe_zone::fit(&fe_zone::sites(&session.graph), usize::MAX),
+        })
+        .expect("fill the map with automatic zones");
+    let sites = fe_zone::sites(&session.graph);
+    let cleared = fe_zone::fit(&sites, 0);
+    assert_eq!(cleared.len(), 9, "{cleared:?}");
+    assert!(cleared.iter().all(|(_, zone)| zone.is_none()));
+
+    let session = open();
+    let sites = fe_zone::sites(&session.graph);
+    let two = fe_zone::fit(&sites, 2);
+    assert_eq!(two, fe_zone::fit(&sites, 2), "deterministic");
+    assert_eq!(two.len(), 2, "{two:?}");
+    assert!(
+        two.iter()
+            .all(|(id, zone)| *id != 9 && *id != 12 && zone.is_some())
+    );
+    let centres: Vec<(f64, f64)> = two
+        .iter()
+        .map(|(id, zone)| centre_of(&sites, *id, zone.as_ref().unwrap()))
+        .collect();
+    assert!(
+        distance(centres[0], centres[1]) > 60.0,
+        "{two:?} lie {} apart",
+        distance(centres[0], centres[1])
+    );
+
+    // The first pick is the candidate whose centre lies farthest from the placed zone.
+    let placed = zone(FeDirection::E, FeKind::Hive, 40, true);
+    let sites = [
+        Site {
+            zone: Some(&placed),
+            ..site(1, 200.0, 0.0)
+        },
+        site(2, 200.0, 100.0),
+        site(3, -200.0, 0.0),
+        site(4, 200.0, -100.0),
+    ];
+    assert_eq!(
+        fe_zone::fit(&sites, 1),
+        [(3, Some(automatic(FeDirection::E)))]
+    );
+
+    // With no placed zone the first pick is the candidate farthest from the origin,
+    // and the second the one farthest from the first.
+    let sites = [
+        site(1, 200.0, 0.0),
+        site(2, 200.0, 150.0),
+        site(3, -200.0, 0.0),
+        site(4, -300.0, 50.0),
+    ];
+    assert_eq!(
+        fe_zone::fit(&sites, 2),
+        [
+            (2, Some(automatic(FeDirection::E))),
+            (4, Some(automatic(FeDirection::E)))
+        ]
     );
 }

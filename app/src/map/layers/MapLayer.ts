@@ -1,8 +1,8 @@
 import type { Container } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
-import type { Issue } from "../../generated/Issue";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { Camera } from "../Camera";
+import type { AppIssue } from "../../lib/issues";
 import type { LayerId } from "../../lib/visual/layerIds";
 import type { MoveGhost } from "../moveGhosts";
 import type { RenderContext } from "../RenderContext";
@@ -35,7 +35,7 @@ export interface MapLayer {
   /** The selected systems, for a layer that draws what one of them owns differently. */
   setSelection?(ids: readonly number[]): void;
   /** The validator's latest findings. */
-  setIssues?(issues: readonly Issue[]): void;
+  setIssues?(issues: readonly AppIssue[]): void;
   /** Systems whose label is placed before any other, whatever their rank. */
   setPinned?(ids: readonly number[]): void;
   /** Whether the details layer is drawing its own row of icons under every system. */

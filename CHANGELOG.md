@@ -33,8 +33,21 @@ a release is made.
   menu or on empty space, drag it, and set its type, direction, distance
   and fallback in the inspector. A ring that would cover a system is
   refused, or reported in Issues if a move brings one in. Export as
-  scenario adds the mod's automatic zones, and "Recompute automatic
-  fallen empire zones" redoes them after edits.
+  scenario adds the mod's automatic zones. "Fit fallen empire zones…"
+  chooses how many automatic zones to place, spread across the map.
+  A zone's own warnings show in its inspector section.
+- A save with unresolved warnings or errors opens the Issues tab and
+  asks before writing. "Save anyway" keeps it quiet until a new issue
+  appears.
+- Two guide layers under "Overlays": "Map border" draws where the map
+  ends and "L-Cluster" the circle the game builds the L-Cluster in. Both
+  are on for a scenario and off for a save.
+- Paint a Galaxy: an "Update counts" button rewrites the header's empire
+  counts from the seats when Issues says they no longer match. Two
+  selected systems can be linked as a wormhole pair and unlinked again,
+  and the inspector names the other end. A scenario saved into the mod's
+  folder is checked for another file listing the same name. After a save
+  into the mod the status bar says how to start the map in Stellaris.
 - The seat select reads Enabled, Preferred, Sol, then Reserved A to Z,
   with a line saying what the mod does with each. The map shows a
   reserved seat's letter and a star on a preferred one. The vanilla

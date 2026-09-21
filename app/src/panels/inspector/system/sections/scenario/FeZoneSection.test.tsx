@@ -53,7 +53,7 @@ describe("a scenario system's fallen empire zone", () => {
     expect(sections(html)).toContain("Fallen empire zone");
     expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("Fallen empire zone"));
     expect(html.indexOf("Fallen empire zone")).toBeLessThan(html.indexOf("basic_init_01"));
-    expect(html).toContain(escaped(FE_ZONE_INTRO));
+    for (const line of FE_ZONE_INTRO) expect(html).toContain(escaped(line));
   });
 
   it("says None and offers to add a zone where there is room", async () => {
@@ -114,5 +114,29 @@ describe("a scenario system's fallen empire zone", () => {
   it("says when the zone is the mod's own, and that a change takes it over", async () => {
     await openWith({ ...newFeZone("n"), preferred: false });
     expect(overview()).toContain(AUTOMATIC_NOTE);
+  });
+
+  it("carries the zone's own issues, an overlap from either end", async () => {
+    await openWith(newFeZone("se", 60));
+    useFileSessionStore.setState({
+      issues: [
+        {
+          severity: "warning",
+          code: "fe_zone_overlap",
+          message:
+            "Fallen empire zones from Sol and Alpha Centauri overlap: the mod cannot fill both.",
+          systems: [0, 1],
+        },
+        {
+          severity: "warning",
+          code: "fe_zone_blocked",
+          message: "Fallen empire zone from Sol is blocked by Barnard's Star.",
+          systems: [0, 2],
+        },
+      ],
+    });
+    const html = overview();
+    expect(html).toContain("Fallen empire zones from Sol and Alpha Centauri overlap");
+    expect(html).not.toContain("is blocked by");
   });
 });

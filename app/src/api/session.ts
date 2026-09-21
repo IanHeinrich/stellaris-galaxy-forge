@@ -124,12 +124,30 @@ export function applyOp(op: Op): Promise<EditResult> {
 }
 
 /**
- * The entries of one `SetFeZones` that removes the stale automatic fallen empire zones and adds
- * the ones the Paint a Galaxy mod would offer; empty when the zones already stand as the mod
- * would place them.
+ * The entries of one `SetFeZones` that replaces the automatic fallen empire zones with `count`
+ * of the Paint a Galaxy mod's candidates, spread across the map; empty when the zones already
+ * stand as asked. Zones the user placed stay.
  */
-export function feZoneRecompute(): Promise<Array<[number, FeZone | null]>> {
-  return invoke<Array<[number, FeZone | null]>>("fe_zone_recompute");
+export function feZoneFit(count: number): Promise<Array<[number, FeZone | null]>> {
+  return invoke<Array<[number, FeZone | null]>>("fe_zone_fit", { count });
+}
+
+/** The most zones `feZoneFit` accepts on the open scenario. */
+export function feZoneCandidateCount(): Promise<number> {
+  return invoke<number>("fe_zone_candidate_count");
+}
+
+/**
+ * The five empire-count header keys and the values Paint a Galaxy's formulas give the open
+ * scenario's seats, for one `SetHeaderKeys`. Rejects with `SgfError` (kind `op`) on a save.
+ */
+export function headerEmpireCounts(): Promise<Array<[string, string]>> {
+  return invoke<Array<[string, string]>>("header_empire_counts");
+}
+
+/** Every other scenario in the directory of `path`, as file name and header name. */
+export function siblingScenarioNames(path: string): Promise<Array<[string, string]>> {
+  return invoke<Array<[string, string]>>("sibling_scenario_names", { path });
 }
 
 /** Undo the last edit; resolves null when there is nothing to undo. */

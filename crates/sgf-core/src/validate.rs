@@ -67,6 +67,9 @@ pub enum IssueCode {
     FeZoneOverlap,
     /// A fallen empire zone's centre lies beyond the canvas the mod paints on.
     FeZoneOffMap,
+    /// A Paint a Galaxy scenario carries no automatic fallen empire zones, so the game
+    /// has only the placed rings to choose from.
+    FeZoneNoAutomatic,
     /// A Paint a Galaxy header allows more empires than the seats can take, or caps
     /// them at other than the seats less one.
     HeaderEmpireCount,
@@ -97,6 +100,7 @@ impl IssueCode {
             | Self::FeZoneBlocked
             | Self::FeZoneOverlap
             | Self::FeZoneOffMap
+            | Self::FeZoneNoAutomatic
             | Self::HeaderEmpireCount
             | Self::SeatLetterDuplicate
             | Self::LClusterSystem => Severity::Warning,
@@ -121,6 +125,7 @@ impl IssueCode {
             Self::FeZoneBlocked => "fe_zone_blocked",
             Self::FeZoneOverlap => "fe_zone_overlap",
             Self::FeZoneOffMap => "fe_zone_off_map",
+            Self::FeZoneNoAutomatic => "fe_zone_no_automatic",
             Self::HeaderEmpireCount => "header_empire_count",
             Self::SeatLetterDuplicate => "seat_letter_duplicate",
             Self::SolSeatMismatch => "sol_seat_mismatch",
@@ -264,6 +269,7 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
     fe_zones(g, &mut issues);
     if g.kind == DocumentKind::Scenario {
         seats(g, &mut issues);
+        automatic_zones(g, &mut issues);
         l_cluster(g, &mut issues);
     }
 
@@ -432,6 +438,27 @@ fn l_cluster(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                 vec![system.id],
             ));
         }
+    }
+}
+
+/// A painted scenario with systems but no automatic zones leaves the game only the rings
+/// placed by hand, however many fallen empires it was asked for.
+fn automatic_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    let painted = g
+        .systems
+        .values()
+        .any(|system| system.spawn_script.is_some() || system.fe_zone.is_some());
+    let automatic = g
+        .systems
+        .values()
+        .any(|system| system.fe_zone.as_ref().is_some_and(|zone| !zone.preferred));
+    if painted && !automatic {
+        issues.push(Issue::new(
+            IssueCode::FeZoneNoAutomatic,
+            "No automatic fallen empire zones. Refresh them so the game has rings to choose from."
+                .to_owned(),
+            Vec::new(),
+        ));
     }
 }
 

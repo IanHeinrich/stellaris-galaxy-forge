@@ -14,11 +14,13 @@ import type { Progress } from "../generated/Progress";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SaveResult } from "../generated/SaveResult";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
+import { duplicateNameNote, type AppIssue, type NoteCode } from "../lib/issues";
 import { paintLayer, scenarioHeaderName } from "../lib/paint";
 import { fileName, isUnder, joinPath } from "../lib/paths";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
-import { useIssuesStore } from "./issuesStore";
+import { isNote, issueKey, useIssuesStore } from "./issuesStore";
+import { useLayoutStore } from "./layoutStore";
 import { usePaintModStore } from "./paintModStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, readPref, writePref } from "./prefs";
@@ -52,7 +54,8 @@ export interface FileSessionState {
   meta: SaveMeta | null;
   /** What the open document supports; null until one is open. */
   capabilities: Capabilities | null;
-  issues: Issue[];
+  /** The validator's findings, with the notes the document opened with and the app's own after them. */
+  issues: AppIssue[];
   dirty: boolean;
   saving: boolean;
   lastSave: SaveResult | null;
@@ -66,6 +69,8 @@ export interface FileSessionState {
   cloud: boolean;
   /** The cloud path the user has already agreed to write this session. */
   cloudAcknowledged: string | null;
+  /** Keys of the warnings and errors the user has already agreed to save this document with. */
+  dismissedIssues: string[];
   /** A save waiting for the user to say which way to open it. */
   pendingOpen: string | null;
   /** What an export would carry over, waiting for the user to confirm or cancel it. */
@@ -131,7 +136,7 @@ const INITIAL = {
   title: null as string | null,
   meta: null as SaveMeta | null,
   capabilities: null as Capabilities | null,
-  issues: [] as Issue[],
+  issues: [] as AppIssue[],
   dirty: false,
   saving: false,
   lastSave: null as SaveResult | null,
@@ -140,6 +145,7 @@ const INITIAL = {
   savedAt: null as number | null,
   cloud: false,
   cloudAcknowledged: null as string | null,
+  dismissedIssues: [] as string[],
   pendingOpen: null as string | null,
   pendingExport: null as ExportReport | null,
   painted: false,
@@ -241,8 +247,9 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
       await get().saveAs();
       return;
     }
+    if (!(await confirmIssues())) return;
     if (cloud && !(await confirmCloudWrite(path))) return;
-    await writeSave(() => ipc.save());
+    if (await writeSave(() => ipc.save())) void noteDuplicateNames();
   },
 
   async saveAs() {
@@ -335,9 +342,36 @@ export function isSavePath(path: string): boolean {
 }
 
 /** An edit's fresh findings, with the notes the document opened with kept after them. */
-function withNotes(issues: Issue[]): Issue[] {
+function withNotes(issues: Issue[]): AppIssue[] {
   const { notes } = useIssuesStore.getState();
   return notes.length === 0 ? issues : [...issues, ...notes];
+}
+
+const DUPLICATE_NAME: NoteCode = "scenario_name_duplicate";
+
+/**
+ * Notes every other file in the Paint a Galaxy mod's scenarios folder whose header lists the
+ * open scenario's name, since the game shows one size per name. Nothing for a file elsewhere,
+ * and a folder that cannot be read leaves no note.
+ */
+async function noteDuplicateNames(): Promise<void> {
+  const { getState, setState } = useFileSessionStore;
+  const mine = opens;
+  const { kind, path } = getState();
+  const dir = paintScenariosDir();
+  const name = scenarioHeaderName(useGalaxyStore.getState().header);
+  let notes: AppIssue[] = [];
+  if (kind === "scenario" && path !== null && dir !== null && isUnder(path, dir) && name !== null) {
+    const siblings = await ipc.siblingScenarioNames(path).catch(() => []);
+    if (mine !== opens || getState().path !== path) return;
+    notes = siblings
+      .filter(([, other]) => other === name)
+      .map(([file]) => duplicateNameNote(name, file));
+  }
+  const issues = getState().issues;
+  if (notes.length === 0 && !issues.some((issue) => issue.code === DUPLICATE_NAME)) return;
+  useIssuesStore.getState().setNotes(DUPLICATE_NAME, notes);
+  setState({ issues: [...issues.filter((issue) => issue.code !== DUPLICATE_NAME), ...notes] });
 }
 
 /** What a document with no file of its own is offered as a name. */
@@ -405,6 +439,7 @@ async function openDocument(
       });
     }
     useGalaxyStore.getState().load(result.galaxy);
+    void noteDuplicateNames();
     if (result.kind === "scenario" && useGameDataStore.getState().status === "ready") {
       setState({ settling: true });
       try {
@@ -458,11 +493,15 @@ async function saveTo(
   defaultPath: string | undefined,
   filter: { name: string; extensions: string[] },
 ): Promise<void> {
+  if (!(await confirmIssues())) return;
   const picked = await saveDialog({ defaultPath, filters: [filter] });
   if (picked === null) return;
   const cloud = await ipc.isCloudSave(picked).catch(() => false);
   if (cloud && !(await confirmCloudWrite(picked))) return;
-  if (await writeSave(() => ipc.saveAs(picked))) noteSavedIntoPaintMod();
+  if (await writeSave(() => ipc.saveAs(picked))) {
+    noteSavedIntoPaintMod();
+    void noteDuplicateNames();
+  }
 }
 
 /**
@@ -481,6 +520,31 @@ function noteSavedIntoPaintMod(): void {
       "Saved into the Paint a Galaxy mod. In Stellaris, start a new game, choose the Elliptical " +
       `shape and the size ${name}.`,
   });
+}
+
+/**
+ * Resolves true when the document may be saved with its warnings and errors: every one of them
+ * was already agreed to, or the user agreed now, with the Issues tab showing what they are.
+ */
+async function confirmIssues(): Promise<boolean> {
+  const { getState, setState } = useFileSessionStore;
+  const { issues, dismissedIssues, path, title } = getState();
+  const unresolved = issues.filter((issue) => issue.severity !== "info" && !isNote(issue));
+  const keys = unresolved.map(issueKey);
+  if (keys.every((key) => dismissedIssues.includes(key))) return true;
+  const layout = useLayoutStore.getState();
+  layout.setTab("issues");
+  if (layout.collapsed) layout.toggleDock();
+  const count =
+    unresolved.length === 1 ? "1 unresolved issue" : `${unresolved.length} unresolved issues`;
+  const ok = await confirm(`This map has ${count}. Save anyway?`, {
+    title: fileName(path) || (title ?? ""),
+    kind: "warning",
+    okLabel: "Save anyway",
+    cancelLabel: "Cancel",
+  });
+  if (ok) setState({ dismissedIssues: [...new Set([...dismissedIssues, ...keys])] });
+  return ok;
 }
 
 /** Resolves true when `path` may be written: already acknowledged this session, or the user agreed now. */

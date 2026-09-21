@@ -1,6 +1,6 @@
 import type { GalaxyDelta } from "../generated/GalaxyDelta";
-import type { Issue } from "../generated/Issue";
 import type { SpecialKind } from "../generated/SpecialKind";
+import type { AppIssue } from "../lib/issues";
 import type { LayerId } from "../lib/visual/layerIds";
 import { useDetailsStore } from "../store/detailsStore";
 import { useEditorStore } from "../store/editorStore";
@@ -209,7 +209,7 @@ function setSelectedNebula(view: MapView, index: number | null): void {
   for (const layer of view.layers) layer.setSelectedNebula?.(index);
 }
 
-function setIssues(view: MapView, issues: readonly Issue[]): void {
+function setIssues(view: MapView, issues: readonly AppIssue[]): void {
   for (const layer of view.layers) layer.setIssues?.(issues);
 }
 

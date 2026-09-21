@@ -217,9 +217,11 @@ that anchors no zone, in direction order e, se, s, sw, w, nw, n, ne, the
 first direction whose centre `C` at distance 40 has `|C| ≥ 130`,
 `dist(C, (−420, −420)) ≥ 100`, `|C.x|, |C.y| ≤ 470`, no system within 30
 and no accepted zone centre within 60 becomes a `random`, non-preferred
-zone. Export as scenario runs it over a save's systems, and "Recompute
-automatic fallen empire zones" removes every non-preferred zone and runs
-it again as one op.
+zone. Export as scenario runs it over a save's systems. "Fit fallen
+empire zones" (`fe_zone::fit`) removes every non-preferred zone, runs the
+rule again and keeps the `count` candidates farthest from each other and
+from the preferred zones, as one op. `fe_zone::candidate_count` is the
+most it can keep.
 
 ## What Forge reads
 

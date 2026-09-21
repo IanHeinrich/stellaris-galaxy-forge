@@ -13,7 +13,7 @@ import {
   spawnWeightFor,
   useInitializerBrowserStore,
 } from "../../store/initializerBrowserStore";
-import { BulkActions } from "../inspector/selection/BulkActions";
+import { BulkActions, WormholePairButton } from "../inspector/selection/BulkActions";
 import {
   NEEDS_INITIALIZER,
   spawnPointsOp,
@@ -48,7 +48,7 @@ export function ContextMenu() {
   const setFeZone = useEditorStore((s) => s.setFeZone);
   const addFeZone = useEditorStore((s) => s.addFeZone);
   const addFeZoneAt = useEditorStore((s) => s.addFeZoneAt);
-  const recomputeFeZones = useEditorStore((s) => s.recomputeFeZones);
+  const promptFeZoneFit = useEditorStore((s) => s.promptFeZoneFit);
   const capabilities = useFileSessionStore((s) => s.capabilities);
   const paint = usePaintLayer();
   const systems = useGalaxyStore((s) => s.systems);
@@ -167,18 +167,19 @@ export function ContextMenu() {
                 closeContextMenu();
               }}
             >
-              Fallen empire zone here{named[0] !== undefined && `, from ${named[0]}`}
+              Add fallen empire zone{named[0] !== undefined && `, anchored to ${named[0]}`}
             </button>
             <button
               type="button"
               role="menuitem"
               className="menu-item"
+              title="Place the mod's automatic zones, as many as you choose, spread across the map."
               onClick={() => {
-                void recomputeFeZones();
+                void promptFeZoneFit();
                 closeContextMenu();
               }}
             >
-              Recompute automatic fallen empire zones
+              Fit fallen empire zones…
             </button>
           </>
         )}
@@ -225,6 +226,14 @@ export function ContextMenu() {
             >
               Isolate
             </button>
+            {zones && selection.length === 2 && inSelection && (
+              <WormholePairButton
+                a={selection[0]}
+                b={selection[1]}
+                afterRun={closeContextMenu}
+                itemRole="menuitem"
+              />
+            )}
             {selection.length > 0 && !inSelection && (
               <>
                 <button

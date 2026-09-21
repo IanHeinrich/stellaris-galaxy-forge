@@ -10,17 +10,20 @@ import {
 } from "../../../../../lib/feZone";
 import { useSystemName } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
-import { usePaintLayer } from "../../../../../store/fileSessionStore";
+import { useFileSessionStore, usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { Section } from "../../../parts";
 import { useEditableSystem } from "../../editable";
 
-export const FE_ZONE_INTRO =
-  "A fallen empire zone is empty space. When the game starts, the Paint a Galaxy mod creates a " +
-  "fallen empire's home system at the centre of the ring and its other systems around it, then " +
-  "links them by hyperlane to systems nearby. Nothing already on the map is used or moved, so " +
-  "the ring must stay clear of your systems. Every zone belongs to one of your systems, which " +
-  "the mod measures the ring from, so add a zone from the system you want it near.";
+/** What a zone is, in four short lines: the ring is empty space the mod fills at game start. */
+export const FE_ZONE_INTRO = [
+  "A fallen empire zone is empty space.",
+  "At game start the Paint a Galaxy mod creates a fallen empire's home system at the centre " +
+    "of the ring, its other systems around it, and hyperlanes to systems nearby.",
+  "Nothing already on the map is used or moved, so keep the ring clear of your systems.",
+  "Every zone belongs to one of your systems, which the ring is measured from: add it from " +
+    "the system you want it near.",
+] as const;
 
 export const ADD_ZONE_HINT =
   "Marks empty space nearby where the mod will create a fallen empire's systems at game start.";
@@ -56,7 +59,11 @@ export function FeZoneSection({ system }: { system: SystemNode }) {
   if (!editable || !paint) return null;
   return (
     <Section id="system.feZone" title="Fallen empire zone">
-      <div className="muted ins-hint">{FE_ZONE_INTRO}</div>
+      <ul className="muted ins-hint ins-fe-zone-intro">
+        {FE_ZONE_INTRO.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
       {system.fe_zone === null ? (
         <NoZone system={system} />
       ) : (
@@ -91,10 +98,20 @@ function NoZone({ system }: { system: SystemNode }) {
 function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
   const setFeZone = useEditorStore((s) => s.setFeZone);
   const anchor = useSystemName(system.id);
+  const problems = useFileSessionStore((s) => s.issues).filter((issue) =>
+    issue.code === "fe_zone_overlap"
+      ? issue.systems.includes(system.id)
+      : issue.code.startsWith("fe_zone_") && issue.systems[0] === system.id,
+  );
   const write = (patch: Partial<FeZone>) =>
     void setFeZone(system.id, { ...zone, ...patch, preferred: true });
   return (
     <>
+      {problems.map((issue) => (
+        <div className="ins-warn" key={issue.code + issue.systems.join()}>
+          {issue.message}
+        </div>
+      ))}
       <div className="ins-fe-zone">
         <label>
           Type

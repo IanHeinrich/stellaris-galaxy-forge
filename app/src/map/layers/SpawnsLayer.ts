@@ -246,7 +246,7 @@ export class SpawnsLayer implements MapLayer {
     }
     const label = this.tagLabels.get(s.id);
     if (label) {
-      label.position.set(at.x, at.y);
+      label.position.set(at.x + TAG_OFFSET.x * this.scale.x, at.y + TAG_OFFSET.y * this.scale.y);
       label.alpha = ghosted ? GHOST_ALPHA : 1;
       label.scale.set(this.scale.x, this.scale.y);
     }

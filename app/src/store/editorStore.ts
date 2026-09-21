@@ -19,7 +19,7 @@ import {
   NO_FREE_DIRECTION,
   snapFeZone,
 } from "../lib/feZone";
-import { enabledScript } from "../lib/paint";
+import { enabledScript, nextWormholePair, sharedWormholePair } from "../lib/paint";
 import {
   linkedPairs,
   linkedSystems,
@@ -96,6 +96,8 @@ export interface EditorState {
   lastNebulaRadius: number;
   /** The world point a new nebula is being named for, null while none is being created. */
   nebulaPrompt: { x: number; y: number } | null;
+  /** What the fit dialog is asked over: the mod's candidate rings and the automatic zones standing now. */
+  feZoneFitPrompt: { candidates: number; automatic: number } | null;
 
   /** Replaces the selection with `id`, or clears it. */
   select(id: number | null): Promise<void>;
@@ -154,8 +156,17 @@ export interface EditorState {
   addFeZoneAt(point: { x: number; y: number }): Promise<boolean>;
   /** Moves the ring `id` anchors, keeping its kind; the zone becomes the user's own. */
   moveFeZone(id: number, direction: FeDirection, distance: number): Promise<boolean>;
-  /** Replaces the automatic zones with the ones the mod would offer now. */
-  recomputeFeZones(): Promise<void>;
+  /** Asks how many automatic zones to fit; nothing is written yet. */
+  promptFeZoneFit(): Promise<void>;
+  cancelFeZoneFit(): void;
+  /** Replaces the automatic zones with `count` of the mod's candidates, spread across the map. */
+  fitFeZones(count: number): Promise<void>;
+  /** Writes the empire-count header keys the mod's formulas give the scenario's seats. */
+  updateEmpireCounts(): Promise<void>;
+  /** Makes `a` and `b` the two ends of a new wormhole pair, numbered past every pair in use. */
+  linkWormholePair(a: number, b: number): Promise<boolean>;
+  /** Takes the pair `a` and `b` share away from both; nothing when they share none. */
+  unlinkWormholePair(a: number, b: number): Promise<boolean>;
   /** Adds a lane between every unlinked pair of selected systems, up to `CONNECT_ALL_MAX` of them. */
   connectSelected(): Promise<void>;
   /** Adds the missing lanes of the β-skeleton over the selected systems at the chrome's `meshBeta`. */
@@ -196,6 +207,7 @@ const INITIAL = {
   recentHits: [] as SearchHit[],
   history: { undo: [], redo: [] } as HistoryView,
   nebulaPrompt: null as { x: number; y: number } | null,
+  feZoneFitPrompt: null as { candidates: number; automatic: number } | null,
 } satisfies Partial<EditorState>;
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -385,7 +397,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   async addFeZoneAt(point) {
     const anchor = nearestSystem(point);
-    if (!anchor) return false;
+    if (!anchor) {
+      useFileSessionStore.getState().setError(NEEDS_A_SYSTEM);
+      return false;
+    }
     const snapped = snapFeZone(anchor, point);
     const blocked = feZoneBlocked(feZoneCentre(anchor, snapped), systems(), anchor.id);
     if (blocked !== null) {
@@ -403,21 +418,62 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return get().setFeZone(id, { ...zone, direction, distance, preferred: true });
   },
 
-  async recomputeFeZones() {
+  async promptFeZoneFit() {
+    let candidates: number;
+    try {
+      candidates = await ipc.feZoneCandidateCount();
+    } catch (e) {
+      useFileSessionStore.getState().setError(ipc.errorMessage(e));
+      return;
+    }
+    let automatic = 0;
+    for (const system of systems().values()) {
+      if (system.fe_zone !== null && !system.fe_zone.preferred) automatic += 1;
+    }
+    set({ feZoneFitPrompt: { candidates, automatic } });
+  },
+
+  cancelFeZoneFit() {
+    if (get().feZoneFitPrompt) set({ feZoneFitPrompt: null });
+  },
+
+  async fitFeZones(count) {
+    set({ feZoneFitPrompt: null });
     let entries: Array<[number, FeZone | null]>;
     try {
-      entries = await ipc.feZoneRecompute();
+      entries = await ipc.feZoneFit(count);
     } catch (e) {
       useFileSessionStore.getState().setError(ipc.errorMessage(e));
       return;
     }
     if (entries.length === 0) {
-      useFileSessionStore.getState().setError(NOTHING_TO_RECOMPUTE);
+      useFileSessionStore.getState().setError(NOTHING_TO_FIT);
       return;
     }
     if (await get().applyOp({ type: "SetFeZones", entries })) {
       useMapChromeStore.getState().showLayer("feZones");
     }
+  },
+
+  async updateEmpireCounts() {
+    let entries: Array<[string, string]>;
+    try {
+      entries = await ipc.headerEmpireCounts();
+    } catch (e) {
+      useFileSessionStore.getState().setError(ipc.errorMessage(e));
+      return;
+    }
+    await get().applyOp({ type: "SetHeaderKeys", entries });
+  },
+
+  async linkWormholePair(a, b) {
+    const pair = nextWormholePair(systems().values());
+    return get().applyOp({ type: "SetWormholePair", a, b, pair });
+  },
+
+  async unlinkWormholePair(a, b) {
+    if (sharedWormholePair(systems(), a, b) === null) return false;
+    return get().applyOp({ type: "SetWormholePair", a, b, pair: null });
   },
 
   async connectSelected() {
@@ -510,9 +566,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 /** The session a late answer still belongs to; a document closing or opening leaves it to nobody. */
 let session = 0;
 
-/** What the status bar says when the automatic zones already stand as the mod would place them. */
-export const NOTHING_TO_RECOMPUTE =
-  "The automatic fallen empire zones are already as the mod would place them.";
+export const NEEDS_A_SYSTEM =
+  "Add a system first. A fallen empire zone belongs to one of your systems.";
+
+/** What the status bar says when a fit would change no zone. */
+export const NOTHING_TO_FIT = "The automatic fallen empire zones already stand as asked.";
 
 /** Writes a zone by hand, shows the rings, and selects the anchor so the inspector shows it. */
 async function placeFeZone(id: number, zone: FeZone): Promise<boolean> {

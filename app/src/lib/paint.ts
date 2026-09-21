@@ -174,3 +174,36 @@ export function seatSummary(systems: Iterable<SystemNode>): SeatSummary {
   const safeAi = Math.max(0, seats - reservedLetters.length - (sol ? 1 : 0) - 1);
   return { seats, preferred, reserved: reservedLetters, sol, safeAi };
 }
+
+/** The number a new wormhole pair takes: one past the highest in use, 1 when none is. */
+export function nextWormholePair(systems: Iterable<SystemNode>): number {
+  let highest = 0;
+  for (const system of systems) {
+    if (system.wormhole_pair !== null && system.wormhole_pair > highest) {
+      highest = system.wormhole_pair;
+    }
+  }
+  return highest + 1;
+}
+
+/** The pair two systems are the ends of, or null when they do not share one. */
+export function sharedWormholePair(
+  systems: ReadonlyMap<number, SystemNode>,
+  a: number,
+  b: number,
+): number | null {
+  const pair = systems.get(a)?.wormhole_pair ?? null;
+  return pair !== null && a !== b && systems.get(b)?.wormhole_pair === pair ? pair : null;
+}
+
+/** The other end of the pair `system` is one end of; null when the file names no other end. */
+export function wormholePartner(
+  systems: ReadonlyMap<number, SystemNode>,
+  system: SystemNode,
+): SystemNode | null {
+  if (system.wormhole_pair === null) return null;
+  for (const other of systems.values()) {
+    if (other.id !== system.id && other.wormhole_pair === system.wormhole_pair) return other;
+  }
+  return null;
+}

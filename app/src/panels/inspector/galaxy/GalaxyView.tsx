@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
+import type { AppIssue } from "../../../lib/issues";
 import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
 import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
@@ -109,15 +110,48 @@ function seatSummaryLine({ seats, preferred, reserved, sol, safeAi }: SeatSummar
   return parts.join(" · ");
 }
 
+/** The validator's word on the header's empire counts, and the button that rewrites them. */
+function EmpireCounts({ issue }: { issue: AppIssue }) {
+  const updateEmpireCounts = useEditorStore((s) => s.updateEmpireCounts);
+  return (
+    <>
+      <div className="ins-warn">{issue.message}</div>
+      <div className="ins-actions">
+        <button type="button" onClick={() => void updateEmpireCounts()}>
+          Update counts
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** The button that asks how many of the mod's automatic zones to place, spread across the map. */
+function FeZoneFit() {
+  const promptFeZoneFit = useEditorStore((s) => s.promptFeZoneFit);
+  return (
+    <div className="ins-actions">
+      <button
+        type="button"
+        title="Place the mod's automatic zones, as many as you choose, spread across the map."
+        onClick={() => void promptFeZoneFit()}
+      >
+        Fit fallen empire zones…
+      </button>
+    </div>
+  );
+}
+
 /** Every key the scenario's own header holds, in file order, duplicates as the file writes them. */
 function HeaderSection({
   header,
   paint,
   seatsLine,
+  countsIssue,
 }: {
   header: readonly HeaderField[];
   paint: boolean;
   seatsLine: string | null;
+  countsIssue: AppIssue | null;
 }) {
   return (
     <Section id="galaxy.header" title="Scenario header" count={header.length}>
@@ -133,6 +167,8 @@ function HeaderSection({
         );
       })}
       {paint && seatsLine !== null && <div className="muted ins-hint">{seatsLine}</div>}
+      {countsIssue !== null && <EmpireCounts issue={countsIssue} />}
+      {paint && <FeZoneFit />}
       <AddHeaderRow header={header} />
     </Section>
   );
@@ -145,6 +181,9 @@ export function GalaxyView() {
   const kind = useFileSessionStore((s) => s.kind);
   const path = useFileSessionStore((s) => s.path);
   const cloud = useFileSessionStore((s) => s.cloud);
+  const countsIssue = useFileSessionStore(
+    (s) => s.issues.find((issue) => issue.code === "header_empire_count") ?? null,
+  );
   const requestFit = useEditorStore((s) => s.requestFit);
   const galaxy = useGalaxyStore((s) => s.galaxy);
   const header = useGalaxyStore((s) => s.header);
@@ -194,7 +233,14 @@ export function GalaxyView() {
         </Properties>
         {random && <div className="muted ins-hint">{random}</div>}
       </Section>
-      {kind === "scenario" && <HeaderSection header={header} paint={paint} seatsLine={seatsLine} />}
+      {kind === "scenario" && (
+        <HeaderSection
+          header={header}
+          paint={paint}
+          seatsLine={seatsLine}
+          countsIssue={countsIssue}
+        />
+      )}
       <Section id="galaxy.file" title="File">
         <Properties>
           <PropertyRow label="Name">{path === null ? "not saved yet" : fileName(path)}</PropertyRow>

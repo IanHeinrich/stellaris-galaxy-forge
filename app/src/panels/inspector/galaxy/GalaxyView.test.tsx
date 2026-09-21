@@ -150,6 +150,7 @@ describe("the scenario header", () => {
     const html = galaxy();
     expect(html).not.toContain("Listed in-game as a galaxy size");
     expect(html).not.toContain("Seats");
+    expect(html).not.toContain("Fit fallen empire zones");
   });
 
   it("names the size the mod lists the scenario under, and sums up its scripted seats", async () => {
@@ -179,5 +180,6 @@ describe("the scenario header", () => {
       "Listed in-game as a galaxy size. Start a new game with the Elliptical shape and this size.",
     );
     expect(html).toContain("Seats 2 · preferred 1 · reserved B");
+    expect(html).toContain(">Fit fallen empire zones…</button>");
   });
 });

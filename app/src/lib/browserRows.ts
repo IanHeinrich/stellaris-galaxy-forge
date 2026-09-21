@@ -1,6 +1,5 @@
 import type { CountryNode } from "../generated/CountryNode";
-import type { Issue } from "../generated/Issue";
-import type { IssueCode } from "../generated/IssueCode";
+import type { AppIssue, AppIssueCode } from "./issues";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import { badgeLabel, humaniseInitializer } from "./visual/specialStyle";
 import {
@@ -245,7 +244,7 @@ export function pointGroups(
   });
 }
 
-const ISSUE_TITLES: Record<IssueCode, string> = {
+const ISSUE_TITLES: Record<AppIssueCode, string> = {
   lane_asymmetric: "Lane listed from one end only",
   lane_endpoint_missing: "Lane to a system that is not there",
   lane_self: "Lane from a system to itself",
@@ -261,24 +260,26 @@ const ISSUE_TITLES: Record<IssueCode, string> = {
   fe_zone_blocked: "Fallen empire zone covers a system",
   fe_zone_overlap: "Fallen empire zones overlap",
   fe_zone_off_map: "Fallen empire zone lies off the map",
+  fe_zone_no_automatic: "No automatic fallen empire zones",
   header_empire_count: "Header empire counts do not match the seats",
   seat_letter_duplicate: "Reserved seat used twice",
   sol_seat_mismatch: "Sol seat and Sol initializer disagree",
   l_cluster_system: "System where the game places the L-Cluster",
+  scenario_name_duplicate: "Scenario name used by another file in the mod",
 };
 
-export function issueTitle(code: IssueCode): string {
+export function issueTitle(code: AppIssueCode): string {
   return ISSUE_TITLES[code];
 }
 
 export interface IssueRow {
-  issue: Issue;
+  issue: AppIssue;
   /** The systems the issue names, on the row's own line. */
   systems: string;
 }
 
 export interface IssueGroup {
-  code: IssueCode;
+  code: AppIssueCode;
   title: string;
   /** An error anywhere in the group colours its header. */
   error: boolean;
@@ -286,8 +287,8 @@ export interface IssueGroup {
 }
 
 /** Issues grouped by code, errors first and the biggest group next, as the design sorts them. */
-export function issueGroups(issues: Issue[], nameOf: (id: number) => string): IssueGroup[] {
-  const groups = new Map<IssueCode, IssueGroup>();
+export function issueGroups(issues: AppIssue[], nameOf: (id: number) => string): IssueGroup[] {
+  const groups = new Map<AppIssueCode, IssueGroup>();
   for (const issue of issues) {
     let group = groups.get(issue.code);
     if (!group) {
