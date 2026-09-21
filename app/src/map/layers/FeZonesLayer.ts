@@ -49,8 +49,10 @@ class RingBand {
 
 /** How much of each dash step is drawn, on the ring and on the lines to its linked systems. */
 const DASH_FRACTION = 0.6;
-/** One dash step along a line, in world units: the ring's own arc step, so both read alike. */
-const LINE_DASH_STEP = (Math.PI * 2 * FE_ZONE_RADIUS) / DASHES;
+/** The lines to a zone's linked systems: the lanes the mod will lay, faint until it does. */
+const LINK = { color: RING.color, alpha: 0.3 };
+/** One dash step along a link, in screen pixels, so the dashes read the same at every zoom. */
+const LINK_DASH_PX = 10;
 
 function dashedRing(g: Graphics): void {
   const step = (Math.PI * 2) / DASHES;
@@ -71,14 +73,15 @@ function dashedLine(
   g: Graphics,
   from: { x: number; y: number },
   to: { x: number; y: number },
+  step: number,
 ): void {
   const length = Math.hypot(to.x - from.x, to.y - from.y);
   if (length === 0) return;
   const ux = (to.x - from.x) / length;
   const uy = (to.y - from.y) / length;
-  for (let at = 0; at < length; at += LINE_DASH_STEP) {
-    const last = at + LINE_DASH_STEP >= length;
-    const end = last ? length : at + LINE_DASH_STEP * DASH_FRACTION;
+  for (let at = 0; at < length; at += step) {
+    const last = at + step >= length;
+    const end = last ? length : at + step * DASH_FRACTION;
     g.moveTo(from.x + ux * at, from.y + uy * at).lineTo(from.x + ux * end, from.y + uy * end);
   }
 }
@@ -87,15 +90,19 @@ function dashedLine(
  * The lines from each linked system to the nearest point of the ring, drawn about the centre. A
  * system inside the ring gets none: the core refuses a ring over a system.
  */
-function drawLinks(g: Graphics, linked: ReadonlyArray<{ x: number; y: number }>): void {
+function drawLinks(
+  g: Graphics,
+  linked: ReadonlyArray<{ x: number; y: number }>,
+  step: number,
+): void {
   g.clear();
   for (const at of linked) {
     const d = Math.hypot(at.x, at.y);
     if (d <= FE_ZONE_RADIUS) continue;
     const t = FE_ZONE_RADIUS / d;
-    dashedLine(g, { x: at.x * t, y: at.y * t }, at);
+    dashedLine(g, { x: at.x * t, y: at.y * t }, at, step);
   }
-  g.stroke({ ...RING, pixelLine: true });
+  g.stroke({ ...LINK, pixelLine: true });
 }
 
 /** The ring and the line back to the anchor, drawn about the centre. */
@@ -251,6 +258,15 @@ export class FeZonesLayer implements MapLayer {
     if (cam.scale === this.camScale) return;
     this.camScale = cam.scale;
     for (const band of this.bands.values()) band.band = FE_ZONE_RING_HIT_PX / cam.scale;
+    for (const id of this.links.keys()) {
+      const anchor = this.systems.get(id);
+      if (anchor?.fe_zone)
+        this.placeLinks(
+          anchor,
+          feZoneCentre(this.ghosts.get(id) ?? anchor, anchor.fe_zone),
+          this.links.get(id)!.alpha,
+        );
+    }
   }
 
   /** A dragged anchor's ring follows its ghost, dimmed; a dragged linked system takes its line along. */
@@ -339,7 +355,7 @@ export class FeZonesLayer implements MapLayer {
       const at = this.ghosts.get(s.id) ?? s;
       return { x: at.x - centre.x, y: at.y - centre.y };
     });
-    drawLinks(g, ends);
+    drawLinks(g, ends, LINK_DASH_PX / this.camScale);
     g.position.set(centre.x, centre.y);
     g.alpha = alpha;
     this.linkedIds.set(

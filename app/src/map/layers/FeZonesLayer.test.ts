@@ -183,12 +183,12 @@ describe("the fallen empire zones layer", () => {
     });
   });
 
-  it("draws a dashed line from each linked system to the nearest point of its zone's ring, in the ring's colour", () => {
+  it("draws a faint dashed line from each linked system to the nearest point of its zone's ring", () => {
     // S2 stands at the ring's centre, which the core never allows, so it gets no line.
     const layer = drawn([taking(2, ZONED), linked(PLAIN, 2), linked(mapNode(2, -40, "S2"), 2)]);
     const links = linksAt(layer, -40)!;
     const ops = drawOps(links);
-    expect(ops.map((op) => [op.action, op.color, op.alpha])).toEqual([["stroke", 0xf0abfc, 0.75]]);
+    expect(ops.map((op) => [op.action, op.color, op.alpha])).toEqual([["stroke", 0xf0abfc, 0.3]]);
     const segments = dashes(links);
     expect(segments[0].slice(0, 2)).toEqual([30, 0]);
     const last = segments[segments.length - 1];
