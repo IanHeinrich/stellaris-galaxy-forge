@@ -272,7 +272,12 @@ The zone's centre is the anchor's position plus, for distance `d` and
 `k = d/√2`: e (−d, 0), se (−k, +k), s (0, +d), sw (+k, +k), w (+d, 0),
 nw (+k, −k), n (0, −d), ne (−k, −k). At game start the mod spawns the
 fallen empire's home system there with `spawn_system` at exactly `d` in
-that orientation, and its satellites 15–25 units around it. A missing kind
+that orientation, and its satellites 15–25 units around it, each at a
+bearing range its event names for the kind. The first tier of satellites
+is hyperlaned to the home and the rest to the satellite spawned before
+them: materialist and xenophile get seven in three branches, spiritualist
+six, xenophobe and hive nine, machine four all on the home, random three
+chains of two. Forge draws that tree as the zone's ghost. A missing kind
 reads as `random`, a missing distance as 40, and Forge reads them the same
 way.
 

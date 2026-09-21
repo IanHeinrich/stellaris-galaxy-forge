@@ -529,8 +529,11 @@ Galaxy mod creates a fallen empire's home system at the centre of the
 zone and its other systems around it, then links them by hyperlane to
 systems nearby. Nothing already on the map is used or moved, so the
 ring must stay clear of your systems. The map draws each zone as a
-dashed ring of radius 30 with a line to the system it is measured from,
-in one of eight compass directions at a distance from 30 to 200. Every
+dashed ring of radius 30 with a faint dashed tie to the system it is
+measured from, in one of eight compass directions at a distance from 30
+to 200. Inside the ring a faint ghost shows what the mod will build there:
+the home star and the satellites of that kind, laned the way the mod
+lanes them. Every
 zone belongs to one of your systems, which the mod measures the ring
 from. Right-click a system and choose "Add fallen empire zone", or
 right-click empty space and choose "Fallen empire zone here". Drag
