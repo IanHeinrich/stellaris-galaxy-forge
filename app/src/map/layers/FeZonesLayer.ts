@@ -48,8 +48,12 @@ class RingBand {
   }
 }
 
-/** How much of each dash step is drawn, on the ring and on the lines to its linked systems. */
+/** How much of each dash step is drawn, on the ring and on the tie to its anchor. */
 const DASH_FRACTION = 0.6;
+/** One dash step along the tie, in world units: the ring's own arc step, so both read alike. */
+const TIE_DASH_STEP = (Math.PI * 2 * FE_ZONE_RADIUS) / DASHES;
+/** The tie from the anchor system to its ring: there to be found, not to be read as a lane. */
+const TIE = { color: RING.color, alpha: 0.3 };
 /** How far the lanes to a zone's linked systems lean from the lanes' own hue toward the ring's. */
 const LINK_TINT = 0.35;
 
@@ -92,12 +96,29 @@ function draw(g: Graphics, anchorDx: number, anchorDy: number, selected: boolean
   g.clear();
   if (selected) g.circle(0, 0, FE_ZONE_RADIUS).fill(SELECTED_FILL);
   dashedRing(g);
+  g.stroke({ ...(selected ? SELECTED_RING : RING), pixelLine: true });
   const d = Math.hypot(anchorDx, anchorDy);
   if (d > FE_ZONE_RADIUS) {
     const t = FE_ZONE_RADIUS / d;
-    g.moveTo(anchorDx, anchorDy).lineTo(anchorDx * t, anchorDy * t);
+    dashedTie(g, { x: anchorDx, y: anchorDy }, { x: anchorDx * t, y: anchorDy * t });
+    g.stroke({ ...TIE, pixelLine: true });
   }
-  g.stroke({ ...(selected ? SELECTED_RING : RING), pixelLine: true });
+}
+
+/** A dashed straight from `from` to `to`; the last dash reaches `to`. */
+function dashedTie(
+  g: Graphics,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): void {
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  const ux = (to.x - from.x) / length;
+  const uy = (to.y - from.y) / length;
+  for (let at = 0; at < length; at += TIE_DASH_STEP) {
+    const last = at + TIE_DASH_STEP >= length;
+    const end = last ? length : at + TIE_DASH_STEP * DASH_FRACTION;
+    g.moveTo(from.x + ux * at, from.y + uy * at).lineTo(from.x + ux * end, from.y + uy * end);
+  }
 }
 
 /** Only a scenario written for the mod carries zones the map should draw. */
