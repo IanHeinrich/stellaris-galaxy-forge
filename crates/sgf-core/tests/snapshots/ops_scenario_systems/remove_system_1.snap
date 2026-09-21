@@ -1,10 +1,10 @@
 ---
-source: crates/sgf-core/tests/ops_scenario_systems.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
 Removed system 1 (4 lanes)
 touched: [1, 2, 9, 16]
-inverse: AddSystem { id: Some(1), x: 0.0, y: 0.0, name: Some("Galactic Center"), initializer: Some("misc_system_init_01"), spawn_weight: None }
+inverse: AddSystem { id: Some(1), x: 0.0, y: 0.0, name: Some("Galactic Center"), initializer: Some("misc_system_init_01"), spawn_weight: None, spawn_script: None }
 warning system_isolated: system 2 has no hyperlanes
 warning system_isolated: system 9 has no hyperlanes
 warning disconnected: galaxy has 3 components, 2 at load; newly separated: 2

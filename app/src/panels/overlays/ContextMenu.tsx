@@ -1,8 +1,18 @@
 import { useEffect, useRef } from "react";
+import type { SystemNode } from "../../generated/SystemNode";
 import { documentCapabilities, supports } from "../../lib/capabilities";
+import {
+  linkChange,
+  linkSelectedLabel,
+  linkToZoneLabel,
+  takesCustomLinks,
+  USE_NEAREST_LABEL,
+} from "../../lib/feLinks";
+import { addFeZoneRefusal } from "../../lib/feZone";
 import { newSystemRows } from "../../lib/initializer/initializerBrowser";
-import { useEditorStore } from "../../store/editorStore";
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { ALL_CLANS_PLACED, clanOf, nextFreeClan, REMOVE_CLAN_HINT } from "../../lib/marauder";
+import { nearestSystem, useEditorStore } from "../../store/editorStore";
+import { useFileSessionStore, usePaintLayer } from "../../store/fileSessionStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSystemNames } from "../../store/browserRows";
 import { linkedTo, unlinkedTo, useGalaxyStore } from "../../store/galaxyStore";
@@ -12,7 +22,11 @@ import {
   spawnWeightFor,
   useInitializerBrowserStore,
 } from "../../store/initializerBrowserStore";
-import { BulkActions } from "../inspector/selection/BulkActions";
+import {
+  BulkActions,
+  MarauderClanButton,
+  WormholePairButton,
+} from "../inspector/selection/BulkActions";
 import {
   NEEDS_INITIALIZER,
   spawnPointsOp,
@@ -40,19 +54,36 @@ export function ContextMenu() {
   const connectSelectedTo = useEditorStore((s) => s.connectSelectedTo);
   const cutLanesToSelected = useEditorStore((s) => s.cutLanesToSelected);
   const addSystemAt = useEditorStore((s) => s.addSystemAt);
+  const addMarauderClanAt = useEditorStore((s) => s.addMarauderClanAt);
+  const removeMarauderClan = useEditorStore((s) => s.removeMarauderClan);
   const promptNebulaAt = useEditorStore((s) => s.promptNebulaAt);
   const selectNebula = useEditorStore((s) => s.selectNebula);
   const removeSystem = useEditorStore((s) => s.removeSystem);
+  const select = useEditorStore((s) => s.select);
+  const setFeZone = useEditorStore((s) => s.setFeZone);
+  const addFeZone = useEditorStore((s) => s.addFeZone);
+  const addFeZoneAt = useEditorStore((s) => s.addFeZoneAt);
+  const linkToFeZone = useEditorStore((s) => s.linkToFeZone);
+  const unlinkFromFeZone = useEditorStore((s) => s.unlinkFromFeZone);
+  const resetFeLinks = useEditorStore((s) => s.resetFeLinks);
   const capabilities = useFileSessionStore((s) => s.capabilities);
+  const paint = usePaintLayer();
   const systems = useGalaxyStore((s) => s.systems);
   const menuTarget = contextMenu?.target;
+  const anchorForSpace =
+    menuTarget?.kind === "space" ? nearestSystem(menuTarget, systems.values()) : null;
   const named = useSystemNames(
     menuTarget?.kind === "system"
       ? [menuTarget.id]
-      : menuTarget?.kind === "lane"
-        ? [menuTarget.lane.a, menuTarget.lane.b]
-        : NO_SYSTEMS,
+      : menuTarget?.kind === "feZone"
+        ? [menuTarget.anchor]
+        : menuTarget?.kind === "lane"
+          ? [menuTarget.lane.a, menuTarget.lane.b]
+          : anchorForSpace
+            ? [anchorForSpace.id]
+            : NO_SYSTEMS,
   );
+  const [selectedName] = useSystemNames(selection.length === 1 ? selection : NO_SYSTEMS);
   const gameData = useGameDataStore((s) => s.status === "ready");
   const defaultKey = useInitializerBrowserStore((s) => s.defaultKey);
   useInitializerBrowserStore((s) => s.recent);
@@ -86,6 +117,21 @@ export function ContextMenu() {
   const { target } = contextMenu;
   const canCreate = supports(documentCapabilities({ capabilities }), "create_systems");
   const canNebulae = supports(documentCapabilities({ capabilities }), "nebulae");
+  const zones = canCreate && paint;
+  const freeClan = canCreate ? nextFreeClan(systems) : null;
+  const selected = selection.length === 1 ? systems.get(selection[0]) : undefined;
+  const linkItem = (anchor: SystemNode | undefined, system: SystemNode | undefined) => {
+    if (!zones || !anchor || !system) return null;
+    const change = linkChange(anchor, system);
+    if (change === null) return null;
+    return {
+      change,
+      run: () =>
+        void (change === "link"
+          ? linkToFeZone(anchor.id, system.id)
+          : unlinkFromFeZone(anchor.id, system.id)),
+    };
+  };
 
   if (target.kind === "space") {
     if (!canCreate && !canNebulae) return null;
@@ -142,6 +188,34 @@ export function ContextMenu() {
             New nebula here
           </button>
         )}
+        {zones && (
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item context-menu-separated"
+            onClick={() => {
+              void addFeZoneAt({ x: target.x, y: target.y });
+              closeContextMenu();
+            }}
+          >
+            Add fallen empire zone{named[0] !== undefined && `, anchored to ${named[0]}`}
+          </button>
+        )}
+        {canCreate && (
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item context-menu-separated"
+            disabled={freeClan === null}
+            title={freeClan === null ? ALL_CLANS_PLACED : undefined}
+            onClick={() => {
+              void addMarauderClanAt({ x: target.x, y: target.y });
+              closeContextMenu();
+            }}
+          >
+            Add marauder clan here
+          </button>
+        )}
       </div>
     );
   }
@@ -155,8 +229,16 @@ export function ContextMenu() {
     const cuttable = linkedTo(systems, target.id, selection).length;
     const initializerTargets = selection.length > 1 && inSelection ? selection : [target.id];
     // Only a system with an initializer can carry a weight, so a mixed selection weighs the rest.
-    const weighable = spawnTargets(initializerTargets, systems);
-    const weighted = weighable.length > 0 && weighable.every((s) => s.spawn_weight !== null);
+    const weighable = spawnTargets(initializerTargets, systems, paint);
+    const weighted =
+      weighable.length > 0 &&
+      weighable.every((s) => s.spawn_weight !== null || s.spawn_script !== null);
+    const zoneRefusal = system === undefined ? null : addFeZoneRefusal(system, systems);
+    const role = system?.marauder ?? null;
+    const clanMembers = inSelection ? selection : selection.length === 0 ? [target.id] : null;
+    const clanInBulk = inSelection && selection.length === 3;
+    const clanItem = canCreate && role === null && !clanInBulk ? clanMembers : null;
+    const link = linkItem(selected, system);
     return (
       <div
         ref={ref}
@@ -182,6 +264,14 @@ export function ContextMenu() {
             >
               Isolate
             </button>
+            {zones && selection.length === 2 && inSelection && (
+              <WormholePairButton
+                a={selection[0]}
+                b={selection[1]}
+                afterRun={closeContextMenu}
+                itemRole="menuitem"
+              />
+            )}
             {selection.length > 0 && !inSelection && (
               <>
                 <button
@@ -232,13 +322,57 @@ export function ContextMenu() {
             disabled={weighable.length === 0}
             title={weighable.length === 0 ? NEEDS_INITIALIZER : undefined}
             onClick={() => {
-              const op = spawnPointsOp(initializerTargets, systems, !weighted);
+              const op = spawnPointsOp(initializerTargets, systems, !weighted, paint);
               if (op !== null) void applyOp(op);
               closeContextMenu();
             }}
           >
             {weighted ? "Remove spawn point" : "Set as spawn point"}
             {weighable.length > 1 && ` (${weighable.length} systems)`}
+          </button>
+        )}
+        {zones && (
+          <button
+            type="button"
+            role="menuitem"
+            disabled={zoneRefusal !== null}
+            title={zoneRefusal ?? undefined}
+            onClick={() => {
+              void addFeZone(target.id);
+              closeContextMenu();
+            }}
+          >
+            Add fallen empire zone
+          </button>
+        )}
+        {link !== null && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              link.run();
+              closeContextMenu();
+            }}
+          >
+            {linkToZoneLabel(link.change, selectedName)}
+          </button>
+        )}
+        {clanItem !== null && (
+          <MarauderClanButton ids={clanItem} afterRun={closeContextMenu} itemRole="menuitem" />
+        )}
+        {canCreate && role !== null && (
+          <button
+            type="button"
+            role="menuitem"
+            className="hinted"
+            title={REMOVE_CLAN_HINT}
+            onClick={() => {
+              void removeMarauderClan(clanOf(role));
+              closeContextMenu();
+            }}
+          >
+            Remove marauder clan {clanOf(role)}
+            <span className="muted">{REMOVE_CLAN_HINT}</span>
           </button>
         )}
         {canCreate && (
@@ -292,6 +426,71 @@ export function ContextMenu() {
         >
           Delete nebula
         </button>
+      </div>
+    );
+  }
+
+  if (target.kind === "feZone") {
+    const name = named[0];
+    const anchor = systems.get(target.anchor);
+    const link = linkItem(anchor, selected);
+    const custom = anchor !== undefined && takesCustomLinks(anchor);
+    return (
+      <div
+        ref={ref}
+        className="context-menu"
+        role="menu"
+        aria-label={`Fallen empire zone of ${name}`}
+        onKeyDown={onKeyDown}
+        style={{ left: contextMenu.x, top: contextMenu.y }}
+      >
+        <div className="context-menu-header">Fallen empire zone</div>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            void setFeZone(target.anchor, null);
+            closeContextMenu();
+          }}
+        >
+          Remove fallen empire zone
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            void select(target.anchor);
+            closeContextMenu();
+          }}
+        >
+          Select {name}
+        </button>
+        {link !== null && (
+          <button
+            type="button"
+            role="menuitem"
+            className="context-menu-separated"
+            onClick={() => {
+              link.run();
+              closeContextMenu();
+            }}
+          >
+            {linkSelectedLabel(link.change, selectedName)}
+          </button>
+        )}
+        {custom && (
+          <button
+            type="button"
+            role="menuitem"
+            className={link === null ? "context-menu-separated" : undefined}
+            onClick={() => {
+              void resetFeLinks(target.anchor);
+              closeContextMenu();
+            }}
+          >
+            {USE_NEAREST_LABEL}
+          </button>
+        )}
       </div>
     );
   }

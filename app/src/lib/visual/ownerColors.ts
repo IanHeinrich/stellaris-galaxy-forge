@@ -33,6 +33,9 @@ export interface OwnerColors {
   fill: number;
 }
 
+/** Every marauder clan's colours, as the game paints them: a black fill under a near-white border. */
+export const MARAUDER_COLORS: OwnerColors = { outline: 0xd0d4d8, fill: 0x000000 };
+
 const FILL_DARKEN = 0.35;
 
 function mapColor(

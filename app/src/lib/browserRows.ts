@@ -1,6 +1,5 @@
 import type { CountryNode } from "../generated/CountryNode";
-import type { Issue } from "../generated/Issue";
-import type { IssueCode } from "../generated/IssueCode";
+import type { AppIssue, AppIssueCode } from "./issues";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import { badgeLabel, humaniseInitializer } from "./visual/specialStyle";
 import {
@@ -10,6 +9,7 @@ import {
   territoryKind,
   type CountryTypes,
 } from "./countryKinds";
+import { supersededCountry, systemsOf, type Ownership } from "./ownership";
 import { kindLabel } from "./special";
 import { titleCase } from "./text";
 
@@ -42,7 +42,10 @@ const EMPIRE_GROUP_LABELS: Record<EmpireGroupKey, string> = {
 };
 
 export interface EmpireRow {
-  country: CountryNode;
+  /** The owner the row stands for: a country's id, or a marauder clan's negative one. */
+  id: number;
+  /** The country behind the row; a clan a scenario places has none. */
+  country: CountryNode | null;
   /** File order, which the owners layer's palette follows. */
   index: number;
   name: string;
@@ -75,38 +78,67 @@ export function empireGroup(country: CountryNode, types: CountryTypes): EmpireGr
   return drawsBorders(country, types) ? "empire" : "other";
 }
 
+function subline(where: string, count: number): string {
+  return `${where} · ${count} ${count === 1 ? "system" : "systems"}`;
+}
+
 function empireRow(country: CountryNode, index: number, lookups: RowLookups): EmpireRow {
   const capital = country.capital_system ?? lookups.centralSystem(country.id);
   const count = country.system_count;
   const where =
     country.capital_system === null ? "no capital" : lookups.systemName(country.capital_system);
   return {
+    id: country.id,
     country,
     index,
     name: lookups.countryName(country),
-    subline: `${where} · ${count} ${count === 1 ? "system" : "systems"}`,
+    subline: subline(where, count),
     systemCount: count,
     capital,
   };
 }
 
+/** A marauder clan a scenario places: its row goes to the home and counts the clan's systems. */
+function clanRows(ownership: Ownership, lookups: RowLookups): EmpireRow[] {
+  const rows: EmpireRow[] = [];
+  for (const entry of ownership.table.values()) {
+    if (entry.kind !== "marauder_clan") continue;
+    const home = entry.home ?? null;
+    const count = systemsOf(ownership.owners, entry.id).length;
+    rows.push({
+      id: entry.id,
+      country: null,
+      index: 0,
+      name: entry.label,
+      subline: subline(home === null ? "no home" : lookups.systemName(home), count),
+      systemCount: count,
+      capital: home,
+    });
+  }
+  return rows;
+}
+
 /** Every country but the space fauna and the enclaves, grouped by type, the biggest first
- * inside each group. */
+ * inside each group, and the marauder clans the composed ownership adds among the marauders. */
 export function empireGroups(
   countries: ReadonlyMap<number, CountryNode>,
   types: CountryTypes,
   lookups: RowLookups,
+  ownership: Ownership,
 ): EmpireGroup[] {
   const grouped = new Map<EmpireGroupKey, EmpireRow[]>();
-  [...countries.values()].forEach((country, index) => {
-    if (isFauna(country, types)) return;
-    const key = empireGroup(country, types);
-    if (key === null) return;
-    const row = empireRow(country, index, lookups);
+  const add = (key: EmpireGroupKey, row: EmpireRow): void => {
     const rows = grouped.get(key);
     if (rows) rows.push(row);
     else grouped.set(key, [row]);
+  };
+  [...countries.values()].forEach((country, index) => {
+    if (isFauna(country, types) || supersededCountry(ownership, country, types)) return;
+    const key = empireGroup(country, types);
+    if (key === null) return;
+    add(key, empireRow(country, index, lookups));
   });
+  for (const row of clanRows(ownership, lookups)) add("marauder", row);
   return EMPIRE_GROUPS.flatMap((key) => {
     const rows = grouped.get(key);
     if (rows === undefined) return [];
@@ -245,7 +277,7 @@ export function pointGroups(
   });
 }
 
-const ISSUE_TITLES: Record<IssueCode, string> = {
+const ISSUE_TITLES: Record<AppIssueCode, string> = {
   lane_asymmetric: "Lane listed from one end only",
   lane_endpoint_missing: "Lane to a system that is not there",
   lane_self: "Lane from a system to itself",
@@ -256,20 +288,41 @@ const ISSUE_TITLES: Record<IssueCode, string> = {
   nebula_membership: "Nebula membership does not match the position",
   coordinate_transform: "Coordinate transform is not applied",
   position_range: "Position written as a range the generator picks in",
+  export_dropped: "Not carried into the scenario",
+  home_initializer: "Home system with a non-generic initializer",
+  fe_zone_blocked: "Fallen empire zone covers a system",
+  fe_zone_overlap: "Fallen empire zones overlap",
+  fe_zone_off_map: "Fallen empire zone lies off the map",
+  fe_zone_no_automatic: "No fallen empire zones",
+  fe_link_isolated: "Fallen empire zone with custom connections and no links",
+  fe_link_dangling: "Linked to a fallen empire connection no zone takes",
+  fe_link_shared: "Fallen empire zones sharing a connection id",
+  fe_link_far: "Far from the fallen empire zone it links to",
+  header_empire_count: "Header empire counts do not match the seats",
+  seat_letter_duplicate: "Reserved seat used twice",
+  sol_seat_mismatch: "Sol seat names Sol's initializer",
+  player_seat_duplicate: "Player seat used twice",
+  l_cluster_system: "System where the game places the L-Cluster",
+  scenario_name_duplicate: "Scenario name used by another file in the mod",
+  reserved_spawns_missing: "Reserved seats without the Reserved Spawns submod",
+  marauder_home_duplicate: "Marauder clan with two homes",
+  marauder_base_orphan: "Marauder raid base without its clan",
+  marauder_near_seat: "Marauder clan beside a seat",
+  marauder_bases_missing: "Marauder clan missing its raid bases",
 };
 
-export function issueTitle(code: IssueCode): string {
+export function issueTitle(code: AppIssueCode): string {
   return ISSUE_TITLES[code];
 }
 
 export interface IssueRow {
-  issue: Issue;
+  issue: AppIssue;
   /** The systems the issue names, on the row's own line. */
   systems: string;
 }
 
 export interface IssueGroup {
-  code: IssueCode;
+  code: AppIssueCode;
   title: string;
   /** An error anywhere in the group colours its header. */
   error: boolean;
@@ -277,8 +330,8 @@ export interface IssueGroup {
 }
 
 /** Issues grouped by code, errors first and the biggest group next, as the design sorts them. */
-export function issueGroups(issues: Issue[], nameOf: (id: number) => string): IssueGroup[] {
-  const groups = new Map<IssueCode, IssueGroup>();
+export function issueGroups(issues: AppIssue[], nameOf: (id: number) => string): IssueGroup[] {
+  const groups = new Map<AppIssueCode, IssueGroup>();
   for (const issue of issues) {
     let group = groups.get(issue.code);
     if (!group) {

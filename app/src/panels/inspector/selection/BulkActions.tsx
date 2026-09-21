@@ -3,7 +3,9 @@ import { useShallow } from "zustand/react/shallow";
 import { MESH_BETA } from "../../../lib/geometry/mesh";
 import { CONNECT_ALL_MAX, useEditorStore } from "../../../store/editorStore";
 import { documentCapabilities, supports } from "../../../lib/capabilities";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { clanMenuItem, nextFreeClan } from "../../../lib/marauder";
+import { sharedWormholePair } from "../../../lib/paint";
+import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useMapChromeStore } from "../../../store/mapChromeStore";
 import {
   linkedPairs,
@@ -43,6 +45,7 @@ export function BulkActions({
   const resetSelectedLaneLengths = useEditorStore((s) => s.resetSelectedLaneLengths);
   const systems = useGalaxyStore((s) => s.systems);
   const capabilities = useFileSessionStore(documentCapabilities);
+  const paint = usePaintLayer();
 
   const tooMany = selection.length > CONNECT_ALL_MAX;
   const actions = [
@@ -89,7 +92,80 @@ export function BulkActions({
       {connectAll}
       <MeshRow afterRun={afterRun} itemRole={itemRole} />
       {rest}
+      {paint && selection.length === 2 && (
+        <WormholePairButton
+          a={selection[0]}
+          b={selection[1]}
+          afterRun={afterRun}
+          itemRole={itemRole}
+        />
+      )}
+      {supports(capabilities, "create_systems") && selection.length === 3 && (
+        <MarauderClanButton ids={selection} afterRun={afterRun} itemRole={itemRole} />
+      )}
     </>
+  );
+}
+
+/** Three selected systems on a scenario: made the next free marauder clan, the middle one its home. */
+export function MarauderClanButton({
+  ids,
+  afterRun,
+  itemRole,
+}: {
+  ids: readonly number[];
+  afterRun?: () => void;
+  itemRole?: "menuitem";
+}) {
+  const makeMarauderClan = useEditorStore((s) => s.makeMarauderClan);
+  const systems = useGalaxyStore((s) => s.systems);
+  const item = clanMenuItem(ids, systems, nextFreeClan(systems));
+  return (
+    <button
+      type="button"
+      role={itemRole}
+      className="hinted"
+      disabled={item.clan === null}
+      title={item.hint}
+      onClick={() => {
+        if (item.clan !== null) void makeMarauderClan(item.clan.home, item.clan.bases);
+        afterRun?.();
+      }}
+    >
+      {item.label}
+      <span className="muted">{item.hint}</span>
+    </button>
+  );
+}
+
+/** Two selected systems under the Paint a Galaxy layer: made a wormhole pair, or parted again. */
+export function WormholePairButton({
+  a,
+  b,
+  afterRun,
+  itemRole,
+}: {
+  a: number;
+  b: number;
+  afterRun?: () => void;
+  itemRole?: "menuitem";
+}) {
+  const linkWormholePair = useEditorStore((s) => s.linkWormholePair);
+  const unlinkWormholePair = useEditorStore((s) => s.unlinkWormholePair);
+  const systems = useGalaxyStore((s) => s.systems);
+  const shared = sharedWormholePair(systems, a, b);
+  const run = shared === null ? linkWormholePair : unlinkWormholePair;
+  return (
+    <button
+      type="button"
+      role={itemRole}
+      onClick={() => {
+        void run(a, b);
+        afterRun?.();
+      }}
+    >
+      {shared === null ? "Link as wormhole pair" : "Unlink wormhole pair"}
+    </button>
   );
 }
 

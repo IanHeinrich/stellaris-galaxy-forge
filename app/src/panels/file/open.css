@@ -309,6 +309,10 @@
   margin: 3px 0 0;
 }
 
+.open-dialog-body .setup-check {
+  margin: 10px 0;
+}
+
 .setup-check > span {
   display: flex;
   flex-direction: column;
@@ -317,6 +321,15 @@
 
 .setup-why {
   color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.setup-warn {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--warn);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -382,6 +395,24 @@
   min-width: 0;
 }
 
+.export-report {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 10px 0;
+  line-height: 1.45;
+}
+
+.export-report dt {
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.export-report dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .mode-choice {
   display: flex;
   flex-direction: column;
@@ -392,6 +423,23 @@
   padding: 10px 12px;
   text-align: left;
   line-height: 1.45;
+}
+
+/* The scenario choice and the option that only applies to it, boxed as one. */
+.mode-group {
+  margin: 10px 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.mode-group .mode-choice {
+  margin: 0;
+}
+
+.mode-option {
+  padding: 6px 12px 8px;
+  border-top: 1px dashed var(--border);
 }
 
 .mode-name {
@@ -446,6 +494,13 @@
 
 .route-steps li + li {
   margin-top: 4px;
+}
+
+.route-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .route-link {

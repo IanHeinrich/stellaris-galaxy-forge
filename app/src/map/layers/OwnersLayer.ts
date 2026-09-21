@@ -1,15 +1,21 @@
 import { BitmapText, Container, Graphics, Sprite, TextStyle, Ticker } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SpecialKind } from "../../generated/SpecialKind";
+import type { SystemNode } from "../../generated/SystemNode";
 import { SAVE_X_SIGN, SAVE_Y_SIGN, clamp } from "../../lib/geometry/geometry";
-import { drawsBorders, territoryKind } from "../../lib/countryKinds";
-import type { LabelAnchor, Region, TerritoryParams } from "../../lib/geometry/territory";
+import type {
+  LabelAnchor,
+  Region,
+  TerritoryParams,
+  TerritorySystem,
+} from "../../lib/geometry/territory";
 import type { Reply, Shape } from "../../lib/geometry/territories";
 import { InlineTerritoryClient, type TerritoryClient } from "../../lib/geometry/territoryClient";
+import { ownerTerritoryKind } from "../../lib/ownership";
 import type { Camera } from "../Camera";
 import { labelTier } from "../../lib/visual/labels";
-import { ownerColors, type OwnerColors } from "../../lib/visual/ownerColors";
-import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import type { OwnerColors } from "../../lib/visual/ownerColors";
+import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
 import { EMPHASIS_COLOR, symbolKey } from "../../lib/visual/specialStyle";
 import { MAP_FONT } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
@@ -36,6 +42,14 @@ const LABEL_STYLE = new TextStyle({
   stroke: { color: 0x000000, width: 4, alpha: 0.6 },
 });
 const LABEL_ALPHA = 0.9;
+/** The glyph that stands where a marauder clan's flag would: the game's clans fly none. */
+export const CLAN_GLYPH = "☠";
+const GLYPH_FONT_PX = 32;
+const GLYPH_STYLE = new TextStyle({
+  fontFamily: MAP_FONT,
+  fontSize: GLYPH_FONT_PX,
+  fill: 0xffffff,
+});
 /**
  * Name height and emblem diameter grow with the region's extent (√area, world units) faster
  * than in proportion, as the game's do: a one-system empire reads small, a wide one large.
@@ -66,6 +80,8 @@ interface CountryShape {
   emphasis: Graphics;
   badge: Container;
   emblem: Sprite;
+  /** A clan's emblem, in the outline colour like its name; hidden for a country. */
+  glyph: BitmapText;
   label: BitmapText;
 }
 
@@ -80,24 +96,21 @@ function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/** The systems again, with the owner of every one whose claim the map is hiding taken off it. */
-function unclaimed(systems: Systems, hidden: ReadonlySet<number>): Systems {
-  if (hidden.size === 0) return systems;
-  const out = new Map(systems);
-  for (const id of hidden) {
-    const s = out.get(id);
-    if (s && s.owner !== null) out.set(id, { ...s, owner: null });
-  }
-  return out;
+/** Whether two owner tables paint the same set of owners, whatever else about them changed. */
+function sameOwners(a: ReadonlyMap<number, unknown>, b: ReadonlyMap<number, unknown>): boolean {
+  if (a.size !== b.size) return false;
+  for (const id of a.keys()) if (!b.has(id)) return false;
+  return true;
 }
 
 /**
- * The game's territories: each country's region from `countryRegions`, its corners rounded,
+ * The game's territories: each owner's region from the composed ownership, its corners rounded,
  * filled with its second flag colour and outlined with its first in a chunky screen-stable
- * stroke over a soft halo. At the region's pole of inaccessibility the empire's flag symbol and
+ * stroke over a soft halo. At the region's pole of inaccessibility an empire's flag symbol and
  * name sit in world units, sized to the region; they fade in while system names are hidden and
- * out as they appear. The regions come from the client, a beat later when it is a worker; a
- * delta recomputes only the countries it can have changed.
+ * out as they appear. A marauder clan's badge carries a skull in place of a flag. The regions
+ * come from the client, a beat later when it is a worker; a delta recomputes only the owners it
+ * can have changed.
  */
 export class OwnersLayer implements MapLayer {
   readonly id = "owners" as const;
@@ -111,8 +124,8 @@ export class OwnersLayer implements MapLayer {
   private emphasised = new Set<number>();
   private shownKinds: ReadonlySet<SpecialKind> = new Set();
   private ctx: RenderContext = EMPTY_CONTEXT;
-  private systems: Systems = EMPTY_CONTEXT.systems;
-  private countryIndex = new Map<number, number>();
+  /** The owner of every system as last sent to the client, hidden ones taken off. */
+  private owners: ReadonlyMap<number, number> = EMPTY_CONTEXT.owners;
   private readonly shapes = new Map<number, CountryShape>();
   private readonly emblemKeys = new Map<number, string>();
   private unit = 1;
@@ -120,6 +133,7 @@ export class OwnersLayer implements MapLayer {
   private fadeTarget = 1;
   private fading = false;
   private shown = true;
+  private clansShown = true;
   /** Bumped with every reset so a reply to an earlier galaxy is told apart and dropped. */
   private epoch = 0;
   private destroyed = false;
@@ -135,44 +149,42 @@ export class OwnersLayer implements MapLayer {
   rebuild(ctx: RenderContext): void {
     const prev = this.ctx;
     this.ctx = ctx;
-    this.systems = unclaimed(ctx.systems, ctx.hiddenOwners);
     if (
       ctx.galaxy !== prev.galaxy ||
-      ctx.countries !== prev.countries ||
-      ctx.hiddenOwners !== prev.hiddenOwners
+      ctx.kind !== prev.kind ||
+      ctx.hiddenOwners !== prev.hiddenOwners ||
+      ctx.border !== prev.border ||
+      (ctx.table !== prev.table && !sameOwners(ctx.table, prev.table))
     ) {
-      this.countryIndex = new Map();
-      let index = 0;
-      for (const id of ctx.countries.keys()) this.countryIndex.set(id, index++);
       this.recompute();
       this.refreshEmphasis();
       return;
     }
-    if (ctx.border !== prev.border) {
-      this.recompute();
-      return;
-    }
-    if (ctx.countryTypes !== prev.countryTypes) {
-      this.recompute();
-      this.refreshEmphasis();
-      return;
-    }
-    if (ctx.mapColors !== prev.mapColors) {
+    if (ctx.table !== prev.table) {
       for (const [id, shape] of this.shapes) this.paint(id, shape);
+      for (const [id, shape] of this.shapes) this.retext(id, shape);
+      this.refreshEmphasis();
     }
-    if (ctx.mapColors !== prev.mapColors || ctx.special !== prev.special) {
+    if (ctx.table !== prev.table || ctx.special !== prev.special) {
       for (const [id, shape] of this.shapes) this.placeEmblem(id, shape);
     }
-    if (ctx.names !== prev.names) {
-      for (const [id, shape] of this.shapes) {
-        if (this.retext(id, shape)) this.placeEmblem(id, shape);
-      }
-    }
+    if (ctx.table === prev.table && ctx.countryTypes !== prev.countryTypes) this.refreshEmphasis();
     if (ctx.hiddenCountries !== prev.hiddenCountries) this.refreshHidden();
   }
 
+  /** The delta's systems, and any whose composed owner it changed without touching them. */
   applyDelta(d: GalaxyDelta): void {
-    const changed = d.systems.map((s) => this.systems.get(s.id) ?? s);
+    const ids = new Set(d.systems.map((s) => s.id));
+    const owners = this.hiddenTakenOff(this.ctx.owners);
+    for (const id of new Set([...this.owners.keys(), ...owners.keys()])) {
+      if (this.owners.get(id) !== owners.get(id)) ids.add(id);
+    }
+    this.owners = owners;
+    const changed: TerritorySystem[] = [];
+    for (const id of ids) {
+      const s = this.ctx.systems.get(id);
+      if (s) changed.push(this.territorySystem(s));
+    }
     this.client.apply(changed, d.removed ?? [], this.epoch);
   }
 
@@ -188,9 +200,15 @@ export class OwnersLayer implements MapLayer {
     if (this.shown) this.fadeTowards(labelTier(cam.scale) === "none" ? 1 : 0);
   }
 
-  /** The territories go with the layer; the emphasis of the kinds shown as points of interest stays. */
+  /** The countries' territories go with the layer; the emphasis of the kinds shown as points of interest stays. */
   setVisible(v: boolean): void {
     this.shown = v;
+    this.applyVisibility();
+  }
+
+  /** The clans' territories go with the marauder clans layer, whatever this one is set to. */
+  setClansShown(v: boolean): void {
+    this.clansShown = v;
     this.applyVisibility();
   }
 
@@ -208,9 +226,10 @@ export class OwnersLayer implements MapLayer {
   }
 
   private applyVisibility(): void {
-    this.territories.visible = this.shown;
+    this.territories.visible = this.shown || this.clansShown;
     this.badges.visible = this.shown && this.fade > 0;
-    this.container.visible = this.shown || this.emphasised.size > 0;
+    this.container.visible = this.shown || this.clansShown || this.emphasised.size > 0;
+    this.refreshHidden();
   }
 
   private params(): TerritoryParams {
@@ -220,18 +239,25 @@ export class OwnersLayer implements MapLayer {
     };
   }
 
-  /** The countries the game paints a territory for; the others' systems only clip. */
-  private bordered(): Set<number> {
-    const ids = new Set<number>();
-    for (const c of this.ctx.countries.values()) {
-      if (drawsBorders(c, this.ctx.countryTypes)) ids.add(c.id);
-    }
-    return ids;
+  /** The composed owners with every system the map is hiding the owner of taken off. */
+  private hiddenTakenOff(owners: ReadonlyMap<number, number>): ReadonlyMap<number, number> {
+    const hidden = this.ctx.hiddenOwners;
+    if (hidden.size === 0) return owners;
+    const out = new Map(owners);
+    for (const id of hidden) out.delete(id);
+    return out;
   }
 
+  private territorySystem(s: SystemNode): TerritorySystem {
+    return { id: s.id, x: s.x, y: s.y, owner: this.owners.get(s.id) ?? null, lanes: s.lanes };
+  }
+
+  /** Every owner in the table gets a territory; the other owners' systems only clip. */
   private recompute(): void {
     this.epoch++;
-    this.client.reset(this.systems.values(), this.params(), this.bordered(), this.epoch);
+    this.owners = this.hiddenTakenOff(this.ctx.owners);
+    const systems = [...this.ctx.systems.values()].map((s) => this.territorySystem(s));
+    this.client.reset(systems, this.params(), this.ctx.table.keys(), this.epoch);
   }
 
   /** A reset answers for the whole galaxy, an apply for the countries it touched. */
@@ -256,8 +282,12 @@ export class OwnersLayer implements MapLayer {
       emblem.anchor.set(0.5, 0.5);
       emblem.alpha = EMBLEM_ALPHA;
       emblem.visible = false;
+      const glyph = new BitmapText({ text: CLAN_GLYPH, style: GLYPH_STYLE });
+      glyph.anchor.set(0.5, 0.5);
+      glyph.alpha = EMBLEM_ALPHA;
+      glyph.visible = false;
       const badge = new Container();
-      badge.addChild(emblem, label);
+      badge.addChild(emblem, glyph, label);
       badge.visible = false;
       shape = {
         smoothed: [],
@@ -268,6 +298,7 @@ export class OwnersLayer implements MapLayer {
         emphasis: new Graphics(),
         badge,
         emblem,
+        glyph,
         label,
       };
       this.fills.addChild(shape.fill);
@@ -291,11 +322,21 @@ export class OwnersLayer implements MapLayer {
   }
 
   private applyHidden(id: number, shape: CountryShape): void {
-    const shown = !this.ctx.hiddenCountries.has(id);
-    shape.fill.visible = shown;
-    shape.edge.visible = shown;
-    shape.emphasis.visible = shown;
-    shape.badge.visible = shown && shape.anchor !== null;
+    const listed = !this.ctx.hiddenCountries.has(id);
+    const painted = listed && (this.isClan(id) ? this.clansShown : this.shown);
+    shape.fill.visible = painted;
+    shape.edge.visible = painted;
+    shape.emphasis.visible = listed;
+    shape.badge.visible = listed && this.badged(id, shape);
+  }
+
+  private isClan(id: number): boolean {
+    return this.ctx.table.get(id)?.kind === "marauder_clan";
+  }
+
+  /** Every owner in the table carries its emblem and name where its region has room for them. */
+  private badged(id: number, shape: CountryShape): boolean {
+    return shape.anchor !== null && this.ctx.table.has(id);
   }
 
   private remove(id: number): void {
@@ -310,11 +351,9 @@ export class OwnersLayer implements MapLayer {
   }
 
   private paint(id: number, shape: CountryShape): void {
-    shape.colors = ownerColors(
-      this.ctx.countries.get(id),
-      this.countryIndex.get(id) ?? 0,
-      this.ctx.mapColors,
-    );
+    const colors = this.ctx.table.get(id)?.colors;
+    if (!colors) return;
+    shape.colors = colors;
     this.drawFill(shape);
     this.drawEdge(shape);
   }
@@ -338,9 +377,9 @@ export class OwnersLayer implements MapLayer {
   /** Clans and fallen empires are marked by their borders while the special layer shows their kind. */
   private refreshEmphasis(): void {
     const emphasised = new Set<number>();
-    for (const c of this.ctx.countries.values()) {
-      const kind = territoryKind(c, this.ctx.countryTypes);
-      if (kind !== null && this.shownKinds.has(kind)) emphasised.add(c.id);
+    for (const entry of this.ctx.table.values()) {
+      const kind = ownerTerritoryKind(entry, this.ctx.countryTypes);
+      if (kind !== null && this.shownKinds.has(kind)) emphasised.add(entry.id);
     }
     this.emphasised = emphasised;
     for (const [id, shape] of this.shapes) this.drawEmphasis(id, shape);
@@ -362,10 +401,13 @@ export class OwnersLayer implements MapLayer {
   }
 
   private placeEmblem(id: number, shape: CountryShape): void {
-    const { badge, emblem, label, anchor } = shape;
-    badge.visible = anchor !== null && !this.ctx.hiddenCountries.has(id);
-    if (anchor === null) return;
-    const key = symbolKey(this.ctx.countries.get(id)?.flag_icon);
+    const { badge, emblem, glyph, label, anchor } = shape;
+    badge.visible = this.badged(id, shape) && !this.ctx.hiddenCountries.has(id);
+    if (anchor === null || !badge.visible) return;
+    const entry = this.ctx.table.get(id);
+    const clan = entry?.kind === "marauder_clan";
+    label.tint = clan ? entry.colors.outline : 0xffffff;
+    const key = clan ? null : symbolKey(entry?.country?.flag_icon);
     if (key === null) this.emblemKeys.delete(id);
     else this.emblemKeys.set(id, key);
     const texture = key === null ? null : getTexture(key);
@@ -384,8 +426,10 @@ export class OwnersLayer implements MapLayer {
     }
     const ratio = size / LABEL_FONT_PX;
     label.scale.set(SAVE_X_SIGN * ratio, SAVE_Y_SIGN * ratio);
-    emblem.visible = Boolean(texture);
-    if (!texture) {
+    emblem.visible = !clan && Boolean(texture);
+    glyph.visible = clan;
+    const art = clan ? glyph : texture ? emblem : null;
+    if (art === null) {
       label.position.set(0, SAVE_Y_SIGN * (-size / 2));
       return;
     }
@@ -400,15 +444,21 @@ export class OwnersLayer implements MapLayer {
         EMBLEM_WIDTH_RATIO * Math.min(anchor.width, anchor.height),
       ),
     );
-    emblem.texture = texture;
-    emblem.scale.set(
-      (SAVE_X_SIGN * diameter) / (texture.width || 1),
-      (SAVE_Y_SIGN * diameter) / (texture.height || 1),
-    );
+    if (clan) {
+      glyph.tint = entry.colors.outline;
+      const k = diameter / GLYPH_FONT_PX;
+      glyph.scale.set(SAVE_X_SIGN * k, SAVE_Y_SIGN * k);
+    } else if (texture) {
+      emblem.texture = texture;
+      emblem.scale.set(
+        (SAVE_X_SIGN * diameter) / (texture.width || 1),
+        (SAVE_Y_SIGN * diameter) / (texture.height || 1),
+      );
+    }
     // The emblem and name together sit centred on the anchor.
     const gap = size * LABEL_GAP_RATIO;
     const total = diameter + gap + size;
-    emblem.position.set(0, SAVE_Y_SIGN * (diameter / 2 - total / 2));
+    art.position.set(0, SAVE_Y_SIGN * (diameter / 2 - total / 2));
     label.position.set(0, SAVE_Y_SIGN * (diameter + gap - total / 2));
   }
 
@@ -422,7 +472,7 @@ export class OwnersLayer implements MapLayer {
   }
 
   private retext(id: number, shape: CountryShape): boolean {
-    const text = this.ctx.countryName(id);
+    const text = this.ctx.table.get(id)?.label ?? "";
     if (shape.label.text === text) return false;
     shape.label.text = text;
     return true;

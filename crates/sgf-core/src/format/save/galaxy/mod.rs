@@ -18,9 +18,10 @@ use std::collections::HashMap;
 
 use crate::cst::Node;
 use crate::document::Document;
-use crate::projections::galaxy::{Galaxy, GalaxyGraph, ProjectionError};
+use crate::projections::galaxy::{Galaxy, GalaxyGraph, GameSetup, ProjectionError};
 use crate::projections::read;
 use crate::scan::{Index, Section, Value};
+use crate::views::DocumentKind;
 use crate::{NULL_ID, keys};
 
 impl Galaxy {
@@ -66,14 +67,24 @@ impl Galaxy {
             .map(|s| scalar_f64(s, src))
             .transpose()?
             .unwrap_or(0.0);
-        let core_radius = match index.section(keys::GALAXY) {
-            Some(section) => read::section_node(keys::GALAXY, section, src)?
-                .find(keys::CORE_RADIUS, src)
-                .and_then(|n| n.scalar_str(src))
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0.0),
-            None => 0.0,
-        };
+        let galaxy_node = index
+            .section(keys::GALAXY)
+            .map(|section| read::section_node(keys::GALAXY, section, src))
+            .transpose()?;
+        let core_radius = galaxy_node
+            .as_ref()
+            .and_then(|n| n.find(keys::CORE_RADIUS, src))
+            .and_then(|n| n.scalar_str(src))
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
+        let setup = galaxy_node.as_ref().map(|n| game_setup(n, src));
+        let player_country = index
+            .section(keys::PLAYER)
+            .map(|section| read::section_node(keys::PLAYER, section, src))
+            .transpose()?
+            .as_ref()
+            .and_then(|n| n.children().first())
+            .and_then(|entry| read::scalar_u32(entry, keys::COUNTRY, src));
 
         let mut galaxy = Self {
             systems,
@@ -86,6 +97,15 @@ impl Galaxy {
             galaxy_radius,
             core_radius,
             header: Vec::new(),
+            kind: DocumentKind::Save,
+            num_empires_max: None,
+            num_empire_default: None,
+            fallen_empire_max: None,
+            fallen_empire_default: None,
+            marauder_empire_max: None,
+            marauder_empire_default: None,
+            setup,
+            player_country,
         };
         galaxy.assign_nebulae();
         galaxy.refresh_stale(&ids);
@@ -164,6 +184,43 @@ impl GalaxyGraph {
     pub fn refresh_nebulae(&mut self, doc: &Document) -> Result<Vec<u32>, ProjectionError> {
         self.nebulae = nebulae::extract_current(doc)?;
         Ok(self.assign_nebulae())
+    }
+}
+
+/// The setup screen off `node`, the parsed top-level `galaxy` block: strings empty and
+/// numbers `0` (`1.0` for a fraction) where the save omits a key.
+fn game_setup(node: &Node, src: &[u8]) -> GameSetup {
+    let string = |key| {
+        node.find(key, src)
+            .and_then(|n| n.scalar_str(src))
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let count = |key| {
+        node.find(key, src)
+            .and_then(|n| n.scalar_str(src))
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0)
+    };
+    let fraction = |key| {
+        node.find(key, src)
+            .and_then(|n| n.scalar_str(src))
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(1.0)
+    };
+    GameSetup {
+        template: string(keys::TEMPLATE),
+        shape: string(keys::SHAPE),
+        num_empires: count(keys::NUM_EMPIRES),
+        num_advanced_empires: count(keys::NUM_ADVANCED_EMPIRES),
+        num_fallen_empires: count(keys::NUM_FALLEN_EMPIRES),
+        num_marauder_empires: count(keys::NUM_MARAUDER_EMPIRES),
+        num_nomad_empires: count(keys::NUM_NOMAD_EMPIRES),
+        num_gateways: count(keys::NUM_GATEWAYS),
+        num_wormhole_pairs: count(keys::NUM_WORMHOLE_PAIRS),
+        num_hyperlanes: fraction(keys::NUM_HYPERLANES),
+        primitive: fraction(keys::PRIMITIVE),
+        habitability: fraction(keys::HABITABILITY),
     }
 }
 

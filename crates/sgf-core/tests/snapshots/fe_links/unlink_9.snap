@@ -1,0 +1,6 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Let the mod link the fallen empire zone at Old Seat to its nearest systems
+inverse: SetFeLinkFlags { entries: [(3, FeLinkFlags { custom: false, id: None, to: [0] }), (7, FeLinkFlags { custom: false, id: None, to: [0] }), (9, FeLinkFlags { custom: true, id: Some(0), to: [] })] }

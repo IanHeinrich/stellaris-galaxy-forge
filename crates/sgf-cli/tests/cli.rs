@@ -119,7 +119,7 @@ fn validate_reports_warnings_and_passes_a_vanilla_save() {
         "{text}"
     );
     assert!(
-        text.contains("validate: 6 warning(s), 0 error(s)"),
+        text.contains("validate: 6 warning(s), 0 error(s), 0 note(s)"),
         "{text}"
     );
 }
@@ -353,7 +353,7 @@ fn move_writes_the_edited_save_to_the_output_path() {
         "{text}"
     );
     assert!(
-        text.contains("validate: 6 warning(s), 0 error(s)"),
+        text.contains("validate: 6 warning(s), 0 error(s), 0 note(s)"),
         "{text}"
     );
     assert!(text.contains(&format!("wrote {out_str}")), "{text}");
@@ -656,6 +656,18 @@ fn export_scenario_writes_a_file_that_opens_as_the_saves_galaxy() {
         "{text}"
     );
     assert!(text.contains(&format!("wrote {out_str}")), "{text}");
+    assert!(text.contains("\nempire seats: 17\n"), "{text}");
+    assert!(
+        text.contains("\nhome initializers to review: une_deneb_system (system 4), shattered_ring_start (system 311), custom_starting_init_02 (system 786), custom_starting_init_02 (system 787)\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nnot carried over: 6 wormhole pairs\n"),
+        "{text}"
+    );
+    assert!(!text.contains("\nneeds:"), "{text}");
+    assert!(text.contains("\nhome: 17\n"), "{text}");
+    assert!(text.ends_with("\ngeneric: 661\n"), "{text}");
     assert_eq!(std::fs::metadata(SAMPLE).unwrap().len(), before);
     assert_eq!(backups(dir.path()).len(), 0);
 
@@ -676,6 +688,169 @@ fn export_scenario_writes_a_file_that_opens_as_the_saves_galaxy() {
         "{}",
         &written[..200]
     );
+    assert_eq!(
+        written.matches(" spawn_weight = { base = 1 }").count(),
+        17,
+        "{}",
+        &written[..200]
+    );
+    assert!(
+        written.starts_with("# Exported by Stellaris Galaxy Forge from 2206.11.16.sav\n"),
+        "{}",
+        &written[..200]
+    );
+}
+
+#[test]
+fn the_paint_a_galaxy_profile_is_opt_in_on_both_scenario_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    let plain_path = dir.path().join("plain.txt");
+    let paint_path = dir.path().join("paint.txt");
+    let fresh_path = dir.path().join("fresh.txt");
+
+    let out = sgf(&["export-scenario", SAMPLE, plain_path.to_str().unwrap()]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let plain = std::fs::read_to_string(&plain_path).unwrap();
+    assert!(
+        !plain.contains("value:painted_galaxy_spawn_weight"),
+        "{}",
+        &plain[..300]
+    );
+    assert!(!plain.contains("painted_galaxy_rl_basic"));
+    assert!(
+        plain.contains(
+            "
+static_galaxy_scenario = {
+	name = \"2206.11.16\"
+	priority = 5
+"
+        ),
+        "{}",
+        &plain[..300]
+    );
+
+    let out = sgf(&[
+        "export-scenario",
+        SAMPLE,
+        paint_path.to_str().unwrap(),
+        "--profile",
+        "paint-a-galaxy",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = stdout(&out);
+    assert!(text.contains("765 system(s)"), "{text}");
+    assert!(!text.contains("empire seats"), "{text}");
+    assert!(!text.contains("not carried over"), "{text}");
+    assert!(
+        text.contains(
+            "\nplayer seat: system 217 (Sol seat, certain for the United Nations of Earth)\n"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nfallen empire PRESCRIPTED_species_adjective_tebrid: machine, 11 system(s) left out, anchor 791 at the old capital, linked to 6 system(s)\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nfallen empire SPEC_Ti-Zru Conservers: materialist, 5 system(s) left out, anchor 792 at the old capital, linked to 7 system(s)\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nfallen empire SPEC_Cyggan Protectors: spiritualist, 13 system(s) left out, anchor 793 at the old capital, linked to 12 system(s)\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nhome initializers replaced by a generic start: une_deneb_system (system 4), shattered_ring_start (system 311), custom_starting_init_02 (system 786), custom_starting_init_02 (system 787)\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("\nheader counts: from the save's setup\n"),
+        "{text}"
+    );
+    assert!(!text.contains("\nleft out:"), "{text}");
+    assert!(!text.contains("\nfallen empire zones: "), "{text}");
+    let paint = std::fs::read_to_string(&paint_path).unwrap();
+    assert!(
+        paint.contains("value:painted_galaxy_spawn_weight"),
+        "{}",
+        &paint[..300]
+    );
+    assert!(paint.contains("set_star_flag = painted_galaxy_wormhole_1"));
+    assert!(paint.contains("set_star_flag = painted_galaxy_fe_spawn_machine"));
+    assert!(
+        paint.starts_with(
+            "# Exported by Stellaris Galaxy Forge from 2206.11.16.sav\n# Systems: 765 · Empire seats: 17 · Nebulae: 9\n# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod"
+        ),
+        "{}",
+        &paint[..300]
+    );
+    assert_eq!(
+        paint,
+        std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../testdata/2206.11.16.paint.txt"
+        ))
+        .unwrap(),
+        "the fixture is generated: re-export it with `sgf export-scenario --profile paint-a-galaxy`"
+    );
+    let validated = sgf(&["validate", paint_path.to_str().unwrap()]);
+    assert_eq!(
+        validated.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&validated.stderr)
+    );
+
+    let out = sgf(&[
+        "new-scenario",
+        "sgf_painted",
+        fresh_path.to_str().unwrap(),
+        "--profile",
+        "paint-a-galaxy",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let fresh = std::fs::read_to_string(&fresh_path).unwrap();
+    assert!(
+        fresh.contains(
+            "	priority = 10
+	supports_shape = elliptical
+	supports_shape = ring
+"
+        ),
+        "{fresh}"
+    );
+    assert!(
+        fresh.contains(
+            "	nomad_empire_max = 0
+"
+        ),
+        "{fresh}"
+    );
+
+    let out = sgf(&[
+        "new-scenario",
+        "sgf_odd",
+        fresh_path.to_str().unwrap(),
+        "--profile",
+        "crayon",
+    ]);
+    assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("paint-a-galaxy"));
 }
 
 #[test]

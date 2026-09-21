@@ -4,7 +4,7 @@
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use sgf_core::views::{ErrorKind, SgfError};
-use tauri::ipc::{CallbackFn, InvokeBody};
+use tauri::ipc::{CallbackFn, InvokeBody, InvokeResponseBody};
 use tauri::test::{INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder};
 use tauri::webview::InvokeRequest;
 use tauri::{WebviewUrl, WebviewWindow, WebviewWindowBuilder};
@@ -25,6 +25,20 @@ pub fn invoke<T: DeserializeOwned>(
     cmd: &str,
     args: Value,
 ) -> Result<T, SgfError> {
+    match invoke_raw(webview, cmd, args) {
+        Ok(body) => Ok(body.deserialize().expect("deserialise response")),
+        Err(v) => Err(serde_json::from_value(v.clone()).unwrap_or_else(|e| panic!("{e}: {v}"))),
+    }
+}
+
+/// The command's response as the IPC layer hands it back, from the webview's own
+/// origin on this platform; an error is whatever the layer or the command rejected
+/// with, which for a refused argument is a plain string rather than an `SgfError`.
+pub fn invoke_raw(
+    webview: &WebviewWindow<MockRuntime>,
+    cmd: &str,
+    args: Value,
+) -> Result<InvokeResponseBody, Value> {
     let url = if cfg!(any(windows, target_os = "android")) {
         "http://tauri.localhost"
     } else {
@@ -39,10 +53,7 @@ pub fn invoke<T: DeserializeOwned>(
         headers: Default::default(),
         invoke_key: INVOKE_KEY.to_string(),
     };
-    match get_ipc_response(webview, request) {
-        Ok(body) => Ok(body.deserialize().expect("deserialise response")),
-        Err(v) => Err(serde_json::from_value(v.clone()).unwrap_or_else(|e| panic!("{e}: {v}"))),
-    }
+    get_ipc_response(webview, request)
 }
 
 /// Whether this machine has a Stellaris install. Without one the tests that

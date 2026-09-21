@@ -1,0 +1,74 @@
+.ins-setup {
+  display: grid;
+  grid-template-columns: 1fr 54px 54px 54px;
+  gap: 2px 6px;
+  align-items: center;
+}
+
+.ins-setup .k {
+  color: var(--fg-muted);
+}
+
+.ins-setup-head {
+  font-size: 10.5px;
+  text-align: center;
+  color: var(--fg-muted);
+}
+
+.ins-setup-cell {
+  min-width: 0;
+  height: 22px;
+  padding: 0 4px;
+  font: inherit;
+  color: inherit;
+  text-align: right;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.ins-setup-cell::placeholder {
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+.ins-setup-cell.raw {
+  display: block;
+  line-height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: none;
+  border-style: dashed;
+}
+
+.ins-setup-cell.raw.wide {
+  grid-column: span 2;
+}
+
+.ins-setup-note {
+  grid-column: 1 / -1;
+}
+
+.ins-shapes {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ins-shapes .k {
+  flex: 0 0 auto;
+  color: var(--fg-muted);
+}
+
+.ins-shape-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ins-shape {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set supports_shape to 11 values
+inverse: SetHeaderList { key: "supports_shape", values: ["elliptical", "spiral_2", "spiral_3", "spiral_4", "spiral_6", "ring", "bar", "cartwheel", "cluster", "starburst"] }
+
+--- scenario
++++ scenario
+@@ -11,6 +11,7 @@
+ 	supports_shape = cartwheel
+ 	supports_shape = cluster
+ 	supports_shape = starburst
++	supports_shape = spoked
+ 	random_hyperlanes = no
+ 	num_wormhole_pairs = { min = 0 max = 5 }
+ 	num_wormhole_pairs_default = 1

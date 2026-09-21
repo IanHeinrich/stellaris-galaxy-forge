@@ -18,6 +18,7 @@ fn a_save_refuses_the_scenario_only_ops() {
             name: None,
             initializer: None,
             spawn_weight: None,
+            spawn_script: None,
         },
         Op::RemoveSystem { id: 0 },
         Op::SetSystemName {
@@ -78,6 +79,7 @@ fn the_ops_that_write_an_initializer_stale_the_systems_details() {
             name: Some("Fresh".into()),
             initializer: Some("basic_init_01".into()),
             spawn_weight: None,
+            spawn_script: None,
         })
         .expect("add a system");
     assert_eq!(added.details_stale, [77]);

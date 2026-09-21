@@ -6,7 +6,7 @@ import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContex
 import { ORIGIN_LANE_ALPHA } from "../../lib/visual/style";
 import type { DragState, MapLayer } from "./MapLayer";
 
-interface LaneStyle {
+export interface LaneStyle {
   color: number;
   alpha: number;
 }
@@ -61,6 +61,16 @@ function dash(g: Graphics, ax: number, ay: number, bx: number, by: number): void
 function laneEase(camScale: number): number {
   const t = Math.log(camScale / EASE_FROM_SCALE) / Math.log(DETAIL_SCALE / EASE_FROM_SCALE);
   return Math.round(Math.min(1, Math.max(0, t)) * EASE_STEPS) / EASE_STEPS;
+}
+
+/** The lane look at `camScale`, for a layer drawing a lane the game will lay in the lanes' own style. */
+export function laneStyleAt(camScale: number): LaneStyle {
+  return mixStyle(LANE_FAR, LANE_NEAR, laneEase(camScale));
+}
+
+/** `style` pulled `t` of the way toward `tint`, keeping its alpha. */
+export function tinted(style: LaneStyle, tint: number, t: number): LaneStyle {
+  return mixStyle(style, { color: tint, alpha: style.alpha }, t);
 }
 
 /** Every undirected lane once, as hairlines that stay 1px at any zoom. */

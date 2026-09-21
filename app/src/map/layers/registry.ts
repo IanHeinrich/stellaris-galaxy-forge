@@ -5,6 +5,8 @@ import { WorkerTerritoryClient } from "../../lib/geometry/territoryClient";
 import type { LayerId } from "../../lib/visual/layerIds";
 import { BypassesLayer } from "./BypassesLayer";
 import { DetailsLayer } from "./DetailsLayer";
+import { FeZonesLayer } from "./FeZonesLayer";
+import { LClusterLayer, MapBorderLayer } from "./GuideLayers";
 import { IssuesLayer } from "./IssuesLayer";
 import { LabelsLayer } from "./LabelsLayer";
 import { LanesLayer } from "./LanesLayer";
@@ -35,7 +37,10 @@ export interface DrawnLayerEntry extends LayerEntry {
  * not here: the controller creates it once and keeps it above these, whatever the document is.
  */
 export const LAYER_REGISTRY: readonly LayerEntry[] = [
+  { id: "mapBorder", create: () => new MapBorderLayer() },
+  { id: "lCluster", create: () => new LClusterLayer() },
   { id: "nebulae", requires: "nebulae", create: () => new NebulaeLayer() },
+  { id: "feZones", requires: "create_systems", create: () => new FeZonesLayer() },
   { id: "lanes", create: () => new LanesLayer() },
   { id: "waylines", requires: "waylines", create: () => new WaylinesLayer() },
   {
@@ -44,6 +49,7 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
     create: () => new OwnersLayer(new WorkerTerritoryClient()),
   },
   { id: "claims", requires: "create_systems" },
+  { id: "marauders", requires: "create_systems" },
   { id: "day_one_bypasses", requires: "create_systems" },
   { id: "bypasses", create: () => new BypassesLayer() },
   { id: "systems", create: (renderer) => new SystemsLayer(renderer) },

@@ -1,12 +1,14 @@
 import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import * as ipc from "../../api/ipc";
+import type { ScenarioProfile } from "../../generated/ScenarioProfile";
+import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
+import { PaintChoice } from "./PaintChoice";
 
 export const MAX_RADIUS = 460;
-export const PAINT_URL = "https://oatmealproblem.github.io/paint-a-galaxy/";
 const DEFAULT_NAME = "new_galaxy";
 
 /** The galaxy sizes the generator offers, by the radius each one lays out. */
@@ -33,8 +35,8 @@ function clampCore(core: number, radius: number): number {
 
 type Route = "blank" | "game" | "paint";
 
-/** The name and canvas size a blank scenario starts from. */
-type Blank = { name: string; radius: number; coreRadius: number };
+/** The name and canvas size a blank scenario starts from, and the profile a new one is written under. */
+type Blank = { name: string; radius: number; coreRadius: number; profile: ScenarioProfile };
 
 const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
   {
@@ -55,9 +57,9 @@ const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
     id: "paint",
     title: "Paint a galaxy",
     copy:
-      "Draw systems and lanes in your browser with paint-a-galaxy by Oatmeal Problem, export its " +
-      "scenario file, then open that file here.",
-    primary: "Open a file…",
+      "Draw your galaxy in Paint a Galaxy, by Oatmeal Problem. Download the scenario file and " +
+      "open it here.",
+    primary: "Open Paint a Galaxy in your browser ↗",
   },
 ];
 
@@ -68,8 +70,9 @@ const STEPS: Record<Route, string[]> = {
     "Open that save here as a scenario.",
   ],
   paint: [
-    "Draw your galaxy on paint-a-galaxy and export its scenario file.",
-    "Open the exported file here.",
+    "Draw your galaxy in Paint a Galaxy, by Oatmeal Problem.",
+    "Download the scenario file.",
+    "Open it here with the button below.",
   ],
 };
 
@@ -168,13 +171,22 @@ export function RouteCards({ route, onRoute }: { route: Route; onRoute: (route: 
   );
 }
 
+/** Opens the site in the user's browser, through the allowlisted address only. */
+function openPaintSite(): void {
+  void ipc
+    .openUrl(PAINT_URL)
+    .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
+}
+
+/** Picks the site's export and opens it as painted; the dialog stays until a file is open. */
+async function openPaintedFile(): Promise<void> {
+  const opened = await useFileSessionStore.getState().pickAndOpenScenario("paint_a_galaxy");
+  if (opened) useLayoutStore.getState().hideScenarioDialog();
+}
+
 /** What the chosen route asks of the user before the file it wants exists. */
 export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
-  const openSite = () => {
-    void ipc
-      .openUrl(PAINT_URL)
-      .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
-  };
+  const openFile = () => void openPaintedFile();
 
   return (
     <div className="route-help">
@@ -183,10 +195,13 @@ export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
           <li key={step}>{step}</li>
         ))}
       </ol>
+      {route === "game" && <PaintChoice />}
       {route === "paint" && (
-        <button type="button" className="link route-link" onClick={openSite}>
-          Open paint-a-galaxy by Oatmeal Problem ↗
-        </button>
+        <div className="route-links">
+          <button type="button" className="link route-link" onClick={openFile}>
+            Open a Paint a Galaxy file…
+          </button>
+        </div>
       )}
     </div>
   );
@@ -199,15 +214,21 @@ function start(route: Route, blank: Blank): void {
   useLayoutStore.getState().hideScenarioDialog();
   switch (route) {
     case "blank":
-      void file.newScenario(blank.name, blank.radius, blank.coreRadius);
+      void file.newScenario(blank.name, blank.radius, blank.coreRadius, blank.profile);
       break;
     case "game":
-      void file.pickAndOpen("scenario");
-      break;
-    case "paint":
-      void file.pickAndOpen();
+      void file.pickAndOpen("scenario", blank.profile);
       break;
   }
+}
+
+/** The paint route's primary opens the site and leaves the dialog open for a file to come back to. */
+function primaryAction(route: Route, blank: Blank): void {
+  if (route === "paint") {
+    openPaintSite();
+    return;
+  }
+  start(route, blank);
 }
 
 export function RouteFoot({ route, blank }: { route: Route; blank: Blank }) {
@@ -219,7 +240,7 @@ export function RouteFoot({ route, blank }: { route: Route; blank: Blank }) {
       <button
         type="button"
         disabled={route === "blank" && blank.name === ""}
-        onClick={() => start(route, blank)}
+        onClick={() => primaryAction(route, blank)}
       >
         {ROUTES.find((r) => r.id === route)?.primary}
       </button>
@@ -235,15 +256,21 @@ export function NewScenarioDialog() {
   const [preset, setPreset] = useState("medium");
   const [custom, setCustom] = useState(400);
   const [core, setCore] = useState<number | null>(null);
+  const paint = useFileSessionStore((s) => s.paintChoice);
 
   const radius =
     preset === "custom" ? clampRadius(custom) : (PRESETS.find((p) => p.id === preset)?.radius ?? 0);
   const coreRadius = clampCore(core ?? radius * CORE_FRACTION, radius);
-  const blank: Blank = { name: name.trim(), radius, coreRadius };
+  const blank: Blank = {
+    name: name.trim(),
+    radius,
+    coreRadius,
+    profile: paint ? "paint_a_galaxy" : "plain",
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    start(route, blank);
+    primaryAction(route, blank);
   };
 
   return (
@@ -302,6 +329,7 @@ export function NewScenarioDialog() {
                 The radius only sizes the canvas until the systems you add give it an extent. The
                 core radius is written to the file and drawn as a ring: keep stars outside it.
               </div>
+              <PaintChoice />
             </>
           ) : (
             <RouteHelp route={route} />

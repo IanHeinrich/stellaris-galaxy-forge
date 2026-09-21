@@ -4,11 +4,16 @@
 //! insertion before the first system and a removal all go through the overlay and the
 //! rebuild reads the result back.
 
+use std::collections::BTreeSet;
+
 use super::index;
 use crate::cst;
+use crate::document::Document;
+use crate::format::scenario::header_counts::KEYS;
 use crate::format::scenario::index::HeaderStmt;
 use crate::keys::scenario as keys;
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject};
+use crate::overlay::Anchor;
 use crate::session::Session;
 
 pub(super) fn set_field(
@@ -49,6 +54,116 @@ pub(super) fn set_field(
         (None, Some(held)) => remove(plan, s, key, &held),
         (None, None) => Err(refuse(at, format!("the header holds no {key} to remove"))),
     }
+}
+
+/// Every entry written as [`set_field`] writes one with `Some`, as one undo step: the
+/// inverse carries the raw text each key displaced, and nothing for a key the header
+/// lacked.
+pub(super) fn set_fields(
+    plan: &mut Plan,
+    s: &Session,
+    entries: &[(String, String)],
+) -> Result<Planned, OpError> {
+    if entries.is_empty() {
+        return Err(OpError::Empty);
+    }
+    let mut seen = BTreeSet::new();
+    for (key, _) in entries {
+        if !seen.insert(key.as_str()) {
+            return Err(refuse(
+                index(&s.doc).header.insert_at,
+                format!("{key} is listed more than once"),
+            ));
+        }
+    }
+    let mut previous = Vec::with_capacity(entries.len());
+    for (key, value) in entries {
+        let planned = set_field(plan, s, key, Some(value))?;
+        if let Op::SetHeaderField {
+            key,
+            value: Some(value),
+        } = planned.inverse
+        {
+            previous.push((key, value));
+        }
+    }
+    let counts = seen.len() == KEYS.len() && KEYS.iter().all(|key| seen.contains(key));
+    Ok(Planned {
+        description: if counts {
+            "Update empire counts".to_owned()
+        } else {
+            format!("Set {} header keys", entries.len())
+        },
+        inverse: Op::SetHeaderKeys { entries: previous },
+    })
+}
+
+/// Every statement of `key` as one undo step: the statements standing are rewritten in
+/// place, one value each, surplus statements removed and surplus values written after
+/// the last statement standing, so the list keeps its place in the header.
+pub(super) fn set_list(
+    plan: &mut Plan,
+    s: &Session,
+    key: &str,
+    values: &[String],
+) -> Result<Planned, OpError> {
+    let header = &index(&s.doc).header;
+    let existing: Vec<HeaderStmt> = header.all(key).cloned().collect();
+    let values: Vec<&str> = values.iter().map(|value| value.trim()).collect();
+    let at = existing
+        .first()
+        .map_or(header.insert_at, |held| held.anchor.start());
+    if existing.is_empty() && values.is_empty() {
+        return Err(refuse(at, format!("the header holds no {key} to remove")));
+    }
+    check_key(key, at)?;
+    for raw in &values {
+        check_value(key, raw, at)?;
+    }
+    for (held, raw) in existing.iter().zip(&values) {
+        rewrite(plan, s, key, raw, held)?;
+    }
+    for held in existing.iter().skip(values.len()) {
+        remove(plan, s, key, held)?;
+    }
+    let (at, indent) = match existing.last() {
+        Some(last) => (
+            after(&s.doc, last.anchor),
+            super::indent(&s.doc, last.anchor),
+        ),
+        None => (header.insert_at, header.indent.clone()),
+    };
+    for raw in values.iter().skip(existing.len()) {
+        insert(plan, key, raw, at, indent.clone());
+    }
+    Ok(Planned {
+        description: format!("Set {key} to {} values", values.len()),
+        inverse: Op::SetHeaderList {
+            key: key.to_owned(),
+            values: existing.into_iter().map(|held| held.field.value).collect(),
+        },
+    })
+}
+
+/// Where a statement written after the one at `anchor` goes: the start of its next line,
+/// past any line a removal has already emptied there, since the overlay refuses an
+/// insert at the start of a slot. An inserted statement carries its own line end, so a
+/// statement written at its offset lands after it.
+fn after(doc: &Document, anchor: Anchor) -> usize {
+    let Anchor::Original(span) = anchor else {
+        return anchor.start();
+    };
+    let mut at = cst::line_end(doc.original(), span.end);
+    for (slot, bytes) in doc.overlay().slots() {
+        if let Anchor::Original(emptied) = slot
+            && emptied.start == at
+            && emptied.end > at
+            && bytes.iter().all(u8::is_ascii_whitespace)
+        {
+            at = emptied.end;
+        }
+    }
+    at
 }
 
 /// The raw text goes where the value stands, block or scalar alike, so a key written as

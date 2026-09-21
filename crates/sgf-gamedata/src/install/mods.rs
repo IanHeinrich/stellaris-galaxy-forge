@@ -11,6 +11,10 @@ use crate::Diagnostic;
 
 /// Where Steam unpacks workshop items for Stellaris (app id 281990).
 const WORKSHOP_CONTENT: &str = "steamapps/workshop/content/281990";
+/// Paint a Galaxy's Steam Workshop item.
+pub const PAINT_MOD_WORKSHOP_ID: &str = "3532904115";
+/// The Reserved Spawns submod's Steam Workshop item, whose traits a reserved seat's empire holds.
+pub const RESERVED_SPAWNS_WORKSHOP_ID: &str = "3762808682";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModInfo {
@@ -36,6 +40,73 @@ impl ModStatus {
             Self::Missing => "missing",
         }
     }
+}
+
+/// Where Paint a Galaxy is on this machine and whether the playset loads it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PaintMod {
+    /// The mod's content directory, `None` when the launcher lists it but its files are gone.
+    pub dir: Option<PathBuf>,
+    pub enabled: bool,
+}
+
+/// Paint a Galaxy among `enabled` and `installed`: the Workshop item by id, or a copy
+/// of any provenance by name. Steam unpacks a new subscription into a library before
+/// the launcher has registered it, so the Workshop folder counts as installed too.
+/// `None` when neither knows of a copy.
+pub fn find_paint_mod(
+    installed: &[ModInfo],
+    enabled: &[ModInfo],
+    libraries: &[PathBuf],
+) -> Option<PaintMod> {
+    let in_playset = enabled.iter().any(is_paint_mod);
+    let mut copies = enabled.iter().chain(installed).filter(|m| is_paint_mod(m));
+    let downloaded = || {
+        libraries
+            .iter()
+            .map(|lib| lib.join(WORKSHOP_CONTENT).join(PAINT_MOD_WORKSHOP_ID))
+            .find(|p| p.is_dir())
+    };
+    match copies.next() {
+        Some(first) => Some(PaintMod {
+            dir: first
+                .dir
+                .clone()
+                .or_else(|| copies.find_map(|m| m.dir.clone()))
+                .or_else(downloaded),
+            enabled: in_playset,
+        }),
+        None => downloaded().map(|dir| PaintMod {
+            dir: Some(dir),
+            enabled: false,
+        }),
+    }
+}
+
+fn is_paint_mod(m: &ModInfo) -> bool {
+    if m.id.strip_prefix("ugc_") == Some(PAINT_MOD_WORKSHOP_ID) {
+        return true;
+    }
+    if m.id.starts_with("ugc_") {
+        return false;
+    }
+    let name = m.name.trim().to_lowercase();
+    match name.strip_prefix("paint a galaxy") {
+        Some(rest) => {
+            !matches!(rest.chars().next(), Some(c) if c.is_alphanumeric() || c == ':' || c == '-')
+        }
+        None => false,
+    }
+}
+
+/// Whether the playset loads the Reserved Spawns submod, whose traits a reserved seat needs.
+pub fn reserved_spawns_enabled(enabled: &[ModInfo]) -> bool {
+    enabled.iter().any(is_reserved_spawns_mod)
+}
+
+fn is_reserved_spawns_mod(m: &ModInfo) -> bool {
+    m.id.strip_prefix("ugc_") == Some(RESERVED_SPAWNS_WORKSHOP_ID)
+        || m.name.to_lowercase().contains("reserved spawns")
 }
 
 #[derive(Deserialize)]
@@ -226,5 +297,174 @@ fn descriptor_fields(root: &Node, src: &[u8]) -> Descriptor {
             .filter_map(|n| n.scalar_str(src))
             .map(str::to_owned)
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn info(id: &str, name: &str, dir: Option<&str>) -> ModInfo {
+        ModInfo {
+            id: id.to_owned(),
+            name: name.to_owned(),
+            dir: dir.map(PathBuf::from),
+            replace_paths: Vec::new(),
+            status: if dir.is_some() {
+                ModStatus::Loaded
+            } else {
+                ModStatus::Missing
+            },
+        }
+    }
+
+    #[test]
+    fn paint_a_galaxy_is_found_by_workshop_id_or_name_and_the_playset_says_enabled() {
+        let other = info("ugc_1121692237", "UI Overhaul Dynamic", Some("/mods/ui"));
+        let workshop = info("ugc_3532904115", "PaG", Some("/workshop/3532904115"));
+        let local = info("local_pag", "Paint A Galaxy (dev copy)", Some("/mods/pag"));
+        let found = |dir: &str, enabled: bool| {
+            Some(PaintMod {
+                dir: Some(PathBuf::from(dir)),
+                enabled,
+            })
+        };
+
+        assert_eq!(find_paint_mod(std::slice::from_ref(&other), &[], &[]), None);
+        let installed = [other.clone(), workshop.clone()];
+        assert_eq!(
+            find_paint_mod(&installed, std::slice::from_ref(&other), &[]),
+            found("/workshop/3532904115", false)
+        );
+        assert_eq!(
+            find_paint_mod(&installed, std::slice::from_ref(&workshop), &[]),
+            found("/workshop/3532904115", true)
+        );
+        assert_eq!(
+            find_paint_mod(std::slice::from_ref(&local), &[], &[]),
+            found("/mods/pag", false)
+        );
+
+        let missing = info("ugc_3532904115", "Paint a Galaxy", None);
+        assert_eq!(
+            find_paint_mod(
+                std::slice::from_ref(&missing),
+                std::slice::from_ref(&missing),
+                &[]
+            ),
+            Some(PaintMod {
+                dir: None,
+                enabled: true,
+            })
+        );
+    }
+
+    #[test]
+    fn a_fresh_workshop_download_counts_as_installed_before_the_launcher_lists_it() {
+        let library = tempfile::tempdir().unwrap();
+        let unpacked = library
+            .path()
+            .join(WORKSHOP_CONTENT)
+            .join(PAINT_MOD_WORKSHOP_ID);
+        let libraries = [library.path().to_path_buf()];
+
+        assert_eq!(find_paint_mod(&[], &[], &libraries), None);
+
+        fs::create_dir_all(&unpacked).unwrap();
+        assert_eq!(
+            find_paint_mod(&[], &[], &libraries),
+            Some(PaintMod {
+                dir: Some(unpacked.clone()),
+                enabled: false,
+            })
+        );
+
+        let listed = info("ugc_3532904115", "Paint a Galaxy", None);
+        assert_eq!(
+            find_paint_mod(
+                std::slice::from_ref(&listed),
+                std::slice::from_ref(&listed),
+                &libraries
+            ),
+            Some(PaintMod {
+                dir: Some(unpacked),
+                enabled: true,
+            })
+        );
+    }
+
+    #[test]
+    fn reserved_spawns_is_enabled_by_workshop_id_or_name_in_the_playset() {
+        let paint = info(
+            "ugc_3532904115",
+            "Paint a Galaxy",
+            Some("/workshop/3532904115"),
+        );
+        let workshop = info("ugc_3762808682", "PaG RS", Some("/workshop/3762808682"));
+        let local = info(
+            "local_rs",
+            "Paint a Galaxy: Reserved Spawns",
+            Some("/mods/rs"),
+        );
+
+        assert!(!reserved_spawns_enabled(&[]));
+        assert!(!reserved_spawns_enabled(std::slice::from_ref(&paint)));
+        assert!(reserved_spawns_enabled(&[paint.clone(), workshop]));
+        assert!(reserved_spawns_enabled(&[paint, local]));
+    }
+
+    #[test]
+    fn only_the_reserved_spawns_submod_enabled_does_not_count_as_paint_a_galaxy() {
+        let submod = info(
+            "ugc_3762808682",
+            "Paint a Galaxy: Reserved Spawns",
+            Some("/workshop/3762808682"),
+        );
+        let real = info(
+            "ugc_3532904115",
+            "Paint a Galaxy",
+            Some("/workshop/3532904115"),
+        );
+        let installed = [submod.clone(), real];
+
+        assert_eq!(
+            find_paint_mod(&installed, std::slice::from_ref(&submod), &[]),
+            Some(PaintMod {
+                dir: Some(PathBuf::from("/workshop/3532904115")),
+                enabled: false,
+            })
+        );
+    }
+
+    #[test]
+    fn a_local_copy_named_exactly_paint_a_galaxy_matches() {
+        let local = info("local_pag", "Paint a Galaxy", Some("/mods/pag"));
+        assert_eq!(
+            find_paint_mod(std::slice::from_ref(&local), &[], &[]),
+            Some(PaintMod {
+                dir: Some(PathBuf::from("/mods/pag")),
+                enabled: false,
+            })
+        );
+    }
+
+    #[test]
+    fn the_workshop_item_matches_by_id_whatever_its_name() {
+        let workshop = info(
+            "ugc_3532904115",
+            "Some Other Name Entirely",
+            Some("/workshop/3532904115"),
+        );
+        assert_eq!(
+            find_paint_mod(
+                std::slice::from_ref(&workshop),
+                std::slice::from_ref(&workshop),
+                &[]
+            ),
+            Some(PaintMod {
+                dir: Some(PathBuf::from("/workshop/3532904115")),
+                enabled: true,
+            })
+        );
     }
 }

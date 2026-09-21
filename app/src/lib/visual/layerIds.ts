@@ -12,6 +12,10 @@ export const LAYER_IDS = [
   "labels",
   "initializers",
   "spawns",
+  "feZones",
+  "marauders",
+  "mapBorder",
+  "lCluster",
   "details",
   "colonies",
   "claims",
@@ -38,6 +42,8 @@ export const TOGGLEABLE_LAYERS: readonly LayerId[] = [
   "nebulae",
   "issues",
   "initializers",
+  "mapBorder",
+  "lCluster",
 ];
 
 /** The layers with their own icon toggle in the top bar. */
@@ -82,7 +88,11 @@ export const LAYER_GROUPS: ReadonlyArray<{ label: string; layers: readonly Layer
       "special",
       "initializers",
       "spawns",
+      "feZones",
+      "marauders",
       "nebulae",
+      "mapBorder",
+      "lCluster",
     ],
   },
   { label: "Editing", layers: ["issues"] },
@@ -105,6 +115,10 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   special: "Points of interest",
   initializers: "Initializer keys",
   spawns: "Spawn points",
+  feZones: "Fallen empire zones",
+  marauders: "Marauder clans",
+  mapBorder: "Map border",
+  lCluster: "L-Cluster",
   issues: "Issue highlights",
   labels: "Names",
   details: "System details",
@@ -115,8 +129,9 @@ export const LAYER_LABELS: Record<LayerId, string> = {
 };
 
 /** What is on when the app starts, and what a scenario opens with: the map as the game first
- * shows it, with the scripts' day-one overlays left off until asked for. `special` is always on
- * because the shown point-of-interest kinds decide what that layer draws. */
+ * shows it, with the scripts' day-one overlays left off until asked for, and the two guides on
+ * because a scenario is drawn to fit them. `special` is always on because the shown
+ * point-of-interest kinds decide what that layer draws. */
 export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   nebulae: false,
   lanes: true,
@@ -128,6 +143,10 @@ export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   special: true,
   initializers: true,
   spawns: true,
+  feZones: true,
+  marauders: true,
+  mapBorder: true,
+  lCluster: true,
   issues: false,
   labels: true,
   details: true,
@@ -149,6 +168,10 @@ const SAVE_LAYERS: Record<LayerId, boolean> = {
   special: false,
   initializers: false,
   spawns: false,
+  feZones: false,
+  marauders: false,
+  mapBorder: false,
+  lCluster: false,
   issues: false,
   labels: true,
   details: true,

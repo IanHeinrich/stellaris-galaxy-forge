@@ -1,3 +1,4 @@
+import type { ExportReport } from "../generated/ExportReport";
 import type { FleetSummary } from "../generated/FleetSummary";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitPlanetView } from "../generated/InitPlanetView";
@@ -27,11 +28,37 @@ export function systemNode(over: Partial<SystemNode> = {}): SystemNode {
     initializer: "",
     spawn_weight: null,
     spawn_modifiers: [],
+    spawn_script: null,
+    fe_zone: null,
+    fe_link: { custom: false, id: null, to: [] },
+    wormhole_pair: null,
+    marauder: null,
     spawn_design: null,
     prevented: [],
     position_range: false,
     flags: [],
     owner: null,
+    ...over,
+  };
+}
+
+/** The report of an export that carried everything over; a test adds what it left out. */
+export function exportReport(over: Partial<ExportReport> = {}): ExportReport {
+  return {
+    seats: 17,
+    home_initializers: [],
+    dropped: { wormhole_pairs: 0, gateways: 0, lgates: 0 },
+    by_category: [
+      { category: "home", systems: 17 },
+      { category: "generic", systems: 774 },
+    ],
+    sources: [],
+    fallen_empire_zones: 0,
+    fallen_empires: [],
+    player_seat: null,
+    player_seat_kind: null,
+    omitted: [],
+    setup_from_save: false,
     ...over,
   };
 }

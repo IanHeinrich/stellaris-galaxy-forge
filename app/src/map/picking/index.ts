@@ -1,16 +1,18 @@
 import type { Nebula } from "../../generated/Nebula";
 import type { SystemNode } from "../../generated/SystemNode";
-import type { LaneRef } from "../../store/editorStore";
 import { unlinkedTo } from "../../store/galaxyStore";
 import type { Camera, Pt } from "../Camera";
-import type { LaneTarget } from "../interaction/MapIntent";
-import { nearestLane } from "./nearestLane";
+import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
+import { linkRefusal, type Segment } from "../../lib/feLinks";
+import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
+import { edgeEnds, nearestEdge, type MapEdge } from "./edges";
 import {
   LANE_PICK_RADIUS_PX,
   MIDPOINT_HIT_PX,
   NEBULA_CENTRE_HIT_PX,
   NEBULA_HANDLE_HIT_PX,
   NEBULA_RING_HIT_PX,
+  ringZoneOf,
   SNAP_RADIUS_PX,
   systemReachPx,
   zoneOf,
@@ -30,9 +32,9 @@ export interface SystemPick {
   zone: Zone | null;
 }
 
-export interface LanePick {
-  lane: LaneRef | null;
-  /** Whether the point is on the hovered lane's midpoint button. */
+export interface EdgePick {
+  edge: MapEdge | null;
+  /** Whether the point is on the hovered edge's midpoint button. */
   midpointHit: boolean;
 }
 
@@ -116,6 +118,47 @@ function hitOn(
   return ringPx <= NEBULA_RING_HIT_PX ? { part: "ring", dist: ringPx } : null;
 }
 
+/** A fallen empire zone under the pointer, named by the system that anchors it, and where on it. */
+export interface FeZonePick {
+  anchor: number;
+  /** On the ring band, or on the port band just outside it. */
+  zone: "ring" | "port";
+}
+
+const RING_ZONE_RANK = { ring: 0, port: 1 } as const;
+
+/**
+ * The zone whose ring band or port band a world point is on, a ring band winning over a port
+ * band and the nearer ring where two overlap. Inside the ring is not a hit: the zone is empty
+ * space, and a click there clears the selection or starts a marquee as it would anywhere else.
+ */
+export function pickFeZone(systems: Systems, cam: Camera, at: Pt): FeZonePick | null {
+  const k = markerScale(cam.scale);
+  let best: FeZonePick | null = null;
+  let bestRank = Infinity;
+  let bestPx = Infinity;
+  for (const s of systems.values()) {
+    const offset = ringOffset(s, at);
+    if (offset === null) continue;
+    const zone = ringZoneOf(offset * cam.scale, k);
+    if (!zone) continue;
+    const rank = RING_ZONE_RANK[zone];
+    const px = Math.abs(offset) * cam.scale;
+    if (rank > bestRank || (rank === bestRank && px >= bestPx)) continue;
+    best = { anchor: s.id, zone };
+    bestRank = rank;
+    bestPx = px;
+  }
+  return best;
+}
+
+/** How far a world point lies outside the ring `anchor` anchors, negative inside; null without a zone. */
+function ringOffset(anchor: SystemNode, at: Pt): number | null {
+  if (anchor.fe_zone === null) return null;
+  const c = feZoneCentre(anchor, anchor.fe_zone);
+  return Math.hypot(c.x - at.x, c.y - at.y) - FE_ZONE_RADIUS;
+}
+
 /** The system under a world point, and whether the point is on its star or its port band. */
 export function pickSystem(grid: SpatialGrid, cam: Camera, at: Pt): SystemPick {
   const k = markerScale(cam.scale);
@@ -127,33 +170,79 @@ export function pickSystem(grid: SpatialGrid, cam: Camera, at: Pt): SystemPick {
   return zone ? { system: s.id, zone } : { system: null, zone: null };
 }
 
-/** The lane under a world point; `sticky` keeps the hovered lane while the point is on its button. */
-export function pickLane(systems: Systems, cam: Camera, at: Pt, sticky: LaneRef | null): LanePick {
-  if (sticky && nearMidpoint(systems, cam, sticky, at)) return { lane: sticky, midpointHit: true };
-  const lane = nearestLane(systems, at.x, at.y, LANE_PICK_RADIUS_PX / cam.scale);
-  return { lane, midpointHit: lane !== null && nearMidpoint(systems, cam, lane, at) };
+/**
+ * The edge under a world point, a lane before a zone's link and links only while `links`;
+ * `sticky` keeps the hovered edge while the point is on its button.
+ */
+export function pickEdge(
+  systems: Systems,
+  cam: Camera,
+  at: Pt,
+  sticky: MapEdge | null,
+  links: boolean,
+): EdgePick {
+  if (sticky && nearMidpoint(cam, edgeEnds(systems, sticky), at)) {
+    return { edge: sticky, midpointHit: true };
+  }
+  const edge = nearestEdge(systems, at.x, at.y, LANE_PICK_RADIUS_PX / cam.scale, links);
+  return { edge, midpointHit: edge !== null && nearMidpoint(cam, edgeEnds(systems, edge), at) };
 }
 
-/** Whether a world point is within the midpoint button of `lane`. */
-export function nearMidpoint(systems: Systems, cam: Camera, lane: LaneRef, at: Pt): boolean {
-  const a = systems.get(lane.a);
-  const b = systems.get(lane.b);
-  if (!a || !b) return false;
+/** Whether a world point is within the midpoint button of a segment. */
+export function nearMidpoint(cam: Camera, segment: Segment | null, at: Pt): boolean {
+  if (!segment) return false;
+  const { a, b } = segment;
   const d = Math.hypot((a.x + b.x) / 2 - at.x, (a.y + b.y) / 2 - at.y);
   return d * cam.scale <= MIDPOINT_HIT_PX;
 }
 
-/** The system a lane drag from `from` would snap to, and whether that lane could be added. */
+const NO_NAME = () => "";
+
+/**
+ * What a lane drag from `from` would snap to: the nearest system inside the snap radius or,
+ * for a drag from systems while `zones` show, the zone whose ring line is; and whether the
+ * lane or link could be added.
+ */
 export function snapTarget(
   grid: SpatialGrid,
   systems: Systems,
   cam: Camera,
   at: Pt,
-  from: number[],
+  from: LaneSource,
+  zones: boolean,
 ): LaneTarget | null {
-  const s = nearestOutside(grid, at, SNAP_RADIUS_PX / cam.scale, from);
-  if (!s) return null;
-  return { id: s.id, valid: unlinkedTo(systems, s.id, from).length > 0 };
+  const reach = SNAP_RADIUS_PX / cam.scale;
+  const s = nearestOutside(grid, at, reach, from.kind === "systems" ? from.ids : []);
+  if (s) return { kind: "system", id: s.id, valid: canConnect(systems, from, s) };
+  if (from.kind !== "systems" || !zones) return null;
+  const anchor = nearestRing(systems, at, reach);
+  if (!anchor) return null;
+  const valid = from.ids.some((id) => {
+    const system = systems.get(id);
+    return system !== undefined && linkRefusal(anchor, system, NO_NAME) === null;
+  });
+  return { kind: "feZone", anchor: anchor.id, valid };
+}
+
+/** Whether a drag from `from` dropped on `target` adds a lane, or a link from a zone's port. */
+function canConnect(systems: Systems, from: LaneSource, target: SystemNode): boolean {
+  if (from.kind === "systems") return unlinkedTo(systems, target.id, from.ids).length > 0;
+  const anchor = systems.get(from.anchor);
+  return anchor !== undefined && linkRefusal(anchor, target, NO_NAME) === null;
+}
+
+/** The anchor whose ring line lies within `maxDist` of a world point, the nearest where two do. */
+function nearestRing(systems: Systems, at: Pt, maxDist: number): SystemNode | null {
+  let best: SystemNode | null = null;
+  let bestOffset = maxDist;
+  for (const s of systems.values()) {
+    const offset = ringOffset(s, at);
+    if (offset !== null && Math.abs(offset) <= bestOffset) {
+      bestOffset = Math.abs(offset);
+      best = s;
+    }
+  }
+  return best;
 }
 
 /** The closest system to a world point within `maxDist`, skipping `excluded`. */

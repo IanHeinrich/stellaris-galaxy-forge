@@ -8,6 +8,7 @@ import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useCountryName } from "../../../store/browserRows";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { useOwnership } from "../../../store/ownership";
 import { useApplyOp } from "../../useApplyOp";
 import { Chip, Field, Section, SourceChip, Swatch } from "../parts";
 import { useEditableSystem } from "./editable";
@@ -84,7 +85,11 @@ function HeadName({ system }: { system: SystemNode }) {
 export function Header({ detail }: { detail: SystemDetail }) {
   const { system } = detail;
   const select = useEditorStore((s) => s.select);
-  const owner = useCountryName(system.owner);
+  const { owners, table } = useOwnership();
+  // A clan's system is the clan's, whatever the scripts say; any other owner is the file's.
+  const ownerId = owners.get(system.id) ?? system.owner;
+  const countryLabel = useCountryName(ownerId);
+  const owner = (ownerId === null ? undefined : table.get(ownerId)?.label) ?? countryLabel;
   const names = useGameDataStore((s) => s.names);
   const special = useGameDataStore((s) => s.special.get(system.id));
   const scenarioOwner = useGameDataStore(
@@ -111,9 +116,9 @@ export function Header({ detail }: { detail: SystemDetail }) {
         {starClass === "" ? "" : `${starClass} · `}
         {planets} planets · nebula: {detail.nebula ? nodeName(detail.nebula.name) : "none"}
       </div>
-      {system.owner !== null && (
+      {ownerId !== null && (
         <div className="ins-line">
-          <Swatch owner={system.owner} />
+          <Swatch owner={ownerId} />
           <span>{owner}</span>
           {capital && <Chip>capital</Chip>}
           {scenarioOwner?.tier === "day_one" && (

@@ -1,11 +1,20 @@
 ---
-source: crates/sgf-core/tests/export.rs
-expression: "String::from_utf8(std::fs::read(&path).unwrap()).unwrap()"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
 static_galaxy_scenario = {
 	name = "sgf_test"
 	priority = 5
 	supports_shape = elliptical
+	supports_shape = ring
+	supports_shape = spiral_2
+	supports_shape = spiral_3
+	supports_shape = spiral_4
+	supports_shape = spiral_6
+	supports_shape = bar
+	supports_shape = starburst
+	supports_shape = cartwheel
+	supports_shape = spoked
 	default = no
 	num_empires = { min = 0 max = 1 }
 	num_empire_default = 1

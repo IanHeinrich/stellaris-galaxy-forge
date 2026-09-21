@@ -259,6 +259,7 @@ fn territories(
                     colors: identity.colors.clone(),
                     flag_icon: identity.icon.clone(),
                     flag_background: identity.background.clone(),
+                    flags: Vec::new(),
                 },
             }
         })

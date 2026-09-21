@@ -3,17 +3,30 @@
 //! own numbers; callers undo the map's axis signs before coming here.
 
 use crate::emit::coord;
+use crate::format::scenario::paint;
+use crate::projections::galaxy::SpawnScript;
 
 /// What a `system` statement carries.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SystemStmt<'a> {
+pub struct SystemStmt {
     pub id: u32,
-    pub name: &'a str,
+    pub name: String,
     pub x: f64,
     pub y: f64,
-    pub initializer: Option<&'a str>,
-    /// `spawn_weight = { base = N }`, the mark of an empire spawn point.
-    pub spawn_weight: Option<f64>,
+    pub initializer: Option<String>,
+    pub spawn: SpawnStmt,
+    /// The body of an `effect = { … }` block, written last as Paint a Galaxy does.
+    pub effect: Option<String>,
+}
+
+/// The `spawn_weight` a `system` statement carries, the mark of an empire spawn point.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SpawnStmt {
+    None,
+    /// `spawn_weight = { base = N }`.
+    Base(f64),
+    /// A scripted weight, written as the script's dialect renders it.
+    Script(SpawnScript),
 }
 
 /// The header scalars a generated scenario opens with.
@@ -22,10 +35,27 @@ pub struct ScenarioOptions {
     pub name: String,
     pub core_radius: f64,
     pub num_empires: (u32, u32),
+    /// The file name of the save the scenario was exported from; `None` for one
+    /// started empty.
+    pub exported_from: Option<String>,
 }
 
+/// Every galaxy shape the game ships (`map/galaxy/galaxy_shapes.txt`), in its order.
+pub const VANILLA_SHAPES: [&str; 10] = [
+    "elliptical",
+    "ring",
+    "spiral_2",
+    "spiral_3",
+    "spiral_4",
+    "spiral_6",
+    "bar",
+    "starburst",
+    "cartwheel",
+    "spoked",
+];
+
 /// `system = { id = "3019" name = "" position = { x = 12 y = -34 } … }` on one line.
-pub fn system_stmt(indent: &[u8], s: &SystemStmt<'_>) -> Vec<u8> {
+pub fn system_stmt(indent: &[u8], s: &SystemStmt) -> Vec<u8> {
     let mut out = String::with_capacity(96);
     out.push_str(&format!(
         "system = {{ id = \"{}\" name = \"{}\" position = {{ x = {} y = {} }}",
@@ -34,11 +64,21 @@ pub fn system_stmt(indent: &[u8], s: &SystemStmt<'_>) -> Vec<u8> {
         coord(s.x),
         coord(s.y)
     ));
-    if let Some(initializer) = s.initializer.filter(|i| !i.is_empty()) {
+    if let Some(initializer) = s.initializer.as_deref().filter(|i| !i.is_empty()) {
         out.push_str(&format!(" initializer = {initializer}"));
     }
-    if let Some(weight) = s.spawn_weight {
-        out.push_str(&format!(" spawn_weight = {{ base = {} }}", coord(weight)));
+    match &s.spawn {
+        SpawnStmt::None => {}
+        SpawnStmt::Base(weight) => {
+            out.push_str(&format!(" spawn_weight = {{ base = {} }}", coord(*weight)));
+        }
+        SpawnStmt::Script(script) => {
+            out.push(' ');
+            out.push_str(&paint::weight_statement(script));
+        }
+    }
+    if let Some(effect) = &s.effect {
+        out.push_str(&format!(" effect = {{ {effect} }}"));
     }
     out.push_str(" }\n");
     line(indent, out.as_bytes())
@@ -75,14 +115,19 @@ pub fn nebula_stmt(indent: &[u8], name: &str, x: f64, y: f64, radius: f64) -> Ve
 }
 
 /// The opening of a scenario file through its header scalars; statements follow, then
-/// [`FOOTER`]. Empire counts follow the vanilla example, everything random is off.
+/// [`FOOTER`]. Every vanilla shape is supported, empire counts follow the vanilla
+/// example, everything random is off.
 pub fn header(o: &ScenarioOptions) -> Vec<u8> {
     let (min, max) = o.num_empires;
+    let shapes: String = VANILLA_SHAPES
+        .iter()
+        .map(|shape| format!("\tsupports_shape = {shape}\n"))
+        .collect();
     format!(
         "static_galaxy_scenario = {{\n\
          \tname = \"{}\"\n\
          \tpriority = 5\n\
-         \tsupports_shape = elliptical\n\
+         {shapes}\
          \tdefault = no\n\
          \tnum_empires = {{ min = {min} max = {max} }}\n\
          \tnum_empire_default = {max}\n\
@@ -124,16 +169,18 @@ fn line(indent: &[u8], text: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::projections::galaxy::PaintSpawnKind;
 
     #[test]
     fn statements_take_the_mods_one_line_shape() {
         let plain = SystemStmt {
             id: 3019,
-            name: "",
+            name: String::new(),
             x: 12.0,
             y: -34.5,
             initializer: None,
-            spawn_weight: None,
+            spawn: SpawnStmt::None,
+            effect: None,
         };
         assert_eq!(
             system_stmt(b"\t", &plain),
@@ -141,14 +188,27 @@ mod tests {
         );
         let spawn = SystemStmt {
             id: 7,
-            name: "Tatooine",
-            initializer: Some("random_empire_init_01"),
-            spawn_weight: Some(1.0),
-            ..plain
+            name: "Tatooine".into(),
+            initializer: Some("random_empire_init_01".into()),
+            spawn: SpawnStmt::Base(1.0),
+            ..plain.clone()
         };
         assert_eq!(
             system_stmt(b"", &spawn),
             b"system = { id = \"7\" name = \"Tatooine\" position = { x = 12 y = -34.5 } initializer = random_empire_init_01 spawn_weight = { base = 1 } }\n"
+        );
+        let scripted = SystemStmt {
+            spawn: SpawnStmt::Script(SpawnScript::PaintAGalaxy {
+                kind: PaintSpawnKind::Enabled,
+                random_value: 4,
+                player: false,
+            }),
+            effect: Some("set_star_flag = empire_cluster".into()),
+            ..plain
+        };
+        assert_eq!(
+            system_stmt(b"", &scripted),
+            b"system = { id = \"3019\" name = \"\" position = { x = 12 y = -34.5 } spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|4| } effect = { set_star_flag = empire_cluster } }\n"
         );
         assert_eq!(
             hyperlane_stmt(b"\t", 4231, 4234),
@@ -166,9 +226,17 @@ mod tests {
             name: "sgf_test".into(),
             core_radius: 30.0,
             num_empires: (1, 4),
+            exported_from: None,
         });
         let text = String::from_utf8(text).unwrap();
         assert!(text.starts_with("static_galaxy_scenario = {\n\tname = \"sgf_test\"\n"));
+        assert!(
+            text.contains(
+                "\tpriority = 5\n\tsupports_shape = elliptical\n\tsupports_shape = ring\n"
+            )
+        );
+        assert!(text.contains("\tsupports_shape = spoked\n\tdefault = no\n"));
+        assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
         assert!(text.contains("\tnum_empires = { min = 1 max = 4 }\n\tnum_empire_default = 4\n"));
         assert!(text.contains("\tcore_radius = 30\n"));
         assert!(text.ends_with("}\n\n"));

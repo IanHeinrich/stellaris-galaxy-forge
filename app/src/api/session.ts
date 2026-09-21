@@ -10,11 +10,15 @@ import type { EntityKind } from "../generated/EntityKind";
 import type { EntitySchema } from "../generated/EntitySchema";
 import type { EntitySource } from "../generated/EntitySource";
 import type { EntityView } from "../generated/EntityView";
+import type { ExportReport } from "../generated/ExportReport";
+import type { ExportResult } from "../generated/ExportResult";
+import type { FeZone } from "../generated/FeZone";
 import type { Op } from "../generated/Op";
 import type { OpenResult } from "../generated/OpenResult";
 import type { SaveFile } from "../generated/SaveFile";
 import type { SaveResult } from "../generated/SaveResult";
 import type { ScenarioListings } from "../generated/ScenarioListings";
+import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemDetails } from "../generated/SystemDetails";
@@ -50,18 +54,28 @@ export function openSave(path: string): Promise<OpenResult> {
 }
 
 /** Open the save at `path` as a new, unsaved scenario holding its galaxy; the save is untouched. */
-export function openAsScenario(path: string): Promise<OpenResult> {
-  return invoke<OpenResult>("open_as_scenario", { path });
+export function openAsScenario(path: string, profile: ScenarioProfile): Promise<OpenResult> {
+  return invoke<OpenResult>("open_as_scenario", { path, profile });
 }
 
 /** Start an empty, unsaved scenario; `radius` sizes the canvas until systems give it an extent, `coreRadius` is written to the file. */
-export function newScenario(name: string, radius: number, coreRadius: number): Promise<OpenResult> {
-  return invoke<OpenResult>("new_scenario", { name, radius, coreRadius });
+export function newScenario(
+  name: string,
+  radius: number,
+  coreRadius: number,
+  profile: ScenarioProfile,
+): Promise<OpenResult> {
+  return invoke<OpenResult>("new_scenario", { name, radius, coreRadius, profile });
 }
 
 /** Write the open save's galaxy as a scenario script at `path`; the session stays as it is. */
-export function exportScenario(path: string): Promise<SaveResult> {
-  return invoke<SaveResult>("export_scenario", { path });
+export function exportScenario(path: string, profile: ScenarioProfile): Promise<ExportResult> {
+  return invoke<ExportResult>("export_scenario", { path, profile });
+}
+
+/** What exporting the open save would report, without writing anything. */
+export function previewExport(): Promise<ExportReport> {
+  return invoke<ExportReport>("preview_export");
 }
 
 /** One system with its neighbours resolved. Rejects with `SgfError` when no save is open or `id` is unknown. */
@@ -102,6 +116,42 @@ export function getEntitySchema(kind: EntityKind): Promise<EntitySchema> {
 /** Apply one edit to the session. Rejects with `SgfError` (kind `op`) when a precondition fails. */
 export function applyOp(op: Op): Promise<EditResult> {
   return invoke<EditResult>("apply_op", { op });
+}
+
+/**
+ * The entries of one `SetFeZones` that replaces the automatic fallen empire zones with `count`
+ * of the Paint a Galaxy mod's candidates, spread across the map; empty when the zones already
+ * stand as asked. Zones the user placed stay.
+ */
+export function feZoneFit(count: number): Promise<Array<[number, FeZone | null]>> {
+  return invoke<Array<[number, FeZone | null]>>("fe_zone_fit", { count });
+}
+
+/** The most zones `feZoneFit` accepts on the open scenario. */
+export function feZoneCandidateCount(): Promise<number> {
+  return invoke<number>("fe_zone_candidate_count");
+}
+
+/**
+ * Link `linked` and no other system to the fallen empire zone `anchor` anchors, as one
+ * `SetFeLinks`; empty, the zone goes back to the mod's own rule. Rejects with `SgfError` (kind
+ * `op`) when `anchor` anchors no zone.
+ */
+export function setFeLinks(anchor: number, linked: number[]): Promise<EditResult> {
+  return invoke<EditResult>("set_fe_links", { anchor, linked });
+}
+
+/**
+ * The five empire-count header keys and the values Paint a Galaxy's formulas give the open
+ * scenario's seats, for one `SetHeaderKeys`. Rejects with `SgfError` (kind `op`) on a save.
+ */
+export function headerEmpireCounts(): Promise<Array<[string, string]>> {
+  return invoke<Array<[string, string]>>("header_empire_counts");
+}
+
+/** Every other scenario in the directory of `path`, as file name and header name. */
+export function siblingScenarioNames(path: string): Promise<Array<[string, string]>> {
+  return invoke<Array<[string, string]>>("sibling_scenario_names", { path });
 }
 
 /** Undo the last edit; resolves null when there is nothing to undo. */

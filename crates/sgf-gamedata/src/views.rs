@@ -6,12 +6,14 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::initializers::{InitPlanet, Initializer, SpawnedCountry};
-use crate::install::mods::ModInfo;
+use crate::install::mods::{ModInfo, PaintMod};
+use crate::install::scenarios::SCENARIO_DIR;
 use crate::registries::bypasses::BypassDef;
 use crate::registries::colors::ColorDef;
 use crate::registries::country_types::CountryType;
 use crate::registries::defines::BorderDefines as BorderDefinesData;
 use crate::registries::deposits::DepositDef;
+use crate::registries::galaxy_shapes::GalaxyShape;
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
@@ -36,6 +38,35 @@ impl From<&ModInfo> for ModView {
             name: m.name.clone(),
             dir: m.dir.as_ref().map(|d| d.display().to_string()),
             status: m.status.as_str().to_owned(),
+        }
+    }
+}
+
+/// Where Paint a Galaxy keeps its scenarios on this machine, whether or not the
+/// directory exists, whether the playset loads the mod, and whether it loads the
+/// Reserved Spawns submod beside it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PaintModView {
+    /// `None` when the launcher lists the mod but its files are gone.
+    pub scenarios_dir: Option<String>,
+    pub enabled: bool,
+    /// The playset loads the Reserved Spawns submod, whose traits a reserved seat needs.
+    pub reserved_spawns: bool,
+}
+
+impl PaintModView {
+    pub fn new(m: &PaintMod, reserved_spawns: bool) -> Self {
+        Self {
+            scenarios_dir: m.dir.as_ref().map(|dir| {
+                SCENARIO_DIR
+                    .iter()
+                    .fold(dir.clone(), |p, part| p.join(part))
+                    .display()
+                    .to_string()
+            }),
+            enabled: m.enabled,
+            reserved_spawns,
         }
     }
 }
@@ -415,4 +446,32 @@ impl From<&BorderDefinesData> for BorderDefines {
 
 fn count(n: usize) -> u32 {
     u32::try_from(n).unwrap_or(u32::MAX)
+}
+
+/// One `map/galaxy` shape a scenario can list itself under with `supports_shape`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct GalaxyShapeView {
+    pub name: String,
+    /// The definition file it was read from.
+    pub source: String,
+}
+
+impl From<&GalaxyShape> for GalaxyShapeView {
+    fn from(shape: &GalaxyShape) -> Self {
+        Self {
+            name: shape.name.clone(),
+            source: shape.source.display().to_string(),
+        }
+    }
+}
+
+impl GameData {
+    /// Every galaxy shape, in file order.
+    pub fn galaxy_shape_views(&self) -> Vec<GalaxyShapeView> {
+        self.galaxy_shapes
+            .iter()
+            .map(GalaxyShapeView::from)
+            .collect()
+    }
 }

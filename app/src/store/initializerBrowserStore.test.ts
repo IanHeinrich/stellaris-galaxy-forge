@@ -279,6 +279,7 @@ describe("create mode", () => {
         name: null,
         initializer: "empire_init_01",
         spawn_weight: 1,
+        spawn_script: null,
       },
     ]);
     expect(browser().recent).toEqual(["empire_init_01"]);
@@ -298,6 +299,7 @@ describe("create mode", () => {
         name: null,
         initializer: null,
         spawn_weight: null,
+        spawn_script: null,
       },
     ]);
     expect(browser().recent).toEqual([]);

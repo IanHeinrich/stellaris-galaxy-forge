@@ -1,0 +1,41 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
+static_galaxy_scenario = {
+	name = "sgf_test"
+	priority = 10
+	supports_shape = elliptical
+	supports_shape = ring
+	supports_shape = spiral_2
+	supports_shape = spiral_3
+	supports_shape = spiral_4
+	supports_shape = spiral_6
+	supports_shape = bar
+	supports_shape = starburst
+	supports_shape = cartwheel
+	supports_shape = spoked
+	random_hyperlanes = no
+	num_wormhole_pairs = { min = 0 max = 5 }
+	num_wormhole_pairs_default = 1
+	num_gateways = { min = 0 max = 5 }
+	num_gateways_default = 1
+	num_hyperlanes = { min = 0.5 max = 3 }
+	num_hyperlanes_default = 1
+	colonizable_planet_odds = 1.0
+	primitive_odds = 1.0
+	fallen_empire_max = 0
+	marauder_empire_max = 0
+	extra_crisis_strength = { 10 25 }
+	num_empires = { min = 0 max = 0 }
+	num_empire_default = 0
+	advanced_empire_default = 0
+	nomad_empire_default = 0
+	nomad_empire_max = 0
+	fallen_empire_default = 0
+	marauder_empire_default = 0
+	crisis_strength = 0.5
+	core_radius = 0
+
+}

@@ -4,12 +4,15 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use sgf_core::library;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
+use sgf_gamedata::install::{discovery, mods};
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
-    BypassView, CountryTypeView, DepositView, GameDataSummary, InitializerView, MapColor,
-    PlanetClassView, ResourceIcon, ShipSizeView, StarClassView, StarbaseLevelView,
+    BypassView, CountryTypeView, DepositView, GalaxyShapeView, GameDataSummary, InitializerView,
+    MapColor, PaintModView, PlanetClassView, ResourceIcon, ShipSizeView, StarClassView,
+    StarbaseLevelView,
 };
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -116,8 +119,16 @@ pub fn open_script(
 /// view from elsewhere from being handed to the shell.
 const LINKS: &[&str] = &[
     "https://oatmealproblem.github.io/paint-a-galaxy/",
+    PAINT_MOD_WORKSHOP_URL,
+    // Reserved Spawns submod, whose "Reserved Spawn A"-"Z" traits a reserved seat's empire needs.
+    "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682",
+    // Local Cluster submod, the usual workaround for Sol having no Sol-specific neighbours.
+    "https://steamcommunity.com/sharedfiles/filedetails/?id=3634498401",
     super::update::RELEASES_URL,
 ];
+/// Paint a Galaxy's Steam Workshop page, whose id must match `mods::PAINT_MOD_WORKSHOP_ID`.
+const PAINT_MOD_WORKSHOP_URL: &str =
+    "https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115";
 
 /// Open one of the app's own links in the user's browser.
 #[tauri::command]
@@ -130,6 +141,32 @@ pub fn open_url(url: String) -> Result<(), SgfError> {
     }
     tauri_plugin_opener::open_url(url, None::<&str>)
         .map_err(|e| SgfError::new(ErrorKind::Io, e.to_string()))
+}
+
+/// Where Paint a Galaxy is on this machine, from the launcher's files alone, so it is known
+/// before game data loads. `None` when the launcher lists no copy, or has no user directory.
+#[tauri::command]
+pub async fn paint_mod<R: Runtime>(app: AppHandle<R>) -> Result<Option<PaintModView>, SgfError> {
+    let gd = app.state::<GameDataState>().loaded();
+    tauri::async_runtime::spawn_blocking(move || {
+        let user_dir = gd
+            .as_ref()
+            .and_then(|gd| gd.layout.user_dir.clone())
+            .or_else(library::paradox_user_dir);
+        let Some(user_dir) = user_dir else {
+            return Ok(None);
+        };
+        let libraries = discovery::steam_libraries();
+        let mut diagnostics = Vec::new();
+        let installed = mods::installed_mods(&user_dir, &libraries, &mut diagnostics);
+        let enabled = mods::enabled_mods(&user_dir, &libraries, &mut diagnostics);
+        let reserved_spawns = mods::reserved_spawns_enabled(&enabled);
+        Ok(mods::find_paint_mod(&installed, &enabled, &libraries)
+            .as_ref()
+            .map(|m| PaintModView::new(m, reserved_spawns)))
+    })
+    .await
+    .map_err(join_error)?
 }
 
 /// The localised text of each key the loaded localisation knows; empty without game data.
@@ -187,6 +224,13 @@ pub fn get_initializers(game_data: State<'_, GameDataState>) -> Vec<InitializerV
     game_data.loaded().map_or_else(Vec::new, |gd| {
         gd.initializers.iter().map(InitializerView::from).collect()
     })
+}
+
+#[tauri::command(async)]
+pub fn get_galaxy_shapes(game_data: State<'_, GameDataState>) -> Vec<GalaxyShapeView> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.galaxy_shape_views())
 }
 
 #[tauri::command(async)]

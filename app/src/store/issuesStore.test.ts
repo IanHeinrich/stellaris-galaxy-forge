@@ -24,6 +24,20 @@ const mocked = {
 };
 
 const AT_LOAD = OPEN_RESULT.issues[0];
+const NOTES: Issue[] = [
+  {
+    severity: "warning",
+    code: "export_dropped",
+    message: "6 wormhole pairs were not carried into the scenario",
+    systems: [],
+  },
+  {
+    severity: "warning",
+    code: "home_initializer",
+    message: "system 2 is an empire seat on shattered_ring_start, not a generic home initializer",
+    systems: [2],
+  },
+];
 const SPLIT: Issue = {
   severity: "error",
   code: "disconnected",
@@ -93,6 +107,42 @@ describe("issuesStore", () => {
     expect(state.baseline.size).toBe(0);
     expect(state.filter).toBe("new");
     expect(state.code).toBeNull();
+  });
+
+  it("keeps the notes a document opened with out of the baseline and in the count", async () => {
+    mocked.openSave.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, ...NOTES] });
+    await open();
+
+    const { baseline, notes } = useIssuesStore.getState();
+    expect(baseline.size).toBe(1);
+    expect(notes).toEqual(NOTES);
+    expect(newIssues(useFileSessionStore.getState().issues, baseline)).toEqual(NOTES);
+  });
+
+  it("carries the notes through an edit's fresh issue list", async () => {
+    mocked.openSave.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, ...NOTES] });
+    await open();
+    mocked.applyOp.mockResolvedValue(editResult({ issues: [AT_LOAD, SPLIT] }));
+    await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
+
+    const { baseline } = useIssuesStore.getState();
+    const issues = useFileSessionStore.getState().issues;
+    expect(issues).toEqual([AT_LOAD, SPLIT, ...NOTES]);
+    expect(newIssues(issues, baseline)).toEqual([SPLIT, ...NOTES]);
+    expect(filteredIssues(issues, baseline, "baseline", null)).toEqual([AT_LOAD]);
+  });
+
+  it("drops the notes when the document closes", async () => {
+    mocked.openSave.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, ...NOTES] });
+    await open();
+    await useFileSessionStore.getState().close();
+    expect(useIssuesStore.getState().notes).toEqual([]);
+
+    mocked.openSave.mockResolvedValue(OPEN_RESULT);
+    await open();
+    mocked.applyOp.mockResolvedValue(editResult({ issues: [] }));
+    await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
+    expect(useFileSessionStore.getState().issues).toEqual([]);
   });
 
   it("takes a fresh baseline when another save opens", async () => {

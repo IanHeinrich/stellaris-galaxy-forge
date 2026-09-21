@@ -5,10 +5,20 @@
 //! two ends and nebula membership follows the radii rather than a member list.
 
 pub(crate) mod emit;
+pub mod fe_link;
+pub mod fe_zone;
+pub mod header_counts;
 pub mod index;
 pub mod listings;
+pub mod marauder;
+pub mod paint;
 pub(crate) mod spawn;
 pub(crate) mod write;
+
+pub use fe_link::FeLinkFlags;
+pub use fe_zone::{FeDirection, FeKind, FeZone};
+pub use marauder::MarauderRole;
+pub use paint::is_painted;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -28,7 +38,7 @@ use crate::projections::name::{NameTemplate, looks_like_key};
 use crate::projections::read;
 use crate::session::Session;
 use crate::validate::{Issue, IssueCode};
-use crate::views::Capabilities;
+use crate::views::{Capabilities, DocumentKind};
 
 pub(crate) struct Scenario;
 
@@ -104,9 +114,18 @@ impl Format for Scenario {
             | Op::SetInitializer { .. }
             | Op::SetInitializers { .. }
             | Op::SetHeaderField { .. }
+            | Op::SetHeaderKeys { .. }
+            | Op::SetHeaderList { .. }
             | Op::SetSpawnWeight { .. }
             | Op::SetSpawnWeights { .. }
-            | Op::SetSpawnReservation { .. }
+            | Op::SetSpawnScript { .. }
+            | Op::SetSpawnScripts { .. }
+            | Op::SetFeZone { .. }
+            | Op::SetFeZones { .. }
+            | Op::SetWormholePair { .. }
+            | Op::SetWormholeEnds { .. }
+            | Op::SetFeLinks { .. }
+            | Op::SetFeLinkFlags { .. }
             | Op::PreventLane { .. }
             | Op::UnpreventLane { .. } => true,
             Op::SetLaneLength { .. }
@@ -194,7 +213,17 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
         galaxy_radius,
         core_radius: scenario.header.core_radius.unwrap_or(0.0),
         header: scenario.header.fields(),
+        kind: DocumentKind::Scenario,
+        num_empires_max: scenario.header.num_empires_max,
+        num_empire_default: scenario.header.num_empire_default,
+        fallen_empire_max: scenario.header.fallen_empire_max,
+        fallen_empire_default: scenario.header.fallen_empire_default,
+        marauder_empire_max: scenario.header.marauder_empire_max,
+        marauder_empire_default: scenario.header.marauder_empire_default,
+        setup: None,
+        player_country: None,
     };
+    galaxy.bypasses = paint::wormhole_pairs(&galaxy);
     let mut nebulae = Vec::new();
     for &anchor in scenario.nebulae() {
         let (src, node) = statement(doc, anchor)?;
@@ -250,6 +279,7 @@ fn add_prevented(systems: &mut HashMap<u32, SystemNode>, statements: &[LaneStmt]
 
 fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
     let (x, y) = position(node, src);
+    let initializer = read::text(node, keys::INITIALIZER, src);
     SystemNode {
         id,
         name: name(node, src),
@@ -260,10 +290,24 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         nebula: None,
         bypass_ids: Vec::new(),
         planet_count: 0,
-        initializer: read::text(node, keys::INITIALIZER, src),
+        marauder: marauder::role(&initializer),
+        initializer,
         spawn_weight: spawn_weight(node, src),
         spawn_modifiers: spawn_modifiers(node, src),
+        spawn_script: node
+            .find(keys::SPAWN_WEIGHT, src)
+            .and_then(|weight| paint::recognise(weight, src)),
         spawn_design: read::scalar(node, keys::SPAWN_DESIGN, src).map(str::to_owned),
+        fe_zone: node
+            .find(keys::EFFECT, src)
+            .and_then(|effect| fe_zone::parse(fe_zone::star_flags(effect, src))),
+        wormhole_pair: node
+            .find(keys::EFFECT, src)
+            .and_then(|effect| paint::wormhole_pair(fe_zone::star_flags(effect, src))),
+        fe_link: node
+            .find(keys::EFFECT, src)
+            .map(|effect| fe_link::parse(fe_zone::star_flags(effect, src)))
+            .unwrap_or_default(),
         prevented: Vec::new(),
         position_range: position_range(node, src),
         flags: Vec::new(),

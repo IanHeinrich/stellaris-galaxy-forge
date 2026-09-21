@@ -262,7 +262,16 @@ fn is_a_nebula_op(op: &Op) -> bool {
         | Op::SetHeaderField { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
-        | Op::SetSpawnReservation { .. } => false,
+        | Op::SetSpawnScript { .. }
+        | Op::SetSpawnScripts { .. }
+        | Op::SetFeZone { .. }
+        | Op::SetFeZones { .. }
+        | Op::SetHeaderKeys { .. }
+        | Op::SetHeaderList { .. }
+        | Op::SetWormholePair { .. }
+        | Op::SetWormholeEnds { .. }
+        | Op::SetFeLinks { .. }
+        | Op::SetFeLinkFlags { .. } => false,
     }
 }
 

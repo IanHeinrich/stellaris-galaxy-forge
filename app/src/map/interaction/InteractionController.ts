@@ -1,17 +1,22 @@
 import type { Op } from "../../generated/Op";
 import { isEditableTarget } from "../../lib/keys";
-import { useEditorStore, type LaneRef } from "../../store/editorStore";
+import { useEditorStore } from "../../store/editorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
+import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
+import { useInspectorStore } from "../../store/inspectorStore";
+import { feDirectionLabel, feZoneRefusal } from "../../lib/feZone";
 import type { Camera, Pt } from "../Camera";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
 import type { DragState, MapLayer } from "../layers/MapLayer";
 import type { MoveGhost } from "../moveGhosts";
+import { feZonePreview, type FeZonePreview } from "../feZonePreview";
 import { nebulaPreview, type NebulaGeometry, type NebulaPreview } from "../nebulaPreview";
-import { pickLane, pickNebula, pickSystem, snapTarget } from "../picking";
+import { pickEdge, pickFeZone, pickNebula, pickSystem, snapTarget } from "../picking";
+import type { MapEdge } from "../picking/edges";
 import { GestureModel } from "./GestureModel";
 import { GestureReporter } from "./gesture";
-import type { InputKind, MapInput, MapIntent, MapModel } from "./MapIntent";
+import type { InputKind, LaneSource, MapInput, MapIntent, MapModel } from "./MapIntent";
 import { groupOf } from "./press";
 
 const editor = () => useEditorStore.getState();
@@ -20,6 +25,23 @@ const editor = () => useEditorStore.getState();
 function readout(preview: NebulaPreview): string {
   const unit = preview.total === 1 ? "system" : "systems";
   return `${preview.total} ${unit} (+${preview.joining.length} −${preview.leaving.length})`;
+}
+
+/** The inspector section a click on a ring opens; the section's own id. */
+const FE_ZONE_SECTION = "system.feZone";
+
+/** What the cursor says while a ring is dragged: where it would snap, and what is in the way. */
+function zoneReadout(preview: FeZonePreview): MapTooltip["lines"] {
+  if (preview.blocked) {
+    return [feZoneRefusal(preview.blocked, (s) => useGalaxyStore.getState().systemName(s.id))];
+  }
+  return preview.offMap ? [feZoneRefusal(null, () => "")] : [];
+}
+
+/** Opens a section the user has folded, leaving one that is open alone. */
+function expandSection(id: string): void {
+  const inspector = useInspectorStore.getState();
+  if (inspector.collapsed(id, false)) inspector.toggleSection(id, false);
 }
 
 function dragState(ghosts: MoveGhost[]): DragState | null {
@@ -35,14 +57,15 @@ export class InteractionController {
   private readonly model: MapModel = new GestureModel();
   private readonly intent: MapIntent;
   private panFrom: { sx: number; sy: number } | null = null;
-  /** The systems a lane drag would start from once the button is down; the snap skips them. */
-  private laneFrom: number[] | null = null;
+  /** What a lane drag would start from once the button is down; the snap skips it. */
+  private laneFrom: LaneSource | null = null;
   /** Offset from the pointer to the pressed system's or nebula's centre, so a move keeps the grab point. */
   private grab = { dx: 0, dy: 0 };
-  private hoverLane: LaneRef | null = null;
+  private hoverEdge: MapEdge | null = null;
   private readonly gesture = new GestureReporter();
   private moveSeq = 0;
   private nebulaSeq = 0;
+  private feZoneSeq = 0;
   /** The readout this controller put up, so a drag only ever takes down its own tooltip. */
   private nebulaTip: MapTooltip | null = null;
   /** The pointer in world units, rewritten per event rather than allocated. */
@@ -106,6 +129,34 @@ export class InteractionController {
       });
     };
 
+    const clearFeZone = () => {
+      highlights.setFeZonePreview(null);
+      const chrome = useMapChromeStore.getState();
+      if (this.nebulaTip && chrome.tooltip === this.nebulaTip) chrome.hideTooltip();
+      this.nebulaTip = null;
+    };
+    const showFeZonePreview = (anchor: number, wx: number, wy: number) => {
+      this.feZoneSeq++;
+      const preview = feZonePreview(systems(), anchor, { x: wx, y: wy });
+      highlights.setFeZonePreview(preview);
+      if (!preview) return;
+      const at = cam.worldToScreen(wx, wy);
+      this.nebulaTip = {
+        x: at.x,
+        y: at.y,
+        title: `${feDirectionLabel(preview.direction)} · ${preview.distance}`,
+        lines: zoneReadout(preview),
+      };
+      useMapChromeStore.getState().showTooltip(this.nebulaTip);
+    };
+    const settleFeZone = (applied: Promise<unknown>) => {
+      const seq = ++this.feZoneSeq;
+      void applied.finally(() => {
+        if (this.feZoneSeq === seq) clearFeZone();
+      });
+    };
+    const linkAll = (anchor: number, ids: number[]) => editor().linkToFeZoneAll(anchor, ids);
+
     this.intent = {
       select: (id) => {
         void editor().select(id);
@@ -144,10 +195,6 @@ export class InteractionController {
         commit({ type: "MoveSystems", moves: groupGhosts(ids, dx, dy) }),
       cancelMove: () => showGhosts([]),
       previewLane: (from, x, y, target) => {
-        highlights.setRubberLane({ from: [from], x, y, target });
-        this.gesture.connect();
-      },
-      previewLanes: (from, x, y, target) => {
         highlights.setRubberLane({ from, x, y, target });
         this.gesture.connect();
       },
@@ -155,11 +202,16 @@ export class InteractionController {
         highlights.setRubberLane(null);
         this.gesture.endConnect();
       },
-      connect: (a, b) => {
-        void editor().applyOp({ type: "AddLane", a, b, bridge: false });
-      },
-      connectMany: (_ids, target) => {
-        void editor().connectSelectedTo(target);
+      connect: (from, target) => {
+        if (target.kind === "feZone") {
+          if (from.kind === "systems") void linkAll(target.anchor, from.ids);
+        } else if (from.kind === "feZone") {
+          void linkAll(from.anchor, [target.id]);
+        } else if (from.ids.length > 1) {
+          void editor().connectSelectedTo(target.id);
+        } else {
+          void editor().applyOp({ type: "AddLane", a: from.ids[0], b: target.id, bridge: false });
+        }
       },
       selectNebula: (index) => editor().selectNebula(index),
       previewNebula: (index, x, y) =>
@@ -178,11 +230,27 @@ export class InteractionController {
         else clearNebula();
       },
       endNebula: () => clearNebula(),
-      cut: (a, b) => {
-        this.hoverLane = null;
-        highlights.setHoverLane(null);
-        this.gesture.hover(false);
-        void editor().applyOp({ type: "RemoveLane", a, b });
+      selectFeZone: (anchor) => {
+        void editor().select(anchor);
+        expandSection(FE_ZONE_SECTION);
+      },
+      previewFeZone: (anchor, x, y) => showFeZonePreview(anchor, x, y),
+      commitFeZone: (anchor, x, y) => {
+        const preview = feZonePreview(systems(), anchor, { x, y });
+        if (!preview) {
+          clearFeZone();
+          return;
+        }
+        settleFeZone(editor().moveFeZone(anchor, preview.direction, preview.distance));
+      },
+      endFeZone: () => clearFeZone(),
+      cut: (edge) => {
+        this.hover(null);
+        if (edge.kind === "lane") {
+          void editor().applyOp({ type: "RemoveLane", a: edge.lane.a, b: edge.lane.b });
+        } else {
+          void editor().unlinkFromFeZone(edge.anchor, edge.system);
+        }
       },
       contextMenu: (target, x, y) => useMapChromeStore.getState().openContextMenu({ target, x, y }),
     };
@@ -194,21 +262,25 @@ export class InteractionController {
   dispose(): void {
     for (const c of this.cleanups.splice(0)) c();
     this.canvas.style.cursor = "";
-    this.hoverLane = null;
+    this.hoverEdge = null;
     this.gesture.dispose();
   }
 
   private input(kind: InputKind, e: PointerEvent): MapInput {
     const { grid, systems, nebulae } = useGalaxyStore.getState();
     const w = this.cam.screenToWorld(e.offsetX, e.offsetY, this.at);
-    const { system, zone } = grid ? pickSystem(grid, this.cam, w) : { system: null, zone: null };
-    const { lane, midpointHit } =
+    const picked = grid ? pickSystem(grid, this.cam, w) : { system: null, zone: null };
+    const system = picked.system;
+    const layers = useMapChromeStore.getState().layers;
+    const zones = layers.feZones && getPaintLayer();
+    const { edge, midpointHit } =
       system === null
-        ? pickLane(systems, this.cam, w, this.hoverLane)
-        : { lane: null, midpointHit: false };
-    const shown = useMapChromeStore.getState().layers.nebulae;
+        ? pickEdge(systems, this.cam, w, this.hoverEdge, zones)
+        : { edge: null, midpointHit: false };
+    const feZone =
+      zones && system === null && edge === null ? pickFeZone(systems, this.cam, w) : null;
     const nebula =
-      shown && system === null && lane === null
+      layers.nebulae && system === null && edge === null && feZone === null
         ? pickNebula(nebulae, this.cam, w, editor().selectedNebula)
         : null;
     return {
@@ -222,13 +294,14 @@ export class InteractionController {
       ctrl: e.ctrlKey || e.metaKey,
       selection: editor().selection,
       system,
-      zone,
-      lane,
+      zone: system === null ? (feZone?.zone ?? null) : picked.zone,
+      edge,
       midpointHit,
+      feZone,
       snap:
         this.laneFrom === null || !grid
           ? null
-          : snapTarget(grid, systems, this.cam, w, this.laneFrom),
+          : snapTarget(grid, systems, this.cam, w, this.laneFrom, zones),
       nebula,
     };
   }
@@ -239,12 +312,15 @@ export class InteractionController {
     return result;
   }
 
-  private hover(system: number | null, lane: LaneRef | null, onPort = false): void {
-    this.hoverLane = lane;
-    editor().setHover(system);
-    this.highlights.setHoverLane(lane);
-    this.highlights.setPortHot(onPort);
-    this.gesture.hover(lane !== null);
+  /** What the pointer rests on, or nothing while it pans or drags. */
+  private hover(input: MapInput | null): void {
+    const edge = input?.edge ?? null;
+    this.hoverEdge = edge;
+    editor().setHover(input?.system ?? null);
+    this.highlights.setHoverEdge(edge);
+    this.highlights.setHoverFeZone(input?.feZone?.anchor ?? null);
+    this.highlights.setPortHot(input?.zone === "port");
+    this.gesture.hover(edge !== null);
   }
 
   private bindPointer(): void {
@@ -262,7 +338,11 @@ export class InteractionController {
       const input = this.input("down", e);
       const pressed =
         input.system === null ? null : useGalaxyStore.getState().systems.get(input.system);
-      this.laneFrom = pressed ? (groupOf(input.selection, pressed.id) ?? [pressed.id]) : null;
+      this.laneFrom = pressed
+        ? { kind: "systems", ids: groupOf(input.selection, pressed.id) ?? [pressed.id] }
+        : input.feZone
+          ? { kind: "feZone", anchor: input.feZone.anchor }
+          : null;
       const grabbed =
         pressed ??
         (input.nebula?.part === "ring"
@@ -280,11 +360,11 @@ export class InteractionController {
       if (this.handle(input) === "pan" && this.panFrom) {
         this.cam.panBy(input.sx - this.panFrom.sx, input.sy - this.panFrom.sy);
         this.panFrom = { sx: input.sx, sy: input.sy };
-        this.hover(null, null);
+        this.hover(null);
       } else if (this.model.busy()) {
-        this.hover(null, null);
+        this.hover(null);
       } else {
-        this.hover(input.system, input.lane, input.zone === "port");
+        this.hover(input);
       }
     });
     on("pointerup", (e) => {
@@ -298,7 +378,7 @@ export class InteractionController {
       this.handle(this.input("cancel", e));
       this.laneFrom = null;
     });
-    on("pointerleave", () => this.hover(null, null));
+    on("pointerleave", () => this.hover(null));
     on("contextmenu", (e) => e.preventDefault());
   }
 

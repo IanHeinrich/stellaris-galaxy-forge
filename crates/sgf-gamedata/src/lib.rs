@@ -32,6 +32,7 @@ pub use registries::colors::Colors;
 pub use registries::country_types::CountryTypes;
 pub use registries::defines::BorderDefines;
 pub use registries::deposits::Deposits;
+pub use registries::galaxy_shapes::GalaxyShapes;
 pub use registries::gfx::Sprites;
 pub use registries::planet_classes::PlanetClasses;
 pub use registries::registry::Registry;
@@ -61,6 +62,7 @@ pub struct GameData {
     pub planet_classes: Arc<PlanetClasses>,
     pub starbase_levels: Arc<StarbaseLevels>,
     pub ship_sizes: Arc<ShipSizes>,
+    pub galaxy_shapes: Arc<GalaxyShapes>,
     pub border: Arc<BorderDefines>,
     pub loc: Arc<Localisation>,
     pub diagnostics: Vec<Diagnostic>,
@@ -183,6 +185,7 @@ pub fn load(opts: &LoadOptions, progress: &mut dyn FnMut(Phase)) -> Result<GameD
     let planet_classes = registry::load(&layout, &mut diagnostics);
     let ship_sizes = registry::load(&layout, &mut diagnostics);
     let starbase_levels = starbase_levels::load(&layout, &ship_sizes, &mut diagnostics);
+    let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
     let sprites = gfx::load(&layout, &mut diagnostics);
     let colors = colors::load(&layout, &mut diagnostics);
     let border = BorderDefines::load(&layout, &mut diagnostics);
@@ -205,6 +208,7 @@ pub fn load(opts: &LoadOptions, progress: &mut dyn FnMut(Phase)) -> Result<GameD
         planet_classes: Arc::new(planet_classes),
         starbase_levels: Arc::new(starbase_levels),
         ship_sizes: Arc::new(ship_sizes),
+        galaxy_shapes: Arc::new(galaxy_shapes),
         border: Arc::new(border),
         loc: Arc::new(loc),
         diagnostics,

@@ -1,6 +1,7 @@
 import type { LaneRef, SelectionMode } from "../../store/editorStore";
 import type { ContextTarget } from "../../store/mapChromeStore";
-import type { NebulaPick } from "../picking";
+import type { FeZonePick, NebulaPick } from "../picking";
+import type { MapEdge } from "../picking/edges";
 import type { Zone } from "../picking/zones";
 
 /** Pointer travel before a press becomes a drag rather than a click. */
@@ -8,11 +9,16 @@ export const DRAG_THRESHOLD_PX = 4;
 
 export type InputKind = "down" | "move" | "up" | "cancel";
 
-/** A system a lane drag would snap to; `valid` is false when it is already linked to the start. */
-export interface LaneTarget {
-  id: number;
-  valid: boolean;
-}
+/** Where a lane drag starts: a star's port (or the group it is selected with), or a zone's port. */
+export type LaneSource = { kind: "systems"; ids: number[] } | { kind: "feZone"; anchor: number };
+
+/**
+ * What a lane drag would snap to: a system, or a zone's ring; `valid` is false when nothing
+ * dragged could be joined to it, being already linked to it or its own anchor.
+ */
+export type LaneTarget =
+  | { kind: "system"; id: number; valid: boolean }
+  | { kind: "feZone"; anchor: number; valid: boolean };
 
 /** One pointer event resolved against the map: screen and world position plus the pick. */
 export interface MapInput {
@@ -29,15 +35,17 @@ export interface MapInput {
   /** The store's selection, so a drag from a selected star can act on the whole group. */
   selection: number[];
   system: number | null;
-  /** Where on `system` the pointer is; null when no system is under it. */
+  /** Where on `system`, or on `feZone`'s ring, the pointer is; null when neither is under it. */
   zone: Zone | null;
-  /** `lane` is the nearest lane within tolerance, looked up only when no system is under the pointer. */
-  lane: LaneRef | null;
-  /** The pointer is on the hovered lane's midpoint "×". */
+  /** The nearest lane or zone link within tolerance, looked up only when no system is under the pointer. */
+  edge: MapEdge | null;
+  /** The pointer is on the hovered edge's midpoint "×". */
   midpointHit: boolean;
-  /** Nearest system inside the snap radius other than the pressed group; null when nothing is pressed. */
+  /** What a lane drag from the pressed port would snap to; null when nothing is pressed. */
   snap: LaneTarget | null;
-  /** The nebula part under the pointer, looked up only when no system and no lane is. */
+  /** A fallen empire zone's ring under the pointer, looked up only when no system and no edge is. */
+  feZone: FeZonePick | null;
+  /** The nebula part under the pointer, looked up only when no system, edge or ring is. */
   nebula: NebulaPick | null;
 }
 
@@ -59,15 +67,14 @@ export interface MapIntent {
   previewMoveGroup(ids: number[], dx: number, dy: number): void;
   commitMoveGroup(ids: number[], dx: number, dy: number): void;
   cancelMove(): void;
-  previewLane(from: number, x: number, y: number, target: LaneTarget | null): void;
-  /** Rubber lines from every system in `from` to the same point or target. */
-  previewLanes(from: number[], x: number, y: number, target: LaneTarget | null): void;
+  /** Rubber lines from `from` (every system of a group) to the same point or target. */
+  previewLane(from: LaneSource, x: number, y: number, target: LaneTarget | null): void;
   /** Drops the rubber line, whether or not the lane was connected. */
   endLane(): void;
-  connect(a: number, b: number): void;
-  /** Connects `target` to every system in `ids` not yet linked to it. */
-  connectMany(ids: number[], target: number): void;
-  cut(a: number, b: number): void;
+  /** Adds the lanes, or the zone links, from `from` to `target` that are not there yet. */
+  connect(from: LaneSource, target: LaneTarget): void;
+  /** Removes the lane, or unlinks the system from the zone. */
+  cut(edge: MapEdge): void;
   selectNebula(index: number): void;
   /** The nebula's centre follows the pointer; the controller keeps the grab offset. */
   previewNebula(index: number, x: number, y: number): void;
@@ -77,6 +84,13 @@ export interface MapIntent {
   commitNebulaRadius(index: number, x: number, y: number): void;
   /** Drops the ghost ring, whether or not the drag changed anything. */
   endNebula(): void;
+  /** A click on a zone's ring selects the system that anchors it. */
+  selectFeZone(anchor: number): void;
+  /** The ring follows the pointer, snapped to the mod's grid around the same anchor. */
+  previewFeZone(anchor: number, x: number, y: number): void;
+  commitFeZone(anchor: number, x: number, y: number): void;
+  /** Drops the previewed ring, whether or not the drag changed anything. */
+  endFeZone(): void;
   contextMenu(target: ContextTarget, sx: number, sy: number): void;
 }
 

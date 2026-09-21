@@ -8,12 +8,47 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Full Paint a Galaxy integration. This mod fixes native Stellaris spawn
+  issues, ensuring custom empires actually appear. The editor now tracks
+  your installation, supports all mod-specific data, and automatically
+  saves scenarios to the correct directory.
+- Custom Fallen Empire placement. Create, move, and configure Fallen
+  Empire zones. Connect them to your network by manually drawing
+  hyperlanes or letting the mod auto-link to the nearest systems.
+- Native Marauder clans. Spawn clans in empty space or across three
+  selected systems without needing any mods. The map displays them
+  exactly as the game does, complete with black borders and skull
+  emblems.
+- Turn finished saves into fresh scenarios. Export an existing save to
+  create a custom scenario that retains the original Fallen Empires and
+  inherits the previous game's settings. The United Nations of Earth
+  starts at its old capital. Any other empire's old capital is the
+  likeliest start, not a certain one.
+- In-editor game setup. Configure galaxy shapes and entity counts for new
+  scenarios directly in the app. An "Update counts" button automatically
+  syncs these values based on your current map.
+- Save validation. The editor now prompts for confirmation before you
+  accidentally save a map with unresolved issues.
+- UI enhancements. Added visual guide layers for the map edge and
+  L-Cluster, alongside detailed hover tooltips for all map icons.
+
 ### Changed
 
 - Moving a system on a save with many empires no longer hitches on
   release. The territories are recomputed in a worker and the outlines
   follow a beat later. The recompute itself is cheaper too, since only
   the pieces of territory near the moved system are rebuilt.
+
+### Removed
+
+- The "Reserve for a human player" and "Reserve for the AI" checkboxes
+  on a spawn point, and the `sgf spawn reserve` command. The game does
+  not evaluate `is_ai` while it lays out a galaxy, so the modifier the
+  editor wrote never held a seat for anyone or barred anyone from it. A
+  spawn point is now a spawn point for any empire. A modifier already in
+  a file is kept and listed as written.
 
 ## [0.6.1] - 2026-09-20
 

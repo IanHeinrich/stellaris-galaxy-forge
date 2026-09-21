@@ -1,3 +1,4 @@
+import type { ExportResult } from "../../generated/ExportResult";
 import { nodeName } from "../../lib/names";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -8,6 +9,7 @@ import { newIssues, useIssuesStore } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { systemCount } from "../inspector/nebula";
+import { droppedSummary } from "../file/exportReport";
 import { CLOUD_TITLE } from "../file/OpenSave";
 
 const DOCUMENT_KIND: Record<string, string> = {
@@ -22,6 +24,18 @@ const IDLE_HINT =
 function clockTime(at: number): string {
   const when = new Date(at);
   return `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+}
+
+/** The backup the export set aside and what it left out, a line each; nothing when neither. */
+function exportedTitle({ save, report }: ExportResult): string | undefined {
+  const lines: string[] = [];
+  if (save.backup_path !== null) lines.push(`Backup: ${save.backup_path}`);
+  const dropped = droppedSummary(report.dropped);
+  if (dropped !== null) lines.push(`Not carried over: ${dropped}`);
+  if (report.fallen_empire_zones > 0) {
+    lines.push(`Fallen empire zones: ${report.fallen_empire_zones} automatic`);
+  }
+  return lines.length === 0 ? undefined : lines.join("\n");
 }
 
 function Counts() {
@@ -149,9 +163,12 @@ function Hint() {
 export function StatusBar() {
   const status = useFileSessionStore((s) => s.status);
   const error = useFileSessionStore((s) => s.error);
+  const notice = useFileSessionStore((s) => s.notice);
   const dirty = useFileSessionStore((s) => s.dirty);
   const lastSave = useFileSessionStore((s) => s.lastSave);
+  const lastExport = useFileSessionStore((s) => s.lastExport);
   const savedAt = useFileSessionStore((s) => s.savedAt);
+  const exportedAt = useFileSessionStore((s) => s.exportedAt);
   const cloud = useFileSessionStore((s) => s.cloud);
   const meta = useFileSessionStore((s) => s.meta);
   const kind = useFileSessionStore((s) => s.kind);
@@ -173,6 +190,7 @@ export function StatusBar() {
       <IssueBadge />
       <AutoReloadBadge />
       {error && <span className="warn">{error}</span>}
+      {!error && notice && <span className="muted">{notice}</span>}
       <span className="spacer" />
       <Selected />
       <Hint />
@@ -188,6 +206,11 @@ export function StatusBar() {
           title={lastSave.backup_path === null ? undefined : `Backup: ${lastSave.backup_path}`}
         >
           Saved {clockTime(savedAt)}
+        </span>
+      )}
+      {lastExport && exportedAt !== null && (
+        <span className="muted" title={exportedTitle(lastExport)}>
+          Exported {clockTime(exportedAt)}
         </span>
       )}
       <span className="muted">

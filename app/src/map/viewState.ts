@@ -1,6 +1,6 @@
 import type { GalaxyDelta } from "../generated/GalaxyDelta";
-import type { Issue } from "../generated/Issue";
 import type { SpecialKind } from "../generated/SpecialKind";
+import type { AppIssue } from "../lib/issues";
 import type { LayerId } from "../lib/visual/layerIds";
 import { useDetailsStore } from "../store/detailsStore";
 import { useEditorStore } from "../store/editorStore";
@@ -8,6 +8,7 @@ import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
+import { usePaintModStore } from "../store/paintModStore";
 import type { HighlightsLayer } from "./layers/HighlightsLayer";
 import type { MapLayer } from "./layers/MapLayer";
 import { layerShown } from "./layerVisibility";
@@ -77,6 +78,12 @@ const BINDINGS: Binding[] = [
   ),
   follows(
     useEditorStore,
+    [(s) => s.selection],
+    (s, view) => setSelection(view, s.selection),
+    "layers",
+  ),
+  follows(
+    useEditorStore,
     [(s) => s.selectedLane],
     (s, view) => view.highlights.setSelectedLane(s.selectedLane),
     "bind",
@@ -129,6 +136,12 @@ const BINDINGS: Binding[] = [
     view.refreshContext();
     applyLayerVisibility(view, useMapChromeStore.getState().layers);
   }),
+  follows(
+    useFileSessionStore,
+    [(s) => s.painted, (s) => s.paintChosen, (s) => s.path],
+    (_s, view) => view.refreshContext(),
+  ),
+  follows(usePaintModStore, [(s) => s.paintMod], (_s, view) => view.refreshContext()),
 ];
 
 /** Subscribes the map to every field it follows and applies the ones standing now. */
@@ -184,6 +197,10 @@ function pinLabels(view: MapView, selection: number[], hover: number | null): vo
   view.invalidate();
 }
 
+function setSelection(view: MapView, ids: readonly number[]): void {
+  for (const layer of view.layers) layer.setSelection?.(ids);
+}
+
 function setShownKinds(view: MapView, kinds: ReadonlySet<SpecialKind>): void {
   for (const layer of view.layers) layer.setShownKinds?.(kinds);
 }
@@ -192,7 +209,7 @@ function setSelectedNebula(view: MapView, index: number | null): void {
   for (const layer of view.layers) layer.setSelectedNebula?.(index);
 }
 
-function setIssues(view: MapView, issues: readonly Issue[]): void {
+function setIssues(view: MapView, issues: readonly AppIssue[]): void {
   for (const layer of view.layers) layer.setIssues?.(issues);
 }
 
@@ -206,6 +223,7 @@ function applyLayerVisibility(view: MapView, layers: Record<LayerId, boolean>): 
   for (const layer of view.layers) {
     layer.setVisible(layerShown(layer.id, layers, kind));
     layer.setDetailsShown?.(layers.details ?? true);
+    layer.setClansShown?.(layers.marauders ?? true);
   }
   view.invalidate();
 }

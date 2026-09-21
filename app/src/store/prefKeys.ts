@@ -21,6 +21,8 @@ export const PREF_KEYS = {
   skippedUpdate: "sgf.update.skipped",
   noticedUpdate: "sgf.update.noticed",
   checkAtStart: "sgf.update.checkAtStart",
+  paintProfile: "sgf.paint.profile",
+  paintNoticeDismissed: "sgf.paint.noticeDismissed",
 } as const;
 
 /** The collapse memory of one browser list, which keys on the list's name. */

@@ -513,6 +513,7 @@ fn a_scenario_system_an_op_added_reads_as_new() {
             name: Some("Fresh".to_owned()),
             initializer: Some("misc_system_init_01".to_owned()),
             spawn_weight: Some(3.0),
+            spawn_script: None,
         })
         .expect("add a system");
 

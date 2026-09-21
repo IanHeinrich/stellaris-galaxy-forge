@@ -12,13 +12,13 @@ describe("isSpawnPoint", () => {
     const added = {
       ...base,
       spawn_modifiers: [
-        { factor: null, add: 10000, trigger: "has_country_flag = x", reservation: null },
+        { factor: null, add: 10000, trigger: "has_country_flag = x", country_flag: "x" },
       ],
     };
     expect(isSpawnPoint(added)).toBe(true);
     const scaled = {
       ...base,
-      spawn_modifiers: [{ factor: 2, add: null, trigger: "is_ai = yes", reservation: null }],
+      spawn_modifiers: [{ factor: 2, add: null, trigger: "is_ai = yes", country_flag: null }],
     };
     expect(isSpawnPoint(scaled)).toBe(false);
   });
@@ -26,5 +26,16 @@ describe("isSpawnPoint", () => {
   it("counts a base the generator draws on, and no weight at all as none", () => {
     expect(isSpawnPoint({ ...weighable(1), spawn_weight: 10 })).toBe(true);
     expect(isSpawnPoint(weighable(1))).toBe(false);
+  });
+
+  it("counts a zero base whose weight a script names, as Paint a Galaxy writes a seat", () => {
+    const scripted = {
+      ...weighable(1),
+      spawn_weight: 0,
+      spawn_script: {
+        paint_a_galaxy: { kind: "enabled" as const, random_value: 1, player: false },
+      },
+    };
+    expect(isSpawnPoint(scripted)).toBe(true);
   });
 });

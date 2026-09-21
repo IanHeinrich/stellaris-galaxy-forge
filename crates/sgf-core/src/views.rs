@@ -13,6 +13,7 @@ use ts_rs::TS;
 use crate::archive;
 use crate::document;
 use crate::entity::views::EntityAddr;
+use crate::export::ExportReport;
 use crate::format;
 use crate::ops::{Op, OpError};
 use crate::projections::galaxy::{
@@ -129,6 +130,9 @@ pub struct OpenResult {
     /// See [`SaveFile::cloud`].
     pub cloud: bool,
     pub kind: DocumentKind,
+    /// The scenario carries Paint a Galaxy's scripts or flags, or Forge's header for
+    /// that mod; false for a save.
+    pub painted: bool,
     /// The document's own name: the empire's, or the scenario's `name`.
     pub title: String,
     /// The save header; `None` for a scenario.
@@ -304,6 +308,15 @@ pub struct SaveResult {
     pub cloud: bool,
     pub backup_path: Option<String>,
     pub dirty: bool,
+}
+
+/// What `export_scenario` returns: where the scenario landed, and what the export could
+/// not carry over from the save.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ExportResult {
+    pub save: SaveResult,
+    pub report: ExportReport,
 }
 
 /// Payload of the `sgf://progress` event emitted while a save opens or writes.

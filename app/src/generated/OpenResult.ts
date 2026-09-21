@@ -15,6 +15,11 @@ path: string | null,
  */
 cloud: boolean, kind: DocumentKind, 
 /**
+ * The scenario carries Paint a Galaxy's scripts or flags, or Forge's header for
+ * that mod; false for a save.
+ */
+painted: boolean, 
+/**
  * The document's own name: the empire's, or the scenario's `name`.
  */
 title: string, 

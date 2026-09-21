@@ -12,13 +12,19 @@
 //!
 //! One module per feature: [`system`] for systems and their positions, [`lanes`] for the
 //! hyperlanes between them, [`nebula`] for the clouds over them, [`header`] for the
-//! scenario's own keys and [`spawn`] for the weights the generator seats empires by.
+//! scenario's own keys, [`spawn`] for the weights the generator seats empires by and
+//! [`fe_zone`] for the star flags Paint a Galaxy seats fallen empires by, [`fe_link`]
+//! for the ones it lays a fallen empire's hyperlanes by and [`wormhole`] for the ones
+//! it joins a wormhole pair by.
 
+mod fe_link;
+mod fe_zone;
 mod header;
 mod lanes;
 mod nebula;
 mod spawn;
 mod system;
+mod wormhole;
 
 use crate::cst;
 use crate::document::Document;
@@ -64,6 +70,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
             name,
             initializer,
             spawn_weight,
+            spawn_script,
         } => system::add_system(
             plan,
             s,
@@ -74,6 +81,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
                 name: name.as_deref(),
                 initializer: initializer.as_deref(),
                 spawn_weight: *spawn_weight,
+                spawn_script: spawn_script.as_ref(),
             },
         ),
         Op::RemoveSystem { id } => system::remove_system(plan, s, *id),
@@ -83,9 +91,18 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         }
         Op::SetInitializers { entries } => system::set_initializers(plan, s, entries),
         Op::SetHeaderField { key, value } => header::set_field(plan, s, key, value.as_deref()),
+        Op::SetHeaderKeys { entries } => header::set_fields(plan, s, entries),
+        Op::SetHeaderList { key, values } => header::set_list(plan, s, key, values),
         Op::SetSpawnWeight { id, base } => spawn::set_weight(plan, s, *id, *base),
         Op::SetSpawnWeights { entries } => spawn::set_weights(plan, s, entries),
-        Op::SetSpawnReservation { id, reserve } => spawn::set_reservation(plan, s, *id, *reserve),
+        Op::SetSpawnScript { id, script } => spawn::set_script(plan, s, *id, script.as_ref()),
+        Op::SetSpawnScripts { entries } => spawn::set_scripts(plan, s, entries),
+        Op::SetFeZone { id, zone } => fe_zone::set_zone(plan, s, *id, zone.as_ref()),
+        Op::SetFeZones { entries } => fe_zone::set_zones(plan, s, entries),
+        Op::SetWormholePair { a, b, pair } => wormhole::set_pair(plan, s, *a, *b, *pair),
+        Op::SetWormholeEnds { entries } => wormhole::set_ends(plan, s, entries),
+        Op::SetFeLinks { anchor, linked } => fe_link::set_links(plan, s, *anchor, linked),
+        Op::SetFeLinkFlags { entries } => fe_link::set_flags(plan, s, entries),
         _ => Err(unsupported(op)),
     }
 }

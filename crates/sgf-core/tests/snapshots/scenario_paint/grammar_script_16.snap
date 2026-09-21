@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Made system 16 a Paint a Galaxy spawn (reserved z)
+inverse: SetSpawnScript { id: 16, script: None }
+
+--- scenario
++++ scenario
+@@ -34,7 +34,7 @@
+ 	### Systems, one per line in the mod's shape
+ 	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
+ 	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+-	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
++	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } initializer = random_empire_init_05 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|z|RANDOM_MODULO|3|RANDOM_VALUE|1| } }
+ 	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }
+ 
+ 	# a multi-line system with an effect block

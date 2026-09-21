@@ -1,11 +1,15 @@
 import { Container, Graphics } from "pixi.js";
 import type { LaneRef } from "../../store/editorStore";
 import type { Camera } from "../Camera";
-import type { LaneTarget } from "../interaction/MapIntent";
-import { MIDPOINT_HIT_PX, PORT_INNER, PORT_OUTER } from "../picking/zones";
+import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
+import { edgeEnds, sameEdge, sameLane, type MapEdge } from "../picking/edges";
+import { MIDPOINT_HIT_PX, PORT_INNER, PORT_OUTER, ringPortOffsetPx } from "../picking/zones";
 import { portCapable as portsAt } from "../../lib/visual/labels";
 import { ghostLaneSegments, type MoveGhost, type Pt } from "../moveGhosts";
+import type { FeZonePreview } from "../feZonePreview";
 import type { NebulaPreview } from "../nebulaPreview";
+import { toRing, type Segment } from "../../lib/feLinks";
+import { FE_DIRECTIONS, FE_ZONE_DISTANCES, FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { ORIGIN_ALPHA } from "../../lib/visual/style";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
@@ -20,7 +24,11 @@ const TARGET_VALID = { color: 0x6ee7b7, radius: 13, width: 2, alpha: 0.9 };
 const JOINING = { color: 0x6ee7b7, radius: 15, width: 2, alpha: 0.85 };
 const LEAVING = { color: 0xfbbf24, radius: 15, width: 2, alpha: 0.85 };
 const TARGET_INVALID = { color: 0xf87171, radius: 13, width: 2, alpha: 0.9 };
+/** How far outside a targeted zone's ring its target ring is drawn, in screen pixels. */
+const FE_ZONE_TARGET_MARGIN_PX = 14;
 const PORT_RING = { color: 0x6ee7b7, alpha: 0.45, hotAlpha: 1, width: 1.5, dashes: 16 };
+/** A zone's port ring is longer than a star's, so it takes more dashes to read the same. */
+const FE_ZONE_PORT_DASHES = 48;
 const GHOST_LANE = { color: 0xffd166, alpha: 0.9 };
 const RUBBER_LANE = { color: 0x6ee7b7, alpha: 0.9 };
 const HOVER_LANE = { color: 0xffffff, alpha: 0.5, widthPx: 3 };
@@ -30,12 +38,21 @@ const MARQUEE = { color: 0xffd166, strokeAlpha: 0.9, fillAlpha: 0.08 };
 /** The dashed ring a nebula drag proposes, until the pointer comes up. */
 const GHOST_RING = { color: 0xc4b5fd, alpha: 0.9 };
 const GHOST_RING_DASHES = 48;
+/** The dashed ring a zone drag proposes: the zones' own hue, or the refusal's where it cannot go. */
+const GHOST_ZONE = { color: 0xf0abfc, alpha: 0.9 };
+const GHOST_ZONE_BLOCKED = { color: 0xf87171, alpha: 0.9 };
+/** The grid a zone drag chooses from, under the ghost ring: faint rays and one dot per slot. */
+const FE_GRID_RAY = { color: GHOST_ZONE.color, alpha: 0.15 };
+const FE_GRID_RAY_LENGTH = FE_ZONE_DISTANCES[FE_ZONE_DISTANCES.length - 1];
+const FE_GRID_DOT = { color: GHOST_ZONE.color, alpha: 0.35, radiusPx: 2.5 };
+const FE_GRID_DOT_BLOCKED = { color: GHOST_ZONE_BLOCKED.color, alpha: 0.35, radiusPx: 2.5 };
+const FE_GRID_SNAPPED_RADIUS_PX = 4.5;
 const ORIGIN_MARK = { color: 0xffffff, alpha: 0.3, armPx: 7 };
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
 
 export interface RubberLane {
-  from: number[];
+  from: LaneSource;
   x: number;
   y: number;
   target: LaneTarget | null;
@@ -56,21 +73,6 @@ function ring(spec: typeof SELECTION): Graphics {
   return g;
 }
 
-/** A thin dashed ring in the middle of the port band; the hit zone is the whole band. */
-function portRing(): Graphics {
-  const g = new Graphics();
-  const r = (PORT_INNER + PORT_OUTER) / 2;
-  const step = (Math.PI * 2) / PORT_RING.dashes;
-  for (let i = 0; i < PORT_RING.dashes; i++) {
-    const start = i * step;
-    g.moveTo(r * Math.cos(start), r * Math.sin(start)).arc(0, 0, r, start, start + step * 0.6);
-  }
-  g.stroke({ color: PORT_RING.color, width: PORT_RING.width });
-  g.alpha = PORT_RING.alpha;
-  g.visible = false;
-  return g;
-}
-
 function dashedCircle(g: Graphics, x: number, y: number, r: number, dashes: number): void {
   const step = (Math.PI * 2) / dashes;
   for (let i = 0; i < dashes; i++) {
@@ -85,6 +87,8 @@ function dashedCircle(g: Graphics, x: number, y: number, r: number, dashes: numb
   }
 }
 
+const GHOST_ZONE_DASHES = 32;
+
 /** The galaxy origin: a reference point for a document whose canvas may be empty. */
 function originCross(): Graphics {
   const g = new Graphics();
@@ -95,7 +99,7 @@ function originCross(): Graphics {
 }
 
 function midpointButton(): Graphics {
-  const g = new Graphics();
+  const g = new Graphics({ label: "midpoint" });
   const a = MIDPOINT.arm;
   g.circle(0, 0, MIDPOINT_HIT_PX).fill({ color: MIDPOINT.fill, alpha: 0.85 });
   g.circle(0, 0, MIDPOINT_HIT_PX).stroke({ color: MIDPOINT.stroke, width: 1, alpha: 0.6 });
@@ -140,28 +144,29 @@ class RingPool {
 }
 
 /**
- * Screen-sized rings around systems (selection, hover, port band, snap target, move ghosts)
- * plus the previews of an interaction in progress: the ghosts' lanes, the rubber lines of a
- * pending lane, the lanes a mesh action would add, the marquee, and the hovered and selected
- * lanes with the hovered lane's "×". It also marks the galaxy origin and, where the galaxy
- * sets one, the core radius stars are meant to stay outside of.
+ * Screen-sized rings around systems (selection, hover, move ghosts), the port ring and the
+ * snap target's ring around a star or a zone's ring, plus the previews of an interaction in
+ * progress: the ghosts' lanes, the rubber lines of a pending lane or link, the lanes a mesh
+ * action would add, the marquee, and the hovered edge (a lane or a zone's link) with its "×"
+ * and the selected lane. It also marks the galaxy origin and, where the galaxy sets one, the
+ * core radius stars are meant to stay outside of.
  */
 export class HighlightsLayer implements MapLayer {
   readonly id = "highlights" as const;
   readonly container = new Container();
   private readonly hover = ring(HOVER);
-  private readonly port = portRing();
-  private readonly targetValid = ring(TARGET_VALID);
-  private readonly targetInvalid = ring(TARGET_INVALID);
+  private readonly port = new Graphics({ label: "port", alpha: PORT_RING.alpha });
+  private readonly target = new Graphics({ label: "target" });
   private readonly selectionRings: RingPool;
   private readonly ghostRings: RingPool;
   private readonly joiningRings: RingPool;
   private readonly leavingRings: RingPool;
   private readonly matchedRings: RingPool;
   private readonly midpoint = midpointButton();
-  private readonly previewLines = new Graphics();
-  private readonly laneLines = new Graphics();
+  private readonly previewLines = new Graphics({ label: "previewLines" });
+  private readonly laneLines = new Graphics({ label: "laneLines" });
   private readonly marqueeBox = new Graphics();
+  private readonly feZoneGrid = new Graphics();
   private readonly ghostRing = new Graphics();
   private readonly origin = originCross();
   private readonly coreRing = new Graphics();
@@ -170,6 +175,7 @@ export class HighlightsLayer implements MapLayer {
   private systems: Systems = EMPTY_CONTEXT.systems;
   private selection: number[] = [];
   private hoverId: number | null = null;
+  private hoverFeZone: number | null = null;
   private matched: ReadonlySet<number> = new Set();
   private ghosts: readonly MoveGhost[] = [];
   private dragged: ReadonlyMap<number, MoveGhost> = new Map();
@@ -177,9 +183,11 @@ export class HighlightsLayer implements MapLayer {
   private lanePreview: Array<[number, number]> | null = null;
   private marquee: WorldRect | null = null;
   private nebula: NebulaPreview | null = null;
-  private hoverLane: LaneRef | null = null;
+  private feZone: FeZonePreview | null = null;
+  private hoverEdge: MapEdge | null = null;
   private selectedLane: LaneRef | null = null;
   private camScale = 1;
+  private markerK = 1;
   private portCapable = false;
   private readonly scale = { x: 1, y: 1 };
   private readonly pixelScale = { x: 1, y: 1 };
@@ -191,11 +199,11 @@ export class HighlightsLayer implements MapLayer {
       this.laneLines,
       this.previewLines,
       this.marqueeBox,
+      this.feZoneGrid,
       this.ghostRing,
       this.port,
       this.hover,
-      this.targetValid,
-      this.targetInvalid,
+      this.target,
     );
     this.selectionRings = new RingPool(this.container, SELECTION);
     this.ghostRings = new RingPool(this.container, GHOST);
@@ -226,10 +234,9 @@ export class HighlightsLayer implements MapLayer {
   }
 
   onViewport(cam: Camera): void {
-    cam.childScale(markerScale(cam.scale), this.scale);
-    for (const g of [this.hover, this.port, this.targetValid, this.targetInvalid]) {
-      g.scale.set(this.scale.x, this.scale.y);
-    }
+    this.markerK = markerScale(cam.scale);
+    cam.childScale(this.markerK, this.scale);
+    this.hover.scale.set(this.scale.x, this.scale.y);
     this.selectionRings.setScale(this.scale);
     this.ghostRings.setScale(this.scale);
     this.matchedRings.setScale(this.scale);
@@ -244,6 +251,7 @@ export class HighlightsLayer implements MapLayer {
       this.portCapable = portCapable;
       this.placeAll();
       this.drawLanes();
+      this.drawFeZoneGrid();
     }
   }
 
@@ -263,6 +271,13 @@ export class HighlightsLayer implements MapLayer {
   setHover(id: number | null): void {
     this.hoverId = id;
     this.placeAll();
+  }
+
+  /** The zone whose ring or port band the pointer is on, by its anchor; its port ring shows. */
+  setHoverFeZone(anchor: number | null): void {
+    if (anchor === this.hoverFeZone) return;
+    this.hoverFeZone = anchor;
+    this.drawPort();
   }
 
   setPortHot(hot: boolean): void {
@@ -299,14 +314,22 @@ export class HighlightsLayer implements MapLayer {
     this.drawGhostRing();
   }
 
+  /** The ring a zone drag is proposing, with the system it would cover ringed as leaving. */
+  setFeZonePreview(preview: FeZonePreview | null): void {
+    this.feZone = preview;
+    this.placeAll();
+    this.drawGhostRing();
+    this.drawFeZoneGrid();
+  }
+
   setMarquee(rect: WorldRect | null): void {
     this.marquee = rect;
     this.drawMarquee();
   }
 
-  setHoverLane(lane: LaneRef | null): void {
-    if (sameLane(this.hoverLane, lane)) return;
-    this.hoverLane = lane;
+  setHoverEdge(edge: MapEdge | null): void {
+    if (sameEdge(this.hoverEdge, edge)) return;
+    this.hoverEdge = edge;
     this.drawLanes();
   }
 
@@ -317,7 +340,6 @@ export class HighlightsLayer implements MapLayer {
   }
 
   private placeAll(): void {
-    const target = this.rubber?.target ?? null;
     this.selectionRings.place(
       this.selection.map((id) => this.systems.get(id)),
       (i) => (this.dragged.has(this.selection[i]) ? ORIGIN_ALPHA : 1),
@@ -325,15 +347,16 @@ export class HighlightsLayer implements MapLayer {
     const hoverId =
       this.hoverId !== null && this.selection.includes(this.hoverId) ? null : this.hoverId;
     this.place(this.hover, hoverId);
-    const portId =
-      this.portCapable && !this.rubber && this.ghosts.length === 0 ? this.hoverId : null;
-    this.place(this.port, portId);
-    this.place(this.targetValid, target?.valid ? target.id : null);
-    this.place(this.targetInvalid, target && !target.valid ? target.id : null);
+    this.drawPort();
+    this.drawTarget();
     this.ghostRings.place(this.ghosts);
     this.matchedRings.place([...this.matched].map((id) => this.systems.get(id)));
     this.joiningRings.place((this.nebula?.joining ?? []).map((id) => this.systems.get(id)));
-    this.leavingRings.place((this.nebula?.leaving ?? []).map((id) => this.systems.get(id)));
+    const covered = this.feZone?.blocked;
+    this.leavingRings.place([
+      ...(this.nebula?.leaving ?? []).map((id) => this.systems.get(id)),
+      ...(covered ? [covered] : []),
+    ]);
   }
 
   private place(g: Graphics, id: number | null): void {
@@ -349,6 +372,52 @@ export class HighlightsLayer implements MapLayer {
     g.visible = true;
   }
 
+  /** The centre of the ring `anchor` anchors, or undefined when it anchors none. */
+  private zoneCentre(anchor: number): Pt | undefined {
+    const s = this.systems.get(anchor);
+    return s?.fe_zone ? feZoneCentre(s, s.fe_zone) : undefined;
+  }
+
+  /** A dashed ring in the middle of the port band: a star's in marker units, a zone's outside its ring band. */
+  private drawPort(): void {
+    const g = this.port;
+    g.clear();
+    if (this.rubber || this.ghosts.length > 0) return;
+    const zone = this.hoverFeZone === null ? undefined : this.zoneCentre(this.hoverFeZone);
+    if (zone) {
+      const r = FE_ZONE_RADIUS + ringPortOffsetPx(this.markerK) / this.camScale;
+      dashedCircle(g, zone.x, zone.y, r, FE_ZONE_PORT_DASHES);
+      g.stroke({ color: PORT_RING.color, width: PORT_RING.width / this.camScale });
+      return;
+    }
+    const star =
+      this.portCapable && this.hoverId !== null ? this.systems.get(this.hoverId) : undefined;
+    if (!star) return;
+    const r = (((PORT_INNER + PORT_OUTER) / 2) * this.markerK) / this.camScale;
+    dashedCircle(g, star.x, star.y, r, PORT_RING.dashes);
+    g.stroke({ color: PORT_RING.color, width: (PORT_RING.width * this.markerK) / this.camScale });
+  }
+
+  /** The snap target's ring: around a star at the marker radius, around a zone just outside its ring. */
+  private drawTarget(): void {
+    const g = this.target;
+    g.clear();
+    const t = this.rubber?.target;
+    if (!t) return;
+    const style = t.valid ? TARGET_VALID : TARGET_INVALID;
+    const at = t.kind === "system" ? this.systems.get(t.id) : this.zoneCentre(t.anchor);
+    if (!at) return;
+    const radius =
+      t.kind === "system"
+        ? (style.radius * this.markerK) / this.camScale
+        : FE_ZONE_RADIUS + FE_ZONE_TARGET_MARGIN_PX / this.camScale;
+    g.circle(at.x, at.y, radius).stroke({
+      color: style.color,
+      alpha: style.alpha,
+      width: (style.width * this.markerK) / this.camScale,
+    });
+  }
+
   private drawPreviews(): void {
     const g = this.previewLines;
     g.clear();
@@ -360,27 +429,90 @@ export class HighlightsLayer implements MapLayer {
     }
     for (const [a, b] of segments) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
     if (segments.length > 0) g.stroke({ ...GHOST_LANE, pixelLine: true });
-    if (this.rubber) {
-      const target = this.rubber.target && this.systems.get(this.rubber.target.id);
-      const end = target ?? this.rubber;
-      let any = false;
-      for (const id of this.rubber.from) {
-        const from = this.systems.get(id);
-        if (!from) continue;
-        g.moveTo(from.x, from.y).lineTo(end.x, end.y);
-        any = true;
-      }
-      if (any) g.stroke({ ...RUBBER_LANE, pixelLine: true });
+    const rubber = this.rubberSegments();
+    for (const { a, b } of rubber) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
+    if (rubber.length > 0) g.stroke({ ...RUBBER_LANE, pixelLine: true });
+  }
+
+  /**
+   * The rubber lines of a pending lane or link: from each dragged system, or from the dragged
+   * zone's ring, to the snapped system, the snapped ring's nearest point, or the pointer.
+   */
+  private rubberSegments(): Segment[] {
+    const r = this.rubber;
+    if (!r) return [];
+    const target = r.target;
+    const targetSystem = target?.kind === "system" ? this.systems.get(target.id) : undefined;
+    const targetZone = target?.kind === "feZone" ? this.zoneCentre(target.anchor) : undefined;
+    const end = targetSystem ?? { x: r.x, y: r.y };
+    if (r.from.kind === "feZone") {
+      const centre = this.zoneCentre(r.from.anchor);
+      const segment = centre && toRing(end, centre);
+      return segment ? [segment] : [];
     }
+    const segments: Segment[] = [];
+    for (const id of r.from.ids) {
+      const from = this.systems.get(id);
+      if (!from) continue;
+      const segment = targetZone ? toRing(from, targetZone) : { a: from, b: end };
+      if (segment) segments.push(segment);
+    }
+    return segments;
   }
 
   private drawGhostRing(): void {
     const g = this.ghostRing;
     g.clear();
     const n = this.nebula;
-    if (!n || n.radius <= 0) return;
-    dashedCircle(g, n.x, n.y, n.radius, GHOST_RING_DASHES);
-    g.stroke({ ...GHOST_RING, pixelLine: true });
+    if (n && n.radius > 0) {
+      dashedCircle(g, n.x, n.y, n.radius, GHOST_RING_DASHES);
+      g.stroke({ ...GHOST_RING, pixelLine: true });
+    }
+    const z = this.feZone;
+    if (!z) return;
+    const style = z.blocked || z.offMap ? GHOST_ZONE_BLOCKED : GHOST_ZONE;
+    dashedCircle(g, z.x, z.y, FE_ZONE_RADIUS, GHOST_ZONE_DASHES);
+    const tie = toRing(z.anchor, z);
+    if (tie) g.moveTo(tie.a.x, tie.a.y).lineTo(tie.b.x, tie.b.y);
+    g.stroke({ ...style, pixelLine: true });
+  }
+
+  /**
+   * The grid a zone drag chooses from, under the ghost ring: eight faint rays to distance 200,
+   * a faint dot at every clear slot, a faint hollow circle at every blocked one, and the snapped
+   * slot as a brighter, slightly larger dot. Dot radii stay constant in screen pixels.
+   */
+  private drawFeZoneGrid(): void {
+    const g = this.feZoneGrid;
+    g.clear();
+    const z = this.feZone;
+    if (!z) return;
+    for (const { key: direction } of FE_DIRECTIONS) {
+      const tip = feZoneCentre(z.anchor, { direction, distance: FE_GRID_RAY_LENGTH });
+      g.moveTo(z.anchor.x, z.anchor.y).lineTo(tip.x, tip.y);
+    }
+    g.stroke({ ...FE_GRID_RAY, pixelLine: true });
+    const dotRadius = FE_GRID_DOT.radiusPx / this.camScale;
+    for (const slot of z.slots) {
+      if (slot.direction === z.direction && slot.distance === z.distance) continue;
+      if (slot.clear) {
+        g.circle(slot.x, slot.y, dotRadius).fill({
+          color: FE_GRID_DOT.color,
+          alpha: FE_GRID_DOT.alpha,
+        });
+      } else {
+        g.circle(slot.x, slot.y, dotRadius).stroke({
+          color: FE_GRID_DOT_BLOCKED.color,
+          alpha: FE_GRID_DOT_BLOCKED.alpha,
+          pixelLine: true,
+        });
+      }
+    }
+    const snappedStyle = z.blocked || z.offMap ? GHOST_ZONE_BLOCKED : GHOST_ZONE;
+    g.circle(z.x, z.y, FE_GRID_SNAPPED_RADIUS_PX / this.camScale).fill({
+      color: snappedStyle.color,
+      alpha: snappedStyle.alpha,
+    });
   }
 
   /** A world-space circle of the core radius, stroked one screen pixel wide at any zoom. */
@@ -415,8 +547,10 @@ export class HighlightsLayer implements MapLayer {
           width: SELECTED_LANE.widthPx / this.camScale,
         });
     }
-    const hovered = this.endpoints(this.hoverLane);
-    if (hovered && !sameLane(this.hoverLane, this.selectedLane)) {
+    const hovered = edgeEnds(this.systems, this.hoverEdge);
+    const hoveredIsSelected =
+      this.hoverEdge?.kind === "lane" && sameLane(this.hoverEdge.lane, this.selectedLane);
+    if (hovered && !hoveredIsSelected) {
       g.moveTo(hovered.a.x, hovered.a.y)
         .lineTo(hovered.b.x, hovered.b.y)
         .stroke({
@@ -433,15 +567,7 @@ export class HighlightsLayer implements MapLayer {
     }
   }
 
-  private endpoints(lane: LaneRef | null) {
-    if (!lane) return null;
-    const a = this.systems.get(lane.a);
-    const b = this.systems.get(lane.b);
-    if (!a || !b || !a.lanes.some((l) => l.to === b.id)) return null;
-    return { a, b };
+  private endpoints(lane: LaneRef | null): Segment | null {
+    return edgeEnds(this.systems, lane && { kind: "lane", lane });
   }
-}
-
-function sameLane(p: LaneRef | null, q: LaneRef | null): boolean {
-  return p === q || (p !== null && q !== null && p.a === q.a && p.b === q.b);
 }

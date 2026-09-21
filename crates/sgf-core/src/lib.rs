@@ -11,6 +11,7 @@ pub mod emit;
 pub mod entity;
 pub mod export;
 pub mod format;
+pub mod guides;
 pub(crate) mod keys;
 pub mod lexer;
 pub mod library;

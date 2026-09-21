@@ -276,6 +276,13 @@ details and colonies under "Map"; empires, bypasses, points of interest
 with a row per kind, and nebulae under "Overlays"; and issue highlights
 under "Editing". "Reset to defaults" at the foot puts them all back.
 
+Two guides sit under "Overlays" as well, on by default for a scenario
+and off for a save. "Map border" draws where the map ends: the ±500
+square a scenario's coordinates must fall in, or a save's galaxy radius.
+"L-Cluster" draws the circle the game builds the L-Cluster in, which is
+the same spot for every galaxy size, or on a save that already has one a
+circle around its systems.
+
 A save with waystations also offers a Waylines layer under "Overlays":
 the game derives a wayline between two stations of one network joined by
 a lane or a bypass, and the map draws it as a dashed band along that lane
@@ -331,6 +338,13 @@ session keeps a backup from every part of it.
 
 "Save as…" (Ctrl+Shift+S) writes to a path you choose, which then becomes
 the open file. A backup is made only if a file already existed there.
+Saving a new Paint a Galaxy scenario this way opens in the mod's own
+`map/setup_scenarios` folder. File → "Save into the Paint a Galaxy
+mod…" saves an already-open scenario there too. Steam can replace a
+workshop mod's folder when it updates, so keep a copy of a map you care
+about elsewhere as well. Once the file lands there the status bar says
+what to do next: start a new game in Stellaris, choose the Elliptical
+shape, and pick the size the scenario's header names it under.
 
 ### Steam Cloud saves
 
@@ -361,16 +375,75 @@ overrides it; or use "Browse…" and pick any `.txt`. A save row can be
 opened as a scenario instead of as a save (the "as scenario" button, or
 Shift+Enter), which turns that galaxy into one you can edit and start a
 fresh campaign from, and "Export as scenario…" in the File menu does the
-same for the open save.
+same for the open save. That one first shows what the export will hold:
+how many empire seats it has (one spawn point on each empire's capital;
+the header's empire count is sized from them), how the systems fall into
+homes, fallen empires, marauders and the rest, what the file cannot carry
+(the save's wormhole pairs; gateways and L-Gates are rebuilt by their own
+initializers), which DLC or mods its initializers come from when game
+data is loaded, and any home system whose initializer is not a generic
+start. The dialog carries the same "For the Paint a Galaxy mod" checkbox
+as the blank canvas below, and the written file opens with those facts
+as `#` comment lines; the status bar's "Exported" time shows them again
+in its tooltip. The "Open as" question a picked save asks carries the
+same checkbox under "Edit as scenario", and "Open save as scenario…"
+in the File menu follows the standing choice, so a save taken into the
+editor as a scenario is converted for the mod the same way as an export.
+A save opened as a scenario lists the same warnings in the Issues panel
+until it is closed.
 
 "New scenario…" offers three ways to start. A blank canvas takes a name,
 a galaxy size (or a radius of your own) and a core radius, and gives you
-an empty file to place every system in yourself. A galaxy from the game
-has you start a new game in Stellaris at the size and shape you want,
-save on day one and open that save here, which hands you the generator's
-layout, names and empires to edit. Painting one has you draw systems and
-lanes in paint-a-galaxy by Oatmeal Problem, export its scenario file and
-open that here; the dialog links to the site.
+an empty file to place every system in yourself; its "For the Paint a
+Galaxy mod" checkbox, ticked by default and remembered per machine,
+writes spawn points in that mod's shape and a header sized for its
+fixes. A galaxy from the game has you start a new game in Stellaris at
+the size and shape you want, save on day one and open that save here,
+which hands you the generator's layout, names and empires to edit. The
+same checkbox sits under that card's steps. Ticked, the save is
+converted for the mod: each fallen empire's capital and the cluster
+around it are left out and a typed zone of that empire's kind is placed
+at the old capital, on an anchor system added for it, so the mod
+rebuilds the fallen empire where it stood. Your own capital becomes the
+player's seat. For the United Nations of Earth that is the Sol seat, which
+no other empire can take. For any other empire it is a preferred seat
+weighted so it is the likeliest start, not a certain one. The L-Cluster
+is left out because the game adds its own, and the header's empire,
+fallen empire, marauder and nomad counts are taken from the save's setup
+screen. The Export as scenario report and the file's comment lines say
+what was done. Unticked, the save opens as a plain scenario with its
+fallen empire systems kept. The "Paint a galaxy" card opens
+paint-a-galaxy by Oatmeal Problem in your
+browser, where you draw systems and lanes and download the scenario file
+it exports. "Open a Paint a Galaxy file…" on the same card opens that
+file here.
+
+The checkbox is ticked by default because custom galaxies hit
+game-breaking bugs in the generator that the Paint a Galaxy mod fixes.
+Keep it ticked for any map you will play. If you write scenarios for a
+mod of your own, untick it once.
+Unticking it, on the blank canvas, under "A galaxy from the game" or on
+the Export as scenario dialog, turns it off in every place, and ticking
+any one turns it back on in all of them. Under the checkbox the app shows the mod's status: not
+installed, with a link to subscribe on the Steam Workshop, installed but
+not enabled in your playset, or enabled. The status keeps itself
+current, so subscribing while the app is open is enough.
+
+A scenario whose Paint a Galaxy layer is on carries a "Paint a Galaxy"
+badge beside its name in the top bar. The layer turns itself on for a
+file that already carries the mod's scripts or flags or the header Forge
+writes for it, for one that sits inside the mod's own
+`map/setup_scenarios` folder, for one you created with the checkbox
+ticked, and for one opened from the Paint a galaxy card. There is no
+switch for it otherwise. The badge warns when the mod (Steam Workshop
+3532904115) is not enabled in your launcher's playset. When the mod is
+not installed at all, clicking the badge opens its Workshop page.
+
+A scenario whose layer is off shows a one-line notice under the top bar
+that it needs the Paint a Galaxy mod unless it belongs to a mod of your
+own, with the mod's status, a "Save into the Paint a Galaxy mod…"
+button and "Not for me", which hides the notice for good on this
+machine.
 
 What can be edited: everything a save's galaxy offers, move systems, add
 and cut lanes, add, move, resize, rename and remove nebulae, and, because a
@@ -379,9 +452,159 @@ Systems can be added, deleted and named. Each can be given an initializer,
 which is what the game will place there: the star, its planets and moons,
 their resources, megastructures, dig sites and starbase, all of which the
 inspector and the map show before the game is ever started. A system can
-carry a spawn weight, or be held for a human player or for the AI. The
-scenario's header keys are listed and edited one by one, and a pair of
-systems can be barred from ever being linked.
+carry a spawn weight. An empire that spawns on such a seat brings its own
+starting system in place of the seat's initializer, but what that
+initializer spawns around it still appears: a seat given Sol's
+initializer gets Alpha Centauri beside the empire's home. The counts the new-game screen reads (AI empires,
+advanced starts, fallen, marauder and nomad empires, wormhole pairs,
+gateways and hyperlane density) are edited as min, max and default fields
+in the Game setup section, with a note when a default falls outside its
+range. Under the wormhole and gateway rows, an "Also from scripts" line
+says what the loaded game data's day-one events add on top. A "Listed
+under shapes" row ticks the galaxy shapes the new-game screen offers the
+map under, from the loaded game data's shapes plus any the file names
+that it lacks. The rest of the header is listed and edited key by key,
+and a pair of systems can be barred from ever being linked.
+
+Marauder clans need no mod: the game's own initializers place them. A
+clan is three systems: a home carrying `marauder_N_1` and two raid bases
+carrying `marauder_N_2` and `marauder_N_3`, each hyperlaned to the home.
+Right-click empty space and choose "Add marauder clan here" to create
+all three, the home at the click and the bases 20 and 25 units out. Or
+select three systems and right-click any of them: "Make these marauder
+clan N" makes the one with a hyperlane to both others the home. The
+same button is in the inspector while three systems are selected. With
+fewer or more selected the menu item says how many to select, and both
+refuse three systems none of which is linked to the other two. Making
+a clan replaces the three initializers, star class included, and
+"Remove marauder clan N" on any of the three sets all of them back to
+random, so Undo is the way back to what they were. The map shows the
+clan as an empire with a skull emblem and a black border, like the game.
+The "Marauder clans" layer, listed beside the fallen empire zones,
+switches the clans' territories, and the Empires tab lists the clans
+under "Marauders", with an eye each.
+The inspector's Marauder clan section names the two bases with links to
+them, or says which is missing and offers to add it, renumbers the clan
+and removes it. A base's section names its home, or warns that nothing
+spawns there without one. Issues reports a home missing its bases, with
+an "Add the raid bases" button, a clan with two homes, a base with no
+lane to its home, and a home within 30 of a seat. "Update counts" sets
+the header's marauder counts from the homes.
+
+In a scenario whose Paint a Galaxy layer is on, a spawn point is a seat
+the mod fills by kind, so the inspector offers the kind from a select
+instead of a weight. Enabled means any empire may start there. Preferred
+seats are favoured, but the draw is random, so a preferred seat alone
+does not decide where you start. Reserved A to Z seats only an
+empire whose species carries the matching Reserved Spawn trait, which
+comes from the Reserved Spawns submod on the Steam Workshop, so subscribe
+to it only if you reserve seats. Issues warns when a reserved seat exists
+and the submod is not enabled, with a button to its Workshop page, and
+the warning counts against a save. Sol is a reserved seat that only the
+United Nations of Earth, or an empire with the submod's Sol trait, can
+take. A save whose player is the United Nations of Earth makes its
+capital the Sol seat. Any other save makes its capital a preferred seat
+with a weight, the likeliest start rather than a certain one, because an
+AI whose origin needs a special place is seated before you and draws by
+the same weights. For a certain start with another empire, reserve a
+letter and give your empire its trait. A "Weighted for its empire"
+checkbox under the kind select adds that weight to a preferred, Sol or
+reserved seat, and Issues warns when two systems carry it. A Sol seat
+needs a generic initializer, since the United Nations of Earth brings Sol
+with it and the game will not seat it on a seat that already names Sol's
+initializer. On the map a reserved seat shows its letter, Sol shows "Sol",
+a preferred seat gets a star, a weighted preferred seat a "P", and any
+weighted seat's chip is ringed. A system that
+still carries a plain weight in such a file shows a "Use a Paint a Galaxy
+seat" button that converts it. The Game setup section sums up the seats
+and the safe number of AI empires. When the
+header's counts no longer match the seats, or its fallen empire counts
+no longer match the fallen empire zones, an "Update counts" button there
+and on the issue's row in Issues rewrites the empire keys the way the
+mod's formulas do and sets the fallen empire keys to the zones, at most
+six. Clearing a Game setup cell drops that key from the header.
+
+Two selected systems can be made a wormhole pair, which the mod opens on
+day one: choose "Link as wormhole pair" from the right-click menu or the
+selection's actions, and "Unlink wormhole pair" parts them again. The
+inspector's Wormhole pair section names the other end, with a link that
+selects it, or says the partner is missing.
+
+A scenario saved into the mod's folder is checked against the other
+files there: when another file's header lists the same name, Issues
+notes it, because the game shows one size per name.
+
+A fallen empire zone is empty space. When the game starts, the Paint a
+Galaxy mod creates a fallen empire's home system at the centre of the
+zone and its other systems around it, then links them by hyperlane to
+systems nearby. Nothing already on the map is used or moved, so the
+ring must stay clear of your systems. The map draws each zone as a
+dashed ring of radius 30 with a faint dashed tie to the system it is
+measured from, in one of eight compass directions at a distance from 30
+to 200. Inside the ring a faint ghost shows what the mod will build there:
+the home star and the satellites of that kind, laned the way the mod
+lanes them. Every
+zone belongs to one of your systems, which the mod measures the ring
+from. Right-click a system and choose "Add fallen empire zone", or
+right-click empty space and choose "Fallen empire zone here". Drag
+the ring to move it: the mod can only place a fallen empire at eight
+compass directions and distances from 30 to 200, so the map shows
+those positions while you drag and the ring snaps to the nearest clear
+one. Clicking the ring selects its system, and the inspector's Fallen
+empire zone section sets the type of empire (random, or one of the six
+kinds), the direction, the distance and whether the mod should fill
+the ring with ordinary systems when no fallen empire lands there. A
+ring that would cover a system is refused, and one
+that later comes to cover a system after a move shows in Issues.
+
+You can choose which systems the fallen empire connects to. The map
+draws each link as a lane from the system to the ring, in the lanes'
+own look with a hint of the ring's colour, and links are edited on the
+map the way hyperlanes are. Hover a link for its × and
+click it to unlink. Drag from a system's edge (the ring that appears
+around the star when zoomed in, or Shift+drag from the star) onto the
+zone's ring to link it, or from the ring's edge (the band just outside
+the ring, or Shift+drag from the ring) onto a system. The rubber line
+snaps to the ring or the system and shows as invalid when the two are
+already linked. A drag from a selected group links every system in it.
+The right-click menus do the same: select the zone's system, then
+right-click another system and choose "Link to <system>'s fallen empire
+zone", or right-click the ring with a system selected and choose "Link
+<system> to this zone". The same items unlink a linked system. The
+Connections block of the Fallen empire zone section lists
+the linked systems, each with a way to it and an × to unlink it, and
+"Use nearest instead" gives the zone back to the mod. A linked system's
+own inspector has a Fallen empire links section naming the zones it
+links to. Without links the mod gives each of the fallen empire's
+systems a hyperlane to its nearest neighbour within 100. With links it
+lays a hyperlane from each linked system to the nearest system of the
+fallen empire and no other, from any distance. Issues reports a zone
+that takes links from no system, a link to a zone that no longer
+exists, two zones sharing a link and a link from farther than 100.
+
+The mod can also seat fallen empires in rings you did not draw, and
+these automatic zones are drawn faint. To place some, right-click empty
+space and pick "Fit fallen empire zones…", or use the button in the
+scenario section of the inspector. A slider sets the number, from none
+to every ring that fits, and Forge spreads them as far apart as it can.
+Fitting again replaces the automatic zones in one undoable step. Zones
+you placed or edited are yours and are never replaced. A save taken
+into a scenario gets only the zones its own fallen empires ask for, at
+their old capitals. Each of those zones comes linked to the systems its
+old cluster had hyperlanes to. A painted map with no zones at all shows
+in Issues, with a button that opens the same dialog.
+
+Before a save, Forge warns when the map still has warnings or errors,
+opens the Issues tab and offers "Save anyway". Once you have saved
+anyway it stays quiet until a new issue appears.
+
+The mod has limits of its own, from its Workshop page: the Advanced
+Neighbors setting has no effect, every precursor is on regardless of
+settings (the Precursor Selection mod works around it), Sol gets no
+Sol-specific neighbours (the Local Cluster mod is the usual
+workaround), nomads with random homes do not start in a nomad system,
+and the game adds systems the map did not have: guaranteed worlds,
+marauders, fallen empires, and some events.
 
 The initializer browser: Shift+I, the inspector, or the map's right-click
 menu ("Set initializer…" on a system, "New system from…" on empty space)
@@ -398,7 +621,10 @@ one undo step.
 
 Exporting: `sgf export-scenario <sav> <out>` writes a save's galaxy out as a
 scenario script and leaves the save untouched; `--gamedata` localises the
-system names from your install instead of writing the save's own keys.
+system names from your install instead of writing the save's own keys
+and names the DLC or mod each initializer comes from. After "wrote …" it
+prints the export's report: empire seats, home initializers to review,
+what was not carried over, and the system count per category.
 `sgf new-scenario <name> <out>` writes an empty one to start from.
 
 A scenario's `position` runs the same way as a save's `coordinate`: an
@@ -505,7 +731,6 @@ commands write in place, with the same backup as the app, unless `-o
 | `sgf header set <scenario> <key> <value> [-o out]` | Write one key of a scenario's header as the raw text right of `=`, inserting it when the header lacks it. |
 | `sgf header unset <scenario> <key> [-o out]` | Remove the header's first statement of that key. |
 | `sgf spawn weight <scenario> <id> <base> [-o out]` | Write `spawn_weight = { base = N }`, or clear the base with `none`. |
-| `sgf spawn reserve <scenario> <id> <human, ai or none> [-o out]` | Hold a system for a human player or for the AI, or take back whichever reservation stands. |
 | `sgf isolate <sav> <id> [-o out]` | Remove every lane of a system. |
 | `sgf synth --systems <n> [--seed <s>] [--waystations <a,b,c>] -o <out>` | Write a synthetic save with n systems, for stress testing; `--waystations` adds one network of those system ids and repeats. |
 | `sgf gamedata [--install <dir>] [--lang <l>] [--no-mods]` | Find the Stellaris install and active mods; summarise what was read from them. |

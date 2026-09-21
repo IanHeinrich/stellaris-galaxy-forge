@@ -164,3 +164,22 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+.fe-zone-fit-slider {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.fe-zone-fit-slider input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.fe-zone-fit-count {
+  min-width: 6ch;
+  text-align: right;
+}

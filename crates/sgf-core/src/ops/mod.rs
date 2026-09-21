@@ -17,8 +17,9 @@ use crate::Span;
 use crate::cst;
 use crate::document::{self, Document};
 use crate::format;
+use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::{Anchor, OverlayError};
-use crate::projections::galaxy::{GalaxyGraph, Lane, ProjectionError, SpawnReservationPreset};
+use crate::projections::galaxy::{GalaxyGraph, Lane, ProjectionError, SpawnScript};
 use crate::session::Session;
 use crate::views::DocumentKind;
 
@@ -142,7 +143,9 @@ pub enum Op {
     /// planets, a starbase and an owner, none of which an op can invent.
     /// `id` defaults to one past the highest the document holds. `spawn_weight` follows
     /// the [`Op::SetInitializer`] rule: `Some(w)` writes `spawn_weight = { base = w }`,
-    /// `None` writes nothing.
+    /// `None` writes nothing. `spawn_script` writes the seat as [`Op::SetSpawnScript`]
+    /// does, the dialect's basic initializer with it when none is given; a weight and
+    /// a script together are refused.
     AddSystem {
         id: Option<u32>,
         x: f64,
@@ -150,6 +153,8 @@ pub enum Op {
         name: Option<String>,
         initializer: Option<String>,
         spawn_weight: Option<f64>,
+        #[serde(default)]
+        spawn_script: Option<SpawnScript>,
     },
     /// A system and every hyperlane statement naming it, `prevent_hyperlane` included so
     /// no statement is left naming a system that is gone. Scenario documents only. The
@@ -185,14 +190,31 @@ pub enum Op {
         key: String,
         value: Option<String>,
     },
+    /// Several header keys as one undo step, each written as [`Op::SetHeaderField`]
+    /// writes one with `Some`: rewritten in place, or inserted before the first system
+    /// when the header lacks it. A key listed twice is refused. The inverse carries the
+    /// raw text each key displaced, so a key this added is not among them: undo puts
+    /// the bytes back exactly, the inverse only describes the change. Scenario
+    /// documents only.
+    SetHeaderKeys {
+        entries: Vec<(String, String)>,
+    },
+    /// Every statement of one repeated header key as one undo step, one statement per
+    /// value in the given order, where the first statement of the key stands: the
+    /// statements standing are rewritten in place, surplus ones removed and surplus
+    /// values written after the last, and a key the header lacks is inserted before the
+    /// first system. Each value is the raw text right of `=`, written as it stands; an
+    /// empty `values` removes every statement. The inverse carries the values the header
+    /// held, in order. Scenario documents only.
+    SetHeaderList {
+        key: String,
+        values: Vec<String>,
+    },
     /// The `base` of a system's `spawn_weight`, the weight the generator places an empire
-    /// by; `None` removes it, and with it the preset reservation
-    /// [`Op::SetSpawnReservation`] writes, and the whole statement when no other
-    /// `modifier` remains. The modifiers the map author wrote are left byte for byte. A
-    /// base the reader cannot read as a number, `base = { min = 1 max = 2 }`, is rewritten
-    /// whole and inverts to `None`. The inverse names the base alone, so a reservation
-    /// cleared with it comes back from the bytes undo replays, not from the op.
-    /// Scenario documents only.
+    /// by; `None` removes it, and the whole statement when no `modifier` remains. The
+    /// modifiers the map author wrote are left byte for byte. A base the reader cannot
+    /// read as a number, `base = { min = 1 max = 2 }`, is rewritten whole and inverts to
+    /// `None`. Scenario documents only.
     SetSpawnWeight {
         id: u32,
         base: Option<f64>,
@@ -203,16 +225,76 @@ pub enum Op {
     SetSpawnWeights {
         entries: Vec<(u32, Option<f64>)>,
     },
-    /// Which preset reservation the system carries, the two being exclusive:
-    /// [`SpawnReservationPreset::Human`] writes `modifier = { factor = 0 is_ai = yes }`
-    /// into its `spawn_weight`, [`SpawnReservationPreset::Ai`] the mirror with
-    /// `is_ai = no`, each taking the other back, and `None` takes back whichever stands.
-    /// A block the system has not got is written with `base = 1`. A modifier that tests
-    /// `is_ai` in a shape this editor does not read is refused rather than written
-    /// beside; every other modifier is left byte for byte. Scenario documents only.
-    SetSpawnReservation {
+    /// The scripted seat a system's `spawn_weight` states, in the dialect the script
+    /// names: `Some` writes the whole statement afresh in that dialect's exact text,
+    /// where the one standing was or beside the initializer when there was none, and
+    /// writes the dialect's basic starting initializer beside it when the system names
+    /// no `initializer`; `None` removes the `spawn_weight` statement. The `effect`
+    /// block is left byte for byte. The inverse names the script alone, so an
+    /// initializer written with it comes back from the bytes undo replays, not from
+    /// the op. Scenario documents only.
+    SetSpawnScript {
         id: u32,
-        reserve: Option<SpawnReservationPreset>,
+        script: Option<SpawnScript>,
+    },
+    /// Several systems' scripted seats as one undo step, each entry an id and the
+    /// script to write there; every entry follows the [`Op::SetSpawnScript`] rules.
+    /// Scenario documents only.
+    SetSpawnScripts {
+        entries: Vec<(u32, Option<SpawnScript>)>,
+    },
+    /// The Paint a Galaxy fallen empire zone a system anchors: `Some` takes every zone
+    /// flag out of the system's `effect` block and writes the zone's flags at its end,
+    /// writing the block when the system has none; `None` takes the zone flags out, and
+    /// the block with them when nothing else stood in it. Every other statement of the
+    /// block is left byte for byte. A zone whose ring holds another system, or whose
+    /// centre lies off the map, is refused: the mod builds the fallen empire's systems
+    /// in that ring at game start. Scenario documents only.
+    SetFeZone {
+        id: u32,
+        zone: Option<FeZone>,
+    },
+    /// Several systems' fallen empire zones as one undo step, each entry an id and the
+    /// zone to write there; every entry follows the [`Op::SetFeZone`] rules. Scenario
+    /// documents only.
+    SetFeZones {
+        entries: Vec<(u32, Option<FeZone>)>,
+    },
+    /// The Paint a Galaxy wormhole pair joining `a` and `b`: `Some(n)` takes every
+    /// wormhole flag off both systems and writes `painted_galaxy_wormhole_n` with
+    /// `empire_cluster` beside it on each; `None` takes the wormhole flags off both.
+    /// An `empire_cluster` goes with the wormhole flag it stands right after, and any
+    /// other is left where it is. The two systems must differ and exist, and a number
+    /// another system already carries is refused. The inverse puts both systems' pairs
+    /// back, each as its own entry. Scenario documents only.
+    SetWormholePair {
+        a: u32,
+        b: u32,
+        pair: Option<u32>,
+    },
+    /// One system's wormhole pair alone: what a [`Op::SetWormholePair`] inverts to when
+    /// the two ends held different numbers, or one held none. Scenario documents only.
+    SetWormholeEnds {
+        entries: Vec<(u32, Option<u32>)>,
+    },
+    /// The systems Paint a Galaxy lays a hyperlane from into the fallen empire zone
+    /// `anchor` anchors. A non-empty `linked` writes the custom connection flag and an
+    /// id on the anchor, the id it already takes or else the lowest free one, and puts
+    /// that id on every system of `linked` and takes it off every other; an empty
+    /// `linked` takes the custom flag and the id off the anchor and the id off every
+    /// system. The flags go at the end of each `effect` block as
+    /// [`Op::SetWormholePair`] writes its own, and only a system whose flags change is
+    /// written. `anchor` must anchor a zone and may not be in `linked`. The inverse is
+    /// a [`Op::SetFeLinkFlags`] over the systems written. Scenario documents only.
+    SetFeLinks {
+        anchor: u32,
+        linked: Vec<u32>,
+    },
+    /// Several systems' custom connection flags, each set exactly as given: what a
+    /// [`Op::SetFeLinks`] inverts to, and the way to a state the mod reads oddly, such
+    /// as the custom flag without an id. Scenario documents only.
+    SetFeLinkFlags {
+        entries: Vec<(u32, FeLinkFlags)>,
     },
     /// One `prevent_hyperlane` statement, barring the generator from linking `a` and `b`.
     /// A pair the file already links is refused: a file that both lays and forbids a lane
@@ -258,9 +340,18 @@ impl Op {
             Self::SetInitializer { .. } => "SetInitializer",
             Self::SetInitializers { .. } => "SetInitializers",
             Self::SetHeaderField { .. } => "SetHeaderField",
+            Self::SetHeaderKeys { .. } => "SetHeaderKeys",
+            Self::SetHeaderList { .. } => "SetHeaderList",
             Self::SetSpawnWeight { .. } => "SetSpawnWeight",
             Self::SetSpawnWeights { .. } => "SetSpawnWeights",
-            Self::SetSpawnReservation { .. } => "SetSpawnReservation",
+            Self::SetSpawnScript { .. } => "SetSpawnScript",
+            Self::SetSpawnScripts { .. } => "SetSpawnScripts",
+            Self::SetFeZone { .. } => "SetFeZone",
+            Self::SetFeZones { .. } => "SetFeZones",
+            Self::SetWormholePair { .. } => "SetWormholePair",
+            Self::SetWormholeEnds { .. } => "SetWormholeEnds",
+            Self::SetFeLinks { .. } => "SetFeLinks",
+            Self::SetFeLinkFlags { .. } => "SetFeLinkFlags",
             Self::PreventLane { .. } => "PreventLane",
             Self::UnpreventLane { .. } => "UnpreventLane",
         }
@@ -269,8 +360,9 @@ impl Op {
     /// Whether this op leaves the details of the systems it touched stale. The
     /// projection is keyed by the systems the graph holds, so an op that adds or removes
     /// one stales it, and a scenario system's planets and resources come from its
-    /// initializer, so an op that writes one stales it too. A save's details are read
-    /// from sections no op writes, which is why none of these ops is one a save takes.
+    /// initializer, so an op that writes one stales it too, a scripted seat included
+    /// because it may bring an initializer with it. A save's details are read from
+    /// sections no op writes, which is why none of these ops is one a save takes.
     pub const fn stales_details(&self) -> bool {
         matches!(
             self,
@@ -278,13 +370,22 @@ impl Op {
                 | Self::RemoveSystem { .. }
                 | Self::SetInitializer { .. }
                 | Self::SetInitializers { .. }
+                | Self::SetSpawnScript { .. }
+                | Self::SetSpawnScripts { .. }
         )
     }
 
     /// Whether this op can have moved how the systems it touched are classified: the
-    /// initializer a classification is read from, or the name it is labelled by.
+    /// initializer a classification is read from, the name it is labelled by, or the
+    /// star flags the scripts place a wormhole by.
     pub const fn reclassifies(&self) -> bool {
-        self.stales_details() || matches!(self, Self::SetSystemName { .. })
+        self.stales_details()
+            || matches!(
+                self,
+                Self::SetSystemName { .. }
+                    | Self::SetWormholePair { .. }
+                    | Self::SetWormholeEnds { .. }
+            )
     }
 }
 
@@ -373,6 +474,34 @@ pub enum OpError {
     InvalidRadius { radius: f64, reason: String },
     #[error("spawn weight {weight} is invalid: {reason}")]
     InvalidWeight { weight: f64, reason: String },
+    #[error("system {0}'s spawn weight is script; change its spawn kind instead")]
+    ScriptedSpawn(u32),
+    #[error("a system takes a spawn weight or a spawn script, not both")]
+    WeightAndScript,
+    #[error("a reserved seat is named by one letter, not {0:?}")]
+    InvalidSeatLetter(String),
+    #[error(
+        "an enabled seat has no marker to make it the player's; choose a preferred, Sol or reserved seat"
+    )]
+    EnabledSeatPlayer,
+    #[error(
+        "Fallen empire zone from {anchor} is blocked by {blocker}: the mod needs the ring empty"
+    )]
+    FeZoneBlocked { anchor: String, blocker: String },
+    #[error("Fallen empire zone from {anchor} is off the map")]
+    FeZoneOffMap { anchor: String },
+    #[error("system {0} cannot be paired with itself")]
+    WormholeSelf(u32),
+    #[error("wormhole pair {0} is already in use")]
+    WormholePairInUse(u32),
+    #[error("system {0} anchors no fallen empire zone")]
+    FeLinkNoZone(u32),
+    #[error("system {0} cannot link to its own fallen empire zone")]
+    FeLinkSelf(u32),
+    #[error("every fallen empire connection id is taken")]
+    FeLinkIdsExhausted,
+    #[error("fallen empire connection id {0} is beyond the {1} the mod reads")]
+    FeLinkIdOutOfRange(u8, u8),
     #[error("no lanes given")]
     Empty,
     #[error("system {0} is listed more than once")]

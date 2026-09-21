@@ -2,17 +2,22 @@
 use std::path::Path;
 
 use serde_json::json;
+use sgf_core::export::ExportReport;
 use sgf_core::format::save::details::SystemDetails;
+use sgf_core::format::scenario::FeLinkFlags;
+use sgf_core::format::scenario::fe_zone::{self, FeZone};
 use sgf_core::format::scenario::listings::{ScenarioListings, ScenarioSource};
 use sgf_core::library::CampaignListing;
+use sgf_core::validate::IssueCode;
 use sgf_core::views::{
-    DocumentKind, EditResult, ErrorKind, OpenResult, SaveFile, SaveResult, SearchHit, SystemDetail,
+    DocumentKind, EditResult, ErrorKind, ExportResult, OpenResult, SaveFile, SaveResult, SearchHit,
+    SystemDetail,
 };
-use sgf_gamedata::scripts::ScenarioOwners;
+use sgf_gamedata::scripts::{BypassSource, ScenarioBypasses, ScenarioOwners};
 use sgf_gamedata::views::GameDataSummary;
 
 mod common;
-use common::{SAMPLE, have_install, invoke, kind, webview};
+use common::{SAMPLE, have_install, invoke, invoke_raw, kind, webview};
 
 const GRAMMAR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -294,8 +299,21 @@ fn scenario_documents_open_start_and_export() {
     assert_eq!(as_scenario.title, "2206.11.16");
     assert!(as_scenario.path.is_none());
     assert_eq!(as_scenario.galaxy.systems.len(), 791);
+    let coded = |code: IssueCode| as_scenario.issues.iter().filter(|i| i.code == code).count();
     assert_eq!(
-        kind(invoke::<SaveResult>(
+        coded(IssueCode::ExportDropped),
+        1,
+        "{:?}",
+        as_scenario.issues
+    );
+    assert_eq!(
+        coded(IssueCode::HomeInitializer),
+        4,
+        "{:?}",
+        as_scenario.issues
+    );
+    assert_eq!(
+        kind(invoke::<ExportResult>(
             &w,
             "export_scenario",
             json!({ "path": dir.path().join("x.txt").to_string_lossy() })
@@ -303,23 +321,424 @@ fn scenario_documents_open_start_and_export() {
         ErrorKind::Op,
         "only a save exports"
     );
+    assert_eq!(
+        kind(invoke::<ExportReport>(&w, "preview_export", json!({}))),
+        ErrorKind::Op,
+        "only a save previews an export"
+    );
 
     invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    let preview: ExportReport = invoke(&w, "preview_export", json!({})).expect("preview");
     let out = dir
         .path()
         .join("exported.txt")
         .to_string_lossy()
         .into_owned();
-    let exported: SaveResult =
+    let exported: ExportResult =
         invoke(&w, "export_scenario", json!({ "path": out })).expect("export");
-    assert_eq!(exported.path, out);
-    assert!(exported.backup_path.is_none());
-    assert!(!exported.dirty, "export leaves the save session clean");
+    assert_eq!(exported.save.path, out);
+    assert!(exported.save.backup_path.is_none());
+    assert!(!exported.save.dirty, "export leaves the save session clean");
+    assert_eq!(exported.report.seats, 17);
+    assert_eq!(exported.report.dropped.wormhole_pairs, 6);
+    assert_eq!(exported.report.home_initializers.len(), 4);
+    assert_eq!(
+        preview, exported.report,
+        "the preview is the report the write gives"
+    );
     let reopened: OpenResult =
         invoke(&w, "open_save", json!({ "path": out })).expect("open the export");
     assert_eq!(reopened.kind, DocumentKind::Scenario);
     assert_eq!(reopened.title, "exported");
     assert_eq!(reopened.galaxy.systems.len(), 791);
+}
+
+const PAINTED: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/paint_a_galaxy.txt"
+);
+
+#[test]
+fn fe_zone_fit_keeps_the_placed_zones_and_spreads_the_count_asked_for() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<Vec<(u32, Option<FeZone>)>>(
+            &w,
+            "fe_zone_fit",
+            json!({ "count": 2 })
+        )),
+        ErrorKind::NoSession
+    );
+    assert_eq!(
+        kind(invoke::<usize>(&w, "fe_zone_candidate_count", json!({}))),
+        ErrorKind::NoSession
+    );
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    assert_eq!(
+        kind(invoke::<Vec<(u32, Option<FeZone>)>>(
+            &w,
+            "fe_zone_fit",
+            json!({ "count": 2 })
+        )),
+        ErrorKind::Op,
+        "a save has no zones"
+    );
+    assert_eq!(
+        kind(invoke::<usize>(&w, "fe_zone_candidate_count", json!({}))),
+        ErrorKind::Op
+    );
+
+    let opened: OpenResult =
+        invoke(&w, "open_save", json!({ "path": PAINTED })).expect("open the painted fixture");
+    assert!(opened.painted);
+    let count: usize = invoke(&w, "fe_zone_candidate_count", json!({})).expect("count");
+    assert_eq!(count, 9);
+    let entries: Vec<(u32, Option<FeZone>)> =
+        invoke(&w, "fe_zone_fit", json!({ "count": 2 })).expect("fit two");
+    assert_eq!(entries.len(), 2, "{entries:?}");
+    assert!(
+        entries
+            .iter()
+            .all(|(id, zone)| *id != 9 && *id != 12 && zone.is_some()),
+        "{entries:?}"
+    );
+    let centres: Vec<(f64, f64)> = entries
+        .iter()
+        .map(|(id, zone)| {
+            let system = opened
+                .galaxy
+                .systems
+                .iter()
+                .find(|system| system.id == *id)
+                .expect("the anchor");
+            fe_zone::centre((system.x, system.y), zone.as_ref().unwrap())
+        })
+        .collect();
+    let apart = (centres[0].0 - centres[1].0).hypot(centres[0].1 - centres[1].1);
+    assert!(apart > 60.0, "{entries:?} lie {apart} apart");
+    let edited: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "SetFeZones", "entries": entries } }),
+    )
+    .expect("apply the entries");
+    assert_eq!(
+        edited.entry.description,
+        "Recompute automatic fallen empire zones"
+    );
+    assert!(edited.dirty);
+    let again: Vec<(u32, Option<FeZone>)> =
+        invoke(&w, "fe_zone_fit", json!({ "count": 2 })).expect("fit two again");
+    assert!(
+        again.is_empty(),
+        "a second pass has nothing to change: {again:?}"
+    );
+}
+
+#[test]
+fn header_empire_counts_sizes_the_keys_by_the_seats_and_the_app_applies_them_as_one_step() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<Vec<(String, String)>>(
+            &w,
+            "header_empire_counts",
+            json!({})
+        )),
+        ErrorKind::NoSession
+    );
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    assert_eq!(
+        kind(invoke::<Vec<(String, String)>>(
+            &w,
+            "header_empire_counts",
+            json!({})
+        )),
+        ErrorKind::Op,
+        "a save has no header"
+    );
+
+    let opened: OpenResult =
+        invoke(&w, "open_save", json!({ "path": PAINTED })).expect("open the painted fixture");
+    assert!(
+        opened
+            .issues
+            .iter()
+            .any(|issue| issue.code == IssueCode::HeaderEmpireCount),
+        "{:?}",
+        opened.issues
+    );
+    let entries: Vec<(String, String)> =
+        invoke(&w, "header_empire_counts", json!({})).expect("counts");
+    assert_eq!(
+        entries,
+        [
+            ("num_empires".to_owned(), "{ min = 0 max = 3 }".to_owned()),
+            ("num_empire_default".to_owned(), "1".to_owned()),
+            ("advanced_empire_default".to_owned(), "0".to_owned()),
+            ("nomad_empire_default".to_owned(), "0".to_owned()),
+            ("nomad_empire_max".to_owned(), "3".to_owned()),
+            ("fallen_empire_max".to_owned(), "2".to_owned()),
+            ("fallen_empire_default".to_owned(), "2".to_owned()),
+            ("marauder_empire_default".to_owned(), "0".to_owned()),
+            ("marauder_empire_max".to_owned(), "0".to_owned()),
+        ]
+    );
+    let edited: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "SetHeaderKeys", "entries": entries } }),
+    )
+    .expect("apply the counts");
+    assert_eq!(edited.entry.description, "Update empire counts");
+    assert!(edited.dirty);
+    assert!(
+        edited
+            .issues
+            .iter()
+            .all(|issue| issue.code != IssueCode::HeaderEmpireCount),
+        "{:?}",
+        edited.issues
+    );
+    assert_eq!(edited.history.undo.len(), 1);
+}
+
+#[test]
+fn the_scenarios_beside_a_file_are_listed_without_a_session() {
+    let w = webview();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mine = dir.path().join("mine.txt");
+    std::fs::copy(PAINTED, &mine).expect("copy the painted fixture");
+    std::fs::copy(GRAMMAR, dir.path().join("grammar.txt")).expect("copy the grammar fixture");
+    std::fs::write(dir.path().join("notes.txt"), "not a scenario").expect("write");
+    let names: Vec<(String, String)> = invoke(
+        &w,
+        "sibling_scenario_names",
+        json!({ "path": mine.to_string_lossy() }),
+    )
+    .expect("siblings");
+    assert_eq!(
+        names,
+        [("grammar.txt".to_owned(), "sgf_grammar".to_owned())]
+    );
+}
+
+#[test]
+fn a_painted_scenarios_wormhole_pairs_are_drawn_without_game_data_and_follow_the_op() {
+    let w = webview();
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": PAINTED })).expect("open");
+    let pairs = |w: &_| -> Vec<(u32, Option<u32>)> {
+        let placed: Option<ScenarioBypasses> =
+            invoke(w, "get_scenario_bypasses", json!({})).expect("bypasses");
+        placed
+            .expect("a scenario lists its flagged pairs")
+            .bypasses
+            .iter()
+            .filter(|end| {
+                end.source
+                    == BypassSource::DayOne {
+                        event: "painted_galaxy_wormhole.1".to_owned(),
+                    }
+            })
+            .map(|end| (end.system, end.partner))
+            .collect()
+    };
+    assert_eq!(
+        pairs(&w),
+        [(7, Some(8)), (8, Some(7)), (12, Some(13)), (13, Some(12))]
+    );
+    let edited: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "SetWormholePair", "a": 12, "b": 13, "pair": null } }),
+    )
+    .expect("remove a pair");
+    assert!(edited.reclassifies, "the app re-reads the bypasses");
+    assert_eq!(pairs(&w), [(7, Some(8)), (8, Some(7))]);
+}
+
+#[test]
+fn set_fe_links_writes_the_connection_flags_as_one_step_and_undo_takes_them_back() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<EditResult>(
+            &w,
+            "set_fe_links",
+            json!({ "anchor": 9, "linked": [3, 2] })
+        )),
+        ErrorKind::NoSession
+    );
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": PAINTED })).expect("open");
+    let links = |result: &EditResult| -> Vec<(u32, FeLinkFlags)> {
+        result
+            .delta
+            .systems
+            .iter()
+            .map(|system| (system.id, system.fe_link.clone()))
+            .collect()
+    };
+    let link = |custom: bool, id: Option<u8>, to: Vec<u8>| FeLinkFlags { custom, id, to };
+    let edited: EditResult = invoke(&w, "set_fe_links", json!({ "anchor": 9, "linked": [3, 2] }))
+        .expect("link Sol and Gamma to Old Seat");
+    assert_eq!(
+        edited.entry.description,
+        "Link 2 systems to the fallen empire zone at Old Seat"
+    );
+    assert!(edited.dirty);
+    assert!(!edited.reclassifies);
+    assert_eq!(
+        links(&edited),
+        [
+            (2, link(false, None, vec![0])),
+            (3, link(false, None, vec![0])),
+            (9, link(true, Some(0), Vec::new())),
+        ]
+    );
+    assert!(
+        edited
+            .issues
+            .iter()
+            .all(|issue| issue.code != IssueCode::FeLinkIsolated),
+        "{:?}",
+        edited.issues
+    );
+    let refused = invoke::<EditResult>(&w, "set_fe_links", json!({ "anchor": 10, "linked": [3] }));
+    assert_eq!(kind(refused), ErrorKind::Op, "Void anchors no zone");
+
+    let undone: EditResult = invoke::<Option<EditResult>>(&w, "undo", json!({}))
+        .expect("undo")
+        .expect("something to undo");
+    assert_eq!(
+        links(&undone),
+        [
+            (2, FeLinkFlags::default()),
+            (3, FeLinkFlags::default()),
+            (9, FeLinkFlags::default()),
+        ]
+    );
+    assert!(!undone.dirty);
+}
+
+#[test]
+fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands() {
+    let w = webview();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let idiom = "value:painted_galaxy_spawn_weight";
+
+    let fresh: OpenResult = invoke(
+        &w,
+        "new_scenario",
+        json!({ "name": "sgf_painted", "radius": 300.0, "coreRadius": 75.0, "profile": "paint_a_galaxy" }),
+    )
+    .expect("new scenario");
+    assert_eq!(fresh.title, "sgf_painted");
+    assert!(fresh.painted, "the header names the mod");
+    assert!(
+        fresh
+            .galaxy
+            .header
+            .iter()
+            .any(|f| f.key == "priority" && f.value == "10"),
+        "{:?}",
+        fresh.galaxy.header
+    );
+    assert!(
+        fresh
+            .galaxy
+            .header
+            .iter()
+            .any(|f| f.key == "nomad_empire_max" && f.value == "0"),
+        "{:?}",
+        fresh.galaxy.header
+    );
+
+    let as_scenario: OpenResult = invoke(
+        &w,
+        "open_as_scenario",
+        json!({ "path": SAMPLE, "profile": "paint_a_galaxy" }),
+    )
+    .expect("open as scenario");
+    // 791 systems, less the three fallen empires' clusters, plus their three anchors.
+    assert_eq!(as_scenario.galaxy.systems.len(), 765);
+    assert!(as_scenario.painted);
+    let seated = as_scenario
+        .galaxy
+        .systems
+        .iter()
+        .filter(|s| s.spawn_script.is_some())
+        .count();
+    assert!(seated > 1, "{seated}");
+    let refused = invoke_raw(
+        &w,
+        "open_as_scenario",
+        json!({ "path": SAMPLE, "profile": "crayon" }),
+    )
+    .expect_err("an unknown profile is refused, not read as plain");
+    assert!(
+        refused.to_string().contains("unknown variant `crayon`"),
+        "{refused}"
+    );
+    let plain: OpenResult =
+        invoke(&w, "open_as_scenario", json!({ "path": SAMPLE })).expect("open as scenario");
+    assert!(
+        plain
+            .galaxy
+            .systems
+            .iter()
+            .all(|s| s.spawn_script.is_none())
+    );
+    assert!(!plain.painted);
+    let unpainted: OpenResult = invoke(
+        &w,
+        "new_scenario",
+        json!({ "name": "sgf_plain", "radius": 300.0, "coreRadius": 75.0 }),
+    )
+    .expect("new scenario");
+    assert!(!unpainted.painted);
+
+    let save: OpenResult =
+        invoke(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    assert!(!save.painted, "a save is never scanned");
+    let painted = dir
+        .path()
+        .join("painted.txt")
+        .to_string_lossy()
+        .into_owned();
+    invoke::<ExportResult>(
+        &w,
+        "export_scenario",
+        json!({ "path": painted, "profile": "paint_a_galaxy" }),
+    )
+    .expect("export");
+    let text = std::fs::read_to_string(&painted).unwrap();
+    assert!(
+        text.contains(idiom) && text.contains("painted_galaxy_wormhole_1"),
+        "{}",
+        &text[..300]
+    );
+    let exported = dir.path().join("plain.txt").to_string_lossy().into_owned();
+    invoke::<ExportResult>(&w, "export_scenario", json!({ "path": exported })).expect("export");
+    let text = std::fs::read_to_string(&exported).unwrap();
+    assert!(
+        !text.contains(idiom)
+            && text.starts_with(
+                "# Exported by Stellaris Galaxy Forge from 2206.11.16.sav
+"
+            )
+            && text.contains(
+                "
+static_galaxy_scenario = {
+"
+            ),
+        "{}",
+        &text[..300]
+    );
+
+    let reopened: OpenResult =
+        invoke(&w, "open_save", json!({ "path": painted })).expect("open the painted export");
+    assert!(reopened.painted);
+    let reopened: OpenResult =
+        invoke(&w, "open_save", json!({ "path": exported })).expect("open the plain export");
+    assert!(!reopened.painted);
 }
 
 /// A scenario has no details sections: a system's planets and resources are what its

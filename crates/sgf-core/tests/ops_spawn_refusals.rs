@@ -2,13 +2,10 @@
 //! id, and a save, which has no spawn weights at all.
 
 use sgf_core::ops::{Op, OpError};
-use sgf_core::projections::galaxy::SpawnReservationPreset;
 use sgf_core::views::DocumentKind;
 
 mod common;
 use common::scenario::open;
-
-const HUMAN: Option<SpawnReservationPreset> = Some(SpawnReservationPreset::Human);
 
 #[test]
 fn a_weight_that_is_no_number_is_refused() {
@@ -36,10 +33,6 @@ fn an_unknown_system_an_empty_list_and_a_repeated_id_are_refused() {
             id: 4242,
             base: Some(1.0),
         },
-        Op::SetSpawnReservation {
-            id: 4242,
-            reserve: HUMAN,
-        },
         Op::SetSpawnWeights { entries: vec![] },
         Op::SetSpawnWeights {
             entries: vec![(2, Some(1.0)), (2, None)],
@@ -61,10 +54,6 @@ fn a_save_has_no_spawn_weights_to_write() {
         },
         Op::SetSpawnWeights {
             entries: vec![(0, Some(1.0))],
-        },
-        Op::SetSpawnReservation {
-            id: 0,
-            reserve: HUMAN,
         },
     ] {
         let name = op.name();

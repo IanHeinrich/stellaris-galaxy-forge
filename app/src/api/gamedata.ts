@@ -7,10 +7,12 @@ import { invoke } from "@tauri-apps/api/core";
 import type { BypassView } from "../generated/BypassView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DepositView } from "../generated/DepositView";
+import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
 import type { MapColor } from "../generated/MapColor";
 import type { NameTemplate } from "../generated/NameTemplate";
+import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { ResourceIcon } from "../generated/ResourceIcon";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
@@ -62,6 +64,11 @@ export function getScenarioBypasses(): Promise<ScenarioBypasses | null> {
   return invoke<ScenarioBypasses | null>("get_scenario_bypasses");
 }
 
+/** The Paint a Galaxy mod on this machine: where its scenarios go and whether the playset loads it; null when it is not installed. */
+export function paintMod(): Promise<PaintModView | null> {
+  return invoke<PaintModView | null>("paint_mod");
+}
+
 /** Open a game-data file in the shell's editor, or show it in its folder; refused outside the loaded roots. */
 export function openScript(path: string, reveal: boolean): Promise<void> {
   return invoke<void>("open_script", { path, reveal });
@@ -105,6 +112,11 @@ export function getBypasses(): Promise<BypassView[]> {
 /** Every solar system initializer of the loaded game data; empty without it. */
 export function getInitializers(): Promise<InitializerView[]> {
   return invoke<InitializerView[]>("get_initializers");
+}
+
+/** Every galaxy shape a scenario can list itself under, in the loaded game data's order; empty without it. */
+export function getGalaxyShapes(): Promise<GalaxyShapeView[]> {
+  return invoke<GalaxyShapeView[]>("get_galaxy_shapes");
 }
 
 /** Every named map colour of the loaded game data; empty without it. */

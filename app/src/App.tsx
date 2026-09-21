@@ -11,14 +11,18 @@ import { browseInitializers } from "./panels/initializers/entry";
 import { confirmRemoveNebula } from "./panels/inspector/nebula";
 import { Dock } from "./panels/chrome/Dock";
 import { FileMenu } from "./panels/chrome/FileMenu";
+import { PaintBadge } from "./panels/chrome/PaintBadge";
+import { PaintNotice } from "./panels/chrome/PaintNotice";
 import { GameDataPanel } from "./panels/chrome/GameDataPanel";
 import { HelpMenu } from "./panels/chrome/HelpMenu";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
 import { LayerToggles } from "./panels/chrome/LayerToggles";
+import { ExportDialog } from "./panels/file/ExportDialog";
 import { Launch } from "./panels/file/Launch";
 import { NewScenarioDialog } from "./panels/file/NewScenarioDialog";
 import { OpenModeDialog } from "./panels/file/OpenModeDialog";
 import { MapTooltip } from "./panels/overlays/MapTooltip";
+import { FeZoneFitDialog } from "./panels/overlays/FeZoneFitDialog";
 import { NewNebulaDialog } from "./panels/overlays/NewNebulaDialog";
 import { UpdateBadge } from "./panels/chrome/UpdateBadge";
 import { UpdateDialog } from "./panels/overlays/UpdateDialog";
@@ -38,6 +42,7 @@ import { useEditorStore } from "./store/editorStore";
 import { useFileSessionStore } from "./store/fileSessionStore";
 import { useGameDataStore } from "./store/gameDataStore";
 import { useLayoutStore } from "./store/layoutStore";
+import { usePaintModStore } from "./store/paintModStore";
 import { useUpdateStore } from "./store/updateStore";
 
 function FileState() {
@@ -58,15 +63,18 @@ function FileState() {
     );
   }
   return (
-    <span className="file-name" title={path ?? undefined}>
-      {fileName(path) || (title ?? "")}
-      {dirty && (
-        <span className="dirty-marker" title="Unsaved changes">
-          {" "}
-          ●
-        </span>
-      )}
-    </span>
+    <>
+      <span className="file-name" title={path ?? undefined}>
+        {fileName(path) || (title ?? "")}
+        {dirty && (
+          <span className="dirty-marker" title="Unsaved changes">
+            {" "}
+            ●
+          </span>
+        )}
+      </span>
+      <PaintBadge />
+    </>
   );
 }
 
@@ -104,6 +112,7 @@ function App() {
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
   const nebulaPrompt = useEditorStore((s) => s.nebulaPrompt);
+  const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
   const updateDialog = useUpdateStore((s) => s.dialog);
 
   useEffect(() => {
@@ -155,6 +164,17 @@ function App() {
   }, []);
 
   useEffect(() => {
+    void usePaintModStore.getState().refresh();
+  }, []);
+
+  useEffect(() => {
+    const unlisten = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (focused) void usePaintModStore.getState().refresh();
+    });
+    return () => void unlisten.then((f) => f());
+  }, []);
+
+  useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested(async (e) => {
       if (!(await useFileSessionStore.getState().confirmDiscard())) e.preventDefault();
     });
@@ -164,6 +184,7 @@ function App() {
   return (
     <div className="app">
       <TopBar />
+      <PaintNotice />
       <div className="main">
         <div className="map-area">
           <MapCanvas />
@@ -173,8 +194,10 @@ function App() {
           {status === "ready" && openDialog && <OpenSave modal />}
           {scenarioDialog && <NewScenarioDialog />}
           {nebulaPrompt && <NewNebulaDialog />}
+          {feZoneFitPrompt && <FeZoneFitDialog />}
           <OpenModeDialog />
           {updateDialog && <UpdateDialog />}
+          <ExportDialog />
           <InitializerBrowser />
         </div>
         {status === "ready" && <Dock />}

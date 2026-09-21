@@ -38,6 +38,24 @@
   width: 78px;
 }
 
+.ins-fe-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 4px 0;
+  padding: 4px 6px;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+}
+
+.ins-fe-zone label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-muted);
+}
+
 .ins-spawn-modifier {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -372,4 +390,13 @@
 
 .ins-kind {
   color: var(--fg-muted);
+}
+
+.ins-fe-zone-intro {
+  margin: 0 0 6px;
+  padding-left: 14px;
+}
+
+.ins-fe-zone-intro li + li {
+  margin-top: 3px;
 }

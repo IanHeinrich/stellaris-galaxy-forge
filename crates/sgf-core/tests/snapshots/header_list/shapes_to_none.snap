@@ -1,0 +1,26 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set supports_shape to 0 values
+inverse: SetHeaderList { key: "supports_shape", values: ["elliptical", "spiral_2", "spiral_3", "spiral_4", "spiral_6", "ring", "bar", "cartwheel", "cluster", "starburst"] }
+
+--- scenario
++++ scenario
+@@ -1,16 +1,6 @@
+ static_galaxy_scenario = {
+ 	name = "Painted Reach"
+ 	priority = 10
+-	supports_shape = elliptical
+-	supports_shape = spiral_2
+-	supports_shape = spiral_3
+-	supports_shape = spiral_4
+-	supports_shape = spiral_6
+-	supports_shape = ring
+-	supports_shape = bar
+-	supports_shape = cartwheel
+-	supports_shape = cluster
+-	supports_shape = starburst
+ 	random_hyperlanes = no
+ 	num_wormhole_pairs = { min = 0 max = 5 }
+ 	num_wormhole_pairs_default = 1

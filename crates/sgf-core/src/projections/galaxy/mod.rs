@@ -20,12 +20,13 @@ use ts_rs::TS;
 
 use crate::cst::CstError;
 use crate::projections::name::NameTemplate;
+use crate::views::DocumentKind;
 
 pub use bypasses::BypassLink;
 pub use countries::{CountryNode, FlagRef};
 pub use nebulae::Nebula;
 pub(crate) use nebulae::nearest_prospective;
-pub use spawn::{SpawnModifier, SpawnReservation, SpawnReservationPreset};
+pub use spawn::{PaintSpawnKind, SpawnModifier, SpawnScript};
 pub use systems::{Lane, SystemNode, lane_length};
 pub(crate) use waylines::bypass_between;
 pub use waylines::{Wayline, Waystation};
@@ -89,6 +90,41 @@ pub struct Galaxy {
     pub core_radius: f64,
     /// A scenario's header keys as they currently read, in file order; empty for a save.
     pub header: Vec<HeaderField>,
+    /// Which document the galaxy was read from, for the checks that apply to one kind.
+    pub kind: DocumentKind,
+    /// A scenario header's `num_empires.max`, `num_empire_default`, `fallen_empire_max`,
+    /// `fallen_empire_default`, `marauder_empire_max` and `marauder_empire_default`,
+    /// where it states them; always `None` for a save.
+    pub num_empires_max: Option<u32>,
+    pub num_empire_default: Option<u32>,
+    pub fallen_empire_max: Option<u32>,
+    pub fallen_empire_default: Option<u32>,
+    pub marauder_empire_max: Option<u32>,
+    pub marauder_empire_default: Option<u32>,
+    /// The setup screen the save was started with, read from its top-level `galaxy`
+    /// block; `None` for a scenario.
+    pub setup: Option<GameSetup>,
+    /// The `country` of the first `player` entry; `None` for a scenario or a save with
+    /// none.
+    pub player_country: Option<u32>,
+}
+
+/// The setup screen a save was started with, as its top-level `galaxy` block still holds
+/// it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GameSetup {
+    pub template: String,
+    pub shape: String,
+    pub num_empires: u32,
+    pub num_advanced_empires: u32,
+    pub num_fallen_empires: u32,
+    pub num_marauder_empires: u32,
+    pub num_nomad_empires: u32,
+    pub num_gateways: u32,
+    pub num_wormhole_pairs: u32,
+    pub num_hyperlanes: f64,
+    pub primitive: f64,
+    pub habitability: f64,
 }
 
 /// A save's galaxy: the plain values plus the state only a `.sav` carries.

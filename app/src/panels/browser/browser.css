@@ -171,6 +171,18 @@
   color: var(--accent);
 }
 
+.browser-actions:has(.browser-fix) {
+  opacity: 1;
+}
+
+.browser-actions .browser-fix {
+  width: auto;
+  padding: 0 6px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
 .browser-eye {
   width: 14px;
   flex: none;

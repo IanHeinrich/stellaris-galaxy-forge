@@ -1,23 +1,18 @@
 import { useState } from "react";
-import type { SpawnReservationPreset } from "../../../../../generated/SpawnReservationPreset";
 import type { SystemNode } from "../../../../../generated/SystemNode";
-import {
-  isAiReserved,
-  isHumanReserved,
-  isSpawnPoint,
-  isSpawnWeight,
-} from "../../../../../lib/spawn";
+import { enabledScript } from "../../../../../lib/paint";
+import { isSpawnWeight } from "../../../../../lib/spawn";
+import { usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useApplyOp } from "../../../../useApplyOp";
 import { Chip, Field, Section } from "../../../parts";
 import { useEditableSystem } from "../../editable";
+import { ScriptedSeat } from "./ScriptedSeat";
 import {
   DEFAULT_SPAWN_WEIGHT,
+  flagLabel,
   modifierAmount,
   NEEDS_INITIALIZER,
-  NEEDS_SPAWN_POINT,
-  reservationLabel,
   spawnPointOp,
-  spawnReservationOp,
 } from "./spawnPoint";
 
 /**
@@ -36,13 +31,16 @@ export function SpawnPointSection({ system }: { system: SystemNode }) {
 
 function SpawnPoint({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
+  const paint = usePaintLayer();
   const [refused, setRefused] = useState(false);
   const weight = system.spawn_weight;
-  const none = system.initializer === "";
-  const set = (next: number | null) => applyOp(spawnPointOp(system, next));
+  const scripted = system.spawn_script !== null;
+  const none = system.initializer === "" && !paint;
+  const toggle = (on: boolean) =>
+    applyOp(spawnPointOp(system, on ? DEFAULT_SPAWN_WEIGHT : null, paint || scripted));
   const commit = (next: number) => {
     setRefused(!isSpawnWeight(next));
-    if (isSpawnWeight(next)) set(next);
+    if (isSpawnWeight(next)) applyOp(spawnPointOp(system, next, false));
   };
   return (
     <>
@@ -50,13 +48,13 @@ function SpawnPoint({ system }: { system: SystemNode }) {
         <label>
           <input
             type="checkbox"
-            checked={weight !== null}
+            checked={scripted || weight !== null}
             disabled={none}
-            onChange={() => set(weight === null ? DEFAULT_SPAWN_WEIGHT : null)}
+            onChange={() => toggle(!scripted && weight === null)}
           />
           Spawn point
         </label>
-        {weight !== null && (
+        {!scripted && weight !== null && (
           <>
             <span className="k">weight</span>
             <Field
@@ -72,57 +70,34 @@ function SpawnPoint({ system }: { system: SystemNode }) {
       </div>
       {refused && <div className="muted ins-hint">A spawn weight must be more than zero.</div>}
       {none && <div className="muted ins-hint">{NEEDS_INITIALIZER}</div>}
-      <Reservation system={system} />
+      {paint && !scripted && weight !== null && (
+        <>
+          <div className="ins-actions">
+            <button
+              type="button"
+              onClick={() =>
+                applyOp({
+                  type: "SetSpawnScript",
+                  id: system.id,
+                  script: enabledScript(system),
+                })
+              }
+            >
+              Use a Paint a Galaxy seat
+            </button>
+          </div>
+          <div className="muted ins-hint">The mod fills seats by kind and ignores this weight.</div>
+        </>
+      )}
+      {scripted && <ScriptedSeat system={system} />}
       <Modifiers system={system} />
     </>
   );
 }
 
 /**
- * Holding the system for one kind of empire: the presets
- * `modifier = { factor = 0 is_ai = yes }` and its mirror, which bar the other kind. They are
- * exclusive, so checking one takes the other back.
- */
-function Reservation({ system }: { system: SystemNode }) {
-  const applyOp = useApplyOp();
-  const editable = useEditableSystem();
-  const drawn = isSpawnPoint(system);
-  const human = isHumanReserved(system);
-  const ai = isAiReserved(system);
-  const set = (preset: SpawnReservationPreset, on: boolean) =>
-    applyOp(spawnReservationOp(system.id, on ? preset : null));
-  return (
-    <>
-      <div className="ins-spawn-point">
-        <label>
-          <input
-            type="checkbox"
-            checked={human}
-            disabled={!drawn || !editable}
-            onChange={() => set("human", !human)}
-          />
-          Reserve for a human player
-        </label>
-      </div>
-      <div className="ins-spawn-point">
-        <label>
-          <input
-            type="checkbox"
-            checked={ai}
-            disabled={!drawn || !editable}
-            onChange={() => set("ai", !ai)}
-          />
-          Reserve for the AI
-        </label>
-      </div>
-      {!drawn && <div className="muted ins-hint">{NEEDS_SPAWN_POINT}</div>}
-    </>
-  );
-}
-
-/**
  * The rest of the `spawn_weight` block as the file states it: triggers this editor reads and
- * never rewrites, so every one is shown, whether or not it names someone it seats.
+ * never rewrites, so every one is shown, whether or not it names an empire.
  */
 function Modifiers({ system }: { system: SystemNode }) {
   const modifiers = system.spawn_modifiers;
@@ -136,7 +111,7 @@ function Modifiers({ system }: { system: SystemNode }) {
         <div className="ins-spawn-modifier" key={i}>
           <span className="num">{modifierAmount(m)}</span>
           <span className="mono">{m.trigger}</span>
-          {m.reservation !== null && <Chip>{reservationLabel(m.reservation)}</Chip>}
+          {m.country_flag !== null && <Chip>{flagLabel(m.country_flag)}</Chip>}
         </div>
       ))}
       {system.spawn_design !== null && (

@@ -1,0 +1,15 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added system 14 at (60, 10) as a Paint a Galaxy spawn (enabled)
+inverse: RemoveSystem { id: 14 }
+
+--- scenario
++++ scenario
+@@ -62,4 +62,5 @@
+ 	add_hyperlane = { from = "4" to = "13" }
+ 	nebula = { name = " " position = { x = 0 y = 100 } radius = 30 }
+ 	nebula = { name = " " position = { x = -150 y = -120 } radius = 40 }
++	system = { id = "14" name = "New Seat" position = { x = 60 y = 10 } initializer = random_empire_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|5| } }
+ }

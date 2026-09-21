@@ -3,6 +3,7 @@ import type { GalaxyView } from "../../generated/GalaxyView";
 import type { SystemNode } from "../../generated/SystemNode";
 import { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
+import { composeOwnership } from "../../lib/ownership";
 import { SpatialGrid } from "../../lib/spatialGrid";
 import { systemNode } from "../../test/builders";
 import type { MapLayer } from "./MapLayer";
@@ -20,7 +21,10 @@ export function mapNode(id: number, x: number, label: string, initializer = ""):
   });
 }
 
-/** A context over `nodes`, as the controller would assemble one for a scenario document. */
+/**
+ * A context over `nodes`, as the controller would assemble one for a scenario document, its
+ * ownership composed from the nodes and the countries unless `over` states it.
+ */
 export function mapContext(
   nodes: readonly SystemNode[],
   over: Partial<RenderContext> = {},
@@ -28,7 +32,24 @@ export function mapContext(
   const systems = new Map(nodes.map((n) => [n.id, n]));
   const grid = new SpatialGrid();
   grid.build(systems.values());
-  return { ...EMPTY_CONTEXT, galaxy: GALAXY, kind: "scenario", systems, grid, ...over };
+  const ctx = {
+    ...EMPTY_CONTEXT,
+    galaxy: GALAXY,
+    kind: "scenario" as const,
+    systems,
+    grid,
+    ...over,
+  };
+  if (over.owners !== undefined || over.table !== undefined) return ctx;
+  const { owners, table } = composeOwnership({
+    kind: ctx.kind,
+    systems: ctx.systems,
+    countries: ctx.countries,
+    countryTypes: ctx.countryTypes,
+    mapColors: ctx.mapColors,
+    countryName: (country) => ctx.countryName(country.id),
+  });
+  return { ...ctx, owners, table };
 }
 
 /** Drives one viewport pass at `scale`, centred on `at`, as the controller's ticker would. */

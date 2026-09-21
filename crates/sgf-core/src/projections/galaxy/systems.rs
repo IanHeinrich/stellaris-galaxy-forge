@@ -5,7 +5,8 @@ use std::collections::{BTreeSet, HashMap};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::projections::galaxy::{SpawnModifier, display_template};
+use crate::format::scenario::{FeLinkFlags, FeZone, MarauderRole};
+use crate::projections::galaxy::{SpawnModifier, SpawnScript, display_template};
 use crate::projections::name::NameTemplate;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -79,6 +80,9 @@ pub struct SystemNode {
     pub bypass_ids: Vec<u32>,
     pub planet_count: u32,
     pub initializer: String,
+    /// What the initializer makes of the system for the marauders: a clan's home or one
+    /// of its raid bases. Read the same way from a save and a scenario.
+    pub marauder: Option<MarauderRole>,
     /// A scenario system's `spawn_weight = { base = N }`, the weight the generator gives
     /// this system when it places an empire. `None` when the statement states no `base`,
     /// which includes a `spawn_weight` carrying only `modifier` entries: those are script
@@ -86,12 +90,26 @@ pub struct SystemNode {
     /// unspawnable when a country flag may well make it a start. Always `None` for a save.
     pub spawn_weight: Option<f64>,
     /// The `modifier` blocks the scenario system's `spawn_weight` holds, in file order.
-    /// Their triggers are script this editor reads and never rewrites; only the
-    /// reservation each one states is acted on. Always empty for a save.
+    /// Their triggers are script this editor reads and never rewrites. Always empty for
+    /// a save.
     pub spawn_modifiers: Vec<SpawnModifier>,
+    /// The recognised meaning of a scripted weight source: what the scenario system's
+    /// `spawn_weight` says through a script value its `add` names. `None` when it names
+    /// none this editor reads, and always for a save.
+    pub spawn_script: Option<SpawnScript>,
     /// The scenario system's `spawn_design`, the empire design the generator seats here;
     /// it ignores the spawn weight beside it. Always `None` for a save.
     pub spawn_design: Option<String>,
+    /// The Paint a Galaxy fallen empire zone this scenario system anchors, read from the
+    /// `set_star_flag`s of its `effect` block. Always `None` for a save.
+    pub fe_zone: Option<FeZone>,
+    /// The Paint a Galaxy wormhole pair this scenario system is one end of, read from
+    /// the `painted_galaxy_wormhole_<n>` flag of its `effect` block. Always `None` for
+    /// a save.
+    pub wormhole_pair: Option<u32>,
+    /// The Paint a Galaxy custom connection flags of this scenario system's `effect`
+    /// block, read the same way `fe_zone` and `wormhole_pair` are. Default for a save.
+    pub fe_link: FeLinkFlags,
     /// The systems this scenario system is `prevent_hyperlane`d from, ascending and
     /// deduplicated, mirrored on both ends. A pair can be both linked and prevented,
     /// which is the file's state, not one the projection collapses. Always empty for a

@@ -5,8 +5,9 @@
 use std::collections::BTreeSet;
 
 use sgf_core::document::Document;
+use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::ops::{InitializerSet, LaneLength, LanePair, Op, OpError, SystemMove};
-use sgf_core::projections::galaxy::{GalaxyGraph, SpawnReservationPreset};
+use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
 use sgf_core::validate::Severity;
 
@@ -674,7 +675,16 @@ fn a_save_takes(op: &Op) -> bool {
         | Op::SetHeaderField { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
-        | Op::SetSpawnReservation { .. }
+        | Op::SetSpawnScript { .. }
+        | Op::SetSpawnScripts { .. }
+        | Op::SetFeZone { .. }
+        | Op::SetFeZones { .. }
+        | Op::SetHeaderKeys { .. }
+        | Op::SetHeaderList { .. }
+        | Op::SetWormholePair { .. }
+        | Op::SetWormholeEnds { .. }
+        | Op::SetFeLinks { .. }
+        | Op::SetFeLinkFlags { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -689,7 +699,11 @@ fn reclassifies(op: &Op) -> bool {
         | Op::RemoveSystem { .. }
         | Op::SetSystemName { .. }
         | Op::SetInitializer { .. }
-        | Op::SetInitializers { .. } => true,
+        | Op::SetInitializers { .. }
+        | Op::SetSpawnScript { .. }
+        | Op::SetSpawnScripts { .. }
+        | Op::SetWormholePair { .. }
+        | Op::SetWormholeEnds { .. } => true,
         Op::MoveSystem { .. }
         | Op::AddLane { .. }
         | Op::AddLanes { .. }
@@ -710,9 +724,14 @@ fn reclassifies(op: &Op) -> bool {
         | Op::SetNebulaRadius { .. }
         | Op::SetNebulaName { .. }
         | Op::SetHeaderField { .. }
+        | Op::SetHeaderKeys { .. }
+        | Op::SetHeaderList { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
-        | Op::SetSpawnReservation { .. }
+        | Op::SetFeZone { .. }
+        | Op::SetFeZones { .. }
+        | Op::SetFeLinks { .. }
+        | Op::SetFeLinkFlags { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -726,7 +745,9 @@ fn stales_details(op: &Op) -> bool {
         Op::AddSystem { .. }
         | Op::RemoveSystem { .. }
         | Op::SetInitializer { .. }
-        | Op::SetInitializers { .. } => true,
+        | Op::SetInitializers { .. }
+        | Op::SetSpawnScript { .. }
+        | Op::SetSpawnScripts { .. } => true,
         Op::MoveSystem { .. }
         | Op::AddLane { .. }
         | Op::AddLanes { .. }
@@ -748,9 +769,16 @@ fn stales_details(op: &Op) -> bool {
         | Op::SetNebulaName { .. }
         | Op::SetSystemName { .. }
         | Op::SetHeaderField { .. }
+        | Op::SetHeaderKeys { .. }
+        | Op::SetHeaderList { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
-        | Op::SetSpawnReservation { .. }
+        | Op::SetFeZone { .. }
+        | Op::SetFeZones { .. }
+        | Op::SetWormholePair { .. }
+        | Op::SetWormholeEnds { .. }
+        | Op::SetFeLinks { .. }
+        | Op::SetFeLinkFlags { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -838,6 +866,7 @@ fn one_of_each() -> Vec<Op> {
             name: None,
             initializer: None,
             spawn_weight: None,
+            spawn_script: None,
         },
         Op::RemoveSystem { id: 0 },
         Op::SetSystemName {
@@ -862,9 +891,38 @@ fn one_of_each() -> Vec<Op> {
         Op::SetSpawnWeights {
             entries: vec![(0, None)],
         },
-        Op::SetSpawnReservation {
+        Op::SetSpawnScript {
             id: 0,
-            reserve: Some(SpawnReservationPreset::Human),
+            script: None,
+        },
+        Op::SetSpawnScripts {
+            entries: vec![(0, None)],
+        },
+        Op::SetFeZone { id: 0, zone: None },
+        Op::SetFeZones {
+            entries: vec![(0, None)],
+        },
+        Op::SetHeaderKeys {
+            entries: vec![("name".to_owned(), "\"x\"".to_owned())],
+        },
+        Op::SetHeaderList {
+            key: "supports_shape".to_owned(),
+            values: vec!["ring".to_owned()],
+        },
+        Op::SetWormholePair {
+            a: 0,
+            b: 1,
+            pair: None,
+        },
+        Op::SetWormholeEnds {
+            entries: vec![(0, None)],
+        },
+        Op::SetFeLinks {
+            anchor: 0,
+            linked: vec![1],
+        },
+        Op::SetFeLinkFlags {
+            entries: vec![(0, FeLinkFlags::default())],
         },
         Op::PreventLane { a: 0, b: 1 },
         Op::UnpreventLane { a: 0, b: 1 },

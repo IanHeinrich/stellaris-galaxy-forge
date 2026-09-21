@@ -460,6 +460,7 @@ fn every_effect_block_in_the_scenario_is_listed_in_one_pass() {
             name: Some("Effectless".to_owned()),
             initializer: None,
             spawn_weight: None,
+            spawn_script: None,
         })
         .expect("add a system");
     assert_eq!(session.scenario_system_effects(), effects);
@@ -494,6 +495,7 @@ fn a_new_system_is_never_given_the_null_id() {
             name: Some("Late".to_owned()),
             initializer: None,
             spawn_weight: None,
+            spawn_script: None,
         })
         .expect("add a system beside one holding the highest id but one");
     assert!(

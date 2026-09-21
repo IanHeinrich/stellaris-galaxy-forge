@@ -3,12 +3,14 @@ import type { ScenarioOwners } from "../../generated/ScenarioOwners";
 import type { Territory } from "../../generated/Territory";
 import { empireGroups, specialSystemOfCountry } from "../../lib/browserRows";
 import { empireFlagKey } from "../../lib/details/fleets";
+import { systemsOf, type Ownership } from "../../lib/ownership";
 import { ownerColor, toCss } from "../../lib/visual/ownerColors";
 import { rowLookups, type EmpireRow } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { systemsOfOwner, useGalaxyStore } from "../../store/galaxyStore";
+import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useOwnership } from "../../store/ownership";
 import { Chip, SourceChip } from "../inspector/parts";
 import { useCollapse } from "./collapse";
 import { Action, Emblem, Eye, Group, Row } from "./rows";
@@ -24,12 +26,14 @@ function EmpireLine({
   row,
   station,
   territory,
+  ownership,
 }: {
   row: EmpireRow;
   station: number | null;
   territory: Territory | undefined;
+  ownership: Ownership;
 }) {
-  const hidden = useGalaxyStore((s) => s.hiddenCountries.has(row.country.id));
+  const hidden = useGalaxyStore((s) => s.hiddenCountries.has(row.id));
   const toggleCountryHidden = useGalaxyStore((s) => s.toggleCountryHidden);
   const systems = useGalaxyStore((s) => s.systems);
   const systemName = useGalaxyStore((s) => s.systemName);
@@ -37,16 +41,21 @@ function EmpireLine({
   const setSelection = useEditorStore((s) => s.setSelection);
   const fitSelection = useEditorStore((s) => s.fitSelection);
   const panTo = useEditorStore((s) => s.panTo);
-  const color = toCss(ownerColor(row.country, row.index, mapColors));
+  const color = toCss(
+    ownership.table.get(row.id)?.colors.outline ??
+      ownerColor(row.country ?? undefined, row.index, mapColors),
+  );
   const target = row.capital ?? station;
   const title =
     target === null
       ? `${row.name} holds no systems`
       : row.capital === null
         ? `at ${systemName(target)}`
-        : row.country.capital_system === null
-          ? "no capital: nearest to its centre"
-          : "Go to the capital system";
+        : row.country === null
+          ? "Go to the clan's home"
+          : row.country.capital_system === null
+            ? "no capital: nearest to its centre"
+            : "Go to the capital system";
   return (
     <Row
       lead={
@@ -54,9 +63,9 @@ function EmpireLine({
           <Eye
             on={!hidden}
             label={hidden ? `Show ${row.name}` : `Hide ${row.name}`}
-            onToggle={() => toggleCountryHidden(row.country.id)}
+            onToggle={() => toggleCountryHidden(row.id)}
           />
-          <Emblem flagKey={empireFlagKey(row.country)} color={color} />
+          <Emblem flagKey={empireFlagKey(row.country ?? undefined)} color={color} />
           {territory?.tier === "day_one" && (
             <Chip src title={DAY_ONE_TITLE}>
               day 1
@@ -97,7 +106,7 @@ function EmpireLine({
             glyph="⊙"
             label={`Select and fit the ${row.systemCount} systems of ${row.name}`}
             onClick={() =>
-              void setSelection(systemsOfOwner(systems, row.country.id), "replace").then(() =>
+              void setSelection(systemsOf(ownership.owners, row.id), "replace").then(() =>
                 fitSelection(),
               )
             }
@@ -134,10 +143,11 @@ export function Empires() {
   const special = useGameDataStore((s) => s.special);
   const scenarioOwners = useGameDataStore((s) => s.scenarioOwners);
   const names = useGameDataStore((s) => s.names);
+  const ownership = useOwnership();
   const collapse = useCollapse("empires");
   const groups = useMemo(
-    () => empireGroups(countries, countryTypes, rowLookups(systems, names)),
-    [countries, countryTypes, systems, names],
+    () => empireGroups(countries, countryTypes, rowLookups(systems, names), ownership),
+    [countries, countryTypes, systems, names, ownership],
   );
   const stations = useMemo(() => specialSystemOfCountry(special), [special]);
   const territories = useMemo(
@@ -160,10 +170,11 @@ export function Empires() {
         >
           {group.rows.map((row) => (
             <EmpireLine
-              key={row.country.id}
+              key={row.id}
               row={row}
-              station={stations.get(row.country.id) ?? null}
-              territory={territories.get(row.country.id)}
+              station={stations.get(row.id) ?? null}
+              territory={territories.get(row.id)}
+              ownership={ownership}
             />
           ))}
         </Group>
