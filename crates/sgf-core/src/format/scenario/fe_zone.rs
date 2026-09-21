@@ -8,9 +8,7 @@
 //!
 //! A zone is empty space: at game start the mod creates the fallen empire's home system
 //! at the zone's centre and its other systems around it, so the ring of
-//! [`FE_ZONE_RADIUS`] around the centre must hold no system. [`candidates`] is the
-//! mod's own rule for the zones it places by itself, copied so that the two tools
-//! agree on a map.
+//! [`FE_ZONE_RADIUS`] around the centre must hold no system.
 
 use std::f64::consts::SQRT_2;
 
@@ -18,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::cst::Node;
-use crate::projections::galaxy::Galaxy;
+use crate::projections::galaxy::{Galaxy, SystemNode};
 
 pub(crate) const SET_STAR_FLAG: &str = "set_star_flag";
 const FLAG: &str = "painted_galaxy_fe_spawn";
@@ -33,16 +31,9 @@ pub const FE_ZONE_RADIUS: f64 = 30.0;
 pub const FE_ZONE_DISTANCES: [u16; 18] = [
     30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
 ];
-const DEFAULT_DISTANCE: u16 = 40;
+pub(crate) const DEFAULT_DISTANCE: u16 = 40;
 /// How far apart two centres must stand for both rings to be empty.
 const ZONE_SPACING: f64 = 2.0 * FE_ZONE_RADIUS;
-/// How far from the origin an automatic centre must stand: the mod's core guide plus
-/// the radius.
-const CORE_CLEARANCE: f64 = 100.0 + FE_ZONE_RADIUS;
-/// Where the mod's L-Cluster guide stands and how far an automatic centre keeps from
-/// it: the guide's 70 plus the radius.
-const L_CLUSTER: (f64, f64) = (-420.0, -420.0);
-const L_CLUSTER_CLEARANCE: f64 = 70.0 + FE_ZONE_RADIUS;
 /// How far from the origin, on either axis, a centre may lie.
 pub const FE_ZONE_EXTENT: f64 = 470.0;
 
@@ -253,6 +244,28 @@ pub fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
     (a.0 - b.0).hypot(a.1 - b.1)
 }
 
+/// What keeps the mod from building in the ring around `centre`, the zone that
+/// `anchor` centres: the map's edge, and every other system of `galaxy` standing in
+/// the ring, lowest id first.
+#[derive(Debug)]
+pub struct Obstacles<'a> {
+    pub off_map: bool,
+    pub blockers: Vec<&'a SystemNode>,
+}
+
+pub fn obstacles<'a>(galaxy: &'a Galaxy, anchor: u32, centre: (f64, f64)) -> Obstacles<'a> {
+    let mut blockers: Vec<&SystemNode> = galaxy
+        .systems
+        .values()
+        .filter(|other| other.id != anchor && inside(centre, (other.x, other.y)))
+        .collect();
+    blockers.sort_unstable_by_key(|other| other.id);
+    Obstacles {
+        off_map: is_off_map(centre),
+        blockers,
+    }
+}
+
 /// The zone flagged `kind` and `preferred` whose centre lies nearest `point`, over every
 /// anchor of `anchors`, every direction and every distance the mod accepts: its ring
 /// holds none of `sites`, stands its own width from every centre in `placed` and lies on
@@ -316,171 +329,18 @@ pub struct Site<'a> {
 }
 
 impl Site<'_> {
-    fn position(&self) -> (f64, f64) {
+    pub(crate) fn position(&self) -> (f64, f64) {
         (self.x, self.y)
     }
 
-    fn centre(&self) -> Option<(f64, f64)> {
+    pub(crate) fn centre(&self) -> Option<(f64, f64)> {
         self.zone.map(|zone| centre(self.position(), zone))
     }
 
     /// Whether the zone is the map author's to keep: placed by hand, or one systems
     /// were linked to.
-    fn placed(&self) -> bool {
+    pub(crate) fn placed(&self) -> bool {
         self.zone.is_some_and(|zone| zone.preferred || self.linked)
-    }
-}
-
-/// Every system of `galaxy` as the automatic rule sees it, in file order.
-pub fn sites(galaxy: &Galaxy) -> Vec<Site<'_>> {
-    galaxy
-        .order
-        .iter()
-        .filter_map(|id| galaxy.systems.get(id))
-        .map(|system| Site {
-            id: system.id,
-            x: system.x,
-            y: system.y,
-            zone: system.fe_zone.as_ref(),
-            linked: system.fe_link.custom,
-        })
-        .collect()
-}
-
-/// The zones the mod would place by itself, in system order: for every system that
-/// anchors none, the first direction whose centre at the default distance keeps clear
-/// of the core, the L-Cluster and the map's edge, holds no system in its ring, and
-/// stands its own width from every zone already placed or accepted before it. A system
-/// gets at most one; a system that anchors a zone already is left as it is.
-pub fn candidates(sites: &[Site<'_>]) -> Vec<(u32, FeZone)> {
-    let mut accepted: Vec<(f64, f64)> = sites.iter().filter_map(Site::centre).collect();
-    let mut out = Vec::new();
-    for site in sites.iter().filter(|site| site.zone.is_none()) {
-        let Some(zone) = FeDirection::ALL.into_iter().find_map(|direction| {
-            let zone = automatic(direction);
-            let c = centre(site.position(), &zone);
-            let clear = distance(c, (0.0, 0.0)) >= CORE_CLEARANCE
-                && distance(c, L_CLUSTER) >= L_CLUSTER_CLEARANCE
-                && !is_off_map(c)
-                && !sites.iter().any(|other| inside(c, other.position()))
-                && !accepted.iter().any(|&placed| overlaps(c, placed));
-            clear.then_some(zone)
-        }) else {
-            continue;
-        };
-        accepted.push(centre(site.position(), &zone));
-        out.push((site.id, zone));
-    }
-    out
-}
-
-/// How many zones [`candidates`] would place once the automatic ones are gone: the most
-/// [`fit`] can keep.
-pub fn candidate_count(sites: &[Site<'_>]) -> usize {
-    candidates(&placed_only(sites)).len()
-}
-
-/// The entries of one `SetFeZones` that replace every automatic zone with `count` of
-/// what [`candidates`] places once those zones are gone: `None` for each automatic
-/// zone, then the chosen candidates, an anchor that loses one and gains one being a
-/// single entry. The candidates kept are spread over the map by farthest-point
-/// sampling from the zones the map author placed by hand, or from the edge of the map
-/// when there are none. A placed zone, or one systems were linked to, is not touched.
-pub fn fit(sites: &[Site<'_>], count: usize) -> Vec<(u32, Option<FeZone>)> {
-    let automatic = |site: &Site<'_>| site.zone.is_some() && !site.placed();
-    let kept = placed_only(sites);
-    let mut entries: Vec<(u32, Option<FeZone>)> = sites
-        .iter()
-        .filter(|site| automatic(site))
-        .map(|site| (site.id, None))
-        .collect();
-    for (id, zone) in spread(&kept, candidates(&kept), count) {
-        match entries.iter_mut().find(|(anchor, _)| *anchor == id) {
-            Some(entry) => entry.1 = Some(zone),
-            None => entries.push((id, Some(zone))),
-        }
-    }
-    entries.retain(|(id, zone)| {
-        let current = sites
-            .iter()
-            .find(|site| site.id == *id)
-            .and_then(|site| site.zone);
-        zone.as_ref() != current
-    });
-    entries
-}
-
-fn placed_only<'a>(sites: &[Site<'a>]) -> Vec<Site<'a>> {
-    sites
-        .iter()
-        .map(|site| Site {
-            zone: site.zone.filter(|_| site.placed()),
-            ..*site
-        })
-        .collect()
-}
-
-/// `count` of `candidates`, in their own order, chosen by farthest-point sampling: the
-/// chosen centres start as the placed zones' centres, and each pick is the candidate
-/// whose centre lies farthest from the nearest chosen one, the lower anchor id on a
-/// tie. With no placed zone the first pick is the candidate farthest from the origin.
-fn spread(sites: &[Site<'_>], candidates: Vec<(u32, FeZone)>, count: usize) -> Vec<(u32, FeZone)> {
-    if count >= candidates.len() {
-        return candidates;
-    }
-    let mut chosen: Vec<(f64, f64)> = sites.iter().filter_map(Site::centre).collect();
-    let centre_of = |id: u32, zone: &FeZone| {
-        let site = sites
-            .iter()
-            .find(|site| site.id == id)
-            .expect("a candidate's anchor");
-        centre(site.position(), zone)
-    };
-    let mut remaining: Vec<(u32, (f64, f64))> = candidates
-        .iter()
-        .map(|(id, zone)| (*id, centre_of(*id, zone)))
-        .collect();
-    let mut picked: Vec<u32> = Vec::with_capacity(count);
-    while picked.len() < count {
-        let score = |c: (f64, f64)| {
-            if chosen.is_empty() {
-                return distance(c, (0.0, 0.0));
-            }
-            chosen
-                .iter()
-                .map(|&placed| distance(c, placed))
-                .fold(f64::INFINITY, f64::min)
-        };
-        let mut best: Option<(usize, u32, f64)> = None;
-        for (i, &(id, c)) in remaining.iter().enumerate() {
-            let s = score(c);
-            let better = match best {
-                None => true,
-                Some((_, best_id, best_score)) => {
-                    s > best_score || (s == best_score && id < best_id)
-                }
-            };
-            if better {
-                best = Some((i, id, s));
-            }
-        }
-        let (i, id, _) = best.expect("count is below the candidate count");
-        chosen.push(remaining.swap_remove(i).1);
-        picked.push(id);
-    }
-    candidates
-        .into_iter()
-        .filter(|(id, _)| picked.contains(id))
-        .collect()
-}
-
-fn automatic(direction: FeDirection) -> FeZone {
-    FeZone {
-        direction,
-        kind: FeKind::Random,
-        distance: DEFAULT_DISTANCE,
-        preferred: false,
-        fallback: false,
     }
 }
 

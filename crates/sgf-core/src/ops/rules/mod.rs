@@ -6,7 +6,7 @@
 //! document; both formats' writers start from these decisions and differ only in the
 //! bytes they then splice.
 
-pub(crate) mod fe_zone;
+pub mod fe_zone;
 pub(crate) mod lanes;
 pub(crate) mod nebula;
 pub(crate) mod systems;
