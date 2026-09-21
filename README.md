@@ -104,8 +104,9 @@ started from the New scenario dialog.
 </p>
 
 The inspector shows everything a save holds about a system, or what a
-scenario system will spawn before the game is ever started. The Scripts tab lists the initializer, events and
-effects that reach it, with the file and line each comes from. That list
+scenario system will spawn before the game is ever started. The Scripts
+tab lists the initializer, events and effects that reach it, with the
+file and line each comes from. That list
 is a best guess (see Limitations).
 
 ## Scope
