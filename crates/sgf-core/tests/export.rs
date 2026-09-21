@@ -758,7 +758,7 @@ static_galaxy_scenario = {{
         &text[..400]
     );
 
-    // 17 seats, the player's reserved as Sol: the setup's 13 empires fit under the 15
+    // 17 seats, the player's preferred: the setup's 13 empires fit under the 15
     // seats any empire may take, and its advanced and nomad counts stand as set.
     assert_eq!(capitals.len(), 17, "{capitals:?}");
     assert!(

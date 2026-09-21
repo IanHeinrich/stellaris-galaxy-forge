@@ -332,7 +332,7 @@ fn a_block_of_modifiers_is_neither_written_over_nor_cleared() {
         assert!(matches!(error, OpError::Parse { system: 2, .. }), "{error}");
         assert!(
             error.to_string().contains(
-                "spawn_weight carries modifiers this editor does not rewrite; clear its spawn weight first"
+                "spawn_weight carries modifiers this editor does not rewrite; edit the block by hand"
             ),
             "{error}"
         );
@@ -366,6 +366,13 @@ fn a_scripted_seat_with_a_modifier_beside_it_is_neither_cleared_nor_written_over
     let error = session
         .apply(set(7, script(PaintSpawnKind::Preferred, 1)))
         .expect_err("replace");
+    assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
+    assert_eq!(common::current(&session), text.as_bytes());
+
+    // Taking the base alone would leave `add` and the modifier, a block no op puts back.
+    let error = session
+        .apply(Op::SetSpawnWeight { id: 7, base: None })
+        .expect_err("clear the base");
     assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
     assert_eq!(common::current(&session), text.as_bytes());
 }

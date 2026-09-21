@@ -116,8 +116,8 @@ pub(super) fn set_scripts(
     })
 }
 
-/// What to call a weight change, the entry that puts the base back and the script the
-/// block was, which only a script puts back.
+/// What to call a weight change, the entry that puts the base back and, when the whole
+/// block went with it, the script that block was, which only a script puts back.
 type WeightWritten = (String, (u32, Option<f64>), Option<SpawnScript>);
 
 /// Write one system's spawn weight. A weight that is script is not a number to set:
@@ -136,9 +136,18 @@ fn write_weight(
         return Err(OpError::ScriptedSpawn(id));
     }
     let previous = system.spawn_weight;
-    let script = system.spawn_script.clone();
+    let mut removed_block = false;
     let edit = plan.edit(&s.doc, id)?;
-    match (base, block(edit)?) {
+    let standing = block(edit)?;
+    // A script's base is not a number to set, and a script beside modifiers is only
+    // ever a hand edit: taking its base would leave a block no op can put back.
+    if let Some(block) = &standing
+        && base.is_none()
+        && system.spawn_script.is_some()
+    {
+        refuse_modifiers(edit, block)?;
+    }
+    match (base, standing) {
         (Some(base), Some(block)) => match block.base {
             Some(_) => edit.set_value(&[keys::SPAWN_WEIGHT, keys::BASE], coord(base))?,
             None => insert_first(edit, &block, &format!("{} = {}", keys::BASE, coord(base))),
@@ -154,7 +163,10 @@ fn write_weight(
         )?,
         // A block of modifiers alone states no base, so there is nothing to clear.
         (None, Some(block)) => match block.base {
-            Some(_) if block.modifiers.is_empty() => edit.remove_statement(block.statement),
+            Some(_) if block.modifiers.is_empty() => {
+                edit.remove_statement(block.statement);
+                removed_block = true;
+            }
             Some(span) => edit.remove_statement(span),
             None => {}
         },
@@ -164,6 +176,7 @@ fn write_weight(
         Some(base) => format!("Set system {id} spawn weight to {}", coord(base)),
         None => format!("Cleared system {id} spawn weight"),
     };
+    let script = removed_block.then(|| system.spawn_script.clone()).flatten();
     Ok((description, (id, previous), script))
 }
 
@@ -190,13 +203,8 @@ fn write_script(
         .clone();
     let edit = plan.edit(&s.doc, id)?;
     let standing = block(edit)?;
-    if let Some(block) = &standing
-        && let Some(&modifier) = block.modifiers.first()
-    {
-        return Err(edit.parse_error(
-            modifier.start,
-            "spawn_weight carries modifiers this editor does not rewrite; clear its spawn weight first",
-        ));
+    if let Some(block) = &standing {
+        refuse_modifiers(edit, block)?;
     }
     match (script, standing) {
         (Some(script), standing) => {
@@ -215,6 +223,18 @@ fn write_script(
         (None, None) => {}
     }
     Ok((paint::description(id, script), (id, previous)))
+}
+
+/// A `modifier` block is script this editor keeps byte for byte, so nothing rewrites
+/// the statement around one.
+fn refuse_modifiers(edit: &Edit, block: &Block) -> Result<(), OpError> {
+    match block.modifiers.first() {
+        Some(&modifier) => Err(edit.parse_error(
+            modifier.start,
+            "spawn_weight carries modifiers this editor does not rewrite; edit the block by hand",
+        )),
+        None => Ok(()),
+    }
 }
 
 /// The `spawn_weight` block of the statement being edited, as spans: the CST borrows the

@@ -38,7 +38,7 @@ fallen_empire_zones: number,
  */
 fallen_empires: Array<FallenEmpireReport>, 
 /**
- * The player's capital, written as the Sol seat; `None` for the plain profile or
+ * The player's capital, written as the preferred seat; `None` for the plain profile or
  * a save with no player.
  */
 player_seat: number | null, 
