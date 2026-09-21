@@ -123,6 +123,7 @@ export class OwnersLayer implements MapLayer {
   private fadeTarget = 1;
   private fading = false;
   private shown = true;
+  private clansShown = true;
   /** Bumped with every reset so a reply to an earlier galaxy is told apart and dropped. */
   private epoch = 0;
   private destroyed = false;
@@ -157,6 +158,7 @@ export class OwnersLayer implements MapLayer {
     if (ctx.table !== prev.table || ctx.special !== prev.special) {
       for (const [id, shape] of this.shapes) this.placeEmblem(id, shape);
     }
+    if (ctx.table === prev.table && ctx.countryTypes !== prev.countryTypes) this.refreshEmphasis();
     if (ctx.hiddenCountries !== prev.hiddenCountries) this.refreshHidden();
   }
 
@@ -188,9 +190,15 @@ export class OwnersLayer implements MapLayer {
     if (this.shown) this.fadeTowards(labelTier(cam.scale) === "none" ? 1 : 0);
   }
 
-  /** The territories go with the layer; the emphasis of the kinds shown as points of interest stays. */
+  /** The countries' territories go with the layer; the emphasis of the kinds shown as points of interest stays. */
   setVisible(v: boolean): void {
     this.shown = v;
+    this.applyVisibility();
+  }
+
+  /** The clans' territories go with the marauder clans layer, whatever this one is set to. */
+  setClansShown(v: boolean): void {
+    this.clansShown = v;
     this.applyVisibility();
   }
 
@@ -208,9 +216,10 @@ export class OwnersLayer implements MapLayer {
   }
 
   private applyVisibility(): void {
-    this.territories.visible = this.shown;
+    this.territories.visible = this.shown || this.clansShown;
     this.badges.visible = this.shown && this.fade > 0;
-    this.container.visible = this.shown || this.emphasised.size > 0;
+    this.container.visible = this.shown || this.clansShown || this.emphasised.size > 0;
+    this.refreshHidden();
   }
 
   private params(): TerritoryParams {
@@ -298,11 +307,16 @@ export class OwnersLayer implements MapLayer {
   }
 
   private applyHidden(id: number, shape: CountryShape): void {
-    const shown = !this.ctx.hiddenCountries.has(id);
-    shape.fill.visible = shown;
-    shape.edge.visible = shown;
-    shape.emphasis.visible = shown;
-    shape.badge.visible = shown && this.badged(id, shape);
+    const listed = !this.ctx.hiddenCountries.has(id);
+    const painted = listed && (this.isClan(id) ? this.clansShown : this.shown);
+    shape.fill.visible = painted;
+    shape.edge.visible = painted;
+    shape.emphasis.visible = listed;
+    shape.badge.visible = listed && this.badged(id, shape);
+  }
+
+  private isClan(id: number): boolean {
+    return this.ctx.table.get(id)?.kind === "marauder_clan";
   }
 
   /** Only a country's territory carries its emblem and name; a clan's has neither. */

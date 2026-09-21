@@ -102,7 +102,7 @@ export interface RenderContext {
   readonly coloniesShown: boolean;
   /**
    * Systems that draw as unowned: the ones a day-one script claimed while those claims are
-   * hidden, and a scenario's marauder clans while the marauders layer is off.
+   * hidden. A clan's system stays the clan's whatever a day-one event claims it for.
    */
   readonly hiddenOwners: ReadonlySet<number>;
   readonly specialWithGameData: boolean;
@@ -226,20 +226,19 @@ function clansIn(ownership: Ownership): ReadonlySet<number> {
 }
 
 let hiddenFrom: readonly [ReadonlySet<number>, ReadonlySet<number>] = [NO_OWNERS, NO_OWNERS];
-let hiddenUnion: ReadonlySet<number> = NO_OWNERS;
+let hiddenClaims: ReadonlySet<number> = NO_OWNERS;
 
-/** The hidden claims and the hidden clans together, as one instance per pair. */
+/** The hidden claims less the clans' systems, as one instance per pair. */
 function hiddenOwnersIn(
   claimed: ReadonlySet<number>,
   clans: ReadonlySet<number>,
 ): ReadonlySet<number> {
   if (claimed !== hiddenFrom[0] || clans !== hiddenFrom[1]) {
     hiddenFrom = [claimed, clans];
-    if (claimed.size === 0) hiddenUnion = clans;
-    else if (clans.size === 0) hiddenUnion = claimed;
-    else hiddenUnion = new Set([...claimed, ...clans]);
+    if (claimed.size === 0 || clans.size === 0) hiddenClaims = claimed;
+    else hiddenClaims = new Set([...claimed].filter((id) => !clans.has(id)));
   }
-  return hiddenUnion;
+  return hiddenClaims;
 }
 
 export const EMPTY_CONTEXT: RenderContext = Object.freeze({
@@ -343,7 +342,7 @@ export function renderContext(): RenderContext {
     coloniesShown: chrome.layers.colonies,
     hiddenOwners: hiddenOwnersIn(
       kind === "scenario" && !chrome.layers.claims ? claimedIn(data.scenarioOwners) : NO_OWNERS,
-      chrome.layers.marauders ? NO_OWNERS : clansIn(ownership),
+      clansIn(ownership),
     ),
     specialWithGameData: data.specialWithGameData,
     border: data.summary?.border ?? VANILLA_BORDER,

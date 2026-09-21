@@ -55,7 +55,9 @@ export function clanLabel(clan: number): string {
  * Who owns what, from every source at once. A save's owners are its countries, one entry
  * per country the game paints borders for. A scenario's are the owners its scripts stamp,
  * overlaid by the structure the text itself carries: each marauder clan, a home and the raid
- * bases hyperlaned to it, becomes one synthetic owner.
+ * bases hyperlaned to it, becomes one synthetic owner. A scripted marauder country whose
+ * every system is a clan's leaves the table; one holding any other system keeps its entry,
+ * so that system still paints and the country still has an Empires row.
  */
 export function composeOwnership(input: OwnershipInput): Ownership {
   const { kind, systems, countries, countryTypes, mapColors, countryName } = input;
@@ -75,13 +77,13 @@ export function composeOwnership(input: OwnershipInput): Ownership {
     });
   }
   if (kind !== "scenario") return { owners, table };
+  const scriptedClans = new Set<number>();
   for (const home of systems.values()) {
     if (!isHome(home) || home.marauder === null) continue;
     const clan = clanOf(home.marauder);
     const id = clanOwnerId(clan);
     for (const s of [home, ...basesBeside(home, systems)]) {
-      // The scripted marauder country holding a clan's system is that clan read from the scripts.
-      if (s.owner !== null && isMarauder(countries.get(s.owner))) table.delete(s.owner);
+      if (s.owner !== null && isMarauder(countries.get(s.owner))) scriptedClans.add(s.owner);
       owners.set(s.id, id);
     }
     table.set(id, {
@@ -91,6 +93,11 @@ export function composeOwnership(input: OwnershipInput): Ownership {
       kind: "marauder_clan",
       home: home.id,
     });
+  }
+  // A scripted marauder country holding only clan systems is those clans read from the scripts.
+  for (const scripted of scriptedClans) {
+    const elsewhere = [...owners.values()].some((owner) => owner === scripted);
+    if (!elsewhere) table.delete(scripted);
   }
   return { owners, table };
 }

@@ -223,6 +223,7 @@ function applyLayerVisibility(view: MapView, layers: Record<LayerId, boolean>): 
   for (const layer of view.layers) {
     layer.setVisible(layerShown(layer.id, layers, kind));
     layer.setDetailsShown?.(layers.details ?? true);
+    layer.setClansShown?.(layers.marauders ?? true);
   }
   view.invalidate();
 }

@@ -275,13 +275,6 @@ export function centralOwnedSystem(systems: Systems, ownerId: number): number | 
   return nearest.id;
 }
 
-/** Every system id owned by `ownerId`. */
-export function systemsOfOwner(systems: Systems, ownerId: number): number[] {
-  const ids: number[] = [];
-  for (const s of systems.values()) if (s.owner === ownerId) ids.push(s.id);
-  return ids;
-}
-
 /** How many distinct lanes touching one of `ids` the core marked stale. */
 export function staleLaneCount(systems: Systems, ids: number[]): number {
   const seen = new Set<string>();

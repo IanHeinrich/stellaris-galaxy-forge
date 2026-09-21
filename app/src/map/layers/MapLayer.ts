@@ -40,6 +40,8 @@ export interface MapLayer {
   setPinned?(ids: readonly number[]): void;
   /** Whether the details layer is drawing its own row of icons under every system. */
   setDetailsShown?(shown: boolean): void;
+  /** Whether the marauder clans layer is on, for a layer that paints the clans' territories. */
+  setClansShown?(shown: boolean): void;
   destroy(): void;
 }
 

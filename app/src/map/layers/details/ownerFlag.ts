@@ -26,8 +26,9 @@ export function ownerFlag(
   right: number,
   y: RowY,
 ): void {
-  const { countries, countryName, hiddenOwners } = ctx;
-  const owner = emblemOwner(d, hiddenOwners.has(s.id) ? null : s.owner, countries);
+  const { countries, owners, table, countryName, hiddenOwners } = ctx;
+  const systemOwner = hiddenOwners.has(s.id) ? null : (owners.get(s.id) ?? null);
+  const owner = emblemOwner(d, systemOwner, countries);
   if (owner === null) return;
   const key = empireFlagKey(countries.get(owner));
   const texture = key ? tex.texture(key) : null;
@@ -43,7 +44,7 @@ export function ownerFlag(
   const cx = right - ICON_PX / 2;
   const cy = y.icon + ICON_PX / 2;
   row.sprite(texture, cx - EMBLEM_PX / 2, cy - EMBLEM_PX / 2, EMBLEM_PX, {
-    title: countryName(owner),
+    title: table.get(owner)?.label ?? countryName(owner),
     lines,
   });
   if (capital) capitalRim(row.marks, cx, cy);

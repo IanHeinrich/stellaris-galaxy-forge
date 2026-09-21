@@ -5,6 +5,7 @@ import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { Issue } from "../generated/Issue";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { SpecialSystem } from "../generated/SpecialSystem";
+import { systemNode } from "../test/builders";
 import { composeOwnership } from "./ownership";
 import {
   empireGroups,
@@ -83,6 +84,10 @@ const COUNTRIES = new Map(
   ].map((c) => [c.id, c]),
 );
 
+function lane(to: number) {
+  return { to, length: 10, bridge: false, stale: false };
+}
+
 function countryRef(id: number): CountryRef {
   return { id, name_key: `NAME_${id}`, name: null, country_type: "default", icon: null };
 }
@@ -133,6 +138,33 @@ describe("the Empires tab", () => {
 
   it("keeps file order as the index the owners palette follows", () => {
     expect(byKey.get("empire")?.rows.map((r) => r.index)).toEqual([1, 0]);
+  });
+
+  it("lists a scenario's marauder clan under the marauders, at its home, with no country", () => {
+    const home = { ...systemNode({ id: 1, marauder: { home: 1 } }), lanes: [lane(2)] };
+    const base = { ...systemNode({ id: 2, marauder: { base: 1 } }), lanes: [lane(1)] };
+    const clans = composeOwnership({
+      kind: "scenario",
+      systems: new Map([
+        [1, home],
+        [2, base],
+      ]),
+      countries: COUNTRIES,
+      countryTypes: TYPES,
+      mapColors: new Map(),
+      countryName: LOOKUPS.countryName,
+    });
+    const rows = empireGroups(COUNTRIES, TYPES, LOOKUPS, clans);
+    const marauders = rows.find((g) => g.key === "marauder")!;
+    expect(marauders.rows).toHaveLength(1);
+    expect(marauders.rows[0]).toMatchObject({
+      id: -1,
+      country: null,
+      name: "Marauder clan 1",
+      systemCount: 2,
+      capital: 1,
+      subline: "Alpha Centauri · 2 systems",
+    });
   });
 
   it("specialSystemOfCountry takes the first system a country appears in", () => {

@@ -137,6 +137,19 @@ describe("composeOwnership", () => {
     expect(ownerTerritoryKind(table.get(-1), NO_TYPES)).toBe("marauder");
   });
 
+  it("keeps a scripted marauder country that holds a system of no clan, for that system", () => {
+    const { owners, table } = composeOwnership(
+      input({
+        kind: "scenario",
+        systems: byId(system(1, 9, { home: 1 }, 2), system(2, 9, { base: 1 }, 1), system(3, 9)),
+        countries: new Map([[9, SCRIPTED_CLAN]]),
+      }),
+    );
+    expect([...table.keys()]).toEqual([9, -1]);
+    expect(systemsOf(owners, -1)).toEqual([1, 2]);
+    expect(systemsOf(owners, 9)).toEqual([3]);
+  });
+
   it("keeps a second clan apart from the first, and a base of no home out of both", () => {
     const { owners, table } = composeOwnership(
       input({
