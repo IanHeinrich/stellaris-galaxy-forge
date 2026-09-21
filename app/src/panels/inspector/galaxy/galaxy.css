@@ -45,3 +45,30 @@
 .ins-setup-cell.raw.wide {
   grid-column: span 2;
 }
+
+.ins-setup-note {
+  grid-column: 1 / -1;
+}
+
+.ins-shapes {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ins-shapes .k {
+  flex: 0 0 auto;
+  color: var(--fg-muted);
+}
+
+.ins-shape-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ins-shape {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

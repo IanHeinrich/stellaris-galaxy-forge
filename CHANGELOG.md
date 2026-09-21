@@ -38,7 +38,8 @@ a release is made.
   chooses how many automatic zones to place, spread across the map.
   A zone's own warnings show in its inspector section.
 - A Game setup section in the galaxy inspector edits a scenario's empire,
-  wormhole, gateway and hyperlane counts as min, max and default fields.
+  wormhole, gateway and hyperlane counts as min, max and default fields,
+  and which galaxy shapes the map is listed under.
   "Update counts" sizes the fallen empire counts from the zones as well
   as the AI empire counts from the seats, and Issues says when the header
   allows more fallen empires than there are zones.

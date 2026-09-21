@@ -437,8 +437,12 @@ the empire's home. The counts the new-game screen reads (AI empires,
 advanced starts, fallen, marauder and nomad empires, wormhole pairs,
 gateways and hyperlane density) are edited as min, max and default fields
 in the Game setup section, with a note when a default falls outside its
-range. The rest of the header is listed and edited key by key, and a pair
-of systems can be barred from ever being linked.
+range. Under the wormhole and gateway rows, an "Also from scripts" line
+says what the loaded game data's day-one events add on top. A "Listed
+under shapes" row ticks the galaxy shapes the new-game screen offers the
+map under, from the loaded game data's shapes plus any the file names
+that it lacks. The rest of the header is listed and edited key by key,
+and a pair of systems can be barred from ever being linked.
 
 In a scenario whose Paint a Galaxy layer is on, a spawn point is a seat
 the mod fills by kind, so the inspector offers the kind from a select

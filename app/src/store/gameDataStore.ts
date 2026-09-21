@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { onGameDataChanged, onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
+import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataChanged } from "../generated/GameDataChanged";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
@@ -70,6 +71,9 @@ export interface GameDataState {
   initializerClasses: ReadonlyMap<string, string>;
   /** True while that first read is in flight, so it happens once. */
   initializersPending: boolean;
+  /** Every galaxy shape a scenario can list itself under, read on first use; `null` until then. */
+  galaxyShapes: GalaxyShapeView[] | null;
+  galaxyShapesPending: boolean;
   autoLoad: AutoLoad;
   startup: Startup;
   /** The load `start` kicked off, the one the start screen covers. */
@@ -104,6 +108,8 @@ export interface GameDataState {
   resumeAutoReload(): Promise<void>;
   /** Reads the initializers once per loaded game data; a no-op without it. */
   loadInitializers(): Promise<void>;
+  /** Reads the galaxy shapes once per loaded game data; a no-op without it. */
+  loadGalaxyShapes(): Promise<void>;
   /** Re-classifies the open save's systems; a no-op without an open save, or once `alive` says no. */
   refreshSpecial(alive?: () => boolean): Promise<void>;
   /** Re-reads the scenario's scripted ownership and bypasses; a no-op without a document. */
@@ -145,6 +151,8 @@ const UNLOADED = {
   initializers: null as InitializerView[] | null,
   initializerClasses: NO_CLASSES,
   initializersPending: false,
+  galaxyShapes: null as GalaxyShapeView[] | null,
+  galaxyShapesPending: false,
   scenarioOwners: null as ScenarioOwners | null,
   scenarioOwnersPending: false,
   scenarioBypasses: null as ScenarioBypasses | null,
@@ -248,6 +256,8 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
         initializers: null,
         initializerClasses: NO_CLASSES,
         initializersPending: false,
+        galaxyShapes: null,
+        galaxyShapesPending: false,
         version: summary.generation,
         watching: summary.watch.watching,
         autoReloadPaused: summary.watch.paused,
@@ -336,6 +346,19 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
       }
     } catch (e) {
       set({ error: ipc.errorMessage(e), initializersPending: false });
+    }
+  },
+
+  async loadGalaxyShapes() {
+    if (get().status !== "ready" || get().galaxyShapes !== null || get().galaxyShapesPending)
+      return;
+    set({ galaxyShapesPending: true });
+    try {
+      const galaxyShapes = await ipc.getGalaxyShapes();
+      set({ galaxyShapesPending: false });
+      if (get().status === "ready") set({ galaxyShapes });
+    } catch (e) {
+      set({ error: ipc.errorMessage(e), galaxyShapesPending: false });
     }
   },
 
@@ -531,6 +554,8 @@ async function gameDataChanged(changed: GameDataChanged): Promise<void> {
         initializers: null,
         initializerClasses: NO_CLASSES,
         initializersPending: false,
+        galaxyShapes: null,
+        galaxyShapesPending: false,
       });
     }
     useDetailsStore.getState().clear();

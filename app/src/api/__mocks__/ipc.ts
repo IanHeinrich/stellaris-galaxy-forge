@@ -56,6 +56,7 @@ export const getStarClasses = command("getStarClasses");
 export const getDeposits = command("getDeposits");
 export const getBypasses = command("getBypasses");
 export const getInitializers = command("getInitializers");
+export const getGalaxyShapes = command("getGalaxyShapes");
 export const getMapColors = command("getMapColors");
 export const getPlanetClasses = command("getPlanetClasses");
 export const getStarbaseLevels = command("getStarbaseLevels");

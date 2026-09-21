@@ -1,3 +1,4 @@
+import type { GalaxyShapeView } from "../../../generated/GalaxyShapeView";
 import type { HeaderField } from "../../../generated/HeaderField";
 import type { Op } from "../../../generated/Op";
 import { setHeaderField } from "./header";
@@ -8,6 +9,18 @@ export const RAW_CELL_TITLE = "Edit this key in Scenario header below";
 /** What clearing a cell does, shown on hover: the raw list no longer holds the key's remove control. */
 export const CLEAR_KEY_TITLE = "Clear to drop the key";
 export const CLEAR_RANGE_TITLE = "Clear to drop the whole range";
+
+/** The key the new-game screen reads to find which shapes list the map. */
+export const SHAPES_KEY = "supports_shape";
+export const SHAPES_LABEL = "Listed under shapes";
+export const SHAPES_TITLE =
+  "The new-game screen offers this map under the shapes ticked here. Elliptical is the safe choice, and the Paint a Galaxy mod asks for a vanilla shape.";
+export const NO_SHAPES_HINT = "No shapes ticked: the map is offered nowhere.";
+export const LOAD_SHAPES_HINT = "Load game data to see every shape.";
+export const UNKNOWN_SHAPE_SUFFIX = " (not in loaded game data)";
+export const SCRIPTS_LINE_PREFIX = "Also from scripts: ";
+export const SCRIPTS_LINE_TITLE =
+  "What the loaded game data's day-one events add wherever they like. Read from the scripts, not editable here.";
 
 /** One row of the grid: the label the new-game screen uses, and the header keys it reads. */
 export type SetupRow = {
@@ -138,9 +151,46 @@ export function setupViews(header: readonly HeaderField[]): SetupView[] {
   });
 }
 
-/** The keys the grid edits as numbers, which the raw list leaves out. */
+/** One shape the row offers: ticked while the header lists it, known while the game data has it. */
+export type ShapeChoice = { name: string; ticked: boolean; known: boolean };
+
+/** Every shape the header lists, as written, once each in file order. */
+export function listedShapes(header: readonly HeaderField[]): string[] {
+  const names = header.filter((field) => field.key === SHAPES_KEY).map((field) => field.value);
+  return [...new Set(names)];
+}
+
+/**
+ * The game data's shapes in its order, then any the header lists that it lacks; the header's
+ * own names alone while no game data is loaded.
+ */
+export function shapeChoices(
+  header: readonly HeaderField[],
+  shapes: readonly GalaxyShapeView[] | null,
+): ShapeChoice[] {
+  const listed = listedShapes(header);
+  if (shapes === null) return listed.map((name) => ({ name, ticked: true, known: true }));
+  const known = shapes.map((shape) => shape.name);
+  return [
+    ...known.map((name) => ({ name, ticked: listed.includes(name), known: true })),
+    ...listed
+      .filter((name) => !known.includes(name))
+      .map((name) => ({ name, ticked: true, known: false })),
+  ];
+}
+
+/** Ticks or unticks `name`: the op rewrites every statement with the shapes left, in candidate order. */
+export function toggleShape(choices: readonly ShapeChoice[], name: string): Op {
+  const values = choices
+    .filter((choice) => (choice.name === name ? !choice.ticked : choice.ticked))
+    .map((choice) => choice.name);
+  return { type: "SetHeaderList", key: SHAPES_KEY, values };
+}
+
+/** The keys the grid edits as numbers and the shapes row ticks, which the raw list leaves out. */
 export function handledKeys(header: readonly HeaderField[]): Set<string> {
   const keys = new Set<string>();
+  if (header.some((field) => field.key === SHAPES_KEY)) keys.add(SHAPES_KEY);
   for (const view of setupViews(header)) {
     if (view.range?.kind === "bounds" && view.row.range !== undefined) keys.add(view.row.range);
     if (view.max?.kind === "number" && view.row.max !== undefined) keys.add(view.row.max);

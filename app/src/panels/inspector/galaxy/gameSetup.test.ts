@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { HeaderField } from "../../../generated/HeaderField";
-import { formatRange, handledKeys, parseRange, setBound, setScalar, setupViews } from "./gameSetup";
+import {
+  formatRange,
+  handledKeys,
+  listedShapes,
+  parseRange,
+  setBound,
+  setScalar,
+  setupViews,
+  shapeChoices,
+  toggleShape,
+} from "./gameSetup";
 
 const header = (...entries: Array<[string, string]>): HeaderField[] =>
   entries.map(([key, value], i) => ({ key, value, line: i + 1 }));
@@ -92,7 +102,7 @@ describe("setupViews", () => {
 });
 
 describe("handledKeys", () => {
-  it("names the keys read as numbers, so the raw list keeps the rest", () => {
+  it("names the keys read as numbers and the shapes, so the raw list keeps the rest", () => {
     const fields = header(
       ["name", '"My Galaxy"'],
       ["num_empires", "{ min = 0 max = 3 }"],
@@ -100,6 +110,65 @@ describe("handledKeys", () => {
       ["extra_crisis_strength", "{ 10 25 }"],
     );
     expect([...handledKeys(fields)]).toEqual(["num_empires"]);
+    expect([...handledKeys([...fields, ...header(["supports_shape", "ring"])])]).toEqual([
+      "supports_shape",
+      "num_empires",
+    ]);
+  });
+});
+
+describe("the shapes row", () => {
+  const shape = (name: string) => ({ name, source: `C:/Stellaris/map/galaxy/${name}.txt` });
+  const SHAPES = [shape("elliptical"), shape("ring"), shape("spiral_2")];
+  const fields = header(
+    ["name", '"My Galaxy"'],
+    ["supports_shape", "ring"],
+    ["supports_shape", "paint_custom"],
+    ["supports_shape", "ring"],
+  );
+
+  it("reads the ticked set from every statement of the header, as written and once each", () => {
+    expect(listedShapes(fields)).toEqual(["ring", "paint_custom"]);
+    expect(listedShapes(header(["name", '"My Galaxy"']))).toEqual([]);
+  });
+
+  it("offers the game data's shapes in its order, then the header's own unknown ones", () => {
+    expect(shapeChoices(fields, SHAPES)).toEqual([
+      { name: "elliptical", ticked: false, known: true },
+      { name: "ring", ticked: true, known: true },
+      { name: "spiral_2", ticked: false, known: true },
+      { name: "paint_custom", ticked: true, known: false },
+    ]);
+  });
+
+  it("offers only the header's own names without game data", () => {
+    expect(shapeChoices(fields, null)).toEqual([
+      { name: "ring", ticked: true, known: true },
+      { name: "paint_custom", ticked: true, known: true },
+    ]);
+    expect(shapeChoices(fields, [])).toEqual([
+      { name: "ring", ticked: true, known: false },
+      { name: "paint_custom", ticked: true, known: false },
+    ]);
+  });
+
+  it("writes the shapes left after a toggle, in candidate order, as one list", () => {
+    const choices = shapeChoices(fields, SHAPES);
+    expect(toggleShape(choices, "elliptical")).toEqual({
+      type: "SetHeaderList",
+      key: "supports_shape",
+      values: ["elliptical", "ring", "paint_custom"],
+    });
+    expect(toggleShape(choices, "paint_custom")).toMatchObject({ values: ["ring"] });
+  });
+
+  it("writes an empty list when the last shape is unticked", () => {
+    const choices = shapeChoices(header(["supports_shape", "ring"]), SHAPES);
+    expect(toggleShape(choices, "ring")).toEqual({
+      type: "SetHeaderList",
+      key: "supports_shape",
+      values: [],
+    });
   });
 });
 

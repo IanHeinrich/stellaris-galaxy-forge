@@ -7,6 +7,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { BypassView } from "../generated/BypassView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DepositView } from "../generated/DepositView";
+import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
 import type { MapColor } from "../generated/MapColor";
@@ -111,6 +112,11 @@ export function getBypasses(): Promise<BypassView[]> {
 /** Every solar system initializer of the loaded game data; empty without it. */
 export function getInitializers(): Promise<InitializerView[]> {
   return invoke<InitializerView[]>("get_initializers");
+}
+
+/** Every galaxy shape a scenario can list itself under, in the loaded game data's order; empty without it. */
+export function getGalaxyShapes(): Promise<GalaxyShapeView[]> {
+  return invoke<GalaxyShapeView[]>("get_galaxy_shapes");
 }
 
 /** Every named map colour of the loaded game data; empty without it. */

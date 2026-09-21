@@ -194,7 +194,6 @@ export function GalaxyView() {
             </PropertyRow>
           )}
         </Properties>
-        {random && <div className="muted ins-hint">{random}</div>}
       </Section>
       {kind === "scenario" && (
         <>
@@ -202,6 +201,7 @@ export function GalaxyView() {
             header={header}
             paint={paint}
             seatsLine={seatsLine}
+            scriptsLine={random}
             countsIssue={countsIssue}
           />
           <HeaderSection header={header} paint={paint} />
