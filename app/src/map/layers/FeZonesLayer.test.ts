@@ -6,6 +6,7 @@ import { newFeZone } from "../../lib/feZone";
 import { GHOST_ALPHA } from "../../lib/visual/style";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { AUTOMATIC_NOTE, FeZonesLayer } from "./FeZonesLayer";
+import { laneStyleAt, tinted } from "./LanesLayer";
 import { childByLabel, drawOps, mapContext, mapNode, viewport } from "./fixture";
 
 /** An anchor at `x` whose ring lies east at 40: centred at (x - 40, 0) unless `over` says otherwise. */
@@ -183,23 +184,16 @@ describe("the fallen empire zones layer", () => {
     });
   });
 
-  it("draws a faint dashed line from each linked system to the nearest point of its zone's ring", () => {
+  it("draws a lane from each linked system to the nearest point of its zone's ring, in the lanes' look tinted pink", () => {
     // S2 stands at the ring's centre, which the core never allows, so it gets no line.
     const layer = drawn([taking(2, ZONED), linked(PLAIN, 2), linked(mapNode(2, -40, "S2"), 2)]);
     const links = linksAt(layer, -40)!;
     const ops = drawOps(links);
-    expect(ops.map((op) => [op.action, op.color, op.alpha])).toEqual([["stroke", 0xf0abfc, 0.3]]);
+    expect(ops.map((op) => [op.action, op.color, op.alpha])).toEqual([
+      ["stroke", tinted(laneStyleAt(1), 0xf0abfc, 0.35).color, 0.85],
+    ]);
     const segments = dashes(links);
-    expect(segments[0].slice(0, 2)).toEqual([30, 0]);
-    const last = segments[segments.length - 1];
-    expect(last[2]).toBeCloseTo(240);
-    expect(last[3]).toBe(0);
-    expect(segments.length).toBeGreaterThan(20);
-    for (const [ax, ay, bx, by] of segments) {
-      expect(ay).toBe(0);
-      expect(by).toBe(0);
-      expect(bx).toBeGreaterThan(ax);
-    }
+    expect(segments).toEqual([[30, 0, 240, 0]]);
     expect(links.alpha).toBe(1);
   });
 

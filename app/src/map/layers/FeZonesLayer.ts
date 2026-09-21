@@ -10,6 +10,7 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { MoveGhost } from "../moveGhosts";
 import { FE_ZONE_RING_HIT_PX } from "../picking/zones";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { laneStyleAt, tinted } from "./LanesLayer";
 import type { DragState, MapLayer } from "./MapLayer";
 
 /** The zones' hue: a magenta no other layer uses, so a ring reads as the mod's, not the game's. */
@@ -49,10 +50,8 @@ class RingBand {
 
 /** How much of each dash step is drawn, on the ring and on the lines to its linked systems. */
 const DASH_FRACTION = 0.6;
-/** The lines to a zone's linked systems: the lanes the mod will lay, faint until it does. */
-const LINK = { color: RING.color, alpha: 0.3 };
-/** One dash step along a link, in screen pixels, so the dashes read the same at every zoom. */
-const LINK_DASH_PX = 10;
+/** How far the lanes to a zone's linked systems lean from the lanes' own hue toward the ring's. */
+const LINK_TINT = 0.35;
 
 function dashedRing(g: Graphics): void {
   const step = (Math.PI * 2) / DASHES;
@@ -68,41 +67,24 @@ function dashedRing(g: Graphics): void {
   }
 }
 
-/** A dashed straight from `from` to `to`, both about the graphics' origin; the last dash reaches `to`. */
-function dashedLine(
-  g: Graphics,
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  step: number,
-): void {
-  const length = Math.hypot(to.x - from.x, to.y - from.y);
-  if (length === 0) return;
-  const ux = (to.x - from.x) / length;
-  const uy = (to.y - from.y) / length;
-  for (let at = 0; at < length; at += step) {
-    const last = at + step >= length;
-    const end = last ? length : at + step * DASH_FRACTION;
-    g.moveTo(from.x + ux * at, from.y + uy * at).lineTo(from.x + ux * end, from.y + uy * end);
-  }
-}
-
 /**
- * The lines from each linked system to the nearest point of the ring, drawn about the centre. A
- * system inside the ring gets none: the core refuses a ring over a system.
+ * The lanes the mod will lay from each linked system to the ring, in the lanes' own look with a
+ * hint of the ring's colour, drawn about the centre. A system inside the ring gets none: the core
+ * refuses a ring over a system.
  */
 function drawLinks(
   g: Graphics,
   linked: ReadonlyArray<{ x: number; y: number }>,
-  step: number,
+  camScale: number,
 ): void {
   g.clear();
   for (const at of linked) {
     const d = Math.hypot(at.x, at.y);
     if (d <= FE_ZONE_RADIUS) continue;
     const t = FE_ZONE_RADIUS / d;
-    dashedLine(g, { x: at.x * t, y: at.y * t }, at, step);
+    g.moveTo(at.x * t, at.y * t).lineTo(at.x, at.y);
   }
-  g.stroke({ ...LINK, pixelLine: true });
+  g.stroke({ ...tinted(laneStyleAt(camScale), RING.color, LINK_TINT), pixelLine: true });
 }
 
 /** The ring and the line back to the anchor, drawn about the centre. */
@@ -355,7 +337,7 @@ export class FeZonesLayer implements MapLayer {
       const at = this.ghosts.get(s.id) ?? s;
       return { x: at.x - centre.x, y: at.y - centre.y };
     });
-    drawLinks(g, ends, LINK_DASH_PX / this.camScale);
+    drawLinks(g, ends, this.camScale);
     g.position.set(centre.x, centre.y);
     g.alpha = alpha;
     this.linkedIds.set(
