@@ -13,6 +13,7 @@ import { RECENT_HITS, useEditorStore } from "./editorStore";
 import { useDetailsStore } from "./detailsStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useInspectorStore } from "./inspectorStore";
+import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useGalaxyStore } from "./galaxyStore";
 import {
@@ -138,7 +139,7 @@ describe("editing", () => {
     expect(editor().history.undo).toHaveLength(1);
     const session = useFileSessionStore.getState();
     expect(session.dirty).toBe(true);
-    expect(session.issues).toEqual(result.issues);
+    expect(useIssuesStore.getState().issues).toEqual(result.issues);
     expect(session.error).toBeNull();
 
     expect(mocked.getSystem).toHaveBeenCalledTimes(1);

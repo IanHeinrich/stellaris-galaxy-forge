@@ -11,8 +11,9 @@ import {
 } from "../../../../../lib/feZone";
 import { useSystemName, useSystemNames } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
-import { useFileSessionStore, usePaintLayer } from "../../../../../store/fileSessionStore";
+import { usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
+import { useIssuesStore } from "../../../../../store/issuesStore";
 import { Section } from "../../../parts";
 import { useEditableSystem } from "../../editable";
 
@@ -107,7 +108,7 @@ function NoZone({ system }: { system: SystemNode }) {
 function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
   const setFeZone = useEditorStore((s) => s.setFeZone);
   const anchor = useSystemName(system.id);
-  const problems = useFileSessionStore((s) => s.issues).filter((issue) =>
+  const problems = useIssuesStore((s) => s.issues).filter((issue) =>
     issue.code === "fe_zone_overlap"
       ? issue.systems.includes(system.id)
       : (issue.code.startsWith("fe_zone_") ||

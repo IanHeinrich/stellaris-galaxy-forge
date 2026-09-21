@@ -82,7 +82,7 @@ describe("the notice for a scenario outside the mod", () => {
     expect(button("Save into the Paint a Galaxy mod…").props.disabled).toBe(false);
 
     const saveIntoPaintMod = vi.fn();
-    useFileSessionStore.setState({ saveIntoPaintMod });
+    usePaintModStore.setState({ saveIntoPaintMod });
     button("Save into the Paint a Galaxy mod…").props.onClick();
     expect(saveIntoPaintMod).toHaveBeenCalledTimes(1);
   });

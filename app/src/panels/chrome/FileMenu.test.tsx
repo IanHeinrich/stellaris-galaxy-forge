@@ -127,7 +127,7 @@ describe("saving into the Paint a Galaxy mod", () => {
       known: true,
       paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
     });
-    useFileSessionStore.setState({ saveIntoPaintMod });
+    usePaintModStore.setState({ saveIntoPaintMod });
 
     item(LABEL).props.onClick();
     expect(saveIntoPaintMod).toHaveBeenCalledTimes(1);

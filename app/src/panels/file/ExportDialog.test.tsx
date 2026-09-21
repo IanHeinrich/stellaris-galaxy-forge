@@ -110,8 +110,8 @@ beforeEach(() => {
     setItem: (key: string, value: string) => void stored.set(key, value),
   });
   useGalaxyStore.getState().clear();
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState(), paintChoice: false });
-  usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
+  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
+  usePaintModStore.setState({ ...usePaintModStore.getInitialState(), paintChoice: false });
 });
 
 describe("the report", () => {
@@ -311,7 +311,7 @@ describe("the dialog", () => {
     expect(html).toContain("Untick it only if the map is for a mod of your own.");
     expect(html.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
 
-    useFileSessionStore.setState({ paintChoice: true });
+    usePaintModStore.setState({ paintChoice: true });
     expect(
       renderToStaticMarkup(<ExportDialog />).match(/<input type="checkbox"[^>]*>/)![0],
     ).toContain("checked=");
@@ -322,7 +322,7 @@ describe("the dialog", () => {
     usePaintModStore.setState({ known: true, paintMod: null });
     expect(renderToStaticMarkup(<ExportDialog />)).not.toContain("paint-mod-status");
 
-    useFileSessionStore.setState({ paintChoice: true });
+    usePaintModStore.setState({ paintChoice: true });
     const html = renderToStaticMarkup(<ExportDialog />);
     expect(html).toContain("paint-mod-status");
     expect(html).toContain("Paint a Galaxy mod on the Steam Workshop");
@@ -333,7 +333,7 @@ describe("the dialog", () => {
       (el): el is ReactElement<{ onChange: (e: unknown) => void }> => el.type === "input",
     )!;
     box.props.onChange({ currentTarget: { checked: true } });
-    expect(useFileSessionStore.getState().paintChoice).toBe(true);
+    expect(usePaintModStore.getState().paintChoice).toBe(true);
     expect(stored.get("sgf.paint.profile")).toBe("true");
   });
 
@@ -346,7 +346,7 @@ describe("the dialog", () => {
     expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(confirmExport).toHaveBeenLastCalledWith("plain");
 
-    useFileSessionStore.setState({ paintChoice: true });
+    usePaintModStore.setState({ paintChoice: true });
     form(<ExportForm report={FULL} />).props.onSubmit({ preventDefault });
     expect(confirmExport).toHaveBeenLastCalledWith("paint_a_galaxy");
 

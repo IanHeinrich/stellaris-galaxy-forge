@@ -113,7 +113,7 @@ describe("openSave", () => {
     expect(state.status).toBe("ready");
     expect(state.path).toBe(OPEN_RESULT.path);
     expect(state.meta).toEqual(OPEN_RESULT.meta);
-    expect(state.issues).toHaveLength(1);
+    expect(useIssuesStore.getState().issues).toHaveLength(1);
     expect(state.progress).toBeNull();
     expect(unlisten).toHaveBeenCalledTimes(1);
     expect(mocked.openSave).toHaveBeenCalledWith(OPEN_RESULT.path);
@@ -216,7 +216,7 @@ describe("openSave", () => {
   it("pickAndOpen with mode 'scenario' filters to .sav and skips the mode dialog", async () => {
     mocked.saveDirs.mockResolvedValue(["C:/saves"]);
     mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
-    useFileSessionStore.setState({ paintChoice: false });
+    usePaintModStore.setState({ paintChoice: false });
     mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
 
     await session().pickAndOpen("scenario");
@@ -236,7 +236,7 @@ describe("openSave", () => {
   it("a save taken as a scenario follows the standing Paint a Galaxy choice on every route", async () => {
     mocked.saveDirs.mockResolvedValue(["C:/saves"]);
     mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
-    useFileSessionStore.setState({ paintChoice: true });
+    usePaintModStore.setState({ paintChoice: true });
 
     mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
     await session().pickAndOpen("scenario");
@@ -247,7 +247,7 @@ describe("openSave", () => {
     await session().chooseOpenMode("scenario");
     expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/other.sav", "paint_a_galaxy");
 
-    useFileSessionStore.setState({ paintChoice: false });
+    usePaintModStore.setState({ paintChoice: false });
     mocked.open.mockResolvedValueOnce("C:/saves/plain.sav");
     await session().pickAndOpen();
     await session().chooseOpenMode("scenario");
@@ -270,7 +270,7 @@ describe("openSave", () => {
   it("pickAndOpen with an explicit plain profile opens plain even while the standing choice is on", async () => {
     mocked.saveDirs.mockResolvedValue(["C:/saves"]);
     mocked.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null });
-    useFileSessionStore.setState({ paintChoice: true });
+    usePaintModStore.setState({ paintChoice: true });
     mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
 
     await session().pickAndOpen("scenario", "plain");
@@ -436,7 +436,7 @@ describe("Steam Cloud", () => {
     mocked.openSave.mockResolvedValueOnce({ ...OPEN_RESULT, path: CLOUD_PATH, cloud: true });
     await session().openSave(CLOUD_PATH);
     await edit();
-    useFileSessionStore.setState({ issues: [] });
+    useIssuesStore.setState({ issues: [] });
     mocked.confirm.mockClear();
   }
 
@@ -474,7 +474,7 @@ describe("Steam Cloud", () => {
     expect(session().cloud).toBe(true);
 
     await edit();
-    useFileSessionStore.setState({ issues: [] });
+    useIssuesStore.setState({ issues: [] });
     await session().save();
     expect(mocked.confirm).toHaveBeenCalledTimes(1);
     expect(mocked.save).toHaveBeenCalledTimes(2);
@@ -482,7 +482,7 @@ describe("Steam Cloud", () => {
 
   it("saveAs asks the Rust side about the picked path and warns only for a cloud one", async () => {
     await session().openSave(OPEN_RESULT.path);
-    useFileSessionStore.setState({ issues: [] });
+    useIssuesStore.setState({ issues: [] });
     expect(session().cloud).toBe(false);
 
     mocked.saveDialog.mockResolvedValueOnce(CLOUD_PATH);
@@ -572,7 +572,7 @@ describe("unresolved issues", () => {
   });
 
   it("info issues and notes never ask", async () => {
-    useFileSessionStore.setState({
+    useIssuesStore.setState({
       issues: [{ ...ISOLATED, severity: "info" }, duplicateNameNote("Elysium", "other.txt")],
     });
     mocked.save.mockResolvedValueOnce(saveResult({ dirty: false }));
@@ -583,7 +583,7 @@ describe("unresolved issues", () => {
   });
 
   it("the reserved seats note asks, since the map would not play as designed", async () => {
-    useFileSessionStore.setState({ issues: [reservedSpawnsNote([2])] });
+    useIssuesStore.setState({ issues: [reservedSpawnsNote([2])] });
     mocked.confirm.mockResolvedValueOnce(false);
     await session().save();
     expect(mocked.confirm).toHaveBeenCalledWith(
@@ -618,7 +618,7 @@ describe("unresolved issues", () => {
       },
     });
     mocked.confirm.mockResolvedValueOnce(false);
-    await session().saveIntoPaintMod();
+    await usePaintModStore.getState().saveIntoPaintMod();
     expect(mocked.confirm).toHaveBeenCalledTimes(3);
     expect(mocked.saveDialog).toHaveBeenCalledTimes(1);
   });
@@ -659,7 +659,7 @@ describe("scenario documents", () => {
   });
 
   it("a save asks first: as a scenario, as a save, or not at all", async () => {
-    useFileSessionStore.setState({ paintChoice: false });
+    usePaintModStore.setState({ paintChoice: false });
     mocked.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null });
     await session().requestOpen(OPEN_RESULT.path);
     expect(session().pendingOpen).toBe(OPEN_RESULT.path);
@@ -853,7 +853,7 @@ describe("scenario documents", () => {
   it("saving into the mod offers its folder under the file's own name, and does nothing without one", async () => {
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH);
-    await session().saveIntoPaintMod();
+    await usePaintModStore.getState().saveIntoPaintMod();
     expect(mocked.saveDialog).not.toHaveBeenCalled();
 
     usePaintModStore.setState({
@@ -867,7 +867,7 @@ describe("scenario documents", () => {
     const landed = "C:\\mods\\pag\\map\\setup_scenarios\\my_galaxy.txt";
     mocked.saveDialog.mockResolvedValueOnce(landed);
     mocked.saveAs.mockResolvedValueOnce(saveResult({ path: landed }));
-    await session().saveIntoPaintMod();
+    await usePaintModStore.getState().saveIntoPaintMod();
     expect(mocked.saveDialog).toHaveBeenLastCalledWith(
       expect.objectContaining({
         defaultPath: landed,
@@ -879,7 +879,7 @@ describe("scenario documents", () => {
     expect(getPaintLayer()).toBe(true);
 
     await session().openSave(OPEN_RESULT.path);
-    await session().saveIntoPaintMod();
+    await usePaintModStore.getState().saveIntoPaintMod();
     expect(mocked.saveDialog).toHaveBeenCalledTimes(1);
   });
 
@@ -895,7 +895,7 @@ describe("scenario documents", () => {
     const landed = `${PAINT_DIR}/my_galaxy.txt`;
     mocked.saveDialog.mockResolvedValueOnce(landed);
     mocked.saveAs.mockResolvedValueOnce(saveResult({ path: landed }));
-    await session().saveIntoPaintMod();
+    await usePaintModStore.getState().saveIntoPaintMod();
 
     expect(session().notice).toBe(
       "Saved into the Paint a Galaxy mod. In Stellaris, start a new game and pick the size Elysium.",
@@ -912,7 +912,7 @@ describe("scenario documents", () => {
 
     mocked.saveDialog.mockResolvedValueOnce(`${PAINT_DIR}/my_galaxy.txt`);
     mocked.saveAs.mockResolvedValueOnce(saveResult({ path: `${PAINT_DIR}/my_galaxy.txt` }));
-    await session().saveIntoPaintMod();
+    await usePaintModStore.getState().saveIntoPaintMod();
     expect(session().notice).toBeNull();
 
     useGalaxyStore.setState({ header: [{ key: "name", value: '"Elysium"', line: 1 }] });
@@ -943,9 +943,9 @@ describe("scenario documents", () => {
       ["third.txt", "Arcadia"],
     ]);
     await session().requestOpen(mine);
-    await vi.waitFor(() => expect(session().issues).toHaveLength(2));
+    await vi.waitFor(() => expect(useIssuesStore.getState().issues).toHaveLength(2));
     expect(mocked.siblingScenarioNames).toHaveBeenCalledWith(mine);
-    expect(session().issues[1]).toEqual({
+    expect(useIssuesStore.getState().issues[1]).toEqual({
       severity: "warning",
       code: "scenario_name_duplicate",
       message:
@@ -953,16 +953,18 @@ describe("scenario documents", () => {
         "The game shows one size per name.",
       systems: [],
     });
-    expect(useIssuesStore.getState().notes).toEqual([session().issues[1]]);
+    expect(useIssuesStore.getState().notes).toEqual([useIssuesStore.getState().issues[1]]);
 
     mocked.applyOp.mockResolvedValueOnce(editResult({ issues: [] }));
     await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
-    expect(session().issues.map((issue) => issue.code)).toEqual(["scenario_name_duplicate"]);
+    expect(useIssuesStore.getState().issues.map((issue) => issue.code)).toEqual([
+      "scenario_name_duplicate",
+    ]);
 
     mocked.save.mockResolvedValueOnce(saveResult({ path: mine, dirty: false }));
     mocked.siblingScenarioNames.mockResolvedValueOnce([["other.txt", "Renamed"]]);
     await session().save();
-    await vi.waitFor(() => expect(session().issues).toEqual([]));
+    await vi.waitFor(() => expect(useIssuesStore.getState().issues).toEqual([]));
     expect(useIssuesStore.getState().notes).toEqual([]);
   });
 
@@ -987,7 +989,9 @@ describe("scenario documents", () => {
     mocked.siblingScenarioNames.mockRejectedValueOnce(new Error("unreadable"));
     await session().requestOpen(mine);
     await vi.waitFor(() => expect(mocked.siblingScenarioNames).toHaveBeenCalledWith(mine));
-    expect(session().issues.map((issue) => issue.code)).toEqual(["system_isolated"]);
+    expect(useIssuesStore.getState().issues.map((issue) => issue.code)).toEqual([
+      "system_isolated",
+    ]);
     expect(session().error).toBeNull();
   });
 
@@ -996,7 +1000,7 @@ describe("scenario documents", () => {
       ...SYSTEMS[2],
       spawn_script: { paint_a_galaxy: { kind, random_value: 2, player: false } },
     });
-    const codes = () => session().issues.map((issue) => issue.code);
+    const codes = () => useIssuesStore.getState().issues.map((issue) => issue.code);
     const mod = (reserved_spawns: boolean) => ({
       scenarios_dir: PAINT_DIR,
       enabled: true,
@@ -1014,7 +1018,7 @@ describe("scenario documents", () => {
     expect(codes()).toEqual(["system_isolated"]);
 
     usePaintModStore.setState({ known: true, paintMod: mod(false) });
-    expect(session().issues[1]).toEqual({
+    expect(useIssuesStore.getState().issues[1]).toEqual({
       severity: "warning",
       code: "reserved_spawns_missing",
       message:
@@ -1022,7 +1026,7 @@ describe("scenario documents", () => {
         "and enable it in your playset, or these seats spawn at random.",
       systems: [2],
     });
-    expect(useIssuesStore.getState().notes).toEqual([session().issues[1]]);
+    expect(useIssuesStore.getState().notes).toEqual([useIssuesStore.getState().issues[1]]);
 
     usePaintModStore.setState({ paintMod: mod(true) });
     expect(codes()).toEqual(["system_isolated"]);
@@ -1120,13 +1124,6 @@ describe("scenario documents", () => {
     expect(mocked.saveDialog).toHaveBeenLastCalledWith(
       expect.objectContaining({ defaultPath: "Test Empire.txt" }),
     );
-  });
-
-  it("the Paint a Galaxy choice starts on and is kept per machine", () => {
-    expect(session().paintChoice).toBe(true);
-    session().setPaintChoice(false);
-    expect(session().paintChoice).toBe(false);
-    expect(stored.get("sgf.paint.profile")).toBe("false");
   });
 
   it("a cancelled export writes nothing, and a scenario has nothing to export", async () => {

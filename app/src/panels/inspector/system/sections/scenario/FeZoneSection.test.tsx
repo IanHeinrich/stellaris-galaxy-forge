@@ -13,6 +13,7 @@ import { bindStores } from "../../../../../store/bindStores";
 import { detailOf, SYSTEMS } from "../../../../../store/fixture";
 import { useFileSessionStore } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
+import { useIssuesStore } from "../../../../../store/issuesStore";
 import { mocked, open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
 import {
   ADD_ZONE_HINT,
@@ -163,7 +164,7 @@ describe("a scenario system's fallen empire zone", () => {
 
   it("carries the zone's own issues, an overlap from either end", async () => {
     await openWith(newFeZone("se", 60));
-    useFileSessionStore.setState({
+    useIssuesStore.setState({
       issues: [
         {
           severity: "warning",

@@ -4,6 +4,7 @@ import type { ScenarioProfile } from "../../generated/ScenarioProfile";
 import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
+import { usePaintModStore } from "../../store/paintModStore";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
@@ -256,7 +257,7 @@ export function NewScenarioDialog() {
   const [preset, setPreset] = useState("medium");
   const [custom, setCustom] = useState(400);
   const [core, setCore] = useState<number | null>(null);
-  const paint = useFileSessionStore((s) => s.paintChoice);
+  const paint = usePaintModStore((s) => s.paintChoice);
 
   const radius =
     preset === "custom" ? clampRadius(custom) : (PRESETS.find((p) => p.id === preset)?.radius ?? 0);

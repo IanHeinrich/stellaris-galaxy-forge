@@ -53,7 +53,7 @@ function Counts() {
 }
 
 function IssueBadge() {
-  const issues = useFileSessionStore((s) => s.issues);
+  const issues = useIssuesStore((s) => s.issues);
   const baseline = useIssuesStore((s) => s.baseline);
   const setTab = useLayoutStore((s) => s.setTab);
   const fresh = newIssues(issues, baseline);

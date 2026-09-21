@@ -76,6 +76,13 @@ describe("the Paint a Galaxy mod's status", () => {
     expect(stored.get("sgf.paint.noticeDismissed")).toBe("true");
   });
 
+  it("the Paint a Galaxy choice starts on and is kept per machine", () => {
+    expect(usePaintModStore.getState().paintChoice).toBe(true);
+    usePaintModStore.getState().setPaintChoice(false);
+    expect(usePaintModStore.getState().paintChoice).toBe(false);
+    expect(stored.get("sgf.paint.profile")).toBe("false");
+  });
+
   it("keeps the same answer object when the shell says the same again", async () => {
     mocked.paintMod.mockResolvedValueOnce(INSTALLED);
     await usePaintModStore.getState().refresh();
@@ -207,12 +214,12 @@ describe("the Paint a Galaxy mod's status", () => {
       vi.useFakeTimers();
       try {
         mocked.paintMod.mockResolvedValue(null);
-        useFileSessionStore.setState({ paintChoice: false });
+        usePaintModStore.setState({ paintChoice: false });
         useLayoutStore.getState().showScenarioDialog();
         await vi.advanceTimersByTimeAsync(PAINT_MOD_POLL_MS);
         expect(asked()).toBe(0);
 
-        useFileSessionStore.getState().setPaintChoice(true);
+        usePaintModStore.getState().setPaintChoice(true);
         await vi.advanceTimersByTimeAsync(0);
         expect(asked()).toBe(1);
 

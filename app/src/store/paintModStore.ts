@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { PaintModView } from "../generated/PaintModView";
+import type { ScenarioProfile } from "../generated/ScenarioProfile";
+import { scenarioHeaderName } from "../lib/paint";
+import { fileName, isUnder, joinPath } from "../lib/paths";
+import { useFileSessionStore } from "./fileSessionStore";
+import { useGalaxyStore } from "./galaxyStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, readPref, writePref } from "./prefs";
 
@@ -14,6 +19,8 @@ export interface PaintModState {
   known: boolean;
   /** The user said the mod is not for them, so the notice for a plain scenario stays down. */
   noticeDismissed: boolean;
+  /** The user's standing choice, kept per machine: new files are written for the Paint a Galaxy mod. */
+  paintChoice: boolean;
 
   /**
    * Asks the shell again; a failed ask leaves the last answer standing, and an answer that says
@@ -26,6 +33,9 @@ export interface PaintModState {
    */
   watch(): () => void;
   dismissNotice(): void;
+  setPaintChoice(on: boolean): void;
+  /** Save As into the mod's scenarios folder; nothing when that folder is unknown. */
+  saveIntoPaintMod(): Promise<void>;
 }
 
 /** Whether two answers say the same of the mod. */
@@ -42,6 +52,7 @@ export const usePaintModStore = create<PaintModState>((set, get) => ({
   paintMod: null,
   known: false,
   noticeDismissed: readPref(PREF_KEYS.paintNoticeDismissed, false, isBoolean),
+  paintChoice: readPref(PREF_KEYS.paintProfile, true, isBoolean),
 
   async refresh() {
     let fresh: PaintModView | null;
@@ -75,4 +86,42 @@ export const usePaintModStore = create<PaintModState>((set, get) => ({
     writePref(PREF_KEYS.paintNoticeDismissed, true);
     set({ noticeDismissed: true });
   },
+
+  setPaintChoice(on) {
+    set({ paintChoice: on });
+    writePref(PREF_KEYS.paintProfile, on);
+  },
+
+  async saveIntoPaintMod() {
+    const dir = paintScenariosDir();
+    const { kind, path, title, saveAs } = useFileSessionStore.getState();
+    if (kind !== "scenario" || dir === null) return;
+    const name = fileName(path) || (title === null ? undefined : `${title}.txt`);
+    await saveAs(name === undefined ? dir : joinPath(dir, name));
+  },
 }));
+
+/** The profile the standing "For the Paint a Galaxy mod" choice asks for when a save becomes a scenario. */
+export function standingProfile(): ScenarioProfile {
+  return usePaintModStore.getState().paintChoice ? "paint_a_galaxy" : "plain";
+}
+
+/** The mod's scenarios folder on this machine; null until known. */
+export function paintScenariosDir(): string | null {
+  return usePaintModStore.getState().paintMod?.scenarios_dir ?? null;
+}
+
+/**
+ * The "now what": once the file the session just wrote sits inside the mod's scenarios folder,
+ * says how to find it in Stellaris. Silent when the header names no size yet.
+ */
+export function noteSavedIntoPaintMod(): void {
+  const { kind, path, setNotice } = useFileSessionStore.getState();
+  const dir = paintScenariosDir();
+  if (kind !== "scenario" || path === null || dir === null || !isUnder(path, dir)) return;
+  const name = scenarioHeaderName(useGalaxyStore.getState().header);
+  if (name === null) return;
+  setNotice(
+    `Saved into the Paint a Galaxy mod. In Stellaris, start a new game and pick the size ${name}.`,
+  );
+}

@@ -1,4 +1,4 @@
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { usePaintModStore } from "../../store/paintModStore";
 import { PaintModStatus } from "../chrome/PaintModStatus";
 import { PAINT_CHECK, PAINT_UNTICKED, PAINT_WHY } from "./paintCopy";
 
@@ -7,8 +7,8 @@ import { PAINT_CHECK, PAINT_UNTICKED, PAINT_WHY } from "./paintCopy";
  * choice, the mod's status while it is ticked, and a warning while it is not.
  */
 export function PaintChoice() {
-  const paint = useFileSessionStore((s) => s.paintChoice);
-  const setPaintChoice = useFileSessionStore((s) => s.setPaintChoice);
+  const paint = usePaintModStore((s) => s.paintChoice);
+  const setPaintChoice = usePaintModStore((s) => s.setPaintChoice);
   return (
     <label className="setup-check">
       <input
