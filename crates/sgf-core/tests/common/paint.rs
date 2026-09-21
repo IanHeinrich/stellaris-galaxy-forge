@@ -114,9 +114,11 @@ pub fn assert_paint_export_holds_together(
         .values()
         .filter(|s| s.fe_zone.is_some())
         .count() as u32;
-    let fallen_max = written.fallen_empire_max.expect("fallen_empire_max");
+    let fallen_max = written
+        .header_count("fallen_empire_max")
+        .expect("fallen_empire_max");
     let fallen_default = written
-        .fallen_empire_default
+        .header_count("fallen_empire_default")
         .expect("fallen_empire_default");
     assert!(
         fallen_default <= fallen_max && fallen_max <= zones,

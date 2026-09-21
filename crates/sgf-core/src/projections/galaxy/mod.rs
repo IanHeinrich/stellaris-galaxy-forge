@@ -7,6 +7,7 @@
 
 mod bypasses;
 mod countries;
+mod header;
 mod nebulae;
 mod spawn;
 mod systems;
@@ -92,15 +93,6 @@ pub struct Galaxy {
     pub header: Vec<HeaderField>,
     /// Which document the galaxy was read from, for the checks that apply to one kind.
     pub kind: DocumentKind,
-    /// A scenario header's `num_empires.max`, `num_empire_default`, `fallen_empire_max`,
-    /// `fallen_empire_default`, `marauder_empire_max` and `marauder_empire_default`,
-    /// where it states them; always `None` for a save.
-    pub num_empires_max: Option<u32>,
-    pub num_empire_default: Option<u32>,
-    pub fallen_empire_max: Option<u32>,
-    pub fallen_empire_default: Option<u32>,
-    pub marauder_empire_max: Option<u32>,
-    pub marauder_empire_default: Option<u32>,
     /// The setup screen the save was started with, read from its top-level `galaxy`
     /// block; `None` for a scenario.
     pub setup: Option<GameSetup>,
@@ -168,6 +160,18 @@ impl Galaxy {
     /// The lane from `a` to `b` as listed on `a`.
     pub fn lane(&self, a: u32, b: u32) -> Option<&Lane> {
         self.systems.get(&a)?.lanes.iter().find(|l| l.to == b)
+    }
+
+    /// The first header `key` as a whole number, as the game reads it; `None` for a
+    /// save, a key the header lacks, a block, or a value that is not one.
+    pub fn header_count(&self, key: &str) -> Option<u32> {
+        header::count(&self.header, key)
+    }
+
+    /// `field` of the first header `key = { … }` block as a whole number; `None` for a
+    /// save, a key the header lacks, or a field that is not one.
+    pub fn header_block_count(&self, key: &str, field: &str) -> Option<u32> {
+        header::block_count(&self.header, key, field)
     }
 
     /// Replace the nebulae and derive each one's members from its radius, as a document
