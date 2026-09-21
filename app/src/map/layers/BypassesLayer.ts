@@ -1,7 +1,8 @@
-import { Container, type FederatedPointerEvent, Graphics } from "pixi.js";
+import { Circle, Container, type FederatedPointerEvent, Graphics } from "pixi.js";
 import type { BypassLink } from "../../generated/BypassLink";
 import type { Camera } from "../Camera";
 import { type BypassKinds, bypassIconKey } from "../../lib/details/icons";
+import { titleCase } from "../../lib/text";
 import { labelTier } from "../../lib/visual/labels";
 import { badgeGeometry, badgeSide } from "../../lib/visual/specialStyle";
 import { useMapChromeStore } from "../../store/mapChromeStore";
@@ -15,6 +16,10 @@ const LGATE = { color: 0x22d3ee, icon: "lgate", label: "L-Gate" };
 const OTHER = { color: 0xa3e635, size: 3.5, width: 1.5, alpha: 0.85 };
 /** Marker centre relative to the star, in marker units, so it clears the star and its rings. */
 const OFFSET = { x: 12, y: -12 };
+/** The marker's own hit area, around its offset centre, clear of the star's own hover and drag. */
+const HIT = new Circle(OFFSET.x, OFFSET.y, OTHER.size + 2.5);
+/** What a wormhole endpoint's other end not being drawn means, whether it has none or is hidden. */
+const WORMHOLE_ALONE_NOTE = "Its other end is not shown";
 
 type Marker = Extract<BypassLink, { type: "other" }>;
 type Badged = Extract<BypassLink, { type: "gateway" } | { type: "l_gate" }>;
@@ -51,6 +56,12 @@ function drawMarker(g: Graphics): void {
     .stroke({ color: OTHER.color, width: OTHER.width, alpha: OTHER.alpha });
 }
 
+/** What a marker's tooltip calls its bypass: `common/bypass` carries no display name, so a
+ * known kind is titled from its key, the same way the details row labels it. */
+function markerName(kind: string): string {
+  return kind === "wormhole" ? "Wormhole" : titleCase(kind.split("_").filter(Boolean)) || kind;
+}
+
 interface BadgeEntry {
   link: Badged;
   style: BadgeStyle;
@@ -85,6 +96,7 @@ export class BypassesLayer implements MapLayer {
   private tier = labelTier(0);
   private detailsShown = true;
   private hovered: Badged | null = null;
+  private hoveredMarker: Marker | null = null;
 
   constructor() {
     this.container.addChild(this.lines, this.markerLayer, this.badgeLayer);
@@ -106,17 +118,14 @@ export class BypassesLayer implements MapLayer {
     this.markers.length = 0;
     this.badges.length = 0;
     this.hovered = null;
+    this.hoveredMarker = null;
     this.wormholes = [];
     const slots = new Map<number, number>();
     for (const link of ctx.bypasses) {
       if (link.type === "wormhole") {
         this.wormholes.push({ a: link.a, b: link.b });
       } else if (link.type === "other") {
-        const marker = new Graphics();
-        drawMarker(marker);
-        marker.scale.set(this.scale.x, this.scale.y);
-        this.markerLayer.addChild(marker);
-        this.markers.push({ link, g: marker });
+        this.markers.push({ link, g: this.makeMarker(link) });
       } else {
         const slot = slots.get(link.system) ?? 0;
         slots.set(link.system, slot + 1);
@@ -180,6 +189,19 @@ export class BypassesLayer implements MapLayer {
     }
   }
 
+  private makeMarker(link: Marker): Graphics {
+    const marker = new Graphics();
+    drawMarker(marker);
+    marker.scale.set(this.scale.x, this.scale.y);
+    marker.eventMode = "static";
+    marker.cursor = "help";
+    marker.hitArea = HIT;
+    marker.on("pointerover", (e: FederatedPointerEvent) => this.hoverMarker(link, e.global));
+    marker.on("pointerout", () => this.unhoverMarker(link));
+    this.markerLayer.addChild(marker);
+    return marker;
+  }
+
   private makeBadge(link: Badged): Badge {
     const badge = new Badge(badgeGeometry(this.tier));
     badge.plate.on("pointerover", (e: FederatedPointerEvent) => this.hover(link, e.global));
@@ -225,6 +247,27 @@ export class BypassesLayer implements MapLayer {
   private unhover(link: Badged): void {
     if (this.hovered !== link) return;
     this.hovered = null;
+    useMapChromeStore.getState().hideTooltip();
+  }
+
+  private hoverMarker(link: Marker, at: { x: number; y: number }): void {
+    const s = this.systems.get(link.system);
+    if (!s) return;
+    this.hoveredMarker = link;
+    useMapChromeStore.getState().showTooltip({
+      x: at.x,
+      y: at.y,
+      title: markerName(link.kind),
+      lines:
+        link.kind === "wormhole"
+          ? [WORMHOLE_ALONE_NOTE, this.nodeName(s.name)]
+          : [this.nodeName(s.name)],
+    });
+  }
+
+  private unhoverMarker(link: Marker): void {
+    if (this.hoveredMarker !== link) return;
+    this.hoveredMarker = null;
     useMapChromeStore.getState().hideTooltip();
   }
 

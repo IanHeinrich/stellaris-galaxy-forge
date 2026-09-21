@@ -164,6 +164,31 @@ describe("the bypasses layer", () => {
     expect(useMapChromeStore.getState().tooltip).toBeNull();
   });
 
+  it("names the marker's bypass kind and its system while the pointer is on it", () => {
+    const layer = drawn([{ type: "other", system: 1, kind: "quantum_catapult" }]);
+    const [marker] = markers(layer);
+
+    marker.emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toMatchObject({
+      title: "Quantum Catapult",
+      lines: ["Alpha"],
+    });
+
+    marker.emit("pointerout", {} as never);
+    expect(useMapChromeStore.getState().tooltip).toBeNull();
+  });
+
+  it("tells apart a wormhole marker whose other end is not drawn", () => {
+    const layer = drawn([{ type: "other", system: 0, kind: "wormhole" }]);
+    const [marker] = markers(layer);
+
+    marker.emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toMatchObject({
+      title: "Wormhole",
+      lines: ["Its other end is not shown", "Sol"],
+    });
+  });
+
   it("wears a modded bypass kind's own icon frame instead of the built-in table's", () => {
     const kinds: BypassKinds = new Map([["gateway", { key: "gateway", icon_frame: 91 }]]);
     drawn([{ type: "gateway", system: 0, active: true }], 1, kinds);

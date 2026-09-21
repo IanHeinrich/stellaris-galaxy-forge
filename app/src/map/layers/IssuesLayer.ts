@@ -1,7 +1,10 @@
-import { Container, Graphics } from "pixi.js";
+import { Circle, Container, type FederatedPointerEvent, Graphics } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { Severity } from "../../generated/Severity";
+import { issueTitle } from "../../lib/browserRows";
 import type { AppIssue } from "../../lib/issues";
+import { titleCase } from "../../lib/text";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { markerScale, type MapLayer } from "./MapLayer";
@@ -14,6 +17,9 @@ export const SEVERITY_COLOR: Record<Severity, number> = {
   warning: 0xf59e0b,
   error: 0xef4444,
 };
+
+/** The ring's own hit area: the disc it encloses, clear of the star's own hover and drag. */
+const HIT = new Circle(0, 0, RADIUS);
 
 function draw(g: Graphics, severity: Severity): void {
   g.clear();
@@ -31,6 +37,17 @@ export function worstSeverityBySystem(issues: readonly AppIssue[]): Map<number, 
   return worst;
 }
 
+/** The worst issue naming a system, the same tie-break `worstSeverityBySystem` uses. */
+export function worstIssueBySystem(issues: readonly AppIssue[]): Map<number, AppIssue> {
+  const worst = new Map<number, AppIssue>();
+  for (const issue of issues) {
+    for (const id of issue.systems) {
+      if (issue.severity === "error" || !worst.has(id)) worst.set(id, issue);
+    }
+  }
+  return worst;
+}
+
 /** A tint ring, screen-sized like a marker, around every system the validator names. */
 export class IssuesLayer implements MapLayer {
   readonly id = "issues" as const;
@@ -38,8 +55,9 @@ export class IssuesLayer implements MapLayer {
   private readonly rings = new Map<number, Graphics>();
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
-  private severities = new Map<number, Severity>();
+  private issues = new Map<number, AppIssue>();
   private readonly scale = { x: 1, y: 1 };
+  private hovered: number | null = null;
 
   rebuild(ctx: RenderContext): void {
     const loaded = ctx.galaxy !== this.galaxy;
@@ -49,15 +67,12 @@ export class IssuesLayer implements MapLayer {
   }
 
   applyDelta(d: GalaxyDelta): void {
-    for (const id of d.removed ?? []) {
-      this.rings.get(id)?.destroy();
-      this.rings.delete(id);
-    }
+    for (const id of d.removed ?? []) this.remove(id);
     for (const s of d.systems) this.rings.get(s.id)?.position.set(s.x, s.y);
   }
 
   setIssues(issues: readonly AppIssue[]): void {
-    this.severities = worstSeverityBySystem(issues);
+    this.issues = worstIssueBySystem(issues);
     this.place();
   }
 
@@ -75,24 +90,57 @@ export class IssuesLayer implements MapLayer {
   }
 
   private place(): void {
-    for (const [id, ring] of this.rings) {
-      if (!this.severities.has(id) || !this.systems.has(id)) {
-        ring.destroy();
-        this.rings.delete(id);
-      }
+    for (const id of [...this.rings.keys()]) {
+      if (!this.issues.has(id) || !this.systems.has(id)) this.remove(id);
     }
-    for (const [id, severity] of this.severities) {
+    for (const [id, issue] of this.issues) {
       const s = this.systems.get(id);
       if (!s) continue;
       let ring = this.rings.get(id);
       if (!ring) {
-        ring = new Graphics();
-        ring.scale.set(this.scale.x, this.scale.y);
+        ring = this.makeRing(id);
         this.rings.set(id, ring);
         this.container.addChild(ring);
       }
-      draw(ring, severity);
+      draw(ring, issue.severity);
       ring.position.set(s.x, s.y);
     }
+  }
+
+  private makeRing(id: number): Graphics {
+    const ring = new Graphics();
+    ring.scale.set(this.scale.x, this.scale.y);
+    ring.eventMode = "static";
+    ring.cursor = "help";
+    ring.hitArea = HIT;
+    ring.on("pointerover", (e: FederatedPointerEvent) => this.hover(id, e.global));
+    ring.on("pointerout", () => this.unhover(id));
+    return ring;
+  }
+
+  private hover(id: number, at: { x: number; y: number }): void {
+    const issue = this.issues.get(id);
+    if (!issue) return;
+    this.hovered = id;
+    useMapChromeStore.getState().showTooltip({
+      x: at.x,
+      y: at.y,
+      title: titleCase([issue.severity]),
+      lines: [issueTitle(issue.code)],
+    });
+  }
+
+  private unhover(id: number): void {
+    if (this.hovered !== id) return;
+    this.hovered = null;
+    useMapChromeStore.getState().hideTooltip();
+  }
+
+  private remove(id: number): void {
+    const ring = this.rings.get(id);
+    if (!ring) return;
+    this.unhover(id);
+    ring.destroy();
+    this.rings.delete(id);
   }
 }
