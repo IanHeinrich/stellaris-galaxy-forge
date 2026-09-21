@@ -468,7 +468,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   async linkWormholePair(a, b) {
     const pair = nextWormholePair(systems().values());
-    return get().applyOp({ type: "SetWormholePair", a, b, pair });
+    const linked = await get().applyOp({ type: "SetWormholePair", a, b, pair });
+    if (linked) useMapChromeStore.getState().showLayer("day_one_bypasses");
+    return linked;
   },
 
   async unlinkWormholePair(a, b) {

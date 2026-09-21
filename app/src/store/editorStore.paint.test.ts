@@ -7,6 +7,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import * as ipc from "../api/ipc";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
 import { useGalaxyStore } from "./galaxyStore";
+import { useMapChromeStore } from "./mapChromeStore";
 import { SYSTEMS, editResult } from "./fixture";
 
 const headerEmpireCounts = vi.mocked(ipc.headerEmpireCounts);
@@ -43,9 +44,13 @@ describe("header empire counts", () => {
 });
 
 describe("wormhole pairs", () => {
-  it("linkWormholePair numbers the new pair past every pair in use, from 1", async () => {
+  it("linkWormholePair numbers the new pair past every pair in use, from 1, and shows the layer", async () => {
     mocked.applyOp.mockResolvedValue(editResult());
+    useMapChromeStore.setState({
+      layers: { ...useMapChromeStore.getState().layers, day_one_bypasses: false },
+    });
     await editor().linkWormholePair(0, 3);
+    expect(useMapChromeStore.getState().layers.day_one_bypasses).toBe(true);
     expect(mocked.applyOp).toHaveBeenLastCalledWith({
       type: "SetWormholePair",
       a: 0,

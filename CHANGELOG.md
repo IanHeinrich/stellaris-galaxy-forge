@@ -53,7 +53,8 @@ a release is made.
 - Paint a Galaxy: an "Update counts" button rewrites the header's empire
   counts from the seats when Issues says they no longer match. Two
   selected systems can be linked as a wormhole pair and unlinked again,
-  and the inspector names the other end. A scenario saved into the mod's
+  the day-one bypasses layer comes on to show it, and the inspector names
+  the other end. A scenario saved into the mod's
   folder is checked for another file listing the same name. After a save
   into the mod the status bar says how to start the map in Stellaris.
 - The seat select reads Enabled, Preferred, Sol, then Reserved A to Z,
