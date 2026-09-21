@@ -1,18 +1,11 @@
 import { BitmapText, Container, Graphics, Sprite, TextStyle, Ticker } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SpecialKind } from "../../generated/SpecialKind";
-import type { SystemNode } from "../../generated/SystemNode";
 import { SAVE_X_SIGN, SAVE_Y_SIGN, clamp } from "../../lib/geometry/geometry";
 import { drawsBorders, territoryKind } from "../../lib/countryKinds";
-import {
-  affectedCountries,
-  countryRegions,
-  regionLabelAnchor,
-  smoothRegion,
-  type LabelAnchor,
-  type Region,
-  type TerritoryParams,
-} from "../../lib/geometry/territory";
+import type { LabelAnchor, Region, TerritoryParams } from "../../lib/geometry/territory";
+import type { Reply, Shape } from "../../lib/geometry/territories";
+import { InlineTerritoryClient, type TerritoryClient } from "../../lib/geometry/territoryClient";
 import type { Camera } from "../Camera";
 import { labelTier } from "../../lib/visual/labels";
 import { ownerColors, type OwnerColors } from "../../lib/visual/ownerColors";
@@ -64,8 +57,7 @@ const EMBLEM_WIDTH_RATIO = 0.35;
 const FADE_MS = 450;
 
 interface CountryShape {
-  region: Region;
-  /** The drawn outline: `region` with its corners rounded off. */
+  /** The drawn outline: the country's region with its corners rounded off. */
   smoothed: Region;
   anchor: LabelAnchor | null;
   colors: OwnerColors;
@@ -104,7 +96,8 @@ function unclaimed(systems: Systems, hidden: ReadonlySet<number>): Systems {
  * filled with its second flag colour and outlined with its first in a chunky screen-stable
  * stroke over a soft halo. At the region's pole of inaccessibility the empire's flag symbol and
  * name sit in world units, sized to the region; they fade in while system names are hidden and
- * out as they appear. A delta recomputes only the countries it can have changed.
+ * out as they appear. The regions come from the client, a beat later when it is a worker; a
+ * delta recomputes only the countries it can have changed.
  */
 export class OwnersLayer implements MapLayer {
   readonly id = "owners" as const;
@@ -119,7 +112,6 @@ export class OwnersLayer implements MapLayer {
   private shownKinds: ReadonlySet<SpecialKind> = new Set();
   private ctx: RenderContext = EMPTY_CONTEXT;
   private systems: Systems = EMPTY_CONTEXT.systems;
-  private previous: Map<number, SystemNode> = new Map();
   private countryIndex = new Map<number, number>();
   private readonly shapes = new Map<number, CountryShape>();
   private readonly emblemKeys = new Map<number, string>();
@@ -128,12 +120,16 @@ export class OwnersLayer implements MapLayer {
   private fadeTarget = 1;
   private fading = false;
   private shown = true;
+  /** Bumped with every reset so a reply to an earlier galaxy is told apart and dropped. */
+  private epoch = 0;
+  private destroyed = false;
   private readonly unsubscribeTextures: () => void;
 
-  constructor() {
+  constructor(private readonly client: TerritoryClient = new InlineTerritoryClient()) {
     this.territories.addChild(this.fills, this.edges);
     this.container.addChild(this.territories, this.emphases, this.badges);
     this.unsubscribeTextures = onTextures((keys) => this.onTexturesLanded(keys));
+    client.onReply((reply) => this.onReply(reply));
   }
 
   rebuild(ctx: RenderContext): void {
@@ -145,20 +141,19 @@ export class OwnersLayer implements MapLayer {
       ctx.countries !== prev.countries ||
       ctx.hiddenOwners !== prev.hiddenOwners
     ) {
-      this.previous = new Map(this.systems);
       this.countryIndex = new Map();
       let index = 0;
       for (const id of ctx.countries.keys()) this.countryIndex.set(id, index++);
-      this.redrawAll();
+      this.recompute();
       this.refreshEmphasis();
       return;
     }
     if (ctx.border !== prev.border) {
-      this.redrawAll();
+      this.recompute();
       return;
     }
     if (ctx.countryTypes !== prev.countryTypes) {
-      this.redrawAll();
+      this.recompute();
       this.refreshEmphasis();
       return;
     }
@@ -177,26 +172,8 @@ export class OwnersLayer implements MapLayer {
   }
 
   applyDelta(d: GalaxyDelta): void {
-    const removed = d.removed ?? [];
-    const gone = removed.flatMap((id) => this.previous.get(id) ?? []);
     const changed = d.systems.map((s) => this.systems.get(s.id) ?? s);
-    const affected = affectedCountries(
-      [...changed, ...gone],
-      this.previous,
-      this.systems,
-      this.params(),
-    );
-    for (const id of removed) this.previous.delete(id);
-    for (const s of changed) this.previous.set(s.id, s);
-    const bordered = this.bordered();
-    for (const id of affected) if (!bordered.has(id)) affected.delete(id);
-    if (affected.size === 0) return;
-    const regions = countryRegions(this.systems.values(), this.params(), affected);
-    for (const id of affected) {
-      const region = regions.get(id);
-      if (region) this.show(id, region);
-      else this.remove(id);
-    }
+    this.client.apply(changed, d.removed ?? [], this.epoch);
   }
 
   onViewport(cam: Camera): void {
@@ -223,6 +200,8 @@ export class OwnersLayer implements MapLayer {
   }
 
   destroy(): void {
+    this.destroyed = true;
+    this.client.destroy();
     this.unsubscribeTextures();
     Ticker.shared.remove(this.fadeTick, this);
     this.container.destroy({ children: true });
@@ -250,13 +229,24 @@ export class OwnersLayer implements MapLayer {
     return ids;
   }
 
-  private redrawAll(): void {
-    const regions = countryRegions(this.systems.values(), this.params(), this.bordered());
-    for (const id of [...this.shapes.keys()]) if (!regions.has(id)) this.remove(id);
-    for (const [id, region] of regions) this.show(id, region);
+  private recompute(): void {
+    this.epoch++;
+    this.client.reset(this.systems.values(), this.params(), this.bordered(), this.epoch);
   }
 
-  private show(id: number, region: Region): void {
+  /** A reset answers for the whole galaxy, an apply for the countries it touched. */
+  private onReply(reply: Reply): void {
+    if (this.destroyed || reply.epoch < this.epoch) return;
+    if (reply.kind === "reset") {
+      const kept = new Set(reply.shapes.map(([id]) => id));
+      for (const id of [...this.shapes.keys()]) if (!kept.has(id)) this.remove(id);
+    } else {
+      for (const id of reply.removed) this.remove(id);
+    }
+    for (const [id, shape] of reply.shapes) this.show(id, shape);
+  }
+
+  private show(id: number, { smoothed, anchor }: Shape): void {
     let shape = this.shapes.get(id);
     if (!shape) {
       const label = new BitmapText({ text: "", style: LABEL_STYLE });
@@ -270,7 +260,6 @@ export class OwnersLayer implements MapLayer {
       badge.addChild(emblem, label);
       badge.visible = false;
       shape = {
-        region,
         smoothed: [],
         anchor: null,
         colors: { outline: 0, fill: 0 },
@@ -288,9 +277,8 @@ export class OwnersLayer implements MapLayer {
       this.shapes.set(id, shape);
       this.retext(id, shape);
     }
-    shape.region = region;
-    shape.smoothed = smoothRegion(region);
-    shape.anchor = regionLabelAnchor(region);
+    shape.smoothed = smoothed;
+    shape.anchor = anchor;
     this.placeEmblem(id, shape);
     this.paint(id, shape);
     this.drawEmphasis(id, shape);

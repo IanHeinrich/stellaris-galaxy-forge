@@ -8,6 +8,12 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- Moving a system on a save with many empires no longer hitches on
+  release. The territories are recomputed in a worker and the outlines
+  follow a beat later.
+
 ## [0.6.1] - 2026-09-20
 
 ### Changed

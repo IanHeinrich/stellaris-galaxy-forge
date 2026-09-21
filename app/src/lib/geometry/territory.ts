@@ -1,10 +1,18 @@
 import polygonClipping, { type MultiPolygon, type Pair, type Polygon } from "polygon-clipping";
 import polylabel from "polylabel";
-import type { SystemNode } from "../../generated/SystemNode";
 import type { Pt } from "./hull";
 
 /** Multipolygon: polygons → rings (outer only, holes dropped) → unclosed points. */
 export type Region = Pt[][][];
+
+/** What the territory maths reads of a system; a `SystemNode` is one. */
+export interface TerritorySystem {
+  readonly id: number;
+  readonly x: number;
+  readonly y: number;
+  readonly owner: number | null;
+  readonly lanes: readonly { readonly to: number }[];
+}
 
 export interface TerritoryParams {
   /** Reach of a system's disc, in world units. */
@@ -64,16 +72,16 @@ const MAX_BAND_PIECES = 64;
  * every system of another owner still clips.
  */
 export function countryRegions(
-  systems: Iterable<SystemNode>,
+  systems: Iterable<TerritorySystem>,
   params: TerritoryParams,
   only?: ReadonlySet<number>,
 ): Map<number, Region> {
   const radius = params.radius;
   const segments = params.segments ?? DEFAULT_SEGMENTS;
-  const byId = new Map<number, SystemNode>();
-  const owned: SystemNode[] = [];
+  const byId = new Map<number, TerritorySystem>();
+  const owned: TerritorySystem[] = [];
   const cell = Math.max(2 * radius, 1);
-  const systemGrid = new Buckets<SystemNode>(cell);
+  const systemGrid = new Buckets<TerritorySystem>(cell);
   for (const s of systems) {
     byId.set(s.id, s);
     systemGrid.add(s.x, s.y, s.x, s.y, s);
@@ -108,7 +116,7 @@ export function countryRegions(
     const band = bandOf(l, params.laneHalfWidth);
     if (band === null) continue;
     const pad = laneReach(l.length, params);
-    const foreign: SystemNode[] = [];
+    const foreign: TerritorySystem[] = [];
     systemGrid.forEachIn(
       Math.min(l.ax, l.bx) - pad,
       Math.min(l.ay, l.by) - pad,
@@ -254,9 +262,9 @@ function bounds(points: Pt[]): { minX: number; minY: number; maxX: number; maxY:
  * within its reach of either position.
  */
 export function affectedCountries(
-  changed: SystemNode[],
-  before: ReadonlyMap<number, SystemNode>,
-  after: ReadonlyMap<number, SystemNode>,
+  changed: TerritorySystem[],
+  before: ReadonlyMap<number, TerritorySystem>,
+  after: ReadonlyMap<number, TerritorySystem>,
   params: TerritoryParams,
 ): Set<number> {
   const out = new Set<number>();
@@ -274,18 +282,18 @@ export function affectedCountries(
 /** One galaxy's owned systems and same-owner lanes, indexed so a point finds what reaches it. */
 class Neighbourhood {
   private readonly reach: number;
-  private readonly discs: Buckets<SystemNode>;
+  private readonly discs: Buckets<TerritorySystem>;
   private readonly bands: Buckets<Lane>;
 
   constructor(
-    systems: ReadonlyMap<number, SystemNode>,
+    systems: ReadonlyMap<number, TerritorySystem>,
     private readonly params: TerritoryParams,
   ) {
     this.reach = 2 * params.radius;
     const cell = Math.max(this.reach, 1);
     this.discs = new Buckets(cell);
     this.bands = new Buckets(cell);
-    const owned: SystemNode[] = [];
+    const owned: TerritorySystem[] = [];
     for (const s of systems.values()) {
       if (s.owner === null) continue;
       owned.push(s);
@@ -304,7 +312,7 @@ class Neighbourhood {
   }
 
   /** Adds `s`'s own owner, then every owner whose disc or lane band covers `s`. */
-  collect(s: SystemNode, out: Set<number>): void {
+  collect(s: TerritorySystem, out: Set<number>): void {
     if (s.owner !== null) out.add(s.owner);
     const reach2 = this.reach * this.reach;
     this.discs.forEachIn(
@@ -332,7 +340,10 @@ function laneReach(length: number, params: TerritoryParams): number {
 }
 
 /** Each lane between two systems of one owner, once. */
-function sameOwnerLanes(owned: SystemNode[], byId: ReadonlyMap<number, SystemNode>): Lane[] {
+function sameOwnerLanes(
+  owned: TerritorySystem[],
+  byId: ReadonlyMap<number, TerritorySystem>,
+): Lane[] {
   const lanes: Lane[] = [];
   for (const a of owned) {
     for (const lane of a.lanes) {
@@ -378,7 +389,7 @@ function bandOf(l: Lane, halfWidth: number): Pair[] | null {
  * The band without the points nearer a `foreign` system than both ends of its lane: for each
  * such system a piece splits into the part nearer end A and the part nearer end B.
  */
-function severBand(band: Pair[], l: Lane, foreign: SystemNode[]): Pair[][] {
+function severBand(band: Pair[], l: Lane, foreign: TerritorySystem[]): Pair[][] {
   let pieces = [band];
   for (const f of foreign) {
     const next: Pair[][] = [];
