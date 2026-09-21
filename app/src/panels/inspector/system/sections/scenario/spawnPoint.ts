@@ -1,7 +1,5 @@
 import type { Op } from "../../../../../generated/Op";
 import type { SpawnModifier } from "../../../../../generated/SpawnModifier";
-import type { SpawnReservation } from "../../../../../generated/SpawnReservation";
-import type { SpawnReservationPreset } from "../../../../../generated/SpawnReservationPreset";
 import type { SystemNode } from "../../../../../generated/SystemNode";
 import { enabledScript } from "../../../../../lib/paint";
 
@@ -11,10 +9,6 @@ export const DEFAULT_SPAWN_WEIGHT = 1;
 /** Why a system with no initializer cannot be made a spawn point, wherever the control sits. */
 export const NEEDS_INITIALIZER =
   "A spawn weight is written beside the initializer: choose one first.";
-
-/** Why a system the generator never starts an empire in cannot hold a reservation. */
-export const NEEDS_SPAWN_POINT =
-  "A reservation is written inside the spawn weight: make this a spawn point first.";
 
 /**
  * The systems in `ids` a spawn weight can be written to: only one with an initializer can take
@@ -72,14 +66,6 @@ export function spawnPointsOp(
   return { type: "SetSpawnWeights", entries: targets.map((s) => [s.id, base]) };
 }
 
-/**
- * Keeps this system for a human player or for the AI, the two being exclusive, or lets the
- * generator seat anyone here again.
- */
-export function spawnReservationOp(id: number, preset: SpawnReservationPreset | null): Op {
-  return { type: "SetSpawnReservation", id, reserve: preset };
-}
-
 /** What a modifier does to the weight, as the file writes it; empty when it states neither. */
 export function modifierAmount(modifier: SpawnModifier): string {
   const parts: string[] = [];
@@ -88,9 +74,7 @@ export function modifierAmount(modifier: SpawnModifier): string {
   return parts.join(" ");
 }
 
-/** Who a recognised reservation seats here, in a word. */
-export function reservationLabel(reservation: SpawnReservation): string {
-  if (reservation === "human") return "human";
-  if (reservation === "ai") return "AI";
-  return `flag: ${reservation.country_flag}`;
+/** The empire a modifier's country flag singles out, chipped beside its trigger. */
+export function flagLabel(flag: string): string {
+  return `flag: ${flag}`;
 }

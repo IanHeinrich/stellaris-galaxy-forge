@@ -90,8 +90,8 @@ pub struct SystemNode {
     /// unspawnable when a country flag may well make it a start. Always `None` for a save.
     pub spawn_weight: Option<f64>,
     /// The `modifier` blocks the scenario system's `spawn_weight` holds, in file order.
-    /// Their triggers are script this editor reads and never rewrites; only the
-    /// reservation each one states is acted on. Always empty for a save.
+    /// Their triggers are script this editor reads and never rewrites. Always empty for
+    /// a save.
     pub spawn_modifiers: Vec<SpawnModifier>,
     /// The recognised meaning of a scripted weight source: what the scenario system's
     /// `spawn_weight` says through a script value its `add` names. `None` when it names

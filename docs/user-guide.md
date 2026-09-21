@@ -450,11 +450,10 @@ Systems can be added, deleted and named. Each can be given an initializer,
 which is what the game will place there: the star, its planets and moons,
 their resources, megastructures, dig sites and starbase, all of which the
 inspector and the map show before the game is ever started. A system can
-carry a spawn weight, or be held for a human player or for the AI. An
-empire that spawns on such a seat brings its own starting system in place
-of the seat's initializer, but what that initializer spawns around it
-still appears: a seat given Sol's initializer gets Alpha Centauri beside
-the empire's home. The counts the new-game screen reads (AI empires,
+carry a spawn weight. An empire that spawns on such a seat brings its own
+starting system in place of the seat's initializer, but what that
+initializer spawns around it still appears: a seat given Sol's
+initializer gets Alpha Centauri beside the empire's home. The counts the new-game screen reads (AI empires,
 advanced starts, fallen, marauder and nomad empires, wormhole pairs,
 gateways and hyperlane density) are edited as min, max and default fields
 in the Game setup section, with a note when a default falls outside its
@@ -503,11 +502,10 @@ the warning counts against a save. Sol is a reserved seat the United
 Nations of Earth counts as holding, and the mod seats player 1 there
 whatever their empire, which is why a save converted for the mod makes
 your capital the Sol seat. On the map a reserved seat shows its
-letter, Sol shows "Sol" and a preferred seat gets a star. The human and
-AI reservations are hidden under the layer because the mod does not read
-them. A system that still carries a plain weight in such a file shows a
-"Use a Paint a Galaxy seat" button that converts it. The Game setup
-section sums up the seats and the safe number of AI empires. When the
+letter, Sol shows "Sol" and a preferred seat gets a star. A system that
+still carries a plain weight in such a file shows a "Use a Paint a Galaxy
+seat" button that converts it. The Game setup section sums up the seats
+and the safe number of AI empires. When the
 header's counts no longer match the seats, or its fallen empire counts
 no longer match the fallen empire zones, an "Update counts" button there
 and on the issue's row in Issues rewrites the empire keys the way the
@@ -724,7 +722,6 @@ commands write in place, with the same backup as the app, unless `-o
 | `sgf header set <scenario> <key> <value> [-o out]` | Write one key of a scenario's header as the raw text right of `=`, inserting it when the header lacks it. |
 | `sgf header unset <scenario> <key> [-o out]` | Remove the header's first statement of that key. |
 | `sgf spawn weight <scenario> <id> <base> [-o out]` | Write `spawn_weight = { base = N }`, or clear the base with `none`. |
-| `sgf spawn reserve <scenario> <id> <human, ai or none> [-o out]` | Hold a system for a human player or for the AI, or take back whichever reservation stands. |
 | `sgf isolate <sav> <id> [-o out]` | Remove every lane of a system. |
 | `sgf synth --systems <n> [--seed <s>] [--waystations <a,b,c>] -o <out>` | Write a synthetic save with n systems, for stress testing; `--waystations` adds one network of those system ids and repeats. |
 | `sgf gamedata [--install <dir>] [--lang <l>] [--no-mods]` | Find the Stellaris install and active mods; summarise what was read from them. |

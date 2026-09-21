@@ -3,10 +3,7 @@
 use std::path::Path;
 
 use sgf_core::ops::Op;
-use sgf_core::projections::galaxy::SpawnReservationPreset;
 use sgf_core::session::Session;
-
-use crate::cli::Reservation;
 
 use super::{Outcome, Run, print_issues};
 
@@ -22,16 +19,6 @@ pub fn run(sav: &Path, out: Option<&Path>, op: Op) -> Run {
         println!("backup {}", backup.display());
     }
     Ok(Outcome::Ok)
-}
-
-impl Reservation {
-    pub fn preset(self) -> Option<SpawnReservationPreset> {
-        match self {
-            Self::Human => Some(SpawnReservationPreset::Human),
-            Self::Ai => Some(SpawnReservationPreset::Ai),
-            Self::None => None,
-        }
-    }
 }
 
 /// A spawn weight, or `none` to clear it.

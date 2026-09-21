@@ -27,8 +27,8 @@ marauder: MarauderRole | null,
 spawn_weight: number | null, 
 /**
  * The `modifier` blocks the scenario system's `spawn_weight` holds, in file order.
- * Their triggers are script this editor reads and never rewrites; only the
- * reservation each one states is acted on. Always empty for a save.
+ * Their triggers are script this editor reads and never rewrites. Always empty for
+ * a save.
  */
 spawn_modifiers: Array<SpawnModifier>, 
 /**

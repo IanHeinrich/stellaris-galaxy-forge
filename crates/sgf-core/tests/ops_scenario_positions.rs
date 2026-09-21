@@ -262,7 +262,6 @@ fn is_a_nebula_op(op: &Op) -> bool {
         | Op::SetHeaderField { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
-        | Op::SetSpawnReservation { .. }
         | Op::SetSpawnScript { .. }
         | Op::SetSpawnScripts { .. }
         | Op::SetFeZone { .. }

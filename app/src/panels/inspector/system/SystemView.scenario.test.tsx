@@ -387,7 +387,7 @@ describe("a scenario system's spawn weight", () => {
   });
 });
 
-describe("a scenario system's spawn reservation", () => {
+describe("a scenario system's spawn modifiers", () => {
   /** The system as the projection reports its `spawn_weight` block. */
   function withSpawn(extra: Partial<SystemNode>): void {
     mocked.getSystem.mockImplementation(async (id) => {
@@ -397,82 +397,16 @@ describe("a scenario system's spawn reservation", () => {
   }
 
   function modifier(extra: Partial<SpawnModifier>): SpawnModifier {
-    return { factor: null, add: null, trigger: "", reservation: null, ...extra };
+    return { factor: null, add: null, trigger: "", country_flag: null, ...extra };
   }
 
-  /**
-   * The section's checkboxes as they are rendered: the spawn point first, then the human
-   * reservation and the AI one.
-   */
-  function boxes(html: string): string[] {
-    return [...html.matchAll(/<input type="checkbox"[^>]*>/g)].map((m) => m[0]);
-  }
-
-  const HUMAN = modifier({ factor: 0, trigger: "is_ai = yes", reservation: "human" });
-  const AI = modifier({ factor: 0, trigger: "is_ai = no", reservation: "ai" });
-
-  it("checks the box of the kind of empire a modifier holds the system for", async () => {
-    withSpawn({ spawn_weight: 1, spawn_modifiers: [HUMAN] });
-    await open("scenario");
-
-    const held = overview();
-    expect(held).toContain("Reserve for a human player");
-    expect(held).toContain("Reserve for the AI");
-    expect(boxes(held)[1]).toContain("checked");
-    expect(boxes(held)[2]).not.toContain("checked");
-
-    withSpawn({ spawn_weight: 1, spawn_modifiers: [AI] });
-    await open("scenario");
-    expect(boxes(overview())[1]).not.toContain("checked");
-    expect(boxes(overview())[2]).toContain("checked");
-
-    withSpawn({ spawn_weight: 1, spawn_modifiers: [] });
-    await open("scenario");
-    for (const off of boxes(overview()).slice(1)) {
-      expect(off).not.toContain("checked");
-      expect(off).not.toContain("disabled");
-    }
-  });
-
-  it("refuses a system the generator never draws, and says why", async () => {
-    withSpawn({ spawn_weight: null });
-    await open("scenario");
-    expect(boxes(overview())[1]).toContain("disabled");
-    expect(boxes(overview())[2]).toContain("disabled");
-    expect(overview()).toContain("make this a spawn point first");
-
-    withSpawn({ spawn_weight: 0 });
-    await open("scenario");
-    expect(boxes(overview())[1]).toContain("disabled");
-  });
-
-  /** Clearing the weight clears the reservation with it, which the core writes in one op. */
-  it("leaves both boxes unchecked once the spawn point is turned off", async () => {
-    withSpawn({ spawn_weight: 1, spawn_modifiers: [HUMAN] });
-    await open("scenario");
-    expect(boxes(overview())[1]).toContain("checked");
-
-    withSpawn({ spawn_weight: null, spawn_modifiers: [] });
-    await open("scenario");
-    const cleared = boxes(overview());
-    expect(cleared[0]).not.toContain("checked");
-    for (const box of cleared.slice(1)) {
-      expect(box).not.toContain("checked");
-      expect(box).toContain("disabled");
-    }
-  });
-
-  it("lists every modifier as the file writes it, chipping the ones it recognises", async () => {
+  it("lists every modifier as the file writes it, chipping the flag one names", async () => {
     withSpawn({
       spawn_weight: 2,
       spawn_design: "player_design",
       spawn_modifiers: [
-        HUMAN,
-        modifier({
-          add: 5,
-          trigger: "has_country_flag = my_flag",
-          reservation: { country_flag: "my_flag" },
-        }),
+        modifier({ factor: 0, trigger: "is_ai = yes" }),
+        modifier({ add: 5, trigger: "has_country_flag = my_flag", country_flag: "my_flag" }),
         modifier({ factor: 2, trigger: "has_star_flag = empire_cluster" }),
       ],
     });
@@ -480,15 +414,26 @@ describe("a scenario system's spawn reservation", () => {
 
     const html = overview();
     expect(html).toContain("Modifiers · 3");
-    expect(html).toContain("×0");
-    expect(html).toContain("is_ai = yes");
-    expect(html).toContain('<span class="chip">human</span>');
+    // An author's own trigger is shown as written, with nothing read into it.
+    expect(html).toContain(
+      '<span class="num">×0</span><span class="mono">is_ai = yes</span></div>',
+    );
     expect(html).toContain("+5");
     expect(html).toContain('<span class="chip">flag: my_flag</span>');
     // Script this editor does not read is still shown, by the trigger it states.
     expect(html).toContain("×2");
     expect(html).toContain("has_star_flag = empire_cluster");
     expect(html).toContain("player_design");
+  });
+
+  it("offers only the spawn point checkbox, whoever the modifiers name", async () => {
+    withSpawn({
+      spawn_weight: 1,
+      spawn_modifiers: [modifier({ factor: 0, trigger: "is_ai = yes" })],
+    });
+    await open("scenario");
+
+    expect(overview().match(/<input type="checkbox"[^>]*>/g)).toHaveLength(1);
   });
 });
 
@@ -508,7 +453,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     });
   }
 
-  it("offers the seat's kind in place of the weight and the reservations", async () => {
+  it("offers the seat's kind in place of the weight", async () => {
     withScript({ reserved: "c" });
     await open("scenario");
     useInspectorStore.setState({ sections: { "system.initializer": false } });
@@ -607,14 +552,12 @@ describe("a scenario system Paint a Galaxy seats", () => {
     });
   });
 
-  it("hides the vanilla reservation rows under the Paint a Galaxy layer, offering a seat instead", async () => {
+  it("offers a seat in place of a plain weight under the Paint a Galaxy layer", async () => {
     withWeight(3);
     await open("scenario");
     useFileSessionStore.setState({ painted: true });
 
     const html = overview();
-    expect(html).not.toContain("Reserve for a human player");
-    expect(html).not.toContain("Reserve for the AI");
     expect(html).toContain("Use a Paint a Galaxy seat");
     expect(html).toContain("The mod fills seats by kind and ignores this weight.");
   });

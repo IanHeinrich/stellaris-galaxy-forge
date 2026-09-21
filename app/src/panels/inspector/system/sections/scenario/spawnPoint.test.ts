@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../../../../generated/SystemNode";
 import { node } from "../../../../../store/fixture";
-import { spawnPointOp, spawnPointsOp, spawnReservationOp, spawnTargets } from "./spawnPoint";
+import { spawnPointOp, spawnPointsOp, spawnTargets } from "./spawnPoint";
 
 /** A system the generator can weigh, and one it cannot: a weight needs an initializer beside it. */
 const weighable = (id: number) => node(id, `NAME_${id}`, id, 0, "sc_g");
@@ -125,26 +125,6 @@ describe("weighing a selection", () => {
       type: "SetSpawnScript",
       id: 0,
       script: { paint_a_galaxy: { kind: "enabled", random_value: 0 } },
-    });
-  });
-});
-
-describe("reserving a spawn point", () => {
-  it("names the preset to write, and clears whichever stands with null", () => {
-    expect(spawnReservationOp(7, "human")).toEqual({
-      type: "SetSpawnReservation",
-      id: 7,
-      reserve: "human",
-    });
-    expect(spawnReservationOp(7, "ai")).toEqual({
-      type: "SetSpawnReservation",
-      id: 7,
-      reserve: "ai",
-    });
-    expect(spawnReservationOp(7, null)).toEqual({
-      type: "SetSpawnReservation",
-      id: 7,
-      reserve: null,
     });
   });
 });

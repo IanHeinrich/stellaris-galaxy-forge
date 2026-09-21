@@ -88,10 +88,9 @@ a release is made.
   comment lines say what was done.
 - The seat select reads Enabled, Preferred, Sol, then Reserved A to Z,
   with a line saying what the mod does with each. The map shows a
-  reserved seat's letter and a star on a preferred one. The vanilla
-  human and AI reservations are hidden under the layer, since the mod
-  does not read them. Issues warns when a reserved seat exists and the
-  Reserved Spawns submod is not enabled in the playset.
+  reserved seat's letter and a star on a preferred one. Issues warns
+  when a reserved seat exists and the Reserved Spawns submod is not
+  enabled in the playset.
 
 ### Changed
 
@@ -99,6 +98,15 @@ a release is made.
   release. The territories are recomputed in a worker and the outlines
   follow a beat later. The recompute itself is cheaper too, since only
   the pieces of territory near the moved system are rebuilt.
+
+### Removed
+
+- The "Reserve for a human player" and "Reserve for the AI" checkboxes
+  on a spawn point, and the `sgf spawn reserve` command. The game does
+  not evaluate `is_ai` while it lays out a galaxy, so the modifier the
+  editor wrote never held a seat for anyone or barred anyone from it. A
+  spawn point is now a spawn point for any empire. A modifier already in
+  a file is kept and listed as written.
 
 ## [0.6.1] - 2026-09-20
 

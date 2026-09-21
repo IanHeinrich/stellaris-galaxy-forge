@@ -160,14 +160,6 @@ fn run(cli: Cli) -> commands::Run {
                     base: commands::mutate::spawn_base(&base)?,
                 },
             ),
-            SpawnCommand::Reserve { sav, id, who, out } => commands::mutate::run(
-                &sav,
-                out.path.as_deref(),
-                Op::SetSpawnReservation {
-                    id,
-                    reserve: who.preset(),
-                },
-            ),
         },
         Some(Command::Isolate { sav, id, out }) => {
             commands::mutate::run(&sav, out.path.as_deref(), Op::IsolateSystem { id })

@@ -19,9 +19,7 @@ use crate::document::{self, Document};
 use crate::format;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::{Anchor, OverlayError};
-use crate::projections::galaxy::{
-    GalaxyGraph, Lane, ProjectionError, SpawnReservationPreset, SpawnScript,
-};
+use crate::projections::galaxy::{GalaxyGraph, Lane, ProjectionError, SpawnScript};
 use crate::session::Session;
 use crate::views::DocumentKind;
 
@@ -209,13 +207,10 @@ pub enum Op {
         values: Vec<String>,
     },
     /// The `base` of a system's `spawn_weight`, the weight the generator places an empire
-    /// by; `None` removes it, and with it the preset reservation
-    /// [`Op::SetSpawnReservation`] writes, and the whole statement when no other
-    /// `modifier` remains. The modifiers the map author wrote are left byte for byte. A
-    /// base the reader cannot read as a number, `base = { min = 1 max = 2 }`, is rewritten
-    /// whole and inverts to `None`. The inverse names the base alone, so a reservation
-    /// cleared with it comes back from the bytes undo replays, not from the op.
-    /// Scenario documents only.
+    /// by; `None` removes it, and the whole statement when no `modifier` remains. The
+    /// modifiers the map author wrote are left byte for byte. A base the reader cannot
+    /// read as a number, `base = { min = 1 max = 2 }`, is rewritten whole and inverts to
+    /// `None`. Scenario documents only.
     SetSpawnWeight {
         id: u32,
         base: Option<f64>,
@@ -225,17 +220,6 @@ pub enum Op {
     /// documents only.
     SetSpawnWeights {
         entries: Vec<(u32, Option<f64>)>,
-    },
-    /// Which preset reservation the system carries, the two being exclusive:
-    /// [`SpawnReservationPreset::Human`] writes `modifier = { factor = 0 is_ai = yes }`
-    /// into its `spawn_weight`, [`SpawnReservationPreset::Ai`] the mirror with
-    /// `is_ai = no`, each taking the other back, and `None` takes back whichever stands.
-    /// A block the system has not got is written with `base = 1`. A modifier that tests
-    /// `is_ai` in a shape this editor does not read is refused rather than written
-    /// beside; every other modifier is left byte for byte. Scenario documents only.
-    SetSpawnReservation {
-        id: u32,
-        reserve: Option<SpawnReservationPreset>,
     },
     /// The scripted seat a system's `spawn_weight` states, in the dialect the script
     /// names: `Some` writes the whole statement afresh in that dialect's exact text,
@@ -356,7 +340,6 @@ impl Op {
             Self::SetHeaderList { .. } => "SetHeaderList",
             Self::SetSpawnWeight { .. } => "SetSpawnWeight",
             Self::SetSpawnWeights { .. } => "SetSpawnWeights",
-            Self::SetSpawnReservation { .. } => "SetSpawnReservation",
             Self::SetSpawnScript { .. } => "SetSpawnScript",
             Self::SetSpawnScripts { .. } => "SetSpawnScripts",
             Self::SetFeZone { .. } => "SetFeZone",

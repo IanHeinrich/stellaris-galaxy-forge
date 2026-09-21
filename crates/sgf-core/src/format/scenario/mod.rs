@@ -118,7 +118,6 @@ impl Format for Scenario {
             | Op::SetHeaderList { .. }
             | Op::SetSpawnWeight { .. }
             | Op::SetSpawnWeights { .. }
-            | Op::SetSpawnReservation { .. }
             | Op::SetSpawnScript { .. }
             | Op::SetSpawnScripts { .. }
             | Op::SetFeZone { .. }

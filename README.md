@@ -35,7 +35,7 @@ What the editor can change vs what it only shows:
 | Systems: add, remove, rename | shown | editable |
 | Which initializer a system uses | shown | editable |
 | The initializer itself (its star, planets, resources) | shown | shown, never written: initializers belong to the game and mod files |
-| Spawn points, weights, reservations | not in the file | editable |
+| Spawn points, weights | not in the file | editable |
 | Prevented lanes, header keys | not in the file | editable |
 | Planets, deposits, colonies | shown | shown, from the initializer |
 | Fleets, starbases, waystations | shown | not in the file |
@@ -93,10 +93,9 @@ switches each drawn layer on and off, with a number key for the main ones.
 
 Right-click empty space to add a system. Pick what it spawns from the
 initializer browser, which lists everything your install and mods
-define. Mark spawn points and hold them for a human player or the AI.
-Bar a lane the generator must never draw. A save can be opened as a
-scenario. An empty scenario or one from a paint-a-galaxy export can be
-started from the New scenario dialog.
+define. Mark spawn points. Bar a lane the generator must never draw. A
+save can be opened as a scenario. An empty scenario or one from a
+paint-a-galaxy export can be started from the New scenario dialog.
 
 <p>
   <img src="docs/media/inspectors.png" height="420" alt="The inspector for a save system beside the inspector for a scenario system: position, hyperlanes, planets, fleets and flags on one side, spawn point, initializer, the planets it will spawn and a prevent-lane control on the other">

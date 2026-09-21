@@ -26,9 +26,7 @@ pub use bypasses::BypassLink;
 pub use countries::{CountryNode, FlagRef};
 pub use nebulae::Nebula;
 pub(crate) use nebulae::nearest_prospective;
-pub use spawn::{
-    PaintSpawnKind, SpawnModifier, SpawnReservation, SpawnReservationPreset, SpawnScript,
-};
+pub use spawn::{PaintSpawnKind, SpawnModifier, SpawnScript};
 pub use systems::{Lane, SystemNode, lane_length};
 pub(crate) use waylines::bypass_between;
 pub use waylines::{Wayline, Waystation};

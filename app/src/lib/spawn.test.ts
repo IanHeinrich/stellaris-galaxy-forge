@@ -12,13 +12,13 @@ describe("isSpawnPoint", () => {
     const added = {
       ...base,
       spawn_modifiers: [
-        { factor: null, add: 10000, trigger: "has_country_flag = x", reservation: null },
+        { factor: null, add: 10000, trigger: "has_country_flag = x", country_flag: "x" },
       ],
     };
     expect(isSpawnPoint(added)).toBe(true);
     const scaled = {
       ...base,
-      spawn_modifiers: [{ factor: 2, add: null, trigger: "is_ai = yes", reservation: null }],
+      spawn_modifiers: [{ factor: 2, add: null, trigger: "is_ai = yes", country_flag: null }],
     };
     expect(isSpawnPoint(scaled)).toBe(false);
   });
