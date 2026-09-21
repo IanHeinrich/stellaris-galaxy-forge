@@ -209,14 +209,17 @@ fn valid_letter(letter: &str) -> bool {
 /// [`Op::SetSpawnScript`]: crate::ops::Op::SetSpawnScript
 pub(crate) fn description(id: u32, script: Option<&SpawnScript>) -> String {
     match script {
-        Some(SpawnScript::PaintAGalaxy { kind, .. }) => {
-            format!("Made system {id} a Paint a Galaxy spawn ({})", label(kind))
-        }
+        Some(script) => format!(
+            "Made system {id} a Paint a Galaxy spawn ({})",
+            label(script)
+        ),
         None => format!("Cleared system {id}'s Paint a Galaxy spawn"),
     }
 }
 
-fn label(kind: &PaintSpawnKind) -> String {
+/// The kind as the descriptions name it: `enabled`, `preferred`, `reserved b` or `Sol`.
+pub(crate) fn label(script: &SpawnScript) -> String {
+    let SpawnScript::PaintAGalaxy { kind, .. } = script;
     match kind {
         PaintSpawnKind::Enabled => "enabled".to_owned(),
         PaintSpawnKind::Preferred => "preferred".to_owned(),

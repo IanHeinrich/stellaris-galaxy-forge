@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Cleared system 2 spawn weight
-inverse: SetSpawnWeight { id: 2, base: Some(0.0) }
+inverse: SetSpawnScript { id: 2, script: Some(PaintAGalaxy { kind: Reserved("a"), random_value: 2 }) }
 
 --- scenario
 +++ scenario

@@ -474,7 +474,9 @@ fn the_paint_a_galaxy_export_of_the_sample_matches_its_fixture_and_holds_togethe
     let text = String::from_utf8(text).expect("utf-8");
     assert!(
         text.starts_with(
-            "# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
+            "# Exported by Stellaris Galaxy Forge from 2206.11.16.sav
+# Systems: 765 · Empire seats: 17 · Nebulae: 9
+# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
 static_galaxy_scenario = {
 	name = \"2206.11.16\"
 	priority = 10
@@ -722,25 +724,36 @@ fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flag
     let save = sample_without_initializer(neighbour);
     assert_eq!(save.graph.systems[&neighbour].initializer, "");
     assert_eq!(default_capitals(&save), capitals);
-    let options = export::options_for(&save.graph, NAME);
-    let (text, report) = export::scenario_text(
-        &save.graph,
-        &options,
-        &no_names,
-        &no_sources,
-        ScenarioProfile::PaintAGalaxy,
-    );
+    let (text, report) = exported_as(&save, NAME, ScenarioProfile::PaintAGalaxy);
     let text = String::from_utf8(text).expect("utf-8");
+    // Every pair's ends are written, so the comment lines above the mod's own say
+    // nothing was dropped.
+    assert_eq!(report.dropped, DroppedBypasses::default());
     assert!(
-        text.starts_with(
-            "# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
-static_galaxy_scenario = {
-	name = \"2206.11.16\"
+        report
+            .issues()
+            .iter()
+            .all(|issue| issue.code != IssueCode::ExportDropped),
+        "{:?}",
+        report.issues()
+    );
+    let systems = text
+        .lines()
+        .filter(|line| line.starts_with("\tsystem = "))
+        .count();
+    assert!(
+        text.starts_with(&format!(
+            "# Exported by Stellaris Galaxy Forge from {SAVE_FILE}
+# Systems: {systems} · Empire seats: {} · Nebulae: 9
+# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
+static_galaxy_scenario = {{
+	name = \"{NAME}\"
 	priority = 10
-"
-        ),
+",
+            capitals.len()
+        )),
         "{}",
-        &text[..300]
+        &text[..400]
     );
 
     // 17 seats, the player's reserved as Sol: the setup's 13 empires fit under the 15

@@ -70,6 +70,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
             name,
             initializer,
             spawn_weight,
+            spawn_script,
         } => system::add_system(
             plan,
             s,
@@ -80,6 +81,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
                 name: name.as_deref(),
                 initializer: initializer.as_deref(),
                 spawn_weight: *spawn_weight,
+                spawn_script: spawn_script.as_ref(),
             },
         ),
         Op::RemoveSystem { id } => system::remove_system(plan, s, *id),

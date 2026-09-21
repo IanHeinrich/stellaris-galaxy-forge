@@ -143,7 +143,9 @@ pub enum Op {
     /// planets, a starbase and an owner, none of which an op can invent.
     /// `id` defaults to one past the highest the document holds. `spawn_weight` follows
     /// the [`Op::SetInitializer`] rule: `Some(w)` writes `spawn_weight = { base = w }`,
-    /// `None` writes nothing.
+    /// `None` writes nothing. `spawn_script` writes the seat as [`Op::SetSpawnScript`]
+    /// does, the dialect's basic initializer with it when none is given; a weight and
+    /// a script together are refused.
     AddSystem {
         id: Option<u32>,
         x: f64,
@@ -151,6 +153,8 @@ pub enum Op {
         name: Option<String>,
         initializer: Option<String>,
         spawn_weight: Option<f64>,
+        #[serde(default)]
+        spawn_script: Option<SpawnScript>,
     },
     /// A system and every hyperlane statement naming it, `prevent_hyperlane` included so
     /// no statement is left naming a system that is gone. Scenario documents only. The
@@ -472,6 +476,8 @@ pub enum OpError {
     InvalidWeight { weight: f64, reason: String },
     #[error("system {0}'s spawn weight is script; change its spawn kind instead")]
     ScriptedSpawn(u32),
+    #[error("a system takes a spawn weight or a spawn script, not both")]
+    WeightAndScript,
     #[error("a reserved seat is named by one letter, not {0:?}")]
     InvalidSeatLetter(String),
     #[error(

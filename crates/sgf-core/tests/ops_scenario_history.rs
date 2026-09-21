@@ -29,6 +29,7 @@ fn add_system_undo_and_redo_are_byte_identical() {
             name: Some("Alderaan".to_owned()),
             initializer: None,
             spawn_weight: None,
+            spawn_script: None,
         },
     );
 }
@@ -45,6 +46,7 @@ fn add_system_with_a_spawn_weight_writes_it_on_one_history_entry() {
             name: Some("Alderaan".to_owned()),
             initializer: Some("empire_init_01".to_owned()),
             spawn_weight: Some(1.0),
+            spawn_script: None,
         },
     );
 }
@@ -60,6 +62,7 @@ fn add_system_with_a_spawn_weight_undo_and_redo_are_byte_identical() {
             name: Some("Alderaan".to_owned()),
             initializer: Some("empire_init_01".to_owned()),
             spawn_weight: Some(1.0),
+            spawn_script: None,
         },
     );
 }

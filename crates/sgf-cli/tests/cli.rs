@@ -782,7 +782,13 @@ static_galaxy_scenario = {
     );
     assert!(paint.contains("set_star_flag = painted_galaxy_wormhole_1"));
     assert!(paint.contains("set_star_flag = painted_galaxy_fe_spawn_machine"));
-    assert!(paint.starts_with("# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod"));
+    assert!(
+        paint.starts_with(
+            "# Exported by Stellaris Galaxy Forge from 2206.11.16.sav\n# Systems: 765 · Empire seats: 17 · Nebulae: 9\n# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod"
+        ),
+        "{}",
+        &paint[..300]
+    );
     assert_eq!(
         paint,
         std::fs::read_to_string(concat!(

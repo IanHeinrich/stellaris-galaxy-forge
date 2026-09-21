@@ -340,6 +340,36 @@ fn a_block_of_modifiers_is_neither_written_over_nor_cleared() {
     assert!(!session.is_dirty());
 }
 
+/// A script's own `add` is rewritten whole, but a `modifier` beside it is script this
+/// editor keeps byte for byte, so the seat is neither cleared nor written over.
+#[test]
+fn a_scripted_seat_with_a_modifier_beside_it_is_neither_cleared_nor_written_over() {
+    let text = "static_galaxy_scenario = {
+	name = \"modifiers\"
+	system = {
+		id = \"7\"
+		position = { x = 1 y = 2 }
+		initializer = random_empire_init_01
+		spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { factor = 0 has_country_flag = keep_out } }
+	}
+}
+";
+    let doc = Document::from_scenario_bytes(text.as_bytes().to_vec()).expect("index");
+    let mut session = Session::from_document(None, doc).expect("open");
+    assert_eq!(
+        session.graph.systems[&7].spawn_script,
+        script(PaintSpawnKind::Enabled, 7)
+    );
+    let error = session.apply(set(7, None)).expect_err("clear");
+    assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
+    common::snapshot("clear_7_modifier_refused", &error.to_string());
+    let error = session
+        .apply(set(7, script(PaintSpawnKind::Preferred, 1)))
+        .expect_err("replace");
+    assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
+    assert_eq!(common::current(&session), text.as_bytes());
+}
+
 #[test]
 fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
     let mut session = open();
@@ -351,6 +381,79 @@ fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
     assert_eq!(system.spawn_weight, None);
     common::snapshot("clear_weight_2", &plain_report(&session, &result));
     round_trip(open(), Op::SetSpawnWeight { id: 2, base: None });
+
+    // The inverse puts the script back, not a bare weight of 0.
+    let inverse = result.entry.inverse.clone();
+    assert_eq!(inverse, set(2, script(reserved("a"), 2)));
+    session.apply(inverse).expect("apply the inverse");
+    assert_eq!(
+        session.graph.systems[&2].spawn_script,
+        script(reserved("a"), 2)
+    );
+    assert_eq!(common::current(&session), bytes());
+
+    let mut session = open();
+    let result = session
+        .apply(Op::SetSpawnWeight { id: 10, base: None })
+        .expect("nothing to clear");
+    assert_eq!(
+        result.entry.inverse,
+        Op::SetSpawnWeight { id: 10, base: None }
+    );
+}
+
+#[test]
+fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
+    let add = |spawn_weight, spawn_script| Op::AddSystem {
+        id: None,
+        x: 60.0,
+        y: 10.0,
+        name: Some("New Seat".to_owned()),
+        initializer: None,
+        spawn_weight,
+        spawn_script,
+    };
+    let mut session = open();
+    let result = session
+        .apply(add(None, script(PaintSpawnKind::Enabled, 5)))
+        .expect("add");
+    let system = &session.graph.systems[&14];
+    assert_eq!(system.initializer, "random_empire_init_03");
+    assert_eq!(system.spawn_script, script(PaintSpawnKind::Enabled, 5));
+    assert_eq!(system.spawn_weight, Some(0.0));
+    assert!(text(&session).contains(
+        "system = { id = \"14\" name = \"New Seat\" position = { x = 60 y = 10 } initializer = random_empire_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|5| } }"
+    ));
+    assert_eq!(result.details_stale, vec![14]);
+    common::snapshot("add_system_scripted", &plain_report(&session, &result));
+    round_trip(open(), add(None, script(PaintSpawnKind::Enabled, 5)));
+
+    let removed = session
+        .apply(Op::RemoveSystem { id: 14 })
+        .expect("remove the seat");
+    assert_eq!(
+        removed.entry.inverse,
+        Op::AddSystem {
+            id: Some(14),
+            x: 60.0,
+            y: 10.0,
+            name: Some("New Seat".to_owned()),
+            initializer: Some("random_empire_init_03".to_owned()),
+            spawn_weight: None,
+            spawn_script: script(PaintSpawnKind::Enabled, 5),
+        }
+    );
+
+    let mut session = open();
+    let error = session
+        .apply(add(Some(1.0), script(PaintSpawnKind::Enabled, 5)))
+        .expect_err("a weight and a script");
+    assert!(matches!(error, OpError::WeightAndScript), "{error}");
+    let error = session
+        .apply(add(None, script(reserved("ab"), 0)))
+        .expect_err("two letters");
+    assert!(matches!(error, OpError::InvalidSeatLetter(_)), "{error}");
+    assert!(!session.is_dirty());
 }
 
 /// The plain path is unchanged: on the grammar fixture a weight is still `base = N`,

@@ -66,7 +66,7 @@ const FE_KINDS: [(&str, FeKind); 6] = [
 /// for a typed zone at its old capital; the spawn systems are the capitals of the
 /// playable countries and every system already marked as a spawn, the player's capital
 /// as the Sol seat; a seat the plain profile wrote anywhere else is cleared. `report`
-/// gains what the profile did.
+/// gains what the profile did, and drops only the wormhole pairs it could not flag.
 pub(super) fn decorate(
     draft: &mut Draft,
     report: &mut ExportReport,
@@ -81,7 +81,7 @@ pub(super) fn decorate(
     }
     mark_spawns(draft, report, graph, &spawns, player_capital(graph));
     fill_neighbours(draft, &spawns);
-    flag_wormholes(draft, &graph.bypasses);
+    report.dropped.wormhole_pairs = flag_wormholes(draft, &graph.bypasses);
     // Only the zones the save's own fallen empires ask for: the map is not filled with
     // the mod's candidates, which "Fit fallen empire zones" places on request.
     report.fallen_empire_zones = 0;
@@ -813,18 +813,26 @@ fn fill_neighbours(draft: &mut Draft, spawns: &BTreeSet<u32>) {
 }
 
 /// Both ends of each wormhole pair are flagged with the pair's number and kept clear
-/// of empires; a pair with an end the draft does not write is not a pair.
-fn flag_wormholes(draft: &mut Draft, bypasses: &[BypassLink]) {
+/// of empires; a pair with an end the draft does not write is not a pair. Returns how
+/// many pairs were left unflagged for that reason.
+fn flag_wormholes(draft: &mut Draft, bypasses: &[BypassLink]) -> u32 {
     let index: HashMap<u32, usize> = draft
         .systems
         .iter()
         .enumerate()
         .map(|(i, system)| (system.id, i))
         .collect();
-    let pairs = bypasses.iter().filter_map(|link| match link {
-        BypassLink::Wormhole { a, b } => Some((*index.get(a)?, *index.get(b)?)),
-        _ => None,
-    });
+    let mut dropped = 0;
+    let mut pairs = Vec::new();
+    for link in bypasses {
+        let BypassLink::Wormhole { a, b } = link else {
+            continue;
+        };
+        match (index.get(a), index.get(b)) {
+            (Some(&a), Some(&b)) => pairs.push((a, b)),
+            _ => dropped += 1,
+        }
+    }
     for (n, (a, b)) in (1..).zip(pairs) {
         for end in [a, b] {
             add_flags(
@@ -836,6 +844,7 @@ fn flag_wormholes(draft: &mut Draft, bypasses: &[BypassLink]) {
             );
         }
     }
+    dropped
 }
 
 fn add_flags(system: &mut SystemDraft, flags: impl IntoIterator<Item = String>) {

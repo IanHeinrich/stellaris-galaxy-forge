@@ -1,0 +1,5 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+system 7: spawn_weight carries modifiers this editor does not rewrite; clear its spawn weight first at byte 190

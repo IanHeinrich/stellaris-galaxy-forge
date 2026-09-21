@@ -21,13 +21,20 @@ pub(super) fn set_weight(
     id: u32,
     base: Option<f64>,
 ) -> Result<Planned, OpError> {
-    let (description, previous) = write_weight(plan, s, id, base)?;
-    Ok(Planned {
-        description,
-        inverse: Op::SetSpawnWeight {
+    let (description, previous, script) = write_weight(plan, s, id, base)?;
+    let inverse = match script {
+        Some(script) => Op::SetSpawnScript {
+            id,
+            script: Some(script),
+        },
+        None => Op::SetSpawnWeight {
             id,
             base: previous.1,
         },
+    };
+    Ok(Planned {
+        description,
+        inverse,
     })
 }
 
@@ -48,7 +55,7 @@ pub(super) fn set_weights(
     let mut one = String::new();
     let mut previous = Vec::with_capacity(entries.len());
     for &(id, base) in entries {
-        let (description, was) = write_weight(plan, s, id, base)?;
+        let (description, was, _) = write_weight(plan, s, id, base)?;
         one = description;
         previous.push(was);
     }
@@ -109,14 +116,18 @@ pub(super) fn set_scripts(
     })
 }
 
-/// Write one system's spawn weight, returning what to call the change and the entry that
-/// puts it back. A weight that is script is not a number to set: only its kind changes.
+/// What to call a weight change, the entry that puts the base back and the script the
+/// block was, which only a script puts back.
+type WeightWritten = (String, (u32, Option<f64>), Option<SpawnScript>);
+
+/// Write one system's spawn weight. A weight that is script is not a number to set:
+/// only its kind changes.
 fn write_weight(
     plan: &mut Plan,
     s: &Session,
     id: u32,
     base: Option<f64>,
-) -> Result<(String, (u32, Option<f64>)), OpError> {
+) -> Result<WeightWritten, OpError> {
     if let Some(base) = base {
         check_weight(base)?;
     }
@@ -125,6 +136,7 @@ fn write_weight(
         return Err(OpError::ScriptedSpawn(id));
     }
     let previous = system.spawn_weight;
+    let script = system.spawn_script.clone();
     let edit = plan.edit(&s.doc, id)?;
     match (base, block(edit)?) {
         (Some(base), Some(block)) => match block.base {
@@ -152,7 +164,7 @@ fn write_weight(
         Some(base) => format!("Set system {id} spawn weight to {}", coord(base)),
         None => format!("Cleared system {id} spawn weight"),
     };
-    Ok((description, (id, previous)))
+    Ok((description, (id, previous), script))
 }
 
 /// Write one system's scripted seat whole, returning what to call the change and the
@@ -179,7 +191,6 @@ fn write_script(
     let edit = plan.edit(&s.doc, id)?;
     let standing = block(edit)?;
     if let Some(block) = &standing
-        && previous.is_none()
         && let Some(&modifier) = block.modifiers.first()
     {
         return Err(edit.parse_error(

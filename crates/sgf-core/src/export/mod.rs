@@ -7,7 +7,7 @@
 //! galaxy is first drafted, statement by statement, then rendered; a profile decorates
 //! the draft in between, so the plain output never depends on one. Drafting also
 //! reports what the file could not carry over (`report`), which a save's export writes
-//! as comment lines above the header.
+//! as comment lines above the header once the profile has had its say.
 
 mod paint;
 pub mod policy;
@@ -87,9 +87,9 @@ pub struct NebulaDraft {
     pub radius: f64,
 }
 
-/// A whole scenario file: the header, one `system` statement per system in file order,
-/// one `add_hyperlane` per undirected lane and one `nebula` per cloud, with the report
-/// of what the plain draft could not carry over.
+/// A whole scenario file: the comment lines a save's export opens with, the header, one
+/// `system` statement per system in file order, one `add_hyperlane` per undirected lane
+/// and one `nebula` per cloud, with the report of what the file could not carry over.
 pub fn scenario_text(
     graph: &GalaxyGraph,
     options: &ScenarioOptions,
@@ -101,7 +101,12 @@ pub fn scenario_text(
     if profile == ScenarioProfile::PaintAGalaxy {
         paint::decorate(&mut draft, &mut report, options, graph, resolve);
     }
-    (render(&draft), report)
+    let mut text = match &options.exported_from {
+        Some(save) => comment_block(save, &draft, &report).into_bytes(),
+        None => Vec::new(),
+    };
+    text.extend(render(&draft));
+    (text, report)
 }
 
 /// The galaxy as the plain profile writes it: an empire seat on every home system,
@@ -156,17 +161,12 @@ pub fn draft(
             radius: nebula.radius,
         })
         .collect();
-    let mut text = match &options.exported_from {
-        Some(save) => comment_block(save, systems.len(), nebulae.len(), &report).into_bytes(),
-        None => Vec::new(),
-    };
-    let mut plain = header(options);
+    let mut header = header(options);
     if let Some(setup) = &galaxy.setup {
-        shape_first(&mut plain, &setup.shape);
+        shape_first(&mut header, &setup.shape);
     }
-    text.extend(plain);
     let draft = Draft {
-        header: text,
+        header,
         systems,
         lanes: lane_pairs(galaxy, &omitted),
         nebulae,
@@ -202,13 +202,19 @@ fn shape_first(header: &mut Vec<u8>, shape: &str) {
 }
 
 /// The lines above a save's export that say where it came from and what it lacks.
-fn comment_block(save: &str, systems: usize, nebulae: usize, report: &ExportReport) -> String {
+fn comment_block(save: &str, draft: &Draft, report: &ExportReport) -> String {
     let save: String = save.chars().filter(|c| !matches!(c, '\n' | '\r')).collect();
+    let seats = draft
+        .systems
+        .iter()
+        .filter(|system| system.spawn != SpawnDraft::None)
+        .count();
     let mut lines = vec![
         format!("# Exported by Stellaris Galaxy Forge from {save}"),
         format!(
-            "# Systems: {systems} · Empire seats: {} · Nebulae: {nebulae}",
-            report.seats
+            "# Systems: {} · Empire seats: {seats} · Nebulae: {}",
+            draft.systems.len(),
+            draft.nebulae.len()
         ),
     ];
     if let Some(needs) = report.needs() {

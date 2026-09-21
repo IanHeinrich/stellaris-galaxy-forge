@@ -117,6 +117,7 @@ fn a_name_that_cannot_be_quoted_is_refused() {
                 name: Some(name.into()),
                 initializer: None,
                 spawn_weight: None,
+                spawn_script: None,
             })
             .expect_err("refused");
         assert!(matches!(err, OpError::InvalidName(_)), "{name}: {err}");
@@ -129,6 +130,7 @@ fn a_name_that_cannot_be_quoted_is_refused() {
             name: Some(String::new()),
             initializer: None,
             spawn_weight: None,
+            spawn_script: None,
         })
         .expect_err("an empty name is no name");
     assert!(matches!(err, OpError::EmptyName), "{err}");
@@ -147,6 +149,7 @@ fn add_system_takes_the_next_id_and_lands_before_the_closing_brace() {
             name: Some("Alderaan".to_owned()),
             initializer: None,
             spawn_weight: None,
+            spawn_script: None,
         },
     );
 }
@@ -162,6 +165,7 @@ fn add_system_is_refused_when_the_id_is_taken() {
             name: None,
             initializer: None,
             spawn_weight: None,
+            spawn_script: None,
         })
         .expect_err("2 is Coruscant");
     assert!(matches!(error, OpError::SystemExists(2)), "{error:?}");
@@ -197,6 +201,7 @@ fn adding_a_system_and_removing_it_again_is_byte_identical() {
             name: None,
             initializer: None,
             spawn_weight: None,
+            spawn_script: None,
         })
         .expect("add");
     assert!(session.graph.systems.contains_key(&3019));

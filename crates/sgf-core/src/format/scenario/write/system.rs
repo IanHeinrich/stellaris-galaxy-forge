@@ -9,12 +9,14 @@ use crate::emit::coord;
 use crate::format;
 use crate::format::scenario::emit::{SpawnStmt, SystemStmt, system_stmt};
 use crate::format::scenario::index::{SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
+use crate::format::scenario::paint;
 use crate::keys::scenario as keys;
 use crate::ops::rules::systems::{decide_move, decide_moves};
 use crate::ops::rules::{check_name, quoted};
 use crate::ops::{Emitted, InitializerSet, Op, OpError, Plan, Planned, Subject, SystemMove};
 use crate::overlay::Anchor;
 use crate::plural;
+use crate::projections::galaxy::SpawnScript;
 use crate::session::Session;
 
 pub(super) fn move_one(
@@ -58,8 +60,11 @@ pub(super) struct NewSystem<'a> {
     pub name: Option<&'a str>,
     pub initializer: Option<&'a str>,
     pub spawn_weight: Option<f64>,
+    pub spawn_script: Option<&'a SpawnScript>,
 }
 
+/// A seat needs a starting initializer, so a scripted system naming none is given the
+/// dialect's basic one, as [`Op::SetSpawnScript`] gives it.
 pub(super) fn add_system(plan: &mut Plan, s: &Session, new: NewSystem) -> Result<Planned, OpError> {
     let NewSystem {
         id,
@@ -68,12 +73,19 @@ pub(super) fn add_system(plan: &mut Plan, s: &Session, new: NewSystem) -> Result
         name,
         initializer,
         spawn_weight,
+        spawn_script,
     } = new;
     if !x.is_finite() || !y.is_finite() {
         return Err(OpError::NotFinite);
     }
+    if spawn_weight.is_some() && spawn_script.is_some() {
+        return Err(OpError::WeightAndScript);
+    }
     if let Some(weight) = spawn_weight {
         super::spawn::check_weight(weight)?;
+    }
+    if let Some(script) = spawn_script {
+        paint::check(script)?;
     }
     if let Some(name) = name {
         check_name(name)?;
@@ -83,6 +95,15 @@ pub(super) fn add_system(plan: &mut Plan, s: &Session, new: NewSystem) -> Result
     if scenario.system(id).is_some() {
         return Err(OpError::SystemExists(id));
     }
+    let initializer = match (initializer, spawn_script) {
+        (None, Some(_)) => Some(paint::basic_initializer(id)),
+        (initializer, _) => initializer,
+    };
+    let spawn = match (spawn_weight, spawn_script) {
+        (Some(weight), _) => SpawnStmt::Base(weight),
+        (_, Some(script)) => SpawnStmt::Script(script.clone()),
+        (None, None) => SpawnStmt::None,
+    };
     let text = system_stmt(
         &system_indent(&s.doc, scenario),
         &SystemStmt {
@@ -91,13 +112,17 @@ pub(super) fn add_system(plan: &mut Plan, s: &Session, new: NewSystem) -> Result
             x: x * SCENARIO_X_SIGN,
             y: y * SCENARIO_Y_SIGN,
             initializer: initializer.map(str::to_owned),
-            spawn: spawn_weight.map_or(SpawnStmt::None, SpawnStmt::Base),
+            spawn,
             effect: None,
         },
     );
     plan.emit(Emitted::System(id), scenario.insert_at, text);
+    let seat = match spawn_script {
+        Some(script) => format!(" as a Paint a Galaxy spawn ({})", paint::label(script)),
+        None => String::new(),
+    };
     Ok(Planned {
-        description: format!("Added system {id} at ({}, {})", coord(x), coord(y)),
+        description: format!("Added system {id} at ({}, {}){seat}", coord(x), coord(y)),
         inverse: Op::RemoveSystem { id },
     })
 }
@@ -106,13 +131,18 @@ pub(super) fn remove_system(plan: &mut Plan, s: &Session, id: u32) -> Result<Pla
     let scenario = index(&s.doc);
     let anchor = scenario.system(id).ok_or(OpError::UnknownSystem(id))?;
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
+    let spawn_script = system.spawn_script.clone();
     let restore = Op::AddSystem {
         id: Some(id),
         x: system.x,
         y: system.y,
         name: some_text(&system.name.key),
         initializer: some_text(&system.initializer),
-        spawn_weight: spawn_weight_of(&s.doc, anchor),
+        spawn_weight: match spawn_script {
+            Some(_) => None,
+            None => spawn_weight_of(&s.doc, anchor),
+        },
+        spawn_script,
     };
 
     let statements = super::matching(&s.doc, |l| l.from == id || l.to == id);
