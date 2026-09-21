@@ -680,6 +680,7 @@ fn a_save_takes(op: &Op) -> bool {
         | Op::SetFeZone { .. }
         | Op::SetFeZones { .. }
         | Op::SetHeaderKeys { .. }
+        | Op::SetHeaderList { .. }
         | Op::SetWormholePair { .. }
         | Op::SetWormholeEnds { .. }
         | Op::PreventLane { .. }
@@ -722,6 +723,7 @@ fn reclassifies(op: &Op) -> bool {
         | Op::SetNebulaName { .. }
         | Op::SetHeaderField { .. }
         | Op::SetHeaderKeys { .. }
+        | Op::SetHeaderList { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
         | Op::SetSpawnReservation { .. }
@@ -765,6 +767,7 @@ fn stales_details(op: &Op) -> bool {
         | Op::SetSystemName { .. }
         | Op::SetHeaderField { .. }
         | Op::SetHeaderKeys { .. }
+        | Op::SetHeaderList { .. }
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
         | Op::SetSpawnReservation { .. }
@@ -900,6 +903,10 @@ fn one_of_each() -> Vec<Op> {
         },
         Op::SetHeaderKeys {
             entries: vec![("name".to_owned(), "\"x\"".to_owned())],
+        },
+        Op::SetHeaderList {
+            key: "supports_shape".to_owned(),
+            values: vec!["ring".to_owned()],
         },
         Op::SetWormholePair {
             a: 0,

@@ -268,6 +268,7 @@ fn is_a_nebula_op(op: &Op) -> bool {
         | Op::SetFeZone { .. }
         | Op::SetFeZones { .. }
         | Op::SetHeaderKeys { .. }
+        | Op::SetHeaderList { .. }
         | Op::SetWormholePair { .. }
         | Op::SetWormholeEnds { .. } => false,
     }

@@ -447,7 +447,9 @@ seats are filled first, and in single player the player is seated first,
 so one preferred seat is where you start. Reserved A to Z seats only an
 empire whose species carries the matching Reserved Spawn trait, which
 comes from the Reserved Spawns submod on the Steam Workshop, so subscribe
-to it only if you reserve seats. Sol is a reserved seat the United
+to it only if you reserve seats. Issues warns when a reserved seat exists
+and the submod is not enabled, with a button to its Workshop page, and
+the warning counts against a save. Sol is a reserved seat the United
 Nations of Earth counts as holding. On the map a reserved seat shows its
 letter, Sol shows "Sol" and a preferred seat gets a star. The human and
 AI reservations are hidden under the layer because the mod does not read

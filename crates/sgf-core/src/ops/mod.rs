@@ -197,6 +197,17 @@ pub enum Op {
     SetHeaderKeys {
         entries: Vec<(String, String)>,
     },
+    /// Every statement of one repeated header key as one undo step, one statement per
+    /// value in the given order, where the first statement of the key stands: the
+    /// statements standing are rewritten in place, surplus ones removed and surplus
+    /// values written after the last, and a key the header lacks is inserted before the
+    /// first system. Each value is the raw text right of `=`, written as it stands; an
+    /// empty `values` removes every statement. The inverse carries the values the header
+    /// held, in order. Scenario documents only.
+    SetHeaderList {
+        key: String,
+        values: Vec<String>,
+    },
     /// The `base` of a system's `spawn_weight`, the weight the generator places an empire
     /// by; `None` removes it, and with it the preset reservation
     /// [`Op::SetSpawnReservation`] writes, and the whole statement when no other
@@ -323,6 +334,7 @@ impl Op {
             Self::SetInitializers { .. } => "SetInitializers",
             Self::SetHeaderField { .. } => "SetHeaderField",
             Self::SetHeaderKeys { .. } => "SetHeaderKeys",
+            Self::SetHeaderList { .. } => "SetHeaderList",
             Self::SetSpawnWeight { .. } => "SetSpawnWeight",
             Self::SetSpawnWeights { .. } => "SetSpawnWeights",
             Self::SetSpawnReservation { .. } => "SetSpawnReservation",

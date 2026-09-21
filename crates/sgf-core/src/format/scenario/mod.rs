@@ -111,6 +111,7 @@ impl Format for Scenario {
             | Op::SetInitializers { .. }
             | Op::SetHeaderField { .. }
             | Op::SetHeaderKeys { .. }
+            | Op::SetHeaderList { .. }
             | Op::SetSpawnWeight { .. }
             | Op::SetSpawnWeights { .. }
             | Op::SetSpawnReservation { .. }

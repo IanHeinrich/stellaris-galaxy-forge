@@ -2,10 +2,15 @@
 
 /**
  * Where Paint a Galaxy keeps its scenarios on this machine, whether or not the
- * directory exists, and whether the playset loads the mod.
+ * directory exists, whether the playset loads the mod, and whether it loads the
+ * Reserved Spawns submod beside it.
  */
 export type PaintModView = { 
 /**
  * `None` when the launcher lists the mod but its files are gone.
  */
-scenarios_dir: string | null, enabled: boolean, };
+scenarios_dir: string | null, enabled: boolean, 
+/**
+ * The playset loads the Reserved Spawns submod, whose traits a reserved seat needs.
+ */
+reserved_spawns: boolean, };

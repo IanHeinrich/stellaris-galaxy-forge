@@ -44,7 +44,10 @@ describe("the mod's status line", () => {
   });
 
   it("asks for the playset alone when the mod is installed but not enabled", () => {
-    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: false } });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: DIR, enabled: false, reserved_spawns: true },
+    });
 
     const html = status();
     expect(html).toContain('class="paint-mod-status warn"');
@@ -55,7 +58,10 @@ describe("the mod's status line", () => {
   });
 
   it("says the mod is enabled, without warning styling", () => {
-    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: true } });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
+    });
 
     const html = status();
     expect(html).toContain('class="paint-mod-status"');

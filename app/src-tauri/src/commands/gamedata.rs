@@ -10,8 +10,9 @@ use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
 use sgf_gamedata::install::{discovery, mods};
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
-    BypassView, CountryTypeView, DepositView, GameDataSummary, InitializerView, MapColor,
-    PaintModView, PlanetClassView, ResourceIcon, ShipSizeView, StarClassView, StarbaseLevelView,
+    BypassView, CountryTypeView, DepositView, GalaxyShapeView, GameDataSummary, InitializerView,
+    MapColor, PaintModView, PlanetClassView, ResourceIcon, ShipSizeView, StarClassView,
+    StarbaseLevelView,
 };
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -159,9 +160,10 @@ pub async fn paint_mod<R: Runtime>(app: AppHandle<R>) -> Result<Option<PaintModV
         let mut diagnostics = Vec::new();
         let installed = mods::installed_mods(&user_dir, &libraries, &mut diagnostics);
         let enabled = mods::enabled_mods(&user_dir, &libraries, &mut diagnostics);
+        let reserved_spawns = mods::reserved_spawns_enabled(&enabled);
         Ok(mods::find_paint_mod(&installed, &enabled, &libraries)
             .as_ref()
-            .map(PaintModView::from))
+            .map(|m| PaintModView::new(m, reserved_spawns)))
     })
     .await
     .map_err(join_error)?
@@ -222,6 +224,13 @@ pub fn get_initializers(game_data: State<'_, GameDataState>) -> Vec<InitializerV
     game_data.loaded().map_or_else(Vec::new, |gd| {
         gd.initializers.iter().map(InitializerView::from).collect()
     })
+}
+
+#[tauri::command(async)]
+pub fn get_galaxy_shapes(game_data: State<'_, GameDataState>) -> Vec<GalaxyShapeView> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.galaxy_shape_views())
 }
 
 #[tauri::command(async)]

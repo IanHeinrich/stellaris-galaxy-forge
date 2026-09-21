@@ -14,8 +14,8 @@ import type { Progress } from "../generated/Progress";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SaveResult } from "../generated/SaveResult";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
-import { duplicateNameNote, type AppIssue, type NoteCode } from "../lib/issues";
-import { paintLayer, scenarioHeaderName } from "../lib/paint";
+import { duplicateNameNote, reservedSpawnsNote, type AppIssue, type NoteCode } from "../lib/issues";
+import { paintLayer, reservedSeatIds, scenarioHeaderName } from "../lib/paint";
 import { fileName, isUnder, joinPath } from "../lib/paths";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -310,6 +310,8 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
 
   noteEdit({ issues, dirty }) {
     set({ issues: withNotes(issues), dirty, error: null, errorKind: null });
+    // A seat's kind can change with an edit, so the reserved seats are counted again.
+    noteReservedSpawns();
   },
 
   setError(message) {
@@ -355,7 +357,7 @@ const DUPLICATE_NAME: NoteCode = "scenario_name_duplicate";
  * and a folder that cannot be read leaves no note.
  */
 async function noteDuplicateNames(): Promise<void> {
-  const { getState, setState } = useFileSessionStore;
+  const { getState } = useFileSessionStore;
   const mine = opens;
   const { kind, path } = getState();
   const dir = paintScenariosDir();
@@ -368,10 +370,39 @@ async function noteDuplicateNames(): Promise<void> {
       .filter(([, other]) => other === name)
       .map(([file]) => duplicateNameNote(name, file));
   }
+  replaceNotes(DUPLICATE_NAME, notes);
+}
+
+const RESERVED_SPAWNS: NoteCode = "reserved_spawns_missing";
+
+/**
+ * Notes the reserved seats of a scenario on the Paint a Galaxy layer once the launcher has
+ * answered and its playset does not load the Reserved Spawns submod, whose traits those seats
+ * need. Nothing until the launcher answers, and nothing for a Sol seat, which needs no trait.
+ */
+export function noteReservedSpawns(): void {
+  const { known, paintMod } = usePaintModStore.getState();
+  let notes: AppIssue[] = [];
+  if (known && paintMod?.reserved_spawns !== true && getPaintLayer()) {
+    const seats = reservedSeatIds(useGalaxyStore.getState().systems.values());
+    if (seats.length > 0) notes = [reservedSpawnsNote(seats)];
+  }
+  replaceNotes(RESERVED_SPAWNS, notes);
+}
+
+/** Swaps the app's notes of one `code` for `notes`, touching nothing when they already stand. */
+function replaceNotes(code: NoteCode, notes: AppIssue[]): void {
+  const { getState, setState } = useFileSessionStore;
   const issues = getState().issues;
-  if (notes.length === 0 && !issues.some((issue) => issue.code === DUPLICATE_NAME)) return;
-  useIssuesStore.getState().setNotes(DUPLICATE_NAME, notes);
-  setState({ issues: [...issues.filter((issue) => issue.code !== DUPLICATE_NAME), ...notes] });
+  const standing = issues.filter((issue) => issue.code === code);
+  const same =
+    standing.length === notes.length &&
+    standing.every(
+      (issue, i) => issueKey(issue) === issueKey(notes[i]) && issue.message === notes[i].message,
+    );
+  if (same) return;
+  useIssuesStore.getState().setNotes(code, notes);
+  setState({ issues: [...issues.filter((issue) => issue.code !== code), ...notes] });
 }
 
 /** What a document with no file of its own is offered as a name. */
@@ -439,6 +470,7 @@ async function openDocument(
       });
     }
     useGalaxyStore.getState().load(result.galaxy);
+    noteReservedSpawns();
     void noteDuplicateNames();
     if (result.kind === "scenario" && useGameDataStore.getState().status === "ready") {
       setState({ settling: true });
@@ -523,13 +555,22 @@ function noteSavedIntoPaintMod(): void {
 }
 
 /**
+ * Whether saving with `issue` unresolved is worth a question: a warning or error the validator
+ * found, or the one note under which the map will not play as designed.
+ */
+function blocksSave(issue: AppIssue): boolean {
+  if (issue.severity === "info") return false;
+  return !isNote(issue) || issue.code === RESERVED_SPAWNS;
+}
+
+/**
  * Resolves true when the document may be saved with its warnings and errors: every one of them
  * was already agreed to, or the user agreed now, with the Issues tab showing what they are.
  */
 async function confirmIssues(): Promise<boolean> {
   const { getState, setState } = useFileSessionStore;
   const { issues, dismissedIssues, path, title } = getState();
-  const unresolved = issues.filter((issue) => issue.severity !== "info" && !isNote(issue));
+  const unresolved = issues.filter(blocksSave);
   const keys = unresolved.map(issueKey);
   if (keys.every((key) => dismissedIssues.includes(key))) return true;
   const layout = useLayoutStore.getState();

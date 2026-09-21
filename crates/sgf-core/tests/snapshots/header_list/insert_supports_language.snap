@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set supports_language to 2 values
+inverse: SetHeaderList { key: "supports_language", values: [] }
+
+--- scenario
++++ scenario
+@@ -31,6 +31,8 @@
+ 	fallen_empire_default = 0
+ 	marauder_empire_default = 1
+ 	crisis_strength = 0.5
++	supports_language = english
++	supports_language = german
+ 	system = { id = "0" position = { x = 0 y = 120 } name = "Alpha" initializer = random_empire_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|3| } }
+ 	system = { id = "1" position = { x = 110 y = 40 } name = "Beta" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| } }
+ 	system = { id = "2" position = { x = 70 y = -100 } name = "Gamma" initializer = random_empire_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| } }

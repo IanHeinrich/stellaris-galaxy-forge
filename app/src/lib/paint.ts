@@ -175,6 +175,16 @@ export function seatSummary(systems: Iterable<SystemNode>): SeatSummary {
   return { seats, preferred, reserved: reservedLetters, sol, safeAi };
 }
 
+/** The systems seated by a reserved letter, in the galaxy's order; a Sol seat is not one. */
+export function reservedSeatIds(systems: Iterable<SystemNode>): number[] {
+  const ids: number[] = [];
+  for (const system of systems) {
+    const kind = system.spawn_script?.paint_a_galaxy.kind;
+    if (kind !== undefined && kind !== null && typeof kind !== "string") ids.push(system.id);
+  }
+  return ids;
+}
+
 /** The number a new wormhole pair takes: one past the highest in use, 1 when none is. */
 export function nextWormholePair(systems: Iterable<SystemNode>): number {
   let highest = 0;

@@ -17,6 +17,7 @@ const NOTE_CODES: readonly AppIssueCode[] = [
   "export_dropped",
   "home_initializer",
   "scenario_name_duplicate",
+  "reserved_spawns_missing",
 ];
 
 export function isNote(issue: AppIssue): boolean {

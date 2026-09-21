@@ -125,7 +125,11 @@ describe("the blank canvas", () => {
   it("shows the mod's state under the box only while it is ticked", () => {
     usePaintModStore.setState({
       known: true,
-      paintMod: { scenarios_dir: "C:/mods/pag/map/setup_scenarios", enabled: true },
+      paintMod: {
+        scenarios_dir: "C:/mods/pag/map/setup_scenarios",
+        enabled: true,
+        reserved_spawns: true,
+      },
     });
     expect(renderToStaticMarkup(<NewScenarioDialog />)).toContain("Paint a Galaxy mod enabled ✓");
 

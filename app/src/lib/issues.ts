@@ -2,7 +2,7 @@ import type { IssueCode } from "../generated/IssueCode";
 import type { Severity } from "../generated/Severity";
 
 /** The codes the app raises on its own, which the validator's list does not carry. */
-export type NoteCode = "scenario_name_duplicate";
+export type NoteCode = "scenario_name_duplicate" | "reserved_spawns_missing";
 
 export type AppIssueCode = IssueCode | NoteCode;
 
@@ -24,5 +24,17 @@ export function duplicateNameNote(name: string, file: string): AppIssue {
       `Another file in the mod lists the same name "${name}": ${file}. ` +
       "The game shows one size per name.",
     systems: [],
+  };
+}
+
+/** The note on reserved seats in a playset that does not load the Reserved Spawns submod. */
+export function reservedSpawnsNote(systems: number[]): AppIssue {
+  return {
+    severity: "warning",
+    code: "reserved_spawns_missing",
+    message:
+      "Reserved seats need the Reserved Spawns submod, which is not enabled. Subscribe to it " +
+      "and enable it in your playset, or these seats spawn at random.",
+    systems,
   };
 }

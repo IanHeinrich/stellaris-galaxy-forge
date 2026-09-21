@@ -107,6 +107,7 @@ impl Format for Save {
             | Op::SetInitializers { .. }
             | Op::SetHeaderField { .. }
             | Op::SetHeaderKeys { .. }
+            | Op::SetHeaderList { .. }
             | Op::SetSpawnWeight { .. }
             | Op::SetSpawnWeights { .. }
             | Op::SetSpawnReservation { .. }

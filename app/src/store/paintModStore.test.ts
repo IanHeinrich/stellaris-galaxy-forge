@@ -7,7 +7,11 @@ import { PAINT_MOD_POLL_MS, usePaintModStore } from "./paintModStore";
 
 const mocked = { paintMod: vi.mocked(ipc.paintMod) };
 
-const INSTALLED = { scenarios_dir: "C:/mods/pag/map/setup_scenarios", enabled: true };
+const INSTALLED = {
+  scenarios_dir: "C:/mods/pag/map/setup_scenarios",
+  enabled: true,
+  reserved_spawns: true,
+};
 
 const stored = new Map<string, string>();
 

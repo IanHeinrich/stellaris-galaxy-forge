@@ -13,6 +13,8 @@ use crate::Diagnostic;
 const WORKSHOP_CONTENT: &str = "steamapps/workshop/content/281990";
 /// Paint a Galaxy's Steam Workshop item.
 pub const PAINT_MOD_WORKSHOP_ID: &str = "3532904115";
+/// The Reserved Spawns submod's Steam Workshop item, whose traits a reserved seat's empire holds.
+pub const RESERVED_SPAWNS_WORKSHOP_ID: &str = "3762808682";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModInfo {
@@ -84,6 +86,16 @@ pub fn find_paint_mod(
 fn is_paint_mod(m: &ModInfo) -> bool {
     m.id.strip_prefix("ugc_") == Some(PAINT_MOD_WORKSHOP_ID)
         || m.name.to_lowercase().contains("paint a galaxy")
+}
+
+/// Whether the playset loads the Reserved Spawns submod, whose traits a reserved seat needs.
+pub fn reserved_spawns_enabled(enabled: &[ModInfo]) -> bool {
+    enabled.iter().any(is_reserved_spawns_mod)
+}
+
+fn is_reserved_spawns_mod(m: &ModInfo) -> bool {
+    m.id.strip_prefix("ugc_") == Some(RESERVED_SPAWNS_WORKSHOP_ID)
+        || m.name.to_lowercase().contains("reserved spawns")
 }
 
 #[derive(Deserialize)]
@@ -368,5 +380,25 @@ mod tests {
                 enabled: true,
             })
         );
+    }
+
+    #[test]
+    fn reserved_spawns_is_enabled_by_workshop_id_or_name_in_the_playset() {
+        let paint = info(
+            "ugc_3532904115",
+            "Paint a Galaxy",
+            Some("/workshop/3532904115"),
+        );
+        let workshop = info("ugc_3762808682", "PaG RS", Some("/workshop/3762808682"));
+        let local = info(
+            "local_rs",
+            "Paint a Galaxy: Reserved Spawns",
+            Some("/mods/rs"),
+        );
+
+        assert!(!reserved_spawns_enabled(&[]));
+        assert!(!reserved_spawns_enabled(std::slice::from_ref(&paint)));
+        assert!(reserved_spawns_enabled(&[paint.clone(), workshop]));
+        assert!(reserved_spawns_enabled(&[paint, local]));
     }
 }

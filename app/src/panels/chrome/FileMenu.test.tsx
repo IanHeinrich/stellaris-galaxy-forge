@@ -88,7 +88,10 @@ describe("saving into the Paint a Galaxy mod", () => {
     open(SCENARIO_RESULT);
     expect(html(LABEL)).toContain("disabled=");
 
-    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: false } });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: DIR, enabled: false, reserved_spawns: true },
+    });
     expect(html(LABEL)).not.toContain("disabled=");
 
     open(OPEN_RESULT);
@@ -106,7 +109,10 @@ describe("saving into the Paint a Galaxy mod", () => {
 
   it("has nothing to do for a file already inside the mod's folder", () => {
     open(SCENARIO_RESULT);
-    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: true } });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
+    });
     useFileSessionStore.setState({ path: `${DIR}/mine.txt` });
     expect(html(LABEL)).toContain("disabled=");
 
@@ -117,7 +123,10 @@ describe("saving into the Paint a Galaxy mod", () => {
   it("saves into the mod and closes the menu", () => {
     const saveIntoPaintMod = vi.fn();
     open(SCENARIO_RESULT);
-    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: true } });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
+    });
     useFileSessionStore.setState({ saveIntoPaintMod });
 
     item(LABEL).props.onClick();

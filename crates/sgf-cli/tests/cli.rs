@@ -785,7 +785,7 @@ static_galaxy_scenario = {
         fresh.contains(
             "	priority = 10
 	supports_shape = elliptical
-	supports_shape = spiral_2
+	supports_shape = ring
 "
         ),
         "{fresh}"

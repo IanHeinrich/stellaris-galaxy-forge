@@ -83,7 +83,11 @@ describe("a painted galaxy", () => {
 
 describe("the Paint a Galaxy layer", () => {
   const DIR = "C:\\mods\\pag\\map\\setup_scenarios";
-  const mod = (scenarios_dir: string | null, enabled = true) => ({ scenarios_dir, enabled });
+  const mod = (scenarios_dir: string | null, enabled = true) => ({
+    scenarios_dir,
+    enabled,
+    reserved_spawns: true,
+  });
   const doc = (over: Partial<Parameters<typeof paintLayer>[0]> = {}) => ({
     kind: "scenario" as const,
     path: null,

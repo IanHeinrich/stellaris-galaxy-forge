@@ -3,7 +3,7 @@ import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
-import { useFileSessionStore } from "./fileSessionStore";
+import { noteReservedSpawns, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useIssuesStore } from "./issuesStore";
@@ -33,11 +33,17 @@ export function bindStores(): void {
   followPaintMod();
 }
 
-// Game data landing, at start or on a reload, means the launcher's playset was read again.
+// Game data landing, at start or on a reload, means the launcher's playset was read again, and
+// what it says of the playset decides whether the open scenario's reserved seats are noted.
 function followPaintMod(): void {
   useGameDataStore.subscribe((state, previous) => {
     if (state.summary !== previous.summary && state.summary !== null) {
       void usePaintModStore.getState().refresh();
+    }
+  });
+  usePaintModStore.subscribe((state, previous) => {
+    if (state.paintMod !== previous.paintMod || state.known !== previous.known) {
+      noteReservedSpawns();
     }
   });
 }

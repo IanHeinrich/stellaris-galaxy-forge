@@ -46,7 +46,10 @@ beforeEach(() => {
 
 describe("the notice for a scenario outside the mod", () => {
   it("is absent with nothing open, for a save, and for a scenario already on the layer", () => {
-    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: true } });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
+    });
     expect(notice()).toBe("");
 
     open(OPEN_RESULT);
@@ -62,7 +65,10 @@ describe("the notice for a scenario outside the mod", () => {
 
   it("says the map needs the mod, with the mod's state and the way in", () => {
     open(SCENARIO_RESULT);
-    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: true } });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
+    });
 
     const html = notice();
     expect(html).toContain('class="paint-notice"');
@@ -90,7 +96,10 @@ describe("the notice for a scenario outside the mod", () => {
     expect(html).toContain("then enable it in your playset.");
     expect(button("Save into the Paint a Galaxy mod…").props.disabled).toBe(true);
 
-    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: false } });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: DIR, enabled: false, reserved_spawns: true },
+    });
     expect(notice()).toContain(
       "The Paint a Galaxy mod is installed but not enabled. Turn it on in your playset in the launcher.",
     );
@@ -99,7 +108,10 @@ describe("the notice for a scenario outside the mod", () => {
 
   it("goes for good on Not for me", () => {
     open(SCENARIO_RESULT);
-    usePaintModStore.setState({ known: true, paintMod: { scenarios_dir: DIR, enabled: true } });
+    usePaintModStore.setState({
+      known: true,
+      paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
+    });
     expect(notice()).not.toBe("");
 
     button("Not for me").props.onClick();

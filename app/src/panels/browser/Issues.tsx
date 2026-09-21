@@ -11,6 +11,7 @@ import {
   useIssuesStore,
   type IssueFilter,
 } from "../../store/issuesStore";
+import { openReservedSpawnsWorkshop } from "../chrome/paintMod";
 import { useCollapse } from "./collapse";
 import { Action, Group, Row } from "./rows";
 
@@ -60,7 +61,9 @@ function IssueFix({ code }: { code: AppIssueCode }) {
       ? { label: "Update counts", run: updateEmpireCounts }
       : code === "fe_zone_no_automatic"
         ? { label: "Fit zones…", run: promptFeZoneFit }
-        : null;
+        : code === "reserved_spawns_missing"
+          ? { label: "Subscribe ↗", run: openReservedSpawnsWorkshop }
+          : null;
   if (fix === null) return null;
   return (
     <button type="button" className="browser-fix" onClick={() => void fix.run()}>

@@ -266,6 +266,7 @@ const ISSUE_TITLES: Record<AppIssueCode, string> = {
   sol_seat_mismatch: "Sol seat and Sol initializer disagree",
   l_cluster_system: "System where the game places the L-Cluster",
   scenario_name_duplicate: "Scenario name used by another file in the mod",
+  reserved_spawns_missing: "Reserved seats without the Reserved Spawns submod",
 };
 
 export function issueTitle(code: AppIssueCode): string {

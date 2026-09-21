@@ -88,6 +88,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetInitializers { entries } => system::set_initializers(plan, s, entries),
         Op::SetHeaderField { key, value } => header::set_field(plan, s, key, value.as_deref()),
         Op::SetHeaderKeys { entries } => header::set_fields(plan, s, entries),
+        Op::SetHeaderList { key, values } => header::set_list(plan, s, key, values),
         Op::SetSpawnWeight { id, base } => spawn::set_weight(plan, s, *id, *base),
         Op::SetSpawnWeights { entries } => spawn::set_weights(plan, s, entries),
         Op::SetSpawnReservation { id, reserve } => spawn::set_reservation(plan, s, *id, *reserve),

@@ -61,7 +61,8 @@ a release is made.
   with a line saying what the mod does with each. The map shows a
   reserved seat's letter and a star on a preferred one. The vanilla
   human and AI reservations are hidden under the layer, since the mod
-  does not read them.
+  does not read them. Issues warns when a reserved seat exists and the
+  Reserved Spawns submod is not enabled in the playset.
 
 ## [0.6.0] - 2026-09-20
 
