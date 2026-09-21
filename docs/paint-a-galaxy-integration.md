@@ -97,8 +97,9 @@ unfamiliar version can fall back instead of failing.
 
 ## What Forge writes under the Paint a Galaxy profile
 
-A scenario written without Paint a Galaxy's dialect is byte-identical to one
-written before this profile existed. The dialect is chosen by the "For the
+A scenario written without Paint a Galaxy's dialect is the game's own
+format. It carries none of the mod's flags or scripts. A plain file needs no
+mod installed to load. The dialect is chosen by the "For the
 Paint a Galaxy mod" checkbox, which the New scenario dialog's blank route and
 the Export as scenario dialog share (ticked by default, remembered per
 machine), and by the CLI's `--profile paint-a-galaxy` flag on

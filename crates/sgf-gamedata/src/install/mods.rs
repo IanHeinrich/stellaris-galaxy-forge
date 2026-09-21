@@ -84,8 +84,19 @@ pub fn find_paint_mod(
 }
 
 fn is_paint_mod(m: &ModInfo) -> bool {
-    m.id.strip_prefix("ugc_") == Some(PAINT_MOD_WORKSHOP_ID)
-        || m.name.to_lowercase().contains("paint a galaxy")
+    if m.id.strip_prefix("ugc_") == Some(PAINT_MOD_WORKSHOP_ID) {
+        return true;
+    }
+    if m.id.starts_with("ugc_") {
+        return false;
+    }
+    let name = m.name.trim().to_lowercase();
+    match name.strip_prefix("paint a galaxy") {
+        Some(rest) => {
+            !matches!(rest.chars().next(), Some(c) if c.is_alphanumeric() || c == ':' || c == '-')
+        }
+        None => false,
+    }
 }
 
 /// Whether the playset loads the Reserved Spawns submod, whose traits a reserved seat needs.
@@ -400,5 +411,60 @@ mod tests {
         assert!(!reserved_spawns_enabled(std::slice::from_ref(&paint)));
         assert!(reserved_spawns_enabled(&[paint.clone(), workshop]));
         assert!(reserved_spawns_enabled(&[paint, local]));
+    }
+
+    #[test]
+    fn only_the_reserved_spawns_submod_enabled_does_not_count_as_paint_a_galaxy() {
+        let submod = info(
+            "ugc_3762808682",
+            "Paint a Galaxy: Reserved Spawns",
+            Some("/workshop/3762808682"),
+        );
+        let real = info(
+            "ugc_3532904115",
+            "Paint a Galaxy",
+            Some("/workshop/3532904115"),
+        );
+        let installed = [submod.clone(), real];
+
+        assert_eq!(
+            find_paint_mod(&installed, std::slice::from_ref(&submod), &[]),
+            Some(PaintMod {
+                dir: Some(PathBuf::from("/workshop/3532904115")),
+                enabled: false,
+            })
+        );
+    }
+
+    #[test]
+    fn a_local_copy_named_exactly_paint_a_galaxy_matches() {
+        let local = info("local_pag", "Paint a Galaxy", Some("/mods/pag"));
+        assert_eq!(
+            find_paint_mod(std::slice::from_ref(&local), &[], &[]),
+            Some(PaintMod {
+                dir: Some(PathBuf::from("/mods/pag")),
+                enabled: false,
+            })
+        );
+    }
+
+    #[test]
+    fn the_workshop_item_matches_by_id_whatever_its_name() {
+        let workshop = info(
+            "ugc_3532904115",
+            "Some Other Name Entirely",
+            Some("/workshop/3532904115"),
+        );
+        assert_eq!(
+            find_paint_mod(
+                std::slice::from_ref(&workshop),
+                std::slice::from_ref(&workshop),
+                &[]
+            ),
+            Some(PaintMod {
+                dir: Some(PathBuf::from("/workshop/3532904115")),
+                enabled: true,
+            })
+        );
     }
 }

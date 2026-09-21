@@ -121,9 +121,7 @@ pub struct Initializer {
 impl Initializer {
     /// What the initializer needs beyond the base game: the mod's directory name (a
     /// workshop mod's numeric folder id; its descriptor name is not looked up yet), or
-    /// `None` when it is vanilla or from nowhere known. The loader does not yet layer
-    /// the install's `dlc/*` folders; a file read from one would label as that DLC's
-    /// folder name.
+    /// `None` when it is vanilla or from nowhere known.
     pub fn source_label(&self, install: &Path) -> Option<String> {
         source_label(&self.source, install)
     }
@@ -132,6 +130,20 @@ impl Initializer {
 /// `<install>/dlc/<dlc>/…` is that DLC; anything else under `install` is vanilla; a
 /// path elsewhere is a mod, named by the directory its `common` sits in.
 fn source_label(source: &Path, install: &Path) -> Option<String> {
+    let dlc = source
+        .strip_prefix(install.join("dlc"))
+        .ok()
+        .and_then(|rel| rel.components().next())
+        .and_then(|c| match c {
+            Component::Normal(dlc) => dlc.to_str(),
+            _ => None,
+        });
+    if let Some(dlc) = dlc {
+        return Some(dlc.to_owned());
+    }
+    if source.starts_with(install) {
+        return None;
+    }
     let parts: Vec<&str> = source
         .components()
         .filter_map(|c| match c {
@@ -139,14 +151,9 @@ fn source_label(source: &Path, install: &Path) -> Option<String> {
             _ => None,
         })
         .collect();
-    let position = |name: &str| parts.iter().rposition(|part| *part == name);
-    if let Some(dlc) = position("dlc").and_then(|i| parts.get(i + 1)) {
-        return Some((*dlc).to_owned());
-    }
-    if source.starts_with(install) {
-        return None;
-    }
-    position("common")
+    parts
+        .iter()
+        .rposition(|part| *part == "common")
         .and_then(|i| i.checked_sub(1))
         .map(|i| parts[i].to_owned())
 }
@@ -519,6 +526,10 @@ mod tests {
         assert_eq!(
             label("/mods/ugc_123/common/solar_system_initializers/mod.txt"),
             Some("ugc_123".to_owned())
+        );
+        assert_eq!(
+            label("/mods/dlc/mymod/common/solar_system_initializers/x.txt"),
+            Some("mymod".to_owned())
         );
         assert_eq!(label("/elsewhere/loose.txt"), None);
     }
