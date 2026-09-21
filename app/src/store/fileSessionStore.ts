@@ -570,9 +570,7 @@ function noteSavedIntoPaintMod(): void {
   const name = scenarioHeaderName(useGalaxyStore.getState().header);
   if (name === null) return;
   setState({
-    notice:
-      "Saved into the Paint a Galaxy mod. In Stellaris, start a new game, choose the Elliptical " +
-      `shape and the size ${name}.`,
+    notice: `Saved into the Paint a Galaxy mod. In Stellaris, start a new game and pick the size ${name}.`,
   });
 }
 

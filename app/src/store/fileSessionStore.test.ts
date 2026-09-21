@@ -898,8 +898,7 @@ describe("scenario documents", () => {
     await session().saveIntoPaintMod();
 
     expect(session().notice).toBe(
-      "Saved into the Paint a Galaxy mod. In Stellaris, start a new game, choose the Elliptical " +
-        "shape and the size Elysium.",
+      "Saved into the Paint a Galaxy mod. In Stellaris, start a new game and pick the size Elysium.",
     );
   });
 

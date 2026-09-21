@@ -10,12 +10,12 @@ export const RAW_CELL_TITLE = "Edit this key in Scenario header below";
 export const CLEAR_KEY_TITLE = "Clear to drop the key";
 export const CLEAR_RANGE_TITLE = "Clear to drop the whole range";
 
-/** The key the new-game screen reads to find which shapes list the map. */
+/** The header key that names the shapes a static map supports. */
 export const SHAPES_KEY = "supports_shape";
-export const SHAPES_LABEL = "Listed under shapes";
+export const SHAPES_LABEL = "Supported shapes";
 export const SHAPES_TITLE =
-  "The new-game screen offers this map under the shapes ticked here. Elliptical is the safe choice, and the Paint a Galaxy mod asks for a vanilla shape.";
-export const NO_SHAPES_HINT = "No shapes ticked: the map is offered nowhere.";
+  "The shapes the header names. The new-game screen lists a static map as a galaxy size and then offers no shape, so this changes nothing there. Elliptical is the safe choice, and the Paint a Galaxy mod asks for a vanilla shape.";
+export const NO_SHAPES_HINT = "No shapes ticked. The Paint a Galaxy mod asks for at least one.";
 export const LOAD_SHAPES_HINT = "Load game data to see every shape.";
 export const UNKNOWN_SHAPE_SUFFIX = " (not in loaded game data)";
 export const SCRIPTS_LINE_PREFIX = "Also from scripts: ";

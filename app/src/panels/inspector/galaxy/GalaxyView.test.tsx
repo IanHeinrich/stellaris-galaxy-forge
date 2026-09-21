@@ -292,7 +292,7 @@ describe("the shapes row", () => {
 
     const html = galaxy();
     expect(html).toContain(`title="${SHAPES_TITLE}"`);
-    expect(html).toContain("Listed under shapes");
+    expect(html).toContain("Supported shapes");
     expect(html).toContain(box("elliptical", true));
     expect(html).toContain(box("ring", true));
     expect(html).toContain(box("spiral_2", false));
