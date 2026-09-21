@@ -5,6 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::format::scenario::FeZone;
 use crate::projections::galaxy::{SpawnModifier, SpawnScript, display_template};
 use crate::projections::name::NameTemplate;
 
@@ -96,6 +97,9 @@ pub struct SystemNode {
     /// The scenario system's `spawn_design`, the empire design the generator seats here;
     /// it ignores the spawn weight beside it. Always `None` for a save.
     pub spawn_design: Option<String>,
+    /// The Paint a Galaxy fallen empire zone this scenario system anchors, read from the
+    /// `set_star_flag`s of its `effect` block. Always `None` for a save.
+    pub fe_zone: Option<FeZone>,
     /// The systems this scenario system is `prevent_hyperlane`d from, ascending and
     /// deduplicated, mirrored on both ends. A pair can be both linked and prevented,
     /// which is the file's state, not one the projection collapses. Always empty for a

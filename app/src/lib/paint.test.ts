@@ -5,7 +5,9 @@ import {
   PAINT_MOD_WORKSHOP_ID,
   PAINT_SPAWN_KINDS,
   PAINT_WORKSHOP_URL,
+  RESERVED_SPAWNS_WORKSHOP_URL,
   enabledScript,
+  paintKindDescription,
   paintKindKey,
   paintLayer,
   scriptForKind,
@@ -27,15 +29,32 @@ describe("a painted galaxy", () => {
 
   it("offers every seat once, keyed so a select can round-trip the kind", () => {
     expect(PAINT_SPAWN_KINDS).toHaveLength(29);
-    expect(PAINT_SPAWN_KINDS[0]).toEqual({ key: "enabled", label: "enabled" });
-    expect(PAINT_SPAWN_KINDS[2]).toEqual({ key: "reserved:a", label: "reserved A" });
-    expect(PAINT_SPAWN_KINDS[27]).toEqual({ key: "reserved:z", label: "reserved Z" });
-    expect(PAINT_SPAWN_KINDS[28]).toEqual({ key: "sol", label: "Sol" });
+    expect(PAINT_SPAWN_KINDS[0]).toEqual({ key: "enabled", label: "Enabled" });
+    expect(PAINT_SPAWN_KINDS[1]).toEqual({ key: "preferred", label: "Preferred" });
+    expect(PAINT_SPAWN_KINDS[2]).toEqual({ key: "sol", label: "Sol" });
+    expect(PAINT_SPAWN_KINDS[3]).toEqual({ key: "reserved:a", label: "Reserved A" });
+    expect(PAINT_SPAWN_KINDS[28]).toEqual({ key: "reserved:z", label: "Reserved Z" });
     expect(paintKindKey("preferred")).toBe("preferred");
     expect(paintKindKey({ reserved: "B" })).toBe("reserved:b");
     for (const { key } of PAINT_SPAWN_KINDS) {
       expect(paintKindKey(scriptForKind(key, systemNode()).paint_a_galaxy.kind)).toBe(key);
     }
+  });
+
+  it("describes what each kind means, a reserved letter's sentence ending before its submod", () => {
+    expect(paintKindDescription("enabled")).toBe("Any empire may start here.");
+    expect(paintKindDescription("preferred")).toContain("Filled before enabled seats.");
+    expect(paintKindDescription("sol")).toContain("United Nations of Earth counts as holding it.");
+    expect(paintKindDescription({ reserved: "c" })).toBe(
+      'Only an empire whose species has the "Reserved Spawn C" trait starts here.',
+    );
+    expect(paintKindDescription({ reserved: "c" })).not.toContain("The trait comes from");
+  });
+
+  it("links the Reserved Spawns submod by its id", () => {
+    expect(RESERVED_SPAWNS_WORKSHOP_URL).toBe(
+      "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682",
+    );
   });
 
   it("keeps a system's random value across a change of seat, and spreads a new one by id", () => {

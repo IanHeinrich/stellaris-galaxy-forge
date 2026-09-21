@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { SpawnReservationPreset } from "../../../../../generated/SpawnReservationPreset";
 import type { SystemNode } from "../../../../../generated/SystemNode";
+import { enabledScript } from "../../../../../lib/paint";
 import {
   isAiReserved,
   isHumanReserved,
@@ -77,7 +78,27 @@ function SpawnPoint({ system }: { system: SystemNode }) {
       </div>
       {refused && <div className="muted ins-hint">A spawn weight must be more than zero.</div>}
       {none && <div className="muted ins-hint">{NEEDS_INITIALIZER}</div>}
-      {scripted ? <ScriptedSeat system={system} /> : <Reservation system={system} />}
+      {paint && !scripted && weight !== null && (
+        <>
+          <div className="ins-actions">
+            <button
+              type="button"
+              onClick={() =>
+                applyOp({
+                  type: "SetSpawnScript",
+                  id: system.id,
+                  script: enabledScript(system),
+                })
+              }
+            >
+              Use a Paint a Galaxy seat
+            </button>
+          </div>
+          <div className="muted ins-hint">The mod fills seats by kind and ignores this weight.</div>
+        </>
+      )}
+      {scripted && <ScriptedSeat system={system} />}
+      {!scripted && !paint && <Reservation system={system} />}
       <Modifiers system={system} />
     </>
   );

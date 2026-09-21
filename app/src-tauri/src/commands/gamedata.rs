@@ -119,6 +119,8 @@ pub fn open_script(
 const LINKS: &[&str] = &[
     "https://oatmealproblem.github.io/paint-a-galaxy/",
     PAINT_MOD_WORKSHOP_URL,
+    // Reserved Spawns submod, whose "Reserved Spawn A"-"Z" traits a reserved seat's empire needs.
+    "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682",
     super::update::RELEASES_URL,
 ];
 /// Paint a Galaxy's Steam Workshop page, whose id must match `mods::PAINT_MOD_WORKSHOP_ID`.

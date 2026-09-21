@@ -111,6 +111,8 @@ impl Format for Save {
             | Op::SetSpawnReservation { .. }
             | Op::SetSpawnScript { .. }
             | Op::SetSpawnScripts { .. }
+            | Op::SetFeZone { .. }
+            | Op::SetFeZones { .. }
             | Op::PreventLane { .. }
             | Op::UnpreventLane { .. } => false,
         }

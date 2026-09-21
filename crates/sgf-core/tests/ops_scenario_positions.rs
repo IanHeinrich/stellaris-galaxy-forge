@@ -264,7 +264,9 @@ fn is_a_nebula_op(op: &Op) -> bool {
         | Op::SetSpawnWeights { .. }
         | Op::SetSpawnReservation { .. }
         | Op::SetSpawnScript { .. }
-        | Op::SetSpawnScripts { .. } => false,
+        | Op::SetSpawnScripts { .. }
+        | Op::SetFeZone { .. }
+        | Op::SetFeZones { .. } => false,
     }
 }
 

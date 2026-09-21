@@ -20,10 +20,10 @@ inverse: SetSpawnScripts { entries: [(0, Some(PaintAGalaxy { kind: Enabled, rand
  	system = { id = "4" position = { x = -110 y = 40 } name = "Delta" initializer = custom_starting_init_01 effect = { set_star_flag = painted_galaxy_custom_initializer } }
 @@ -42,7 +42,7 @@
  	system = { id = "8" position = { x = -160 y = -160 } name = "Egress" effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster } }
- 	system = { id = "9" position = { x = 0 y = -180 } name = "Old Seat" effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_n set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_1 } }
+ 	system = { id = "9" position = { x = 0 y = -180 } name = "Old Seat" effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_n set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_preferred } }
  	system = { id = "10" position = { x = 150 y = -30 } name = "Void" }
 -	system = { id = "11" position = { x = -150 y = -30 } }
 +	system = { id = "11" position = { x = -150 y = -30 } initializer = random_empire_init_06 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| } }
+ 	system = { id = "12" position = { x = 120 y = 150 } name = "High Seat" initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_automatic_initializer set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_se set_star_flag = painted_galaxy_fe_spawn_materialist set_star_flag = painted_galaxy_fe_spawn_distance_60 set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_spawn_fallback } }
+ 	system = { id = "13" position = { x = -120 y = 150 } name = "Low Seat" effect = { set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster } }
  	add_hyperlane = { from = "0" to = "5" }
- 	add_hyperlane = { from = "0" to = "6" }
- 	add_hyperlane = { from = "5" to = "1" }

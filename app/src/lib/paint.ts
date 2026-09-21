@@ -19,6 +19,13 @@ export const PAINT_MOD_WORKSHOP_ID = "3532904115";
 /** The mod's Workshop page; the other address the shell's `open_url` allows. */
 export const PAINT_WORKSHOP_URL = `https://steamcommunity.com/sharedfiles/filedetails/?id=${PAINT_MOD_WORKSHOP_ID}`;
 
+/**
+ * The Reserved Spawns submod on the Steam Workshop, whose "Reserved Spawn A"–"Z" traits a
+ * reserved seat's empire must hold; also allowlisted in the shell's `open_url`.
+ */
+export const RESERVED_SPAWNS_WORKSHOP_URL =
+  "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682";
+
 /** The facts of the open document the Paint a Galaxy layer is derived from. */
 export interface PaintDocument {
   kind: DocumentKind | null;
@@ -58,16 +65,37 @@ export interface PaintSpawnKindOption {
 const RESERVED_PREFIX = "reserved:";
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 
-/** Every seat the site knows: enabled, preferred, one reservation per letter, and Sol. */
+/** Every seat the site knows: enabled, preferred, Sol, then one reservation per letter. */
 export const PAINT_SPAWN_KINDS: readonly PaintSpawnKindOption[] = [
-  { key: "enabled", label: "enabled" },
-  { key: "preferred", label: "preferred" },
+  { key: "enabled", label: "Enabled" },
+  { key: "preferred", label: "Preferred" },
+  { key: "sol", label: "Sol" },
   ...[...LETTERS].map((letter) => ({
     key: `${RESERVED_PREFIX}${letter}`,
-    label: `reserved ${letter.toUpperCase()}`,
+    label: `Reserved ${letter.toUpperCase()}`,
   })),
-  { key: "sol", label: "Sol" },
 ];
+
+/**
+ * What a seat's kind means, in the site's own terms. For a reserved letter the sentence ends
+ * before naming the trait's submod, which a caller with a link to offer appends itself.
+ */
+export function paintKindDescription(kind: PaintSpawnKind): string {
+  if (kind === "enabled") return "Any empire may start here.";
+  if (kind === "preferred") {
+    return (
+      "Filled before enabled seats. In single player the player is seated first, so with one " +
+      "preferred seat that is where you start."
+    );
+  }
+  if (kind === "sol") {
+    return (
+      "Like a reserved seat, and the United Nations of Earth counts as holding it. Set the " +
+      "initializer to Sol instead unless this is a modded Sol."
+    );
+  }
+  return `Only an empire whose species has the "Reserved Spawn ${kind.reserved.toUpperCase()}" trait starts here.`;
+}
 
 /** The select key of a kind; a reserved letter is lower-cased, as the site writes it. */
 export function paintKindKey(kind: PaintSpawnKind): string {

@@ -1,9 +1,17 @@
-import { Circle, Container, type FederatedPointerEvent, Graphics } from "pixi.js";
+import {
+  BitmapText,
+  Circle,
+  Container,
+  type FederatedPointerEvent,
+  Graphics,
+  TextStyle,
+} from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
+import type { PaintSpawnKind } from "../../generated/PaintSpawnKind";
 import type { SystemNode } from "../../generated/SystemNode";
 import { spawnScriptLabel } from "../../lib/paint";
 import { isAiReserved, isHumanReserved, isSpawnPoint } from "../../lib/spawn";
-import { GHOST_ALPHA } from "../../lib/visual/style";
+import { GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { MoveGhost } from "../moveGhosts";
@@ -31,6 +39,58 @@ const NO_GHOSTS: ReadonlyMap<number, MoveGhost> = new Map();
 
 /** The mark's own hit area, around its offset centre, so the star's hover and drag stay free. */
 const HIT = new Circle(OFFSET.x, OFFSET.y, MARKER.size + 2.5);
+
+/** A scripted seat's kind tag, beside the marker rather than over it. */
+const TAG_OFFSET = { x: OFFSET.x + 11, y: OFFSET.y - 6 };
+
+const CHIP = { width: 12, height: 9, radius: 2 };
+const STAR = { outer: 4, inner: 1.8 };
+
+/** One shared instance: PixiJS keys a stroked dynamic bitmap font by the style object. */
+const TAG_STYLE = new TextStyle({
+  fontFamily: MAP_FONT,
+  fontSize: 8,
+  fontWeight: "700",
+  fill: 0x111827,
+});
+
+/** What a scripted seat's kind draws beside the marker: nothing for an enabled seat. */
+type Tag = "star" | { letters: string } | null;
+
+function tagOf(kind: PaintSpawnKind): Tag {
+  if (kind === "enabled") return null;
+  if (kind === "preferred") return "star";
+  if (kind === "sol") return { letters: "Sol" };
+  return { letters: kind.reserved.toUpperCase() };
+}
+
+/** A key that changes exactly when the tag drawn for a seat must change. */
+function tagKey(tag: Tag): string {
+  if (tag === null) return "";
+  if (tag === "star") return "star";
+  return `letters:${tag.letters}`;
+}
+
+/** The rounded tag a reserved or Sol seat draws its letters over. */
+function drawChip(g: Graphics): void {
+  const { x, y } = TAG_OFFSET;
+  g.roundRect(x - CHIP.width / 2, y - CHIP.height / 2, CHIP.width, CHIP.height, CHIP.radius).fill({
+    color: MARKER_COLOR,
+    alpha: MARKER.alpha,
+  });
+}
+
+/** A preferred seat's five-point star, drawn beside the marker rather than spelled out. */
+function drawStar(g: Graphics): void {
+  const { x, y } = TAG_OFFSET;
+  const points: number[] = [];
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? STAR.outer : STAR.inner;
+    const angle = -Math.PI / 2 + (Math.PI / 5) * i;
+    points.push(x + r * Math.cos(angle), y + r * Math.sin(angle));
+  }
+  g.poly(points).fill({ color: MARKER_COLOR, alpha: MARKER.alpha });
+}
 
 function seatOf(s: SystemNode): Seat {
   if (isHumanReserved(s)) return "human";
@@ -89,6 +149,11 @@ export class SpawnsLayer implements MapLayer {
   readonly container = new Container();
   private readonly markers = new Map<number, Graphics>();
   private readonly seats = new Map<number, Seat>();
+  private readonly tagsContainer = new Container({ label: "tags" });
+  private readonly tags = new Map<number, Graphics>();
+  private readonly tagLabels = new Map<number, BitmapText>();
+  private readonly tagKeys = new Map<number, string>();
+  private readonly freeTagLabels: BitmapText[] = [];
   private ctx: RenderContext = EMPTY_CONTEXT;
   private systems: Systems = EMPTY_CONTEXT.systems;
   private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
@@ -97,6 +162,7 @@ export class SpawnsLayer implements MapLayer {
 
   constructor() {
     this.container.eventMode = "passive";
+    this.container.addChild(this.tagsContainer);
   }
 
   rebuild(ctx: RenderContext): void {
@@ -118,6 +184,8 @@ export class SpawnsLayer implements MapLayer {
   onViewport(cam: Camera): void {
     cam.childScale(markerScale(cam.scale), this.scale);
     for (const g of this.markers.values()) g.scale.set(this.scale.x, this.scale.y);
+    for (const g of this.tags.values()) g.scale.set(this.scale.x, this.scale.y);
+    for (const label of this.tagLabels.values()) label.scale.set(this.scale.x, this.scale.y);
   }
 
   /** The dragged systems' marks follow their ghosts, dimmed. */
@@ -159,6 +227,67 @@ export class SpawnsLayer implements MapLayer {
     g.position.set(at.x, at.y);
     g.alpha = ghost ? GHOST_ALPHA : 1;
     g.scale.set(this.scale.x, this.scale.y);
+    this.placeTag(s, at, ghost !== undefined);
+  }
+
+  /** The scripted seat's kind, drawn beside the marker and moved, dimmed or dropped with it. */
+  private placeTag(s: SystemNode, at: { x: number; y: number }, ghosted: boolean): void {
+    const tag = s.spawn_script === null ? null : tagOf(s.spawn_script.paint_a_galaxy.kind);
+    const key = tagKey(tag);
+    if (this.tagKeys.get(s.id) !== key) {
+      this.tagKeys.set(s.id, key);
+      this.drawTag(s.id, tag);
+    }
+    const g = this.tags.get(s.id);
+    if (g) {
+      g.position.set(at.x, at.y);
+      g.alpha = ghosted ? GHOST_ALPHA : 1;
+      g.scale.set(this.scale.x, this.scale.y);
+    }
+    const label = this.tagLabels.get(s.id);
+    if (label) {
+      label.position.set(at.x, at.y);
+      label.alpha = ghosted ? GHOST_ALPHA : 1;
+      label.scale.set(this.scale.x, this.scale.y);
+    }
+  }
+
+  private drawTag(id: number, tag: Tag): void {
+    this.releaseTag(id);
+    if (tag === null) return;
+    const g = new Graphics();
+    this.tagsContainer.addChild(g);
+    this.tags.set(id, g);
+    if (tag === "star") {
+      drawStar(g);
+      return;
+    }
+    drawChip(g);
+    const label = this.freeTagLabels.pop() ?? this.makeTagLabel();
+    label.text = tag.letters;
+    label.visible = true;
+    this.tagsContainer.addChild(label);
+    this.tagLabels.set(id, label);
+  }
+
+  private makeTagLabel(): BitmapText {
+    const label = new BitmapText({ text: "", style: TAG_STYLE });
+    label.anchor.set(0.5);
+    return label;
+  }
+
+  private releaseTag(id: number): void {
+    const g = this.tags.get(id);
+    if (g) {
+      this.tags.delete(id);
+      g.destroy();
+    }
+    const label = this.tagLabels.get(id);
+    if (label) {
+      this.tagLabels.delete(id);
+      label.visible = false;
+      this.freeTagLabels.push(label);
+    }
   }
 
   private makeMarker(id: number): Graphics {
@@ -203,5 +332,7 @@ export class SpawnsLayer implements MapLayer {
     g.destroy();
     this.markers.delete(id);
     this.seats.delete(id);
+    this.releaseTag(id);
+    this.tagKeys.delete(id);
   }
 }

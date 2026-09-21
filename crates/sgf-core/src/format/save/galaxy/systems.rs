@@ -69,6 +69,7 @@ pub(super) fn extract(
         spawn_modifiers: Vec::new(),
         spawn_script: None,
         spawn_design: None,
+        fe_zone: None,
         prevented: Vec::new(),
         position_range: false,
         flags,

@@ -1,6 +1,6 @@
 import * as ipc from "../../api/ipc";
 import type { PaintModView } from "../../generated/PaintModView";
-import { PAINT_WORKSHOP_URL } from "../../lib/paint";
+import { PAINT_WORKSHOP_URL, RESERVED_SPAWNS_WORKSHOP_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 
 export const PAINT_MOD_NOT_INSTALLED =
@@ -19,5 +19,12 @@ export function paintModStatusTitle(paintMod: PaintModView | null): string {
 export function openPaintWorkshop(): void {
   void ipc
     .openUrl(PAINT_WORKSHOP_URL)
+    .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
+}
+
+/** Opens the Reserved Spawns submod's Workshop page, through the allowlisted address only. */
+export function openReservedSpawnsWorkshop(): void {
+  void ipc
+    .openUrl(RESERVED_SPAWNS_WORKSHOP_URL)
     .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
 }

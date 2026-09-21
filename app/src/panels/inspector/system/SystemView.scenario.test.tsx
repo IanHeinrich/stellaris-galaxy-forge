@@ -24,7 +24,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
-import { scriptForKind } from "../../../lib/paint";
+import { enabledScript, scriptForKind } from "../../../lib/paint";
 import { isSpawnWeight } from "../../../lib/spawn";
 import { kindTitle } from "../../../lib/special";
 import { DETAILS_DEBOUNCE_MS } from "../../../store/batching";
@@ -32,6 +32,7 @@ import { bindStores } from "../../../store/bindStores";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
 import { addrKey, useEntityStore, viewKey } from "../../../store/entityStore";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { tabsFor, useInspectorStore } from "../../../store/inspectorStore";
@@ -501,10 +502,15 @@ describe("a scenario system Paint a Galaxy seats", () => {
     useInspectorStore.setState({ sections: { "system.initializer": false } });
 
     const html = overview();
-    expect(html).toContain("Paint a Galaxy spawn: reserved C");
-    expect(html).toContain('<option value="reserved:c" selected="">reserved C</option>');
+    expect(html).toContain(">Seat<");
+    expect(html).toContain('<optgroup label="Reserved for one empire">');
+    expect(html).toContain('<option value="reserved:c" selected="">Reserved C</option>');
     expect(html.match(/<option /g)).toHaveLength(29);
-    expect(html).toContain("the mod computes the spawn weight from the kind");
+    expect(html).toContain("Only an empire whose species has the");
+    expect(html).toContain("Reserved Spawn C");
+    expect(html).toContain("trait starts here.");
+    expect(html).toContain("The trait comes from the");
+    expect(html).toContain("Reserved Spawns submod ↗");
     expect(html.match(/<input type="checkbox"[^>]*>/g)).toHaveLength(1);
     expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
     expect(html).not.toContain('aria-label="Spawn weight"');
@@ -512,11 +518,29 @@ describe("a scenario system Paint a Galaxy seats", () => {
     expect(html).not.toContain("Reserve for the AI");
   });
 
+  it("describes what each kind means, a reserved letter's sentence pointing at the submod", async () => {
+    withScript("enabled");
+    await open("scenario");
+    expect(overview()).toContain("Any empire may start here.");
+    expect(overview()).not.toContain("The trait comes from the");
+
+    withScript("preferred");
+    await open("scenario");
+    expect(overview()).toContain("Filled before enabled seats.");
+
+    withScript("sol");
+    await open("scenario");
+    expect(overview()).toContain(
+      "United Nations of Earth counts as holding it. Set the initializer to Sol instead",
+    );
+    expect(overview()).not.toContain("The trait comes from the");
+  });
+
   it("selects the seat the file names, and the change it writes keeps the random value", async () => {
     withScript("enabled");
     await open("scenario");
     const html = overview();
-    expect(html).toContain('<option value="enabled" selected="">enabled</option>');
+    expect(html).toContain('<option value="enabled" selected="">Enabled</option>');
     expect(html).not.toContain('value="sol" selected=""');
 
     const system = useEditorStore.getState().inspected!.system;
@@ -540,11 +564,39 @@ describe("a scenario system Paint a Galaxy seats", () => {
     withWeight(null);
     await open("scenario");
     const plain = useEditorStore.getState().inspected!.system;
-    expect(overview()).not.toContain("Paint a Galaxy spawn");
+    expect(overview()).not.toContain('aria-label="Spawn kind"');
     expect(spawnPointOp(plain, DEFAULT_SPAWN_WEIGHT, false)).toEqual({
       type: "SetSpawnWeight",
       id: SYSTEM,
       base: 1,
+    });
+  });
+
+  it("hides the vanilla reservation rows under the Paint a Galaxy layer, offering a seat instead", async () => {
+    withWeight(3);
+    await open("scenario");
+    useFileSessionStore.setState({ painted: true });
+
+    const html = overview();
+    expect(html).not.toContain("Reserve for a human player");
+    expect(html).not.toContain("Reserve for the AI");
+    expect(html).toContain("Use a Paint a Galaxy seat");
+    expect(html).toContain("The mod fills seats by kind and ignores this weight.");
+  });
+
+  it("writes the op that swaps a plain weight for an enabled Paint a Galaxy seat", async () => {
+    withWeight(3);
+    await open("scenario");
+    useFileSessionStore.setState({ painted: true });
+    const system = useEditorStore.getState().inspected!.system;
+
+    await useEditorStore
+      .getState()
+      .applyOp({ type: "SetSpawnScript", id: system.id, script: enabledScript(system) });
+    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      type: "SetSpawnScript",
+      id: SYSTEM,
+      script: { paint_a_galaxy: { kind: "enabled", random_value: SYSTEM % 10 } },
     });
   });
 });

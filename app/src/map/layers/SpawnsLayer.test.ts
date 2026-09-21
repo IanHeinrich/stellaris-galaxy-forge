@@ -1,9 +1,18 @@
 import { Graphics } from "pixi.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
+import type { SpawnScript } from "../../generated/SpawnScript";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { AI_RESERVED_NOTE, RESERVED_NOTE, SpawnsLayer } from "./SpawnsLayer";
-import { drawOps, mapContext, mapNode, strokes, viewport } from "./fixture";
+import {
+  childByLabel,
+  drawOps,
+  drawnText,
+  mapContext,
+  mapNode,
+  strokes,
+  viewport,
+} from "./fixture";
 
 function weighted(id: number, x: number, weight: number | null): SystemNode {
   return { ...mapNode(id, x, `S${id}`), spawn_weight: weight };
@@ -57,6 +66,23 @@ function markOf(layer: SpawnsLayer, x: number): Graphics {
   );
   if (!mark) throw new Error(`no mark at ${x}`);
   return mark;
+}
+
+/** The sub-container the layer draws a scripted seat's kind tags into. */
+function tagsOf(layer: SpawnsLayer) {
+  return childByLabel(layer.container, "tags");
+}
+
+/** A system scripted with the given Paint a Galaxy kind, as the projection would report it. */
+function scriptedNode(
+  id: number,
+  x: number,
+  kind: SpawnScript["paint_a_galaxy"]["kind"],
+): SystemNode {
+  return {
+    ...weighted(id, x, 0),
+    spawn_script: { paint_a_galaxy: { kind, random_value: 1 } },
+  };
 }
 
 /** Every mark the layer is drawing, by the system position it sits on. */
@@ -203,5 +229,40 @@ describe("the spawn points layer", () => {
       lines: [`Spawn point · weight 10 · ${AI_RESERVED_NOTE}`],
     });
     expect(AI_RESERVED_NOTE).toBe("reserved for the AI");
+  });
+
+  it("draws a reserved seat's letter over a rounded tag beside the marker", () => {
+    const layer = drawn([scriptedNode(2, 40, { reserved: "b" })]);
+    expect(drawnText(tagsOf(layer))).toEqual(["B"]);
+    expect(tagsOf(layer).children.filter((c) => c instanceof Graphics)).toHaveLength(1);
+  });
+
+  it("draws Sol's letters the same way as a reserved seat's", () => {
+    const layer = drawn([scriptedNode(2, 40, "sol")]);
+    expect(drawnText(tagsOf(layer))).toEqual(["Sol"]);
+  });
+
+  it("draws a star beside a preferred seat's marker, spelling out nothing", () => {
+    const layer = drawn([scriptedNode(2, 40, "preferred")]);
+    expect(drawnText(tagsOf(layer))).toEqual([]);
+    expect(tagsOf(layer).children.filter((c) => c instanceof Graphics)).toHaveLength(1);
+  });
+
+  it("draws no tag beside an enabled seat's marker", () => {
+    const layer = drawn([scriptedNode(2, 40, "enabled")]);
+    expect(tagsOf(layer).children.filter((c) => c.visible)).toHaveLength(0);
+  });
+
+  it("updates the tag when a delta changes the seat's kind, and drops it when the script goes", () => {
+    const reservedA = scriptedNode(2, 40, { reserved: "a" });
+    const layer = drawn([reservedA]);
+    expect(drawnText(tagsOf(layer))).toEqual(["A"]);
+
+    layer.applyDelta({ systems: [{ ...reservedA, spawn_script: null, spawn_weight: 1 }] });
+    expect(drawnText(tagsOf(layer))).toEqual([]);
+    expect(tagsOf(layer).children.filter((c) => c.visible)).toHaveLength(0);
+
+    layer.applyDelta({ systems: [scriptedNode(2, 40, "sol")] });
+    expect(drawnText(tagsOf(layer))).toEqual(["Sol"]);
   });
 });

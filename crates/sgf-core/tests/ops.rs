@@ -677,6 +677,8 @@ fn a_save_takes(op: &Op) -> bool {
         | Op::SetSpawnReservation { .. }
         | Op::SetSpawnScript { .. }
         | Op::SetSpawnScripts { .. }
+        | Op::SetFeZone { .. }
+        | Op::SetFeZones { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -717,6 +719,8 @@ fn reclassifies(op: &Op) -> bool {
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
         | Op::SetSpawnReservation { .. }
+        | Op::SetFeZone { .. }
+        | Op::SetFeZones { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -757,6 +761,8 @@ fn stales_details(op: &Op) -> bool {
         | Op::SetSpawnWeight { .. }
         | Op::SetSpawnWeights { .. }
         | Op::SetSpawnReservation { .. }
+        | Op::SetFeZone { .. }
+        | Op::SetFeZones { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -877,6 +883,10 @@ fn one_of_each() -> Vec<Op> {
             script: None,
         },
         Op::SetSpawnScripts {
+            entries: vec![(0, None)],
+        },
+        Op::SetFeZone { id: 0, zone: None },
+        Op::SetFeZones {
             entries: vec![(0, None)],
         },
         Op::PreventLane { a: 0, b: 1 },

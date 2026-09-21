@@ -12,8 +12,10 @@
 //!
 //! One module per feature: [`system`] for systems and their positions, [`lanes`] for the
 //! hyperlanes between them, [`nebula`] for the clouds over them, [`header`] for the
-//! scenario's own keys and [`spawn`] for the weights the generator seats empires by.
+//! scenario's own keys, [`spawn`] for the weights the generator seats empires by and
+//! [`fe_zone`] for the star flags Paint a Galaxy seats fallen empires by.
 
+mod fe_zone;
 mod header;
 mod lanes;
 mod nebula;
@@ -88,6 +90,8 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetSpawnReservation { id, reserve } => spawn::set_reservation(plan, s, *id, *reserve),
         Op::SetSpawnScript { id, script } => spawn::set_script(plan, s, *id, script.as_ref()),
         Op::SetSpawnScripts { entries } => spawn::set_scripts(plan, s, entries),
+        Op::SetFeZone { id, zone } => fe_zone::set_zone(plan, s, *id, zone.as_ref()),
+        Op::SetFeZones { entries } => fe_zone::set_zones(plan, s, entries),
         _ => Err(unsupported(op)),
     }
 }

@@ -5,12 +5,14 @@
 //! two ends and nebula membership follows the radii rather than a member list.
 
 pub(crate) mod emit;
+pub mod fe_zone;
 pub mod index;
 pub mod listings;
 pub(crate) mod paint;
 pub(crate) mod spawn;
 pub(crate) mod write;
 
+pub use fe_zone::{FeDirection, FeKind, FeZone};
 pub use paint::is_painted;
 
 use std::collections::{HashMap, HashSet};
@@ -112,6 +114,8 @@ impl Format for Scenario {
             | Op::SetSpawnReservation { .. }
             | Op::SetSpawnScript { .. }
             | Op::SetSpawnScripts { .. }
+            | Op::SetFeZone { .. }
+            | Op::SetFeZones { .. }
             | Op::PreventLane { .. }
             | Op::UnpreventLane { .. } => true,
             Op::SetLaneLength { .. }
@@ -272,6 +276,9 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
             .find(keys::SPAWN_WEIGHT, src)
             .and_then(|weight| paint::recognise(weight, src)),
         spawn_design: read::scalar(node, keys::SPAWN_DESIGN, src).map(str::to_owned),
+        fe_zone: node
+            .find(keys::EFFECT, src)
+            .and_then(|effect| fe_zone::parse(fe_zone::star_flags(effect, src))),
         prevented: Vec::new(),
         position_range: position_range(node, src),
         flags: Vec::new(),

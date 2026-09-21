@@ -17,6 +17,7 @@ use crate::Span;
 use crate::cst;
 use crate::document::{self, Document};
 use crate::format;
+use crate::format::scenario::FeZone;
 use crate::overlay::{Anchor, OverlayError};
 use crate::projections::galaxy::{
     GalaxyGraph, Lane, ProjectionError, SpawnReservationPreset, SpawnScript,
@@ -234,6 +235,21 @@ pub enum Op {
     SetSpawnScripts {
         entries: Vec<(u32, Option<SpawnScript>)>,
     },
+    /// The Paint a Galaxy fallen empire zone a system anchors: `Some` takes every zone
+    /// flag out of the system's `effect` block and writes the zone's flags at its end,
+    /// writing the block when the system has none; `None` takes the zone flags out, and
+    /// the block with them when nothing else stood in it. Every other statement of the
+    /// block is left byte for byte. Scenario documents only.
+    SetFeZone {
+        id: u32,
+        zone: Option<FeZone>,
+    },
+    /// Several systems' fallen empire zones as one undo step, each entry an id and the
+    /// zone to write there; every entry follows the [`Op::SetFeZone`] rules. Scenario
+    /// documents only.
+    SetFeZones {
+        entries: Vec<(u32, Option<FeZone>)>,
+    },
     /// One `prevent_hyperlane` statement, barring the generator from linking `a` and `b`.
     /// A pair the file already links is refused: a file that both lays and forbids a lane
     /// leaves the generator undefined, so the lane goes first. Scenario documents only.
@@ -283,6 +299,8 @@ impl Op {
             Self::SetSpawnReservation { .. } => "SetSpawnReservation",
             Self::SetSpawnScript { .. } => "SetSpawnScript",
             Self::SetSpawnScripts { .. } => "SetSpawnScripts",
+            Self::SetFeZone { .. } => "SetFeZone",
+            Self::SetFeZones { .. } => "SetFeZones",
             Self::PreventLane { .. } => "PreventLane",
             Self::UnpreventLane { .. } => "UnpreventLane",
         }

@@ -416,7 +416,7 @@ fn last_of_id_name_position(edit: &Edit) -> Result<usize, OpError> {
 /// Write `text` as the statement following the one ending at `after`, in the shape that
 /// statement is written in: on a line of its own when that one ends its line, else
 /// beside it. Two statements written after the same one land in the order written.
-fn insert_after(edit: &mut Edit, after: usize, text: &str) {
+pub(super) fn insert_after(edit: &mut Edit, after: usize, text: &str) {
     if ends_line(edit, after) {
         let indent = edit.indent(after);
         let line = [&indent[..], text.as_bytes(), b"\n"].concat();
@@ -435,7 +435,7 @@ fn ends_line(edit: &Edit, at: usize) -> bool {
     line.len() < rest.len() && line.iter().all(|&b| b == b' ' || b == b'\t')
 }
 
-fn starts_line(edit: &Edit, at: usize) -> bool {
+pub(super) fn starts_line(edit: &Edit, at: usize) -> bool {
     edit.buf[edit.line_start(at)..at]
         .iter()
         .all(|&b| b == b' ' || b == b'\t')

@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Made system 10 a Paint a Galaxy spawn (enabled)
-inverse: SetSpawnScript { id: 10, script: None }
+Add fallen empire zone to Void
+inverse: SetFeZone { id: 10, zone: None }
 
 --- scenario
 +++ scenario
@@ -12,7 +12,7 @@ inverse: SetSpawnScript { id: 10, script: None }
  	system = { id = "8" position = { x = -160 y = -160 } name = "Egress" effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster } }
  	system = { id = "9" position = { x = 0 y = -180 } name = "Old Seat" effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_n set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_preferred } }
 -	system = { id = "10" position = { x = 150 y = -30 } name = "Void" }
-+	system = { id = "10" position = { x = 150 y = -30 } name = "Void" initializer = random_empire_init_05 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|0| } }
++	system = { id = "10" position = { x = 150 y = -30 } name = "Void" effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_w set_star_flag = painted_galaxy_fe_spawn_hive set_star_flag = painted_galaxy_fe_spawn_distance_80 set_star_flag = painted_galaxy_fe_spawn_preferred } }
  	system = { id = "11" position = { x = -150 y = -30 } }
  	system = { id = "12" position = { x = 120 y = 150 } name = "High Seat" initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_automatic_initializer set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_se set_star_flag = painted_galaxy_fe_spawn_materialist set_star_flag = painted_galaxy_fe_spawn_distance_60 set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_spawn_fallback } }
  	system = { id = "13" position = { x = -120 y = 150 } name = "Low Seat" effect = { set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster } }
