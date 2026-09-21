@@ -68,6 +68,9 @@ pub struct FallenEmpireReport {
     pub anchor: Option<u32>,
     /// Whether the zone's centre is the old capital's exact position.
     pub exact: bool,
+    /// How many kept systems that had a lane into the cluster were linked to the zone
+    /// by a custom connection; 0 when none had, or the zone found no anchor.
+    pub links: u32,
 }
 
 /// How many systems of one [`Category`] the export left out.

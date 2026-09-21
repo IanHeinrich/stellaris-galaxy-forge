@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use crate::cst::Node;
+use crate::format::scenario::FeLinkFlags;
 use crate::format::scenario::marauder;
 use crate::projections::galaxy::{Lane, ProjectionError, SystemNode};
 use crate::projections::read;
@@ -74,6 +75,7 @@ pub(super) fn extract(
         spawn_design: None,
         fe_zone: None,
         wormhole_pair: None,
+        fe_link: FeLinkFlags::default(),
         prevented: Vec::new(),
         position_range: false,
         flags,

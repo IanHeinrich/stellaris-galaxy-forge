@@ -17,7 +17,7 @@ use crate::Span;
 use crate::cst;
 use crate::document::{self, Document};
 use crate::format;
-use crate::format::scenario::FeZone;
+use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::{Anchor, OverlayError};
 use crate::projections::galaxy::{
     GalaxyGraph, Lane, ProjectionError, SpawnReservationPreset, SpawnScript,
@@ -289,6 +289,25 @@ pub enum Op {
     SetWormholeEnds {
         entries: Vec<(u32, Option<u32>)>,
     },
+    /// The systems Paint a Galaxy lays a hyperlane from into the fallen empire zone
+    /// `anchor` anchors. A non-empty `linked` writes the custom connection flag and an
+    /// id on the anchor, the id it already takes or else the lowest free one, and puts
+    /// that id on every system of `linked` and takes it off every other; an empty
+    /// `linked` takes the custom flag and the id off the anchor and the id off every
+    /// system. The flags go at the end of each `effect` block as
+    /// [`Op::SetWormholePair`] writes its own, and only a system whose flags change is
+    /// written. `anchor` must anchor a zone and may not be in `linked`. The inverse is
+    /// a [`Op::SetFeLinkFlags`] over the systems written. Scenario documents only.
+    SetFeLinks {
+        anchor: u32,
+        linked: Vec<u32>,
+    },
+    /// Several systems' custom connection flags, each set exactly as given: what a
+    /// [`Op::SetFeLinks`] inverts to, and the way to a state the mod reads oddly, such
+    /// as the custom flag without an id. Scenario documents only.
+    SetFeLinkFlags {
+        entries: Vec<(u32, FeLinkFlags)>,
+    },
     /// One `prevent_hyperlane` statement, barring the generator from linking `a` and `b`.
     /// A pair the file already links is refused: a file that both lays and forbids a lane
     /// leaves the generator undefined, so the lane goes first. Scenario documents only.
@@ -344,6 +363,8 @@ impl Op {
             Self::SetFeZones { .. } => "SetFeZones",
             Self::SetWormholePair { .. } => "SetWormholePair",
             Self::SetWormholeEnds { .. } => "SetWormholeEnds",
+            Self::SetFeLinks { .. } => "SetFeLinks",
+            Self::SetFeLinkFlags { .. } => "SetFeLinkFlags",
             Self::PreventLane { .. } => "PreventLane",
             Self::UnpreventLane { .. } => "UnpreventLane",
         }
@@ -480,6 +501,14 @@ pub enum OpError {
     WormholeSelf(u32),
     #[error("wormhole pair {0} is already in use")]
     WormholePairInUse(u32),
+    #[error("system {0} anchors no fallen empire zone")]
+    FeLinkNoZone(u32),
+    #[error("system {0} cannot link to its own fallen empire zone")]
+    FeLinkSelf(u32),
+    #[error("every fallen empire connection id is taken")]
+    FeLinkIdsExhausted,
+    #[error("fallen empire connection id {0} is beyond the {1} the mod reads")]
+    FeLinkIdOutOfRange(u8, u8),
     #[error("no lanes given")]
     Empty,
     #[error("system {0} is listed more than once")]

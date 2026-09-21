@@ -304,13 +304,15 @@ pub fn nearest_zone(
     best.map(|(_, id, zone)| (id, zone))
 }
 
-/// A system as the automatic rule sees it: where it stands and the zone it anchors.
+/// A system as the automatic rule sees it: where it stands, the zone it anchors and
+/// whether it takes custom connections for that zone.
 #[derive(Debug, Clone, Copy)]
 pub struct Site<'a> {
     pub id: u32,
     pub x: f64,
     pub y: f64,
     pub zone: Option<&'a FeZone>,
+    pub linked: bool,
 }
 
 impl Site<'_> {
@@ -320,6 +322,12 @@ impl Site<'_> {
 
     fn centre(&self) -> Option<(f64, f64)> {
         self.zone.map(|zone| centre(self.position(), zone))
+    }
+
+    /// Whether the zone is the map author's to keep: placed by hand, or one systems
+    /// were linked to.
+    fn placed(&self) -> bool {
+        self.zone.is_some_and(|zone| zone.preferred || self.linked)
     }
 }
 
@@ -334,6 +342,7 @@ pub fn sites(galaxy: &Galaxy) -> Vec<Site<'_>> {
             x: system.x,
             y: system.y,
             zone: system.fe_zone.as_ref(),
+            linked: system.fe_link.custom,
         })
         .collect()
 }
@@ -376,9 +385,9 @@ pub fn candidate_count(sites: &[Site<'_>]) -> usize {
 /// zone, then the chosen candidates, an anchor that loses one and gains one being a
 /// single entry. The candidates kept are spread over the map by farthest-point
 /// sampling from the zones the map author placed by hand, or from the edge of the map
-/// when there are none. A placed zone is not touched.
+/// when there are none. A placed zone, or one systems were linked to, is not touched.
 pub fn fit(sites: &[Site<'_>], count: usize) -> Vec<(u32, Option<FeZone>)> {
-    let automatic = |site: &Site<'_>| site.zone.is_some_and(|zone| !zone.preferred);
+    let automatic = |site: &Site<'_>| site.zone.is_some() && !site.placed();
     let kept = placed_only(sites);
     let mut entries: Vec<(u32, Option<FeZone>)> = sites
         .iter()
@@ -405,7 +414,7 @@ fn placed_only<'a>(sites: &[Site<'a>]) -> Vec<Site<'a>> {
     sites
         .iter()
         .map(|site| Site {
-            zone: site.zone.filter(|zone| zone.preferred),
+            zone: site.zone.filter(|_| site.placed()),
             ..*site
         })
         .collect()
@@ -485,6 +494,7 @@ mod tests {
             x,
             y,
             zone: None,
+            linked: false,
         }
     }
 

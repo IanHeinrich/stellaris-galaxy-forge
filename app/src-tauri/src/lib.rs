@@ -32,6 +32,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::search,
             commands::warm_details,
             commands::apply_op,
+            commands::set_fe_links,
             commands::fe_zone_fit,
             commands::fe_zone_candidate_count,
             commands::header_empire_counts,

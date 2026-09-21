@@ -8,6 +8,7 @@ use ts_rs::TS;
 
 use std::collections::BTreeMap;
 
+use crate::format::scenario::fe_link::LINK_REACH;
 use crate::format::scenario::fe_zone;
 use crate::format::scenario::header_counts::{
     HeaderMismatch, header_mismatch, is_seat, seat_counts, zone_count,
@@ -73,6 +74,16 @@ pub enum IssueCode {
     /// A Paint a Galaxy scenario carries no automatic fallen empire zones, so the game
     /// has only the placed rings to choose from.
     FeZoneNoAutomatic,
+    /// A zone anchor takes custom connections but no system links to it, or it anchors
+    /// no zone, so the mod lays no hyperlane to the fallen empire.
+    FeLinkIsolated,
+    /// A system links to a fallen empire connection id no zone anchor takes.
+    FeLinkDangling,
+    /// Two or more zone anchors take custom connections under one id.
+    FeLinkShared,
+    /// A system links to a fallen empire zone from farther than the mod's own rule
+    /// reaches; the mod lays the hyperlane anyway.
+    FeLinkFar,
     /// A Paint a Galaxy header allows more empires than the seats can take, or caps
     /// them at other than the seats less one.
     HeaderEmpireCount,
@@ -113,12 +124,15 @@ impl IssueCode {
             | Self::FeZoneOverlap
             | Self::FeZoneOffMap
             | Self::FeZoneNoAutomatic
+            | Self::FeLinkIsolated
+            | Self::FeLinkDangling
+            | Self::FeLinkShared
             | Self::HeaderEmpireCount
             | Self::SeatLetterDuplicate
             | Self::LClusterSystem
             | Self::MarauderHomeDuplicate
             | Self::MarauderBaseOrphan => Severity::Warning,
-            Self::SolSeatMismatch | Self::MarauderNearSeat => Severity::Info,
+            Self::SolSeatMismatch | Self::MarauderNearSeat | Self::FeLinkFar => Severity::Info,
         }
     }
 
@@ -140,6 +154,10 @@ impl IssueCode {
             Self::FeZoneOverlap => "fe_zone_overlap",
             Self::FeZoneOffMap => "fe_zone_off_map",
             Self::FeZoneNoAutomatic => "fe_zone_no_automatic",
+            Self::FeLinkIsolated => "fe_link_isolated",
+            Self::FeLinkDangling => "fe_link_dangling",
+            Self::FeLinkShared => "fe_link_shared",
+            Self::FeLinkFar => "fe_link_far",
             Self::HeaderEmpireCount => "header_empire_count",
             Self::SeatLetterDuplicate => "seat_letter_duplicate",
             Self::SolSeatMismatch => "sol_seat_mismatch",
@@ -287,6 +305,7 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
     if g.kind == DocumentKind::Scenario {
         seats(g, &mut issues);
         automatic_zones(g, &mut issues);
+        fe_links(g, &mut issues);
         l_cluster(g, &mut issues);
         marauders(g, &mut issues);
     }
@@ -320,7 +339,7 @@ fn fe_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         .filter_map(|system| {
             let zone = system.fe_zone.as_ref()?;
             let centre = fe_zone::centre((system.x, system.y), zone);
-            Some((system, centre, !zone.preferred))
+            Some((system, centre, !zone.preferred && !system.fe_link.custom))
         })
         .collect();
     anchors.sort_unstable_by_key(|(anchor, _, _)| anchor.id);
@@ -574,6 +593,100 @@ fn automatic_zones(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
             "No fallen empire zones. Fit some so the game has rings to choose from.".to_owned(),
             Vec::new(),
         ));
+    }
+}
+
+/// What the custom connections say against the zones: an anchor that takes them needs
+/// an id some system links to, a link needs an anchor that takes its id, one id goes
+/// to one anchor, and a link from beyond the mod's own reach is worth a look.
+fn fe_links(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    let mut systems: Vec<&SystemNode> = g.systems.values().collect();
+    systems.sort_unstable_by_key(|system| system.id);
+    let mut takers: BTreeMap<u8, Vec<&SystemNode>> = BTreeMap::new();
+    for system in &systems {
+        if system.fe_link.custom
+            && system.fe_zone.is_some()
+            && let Some(n) = system.fe_link.id
+        {
+            takers.entry(n).or_default().push(system);
+        }
+    }
+    for anchor in systems.iter().filter(|system| system.fe_link.custom) {
+        if anchor.fe_zone.is_none() {
+            issues.push(Issue::new(
+                IssueCode::FeLinkIsolated,
+                format!(
+                    "{} takes custom connections but anchors no fallen empire zone.",
+                    label(anchor)
+                ),
+                vec![anchor.id],
+            ));
+            continue;
+        }
+        let linked = anchor
+            .fe_link
+            .id
+            .is_some_and(|n| systems.iter().any(|system| system.fe_link.to.contains(&n)));
+        if !linked {
+            issues.push(Issue::new(
+                IssueCode::FeLinkIsolated,
+                format!(
+                    "{} takes custom connections for its fallen empire zone but no system links to it. The mod will lay no hyperlanes to the fallen empire.",
+                    label(anchor)
+                ),
+                vec![anchor.id],
+            ));
+        }
+    }
+    for (n, anchors) in takers.iter().filter(|(_, anchors)| anchors.len() > 1) {
+        for anchor in anchors {
+            let others: Vec<&&SystemNode> = anchors
+                .iter()
+                .filter(|other| other.id != anchor.id)
+                .collect();
+            let names: Vec<String> = others.iter().map(|other| label(other)).collect();
+            let mut involved = vec![anchor.id];
+            involved.extend(others.iter().map(|other| other.id));
+            issues.push(Issue::new(
+                IssueCode::FeLinkShared,
+                format!(
+                    "{} shares fallen empire connection {n} with {}. The systems linked to it join both fallen empires.",
+                    label(anchor),
+                    listed(&names)
+                ),
+                involved,
+            ));
+        }
+    }
+    for system in &systems {
+        for n in &system.fe_link.to {
+            let Some(anchors) = takers.get(n) else {
+                issues.push(Issue::new(
+                    IssueCode::FeLinkDangling,
+                    format!(
+                        "{} links to fallen empire connection {n}, which no zone takes.",
+                        label(system)
+                    ),
+                    vec![system.id],
+                ));
+                continue;
+            };
+            for anchor in anchors {
+                let zone = anchor.fe_zone.as_ref().expect("a taker anchors a zone");
+                let centre = fe_zone::centre((anchor.x, anchor.y), zone);
+                let d = fe_zone::distance(centre, (system.x, system.y));
+                if d > LINK_REACH {
+                    issues.push(Issue::new(
+                        IssueCode::FeLinkFar,
+                        format!(
+                            "{} is {d:.0} from the fallen empire zone it links to. The mod lays the hyperlane anyway.",
+                            label(system)
+                        ),
+                        vec![system.id, anchor.id],
+                    ));
+                }
+            }
+        }
     }
 }
 

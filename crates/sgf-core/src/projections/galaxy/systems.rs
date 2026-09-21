@@ -5,7 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::format::scenario::{FeZone, MarauderRole};
+use crate::format::scenario::{FeLinkFlags, FeZone, MarauderRole};
 use crate::projections::galaxy::{SpawnModifier, SpawnScript, display_template};
 use crate::projections::name::NameTemplate;
 
@@ -107,6 +107,9 @@ pub struct SystemNode {
     /// the `painted_galaxy_wormhole_<n>` flag of its `effect` block. Always `None` for
     /// a save.
     pub wormhole_pair: Option<u32>,
+    /// The Paint a Galaxy custom connection flags of this scenario system's `effect`
+    /// block, read the same way `fe_zone` and `wormhole_pair` are. Default for a save.
+    pub fe_link: FeLinkFlags,
     /// The systems this scenario system is `prevent_hyperlane`d from, ascending and
     /// deduplicated, mirrored on both ends. A pair can be both linked and prevented,
     /// which is the file's state, not one the projection collapses. Always empty for a

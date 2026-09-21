@@ -7,7 +7,9 @@
 //!
 //! A save's fallen empires are not copied: the mod rebuilds each one at game start in a
 //! typed zone, so their clusters are left out and a zone of the right kind is centred
-//! on each old capital, anchored to a system created for it.
+//! on each old capital, anchored to a system created for it. The kept systems that had
+//! a lane into the cluster are linked to the zone by a custom connection, so the mod
+//! lays the fallen empire's hyperlanes where the save had them.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
@@ -16,6 +18,7 @@ use crate::emit::{coord, rounded};
 use crate::export::policy::Category;
 use crate::export::{Draft, ExportReport, FallenEmpireReport, SpawnDraft, SystemDraft, report};
 use crate::format::scenario::emit::{ScenarioOptions, VANILLA_SHAPES};
+use crate::format::scenario::fe_link::{self, FeLinkFlags, MOST_IDS, TO_PREFIX};
 use crate::format::scenario::fe_zone::{self, FeDirection, FeKind, FeZone, Site};
 use crate::format::scenario::header_counts::{fallen_count, seat_entries};
 use crate::format::scenario::marauder::{self, MarauderRole};
@@ -420,8 +423,9 @@ fn fallen_kind(initializer: &str) -> FeKind {
 
 /// Leave out each fallen empire's cluster and centre a typed, preferred zone on its old
 /// capital: on an anchor created for it where the old spot is clear, else on the
-/// existing system whose nearest clear grid position lies closest. Returns the zones
-/// placed, keyed by anchor.
+/// existing system whose nearest clear grid position lies closest. The kept systems
+/// with a lane into the cluster are linked to the zone, under the ids 0, 1, 2… in
+/// fallen empire order. Returns the zones placed, keyed by anchor.
 fn place_fallen_empires(
     draft: &mut Draft,
     report: &mut ExportReport,
@@ -437,10 +441,17 @@ fn place_fallen_empires(
         .map(|system| system.id)
         .max()
         .map_or(0, |id| id + 1);
-    for empire in fallen_empires(draft, graph, spawns, resolve) {
+    let empires = fallen_empires(draft, graph, spawns, resolve);
+    let clustered: HashSet<u32> = empires
+        .iter()
+        .flat_map(|empire| empire.cluster.iter().copied())
+        .collect();
+    let mut next_link: u8 = 0;
+    for empire in empires {
         draft
             .systems
             .retain(|system| !empire.cluster.contains(&system.id));
+        let neighbours = cluster_neighbours(draft, &empire.cluster, &clustered);
         leave_out_lanes(draft, &empire.cluster);
         let placed = match anchor_position(draft, empire.capital, &centres) {
             Some((at, direction, distance)) => {
@@ -479,17 +490,63 @@ fn place_fallen_empires(
                 (id, false)
             }),
         };
+        let links = match placed {
+            Some((anchor, _)) if !neighbours.is_empty() && next_link < MOST_IDS => {
+                link_neighbours(draft, anchor, &neighbours, next_link);
+                next_link += 1;
+                as_u32(neighbours.len())
+            }
+            _ => 0,
+        };
         report.fallen_empires.push(FallenEmpireReport {
             name: empire.name,
             kind: empire.kind,
             systems_left_out: as_u32(empire.cluster.len()),
             anchor: placed.map(|(id, _)| id),
             exact: placed.is_some_and(|(_, exact)| exact),
+            links,
         });
     }
     draft.lanes.sort_unstable();
     draft.lanes.dedup();
     typed
+}
+
+/// The kept systems with a lane into `cluster`, ascending: in no cluster at all, so
+/// the flag written on one stays in the file.
+fn cluster_neighbours(
+    draft: &Draft,
+    cluster: &BTreeSet<u32>,
+    clustered: &HashSet<u32>,
+) -> BTreeSet<u32> {
+    draft
+        .lanes
+        .iter()
+        .filter_map(
+            |&(a, b)| match (cluster.contains(&a), cluster.contains(&b)) {
+                (true, false) => Some(b),
+                (false, true) => Some(a),
+                _ => None,
+            },
+        )
+        .filter(|id| !clustered.contains(id))
+        .collect()
+}
+
+/// The anchor takes custom connections under `id` and each of `neighbours` links to it.
+fn link_neighbours(draft: &mut Draft, anchor: u32, neighbours: &BTreeSet<u32>, id: u8) {
+    let link = FeLinkFlags {
+        custom: true,
+        id: Some(id),
+        to: Vec::new(),
+    };
+    for system in &mut draft.systems {
+        if system.id == anchor {
+            add_flags(system, fe_link::flags(&link));
+        } else if neighbours.contains(&system.id) {
+            add_flags(system, [format!("{TO_PREFIX}{id}")]);
+        }
+    }
 }
 
 /// Drop every lane into `cluster`; a kept system that loses its last lane gets one to
@@ -585,6 +642,7 @@ fn fallback_zone(
             x: system.x,
             y: system.y,
             zone: typed.get(&system.id),
+            linked: false,
         })
         .collect();
     let anchors: Vec<Site<'_>> = sites

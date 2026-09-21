@@ -117,6 +117,8 @@ impl Format for Save {
             | Op::SetFeZones { .. }
             | Op::SetWormholePair { .. }
             | Op::SetWormholeEnds { .. }
+            | Op::SetFeLinks { .. }
+            | Op::SetFeLinkFlags { .. }
             | Op::PreventLane { .. }
             | Op::UnpreventLane { .. } => false,
         }

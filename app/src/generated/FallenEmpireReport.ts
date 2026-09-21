@@ -17,4 +17,9 @@ anchor: number | null,
 /**
  * Whether the zone's centre is the old capital's exact position.
  */
-exact: boolean, };
+exact: boolean, 
+/**
+ * How many kept systems that had a lane into the cluster were linked to the zone
+ * by a custom connection; 0 when none had, or the zone found no anchor.
+ */
+links: number, };

@@ -4,6 +4,7 @@ use std::path::Path;
 use serde_json::json;
 use sgf_core::export::ExportReport;
 use sgf_core::format::save::details::SystemDetails;
+use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeZone};
 use sgf_core::format::scenario::listings::{ScenarioListings, ScenarioSource};
 use sgf_core::library::CampaignListing;
@@ -553,6 +554,68 @@ fn a_painted_scenarios_wormhole_pairs_are_drawn_without_game_data_and_follow_the
     .expect("remove a pair");
     assert!(edited.reclassifies, "the app re-reads the bypasses");
     assert_eq!(pairs(&w), [(7, Some(8)), (8, Some(7))]);
+}
+
+#[test]
+fn set_fe_links_writes_the_connection_flags_as_one_step_and_undo_takes_them_back() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<EditResult>(
+            &w,
+            "set_fe_links",
+            json!({ "anchor": 9, "linked": [3, 2] })
+        )),
+        ErrorKind::NoSession
+    );
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": PAINTED })).expect("open");
+    let links = |result: &EditResult| -> Vec<(u32, FeLinkFlags)> {
+        result
+            .delta
+            .systems
+            .iter()
+            .map(|system| (system.id, system.fe_link.clone()))
+            .collect()
+    };
+    let link = |custom: bool, id: Option<u8>, to: Vec<u8>| FeLinkFlags { custom, id, to };
+    let edited: EditResult = invoke(&w, "set_fe_links", json!({ "anchor": 9, "linked": [3, 2] }))
+        .expect("link Sol and Gamma to Old Seat");
+    assert_eq!(
+        edited.entry.description,
+        "Link 2 systems to the fallen empire zone at Old Seat"
+    );
+    assert!(edited.dirty);
+    assert!(!edited.reclassifies);
+    assert_eq!(
+        links(&edited),
+        [
+            (2, link(false, None, vec![0])),
+            (3, link(false, None, vec![0])),
+            (9, link(true, Some(0), Vec::new())),
+        ]
+    );
+    assert!(
+        edited
+            .issues
+            .iter()
+            .all(|issue| issue.code != IssueCode::FeLinkIsolated),
+        "{:?}",
+        edited.issues
+    );
+    let refused = invoke::<EditResult>(&w, "set_fe_links", json!({ "anchor": 10, "linked": [3] }));
+    assert_eq!(kind(refused), ErrorKind::Op, "Void anchors no zone");
+
+    let undone: EditResult = invoke::<Option<EditResult>>(&w, "undo", json!({}))
+        .expect("undo")
+        .expect("something to undo");
+    assert_eq!(
+        links(&undone),
+        [
+            (2, FeLinkFlags::default()),
+            (3, FeLinkFlags::default()),
+            (9, FeLinkFlags::default()),
+        ]
+    );
+    assert!(!undone.dirty);
 }
 
 #[test]

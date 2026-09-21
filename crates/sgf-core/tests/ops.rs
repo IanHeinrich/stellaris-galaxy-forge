@@ -5,6 +5,7 @@
 use std::collections::BTreeSet;
 
 use sgf_core::document::Document;
+use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::ops::{InitializerSet, LaneLength, LanePair, Op, OpError, SystemMove};
 use sgf_core::projections::galaxy::{GalaxyGraph, SpawnReservationPreset};
 use sgf_core::session::Session;
@@ -683,6 +684,8 @@ fn a_save_takes(op: &Op) -> bool {
         | Op::SetHeaderList { .. }
         | Op::SetWormholePair { .. }
         | Op::SetWormholeEnds { .. }
+        | Op::SetFeLinks { .. }
+        | Op::SetFeLinkFlags { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -729,6 +732,8 @@ fn reclassifies(op: &Op) -> bool {
         | Op::SetSpawnReservation { .. }
         | Op::SetFeZone { .. }
         | Op::SetFeZones { .. }
+        | Op::SetFeLinks { .. }
+        | Op::SetFeLinkFlags { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -775,6 +780,8 @@ fn stales_details(op: &Op) -> bool {
         | Op::SetFeZones { .. }
         | Op::SetWormholePair { .. }
         | Op::SetWormholeEnds { .. }
+        | Op::SetFeLinks { .. }
+        | Op::SetFeLinkFlags { .. }
         | Op::PreventLane { .. }
         | Op::UnpreventLane { .. } => false,
     }
@@ -915,6 +922,13 @@ fn one_of_each() -> Vec<Op> {
         },
         Op::SetWormholeEnds {
             entries: vec![(0, None)],
+        },
+        Op::SetFeLinks {
+            anchor: 0,
+            linked: vec![1],
+        },
+        Op::SetFeLinkFlags {
+            entries: vec![(0, FeLinkFlags::default())],
         },
         Op::PreventLane { a: 0, b: 1 },
         Op::UnpreventLane { a: 0, b: 1 },

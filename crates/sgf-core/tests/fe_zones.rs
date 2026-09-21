@@ -66,6 +66,7 @@ fn site(id: u32, x: f64, y: f64) -> Site<'static> {
         x,
         y,
         zone: None,
+        linked: false,
     }
 }
 

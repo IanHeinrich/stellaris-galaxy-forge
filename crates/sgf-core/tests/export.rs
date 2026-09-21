@@ -7,6 +7,7 @@ use sgf_core::document;
 use sgf_core::emit::rounded;
 use sgf_core::export::policy::Category;
 use sgf_core::export::{self, DroppedBypasses, ExportReport, HomeInitializer, ScenarioProfile};
+use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeKind};
 use sgf_core::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -579,7 +580,10 @@ static_galaxy_scenario = {
             "{anchor}: {effect}"
         );
         assert!(
-            effect.ends_with("set_star_flag = painted_galaxy_fe_spawn_preferred }"),
+            effect.ends_with(&format!(
+                "set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_custom_connections set_star_flag = painted_galaxy_fe_custom_connection_id_{} }}",
+                anchor - anchors[0]
+            )),
             "{anchor}: {effect}"
         );
         let zone = &typed[anchor];
@@ -588,6 +592,54 @@ static_galaxy_scenario = {
         let old = &save.graph.systems[capital];
         let off = (centre.0 - old.x).hypot(centre.1 - old.y);
         assert!(off < 0.01, "{anchor}: {centre:?} is {off} from {capital}");
+    }
+
+    // Each zone takes the custom connections of the kept systems that had a lane into
+    // the cluster it replaces, under the ids 0, 1 and 2, and no other system links.
+    assert_eq!(
+        report
+            .fallen_empires
+            .iter()
+            .map(|f| f.links)
+            .collect::<Vec<_>>(),
+        [8, 7, 13]
+    );
+    for (i, (anchor, fe)) in anchors.iter().zip(&report.fallen_empires).enumerate() {
+        let link = &galaxy.systems[anchor].fe_link;
+        assert_eq!(
+            *link,
+            FeLinkFlags {
+                custom: true,
+                id: Some(i as u8),
+                to: Vec::new(),
+            },
+            "{anchor}"
+        );
+        let linked: Vec<u32> = galaxy
+            .order
+            .iter()
+            .filter(|id| galaxy.systems[id].fe_link.to.contains(&(i as u8)))
+            .copied()
+            .collect();
+        assert_eq!(linked.len() as u32, fe.links, "{anchor}: {linked:?}");
+        assert!(!linked.is_empty(), "{anchor}");
+    }
+    for system in galaxy.systems.values() {
+        assert_eq!(
+            system.fe_link.custom,
+            anchors.contains(&system.id),
+            "{}",
+            system.id
+        );
+        for n in &system.fe_link.to {
+            assert!(usize::from(*n) < anchors.len(), "{}: {n}", system.id);
+            let old = &save.graph.systems[&system.id];
+            assert!(
+                old.lanes.iter().any(|lane| missing.contains(&lane.to)),
+                "{} links to {n} but had no lane into a cluster",
+                system.id
+            );
+        }
     }
 
     let player = save

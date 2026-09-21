@@ -19,8 +19,8 @@ pub fn left_out(save: &Galaxy, written: &Galaxy) -> BTreeSet<u32> {
 
 /// What every Paint a Galaxy export of a save must hold to: nothing missing but what the
 /// report says was left out, every lane between held systems, seats on generic starts,
-/// zones the validator accepts and a header the seats and zones bear out. Returns the
-/// typed zones, keyed by anchor.
+/// zones the validator accepts, every custom connection linked both ways and a header
+/// the seats and zones bear out. Returns the typed zones, keyed by anchor.
 pub fn assert_paint_export_holds_together(
     save: &Galaxy,
     graph: &GalaxyGraph,
@@ -70,11 +70,45 @@ pub fn assert_paint_export_holds_together(
                 IssueCode::FeZoneBlocked
                     | IssueCode::FeZoneOverlap
                     | IssueCode::FeZoneOffMap
+                    | IssueCode::FeLinkIsolated
+                    | IssueCode::FeLinkDangling
+                    | IssueCode::FeLinkShared
                     | IssueCode::HeaderEmpireCount
             ),
             "{issue:?}"
         );
     }
+    let mut takers: BTreeMap<u8, Vec<u32>> = BTreeMap::new();
+    for system in written.systems.values() {
+        if system.fe_link.custom {
+            let id = system
+                .fe_link
+                .id
+                .expect("an anchor taking connections has an id");
+            takers.entry(id).or_default().push(system.id);
+            assert!(
+                written
+                    .systems
+                    .values()
+                    .any(|other| other.fe_link.to.contains(&id)),
+                "{} takes connections nobody links to",
+                system.id
+            );
+        }
+        for n in &system.fe_link.to {
+            let anchors: Vec<u32> = written
+                .systems
+                .values()
+                .filter(|other| other.fe_link.custom && other.fe_link.id == Some(*n))
+                .map(|other| other.id)
+                .collect();
+            assert_eq!(anchors.len(), 1, "{} links to {n}: {anchors:?}", system.id);
+        }
+    }
+    assert!(
+        takers.values().all(|anchors| anchors.len() == 1),
+        "{takers:?}"
+    );
     let zones = written
         .systems
         .values()

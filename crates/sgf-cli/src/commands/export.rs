@@ -82,8 +82,13 @@ fn print_paint_report(report: &ExportReport) {
             (Some(anchor), false) => format!("anchor {anchor} nearby, the old spot was not clear"),
             (None, _) => "nowhere to go".to_owned(),
         };
+        let linked = if fallen.links > 0 {
+            format!(", linked to {} system(s)", fallen.links)
+        } else {
+            String::new()
+        };
         println!(
-            "fallen empire {}: {}, {} system(s) left out, {anchor}",
+            "fallen empire {}: {}, {} system(s) left out, {anchor}{linked}",
             fallen.name,
             fallen.kind.as_str(),
             fallen.systems_left_out

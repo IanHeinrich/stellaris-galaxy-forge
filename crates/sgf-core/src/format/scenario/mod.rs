@@ -5,6 +5,7 @@
 //! two ends and nebula membership follows the radii rather than a member list.
 
 pub(crate) mod emit;
+pub mod fe_link;
 pub mod fe_zone;
 pub mod header_counts;
 pub mod index;
@@ -14,6 +15,7 @@ pub mod paint;
 pub(crate) mod spawn;
 pub(crate) mod write;
 
+pub use fe_link::FeLinkFlags;
 pub use fe_zone::{FeDirection, FeKind, FeZone};
 pub use marauder::MarauderRole;
 pub use paint::is_painted;
@@ -123,6 +125,8 @@ impl Format for Scenario {
             | Op::SetFeZones { .. }
             | Op::SetWormholePair { .. }
             | Op::SetWormholeEnds { .. }
+            | Op::SetFeLinks { .. }
+            | Op::SetFeLinkFlags { .. }
             | Op::PreventLane { .. }
             | Op::UnpreventLane { .. } => true,
             Op::SetLaneLength { .. }
@@ -301,6 +305,10 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         wormhole_pair: node
             .find(keys::EFFECT, src)
             .and_then(|effect| paint::wormhole_pair(fe_zone::star_flags(effect, src))),
+        fe_link: node
+            .find(keys::EFFECT, src)
+            .map(|effect| fe_link::parse(fe_zone::star_flags(effect, src)))
+            .unwrap_or_default(),
         prevented: Vec::new(),
         position_range: position_range(node, src),
         flags: Vec::new(),

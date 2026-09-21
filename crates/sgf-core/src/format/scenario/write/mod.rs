@@ -13,9 +13,11 @@
 //! One module per feature: [`system`] for systems and their positions, [`lanes`] for the
 //! hyperlanes between them, [`nebula`] for the clouds over them, [`header`] for the
 //! scenario's own keys, [`spawn`] for the weights the generator seats empires by and
-//! [`fe_zone`] for the star flags Paint a Galaxy seats fallen empires by and [`wormhole`]
-//! for the ones it joins a wormhole pair by.
+//! [`fe_zone`] for the star flags Paint a Galaxy seats fallen empires by, [`fe_link`]
+//! for the ones it lays a fallen empire's hyperlanes by and [`wormhole`] for the ones
+//! it joins a wormhole pair by.
 
+mod fe_link;
 mod fe_zone;
 mod header;
 mod lanes;
@@ -98,6 +100,8 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetFeZones { entries } => fe_zone::set_zones(plan, s, entries),
         Op::SetWormholePair { a, b, pair } => wormhole::set_pair(plan, s, *a, *b, *pair),
         Op::SetWormholeEnds { entries } => wormhole::set_ends(plan, s, entries),
+        Op::SetFeLinks { anchor, linked } => fe_link::set_links(plan, s, *anchor, linked),
+        Op::SetFeLinkFlags { entries } => fe_link::set_flags(plan, s, entries),
         _ => Err(unsupported(op)),
     }
 }

@@ -4,6 +4,7 @@
 
 use sgf_core::document::Document;
 use sgf_core::export::{self, ScenarioProfile};
+use sgf_core::format::scenario::fe_link::{self, FeLinkFlags};
 use sgf_core::format::scenario::fe_zone::{self, FE_ZONE_DISTANCES, FeDirection, FeKind, FeZone};
 use sgf_core::format::scenario::is_painted;
 use sgf_core::ops::{Op, OpError};
@@ -616,6 +617,31 @@ fn every_zone_round_trips_through_its_flags_and_the_defaults_fill_the_rest() {
     ] {
         assert!(!fe_zone::is_zone_flag(flag), "{flag}");
     }
+    let linked = |flags: &[&str]| fe_link::parse(flags.iter().copied());
+    assert_eq!(
+        linked(&[
+            "empire_cluster",
+            "painted_galaxy_fe_spawn",
+            "painted_galaxy_fe_custom_connection_to_2",
+            "painted_galaxy_fe_custom_connections",
+            "painted_galaxy_fe_custom_connection_id_0",
+            "painted_galaxy_fe_custom_connection_id_1",
+            "painted_galaxy_fe_custom_connection_to_0",
+        ]),
+        FeLinkFlags {
+            custom: true,
+            id: Some(0),
+            to: vec![0, 2],
+        }
+    );
+    assert_eq!(
+        linked(&["painted_galaxy_fe_spawn", "painted_galaxy_wormhole_1"]),
+        FeLinkFlags::default()
+    );
+    assert_eq!(
+        linked(&["painted_galaxy_fe_custom_connection_id_x"]),
+        FeLinkFlags::default()
+    );
 }
 
 #[test]

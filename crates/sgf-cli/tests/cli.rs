@@ -750,15 +750,15 @@ static_galaxy_scenario = {
     assert!(!text.contains("not carried over"), "{text}");
     assert!(text.contains("\nplayer seat: system 217 (Sol)\n"), "{text}");
     assert!(
-        text.contains("\nfallen empire PRESCRIPTED_species_adjective_tebrid: machine, 11 system(s) left out, anchor 791 at the old capital\n"),
+        text.contains("\nfallen empire PRESCRIPTED_species_adjective_tebrid: machine, 11 system(s) left out, anchor 791 at the old capital, linked to 8 system(s)\n"),
         "{text}"
     );
     assert!(
-        text.contains("\nfallen empire SPEC_Ti-Zru Conservers: materialist, 5 system(s) left out, anchor 792 at the old capital\n"),
+        text.contains("\nfallen empire SPEC_Ti-Zru Conservers: materialist, 5 system(s) left out, anchor 792 at the old capital, linked to 7 system(s)\n"),
         "{text}"
     );
     assert!(
-        text.contains("\nfallen empire SPEC_Cyggan Protectors: spiritualist, 13 system(s) left out, anchor 793 at the old capital\n"),
+        text.contains("\nfallen empire SPEC_Cyggan Protectors: spiritualist, 13 system(s) left out, anchor 793 at the old capital, linked to 13 system(s)\n"),
         "{text}"
     );
     assert!(

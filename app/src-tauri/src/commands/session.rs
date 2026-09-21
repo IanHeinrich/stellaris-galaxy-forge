@@ -246,6 +246,18 @@ pub fn apply_op(state: State<'_, AppState>, op: Op) -> Result<EditResult, SgfErr
     Ok(session.edit_result(result))
 }
 
+/// Link `linked` to the fallen empire zone `anchor` anchors, as one `SetFeLinks` op:
+/// the mod then lays the fallen empire's hyperlanes from those systems and no other.
+/// An empty `linked` gives the zone back to the mod's own rule.
+#[tauri::command]
+pub fn set_fe_links(
+    state: State<'_, AppState>,
+    anchor: u32,
+    linked: Vec<u32>,
+) -> Result<EditResult, SgfError> {
+    apply_op(state, Op::SetFeLinks { anchor, linked })
+}
+
 /// The entries of one `SetFeZones` op that replace the open scenario's automatic
 /// fallen empire zones with `count` of the ones Paint a Galaxy's own rule would place
 /// now, spread over the map; the zones the map author placed by hand are not among
