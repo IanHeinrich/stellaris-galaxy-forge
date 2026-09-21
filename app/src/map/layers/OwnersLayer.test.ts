@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import type { CountryNode } from "../../generated/CountryNode";
 import type { SystemNode } from "../../generated/SystemNode";
 import { countryRegions, regionLabelAnchor } from "../../lib/geometry/territory";
-import { MARAUDER_COLOR, ownerColors } from "../../lib/visual/ownerColors";
+import { ALL_CAPABILITIES } from "../../lib/capabilities";
+import { MARAUDER_COLORS, ownerColors } from "../../lib/visual/ownerColors";
 import { EMPHASIS_COLOR } from "../../lib/visual/specialStyle";
 import { VANILLA_BORDER, type RenderContext } from "../RenderContext";
-import { OwnersLayer } from "./OwnersLayer";
+import { CLAN_GLYPH, OwnersLayer } from "./OwnersLayer";
+import { layerIdsFor, layersFor } from "./registry";
 import { childByLabel, drawOps, mapContext, stubTextMeasurement, mapNode } from "./fixture";
 
 stubTextMeasurement();
@@ -34,7 +36,7 @@ const PARAMS = {
 function labelOf(layer: OwnersLayer): BitmapText {
   const badges = childByLabel(layer.container, "badges").children as Container[];
   const badge = badges.find((b) => b.visible);
-  const label = badge?.children.find((c): c is BitmapText => c instanceof BitmapText);
+  const label = badge?.children.find((c): c is BitmapText => c instanceof BitmapText && c.visible);
   if (!label) throw new Error("no label drawn");
   return label;
 }
@@ -46,15 +48,22 @@ function fillColors(layer: OwnersLayer): number[] {
     .map((g) => drawOps(g).find((op) => op.action === "fill")?.color ?? -1);
 }
 
-function badgesShown(layer: OwnersLayer): number {
-  return childByLabel(layer.container, "badges").children.filter((c) => c.visible).length;
+/** The shown badges, each as the texts its visible children draw. */
+function badgesShown(layer: OwnersLayer): string[][] {
+  return (childByLabel(layer.container, "badges").children as Container[])
+    .filter((c) => c.visible)
+    .map((badge) =>
+      badge.children
+        .filter((c): c is BitmapText => c instanceof BitmapText && c.visible)
+        .map((c) => c.text),
+    );
 }
 
 /** The fill of the clan's territory, by its colour; undefined once there is none shown. */
 function clanFill(layer: OwnersLayer): Graphics | undefined {
   return childByLabel(childByLabel(layer.container, "territories"), "fills")
     .children.filter((c): c is Graphics => c instanceof Graphics && c.visible)
-    .find((g) => drawOps(g).find((op) => op.action === "fill")?.color === MARAUDER_COLOR);
+    .find((g) => drawOps(g).find((op) => op.action === "fill")?.color === MARAUDER_COLORS.fill);
 }
 
 /** The first polygon a fill lays down, as the flat `[x, y, …]` its `poly` step was given. */
@@ -137,14 +146,31 @@ describe("an owner's label", () => {
 });
 
 describe("a scenario's territories", () => {
-  it("paints one for the scripted empire and one for the clan, the clan without a badge", () => {
+  it("paints one for the scripted empire and one for the clan, in black with a skull badge", () => {
     const layer = new OwnersLayer();
     layer.rebuild(scenarioContext([CLAIMED.id]));
     const colors = fillColors(layer);
     expect(colors).toHaveLength(2);
-    expect(colors.filter((c) => c === MARAUDER_COLOR)).toHaveLength(1);
-    expect(badgesShown(layer)).toBe(1);
-    expect(labelOf(layer).text).toBe("Scripted");
+    expect(colors.filter((c) => c === MARAUDER_COLORS.fill)).toHaveLength(1);
+    expect(MARAUDER_COLORS.fill).toBe(0x000000);
+    const badges = badgesShown(layer);
+    expect(badges).toHaveLength(2);
+    expect(badges).toContainEqual([CLAN_GLYPH, "Marauder clan 1"]);
+    expect(badges).toContainEqual(["Scripted"]);
+    const texts = childByLabel(layer.container, "badges")
+      .children.flatMap((b) => (b as Container).children)
+      .filter((c): c is BitmapText => c instanceof BitmapText && c.visible);
+    const tintOf = (text: string) => texts.find((c) => c.text === text)?.tint;
+    expect(tintOf(CLAN_GLYPH)).toBe(MARAUDER_COLORS.outline);
+    expect(tintOf("Marauder clan 1")).toBe(MARAUDER_COLORS.outline);
+    expect(tintOf("Scripted")).toBe(0xffffff);
+  });
+
+  it("is the one layer for the clans: the marauders toggle is menu-only and steers it", () => {
+    const capabilities = { ...ALL_CAPABILITIES, create_systems: true };
+    expect(layersFor(capabilities).map((entry) => entry.id)).not.toContain("marauders");
+    expect(layerIdsFor(capabilities).has("marauders")).toBe(true);
+    expect(layerIdsFor(ALL_CAPABILITIES).has("marauders")).toBe(false);
   });
 
   it("hides the clan with the marauders layer and the empire with its own, each on its own", () => {
@@ -155,7 +181,7 @@ describe("a scenario's territories", () => {
     layer.setVisible(false);
     expect(fillColors(layer)).toEqual([]);
     layer.setClansShown(true);
-    expect(fillColors(layer)).toEqual([MARAUDER_COLOR]);
+    expect(fillColors(layer)).toEqual([MARAUDER_COLORS.fill]);
     layer.setVisible(true);
     expect(fillColors(layer)).toHaveLength(2);
   });

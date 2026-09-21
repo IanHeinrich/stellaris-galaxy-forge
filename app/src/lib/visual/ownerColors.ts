@@ -33,10 +33,8 @@ export interface OwnerColors {
   fill: number;
 }
 
-/** The one colour every marauder clan's territory and home tag is painted in. */
-export const MARAUDER_COLOR = 0xef4444;
-
-export const MARAUDER_COLORS: OwnerColors = { outline: MARAUDER_COLOR, fill: MARAUDER_COLOR };
+/** Every marauder clan's colours, as the game paints them: a black fill under a near-white border. */
+export const MARAUDER_COLORS: OwnerColors = { outline: 0xd0d4d8, fill: 0x000000 };
 
 const FILL_DARKEN = 0.35;
 

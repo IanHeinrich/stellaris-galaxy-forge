@@ -71,9 +71,10 @@ a release is made.
   on empty space creates a home and its two raid bases, and "Make these
   marauder clan N", in the menu or the selection's actions, makes three
   selected systems one, the one linked to both others as the home.
-  "Remove marauder clan N" sets all three back to random. A "Marauder
-  clans" layer paints each clan's territory and tags its home. The
-  Empires tab lists the clans, each with an eye and a select. The
+  "Remove marauder clan N" sets all three back to random. The map shows
+  a clan as an empire with a skull emblem and a black border, like the
+  game, under a "Marauder clans" layer. The Empires tab lists the clans,
+  each with an eye and a select. The
   inspector names or adds a home's bases, renumbers or removes the clan,
   and names a base's home. Issues reports a home missing its bases, with
   a fix, a duplicate home, an orphaned base and a home beside a seat.

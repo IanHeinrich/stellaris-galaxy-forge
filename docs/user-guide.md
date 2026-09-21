@@ -477,11 +477,11 @@ fewer or more selected the menu item says how many to select, and both
 refuse three systems none of which is linked to the other two. Making
 a clan replaces the three initializers, star class included, and
 "Remove marauder clan N" on any of the three sets all of them back to
-random, so Undo is the way back to what they were. The "Marauder clans"
-layer, listed beside the fallen empire zones, paints the clans'
-territories with the empires' painter, in the one marauder colour, and
-tags each home with a crossed-swords chip. The Empires tab lists the
-clans under "Marauders", with an eye each.
+random, so Undo is the way back to what they were. The map shows the
+clan as an empire with a skull emblem and a black border, like the game.
+The "Marauder clans" layer, listed beside the fallen empire zones,
+switches the clans' territories, and the Empires tab lists the clans
+under "Marauders", with an eye each.
 The inspector's Marauder clan section names the two bases with links to
 them, or says which is missing and offers to add it, renumbers the clan
 and removes it. A base's section names its home, or warns that nothing

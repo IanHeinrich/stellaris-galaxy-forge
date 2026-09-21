@@ -11,7 +11,6 @@ import { IssuesLayer } from "./IssuesLayer";
 import { LabelsLayer } from "./LabelsLayer";
 import { LanesLayer } from "./LanesLayer";
 import type { MapLayer } from "./MapLayer";
-import { MarauderLayer } from "./MarauderLayer";
 import { NebulaeLayer } from "./NebulaeLayer";
 import { OwnersLayer } from "./OwnersLayer";
 import { SpawnsLayer } from "./SpawnsLayer";
@@ -50,6 +49,7 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
     create: () => new OwnersLayer(new WorkerTerritoryClient()),
   },
   { id: "claims", requires: "create_systems" },
+  { id: "marauders", requires: "create_systems" },
   { id: "day_one_bypasses", requires: "create_systems" },
   { id: "bypasses", create: () => new BypassesLayer() },
   { id: "systems", create: (renderer) => new SystemsLayer(renderer) },
@@ -58,7 +58,6 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "labels", create: () => new LabelsLayer() },
   { id: "initializers", requires: "create_systems" },
   { id: "spawns", requires: "create_systems", create: () => new SpawnsLayer() },
-  { id: "marauders", requires: "create_systems", create: () => new MarauderLayer() },
   { id: "details", create: () => new DetailsLayer() },
   { id: "colonies" },
   { id: "special", requires: "special", create: () => new SpecialLayer() },

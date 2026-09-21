@@ -12,7 +12,7 @@ import {
   systemsOf,
   type OwnershipInput,
 } from "./ownership";
-import { MARAUDER_COLOR } from "./visual/ownerColors";
+import { MARAUDER_COLORS } from "./visual/ownerColors";
 
 function country(id: number, key: string, type: string): CountryNode {
   return {
@@ -124,7 +124,7 @@ describe("composeOwnership", () => {
       id: -1,
       label: "Marauder clan 1",
       kind: "marauder_clan",
-      colors: { outline: MARAUDER_COLOR, fill: MARAUDER_COLOR },
+      colors: MARAUDER_COLORS,
       home: 1,
     });
     expect(table.get(-1)?.country).toBeUndefined();
