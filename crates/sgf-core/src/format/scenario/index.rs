@@ -79,6 +79,8 @@ pub struct ScenarioHeader {
     /// The `max` of `num_empires = { min = … max = … }`.
     pub num_empires_max: Option<u32>,
     pub num_empire_default: Option<u32>,
+    pub fallen_empire_max: Option<u32>,
+    pub fallen_empire_default: Option<u32>,
     /// `coordinate_transform` is present, so the positions in the file are not the ones
     /// the game plots.
     pub has_coordinate_transform: bool,
@@ -357,6 +359,8 @@ fn read_scalars(header: &mut ScenarioHeader) {
     let name = scalar(keys::NAME).unwrap_or_default();
     let core_radius = scalar(keys::CORE_RADIUS).and_then(|s| s.parse().ok());
     let num_empire_default = scalar(keys::NUM_EMPIRE_DEFAULT).and_then(|s| s.parse().ok());
+    let fallen_empire_max = scalar(keys::FALLEN_EMPIRE_MAX).and_then(|s| s.parse().ok());
+    let fallen_empire_default = scalar(keys::FALLEN_EMPIRE_DEFAULT).and_then(|s| s.parse().ok());
     let num_empires_max = header
         .get(keys::NUM_EMPIRES)
         .and_then(|stmt| block_field(keys::NUM_EMPIRES, &stmt.field.value, keys::MAX));
@@ -365,6 +369,8 @@ fn read_scalars(header: &mut ScenarioHeader) {
     header.core_radius = core_radius;
     header.num_empires_max = num_empires_max;
     header.num_empire_default = num_empire_default;
+    header.fallen_empire_max = fallen_empire_max;
+    header.fallen_empire_default = fallen_empire_default;
 }
 
 /// One number inside a header block, `key = { … field = N … }`, read from the raw text.

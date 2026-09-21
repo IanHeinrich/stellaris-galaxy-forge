@@ -11,8 +11,8 @@ use crate::as_u32;
 use crate::emit::coord;
 use crate::export::{Draft, SpawnDraft, SystemDraft, report};
 use crate::format::scenario::emit::ScenarioOptions;
-use crate::format::scenario::fe_zone::{self, Site};
-use crate::format::scenario::header_counts::{empire_counts, is_reserved};
+use crate::format::scenario::fe_zone::{self, FeZone, Site};
+use crate::format::scenario::header_counts::{fallen_count, is_reserved, seat_entries};
 use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, HEADER_NOTE, RL_BASIC, WORMHOLE_FLAG_PREFIX,
     basic_initializer,
@@ -35,29 +35,41 @@ pub(super) fn decorate(draft: &mut Draft, options: &ScenarioOptions, graph: &Gal
         .iter()
         .filter(|id| graph.systems.get(id).is_some_and(is_reserved))
         .count();
-    draft.header = header(options, draft.systems.len(), spawns.len(), reserved);
+    let zones = fe_zone_candidates(draft, graph);
+    draft.header = header(
+        options,
+        draft.systems.len(),
+        spawns.len(),
+        reserved,
+        zones.len(),
+    );
     for system in &mut draft.systems {
         system.spawn = SpawnDraft::None;
     }
     mark_spawns(draft, graph, &spawns);
     fill_neighbours(draft, &spawns);
     flag_wormholes(draft, &graph.bypasses);
-    place_fe_zones(draft, graph)
+    place_fe_zones(draft, &zones);
+    as_u32(zones.len())
 }
 
 /// The header for `systems` systems of which `spawns` are seats and `reserved` of those
-/// are held for one empire, on Forge's own `core_radius`.
+/// are held for one empire, with `zones` fallen empire zones, on Forge's own
+/// `core_radius`.
 pub(super) fn header(
     options: &ScenarioOptions,
     systems: usize,
     spawns: usize,
     reserved: usize,
+    zones: usize,
 ) -> Vec<u8> {
-    let counts: String = empire_counts(as_u32(spawns), as_u32(reserved))
+    let counts: String = seat_entries(as_u32(spawns), as_u32(reserved))
         .iter()
         .map(|(key, value)| format!("\t{key} = {value}\n"))
         .collect();
+    let fallen_max = fallen_count(as_u32(zones));
     let (fallen, marauders, crisis) = size_band(systems);
+    let fallen = fallen.min(fallen_max);
     let shapes: String = [
         "elliptical",
         "spiral_2",
@@ -88,7 +100,7 @@ pub(super) fn header(
          \tnum_hyperlanes_default = 1\n\
          \tcolonizable_planet_odds = 1.0\n\
          \tprimitive_odds = 1.0\n\
-         \tfallen_empire_max = 6\n\
+         \tfallen_empire_max = {fallen_max}\n\
          \tmarauder_empire_max = 3\n\
          \textra_crisis_strength = {{ 10 25 }}\n\
          {counts}\
@@ -213,7 +225,7 @@ fn flag_wormholes(draft: &mut Draft, bypasses: &[BypassLink]) {
 
 /// The zones the mod would place by itself, on the systems it would anchor them to. A
 /// system the galaxy already gives a zone keeps it and anchors no other.
-fn place_fe_zones(draft: &mut Draft, galaxy: &Galaxy) -> u32 {
+fn fe_zone_candidates(draft: &Draft, galaxy: &Galaxy) -> Vec<(u32, FeZone)> {
     let sites: Vec<Site<'_>> = draft
         .systems
         .iter()
@@ -227,17 +239,19 @@ fn place_fe_zones(draft: &mut Draft, galaxy: &Galaxy) -> u32 {
                 .and_then(|s| s.fe_zone.as_ref()),
         })
         .collect();
-    let candidates = fe_zone::candidates(&sites);
+    fe_zone::candidates(&sites)
+}
+
+fn place_fe_zones(draft: &mut Draft, zones: &[(u32, FeZone)]) {
     let index: HashMap<u32, usize> = draft
         .systems
         .iter()
         .enumerate()
         .map(|(i, system)| (system.id, i))
         .collect();
-    for (id, zone) in &candidates {
+    for (id, zone) in zones {
         add_flags(&mut draft.systems[index[id]], fe_zone::flags(zone));
     }
-    as_u32(candidates.len())
 }
 
 fn add_flags(system: &mut SystemDraft, flags: impl IntoIterator<Item = String>) {
@@ -254,30 +268,39 @@ fn add_flags(system: &mut SystemDraft, flags: impl IntoIterator<Item = String>) 
 mod tests {
     use super::*;
 
-    fn header_text(systems: usize, spawns: usize) -> String {
+    fn header_text(systems: usize, spawns: usize, zones: usize) -> String {
         let options = ScenarioOptions {
             name: "sgf_paint".into(),
             core_radius: 30.0,
             num_empires: (0, 1),
             exported_from: None,
         };
-        String::from_utf8(header(&options, systems, spawns, 0)).unwrap()
+        String::from_utf8(header(&options, systems, spawns, 0, zones)).unwrap()
     }
 
     #[test]
     fn the_header_counts_empires_from_the_spawns_and_sizes_the_rest_by_systems() {
-        let text = header_text(791, 12);
+        let text = header_text(791, 12, 4);
         assert!(text.starts_with("# Written by Stellaris Galaxy Forge"));
+        assert!(text.contains("\tfallen_empire_max = 4\n"), "{text}");
         assert!(text.contains("\tnum_empires = { min = 0 max = 11 }\n\tnum_empire_default = 6\n\tadvanced_empire_default = 1\n\tnomad_empire_default = 1\n\tnomad_empire_max = 11\n\tfallen_empire_default = 2\n\tmarauder_empire_default = 2\n\tcrisis_strength = 1.0\n\tcore_radius = 30\n"), "{text}");
         assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
 
-        let none = header_text(0, 0);
+        let none = header_text(0, 0, 0);
         assert!(
             none.contains("\tnum_empires = { min = 0 max = 0 }\n"),
             "{none}"
         );
         assert!(none.contains("\tnomad_empire_max = 0\n"), "{none}");
+        assert!(none.contains("\tfallen_empire_max = 0\n"), "{none}");
         assert!(none.contains("\tcrisis_strength = 0.5\n"), "{none}");
+
+        let one = header_text(1000, 4, 1);
+        assert!(one.contains("\tfallen_empire_max = 1\n"), "{one}");
+        assert!(one.contains("\tfallen_empire_default = 1\n"), "{one}");
+        let many = header_text(1000, 4, 9);
+        assert!(many.contains("\tfallen_empire_max = 6\n"), "{many}");
+        assert!(many.contains("\tfallen_empire_default = 4\n"), "{many}");
 
         for (systems, band) in [
             (
@@ -301,7 +324,7 @@ mod tests {
                 "fallen_empire_default = 4\n\tmarauder_empire_default = 3\n\tcrisis_strength = 1.5",
             ),
         ] {
-            assert!(header_text(systems, 4).contains(band), "{systems}");
+            assert!(header_text(systems, 4, 6).contains(band), "{systems}");
         }
     }
 }

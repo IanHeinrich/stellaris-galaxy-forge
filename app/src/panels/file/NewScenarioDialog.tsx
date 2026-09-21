@@ -4,10 +4,9 @@ import type { ScenarioProfile } from "../../generated/ScenarioProfile";
 import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
-import { PaintModStatus } from "../chrome/PaintModStatus";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
-import { PAINT_CHECK, PAINT_WHY } from "./paintCopy";
+import { PaintChoice } from "./PaintChoice";
 
 export const MAX_RADIUS = 460;
 const DEFAULT_NAME = "new_galaxy";
@@ -257,7 +256,6 @@ export function NewScenarioDialog() {
   const [custom, setCustom] = useState(400);
   const [core, setCore] = useState<number | null>(null);
   const paint = useFileSessionStore((s) => s.paintChoice);
-  const setPaintChoice = useFileSessionStore((s) => s.setPaintChoice);
 
   const radius =
     preset === "custom" ? clampRadius(custom) : (PRESETS.find((p) => p.id === preset)?.radius ?? 0);
@@ -330,18 +328,7 @@ export function NewScenarioDialog() {
                 The radius only sizes the canvas until the systems you add give it an extent. The
                 core radius is written to the file and drawn as a ring: keep stars outside it.
               </div>
-              <label className="setup-check">
-                <input
-                  type="checkbox"
-                  checked={paint}
-                  onChange={(e) => setPaintChoice(e.currentTarget.checked)}
-                />
-                <span>
-                  {PAINT_CHECK}
-                  <span className="setup-why">{PAINT_WHY}</span>
-                  {paint && <PaintModStatus />}
-                </span>
-              </label>
+              <PaintChoice />
             </>
           ) : (
             <RouteHelp route={route} />

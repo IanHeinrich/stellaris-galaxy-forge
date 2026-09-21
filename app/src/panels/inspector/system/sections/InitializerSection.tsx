@@ -12,6 +12,11 @@ import { kindHover } from "./kindHover";
 import { InitializerSpawn } from "./scenario/Initializer";
 import { ScriptActions } from "./scenario/scriptActions";
 
+export const SEAT_INITIALIZER_HINT =
+  "An empire that spawns here brings its own starting system in place of this one. " +
+  "What this initializer spawns around it, like Sol's neighbours, still appears. " +
+  "If no empire lands here, it is used as written.";
+
 /** Choosing what a system is: the browser with game data loaded, the raw name without it. */
 function InitializerEditor({ system }: { system: SystemNode }) {
   const ready = useGameDataStore((s) => s.status === "ready");
@@ -79,6 +84,11 @@ export function InitializerSection({
 
   const known = initializers?.some((e) => e.name === system.initializer) ?? false;
   const derived = scenario && (countries.length > 0 || (spawn && known));
+  const seat =
+    scenario &&
+    (system.spawn_script !== null ||
+      (system.spawn_weight ?? 0) > 0 ||
+      system.spawn_design !== null);
   return (
     <Section id="system.initializer" title="Initializer" startClosed={!editable}>
       <div className="ins-flags mono ins-init-line">
@@ -97,6 +107,7 @@ export function InitializerSection({
         <ScriptActions file={source} />
       </div>
       {editable && <InitializerEditor system={system} />}
+      {seat && <div className="muted ins-hint">{SEAT_INITIALIZER_HINT}</div>}
       {derived && (
         <div className="ins-line muted">
           <SourceChip source="initializers" />

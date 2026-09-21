@@ -325,6 +325,15 @@
   line-height: 1.45;
 }
 
+.setup-warn {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--warn);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .setup-install {
   display: flex;
   align-items: center;

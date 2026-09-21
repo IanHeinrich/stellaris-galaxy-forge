@@ -21,7 +21,8 @@ a release is made.
   dialogs, ticked by default because the mod fixes game-breaking bugs in
   the galaxy generator. Under it the app says whether the mod is
   installed and enabled, with a link to the Workshop, and notices when
-  a subscription lands.
+  a subscription lands. Unticking it shows a warning that the map will
+  break in-game without the mod.
 - A Paint a Galaxy scenario is recognised by its content or by living in
   the mod's folder. The title bar shows a badge and warns when the mod is
   missing. A plain scenario gets a notice offering to save it into the
@@ -36,6 +37,13 @@ a release is made.
   scenario adds the mod's automatic zones. "Fit fallen empire zones…"
   chooses how many automatic zones to place, spread across the map.
   A zone's own warnings show in its inspector section.
+- A Game setup section in the galaxy inspector edits a scenario's empire,
+  wormhole, gateway and hyperlane counts as min, max and default fields.
+  "Update counts" sizes the fallen empire counts from the zones as well
+  as the AI empire counts from the seats, and Issues says when the header
+  allows more fallen empires than there are zones.
+- A seat's initializer says that an empire spawning there brings its own
+  starting system, keeping what the initializer spawns around it.
 - A save with unresolved warnings or errors opens the Issues tab and
   asks before writing. "Save anyway" keeps it quiet until a new issue
   appears.

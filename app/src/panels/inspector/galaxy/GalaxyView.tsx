@@ -1,6 +1,5 @@
 import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
-import type { AppIssue } from "../../../lib/issues";
 import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
 import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
@@ -10,6 +9,8 @@ import { useGalaxyVersion } from "../../../store/browserRows";
 import { laneCount, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useApplyOp } from "../../useApplyOp";
+import { GameSetupSection } from "./GameSetupSection";
+import { handledKeys } from "./gameSetup";
 import {
   addHeaderField,
   DUPLICATE_KEY_TITLE,
@@ -21,6 +22,7 @@ import {
   setHeaderField,
 } from "./header";
 import { Empty, Field, Properties, PropertyRow, Section } from "../parts";
+import "./galaxy.css";
 
 /** One header statement as the file writes it: its key, its raw text, and the way to drop it. */
 function HeaderRow({ field }: { field: HeaderField }) {
@@ -110,53 +112,17 @@ function seatSummaryLine({ seats, preferred, reserved, sol, safeAi }: SeatSummar
   return parts.join(" · ");
 }
 
-/** The validator's word on the header's empire counts, and the button that rewrites them. */
-function EmpireCounts({ issue }: { issue: AppIssue }) {
-  const updateEmpireCounts = useEditorStore((s) => s.updateEmpireCounts);
+/**
+ * Every key the scenario's own header holds that the game setup grid does not edit, in file
+ * order, duplicates as the file writes them.
+ */
+function HeaderSection({ header, paint }: { header: readonly HeaderField[]; paint: boolean }) {
+  const handled = handledKeys(header);
+  const raw = header.filter((field) => !handled.has(field.key));
   return (
-    <>
-      <div className="ins-warn">{issue.message}</div>
-      <div className="ins-actions">
-        <button type="button" onClick={() => void updateEmpireCounts()}>
-          Update counts
-        </button>
-      </div>
-    </>
-  );
-}
-
-/** The button that asks how many of the mod's automatic zones to place, spread across the map. */
-function FeZoneFit() {
-  const promptFeZoneFit = useEditorStore((s) => s.promptFeZoneFit);
-  return (
-    <div className="ins-actions">
-      <button
-        type="button"
-        title="Place the mod's automatic zones, as many as you choose, spread across the map."
-        onClick={() => void promptFeZoneFit()}
-      >
-        Fit fallen empire zones…
-      </button>
-    </div>
-  );
-}
-
-/** Every key the scenario's own header holds, in file order, duplicates as the file writes them. */
-function HeaderSection({
-  header,
-  paint,
-  seatsLine,
-  countsIssue,
-}: {
-  header: readonly HeaderField[];
-  paint: boolean;
-  seatsLine: string | null;
-  countsIssue: AppIssue | null;
-}) {
-  return (
-    <Section id="galaxy.header" title="Scenario header" count={header.length}>
-      {header.map((field, i) => {
-        const repeated = isRepeatedKey(header, i);
+    <Section id="galaxy.header" title="Scenario header" count={raw.length}>
+      {raw.map((field, i) => {
+        const repeated = isRepeatedKey(raw, i);
         return (
           <Fragment key={headerRowKey(field, i)}>
             {repeated ? <RepeatedRow field={field} /> : <HeaderRow field={field} />}
@@ -166,9 +132,6 @@ function HeaderSection({
           </Fragment>
         );
       })}
-      {paint && seatsLine !== null && <div className="muted ins-hint">{seatsLine}</div>}
-      {countsIssue !== null && <EmpireCounts issue={countsIssue} />}
-      {paint && <FeZoneFit />}
       <AddHeaderRow header={header} />
     </Section>
   );
@@ -234,12 +197,15 @@ export function GalaxyView() {
         {random && <div className="muted ins-hint">{random}</div>}
       </Section>
       {kind === "scenario" && (
-        <HeaderSection
-          header={header}
-          paint={paint}
-          seatsLine={seatsLine}
-          countsIssue={countsIssue}
-        />
+        <>
+          <GameSetupSection
+            header={header}
+            paint={paint}
+            seatsLine={seatsLine}
+            countsIssue={countsIssue}
+          />
+          <HeaderSection header={header} paint={paint} />
+        </>
       )}
       <Section id="galaxy.file" title="File">
         <Properties>

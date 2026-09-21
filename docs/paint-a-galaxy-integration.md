@@ -134,7 +134,7 @@ static_galaxy_scenario = {
 	num_hyperlanes_default = 1
 	colonizable_planet_odds = 1.0
 	primitive_odds = 1.0
-	fallen_empire_max = 6
+	fallen_empire_max = <min(Z, 6)>
 	marauder_empire_max = 3
 	extra_crisis_strength = { 10 25 }
 	num_empires = { min = 0 max = <S-1> }
@@ -151,6 +151,12 @@ static_galaxy_scenario = {
 `fallen_empire_default` / `marauder_empire_default` / `crisis_strength` come
 from a band on the system count: below 400 systems 0 / 1 / 0.5, from 400 1 /
 1 / 0.75, from 600 2 / 2 / 1.0, from 800 3 / 2 / 1.25, from 1000 4 / 3 / 1.5.
+`fallen_empire_max` is the number of fallen empire zones the export places,
+`Z`, capped at the six kinds the mod knows, and `fallen_empire_default` is
+capped at that too. "Update counts" in the editor writes both fallen keys as
+`min(Z, 6)` over every zone the map holds, and the validator warns when
+`fallen_empire_max` is not that number or `fallen_empire_default` exceeds
+the zones.
 
 Spawn systems are the capitals of the playable ("default") countries, union
 every system that already carries a Paint a Galaxy script, union every

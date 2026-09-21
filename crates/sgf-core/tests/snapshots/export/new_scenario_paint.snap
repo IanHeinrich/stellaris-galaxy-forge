@@ -25,7 +25,7 @@ static_galaxy_scenario = {
 	num_hyperlanes_default = 1
 	colonizable_planet_odds = 1.0
 	primitive_odds = 1.0
-	fallen_empire_max = 6
+	fallen_empire_max = 0
 	marauder_empire_max = 3
 	extra_crisis_strength = { 10 25 }
 	num_empires = { min = 0 max = 0 }

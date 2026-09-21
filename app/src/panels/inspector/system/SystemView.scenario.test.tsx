@@ -323,6 +323,18 @@ function withWeight(weight: number | null, initializer = "basic_init_01"): void 
   });
 }
 
+describe("a scenario system's initializer hint for a seat", () => {
+  it("shows what an empire landing here brings, and stays quiet for a plain system", async () => {
+    withWeight(3);
+    await open("scenario");
+    expect(overview()).toContain("If no empire lands here, it is used as written.");
+
+    withWeight(null);
+    await open("scenario");
+    expect(overview()).not.toContain("If no empire lands here, it is used as written.");
+  });
+});
+
 describe("a scenario system's spawn weight", () => {
   it("offers the toggle unchecked, checked with its weight, and disabled without an initializer", async () => {
     withWeight(null);
@@ -535,7 +547,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
       "United Nations of Earth counts as holding it. Set the initializer to Sol instead",
     );
     expect(html).not.toContain("The trait comes from the");
-    expect(html).toContain("The mod gives Sol no Sol-specific neighbours.");
+    expect(html).toContain("Give this seat the Sol initializer and Alpha Centauri");
     expect(html).toContain(">Local Cluster mod</button>");
   });
 

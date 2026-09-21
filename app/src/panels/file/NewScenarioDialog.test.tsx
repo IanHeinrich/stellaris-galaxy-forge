@@ -130,7 +130,10 @@ describe("the blank canvas", () => {
     expect(renderToStaticMarkup(<NewScenarioDialog />)).toContain("Paint a Galaxy mod enabled ✓");
 
     useFileSessionStore.setState({ paintChoice: false });
-    expect(renderToStaticMarkup(<NewScenarioDialog />)).not.toContain("paint-mod-status");
+    const unticked = renderToStaticMarkup(<NewScenarioDialog />);
+    expect(unticked).not.toContain("paint-mod-status");
+    expect(unticked).toContain('class="setup-warn" role="alert"');
+    expect(unticked).toContain("Only go on if you know what you");
   });
 
   it("creates the scenario under the Paint a Galaxy profile once the box is checked", () => {

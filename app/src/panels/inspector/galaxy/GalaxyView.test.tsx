@@ -22,6 +22,7 @@ import {
   SCENARIO_RESULT,
 } from "../../../store/fixture";
 import { GalaxyView } from "./GalaxyView";
+import { CLEAR_KEY_TITLE, CLEAR_RANGE_TITLE, RAW_CELL_TITLE } from "./gameSetup";
 import { addHeaderField, DUPLICATE_KEY_TITLE, removeHeaderField, setHeaderField } from "./header";
 
 const mocked = {
@@ -36,6 +37,15 @@ const HEADER: HeaderField[] = [
   { key: "name", value: '"My Galaxy"', line: 2 },
   { key: "supports_shape", value: "elliptical", line: 5 },
   { key: "supports_shape", value: "ring", line: 6 },
+];
+
+/** The counts the new-game screen reads: a clean range, a default past it, and a scripted max. */
+const SETUP_HEADER: HeaderField[] = [
+  ...HEADER,
+  { key: "num_empires", value: "{ min = 0 max = 3 }", line: 7 },
+  { key: "num_empire_default", value: "5", line: 8 },
+  { key: "fallen_empire_max", value: "4", line: 9 },
+  { key: "num_gateways", value: "{ min = 0 max = @gw }", line: 10 },
 ];
 
 bindStores();
@@ -181,5 +191,74 @@ describe("the scenario header", () => {
     );
     expect(html).toContain("Seats 2 · preferred 1 · reserved B");
     expect(html).toContain(">Fit fallen empire zones…</button>");
+  });
+});
+
+describe("the game setup grid", () => {
+  const cell = (label: string, title: string, value: string) =>
+    `aria-label="${label}" placeholder="–" title="${title}" value="${value}"`;
+  const bound = (label: string, value: string) => cell(label, CLEAR_RANGE_TITLE, value);
+  const count = (label: string, value: string) => cell(label, CLEAR_KEY_TITLE, value);
+
+  async function openSetup(): Promise<string> {
+    mocked.openAsScenario.mockResolvedValueOnce({
+      ...SCENARIO_RESULT,
+      galaxy: { ...SCENARIO_RESULT.galaxy, header: SETUP_HEADER },
+    });
+    await open("scenario");
+    return galaxy();
+  }
+
+  it("fills each cell from the header, and leaves a missing key's cell empty", async () => {
+    const html = await openSetup();
+    expect(html).toContain("Game setup");
+    expect(html).toContain(bound("AI empires min", "0"));
+    expect(html).toContain(bound("AI empires max", "3"));
+    expect(html).toContain(count("AI empires default", "5"));
+    expect(html).toContain(count("Fallen empires max", "4"));
+    expect(html).toContain(count("Fallen empires default", ""));
+    expect(html).not.toContain('aria-label="Advanced starts max"');
+  });
+
+  it("shows a range with a scripted constant as text and leaves it to the raw list", async () => {
+    const html = await openSetup();
+    expect(html).toContain(`title="${RAW_CELL_TITLE}"`);
+    expect(html).toContain(">{ min = 0 max = @gw }<");
+    expect(html).not.toContain('aria-label="Gateways min"');
+    expect(html).toContain('aria-label="num_gateways value"');
+  });
+
+  it("hides the keys it edits from the raw list, which still refuses them as taken", async () => {
+    const html = await openSetup();
+    expect(html).toContain("Scenario header · 4");
+    expect(html).not.toContain('aria-label="num_empires value"');
+    expect(html).not.toContain('aria-label="num_empire_default value"');
+    expect(html).not.toContain('aria-label="fallen_empire_max value"');
+    expect(addHeaderField(SETUP_HEADER, "num_empires", "{ min = 1 max = 2 }")).toBeNull();
+  });
+
+  it("warns of a default outside its range", async () => {
+    const html = await openSetup();
+    expect(html).toContain('<div class="ins-warn">AI empires · Default 5 is outside 0–3</div>');
+    expect(html).not.toContain("Max is below min");
+  });
+
+  it("drops a key when its cell is cleared, the whole range for a bound", async () => {
+    const html = await openSetup();
+    expect(html).toContain(bound("Wormhole pairs min", ""));
+    expect(html).toContain(count("Gateways default", ""));
+
+    await useEditorStore.getState().applyOp(removeHeaderField("num_empires"));
+    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      type: "SetHeaderField",
+      key: "num_empires",
+      value: null,
+    });
+  });
+
+  it("keeps the count controls under the paint gate", async () => {
+    const html = await openSetup();
+    expect(html).not.toContain("Update counts");
+    expect(html).not.toContain("Fit fallen empire zones");
   });
 });

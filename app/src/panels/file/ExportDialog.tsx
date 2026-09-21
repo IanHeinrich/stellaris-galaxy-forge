@@ -4,11 +4,10 @@ import type { ExportReport } from "../../generated/ExportReport";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { PaintModStatus } from "../chrome/PaintModStatus";
 import { Dialog } from "../overlays/Dialog";
 import { droppedSummary } from "./exportReport";
 import "./open.css";
-import { PAINT_CHECK, PAINT_WHY } from "./paintCopy";
+import { PaintChoice } from "./PaintChoice";
 
 const CATEGORY_LABELS: Record<Category, string> = {
   home: "Home",
@@ -65,26 +64,6 @@ export function ExportReportRows({ report }: { report: ExportReport }) {
   );
 }
 
-/** Whether the file is written for the Paint a Galaxy mod: the user's standing choice. */
-export function ExportProfileCheck() {
-  const paint = useFileSessionStore((s) => s.paintChoice);
-  const setPaintChoice = useFileSessionStore((s) => s.setPaintChoice);
-  return (
-    <label className="setup-check">
-      <input
-        type="checkbox"
-        checked={paint}
-        onChange={(e) => setPaintChoice(e.currentTarget.checked)}
-      />
-      <span>
-        {PAINT_CHECK}
-        <span className="setup-why">{PAINT_WHY}</span>
-        {paint && <PaintModStatus />}
-      </span>
-    </label>
-  );
-}
-
 /** The report, the profile box and the two ways out; Enter exports under the profile the box says. */
 export function ExportForm({ report }: { report: ExportReport }) {
   const paint = useFileSessionStore((s) => s.paintChoice);
@@ -101,7 +80,7 @@ export function ExportForm({ report }: { report: ExportReport }) {
       </div>
       <div className="open-dialog-body">
         <ExportReportRows report={report} />
-        <ExportProfileCheck />
+        <PaintChoice />
       </div>
       <div className="open-dialog-foot">
         <div className="setup-actions">

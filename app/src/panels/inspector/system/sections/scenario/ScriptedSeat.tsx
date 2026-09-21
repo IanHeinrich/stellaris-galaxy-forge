@@ -88,7 +88,8 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
         )}
         {sol && (
           <>
-            {" The mod gives Sol no Sol-specific neighbours. The "}
+            {" Give this seat the Sol initializer and Alpha Centauri and the other neighbours "}
+            {"appear beside it. Without it, the "}
             <button type="button" className="link" onClick={openLocalClusterWorkshop}>
               Local Cluster mod
             </button>

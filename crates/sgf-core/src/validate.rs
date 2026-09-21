@@ -9,7 +9,9 @@ use ts_rs::TS;
 use std::collections::BTreeMap;
 
 use crate::format::scenario::fe_zone;
-use crate::format::scenario::header_counts::{header_mismatch, seat_counts};
+use crate::format::scenario::header_counts::{
+    HeaderMismatch, header_mismatch, seat_counts, zone_count,
+};
 use crate::format::scenario::paint::SOL_INITIALIZER;
 use crate::guides::Guide;
 use crate::ops::rules::fe_zone::label;
@@ -367,12 +369,19 @@ fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
     }
     seated.sort_unstable_by_key(|system| system.id);
     let (seats, reserved) = seat_counts(g);
-    if let Some(allowed) = header_mismatch(g, seats, reserved) {
+    let zones = zone_count(g);
+    let message = header_mismatch(g, seats, reserved, zones).map(|mismatch| match mismatch {
+        HeaderMismatch::Empires { allowed } => format!(
+            "Header allows {allowed} empires but the file has {seats} seats. Update the empire counts."
+        ),
+        HeaderMismatch::FallenEmpires { allowed } => format!(
+            "Header allows {allowed} fallen empires but the map has {zones} fallen empire zones. Update the empire counts."
+        ),
+    });
+    if let Some(message) = message {
         issues.push(Issue::new(
             IssueCode::HeaderEmpireCount,
-            format!(
-                "Header allows {allowed} empires but the file has {seats} seats. Update the empire counts."
-            ),
+            message,
             Vec::new(),
         ));
     }

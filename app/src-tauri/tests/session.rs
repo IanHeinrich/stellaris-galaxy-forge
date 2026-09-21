@@ -476,6 +476,8 @@ fn header_empire_counts_sizes_the_keys_by_the_seats_and_the_app_applies_them_as_
             ("advanced_empire_default".to_owned(), "0".to_owned()),
             ("nomad_empire_default".to_owned(), "0".to_owned()),
             ("nomad_empire_max".to_owned(), "3".to_owned()),
+            ("fallen_empire_max".to_owned(), "2".to_owned()),
+            ("fallen_empire_default".to_owned(), "2".to_owned()),
         ]
     );
     let edited: EditResult = invoke(

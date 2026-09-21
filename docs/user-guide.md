@@ -429,9 +429,16 @@ Systems can be added, deleted and named. Each can be given an initializer,
 which is what the game will place there: the star, its planets and moons,
 their resources, megastructures, dig sites and starbase, all of which the
 inspector and the map show before the game is ever started. A system can
-carry a spawn weight, or be held for a human player or for the AI. The
-scenario's header keys are listed and edited one by one, and a pair of
-systems can be barred from ever being linked.
+carry a spawn weight, or be held for a human player or for the AI. An
+empire that spawns on such a seat brings its own starting system in place
+of the seat's initializer, but what that initializer spawns around it
+still appears: a seat given Sol's initializer gets Alpha Centauri beside
+the empire's home. The counts the new-game screen reads (AI empires,
+advanced starts, fallen, marauder and nomad empires, wormhole pairs,
+gateways and hyperlane density) are edited as min, max and default fields
+in the Game setup section, with a note when a default falls outside its
+range. The rest of the header is listed and edited key by key, and a pair
+of systems can be barred from ever being linked.
 
 In a scenario whose Paint a Galaxy layer is on, a spawn point is a seat
 the mod fills by kind, so the inspector offers the kind from a select
@@ -445,11 +452,13 @@ Nations of Earth counts as holding. On the map a reserved seat shows its
 letter, Sol shows "Sol" and a preferred seat gets a star. The human and
 AI reservations are hidden under the layer because the mod does not read
 them. A system that still carries a plain weight in such a file shows a
-"Use a Paint a Galaxy seat" button that converts it. The Scenario header
-section sums up the seats and the safe number of AI empires, and when the
-header's empire counts no longer match them an "Update counts" button
-there and on the issue's row in Issues rewrites the five count keys the
-way the mod's formulas do.
+"Use a Paint a Galaxy seat" button that converts it. The Game setup
+section sums up the seats and the safe number of AI empires. When the
+header's counts no longer match the seats, or its fallen empire counts
+no longer match the fallen empire zones, an "Update counts" button there
+and on the issue's row in Issues rewrites the empire keys the way the
+mod's formulas do and sets the fallen empire keys to the zones, at most
+six. Clearing a Game setup cell drops that key from the header.
 
 Two selected systems can be made a wormhole pair, which the mod opens on
 day one: choose "Link as wormhole pair" from the right-click menu or the
@@ -503,6 +512,9 @@ Sol-specific neighbours (the Local Cluster mod is the usual
 workaround), nomads with random homes do not start in a nomad system,
 and the game adds systems the map did not have: guaranteed worlds,
 marauders, fallen empires, and some events.
+
+In my test a Sol seat given Sol's own initializer did get Alpha Centauri
+beside the empire's home, so try that before reaching for Local Cluster.
 
 The initializer browser: Shift+I, the inspector, or the map's right-click
 menu ("Set initializer…" on a system, "New system from…" on empty space)

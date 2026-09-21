@@ -564,13 +564,19 @@ fn the_paint_a_galaxy_profile_places_the_mods_own_fallen_empire_zones() {
         &no_sources,
         ScenarioProfile::PaintAGalaxy,
     );
+    let text = String::from_utf8_lossy(&paint);
     assert_eq!(
-        String::from_utf8_lossy(&paint)
-            .matches("set_star_flag = painted_galaxy_fe_spawn ")
+        text.matches("set_star_flag = painted_galaxy_fe_spawn ")
             .count() as u32,
         report.fallen_empire_zones
     );
-    let reopened = reopen(paint);
+    let fallen_max = report.fallen_empire_zones.min(6);
+    assert!(
+        text.contains(&format!("\tfallen_empire_max = {fallen_max}\n")),
+        "{}",
+        &text[..1200]
+    );
+    let reopened = reopen(paint.clone());
     let galaxy: &Galaxy = &reopened.graph;
     let mut centres = Vec::new();
     for id in &galaxy.order {
@@ -606,10 +612,17 @@ fn the_paint_a_galaxy_profile_places_the_mods_own_fallen_empire_zones() {
         [],
         "every anchor the rule would take already has one"
     );
+    let issues = sgf_core::validate::validate(&reopened.graph);
     assert!(
-        sgf_core::validate::validate(&reopened.graph)
+        issues
             .iter()
             .all(|issue| !issue.code.as_str().starts_with("fe_zone"))
+    );
+    assert!(
+        issues
+            .iter()
+            .all(|issue| issue.code != IssueCode::HeaderEmpireCount),
+        "{issues:?}"
     );
 }
 

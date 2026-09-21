@@ -120,6 +120,8 @@ pub(crate) mod scenario {
     pub(crate) const CORE_RADIUS: &str = "core_radius";
     pub(crate) const EFFECT: &str = "effect";
     pub(crate) const FACTOR: &str = "factor";
+    pub(crate) const FALLEN_EMPIRE_DEFAULT: &str = "fallen_empire_default";
+    pub(crate) const FALLEN_EMPIRE_MAX: &str = "fallen_empire_max";
     pub(crate) const FROM: &str = "from";
     pub(crate) const HAS_COUNTRY_FLAG: &str = "has_country_flag";
     pub(crate) const ID: &str = "id";

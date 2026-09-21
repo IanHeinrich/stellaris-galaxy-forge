@@ -1,10 +1,10 @@
 //! The empire counts a Paint a Galaxy header carries and the issues a painted scenario
-//! raises about its seats: the header against the seats, a reserved letter or Sol on
-//! two systems, a Sol seat off the Sol initializer, and a system inside the L-Cluster's
-//! circle on any scenario.
+//! raises about its seats: the header against the seats and the fallen empire zones, a
+//! reserved letter or Sol on two systems, a Sol seat off the Sol initializer, and a
+//! system inside the L-Cluster's circle on any scenario.
 
 use sgf_core::document::Document;
-use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts};
+use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts, zone_count};
 use sgf_core::format::scenario::listings::sibling_names;
 use sgf_core::guides::{Guide, L_CLUSTER};
 use sgf_core::ops::{Op, OpError};
@@ -25,10 +25,17 @@ fn open() -> Session {
 
 /// The fixture with `from` replaced by `to` once.
 fn open_edited(from: &str, to: &str) -> Session {
-    let text = std::fs::read_to_string(FIXTURE).expect("read the fixture");
-    assert!(text.contains(from), "{from}");
-    let doc =
-        Document::from_scenario_bytes(text.replacen(from, to, 1).into_bytes()).expect("index");
+    open_edited_all(&[(from, to)])
+}
+
+/// The fixture with each `from` replaced by its `to` once, in order.
+fn open_edited_all(edits: &[(&str, &str)]) -> Session {
+    let mut text = std::fs::read_to_string(FIXTURE).expect("read the fixture");
+    for (from, to) in edits {
+        assert!(text.contains(from), "{from}");
+        text = text.replacen(from, to, 1);
+    }
+    let doc = Document::from_scenario_bytes(text.into_bytes()).expect("index");
     Session::from_document(None, doc).expect("open")
 }
 
@@ -38,8 +45,9 @@ fn coded(issues: &[Issue], code: IssueCode) -> Vec<&Issue> {
 
 fn counts_op(session: &Session) -> Op {
     let (seats, reserved) = seat_counts(&session.graph);
+    let zones = zone_count(&session.graph);
     Op::SetHeaderKeys {
-        entries: empire_counts(seats, reserved)
+        entries: empire_counts(seats, reserved, zones)
             .into_iter()
             .map(|(key, value)| (key.to_owned(), value))
             .collect(),
@@ -50,8 +58,11 @@ fn counts_op(session: &Session) -> Op {
 fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
     let session = open();
     assert_eq!(seat_counts(&session.graph), (4, 2));
+    assert_eq!(zone_count(&session.graph), 2);
     assert_eq!(session.graph.num_empires_max, Some(3));
     assert_eq!(session.graph.num_empire_default, Some(3));
+    assert_eq!(session.graph.fallen_empire_max, Some(6));
+    assert_eq!(session.graph.fallen_empire_default, Some(0));
     let issues = session.validate();
     let header = coded(&issues, IssueCode::HeaderEmpireCount);
     assert_eq!(header.len(), 1, "{issues:?}");
@@ -67,6 +78,7 @@ fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
 
     let save = common::open();
     assert_eq!(save.graph.num_empires_max, None);
+    assert_eq!(save.graph.fallen_empire_max, None);
     let plain = common::scenario::open();
     for session in [&save, &plain] {
         let issues = session.validate();
@@ -77,7 +89,7 @@ fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
 }
 
 #[test]
-fn updating_the_counts_rewrites_the_five_keys_as_one_step_and_clears_the_issue() {
+fn updating_the_counts_rewrites_the_seven_keys_as_one_step_and_clears_the_issue() {
     let session = open();
     let op = counts_op(&session);
     assert_eq!(
@@ -89,6 +101,8 @@ fn updating_the_counts_rewrites_the_five_keys_as_one_step_and_clears_the_issue()
                 ("advanced_empire_default".to_owned(), "0".to_owned()),
                 ("nomad_empire_default".to_owned(), "0".to_owned()),
                 ("nomad_empire_max".to_owned(), "3".to_owned()),
+                ("fallen_empire_max".to_owned(), "2".to_owned()),
+                ("fallen_empire_default".to_owned(), "2".to_owned()),
             ]
         }
     );
@@ -107,11 +121,15 @@ fn updating_the_counts_rewrites_the_five_keys_as_one_step_and_clears_the_issue()
                 ("advanced_empire_default".to_owned(), "0".to_owned()),
                 ("nomad_empire_default".to_owned(), "0".to_owned()),
                 ("nomad_empire_max".to_owned(), "3".to_owned()),
+                ("fallen_empire_max".to_owned(), "6".to_owned()),
+                ("fallen_empire_default".to_owned(), "0".to_owned()),
             ]
         }
     );
     assert!(coded(&result.issues, IssueCode::HeaderEmpireCount).is_empty());
     assert_eq!(session.graph.num_empire_default, Some(1));
+    assert_eq!(session.graph.fallen_empire_max, Some(2));
+    assert_eq!(session.graph.fallen_empire_default, Some(2));
     assert_eq!(session.history().undo.len(), 1);
     let header = session
         .edit_result(result)
@@ -192,7 +210,57 @@ fn a_wrong_maximum_is_reported_even_when_the_default_fits() {
     );
 
     let fixed = open_edited("num_empire_default = 3", "num_empire_default = 1");
-    assert!(coded(&fixed.validate(), IssueCode::HeaderEmpireCount).is_empty());
+    let issues = fixed.validate();
+    let header = coded(&issues, IssueCode::HeaderEmpireCount);
+    assert_eq!(header.len(), 1, "{issues:?}");
+    assert_eq!(
+        header[0].message,
+        "Header allows 6 fallen empires but the map has 2 fallen empire zones. Update the empire counts."
+    );
+}
+
+#[test]
+fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
+    let seats_fit = ("num_empire_default = 3", "num_empire_default = 1");
+    let fits = open_edited_all(&[
+        seats_fit,
+        ("fallen_empire_max = 6", "fallen_empire_max = 2"),
+    ]);
+    assert_eq!(fits.graph.fallen_empire_max, Some(2));
+    assert!(coded(&fits.validate(), IssueCode::HeaderEmpireCount).is_empty());
+
+    let default_high = open_edited_all(&[
+        seats_fit,
+        ("fallen_empire_max = 6", "fallen_empire_max = 2"),
+        ("fallen_empire_default = 0", "fallen_empire_default = 3"),
+    ]);
+    assert_eq!(default_high.graph.fallen_empire_default, Some(3));
+    let issues = default_high.validate();
+    let header = coded(&issues, IssueCode::HeaderEmpireCount);
+    assert_eq!(header.len(), 1, "{issues:?}");
+    assert_eq!(
+        header[0].message,
+        "Header allows 3 fallen empires but the map has 2 fallen empire zones. Update the empire counts."
+    );
+
+    let max_low = open_edited_all(&[
+        seats_fit,
+        ("fallen_empire_max = 6", "fallen_empire_max = 1"),
+    ]);
+    let issues = max_low.validate();
+    let header = coded(&issues, IssueCode::HeaderEmpireCount);
+    assert_eq!(header.len(), 1, "{issues:?}");
+    assert_eq!(
+        header[0].message,
+        "Header allows 1 fallen empires but the map has 2 fallen empire zones. Update the empire counts."
+    );
+
+    let unreadable = open_edited_all(&[
+        seats_fit,
+        ("fallen_empire_max = 6", "fallen_empire_max = @al"),
+    ]);
+    assert_eq!(unreadable.graph.fallen_empire_max, None);
+    assert!(coded(&unreadable.validate(), IssueCode::HeaderEmpireCount).is_empty());
 }
 
 #[test]

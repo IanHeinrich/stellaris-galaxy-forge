@@ -94,10 +94,12 @@ pub struct Galaxy {
     pub header: Vec<HeaderField>,
     /// Which document the galaxy was read from, for the checks that apply to one kind.
     pub kind: DocumentKind,
-    /// A scenario header's `num_empires.max` and `num_empire_default`, where it states
-    /// them; always `None` for a save.
+    /// A scenario header's `num_empires.max`, `num_empire_default`, `fallen_empire_max`
+    /// and `fallen_empire_default`, where it states them; always `None` for a save.
     pub num_empires_max: Option<u32>,
     pub num_empire_default: Option<u32>,
+    pub fallen_empire_max: Option<u32>,
+    pub fallen_empire_default: Option<u32>,
 }
 
 /// A save's galaxy: the plain values plus the state only a `.sav` carries.

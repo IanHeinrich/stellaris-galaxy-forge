@@ -1,0 +1,73 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running unittests src\lib.rs (C:/Users/ian/AppData/Local/Temp/claude/C--Development-Github-stellaris-galaxy-forge/c6a5f47c-0e62-4e51-b5b4-b200781c4911/scratchpad/target\debug\deps\sgf_app_lib-3adbab93d9aa75da.exe)
+
+running 10 tests
+test watch::guard::tests::a_start_after_the_window_has_passed_rebuilds ... ok
+test watch::guard::tests::changes_inside_the_floor_coalesce_into_one_rebuild ... ok
+test watch::guard::tests::the_tenth_start_in_a_minute_pauses_and_names_the_hottest_file ... ok
+test watch::tests::a_rebuild_reason_clears_without_touching_the_start_reason ... ok
+test watch::guard::tests::resume_rebuilds_what_piled_up_while_paused ... ok
+test watch::tests::a_root_that_is_not_a_folder_stays_out_of_the_roots ... ok
+test views::export_bindings_installkind ... ok
+test views::export_bindings_updateprogress ... ok
+test views::export_bindings_updatecheck ... ok
+test views::export_bindings_updateview ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src\main.rs (C:/Users/ian/AppData/Local/Temp/claude/C--Development-Github-stellaris-galaxy-forge/c6a5f47c-0e62-4e51-b5b4-b200781c4911/scratchpad/target\debug\deps\sgf_app-38f8b48746b6b44c.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\edit.rs (C:/Users/ian/AppData/Local/Temp/claude/C--Development-Github-stellaris-galaxy-forge/c6a5f47c-0e62-4e51-b5b4-b200781c4911/scratchpad/target\debug\deps\edit-f7812f113e0b201f.exe)
+
+running 1 test
+test edit_undo_redo ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+
+     Running tests\gamedata.rs (C:/Users/ian/AppData/Local/Temp/claude/C--Development-Github-stellaris-galaxy-forge/c6a5f47c-0e62-4e51-b5b4-b200781c4911/scratchpad/target\debug\deps\gamedata-f78f164c63535386.exe)
+
+running 3 tests
+test a_root_that_cannot_be_watched_is_named_in_the_summary ... ok
+test game_data_commands_degrade_without_an_install ... ok
+test game_data_commands_with_the_install ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.55s
+
+     Running tests\session.rs (C:/Users/ian/AppData/Local/Temp/claude/C--Development-Github-stellaris-galaxy-forge/c6a5f47c-0e62-4e51-b5b4-b200781c4911/scratchpad/target\debug\deps\session-dc566a835e0175f1.exe)
+
+running 15 tests
+test a_painted_scenarios_wormhole_pairs_are_drawn_without_game_data_and_follow_the_op ... ok
+test the_scenarios_beside_a_file_are_listed_without_a_session ... ok
+test campaigns_saves_and_scenarios_are_listed_on_a_seeded_root ... ok
+test list_saves_succeeds_on_any_machine ... ok
+test header_empire_counts_sizes_the_keys_by_the_seats_and_the_app_applies_them_as_one_step ... ok
+test open_read_search_close ... ok
+test fe_zone_fit_keeps_the_placed_zones_and_spreads_the_count_asked_for ... ok
+test an_entity_reads_by_address_and_an_op_names_what_it_touched ... ok
+test open_replaces_the_session_and_rejects_a_missing_file ... ok
+test a_scenario_systems_colonies_name_their_territory_and_the_owners_are_kept ... ok
+test a_scenario_systems_details_come_from_its_initializer ... ok
+test a_scenario_systems_scripts_and_owners_are_read_from_game_data ... ok
+test scenario_documents_open_start_and_export ... ok
+test save_and_save_as ... ok
+test the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.49s
+
+     Running tests\update.rs (C:/Users/ian/AppData/Local/Temp/claude/C--Development-Github-stellaris-galaxy-forge/c6a5f47c-0e62-4e51-b5b4-b200781c4911/scratchpad/target\debug\deps\update-99bbca6cc1738a51.exe)
+
+running 1 test
+test install_without_a_check_finds_nothing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sgf_app_lib
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

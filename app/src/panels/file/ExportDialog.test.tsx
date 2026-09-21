@@ -12,7 +12,8 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { OPEN_RESULT, exportReport } from "../../store/fixture";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { usePaintModStore } from "../../store/paintModStore";
-import { ExportDialog, ExportForm, ExportProfileCheck, ExportReportRows } from "./ExportDialog";
+import { ExportDialog, ExportForm, ExportReportRows } from "./ExportDialog";
+import { PaintChoice } from "./PaintChoice";
 import { droppedSummary } from "./exportReport";
 
 const FULL = exportReport({
@@ -147,7 +148,7 @@ describe("the dialog", () => {
   });
 
   it("ticking the box is the standing choice, kept per machine", () => {
-    const box = elements(<ExportProfileCheck />).find(
+    const box = elements(<PaintChoice />).find(
       (el): el is ReactElement<{ onChange: (e: unknown) => void }> => el.type === "input",
     )!;
     box.props.onChange({ currentTarget: { checked: true } });

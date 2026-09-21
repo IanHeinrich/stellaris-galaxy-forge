@@ -171,6 +171,7 @@ export function sourceOf(id: LayerId, kind: DocumentKind | null): Source | null 
 export const SECTION_SOURCES: Readonly<Record<string, Source>> = {
   "galaxy.counts": "scenario",
   "galaxy.header": "scenario",
+  "galaxy.setup": "scenario",
   "system.position": "scenario",
   "system.hyperlanes": "scenario",
   "system.nebula": "scenario",

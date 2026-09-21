@@ -6,7 +6,7 @@ use std::sync::Arc;
 use sgf_core::archive;
 use sgf_core::export::{self, ExportReport, ScenarioOptions, ScenarioProfile};
 use sgf_core::format::scenario::fe_zone::{self, FeZone};
-use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts};
+use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts, zone_count};
 use sgf_core::format::scenario::is_painted;
 use sgf_core::library;
 use sgf_core::ops::Op;
@@ -292,7 +292,8 @@ pub fn header_empire_counts(state: State<'_, AppState>) -> Result<Vec<(String, S
         ));
     }
     let (seats, reserved) = seat_counts(&session.graph);
-    Ok(empire_counts(seats, reserved)
+    let zones = zone_count(&session.graph);
+    Ok(empire_counts(seats, reserved, zones)
         .into_iter()
         .map(|(key, value)| (key.to_owned(), value))
         .collect())

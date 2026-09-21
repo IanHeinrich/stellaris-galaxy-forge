@@ -210,6 +210,8 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
         kind: DocumentKind::Scenario,
         num_empires_max: scenario.header.num_empires_max,
         num_empire_default: scenario.header.num_empire_default,
+        fallen_empire_max: scenario.header.fallen_empire_max,
+        fallen_empire_default: scenario.header.fallen_empire_default,
     };
     galaxy.bypasses = paint::wormhole_pairs(&galaxy);
     let mut nebulae = Vec::new();

@@ -90,6 +90,8 @@ impl Galaxy {
             kind: DocumentKind::Save,
             num_empires_max: None,
             num_empire_default: None,
+            fallen_empire_max: None,
+            fallen_empire_default: None,
         };
         galaxy.assign_nebulae();
         galaxy.refresh_stale(&ids);
