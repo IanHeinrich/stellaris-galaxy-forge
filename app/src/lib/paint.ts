@@ -55,13 +55,18 @@ export function paintLayer(doc: PaintDocument, paintMod: PaintModView | null): b
   return doc.path !== null && dir !== null && isUnder(doc.path, dir);
 }
 
-/** The seat a script offers, in a word or two. */
+/** The seat a script offers, in a word or two; ", weighted" when it carries its holder's weight. */
 export function spawnScriptLabel(script: SpawnScript): string {
   const { kind, player } = script.paint_a_galaxy;
-  if (kind === "enabled") return "enabled";
-  if (kind === "preferred") return player ? "player" : "preferred";
-  if (kind === "sol") return "Sol";
-  return `reserved ${kind.reserved.toUpperCase()}`;
+  const seat =
+    kind === "enabled"
+      ? "enabled"
+      : kind === "preferred"
+        ? "preferred"
+        : kind === "sol"
+          ? "Sol"
+          : `reserved ${kind.reserved.toUpperCase()}`;
+  return player ? `${seat}, weighted` : seat;
 }
 
 /** One choice of seat, keyed for a select. */
@@ -73,14 +78,10 @@ export interface PaintSpawnKindOption {
 const RESERVED_PREFIX = "reserved:";
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 
-/**
- * Every seat the site knows: enabled, preferred, the player's, Sol, then one reservation per
- * letter.
- */
+/** Every seat the site knows: enabled, preferred, Sol, then one reservation per letter. */
 export const PAINT_SPAWN_KINDS: readonly PaintSpawnKindOption[] = [
   { key: "enabled", label: "Enabled" },
   { key: "preferred", label: "Preferred" },
-  { key: "player", label: "Player" },
   { key: "sol", label: "Sol" },
   ...[...LETTERS].map((letter) => ({
     key: `${RESERVED_PREFIX}${letter}`,
@@ -93,14 +94,8 @@ export const PAINT_SPAWN_KINDS: readonly PaintSpawnKindOption[] = [
  * before naming the trait's submod, which a caller with a link to offer appends itself.
  */
 export function paintKindDescription(script: SpawnScript): string {
-  const { kind, player } = script.paint_a_galaxy;
+  const { kind } = script.paint_a_galaxy;
   if (kind === "enabled") return "Any empire may start here.";
-  if (kind === "preferred" && player) {
-    return (
-      "The preferred seat with a weight the first empire placed is all but sure to draw. In " +
-      "single player that is you. Paint a Galaxy's site drops the weight when it imports the file."
-    );
-  }
   if (kind === "preferred") {
     return (
       "Filled before enabled seats. In single player the player is seated first, so with one " +
@@ -110,41 +105,66 @@ export function paintKindDescription(script: SpawnScript): string {
   if (kind === "sol") {
     return (
       'Only the United Nations of Earth, or an empire with the "Reserved Spawn Sol" trait, starts ' +
-      "here. Set the initializer to Sol instead unless this is " +
-      "a modded Sol."
+      "here. Give it a generic initializer. The United Nations of Earth brings Sol with it, and " +
+      "the game will not seat it on a seat that already names Sol's initializer."
     );
   }
   return `Only an empire whose species has the "Reserved Spawn ${kind.reserved.toUpperCase()}" trait starts here.`;
 }
 
+/** Whether a seat of this kind can carry its holder's weight: every kind but enabled. */
+export function canBeWeighted(kind: PaintSpawnKind): boolean {
+  return kind !== "enabled";
+}
+
 /**
- * The select key of a script's seat: the player's is a preferred seat with the weight, and a
- * reserved letter is lower-cased, as the site writes it.
+ * What the weight does for a seat of this kind: a preferred seat's makes it the likeliest start,
+ * Sol's and a reserved letter's make their one empire's start certain.
  */
+export function weightedDescription(kind: PaintSpawnKind): string {
+  if (kind === "enabled") return "";
+  if (kind === "preferred") {
+    return (
+      "Weighted so it is the likeliest start once the earlier-placed empires have taken theirs. " +
+      "Not a certain one."
+    );
+  }
+  if (kind === "sol") {
+    return "Weighted so the United Nations of Earth is certain to start here. No other empire can.";
+  }
+  return `Weighted so an empire with the Reserved Spawn ${kind.reserved.toUpperCase()} trait is certain to start here. No other empire can.`;
+}
+
+/** The select key of a script's seat: a reserved letter is lower-cased, as the site writes it. */
 export function paintKindKey(script: SpawnScript): string {
-  const { kind, player } = script.paint_a_galaxy;
-  if (kind === "preferred" && player) return "player";
+  const { kind } = script.paint_a_galaxy;
   if (typeof kind === "string") return kind;
   return `${RESERVED_PREFIX}${kind.reserved.toLowerCase()}`;
 }
 
-function seatOf(key: string): { kind: PaintSpawnKind; player: boolean } {
-  if (key === "player") return { kind: "preferred", player: true };
-  if (key === "enabled" || key === "preferred" || key === "sol")
-    return { kind: key, player: false };
-  if (key.startsWith(RESERVED_PREFIX)) {
-    return { kind: { reserved: key.slice(RESERVED_PREFIX.length) }, player: false };
-  }
+function kindOf(key: string): PaintSpawnKind {
+  if (key === "enabled" || key === "preferred" || key === "sol") return key;
+  if (key.startsWith(RESERVED_PREFIX)) return { reserved: key.slice(RESERVED_PREFIX.length) };
   throw new Error(`Unknown Paint a Galaxy spawn kind: ${key}`);
 }
 
 /**
  * The script that seats `system` as `key` says: its random value is kept when it already has
- * one, and otherwise spread over the site's ten by the system's id.
+ * one, and otherwise spread over the site's ten by the system's id. Its weight is kept when the
+ * new kind can carry one.
  */
 export function scriptForKind(key: string, system: SystemNode): SpawnScript {
-  const random_value = system.spawn_script?.paint_a_galaxy.random_value ?? system.id % 10;
-  return { paint_a_galaxy: { ...seatOf(key), random_value } };
+  const current = system.spawn_script?.paint_a_galaxy;
+  const kind = kindOf(key);
+  const random_value = current?.random_value ?? system.id % 10;
+  const player = canBeWeighted(kind) && (current?.player ?? false);
+  return { paint_a_galaxy: { kind, random_value, player } };
+}
+
+/** The system's script with its holder's weight turned `on` or off. */
+export function weightedScript(system: SystemNode, on: boolean): SpawnScript {
+  const script = system.spawn_script ?? enabledScript(system);
+  return { paint_a_galaxy: { ...script.paint_a_galaxy, player: on } };
 }
 
 /** The script a system is marked with when made a spawn point under the profile. */
@@ -187,7 +207,7 @@ export interface SeatSummary {
   /** Reserved letters in use, uppercase and deduplicated, ascending. */
   reserved: string[];
   sol: boolean;
-  /** A preferred seat carries the player's weight. */
+  /** A seat of any kind carries its holder's weight. */
   player: boolean;
   /** AI empires the seats leave room for once the player and the reserved seats are set aside. */
   safeAi: number;
@@ -205,10 +225,9 @@ export function seatSummary(systems: Iterable<SystemNode>): SeatSummary {
     if (script === undefined) continue;
     const { kind } = script;
     seats++;
-    if (kind === "preferred") {
-      preferred++;
-      if (script.player) player = true;
-    } else if (kind === "sol") sol = true;
+    if (script.player) player = true;
+    if (kind === "preferred") preferred++;
+    else if (kind === "sol") sol = true;
     else if (typeof kind !== "string") reserved.add(kind.reserved.toUpperCase());
   }
   const reservedLetters = [...reserved].sort();

@@ -71,6 +71,7 @@ const PAINTED = exportReport({
     },
   ],
   player_seat: 217,
+  player_seat_kind: "sol",
   omitted: [{ category: "l_cluster", systems: 9 }],
   setup_from_save: true,
   home_initializers: [
@@ -164,7 +165,7 @@ describe("the report", () => {
     expect(html).toContain(
       row(
         "Seats",
-        "17 seats. Your capital, system 217, is the player&#x27;s seat: the first empire placed starts there.",
+        "17 seats. Your capital, system 217, is the Sol seat: only the United Nations of Earth can start there, and it will.",
       ),
     );
     expect(html).toContain(
@@ -189,15 +190,20 @@ describe("the report", () => {
   it("names the player's capital from the galaxy", () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     const html = renderToStaticMarkup(
-      <ExportReportRows report={exportReport({ player_seat: 2 })} />,
+      <ExportReportRows report={exportReport({ player_seat: 2, player_seat_kind: "preferred" })} />,
     );
-    expect(html).toContain("Your capital, Barnard, is the player&#x27;s seat");
+    expect(html).toContain("Your capital, Barnard, is a weighted preferred seat");
   });
 
   it("words each row of the conversion, plural or singular, and each zone that missed its spot", () => {
     expect(seatsSummary(exportReport({ seats: 1 }), id)).toBe("1 seat.");
-    expect(seatsSummary(exportReport({ player_seat: 217 }), id)).toBe(
-      "17 seats. Your capital, system 217, is the player's seat: the first empire placed starts there.",
+    expect(seatsSummary(exportReport({ player_seat: 217, player_seat_kind: "sol" }), id)).toBe(
+      "17 seats. Your capital, system 217, is the Sol seat: only the United Nations of Earth can start there, and it will.",
+    );
+    expect(
+      seatsSummary(exportReport({ player_seat: 217, player_seat_kind: "preferred" }), id),
+    ).toBe(
+      "17 seats. Your capital, system 217, is a weighted preferred seat: the likeliest start, not a certain one. For a certain one, reserve a letter and give your empire its trait.",
     );
 
     expect(fallenEmpiresSummary(exportReport())).toBeNull();

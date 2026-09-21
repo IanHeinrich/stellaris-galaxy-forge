@@ -36,6 +36,9 @@ const TAG_OFFSET = { x: OFFSET.x + 11, y: OFFSET.y - 6 };
 const CHIP = { width: 12, height: 9, radius: 2 };
 const STAR = { outer: 4, inner: 1.8 };
 
+/** The ring a weighted seat's chip is drawn with, so the weight shows at any zoom. */
+const RING = { color: 0xffffff, width: 1, alpha: 0.9 };
+
 /** One shared instance: PixiJS keys a stroked dynamic bitmap font by the style object. */
 const TAG_STYLE = new TextStyle({
   fontFamily: MAP_FONT,
@@ -44,31 +47,34 @@ const TAG_STYLE = new TextStyle({
   fill: 0x111827,
 });
 
-/** What a scripted seat's kind draws beside the marker: nothing for an enabled seat. */
-type Tag = "star" | { letters: string } | null;
+/**
+ * What a scripted seat's kind draws beside the marker: nothing for an enabled seat, a star for a
+ * preferred one, letters on a chip for the rest, the chip ringed when the seat is weighted.
+ */
+type Tag = "star" | { letters: string; weighted: boolean } | null;
 
 function tagOf(script: SpawnScript): Tag {
   const { kind, player } = script.paint_a_galaxy;
   if (kind === "enabled") return null;
-  if (kind === "preferred") return player ? { letters: "P" } : "star";
-  if (kind === "sol") return { letters: "Sol" };
-  return { letters: kind.reserved.toUpperCase() };
+  if (kind === "preferred") return player ? { letters: "P", weighted: true } : "star";
+  if (kind === "sol") return { letters: "Sol", weighted: player };
+  return { letters: kind.reserved.toUpperCase(), weighted: player };
 }
 
 /** A key that changes exactly when the tag drawn for a seat must change. */
 function tagKey(tag: Tag): string {
   if (tag === null) return "";
   if (tag === "star") return "star";
-  return `letters:${tag.letters}`;
+  return `letters:${tag.letters}${tag.weighted ? ":weighted" : ""}`;
 }
 
-/** The rounded tag a reserved, Sol or player seat draws its letters over. */
-function drawChip(g: Graphics): void {
+/** The rounded tag a reserved, Sol or weighted seat draws its letters over. */
+function drawChip(g: Graphics, weighted: boolean): void {
   const { x, y } = TAG_OFFSET;
-  g.roundRect(x - CHIP.width / 2, y - CHIP.height / 2, CHIP.width, CHIP.height, CHIP.radius).fill({
-    color: MARKER_COLOR,
-    alpha: MARKER.alpha,
-  });
+  const chip = () =>
+    g.roundRect(x - CHIP.width / 2, y - CHIP.height / 2, CHIP.width, CHIP.height, CHIP.radius);
+  chip().fill({ color: MARKER_COLOR, alpha: MARKER.alpha });
+  if (weighted) chip().stroke(RING);
 }
 
 /** A preferred seat's five-point star, drawn beside the marker rather than spelled out. */
@@ -236,7 +242,7 @@ export class SpawnsLayer implements MapLayer {
       drawStar(g);
       return;
     }
-    drawChip(g);
+    drawChip(g, tag.weighted);
     const label = this.freeTagLabels.pop() ?? this.makeTagLabel();
     label.text = tag.letters;
     label.visible = true;

@@ -186,26 +186,41 @@ spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|
 ```
 
 `n = i % 10`. The capital of the player's country (the first `player`
-entry of the save) is written as the player's seat instead:
+entry of the save) is written as the player's seat instead. When the
+player's country carries the `human_1` flag, the United Nations of Earth,
+it is the Sol seat:
+
+```
+spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 has_country_flag = human_1 } }
+```
+
+Otherwise it is a preferred seat:
 
 ```
 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|n| modifier = { add = 100000 } }
 ```
 
 `spawn_weight` is a weighted random draw over the free seats, in placement
-order, and the player's country is placed first. The mod weighs a preferred
-seat at 110 to 120 against 10 to 20 for an enabled one, so a plain preferred
-seat is the player's only about a third of the time. None of the mod's own
-kinds can pin a seat to an arbitrary empire: Sol and a reserved letter are
-1000 but need the UNE's flag or a trait. The unconditional `modifier` makes
-the seat heavier than every other by far, so the first empire placed draws
-it. The site's importer reads the kind by substring and discards
-modifiers, so a round trip through the site degrades this seat to a plain
-preferred one. The report names the seat as `player_seat`. The player's
-seat is always given a generic `random_empire_init_0N` start, whatever the
-save's capital had: in my test the game would not seat the United Nations
-of Earth on a seat that named `sol_system_initializer`, the UNE's own
-initializer, and put it on the next seat instead. A system that
+order. The player is not always placed first. An AI whose origin needs
+special placement, Fear of the Dark or a federation origin's leader, is
+seated in an earlier pass and draws by the same weights, so in my runs a
+preferred seat with the weight went to such an AI two times in three. A
+weight alone never makes a seat certain. A seat is certain only when
+every other empire weighs it at zero, which the mod's Sol and reserved
+kinds do: Sol multiplies the weight to zero and adds 1000 for `human_1`,
+a reserved letter does the same for the matching Reserved Spawns trait.
+The `modifier` carries the kind's own condition and adds 100000, so the
+empire that can take the seat is all but sure to draw it whenever it is
+placed, and no other empire gains anything. On a preferred seat the
+modifier has no condition, which makes it the likeliest start and no
+more. The site's importer reads the kind by substring and discards
+modifiers, so a round trip through the site keeps the kind and drops the
+weight. The report names the seat as `player_seat` and its kind as
+`player_seat_kind`. The player's seat is always given a generic
+`random_empire_init_0N` start, whatever the save's capital had: the game
+will not seat an empire on a seat naming that empire's own fixed
+initializer, so a Sol seat naming `sol_system_initializer` never gets the
+UNE, and the validator warns about one. A system that
 already carries a preferred, reserved or Sol script keeps that script's kind
 and random value rather than being reset to plain "enabled". A spawn system
 with no `initializer`, or one whose initializer the report lists under
@@ -380,10 +395,13 @@ scalar starts with `value:painted_galaxy_spawn_weight|`; what follows is
 read as `|KEY|value|` pairs (`PREFERRED|yes`, `RESERVED|<letter>`,
 `SOL|yes`, `RANDOM_VALUE|n`), and a key this editor does not know is passed
 over rather than rejected, so a parameter a later Paint a Galaxy build adds
-still reads back as a seat. The seat is the player's when the block carries
-exactly one `modifier` and that modifier holds `add = 100000` and nothing
-else. Any other modifier content is foreign script: the seat reads as its
-kind alone and the block is neither rewritten nor cleared. A reserved seat's letter is written as one
+still reads back as a seat. The seat is weighted for its holder when the block
+carries exactly one `modifier` holding `add = 100000` and the kind's own
+condition and nothing else: none for a preferred seat, `has_country_flag =
+human_1` for Sol, `has_trait = trait_painted_galaxy_reserved_spawn_<x>` for
+reserved `x`. An enabled seat has no such marker. Any other modifier
+content, or a marker of another kind's shape, is foreign script: the seat
+reads as its kind alone and the block is neither rewritten nor cleared. A reserved seat's letter is written as one
 lowercase ASCII letter, matching the star flags Paint a Galaxy itself uses;
 on read, whatever follows `RESERVED|` is taken as the letter. Because the
 mod resolves the weight from the seat kind rather than from a number,

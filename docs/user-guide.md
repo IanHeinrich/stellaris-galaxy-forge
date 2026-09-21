@@ -405,8 +405,9 @@ converted for the mod: each fallen empire's capital and the cluster
 around it are left out and a typed zone of that empire's kind is placed
 at the old capital, on an anchor system added for it, so the mod
 rebuilds the fallen empire where it stood. Your own capital becomes the
-player's seat. That is a preferred seat weighted so that the first empire
-placed starts there, and in single player that is you. The L-Cluster
+player's seat. For the United Nations of Earth that is the Sol seat, which
+no other empire can take. For any other empire it is a preferred seat
+weighted so it is the likeliest start, not a certain one. The L-Cluster
 is left out because the game adds its own, and the header's empire,
 fallen empire, marauder and nomad counts are taken from the save's setup
 screen. The Export as scenario report and the file's comment lines say
@@ -501,12 +502,19 @@ to it only if you reserve seats. Issues warns when a reserved seat exists
 and the submod is not enabled, with a button to its Workshop page, and
 the warning counts against a save. Sol is a reserved seat that only the
 United Nations of Earth, or an empire with the submod's Sol trait, can
-take, so a save converted for the mod makes your capital the player's
-seat rather than the Sol one: a preferred seat weighted so the first
-empire placed, you in single player, starts there. On the map a reserved
-seat shows its letter, Sol shows "Sol", a preferred seat gets a star and
-the player's seat a "P". The seat kind select offers Player beside
-Preferred, and Issues warns when two systems hold it. A system that
+take. A save whose player is the United Nations of Earth makes its
+capital the Sol seat. Any other save makes its capital a preferred seat
+with a weight, the likeliest start rather than a certain one, because an
+AI whose origin needs a special place is seated before you and draws by
+the same weights. For a certain start with another empire, reserve a
+letter and give your empire its trait. A "Weighted for its empire"
+checkbox under the kind select adds that weight to a preferred, Sol or
+reserved seat, and Issues warns when two systems carry it. A Sol seat
+needs a generic initializer, since the United Nations of Earth brings Sol
+with it and the game will not seat it on a seat that already names Sol's
+initializer. On the map a reserved seat shows its letter, Sol shows "Sol",
+a preferred seat gets a star, a weighted preferred seat a "P", and any
+weighted seat's chip is ringed. A system that
 still carries a plain weight in such a file shows a "Use a Paint a Galaxy
 seat" button that converts it. The Game setup section sums up the seats
 and the safe number of AI empires. When the
@@ -598,8 +606,9 @@ workaround), nomads with random homes do not start in a nomad system,
 and the game adds systems the map did not have: guaranteed worlds,
 marauders, fallen empires, and some events.
 
-In my test a Sol seat given Sol's own initializer did get Alpha Centauri
-beside the empire's home, so try that before reaching for Local Cluster.
+In my test the seat's neighbours came through as the file names them,
+Alpha Centauri beside the empire's home, so check the neighbours before
+reaching for Local Cluster.
 
 The initializer browser: Shift+I, the inspector, or the map's right-click
 menu ("Set initializer…" on a system, "New system from…" on empty space)

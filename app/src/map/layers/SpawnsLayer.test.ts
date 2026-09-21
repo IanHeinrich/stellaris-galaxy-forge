@@ -50,6 +50,13 @@ function tagsOf(layer: SpawnsLayer) {
   return childByLabel(layer.container, "tags");
 }
 
+/** The one chip the layer is drawing its letters over. */
+function chipOf(layer: SpawnsLayer): Graphics {
+  const chips = tagsOf(layer).children.filter((c): c is Graphics => c instanceof Graphics);
+  expect(chips).toHaveLength(1);
+  return chips[0];
+}
+
 /** A system scripted with the given Paint a Galaxy kind, as the projection would report it. */
 function scriptedNode(
   id: number,
@@ -204,14 +211,36 @@ describe("the spawn points layer", () => {
     expect(tagsOf(layer).children.filter((c) => c instanceof Graphics)).toHaveLength(1);
   });
 
-  it("draws a P over the chip beside the player's seat, and names the seat while hovered", () => {
+  it("draws a P over a ringed chip beside a weighted preferred seat, and says so while hovered", () => {
     const layer = drawn([scriptedNode(2, 40, "preferred", true)]);
     expect(drawnText(tagsOf(layer))).toEqual(["P"]);
+    expect(strokes(chipOf(layer))).toHaveLength(1);
 
     markOf(layer, 40).emit("pointerover", { global: { x: 4, y: 6 } } as never);
     expect(useMapChromeStore.getState().tooltip).toMatchObject({
-      lines: ["Spawn point · Paint a Galaxy player"],
+      lines: ["Spawn point · Paint a Galaxy preferred, weighted"],
     });
+  });
+
+  it("rings the chip of a weighted Sol or reserved seat, keeping its own letters", () => {
+    for (const kind of ["sol", { reserved: "b" }] as const) {
+      const letters = kind === "sol" ? "Sol" : "B";
+      expect(strokes(chipOf(drawn([scriptedNode(2, 40, kind)])))).toHaveLength(0);
+      const layer = drawn([scriptedNode(2, 40, kind, true)]);
+      expect(drawnText(tagsOf(layer))).toEqual([letters]);
+      expect(strokes(chipOf(layer))).toHaveLength(1);
+    }
+  });
+
+  it("redraws the chip when a delta turns the weight on", () => {
+    const sol = scriptedNode(2, 40, "sol");
+    const layer = drawn([sol]);
+    layer.applyDelta({ systems: [scriptedNode(2, 40, "sol", true)] });
+    expect(drawnText(tagsOf(layer))).toEqual(["Sol"]);
+    expect(strokes(chipOf(layer))).toHaveLength(1);
+
+    layer.applyDelta({ systems: [sol] });
+    expect(strokes(chipOf(layer))).toHaveLength(0);
   });
 
   it("draws no tag beside an enabled seat's marker", () => {

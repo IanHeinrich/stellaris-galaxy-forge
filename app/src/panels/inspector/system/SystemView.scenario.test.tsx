@@ -24,7 +24,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
-import { enabledScript, scriptForKind } from "../../../lib/paint";
+import { enabledScript, scriptForKind, weightedScript } from "../../../lib/paint";
 import { isSpawnWeight } from "../../../lib/spawn";
 import { kindTitle } from "../../../lib/special";
 import { DETAILS_DEBOUNCE_MS } from "../../../store/batching";
@@ -465,17 +465,63 @@ describe("a scenario system Paint a Galaxy seats", () => {
     expect(html).toContain(">Seat<");
     expect(html).toContain('<optgroup label="Reserved for one empire">');
     expect(html).toContain('<option value="reserved:c" selected="">Reserved C</option>');
-    expect(html.match(/<option /g)).toHaveLength(30);
+    expect(html.match(/<option /g)).toHaveLength(29);
+    expect(html).not.toContain(">Player<");
     expect(html).toContain("Only an empire whose species has the");
     expect(html).toContain("Reserved Spawn C");
     expect(html).toContain("trait starts here.");
     expect(html).toContain("The trait comes from the");
     expect(html).toContain("Reserved Spawns submod ↗");
-    expect(html.match(/<input type="checkbox"[^>]*>/g)).toHaveLength(1);
+    expect(html.match(/<input type="checkbox"[^>]*>/g)).toHaveLength(2);
     expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
     expect(html).not.toContain('aria-label="Spawn weight"');
     expect(html).not.toContain("Reserve for a human player");
     expect(html).not.toContain("Reserve for the AI");
+  });
+
+  it("offers the weight below the kind for every seat but an enabled one, and says what it does", async () => {
+    withScript("enabled");
+    await open("scenario");
+    expect(overview()).not.toContain("Weighted for its empire");
+
+    withScript("preferred");
+    await open("scenario");
+    const preferred = overview();
+    expect(preferred).toContain("Weighted for its empire");
+    expect(preferred.match(/<input type="checkbox"[^>]*>/g)![1]).not.toContain("checked=");
+    expect(preferred).not.toContain("Weighted so");
+
+    withScript("preferred", true);
+    await open("scenario");
+    const weighted = overview();
+    expect(weighted).toContain('<option value="preferred" selected="">Preferred</option>');
+    expect(weighted.match(/<input type="checkbox"[^>]*>/g)![1]).toContain("checked=");
+    expect(weighted).toContain("Filled before enabled seats.");
+    expect(weighted).toContain(
+      "Weighted so it is the likeliest start once the earlier-placed empires have taken theirs. " +
+        "Not a certain one.",
+    );
+
+    withScript("sol", true);
+    await open("scenario");
+    expect(overview()).toContain(
+      "Weighted so the United Nations of Earth is certain to start here. No other empire can.",
+    );
+
+    withScript({ reserved: "c" }, true);
+    await open("scenario");
+    expect(overview()).toContain(
+      "Weighted so an empire with the Reserved Spawn C trait is certain to start here. No other empire can.",
+    );
+  });
+
+  it("writes the weight through the script, keeping the seat's kind and random value", async () => {
+    withScript("sol");
+    await open("scenario");
+    const system = useEditorStore.getState().inspected!.system;
+    expect(weightedScript(system, true)).toEqual({
+      paint_a_galaxy: { kind: "sol", random_value: 4, player: true },
+    });
   });
 
   it("describes what each kind means, a reserved letter's sentence pointing at the submod", async () => {
@@ -488,24 +534,17 @@ describe("a scenario system Paint a Galaxy seats", () => {
     await open("scenario");
     expect(overview()).toContain("Filled before enabled seats.");
 
-    withScript("preferred", true);
-    await open("scenario");
-    const player = overview();
-    expect(player).toContain('<option value="player" selected="">Player</option>');
-    expect(player).toContain("In single player that is you.");
-    expect(player).toContain("site drops the weight when it imports the file.");
-    expect(player).not.toContain("Filled before enabled seats.");
-
     withScript("sol");
     await open("scenario");
     const html = overview();
-    expect(html).toContain("trait, starts here. Set the initializer to Sol instead");
+    expect(html).toContain("trait, starts here. Give it a generic initializer.");
+    expect(html).toContain("will not seat it on a seat that already names Sol&#x27;s initializer.");
     expect(html).not.toContain("The trait comes from the");
-    expect(html).toContain("Give this seat the Sol initializer and Alpha Centauri");
+    expect(html).toContain("For Alpha Centauri and the other neighbours beside it, the");
     expect(html).toContain(">Local Cluster mod</button>");
   });
 
-  it("marks a reserved letter, Sol or the player's seat as in use only when another system already holds it", async () => {
+  it("marks a reserved letter, Sol or the weight as in use only when another system already holds it", async () => {
     withScript({ reserved: "c" });
     await open("scenario");
     const systems = new Map(useGalaxyStore.getState().systems);
@@ -526,9 +565,9 @@ describe("a scenario system Paint a Galaxy seats", () => {
     const html = overview();
     expect(html).toContain('<option value="reserved:c" selected="">Reserved C · in use</option>');
     expect(html).toContain('<option value="sol">Sol · in use</option>');
-    expect(html).toContain('<option value="player">Player · in use</option>');
     expect(html).toContain('<option value="preferred">Preferred</option>');
     expect(html).toContain('<option value="reserved:a">Reserved A</option>');
+    expect(html).toContain("Weighted for its empire · in use");
   });
 
   it("selects the seat the file names, and the change it writes keeps the random value", async () => {

@@ -35,11 +35,18 @@ export function droppedSummary(dropped: DroppedBypasses): string | null {
 /** A system's name for a sentence; `nameOf` is the galaxy's, falling back to the id. */
 export type NameOf = (system: number) => string;
 
-/** `17 seats. Your capital, Sol, is the player's seat: the first empire placed starts there.` */
+/**
+ * `17 seats. Your capital, Sol, is the Sol seat: only the United Nations of Earth can start there,
+ * and it will.` Any other empire's capital is a weighted preferred seat, the likeliest start.
+ */
 export function seatsSummary(report: ExportReport, nameOf: NameOf): string {
   const seats = `${plural(report.seats, "seat")}.`;
   if (report.player_seat === null) return seats;
-  return `${seats} Your capital, ${nameOf(report.player_seat)}, is the player's seat: the first empire placed starts there.`;
+  const capital = `Your capital, ${nameOf(report.player_seat)},`;
+  if (report.player_seat_kind === "sol") {
+    return `${seats} ${capital} is the Sol seat: only the United Nations of Earth can start there, and it will.`;
+  }
+  return `${seats} ${capital} is a weighted preferred seat: the likeliest start, not a certain one. For a certain one, reserve a letter and give your empire its trait.`;
 }
 
 /**

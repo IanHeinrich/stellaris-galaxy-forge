@@ -300,7 +300,7 @@ const ISSUE_TITLES: Record<AppIssueCode, string> = {
   fe_link_far: "Far from the fallen empire zone it links to",
   header_empire_count: "Header empire counts do not match the seats",
   seat_letter_duplicate: "Reserved seat used twice",
-  sol_seat_mismatch: "Sol seat and Sol initializer disagree",
+  sol_seat_mismatch: "Sol seat names Sol's initializer",
   player_seat_duplicate: "Player seat used twice",
   l_cluster_system: "System where the game places the L-Cluster",
   scenario_name_duplicate: "Scenario name used by another file in the mod",

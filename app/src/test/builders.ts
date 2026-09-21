@@ -56,6 +56,7 @@ export function exportReport(over: Partial<ExportReport> = {}): ExportReport {
     fallen_empire_zones: 0,
     fallen_empires: [],
     player_seat: null,
+    player_seat_kind: null,
     omitted: [],
     setup_from_save: false,
     ...over,

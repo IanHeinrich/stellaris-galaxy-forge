@@ -1,10 +1,13 @@
 import type { SystemNode } from "../../../../../generated/SystemNode";
 import {
   PAINT_SPAWN_KINDS,
+  canBeWeighted,
   paintKindDescription,
   paintKindKey,
   scriptForKind,
   seatSummary,
+  weightedDescription,
+  weightedScript,
 } from "../../../../../lib/paint";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { useApplyOp } from "../../../../useApplyOp";
@@ -23,17 +26,15 @@ function optionLabel(k: { key: string; label: string }, others: ReturnType<typeo
   const inUse =
     k.key === "sol"
       ? others.sol
-      : k.key === "player"
-        ? others.player
-        : k.key.startsWith(RESERVED_PREFIX) &&
-          others.reserved.includes(k.key.slice(RESERVED_PREFIX.length).toUpperCase());
+      : k.key.startsWith(RESERVED_PREFIX) &&
+        others.reserved.includes(k.key.slice(RESERVED_PREFIX.length).toUpperCase());
   return inUse ? `${k.label} · in use` : k.label;
 }
 
 /**
- * The seat a Paint a Galaxy spawn system offers, as its script names it. The mod seats players
- * by these kinds, so the kind is what a change writes; the weight the script resolves to is
- * the mod's to compute.
+ * The seat a Paint a Galaxy spawn system offers, as its script names it, and whether it carries
+ * the weight for its holder. The mod seats players by these kinds, so the kind is what a change
+ * writes; the weight the script resolves to is the mod's to compute.
  */
 export function ScriptedSeat({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
@@ -41,7 +42,7 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
   const systems = useGalaxyStore((s) => s.systems);
   const script = system.spawn_script;
   if (script === null) return null;
-  const kind = script.paint_a_galaxy.kind;
+  const { kind, player } = script.paint_a_galaxy;
   const reserved = typeof kind !== "string";
   const sol = kind === "sol";
   const others = seatSummary([...systems.values()].filter((other) => other.id !== system.id));
@@ -90,8 +91,7 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
         )}
         {sol && (
           <>
-            {" Give this seat the Sol initializer and Alpha Centauri and the other neighbours "}
-            {"appear beside it. Without it, the "}
+            {" For Alpha Centauri and the other neighbours beside it, the "}
             <button type="button" className="link" onClick={openLocalClusterWorkshop}>
               Local Cluster mod
             </button>
@@ -99,6 +99,28 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
           </>
         )}
       </div>
+      {canBeWeighted(kind) && (
+        <>
+          <div className="ins-spawn-point">
+            <label>
+              <input
+                type="checkbox"
+                checked={player}
+                disabled={!editable}
+                onChange={() =>
+                  applyOp({
+                    type: "SetSpawnScript",
+                    id: system.id,
+                    script: weightedScript(system, !player),
+                  })
+                }
+              />
+              {others.player ? "Weighted for its empire · in use" : "Weighted for its empire"}
+            </label>
+          </div>
+          {player && <div className="muted ins-hint">{weightedDescription(kind)}</div>}
+        </>
+      )}
     </>
   );
 }
