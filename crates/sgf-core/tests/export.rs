@@ -10,6 +10,7 @@ use sgf_core::export::{self, DroppedBypasses, ExportReport, HomeInitializer, Sce
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeKind};
 use sgf_core::format::scenario::header_counts::{SeatCounts, seat_counts};
+use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
@@ -1090,7 +1091,7 @@ fn the_paint_a_galaxy_profile_places_only_the_saves_own_fallen_empires() {
         "a save's export places only the zones its fallen empires ask for"
     );
     assert!(
-        !fe_zone::candidates(&fe_zone::sites(galaxy)).is_empty(),
+        !placement::candidates(&placement::sites(galaxy)).is_empty(),
         "the mod's candidates stay available to Fit"
     );
     let issues = sgf_core::validate::validate(&reopened.graph);

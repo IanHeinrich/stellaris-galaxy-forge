@@ -5,7 +5,7 @@
 
 mod edit;
 pub mod history;
-pub(crate) mod rules;
+pub mod rules;
 
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;

@@ -5,12 +5,13 @@ use std::sync::Arc;
 
 use sgf_core::archive;
 use sgf_core::export::{self, ExportReport, ScenarioOptions, ScenarioProfile};
-use sgf_core::format::scenario::fe_zone::{self, FeZone};
+use sgf_core::format::scenario::fe_zone::FeZone;
 use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts, zone_count};
 use sgf_core::format::scenario::is_painted;
 use sgf_core::format::scenario::marauder::clan_count;
 use sgf_core::library;
 use sgf_core::ops::Op;
+use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::session::{Session, SessionError};
 use sgf_core::validate::Issue;
 use sgf_core::views::{
@@ -269,7 +270,7 @@ pub fn fe_zone_fit(
 ) -> Result<Vec<(u32, Option<FeZone>)>, SgfError> {
     let guard = lock(&state);
     let session = scenario(&guard)?;
-    Ok(fe_zone::fit(&fe_zone::sites(&session.graph), count))
+    Ok(placement::fit(&placement::sites(&session.graph), count))
 }
 
 /// How many automatic fallen empire zones Paint a Galaxy's rule can place on the open
@@ -278,7 +279,9 @@ pub fn fe_zone_fit(
 pub fn fe_zone_candidate_count(state: State<'_, AppState>) -> Result<usize, SgfError> {
     let guard = lock(&state);
     let session = scenario(&guard)?;
-    Ok(fe_zone::candidate_count(&fe_zone::sites(&session.graph)))
+    Ok(placement::candidate_count(&placement::sites(
+        &session.graph,
+    )))
 }
 
 fn scenario(guard: &Option<Session>) -> Result<&Session, SgfError> {

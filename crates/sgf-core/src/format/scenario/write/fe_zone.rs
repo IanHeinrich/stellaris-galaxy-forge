@@ -1,16 +1,12 @@
 //! Fallen empire zones: the `set_star_flag`s in a system's `effect` block that Paint a
-//! Galaxy seats a fallen empire by. The zone's flags come out whole and go back in at
-//! the end of the block, in the shape its statements are written in; the other flags
-//! and every other statement of the block stay byte for byte.
+//! Galaxy seats a fallen empire by.
 
 use std::collections::BTreeSet;
 
-use super::spawn::{insert_after, starts_line};
-use crate::Span;
-use crate::format::scenario::fe_zone::{FeZone, SET_STAR_FLAG, flags, is_zone_flag};
-use crate::keys::scenario as keys;
+use super::flags::rewrite_flags;
+use crate::format::scenario::fe_zone::{FeZone, flags, is_zone_flag};
 use crate::ops::rules::fe_zone::{decide_set, label};
-use crate::ops::{Edit, Op, OpError, Plan, Planned};
+use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::galaxy::SystemNode;
 use crate::session::Session;
 
@@ -68,37 +64,8 @@ fn write_zone(
     let previous = system.fe_zone.clone();
     let description = describe(system, zone);
     let edit = plan.edit(&s.doc, id)?;
-    match (block(edit, is_zone_flag)?, zone) {
-        (Some(block), Some(zone)) => {
-            for span in &block.zone_flags {
-                edit.remove_statement(*span);
-            }
-            for flag in flags(zone) {
-                append(edit, &block, &statement(&flag));
-            }
-        }
-        (Some(block), None) if block.zone_flags.len() == block.children => {
-            edit.remove_statement(block.statement);
-        }
-        (Some(block), None) => {
-            for span in &block.zone_flags {
-                edit.remove_statement(*span);
-            }
-        }
-        (None, Some(zone)) => {
-            let statements: Vec<String> = flags(zone).iter().map(|f| statement(f)).collect();
-            let text = format!("{} = {{ {} }}", keys::EFFECT, statements.join(" "));
-            let last = edit
-                .entity()?
-                .children()
-                .last()
-                .ok_or_else(|| edit.parse_error(0, "empty system"))?
-                .span()
-                .end;
-            insert_after(edit, last, &text);
-        }
-        (None, None) => {}
-    }
+    let new_flags = zone.map(flags).unwrap_or_default();
+    rewrite_flags(edit, |flag, _| is_zone_flag(flag), &new_flags)?;
     Ok((description, (id, previous)))
 }
 
@@ -108,59 +75,5 @@ fn describe(system: &SystemNode, zone: Option<&FeZone>) -> String {
         (false, true) => format!("Add fallen empire zone to {label}"),
         (true, false) => format!("Remove fallen empire zone from {label}"),
         (_, _) => format!("Change fallen empire zone of {label}"),
-    }
-}
-
-pub(super) fn statement(flag: &str) -> String {
-    format!("{SET_STAR_FLAG} = {flag}")
-}
-
-/// The `effect` block of the statement being edited, as spans: the CST borrows the
-/// buffer the splices then rewrite, so nothing but offsets is carried out of it.
-pub(super) struct Block {
-    /// `effect = { … }`, key through closing brace.
-    pub statement: Span,
-    /// The braces and what stands between them.
-    pub value: Span,
-    /// How many statements the block holds.
-    pub children: usize,
-    pub last_child: Option<Span>,
-    /// The `set_star_flag` statements naming a flag `of_interest` picks, in file order.
-    pub zone_flags: Vec<Span>,
-}
-
-pub(super) fn block(edit: &Edit, of_interest: fn(&str) -> bool) -> Result<Option<Block>, OpError> {
-    let Some(node) = edit.entity()?.find(keys::EFFECT, &edit.buf) else {
-        return Ok(None);
-    };
-    if node.scalar_span().is_some() {
-        return Err(edit.parse_error(node.span().start, "effect is not a block"));
-    }
-    Ok(Some(Block {
-        statement: node.span(),
-        value: node.value_span(),
-        children: node.children().len(),
-        last_child: node.children().last().map(|child| child.span()),
-        zone_flags: node
-            .find_all(SET_STAR_FLAG, &edit.buf)
-            .filter(|flag| flag.scalar_str(&edit.buf).is_some_and(of_interest))
-            .map(|flag| flag.span())
-            .collect(),
-    }))
-}
-
-/// Write `text` as the block's last statement, in the shape the one standing last is
-/// written in. A flag removed from that place is removed up to where it ended, so a
-/// statement written there follows what stands before it.
-pub(super) fn append(edit: &mut Edit, block: &Block, text: &str) {
-    match block.last_child {
-        Some(child) if starts_line(edit, child.start) => {
-            let indent = edit.indent(child.start);
-            let line = [&indent[..], text.as_bytes(), b"\n"].concat();
-            let at = edit.line_end(child.end);
-            edit.insert_lines(at, line);
-        }
-        Some(child) => edit.insert(child.end, format!(" {text}").into_bytes()),
-        None => edit.insert(block.value.start + 1, format!(" {text}").into_bytes()),
     }
 }

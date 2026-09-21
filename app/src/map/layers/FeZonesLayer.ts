@@ -3,6 +3,12 @@ import type { FeKind } from "../../generated/FeKind";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
 import { linkedTo, takesCustomLinks } from "../../lib/feLinks";
+import {
+  HOME_STAR_RADIUS,
+  SATELLITE_RADIUS,
+  SPAWN_GHOST_ALPHA_FRACTION,
+  spawnSatellites,
+} from "../../lib/feSpawnGhosts";
 import { FE_ZONE_RADIUS, feKindLabel, feZoneCentre } from "../../lib/feZone";
 import { GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
@@ -10,7 +16,7 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { MoveGhost } from "../moveGhosts";
 import { FE_ZONE_RING_HIT_PX } from "../picking/zones";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { laneStyleAt, tinted } from "./LanesLayer";
+import { type LaneStyle, laneStyleAt, tinted } from "./LanesLayer";
 import type { DragState, MapLayer } from "./MapLayer";
 
 /** The zones' hue: a magenta no other layer uses, so a ring reads as the mod's, not the game's. */
@@ -79,7 +85,7 @@ function dashedRing(g: Graphics): void {
 function drawLinks(
   g: Graphics,
   linked: ReadonlyArray<{ x: number; y: number }>,
-  camScale: number,
+  style: LaneStyle,
 ): void {
   g.clear();
   for (const at of linked) {
@@ -88,7 +94,12 @@ function drawLinks(
     const t = FE_ZONE_RADIUS / d;
     g.moveTo(at.x * t, at.y * t).lineTo(at.x, at.y);
   }
-  g.stroke({ ...tinted(laneStyleAt(camScale), RING.color, LINK_TINT), pixelLine: true });
+  g.stroke({ ...style, pixelLine: true });
+}
+
+/** The links' look at `camScale`: the lanes' own, quantised by zoom, leaning toward the ring's hue. */
+function linkStyleAt(camScale: number): LaneStyle {
+  return tinted(laneStyleAt(camScale), RING.color, LINK_TINT);
 }
 
 /** The ring and the line back to the anchor, drawn about the centre. */
@@ -131,120 +142,6 @@ function centreText(kind: FeKind): string {
   return kind === "random" ? FE_ZONE_TITLE : `${FE_ZONE_TITLE}\n${feKindLabel(kind)}`;
 }
 
-/** How much fainter the spawn ghosts are drawn than the ring that carries them. */
-const SPAWN_GHOST_ALPHA_FRACTION = 1 / 3;
-
-/** The home star's radius: hollow, so the centre text stays legible drawn over it. */
-const HOME_STAR_RADIUS = 3.5;
-const SATELLITE_RADIUS = 1.4;
-const SATELLITE_MIN_DISTANCE = 15;
-const SATELLITE_DISTANCE_SPAN = 10;
-
-/** One satellite the mod spawns: its bearing range from the home, and the satellite it lanes to. */
-interface Satellite {
-  readonly angle: readonly [number, number];
-  /** Index into the kind's list, or `null` for the home. */
-  readonly parent: number | null;
-}
-
-const sat = (min: number, max: number, parent: number | null = null): Satellite => ({
-  angle: [min, max],
-  parent,
-});
-
-/**
- * What the mod spawns around each kind's home, from its own event: every satellite 15 to 25
- * from the home at these bearings, the first tier laned to the home and the rest to the
- * satellite that spawned before it. The random kind gets three short chains.
- */
-const SPAWN_TREES: Readonly<Record<FeKind, readonly Satellite[]>> = {
-  materialist: [
-    sat(0, 20),
-    sat(100, 120),
-    sat(50, 70, 1),
-    sat(150, 170, 1),
-    sat(250, 260),
-    sat(200, 220, 4),
-    sat(300, 320, 4),
-  ],
-  spiritualist: [
-    sat(60, 80),
-    sat(0, 20, 0),
-    sat(120, 140, 0),
-    sat(240, 260),
-    sat(180, 200, 3),
-    sat(300, 320, 3),
-  ],
-  xenophile: [
-    sat(0, 20),
-    sat(100, 120),
-    sat(50, 70, 1),
-    sat(150, 170, 1),
-    sat(250, 270),
-    sat(200, 220, 4),
-    sat(300, 320, 4),
-  ],
-  xenophobe: [
-    sat(40, 50),
-    sat(0, 10, 0),
-    sat(80, 90, 0),
-    sat(120, 130, 2),
-    sat(200, 210),
-    sat(160, 170, 4),
-    sat(240, 250, 4),
-    sat(280, 290, 6),
-    sat(320, 330),
-  ],
-  machine: [sat(0, 30), sat(90, 120), sat(180, 210), sat(270, 300)],
-  hive: [
-    sat(40, 50),
-    sat(0, 10, 0),
-    sat(80, 90, 0),
-    sat(160, 170),
-    sat(120, 130, 3),
-    sat(200, 210, 3),
-    sat(280, 290),
-    sat(240, 250, 6),
-    sat(320, 330, 6),
-  ],
-  random: [
-    sat(0, 20),
-    sat(60, 80, 0),
-    sat(120, 140),
-    sat(180, 200, 2),
-    sat(240, 260),
-    sat(300, 320, 4),
-  ],
-};
-
-/** A tiny deterministic generator: the same seed always yields the same sequence. */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Spreads an id's bits before it seeds the generator, so consecutive ids do not draw alike. */
-function hashId(id: number): number {
-  let x = Math.imul(id ^ (id >>> 16), 0x45d9f3b);
-  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
-  return (x ^ (x >>> 16)) >>> 0;
-}
-
-/** The kind's satellites placed about the home, one roll of the mod's ranges, seeded by anchor id. */
-function spawnSatellites(id: number, kind: FeKind): Array<{ x: number; y: number }> {
-  const rand = mulberry32(hashId(id));
-  return SPAWN_TREES[kind].map(({ angle: [min, max] }) => {
-    const bearing = ((min + rand() * (max - min)) * Math.PI) / 180;
-    const distance = SATELLITE_MIN_DISTANCE + rand() * SATELLITE_DISTANCE_SPAN;
-    return { x: Math.cos(bearing) * distance, y: -Math.sin(bearing) * distance };
-  });
-}
-
 /**
  * The zone's ghost system, stable for a given anchor id: a hollow home star at the centre and
  * the kind's satellites, each joined by a faint ghost lane to the home or to its parent.
@@ -252,23 +149,13 @@ function spawnSatellites(id: number, kind: FeKind): Array<{ x: number; y: number
 function drawSpawnGhosts(g: Graphics, id: number, kind: FeKind): void {
   g.clear();
   const satellites = spawnSatellites(id, kind);
-  SPAWN_TREES[kind].forEach(({ parent }, i) => {
-    const from = parent === null ? { x: 0, y: 0 } : satellites[parent];
-    g.moveTo(from.x, from.y).lineTo(satellites[i].x, satellites[i].y);
-  });
+  for (const { x, y, from } of satellites) g.moveTo(from.x, from.y).lineTo(x, y);
   g.stroke({ color: RING.color, alpha: 1, pixelLine: true });
   for (const at of satellites) g.circle(at.x, at.y, SATELLITE_RADIUS).fill(RING.color);
   g.circle(0, 0, HOME_STAR_RADIUS).stroke({ color: RING.color, alpha: 1, pixelLine: true });
 }
 
-/**
- * Paint a Galaxy's fallen empire zones: a dashed ring of empty space at the point each anchor
- * system names, tied to its anchor by a line, with the ring's name and the kind's full label
- * at the centre, over a faint ghost of the home star and satellites the mod spawns there. A
- * ring the mod offered rather than the user placed is drawn as a ghost until a change makes it
- * theirs. A zone that takes custom connections has a dashed line from each linked system to
- * the nearest point of its ring.
- */
+/** Paint a Galaxy's fallen empire zones: each anchor's ring, tie, tag, spawn ghosts and links. */
 export class FeZonesLayer implements MapLayer {
   readonly id = "feZones" as const;
   readonly container = new Container();
@@ -294,6 +181,7 @@ export class FeZonesLayer implements MapLayer {
   private selection: ReadonlySet<number> = new Set();
   private hovered: number | null = null;
   private camScale = 1;
+  private linkStyle = linkStyleAt(1);
   private readonly scale = { x: 1, y: 1 };
 
   constructor() {
@@ -307,7 +195,7 @@ export class FeZonesLayer implements MapLayer {
     const prev = this.ctx;
     this.ctx = ctx;
     this.systems = ctx.systems;
-    if (ctx.systems === prev.systems && drawn(ctx) === drawn(prev)) return;
+    if (ctx.galaxy === prev.galaxy && drawn(ctx) === drawn(prev)) return;
     for (const id of [...this.rings.keys()]) {
       if (!ctx.systems.has(id)) this.remove(id);
     }
@@ -315,11 +203,6 @@ export class FeZonesLayer implements MapLayer {
   }
 
   applyDelta(d: GalaxyDelta): void {
-    // The lines read the linked systems' positions, so the layer's own view takes the delta too.
-    const systems = new Map(this.systems);
-    for (const id of d.removed ?? []) systems.delete(id);
-    for (const s of d.systems) systems.set(s.id, s);
-    this.systems = systems;
     for (const id of d.removed ?? []) this.remove(id);
     for (const s of d.systems) this.place(s);
     const touched = new Set([...(d.removed ?? []), ...d.systems.map((s) => s.id)]);
@@ -335,6 +218,9 @@ export class FeZonesLayer implements MapLayer {
     if (cam.scale === this.camScale) return;
     this.camScale = cam.scale;
     for (const band of this.bands.values()) band.band = FE_ZONE_RING_HIT_PX / cam.scale;
+    const style = linkStyleAt(cam.scale);
+    if (style.color === this.linkStyle.color && style.alpha === this.linkStyle.alpha) return;
+    this.linkStyle = style;
     for (const id of this.links.keys()) {
       const anchor = this.systems.get(id);
       if (anchor?.fe_zone)
@@ -432,7 +318,7 @@ export class FeZonesLayer implements MapLayer {
       const at = this.ghosts.get(s.id) ?? s;
       return { x: at.x - centre.x, y: at.y - centre.y };
     });
-    drawLinks(g, ends, this.camScale);
+    drawLinks(g, ends, this.linkStyle);
     g.position.set(centre.x, centre.y);
     g.alpha = alpha;
     this.linkedIds.set(

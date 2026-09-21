@@ -10,35 +10,6 @@ import type { SearchHit } from "../generated/SearchHit";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { documentCapabilities, supports } from "../lib/capabilities";
-import {
-  linkedAnchors,
-  linkedTo as linkedToFeZone,
-  linkRefusal,
-  unlinkRefusal,
-} from "../lib/feLinks";
-import {
-  feZoneBlocked,
-  feZoneCentre,
-  feZoneRefusal,
-  firstFreeDirection,
-  newFeZone,
-  NO_FREE_DIRECTION,
-  snapFeZone,
-} from "../lib/feZone";
-import {
-  ALL_CLANS_PLACED,
-  BASES_NEED_LANES,
-  baseInitializer,
-  basesBeside,
-  baseSite,
-  clanHomes,
-  clanInUse,
-  clanSystems,
-  homeInitializer,
-  missingBaseSites,
-  nextFreeClan,
-  placeBases,
-} from "../lib/marauder";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
 import {
   linkedPairs,
@@ -51,6 +22,8 @@ import {
   useGalaxyStore,
 } from "./galaxyStore";
 import { useDetailsStore } from "./detailsStore";
+import { feZoneActions } from "./editorStore.feZones";
+import { marauderActions } from "./editorStore.marauders";
 import { useEntityStore } from "./entityStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -62,6 +35,7 @@ import { PREF_KEYS } from "./prefKeys";
 import { isFiniteNumber, readPref, writePref } from "./prefs";
 
 export type { MapTooltip, MapTooltipLine, MapTooltipText } from "./mapChromeStore";
+export { NEEDS_A_SYSTEM, NOTHING_TO_FIT } from "./editorStore.feZones";
 
 export interface Focus {
   id: number;
@@ -258,6 +232,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   fitNonce: 0,
   fitSelectionNonce: 0,
   lastNebulaRadius: readPref(PREF_KEYS.nebulaRadius, DEFAULT_NEBULA_RADIUS, isFiniteNumber),
+  ...feZoneActions(set, get),
+  ...marauderActions(set, get),
 
   async select(id) {
     await selectSystems(id === null ? [] : [id]);
@@ -409,87 +385,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return true;
   },
 
-  async addMarauderClanAt(point) {
-    const clan = nextFreeClan(systems());
-    if (clan === null) {
-      useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
-      return false;
-    }
-    const home = await addSystem(point, homeInitializer(clan));
-    if (home === null) return false;
-    if (!(await get().addMarauderBases(home))) return false;
-    useMapChromeStore.getState().showLayer("marauders");
-    await get().select(home);
-    return true;
-  },
-
-  async makeMarauderClan(home, bases) {
-    const clan = nextFreeClan(systems());
-    if (clan === null) {
-      useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
-      return false;
-    }
-    const lanes = systems().get(home)?.lanes ?? [];
-    if (!bases.every((base) => lanes.some((lane) => lane.to === base))) {
-      useFileSessionStore.getState().setError(BASES_NEED_LANES);
-      return false;
-    }
-    const [second, third] = [...bases].sort((a, b) => a - b);
-    const op: Op = {
-      type: "SetInitializers",
-      entries: [
-        { id: home, initializer: homeInitializer(clan) },
-        { id: second, initializer: baseInitializer(clan, 2) },
-        { id: third, initializer: baseInitializer(clan, 3) },
-      ],
-    };
-    if (!(await get().applyOp(op))) return false;
-    useMapChromeStore.getState().showLayer("marauders");
-    return true;
-  },
-
-  async removeMarauderClan(clan) {
-    const entries = clanSystems(clan, systems()).map((id) => ({ id, initializer: null }));
-    if (entries.length === 0) return false;
-    return get().applyOp({ type: "SetInitializers", entries });
-  },
-
-  async renumberMarauderClan(home, to) {
-    const system = systems().get(home);
-    if (!system?.marauder || !("home" in system.marauder)) return false;
-    if ((clanHomes(systems()).get(to) ?? []).some((id) => id !== home)) {
-      useFileSessionStore.getState().setError(clanInUse(to));
-      return false;
-    }
-    const entries = [
-      { id: home, initializer: homeInitializer(to) },
-      ...basesBeside(system, systems()).map((base) => ({
-        id: base.id,
-        initializer: baseInitializer(to, baseSite(base)),
-      })),
-    ];
-    return get().applyOp({ type: "SetInitializers", entries });
-  },
-
-  async addMarauderBases(home) {
-    const system = systems().get(home);
-    if (!system?.marauder || !("home" in system.marauder)) return false;
-    const clan = system.marauder.home;
-    const added: number[] = [];
-    for (const site of placeBases(
-      system,
-      missingBaseSites(system, systems()),
-      systems().values(),
-    )) {
-      const id = await addSystem(site, baseInitializer(clan, site.site));
-      if (id === null) return false;
-      added.push(id);
-    }
-    if (added.length === 0) return true;
-    const lanes: Op = { type: "AddLanes", from: home, to: added.map((id) => [id, false]) };
-    return get().applyOp(lanes);
-  },
-
   async removeSystem(id) {
     const system = systems().get(id);
     if (!system) return;
@@ -498,81 +393,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const what = lanes === 0 ? name : `${name} and its ${lanes} lane${lanes === 1 ? "" : "s"}`;
     if (!(await confirm(`Delete ${what}?`, { title: name, kind: "warning" }))) return;
     await get().applyOp({ type: "RemoveSystem", id });
-  },
-
-  async setFeZone(id, zone) {
-    return get().applyOp({ type: "SetFeZone", id, zone });
-  },
-
-  async addFeZone(id) {
-    const anchor = systems().get(id);
-    if (!anchor) return false;
-    const direction = firstFreeDirection(anchor, systems());
-    if (direction === null) {
-      useFileSessionStore.getState().setError(NO_FREE_DIRECTION);
-      return false;
-    }
-    return placeFeZone(id, newFeZone(direction));
-  },
-
-  async addFeZoneAt(point) {
-    const anchor = nearestSystem(point);
-    if (!anchor) {
-      useFileSessionStore.getState().setError(NEEDS_A_SYSTEM);
-      return false;
-    }
-    const snapped = snapFeZone(anchor, point);
-    const blocked = feZoneBlocked(feZoneCentre(anchor, snapped), systems(), anchor.id);
-    if (blocked !== null) {
-      const name = useGalaxyStore.getState().systemName;
-      useFileSessionStore.getState().setError(feZoneRefusal(blocked, (s) => name(s.id)));
-      return false;
-    }
-    const zone = anchor.fe_zone ?? newFeZone(snapped.direction, snapped.distance);
-    return placeFeZone(anchor.id, { ...zone, ...snapped, preferred: true });
-  },
-
-  async moveFeZone(id, direction, distance) {
-    const zone = systems().get(id)?.fe_zone;
-    if (!zone) return false;
-    return get().setFeZone(id, { ...zone, direction, distance, preferred: true });
-  },
-
-  async promptFeZoneFit() {
-    let candidates: number;
-    try {
-      candidates = await ipc.feZoneCandidateCount();
-    } catch (e) {
-      useFileSessionStore.getState().setError(ipc.errorMessage(e));
-      return;
-    }
-    let automatic = 0;
-    for (const system of systems().values()) {
-      if (system.fe_zone !== null && !system.fe_zone.preferred) automatic += 1;
-    }
-    set({ feZoneFitPrompt: { candidates, automatic } });
-  },
-
-  cancelFeZoneFit() {
-    if (get().feZoneFitPrompt) set({ feZoneFitPrompt: null });
-  },
-
-  async fitFeZones(count) {
-    set({ feZoneFitPrompt: null });
-    let entries: Array<[number, FeZone | null]>;
-    try {
-      entries = await ipc.feZoneFit(count);
-    } catch (e) {
-      useFileSessionStore.getState().setError(ipc.errorMessage(e));
-      return;
-    }
-    if (entries.length === 0) {
-      useFileSessionStore.getState().setError(NOTHING_TO_FIT);
-      return;
-    }
-    if (await get().applyOp({ type: "SetFeZones", entries })) {
-      useMapChromeStore.getState().showLayer("feZones");
-    }
   },
 
   async updateEmpireCounts() {
@@ -596,61 +416,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   async unlinkWormholePair(a, b) {
     if (sharedWormholePair(systems(), a, b) === null) return false;
     return get().applyOp({ type: "SetWormholePair", a, b, pair: null });
-  },
-
-  linkToFeZone(anchor, system) {
-    return get().linkToFeZoneAll(anchor, [system]);
-  },
-
-  async linkToFeZoneAll(anchor, ids) {
-    const a = systems().get(anchor);
-    if (!a) return false;
-    const linkable: number[] = [];
-    let refusal: string | null = null;
-    for (const id of [...new Set(ids)].sort((x, y) => x - y)) {
-      const s = systems().get(id);
-      if (!s) continue;
-      const why = linkRefusal(a, s, systemName);
-      if (why === null) linkable.push(id);
-      else refusal ??= why;
-    }
-    if (linkable.length === 0) {
-      if (refusal !== null) useFileSessionStore.getState().setError(refusal);
-      return false;
-    }
-    const linked = [...linkedToFeZone(a, systems()).map((l) => l.id), ...linkable];
-    return setFeLinks(anchor, linked);
-  },
-
-  async unlinkFromFeZone(anchor, system) {
-    const [a, s] = [systems().get(anchor), systems().get(system)];
-    if (!a || !s) return false;
-    const refusal = unlinkRefusal(a, s, systemName);
-    if (refusal !== null) {
-      useFileSessionStore.getState().setError(refusal);
-      return false;
-    }
-    const linked = linkedToFeZone(a, systems())
-      .map((l) => l.id)
-      .filter((id) => id !== system);
-    return setFeLinks(anchor, linked);
-  },
-
-  async resetFeLinks(anchor) {
-    if (!systems().has(anchor)) return false;
-    return setFeLinks(anchor, []);
-  },
-
-  async dropDanglingFeLinks(system) {
-    const s = systems().get(system);
-    if (!s) return false;
-    const taken = new Set(linkedAnchors(s, systems()).map((a) => a.fe_link.id));
-    const to = s.fe_link.to.filter((id) => taken.has(id));
-    if (to.length === s.fe_link.to.length) return true;
-    return get().applyOp({
-      type: "SetFeLinkFlags",
-      entries: [[system, { ...s.fe_link, to }]],
-    });
   },
 
   async connectSelected() {
@@ -732,7 +497,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 let session = 0;
 
 /** Adds one nameless system with `initializer` at a point, answering its id, or null when refused. */
-async function addSystem(
+export async function addSystem(
   point: { x: number; y: number },
   initializer: string,
 ): Promise<number | null> {
@@ -748,22 +513,6 @@ async function addSystem(
   };
   if (!(await useEditorStore.getState().applyOp(op))) return null;
   return lastEdited[0]?.id ?? null;
-}
-
-export const NEEDS_A_SYSTEM =
-  "Add a system first. A fallen empire zone belongs to one of your systems.";
-
-/** What the status bar says when a fit would change no zone. */
-export const NOTHING_TO_FIT = "The automatic fallen empire zones already stand as asked.";
-
-/** Writes a zone by hand, shows the rings, and selects the anchor so the inspector shows it. */
-async function placeFeZone(id: number, zone: FeZone): Promise<boolean> {
-  const editor = useEditorStore.getState();
-  if (!(await editor.setFeZone(id, zone))) return false;
-
-  useMapChromeStore.getState().showLayer("feZones");
-  await editor.select(id);
-  return true;
 }
 
 /** The system nearest a world point, wherever it is; null for a galaxy with none. */
@@ -784,7 +533,7 @@ export function nearestSystem(
 }
 
 /** Runs one edit command through the queue and applies its result, on `applyOp`'s terms. */
-async function runEdit(edit: () => Promise<EditResult>): Promise<boolean> {
+export async function runEdit(edit: () => Promise<EditResult>): Promise<boolean> {
   const reclassifies = await enqueue(async () => {
     try {
       const result = await edit();
@@ -800,16 +549,11 @@ async function runEdit(edit: () => Promise<EditResult>): Promise<boolean> {
   return true;
 }
 
-/** Writes the zone's whole set of linked systems, and shows the rings once it has. */
-async function setFeLinks(anchor: number, linked: number[]): Promise<boolean> {
-  const applied = await runEdit(() => ipc.setFeLinks(anchor, linked));
-  if (applied) useMapChromeStore.getState().showLayer("feZones");
-  return applied;
-}
-
-/** A system's name for a refusal, as the status bar shows it. */
-function systemName(s: SystemNode): string {
-  return useGalaxyStore.getState().systemName(s.id);
+/** Reports `refusal` and resolves false, or runs `apply` when there is none. */
+export function refuseOr(refusal: string | null, apply: () => Promise<boolean>): Promise<boolean> {
+  if (refusal === null) return apply();
+  useFileSessionStore.getState().setError(refusal);
+  return Promise.resolve(false);
 }
 
 let edits: Promise<unknown> = Promise.resolve();
@@ -848,7 +592,7 @@ async function stepHistory(
   if (reclassifies) await reclassify();
 }
 
-function systems() {
+export function systems() {
   return useGalaxyStore.getState().systems;
 }
 

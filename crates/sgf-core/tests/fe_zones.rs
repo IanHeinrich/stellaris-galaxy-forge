@@ -4,6 +4,7 @@
 
 use sgf_core::document::Document;
 use sgf_core::format::scenario::fe_zone::{self, FeDirection, FeKind, FeZone, Site};
+use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode};
@@ -228,39 +229,39 @@ fn an_anchor_moved_so_its_centre_leaves_the_map_is_reported() {
 #[test]
 fn a_candidate_keeps_clear_of_the_core_the_l_cluster_the_edge_systems_and_other_zones() {
     let e = |id| (id, automatic(FeDirection::E));
-    assert_eq!(fe_zone::candidates(&[site(1, 200.0, 0.0)]), [e(1)]);
+    assert_eq!(placement::candidates(&[site(1, 200.0, 0.0)]), [e(1)]);
 
     // Inside the core guide the first three directions fall short of 130; south-west is
     // the first to clear it.
     assert_eq!(
-        fe_zone::candidates(&[site(1, 100.0, 0.0)]),
+        placement::candidates(&[site(1, 100.0, 0.0)]),
         [(1, automatic(FeDirection::Sw))]
     );
 
     // On the L-Cluster guide every direction stays within 100 of it.
-    assert_eq!(fe_zone::candidates(&[site(1, -380.0, -420.0)]), []);
+    assert_eq!(placement::candidates(&[site(1, -380.0, -420.0)]), []);
     assert_eq!(
-        fe_zone::candidates(&[site(1, -320.0, -420.0)]),
+        placement::candidates(&[site(1, -320.0, -420.0)]),
         [(1, automatic(FeDirection::S))]
     );
 
     // East of a system near the west edge lies past 470.
     assert_eq!(
-        fe_zone::candidates(&[site(1, -440.0, 0.0)]),
+        placement::candidates(&[site(1, -440.0, 0.0)]),
         [(1, automatic(FeDirection::Se))]
     );
 
     // A system in the ring blocks the direction; the next clear one is taken, and the
     // second system keeps its own centre a zone's width from the first.
     assert_eq!(
-        fe_zone::candidates(&[site(1, 200.0, 0.0), site(2, 160.0, 10.0)]),
+        placement::candidates(&[site(1, 200.0, 0.0), site(2, 160.0, 10.0)]),
         [
             (1, automatic(FeDirection::S)),
             (2, automatic(FeDirection::Se))
         ]
     );
     assert_eq!(
-        fe_zone::candidates(&[site(1, 200.0, 0.0), site(2, 200.0, 50.0)]),
+        placement::candidates(&[site(1, 200.0, 0.0), site(2, 200.0, 50.0)]),
         [e(1), (2, automatic(FeDirection::Se))]
     );
 
@@ -275,7 +276,7 @@ fn a_candidate_keeps_clear_of_the_core_the_l_cluster_the_edge_systems_and_other_
         site(2, 200.0, 50.0),
     ];
     assert_eq!(
-        fe_zone::candidates(&sites),
+        placement::candidates(&sites),
         [(2, automatic(FeDirection::Se))]
     );
 }
@@ -292,11 +293,11 @@ fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
 #[test]
 fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_ones() {
     let session = open();
-    let sites = fe_zone::sites(&session.graph);
-    assert_eq!(fe_zone::candidate_count(&sites), 9);
-    let entries = fe_zone::fit(&sites, usize::MAX);
+    let sites = placement::sites(&session.graph);
+    assert_eq!(placement::candidate_count(&sites), 9);
+    let entries = placement::fit(&sites, usize::MAX);
     assert_eq!(entries.len(), 9);
-    assert_eq!(entries, fe_zone::fit(&sites, 9));
+    assert_eq!(entries, placement::fit(&sites, 9));
     assert!(entries.iter().all(|(id, zone)| {
         *id != 9 && *id != 12 && zone.as_ref().is_some_and(|z| !z.preferred)
     }));
@@ -313,7 +314,7 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
     round_trip(open(), Op::SetFeZones { entries });
 
     let session = open_with_automatic_9();
-    let entries = fe_zone::fit(&fe_zone::sites(&session.graph), usize::MAX);
+    let entries = placement::fit(&placement::sites(&session.graph), usize::MAX);
     assert_eq!(
         entries.iter().find(|(id, _)| *id == 9),
         Some(&(9, Some(automatic(FeDirection::E)))),
@@ -323,12 +324,12 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
     assert!(entries.iter().all(|(id, _)| *id != 12));
 
     let mut session = open();
-    let entries = fe_zone::fit(&fe_zone::sites(&session.graph), usize::MAX);
+    let entries = placement::fit(&placement::sites(&session.graph), usize::MAX);
     session
         .apply(Op::SetFeZones { entries })
         .expect("fit applies");
     assert!(
-        fe_zone::fit(&fe_zone::sites(&session.graph), usize::MAX).is_empty(),
+        placement::fit(&placement::sites(&session.graph), usize::MAX).is_empty(),
         "a second pass has nothing left to change"
     );
 }
@@ -338,18 +339,18 @@ fn fitting_a_count_spreads_that_many_candidates_away_from_the_placed_zones() {
     let mut session = open();
     session
         .apply(Op::SetFeZones {
-            entries: fe_zone::fit(&fe_zone::sites(&session.graph), usize::MAX),
+            entries: placement::fit(&placement::sites(&session.graph), usize::MAX),
         })
         .expect("fill the map with automatic zones");
-    let sites = fe_zone::sites(&session.graph);
-    let cleared = fe_zone::fit(&sites, 0);
+    let sites = placement::sites(&session.graph);
+    let cleared = placement::fit(&sites, 0);
     assert_eq!(cleared.len(), 9, "{cleared:?}");
     assert!(cleared.iter().all(|(_, zone)| zone.is_none()));
 
     let session = open();
-    let sites = fe_zone::sites(&session.graph);
-    let two = fe_zone::fit(&sites, 2);
-    assert_eq!(two, fe_zone::fit(&sites, 2), "deterministic");
+    let sites = placement::sites(&session.graph);
+    let two = placement::fit(&sites, 2);
+    assert_eq!(two, placement::fit(&sites, 2), "deterministic");
     assert_eq!(two.len(), 2, "{two:?}");
     assert!(
         two.iter()
@@ -377,7 +378,7 @@ fn fitting_a_count_spreads_that_many_candidates_away_from_the_placed_zones() {
         site(4, 200.0, -100.0),
     ];
     assert_eq!(
-        fe_zone::fit(&sites, 1),
+        placement::fit(&sites, 1),
         [(3, Some(automatic(FeDirection::E)))]
     );
 
@@ -390,7 +391,7 @@ fn fitting_a_count_spreads_that_many_candidates_away_from_the_placed_zones() {
         site(4, -300.0, 50.0),
     ];
     assert_eq!(
-        fe_zone::fit(&sites, 2),
+        placement::fit(&sites, 2),
         [
             (2, Some(automatic(FeDirection::E))),
             (4, Some(automatic(FeDirection::E)))

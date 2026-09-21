@@ -57,6 +57,8 @@ pub(crate) const WORMHOLE_FLAG_PREFIX: &str = "painted_galaxy_wormhole_";
 pub(crate) const EMPIRE_CLUSTER: &str = "empire_cluster";
 /// The game's own initializer for Sol, the one a Sol seat is meant to stand on.
 pub const SOL_INITIALIZER: &str = "sol_system_initializer";
+/// The mod's Steam Workshop item.
+pub const WORKSHOP_ID: &str = "3532904115";
 
 /// The starting initializers the mod's minimum asks of a spawn system, one per residue.
 const BASIC_INITIALIZERS: [&str; 6] = [

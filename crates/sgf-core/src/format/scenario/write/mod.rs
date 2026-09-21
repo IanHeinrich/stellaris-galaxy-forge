@@ -15,10 +15,11 @@
 //! scenario's own keys, [`spawn`] for the weights the generator seats empires by and
 //! [`fe_zone`] for the star flags Paint a Galaxy seats fallen empires by, [`fe_link`]
 //! for the ones it lays a fallen empire's hyperlanes by and [`wormhole`] for the ones
-//! it joins a wormhole pair by.
+//! it joins a wormhole pair by; [`flags`] rewrites a feature's flags for those three.
 
 mod fe_link;
 mod fe_zone;
+mod flags;
 mod header;
 mod lanes;
 mod nebula;

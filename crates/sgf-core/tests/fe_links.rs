@@ -6,6 +6,7 @@
 use sgf_core::document::Document;
 use sgf_core::format::scenario::fe_link::{self, FeLinkFlags};
 use sgf_core::format::scenario::fe_zone;
+use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode, Severity};
@@ -652,19 +653,19 @@ fn a_fit_keeps_an_automatic_zone_that_systems_are_linked_to() {
     let text = std::fs::read_to_string(FIXTURE).expect("read the fixture");
     let (before, after) = text.split_once(PREFERRED_FLAG).expect("system 9's flag");
     let mut session = from_text(&format!("{before}{after}"));
-    let sites = fe_zone::sites(&session.graph);
-    assert_eq!(fe_zone::fit(&sites, 0), [(9, None)]);
+    let sites = placement::sites(&session.graph);
+    assert_eq!(placement::fit(&sites, 0), [(9, None)]);
 
     session
         .apply(set_links(9, &[3]))
         .expect("link Sol to the automatic zone");
-    let sites = fe_zone::sites(&session.graph);
+    let sites = placement::sites(&session.graph);
     assert!(
-        fe_zone::fit(&sites, 0).is_empty(),
+        placement::fit(&sites, 0).is_empty(),
         "a linked zone is the map author's: {:?}",
-        fe_zone::fit(&sites, 0)
+        placement::fit(&sites, 0)
     );
-    let filled = fe_zone::fit(&sites, usize::MAX);
+    let filled = placement::fit(&sites, usize::MAX);
     assert!(filled.iter().all(|(id, _)| *id != 9), "{filled:?}");
     let issues = session.validate();
     let blocked = coded(&issues, IssueCode::FeZoneBlocked);
