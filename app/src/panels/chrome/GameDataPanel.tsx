@@ -108,7 +108,7 @@ function watchingNote(watching: number): string {
   return `Watching ${watching} ${watching === 1 ? "folder" : "folders"}`;
 }
 
-/** The status pill in the top bar and its menu: install, reload, unload and the start preference. */
+/** The status pill at the status bar's right end and its menu: install, reload, unload and the start preference. */
 export function GameDataPanel() {
   const status = useGameDataStore((s) => s.status);
   const summary = useGameDataStore((s) => s.summary);
@@ -133,7 +133,7 @@ export function GameDataPanel() {
 
   return (
     <div className={`game-data-pill ${status}`}>
-      <Menu label={pillLabel(status, summary, progress)} title={title} align="right">
+      <Menu label={pillLabel(status, summary, progress)} title={title} align="right" up>
         {(dismiss) => (
           <>
             <div className="menu-section">Install</div>

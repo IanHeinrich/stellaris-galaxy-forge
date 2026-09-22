@@ -10,10 +10,10 @@ import { InitializerBrowser } from "./panels/initializers/Browser";
 import { browseInitializers } from "./panels/initializers/entry";
 import { confirmRemoveNebula } from "./panels/inspector/nebula";
 import { Dock } from "./panels/chrome/Dock";
+import { EditMenu } from "./panels/chrome/EditMenu";
 import { FileMenu } from "./panels/chrome/FileMenu";
 import { PaintBadge } from "./panels/chrome/PaintBadge";
 import { PaintNotice } from "./panels/chrome/PaintNotice";
-import { GameDataPanel } from "./panels/chrome/GameDataPanel";
 import { HelpMenu } from "./panels/chrome/HelpMenu";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
 import { LayerToggles } from "./panels/chrome/LayerToggles";
@@ -31,6 +31,8 @@ import { OpenSave } from "./panels/file/OpenSave";
 import { SEARCH_INPUT_ID, Search } from "./panels/search/Search";
 import { StatusBar } from "./panels/chrome/StatusBar";
 import { Toolbar } from "./panels/chrome/Toolbar";
+import { ViewMenu } from "./panels/chrome/ViewMenu";
+import { TrafficLightInset, WindowControls } from "./panels/chrome/WindowControls";
 import {
   canGoBack,
   nudgeSelected,
@@ -65,7 +67,7 @@ function FileState() {
   }
   return (
     <>
-      <span className="file-name" title={path ?? undefined}>
+      <span className="file-name" title={path ?? undefined} data-tauri-drag-region>
         {fileName(path) || (title ?? "")}
         {dirty && (
           <span className="dirty-marker" title="Unsaved changes">
@@ -82,22 +84,27 @@ function FileState() {
 function TopBar() {
   const ready = useFileSessionStore((s) => s.status === "ready");
   return (
-    <header className="top-bar">
-      <FileMenu />
+    <header className="top-bar" data-tauri-drag-region>
+      <TrafficLightInset />
+      <img className="app-icon" src="/favicon.svg" alt="" data-tauri-drag-region />
+      <nav className="menu-bar" aria-label="Menus" data-tauri-drag-region>
+        <FileMenu />
+        <EditMenu />
+        <ViewMenu />
+        <HelpMenu />
+      </nav>
       {ready && (
         <>
           <FileState />
           <Toolbar />
         </>
       )}
-      <span className="spacer" />
       <Search />
-      <span className="spacer" />
+      <span className="spacer" data-tauri-drag-region />
       <LayerToggles />
       <LayersMenu />
-      <GameDataPanel />
-      <HelpMenu />
       <UpdateBadge />
+      <WindowControls />
     </header>
   );
 }

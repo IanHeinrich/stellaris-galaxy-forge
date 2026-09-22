@@ -98,8 +98,7 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       editor.requestFit();
       return true;
     case "fitSelection":
-      // In the game F is search; here it frames the selection, and searches when there is none.
-      if (editor.selection.length === 0 && editor.selectedNebula === null) effects.focusSearch();
+      if (editor.selection.length === 0 && editor.selectedNebula === null) editor.requestFit();
       else editor.fitSelection();
       return true;
     case "focusSearch":

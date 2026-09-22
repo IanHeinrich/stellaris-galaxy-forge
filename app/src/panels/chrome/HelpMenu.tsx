@@ -13,7 +13,7 @@ export function HelpMenu() {
   const busy = status === "checking" || status === "installing";
 
   return (
-    <Menu label="Help" align="right">
+    <Menu label="Help">
       {(dismiss) => (
         <>
           <div className="menu-section">Stellaris Galaxy Forge</div>

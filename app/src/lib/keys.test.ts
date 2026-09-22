@@ -19,11 +19,17 @@ describe("keys", () => {
     expect(keyAction(press("I", { shiftKey: true }), true)).toBeNull();
   });
 
-  it("F fits the selection and Home stays the whole-galaxy fit", () => {
-    expect(keyAction(press("f"), false)).toBe("fitSelection");
-    expect(keyAction(press("f", { shiftKey: true }), false)).toBeNull();
+  it("F focuses the search field as in the game, and / still does", () => {
+    expect(keyAction(press("f"), false)).toBe("focusSearch");
+    expect(keyAction(press("/"), false)).toBe("focusSearch");
     expect(keyAction(press("f", { ctrlKey: true }), false)).toBeNull();
     expect(keyAction(press("f"), true)).toBeNull();
+  });
+
+  it("Shift+F fits the selection and Home stays the whole-galaxy fit", () => {
+    expect(keyAction(press("F", { shiftKey: true }), false)).toBe("fitSelection");
+    expect(keyAction(press("F", { shiftKey: true, ctrlKey: true }), false)).toBeNull();
+    expect(keyAction(press("F", { shiftKey: true }), true)).toBeNull();
     expect(keyAction(press("Home"), false)).toBe("fit");
   });
 

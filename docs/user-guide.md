@@ -61,7 +61,9 @@ on the machine.
 With a document already open, Ctrl+O brings the same list back as a
 dialog and Ctrl+Shift+O goes straight to a file picker. The File menu at
 the left of the top bar holds the same actions, the four documents you
-opened last, "Reload from disk", and "Open save as scenario…".
+opened last, "Reload from disk", and "Open save as scenario…". The Edit
+and View menus beside it list undo, redo, select all, delete, the two
+fits and the dock, each with its key.
 
 While a document opens, a card names the phase it is in: reading the
 archive, building the galaxy, validating, and finishing.
@@ -74,14 +76,14 @@ status bar along the bottom.
 - Pan: hold the middle mouse button and drag, or hold W A S D or the
   arrow keys. A plain left drag on empty space does nothing.
 - Zoom: mouse wheel, centred on the pointer.
-- Home fits the whole galaxy in the window. F frames the selection, or
-  puts the cursor in the search box when nothing is selected.
-- Ctrl+K, or `/`, puts the cursor in the search box. It matches systems,
-  empires, planets, fleets and nebulae; `s:`, `e:`, `p:`, `f:` and `n:`
-  narrow it to one of those, and Tab cycles through them. The arrow keys
-  move through the results, Enter goes to one and the map glides to it,
-  Shift+Enter adds it to the selection without closing the list, and
-  Escape closes.
+- Home fits the whole galaxy in the window. Shift+F frames the
+  selection.
+- F, Ctrl+K or `/` puts the cursor in the search box, which widens while
+  you type. It matches systems, empires, planets, fleets and nebulae;
+  `s:`, `e:`, `p:`, `f:` and `n:` narrow it to one of those, and Tab
+  cycles through them. The arrow keys move through the results, Enter
+  goes to one and the map glides to it, Shift+Enter adds it to the
+  selection without closing the list, and Escape closes.
 
 Names appear as you zoom in, and further in each system draws what stands
 in it. Hovering a star highlights it and its details; hovering a lane
@@ -92,8 +94,8 @@ components, a badge counting the issues raised since the file was opened
 (click it for the Issues tab), what is selected, and a reminder of the
 mouse and key controls for the current state. On the right it shows the
 Steam Cloud badge where one applies, the time of the last save with the
-backup path on hover, and the document's date, game version and the
-version of the game data that was read.
+backup path on hover, the document's date and game version, and the game
+data button (see "Game data").
 
 On a Mac, read Cmd wherever Ctrl is written below.
 
@@ -136,7 +138,7 @@ while the map has focus, and dragging its left edge resizes it.
 - Ctrl+A selects every system.
 - The Empires and Points of interest tabs each have a "⊙" button per row
   that selects what the row names.
-- F frames the selection.
+- Shift+F frames the selection.
 - Escape clears the selection. In the Inspector it steps back one crumb
   first, and it closes a menu, a dialog or the initializer browser
   before it touches the selection.
@@ -270,11 +272,12 @@ enclaves. The number keys do the same: 1 hyperlanes, 2 systems, 3 names,
 4 system details, 5 empires, 6 bypasses, 7 points of interest, 8 nebulae
 and 9 issue highlights.
 
-The Layers menu at the right of the top bar holds every layer, in
-groups. A save offers hyperlanes, systems, star classes, names, system
-details and colonies under "Map"; empires, bypasses, points of interest
-with a row per kind, and nebulae under "Overlays"; and issue highlights
-under "Editing". "Reset to defaults" at the foot puts them all back.
+The chevron after the layer icons opens the Layers menu, which holds
+every layer, in groups. A save offers hyperlanes, systems, star classes,
+names, system details and colonies under "Map"; empires, bypasses,
+points of interest with a row per kind, and nebulae under "Overlays";
+and issue highlights under "Editing". "Reset to defaults" at the foot
+puts them all back, as does "Reset layers to defaults" in the View menu.
 
 Two guides sit under "Overlays" as well, on by default for a scenario
 and off for a save. "Map border" draws where the map ends: the ±500
@@ -306,10 +309,11 @@ map icons and empire, star and planet names come from your install,
 matching your DLC and mod set. Without an install to read, the map falls
 back to procedural stars and generated names.
 
-The button at the right of the top bar says what was read: the install,
-the playset in load order, and whatever could not be read or had to be
-chosen between. If the install is not found at first run, the app asks
-for it, and you can point it at a folder yourself or turn game data off.
+The button at the right end of the status bar says what was read: the
+install, the playset in load order, and whatever could not be read or
+had to be chosen between. If the install is not found at first run, the
+app asks for it, and you can point it at a folder yourself or turn game
+data off.
 
 ### Saving
 
@@ -430,10 +434,10 @@ installed, with a link to subscribe on the Steam Workshop, installed but
 not enabled in your playset, or enabled. The status keeps itself
 current, so subscribing while the app is open is enough.
 
-A scenario whose Paint a Galaxy layer is on carries a "Paint a Galaxy"
-badge beside its name in the top bar. The layer turns itself on for a
-file that already carries the mod's scripts or flags or the header Forge
-writes for it, for one that sits inside the mod's own
+A scenario whose Paint a Galaxy layer is on carries a "PaG" badge beside
+its name in the top bar, with the full wording on hover. The layer turns
+itself on for a file that already carries the mod's scripts or flags or
+the header Forge writes for it, for one that sits inside the mod's own
 `map/setup_scenarios` folder, for one you created with the checkbox
 ticked, and for one opened from the Paint a galaxy card. There is no
 switch for it otherwise. The badge warns when the mod (Steam Workshop

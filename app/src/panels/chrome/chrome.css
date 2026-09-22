@@ -166,6 +166,31 @@ button.master.init[aria-pressed="mixed"] {
   border-color: var(--border);
 }
 
+.menu-label.compact {
+  width: 22px;
+  padding: 0;
+  color: var(--fg-muted);
+}
+
+.menu-label.compact:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+.app-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.menu-bar {
+  display: flex;
+  align-items: center;
+}
+
+.menu-bar .menu-label {
+  height: 28px;
+}
+
 .menu-pop {
   position: absolute;
   top: 100%;
@@ -184,6 +209,23 @@ button.master.init[aria-pressed="mixed"] {
 .menu-pop.right {
   left: auto;
   right: 0;
+}
+
+.menu-pop.up {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 4px;
+  max-height: calc(100vh - var(--bar-h) - 40px);
+  overflow-y: auto;
+}
+
+/* The status bar clips what overflows it, so its menu hangs from the window's corner instead. */
+.status-bar .menu-pop.up {
+  position: fixed;
+  right: 8px;
+  bottom: 28px;
+  font-size: 13px;
+  white-space: normal;
 }
 
 /* The Layers menu outgrows the window on a scenario, so its body scrolls and its foot stays put.
@@ -488,6 +530,20 @@ button.master.init[aria-pressed="mixed"] {
   overflow-wrap: anywhere;
 }
 
+.game-data-pill {
+  flex: none;
+}
+
+.game-data-pill .menu-label {
+  height: 20px;
+  padding: 0 6px;
+  color: var(--fg-muted);
+}
+
+.game-data-pill .menu-label:hover:not(:disabled) {
+  color: var(--fg);
+}
+
 .game-data-pill .menu-label::before {
   content: "●";
   margin-right: 6px;
@@ -572,4 +628,39 @@ button.badge.paint-badge:hover {
 
 .paint-notice button.link {
   padding: 0;
+}
+
+.traffic-light-inset {
+  flex: none;
+  width: 68px;
+  align-self: stretch;
+}
+
+/* Windows-style caption buttons, flush with the bar's top-right corner. */
+.window-controls {
+  display: flex;
+  align-self: stretch;
+  margin-right: -10px;
+}
+
+.window-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  padding: 0;
+  color: var(--fg-muted);
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.window-controls button:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.window-controls button.close:hover {
+  color: #fff;
+  background: #c42b1c;
 }

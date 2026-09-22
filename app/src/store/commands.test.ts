@@ -79,15 +79,16 @@ describe("clearSelection", () => {
 });
 
 describe("fitSelection", () => {
-  it("frames the selection, and searches when there is none", () => {
+  it("frames the selection, and the whole galaxy when there is none", () => {
+    const fitted = useEditorStore.getState().fitNonce;
     run("fitSelection", false, effects);
-    expect(effects.focusSearch).toHaveBeenCalledTimes(1);
+    expect(useEditorStore.getState().fitNonce).toBe(fitted + 1);
+    expect(effects.focusSearch).not.toHaveBeenCalled();
 
     const framed = useEditorStore.getState().fitSelectionNonce;
     useEditorStore.setState({ selection: [1] });
     run("fitSelection", false, effects);
 
-    expect(effects.focusSearch).toHaveBeenCalledTimes(1);
     expect(useEditorStore.getState().fitSelectionNonce).toBe(framed + 1);
   });
 });

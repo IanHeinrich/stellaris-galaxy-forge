@@ -125,6 +125,26 @@ export function Search() {
   return ready ? <SearchPanel /> : null;
 }
 
+function SearchGlyph() {
+  return (
+    <svg
+      className="search-glyph"
+      viewBox="0 0 16 16"
+      width="14"
+      height="14"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+    >
+      <circle cx="7" cy="7" r="4.5" />
+      <path d="M10.4 10.4 14 14" />
+    </svg>
+  );
+}
+
 /** What the field can find, in the words of each document kind. */
 const PLACEHOLDER: Record<DocumentKind, string> = {
   save: "Search systems, empires, planets, fleets…",
@@ -199,11 +219,15 @@ function SearchPanel() {
     if (!add) close();
   };
 
+  const wide = open || query !== "";
+  const placeholder = kind === null ? "Search…" : PLACEHOLDER[kind];
+
   return (
-    <div className="search" ref={box}>
-      {!open && query === "" && (
+    <div className={wide ? "search wide" : "search"} ref={box}>
+      <SearchGlyph />
+      {!wide && (
         <kbd className="search-key" aria-hidden="true">
-          /
+          F
         </kbd>
       )}
       <input
@@ -211,7 +235,9 @@ function SearchPanel() {
         ref={input}
         type="search"
         className="palette-field"
-        placeholder={kind === null ? "Search…" : PLACEHOLDER[kind]}
+        placeholder={wide ? placeholder : ""}
+        aria-label="Search"
+        title={wide ? undefined : "Search (F)"}
         value={query}
         autoComplete="off"
         role="combobox"

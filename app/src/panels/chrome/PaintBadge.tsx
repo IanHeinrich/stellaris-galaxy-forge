@@ -6,6 +6,9 @@ import { usePaintModStore } from "../../store/paintModStore";
 import "./chrome.css";
 import { openPaintWorkshop } from "./paintMod";
 
+/** The badge's words in the bar; the full wording is its accessible name. */
+const SHORT = "PaG";
+
 /** `title`, with the size the header names it under appended as a second line; unchanged without one. */
 function withListedAs(title: string, name: string | null): string {
   return name === null ? title : `${title}\nListed in-game as ${name}`;
@@ -23,28 +26,30 @@ export function PaintBadge() {
   if (!paint) return null;
   const status = known ? paintModStatusCopy(paintMod) : PAINT_MOD_STATUS.enabled;
   const title = withListedAs(status.warn ? status.headline : PAINT_PROFILE_TITLE, name);
+  const short = status.warn ? `⚠ ${SHORT}` : SHORT;
   if (status.action === "subscribe") {
     return (
       <button
         type="button"
         className="badge warn paint-badge"
+        aria-label={status.badge}
         title={title}
         onClick={openPaintWorkshop}
       >
-        {status.badge}
+        {short}
       </button>
     );
   }
   if (status.warn) {
     return (
-      <span className="badge warn paint-badge" title={title}>
-        {status.badge}
+      <span className="badge warn paint-badge" aria-label={status.badge} title={title}>
+        {short}
       </span>
     );
   }
   return (
-    <span className="badge paint-badge" title={title}>
-      {status.badge}
+    <span className="badge paint-badge" aria-label={status.badge} title={title}>
+      {short}
     </span>
   );
 }
