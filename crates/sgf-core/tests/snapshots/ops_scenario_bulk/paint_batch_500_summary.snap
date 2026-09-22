@@ -1,0 +1,49 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Painted 500 systems
+systems: 791 -> 1291
+lane pairs added: 975
+issues: 2
+--- scenario
++++ scenario
+@@ -1930,4 +1930,1479 @@
+ 	nebula = { name = "Demons_Eye_Nebula" position = { x = -84.51 y = -308.84 } radius = 30 }
+ 	nebula = { name = "Zhakira_Patch" position = { x = -360.23 y = -263.14 } radius = 30 }
+ 	nebula = { name = "Weeping_Ghost_Nebula" position = { x = -30.52 y = -300.86 } radius = 25 }
++	system = { id = "791" name = "" position = { x = 1000 y = -200 } }
++	system = { id = "792" name = "" position = { x = 1010 y = -200 } }
++	system = { id = "793" name = "" position = { x = 1020 y = -200 } }
++	system = { id = "794" name = "" position = { x = 1030 y = -200 } }
++	system = { id = "795" name = "" position = { x = 1040 y = -200 } }
++	system = { id = "796" name = "" position = { x = 1050 y = -200 } }
++	system = { id = "797" name = "" position = { x = 1060 y = -200 } }
++	system = { id = "798" name = "" position = { x = 1070 y = -200 } }
++	system = { id = "799" name = "" position = { x = 1080 y = -200 } }
++	system = { id = "800" name = "" position = { x = 1090 y = -200 } }
++	system = { id = "801" name = "" position = { x = 1100 y = -200 } }
++	system = { id = "802" name = "" position = { x = 1110 y = -200 } }
++	system = { id = "803" name = "" position = { x = 1120 y = -200 } }
++	system = { id = "804" name = "" position = { x = 1130 y = -200 } }
++	system = { id = "805" name = "" position = { x = 1140 y = -200 } }
++	system = { id = "806" name = "" position = { x = 1150 y = -200 } }
++	system = { id = "807" name = "" position = { x = 1160 y = -200 } }
++	system = { id = "808" name = "" position = { x = 1170 y = -200 } }
++	system = { id = "809" name = "" position = { x = 1180 y = -200 } }
++	system = { id = "810" name = "" position = { x = 1190 y = -200 } }
++	system = { id = "811" name = "" position = { x = 1000 y = -190 } }
++	system = { id = "812" name = "" position = { x = 1010 y = -190 } }
++	system = { id = "813" name = "" position = { x = 1020 y = -190 } }
++	system = { id = "814" name = "" position = { x = 1030 y = -190 } }
++	system = { id = "815" name = "" position = { x = 1040 y = -190 } }
++	system = { id = "816" name = "" position = { x = 1050 y = -190 } }
++	system = { id = "817" name = "" position = { x = 1060 y = -190 } }
++	system = { id = "818" name = "" position = { x = 1070 y = -190 } }
++	system = { id = "819" name = "" position = { x = 1080 y = -190 } }
++	system = { id = "820" name = "" position = { x = 1090 y = -190 } }
++	system = { id = "821" name = "" position = { x = 1100 y = -190 } }
++	system = { id = "822" name = "" position = { x = 1110 y = -190 } }
++	system = { id = "823" name = "" position = { x = 1120 y = -190 } }
++	system = { id = "824" name = "" position = { x = 1130 y = -190 } }
+… 1442 more lines
