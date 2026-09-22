@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MESH_BETA, meshPairs, type MeshPoint } from "./mesh";
+import { betaOfSlider, MESH_BETA, meshPairs, sliderOfBeta, type MeshPoint } from "./mesh";
 
 function grid(n: number): MeshPoint[] {
   const points: MeshPoint[] = [];
@@ -76,5 +76,14 @@ describe("meshPairs", () => {
         expect(ids.has(a) && ids.has(b)).toBe(true);
       }
     }
+  });
+});
+
+describe("betaOfSlider", () => {
+  it("runs sparse to dense, puts the Gabriel graph mid-slider and inverts sliderOfBeta", () => {
+    expect(betaOfSlider(0)).toBe(MESH_BETA.sparse);
+    expect(betaOfSlider(1)).toBe(MESH_BETA.dense);
+    expect(sliderOfBeta(MESH_BETA.gabriel)).toBeCloseTo(0.2314, 4);
+    for (const v of [0.1, 0.5, 0.9]) expect(sliderOfBeta(betaOfSlider(v))).toBeCloseTo(v, 12);
   });
 });
