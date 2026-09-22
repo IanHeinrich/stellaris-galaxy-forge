@@ -22,6 +22,10 @@ a release is made.
   the window and double-click it to maximise. Minimise, maximise and
   close sit at its right end.
 
+### Removed
+
+- The New scenario dialog no longer links to the Paint a Galaxy website.
+
 ## [0.9.0] - 2026-09-22
 
 ### Added

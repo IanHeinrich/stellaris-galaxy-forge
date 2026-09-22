@@ -8,8 +8,6 @@ vi.mock("../../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
-import * as ipc from "../../api/ipc";
-import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
@@ -64,19 +62,17 @@ beforeEach(() => {
   usePaintModStore.setState({ ...usePaintModStore.getInitialState(), paintChoice: true });
 });
 
-describe("the three ways to start a scenario", () => {
-  it("offers each as a card, crediting paint-a-galaxy's author in the open", () => {
+describe("the two ways to start a scenario", () => {
+  it("offers each as a card", () => {
     const html = renderToStaticMarkup(<NewScenarioDialog />);
     expect(html).toContain("Blank canvas");
     expect(html).toContain("A galaxy from the game");
-    expect(html).toContain("Paint a galaxy");
-    expect(html).toContain("Download the scenario file");
     expect(html).toContain('role="radiogroup"');
   });
 
   it("marks only the chosen one", () => {
-    expect(checked(<RouteCards route="blank" onRoute={noop} />)).toEqual([true, false, false]);
-    expect(checked(<RouteCards route="paint" onRoute={noop} />)).toEqual([false, false, true]);
+    expect(checked(<RouteCards route="blank" onRoute={noop} />)).toEqual([true, false]);
+    expect(checked(<RouteCards route="game" onRoute={noop} />)).toEqual([false, true]);
   });
 
   it("moves the choice with the arrow keys, wrapping at both ends", () => {
@@ -84,11 +80,11 @@ describe("the three ways to start a scenario", () => {
     radiogroup(<RouteCards route="blank" onRoute={onRoute} />).props.onKeyDown(arrow("ArrowRight"));
     expect(onRoute).toHaveBeenCalledWith("game");
 
-    radiogroup(<RouteCards route="blank" onRoute={onRoute} />).props.onKeyDown(arrow("ArrowLeft"));
-    expect(onRoute).toHaveBeenLastCalledWith("paint");
-
-    radiogroup(<RouteCards route="paint" onRoute={onRoute} />).props.onKeyDown(arrow("ArrowDown"));
+    radiogroup(<RouteCards route="game" onRoute={onRoute} />).props.onKeyDown(arrow("ArrowRight"));
     expect(onRoute).toHaveBeenLastCalledWith("blank");
+
+    radiogroup(<RouteCards route="blank" onRoute={onRoute} />).props.onKeyDown(arrow("ArrowUp"));
+    expect(onRoute).toHaveBeenLastCalledWith("game");
   });
 });
 
@@ -174,55 +170,15 @@ describe("a galaxy from the game", () => {
   });
 
   it("says in two steps where that save comes from, with the Paint a Galaxy box under them", () => {
-    const html = renderToStaticMarkup(<RouteHelp route="game" />);
+    const html = renderToStaticMarkup(<RouteHelp />);
     expect(html).toContain("save on day one");
     expect(html).toContain("Open that save here as a scenario.");
     expect(html).toContain("For the Paint a Galaxy mod");
     expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
 
     usePaintModStore.setState({ paintChoice: false });
-    const unticked = renderToStaticMarkup(<RouteHelp route="game" />);
+    const unticked = renderToStaticMarkup(<RouteHelp />);
     expect(unticked.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
     expect(unticked).toContain('class="setup-warn" role="alert"');
-    expect(renderToStaticMarkup(<RouteHelp route="paint" />)).not.toContain(
-      "For the Paint a Galaxy mod",
-    );
-  });
-});
-
-describe("a painted galaxy", () => {
-  it("opens the site through the allowlisted link, and leaves the dialog open", () => {
-    const foot = <RouteFoot route="paint" blank={BLANK} />;
-    expect(renderToStaticMarkup(foot)).toContain("Open Paint a Galaxy in your browser");
-    button(foot, "Open Paint a Galaxy in your browser").props.onClick();
-
-    expect(ipc.openUrl).toHaveBeenCalledWith(PAINT_URL);
-    expect(useLayoutStore.getState().scenarioDialog).toBe(true);
-  });
-
-  it("credits the author and says to download and open the scenario file", () => {
-    const html = renderToStaticMarkup(<RouteHelp route="paint" />);
-    expect(html).toContain("by Oatmeal Problem");
-    expect(html).toContain("Download the scenario file");
-  });
-
-  it("picks a Paint a Galaxy file as painted, and closes once it is open", async () => {
-    const pickAndOpenScenario = vi.fn(async () => true);
-    useFileSessionStore.setState({ pickAndOpenScenario });
-
-    button(<RouteHelp route="paint" />, "Open a Paint a Galaxy file…").props.onClick();
-
-    await vi.waitFor(() => expect(useLayoutStore.getState().scenarioDialog).toBe(false));
-    expect(pickAndOpenScenario).toHaveBeenCalledWith("paint_a_galaxy");
-  });
-
-  it("stays open when nothing was opened: no file picked, or the discard refused", async () => {
-    const pickAndOpenScenario = vi.fn(async () => false);
-    useFileSessionStore.setState({ pickAndOpenScenario });
-
-    button(<RouteHelp route="paint" />, "Open a Paint a Galaxy file…").props.onClick();
-
-    await vi.waitFor(() => expect(pickAndOpenScenario).toHaveBeenCalledTimes(1));
-    expect(useLayoutStore.getState().scenarioDialog).toBe(true);
   });
 });

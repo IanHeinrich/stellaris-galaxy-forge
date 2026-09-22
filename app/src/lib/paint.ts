@@ -1,6 +1,6 @@
 /**
- * Paint a Galaxy: the site's address, its companion mod on the Steam Workshop, and the seats
- * its spawn script names.
+ * Paint a Galaxy: its companion mod on the Steam Workshop, and the seats its spawn script
+ * names.
  */
 
 import type { DocumentKind } from "../generated/DocumentKind";
@@ -11,13 +11,10 @@ import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemNode } from "../generated/SystemNode";
 import { isUnder } from "./paths";
 
-/** The published site; also the one address the shell's `open_url` allows. */
-export const PAINT_URL = "https://oatmealproblem.github.io/paint-a-galaxy/";
-
 /** The companion mod on the Steam Workshop, whose fixes a painted galaxy needs. */
 export const PAINT_MOD_WORKSHOP_ID = "3532904115";
 
-/** The mod's Workshop page; the other address the shell's `open_url` allows. */
+/** The mod's Workshop page; also allowlisted in the shell's `open_url`. */
 export const PAINT_WORKSHOP_URL = `https://steamcommunity.com/sharedfiles/filedetails/?id=${PAINT_MOD_WORKSHOP_ID}`;
 
 /**
