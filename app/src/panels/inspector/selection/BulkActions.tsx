@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { MESH_BETA } from "../../../lib/geometry/mesh";
+import { betaOfSlider, sliderOfBeta } from "../../../lib/geometry/mesh";
 import { CONNECT_ALL_MAX, useEditorStore } from "../../../store/editorStore";
 import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { clanMenuItem, nextFreeClan } from "../../../lib/marauder";
@@ -15,20 +15,6 @@ import {
   unlinkedPairs,
   useGalaxyStore,
 } from "../../../store/galaxyStore";
-
-const LOG_SPARSE = Math.log(MESH_BETA.sparse);
-const LOG_SPAN = Math.log(MESH_BETA.dense) - LOG_SPARSE;
-
-/** Slider position in [0, 1] to β, linear in log β so the Gabriel graph sits mid-slider. */
-function sliderToBeta(v: number): number {
-  if (v <= 0) return MESH_BETA.sparse;
-  if (v >= 1) return MESH_BETA.dense;
-  return Math.exp(LOG_SPARSE + v * LOG_SPAN);
-}
-
-function betaToSlider(beta: number): number {
-  return (Math.log(beta) - LOG_SPARSE) / LOG_SPAN;
-}
 
 /** The bulk lane buttons and the mesh row for the current selection; `afterRun` closes a hosting menu. */
 export function BulkActions({
@@ -203,8 +189,8 @@ function MeshRow({ afterRun, itemRole }: { afterRun?: () => void; itemRole?: "me
           min={0}
           max={1}
           step={0.01}
-          value={betaToSlider(meshBeta)}
-          onChange={(e) => setMeshBeta(sliderToBeta(Number(e.target.value)))}
+          value={sliderOfBeta(meshBeta)}
+          onChange={(e) => setMeshBeta(betaOfSlider(Number(e.target.value)))}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           aria-label="Mesh density"
