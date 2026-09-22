@@ -44,17 +44,6 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
           <>
             <p className="muted">{OPEN_NOT_FOR_PAINT}</p>
             <PaintChoice />
-            <label className="setup-check">
-              <input
-                type="checkbox"
-                checked={neverWarn}
-                onChange={(e) => setNeverWarn(e.currentTarget.checked)}
-              />
-              <span>
-                {NEVER_WARN}
-                <span className="setup-why">{NEVER_WARN_WHY}</span>
-              </span>
-            </label>
           </>
         ) : (
           <>
@@ -68,6 +57,16 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
       </div>
       <div className="open-dialog-foot">
         <div className="setup-actions">
+          {notForPaint && (
+            <label className="hint never-warn" title={NEVER_WARN_WHY}>
+              <input
+                type="checkbox"
+                checked={neverWarn}
+                onChange={(e) => setNeverWarn(e.currentTarget.checked)}
+              />
+              {NEVER_WARN}
+            </label>
+          )}
           <button type="button" onClick={cancel}>
             Cancel
           </button>

@@ -619,6 +619,12 @@ button.open-primary:hover:not([aria-disabled="true"]) {
   margin-right: auto;
 }
 
+.never-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .start-card {
   gap: 8px;
 }
