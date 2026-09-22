@@ -94,6 +94,21 @@ class UnionFind {
   }
 }
 
+/** How many connected components `edges` leave `points` in; an edge to a point not listed is skipped. */
+export function componentCount(
+  points: readonly MeshPoint[],
+  edges: readonly (readonly [number, number])[],
+): number {
+  const indexOf = new Map(points.map((p, i) => [p.id, i]));
+  const uf = new UnionFind(points.length);
+  for (const [a, b] of edges) {
+    const i = indexOf.get(a);
+    const j = indexOf.get(b);
+    if (i !== undefined && j !== undefined) uf.union(i, j);
+  }
+  return uf.components;
+}
+
 function dist2(a: Pt, b: Pt): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;

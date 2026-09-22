@@ -1,9 +1,12 @@
 import type { BrushTool } from "../../lib/brush/brushStroke";
 import type { MapInput, MapIntent, MapModel } from "./MapIntent";
 
-function inverse(tool: BrushTool): BrushTool {
-  return tool === "paint" ? "erase" : "paint";
-}
+const INVERSE: Record<BrushTool, BrushTool> = {
+  paint: "erase",
+  erase: "paint",
+  connect: "cut",
+  cut: "connect",
+};
 
 /**
  * A brush (ADR 0005): the left button lays one stroke from press to release, the middle button
@@ -50,7 +53,7 @@ export class BrushModel implements MapModel {
   }
 
   private toolAt(input: MapInput): BrushTool {
-    return input.alt ? inverse(this.tool) : this.tool;
+    return input.alt ? INVERSE[this.tool] : this.tool;
   }
 
   private down(input: MapInput, intent: MapIntent): void {

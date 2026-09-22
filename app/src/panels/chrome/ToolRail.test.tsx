@@ -67,6 +67,19 @@ describe("the tool rail", () => {
     expect(button("Erase systems")).toContain('aria-pressed="true"');
   });
 
+  it("offers Connect and Cut, with their keys, on a save as on a scenario", () => {
+    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
+    useToolStore.setState({ tool: "cut" });
+    expect(button("Connect lanes")).toContain('title="Connect lanes (C)"');
+    expect(button("Connect lanes")).toContain('aria-pressed="false"');
+    expect(button("Cut lanes")).toContain('title="Cut lanes (X)"');
+    expect(button("Cut lanes")).toContain('aria-pressed="true"');
+
+    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
+    expect(rail()).toContain("Connect lanes");
+    expect(rail()).toContain("Cut lanes");
+  });
+
   it("names the edit undo and redo would step", () => {
     useEditorStore.setState({
       history: { undo: [entry(1, "Move Sol"), entry(2, "Add lane")], redo: [entry(3, "Cut lane")] },
@@ -118,6 +131,19 @@ describe("the brush options", () => {
     const cut = options();
     expect(cut).toContain("limited by brush size");
     expect(cut).toContain('title="Distance between painted systems, in world units" value="38.3"');
+  });
+
+  it("give the connect brush its size and lane density, and the cut brush its size alone", () => {
+    useToolStore.setState({ tool: "connect", size: 60 });
+    const connect = options();
+    expect(connect).toContain('aria-label="Brush size" value="60"');
+    expect(connect).toMatch(/<input type="range"[^>]*aria-label="Lane density"/);
+    expect(connect).not.toMatch(/disabled=""[^>]*aria-label="Lane density"/);
+
+    useToolStore.setState({ tool: "cut" });
+    const cut = options();
+    expect(cut).toContain('aria-label="Brush size" value="60"');
+    expect(cut).not.toContain("Lane density");
   });
 
   it("give the erase brush its size, target and the specials toggle, which lanes mode disables", () => {

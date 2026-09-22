@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
 import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
@@ -6,7 +6,7 @@ import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useGalaxyVersion } from "../../../store/browserRows";
-import { laneCount, useGalaxyStore } from "../../../store/galaxyStore";
+import { islandCount, laneCount, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useIssuesStore } from "../../../store/issuesStore";
 import { useApplyOp } from "../../useApplyOp";
@@ -149,6 +149,7 @@ export function GalaxyView() {
     (s) => s.issues.find((issue) => issue.code === "header_empire_count") ?? null,
   );
   const requestFit = useEditorStore((s) => s.requestFit);
+  const joinIslands = useEditorStore((s) => s.joinIslands);
   const galaxy = useGalaxyStore((s) => s.galaxy);
   const header = useGalaxyStore((s) => s.header);
   const systems = useGalaxyStore((s) => s.systems);
@@ -164,6 +165,7 @@ export function GalaxyView() {
     : (galaxy?.bypasses.length ?? 0);
   const random = scenario ? randomBypassLine(placed) : null;
   const seatsLine = paint ? seatSummaryLine(seatSummary(systems.values())) : null;
+  const components = useMemo(() => islandCount(systems), [systems]);
   if (galaxy === null) return <Empty>Open a save to look at its galaxy.</Empty>;
   return (
     <>
@@ -184,7 +186,22 @@ export function GalaxyView() {
           <PropertyRow label="Empires">{countries.size}</PropertyRow>
           <PropertyRow label="Nebulae">{nebulae.length}</PropertyRow>
           <PropertyRow label="Bypasses">{bypasses}</PropertyRow>
-          <PropertyRow label="Components">{galaxy.components}</PropertyRow>
+          <PropertyRow label="Components">
+            {components}
+            {components > 1 && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  className="link"
+                  title="Link every separate cluster with the shortest hyperlanes that cross none"
+                  onClick={() => void joinIslands()}
+                >
+                  Join
+                </button>
+              </>
+            )}
+          </PropertyRow>
           <PropertyRow label="Radius">{galaxy.galaxy_radius}</PropertyRow>
           {kind === "scenario" && (
             <PropertyRow

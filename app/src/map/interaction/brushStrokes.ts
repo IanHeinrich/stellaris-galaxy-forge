@@ -1,4 +1,4 @@
-import type { Segment } from "../../lib/brush/lanes";
+import type { Pair, Segment } from "../../lib/brush/lanes";
 import { stampsAlong } from "../../lib/brush/stroke";
 import type { Pt } from "../../lib/geometry/pt";
 import { useEditorStore } from "../../store/editorStore";
@@ -32,8 +32,14 @@ function settingsFor(tool: BrushTool): BrushSettings {
 
 /** Where what a stroke would do lies on the map; a negative id is the stroke's own point. */
 export function previewOf(result: StrokeResult, systems: Systems): BrushPreview {
-  const empty: BrushPreview = { points: [], lanes: [], doomed: [], kept: [], cut: [] };
+  const empty: BrushPreview = { points: [], lanes: [], doomed: [], kept: [], cut: [], swept: [] };
   const at = (ids: readonly number[]) => ids.flatMap((id) => systems.get(id) ?? []);
+  const segments = (pairs: readonly Pair[]) =>
+    pairs.flatMap(([a, b]): Segment[] => {
+      const p = systems.get(a);
+      const q = systems.get(b);
+      return p && q ? [[p, q]] : [];
+    });
   switch (result.kind) {
     case "paint": {
       const end = (id: number): Pt | undefined =>
@@ -48,14 +54,9 @@ export function previewOf(result: StrokeResult, systems: Systems): BrushPreview 
     case "erase":
       return { ...empty, doomed: at(result.doomed), kept: at(result.kept) };
     case "cut":
-      return {
-        ...empty,
-        cut: result.lanes.flatMap(([a, b]): Segment[] => {
-          const p = systems.get(a);
-          const q = systems.get(b);
-          return p && q ? [[p, q]] : [];
-        }),
-      };
+      return { ...empty, cut: segments(result.lanes) };
+    case "connect":
+      return { ...empty, swept: at(result.swept), lanes: segments(result.pairs) };
   }
 }
 
@@ -68,6 +69,8 @@ function send(result: StrokeResult): Promise<boolean> {
       return editor.eraseStroke(result.doomed);
     case "cut":
       return editor.cutLanes(result.lanes);
+    case "connect":
+      return editor.connectStroke(result.pairs);
   }
 }
 

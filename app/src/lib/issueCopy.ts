@@ -52,7 +52,7 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
   disconnected: {
     title: "Galaxy split into unconnected pieces",
     why: "Your edits have broken the galaxy into more pieces than it had when the file opened. A fleet in one piece cannot reach the others.",
-    fix: "Draw a hyperlane between the pieces, or undo the lane you removed.",
+    fix: "Choose Join islands to link the pieces with the shortest hyperlanes that cross none, or undo the lane you removed.",
     detail: true,
   },
   nebula_membership: {

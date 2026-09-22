@@ -760,4 +760,24 @@ describe("BrushModel", () => {
     expect(model.busy()).toBe(false);
     expect(intent.calls).toEqual([["endBrush"], ["hoverBrush", "paint", 30, 30]]);
   });
+
+  it("the lane brushes stroke as the others do, and Alt turns Connect and Cut into each other", () => {
+    const intent = recorder();
+    const connect = new BrushModel("connect");
+    connect.handle(at("down", 10, 10), intent);
+    connect.handle(at("up", 10, 10), intent);
+    new BrushModel("connect").handle(at("down", 10, 10, { alt: true }), intent);
+    new BrushModel("cut").handle(at("down", 10, 10, { alt: true }), intent);
+    new BrushModel("cut").handle(at("move", 12, 12), intent);
+    new BrushModel("cut").handle(at("move", 12, 12, { alt: true }), intent);
+    expect(intent.calls).toEqual([
+      ["beginStroke", "connect", 10, 10],
+      ["commitStroke"],
+      ["hoverBrush", "connect", 10, 10],
+      ["beginStroke", "cut", 10, 10],
+      ["beginStroke", "connect", 10, 10],
+      ["hoverBrush", "cut", 12, 12],
+      ["hoverBrush", "connect", 12, 12],
+    ]);
+  });
 });

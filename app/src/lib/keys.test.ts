@@ -50,6 +50,16 @@ describe("keys", () => {
     expect(keyAction(press("b", { altKey: true }), false)).toBeNull();
   });
 
+  it("C picks the connect brush and X the cut brush, except while typing, with Shift or with a modifier", () => {
+    expect(keyAction(press("c"), false)).toBe("connectTool");
+    expect(keyAction(press("x"), false)).toBe("cutTool");
+    expect(keyAction(press("c"), true)).toBeNull();
+    expect(keyAction(press("X", { shiftKey: true }), false)).toBeNull();
+    expect(keyAction(press("c", { ctrlKey: true }), false)).toBeNull();
+    expect(keyAction(press("x", { ctrlKey: true }), false)).toBeNull();
+    expect(keyAction(press("x", { altKey: true }), false)).toBeNull();
+  });
+
   it("Tab collapses the dock, except while typing or with Shift", () => {
     expect(keyAction(press("Tab"), false)).toBe("toggleDock");
     expect(keyAction(press("Tab", { shiftKey: true }), false)).toBeNull();

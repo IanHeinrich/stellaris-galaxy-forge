@@ -61,6 +61,8 @@ export class InteractionController {
   private readonly selectModel: MapModel = new GestureModel();
   private readonly paintModel: MapModel = new BrushModel("paint");
   private readonly eraseModel: MapModel = new BrushModel("erase");
+  private readonly connectModel: MapModel = new BrushModel("connect");
+  private readonly cutModel: MapModel = new BrushModel("cut");
   private readonly brushes: BrushStrokes;
   private model: MapModel = this.selectModel;
   private readonly intent: MapIntent;
@@ -288,9 +290,11 @@ export class InteractionController {
         return this.paintModel;
       case "erase":
         return this.eraseModel;
-      case "select":
       case "connect":
+        return this.connectModel;
       case "cut":
+        return this.cutModel;
+      case "select":
         return this.selectModel;
     }
   }

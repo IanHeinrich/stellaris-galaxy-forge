@@ -19,6 +19,13 @@ a release is made.
   It can also cut only the hyperlanes it passes over.
 - Each brush stroke is one undo step. `[` and `]` change the brush size,
   and holding Alt swaps paint and erase.
+- A connect brush (C) links the systems it passes over with hyperlanes
+  that don't cross existing ones. It works on saves too.
+- A cut brush (X) removes the hyperlanes it passes over. It works on saves
+  too. Holding Alt swaps connect and cut.
+- Join islands links every separate cluster of systems into one galaxy
+  with the shortest hyperlanes that don't cross. It sits beside the
+  Components count in the Inspector and on the Issues tab.
 - Several selected systems in a scenario can be deleted at once.
 - A long selection has a filter box. "Deselect N matching" drops every
   system that matches it.
