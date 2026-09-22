@@ -626,6 +626,7 @@ button.open-primary:hover:not([aria-disabled="true"]) {
 }
 
 .never-warn-why {
+  font-size: 11px;
   margin: 0;
 }
 
