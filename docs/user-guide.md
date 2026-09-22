@@ -71,7 +71,8 @@ archive, building the galaxy, validating, and finishing.
 ### The map
 
 Once open, the galaxy fills the window with the dock on the right and a
-status bar along the bottom.
+status bar along the bottom. A narrow tool strip runs down the map's left
+edge. It holds the Select tool (V), with Undo and Redo at its foot.
 
 - Pan: hold the middle mouse button and drag, or hold W A S D or the
   arrow keys. A plain left drag on empty space does nothing.
@@ -236,8 +237,8 @@ Switch the Nebulae layer on to see them; it starts off.
 ### Undo, redo and the change log
 
 Every edit is undoable: Ctrl+Z undoes, Ctrl+Y (or Ctrl+Shift+Z) redoes,
-and the top bar has Undo and Redo buttons whose tooltips name the edit
-they would apply.
+and the tool strip on the map's left edge has Undo and Redo buttons whose
+tooltips name the edit they would apply.
 
 The Changes tab lists every edit applied since the document was opened,
 oldest first, with the undone ones greyed at the end. Click an entry to

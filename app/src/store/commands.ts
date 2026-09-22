@@ -8,6 +8,7 @@ import { useInitializerBrowserStore } from "./initializerBrowserStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
+import { useToolStore } from "./toolStore";
 
 export interface CommandEffects {
   focusSearch(): void;
@@ -56,6 +57,8 @@ function escape(inInput: boolean): void {
     layout.hideOpenDialog();
   } else if (chrome.contextMenu) {
     chrome.closeContextMenu();
+  } else if (useToolStore.getState().tool !== "select") {
+    useToolStore.getState().setTool("select");
   } else if (!useInspectorStore.getState().escape()) {
     void useEditorStore.getState().clearSelection();
   }
@@ -135,6 +138,9 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
         return false;
       }
       chrome.toggleGroup(action === "toggleScriptLayers" ? "scripts" : "initializers");
+      return true;
+    case "selectTool":
+      useToolStore.getState().setTool("select");
       return true;
   }
 }

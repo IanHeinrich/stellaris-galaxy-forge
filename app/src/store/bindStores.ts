@@ -10,12 +10,13 @@ import { noteReservedSpawns, useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
+import { toolAllowed, useToolStore } from "./toolStore";
 
 let bound = false;
 
 /**
  * Subscribes the stores that follow one another: what the open file decides for the
- * selection, the issues, the map chrome and the entities read from it, what a
+ * selection, the issues, the map chrome, the map's tool and the entities read from it, what a
  * source with nothing drawing decides for the inspector's sections filled from it, what
  * the dock's Issues tab borrows from the map, what each side of the game data owes
  * the other, and what a fresh read of the launcher says about the Paint a Galaxy mod.
@@ -31,6 +32,17 @@ export function bindStores(): void {
   followDetails();
   followScenarioInitializers();
   followPaintMod();
+  followTool();
+}
+
+// A tool the document in hand cannot take, or any tool once the document goes, falls back to Select.
+function followTool(): void {
+  useFileSessionStore.subscribe((state, previous) => {
+    if (state.status === previous.status && state.capabilities === previous.capabilities) return;
+    const { tool } = useToolStore.getState();
+    if (tool === "select") return;
+    if (state.status !== "ready" || !toolAllowed(tool)) useToolStore.setState({ tool: "select" });
+  });
 }
 
 // Game data landing, at start or on a reload, means the launcher's playset was read again, and

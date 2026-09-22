@@ -30,7 +30,8 @@ import { UpdateDialog } from "./panels/overlays/UpdateDialog";
 import { OpenSave } from "./panels/file/OpenSave";
 import { SEARCH_INPUT_ID, Search } from "./panels/search/Search";
 import { StatusBar } from "./panels/chrome/StatusBar";
-import { Toolbar } from "./panels/chrome/Toolbar";
+import { ToolOptions } from "./panels/chrome/ToolOptions";
+import { ToolRail } from "./panels/chrome/ToolRail";
 import { ViewMenu } from "./panels/chrome/ViewMenu";
 import { TrafficLightInset, WindowControls } from "./panels/chrome/WindowControls";
 import {
@@ -93,12 +94,7 @@ function TopBar() {
         <ViewMenu />
         <HelpMenu />
       </nav>
-      {ready && (
-        <>
-          <FileState />
-          <Toolbar />
-        </>
-      )}
+      {ready && <FileState />}
       <Search />
       <span className="spacer" data-tauri-drag-region />
       <LayerToggles />
@@ -205,8 +201,10 @@ function App() {
       <TopBar />
       <PaintNotice />
       <div className="main">
+        {status === "ready" && <ToolRail />}
         <div className="map-area">
           <MapCanvas />
+          {status === "ready" && <ToolOptions />}
           <ContextMenu />
           <MapTooltip />
           {status !== "ready" && <Launch />}

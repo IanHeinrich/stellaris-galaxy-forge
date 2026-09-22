@@ -20,7 +20,8 @@ export type KeyAction =
   | "inspectorBack"
   | "browseInitializers"
   | "toggleScriptLayers"
-  | "toggleInitializerLayers";
+  | "toggleInitializerLayers"
+  | "selectTool";
 
 /** A world offset that moves the selection one step across the screen. */
 export interface Nudge {
@@ -70,6 +71,7 @@ export function keyAction(e: KeyLike, inInput: boolean, canGoBack = false): KeyA
   if (e.key === "Delete") return "deleteSelection";
   if (e.key === "Tab" && !e.shiftKey) return "toggleDock";
   if (key === "i") return e.shiftKey ? "browseInitializers" : "issuesTab";
+  if (key === "v" && !e.shiftKey) return "selectTool";
   return null;
 }
 
