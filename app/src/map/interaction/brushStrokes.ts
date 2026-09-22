@@ -1,6 +1,7 @@
 import type { Pair, Segment } from "../../lib/brush/lanes";
 import { stampsAlong } from "../../lib/brush/stroke";
 import type { Pt } from "../../lib/geometry/pt";
+import type { Symmetry } from "../../lib/geometry/symmetry";
 import { useEditorStore } from "../../store/editorStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
@@ -81,6 +82,8 @@ function send(result: StrokeResult): Promise<boolean> {
  */
 export class BrushStrokes {
   private stroke: BrushStroke | null = null;
+  /** The symmetry the held stroke was begun with, which a change mid-stroke leaves alone. */
+  private held: Symmetry | null = null;
   private tool: BrushTool = "paint";
   private last: Pt | null = null;
   private at: { tool: BrushTool; x: number; y: number } | null = null;
@@ -98,10 +101,27 @@ export class BrushStrokes {
     this.drawCursor();
   }
 
-  /** Draws the circle where the pointer last was, at the current brush size. */
+  /** Draws the circle where the pointer last was, at the current brush size, and its symmetric copies. */
   drawCursor(): void {
     const at = this.at;
-    this.highlights.setBrushCursor(at && { ...at, r: useToolStore.getState().size / 2 });
+    const size = useToolStore.getState().size;
+    this.highlights.setBrushCursor(at && { ...at, r: size / 2, symmetry: this.symmetry() });
+  }
+
+  /** The symmetry guides, in every tool while symmetry is on. */
+  drawGuide(): void {
+    const symmetry = this.symmetry();
+    this.highlights.setSymmetryGuide(symmetry.kind === "off" ? null : symmetry);
+  }
+
+  private symmetry(): Symmetry {
+    return this.held ?? useToolStore.getState().symmetry;
+  }
+
+  private hold(symmetry: Symmetry | null): void {
+    this.held = symmetry;
+    this.drawGuide();
+    this.drawCursor();
   }
 
   begin(tool: BrushTool, x: number, y: number): void {
@@ -110,7 +130,9 @@ export class BrushStrokes {
     this.seq++;
     this.tool = tool;
     const seed = Math.floor(Math.random() * 2 ** 32);
-    this.stroke = new BrushStroke(settingsFor(tool), systems, grid, seed);
+    const settings = settingsFor(tool);
+    this.stroke = new BrushStroke(settings, systems, grid, seed);
+    this.hold(settings.symmetry);
     this.last = null;
     this.extend(x, y);
   }
@@ -135,6 +157,7 @@ export class BrushStrokes {
     if (!stroke) return;
     this.stopFrame();
     this.stroke = null;
+    this.hold(null);
     const result = stroke.result();
     this.draw(result);
     const seq = ++this.seq;
@@ -146,6 +169,7 @@ export class BrushStrokes {
   cancel(): void {
     this.seq++;
     this.stroke = null;
+    this.hold(null);
     this.stopFrame();
     this.clear();
   }

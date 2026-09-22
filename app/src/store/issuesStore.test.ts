@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Issue } from "../generated/Issue";
-import { OPEN_RESULT, SCENARIO_RESULT, editResult, gameDataSummary, systemNode } from "./fixture";
+import {
+  OPEN_RESULT,
+  SCENARIO_RESULT,
+  editResult,
+  gameDataSummary,
+  initializerView,
+  systemNode,
+} from "./fixture";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -275,5 +282,45 @@ describe("issuesStore", () => {
     });
     await open();
     expect(sizeMessages()).toEqual([]);
+  });
+});
+
+describe("the initializer limit note", () => {
+  const limited = () =>
+    useIssuesStore.getState().issues.filter((issue) => issue.code === "initializer_over_limit");
+
+  it("names the systems past an initializer's max_instances, and none for unlimited ones", async () => {
+    const systems = [
+      ...[0, 1, 2].map((id) => systemNode({ id, x: id, initializer: "distar_crystal_system" })),
+      ...[3, 4, 5, 6].map((id) => systemNode({ id, x: id, initializer: "basic_init_01" })),
+    ];
+    mocked.openSave.mockResolvedValue({
+      ...SCENARIO_RESULT,
+      issues: [],
+      galaxy: { ...SCENARIO_RESULT.galaxy, systems },
+    });
+    await open(SCENARIO_RESULT.path);
+    expect(limited()).toEqual([]);
+
+    useGameDataStore.setState({
+      initializers: [
+        initializerView({ name: "distar_crystal_system", max_instances: 2 }),
+        initializerView({ name: "basic_init_01" }),
+      ],
+    });
+    expect(limited()).toEqual([
+      {
+        severity: "warning",
+        code: "initializer_over_limit",
+        message: "3 systems use distar_crystal_system, which the game allows 2 times.",
+        systems: [0, 1, 2],
+      },
+    ]);
+
+    mocked.applyOp.mockResolvedValue(
+      editResult({ issues: [], delta: { systems: [], removed: [2] } }),
+    );
+    await useEditorStore.getState().applyOp({ type: "RemoveSystem", id: 2 });
+    expect(limited()).toEqual([]);
   });
 });

@@ -8,93 +8,39 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-22
+
 ### Added
 
-- Scenarios have a paint brush (B) that scatters systems as you drag and
-  can join them with hyperlanes.
-- A large paint brush paints more sparsely. One brush circle holds at most
-  about 60 systems.
-- An erase brush (E) removes the systems it passes over. Systems with a
-  spawn, an initializer or another special role are kept unless you ask.
-  It can also cut only the hyperlanes it passes over.
-- Each brush stroke is one undo step. `[` and `]` change the brush size,
-  and holding Alt swaps paint and erase.
-- A connect brush (C) links the systems it passes over with hyperlanes
-  that don't cross existing ones. It works on saves too.
-- A cut brush (X) removes the hyperlanes it passes over. It works on saves
-  too. Holding Alt swaps connect and cut.
-- Join islands links every separate cluster of systems into one galaxy
-  with the shortest hyperlanes that don't cross. It sits beside the
-  Components count in the Inspector and on the Issues tab.
-- Several selected systems in a scenario can be deleted at once.
-- A long selection has a filter box. "Deselect N matching" drops every
-  system that matches it.
-- A scenario system with no name reads "Random name" in the inspector.
-  Stellaris names it at random when the game starts.
+- Brushes for building galaxies by hand. In a scenario, Paint scatters
+  systems as you drag and joins them with hyperlanes, and Erase removes
+  them. Connect and Cut draw and remove hyperlanes in saves too. Each
+  stroke is one undo step.
+- Symmetry mirrors or rotates your edits about the galaxy centre, 2 to 8
+  ways. Adding, moving and deleting systems, lanes, initializers and
+  brush strokes all repeat. Pick it from the button under the tools.
+- Join islands links separate clusters of systems into one galaxy.
+- Delete several selected systems of a scenario at once.
+- A filter box for long selections.
 - The Issues panel warns when a scenario has far more systems than the
-  largest galaxy size the game and your mods offer. Very large galaxies
-  can make the game slow.
+  game's largest galaxy, or uses an initializer more times than the game
+  allows.
 
 ### Changed
 
-- The top bar is a single row. New Edit and View menus sit beside File
-  and Help, and each command shows its key.
-- F opens the search box, as it does in the game. Shift+F frames the
-  selection.
-- The search box is a small icon until you click it or press F.
-- The game data button moved to the right end of the status bar.
-- The Layers menu opens from the Layers button after the layer icons.
-- The Paint a Galaxy badge reads "PaG". Hover it for the full wording.
-- The top bar takes the place of the window's title bar. Drag it to move
-  the window and double-click it to maximise. Minimise, maximise and
-  close sit at its right end.
-- Undo and redo moved to a tool strip on the left edge of the map. V
-  returns to the select tool.
-- Dragging on empty space draws a selection box without holding Shift.
-- A fallen empire zone or a nebula can be dragged by its centre as well
-  as its ring.
-- The top bar shows the app's own icon.
-- The Open dialog is easier to read. The text is larger and brighter, and
-  empire flags replace the small colour dots.
-- The Open dialog's left column switches between All, Recent, Saves and
-  Scenarios. Ctrl+1 to 4 do the same.
-- Saves are listed under their empire by game date, with autosaves marked.
-- A panel on the right describes the selected save: its empire, version,
-  galaxy settings, difficulty, crisis and required DLC. For a scenario it
-  shows the systems, empire counts and galaxy options.
-- Open and Open as scenario sit at the bottom of the Open dialog and act on
-  the selected row. Open opens a save as a save without asking. Enter still
-  asks.
-- Open as scenario asks the Paint a Galaxy question before it goes on, as
-  the Open as dialog does. Before, a save taken as a scenario from the Open
-  list ignored the checkbox.
-- Scenarios in the Open dialog are tagged "PaG" or "Plain". Hover the tag
-  for the full wording. The panel on the right says the same.
-- A Paint a Galaxy scenario opens straight away while the mod is enabled.
-  While the mod is off, opening one warns that the map will break in-game,
-  and the panel on the right shows the same warning.
-- Opening a scenario that isn't for Paint a Galaxy asks first. Tick the box
-  to edit it for the mod.
-- Open for Paint a Galaxy sits beside Open for a scenario that isn't for
-  the mod. It opens the scenario for the mod without asking, unless the mod
-  is off.
-- Tick "Don't warn me again" to open those scenarios as they are. The
-  switch in the Help menu turns the warning back on.
-- Click a row to select it and double-click to open it. Hovering no longer
-  selects.
-
-### Removed
-
-- The New scenario dialog no longer links to the Paint a Galaxy website.
+- A tidier window. The top bar is one row with File, Edit, View and Help
+  menus, and it replaces the window's title bar. Tools, undo and redo sit
+  on a strip down the left of the map.
+- Dragging on empty space draws a selection box.
+- The Open dialog is rebuilt. Tabs split saves from scenarios, saves are
+  grouped by empire, and a details panel describes the selected file.
+- Opening a scenario handles Paint a Galaxy more clearly. It asks before
+  editing a plain scenario for the mod, and warns when the mod is off.
 
 ### Fixed
 
-- Painting, erasing and deleting systems stay quick in scenarios with
-  thousands of systems. Before, each stroke paused the editor, and
-  deleting every system froze it for over a minute.
-- Selecting every system in a large scenario is instant, and the map stays
-  smooth while they are selected.
-- Large scenarios open faster.
+- Large scenarios stay quick. They open faster, and painting, deleting
+  and selecting thousands of systems no longer freezes the editor.
 
 ## [0.9.0] - 2026-09-22
 

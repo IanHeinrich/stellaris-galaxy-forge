@@ -185,6 +185,36 @@ describe("brush settings", () => {
   });
 });
 
+describe("the symmetry toggle", () => {
+  it("M turns on four-fold rotation before any symmetry has been picked, then off again", () => {
+    expect(run("toggleSymmetry", false, effects)).toBe(true);
+    expect(tools().symmetry).toEqual({ kind: "rotate", n: 4 });
+    run("toggleSymmetry", false, effects);
+    expect(tools().symmetry).toEqual({ kind: "off" });
+  });
+
+  it("M brings back the symmetry last picked, which persists", async () => {
+    tools().setSymmetry({ kind: "mirror", axis: "y" });
+    tools().toggleSymmetry();
+    expect(tools().symmetry).toEqual({ kind: "off" });
+
+    vi.resetModules();
+    const fresh = (await import("./toolStore")).useToolStore;
+    expect(fresh.getState().symmetry).toEqual({ kind: "off" });
+    fresh.getState().toggleSymmetry();
+    expect(fresh.getState().symmetry).toEqual({ kind: "mirror", axis: "y" });
+  });
+
+  it("takes a stored symmetry from before the toggle as the one to bring back", async () => {
+    stored.set(PREF_KEYS.symmetry, JSON.stringify({ kind: "rotate", n: 6 }));
+    vi.resetModules();
+    const fresh = (await import("./toolStore")).useToolStore;
+    fresh.getState().toggleSymmetry();
+    fresh.getState().toggleSymmetry();
+    expect(fresh.getState().symmetry).toEqual({ kind: "rotate", n: 6 });
+  });
+});
+
 describe("the least spacing a brush size allows", () => {
   it("leaves a small brush free and widens a large one's spacing so its circle holds at most the cap", () => {
     expect(minSpacingFor(40)).toBe(SPACING_RANGE.min);

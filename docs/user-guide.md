@@ -75,7 +75,9 @@ status bar along the bottom. A narrow tool strip runs down the map's left
 edge. It holds the Select tool (V) and the Connect (C) and Cut (X) lane
 brushes, described under "Hyperlanes", with Undo and Redo at its foot. A
 scenario adds the Paint (B) and Erase (E) brushes, described under
-"Static galaxy scenarios".
+"Static galaxy scenarios". Below the tools, the Symmetry button (M)
+repeats your edits about the galaxy centre, as described under
+"Hyperlanes".
 
 - Pan: hold the middle mouse button and drag, or hold W A S D or the
   arrow keys. A plain left drag on empty space does nothing.
@@ -218,6 +220,36 @@ sets the circle's diameter, and `[` and `]` shrink and grow it. Holding
 Alt when you press turns a connect stroke into a cut and a cut into a
 connect. Esc drops a stroke in progress and a second Esc returns to
 Select.
+
+Symmetry repeats your edits about the galaxy centre. The Symmetry button
+below the tools shows the setting while it is on. Clicking it opens a menu
+to pick Off, a mirror left–right (↔) or top–bottom (↕), or a 2, 3, 4, 6 or
+8-fold rotation. The arrow keys move through the menu and Esc closes it. M
+turns symmetry off and back on as it last was. The first time, M turns on
+4-fold rotation. While symmetry is on, faint lines mark
+the mirror axis or the rotation's spokes in every tool.
+
+With symmetry on, each of these edits also applies to the matching system
+at every image, in one undo step:
+
+- Adding a system adds one at each image, with the same initializer and
+  spawn. A system added on the mirror axis or at the centre is added once.
+  No copy is added where a system already stands.
+- Moving systems, by dragging, nudging or typing a position, moves their
+  counterparts by the mirrored or turned distance. The drag shows them
+  moving with it.
+- Adding or cutting hyperlanes does the same between the counterparts. A
+  lane that is already there, or barred, is left alone.
+- Deleting or isolating systems takes their counterparts too, and the
+  question counts them.
+- Setting an initializer or a spawn sets it on the counterparts too. A
+  Sol seat, or one reserved for an empire, stays on the system you set it
+  on.
+
+A counterpart is the system within half a map unit of the image. Where
+there is none, the edit applies only where there is one. A brush shows a
+fainter copy of its circle at each image, and a connect or cut stroke
+works under every copy of the circle.
 
 A galaxy the lanes leave in several separate pieces shows a "Join"
 button beside Components in the Inspector, with nothing selected. It
@@ -518,6 +550,13 @@ remove. Each stroke is one step in Undo. `[` and `]` shrink and grow the
 brush, holding Alt when you press inverts it (paint erases, erase
 paints), Esc drops a stroke in progress and a second Esc returns to
 Select. The middle button and the wheel still pan and zoom.
+
+With symmetry on (see "Hyperlanes"), a paint stroke places a copy of
+every system at each image. The copies keep the spacing from each other
+too, so a stroke across the centre or a mirror axis leaves a gap there.
+The new lanes repeat exactly on every copy. A lane to a nearby system is
+added only when every copy has a system in the matching place. An erase
+stroke removes what every copy of the circle passes over.
 
 With two or more systems selected, Delete (or Backspace) or "Delete
 systems" in the selection's actions removes them all in one step, after

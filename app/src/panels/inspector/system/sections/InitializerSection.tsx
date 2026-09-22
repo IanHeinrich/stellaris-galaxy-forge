@@ -5,7 +5,7 @@ import { kindLabel } from "../../../../lib/special";
 import { useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { browseInitializers, NEEDS_GAME_DATA } from "../../../initializers/entry";
-import { useApplyOp } from "../../../useApplyOp";
+import { useApplySymmetricOp } from "../../../useApplyOp";
 import { Field, Section, SourceChip } from "../../parts";
 import { useEditableSystem } from "../editable";
 import { kindHover } from "./kindHover";
@@ -20,7 +20,7 @@ export const SEAT_INITIALIZER_HINT =
 /** Choosing what a system is: the browser with game data loaded, the raw name without it. */
 function InitializerEditor({ system }: { system: SystemNode }) {
   const ready = useGameDataStore((s) => s.status === "ready");
-  const applyOp = useApplyOp();
+  const applyOp = useApplySymmetricOp();
 
   if (!ready) {
     return (

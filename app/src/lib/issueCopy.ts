@@ -181,6 +181,12 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
     fix: "Nothing needs doing if the game runs well for you. Otherwise remove some systems.",
     detail: true,
   },
+  initializer_over_limit: {
+    title: "Initializer used more often than the game allows",
+    why: "The game limits how many systems may use this initializer. The systems past the limit may not get what it makes, or the game may place it only once.",
+    fix: "Give the extra systems another initializer.",
+    detail: false,
+  },
   marauder_home_duplicate: {
     title: "One marauder clan with two homes",
     why: "A marauder clan has one home, and more than one system here claims to be the same clan's. The clan spawns from only one of them.",

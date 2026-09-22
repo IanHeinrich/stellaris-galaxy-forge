@@ -9,7 +9,7 @@ import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useCountryName } from "../../../store/browserRows";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useOwnership } from "../../../store/ownership";
-import { useApplyOp } from "../../useApplyOp";
+import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
 import { Chip, Field, Section, SourceChip, Swatch } from "../parts";
 import { useEditableSystem } from "./editable";
 import { kindHover } from "./sections/kindHover";
@@ -23,7 +23,7 @@ const DAY_ONE_OWNER_TITLE =
 const ASSUMED_OWNER_TITLE = "A claim whose conditions this editor cannot judge is marked assumed.";
 
 function PositionSection({ system }: { system: SystemNode }) {
-  const applyOp = useApplyOp();
+  const applyOp = useApplySymmetricOp();
   const move = (x: number, y: number) => applyOp({ type: "MoveSystem", id: system.id, x, y });
   return (
     <div className="ins-position">

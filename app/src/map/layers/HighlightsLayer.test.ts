@@ -4,7 +4,7 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { newFeZone } from "../../lib/feZone";
 import { systemNode } from "../../test/builders";
 import { HighlightsLayer } from "./HighlightsLayer";
-import { childByLabel, drawOps, mapContext, mapNode, viewport } from "./fixture";
+import { childByLabel, drawOps, mapContext, mapNode, strokes, viewport } from "./fixture";
 
 /** An anchor at the origin whose ring lies east at 40, centred on (-40, 0), taking links under 5. */
 const ANCHOR: SystemNode = {
@@ -217,5 +217,51 @@ describe("the highlights layer's selection", () => {
 
     layer.setSelection([2]);
     expect(ringsOf(layer, "selectionRings")).toEqual([[100, 100]]);
+  });
+});
+
+describe("the highlights layer's symmetry guides", () => {
+  it("draws a mirror's axis to a scenario's corners and a rotation's spokes to a save's radius", () => {
+    const layer = drawn();
+    const guide = graphics(layer, "symmetryGuide");
+    expect(strokes(guide)).toEqual([]);
+
+    layer.setSymmetryGuide({ kind: "mirror", axis: "x" });
+    const corner = 500 * Math.SQRT2;
+    expect(strokedSegments(guide)).toEqual([[-corner, 0, corner, 0]]);
+
+    layer.rebuild(mapContext([ANCHOR], { kind: "save", radius: 300 }));
+    layer.setSymmetryGuide({ kind: "rotate", n: 4 });
+    expect(strokedSegments(guide)).toEqual([
+      [0, 0, 300, 0],
+      [0, 0, 0, 300],
+      [0, 0, -300, 0],
+      [0, 0, 0, -300],
+    ]);
+
+    layer.setSymmetryGuide(null);
+    expect(strokes(guide)).toEqual([]);
+  });
+
+  it("rings the brush circle's copies at each image, fainter than the one at the pointer", () => {
+    const layer = drawn();
+    layer.setBrushCursor({
+      tool: "paint",
+      x: 100,
+      y: 50,
+      r: 10,
+      symmetry: { kind: "rotate", n: 4 },
+    });
+    const centres = (op: { segments: number[][] }) => [
+      ...new Set(op.segments.map((seg) => `${seg[2]},${seg[3]}`)),
+    ];
+    const [pointer, copies] = strokes(graphics(layer, "brushCircle"));
+    expect(centres(pointer)).toEqual(["100,50"]);
+    expect(pointer.alpha).toBe(0.9);
+    expect(centres(copies)).toEqual(["-50,100", "-100,-50", "50,-100"]);
+    expect(copies.alpha).toBeLessThan(pointer.alpha!);
+
+    layer.setBrushCursor({ tool: "cut", x: 100, y: 50, r: 10, symmetry: { kind: "off" } });
+    expect(strokes(graphics(layer, "brushCircle"))).toHaveLength(1);
   });
 });

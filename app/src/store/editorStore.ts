@@ -9,6 +9,7 @@ import type { Pair } from "../lib/brush/lanes";
 import type { Pt } from "../lib/geometry/pt";
 import type { Op } from "../generated/Op";
 import type { SearchHit } from "../generated/SearchHit";
+import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { documentCapabilities, supports } from "../lib/capabilities";
@@ -34,6 +35,7 @@ import { useInspectorStore, type EntityRef } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useScriptsStore } from "./scriptsStore";
+import { symmetricIds, symmetricOp, symmetricSeat } from "./symmetricEdits";
 import { PREF_KEYS } from "./prefKeys";
 import { isFiniteNumber, readPref, writePref } from "./prefs";
 
@@ -227,6 +229,17 @@ export interface EditorState {
    * A reclassification a later edit takes over may still be settling when it resolves.
    */
   applyOp(op: Op): Promise<boolean>;
+  /** Applies `op` and, under the global symmetry, the same edit to every counterpart, as one edit. */
+  applySymmetric(op: Op): Promise<boolean>;
+  /**
+   * Sets the seat `seat` makes of system `id` and, under the global symmetry, the one it makes of
+   * each counterpart, as one edit. `seat` leaves a system it returns undefined for as it is, and
+   * a seat reserved for one empire goes on `id` alone.
+   */
+  setSeat(
+    id: number,
+    seat: (system: SystemNode) => SpawnScript | null | undefined,
+  ): Promise<boolean>;
   undo(): Promise<void>;
   redo(): Promise<void>;
   /** Undoes until the entry with `seq` is the last applied one. */
@@ -332,7 +345,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return;
     }
     if (!lane) return;
-    if (await get().applyOp({ type: "RemoveLane", a: lane.a, b: lane.b })) {
+    if (await get().applySymmetric({ type: "RemoveLane", a: lane.a, b: lane.b })) {
       set({ selectedLane: null });
     }
   },
@@ -343,7 +356,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return s ? [{ id, x: s.x + dx, y: s.y + dy }] : [];
     });
     if (moves.length === 0) return;
-    await get().applyOp(
+    await get().applySymmetric(
       moves.length === 1 ? { type: "MoveSystem", ...moves[0] } : { type: "MoveSystems", moves },
     );
   },
@@ -408,8 +421,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       spawn_weight: paint ? null : spawnWeight,
       spawn_script: paint ? enabledScriptFor(nextSystemId(systems().values())) : null,
     };
-    if (!(await get().applyOp(op))) return false;
-    const [added] = lastEdited;
+    if (!(await get().applySymmetric(op))) return false;
+    const added = nearestTo(lastEdited, x, y);
     if (added) await get().select(added.id);
     return true;
   },
@@ -417,6 +430,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   async removeSystem(id) {
     const system = systems().get(id);
     if (!system) return;
+    if (symmetricIds([id]).length > 1) {
+      await get().removeSystems([id]);
+      return;
+    }
     const name = useGalaxyStore.getState().systemName(id);
     const lanes = system.lanes.length;
     const what = lanes === 0 ? name : `${name} and its ${lanes} lane${lanes === 1 ? "" : "s"}`;
@@ -447,7 +464,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { selection } = get();
     if (selection.length > CONNECT_ALL_MAX) return;
     const lanes = unlinkedPairs(systems(), selection).map(([a, b]) => ({ a, b, bridge: false }));
-    if (lanes.length > 0) await get().applyOp({ type: "AddLanePairs", lanes });
+    if (lanes.length > 0) await get().applySymmetric({ type: "AddLanePairs", lanes });
   },
 
   async connectSelectedMesh() {
@@ -457,7 +474,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       b,
       bridge: false,
     }));
-    if (lanes.length > 0) await get().applyOp({ type: "AddLanePairs", lanes });
+    if (lanes.length > 0) await get().applySymmetric({ type: "AddLanePairs", lanes });
     chrome.setLanePreview(null);
   },
 
@@ -466,22 +483,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       id,
       false,
     ]);
-    if (to.length > 0) await get().applyOp({ type: "AddLanes", from: target, to });
+    if (to.length > 0) await get().applySymmetric({ type: "AddLanes", from: target, to });
   },
 
   async cutLanesBetweenSelected() {
     const lanes = linkedPairs(systems(), get().selection);
-    if (lanes.length > 0) await get().applyOp({ type: "RemoveLanePairs", lanes });
+    if (lanes.length > 0) await get().applySymmetric({ type: "RemoveLanePairs", lanes });
   },
 
   async cutLanesToSelected(target) {
     const to = linkedTo(systems(), target, get().selection);
-    if (to.length > 0) await get().applyOp({ type: "RemoveLanes", from: target, to });
+    if (to.length > 0) await get().applySymmetric({ type: "RemoveLanes", from: target, to });
   },
 
   async isolateSelected() {
     const ids = linkedSystems(systems(), get().selection);
-    if (ids.length > 0) await get().applyOp({ type: "IsolateSystems", ids });
+    if (ids.length > 0) await get().applySymmetric({ type: "IsolateSystems", ids });
   },
 
   async resetSelectedLaneLengths() {
@@ -494,6 +511,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   applyOp(op) {
     return runEdit(() => ipc.applyOp(op));
+  },
+
+  applySymmetric(op) {
+    return get().applyOp(symmetricOp(op));
+  },
+
+  async setSeat(id, seat) {
+    const system = systems().get(id);
+    const op = system && symmetricSeat(system, seat);
+    return op ? get().applyOp(op) : false;
   },
 
   async undo() {
@@ -661,6 +688,15 @@ async function reclassify(): Promise<void> {
   await data.refreshSpecial(alive);
   if (!alive()) return;
   await data.refreshScenarioOwners(alive);
+}
+
+/** Of `nodes`, the one nearest (x, y). */
+function nearestTo(nodes: readonly SystemNode[], x: number, y: number): SystemNode | undefined {
+  let best: SystemNode | undefined;
+  for (const n of nodes) {
+    if (!best || Math.hypot(n.x - x, n.y - y) < Math.hypot(best.x - x, best.y - y)) best = n;
+  }
+  return best;
 }
 
 /** The systems the last edit re-projected, read before a reclassification writes its own delta. */

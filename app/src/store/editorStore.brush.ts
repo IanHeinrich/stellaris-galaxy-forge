@@ -11,6 +11,7 @@ import { counted } from "../lib/text";
 import { runEdit, systems, type EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { islandCount, laneGraph } from "./galaxyStore";
+import { symmetricIds } from "./symmetricEdits";
 
 type BrushActions = Pick<
   EditorState,
@@ -73,7 +74,7 @@ export function brushActions(
     },
 
     async removeSystems(ids) {
-      const present = ids.filter((id) => systems().has(id));
+      const present = symmetricIds(ids.filter((id) => systems().has(id)));
       if (present.length === 0) return false;
       const lanes = distinctLanes(present);
       const what = counted(present.length, "system");

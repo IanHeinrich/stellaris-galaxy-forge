@@ -158,5 +158,8 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       return useToolStore.getState().setTool("connect");
     case "cutTool":
       return useToolStore.getState().setTool("cut");
+    case "toggleSymmetry":
+      useToolStore.getState().toggleSymmetry();
+      return true;
   }
 }

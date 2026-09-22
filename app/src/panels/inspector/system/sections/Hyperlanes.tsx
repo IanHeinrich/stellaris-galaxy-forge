@@ -11,7 +11,7 @@ import { useGalaxyVersion, useSystemName } from "../../../../store/browserRows";
 import { useGalaxyStore } from "../../../../store/galaxyStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { useInspectorStore } from "../../../../store/inspectorStore";
-import { useApplyOp } from "../../../useApplyOp";
+import { useApplyOp, useApplySymmetricOp } from "../../../useApplyOp";
 import {
   Chip,
   DrillLink,
@@ -77,7 +77,7 @@ function LaneRow({
  * its inverse would have to add a lane to a system that does not exist, so the core refuses it.
  */
 function CutLane({ a, b, missing }: { a: number; b: number; missing: boolean }) {
-  const applyOp = useApplyOp();
+  const applyOp = useApplySymmetricOp();
   if (missing) return <span />;
   return (
     <button

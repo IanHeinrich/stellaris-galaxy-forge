@@ -31,7 +31,7 @@ export function SystemMenu({
   frame: Frame;
 }) {
   const closeContextMenu = useMapChromeStore((s) => s.closeContextMenu);
-  const applyOp = useEditorStore((s) => s.applyOp);
+  const applySymmetric = useEditorStore((s) => s.applySymmetric);
   const connectSelectedTo = useEditorStore((s) => s.connectSelectedTo);
   const cutLanesToSelected = useEditorStore((s) => s.cutLanesToSelected);
   const removeMarauderClan = useEditorStore((s) => s.removeMarauderClan);
@@ -72,7 +72,7 @@ export function SystemMenu({
         <>
           <MenuItem
             disabled={!canIsolate}
-            run={() => applyOp({ type: "IsolateSystem", id: target.id })}
+            run={() => applySymmetric({ type: "IsolateSystem", id: target.id })}
           >
             Isolate
           </MenuItem>
@@ -112,7 +112,7 @@ export function SystemMenu({
           title={weighable.length === 0 ? NEEDS_INITIALIZER : undefined}
           run={() => {
             const op = spawnPointsOp(initializerTargets, systems, !weighted, paint);
-            if (op !== null) void applyOp(op);
+            if (op !== null) void applySymmetric(op);
           }}
         >
           {weighted ? "Remove spawn point" : "Set as spawn point"}

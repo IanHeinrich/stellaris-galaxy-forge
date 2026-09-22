@@ -1,6 +1,8 @@
 import type { Pt } from "../geometry/pt";
 import { blockersOf, PointGrid, type Blockers } from "./grid";
 import type { Rand } from "./random";
+import { copies, type Symmetry } from "../geometry/symmetry";
+import { SymmetricSpacing } from "./symmetricSpacing";
 
 /** The most points one stroke places. */
 export const SAMPLE_CAP = 1000;
@@ -16,6 +18,8 @@ export interface SamplerOptions {
   blockers: readonly Pt[] | Blockers;
   rand: Rand;
   cap?: number;
+  /** Each point is placed only where all its images fit too; the caller replicates them. */
+  symmetry?: Symmetry;
 }
 
 interface Placed extends Pt {
@@ -36,8 +40,9 @@ export class StrokeSampler {
   private readonly stamps: PointGrid;
   private readonly grid: PointGrid<Placed>;
   private readonly placed: Placed[] = [];
+  private readonly images: SymmetricSpacing | null;
 
-  constructor({ r, spacing, blockers, rand, cap = SAMPLE_CAP }: SamplerOptions) {
+  constructor({ r, spacing, blockers, rand, cap = SAMPLE_CAP, symmetry }: SamplerOptions) {
     this.r = r;
     this.spacing = spacing;
     this.rand = rand;
@@ -45,6 +50,10 @@ export class StrokeSampler {
     this.blockers = blockersOf(blockers, spacing);
     this.stamps = new PointGrid(r);
     this.grid = new PointGrid(spacing);
+    this.images =
+      symmetry && copies(symmetry) > 1
+        ? new SymmetricSpacing(symmetry, spacing, this.blockers)
+        : null;
   }
 
   /** Every point placed so far, in placement order. */
@@ -123,7 +132,8 @@ export class StrokeSampler {
     return (
       this.stamps.near(c.x, c.y, this.r) &&
       !this.grid.near(c.x, c.y, this.spacing, true) &&
-      !this.blockers.near(c.x, c.y, this.spacing, true)
+      !this.blockers.near(c.x, c.y, this.spacing, true) &&
+      (this.images?.fits(c) ?? true)
     );
   }
 
@@ -132,6 +142,7 @@ export class StrokeSampler {
     const p = { x: c.x, y: c.y, i };
     this.placed.push(p);
     this.grid.add(p);
+    this.images?.take(c);
     return i;
   }
 }

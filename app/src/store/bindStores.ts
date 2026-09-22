@@ -6,7 +6,12 @@ import { useEntityStore } from "./entityStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
-import { noteGalaxySize, noteReservedSpawns, useIssuesStore } from "./issuesStore";
+import {
+  noteGalaxySize,
+  noteInitializerLimits,
+  noteReservedSpawns,
+  useIssuesStore,
+} from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
@@ -126,6 +131,7 @@ function followScenarioInitializers(): void {
   });
   useGameDataStore.subscribe((state, previous) => {
     if (state.status !== previous.status || state.initializers !== previous.initializers) read();
+    if (state.initializers !== previous.initializers) noteInitializerLimits();
   });
 }
 

@@ -1,3 +1,4 @@
+import type { SpawnScript } from "../../../../../generated/SpawnScript";
 import type { SystemNode } from "../../../../../generated/SystemNode";
 import {
   PLAIN_SPAWN_KINDS,
@@ -12,8 +13,8 @@ import {
   weightedDescription,
   weightedScript,
 } from "../../../../../lib/paint";
+import { useEditorStore } from "../../../../../store/editorStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
-import { useApplyOp } from "../../../../useApplyOp";
 import { useEditableSystem } from "../../editable";
 import { openLocalClusterWorkshop, openReservedSpawnsWorkshop } from "../../../../chrome/paintMod";
 
@@ -26,13 +27,20 @@ function optionLabel(k: { key: string; label: string }, others: ReturnType<typeo
   return inUse ? `${k.label} · in use` : k.label;
 }
 
+/** `system`'s seat with its holder's weight turned `on`; none where its seat cannot carry one. */
+function reweighed(system: SystemNode, on: boolean): SpawnScript | undefined {
+  const script = system.spawn_script;
+  if (script === null || !canBeWeighted(script.paint_a_galaxy.kind)) return undefined;
+  return weightedScript(system, on);
+}
+
 /**
  * The seat a Paint a Galaxy spawn system offers, as its script names it, and whether it carries
  * the weight for its holder. The mod seats players by these kinds, so the kind is what a change
  * writes; the weight the script resolves to is the mod's to compute.
  */
 export function ScriptedSeat({ system }: { system: SystemNode }) {
-  const applyOp = useApplyOp();
+  const setSeat = useEditorStore((s) => s.setSeat);
   const editable = useEditableSystem();
   const systems = useGalaxyStore((s) => s.systems);
   const script = system.spawn_script;
@@ -50,13 +58,10 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
             aria-label="Spawn kind"
             value={paintKindKey(script)}
             disabled={!editable}
-            onChange={(e) =>
-              applyOp({
-                type: "SetSpawnScript",
-                id: system.id,
-                script: scriptForKind(e.currentTarget.value, system),
-              })
-            }
+            onChange={(e) => {
+              const key = e.currentTarget.value;
+              void setSeat(system.id, (s) => scriptForKind(key, s));
+            }}
           >
             {PLAIN_SPAWN_KINDS.map((k) => (
               <option key={k.key} value={k.key}>
@@ -102,13 +107,7 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
                 type="checkbox"
                 checked={player}
                 disabled={!editable}
-                onChange={() =>
-                  applyOp({
-                    type: "SetSpawnScript",
-                    id: system.id,
-                    script: weightedScript(system, !player),
-                  })
-                }
+                onChange={() => void setSeat(system.id, (s) => reweighed(s, !player))}
               />
               {others.player ? "Weighted for its empire · in use" : "Weighted for its empire"}
             </label>

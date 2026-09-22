@@ -4,8 +4,14 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { stampsAlong } from "../lib/brush/stroke";
+import type { NewSystem } from "../generated/NewSystem";
+import type { Op } from "../generated/Op";
 import { BrushStroke, type BrushSettings } from "../lib/brush/brushStroke";
+import type { Pair } from "../lib/brush/lanes";
+import { stampsAlong } from "../lib/brush/stroke";
+import type { Symmetry } from "../lib/geometry/symmetry";
+import { segmentsCross } from "../lib/geometry/joinIslands";
+import type { Pt } from "../lib/geometry/pt";
 import { run } from "./commands";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -234,6 +240,329 @@ describe("a cut stroke", () => {
       type: "Batch",
       description: "Cut 1 lane",
       ops: [{ type: "RemoveLanePairs", lanes: [[0, 1]] }],
+    });
+  });
+});
+
+/** Systems no eraser spares, at `at` from id `first` on, joined by `lanes`. */
+function place(first: number, at: Pt[], lanes: Array<[number, number]> = []): void {
+  const systems = at.map((p, i) => {
+    const id = first + i;
+    const to = lanes.flatMap(([a, b]): Array<[number, number]> =>
+      a === id ? [[b, 40]] : b === id ? [[a, 40]] : [],
+    );
+    return node(id, "NAME_Placed", p.x, p.y, "sc_g", to, { initializer: "" });
+  });
+  useGalaxyStore.getState().applyDelta({ systems });
+}
+
+/** A stroke through `path` over the galaxy the store holds. */
+function stroke(settings: Partial<BrushSettings>, path: Pt[]) {
+  const { systems, grid } = useGalaxyStore.getState();
+  const s = new BrushStroke({ ...ERASE, ...settings }, systems, grid!, 1);
+  let prev: Pt | null = null;
+  for (const next of path) {
+    s.add(stampsAlong(prev, next, s.r));
+    prev = next;
+  }
+  return s.result();
+}
+
+/** What the last paint edit sent: its systems, and its lanes as ordered pairs of real ids. */
+function sentPaint(): { description: string; systems: NewSystem[]; lanes: Pair[] } {
+  const calls = mocked.applyOp.mock.calls;
+  const op = calls[calls.length - 1][0] as Extract<Op, { type: "Batch" }>;
+  const [add, link] = op.ops;
+  if (add.type !== "AddSystems") throw new Error(add.type);
+  const lanes =
+    link?.type === "AddLanePairs"
+      ? link.lanes.map(({ a, b, bridge }): Pair => {
+          expect(bridge).toBe(false);
+          return a < b ? [a, b] : [b, a];
+        })
+      : [];
+  return { description: op.description, systems: add.systems, lanes };
+}
+
+/**
+ * That the painted systems are exact images, copy k of base system i at index k * count + i,
+ * and that the lanes are distinct, cross each other nowhere and map onto lanes under `turn`,
+ * which takes an existing system to the one `existing` names. `close` allows float noise in the images.
+ */
+function expectSymmetric(
+  sent: ReturnType<typeof sentPaint>,
+  copies: number,
+  turn: (p: Pt) => Pt,
+  existing: ReadonlyMap<number, number> = new Map(),
+  close = false,
+): void {
+  const { systems, lanes } = sent;
+  const count = systems.length / copies;
+  expect(Number.isInteger(count) && count > 0).toBe(true);
+  const first = systems[0].id;
+  systems.forEach((s, i) => expect(s.id).toBe(first + i));
+  for (let i = 0; i < systems.length; i++) {
+    const next = systems[(i + count) % systems.length];
+    const want = turn(systems[i]);
+    if (close) {
+      expect(next.x).toBeCloseTo(want.x, 9);
+      expect(next.y).toBeCloseTo(want.y, 9);
+    } else {
+      expect({ x: next.x, y: next.y }).toEqual(want);
+    }
+  }
+  const turned = (id: number) =>
+    id >= first ? first + ((id - first + count) % systems.length) : (existing.get(id) ?? id);
+  const keys = new Set(lanes.map(([a, b]) => `${a},${b}`));
+  expect(keys.size).toBe(lanes.length);
+  for (const [a, b] of lanes) {
+    const [c, d] = [turned(a), turned(b)].sort((x, y) => x - y);
+    expect(keys.has(`${c},${d}`)).toBe(true);
+  }
+  const all = useGalaxyStore.getState().systems;
+  const at = (id: number): Pt => (id >= first ? systems[id - first] : all.get(id)!);
+  for (let i = 0; i < lanes.length; i++) {
+    for (let j = i + 1; j < lanes.length; j++) {
+      const [a, b] = lanes[i];
+      const [c, d] = lanes[j];
+      expect(segmentsCross(at(a), at(b), at(c), at(d))).toBe(false);
+    }
+  }
+}
+
+const MIRROR_X: Symmetry = { kind: "mirror", axis: "x" };
+const QUARTER: Symmetry = { kind: "rotate", n: 4 };
+const mirrorX = (p: Pt): Pt => ({ x: p.x, y: -p.y });
+const quarterTurn = (p: Pt): Pt => ({ x: -p.y, y: p.x });
+const PAINT: Partial<BrushSettings> = { tool: "paint", size: 60, spacing: 20, laneMode: "new" };
+
+describe("a symmetric paint stroke", () => {
+  it("sends every system at its exact mirror image, with the lanes mirrored too", async () => {
+    const painted = stroke({ ...PAINT, symmetry: MIRROR_X }, [
+      { x: 150, y: 120 },
+      { x: 260, y: 140 },
+    ]);
+    if (painted.kind !== "paint") throw new Error(painted.kind);
+    await editor().paintStroke(painted.points, painted.pairs);
+    const sent = sentPaint();
+    expect(sent.lanes.length).toBeGreaterThan(0);
+    expect(sent.description).toBe(
+      `Painted ${sent.systems.length} systems and ${sent.lanes.length} lanes`,
+    );
+    expectSymmetric(sent, 2, mirrorX);
+  });
+
+  it("keeps clear of the mirror axis and links the two halves across it", async () => {
+    const painted = stroke({ ...PAINT, symmetry: MIRROR_X }, [
+      { x: 200, y: -40 },
+      { x: 200, y: 40 },
+    ]);
+    if (painted.kind !== "paint") throw new Error(painted.kind);
+    await editor().paintStroke(painted.points, painted.pairs);
+    const sent = sentPaint();
+    expectSymmetric(sent, 2, mirrorX);
+    for (const s of sent.systems) expect(Math.abs(2 * s.y)).toBeGreaterThanOrEqual(20);
+    const half = sent.systems.length / 2;
+    const first = sent.systems[0].id;
+    const copyOf = (id: number) => Math.floor((id - first) / half);
+    expect(sent.lanes.some(([a, b]) => copyOf(a) !== copyOf(b))).toBe(true);
+  });
+
+  it("sends four exact quarter turns of every system and lane", async () => {
+    const painted = stroke({ ...PAINT, symmetry: QUARTER }, [
+      { x: 150, y: 50 },
+      { x: 250, y: 90 },
+    ]);
+    if (painted.kind !== "paint") throw new Error(painted.kind);
+    await editor().paintStroke(painted.points, painted.pairs);
+    const sent = sentPaint();
+    expect(sent.lanes.length).toBeGreaterThan(0);
+    expectSymmetric(sent, 4, quarterTurn);
+  });
+
+  it("links to the systems nearby only where every copy has one at the image", async () => {
+    // 20 and 21 mirror each other; nothing mirrors 22.
+    place(20, [
+      { x: 200, y: 100 },
+      { x: 200, y: -100 },
+      { x: 300, y: 100 },
+    ]);
+    const painted = stroke({ ...PAINT, laneMode: "nearby", symmetry: MIRROR_X }, [
+      { x: 170, y: 120 },
+      { x: 330, y: 120 },
+    ]);
+    if (painted.kind !== "paint") throw new Error(painted.kind);
+    await editor().paintStroke(painted.points, painted.pairs);
+    const sent = sentPaint();
+    expectSymmetric(
+      sent,
+      2,
+      mirrorX,
+      new Map([
+        [20, 21],
+        [21, 20],
+      ]),
+    );
+    const ends = new Set(sent.lanes.flat());
+    expect(ends.has(20)).toBe(true);
+    expect(ends.has(21)).toBe(true);
+    expect(ends.has(22)).toBe(false);
+  });
+
+  it("links to the systems an earlier three-fold stroke left, whose saved images are rounded", async () => {
+    const third = (p: Pt): Pt => {
+      const [c, t] = [Math.cos((2 * Math.PI) / 3), Math.sin((2 * Math.PI) / 3)];
+      return { x: c * p.x - t * p.y, y: t * p.x + c * p.y };
+    };
+    const THREE: Symmetry = { kind: "rotate", n: 3 };
+    const before = stroke({ ...PAINT, symmetry: THREE }, [
+      { x: 150, y: 0 },
+      { x: 250, y: 0 },
+    ]);
+    if (before.kind !== "paint") throw new Error(before.kind);
+    // As the file writes them back: five decimals.
+    const rounded = (v: number) => Math.round(v * 1e5) / 1e5;
+    const id = (p: number) => (p < 0 ? 99 - p : p);
+    place(
+      100,
+      before.points.map((p) => ({ x: rounded(p.x), y: rounded(p.y) })),
+      before.pairs.map(([a, b]): [number, number] => [id(a), id(b)]),
+    );
+    const total = before.points.length;
+    const turnedEarlier = new Map(
+      before.points.map((_, i) => [100 + i, 100 + ((i + total / 3) % total)]),
+    );
+
+    const painted = stroke({ ...PAINT, laneMode: "nearby", symmetry: THREE }, [
+      { x: 150, y: 50 },
+      { x: 250, y: 50 },
+    ]);
+    if (painted.kind !== "paint") throw new Error(painted.kind);
+    await editor().paintStroke(painted.points, painted.pairs);
+    const sent = sentPaint();
+    expectSymmetric(sent, 3, third, turnedEarlier, true);
+    expect(sent.lanes.some(([a]) => turnedEarlier.has(a))).toBe(true);
+  });
+});
+
+describe("symmetric erase, cut and connect strokes", () => {
+  it("erase what every image of the stroke passes over, as one edit", async () => {
+    place(10, [
+      { x: 100, y: 50 },
+      { x: 100, y: -50 },
+    ]);
+    expect(stroke({ symmetry: MIRROR_X }, [{ x: 100, y: 50 }])).toEqual({
+      kind: "erase",
+      doomed: [10, 11],
+      kept: [],
+    });
+
+    place(12, [
+      { x: -50, y: 100 },
+      { x: -100, y: -50 },
+      { x: 50, y: -100 },
+    ]);
+    const turned = stroke({ symmetry: QUARTER }, [{ x: 100, y: 50 }]);
+    expect(turned).toEqual({ kind: "erase", doomed: [10, 12, 13, 14], kept: [] });
+    await editor().eraseStroke(turned.kind === "erase" ? turned.doomed : []);
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Erased 4 systems",
+      ops: [{ type: "RemoveSystems", ids: [10, 12, 13, 14] }],
+    });
+  });
+
+  it("cut the lanes every image of the stroke passes over, on a save too", async () => {
+    await openFixtureSave();
+    mocked.applyOp.mockResolvedValue(editResult());
+    place(
+      10,
+      [
+        { x: 60, y: 50 },
+        { x: 100, y: 50 },
+        { x: -60, y: 50 },
+        { x: -100, y: 50 },
+      ],
+      [
+        [10, 11],
+        [12, 13],
+      ],
+    );
+    const cut = stroke({ tool: "cut", size: 6, symmetry: { kind: "mirror", axis: "y" } }, [
+      { x: 80, y: 50 },
+    ]);
+    const lanes: Pair[] = [
+      [10, 11],
+      [12, 13],
+    ];
+    expect(cut).toEqual({ kind: "cut", lanes });
+    await editor().cutLanes(cut.kind === "cut" ? cut.lanes : []);
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Cut 2 lanes",
+      ops: [{ type: "RemoveLanePairs", lanes }],
+    });
+  });
+
+  it("connect only lane patterns every copy repeats, so a square gets its sides and no diagonal", async () => {
+    await openFixtureSave();
+    mocked.applyOp.mockResolvedValue(editResult());
+    place(10, [
+      { x: 300, y: 0 },
+      { x: 0, y: 300 },
+      { x: -300, y: 0 },
+      { x: 0, y: -300 },
+    ]);
+    const square = stroke(
+      { tool: "connect", size: 10, beta: 0.1, symmetry: { kind: "rotate", n: 4 } },
+      [{ x: 300, y: 0 }],
+    );
+    expect(square).toEqual({
+      kind: "connect",
+      swept: [10, 11, 12, 13],
+      pairs: [
+        [10, 11],
+        [10, 13],
+        [11, 12],
+        [12, 13],
+      ],
+    });
+  });
+
+  it("connect the systems every image of the stroke passes over, on a save too", async () => {
+    await openFixtureSave();
+    mocked.applyOp.mockResolvedValue(editResult());
+    place(10, [
+      { x: 60, y: 50 },
+      { x: 80, y: 50 },
+      { x: -60, y: -50 },
+      { x: -80, y: -50 },
+    ]);
+    const connect = stroke({ tool: "connect", size: 10, symmetry: { kind: "rotate", n: 2 } }, [
+      { x: 60, y: 50 },
+      { x: 80, y: 50 },
+    ]);
+    expect(connect).toEqual({
+      kind: "connect",
+      swept: [10, 11, 12, 13],
+      pairs: [
+        [10, 11],
+        [12, 13],
+      ],
+    });
+    await editor().connectStroke(pairsOf(connect));
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Connected 2 lanes",
+      ops: [
+        {
+          type: "AddLanePairs",
+          lanes: [
+            { a: 10, b: 11, bridge: false },
+            { a: 12, b: 13, bridge: false },
+          ],
+        },
+      ],
     });
   });
 });
