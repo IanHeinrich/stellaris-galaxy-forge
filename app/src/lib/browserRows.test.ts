@@ -66,6 +66,8 @@ function country(id: number, key: string, type: string, extra: Partial<CountryNo
     capital_system: 0,
     system_count: 1,
     colors: [],
+    border_color: null,
+    fill_color: null,
     flag_icon: null,
     flag_background: null,
     ...extra,

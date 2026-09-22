@@ -18,4 +18,12 @@ system_count: number,
 /**
  * `flag.colors`, with the `"null"` placeholders removed.
  */
-colors: Array<string>, flag_icon: FlagRef | null, flag_background: FlagRef | null, };
+colors: Array<string>, 
+/**
+ * `flag.colors[4]`, the map border colour; set only under `flag.use_map_color=yes`.
+ */
+border_color: string | null, 
+/**
+ * `flag.colors[5]`, the map fill colour; set only under `flag.use_map_color=yes`.
+ */
+fill_color: string | null, flag_icon: FlagRef | null, flag_background: FlagRef | null, };

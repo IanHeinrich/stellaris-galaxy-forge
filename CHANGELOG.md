@@ -8,8 +8,15 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- A Stellaris 4.5.0 save joins the test corpus.
+
 ### Changed
 
+- The map paints an empire's territory in the border and fill colours
+  it chose in Stellaris 4.5's empire creator. An empire that chose none
+  keeps its flag colours as before.
 - Adding a marauder clan from the map is one undo step. So is adding the
   raid bases a home is missing.
 - The "Listed under shapes" row in Game setup is now "Supported shapes".

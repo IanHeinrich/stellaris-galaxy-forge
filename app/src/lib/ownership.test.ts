@@ -23,6 +23,8 @@ function country(id: number, key: string, type: string): CountryNode {
     capital_system: null,
     system_count: 0,
     colors: [],
+    border_color: null,
+    fill_color: null,
     flag_icon: null,
     flag_background: null,
   };

@@ -257,6 +257,8 @@ fn territories(
                     capital_system: group.capital,
                     system_count: u32::try_from(group.members.len()).unwrap_or(u32::MAX),
                     colors: identity.colors.clone(),
+                    border_color: None,
+                    fill_color: None,
                     flag_icon: identity.icon.clone(),
                     flag_background: identity.background.clone(),
                     flags: Vec::new(),

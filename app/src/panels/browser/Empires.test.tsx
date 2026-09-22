@@ -100,6 +100,8 @@ const EMPIRE: CountryNode = {
   capital_system: 1,
   system_count: 2,
   colors: ["fixture_blue", "fixture_blue"],
+  border_color: null,
+  fill_color: null,
   flag_icon: null,
   flag_background: null,
 };

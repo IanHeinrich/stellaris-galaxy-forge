@@ -29,30 +29,48 @@ fn the_committed_saves_header_reads_every_field() {
 #[test]
 fn a_campaign_folder_lists_its_saves_and_groups_under_its_parent() {
     let saves = list_campaign_saves_in(Path::new(TESTDATA), false);
-    assert_eq!(saves.len(), 1, "{saves:#?}");
-    let save = &saves[0];
-    assert_eq!(save.file_name, "2206.11.16.sav");
-    assert_eq!(save.campaign, "testdata");
-    assert!(!save.cloud);
-    assert!(save.size > 0 && save.modified > 0);
+    assert_eq!(saves.len(), 2, "{saves:#?}");
+    assert!(
+        saves.windows(2).all(|p| p[0].modified >= p[1].modified),
+        "newest first: {saves:#?}"
+    );
+    for save in &saves {
+        assert_eq!(save.campaign, "testdata");
+        assert!(!save.cloud);
+        assert!(save.size > 0 && save.modified > 0);
+    }
+    let save = saves
+        .iter()
+        .find(|s| s.file_name == "2206.11.16.sav")
+        .unwrap_or_else(|| panic!("no 4.4 sample in {saves:#?}"));
     let meta = save.meta.as_ref().expect("the sample save has a header");
     assert_eq!(meta.name, "United Nations of Earth 2");
     assert_eq!(meta.date, "2206.11.16");
     assert_eq!(meta.version, "Pegasus v4.4.6");
     assert_eq!((meta.planets, meta.fleets), (Some(1), Some(15)));
+    let cygnus = saves
+        .iter()
+        .find(|s| s.file_name == "2201.03.25.sav")
+        .unwrap_or_else(|| panic!("no 4.5 sample in {saves:#?}"));
+    let meta = cygnus.meta.as_ref().expect("the 4.5 sample has a header");
+    assert_eq!(meta.name, "Test Empire");
+    assert_eq!(meta.version, "Cygnus v4.5.0");
 
+    // The checkout decides which sample is the newer file, so the campaign is checked
+    // against whichever save the listing put first.
     let campaigns = list_campaigns_in(&[(PathBuf::from(REPO), false)]);
     let testdata = campaigns
         .iter()
         .find(|c| c.name == "testdata")
         .unwrap_or_else(|| panic!("no testdata campaign in {campaigns:#?}"));
-    assert_eq!(testdata.files, 1);
-    assert_eq!(testdata.newest, save.modified);
+    let newest = &saves[0];
+    assert_eq!(testdata.files, 2);
+    assert_eq!(testdata.newest, newest.modified);
     assert_eq!(
         testdata.empire.as_deref(),
-        Some("United Nations of Earth 2")
+        newest.meta.as_ref().map(|m| m.name.as_str())
     );
-    assert_eq!(testdata.meta.as_ref(), save.meta.as_ref());
+    assert_eq!(testdata.meta.as_ref(), newest.meta.as_ref());
     assert!(!testdata.cloud);
 }
 

@@ -19,6 +19,10 @@ pub struct CountryNode {
     pub system_count: u32,
     /// `flag.colors`, with the `"null"` placeholders removed.
     pub colors: Vec<String>,
+    /// `flag.colors[4]`, the map border colour; set only under `flag.use_map_color=yes`.
+    pub border_color: Option<String>,
+    /// `flag.colors[5]`, the map fill colour; set only under `flag.use_map_color=yes`.
+    pub fill_color: Option<String>,
     pub flag_icon: Option<FlagRef>,
     pub flag_background: Option<FlagRef>,
     /// The keys of the save's `flags` map: the country flags scripts test.

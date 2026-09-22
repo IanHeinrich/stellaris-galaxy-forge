@@ -151,6 +151,10 @@ pub(crate) struct RawCountry {
     pub capital: Option<u32>,
     /// `flag.colors`, with the `"null"` placeholders removed.
     pub colors: Vec<String>,
+    /// `flag.colors[4]`, the map border colour, read only under `flag.use_map_color=yes`.
+    pub border_color: Option<String>,
+    /// `flag.colors[5]`, the map fill colour, read only under `flag.use_map_color=yes`.
+    pub fill_color: Option<String>,
     pub flag_icon: Option<FlagRef>,
     pub flag_background: Option<FlagRef>,
     /// The keys of the `flags` map.
@@ -174,20 +178,39 @@ pub(crate) fn countries(index: &Index, src: &[u8]) -> Result<Vec<RawCountry>, Pr
     Ok(countries)
 }
 
+/// Where `flag.colors` keeps the map border and fill (4.5): after the four flag colours.
+const MAP_BORDER_SLOT: usize = 4;
+const MAP_FILL_SLOT: usize = 5;
+
 fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
     let flag = node.find(keys::FLAG, src);
-    let colors = flag
+    let entries: Vec<&str> = flag
         .and_then(|f| f.find(keys::COLORS, src))
         .map(|list| {
             list.children()
                 .iter()
                 .filter(|c| c.key.is_none())
                 .filter_map(|c| c.scalar_str(src))
-                .filter(|&s| s != "null")
-                .map(str::to_owned)
                 .collect()
         })
         .unwrap_or_default();
+    let named = |s: &str| s != "null";
+    let colors = entries
+        .iter()
+        .copied()
+        .filter(|&s| named(s))
+        .map(str::to_owned)
+        .collect();
+    let map_color = |slot: usize| {
+        if scalar(flag?, keys::USE_MAP_COLOR, src) != Some("yes") {
+            return None;
+        }
+        entries
+            .get(slot)
+            .copied()
+            .filter(|&s| named(s))
+            .map(str::to_owned)
+    };
     let layer = |key: &str| {
         let layer = flag?.find(key, src)?;
         Some(FlagRef {
@@ -225,6 +248,8 @@ fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
         country_type: text(node, keys::TYPE, src),
         capital: scalar_u32(node, keys::CAPITAL, src),
         colors,
+        border_color: map_color(MAP_BORDER_SLOT),
+        fill_color: map_color(MAP_FILL_SLOT),
         flag_icon: layer(keys::ICON),
         flag_background: layer(keys::BACKGROUND),
         flags,

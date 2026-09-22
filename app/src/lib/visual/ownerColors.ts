@@ -39,31 +39,32 @@ export const MARAUDER_COLORS: OwnerColors = { outline: 0xd0d4d8, fill: 0x000000 
 const FILL_DARKEN = 0.35;
 
 function mapColor(
-  country: CountryNode | undefined,
-  slot: number,
+  name: string | null | undefined,
   palette: ReadonlyMap<string, MapColor>,
 ): number | undefined {
-  const name = country?.colors[slot];
   const map = name ? palette.get(name)?.map : undefined;
   return map === undefined ? undefined : parseHex(map);
 }
 
 /**
- * The country's map colours as the game paints them: the first flag colour outlines the
- * region and the second fills it, each standing in for the other when missing. Without game
- * data the index-based palette outlines and a darker shade of it fills.
+ * The country's map colours as the game paints them: the border and fill colours the empire
+ * chose when it was created with independent map colours (Stellaris 4.5), otherwise the first
+ * flag colour outlines the region and the second fills it, each standing in for the other when
+ * missing. Without game data the index-based palette outlines and a darker shade of it fills.
  */
 export function ownerColors(
   country: CountryNode | undefined,
   index: number,
   palette: ReadonlyMap<string, MapColor>,
 ): OwnerColors {
-  const first = mapColor(country, 0, palette);
-  const second = mapColor(country, 1, palette);
+  const first = mapColor(country?.colors[0], palette);
+  const second = mapColor(country?.colors[1], palette);
+  const border = mapColor(country?.border_color, palette);
+  const fill = mapColor(country?.fill_color, palette);
   const fallback = paletteColor(index);
   return {
-    outline: first ?? second ?? fallback,
-    fill: second ?? first ?? darken(fallback, FILL_DARKEN),
+    outline: border ?? first ?? second ?? fallback,
+    fill: fill ?? second ?? first ?? darken(fallback, FILL_DARKEN),
   };
 }
 

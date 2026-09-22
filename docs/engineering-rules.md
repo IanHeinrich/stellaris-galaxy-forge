@@ -56,8 +56,10 @@ path renames aside as the backup, and the editor's bytes take its place.
   regenerate with `cargo test --workspace` (`sgf-core`, `sgf-gamedata` and
   `sgf-app`, via its `views.rs`, all export types); never hand-edit.
 - `testdata/`: save corpus via git-lfs (`2206.11.16.sav`, Stellaris
-  4.4, early game). Personal saves are never committed without asking;
-  larger local saves are found via `SGF_CORPUS_DIR`.
+  4.4, early game; `2201.03.25.sav`, Stellaris 4.5.0, day one, the
+  player empire has Independent Map Color on). Personal saves are never
+  committed without asking; larger local saves are found via
+  `SGF_CORPUS_DIR`.
 - `docs/`: the user guide, the save format notes, the game data and mod
   notes, and the ADRs.
 

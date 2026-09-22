@@ -19,6 +19,8 @@ export const TERRITORY: CountryNode = {
   capital_system: 1,
   system_count: 2,
   colors: ["fixture_red", "fixture_red"],
+  border_color: null,
+  fill_color: null,
   flag_icon: null,
   flag_background: null,
 };
@@ -32,6 +34,8 @@ export const DAY_ONE_TERRITORY: CountryNode = {
   capital_system: 0,
   system_count: 1,
   colors: ["fixture_blue", "fixture_blue"],
+  border_color: null,
+  fill_color: null,
   flag_icon: null,
   flag_background: null,
 };

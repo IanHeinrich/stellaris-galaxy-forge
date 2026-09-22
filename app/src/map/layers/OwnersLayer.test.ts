@@ -1,6 +1,7 @@
 import { BitmapText, type Container, Graphics } from "pixi.js";
 import { describe, expect, it } from "vitest";
 import type { CountryNode } from "../../generated/CountryNode";
+import type { MapColor } from "../../generated/MapColor";
 import type { SystemNode } from "../../generated/SystemNode";
 import { countryRegions, regionLabelAnchor } from "../../lib/geometry/territory";
 import { ALL_CAPABILITIES } from "../../lib/capabilities";
@@ -9,7 +10,14 @@ import { EMPHASIS_COLOR } from "../../lib/visual/specialStyle";
 import { VANILLA_BORDER, type RenderContext } from "../RenderContext";
 import { CLAN_GLYPH, OwnersLayer } from "./OwnersLayer";
 import { layerIdsFor, layersFor } from "./registry";
-import { childByLabel, drawOps, mapContext, stubTextMeasurement, mapNode } from "./fixture";
+import {
+  childByLabel,
+  drawOps,
+  mapContext,
+  stubTextMeasurement,
+  mapNode,
+  strokes,
+} from "./fixture";
 
 stubTextMeasurement();
 
@@ -21,6 +29,8 @@ const COUNTRY: CountryNode = {
   capital_system: null,
   system_count: 1,
   colors: [],
+  border_color: null,
+  fill_color: null,
   flag_icon: null,
   flag_background: null,
 };
@@ -31,6 +41,26 @@ const PARAMS = {
   radius: VANILLA_BORDER.system_radius,
   laneHalfWidth: VANILLA_BORDER.hyperlane_thickness / 2,
 };
+
+const PALETTE = new Map<string, MapColor>(
+  [
+    ["grey", "#808080"],
+    ["dark_blue", "#000080"],
+    ["intense_red", "#ff0000"],
+    ["light_pink", "#ffc0cb"],
+  ].map(([name, map]) => [name, { name, map, flag: map, ship: map }]),
+);
+
+/** The colours the one country's territory is filled and outlined in. */
+function paintOf(layer: OwnersLayer): { fill: number | undefined; edge: number | undefined } {
+  const territories = childByLabel(layer.container, "territories");
+  const [fill] = childByLabel(territories, "fills").children as Graphics[];
+  const [edge] = childByLabel(territories, "edges").children as Graphics[];
+  return {
+    fill: drawOps(fill).find((op) => op.action === "fill")?.color,
+    edge: strokes(edge)[0]?.color,
+  };
+}
 
 /** The one shown badge's label. */
 function labelOf(layer: OwnersLayer): BitmapText {
@@ -207,5 +237,20 @@ describe("a scenario's territories", () => {
     );
     expect(emphases).toHaveLength(1);
     expect(drawOps(emphases[0]).every((op) => op.color === EMPHASIS_COLOR)).toBe(true);
+  });
+});
+
+describe("an owner's territory", () => {
+  it("is painted in the map colours the empire chose, else its first two flag colours", () => {
+    const flagged = { ...COUNTRY, colors: ["grey", "dark_blue", "black", "grey"] };
+    const chosen = { ...flagged, border_color: "intense_red", fill_color: "light_pink" };
+    const paint = (country: CountryNode): ReturnType<typeof paintOf> => {
+      const layer = new OwnersLayer();
+      const countries = new Map([[country.id, country]]);
+      layer.rebuild(mapContext([OWNED], { countries, mapColors: PALETTE }));
+      return paintOf(layer);
+    };
+    expect(paint(flagged)).toEqual({ edge: 0x808080, fill: 0x000080 });
+    expect(paint(chosen)).toEqual({ edge: 0xff0000, fill: 0xffc0cb });
   });
 });
