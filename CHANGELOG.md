@@ -10,10 +10,6 @@ a release is made.
 
 ## [0.8.0] - 2026-09-22
 
-### Added
-
-- Opens Stellaris 4.5 saves.
-
 ### Changed
 
 - Empire borders and fills use the map colours set in Stellaris 4.5's
