@@ -47,6 +47,19 @@ a release is made.
 - A fallen empire zone or a nebula can be dragged by its centre as well
   as its ring.
 - The top bar shows the app's own icon.
+- The Open dialog is easier to read. The text is larger and brighter, and
+  empire flags replace the small colour dots.
+- The Open dialog's left column switches between All, Recent, Saves and
+  Scenarios. Ctrl+1 to 4 do the same.
+- Saves are listed under their empire by game date, with autosaves marked.
+- A panel on the right describes the selected save: its empire, version,
+  galaxy settings, difficulty, crisis and required DLC. For a scenario it
+  shows the systems, empire counts and galaxy options.
+- Open and Open as scenario sit at the bottom of the Open dialog and act on
+  the selected row. Open opens a save as a save without asking. Enter still
+  asks.
+- Click a row to select it and double-click to open it. Hovering no longer
+  selects.
 
 ### Removed
 
