@@ -34,7 +34,7 @@ import { useOpenScreenStore } from "../../store/openScreenStore";
 import { useRecentsStore } from "../../store/recentsStore";
 import { Twisty } from "../Twisty";
 import { Dialog } from "../overlays/Dialog";
-import { PaintChoice } from "./PaintChoice";
+import { OpenAsScenarioDialog } from "./OpenAsScenarioDialog";
 import { CLOUD_TITLE, EmpireMark, IRONMAN_TITLE, OpenDetails } from "./OpenDetails";
 import { formatSize, formatWhen, phaseLabel } from "./launchData";
 import "./open.css";
@@ -314,6 +314,7 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
   const recents = useRecentsStore((s) => s.recents);
   const screen = useOpenScreenStore();
   const [selected, setSelected] = useState<string | null>(null);
+  const [scenarioFor, setScenarioFor] = useState<string | null>(null);
   const field = useRef<HTMLInputElement>(null);
   const rows = useRef(new Map<string, HTMLDivElement>());
   const firstPress = useRef<string | null>(null);
@@ -344,6 +345,10 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
 
   const open = (path: string, asScenario: boolean) => {
     const route = openRoute(path, asScenario);
+    if (route === "scenario") {
+      setScenarioFor(path);
+      return;
+    }
     if (route === "ask") {
       if (modal) hide();
       void requestOpen(path);
@@ -387,7 +392,8 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
 
   const footer = footerOpens(current, screen);
   const openFooter = (target: FooterOpen | null) => {
-    if (target) void screen.open(target.path, target.mode);
+    if (target?.mode === "scenario") setScenarioFor(target.path);
+    else if (target) void screen.open(target.path, target.mode);
   };
   const idle = screen.busy === null;
 
@@ -481,7 +487,6 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
         <OpenDetails row={current} />
       </div>
       <div className="open-dialog-foot">
-        <PaintChoice />
         <div className="open-actions">
           <button type="button" onClick={newScenario}>
             New scenario…
@@ -533,17 +538,34 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
     </div>
   );
 
+  const asScenario = scenarioFor !== null && (
+    <OpenAsScenarioDialog
+      path={scenarioFor}
+      onCancel={() => setScenarioFor(null)}
+      onContinue={() => {
+        setScenarioFor(null);
+        void screen.open(scenarioFor, "scenario");
+      }}
+    />
+  );
+
   if (modal) {
     return (
-      <Dialog className="open-dialog open-screen" label="Open" onClose={hide} onDismiss={hide}>
-        {frame}
-      </Dialog>
+      <>
+        <Dialog className="open-dialog open-screen" label="Open" onClose={hide} onDismiss={hide}>
+          {frame}
+        </Dialog>
+        {asScenario}
+      </>
     );
   }
   return (
-    <div className="launch">
-      <div className="open-dialog open-screen">{frame}</div>
-    </div>
+    <>
+      <div className="launch">
+        <div className="open-dialog open-screen">{frame}</div>
+      </div>
+      {asScenario}
+    </>
   );
 }
 

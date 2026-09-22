@@ -15,11 +15,14 @@ vi.mock("../useTextureUrl", () => ({ useTextureUrl: vi.fn(() => undefined) }));
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useLayoutStore } from "../../store/layoutStore";
+import { usePaintModStore } from "../../store/paintModStore";
+import { PAINT_CHECK, PAINT_UNTICKED } from "../../lib/paintCopy";
 import { footerOpens, type CampaignRow, type SaveRow, type ScenarioRow } from "../../lib/openRows";
 import { detailsKey, useOpenScreenStore } from "../../store/openScreenStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
 import { useTextureUrl } from "../useTextureUrl";
 import { EmpireMark, OpenDetails } from "./OpenDetails";
+import { OpenAsScenarioDialog } from "./OpenAsScenarioDialog";
 import { OpenSave, RowBody } from "./OpenSave";
 import { openRoute } from "./openRoute";
 
@@ -167,6 +170,24 @@ describe("a row", () => {
   });
 });
 
+describe("opening a save as a scenario", () => {
+  const UNTICKED = PAINT_UNTICKED.split(":")[0];
+  const dialog = () =>
+    renderToStaticMarkup(
+      <OpenAsScenarioDialog path={saveFile().path} onContinue={() => {}} onCancel={() => {}} />,
+    );
+
+  it("asks the Paint a Galaxy question, with the warning while it is unticked", () => {
+    usePaintModStore.setState({ paintChoice: false });
+    expect(shown(dialog())).toContain(PAINT_CHECK);
+    expect(shown(dialog())).toContain(UNTICKED);
+    expect(buttons(dialog())).toEqual(["Cancel", "Continue"]);
+
+    usePaintModStore.setState({ paintChoice: true });
+    expect(shown(dialog())).not.toContain(UNTICKED);
+  });
+});
+
 describe("the open screen's footer", () => {
   it("carries New scenario and Browse as buttons, and names no keys", () => {
     const html = renderToStaticMarkup(<OpenSave modal={false} />);
@@ -174,6 +195,7 @@ describe("the open screen's footer", () => {
     expect(buttons(foot)).toEqual(["New scenario…", "Browse…", "Open"]);
     expect(shown(html).match(/Browse…/g)).toHaveLength(1);
     expect(shown(foot)).not.toMatch(/Enter|Ctrl|↵|⇧/);
+    expect(shown(html)).not.toContain(PAINT_CHECK);
   });
 
   it("offers Open as scenario only while a save is selected", () => {

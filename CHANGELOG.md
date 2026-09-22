@@ -58,8 +58,9 @@ a release is made.
 - Open and Open as scenario sit at the bottom of the Open dialog and act on
   the selected row. Open opens a save as a save without asking. Enter still
   asks.
-- The Paint a Galaxy checkbox sits above them, and Open as scenario follows
-  it. Before, a save taken as a scenario from the Open list ignored it.
+- Open as scenario asks the Paint a Galaxy question before it goes on, as
+  the Open as dialog does. Before, a save taken as a scenario from the Open
+  list ignored the checkbox.
 - Click a row to select it and double-click to open it. Hovering no longer
   selects.
 
