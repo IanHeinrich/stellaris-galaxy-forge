@@ -33,6 +33,14 @@ describe("keys", () => {
     expect(keyAction(press("Home"), false)).toBe("fit");
   });
 
+  it("V picks the select tool, except while typing, with Shift or with a modifier", () => {
+    expect(keyAction(press("v"), false)).toBe("selectTool");
+    expect(keyAction(press("v"), true)).toBeNull();
+    expect(keyAction(press("V", { shiftKey: true }), false)).toBeNull();
+    expect(keyAction(press("v", { ctrlKey: true }), false)).toBeNull();
+    expect(keyAction(press("v", { altKey: true }), false)).toBeNull();
+  });
+
   it("Tab collapses the dock, except while typing or with Shift", () => {
     expect(keyAction(press("Tab"), false)).toBe("toggleDock");
     expect(keyAction(press("Tab", { shiftKey: true }), false)).toBeNull();

@@ -1,10 +1,10 @@
 # `panels/`
 
 One folder per slice of the UI: `browser/` (the dock's lists), `chrome/` (the
-top bar, its menus, the dock frame and the status bar), `file/` (the launch and
-open screens), `initializers/` (the initializer browser), `inspector/` (the
-right-hand pane), `overlays/` (dialogs, the context menu, the map tooltip) and
-`search/` (the palette).
+top bar, its menus, the dock frame, the status bar and the map's tool rail),
+`file/` (the launch and open screens), `initializers/` (the initializer
+browser), `inspector/` (the right-hand pane), `overlays/` (dialogs, the context
+menu, the map tooltip) and `search/` (the palette).
 
 ## Stylesheets
 

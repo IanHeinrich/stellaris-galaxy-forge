@@ -1,0 +1,108 @@
+import type { ReactNode } from "react";
+import { documentCapabilities, supports } from "../../lib/capabilities";
+import { useEditorStore } from "../../store/editorStore";
+import { useFileSessionStore } from "../../store/fileSessionStore";
+import { TOOL_REQUIRES, useToolStore, type Tool } from "../../store/toolStore";
+import "./chrome.css";
+
+function Glyph({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      className="rail-icon"
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
+  );
+}
+
+interface ToolEntry {
+  id: Tool;
+  label: string;
+  /** The key that picks the tool, as the tooltip spells it. */
+  key: string;
+  icon: ReactNode;
+}
+
+const TOOLS: readonly ToolEntry[] = [
+  {
+    id: "select",
+    label: "Select",
+    key: "V",
+    icon: (
+      <Glyph>
+        <path d="M4 2.5v10.2l2.9-2.7 2 4.2 1.8-.9-2-4.1 3.9-.3Z" fill="currentColor" />
+      </Glyph>
+    ),
+  },
+];
+
+/** The map's tools down its left edge, with undo and redo at the foot (ADR 0005). */
+export function ToolRail() {
+  const tool = useToolStore((s) => s.tool);
+  const setTool = useToolStore((s) => s.setTool);
+  const capabilities = useFileSessionStore(documentCapabilities);
+  const history = useEditorStore((s) => s.history);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
+
+  const undoEntry = history.undo[history.undo.length - 1];
+  const redoEntry = history.redo[0];
+
+  return (
+    <div className="tool-rail" role="toolbar" aria-orientation="vertical" aria-label="Map tools">
+      <div className="tool-rail-group" role="group" aria-label="Tools">
+        {TOOLS.filter((t) => supports(capabilities, TOOL_REQUIRES[t.id])).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className="icon"
+            aria-pressed={tool === t.id}
+            aria-label={t.label}
+            title={`${t.label} (${t.key})`}
+            onClick={() => setTool(t.id)}
+          >
+            {t.icon}
+          </button>
+        ))}
+      </div>
+      <div className="tool-rail-group tool-rail-foot" role="group" aria-label="History">
+        <button
+          type="button"
+          className="icon"
+          disabled={history.undo.length === 0}
+          aria-label="Undo"
+          title={undoEntry ? `Undo ${undoEntry.description} (Ctrl+Z)` : "Undo (Ctrl+Z)"}
+          onClick={() => void undo()}
+        >
+          <Glyph>
+            <path d="M5.5 3.5 2.5 6.5l3 3" />
+            <path d="M2.5 6.5h7a4 4 0 0 1 0 8H7" />
+          </Glyph>
+        </button>
+        <button
+          type="button"
+          className="icon"
+          disabled={history.redo.length === 0}
+          aria-label="Redo"
+          title={redoEntry ? `Redo ${redoEntry.description} (Ctrl+Y)` : "Redo (Ctrl+Y)"}
+          onClick={() => void redo()}
+        >
+          <Glyph>
+            <path d="m10.5 3.5 3 3-3 3" />
+            <path d="M13.5 6.5h-7a4 4 0 0 0 0 8H9" />
+          </Glyph>
+        </button>
+      </div>
+    </div>
+  );
+}

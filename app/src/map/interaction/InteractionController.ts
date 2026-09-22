@@ -5,6 +5,7 @@ import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
+import { useToolStore, type Tool } from "../../store/toolStore";
 import { feDirectionLabel, feZoneRefusal } from "../../lib/feZone";
 import type { Pt } from "../../lib/geometry/pt";
 import type { Camera } from "../Camera";
@@ -51,11 +52,12 @@ function dragState(ghosts: MoveGhost[]): DragState | null {
 }
 
 /**
- * Turns the canvas's pointer events into `MapInput`, feeds them to the gesture model
- * (ADR 0003) and implements `MapIntent` against the stores and the highlights layer.
+ * Turns the canvas's pointer events into `MapInput`, feeds them to the active tool's model
+ * (ADRs 0003 and 0005) and implements `MapIntent` against the stores and the highlights layer.
  */
 export class InteractionController {
-  private readonly model: MapModel = new GestureModel();
+  private readonly selectModel: MapModel = new GestureModel();
+  private model: MapModel = this.selectModel;
   private readonly intent: MapIntent;
   private panFrom: { sx: number; sy: number } | null = null;
   /** What a lane drag would start from once the button is down; the snap skips it. */
@@ -256,8 +258,39 @@ export class InteractionController {
       contextMenu: (target, x, y) => useMapChromeStore.getState().openContextMenu({ target, x, y }),
     };
 
+    this.model = this.modelFor(useToolStore.getState().tool);
     this.bindPointer();
     this.bindKeyboard();
+    this.cleanups.push(
+      useToolStore.subscribe((state, previous) => {
+        if (state.tool !== previous.tool) this.swapModel(this.modelFor(state.tool));
+      }),
+    );
+  }
+
+  /** The control model behind `tool`. */
+  private modelFor(tool: Tool): MapModel {
+    switch (tool) {
+      case "select":
+      case "paint":
+      case "erase":
+      case "connect":
+      case "cut":
+        return this.selectModel;
+    }
+  }
+
+  /** Drops whatever the outgoing model had half done before the next one takes the pointer. */
+  private swapModel(next: MapModel): void {
+    this.dropDrag();
+    this.model = next;
+    this.canvas.style.cursor = this.model.cursor();
+  }
+
+  private dropDrag(): void {
+    this.panFrom = null;
+    this.laneFrom = null;
+    this.model.reset(this.intent);
   }
 
   dispose(): void {
@@ -386,9 +419,7 @@ export class InteractionController {
     const down = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || isEditableTarget(e.target)) return;
       if (this.model.busy()) e.stopImmediatePropagation();
-      this.panFrom = null;
-      this.laneFrom = null;
-      this.model.reset(this.intent);
+      this.dropDrag();
       this.canvas.style.cursor = this.model.cursor();
     };
     window.addEventListener("keydown", down, { capture: true });

@@ -21,6 +21,8 @@ a release is made.
 - The top bar takes the place of the window's title bar. Drag it to move
   the window and double-click it to maximise. Minimise, maximise and
   close sit at its right end.
+- Undo and redo moved to a tool strip on the left edge of the map. V
+  returns to the select tool.
 
 ### Removed
 

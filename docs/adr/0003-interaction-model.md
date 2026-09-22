@@ -1,6 +1,6 @@
 # ADR 0003: Map interaction model
 
-Accepted
+Accepted. Amended by ADR 0005, which adds brushes as the one explicit mode beside Select.
 
 ## Context
 

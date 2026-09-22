@@ -482,33 +482,59 @@ button.master.init[aria-pressed="mixed"] {
   border-top: 1px solid var(--border);
 }
 
-/* Undo and redo stack in one column to spare the bar's width; a hairline keeps them two buttons. */
-.toolbar {
+/* A sibling of the map area, so the canvas and everything anchored in map-area pixels start after it. */
+.tool-rail {
+  flex: none;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
+  width: 38px;
+  padding: 4px 0;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+}
+
+.tool-rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tool-rail-foot {
+  margin-top: auto;
+}
+
+.tool-rail button.icon {
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.tool-rail button[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--bg-elevated);
+  border-color: var(--accent-dim);
+}
+
+.rail-icon {
+  display: block;
+}
+
+.tool-options {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 4px;
-  overflow: hidden;
-}
-
-.toolbar button {
-  min-width: 34px;
-  height: 19px;
-  padding: 0 6px;
-  font-size: 15px;
-  line-height: 1;
-  border: none;
-  border-radius: 0;
-}
-
-.toolbar button + button {
-  border-top: 1px solid var(--border);
-}
-
-.toolbar button[aria-pressed="true"] {
-  border-color: var(--accent-dim);
-  color: var(--accent);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
 .menu-file {
