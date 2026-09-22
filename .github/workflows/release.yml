@@ -82,14 +82,14 @@ jobs:
         include:
           - os: windows-latest
             tauri-args: ""
-            cli-asset: windows-x86_64
+            cli-asset: Windows
           # 22.04 keeps the AppImage compatible with older glibc than the latest image has.
           - os: ubuntu-22.04
             tauri-args: ""
-            cli-asset: linux-x86_64
+            cli-asset: Linux
           - os: macos-latest
             tauri-args: --target universal-apple-darwin
-            cli-asset: macos-universal
+            cli-asset: Mac
     runs-on: ${{ matrix.os }}
     env:
       TAG: ${{ needs.version.outputs.tag }}
@@ -189,7 +189,21 @@ jobs:
             -print0 |
           while IFS= read -r -d '' f; do
             name=$(basename "$f")
-            cp "$f" "dist/${name// /.}"
+            sig=""
+            case "$name" in *.sig) sig=.sig; name=${name%.sig} ;; esac
+            case "$name" in
+              *-setup.exe) kind=Windows-Installer.exe ;;
+              *.msi) kind=Windows-Installer-MSI-for-IT.msi ;;
+              *.AppImage) kind=Linux.AppImage ;;
+              *.deb) kind=Linux-Debian-Ubuntu.deb ;;
+              *.rpm) kind=Linux-Fedora.rpm ;;
+              *.dmg) kind=Mac.dmg ;;
+              *.app.tar.gz) kind=Mac-updater-only.tar.gz ;;
+              *) echo "::error::No release name for the bundle $name."; exit 1 ;;
+            esac
+            out="dist/Stellaris-Galaxy-Forge-${TAG#v}-$kind$sig"
+            if [ -e "$out" ]; then echo "::error::Two bundles would both be named $out."; exit 1; fi
+            cp "$f" "$out"
           done
           ls -la dist
 
@@ -217,9 +231,9 @@ jobs:
             # Git Bash rewrites /fd and the other flags as paths unless told not to.
             MSYS_NO_PATHCONV=1 "$SIGNTOOL" sign /fd sha256 /sha1 "$CERTUM_KEY_ID" \
               /tr http://time.certum.pl /td sha256 /d "sgf" target/cli/sgf.exe
-            (cd target/cli && 7z a "$GITHUB_WORKSPACE/dist/sgf-$TAG-${{ matrix.cli-asset }}.zip" sgf.exe)
+            (cd target/cli && 7z a "$GITHUB_WORKSPACE/dist/sgf-command-line-tool-${TAG#v}-${{ matrix.cli-asset }}.zip" sgf.exe)
           else
-            tar -C target/cli -czf "dist/sgf-$TAG-${{ matrix.cli-asset }}.tar.gz" sgf
+            tar -C target/cli -czf "dist/sgf-command-line-tool-${TAG#v}-${{ matrix.cli-asset }}.tar.gz" sgf
           fi
 
       - name: Portable app
@@ -243,7 +257,7 @@ jobs:
           MSYS_NO_PATHCONV=1 "$SIGNTOOL" sign /fd sha256 /sha1 "$CERTUM_KEY_ID" \
             /tr http://time.certum.pl /td sha256 /d "Stellaris Galaxy Forge" \
             "$RUNNER_TEMP/portable/$(basename "$exe")"
-          (cd "$RUNNER_TEMP/portable" && 7z a "$GITHUB_WORKSPACE/dist/stellaris-galaxy-forge-$TAG-windows-x86_64-portable.zip" ./*.exe)
+          (cd "$RUNNER_TEMP/portable" && 7z a "$GITHUB_WORKSPACE/dist/Stellaris-Galaxy-Forge-${TAG#v}-Windows-No-Install.zip" ./*.exe)
 
       # Tauri skips signing silently when it is given no thumbprint, so the artifacts are
       # checked rather than assumed.
@@ -296,12 +310,11 @@ jobs:
           base="https://github.com/$REPO/releases/download/$TAG"
           notes=$(bash scripts/changelog.sh notes "$v")
 
-          # The collect step replaced spaces with dots, so match on the suffix only.
           pick() { ls -1 assets | grep -E -- "$1\$" | head -n 1 || true; }
-          nsis=$(pick '_x64-setup\.exe')
-          msi=$(pick '\.msi')
-          appimage=$(pick '\.AppImage')
-          macapp=$(pick '\.app\.tar\.gz')
+          nsis=$(pick '-Windows-Installer\.exe')
+          msi=$(pick '-Windows-Installer-MSI-for-IT\.msi')
+          appimage=$(pick '-Linux\.AppImage')
+          macapp=$(pick '-Mac-updater-only\.tar\.gz')
 
           platforms='{}'
           add() {
@@ -334,6 +347,8 @@ jobs:
             '{version: $version, notes: $notes, pub_date: $pub_date, platforms: $platforms}' \
             > assets/latest.json
           cat assets/latest.json
+          # latest.json carries each signature, so the .sig files are not published.
+          rm -f assets/*.sig
 
       - name: Checksums
         shell: bash
@@ -355,7 +370,20 @@ jobs:
             exit 1
           fi
           v=$(tr -d '[:space:]' < VERSION)
-          bash scripts/changelog.sh notes "$v" > notes.md
+          dl="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/Stellaris-Galaxy-Forge-$v"
+          {
+            echo "### Which file do I download?"
+            echo
+            echo "- **Windows:** [Windows-Installer.exe]($dl-Windows-Installer.exe)."
+            echo "  To run it without installing, [Windows-No-Install.zip]($dl-Windows-No-Install.zip)."
+            echo "- **Mac:** [Mac.dmg]($dl-Mac.dmg). The Mac app is not signed, so see"
+            echo "  [Installing](https://github.com/$GITHUB_REPOSITORY#installing) for how to open it."
+            echo "- **Linux:** [Linux.AppImage]($dl-Linux.AppImage), or the \`.deb\` or \`.rpm\` package for your distribution."
+            echo
+            echo "You don't need the other files. They are for automatic updates, IT departments and the command-line tool."
+            echo
+            bash scripts/changelog.sh notes "$v"
+          } > notes.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$TAG" -m "$TAG"

@@ -131,28 +131,35 @@ the more room there is to extend it. The other is what people ask for.
 Download the latest release from
 [the Releases page](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases).
 
-- Windows: the NSIS installer,
-  `Stellaris.Galaxy.Forge_<x.y.z>_x64-setup.exe`, or the MSI. Windows
-  SmartScreen will warn that the app is unsigned. Click "More info", then
-  "Run anyway".
-- Windows, no installer: the portable zip,
-  `stellaris-galaxy-forge-v<x.y.z>-windows-x86_64-portable.zip`. It needs
-  the WebView2 runtime, which Windows 11 already has.
-- Linux: the `.AppImage`, `.deb` or `.rpm` for your distribution (all
-  built on Ubuntu 22.04, x86_64). The AppImage needs `chmod +x` before it
-  will run.
-- macOS: the universal `.dmg`. It is not signed, so Gatekeeper will
-  refuse to open it until you run
-  `xattr -cr "/Applications/Stellaris Galaxy Forge.app"`, or right-click
-  the app and choose Open.
-- Command line only: `sgf-v<x.y.z>-windows-x86_64.zip`,
-  `sgf-v<x.y.z>-linux-x86_64.tar.gz` or
-  `sgf-v<x.y.z>-macos-universal.tar.gz`.
+Each release starts with a short "Which file do I download?" list that
+links the right file for your computer.
+
+- Windows: `Stellaris-Galaxy-Forge-<x.y.z>-Windows-Installer.exe`. It is
+  signed by "Open Source Developer, Ian Heinrich". While the certificate
+  is new, Windows SmartScreen may still warn before it runs. Click "More
+  info", then "Run anyway".
+- Windows, without installing:
+  `Stellaris-Galaxy-Forge-<x.y.z>-Windows-No-Install.zip`. Unzip it and
+  run the app inside. It needs the WebView2 runtime, which Windows 11
+  already has.
+- Mac: `Stellaris-Galaxy-Forge-<x.y.z>-Mac.dmg`, for Intel and Apple
+  silicon Macs. It is not signed, so Gatekeeper will refuse to open it
+  until you run `xattr -cr "/Applications/Stellaris Galaxy Forge.app"`,
+  or right-click the app and choose Open.
+- Linux: `Stellaris-Galaxy-Forge-<x.y.z>-Linux.AppImage`, which needs
+  `chmod +x` before it will run, or the `Linux-Debian-Ubuntu.deb` or
+  `Linux-Fedora.rpm` package. All are built on Ubuntu 22.04, x86_64.
+
+The other files are for the app's automatic updates
+(`Mac-updater-only.tar.gz`, `latest.json`), for IT departments that
+deploy software with an MSI (`Windows-Installer-MSI-for-IT.msi`), and for
+the command-line tool (`sgf-command-line-tool-<x.y.z>-Windows.zip`,
+`-Linux.tar.gz` or `-Mac.tar.gz`).
 
 The app checks for a newer release when it starts (the Help menu can turn
 this off, and "Check for updates…" checks right away) and shows a badge
 when one is found. The Windows installer or MSI, the Linux AppImage and
-the macOS app install the update themselves and restart. The portable
+the Mac app install the update themselves and restart. The no-install
 zip and the `.deb`/`.rpm` packages send you to this page instead. Every
 update is verified against the project's public key before it is applied.
 The SmartScreen warning above applies to the downloaded installer too.
