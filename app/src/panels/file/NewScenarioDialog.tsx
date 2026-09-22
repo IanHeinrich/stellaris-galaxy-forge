@@ -1,10 +1,9 @@
 import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
-import * as ipc from "../../api/ipc";
 import type { ScenarioProfile } from "../../generated/ScenarioProfile";
-import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
+import { openPaintSite } from "../chrome/paintMod";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
@@ -170,13 +169,6 @@ export function RouteCards({ route, onRoute }: { route: Route; onRoute: (route: 
       ))}
     </div>
   );
-}
-
-/** Opens the site in the user's browser, through the allowlisted address only. */
-function openPaintSite(): void {
-  void ipc
-    .openUrl(PAINT_URL)
-    .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
 }
 
 /** Picks the site's export and opens it as painted; the dialog stays until a file is open. */

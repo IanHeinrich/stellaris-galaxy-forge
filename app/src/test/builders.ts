@@ -4,6 +4,7 @@ import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitPlanetView } from "../generated/InitPlanetView";
 import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
+import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetSummary } from "../generated/PlanetSummary";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
@@ -59,6 +60,16 @@ export function exportReport(over: Partial<ExportReport> = {}): ExportReport {
     player_seat_kind: null,
     omitted: [],
     setup_from_save: false,
+    ...over,
+  };
+}
+
+/** The one `PaintModView` builder: the mod installed, enabled, with its submod beside it. */
+export function paintModView(over: Partial<PaintModView> = {}): PaintModView {
+  return {
+    scenarios_dir: "C:/mods/pag/map/setup_scenarios",
+    enabled: true,
+    reserved_spawns: true,
     ...over,
   };
 }

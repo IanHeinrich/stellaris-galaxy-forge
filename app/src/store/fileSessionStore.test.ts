@@ -1,3 +1,4 @@
+import { paintModView } from "../test/builders";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Capabilities } from "../generated/Capabilities";
 import type { ExportReport } from "../generated/ExportReport";
@@ -611,11 +612,7 @@ describe("unresolved issues", () => {
     await session().requestOpen(SCENARIO_RESULT.path);
     usePaintModStore.setState({
       known: true,
-      paintMod: {
-        scenarios_dir: "C:/mods/pag/map/setup_scenarios",
-        enabled: true,
-        reserved_spawns: true,
-      },
+      paintMod: paintModView(),
     });
     mocked.confirm.mockResolvedValueOnce(false);
     await usePaintModStore.getState().saveIntoPaintMod();
@@ -804,7 +801,7 @@ describe("scenario documents", () => {
   it("a plain scenario inside the mod's scenarios folder is on the layer; the same file elsewhere is not", async () => {
     usePaintModStore.setState({
       known: true,
-      paintMod: { scenarios_dir: PAINT_DIR, enabled: true, reserved_spawns: true },
+      paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
     });
     mocked.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: `${PAINT_DIR}/mine.txt` });
     await session().requestOpen(`${PAINT_DIR}/mine.txt`);
@@ -822,7 +819,7 @@ describe("scenario documents", () => {
   it("a new scenario on the layer is offered the mod's scenarios folder; an existing file keeps its path", async () => {
     usePaintModStore.setState({
       known: true,
-      paintMod: { scenarios_dir: PAINT_DIR, enabled: true, reserved_spawns: true },
+      paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
     });
     mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
     await session().newScenario("my_galaxy", 400, 100, "paint_a_galaxy");
@@ -858,11 +855,10 @@ describe("scenario documents", () => {
 
     usePaintModStore.setState({
       known: true,
-      paintMod: {
+      paintMod: paintModView({
         scenarios_dir: "C:\\mods\\pag\\map\\setup_scenarios",
         enabled: false,
-        reserved_spawns: true,
-      },
+      }),
     });
     const landed = "C:\\mods\\pag\\map\\setup_scenarios\\my_galaxy.txt";
     mocked.saveDialog.mockResolvedValueOnce(landed);
@@ -889,7 +885,7 @@ describe("scenario documents", () => {
     useGalaxyStore.setState({ header: [{ key: "name", value: '"Elysium"', line: 1 }] });
     usePaintModStore.setState({
       known: true,
-      paintMod: { scenarios_dir: PAINT_DIR, enabled: true, reserved_spawns: true },
+      paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
     });
 
     const landed = `${PAINT_DIR}/my_galaxy.txt`;
@@ -907,7 +903,7 @@ describe("scenario documents", () => {
     await session().requestOpen(SCENARIO_PATH);
     usePaintModStore.setState({
       known: true,
-      paintMod: { scenarios_dir: PAINT_DIR, enabled: true, reserved_spawns: true },
+      paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
     });
 
     mocked.saveDialog.mockResolvedValueOnce(`${PAINT_DIR}/my_galaxy.txt`);
@@ -927,7 +923,7 @@ describe("scenario documents", () => {
   it("notes every other file in the mod's folder that lists the same name, on open and again on save", async () => {
     usePaintModStore.setState({
       known: true,
-      paintMod: { scenarios_dir: PAINT_DIR, enabled: true, reserved_spawns: true },
+      paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
     });
     const mine = `${PAINT_DIR}/my_galaxy.txt`;
     mocked.openSave.mockResolvedValueOnce({
@@ -971,7 +967,7 @@ describe("scenario documents", () => {
   it("notes nothing for a scenario outside the mod's folder, or when the folder cannot be read", async () => {
     usePaintModStore.setState({
       known: true,
-      paintMod: { scenarios_dir: PAINT_DIR, enabled: true, reserved_spawns: true },
+      paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
     });
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH);
@@ -1001,11 +997,8 @@ describe("scenario documents", () => {
       spawn_script: { paint_a_galaxy: { kind, random_value: 2, player: false } },
     });
     const codes = () => useIssuesStore.getState().issues.map((issue) => issue.code);
-    const mod = (reserved_spawns: boolean) => ({
-      scenarios_dir: PAINT_DIR,
-      enabled: true,
-      reserved_spawns,
-    });
+    const mod = (reserved_spawns: boolean) =>
+      paintModView({ scenarios_dir: PAINT_DIR, reserved_spawns });
     mocked.openSave.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       painted: true,
@@ -1109,7 +1102,7 @@ describe("scenario documents", () => {
 
     usePaintModStore.setState({
       known: true,
-      paintMod: { scenarios_dir: PAINT_DIR, enabled: true, reserved_spawns: true },
+      paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
     });
     useFileSessionStore.setState({ pendingExport: exportReport() });
     mocked.saveDialog.mockResolvedValueOnce(null);

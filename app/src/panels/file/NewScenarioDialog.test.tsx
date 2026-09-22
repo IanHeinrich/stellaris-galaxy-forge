@@ -13,6 +13,7 @@ import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
+import { paintModView } from "../../test/builders";
 import { NewScenarioDialog, RouteCards, RouteFoot, RouteHelp } from "./NewScenarioDialog";
 
 const BLANK = { name: "new_galaxy", radius: 400, coreRadius: 100, profile: "plain" as const };
@@ -123,14 +124,7 @@ describe("the blank canvas", () => {
   });
 
   it("shows the mod's state under the box only while it is ticked", () => {
-    usePaintModStore.setState({
-      known: true,
-      paintMod: {
-        scenarios_dir: "C:/mods/pag/map/setup_scenarios",
-        enabled: true,
-        reserved_spawns: true,
-      },
-    });
+    usePaintModStore.setState({ known: true, paintMod: paintModView() });
     expect(renderToStaticMarkup(<NewScenarioDialog />)).toContain("Paint a Galaxy mod enabled ✓");
 
     usePaintModStore.setState({ paintChoice: false });

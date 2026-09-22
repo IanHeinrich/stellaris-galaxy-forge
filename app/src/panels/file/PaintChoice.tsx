@@ -1,6 +1,6 @@
+import { PAINT_CHECK, PAINT_CHOICE_WHY, PAINT_UNTICKED } from "../../lib/paintCopy";
 import { usePaintModStore } from "../../store/paintModStore";
 import { PaintModStatus } from "../chrome/PaintModStatus";
-import { PAINT_CHECK, PAINT_UNTICKED, PAINT_WHY } from "./paintCopy";
 
 /**
  * The Paint a Galaxy checkbox the New scenario and Export dialogs share: the user's standing
@@ -18,7 +18,7 @@ export function PaintChoice() {
       />
       <span>
         {PAINT_CHECK}
-        <span className="setup-why">{PAINT_WHY}</span>
+        <span className="setup-why">{PAINT_CHOICE_WHY}</span>
         {paint ? (
           <PaintModStatus />
         ) : (
