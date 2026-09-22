@@ -17,6 +17,7 @@ export function LaneMenu({
   frame: Frame;
 }) {
   const applyOp = useEditorStore((s) => s.applyOp);
+  const applySymmetric = useEditorStore((s) => s.applySymmetric);
   const systems = useGalaxyStore((s) => s.systems);
   const { a, b } = target.lane;
   const named = useSystemNames([a, b]);
@@ -31,7 +32,7 @@ export function LaneMenu({
       <MenuItem
         disabled={gone}
         title={gone ? LANE_GONE : undefined}
-        run={() => applyOp({ type: "RemoveLane", a, b })}
+        run={() => applySymmetric({ type: "RemoveLane", a, b })}
       >
         Cut
       </MenuItem>

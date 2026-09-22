@@ -25,7 +25,8 @@ export type KeyAction =
   | "paintTool"
   | "eraseTool"
   | "connectTool"
-  | "cutTool";
+  | "cutTool"
+  | "toggleSymmetry";
 
 /** A world offset that moves the selection one step across the screen. */
 export interface Nudge {
@@ -80,6 +81,7 @@ export function keyAction(e: KeyLike, inInput: boolean, canGoBack = false): KeyA
   if (key === "e" && !e.shiftKey) return "eraseTool";
   if (key === "c" && !e.shiftKey) return "connectTool";
   if (key === "x" && !e.shiftKey) return "cutTool";
+  if (key === "m" && !e.shiftKey) return "toggleSymmetry";
   return null;
 }
 

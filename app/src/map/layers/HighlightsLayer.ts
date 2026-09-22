@@ -16,6 +16,8 @@ import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContex
 import { ORIGIN_ALPHA } from "../../lib/visual/style";
 import type { Segment as BrushSegment } from "../../lib/brush/lanes";
 import type { BrushTool } from "../../lib/brush/brushStroke";
+import { guideLines, images, type Symmetry } from "../../lib/geometry/symmetry";
+import { SCENARIO_HALF_EXTENT } from "../../lib/guides";
 import { destroyChildren } from "./destroyChildren";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
@@ -63,6 +65,10 @@ const BRUSH_DASHES = 48;
 const BRUSH_DOT_PX = 3;
 const BRUSH_RING_PX = 7;
 const BRUSH_CUT_PX = 3;
+/** The copies of the brush circle a symmetric stroke also lays, fainter than the one at the pointer. */
+const BRUSH_IMAGE_ALPHA = 0.45;
+/** Symmetry's axis or spokes while a brush is out: the brush accent, faint enough to paint over. */
+const SYMMETRY_GUIDE = { color: BRUSH_PAINT, alpha: 0.3 };
 
 export interface RubberLane {
   from: LaneSource;
@@ -71,12 +77,13 @@ export interface RubberLane {
   target: LaneTarget | null;
 }
 
-/** The brush circle at the pointer, `r` its world radius. */
+/** The brush circle at the pointer, `r` its world radius, with a copy at each image under `symmetry`. */
 export interface BrushCursor {
   tool: BrushTool;
   x: number;
   y: number;
   r: number;
+  symmetry: Symmetry;
 }
 
 /** What a held stroke would do, in world positions. */
@@ -99,6 +106,11 @@ export interface WorldRect {
   y0: number;
   x1: number;
   y1: number;
+}
+
+/** How far the symmetry guides run: a save's galaxy radius, or out to a scenario's corners. */
+function guideReachOf(ctx: RenderContext): number {
+  return ctx.kind === "save" && ctx.radius > 0 ? ctx.radius : SCENARIO_HALF_EXTENT * Math.SQRT2;
 }
 
 function ring(spec: typeof SELECTION): Graphics {
@@ -245,7 +257,10 @@ export class HighlightsLayer implements MapLayer {
   private readonly brushLines = new Graphics({ label: "brushLines" });
   private readonly brushMarks = new Graphics({ label: "brushMarks" });
   private readonly brushCircle = new Graphics({ label: "brushCircle" });
+  private readonly symmetryGuide = new Graphics({ label: "symmetryGuide" });
   private brushPreview: BrushPreview | null = null;
+  private symmetry: Symmetry | null = null;
+  private guideReach = guideReachOf(EMPTY_CONTEXT);
   private coreRadius = EMPTY_CONTEXT.coreRadius;
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
@@ -271,6 +286,7 @@ export class HighlightsLayer implements MapLayer {
   constructor() {
     this.container.addChild(
       this.coreRing,
+      this.symmetryGuide,
       this.origin,
       this.laneLines,
       this.previewLines,
@@ -301,6 +317,11 @@ export class HighlightsLayer implements MapLayer {
     if (ctx.coreRadius !== this.coreRadius) {
       this.coreRadius = ctx.coreRadius;
       this.drawCoreRing();
+    }
+    const reach = guideReachOf(ctx);
+    if (reach !== this.guideReach) {
+      this.guideReach = reach;
+      this.drawSymmetryGuide();
     }
     if (!loaded) return;
     this.placeSelection();
@@ -418,6 +439,15 @@ export class HighlightsLayer implements MapLayer {
     dashedCircle(g, cursor.x, cursor.y, cursor.r, BRUSH_DASHES);
     const color = cursor.tool === "paint" || cursor.tool === "connect" ? BRUSH_PAINT : BRUSH_ERASE;
     g.stroke({ color, alpha: 0.9, pixelLine: true });
+    const copies = images(cursor, cursor.symmetry).slice(1);
+    for (const p of copies) dashedCircle(g, p.x, p.y, cursor.r, BRUSH_DASHES);
+    if (copies.length > 0) g.stroke({ color, alpha: BRUSH_IMAGE_ALPHA, pixelLine: true });
+  }
+
+  /** The axis or spokes of the symmetry brush strokes repeat under; null hides them. */
+  setSymmetryGuide(symmetry: Symmetry | null): void {
+    this.symmetry = symmetry;
+    this.drawSymmetryGuide();
   }
 
   setBrushPreview(preview: BrushPreview | null): void {
@@ -666,6 +696,15 @@ export class HighlightsLayer implements MapLayer {
     if (p.kept.length > 0) g.stroke({ color: BRUSH_KEPT, alpha: 0.9, width: 2 * px });
     for (const s of p.swept) g.circle(s.x, s.y, BRUSH_RING_PX * px);
     if (p.swept.length > 0) g.stroke({ color: BRUSH_PAINT, alpha: 0.9, width: 2 * px });
+  }
+
+  private drawSymmetryGuide(): void {
+    const g = this.symmetryGuide;
+    g.clear();
+    if (!this.symmetry) return;
+    const lines = guideLines(this.symmetry, this.guideReach);
+    for (const [a, b] of lines) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
+    if (lines.length > 0) g.stroke({ ...SYMMETRY_GUIDE, pixelLine: true });
   }
 
   /** A world-space circle of the core radius, stroked one screen pixel wide at any zoom. */

@@ -23,7 +23,7 @@ also a key:
 | `E` | Erase systems, on a scenario only |
 | `C` | Connect lanes brush |
 | `X` | Cut lanes brush |
-| `M` | Symmetry, a toggle over the other brushes |
+| `M` | Symmetry on and off |
 
 `[` and `]` shrink and grow the brush. `Alt` inverts a brush while held. `Esc` drops a stroke in progress, and a
 second `Esc` returns to Select. A tool the open document cannot take is refused, and opening such a document or
@@ -46,3 +46,15 @@ model behind the same `MapIntent` interface.
 - The rail takes a strip of the map's width whenever a document is open.
 - A brush on a save is limited to lanes, since a save cannot add or remove systems.
 - Symmetry and the brush settings persist per machine; the tool itself does not.
+
+## Amendment: symmetry is a global mode
+
+Symmetry is not a brush option. It is a mode of editing that applies in every tool: adding, moving, deleting
+and isolating systems, adding and cutting lanes, and setting initializers and spawns each reach the counterparts
+at every image in the same op, as every brush stroke does. Its button sits below the tools and opens a flyout
+that picks the kind, and `M` turns it on and off. Its guides show whenever it is on.
+
+Every single edit goes through one store helper, `symmetricOp`, which widens the op the action built. A seat
+edit goes through `symmetricSeat` instead, which builds each counterpart's seat from that counterpart. A drag
+finds its counterparts once when it starts and reuses them for the preview and the commit. A counterpart is the
+system within 0.5 map units of the image, found through the spatial grid.

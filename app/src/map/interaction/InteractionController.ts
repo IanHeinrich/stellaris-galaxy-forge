@@ -1,10 +1,17 @@
-import type { Op } from "../../generated/Op";
 import { isEditableTarget } from "../../lib/keys";
 import { useEditorStore } from "../../store/editorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
+import {
+  movedIds,
+  movePlan,
+  plannedMoveOp,
+  plannedMoves,
+  type MoveOp,
+  type MovePlan,
+} from "../../store/symmetricEdits";
 import { useToolStore, type Tool } from "../../store/toolStore";
 import { feDirectionLabel, feZoneRefusal } from "../../lib/feZone";
 import type { Pt } from "../../lib/geometry/pt";
@@ -75,6 +82,8 @@ export class InteractionController {
   private hoverEdge: MapEdge | null = null;
   private readonly gesture = new GestureReporter();
   private moveSeq = 0;
+  /** The counterparts the drag in progress carries, found once when it starts. */
+  private movePlan: MovePlan | null = null;
   private nebulaSeq = 0;
   private feZoneSeq = 0;
   /** The readout this controller put up, so a drag only ever takes down its own tooltip. */
@@ -96,10 +105,15 @@ export class InteractionController {
       const drag = dragState(ghosts);
       for (const layer of this.layers) layer.setDragState?.(drag);
     };
-    const commit = (op: Op) => {
+    const plan = (ids: readonly number[]) => (this.movePlan ??= movePlan(ids));
+    const showMoves = (ids: readonly number[], moves: MoveGhost[]) =>
+      showGhosts(plannedMoves(plan(ids), moves));
+    const commit = (op: MoveOp) => {
+      const planned = plannedMoveOp(plan(movedIds(op)), op);
+      this.movePlan = null;
       const seq = ++this.moveSeq;
       void editor()
-        .applyOp(op)
+        .applyOp(planned)
         .finally(() => {
           if (this.moveSeq === seq) showGhosts([]);
         });
@@ -199,13 +213,17 @@ export class InteractionController {
         }
         void editor().setSelection(ids, mode);
       },
-      previewMove: (id, x, y) => showGhosts([{ id, x: x + this.grab.dx, y: y + this.grab.dy }]),
+      previewMove: (id, x, y) =>
+        showMoves([id], [{ id, x: x + this.grab.dx, y: y + this.grab.dy }]),
       commitMove: (id, x, y) =>
         commit({ type: "MoveSystem", id, x: x + this.grab.dx, y: y + this.grab.dy }),
-      previewMoveGroup: (ids, dx, dy) => showGhosts(groupGhosts(ids, dx, dy)),
+      previewMoveGroup: (ids, dx, dy) => showMoves(ids, groupGhosts(ids, dx, dy)),
       commitMoveGroup: (ids, dx, dy) =>
         commit({ type: "MoveSystems", moves: groupGhosts(ids, dx, dy) }),
-      cancelMove: () => showGhosts([]),
+      cancelMove: () => {
+        this.movePlan = null;
+        showGhosts([]);
+      },
       previewLane: (from, x, y, target) => {
         highlights.setRubberLane({ from, x, y, target });
         this.gesture.connect();
@@ -222,7 +240,12 @@ export class InteractionController {
         } else if (from.ids.length > 1) {
           void editor().connectSelectedTo(target.id);
         } else {
-          void editor().applyOp({ type: "AddLane", a: from.ids[0], b: target.id, bridge: false });
+          void editor().applySymmetric({
+            type: "AddLane",
+            a: from.ids[0],
+            b: target.id,
+            bridge: false,
+          });
         }
       },
       selectNebula: (index) => editor().selectNebula(index),
@@ -259,7 +282,7 @@ export class InteractionController {
       cut: (edge) => {
         this.hover(null);
         if (edge.kind === "lane") {
-          void editor().applyOp({ type: "RemoveLane", a: edge.lane.a, b: edge.lane.b });
+          void editor().applySymmetric({ type: "RemoveLane", a: edge.lane.a, b: edge.lane.b });
         } else {
           void editor().unlinkFromFeZone(edge.anchor, edge.system);
         }
@@ -278,10 +301,14 @@ export class InteractionController {
     this.bindPointer();
     this.bindKeyboard();
     this.index.build(systems());
+    this.brushes.drawGuide();
     this.cleanups.push(
       useToolStore.subscribe((state, previous) => {
         if (state.tool !== previous.tool) this.swapModel(this.modelFor(state.tool));
-        if (state.size !== previous.size) this.brushes.drawCursor();
+        if (state.symmetry !== previous.symmetry) this.brushes.drawGuide();
+        if (state.size !== previous.size || state.symmetry !== previous.symmetry) {
+          this.brushes.drawCursor();
+        }
       }),
       useGalaxyStore.subscribe((state, previous) => {
         if (state.version === previous.version) return;

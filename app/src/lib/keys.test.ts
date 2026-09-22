@@ -60,6 +60,14 @@ describe("keys", () => {
     expect(keyAction(press("x", { altKey: true }), false)).toBeNull();
   });
 
+  it("M toggles symmetry, except while typing, with Shift or with a modifier", () => {
+    expect(keyAction(press("m"), false)).toBe("toggleSymmetry");
+    expect(keyAction(press("m"), true)).toBeNull();
+    expect(keyAction(press("M", { shiftKey: true }), false)).toBeNull();
+    expect(keyAction(press("m", { ctrlKey: true }), false)).toBeNull();
+    expect(keyAction(press("m", { altKey: true }), false)).toBeNull();
+  });
+
   it("Tab collapses the dock, except while typing or with Shift", () => {
     expect(keyAction(press("Tab"), false)).toBe("toggleDock");
     expect(keyAction(press("Tab", { shiftKey: true }), false)).toBeNull();

@@ -271,7 +271,7 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
       applied = await editor.addSystemAt(pending.x, pending.y, initializer, spawn_weight);
     } else {
       if (targets.length === 0) return false;
-      applied = await editor.applyOp(assignOp(targets, initializer));
+      applied = await editor.applySymmetric(assignOp(targets, initializer));
     }
     if (!applied) return false;
     if (!random) {

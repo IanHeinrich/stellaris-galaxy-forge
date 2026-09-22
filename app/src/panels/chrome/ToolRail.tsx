@@ -3,6 +3,7 @@ import { documentCapabilities, supports } from "../../lib/capabilities";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { TOOL_REQUIRES, useToolStore, type Tool } from "../../store/toolStore";
+import { SymmetryControl } from "./SymmetryControl";
 import "./chrome.css";
 
 function Glyph({ children }: { children: ReactNode }) {
@@ -96,7 +97,7 @@ const TOOLS: readonly ToolEntry[] = [
   },
 ];
 
-/** The map's tools down its left edge, with undo and redo at the foot (ADR 0005). */
+/** The map's tools down its left edge, the symmetry after them, and undo and redo at the foot (ADR 0005). */
 export function ToolRail() {
   const tool = useToolStore((s) => s.tool);
   const setTool = useToolStore((s) => s.setTool);
@@ -124,6 +125,9 @@ export function ToolRail() {
             {t.icon}
           </button>
         ))}
+      </div>
+      <div className="tool-rail-group tool-rail-symmetry" role="group" aria-label="Symmetry">
+        <SymmetryControl />
       </div>
       <div className="tool-rail-group tool-rail-foot" role="group" aria-label="History">
         <button

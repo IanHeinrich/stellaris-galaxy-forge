@@ -1,10 +1,14 @@
 import type { GalaxySizeView } from "../generated/GalaxySizeView";
 import type { IssueCode } from "../generated/IssueCode";
 import type { Severity } from "../generated/Severity";
+import type { SystemNode } from "../generated/SystemNode";
 
 /** The codes the app raises on its own, which the validator's list does not carry. */
 export type NoteCode =
-  "scenario_name_duplicate" | "reserved_spawns_missing" | "galaxy_size_exceeded";
+  | "scenario_name_duplicate"
+  | "reserved_spawns_missing"
+  | "galaxy_size_exceeded"
+  | "initializer_over_limit";
 
 export type AppIssueCode = IssueCode | NoteCode;
 
@@ -60,4 +64,33 @@ export function galaxySizeNote(systems: number, largest: GalaxySizeView): AppIss
       `(${count(largest.num_stars)} stars). Very large galaxies can make the game slow.`,
     systems: [],
   };
+}
+
+/**
+ * One note per initializer more systems use than the game's `max_instances` for it allows,
+ * naming those systems. `limits` holds the initializers that state a limit.
+ */
+export function initializerLimitNotes(
+  systems: Iterable<SystemNode>,
+  limits: ReadonlyMap<string, number>,
+): AppIssue[] {
+  const users = new Map<string, number[]>();
+  for (const s of systems) {
+    if (!limits.has(s.initializer)) continue;
+    const ids = users.get(s.initializer);
+    if (ids) ids.push(s.id);
+    else users.set(s.initializer, [s.id]);
+  }
+  return [...users].flatMap(([initializer, ids]): AppIssue[] => {
+    const max = limits.get(initializer)!;
+    if (ids.length <= max) return [];
+    return [
+      {
+        severity: "warning",
+        code: "initializer_over_limit",
+        message: `${ids.length} systems use ${initializer}, which the game allows ${max === 1 ? "once" : `${max} times`}.`,
+        systems: ids,
+      },
+    ];
+  });
 }

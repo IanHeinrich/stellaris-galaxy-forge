@@ -17,9 +17,15 @@ export type SymmetryAxis = "x" | "y";
 
 export type RotationOrder = 2 | 3 | 4 | 6 | 8;
 
-/** Copies of each brush stroke about the galaxy's centre. */
+/** The global symmetry: each edit and brush stroke repeated about the galaxy's centre. */
 export type Symmetry =
   { kind: "off" } | { kind: "mirror"; axis: SymmetryAxis } | { kind: "rotate"; n: RotationOrder };
+
+/** A symmetry that makes copies, as M turns back on. */
+export type ActiveSymmetry = Exclude<Symmetry, { kind: "off" }>;
+
+/** What M turns on before any symmetry has been picked. */
+export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
 
 /** What each tool needs of the open document; a tool absent here works on every kind. */
 export const TOOL_REQUIRES: Partial<Record<Tool, keyof Capabilities>> = {
@@ -91,6 +97,10 @@ export interface ToolState {
   /** Whether the erase brush takes systems that carry an initializer, a spawn or a special. */
   eraseSpecials: boolean;
   symmetry: Symmetry;
+  /** The symmetry M turns back on: the last one picked. */
+  lastSymmetry: ActiveSymmetry;
+  /** Whether the rail's symmetry flyout is open. */
+  symmetryMenu: boolean;
   /** Switches tool, refusing one the open document cannot take; true when `tool` is now current. */
   setTool(tool: Tool): boolean;
   setSize(size: number): void;
@@ -101,6 +111,9 @@ export interface ToolState {
   setEraseTarget(target: EraseTarget): void;
   setEraseSpecials(on: boolean): void;
   setSymmetry(symmetry: Symmetry): void;
+  /** M: turns symmetry off, or back on as it last was. */
+  toggleSymmetry(): void;
+  setSymmetryMenu(open: boolean): void;
 }
 
 function clamp(value: number, range: { min: number; max: number }): number {
@@ -117,6 +130,19 @@ function isSymmetry(value: unknown): value is Symmetry {
   if (s.kind === "off") return true;
   if (s.kind === "mirror") return s.axis === "x" || s.axis === "y";
   return s.kind === "rotate" && typeof s.n === "number" && ROTATION_ORDERS.includes(s.n);
+}
+
+function isActiveSymmetry(value: unknown): value is ActiveSymmetry {
+  return isSymmetry(value) && value.kind !== "off";
+}
+
+function storedLastSymmetry(): ActiveSymmetry {
+  const current = readPref(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry);
+  return readPref(
+    PREF_KEYS.symmetryLast,
+    current.kind === "off" ? DEFAULT_SYMMETRY : current,
+    isActiveSymmetry,
+  );
 }
 
 function storedNumber(key: string, range: { min: number; max: number; fallback: number }): number {
@@ -139,6 +165,8 @@ export const useToolStore = create<ToolState>((set, get) => ({
   eraseTarget: readPref(PREF_KEYS.eraseTarget, "systems", oneOf(ERASE_TARGETS)),
   eraseSpecials: readPref(PREF_KEYS.eraseSpecials, false, isBoolean),
   symmetry: readPref(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry),
+  lastSymmetry: storedLastSymmetry(),
+  symmetryMenu: false,
 
   setTool(tool) {
     if (!toolAllowed(tool)) return false;
@@ -181,5 +209,17 @@ export const useToolStore = create<ToolState>((set, get) => ({
   setSymmetry(symmetry) {
     set({ symmetry });
     writePref(PREF_KEYS.symmetry, symmetry);
+    if (symmetry.kind === "off") return;
+    set({ lastSymmetry: symmetry });
+    writePref(PREF_KEYS.symmetryLast, symmetry);
+  },
+
+  setSymmetryMenu(symmetryMenu) {
+    if (get().symmetryMenu !== symmetryMenu) set({ symmetryMenu });
+  },
+
+  toggleSymmetry() {
+    const { symmetry, lastSymmetry } = get();
+    get().setSymmetry(symmetry.kind === "off" ? lastSymmetry : SYMMETRY_OFF);
   },
 }));

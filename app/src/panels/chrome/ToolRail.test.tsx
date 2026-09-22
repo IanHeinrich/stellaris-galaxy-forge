@@ -80,6 +80,70 @@ describe("the tool rail", () => {
     expect(rail()).toContain("Cut lanes");
   });
 
+  it("carries the symmetry button after the tools, showing the setting while it is on", () => {
+    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
+    const off = button("Symmetry");
+    expect(off).toContain('aria-pressed="false"');
+    expect(off).toContain('title="Symmetry off (M turns on 4-fold rotation)"');
+    expect(off).not.toContain("symmetry-badge");
+    expect(rail()).toMatch(/aria-label="Symmetry">.*aria-label="History"/);
+
+    useToolStore.setState({ symmetry: { kind: "mirror", axis: "y" } });
+    const mirror = button("Symmetry");
+    expect(mirror).toContain('aria-pressed="true"');
+    expect(mirror).toContain('title="Symmetry: Mirror left–right (M turns it off)"');
+    expect(mirror).toContain('<span class="symmetry-badge">↔</span>');
+    useToolStore.setState({ symmetry: { kind: "rotate", n: 6 } });
+    expect(button("Symmetry")).toContain('<span class="symmetry-badge">6</span>');
+  });
+
+  it("opens the symmetry flyout from its button, marking the setting in force", () => {
+    expect(button("Symmetry")).toContain('aria-haspopup="menu" aria-expanded="false"');
+    expect(rail()).not.toContain('role="menu"');
+
+    const toggle = elements(<ToolRail />).find(
+      (el): el is ReactElement<{ onClick: () => void }> =>
+        el.type === "button" &&
+        (el.props as { "aria-label"?: string })["aria-label"] === "Symmetry",
+    );
+    toggle!.props.onClick();
+    expect(useToolStore.getState().symmetryMenu).toBe(true);
+    useToolStore.setState({ symmetry: { kind: "rotate", n: 4 } });
+    const html = rail();
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain('role="menu" aria-label="Symmetry"');
+    expect(html).toMatch(/>Off<.*Mirror.*>↔<.*>↕<.*Rotate.*>2<.*>3<.*>4<.*>6<.*>8</);
+    expect(button("4-fold rotation")).toContain('aria-checked="true"');
+    expect(button("Off")).toContain('aria-checked="false"');
+  });
+
+  it("sets the symmetry a flyout choice names and closes, and Escape closes it too", () => {
+    useToolStore.setState({ symmetryMenu: true });
+    const find = (label: string) =>
+      elements(<ToolRail />).find(
+        (el): el is ReactElement<{ onClick: (e: unknown) => void }> =>
+          (el.props as { "aria-label"?: string })["aria-label"] === label,
+      )!;
+    find("Mirror top–bottom").props.onClick({ currentTarget: { closest: () => null } });
+    expect(useToolStore.getState()).toMatchObject({
+      symmetry: { kind: "mirror", axis: "x" },
+      symmetryMenu: false,
+    });
+
+    useToolStore.setState({ symmetryMenu: true });
+    const menu = elements(<ToolRail />).find(
+      (el): el is ReactElement<{ onKeyDown: (e: unknown) => void }> =>
+        (el.props as { role?: string }).role === "menu",
+    )!;
+    menu.props.onKeyDown({
+      key: "Escape",
+      preventDefault: () => undefined,
+      stopPropagation: () => undefined,
+      currentTarget: { closest: () => null },
+    });
+    expect(useToolStore.getState().symmetryMenu).toBe(false);
+  });
+
   it("names the edit undo and redo would step", () => {
     useEditorStore.setState({
       history: { undo: [entry(1, "Move Sol"), entry(2, "Add lane")], redo: [entry(3, "Cut lane")] },
@@ -99,6 +163,13 @@ describe("the tool options", () => {
 
 describe("the brush options", () => {
   const options = () => renderToStaticMarkup(<ToolOptions />);
+
+  it("leave the symmetry to the rail", () => {
+    for (const tool of ["paint", "erase", "connect", "cut"] as const) {
+      useToolStore.setState({ tool });
+      expect(options()).not.toContain("Symmetry");
+    }
+  });
 
   it("give the paint brush its size, density, lanes and lane density", () => {
     useToolStore.setState({ tool: "paint", size: 60, spacing: 20, laneMode: "new" });
@@ -133,7 +204,7 @@ describe("the brush options", () => {
     expect(cut).toContain('title="Distance between painted systems, in world units" value="38.3"');
   });
 
-  it("give the connect brush its size and lane density, and the cut brush its size alone", () => {
+  it("give the connect brush its size and lane density, and the cut brush its size", () => {
     useToolStore.setState({ tool: "connect", size: 60 });
     const connect = options();
     expect(connect).toContain('aria-label="Brush size" value="60"');

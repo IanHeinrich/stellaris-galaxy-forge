@@ -23,6 +23,15 @@ a release is made.
   that don't cross existing ones. It works on saves too.
 - A cut brush (X) removes the hyperlanes it passes over. It works on saves
   too. Holding Alt swaps connect and cut.
+- Symmetry (M) repeats your edits about the galaxy centre, as a mirror or
+  a 2, 3, 4, 6 or 8-fold rotation. Adding, moving, deleting and isolating
+  systems, adding and cutting hyperlanes, and setting an initializer or
+  spawn all apply to every copy as one undo step. Brush strokes repeat
+  too. Faint guide lines on the map show the axis or the spokes. The
+  Symmetry button below the tools picks the kind, and M turns it on and
+  off.
+- The Issues panel warns when more systems use an initializer than the
+  game allows.
 - Join islands links every separate cluster of systems into one galaxy
   with the shortest hyperlanes that don't cross. It sits beside the
   Components count in the Inspector and on the Issues tab.

@@ -30,6 +30,7 @@ import {
   issueKey,
   noteDuplicateNames,
   noteGalaxySize,
+  noteInitializerLimits,
   noteReservedSpawns,
   useIssuesStore,
 } from "./issuesStore";
@@ -396,6 +397,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     // A seat's kind can change with an edit, so the reserved seats are counted again.
     noteReservedSpawns();
     noteGalaxySize();
+    noteInitializerLimits();
   },
 
   setError(message) {
@@ -490,6 +492,7 @@ async function openDocument(
     useGalaxyStore.getState().load(result.galaxy);
     noteReservedSpawns();
     noteGalaxySize();
+    noteInitializerLimits();
     void noteDuplicateNames();
     if (result.kind === "scenario" && useGameDataStore.getState().status === "ready") {
       setState({ settling: true });

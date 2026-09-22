@@ -8,10 +8,17 @@ import {
   type Pair,
 } from "./lanes";
 import { seeded } from "./random";
-import { StrokeSampler } from "./sample";
+import { SAMPLE_CAP, StrokeSampler } from "./sample";
 import { sweptLanes, sweptSystems } from "./sweep";
-import { imagesOfStamps, symmetricPairs, symmetricPoints, type Symmetry } from "./symmetry";
-import { SegmentIndex } from "../geometry/joinIslands";
+import {
+  composed,
+  copies,
+  COUNTERPART_REACH,
+  imageOf,
+  imagesOfStamps,
+  type Symmetry,
+} from "../geometry/symmetry";
+import { SegmentIndex, segmentsCross } from "../geometry/joinIslands";
 import { MESH_BETA, meshPairs, type MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import type { SpatialGrid } from "../spatialGrid";
@@ -49,6 +56,10 @@ const LANE_REACH = 3;
 
 function ordered(a: number, b: number): Pair {
   return a < b ? [a, b] : [b, a];
+}
+
+function key([a, b]: Pair): string {
+  return `${a},${b}`;
 }
 
 function sorted(ids: Set<number>): number[] {
@@ -103,6 +114,8 @@ export class BrushStroke {
             spacing: settings.spacing,
             blockers: grid,
             rand: seeded(seed),
+            cap: Math.floor(SAMPLE_CAP / copies(settings.symmetry)),
+            symmetry: settings.symmetry,
           })
         : null;
   }
@@ -164,12 +177,13 @@ export class BrushStroke {
       const s = this.systems.get(a);
       return !!s && (s.lanes.some((l) => l.to === b) || s.prevented.includes(b));
     };
-    const pairs = meshWithin(points, {
-      beta: this.settings.beta,
-      maxLength,
-      existing: this.lanesNear(points, maxLength),
-      keep: (a, b) => !apart(a, b) && !apart(b, a),
-    });
+    const existing = this.lanesNear(points, maxLength);
+    const keep = (a: number, b: number) => !apart(a, b) && !apart(b, a);
+    const meshed = meshWithin(points, { beta: this.settings.beta, maxLength, existing, keep });
+    const pairs =
+      this.settings.symmetry.kind === "off"
+        ? meshed
+        : this.symmetricLanes(meshed, 0, (id) => this.systems.get(id)!, existing, keep);
     const result: StrokeResult = { kind: "connect", swept, pairs };
     this.connected = { swept: this.swept.size, result };
     return result;
@@ -178,49 +192,98 @@ export class BrushStroke {
   private paint(sampler: StrokeSampler): StrokeResult {
     const base = sampler.points;
     if (this.painted?.base === base.length) return this.painted.result;
-    const { symmetry, spacing } = this.settings;
-    const copies =
-      symmetry.kind === "off"
-        ? { base: base.map(({ x, y }) => ({ x, y })), points: base.map(({ x, y }) => ({ x, y })) }
-        : symmetricPoints(base, symmetry, spacing, this.grid);
-    const result: StrokeResult = {
-      kind: "paint",
-      points: copies.points,
-      pairs: this.lanes(copies.base, copies.points),
-    };
+    const points = imagesOfStamps(base, this.settings.symmetry).flat();
+    const result: StrokeResult = { kind: "paint", points, pairs: this.lanes(base.length, points) };
     this.painted = { base: base.length, result };
     return result;
   }
 
-  private lanes(base: readonly Pt[], points: readonly Pt[]): Pair[] {
+  /** The stroke's lanes, where copy k of base point i is `points[k * count + i]`. */
+  private lanes(count: number, points: readonly Pt[]): Pair[] {
     const { laneMode: mode, beta, spacing, symmetry } = this.settings;
     if (mode === "off" || points.length === 0) return [];
     const maxLength = LANE_REACH * spacing;
     const existing = this.lanesNear(points, maxLength);
-    if (mode === "new" && symmetry.kind !== "off") {
-      // Mesh one copy and repeat it, so the copies' lanes are as symmetric as their systems.
-      const pairs = strokeLanes({
-        added: withProvisionalIds(base),
-        nearby: [],
-        existing,
-        beta,
-        mode,
-        maxLength,
-      }).map(([a, b]): Pair => ordered(indexOf(a), indexOf(b)));
-      const lanes = new SegmentIndex();
-      for (const [a, b] of existing) lanes.add(a, b);
-      return symmetricPairs(pairs, base.length, symmetry)
-        .filter(([i, j]) => !lanes.crosses(points[i], points[j]))
-        .map(([i, j]) => ordered(provisional(i), provisional(j)));
-    }
-    return strokeLanes({
+    const pairs = strokeLanes({
       added: withProvisionalIds(points),
-      nearby: mode === "nearby" ? this.systemsNear(points, maxLength) : [],
+      nearby: mode === "nearby" ? this.systemsNear(points.slice(0, count), maxLength) : [],
       existing,
       beta,
       mode,
       maxLength,
     }).map(([a, b]) => ordered(a, b));
+    if (symmetry.kind === "off") return pairs;
+    const inFirst = (id: number) => id < 0 && indexOf(id) < count;
+    const at = (id: number): Pt => (id < 0 ? points[indexOf(id)] : this.systems.get(id)!);
+    return this.symmetricLanes(
+      pairs.filter(([a, b]) => inFirst(a) || inFirst(b)),
+      count,
+      at,
+      existing,
+    );
+  }
+
+  /**
+   * `pairs`, each mapped onto every copy, where a painted point's copies are `count` apart. A
+   * lane goes in with all its images or not at all: dropped when an image would cross a lane,
+   * would end at a system the galaxy lacks at that image, or is one `keep` refuses. Shortest
+   * first, so a long lane gives way to a short one.
+   */
+  private symmetricLanes(
+    pairs: readonly Pair[],
+    count: number,
+    at: (id: number) => Pt,
+    existing: ReadonlyArray<readonly [Pt, Pt]>,
+    keep: (a: number, b: number) => boolean = () => true,
+  ): Pair[] {
+    const length = ([a, b]: Pair) => Math.hypot(at(a).x - at(b).x, at(a).y - at(b).y);
+    const lanes = new SegmentIndex();
+    for (const [a, b] of existing) lanes.add(a, b);
+    const seen = new Set<string>();
+    const out: Pair[] = [];
+    for (const pair of [...pairs].sort((p, q) => length(p) - length(q))) {
+      if (seen.has(key(pair))) continue;
+      const orbit = this.orbit(pair, count);
+      if (!orbit) continue;
+      for (const p of orbit) seen.add(key(p));
+      if (!orbit.every(([a, b]) => keep(a, b))) continue;
+      const crossing = orbit.some(
+        ([a, b], i) =>
+          lanes.crosses(at(a), at(b)) ||
+          orbit.slice(0, i).some(([c, d]) => segmentsCross(at(a), at(b), at(c), at(d))),
+      );
+      if (crossing) continue;
+      for (const [a, b] of orbit) lanes.add(at(a), at(b));
+      out.push(...orbit);
+    }
+    return out.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  }
+
+  /** `pair` and its images, each once; null when some image has no system at one end. */
+  private orbit(pair: Pair, count: number): Pair[] | null {
+    const found = new Map<string, Pair>();
+    for (let m = 0; m < copies(this.settings.symmetry); m++) {
+      const a = this.imageEnd(pair[0], m, count);
+      const b = this.imageEnd(pair[1], m, count);
+      if (a === null || b === null || a === b) return null;
+      const image = ordered(a, b);
+      found.set(key(image), image);
+    }
+    return [...found.values()];
+  }
+
+  /** Image `m` of a lane end: a new point's id in the copy it lands in, or the existing system there. */
+  private imageEnd(id: number, m: number, count: number): number | null {
+    if (m === 0) return id;
+    const sym = this.settings.symmetry;
+    if (id < 0) {
+      const i = indexOf(id);
+      return provisional(composed(sym, m, Math.floor(i / count)) * count + (i % count));
+    }
+    const s = this.systems.get(id);
+    if (!s) return null;
+    const p = imageOf(s, sym, m);
+    return this.grid.nearestSystem(p.x, p.y, COUNTERPART_REACH)?.id ?? null;
   }
 
   /** The existing lanes whose bounding box comes within `d` of some point. */

@@ -2,8 +2,9 @@ import { useState } from "react";
 import type { SystemNode } from "../../../../../generated/SystemNode";
 import { enabledScript } from "../../../../../lib/paint";
 import { isSpawnWeight } from "../../../../../lib/spawn";
+import { useEditorStore } from "../../../../../store/editorStore";
 import { usePaintLayer } from "../../../../../store/fileSessionStore";
-import { useApplyOp } from "../../../../useApplyOp";
+import { useApplySymmetricOp } from "../../../../useApplyOp";
 import { Chip, Field, Section } from "../../../parts";
 import { useEditableSystem } from "../../editable";
 import { ScriptedSeat } from "./ScriptedSeat";
@@ -30,7 +31,8 @@ export function SpawnPointSection({ system }: { system: SystemNode }) {
 }
 
 function SpawnPoint({ system }: { system: SystemNode }) {
-  const applyOp = useApplyOp();
+  const applyOp = useApplySymmetricOp();
+  const setSeat = useEditorStore((s) => s.setSeat);
   const paint = usePaintLayer();
   const [refused, setRefused] = useState(false);
   const weight = system.spawn_weight;
@@ -75,13 +77,7 @@ function SpawnPoint({ system }: { system: SystemNode }) {
           <div className="ins-actions">
             <button
               type="button"
-              onClick={() =>
-                applyOp({
-                  type: "SetSpawnScript",
-                  id: system.id,
-                  script: enabledScript(system),
-                })
-              }
+              onClick={() => void setSeat(system.id, (s) => s.spawn_script ?? enabledScript(s))}
             >
               Use a Paint a Galaxy seat
             </button>

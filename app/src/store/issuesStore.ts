@@ -5,6 +5,7 @@ import {
   duplicateNameNote,
   exceedsGalaxySize,
   galaxySizeNote,
+  initializerLimitNotes,
   reservedSpawnsNote,
   type AppIssue,
   type AppIssueCode,
@@ -35,6 +36,7 @@ const NOTE_CODES: readonly AppIssueCode[] = [
   "scenario_name_duplicate",
   "reserved_spawns_missing",
   "galaxy_size_exceeded",
+  "initializer_over_limit",
 ];
 
 export function isNote(issue: AppIssue): boolean {
@@ -44,6 +46,7 @@ export function isNote(issue: AppIssue): boolean {
 export const DUPLICATE_NAME: NoteCode = "scenario_name_duplicate";
 export const RESERVED_SPAWNS: NoteCode = "reserved_spawns_missing";
 export const GALAXY_SIZE: NoteCode = "galaxy_size_exceeded";
+export const INITIALIZER_LIMIT: NoteCode = "initializer_over_limit";
 
 export interface IssuesState {
   /** The validator's findings, with the notes the document opened with and the app's own after them. */
@@ -207,6 +210,24 @@ export function noteGalaxySize(): void {
     if (exceedsGalaxySize(systems, largest)) notes = [galaxySizeNote(systems, largest)];
   }
   useIssuesStore.getState().setNotes(GALAXY_SIZE, notes);
+}
+
+/**
+ * Notes each initializer a scenario gives to more systems than the game's `max_instances`
+ * allows. Nothing for a save, and nothing until the initializers are read.
+ */
+export function noteInitializerLimits(): void {
+  const initializers = useGameDataStore.getState().initializers;
+  let notes: AppIssue[] = [];
+  if (initializers !== null && useFileSessionStore.getState().kind === "scenario") {
+    const limits = new Map(
+      initializers.flatMap((i): Array<[string, number]> =>
+        i.max_instances === null ? [] : [[i.name, i.max_instances]],
+      ),
+    );
+    notes = initializerLimitNotes(useGalaxyStore.getState().systems.values(), limits);
+  }
+  useIssuesStore.getState().setNotes(INITIALIZER_LIMIT, notes);
 }
 
 /** The issues no edit is answerable for: they were there when the save opened. */

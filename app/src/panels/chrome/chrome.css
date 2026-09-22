@@ -510,6 +510,67 @@ button.master.init[aria-pressed="mixed"] {
   gap: 2px;
 }
 
+.tool-rail-symmetry {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.symmetry-control {
+  position: relative;
+}
+
+.tool-rail button.symmetry-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.symmetry-badge {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.symmetry-menu {
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 35%);
+}
+
+.symmetry-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.symmetry-row-label {
+  min-width: 48px;
+}
+
+.symmetry-row button {
+  min-width: 24px;
+  padding: 2px 6px;
+}
+
+.symmetry-row button[aria-checked="true"] {
+  color: var(--accent);
+  background: var(--bg-elevated);
+  border-color: var(--accent-dim);
+}
+
 .tool-rail-foot {
   margin-top: auto;
 }
