@@ -38,7 +38,8 @@ export function recentSubtitle(
     if (meta === null) return "";
     return [meta.name, meta.date, versionShort(meta.version)].filter(Boolean).join(" · ");
   }
-  return typeof galaxySystems === "number" ? `${galaxySystems} systems` : "";
+  if (typeof galaxySystems !== "number") return "";
+  return `${galaxySystems} system${galaxySystems === 1 ? "" : "s"}`;
 }
 
 function isDocumentKind(value: unknown): value is DocumentKind {

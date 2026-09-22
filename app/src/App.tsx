@@ -21,6 +21,7 @@ import { ExportDialog } from "./panels/file/ExportDialog";
 import { Launch } from "./panels/file/Launch";
 import { NewScenarioDialog } from "./panels/file/NewScenarioDialog";
 import { OpenModeDialog } from "./panels/file/OpenModeDialog";
+import { OpenScenarioDialog } from "./panels/file/OpenScenarioDialog";
 import { MapTooltip } from "./panels/overlays/MapTooltip";
 import { FeZoneFitDialog } from "./panels/overlays/FeZoneFitDialog";
 import { NewNebulaDialog } from "./panels/overlays/NewNebulaDialog";
@@ -215,6 +216,7 @@ function App() {
           {feZoneFitPrompt && <FeZoneFitDialog />}
           {saveIssuesPrompt && <SaveIssuesDialog />}
           <OpenModeDialog />
+          <OpenScenarioDialog />
           {updateDialog && <UpdateDialog />}
           <ExportDialog />
           <InitializerBrowser />

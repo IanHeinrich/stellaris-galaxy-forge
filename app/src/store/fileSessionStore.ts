@@ -15,7 +15,12 @@ import type { SaveMeta } from "../generated/SaveMeta";
 import type { SaveResult } from "../generated/SaveResult";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import type { AppIssue } from "../lib/issues";
-import { paintLayer } from "../lib/paint";
+import {
+  paintLayer,
+  scenarioForPaint,
+  scenarioOpenPrompt,
+  type ScenarioOpenPrompt,
+} from "../lib/paint";
 import { fileName, joinPath } from "../lib/paths";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -29,6 +34,7 @@ import {
   useIssuesStore,
 } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
+import { useOpenScreenStore } from "./openScreenStore";
 import {
   noteSavedIntoPaintMod,
   paintScenariosDir,
@@ -49,6 +55,18 @@ export type SaveIssuesAnswer = "review" | "save" | "cancel";
 export interface SaveIssuesPrompt {
   count: number;
   resolve(answer: SaveIssuesAnswer): void;
+}
+
+/**
+ * A scenario file waiting on the Paint a Galaxy question before it opens; `resolve` hands back
+ * the profile it opens under, or null when the user cancelled.
+ */
+export interface ScenarioPrompt {
+  path: string;
+  kind: Exclude<ScenarioOpenPrompt, "none">;
+  /** The user asked to open it for the mod, whatever the file says. */
+  forPaint: boolean;
+  resolve(profile: ScenarioProfile | null): void;
 }
 
 /** A save the user left to go and look at the issues, and what it takes to pick it up again. */
@@ -103,6 +121,8 @@ export interface FileSessionState {
   pausedSave: PausedSave | null;
   /** A save waiting for the user to say which way to open it. */
   pendingOpen: string | null;
+  /** A scenario file waiting for the user to answer the Paint a Galaxy question. */
+  scenarioPrompt: ScenarioPrompt | null;
   /** What an export would carry over, waiting for the user to confirm or cancel it. */
   pendingExport: ExportReport | null;
   /** The open scenario carries Paint a Galaxy's scripts or flags, or Forge's header for the mod. */
@@ -110,8 +130,11 @@ export interface FileSessionState {
   /** The open scenario was started or opened under the mod's profile, whatever its bytes say. */
   paintChosen: boolean;
 
-  /** Resolves true when the document opened; false when it failed, or another open was in flight. */
-  openSave(path: string): Promise<boolean>;
+  /**
+   * Resolves true when the document opened; false when it failed, or another open was in flight.
+   * A scenario file is taken as written under `profile`; left out, as its bytes say.
+   */
+  openSave(path: string, profile?: ScenarioProfile): Promise<boolean>;
   /** Opens the scenario file at `path`, taken as written under `profile`; left out, as its bytes say. */
   openScenario(path: string, profile?: ScenarioProfile): Promise<boolean>;
   /** Opens the save at `path` as a new, unsaved scenario under `profile`; the save itself is untouched. */
@@ -127,6 +150,8 @@ export interface FileSessionState {
   requestOpen(path: string): Promise<void>;
   /** Answers the pending open; null cancels it. */
   chooseOpenMode(mode: OpenMode | null): Promise<void>;
+  /** Answers the Paint a Galaxy question with the profile to open under; null cancels the open. */
+  answerScenarioPrompt(profile: ScenarioProfile | null): void;
   /**
    * With a `mode`, the picker filters to `.sav` and skips straight to that mode, no dialog;
    * `profile` is what a scenario made from the pick is written under, the standing choice
@@ -182,6 +207,7 @@ const INITIAL = {
   saveIssuesPrompt: null as SaveIssuesPrompt | null,
   pausedSave: null as PausedSave | null,
   pendingOpen: null as string | null,
+  scenarioPrompt: null as ScenarioPrompt | null,
   pendingExport: null as ExportReport | null,
   painted: false,
   paintChosen: false,
@@ -194,13 +220,13 @@ const CLOUD_WARNING =
 export const useFileSessionStore = create<FileSessionState>((set, get) => ({
   ...INITIAL,
 
-  openSave(path) {
-    return openDocument(path, () => ipc.openSave(path));
+  openSave(path, profile) {
+    return openDocument(path, () => ipc.openSave(path), { profile });
   },
 
   async openScenario(path, profile) {
     if (get().saving || !(await get().confirmDiscard())) return false;
-    return openDocument(path, () => ipc.openSave(path), { profile });
+    return get().openSave(path, profile);
   },
 
   openScenarioFrom(path, profile = "plain") {
@@ -230,6 +256,12 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     await (mode === "scenario"
       ? get().openScenarioFrom(path, standingProfile())
       : get().openSave(path));
+  },
+
+  answerScenarioPrompt(profile) {
+    const prompt = get().scenarioPrompt;
+    set({ scenarioPrompt: null });
+    prompt?.resolve(profile);
   },
 
   async pickAndOpen(mode, profile = standingProfile()) {
@@ -497,11 +529,35 @@ async function openDocument(
   }
 }
 
-/** A scenario opens at once; a save first asks whether to edit it as a save or as a scenario. */
+/**
+ * The profile the scenario file at `path` opens under, once the Paint a Galaxy question is
+ * answered where it has to be asked; null when the user cancelled.
+ */
+export function askScenarioOpen(path: string, asPaint = false): Promise<ScenarioProfile | null> {
+  const { paintMod, warnNotForPaint } = usePaintModStore.getState();
+  const forPaint =
+    asPaint || scenarioForPaint(path, useOpenScreenStore.getState().scenarios, paintMod);
+  const kind = scenarioOpenPrompt(forPaint, paintMod, warnNotForPaint);
+  const profile: ScenarioProfile = asPaint ? "paint_a_galaxy" : "plain";
+  if (kind === "none") return Promise.resolve(profile);
+  return new Promise((resolve) => {
+    useFileSessionStore.setState({
+      scenarioPrompt: {
+        path,
+        kind,
+        forPaint: asPaint,
+        resolve: (answer) => resolve(answer === null ? null : asPaint ? profile : answer),
+      },
+    });
+  });
+}
+
+/** A scenario opens once any Paint a Galaxy question is answered; a save first asks how to open it. */
 async function routeOpen(path: string): Promise<void> {
   const { getState, setState } = useFileSessionStore;
   if (!isSavePath(path)) {
-    await getState().openSave(path);
+    const profile = await askScenarioOpen(path);
+    if (profile !== null) await getState().openSave(path, profile);
     return;
   }
   setState({ pendingOpen: path });

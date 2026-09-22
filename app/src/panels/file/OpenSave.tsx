@@ -1,50 +1,49 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
-import type { SaveMeta } from "../../generated/SaveMeta";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type RefObject,
+} from "react";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { openRoute } from "./openRoute";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import {
+  OPEN_TABS,
+  detailsSave,
+  footerOpens,
   navigableRows,
   openSections,
+  openTabs,
+  pressRow,
+  selectedRow,
+  steppedKey,
   type CampaignRow,
+  type FooterOpen,
+  type OpenLists,
   type RecentRow,
   type Row,
   type SaveRow,
   type ScenarioRow,
   type Section,
+  type Tab,
 } from "../../lib/openRows";
 import { useOpenScreenStore } from "../../store/openScreenStore";
+import { usePaintModStore } from "../../store/paintModStore";
 import { useRecentsStore } from "../../store/recentsStore";
 import { Twisty } from "../Twisty";
 import { Dialog } from "../overlays/Dialog";
-import { formatSize, formatWhen, phaseLabel, versionShort } from "./launchData";
+import { OpenAsScenarioDialog } from "./OpenAsScenarioDialog";
+import { CLOUD_TITLE, EmpireMark, IRONMAN_TITLE, OpenDetails, PaintTag } from "./OpenDetails";
+import { formatSize, formatWhen, phaseLabel } from "./launchData";
 import "./open.css";
 
-export const CLOUD_TITLE =
-  "In Steam's cloud folder: Steam can overwrite an edited file with its cloud copy. " +
-  "Close Steam or disable Steam Cloud for Stellaris before playing it.";
+export { CLOUD_TITLE } from "./OpenDetails";
 
-const IRONMAN_TITLE = "Ironman save: the game only loads it in ironman mode.";
-
-/** "4 planets · 7 fleets", as far as the header says. */
-function counts(meta: SaveMeta | null): string {
-  if (!meta) return "";
-  const parts: string[] = [];
-  if (meta.planets !== null) parts.push(`${meta.planets} planets`);
-  if (meta.fleets !== null) parts.push(`${meta.fleets} fleets`);
-  return parts.join(" · ");
-}
-
-function metaLine(meta: SaveMeta | null): string {
-  return meta ? `${meta.date} · ${versionShort(meta.version)}` : "unreadable header";
-}
-
-/** The empire's own colour, when game data knows the key the header names. */
-function useEmpireColor(meta: SaveMeta | null): string | undefined {
-  const mapColors = useGameDataStore((s) => s.mapColors);
-  return meta?.color ? mapColors.get(meta.color)?.flag : undefined;
-}
+/** How long the selection rests on a save before its galaxy settings are read. */
+const DETAILS_DELAY_MS = 150;
 
 function CloudFlag({ cloud }: { cloud: boolean }) {
   if (!cloud) return null;
@@ -56,16 +55,18 @@ function CloudFlag({ cloud }: { cloud: boolean }) {
 }
 
 function RecentBody({ row, onForget }: { row: RecentRow; onForget: () => void }) {
+  const scenarios = useOpenScreenStore((s) => s.scenarios);
   return (
     <>
       <span className="open-main">
         <span className={row.missing ? "open-title gone" : "open-title"}>
           <span className="flag kind">{row.doc.kind === "save" ? "SAVE" : "SCENARIO"}</span>
           {row.doc.title}
+          {row.doc.kind === "scenario" && <PaintTag path={row.doc.path} listings={scenarios} />}
         </span>
-        <span className="open-sub muted">{row.doc.subtitle || row.doc.path}</span>
+        <span className="open-sub">{row.doc.subtitle || row.doc.path}</span>
       </span>
-      <span className="open-side muted">
+      <span className="open-side">
         {row.missing ? (
           <span className="warn">not found</span>
         ) : (
@@ -75,7 +76,7 @@ function RecentBody({ row, onForget }: { row: RecentRow; onForget: () => void })
       {row.missing && (
         <button
           type="button"
-          className="ghost shown"
+          className="ghost"
           tabIndex={-1}
           title="Remove it from the list"
           onMouseDown={(e) => {
@@ -92,68 +93,44 @@ function RecentBody({ row, onForget }: { row: RecentRow; onForget: () => void })
 }
 
 function CampaignBody({ row }: { row: CampaignRow }) {
-  const color = useEmpireColor(row.campaign.meta);
   return (
     <>
       <span className="open-main">
         <span className="open-title">
           <Twisty open={row.expanded} />
-          {color && <span className="dot" style={{ background: color }} />}
+          <EmpireMark meta={row.campaign.meta} size="row" />
           {row.empire}
           <CloudFlag cloud={row.campaign.cloud} />
         </span>
-        <span className="open-sub muted">
-          {row.campaign.name}
+        <span className="open-sub">
+          {row.subtitle}
           {row.error && <span className="warn"> · {row.error}</span>}
         </span>
       </span>
-      <span className="open-side muted">
-        {row.loading ? "reading…" : `${row.campaign.files} saves`}
+      <span className="open-side">
+        {row.loading ? "reading…" : row.count}
         <span>{formatWhen(row.campaign.newest)}</span>
       </span>
     </>
   );
 }
 
-function SaveBody({ row, onScenario }: { row: SaveRow; onScenario: () => void }) {
-  const meta = row.file.meta;
+function SaveBody({ row }: { row: SaveRow }) {
   return (
     <>
       <span className="open-main">
         <span className="open-title">
-          {row.empire ?? row.file.file_name}
+          <span className="open-date">{row.title}</span>
+          {row.autosave && <span className="flag">autosave</span>}
           <CloudFlag cloud={row.file.cloud} />
-          {meta?.ironman && (
+          {row.file.meta?.ironman && (
             <span className="flag" title={IRONMAN_TITLE}>
               ⚿
             </span>
           )}
         </span>
-        <span className="open-sub muted">
-          {counts(meta)}
-          {counts(meta) && " · "}
-          {row.file.file_name}
-        </span>
       </span>
-      <span className="open-side muted">
-        {metaLine(meta)}
-        <span>
-          {formatSize(row.file.size)} · {formatWhen(row.file.modified)}
-        </span>
-      </span>
-      <button
-        type="button"
-        className="ghost scenario-action"
-        tabIndex={-1}
-        title="Take its galaxy into a new scenario (⇧↵)"
-        onMouseDown={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onScenario();
-        }}
-      >
-        as scenario
-      </button>
+      <span className="open-side">{formatWhen(row.file.modified)}</span>
     </>
   );
 }
@@ -165,21 +142,22 @@ function ScenarioBody({ row }: { row: ScenarioRow }) {
       <span className="open-main">
         <span className="open-title">
           {listing.name}
+          <PaintTag path={listing.path} listings={[listing]} />
           {!listing.enabled && listing.source === "mod" && (
             <span className="flag" title="The playset does not carry this mod">
               not in playset
             </span>
           )}
         </span>
-        <span className="open-sub muted">
-          {listing.systems} systems · {listing.mod_name ?? "Stellaris"}
+        <span className="open-sub">
+          {row.subtitle}
           {listing.shadowed_by && (
             <span className="warn"> · overridden by {listing.shadowed_by}</span>
           )}
           {listing.error && <span className="warn"> · {listing.error}</span>}
         </span>
       </span>
-      <span className="open-side muted">
+      <span className="open-side">
         {formatSize(listing.size)}
         <span>{formatWhen(listing.modified)}</span>
       </span>
@@ -187,22 +165,14 @@ function ScenarioBody({ row }: { row: ScenarioRow }) {
   );
 }
 
-export function RowBody({
-  row,
-  onForget,
-  onScenario,
-}: {
-  row: Row;
-  onForget: (path: string) => void;
-  onScenario: (path: string) => void;
-}) {
+export function RowBody({ row, onForget }: { row: Row; onForget: (path: string) => void }) {
   switch (row.kind) {
     case "recent":
       return <RecentBody row={row} onForget={() => onForget(row.doc.path)} />;
     case "campaign":
       return <CampaignBody row={row} />;
     case "save":
-      return <SaveBody row={row} onScenario={() => onScenario(row.file.path)} />;
+      return <SaveBody row={row} />;
     case "scenario":
       return <ScenarioBody row={row} />;
   }
@@ -269,6 +239,74 @@ function GameDataLine() {
   );
 }
 
+const PANEL_ID = "open-panel";
+
+function tabId(tab: Tab["id"]): string {
+  return `open-tab-${tab}`;
+}
+
+/** The tab an arrow, Home or End press on the tab at `at` moves to, wrapping round. */
+function tabStep(key: string, at: number, count: number): number | null {
+  if (key === "ArrowDown") return (at + 1) % count;
+  if (key === "ArrowUp") return (at - 1 + count) % count;
+  if (key === "Home") return 0;
+  if (key === "End") return count - 1;
+  return null;
+}
+
+function TabRail({ tabs, onPick }: { tabs: Tab[]; onPick: (tab: Tab["id"]) => void }) {
+  const chosen = useOpenScreenStore((s) => s.tab);
+  const buttons = useRef<Array<HTMLButtonElement | null>>([]);
+  const onKeyDown = (e: KeyboardEvent, at: number) => {
+    const next = tabStep(e.key, at, tabs.length);
+    if (next === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onPick(tabs[next].id);
+    buttons.current[next]?.focus();
+  };
+  return (
+    <div className="open-rail" role="tablist" aria-label="Show" aria-orientation="vertical">
+      {tabs.map((tab, i) => (
+        <button
+          key={tab.id}
+          ref={(el) => {
+            buttons.current[i] = el;
+          }}
+          id={tabId(tab.id)}
+          type="button"
+          role="tab"
+          aria-selected={tab.id === chosen}
+          aria-controls={PANEL_ID}
+          tabIndex={tab.id === chosen ? 0 : -1}
+          className="open-rail-item"
+          title={`Ctrl+${i + 1}`}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onPick(tab.id)}
+          onKeyDown={(e) => onKeyDown(e, i)}
+        >
+          <span>{tab.label}</span>
+          <span className="open-rail-count">{tab.count}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Reads the galaxy settings of the save the selection rests on, once it has rested a moment. */
+function useDetailsFor(row: Row | undefined, lists: OpenLists): void {
+  const save = detailsSave(row, lists);
+  const path = save?.meta ? save.path : null;
+  const modified = save?.modified ?? 0;
+  useEffect(() => {
+    if (path === null) return;
+    const timer = setTimeout(() => {
+      void useOpenScreenStore.getState().loadDetails(path, modified);
+    }, DETAILS_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [path, modified]);
+}
+
 /** Everything on this machine worth opening: inline while nothing is open, a dialog over the map. */
 export function OpenSave({ modal = false }: { modal?: boolean }) {
   const token = useFileSessionStore((s) => s.lastSave ?? s.path);
@@ -276,13 +314,16 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
   const requestOpen = useFileSessionStore((s) => s.requestOpen);
   const gameData = useGameDataStore((s) => s.status);
   const hide = useLayoutStore((s) => s.hideOpenDialog);
+  const paintMod = usePaintModStore((s) => s.paintMod);
   const showScenarioDialog = useLayoutStore((s) => s.showScenarioDialog);
   const recents = useRecentsStore((s) => s.recents);
   const screen = useOpenScreenStore();
-  const [active, setActive] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [scenarioFor, setScenarioFor] = useState<string | null>(null);
   const field = useRef<HTMLInputElement>(null);
   const rows = useRef(new Map<string, HTMLDivElement>());
-  const headings = useRef(new Map<string, HTMLDivElement>());
+  const firstPress = useRef<string | null>(null);
+  const focusWithin = useRef(false);
 
   useEffect(() => {
     void useOpenScreenStore.getState().load(token);
@@ -292,11 +333,16 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
     field.current?.focus();
   }, []);
 
+  useEffect(() => {
+    if (focusWithin.current && document.activeElement === document.body) field.current?.focus();
+  });
+
   const sections = openSections(screen, recents);
+  const tabs = openTabs(screen, recents);
   const walk = navigableRows(sections);
-  const at = Math.min(active, Math.max(0, walk.length - 1));
-  const current = walk[at];
+  const current = selectedRow(walk, selected);
   const activeKey = current?.key;
+  useDetailsFor(current, screen);
 
   useEffect(() => {
     if (activeKey !== undefined) rows.current.get(activeKey)?.scrollIntoView({ block: "nearest" });
@@ -304,6 +350,10 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
 
   const open = (path: string, asScenario: boolean) => {
     const route = openRoute(path, asScenario);
+    if (route === "scenario") {
+      setScenarioFor(path);
+      return;
+    }
     if (route === "ask") {
       if (modal) hide();
       void requestOpen(path);
@@ -320,6 +370,11 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
   const newScenario = () => {
     if (modal) hide();
     showScenarioDialog();
+  };
+
+  const pickTab = (tab: Tab["id"]) => {
+    screen.setTab(tab);
+    setSelected(null);
   };
 
   const activate = (row: Row | undefined, shift: boolean) => {
@@ -340,14 +395,24 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
     }
   };
 
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "ArrowDown") {
+  const footer = footerOpens(current, screen, paintMod);
+  const openFooter = (target: FooterOpen | null) => {
+    if (target?.mode === "scenario") setScenarioFor(target.path);
+    else if (target) void screen.open(target.path, target.mode);
+  };
+  const idle = screen.busy === null;
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
+    const tab = mod ? Number(e.key) : NaN;
+    const onControl = e.target !== field.current && e.target !== e.currentTarget;
+    if (tab >= 1 && tab <= OPEN_TABS.length) {
       e.preventDefault();
-      setActive(Math.min(at + 1, walk.length - 1));
-    } else if (e.key === "ArrowUp") {
+      pickTab(OPEN_TABS[tab - 1]);
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      setActive(Math.max(at - 1, 0));
-    } else if (e.key === "Enter") {
+      setSelected(steppedKey(walk, current?.key ?? null, e.key === "ArrowDown" ? 1 : -1));
+    } else if (e.key === "Enter" && !onControl) {
       e.preventDefault();
       activate(current, e.shiftKey);
     } else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && current?.kind === "campaign") {
@@ -357,7 +422,15 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
     }
   };
 
-  const jumpTo = (id: string) => headings.current.get(id)?.scrollIntoView({ block: "start" });
+  const press = (row: Row, e: MouseEvent) => {
+    const result = pressRow(walk, row, e.detail, firstPress.current);
+    if (result.select !== null) {
+      firstPress.current = result.select;
+      setSelected(result.select);
+    }
+    if (result.toggle !== null && idle) void screen.toggle(result.toggle);
+    if (result.activate) activate(result.activate, e.shiftKey);
+  };
 
   const body = (
     <>
@@ -383,63 +456,83 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
           aria-activedescendant={current ? `open-row-${current.key}` : undefined}
           onChange={(e) => {
             screen.setFilter(e.currentTarget.value);
-            setActive(0);
+            setSelected(null);
           }}
-          onKeyDown={onKeyDown}
         />
       </div>
       <div className="open-body">
-        <nav className="open-rail" aria-label="Sections">
-          {sections.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="open-rail-item"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => jumpTo(s.id)}
-            >
-              <span>{s.label}</span>
-              <span className="muted">{s.rows.length}</span>
-            </button>
-          ))}
-        </nav>
+        <TabRail tabs={tabs} onPick={pickTab} />
         <div
-          className={screen.busy === null ? "open-list" : "open-list busy"}
-          id="open-list"
-          role="listbox"
-          aria-label="Documents to open"
-          aria-busy={screen.busy !== null}
+          className="open-panel"
+          id={PANEL_ID}
+          role="tabpanel"
+          aria-labelledby={tabId(screen.tab)}
         >
-          {sections.map((s) => (
-            <SectionRows
-              key={s.id}
-              section={s}
-              current={current}
-              busy={screen.busy}
-              rowError={screen.rowError}
-              headings={headings}
-              rows={rows}
-              onActivate={activate}
-              onForget={(path) => screen.forget(path)}
-              onScenario={(path) => open(path, true)}
-              onHover={(row) => {
-                const i = walk.indexOf(row);
-                if (i >= 0) setActive(i);
-              }}
-            />
-          ))}
+          <div
+            className={idle ? "open-list" : "open-list busy"}
+            id="open-list"
+            role="listbox"
+            aria-label="Documents to open"
+            aria-busy={!idle}
+          >
+            {sections.map((s) => (
+              <SectionRows
+                key={s.id}
+                section={s}
+                current={current}
+                busy={screen.busy}
+                rowError={screen.rowError}
+                rows={rows}
+                onPress={press}
+                onForget={(path) => screen.forget(path)}
+              />
+            ))}
+          </div>
         </div>
+        <OpenDetails row={current} />
       </div>
       <div className="open-dialog-foot">
-        <div className="setup-actions">
-          <span className="hint">
-            A save opens as a save, or as a scenario to start a new campaign from.
-          </span>
+        <div className="open-actions">
           <button type="button" onClick={newScenario}>
             New scenario…
           </button>
           <button type="button" onClick={browse}>
             Browse…
+          </button>
+          <span className="spacer" />
+          {footer.asScenario && (
+            <button
+              type="button"
+              title="Take its galaxy into a new scenario (Shift+Enter)"
+              aria-disabled={!idle}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => openFooter(footer.asScenario)}
+            >
+              Open as scenario
+            </button>
+          )}
+          {footer.forPaint && (
+            <button
+              type="button"
+              title="Edit it for the Paint a Galaxy mod"
+              aria-disabled={!idle}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                if (footer.forPaint && idle) void screen.open(footer.forPaint, "save", true);
+              }}
+            >
+              Open for Paint a Galaxy
+            </button>
+          )}
+          <button
+            type="button"
+            className="open-primary"
+            title="Open it as it is (Enter asks first for a save)"
+            aria-disabled={footer.open === null || !idle}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => openFooter(footer.open)}
+          >
+            Open
           </button>
         </div>
         {!modal && gameData !== "ready" && <GameDataLine />}
@@ -447,17 +540,50 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
     </>
   );
 
+  const frame = (
+    <div
+      className="open-frame"
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+      onFocus={() => (focusWithin.current = true)}
+      onBlur={(e) => {
+        if (e.relatedTarget !== null && !e.currentTarget.contains(e.relatedTarget)) {
+          focusWithin.current = false;
+        }
+      }}
+    >
+      {body}
+    </div>
+  );
+
+  const asScenario = scenarioFor !== null && (
+    <OpenAsScenarioDialog
+      path={scenarioFor}
+      onCancel={() => setScenarioFor(null)}
+      onContinue={() => {
+        setScenarioFor(null);
+        void screen.open(scenarioFor, "scenario");
+      }}
+    />
+  );
+
   if (modal) {
     return (
-      <Dialog className="open-dialog open-screen" label="Open" onClose={hide} onDismiss={hide}>
-        {body}
-      </Dialog>
+      <>
+        <Dialog className="open-dialog open-screen" label="Open" onClose={hide} onDismiss={hide}>
+          {frame}
+        </Dialog>
+        {asScenario}
+      </>
     );
   }
   return (
-    <div className="launch">
-      <div className="open-dialog open-screen">{body}</div>
-    </div>
+    <>
+      <div className="launch">
+        <div className="open-dialog open-screen">{frame}</div>
+      </div>
+      {asScenario}
+    </>
   );
 }
 
@@ -466,38 +592,22 @@ function SectionRows({
   current,
   busy,
   rowError,
-  headings,
   rows,
-  onActivate,
+  onPress,
   onForget,
-  onScenario,
-  onHover,
 }: {
   section: Section;
   current: Row | undefined;
   busy: string | null;
   rowError: { path: string; message: string } | null;
-  headings: RefObject<Map<string, HTMLDivElement>>;
   rows: RefObject<Map<string, HTMLDivElement>>;
-  onActivate: (row: Row, shift: boolean) => void;
+  onPress: (row: Row, e: MouseEvent) => void;
   onForget: (path: string) => void;
-  onScenario: (path: string) => void;
-  onHover: (row: Row) => void;
 }) {
   return (
     <section className="open-section">
-      <div
-        className="open-heading"
-        ref={(el) => {
-          if (el) headings.current.set(section.id, el);
-          return () => {
-            headings.current.delete(section.id);
-          };
-        }}
-      >
-        {section.label}
-      </div>
-      {section.note && <div className="open-note muted">{section.note}</div>}
+      <div className="open-heading">{section.label}</div>
+      {section.note && <div className="open-note">{section.note}</div>}
       {section.notices.map((notice, i) => (
         <div key={`${i}:${notice}`} className="open-note warn">
           {notice}
@@ -517,8 +627,8 @@ function SectionRows({
         if (row.kind === "scenario" && row.disabled) classes.push("disabled");
         if (row.kind === "scenario" && row.listing.shadowed_by) classes.push("shadowed");
         return (
-          <div key={row.key}>
-            {shownGroup && <div className="open-group muted">{group}</div>}
+          <div key={row.key} className={row.kind === "save" ? "open-nested" : undefined}>
+            {shownGroup && <div className="open-group">{group}</div>}
             <div
               id={`open-row-${row.key}`}
               ref={(el) => {
@@ -532,13 +642,12 @@ function SectionRows({
               aria-disabled={row.kind === "scenario" && row.disabled}
               className={classes.join(" ")}
               title={rowTitle(row)}
-              onMouseEnter={() => onHover(row)}
               onMouseDown={(e) => {
                 e.preventDefault();
-                onActivate(row, e.shiftKey);
+                onPress(row, e);
               }}
             >
-              <RowBody row={row} onForget={onForget} onScenario={onScenario} />
+              <RowBody row={row} onForget={onForget} />
               {error && <div className="open-row-error">{error}</div>}
             </div>
           </div>

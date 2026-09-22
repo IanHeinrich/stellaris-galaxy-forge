@@ -7,9 +7,10 @@ import type { DocumentKind } from "../generated/DocumentKind";
 import type { HeaderField } from "../generated/HeaderField";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PaintSpawnKind } from "../generated/PaintSpawnKind";
+import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemNode } from "../generated/SystemNode";
-import { isUnder } from "./paths";
+import { isUnder, normalise } from "./paths";
 
 /** The companion mod on the Steam Workshop, whose fixes a painted galaxy needs. */
 export const PAINT_MOD_WORKSHOP_ID = "3532904115";
@@ -50,6 +51,39 @@ export function paintLayer(doc: PaintDocument, paintMod: PaintModView | null): b
   if (doc.painted || doc.paintChosen) return true;
   const dir = paintMod?.scenarios_dir ?? null;
   return doc.path !== null && dir !== null && isUnder(doc.path, dir);
+}
+
+/**
+ * Whether the scenario file at `path` is written for the Paint a Galaxy mod: it sits in the
+ * mod's own scenarios folder, or its listing says it is painted. Null for a file neither can
+ * speak for.
+ */
+export function scenarioForPaint(
+  path: string,
+  listings: readonly ScenarioListing[] | null,
+  paintMod: PaintModView | null,
+): boolean | null {
+  const dir = paintMod?.scenarios_dir ?? null;
+  if (dir !== null && isUnder(path, dir)) return true;
+  const key = normalise(path);
+  const listing = listings?.find((l) => normalise(l.path) === key);
+  return listing === undefined ? null : listing.painted;
+}
+
+/** What opening a scenario file asks first, if anything. */
+export type ScenarioOpenPrompt = "none" | "not_for_paint" | "paint_mod_off";
+
+/**
+ * A scenario for the mod opens at once while the mod is enabled, and asks first while it is not
+ * or its state is unknown. Any other scenario asks unless the user turned that warning off.
+ */
+export function scenarioOpenPrompt(
+  forPaint: boolean | null,
+  paintMod: PaintModView | null,
+  warnNotForPaint: boolean,
+): ScenarioOpenPrompt {
+  if (forPaint === true) return paintMod?.enabled ? "none" : "paint_mod_off";
+  return warnNotForPaint ? "not_for_paint" : "none";
 }
 
 /** The seat a script offers, in a word or two; ", weighted" when it carries its holder's weight. */

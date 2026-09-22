@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CampaignListing } from "../generated/CampaignListing";
+import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { ScenarioListings } from "../generated/ScenarioListings";
-import { OPEN_RESULT } from "./fixture";
+import { paintModView, saveMeta, scenarioSummary } from "../test/builders";
+import { OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -12,15 +14,18 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import * as ipc from "../api/ipc";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
+import { usePaintModStore } from "./paintModStore";
 import { openSections, type Row, type Section } from "../lib/openRows";
-import { resetOpenScreen, useOpenScreenStore } from "./openScreenStore";
+import { detailsKey, resetOpenScreen, useOpenScreenStore } from "./openScreenStore";
 import { useRecentsStore, type RecentDoc } from "./recentsStore";
 
 const mocked = {
   listCampaigns: vi.mocked(ipc.listCampaigns),
   listCampaignSaves: vi.mocked(ipc.listCampaignSaves),
   listScenarios: vi.mocked(ipc.listScenarios),
+  saveDetails: vi.mocked(ipc.saveDetails),
   openSave: vi.mocked(ipc.openSave),
+  openAsScenario: vi.mocked(ipc.openAsScenario),
   closeSave: vi.mocked(ipc.closeSave),
   warmDetails: vi.mocked(ipc.warmDetails),
   getSpecialSystems: vi.mocked(ipc.getSpecialSystems),
@@ -46,15 +51,7 @@ function save(over: Partial<SaveFile> = {}): SaveFile {
     path: "C:/saves/terran/2206.11.16.sav",
     campaign: "terran_1",
     file_name: "2206.11.16.sav",
-    meta: {
-      name: "Terran Federation",
-      date: "2206.11.16",
-      version: "Pegasus v4.4.6",
-      ironman: false,
-      planets: 4,
-      fleets: 7,
-      color: "blue",
-    },
+    meta: saveMeta({ name: "Terran Federation", planets: 4, fleets: 7, color: "blue" }),
     modified: 200,
     size: 4096,
     cloud: false,
@@ -79,6 +76,8 @@ function scenario(over: Partial<ScenarioListing> = {}): ScenarioListing {
     modified: 10,
     size: 1024,
     error: null,
+    summary: scenarioSummary(),
+    painted: false,
     ...over,
   };
 }
@@ -109,7 +108,11 @@ function section(id: string): Section {
 }
 
 function rowKeys(id: string): string[] {
-  return section(id).rows.map((r) => r.key);
+  return (
+    sections()
+      .find((s) => s.id === id)
+      ?.rows.map((r) => r.key) ?? []
+  );
 }
 
 beforeEach(() => {
@@ -284,6 +287,18 @@ describe("open", () => {
     expect(screen().missing).toEqual([]);
   });
 
+  it("takes a save into a scenario with the standing Paint a Galaxy choice", async () => {
+    mocked.openAsScenario.mockResolvedValue(OPEN_RESULT);
+
+    usePaintModStore.setState({ paintChoice: true });
+    await screen().open("C:/saves/a.sav", "scenario");
+    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/a.sav", "paint_a_galaxy");
+
+    usePaintModStore.setState({ paintChoice: false });
+    await screen().open("C:/saves/b.sav", "scenario");
+    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/b.sav", "plain");
+  });
+
   it("closes the dialog once the document is open", async () => {
     mocked.openSave.mockResolvedValue(OPEN_RESULT);
     useLayoutStore.setState({ openDialog: true });
@@ -309,5 +324,174 @@ describe("open", () => {
     finish(OPEN_RESULT);
     await first;
     expect(useFileSessionStore.getState().path).toBe(OPEN_RESULT.path);
+  });
+});
+
+describe("opening a scenario file", () => {
+  const PAINTED = scenario({ path: "C:/mods/a/map/setup_scenarios/painted.txt", painted: true });
+  const PLAIN = scenario({ path: "C:/mods/a/map/setup_scenarios/plain.txt" });
+  const prompt = () => useFileSessionStore.getState().scenarioPrompt;
+  const session = () => useFileSessionStore.getState();
+
+  beforeEach(async () => {
+    usePaintModStore.setState({
+      ...usePaintModStore.getInitialState(),
+      known: true,
+      paintMod: paintModView(),
+      paintChoice: true,
+      warnNotForPaint: true,
+    });
+    mocked.listScenarios.mockResolvedValue(listed([PAINTED, PLAIN]));
+    mocked.openSave.mockResolvedValue(SCENARIO_RESULT);
+    await screen().load(null);
+  });
+
+  it("opens a scenario for Paint a Galaxy at once while the mod is enabled", async () => {
+    await screen().open(PAINTED.path, "save");
+    expect(prompt()).toBeNull();
+    expect(mocked.openSave).toHaveBeenCalledWith(PAINTED.path);
+    expect(session().status).toBe("ready");
+  });
+
+  it("asks first about a scenario that isn't for Paint a Galaxy, and opens it as answered", async () => {
+    const cancelled = screen().open(PLAIN.path, "save");
+    expect(prompt()).toMatchObject({ path: PLAIN.path, kind: "not_for_paint" });
+    session().answerScenarioPrompt(null);
+    await cancelled;
+    expect(mocked.openSave).not.toHaveBeenCalled();
+
+    const opening = screen().open(PLAIN.path, "save");
+    session().answerScenarioPrompt("paint_a_galaxy");
+    await opening;
+    expect(mocked.openSave).toHaveBeenCalledWith(PLAIN.path);
+    expect(session().paintChosen).toBe(true);
+  });
+
+  it("always asks about a scenario for Paint a Galaxy while the mod is off or unknown", async () => {
+    usePaintModStore.setState({
+      paintMod: paintModView({ enabled: false }),
+      warnNotForPaint: false,
+    });
+    const opening = screen().open(PAINTED.path, "save");
+    expect(prompt()).toMatchObject({ path: PAINTED.path, kind: "paint_mod_off" });
+    session().answerScenarioPrompt("plain");
+    await opening;
+    expect(mocked.openSave).toHaveBeenCalledWith(PAINTED.path);
+
+    usePaintModStore.setState({ known: false, paintMod: null });
+    void screen().open(PAINTED.path, "save");
+    expect(prompt()?.kind).toBe("paint_mod_off");
+    session().answerScenarioPrompt(null);
+  });
+
+  it("opens a plain scenario for Paint a Galaxy on request, asking only while the mod is off", async () => {
+    await screen().open(PLAIN.path, "save", true);
+    expect(prompt()).toBeNull();
+    expect(session().paintChosen).toBe(true);
+
+    usePaintModStore.setState({ paintMod: paintModView({ enabled: false }) });
+    const opening = screen().open(PLAIN.path, "save", true);
+    expect(prompt()).toMatchObject({ path: PLAIN.path, kind: "paint_mod_off", forPaint: true });
+    session().answerScenarioPrompt("plain");
+    await opening;
+    expect(session().paintChosen).toBe(true);
+  });
+
+  it("opens any other scenario plain, without asking, once that warning is turned off", async () => {
+    usePaintModStore.setState({ warnNotForPaint: false });
+    await screen().open(PLAIN.path, "save");
+    expect(prompt()).toBeNull();
+    expect(mocked.openSave).toHaveBeenCalledWith(PLAIN.path);
+    expect(session().paintChosen).toBe(false);
+
+    await screen().open("C:/elsewhere/unlisted.txt", "save");
+    expect(prompt()).toBeNull();
+    expect(mocked.openSave).toHaveBeenLastCalledWith("C:/elsewhere/unlisted.txt");
+  });
+
+  it("asks the same of a scenario file picked with Browse", async () => {
+    const asking = session().requestOpen(PLAIN.path);
+    await vi.waitFor(() => expect(prompt()?.kind).toBe("not_for_paint"));
+    session().answerScenarioPrompt(null);
+    await asking;
+    expect(mocked.openSave).not.toHaveBeenCalled();
+
+    await session().requestOpen(PAINTED.path);
+    expect(mocked.openSave).toHaveBeenCalledWith(PAINTED.path);
+  });
+
+  it("asks nothing more of a save once the user chose to edit it as a scenario", async () => {
+    mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
+    await session().requestOpen("C:/saves/a.sav");
+    expect(session().pendingOpen).toBe("C:/saves/a.sav");
+    await session().chooseOpenMode("scenario");
+    expect(prompt()).toBeNull();
+    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/a.sav", "paint_a_galaxy");
+  });
+});
+
+describe("tabs", () => {
+  it("keeps the chosen tab, and lists only its section", async () => {
+    await screen().load(null);
+    screen().setTab("scenarios");
+
+    expect(screen().tab).toBe("scenarios");
+    expect(sections().map((s) => s.id)).toEqual(["scenarios"]);
+  });
+});
+
+describe("loadDetails", () => {
+  const SETTINGS: GalaxySettings = {
+    template: "medium",
+    shape: "spiral_3",
+    num_empires: 9,
+    num_advanced_empires: 2,
+    num_fallen_empires: 2,
+    num_marauder_empires: 2,
+    num_nomad_empires: 2,
+    habitability: 0.25,
+    primitive: 0.25,
+    resource_abundance: 2,
+    num_gateways: 1,
+    num_wormhole_pairs: 1,
+    num_hyperlanes: 1,
+    difficulty: "commodore",
+    scaling: "scaling_off",
+    crisis_type: "all",
+    crises: 1,
+    mid_game_start: 150,
+    end_game_start: 225,
+    ironman: false,
+    core_radius: 120,
+  };
+  const PATH = save().path;
+
+  it("reads a save once however often it is asked, and again once it was written", async () => {
+    mocked.saveDetails.mockResolvedValue(SETTINGS);
+
+    const first = screen().loadDetails(PATH, 200);
+    expect(screen().details[detailsKey(PATH, 200)]).toEqual({ status: "loading" });
+    await Promise.all([first, screen().loadDetails(PATH, 200)]);
+    await screen().loadDetails(PATH, 200);
+
+    expect(mocked.saveDetails).toHaveBeenCalledExactlyOnceWith(PATH);
+    expect(screen().details[detailsKey(PATH, 200)]).toEqual({
+      status: "ready",
+      settings: SETTINGS,
+    });
+
+    await screen().loadDetails(PATH, 300);
+    expect(mocked.saveDetails).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the failure for the save it came from", async () => {
+    mocked.saveDetails.mockRejectedValue({ kind: "format", message: "no galaxy block" });
+
+    await screen().loadDetails(PATH, 200);
+
+    expect(screen().details[detailsKey(PATH, 200)]).toEqual({
+      status: "error",
+      message: "no galaxy block",
+    });
   });
 });

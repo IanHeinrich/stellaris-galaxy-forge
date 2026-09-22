@@ -13,6 +13,7 @@ pub mod listings;
 pub mod marauder;
 pub mod paint;
 pub(crate) mod spawn;
+pub mod summary;
 pub(crate) mod write;
 
 pub use fe_link::FeLinkFlags;

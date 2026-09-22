@@ -1,0 +1,79 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+SaveMeta {
+    name: "Test Empire",
+    date: "2201.03.25",
+    version: "Cygnus v4.5.0",
+    ironman: false,
+    planets: Some(
+        1,
+    ),
+    fleets: Some(
+        15,
+    ),
+    color: Some(
+        "grey",
+    ),
+    version_revision: Some(
+        90,
+    ),
+    required_dlcs: [
+        "Ancient Relics Story Pack",
+        "Apocalypse",
+        "Aquatics Species Pack",
+        "Astral Planes",
+        "BioGenesis",
+        "Cosmic Storms",
+        "Distant Stars Story Pack",
+        "Federations",
+        "First Contact Story Pack",
+        "Galactic Paragons",
+        "Grand Archive",
+        "Horizon Signal",
+        "Infernals Species Pack",
+        "Leviathans Story Pack",
+        "Lithoids Species Pack",
+        "Megacorp",
+        "Necroids Species Pack",
+        "Nemesis",
+        "Nomads",
+        "Overlord",
+        "Plantoids Species Pack",
+        "Rick The Cube Species Portrait",
+        "Shadows of the Shroud",
+        "Stargazer Species Portrait",
+        "The Machine Age",
+        "Toxoids Species Pack",
+        "Vipra the Vapor Species Portrait",
+    ],
+    portrait: Some(
+        "human",
+    ),
+    flag: Some(
+        MetaFlag {
+            icon: Some(
+                FlagRef {
+                    category: "pointy",
+                    file: "flag_pointy_9.dds",
+                },
+            ),
+            background: Some(
+                FlagRef {
+                    category: "backgrounds",
+                    file: "double_hemispheres.dds",
+                },
+            ),
+            colors: [
+                "grey",
+                "dark_blue",
+                "black",
+                "grey",
+                "intense_red",
+                "light_pink",
+            ],
+            use_map_color: true,
+        },
+    ),
+}

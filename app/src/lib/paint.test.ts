@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { HeaderField } from "../generated/HeaderField";
+import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { SpawnScript } from "../generated/SpawnScript";
-import { paintModView, systemNode } from "../test/builders";
+import { paintModView, scenarioSummary, systemNode } from "../test/builders";
 import {
   LOCAL_CLUSTER_WORKSHOP_URL,
   PAINT_MOD_WORKSHOP_ID,
@@ -13,7 +14,9 @@ import {
   paintKindDescription,
   paintKindKey,
   paintLayer,
+  scenarioForPaint,
   scenarioHeaderName,
+  scenarioOpenPrompt,
   scriptForKind,
   seatSummary,
   spawnScriptLabel,
@@ -188,6 +191,60 @@ describe("the Paint a Galaxy layer", () => {
       false,
     );
     expect(paintLayer(doc({ kind: null, paintChosen: true }), mod(DIR))).toBe(false);
+  });
+});
+
+describe("opening a scenario file", () => {
+  const DIR = "C:\\mods\\pag\\map\\setup_scenarios";
+  const MOD = paintModView({ scenarios_dir: DIR, enabled: true });
+  const OFF = paintModView({ scenarios_dir: DIR, enabled: false });
+  const listing = (path: string, painted: boolean): ScenarioListing => ({
+    path,
+    name: "a_galaxy",
+    systems: 100,
+    source: "mod",
+    mod_name: "A Mod",
+    enabled: true,
+    shadowed_by: null,
+    modified: 10,
+    size: 1024,
+    error: null,
+    summary: scenarioSummary(),
+    painted,
+  });
+  const PAINTED = "C:/mods/a/map/setup_scenarios/painted.txt";
+  const PLAIN = "C:/mods/a/map/setup_scenarios/plain.txt";
+  const LISTED = [listing(PAINTED, true), listing(PLAIN, false)];
+
+  it("is for the mod when its listing says it is painted, or it sits in the mod's folder", () => {
+    expect(scenarioForPaint(PAINTED, LISTED, null)).toBe(true);
+    expect(scenarioForPaint("c:\\mods\\a\\map\\setup_scenarios\\painted.txt", LISTED, null)).toBe(
+      true,
+    );
+    expect(scenarioForPaint(PLAIN, LISTED, MOD)).toBe(false);
+    expect(scenarioForPaint(`${DIR}\\mine.txt`, null, MOD)).toBe(true);
+    expect(scenarioForPaint(`${DIR}\\mine.txt`, [listing(`${DIR}\\mine.txt`, false)], MOD)).toBe(
+      true,
+    );
+  });
+
+  it("cannot say for a file that is not listed and not in the mod's folder", () => {
+    expect(scenarioForPaint("C:/elsewhere/mine.txt", LISTED, MOD)).toBeNull();
+    expect(scenarioForPaint(`${DIR}\\mine.txt`, null, null)).toBeNull();
+  });
+
+  it("opens a scenario for the mod at once only while the mod is enabled", () => {
+    expect(scenarioOpenPrompt(true, MOD, true)).toBe("none");
+    expect(scenarioOpenPrompt(true, OFF, true)).toBe("paint_mod_off");
+    expect(scenarioOpenPrompt(true, null, true)).toBe("paint_mod_off");
+    expect(scenarioOpenPrompt(true, OFF, false)).toBe("paint_mod_off");
+  });
+
+  it("asks first about any other scenario until that warning is turned off", () => {
+    expect(scenarioOpenPrompt(false, MOD, true)).toBe("not_for_paint");
+    expect(scenarioOpenPrompt(null, MOD, true)).toBe("not_for_paint");
+    expect(scenarioOpenPrompt(false, MOD, false)).toBe("none");
+    expect(scenarioOpenPrompt(null, null, false)).toBe("none");
   });
 });
 

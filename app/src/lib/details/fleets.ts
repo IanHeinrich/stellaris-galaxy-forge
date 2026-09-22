@@ -3,6 +3,7 @@ import type { CountryNode } from "../../generated/CountryNode";
 import type { FleetSummary } from "../../generated/FleetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { type CountryTypes, isFauna } from "../countryKinds";
+import { flagKey } from "../flagKey";
 
 export interface FleetGroup {
   owner: number | null;
@@ -84,6 +85,5 @@ export function empireFlagKey(country: CountryNode | undefined): string | null {
   const icon = country?.flag_icon;
   const background = country?.flag_background;
   if (!icon || !background) return null;
-  const colors = [0, 1, 2, 3].map((i) => country.colors[i] ?? "null");
-  return `empire_flag:${background.file}:${icon.category}/${icon.file}:${colors.join(",")}`;
+  return flagKey(background, icon, country.colors);
 }

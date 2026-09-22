@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { saveMeta } from "../test/builders";
 import { recentSubtitle, useRecentsStore, type RecentDoc } from "./recentsStore";
 
 const stored = new Map<string, string>();
@@ -31,28 +32,8 @@ const SAVE: Omit<RecentDoc, "openedAt"> = {
 
 describe("recentSubtitle", () => {
   it("builds a save's subtitle from its meta, skipping missing parts", () => {
-    expect(
-      recentSubtitle("save", {
-        name: "Test Empire",
-        date: "2206.11.16",
-        version: "Pegasus v4.4.6",
-        ironman: false,
-        planets: null,
-        fleets: null,
-        color: null,
-      }),
-    ).toBe("Test Empire · 2206.11.16 · v4.4.6");
-    expect(
-      recentSubtitle("save", {
-        name: "Test Empire",
-        date: "",
-        version: "",
-        ironman: false,
-        planets: null,
-        fleets: null,
-        color: null,
-      }),
-    ).toBe("Test Empire");
+    expect(recentSubtitle("save", saveMeta())).toBe("Test Empire · 2206.11.16 · v4.4.6");
+    expect(recentSubtitle("save", saveMeta({ date: "", version: "" }))).toBe("Test Empire");
     expect(recentSubtitle("save", null)).toBe("");
   });
 

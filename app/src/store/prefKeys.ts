@@ -29,6 +29,7 @@ export const PREF_KEYS = {
   checkAtStart: "sgf.update.checkAtStart",
   paintProfile: "sgf.paint.profile",
   paintNoticeDismissed: "sgf.paint.noticeDismissed",
+  warnNotForPaint: "sgf.paint.warnNotForPaint",
 } as const;
 
 /** The collapse memory of one browser list, which keys on the list's name. */

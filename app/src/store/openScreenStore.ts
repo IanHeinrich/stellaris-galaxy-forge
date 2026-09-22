@@ -1,32 +1,60 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { CampaignListing } from "../generated/CampaignListing";
+import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
-import type { OpenLists } from "../lib/openRows";
-import { useFileSessionStore, type OpenMode } from "./fileSessionStore";
+import type { OpenLists, OpenTab } from "../lib/openRows";
+import {
+  askScenarioOpen,
+  isSavePath,
+  useFileSessionStore,
+  type OpenMode,
+} from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
+import { standingProfile } from "./paintModStore";
 import { useRecentsStore } from "./recentsStore";
+
+/** A save's galaxy settings as the details pane has them: still reading, read, or failed. */
+export type SaveDetails =
+  | { status: "loading" }
+  | { status: "ready"; settings: GalaxySettings }
+  | { status: "error"; message: string };
+
+/** One read per file version: a save written since reads again. */
+export function detailsKey(path: string, modified: number): string {
+  return `${modified}:${path}`;
+}
 
 export interface OpenScreenState extends OpenLists {
   /** The path of the row a document is being opened from. */
   busy: string | null;
   rowError: { path: string; message: string } | null;
+  /** Galaxy settings by `detailsKey`. */
+  details: Record<string, SaveDetails>;
 
   setFilter(filter: string): void;
+  setTab(tab: OpenTab): void;
+  /** Reads the galaxy settings of the save at `path` once per `modified`. */
+  loadDetails(path: string, modified: number): Promise<void>;
   /** Reads both lists once; a new `token` means the save folders were written to since. */
   load(token: unknown): Promise<void>;
   /** Expands one campaign folder, reading its saves the first time. */
   expand(dir: string): Promise<void>;
   collapse(): void;
   toggle(dir: string): Promise<void>;
-  /** Opens `path` as a save or as a scenario, reporting failure on the row it came from. */
-  open(path: string, mode: OpenMode): Promise<void>;
+  /**
+   * Opens `path` as a save or as a scenario, reporting failure on the row it came from. A
+   * scenario file asks the Paint a Galaxy question first where it has to.
+   */
+  /** `asPaint` opens a scenario file for the Paint a Galaxy mod, whatever the file says. */
+  open(path: string, mode: OpenMode, asPaint?: boolean): Promise<void>;
   forget(path: string): void;
 }
 
 const INITIAL = {
   filter: "",
+  tab: "all" as OpenTab,
   campaigns: null as CampaignListing[] | null,
   campaignsError: null as string | null,
   scenarios: null as ScenarioListing[] | null,
@@ -39,18 +67,21 @@ const INITIAL = {
   missing: [] as string[],
   busy: null as string | null,
   rowError: null as { path: string; message: string } | null,
+  details: {} as Record<string, SaveDetails>,
 };
 
 /** The session state the lists were read for, and the read itself, so it happens once. */
 let readFor: unknown = Symbol("unread");
 let reading: Promise<void> | null = null;
 const readingFiles = new Set<string>();
+const readingDetails = new Map<string, Promise<void>>();
 
 /** Drops everything read so far; the next `load` reads again. */
 export function resetOpenScreen(): void {
   readFor = Symbol("unread");
   reading = null;
   readingFiles.clear();
+  readingDetails.clear();
   useOpenScreenStore.setState({ ...INITIAL });
 }
 
@@ -62,6 +93,25 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
 
   setFilter(filter) {
     set({ filter });
+  },
+
+  setTab(tab) {
+    set({ tab });
+  },
+
+  loadDetails(path, modified) {
+    const key = detailsKey(path, modified);
+    const pending = readingDetails.get(key);
+    if (pending) return pending;
+    if (get().details[key] !== undefined) return Promise.resolve();
+    const put = (entry: SaveDetails) => set({ details: { ...get().details, [key]: entry } });
+    put({ status: "loading" });
+    const reading = ipc.saveDetails(path).then(
+      (settings) => put({ status: "ready", settings }),
+      (e: unknown) => put({ status: "error", message: ipc.errorMessage(e) }),
+    );
+    readingDetails.set(key, reading);
+    return reading.finally(() => readingDetails.delete(key));
   },
 
   load(token) {
@@ -105,11 +155,17 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
     return get().expand(dir);
   },
 
-  async open(path, mode) {
+  async open(path, mode, asPaint = false) {
     const session = useFileSessionStore.getState();
-    if (get().busy !== null || session.saving || !(await session.confirmDiscard())) return;
+    if (get().busy !== null || session.saving) return;
+    const profile =
+      mode === "save" && !isSavePath(path) ? await askScenarioOpen(path, asPaint) : undefined;
+    if (profile === null || !(await session.confirmDiscard())) return;
     set({ busy: path, rowError: null });
-    const opening = mode === "scenario" ? session.openScenarioFrom(path) : session.openSave(path);
+    const opening =
+      mode === "scenario"
+        ? session.openScenarioFrom(path, standingProfile())
+        : session.openSave(path, profile);
     const opened = await opening.finally(() => set({ busy: null }));
     if (opened) {
       useLayoutStore.getState().hideOpenDialog();

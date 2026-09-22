@@ -47,6 +47,34 @@ a release is made.
 - A fallen empire zone or a nebula can be dragged by its centre as well
   as its ring.
 - The top bar shows the app's own icon.
+- The Open dialog is easier to read. The text is larger and brighter, and
+  empire flags replace the small colour dots.
+- The Open dialog's left column switches between All, Recent, Saves and
+  Scenarios. Ctrl+1 to 4 do the same.
+- Saves are listed under their empire by game date, with autosaves marked.
+- A panel on the right describes the selected save: its empire, version,
+  galaxy settings, difficulty, crisis and required DLC. For a scenario it
+  shows the systems, empire counts and galaxy options.
+- Open and Open as scenario sit at the bottom of the Open dialog and act on
+  the selected row. Open opens a save as a save without asking. Enter still
+  asks.
+- Open as scenario asks the Paint a Galaxy question before it goes on, as
+  the Open as dialog does. Before, a save taken as a scenario from the Open
+  list ignored the checkbox.
+- Scenarios in the Open dialog are tagged "PaG" or "Plain". Hover the tag
+  for the full wording. The panel on the right says the same.
+- A Paint a Galaxy scenario opens straight away while the mod is enabled.
+  While the mod is off, opening one warns that the map will break in-game,
+  and the panel on the right shows the same warning.
+- Opening a scenario that isn't for Paint a Galaxy asks first. Tick the box
+  to edit it for the mod.
+- Open for Paint a Galaxy sits beside Open for a scenario that isn't for
+  the mod. It opens the scenario for the mod without asking, unless the mod
+  is off.
+- Tick "Don't warn me again" to open those scenarios as they are. The
+  switch in the Help menu turns the warning back on.
+- Click a row to select it and double-click to open it. Hovering no longer
+  selects.
 
 ### Removed
 

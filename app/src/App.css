@@ -32,6 +32,7 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  --fg-soft: #a7b2c4;
 }
 
 * {

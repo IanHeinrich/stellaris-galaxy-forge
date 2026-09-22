@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::format::scenario::index::{self, ScenarioIndex};
+use crate::format::scenario::is_painted;
+use crate::format::scenario::summary::ScenarioSummary;
 
 /// The layer name the install's own files are listed under, as `Layout` names it.
 const VANILLA: &str = "vanilla";
@@ -68,6 +70,10 @@ pub struct ScenarioListing {
     pub size: u64,
     /// Why the file could not be read as a scenario; it is still listed.
     pub error: Option<String>,
+    /// The header's setup values; all empty when the file could not be read.
+    pub summary: ScenarioSummary,
+    /// Written for Paint a Galaxy.
+    pub painted: bool,
 }
 
 /// What the Open screen lists, and what went wrong working out where to look. A mod
@@ -146,7 +152,13 @@ fn listing(root: &ScenarioRoot, path: &Path, winners: &Winners) -> Option<Scenar
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let (name, systems, error) = read(path, &stem)?;
+    let Read {
+        name,
+        systems,
+        summary,
+        painted,
+        error,
+    } = read(path, &stem)?;
     let (modified, size) = stat(path);
     Some(ScenarioListing {
         path: path.to_string_lossy().into_owned(),
@@ -159,15 +171,34 @@ fn listing(root: &ScenarioRoot, path: &Path, winners: &Winners) -> Option<Scenar
         modified,
         size,
         error,
+        summary,
+        painted,
     })
 }
 
-/// The scenario's name and system count, or the file stem and the reason it has neither;
-/// `None` for a file that is not a static galaxy scenario at all.
-fn read(path: &Path, stem: &str) -> Option<(String, u32, Option<String>)> {
+struct Read {
+    name: String,
+    systems: u32,
+    summary: ScenarioSummary,
+    painted: bool,
+    error: Option<String>,
+}
+
+/// The scenario's name, system count, summary and dialect, or the file stem and the
+/// reason it has none of them; `None` for a file that is not a static galaxy scenario.
+fn read(path: &Path, stem: &str) -> Option<Read> {
+    let unread = |e: String| {
+        Some(Read {
+            name: stem.to_owned(),
+            systems: 0,
+            summary: ScenarioSummary::default(),
+            painted: false,
+            error: Some(e),
+        })
+    };
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
-        Err(e) => return Some((stem.to_owned(), 0, Some(e.to_string()))),
+        Err(e) => return unread(e.to_string()),
     };
     match ScenarioIndex::build(&bytes) {
         Ok(index) => {
@@ -175,10 +206,16 @@ fn read(path: &Path, stem: &str) -> Option<(String, u32, Option<String>)> {
                 "" => stem.to_owned(),
                 name => name.to_owned(),
             };
-            Some((name, crate::as_u32(index.systems().count()), None))
+            Some(Read {
+                name,
+                systems: crate::as_u32(index.systems().count()),
+                summary: ScenarioSummary::of(&index.header),
+                painted: is_painted(&bytes),
+                error: None,
+            })
         }
         Err(index::Error::Dynamic | index::Error::NotAScenario) => None,
-        Err(e) => Some((stem.to_owned(), 0, Some(e.to_string()))),
+        Err(e) => unread(e.to_string()),
     }
 }
 
