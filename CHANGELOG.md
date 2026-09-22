@@ -8,9 +8,12 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-22
+
 ### Added
 
-- A Stellaris 4.5.0 save joins the test corpus.
+- Stellaris 4.5 saves open, edit and save with every untouched byte kept,
+  as 4.4 saves do. A day-one 4.5 save joins the test corpus.
 
 ### Changed
 
