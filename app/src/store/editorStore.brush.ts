@@ -4,12 +4,18 @@ import * as ipc from "../api/ipc";
 import type { NewSystem } from "../generated/NewSystem";
 import type { Op } from "../generated/Op";
 import type { Pair } from "../lib/brush/lanes";
+import { joinIslands as lanesJoining } from "../lib/geometry/joinIslands";
 import type { Pt } from "../lib/geometry/pt";
 import { nextSystemId } from "../lib/paint";
 import { counted } from "../lib/text";
 import { runEdit, systems, type EditorState } from "./editorStore";
+import { useFileSessionStore } from "./fileSessionStore";
+import { islandCount, laneGraph } from "./galaxyStore";
 
-type BrushActions = Pick<EditorState, "paintStroke" | "eraseStroke" | "cutLanes" | "removeSystems">;
+type BrushActions = Pick<
+  EditorState,
+  "paintStroke" | "eraseStroke" | "cutLanes" | "connectStroke" | "joinIslands" | "removeSystems"
+>;
 
 export function brushActions(
   _set: StoreApi<EditorState>["setState"],
@@ -34,6 +40,36 @@ export function brushActions(
         description: `Cut ${counted(pairs.length, "lane")}`,
         ops: [{ type: "RemoveLanePairs", lanes: pairs }],
       });
+    },
+
+    async connectStroke(pairs) {
+      if (pairs.length === 0) return false;
+      return get().applyOp(addLanes(pairs, `Connected ${counted(pairs.length, "lane")}`));
+    },
+
+    async joinIslands() {
+      const galaxy = systems();
+      const before = islandCount(galaxy);
+      if (before <= 1) return false;
+      const { points, edges } = laneGraph(galaxy);
+      const pairs = lanesJoining(points, edges);
+      const left = before - pairs.length;
+      const session = useFileSessionStore.getState();
+      if (pairs.length === 0) {
+        session.setError(`No hyperlane can join the ${before} islands without crossing another.`);
+        return false;
+      }
+      const description =
+        left === 1
+          ? `Joined ${counted(before, "island")}`
+          : `Joined islands with ${counted(pairs.length, "lane")}`;
+      const joined = await get().applyOp(addLanes(pairs, description));
+      if (joined && left > 1) {
+        session.setError(
+          `${counted(left, "island")} remain: no more hyperlanes can join them without crossing another.`,
+        );
+      }
+      return joined;
     },
 
     async removeSystems(ids) {
@@ -63,6 +99,14 @@ function paintOp(points: readonly Pt[], pairs: readonly Pair[]): Op {
   }
   const lanes = pairs.length > 0 ? ` and ${counted(pairs.length, "lane")}` : "";
   return { type: "Batch", description: `Painted ${counted(points.length, "system")}${lanes}`, ops };
+}
+
+function addLanes(pairs: readonly Pair[], description: string): Op {
+  return {
+    type: "Batch",
+    description,
+    ops: [{ type: "AddLanePairs", lanes: pairs.map(([a, b]) => ({ a, b, bridge: false })) }],
+  };
 }
 
 function newSystem(id: number, p: Pt): NewSystem {

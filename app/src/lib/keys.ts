@@ -23,7 +23,9 @@ export type KeyAction =
   | "toggleInitializerLayers"
   | "selectTool"
   | "paintTool"
-  | "eraseTool";
+  | "eraseTool"
+  | "connectTool"
+  | "cutTool";
 
 /** A world offset that moves the selection one step across the screen. */
 export interface Nudge {
@@ -76,6 +78,8 @@ export function keyAction(e: KeyLike, inInput: boolean, canGoBack = false): KeyA
   if (key === "v" && !e.shiftKey) return "selectTool";
   if (key === "b" && !e.shiftKey) return "paintTool";
   if (key === "e" && !e.shiftKey) return "eraseTool";
+  if (key === "c" && !e.shiftKey) return "connectTool";
+  if (key === "x" && !e.shiftKey) return "cutTool";
   return null;
 }
 

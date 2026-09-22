@@ -7,6 +7,8 @@ import type { Nebula } from "../generated/Nebula";
 import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
+import { componentCount } from "../lib/geometry/joinIslands";
+import { isLClusterSystem } from "../lib/guides";
 import { meshPairs, type MeshPoint } from "../lib/geometry/mesh";
 import { nodeName, stripped, templateName } from "../lib/names";
 import { SpatialGrid } from "../lib/spatialGrid";
@@ -200,6 +202,32 @@ export function systemNameOf(
   const node = systems.get(id);
   if (node === undefined) return `#${id}`;
   return node.name.literal ? node.name.key : (names.get(node.name.key) ?? stripped(node.name.key));
+}
+
+/** Every system outside the L-Cluster as a point and every lane between them as an id pair, once from each end. */
+export function laneGraph(systems: Systems): {
+  points: MeshPoint[];
+  edges: Array<[number, number]>;
+} {
+  // The L-Cluster is cut off on purpose, reached by its gateway, so it is no island to join.
+  const cut = new Set<number>();
+  for (const s of systems.values()) if (isLClusterSystem(s)) cut.add(s.id);
+  const points: MeshPoint[] = [];
+  const edges: Array<[number, number]> = [];
+  for (const s of systems.values()) {
+    if (cut.has(s.id)) continue;
+    points.push({ id: s.id, x: s.x, y: s.y });
+    for (const lane of s.lanes) {
+      if (lane.to !== s.id && !cut.has(lane.to)) edges.push([s.id, lane.to]);
+    }
+  }
+  return { points, edges };
+}
+
+/** How many separate clusters of systems the lanes leave, as the galaxy stands now. */
+export function islandCount(systems: Systems): number {
+  const { points, edges } = laneGraph(systems);
+  return componentCount(points, edges);
 }
 
 function linked(systems: Systems, a: number, b: number): boolean {

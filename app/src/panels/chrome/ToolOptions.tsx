@@ -55,6 +55,27 @@ function SizeOption() {
   );
 }
 
+/** The β of the lanes a brush adds, shared with the selection's mesh. */
+function LaneDensityOption({ disabled = false }: { disabled?: boolean }) {
+  const meshBeta = useMapChromeStore((s) => s.meshBeta);
+  const setMeshBeta = useMapChromeStore((s) => s.setMeshBeta);
+  return (
+    <label className="tool-option">
+      Lane density
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        value={sliderOfBeta(meshBeta)}
+        disabled={disabled}
+        onChange={(e) => setMeshBeta(betaOfSlider(Number(e.target.value)))}
+        aria-label="Lane density"
+      />
+    </label>
+  );
+}
+
 function PaintOptions() {
   const size = useToolStore((s) => s.size);
   const chosen = useToolStore((s) => s.spacing);
@@ -66,8 +87,6 @@ function PaintOptions() {
   const setSpacing = useToolStore((s) => s.setSpacing);
   const laneMode = useToolStore((s) => s.laneMode);
   const setLaneMode = useToolStore((s) => s.setLaneMode);
-  const meshBeta = useMapChromeStore((s) => s.meshBeta);
-  const setMeshBeta = useMapChromeStore((s) => s.setMeshBeta);
   const [draft, setDraft] = useState<string | null>(null);
   const apply = () => {
     if (draft !== null && Number.isFinite(Number(draft)) && draft.trim() !== "") {
@@ -121,19 +140,7 @@ function PaintOptions() {
           <option value="nearby">New and nearby</option>
         </select>
       </label>
-      <label className="tool-option">
-        Lane density
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={sliderOfBeta(meshBeta)}
-          disabled={laneMode === "off"}
-          onChange={(e) => setMeshBeta(betaOfSlider(Number(e.target.value)))}
-          aria-label="Lane density"
-        />
-      </label>
+      <LaneDensityOption disabled={laneMode === "off"} />
     </>
   );
 }
@@ -173,9 +180,16 @@ function optionsFor(tool: Tool): ReactNode {
       return <PaintOptions />;
     case "erase":
       return <EraseOptions />;
-    case "select":
     case "connect":
+      return (
+        <>
+          <SizeOption />
+          <LaneDensityOption />
+        </>
+      );
     case "cut":
+      return <SizeOption />;
+    case "select":
       return null;
   }
 }

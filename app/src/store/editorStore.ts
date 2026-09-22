@@ -167,8 +167,15 @@ export interface EditorState {
   paintStroke(points: readonly Pt[], pairs: readonly Pair[]): Promise<boolean>;
   /** Removes the systems an erase stroke swept, in one edit. */
   eraseStroke(ids: readonly number[]): Promise<boolean>;
-  /** Cuts the lanes an erase stroke swept, in one edit. */
+  /** Cuts the lanes an erase or cut stroke swept, in one edit. */
   cutLanes(pairs: Pair[]): Promise<boolean>;
+  /** Adds the lanes a connect stroke found between the systems it swept, in one edit. */
+  connectStroke(pairs: readonly Pair[]): Promise<boolean>;
+  /**
+   * Links every separate cluster of systems into one with the shortest lanes that cross none,
+   * in one edit; nothing is sent when the galaxy is already one piece.
+   */
+  joinIslands(): Promise<boolean>;
   /** Writes the fallen empire zone `id` anchors, or removes it with null. */
   setFeZone(id: number, zone: FeZone | null): Promise<boolean>;
   /** Gives `id` a zone in the first clear direction at the default distance, and selects it. */

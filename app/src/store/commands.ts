@@ -23,7 +23,7 @@ export function canGoBack(): boolean {
 /** `[` / `]` shrink or grow the active brush. True when a brush took the press. */
 export function resizeBrush(step: number): boolean {
   const tools = useToolStore.getState();
-  if (tools.tool !== "paint" && tools.tool !== "erase") return false;
+  if (tools.tool === "select") return false;
   tools.stepSize(step < 0 ? -1 : 1);
   return true;
 }
@@ -154,5 +154,9 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       return useToolStore.getState().setTool("paint");
     case "eraseTool":
       return useToolStore.getState().setTool("erase");
+    case "connectTool":
+      return useToolStore.getState().setTool("connect");
+    case "cutTool":
+      return useToolStore.getState().setTool("cut");
   }
 }

@@ -53,7 +53,7 @@ const FE_GRID_SNAPPED_RADIUS_PX = 4.5;
 const ORIGIN_MARK = { color: 0xffffff, alpha: 0.3, armPx: 7 };
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
-/** The brush circle and what a stroke would do: paint in the accent, erase in the refusal red. */
+/** The brush circle and what a stroke would do: paint and connect in the accent, erase and cut in the refusal red. */
 const BRUSH_PAINT = 0xffd166;
 const BRUSH_ERASE = 0xf87171;
 const BRUSH_KEPT = 0xfbbf24;
@@ -85,8 +85,10 @@ export interface BrushPreview {
   /** Systems an erase stroke removes, and the special ones it spares. */
   doomed: readonly Pt[];
   kept: readonly Pt[];
-  /** Lanes an erase stroke cuts. */
+  /** Lanes an erase or cut stroke cuts. */
   cut: readonly BrushSegment[];
+  /** Systems a connect stroke has swept, whose new lanes are `lanes`. */
+  swept: readonly Pt[];
 }
 
 /** A world-space rectangle with `x0 <= x1` and `y0 <= y1`. */
@@ -367,7 +369,7 @@ export class HighlightsLayer implements MapLayer {
     g.clear();
     if (!cursor) return;
     dashedCircle(g, cursor.x, cursor.y, cursor.r, BRUSH_DASHES);
-    const color = cursor.tool === "paint" ? BRUSH_PAINT : BRUSH_ERASE;
+    const color = cursor.tool === "paint" || cursor.tool === "connect" ? BRUSH_PAINT : BRUSH_ERASE;
     g.stroke({ color, alpha: 0.9, pixelLine: true });
   }
 
@@ -575,7 +577,7 @@ export class HighlightsLayer implements MapLayer {
     });
   }
 
-  /** The stroke's new systems as dots, its doomed and spared systems as rings, and the lanes it cuts, sized in screen pixels. */
+  /** The stroke's new systems as dots, its doomed, spared and swept systems as rings, and the lanes it cuts, sized in screen pixels. */
   private drawBrushMarks(): void {
     const g = this.brushMarks;
     g.clear();
@@ -590,6 +592,8 @@ export class HighlightsLayer implements MapLayer {
     if (p.doomed.length > 0) g.stroke({ color: BRUSH_ERASE, alpha: 0.9, width: 2 * px });
     for (const s of p.kept) g.circle(s.x, s.y, BRUSH_RING_PX * px);
     if (p.kept.length > 0) g.stroke({ color: BRUSH_KEPT, alpha: 0.9, width: 2 * px });
+    for (const s of p.swept) g.circle(s.x, s.y, BRUSH_RING_PX * px);
+    if (p.swept.length > 0) g.stroke({ color: BRUSH_PAINT, alpha: 0.9, width: 2 * px });
   }
 
   /** A world-space circle of the core radius, stroked one screen pixel wide at any zoom. */

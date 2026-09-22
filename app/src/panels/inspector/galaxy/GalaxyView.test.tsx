@@ -20,6 +20,7 @@ import {
   OPEN_RESULT,
   SCENARIO_BYPASSES,
   SCENARIO_RESULT,
+  SYSTEMS,
 } from "../../../store/fixture";
 import { GalaxyView } from "./GalaxyView";
 import {
@@ -91,6 +92,43 @@ async function open(kind: "save" | "scenario"): Promise<void> {
 function count(html: string, needle: string): number {
   return html.split(needle).length - 1;
 }
+
+describe("the components row", () => {
+  const JOIN = /<button type="button" class="link" title="[^"]*">Join<\/button>/;
+
+  it("offers Join while the lanes leave more than one piece, on a save as on a scenario", async () => {
+    await open("save");
+    expect(galaxy()).toContain(">Components</span><span>2 <button");
+    expect(galaxy()).toMatch(JOIN);
+
+    await open("scenario");
+    expect(galaxy()).toMatch(JOIN);
+  });
+
+  it("leaves the L-Cluster out, since it is cut off on purpose", async () => {
+    await open("save");
+    useGalaxyStore.getState().applyDelta({
+      systems: [{ ...SYSTEMS[5], initializer: "lcluster_1", lanes: [] }],
+    });
+    const html = galaxy();
+    expect(html).toContain(">Components</span><span>1</span>");
+    expect(html).not.toMatch(JOIN);
+  });
+
+  it("counts the pieces as the galaxy stands, and offers nothing once it is one", async () => {
+    await open("save");
+    const lane = { to: 0, length: 56, bridge: false, stale: false };
+    useGalaxyStore.getState().applyDelta({
+      systems: [
+        { ...SYSTEMS[0], lanes: [...SYSTEMS[0].lanes, { ...lane, to: 5 }] },
+        { ...SYSTEMS[5], lanes: [lane] },
+      ],
+    });
+    const html = galaxy();
+    expect(html).toContain(">Components</span><span>1</span>");
+    expect(html).not.toMatch(JOIN);
+  });
+});
 
 describe("the bypasses a scenario places", () => {
   it("counts the drawn ones and says under the bypass rows how many the scripts add", async () => {

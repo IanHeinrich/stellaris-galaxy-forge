@@ -69,6 +69,31 @@ const TOOLS: readonly ToolEntry[] = [
       </Glyph>
     ),
   },
+  {
+    id: "connect",
+    label: "Connect lanes",
+    key: "C",
+    icon: (
+      <Glyph>
+        <circle cx="3.5" cy="11.5" r="1.5" />
+        <circle cx="8" cy="4.5" r="1.5" />
+        <circle cx="12.5" cy="11.5" r="1.5" />
+        <path d="m4.3 10.2 2.9-4.4M8.8 5.8l2.9 4.4M5 11.5h6" />
+      </Glyph>
+    ),
+  },
+  {
+    id: "cut",
+    label: "Cut lanes",
+    key: "X",
+    icon: (
+      <Glyph>
+        <circle cx="4" cy="12" r="1.8" />
+        <circle cx="12" cy="12" r="1.8" />
+        <path d="M5.2 10.6 11 2.5M10.8 10.6 5 2.5" />
+      </Glyph>
+    ),
+  },
 ];
 
 /** The map's tools down its left edge, with undo and redo at the foot (ADR 0005). */

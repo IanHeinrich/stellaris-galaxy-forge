@@ -212,6 +212,20 @@ describe("the density slider mapping", () => {
   });
 });
 
+describe("lane brush keys", () => {
+  it("C and X pick the lane brushes on a save, and [ ] step their size", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    expect(run("connectTool", false, effects)).toBe(true);
+    expect(tools().tool).toBe("connect");
+    expect(resizeBrush(1)).toBe(true);
+    expect(tools().size).toBe(48);
+    expect(run("cutTool", false, effects)).toBe(true);
+    expect(tools().tool).toBe("cut");
+    expect(resizeBrush(-1)).toBe(true);
+    expect(tools().size).toBe(40);
+  });
+});
+
 describe("brush keys", () => {
   it("B and E pick the brushes on a scenario, and [ ] step the brush rather than a nebula", async () => {
     expect(run("paintTool", false, effects)).toBe(false);

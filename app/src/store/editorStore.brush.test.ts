@@ -10,7 +10,7 @@ import { run } from "./commands";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { SCENARIO_RESULT, SYSTEMS, editResult } from "./fixture";
+import { SCENARIO_RESULT, SYSTEMS, editResult, node } from "./fixture";
 
 const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn(), confirmRemoveNebula: vi.fn() };
 
@@ -132,6 +132,143 @@ describe("an erase stroke", () => {
     expect(await editor().eraseStroke([0])).toBe(false);
     expect(sessionError()).toBe("no such system");
     expect(useGalaxyStore.getState().systems.has(0)).toBe(true);
+  });
+});
+
+/** A stroke of `tool` from `from` to `to` over the galaxy the store holds. */
+function brush(
+  settings: Partial<BrushSettings>,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+) {
+  const { systems, grid } = useGalaxyStore.getState();
+  const stroke = new BrushStroke({ ...ERASE, ...settings }, systems, grid!, 1);
+  stroke.add(stampsAlong(null, from, stroke.r));
+  stroke.add(stampsAlong(from, to, stroke.r));
+  return stroke.result();
+}
+
+const pairsOf = (result: ReturnType<typeof brush>) =>
+  result.kind === "connect" ? result.pairs : [];
+
+describe("a connect stroke", () => {
+  // Sol, Alpha Centauri, Barnard and Sirius, whose chain already links Alpha Centauri to the others.
+  const CHAIN = { from: { x: 0, y: 0 }, to: { x: 30, y: 0 } };
+
+  it("meshes the systems it passes over, leaving out pairs already linked, as one edit", async () => {
+    const dense = brush({ tool: "connect", size: 30, beta: 0.1 }, CHAIN.from, CHAIN.to);
+    expect(dense).toEqual({
+      kind: "connect",
+      swept: [0, 1, 2, 3],
+      pairs: [
+        [0, 2],
+        [2, 3],
+      ],
+    });
+    await editor().connectStroke(pairsOf(dense));
+    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Connected 2 lanes",
+      ops: [
+        {
+          type: "AddLanePairs",
+          lanes: [
+            { a: 0, b: 2, bridge: false },
+            { a: 2, b: 3, bridge: false },
+          ],
+        },
+      ],
+    });
+
+    // The Gabriel graph drops Sol–Barnard, whose circle holds Alpha Centauri.
+    expect(pairsOf(brush({ tool: "connect", size: 30, beta: 1 }, CHAIN.from, CHAIN.to))).toEqual([
+      [2, 3],
+    ]);
+  });
+
+  it("leaves out a pair the scenario keeps apart", () => {
+    useGalaxyStore.getState().applyDelta({
+      systems: [
+        { ...SYSTEMS[2], prevented: [3] },
+        { ...SYSTEMS[3], prevented: [2] },
+      ],
+    });
+    expect(pairsOf(brush({ tool: "connect", size: 30, beta: 0.1 }, CHAIN.from, CHAIN.to))).toEqual([
+      [0, 2],
+    ]);
+  });
+
+  it("adds no lane that would cross an existing one, and then sends nothing", async () => {
+    // Either side of the Alpha Centauri–Vega lane, so the one lane between them would cross it.
+    useGalaxyStore.getState().applyDelta({
+      systems: [node(6, "NAME_West", 0, -15, "sc_g"), node(7, "NAME_East", 20, -15, "sc_g")],
+    });
+    const across = brush({ tool: "connect", size: 6 }, { x: 0, y: -15 }, { x: 20, y: -15 });
+    expect(across).toEqual({ kind: "connect", swept: [6, 7], pairs: [] });
+    expect(await editor().connectStroke(pairsOf(across))).toBe(false);
+    expect(mocked.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("works on a save", async () => {
+    await openFixtureSave();
+    mocked.applyOp.mockResolvedValue(editResult());
+    const pairs = pairsOf(brush({ tool: "connect", size: 30, beta: 1 }, CHAIN.from, CHAIN.to));
+    expect(await editor().connectStroke(pairs)).toBe(true);
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Connected 1 lane",
+      ops: [{ type: "AddLanePairs", lanes: [{ a: 2, b: 3, bridge: false }] }],
+    });
+  });
+});
+
+describe("a cut stroke", () => {
+  it("cuts the lanes it passes over as one edit, on a save too", async () => {
+    await openFixtureSave();
+    mocked.applyOp.mockResolvedValue(editResult());
+    const cut = brush({ tool: "cut", size: 6 }, { x: 0, y: 0 }, { x: 5, y: 0 });
+    expect(cut).toEqual({ kind: "cut", lanes: [[0, 1]] });
+    await editor().cutLanes(cut.kind === "cut" ? cut.lanes : []);
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Cut 1 lane",
+      ops: [{ type: "RemoveLanePairs", lanes: [[0, 1]] }],
+    });
+  });
+});
+
+describe("joining islands", () => {
+  it("links the isolated Deneb to its nearest neighbour as one edit", async () => {
+    expect(await editor().joinIslands()).toBe(true);
+    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Joined 2 islands",
+      ops: [{ type: "AddLanePairs", lanes: [{ a: 0, b: 5, bridge: false }] }],
+    });
+    expect(sessionError()).toBeNull();
+  });
+
+  it("works on a save", async () => {
+    await openFixtureSave();
+    mocked.applyOp.mockResolvedValue(editResult());
+    expect(await editor().joinIslands()).toBe(true);
+    expect(mocked.applyOp.mock.calls[0][0]).toMatchObject({ description: "Joined 2 islands" });
+  });
+
+  it("sends nothing when the galaxy is already one piece", async () => {
+    useGalaxyStore.getState().applyDelta({
+      systems: [
+        {
+          ...SYSTEMS[0],
+          lanes: [...SYSTEMS[0].lanes, { to: 5, length: 56, bridge: false, stale: false }],
+        },
+        { ...SYSTEMS[5], lanes: [{ to: 0, length: 56, bridge: false, stale: false }] },
+      ],
+    });
+    expect(await editor().joinIslands()).toBe(false);
+    expect(mocked.applyOp).not.toHaveBeenCalled();
   });
 });
 

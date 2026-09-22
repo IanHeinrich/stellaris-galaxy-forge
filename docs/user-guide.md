@@ -72,7 +72,8 @@ archive, building the galaxy, validating, and finishing.
 
 Once open, the galaxy fills the window with the dock on the right and a
 status bar along the bottom. A narrow tool strip runs down the map's left
-edge. It holds the Select tool (V), with Undo and Redo at its foot. A
+edge. It holds the Select tool (V) and the Connect (C) and Cut (X) lane
+brushes, described under "Hyperlanes", with Undo and Redo at its foot. A
 scenario adds the Paint (B) and Erase (E) brushes, described under
 "Static galaxy scenarios".
 
@@ -200,6 +201,31 @@ Cutting a lane:
 
 Isolating a system removes every one of its lanes: right-click it and
 choose "Isolate", or select several and use "Isolate" in the Inspector.
+
+Two brushes on the tool strip work on lanes in broad strokes, in a save
+or a scenario:
+
+- Connect lanes (C) rings every system the circle passes over. On
+  release it links them with the same sparse-to-dense mesh as "Connect as
+  mesh", set by its Lane density option. It skips pairs already linked,
+  pairs a scenario bars from being linked, and any lane that would cross
+  an existing one or run far past the spacing of the systems swept.
+- Cut lanes (X) cuts every hyperlane the circle passes over.
+
+While the button is held the map previews the new lanes or the lanes to
+be cut, and the cursor counts them. Each stroke is one step in Undo. Size
+sets the circle's diameter, and `[` and `]` shrink and grow it. Holding
+Alt when you press turns a connect stroke into a cut and a cut into a
+connect. Esc drops a stroke in progress and a second Esc returns to
+Select.
+
+A galaxy the lanes leave in several separate pieces shows a "Join"
+button beside Components in the Inspector, with nothing selected. It
+links every piece to the rest with the shortest hyperlanes that cross
+none, in one step. The Issues tab offers the same "Join islands" on a
+galaxy split into more pieces than it had when opened. If a piece cannot
+be reached without crossing a lane, the status bar says how many pieces
+remain.
 
 New lanes get the length the game's own generator would write, the whole
 number just below the distance between the two stars. A lane whose stored

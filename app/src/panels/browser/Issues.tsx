@@ -74,6 +74,7 @@ function IssueFix({ issue }: { issue: AppIssue }) {
   const addMarauderBases = useEditorStore((s) => s.addMarauderBases);
   const resetFeLinks = useEditorStore((s) => s.resetFeLinks);
   const dropDanglingFeLinks = useEditorStore((s) => s.dropDanglingFeLinks);
+  const joinIslands = useEditorStore((s) => s.joinIslands);
   const { code } = issue;
   const [first] = issue.systems;
   const fix =
@@ -89,7 +90,9 @@ function IssueFix({ issue }: { issue: AppIssue }) {
               ? { label: "Use nearest systems", run: () => resetFeLinks(first) }
               : code === "fe_link_dangling" && first !== undefined
                 ? { label: "Unlink", run: () => dropDanglingFeLinks(first) }
-                : null;
+                : code === "disconnected"
+                  ? { label: "Join islands", run: joinIslands }
+                  : null;
   if (fix === null) return null;
   return (
     <button type="button" className="browser-fix" onClick={() => void fix.run()}>
