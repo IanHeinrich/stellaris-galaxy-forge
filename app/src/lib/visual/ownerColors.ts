@@ -46,12 +46,6 @@ function mapColor(
   return map === undefined ? undefined : parseHex(map);
 }
 
-/**
- * The country's map colours as the game paints them: the border and fill colours the empire
- * chose when it was created with independent map colours (Stellaris 4.5), otherwise the first
- * flag colour outlines the region and the second fills it, each standing in for the other when
- * missing. Without game data the index-based palette outlines and a darker shade of it fills.
- */
 export function ownerColors(
   country: CountryNode | undefined,
   index: number,
