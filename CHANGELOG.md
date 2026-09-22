@@ -8,11 +8,6 @@ a release is made.
 
 ## [Unreleased]
 
-### Added
-
-- `sgf shape` prints the key shape of a save and diffs two saves.
-  `scripts/game-update.sh` runs the checks a game update needs.
-
 ## [0.8.0] - 2026-09-22
 
 ### Changed
