@@ -214,7 +214,8 @@ jobs:
             fi
           fi
           if [ "$RUNNER_OS" = "Windows" ]; then
-            "$SIGNTOOL" sign /fd sha256 /sha1 "$CERTUM_KEY_ID" \
+            # Git Bash rewrites /fd and the other flags as paths unless told not to.
+            MSYS_NO_PATHCONV=1 "$SIGNTOOL" sign /fd sha256 /sha1 "$CERTUM_KEY_ID" \
               /tr http://time.certum.pl /td sha256 /d "sgf" target/cli/sgf.exe
             (cd target/cli && 7z a "$GITHUB_WORKSPACE/dist/sgf-$TAG-${{ matrix.cli-asset }}.zip" sgf.exe)
           else
@@ -239,7 +240,7 @@ jobs:
           cp "$exe" "$RUNNER_TEMP/portable/"
           # The bundler signs this binary once per installer it builds, then restores the
           # unsigned copy it took beforehand, so what is left in target/release is unsigned.
-          "$SIGNTOOL" sign /fd sha256 /sha1 "$CERTUM_KEY_ID" \
+          MSYS_NO_PATHCONV=1 "$SIGNTOOL" sign /fd sha256 /sha1 "$CERTUM_KEY_ID" \
             /tr http://time.certum.pl /td sha256 /d "Stellaris Galaxy Forge" \
             "$RUNNER_TEMP/portable/$(basename "$exe")"
           (cd "$RUNNER_TEMP/portable" && 7z a "$GITHUB_WORKSPACE/dist/stellaris-galaxy-forge-$TAG-windows-x86_64-portable.zip" ./*.exe)
@@ -252,7 +253,7 @@ jobs:
         run: |
           for f in dist/*.exe dist/*.msi; do
             [ -f "$f" ] || continue
-            "$SIGNTOOL" verify /pa "$f"
+            MSYS_NO_PATHCONV=1 "$SIGNTOOL" verify /pa "$f"
           done
 
       - uses: actions/upload-artifact@v4
