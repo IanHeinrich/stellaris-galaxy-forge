@@ -15,15 +15,15 @@ drawn by hand.
 
 Beta. Only the galaxy map is editable today: empires, pops, fleets
 and techs are not. Save editing is the better tested half. It works on
-Stellaris 4.x saves. I have checked it in-game on 4.4.6, with all DLC
-and no mods.
+Stellaris 4.x saves. I have checked it in-game on 4.4.6 and 4.5.0, with
+all DLC and no mods.
 I haven't tested Ironman saves. I have checked scenario editing in-game
-on the maps of a few large mods and on saves exported as scenarios, but
-it is newer and has had less use. Anything the editor reads from scripts
-and events is a best guess. It follows initializers, star flags and
-event targets, cannot follow scripts that iterate over classes of
-systems or address them by name, and reads conditions as if they were
-true. macOS builds are published unsigned.
+on the same two versions, on the maps of a few large mods and on saves
+exported as scenarios, but it is newer and has had less use. Anything
+the editor reads from scripts and events is a best guess. It follows
+initializers, star flags and event targets, cannot follow scripts that
+iterate over classes of systems or address them by name, and reads
+conditions as if they were true. macOS builds are published unsigned.
 
 What the editor can change vs what it only shows:
 
