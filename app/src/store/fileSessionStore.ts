@@ -132,8 +132,6 @@ export interface FileSessionState {
    * when left out.
    */
   pickAndOpen(mode?: OpenMode, profile?: ScenarioProfile): Promise<void>;
-  /** Picks a scenario file and opens it as `openScenario` would; resolves true once it is open. */
-  pickAndOpenScenario(profile?: ScenarioProfile): Promise<boolean>;
   /** Re-reads the open file from disk, discarding unsaved changes on confirmation. */
   reload(): Promise<void>;
   close(): Promise<void>;
@@ -253,13 +251,6 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
         ? get().openScenarioFrom(picked, profile)
         : get().openSave(picked));
     }
-  },
-
-  async pickAndOpenScenario(profile) {
-    if (get().saving || !(await get().confirmDiscard())) return false;
-    const picked = await open({ filters: [SCENARIO_FILTER], multiple: false, directory: false });
-    if (typeof picked !== "string") return false;
-    return openDocument(picked, () => ipc.openSave(picked), { profile });
   },
 
   async reload() {

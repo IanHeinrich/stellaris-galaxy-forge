@@ -824,34 +824,6 @@ describe("scenario documents", () => {
     expect(session().paintChosen).toBe(false);
   });
 
-  it("picking a painted file asks to discard before the picker, and opens what is picked as painted", async () => {
-    await session().openSave(OPEN_RESULT.path);
-    await edit();
-    mocked.confirm.mockResolvedValueOnce(false);
-    expect(await session().pickAndOpenScenario("paint_a_galaxy")).toBe(false);
-    expect(mocked.open).not.toHaveBeenCalled();
-    expect(session().kind).toBe("save");
-
-    mocked.confirm.mockResolvedValueOnce(true);
-    mocked.open.mockResolvedValueOnce(null);
-    expect(await session().pickAndOpenScenario("paint_a_galaxy")).toBe(false);
-    expect(mocked.open).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filters: [{ name: "Stellaris static galaxy scenario", extensions: ["txt"] }],
-      }),
-    );
-    expect(session().kind).toBe("save");
-
-    mocked.confirm.mockResolvedValueOnce(true);
-    mocked.open.mockResolvedValueOnce(SCENARIO_PATH);
-    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    expect(await session().pickAndOpenScenario("paint_a_galaxy")).toBe(true);
-    expect(mocked.openSave).toHaveBeenLastCalledWith(SCENARIO_PATH);
-    expect(session().kind).toBe("scenario");
-    expect(session().paintChosen).toBe(true);
-    expect(getPaintLayer()).toBe(true);
-  });
-
   it("reloading keeps what was said of the file at open, since the bytes cannot say it", async () => {
     mocked.openSave.mockResolvedValue(SCENARIO_RESULT);
     await session().openScenario(SCENARIO_PATH, "paint_a_galaxy");

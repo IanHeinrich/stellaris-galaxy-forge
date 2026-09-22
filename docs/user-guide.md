@@ -393,7 +393,7 @@ editor as a scenario is converted for the mod the same way as an export.
 A save opened as a scenario lists the same warnings in the Issues panel
 until it is closed.
 
-"New scenario…" offers three ways to start. A blank canvas takes a name,
+"New scenario…" offers two ways to start. A blank canvas takes a name,
 a galaxy size (or a radius of your own) and a core radius, and gives you
 an empty file to place every system in yourself; its "For the Paint a
 Galaxy mod" checkbox, ticked by default and remembered per machine,
@@ -413,11 +413,7 @@ is left out because the game adds its own, and the header's empire,
 fallen empire, marauder and nomad counts are taken from the save's setup
 screen. The Export as scenario report and the file's comment lines say
 what was done. Unticked, the save opens as a plain scenario with its
-fallen empire systems kept. The "Paint a galaxy" card opens
-paint-a-galaxy by Oatmeal Problem in your
-browser, where you draw systems and lanes and download the scenario file
-it exports. "Open a Paint a Galaxy file…" on the same card opens that
-file here.
+fallen empire systems kept.
 
 The checkbox is ticked by default because custom galaxies hit
 game-breaking bugs in the generator that the Paint a Galaxy mod fixes.
@@ -434,10 +430,9 @@ A scenario whose Paint a Galaxy layer is on carries a "Paint a Galaxy"
 badge beside its name in the top bar. The layer turns itself on for a
 file that already carries the mod's scripts or flags or the header Forge
 writes for it, for one that sits inside the mod's own
-`map/setup_scenarios` folder, for one you created with the checkbox
-ticked, and for one opened from the Paint a galaxy card. There is no
-switch for it otherwise. The badge warns when the mod (Steam Workshop
-3532904115) is not enabled in your launcher's playset. When the mod is
+`map/setup_scenarios` folder, and for one you created with the checkbox
+ticked. There is no switch for it otherwise. The badge warns when the
+mod (Steam Workshop 3532904115) is not enabled in your launcher's playset. When the mod is
 not installed at all, clicking the badge opens its Workshop page.
 
 A scenario whose layer is off shows a one-line notice under the top bar

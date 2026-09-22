@@ -3,7 +3,6 @@ import type { ScenarioProfile } from "../../generated/ScenarioProfile";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
-import { openPaintSite } from "../chrome/paintMod";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
@@ -33,7 +32,7 @@ function clampCore(core: number, radius: number): number {
   return Math.min(radius, Math.max(0, Math.round(core)));
 }
 
-type Route = "blank" | "game" | "paint";
+type Route = "blank" | "game";
 
 /** The name and canvas size a blank scenario starts from, and the profile a new one is written under. */
 type Blank = { name: string; radius: number; coreRadius: number; profile: ScenarioProfile };
@@ -53,28 +52,12 @@ const ROUTES: { id: Route; title: string; copy: string; primary: string }[] = [
       "that save here. You get the generator's layout, names and empires to edit.",
     primary: "Open a save…",
   },
-  {
-    id: "paint",
-    title: "Paint a galaxy",
-    copy:
-      "Draw your galaxy in Paint a Galaxy, by Oatmeal Problem. Download the scenario file and " +
-      "open it here.",
-    primary: "Open Paint a Galaxy in your browser ↗",
-  },
 ];
 
-const STEPS: Record<Route, string[]> = {
-  blank: [],
-  game: [
-    "Start a new game in Stellaris, any size and shape, and save on day one.",
-    "Open that save here as a scenario.",
-  ],
-  paint: [
-    "Draw your galaxy in Paint a Galaxy, by Oatmeal Problem.",
-    "Download the scenario file.",
-    "Open it here with the button below.",
-  ],
-};
+const GAME_STEPS = [
+  "Start a new game in Stellaris, any size and shape, and save on day one.",
+  "Open that save here as a scenario.",
+];
 
 function Glyph({ children }: { children: ReactNode }) {
   return (
@@ -118,14 +101,6 @@ function glyphOf(route: Route): ReactNode {
           <path d="M8 11.6c-3.4 0-5.4-2.4-4.9-5.2.4-2.4 2.6-4 5.3-3.9" />
         </Glyph>
       );
-    case "paint":
-      return (
-        <Glyph>
-          <path d="M13.6 2.4 8.9 7.1" />
-          <path d="M7.4 5.6 10.4 8.6 8.6 10.4 5.6 7.4Z" />
-          <path d="M5.6 7.4 2.4 13.6 8.6 10.4Z" />
-        </Glyph>
-      );
   }
 }
 
@@ -136,7 +111,7 @@ const ARROW: Record<string, number | undefined> = {
   ArrowUp: -1,
 };
 
-/** The three ways to start, as a radio group: arrows move the choice, Enter and Space take it. */
+/** The two ways to start, as a radio group: arrows move the choice, Enter and Space take it. */
 export function RouteCards({ route, onRoute }: { route: Route; onRoute: (route: Route) => void }) {
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = ARROW[e.key];
@@ -171,31 +146,16 @@ export function RouteCards({ route, onRoute }: { route: Route; onRoute: (route: 
   );
 }
 
-/** Picks the site's export and opens it as painted; the dialog stays until a file is open. */
-async function openPaintedFile(): Promise<void> {
-  const opened = await useFileSessionStore.getState().pickAndOpenScenario("paint_a_galaxy");
-  if (opened) useLayoutStore.getState().hideScenarioDialog();
-}
-
-/** What the chosen route asks of the user before the file it wants exists. */
-export function RouteHelp({ route }: { route: Exclude<Route, "blank"> }) {
-  const openFile = () => void openPaintedFile();
-
+/** What starting from a game save asks of the user before that file exists. */
+export function RouteHelp() {
   return (
     <div className="route-help">
       <ol className="route-steps">
-        {STEPS[route].map((step) => (
+        {GAME_STEPS.map((step) => (
           <li key={step}>{step}</li>
         ))}
       </ol>
-      {route === "game" && <PaintChoice />}
-      {route === "paint" && (
-        <div className="route-links">
-          <button type="button" className="link route-link" onClick={openFile}>
-            Open a Paint a Galaxy file…
-          </button>
-        </div>
-      )}
+      <PaintChoice />
     </div>
   );
 }
@@ -215,15 +175,6 @@ function start(route: Route, blank: Blank): void {
   }
 }
 
-/** The paint route's primary opens the site and leaves the dialog open for a file to come back to. */
-function primaryAction(route: Route, blank: Blank): void {
-  if (route === "paint") {
-    openPaintSite();
-    return;
-  }
-  start(route, blank);
-}
-
 export function RouteFoot({ route, blank }: { route: Route; blank: Blank }) {
   return (
     <div className="setup-actions">
@@ -233,7 +184,7 @@ export function RouteFoot({ route, blank }: { route: Route; blank: Blank }) {
       <button
         type="button"
         disabled={route === "blank" && blank.name === ""}
-        onClick={() => primaryAction(route, blank)}
+        onClick={() => start(route, blank)}
       >
         {ROUTES.find((r) => r.id === route)?.primary}
       </button>
@@ -241,7 +192,7 @@ export function RouteFoot({ route, blank }: { route: Route; blank: Blank }) {
   );
 }
 
-/** Where a scenario comes from: a canvas of your own, a game's own galaxy, or a painted one. */
+/** Where a scenario comes from: a canvas of your own, or a game's own galaxy. */
 export function NewScenarioDialog() {
   const hide = useLayoutStore((s) => s.hideScenarioDialog);
   const [route, setRoute] = useState<Route>("blank");
@@ -263,7 +214,7 @@ export function NewScenarioDialog() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    primaryAction(route, blank);
+    start(route, blank);
   };
 
   return (
@@ -325,7 +276,7 @@ export function NewScenarioDialog() {
               <PaintChoice />
             </>
           ) : (
-            <RouteHelp route={route} />
+            <RouteHelp />
           )}
         </div>
         <div className="open-dialog-foot">
