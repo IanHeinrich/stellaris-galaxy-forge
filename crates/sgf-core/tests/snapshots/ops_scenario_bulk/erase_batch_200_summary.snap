@@ -1,0 +1,48 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Erased 200 systems
+systems: 791 -> 591
+issues: 51
+--- scenario
++++ scenario
+@@ -36,213 +36,13 @@
+ 	crisis_strength = 0.75
+ 	extra_crisis_strength = { 5 10 25 }
+ 
+-	system = { id = "0" name = "NAME_Gamma_Refuge" position = { x = -144.22 y = 57.36 } initializer = fallen_machine_3 }
+-	system = { id = "1" name = "Grugmora" position = { x = 119.83 y = 38.74 } initializer = ai_system_04 }
+-	system = { id = "2" name = "Mili" position = { x = -78.27 y = 265.71 } initializer = ai_system_02 }
+-	system = { id = "3" name = "Wanambis" position = { x = -197.59 y = -163.13 } initializer = ai_system_01 }
+ 	system = { id = "4" name = "NAME_Deneb" position = { x = 143.51 y = 9.31 } initializer = une_deneb_system spawn_weight = { base = 1 } }
+-	system = { id = "5" name = "Bir" position = { x = 34.62 y = 124.97 } initializer = ai_system_03 }
+-	system = { id = "6" name = "Gaping_Maw" position = { x = 192.35 y = -238.8 } initializer = distantstars_init_06 }
+-	system = { id = "7" name = "Girtab" position = { x = -97.27 y = -157.98 } initializer = basic_init_03 }
+ 	system = { id = "8" name = "PRESCRIPTED_system_name_xt489" position = { x = 62.72 y = -302.24 } initializer = random_empire_init_04 spawn_weight = { base = 1 } }
+-	system = { id = "9" name = "Eibriri" position = { x = -121.05 y = -14.26 } initializer = megacorp_interstellar_assembly_init_01 }
+-	system = { id = "10" name = "NAME_Tiyana_Vek" position = { x = 49.58 y = 130.32 } initializer = hostile_init_16 }
+-	system = { id = "11" name = "VOIDWORM_SYSTEM_05" position = { x = 42.43 y = -420.36 } initializer = voidworms_spawn_system_tiny }
+-	system = { id = "12" name = "Quiet_Dark" position = { x = -146.97 y = 134.84 } initializer = marauder_2_1 }
+-	system = { id = "13" name = "Golovia" position = { x = -251.82 y = -333 } initializer = marauder_1_1 }
+-	system = { id = "14" name = "Samderaan" position = { x = 14.18 y = -306.8 } initializer = neighbor_t2 }
+-	system = { id = "15" name = "VOIDWORM_SYSTEM_02" position = { x = -249.08 y = 249.36 } initializer = voidworms_spawn_system_medium }
+-	system = { id = "16" name = "Bas" position = { x = -103.3 y = 397.64 } initializer = shroudwalker_enclave_init_01 }
+-	system = { id = "17" name = "Ponnell" position = { x = -30.52 y = -300.86 } initializer = salvager_enclave_init_01 }
+-	system = { id = "18" name = "Stenbork" position = { x = -97.43 y = 224.27 } initializer = trinary_init_01 }
+-	system = { id = "19" name = "Hells_Maw" position = { x = -219.04 y = 1.3 } initializer = guardians_curator_init_02 }
+-	system = { id = "20" name = "VOIDWORM_SYSTEM_11" position = { x = -94.42 y = -378.24 } initializer = voidworms_spawn_system_small }
+-	system = { id = "21" name = "Faenov" position = { x = -104.4 y = 341.11 } initializer = basic_init_02 }
+-	system = { id = "22" name = "Meredith" position = { x = 240.12 y = 153.41 } initializer = guardians_curator_init_01 }
+-	system = { id = "23" name = "VOIDWORM_SYSTEM_09" position = { x = 112.48 y = 324.61 } initializer = voidworms_spawn_system_large }
+-	system = { id = "24" name = "Hixar" position = { x = -257.58 y = 118.83 } initializer = hostile_init_12 }
+-	system = { id = "25" name = "Haduphis" position = { x = -144.74 y = -10.92 } initializer = basic_init_04 }
+-	system = { id = "26" name = "Ackolam" position = { x = -430.1 y = 48.93 } initializer = guardians_trader_init_01 }
+-	system = { id = "27" name = "Trijam" position = { x = -268.27 y = 265.06 } initializer = basic_init_04 }
+-	system = { id = "28" name = "Molbion" position = { x = 230.15 y = 309.47 } initializer = guardians_curator_init_03 }
+-	system = { id = "29" name = "NAME_Tiyun_Ort" position = { x = -297.52 y = 135.52 } initializer = hostile_init_21 }
+-	system = { id = "30" name = "NAME_Chors_Compass" position = { x = -194.77 y = -40 } initializer = megacorp_caravaneer_init }
+-	system = { id = "31" name = "Lazon" position = { x = -265.95 y = -302.27 } initializer = guardians_init_hive }
+-	system = { id = "32" name = "Muudstram" position = { x = 27.34 y = 423.32 } initializer = guardians_init_fortress }
+-	system = { id = "33" name = "Baxom" position = { x = 109.27 y = -217.28 } initializer = distar_phaseshift_system }
+… 724 more lines
