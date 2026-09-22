@@ -14,6 +14,7 @@ use crate::registries::country_types::CountryType;
 use crate::registries::defines::BorderDefines as BorderDefinesData;
 use crate::registries::deposits::DepositDef;
 use crate::registries::galaxy_shapes::GalaxyShape;
+use crate::registries::galaxy_sizes::GalaxySize;
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
@@ -112,6 +113,9 @@ pub struct GameDataSummary {
     pub border: BorderDefines,
     pub localisation_keys: u32,
     pub diagnostics: Vec<DiagnosticView>,
+    /// The galaxy size with the most stars across the install and the enabled mods;
+    /// `None` when no `setup_scenario` gives a `num_stars`.
+    pub largest_galaxy: Option<GalaxySizeView>,
     /// Bumped by every load, every unload and every accepted rebuild. Counted
     /// by the shell, so [`From`] leaves it at `0`.
     #[ts(type = "number")]
@@ -153,6 +157,10 @@ impl From<&GameData> for GameDataSummary {
             starbase_levels: count(gd.starbase_levels.len()),
             border: BorderDefines::from(&*gd.border),
             localisation_keys: count(gd.loc.len()),
+            largest_galaxy: gd
+                .galaxy_sizes
+                .largest()
+                .map(|size| GalaxySizeView::new(size, gd)),
             generation: 0,
             watch: WatchView::default(),
             diagnostics: gd
@@ -165,6 +173,40 @@ impl From<&GameData> for GameDataSummary {
                 .collect(),
         }
     }
+}
+
+/// One galaxy size the new game screen offers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct GalaxySizeView {
+    /// The `name` its `setup_scenario` gives (`huge`).
+    pub name: String,
+    /// What the new game screen calls it: the name's localisation, or the name capitalised.
+    pub label: String,
+    pub num_stars: u32,
+}
+
+impl GalaxySizeView {
+    fn new(size: &GalaxySize, gd: &GameData) -> Self {
+        let label = gd
+            .loc
+            .get(&size.name)
+            .filter(|text| !text.is_empty())
+            .unwrap_or_else(|| capitalised(&size.name));
+        Self {
+            name: size.name.clone(),
+            label,
+            num_stars: size.num_stars,
+        }
+    }
+}
+
+fn capitalised(name: &str) -> String {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .map(|first| first.to_uppercase().chain(chars).collect())
+        .unwrap_or_default()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Issue } from "../generated/Issue";
-import { OPEN_RESULT, editResult } from "./fixture";
+import { OPEN_RESULT, SCENARIO_RESULT, editResult, gameDataSummary, systemNode } from "./fixture";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -12,6 +12,7 @@ import { bindStores } from "./bindStores";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
+import { useGameDataStore } from "./gameDataStore";
 import { filteredIssues, newIssues, useIssuesStore } from "./issuesStore";
 
 const mocked = {
@@ -19,6 +20,10 @@ const mocked = {
   closeSave: vi.mocked(ipc.closeSave),
   applyOp: vi.mocked(ipc.applyOp),
   getSpecialSystems: vi.mocked(ipc.getSpecialSystems),
+  getScenarioOwners: vi.mocked(ipc.getScenarioOwners),
+  getScenarioBypasses: vi.mocked(ipc.getScenarioBypasses),
+  getNames: vi.mocked(ipc.getNames),
+  resolveNames: vi.mocked(ipc.resolveNames),
   warmDetails: vi.mocked(ipc.warmDetails),
   onProgress: vi.mocked(onProgress),
 };
@@ -45,6 +50,28 @@ const SPLIT: Issue = {
   systems: [2],
 };
 
+/** A scenario of `count` systems, ids from 0. */
+function scenarioOf(count: number): typeof SCENARIO_RESULT {
+  const systems = Array.from({ length: count }, (_, id) => systemNode({ id, x: id, y: 0 }));
+  return { ...SCENARIO_RESULT, issues: [], galaxy: { ...SCENARIO_RESULT.galaxy, systems } };
+}
+
+/** Game data whose largest galaxy size is Huge at 1,000 stars. */
+function loadHuge(): void {
+  useGameDataStore.setState({
+    status: "ready",
+    summary: gameDataSummary({
+      largest_galaxy: { name: "huge", label: "Huge", num_stars: 1000 },
+    }),
+  });
+}
+
+const sizeMessages = () =>
+  useIssuesStore
+    .getState()
+    .issues.filter((issue) => issue.code === "galaxy_size_exceeded")
+    .map((issue) => issue.message);
+
 async function open(path = OPEN_RESULT.path): Promise<void> {
   await useFileSessionStore.getState().openSave(path);
 }
@@ -57,11 +84,16 @@ beforeEach(() => {
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
   useIssuesStore.getState().clear();
+  useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
   mocked.onProgress.mockResolvedValue(() => undefined);
   mocked.openSave.mockResolvedValue(OPEN_RESULT);
   mocked.closeSave.mockResolvedValue();
   mocked.warmDetails.mockResolvedValue();
   mocked.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
+  mocked.getScenarioOwners.mockResolvedValue(null);
+  mocked.getScenarioBypasses.mockResolvedValue(null);
+  mocked.getNames.mockResolvedValue({});
+  mocked.resolveNames.mockResolvedValue([]);
 });
 
 describe("issuesStore", () => {
@@ -184,5 +216,64 @@ describe("issuesStore", () => {
     const { baseline } = useIssuesStore.getState();
     expect(baseline.size).toBe(2);
     expect(newIssues(useIssuesStore.getState().issues, baseline)).toEqual([]);
+  });
+
+  it("warns when a scenario has well over the largest galaxy size's stars, as systems come and go", async () => {
+    loadHuge();
+    mocked.openSave.mockResolvedValue(scenarioOf(1300));
+    await open(SCENARIO_RESULT.path);
+    expect(useIssuesStore.getState().issues).toEqual([
+      {
+        severity: "warning",
+        code: "galaxy_size_exceeded",
+        message:
+          "1,300 systems is well above Huge, the game's largest galaxy (1,000 stars). " +
+          "Very large galaxies can make the game slow.",
+        systems: [],
+      },
+    ]);
+
+    const removed = Array.from({ length: 50 }, (_, i) => 1250 + i);
+    mocked.applyOp.mockResolvedValue(editResult({ issues: [], delta: { systems: [], removed } }));
+    await useEditorStore.getState().applyOp({ type: "RemoveSystem", id: 1250 });
+    expect(useGalaxyStore.getState().systems.size).toBe(1250);
+    expect(sizeMessages()).toEqual([]);
+
+    const added = [systemNode({ id: 1250 })];
+    mocked.applyOp.mockResolvedValue(editResult({ issues: [], delta: { systems: added } }));
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 1250, x: 0, y: 0 });
+    expect(sizeMessages()).toEqual([
+      "1,251 systems is well above Huge, the game's largest galaxy (1,000 stars). " +
+        "Very large galaxies can make the game slow.",
+    ]);
+  });
+
+  it("says nothing without game data, and stops once it goes away or comes back without sizes", async () => {
+    mocked.openSave.mockResolvedValue(scenarioOf(2000));
+    await open(SCENARIO_RESULT.path);
+    expect(sizeMessages()).toEqual([]);
+
+    loadHuge();
+    expect(sizeMessages()).toHaveLength(1);
+
+    useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
+    expect(sizeMessages()).toEqual([]);
+
+    useGameDataStore.setState({
+      status: "ready",
+      summary: gameDataSummary({ largest_galaxy: null }),
+    });
+    expect(sizeMessages()).toEqual([]);
+  });
+
+  it("holds a save to no galaxy size", async () => {
+    loadHuge();
+    mocked.openSave.mockResolvedValue({
+      ...scenarioOf(2000),
+      kind: "save",
+      path: OPEN_RESULT.path,
+    });
+    await open();
+    expect(sizeMessages()).toEqual([]);
   });
 });

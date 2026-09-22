@@ -6,7 +6,7 @@ import { useEntityStore } from "./entityStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
-import { noteReservedSpawns, useIssuesStore } from "./issuesStore";
+import { noteGalaxySize, noteReservedSpawns, useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
@@ -32,7 +32,15 @@ export function bindStores(): void {
   followDetails();
   followScenarioInitializers();
   followPaintMod();
+  followGalaxySize();
   followTool();
+}
+
+// Game data loading, reloading or going away changes the largest galaxy size a scenario is held to.
+function followGalaxySize(): void {
+  useGameDataStore.subscribe((state, previous) => {
+    if (state.summary !== previous.summary || state.status !== previous.status) noteGalaxySize();
+  });
 }
 
 // A tool the document in hand cannot take, or any tool once the document goes, falls back to Select.
