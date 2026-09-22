@@ -4,7 +4,7 @@ import type { SpecialSystem } from "../generated/SpecialSystem";
 import * as rows from "../lib/browserRows";
 import type { CountryTypes } from "../lib/countryKinds";
 import { templateName } from "../lib/names";
-import { centralOwnedSystem, systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
+import { centralOwnedSystems, systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { currentOwnership, useOwnership } from "./ownership";
 
@@ -31,10 +31,14 @@ export type {
 
 /** What the browser rows look up, from a galaxy and a localisation handed in. */
 export function rowLookups(systems: Systems, names: ReadonlyMap<string, string>): rows.RowLookups {
+  let central: Map<number, number> | null = null;
   return {
     countryName: templateName,
     systemName: (id) => systemNameOf(systems, names, id),
-    centralSystem: (ownerId) => centralOwnedSystem(systems, ownerId),
+    centralSystem: (ownerId) => {
+      central ??= centralOwnedSystems(systems);
+      return central.get(ownerId) ?? null;
+    },
   };
 }
 

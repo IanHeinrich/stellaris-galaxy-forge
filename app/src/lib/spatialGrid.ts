@@ -96,6 +96,28 @@ export class SpatialGrid {
     }
   }
 
+  /** Whether some system lies within `d` of (x, y), or strictly closer than `d` when `strict`. */
+  near(x: number, y: number, d: number, strict = false): boolean {
+    const d2 = d * d;
+    const x0 = Math.max(cellOf(x - d), this.minCx);
+    const y0 = Math.max(cellOf(y - d), this.minCy);
+    const x1 = Math.min(cellOf(x + d), this.maxCx);
+    const y1 = Math.min(cellOf(y + d), this.maxCy);
+    for (let i = x0; i <= x1; i++) {
+      for (let j = y0; j <= y1; j++) {
+        const bucket = this.cells.get(cellKey(i, j));
+        if (!bucket) continue;
+        for (const s of bucket) {
+          const dx = s.x - x;
+          const dy = s.y - y;
+          const e2 = dx * dx + dy * dy;
+          if (strict ? e2 < d2 : e2 <= d2) return true;
+        }
+      }
+    }
+    return false;
+  }
+
   private insert(s: SystemNode): void {
     const cx = cellOf(s.x);
     const cy = cellOf(s.y);

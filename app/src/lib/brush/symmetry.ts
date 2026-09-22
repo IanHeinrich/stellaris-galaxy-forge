@@ -1,5 +1,5 @@
 import type { Pt } from "../geometry/pt";
-import { PointGrid } from "./grid";
+import { blockersOf, PointGrid, type Blockers } from "./grid";
 import type { Pair } from "./lanes";
 
 /**
@@ -69,11 +69,10 @@ export function symmetricPoints(
   base: readonly Pt[],
   sym: Symmetry,
   spacing: number,
-  blockers: readonly Pt[],
+  blockers: readonly Pt[] | Blockers,
 ): SymmetricPoints {
   const ms = matrices(sym);
-  const walls = new PointGrid(spacing);
-  for (const b of blockers) walls.add(b);
+  const walls = blockersOf(blockers, spacing);
   const taken = new PointGrid(spacing);
   const kept: Pt[][] = [];
   const s2 = spacing * spacing;

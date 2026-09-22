@@ -425,14 +425,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   async updateEmpireCounts() {
-    let entries: Array<[string, string]>;
-    try {
-      entries = await ipc.headerEmpireCounts();
-    } catch (e) {
-      useFileSessionStore.getState().setError(ipc.errorMessage(e));
-      return;
-    }
-    await get().applyOp({ type: "SetHeaderKeys", entries });
+    await runEdit(async () => {
+      const entries = await ipc.headerEmpireCounts();
+      return ipc.applyOp({ type: "SetHeaderKeys", entries });
+    });
   },
 
   async linkWormholePair(a, b) {
@@ -542,11 +538,16 @@ export function nearestSystem(
   return best;
 }
 
-/** Runs one edit command through the queue and applies its result, on `applyOp`'s terms. */
-export async function runEdit(edit: () => Promise<EditResult>): Promise<boolean> {
+/**
+ * Runs one edit command through the queue and applies its result, on `applyOp`'s terms. An
+ * edit that reads the session to build its op reads it inside `edit`, after every edit queued
+ * before it; one that answers null sent nothing.
+ */
+export async function runEdit(edit: () => Promise<EditResult | null>): Promise<boolean> {
   const reclassifies = await enqueue(async () => {
     try {
       const result = await edit();
+      if (result === null) return null;
       applyEdit(result);
       return result.reclassifies;
     } catch (e) {

@@ -110,16 +110,14 @@ export function feZoneActions(
 
     async fitFeZones(count) {
       set({ feZoneFitPrompt: null });
-      let entries: Array<[number, FeZone | null]>;
-      try {
-        entries = await ipc.feZoneFit(count);
-      } catch (e) {
-        useFileSessionStore.getState().setError(ipc.errorMessage(e));
-        return;
-      }
-      const applied = await refuseOr(entries.length === 0 ? NOTHING_TO_FIT : null, () =>
-        get().applyOp({ type: "SetFeZones", entries }),
-      );
+      const applied = await runEdit(async () => {
+        const entries = await ipc.feZoneFit(count);
+        if (entries.length === 0) {
+          useFileSessionStore.getState().setError(NOTHING_TO_FIT);
+          return null;
+        }
+        return ipc.applyOp({ type: "SetFeZones", entries });
+      });
       if (applied) useMapChromeStore.getState().showLayer("feZones");
     },
 

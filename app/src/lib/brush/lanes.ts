@@ -1,7 +1,8 @@
 import type { SystemNode } from "../../generated/SystemNode";
-import { SegmentIndex } from "../geometry/joinIslands";
+import { SEGMENT_CELL, SegmentIndex } from "../geometry/joinIslands";
 import { meshPairs, type MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
+import { cellKey } from "../spatialGrid";
 
 /** Two ids, the smaller first. */
 export type Pair = [number, number];
@@ -32,6 +33,65 @@ export function laneSegments(systems: Iterable<SystemNode>): Array<[MeshPoint, M
     }
   }
   return segments;
+}
+
+/** Lane segments bucketed by the grid cells their bounding boxes cover, for "which lanes pass near here". */
+export class LaneIndex {
+  private readonly cells = new Map<number, number[]>();
+  private readonly seen: Uint32Array;
+  private query = 0;
+
+  constructor(
+    private readonly segments: ReadonlyArray<[MeshPoint, MeshPoint]>,
+    private readonly cell = SEGMENT_CELL,
+  ) {
+    this.seen = new Uint32Array(segments.length);
+    segments.forEach(([a, b], i) => {
+      const x1 = this.cellOf(Math.max(a.x, b.x));
+      const y1 = this.cellOf(Math.max(a.y, b.y));
+      for (let cx = this.cellOf(Math.min(a.x, b.x)); cx <= x1; cx++) {
+        for (let cy = this.cellOf(Math.min(a.y, b.y)); cy <= y1; cy++) {
+          const k = cellKey(cx, cy);
+          const bucket = this.cells.get(k);
+          if (bucket) bucket.push(i);
+          else this.cells.set(k, [i]);
+        }
+      }
+    });
+  }
+
+  /** The lanes whose bounding box comes within `d` of some point, each once. */
+  near(points: readonly Pt[], d: number): Array<[MeshPoint, MeshPoint]> {
+    const query = ++this.query;
+    const found: Array<[MeshPoint, MeshPoint]> = [];
+    for (const p of points) {
+      const x1 = this.cellOf(p.x + d);
+      const y1 = this.cellOf(p.y + d);
+      for (let cx = this.cellOf(p.x - d); cx <= x1; cx++) {
+        for (let cy = this.cellOf(p.y - d); cy <= y1; cy++) {
+          for (const i of this.cells.get(cellKey(cx, cy)) ?? []) {
+            if (this.seen[i] === query) continue;
+            const [a, b] = this.segments[i];
+            if (
+              Math.max(a.x, b.x) < p.x - d ||
+              Math.min(a.x, b.x) > p.x + d ||
+              Math.max(a.y, b.y) < p.y - d ||
+              Math.min(a.y, b.y) > p.y + d
+            ) {
+              continue;
+            }
+            this.seen[i] = query;
+            found.push(this.segments[i]);
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  private cellOf(v: number): number {
+    return Math.floor(v / this.cell);
+  }
 }
 
 export interface MeshWithinOptions {

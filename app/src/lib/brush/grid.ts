@@ -1,8 +1,22 @@
 import type { Pt } from "../geometry/pt";
 import { cellKey } from "../spatialGrid";
 
+/** What new points keep their distance from: any index that answers "is anything near here". */
+export interface Blockers {
+  /** Whether something lies within `d` of (x, y), or strictly closer than `d` when `strict`. */
+  near(x: number, y: number, d: number, strict?: boolean): boolean;
+}
+
+/** `blockers` as a query: a list is bucketed into a grid of `cell`, an index is used as it is. */
+export function blockersOf(blockers: readonly Pt[] | Blockers, cell: number): Blockers {
+  if (!Array.isArray(blockers)) return blockers as Blockers;
+  const grid = new PointGrid(cell);
+  for (const b of blockers as readonly Pt[]) grid.add(b);
+  return grid;
+}
+
 /** Points bucketed in square cells of side `cell`, for "is anything near here" queries. */
-export class PointGrid<T extends Pt = Pt> {
+export class PointGrid<T extends Pt = Pt> implements Blockers {
   private readonly cell: number;
   private readonly cells = new Map<number, T[]>();
 

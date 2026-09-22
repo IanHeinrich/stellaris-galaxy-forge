@@ -1,4 +1,5 @@
 import {
+  LaneIndex,
   laneSegments,
   meshWithin,
   strokeLanes,
@@ -80,12 +81,11 @@ function medianNearest(points: readonly MeshPoint[]): number {
 export class BrushStroke {
   readonly r: number;
   private readonly sampler: StrokeSampler | null;
-  private readonly blockers: Pt[];
   private readonly doomed = new Set<number>();
   private readonly kept = new Set<number>();
   private readonly cut = new Map<string, Pair>();
   private readonly swept = new Set<number>();
-  private segments: Array<[MeshPoint, MeshPoint]> | null = null;
+  private laneIndex: LaneIndex | null = null;
   private painted: { base: number; result: StrokeResult } | null = null;
   private connected: { swept: number; result: StrokeResult } | null = null;
 
@@ -96,13 +96,12 @@ export class BrushStroke {
     seed: number,
   ) {
     this.r = settings.size / 2;
-    this.blockers = [...systems.values()].map(({ x, y }) => ({ x, y }));
     this.sampler =
       settings.tool === "paint"
         ? new StrokeSampler({
             r: this.r,
             spacing: settings.spacing,
-            blockers: this.blockers,
+            blockers: grid,
             rand: seeded(seed),
           })
         : null;
@@ -115,7 +114,7 @@ export class BrushStroke {
     }
     const all = imagesOfStamps(stamps, this.settings.symmetry).flat();
     if (this.cutsLanes()) {
-      for (const pair of sweptLanes(all, this.r, this.allSegments())) {
+      for (const pair of sweptLanes(all, this.r, this.lanesNear(all, this.r))) {
         this.cut.set(`${pair[0]},${pair[1]}`, pair);
       }
       return;
@@ -168,7 +167,7 @@ export class BrushStroke {
     const pairs = meshWithin(points, {
       beta: this.settings.beta,
       maxLength,
-      existing: this.segmentsNear(points, maxLength),
+      existing: this.lanesNear(points, maxLength),
       keep: (a, b) => !apart(a, b) && !apart(b, a),
     });
     const result: StrokeResult = { kind: "connect", swept, pairs };
@@ -183,7 +182,7 @@ export class BrushStroke {
     const copies =
       symmetry.kind === "off"
         ? { base: base.map(({ x, y }) => ({ x, y })), points: base.map(({ x, y }) => ({ x, y })) }
-        : symmetricPoints(base, symmetry, spacing, this.blockers);
+        : symmetricPoints(base, symmetry, spacing, this.grid);
     const result: StrokeResult = {
       kind: "paint",
       points: copies.points,
@@ -197,7 +196,7 @@ export class BrushStroke {
     const { laneMode: mode, beta, spacing, symmetry } = this.settings;
     if (mode === "off" || points.length === 0) return [];
     const maxLength = LANE_REACH * spacing;
-    const existing = this.segmentsNear(points, maxLength);
+    const existing = this.lanesNear(points, maxLength);
     if (mode === "new" && symmetry.kind !== "off") {
       // Mesh one copy and repeat it, so the copies' lanes are as symmetric as their systems.
       const pairs = strokeLanes({
@@ -224,30 +223,10 @@ export class BrushStroke {
     }).map(([a, b]) => ordered(a, b));
   }
 
-  private allSegments(): Array<[MeshPoint, MeshPoint]> {
-    this.segments ??= laneSegments(this.systems.values());
-    return this.segments;
-  }
-
-  /** The existing lanes whose bounding box comes within `d` of the points' bounding box. */
-  private segmentsNear(points: readonly Pt[], d: number): Array<[MeshPoint, MeshPoint]> {
-    let x0 = Infinity;
-    let y0 = Infinity;
-    let x1 = -Infinity;
-    let y1 = -Infinity;
-    for (const p of points) {
-      x0 = Math.min(x0, p.x);
-      y0 = Math.min(y0, p.y);
-      x1 = Math.max(x1, p.x);
-      y1 = Math.max(y1, p.y);
-    }
-    return this.allSegments().filter(
-      ([a, b]) =>
-        Math.max(a.x, b.x) >= x0 - d &&
-        Math.min(a.x, b.x) <= x1 + d &&
-        Math.max(a.y, b.y) >= y0 - d &&
-        Math.min(a.y, b.y) <= y1 + d,
-    );
+  /** The existing lanes whose bounding box comes within `d` of some point. */
+  private lanesNear(points: readonly Pt[], d: number): Array<[MeshPoint, MeshPoint]> {
+    this.laneIndex ??= new LaneIndex(laneSegments(this.systems.values()));
+    return this.laneIndex.near(points, d);
   }
 
   /** The existing systems within `d` of some point. */

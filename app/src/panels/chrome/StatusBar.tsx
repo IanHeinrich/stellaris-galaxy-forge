@@ -3,7 +3,7 @@ import { nodeName } from "../../lib/names";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyVersion, useSystemNames } from "../../store/browserRows";
-import { laneCount, useGalaxyStore } from "../../store/galaxyStore";
+import { galaxyLaneCount, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { newIssues, useIssuesStore } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
@@ -44,7 +44,7 @@ function Counts() {
   const systems = useGalaxyStore((s) => s.systems);
   useGalaxyVersion();
   if (!galaxy) return null;
-  const lanes = laneCount(systems.values());
+  const lanes = galaxyLaneCount(systems);
   return (
     <span>
       {systems.size} systems · {lanes} lanes · {galaxy.components}{" "}

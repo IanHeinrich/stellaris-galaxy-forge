@@ -8,13 +8,15 @@ import { sharedWormholePair } from "../../../lib/paint";
 import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useMapChromeStore } from "../../../store/mapChromeStore";
 import {
-  linkedPairs,
   linkedSystems,
   meshLanes,
+  selectionLanes,
   staleLaneCount,
-  unlinkedPairs,
   useGalaxyStore,
 } from "../../../store/galaxyStore";
+
+/** Above this many selected systems the mesh is worked out only while its row is previewed. */
+const MESH_COUNT_MAX = 1000;
 
 /** The bulk lane buttons and the mesh row for the current selection; `afterRun` closes a hosting menu. */
 export function BulkActions({
@@ -34,29 +36,33 @@ export function BulkActions({
   const capabilities = useFileSessionStore(documentCapabilities);
   const paint = usePaintLayer();
 
+  const laneLengths = supports(capabilities, "lane_lengths");
+  const counts = useMemo(
+    () => ({
+      lanes: selectionLanes(systems, selection),
+      laned: linkedSystems(systems, selection).length,
+      stale: laneLengths ? staleLaneCount(systems, selection) : 0,
+    }),
+    [systems, selection, laneLengths],
+  );
+
   const tooMany = selection.length > CONNECT_ALL_MAX;
   const actions = [
     {
       label: "Connect to each other",
-      count: unlinkedPairs(systems, selection).length,
+      count: counts.lanes.unlinked,
       run: connectSelected,
       disabled: tooMany,
       title: tooMany ? `Limited to ${CONNECT_ALL_MAX} systems — use Connect as mesh` : undefined,
     },
     {
       label: "Cut hyperlanes between",
-      count: linkedPairs(systems, selection).length,
+      count: counts.lanes.linked.length,
       run: cutLanesBetweenSelected,
     },
-    { label: "Isolate", count: linkedSystems(systems, selection).length, run: isolateSelected },
-    ...(supports(capabilities, "lane_lengths")
-      ? [
-          {
-            label: "Reset lane lengths",
-            count: staleLaneCount(systems, selection),
-            run: resetSelectedLaneLengths,
-          },
-        ]
+    { label: "Isolate", count: counts.laned, run: isolateSelected },
+    ...(laneLengths
+      ? [{ label: "Reset lane lengths", count: counts.stale, run: resetSelectedLaneLengths }]
       : []),
   ];
   const [connectAll, ...rest] = actions.map(({ label, count, run, disabled, title }) => (
@@ -178,13 +184,14 @@ function MeshRow({ afterRun, itemRole }: { afterRun?: () => void; itemRole?: "me
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
 
-  const pairs = useMemo(
-    () => meshLanes(galaxy.systems, selection, meshBeta),
-    [galaxy, selection, meshBeta],
-  );
   const previewing = hovered || focused;
+  const counted = previewing || selection.length <= MESH_COUNT_MAX;
+  const pairs = useMemo(
+    () => (counted ? meshLanes(galaxy.systems, selection, meshBeta) : null),
+    [counted, galaxy, selection, meshBeta],
+  );
   useEffect(() => {
-    if (!previewing) return;
+    if (!previewing || pairs === null) return;
     setLanePreview(pairs);
     return () => setLanePreview(null);
   }, [previewing, pairs, setLanePreview]);
@@ -213,13 +220,13 @@ function MeshRow({ afterRun, itemRole }: { afterRun?: () => void; itemRole?: "me
       <button
         type="button"
         role={itemRole}
-        disabled={pairs.length === 0}
+        disabled={pairs?.length === 0}
         onClick={() => {
           void connectSelectedMesh();
           afterRun?.();
         }}
       >
-        Connect as mesh ({pairs.length})
+        Connect as mesh{pairs === null ? "" : ` (${pairs.length})`}
       </button>
     </div>
   );

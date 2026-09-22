@@ -3,7 +3,7 @@ import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useSystemNames } from "../../../store/browserRows";
-import { linkedPairs, linkedSystems, useGalaxyStore } from "../../../store/galaxyStore";
+import { linkedSystems, selectionLanes, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { browseInitializers, NEEDS_GAME_DATA } from "../../initializers/entry";
 import { BulkActions } from "./BulkActions";
@@ -23,7 +23,7 @@ export function SelectionView() {
   const owners = new Set(
     selection.map((id) => systems.get(id)?.owner ?? null).filter((o) => o !== null),
   );
-  const lanes = linkedPairs(systems, selection).length;
+  const lanes = selectionLanes(systems, selection).linked.length;
   const isolated = selection.length - linkedSystems(systems, selection).length;
   return (
     <>
@@ -70,19 +70,19 @@ function SelectedChips() {
   const toggleSelect = useEditorStore((s) => s.toggleSelect);
   const setSelection = useEditorStore((s) => s.setSelection);
   const systems = useGalaxyStore((s) => s.systems);
-  const names = useSystemNames(selection);
   const [query, setQuery] = useState("");
-
-  const labels = selection.map((id, i) => names[i] || `#${id}`);
   const needle = query.trim().toLowerCase();
-  const matches = selection.flatMap((id, i) =>
+  const named = needle === "" ? selection.slice(0, CHIPS_SHOWN) : selection;
+  const names = useSystemNames(named);
+
+  const labels = named.map((id, i) => names[i] || `#${id}`);
+  const matches = named.flatMap((id, i) =>
     needle === "" || labels[i].toLowerCase().includes(needle) || `#${id}`.includes(needle)
       ? [i]
       : [],
   );
   const shown = matches.slice(0, CHIPS_SHOWN);
-  const hidden = matches.length - shown.length;
-  const matched = new Set(matches.map((i) => selection[i]));
+  const hidden = (needle === "" ? selection.length : matches.length) - shown.length;
 
   return (
     <Section id="selection.systems" title={`Systems · ${selection.length}`}>
@@ -120,6 +120,7 @@ function SelectedChips() {
         <button
           type="button"
           onClick={() => {
+            const matched = new Set(matches.map((i) => selection[i]));
             void setSelection(
               selection.filter((id) => !matched.has(id)),
               "replace",
