@@ -14,7 +14,8 @@
       {
         "title": "Stellaris Galaxy Forge",
         "width": 1400,
-        "height": 900
+        "height": 900,
+        "decorations": false
       }
     ],
     "security": {

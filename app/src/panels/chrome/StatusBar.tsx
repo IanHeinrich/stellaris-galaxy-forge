@@ -11,6 +11,7 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import { systemCount } from "../inspector/nebula";
 import { droppedSummary } from "../file/exportReport";
 import { CLOUD_TITLE } from "../file/OpenSave";
+import { GameDataPanel } from "./GameDataPanel";
 
 const DOCUMENT_KIND: Record<string, string> = {
   save: "save",
@@ -18,7 +19,7 @@ const DOCUMENT_KIND: Record<string, string> = {
 };
 
 const IDLE_HINT =
-  "middle-drag to pan · wheel to zoom · WASD/arrows · Home to fit · F fits the selection";
+  "middle-drag to pan · wheel to zoom · WASD/arrows · Home to fit · Shift+F fits the selection · F to search";
 
 /** `14:02`: when the save landed, by the clock the user reads. */
 function clockTime(at: number): string {
@@ -159,7 +160,7 @@ function Hint() {
   return <span className="muted">{IDLE_HINT}</span>;
 }
 
-/** Save counts and issues on the left, the selection and its gesture hint in the centre, the file's state on the right. */
+/** Save counts and issues on the left, the selection and its gesture hint in the centre, the file's state and the game data on the right. */
 export function StatusBar() {
   const status = useFileSessionStore((s) => s.status);
   const error = useFileSessionStore((s) => s.error);
@@ -172,7 +173,6 @@ export function StatusBar() {
   const cloud = useFileSessionStore((s) => s.cloud);
   const meta = useFileSessionStore((s) => s.meta);
   const kind = useFileSessionStore((s) => s.kind);
-  const gameDataVersion = useGameDataStore((s) => s.summary?.version ?? null);
 
   if (status !== "ready") {
     return (
@@ -181,6 +181,8 @@ export function StatusBar() {
         <AutoReloadBadge />
         <span className="spacer" />
         <span className="muted">{IDLE_HINT}</span>
+        <span className="spacer" />
+        <GameDataPanel />
       </footer>
     );
   }
@@ -215,8 +217,8 @@ export function StatusBar() {
       )}
       <span className="muted">
         {meta ? `${meta.date} · ${meta.version}` : DOCUMENT_KIND[kind ?? "save"]}
-        {gameDataVersion && ` · game data ${gameDataVersion}`}
       </span>
+      <GameDataPanel />
     </footer>
   );
 }

@@ -36,6 +36,9 @@ arrows on four sides.
 | Right-click | a menu for whatever is under the pointer: a system, a lane, a nebula or empty space |
 | `Esc` | drops a drag or a menu first, then clears the selection |
 
+Keys follow the game where it has one: `F` focuses search, as in Stellaris, and `Shift`+`F` frames the
+selection.
+
 A drag from a star that is part of a multi-selection acts on the whole selection, for moving and for drawing
 lanes alike, so bulk editing needs no extra mode. A system's menu isolates it, deletes it or makes it a spawn
 point; a multi-selection's menu connects the systems to each other or as a mesh over a sparse-to-dense slider,

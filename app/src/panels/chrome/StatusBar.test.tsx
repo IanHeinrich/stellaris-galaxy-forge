@@ -7,6 +7,7 @@ vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
+vi.mock("./GameDataPanel", () => ({ GameDataPanel: () => "[game data]" }));
 
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -100,6 +101,15 @@ describe("the saved state", () => {
     const html = bar();
     expect(html).toContain('title="Backup: C:/saves/terran.sav.bak">Saved 14:02');
     expect(html).toContain('<span class="muted">Exported 14:05');
+  });
+});
+
+describe("the game data control", () => {
+  it("closes the bar, with a document open or not", () => {
+    expect(bar()).toMatch(/\[game data\]<\/footer>$/);
+
+    useFileSessionStore.setState({ status: "empty" });
+    expect(bar()).toMatch(/\[game data\]<\/footer>$/);
   });
 });
 

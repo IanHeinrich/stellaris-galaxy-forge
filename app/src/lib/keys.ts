@@ -64,7 +64,7 @@ export function keyAction(e: KeyLike, inInput: boolean, canGoBack = false): KeyA
   if (e.key === "`" || e.key === "~") return "toggleScriptLayers";
   if (e.key === "0") return "toggleInitializerLayers";
   if (e.key === "Home") return "fit";
-  if (key === "f" && !e.shiftKey) return "fitSelection";
+  if (key === "f") return e.shiftKey ? "fitSelection" : "focusSearch";
   if (e.key === "/") return "focusSearch";
   if (e.key === "Backspace") return canGoBack ? "inspectorBack" : "deleteSelection";
   if (e.key === "Delete") return "deleteSelection";

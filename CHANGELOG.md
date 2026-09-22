@@ -8,6 +8,20 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- The top bar is a single row. New Edit and View menus sit beside File
+  and Help, and each command shows its key.
+- F opens the search box, as it does in the game. Shift+F frames the
+  selection.
+- The search box is a small icon until you click it or press F.
+- The game data button moved to the right end of the status bar.
+- The Layers menu opens from the small arrow after the layer icons.
+- The Paint a Galaxy badge reads "PaG". Hover it for the full wording.
+- The top bar takes the place of the window's title bar. Drag it to move
+  the window and double-click it to maximise. Minimise, maximise and
+  close sit at its right end.
+
 ### Removed
 
 - The New scenario dialog no longer links to the Paint a Galaxy website.

@@ -7,21 +7,29 @@ function itemsOf(root: HTMLElement | null): HTMLElement[] {
   return [...(root?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])];
 }
 
-/** A top-bar drop-down: the label opens a panel that closes on Esc, on a click outside, or on `close`. */
+/**
+ * A drop-down: the label opens a panel that closes on Esc, on a click outside, or on `close`.
+ * A `compact` menu shows only its chevron, and an `up` menu opens above its label.
+ */
 export function Menu({
   label,
   title,
   disabled,
   align = "left",
+  compact = false,
+  up = false,
   children,
 }: {
   label: string;
   title?: string;
   disabled?: boolean;
   align?: "left" | "right";
+  compact?: boolean;
+  up?: boolean;
   children: (close: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const caret = up ? "▴" : "▾";
   const ref = useRef<HTMLDivElement>(null);
   const pop = useRef<HTMLDivElement>(null);
 
@@ -66,18 +74,19 @@ export function Menu({
     <div className="menu" ref={ref}>
       <button
         type="button"
-        className="menu-label"
+        className={compact ? "menu-label compact" : "menu-label"}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={compact ? label : undefined}
         disabled={disabled}
-        title={title}
+        title={title ?? (compact ? label : undefined)}
         onClick={() => setOpen(!open)}
       >
-        {label} ▾
+        {compact ? caret : `${label} ${caret}`}
       </button>
       {open && (
         <div
-          className={`menu-pop ${align}`}
+          className={`menu-pop ${align}${up ? " up" : ""}`}
           role="menu"
           aria-label={label}
           ref={pop}
