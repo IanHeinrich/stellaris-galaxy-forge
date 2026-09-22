@@ -256,6 +256,65 @@ const SCENARIO: &str = concat!(
 );
 
 #[test]
+fn a_scenario_adds_and_removes_several_systems_as_one_step_each() {
+    let w = webview();
+    invoke::<OpenResult>(&w, "open_save", json!({ "path": SCENARIO })).expect("open the scenario");
+
+    let added: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "AddSystems", "systems": [
+            { "id": 4000, "x": 20.0, "y": -30.5, "name": "Alderaan", "initializer": null, "spawn_weight": null },
+            { "id": 4001, "x": 30.0, "y": -40.0, "name": null, "initializer": null, "spawn_weight": 5.0 },
+        ] } }),
+    )
+    .expect("add two systems");
+    assert_eq!(added.entry.description, "Added 2 systems");
+    let mut ids: Vec<u32> = added.delta.systems.iter().map(|s| s.id).collect();
+    ids.sort_unstable();
+    assert_eq!(ids, [4000, 4001]);
+    assert_eq!(added.history.undo.len(), 1);
+
+    let removed: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "RemoveSystems", "ids": [1, 16, 4000] } }),
+    )
+    .expect("remove three systems");
+    assert_eq!(removed.entry.description, "Removed 3 systems (5 lanes)");
+    let mut gone = removed.delta.removed.clone();
+    gone.sort_unstable();
+    assert_eq!(gone, [1, 16, 4000]);
+    assert_eq!(removed.history.undo.len(), 2);
+
+    assert_eq!(
+        kind(invoke::<EditResult>(
+            &w,
+            "apply_op",
+            json!({ "op": { "type": "RemoveSystems", "ids": [2, 2] } }),
+        )),
+        ErrorKind::Op,
+        "an id listed twice"
+    );
+    assert_eq!(
+        kind(invoke::<EditResult>(
+            &w,
+            "apply_op",
+            json!({ "op": { "type": "RemoveSystems", "ids": [77] } }),
+        )),
+        ErrorKind::NotFound,
+        "no system 77"
+    );
+
+    let undone = invoke::<Option<EditResult>>(&w, "undo", json!({}))
+        .expect("undo")
+        .expect("the removal to undo");
+    let mut back: Vec<u32> = undone.delta.systems.iter().map(|s| s.id).collect();
+    back.sort_unstable();
+    assert!([1, 16, 4000].iter().all(|id| back.contains(id)), "{back:?}");
+}
+
+#[test]
 fn scenario_documents_open_start_and_export() {
     let w = webview();
     let dir = tempfile::tempdir().expect("tempdir");

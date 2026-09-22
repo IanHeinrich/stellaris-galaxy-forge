@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 
 use sgf_core::document::Document;
 use sgf_core::format::scenario::FeLinkFlags;
-use sgf_core::ops::{InitializerSet, LaneLength, LanePair, Op, OpError, SystemMove};
+use sgf_core::ops::{InitializerSet, LaneLength, LanePair, NewSystem, Op, OpError, SystemMove};
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
 use sgf_core::validate::Severity;
@@ -681,6 +681,8 @@ fn a_save_takes(op: &Op) -> bool {
         | Op::Batch { .. } => true,
         Op::AddSystem { .. }
         | Op::RemoveSystem { .. }
+        | Op::AddSystems { .. }
+        | Op::RemoveSystems { .. }
         | Op::SetSystemName { .. }
         | Op::SetInitializer { .. }
         | Op::SetInitializers { .. }
@@ -709,6 +711,8 @@ fn reclassifies(op: &Op) -> bool {
     match op {
         Op::AddSystem { .. }
         | Op::RemoveSystem { .. }
+        | Op::AddSystems { .. }
+        | Op::RemoveSystems { .. }
         | Op::SetSystemName { .. }
         | Op::SetInitializer { .. }
         | Op::SetInitializers { .. }
@@ -757,6 +761,8 @@ fn stales_details(op: &Op) -> bool {
     match op {
         Op::AddSystem { .. }
         | Op::RemoveSystem { .. }
+        | Op::AddSystems { .. }
+        | Op::RemoveSystems { .. }
         | Op::SetInitializer { .. }
         | Op::SetInitializers { .. }
         | Op::SetSpawnScript { .. }
@@ -883,6 +889,18 @@ fn one_of_each() -> Vec<Op> {
             spawn_script: None,
         },
         Op::RemoveSystem { id: 0 },
+        Op::AddSystems {
+            systems: vec![NewSystem {
+                id: 0,
+                x: 0.0,
+                y: 0.0,
+                name: None,
+                initializer: None,
+                spawn_weight: None,
+                spawn_script: None,
+            }],
+        },
+        Op::RemoveSystems { ids: vec![0] },
         Op::SetSystemName {
             id: 0,
             name: "Sol".to_owned(),

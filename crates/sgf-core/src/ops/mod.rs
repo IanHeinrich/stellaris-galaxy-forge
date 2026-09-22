@@ -154,6 +154,18 @@ pub enum Op {
     RemoveSystem {
         id: u32,
     },
+    /// Several systems as one undo step, each following the [`Op::AddSystem`] rules with
+    /// its id given. An id listed twice is refused. Scenario documents only.
+    AddSystems {
+        systems: Vec<NewSystem>,
+    },
+    /// Several systems as one undo step, each as [`Op::RemoveSystem`]; a statement naming
+    /// two of them is removed once. An id listed twice is refused. The inverse describes
+    /// the change as [`Op::RemoveSystem`]'s does; undo puts the bytes back exactly.
+    /// Scenario documents only.
+    RemoveSystems {
+        ids: Vec<u32>,
+    },
     /// Scenario documents only.
     SetSystemName {
         id: u32,
@@ -298,6 +310,8 @@ impl Op {
             Self::SetNebulaName { .. } => "SetNebulaName",
             Self::AddSystem { .. } => "AddSystem",
             Self::RemoveSystem { .. } => "RemoveSystem",
+            Self::AddSystems { .. } => "AddSystems",
+            Self::RemoveSystems { .. } => "RemoveSystems",
             Self::SetSystemName { .. } => "SetSystemName",
             Self::SetInitializer { .. } => "SetInitializer",
             Self::SetInitializers { .. } => "SetInitializers",
@@ -330,6 +344,8 @@ impl Op {
         match self {
             Self::AddSystem { .. }
             | Self::RemoveSystem { .. }
+            | Self::AddSystems { .. }
+            | Self::RemoveSystems { .. }
             | Self::SetInitializer { .. }
             | Self::SetInitializers { .. }
             | Self::SetSpawnScript { .. }
@@ -359,6 +375,20 @@ impl Op {
 pub struct InitializerSet {
     pub id: u32,
     pub initializer: Option<String>,
+}
+
+/// One system to add in [`Op::AddSystems`]: an [`Op::AddSystem`] with its id given.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewSystem {
+    pub id: u32,
+    pub x: f64,
+    pub y: f64,
+    pub name: Option<String>,
+    pub initializer: Option<String>,
+    pub spawn_weight: Option<f64>,
+    #[serde(default)]
+    pub spawn_script: Option<SpawnScript>,
 }
 
 /// One system's destination in [`Op::MoveSystems`].
@@ -410,6 +440,8 @@ pub enum OpError {
     UnknownSystem(u32),
     #[error("system {0} already exists")]
     SystemExists(u32),
+    #[error("{0} is the null id, which no system may take")]
+    NullSystemId(u32),
     #[error("name {0:?} may not hold a quote, a backslash or a line break")]
     InvalidName(String),
     #[error("a name may not be empty")]

@@ -110,6 +110,8 @@ impl Format for Scenario {
             | Op::SetNebulaName { .. }
             | Op::AddSystem { .. }
             | Op::RemoveSystem { .. }
+            | Op::AddSystems { .. }
+            | Op::RemoveSystems { .. }
             | Op::SetSystemName { .. }
             | Op::SetInitializer { .. }
             | Op::SetInitializers { .. }
