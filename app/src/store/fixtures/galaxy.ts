@@ -5,7 +5,7 @@ import type { HistoryEntry } from "../../generated/HistoryEntry";
 import type { OpenResult } from "../../generated/OpenResult";
 import type { SaveResult } from "../../generated/SaveResult";
 import type { SystemNode } from "../../generated/SystemNode";
-import { name, systemNode } from "../../test/builders";
+import { name, saveMeta, systemNode } from "../../test/builders";
 
 export type LaneSpec = [to: number, length: number, bridge?: boolean, stale?: boolean];
 
@@ -67,15 +67,7 @@ export const OPEN_RESULT: OpenResult & { path: string } = {
   kind: "save",
   painted: false,
   title: "Test Empire",
-  meta: {
-    name: "Test Empire",
-    date: "2206.11.16",
-    version: "Pegasus v4.4.6",
-    ironman: false,
-    planets: null,
-    fleets: null,
-    color: null,
-  },
+  meta: saveMeta(),
   galaxy: {
     systems: SYSTEMS,
     nebulae: [{ name: name("NAME_Cloud"), x: -40, y: 40, radius: 20, systems: [5] }],

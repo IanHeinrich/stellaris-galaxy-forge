@@ -6,12 +6,57 @@ import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetSummary } from "../generated/PlanetSummary";
+import type { SaveMeta } from "../generated/SaveMeta";
+import type { ScenarioSummary } from "../generated/ScenarioSummary";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
 
 /** A plain localisation key as a name template, which is what the save writes for most nodes. */
 export function name(key: string): NameTemplate {
   return { key, literal: false, variables: [] };
+}
+
+/** The one `SaveMeta` builder: the header of the 4.4 sample save, without the 4.5 extras. */
+export function saveMeta(over: Partial<SaveMeta> = {}): SaveMeta {
+  return {
+    name: "Test Empire",
+    date: "2206.11.16",
+    version: "Pegasus v4.4.6",
+    ironman: false,
+    planets: null,
+    fleets: null,
+    color: null,
+    version_revision: null,
+    required_dlcs: [],
+    portrait: null,
+    flag: null,
+    ...over,
+  };
+}
+
+/** The one `ScenarioSummary` builder: a header that states nothing. */
+export function scenarioSummary(over: Partial<ScenarioSummary> = {}): ScenarioSummary {
+  const none = { default: null, max: null };
+  return {
+    priority: null,
+    radius: null,
+    core_radius: null,
+    supports_shape: [],
+    empires: none,
+    advanced_empires: none,
+    fallen_empires: none,
+    marauder_empires: none,
+    nomad_empires: none,
+    colonizable_planet_odds: null,
+    primitive_odds: null,
+    num_gateways: null,
+    num_wormhole_pairs: null,
+    num_nebulas: null,
+    num_hyperlanes: null,
+    crisis_strength: null,
+    extra_crisis_strength: [],
+    ...over,
+  };
 }
 
 /** The one `SystemNode` builder: every test that needs one starts from these defaults. */

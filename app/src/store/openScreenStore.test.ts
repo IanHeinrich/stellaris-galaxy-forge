@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CampaignListing } from "../generated/CampaignListing";
+import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { ScenarioListings } from "../generated/ScenarioListings";
+import { saveMeta, scenarioSummary } from "../test/builders";
 import { OPEN_RESULT } from "./fixture";
 
 vi.mock("../api/ipc");
@@ -13,13 +15,14 @@ import * as ipc from "../api/ipc";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
 import { openSections, type Row, type Section } from "../lib/openRows";
-import { resetOpenScreen, useOpenScreenStore } from "./openScreenStore";
+import { detailsKey, resetOpenScreen, useOpenScreenStore } from "./openScreenStore";
 import { useRecentsStore, type RecentDoc } from "./recentsStore";
 
 const mocked = {
   listCampaigns: vi.mocked(ipc.listCampaigns),
   listCampaignSaves: vi.mocked(ipc.listCampaignSaves),
   listScenarios: vi.mocked(ipc.listScenarios),
+  saveDetails: vi.mocked(ipc.saveDetails),
   openSave: vi.mocked(ipc.openSave),
   closeSave: vi.mocked(ipc.closeSave),
   warmDetails: vi.mocked(ipc.warmDetails),
@@ -46,15 +49,7 @@ function save(over: Partial<SaveFile> = {}): SaveFile {
     path: "C:/saves/terran/2206.11.16.sav",
     campaign: "terran_1",
     file_name: "2206.11.16.sav",
-    meta: {
-      name: "Terran Federation",
-      date: "2206.11.16",
-      version: "Pegasus v4.4.6",
-      ironman: false,
-      planets: 4,
-      fleets: 7,
-      color: "blue",
-    },
+    meta: saveMeta({ name: "Terran Federation", planets: 4, fleets: 7, color: "blue" }),
     modified: 200,
     size: 4096,
     cloud: false,
@@ -79,6 +74,7 @@ function scenario(over: Partial<ScenarioListing> = {}): ScenarioListing {
     modified: 10,
     size: 1024,
     error: null,
+    summary: scenarioSummary(),
     ...over,
   };
 }
@@ -109,7 +105,11 @@ function section(id: string): Section {
 }
 
 function rowKeys(id: string): string[] {
-  return section(id).rows.map((r) => r.key);
+  return (
+    sections()
+      .find((s) => s.id === id)
+      ?.rows.map((r) => r.key) ?? []
+  );
 }
 
 beforeEach(() => {
@@ -309,5 +309,71 @@ describe("open", () => {
     finish(OPEN_RESULT);
     await first;
     expect(useFileSessionStore.getState().path).toBe(OPEN_RESULT.path);
+  });
+});
+
+describe("tabs", () => {
+  it("keeps the chosen tab, and lists only its section", async () => {
+    await screen().load(null);
+    screen().setTab("scenarios");
+
+    expect(screen().tab).toBe("scenarios");
+    expect(sections().map((s) => s.id)).toEqual(["scenarios"]);
+  });
+});
+
+describe("loadDetails", () => {
+  const SETTINGS: GalaxySettings = {
+    template: "medium",
+    shape: "spiral_3",
+    num_empires: 9,
+    num_advanced_empires: 2,
+    num_fallen_empires: 2,
+    num_marauder_empires: 2,
+    num_nomad_empires: 2,
+    habitability: 0.25,
+    primitive: 0.25,
+    resource_abundance: 2,
+    num_gateways: 1,
+    num_wormhole_pairs: 1,
+    num_hyperlanes: 1,
+    difficulty: "commodore",
+    scaling: "scaling_off",
+    crisis_type: "all",
+    crises: 1,
+    mid_game_start: 150,
+    end_game_start: 225,
+    ironman: false,
+    core_radius: 120,
+  };
+  const PATH = save().path;
+
+  it("reads a save once however often it is asked, and again once it was written", async () => {
+    mocked.saveDetails.mockResolvedValue(SETTINGS);
+
+    const first = screen().loadDetails(PATH, 200);
+    expect(screen().details[detailsKey(PATH, 200)]).toEqual({ status: "loading" });
+    await Promise.all([first, screen().loadDetails(PATH, 200)]);
+    await screen().loadDetails(PATH, 200);
+
+    expect(mocked.saveDetails).toHaveBeenCalledExactlyOnceWith(PATH);
+    expect(screen().details[detailsKey(PATH, 200)]).toEqual({
+      status: "ready",
+      settings: SETTINGS,
+    });
+
+    await screen().loadDetails(PATH, 300);
+    expect(mocked.saveDetails).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the failure for the save it came from", async () => {
+    mocked.saveDetails.mockRejectedValue({ kind: "format", message: "no galaxy block" });
+
+    await screen().loadDetails(PATH, 200);
+
+    expect(screen().details[detailsKey(PATH, 200)]).toEqual({
+      status: "error",
+      message: "no galaxy block",
+    });
   });
 });
