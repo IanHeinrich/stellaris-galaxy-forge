@@ -47,7 +47,8 @@ export interface OpenScreenState extends OpenLists {
    * Opens `path` as a save or as a scenario, reporting failure on the row it came from. A
    * scenario file asks the Paint a Galaxy question first where it has to.
    */
-  open(path: string, mode: OpenMode): Promise<void>;
+  /** `asPaint` opens a scenario file for the Paint a Galaxy mod, whatever the file says. */
+  open(path: string, mode: OpenMode, asPaint?: boolean): Promise<void>;
   forget(path: string): void;
 }
 
@@ -154,10 +155,11 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
     return get().expand(dir);
   },
 
-  async open(path, mode) {
+  async open(path, mode, asPaint = false) {
     const session = useFileSessionStore.getState();
     if (get().busy !== null || session.saving) return;
-    const profile = mode === "save" && !isSavePath(path) ? await askScenarioOpen(path) : undefined;
+    const profile =
+      mode === "save" && !isSavePath(path) ? await askScenarioOpen(path, asPaint) : undefined;
     if (profile === null || !(await session.confirmDiscard())) return;
     set({ busy: path, rowError: null });
     const opening =

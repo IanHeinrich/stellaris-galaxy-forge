@@ -44,6 +44,9 @@ export const PAINT_MOD_OFF_BREAKS =
 /** Opening a scenario for the mod while the mod is off. */
 export const OPEN_PAINT_MOD_OFF = `This scenario is written for the Paint a Galaxy mod. ${PAINT_MOD_OFF_BREAKS}`;
 
+/** Opening a plain scenario for the mod while the mod is off. */
+export const OPEN_FOR_PAINT_MOD_OFF = `You're opening this scenario for the Paint a Galaxy mod. ${PAINT_MOD_OFF_BREAKS}`;
+
 /** Opening a scenario that is not for the mod, above the checkbox. */
 export const OPEN_NOT_FOR_PAINT =
   "This scenario isn't written for the Paint a Galaxy mod. With the box ticked, you edit it for the mod.";

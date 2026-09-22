@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   NEVER_WARN,
   NEVER_WARN_WHY,
+  OPEN_FOR_PAINT_MOD_OFF,
   OPEN_NOT_FOR_PAINT,
   OPEN_PAINT_MOD_OFF,
 } from "../../lib/paintCopy";
@@ -49,7 +50,7 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
           <>
             <p className="setup-warn" role="alert">
               <span aria-hidden="true">⚠</span>
-              {OPEN_PAINT_MOD_OFF}
+              {prompt.forPaint ? OPEN_FOR_PAINT_MOD_OFF : OPEN_PAINT_MOD_OFF}
             </p>
             <PaintModStatus />
           </>

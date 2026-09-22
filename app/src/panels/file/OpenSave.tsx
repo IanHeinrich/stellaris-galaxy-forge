@@ -31,6 +31,7 @@ import {
   type Tab,
 } from "../../lib/openRows";
 import { useOpenScreenStore } from "../../store/openScreenStore";
+import { usePaintModStore } from "../../store/paintModStore";
 import { useRecentsStore } from "../../store/recentsStore";
 import { Twisty } from "../Twisty";
 import { Dialog } from "../overlays/Dialog";
@@ -313,6 +314,7 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
   const requestOpen = useFileSessionStore((s) => s.requestOpen);
   const gameData = useGameDataStore((s) => s.status);
   const hide = useLayoutStore((s) => s.hideOpenDialog);
+  const paintMod = usePaintModStore((s) => s.paintMod);
   const showScenarioDialog = useLayoutStore((s) => s.showScenarioDialog);
   const recents = useRecentsStore((s) => s.recents);
   const screen = useOpenScreenStore();
@@ -393,7 +395,7 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
     }
   };
 
-  const footer = footerOpens(current, screen);
+  const footer = footerOpens(current, screen, paintMod);
   const openFooter = (target: FooterOpen | null) => {
     if (target?.mode === "scenario") setScenarioFor(target.path);
     else if (target) void screen.open(target.path, target.mode);
@@ -507,6 +509,19 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
               onClick={() => openFooter(footer.asScenario)}
             >
               Open as scenario
+            </button>
+          )}
+          {footer.forPaint && (
+            <button
+              type="button"
+              title="Edit it for the Paint a Galaxy mod"
+              aria-disabled={!idle}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                if (footer.forPaint && idle) void screen.open(footer.forPaint, "save", true);
+              }}
+            >
+              Open for Paint a Galaxy
             </button>
           )}
           <button

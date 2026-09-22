@@ -68,6 +68,9 @@ a release is made.
   and the panel on the right shows the same warning.
 - Opening a scenario that isn't for Paint a Galaxy asks first. Tick the box
   to edit it for the mod.
+- Open for Paint a Galaxy sits beside Open for a scenario that isn't for
+  the mod. It opens the scenario for the mod without asking, unless the mod
+  is off.
 - Tick "Don't warn me again" to open those scenarios as they are. The
   switch in the Help menu turns the warning back on.
 - Click a row to select it and double-click to open it. Hovering no longer

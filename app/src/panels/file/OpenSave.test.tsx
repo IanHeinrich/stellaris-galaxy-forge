@@ -207,7 +207,7 @@ describe("opening a scenario file", () => {
   const dialog = () => renderToStaticMarkup(<OpenScenarioDialog />);
   const ask = (kind: "not_for_paint" | "paint_mod_off") =>
     useFileSessionStore.setState({
-      scenarioPrompt: { path: scenarioListing().path, kind, resolve: noop },
+      scenarioPrompt: { path: scenarioListing().path, kind, forPaint: false, resolve: noop },
     });
 
   beforeEach(() => {
@@ -326,15 +326,19 @@ describe("the open screen's footer", () => {
     expect(footerOpens(saveRow(), lists)).toEqual({
       open: { path, mode: "save" },
       asScenario: { path, mode: "scenario" },
+      forPaint: null,
     });
     expect(footerOpens(scenarioRow(), lists)).toEqual({
       open: { path: scenarioListing().path, mode: "save" },
       asScenario: null,
+      forPaint: scenarioListing().path,
     });
     expect(footerOpens(scenarioRow({ disabled: true }), lists).open).toBeNull();
+    const painted = scenarioRow({ listing: scenarioListing({ painted: true }) });
+    expect(footerOpens(painted, lists).forPaint).toBeNull();
     expect(footerOpens(campaignRow(), lists).open).toEqual({ path, mode: "save" });
     expect(footerOpens(campaignRow(), { ...lists, files: {} }).open).toBeNull();
-    expect(footerOpens(undefined, lists)).toEqual({ open: null, asScenario: null });
+    expect(footerOpens(undefined, lists)).toEqual({ open: null, asScenario: null, forPaint: null });
   });
 });
 

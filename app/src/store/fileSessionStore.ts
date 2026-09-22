@@ -64,6 +64,8 @@ export interface SaveIssuesPrompt {
 export interface ScenarioPrompt {
   path: string;
   kind: Exclude<ScenarioOpenPrompt, "none">;
+  /** The user asked to open it for the mod, whatever the file says. */
+  forPaint: boolean;
   resolve(profile: ScenarioProfile | null): void;
 }
 
@@ -531,13 +533,22 @@ async function openDocument(
  * The profile the scenario file at `path` opens under, once the Paint a Galaxy question is
  * answered where it has to be asked; null when the user cancelled.
  */
-export function askScenarioOpen(path: string): Promise<ScenarioProfile | null> {
+export function askScenarioOpen(path: string, asPaint = false): Promise<ScenarioProfile | null> {
   const { paintMod, warnNotForPaint } = usePaintModStore.getState();
-  const forPaint = scenarioForPaint(path, useOpenScreenStore.getState().scenarios, paintMod);
+  const forPaint =
+    asPaint || scenarioForPaint(path, useOpenScreenStore.getState().scenarios, paintMod);
   const kind = scenarioOpenPrompt(forPaint, paintMod, warnNotForPaint);
-  if (kind === "none") return Promise.resolve("plain");
+  const profile: ScenarioProfile = asPaint ? "paint_a_galaxy" : "plain";
+  if (kind === "none") return Promise.resolve(profile);
   return new Promise((resolve) => {
-    useFileSessionStore.setState({ scenarioPrompt: { path, kind, resolve } });
+    useFileSessionStore.setState({
+      scenarioPrompt: {
+        path,
+        kind,
+        forPaint: asPaint,
+        resolve: (answer) => resolve(answer === null ? null : asPaint ? profile : answer),
+      },
+    });
   });
 }
 

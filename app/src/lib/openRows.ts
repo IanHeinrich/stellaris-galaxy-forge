@@ -1,11 +1,13 @@
 /** The Open screen's view model: its sections and rows, as pure functions of what it has read. */
 import type { CampaignListing } from "../generated/CampaignListing";
+import type { PaintModView } from "../generated/PaintModView";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { ScenarioSource } from "../generated/ScenarioSource";
 import type { OpenMode } from "../store/fileSessionStore";
 import type { RecentDoc } from "../store/recentsStore";
 import { displayName } from "./names";
+import { scenarioForPaint } from "./paint";
 import { fileName } from "./paths";
 
 export type SectionId = "recent" | "saves" | "scenarios";
@@ -368,11 +370,34 @@ export interface FooterOpen {
   mode: OpenMode;
 }
 
+export interface FooterTargets {
+  open: FooterOpen | null;
+  asScenario: FooterOpen | null;
+  /** A scenario file that isn't already for Paint a Galaxy, to open for the mod. */
+  forPaint: string | null;
+}
+
 /**
- * What the footer's two buttons open for the selected row. Open takes a file as it is, a
- * campaign's newest save once its saves are read; "Open as scenario" is there for a save.
+ * What the footer's buttons open for the selected row. Open takes a file as it is, a
+ * campaign's newest save once its saves are read; "Open as scenario" is there for a save, and
+ * "Open for Paint a Galaxy" for a scenario that isn't for the mod already.
  */
 export function footerOpens(
+  row: Row | undefined,
+  lists: OpenLists,
+  paintMod: PaintModView | null = null,
+): FooterTargets {
+  const targets = baseFooterOpens(row, lists);
+  const path = targets.open?.path ?? null;
+  const listings = row?.kind === "scenario" ? [row.listing] : lists.scenarios;
+  const scenario =
+    row?.kind === "scenario" || (row?.kind === "recent" && row.doc.kind === "scenario");
+  const forPaint =
+    scenario && path !== null && scenarioForPaint(path, listings, paintMod) !== true ? path : null;
+  return { ...targets, forPaint };
+}
+
+function baseFooterOpens(
   row: Row | undefined,
   lists: OpenLists,
 ): { open: FooterOpen | null; asScenario: FooterOpen | null } {

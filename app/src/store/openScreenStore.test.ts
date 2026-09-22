@@ -384,6 +384,19 @@ describe("opening a scenario file", () => {
     session().answerScenarioPrompt(null);
   });
 
+  it("opens a plain scenario for Paint a Galaxy on request, asking only while the mod is off", async () => {
+    await screen().open(PLAIN.path, "save", true);
+    expect(prompt()).toBeNull();
+    expect(session().paintChosen).toBe(true);
+
+    usePaintModStore.setState({ paintMod: paintModView({ enabled: false }) });
+    const opening = screen().open(PLAIN.path, "save", true);
+    expect(prompt()).toMatchObject({ path: PLAIN.path, kind: "paint_mod_off", forPaint: true });
+    session().answerScenarioPrompt("plain");
+    await opening;
+    expect(session().paintChosen).toBe(true);
+  });
+
   it("opens any other scenario plain, without asking, once that warning is turned off", async () => {
     usePaintModStore.setState({ warnNotForPaint: false });
     await screen().open(PLAIN.path, "save");
