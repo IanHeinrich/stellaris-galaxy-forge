@@ -1,7 +1,8 @@
 import type { Nebula } from "../../generated/Nebula";
 import type { SystemNode } from "../../generated/SystemNode";
 import { unlinkedTo } from "../../store/galaxyStore";
-import type { Camera, Pt } from "../Camera";
+import type { Pt } from "../../lib/geometry/pt";
+import type { Camera } from "../Camera";
 import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
 import { linkRefusal, type Segment } from "../../lib/feLinks";
 import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";

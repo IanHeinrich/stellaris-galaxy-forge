@@ -1,13 +1,9 @@
 import type { SystemNode } from "../generated/SystemNode";
+import type { Pt } from "../lib/geometry/pt";
 
 /** A system's previewed destination while it is being dragged. */
 export interface MoveGhost {
   id: number;
-  x: number;
-  y: number;
-}
-
-export interface Pt {
   x: number;
   y: number;
 }

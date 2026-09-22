@@ -9,7 +9,8 @@
  */
 
 import type { SystemNode } from "../generated/SystemNode";
-import { FE_ZONE_RADIUS, feZoneCentre, type Pt } from "./feZone";
+import type { Pt } from "./geometry/pt";
+import { FE_ZONE_RADIUS, feZoneCentre } from "./feZone";
 
 /** What the ring's menu and the inspector offer to give a zone back to the mod's own rule. */
 export const USE_NEAREST_LABEL = "Use nearest systems instead";

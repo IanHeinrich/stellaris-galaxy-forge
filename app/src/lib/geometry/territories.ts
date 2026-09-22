@@ -1,5 +1,5 @@
 import type { Geom, MultiPolygon } from "polygon-clipping";
-import type { Pt } from "./hull";
+import type { Pt } from "./pt";
 import {
   affectedCountries,
   countryPieces,

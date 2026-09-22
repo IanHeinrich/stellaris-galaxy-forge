@@ -1,7 +1,4 @@
-export interface Pt {
-  x: number;
-  y: number;
-}
+import type { Pt } from "./pt";
 
 function cross(o: Pt, a: Pt, b: Pt): number {
   return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);

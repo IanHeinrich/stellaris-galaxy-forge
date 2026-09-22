@@ -8,6 +8,7 @@
 
 import type { MarauderRole } from "../generated/MarauderRole";
 import type { SystemNode } from "../generated/SystemNode";
+import type { Pt } from "./geometry/pt";
 
 /** How many clans the game's initializers name. */
 export const CLANS = 3;
@@ -44,11 +45,6 @@ export const REMOVE_CLAN_HINT = "The three systems become random. Undo puts back
 /** Why a clan cannot take a number: another home already carries it. */
 export function clanInUse(clan: number): string {
   return `Clan ${clan} is in use`;
-}
-
-export interface Pt {
-  x: number;
-  y: number;
 }
 
 /** The initializer that makes a system clan `clan`'s home. */

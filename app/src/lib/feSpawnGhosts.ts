@@ -6,7 +6,7 @@
  */
 
 import type { FeKind } from "../generated/FeKind";
-import type { Pt } from "./feZone";
+import type { Pt } from "./geometry/pt";
 
 /** How much fainter the spawn ghosts are drawn than the ring that carries them. */
 export const SPAWN_GHOST_ALPHA_FRACTION = 1 / 3;
