@@ -5,6 +5,7 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import * as ipc from "../api/ipc";
+import type { Op } from "../generated/Op";
 import type { SystemNode } from "../generated/SystemNode";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
 import { useGalaxyStore } from "./galaxyStore";
@@ -103,9 +104,11 @@ describe("marauder clans", () => {
     return m[2] === "1" ? { home: Number(m[1]) } : { base: Number(m[1]) };
   };
 
-  /** A shell that answers the ops the clan actions send from the galaxy the store holds. */
+  /**
+   * A shell that answers the ops the clan actions send from the galaxy the store holds,
+   * a batch's members against what the ones before them wrote.
+   */
   function answerOps(): void {
-    let nextId = 100;
     const current = () => useGalaxyStore.getState().systems;
     mocked.getSystem.mockImplementation(async (id) => {
       const system = current().get(id);
@@ -113,34 +116,36 @@ describe("marauder clans", () => {
       return { system, neighbours: [], nebula: null };
     });
     mocked.applyOp.mockImplementation(async (op) => {
-      if (op.type === "AddSystem") {
-        const added = node(nextId++, "", op.x, op.y, "sc_g", [], {
-          initializer: op.initializer ?? "",
-          marauder: roleOf(op.initializer),
-        });
-        return editResult({ delta: { systems: [added] } });
-      }
-      if (op.type === "AddLanes") {
-        const from = current().get(op.from)!;
-        const lane = (to: number) => ({ to, length: 10, bridge: false, stale: false });
-        const changed = [
-          { ...from, lanes: [...from.lanes, ...op.to.map(([to]) => lane(to))] },
-          ...op.to.map(([to]) => {
-            const s = current().get(to)!;
-            return { ...s, lanes: [...s.lanes, lane(op.from)] };
-          }),
-        ];
-        return editResult({ delta: { systems: changed } });
-      }
-      if (op.type === "SetInitializers") {
-        const changed = op.entries.map(({ id, initializer }) => ({
-          ...current().get(id)!,
-          initializer: initializer ?? "",
-          marauder: roleOf(initializer),
-        }));
-        return editResult({ delta: { systems: changed } });
-      }
-      return editResult();
+      const changed = new Map<number, SystemNode>();
+      const get = (id: number) => changed.get(id) ?? current().get(id)!;
+      const write = (system: SystemNode) => changed.set(system.id, system);
+      const answer = (member: Op) => {
+        if (member.type === "AddSystem") {
+          write(
+            node(member.id!, "", member.x, member.y, "sc_g", [], {
+              initializer: member.initializer ?? "",
+              marauder: roleOf(member.initializer),
+            }),
+          );
+        }
+        if (member.type === "AddLanes") {
+          const from = get(member.from);
+          const lane = (to: number) => ({ to, length: 10, bridge: false, stale: false });
+          write({ ...from, lanes: [...from.lanes, ...member.to.map(([to]) => lane(to))] });
+          for (const [to] of member.to) {
+            const s = get(to);
+            write({ ...s, lanes: [...s.lanes, lane(member.from)] });
+          }
+        }
+        if (member.type === "SetInitializers") {
+          for (const { id, initializer } of member.entries) {
+            write({ ...get(id), initializer: initializer ?? "", marauder: roleOf(initializer) });
+          }
+        }
+      };
+      if (op.type === "Batch") op.ops.forEach(answer);
+      else answer(op);
+      return editResult({ delta: { systems: [...changed.values()] } });
     });
   }
 
@@ -153,7 +158,7 @@ describe("marauder clans", () => {
       .get(b)!
       .lanes.some((l) => l.to === a);
 
-  it("addMarauderClanAt adds the next free clan: a home at the point, two bases 20 and 25 out, hyperlaned to it", async () => {
+  it("addMarauderClanAt adds the next free clan as one op: a home at the point, two bases 20 and 25 out, hyperlaned to it", async () => {
     homes(0);
     answerOps();
     useMapChromeStore.setState({
@@ -162,22 +167,39 @@ describe("marauder clans", () => {
 
     expect(await editor().addMarauderClanAt({ x: -120, y: 45 })).toBe(true);
 
-    const home = galaxy().get(100)!;
+    const home = galaxy().get(6)!;
     expect([home.x, home.y, home.initializer, home.name.key]).toEqual([
       -120,
       45,
       "marauder_2_1",
       "",
     ]);
-    const second = galaxy().get(101)!;
-    const third = galaxy().get(102)!;
+    const second = galaxy().get(7)!;
+    const third = galaxy().get(8)!;
     expect([second.initializer, third.initializer]).toEqual(["marauder_2_2", "marauder_2_3"]);
     expect(Math.hypot(second.x - home.x, second.y - home.y)).toBeCloseTo(20);
     expect(Math.hypot(third.x - home.x, third.y - home.y)).toBeCloseTo(25);
-    expect(linked(100, 101) && linked(100, 102)).toBe(true);
-    expect(editor().selection).toEqual([100]);
+    expect(linked(6, 7) && linked(6, 8)).toBe(true);
+    expect(editor().selection).toEqual([6]);
     expect(useMapChromeStore.getState().layers.marauders).toBe(true);
-    expect(mocked.applyOp).toHaveBeenCalledTimes(4);
+    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Added marauder clan 2",
+      ops: [
+        expect.objectContaining({ type: "AddSystem", id: 6, initializer: "marauder_2_1" }),
+        expect.objectContaining({ type: "AddSystem", id: 7, initializer: "marauder_2_2" }),
+        expect.objectContaining({ type: "AddSystem", id: 8, initializer: "marauder_2_3" }),
+        {
+          type: "AddLanes",
+          from: 6,
+          to: [
+            [7, false],
+            [8, false],
+          ],
+        },
+      ],
+    });
   });
 
   it("addMarauderClanAt refuses once all three clans are placed, and says so", async () => {
@@ -244,7 +266,7 @@ describe("marauder clans", () => {
     expect(sessionError()).toBe("Clan 1 is in use");
   });
 
-  it("addMarauderBases creates only the bases the home is missing, each hyperlaned to it", async () => {
+  it("addMarauderBases creates only the bases the home is missing as one op, each hyperlaned to it", async () => {
     answerOps();
     useGalaxyStore.getState().applyDelta({
       systems: [
@@ -255,12 +277,20 @@ describe("marauder clans", () => {
 
     expect(await editor().addMarauderBases(1)).toBe(true);
 
-    const third = galaxy().get(100)!;
+    const third = galaxy().get(6)!;
     expect(third.initializer).toBe("marauder_1_3");
     expect(Math.hypot(third.x - 10, third.y)).toBeCloseTo(25);
-    expect(linked(1, 100)).toBe(true);
-    expect(galaxy().has(101)).toBe(false);
-    expect(mocked.applyOp).toHaveBeenCalledTimes(2);
+    expect(linked(1, 6)).toBe(true);
+    expect(galaxy().has(7)).toBe(false);
+    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Added raid bases for marauder clan 1",
+      ops: [
+        expect.objectContaining({ type: "AddSystem", id: 6, initializer: "marauder_1_3" }),
+        { type: "AddLanes", from: 1, to: [[6, false]] },
+      ],
+    });
 
     mocked.applyOp.mockClear();
     expect(await editor().addMarauderBases(1)).toBe(true);

@@ -309,6 +309,12 @@ pub enum Op {
         a: u32,
         b: u32,
     },
+    /// Several ops as one edit and one undo step, applied in order; a refused member
+    /// leaves the document as it was before the first. Not nested.
+    Batch {
+        description: String,
+        ops: Vec<Op>,
+    },
 }
 
 impl Op {
@@ -354,6 +360,7 @@ impl Op {
             Self::SetFeLinkFlags { .. } => "SetFeLinkFlags",
             Self::PreventLane { .. } => "PreventLane",
             Self::UnpreventLane { .. } => "UnpreventLane",
+            Self::Batch { .. } => "Batch",
         }
     }
 
@@ -363,29 +370,30 @@ impl Op {
     /// initializer, so an op that writes one stales it too, a scripted seat included
     /// because it may bring an initializer with it. A save's details are read from
     /// sections no op writes, which is why none of these ops is one a save takes.
-    pub const fn stales_details(&self) -> bool {
-        matches!(
-            self,
+    pub fn stales_details(&self) -> bool {
+        match self {
             Self::AddSystem { .. }
-                | Self::RemoveSystem { .. }
-                | Self::SetInitializer { .. }
-                | Self::SetInitializers { .. }
-                | Self::SetSpawnScript { .. }
-                | Self::SetSpawnScripts { .. }
-        )
+            | Self::RemoveSystem { .. }
+            | Self::SetInitializer { .. }
+            | Self::SetInitializers { .. }
+            | Self::SetSpawnScript { .. }
+            | Self::SetSpawnScripts { .. } => true,
+            Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
+            _ => false,
+        }
     }
 
     /// Whether this op can have moved how the systems it touched are classified: the
     /// initializer a classification is read from, the name it is labelled by, or the
     /// star flags the scripts place a wormhole by.
-    pub const fn reclassifies(&self) -> bool {
-        self.stales_details()
-            || matches!(
-                self,
-                Self::SetSystemName { .. }
-                    | Self::SetWormholePair { .. }
-                    | Self::SetWormholeEnds { .. }
-            )
+    pub fn reclassifies(&self) -> bool {
+        match self {
+            Self::SetSystemName { .. }
+            | Self::SetWormholePair { .. }
+            | Self::SetWormholeEnds { .. } => true,
+            Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
+            _ => self.stales_details(),
+        }
     }
 }
 
@@ -504,6 +512,10 @@ pub enum OpError {
     FeLinkIdOutOfRange(u8, u8),
     #[error("no lanes given")]
     Empty,
+    #[error("a batch with nothing in it")]
+    EmptyBatch,
+    #[error("a batch may not hold another batch")]
+    NestedBatch,
     #[error("system {0} is listed more than once")]
     DuplicateSystem(u32),
     #[error("lane {0} <-> {1} is listed more than once")]
@@ -537,6 +549,13 @@ pub enum OpError {
 
 /// Apply `op` to the session's document and projection.
 pub fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
+    match op {
+        Op::Batch { description, ops } => apply_batch(session, description, ops),
+        op => apply_one(session, op),
+    }
+}
+
+fn apply_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     let format = session.format();
     if !format.supports(&op) {
         return Err(OpError::Unsupported {
@@ -547,6 +566,59 @@ pub fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     let mut plan = Plan::new();
     let planned = format.write(&mut plan, session, &op)?;
     plan.commit(session, op, planned)
+}
+
+fn apply_batch(
+    session: &mut Session,
+    description: String,
+    ops: Vec<Op>,
+) -> Result<Applied, OpError> {
+    if ops.is_empty() {
+        return Err(OpError::EmptyBatch);
+    }
+    if ops.iter().any(|op| matches!(op, Op::Batch { .. })) {
+        return Err(OpError::NestedBatch);
+    }
+    let op = Op::Batch {
+        description: description.clone(),
+        ops: ops.clone(),
+    };
+    let mut members: Vec<Applied> = Vec::with_capacity(ops.len());
+    for member in ops {
+        match apply_one(session, member) {
+            Ok(applied) => members.push(applied),
+            Err(e) => {
+                let before: Vec<_> = members.iter().flat_map(|m| m.before.clone()).collect();
+                let touched: Vec<_> = members.iter().flat_map(|m| m.touched.clone()).collect();
+                rollback(session, &before, &touched);
+                return Err(e);
+            }
+        }
+    }
+    let mut inverses = Vec::with_capacity(members.len());
+    let mut before = Vec::new();
+    let mut after = Vec::new();
+    let mut touched = Vec::new();
+    for member in members {
+        inverses.push(member.inverse);
+        before.extend(member.before);
+        after.extend(member.after);
+        touched.extend(member.touched);
+    }
+    inverses.reverse();
+    touched.sort_unstable();
+    touched.dedup();
+    Ok(Applied {
+        op,
+        description: description.clone(),
+        inverse: Op::Batch {
+            description,
+            ops: inverses,
+        },
+        before,
+        after,
+        touched,
+    })
 }
 
 /// What a planner returns once it has planned its edits: an inverse cannot be forgotten.

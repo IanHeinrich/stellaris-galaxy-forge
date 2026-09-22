@@ -55,18 +55,39 @@ pub(super) fn set_weights(
     }
     let mut one = String::new();
     let mut previous = Vec::with_capacity(entries.len());
+    let mut scripts = Vec::with_capacity(entries.len());
     for &(id, base) in entries {
-        let (description, was, _) = write_weight(plan, s, id, base)?;
+        let (description, was, script) = write_weight(plan, s, id, base)?;
         one = description;
         previous.push(was);
+        scripts.push(script);
     }
     let description = match entries.len() {
         1 => one,
         n => format!("Set the spawn weight of {}", plural(n, "system")),
     };
+    let inverse = if scripts.iter().all(Option::is_none) {
+        Op::SetSpawnWeights { entries: previous }
+    } else {
+        let ops = previous
+            .into_iter()
+            .zip(scripts)
+            .map(|((id, base), script)| match script {
+                Some(script) => Op::SetSpawnScript {
+                    id,
+                    script: Some(script),
+                },
+                None => Op::SetSpawnWeight { id, base },
+            })
+            .collect();
+        Op::Batch {
+            description: description.clone(),
+            ops,
+        }
+    };
     Ok(Planned {
         description,
-        inverse: Op::SetSpawnWeights { entries: previous },
+        inverse,
     })
 }
 

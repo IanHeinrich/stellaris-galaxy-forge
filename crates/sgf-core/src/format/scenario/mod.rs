@@ -127,7 +127,8 @@ impl Format for Scenario {
             | Op::SetFeLinks { .. }
             | Op::SetFeLinkFlags { .. }
             | Op::PreventLane { .. }
-            | Op::UnpreventLane { .. } => true,
+            | Op::UnpreventLane { .. }
+            | Op::Batch { .. } => true,
             Op::SetLaneLength { .. }
             | Op::SetLaneLengths { .. }
             | Op::NormaliseLaneLength { .. }

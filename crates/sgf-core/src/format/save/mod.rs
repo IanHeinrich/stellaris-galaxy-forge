@@ -99,7 +99,8 @@ impl Format for Save {
             | Op::AddNebula { .. }
             | Op::RemoveNebula { .. }
             | Op::SetNebulaRadius { .. }
-            | Op::SetNebulaName { .. } => true,
+            | Op::SetNebulaName { .. }
+            | Op::Batch { .. } => true,
             Op::AddSystem { .. }
             | Op::RemoveSystem { .. }
             | Op::SetSystemName { .. }
