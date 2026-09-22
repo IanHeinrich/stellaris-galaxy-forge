@@ -537,6 +537,22 @@ button.master.init[aria-pressed="mixed"] {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
+.tool-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tool-option input[type="range"] {
+  width: 80px;
+}
+
+.tool-option input[type="number"] {
+  width: 52px;
+}
+
 .menu-file {
   max-width: 210px;
   overflow: hidden;

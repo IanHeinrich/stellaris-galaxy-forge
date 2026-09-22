@@ -20,6 +20,14 @@ export function canGoBack(): boolean {
   return useInspectorStore.getState().stack.length > 1;
 }
 
+/** `[` / `]` shrink or grow the active brush. True when a brush took the press. */
+export function resizeBrush(step: number): boolean {
+  const tools = useToolStore.getState();
+  if (tools.tool !== "paint" && tools.tool !== "erase") return false;
+  tools.stepSize(step < 0 ? -1 : 1);
+  return true;
+}
+
 /** `[` / `]` resize the selected nebula, one op per press. True when the press was the nebula's. */
 export function resizeNebula(step: number): boolean {
   const editor = useEditorStore.getState();
@@ -142,5 +150,9 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
     case "selectTool":
       useToolStore.getState().setTool("select");
       return true;
+    case "paintTool":
+      return useToolStore.getState().setTool("paint");
+    case "eraseTool":
+      return useToolStore.getState().setTool("erase");
   }
 }

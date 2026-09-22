@@ -10,6 +10,14 @@ a release is made.
 
 ### Added
 
+- Scenarios have a paint brush (B) that scatters systems as you drag and
+  can join them with hyperlanes.
+- An erase brush (E) removes the systems it passes over. Systems with a
+  spawn, an initializer or another special role are kept unless you ask.
+  It can also cut only the hyperlanes it passes over.
+- Each brush stroke is one undo step. `[` and `]` change the brush size,
+  and holding Alt swaps paint and erase.
+- Several selected systems in a scenario can be deleted at once.
 - The Issues panel warns when a scenario has far more systems than the
   largest galaxy size the game and your mods offer. Very large galaxies
   can make the game slow.

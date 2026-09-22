@@ -11,6 +11,8 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import type { HistoryEntry } from "../../generated/HistoryEntry";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
+import { OPEN_RESULT, SCENARIO_CAPABILITIES } from "../../store/fixture";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useToolStore } from "../../store/toolStore";
 import { ToolOptions } from "./ToolOptions";
 import { ToolRail } from "./ToolRail";
@@ -35,6 +37,7 @@ beforeEach(() => {
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState(), status: "ready" });
   useToolStore.setState({ ...useToolStore.getInitialState() });
+  useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
 });
 
 describe("the tool rail", () => {
@@ -51,6 +54,19 @@ describe("the tool rail", () => {
     expect(button("Redo")).toContain('title="Redo (Ctrl+Y)"');
   });
 
+  it("offers Paint and Erase, with their keys, on a scenario only", () => {
+    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
+    expect(rail()).not.toContain("Paint systems");
+    expect(rail()).not.toContain("Erase systems");
+
+    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
+    useToolStore.setState({ tool: "erase" });
+    expect(button("Paint systems")).toContain('title="Paint systems (B)"');
+    expect(button("Paint systems")).toContain('aria-pressed="false"');
+    expect(button("Erase systems")).toContain('title="Erase systems (E)"');
+    expect(button("Erase systems")).toContain('aria-pressed="true"');
+  });
+
   it("names the edit undo and redo would step", () => {
     useEditorStore.setState({
       history: { undo: [entry(1, "Move Sol"), entry(2, "Add lane")], redo: [entry(3, "Cut lane")] },
@@ -65,5 +81,36 @@ describe("the tool rail", () => {
 describe("the tool options", () => {
   it("draw nothing while Select is the tool", () => {
     expect(renderToStaticMarkup(<ToolOptions />)).toBe("");
+  });
+});
+
+describe("the brush options", () => {
+  const options = () => renderToStaticMarkup(<ToolOptions />);
+
+  it("give the paint brush its size, density, lanes and lane density", () => {
+    useToolStore.setState({ tool: "paint", size: 60, spacing: 20, laneMode: "new" });
+    const html = options();
+    expect(html).toContain('aria-label="Brush options"');
+    expect(html).toContain('aria-label="Brush size" value="60"');
+    // Dense is small spacing, so the density slider runs against it.
+    expect(html).toMatch(/aria-label="Density" value="70"/);
+    expect(html).toContain('<option value="new" selected="">Among new</option>');
+    expect(html).toMatch(/<input type="range"[^>]*aria-label="Lane density"/);
+    expect(html).not.toMatch(/disabled=""[^>]*aria-label="Lane density"/);
+
+    useToolStore.setState({ laneMode: "off" });
+    expect(options()).toMatch(/disabled=""[^>]*aria-label="Lane density"/);
+  });
+
+  it("give the erase brush its size, target and the specials toggle, which lanes mode disables", () => {
+    useToolStore.setState({ tool: "erase" });
+    const html = options();
+    expect(html).toContain('aria-label="Brush size"');
+    expect(html).toContain("Lanes only");
+    expect(html).toContain("Also erase special systems");
+    expect(html).not.toContain('type="checkbox" disabled=""');
+
+    useToolStore.setState({ eraseTarget: "lanes" });
+    expect(options()).toContain('type="checkbox" disabled=""');
   });
 });

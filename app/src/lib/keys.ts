@@ -21,7 +21,9 @@ export type KeyAction =
   | "browseInitializers"
   | "toggleScriptLayers"
   | "toggleInitializerLayers"
-  | "selectTool";
+  | "selectTool"
+  | "paintTool"
+  | "eraseTool";
 
 /** A world offset that moves the selection one step across the screen. */
 export interface Nudge {
@@ -72,6 +74,8 @@ export function keyAction(e: KeyLike, inInput: boolean, canGoBack = false): KeyA
   if (e.key === "Tab" && !e.shiftKey) return "toggleDock";
   if (key === "i") return e.shiftKey ? "browseInitializers" : "issuesTab";
   if (key === "v" && !e.shiftKey) return "selectTool";
+  if (key === "b" && !e.shiftKey) return "paintTool";
+  if (key === "e" && !e.shiftKey) return "eraseTool";
   return null;
 }
 
@@ -90,7 +94,10 @@ export function nudgeOf(e: KeyLike, inInput: boolean): Nudge | null {
   return { dx: unit.dx * step, dy: unit.dy * step };
 }
 
-/** How far `[` and `]` move the selected nebula's radius: one, or five with Shift. */
+/**
+ * Which way `[` and `]` step, and how far a nebula's radius moves: one, or five with Shift.
+ * A brush takes only the sign.
+ */
 export function radiusStepOf(e: KeyLike, inInput: boolean): number | null {
   if (inInput || e.ctrlKey || e.metaKey || e.altKey) return null;
   const step = e.shiftKey ? 5 : 1;

@@ -9,7 +9,7 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
 import { bindStores } from "./bindStores";
-import { run } from "./commands";
+import { resizeBrush, resizeNebula, run } from "./commands";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { PREF_KEYS } from "./prefKeys";
@@ -166,5 +166,22 @@ describe("brush settings", () => {
     expect(cleaned.size).toBe(400);
     expect(cleaned.symmetry).toEqual({ kind: "off" });
     expect(cleaned.laneMode).toBe("nearby");
+  });
+});
+
+describe("brush keys", () => {
+  it("B and E pick the brushes on a scenario, and [ ] step the brush rather than a nebula", async () => {
+    expect(run("paintTool", false, effects)).toBe(false);
+    await openScenario();
+    expect(run("paintTool", false, effects)).toBe(true);
+    expect(tools().tool).toBe("paint");
+    expect(resizeBrush(5)).toBe(true);
+    expect(tools().size).toBe(48);
+    expect(run("eraseTool", false, effects)).toBe(true);
+    expect(resizeBrush(-1)).toBe(true);
+    expect(tools().size).toBe(40);
+    run("selectTool", false, effects);
+    expect(resizeBrush(1)).toBe(false);
+    expect(resizeNebula(1)).toBe(false);
   });
 });

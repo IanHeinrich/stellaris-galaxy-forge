@@ -13,6 +13,8 @@ import { toRing, type Segment } from "../../lib/feLinks";
 import { FE_DIRECTIONS, FE_ZONE_DISTANCES, FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { ORIGIN_ALPHA } from "../../lib/visual/style";
+import type { Segment as BrushSegment } from "../../lib/brush/lanes";
+import type { BrushTool } from "../../lib/brush/brushStroke";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
 const SELECTION = { color: 0xffd166, radius: 11, width: 2, alpha: 1 };
@@ -51,12 +53,40 @@ const FE_GRID_SNAPPED_RADIUS_PX = 4.5;
 const ORIGIN_MARK = { color: 0xffffff, alpha: 0.3, armPx: 7 };
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
+/** The brush circle and what a stroke would do: paint in the accent, erase in the refusal red. */
+const BRUSH_PAINT = 0xffd166;
+const BRUSH_ERASE = 0xf87171;
+const BRUSH_KEPT = 0xfbbf24;
+const BRUSH_DASHES = 48;
+const BRUSH_DOT_PX = 3;
+const BRUSH_RING_PX = 7;
+const BRUSH_CUT_PX = 3;
 
 export interface RubberLane {
   from: LaneSource;
   x: number;
   y: number;
   target: LaneTarget | null;
+}
+
+/** The brush circle at the pointer, `r` its world radius. */
+export interface BrushCursor {
+  tool: BrushTool;
+  x: number;
+  y: number;
+  r: number;
+}
+
+/** What a held stroke would do, in world positions. */
+export interface BrushPreview {
+  /** New systems and the lanes to them. */
+  points: readonly Pt[];
+  lanes: readonly BrushSegment[];
+  /** Systems an erase stroke removes, and the special ones it spares. */
+  doomed: readonly Pt[];
+  kept: readonly Pt[];
+  /** Lanes an erase stroke cuts. */
+  cut: readonly BrushSegment[];
 }
 
 /** A world-space rectangle with `x0 <= x1` and `y0 <= y1`. */
@@ -149,7 +179,8 @@ class RingPool {
  * snap target's ring around a star or a zone's ring, plus the previews of an interaction in
  * progress: the ghosts' lanes, the rubber lines of a pending lane or link, the lanes a mesh
  * action would add, the marquee, and the hovered edge (a lane or a zone's link) with its "×"
- * and the selected lane. It also marks the galaxy origin and, where the galaxy sets one, the
+ * and the selected lane, and the brush circle with what a held stroke would add, remove or cut.
+ * It also marks the galaxy origin and, where the galaxy sets one, the
  * core radius stars are meant to stay outside of.
  */
 export class HighlightsLayer implements MapLayer {
@@ -171,6 +202,10 @@ export class HighlightsLayer implements MapLayer {
   private readonly ghostRing = new Graphics();
   private readonly origin = originCross();
   private readonly coreRing = new Graphics();
+  private readonly brushLines = new Graphics({ label: "brushLines" });
+  private readonly brushMarks = new Graphics({ label: "brushMarks" });
+  private readonly brushCircle = new Graphics({ label: "brushCircle" });
+  private brushPreview: BrushPreview | null = null;
   private coreRadius = EMPTY_CONTEXT.coreRadius;
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
@@ -205,6 +240,9 @@ export class HighlightsLayer implements MapLayer {
       this.port,
       this.hover,
       this.target,
+      this.brushLines,
+      this.brushMarks,
+      this.brushCircle,
     );
     this.selectionRings = new RingPool(this.container, SELECTION);
     this.ghostRings = new RingPool(this.container, GHOST);
@@ -253,6 +291,7 @@ export class HighlightsLayer implements MapLayer {
       this.placeAll();
       this.drawLanes();
       this.drawFeZoneGrid();
+      this.drawBrushMarks();
     }
   }
 
@@ -321,6 +360,26 @@ export class HighlightsLayer implements MapLayer {
     this.placeAll();
     this.drawGhostRing();
     this.drawFeZoneGrid();
+  }
+
+  setBrushCursor(cursor: BrushCursor | null): void {
+    const g = this.brushCircle;
+    g.clear();
+    if (!cursor) return;
+    dashedCircle(g, cursor.x, cursor.y, cursor.r, BRUSH_DASHES);
+    const color = cursor.tool === "paint" ? BRUSH_PAINT : BRUSH_ERASE;
+    g.stroke({ color, alpha: 0.9, pixelLine: true });
+  }
+
+  setBrushPreview(preview: BrushPreview | null): void {
+    this.brushPreview = preview;
+    const g = this.brushLines;
+    g.clear();
+    if (preview) {
+      for (const [a, b] of preview.lanes) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
+      if (preview.lanes.length > 0) g.stroke({ ...GHOST_LANE, pixelLine: true });
+    }
+    this.drawBrushMarks();
   }
 
   setMarquee(rect: WorldRect | null): void {
@@ -514,6 +573,23 @@ export class HighlightsLayer implements MapLayer {
       color: snappedStyle.color,
       alpha: snappedStyle.alpha,
     });
+  }
+
+  /** The stroke's new systems as dots, its doomed and spared systems as rings, and the lanes it cuts, sized in screen pixels. */
+  private drawBrushMarks(): void {
+    const g = this.brushMarks;
+    g.clear();
+    const p = this.brushPreview;
+    if (!p) return;
+    const px = 1 / this.camScale;
+    for (const [a, b] of p.cut) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
+    if (p.cut.length > 0) g.stroke({ color: BRUSH_ERASE, alpha: 0.9, width: BRUSH_CUT_PX * px });
+    for (const s of p.points) g.circle(s.x, s.y, BRUSH_DOT_PX * px);
+    if (p.points.length > 0) g.fill({ color: BRUSH_PAINT, alpha: 0.9 });
+    for (const s of p.doomed) g.circle(s.x, s.y, BRUSH_RING_PX * px);
+    if (p.doomed.length > 0) g.stroke({ color: BRUSH_ERASE, alpha: 0.9, width: 2 * px });
+    for (const s of p.kept) g.circle(s.x, s.y, BRUSH_RING_PX * px);
+    if (p.kept.length > 0) g.stroke({ color: BRUSH_KEPT, alpha: 0.9, width: 2 * px });
   }
 
   /** A world-space circle of the core radius, stroked one screen pixel wide at any zoom. */

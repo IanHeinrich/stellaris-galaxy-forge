@@ -72,7 +72,9 @@ archive, building the galaxy, validating, and finishing.
 
 Once open, the galaxy fills the window with the dock on the right and a
 status bar along the bottom. A narrow tool strip runs down the map's left
-edge. It holds the Select tool (V), with Undo and Redo at its foot.
+edge. It holds the Select tool (V), with Undo and Redo at its foot. A
+scenario adds the Paint (B) and Erase (E) brushes, described under
+"Static galaxy scenarios".
 
 - Pan: hold the middle mouse button and drag, or hold W A S D or the
   arrow keys. A plain left drag on empty space does nothing.
@@ -470,6 +472,30 @@ the loaded game data's shapes plus any the file names that it lacks. The
 new-game screen offers no shape once a static map is the size, so the
 row changes nothing there. The rest of the header is listed and edited key by key,
 and a pair of systems can be barred from ever being linked.
+
+Two brushes on the tool strip lay out a galaxy in broad strokes. Paint
+systems (B) scatters new systems under the circle as you drag, never
+closer to each other or to an existing system than the spacing. Its
+options float over the map's top-left corner: Size is the circle's
+diameter in map units, Density runs from sparse to dense, Lanes joins the
+new systems to each other ("Among new"), to the systems around them as
+well ("New and nearby"), or not at all, and Lane density is the same
+sparse-to-dense setting as "Connect as mesh". New lanes never cross an
+existing one. Erase systems (E) removes every system the circle passes
+over, with its lanes. Systems with an initializer, a spawn, a wormhole,
+bypasses, a fallen empire zone, a marauder role or another special role
+are kept and ringed in amber, unless "Also erase special systems" is
+ticked. Its Target option set to "Lanes only" cuts the hyperlanes the
+circle passes over and leaves every system. While the button is held the
+map previews the stroke and the cursor counts what it will add or
+remove. Each stroke is one step in Undo. `[` and `]` shrink and grow the
+brush, holding Alt when you press inverts it (paint erases, erase
+paints), Esc drops a stroke in progress and a second Esc returns to
+Select. The middle button and the wheel still pan and zoom.
+
+With two or more systems selected, Delete (or Backspace) or "Delete
+systems" in the selection's actions removes them all in one step, after
+asking how many systems and lanes will go.
 
 Marauder clans need no mod: the game's own initializers place them. A
 clan is three systems: a home carrying `marauder_N_1` and two outposts

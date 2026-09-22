@@ -37,6 +37,7 @@ import { TrafficLightInset, WindowControls } from "./panels/chrome/WindowControl
 import {
   canGoBack,
   nudgeSelected,
+  resizeBrush,
   resizeNebula,
   run,
   toggleLayerKey,
@@ -124,7 +125,7 @@ function App() {
     const onKey = (e: KeyboardEvent) => {
       const inInput = isEditableTarget(e.target);
       const step = radiusStepOf(e, inInput);
-      if (step !== null && resizeNebula(step)) {
+      if (step !== null && (resizeBrush(step) || resizeNebula(step))) {
         e.preventDefault();
         return;
       }

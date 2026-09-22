@@ -29,6 +29,7 @@ export function BulkActions({
   const cutLanesBetweenSelected = useEditorStore((s) => s.cutLanesBetweenSelected);
   const isolateSelected = useEditorStore((s) => s.isolateSelected);
   const resetSelectedLaneLengths = useEditorStore((s) => s.resetSelectedLaneLengths);
+  const removeSystems = useEditorStore((s) => s.removeSystems);
   const systems = useGalaxyStore((s) => s.systems);
   const capabilities = useFileSessionStore(documentCapabilities);
   const paint = usePaintLayer();
@@ -88,6 +89,18 @@ export function BulkActions({
       )}
       {supports(capabilities, "create_systems") && selection.length === 3 && (
         <MarauderClanButton ids={selection} afterRun={afterRun} itemRole={itemRole} />
+      )}
+      {supports(capabilities, "create_systems") && selection.length > 1 && (
+        <button
+          type="button"
+          role={itemRole}
+          onClick={() => {
+            void removeSystems(selection);
+            afterRun?.();
+          }}
+        >
+          Delete systems ({selection.length})
+        </button>
       )}
     </>
   );
