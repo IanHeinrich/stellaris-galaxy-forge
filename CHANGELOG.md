@@ -8,6 +8,15 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- Adding a marauder clan from the map is one undo step. So is adding the
+  raid bases a home is missing.
+- The "Listed under shapes" row in Game setup is now "Supported shapes".
+  The new-game screen lists a static map as a galaxy size and then offers
+  no shape, so the row changes nothing there. The note after saving into
+  the Paint a Galaxy mod no longer tells you to choose Elliptical.
+
 ## [0.7.0] - 2026-09-21
 
 ### Added
