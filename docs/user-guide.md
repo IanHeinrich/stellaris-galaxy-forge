@@ -262,7 +262,9 @@ had when the file was opened, and a nebula whose member list and radius
 disagree. A scenario adds two of its own: a file that transforms its
 coordinates, so the map is not what the text says, and a system whose
 position is written as a range for the generator to pick in, which a move
-fixes to a point.
+fixes to a point. With game data loaded, Issues also warns when a scenario
+has more than a quarter again as many systems as the largest galaxy size
+the game and your mods offer.
 
 ### Layers
 

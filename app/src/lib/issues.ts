@@ -1,8 +1,10 @@
+import type { GalaxySizeView } from "../generated/GalaxySizeView";
 import type { IssueCode } from "../generated/IssueCode";
 import type { Severity } from "../generated/Severity";
 
 /** The codes the app raises on its own, which the validator's list does not carry. */
-export type NoteCode = "scenario_name_duplicate" | "reserved_spawns_missing";
+export type NoteCode =
+  "scenario_name_duplicate" | "reserved_spawns_missing" | "galaxy_size_exceeded";
 
 export type AppIssueCode = IssueCode | NoteCode;
 
@@ -36,5 +38,26 @@ export function reservedSpawnsNote(systems: number[]): AppIssue {
       "Reserved seats need the Reserved Spawns submod, which is not enabled. Subscribe to it " +
       "and enable it in your playset, or these seats spawn at random.",
     systems,
+  };
+}
+
+/** How far past the game's largest galaxy size a scenario may go before it is noted. */
+export const GALAXY_SIZE_MARGIN = 1.25;
+
+/** Whether `systems` is far enough past the largest size to be worth a note. */
+export function exceedsGalaxySize(systems: number, largest: GalaxySizeView): boolean {
+  return systems > largest.num_stars * GALAXY_SIZE_MARGIN;
+}
+
+/** The note on a scenario with far more systems than the game's largest galaxy size. */
+export function galaxySizeNote(systems: number, largest: GalaxySizeView): AppIssue {
+  const count = (n: number) => n.toLocaleString("en-US");
+  return {
+    severity: "warning",
+    code: "galaxy_size_exceeded",
+    message:
+      `${count(systems)} systems is well above ${largest.label}, the game's largest galaxy ` +
+      `(${count(largest.num_stars)} stars). Very large galaxies can make the game slow.`,
+    systems: [],
   };
 }

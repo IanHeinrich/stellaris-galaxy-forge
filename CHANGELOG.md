@@ -8,6 +8,12 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- The Issues panel warns when a scenario has far more systems than the
+  largest galaxy size the game and your mods offer. Very large galaxies
+  can make the game slow.
+
 ### Changed
 
 - The top bar is a single row. New Edit and View menus sit beside File

@@ -7,6 +7,7 @@ pub mod country_types;
 pub mod defines;
 pub mod deposits;
 pub mod galaxy_shapes;
+pub mod galaxy_sizes;
 pub mod gfx;
 pub mod planet_classes;
 pub mod registry;

@@ -3,6 +3,8 @@ import * as ipc from "../api/ipc";
 import type { Issue } from "../generated/Issue";
 import {
   duplicateNameNote,
+  exceedsGalaxySize,
+  galaxySizeNote,
   reservedSpawnsNote,
   type AppIssue,
   type AppIssueCode,
@@ -12,6 +14,7 @@ import { reservedSeatIds, scenarioHeaderName } from "../lib/paint";
 import { isUnder } from "../lib/paths";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
+import { useGameDataStore } from "./gameDataStore";
 import { paintScenariosDir, usePaintModStore } from "./paintModStore";
 
 /** Which issues the tab lists: the ones an edit introduced, the ones the save arrived with, or both. */
@@ -31,6 +34,7 @@ const NOTE_CODES: readonly AppIssueCode[] = [
   "home_initializer",
   "scenario_name_duplicate",
   "reserved_spawns_missing",
+  "galaxy_size_exceeded",
 ];
 
 export function isNote(issue: AppIssue): boolean {
@@ -39,6 +43,7 @@ export function isNote(issue: AppIssue): boolean {
 
 export const DUPLICATE_NAME: NoteCode = "scenario_name_duplicate";
 export const RESERVED_SPAWNS: NoteCode = "reserved_spawns_missing";
+export const GALAXY_SIZE: NoteCode = "galaxy_size_exceeded";
 
 export interface IssuesState {
   /** The validator's findings, with the notes the document opened with and the app's own after them. */
@@ -187,6 +192,21 @@ export function noteReservedSpawns(): void {
     if (seats.length > 0) notes = [reservedSpawnsNote(seats)];
   }
   useIssuesStore.getState().setNotes(RESERVED_SPAWNS, notes);
+}
+
+/**
+ * Notes a scenario with far more systems than the largest galaxy size the loaded game data
+ * defines. Nothing for a save, and nothing without game data or a size to compare against.
+ */
+export function noteGalaxySize(): void {
+  const { status, summary } = useGameDataStore.getState();
+  const largest = status === "ready" ? (summary?.largest_galaxy ?? null) : null;
+  let notes: AppIssue[] = [];
+  if (largest !== null && useFileSessionStore.getState().kind === "scenario") {
+    const systems = useGalaxyStore.getState().systems.size;
+    if (exceedsGalaxySize(systems, largest)) notes = [galaxySizeNote(systems, largest)];
+  }
+  useIssuesStore.getState().setNotes(GALAXY_SIZE, notes);
 }
 
 /** The issues no edit is answerable for: they were there when the save opened. */

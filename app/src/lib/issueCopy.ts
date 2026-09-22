@@ -175,6 +175,12 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
     fix: "Press Subscribe ↗, then enable the mod in your playset.",
     detail: false,
   },
+  galaxy_size_exceeded: {
+    title: "Far more systems than the largest galaxy",
+    why: "The scenario has many more systems than the biggest galaxy size the game and your mods offer. A galaxy this large can make the game slow, most of all late on.",
+    fix: "Nothing needs doing if the game runs well for you. Otherwise remove some systems.",
+    detail: true,
+  },
   marauder_home_duplicate: {
     title: "One marauder clan with two homes",
     why: "A marauder clan has one home, and more than one system here claims to be the same clan's. The clan spawns from only one of them.",

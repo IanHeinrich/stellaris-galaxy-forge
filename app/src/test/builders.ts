@@ -182,6 +182,7 @@ export function gameDataSummary(over: Partial<GameDataSummary> = {}): GameDataSu
     border: { system_radius: 5, hyperlane_thickness: 1 },
     localisation_keys: 1000,
     diagnostics: [],
+    largest_galaxy: { name: "huge", label: "Huge", num_stars: 1000 },
     generation: 0,
     watch: { watching: 0, paused: false, reason: null },
     ...over,
