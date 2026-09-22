@@ -7,6 +7,7 @@ import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { OpenLists, OpenTab } from "../lib/openRows";
 import { useFileSessionStore, type OpenMode } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
+import { standingProfile } from "./paintModStore";
 import { useRecentsStore } from "./recentsStore";
 
 /** A save's galaxy settings as the details pane has them: still reading, read, or failed. */
@@ -149,7 +150,10 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
     const session = useFileSessionStore.getState();
     if (get().busy !== null || session.saving || !(await session.confirmDiscard())) return;
     set({ busy: path, rowError: null });
-    const opening = mode === "scenario" ? session.openScenarioFrom(path) : session.openSave(path);
+    const opening =
+      mode === "scenario"
+        ? session.openScenarioFrom(path, standingProfile())
+        : session.openSave(path);
     const opened = await opening.finally(() => set({ busy: null }));
     if (opened) {
       useLayoutStore.getState().hideOpenDialog();

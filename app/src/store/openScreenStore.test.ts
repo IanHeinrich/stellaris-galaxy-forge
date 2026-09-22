@@ -14,6 +14,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import * as ipc from "../api/ipc";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
+import { usePaintModStore } from "./paintModStore";
 import { openSections, type Row, type Section } from "../lib/openRows";
 import { detailsKey, resetOpenScreen, useOpenScreenStore } from "./openScreenStore";
 import { useRecentsStore, type RecentDoc } from "./recentsStore";
@@ -24,6 +25,7 @@ const mocked = {
   listScenarios: vi.mocked(ipc.listScenarios),
   saveDetails: vi.mocked(ipc.saveDetails),
   openSave: vi.mocked(ipc.openSave),
+  openAsScenario: vi.mocked(ipc.openAsScenario),
   closeSave: vi.mocked(ipc.closeSave),
   warmDetails: vi.mocked(ipc.warmDetails),
   getSpecialSystems: vi.mocked(ipc.getSpecialSystems),
@@ -282,6 +284,18 @@ describe("open", () => {
 
     expect(screen().rowError?.message).toBe("meta is not a save header");
     expect(screen().missing).toEqual([]);
+  });
+
+  it("takes a save into a scenario with the standing Paint a Galaxy choice", async () => {
+    mocked.openAsScenario.mockResolvedValue(OPEN_RESULT);
+
+    usePaintModStore.setState({ paintChoice: true });
+    await screen().open("C:/saves/a.sav", "scenario");
+    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/a.sav", "paint_a_galaxy");
+
+    usePaintModStore.setState({ paintChoice: false });
+    await screen().open("C:/saves/b.sav", "scenario");
+    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/b.sav", "plain");
   });
 
   it("closes the dialog once the document is open", async () => {

@@ -34,6 +34,7 @@ import { useOpenScreenStore } from "../../store/openScreenStore";
 import { useRecentsStore } from "../../store/recentsStore";
 import { Twisty } from "../Twisty";
 import { Dialog } from "../overlays/Dialog";
+import { PaintChoice } from "./PaintChoice";
 import { CLOUD_TITLE, EmpireMark, IRONMAN_TITLE, OpenDetails } from "./OpenDetails";
 import { formatSize, formatWhen, phaseLabel } from "./launchData";
 import "./open.css";
@@ -480,6 +481,7 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
         <OpenDetails row={current} />
       </div>
       <div className="open-dialog-foot">
+        <PaintChoice />
         <div className="open-actions">
           <button type="button" onClick={newScenario}>
             New scenario…
