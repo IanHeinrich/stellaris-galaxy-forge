@@ -1,3 +1,4 @@
+import { paintModView } from "../test/builders";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
@@ -12,11 +13,7 @@ import { PAINT_MOD_POLL_MS, usePaintModStore } from "./paintModStore";
 
 const mocked = { paintMod: vi.mocked(ipc.paintMod) };
 
-const INSTALLED = {
-  scenarios_dir: "C:/mods/pag/map/setup_scenarios",
-  enabled: true,
-  reserved_spawns: true,
-};
+const INSTALLED = paintModView();
 
 const stored = new Map<string, string>();
 
@@ -74,6 +71,13 @@ describe("the Paint a Galaxy mod's status", () => {
     usePaintModStore.getState().dismissNotice();
     expect(usePaintModStore.getState().noticeDismissed).toBe(true);
     expect(stored.get("sgf.paint.noticeDismissed")).toBe("true");
+  });
+
+  it("the Paint a Galaxy choice starts on and is kept per machine", () => {
+    expect(usePaintModStore.getState().paintChoice).toBe(true);
+    usePaintModStore.getState().setPaintChoice(false);
+    expect(usePaintModStore.getState().paintChoice).toBe(false);
+    expect(stored.get("sgf.paint.profile")).toBe("false");
   });
 
   it("keeps the same answer object when the shell says the same again", async () => {
@@ -207,12 +211,12 @@ describe("the Paint a Galaxy mod's status", () => {
       vi.useFakeTimers();
       try {
         mocked.paintMod.mockResolvedValue(null);
-        useFileSessionStore.setState({ paintChoice: false });
+        usePaintModStore.setState({ paintChoice: false });
         useLayoutStore.getState().showScenarioDialog();
         await vi.advanceTimersByTimeAsync(PAINT_MOD_POLL_MS);
         expect(asked()).toBe(0);
 
-        useFileSessionStore.getState().setPaintChoice(true);
+        usePaintModStore.getState().setPaintChoice(true);
         await vi.advanceTimersByTimeAsync(0);
         expect(asked()).toBe(1);
 

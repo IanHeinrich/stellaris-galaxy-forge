@@ -1,9 +1,12 @@
 import type { SystemNode } from "../../../../../generated/SystemNode";
 import {
-  PAINT_SPAWN_KINDS,
+  PLAIN_SPAWN_KINDS,
+  RESERVED_SPAWN_KINDS,
   canBeWeighted,
+  isReservedKey,
   paintKindDescription,
   paintKindKey,
+  reservedLetter,
   scriptForKind,
   seatSummary,
   weightedDescription,
@@ -14,20 +17,12 @@ import { useApplyOp } from "../../../../useApplyOp";
 import { useEditableSystem } from "../../editable";
 import { openLocalClusterWorkshop, openReservedSpawnsWorkshop } from "../../../../chrome/paintMod";
 
-const RESERVED_PREFIX = "reserved:";
-
-const [PLAIN_KINDS, RESERVED_KINDS] = [
-  PAINT_SPAWN_KINDS.filter((k) => !k.key.startsWith(RESERVED_PREFIX)),
-  PAINT_SPAWN_KINDS.filter((k) => k.key.startsWith(RESERVED_PREFIX)),
-];
-
 /** `k`'s label, marked "in use" when a system other than the one being edited already holds it. */
 function optionLabel(k: { key: string; label: string }, others: ReturnType<typeof seatSummary>) {
   const inUse =
     k.key === "sol"
       ? others.sol
-      : k.key.startsWith(RESERVED_PREFIX) &&
-        others.reserved.includes(k.key.slice(RESERVED_PREFIX.length).toUpperCase());
+      : isReservedKey(k.key) && others.reserved.includes(reservedLetter(k.key));
   return inUse ? `${k.label} · in use` : k.label;
 }
 
@@ -63,13 +58,13 @@ export function ScriptedSeat({ system }: { system: SystemNode }) {
               })
             }
           >
-            {PLAIN_KINDS.map((k) => (
+            {PLAIN_SPAWN_KINDS.map((k) => (
               <option key={k.key} value={k.key}>
                 {optionLabel(k, others)}
               </option>
             ))}
             <optgroup label="Reserved for one empire">
-              {RESERVED_KINDS.map((k) => (
+              {RESERVED_SPAWN_KINDS.map((k) => (
                 <option key={k.key} value={k.key}>
                   {optionLabel(k, others)}
                 </option>

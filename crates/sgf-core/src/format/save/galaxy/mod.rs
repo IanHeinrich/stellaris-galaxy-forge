@@ -98,12 +98,6 @@ impl Galaxy {
             core_radius,
             header: Vec::new(),
             kind: DocumentKind::Save,
-            num_empires_max: None,
-            num_empire_default: None,
-            fallen_empire_max: None,
-            fallen_empire_default: None,
-            marauder_empire_max: None,
-            marauder_empire_default: None,
             setup,
             player_country,
         };

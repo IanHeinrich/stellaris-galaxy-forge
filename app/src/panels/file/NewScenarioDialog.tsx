@@ -1,9 +1,9 @@
 import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
-import * as ipc from "../../api/ipc";
 import type { ScenarioProfile } from "../../generated/ScenarioProfile";
-import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
+import { usePaintModStore } from "../../store/paintModStore";
+import { openPaintSite } from "../chrome/paintMod";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
@@ -171,13 +171,6 @@ export function RouteCards({ route, onRoute }: { route: Route; onRoute: (route: 
   );
 }
 
-/** Opens the site in the user's browser, through the allowlisted address only. */
-function openPaintSite(): void {
-  void ipc
-    .openUrl(PAINT_URL)
-    .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
-}
-
 /** Picks the site's export and opens it as painted; the dialog stays until a file is open. */
 async function openPaintedFile(): Promise<void> {
   const opened = await useFileSessionStore.getState().pickAndOpenScenario("paint_a_galaxy");
@@ -256,7 +249,7 @@ export function NewScenarioDialog() {
   const [preset, setPreset] = useState("medium");
   const [custom, setCustom] = useState(400);
   const [core, setCore] = useState<number | null>(null);
-  const paint = useFileSessionStore((s) => s.paintChoice);
+  const paint = usePaintModStore((s) => s.paintChoice);
 
   const radius =
     preset === "custom" ? clampRadius(custom) : (PRESETS.find((p) => p.id === preset)?.radius ?? 0);

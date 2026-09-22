@@ -1,17 +1,14 @@
+import { PAINT_NOTICE_WHY } from "../../lib/paintCopy";
 import { useFileSessionStore, usePaintLayer } from "../../store/fileSessionStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import "./chrome.css";
 import { PaintModStatus } from "./PaintModStatus";
 
-const WHY =
-  "Custom galaxies hit game-breaking bugs without the Paint a Galaxy mod. Save this map into " +
-  "the mod unless it belongs to a mod of your own.";
-
 /** One row under the top bar for a scenario outside the mod, until the user says it is not for them. */
 export function PaintNotice() {
   const ready = useFileSessionStore((s) => s.status === "ready");
   const kind = useFileSessionStore((s) => s.kind);
-  const saveIntoPaintMod = useFileSessionStore((s) => s.saveIntoPaintMod);
+  const saveIntoPaintMod = usePaintModStore((s) => s.saveIntoPaintMod);
   const paint = usePaintLayer();
   const dismissed = usePaintModStore((s) => s.noticeDismissed);
   const dismissNotice = usePaintModStore((s) => s.dismissNotice);
@@ -20,7 +17,7 @@ export function PaintNotice() {
 
   return (
     <div className="paint-notice" role="status">
-      <span>{WHY}</span>
+      <span>{PAINT_NOTICE_WHY}</span>
       <PaintModStatus />
       <span className="spacer" />
       <button type="button" disabled={dir === null} onClick={() => void saveIntoPaintMod()}>

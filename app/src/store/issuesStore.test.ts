@@ -56,7 +56,7 @@ beforeEach(() => {
   useGalaxyStore.getState().clear();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
-  useIssuesStore.getState().setBaseline(null);
+  useIssuesStore.getState().clear();
   mocked.onProgress.mockResolvedValue(() => undefined);
   mocked.openSave.mockResolvedValue(OPEN_RESULT);
   mocked.closeSave.mockResolvedValue();
@@ -69,7 +69,7 @@ describe("issuesStore", () => {
     await open();
     const { baseline } = useIssuesStore.getState();
     expect(baseline.size).toBe(1);
-    expect(newIssues(useFileSessionStore.getState().issues, baseline)).toEqual([]);
+    expect(newIssues(useIssuesStore.getState().issues, baseline)).toEqual([]);
   });
 
   it("counts only the issues an edit adds, keeping the baseline out of the badge", async () => {
@@ -78,7 +78,7 @@ describe("issuesStore", () => {
     await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
 
     const { baseline } = useIssuesStore.getState();
-    const issues = useFileSessionStore.getState().issues;
+    const issues = useIssuesStore.getState().issues;
     expect(newIssues(issues, baseline)).toEqual([SPLIT]);
     expect(filteredIssues(issues, baseline, "baseline", null)).toEqual([AT_LOAD]);
     expect(filteredIssues(issues, baseline, "all", null)).toEqual([AT_LOAD, SPLIT]);
@@ -94,7 +94,7 @@ describe("issuesStore", () => {
     mocked.applyOp.mockResolvedValue(editResult({ issues: [AT_LOAD] }));
     await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 0, b: 1 });
     const { baseline } = useIssuesStore.getState();
-    expect(newIssues(useFileSessionStore.getState().issues, baseline)).toEqual([]);
+    expect(newIssues(useIssuesStore.getState().issues, baseline)).toEqual([]);
   });
 
   it("clears the baseline and the filters when the save closes", async () => {
@@ -116,7 +116,7 @@ describe("issuesStore", () => {
     const { baseline, notes } = useIssuesStore.getState();
     expect(baseline.size).toBe(1);
     expect(notes).toEqual(NOTES);
-    expect(newIssues(useFileSessionStore.getState().issues, baseline)).toEqual(NOTES);
+    expect(newIssues(useIssuesStore.getState().issues, baseline)).toEqual(NOTES);
   });
 
   it("carries the notes through an edit's fresh issue list", async () => {
@@ -126,7 +126,7 @@ describe("issuesStore", () => {
     await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
 
     const { baseline } = useIssuesStore.getState();
-    const issues = useFileSessionStore.getState().issues;
+    const issues = useIssuesStore.getState().issues;
     expect(issues).toEqual([AT_LOAD, SPLIT, ...NOTES]);
     expect(newIssues(issues, baseline)).toEqual([SPLIT, ...NOTES]);
     expect(filteredIssues(issues, baseline, "baseline", null)).toEqual([AT_LOAD]);
@@ -142,7 +142,7 @@ describe("issuesStore", () => {
     await open();
     mocked.applyOp.mockResolvedValue(editResult({ issues: [] }));
     await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
-    expect(useFileSessionStore.getState().issues).toEqual([]);
+    expect(useIssuesStore.getState().issues).toEqual([]);
   });
 
   it("takes a fresh baseline when another save opens", async () => {
@@ -152,6 +152,6 @@ describe("issuesStore", () => {
 
     const { baseline } = useIssuesStore.getState();
     expect(baseline.size).toBe(2);
-    expect(newIssues(useFileSessionStore.getState().issues, baseline)).toEqual([]);
+    expect(newIssues(useIssuesStore.getState().issues, baseline)).toEqual([]);
   });
 });

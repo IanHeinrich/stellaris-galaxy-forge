@@ -271,7 +271,8 @@ fn is_a_nebula_op(op: &Op) -> bool {
         | Op::SetWormholePair { .. }
         | Op::SetWormholeEnds { .. }
         | Op::SetFeLinks { .. }
-        | Op::SetFeLinkFlags { .. } => false,
+        | Op::SetFeLinkFlags { .. }
+        | Op::Batch { .. } => false,
     }
 }
 

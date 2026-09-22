@@ -9,6 +9,8 @@
 use std::collections::{BTreeMap, HashMap};
 use std::mem::{self, Discriminant};
 
+use sgf_core::projections::galaxy::BypassLink;
+
 use crate::GameData;
 use crate::initializers::PartnerRef;
 use crate::scripts::claims::PartnerExpr;
@@ -224,6 +226,37 @@ pub fn scenario_bypasses(gd: &GameData, systems: &[ScenarioSystem<'_>]) -> Scena
         random_gateways,
         with_game_data: true,
     }
+}
+
+/// The event of Paint a Galaxy's companion mod that joins the pairs its star flags name.
+const PAINTED_WORMHOLE_EVENT: &str = "painted_galaxy_wormhole.1";
+
+/// Both ends of every flagged pair the scripts did not already draw, as day-one
+/// endpoints of the mod's event, kept in system order.
+pub fn add_flagged_pairs(bypasses: &mut ScenarioBypasses, links: &[BypassLink]) {
+    for link in links {
+        let BypassLink::Wormhole { a, b } = link else {
+            continue;
+        };
+        let drawn = bypasses.bypasses.iter().any(|end| {
+            end.kind == BypassKind::Wormhole && end.system == *a && end.partner == Some(*b)
+        });
+        if drawn {
+            continue;
+        }
+        for (system, partner) in [(*a, *b), (*b, *a)] {
+            bypasses.bypasses.push(ScenarioBypass {
+                system,
+                kind: BypassKind::Wormhole,
+                partner: Some(partner),
+                source: BypassSource::DayOne {
+                    event: PAINTED_WORMHOLE_EVENT.to_owned(),
+                },
+                assumed: false,
+            });
+        }
+    }
+    bypasses.bypasses.sort_by_key(|end| end.system);
 }
 
 fn push(

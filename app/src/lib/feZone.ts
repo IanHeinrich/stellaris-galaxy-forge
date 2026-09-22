@@ -8,11 +8,7 @@ import type { FeDirection } from "../generated/FeDirection";
 import type { FeKind } from "../generated/FeKind";
 import type { FeZone } from "../generated/FeZone";
 import type { SystemNode } from "../generated/SystemNode";
-
-export interface Pt {
-  x: number;
-  y: number;
-}
+import type { Pt } from "./geometry/pt";
 
 /** How far from its centre a zone reaches, in world units; the mod does not let it be resized. */
 export const FE_ZONE_RADIUS = 30;

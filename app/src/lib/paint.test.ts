@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HeaderField } from "../generated/HeaderField";
 import type { SpawnScript } from "../generated/SpawnScript";
-import { systemNode } from "../test/builders";
+import { paintModView, systemNode } from "../test/builders";
 import {
   LOCAL_CLUSTER_WORKSHOP_URL,
   PAINT_MOD_WORKSHOP_ID,
@@ -148,11 +148,7 @@ describe("a painted galaxy", () => {
 
 describe("the Paint a Galaxy layer", () => {
   const DIR = "C:\\mods\\pag\\map\\setup_scenarios";
-  const mod = (scenarios_dir: string | null, enabled = true) => ({
-    scenarios_dir,
-    enabled,
-    reserved_spawns: true,
-  });
+  const mod = (scenarios_dir: string | null) => paintModView({ scenarios_dir });
   const doc = (over: Partial<Parameters<typeof paintLayer>[0]> = {}) => ({
     kind: "scenario" as const,
     path: null,

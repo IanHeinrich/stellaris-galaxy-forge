@@ -496,25 +496,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 /** The session a late answer still belongs to; a document closing or opening leaves it to nobody. */
 let session = 0;
 
-/** Adds one nameless system with `initializer` at a point, answering its id, or null when refused. */
-export async function addSystem(
-  point: { x: number; y: number },
-  initializer: string,
-): Promise<number | null> {
-  const op: Op = {
-    type: "AddSystem",
-    id: null,
-    x: point.x,
-    y: point.y,
-    name: null,
-    initializer,
-    spawn_weight: null,
-    spawn_script: null,
-  };
-  if (!(await useEditorStore.getState().applyOp(op))) return null;
-  return lastEdited[0]?.id ?? null;
-}
-
 /** The system nearest a world point, wherever it is; null for a galaxy with none. */
 export function nearestSystem(
   point: { x: number; y: number },

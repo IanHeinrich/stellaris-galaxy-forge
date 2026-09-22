@@ -283,12 +283,6 @@ button.master.init[aria-pressed="mixed"] {
   text-overflow: ellipsis;
 }
 
-/* A hint under an item's label, small and muted, whole in the tooltip too. */
-.hinted > .muted {
-  display: block;
-  font-size: 11.5px;
-}
-
 .menu-item:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.06);
 }

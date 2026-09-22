@@ -101,19 +101,16 @@ pub enum Op {
     NormaliseLaneLengths {
         systems: Vec<u32>,
     },
-    /// The `index`th nebula's centre to (x, y). Nothing else moves: a save rewrites the
-    /// member lines to the systems the radius now covers, a system leaving for whatever
-    /// other cloud covers it, and lane lengths are untouched. Its own inverse in effect,
-    /// the move back restoring the lists.
+    /// The `index`th nebula's centre. Nothing else moves: a save rewrites the member lists
+    /// to what the radius now covers, and lane lengths are untouched. Its own inverse.
     MoveNebula {
         index: usize,
         x: f64,
         y: f64,
     },
-    /// A new nebula centred on (x, y), which lands last and so takes the index
-    /// `nebulae.len()`. `name` is the save's `key=` or the scenario's `name =`, empty
-    /// when `None`. Every system its radius reaches joins it, leaving the cloud that
-    /// held it.
+    /// A new nebula, which lands last and so takes the index `nebulae.len()`. `name` is
+    /// the save's `key=` or the scenario's `name =`, empty when `None`. Every system its
+    /// radius reaches joins it.
     AddNebula {
         x: f64,
         y: f64,
@@ -131,21 +128,16 @@ pub enum Op {
         index: usize,
         radius: f64,
     },
-    /// The `index`th nebula's name, where the document keeps it: the save's
-    /// `name={ key="…" }`, the scenario's `name = "…"`. The text is written as it stands,
-    /// so a cloud named by a localisation key is left naming the text instead. Empty is
-    /// refused; the inverse carries the name it displaced.
+    /// The `index`th nebula's name, written as it stands: a cloud named by a localisation
+    /// key is left naming the text instead. Empty is refused; the inverse carries the name
+    /// it displaced.
     SetNebulaName {
         index: usize,
         name: String,
     },
-    /// A new `system` statement. Scenario documents only: a save's systems come with
-    /// planets, a starbase and an owner, none of which an op can invent.
-    /// `id` defaults to one past the highest the document holds. `spawn_weight` follows
-    /// the [`Op::SetInitializer`] rule: `Some(w)` writes `spawn_weight = { base = w }`,
-    /// `None` writes nothing. `spawn_script` writes the seat as [`Op::SetSpawnScript`]
-    /// does, the dialect's basic initializer with it when none is given; a weight and
-    /// a script together are refused.
+    /// A new `system` statement, `id` defaulting to one past the highest held. Scenario
+    /// documents only: a save's systems carry planets, a starbase and an owner no op can
+    /// invent. A weight and a script together are refused (see [`Op::SetSpawnScript`]).
     AddSystem {
         id: Option<u32>,
         x: f64,
@@ -156,11 +148,9 @@ pub enum Op {
         #[serde(default)]
         spawn_script: Option<SpawnScript>,
     },
-    /// A system and every hyperlane statement naming it, `prevent_hyperlane` included so
-    /// no statement is left naming a system that is gone. Scenario documents only. The
-    /// inverse names the id, position, name, initializer and spawn weight (best effort,
-    /// `None` when the removed one had a modifier); undo puts the bytes back exactly, the
-    /// inverse only describes the change.
+    /// A system and every hyperlane statement naming it, `prevent_hyperlane` included.
+    /// Scenario documents only. The inverse describes the change (the spawn weight best
+    /// effort, `None` when a modifier stood); undo puts the bytes back exactly.
     RemoveSystem {
         id: u32,
     },
@@ -180,93 +170,65 @@ pub enum Op {
     SetInitializers {
         entries: Vec<InitializerSet>,
     },
-    /// One header key: its statement rewritten in place, inserted before the first system
-    /// statement when the header lacks it, or removed whole when `value` is `None`.
-    /// `value` is the raw text right of `=`, written as it stands. A repeated key is
-    /// read and written at its first statement, which is the one the game takes. The
-    /// inverse carries the raw text this displaced, or `None` when it added the key.
-    /// Scenario documents only.
+    /// One header key, scenario documents only: `value` is the raw text right of `=`, and
+    /// `None` removes the statement. A repeated key is read and written at its first
+    /// statement, the one the game takes. The inverse carries the text displaced.
     SetHeaderField {
         key: String,
         value: Option<String>,
     },
-    /// Several header keys as one undo step, each written as [`Op::SetHeaderField`]
-    /// writes one with `Some`: rewritten in place, or inserted before the first system
-    /// when the header lacks it. A key listed twice is refused. The inverse carries the
-    /// raw text each key displaced, so a key this added is not among them: undo puts
-    /// the bytes back exactly, the inverse only describes the change. Scenario
-    /// documents only.
+    /// Several header keys as one undo step, each as [`Op::SetHeaderField`] with `Some`.
+    /// A key listed twice is refused. The inverse omits a key this added: it describes the
+    /// change, and undo puts the bytes back exactly. Scenario documents only.
     SetHeaderKeys {
         entries: Vec<(String, String)>,
     },
-    /// Every statement of one repeated header key as one undo step, one statement per
-    /// value in the given order, where the first statement of the key stands: the
-    /// statements standing are rewritten in place, surplus ones removed and surplus
-    /// values written after the last, and a key the header lacks is inserted before the
-    /// first system. Each value is the raw text right of `=`, written as it stands; an
-    /// empty `values` removes every statement. The inverse carries the values the header
-    /// held, in order. Scenario documents only.
+    /// Every statement of one repeated header key as one undo step: one per value, in
+    /// order, where the first stood, none when `values` is empty. Each value is the raw
+    /// text right of `=`; the inverse carries the values held. Scenario documents only.
     SetHeaderList {
         key: String,
         values: Vec<String>,
     },
-    /// The `base` of a system's `spawn_weight`, the weight the generator places an empire
-    /// by; `None` removes it, and the whole statement when no `modifier` remains. The
-    /// modifiers the map author wrote are left byte for byte. A base the reader cannot
-    /// read as a number, `base = { min = 1 max = 2 }`, is rewritten whole and inverts to
-    /// `None`. Scenario documents only.
+    /// The `base` of a system's `spawn_weight`: `None` removes it, and the statement with
+    /// it when no `modifier` remains. A base that is not a number inverts to `None`.
+    /// Scenario documents only.
     SetSpawnWeight {
         id: u32,
         base: Option<f64>,
     },
-    /// Several systems' spawn weights as one undo step, each entry an id and the base to
-    /// write there; every entry follows the [`Op::SetSpawnWeight`] rules. Scenario
-    /// documents only.
+    /// Several systems' spawn weights as one undo step, each entry following the
+    /// [`Op::SetSpawnWeight`] rules. Scenario documents only.
     SetSpawnWeights {
         entries: Vec<(u32, Option<f64>)>,
     },
-    /// The scripted seat a system's `spawn_weight` states, in the dialect the script
-    /// names: `Some` writes the whole statement afresh in that dialect's exact text,
-    /// where the one standing was or beside the initializer when there was none, and
-    /// writes the dialect's basic starting initializer beside it when the system names
-    /// no `initializer`; `None` removes the `spawn_weight` statement. The `effect`
-    /// block is left byte for byte. The inverse names the script alone, so an
-    /// initializer written with it comes back from the bytes undo replays, not from
-    /// the op. Scenario documents only.
+    /// The scripted seat a system's `spawn_weight` states; `None` removes the statement.
+    /// A system with no `initializer` gets the dialect's basic one, which the inverse
+    /// omits: undo puts the bytes back exactly. Scenario documents only.
     SetSpawnScript {
         id: u32,
         script: Option<SpawnScript>,
     },
-    /// Several systems' scripted seats as one undo step, each entry an id and the
-    /// script to write there; every entry follows the [`Op::SetSpawnScript`] rules.
-    /// Scenario documents only.
+    /// Several systems' scripted seats as one undo step, each entry following the
+    /// [`Op::SetSpawnScript`] rules. Scenario documents only.
     SetSpawnScripts {
         entries: Vec<(u32, Option<SpawnScript>)>,
     },
-    /// The Paint a Galaxy fallen empire zone a system anchors: `Some` takes every zone
-    /// flag out of the system's `effect` block and writes the zone's flags at its end,
-    /// writing the block when the system has none; `None` takes the zone flags out, and
-    /// the block with them when nothing else stood in it. Every other statement of the
-    /// block is left byte for byte. A zone whose ring holds another system, or whose
-    /// centre lies off the map, is refused: the mod builds the fallen empire's systems
-    /// in that ring at game start. Scenario documents only.
+    /// The Paint a Galaxy fallen empire zone a system anchors; `None` clears it. A zone
+    /// whose ring holds another system, or whose centre lies off the map, is refused: the
+    /// mod builds the fallen empire's systems in that ring. Scenario documents only.
     SetFeZone {
         id: u32,
         zone: Option<FeZone>,
     },
-    /// Several systems' fallen empire zones as one undo step, each entry an id and the
-    /// zone to write there; every entry follows the [`Op::SetFeZone`] rules. Scenario
-    /// documents only.
+    /// Several systems' fallen empire zones as one undo step, each entry following the
+    /// [`Op::SetFeZone`] rules. Scenario documents only.
     SetFeZones {
         entries: Vec<(u32, Option<FeZone>)>,
     },
-    /// The Paint a Galaxy wormhole pair joining `a` and `b`: `Some(n)` takes every
-    /// wormhole flag off both systems and writes `painted_galaxy_wormhole_n` with
-    /// `empire_cluster` beside it on each; `None` takes the wormhole flags off both.
-    /// An `empire_cluster` goes with the wormhole flag it stands right after, and any
-    /// other is left where it is. The two systems must differ and exist, and a number
-    /// another system already carries is refused. The inverse puts both systems' pairs
-    /// back, each as its own entry. Scenario documents only.
+    /// The Paint a Galaxy wormhole pair joining `a` and `b`; `None` unpairs both. The two
+    /// must differ and exist, and a number another system carries is refused. The inverse
+    /// puts both ends' old pairs back, each as its own entry. Scenario documents only.
     SetWormholePair {
         a: u32,
         b: u32,
@@ -277,14 +239,8 @@ pub enum Op {
     SetWormholeEnds {
         entries: Vec<(u32, Option<u32>)>,
     },
-    /// The systems Paint a Galaxy lays a hyperlane from into the fallen empire zone
-    /// `anchor` anchors. A non-empty `linked` writes the custom connection flag and an
-    /// id on the anchor, the id it already takes or else the lowest free one, and puts
-    /// that id on every system of `linked` and takes it off every other; an empty
-    /// `linked` takes the custom flag and the id off the anchor and the id off every
-    /// system. The flags go at the end of each `effect` block as
-    /// [`Op::SetWormholePair`] writes its own, and only a system whose flags change is
-    /// written. `anchor` must anchor a zone and may not be in `linked`. The inverse is
+    /// The systems Paint a Galaxy lays a hyperlane from into the zone `anchor` anchors,
+    /// empty to clear; `anchor` must anchor a zone and may not be in `linked`. Inverts to
     /// a [`Op::SetFeLinkFlags`] over the systems written. Scenario documents only.
     SetFeLinks {
         anchor: u32,
@@ -308,6 +264,12 @@ pub enum Op {
     UnpreventLane {
         a: u32,
         b: u32,
+    },
+    /// Several ops as one edit and one undo step, applied in order; a refused member
+    /// leaves the document as it was before the first. Not nested.
+    Batch {
+        description: String,
+        ops: Vec<Op>,
     },
 }
 
@@ -354,6 +316,7 @@ impl Op {
             Self::SetFeLinkFlags { .. } => "SetFeLinkFlags",
             Self::PreventLane { .. } => "PreventLane",
             Self::UnpreventLane { .. } => "UnpreventLane",
+            Self::Batch { .. } => "Batch",
         }
     }
 
@@ -363,29 +326,30 @@ impl Op {
     /// initializer, so an op that writes one stales it too, a scripted seat included
     /// because it may bring an initializer with it. A save's details are read from
     /// sections no op writes, which is why none of these ops is one a save takes.
-    pub const fn stales_details(&self) -> bool {
-        matches!(
-            self,
+    pub fn stales_details(&self) -> bool {
+        match self {
             Self::AddSystem { .. }
-                | Self::RemoveSystem { .. }
-                | Self::SetInitializer { .. }
-                | Self::SetInitializers { .. }
-                | Self::SetSpawnScript { .. }
-                | Self::SetSpawnScripts { .. }
-        )
+            | Self::RemoveSystem { .. }
+            | Self::SetInitializer { .. }
+            | Self::SetInitializers { .. }
+            | Self::SetSpawnScript { .. }
+            | Self::SetSpawnScripts { .. } => true,
+            Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
+            _ => false,
+        }
     }
 
     /// Whether this op can have moved how the systems it touched are classified: the
     /// initializer a classification is read from, the name it is labelled by, or the
     /// star flags the scripts place a wormhole by.
-    pub const fn reclassifies(&self) -> bool {
-        self.stales_details()
-            || matches!(
-                self,
-                Self::SetSystemName { .. }
-                    | Self::SetWormholePair { .. }
-                    | Self::SetWormholeEnds { .. }
-            )
+    pub fn reclassifies(&self) -> bool {
+        match self {
+            Self::SetSystemName { .. }
+            | Self::SetWormholePair { .. }
+            | Self::SetWormholeEnds { .. } => true,
+            Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
+            _ => self.stales_details(),
+        }
     }
 }
 
@@ -504,6 +468,10 @@ pub enum OpError {
     FeLinkIdOutOfRange(u8, u8),
     #[error("no lanes given")]
     Empty,
+    #[error("a batch with nothing in it")]
+    EmptyBatch,
+    #[error("a batch may not hold another batch")]
+    NestedBatch,
     #[error("system {0} is listed more than once")]
     DuplicateSystem(u32),
     #[error("lane {0} <-> {1} is listed more than once")]
@@ -537,6 +505,13 @@ pub enum OpError {
 
 /// Apply `op` to the session's document and projection.
 pub fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
+    match op {
+        Op::Batch { description, ops } => apply_batch(session, description, ops),
+        op => apply_one(session, op),
+    }
+}
+
+fn apply_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     let format = session.format();
     if !format.supports(&op) {
         return Err(OpError::Unsupported {
@@ -547,6 +522,59 @@ pub fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     let mut plan = Plan::new();
     let planned = format.write(&mut plan, session, &op)?;
     plan.commit(session, op, planned)
+}
+
+fn apply_batch(
+    session: &mut Session,
+    description: String,
+    ops: Vec<Op>,
+) -> Result<Applied, OpError> {
+    if ops.is_empty() {
+        return Err(OpError::EmptyBatch);
+    }
+    if ops.iter().any(|op| matches!(op, Op::Batch { .. })) {
+        return Err(OpError::NestedBatch);
+    }
+    let op = Op::Batch {
+        description: description.clone(),
+        ops: ops.clone(),
+    };
+    let mut members: Vec<Applied> = Vec::with_capacity(ops.len());
+    for member in ops {
+        match apply_one(session, member) {
+            Ok(applied) => members.push(applied),
+            Err(e) => {
+                let before: Vec<_> = members.iter().flat_map(|m| m.before.clone()).collect();
+                let touched: Vec<_> = members.iter().flat_map(|m| m.touched.clone()).collect();
+                rollback(session, &before, &touched);
+                return Err(e);
+            }
+        }
+    }
+    let mut inverses = Vec::with_capacity(members.len());
+    let mut before = Vec::new();
+    let mut after = Vec::new();
+    let mut touched = Vec::new();
+    for member in members {
+        inverses.push(member.inverse);
+        before.extend(member.before);
+        after.extend(member.after);
+        touched.extend(member.touched);
+    }
+    inverses.reverse();
+    touched.sort_unstable();
+    touched.dedup();
+    Ok(Applied {
+        op,
+        description: description.clone(),
+        inverse: Op::Batch {
+            description,
+            ops: inverses,
+        },
+        before,
+        after,
+        touched,
+    })
 }
 
 /// What a planner returns once it has planned its edits: an inverse cannot be forgotten.

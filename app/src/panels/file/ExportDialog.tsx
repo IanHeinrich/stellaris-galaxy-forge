@@ -3,6 +3,7 @@ import type { ExportReport } from "../../generated/ExportReport";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { usePaintModStore } from "../../store/paintModStore";
 import { Dialog } from "../overlays/Dialog";
 import {
   CATEGORY_LABELS,
@@ -84,7 +85,7 @@ export function ExportReportRows({ report }: { report: ExportReport }) {
 
 /** The report, the profile box and the two ways out; Enter exports under the profile the box says. */
 export function ExportForm({ report }: { report: ExportReport }) {
-  const paint = useFileSessionStore((s) => s.paintChoice);
+  const paint = usePaintModStore((s) => s.paintChoice);
   const confirmExport = useFileSessionStore((s) => s.confirmExport);
 
   const submit = (e: FormEvent) => {

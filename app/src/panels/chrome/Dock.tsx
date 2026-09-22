@@ -56,7 +56,7 @@ function Resizer() {
 function TabStrip({ tab }: { tab: DockTab }) {
   const setTab = useLayoutStore((s) => s.setTab);
   const toggleDock = useLayoutStore((s) => s.toggleDock);
-  const issues = useFileSessionStore((s) => s.issues);
+  const issues = useIssuesStore((s) => s.issues);
   const changes = useEditorStore((s) => s.history.undo.length);
   const capabilities = useFileSessionStore(documentCapabilities);
   const baseline = useIssuesStore((s) => s.baseline);

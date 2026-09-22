@@ -55,7 +55,7 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
   const pickAndOpen = useFileSessionStore((s) => s.pickAndOpen);
   const kind = useFileSessionStore((s) => s.kind);
   const path = useFileSessionStore((s) => s.path);
-  const saveIntoPaintMod = useFileSessionStore((s) => s.saveIntoPaintMod);
+  const saveIntoPaintMod = usePaintModStore((s) => s.saveIntoPaintMod);
   const modKnown = usePaintModStore((s) => s.known);
   const paintDir = usePaintModStore((s) => s.paintMod?.scenarios_dir ?? null);
   const showOpenDialog = useLayoutStore((s) => s.showOpenDialog);

@@ -1,0 +1,22 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added marauder clan 1
+touched: [4000, 4001, 4002]
+inverse: Batch { description: "Added marauder clan 1", ops: [RemoveLanes { from: 4000, to: [4001, 4002] }, RemoveSystem { id: 4002 }, RemoveSystem { id: 4001 }, RemoveSystem { id: 4000 }] }
+warning disconnected: galaxy has 3 components, 2 at load; newly separated: 
+… and 2 other issues
+
+--- scenario
++++ scenario
+@@ -64,4 +64,9 @@
+ 
+ 	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = 0 y = 0 } radius = 60 }
+ 	nebula = { name = "Far Cloud" position = { x = -90 y = 90 } radius = 20 }
++	system = { id = "4000" name = "" position = { x = 100 y = 100 } initializer = marauder_1_1 }
++	system = { id = "4001" name = "" position = { x = 100 y = 80 } initializer = marauder_1_2 }
++	system = { id = "4002" name = "" position = { x = 125 y = 100 } initializer = marauder_1_3 }
++	add_hyperlane = { from = "4000" to = "4001" }
++	add_hyperlane = { from = "4000" to = "4002" }
+ }

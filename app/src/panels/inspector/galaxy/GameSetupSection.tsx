@@ -38,7 +38,7 @@ function SetupRow({ view }: { view: SetupView }) {
   );
 }
 
-/** The shapes the new-game screen lists the map under, one checkbox each, ticked as the header lists them. */
+/** The shapes the header names, one checkbox each. */
 function ShapesRow({ header }: { header: readonly HeaderField[] }) {
   const applyOp = useApplyOp();
   const ready = useGameDataStore((s) => s.status === "ready");

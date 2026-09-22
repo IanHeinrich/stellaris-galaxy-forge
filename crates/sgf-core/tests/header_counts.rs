@@ -72,12 +72,18 @@ fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
     assert_eq!(seat_counts(&session.graph), seats(4, 2, false));
     assert_eq!(zone_count(&session.graph), 2);
     assert_eq!(clan_count(&session.graph), 0);
-    assert_eq!(session.graph.num_empires_max, Some(3));
-    assert_eq!(session.graph.num_empire_default, Some(3));
-    assert_eq!(session.graph.fallen_empire_max, Some(6));
-    assert_eq!(session.graph.fallen_empire_default, Some(0));
-    assert_eq!(session.graph.marauder_empire_max, Some(3));
-    assert_eq!(session.graph.marauder_empire_default, Some(1));
+    assert_eq!(
+        session.graph.header_block_count("num_empires", "max"),
+        Some(3)
+    );
+    assert_eq!(session.graph.header_count("num_empire_default"), Some(3));
+    assert_eq!(session.graph.header_count("fallen_empire_max"), Some(6));
+    assert_eq!(session.graph.header_count("fallen_empire_default"), Some(0));
+    assert_eq!(session.graph.header_count("marauder_empire_max"), Some(3));
+    assert_eq!(
+        session.graph.header_count("marauder_empire_default"),
+        Some(1)
+    );
     let issues = session.validate();
     let header = coded(&issues, IssueCode::HeaderEmpireCount);
     assert_eq!(header.len(), 1, "{issues:?}");
@@ -94,9 +100,9 @@ fn the_fixture_has_four_seats_two_reserved_and_a_header_that_allows_too_many() {
     assert!(coded(&issues, IssueCode::LClusterSystem).is_empty());
 
     let save = common::open();
-    assert_eq!(save.graph.num_empires_max, None);
-    assert_eq!(save.graph.fallen_empire_max, None);
-    assert_eq!(save.graph.marauder_empire_max, None);
+    assert_eq!(save.graph.header_block_count("num_empires", "max"), None);
+    assert_eq!(save.graph.header_count("fallen_empire_max"), None);
+    assert_eq!(save.graph.header_count("marauder_empire_max"), None);
     let plain = common::scenario::open();
     for session in [&save, &plain] {
         let issues = session.validate();
@@ -149,11 +155,14 @@ fn updating_the_counts_rewrites_the_nine_keys_as_one_step_and_clears_the_issue()
         }
     );
     assert!(coded(&result.issues, IssueCode::HeaderEmpireCount).is_empty());
-    assert_eq!(session.graph.num_empire_default, Some(1));
-    assert_eq!(session.graph.fallen_empire_max, Some(2));
-    assert_eq!(session.graph.fallen_empire_default, Some(2));
-    assert_eq!(session.graph.marauder_empire_max, Some(0));
-    assert_eq!(session.graph.marauder_empire_default, Some(0));
+    assert_eq!(session.graph.header_count("num_empire_default"), Some(1));
+    assert_eq!(session.graph.header_count("fallen_empire_max"), Some(2));
+    assert_eq!(session.graph.header_count("fallen_empire_default"), Some(2));
+    assert_eq!(session.graph.header_count("marauder_empire_max"), Some(0));
+    assert_eq!(
+        session.graph.header_count("marauder_empire_default"),
+        Some(0)
+    );
     assert_eq!(session.history().undo.len(), 1);
     let header = session
         .edit_result(result)
@@ -224,7 +233,10 @@ fn a_wrong_maximum_is_reported_even_when_the_default_fits() {
         "num_empires = { min = 0 max = 3 }\n\tnum_empire_default = 3",
         "num_empires = { min = 0 max = 5 }\n\tnum_empire_default = 1",
     );
-    assert_eq!(session.graph.num_empires_max, Some(5));
+    assert_eq!(
+        session.graph.header_block_count("num_empires", "max"),
+        Some(5)
+    );
     let issues = session.validate();
     let header = coded(&issues, IssueCode::HeaderEmpireCount);
     assert_eq!(header.len(), 1, "{issues:?}");
@@ -254,7 +266,7 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
         no_clans,
         no_clan_default,
     ]);
-    assert_eq!(fits.graph.fallen_empire_max, Some(2));
+    assert_eq!(fits.graph.header_count("fallen_empire_max"), Some(2));
     assert!(coded(&fits.validate(), IssueCode::HeaderEmpireCount).is_empty());
 
     let default_high = open_edited_all(&[
@@ -262,7 +274,10 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
         ("fallen_empire_max = 6", "fallen_empire_max = 2"),
         ("fallen_empire_default = 0", "fallen_empire_default = 3"),
     ]);
-    assert_eq!(default_high.graph.fallen_empire_default, Some(3));
+    assert_eq!(
+        default_high.graph.header_count("fallen_empire_default"),
+        Some(3)
+    );
     let issues = default_high.validate();
     let header = coded(&issues, IssueCode::HeaderEmpireCount);
     assert_eq!(header.len(), 1, "{issues:?}");
@@ -289,7 +304,7 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
         no_clans,
         no_clan_default,
     ]);
-    assert_eq!(unreadable.graph.fallen_empire_max, None);
+    assert_eq!(unreadable.graph.header_count("fallen_empire_max"), None);
     assert!(coded(&unreadable.validate(), IssueCode::HeaderEmpireCount).is_empty());
 
     let fallen_fit = ("fallen_empire_max = 6", "fallen_empire_max = 2");

@@ -150,7 +150,11 @@ pub fn header_mismatch(
 ) -> Option<HeaderMismatch> {
     let most = seats.most();
     let safe = seats.safe();
-    let empires = match (galaxy.num_empires_max, galaxy.num_empire_default) {
+    let count = |key| galaxy.header_count(key);
+    let empires = match (
+        galaxy.header_block_count(keys::NUM_EMPIRES, keys::MAX),
+        count(keys::NUM_EMPIRE_DEFAULT),
+    ) {
         (Some(max), _) if max != most => Some(max),
         (_, Some(default)) if default > safe => Some(default),
         _ => None,
@@ -158,7 +162,10 @@ pub fn header_mismatch(
     if let Some(allowed) = empires {
         return Some(HeaderMismatch::Empires { allowed });
     }
-    let fallen = match (galaxy.fallen_empire_max, galaxy.fallen_empire_default) {
+    let fallen = match (
+        count(keys::FALLEN_EMPIRE_MAX),
+        count(keys::FALLEN_EMPIRE_DEFAULT),
+    ) {
         (Some(max), _) if max != fallen_count(zones) => Some(max),
         (_, Some(default)) if default > zones => Some(default),
         _ => None,
@@ -166,7 +173,10 @@ pub fn header_mismatch(
     if let Some(allowed) = fallen {
         return Some(HeaderMismatch::FallenEmpires { allowed });
     }
-    let marauders = match (galaxy.marauder_empire_max, galaxy.marauder_empire_default) {
+    let marauders = match (
+        count(keys::MARAUDER_EMPIRE_MAX),
+        count(keys::MARAUDER_EMPIRE_DEFAULT),
+    ) {
         (Some(max), _) if max != clans => Some(max),
         (_, Some(default)) if default > clans => Some(default),
         _ => None,

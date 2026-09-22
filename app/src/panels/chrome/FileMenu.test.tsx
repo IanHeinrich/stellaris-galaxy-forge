@@ -11,6 +11,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
 import { usePaintModStore } from "../../store/paintModStore";
+import { paintModView } from "../../test/builders";
 import { FileMenuItems } from "./FileMenu";
 
 /** What the menu is told once a command is taken; a toggle leaves it open. */
@@ -88,10 +89,7 @@ describe("saving into the Paint a Galaxy mod", () => {
     open(SCENARIO_RESULT);
     expect(html(LABEL)).toContain("disabled=");
 
-    usePaintModStore.setState({
-      known: true,
-      paintMod: { scenarios_dir: DIR, enabled: false, reserved_spawns: true },
-    });
+    usePaintModStore.setState({ known: true, paintMod: paintModView({ enabled: false }) });
     expect(html(LABEL)).not.toContain("disabled=");
 
     open(OPEN_RESULT);
@@ -109,10 +107,7 @@ describe("saving into the Paint a Galaxy mod", () => {
 
   it("has nothing to do for a file already inside the mod's folder", () => {
     open(SCENARIO_RESULT);
-    usePaintModStore.setState({
-      known: true,
-      paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
-    });
+    usePaintModStore.setState({ known: true, paintMod: paintModView({ scenarios_dir: DIR }) });
     useFileSessionStore.setState({ path: `${DIR}/mine.txt` });
     expect(html(LABEL)).toContain("disabled=");
 
@@ -123,11 +118,8 @@ describe("saving into the Paint a Galaxy mod", () => {
   it("saves into the mod and closes the menu", () => {
     const saveIntoPaintMod = vi.fn();
     open(SCENARIO_RESULT);
-    usePaintModStore.setState({
-      known: true,
-      paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
-    });
-    useFileSessionStore.setState({ saveIntoPaintMod });
+    usePaintModStore.setState({ known: true, paintMod: paintModView() });
+    usePaintModStore.setState({ saveIntoPaintMod });
 
     item(LABEL).props.onClick();
     expect(saveIntoPaintMod).toHaveBeenCalledTimes(1);

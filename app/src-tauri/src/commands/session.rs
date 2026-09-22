@@ -4,7 +4,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use sgf_core::archive;
-use sgf_core::export::{self, ExportReport, ScenarioOptions, ScenarioProfile};
+use sgf_core::export::{self, ExportReport, ScenarioProfile};
 use sgf_core::format::scenario::fe_zone::FeZone;
 use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts, zone_count};
 use sgf_core::format::scenario::is_painted;
@@ -45,7 +45,10 @@ pub async fn open_as_scenario<R: Runtime>(
 ) -> Result<OpenResult, SgfError> {
     install_reporting(app, move |gd| {
         let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-        let sources = |initializer: &str| source_label(gd.as_deref(), initializer);
+        let sources = |initializer: &str| {
+            gd.as_ref()
+                .and_then(|gd| gd.initializer_source(initializer))
+        };
         let (session, report) = export::open_save_as_scenario(
             Path::new(&path),
             &resolve,
@@ -93,7 +96,10 @@ pub async fn export_scenario<R: Runtime>(
         let session = exportable(&guard)?;
         let gd = task_app.state::<GameDataState>().loaded();
         let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-        let sources = |initializer: &str| source_label(gd.as_deref(), initializer);
+        let sources = |initializer: &str| {
+            gd.as_ref()
+                .and_then(|gd| gd.initializer_source(initializer))
+        };
         let path = Path::new(&path);
         let name = path
             .file_stem()
@@ -101,7 +107,7 @@ pub async fn export_scenario<R: Runtime>(
             .unwrap_or_else(|| session.title());
         let (text, report) = export::scenario_text(
             &session.graph,
-            &export_options(session, &name),
+            &export::options_for_session(session, &name),
             &resolve,
             &sources,
             profile.unwrap_or_default(),
@@ -131,10 +137,13 @@ pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportRepor
         let session = exportable(&guard)?;
         let gd = app.state::<GameDataState>().loaded();
         let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-        let sources = |initializer: &str| source_label(gd.as_deref(), initializer);
+        let sources = |initializer: &str| {
+            gd.as_ref()
+                .and_then(|gd| gd.initializer_source(initializer))
+        };
         let (_, report) = export::draft(
             &session.graph,
-            &export_options(session, &session.title()),
+            &export::options_for_session(session, &session.title()),
             &resolve,
             &sources,
         );
@@ -154,26 +163,6 @@ fn exportable(guard: &Option<Session>) -> Result<&Session, SgfError> {
         ));
     }
     Ok(session)
-}
-
-/// The export's header options, naming the save's file as what it was exported from.
-fn export_options(session: &Session, name: &str) -> ScenarioOptions {
-    ScenarioOptions {
-        exported_from: session
-            .path
-            .as_deref()
-            .and_then(Path::file_name)
-            .map(|f| f.to_string_lossy().into_owned()),
-        ..export::options_for(&session.graph, name)
-    }
-}
-
-/// Which DLC or mod `initializer` needs, when game data is loaded and knows it.
-fn source_label(gd: Option<&GameData>, initializer: &str) -> Option<String> {
-    let gd = gd?;
-    gd.initializers
-        .get(initializer)?
-        .source_label(&gd.layout.install)
 }
 
 /// Build a session off the main thread, report it and make it the open one.

@@ -2,7 +2,7 @@ import polygonClipping from "polygon-clipping";
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { name, systemNode } from "../../test/builders";
-import type { Pt } from "./hull";
+import type { Pt } from "./pt";
 import {
   affectedCountries,
   countryRegions,

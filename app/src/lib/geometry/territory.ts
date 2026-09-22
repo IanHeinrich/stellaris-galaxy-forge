@@ -1,6 +1,6 @@
 import polygonClipping, { type Geom, type MultiPolygon, type Pair } from "polygon-clipping";
 import polylabel from "polylabel";
-import type { Pt } from "./hull";
+import type { Pt } from "./pt";
 
 /** Multipolygon: polygons → rings (outer only, holes dropped) → unclosed points. */
 export type Region = Pt[][][];

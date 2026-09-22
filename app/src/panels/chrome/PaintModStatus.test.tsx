@@ -9,12 +9,11 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import * as ipc from "../../api/ipc";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { usePaintModStore } from "../../store/paintModStore";
+import { paintModView } from "../../test/builders";
 import { elements } from "../../test/elements";
 import { PaintModStatus } from "./PaintModStatus";
 
 const status = () => renderToStaticMarkup(<PaintModStatus />);
-
-const DIR = "C:/mods/pag/map/setup_scenarios";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -44,10 +43,7 @@ describe("the mod's status line", () => {
   });
 
   it("asks for the playset alone when the mod is installed but not enabled", () => {
-    usePaintModStore.setState({
-      known: true,
-      paintMod: { scenarios_dir: DIR, enabled: false, reserved_spawns: true },
-    });
+    usePaintModStore.setState({ known: true, paintMod: paintModView({ enabled: false }) });
 
     const html = status();
     expect(html).toContain('class="paint-mod-status warn"');
@@ -58,10 +54,7 @@ describe("the mod's status line", () => {
   });
 
   it("says the mod is enabled, without warning styling", () => {
-    usePaintModStore.setState({
-      known: true,
-      paintMod: { scenarios_dir: DIR, enabled: true, reserved_spawns: true },
-    });
+    usePaintModStore.setState({ known: true, paintMod: paintModView() });
 
     const html = status();
     expect(html).toContain('class="paint-mod-status"');

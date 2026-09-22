@@ -275,6 +275,19 @@ pub fn options_for(graph: &GalaxyGraph, name: &str) -> ScenarioOptions {
     }
 }
 
+/// [`options_for`] the session's galaxy, naming the file it was opened from as what the
+/// scenario was exported from.
+pub fn options_for_session(session: &Session, name: &str) -> ScenarioOptions {
+    ScenarioOptions {
+        exported_from: session
+            .path
+            .as_deref()
+            .and_then(Path::file_name)
+            .map(|f| f.to_string_lossy().into_owned()),
+        ..options_for(&session.graph, name)
+    }
+}
+
 /// Write scenario text to `path` under the save path's backup rule: a temp file beside
 /// the target, the file already there renamed to `<file>.bak-YYYYmmdd-HHMMSS`.
 pub fn write_scenario(path: &Path, text: &[u8]) -> Result<SaveOutcome, document::Error> {
@@ -333,10 +346,7 @@ pub fn open_save_as_scenario(
         .unwrap_or_default()
         .to_string_lossy()
         .into_owned();
-    let options = ScenarioOptions {
-        exported_from: path.file_name().map(|f| f.to_string_lossy().into_owned()),
-        ..options_for(&save.graph, &name)
-    };
+    let options = options_for_session(&save, &name);
     let (text, report) = scenario_text(&save.graph, &options, resolve, sources, profile);
     let session = Session::from_document(None, Document::from_scenario_bytes(text)?)?;
     Ok((session, report))

@@ -1,14 +1,14 @@
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { PAINT_CHECK, PAINT_CHOICE_WHY, PAINT_UNTICKED } from "../../lib/paintCopy";
+import { usePaintModStore } from "../../store/paintModStore";
 import { PaintModStatus } from "../chrome/PaintModStatus";
-import { PAINT_CHECK, PAINT_UNTICKED, PAINT_WHY } from "./paintCopy";
 
 /**
  * The Paint a Galaxy checkbox the New scenario and Export dialogs share: the user's standing
  * choice, the mod's status while it is ticked, and a warning while it is not.
  */
 export function PaintChoice() {
-  const paint = useFileSessionStore((s) => s.paintChoice);
-  const setPaintChoice = useFileSessionStore((s) => s.setPaintChoice);
+  const paint = usePaintModStore((s) => s.paintChoice);
+  const setPaintChoice = usePaintModStore((s) => s.setPaintChoice);
   return (
     <label className="setup-check">
       <input
@@ -18,7 +18,7 @@ export function PaintChoice() {
       />
       <span>
         {PAINT_CHECK}
-        <span className="setup-why">{PAINT_WHY}</span>
+        <span className="setup-why">{PAINT_CHOICE_WHY}</span>
         {paint ? (
           <PaintModStatus />
         ) : (

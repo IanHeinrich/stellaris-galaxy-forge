@@ -6,13 +6,11 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use sgf_core::format::save::details::SystemDetails;
-use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::{Session, SessionError};
 use sgf_core::views::{DocumentKind, SgfError};
 use sgf_gamedata::GameData;
 use sgf_gamedata::scripts::{
-    BypassKind, BypassSource, ScenarioBypass, ScenarioBypasses, ScenarioOwners, ScenarioSystem,
-    SystemScripts,
+    ScenarioBypasses, ScenarioOwners, ScenarioSystem, SystemScripts, bypasses::add_flagged_pairs,
 };
 use sgf_gamedata::special::{self, SpecialSystems};
 use tauri::{AppHandle, Manager, Runtime};
@@ -80,37 +78,6 @@ pub async fn get_scenario_bypasses<R: Runtime>(
     })
     .await
     .map_err(join_error)?
-}
-
-/// The event of Paint a Galaxy's companion mod that joins the flagged pairs.
-const PAINTED_WORMHOLE_EVENT: &str = "painted_galaxy_wormhole.1";
-
-/// Both ends of every flagged pair the scripts did not already draw, as day-one
-/// endpoints of the mod's event, kept in system order.
-fn add_flagged_pairs(bypasses: &mut ScenarioBypasses, links: &[BypassLink]) {
-    for link in links {
-        let BypassLink::Wormhole { a, b } = link else {
-            continue;
-        };
-        let drawn = bypasses.bypasses.iter().any(|end| {
-            end.kind == BypassKind::Wormhole && end.system == *a && end.partner == Some(*b)
-        });
-        if drawn {
-            continue;
-        }
-        for (system, partner) in [(*a, *b), (*b, *a)] {
-            bypasses.bypasses.push(ScenarioBypass {
-                system,
-                kind: BypassKind::Wormhole,
-                partner: Some(partner),
-                source: BypassSource::DayOne {
-                    event: PAINTED_WORMHOLE_EVENT.to_owned(),
-                },
-                assumed: false,
-            });
-        }
-    }
-    bypasses.bypasses.sort_by_key(|end| end.system);
 }
 
 /// The scripts that reach one scenario system: its initializer chain, and everything in the

@@ -343,8 +343,9 @@ Saving a new Paint a Galaxy scenario this way opens in the mod's own
 mod…" saves an already-open scenario there too. Steam can replace a
 workshop mod's folder when it updates, so keep a copy of a map you care
 about elsewhere as well. Once the file lands there the status bar says
-what to do next: start a new game in Stellaris, choose the Elliptical
-shape, and pick the size the scenario's header names it under.
+what to do next: start a new game in Stellaris and pick the size the
+scenario's header names it under. A static map is chosen as a galaxy
+size, and the shape list stays empty once it is.
 
 ### Steam Cloud saves
 
@@ -460,10 +461,11 @@ advanced starts, fallen, marauder and nomad empires, wormhole pairs,
 gateways and hyperlane density) are edited as min, max and default fields
 in the Game setup section, with a note when a default falls outside its
 range. Under the wormhole and gateway rows, an "Also from scripts" line
-says what the loaded game data's day-one events add on top. A "Listed
-under shapes" row ticks the galaxy shapes the new-game screen offers the
-map under, from the loaded game data's shapes plus any the file names
-that it lacks. The rest of the header is listed and edited key by key,
+says what the loaded game data's day-one events add on top. A
+"Supported shapes" row ticks the galaxy shapes the header names, from
+the loaded game data's shapes plus any the file names that it lacks. The
+new-game screen offers no shape once a static map is the size, so the
+row changes nothing there. The rest of the header is listed and edited key by key,
 and a pair of systems can be barred from ever being linked.
 
 Marauder clans need no mod: the game's own initializers place them. A
@@ -625,7 +627,9 @@ system names from your install instead of writing the save's own keys
 and names the DLC or mod each initializer comes from. After "wrote …" it
 prints the export's report: empire seats, home initializers to review,
 what was not carried over, and the system count per category.
-`sgf new-scenario <name> <out>` writes an empty one to start from.
+`sgf new-scenario <name> <out>` writes an empty one to start from. Both
+take `--profile paint-a-galaxy` to write the file for that mod, as the
+app's checkbox does; the default is `plain`.
 
 A scenario's `position` runs the same way as a save's `coordinate`: an
 exported save loads in the game as the galaxy the map showed, with nothing
@@ -713,8 +717,8 @@ commands write in place, with the same backup as the app, unless `-o
 | `sgf inspect <sav> [--galaxy]` | Print the header, section sizes and entity counts; `--galaxy` adds systems, lanes, components, nebulae and bypasses. |
 | `sgf validate <doc>` | Print every issue the validator finds in the galaxy, and the ones the document itself raises; exits 1 if any is an error. |
 | `sgf details <sav> <id>`, or `--all` | Print a system's planets, deposits, starbase and fleet presence; `--all` gives one line per system that has anything to show. |
-| `sgf export-scenario <sav> <out> [--name <n>] [--gamedata] [--install <dir>]` | Write the save's galaxy as a static galaxy scenario script; the save is untouched. |
-| `sgf new-scenario <name> <out> [--core-radius <r>]` | Write an empty static galaxy scenario script to start from. |
+| `sgf export-scenario <sav> <out> [--name <n>] [--gamedata] [--install <dir>] [--profile plain\|paint-a-galaxy]` | Write the save's galaxy as a static galaxy scenario script; the save is untouched. |
+| `sgf new-scenario <name> <out> [--core-radius <r>] [--profile plain\|paint-a-galaxy]` | Write an empty static galaxy scenario script to start from. |
 | `sgf roundtrip <in> <out> [--check]` | Load and write out unchanged; `--check` re-reads the output and asserts gamestate and meta are byte-identical. |
 | `sgf move <sav> <id> <x> <y> [-o out]` | Move a system, recomputing the length of its lanes on both ends. |
 | `sgf move-nebula <sav> <index> <x> <y> [-o out]` | Move a nebula's centre, by its index in file order; nothing else moves, and its member list follows the systems the radius now covers. |

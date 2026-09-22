@@ -13,6 +13,7 @@ import { PAINT_URL } from "../../lib/paint";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
+import { paintModView } from "../../test/builders";
 import { NewScenarioDialog, RouteCards, RouteFoot, RouteHelp } from "./NewScenarioDialog";
 
 const BLANK = { name: "new_galaxy", radius: 400, coreRadius: 100, profile: "plain" as const };
@@ -58,9 +59,9 @@ beforeEach(() => {
     getItem: (key: string) => stored.get(key) ?? null,
     setItem: (key: string, value: string) => void stored.set(key, value),
   });
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState(), paintChoice: true });
+  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useLayoutStore.setState({ ...useLayoutStore.getInitialState(), scenarioDialog: true });
-  usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
+  usePaintModStore.setState({ ...usePaintModStore.getInitialState(), paintChoice: true });
 });
 
 describe("the three ways to start a scenario", () => {
@@ -117,23 +118,16 @@ describe("the blank canvas", () => {
     );
     expect(html).toContain("Untick it only if the map is for a mod of your own.");
 
-    useFileSessionStore.setState({ paintChoice: false });
+    usePaintModStore.setState({ paintChoice: false });
     html = renderToStaticMarkup(<NewScenarioDialog />);
     expect(html.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
   });
 
   it("shows the mod's state under the box only while it is ticked", () => {
-    usePaintModStore.setState({
-      known: true,
-      paintMod: {
-        scenarios_dir: "C:/mods/pag/map/setup_scenarios",
-        enabled: true,
-        reserved_spawns: true,
-      },
-    });
+    usePaintModStore.setState({ known: true, paintMod: paintModView() });
     expect(renderToStaticMarkup(<NewScenarioDialog />)).toContain("Paint a Galaxy mod enabled ✓");
 
-    useFileSessionStore.setState({ paintChoice: false });
+    usePaintModStore.setState({ paintChoice: false });
     const unticked = renderToStaticMarkup(<NewScenarioDialog />);
     expect(unticked).not.toContain("paint-mod-status");
     expect(unticked).toContain('class="setup-warn" role="alert"');
@@ -186,7 +180,7 @@ describe("a galaxy from the game", () => {
     expect(html).toContain("For the Paint a Galaxy mod");
     expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
 
-    useFileSessionStore.setState({ paintChoice: false });
+    usePaintModStore.setState({ paintChoice: false });
     const unticked = renderToStaticMarkup(<RouteHelp route="game" />);
     expect(unticked.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
     expect(unticked).toContain('class="setup-warn" role="alert"');

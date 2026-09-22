@@ -23,14 +23,18 @@ stellaris-galaxy-forge/
 │   │   │   ├── overlay.rs     patches keyed to original offsets: replace a span or insert at one
 │   │   │   ├── emit/          writes the bytes of an edited statement, copying its indentation
 │   │   │   ├── format/        the Format trait; save/ and scenario/ are the only per-format code
-│   │   │   ├── ops/           every edit: the Op enum, its inverse, description and rules
+│   │   │   ├── ops/           every edit: the Op enum, its inverse and description; rules/ decides
+│   │   │   │                  what an edit may do on the graph; history.rs replays bytes for undo
 │   │   │   ├── projections/   caches read from the index: the galaxy graph, names, details
 │   │   │   ├── session.rs     document + graph + history; apply, undo, redo, save
-│   │   │   ├── validate.rs    what the game could not cope with, errors and warnings
+│   │   │   ├── validate/      what the game could not cope with: the codes, then paint.rs and
+│   │   │   │                  scenario.rs for the checks that only apply to one kind of file
 │   │   │   ├── search.rs      find systems and entities by name or id
 │   │   │   ├── entity/        addressing any entity in the file for the inspector
 │   │   │   ├── library.rs     small registers read from the save: colours, bypasses, ship sizes
-│   │   │   ├── export.rs      a save's galaxy written out as a scenario script
+│   │   │   ├── export/        a save's galaxy written out as a scenario script: the draft and
+│   │   │   │                  its report, policy.rs for what carries over, paint/ for the
+│   │   │   │                  Paint a Galaxy profile (header, seats, fallen empire zones)
 │   │   │   ├── synth.rs       synthetic saves for stress tests
 │   │   │   ├── keys.rs        the statement keys the formats read
 │   │   │   └── views.rs       the IPC types; ts-rs exports them to app/src/generated
@@ -38,7 +42,8 @@ stellaris-galaxy-forge/
 │   │                          round-trip identity, corpus timing (SGF_CORPUS_DIR)
 │   ├── sgf-gamedata/          the user's install and mods, read at runtime
 │   │   ├── src/
-│   │   │   ├── install/       Steam discovery, mods, load order, override semantics
+│   │   │   ├── install/       Steam discovery, mods (the Paint a Galaxy mod by Workshop id), load
+│   │   │   │                  order, override semantics
 │   │   │   ├── registries/    star and planet classes, colours, deposits, ship sizes, gfx
 │   │   │   ├── loc/           localisation files, language-keyed names
 │   │   │   ├── textures/      DDS decoding and the sprite cache
@@ -147,8 +152,10 @@ One slot per statement; a later edit to the same statement replaces the
 slot. The original bytes are never modified.
 
 **History.** Applying an edit records the edit, a description for the
-change log, its inverse, and the slot contents it displaced. Undo applies
-the inverse; redo applies the edit again.
+change log, its inverse, and the slot contents it displaced. Undo puts
+the displaced bytes back and redo puts the edit's bytes back; the inverse
+describes the change. A `Batch` applies several edits as one entry, and
+a refused member leaves the document as it was.
 
 ## An edit, end to end
 
@@ -182,6 +189,21 @@ table, where a scenario's marauder clan (a home and the raid bases
 hyperlaned to it) is one synthetic owner and the scripted marauder
 country behind it is dropped, and one map layer paints every owner in
 that table.
+
+## Scenario profiles
+
+A scenario is written for a profile: `Plain` is the game's own static
+galaxy script, `PaintAGalaxy` is the same script decorated for Oatmeal
+Problem's mod. The export builds a plain draft, and `export/paint`
+decorates it: the mod's header, a spawn script on every seat, the fallen
+empire zones and the wormhole flags. Reading needs no profile: the
+scenario format recognises the mod's statements from the bytes
+(`format/scenario/paint.rs`, `fe_zone.rs`), so a file the mod's own site
+wrote is edited faithfully. In the app, whether a document is a Paint one
+is derived in one place, `lib/paint.ts`, from the file's content, the
+choice made when it was created and where it lives; the standing choice
+and the mod's install state are in `store/paintModStore.ts`, and the
+mod itself is found by `sgf-gamedata` (`install/mods.rs`).
 
 ## The format seam
 

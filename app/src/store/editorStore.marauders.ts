@@ -2,6 +2,7 @@ import type { StoreApi } from "zustand";
 import type { Op } from "../generated/Op";
 import {
   ALL_CLANS_PLACED,
+  BASE_SITES,
   BASES_NEED_LANES,
   baseInitializer,
   basesBeside,
@@ -13,8 +14,10 @@ import {
   missingBaseSites,
   nextFreeClan,
   placeBases,
+  type BaseSite,
 } from "../lib/marauder";
-import { addSystem, refuseOr, systems, type EditorState } from "./editorStore";
+import { nextSystemId } from "../lib/paint";
+import { refuseOr, systems, type EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useMapChromeStore } from "./mapChromeStore";
 
@@ -38,9 +41,13 @@ export function marauderActions(
         useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
         return false;
       }
-      const home = await addSystem(point, homeInitializer(clan));
-      if (home === null) return false;
-      if (!(await get().addMarauderBases(home))) return false;
+      const home = nextSystemId(systems().values());
+      const ops = [
+        addSystem(home, point, homeInitializer(clan)),
+        ...baseOps(home, point, clan, BASE_SITES, home + 1),
+      ];
+      const op: Op = { type: "Batch", description: `Added marauder clan ${clan}`, ops };
+      if (!(await get().applyOp(op))) return false;
       useMapChromeStore.getState().showLayer("marauders");
       await get().select(home);
       return true;
@@ -96,19 +103,43 @@ export function marauderActions(
       const system = systems().get(home);
       if (!system?.marauder || !("home" in system.marauder)) return false;
       const clan = system.marauder.home;
-      const added: number[] = [];
-      for (const site of placeBases(
-        system,
-        missingBaseSites(system, systems()),
-        systems().values(),
-      )) {
-        const id = await addSystem(site, baseInitializer(clan, site.site));
-        if (id === null) return false;
-        added.push(id);
-      }
-      if (added.length === 0) return true;
-      const lanes: Op = { type: "AddLanes", from: home, to: added.map((id) => [id, false]) };
-      return get().applyOp(lanes);
+      const sites = missingBaseSites(system, systems());
+      if (sites.length === 0) return true;
+      const ops = baseOps(home, system, clan, sites, nextSystemId(systems().values()));
+      return get().applyOp({
+        type: "Batch",
+        description: `Added raid bases for marauder clan ${clan}`,
+        ops,
+      });
     },
   };
+}
+
+function addSystem(id: number, point: { x: number; y: number }, initializer: string): Op {
+  return {
+    type: "AddSystem",
+    id,
+    x: point.x,
+    y: point.y,
+    name: null,
+    initializer,
+    spawn_weight: null,
+    spawn_script: null,
+  };
+}
+
+/** The bases of `sites` placed about `home`, numbered from `firstId`, and the lanes from the home to them. */
+function baseOps(
+  home: number,
+  at: { x: number; y: number },
+  clan: number,
+  sites: readonly BaseSite[],
+  firstId: number,
+): Op[] {
+  const bases = placeBases(at, sites, systems().values());
+  const ops: Op[] = bases.map((base, i) =>
+    addSystem(firstId + i, base, baseInitializer(clan, base.site)),
+  );
+  ops.push({ type: "AddLanes", from: home, to: bases.map((_, i) => [firstId + i, false]) });
+  return ops;
 }

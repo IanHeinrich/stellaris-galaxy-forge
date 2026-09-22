@@ -12,6 +12,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { SCENARIO_RESULT } from "../../store/fixture";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { usePaintModStore } from "../../store/paintModStore";
+import { paintModView } from "../../test/builders";
 import { elements } from "../../test/elements";
 import { PaintBadge } from "./PaintBadge";
 
@@ -43,7 +44,7 @@ beforeEach(() => {
 
 describe("the Paint a Galaxy badge", () => {
   it("is absent for a plain document", () => {
-    withMod({ scenarios_dir: DIR, enabled: true, reserved_spawns: true });
+    withMod(paintModView());
     useFileSessionStore.setState({ status: "ready", kind: "scenario", path: SCENARIO_RESULT.path });
     expect(badge()).toBe("");
 
@@ -53,7 +54,7 @@ describe("the Paint a Galaxy badge", () => {
 
   it("names the profile plainly when the playset has the mod", () => {
     openPainted();
-    withMod({ scenarios_dir: DIR, enabled: true, reserved_spawns: true });
+    withMod(paintModView());
 
     const html = badge();
     expect(html).toContain(">Paint a Galaxy</span>");
@@ -64,7 +65,7 @@ describe("the Paint a Galaxy badge", () => {
 
   it("warns when the mod is installed but the playset lacks it", () => {
     openPainted();
-    withMod({ scenarios_dir: DIR, enabled: false, reserved_spawns: true });
+    withMod(paintModView({ enabled: false }));
 
     const html = badge();
     expect(html).toContain("⚠ Paint a Galaxy mod not enabled");
@@ -101,14 +102,14 @@ describe("the Paint a Galaxy badge", () => {
   });
 
   it("is on for a plain scenario saved inside the mod's scenarios folder", () => {
-    withMod({ scenarios_dir: DIR, enabled: true, reserved_spawns: true });
+    withMod(paintModView({ scenarios_dir: DIR }));
     useFileSessionStore.setState({ status: "ready", kind: "scenario", path: `${DIR}/mine.txt` });
     expect(badge()).toContain(">Paint a Galaxy</span>");
   });
 
   it("names the size the header lists the scenario under, in a second tooltip line", () => {
     openPainted();
-    withMod({ scenarios_dir: DIR, enabled: true, reserved_spawns: true });
+    withMod(paintModView());
     useGalaxyStore.setState({ header: [{ key: "name", value: '"Elysium"', line: 1 }] });
 
     expect(badge()).toContain(
@@ -118,7 +119,7 @@ describe("the Paint a Galaxy badge", () => {
 
   it("carries no second line while the header names no size yet", () => {
     openPainted();
-    withMod({ scenarios_dir: DIR, enabled: true, reserved_spawns: true });
+    withMod(paintModView());
 
     expect(badge()).toContain('title="This scenario is set up for the Paint a Galaxy mod"');
   });

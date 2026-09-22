@@ -644,6 +644,37 @@ fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
     );
 }
 
+/// Clearing a scripted seat among plain weights inverts to a batch: the script comes
+/// back as a script, the plain base as a base.
+#[test]
+fn clearing_a_scripted_seat_among_plain_weights_inverts_each_its_own_way() {
+    let entries = vec![(2, None), (10, Some(1.0))];
+    let mut session = open();
+    let result = session
+        .apply(Op::SetSpawnWeights {
+            entries: entries.clone(),
+        })
+        .expect("set");
+    assert_eq!(session.graph.systems[&2].spawn_script, None);
+    assert_eq!(session.graph.systems[&10].spawn_weight, Some(1.0));
+    common::snapshot("clear_weights_2_and_10", &plain_report(&session, &result));
+    assert_eq!(
+        result.entry.inverse,
+        Op::Batch {
+            description: "Set the spawn weight of 2 systems".to_owned(),
+            ops: vec![
+                set(2, script(reserved("a"), 2)),
+                Op::SetSpawnWeight { id: 10, base: None },
+            ],
+        }
+    );
+    session
+        .apply(result.entry.inverse.clone())
+        .expect("apply the inverse");
+    assert_eq!(common::current(&session), bytes());
+    round_trip(open(), Op::SetSpawnWeights { entries });
+}
+
 #[test]
 fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
     let add = |spawn_weight, spawn_script| Op::AddSystem {

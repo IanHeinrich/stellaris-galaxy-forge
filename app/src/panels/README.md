@@ -11,7 +11,7 @@ right-hand pane), `overlays/` (dialogs, the context menu, the map tooltip) and
 `App.css` keeps design tokens, element resets, the app frame (`.app`, `.main`,
 `.map-area`, `.map-host`, `.top-bar`, `.status-bar`, `.dock*`) and the
 primitives three or more panels use (`.chip`, `.badge`, `.swatch`, `.tri`,
-`.muted`/`.warn`/`.spacer`, `kbd`, `.progress-*`, `button.icon`,
+`.muted`/`.hinted`/`.warn`/`.spacer`, `kbd`, `.progress-*`, `button.icon`,
 `button.link`). Everything else belongs to the folder that draws it: one
 stylesheet per folder, nested folders included, imported by the components
 that folder owns.

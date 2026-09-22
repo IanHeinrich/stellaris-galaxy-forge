@@ -127,7 +127,8 @@ impl Format for Scenario {
             | Op::SetFeLinks { .. }
             | Op::SetFeLinkFlags { .. }
             | Op::PreventLane { .. }
-            | Op::UnpreventLane { .. } => true,
+            | Op::UnpreventLane { .. }
+            | Op::Batch { .. } => true,
             Op::SetLaneLength { .. }
             | Op::SetLaneLengths { .. }
             | Op::NormaliseLaneLength { .. }
@@ -214,12 +215,6 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
         core_radius: scenario.header.core_radius.unwrap_or(0.0),
         header: scenario.header.fields(),
         kind: DocumentKind::Scenario,
-        num_empires_max: scenario.header.num_empires_max,
-        num_empire_default: scenario.header.num_empire_default,
-        fallen_empire_max: scenario.header.fallen_empire_max,
-        fallen_empire_default: scenario.header.fallen_empire_default,
-        marauder_empire_max: scenario.header.marauder_empire_max,
-        marauder_empire_default: scenario.header.marauder_empire_default,
         setup: None,
         player_country: None,
     };

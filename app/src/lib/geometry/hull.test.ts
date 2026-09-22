@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { convexHull, expandPolygon, type Pt } from "./hull";
+import type { Pt } from "./pt";
+import { convexHull, expandPolygon } from "./hull";
 
 const SQUARE: Pt[] = [
   { x: 0, y: 0 },

@@ -3,10 +3,10 @@ import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
-import { getPaintLayer, noteReservedSpawns, useFileSessionStore } from "./fileSessionStore";
+import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
-import { useIssuesStore } from "./issuesStore";
+import { noteReservedSpawns, useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
@@ -15,7 +15,7 @@ let bound = false;
 
 /**
  * Subscribes the stores that follow one another: what the open file decides for the
- * selection, the issue baseline, the map chrome and the entities read from it, what a
+ * selection, the issues, the map chrome and the entities read from it, what a
  * source with nothing drawing decides for the inspector's sections filled from it, what
  * the dock's Issues tab borrows from the map, what each side of the game data owes
  * the other, and what a fresh read of the launcher says about the Paint a Galaxy mod.
@@ -73,7 +73,7 @@ function paintModPollWanted(): boolean {
   if (paintMod?.enabled === true) return false;
   const file = useFileSessionStore.getState();
   if (useLayoutStore.getState().scenarioDialog || file.pendingExport !== null) {
-    return file.paintChoice;
+    return usePaintModStore.getState().paintChoice;
   }
   if (file.status !== "ready" || file.kind !== "scenario") return false;
   return getPaintLayer() || !noticeDismissed;
@@ -132,11 +132,9 @@ function followSession(): void {
     if (state.status !== "ready") useLayoutStore.getState().hideOpenDialog();
     useEditorStore.getState().resetSession();
     useMapChromeStore.getState().clearOverlays();
-    // A save becomes ready with the issues it arrived with; that set is the baseline until it closes.
     if (state.status === "ready") {
       if (state.kind !== null) useMapChromeStore.getState().openedAs(state.kind);
-      useIssuesStore.getState().setBaseline(state.issues);
-    } else if (previous.status === "ready") useIssuesStore.getState().setBaseline(null);
+    } else if (previous.status === "ready") useIssuesStore.getState().clear();
   });
 }
 

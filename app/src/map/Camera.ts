@@ -1,9 +1,5 @@
 import { SAVE_X_SIGN, SAVE_Y_SIGN, clamp } from "../lib/geometry/geometry";
-
-export interface Pt {
-  x: number;
-  y: number;
-}
+import type { Pt } from "../lib/geometry/pt";
 
 export interface WorldTransform {
   x: number;

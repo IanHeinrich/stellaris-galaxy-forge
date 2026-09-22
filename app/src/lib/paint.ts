@@ -89,6 +89,24 @@ export const PAINT_SPAWN_KINDS: readonly PaintSpawnKindOption[] = [
   })),
 ];
 
+/** Whether a select key names a reserved letter's seat. */
+export function isReservedKey(key: string): boolean {
+  return key.startsWith(RESERVED_PREFIX);
+}
+
+/** The letter a reserved key names, uppercase as `seatSummary` lists it. */
+export function reservedLetter(key: string): string {
+  return key.slice(RESERVED_PREFIX.length).toUpperCase();
+}
+
+/** The seats any empire may take, then the ones reserved for one: the select's two groups. */
+export const PLAIN_SPAWN_KINDS: readonly PaintSpawnKindOption[] = PAINT_SPAWN_KINDS.filter(
+  (k) => !isReservedKey(k.key),
+);
+export const RESERVED_SPAWN_KINDS: readonly PaintSpawnKindOption[] = PAINT_SPAWN_KINDS.filter((k) =>
+  isReservedKey(k.key),
+);
+
 /**
  * What a seat's kind means, in the site's own terms. For a reserved letter the sentence ends
  * before naming the trait's submod, which a caller with a link to offer appends itself.
@@ -144,7 +162,7 @@ export function paintKindKey(script: SpawnScript): string {
 
 function kindOf(key: string): PaintSpawnKind {
   if (key === "enabled" || key === "preferred" || key === "sol") return key;
-  if (key.startsWith(RESERVED_PREFIX)) return { reserved: key.slice(RESERVED_PREFIX.length) };
+  if (isReservedKey(key)) return { reserved: key.slice(RESERVED_PREFIX.length) };
   throw new Error(`Unknown Paint a Galaxy spawn kind: ${key}`);
 }
 

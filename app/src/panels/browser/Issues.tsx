@@ -86,7 +86,7 @@ function IssueFix({ issue }: { issue: AppIssue }) {
 /** The validator's findings: what the save arrived with sits behind the "At load" filter. */
 export function Issues() {
   const status = useFileSessionStore((s) => s.status);
-  const issues = useFileSessionStore((s) => s.issues);
+  const issues = useIssuesStore((s) => s.issues);
   const setSelection = useEditorStore((s) => s.setSelection);
   const jumpTo = useEditorStore((s) => s.jumpTo);
   const baseline = useIssuesStore((s) => s.baseline);

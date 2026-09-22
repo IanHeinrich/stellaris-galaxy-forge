@@ -546,6 +546,17 @@ fn every_op_undoes_to_the_original_and_redoes_to_the_edit() {
             index: 0,
             name: "Sgf_Test_Cloud".to_owned(),
         },
+        Op::Batch {
+            description: "Moved system 0 and cut its lane to 752".to_owned(),
+            ops: vec![
+                Op::MoveSystem {
+                    id: 0,
+                    x: -150.0,
+                    y: 60.0,
+                },
+                Op::RemoveLane { a: 0, b: 752 },
+            ],
+        },
     ];
     let fresh = GalaxyGraph::build(&common::load()).unwrap();
     for op in ops {
@@ -666,7 +677,8 @@ fn a_save_takes(op: &Op) -> bool {
         | Op::AddNebula { .. }
         | Op::RemoveNebula { .. }
         | Op::SetNebulaRadius { .. }
-        | Op::SetNebulaName { .. } => true,
+        | Op::SetNebulaName { .. }
+        | Op::Batch { .. } => true,
         Op::AddSystem { .. }
         | Op::RemoveSystem { .. }
         | Op::SetSystemName { .. }
@@ -704,6 +716,7 @@ fn reclassifies(op: &Op) -> bool {
         | Op::SetSpawnScripts { .. }
         | Op::SetWormholePair { .. }
         | Op::SetWormholeEnds { .. } => true,
+        Op::Batch { ops, .. } => ops.iter().any(reclassifies),
         Op::MoveSystem { .. }
         | Op::AddLane { .. }
         | Op::AddLanes { .. }
@@ -748,6 +761,7 @@ fn stales_details(op: &Op) -> bool {
         | Op::SetInitializers { .. }
         | Op::SetSpawnScript { .. }
         | Op::SetSpawnScripts { .. } => true,
+        Op::Batch { ops, .. } => ops.iter().any(stales_details),
         Op::MoveSystem { .. }
         | Op::AddLane { .. }
         | Op::AddLanes { .. }
@@ -926,6 +940,20 @@ fn one_of_each() -> Vec<Op> {
         },
         Op::PreventLane { a: 0, b: 1 },
         Op::UnpreventLane { a: 0, b: 1 },
+        Op::Batch {
+            description: "Two edits".to_owned(),
+            ops: vec![
+                Op::MoveSystem {
+                    id: 0,
+                    x: 0.0,
+                    y: 0.0,
+                },
+                Op::SetSystemName {
+                    id: 0,
+                    name: "Sol".to_owned(),
+                },
+            ],
+        },
     ];
     let named: BTreeSet<&str> = ops.iter().map(Op::name).collect();
     assert_eq!(named.len(), ops.len(), "one op of each variant: {named:?}");

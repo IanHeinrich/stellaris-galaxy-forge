@@ -7,6 +7,7 @@ import { useEditorStore } from "../store/editorStore";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
+import { useIssuesStore } from "../store/issuesStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
 import type { HighlightsLayer } from "./layers/HighlightsLayer";
@@ -130,7 +131,7 @@ const BINDINGS: Binding[] = [
     "bind",
   ),
 
-  follows(useFileSessionStore, [(s) => s.issues], (s, view) => setIssues(view, s.issues), "layers"),
+  follows(useIssuesStore, [(s) => s.issues], (s, view) => setIssues(view, s.issues), "layers"),
   follows(useFileSessionStore, [(s) => s.capabilities], (_s, view) => view.syncLayers()),
   follows(useFileSessionStore, [(s) => s.kind], (_s, view) => {
     view.refreshContext();

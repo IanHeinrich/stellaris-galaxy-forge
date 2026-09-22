@@ -8,6 +8,7 @@ import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionSt
 import { useGalaxyVersion } from "../../../store/browserRows";
 import { laneCount, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { useIssuesStore } from "../../../store/issuesStore";
 import { useApplyOp } from "../../useApplyOp";
 import { GameSetupSection } from "./GameSetupSection";
 import { handledKeys } from "./gameSetup";
@@ -144,7 +145,7 @@ export function GalaxyView() {
   const kind = useFileSessionStore((s) => s.kind);
   const path = useFileSessionStore((s) => s.path);
   const cloud = useFileSessionStore((s) => s.cloud);
-  const countsIssue = useFileSessionStore(
+  const countsIssue = useIssuesStore(
     (s) => s.issues.find((issue) => issue.code === "header_empire_count") ?? null,
   );
   const requestFit = useEditorStore((s) => s.requestFit);
