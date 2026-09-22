@@ -627,7 +627,9 @@ system names from your install instead of writing the save's own keys
 and names the DLC or mod each initializer comes from. After "wrote …" it
 prints the export's report: empire seats, home initializers to review,
 what was not carried over, and the system count per category.
-`sgf new-scenario <name> <out>` writes an empty one to start from.
+`sgf new-scenario <name> <out>` writes an empty one to start from. Both
+take `--profile paint-a-galaxy` to write the file for that mod, as the
+app's checkbox does; the default is `plain`.
 
 A scenario's `position` runs the same way as a save's `coordinate`: an
 exported save loads in the game as the galaxy the map showed, with nothing
@@ -715,8 +717,8 @@ commands write in place, with the same backup as the app, unless `-o
 | `sgf inspect <sav> [--galaxy]` | Print the header, section sizes and entity counts; `--galaxy` adds systems, lanes, components, nebulae and bypasses. |
 | `sgf validate <doc>` | Print every issue the validator finds in the galaxy, and the ones the document itself raises; exits 1 if any is an error. |
 | `sgf details <sav> <id>`, or `--all` | Print a system's planets, deposits, starbase and fleet presence; `--all` gives one line per system that has anything to show. |
-| `sgf export-scenario <sav> <out> [--name <n>] [--gamedata] [--install <dir>]` | Write the save's galaxy as a static galaxy scenario script; the save is untouched. |
-| `sgf new-scenario <name> <out> [--core-radius <r>]` | Write an empty static galaxy scenario script to start from. |
+| `sgf export-scenario <sav> <out> [--name <n>] [--gamedata] [--install <dir>] [--profile plain\|paint-a-galaxy]` | Write the save's galaxy as a static galaxy scenario script; the save is untouched. |
+| `sgf new-scenario <name> <out> [--core-radius <r>] [--profile plain\|paint-a-galaxy]` | Write an empty static galaxy scenario script to start from. |
 | `sgf roundtrip <in> <out> [--check]` | Load and write out unchanged; `--check` re-reads the output and asserts gamestate and meta are byte-identical. |
 | `sgf move <sav> <id> <x> <y> [-o out]` | Move a system, recomputing the length of its lanes on both ends. |
 | `sgf move-nebula <sav> <index> <x> <y> [-o out]` | Move a nebula's centre, by its index in file order; nothing else moves, and its member list follows the systems the radius now covers. |

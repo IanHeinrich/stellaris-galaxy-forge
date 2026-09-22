@@ -1,11 +1,6 @@
 /**
- * Paint a Galaxy's custom connections: which systems the mod lays a fallen empire's hyperlanes
- * from. A zone's anchor that takes them carries `painted_galaxy_fe_custom_connections` and an
- * id, and at game start every system flagged `painted_galaxy_fe_custom_connection_to_<id>` gets
- * a hyperlane to the nearest system of the fallen empire built in the zone. Without the flag
- * the mod links the fallen empire to its nearest systems itself. The core reads the flags into
- * `SystemNode.fe_link` (`crates/sgf-core/src/format/scenario/fe_link.rs`); this file only
- * reasons over them.
+ * Paint a Galaxy's custom connections, which the core reads into `SystemNode.fe_link`; the
+ * flags are described in docs/paint-a-galaxy-integration.md under "Fallen empire zones".
  */
 
 import type { SystemNode } from "../generated/SystemNode";

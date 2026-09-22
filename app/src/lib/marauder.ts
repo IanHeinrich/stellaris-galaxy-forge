@@ -1,9 +1,7 @@
 /**
- * The marauder clans a map places by initializer. A complete clan is three systems: a home
- * carrying `marauder_N_1`, whose `init_effect` creates the clan at game start, and two raid
- * bases carrying `marauder_N_2` and `marauder_N_3`, each hyperlaned to the home. The role each
- * system has is read by the core into `SystemNode.marauder`
- * (`crates/sgf-core/src/format/scenario/marauder.rs`); this file only reasons over it.
+ * The marauder clans a map places by initializer, which the core reads into
+ * `SystemNode.marauder`; docs/paint-a-galaxy-integration.md under "Marauder clans" says what
+ * a clan is.
  */
 
 import type { MarauderRole } from "../generated/MarauderRole";
