@@ -76,5 +76,5 @@ fn validator_reports_no_errors() {
         .filter(|i| i.severity == Severity::Error)
         .collect();
     assert!(errors.is_empty(), "{errors:#?}");
-    assert_eq!(issues.len(), 6, "{issues:#?}");
+    assert_eq!(issues.len(), 3, "{issues:#?}");
 }

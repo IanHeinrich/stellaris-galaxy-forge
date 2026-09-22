@@ -44,15 +44,19 @@ fn projection_matches_the_measured_facts() {
         .collect();
     assert_eq!(bridges.len(), 125);
 
-    // The two lane-less systems make three components, not the six
-    // `docs/format-notes.md` records.
+    // Of the two lane-less systems 789 rides the wormhole to 788, so only 790 stands
+    // apart.
     let components = g.components();
-    assert_eq!(components.len(), 3);
-    assert_eq!(g.baseline_components, 3);
-    assert_eq!(components[0].len(), 789);
-    assert_eq!(&components[1..], [vec![789], vec![790]]);
+    assert_eq!(components.len(), 2);
+    assert_eq!(g.baseline_components, 2);
+    assert_eq!(components[0].len(), 790);
+    assert_eq!(&components[1..], [vec![790]]);
     assert!(g.systems[&789].lanes.is_empty());
     assert!(g.systems[&790].lanes.is_empty());
+    assert!(
+        g.bypasses
+            .contains(&BypassLink::Wormhole { a: 788, b: 789 })
+    );
 
     assert!(
         (g.galaxy_radius - 499.9288).abs() < 1e-9,
@@ -300,11 +304,12 @@ fn countries_carry_their_capital_system_and_system_count() {
 }
 
 #[test]
-fn sample_validates_to_two_isolated_systems_and_the_games_own_duplicate_lanes() {
+fn sample_validates_to_one_isolated_system_and_the_games_own_duplicate_lanes() {
     let doc = load();
     let g = GalaxyGraph::build(&doc).unwrap();
     let issues = validate(&g);
-    // The game wrote the lanes 154<->708 and 401<->521 twice on both ends.
+    // The game wrote the lanes 154<->708 and 401<->521 twice on both ends, and 789 is the
+    // far end of the wormhole from 788, so 790 is the only system nothing reaches.
     let summary: Vec<(Severity, IssueCode, &[u32])> = issues
         .iter()
         .map(|i| (i.severity, i.code, i.systems.as_slice()))
@@ -312,15 +317,8 @@ fn sample_validates_to_two_isolated_systems_and_the_games_own_duplicate_lanes() 
     assert_eq!(
         summary,
         [
-            (
-                Severity::Warning,
-                IssueCode::LaneDuplicate,
-                &[154u32, 708][..]
-            ),
-            (Severity::Warning, IssueCode::LaneDuplicate, &[401, 521]),
-            (Severity::Warning, IssueCode::LaneDuplicate, &[521, 401]),
-            (Severity::Warning, IssueCode::LaneDuplicate, &[708, 154]),
-            (Severity::Warning, IssueCode::SystemIsolated, &[789]),
+            (Severity::Info, IssueCode::LaneDuplicate, &[154u32, 708][..]),
+            (Severity::Info, IssueCode::LaneDuplicate, &[401, 521]),
             (Severity::Warning, IssueCode::SystemIsolated, &[790]),
         ],
         "{issues:#?}"
@@ -420,12 +418,9 @@ fn validator_reports_every_rule_on_a_mutated_graph() {
             (Severity::Error, IssueCode::LaneAsymmetric, &[752u32, 0][..]),
             (Severity::Error, IssueCode::LaneEndpointMissing, &[3, 9999]),
             (Severity::Error, IssueCode::LaneSelf, &[1]),
-            (Severity::Warning, IssueCode::LaneDuplicate, &[154, 708]),
-            (Severity::Warning, IssueCode::LaneDuplicate, &[401, 521]),
-            (Severity::Warning, IssueCode::LaneDuplicate, &[521, 401]),
-            (Severity::Warning, IssueCode::LaneDuplicate, &[708, 154]),
+            (Severity::Info, IssueCode::LaneDuplicate, &[154, 708]),
+            (Severity::Info, IssueCode::LaneDuplicate, &[401, 521]),
             (Severity::Warning, IssueCode::SystemIsolated, &[5]),
-            (Severity::Warning, IssueCode::SystemIsolated, &[789]),
             (Severity::Warning, IssueCode::SystemIsolated, &[790]),
             (Severity::Warning, IssueCode::OutOfBounds, &[2]),
             (Severity::Warning, IssueCode::Disconnected, &[5]),
@@ -455,4 +450,44 @@ fn validator_reports_every_rule_on_a_mutated_graph() {
             "system 455 (Mihil) lies 0.00 from the centre of nebula Phantom Streak Miasma (radius 30) but no nebula lists it",
         ]
     );
+}
+
+#[test]
+fn a_lane_less_wormhole_end_is_not_reported_isolated() {
+    let doc = load();
+    let mut g = GalaxyGraph::build(&doc).unwrap();
+    for (a, b) in [(788u32, 789u32), (52, 449)] {
+        assert!(g.bypasses.contains(&BypassLink::Wormhole { a, b }));
+    }
+    let neighbours: Vec<u32> = g.systems[&52].lanes.iter().map(|l| l.to).collect();
+    for n in neighbours {
+        g.systems.get_mut(&n).unwrap().lanes.retain(|l| l.to != 52);
+    }
+    g.systems.get_mut(&52).unwrap().lanes.clear();
+
+    let isolated: Vec<u32> = validate(&g)
+        .iter()
+        .filter(|i| i.code == IssueCode::SystemIsolated)
+        .flat_map(|i| i.systems.clone())
+        .collect();
+    assert_eq!(isolated, [790]);
+}
+
+#[test]
+fn a_lane_less_l_gate_system_is_reported_as_a_note() {
+    let doc = load();
+    let mut g = GalaxyGraph::build(&doc).unwrap();
+    assert!(g.bypasses.contains(&BypassLink::LGate { system: 208 }));
+    let neighbours: Vec<u32> = g.systems[&208].lanes.iter().map(|l| l.to).collect();
+    for n in neighbours {
+        g.systems.get_mut(&n).unwrap().lanes.retain(|l| l.to != 208);
+    }
+    g.systems.get_mut(&208).unwrap().lanes.clear();
+
+    let issue = validate(&g)
+        .into_iter()
+        .find(|i| i.code == IssueCode::SystemIsolated && i.systems == [208])
+        .expect("208 is still reported");
+    assert_eq!(issue.severity, Severity::Info);
+    assert!(issue.message.contains("L-Gate"), "{}", issue.message);
 }

@@ -8,6 +8,40 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-22
+
+### Changed
+
+- The Issues tab says what each issue is, what it costs you in game and
+  how to put it right. Hovering a flagged system on the map shows the
+  same words.
+- Issue headings drop the internal code in front of them and no longer
+  run off the edge of the panel.
+- Saving a map with issues offers a third choice, View issues. It takes
+  you to the list and leaves a bar there with Save anyway on it, so you
+  can read what was flagged and then save without starting over.
+- The filter buttons read "From my edits", "Already in the save" and
+  "Everything".
+- A marauder clan's two other systems are called outposts rather than
+  raid bases, in the inspector and the Issues tab alike.
+- A system's Hyperlanes list cuts one lane at a time. This is the only
+  way to remove a lane the map cannot draw, such as one from a system
+  to itself.
+
+### Fixed
+
+- A system a wormhole reaches is no longer reported as having no
+  hyperlanes, and nor is one whose gateway is open when another gateway
+  is open elsewhere. A system reached only by its L-Gate is now a note,
+  since the L-Gates may never be opened.
+- A hyperlane the save lists twice is reported once instead of once per
+  end, and as a note. Stellaris writes these duplicates itself and they
+  do no harm.
+- Empire seats that the Paint a Galaxy export has already given a
+  generic start are no longer flagged as needing one.
+- Right-clicking no longer opens a menu offering Back, Refresh and
+  Print. The map, the panels and text boxes keep the menus they had.
+
 ## [0.8.0] - 2026-09-22
 
 ### Changed

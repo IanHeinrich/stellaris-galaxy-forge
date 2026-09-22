@@ -41,6 +41,23 @@ export type Status = "empty" | "loading" | "ready" | "error";
 /** What a picked save is opened as: edited in place, or taken as the start of a scenario. */
 export type OpenMode = "save" | "scenario";
 
+/** What the user says to a save that found issues: go and look, write it anyway, or stop. */
+export type SaveIssuesAnswer = "review" | "save" | "cancel";
+
+/** A save waiting on that answer; `resolve` hands it back to the save that asked. */
+export interface SaveIssuesPrompt {
+  count: number;
+  resolve(answer: SaveIssuesAnswer): void;
+}
+
+/** A save the user left to go and look at the issues, and what it takes to pick it up again. */
+export interface PausedSave {
+  count: number;
+  /** The issues it stopped on, agreed to when the save is picked up again. */
+  keys: string[];
+  resume(): Promise<void>;
+}
+
 const SAVE_FILTER = { name: "Stellaris save", extensions: ["sav"] };
 const SCENARIO_FILTER = { name: "Stellaris static galaxy scenario", extensions: ["txt"] };
 
@@ -79,6 +96,10 @@ export interface FileSessionState {
   cloudAcknowledged: string | null;
   /** Keys of the warnings and errors the user has already agreed to save this document with. */
   dismissedIssues: string[];
+  /** A save waiting for the user to say what to do about the issues it found. */
+  saveIssuesPrompt: SaveIssuesPrompt | null;
+  /** The save the user left to go and look at the issues; null when none is waiting. */
+  pausedSave: PausedSave | null;
   /** A save waiting for the user to say which way to open it. */
   pendingOpen: string | null;
   /** What an export would carry over, waiting for the user to confirm or cancel it. */
@@ -125,6 +146,12 @@ export interface FileSessionState {
   confirmExport(profile: ScenarioProfile | null): Promise<void>;
   /** Resolves true when it is safe to discard the session: not dirty, or the user confirmed. */
   confirmDiscard(): Promise<boolean>;
+  /** Answers the dialog a save raised over its issues. */
+  answerSaveIssues(answer: SaveIssuesAnswer): void;
+  /** Writes the paused save, with the issues it stopped on already agreed to. */
+  resumePausedSave(): Promise<void>;
+  /** Drops the paused save, writing nothing and agreeing to nothing. */
+  dismissPausedSave(): void;
   /** What an edit reported about the file it belongs to. */
   noteEdit(patch: { issues: Issue[]; dirty: boolean }): void;
   setError(message: string | null): void;
@@ -153,6 +180,8 @@ const INITIAL = {
   cloud: false,
   cloudAcknowledged: null as string | null,
   dismissedIssues: [] as string[],
+  saveIssuesPrompt: null as SaveIssuesPrompt | null,
+  pausedSave: null as PausedSave | null,
   pendingOpen: null as string | null,
   pendingExport: null as ExportReport | null,
   painted: false,
@@ -260,7 +289,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
       await get().saveAs();
       return;
     }
-    if (!(await confirmIssues())) return;
+    if (!(await confirmIssues(() => get().save()))) return;
     if (cloud && !(await confirmCloudWrite(path))) return;
     if (await writeSave(() => ipc.save())) void noteDuplicateNames();
   },
@@ -314,6 +343,27 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
       okLabel: "Discard",
       cancelLabel: "Cancel",
     });
+  },
+
+  answerSaveIssues(answer) {
+    const prompt = get().saveIssuesPrompt;
+    if (prompt === null) return;
+    set({ saveIssuesPrompt: null });
+    prompt.resolve(answer);
+  },
+
+  async resumePausedSave() {
+    const { pausedSave, dismissedIssues } = get();
+    if (pausedSave === null) return;
+    set({
+      pausedSave: null,
+      dismissedIssues: [...new Set([...dismissedIssues, ...pausedSave.keys])],
+    });
+    await pausedSave.resume();
+  },
+
+  dismissPausedSave() {
+    if (get().pausedSave !== null) set({ pausedSave: null });
   },
 
   noteEdit({ issues, dirty }) {
@@ -468,7 +518,7 @@ async function saveTo(
   defaultPath: string | undefined,
   filter: { name: string; extensions: string[] },
 ): Promise<void> {
-  if (!(await confirmIssues())) return;
+  if (!(await confirmIssues(() => saveTo(defaultPath, filter)))) return;
   const picked = await saveDialog({ defaultPath, filters: [filter] });
   if (picked === null) return;
   const cloud = await ipc.isCloudSave(picked).catch(() => false);
@@ -490,27 +540,32 @@ function blocksSave(issue: AppIssue): boolean {
 
 /**
  * Resolves true when the document may be saved with its warnings and errors: every one of them
- * was already agreed to, or the user agreed now, with the Issues tab showing what they are.
+ * was already agreed to, or the user agreed now. `resume` is the save itself, kept for the bar
+ * the Issues tab shows when the user goes to look at them instead.
  */
-async function confirmIssues(): Promise<boolean> {
+async function confirmIssues(resume: () => Promise<void>): Promise<boolean> {
   const { getState, setState } = useFileSessionStore;
-  const { dismissedIssues, path, title } = getState();
+  const { dismissedIssues, saveIssuesPrompt } = getState();
+  if (saveIssuesPrompt !== null) return false;
   const unresolved = useIssuesStore.getState().issues.filter(blocksSave);
   const keys = unresolved.map(issueKey);
   if (keys.every((key) => dismissedIssues.includes(key))) return true;
-  const layout = useLayoutStore.getState();
-  layout.setTab("issues");
-  if (layout.collapsed) layout.toggleDock();
-  const count =
-    unresolved.length === 1 ? "1 unresolved issue" : `${unresolved.length} unresolved issues`;
-  const ok = await confirm(`This map has ${count}. Save anyway?`, {
-    title: fileName(path) || (title ?? ""),
-    kind: "warning",
-    okLabel: "Save anyway",
-    cancelLabel: "Cancel",
+  const count = unresolved.length;
+  const answer = await new Promise<SaveIssuesAnswer>((resolve) => {
+    setState({ saveIssuesPrompt: { count, resolve } });
   });
-  if (ok) setState({ dismissedIssues: [...new Set([...dismissedIssues, ...keys])] });
-  return ok;
+  if (answer === "save") {
+    setState({ dismissedIssues: [...new Set([...dismissedIssues, ...keys])] });
+    return true;
+  }
+  if (answer === "review") {
+    const layout = useLayoutStore.getState();
+    layout.setTab("issues");
+    if (layout.collapsed) layout.toggleDock();
+    useIssuesStore.getState().flash();
+    setState({ pausedSave: { count, keys, resume } });
+  }
+  return false;
 }
 
 /** Resolves true when `path` may be written: already acknowledged this session, or the user agreed now. */
@@ -558,5 +613,6 @@ function writeSave(write: () => Promise<SaveResult>): Promise<boolean> {
     cloud: result.cloud,
     dirty: result.dirty,
     savedAt: Date.now(),
+    pausedSave: null,
   }));
 }

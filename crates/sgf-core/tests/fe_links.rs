@@ -395,7 +395,7 @@ fn the_flag_op_reaches_the_states_the_mod_reads_oddly_and_undoes_them_exactly() 
     assert_eq!(dangling.len(), 1, "{:?}", result.issues);
     assert_eq!(
         dangling[0].message,
-        "system 11 links to fallen empire connection 5, which no zone takes."
+        "#11 links to fallen empire connection 5, which no zone takes."
     );
     let isolated = coded(&result.issues, IssueCode::FeLinkIsolated);
     assert_eq!(isolated.len(), 1, "{:?}", result.issues);

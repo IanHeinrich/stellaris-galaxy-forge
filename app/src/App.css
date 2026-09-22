@@ -15,6 +15,10 @@
   --init: #9d8cf2;
   --init-dim: #4b4189;
   --init-bg: rgba(157, 140, 242, 0.13);
+  /* Issue severities, matching the rings the map draws (`map/layers/IssuesLayer.ts`). */
+  --sev-info: #60a5fa;
+  --sev-warning: #f59e0b;
+  --sev-error: #ef4444;
 
   --font-ui: "Segoe UI", Inter, system-ui, -apple-system, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;

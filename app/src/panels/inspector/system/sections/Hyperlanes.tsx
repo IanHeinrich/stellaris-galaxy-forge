@@ -71,6 +71,30 @@ function LaneRow({
   );
 }
 
+/**
+ * Cuts one lane from the row that names it. The map can only cut a lane it draws, and it draws
+ * no lane from a system to itself. Nothing is offered for a lane whose far system is not there:
+ * its inverse would have to add a lane to a system that does not exist, so the core refuses it.
+ */
+function CutLane({ a, b, missing }: { a: number; b: number; missing: boolean }) {
+  const applyOp = useApplyOp();
+  if (missing) return <span />;
+  return (
+    <button
+      type="button"
+      className="ins-lane-cut"
+      aria-label={`Cut the lane to #${b}`}
+      title={`Cut the lane to #${b}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        void applyOp({ type: "RemoveLane", a, b });
+      }}
+    >
+      ✂
+    </button>
+  );
+}
+
 /** A pair the scenario forbids a generated lane between, and the way to allow it again. */
 function PreventedRow({ system, other }: { system: number; other: number }) {
   const applyOp = useApplyOp();
@@ -163,11 +187,11 @@ export function HyperlaneSection({
         <Empty>Isolated: no hyperlanes.</Empty>
       ) : (
         <>
-          {shown.map((n) => {
+          {shown.map((n, i) => {
             const mismatch = lanes.find((l) => l.to === n.id)?.stale ?? false;
             return (
               <LaneRow
-                key={n.id}
+                key={`${n.id}-${i}`}
                 className="ins-lane"
                 title={`Jump to #${n.id}`}
                 onOpen={() => void jumpTo(n.id)}
@@ -189,6 +213,7 @@ export function HyperlaneSection({
                     </Chip>
                   )}
                 </span>
+                <CutLane a={system.id} b={n.id} missing={n.distance === null} />
               </LaneRow>
             );
           })}

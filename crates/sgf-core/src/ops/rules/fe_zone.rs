@@ -46,11 +46,11 @@ pub(crate) fn decide_set(
     }
 }
 
-/// What a message calls a system: its name, or `system N` when it has none.
+/// What a message calls a system: its name, or `#N` when it has none.
 pub(crate) fn label(system: &SystemNode) -> String {
     let name = system.display_name();
     if name.is_empty() {
-        format!("system {}", system.id)
+        format!("#{}", system.id)
     } else {
         name
     }

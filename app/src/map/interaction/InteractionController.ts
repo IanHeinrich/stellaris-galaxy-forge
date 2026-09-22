@@ -380,7 +380,6 @@ export class InteractionController {
       this.laneFrom = null;
     });
     on("pointerleave", () => this.hover(null));
-    on("contextmenu", (e) => e.preventDefault());
   }
 
   private bindKeyboard(): void {

@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Set lane 0 <-> 752 length from 33 to 40 (2 entries)
 touched: [0, 752]
 inverse: SetLaneLength { a: 0, b: 752, length: 33.0 }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

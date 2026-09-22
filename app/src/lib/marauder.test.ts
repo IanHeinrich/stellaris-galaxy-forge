@@ -201,7 +201,7 @@ describe("middleOf and clanMenuItem", () => {
   it("refuses three systems none of which is linked to the other two, and says why", () => {
     expect(clanMenuItem([2, 3, 4], linked, 1)).toEqual({
       label: "Make these marauder clan 1",
-      hint: "The home needs a hyperlane to both bases",
+      hint: "The home needs a hyperlane to both outposts",
       clan: null,
     });
   });

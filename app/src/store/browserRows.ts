@@ -8,6 +8,7 @@ import { centralOwnedSystem, systemNameOf, useGalaxyStore, type Systems } from "
 import { useGameDataStore } from "./gameDataStore";
 import { currentOwnership, useOwnership } from "./ownership";
 
+export { issueCopy, type IssueCopy } from "../lib/issueCopy";
 export {
   EMPIRE_GROUPS,
   POINT_KINDS,

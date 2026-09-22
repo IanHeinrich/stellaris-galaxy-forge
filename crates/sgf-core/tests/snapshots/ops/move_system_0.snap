@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Moved Gamma Refuge (#0) from (-144.22, 57.36) to (-150, 60); updated 10 lane lengths
 touched: [0, 64, 86, 200, 246, 752]
 inverse: MoveSystem { id: 0, x: -144.22, y: 57.36 }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

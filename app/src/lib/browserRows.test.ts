@@ -247,7 +247,7 @@ describe("the Issues tab", () => {
     );
     expect(groups.map((g) => g.code)).toEqual(["disconnected", "system_isolated"]);
     expect(groups[0].error).toBe(true);
-    expect(groups[0].title).toBe("Galaxy split into separate components");
+    expect(groups[0].title).toBe("Galaxy split into unconnected pieces");
     expect(groups[0].rows[0].systems).toBe("Alpha Centauri, Sirius");
     expect(groups[1].error).toBe(false);
     expect(groups[1].rows.map((r) => r.systems)).toEqual(["Sol", "Barnard"]);

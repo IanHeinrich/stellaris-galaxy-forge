@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Moved 2 systems; updated 16 lane lengths
 touched: [0, 64, 86, 112, 200, 246, 752]
 inverse: MoveSystems { moves: [SystemMove { id: 0, x: -144.22, y: 57.36 }, SystemMove { id: 86, x: -153.47, y: 30.99 }] }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

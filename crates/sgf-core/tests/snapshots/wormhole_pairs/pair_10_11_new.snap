@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Join Void and system 11 as wormhole pair 3
+Join Void and #11 as wormhole pair 3
 inverse: SetWormholePair { a: 10, b: 11, pair: None }
 
 --- scenario

@@ -26,7 +26,7 @@ import { onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
 import { bindStores } from "./bindStores";
 import { useEditorStore } from "./editorStore";
-import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
+import { getPaintLayer, useFileSessionStore, type SaveIssuesAnswer } from "./fileSessionStore";
 import { laneCount, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
@@ -64,6 +64,18 @@ let unlisten: ReturnType<typeof vi.fn<() => void>>;
 
 const stored = new Map<string, string>();
 
+/**
+ * What the save-time issues dialog is told, for every test but the ones that answer it
+ * themselves; those set it to null in their own `beforeEach`.
+ */
+let standingAnswer: SaveIssuesAnswer | null = "save";
+
+useFileSessionStore.subscribe((state) => {
+  if (standingAnswer !== null && state.saveIssuesPrompt !== null) {
+    session().answerSaveIssues(standingAnswer);
+  }
+});
+
 bindStores();
 
 /** One applied edit, so the session is dirty. */
@@ -74,6 +86,7 @@ async function edit(): Promise<void> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  standingAnswer = "save";
   progressHandler = null;
   stored.clear();
   vi.stubGlobal("localStorage", {
@@ -504,71 +517,77 @@ describe("Steam Cloud", () => {
   });
 });
 
-describe("unresolved issues", () => {
+describe("issues a save stops on", () => {
   const ISOLATED = OPEN_RESULT.issues[0];
-  const ISSUE_DIALOG = {
-    title: "2206.11.16.sav",
-    kind: "warning",
-    okLabel: "Save anyway",
-    cancelLabel: "Cancel",
-  };
 
   beforeEach(async () => {
+    standingAnswer = null;
     useLayoutStore.setState({ tab: "inspector", collapsed: false });
     await session().openSave(OPEN_RESULT.path);
     await edit();
   });
 
-  it("save shows the Issues tab and asks; cancel writes nothing", async () => {
-    useLayoutStore.getState().toggleDock();
-    mocked.confirm.mockResolvedValueOnce(false);
-    await session().save();
+  /** Runs `start`, answers the dialog it raises, and waits for the save to settle. */
+  async function answering(answer: SaveIssuesAnswer, start: () => Promise<void>): Promise<number> {
+    const done = start();
+    await vi.waitFor(() => expect(session().saveIssuesPrompt).not.toBeNull());
+    const { count } = session().saveIssuesPrompt!;
+    session().answerSaveIssues(answer);
+    await done;
+    return count;
+  }
 
-    expect(mocked.confirm).toHaveBeenCalledTimes(1);
-    expect(mocked.confirm).toHaveBeenCalledWith(
-      "This map has 1 unresolved issue. Save anyway?",
-      ISSUE_DIALOG,
-    );
+  it("View issues shows the tab, flashes the list and pauses the save", async () => {
+    useLayoutStore.getState().toggleDock();
+    expect(await answering("review", () => session().save())).toBe(1);
+
     expect(useLayoutStore.getState().tab).toBe("issues");
     expect(useLayoutStore.getState().collapsed).toBe(false);
+    expect(useIssuesStore.getState().attention).toBe(true);
+    expect(session().pausedSave).toMatchObject({ count: 1, keys: ["system_isolated:5"] });
+    expect(mocked.save).not.toHaveBeenCalled();
+    expect(session().dirty).toBe(true);
+    expect(session().dismissedIssues).toEqual([]);
+  });
+
+  it("Cancel writes nothing, pauses nothing and agrees to nothing", async () => {
+    await answering("cancel", () => session().save());
+
+    expect(session().saveIssuesPrompt).toBeNull();
+    expect(session().pausedSave).toBeNull();
+    expect(useIssuesStore.getState().attention).toBe(false);
+    expect(useLayoutStore.getState().tab).toBe("inspector");
     expect(mocked.save).not.toHaveBeenCalled();
     expect(session().dirty).toBe(true);
     expect(session().dismissedIssues).toEqual([]);
   });
 
   it("Save anyway writes, and the same issues do not ask again", async () => {
-    mocked.confirm.mockResolvedValueOnce(true);
     mocked.save.mockResolvedValue(saveResult({ dirty: false }));
-    await session().save();
-    expect(mocked.confirm).toHaveBeenCalledTimes(1);
+    await answering("save", () => session().save());
+
     expect(mocked.save).toHaveBeenCalledTimes(1);
     expect(session().dismissedIssues).toEqual(["system_isolated:5"]);
+    expect(useLayoutStore.getState().tab).toBe("inspector");
 
     await edit();
     await session().save();
-    expect(mocked.confirm).toHaveBeenCalledTimes(1);
+    expect(session().saveIssuesPrompt).toBeNull();
     expect(mocked.save).toHaveBeenCalledTimes(2);
   });
 
   it("an issue with another code or other systems asks again", async () => {
     mocked.save.mockResolvedValue(saveResult({ dirty: false }));
-    await session().save();
-    expect(mocked.confirm).toHaveBeenCalledTimes(1);
+    await answering("save", () => session().save());
 
     session().noteEdit({ issues: [ISOLATED, { ...ISOLATED, systems: [3] }], dirty: true });
-    await session().save();
-    expect(mocked.confirm).toHaveBeenCalledTimes(2);
-    expect(mocked.confirm).toHaveBeenLastCalledWith(
-      "This map has 2 unresolved issues. Save anyway?",
-      ISSUE_DIALOG,
-    );
+    expect(await answering("save", () => session().save())).toBe(2);
 
     session().noteEdit({
       issues: [ISOLATED, { ...ISOLATED, severity: "error", code: "disconnected" }],
       dirty: true,
     });
-    await session().save();
-    expect(mocked.confirm).toHaveBeenCalledTimes(3);
+    await answering("save", () => session().save());
     expect(mocked.save).toHaveBeenCalledTimes(3);
   });
 
@@ -578,61 +597,113 @@ describe("unresolved issues", () => {
     });
     mocked.save.mockResolvedValueOnce(saveResult({ dirty: false }));
     await session().save();
-    expect(mocked.confirm).not.toHaveBeenCalled();
+    expect(session().saveIssuesPrompt).toBeNull();
     expect(mocked.save).toHaveBeenCalledTimes(1);
     expect(useLayoutStore.getState().tab).toBe("inspector");
   });
 
   it("the reserved seats note asks, since the map would not play as designed", async () => {
     useIssuesStore.setState({ issues: [reservedSpawnsNote([2])] });
-    mocked.confirm.mockResolvedValueOnce(false);
-    await session().save();
-    expect(mocked.confirm).toHaveBeenCalledWith(
-      "This map has 1 unresolved issue. Save anyway?",
-      ISSUE_DIALOG,
-    );
+    await answering("review", () => session().save());
     expect(mocked.save).not.toHaveBeenCalled();
     expect(useLayoutStore.getState().tab).toBe("issues");
   });
 
   it("saveAs and saving into the mod ask once, before the picker", async () => {
-    mocked.confirm.mockResolvedValueOnce(false);
-    await session().saveAs();
-    expect(mocked.confirm).toHaveBeenCalledTimes(1);
+    await answering("cancel", () => session().saveAs());
     expect(mocked.saveDialog).not.toHaveBeenCalled();
 
-    mocked.confirm.mockResolvedValueOnce(true);
     mocked.saveDialog.mockResolvedValueOnce("C:/saves/other.sav");
     mocked.saveAs.mockResolvedValueOnce(saveResult({ path: "C:/saves/other.sav" }));
-    await session().saveAs();
-    expect(mocked.confirm).toHaveBeenCalledTimes(2);
+    await answering("save", () => session().saveAs());
     expect(mocked.saveAs).toHaveBeenCalledTimes(1);
 
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_RESULT.path);
-    usePaintModStore.setState({
-      known: true,
-      paintMod: paintModView(),
-    });
-    mocked.confirm.mockResolvedValueOnce(false);
-    await usePaintModStore.getState().saveIntoPaintMod();
-    expect(mocked.confirm).toHaveBeenCalledTimes(3);
+    usePaintModStore.setState({ known: true, paintMod: paintModView() });
+    await answering("cancel", () => usePaintModStore.getState().saveIntoPaintMod());
     expect(mocked.saveDialog).toHaveBeenCalledTimes(1);
   });
 
   it("opening or closing a document forgets what was dismissed", async () => {
     mocked.save.mockResolvedValue(saveResult({ dirty: false }));
-    await session().save();
+    await answering("save", () => session().save());
     expect(session().dismissedIssues).toEqual(["system_isolated:5"]);
 
     await session().openSave(OPEN_RESULT.path);
     expect(session().dismissedIssues).toEqual([]);
     await edit();
-    await session().save();
-    expect(mocked.confirm).toHaveBeenCalledTimes(2);
+    await answering("save", () => session().save());
 
     await session().close();
     expect(session().dismissedIssues).toEqual([]);
+  });
+});
+
+describe("the paused save bar", () => {
+  beforeEach(async () => {
+    standingAnswer = null;
+    useLayoutStore.setState({ tab: "inspector", collapsed: false });
+    await session().openSave(OPEN_RESULT.path);
+    await edit();
+  });
+
+  /** Leaves `start` paused on the one issue the sample save opens with. */
+  async function pause(start: () => Promise<void> = () => session().save()): Promise<void> {
+    const done = start();
+    await vi.waitFor(() => expect(session().saveIssuesPrompt).not.toBeNull());
+    session().answerSaveIssues("review");
+    await done;
+    expect(session().pausedSave).not.toBeNull();
+  }
+
+  it("Save anyway writes with those issues agreed to, without asking again", async () => {
+    await pause();
+    mocked.save.mockResolvedValue(saveResult({ dirty: false }));
+    await session().resumePausedSave();
+
+    expect(session().saveIssuesPrompt).toBeNull();
+    expect(session().pausedSave).toBeNull();
+    expect(session().dismissedIssues).toEqual(["system_isolated:5"]);
+    expect(mocked.save).toHaveBeenCalledTimes(1);
+    expect(session().dirty).toBe(false);
+  });
+
+  it("Save anyway on a paused Save as picks the picker up again", async () => {
+    await pause(() => session().saveAs());
+    expect(mocked.saveDialog).not.toHaveBeenCalled();
+
+    mocked.saveDialog.mockResolvedValueOnce("C:/saves/other.sav");
+    mocked.saveAs.mockResolvedValueOnce(saveResult({ path: "C:/saves/other.sav" }));
+    await session().resumePausedSave();
+    expect(mocked.saveAs).toHaveBeenCalledWith("C:/saves/other.sav");
+    expect(session().pausedSave).toBeNull();
+  });
+
+  it("Dismiss clears the bar, writing nothing and agreeing to nothing", async () => {
+    await pause();
+    session().dismissPausedSave();
+
+    expect(session().pausedSave).toBeNull();
+    expect(session().dismissedIssues).toEqual([]);
+    expect(mocked.save).not.toHaveBeenCalled();
+    expect(session().dirty).toBe(true);
+  });
+
+  it("a save that lands clears the bar", async () => {
+    await pause();
+    useIssuesStore.setState({ issues: [] });
+    mocked.save.mockResolvedValue(saveResult({ dirty: false }));
+    await session().save();
+
+    expect(mocked.save).toHaveBeenCalledTimes(1);
+    expect(session().pausedSave).toBeNull();
+  });
+
+  it("closing the document clears the bar", async () => {
+    await pause();
+    await session().close();
+    expect(session().pausedSave).toBeNull();
   });
 });
 

@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Normalised 3 lane lengths
 touched: [567, 590, 786, 787]
 inverse: SetLaneLengths { lanes: [LaneLength { a: 786, b: 567, length: 16.25946 }, LaneLength { a: 786, b: 590, length: 14.51034 }, LaneLength { a: 786, b: 787, length: 11.87566 }] }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

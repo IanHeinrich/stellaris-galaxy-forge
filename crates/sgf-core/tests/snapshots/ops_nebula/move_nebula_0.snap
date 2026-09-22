@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Moved Phantom Streak Miasma to (76.15, -126.85); its radius now covers 8 systems (was 8)
 touched: [140, 348, 455, 463, 484, 753]
 inverse: MoveNebula { index: 0, x: 66.15, y: -136.85 }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

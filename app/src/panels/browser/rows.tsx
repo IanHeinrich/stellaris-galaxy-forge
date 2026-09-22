@@ -18,7 +18,7 @@ export function Eye({ on, label, onToggle }: { on: boolean; label: string; onTog
   );
 }
 
-/** A collapsible section: eye, name, count when collapsed, and its rows under it. */
+/** A collapsible section: eye, name, count when collapsed, a note and its rows under it. */
 export function Group({
   label,
   title,
@@ -27,6 +27,7 @@ export function Group({
   error = false,
   sub = false,
   lead,
+  note,
   onToggle,
   children,
 }: {
@@ -37,6 +38,8 @@ export function Group({
   error?: boolean;
   sub?: boolean;
   lead?: ReactNode;
+  /** What the whole section means and what to do about it, shown while it is open. */
+  note?: ReactNode;
   onToggle(): void;
   children: ReactNode;
 }) {
@@ -58,6 +61,7 @@ export function Group({
         </button>
         <span className="browser-count">{count}</span>
       </div>
+      {open && note !== undefined && <div className="browser-group-note">{note}</div>}
       {open && children}
     </div>
   );
@@ -70,6 +74,7 @@ export function Row({
   title,
   subline,
   count,
+  stacked = false,
   onName,
   actions,
 }: {
@@ -78,11 +83,13 @@ export function Row({
   title?: string;
   subline?: string | null;
   count?: number;
+  /** The subline takes a line of its own, so neither it nor the name is cut short. */
+  stacked?: boolean;
   onName?: (() => void) | null;
   actions?: ReactNode;
 }) {
   return (
-    <div className="browser-row">
+    <div className={stacked ? "browser-row stacked" : "browser-row"}>
       {lead}
       <button
         type="button"

@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Renamed nebula 0 from "Sea of Ghosts" to "NAME_N_Maw"
 touched: []
 inverse: SetNebulaName { index: 0, name: "Sea of Ghosts" }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

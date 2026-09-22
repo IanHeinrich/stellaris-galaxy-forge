@@ -49,10 +49,11 @@ fn open_read_search_close() {
     assert_eq!(meta.version, "Pegasus v4.4.6");
     assert_eq!(meta.date, "2206.11.16");
     assert_eq!(opened.galaxy.systems.len(), 791);
-    assert_eq!(opened.galaxy.components, 3);
+    // 789 rides the wormhole to 788, so only 790 stands apart.
+    assert_eq!(opened.galaxy.components, 2);
     assert_eq!(opened.galaxy.nebulae.len(), 9);
     assert!((opened.galaxy.galaxy_radius - 499.9288).abs() < 1e-9);
-    assert_eq!(opened.issues.len(), 6);
+    assert_eq!(opened.issues.len(), 3);
 
     let detail: SystemDetail = invoke(&w, "get_system", json!({ "id": 0 })).expect("system 0");
     assert_eq!(detail.system.name.key, "NAME_Gamma_Refuge");

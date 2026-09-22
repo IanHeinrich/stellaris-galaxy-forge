@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Added nebula "SGF_Test_Nebula" at (-57.5, -305) radius 40; 4 systems joined
 touched: [113, 134, 600, 688]
 inverse: RemoveNebula { index: 9 }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

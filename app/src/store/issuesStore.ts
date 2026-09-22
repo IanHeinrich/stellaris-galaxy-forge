@@ -50,6 +50,8 @@ export interface IssuesState {
   filter: IssueFilter;
   /** The one code the tab lists, or every code. */
   code: AppIssueCode | null;
+  /** The list is flashing, to show a save that stopped for its issues where they are. */
+  attention: boolean;
   setFilter(filter: IssueFilter): void;
   setCode(code: AppIssueCode | null): void;
   /** Takes the open document's issues: its findings as the baseline, its notes as the standing ones. */
@@ -60,7 +62,14 @@ export interface IssuesState {
   setFindings(findings: Issue[]): void;
   /** Swaps the app's notes of one `code` for `notes`, touching nothing when they already stand. */
   setNotes(code: NoteCode, notes: AppIssue[]): void;
+  /** Flashes the list; it settles on its own shortly after. */
+  flash(): void;
+  /** Settles the flash, whether it ran its course or the user reached the list first. */
+  settle(): void;
 }
+
+/** How long the flash lasts, matching the animation in `browser.css`. */
+const FLASH_MS = 1200;
 
 const EMPTY = {
   issues: [] as AppIssue[],
@@ -68,7 +77,15 @@ const EMPTY = {
   notes: [] as AppIssue[],
   filter: "new" as IssueFilter,
   code: null as AppIssueCode | null,
+  attention: false,
 };
+
+let flashTimer: ReturnType<typeof setTimeout> | null = null;
+
+function stopFlash(): void {
+  if (flashTimer !== null) clearTimeout(flashTimer);
+  flashTimer = null;
+}
 
 /** The document a late answer still belongs to; a load or clear since leaves it to nobody. */
 let documents = 0;
@@ -86,6 +103,7 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
 
   load(issues) {
     documents++;
+    stopFlash();
     set({
       ...EMPTY,
       issues,
@@ -96,6 +114,7 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
 
   clear() {
     documents++;
+    stopFlash();
     set(EMPTY);
   },
 
@@ -117,6 +136,20 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
       notes: [...standing.filter((note) => note.code !== code), ...notes],
       issues: [...issues.filter((issue) => issue.code !== code), ...notes],
     });
+  },
+
+  flash() {
+    stopFlash();
+    set({ attention: true });
+    flashTimer = setTimeout(() => {
+      flashTimer = null;
+      set({ attention: false });
+    }, FLASH_MS);
+  },
+
+  settle() {
+    stopFlash();
+    if (get().attention) set({ attention: false });
   },
 }));
 

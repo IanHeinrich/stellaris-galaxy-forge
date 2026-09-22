@@ -145,6 +145,37 @@ describe("issuesStore", () => {
     expect(useIssuesStore.getState().issues).toEqual([]);
   });
 
+  it("flashes the list for a save that stopped, and settles on its own", async () => {
+    vi.useFakeTimers();
+    try {
+      await open();
+      useIssuesStore.getState().flash();
+      expect(useIssuesStore.getState().attention).toBe(true);
+      vi.advanceTimersByTime(1200);
+      expect(useIssuesStore.getState().attention).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("settles the flash when the list is touched, and when the document closes", async () => {
+    vi.useFakeTimers();
+    try {
+      await open();
+      useIssuesStore.getState().flash();
+      useIssuesStore.getState().settle();
+      expect(useIssuesStore.getState().attention).toBe(false);
+
+      useIssuesStore.getState().flash();
+      useIssuesStore.getState().clear();
+      expect(useIssuesStore.getState().attention).toBe(false);
+      vi.advanceTimersByTime(1200);
+      expect(useIssuesStore.getState().attention).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("takes a fresh baseline when another save opens", async () => {
     await open();
     mocked.openSave.mockResolvedValue({ ...OPEN_RESULT, issues: [AT_LOAD, SPLIT] });

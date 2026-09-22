@@ -1,5 +1,7 @@
+import type { Severity } from "../../generated/Severity";
 import type { AppIssue, AppIssueCode } from "../../lib/issues";
-import { issueGroups, issueTitle } from "../../store/browserRows";
+import { titleCase } from "../../lib/text";
+import { issueCopy, issueGroups, issueTitle } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
@@ -16,9 +18,16 @@ import { useCollapse } from "./collapse";
 import { Action, Group, Row } from "./rows";
 
 const FILTER_LABELS: Record<IssueFilter, string> = {
-  new: "New",
-  baseline: "At load",
-  all: "All",
+  new: "From my edits",
+  baseline: "Already in the save",
+  all: "Everything",
+};
+
+/** What an empty list means, which depends on what was asked for. */
+const EMPTY_LABELS: Record<IssueFilter, string> = {
+  new: "Your edits have raised no issues.",
+  baseline: "The file opened with nothing wrong.",
+  all: "Nothing is wrong with this file.",
 };
 
 function FilterButton({ filter, count }: { filter: IssueFilter; count: number }) {
@@ -38,7 +47,7 @@ function CodeFilter({ codes }: { codes: AppIssueCode[] }) {
   return (
     <select
       className="browser-code-filter"
-      aria-label="Filter by code"
+      aria-label="Filter by kind"
       value={code ?? ""}
       onChange={(e) => setCode(e.target.value === "" ? null : (e.target.value as AppIssueCode))}
     >
@@ -50,6 +59,12 @@ function CodeFilter({ codes }: { codes: AppIssueCode[] }) {
       ))}
     </select>
   );
+}
+
+/** A row's own severity, for a group whose rows do not all share one. */
+function SeverityDot({ severity }: { severity: Severity }) {
+  const label = titleCase([severity]);
+  return <span className={`browser-dot ${severity}`} role="img" aria-label={label} title={label} />;
 }
 
 /** What a row can do about its issue, by code; most codes have nothing but the jump. */
@@ -69,7 +84,7 @@ function IssueFix({ issue }: { issue: AppIssue }) {
         : code === "reserved_spawns_missing"
           ? { label: "Subscribe ↗", run: openReservedSpawnsWorkshop }
           : code === "marauder_bases_missing" && first !== undefined
-            ? { label: "Add the raid bases", run: () => addMarauderBases(first) }
+            ? { label: "Add the outposts", run: () => addMarauderBases(first) }
             : code === "fe_link_isolated" && first !== undefined
               ? { label: "Use nearest systems", run: () => resetFeLinks(first) }
               : code === "fe_link_dangling" && first !== undefined
@@ -83,7 +98,27 @@ function IssueFix({ issue }: { issue: AppIssue }) {
   );
 }
 
-/** The validator's findings: what the save arrived with sits behind the "At load" filter. */
+/** A save that stopped here, and the two ways out of it. */
+function PausedSaveBar() {
+  const paused = useFileSessionStore((s) => s.pausedSave);
+  const resume = useFileSessionStore((s) => s.resumePausedSave);
+  const dismiss = useFileSessionStore((s) => s.dismissPausedSave);
+  if (paused === null) return null;
+  const count = paused.count === 1 ? "1 issue" : `${paused.count} issues`;
+  return (
+    <div className="browser-paused">
+      <span>⚠ Save paused with {count} to check</span>
+      <button type="button" onClick={() => void resume()}>
+        Save anyway
+      </button>
+      <button type="button" onClick={dismiss}>
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
+/** The validator's findings: what the file arrived with sits behind its own filter button. */
 export function Issues() {
   const status = useFileSessionStore((s) => s.status);
   const issues = useIssuesStore((s) => s.issues);
@@ -92,9 +127,10 @@ export function Issues() {
   const baseline = useIssuesStore((s) => s.baseline);
   const filter = useIssuesStore((s) => s.filter);
   const code = useIssuesStore((s) => s.code);
-  const setFilter = useIssuesStore((s) => s.setFilter);
   const systems = useGalaxyStore((s) => s.systems);
   const names = useGameDataStore((s) => s.names);
+  const attention = useIssuesStore((s) => s.attention);
+  const settle = useIssuesStore((s) => s.settle);
   const collapse = useCollapse("issues");
 
   if (status !== "ready") return null;
@@ -111,7 +147,12 @@ export function Issues() {
   const codes = [...new Set(issues.map((i) => i.code))];
 
   return (
-    <div className="browser">
+    <div
+      className={attention ? "browser browser-attention" : "browser"}
+      onPointerDown={settle}
+      onFocus={settle}
+    >
+      <PausedSaveBar />
       <div className="browser-filters">
         <FilterButton filter="new" count={fresh.length} />
         <FilterButton filter="baseline" count={atLoad.length} />
@@ -120,53 +161,55 @@ export function Issues() {
       </div>
       {shown.length === 0 && (
         <div className="muted">
-          {filter === "new" ? "No issues since this save was opened." : "Nothing to show."}
+          {code === null ? EMPTY_LABELS[filter] : "Nothing of that kind is listed."}
         </div>
       )}
-      {issueGroups(shown, nameOf).map((group) => (
-        <Group
-          key={group.code}
-          label={group.title}
-          count={group.rows.length}
-          error={group.error}
-          lead={<span className="browser-code">{group.code}</span>}
-          open={!collapse.collapsed(group.code)}
-          onToggle={() => collapse.toggle(group.code)}
-        >
-          {group.rows.map(({ issue, systems: named }, i) => (
-            <Row
-              key={`${group.code}-${i}`}
-              lead={
-                <span
-                  className={
-                    issue.severity === "error" ? "browser-severity error" : "browser-severity"
+      {issueGroups(shown, nameOf).map((group) => {
+        const copy = issueCopy(group.code);
+        return (
+          <Group
+            key={group.code}
+            label={group.title}
+            count={group.rows.length}
+            error={group.error}
+            note={
+              <>
+                {copy.why}
+                <span className="browser-group-fix">{copy.fix}</span>
+              </>
+            }
+            open={!collapse.collapsed(group.code)}
+            onToggle={() => collapse.toggle(group.code)}
+          >
+            {group.rows.map(({ issue, systems: named }, i) => {
+              const here = issue.systems.length > 0;
+              return (
+                <Row
+                  key={`${group.code}-${i}`}
+                  lead={group.mixed ? <SeverityDot severity={issue.severity} /> : undefined}
+                  name={here ? named : issue.message}
+                  title={issue.message}
+                  subline={here && copy.detail ? issue.message : undefined}
+                  stacked
+                  onName={here ? () => void go(issue) : null}
+                  actions={
+                    <>
+                      <IssueFix issue={issue} />
+                      {here && (
+                        <Action
+                          glyph="⌖"
+                          label="Focus these systems"
+                          onClick={() => void go(issue)}
+                        />
+                      )}
+                    </>
                   }
-                >
-                  {issue.severity}
-                </span>
-              }
-              name={named}
-              title={issue.message}
-              onName={() => void go(issue)}
-              actions={
-                <>
-                  <IssueFix issue={issue} />
-                  <Action glyph="⌖" label="Focus these systems" onClick={() => void go(issue)} />
-                </>
-              }
-            />
-          ))}
-        </Group>
-      ))}
-      {filter === "new" && atLoad.length > 0 && (
-        <div className="browser-note">
-          {atLoad.length} {atLoad.length === 1 ? "issue was" : "issues were"} in the save when it
-          was opened
-          <button type="button" onClick={() => setFilter("baseline")}>
-            show
-          </button>
-        </div>
-      )}
+                />
+              );
+            })}
+          </Group>
+        );
+      })}
     </div>
   );
 }

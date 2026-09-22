@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Added lane 0 <-> 1 (length 264)
 touched: [0, 1]
 inverse: RemoveLane { a: 0, b: 1 }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

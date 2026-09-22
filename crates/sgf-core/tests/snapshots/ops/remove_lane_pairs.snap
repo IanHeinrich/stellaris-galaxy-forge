@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Removed 2 lanes
 touched: [0, 86, 112, 752]
 inverse: AddLanePairs { lanes: [LanePair { a: 0, b: 752, bridge: false }, LanePair { a: 86, b: 112, bridge: true }] }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

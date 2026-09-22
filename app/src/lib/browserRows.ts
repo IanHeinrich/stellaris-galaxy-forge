@@ -1,4 +1,5 @@
 import type { CountryNode } from "../generated/CountryNode";
+import { issueTitle } from "./issueCopy";
 import type { AppIssue, AppIssueCode } from "./issues";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import { badgeLabel, humaniseInitializer } from "./visual/specialStyle";
@@ -12,6 +13,8 @@ import {
 import { supersededCountry, systemsOf, type Ownership } from "./ownership";
 import { kindLabel } from "./special";
 import { titleCase } from "./text";
+
+export { issueTitle };
 
 /** What a row needs looking up; the caller decides where the answers come from. */
 export interface RowLookups {
@@ -277,44 +280,6 @@ export function pointGroups(
   });
 }
 
-const ISSUE_TITLES: Record<AppIssueCode, string> = {
-  lane_asymmetric: "Lane listed from one end only",
-  lane_endpoint_missing: "Lane to a system that is not there",
-  lane_self: "Lane from a system to itself",
-  lane_duplicate: "The same lane listed twice",
-  system_isolated: "System with no hyperlanes",
-  out_of_bounds: "System beyond the galaxy radius",
-  disconnected: "Galaxy split into separate components",
-  nebula_membership: "Nebula membership does not match the position",
-  coordinate_transform: "Coordinate transform is not applied",
-  position_range: "Position written as a range the generator picks in",
-  export_dropped: "Not carried into the scenario",
-  home_initializer: "Home system with a non-generic initializer",
-  fe_zone_blocked: "Fallen empire zone covers a system",
-  fe_zone_overlap: "Fallen empire zones overlap",
-  fe_zone_off_map: "Fallen empire zone lies off the map",
-  fe_zone_no_automatic: "No fallen empire zones",
-  fe_link_isolated: "Fallen empire zone with custom connections and no links",
-  fe_link_dangling: "Linked to a fallen empire connection no zone takes",
-  fe_link_shared: "Fallen empire zones sharing a connection id",
-  fe_link_far: "Far from the fallen empire zone it links to",
-  header_empire_count: "Header empire counts do not match the seats",
-  seat_letter_duplicate: "Reserved seat used twice",
-  sol_seat_mismatch: "Sol seat names Sol's initializer",
-  player_seat_duplicate: "Player seat used twice",
-  l_cluster_system: "System where the game places the L-Cluster",
-  scenario_name_duplicate: "Scenario name used by another file in the mod",
-  reserved_spawns_missing: "Reserved seats without the Reserved Spawns submod",
-  marauder_home_duplicate: "Marauder clan with two homes",
-  marauder_base_orphan: "Marauder raid base without its clan",
-  marauder_near_seat: "Marauder clan beside a seat",
-  marauder_bases_missing: "Marauder clan missing its raid bases",
-};
-
-export function issueTitle(code: AppIssueCode): string {
-  return ISSUE_TITLES[code];
-}
-
 export interface IssueRow {
   issue: AppIssue;
   /** The systems the issue names, on the row's own line. */
@@ -326,6 +291,8 @@ export interface IssueGroup {
   title: string;
   /** An error anywhere in the group colours its header. */
   error: boolean;
+  /** Whether the rows differ in severity, so each one needs a mark of its own. */
+  mixed: boolean;
   rows: IssueRow[];
 }
 
@@ -335,11 +302,20 @@ export function issueGroups(issues: AppIssue[], nameOf: (id: number) => string):
   for (const issue of issues) {
     let group = groups.get(issue.code);
     if (!group) {
-      group = { code: issue.code, title: issueTitle(issue.code), error: false, rows: [] };
+      group = {
+        code: issue.code,
+        title: issueTitle(issue.code),
+        error: false,
+        mixed: false,
+        rows: [],
+      };
       groups.set(issue.code, group);
     }
     group.error = group.error || issue.severity === "error";
     group.rows.push({ issue, systems: issue.systems.map(nameOf).join(", ") });
+  }
+  for (const group of groups.values()) {
+    group.mixed = new Set(group.rows.map((row) => row.issue.severity)).size > 1;
   }
   return [...groups.values()].sort(
     (a, b) =>

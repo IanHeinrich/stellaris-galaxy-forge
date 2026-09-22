@@ -1,0 +1,1440 @@
+# Exported by Stellaris Galaxy Forge from base45.sav
+# Systems: 581 · Empire seats: 9 · Nebulae: 9
+# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
+static_galaxy_scenario = {
+	name = "broken_demo"
+	priority = 10
+	supports_shape = spiral_3
+	supports_shape = elliptical
+	supports_shape = ring
+	supports_shape = spiral_2
+	supports_shape = spiral_4
+	supports_shape = spiral_6
+	supports_shape = bar
+	supports_shape = starburst
+	supports_shape = cartwheel
+	supports_shape = spoked
+	random_hyperlanes = no
+	num_wormhole_pairs = { min = 0 max = 5 }
+	num_wormhole_pairs_default = 1
+	num_gateways = { min = 0 max = 5 }
+	num_gateways_default = 1
+	num_hyperlanes = { min = 0.5 max = 3 }
+	num_hyperlanes_default = 1
+	colonizable_planet_odds = 0.25
+	primitive_odds = 0.25
+	fallen_empire_max = 2
+	marauder_empire_max = 2
+	extra_crisis_strength = { 10 25 }
+	num_empires = { min = 0 max = 8 }
+	num_empire_default = 8
+	advanced_empire_default = 2
+	nomad_empire_default = 2
+	nomad_empire_max = 8
+	fallen_empire_default = 2
+	marauder_empire_default = 2
+	crisis_strength = 0.75
+	core_radius = 120
+
+	coordinate_transform = { x = { add = 10 } y = { mul = 1.1 } }
+	system = { id = "0" name = "Dristmak" position = { x = 155.95 y = 119.15 } initializer = ai_system_01 }
+	system = { id = "1" name = "Xu_Nur" position = { x = 109.55 y = -333.54 } initializer = ai_system_03 }
+	system = { id = "2" name = "Millistamu" position = { x = -149.52 y = 316.01 } initializer = ai_system_02 }
+	system = { id = "3" name = "Zavarys" position = { x = 387.61 y = -9.94 } initializer = marauder_3_2 }
+	system = { id = "4" name = "Gaping_Maw" position = { x = 303.32 y = 151.44 } initializer = distantstars_init_06 }
+	system = { id = "5" name = "Tuzhik" position = { x = -215.9 y = -125.14 } initializer = binary_init_01 }
+	system = { id = "6" name = "VOIDWORM_SYSTEM_04" position = { x = 244.89 y = -254.58 } initializer = voidworms_spawn_system_medium }
+	system = { id = "7" name = "Nimirroth" position = { x = -20.11 y = -165.45 } initializer = megacorp_strategic_coordination_center_init_01 }
+	system = { id = "8" name = "Zantaris_Black_Hole" position = { x = -203.95 y = 193.95 } initializer = marauder_2_1 }
+	system = { id = "9" name = "VOIDWORM_SYSTEM_05" position = { x = 151.48 y = 12.76 } initializer = voidworms_spawn_system_small }
+	system = { id = "10" name = "Kahalajom" position = { x = -223.37 y = -143.57 } initializer = distar_crystal_system }
+	system = { id = "11" name = "VOIDWORM_SYSTEM_08" position = { x = -5.34 y = 140.71 } initializer = voidworms_spawn_system_tiny }
+	system = { id = "12" name = "NAME_Hauer" position = { x = -244.21 y = -46.51 } initializer = hauer_system_initializer }
+	system = { id = "13" name = "Enigmas_End" position = { x = -144.96 y = 235.8 } initializer = salvager_enclave_init_03 }
+	system = { id = "14" name = "Mareenius" position = { x = 381.84 y = -89.39 } initializer = mindwarden_enclave_initializer }
+	system = { id = "15" name = "Canopus" position = { x = { min = 90 max = 110 } y = -251.18 } initializer = basic_init_03 }
+	system = { id = "16" name = "Eglrarvis" position = { x = 201.11 y = -17.8 } initializer = guardians_artist_init_01 }
+	system = { id = "17" name = "Yonnoks_Maw" position = { x = -68.88 y = 358.56 } initializer = guardians_curator_init_02 }
+	system = { id = "18" name = "Siplim" position = { x = -82.04 y = 146.65 } initializer = guardians_artist_init_02 }
+	system = { id = "19" name = "Koria" position = { x = 273.69 y = 191.81 } initializer = marauder_3_1 }
+	system = { id = "20" name = "Dabih" position = { x = -362.33 y = -136.56 } initializer = distar_crystal_system }
+	system = { id = "21" name = "Lurus" position = { x = 93 y = 371.02 } initializer = marauder_1_1 }
+	system = { id = "22" name = "Cemesta" position = { x = -196.89 y = -209.36 } initializer = guardians_init_wraith }
+	system = { id = "23" name = "NAME_Chors_Compass" position = { x = 177.32 y = -296.26 } initializer = megacorp_caravaneer_init }
+	system = { id = "24" name = "Sasin" position = { x = 249.43 y = -319.02 } initializer = shroudwalker_enclave_init_01 }
+	system = { id = "25" name = "Gossok" position = { x = -177.98 y = 281.56 } initializer = dyson_sphere_init_01 }
+	system = { id = "26" name = "Scorom" position = { x = 33.65 y = -284.48 } initializer = binary_init_02 }
+	system = { id = "27" name = "Manthall" position = { x = -215.89 y = -13.15 } initializer = salvager_enclave_init_02 }
+	system = { id = "28" name = "NAME_Tiyana_Vek" position = { x = -45.98 y = 137.71 } initializer = hostile_init_16 }
+	system = { id = "29" name = "Asterope" position = { x = 117.23 y = -357.42 } initializer = star_lifting_system }
+	system = { id = "30" name = "Baxom" position = { x = 324.19 y = 51.06 } initializer = basic_init_05 }
+	system = { id = "31" name = "Anaxador" position = { x = -149.52 y = 77.94 } initializer = guardians_init_dreadnought effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }
+	system = { id = "32" name = "Polystea" position = { x = -6.67 y = -175.71 } initializer = basic_init_03 }
+	system = { id = "33" name = "Guhur" position = { x = 234.28 y = -98.12 } initializer = basic_init_05 }
+	system = { id = "34" name = "Yeelon" position = { x = 243.24 y = 149.02 } initializer = basic_init_02 }
+	system = { id = "35" name = "Belgium" position = { x = -112.77 y = 375.81 } initializer = guardians_trader_init_01 }
+	system = { id = "36" name = "Capella" position = { x = 220.63 y = 115.49 } initializer = binary_init_02 }
+	system = { id = "37" name = "Astrkion" position = { x = -41.19 y = -337.97 } initializer = basic_init_03 }
+	system = { id = "38" name = "Sargas" position = { x = 143.1 y = -347.35 } initializer = orbital_ring_init_01 }
+	system = { id = "39" name = "NAME_Amor_Alveo" position = { x = 304.62 y = -110.94 } initializer = hostile_init_20 }
+	system = { id = "40" name = "SPEC_Sirgogg_system" position = { x = -144.98 y = 262.36 } initializer = random_empire_init_05 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|0| } }
+	system = { id = "41" name = "Uiafladus" position = { x = -82.88 y = -98.62 } initializer = basic_init_06 }
+	system = { id = "42" name = "Unimar" position = { x = -197.5 y = 3.16 } initializer = basic_init_06 }
+	system = { id = "43" name = "Cuorilia" position = { x = -166.62 y = 38.18 } initializer = basic_init_03 }
+	system = { id = "44" name = "Lane" position = { x = 311.28 y = -5.95 } initializer = shroudwalker_enclave_init_03 }
+	system = { id = "45" name = "Taunrak" position = { x = -179.81 y = -58.87 } initializer = guardians_init_stellarites }
+	system = { id = "46" name = "NAME_Tiyun_Ort" position = { x = 156.89 y = 139.82 } initializer = hostile_init_21 }
+	system = { id = "47" name = "Brynnis" position = { x = 118.94 y = -59.25 } initializer = binary_init_01 }
+	system = { id = "48" name = "Tunari_Vortex" position = { x = -166.1 y = -266.51 } initializer = distantstars_init_00 }
+	system = { id = "49" name = "Noos" position = { x = -38.39 y = 250.16 } initializer = basic_init_01 }
+	system = { id = "50" name = "Sassara" position = { x = 3.95 y = -191.83 } initializer = neighbor_t2 }
+	system = { id = "51" name = "Gatria" position = { x = -46.54 y = -118.63 } initializer = basic_init_05 }
+	system = { id = "52" name = "Porrima" position = { x = 131.68 y = 149.44 } initializer = basic_init_04 }
+	system = { id = "53" name = "Abovast" position = { x = -85.88 y = -124.16 } initializer = basic_init_01 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 } }
+	system = { id = "54" name = "Iversene" position = { x = -96.77 y = 120.26 } initializer = binary_init_02 }
+	system = { id = "55" name = "Phonok" position = { x = 243.9 y = 253.84 } initializer = guardians_curator_init_03 }
+	system = { id = "56" name = "Pleeturi" position = { x = -122.6 y = 70.96 } initializer = guardians_init_dragon }
+	system = { id = "57" name = "Acubens" position = { x = 137.27 y = 322.4 } initializer = special_init_08 }
+	system = { id = "58" name = "Gamma_Velorum" position = { x = 93.09 y = -356.81 } initializer = scavenger_system }
+	system = { id = "59" name = "Grekil" position = { x = -327.44 y = -139.79 } initializer = trinary_init_01 }
+	system = { id = "60" name = "NAME_Great_Wound" position = { x = 5.81 y = 164.45 } initializer = great_wound_system }
+	system = { id = "61" name = "Owhziea" position = { x = 78.84 y = -332.35 } initializer = high_energy_system }
+	system = { id = "62" name = "NAME_Kira" position = { x = -9.34 y = -232.77 } initializer = oasis_system }
+	system = { id = "63" name = "Othvomia" position = { x = 316.4 y = 92.36 } initializer = neighbor_t2 }
+	system = { id = "64" name = "Tar_Valemm" position = { x = -374.3 y = -78.48 } initializer = shroudwalker_enclave_init_02 }
+	system = { id = "65" name = "Chetrus" position = { x = -370.03 y = 68.34 } initializer = salvager_enclave_init_01 }
+	system = { id = "66" name = "Aiastars" position = { x = 299.62 y = 106.85 } initializer = special_init_08 }
+	system = { id = "67" name = "Terebellum" position = { x = 142.93 y = 106.21 } initializer = hostile_init_06 }
+	system = { id = "68" name = "Abrez" position = { x = 243.17 y = -173.56 } initializer = guardians_trader_init_02 }
+	system = { id = "69" name = "Reshell" position = { x = 139.76 y = 177.98 } initializer = basic_init_04 }
+	system = { id = "70" name = "Daithlon" position = { x = 162.9 y = -28.21 } initializer = basic_init_05 }
+	system = { id = "71" name = "Hiann" position = { x = -167.75 y = -190.78 } initializer = special_init_09 }
+	system = { id = "72" name = "Mauthula" position = { x = -139.12 y = 103.98 } initializer = mechanocalibrator_system effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }
+	system = { id = "73" name = "Eroabroria" position = { x = -169.83 y = -236.92 } initializer = basic_init_01 }
+	system = { id = "74" name = "Polymar" position = { x = -75.91 y = -302.97 } initializer = binary_init_02 }
+	system = { id = "75" name = "Banagho" position = { x = -3.66 y = 286.29 } initializer = guardians_trader_init_03 }
+	system = { id = "76" name = "Nihal" position = { x = -251.7 y = -85.69 } initializer = broken_shroudwalker_init_01 }
+	system = { id = "77" name = "Bivham" position = { x = -23.64 y = 268.29 } initializer = basic_init_01 }
+	system = { id = "78" name = "Mang" position = { x = -232.9 y = -96.14 } initializer = pre_ftl_inf_init_01 }
+	system = { id = "79" name = "Iieystara" position = { x = 10.07 y = -179.26 } initializer = basic_init_06 }
+	system = { id = "80" name = "Tiqim" position = { x = -90.35 y = -140.15 } initializer = basic_init_03 }
+	system = { id = "81" name = "Uproth" position = { x = -195.37 y = 41.89 } initializer = basic_init_03 }
+	system = { id = "82" name = "Hozint" position = { x = 257.06 y = 25.54 } initializer = basic_init_04 }
+	system = { id = "83" name = "Tallasus" position = { x = -99.74 y = 83.13 } initializer = basic_init_01 }
+	system = { id = "84" name = "Zi_Pok_Vortex" position = { x = -124.14 y = -22.37 } initializer = special_init_01 }
+	system = { id = "85" name = "NAME_Klendath" position = { x = 185.05 y = -52.28 } initializer = hostile_init_22 }
+	system = { id = "86" name = "PRESCRIPTED_system_name_chinorr" position = { x = 131.86 y = 214.92 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|1| } }
+	system = { id = "87" name = "Kiezel" position = { x = -110.81 y = -124.69 } initializer = hostile_init_15 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 set_star_flag = painted_galaxy_fe_custom_connection_to_9 } }
+	system = { id = "88" name = "Unur" position = { x = -150.89 y = 361.04 } initializer = pre_ftl_hive_init_01 }
+	system = { id = "89" name = "Yunduk" position = { x = 82.47 y = -180.03 } initializer = basic_init_01 }
+	system = { id = "90" name = "Masinissas_Demise" position = { x = -115.33 y = -111.25 } initializer = special_init_01 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 } }
+	system = { id = "91" name = "Meneth" position = { x = -11.56 y = -326.48 } initializer = special_init_08 }
+	system = { id = "92" name = "Ferragon" position = { x = 263.08 y = -273.91 } initializer = basic_init_03 }
+	system = { id = "93" name = "NAME_Deneb" position = { x = 159.15 y = -75.69 } initializer = pre_ftl_deneb_system }
+	system = { id = "94" name = "Angetenar" position = { x = 342.38 y = 114.9 } initializer = basic_init_01 }
+	system = { id = "95" name = "Kharasta" position = { x = 137.32 y = -43.28 } initializer = binary_init_01 }
+	system = { id = "96" name = "Imdar" position = { x = -364.52 y = -15.1 } initializer = binary_init_01 }
+	system = { id = "97" name = "Hepamiston" position = { x = 10.95 y = 270.28 } initializer = basic_init_05 }
+	system = { id = "98" name = "NAME_Fumongus_System" position = { x = 61.48 y = -149.65 } initializer = fumongus_init_01 }
+	system = { id = "99" name = "Bashpat" position = { x = 240.32 y = -131.15 } initializer = basic_init_04 }
+	system = { id = "100" name = "Ter_Meku_Black_Hole" position = { x = -25.48 y = 125.78 } initializer = hostile_init_void_cloud }
+	system = { id = "101" name = "Toua" position = { x = -272.13 y = 111.06 } initializer = basic_init_04 }
+	system = { id = "102" name = "Piddahfir" position = { x = 188.06 y = -28.82 } initializer = basic_init_05 }
+	system = { id = "103" name = "Imulgaron" position = { x = -240.07 y = 29.46 } initializer = basic_init_02 }
+	system = { id = "104" name = "Ekavira" position = { x = 71.03 y = 242.85 } initializer = basic_init_02 }
+	system = { id = "105" name = "Ecio" position = { x = -330 y = 9.09 } initializer = elderly_tiyanki_system }
+	system = { id = "106" name = "Sadatoni" position = { x = -129.13 y = -143.4 } initializer = basic_init_03 effect = { set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster } }
+	system = { id = "107" name = "Jezemei" position = { x = 163.29 y = 155.69 } initializer = basic_init_04 }
+	system = { id = "108" name = "Amandi" position = { x = 192.86 y = -263.18 } initializer = hostile_init_11 }
+	system = { id = "110" name = "Sugeylia" position = { x = -194.08 y = -134.98 } initializer = distar_phaseshift_system }
+	system = { id = "111" name = "Falmir" position = { x = -6.63 y = -159.56 } initializer = basic_init_01 }
+	system = { id = "112" name = "Qifitar" position = { x = 138.61 y = -310.5 } initializer = living_planet_system }
+	system = { id = "113" name = "Dwithim" position = { x = -122.86 y = 244.72 } initializer = basic_init_02 }
+	system = { id = "114" name = "Moscot" position = { x = -145.02 y = -109.98 } initializer = trinary_init_02 }
+	system = { id = "115" name = "Tau_Cygni" position = { x = 289.2 y = 164.45 } initializer = hostile_init_mining_drones }
+	system = { id = "116" name = "Melitane" position = { x = 239.41 y = 303.4 } initializer = abandoned_gateways_01 }
+	system = { id = "117" name = "Annawan" position = { x = -52.85 y = 110.04 } initializer = basic_init_02 }
+	system = { id = "118" name = "Grokkan" position = { x = 187.63 y = 128.42 } initializer = asteroid_init_01 }
+	system = { id = "119" name = "Cipux" position = { x = -144.12 y = 48.36 } initializer = basic_init_04 }
+	system = { id = "120" name = "Japhon" position = { x = -138.52 y = -246.65 } initializer = toxic_planet_toxic_moon }
+	system = { id = "121" name = "Brannamath" position = { x = -72.99 y = 268.57 } initializer = binary_init_02 }
+	system = { id = "122" name = "NAME_Wenkwort" position = { x = -231.55 y = -30.01 } initializer = wenkwort_initializer }
+	system = { id = "123" name = "Raprix" position = { x = 143.59 y = 135.47 } initializer = basic_init_02 }
+	system = { id = "124" name = "Gaee" position = { x = -93.75 y = -331.45 } initializer = trinary_init_01 }
+	system = { id = "125" name = "Wua" position = { x = -296.63 y = -207.37 } initializer = binary_init_01 }
+	system = { id = "126" name = "Sethelbak" position = { x = -124.02 y = 135.31 } initializer = basic_init_03 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_e set_star_flag = painted_galaxy_fe_spawn_materialist set_star_flag = painted_galaxy_fe_spawn_distance_40 } }
+	system = { id = "127" name = "Vollonis" position = { x = -86.3 y = 131.2 } initializer = basic_init_01 }
+	system = { id = "128" name = "Beta_Ursae_Majoris" position = { x = 166.32 y = 322.44 } initializer = binary_init_01 }
+	system = { id = "129" name = "Uray" position = { x = 18.78 y = -337.34 } initializer = neighbor_t1_first_colony }
+	system = { id = "130" name = "Deomia" position = { x = 281.44 y = -85.78 } initializer = basic_init_01 }
+	system = { id = "131" name = "Riggott" position = { x = -151.32 y = -40.78 } initializer = basic_init_01 }
+	system = { id = "132" name = "Tigira" position = { x = -53.68 y = -327.05 } initializer = basic_init_01 }
+	system = { id = "133" name = "Matolm" position = { x = -226.66 y = -171.43 } initializer = special_init_09 }
+	system = { id = "134" name = "Rituvecca" position = { x = 82.35 y = 164.98 } initializer = basic_init_05 }
+	system = { id = "135" name = "Weou" position = { x = 174.8 y = 291.05 } initializer = special_init_09 }
+	system = { id = "136" name = "Mihil" position = { x = 122.13 y = -408.98 } initializer = basic_init_02 }
+	system = { id = "137" name = "Briscoll" position = { x = 295.85 y = -9.97 } initializer = basic_init_03 }
+	system = { id = "138" name = "Eibriri" position = { x = 341.19 y = -14.22 } initializer = trinary_init_01 }
+	system = { id = "139" name = "Pavagh" position = { x = -132.68 y = 6.27 } initializer = basic_init_01 }
+	system = { id = "140" name = "SPEC_Tharbarite_system" position = { x = 259.3 y = 174.5 } initializer = protoplanetary_nomad_init }
+	system = { id = "141" name = "Geulea" position = { x = -75.93 y = 108.02 } initializer = asteroid_init_01 }
+	system = { id = "142" name = "Chohar" position = { x = -168.17 y = -4.62 } initializer = abandoned_gateways_01 }
+	system = { id = "143" name = "Rakaron" position = { x = 126.34 y = -276.41 } initializer = basic_init_01 }
+	system = { id = "144" name = "Jelenn" position = { x = -47.49 y = 122.3 } initializer = basic_init_05 }
+	system = { id = "145" name = "Piskus" position = { x = 82.69 y = 201.13 } initializer = abandoned_gateways_01 }
+	system = { id = "146" name = "Kachada" position = { x = 98.17 y = 198.25 } initializer = neighbor_t2 }
+	system = { id = "147" name = "Nodro" position = { x = 10.67 y = 125.82 } initializer = basic_init_01 }
+	system = { id = "148" name = "Wollaeus" position = { x = 174.53 y = 143.27 } initializer = basic_init_01 }
+	system = { id = "149" name = "Fatis" position = { x = -310.16 y = -164.01 } initializer = basic_init_03 }
+	system = { id = "150" name = "Qapra" position = { x = -113.62 y = -279.61 } initializer = hostile_init_15 }
+	system = { id = "151" name = "Zhoblar" position = { x = -177.38 y = -108.76 } initializer = basic_init_01 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 } }
+	system = { id = "152" name = "Aulderaan" position = { x = 52.57 y = -367.63 } initializer = basic_init_05 effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster } }
+	system = { id = "153" name = "Higashik-Ata" position = { x = -8.79 y = -287.29 } initializer = basic_init_03 }
+	system = { id = "154" name = "Ziamon" position = { x = -102.22 y = -173.58 } initializer = asteroid_init_01 }
+	system = { id = "155" name = "Siet" position = { x = -183.36 y = -145.5 } initializer = basic_init_05 }
+	system = { id = "156" name = "Tiamat" position = { x = 135.51 y = -23.37 } initializer = basic_init_01 }
+	system = { id = "157" name = "Barcalo" position = { x = 64.72 y = 351.69 } initializer = trinary_init_01 }
+	system = { id = "158" name = "Abdrade" position = { x = -71.57 y = 283.64 } initializer = abandoned_gateways_01 }
+	system = { id = "159" name = "Habraq" position = { x = 92.04 y = 388.81 } initializer = marauder_1_3 spawn_weight = { base = 10 } }
+	system = { id = "160" name = "Sidor" position = { x = 198.68 y = -91.7 } initializer = basic_init_01 }
+	system = { id = "161" name = "Lie" position = { x = -34.69 y = -158.08 } initializer = basic_init_02 }
+	system = { id = "162" name = "Alassia" position = { x = 175.41 y = -165.21 } initializer = basic_init_01 }
+	system = { id = "163" name = "Oscurn" position = { x = 279.56 y = 268.53 } initializer = trinary_init_01 effect = { set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster } }
+	system = { id = "164" name = "SPEC_Kammarian_system" position = { x = 356.94 y = -156.5 } initializer = random_empire_init_04 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|2| } }
+	system = { id = "165" name = "Uireb_Dar" position = { x = 184.35 y = 331.27 } initializer = basic_init_01 }
+	system = { id = "166" name = "Tiuz" position = { x = -52.36 y = -347.21 } initializer = basic_init_04 }
+	system = { id = "167" name = "Hensedon" position = { x = -105.63 y = -138.78 } initializer = trinary_init_02 }
+	system = { id = "168" name = "Sastram" position = { x = -55.97 y = -159.71 } initializer = basic_init_01 }
+	system = { id = "169" name = "SPEC_Alari_system" position = { x = -325.94 y = -109.34 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|3| modifier = { add = 100000 } } }
+	system = { id = "170" name = "Vakradil" position = { x = -250.92 y = 128.62 } initializer = basic_init_04 }
+	system = { id = "171" name = "Phargis" position = { x = -321.41 y = -83.9 } initializer = binary_init_02 }
+	system = { id = "172" name = "Pyla" position = { x = 232.62 y = -287.22 } initializer = basic_init_03 }
+	system = { id = "173" name = "Kastra" position = { x = -142.08 y = -12.43 } initializer = basic_init_05 }
+	system = { id = "175" name = "Havonchir" position = { x = -68.04 y = -323.46 } initializer = trinary_init_01 }
+	system = { id = "176" name = "Alpha_Lyncis" position = { x = 346.51 y = -191.9 } initializer = binary_init_01 }
+	system = { id = "178" name = "Trabalore" position = { x = 117.83 y = -317.58 } initializer = neighbor_t2 }
+	system = { id = "179" name = "ViMaas" position = { x = -288.13 y = 190.21 } initializer = basic_init_04 }
+	system = { id = "180" name = "Baltris" position = { x = -195.49 y = 78.06 } initializer = basic_init_06 effect = { set_star_flag = painted_galaxy_fe_custom_connections set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }
+	system = { id = "181" name = "Atausnyria" position = { x = 149.97 y = -1.97 } initializer = basic_init_04 }
+	system = { id = "182" name = "Horschim" position = { x = -48.69 y = 224.86 } initializer = big_rip_system }
+	system = { id = "183" name = "Torell" position = { x = 95.73 y = 351.39 } initializer = basic_init_03 }
+	system = { id = "184" name = "Julfte" position = { x = 208.75 y = 59.19 } initializer = basic_init_02 }
+	system = { id = "185" name = "NAME_Hillos" position = { x = -187.58 y = -17.38 } initializer = ghost_ship_system_initializer_01 }
+	system = { id = "186" name = "Usksion" position = { x = 101.64 y = -75.44 } initializer = shattered_world_system }
+	system = { id = "187" name = "Avim" position = { x = -288.61 y = -58.72 } initializer = basic_init_01 }
+	system = { id = "188" name = "Wilcam" position = { x = 289.28 y = 85.72 } initializer = basic_init_01 }
+	system = { id = "189" name = "Brigaffa" position = { x = 100.57 y = 123.35 } initializer = special_init_07 }
+	system = { id = "190" name = "Taiyangshou" position = { x = 179.47 y = 10.97 } initializer = hostile_init_13 }
+	system = { id = "191" name = "Eskellion" position = { x = 49.02 y = 131.77 } initializer = basic_init_01 }
+	system = { id = "192" name = "Vilth" position = { x = 176.54 y = -5.5 } initializer = basic_init_02 }
+	system = { id = "193" name = "Sigge" position = { x = -180.85 y = -205.78 } initializer = trinary_init_02 }
+	system = { id = "194" name = "Quannaga" position = { x = 315.91 y = 137 } initializer = hostile_init_07 }
+	system = { id = "195" name = "Eadominar" position = { x = -311.21 y = 40.49 } initializer = basic_init_06 }
+	system = { id = "196" name = "Doria" position = { x = 160.5 y = 25.51 } initializer = hostile_init_amoeba }
+	system = { id = "197" name = "Zif" position = { x = 110.7 y = 321.43 } initializer = basic_init_01 }
+	system = { id = "198" name = "Bijh" position = { x = 265.87 y = 151.76 } initializer = neighbor_t2 }
+	system = { id = "199" name = "Tas_Zebudor" position = { x = -218.5 y = -213.41 } initializer = basic_init_04 }
+	system = { id = "200" name = "NAME_Lost_Swarm_System" position = { x = -77.18 y = 252.07 } initializer = locust_system_initializer_01 }
+	system = { id = "201" name = "Swur" position = { x = -323.81 y = 141.95 } initializer = basic_init_02 }
+	system = { id = "202" name = "Mubblar" position = { x = 268.79 y = -123.16 } initializer = basic_init_04 }
+	system = { id = "203" name = "Lachium" position = { x = -97.67 y = -290.24 } initializer = pre_ftl_shattered_ring }
+	system = { id = "204" name = "Borbagon" position = { x = 192.25 y = -367.75 } initializer = basic_init_04 }
+	system = { id = "205" name = "Roganoin" position = { x = 39.2 y = -203.23 } initializer = basic_init_01 }
+	system = { id = "206" name = "Tibbacor" position = { x = -232.51 y = -4.89 } initializer = basic_init_01 }
+	system = { id = "208" name = "Dithaphoru" position = { x = 0.24 y = 391.34 } initializer = basic_init_01 }
+	system = { id = "209" name = "P94-L_Singularity" position = { x = -24.15 y = 255.93 } initializer = special_init_01 }
+	system = { id = "210" name = "Taramba" position = { x = 72.54 y = 118.67 } initializer = hostile_init_05 }
+	system = { id = "211" name = "Fenni" position = { x = 7.85 y = -361.93 } initializer = basic_init_01 }
+	system = { id = "212" name = "Brink" position = { x = 66.98 y = 376.34 } initializer = binary_init_01 }
+	system = { id = "213" name = "Enif" position = { x = -276.84 y = 255.47 } initializer = basic_init_06 }
+	system = { id = "214" name = "Furud" position = { x = -19.7 y = 346.22 } initializer = basic_init_02 }
+	system = { id = "215" name = "Jugrad" position = { x = -74.57 y = -168.75 } initializer = basic_init_02 }
+	system = { id = "216" name = "SPEC_Kazam_system" position = { x = 87.53 y = -288.04 } initializer = neutron_star_nomad_init }
+	system = { id = "217" name = "Trinitar" position = { x = -169.79 y = 52.33 } initializer = time_loop_world_system effect = { set_star_flag = painted_galaxy_wormhole_4 set_star_flag = empire_cluster } }
+	system = { id = "218" name = "Mordred" position = { x = 149.72 y = -139.76 } initializer = basic_init_02 }
+	system = { id = "219" name = "Eurav_Wass" position = { x = -75.45 y = 118.54 } initializer = basic_init_01 }
+	system = { id = "220" name = "Immuthin" position = { x = -164.08 y = 66.25 } initializer = basic_init_04 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }
+	system = { id = "221" name = "Cervantes" position = { x = -6.24 y = 239.03 } initializer = basic_init_01 }
+	system = { id = "222" name = "Burtios" position = { x = 299.43 y = -43.9 } initializer = basic_init_01 }
+	system = { id = "223" name = "Usmzara" position = { x = -55.94 y = 310.79 } initializer = basic_init_05 }
+	system = { id = "224" name = "Bihjall" position = { x = 108.43 y = 165.08 } initializer = basic_init_05 }
+	system = { id = "225" name = "Samnivik" position = { x = 82.59 y = 259.63 } initializer = basic_init_01 }
+	system = { id = "226" name = "Meredith" position = { x = -161.04 y = -224.27 } initializer = basic_init_04 }
+	system = { id = "227" name = "Talaarim" position = { x = 287.99 y = 125.88 } initializer = trinary_init_01 }
+	system = { id = "228" name = "Sehueturn" position = { x = -58.17 y = 391.05 } initializer = basic_init_01 }
+	system = { id = "229" name = "Teydialara" position = { x = -180 y = 141.5 } initializer = basic_init_01 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }
+	system = { id = "230" name = "SPEC_QixLufran_system" position = { x = 14.7 y = -312.68 } initializer = random_empire_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|4| modifier = { add = 100000 } } }
+	system = { id = "232" name = "Zithri" position = { x = 122.44 y = 61.82 } initializer = basic_init_01 }
+	system = { id = "233" name = "Julau" position = { x = 175.07 y = 46 } initializer = basic_init_03 }
+	system = { id = "234" name = "Wexellia" position = { x = 132.13 y = -0.45 } initializer = basic_init_04 }
+	system = { id = "235" name = "Uqallon" position = { x = 83.44 y = -212.89 } initializer = binary_init_02 }
+	system = { id = "236" name = "Gilprim" position = { x = -345.67 y = -182.89 } initializer = binary_init_02 }
+	system = { id = "237" name = "Blondei" position = { x = 125.87 y = 20.44 } initializer = trinary_init_02 }
+	system = { id = "238" name = "Caehines" position = { x = -380.45 y = 4.19 } initializer = basic_init_01 }
+	system = { id = "239" name = "Scorpio" position = { x = 119.31 y = -301.24 } initializer = trinary_init_02 }
+	system = { id = "240" name = "Kodracca" position = { x = -229.9 y = 57.55 } initializer = basic_init_02 }
+	system = { id = "241" name = "Taggallion" position = { x = 299.1 y = 192.23 } initializer = basic_init_05 }
+	system = { id = "242" name = "Dnoces" position = { x = -216.3 y = 217.54 } initializer = marauder_2_2 }
+	system = { id = "243" name = "Dathaana" position = { x = 28.54 y = 142.36 } initializer = hostile_init_04 }
+	system = { id = "244" name = "Thirimora" position = { x = -14.56 y = 170.01 } initializer = trinary_init_02 }
+	system = { id = "245" name = "Yarak" position = { x = 126.42 y = 78.05 } initializer = basic_init_01 }
+	system = { id = "246" name = "Marfark" position = { x = -115.25 y = 304.61 } initializer = basic_init_03 }
+	system = { id = "247" name = "Ellamir" position = { x = -218.13 y = -50.85 } initializer = basic_init_01 }
+	system = { id = "248" name = "Orkam_Fung" position = { x = -273.86 y = -11.58 } initializer = basic_init_06 }
+	system = { id = "249" name = "MattLar" position = { x = -249.83 y = 185.85 } initializer = basic_init_05 }
+	system = { id = "250" name = "Emdin" position = { x = 229.99 y = -321.54 } initializer = basic_init_06 }
+	system = { id = "251" name = "Jillis" position = { x = 221.03 y = -136.48 } initializer = basic_init_01 }
+	system = { id = "252" name = "Jaltham" position = { x = -117.18 y = 167.97 } initializer = binary_init_01 }
+	system = { id = "253" name = "Sarack" position = { x = 48.72 y = 256.73 } initializer = basic_init_01 }
+	system = { id = "254" name = "Cidar" position = { x = -182.57 y = -222.83 } initializer = hostile_init_15 }
+	system = { id = "255" name = "Aswiri" position = { x = -325.9 y = 174.43 } initializer = trinary_init_01 }
+	system = { id = "256" name = "Sarpocchus" position = { x = -16.5 y = -343.84 } initializer = binary_init_02 }
+	system = { id = "257" name = "Tir" position = { x = -240.06 y = -139.07 } initializer = basic_init_02 }
+	system = { id = "258" name = "Faghihinejad" position = { x = 121.92 y = -18.22 } initializer = basic_init_02 }
+	system = { id = "259" name = "Lyctabon" position = { x = 92.99 y = -327.39 } initializer = hostile_init_mining_drones }
+	system = { id = "260" name = "Scheddi" position = { x = 83.46 y = -88.92 } initializer = basic_init_02 }
+	system = { id = "261" name = "Unnabin" position = { x = 205.27 y = 151.04 } initializer = basic_init_01 }
+	system = { id = "262" name = "Troidom" position = { x = 31.83 y = -163.63 } initializer = basic_init_05 }
+	system = { id = "263" name = "Wetij" position = { x = 132.42 y = 363.24 } initializer = basic_init_04 }
+	system = { id = "264" name = "Diarmu" position = { x = -122.03 y = -35.5 } initializer = basic_init_01 }
+	system = { id = "265" name = "Turim" position = { x = -286.41 y = 152.89 } initializer = basic_init_04 }
+	system = { id = "266" name = "Wasat" position = { x = 128.06 y = -183.21 } initializer = special_init_09 }
+	system = { id = "267" name = "Lathoros" position = { x = 216.21 y = 269.15 } initializer = basic_init_03 }
+	system = { id = "268" name = "Haramuth" position = { x = -386.67 y = 35.47 } initializer = basic_init_02 }
+	system = { id = "270" name = "Elnath" position = { x = 372.61 y = -135.3 } initializer = neighbor_t1_first_colony }
+	system = { id = "272" name = "Bir" position = { x = 133.58 y = -204.85 } initializer = trinary_init_01 }
+	system = { id = "273" name = "Ibanadar" position = { x = -56 y = -196.25 } initializer = special_init_09 }
+	system = { id = "274" name = "Selnoc" position = { x = -33.25 y = 183.49 } initializer = trinary_init_02 }
+	system = { id = "275" name = "Wildore" position = { x = 142.84 y = 156.85 } initializer = asteroid_init_01 }
+	system = { id = "276" name = "Chergamore" position = { x = 323.52 y = -199.44 } initializer = basic_init_01 }
+	system = { id = "277" name = "Carmenekke" position = { x = -275.7 y = 139.94 } initializer = hostile_init_15 }
+	system = { id = "278" name = "Pithria" position = { x = 15.57 y = -209.54 } initializer = basic_init_02 }
+	system = { id = "279" name = "Alamak" position = { x = 57.87 y = -195.59 } initializer = basic_init_05 }
+	system = { id = "280" name = "Teige" position = { x = 215.04 y = 31.41 } initializer = basic_init_02 }
+	system = { id = "282" name = "Uxfriri" position = { x = -302.72 y = 70.85 } initializer = trinary_init_01 }
+	system = { id = "283" name = "Thespia" position = { x = -220.59 y = 29.27 } initializer = basic_init_03 }
+	system = { id = "284" name = "Rippigaur" position = { x = 205.11 y = -311.8 } initializer = basic_init_02 }
+	system = { id = "285" name = "Kimithar" position = { x = 378.76 y = -64.71 } initializer = basic_init_04 }
+	system = { id = "286" name = "Eliathion" position = { x = 266.14 y = 258.05 } initializer = previously_terraformed_planet_system_initializer }
+	system = { id = "287" name = "Manward" position = { x = 197.03 y = -203.54 } initializer = basic_init_01 }
+	system = { id = "288" name = "Tue" position = { x = 320.3 y = 8.18 } initializer = basic_init_04 }
+	system = { id = "289" name = "Kergaros" position = { x = -97.29 y = 176.21 } initializer = basic_init_05 }
+	system = { id = "290" name = "Ulrikae" position = { x = 78.87 y = -119.44 } initializer = basic_init_04 }
+	system = { id = "291" name = "Pentarum" position = { x = 75.84 y = 316.94 } initializer = special_init_09 }
+	system = { id = "292" name = "Uscomia" position = { x = 324.18 y = 26.56 } initializer = basic_init_03 }
+	system = { id = "293" name = "Hijeroscant" position = { x = -65.54 y = 225.01 } initializer = trinary_init_01 }
+	system = { id = "294" name = "Yunak" position = { x = 133.25 y = -161.13 } initializer = basic_init_01 }
+	system = { id = "295" name = "Obethalon" position = { x = 84.2 y = 231.08 } initializer = binary_init_01 }
+	system = { id = "296" name = "Opriiuq" position = { x = -15.4 y = 383.46 } initializer = special_init_08 }
+	system = { id = "297" name = "Ladiom" position = { x = 303.09 y = -219.13 } initializer = basic_init_02 }
+	system = { id = "299" name = "Cyteen" position = { x = 57.03 y = -296.11 } initializer = basic_init_01 }
+	system = { id = "300" name = "Foldora" position = { x = -72.35 y = -105.73 } initializer = binary_init_02 }
+	system = { id = "301" name = "Demivideau" position = { x = 357.42 y = 27.44 } initializer = trinary_init_02 }
+	system = { id = "302" name = "Ksora" position = { x = -37.16 y = -272.11 } initializer = basic_init_06 }
+	system = { id = "303" name = "Kappler" position = { x = -238.72 y = -306.28 } initializer = basic_init_01 }
+	system = { id = "304" name = "Mira" position = { x = 251.04 y = 53.75 } initializer = hostile_init_13 }
+	system = { id = "305" name = "Acrux" position = { x = -126.72 y = 278.47 } initializer = neighbor_t2 }
+	system = { id = "306" name = "Ashypso" position = { x = -206.87 y = -151.56 } initializer = neighbor_t2 }
+	system = { id = "307" name = "Rana" position = { x = 117.39 y = -219.71 } initializer = basic_init_01 effect = { set_star_flag = painted_galaxy_wormhole_3 set_star_flag = empire_cluster } }
+	system = { id = "308" name = "Onab" position = { x = 150.66 y = -308.43 } initializer = basic_init_05 }
+	system = { id = "309" name = "Berni" position = { x = 213.52 y = 242.23 } initializer = trinary_init_01 }
+	system = { id = "310" name = "Agisilla" position = { x = 239.9 y = -13.3 } initializer = hostile_init_13 }
+	system = { id = "311" name = "Aazrof" position = { x = -63.22 y = 155.88 } initializer = basic_init_01 }
+	system = { id = "312" name = "Bindur" position = { x = 97.16 y = -225.13 } initializer = hostile_init_10 }
+	system = { id = "313" name = "Hykkan" position = { x = -22.82 y = -364.13 } initializer = hostile_init_10_small_amoeba_pack }
+	system = { id = "314" name = "Kentharom" position = { x = -129.56 y = -197.3 } initializer = trinary_init_01 }
+	system = { id = "315" name = "Dubious_Abyss" position = { x = -123.2 y = 117.09 } initializer = special_init_01 }
+	system = { id = "317" name = "Karathor" position = { x = -298.27 y = 103.71 } initializer = trinary_init_02 }
+	system = { id = "318" name = "Zom" position = { x = 13.29 y = 240.88 } initializer = binary_init_01 }
+	system = { id = "319" name = "Sinistra" position = { x = -115.06 y = 90.62 } initializer = basic_init_01 }
+	system = { id = "320" name = "Hraztan" position = { x = 259.08 y = 100.47 } initializer = binary_init_02 effect = { set_star_flag = painted_galaxy_wormhole_3 set_star_flag = empire_cluster } }
+	system = { id = "321" name = "Suulan" position = { x = -81.09 y = 230.06 } initializer = binary_init_02 }
+	system = { id = "322" name = "NAME_Lone_Defender_system" position = { x = 150.14 y = -23.93 } initializer = lone_defender }
+	system = { id = "323" name = "Pesch" position = { x = 284.98 y = -15.63 } initializer = basic_init_05 }
+	system = { id = "324" name = "Sigma_Draconis" position = { x = 220.69 y = -113.86 } initializer = basic_init_02 }
+	system = { id = "325" name = "Josq_Fomat" position = { x = -204.47 y = -229.59 } initializer = basic_init_02 }
+	system = { id = "326" name = "Ferathon" position = { x = -120.66 y = -323.41 } initializer = basic_init_06 }
+	system = { id = "327" name = "Velderaam" position = { x = 145.74 y = -369.65 } initializer = basic_init_01 }
+	system = { id = "328" name = "Rimmock" position = { x = 328.77 y = -216.01 } initializer = binary_init_01 }
+	system = { id = "329" name = "Iccni" position = { x = 166.32 y = -264.3 } initializer = hostile_init_11 }
+	system = { id = "330" name = "Ribblor" position = { x = 304.98 y = 68.19 } initializer = basic_init_01 }
+	system = { id = "331" name = "Epsilon_Indi" position = { x = 45.93 y = 202.09 } initializer = trinary_init_02 }
+	system = { id = "332" name = "XT-81_Singularity" position = { x = 151.03 y = 359.64 } initializer = distantstars_init_00 }
+	system = { id = "333" name = "Pouo" position = { x = 122.12 y = -39.53 } initializer = trinary_init_02 }
+	system = { id = "334" name = "Situla" position = { x = 223.59 y = 319.85 } initializer = basic_init_01 }
+	system = { id = "335" name = "Fauetera" position = { x = -349.38 y = 37.76 } initializer = trinary_init_01 }
+	system = { id = "336" name = "Zoldar" position = { x = 171.99 y = 191.17 } initializer = trinary_init_02 }
+	system = { id = "337" name = "Dmaxi" position = { x = -48.24 y = 162.39 } initializer = basic_init_02 effect = { set_star_flag = painted_galaxy_wormhole_7 set_star_flag = empire_cluster } }
+	system = { id = "338" name = "Ostiuq" position = { x = -397.11 y = 19.78 } initializer = basic_init_03 }
+	system = { id = "339" name = "Jumla" position = { x = -113.9 y = 106.75 } initializer = basic_init_04 }
+	system = { id = "340" name = "Tobeva" position = { x = -239.71 y = 147.01 } initializer = trinary_init_01 }
+	system = { id = "341" name = "Delta_Pavonis" position = { x = -268.15 y = 169.74 } initializer = basic_init_06 }
+	system = { id = "342" name = "Windseth" position = { x = 58.53 y = -250.88 } initializer = basic_init_04 }
+	system = { id = "343" name = "Yrgel" position = { x = 61 y = -319.15 } initializer = basic_init_01 }
+	system = { id = "344" name = "Uchromia" position = { x = -127.11 y = -297.46 } initializer = binary_init_01 }
+	system = { id = "345" name = "Algol" position = { x = 164.5 y = -331.91 } initializer = basic_init_06 }
+	system = { id = "346" name = "Loggam" position = { x = 298.7 y = 13.54 } initializer = basic_init_01 }
+	system = { id = "347" name = "Bonnele" position = { x = -2.96 y = -347.57 } initializer = basic_init_02 }
+	system = { id = "348" name = "Vurul" position = { x = -267.87 y = 26.74 } initializer = basic_init_02 }
+	system = { id = "350" name = "Lyrum" position = { x = 23.24 y = 262.55 } initializer = binary_init_02 }
+	system = { id = "351" name = "Masqal" position = { x = -200.81 y = -168.15 } initializer = neighbor_t1_first_colony }
+	system = { id = "352" name = "Gottara" position = { x = 131.98 y = -97.41 } initializer = basic_init_04 }
+	system = { id = "353" name = "Endirlang" position = { x = 185.12 y = 74.93 } initializer = basic_init_02 }
+	system = { id = "355" name = "Jolun" position = { x = 138.42 y = 342.9 } initializer = basic_init_01 }
+	system = { id = "356" name = "Hodaris" position = { x = -199.91 y = -45.6 } initializer = basic_init_06 }
+	system = { id = "357" name = "Dawcan" position = { x = -241.44 y = 203.04 } initializer = basic_init_01 }
+	system = { id = "358" name = "Caugantu" position = { x = 132.93 y = 127 } initializer = basic_init_04 }
+	system = { id = "359" name = "Yamal" position = { x = 24.11 y = 337.75 } initializer = basic_init_01 }
+	system = { id = "360" name = "Pala'orolin" position = { x = -99.26 y = 222.48 } initializer = binary_init_02 }
+	system = { id = "361" name = "Tirmana" position = { x = 334.88 y = 58.06 } initializer = basic_init_01 }
+	system = { id = "362" name = "Evfrippe" position = { x = 135.87 y = -235.79 } initializer = basic_init_01 }
+	system = { id = "363" name = "Ensmars" position = { x = -29.2 y = 303.62 } initializer = basic_init_02 }
+	system = { id = "364" name = "Ajandis" position = { x = -95.88 y = 289.26 } initializer = trinary_init_01 }
+	system = { id = "365" name = "Iswyria" position = { x = 180.65 y = 100.84 } initializer = basic_init_04 }
+	system = { id = "366" name = "Minokh" position = { x = 182.45 y = 346.79 } initializer = binary_init_01 }
+	system = { id = "367" name = "Fre_ake" position = { x = -98.59 y = 104.29 } initializer = basic_init_01 }
+	system = { id = "368" name = "Ebrxinda" position = { x = 272.18 y = -24.73 } initializer = basic_init_03 }
+	system = { id = "369" name = "Waiphrid" position = { x = -256.16 y = -61.15 } initializer = trinary_init_01 }
+	system = { id = "370" name = "Mewash" position = { x = 46.86 y = -174.32 } initializer = trinary_init_01 }
+	system = { id = "371" name = "Eriga" position = { x = 184.95 y = 25.45 } initializer = hostile_init_12_mining_drones }
+	system = { id = "372" name = "Torovil" position = { x = -362.61 y = -54.79 } initializer = basic_init_02 }
+	system = { id = "373" name = "Tybby" position = { x = 69.67 y = 204.05 } initializer = basic_init_02 }
+	system = { id = "374" name = "Nishpan" position = { x = -59.76 y = 135.71 } initializer = binary_init_01 }
+	system = { id = "375" name = "Haegga" position = { x = 131.56 y = -332.16 } initializer = basic_init_02 }
+	system = { id = "376" name = "X'u-an" position = { x = -105.1 y = -226.41 } initializer = basic_init_04 }
+	system = { id = "377" name = "Eychilia" position = { x = 215.53 y = 304.79 } initializer = basic_init_01 }
+	system = { id = "379" name = "Saolea" position = { x = 322.43 y = 110.22 } initializer = hostile_init_04 }
+	system = { id = "380" name = "Egladil" position = { x = 152.8 y = -282.71 } initializer = basic_init_02 }
+	system = { id = "381" name = "Jundius" position = { x = 200.55 y = 288.19 } initializer = basic_init_02 }
+	system = { id = "382" name = "Burs" position = { x = 341.86 y = -118.92 } initializer = neighbor_t2 }
+	system = { id = "383" name = "Laback" position = { x = -73.11 y = -145.52 } initializer = hostile_init_15 }
+	system = { id = "384" name = "Cizar" position = { x = 258.16 y = -43.2 } initializer = basic_init_03 }
+	system = { id = "385" name = "Haldus" position = { x = 164.32 y = 92.54 } initializer = basic_init_01 }
+	system = { id = "386" name = "Tatanga" position = { x = -163.52 y = -163.13 } initializer = basic_init_01 }
+	system = { id = "387" name = "TVilkait" position = { x = 217.2 y = -335.59 } initializer = hostile_init_10_small_amoeba_pack }
+	system = { id = "388" name = "Eswiuq" position = { x = 189.38 y = 41.41 } initializer = basic_init_04 effect = { set_star_flag = painted_galaxy_wormhole_5 set_star_flag = empire_cluster } }
+	system = { id = "389" name = "NevG00" position = { x = -226.32 y = -72.91 } initializer = fallen_holy_04 }
+	system = { id = "390" name = "Jih" position = { x = -171.4 y = 23.04 } initializer = basic_init_01 }
+	system = { id = "391" name = "Ebucrosie" position = { x = 17.15 y = 204.14 } initializer = basic_init_01 }
+	system = { id = "392" name = "Ajam" position = { x = -361.88 y = 12.83 } initializer = binary_init_02 }
+	system = { id = "393" name = "Bintu" position = { x = 324.18 y = 197.99 } initializer = asteroid_init_01 }
+	system = { id = "394" name = "Hadar" position = { x = 297.39 y = -206.35 } initializer = binary_init_01 }
+	system = { id = "395" name = "Iram" position = { x = -240.85 y = -116.94 } initializer = basic_init_02 }
+	system = { id = "396" name = "Tirim" position = { x = -73.87 y = 186.48 } initializer = basic_init_03 }
+	system = { id = "397" name = "Inegore" position = { x = -363.52 y = -158.93 } initializer = basic_init_01 }
+	system = { id = "398" name = "Tatoian" position = { x = 282.51 y = -43.73 } initializer = hostile_init_14 }
+	system = { id = "399" name = "Vantandemion" position = { x = 158.02 y = 44.59 } initializer = basic_init_04 }
+	system = { id = "402" name = "Gamma_Delphini" position = { x = -345.49 y = -164.6 } initializer = binary_init_01 }
+	system = { id = "403" name = "Antak_Rham" position = { x = 75.7 y = -198.53 } initializer = binary_init_01 }
+	system = { id = "404" name = "Hazra" position = { x = 152.6 y = 166.14 } initializer = hostile_init_05 }
+	system = { id = "405" name = "Qad_Vhi" position = { x = -181.32 y = 67.11 } initializer = basic_init_01 }
+	system = { id = "406" name = "Dalphene" position = { x = 53.24 y = 222.5 } initializer = binary_init_02 }
+	system = { id = "407" name = "Courus" position = { x = -207.48 y = 238.71 } initializer = basic_init_02 }
+	system = { id = "408" name = "Meissa" position = { x = -350.49 y = -111.67 } initializer = neighbor_t1_first_colony }
+	system = { id = "410" name = "Golovia" position = { x = 149.48 y = -38.84 } initializer = basic_init_04 }
+	system = { id = "411" name = "Escant" position = { x = -237.09 y = -233.31 } initializer = hostile_init_08 }
+	system = { id = "412" name = "Fuye" position = { x = 120.04 y = 118.7 } initializer = basic_init_02 }
+	system = { id = "413" name = "Lessim" position = { x = 67.94 y = -370.07 } initializer = basic_init_01 }
+	system = { id = "414" name = "Amlitzer" position = { x = -102.91 y = 160.39 } initializer = basic_init_02 }
+	system = { id = "415" name = "Rizor" position = { x = -6.89 y = -139.06 } initializer = hostile_init_10_small_amoeba_pack }
+	system = { id = "416" name = "Jomel" position = { x = 165.94 y = -228.02 } initializer = hostile_init_11 }
+	system = { id = "417" name = "Toluc-Ei" position = { x = -206.49 y = 53.67 } initializer = basic_init_03 }
+	system = { id = "418" name = "Cieneagawa" position = { x = -215.57 y = 163.96 } initializer = basic_init_03 }
+	system = { id = "419" name = "Rovannic" position = { x = 154.98 y = 310.62 } initializer = basic_init_01 }
+	system = { id = "420" name = "Suter" position = { x = -263.63 y = -151.68 } initializer = basic_init_01 }
+	system = { id = "421" name = "Afcheshan" position = { x = 148.27 y = -184.4 } initializer = hostile_init_11 }
+	system = { id = "422" name = "Mu_Ophiuchi" position = { x = -342.63 y = 110.26 } initializer = basic_init_02 }
+	system = { id = "423" name = "Kerbol" position = { x = 115.52 y = 358.22 } initializer = basic_init_06 }
+	system = { id = "424" name = "Badukan" position = { x = 146.47 y = -12.64 } initializer = basic_init_04 }
+	system = { id = "425" name = "Santedaar" position = { x = -86.51 y = -271.76 } initializer = basic_init_03 }
+	system = { id = "426" name = "Jamor" position = { x = -132.4 y = 209.31 } initializer = basic_init_03 }
+	system = { id = "427" name = "Trabano" position = { x = -206.53 y = -27.34 } initializer = basic_init_05 }
+	system = { id = "428" name = "Okopleron" position = { x = 113.29 y = 234.5 } initializer = neighbor_t1_first_colony }
+	system = { id = "429" name = "Howoz" position = { x = 263.5 y = -3.32 } initializer = basic_init_05 }
+	system = { id = "430" name = "Viriak" position = { x = 30.79 y = 296.55 } initializer = asteroid_init_01 }
+	system = { id = "431" name = "Zimatullon" position = { x = 318.95 y = -63.6 } initializer = basic_init_02 }
+	system = { id = "432" name = "Helam" position = { x = 140.4 y = 90.64 } initializer = basic_init_03 }
+	system = { id = "433" name = "Riadore" position = { x = 130.82 y = -131.49 } initializer = binary_init_01 }
+	system = { id = "434" name = "Voldop" position = { x = 226.29 y = 177.27 } initializer = basic_init_02 }
+	system = { id = "435" name = "Alderamin" position = { x = -134.9 y = -272.18 } initializer = basic_init_01 }
+	system = { id = "436" name = "Woradon" position = { x = 205.71 y = -135.46 } initializer = hostile_init_amoeba }
+	system = { id = "437" name = "Tram_Bodon" position = { x = -24.91 y = -140.97 } initializer = hostile_init_15 }
+	system = { id = "438" name = "Moah" position = { x = -176.01 y = 208.54 } initializer = marauder_2_3 }
+	system = { id = "439" name = "Siluj" position = { x = 40.25 y = -325.45 } initializer = binary_init_02 }
+	system = { id = "440" name = "Dradim" position = { x = 23.13 y = -143.63 } initializer = basic_init_01 }
+	system = { id = "441" name = "Geronth" position = { x = -214.18 y = 7.1 } initializer = trinary_init_02 }
+	system = { id = "443" name = "Hadriccus" position = { x = 210.2 y = 1.66 } initializer = basic_init_02 }
+	system = { id = "444" name = "Athuna" position = { x = -353.83 y = -88.6 } initializer = trinary_init_02 }
+	system = { id = "445" name = "Uchbiea" position = { x = 32.07 y = 243.54 } initializer = basic_init_04 }
+	system = { id = "446" name = "Raltry" position = { x = 164.67 y = -141.75 } initializer = basic_init_04 }
+	system = { id = "447" name = "Sabik" position = { x = 269.89 y = 229.62 } initializer = basic_init_04 }
+	system = { id = "448" name = "Ionides" position = { x = 178.5 y = 114.96 } initializer = ratling_1_1 }
+	system = { id = "450" name = "Phin" position = { x = -265.29 y = 204.4 } initializer = basic_init_01 }
+	system = { id = "451" name = "Shulmak" position = { x = 249.35 y = -82.97 } initializer = basic_init_03 }
+	system = { id = "452" name = "Trinnick" position = { x = -142.1 y = -223.67 } initializer = trinary_init_02 }
+	system = { id = "453" name = "Saramore" position = { x = 278.22 y = -59.77 } initializer = hostile_init_12 }
+	system = { id = "454" name = "Cormaggas" position = { x = 241.31 y = 283.06 } initializer = basic_init_01 }
+	system = { id = "455" name = "Vana" position = { x = -201.47 y = -97.57 } initializer = special_init_08 }
+	system = { id = "456" name = "Qamm" position = { x = 104.18 y = -171.93 } initializer = basic_init_04 }
+	system = { id = "457" name = "Batraq" position = { x = -252.91 y = 218.91 } initializer = basic_init_05 }
+	system = { id = "458" name = "Feryj" position = { x = -200.43 y = 23.05 } initializer = basic_init_01 }
+	system = { id = "459" name = "Gidzerak" position = { x = -364.25 y = -113.37 } initializer = neighbor_t2 }
+	system = { id = "460" name = "Gromen" position = { x = 6.63 y = -163.47 } initializer = basic_init_01 }
+	system = { id = "461" name = "Conthim" position = { x = 260.68 y = -302.06 } initializer = basic_init_01 }
+	system = { id = "462" name = "Alpha_Hydri" position = { x = 101.25 y = -105.25 } initializer = basic_init_03 }
+	system = { id = "463" name = "SPEC_Nagyari_system" position = { x = 350.13 y = 70.79 } initializer = sol_system_initializer spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| } }
+	system = { id = "464" name = "Baranik" position = { x = -149.14 y = -189.59 } initializer = basic_init_04 }
+	system = { id = "465" name = "Dianthe" position = { x = 95.85 y = -310.94 } initializer = neighbor_t1_first_colony }
+	system = { id = "466" name = "Ancastar" position = { x = -143.2 y = -80.78 } initializer = basic_init_03 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_w set_star_flag = painted_galaxy_fe_spawn_machine set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_custom_connections set_star_flag = painted_galaxy_fe_custom_connection_id_1 } }
+	system = { id = "467" name = "Izta" position = { x = -280.04 y = 214.54 } initializer = basic_init_02 }
+	system = { id = "468" name = "Nietz" position = { x = 38.38 y = -345.46 } initializer = neighbor_t2 }
+	system = { id = "469" name = "Raigunoth" position = { x = 70.67 y = 277.44 } initializer = basic_init_05 }
+	system = { id = "470" name = "Bailleulus" position = { x = 150.1 y = 69.14 } initializer = basic_init_01 }
+	system = { id = "471" name = "Dirmius" position = { x = 23.35 y = -178.27 } initializer = basic_init_03 }
+	system = { id = "472" name = "Yel_Barrasta" position = { x = 168.24 y = -62.45 } initializer = basic_init_04 }
+	system = { id = "473" name = "Beskell" position = { x = -196.21 y = -260.93 } initializer = basic_init_02 }
+	system = { id = "474" name = "Ay'arolee" position = { x = -306.53 y = 178.99 } initializer = basic_init_01 }
+	system = { id = "475" name = "Erdosca" position = { x = 136.52 y = 41.86 } initializer = basic_init_02 }
+	system = { id = "476" name = "Evaggimar" position = { x = 277.15 y = 162.06 } initializer = neighbor_t1_first_colony }
+	system = { id = "477" name = "Tadasca" position = { x = 27.17 y = -242.79 } initializer = basic_init_02 }
+	system = { id = "478" name = "Vohaul" position = { x = -365.69 y = -36.16 } initializer = basic_init_04 }
+	system = { id = "479" name = "Merope" position = { x = 216.03 y = -152.89 } initializer = basic_init_04 }
+	system = { id = "480" name = "Siab'ora" position = { x = 68.58 y = -223.17 } initializer = hostile_init_11 }
+	system = { id = "481" name = "Scipiton" position = { x = -96.12 y = 263.67 } initializer = hostile_init_08 }
+	system = { id = "482" name = "Impal_Tov" position = { x = -200.52 y = -118.32 } initializer = basic_init_04 }
+	system = { id = "483" name = "Hiklam" position = { x = -37.92 y = 149.76 } initializer = binary_init_01 }
+	system = { id = "484" name = "Tyastedore" position = { x = 24.93 y = -190.95 } initializer = basic_init_01 }
+	system = { id = "485" name = "Vermillion" position = { x = -107.08 y = 139.68 } initializer = binary_init_02 }
+	system = { id = "486" name = "Fulbadan" position = { x = -62.68 y = -245.97 } initializer = trinary_init_02 }
+	system = { id = "487" name = "Teersonia" position = { x = 189.31 y = -172.8 } initializer = basic_init_02 }
+	system = { id = "488" name = "Edasich" position = { x = -275.47 y = 347.65 } initializer = basic_init_04 }
+	system = { id = "489" name = "Ferragon" position = { x = 58.05 y = 236.82 } initializer = basic_init_05 effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster } }
+	system = { id = "490" name = "Distull" position = { x = 175.91 y = -205.72 } initializer = basic_init_02 }
+	system = { id = "491" name = "Ditrim" position = { x = 269.57 y = 9.68 } initializer = binary_init_01 }
+	system = { id = "492" name = "Oweprinda" position = { x = 171.17 y = 66.23 } initializer = ratling_1_3 }
+	system = { id = "493" name = "Teytera" position = { x = -24.87 y = 281.98 } initializer = basic_init_02 }
+	system = { id = "494" name = "Zempek" position = { x = 66.94 y = -346.94 } initializer = basic_init_04 }
+	system = { id = "495" name = "Lastus" position = { x = -203.94 y = -79.85 } initializer = basic_init_04 }
+	system = { id = "496" name = "Epsilon_Cygni" position = { x = -19.64 y = -203.26 } initializer = neighbor_t1_first_colony }
+	system = { id = "497" name = "Nunus" position = { x = 328.02 y = 234.3 } initializer = binary_init_01 }
+	system = { id = "498" name = "Ceyecarro" position = { x = -133.65 y = -318.03 } initializer = basic_init_04 }
+	system = { id = "499" name = "Pobbma" position = { x = -113.99 y = 260.75 } initializer = basic_init_02 }
+	system = { id = "500" name = "Katz" position = { x = 249.39 y = 195.54 } initializer = basic_init_02 }
+	system = { id = "501" name = "Ofeogliea" position = { x = 282.36 y = 53.79 } initializer = hostile_init_12_mining_drones effect = { set_star_flag = painted_galaxy_wormhole_4 set_star_flag = empire_cluster } }
+	system = { id = "502" name = "Seginus" position = { x = -151.21 y = 282.29 } initializer = neighbor_t1_first_colony }
+	system = { id = "503" name = "Lazon" position = { x = 207.12 y = 86.71 } initializer = ratling_1_2 }
+	system = { id = "504" name = "Daranma" position = { x = -325.96 y = -31.83 } initializer = pre_ftl_hive_init_01 }
+	system = { id = "505" name = "Geltauri_Black_Hole" position = { x = -338.71 y = 88.25 } initializer = distantstars_init_00 }
+	system = { id = "506" name = "Chibblar" position = { x = -257.25 y = -190.72 } initializer = basic_init_05 }
+	system = { id = "507" name = "Takhvan" position = { x = 308.87 y = 43.82 } initializer = hostile_init_12 }
+	system = { id = "508" name = "Unaria" position = { x = 217.16 y = -71.69 } initializer = basic_init_05 }
+	system = { id = "509" name = "Celaeno" position = { x = 278.19 y = -184.58 } initializer = hostile_init_13 }
+	system = { id = "510" name = "Xigar" position = { x = -63.6 y = -132.88 } initializer = binary_init_02 }
+	system = { id = "511" name = "Nyx" position = { x = 249.49 y = -226.78 } initializer = basic_init_01 }
+	system = { id = "512" name = "Bonos" position = { x = 52.91 y = 175.25 } initializer = basic_init_06 }
+	system = { id = "514" name = "Walmoro" position = { x = -210.33 y = -192.83 } initializer = hostile_init_15 }
+	system = { id = "515" name = "Oxamon" position = { x = 41.53 y = 273.01 } initializer = basic_init_05 }
+	system = { id = "516" name = "Exslillon" position = { x = 182.58 y = -119.09 } initializer = basic_init_01 }
+	system = { id = "517" name = "Ijaagin" position = { x = 42.78 y = 408.82 } initializer = basic_init_05 }
+	system = { id = "518" name = "Oslippe" position = { x = -393.3 y = -37.2 } initializer = trinary_init_02 }
+	system = { id = "519" name = "Landeen" position = { x = -59.21 y = 252.56 } initializer = binary_init_01 }
+	system = { id = "520" name = "Thegglan" position = { x = 311.86 y = 168.42 } initializer = basic_init_04 }
+	system = { id = "521" name = "Linngol" position = { x = 296.48 y = 30.59 } initializer = hostile_init_12 }
+	system = { id = "522" name = "Shuckon" position = { x = 334.27 y = 81.85 } initializer = neighbor_t1_first_colony }
+	system = { id = "523" name = "Kannam" position = { x = 329.91 y = 171.09 } initializer = basic_init_02 }
+	system = { id = "524" name = "Niffra" position = { x = -164.1 y = 243.18 } initializer = basic_init_04 }
+	system = { id = "526" name = "Uhgrone" position = { x = 352.61 y = -80.75 } initializer = basic_init_05 }
+	system = { id = "527" name = "Bir_Zun" position = { x = 283.55 y = 30.94 } initializer = basic_init_03 }
+	system = { id = "528" name = "Oshimir" position = { x = 116.8 y = 265.36 } initializer = binary_init_02 }
+	system = { id = "529" name = "Irriamun" position = { x = 217.92 y = -285.71 } initializer = binary_init_01 }
+	system = { id = "530" name = "Maasym" position = { x = 317.24 y = -29.29 } initializer = basic_init_06 }
+	system = { id = "531" name = "Wanya" position = { x = -233.19 y = 219.59 } initializer = basic_init_06 }
+	system = { id = "532" name = "Fedeema" position = { x = 175.6 y = 252.7 } initializer = basic_init_02 }
+	system = { id = "533" name = "Uran_Tokh" position = { x = -32.81 y = -317.07 } initializer = trinary_init_01 }
+	system = { id = "534" name = "Iflillon" position = { x = 345.05 y = 135.66 } initializer = hostile_init_06 }
+	system = { id = "535" name = "Cknoor" position = { x = 122.52 y = 182.99 } initializer = basic_init_03 }
+	system = { id = "536" name = "Austeen" position = { x = -338.98 y = -66.62 } initializer = basic_init_02 }
+	system = { id = "537" name = "Icheon" position = { x = 163.83 y = -4.19 } initializer = basic_init_01 }
+	system = { id = "538" name = "Jangal" position = { x = -58.81 y = -109.28 } initializer = basic_init_01 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 } }
+	system = { id = "539" name = "Nupran" position = { x = 107.21 y = -205.43 } initializer = basic_init_02 }
+	system = { id = "540" name = "Azha" position = { x = 277.61 y = -245.59 } initializer = hostile_init_11 effect = { set_star_flag = painted_galaxy_wormhole_5 set_star_flag = empire_cluster } }
+	system = { id = "541" name = "Hyshma" position = { x = 18.86 y = -398.38 } initializer = basic_init_05 }
+	system = { id = "542" name = "Gorionis" position = { x = -306.42 y = 157.69 } initializer = basic_init_04 }
+	system = { id = "543" name = "Dorellion" position = { x = -28.35 y = 141.7 } initializer = basic_init_02 }
+	system = { id = "544" name = "Saia" position = { x = -279.26 y = -109.18 } initializer = basic_init_02 }
+	system = { id = "545" name = "Thrish" position = { x = 89.62 y = -385.18 } initializer = binary_init_01 }
+	system = { id = "546" name = "Starmagg" position = { x = -30.14 y = -344.83 } initializer = hostile_init_11 }
+	system = { id = "547" name = "Calima'el" position = { x = 231.2 y = -53.12 } initializer = basic_init_02 }
+	system = { id = "548" name = "Wouu" position = { x = 193.87 y = 309.25 } initializer = basic_init_02 }
+	system = { id = "549" name = "Beid" position = { x = -239.48 y = 245.39 } initializer = basic_init_02 }
+	system = { id = "550" name = "Landiz" position = { x = -68.18 y = 127.65 } initializer = basic_init_04 }
+	system = { id = "551" name = "Ebbanaur" position = { x = 248.17 y = -283.03 } initializer = basic_init_02 }
+	system = { id = "552" name = "Ilithum" position = { x = 66.13 y = -177.06 } initializer = hostile_init_10 }
+	system = { id = "553" name = "Hassaleh" position = { x = 214.01 y = 213.45 } initializer = basic_init_03 }
+	system = { id = "554" name = "Segathia" position = { x = 168.57 y = -311.84 } initializer = basic_init_01 }
+	system = { id = "555" name = "Zaffa" position = { x = 220.6 y = -251.39 } initializer = binary_init_02 }
+	system = { id = "556" name = "Atlas" position = { x = 312.8 y = -168.97 } initializer = trinary_init_02 }
+	system = { id = "557" name = "Sifuhr" position = { x = 273.9 y = -71.94 } initializer = hostile_init_12_drone_destroyer }
+	system = { id = "558" name = "BuokMariski" position = { x = -136.9 y = 89.93 } initializer = basic_init_03 }
+	system = { id = "559" name = "Bombala" position = { x = 309.3 y = -239.07 } initializer = basic_init_04 }
+	system = { id = "560" name = "Myrum" position = { x = -380.83 y = -97.65 } initializer = basic_init_03 }
+	system = { id = "561" name = "Kuma" position = { x = -286.57 y = -252.34 } initializer = basic_init_01 }
+	system = { id = "562" name = "Acramalo" position = { x = 101.91 y = 143.15 } initializer = basic_init_06 }
+	system = { id = "563" name = "Lynsar" position = { x = -22.76 y = 216.77 } initializer = basic_init_03 }
+	system = { id = "564" name = "SPEC_Hissma_system" position = { x = -184.47 y = -177.14 } initializer = random_empire_init_06 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|6| } }
+	system = { id = "565" name = "Aswmade" position = { x = -60.44 y = -358.2 } initializer = basic_init_02 }
+	system = { id = "566" name = "Tiblic" position = { x = 285.63 y = -271.99 } initializer = basic_init_02 }
+	system = { id = "567" name = "Skat" position = { x = 145.02 y = 287.5 } initializer = special_init_09 }
+	system = { id = "568" name = "Saua" position = { x = -54.17 y = -298.15 } initializer = basic_init_02 }
+	system = { id = "569" name = "Firin_Malba" position = { x = 112.8 y = 98.17 } initializer = basic_init_03 }
+	system = { id = "570" name = "Nowitoff" position = { x = 200.36 y = -294.87 } initializer = basic_init_02 }
+	system = { id = "572" name = "Sjoberg" position = { x = 138.37 y = -70.61 } initializer = basic_init_01 }
+	system = { id = "573" name = "Rimdur" position = { x = 109.49 y = 376.7 } initializer = marauder_1_1 }
+	system = { id = "574" name = "Trunt" position = { x = 101.31 y = -191.29 } initializer = basic_init_05 }
+	system = { id = "575" name = "Seoo" position = { x = 227.75 y = -304.4 } initializer = special_init_08 }
+	system = { id = "577" name = "Malgiro" position = { x = 68.01 y = 415.34 } initializer = basic_init_02 }
+	system = { id = "578" name = "Veliko" position = { x = -50.94 y = 270.66 } initializer = pre_ftl_init_01 }
+	system = { id = "579" name = "Okul" position = { x = 213.64 y = -186.8 } initializer = basic_init_01 }
+	system = { id = "580" name = "Medac" position = { x = 156.74 y = -169.21 } initializer = basic_init_02 }
+	system = { id = "581" name = "Peya" position = { x = 187.68 y = -148.82 } initializer = binary_init_01 }
+	system = { id = "582" name = "Soyun" position = { x = -297.78 y = 132.27 } initializer = basic_init_01 }
+	system = { id = "583" name = "Arich" position = { x = -5.78 y = 123.59 } initializer = basic_init_01 }
+	system = { id = "584" name = "Mavall" position = { x = -142.16 y = -60.44 } initializer = basic_init_03 }
+	system = { id = "585" name = "Bapagia" position = { x = -39.44 y = -134.23 } initializer = basic_init_03 }
+	system = { id = "586" name = "SPEC_Chimm_system" position = { x = -27.83 y = -185.68 } initializer = random_empire_init_05 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|7| } }
+	system = { id = "587" name = "Ysum" position = { x = -78.88 y = 95.89 } initializer = basic_init_04 }
+	system = { id = "588" name = "Serpess" position = { x = 97.31 y = -149.17 } initializer = binary_init_01 }
+	system = { id = "589" name = "Acamar" position = { x = -85.13 y = 316.94 } initializer = basic_init_02 }
+	system = { id = "590" name = "Athyorix" position = { x = -104.48846 y = 303.7334 } initializer = distar_sealed_1_1 effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster } }
+	system = { id = "591" name = "Scheat" position = { x = -392.4 y = -392.4 } initializer = distar_sealed_1_2 effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }
+	system = { id = "592" name = "NAME_Aspharelle" position = { x = 307.92199 y = -356.80112 } initializer = random_empire_init_05 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|8| } }
+	system = { id = "593" name = "NAME_Ophala" position = { x = 0 y = 400 } initializer = the_chosen_escapee_initializer effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_s set_star_flag = painted_galaxy_fe_spawn_hive set_star_flag = painted_galaxy_fe_spawn_distance_200 set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_custom_connections set_star_flag = painted_galaxy_fe_custom_connection_id_5 } }
+	system = { id = "594" name = "NAME_Taremes" position = { x = 324.6187 y = -357.22963 } initializer = the_chosen_resources_initializer }
+	system = { id = "595" name = "NAME_Ereba" position = { x = 345.55693 y = -363.74759 } initializer = the_chosen_resources_initializer2 }
+	system = { id = "596" name = "NAME_Ithomes_Gate" position = { x = 336.20662 y = -346.01992 } initializer = the_chosen_gate_initializer effect = { set_star_flag = painted_galaxy_wormhole_7 set_star_flag = empire_cluster } }
+	system = { id = "597" name = "Fangnaur" position = { x = 343.05128 y = -371.58207 } initializer = basic_init_01 }
+	system = { id = "598" name = "Ni'amh" position = { x = 358.0541 y = -370.6476 } initializer = binary_init_01 }
+	system = { id = "599" name = "Laleya" position = { x = 293.25351 y = -362.37424 } initializer = basic_init_04 }
+	system = { id = "600" name = "Bax" position = { x = 293.04101 y = -351.21132 } initializer = basic_init_04 }
+	system = { id = "601" name = "" position = { x = -208.21427 y = 113.17573 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_automatic_initializer set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_sw set_star_flag = painted_galaxy_fe_spawn_xenophobe set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_custom_connections set_star_flag = painted_galaxy_fe_custom_connection_id_0 } }
+	system = { id = "602" name = "" position = { x = -77.93573 y = -50.42573 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_automatic_initializer set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_ne set_star_flag = painted_galaxy_fe_spawn_spiritualist set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_custom_connections set_star_flag = painted_galaxy_fe_custom_connection_id_1 } }
+
+	add_hyperlane = { from = "0" to = "67" }
+	add_hyperlane = { from = "0" to = "148" }
+	add_hyperlane = { from = "0" to = "358" }
+	add_hyperlane = { from = "0" to = "448" }
+	add_hyperlane = { from = "1" to = "29" }
+	add_hyperlane = { from = "1" to = "58" }
+	add_hyperlane = { from = "1" to = "178" }
+	add_hyperlane = { from = "1" to = "259" }
+	add_hyperlane = { from = "2" to = "88" }
+	add_hyperlane = { from = "2" to = "246" }
+	add_hyperlane = { from = "3" to = "285" }
+	add_hyperlane = { from = "3" to = "301" }
+	add_hyperlane = { from = "4" to = "194" }
+	add_hyperlane = { from = "4" to = "227" }
+	add_hyperlane = { from = "4" to = "520" }
+	add_hyperlane = { from = "5" to = "10" }
+	add_hyperlane = { from = "5" to = "78" }
+	add_hyperlane = { from = "5" to = "257" }
+	add_hyperlane = { from = "5" to = "306" }
+	add_hyperlane = { from = "5" to = "395" }
+	add_hyperlane = { from = "5" to = "455" }
+	add_hyperlane = { from = "5" to = "482" }
+	add_hyperlane = { from = "6" to = "172" }
+	add_hyperlane = { from = "6" to = "511" }
+	add_hyperlane = { from = "6" to = "551" }
+	add_hyperlane = { from = "6" to = "555" }
+	add_hyperlane = { from = "7" to = "161" }
+	add_hyperlane = { from = "7" to = "586" }
+	add_hyperlane = { from = "8" to = "242" }
+	add_hyperlane = { from = "8" to = "249" }
+	add_hyperlane = { from = "8" to = "438" }
+	add_hyperlane = { from = "9" to = "181" }
+	add_hyperlane = { from = "9" to = "190" }
+	add_hyperlane = { from = "9" to = "234" }
+	add_hyperlane = { from = "9" to = "237" }
+	add_hyperlane = { from = "9" to = "475" }
+	add_hyperlane = { from = "10" to = "306" }
+	add_hyperlane = { from = "11" to = "60" }
+	add_hyperlane = { from = "11" to = "100" }
+	add_hyperlane = { from = "11" to = "147" }
+	add_hyperlane = { from = "11" to = "244" }
+	add_hyperlane = { from = "11" to = "543" }
+	add_hyperlane = { from = "11" to = "583" }
+	add_hyperlane = { from = "12" to = "122" }
+	add_hyperlane = { from = "12" to = "247" }
+	add_hyperlane = { from = "12" to = "248" }
+	add_hyperlane = { from = "12" to = "369" }
+	add_hyperlane = { from = "12" to = "389" }
+	add_hyperlane = { from = "13" to = "438" }
+	add_hyperlane = { from = "13" to = "524" }
+	add_hyperlane = { from = "14" to = "285" }
+	add_hyperlane = { from = "14" to = "382" }
+	add_hyperlane = { from = "14" to = "526" }
+	add_hyperlane = { from = "15" to = "143" }
+	add_hyperlane = { from = "15" to = "307" }
+	add_hyperlane = { from = "15" to = "312" }
+	add_hyperlane = { from = "15" to = "342" }
+	add_hyperlane = { from = "15" to = "362" }
+	add_hyperlane = { from = "15" to = "480" }
+	add_hyperlane = { from = "16" to = "102" }
+	add_hyperlane = { from = "16" to = "192" }
+	add_hyperlane = { from = "16" to = "443" }
+	add_hyperlane = { from = "17" to = "35" }
+	add_hyperlane = { from = "17" to = "214" }
+	add_hyperlane = { from = "17" to = "223" }
+	add_hyperlane = { from = "17" to = "228" }
+	add_hyperlane = { from = "18" to = "127" }
+	add_hyperlane = { from = "18" to = "289" }
+	add_hyperlane = { from = "18" to = "311" }
+	add_hyperlane = { from = "18" to = "485" }
+	add_hyperlane = { from = "19" to = "241" }
+	add_hyperlane = { from = "19" to = "447" }
+	add_hyperlane = { from = "19" to = "476" }
+	add_hyperlane = { from = "20" to = "59" }
+	add_hyperlane = { from = "20" to = "402" }
+	add_hyperlane = { from = "20" to = "459" }
+	add_hyperlane = { from = "20" to = "560" }
+	add_hyperlane = { from = "21" to = "159" }
+	add_hyperlane = { from = "21" to = "183" }
+	add_hyperlane = { from = "21" to = "212" }
+	add_hyperlane = { from = "21" to = "573" }
+	add_hyperlane = { from = "22" to = "193" }
+	add_hyperlane = { from = "22" to = "199" }
+	add_hyperlane = { from = "22" to = "514" }
+	add_hyperlane = { from = "23" to = "108" }
+	add_hyperlane = { from = "23" to = "308" }
+	add_hyperlane = { from = "23" to = "329" }
+	add_hyperlane = { from = "23" to = "554" }
+	add_hyperlane = { from = "24" to = "250" }
+	add_hyperlane = { from = "24" to = "387" }
+	add_hyperlane = { from = "24" to = "461" }
+	add_hyperlane = { from = "25" to = "40" }
+	add_hyperlane = { from = "25" to = "502" }
+	add_hyperlane = { from = "25" to = "524" }
+	add_hyperlane = { from = "26" to = "153" }
+	add_hyperlane = { from = "26" to = "439" }
+	add_hyperlane = { from = "27" to = "42" }
+	add_hyperlane = { from = "27" to = "206" }
+	add_hyperlane = { from = "27" to = "427" }
+	add_hyperlane = { from = "27" to = "441" }
+	add_hyperlane = { from = "28" to = "144" }
+	add_hyperlane = { from = "28" to = "311" }
+	add_hyperlane = { from = "28" to = "543" }
+	add_hyperlane = { from = "29" to = "375" }
+	add_hyperlane = { from = "29" to = "545" }
+	add_hyperlane = { from = "30" to = "330" }
+	add_hyperlane = { from = "30" to = "361" }
+	add_hyperlane = { from = "30" to = "507" }
+	add_hyperlane = { from = "31" to = "56" }
+	add_hyperlane = { from = "31" to = "119" }
+	add_hyperlane = { from = "31" to = "220" }
+	add_hyperlane = { from = "31" to = "558" }
+	add_hyperlane = { from = "32" to = "50" }
+	add_hyperlane = { from = "32" to = "79" }
+	add_hyperlane = { from = "32" to = "111" }
+	add_hyperlane = { from = "33" to = "202" }
+	add_hyperlane = { from = "33" to = "324" }
+	add_hyperlane = { from = "33" to = "451" }
+	add_hyperlane = { from = "33" to = "508" }
+	add_hyperlane = { from = "34" to = "140" }
+	add_hyperlane = { from = "34" to = "198" }
+	add_hyperlane = { from = "34" to = "434" }
+	add_hyperlane = { from = "35" to = "88" }
+	add_hyperlane = { from = "36" to = "118" }
+	add_hyperlane = { from = "36" to = "261" }
+	add_hyperlane = { from = "36" to = "503" }
+	add_hyperlane = { from = "37" to = "132" }
+	add_hyperlane = { from = "37" to = "166" }
+	add_hyperlane = { from = "37" to = "533" }
+	add_hyperlane = { from = "38" to = "327" }
+	add_hyperlane = { from = "38" to = "375" }
+	add_hyperlane = { from = "39" to = "130" }
+	add_hyperlane = { from = "39" to = "431" }
+	add_hyperlane = { from = "40" to = "113" }
+	add_hyperlane = { from = "40" to = "305" }
+	add_hyperlane = { from = "40" to = "499" }
+	add_hyperlane = { from = "40" to = "502" }
+	add_hyperlane = { from = "41" to = "53" }
+	add_hyperlane = { from = "41" to = "300" }
+	add_hyperlane = { from = "41" to = "538" }
+	add_hyperlane = { from = "42" to = "142" }
+	add_hyperlane = { from = "42" to = "458" }
+	add_hyperlane = { from = "43" to = "217" }
+	add_hyperlane = { from = "43" to = "390" }
+	add_hyperlane = { from = "44" to = "137" }
+	add_hyperlane = { from = "44" to = "346" }
+	add_hyperlane = { from = "44" to = "530" }
+	add_hyperlane = { from = "45" to = "185" }
+	add_hyperlane = { from = "45" to = "356" }
+	add_hyperlane = { from = "46" to = "123" }
+	add_hyperlane = { from = "46" to = "148" }
+	add_hyperlane = { from = "46" to = "275" }
+	add_hyperlane = { from = "47" to = "95" }
+	add_hyperlane = { from = "47" to = "572" }
+	add_hyperlane = { from = "48" to = "120" }
+	add_hyperlane = { from = "48" to = "344" }
+	add_hyperlane = { from = "48" to = "435" }
+	add_hyperlane = { from = "48" to = "473" }
+	add_hyperlane = { from = "49" to = "77" }
+	add_hyperlane = { from = "49" to = "182" }
+	add_hyperlane = { from = "49" to = "209" }
+	add_hyperlane = { from = "49" to = "519" }
+	add_hyperlane = { from = "49" to = "563" }
+	add_hyperlane = { from = "50" to = "79" }
+	add_hyperlane = { from = "50" to = "496" }
+	add_hyperlane = { from = "51" to = "415" }
+	add_hyperlane = { from = "51" to = "437" }
+	add_hyperlane = { from = "51" to = "510" }
+	add_hyperlane = { from = "52" to = "69" }
+	add_hyperlane = { from = "52" to = "224" }
+	add_hyperlane = { from = "52" to = "535" }
+	add_hyperlane = { from = "53" to = "300" }
+	add_hyperlane = { from = "53" to = "383" }
+	add_hyperlane = { from = "54" to = "219" }
+	add_hyperlane = { from = "54" to = "315" }
+	add_hyperlane = { from = "54" to = "339" }
+	add_hyperlane = { from = "55" to = "286" }
+	add_hyperlane = { from = "55" to = "309" }
+	add_hyperlane = { from = "55" to = "454" }
+	add_hyperlane = { from = "56" to = "119" }
+	add_hyperlane = { from = "56" to = "558" }
+	add_hyperlane = { from = "57" to = "197" }
+	add_hyperlane = { from = "57" to = "355" }
+	add_hyperlane = { from = "57" to = "419" }
+	add_hyperlane = { from = "58" to = "259" }
+	add_hyperlane = { from = "58" to = "413" }
+	add_hyperlane = { from = "58" to = "545" }
+	add_hyperlane = { from = "59" to = "169" }
+	add_hyperlane = { from = "59" to = "402" }
+	add_hyperlane = { from = "60" to = "244" }
+	add_hyperlane = { from = "61" to = "343" }
+	add_hyperlane = { from = "61" to = "494" }
+	add_hyperlane = { from = "62" to = "278" }
+	add_hyperlane = { from = "62" to = "477" }
+	add_hyperlane = { from = "63" to = "330" }
+	add_hyperlane = { from = "63" to = "522" }
+	add_hyperlane = { from = "64" to = "444" }
+	add_hyperlane = { from = "64" to = "518" }
+	add_hyperlane = { from = "65" to = "268" }
+	add_hyperlane = { from = "65" to = "335" }
+	add_hyperlane = { from = "65" to = "422" }
+	add_hyperlane = { from = "66" to = "188" }
+	add_hyperlane = { from = "66" to = "227" }
+	add_hyperlane = { from = "66" to = "320" }
+	add_hyperlane = { from = "67" to = "358" }
+	add_hyperlane = { from = "67" to = "385" }
+	add_hyperlane = { from = "68" to = "99" }
+	add_hyperlane = { from = "68" to = "479" }
+	add_hyperlane = { from = "68" to = "509" }
+	add_hyperlane = { from = "68" to = "579" }
+	add_hyperlane = { from = "69" to = "336" }
+	add_hyperlane = { from = "69" to = "535" }
+	add_hyperlane = { from = "70" to = "85" }
+	add_hyperlane = { from = "70" to = "192" }
+	add_hyperlane = { from = "70" to = "322" }
+	add_hyperlane = { from = "70" to = "537" }
+	add_hyperlane = { from = "71" to = "193" }
+	add_hyperlane = { from = "71" to = "464" }
+	add_hyperlane = { from = "71" to = "564" }
+	add_hyperlane = { from = "72" to = "319" }
+	add_hyperlane = { from = "72" to = "558" }
+	add_hyperlane = { from = "73" to = "254" }
+	add_hyperlane = { from = "74" to = "124" }
+	add_hyperlane = { from = "74" to = "175" }
+	add_hyperlane = { from = "74" to = "203" }
+	add_hyperlane = { from = "74" to = "425" }
+	add_hyperlane = { from = "75" to = "97" }
+	add_hyperlane = { from = "75" to = "493" }
+	add_hyperlane = { from = "76" to = "78" }
+	add_hyperlane = { from = "76" to = "187" }
+	add_hyperlane = { from = "76" to = "544" }
+	add_hyperlane = { from = "77" to = "209" }
+	add_hyperlane = { from = "77" to = "493" }
+	add_hyperlane = { from = "77" to = "578" }
+	add_hyperlane = { from = "78" to = "395" }
+	add_hyperlane = { from = "78" to = "455" }
+	add_hyperlane = { from = "79" to = "460" }
+	add_hyperlane = { from = "79" to = "484" }
+	add_hyperlane = { from = "80" to = "154" }
+	add_hyperlane = { from = "80" to = "215" }
+	add_hyperlane = { from = "81" to = "217" }
+	add_hyperlane = { from = "81" to = "405" }
+	add_hyperlane = { from = "81" to = "417" }
+	add_hyperlane = { from = "82" to = "304" }
+	add_hyperlane = { from = "82" to = "491" }
+	add_hyperlane = { from = "83" to = "319" }
+	add_hyperlane = { from = "83" to = "367" }
+	add_hyperlane = { from = "84" to = "139" }
+	add_hyperlane = { from = "84" to = "173" }
+	add_hyperlane = { from = "84" to = "264" }
+	add_hyperlane = { from = "85" to = "102" }
+	add_hyperlane = { from = "86" to = "336" }
+	add_hyperlane = { from = "86" to = "428" }
+	add_hyperlane = { from = "86" to = "535" }
+	add_hyperlane = { from = "87" to = "90" }
+	add_hyperlane = { from = "87" to = "106" }
+	add_hyperlane = { from = "89" to = "98" }
+	add_hyperlane = { from = "89" to = "456" }
+	add_hyperlane = { from = "89" to = "552" }
+	add_hyperlane = { from = "89" to = "574" }
+	add_hyperlane = { from = "89" to = "588" }
+	add_hyperlane = { from = "91" to = "129" }
+	add_hyperlane = { from = "91" to = "230" }
+	add_hyperlane = { from = "91" to = "347" }
+	add_hyperlane = { from = "92" to = "540" }
+	add_hyperlane = { from = "92" to = "551" }
+	add_hyperlane = { from = "92" to = "566" }
+	add_hyperlane = { from = "93" to = "352" }
+	add_hyperlane = { from = "93" to = "472" }
+	add_hyperlane = { from = "94" to = "379" }
+	add_hyperlane = { from = "94" to = "463" }
+	add_hyperlane = { from = "94" to = "534" }
+	add_hyperlane = { from = "95" to = "333" }
+	add_hyperlane = { from = "95" to = "572" }
+	add_hyperlane = { from = "96" to = "105" }
+	add_hyperlane = { from = "96" to = "238" }
+	add_hyperlane = { from = "96" to = "478" }
+	add_hyperlane = { from = "96" to = "504" }
+	add_hyperlane = { from = "97" to = "430" }
+	add_hyperlane = { from = "98" to = "290" }
+	add_hyperlane = { from = "98" to = "588" }
+	add_hyperlane = { from = "99" to = "251" }
+	add_hyperlane = { from = "99" to = "479" }
+	add_hyperlane = { from = "100" to = "543" }
+	add_hyperlane = { from = "100" to = "583" }
+	add_hyperlane = { from = "101" to = "170" }
+	add_hyperlane = { from = "101" to = "229" }
+	add_hyperlane = { from = "101" to = "277" }
+	add_hyperlane = { from = "101" to = "282" }
+	add_hyperlane = { from = "101" to = "582" }
+	add_hyperlane = { from = "103" to = "283" }
+	add_hyperlane = { from = "103" to = "441" }
+	add_hyperlane = { from = "104" to = "253" }
+	add_hyperlane = { from = "104" to = "295" }
+	add_hyperlane = { from = "104" to = "489" }
+	add_hyperlane = { from = "105" to = "504" }
+	add_hyperlane = { from = "106" to = "114" }
+	add_hyperlane = { from = "106" to = "154" }
+	add_hyperlane = { from = "106" to = "167" }
+	add_hyperlane = { from = "107" to = "261" }
+	add_hyperlane = { from = "107" to = "275" }
+	add_hyperlane = { from = "107" to = "404" }
+	add_hyperlane = { from = "108" to = "416" }
+	add_hyperlane = { from = "108" to = "570" }
+	add_hyperlane = { from = "110" to = "155" }
+	add_hyperlane = { from = "110" to = "482" }
+	add_hyperlane = { from = "111" to = "415" }
+	add_hyperlane = { from = "111" to = "460" }
+	add_hyperlane = { from = "112" to = "308" }
+	add_hyperlane = { from = "112" to = "375" }
+	add_hyperlane = { from = "115" to = "520" }
+	add_hyperlane = { from = "116" to = "334" }
+	add_hyperlane = { from = "117" to = "550" }
+	add_hyperlane = { from = "118" to = "261" }
+	add_hyperlane = { from = "119" to = "220" }
+	add_hyperlane = { from = "120" to = "150" }
+	add_hyperlane = { from = "120" to = "226" }
+	add_hyperlane = { from = "120" to = "435" }
+	add_hyperlane = { from = "120" to = "452" }
+	add_hyperlane = { from = "121" to = "158" }
+	add_hyperlane = { from = "121" to = "200" }
+	add_hyperlane = { from = "121" to = "364" }
+	add_hyperlane = { from = "122" to = "206" }
+	add_hyperlane = { from = "122" to = "248" }
+	add_hyperlane = { from = "123" to = "275" }
+	add_hyperlane = { from = "123" to = "358" }
+	add_hyperlane = { from = "124" to = "175" }
+	add_hyperlane = { from = "124" to = "326" }
+	add_hyperlane = { from = "125" to = "149" }
+	add_hyperlane = { from = "125" to = "506" }
+	add_hyperlane = { from = "125" to = "561" }
+	add_hyperlane = { from = "126" to = "485" }
+	add_hyperlane = { from = "127" to = "550" }
+	add_hyperlane = { from = "128" to = "135" }
+	add_hyperlane = { from = "128" to = "332" }
+	add_hyperlane = { from = "128" to = "355" }
+	add_hyperlane = { from = "128" to = "366" }
+	add_hyperlane = { from = "129" to = "347" }
+	add_hyperlane = { from = "129" to = "439" }
+	add_hyperlane = { from = "129" to = "468" }
+	add_hyperlane = { from = "130" to = "453" }
+	add_hyperlane = { from = "130" to = "557" }
+	add_hyperlane = { from = "131" to = "173" }
+	add_hyperlane = { from = "131" to = "185" }
+	add_hyperlane = { from = "131" to = "264" }
+	add_hyperlane = { from = "131" to = "584" }
+	add_hyperlane = { from = "132" to = "166" }
+	add_hyperlane = { from = "132" to = "533" }
+	add_hyperlane = { from = "133" to = "306" }
+	add_hyperlane = { from = "133" to = "351" }
+	add_hyperlane = { from = "133" to = "514" }
+	add_hyperlane = { from = "134" to = "146" }
+	add_hyperlane = { from = "134" to = "191" }
+	add_hyperlane = { from = "134" to = "512" }
+	add_hyperlane = { from = "135" to = "419" }
+	add_hyperlane = { from = "135" to = "567" }
+	add_hyperlane = { from = "136" to = "327" }
+	add_hyperlane = { from = "136" to = "545" }
+	add_hyperlane = { from = "137" to = "323" }
+	add_hyperlane = { from = "137" to = "346" }
+	add_hyperlane = { from = "138" to = "288" }
+	add_hyperlane = { from = "138" to = "301" }
+	add_hyperlane = { from = "140" to = "198" }
+	add_hyperlane = { from = "140" to = "476" }
+	add_hyperlane = { from = "141" to = "219" }
+	add_hyperlane = { from = "141" to = "587" }
+	add_hyperlane = { from = "142" to = "185" }
+	add_hyperlane = { from = "143" to = "216" }
+	add_hyperlane = { from = "143" to = "239" }
+	add_hyperlane = { from = "143" to = "380" }
+	add_hyperlane = { from = "144" to = "374" }
+	add_hyperlane = { from = "144" to = "550" }
+	add_hyperlane = { from = "145" to = "512" }
+	add_hyperlane = { from = "146" to = "224" }
+	add_hyperlane = { from = "146" to = "428" }
+	add_hyperlane = { from = "147" to = "583" }
+	add_hyperlane = { from = "148" to = "448" }
+	add_hyperlane = { from = "149" to = "236" }
+	add_hyperlane = { from = "150" to = "344" }
+	add_hyperlane = { from = "151" to = "482" }
+	add_hyperlane = { from = "151" to = "495" }
+	add_hyperlane = { from = "152" to = "211" }
+	add_hyperlane = { from = "152" to = "413" }
+	add_hyperlane = { from = "152" to = "541" }
+	add_hyperlane = { from = "153" to = "230" }
+	add_hyperlane = { from = "153" to = "302" }
+	add_hyperlane = { from = "154" to = "215" }
+	add_hyperlane = { from = "154" to = "314" }
+	add_hyperlane = { from = "155" to = "351" }
+	add_hyperlane = { from = "155" to = "386" }
+	add_hyperlane = { from = "156" to = "234" }
+	add_hyperlane = { from = "156" to = "258" }
+	add_hyperlane = { from = "156" to = "322" }
+	add_hyperlane = { from = "156" to = "333" }
+	add_hyperlane = { from = "157" to = "183" }
+	add_hyperlane = { from = "157" to = "212" }
+	add_hyperlane = { from = "157" to = "359" }
+	add_hyperlane = { from = "158" to = "364" }
+	add_hyperlane = { from = "159" to = "573" }
+	add_hyperlane = { from = "159" to = "577" }
+	add_hyperlane = { from = "160" to = "324" }
+	add_hyperlane = { from = "160" to = "516" }
+	add_hyperlane = { from = "161" to = "168" }
+	add_hyperlane = { from = "161" to = "586" }
+	add_hyperlane = { from = "162" to = "446" }
+	add_hyperlane = { from = "162" to = "487" }
+	add_hyperlane = { from = "163" to = "286" }
+	add_hyperlane = { from = "163" to = "454" }
+	add_hyperlane = { from = "164" to = "176" }
+	add_hyperlane = { from = "164" to = "270" }
+	add_hyperlane = { from = "164" to = "382" }
+	add_hyperlane = { from = "165" to = "334" }
+	add_hyperlane = { from = "165" to = "366" }
+	add_hyperlane = { from = "166" to = "565" }
+	add_hyperlane = { from = "168" to = "273" }
+	add_hyperlane = { from = "168" to = "586" }
+	add_hyperlane = { from = "169" to = "171" }
+	add_hyperlane = { from = "169" to = "408" }
+	add_hyperlane = { from = "171" to = "444" }
+	add_hyperlane = { from = "171" to = "536" }
+	add_hyperlane = { from = "172" to = "529" }
+	add_hyperlane = { from = "172" to = "551" }
+	add_hyperlane = { from = "175" to = "565" }
+	add_hyperlane = { from = "176" to = "276" }
+	add_hyperlane = { from = "176" to = "328" }
+	add_hyperlane = { from = "178" to = "239" }
+	add_hyperlane = { from = "179" to = "341" }
+	add_hyperlane = { from = "179" to = "450" }
+	add_hyperlane = { from = "179" to = "467" }
+	add_hyperlane = { from = "180" to = "405" }
+	add_hyperlane = { from = "180" to = "417" }
+	add_hyperlane = { from = "180" to = "601" }
+	add_hyperlane = { from = "181" to = "234" }
+	add_hyperlane = { from = "183" to = "423" }
+	add_hyperlane = { from = "184" to = "353" }
+	add_hyperlane = { from = "184" to = "503" }
+	add_hyperlane = { from = "185" to = "356" }
+	add_hyperlane = { from = "185" to = "427" }
+	add_hyperlane = { from = "186" to = "260" }
+	add_hyperlane = { from = "186" to = "333" }
+	add_hyperlane = { from = "186" to = "572" }
+	add_hyperlane = { from = "188" to = "304" }
+	add_hyperlane = { from = "188" to = "320" }
+	add_hyperlane = { from = "189" to = "412" }
+	add_hyperlane = { from = "189" to = "562" }
+	add_hyperlane = { from = "189" to = "569" }
+	add_hyperlane = { from = "190" to = "196" }
+	add_hyperlane = { from = "190" to = "371" }
+	add_hyperlane = { from = "191" to = "210" }
+	add_hyperlane = { from = "191" to = "243" }
+	add_hyperlane = { from = "192" to = "443" }
+	add_hyperlane = { from = "192" to = "537" }
+	add_hyperlane = { from = "193" to = "226" }
+	add_hyperlane = { from = "193" to = "254" }
+	add_hyperlane = { from = "194" to = "227" }
+	add_hyperlane = { from = "194" to = "523" }
+	add_hyperlane = { from = "195" to = "282" }
+	add_hyperlane = { from = "195" to = "335" }
+	add_hyperlane = { from = "196" to = "233" }
+	add_hyperlane = { from = "196" to = "475" }
+	add_hyperlane = { from = "197" to = "291" }
+	add_hyperlane = { from = "197" to = "567" }
+	add_hyperlane = { from = "198" to = "227" }
+	add_hyperlane = { from = "198" to = "476" }
+	add_hyperlane = { from = "199" to = "411" }
+	add_hyperlane = { from = "199" to = "514" }
+	add_hyperlane = { from = "200" to = "293" }
+	add_hyperlane = { from = "200" to = "321" }
+	add_hyperlane = { from = "200" to = "481" }
+	add_hyperlane = { from = "201" to = "582" }
+	add_hyperlane = { from = "202" to = "451" }
+	add_hyperlane = { from = "203" to = "326" }
+	add_hyperlane = { from = "203" to = "425" }
+	add_hyperlane = { from = "204" to = "345" }
+	add_hyperlane = { from = "204" to = "387" }
+	add_hyperlane = { from = "205" to = "279" }
+	add_hyperlane = { from = "205" to = "477" }
+	add_hyperlane = { from = "205" to = "480" }
+	add_hyperlane = { from = "205" to = "484" }
+	add_hyperlane = { from = "206" to = "248" }
+	add_hyperlane = { from = "208" to = "296" }
+	add_hyperlane = { from = "208" to = "517" }
+	add_hyperlane = { from = "211" to = "468" }
+	add_hyperlane = { from = "211" to = "541" }
+	add_hyperlane = { from = "213" to = "457" }
+	add_hyperlane = { from = "213" to = "488" }
+	add_hyperlane = { from = "213" to = "549" }
+	add_hyperlane = { from = "214" to = "296" }
+	add_hyperlane = { from = "216" to = "239" }
+	add_hyperlane = { from = "216" to = "299" }
+	add_hyperlane = { from = "216" to = "465" }
+	add_hyperlane = { from = "217" to = "405" }
+	add_hyperlane = { from = "218" to = "433" }
+	add_hyperlane = { from = "218" to = "446" }
+	add_hyperlane = { from = "218" to = "516" }
+	add_hyperlane = { from = "219" to = "550" }
+	add_hyperlane = { from = "221" to = "318" }
+	add_hyperlane = { from = "221" to = "391" }
+	add_hyperlane = { from = "222" to = "323" }
+	add_hyperlane = { from = "222" to = "431" }
+	add_hyperlane = { from = "222" to = "453" }
+	add_hyperlane = { from = "222" to = "530" }
+	add_hyperlane = { from = "223" to = "363" }
+	add_hyperlane = { from = "224" to = "535" }
+	add_hyperlane = { from = "224" to = "562" }
+	add_hyperlane = { from = "225" to = "295" }
+	add_hyperlane = { from = "225" to = "469" }
+	add_hyperlane = { from = "225" to = "528" }
+	add_hyperlane = { from = "226" to = "254" }
+	add_hyperlane = { from = "228" to = "296" }
+	add_hyperlane = { from = "229" to = "240" }
+	add_hyperlane = { from = "230" to = "439" }
+	add_hyperlane = { from = "232" to = "237" }
+	add_hyperlane = { from = "232" to = "245" }
+	add_hyperlane = { from = "232" to = "470" }
+	add_hyperlane = { from = "232" to = "569" }
+	add_hyperlane = { from = "233" to = "371" }
+	add_hyperlane = { from = "233" to = "388" }
+	add_hyperlane = { from = "234" to = "237" }
+	add_hyperlane = { from = "235" to = "403" }
+	add_hyperlane = { from = "235" to = "480" }
+	add_hyperlane = { from = "235" to = "574" }
+	add_hyperlane = { from = "236" to = "397" }
+	add_hyperlane = { from = "237" to = "475" }
+	add_hyperlane = { from = "238" to = "338" }
+	add_hyperlane = { from = "238" to = "392" }
+	add_hyperlane = { from = "238" to = "518" }
+	add_hyperlane = { from = "239" to = "465" }
+	add_hyperlane = { from = "240" to = "283" }
+	add_hyperlane = { from = "240" to = "348" }
+	add_hyperlane = { from = "241" to = "393" }
+	add_hyperlane = { from = "241" to = "447" }
+	add_hyperlane = { from = "242" to = "357" }
+	add_hyperlane = { from = "242" to = "531" }
+	add_hyperlane = { from = "243" to = "512" }
+	add_hyperlane = { from = "244" to = "337" }
+	add_hyperlane = { from = "244" to = "543" }
+	add_hyperlane = { from = "244" to = "563" }
+	add_hyperlane = { from = "245" to = "432" }
+	add_hyperlane = { from = "245" to = "569" }
+	add_hyperlane = { from = "246" to = "364" }
+	add_hyperlane = { from = "246" to = "502" }
+	add_hyperlane = { from = "246" to = "590" }
+	add_hyperlane = { from = "247" to = "389" }
+	add_hyperlane = { from = "249" to = "357" }
+	add_hyperlane = { from = "249" to = "418" }
+	add_hyperlane = { from = "250" to = "575" }
+	add_hyperlane = { from = "251" to = "436" }
+	add_hyperlane = { from = "251" to = "479" }
+	add_hyperlane = { from = "252" to = "414" }
+	add_hyperlane = { from = "252" to = "426" }
+	add_hyperlane = { from = "252" to = "485" }
+	add_hyperlane = { from = "253" to = "445" }
+	add_hyperlane = { from = "253" to = "469" }
+	add_hyperlane = { from = "253" to = "515" }
+	add_hyperlane = { from = "255" to = "474" }
+	add_hyperlane = { from = "255" to = "542" }
+	add_hyperlane = { from = "256" to = "313" }
+	add_hyperlane = { from = "257" to = "395" }
+	add_hyperlane = { from = "260" to = "290" }
+	add_hyperlane = { from = "261" to = "434" }
+	add_hyperlane = { from = "262" to = "370" }
+	add_hyperlane = { from = "262" to = "440" }
+	add_hyperlane = { from = "262" to = "471" }
+	add_hyperlane = { from = "263" to = "332" }
+	add_hyperlane = { from = "263" to = "423" }
+	add_hyperlane = { from = "263" to = "573" }
+	add_hyperlane = { from = "264" to = "602" }
+	add_hyperlane = { from = "265" to = "277" }
+	add_hyperlane = { from = "265" to = "542" }
+	add_hyperlane = { from = "265" to = "582" }
+	add_hyperlane = { from = "266" to = "272" }
+	add_hyperlane = { from = "266" to = "421" }
+	add_hyperlane = { from = "267" to = "309" }
+	add_hyperlane = { from = "267" to = "381" }
+	add_hyperlane = { from = "267" to = "532" }
+	add_hyperlane = { from = "268" to = "335" }
+	add_hyperlane = { from = "268" to = "392" }
+	add_hyperlane = { from = "270" to = "382" }
+	add_hyperlane = { from = "272" to = "421" }
+	add_hyperlane = { from = "272" to = "539" }
+	add_hyperlane = { from = "273" to = "486" }
+	add_hyperlane = { from = "273" to = "496" }
+	add_hyperlane = { from = "273" to = "586" }
+	add_hyperlane = { from = "274" to = "396" }
+	add_hyperlane = { from = "274" to = "563" }
+	add_hyperlane = { from = "276" to = "328" }
+	add_hyperlane = { from = "276" to = "556" }
+	add_hyperlane = { from = "277" to = "582" }
+	add_hyperlane = { from = "278" to = "477" }
+	add_hyperlane = { from = "280" to = "304" }
+	add_hyperlane = { from = "280" to = "443" }
+	add_hyperlane = { from = "282" to = "317" }
+	add_hyperlane = { from = "282" to = "505" }
+	add_hyperlane = { from = "283" to = "417" }
+	add_hyperlane = { from = "284" to = "554" }
+	add_hyperlane = { from = "284" to = "570" }
+	add_hyperlane = { from = "284" to = "575" }
+	add_hyperlane = { from = "285" to = "526" }
+	add_hyperlane = { from = "286" to = "454" }
+	add_hyperlane = { from = "287" to = "487" }
+	add_hyperlane = { from = "287" to = "579" }
+	add_hyperlane = { from = "288" to = "292" }
+	add_hyperlane = { from = "288" to = "301" }
+	add_hyperlane = { from = "289" to = "414" }
+	add_hyperlane = { from = "292" to = "301" }
+	add_hyperlane = { from = "292" to = "507" }
+	add_hyperlane = { from = "294" to = "456" }
+	add_hyperlane = { from = "294" to = "588" }
+	add_hyperlane = { from = "295" to = "373" }
+	add_hyperlane = { from = "295" to = "489" }
+	add_hyperlane = { from = "297" to = "394" }
+	add_hyperlane = { from = "297" to = "559" }
+	add_hyperlane = { from = "299" to = "343" }
+	add_hyperlane = { from = "301" to = "463" }
+	add_hyperlane = { from = "302" to = "533" }
+	add_hyperlane = { from = "303" to = "561" }
+	add_hyperlane = { from = "304" to = "320" }
+	add_hyperlane = { from = "305" to = "499" }
+	add_hyperlane = { from = "305" to = "502" }
+	add_hyperlane = { from = "307" to = "312" }
+	add_hyperlane = { from = "307" to = "362" }
+	add_hyperlane = { from = "308" to = "554" }
+	add_hyperlane = { from = "309" to = "532" }
+	add_hyperlane = { from = "309" to = "553" }
+	add_hyperlane = { from = "310" to = "368" }
+	add_hyperlane = { from = "310" to = "429" }
+	add_hyperlane = { from = "310" to = "547" }
+	add_hyperlane = { from = "311" to = "374" }
+	add_hyperlane = { from = "312" to = "480" }
+	add_hyperlane = { from = "313" to = "546" }
+	add_hyperlane = { from = "313" to = "565" }
+	add_hyperlane = { from = "314" to = "464" }
+	add_hyperlane = { from = "315" to = "339" }
+	add_hyperlane = { from = "317" to = "422" }
+	add_hyperlane = { from = "317" to = "505" }
+	add_hyperlane = { from = "318" to = "391" }
+	add_hyperlane = { from = "318" to = "445" }
+	add_hyperlane = { from = "319" to = "367" }
+	add_hyperlane = { from = "321" to = "360" }
+	add_hyperlane = { from = "321" to = "481" }
+	add_hyperlane = { from = "322" to = "424" }
+	add_hyperlane = { from = "323" to = "491" }
+	add_hyperlane = { from = "325" to = "473" }
+	add_hyperlane = { from = "328" to = "559" }
+	add_hyperlane = { from = "330" to = "501" }
+	add_hyperlane = { from = "330" to = "507" }
+	add_hyperlane = { from = "331" to = "391" }
+	add_hyperlane = { from = "331" to = "406" }
+	add_hyperlane = { from = "331" to = "512" }
+	add_hyperlane = { from = "332" to = "355" }
+	add_hyperlane = { from = "334" to = "548" }
+	add_hyperlane = { from = "337" to = "396" }
+	add_hyperlane = { from = "337" to = "483" }
+	add_hyperlane = { from = "339" to = "367" }
+	add_hyperlane = { from = "340" to = "341" }
+	add_hyperlane = { from = "341" to = "450" }
+	add_hyperlane = { from = "343" to = "465" }
+	add_hyperlane = { from = "343" to = "494" }
+	add_hyperlane = { from = "344" to = "435" }
+	add_hyperlane = { from = "344" to = "498" }
+	add_hyperlane = { from = "346" to = "491" }
+	add_hyperlane = { from = "346" to = "521" }
+	add_hyperlane = { from = "346" to = "527" }
+	add_hyperlane = { from = "350" to = "430" }
+	add_hyperlane = { from = "351" to = "564" }
+	add_hyperlane = { from = "352" to = "462" }
+	add_hyperlane = { from = "353" to = "365" }
+	add_hyperlane = { from = "353" to = "503" }
+	add_hyperlane = { from = "356" to = "427" }
+	add_hyperlane = { from = "357" to = "457" }
+	add_hyperlane = { from = "357" to = "531" }
+	add_hyperlane = { from = "358" to = "412" }
+	add_hyperlane = { from = "360" to = "426" }
+	add_hyperlane = { from = "360" to = "481" }
+	add_hyperlane = { from = "361" to = "463" }
+	add_hyperlane = { from = "361" to = "522" }
+	add_hyperlane = { from = "363" to = "493" }
+	add_hyperlane = { from = "364" to = "589" }
+	add_hyperlane = { from = "365" to = "503" }
+	add_hyperlane = { from = "367" to = "587" }
+	add_hyperlane = { from = "368" to = "398" }
+	add_hyperlane = { from = "368" to = "429" }
+	add_hyperlane = { from = "369" to = "389" }
+	add_hyperlane = { from = "370" to = "471" }
+	add_hyperlane = { from = "370" to = "484" }
+	add_hyperlane = { from = "371" to = "388" }
+	add_hyperlane = { from = "372" to = "444" }
+	add_hyperlane = { from = "372" to = "536" }
+	add_hyperlane = { from = "374" to = "550" }
+	add_hyperlane = { from = "376" to = "425" }
+	add_hyperlane = { from = "376" to = "452" }
+	add_hyperlane = { from = "376" to = "486" }
+	add_hyperlane = { from = "377" to = "381" }
+	add_hyperlane = { from = "377" to = "454" }
+	add_hyperlane = { from = "377" to = "548" }
+	add_hyperlane = { from = "379" to = "522" }
+	add_hyperlane = { from = "381" to = "548" }
+	add_hyperlane = { from = "382" to = "526" }
+	add_hyperlane = { from = "383" to = "510" }
+	add_hyperlane = { from = "384" to = "453" }
+	add_hyperlane = { from = "384" to = "557" }
+	add_hyperlane = { from = "385" to = "448" }
+	add_hyperlane = { from = "385" to = "492" }
+	add_hyperlane = { from = "386" to = "464" }
+	add_hyperlane = { from = "386" to = "564" }
+	add_hyperlane = { from = "389" to = "495" }
+	add_hyperlane = { from = "391" to = "406" }
+	add_hyperlane = { from = "391" to = "512" }
+	add_hyperlane = { from = "393" to = "497" }
+	add_hyperlane = { from = "394" to = "509" }
+	add_hyperlane = { from = "394" to = "556" }
+	add_hyperlane = { from = "397" to = "402" }
+	add_hyperlane = { from = "399" to = "470" }
+	add_hyperlane = { from = "403" to = "552" }
+	add_hyperlane = { from = "403" to = "574" }
+	add_hyperlane = { from = "407" to = "438" }
+	add_hyperlane = { from = "407" to = "524" }
+	add_hyperlane = { from = "407" to = "531" }
+	add_hyperlane = { from = "407" to = "549" }
+	add_hyperlane = { from = "408" to = "444" }
+	add_hyperlane = { from = "408" to = "459" }
+	add_hyperlane = { from = "410" to = "472" }
+	add_hyperlane = { from = "410" to = "572" }
+	add_hyperlane = { from = "412" to = "562" }
+	add_hyperlane = { from = "412" to = "569" }
+	add_hyperlane = { from = "413" to = "545" }
+	add_hyperlane = { from = "414" to = "485" }
+	add_hyperlane = { from = "415" to = "437" }
+	add_hyperlane = { from = "416" to = "490" }
+	add_hyperlane = { from = "419" to = "567" }
+	add_hyperlane = { from = "420" to = "506" }
+	add_hyperlane = { from = "420" to = "544" }
+	add_hyperlane = { from = "421" to = "490" }
+	add_hyperlane = { from = "421" to = "580" }
+	add_hyperlane = { from = "422" to = "505" }
+	add_hyperlane = { from = "423" to = "573" }
+	add_hyperlane = { from = "426" to = "438" }
+	add_hyperlane = { from = "429" to = "491" }
+	add_hyperlane = { from = "430" to = "515" }
+	add_hyperlane = { from = "431" to = "453" }
+	add_hyperlane = { from = "432" to = "470" }
+	add_hyperlane = { from = "432" to = "569" }
+	add_hyperlane = { from = "433" to = "588" }
+	add_hyperlane = { from = "434" to = "500" }
+	add_hyperlane = { from = "434" to = "553" }
+	add_hyperlane = { from = "436" to = "479" }
+	add_hyperlane = { from = "436" to = "581" }
+	add_hyperlane = { from = "437" to = "585" }
+	add_hyperlane = { from = "440" to = "460" }
+	add_hyperlane = { from = "441" to = "458" }
+	add_hyperlane = { from = "444" to = "536" }
+	add_hyperlane = { from = "444" to = "560" }
+	add_hyperlane = { from = "445" to = "489" }
+	add_hyperlane = { from = "446" to = "516" }
+	add_hyperlane = { from = "447" to = "500" }
+	add_hyperlane = { from = "448" to = "492" }
+	add_hyperlane = { from = "448" to = "503" }
+	add_hyperlane = { from = "450" to = "457" }
+	add_hyperlane = { from = "450" to = "467" }
+	add_hyperlane = { from = "451" to = "508" }
+	add_hyperlane = { from = "451" to = "547" }
+	add_hyperlane = { from = "453" to = "557" }
+	add_hyperlane = { from = "457" to = "549" }
+	add_hyperlane = { from = "459" to = "560" }
+	add_hyperlane = { from = "461" to = "566" }
+	add_hyperlane = { from = "466" to = "584" }
+	add_hyperlane = { from = "467" to = "474" }
+	add_hyperlane = { from = "469" to = "515" }
+	add_hyperlane = { from = "471" to = "484" }
+	add_hyperlane = { from = "472" to = "572" }
+	add_hyperlane = { from = "474" to = "542" }
+	add_hyperlane = { from = "478" to = "504" }
+	add_hyperlane = { from = "478" to = "518" }
+	add_hyperlane = { from = "479" to = "487" }
+	add_hyperlane = { from = "479" to = "581" }
+	add_hyperlane = { from = "487" to = "490" }
+	add_hyperlane = { from = "487" to = "581" }
+	add_hyperlane = { from = "490" to = "580" }
+	add_hyperlane = { from = "491" to = "527" }
+	add_hyperlane = { from = "496" to = "586" }
+	add_hyperlane = { from = "500" to = "553" }
+	add_hyperlane = { from = "501" to = "527" }
+	add_hyperlane = { from = "509" to = "556" }
+	add_hyperlane = { from = "510" to = "585" }
+	add_hyperlane = { from = "511" to = "540" }
+	add_hyperlane = { from = "511" to = "555" }
+	add_hyperlane = { from = "517" to = "577" }
+	add_hyperlane = { from = "519" to = "578" }
+	add_hyperlane = { from = "520" to = "523" }
+	add_hyperlane = { from = "521" to = "527" }
+	add_hyperlane = { from = "528" to = "567" }
+	add_hyperlane = { from = "529" to = "555" }
+	add_hyperlane = { from = "533" to = "546" }
+	add_hyperlane = { from = "533" to = "568" }
+	add_hyperlane = { from = "540" to = "566" }
+	add_hyperlane = { from = "570" to = "575" }
+	add_hyperlane = { from = "592" to = "594" }
+	add_hyperlane = { from = "592" to = "599" }
+	add_hyperlane = { from = "592" to = "600" }
+	add_hyperlane = { from = "594" to = "595" }
+	add_hyperlane = { from = "594" to = "599" }
+	add_hyperlane = { from = "594" to = "600" }
+	add_hyperlane = { from = "595" to = "596" }
+	add_hyperlane = { from = "595" to = "597" }
+	add_hyperlane = { from = "595" to = "598" }
+	add_hyperlane = { from = "596" to = "597" }
+	add_hyperlane = { from = "596" to = "598" }
+
+	nebula = { name = "Demons_Eye_Nebula" position = { x = 156.89 y = 139.82 } radius = 30 }
+	nebula = { name = "Sejanis_Expanse" position = { x = 198.68 y = -91.7 } radius = 30 }
+	nebula = { name = "Najaggus_Veil" position = { x = -124.02 y = 135.31 } radius = 30 }
+	nebula = { name = "Phantom_Streak_Miasma" position = { x = -129.13 y = -143.4 } radius = 30 }
+	nebula = { name = "Zadanis_Nebula" position = { x = 61 y = -319.15 } radius = 30 }
+	nebula = { name = "Nythran_Expanse" position = { x = -338.98 y = -66.62 } radius = 30 }
+	nebula = { name = "Bok_Globule_Badlands" position = { x = 87.53 y = -288.04 } radius = 20 }
+	nebula = { name = "Void_Sea_Nebula" position = { x = 259.3 y = 174.5 } radius = 20 }
+	nebula = { name = "Zhakira_Patch" position = { x = -370.03 y = 68.34 } radius = 25 }
+}
