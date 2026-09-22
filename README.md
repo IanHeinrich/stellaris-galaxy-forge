@@ -131,9 +131,6 @@ the more room there is to extend it. The other is what people ask for.
 Download the latest release from
 [the Releases page](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases).
 
-Each release starts with a short "Which file do I download?" list that
-links the right file for your computer.
-
 - Windows: `Stellaris-Galaxy-Forge-<x.y.z>-Windows-Installer.exe`. It is
   signed by "Open Source Developer, Ian Heinrich". While the certificate
   is new, Windows SmartScreen may still warn before it runs. Click "More
@@ -149,12 +146,6 @@ links the right file for your computer.
 - Linux: `Stellaris-Galaxy-Forge-<x.y.z>-Linux.AppImage`, which needs
   `chmod +x` before it will run, or the `Linux-Debian-Ubuntu.deb` or
   `Linux-Fedora.rpm` package. All are built on Ubuntu 22.04, x86_64.
-
-The other files are for the app's automatic updates
-(`Mac-updater-only.tar.gz`, `latest.json`), for IT departments that
-deploy software with an MSI (`Windows-Installer-MSI-for-IT.msi`), and for
-the command-line tool (`sgf-command-line-tool-<x.y.z>-Windows.zip`,
-`-Linux.tar.gz` or `-Mac.tar.gz`).
 
 The app checks for a newer release when it starts (the Help menu can turn
 this off, and "Check for updates…" checks right away) and shows a badge
