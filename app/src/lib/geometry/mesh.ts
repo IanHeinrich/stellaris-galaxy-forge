@@ -9,6 +9,20 @@ export interface MeshPoint {
 /** Slider range: β=2 is the relative-neighbourhood graph, β=1 the Gabriel graph, smaller is denser. */
 export const MESH_BETA = { sparse: 2, gabriel: 1, dense: 0.1 } as const;
 
+const LOG_SPARSE = Math.log(MESH_BETA.sparse);
+const LOG_SPAN = Math.log(MESH_BETA.dense) - LOG_SPARSE;
+
+/** Slider position in [0, 1] to β, linear in log β so the Gabriel graph sits mid-slider. */
+export function betaOfSlider(v: number): number {
+  if (v <= 0) return MESH_BETA.sparse;
+  if (v >= 1) return MESH_BETA.dense;
+  return Math.exp(LOG_SPARSE + v * LOG_SPAN);
+}
+
+export function sliderOfBeta(beta: number): number {
+  return (Math.log(beta) - LOG_SPARSE) / LOG_SPAN;
+}
+
 /** β-skeleton edges over the Delaunay triangulation of `points`, as [id, id] pairs with id order a < b. */
 export function meshPairs(points: MeshPoint[], beta: number): Array<[number, number]> {
   const pairs: Array<[number, number]> = [];

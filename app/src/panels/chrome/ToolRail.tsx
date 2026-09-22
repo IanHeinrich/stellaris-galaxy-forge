@@ -44,6 +44,31 @@ const TOOLS: readonly ToolEntry[] = [
       </Glyph>
     ),
   },
+  {
+    id: "paint",
+    label: "Paint systems",
+    key: "B",
+    icon: (
+      <Glyph>
+        <path d="m13.5 2.5-6 6.5" />
+        <path d="M7.5 9c-1.6-.5-3.2.4-3.5 2-.2 1.2-.8 2-1.5 2.5 2.4.6 5.5-.4 5.8-2.6Z" />
+        <circle cx="11" cy="12.5" r=".6" fill="currentColor" />
+        <circle cx="13.5" cy="10" r=".6" fill="currentColor" />
+      </Glyph>
+    ),
+  },
+  {
+    id: "erase",
+    label: "Erase systems",
+    key: "E",
+    icon: (
+      <Glyph>
+        <path d="M9.5 2.5 14 7l-6.5 6.5H4.5l-2-2Z" />
+        <path d="m6 6 4.5 4.5" />
+        <path d="M7.5 13.5h6" />
+      </Glyph>
+    ),
+  },
 ];
 
 /** The map's tools down its left edge, with undo and redo at the foot (ADR 0005). */

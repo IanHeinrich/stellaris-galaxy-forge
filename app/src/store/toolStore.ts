@@ -30,9 +30,52 @@ export const TOOL_REQUIRES: Partial<Record<Tool, keyof Capabilities>> = {
 /** Brush diameter, in world units. */
 export const SIZE_RANGE = { min: 5, max: 400, fallback: 40 } as const;
 /** Distance between the systems a paint stroke lays down, in world units. */
-export const SPACING_RANGE = { min: 10, max: 80, fallback: 25 } as const;
+export const SPACING_RANGE = { min: 5, max: 150, fallback: 25 } as const;
 /** What one `[` or `]` multiplies or divides the brush size by. */
 const SIZE_STEP = 1.2;
+
+/** The Density slider's integer steps, mapped log-in-spacing so the dense end keeps fine control. */
+export const SPACING_SLIDER_MAX = 1000;
+const SPACING_LOG_MIN = Math.log(SPACING_RANGE.min);
+const SPACING_LOG_MAX = Math.log(SPACING_RANGE.max);
+const SPACING_LOG_SPAN = SPACING_LOG_MAX - SPACING_LOG_MIN;
+
+/** Spacing rounded to one decimal place. */
+function roundSpacing(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+/** The most systems one paint brush circle may hold, so a large brush cannot flood the map. */
+export const MAX_SYSTEMS_PER_BRUSH = 60;
+
+/** The share of an area a Poisson-disc sample at spacing `d` fills, as systems per d². */
+const PACKING = 0.7;
+
+/** The least spacing a brush of `size` may paint at, so its circle holds at most `MAX_SYSTEMS_PER_BRUSH`. */
+export function minSpacingFor(size: number): number {
+  const r = size / 2;
+  const least = Math.sqrt((PACKING * Math.PI * r * r) / MAX_SYSTEMS_PER_BRUSH);
+  return clamp(Math.ceil(least * 10) / 10, SPACING_RANGE);
+}
+
+/** The spacing a stroke paints at: the chosen one, widened when the brush is too large for it. */
+export function effectiveSpacing(size: number, spacing: number): number {
+  return Math.max(spacing, minSpacingFor(size));
+}
+
+/** Density slider position (0 sparse .. `SPACING_SLIDER_MAX` dense) for `spacing`, log-in-spacing. */
+export function sliderOfSpacing(spacing: number): number {
+  const clamped = clamp(spacing, SPACING_RANGE);
+  const t = (SPACING_LOG_MAX - Math.log(clamped)) / SPACING_LOG_SPAN;
+  return Math.round(clamp(t, { min: 0, max: 1 }) * SPACING_SLIDER_MAX);
+}
+
+/** The spacing, in world units, for a Density slider position in `[0, SPACING_SLIDER_MAX]`. */
+export function spacingOfSlider(v: number): number {
+  const t = clamp(v, { min: 0, max: SPACING_SLIDER_MAX }) / SPACING_SLIDER_MAX;
+  const spacing = Math.exp(SPACING_LOG_MAX - t * SPACING_LOG_SPAN);
+  return clamp(roundSpacing(spacing), SPACING_RANGE);
+}
 
 const LANE_MODES: readonly LaneMode[] = ["off", "new", "nearby"];
 const ERASE_TARGETS: readonly EraseTarget[] = ["systems", "lanes"];
@@ -115,7 +158,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   },
 
   setSpacing(spacing) {
-    const clamped = clamp(Math.round(spacing), SPACING_RANGE);
+    const clamped = clamp(roundSpacing(spacing), SPACING_RANGE);
     set({ spacing: clamped });
     writePref(PREF_KEYS.brushSpacing, clamped);
   },

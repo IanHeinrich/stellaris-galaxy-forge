@@ -9,11 +9,20 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
 import { bindStores } from "./bindStores";
-import { run } from "./commands";
+import { resizeBrush, resizeNebula, run } from "./commands";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { PREF_KEYS } from "./prefKeys";
-import { useToolStore } from "./toolStore";
+import {
+  SPACING_RANGE,
+  SPACING_SLIDER_MAX,
+  sliderOfSpacing,
+  spacingOfSlider,
+  useToolStore,
+  effectiveSpacing,
+  MAX_SYSTEMS_PER_BRUSH,
+  minSpacingFor,
+} from "./toolStore";
 
 const tools = () => useToolStore.getState();
 const session = () => useFileSessionStore.getState();
@@ -119,9 +128,16 @@ describe("brush settings", () => {
     tools().setSize(1000);
     expect(tools().size).toBe(400);
     tools().setSpacing(2);
-    expect(tools().spacing).toBe(10);
+    expect(tools().spacing).toBe(5);
     tools().setSpacing(200);
-    expect(tools().spacing).toBe(80);
+    expect(tools().spacing).toBe(150);
+  });
+
+  it("rounds spacing to one decimal place", () => {
+    tools().setSpacing(12.34);
+    expect(tools().spacing).toBe(12.3);
+    tools().setSpacing(7.05);
+    expect(tools().spacing).toBe(7.1);
   });
 
   it("[ and ] step the size by a ratio, inside the range", () => {
@@ -166,5 +182,49 @@ describe("brush settings", () => {
     expect(cleaned.size).toBe(400);
     expect(cleaned.symmetry).toEqual({ kind: "off" });
     expect(cleaned.laneMode).toBe("nearby");
+  });
+});
+
+describe("the least spacing a brush size allows", () => {
+  it("leaves a small brush free and widens a large one's spacing so its circle holds at most the cap", () => {
+    expect(minSpacingFor(40)).toBe(SPACING_RANGE.min);
+    expect(minSpacingFor(400)).toBe(38.3);
+    expect(effectiveSpacing(400, 10)).toBe(minSpacingFor(400));
+    expect(effectiveSpacing(400, 60)).toBe(60);
+    const fits = (0.7 * Math.PI * 200 * 200) / minSpacingFor(400) ** 2;
+    expect(fits).toBeLessThanOrEqual(MAX_SYSTEMS_PER_BRUSH);
+  });
+});
+
+describe("the density slider mapping", () => {
+  it("maps the slider's endpoints to the spacing range's endpoints", () => {
+    expect(spacingOfSlider(0)).toBe(150);
+    expect(spacingOfSlider(SPACING_SLIDER_MAX)).toBe(5);
+  });
+
+  it("round-trips slider position through spacing, within its rounding", () => {
+    for (const v of [0, 100, 250, 500, 750, 900, 1000]) {
+      const spacing = spacingOfSlider(v);
+      expect(spacing).toBeGreaterThanOrEqual(5);
+      expect(spacing).toBeLessThanOrEqual(150);
+      expect(Math.abs(sliderOfSpacing(spacing) - v)).toBeLessThanOrEqual(2);
+    }
+  });
+});
+
+describe("brush keys", () => {
+  it("B and E pick the brushes on a scenario, and [ ] step the brush rather than a nebula", async () => {
+    expect(run("paintTool", false, effects)).toBe(false);
+    await openScenario();
+    expect(run("paintTool", false, effects)).toBe(true);
+    expect(tools().tool).toBe("paint");
+    expect(resizeBrush(5)).toBe(true);
+    expect(tools().size).toBe(48);
+    expect(run("eraseTool", false, effects)).toBe(true);
+    expect(resizeBrush(-1)).toBe(true);
+    expect(tools().size).toBe(40);
+    run("selectTool", false, effects);
+    expect(resizeBrush(1)).toBe(false);
+    expect(resizeNebula(1)).toBe(false);
   });
 });

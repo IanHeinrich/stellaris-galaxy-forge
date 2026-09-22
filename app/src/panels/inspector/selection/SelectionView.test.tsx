@@ -43,7 +43,9 @@ describe("several systems selected", () => {
     expect(html).toContain("Cut hyperlanes between (2)");
     expect(html).toContain("Isolate (3)");
     expect(html).toContain("Set initializer… (3 systems)");
-    expect(html).toContain('title="Remove #0 from the selection"');
+    expect(html).toContain("Systems · 3");
+    expect(html).toMatch(/title="Remove [^"]+ from the selection"/);
+    expect(html).not.toContain("Filter the selection");
     expect(html).not.toContain("Jump to");
   });
 

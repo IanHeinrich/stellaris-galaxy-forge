@@ -5,6 +5,8 @@ import type { EditResult } from "../generated/EditResult";
 import type { FeDirection } from "../generated/FeDirection";
 import type { FeZone } from "../generated/FeZone";
 import type { HistoryView } from "../generated/HistoryView";
+import type { Pair } from "../lib/brush/lanes";
+import type { Pt } from "../lib/geometry/pt";
 import type { Op } from "../generated/Op";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SystemDetail } from "../generated/SystemDetail";
@@ -22,6 +24,7 @@ import {
   useGalaxyStore,
 } from "./galaxyStore";
 import { useDetailsStore } from "./detailsStore";
+import { brushActions } from "./editorStore.brush";
 import { feZoneActions } from "./editorStore.feZones";
 import { marauderActions } from "./editorStore.marauders";
 import { useEntityStore } from "./entityStore";
@@ -114,7 +117,10 @@ export interface EditorState {
   requestFit(): void;
   /** Frames the selected systems, or the whole galaxy when nothing is selected. */
   fitSelection(): void;
-  /** Cuts the selected lane or removes the selected nebula, whichever is selected. */
+  /**
+   * Cuts the selected lane or removes the selected nebula, whichever is selected, or on a
+   * scenario deletes two or more selected systems once the user has confirmed.
+   */
   deleteSelection(): Promise<void>;
   /** Moves every selected system by a world offset in one op. */
   nudgeSelection(dx: number, dy: number): Promise<void>;
@@ -152,6 +158,17 @@ export interface EditorState {
   renumberMarauderClan(home: number, to: number): Promise<boolean>;
   /** Removes a system and every lane touching it, once the user has confirmed. */
   removeSystem(id: number): Promise<void>;
+  /** Removes `ids` and every lane touching them in one edit, once the user has confirmed. */
+  removeSystems(ids: number[]): Promise<boolean>;
+  /**
+   * Adds a paint stroke's systems at `points`, numbered from the next free id, and its lanes in
+   * one edit; a pair's negative id -k names `points[k - 1]`.
+   */
+  paintStroke(points: readonly Pt[], pairs: readonly Pair[]): Promise<boolean>;
+  /** Removes the systems an erase stroke swept, in one edit. */
+  eraseStroke(ids: readonly number[]): Promise<boolean>;
+  /** Cuts the lanes an erase stroke swept, in one edit. */
+  cutLanes(pairs: Pair[]): Promise<boolean>;
   /** Writes the fallen empire zone `id` anchors, or removes it with null. */
   setFeZone(id: number, zone: FeZone | null): Promise<boolean>;
   /** Gives `id` a zone in the first clear direction at the default distance, and selects it. */
@@ -234,6 +251,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   lastNebulaRadius: readPref(PREF_KEYS.nebulaRadius, DEFAULT_NEBULA_RADIUS, isFiniteNumber),
   ...feZoneActions(set, get),
   ...marauderActions(set, get),
+  ...brushActions(set, get),
 
   async select(id) {
     await selectSystems(id === null ? [] : [id]);
@@ -297,9 +315,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   async deleteSelection() {
-    const { selectedLane: lane, selectedNebula } = get();
+    const { selectedLane: lane, selectedNebula, selection } = get();
     if (selectedNebula !== null) {
       await get().removeNebula(selectedNebula);
+      return;
+    }
+    if (selection.length > 1) {
+      if (systemsEditable()) await get().removeSystems(selection);
       return;
     }
     if (!lane) return;
@@ -580,6 +602,10 @@ export function systems() {
 /** Whether the open document keeps the lane lengths the normalise op rewrites. */
 function laneLengthsEditable(): boolean {
   return supports(documentCapabilities(useFileSessionStore.getState()), "lane_lengths");
+}
+
+function systemsEditable(): boolean {
+  return supports(documentCapabilities(useFileSessionStore.getState()), "create_systems");
 }
 
 function unique(ids: number[]): number[] {

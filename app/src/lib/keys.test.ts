@@ -41,6 +41,15 @@ describe("keys", () => {
     expect(keyAction(press("v", { altKey: true }), false)).toBeNull();
   });
 
+  it("B picks the paint brush and E the eraser, except while typing, with Shift or with a modifier", () => {
+    expect(keyAction(press("b"), false)).toBe("paintTool");
+    expect(keyAction(press("e"), false)).toBe("eraseTool");
+    expect(keyAction(press("b"), true)).toBeNull();
+    expect(keyAction(press("E", { shiftKey: true }), false)).toBeNull();
+    expect(keyAction(press("e", { ctrlKey: true }), false)).toBeNull();
+    expect(keyAction(press("b", { altKey: true }), false)).toBeNull();
+  });
+
   it("Tab collapses the dock, except while typing or with Shift", () => {
     expect(keyAction(press("Tab"), false)).toBe("toggleDock");
     expect(keyAction(press("Tab", { shiftKey: true }), false)).toBeNull();

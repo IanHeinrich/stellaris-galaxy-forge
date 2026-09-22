@@ -274,7 +274,7 @@ describe("pickFeZone", () => {
   const ring = { anchor: 1, zone: "ring" };
   const port = { anchor: 1, zone: "port" };
 
-  it("picks the ring band, the port band just outside it, and nothing inside or beyond, naming the anchor", () => {
+  it("picks the ring band, the port band just outside it and the centre as the ring, and nothing else inside or beyond", () => {
     const { systems } = world([anchored, node(2, 200, 0)]);
     expect(pickFeZone(systems, cam, { x: -10, y: 0 })).toEqual(ring);
     expect(pickFeZone(systems, cam, { x: -40, y: 33 })).toEqual(ring);
@@ -282,7 +282,8 @@ describe("pickFeZone", () => {
     expect(pickFeZone(systems, cam, { x: -3, y: 0 })).toEqual(port);
     expect(pickFeZone(systems, cam, { x: 2, y: 0 })).toEqual(port);
     expect(pickFeZone(systems, cam, { x: -78, y: 0 })).toEqual(port);
-    expect(pickFeZone(systems, cam, { x: -40, y: 0 })).toBeNull();
+    expect(pickFeZone(systems, cam, { x: -40, y: 0 })).toEqual(ring);
+    expect(pickFeZone(systems, cam, { x: -40, y: 15 })).toEqual(ring);
     expect(pickFeZone(systems, cam, { x: -20, y: 0 })).toBeNull();
     expect(pickFeZone(systems, cam, { x: 3, y: 0 })).toBeNull();
   });

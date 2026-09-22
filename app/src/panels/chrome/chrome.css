@@ -118,6 +118,16 @@ button.master.init[aria-pressed="mixed"] {
   border-radius: 6px;
 }
 
+.layers-menu .menu-label {
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.layers-menu .menu-label:hover:not(:disabled) {
+  border-color: var(--fg-muted);
+}
+
 .layer-group.src {
   border-color: var(--src-dim);
 }
@@ -535,6 +545,43 @@ button.master.init[aria-pressed="mixed"] {
   border: 1px solid var(--border);
   border-radius: 4px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.tool-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tool-option input[type="range"] {
+  width: 80px;
+}
+
+/* The dense end a large brush may not reach is hatched over the track. */
+.density-track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.density-blocked {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: var(--reach);
+  right: 0;
+  border-radius: 2px;
+  background: repeating-linear-gradient(135deg, rgba(255, 92, 77, 0.45) 0 3px, transparent 3px 6px);
+}
+
+.density-limit {
+  color: var(--warn);
+}
+
+.tool-option input[type="number"] {
+  width: 52px;
 }
 
 .menu-file {

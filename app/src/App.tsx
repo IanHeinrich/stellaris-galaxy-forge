@@ -37,6 +37,7 @@ import { TrafficLightInset, WindowControls } from "./panels/chrome/WindowControl
 import {
   canGoBack,
   nudgeSelected,
+  resizeBrush,
   resizeNebula,
   run,
   toggleLayerKey,
@@ -87,7 +88,7 @@ function TopBar() {
   return (
     <header className="top-bar" data-tauri-drag-region>
       <TrafficLightInset />
-      <img className="app-icon" src="/favicon.svg" alt="" data-tauri-drag-region />
+      <img className="app-icon" src="/app-icon.png" alt="" data-tauri-drag-region />
       <nav className="menu-bar" aria-label="Menus" data-tauri-drag-region>
         <FileMenu />
         <EditMenu />
@@ -124,7 +125,7 @@ function App() {
     const onKey = (e: KeyboardEvent) => {
       const inInput = isEditableTarget(e.target);
       const step = radiusStepOf(e, inInput);
-      if (step !== null && resizeNebula(step)) {
+      if (step !== null && (resizeBrush(step) || resizeNebula(step))) {
         e.preventDefault();
         return;
       }

@@ -16,6 +16,8 @@ import { feZonePreview, type FeZonePreview } from "../feZonePreview";
 import { nebulaPreview, type NebulaGeometry, type NebulaPreview } from "../nebulaPreview";
 import { pickEdge, pickFeZone, pickNebula, pickSystem, snapTarget } from "../picking";
 import type { MapEdge } from "../picking/edges";
+import { BrushModel } from "./BrushModel";
+import { BrushStrokes } from "./brushStrokes";
 import { GestureModel } from "./GestureModel";
 import { GestureReporter } from "./gesture";
 import type { InputKind, LaneSource, MapInput, MapIntent, MapModel } from "./MapIntent";
@@ -57,6 +59,9 @@ function dragState(ghosts: MoveGhost[]): DragState | null {
  */
 export class InteractionController {
   private readonly selectModel: MapModel = new GestureModel();
+  private readonly paintModel: MapModel = new BrushModel("paint");
+  private readonly eraseModel: MapModel = new BrushModel("erase");
+  private readonly brushes: BrushStrokes;
   private model: MapModel = this.selectModel;
   private readonly intent: MapIntent;
   private panFrom: { sx: number; sy: number } | null = null;
@@ -256,7 +261,14 @@ export class InteractionController {
         }
       },
       contextMenu: (target, x, y) => useMapChromeStore.getState().openContextMenu({ target, x, y }),
+      hoverBrush: (tool, x, y) => this.brushes.hover(tool, x, y),
+      beginStroke: (tool, x, y) => this.brushes.begin(tool, x, y),
+      extendStroke: (x, y) => this.brushes.extend(x, y),
+      commitStroke: () => this.brushes.commit(),
+      cancelStroke: () => this.brushes.cancel(),
+      endBrush: () => this.brushes.end(),
     };
+    this.brushes = new BrushStrokes(cam, highlights);
 
     this.model = this.modelFor(useToolStore.getState().tool);
     this.bindPointer();
@@ -264,6 +276,7 @@ export class InteractionController {
     this.cleanups.push(
       useToolStore.subscribe((state, previous) => {
         if (state.tool !== previous.tool) this.swapModel(this.modelFor(state.tool));
+        if (state.size !== previous.size) this.brushes.drawCursor();
       }),
     );
   }
@@ -271,9 +284,11 @@ export class InteractionController {
   /** The control model behind `tool`. */
   private modelFor(tool: Tool): MapModel {
     switch (tool) {
-      case "select":
       case "paint":
+        return this.paintModel;
       case "erase":
+        return this.eraseModel;
+      case "select":
       case "connect":
       case "cut":
         return this.selectModel;
@@ -298,6 +313,7 @@ export class InteractionController {
     this.canvas.style.cursor = "";
     this.hoverEdge = null;
     this.gesture.dispose();
+    this.brushes.cancel();
   }
 
   private input(kind: InputKind, e: PointerEvent): MapInput {
@@ -326,6 +342,7 @@ export class InteractionController {
       button: e.button,
       shift: e.shiftKey,
       ctrl: e.ctrlKey || e.metaKey,
+      alt: e.altKey,
       selection: editor().selection,
       system,
       zone: system === null ? (feZone?.zone ?? null) : picked.zone,
@@ -395,7 +412,7 @@ export class InteractionController {
         this.cam.panBy(input.sx - this.panFrom.sx, input.sy - this.panFrom.sy);
         this.panFrom = { sx: input.sx, sy: input.sy };
         this.hover(null);
-      } else if (this.model.busy()) {
+      } else if (this.model.busy() || this.model !== this.selectModel) {
         this.hover(null);
       } else {
         this.hover(input);
@@ -412,7 +429,10 @@ export class InteractionController {
       this.handle(this.input("cancel", e));
       this.laneFrom = null;
     });
-    on("pointerleave", () => this.hover(null));
+    on("pointerleave", () => {
+      this.hover(null);
+      if (!this.model.busy()) this.brushes.end();
+    });
   }
 
   private bindKeyboard(): void {

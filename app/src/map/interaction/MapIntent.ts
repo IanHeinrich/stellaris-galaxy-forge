@@ -1,4 +1,5 @@
 import type { LaneRef, SelectionMode } from "../../store/editorStore";
+import type { BrushTool } from "../../lib/brush/brushStroke";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { FeZonePick, NebulaPick } from "../picking";
 import type { MapEdge } from "../picking/edges";
@@ -32,6 +33,7 @@ export interface MapInput {
   shift: boolean;
   /** Ctrl, or Cmd on a Mac. */
   ctrl: boolean;
+  alt: boolean;
   /** The store's selection, so a drag from a selected star can act on the whole group. */
   selection: number[];
   system: number | null;
@@ -92,6 +94,18 @@ export interface MapIntent {
   /** Drops the previewed ring, whether or not the drag changed anything. */
   endFeZone(): void;
   contextMenu(target: ContextTarget, sx: number, sy: number): void;
+  /** The brush circle follows the pointer, drawn for the tool a press there would use. */
+  hoverBrush(tool: BrushTool, x: number, y: number): void;
+  /** A stroke of `tool` starts at the pointer. */
+  beginStroke(tool: BrushTool, x: number, y: number): void;
+  /** The stroke reaches on to the pointer. */
+  extendStroke(x: number, y: number): void;
+  /** Sends the stroke as one edit. */
+  commitStroke(): void;
+  /** Drops the stroke in progress and sends nothing. */
+  cancelStroke(): void;
+  /** Hides the brush circle. */
+  endBrush(): void;
 }
 
 /**
