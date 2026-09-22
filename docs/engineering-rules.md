@@ -67,6 +67,9 @@ path renames aside as the backup, and the editor's bytes take its place.
 
 - `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` · `cargo fmt --all`
 - `cargo run -p sgf-cli -- inspect testdata/2206.11.16.sav`
+- `sgf shape <save>` prints every key path of a save with its count, and
+  `sgf shape <save> --diff <other>` the paths the two do not share;
+  `--section a,b` keeps either to those sections.
 - `cd app && npm test` (Vitest) · `npm run build` · `npm run lint`
 - `cd app && npm run tauri dev` (one instance per machine)
 - `cargo test --workspace` also regenerates `app/src/generated/`; commit
@@ -82,6 +85,23 @@ path renames aside as the backup, and the editor's bytes take its place.
   runs `bash scripts/version.sh check`. A change that touches only
   documentation (`*.md`, `docs/`, `LICENSE`, the PR template) skips the
   build; `ci-docs.yml` reports the required checks as passed for it.
+
+## When the game updates
+
+- Save a day-one game on the new version and run `bash
+  scripts/game-update.sh <save>`. It builds `sgf`, checks the install
+  parses, and checks the save loads, validates, round-trips byte for
+  byte and exports, then runs the workspace tests with the install
+  required.
+- Read the shape diff it prints for the sections the core reads:
+  `crates/sgf-core/src/keys.rs` names every key, `docs/format-notes.md`
+  records the shape. The key-presence test in `keys.rs` fails naming any
+  key the game no longer writes.
+- A new major or minor version gets its save added to `testdata/` under
+  LFS, so the tests cover it from then on.
+- Run the in-game checks in `.github/pull_request_template.md`.
+- Update the version claims in `README.md`, `docs/user-guide.md` and
+  `docs/game-data-notes.md`.
 
 ## Releases
 

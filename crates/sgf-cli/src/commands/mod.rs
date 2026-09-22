@@ -6,6 +6,7 @@ pub mod gamedata;
 pub mod inspect;
 pub mod mutate;
 pub mod roundtrip;
+pub mod shape;
 pub mod special;
 pub mod synth;
 pub mod texture;

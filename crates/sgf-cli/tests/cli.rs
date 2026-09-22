@@ -3,6 +3,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2206.11.16.sav");
+const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
 const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/2206.11.16.scenario.txt"
@@ -205,6 +206,65 @@ fn roundtrip_check_is_byte_identical_and_writes_nothing_twice() {
         "identical bytes make no backup: {backups:?}"
     );
     assert!(!stdout(&out).contains("backup "), "{}", stdout(&out));
+}
+
+#[test]
+fn shape_diff_lists_the_keys_one_game_version_added_and_dropped() {
+    let out = sgf(&[
+        "shape",
+        "--diff",
+        SAMPLE,
+        SAMPLE_4_5,
+        "--section",
+        "country,galactic_object,galaxy",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = stdout(&out);
+    assert!(
+        text.contains(
+            "
++ country/#/flag/use_map_color
+"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "
++ galactic_object/#/arm
+"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "
+- galaxy/design
+"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.ends_with(
+            "
+3 sections differ
+"
+        ),
+        "{text}"
+    );
+    assert!(
+        !text.contains(
+            "
+planets
+"
+        ),
+        "{text}"
+    );
 }
 
 #[test]

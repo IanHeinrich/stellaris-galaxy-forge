@@ -49,6 +49,9 @@ fn run(cli: Cli) -> commands::Run {
             core_radius,
             profile,
         }) => commands::export::create(&name, core_radius, &out, profile),
+        Some(Command::Shape { sav, diff, section }) => {
+            commands::shape::run(&sav, diff.as_deref(), &section)
+        }
         Some(Command::Roundtrip {
             input,
             output,

@@ -21,6 +21,7 @@ pub mod projections;
 pub mod scan;
 pub mod search;
 pub mod session;
+pub mod shape;
 pub mod span;
 pub mod synth;
 pub mod validate;
