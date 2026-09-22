@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Moved Ascensions End (#108) from (83.2, -118.95) to (200, -50); updated 12 lane lengths; left Phantom Streak Miasma
 touched: [108, 164, 181, 438, 455, 484, 753]
 inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

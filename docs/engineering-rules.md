@@ -59,7 +59,10 @@ path renames aside as the backup, and the editor's bytes take its place.
   4.4, early game; `2201.03.25.sav`, Stellaris 4.5.0, day one, the
   player empire has Independent Map Color on). Personal saves are never
   committed without asking; larger local saves are found via
-  `SGF_CORPUS_DIR`.
+  `SGF_CORPUS_DIR`. `issues.sav` and `issues.paint.txt` are built to
+  raise as many findings as one file can, so every kind the Issues tab
+  shows has a real example behind it; `crates/sgf-core/tests/issues.rs`
+  asserts what each of them raises and how the two were made.
 - `docs/`: the user guide, the save format notes, the game data and mod
   notes, and the ADRs.
 

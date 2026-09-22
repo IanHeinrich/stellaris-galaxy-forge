@@ -5,9 +5,8 @@ expression: "report(&session, &result)"
 Removed nebula "Phantom Streak Miasma" (8 systems released)
 touched: [17, 30, 35, 59, 69, 108, 127, 130, 134, 140, 157, 164, 181, 248, 256, 277, 331, 348, 354, 360, 401, 415, 438, 461, 463, 503, 623, 625, 639, 780]
 inverse: AddNebula { x: 66.15, y: -136.85, radius: 30.0, name: Some("Phantom_Streak_Miasma") }
-warning lane_duplicate: system 401 lists a lane to 521 more than once
-warning lane_duplicate: system 521 lists a lane to 401 more than once
-… and 4 other issues
+info lane_duplicate: system 401 lists a lane to 521 more than once
+… and 2 other issues
 
 --- gamestate
 +++ gamestate

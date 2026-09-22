@@ -469,10 +469,10 @@ row changes nothing there. The rest of the header is listed and edited key by ke
 and a pair of systems can be barred from ever being linked.
 
 Marauder clans need no mod: the game's own initializers place them. A
-clan is three systems: a home carrying `marauder_N_1` and two raid bases
+clan is three systems: a home carrying `marauder_N_1` and two outposts
 carrying `marauder_N_2` and `marauder_N_3`, each hyperlaned to the home.
 Right-click empty space and choose "Add marauder clan here" to create
-all three, the home at the click and the bases 20 and 25 units out. Or
+all three, the home at the click and the outposts 20 and 25 units out. Or
 select three systems and right-click any of them: "Make these marauder
 clan N" makes the one with a hyperlane to both others the home. The
 same button is in the inspector while three systems are selected. With
@@ -485,13 +485,13 @@ clan as an empire with a skull emblem and a black border, like the game.
 The "Marauder clans" layer, listed beside the fallen empire zones,
 switches the clans' territories, and the Empires tab lists the clans
 under "Marauders", with an eye each.
-The inspector's Marauder clan section names the two bases with links to
-them, or says which is missing and offers to add it, renumbers the clan
-and removes it. A base's section names its home, or warns that nothing
-spawns there without one. Issues reports a home missing its bases, with
-an "Add the raid bases" button, a clan with two homes, a base with no
-lane to its home, and a home within 30 of a seat. "Update counts" sets
-the header's marauder counts from the homes.
+The inspector's Marauder clan section names the two outposts with links
+to them, or says which is missing and offers to add it, renumbers the
+clan and removes it. An outpost's section names its home, or warns that
+nothing spawns there without one. Issues reports a home missing its
+outposts, with an "Add the outposts" button, a clan with two homes, an
+outpost with no lane to its home, and a home within 30 of a seat.
+"Update counts" sets the header's marauder counts from the homes.
 
 In a scenario whose Paint a Galaxy layer is on, a spawn point is a seat
 the mod fills by kind, so the inspector offers the kind from a select

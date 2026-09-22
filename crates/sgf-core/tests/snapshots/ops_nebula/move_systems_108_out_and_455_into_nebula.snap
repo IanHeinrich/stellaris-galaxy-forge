@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Moved 2 systems; updated 16 lane lengths; Ascensions End left Phantom Streak Miasma; Mihil joined Phantom Streak Miasma
 touched: [108, 164, 181, 438, 455, 484, 753]
 inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, SystemMove { id: 108, x: 83.2, y: -118.95 }] }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

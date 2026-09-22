@@ -1,6 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://time.certum.pl",
+      "tsp": true
+    }
   }
 }

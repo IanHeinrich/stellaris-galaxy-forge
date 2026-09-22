@@ -108,7 +108,7 @@ export function marauderActions(
       const ops = baseOps(home, system, clan, sites, nextSystemId(systems().values()));
       return get().applyOp({
         type: "Batch",
-        description: `Added raid bases for marauder clan ${clan}`,
+        description: `Added outposts for marauder clan ${clan}`,
         ops,
       });
     },

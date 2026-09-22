@@ -197,7 +197,8 @@ impl Galaxy {
         self.waylines = waylines;
     }
 
-    /// Connected components over lanes (undirected); each sorted by id, largest first.
+    /// Connected components over lanes and wormholes (undirected); each sorted by id,
+    /// largest first.
     pub fn components(&self) -> Vec<Vec<u32>> {
         let mut adjacent: HashMap<u32, Vec<u32>> = HashMap::with_capacity(self.systems.len());
         for system in self.systems.values() {
@@ -207,6 +208,17 @@ impl Galaxy {
                     adjacent.entry(system.id).or_default().push(lane.to);
                     adjacent.entry(lane.to).or_default().push(system.id);
                 }
+            }
+        }
+        // A wormhole names both its ends and works from the start; a gateway or an L-Gate
+        // reaches anywhere only once it is open, so neither is an edge here.
+        for link in &self.bypasses {
+            if let BypassLink::Wormhole { a, b } = *link
+                && self.systems.contains_key(&a)
+                && self.systems.contains_key(&b)
+            {
+                adjacent.entry(a).or_default().push(b);
+                adjacent.entry(b).or_default().push(a);
             }
         }
         let mut seen = HashSet::with_capacity(self.systems.len());

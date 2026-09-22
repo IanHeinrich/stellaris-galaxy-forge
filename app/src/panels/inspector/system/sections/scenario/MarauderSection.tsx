@@ -19,14 +19,14 @@ export function homeIntro(clan: number): readonly string[] {
   return [
     `This system is clan ${clan}'s home.`,
     "The initializer creates the clan at game start.",
-    "A clan is the home and two raid bases, each hyperlaned to it.",
+    "A clan is the home and two outposts, each hyperlaned to it.",
   ];
 }
 
 /** What the section says of a base with no home of its clan on a lane. */
 export const NO_HOME_BESIDE = "No clan home beside it. Nothing spawns here.";
 
-export const ADD_BASES = "Add the missing raid bases";
+export const ADD_BASES = "Add the missing outposts";
 
 /**
  * The marauder clan a scenario system is part of: a home, whose bases the section lists or
@@ -71,14 +71,14 @@ function Home({ system, clan }: { system: SystemNode; clan: number }) {
         const base = bySite.get(site);
         return (
           <div className="ins-line" key={site}>
-            Raid base {site}:{" "}
+            Outpost {site}:{" "}
             {base === undefined ? (
               "missing"
             ) : (
               <button
                 type="button"
                 className="link"
-                title="Select the raid base"
+                title="Select the outpost"
                 onClick={() => void select(base.id)}
               >
                 {base.name}
@@ -126,7 +126,7 @@ function Base({ system, clan }: { system: SystemNode; clan: number }) {
   const [homeName] = useSystemNames(home === null ? [] : [home.id]);
   return (
     <Section id="system.marauder" title={`Marauder clan ${clan}`}>
-      <div className="ins-line">Raid base of clan {clan}.</div>
+      <div className="ins-line">Outpost of clan {clan}.</div>
       {home === null ? (
         <div className="ins-warn">{NO_HOME_BESIDE}</div>
       ) : (

@@ -29,7 +29,14 @@ fn the_committed_saves_header_reads_every_field() {
 #[test]
 fn a_campaign_folder_lists_its_saves_and_groups_under_its_parent() {
     let saves = list_campaign_saves_in(Path::new(TESTDATA), false);
-    assert_eq!(saves.len(), 2, "{saves:#?}");
+    // Every `.sav` in the folder and nothing else, counted from the folder so that adding
+    // a fixture does not fail a test about listing.
+    let on_disk = std::fs::read_dir(TESTDATA)
+        .expect("read testdata")
+        .filter_map(Result::ok)
+        .filter(|e| e.path().extension().is_some_and(|x| x == "sav"))
+        .count();
+    assert_eq!(saves.len(), on_disk, "{saves:#?}");
     assert!(
         saves.windows(2).all(|p| p[0].modified >= p[1].modified),
         "newest first: {saves:#?}"
@@ -64,7 +71,7 @@ fn a_campaign_folder_lists_its_saves_and_groups_under_its_parent() {
         .find(|c| c.name == "testdata")
         .unwrap_or_else(|| panic!("no testdata campaign in {campaigns:#?}"));
     let newest = &saves[0];
-    assert_eq!(testdata.files, 2);
+    assert_eq!(testdata.files as usize, on_disk);
     assert_eq!(testdata.newest, newest.modified);
     assert_eq!(
         testdata.empire.as_deref(),

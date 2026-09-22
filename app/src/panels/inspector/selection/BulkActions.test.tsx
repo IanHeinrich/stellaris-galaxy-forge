@@ -56,7 +56,7 @@ describe("the marauder clan button", () => {
     const html = await selectOn("scenario", [0, 2, 3]);
     expect(clanButton(html)).toMatchObject({
       label: "Make these marauder clan 1",
-      hint: "The home needs a hyperlane to both bases",
+      hint: "The home needs a hyperlane to both outposts",
       disabled: true,
     });
   });

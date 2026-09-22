@@ -5,7 +5,7 @@ expression: "report(&session, &result)"
 Moved Inegore (#786) from (-59.10617, -192.19434) to (-60, -190); updated 6 lane lengths
 touched: [567, 590, 786, 787]
 inverse: MoveSystem { id: 786, x: -59.10617, y: -192.19434 }
-… and 6 other issues
+… and 3 other issues
 
 --- gamestate
 +++ gamestate

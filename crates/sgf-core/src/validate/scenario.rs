@@ -48,7 +48,7 @@ pub(super) fn marauders(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
             issues.push(Issue::new(
                 IssueCode::MarauderBaseOrphan,
                 format!(
-                    "{} is a raid base of clan {clan} with no clan home beside it. Nothing spawns there.",
+                    "{} is an outpost of clan {clan} with no clan home beside it. Nothing spawns there.",
                     label(base)
                 ),
                 vec![base.id],
@@ -73,14 +73,14 @@ fn marauders_bases_missing(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
             // A save from an older game can hold a clan with one base, and it runs; only a
             // home with none is worth more than a note.
             let (count, severity) = match bases.len() {
-                0 => ("no raid bases", Severity::Warning),
-                1 => ("one raid base", Severity::Info),
+                0 => ("no outposts", Severity::Warning),
+                1 => ("one outpost", Severity::Info),
                 _ => unreachable!("fewer than two"),
             };
             let mut issue = Issue::new(
                 IssueCode::MarauderBasesMissing,
                 format!(
-                    "{} is the marauder clan {clan} home with {count} beside it. A clan is its home and two bases hyperlaned to it.",
+                    "{} is the marauder clan {clan} home with {count} beside it. A clan is its home and two outposts hyperlaned to it.",
                     label(home)
                 ),
                 vec![home.id],

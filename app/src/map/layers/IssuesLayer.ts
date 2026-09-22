@@ -1,7 +1,7 @@
 import { Circle, Container, type FederatedPointerEvent, Graphics } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { Severity } from "../../generated/Severity";
-import { issueTitle } from "../../lib/browserRows";
+import { issueCopy } from "../../lib/issueCopy";
 import type { AppIssue } from "../../lib/issues";
 import { titleCase } from "../../lib/text";
 import { useMapChromeStore } from "../../store/mapChromeStore";
@@ -121,12 +121,13 @@ export class IssuesLayer implements MapLayer {
   private hover(id: number, at: { x: number; y: number }): void {
     const issue = this.issues.get(id);
     if (!issue) return;
+    const copy = issueCopy(issue.code);
     this.hovered = id;
     useMapChromeStore.getState().showTooltip({
       x: at.x,
       y: at.y,
       title: titleCase([issue.severity]),
-      lines: [issueTitle(issue.code)],
+      lines: [copy.title, copy.why],
     });
   }
 

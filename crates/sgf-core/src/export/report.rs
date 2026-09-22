@@ -11,7 +11,7 @@ use crate::export::SourceResolver;
 use crate::export::policy::{Category, builds_gateway, builds_lgate, classify, is_generic_home};
 use crate::format::scenario::fe_zone::FeKind;
 use crate::projections::galaxy::{BypassLink, GalaxyGraph, PaintSpawnKind};
-use crate::validate::{Issue, IssueCode};
+use crate::validate::{Issue, IssueCode, Severity};
 use crate::{as_u32, plural};
 
 const DEFAULT_COUNTRY: &str = "default";
@@ -111,7 +111,8 @@ pub struct SourceCount {
 }
 
 impl ExportReport {
-    /// One warning per dropped kind and per home initializer worth a look.
+    /// One warning per dropped kind, and per home initializer a note or a warning
+    /// according to whether the export replaced it.
     pub fn issues(&self) -> Vec<Issue> {
         let mut issues: Vec<Issue> = self
             .dropped
@@ -130,14 +131,26 @@ impl ExportReport {
             })
             .collect();
         issues.extend(self.home_initializers.iter().map(|home| {
-            Issue::new(
-                IssueCode::HomeInitializer,
-                format!(
-                    "system {} is an empire seat on {}, not a generic home initializer",
-                    home.system, home.initializer
-                ),
-                vec![home.system],
-            )
+            if home.replaced {
+                Issue::at(
+                    Severity::Info,
+                    IssueCode::HomeInitializer,
+                    format!(
+                        "system {} is an empire seat on {}, and the export gave it a generic start",
+                        home.system, home.initializer
+                    ),
+                    vec![home.system],
+                )
+            } else {
+                Issue::new(
+                    IssueCode::HomeInitializer,
+                    format!(
+                        "system {} is an empire seat on {}, not a generic home initializer",
+                        home.system, home.initializer
+                    ),
+                    vec![home.system],
+                )
+            }
         }));
         issues
     }

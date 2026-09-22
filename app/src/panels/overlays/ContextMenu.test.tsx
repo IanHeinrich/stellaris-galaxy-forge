@@ -318,7 +318,7 @@ describe("the marauder clan items", () => {
     useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 2 }, x: 0, y: 0 });
     expect(clanItem(menu())).toMatchObject({
       label: "Make these marauder clan 1",
-      hint: "The home needs a hyperlane to both bases",
+      hint: "The home needs a hyperlane to both outposts",
       disabled: true,
     });
   });

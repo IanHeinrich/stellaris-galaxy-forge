@@ -24,6 +24,7 @@ import { OpenModeDialog } from "./panels/file/OpenModeDialog";
 import { MapTooltip } from "./panels/overlays/MapTooltip";
 import { FeZoneFitDialog } from "./panels/overlays/FeZoneFitDialog";
 import { NewNebulaDialog } from "./panels/overlays/NewNebulaDialog";
+import { SaveIssuesDialog } from "./panels/overlays/SaveIssuesDialog";
 import { UpdateBadge } from "./panels/chrome/UpdateBadge";
 import { UpdateDialog } from "./panels/overlays/UpdateDialog";
 import { OpenSave } from "./panels/file/OpenSave";
@@ -114,6 +115,7 @@ function App() {
   const nebulaPrompt = useEditorStore((s) => s.nebulaPrompt);
   const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
   const updateDialog = useUpdateStore((s) => s.dialog);
+  const saveIssuesPrompt = useFileSessionStore((s) => s.saveIssuesPrompt);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -140,6 +142,16 @@ function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // The webview's own menu offers Back, Refresh and Print, none of which mean anything here,
+  // and it covers the menus the map and the panels open on the same button.
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      if (!isEditableTarget(e.target)) e.preventDefault();
+    };
+    window.addEventListener("contextmenu", onContextMenu);
+    return () => window.removeEventListener("contextmenu", onContextMenu);
   }, []);
 
   useEffect(() => {
@@ -195,6 +207,7 @@ function App() {
           {scenarioDialog && <NewScenarioDialog />}
           {nebulaPrompt && <NewNebulaDialog />}
           {feZoneFitPrompt && <FeZoneFitDialog />}
+          {saveIssuesPrompt && <SaveIssuesDialog />}
           <OpenModeDialog />
           {updateDialog && <UpdateDialog />}
           <ExportDialog />

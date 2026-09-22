@@ -97,7 +97,7 @@ fn a_zone_whose_ring_holds_a_system_or_lies_off_the_map_is_refused() {
     assert!(matches!(error, OpError::FeZoneBlocked { .. }), "{error}");
     assert_eq!(
         error.to_string(),
-        "Fallen empire zone from system 11 is blocked by Sol: the mod needs the ring empty"
+        "Fallen empire zone from #11 is blocked by Sol: the mod needs the ring empty"
     );
     let error = session
         .apply(Op::SetFeZones {

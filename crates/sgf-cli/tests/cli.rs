@@ -103,24 +103,22 @@ fn inspect_galaxy_summarises_systems_and_lanes() {
 #[test]
 fn validate_reports_warnings_and_passes_a_vanilla_save() {
     // A game-written save must validate with exit 0. The sample carries the game's own
-    // duplicate lane entries (154<->708, 401<->521) and two lane-less systems: warnings.
+    // duplicate lane entries (154<->708, 401<->521), which are notes, and two lane-less
+    // systems, of which 789 rides a wormhole to 788 and only 790 is unreachable.
     let out = sgf(&["validate", SAMPLE]);
     assert_eq!(out.status.code(), Some(0), "{}", stdout(&out));
     let text = stdout(&out);
     assert!(
-        text.contains("warning system_isolated: system 789"),
-        "{text}"
+        !text.contains("system_isolated: system 789"),
+        "789 has a wormhole: {text}"
     );
     assert!(
         text.contains("warning system_isolated: system 790"),
         "{text}"
     );
+    assert!(text.contains("info lane_duplicate: system 154"), "{text}");
     assert!(
-        text.contains("warning lane_duplicate: system 154"),
-        "{text}"
-    );
-    assert!(
-        text.contains("validate: 6 warning(s), 0 error(s), 0 note(s)"),
+        text.contains("validate: 1 warning(s), 0 error(s), 2 note(s)"),
         "{text}"
     );
 }
@@ -413,7 +411,7 @@ fn move_writes_the_edited_save_to_the_output_path() {
         "{text}"
     );
     assert!(
-        text.contains("validate: 6 warning(s), 0 error(s), 0 note(s)"),
+        text.contains("validate: 1 warning(s), 0 error(s), 2 note(s)"),
         "{text}"
     );
     assert!(text.contains(&format!("wrote {out_str}")), "{text}");

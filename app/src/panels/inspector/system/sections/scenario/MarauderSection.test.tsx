@@ -80,8 +80,8 @@ describe("a scenario system's marauder clan", () => {
     await openWith({ home: 1 }, { 0: [{ base: 1 }, 2], 2: [{ base: 1 }, 3], 3: [{ base: 2 }] });
     const html = overview();
     for (const line of homeIntro(1)) expect(html).toContain(escaped(line));
-    expect(html).toMatch(/Raid base 2: <button[^>]*>Sol<\/button>/);
-    expect(html).toMatch(/Raid base 3: <button[^>]*>Barnard<\/button>/);
+    expect(html).toMatch(/Outpost 2: <button[^>]*>Sol<\/button>/);
+    expect(html).toMatch(/Outpost 3: <button[^>]*>Barnard<\/button>/);
     expect(html).not.toContain(ADD_BASES);
     expect(html).toContain('<option value="1" selected="">1</option>');
     expect(html).toContain('<option value="2">2</option>');
@@ -92,8 +92,8 @@ describe("a scenario system's marauder clan", () => {
   it("says which base is missing and offers to add it", async () => {
     await openWith({ home: 1 }, { 0: [{ base: 1 }, 2], 5: [{ base: 1 }, 3] });
     const html = overview();
-    expect(html).toMatch(/Raid base 2: <button[^>]*>Sol<\/button>/);
-    expect(html).toContain("Raid base 3: missing");
+    expect(html).toMatch(/Outpost 2: <button[^>]*>Sol<\/button>/);
+    expect(html).toContain("Outpost 3: missing");
     expect(html).toContain(`>${ADD_BASES}</button>`);
   });
 
@@ -108,13 +108,13 @@ describe("a scenario system's marauder clan", () => {
     await openWith({ base: 2 }, { 0: [{ home: 2 }] });
     let html = overview();
     expect(sections(html)).toContain("Marauder clan 2");
-    expect(html).toContain("Raid base of clan 2.");
+    expect(html).toContain("Outpost of clan 2.");
     expect(html).toMatch(/Its clan home is <button[^>]*>Sol<\/button>\./);
     expect(html).not.toContain(NO_HOME_BESIDE);
 
     await openWith({ base: 2 }, { 5: [{ home: 2 }], 0: [{ home: 1 }] });
     html = overview();
-    expect(html).toContain("Raid base of clan 2.");
+    expect(html).toContain("Outpost of clan 2.");
     expect(html).toContain(`<div class="ins-warn">${NO_HOME_BESIDE}</div>`);
     expect(html).not.toContain("Its clan home is");
   });

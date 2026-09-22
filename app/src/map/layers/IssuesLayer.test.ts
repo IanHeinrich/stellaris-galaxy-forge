@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 
 describe("the issues layer", () => {
-  it("names the issue's severity and code while the pointer is on the ring", () => {
+  it("names the issue's severity, what it is and why it matters, on the ring", () => {
     const layer = new IssuesLayer();
     layer.rebuild(mapContext([SOL]));
     viewport(layer, 1);
@@ -38,7 +38,10 @@ describe("the issues layer", () => {
     ring.emit("pointerover", { global: { x: 4, y: 6 } } as never);
     expect(useMapChromeStore.getState().tooltip).toMatchObject({
       title: "Error",
-      lines: ["System with no hyperlanes"],
+      lines: [
+        "System with no hyperlanes",
+        "Nothing links this system to the rest of the galaxy. Only a gate or a jump drive can reach it.",
+      ],
     });
 
     ring.emit("pointerout", {} as never);

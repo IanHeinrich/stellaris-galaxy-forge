@@ -177,7 +177,8 @@ fn marauders_near_seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
                     issues.push(Issue::new(
                         IssueCode::MarauderNearSeat,
                         format!(
-                            "Marauder clan {clan}'s home is within {} of the seat {}. Raids hit that empire first.",
+                            "Marauder clan {clan}'s home {} is within {} of the seat {}. Raids hit that empire first.",
+                            label(home),
                             marauder::SEAT_CLEARANCE,
                             label(seat)
                         ),

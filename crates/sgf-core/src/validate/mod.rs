@@ -3,13 +3,13 @@
 mod paint;
 mod scenario;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::projections::galaxy::{GalaxyGraph, Nebula};
+use crate::projections::galaxy::{BypassLink, GalaxyGraph, Nebula};
 use crate::views::DocumentKind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -107,10 +107,7 @@ impl IssueCode {
     pub const fn severity(self) -> Severity {
         match self {
             Self::LaneAsymmetric | Self::LaneEndpointMissing | Self::LaneSelf => Severity::Error,
-            // The game itself writes duplicate lane entries (708<->154, 401<->521 in the
-            // sample), so a duplicate is a warning, not an error.
-            Self::LaneDuplicate
-            | Self::SystemIsolated
+            Self::SystemIsolated
             | Self::OutOfBounds
             | Self::Disconnected
             | Self::NebulaMembership
@@ -133,7 +130,9 @@ impl IssueCode {
             | Self::MarauderHomeDuplicate
             | Self::MarauderBaseOrphan
             | Self::MarauderBasesMissing => Severity::Warning,
-            Self::MarauderNearSeat | Self::FeLinkFar => Severity::Info,
+            // The game itself writes duplicate lane entries (708<->154, 401<->521 in the
+            // sample), so a duplicate is worth a note, not a fault.
+            Self::LaneDuplicate | Self::MarauderNearSeat | Self::FeLinkFar => Severity::Info,
         }
     }
 
@@ -197,22 +196,37 @@ impl Issue {
             systems,
         }
     }
+
+    pub(crate) fn at(
+        severity: Severity,
+        code: IssueCode,
+        message: String,
+        systems: Vec<u32>,
+    ) -> Self {
+        Self {
+            severity,
+            code,
+            message,
+            systems,
+        }
+    }
 }
 
 /// Check the graph; issues come back sorted by code then by the systems involved.
 pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
     let mut issues = Vec::new();
+    let reach = Reach::of(g);
+    // The unordered pairs listed twice, each mapped to whether the lower id is an end that
+    // lists it twice, so the message names an end that really does.
+    let mut duplicate_pairs: BTreeMap<(u32, u32), bool> = BTreeMap::new();
     for system in g.systems.values() {
         let a = system.id;
         let mut seen: HashSet<u32> = HashSet::with_capacity(system.lanes.len());
         for lane in &system.lanes {
             let b = lane.to;
             if !seen.insert(b) {
-                issues.push(Issue::new(
-                    IssueCode::LaneDuplicate,
-                    format!("system {a} lists a lane to {b} more than once"),
-                    vec![a, b],
-                ));
+                let pair = (a.min(b), a.max(b));
+                *duplicate_pairs.entry(pair).or_insert(false) |= a == pair.0;
                 continue;
             }
             if b == a {
@@ -239,12 +253,10 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
                 ));
             }
         }
-        if system.lanes.is_empty() {
-            issues.push(Issue::new(
-                IssueCode::SystemIsolated,
-                format!("system {a} has no hyperlanes"),
-                vec![a],
-            ));
+        if system.lanes.is_empty()
+            && let Some(issue) = reach.isolated(a)
+        {
+            issues.push(issue);
         }
         if system.position_range {
             issues.push(Issue::new(
@@ -264,6 +276,15 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
                 vec![a],
             ));
         }
+    }
+
+    for (&(lo, hi), &low_lists_it) in &duplicate_pairs {
+        let (a, b) = if low_lists_it { (lo, hi) } else { (hi, lo) };
+        issues.push(Issue::new(
+            IssueCode::LaneDuplicate,
+            format!("system {a} lists a lane to {b} more than once"),
+            vec![a, b],
+        ));
     }
 
     for system in g.systems.values() {
@@ -330,6 +351,72 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
 
     sort(&mut issues);
     issues
+}
+
+/// Which systems a bypass reaches from, so a lane-less system is not called isolated when
+/// something else connects it.
+struct Reach {
+    /// Systems named as an end of a wormhole pair.
+    wormhole_ends: HashSet<u32>,
+    /// Systems whose gateway is built and open.
+    active_gateways: HashSet<u32>,
+    lgates: HashSet<u32>,
+}
+
+impl Reach {
+    fn of(g: &GalaxyGraph) -> Self {
+        let mut reach = Self {
+            wormhole_ends: HashSet::new(),
+            active_gateways: HashSet::new(),
+            lgates: HashSet::new(),
+        };
+        for link in &g.bypasses {
+            match *link {
+                BypassLink::Wormhole { a, b } => {
+                    reach.wormhole_ends.insert(a);
+                    reach.wormhole_ends.insert(b);
+                }
+                BypassLink::Gateway { system, active } => {
+                    if active {
+                        reach.active_gateways.insert(system);
+                    }
+                }
+                BypassLink::LGate { system } => {
+                    reach.lgates.insert(system);
+                }
+                BypassLink::Other { .. } => {}
+            }
+        }
+        reach
+    }
+
+    /// The issue a lane-less system earns, or `None` when a bypass already connects it.
+    fn isolated(&self, a: u32) -> Option<Issue> {
+        if self.wormhole_ends.contains(&a) {
+            return None;
+        }
+        // A gateway reaches the other open gateways, so one on its own reaches nothing.
+        if self.active_gateways.contains(&a) && self.active_gateways.len() > 1 {
+            return None;
+        }
+        // An L-Gate reaches the L-Cluster only once the L-Gates are open, which a save may
+        // never have reached.
+        if self.lgates.contains(&a) {
+            return Some(Issue::at(
+                Severity::Info,
+                IssueCode::SystemIsolated,
+                format!(
+                    "system {a} has no hyperlanes and is reached only through its L-Gate, once the L-Gates are open"
+                ),
+                vec![a],
+            ));
+        }
+        Some(Issue::new(
+            IssueCode::SystemIsolated,
+            format!("system {a} has no hyperlanes"),
+            vec![a],
+        ))
+    }
 }
 
 /// `a`, `a and b`, `a, b and c`.

@@ -229,7 +229,7 @@ describe("marauder clans", () => {
     answerOps();
     expect(await editor().makeMarauderClan(1, [2, 5])).toBe(false);
     expect(mocked.applyOp).not.toHaveBeenCalled();
-    expect(sessionError()).toBe("Both raid bases need a hyperlane to the home");
+    expect(sessionError()).toBe("Both outposts need a hyperlane to the home");
   });
 
   it("removeMarauderClan sets the home and its bases back to random in one op", async () => {
@@ -285,7 +285,7 @@ describe("marauder clans", () => {
     expect(mocked.applyOp).toHaveBeenCalledTimes(1);
     expect(mocked.applyOp).toHaveBeenCalledWith({
       type: "Batch",
-      description: "Added raid bases for marauder clan 1",
+      description: "Added outposts for marauder clan 1",
       ops: [
         expect.objectContaining({ type: "AddSystem", id: 6, initializer: "marauder_1_3" }),
         { type: "AddLanes", from: 1, to: [[6, false]] },

@@ -82,7 +82,7 @@ fn two_homes_of_one_clan_are_reported_together_and_only_one_spawns() {
     assert_eq!(duplicate.len(), 1, "{issues:?}");
     assert_eq!(
         duplicate[0].message,
-        "Marauder clan 1 has two homes: Void and system 11. Only one spawns."
+        "Marauder clan 1 has two homes: Void and #11. Only one spawns."
     );
     assert_eq!(duplicate[0].severity, Severity::Warning);
     assert_eq!(duplicate[0].systems, [10, 11]);
@@ -105,7 +105,7 @@ fn a_raid_base_with_no_home_of_its_clan_beside_it_is_an_orphan() {
     assert_eq!(orphan.len(), 1, "{issues:?}");
     assert_eq!(
         orphan[0].message,
-        "Egress is a raid base of clan 2 with no clan home beside it. Nothing spawns there."
+        "Egress is an outpost of clan 2 with no clan home beside it. Nothing spawns there."
     );
     assert_eq!(orphan[0].severity, Severity::Warning);
     assert_eq!(orphan[0].systems, [8]);
@@ -150,7 +150,7 @@ fn a_home_beside_a_seat_is_worth_a_look_on_a_painted_map() {
     assert_eq!(near.len(), 1, "{issues:?}");
     assert_eq!(
         near[0].message,
-        "Marauder clan 1's home is within 30 of the seat Beta. Raids hit that empire first."
+        "Marauder clan 1's home Void is within 30 of the seat Beta. Raids hit that empire first."
     );
     assert_eq!(near[0].severity, Severity::Info);
     assert_eq!(near[0].systems, [10, 1]);
@@ -285,7 +285,7 @@ fn a_home_with_one_raid_base_beside_it_is_reported_with_one() {
     assert_eq!(missing.len(), 1, "{issues:?}");
     assert_eq!(
         missing[0].message,
-        "Void is the marauder clan 1 home with one raid base beside it. A clan is its home and two bases hyperlaned to it."
+        "Void is the marauder clan 1 home with one outpost beside it. A clan is its home and two outposts hyperlaned to it."
     );
     assert_eq!(missing[0].severity, Severity::Info);
     assert_eq!(missing[0].systems, [10]);
@@ -312,7 +312,7 @@ fn a_home_with_two_bases_but_one_not_hyperlaned_still_raises_the_issue() {
     assert_eq!(missing.len(), 1, "{issues:?}");
     assert_eq!(
         missing[0].message,
-        "Void is the marauder clan 1 home with one raid base beside it. A clan is its home and two bases hyperlaned to it."
+        "Void is the marauder clan 1 home with one outpost beside it. A clan is its home and two outposts hyperlaned to it."
     );
     assert_eq!(missing[0].severity, Severity::Info);
     assert_eq!(missing[0].systems, [10]);

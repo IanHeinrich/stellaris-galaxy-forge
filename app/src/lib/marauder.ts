@@ -29,10 +29,10 @@ export const BASE_CLEARANCE = 8;
 export const ALL_CLANS_PLACED = "All three clans are placed";
 
 /** Why three selected systems cannot be made a clan. */
-export const BASES_NEED_LANES = "Both raid bases need a hyperlane to the home";
+export const BASES_NEED_LANES = "Both outposts need a hyperlane to the home";
 
 /** Why three selected systems have no home among them: none is linked to the other two. */
-export const HOME_NEEDS_LANES = "The home needs a hyperlane to both bases";
+export const HOME_NEEDS_LANES = "The home needs a hyperlane to both outposts";
 
 /** What making a clan of three systems does to them. */
 export const MAKE_CLAN_HINT = "Replaces the three initializers, star class included";

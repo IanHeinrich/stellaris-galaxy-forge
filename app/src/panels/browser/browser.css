@@ -37,24 +37,19 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 24px;
-  padding: 0 2px;
+  min-height: 24px;
+  padding: 3px 2px;
   border-bottom: 1px solid var(--border);
 }
 
 .browser-head .browser-title {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   background: none;
   border: none;
   padding: 0;
   text-align: left;
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--fg-muted);
 }
 
@@ -72,9 +67,19 @@
 }
 
 .browser-sub-group .browser-head .browser-title {
-  text-transform: none;
-  letter-spacing: 0;
   font-size: 12px;
+}
+
+.browser-group-note {
+  padding: 4px 2px 5px 14px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--fg-muted);
+}
+
+.browser-group-fix {
+  display: block;
+  margin-top: 3px;
 }
 
 .browser-twisty {
@@ -99,6 +104,34 @@
 
 .browser-sub-group .browser-row {
   padding-left: 26px;
+}
+
+/* The name and the detail each get the room to be read, at the cost of a second line. */
+.browser-row.stacked {
+  flex-wrap: wrap;
+  row-gap: 1px;
+  height: auto;
+  min-height: 23px;
+  padding-top: 3px;
+  padding-bottom: 4px;
+}
+
+.browser-row.stacked .browser-name {
+  order: 1;
+  white-space: normal;
+  overflow: visible;
+}
+
+.browser-row.stacked .browser-count,
+.browser-row.stacked .browser-actions {
+  order: 2;
+}
+
+.browser-row.stacked .browser-sub {
+  order: 3;
+  flex: 1 0 100%;
+  white-space: normal;
+  overflow: visible;
 }
 
 .browser-row:hover {
@@ -212,16 +245,20 @@
   object-fit: contain;
 }
 
-.browser-severity {
+.browser-dot {
   flex: none;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--fg-muted);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sev-info);
 }
 
-.browser-severity.error {
-  color: var(--warn);
+.browser-dot.warning {
+  background: var(--sev-warning);
+}
+
+.browser-dot.error {
+  background: var(--sev-error);
 }
 
 .browser-note {
@@ -238,11 +275,46 @@
   font-size: 11px;
 }
 
-.browser-code {
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--fg-muted);
+.browser-paused {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 5px 7px;
+  font-size: 11px;
+  color: var(--fg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+}
+
+.browser-paused span {
+  flex: 1;
+  min-width: 0;
+}
+
+.browser-paused button {
+  height: 20px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+@keyframes browser-attention {
+  from {
+    background: var(--accent-dim);
+  }
+}
+
+.browser-attention {
+  animation: browser-attention 1.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .browser-attention {
+    animation: none;
+  }
 }
 
 .browser-code-filter {

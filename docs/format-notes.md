@@ -93,13 +93,22 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   a lane set to 200 across a 33-unit gap makes the pathfinder detour. So
   lengths are recomputed on move, and per-lane overrides are real.
 - The game writes duplicate lane entries: 708 lists `to=154` twice and
-  154 lists `to=708` twice. Duplicates are a validator warning, and
-  removing a lane removes every matching entry. The untouched sample
-  gives four `lane_duplicate` warnings (both ends of two pairs), two
-  `system_isolated` warnings and no errors.
+  154 lists `to=708` twice. Duplicates are a validator note, one per
+  pair, and removing a lane removes every matching entry. The untouched
+  sample gives two `lane_duplicate` notes, one `system_isolated` warning
+  and no errors.
 - Lane-less systems are legal: an isolated system loads, draws without
   lanes, and time passes without error. Cutting a lane under a fleet in
   transit is safe, the fleet finishes its jump and later routes avoid it.
+- A lane-less system that is one end of a wormhole pair is connected:
+  the wormhole names both ends and works from the start, so the system
+  is no `system_isolated` warning and it counts in the same component as
+  its partner. In the sample 789 rides the wormhole to 788, which leaves
+  790 the only system nothing reaches. A gateway reaches the other open
+  gateways, so it connects a lane-less system only when another gateway
+  is open elsewhere. An L-Gate reaches the L-Cluster once the L-Gates
+  are open, which a save may never have reached, so a lane-less L-Gate
+  system stays a note.
 - `bridge=yes`, flagged on both ends, marks generator connector lanes
   joining locally generated pockets: 125 undirected lanes in the sample,
   3 of them cut edges.

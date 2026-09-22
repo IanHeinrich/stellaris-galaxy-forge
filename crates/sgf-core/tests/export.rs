@@ -738,6 +738,17 @@ static_galaxy_scenario = {
     assert_eq!(others, 16);
     assert_eq!(report.home_initializers.len(), 4);
     assert!(report.home_initializers.iter().all(|h| h.replaced));
+    // The export gave every one of them a generic start, so none is left to answer for.
+    let reported = report.issues();
+    let homes: Vec<_> = reported
+        .iter()
+        .filter(|i| i.code == IssueCode::HomeInitializer)
+        .collect();
+    assert_eq!(homes.len(), 4);
+    assert!(
+        homes.iter().all(|i| i.severity == Severity::Info),
+        "{homes:?}"
+    );
     for home in &report.home_initializers {
         assert_eq!(
             galaxy.systems[&home.system].initializer,

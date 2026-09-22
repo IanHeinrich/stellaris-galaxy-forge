@@ -7,8 +7,8 @@ touched: [0, 64, 86, 112, 200, 246, 752]
 inverse: AddLanePairs { lanes: [LanePair { a: 0, b: 752, bridge: false }, LanePair { a: 0, b: 200, bridge: false }, LanePair { a: 0, b: 86, bridge: false }, LanePair { a: 0, b: 64, bridge: false }, LanePair { a: 0, b: 246, bridge: false }, LanePair { a: 86, b: 246, bridge: false }, LanePair { a: 86, b: 752, bridge: false }, LanePair { a: 86, b: 112, bridge: true }] }
 warning system_isolated: system 0 has no hyperlanes
 warning system_isolated: system 86 has no hyperlanes
-warning disconnected: galaxy has 5 components, 3 at load; newly separated: 0, 86
-… and 6 other issues
+warning disconnected: galaxy has 4 components, 2 at load; newly separated: 0, 86
+… and 3 other issues
 
 --- gamestate
 +++ gamestate
