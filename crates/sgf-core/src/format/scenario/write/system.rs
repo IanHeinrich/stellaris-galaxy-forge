@@ -84,7 +84,8 @@ pub(super) fn add_system(
     s: &Session,
     new: SystemFields,
 ) -> Result<Planned, OpError> {
-    let (id, description) = emit_system(plan, s, new)?;
+    let indent = system_indent(&s.doc, index(&s.doc));
+    let (id, description) = emit_system(plan, s, &indent, new)?;
     Ok(Planned {
         description,
         inverse: Op::RemoveSystem { id },
@@ -105,9 +106,10 @@ pub(super) fn add_systems(
             return Err(OpError::DuplicateSystem(new.id));
         }
     }
+    let indent = system_indent(&s.doc, index(&s.doc));
     let mut one = String::new();
     for new in systems {
-        (_, one) = emit_system(plan, s, new.into())?;
+        (_, one) = emit_system(plan, s, &indent, new.into())?;
     }
     let description = match systems.len() {
         1 => one,
@@ -124,7 +126,12 @@ pub(super) fn add_systems(
 /// A seat needs a starting initializer, so a scripted system naming none is given the
 /// dialect's basic one, as [`Op::SetSpawnScript`] gives it. Returns the id written and
 /// what to call the change.
-fn emit_system(plan: &mut Plan, s: &Session, new: SystemFields) -> Result<(u32, String), OpError> {
+fn emit_system(
+    plan: &mut Plan,
+    s: &Session,
+    indent: &[u8],
+    new: SystemFields,
+) -> Result<(u32, String), OpError> {
     let SystemFields {
         id,
         x,
@@ -167,7 +174,7 @@ fn emit_system(plan: &mut Plan, s: &Session, new: SystemFields) -> Result<(u32, 
         (None, None) => SpawnStmt::None,
     };
     let text = system_stmt(
-        &system_indent(&s.doc, scenario),
+        indent,
         &SystemStmt {
             id,
             name: name.unwrap_or("").to_owned(),
@@ -265,7 +272,7 @@ fn erase_systems(
         });
         plan.erase(&s.doc, Subject::System(id), anchor)?;
     }
-    let statements = super::matching(&s.doc, |l| seen.contains(&l.from) || seen.contains(&l.to));
+    let statements = super::matching(&s.doc, seen.iter().copied(), |_| true);
     for stmt in &statements {
         super::erase(plan, &s.doc, stmt)?;
     }

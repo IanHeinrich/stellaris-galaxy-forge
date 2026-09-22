@@ -740,7 +740,12 @@ impl Plan {
                 }
             }
         }
-        match refresh(&mut session.doc, &mut session.graph, &touched) {
+        match refresh(
+            &mut session.doc,
+            &mut session.graph,
+            &touched,
+            &slots(&before),
+        ) {
             Ok(reassigned) => {
                 touched.extend(reassigned);
                 touched.sort_unstable();
@@ -773,17 +778,29 @@ fn rollback(session: &mut Session, before: &[(Anchor, Option<Vec<u8>>)], touched
         session.doc.restore(*anchor, prev.clone());
     }
     // The bytes being restored were projected successfully before the op began.
-    let _ = refresh(&mut session.doc, &mut session.graph, touched);
+    let _ = refresh(
+        &mut session.doc,
+        &mut session.graph,
+        touched,
+        &slots(before),
+    );
+}
+
+/// The slots a record of displaced bytes names.
+pub(crate) fn slots(before: &[(Anchor, Option<Vec<u8>>)]) -> Vec<Anchor> {
+    before.iter().map(|(anchor, _)| *anchor).collect()
 }
 
 /// Re-extract each touched entity from its current bytes, as the document's format
-/// reads them. Returns the systems a nebula edit reassigned.
+/// reads them; `slots` are the overlay slots the edit wrote. Returns the systems a
+/// nebula edit reassigned.
 pub(crate) fn refresh(
     doc: &mut Document,
     graph: &mut GalaxyGraph,
     touched: &[Subject],
+    slots: &[Anchor],
 ) -> Result<Vec<Subject>, OpError> {
-    format::of(doc.kind()).refresh(doc, graph, touched)
+    format::of(doc.kind()).refresh(doc, graph, touched, slots)
 }
 
 /// The statement holding the subject's bytes.
@@ -800,11 +817,7 @@ fn erasure_slot(doc: &Document, anchor: Anchor) -> Anchor {
     let Anchor::Original(span) = anchor else {
         return anchor;
     };
-    let rewritten = doc
-        .overlay()
-        .slots()
-        .any(|(slot, _)| !slot.is_inserted() && slot.start() == span.start);
-    if rewritten {
+    if doc.overlay().has_original_at(span.start) {
         return anchor;
     }
     let src = doc.original();

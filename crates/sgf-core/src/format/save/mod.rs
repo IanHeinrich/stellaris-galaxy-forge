@@ -49,6 +49,7 @@ impl Format for Save {
         doc: &mut Document,
         graph: &mut GalaxyGraph,
         touched: &[Subject],
+        _slots: &[Anchor],
     ) -> Result<Vec<Subject>, OpError> {
         let mut nebulae = false;
         for &subject in touched {

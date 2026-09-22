@@ -2,7 +2,7 @@
 //! and re-project the touched systems; they never re-run an op.
 
 use crate::document::Document;
-use crate::ops::{Applied, OpError, refresh};
+use crate::ops::{Applied, OpError, refresh, slots};
 use crate::projections::galaxy::GalaxyGraph;
 use crate::views::{HistoryEntry, HistoryView};
 
@@ -34,9 +34,10 @@ impl History {
             return Ok(None);
         };
         restore_before(doc, &applied);
-        if let Err(e) = refresh(doc, graph, &applied.touched) {
+        let slots = slots(&applied.before);
+        if let Err(e) = refresh(doc, graph, &applied.touched, &slots) {
             let _ = replay_after(doc, &applied);
-            let _ = refresh(doc, graph, &applied.touched);
+            let _ = refresh(doc, graph, &applied.touched, &slots);
             self.undo.push(applied);
             return Err(e);
         }
@@ -53,10 +54,11 @@ impl History {
         let Some(applied) = self.redo.pop() else {
             return Ok(None);
         };
+        let slots = slots(&applied.before);
         let replayed = replay_after(doc, &applied);
-        if let Err(e) = replayed.and_then(|()| refresh(doc, graph, &applied.touched)) {
+        if let Err(e) = replayed.and_then(|()| refresh(doc, graph, &applied.touched, &slots)) {
             restore_before(doc, &applied);
-            let _ = refresh(doc, graph, &applied.touched);
+            let _ = refresh(doc, graph, &applied.touched, &slots);
             self.redo.push(applied);
             return Err(e);
         }
@@ -80,7 +82,6 @@ impl History {
         let entry = |seq: usize, a: &Applied| HistoryEntry {
             seq,
             description: a.description.clone(),
-            inverse: a.inverse.clone(),
         };
         let undo: Vec<_> = self
             .undo

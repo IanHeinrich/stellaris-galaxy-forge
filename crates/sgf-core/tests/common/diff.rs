@@ -14,7 +14,7 @@ pub fn report(session: &Session, result: &OpResult) -> String {
     let mut out = String::new();
     writeln!(out, "{}", result.entry.description).unwrap();
     writeln!(out, "touched: {:?}", result.touched).unwrap();
-    writeln!(out, "inverse: {:?}", result.entry.inverse).unwrap();
+    writeln!(out, "inverse: {:?}", result.inverse).unwrap();
     let mut others = 0;
     for issue in &result.issues {
         let about_the_galaxy = issue.systems.is_empty();
@@ -36,7 +36,7 @@ pub fn report(session: &Session, result: &OpResult) -> String {
 pub fn plain_report(session: &Session, result: &OpResult) -> String {
     let mut out = String::new();
     writeln!(out, "{}", result.entry.description).unwrap();
-    writeln!(out, "inverse: {:?}", result.entry.inverse).unwrap();
+    writeln!(out, "inverse: {:?}", result.inverse).unwrap();
     write!(out, "{}", unified_diff(session)).unwrap();
     out
 }

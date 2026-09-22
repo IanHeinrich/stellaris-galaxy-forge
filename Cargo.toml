@@ -15,3 +15,7 @@ sgf-gamedata = { path = "crates/sgf-gamedata" }
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# `tauri dev` runs the core unoptimised otherwise, and scenario edits then run tens of times slower than a release.
+[profile.dev.package.sgf-core]
+opt-level = 2

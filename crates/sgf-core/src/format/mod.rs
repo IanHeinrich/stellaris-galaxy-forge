@@ -30,13 +30,15 @@ pub(crate) trait Format: Sync {
     /// The statement holding the subject's bytes.
     fn statement(&self, doc: &Document, subject: Subject) -> Result<Anchor, OpError>;
 
-    /// Re-extract each touched entity from its current bytes. Returns the systems a
-    /// nebula edit reassigned, which the op owes the map alongside what it rewrote.
+    /// Re-extract each touched entity from its current bytes; `slots` are the overlay
+    /// slots the edit wrote. Returns the systems a nebula edit reassigned, which the op
+    /// owes the map alongside what it rewrote.
     fn refresh(
         &self,
         doc: &mut Document,
         graph: &mut GalaxyGraph,
         touched: &[Subject],
+        slots: &[Anchor],
     ) -> Result<Vec<Subject>, OpError>;
 
     /// Whether this format takes `op` at all. An op it does not take is refused before

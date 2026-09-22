@@ -28,7 +28,9 @@ use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
 use crate::format::Format;
-use crate::format::scenario::index::{LaneStmt, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, index};
+use crate::format::scenario::index::{
+    Changes, LaneStmt, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, ScenarioIndex, index,
+};
 use crate::keys::scenario as keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
@@ -61,33 +63,18 @@ impl Format for Scenario {
         }
     }
 
-    /// A scenario stores no member lists, so membership is re-derived from the radii by
-    /// the rebuild; the systems it moves are the op's to report, exactly as the save side
-    /// reports the ones its member-line edits reassigned.
+    /// A scenario stores no member lists, so membership is re-derived from the radii; the
+    /// systems it moves are the op's to report, exactly as the save side reports the ones
+    /// its member-line edits reassigned.
     fn refresh(
         &self,
         doc: &mut Document,
         graph: &mut GalaxyGraph,
         _touched: &[Subject],
+        slots: &[Anchor],
     ) -> Result<Vec<Subject>, OpError> {
-        let before: HashMap<u32, Option<usize>> = graph
-            .systems
-            .values()
-            .map(|system| (system.id, system.nebula))
-            .collect();
-        doc.refresh_scenario()?;
-        **graph = galaxy(doc)?;
-        let mut reassigned: Vec<u32> = graph
-            .systems
-            .values()
-            .filter(|system| {
-                before
-                    .get(&system.id)
-                    .is_some_and(|&was| was != system.nebula)
-            })
-            .map(|system| system.id)
-            .collect();
-        reassigned.sort_unstable();
+        let changes = doc.refresh_scenario(slots)?;
+        let reassigned = follow(doc, graph, &changes)?;
         Ok(reassigned.into_iter().map(Subject::System).collect())
     }
 
@@ -198,15 +185,11 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
         systems.insert(id, system(id, &node, src));
         order.push(id);
     }
-    let statements = scenario.lane_statements(doc);
+    let statements: Vec<LaneStmt> = scenario.lane_statements().collect();
     add_lanes(&mut systems, &statements);
     add_prevented(&mut systems, &statements);
 
-    let galaxy_radius = systems
-        .values()
-        .map(|s| s.x.hypot(s.y))
-        .fold(0.0f64, f64::max)
-        .ceil();
+    let galaxy_radius = galaxy_radius(&systems);
     let mut galaxy = Galaxy {
         systems,
         order,
@@ -229,6 +212,115 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
     }
     galaxy.set_nebulae_by_radius(nebulae);
     Ok(galaxy)
+}
+
+/// Bring the projection in step with what a refresh of the index found changed, reading
+/// only the statements it names: the systems whose statements changed, the lanes of every
+/// system a changed statement names or neighbours, and the nebula membership of the
+/// systems that changed, all of it when a nebula did. Returns the systems held before and
+/// after whose nebula changed, ascending.
+fn follow(
+    doc: &Document,
+    graph: &mut Galaxy,
+    changes: &Changes,
+) -> Result<Vec<u32>, ProjectionError> {
+    let scenario = index(doc);
+    let before: HashMap<u32, Option<usize>> = if changes.nebulae {
+        graph.systems.values().map(|s| (s.id, s.nebula)).collect()
+    } else {
+        changes
+            .systems
+            .iter()
+            .filter_map(|id| Some((*id, graph.systems.get(id)?.nebula)))
+            .collect()
+    };
+    let mut relay = changes.lanes.clone();
+    for &id in &changes.systems {
+        match scenario.system(id) {
+            Some(anchor) => {
+                let (src, node) = statement(doc, anchor)?;
+                graph.systems.insert(id, system(id, &node, src));
+            }
+            None => {
+                graph.systems.remove(&id);
+            }
+        }
+        relay.insert(id);
+        relay.extend(scenario.lanes_naming(id).flat_map(|l| [l.from, l.to]));
+    }
+    for id in relay {
+        lay_lanes(&mut graph.systems, scenario, id);
+    }
+
+    graph.order = scenario.order().to_vec();
+    graph.galaxy_radius = galaxy_radius(&graph.systems);
+    graph.core_radius = scenario.header.core_radius.unwrap_or(0.0);
+    graph.header = scenario.header.fields();
+    graph.bypasses = paint::wormhole_pairs(graph);
+    if changes.nebulae {
+        let mut nebulae = Vec::new();
+        for &anchor in scenario.nebulae() {
+            let (src, node) = statement(doc, anchor)?;
+            nebulae.push(nebula(&node, src));
+        }
+        graph.set_nebulae_by_radius(nebulae);
+    } else {
+        graph.place_by_radius(changes.systems.iter().copied());
+    }
+    let mut reassigned: Vec<u32> = before
+        .into_iter()
+        .filter(|(id, was)| graph.systems.get(id).is_some_and(|s| s.nebula != *was))
+        .map(|(id, _)| id)
+        .collect();
+    reassigned.sort_unstable();
+    Ok(reassigned)
+}
+
+/// System `id`'s lanes and prevented pairs as [`add_lanes`] and [`add_prevented`] lay
+/// them, from the statements naming it alone.
+fn lay_lanes(systems: &mut HashMap<u32, SystemNode>, scenario: &ScenarioIndex, id: u32) {
+    if !systems.contains_key(&id) {
+        return;
+    }
+    let mut lanes = Vec::new();
+    let mut prevented = Vec::new();
+    let mut seen: HashSet<(u32, u32)> = HashSet::new();
+    for stmt in scenario.lanes_naming(id) {
+        if stmt.prevent {
+            prevented.extend((stmt.from == id).then_some(stmt.to));
+            prevented.extend((stmt.to == id).then_some(stmt.from));
+            continue;
+        }
+        let pair = (stmt.from.min(stmt.to), stmt.from.max(stmt.to));
+        if !seen.insert(pair) {
+            continue;
+        }
+        let length = match (systems.get(&pair.0), systems.get(&pair.1)) {
+            (Some(a), Some(b)) => lane_length(a, b),
+            _ => 0.0,
+        };
+        lanes.push(Lane {
+            to: if stmt.from == id { stmt.to } else { stmt.from },
+            length,
+            bridge: false,
+            stale: false,
+        });
+    }
+    prevented.sort_unstable();
+    prevented.dedup();
+    if let Some(system) = systems.get_mut(&id) {
+        system.lanes = lanes;
+        system.prevented = prevented;
+    }
+}
+
+/// The map's extent: the distance of the farthest system from the centre, rounded up.
+fn galaxy_radius(systems: &HashMap<u32, SystemNode>) -> f64 {
+    systems
+        .values()
+        .map(|s| s.x.hypot(s.y))
+        .fold(0.0f64, f64::max)
+        .ceil()
 }
 
 /// One lane per pair of ends, whichever way round and however many times the file lists

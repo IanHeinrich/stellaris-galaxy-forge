@@ -345,7 +345,6 @@ describe("history navigation", () => {
   const entries = [1, 2, 3].map((seq) => ({
     seq,
     description: `Change ${seq}`,
-    inverse: { type: "MoveSystem" as const, id: 0, x: 0, y: 0 },
   }));
   const at = (applied: number) =>
     editResult({ history: { undo: entries.slice(0, applied), redo: entries.slice(applied) } });

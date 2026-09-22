@@ -183,7 +183,7 @@ impl Overlay {
                 current: bytes,
             },
         );
-        self.debug_check();
+        self.debug_check(anchor.key());
         Ok(anchor)
     }
 
@@ -227,7 +227,7 @@ impl Overlay {
                 None
             }
         };
-        self.debug_check();
+        self.debug_check(key);
         Ok(prev)
     }
 
@@ -268,7 +268,7 @@ impl Overlay {
                 );
             }
         }
-        self.debug_check();
+        self.debug_check(key);
     }
 
     /// The original slot that has swallowed `span` whole without being `span` itself.
@@ -287,6 +287,11 @@ impl Overlay {
                     && slot.end >= span.end
             })
             .map(|(_, slot)| slot.current.as_slice())
+    }
+
+    /// Whether an original slot starts at `start`.
+    pub fn has_original_at(&self, start: usize) -> bool {
+        self.slots.contains_key(&(start, 0))
     }
 
     /// Every slot in emission order with its current bytes.
@@ -367,36 +372,49 @@ impl Overlay {
             .next()
     }
 
-    fn debug_check(&self) {
-        if cfg!(debug_assertions) {
-            let mut prev: Option<Span> = None;
-            for (anchor, _) in self.slots() {
-                match anchor {
-                    Anchor::Original(span) => {
-                        debug_assert!(
-                            span.start <= span.end,
-                            "slot {span:?} ends before it starts"
-                        );
-                        if let Some(p) = prev {
-                            debug_assert!(
-                                !intersects(p, span),
-                                "slots {p:?} and {span:?} intersect"
-                            );
-                        }
-                        prev = Some(span);
-                    }
-                    Anchor::Inserted { at, seq } => {
-                        debug_assert!(
-                            self.next_seq.get(&at).is_some_and(|&next| seq <= next),
-                            "insert {anchor:?} beyond its offset's counter"
-                        );
-                        if let Some(p) = prev {
-                            debug_assert!(
-                                !(p.start < at && at < p.end) && !(p.start == at && p.end > at),
-                                "insert at {at} lies inside slot {p:?}"
-                            );
-                        }
-                    }
+    /// The invariants a write of the slot at `key` could have broken: its own shape, the
+    /// last original slot before it, and the slots its span reaches.
+    fn debug_check(&self, key: Key) {
+        if !cfg!(debug_assertions) {
+            return;
+        }
+        let Some(slot) = self.slots.get(&key) else {
+            return;
+        };
+        let prev = self
+            .slots
+            .range(..key)
+            .rev()
+            .find(|(k, _)| k.1 == 0)
+            .map(|(&(start, _), s)| Span::new(start, s.end));
+        match Anchor::from_key(key, slot.end) {
+            Anchor::Original(span) => {
+                debug_assert!(
+                    span.start <= span.end,
+                    "slot {span:?} ends before it starts"
+                );
+                if let Some(p) = prev {
+                    debug_assert!(!intersects(p, span), "slots {p:?} and {span:?} intersect");
+                }
+                if span.end > span.start {
+                    let inside = self.slots.range((span.start, 1)..(span.end, 0)).next();
+                    debug_assert!(
+                        inside.is_none(),
+                        "slot {:?} lies inside slot {span:?}",
+                        inside.map(|(k, _)| k)
+                    );
+                }
+            }
+            anchor @ Anchor::Inserted { at, seq } => {
+                debug_assert!(
+                    self.next_seq.get(&at).is_some_and(|&next| seq <= next),
+                    "insert {anchor:?} beyond its offset's counter"
+                );
+                if let Some(p) = prev {
+                    debug_assert!(
+                        !(p.start < at && at < p.end) && !(p.start == at && p.end > at),
+                        "insert at {at} lies inside slot {p:?}"
+                    );
                 }
             }
         }

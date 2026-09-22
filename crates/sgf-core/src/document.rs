@@ -14,7 +14,7 @@ use crate::Span;
 use crate::archive::{self, RawSave};
 use crate::entity::inner_sections;
 use crate::format;
-use crate::format::scenario::index::{self as scenario, ScenarioIndex};
+use crate::format::scenario::index::{self as scenario, Changes, ScenarioIndex};
 use crate::keys;
 use crate::overlay::{Anchor, Overlay, OverlayError};
 use crate::projections::galaxy::ProjectionError;
@@ -209,15 +209,13 @@ impl Document {
         self.nebulae = anchors;
     }
 
-    /// Re-read the scenario's statements from their current bytes, so the id map matches
-    /// what the document now holds. A save has nothing to refresh.
-    pub fn refresh_scenario(&mut self) -> Result<(), Error> {
-        let Some(mut scenario) = self.scenario.take() else {
-            return Ok(());
+    /// Re-read the scenario statements `slots` hold from their current bytes, so the id
+    /// map matches what the document now holds. A save has nothing to refresh.
+    pub(crate) fn refresh_scenario(&mut self, slots: &[Anchor]) -> Result<Changes, Error> {
+        let Some(scenario) = self.scenario.as_mut() else {
+            return Ok(Changes::default());
         };
-        let result = scenario.rebuild(&self.original, &self.overlay);
-        self.scenario = Some(scenario);
-        Ok(result?)
+        Ok(scenario.refresh(&self.original, &self.overlay, slots)?)
     }
 
     /// The original bytes as loaded.

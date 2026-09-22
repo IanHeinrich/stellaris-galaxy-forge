@@ -49,7 +49,7 @@ fn a_system_the_file_left_nameless_gets_its_statement_back_on_undo() {
         })
         .expect("name a system the file left nameless");
     assert_eq!(
-        named.entry.inverse,
+        named.inverse,
         Op::SetSystemName {
             id: 1,
             name: String::new(),
@@ -62,7 +62,7 @@ fn a_system_the_file_left_nameless_gets_its_statement_back_on_undo() {
     );
 
     session
-        .apply(named.entry.inverse)
+        .apply(named.inverse)
         .expect("the inverse takes the statement away again");
     assert_eq!(current(&session), nameless);
     assert_eq!(session.graph.systems[&1].name, Default::default());
@@ -80,7 +80,7 @@ fn clearing_the_name_of_a_named_system_takes_the_statement_away_and_undo_puts_it
         })
         .expect("clear the name of a system the file named");
     assert_eq!(
-        cleared.entry.inverse,
+        cleared.inverse,
         Op::SetSystemName {
             id: 9,
             name: "Lonely".into(),
@@ -372,7 +372,7 @@ fn add_systems_is_one_history_entry_and_undo_and_redo_are_byte_identical() {
         .expect("add three systems");
     assert_eq!(result.entry.description, "Added 3 systems");
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         Op::RemoveSystems {
             ids: vec![4000, 4001, 4002]
         }
@@ -419,13 +419,13 @@ fn remove_systems_undo_and_redo_are_byte_identical_and_its_inverse_adds_them_bac
         assert!(!session.graph.systems.contains_key(&id));
     }
     assert!(session.graph.lane(2, 1).is_none() && session.graph.lane(1, 2).is_none());
-    let Op::AddSystems { systems } = result.entry.inverse.clone() else {
-        panic!("{:?}", result.entry.inverse);
+    let Op::AddSystems { systems } = result.inverse.clone() else {
+        panic!("{:?}", result.inverse);
     };
     let ids: Vec<u32> = systems.iter().map(|s| s.id).collect();
     assert_eq!(ids, [1, 16, 888]);
     session
-        .apply(result.entry.inverse)
+        .apply(result.inverse)
         .expect("the inverse adds the three back");
     for id in [1, 16, 888] {
         assert!(session.graph.systems.contains_key(&id));

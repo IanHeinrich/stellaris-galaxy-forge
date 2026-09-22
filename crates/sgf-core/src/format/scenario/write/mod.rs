@@ -7,7 +7,7 @@
 //!
 //! New statements go on the line before the closing brace, indented like the statements
 //! they join; a header key the file lacks goes before the first system instead. Removing
-//! one empties its slot; `ScenarioIndex::rebuild` reads the result back, so nothing here
+//! one empties its slot; `ScenarioIndex::refresh` reads the result back, so nothing here
 //! keeps a tally of what the file now holds.
 //!
 //! One module per feature: [`system`] for systems and their positions, [`lanes`] for the
@@ -26,6 +26,8 @@ mod nebula;
 mod spawn;
 mod system;
 mod wormhole;
+
+use std::collections::BTreeMap;
 
 use crate::cst;
 use crate::document::Document;
@@ -128,13 +130,21 @@ fn some_text(text: &str) -> Option<String> {
     (!text.is_empty()).then(|| text.to_owned())
 }
 
-/// Every hyperlane statement the predicate picks, in file order.
-fn matching(doc: &Document, keep: impl Fn(&LaneStmt) -> bool) -> Vec<LaneStmt> {
-    index(doc)
-        .lane_statements(doc)
+/// Every hyperlane statement naming one of `ids` that the predicate picks, once each, in
+/// file order.
+fn matching(
+    doc: &Document,
+    ids: impl IntoIterator<Item = u32>,
+    keep: impl Fn(&LaneStmt) -> bool,
+) -> Vec<LaneStmt> {
+    let scenario = index(doc);
+    let found: BTreeMap<Anchor, LaneStmt> = ids
         .into_iter()
+        .flat_map(|id| scenario.lanes_naming(id))
         .filter(keep)
-        .collect()
+        .map(|stmt| (stmt.anchor, stmt))
+        .collect();
+    found.into_values().collect()
 }
 
 fn erase(plan: &mut Plan, doc: &Document, stmt: &LaneStmt) -> Result<(), OpError> {
@@ -149,8 +159,7 @@ fn erase(plan: &mut Plan, doc: &Document, stmt: &LaneStmt) -> Result<(), OpError
 /// system, else with one tab.
 fn lane_indent(doc: &Document, scenario: &ScenarioIndex) -> Vec<u8> {
     scenario
-        .lane_statements(doc)
-        .iter()
+        .lane_statements()
         .rfind(|l| !l.prevent)
         .map(|l| l.anchor)
         .map_or_else(|| system_indent(doc, scenario), |a| indent(doc, a))
@@ -169,8 +178,7 @@ fn nebula_indent(doc: &Document, scenario: &ScenarioIndex) -> Vec<u8> {
 /// tab.
 fn system_indent(doc: &Document, scenario: &ScenarioIndex) -> Vec<u8> {
     scenario
-        .systems()
-        .last()
+        .last_system()
         .map_or_else(|| DEFAULT_INDENT.to_vec(), |(_, a)| indent(doc, a))
 }
 

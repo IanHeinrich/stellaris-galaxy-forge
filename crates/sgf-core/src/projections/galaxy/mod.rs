@@ -182,6 +182,27 @@ impl Galaxy {
         self.assign_nebulae()
     }
 
+    /// Place each of `ids` in the nebula [`Self::set_nebulae_by_radius`] would give it,
+    /// the rest of the map as it stands; one the map no longer holds leaves its nebula.
+    pub(crate) fn place_by_radius(&mut self, ids: impl IntoIterator<Item = u32>) {
+        for id in ids {
+            for nebula in &mut self.nebulae {
+                if let Ok(at) = nebula.systems.binary_search(&id) {
+                    nebula.systems.remove(at);
+                }
+            }
+            let Some(system) = self.systems.get_mut(&id) else {
+                continue;
+            };
+            system.nebula = nebulae::nearest_covering(&self.nebulae, system.x, system.y);
+            if let Some(i) = system.nebula
+                && let Err(at) = self.nebulae[i].systems.binary_search(&id)
+            {
+                self.nebulae[i].systems.insert(at, id);
+            }
+        }
+    }
+
     /// Point each system at the nebula listing it. Returns the systems whose membership
     /// changed, ascending.
     pub(crate) fn assign_nebulae(&mut self) -> Vec<u32> {

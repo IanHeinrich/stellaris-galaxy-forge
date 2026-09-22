@@ -54,7 +54,7 @@ fn every_scenario_opens_and_round_trips() {
             Err(e) => panic!("{name}: {e}"),
         };
         let scenario = session.doc.scenario().expect("a scenario document");
-        let statements = scenario.lane_statements(&session.doc);
+        let statements: Vec<_> = scenario.lane_statements().collect();
         let added = statements.iter().filter(|l| !l.prevent).count();
 
         println!(
