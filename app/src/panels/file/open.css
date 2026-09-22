@@ -253,6 +253,21 @@
   box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.35);
 }
 
+.empire-flag {
+  flex: none;
+  object-fit: contain;
+}
+
+.empire-flag.row {
+  width: 18px;
+  height: 18px;
+}
+
+.empire-flag.large {
+  width: 48px;
+  height: 48px;
+}
+
 .open-row-error {
   grid-column: 1 / -1;
   margin-top: 4px;

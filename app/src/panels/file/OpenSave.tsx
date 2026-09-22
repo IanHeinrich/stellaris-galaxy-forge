@@ -34,7 +34,7 @@ import { useOpenScreenStore } from "../../store/openScreenStore";
 import { useRecentsStore } from "../../store/recentsStore";
 import { Twisty } from "../Twisty";
 import { Dialog } from "../overlays/Dialog";
-import { CLOUD_TITLE, EmpireDot, IRONMAN_TITLE, OpenDetails } from "./OpenDetails";
+import { CLOUD_TITLE, EmpireMark, IRONMAN_TITLE, OpenDetails } from "./OpenDetails";
 import { formatSize, formatWhen, phaseLabel } from "./launchData";
 import "./open.css";
 
@@ -94,7 +94,7 @@ function CampaignBody({ row }: { row: CampaignRow }) {
       <span className="open-main">
         <span className="open-title">
           <Twisty open={row.expanded} />
-          <EmpireDot meta={row.campaign.meta} />
+          <EmpireMark meta={row.campaign.meta} size="row" />
           {row.empire}
           <CloudFlag cloud={row.campaign.cloud} />
         </span>

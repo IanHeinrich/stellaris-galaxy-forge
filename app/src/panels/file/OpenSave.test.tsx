@@ -10,6 +10,7 @@ vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
+vi.mock("../useTextureUrl", () => ({ useTextureUrl: vi.fn(() => undefined) }));
 
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
@@ -17,7 +18,8 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { footerOpens, type CampaignRow, type SaveRow, type ScenarioRow } from "../../lib/openRows";
 import { detailsKey, useOpenScreenStore } from "../../store/openScreenStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
-import { OpenDetails } from "./OpenDetails";
+import { useTextureUrl } from "../useTextureUrl";
+import { EmpireMark, OpenDetails } from "./OpenDetails";
 import { OpenSave, RowBody } from "./OpenSave";
 import { openRoute } from "./openRoute";
 
@@ -141,6 +143,7 @@ function buttons(html: string): string[] {
 }
 
 beforeEach(() => {
+  vi.mocked(useTextureUrl).mockReset();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useGameDataStore.setState({ ...useGameDataStore.getInitialState(), status: "ready" });
   useLayoutStore.setState({ ...useLayoutStore.getInitialState() });
@@ -211,6 +214,44 @@ describe("what activating a row does", () => {
     expect(openRoute("C:/saves/one.sav", false)).toBe("ask");
     expect(openRoute("C:/saves/one.sav", true)).toBe("scenario");
     expect(openRoute("C:/mod/map/setup_scenarios/big.txt", false)).toBe("save");
+  });
+});
+
+describe("an empire's mark", () => {
+  const FLAGGED = saveMeta({
+    color: "blue",
+    flag: {
+      icon: { category: "human", file: "flag_human_9.dds" },
+      background: { category: "backgrounds", file: "00_solid.dds" },
+      colors: ["blue", "black", "null", "null"],
+      use_map_color: false,
+    },
+  });
+  const KEY = "empire_flag:00_solid.dds:human/flag_human_9.dds:blue,black,null,null";
+
+  beforeEach(() => {
+    const blue = { name: "blue", map: "#0000ff", flag: "#0000ff", ship: "#0000ff" };
+    useGameDataStore.setState({ mapColors: new Map([["blue", blue]]) });
+  });
+
+  it("is the colour dot while no flag has been drawn", () => {
+    const html = renderToStaticMarkup(<EmpireMark meta={FLAGGED} size="large" />);
+    expect(useTextureUrl).toHaveBeenCalledWith([KEY]);
+    expect(html).toContain('class="dot"');
+    expect(html).not.toContain("<img");
+  });
+
+  it("is the flag once game data has drawn it", () => {
+    vi.mocked(useTextureUrl).mockReturnValue("data:image/png;base64,AAAA");
+    const html = renderToStaticMarkup(<EmpireMark meta={FLAGGED} size="row" />);
+    expect(html).toContain('src="data:image/png;base64,AAAA"');
+    expect(html).toContain('alt=""');
+    expect(html).not.toContain('class="dot"');
+  });
+
+  it("asks for no flag from a header without one", () => {
+    renderToStaticMarkup(<EmpireMark meta={saveMeta()} size="row" />);
+    expect(useTextureUrl).toHaveBeenCalledWith([]);
   });
 });
 

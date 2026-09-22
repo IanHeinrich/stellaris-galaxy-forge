@@ -6,12 +6,14 @@ import type { SaveFile } from "../../generated/SaveFile";
 import type { SaveMeta } from "../../generated/SaveMeta";
 import type { ScenarioListing } from "../../generated/ScenarioListing";
 import type { Setting } from "../../generated/Setting";
+import { saveFlagKey } from "../../lib/flagKey";
 import { displayNameIn, stripped, type Names } from "../../lib/names";
 import { plural, recentTarget, type Row } from "../../lib/openRows";
 import { fileName } from "../../lib/paths";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { detailsKey, useOpenScreenStore } from "../../store/openScreenStore";
 import type { RecentDoc } from "../../store/recentsStore";
+import { useTextureUrl } from "../useTextureUrl";
 import { formatSize, formatWhen } from "./launchData";
 
 export const CLOUD_TITLE =
@@ -26,11 +28,19 @@ const START_YEAR = 2200;
 const DLC_SHOWN = 5;
 
 /** The empire's own colour, when game data knows the key the header names. */
-export function EmpireDot({ meta }: { meta: SaveMeta | null }) {
+function EmpireDot({ meta }: { meta: SaveMeta | null }) {
   const mapColors = useGameDataStore((s) => s.mapColors);
   const color = meta?.color ? mapColors.get(meta.color)?.flag : undefined;
   if (!color) return null;
   return <span className="dot" style={{ background: color }} />;
+}
+
+/** The empire's flag once game data has drawn it, its colour until then. */
+export function EmpireMark({ meta, size }: { meta: SaveMeta | null; size: "row" | "large" }) {
+  const key = saveFlagKey(meta);
+  const url = useTextureUrl(key === null ? [] : [key]);
+  if (url === undefined) return <EmpireDot meta={meta} />;
+  return <img className={`empire-flag ${size}`} src={url} alt="" />;
 }
 
 /** The game's text for `key`, else the key made readable. */
@@ -113,14 +123,6 @@ function Warning({ children }: { children: ReactNode }) {
   return <p className="od-warn">{children}</p>;
 }
 
-function EmpireMark({ meta }: { meta: SaveMeta | null }) {
-  return (
-    <span className="od-mark">
-      <EmpireDot meta={meta} />
-    </span>
-  );
-}
-
 function VersionBadge({ version }: { version: string }) {
   const installed = useGameDataStore((s) => (s.status === "ready" ? s.summary?.version : null));
   const theirs = versionNumber(version);
@@ -144,7 +146,9 @@ function MetaHead({ meta, fallback }: { meta: SaveMeta | null; fallback: string 
   return (
     <header className="od-head">
       <div className="od-name">
-        <EmpireMark meta={meta} />
+        <span className="od-mark">
+          <EmpireMark meta={meta} size="large" />
+        </span>
         <span>{meta ? displayNameIn(names, meta.name) : fallback}</span>
       </div>
       {meta?.portrait && <div className="od-soft">{label(meta.portrait)}</div>}
