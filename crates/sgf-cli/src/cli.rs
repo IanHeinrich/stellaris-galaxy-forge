@@ -95,6 +95,18 @@ pub enum Command {
         #[arg(long, value_enum, default_value_t = Profile::Plain)]
         profile: Profile,
     },
+    /// Print every key path of a save with its count, or the paths it adds to and drops
+    /// from another save.
+    Shape {
+        sav: PathBuf,
+        /// Compare with this save: the paths only `sav` has are added, the ones only
+        /// this save has are removed.
+        #[arg(long, value_name = "OTHER")]
+        diff: Option<PathBuf>,
+        /// Only these top-level sections, comma-separated.
+        #[arg(long, value_delimiter = ',')]
+        section: Vec<String>,
+    },
     /// Load a save and write it out unchanged.
     Roundtrip {
         input: PathBuf,

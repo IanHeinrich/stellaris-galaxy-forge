@@ -67,6 +67,9 @@ path renames aside as the backup, and the editor's bytes take its place.
 
 - `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` · `cargo fmt --all`
 - `cargo run -p sgf-cli -- inspect testdata/2206.11.16.sav`
+- `sgf shape <save>` prints every key path of a save with its count, and
+  `sgf shape <save> --diff <other>` the paths the two do not share;
+  `--section a,b` keeps either to those sections.
 - `cd app && npm test` (Vitest) · `npm run build` · `npm run lint`
 - `cd app && npm run tauri dev` (one instance per machine)
 - `cargo test --workspace` also regenerates `app/src/generated/`; commit
@@ -83,6 +86,23 @@ path renames aside as the backup, and the editor's bytes take its place.
   documentation (`*.md`, `docs/`, `LICENSE`, the PR template) skips the
   build; `ci-docs.yml` reports the required checks as passed for it.
 
+## When the game updates
+
+- Save a day-one game on the new version and run `bash
+  scripts/game-update.sh <save>`. It builds `sgf`, checks the install
+  parses, and checks the save loads, validates, round-trips byte for
+  byte and exports, then runs the workspace tests with the install
+  required.
+- Read the shape diff it prints for the sections the core reads:
+  `crates/sgf-core/src/keys.rs` names every key, `docs/format-notes.md`
+  records the shape. The key-presence test in `keys.rs` fails naming any
+  key the game no longer writes.
+- A new major or minor version gets its save added to `testdata/` under
+  LFS, so the tests cover it from then on.
+- Run the in-game checks in `.github/pull_request_template.md`.
+- Update the version claims in `README.md`, `docs/user-guide.md` and
+  `docs/game-data-notes.md`.
+
 ## Releases
 
 - `VERSION` at the repo root is the single version. `bash
@@ -92,7 +112,10 @@ path renames aside as the backup, and the editor's bytes take its place.
   those files.
 - `CHANGELOG.md` follows Keep a Changelog. Every PR adds an entry under
   `## [Unreleased]`, or carries the `skip-changelog` label; the required
-  `Changelog entry` check enforces this.
+  `Changelog entry` check enforces this. The changelog is for the people
+  who use the editor, so an entry describes what they can now see or do.
+  Tooling, tests, refactors and anything else that leaves the app
+  unchanged take the label instead.
 - To release: `bash scripts/version.sh bump minor` (or
   `patch`/`major`), then `bash scripts/changelog.sh release
   $(cat VERSION)`, which renames Unreleased to `## [x.y.z] - YYYY-MM-DD`

@@ -104,6 +104,7 @@ pub(crate) const SHIPYARD_BUILD_QUEUE: &str = "shipyard_build_queue";
 pub(crate) const SHIP_CLASS: &str = "ship_class";
 pub(crate) const SHIP_DESIGN: &str = "ship_design";
 pub(crate) const SHIP_DESIGN_IMPLEMENTATION: &str = "ship_design_implementation";
+pub(crate) const SHIP_NAMES: &str = "ship_names";
 pub(crate) const SHIP_SIZE: &str = "ship_size";
 pub(crate) const SITES: &str = "sites";
 pub(crate) const STARBASES: &str = "starbases";
@@ -123,6 +124,142 @@ pub(crate) const WAYSTATIONS: &str = "waystations";
 pub(crate) const WAYSTATION_NETWORKS: &str = "waystation_networks";
 pub(crate) const X: &str = "x";
 pub(crate) const Y: &str = "y";
+
+/// Every save key above, so a test can check each against the sample saves. A new key
+/// is added here as well as above.
+#[cfg(test)]
+pub(crate) const ALL: &[&str] = &[
+    ACTIVE,
+    AMBIENT_OBJECT,
+    ARCHAEOLOGICAL_SITES,
+    BACKGROUND,
+    BRIDGE,
+    BUILDINGS,
+    BUILD_QUEUE,
+    BYPASS,
+    BYPASSES,
+    CACHED_DISABLED_SHIPS,
+    CAPITAL,
+    CATEGORY,
+    COLONIZE_DATE,
+    COLONY,
+    COLORS,
+    COMBAT,
+    CONSTRUCTION_TYPE,
+    CONTROLLER,
+    COORDINATE,
+    CORE_RADIUS,
+    COUNTRY,
+    CURRENT_ORDER,
+    DEPOSIT,
+    DEPOSITS,
+    DESIGN,
+    DISMANTLE_FINISH_DATE,
+    DISMANTLE_PROGRESS,
+    ENTITY,
+    FILE,
+    FLAG,
+    FLAGS,
+    FLEET,
+    FLEETS_MANAGER,
+    FLEET_PRESENCE,
+    FLEET_STANCE,
+    GALACTIC_OBJECT,
+    GALAXY,
+    GALAXY_RADIUS,
+    GROUND_SUPPORT_STANCE,
+    GROWTH_STAGE,
+    GROWTH_STAGES,
+    HABITABILITY,
+    HITPOINTS,
+    HIT_POINTS,
+    HYPERLANE,
+    ICON,
+    ID,
+    INDEX,
+    INITIALIZER,
+    INIT_PARENT,
+    INNER_RADIUS,
+    KEY,
+    LAST_BOMBARDMENT,
+    LENGTH,
+    LEVEL,
+    LINKED_TO,
+    LITERAL,
+    LOCATION,
+    MAX_HITPOINTS,
+    MEGASTRUCTURES,
+    MIA_FROM,
+    MILITARY_POWER,
+    MODULES,
+    MOON_OF,
+    MOVEMENT_MANAGER,
+    NAME,
+    NATURAL_WORMHOLES,
+    NEBULA,
+    NUM_ADVANCED_EMPIRES,
+    NUM_EMPIRES,
+    NUM_FALLEN_EMPIRES,
+    NUM_GATEWAYS,
+    NUM_HYPERLANES,
+    NUM_MARAUDER_EMPIRES,
+    NUM_NOMAD_EMPIRES,
+    NUM_SAPIENT_POPS,
+    NUM_WORMHOLE_PAIRS,
+    ORBIT,
+    ORBITALS,
+    ORIGIN,
+    OUTER_RADIUS,
+    OWNED_FLEETS,
+    OWNER,
+    PLANET,
+    PLANETS,
+    PLANET_CLASS,
+    PLANET_ORBITALS,
+    PLANET_SIZE,
+    PLAYER,
+    POP_GROUPS,
+    PRIMITIVE,
+    RADIUS,
+    SECTOR,
+    SECTORS,
+    SHAPE,
+    SHIPCLASS_ORBITAL_STATION,
+    SHIPS,
+    SHIPYARD_BUILD_QUEUE,
+    SHIP_CLASS,
+    SHIP_DESIGN,
+    SHIP_DESIGN_IMPLEMENTATION,
+    SHIP_NAMES,
+    SHIP_SIZE,
+    SITES,
+    STARBASES,
+    STARBASE_MGR,
+    STAR_CLASS,
+    STATION,
+    STORM,
+    SURVEYED_BY,
+    TEMPLATE,
+    TIMED_MODIFIER,
+    TO,
+    TYPE,
+    USE_MAP_COLOR,
+    VALUE,
+    VARIABLES,
+    WAYSTATIONS,
+    WAYSTATION_NETWORKS,
+    X,
+    Y,
+];
+
+/// Save keys a save may lack. The test asks only that some sample save writes each.
+#[cfg(test)]
+pub(crate) const OPTIONAL: &[&str] = &[
+    // Written from 4.5, and only for an empire created with Independent Map Color on.
+    USE_MAP_COLOR,
+    // Written once a waystation network has a station; the 4.4 sample's table is empty.
+    WAYSTATIONS,
+];
 
 /// The keys of a static galaxy scenario script, which shares only a few names with a save.
 pub(crate) mod scenario {
@@ -164,4 +301,77 @@ pub(crate) mod scenario {
     pub(crate) const VALUE_PREFIX: &str = "value:";
     pub(crate) const X: &str = "x";
     pub(crate) const Y: &str = "y";
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+    use std::path::PathBuf;
+
+    use super::*;
+    use crate::document::Document;
+
+    const TESTDATA: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata");
+
+    fn sample_saves() -> Vec<PathBuf> {
+        let mut saves: Vec<PathBuf> = std::fs::read_dir(TESTDATA)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().is_some_and(|ext| ext == "sav"))
+            .collect();
+        saves.sort();
+        assert!(!saves.is_empty(), "no .sav in {TESTDATA}");
+        saves
+    }
+
+    /// The keys the save writes: `<key>=` at a line start after any tabs.
+    fn keys_written(gamestate: &[u8]) -> HashSet<&[u8]> {
+        gamestate
+            .split(|&b| b == b'\n')
+            .filter_map(|line| {
+                let line = &line[line.iter().take_while(|&&b| b == b'\t').count()..];
+                let eq = memchr::memchr(b'=', line)?;
+                Some(&line[..eq])
+            })
+            .collect()
+    }
+
+    fn name(path: &std::path::Path) -> String {
+        path.file_name().unwrap().to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn every_save_key_is_written_by_each_sample_save() {
+        let mut missing = Vec::new();
+        for path in sample_saves() {
+            let doc = Document::load(&path).unwrap();
+            let written = keys_written(doc.original());
+            for key in ALL {
+                if !OPTIONAL.contains(key) && !written.contains(key.as_bytes()) {
+                    missing.push(format!("{key} is not written by {}", name(&path)));
+                }
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "the game no longer writes these keys, or a sample save lacks them and they belong in OPTIONAL:\n{}",
+            missing.join("\n")
+        );
+    }
+
+    #[test]
+    fn every_optional_key_is_written_by_some_sample_save() {
+        let mut written = HashSet::new();
+        for path in sample_saves() {
+            let doc = Document::load(&path).unwrap();
+            written.extend(keys_written(doc.original()).into_iter().map(<[u8]>::to_vec));
+        }
+        for key in OPTIONAL {
+            assert!(ALL.contains(key), "{key} is in OPTIONAL but not in ALL");
+            assert!(
+                written.contains(key.as_bytes()),
+                "{key} is in OPTIONAL but no sample save writes it"
+            );
+        }
+    }
 }
