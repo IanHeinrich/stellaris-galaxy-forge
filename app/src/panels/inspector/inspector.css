@@ -366,3 +366,8 @@ input.coord:disabled {
   min-width: 0;
   margin: 0;
 }
+
+.ins-random-name {
+  font-style: italic;
+  color: var(--fg-muted);
+}

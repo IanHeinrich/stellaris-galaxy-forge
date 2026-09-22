@@ -92,14 +92,32 @@ describe("the brush options", () => {
     const html = options();
     expect(html).toContain('aria-label="Brush options"');
     expect(html).toContain('aria-label="Brush size" value="60"');
-    // Dense is small spacing, so the density slider runs against it.
-    expect(html).toMatch(/aria-label="Density" value="70"/);
+    // Dense is small spacing, so the density slider runs against it, log-mapped for fine control.
+    expect(html).toMatch(/aria-label="Density" value="592"/);
+    expect(html).toContain(
+      'aria-label="Spacing between painted systems in world units" title="Distance between painted systems, in world units" value="20"',
+    );
     expect(html).toContain('<option value="new" selected="">Among new</option>');
     expect(html).toMatch(/<input type="range"[^>]*aria-label="Lane density"/);
     expect(html).not.toMatch(/disabled=""[^>]*aria-label="Lane density"/);
 
     useToolStore.setState({ laneMode: "off" });
     expect(options()).toMatch(/disabled=""[^>]*aria-label="Lane density"/);
+  });
+
+  it("hatch the density a large brush cannot reach, and say so when the chosen density is cut back", () => {
+    useToolStore.setState({ tool: "paint", size: 40, spacing: 25 });
+    expect(options()).not.toContain("density-blocked");
+
+    useToolStore.setState({ size: 400, spacing: 60 });
+    const within = options();
+    expect(within).toContain('class="density-blocked"');
+    expect(within).not.toContain("limited by brush size");
+
+    useToolStore.setState({ spacing: 10 });
+    const cut = options();
+    expect(cut).toContain("limited by brush size");
+    expect(cut).toContain('title="Distance between painted systems, in world units" value="38.3"');
   });
 
   it("give the erase brush its size, target and the specials toggle, which lanes mode disables", () => {

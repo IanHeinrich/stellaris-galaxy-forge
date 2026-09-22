@@ -28,7 +28,7 @@ function nebulaCursor(pick: NebulaPick): string {
     case "handle":
       return pick.axis === "y" ? "ns-resize" : "ew-resize";
     case "centre":
-      return "pointer";
+      return "move";
   }
 }
 
@@ -234,14 +234,13 @@ function dragFrom(press: Press): Drag {
       const index = press.nebula.index;
       switch (press.nebula.part) {
         case "ring":
+        case "centre":
           return { kind: "nebula", index };
         case "handle":
           return { kind: "nebulaRadius", index };
-        case "centre":
-          return { kind: "none" };
       }
     }
-    return { kind: "none" };
+    return press.edge ? { kind: "none" } : { kind: "marquee" };
   }
   const group = groupOf(press.selection, press.system);
   return group ? { kind: "moveGroup", ids: group } : { kind: "move", id: press.system };

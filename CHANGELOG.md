@@ -12,12 +12,18 @@ a release is made.
 
 - Scenarios have a paint brush (B) that scatters systems as you drag and
   can join them with hyperlanes.
+- A large paint brush paints more sparsely. One brush circle holds at most
+  about 60 systems.
 - An erase brush (E) removes the systems it passes over. Systems with a
   spawn, an initializer or another special role are kept unless you ask.
   It can also cut only the hyperlanes it passes over.
 - Each brush stroke is one undo step. `[` and `]` change the brush size,
   and holding Alt swaps paint and erase.
 - Several selected systems in a scenario can be deleted at once.
+- A long selection has a filter box. "Deselect N matching" drops every
+  system that matches it.
+- A scenario system with no name reads "Random name" in the inspector.
+  Stellaris names it at random when the game starts.
 - The Issues panel warns when a scenario has far more systems than the
   largest galaxy size the game and your mods offer. Very large galaxies
   can make the game slow.
@@ -30,13 +36,17 @@ a release is made.
   selection.
 - The search box is a small icon until you click it or press F.
 - The game data button moved to the right end of the status bar.
-- The Layers menu opens from the small arrow after the layer icons.
+- The Layers menu opens from the Layers button after the layer icons.
 - The Paint a Galaxy badge reads "PaG". Hover it for the full wording.
 - The top bar takes the place of the window's title bar. Drag it to move
   the window and double-click it to maximise. Minimise, maximise and
   close sit at its right end.
 - Undo and redo moved to a tool strip on the left edge of the map. V
   returns to the select tool.
+- Dragging on empty space draws a selection box without holding Shift.
+- A fallen empire zone or a nebula can be dragged by its centre as well
+  as its ring.
+- The top bar shows the app's own icon.
 
 ### Removed
 

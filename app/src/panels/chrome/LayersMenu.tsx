@@ -264,13 +264,15 @@ function LayersMenuBody() {
   );
 }
 
-/** Every layer the map can draw, behind the chevron after the bar's layer toggles. */
+/** Every layer the map can draw, behind the "Layers" button after the bar's layer toggles. */
 export function LayersMenu() {
   const document = useDocument();
   if (!document) return null;
   return (
-    <Menu label="Layers" align="right" compact>
-      {() => <LayersMenuBody />}
-    </Menu>
+    <div className="layers-menu">
+      <Menu label="Layers" align="right">
+        {() => <LayersMenuBody />}
+      </Menu>
+    </div>
   );
 }

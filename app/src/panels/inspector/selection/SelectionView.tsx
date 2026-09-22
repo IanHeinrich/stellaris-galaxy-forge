@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
@@ -6,15 +7,16 @@ import { linkedPairs, linkedSystems, useGalaxyStore } from "../../../store/galax
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { browseInitializers, NEEDS_GAME_DATA } from "../../initializers/entry";
 import { BulkActions } from "./BulkActions";
-import { Chip, Section, Swatch } from "../parts";
+import { Chip, FILTER_MIN, FilterField, Section, Swatch } from "../parts";
+
+/** How many chips a long selection shows before asking for a filter. */
+const CHIPS_SHOWN = 60;
 
 /** Several systems selected: what they have in common, and where the actions live. */
 export function SelectionView() {
   const selection = useEditorStore((s) => s.selection);
   const select = useEditorStore((s) => s.select);
-  const toggleSelect = useEditorStore((s) => s.toggleSelect);
   const systems = useGalaxyStore((s) => s.systems);
-  const names = useSystemNames(selection);
   const gameData = useGameDataStore((s) => s.status === "ready");
   const canAssign = supports(useFileSessionStore(documentCapabilities), "create_systems");
 
@@ -30,24 +32,6 @@ export function SelectionView() {
         <button className="link ins-close" onClick={() => void select(null)} title="Clear (Esc)">
           Clear ×
         </button>
-      </div>
-      <div className="ins-chips">
-        {selection.map((id, i) => {
-          const system = systems.get(id);
-          return (
-            <button
-              type="button"
-              className="chip pick"
-              key={id}
-              title={`Remove #${id} from the selection`}
-              onClick={() => void toggleSelect(id)}
-            >
-              <Swatch owner={system?.owner ?? null} />
-              {names[i]}
-              <span aria-hidden="true">×</span>
-            </button>
-          );
-        })}
       </div>
       <div className="ins-line muted">
         <span>
@@ -70,11 +54,82 @@ export function SelectionView() {
         </div>
         <div className="muted ins-hint">Also in the right-click menu on the map.</div>
       </Section>
+      <SelectedChips />
       {selection.some((id) => !systems.has(id)) && (
         <div className="ins-line">
           <Chip warn>some selected systems are no longer in the galaxy</Chip>
         </div>
       )}
     </>
+  );
+}
+
+/** The selected systems as chips that each drop their system; a long selection is filtered, not listed whole. */
+function SelectedChips() {
+  const selection = useEditorStore((s) => s.selection);
+  const toggleSelect = useEditorStore((s) => s.toggleSelect);
+  const setSelection = useEditorStore((s) => s.setSelection);
+  const systems = useGalaxyStore((s) => s.systems);
+  const names = useSystemNames(selection);
+  const [query, setQuery] = useState("");
+
+  const labels = selection.map((id, i) => names[i] || `#${id}`);
+  const needle = query.trim().toLowerCase();
+  const matches = selection.flatMap((id, i) =>
+    needle === "" || labels[i].toLowerCase().includes(needle) || `#${id}`.includes(needle)
+      ? [i]
+      : [],
+  );
+  const shown = matches.slice(0, CHIPS_SHOWN);
+  const hidden = matches.length - shown.length;
+  const matched = new Set(matches.map((i) => selection[i]));
+
+  return (
+    <Section id="selection.systems" title={`Systems · ${selection.length}`}>
+      {selection.length > FILTER_MIN && (
+        <FilterField
+          label="Filter the selection by name or #id"
+          value={query}
+          onChange={setQuery}
+        />
+      )}
+      <div className="ins-chips">
+        {shown.map((i) => {
+          const id = selection[i];
+          return (
+            <button
+              type="button"
+              className="chip pick"
+              key={id}
+              title={`Remove ${labels[i]} from the selection`}
+              onClick={() => void toggleSelect(id)}
+            >
+              <Swatch owner={systems.get(id)?.owner ?? null} />
+              {labels[i]}
+              <span aria-hidden="true">×</span>
+            </button>
+          );
+        })}
+      </div>
+      {hidden > 0 && (
+        <div className="muted ins-hint">
+          {hidden} more{needle === "" ? ", type to filter" : ""}
+        </div>
+      )}
+      {needle !== "" && matches.length > 0 && matches.length < selection.length && (
+        <button
+          type="button"
+          onClick={() => {
+            void setSelection(
+              selection.filter((id) => !matched.has(id)),
+              "replace",
+            );
+            setQuery("");
+          }}
+        >
+          Deselect {matches.length} matching
+        </button>
+      )}
+    </Section>
   );
 }

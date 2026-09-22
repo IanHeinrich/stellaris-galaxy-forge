@@ -141,16 +141,21 @@ describe("GestureModel", () => {
     ]);
   });
 
-  it("a left drag on empty space neither pans nor moves anything", () => {
+  it("a left drag on empty space neither pans nor moves a star it crosses, but draws a marquee", () => {
     const model = new GestureModel();
     const intent = recorder();
     model.handle(at("down", 10, 10), intent);
     expect(model.handle(at("move", 12, 12), intent)).toBe("consumed");
     expect(model.handle(at("move", 30, 30), intent)).toBe("consumed");
-    expect(model.cursor()).toBe("");
+    expect(model.cursor()).toBe("crosshair");
     expect(model.handle(at("move", 50, 50, { system: 3 }), intent)).toBe("consumed");
     model.handle(at("up", 50, 50, { system: 3 }), intent);
-    expect(intent.calls).toEqual([]);
+    expect(intent.calls.map(([name]) => name)).toEqual([
+      "previewMarquee",
+      "previewMarquee",
+      "selectInRect",
+      "endMarquee",
+    ]);
   });
 
   it("a middle-button drag on empty space pans", () => {
@@ -334,6 +339,22 @@ describe("GestureModel", () => {
     ]);
   });
 
+  it("a plain drag on empty space draws a marquee too, and one from a lane does not", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    model.handle(at("down", 50, 50), intent);
+    model.handle(at("move", 30, 70), intent);
+    model.handle(at("up", 20, 80), intent);
+    model.handle(at("down", 10, 10, { edge: LANE_EDGE }), intent);
+    model.handle(at("move", 30, 30), intent);
+    model.handle(at("up", 30, 30), intent);
+    expect(intent.calls).toEqual([
+      ["previewMarquee", 50, 50, 30, 70],
+      ["selectInRect", 20, 50, 50, 80, "replace"],
+      ["endMarquee"],
+    ]);
+  });
+
   it("shift-drag from a lane draws no marquee and does nothing", () => {
     const model = new GestureModel();
     const intent = recorder();
@@ -466,19 +487,22 @@ describe("GestureModel on a nebula", () => {
     ]);
   });
 
-  it("a drag from the centre does nothing, though a click there still selects", () => {
+  it("a drag from the centre moves the nebula as the ring does, and a click there selects it", () => {
     const model = new GestureModel();
     const intent = recorder();
     model.handle(at("down", 10, 10, { nebula: CENTRE }), intent);
     expect(model.handle(at("move", 30, 30), intent)).toBe("consumed");
-    expect(model.cursor()).toBe("");
+    expect(model.cursor()).toBe("grabbing");
     model.handle(at("up", 60, 20), intent);
-    expect(intent.calls).toEqual([]);
     click(model, intent, { nebula: CENTRE });
-    expect(intent.calls).toEqual([["selectNebula", 3]]);
+    expect(intent.calls).toEqual([
+      ["previewNebula", 3, 30, 30],
+      ["commitNebula", 3, 60, 20],
+      ["selectNebula", 3],
+    ]);
   });
 
-  it("idle cursor says move on the ring, a resize arrow along the handle's axis, pointer on the centre", () => {
+  it("idle cursor says move on the ring and the centre, and a resize arrow along the handle's axis", () => {
     const model = new GestureModel();
     const intent = recorder();
     const cursorAt = (extra: Partial<MapInput>) => {
@@ -488,7 +512,7 @@ describe("GestureModel on a nebula", () => {
     expect(cursorAt({ nebula: RING })).toBe("move");
     expect(cursorAt({ nebula: HANDLE_X })).toBe("ew-resize");
     expect(cursorAt({ nebula: HANDLE_Y })).toBe("ns-resize");
-    expect(cursorAt({ nebula: CENTRE })).toBe("pointer");
+    expect(cursorAt({ nebula: CENTRE })).toBe("move");
   });
 
   it("reset mid-drag drops the ghost ring and commits nothing", () => {

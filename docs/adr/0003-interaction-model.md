@@ -27,7 +27,7 @@ arrows on four sides.
 | Drag from inside the ring | moves the star, as a ghost with rubber lanes, and sends one `MoveSystem` on release |
 | Drag from the band, or `Shift`+drag from the star | a lane grows from it; the nearest system inside the snap radius is ringed and the line snaps to it, an already-linked one shows as invalid, and a release anywhere else cancels |
 | Click a system | selects it; `Shift` or `Ctrl` adds it to or takes it out of the selection |
-| `Shift`+drag from empty space | a marquee, selecting every system inside it on release, adding to the selection when `Ctrl` is held |
+| Drag from empty space, with or without `Shift` | a marquee, selecting every system inside it on release, adding to the selection when `Ctrl` is held |
 | `Ctrl+A` | selects every system |
 | Click a lane | selects it; `Shift`+click, or the "×" a hovered lane shows at its midpoint, cuts it |
 | `Delete` or `Backspace` | cuts the selected lane, or removes the selected nebula |

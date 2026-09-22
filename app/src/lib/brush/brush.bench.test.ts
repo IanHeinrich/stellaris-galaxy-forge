@@ -4,7 +4,7 @@ import { MESH_BETA, type MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import { laneSegments, strokeLanes, withProvisionalIds } from "./lanes";
 import { seeded } from "./random";
-import { sampleStroke } from "./sample";
+import { SAMPLE_CAP, sampleStroke } from "./sample";
 import { stampsAlong } from "./stroke";
 
 const BLOCKER_COUNT = 600;
@@ -13,7 +13,7 @@ const SPACING = 10;
 /** Generous so a slow CI runner does not fail it; locally the whole run takes a fraction of this. */
 const BUDGET_MS = 1000;
 
-describe("a 2000-point paint stroke", () => {
+describe("a paint stroke at the sample cap", () => {
   it("samples and meshes against 600 systems within budget", () => {
     const systems = [...buildGalaxy().systems].sort((a, b) => a.x - b.x).slice(0, BLOCKER_COUNT);
     const blockers: MeshPoint[] = systems.map(({ id, x, y }) => ({ id, x, y }));
@@ -39,8 +39,8 @@ describe("a 2000-point paint stroke", () => {
     });
     const elapsed = performance.now() - start;
 
-    expect(points).toHaveLength(2000);
-    expect(lanes.length).toBeGreaterThan(2000);
+    expect(points).toHaveLength(SAMPLE_CAP);
+    expect(lanes.length).toBeGreaterThan(SAMPLE_CAP);
     expect(elapsed).toBeLessThan(BUDGET_MS);
   });
 });

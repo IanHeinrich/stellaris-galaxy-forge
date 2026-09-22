@@ -3,7 +3,7 @@ import { PointGrid } from "./grid";
 import type { Rand } from "./random";
 
 /** The most points one stroke places. */
-export const SAMPLE_CAP = 2000;
+export const SAMPLE_CAP = 1000;
 
 /** Bridson's k: candidates tried about a point before it stops spawning. */
 export const TRIES = 30;

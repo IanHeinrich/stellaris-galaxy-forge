@@ -857,6 +857,21 @@ describe("the head of a scenario system", () => {
     expect(html).toContain('class="ins-sec-title"');
   });
 
+  it("says a system with no name gets a random one from the game", async () => {
+    await open("scenario");
+    const inspected = useEditorStore.getState().inspected!;
+    useEditorStore.setState({
+      inspected: {
+        ...inspected,
+        system: { ...inspected.system, name: { key: "", literal: false, variables: [] } },
+      },
+    });
+
+    const html = overview();
+    expect(html).toContain('<span class="ins-random-name">Random name</span>');
+    expect(html).toContain("No name. Stellaris picks a random one when the game starts.");
+  });
+
   it("renames the system from the head, so the Overview carries no Name section", async () => {
     landSpecial();
     await open("scenario");

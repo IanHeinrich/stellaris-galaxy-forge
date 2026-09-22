@@ -135,7 +135,7 @@ while the map has focus, and dragging its left edge resizes it.
   hyperlane row to jump to that neighbour.
 - Ctrl+click or Shift+click a system to add it to or remove it from the
   selection.
-- Shift+drag on empty space draws a box; everything inside is selected
+- Dragging on empty space draws a box; everything inside is selected
   (hold Ctrl as you release to add to the selection instead of replacing
   it).
 - Ctrl+A selects every system.
@@ -221,10 +221,10 @@ flagged stale and there is no length to reset.
 
 Switch the Nebulae layer on to see them; it starts off.
 
-- Drag a nebula's ring to move the cloud; its name and centre marker only
-  select it, so a nebula sitting on a star can still be moved. The systems
-  stay where they are, and the nebula's member list is rewritten to
-  whatever its radius now covers.
+- Drag a nebula's ring or its centre marker to move the cloud. A star
+  under the pointer wins, so a nebula whose centre sits on a star is moved
+  by its ring. The systems stay where they are, and the nebula's member
+  list is rewritten to whatever its radius now covers.
 - Select a nebula and drag one of the four handles on its ring to resize
   it, or press `[` and `]` to change the selected nebula's radius by one,
   or by five with Shift.
@@ -277,7 +277,7 @@ enclaves. The number keys do the same: 1 hyperlanes, 2 systems, 3 names,
 4 system details, 5 empires, 6 bypasses, 7 points of interest, 8 nebulae
 and 9 issue highlights.
 
-The chevron after the layer icons opens the Layers menu, which holds
+The "Layers" button after the layer icons opens the Layers menu, which holds
 every layer, in groups. A save offers hyperlanes, systems, star classes,
 names, system details and colonies under "Map"; empires, bypasses,
 points of interest with a row per kind, and nebulae under "Overlays";

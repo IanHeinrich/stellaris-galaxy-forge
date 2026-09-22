@@ -1,6 +1,7 @@
 import { confirm } from "@tauri-apps/plugin-dialog";
 import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
+import type { NewSystem } from "../generated/NewSystem";
 import type { Op } from "../generated/Op";
 import type { Pair } from "../lib/brush/lanes";
 import type { Pt } from "../lib/geometry/pt";
@@ -51,7 +52,9 @@ export function brushActions(
 function paintOp(points: readonly Pt[], pairs: readonly Pair[]): Op {
   const first = nextSystemId(systems().values());
   const real = (id: number) => (id < 0 ? first - id - 1 : id);
-  const ops: Op[] = points.map((p, i) => addSystem(first + i, p));
+  const ops: Op[] = [
+    { type: "AddSystems", systems: points.map((p, i) => newSystem(first + i, p)) },
+  ];
   if (pairs.length > 0) {
     ops.push({
       type: "AddLanePairs",
@@ -62,9 +65,8 @@ function paintOp(points: readonly Pt[], pairs: readonly Pair[]): Op {
   return { type: "Batch", description: `Painted ${counted(points.length, "system")}${lanes}`, ops };
 }
 
-function addSystem(id: number, p: Pt): Op {
+function newSystem(id: number, p: Pt): NewSystem {
   return {
-    type: "AddSystem",
     id,
     x: p.x,
     y: p.y,
@@ -79,7 +81,7 @@ function removeAll(ids: readonly number[], description: string): Op {
   return {
     type: "Batch",
     description,
-    ops: ids.map((id): Op => ({ type: "RemoveSystem", id })),
+    ops: [{ type: "RemoveSystems", ids: [...ids] }],
   };
 }
 

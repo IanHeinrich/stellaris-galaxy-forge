@@ -1,9 +1,15 @@
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { betaOfSlider, sliderOfBeta } from "../../lib/geometry/mesh";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import {
+  effectiveSpacing,
+  MAX_SYSTEMS_PER_BRUSH,
+  minSpacingFor,
   SIZE_RANGE,
   SPACING_RANGE,
+  SPACING_SLIDER_MAX,
+  sliderOfSpacing,
+  spacingOfSlider,
   useToolStore,
   type EraseTarget,
   type LaneMode,
@@ -50,29 +56,62 @@ function SizeOption() {
 }
 
 function PaintOptions() {
-  const spacing = useToolStore((s) => s.spacing);
+  const size = useToolStore((s) => s.size);
+  const chosen = useToolStore((s) => s.spacing);
+  const spacing = effectiveSpacing(size, chosen);
+  const limited = spacing > chosen;
+  const least = minSpacingFor(size);
+  const reach = sliderOfSpacing(least) / SPACING_SLIDER_MAX;
+  const why = `A brush this size paints at most ${MAX_SYSTEMS_PER_BRUSH} systems per circle, so the spacing is at least ${least}. Make the brush smaller to paint denser.`;
   const setSpacing = useToolStore((s) => s.setSpacing);
   const laneMode = useToolStore((s) => s.laneMode);
   const setLaneMode = useToolStore((s) => s.setLaneMode);
   const meshBeta = useMapChromeStore((s) => s.meshBeta);
   const setMeshBeta = useMapChromeStore((s) => s.setMeshBeta);
-  // Dense means close together, so the slider runs against the spacing.
-  const flip = (v: number) => SPACING_RANGE.min + SPACING_RANGE.max - v;
+  const [draft, setDraft] = useState<string | null>(null);
+  const apply = () => {
+    if (draft !== null && Number.isFinite(Number(draft)) && draft.trim() !== "") {
+      setSpacing(Number(draft));
+    }
+    setDraft(null);
+  };
   return (
     <>
       <SizeOption />
       <label className="tool-option">
         Density
         <span className="muted">sparse</span>
+        <span className="density-track" style={{ "--reach": `${reach * 100}%` } as CSSProperties}>
+          <input
+            type="range"
+            min={0}
+            max={SPACING_SLIDER_MAX}
+            value={sliderOfSpacing(spacing)}
+            onChange={(e) => setSpacing(spacingOfSlider(Number(e.target.value)))}
+            aria-label="Density"
+          />
+          {reach < 1 && <span className="density-blocked" title={why} aria-hidden="true" />}
+        </span>
+        <span className="muted">dense</span>
         <input
-          type="range"
+          type="number"
           min={SPACING_RANGE.min}
           max={SPACING_RANGE.max}
-          value={flip(spacing)}
-          onChange={(e) => setSpacing(flip(Number(e.target.value)))}
-          aria-label="Density"
+          step={0.1}
+          value={draft ?? spacing}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={apply}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") apply();
+          }}
+          aria-label="Spacing between painted systems in world units"
+          title="Distance between painted systems, in world units"
         />
-        <span className="muted">dense</span>
+        {limited && (
+          <span className="density-limit" title={why}>
+            limited by brush size
+          </span>
+        )}
       </label>
       <label className="tool-option">
         Lanes

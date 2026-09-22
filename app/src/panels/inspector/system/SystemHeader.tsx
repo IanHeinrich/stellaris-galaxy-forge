@@ -52,6 +52,17 @@ function PositionSection({ system }: { system: SystemNode }) {
 /** What the head's name says on hover where the document lets it change. */
 const RENAME_TITLE = "Rename this system";
 
+/** What a scenario system with no name shows at the head, and why. */
+const RANDOM_NAME = "Random name";
+const RANDOM_NAME_TITLE =
+  "This system has no name, so Stellaris gives it a random one when the game starts.";
+
+/** The head's name text: a scenario system with no name says the game will pick one. */
+function NameText({ system }: { system: SystemNode }) {
+  if (system.name.key !== "") return <>{nodeName(system.name)}</>;
+  return <span className="ins-random-name">{RANDOM_NAME}</span>;
+}
+
 /**
  * The name at the head: a click turns it into the field that writes it, as the file states it,
  * a literal, or the key a plain system has none of. A document that cannot name a system shows text.
@@ -60,7 +71,14 @@ function HeadName({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
   const editable = useEditableSystem();
   const [editing, setEditing] = useState(false);
-  if (!editable) return <span className="name">{nodeName(system.name)}</span>;
+  const unnamed = system.name.key === "";
+  if (!editable) {
+    return (
+      <span className="name" title={unnamed ? RANDOM_NAME_TITLE : undefined}>
+        <NameText system={system} />
+      </span>
+    );
+  }
   if (editing) {
     return (
       <Field
@@ -75,8 +93,13 @@ function HeadName({ system }: { system: SystemNode }) {
     );
   }
   return (
-    <button type="button" className="name" title={RENAME_TITLE} onClick={() => setEditing(true)}>
-      {nodeName(system.name)}
+    <button
+      type="button"
+      className="name"
+      title={unnamed ? `${RANDOM_NAME_TITLE} Click to name it.` : RENAME_TITLE}
+      onClick={() => setEditing(true)}
+    >
+      <NameText system={system} />
       <span className="ins-pencil">✎</span>
     </button>
   );
@@ -112,6 +135,11 @@ export function Header({ detail }: { detail: SystemDetail }) {
           ×
         </button>
       </div>
+      {system.name.key === "" && (
+        <div className="ins-sub muted">
+          No name. Stellaris picks a random one when the game starts.
+        </div>
+      )}
       <div className="ins-sub muted">
         {starClass === "" ? "" : `${starClass} · `}
         {planets} planets · nebula: {detail.nebula ? nodeName(detail.nebula.name) : "none"}

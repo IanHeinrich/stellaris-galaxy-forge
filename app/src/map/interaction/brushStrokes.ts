@@ -4,7 +4,7 @@ import type { Pt } from "../../lib/geometry/pt";
 import { useEditorStore } from "../../store/editorStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
-import { useToolStore } from "../../store/toolStore";
+import { effectiveSpacing, useToolStore } from "../../store/toolStore";
 import {
   BrushStroke,
   strokeLabel,
@@ -21,7 +21,7 @@ function settingsFor(tool: BrushTool): BrushSettings {
   return {
     tool,
     size: t.size,
-    spacing: t.spacing,
+    spacing: effectiveSpacing(t.size, t.spacing),
     laneMode: t.laneMode,
     eraseTarget: t.eraseTarget,
     eraseSpecials: t.eraseSpecials,

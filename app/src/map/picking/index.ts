@@ -129,9 +129,10 @@ export interface FeZonePick {
 const RING_ZONE_RANK = { ring: 0, port: 1 } as const;
 
 /**
- * The zone whose ring band or port band a world point is on, a ring band winning over a port
- * band and the nearer ring where two overlap. Inside the ring is not a hit: the zone is empty
- * space, and a click there clears the selection or starts a marquee as it would anywhere else.
+ * The zone whose ring band, port band or centre a world point is on, a ring band winning over a
+ * port band, either over a centre, and the nearer ring where two overlap. A centre reads as the
+ * ring, so pressing there moves the zone; the rest of the inside is empty space, where a click
+ * clears the selection or starts a marquee as it would anywhere else.
  */
 export function pickFeZone(systems: Systems, cam: Camera, at: Pt): FeZonePick | null {
   const k = markerScale(cam.scale);
@@ -141,16 +142,28 @@ export function pickFeZone(systems: Systems, cam: Camera, at: Pt): FeZonePick | 
   for (const s of systems.values()) {
     const offset = ringOffset(s, at);
     if (offset === null) continue;
-    const zone = ringZoneOf(offset * cam.scale, k);
-    if (!zone) continue;
-    const rank = RING_ZONE_RANK[zone];
     const px = Math.abs(offset) * cam.scale;
+    const ring = ringZoneOf(offset * cam.scale, k);
+    const rank = ring ? RING_ZONE_RANK[ring] : centreHit(offset, cam) ? CENTRE_RANK : null;
+    if (rank === null) continue;
     if (rank > bestRank || (rank === bestRank && px >= bestPx)) continue;
-    best = { anchor: s.id, zone };
+    best = { anchor: s.id, zone: ring ?? "ring" };
     bestRank = rank;
     bestPx = px;
   }
   return best;
+}
+
+const CENTRE_RANK = 2;
+
+/** Whether a point `offset` outside the ring (negative inside) is within the zone's centre handle. */
+function centreHit(offset: number, cam: Camera): boolean {
+  const fromCentrePx = (offset + FE_ZONE_RADIUS) * cam.scale;
+  const reach = Math.max(
+    NEBULA_CENTRE_MIN_HIT_PX,
+    Math.min(NEBULA_CENTRE_HIT_PX, (FE_ZONE_RADIUS * cam.scale) / 2),
+  );
+  return fromCentrePx <= reach;
 }
 
 /** How far a world point lies outside the ring `anchor` anchors, negative inside; null without a zone. */

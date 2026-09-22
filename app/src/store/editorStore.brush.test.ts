@@ -52,7 +52,6 @@ describe("a paint stroke", () => {
       [-1, 3],
     ]);
     const added = (id: number, p: { x: number; y: number }) => ({
-      type: "AddSystem",
       id,
       x: p.x,
       y: p.y,
@@ -66,8 +65,7 @@ describe("a paint stroke", () => {
       type: "Batch",
       description: "Painted 2 systems and 2 lanes",
       ops: [
-        added(6, points[0]),
-        added(7, points[1]),
+        { type: "AddSystems", systems: [added(6, points[0]), added(7, points[1])] },
         {
           type: "AddLanePairs",
           lanes: [
@@ -105,7 +103,7 @@ describe("an erase stroke", () => {
     expect(mocked.applyOp).toHaveBeenLastCalledWith({
       type: "Batch",
       description: "Erased 1 system",
-      ops: [{ type: "RemoveSystem", id: 0 }],
+      ops: [{ type: "RemoveSystems", ids: [0] }],
     });
 
     const taken = erase({ eraseSpecials: true });
@@ -113,10 +111,7 @@ describe("an erase stroke", () => {
     expect(mocked.applyOp).toHaveBeenLastCalledWith({
       type: "Batch",
       description: "Erased 2 systems",
-      ops: [
-        { type: "RemoveSystem", id: 0 },
-        { type: "RemoveSystem", id: 1 },
-      ],
+      ops: [{ type: "RemoveSystems", ids: [0, 1] }],
     });
   });
 
@@ -152,7 +147,7 @@ describe("deleting a selection of systems", () => {
     expect(mocked.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Deleted 3 systems",
-      ops: [0, 1, 2].map((id) => ({ type: "RemoveSystem", id })),
+      ops: [{ type: "RemoveSystems", ids: [0, 1, 2] }],
     });
   });
 
