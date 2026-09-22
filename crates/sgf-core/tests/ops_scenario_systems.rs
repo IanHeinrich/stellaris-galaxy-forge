@@ -2,7 +2,7 @@
 //! one writes into the file, and what each op refuses.
 
 use sgf_core::document::Document;
-use sgf_core::ops::{InitializerSet, Op, OpError};
+use sgf_core::ops::{InitializerSet, NewSystem, Op, OpError};
 use sgf_core::session::Session;
 
 mod common;
@@ -324,4 +324,166 @@ fn clearing_an_initializer_leaves_the_spawn_weight_standing() {
             initializer: None,
         },
     );
+}
+
+/// One named with an initializer, one weighted, one bare.
+fn three_new_systems() -> Vec<NewSystem> {
+    let new = |id, x, y| NewSystem {
+        id,
+        x,
+        y,
+        name: None,
+        initializer: None,
+        spawn_weight: None,
+        spawn_script: None,
+    };
+    vec![
+        NewSystem {
+            name: Some("Alderaan".to_owned()),
+            initializer: Some("misc_system_init_01".to_owned()),
+            ..new(4000, 20.0, -30.5)
+        },
+        NewSystem {
+            spawn_weight: Some(5.0),
+            ..new(4001, 30.0, -40.0)
+        },
+        new(4002, -100.0, 100.25),
+    ]
+}
+
+#[test]
+fn add_systems_writes_three_systems_before_the_closing_brace() {
+    snapshot(
+        "add_systems_4000_4001_4002",
+        open(),
+        Op::AddSystems {
+            systems: three_new_systems(),
+        },
+    );
+}
+
+#[test]
+fn add_systems_is_one_history_entry_and_undo_and_redo_are_byte_identical() {
+    let mut session = open();
+    let result = session
+        .apply(Op::AddSystems {
+            systems: three_new_systems(),
+        })
+        .expect("add three systems");
+    assert_eq!(result.entry.description, "Added 3 systems");
+    assert_eq!(
+        result.entry.inverse,
+        Op::RemoveSystems {
+            ids: vec![4000, 4001, 4002]
+        }
+    );
+    assert_eq!(
+        session.history().undo.len(),
+        1,
+        "three systems, one undo step"
+    );
+    round_trip(
+        open(),
+        Op::AddSystems {
+            systems: three_new_systems(),
+        },
+    );
+}
+
+#[test]
+fn remove_systems_takes_each_line_and_every_lane_naming_one_once() {
+    snapshot(
+        "remove_systems_1_16_888",
+        open(),
+        Op::RemoveSystems {
+            ids: vec![1, 16, 888],
+        },
+    );
+}
+
+#[test]
+fn remove_systems_undo_and_redo_are_byte_identical_and_its_inverse_adds_them_back() {
+    round_trip(
+        open(),
+        Op::RemoveSystems {
+            ids: vec![1, 16, 888],
+        },
+    );
+    let mut session = open();
+    let result = session
+        .apply(Op::RemoveSystems {
+            ids: vec![1, 16, 888],
+        })
+        .expect("remove three systems");
+    for id in [1, 16, 888] {
+        assert!(!session.graph.systems.contains_key(&id));
+    }
+    assert!(session.graph.lane(2, 1).is_none() && session.graph.lane(1, 2).is_none());
+    let Op::AddSystems { systems } = result.entry.inverse.clone() else {
+        panic!("{:?}", result.entry.inverse);
+    };
+    let ids: Vec<u32> = systems.iter().map(|s| s.id).collect();
+    assert_eq!(ids, [1, 16, 888]);
+    session
+        .apply(result.entry.inverse)
+        .expect("the inverse adds the three back");
+    for id in [1, 16, 888] {
+        assert!(session.graph.systems.contains_key(&id));
+    }
+}
+
+#[test]
+fn bulk_system_ops_refuse_a_repeated_taken_or_unknown_id_and_leave_the_file_alone() {
+    let mut session = open();
+    let mut repeated = three_new_systems();
+    repeated[2].id = 4000;
+    let error = session
+        .apply(Op::AddSystems { systems: repeated })
+        .expect_err("4000 twice");
+    assert!(matches!(error, OpError::DuplicateSystem(4000)), "{error:?}");
+
+    let mut taken = three_new_systems();
+    taken[1].id = 2;
+    let error = session
+        .apply(Op::AddSystems { systems: taken })
+        .expect_err("2 is Coruscant");
+    assert!(matches!(error, OpError::SystemExists(2)), "{error:?}");
+
+    let mut null = three_new_systems();
+    null[0].id = u32::MAX;
+    let error = session
+        .apply(Op::AddSystems { systems: null })
+        .expect_err("the null id");
+    assert!(
+        matches!(error, OpError::NullSystemId(u32::MAX)),
+        "{error:?}"
+    );
+
+    let mut unplaced = three_new_systems();
+    unplaced[2].x = f64::NAN;
+    let error = session
+        .apply(Op::AddSystems { systems: unplaced })
+        .expect_err("not a coordinate");
+    assert!(matches!(error, OpError::NotFinite), "{error:?}");
+
+    let error = session
+        .apply(Op::RemoveSystems {
+            ids: vec![1, 16, 1],
+        })
+        .expect_err("1 twice");
+    assert!(matches!(error, OpError::DuplicateSystem(1)), "{error:?}");
+
+    let error = session
+        .apply(Op::RemoveSystems { ids: vec![1, 77] })
+        .expect_err("no system 77");
+    assert!(matches!(error, OpError::UnknownSystem(77)), "{error:?}");
+
+    let error = session
+        .apply(Op::RemoveSystems { ids: Vec::new() })
+        .expect_err("nothing to remove");
+    assert!(matches!(error, OpError::Empty), "{error:?}");
+
+    assert!(!session.doc.is_dirty());
+    assert_eq!(current(&session), bytes());
+    assert!(session.history().undo.is_empty());
 }

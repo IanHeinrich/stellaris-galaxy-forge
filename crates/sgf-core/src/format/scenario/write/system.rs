@@ -13,11 +13,13 @@ use crate::format::scenario::paint;
 use crate::keys::scenario as keys;
 use crate::ops::rules::systems::{decide_move, decide_moves};
 use crate::ops::rules::{check_name, quoted};
-use crate::ops::{Emitted, InitializerSet, Op, OpError, Plan, Planned, Subject, SystemMove};
+use crate::ops::{
+    Emitted, InitializerSet, NewSystem, Op, OpError, Plan, Planned, Subject, SystemMove,
+};
 use crate::overlay::Anchor;
-use crate::plural;
 use crate::projections::galaxy::SpawnScript;
 use crate::session::Session;
+use crate::{NULL_ID, plural};
 
 pub(super) fn move_one(
     plan: &mut Plan,
@@ -53,7 +55,7 @@ pub(super) fn move_many(
 }
 
 /// [`Op::AddSystem`]'s fields, borrowed for planning.
-pub(super) struct NewSystem<'a> {
+pub(super) struct SystemFields<'a> {
     pub id: Option<u32>,
     pub x: f64,
     pub y: f64,
@@ -63,10 +65,67 @@ pub(super) struct NewSystem<'a> {
     pub spawn_script: Option<&'a SpawnScript>,
 }
 
+impl<'a> From<&'a NewSystem> for SystemFields<'a> {
+    fn from(new: &'a NewSystem) -> Self {
+        Self {
+            id: Some(new.id),
+            x: new.x,
+            y: new.y,
+            name: new.name.as_deref(),
+            initializer: new.initializer.as_deref(),
+            spawn_weight: new.spawn_weight,
+            spawn_script: new.spawn_script.as_ref(),
+        }
+    }
+}
+
+pub(super) fn add_system(
+    plan: &mut Plan,
+    s: &Session,
+    new: SystemFields,
+) -> Result<Planned, OpError> {
+    let (id, description) = emit_system(plan, s, new)?;
+    Ok(Planned {
+        description,
+        inverse: Op::RemoveSystem { id },
+    })
+}
+
+pub(super) fn add_systems(
+    plan: &mut Plan,
+    s: &Session,
+    systems: &[NewSystem],
+) -> Result<Planned, OpError> {
+    if systems.is_empty() {
+        return Err(OpError::Empty);
+    }
+    let mut seen = BTreeSet::new();
+    for new in systems {
+        if !seen.insert(new.id) {
+            return Err(OpError::DuplicateSystem(new.id));
+        }
+    }
+    let mut one = String::new();
+    for new in systems {
+        (_, one) = emit_system(plan, s, new.into())?;
+    }
+    let description = match systems.len() {
+        1 => one,
+        n => format!("Added {}", plural(n, "system")),
+    };
+    Ok(Planned {
+        description,
+        inverse: Op::RemoveSystems {
+            ids: systems.iter().map(|new| new.id).collect(),
+        },
+    })
+}
+
 /// A seat needs a starting initializer, so a scripted system naming none is given the
-/// dialect's basic one, as [`Op::SetSpawnScript`] gives it.
-pub(super) fn add_system(plan: &mut Plan, s: &Session, new: NewSystem) -> Result<Planned, OpError> {
-    let NewSystem {
+/// dialect's basic one, as [`Op::SetSpawnScript`] gives it. Returns the id written and
+/// what to call the change.
+fn emit_system(plan: &mut Plan, s: &Session, new: SystemFields) -> Result<(u32, String), OpError> {
+    let SystemFields {
         id,
         x,
         y,
@@ -92,6 +151,9 @@ pub(super) fn add_system(plan: &mut Plan, s: &Session, new: NewSystem) -> Result
     }
     let scenario = index(&s.doc);
     let id = id.unwrap_or_else(|| scenario.next_id());
+    if id == NULL_ID {
+        return Err(OpError::NullSystemId(id));
+    }
     if scenario.system(id).is_some() {
         return Err(OpError::SystemExists(id));
     }
@@ -121,40 +183,94 @@ pub(super) fn add_system(plan: &mut Plan, s: &Session, new: NewSystem) -> Result
         Some(script) => format!(" as a Paint a Galaxy spawn ({})", paint::label(script)),
         None => String::new(),
     };
-    Ok(Planned {
-        description: format!("Added system {id} at ({}, {}){seat}", coord(x), coord(y)),
-        inverse: Op::RemoveSystem { id },
-    })
+    Ok((
+        id,
+        format!("Added system {id} at ({}, {}){seat}", coord(x), coord(y)),
+    ))
 }
 
 pub(super) fn remove_system(plan: &mut Plan, s: &Session, id: u32) -> Result<Planned, OpError> {
-    let scenario = index(&s.doc);
-    let anchor = scenario.system(id).ok_or(OpError::UnknownSystem(id))?;
-    let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
-    let spawn_script = system.spawn_script.clone();
-    let restore = Op::AddSystem {
-        id: Some(id),
-        x: system.x,
-        y: system.y,
-        name: some_text(&system.name.key),
-        initializer: some_text(&system.initializer),
-        spawn_weight: match spawn_script {
-            Some(_) => None,
-            None => spawn_weight_of(&s.doc, anchor),
-        },
+    let (mut restore, lanes) = erase_systems(plan, s, &[id])?;
+    let NewSystem {
+        id,
+        x,
+        y,
+        name,
+        initializer,
+        spawn_weight,
         spawn_script,
-    };
+    } = restore.pop().expect("one system erased");
+    Ok(Planned {
+        description: format!("Removed system {id} ({lanes} lanes)"),
+        inverse: Op::AddSystem {
+            id: Some(id),
+            x,
+            y,
+            name,
+            initializer,
+            spawn_weight,
+            spawn_script,
+        },
+    })
+}
 
-    let statements = super::matching(&s.doc, |l| l.from == id || l.to == id);
-    let lanes = statements.iter().filter(|l| !l.prevent).count();
-    plan.erase(&s.doc, Subject::System(id), anchor)?;
+pub(super) fn remove_systems(
+    plan: &mut Plan,
+    s: &Session,
+    ids: &[u32],
+) -> Result<Planned, OpError> {
+    if ids.is_empty() {
+        return Err(OpError::Empty);
+    }
+    let (restore, lanes) = erase_systems(plan, s, ids)?;
+    let description = match ids {
+        [id] => format!("Removed system {id} ({lanes} lanes)"),
+        _ => format!("Removed {} ({lanes} lanes)", plural(ids.len(), "system")),
+    };
+    Ok(Planned {
+        description,
+        inverse: Op::AddSystems { systems: restore },
+    })
+}
+
+/// Empty each system's statement and every hyperlane statement naming any of them, once
+/// each. Returns what puts each system back (the spawn weight best effort, `None` when a
+/// modifier stood) and how many `add_hyperlane` statements went with them.
+fn erase_systems(
+    plan: &mut Plan,
+    s: &Session,
+    ids: &[u32],
+) -> Result<(Vec<NewSystem>, usize), OpError> {
+    let scenario = index(&s.doc);
+    let mut seen = BTreeSet::new();
+    let mut restore = Vec::with_capacity(ids.len());
+    for &id in ids {
+        if !seen.insert(id) {
+            return Err(OpError::DuplicateSystem(id));
+        }
+        let anchor = scenario.system(id).ok_or(OpError::UnknownSystem(id))?;
+        let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
+        let spawn_script = system.spawn_script.clone();
+        restore.push(NewSystem {
+            id,
+            x: system.x,
+            y: system.y,
+            name: some_text(&system.name.key),
+            initializer: some_text(&system.initializer),
+            spawn_weight: match spawn_script {
+                Some(_) => None,
+                None => spawn_weight_of(&s.doc, anchor),
+            },
+            spawn_script,
+        });
+        plan.erase(&s.doc, Subject::System(id), anchor)?;
+    }
+    let statements = super::matching(&s.doc, |l| seen.contains(&l.from) || seen.contains(&l.to));
     for stmt in &statements {
         super::erase(plan, &s.doc, stmt)?;
     }
-    Ok(Planned {
-        description: format!("Removed system {id} ({lanes} lanes)"),
-        inverse: restore,
-    })
+    let lanes = statements.iter().filter(|l| !l.prevent).count();
+    Ok((restore, lanes))
 }
 
 /// The removed statement's spawn weight, when it stood as a plain `base = N` with no

@@ -1,0 +1,42 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed 3 systems (6 lanes)
+touched: [1, 2, 9, 16, 111, 512, 888]
+inverse: AddSystems { systems: [NewSystem { id: 1, x: 0.0, y: 0.0, name: Some("Galactic Center"), initializer: Some("misc_system_init_01"), spawn_weight: None, spawn_script: None }, NewSystem { id: 16, x: -54.0, y: -88.5, name: None, initializer: None, spawn_weight: None, spawn_script: None }, NewSystem { id: 888, x: 90.0, y: -60.0, name: Some("Reserved"), initializer: Some("custom_starting_init_01"), spawn_weight: None, spawn_script: None }] }
+warning system_isolated: system 2 has no hyperlanes
+warning system_isolated: system 9 has no hyperlanes
+warning disconnected: galaxy has 3 components, 2 at load; newly separated: 2
+warning position_range: system 111 position was a range and will be fixed on move
+
+--- scenario
++++ scenario
+@@ -32,9 +32,7 @@
+ 	}
+ 
+ 	### Systems, one per line in the mod's shape
+-	system = { id = "1" name = "Galactic Center" position = { x = 0 y = 0 } initializer = misc_system_init_01 }
+ 	system = { id = "2" name = "Coruscant" position = { x = 0 y = -56 } initializer = custom_starting_init_01 spawn_weight = { base = 0 modifier = { add = 10000 has_country_flag = galactic_empire } } } # trailing comment with } brace
+-	system = { id = "16" name = "" position = { x = -54 y = -88.5 z = 4 } }
+ 	system = { id = "111" name = "NAME_Corellia" position = { x = { min = 20 max = 30 } y = 18 } spawn_design = my_design }
+ 
+ 	# a multi-line system with an effect block
+@@ -50,17 +48,9 @@
+ 	}
+ 	system = { id = "9" name = "Lonely" position = { x = -90 y = 90 } }
+ 	system = { id = "512" name = "Flagged" position = { x = 70 y = -20 } initializer = misc_system_init_02 spawn_weight = { modifier = { add = 10000 has_country_flag = sgf_grammar } } }
+-	system = { id = "888" name = "Reserved" position = { x = 90 y = -60 } initializer = custom_starting_init_01 spawn_weight = { base = 1 modifier = { factor = 0 is_ai = yes } } }
+ 
+-	add_hyperlane = { from = "1" to = "2" }
+-	add_hyperlane = { from = "2" to = "1" }
+-	add_hyperlane = { from = "1" to = "16" }
+-	add_hyperlane = { from = "1" to = "16" }
+-	add_hyperlane = { from = "16" to = "111" }
+ 	add_hyperlane = { from = "111" to = "3018" }
+-	prevent_hyperlane = { from = "9" to = "1" }
+ 	add_hyperlane = { from = "3018" to = "512" }
+-	add_hyperlane = { from = "512" to = "888" }
+ 
+ 	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = 0 y = 0 } radius = 60 }
+ 	nebula = { name = "Far Cloud" position = { x = -90 y = 90 } radius = 20 }

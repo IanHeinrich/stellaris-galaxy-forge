@@ -256,6 +256,8 @@ fn is_a_nebula_op(op: &Op) -> bool {
         | Op::UnpreventLane { .. }
         | Op::AddSystem { .. }
         | Op::RemoveSystem { .. }
+        | Op::AddSystems { .. }
+        | Op::RemoveSystems { .. }
         | Op::SetSystemName { .. }
         | Op::SetInitializer { .. }
         | Op::SetInitializers { .. }

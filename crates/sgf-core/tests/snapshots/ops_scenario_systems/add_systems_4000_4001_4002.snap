@@ -1,0 +1,23 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added 3 systems
+touched: [4000, 4001, 4002]
+inverse: RemoveSystems { ids: [4000, 4001, 4002] }
+warning system_isolated: system 4000 has no hyperlanes
+warning system_isolated: system 4001 has no hyperlanes
+warning system_isolated: system 4002 has no hyperlanes
+warning disconnected: galaxy has 5 components, 2 at load; newly separated: 
+… and 2 other issues
+
+--- scenario
++++ scenario
+@@ -64,4 +64,7 @@
+ 
+ 	nebula = { name = "NAME_N_Heart_Galaxy" position = { x = 0 y = 0 } radius = 60 }
+ 	nebula = { name = "Far Cloud" position = { x = -90 y = 90 } radius = 20 }
++	system = { id = "4000" name = "Alderaan" position = { x = 20 y = -30.5 } initializer = misc_system_init_01 }
++	system = { id = "4001" name = "" position = { x = 30 y = -40 } spawn_weight = { base = 5 } }
++	system = { id = "4002" name = "" position = { x = -100 y = 100.25 } }
+ }

@@ -103,6 +103,8 @@ impl Format for Save {
             | Op::Batch { .. } => true,
             Op::AddSystem { .. }
             | Op::RemoveSystem { .. }
+            | Op::AddSystems { .. }
+            | Op::RemoveSystems { .. }
             | Op::SetSystemName { .. }
             | Op::SetInitializer { .. }
             | Op::SetInitializers { .. }

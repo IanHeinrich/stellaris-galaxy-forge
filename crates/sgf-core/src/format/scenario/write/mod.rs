@@ -75,7 +75,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         } => system::add_system(
             plan,
             s,
-            system::NewSystem {
+            system::SystemFields {
                 id: *id,
                 x: *x,
                 y: *y,
@@ -86,6 +86,8 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
             },
         ),
         Op::RemoveSystem { id } => system::remove_system(plan, s, *id),
+        Op::AddSystems { systems } => system::add_systems(plan, s, systems),
+        Op::RemoveSystems { ids } => system::remove_systems(plan, s, ids),
         Op::SetSystemName { id, name } => system::set_name(plan, s, *id, name),
         Op::SetInitializer { id, initializer } => {
             system::set_initializer(plan, s, *id, initializer.as_deref())
