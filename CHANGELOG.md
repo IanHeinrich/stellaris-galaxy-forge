@@ -10,6 +10,11 @@ a release is made.
 
 ## [0.9.0] - 2026-09-22
 
+### Added
+
+- The Windows installer, the portable app and the `sgf` command-line tool
+  are signed. Windows no longer warns that the publisher is unknown.
+
 ### Changed
 
 - The Issues tab says what each issue is, what it costs you in game and

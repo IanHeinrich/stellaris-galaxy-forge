@@ -118,12 +118,65 @@ jobs:
             exit 1
           fi
 
+      - name: Certum credentials present
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
+        run: |
+          missing=""
+          [ -n "$CERTUM_USERNAME" ] || missing="$missing CERTUM_USERNAME(secret)"
+          [ -n "$CERTUM_OTP_URI" ] || missing="$missing CERTUM_OTP_URI(secret)"
+          [ -n "$CERTUM_KEY_ID" ] || missing="$missing CERTUM_KEY_ID(secret)"
+          if [ -n "$missing" ]; then
+            echo "::error::Not set:$missing. The Windows artifacts would be unsigned, so this release is stopped."
+            exit 1
+          fi
+
+      # Pinned to main @ 2026-09-07 (7309c42); the repository publishes no tags or
+      # releases. This action is handed the TOTP seed for the signing certificate.
+      - name: Certum SimplySign session
+        if: runner.os == 'Windows'
+        uses: Rumia-Channel/windows-certum-signin@7309c42a695ddaf95cd705eaf95a4de8bbab2a0c
+        with:
+          certum-username: ${{ secrets.CERTUM_USERNAME }}
+          certum-otp-uri: ${{ secrets.CERTUM_OTP_URI }}
+          certum-key-id: ${{ secrets.CERTUM_KEY_ID }}
+
+      # Tauri finds signtool itself; the steps that sign outside the bundler need the path.
+      - name: Locate signtool
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
+              -Filter signtool.exe -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $tool) { throw "signtool.exe (x64) was not found on this runner." }
+          Write-Host $tool.FullName
+          "SIGNTOOL=$($tool.FullName)" >> $env:GITHUB_ENV
+
       - name: App bundles
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm run tauri build -- --config src-tauri/tauri.release.conf.json ${{ matrix.tauri-args }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
+        run: |
+          # The thumbprint is not in the config file, so it is merged in here. Authenticode
+          # signing has to happen inside the bundler: the updater's .sig is taken over the
+          # finished bundle, so a bundle signed afterwards would no longer match it.
+          args=(--config src-tauri/tauri.release.conf.json)
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            # A file, not inline JSON: npm reaches the CLI through cmd.exe, which mangles
+            # embedded quotes, and a thumbprint lost that way would skip signing silently.
+            conf="$RUNNER_TEMP/sgf-signing.conf.json"
+            printf '{"bundle":{"windows":{"certificateThumbprint":"%s"}}}' "$CERTUM_KEY_ID" > "$conf"
+            args+=(--config "$(cygpath -w "$conf")")
+          fi
+          npm run tauri build -- "${args[@]}" ${{ matrix.tauri-args }}
         working-directory: app
 
       - name: Collect the bundles
@@ -142,6 +195,8 @@ jobs:
 
       - name: sgf command-line tool
         shell: bash
+        env:
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
         run: |
           mkdir -p target/cli
           if [ "$RUNNER_OS" = "macOS" ]; then
@@ -159,6 +214,8 @@ jobs:
             fi
           fi
           if [ "$RUNNER_OS" = "Windows" ]; then
+            "$SIGNTOOL" sign /fd sha256 /sha1 "$CERTUM_KEY_ID" \
+              /tr http://time.certum.pl /td sha256 /d "sgf" target/cli/sgf.exe
             (cd target/cli && 7z a "$GITHUB_WORKSPACE/dist/sgf-$TAG-${{ matrix.cli-asset }}.zip" sgf.exe)
           else
             tar -C target/cli -czf "dist/sgf-$TAG-${{ matrix.cli-asset }}.tar.gz" sgf
@@ -167,6 +224,8 @@ jobs:
       - name: Portable app
         if: runner.os == 'Windows'
         shell: bash
+        env:
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
         run: |
           exe="target/release/Stellaris Galaxy Forge.exe"
           if [ ! -f "$exe" ]; then
@@ -178,7 +237,23 @@ jobs:
           fi
           mkdir -p "$RUNNER_TEMP/portable"
           cp "$exe" "$RUNNER_TEMP/portable/"
+          # The bundler signs this binary once per installer it builds, then restores the
+          # unsigned copy it took beforehand, so what is left in target/release is unsigned.
+          "$SIGNTOOL" sign /fd sha256 /sha1 "$CERTUM_KEY_ID" \
+            /tr http://time.certum.pl /td sha256 /d "Stellaris Galaxy Forge" \
+            "$RUNNER_TEMP/portable/$(basename "$exe")"
           (cd "$RUNNER_TEMP/portable" && 7z a "$GITHUB_WORKSPACE/dist/stellaris-galaxy-forge-$TAG-windows-x86_64-portable.zip" ./*.exe)
+
+      # Tauri skips signing silently when it is given no thumbprint, so the artifacts are
+      # checked rather than assumed.
+      - name: Windows artifacts are signed
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          for f in dist/*.exe dist/*.msi; do
+            [ -f "$f" ] || continue
+            "$SIGNTOOL" verify /pa "$f"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
