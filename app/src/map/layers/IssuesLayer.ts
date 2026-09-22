@@ -7,6 +7,7 @@ import { titleCase } from "../../lib/text";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { destroyChildren } from "./destroyChildren";
 import { markerScale, type MapLayer } from "./MapLayer";
 
 const RADIUS = 18;
@@ -67,7 +68,7 @@ export class IssuesLayer implements MapLayer {
   }
 
   applyDelta(d: GalaxyDelta): void {
-    for (const id of d.removed ?? []) this.remove(id);
+    this.remove(d.removed ?? []);
     for (const s of d.systems) this.rings.get(s.id)?.position.set(s.x, s.y);
   }
 
@@ -90,9 +91,9 @@ export class IssuesLayer implements MapLayer {
   }
 
   private place(): void {
-    for (const id of [...this.rings.keys()]) {
-      if (!this.issues.has(id) || !this.systems.has(id)) this.remove(id);
-    }
+    this.remove(
+      [...this.rings.keys()].filter((id) => !this.issues.has(id) || !this.systems.has(id)),
+    );
     for (const [id, issue] of this.issues) {
       const s = this.systems.get(id);
       if (!s) continue;
@@ -137,11 +138,15 @@ export class IssuesLayer implements MapLayer {
     useMapChromeStore.getState().hideTooltip();
   }
 
-  private remove(id: number): void {
-    const ring = this.rings.get(id);
-    if (!ring) return;
-    this.unhover(id);
-    ring.destroy();
-    this.rings.delete(id);
+  private remove(ids: readonly number[]): void {
+    const doomed = new Set<Container>();
+    for (const id of ids) {
+      const ring = this.rings.get(id);
+      if (!ring) continue;
+      this.unhover(id);
+      doomed.add(ring);
+      this.rings.delete(id);
+    }
+    destroyChildren(this.container, doomed);
   }
 }

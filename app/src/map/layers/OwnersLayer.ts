@@ -176,8 +176,9 @@ export class OwnersLayer implements MapLayer {
   applyDelta(d: GalaxyDelta): void {
     const ids = new Set(d.systems.map((s) => s.id));
     const owners = this.hiddenTakenOff(this.ctx.owners);
-    for (const id of new Set([...this.owners.keys(), ...owners.keys()])) {
-      if (this.owners.get(id) !== owners.get(id)) ids.add(id);
+    if (owners !== this.owners) {
+      for (const [id, owner] of owners) if (this.owners.get(id) !== owner) ids.add(id);
+      for (const id of this.owners.keys()) if (!owners.has(id)) ids.add(id);
     }
     this.owners = owners;
     const changed: TerritorySystem[] = [];

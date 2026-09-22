@@ -16,6 +16,7 @@ import { feZonePreview, type FeZonePreview } from "../feZonePreview";
 import { nebulaPreview, type NebulaGeometry, type NebulaPreview } from "../nebulaPreview";
 import { pickEdge, pickFeZone, pickNebula, pickSystem, snapTarget } from "../picking";
 import type { MapEdge } from "../picking/edges";
+import { PickIndex } from "../picking/pickIndex";
 import { BrushModel } from "./BrushModel";
 import { BrushStrokes } from "./brushStrokes";
 import { GestureModel } from "./GestureModel";
@@ -80,6 +81,7 @@ export class InteractionController {
   private nebulaTip: MapTooltip | null = null;
   /** The pointer in world units, rewritten per event rather than allocated. */
   private readonly at: Pt = { x: 0, y: 0 };
+  private readonly index = new PickIndex();
   private readonly cleanups: Array<() => void> = [];
 
   constructor(
@@ -275,10 +277,19 @@ export class InteractionController {
     this.model = this.modelFor(useToolStore.getState().tool);
     this.bindPointer();
     this.bindKeyboard();
+    this.index.build(systems());
     this.cleanups.push(
       useToolStore.subscribe((state, previous) => {
         if (state.tool !== previous.tool) this.swapModel(this.modelFor(state.tool));
         if (state.size !== previous.size) this.brushes.drawCursor();
+      }),
+      useGalaxyStore.subscribe((state, previous) => {
+        if (state.version === previous.version) return;
+        if (state.galaxy === previous.galaxy && state.lastDelta) {
+          this.index.apply(state.lastDelta, state.systems);
+        } else {
+          this.index.build(state.systems);
+        }
       }),
     );
   }
@@ -321,23 +332,8 @@ export class InteractionController {
   }
 
   private input(kind: InputKind, e: PointerEvent): MapInput {
-    const { grid, systems, nebulae } = useGalaxyStore.getState();
     const w = this.cam.screenToWorld(e.offsetX, e.offsetY, this.at);
-    const picked = grid ? pickSystem(grid, this.cam, w) : { system: null, zone: null };
-    const system = picked.system;
-    const layers = useMapChromeStore.getState().layers;
-    const zones = layers.feZones && getPaintLayer();
-    const { edge, midpointHit } =
-      system === null
-        ? pickEdge(systems, this.cam, w, this.hoverEdge, zones)
-        : { edge: null, midpointHit: false };
-    const feZone =
-      zones && system === null && edge === null ? pickFeZone(systems, this.cam, w) : null;
-    const nebula =
-      layers.nebulae && system === null && edge === null && feZone === null
-        ? pickNebula(nebulae, this.cam, w, editor().selectedNebula)
-        : null;
-    return {
+    const input: MapInput = {
       kind,
       sx: e.offsetX,
       sy: e.offsetY,
@@ -348,6 +344,36 @@ export class InteractionController {
       ctrl: e.ctrlKey || e.metaKey,
       alt: e.altKey,
       selection: editor().selection,
+      system: null,
+      zone: null,
+      edge: null,
+      midpointHit: false,
+      feZone: null,
+      snap: null,
+      nebula: null,
+    };
+    return this.model === this.selectModel ? this.pick(input, w) : input;
+  }
+
+  /** What is under the pointer; a brush reads only where the pointer is, so it never asks. */
+  private pick(input: MapInput, w: Pt): MapInput {
+    const { grid, systems, nebulae } = useGalaxyStore.getState();
+    const picked = grid ? pickSystem(grid, this.cam, w) : { system: null, zone: null };
+    const system = picked.system;
+    const layers = useMapChromeStore.getState().layers;
+    const zones = layers.feZones && getPaintLayer();
+    const { edge, midpointHit } =
+      system === null
+        ? pickEdge(this.index, systems, this.cam, w, this.hoverEdge, zones)
+        : { edge: null, midpointHit: false };
+    const feZone =
+      zones && system === null && edge === null ? pickFeZone(this.index, this.cam, w) : null;
+    const nebula =
+      layers.nebulae && system === null && edge === null && feZone === null
+        ? pickNebula(nebulae, this.cam, w, editor().selectedNebula)
+        : null;
+    return {
+      ...input,
       system,
       zone: system === null ? (feZone?.zone ?? null) : picked.zone,
       edge,
@@ -356,7 +382,7 @@ export class InteractionController {
       snap:
         this.laneFrom === null || !grid
           ? null
-          : snapTarget(grid, systems, this.cam, w, this.laneFrom, zones),
+          : snapTarget(grid, this.index, systems, this.cam, w, this.laneFrom, zones),
       nebula,
     };
   }

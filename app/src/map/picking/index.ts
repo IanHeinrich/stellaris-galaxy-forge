@@ -6,7 +6,8 @@ import type { Camera } from "../Camera";
 import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
 import { linkRefusal, type Segment } from "../../lib/feLinks";
 import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
-import { edgeEnds, nearestEdge, type MapEdge } from "./edges";
+import { edgeEnds, type MapEdge } from "./edges";
+import type { PickIndex } from "./pickIndex";
 import {
   LANE_PICK_RADIUS_PX,
   MIDPOINT_HIT_PX,
@@ -134,12 +135,12 @@ const RING_ZONE_RANK = { ring: 0, port: 1 } as const;
  * ring, so pressing there moves the zone; the rest of the inside is empty space, where a click
  * clears the selection or starts a marquee as it would anywhere else.
  */
-export function pickFeZone(systems: Systems, cam: Camera, at: Pt): FeZonePick | null {
+export function pickFeZone(index: PickIndex, cam: Camera, at: Pt): FeZonePick | null {
   const k = markerScale(cam.scale);
   let best: FeZonePick | null = null;
   let bestRank = Infinity;
   let bestPx = Infinity;
-  for (const s of systems.values()) {
+  for (const s of index.anchors()) {
     const offset = ringOffset(s, at);
     if (offset === null) continue;
     const px = Math.abs(offset) * cam.scale;
@@ -189,6 +190,7 @@ export function pickSystem(grid: SpatialGrid, cam: Camera, at: Pt): SystemPick {
  * `sticky` keeps the hovered edge while the point is on its button.
  */
 export function pickEdge(
+  index: PickIndex,
   systems: Systems,
   cam: Camera,
   at: Pt,
@@ -198,7 +200,7 @@ export function pickEdge(
   if (sticky && nearMidpoint(cam, edgeEnds(systems, sticky), at)) {
     return { edge: sticky, midpointHit: true };
   }
-  const edge = nearestEdge(systems, at.x, at.y, LANE_PICK_RADIUS_PX / cam.scale, links);
+  const edge = index.nearestEdge(at.x, at.y, LANE_PICK_RADIUS_PX / cam.scale, links);
   return { edge, midpointHit: edge !== null && nearMidpoint(cam, edgeEnds(systems, edge), at) };
 }
 
@@ -211,6 +213,18 @@ export function nearMidpoint(cam: Camera, segment: Segment | null, at: Pt): bool
 }
 
 const NO_NAME = () => "";
+const NO_IDS: ReadonlySet<number> = new Set();
+const idSets = new WeakMap<readonly number[], ReadonlySet<number>>();
+
+/** `ids` as a set, made once per array: a lane drag hands the same group to every move. */
+function idSet(ids: readonly number[]): ReadonlySet<number> {
+  let set = idSets.get(ids);
+  if (!set) {
+    set = new Set(ids);
+    idSets.set(ids, set);
+  }
+  return set;
+}
 
 /**
  * What a lane drag from `from` would snap to: the nearest system inside the snap radius or,
@@ -219,6 +233,7 @@ const NO_NAME = () => "";
  */
 export function snapTarget(
   grid: SpatialGrid,
+  index: PickIndex,
   systems: Systems,
   cam: Camera,
   at: Pt,
@@ -226,10 +241,10 @@ export function snapTarget(
   zones: boolean,
 ): LaneTarget | null {
   const reach = SNAP_RADIUS_PX / cam.scale;
-  const s = nearestOutside(grid, at, reach, from.kind === "systems" ? from.ids : []);
+  const s = nearestOutside(grid, at, reach, from.kind === "systems" ? idSet(from.ids) : NO_IDS);
   if (s) return { kind: "system", id: s.id, valid: canConnect(systems, from, s) };
   if (from.kind !== "systems" || !zones) return null;
-  const anchor = nearestRing(systems, at, reach);
+  const anchor = nearestRing(index, at, reach);
   if (!anchor) return null;
   const valid = from.ids.some((id) => {
     const system = systems.get(id);
@@ -246,10 +261,10 @@ function canConnect(systems: Systems, from: LaneSource, target: SystemNode): boo
 }
 
 /** The anchor whose ring line lies within `maxDist` of a world point, the nearest where two do. */
-function nearestRing(systems: Systems, at: Pt, maxDist: number): SystemNode | null {
+function nearestRing(index: PickIndex, at: Pt, maxDist: number): SystemNode | null {
   let best: SystemNode | null = null;
   let bestOffset = maxDist;
-  for (const s of systems.values()) {
+  for (const s of index.anchors()) {
     const offset = ringOffset(s, at);
     if (offset !== null && Math.abs(offset) <= bestOffset) {
       bestOffset = Math.abs(offset);
@@ -264,12 +279,12 @@ export function nearestOutside(
   grid: SpatialGrid,
   at: Pt,
   maxDist: number,
-  excluded: number[],
+  excluded: ReadonlySet<number>,
 ): SystemNode | null {
   let best: SystemNode | null = null;
   let bestD2 = maxDist * maxDist;
   grid.forEachIn(at.x - maxDist, at.y - maxDist, at.x + maxDist, at.y + maxDist, (s) => {
-    if (excluded.includes(s.id)) return;
+    if (excluded.has(s.id)) return;
     const d2 = (s.x - at.x) ** 2 + (s.y - at.y) ** 2;
     if (d2 <= bestD2) {
       bestD2 = d2;

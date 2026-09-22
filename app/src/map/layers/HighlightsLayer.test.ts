@@ -1,5 +1,5 @@
 import type { Graphics } from "pixi.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { newFeZone } from "../../lib/feZone";
 import { systemNode } from "../../test/builders";
@@ -170,5 +170,52 @@ describe("the highlights layer's port ring", () => {
     expect(port.alpha).toBe(1);
     layer.setRubberLane({ from: { kind: "feZone", anchor: 0 }, x: 100, y: 0, target: null });
     expect(startOf(port)).toBeUndefined();
+  });
+});
+
+describe("the highlights layer's selection", () => {
+  /** Where the shown rings of a batch sit, `[x, y]`. */
+  const ringsOf = (layer: HighlightsLayer, label: string) =>
+    childByLabel(layer.container, label)
+      .children.filter((g) => g.visible)
+      .map((g) => [g.x, g.y]);
+
+  it("rings the selection, and a hover or an unrelated delta leaves the rings alone", () => {
+    const layer = drawn();
+    layer.setSelection([1, 2]);
+    expect(ringsOf(layer, "selectionRings")).toEqual([
+      [200, 0],
+      [100, 100],
+    ]);
+    const first = childByLabel(layer.container, "selectionRings").children[0];
+    const moved = vi.spyOn(first.position, "set");
+
+    layer.setHover(3);
+    layer.setHover(1);
+    layer.setHover(null);
+    const far = { ...LANE_B, x: 320 };
+    layer.rebuild(mapContext([ANCHOR, LINKED, LANE_A, far], { paintLayer: true }));
+    layer.applyDelta({ systems: [far] });
+    expect(moved).not.toHaveBeenCalled();
+
+    const selected = { ...LANE_A, x: 120 };
+    layer.rebuild(mapContext([ANCHOR, LINKED, selected, far], { paintLayer: true }));
+    layer.applyDelta({ systems: [selected] });
+    expect(ringsOf(layer, "selectionRings")).toEqual([
+      [200, 0],
+      [120, 100],
+    ]);
+  });
+
+  it("rescales the rings with the zoom and hides the spare ones", () => {
+    const layer = drawn(4);
+    layer.setSelection([1, 2]);
+    const ring = childByLabel(layer.container, "selectionRings").children[0];
+    const near = Math.abs(ring.scale.x);
+    viewport(layer, 1);
+    expect(Math.abs(ring.scale.x)).toBeGreaterThan(near);
+
+    layer.setSelection([2]);
+    expect(ringsOf(layer, "selectionRings")).toEqual([[100, 100]]);
   });
 });
