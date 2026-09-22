@@ -279,9 +279,6 @@ in-game checks that go with a change to the galaxy.
   scripts to the fallen empire zones and wormhole pairs, is the mod's
   format, and its scripts and source were the reference for how they
   behave. The New scenario dialog links to the site and opens its export.
-  Reading the site's source also confirmed two facts this editor relies
-  on: which way a scenario's `position` runs, and that the game assigns
-  initializers in the order the `system` statements are listed.
 - The facts about the save format and the install were measured from the
   game's own files. For the edge cases of how mods layer over the install
   (load order, `replace_path`) and of the script dialect,
