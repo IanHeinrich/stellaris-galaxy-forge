@@ -653,8 +653,8 @@ app asks "Discard unsaved changes?"; Cancel keeps your session.
 
 Launch Stellaris and load the save as usual; the game lists each folder
 under `save games` as a campaign. Load it with the same DLC and mod set
-the save was made with. Then, from what has been checked in-game on
-4.4.6:
+the save was made with. The editor works on 4.x saves. Then, from what
+has been checked in-game on 4.4.6 and 4.5.0:
 
 - A moved system sits at its new position with its lanes drawn to its old
   neighbours. The game takes a lane's travel cost from the stored length,

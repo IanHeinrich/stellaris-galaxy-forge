@@ -1,7 +1,7 @@
 # Game data and mod notes
 
 Reference for the Stellaris install, its definition files, its
-localisation and the launcher's mod registration, as of Stellaris 4.4.
+localisation and the launcher's mod registration, as of Stellaris 4.5.
 Re-verify on every game version. Sibling of
 [format-notes.md](format-notes.md), which covers the save itself.
 
@@ -137,8 +137,8 @@ is what the game loads.
 Install discovery: Steam's `libraryfolders.vdf` lists every library, and
 the game is app `281990` under `steamapps/common/Stellaris`.
 `launcher-settings.json` in the game root carries
-`"rawVersion": "v4.4.6"`, comparable with the save's
-`meta.version="Pegasus v4.4.6"`. Always allow a manual path as a fallback
+`"rawVersion": "v4.5.0"`, comparable with the save's
+`meta.version="Cygnus v4.5.0"`. Always allow a manual path as a fallback
 for GOG, the Paradox launcher and unusual layouts.
 
 ## The save records DLCs, not mods
