@@ -131,23 +131,26 @@ the more room there is to extend it. The other is what people ask for.
 Download the latest release from
 [the Releases page](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases).
 
-- Windows: the NSIS installer,
-  `Stellaris.Galaxy.Forge_<x.y.z>_x64-setup.exe`, or the MSI. Windows
-  SmartScreen will warn that the app is unsigned. Click "More info", then
+- Windows: `Stellaris-Galaxy-Forge-<x.y.z>-Windows-Setup.exe`, or
+  `Stellaris-Galaxy-Forge-<x.y.z>-Windows.msi`. Both are signed by "Open
+  Source Developer, Ian Heinrich". While the certificate is new, Windows
+  SmartScreen may still warn before it runs. Click "More info", then
   "Run anyway".
-- Windows, no installer: the portable zip,
-  `stellaris-galaxy-forge-v<x.y.z>-windows-x86_64-portable.zip`. It needs
-  the WebView2 runtime, which Windows 11 already has.
-- Linux: the `.AppImage`, `.deb` or `.rpm` for your distribution (all
-  built on Ubuntu 22.04, x86_64). The AppImage needs `chmod +x` before it
-  will run.
-- macOS: the universal `.dmg`. It is not signed, so Gatekeeper will
-  refuse to open it until you run
+- Windows, no installer:
+  `Stellaris-Galaxy-Forge-<x.y.z>-Windows-Portable.zip`. It needs the
+  WebView2 runtime, which Windows 11 already has.
+- Linux: `Stellaris-Galaxy-Forge-<x.y.z>-Linux.AppImage`, `.deb` or
+  `.rpm` for your distribution (all built on Ubuntu 22.04, x86_64). The
+  AppImage needs `chmod +x` before it will run.
+- macOS: `Stellaris-Galaxy-Forge-<x.y.z>-macOS.dmg`, a universal build.
+  It is not signed, so Gatekeeper will refuse to open it until you run
   `xattr -cr "/Applications/Stellaris Galaxy Forge.app"`, or right-click
   the app and choose Open.
-- Command line only: `sgf-v<x.y.z>-windows-x86_64.zip`,
-  `sgf-v<x.y.z>-linux-x86_64.tar.gz` or
-  `sgf-v<x.y.z>-macos-universal.tar.gz`.
+- Command line only: `sgf-<x.y.z>-windows.zip`, `sgf-<x.y.z>-linux.tar.gz`
+  or `sgf-<x.y.z>-macos.tar.gz`.
+
+The `.sig` files, `latest.json` and the macOS `.app.tar.gz` are for the
+app's updater. You don't need to download them.
 
 The app checks for a newer release when it starts (the Help menu can turn
 this off, and "Check for updates…" checks right away) and shows a badge
