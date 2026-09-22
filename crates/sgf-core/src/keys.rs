@@ -24,12 +24,16 @@ pub(crate) const CONTROLLER: &str = "controller";
 pub(crate) const COORDINATE: &str = "coordinate";
 pub(crate) const CORE_RADIUS: &str = "core_radius";
 pub(crate) const COUNTRY: &str = "country";
+pub(crate) const CRISES: &str = "crises";
+pub(crate) const CRISIS_TYPE: &str = "crisis_type";
 pub(crate) const CURRENT_ORDER: &str = "current_order";
 pub(crate) const DEPOSIT: &str = "deposit";
 pub(crate) const DEPOSITS: &str = "deposits";
 pub(crate) const DESIGN: &str = "design";
+pub(crate) const DIFFICULTY: &str = "difficulty";
 pub(crate) const DISMANTLE_FINISH_DATE: &str = "dismantle_finish_date";
 pub(crate) const DISMANTLE_PROGRESS: &str = "dismantle_progress";
+pub(crate) const END_GAME_START: &str = "end_game_start";
 pub(crate) const ENTITY: &str = "entity";
 pub(crate) const FILE: &str = "file";
 pub(crate) const FLAG: &str = "flag";
@@ -54,6 +58,7 @@ pub(crate) const INDEX: &str = "index";
 pub(crate) const INITIALIZER: &str = "initializer";
 pub(crate) const INIT_PARENT: &str = "init_parent";
 pub(crate) const INNER_RADIUS: &str = "inner_radius";
+pub(crate) const IRONMAN: &str = "ironman";
 pub(crate) const KEY: &str = "key";
 pub(crate) const LAST_BOMBARDMENT: &str = "last_bombardment";
 pub(crate) const LENGTH: &str = "length";
@@ -64,6 +69,7 @@ pub(crate) const LOCATION: &str = "location";
 pub(crate) const MAX_HITPOINTS: &str = "max_hitpoints";
 pub(crate) const MEGASTRUCTURES: &str = "megastructures";
 pub(crate) const MIA_FROM: &str = "mia_from";
+pub(crate) const MID_GAME_START: &str = "mid_game_start";
 pub(crate) const MILITARY_POWER: &str = "military_power";
 pub(crate) const MODULES: &str = "modules";
 pub(crate) const MOON_OF: &str = "moon_of";
@@ -95,6 +101,9 @@ pub(crate) const PLAYER: &str = "player";
 pub(crate) const POP_GROUPS: &str = "pop_groups";
 pub(crate) const PRIMITIVE: &str = "primitive";
 pub(crate) const RADIUS: &str = "radius";
+pub(crate) const REQUIRED_DLCS: &str = "required_dlcs";
+pub(crate) const RESOURCE_ABUNDANCE: &str = "resource_abundance";
+pub(crate) const SCALING: &str = "scaling";
 pub(crate) const SECTOR: &str = "sector";
 pub(crate) const SECTORS: &str = "sectors";
 pub(crate) const SHAPE: &str = "shape";
@@ -120,6 +129,7 @@ pub(crate) const TYPE: &str = "type";
 pub(crate) const USE_MAP_COLOR: &str = "use_map_color";
 pub(crate) const VALUE: &str = "value";
 pub(crate) const VARIABLES: &str = "variables";
+pub(crate) const VERSION_CONTROL_REVISION: &str = "version_control_revision";
 pub(crate) const WAYSTATIONS: &str = "waystations";
 pub(crate) const WAYSTATION_NETWORKS: &str = "waystation_networks";
 pub(crate) const X: &str = "x";
@@ -150,12 +160,16 @@ pub(crate) const ALL: &[&str] = &[
     COORDINATE,
     CORE_RADIUS,
     COUNTRY,
+    CRISES,
+    CRISIS_TYPE,
     CURRENT_ORDER,
     DEPOSIT,
     DEPOSITS,
     DESIGN,
+    DIFFICULTY,
     DISMANTLE_FINISH_DATE,
     DISMANTLE_PROGRESS,
+    END_GAME_START,
     ENTITY,
     FILE,
     FLAG,
@@ -180,6 +194,7 @@ pub(crate) const ALL: &[&str] = &[
     INITIALIZER,
     INIT_PARENT,
     INNER_RADIUS,
+    IRONMAN,
     KEY,
     LAST_BOMBARDMENT,
     LENGTH,
@@ -190,6 +205,7 @@ pub(crate) const ALL: &[&str] = &[
     MAX_HITPOINTS,
     MEGASTRUCTURES,
     MIA_FROM,
+    MID_GAME_START,
     MILITARY_POWER,
     MODULES,
     MOON_OF,
@@ -221,6 +237,9 @@ pub(crate) const ALL: &[&str] = &[
     POP_GROUPS,
     PRIMITIVE,
     RADIUS,
+    REQUIRED_DLCS,
+    RESOURCE_ABUNDANCE,
+    SCALING,
     SECTOR,
     SECTORS,
     SHAPE,
@@ -246,6 +265,7 @@ pub(crate) const ALL: &[&str] = &[
     USE_MAP_COLOR,
     VALUE,
     VARIABLES,
+    VERSION_CONTROL_REVISION,
     WAYSTATIONS,
     WAYSTATION_NETWORKS,
     X,
@@ -261,15 +281,23 @@ pub(crate) const OPTIONAL: &[&str] = &[
     WAYSTATIONS,
 ];
 
+/// The keys only the `meta` member writes, which the save-key test does not look for.
+pub(crate) mod meta {
+    pub(crate) const PLAYER_PORTRAIT: &str = "player_portrait";
+}
+
 /// The keys of a static galaxy scenario script, which shares only a few names with a save.
 pub(crate) mod scenario {
     pub(crate) const ADD: &str = "add";
     pub(crate) const ADD_HYPERLANE: &str = "add_hyperlane";
     pub(crate) const ADVANCED_EMPIRE_DEFAULT: &str = "advanced_empire_default";
     pub(crate) const BASE: &str = "base";
+    pub(crate) const COLONIZABLE_PLANET_ODDS: &str = "colonizable_planet_odds";
     pub(crate) const COORDINATE_TRANSFORM: &str = "coordinate_transform";
     pub(crate) const CORE_RADIUS: &str = "core_radius";
+    pub(crate) const CRISIS_STRENGTH: &str = "crisis_strength";
     pub(crate) const EFFECT: &str = "effect";
+    pub(crate) const EXTRA_CRISIS_STRENGTH: &str = "extra_crisis_strength";
     pub(crate) const FACTOR: &str = "factor";
     pub(crate) const FALLEN_EMPIRE_DEFAULT: &str = "fallen_empire_default";
     pub(crate) const FALLEN_EMPIRE_MAX: &str = "fallen_empire_max";
@@ -289,13 +317,23 @@ pub(crate) mod scenario {
     pub(crate) const NOMAD_EMPIRE_MAX: &str = "nomad_empire_max";
     pub(crate) const NUM_EMPIRES: &str = "num_empires";
     pub(crate) const NUM_EMPIRE_DEFAULT: &str = "num_empire_default";
+    pub(crate) const NUM_GATEWAYS: &str = "num_gateways";
+    pub(crate) const NUM_GATEWAYS_DEFAULT: &str = "num_gateways_default";
+    pub(crate) const NUM_HYPERLANES: &str = "num_hyperlanes";
+    pub(crate) const NUM_HYPERLANES_DEFAULT: &str = "num_hyperlanes_default";
+    pub(crate) const NUM_NEBULAS: &str = "num_nebulas";
+    pub(crate) const NUM_WORMHOLE_PAIRS: &str = "num_wormhole_pairs";
+    pub(crate) const NUM_WORMHOLE_PAIRS_DEFAULT: &str = "num_wormhole_pairs_default";
     pub(crate) const POSITION: &str = "position";
     pub(crate) const PREVENT_HYPERLANE: &str = "prevent_hyperlane";
+    pub(crate) const PRIMITIVE_ODDS: &str = "primitive_odds";
+    pub(crate) const PRIORITY: &str = "priority";
     pub(crate) const RADIUS: &str = "radius";
     pub(crate) const SETUP_SCENARIO: &str = "setup_scenario";
     pub(crate) const SPAWN_DESIGN: &str = "spawn_design";
     pub(crate) const SPAWN_WEIGHT: &str = "spawn_weight";
     pub(crate) const STATIC_GALAXY_SCENARIO: &str = "static_galaxy_scenario";
+    pub(crate) const SUPPORTS_SHAPE: &str = "supports_shape";
     pub(crate) const SYSTEM: &str = "system";
     pub(crate) const TO: &str = "to";
     pub(crate) const VALUE_PREFIX: &str = "value:";

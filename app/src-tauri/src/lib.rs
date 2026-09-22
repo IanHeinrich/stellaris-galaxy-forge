@@ -23,6 +23,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::list_campaigns,
             commands::list_campaign_saves,
             commands::list_scenarios,
+            commands::save_details,
             commands::open_save,
             commands::open_as_scenario,
             commands::new_scenario,

@@ -1,0 +1,257 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+2206.11.16: ScenarioSummary {
+    priority: Some(
+        5,
+    ),
+    radius: None,
+    core_radius: Some(
+        112.5,
+    ),
+    supports_shape: [
+        "elliptical",
+        "ring",
+        "spiral_2",
+        "spiral_3",
+        "spiral_4",
+        "spiral_6",
+        "bar",
+        "starburst",
+        "cartwheel",
+        "spoked",
+    ],
+    empires: EmpireCount {
+        default: Some(
+            16,
+        ),
+        max: Some(
+            16,
+        ),
+    },
+    advanced_empires: EmpireCount {
+        default: Some(
+            0,
+        ),
+        max: None,
+    },
+    fallen_empires: EmpireCount {
+        default: Some(
+            0,
+        ),
+        max: Some(
+            0,
+        ),
+    },
+    marauder_empires: EmpireCount {
+        default: Some(
+            0,
+        ),
+        max: Some(
+            0,
+        ),
+    },
+    nomad_empires: EmpireCount {
+        default: Some(
+            0,
+        ),
+        max: Some(
+            0,
+        ),
+    },
+    colonizable_planet_odds: Some(
+        1.0,
+    ),
+    primitive_odds: Some(
+        1.0,
+    ),
+    num_gateways: Some(
+        Setting {
+            min: Some(
+                0.0,
+            ),
+            max: Some(
+                0.0,
+            ),
+            default: Some(
+                0.0,
+            ),
+        },
+    ),
+    num_wormhole_pairs: Some(
+        Setting {
+            min: Some(
+                0.0,
+            ),
+            max: Some(
+                0.0,
+            ),
+            default: Some(
+                0.0,
+            ),
+        },
+    ),
+    num_nebulas: None,
+    num_hyperlanes: Some(
+        Setting {
+            min: None,
+            max: None,
+            default: Some(
+                0.0,
+            ),
+        },
+    ),
+    crisis_strength: Some(
+        0.75,
+    ),
+    extra_crisis_strength: [
+        5.0,
+        10.0,
+        25.0,
+    ],
+}
+Painted Reach: ScenarioSummary {
+    priority: Some(
+        10,
+    ),
+    radius: None,
+    core_radius: None,
+    supports_shape: [
+        "elliptical",
+        "spiral_2",
+        "spiral_3",
+        "spiral_4",
+        "spiral_6",
+        "ring",
+        "bar",
+        "cartwheel",
+        "cluster",
+        "starburst",
+    ],
+    empires: EmpireCount {
+        default: Some(
+            3,
+        ),
+        max: Some(
+            3,
+        ),
+    },
+    advanced_empires: EmpireCount {
+        default: Some(
+            0,
+        ),
+        max: None,
+    },
+    fallen_empires: EmpireCount {
+        default: Some(
+            0,
+        ),
+        max: Some(
+            6,
+        ),
+    },
+    marauder_empires: EmpireCount {
+        default: Some(
+            1,
+        ),
+        max: Some(
+            3,
+        ),
+    },
+    nomad_empires: EmpireCount {
+        default: Some(
+            0,
+        ),
+        max: Some(
+            3,
+        ),
+    },
+    colonizable_planet_odds: Some(
+        1.0,
+    ),
+    primitive_odds: Some(
+        1.0,
+    ),
+    num_gateways: Some(
+        Setting {
+            min: Some(
+                0.0,
+            ),
+            max: Some(
+                5.0,
+            ),
+            default: Some(
+                1.0,
+            ),
+        },
+    ),
+    num_wormhole_pairs: Some(
+        Setting {
+            min: Some(
+                0.0,
+            ),
+            max: Some(
+                5.0,
+            ),
+            default: Some(
+                1.0,
+            ),
+        },
+    ),
+    num_nebulas: None,
+    num_hyperlanes: Some(
+        Setting {
+            min: Some(
+                0.5,
+            ),
+            max: Some(
+                3.0,
+            ),
+            default: Some(
+                1.0,
+            ),
+        },
+    ),
+    crisis_strength: Some(
+        0.5,
+    ),
+    extra_crisis_strength: [
+        10.0,
+        25.0,
+    ],
+}
+unreadable: ScenarioSummary {
+    priority: None,
+    radius: None,
+    core_radius: None,
+    supports_shape: [],
+    empires: EmpireCount {
+        default: None,
+        max: None,
+    },
+    advanced_empires: EmpireCount {
+        default: None,
+        max: None,
+    },
+    fallen_empires: EmpireCount {
+        default: None,
+        max: None,
+    },
+    marauder_empires: EmpireCount {
+        default: None,
+        max: None,
+    },
+    nomad_empires: EmpireCount {
+        default: None,
+        max: None,
+    },
+    colonizable_planet_odds: None,
+    primitive_odds: None,
+    num_gateways: None,
+    num_wormhole_pairs: None,
+    num_nebulas: None,
+    num_hyperlanes: None,
+    crisis_strength: None,
+    extra_crisis_strength: [],
+}

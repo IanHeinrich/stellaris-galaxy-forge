@@ -7,11 +7,15 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 use ts_rs::TS;
+use zip::read::ZipFile;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, DateTime, ZipArchive, ZipWriter};
 
 use crate::backup;
-use crate::cst;
+use crate::cst::{self, CstError, Node};
+use crate::keys;
+use crate::projections::galaxy::FlagRef;
+use crate::projections::read;
 use crate::scan::{self, ScanError, Value};
 
 /// How often write progress is reported, in bytes.
@@ -45,6 +49,54 @@ pub struct SaveMeta {
     pub fleets: Option<u32>,
     /// The first entry of `flag.colors`, the empire's primary colour key.
     pub color: Option<String>,
+    /// `version_control_revision`.
+    pub version_revision: Option<u32>,
+    /// `required_dlcs`, as the game names each.
+    pub required_dlcs: Vec<String>,
+    /// `player_portrait`, the species portrait key.
+    pub portrait: Option<String>,
+    pub flag: Option<MetaFlag>,
+}
+
+/// The player empire's flag as `meta` states it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct MetaFlag {
+    pub icon: Option<FlagRef>,
+    pub background: Option<FlagRef>,
+    /// Every `colors` entry in file order, `"null"` included.
+    pub colors: Vec<String>,
+    /// `use_map_color=yes`: the entries after the fourth are the map border and fill (4.5).
+    pub use_map_color: bool,
+}
+
+/// The setup screen a save was started with, from the top-level `galaxy` block; a key an
+/// older version does not write is `None`.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct GalaxySettings {
+    pub template: Option<String>,
+    pub shape: Option<String>,
+    pub num_empires: Option<u32>,
+    pub num_advanced_empires: Option<u32>,
+    pub num_fallen_empires: Option<u32>,
+    pub num_marauder_empires: Option<u32>,
+    pub num_nomad_empires: Option<u32>,
+    pub habitability: Option<f64>,
+    pub primitive: Option<f64>,
+    pub resource_abundance: Option<f64>,
+    pub num_gateways: Option<u32>,
+    pub num_wormhole_pairs: Option<u32>,
+    pub num_hyperlanes: Option<f64>,
+    pub difficulty: Option<String>,
+    pub scaling: Option<String>,
+    pub crisis_type: Option<String>,
+    /// `crises`, the crisis strength multiplier.
+    pub crises: Option<f64>,
+    pub mid_game_start: Option<u32>,
+    pub end_game_start: Option<u32>,
+    pub ironman: Option<bool>,
+    pub core_radius: Option<f64>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -74,6 +126,12 @@ pub enum Error {
     Meta(#[from] ScanError),
     #[error("meta: `{0}` is missing or not a scalar")]
     MetaField(&'static str),
+    #[error("{path}: the `galaxy` block: {source}")]
+    Galaxy {
+        path: PathBuf,
+        #[source]
+        source: CstError,
+    },
 }
 
 /// Read and inflate both members of a `.sav`.
@@ -105,6 +163,7 @@ pub fn parse_meta(meta: &[u8]) -> Result<SaveMeta, Error> {
         }
     };
     let scalar = |key: &'static str| optional(key).ok_or(Error::MetaField(key));
+    let flag = meta_flag(meta, &index);
     Ok(SaveMeta {
         name: scalar("name")?,
         date: scalar("date")?,
@@ -112,23 +171,203 @@ pub fn parse_meta(meta: &[u8]) -> Result<SaveMeta, Error> {
         ironman: optional("ironman").is_some_and(|v| v == "yes"),
         planets: optional("meta_planets").and_then(|v| v.parse().ok()),
         fleets: optional("meta_fleets").and_then(|v| v.parse().ok()),
-        color: flag_color(meta, &index),
+        color: flag.as_ref().and_then(|f| f.colors.first().cloned()),
+        version_revision: optional(keys::VERSION_CONTROL_REVISION).and_then(|v| v.parse().ok()),
+        required_dlcs: block(meta, &index, keys::REQUIRED_DLCS)
+            .map(|dlcs| items(&dlcs, meta))
+            .unwrap_or_default(),
+        portrait: optional(keys::meta::PLAYER_PORTRAIT),
+        flag,
     })
 }
 
-/// The first entry of `flag={ colors={ "blue" … } }`; the list holds bare items, which the
-/// span index does not record, so the block is re-read as a tree.
-fn flag_color(meta: &[u8], index: &scan::Index) -> Option<String> {
-    let Value::Block { open, close } = index.section("flag")?.value else {
+/// The top-level block `key={ … }` re-read as a tree: its list items are bare, which the
+/// span index does not record.
+fn block(meta: &[u8], index: &scan::Index, key: &str) -> Option<Node> {
+    let Value::Block { open, close } = index.section(key)?.value else {
         return None;
     };
-    let flag = cst::parse(&meta[open..=close], open).ok()?;
-    let colors = flag.children().first()?.find("colors", meta)?;
-    colors
-        .children()
-        .first()?
-        .scalar_str(meta)
+    let root = cst::parse(&meta[open..=close], open).ok()?;
+    root.children().first().cloned()
+}
+
+/// The bare scalar items of a list block, in file order.
+fn items(list: &Node, src: &[u8]) -> Vec<String> {
+    list.children()
+        .iter()
+        .filter(|c| c.key.is_none())
+        .filter_map(|c| c.scalar_str(src))
         .map(str::to_owned)
+        .collect()
+}
+
+fn meta_flag(meta: &[u8], index: &scan::Index) -> Option<MetaFlag> {
+    let flag = block(meta, index, keys::FLAG)?;
+    let layer = |key| {
+        let layer = flag.find(key, meta)?;
+        Some(FlagRef {
+            category: read::scalar(layer, keys::CATEGORY, meta)?.to_owned(),
+            file: read::scalar(layer, keys::FILE, meta)?.to_owned(),
+        })
+    };
+    Some(MetaFlag {
+        icon: layer(keys::ICON),
+        background: layer(keys::BACKGROUND),
+        colors: flag
+            .find(keys::COLORS, meta)
+            .map(|colors| items(colors, meta))
+            .unwrap_or_default(),
+        use_map_color: read::scalar(&flag, keys::USE_MAP_COLOR, meta) == Some("yes"),
+    })
+}
+
+/// The setup screen `path` was started with, inflating `gamestate` only as far as the end
+/// of its top-level `galaxy` block; all `None` when the save holds none.
+pub fn read_galaxy_settings(path: impl AsRef<Path>) -> Result<GalaxySettings, Error> {
+    let path = path.as_ref();
+    let mut archive = open(path)?;
+    let entry = member(&mut archive, path, "gamestate")?;
+    let Some(block) =
+        top_level_block(entry, keys::GALAXY.as_bytes()).map_err(|source| io_err(path, source))?
+    else {
+        return Ok(GalaxySettings::default());
+    };
+    let root = cst::parse(&block, 0).map_err(|source| Error::Galaxy {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    Ok(root
+        .children()
+        .first()
+        .map(|galaxy| galaxy_settings(galaxy, &block))
+        .unwrap_or_default())
+}
+
+fn galaxy_settings(galaxy: &Node, src: &[u8]) -> GalaxySettings {
+    let text = |key| read::scalar(galaxy, key, src).map(str::to_owned);
+    let number = |key| read::scalar(galaxy, key, src)?.parse().ok();
+    let count = |key| read::scalar_u32(galaxy, key, src);
+    GalaxySettings {
+        template: text(keys::TEMPLATE),
+        shape: text(keys::SHAPE),
+        num_empires: count(keys::NUM_EMPIRES),
+        num_advanced_empires: count(keys::NUM_ADVANCED_EMPIRES),
+        num_fallen_empires: count(keys::NUM_FALLEN_EMPIRES),
+        num_marauder_empires: count(keys::NUM_MARAUDER_EMPIRES),
+        num_nomad_empires: count(keys::NUM_NOMAD_EMPIRES),
+        habitability: number(keys::HABITABILITY),
+        primitive: number(keys::PRIMITIVE),
+        resource_abundance: number(keys::RESOURCE_ABUNDANCE),
+        num_gateways: count(keys::NUM_GATEWAYS),
+        num_wormhole_pairs: count(keys::NUM_WORMHOLE_PAIRS),
+        num_hyperlanes: number(keys::NUM_HYPERLANES),
+        difficulty: text(keys::DIFFICULTY),
+        scaling: text(keys::SCALING),
+        crisis_type: text(keys::CRISIS_TYPE),
+        crises: number(keys::CRISES),
+        mid_game_start: count(keys::MID_GAME_START),
+        end_game_start: count(keys::END_GAME_START),
+        ironman: read::scalar(galaxy, keys::IRONMAN, src).map(|v| v == "yes"),
+        core_radius: number(keys::CORE_RADIUS),
+    }
+}
+
+/// How far a depth-0 statement has got towards `key={`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Seen {
+    Nothing,
+    Key,
+    KeyEq,
+}
+
+/// The first depth-0 `key={ … }` in `reader`'s text, braces included, reading no further
+/// than its closing brace; `None` when the text ends without one. Braces inside quotes do
+/// not count.
+fn top_level_block(mut reader: impl Read, key: &[u8]) -> io::Result<Option<Vec<u8>>> {
+    let mut buf = vec![0u8; 1 << 16];
+    let mut depth = 0usize;
+    let mut quoted = false;
+    let mut word: Vec<u8> = Vec::with_capacity(key.len() + 1);
+    let mut seen = Seen::Nothing;
+    let mut block: Option<Vec<u8>> = None;
+    loop {
+        let n = match reader.read(&mut buf) {
+            Ok(0) => return Ok(None),
+            Ok(n) => n,
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        };
+        let chunk = &buf[..n];
+        let mut kept_from = 0;
+        let mut i = 0;
+        while i < n {
+            if quoted {
+                let Some(at) = memchr::memchr(b'"', &chunk[i..]) else {
+                    break;
+                };
+                quoted = false;
+                i += at + 1;
+                continue;
+            }
+            if depth > 0 {
+                let Some(at) = memchr::memchr3(b'{', b'}', b'"', &chunk[i..]) else {
+                    break;
+                };
+                i += at;
+                match chunk[i] {
+                    b'{' => depth += 1,
+                    b'}' => depth -= 1,
+                    _ => quoted = true,
+                }
+                i += 1;
+                if depth == 0
+                    && let Some(block) = block.as_mut()
+                {
+                    block.extend_from_slice(&chunk[kept_from..i]);
+                    return Ok(Some(std::mem::take(block)));
+                }
+                continue;
+            }
+            let b = chunk[i];
+            i += 1;
+            if !(b.is_ascii_whitespace() || matches!(b, b'{' | b'}' | b'=' | b'"')) {
+                if word.len() <= key.len() {
+                    word.push(b);
+                }
+                continue;
+            }
+            if !word.is_empty() {
+                seen = if word == key {
+                    Seen::Key
+                } else {
+                    Seen::Nothing
+                };
+                word.clear();
+            }
+            seen = match (b, seen) {
+                (b'=', Seen::Key) => Seen::KeyEq,
+                (b'{', Seen::KeyEq) => {
+                    block = Some(Vec::new());
+                    kept_from = i - 1;
+                    depth = 1;
+                    Seen::Nothing
+                }
+                (b'{', _) => {
+                    depth = 1;
+                    Seen::Nothing
+                }
+                (b'"', _) => {
+                    quoted = true;
+                    Seen::Nothing
+                }
+                (b'=' | b'}', _) => Seen::Nothing,
+                _ => seen,
+            };
+        }
+        if let Some(block) = block.as_mut() {
+            block.extend_from_slice(&chunk[kept_from..]);
+        }
+    }
 }
 
 /// Write a `.sav` from `pieces` (concatenated into `gamestate`) and `meta`.
@@ -281,21 +520,27 @@ fn open(path: &Path) -> Result<ZipArchive<BufReader<File>>, Error> {
     ZipArchive::new(BufReader::new(file)).map_err(|source| zip_err(path, source))
 }
 
+fn member<'a>(
+    archive: &'a mut ZipArchive<BufReader<File>>,
+    path: &Path,
+    member: &'static str,
+) -> Result<ZipFile<'a, BufReader<File>>, Error> {
+    match archive.by_name(member) {
+        Ok(entry) => Ok(entry),
+        Err(zip::result::ZipError::FileNotFound) => Err(Error::MissingMember {
+            path: path.to_path_buf(),
+            member,
+        }),
+        Err(source) => Err(zip_err(path, source)),
+    }
+}
+
 fn read_member(
     archive: &mut ZipArchive<BufReader<File>>,
     path: &Path,
-    member: &'static str,
+    name: &'static str,
 ) -> Result<Vec<u8>, Error> {
-    let mut entry = match archive.by_name(member) {
-        Ok(entry) => entry,
-        Err(zip::result::ZipError::FileNotFound) => {
-            return Err(Error::MissingMember {
-                path: path.to_path_buf(),
-                member,
-            });
-        }
-        Err(source) => return Err(zip_err(path, source)),
-    };
+    let mut entry = member(archive, path, name)?;
     let mut buf = Vec::with_capacity(usize::try_from(entry.size()).unwrap_or(0));
     entry
         .read_to_end(&mut buf)

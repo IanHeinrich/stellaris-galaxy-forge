@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
+use sgf_core::archive::{self, GalaxySettings};
 use sgf_core::format::scenario::listings::{self, ScenarioListings};
 use sgf_core::library::{self, CampaignListing};
 use sgf_core::views::{SaveFile, SgfError};
@@ -83,6 +84,16 @@ pub async fn list_scenarios<R: Runtime>(
     })
     .await
     .map_err(join_error)
+}
+
+/// The setup screen the save at `path` was started with, read without opening it.
+#[tauri::command]
+pub async fn save_details(path: String) -> Result<GalaxySettings, SgfError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        archive::read_galaxy_settings(&path).map_err(SgfError::from)
+    })
+    .await
+    .map_err(join_error)?
 }
 
 /// Whether `path` lies under a Steam Cloud save directory (see `SaveFile::cloud`).

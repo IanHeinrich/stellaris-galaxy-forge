@@ -51,8 +51,18 @@ fn corpus_round_trips_within_budget() {
     };
     let note = format!(" (open budget {budget} ms)");
     println!(
-        "{:<40} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}{note}",
-        "file", "MB", "systems", "lanes", "read", "parse", "open", "validate", "details", "save"
+        "{:<40} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}{note}",
+        "file",
+        "MB",
+        "systems",
+        "lanes",
+        "read",
+        "galaxy",
+        "parse",
+        "open",
+        "validate",
+        "details",
+        "save"
     );
 
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -67,6 +77,10 @@ fn corpus_round_trips_within_budget() {
         let read_ms = t.elapsed().as_millis();
 
         let t = Instant::now();
+        let settings = archive::read_galaxy_settings(path).expect("read_galaxy_settings");
+        let galaxy_ms = t.elapsed().as_millis();
+
+        let t = Instant::now();
         Document::from_bytes(raw.gamestate.clone(), raw.meta.clone())
             .expect("Document::from_bytes");
         let parse_ms = t.elapsed().as_millis();
@@ -74,6 +88,13 @@ fn corpus_round_trips_within_budget() {
         let t = Instant::now();
         let mut session = Session::open(path).expect("Session::open");
         let open_ms = t.elapsed().as_millis();
+        let setup = session.graph.setup.as_ref().expect("a setup");
+        assert_eq!(
+            settings.shape.as_deref(),
+            Some(setup.shape.as_str()),
+            "{name}"
+        );
+        assert_eq!(settings.num_empires, Some(setup.num_empires), "{name}");
 
         let t = Instant::now();
         session.validate();
@@ -96,7 +117,7 @@ fn corpus_round_trips_within_budget() {
         assert_eq!(written.meta, raw.meta, "{name}: meta diverged");
 
         println!(
-            "{:<40} {:>8.1} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}",
+            "{:<40} {:>8.1} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}",
             name,
             size_mb,
             session.graph.systems.len(),
@@ -107,6 +128,7 @@ fn corpus_round_trips_within_budget() {
                 .map(|s| s.lanes.len())
                 .sum::<usize>(),
             read_ms,
+            galaxy_ms,
             parse_ms,
             open_ms,
             validate_ms,

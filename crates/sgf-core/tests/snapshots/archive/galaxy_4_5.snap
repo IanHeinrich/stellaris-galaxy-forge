@@ -1,0 +1,69 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+GalaxySettings {
+    template: Some(
+        "medium",
+    ),
+    shape: Some(
+        "spiral_3",
+    ),
+    num_empires: Some(
+        9,
+    ),
+    num_advanced_empires: Some(
+        2,
+    ),
+    num_fallen_empires: Some(
+        2,
+    ),
+    num_marauder_empires: Some(
+        2,
+    ),
+    num_nomad_empires: Some(
+        2,
+    ),
+    habitability: Some(
+        0.25,
+    ),
+    primitive: Some(
+        0.25,
+    ),
+    resource_abundance: Some(
+        2.0,
+    ),
+    num_gateways: Some(
+        1,
+    ),
+    num_wormhole_pairs: Some(
+        1,
+    ),
+    num_hyperlanes: Some(
+        1.0,
+    ),
+    difficulty: Some(
+        "commodore",
+    ),
+    scaling: Some(
+        "scaling_off",
+    ),
+    crisis_type: Some(
+        "all",
+    ),
+    crises: Some(
+        1.0,
+    ),
+    mid_game_start: Some(
+        150,
+    ),
+    end_game_start: Some(
+        225,
+    ),
+    ironman: Some(
+        false,
+    ),
+    core_radius: Some(
+        120.0,
+    ),
+}

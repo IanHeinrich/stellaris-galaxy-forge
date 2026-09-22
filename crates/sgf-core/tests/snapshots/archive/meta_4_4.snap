@@ -1,0 +1,71 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+SaveMeta {
+    name: "United Nations of Earth 2",
+    date: "2206.11.16",
+    version: "Pegasus v4.4.6",
+    ironman: false,
+    planets: Some(
+        1,
+    ),
+    fleets: Some(
+        15,
+    ),
+    color: Some(
+        "blue",
+    ),
+    version_revision: Some(
+        52,
+    ),
+    required_dlcs: [
+        "Ancient Relics Story Pack",
+        "Apocalypse",
+        "Aquatics Species Pack",
+        "Astral Planes",
+        "Cosmic Storms",
+        "Distant Stars Story Pack",
+        "Federations",
+        "First Contact Story Pack",
+        "Galactic Paragons",
+        "Grand Archive",
+        "Horizon Signal",
+        "Leviathans Story Pack",
+        "Lithoids Species Pack",
+        "Megacorp",
+        "Necroids Species Pack",
+        "Nemesis",
+        "Overlord",
+        "Plantoids Species Pack",
+        "Rick The Cube Species Portrait",
+        "The Machine Age",
+        "Toxoids Species Pack",
+    ],
+    portrait: Some(
+        "human",
+    ),
+    flag: Some(
+        MetaFlag {
+            icon: Some(
+                FlagRef {
+                    category: "human",
+                    file: "flag_human_9.dds",
+                },
+            ),
+            background: Some(
+                FlagRef {
+                    category: "backgrounds",
+                    file: "00_solid.dds",
+                },
+            ),
+            colors: [
+                "blue",
+                "black",
+                "null",
+                "null",
+            ],
+            use_map_color: false,
+        },
+    ),
+}

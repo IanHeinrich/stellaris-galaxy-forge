@@ -6,10 +6,55 @@ use sgf_core::archive;
 use sgf_core::library::{
     cloud_dirs_under, is_cloud_save_in, list_campaign_saves_in, list_campaigns_in,
 };
+use sgf_core::session::Session;
+
+mod common;
+
+use common::{SAMPLE, SAMPLE_4_5};
 
 /// The folder the committed save sits in, and its parent.
 const TESTDATA: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata");
 const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+
+#[test]
+fn each_samples_header_reads_its_revision_dlcs_portrait_and_flag() {
+    for (name, path) in [("meta_4_4", SAMPLE), ("meta_4_5", SAMPLE_4_5)] {
+        let meta = archive::read_meta_only(path).expect("read the header");
+        common::snapshot(name, &format!("{meta:#?}"));
+    }
+}
+
+#[test]
+fn each_samples_galaxy_settings_are_read_without_loading_the_save() {
+    for (name, path) in [("galaxy_4_4", SAMPLE), ("galaxy_4_5", SAMPLE_4_5)] {
+        let settings = archive::read_galaxy_settings(path).expect("read the galaxy block");
+        let session = Session::open(path).expect("open the sample");
+        let setup = session.graph.setup.clone().expect("a setup");
+        assert_eq!(settings.template.as_deref(), Some(setup.template.as_str()));
+        assert_eq!(settings.num_empires, Some(setup.num_empires));
+        assert_eq!(settings.num_hyperlanes, Some(setup.num_hyperlanes));
+        common::snapshot(name, &format!("{settings:#?}"));
+    }
+}
+
+#[test]
+fn a_gamestate_without_a_top_level_galaxy_block_reads_as_no_settings() {
+    let raw = archive::read_sav(SAMPLE).expect("read the sample save");
+    let gamestate = String::from_utf8(raw.gamestate).expect("ASCII gamestate");
+    let start = gamestate.find("\ngalaxy=\n{").expect("the galaxy block") + 1;
+    let end = start + gamestate[start..].find("\n}\n").expect("its closing brace") + 3;
+    // Only a nested `galaxy` and one in a quoted brace are left for the reader to pass over.
+    let edited = format!(
+        "{}x={{ galaxy={{ template=\"inner\" }} }}\ny=\"}} galaxy={{\"\n{}",
+        &gamestate[..start],
+        &gamestate[end..]
+    );
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("no-galaxy.sav");
+    archive::write_sav(&path, std::iter::once(edited.as_bytes()), &raw.meta).expect("write");
+    let settings = archive::read_galaxy_settings(&path).expect("read");
+    assert_eq!(settings, archive::GalaxySettings::default());
+}
 
 #[test]
 fn the_committed_saves_header_reads_every_field() {

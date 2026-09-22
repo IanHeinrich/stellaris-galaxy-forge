@@ -13,6 +13,7 @@ import type { EntityView } from "../generated/EntityView";
 import type { ExportReport } from "../generated/ExportReport";
 import type { ExportResult } from "../generated/ExportResult";
 import type { FeZone } from "../generated/FeZone";
+import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { Op } from "../generated/Op";
 import type { OpenResult } from "../generated/OpenResult";
 import type { SaveFile } from "../generated/SaveFile";
@@ -46,6 +47,11 @@ export function listCampaignSaves(dir: string): Promise<SaveFile[]> {
 /** Every static galaxy scenario the install and its mods hold, with what went wrong finding them. */
 export function listScenarios(): Promise<ScenarioListings> {
   return invoke<ScenarioListings>("list_scenarios");
+}
+
+/** The setup screen the save at `path` was started with, read without opening it. */
+export function saveDetails(path: string): Promise<GalaxySettings> {
+  return invoke<GalaxySettings>("save_details", { path });
 }
 
 /** Open a save or a scenario script as the session; emits `sgf://progress` while it loads. */

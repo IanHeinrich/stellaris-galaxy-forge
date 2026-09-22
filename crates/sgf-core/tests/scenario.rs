@@ -257,6 +257,32 @@ fn a_length_op_is_refused_and_leaves_the_scenario_untouched() {
 }
 
 #[test]
+fn each_listed_scenario_carries_its_header_summary() {
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let dir = tmp.path().join("map/setup_scenarios");
+    std::fs::create_dir_all(&dir).expect("scenario root");
+    let testdata = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata");
+    for file in ["paint_a_galaxy.txt", "2206.11.16.scenario.txt"] {
+        std::fs::copy(format!("{testdata}/{file}"), dir.join(file)).expect("copy a fixture");
+    }
+    std::fs::write(dir.join("unreadable.txt"), b"static_galaxy_scenario = {\n")
+        .expect("write a scenario with no closing brace");
+    let root = ScenarioRoot {
+        dir,
+        source: ScenarioSource::Install,
+        mod_name: None,
+        enabled: true,
+        load_rank: Some(0),
+        replaces: false,
+    };
+    let mut report = String::new();
+    for listing in list_scenarios_in(&[root]) {
+        writeln!(report, "{}: {:#?}", listing.name, listing.summary).unwrap();
+    }
+    common::snapshot("header_summaries", &report);
+}
+
+#[test]
 fn every_scenario_root_is_listed_with_its_name_count_and_overrides() {
     let tmp = tempfile::tempdir().expect("temp dir");
     let modded = tmp.path().join("star-maps/map/setup_scenarios");

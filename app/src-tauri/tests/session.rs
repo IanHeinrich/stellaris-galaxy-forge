@@ -2,6 +2,7 @@
 use std::path::Path;
 
 use serde_json::json;
+use sgf_core::archive::GalaxySettings;
 use sgf_core::export::ExportReport;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::format::scenario::FeLinkFlags;
@@ -171,6 +172,31 @@ fn campaigns_saves_and_scenarios_are_listed_on_a_seeded_root() {
     assert_eq!(listings[0].source, ScenarioSource::Install);
     assert_eq!(listings[0].error, None);
     assert_eq!(listings[0].shadowed_by, None);
+}
+
+#[test]
+fn save_details_reads_the_setup_screen_without_opening_the_save() {
+    let w = webview();
+    let settings: GalaxySettings =
+        invoke(&w, "save_details", json!({ "path": SAMPLE })).expect("save details");
+    assert_eq!(settings.template.as_deref(), Some("large"));
+    assert_eq!(settings.shape.as_deref(), Some("elliptical"));
+    assert_eq!(settings.num_empires, Some(13));
+    assert_eq!(settings.num_hyperlanes, Some(0.75));
+    assert_eq!(settings.crises, Some(5.0));
+    assert_eq!(settings.ironman, Some(false));
+    assert_eq!(
+        kind(invoke::<SystemDetail>(&w, "get_system", json!({ "id": 0 }))),
+        ErrorKind::NoSession
+    );
+    assert_eq!(
+        kind(invoke::<GalaxySettings>(
+            &w,
+            "save_details",
+            json!({ "path": "no/such/file.sav" })
+        )),
+        ErrorKind::NotFound
+    );
 }
 
 #[test]
