@@ -1,7 +1,7 @@
 # Stellaris save format notes
 
-Reference for the `.sav` format as Stellaris 4.4 writes it, with examples
-from the sample save in `testdata/`. Sibling of
+Reference for the `.sav` format as Stellaris 4.4 and 4.5 write it, with
+examples from the sample saves in `testdata/`. Sibling of
 [game-data-notes.md](game-data-notes.md), which covers the install.
 
 ## Container
@@ -215,6 +215,16 @@ Id-keyed tables cross-reference each other, often in both directions.
 - Star type is `galactic_object.star_class="sc_g"` **and** the star's
   planet row `planet_class="pc_g_star"`; binary and trinary classes own
   several star planets.
+- `country.<id>.flag={ icon={ category file } background={ category file }
+  colors={ ... } }`. `colors` lists bare entries: the four flag colours,
+  and in 4.5 two more, the map border colour then the map fill colour.
+  4.4 writes four. `flag.use_map_color=yes` sits beside the list only
+  when the empire was created with Independent Map Color on, and only
+  then does the game paint its territory in the fifth and sixth entries.
+  Otherwise the border and fill are the first two flag colours, and 4.5
+  mirrors them into the fifth and sixth anyway. Primitives and fallen
+  empires write `"null"` for every entry past the ones they use, e.g.
+  `{ "red_orange" "black" "null" "null" "null" "null" }`.
 - Fleets carry **no owner field**: ownership is
   `country.<id>.fleets_manager.owned_fleets={ { fleet=N } ... }`.
   Leviathans are countries of `type` `guardian_dragon`,
@@ -227,6 +237,19 @@ Id-keyed tables cross-reference each other, often in both directions.
   object, 10 = ambient object.
 - Many fields are caches the game recomputes: `produces`, `profits`,
   `stability`, `buildings_cache`, `military_power`, `economy_power`.
+
+## 4.5 (Cygnus)
+
+Shape changes seen in the 4.5 sample save (`testdata/2201.03.25.sav`)
+beside the flag colours above. None of them is read by the core, and the
+save loads, validates and round-trips byte-identically with no change to
+the reader.
+
+- `galactic_object.<id>.arm=<0..2>` names the system's spiral arm, on
+  590 of the sample's 601 systems.
+- The `galaxy.design` block is gone.
+- `fleet.<id>.settings` is renamed `properties`.
+- `pop_groups` is restructured.
 
 ## Save locations
 

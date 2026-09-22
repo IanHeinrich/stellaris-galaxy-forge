@@ -56,6 +56,13 @@ pub fn invoke_raw(
     get_ipc_response(webview, request)
 }
 
+/// The `rawVersion` of the install the tests read, so an assertion on the version
+/// survives a game update.
+pub fn install_version() -> Option<String> {
+    let install = sgf_gamedata::install::discovery::find_install(None).ok()?;
+    sgf_gamedata::install::discovery::install_version(&install)
+}
+
 /// Whether this machine has a Stellaris install. Without one the tests that
 /// need it return green, which is what happens on CI; `SGF_REQUIRE_INSTALL`
 /// turns that skip into a failure.

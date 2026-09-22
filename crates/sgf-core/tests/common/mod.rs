@@ -14,6 +14,8 @@ use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2206.11.16.sav");
+/// A Stellaris 4.5.0 save on its first day, whose player empire set independent map colours.
+pub const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
 
 /// The centre of the first nebula (Phantom Streak Miasma), which lists 108 first.
 pub const NEBULA_0_CENTRE: (f64, f64) = (66.15, -136.85);

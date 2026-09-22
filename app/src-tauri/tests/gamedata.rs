@@ -17,7 +17,7 @@ use sgf_gamedata::views::{
 use tauri::Manager;
 
 mod common;
-use common::{SAMPLE, have_install, invoke, kind, webview};
+use common::{SAMPLE, have_install, install_version, invoke, kind, webview};
 
 fn special_count(result: &SpecialSystems, kind: SpecialKind) -> u32 {
     result
@@ -208,7 +208,7 @@ fn game_data_commands_with_the_install() {
     invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open");
 
     let summary: GameDataSummary = invoke(&w, "load_game_data", json!({})).expect("load game data");
-    assert_eq!(summary.version.as_deref(), Some("v4.4.6"));
+    assert_eq!(summary.version, install_version());
     assert_eq!(summary.generation, 1, "the first load");
     assert!(
         summary.watch.watching >= 1,
@@ -404,7 +404,7 @@ fn game_data_commands_with_the_install() {
     // A mod may retune icon_scale, so vanilla's is read back from a mods-free load.
     let vanilla: GameDataSummary =
         invoke(&w, "load_game_data", json!({ "mods": false })).expect("vanilla load");
-    assert_eq!(vanilla.version.as_deref(), Some("v4.4.6"));
+    assert_eq!(vanilla.version, install_version());
     let star_classes: Vec<StarClassView> =
         invoke(&w, "get_star_classes", json!({})).expect("star classes");
     let black_hole = star_classes

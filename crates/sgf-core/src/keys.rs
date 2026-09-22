@@ -116,6 +116,7 @@ pub(crate) const TEMPLATE: &str = "template";
 pub(crate) const TIMED_MODIFIER: &str = "timed_modifier";
 pub(crate) const TO: &str = "to";
 pub(crate) const TYPE: &str = "type";
+pub(crate) const USE_MAP_COLOR: &str = "use_map_color";
 pub(crate) const VALUE: &str = "value";
 pub(crate) const VARIABLES: &str = "variables";
 pub(crate) const WAYSTATIONS: &str = "waystations";

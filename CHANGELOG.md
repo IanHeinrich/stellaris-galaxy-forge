@@ -8,14 +8,18 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-22
+
 ### Changed
 
-- Adding a marauder clan from the map is one undo step. So is adding the
-  raid bases a home is missing.
-- The "Listed under shapes" row in Game setup is now "Supported shapes".
-  The new-game screen lists a static map as a galaxy size and then offers
-  no shape, so the row changes nothing there. The note after saving into
-  the Paint a Galaxy mod no longer tells you to choose Elliptical.
+- Empire borders and fills use the map colours set in Stellaris 4.5's
+  empire creator. Empires without map colours keep their flag colours.
+- Adding a marauder clan from the map, or the raid bases a marauder home
+  is missing, is a single undo step.
+- The "Listed under shapes" row in Game setup is renamed "Supported
+  shapes", and the note after saving into Paint a Galaxy no longer tells
+  you to choose Elliptical. The game's new-game screen treats a static
+  map as a galaxy size and never asks for a shape.
 
 ## [0.7.0] - 2026-09-21
 
