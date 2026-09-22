@@ -9,6 +9,7 @@
 //! game data.
 
 use std::cell::OnceCell;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -50,6 +51,8 @@ impl From<SessionError> for SgfError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct OpResult {
     pub entry: HistoryEntry,
+    /// The op that undoes this one, as [`Applied::inverse`] describes it.
+    pub inverse: Op,
     /// The entities the op rewrote, sorted and deduplicated.
     pub subjects: Vec<Subject>,
     /// The systems among [`Self::subjects`], ascending.
@@ -176,6 +179,7 @@ impl Session {
             waylines,
             ..GalaxyDelta::default()
         };
+        let mut listed = HashSet::new();
         for subject in subjects.iter().filter(|s| s.kind().in_galaxy_delta()) {
             match *subject {
                 Subject::Nebula(_) if delta.nebulae.is_none() => {
@@ -188,7 +192,7 @@ impl Session {
                 Subject::Header(_) => {}
                 subject => {
                     for id in subject.systems() {
-                        if delta.systems.iter().any(|s| s.id == id) || delta.removed.contains(&id) {
+                        if !listed.insert(id) {
                             continue;
                         }
                         match self.system(id) {
@@ -373,8 +377,8 @@ fn result(graph: &GalaxyGraph, seq: usize, applied: &Applied, waylines: &[Waylin
         entry: HistoryEntry {
             seq,
             description: applied.description.clone(),
-            inverse: applied.inverse.clone(),
         },
+        inverse: applied.inverse.clone(),
         subjects: applied.touched.clone(),
         touched,
         waylines: (graph.waylines != waylines).then(|| graph.waylines.clone()),

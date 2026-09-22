@@ -109,7 +109,7 @@ fn the_rebuilt_header_reads_back_what_the_op_wrote() {
 
     let undone = session.undo().expect("undo").expect("an op to undo");
     assert_eq!(
-        undone.entry.inverse,
+        undone.inverse,
         set("name", Some("\"sgf_grammar\"")),
         "the inverse carries the raw text it displaced"
     );

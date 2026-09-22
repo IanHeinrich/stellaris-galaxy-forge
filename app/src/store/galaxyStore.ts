@@ -90,16 +90,21 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
 
   applyDelta(delta) {
     const { grid, version, scriptedOwners } = get();
-    const systems = new Map(get().systems);
+    const previous = get().systems;
+    const systems = new Map(previous);
+    let rewired = false;
     for (const id of delta.removed ?? []) {
+      rewired ||= systems.has(id);
       systems.delete(id);
       grid?.remove(id);
     }
     for (const node of delta.systems) {
       const stampedNode = stamped(node, scriptedOwners);
+      rewired ||= rewires(previous.get(node.id), stampedNode);
       systems.set(node.id, stampedNode);
       grid?.update(stampedNode);
     }
+    if (!rewired) sameTopology(previous, systems);
     const nebulae = delta.nebulae ?? get().nebulae;
     const header = delta.header ?? get().header;
     const waylines = delta.waylines ?? get().waylines;
@@ -109,6 +114,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   setScriptedOwners(owners, countries) {
     const { grid, scriptedOwners: previous } = get();
     const systems = new Map(get().systems);
+    sameTopology(get().systems, systems);
     const restamped: SystemNode[] = [];
     for (const [id, node] of systems) {
       const owner = owners.get(id) ?? null;
@@ -193,6 +199,50 @@ export function laneCount(systems: Iterable<SystemNode>): number {
 
 export type Systems = ReadonlyMap<number, SystemNode>;
 
+/** What a galaxy's lanes and L-Cluster decide, shared by every galaxy an edit left them alone in. */
+interface Topology {
+  lanes?: number;
+  islands?: number;
+  selections?: WeakMap<readonly number[], SelectionLanes>;
+}
+
+const topologies = new WeakMap<Systems, Topology>();
+
+function topologyOf(systems: Systems): Topology {
+  let topology = topologies.get(systems);
+  if (topology === undefined) {
+    topology = {};
+    topologies.set(systems, topology);
+  }
+  return topology;
+}
+
+/** Records that `next` has the lanes and L-Cluster of `previous`, so what they decide carries over. */
+function sameTopology(previous: Systems, next: Systems): void {
+  topologies.set(next, topologyOf(previous));
+}
+
+/** Whether replacing `before` with `after` can change a lane or the L-Cluster. */
+function rewires(before: SystemNode | undefined, after: SystemNode): boolean {
+  if (before === undefined || isLClusterSystem(before) !== isLClusterSystem(after)) return true;
+  if (before.lanes.length !== after.lanes.length) return true;
+  return before.lanes.some((lane, i) => lane.to !== after.lanes[i].to);
+}
+
+/** `laneCount` of a galaxy, counted again only after an edit that changes its lanes. */
+export function galaxyLaneCount(systems: Systems): number {
+  const topology = topologyOf(systems);
+  topology.lanes ??= laneCount(systems.values());
+  return topology.lanes;
+}
+
+/** `islandCount` of a galaxy, counted again only after an edit that changes its lanes. */
+export function galaxyIslandCount(systems: Systems): number {
+  const topology = topologyOf(systems);
+  topology.islands ??= islandCount(systems);
+  return topology.islands;
+}
+
 /** What `systemName` answers, from a galaxy and a localisation handed in rather than read. */
 export function systemNameOf(
   systems: Systems,
@@ -234,25 +284,59 @@ function linked(systems: Systems, a: number, b: number): boolean {
   return systems.get(a)?.lanes.some((l) => l.to === b) ?? false;
 }
 
-function pairsWithin(
-  systems: Systems,
-  ids: number[],
-  wantLinked: boolean,
-): Array<[number, number]> {
+/** The lanes among a set of systems. */
+export interface SelectionLanes {
+  /** Each lane between two of them as `[min, max]`, in the order the pairs appear in the ids. */
+  linked: Array<[number, number]>;
+  /** How many unordered pairs of them have no lane between them. */
+  unlinked: number;
+}
+
+/**
+ * The lanes among `ids` (distinct), found from each one's own lanes rather than pair by pair,
+ * and kept for the same ids until an edit changes the galaxy's lanes.
+ */
+export function selectionLanes(systems: Systems, ids: readonly number[]): SelectionLanes {
+  const topology = topologyOf(systems);
+  topology.selections ??= new WeakMap();
+  let found = topology.selections.get(ids);
+  if (found === undefined) {
+    found = lanesAmong(systems, ids);
+    topology.selections.set(ids, found);
+  }
+  return found;
+}
+
+function lanesAmong(systems: Systems, ids: readonly number[]): SelectionLanes {
+  const position = new Map<number, number>();
+  ids.forEach((id, i) => position.set(id, i));
+  const found: Array<{ first: number; second: number; pair: [number, number] }> = [];
+  for (const [i, id] of ids.entries()) {
+    const partners = new Set<number>();
+    for (const { to } of systems.get(id)?.lanes ?? []) {
+      const j = position.get(to);
+      // A pair is linked by the lanes of its lower id, as `linked` reads it.
+      if (j === undefined || to <= id || partners.has(to)) continue;
+      partners.add(to);
+      found.push({ first: Math.min(i, j), second: Math.max(i, j), pair: [id, to] });
+    }
+  }
+  found.sort((p, q) => p.first - q.first || p.second - q.second);
+  const k = ids.length;
+  return { linked: found.map((f) => f.pair), unlinked: (k * (k - 1)) / 2 - found.length };
+}
+
+/** Unordered pairs within `ids` with no lane between them, each as `[min, max]`. */
+export function unlinkedPairs(systems: Systems, ids: number[]): Array<[number, number]> {
   const pairs: Array<[number, number]> = [];
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
       const a = Math.min(ids[i], ids[j]);
       const b = Math.max(ids[i], ids[j]);
-      if (a !== b && linked(systems, a, b) === wantLinked) pairs.push([a, b]);
+      if (a !== b && !linked(systems, a, b)) pairs.push([a, b]);
     }
   }
   return pairs;
-}
-
-/** Unordered pairs within `ids` with no lane between them, each as `[min, max]`. */
-export function unlinkedPairs(systems: Systems, ids: number[]): Array<[number, number]> {
-  return pairsWithin(systems, ids, false);
 }
 
 /** The β-skeleton edges over `ids` that are not yet lanes, each as `[min, max]`. */
@@ -267,7 +351,7 @@ export function meshLanes(systems: Systems, ids: number[], beta: number): Array<
 
 /** Unordered pairs within `ids` joined by a lane, each as `[min, max]`. */
 export function linkedPairs(systems: Systems, ids: number[]): Array<[number, number]> {
-  return pairsWithin(systems, ids, true);
+  return selectionLanes(systems, ids).linked;
 }
 
 /** The ids in `ids` (other than `target`) that have a lane to `target`. */
@@ -287,7 +371,24 @@ export function linkedSystems(systems: Systems, ids: number[]): number[] {
 
 /** The system of `ownerId` nearest the centroid of everything it owns. */
 export function centralOwnedSystem(systems: Systems, ownerId: number): number | null {
-  const owned = [...systems.values()].filter((s) => s.owner === ownerId);
+  return centralOf([...systems.values()].filter((s) => s.owner === ownerId));
+}
+
+/** `centralOwnedSystem` of every owner at once, in one pass over the galaxy. */
+export function centralOwnedSystems(systems: Systems): Map<number, number> {
+  const byOwner = new Map<number, SystemNode[]>();
+  for (const s of systems.values()) {
+    if (s.owner === null) continue;
+    const owned = byOwner.get(s.owner);
+    if (owned) owned.push(s);
+    else byOwner.set(s.owner, [s]);
+  }
+  const central = new Map<number, number>();
+  for (const [owner, owned] of byOwner) central.set(owner, centralOf(owned)!);
+  return central;
+}
+
+function centralOf(owned: readonly SystemNode[]): number | null {
   if (owned.length === 0) return null;
   const cx = owned.reduce((total, s) => total + s.x, 0) / owned.length;
   const cy = owned.reduce((total, s) => total + s.y, 0) / owned.length;

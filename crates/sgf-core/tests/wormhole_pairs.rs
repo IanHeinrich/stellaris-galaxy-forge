@@ -161,7 +161,7 @@ fn rejoining_one_end_inverts_end_by_end_and_the_links_follow() {
         .apply(set_pair(7, 13, Some(3)))
         .expect("Ingress leaves Egress for Low Seat");
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         Op::SetWormholeEnds {
             entries: vec![(7, Some(1)), (13, Some(2))]
         }
@@ -183,7 +183,7 @@ fn rejoining_one_end_inverts_end_by_end_and_the_links_follow() {
         .apply(set_pair(7, 8, None))
         .expect("take the pair off");
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         Op::SetWormholeEnds {
             entries: vec![(7, Some(3)), (8, Some(1))]
         }

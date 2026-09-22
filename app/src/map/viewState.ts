@@ -73,10 +73,11 @@ const BINDINGS: Binding[] = [
   follows(useEditorStore, [(s) => s.hover], (s, view) => view.highlights.setHover(s.hover), "bind"),
   follows(
     useEditorStore,
-    [(s) => s.selection, (s) => s.hover],
-    (s, view) => pinLabels(view, s.selection, s.hover),
+    [(s) => s.selection],
+    (s, view) => pinLabels(view, s.selection),
     "layers",
   ),
+  follows(useEditorStore, [(s) => s.hover], (s, view) => setHovered(view, s.hover), "layers"),
   follows(
     useEditorStore,
     [(s) => s.selection],
@@ -192,10 +193,13 @@ function applyDelta(view: MapView, delta: GalaxyDelta): void {
   view.invalidate();
 }
 
-function pinLabels(view: MapView, selection: number[], hover: number | null): void {
-  const pinned = hover === null || selection.includes(hover) ? selection : [...selection, hover];
-  for (const layer of view.layers) layer.setPinned?.(pinned);
+function pinLabels(view: MapView, selection: number[]): void {
+  for (const layer of view.layers) layer.setPinned?.(selection);
   view.invalidate();
+}
+
+function setHovered(view: MapView, id: number | null): void {
+  for (const layer of view.layers) layer.setHovered?.(id);
 }
 
 function setSelection(view: MapView, ids: readonly number[]): void {

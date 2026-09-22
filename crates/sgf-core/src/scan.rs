@@ -148,6 +148,7 @@ pub fn scan_range_with(bytes: &[u8], range: Range<usize>, mode: Mode) -> Result<
         pos: range.start,
         index: Index::default(),
         mode,
+        hash: None,
     };
     scanner.run()?;
     Ok(scanner.index)
@@ -171,6 +172,9 @@ struct Scanner<'a> {
     pos: usize,
     index: Index,
     mode: Mode,
+    /// The last search for a `#`: where it started and what it found. Without it a file
+    /// with no comments is searched to its end once per block.
+    hash: Option<(usize, Option<usize>)>,
 }
 
 /// What a statement turned out to be once its first token was read.
@@ -283,15 +287,13 @@ impl Scanner<'_> {
 
     /// Find the brace matching the one at `open`, ignoring braces inside quotes and, in
     /// [`Mode::Script`], inside `#` comments.
-    fn skip_block(&self, open: usize) -> Result<usize, ScanError> {
+    fn skip_block(&mut self, open: usize) -> Result<usize, ScanError> {
         let mut pos = open + 1;
         let mut depth = 1usize;
         let mut in_quote = false;
         loop {
             let quote_brace = memchr3(b'"', b'{', b'}', &self.bytes[pos..]);
-            let hash = (self.mode == Mode::Script)
-                .then(|| memchr(b'#', &self.bytes[pos..]))
-                .flatten();
+            let hash = self.next_hash(pos).map(|at| at - pos);
             let Some(i) = [quote_brace, hash].into_iter().flatten().min() else {
                 return Err(ScanError {
                     offset: open,
@@ -316,6 +318,22 @@ impl Scanner<'_> {
             }
             pos = at + 1;
         }
+    }
+
+    /// The first `#` at or after `pos` in [`Mode::Script`].
+    fn next_hash(&mut self, pos: usize) -> Option<usize> {
+        if self.mode != Mode::Script {
+            return None;
+        }
+        if let Some((from, found)) = self.hash
+            && from <= pos
+            && found.is_none_or(|at| at >= pos)
+        {
+            return found;
+        }
+        let found = memchr(b'#', &self.bytes[pos..]).map(|i| pos + i);
+        self.hash = Some((pos, found));
+        found
     }
 
     /// A quoted string or a run of bytes up to whitespace, `{`, `}` or `=`.
@@ -492,6 +510,20 @@ mod tests {
         assert_eq!(
             text(index.section("bar").unwrap().stmt),
             "bar={\n\t# inner { c } \"q\"\n\tx=1\n}"
+        );
+    }
+
+    #[test]
+    fn script_mode_comment_after_a_hash_in_a_nested_quote() {
+        let src: &[u8] =
+            b"a = {\n\tb = { name = \"x#y\" }\n\tc = { d = 1 # } not a close\n\t}\n}\ne = 1\n";
+        let index = scan_range_with(src, 0..src.len(), Mode::Script).unwrap();
+        let text = |span: Span| std::str::from_utf8(span.slice(src)).unwrap();
+        let keys: Vec<_> = index.sections().iter().map(|s| key_name(src, s)).collect();
+        assert_eq!(keys, ["a", "e"]);
+        assert_eq!(
+            text(index.section("a").unwrap().stmt),
+            "a = {\n\tb = { name = \"x#y\" }\n\tc = { d = 1 # } not a close\n\t}\n}"
         );
     }
 

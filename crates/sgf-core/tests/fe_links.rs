@@ -122,7 +122,7 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
         "Link 2 systems to the fallen empire zone at Old Seat"
     );
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         set_flags(vec![
             (2, FeLinkFlags::default()),
             (3, FeLinkFlags::default()),
@@ -156,7 +156,7 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
         .apply(set_links(9, &[7, 3]))
         .expect("Ingress takes Gamma's place");
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         set_flags(vec![
             (2, link(false, None, &[0])),
             (7, FeLinkFlags::default())
@@ -186,7 +186,7 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
         "Let the mod link the fallen empire zone at Old Seat to its nearest systems"
     );
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         set_flags(vec![
             (3, link(false, None, &[0])),
             (7, link(false, None, &[0])),
@@ -346,10 +346,7 @@ fn the_flag_op_reaches_the_states_the_mod_reads_oddly_and_undoes_them_exactly() 
         result.entry.description,
         "Set the fallen empire connections of 1 system"
     );
-    assert_eq!(
-        result.entry.inverse,
-        set_flags(vec![(9, FeLinkFlags::default())])
-    );
+    assert_eq!(result.inverse, set_flags(vec![(9, FeLinkFlags::default())]));
     assert_eq!(session.graph.systems[&9].fe_link, link(true, None, &[]));
     assert!(text(&session).contains(
         "set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_custom_connections } }"

@@ -5,6 +5,7 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import * as ipc from "../api/ipc";
+import type { EditResult } from "../generated/EditResult";
 import type { FeZone } from "../generated/FeZone";
 import { NO_FREE_DIRECTION, newFeZone } from "../lib/feZone";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
@@ -158,6 +159,27 @@ describe("fallen empire zones", () => {
     expect(mocked.applyOp).not.toHaveBeenCalled();
     expect(sessionError()).toBe(NOTHING_TO_FIT);
     expect(useMapChromeStore.getState().layers.feZones).toBe(false);
+  });
+
+  it("fitFeZones reads the fit only once the edits queued before it have landed", async () => {
+    let land: (result: EditResult) => void = () => undefined;
+    mocked.applyOp.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
+    const removing = editor().applyOp({ type: "RemoveSystem", id: 5 });
+    const entries: Array<[number, FeZone | null]> = [[3, null]];
+    feZoneFit.mockResolvedValueOnce(entries);
+    mocked.applyOp.mockResolvedValueOnce(editResult());
+
+    const fitting = editor().fitFeZones(1);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(feZoneFit).not.toHaveBeenCalled();
+
+    land(editResult({ delta: { systems: [], removed: [5] } }));
+    await Promise.all([removing, fitting]);
+    expect(feZoneFit).toHaveBeenCalledWith(1);
+    expect(mocked.applyOp.mock.calls.map(([op]) => op.type)).toEqual([
+      "RemoveSystem",
+      "SetFeZones",
+    ]);
   });
 
   it("fitFeZones reports a backend that refused to answer", async () => {

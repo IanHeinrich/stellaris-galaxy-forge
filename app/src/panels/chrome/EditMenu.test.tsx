@@ -30,7 +30,6 @@ function html(label: string): string {
 const entry = (seq: number) => ({
   seq,
   description: `Change ${seq}`,
-  inverse: { type: "MoveSystem" as const, id: 0, x: 0, y: 0 },
 });
 
 beforeEach(() => {

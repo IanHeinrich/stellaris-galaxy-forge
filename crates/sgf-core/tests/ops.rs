@@ -248,8 +248,8 @@ fn isolate_systems_0_and_86_removes_their_shared_lane_once() {
         .unwrap();
     assert!(session.graph.systems[&0].lanes.is_empty());
     assert!(session.graph.systems[&86].lanes.is_empty());
-    let Op::AddLanePairs { lanes } = &result.entry.inverse else {
-        panic!("{:?}", result.entry.inverse);
+    let Op::AddLanePairs { lanes } = &result.inverse else {
+        panic!("{:?}", result.inverse);
     };
     assert_eq!(lanes.len(), 8);
     common::snapshot("isolate_systems_0_and_86", &report(&session, &result));
@@ -315,7 +315,7 @@ fn normalise_lane_lengths_after_move() {
         &report(&session, &result),
     );
 
-    session.apply(result.entry.inverse).unwrap();
+    session.apply(result.inverse).unwrap();
     assert!(session.graph.systems[&786].lanes.iter().all(|l| l.stale));
 }
 
@@ -340,7 +340,7 @@ fn normalise_leaves_the_duplicated_lane_154_708_alone() {
     ));
     assert_eq!(current(&session), lengthened);
 
-    session.apply(set.entry.inverse).unwrap();
+    session.apply(set.inverse).unwrap();
     assert_eq!(current(&session), session.doc.original());
 }
 
@@ -626,16 +626,14 @@ fn removing_a_lane_to_a_missing_system_is_refused_singly_and_left_out_of_a_bulk_
         })
         .expect("remove a dangling lane beside a real one");
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         Op::AddLanes {
             from: 0,
             to: vec![(200, false)],
         },
         "the inverse names no system the graph does not hold"
     );
-    session
-        .apply(result.entry.inverse)
-        .expect("the inverse applies");
+    session.apply(result.inverse).expect("the inverse applies");
     assert!(session.graph.lane(0, 200).is_some());
 }
 
@@ -1043,17 +1041,17 @@ fn add_lanes_inverse_removes_only_what_it_added() {
         })
         .unwrap();
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         Op::RemoveLanes {
             from: 0,
             to: vec![1],
         }
     );
-    let undo = session.apply(result.entry.inverse).unwrap();
+    let undo = session.apply(result.inverse).unwrap();
     assert_eq!(current(&session), session.doc.original());
     assert_eq!(session.graph.systems[&0].lanes.len(), 5);
     assert_eq!(
-        undo.entry.inverse,
+        undo.inverse,
         Op::AddLanes {
             from: 0,
             to: vec![(1, false)],
@@ -1100,7 +1098,7 @@ fn isolate_then_undo_via_inverse_restores_every_lane() {
     let before = session.graph.systems[&0].clone();
     let result = session.apply(Op::IsolateSystem { id: 0 }).unwrap();
     assert!(session.graph.systems[&0].lanes.is_empty());
-    session.apply(result.entry.inverse).unwrap();
+    session.apply(result.inverse).unwrap();
     let after = &session.graph.systems[&0];
     let mut expected: Vec<_> = before.lanes.iter().map(|l| (l.to, l.bridge)).collect();
     let mut actual: Vec<_> = after.lanes.iter().map(|l| (l.to, l.bridge)).collect();

@@ -15,7 +15,7 @@ use crate::document;
 use crate::entity::views::EntityAddr;
 use crate::export::ExportReport;
 use crate::format;
-use crate::ops::{Op, OpError};
+use crate::ops::OpError;
 use crate::projections::galaxy::{
     BypassLink, CountryNode, Galaxy, GalaxyGraph, HeaderField, Nebula, SystemNode, Wayline,
     Waystation,
@@ -268,7 +268,6 @@ pub struct HistoryEntry {
     /// Position in the order ops were applied, from 1.
     pub seq: usize,
     pub description: String,
-    pub inverse: Op,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]

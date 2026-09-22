@@ -113,7 +113,6 @@ function historyEntry(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
   return {
     seq: 1,
     description: "Move Sol",
-    inverse: { type: "MoveSystem", id: 0, x: SYSTEMS[0].x, y: SYSTEMS[0].y },
     ...overrides,
   };
 }

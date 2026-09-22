@@ -215,7 +215,8 @@ fn erase_lanes(
     let restore = lane_rules::decide_remove_pairs(&s.graph, pairs)?;
     let wanted: BTreeSet<(u32, u32)> = pairs.iter().map(|&(a, b)| undirected(a, b)).collect();
     let mut erased = 0;
-    for stmt in matching(&s.doc, |l| {
+    let ends = pairs.iter().map(|&(a, _)| a);
+    for stmt in matching(&s.doc, ends, |l| {
         !l.prevent && wanted.contains(&undirected(l.from, l.to))
     }) {
         erase(plan, &s.doc, &stmt)?;
@@ -294,5 +295,7 @@ pub(super) fn unprevent_lane(
 
 fn prevented(s: &Session, a: u32, b: u32) -> Vec<LaneStmt> {
     let pair = undirected(a, b);
-    matching(&s.doc, |l| l.prevent && undirected(l.from, l.to) == pair)
+    matching(&s.doc, [a], |l| {
+        l.prevent && undirected(l.from, l.to) == pair
+    })
 }

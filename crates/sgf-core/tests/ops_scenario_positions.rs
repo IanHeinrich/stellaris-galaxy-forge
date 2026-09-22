@@ -97,7 +97,7 @@ fn remove_nebula_1_releases_the_lonely_system() {
     assert_eq!(session.graph.nebulae.len(), 1);
     assert_eq!(session.graph.systems[&9].nebula, None);
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         Op::AddNebula {
             x: -90.0,
             y: 90.0,

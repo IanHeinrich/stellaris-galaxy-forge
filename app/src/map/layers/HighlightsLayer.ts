@@ -1,4 +1,5 @@
-import { Container, Graphics } from "pixi.js";
+import { Container, Graphics, GraphicsContext } from "pixi.js";
+import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { LaneRef } from "../../store/editorStore";
 import type { Camera } from "../Camera";
 import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
@@ -15,6 +16,7 @@ import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContex
 import { ORIGIN_ALPHA } from "../../lib/visual/style";
 import type { Segment as BrushSegment } from "../../lib/brush/lanes";
 import type { BrushTool } from "../../lib/brush/brushStroke";
+import { destroyChildren } from "./destroyChildren";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
 const SELECTION = { color: 0xffd166, radius: 11, width: 2, alpha: 1 };
@@ -142,38 +144,74 @@ function midpointButton(): Graphics {
   return g;
 }
 
-/** As many identical rings as are needed at once, created on demand and hidden when spare. */
-class RingPool {
+/** Spare rings kept past what a placement needs before the rest are destroyed. */
+const SPARE_RINGS = 256;
+
+/**
+ * Identical rings around any number of points, some of them dimmed: one shape shared by every
+ * ring, so a zoom only rescales them and a placement only moves them.
+ */
+class RingBatch {
+  readonly container: Container;
+  private readonly shape: GraphicsContext;
   private readonly rings: Graphics[] = [];
-  private scale: Pt = { x: 1, y: 1 };
+  private shown = 0;
+  private readonly scale: Pt = { x: 1, y: 1 };
 
-  constructor(
-    private readonly parent: Container,
-    private readonly spec: typeof SELECTION,
-  ) {}
+  constructor(spec: typeof SELECTION, label: string) {
+    this.container = new Container({ label });
+    this.shape = new GraphicsContext()
+      .circle(0, 0, spec.radius)
+      .stroke({ color: spec.color, width: spec.width, alpha: spec.alpha });
+  }
 
-  /** Shows one ring per point, at `alpha(i)`, and hides the rest. */
-  place(points: ReadonlyArray<Pt | undefined>, alpha: (i: number) => number = () => 1): void {
-    while (this.rings.length < points.length) {
-      const g = ring(this.spec);
-      g.scale.set(this.scale.x, this.scale.y);
+  place(bright: readonly Pt[], dimmed: readonly Pt[] = []): void {
+    const count = bright.length + dimmed.length;
+    while (this.rings.length < count) {
+      const g = new Graphics(this.shape);
       this.rings.push(g);
-      this.parent.addChild(g);
+      this.container.addChild(g);
     }
-    this.rings.forEach((g, i) => {
-      const at = points[i];
-      g.visible = at !== undefined;
-      if (at) {
-        g.position.set(at.x, at.y);
-        g.alpha = alpha(i);
-      }
-    });
+    for (let i = 0; i < count; i++) {
+      const g = this.rings[i];
+      const at = i < bright.length ? bright[i] : dimmed[i - bright.length];
+      g.position.set(at.x, at.y);
+      g.scale.set(this.scale.x, this.scale.y);
+      g.alpha = i < bright.length ? 1 : ORIGIN_ALPHA;
+      g.visible = true;
+    }
+    for (let i = count; i < this.shown; i++) this.rings[i].visible = false;
+    this.shown = count;
+    if (this.rings.length - count > SPARE_RINGS) {
+      destroyChildren(this.container, new Set(this.rings.splice(count + SPARE_RINGS)));
+    }
   }
 
   setScale(scale: Pt): void {
-    this.scale = scale;
-    for (const g of this.rings) g.scale.set(scale.x, scale.y);
+    if (scale.x === this.scale.x && scale.y === this.scale.y) return;
+    this.scale.x = scale.x;
+    this.scale.y = scale.y;
+    for (let i = 0; i < this.shown; i++) this.rings[i].scale.set(scale.x, scale.y);
   }
+
+  destroy(): void {
+    this.shape.destroy();
+  }
+}
+
+/** The systems of `ids` the map holds, skipping the rest. */
+function pointsOf(systems: Systems, ids: Iterable<number>): Pt[] {
+  const points: Pt[] = [];
+  for (const id of ids) {
+    const s = systems.get(id);
+    if (s) points.push(s);
+  }
+  return points;
+}
+
+function touches(d: GalaxyDelta, ids: ReadonlySet<number>): boolean {
+  if (ids.size === 0) return false;
+  return d.systems.some((s) => ids.has(s.id)) || (d.removed ?? []).some((id) => ids.has(id));
 }
 
 /**
@@ -191,11 +229,11 @@ export class HighlightsLayer implements MapLayer {
   private readonly hover = ring(HOVER);
   private readonly port = new Graphics({ label: "port", alpha: PORT_RING.alpha });
   private readonly target = new Graphics({ label: "target" });
-  private readonly selectionRings: RingPool;
-  private readonly ghostRings: RingPool;
-  private readonly joiningRings: RingPool;
-  private readonly leavingRings: RingPool;
-  private readonly matchedRings: RingPool;
+  private readonly selectionRings = new RingBatch(SELECTION, "selectionRings");
+  private readonly ghostRings = new RingBatch(GHOST, "ghostRings");
+  private readonly matchedRings = new RingBatch(MATCHED, "matchedRings");
+  private readonly joiningRings = new RingBatch(JOINING, "joiningRings");
+  private readonly leavingRings = new RingBatch(LEAVING, "leavingRings");
   private readonly midpoint = midpointButton();
   private readonly previewLines = new Graphics({ label: "previewLines" });
   private readonly laneLines = new Graphics({ label: "laneLines" });
@@ -211,7 +249,7 @@ export class HighlightsLayer implements MapLayer {
   private coreRadius = EMPTY_CONTEXT.coreRadius;
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
-  private selection: number[] = [];
+  private selection: ReadonlySet<number> = new Set();
   private hoverId: number | null = null;
   private hoverFeZone: number | null = null;
   private matched: ReadonlySet<number> = new Set();
@@ -246,12 +284,14 @@ export class HighlightsLayer implements MapLayer {
       this.brushMarks,
       this.brushCircle,
     );
-    this.selectionRings = new RingPool(this.container, SELECTION);
-    this.ghostRings = new RingPool(this.container, GHOST);
-    this.matchedRings = new RingPool(this.container, MATCHED);
-    this.joiningRings = new RingPool(this.container, JOINING);
-    this.leavingRings = new RingPool(this.container, LEAVING);
-    this.container.addChild(this.midpoint);
+    this.container.addChild(
+      this.selectionRings.container,
+      this.ghostRings.container,
+      this.matchedRings.container,
+      this.joiningRings.container,
+      this.leavingRings.container,
+      this.midpoint,
+    );
   }
 
   rebuild(ctx: RenderContext): void {
@@ -263,12 +303,16 @@ export class HighlightsLayer implements MapLayer {
       this.drawCoreRing();
     }
     if (!loaded) return;
+    this.placeSelection();
+    this.placeMatched();
     this.placeAll();
     this.drawPreviews();
     this.drawLanes();
   }
 
-  applyDelta(): void {
+  applyDelta(d: GalaxyDelta): void {
+    if (touches(d, this.selection)) this.placeSelection();
+    if (touches(d, this.matched)) this.placeMatched();
     this.placeAll();
     this.drawPreviews();
     this.drawLanes();
@@ -278,11 +322,7 @@ export class HighlightsLayer implements MapLayer {
     this.markerK = markerScale(cam.scale);
     cam.childScale(this.markerK, this.scale);
     this.hover.scale.set(this.scale.x, this.scale.y);
-    this.selectionRings.setScale(this.scale);
-    this.ghostRings.setScale(this.scale);
-    this.matchedRings.setScale(this.scale);
-    this.joiningRings.setScale(this.scale);
-    this.leavingRings.setScale(this.scale);
+    for (const rings of this.batches()) rings.setScale(this.scale);
     cam.childScale(1, this.pixelScale);
     this.midpoint.scale.set(this.pixelScale.x, this.pixelScale.y);
     this.origin.scale.set(this.pixelScale.x, this.pixelScale.y);
@@ -303,16 +343,19 @@ export class HighlightsLayer implements MapLayer {
 
   destroy(): void {
     this.container.destroy({ children: true });
+    for (const rings of this.batches()) rings.destroy();
   }
 
-  setSelection(ids: number[]): void {
-    this.selection = ids;
-    this.placeAll();
+  setSelection(ids: readonly number[]): void {
+    this.selection = new Set(ids);
+    this.placeSelection();
+    this.placeHover();
   }
 
   setHover(id: number | null): void {
+    if (id === this.hoverId) return;
     this.hoverId = id;
-    this.placeAll();
+    this.placeHover();
   }
 
   /** The zone whose ring or port band the pointer is on, by its anchor; its port ring shows. */
@@ -327,8 +370,12 @@ export class HighlightsLayer implements MapLayer {
   }
 
   setDragState(drag: DragState | null): void {
+    const dragged = drag?.byId ?? new Map<number, MoveGhost>();
+    const same =
+      dragged.size === this.dragged.size && [...dragged.keys()].every((id) => this.dragged.has(id));
     this.ghosts = drag?.ghosts ?? [];
-    this.dragged = drag?.byId ?? new Map();
+    this.dragged = dragged;
+    if (!same) this.placeSelection();
     this.placeAll();
     this.drawPreviews();
   }
@@ -346,7 +393,7 @@ export class HighlightsLayer implements MapLayer {
 
   setMatched(ids: ReadonlySet<number>): void {
     this.matched = ids;
-    this.placeAll();
+    this.placeMatched();
   }
 
   /** The ghost ring a nebula drag is proposing, with the systems it would gain and lose. */
@@ -401,22 +448,47 @@ export class HighlightsLayer implements MapLayer {
     this.drawLanes();
   }
 
-  private placeAll(): void {
-    this.selectionRings.place(
-      this.selection.map((id) => this.systems.get(id)),
-      (i) => (this.dragged.has(this.selection[i]) ? ORIGIN_ALPHA : 1),
-    );
-    const hoverId =
-      this.hoverId !== null && this.selection.includes(this.hoverId) ? null : this.hoverId;
+  private batches(): RingBatch[] {
+    return [
+      this.selectionRings,
+      this.ghostRings,
+      this.matchedRings,
+      this.joiningRings,
+      this.leavingRings,
+    ];
+  }
+
+  /** The selection's rings, the dragged ones dimmed; redrawn only when it, a drag or the zoom changes. */
+  private placeSelection(): void {
+    const bright: Pt[] = [];
+    const dimmed: Pt[] = [];
+    for (const id of this.selection) {
+      const s = this.systems.get(id);
+      if (s) (this.dragged.has(id) ? dimmed : bright).push(s);
+    }
+    this.selectionRings.place(bright, dimmed);
+  }
+
+  private placeMatched(): void {
+    this.matchedRings.place(pointsOf(this.systems, this.matched));
+  }
+
+  /** The hover ring, unless the selection already rings that system, and the port ring. */
+  private placeHover(): void {
+    const hoverId = this.hoverId !== null && this.selection.has(this.hoverId) ? null : this.hoverId;
     this.place(this.hover, hoverId);
     this.drawPort();
+  }
+
+  /** Everything but the selection and the matched systems, each a handful of rings at most. */
+  private placeAll(): void {
+    this.placeHover();
     this.drawTarget();
     this.ghostRings.place(this.ghosts);
-    this.matchedRings.place([...this.matched].map((id) => this.systems.get(id)));
-    this.joiningRings.place((this.nebula?.joining ?? []).map((id) => this.systems.get(id)));
+    this.joiningRings.place(pointsOf(this.systems, this.nebula?.joining ?? []));
     const covered = this.feZone?.blocked;
     this.leavingRings.place([
-      ...(this.nebula?.leaving ?? []).map((id) => this.systems.get(id)),
+      ...pointsOf(this.systems, this.nebula?.leaving ?? []),
       ...(covered ? [covered] : []),
     ]);
   }

@@ -8,6 +8,7 @@ import { effectiveStarClass, starGlyph, starTextureKey } from "../../lib/visual/
 import { STAR_BASE_PX, starDiameterPx } from "../../lib/visual/starSize";
 import { FILTERED_ALPHA, ORIGIN_ALPHA } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
+import { destroyChildren } from "./destroyChildren";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
 /** Radius of the generated glow texture in pixels; sprites are scaled from it. */
@@ -66,7 +67,7 @@ export class SystemsLayer implements MapLayer {
   private readonly sizes = new Map<number, number>();
   private readonly gameTextured = new Set<number>();
   private readonly nodes = new Map<number, SystemNode>();
-  private faded: number[] = [];
+  private faded = new Set<number>();
   private readonly previews: Sprite[] = [];
   private lastScale = -1;
   private ctx: RenderContext = EMPTY_CONTEXT;
@@ -100,7 +101,7 @@ export class SystemsLayer implements MapLayer {
     this.gameTextured.clear();
     this.nodes.clear();
     this.previews.length = 0;
-    this.faded = [];
+    this.faded.clear();
     for (const s of ctx.systems.values()) this.place(s);
   }
 
@@ -110,27 +111,33 @@ export class SystemsLayer implements MapLayer {
   }
 
   applyDelta(d: GalaxyDelta): void {
-    for (const id of d.removed ?? []) this.drop(id);
+    this.drop(d.removed ?? []);
     for (const s of d.systems) this.place(s);
   }
 
-  /** A system the document no longer holds takes its star, its ring and its fade with it. */
-  private drop(id: number): void {
-    this.sprites.get(id)?.destroy();
-    this.rings.get(id)?.destroy();
-    this.sprites.delete(id);
-    this.rings.delete(id);
-    this.sizes.delete(id);
-    this.gameTextured.delete(id);
-    this.nodes.delete(id);
-    this.faded = this.faded.filter((faded) => faded !== id);
+  /** Systems the document no longer holds take their stars, their rings and their fades with them. */
+  private drop(ids: readonly number[]): void {
+    const doomed = new Set<Container>();
+    for (const id of ids) {
+      const sprite = this.sprites.get(id);
+      const ring = this.rings.get(id);
+      if (sprite) doomed.add(sprite);
+      if (ring) doomed.add(ring);
+      this.sprites.delete(id);
+      this.rings.delete(id);
+      this.sizes.delete(id);
+      this.gameTextured.delete(id);
+      this.nodes.delete(id);
+      this.faded.delete(id);
+    }
+    destroyChildren(this.container, doomed);
   }
 
   /** A drag in progress: each star's glyph at its destination, the originals dimmed. */
   setDragState(drag: DragState | null): void {
     const ghosts = drag?.ghosts ?? [];
     for (const id of this.faded) this.applyFade(id, 1);
-    this.faded = ghosts.map((g) => g.id);
+    this.faded = new Set(ghosts.map((g) => g.id));
     for (const id of this.faded) this.applyFade(id, ORIGIN_ALPHA);
     while (this.previews.length < ghosts.length) {
       const preview = new Sprite(this.glow);
@@ -254,6 +261,6 @@ export class SystemsLayer implements MapLayer {
     }
     ring?.position.set(s.x, s.y);
     this.rescale(s.id);
-    this.applyFade(s.id, this.faded.includes(s.id) ? ORIGIN_ALPHA : 1);
+    this.applyFade(s.id, this.faded.has(s.id) ? ORIGIN_ALPHA : 1);
   }
 }

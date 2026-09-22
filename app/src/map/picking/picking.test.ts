@@ -6,6 +6,7 @@ import { Camera } from "../Camera";
 import { pickEdge, pickFeZone, pickNebula, pickSystem, snapTarget } from "./index";
 import { newFeZone } from "../../lib/feZone";
 import { SpatialGrid } from "../../lib/spatialGrid";
+import { PickIndex } from "./pickIndex";
 
 const node = (id: number, x: number, y: number, to: number[] = []): SystemNode =>
   systemNode({
@@ -20,11 +21,17 @@ function nebula(x: number, y: number, radius: number): Nebula {
   return { name: name("N"), x, y, radius, systems: [] };
 }
 
-function world(nodes: SystemNode[]): { systems: Map<number, SystemNode>; grid: SpatialGrid } {
+function world(nodes: SystemNode[]): {
+  systems: Map<number, SystemNode>;
+  grid: SpatialGrid;
+  index: PickIndex;
+} {
   const systems = new Map(nodes.map((s) => [s.id, s]));
   const grid = new SpatialGrid();
   grid.build(nodes);
-  return { systems, grid };
+  const index = new PickIndex();
+  index.build(systems);
+  return { systems, grid, index };
 }
 
 function camera(scale: number): Camera {
@@ -64,19 +71,19 @@ describe("picking", () => {
   });
 
   it("picks a lane within its radius and flags the midpoint button", () => {
-    const { systems } = world([node(1, 0, 0, [2]), node(2, 100, 0, [1])]);
+    const { systems, index } = world([node(1, 0, 0, [2]), node(2, 100, 0, [1])]);
     const cam = camera(1);
     const lane = { kind: "lane", lane: { a: 1, b: 2 } };
 
-    expect(pickEdge(systems, cam, { x: 50, y: 2 }, null, true)).toEqual({
+    expect(pickEdge(index, systems, cam, { x: 50, y: 2 }, null, true)).toEqual({
       edge: lane,
       midpointHit: true,
     });
-    expect(pickEdge(systems, cam, { x: 20, y: 2 }, null, true)).toEqual({
+    expect(pickEdge(index, systems, cam, { x: 20, y: 2 }, null, true)).toEqual({
       edge: lane,
       midpointHit: false,
     });
-    expect(pickEdge(systems, cam, { x: 20, y: 10 }, null, true)).toEqual({
+    expect(pickEdge(index, systems, cam, { x: 20, y: 10 }, null, true)).toEqual({
       edge: null,
       midpointHit: false,
     });
@@ -90,24 +97,24 @@ describe("picking", () => {
       fe_link: { custom: true, id: 5, to: [] },
     };
     const linked = { ...node(2, 200, 0), fe_link: { custom: false, id: null, to: [5] } };
-    const { systems } = world([anchor, linked]);
+    const { systems, index } = world([anchor, linked]);
     const cam = camera(1);
     const link = { kind: "feLink", anchor: 1, system: 2 };
 
-    expect(pickEdge(systems, cam, { x: 95, y: 3 }, null, true)).toEqual({
+    expect(pickEdge(index, systems, cam, { x: 95, y: 3 }, null, true)).toEqual({
       edge: link,
       midpointHit: true,
     });
-    expect(pickEdge(systems, cam, { x: 150, y: 3 }, null, true)).toEqual({
+    expect(pickEdge(index, systems, cam, { x: 150, y: 3 }, null, true)).toEqual({
       edge: link,
       midpointHit: false,
     });
-    expect(pickEdge(systems, cam, { x: 150, y: 3 }, null, false).edge).toBeNull();
-    expect(pickEdge(systems, cam, { x: -20, y: 0 }, null, true).edge).toBeNull();
+    expect(pickEdge(index, systems, cam, { x: 150, y: 3 }, null, false).edge).toBeNull();
+    expect(pickEdge(index, systems, cam, { x: -20, y: 0 }, null, true).edge).toBeNull();
   });
 
   it("keeps the sticky edge while the point is on its midpoint button", () => {
-    const { systems } = world([
+    const { systems, index } = world([
       node(1, 0, 0, [2]),
       node(2, 100, 0, [1]),
       node(3, 40, 4, [4]),
@@ -116,31 +123,35 @@ describe("picking", () => {
     const cam = camera(1);
     const far = { kind: "lane", lane: { a: 1, b: 2 } } as const;
 
-    expect(pickEdge(systems, cam, { x: 50, y: 3 }, null, true).edge).toEqual({
+    expect(pickEdge(index, systems, cam, { x: 50, y: 3 }, null, true).edge).toEqual({
       kind: "lane",
       lane: { a: 3, b: 4 },
     });
-    expect(pickEdge(systems, cam, { x: 50, y: 3 }, far, true)).toEqual({
+    expect(pickEdge(index, systems, cam, { x: 50, y: 3 }, far, true)).toEqual({
       edge: far,
       midpointHit: true,
     });
   });
 
   it("snaps to the nearest system outside the drag, and says whether the lane is new", () => {
-    const { systems, grid } = world([node(1, 0, 0, [2]), node(2, 100, 0, [1]), node(3, 104, 0)]);
+    const { systems, grid, index } = world([
+      node(1, 0, 0, [2]),
+      node(2, 100, 0, [1]),
+      node(3, 104, 0),
+    ]);
     const cam = camera(1);
 
-    expect(snapTarget(grid, systems, cam, { x: 98, y: 0 }, FROM(1), true)).toEqual({
+    expect(snapTarget(grid, index, systems, cam, { x: 98, y: 0 }, FROM(1), true)).toEqual({
       kind: "system",
       id: 2,
       valid: false,
     });
-    expect(snapTarget(grid, systems, cam, { x: 103, y: 0 }, FROM(1), true)).toEqual({
+    expect(snapTarget(grid, index, systems, cam, { x: 103, y: 0 }, FROM(1), true)).toEqual({
       kind: "system",
       id: 3,
       valid: true,
     });
-    expect(snapTarget(grid, systems, cam, { x: 2, y: 0 }, FROM(1), true)).toBeNull();
+    expect(snapTarget(grid, index, systems, cam, { x: 2, y: 0 }, FROM(1), true)).toBeNull();
   });
 
   it("snaps a drag from systems to a zone's ring line while zones show, valid when one of them can link", () => {
@@ -151,25 +162,27 @@ describe("picking", () => {
       fe_link: { custom: true, id: 5, to: [] },
     };
     const linked = { ...node(3, 300, 0), fe_link: { custom: false, id: null, to: [5] } };
-    const { systems, grid } = world([anchor, node(2, 200, 0), linked]);
+    const { systems, grid, index } = world([anchor, node(2, 200, 0), linked]);
     const cam = camera(1);
 
-    expect(snapTarget(grid, systems, cam, { x: -60, y: 0 }, FROM(2), true)).toEqual({
+    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(2), true)).toEqual({
       kind: "feZone",
       anchor: 1,
       valid: true,
     });
-    expect(snapTarget(grid, systems, cam, { x: -60, y: 0 }, FROM(3), true)).toMatchObject({
+    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(3), true)).toMatchObject({
       valid: false,
     });
-    expect(snapTarget(grid, systems, cam, { x: -60, y: 0 }, FROM(1), true)).toMatchObject({
+    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(1), true)).toMatchObject({
       valid: false,
     });
-    expect(snapTarget(grid, systems, cam, { x: -60, y: 0 }, FROM(3, 2), true)).toMatchObject({
-      valid: true,
-    });
-    expect(snapTarget(grid, systems, cam, { x: -60, y: 0 }, FROM(2), false)).toBeNull();
-    expect(snapTarget(grid, systems, cam, { x: -40, y: 0 }, FROM(2), true)).toBeNull();
+    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(3, 2), true)).toMatchObject(
+      {
+        valid: true,
+      },
+    );
+    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(2), false)).toBeNull();
+    expect(snapTarget(grid, index, systems, cam, { x: -40, y: 0 }, FROM(2), true)).toBeNull();
   });
 
   it("snaps a drag from a zone's port to a system, refusing the anchor and one already linked", () => {
@@ -179,25 +192,25 @@ describe("picking", () => {
       fe_link: { custom: true, id: 5, to: [] },
     };
     const linked = { ...node(3, 300, 0), fe_link: { custom: false, id: null, to: [5] } };
-    const { systems, grid } = world([anchor, node(2, 200, 0), linked]);
+    const { systems, grid, index } = world([anchor, node(2, 200, 0), linked]);
     const cam = camera(1);
 
-    expect(snapTarget(grid, systems, cam, { x: 198, y: 0 }, FROM_ZONE(1), true)).toEqual({
+    expect(snapTarget(grid, index, systems, cam, { x: 198, y: 0 }, FROM_ZONE(1), true)).toEqual({
       kind: "system",
       id: 2,
       valid: true,
     });
-    expect(snapTarget(grid, systems, cam, { x: 298, y: 0 }, FROM_ZONE(1), true)).toEqual({
+    expect(snapTarget(grid, index, systems, cam, { x: 298, y: 0 }, FROM_ZONE(1), true)).toEqual({
       kind: "system",
       id: 3,
       valid: false,
     });
-    expect(snapTarget(grid, systems, cam, { x: 2, y: 0 }, FROM_ZONE(1), true)).toEqual({
+    expect(snapTarget(grid, index, systems, cam, { x: 2, y: 0 }, FROM_ZONE(1), true)).toEqual({
       kind: "system",
       id: 1,
       valid: false,
     });
-    expect(snapTarget(grid, systems, cam, { x: -60, y: 0 }, FROM_ZONE(1), true)).toBeNull();
+    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM_ZONE(1), true)).toBeNull();
   });
 });
 
@@ -275,34 +288,34 @@ describe("pickFeZone", () => {
   const port = { anchor: 1, zone: "port" };
 
   it("picks the ring band, the port band just outside it and the centre as the ring, and nothing else inside or beyond", () => {
-    const { systems } = world([anchored, node(2, 200, 0)]);
-    expect(pickFeZone(systems, cam, { x: -10, y: 0 })).toEqual(ring);
-    expect(pickFeZone(systems, cam, { x: -40, y: 33 })).toEqual(ring);
-    expect(pickFeZone(systems, cam, { x: -76, y: 0 })).toEqual(ring);
-    expect(pickFeZone(systems, cam, { x: -3, y: 0 })).toEqual(port);
-    expect(pickFeZone(systems, cam, { x: 2, y: 0 })).toEqual(port);
-    expect(pickFeZone(systems, cam, { x: -78, y: 0 })).toEqual(port);
-    expect(pickFeZone(systems, cam, { x: -40, y: 0 })).toEqual(ring);
-    expect(pickFeZone(systems, cam, { x: -40, y: 15 })).toEqual(ring);
-    expect(pickFeZone(systems, cam, { x: -20, y: 0 })).toBeNull();
-    expect(pickFeZone(systems, cam, { x: 3, y: 0 })).toBeNull();
+    const { index } = world([anchored, node(2, 200, 0)]);
+    expect(pickFeZone(index, cam, { x: -10, y: 0 })).toEqual(ring);
+    expect(pickFeZone(index, cam, { x: -40, y: 33 })).toEqual(ring);
+    expect(pickFeZone(index, cam, { x: -76, y: 0 })).toEqual(ring);
+    expect(pickFeZone(index, cam, { x: -3, y: 0 })).toEqual(port);
+    expect(pickFeZone(index, cam, { x: 2, y: 0 })).toEqual(port);
+    expect(pickFeZone(index, cam, { x: -78, y: 0 })).toEqual(port);
+    expect(pickFeZone(index, cam, { x: -40, y: 0 })).toEqual(ring);
+    expect(pickFeZone(index, cam, { x: -40, y: 15 })).toEqual(ring);
+    expect(pickFeZone(index, cam, { x: -20, y: 0 })).toBeNull();
+    expect(pickFeZone(index, cam, { x: 3, y: 0 })).toBeNull();
   });
 
   it("reaches further in world units when zoomed out, the port band scaling with the markers", () => {
-    const { systems } = world([anchored]);
-    expect(pickFeZone(systems, camera(0.5), { x: -81, y: 0 })).toEqual(ring);
-    expect(pickFeZone(systems, camera(0.5), { x: -84, y: 0 })).toEqual(port);
-    expect(pickFeZone(systems, camera(0.5), { x: -90, y: 0 })).toEqual(port);
-    expect(pickFeZone(systems, camera(0.5), { x: -93, y: 0 })).toBeNull();
+    const { index } = world([anchored]);
+    expect(pickFeZone(index, camera(0.5), { x: -81, y: 0 })).toEqual(ring);
+    expect(pickFeZone(index, camera(0.5), { x: -84, y: 0 })).toEqual(port);
+    expect(pickFeZone(index, camera(0.5), { x: -90, y: 0 })).toEqual(port);
+    expect(pickFeZone(index, camera(0.5), { x: -93, y: 0 })).toBeNull();
   });
 
   it("takes the nearer of two rings, a ring band over a port band, and ignores a system that anchors none", () => {
     const twin = { ...node(2, 20, 0), fe_zone: newFeZone("e") };
-    const { systems } = world([anchored, twin, node(3, -40, 0)]);
-    expect(pickFeZone(systems, cam, { x: -8, y: 0 })).toEqual(ring);
-    expect(pickFeZone(systems, cam, { x: 12, y: 0 })).toEqual({ anchor: 2, zone: "ring" });
+    const { index } = world([anchored, twin, node(3, -40, 0)]);
+    expect(pickFeZone(index, cam, { x: -8, y: 0 })).toEqual(ring);
+    expect(pickFeZone(index, cam, { x: 12, y: 0 })).toEqual({ anchor: 2, zone: "ring" });
     const near = { ...node(2, 8, 0), fe_zone: newFeZone("e") };
-    expect(pickFeZone(world([anchored, near]).systems, cam, { x: -3, y: 0 })).toEqual({
+    expect(pickFeZone(world([anchored, near]).index, cam, { x: -3, y: 0 })).toEqual({
       anchor: 2,
       zone: "ring",
     });

@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
 import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
@@ -6,7 +6,7 @@ import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useGalaxyVersion } from "../../../store/browserRows";
-import { islandCount, laneCount, useGalaxyStore } from "../../../store/galaxyStore";
+import { galaxyIslandCount, galaxyLaneCount, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useIssuesStore } from "../../../store/issuesStore";
 import { useApplyOp } from "../../useApplyOp";
@@ -165,7 +165,7 @@ export function GalaxyView() {
     : (galaxy?.bypasses.length ?? 0);
   const random = scenario ? randomBypassLine(placed) : null;
   const seatsLine = paint ? seatSummaryLine(seatSummary(systems.values())) : null;
-  const components = useMemo(() => islandCount(systems), [systems]);
+  const components = galaxyIslandCount(systems);
   if (galaxy === null) return <Empty>Open a save to look at its galaxy.</Empty>;
   return (
     <>
@@ -182,7 +182,7 @@ export function GalaxyView() {
       <Section id="galaxy.counts" title="Galaxy">
         <Properties>
           <PropertyRow label="Systems">{systems.size}</PropertyRow>
-          <PropertyRow label="Hyperlanes">{laneCount(systems.values())}</PropertyRow>
+          <PropertyRow label="Hyperlanes">{galaxyLaneCount(systems)}</PropertyRow>
           <PropertyRow label="Empires">{countries.size}</PropertyRow>
           <PropertyRow label="Nebulae">{nebulae.length}</PropertyRow>
           <PropertyRow label="Bypasses">{bypasses}</PropertyRow>

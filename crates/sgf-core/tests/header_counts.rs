@@ -139,7 +139,7 @@ fn updating_the_counts_rewrites_the_nine_keys_as_one_step_and_clears_the_issue()
     let result = session.apply(op).expect("update");
     assert_eq!(result.entry.description, "Update empire counts");
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         Op::SetHeaderKeys {
             entries: vec![
                 ("num_empires".to_owned(), "{ min = 0 max = 3 }".to_owned()),
@@ -196,7 +196,7 @@ fn a_key_the_header_lacks_is_inserted_and_a_repeated_or_empty_list_is_refused() 
     let result = session.apply(op).expect("set two keys");
     assert_eq!(result.entry.description, "Set 2 header keys");
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         Op::SetHeaderKeys {
             entries: vec![("num_empire_default".to_owned(), "3".to_owned())]
         },

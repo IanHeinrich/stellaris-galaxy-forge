@@ -62,7 +62,7 @@ fn a_shorter_list_rewrites_the_first_statements_and_removes_the_rest() {
         .apply(shapes(&["elliptical", "spoked"]))
         .expect("set two shapes");
     assert_eq!(result.entry.description, "Set supports_shape to 2 values");
-    assert_eq!(result.entry.inverse, shapes(&SHAPES));
+    assert_eq!(result.inverse, shapes(&SHAPES));
     assert_eq!(
         values(&session, "supports_shape"),
         owned(&["elliptical", "spoked"])
@@ -92,7 +92,7 @@ fn an_empty_list_removes_every_statement_and_undo_puts_them_back() {
     let mut session = open();
     let result = session.apply(shapes(&[])).expect("clear the shapes");
     assert_eq!(result.entry.description, "Set supports_shape to 0 values");
-    assert_eq!(result.entry.inverse, shapes(&SHAPES));
+    assert_eq!(result.inverse, shapes(&SHAPES));
     assert!(values(&session, "supports_shape").is_empty());
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(values(&session, "supports_shape"), owned(&SHAPES));
@@ -107,7 +107,7 @@ fn a_key_the_header_lacks_is_inserted_before_the_first_system() {
     let result = session
         .apply(shapes(&["ring", "spoked"]))
         .expect("list the shapes again");
-    assert_eq!(result.entry.inverse, shapes(&[]));
+    assert_eq!(result.inverse, shapes(&[]));
     assert_eq!(
         values(&session, "supports_shape"),
         owned(&["ring", "spoked"])

@@ -30,7 +30,7 @@ function button(label: string): string {
 }
 
 function entry(seq: number, description: string): HistoryEntry {
-  return { seq, description, inverse: { type: "RemoveLane", a: 1, b: 2 } };
+  return { seq, description };
 }
 
 beforeEach(() => {

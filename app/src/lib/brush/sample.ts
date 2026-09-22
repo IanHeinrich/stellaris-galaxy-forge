@@ -1,5 +1,5 @@
 import type { Pt } from "../geometry/pt";
-import { PointGrid } from "./grid";
+import { blockersOf, PointGrid, type Blockers } from "./grid";
 import type { Rand } from "./random";
 
 /** The most points one stroke places. */
@@ -13,7 +13,7 @@ export interface SamplerOptions {
   r: number;
   /** No two points, and no point and blocker, are closer than this. */
   spacing: number;
-  blockers: readonly Pt[];
+  blockers: readonly Pt[] | Blockers;
   rand: Rand;
   cap?: number;
 }
@@ -32,7 +32,7 @@ export class StrokeSampler {
   private readonly spacing: number;
   private readonly rand: Rand;
   private readonly cap: number;
-  private readonly blockers: PointGrid;
+  private readonly blockers: Blockers;
   private readonly stamps: PointGrid;
   private readonly grid: PointGrid<Placed>;
   private readonly placed: Placed[] = [];
@@ -42,8 +42,7 @@ export class StrokeSampler {
     this.spacing = spacing;
     this.rand = rand;
     this.cap = cap;
-    this.blockers = new PointGrid(spacing);
-    for (const b of blockers) this.blockers.add(b);
+    this.blockers = blockersOf(blockers, spacing);
     this.stamps = new PointGrid(r);
     this.grid = new PointGrid(spacing);
   }

@@ -5,6 +5,7 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import * as ipc from "../api/ipc";
+import type { EditResult } from "../generated/EditResult";
 import type { Op } from "../generated/Op";
 import type { SystemNode } from "../generated/SystemNode";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
@@ -35,6 +36,23 @@ describe("header empire counts", () => {
     mocked.applyOp.mockResolvedValueOnce(editResult());
     await editor().updateEmpireCounts();
     expect(mocked.applyOp).toHaveBeenCalledWith({ type: "SetHeaderKeys", entries });
+  });
+
+  it("updateEmpireCounts counts only once the edits queued before it have landed", async () => {
+    let land: (result: EditResult) => void = () => undefined;
+    mocked.applyOp.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
+    const painting = editor().paintStroke([{ x: 100, y: 100 }], []);
+    headerEmpireCounts.mockResolvedValueOnce([["num_empire_default", "3"]]);
+    mocked.applyOp.mockResolvedValueOnce(editResult());
+
+    const counting = editor().updateEmpireCounts();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(headerEmpireCounts).not.toHaveBeenCalled();
+
+    land(editResult());
+    await Promise.all([painting, counting]);
+    expect(headerEmpireCounts).toHaveBeenCalledTimes(1);
+    expect(mocked.applyOp.mock.calls.map(([op]) => op.type)).toEqual(["Batch", "SetHeaderKeys"]);
   });
 
   it("updateEmpireCounts reports a shell that refuses and sends nothing", async () => {

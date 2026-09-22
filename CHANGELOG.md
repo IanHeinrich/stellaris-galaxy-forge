@@ -87,6 +87,15 @@ a release is made.
 
 - The New scenario dialog no longer links to the Paint a Galaxy website.
 
+### Fixed
+
+- Painting, erasing and deleting systems stay quick in scenarios with
+  thousands of systems. Before, each stroke paused the editor, and
+  deleting every system froze it for over a minute.
+- Selecting every system in a large scenario is instant, and the map stays
+  smooth while they are selected.
+- Large scenarios open faster.
+
 ## [0.9.0] - 2026-09-22
 
 ### Added

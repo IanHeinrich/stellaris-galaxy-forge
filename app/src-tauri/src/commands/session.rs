@@ -19,7 +19,7 @@ use sgf_core::views::{
     ProgressPhase, SaveResult, SgfError,
 };
 use sgf_gamedata::GameData;
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime};
 
 use super::{DONE, START, VALIDATE_AT, join_error, lock, progress};
 use crate::state::{AppState, GameDataState};
@@ -182,13 +182,21 @@ async fn install_reporting<R: Runtime>(
 ) -> Result<OpenResult, SgfError> {
     progress(&app, ProgressPhase::Read, START);
     let gd = app.state::<GameDataState>().loaded();
-    let (session, extra) = tauri::async_runtime::spawn_blocking(move || build(gd))
-        .await
-        .map_err(join_error)??;
-    progress(&app, ProgressPhase::Validate, VALIDATE_AT);
-    let mut result = opened(&session)?;
-    result.issues.extend(extra);
-    *lock(&app.state::<AppState>()) = Some(session);
+    let task_app = app.clone();
+    let (session, result) = tauri::async_runtime::spawn_blocking(move || {
+        let (session, extra) = build(gd)?;
+        progress(&task_app, ProgressPhase::Validate, VALIDATE_AT);
+        let mut result = opened(&session)?;
+        result.issues.extend(extra);
+        Ok::<_, SgfError>((session, result))
+    })
+    .await
+    .map_err(join_error)??;
+    with_session(app.clone(), move |guard| {
+        *guard = Some(session);
+        Ok(())
+    })
+    .await?;
     progress(&app, ProgressPhase::Done, DONE);
     Ok(result)
 }
@@ -228,24 +236,41 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError>
     .map_err(join_error)?
 }
 
+/// Run `f` over the open session on the blocking pool, so neither the main thread nor an
+/// async worker waits on the session lock.
+async fn with_session<R: Runtime, T: Send + 'static>(
+    app: AppHandle<R>,
+    f: impl FnOnce(&mut Option<Session>) -> Result<T, SgfError> + Send + 'static,
+) -> Result<T, SgfError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let mut guard = lock(&state);
+        f(&mut guard)
+    })
+    .await
+    .map_err(join_error)?
+}
+
 #[tauri::command]
-pub fn apply_op(state: State<'_, AppState>, op: Op) -> Result<EditResult, SgfError> {
-    let mut guard = lock(&state);
-    let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
-    let result = session.apply(op)?;
-    Ok(session.edit_result(result))
+pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResult, SgfError> {
+    with_session(app, move |guard| {
+        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+        let result = session.apply(op)?;
+        Ok(session.edit_result(result))
+    })
+    .await
 }
 
 /// Link `linked` to the fallen empire zone `anchor` anchors, as one `SetFeLinks` op:
 /// the mod then lays the fallen empire's hyperlanes from those systems and no other.
 /// An empty `linked` gives the zone back to the mod's own rule.
 #[tauri::command]
-pub fn set_fe_links(
-    state: State<'_, AppState>,
+pub async fn set_fe_links<R: Runtime>(
+    app: AppHandle<R>,
     anchor: u32,
     linked: Vec<u32>,
 ) -> Result<EditResult, SgfError> {
-    apply_op(state, Op::SetFeLinks { anchor, linked })
+    apply_op(app, Op::SetFeLinks { anchor, linked }).await
 }
 
 /// The entries of one `SetFeZones` op that replace the open scenario's automatic
@@ -253,24 +278,28 @@ pub fn set_fe_links(
 /// now, spread over the map; the zones the map author placed by hand are not among
 /// them. The app applies the op.
 #[tauri::command]
-pub fn fe_zone_fit(
-    state: State<'_, AppState>,
+pub async fn fe_zone_fit<R: Runtime>(
+    app: AppHandle<R>,
     count: usize,
 ) -> Result<Vec<(u32, Option<FeZone>)>, SgfError> {
-    let guard = lock(&state);
-    let session = scenario(&guard)?;
-    Ok(placement::fit(&placement::sites(&session.graph), count))
+    with_session(app, move |guard| {
+        let session = scenario(guard)?;
+        Ok(placement::fit(&placement::sites(&session.graph), count))
+    })
+    .await
 }
 
 /// How many automatic fallen empire zones Paint a Galaxy's rule can place on the open
 /// scenario: the most `fe_zone_fit` accepts.
 #[tauri::command]
-pub fn fe_zone_candidate_count(state: State<'_, AppState>) -> Result<usize, SgfError> {
-    let guard = lock(&state);
-    let session = scenario(&guard)?;
-    Ok(placement::candidate_count(&placement::sites(
-        &session.graph,
-    )))
+pub async fn fe_zone_candidate_count<R: Runtime>(app: AppHandle<R>) -> Result<usize, SgfError> {
+    with_session(app, |guard| {
+        let session = scenario(guard)?;
+        Ok(placement::candidate_count(&placement::sites(
+            &session.graph,
+        )))
+    })
+    .await
 }
 
 fn scenario(guard: &Option<Session>) -> Result<&Session, SgfError> {
@@ -287,38 +316,46 @@ fn scenario(guard: &Option<Session>) -> Result<&Session, SgfError> {
 /// The five empire-count header keys and the values Paint a Galaxy's formulas give
 /// the open scenario's seats, for the app to apply as one `SetHeaderKeys`.
 #[tauri::command]
-pub fn header_empire_counts(state: State<'_, AppState>) -> Result<Vec<(String, String)>, SgfError> {
-    let guard = lock(&state);
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    if session.kind() != DocumentKind::Scenario {
-        return Err(SgfError::new(
-            ErrorKind::Op,
-            "only a scenario has empire counts",
-        ));
-    }
-    let seats = seat_counts(&session.graph);
-    let zones = zone_count(&session.graph);
-    let clans = clan_count(&session.graph);
-    Ok(empire_counts(seats, zones, clans)
-        .into_iter()
-        .map(|(key, value)| (key.to_owned(), value))
-        .collect())
+pub async fn header_empire_counts<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Vec<(String, String)>, SgfError> {
+    with_session(app, |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        if session.kind() != DocumentKind::Scenario {
+            return Err(SgfError::new(
+                ErrorKind::Op,
+                "only a scenario has empire counts",
+            ));
+        }
+        let seats = seat_counts(&session.graph);
+        let zones = zone_count(&session.graph);
+        let clans = clan_count(&session.graph);
+        Ok(empire_counts(seats, zones, clans)
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value))
+            .collect())
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn undo(state: State<'_, AppState>) -> Result<Option<EditResult>, SgfError> {
-    let mut guard = lock(&state);
-    let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
-    let result = session.undo()?;
-    Ok(result.map(|r| session.edit_result(r)))
+pub async fn undo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, SgfError> {
+    with_session(app, |guard| {
+        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+        let result = session.undo()?;
+        Ok(result.map(|r| session.edit_result(r)))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn redo(state: State<'_, AppState>) -> Result<Option<EditResult>, SgfError> {
-    let mut guard = lock(&state);
-    let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
-    let result = session.redo()?;
-    Ok(result.map(|r| session.edit_result(r)))
+pub async fn redo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, SgfError> {
+    with_session(app, |guard| {
+        let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+        let result = session.redo()?;
+        Ok(result.map(|r| session.edit_result(r)))
+    })
+    .await
 }
 
 /// Write the open session in place, backing up any file already there. Emits `sgf://progress`.
@@ -353,8 +390,11 @@ async fn save_to<R: Runtime>(
     Ok(result)
 }
 
-#[tauri::command(async)]
-pub fn close_save(state: State<'_, AppState>) -> Result<(), SgfError> {
-    *lock(&state) = None;
-    Ok(())
+#[tauri::command]
+pub async fn close_save<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
+    with_session(app, |guard| {
+        *guard = None;
+        Ok(())
+    })
+    .await
 }

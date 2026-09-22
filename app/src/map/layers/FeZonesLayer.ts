@@ -245,9 +245,10 @@ export class FeZonesLayer implements MapLayer {
   }
 
   setSelection(ids: readonly number[]): void {
-    const affected = new Set([...this.selection, ...ids]);
+    const previous = this.selection;
     this.selection = new Set(ids);
-    for (const id of affected) {
+    for (const id of [...this.rings.keys()]) {
+      if (previous.has(id) === this.selection.has(id)) continue;
       const s = this.systems.get(id);
       if (s) this.place(s);
     }

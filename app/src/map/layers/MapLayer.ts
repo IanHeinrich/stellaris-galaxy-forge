@@ -38,6 +38,8 @@ export interface MapLayer {
   setIssues?(issues: readonly AppIssue[]): void;
   /** Systems whose label is placed before any other, whatever their rank. */
   setPinned?(ids: readonly number[]): void;
+  /** The system under the pointer, for a layer that labels it whatever its rank. */
+  setHovered?(id: number | null): void;
   /** Whether the details layer is drawing its own row of icons under every system. */
   setDetailsShown?(shown: boolean): void;
   /** Whether the marauder clans layer is on, for a layer that paints the clans' territories. */

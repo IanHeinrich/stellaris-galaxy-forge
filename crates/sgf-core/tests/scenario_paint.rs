@@ -195,7 +195,7 @@ fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
         .expect("clear the weight of the player's seat");
     assert_eq!(session.graph.systems[&1].spawn_script, None);
     assert_eq!(session.graph.systems[&1].spawn_weight, None);
-    assert_eq!(result.entry.inverse, set(1, player(1)));
+    assert_eq!(result.inverse, set(1, player(1)));
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(session.graph.systems[&1].spawn_script, player(1));
     session.undo().expect("undo").expect("an op to undo");
@@ -536,9 +536,7 @@ fn a_plain_weight_with_the_markers_shape_is_still_a_block_of_modifiers() {
             .windows(b"modifier = { add = 100000 }".len())
             .any(|w| w == b"modifier = { add = 100000 }")
     );
-    session
-        .apply(result.entry.inverse)
-        .expect("apply the inverse");
+    session.apply(result.inverse).expect("apply the inverse");
     assert_eq!(common::current(&session), text.as_bytes());
 }
 
@@ -625,7 +623,7 @@ fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
     round_trip(open(), Op::SetSpawnWeight { id: 2, base: None });
 
     // The inverse puts the script back, not a bare weight of 0.
-    let inverse = result.entry.inverse.clone();
+    let inverse = result.inverse.clone();
     assert_eq!(inverse, set(2, script(reserved("a"), 2)));
     session.apply(inverse).expect("apply the inverse");
     assert_eq!(
@@ -638,10 +636,7 @@ fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
     let result = session
         .apply(Op::SetSpawnWeight { id: 10, base: None })
         .expect("nothing to clear");
-    assert_eq!(
-        result.entry.inverse,
-        Op::SetSpawnWeight { id: 10, base: None }
-    );
+    assert_eq!(result.inverse, Op::SetSpawnWeight { id: 10, base: None });
 }
 
 /// Clearing a scripted seat among plain weights inverts to a batch: the script comes
@@ -659,7 +654,7 @@ fn clearing_a_scripted_seat_among_plain_weights_inverts_each_its_own_way() {
     assert_eq!(session.graph.systems[&10].spawn_weight, Some(1.0));
     common::snapshot("clear_weights_2_and_10", &plain_report(&session, &result));
     assert_eq!(
-        result.entry.inverse,
+        result.inverse,
         Op::Batch {
             description: "Set the spawn weight of 2 systems".to_owned(),
             ops: vec![
@@ -669,7 +664,7 @@ fn clearing_a_scripted_seat_among_plain_weights_inverts_each_its_own_way() {
         }
     );
     session
-        .apply(result.entry.inverse.clone())
+        .apply(result.inverse.clone())
         .expect("apply the inverse");
     assert_eq!(common::current(&session), bytes());
     round_trip(open(), Op::SetSpawnWeights { entries });
@@ -705,7 +700,7 @@ fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
         .apply(Op::RemoveSystem { id: 14 })
         .expect("remove the seat");
     assert_eq!(
-        removed.entry.inverse,
+        removed.inverse,
         Op::AddSystem {
             id: Some(14),
             x: 60.0,

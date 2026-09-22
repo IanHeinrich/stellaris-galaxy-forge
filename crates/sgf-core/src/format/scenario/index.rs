@@ -6,7 +6,7 @@
 //! same standing as one the file already held. The id map is rebuilt from the bytes
 //! currently standing for each statement, never from a running tally.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::NULL_ID;
 use crate::Span;
@@ -113,6 +113,33 @@ pub struct LaneStmt {
     pub prevent: bool,
 }
 
+/// What one body statement reads as.
+#[derive(Clone, Debug, PartialEq)]
+enum Stmt {
+    System(u32),
+    /// `ends` is `None` when either end is not a number.
+    Lane {
+        prevent: bool,
+        ends: Option<(u32, u32)>,
+    },
+    Nebula,
+    Header {
+        field: HeaderField,
+        indent: Vec<u8>,
+    },
+}
+
+/// What a [`ScenarioIndex::refresh`] found changed, for the projection to follow.
+#[derive(Debug, Default)]
+pub(crate) struct Changes {
+    /// Systems whose statement was rewritten, added or removed.
+    pub systems: BTreeSet<u32>,
+    /// Systems a hyperlane statement that was rewritten, added or removed names.
+    pub lanes: BTreeSet<u32>,
+    /// A `nebula` statement was rewritten, added or removed.
+    pub nebulae: bool,
+}
+
 #[derive(Clone, Debug)]
 pub struct ScenarioIndex {
     /// The statements inside the `static_galaxy_scenario` braces, indexed as a file.
@@ -122,11 +149,14 @@ pub struct ScenarioIndex {
     /// Where a new statement goes: the start of the line holding the closing brace.
     pub insert_at: usize,
     pub header: ScenarioHeader,
+    /// Every statement standing in the body, in emission order.
+    stmts: BTreeMap<Anchor, Stmt>,
     systems: BTreeMap<u32, Anchor>,
     /// System ids in file order.
     order: Vec<u32>,
-    lanes: Vec<(Anchor, bool)>,
     nebulae: Vec<Anchor>,
+    /// The hyperlane statements naming each system at either end.
+    lanes_of: HashMap<u32, BTreeSet<Anchor>>,
 }
 
 impl ScenarioIndex {
@@ -159,91 +189,96 @@ impl ScenarioIndex {
             body,
             body_span,
             insert_at: cst::line_start(bytes, close),
+            stmts: BTreeMap::new(),
             systems: BTreeMap::new(),
             order: Vec::new(),
-            lanes: Vec::new(),
             nebulae: Vec::new(),
+            lanes_of: HashMap::new(),
         };
-        scenario.rebuild(bytes, &Overlay::new())?;
+        let overlay = Overlay::new();
+        let (mut counted, mut line) = (0, 1);
+        let anchors: Vec<Anchor> = scenario
+            .body
+            .sections()
+            .iter()
+            .map(|s| Anchor::Original(s.stmt))
+            .collect();
+        for anchor in anchors {
+            line += newlines(&bytes[counted..anchor.start()]);
+            counted = anchor.start();
+            if let Some(stmt) = scenario.read(bytes, &overlay, anchor, Some(line))? {
+                scenario.index_lanes(anchor, &stmt, true);
+                scenario.stmts.insert(anchor, stmt);
+            }
+        }
+        scenario.list_systems();
+        scenario.list_nebulae();
+        scenario.list_header(bytes);
         Ok((scenario, index))
     }
 
-    /// Re-read every statement's current bytes and rebuild the id map and the header from
-    /// them, so a statement an op emptied is gone and one it inserted is listed.
+    /// Re-read the statements `slots` hold from their current bytes, so a statement an op
+    /// emptied is gone and one it inserted is listed. Only those statements are read; on
+    /// error nothing is changed.
     ///
     /// The header is read here rather than once at build because a header op rewrites,
     /// inserts and removes statements like any other, and a projection read from the
     /// original bytes would go stale the moment one applied.
-    pub fn rebuild(&mut self, original: &[u8], overlay: &Overlay) -> Result<(), Error> {
-        let mut systems = BTreeMap::new();
-        let mut order = Vec::new();
-        let mut lanes = Vec::new();
-        let mut nebulae = Vec::new();
-        let mut header = ScenarioHeader {
-            insert_at: self.insert_at,
-            indent: DEFAULT_INDENT.to_vec(),
-            ..ScenarioHeader::default()
-        };
-        let mut first_entity = None;
-        let mut counted = 0;
-        let mut line = 1;
-        for anchor in self.anchors(overlay) {
-            if removed(overlay, anchor, original) {
-                continue;
-            }
-            let start = anchor.start().min(original.len());
-            line += newlines(&original[counted..start]);
-            counted = start;
-            let buf = overlay.current(anchor, original)?;
-            let root = cst::parse_script(buf, 0)?;
-            let Some(node) = root.children().first() else {
-                continue;
+    pub(crate) fn refresh(
+        &mut self,
+        original: &[u8],
+        overlay: &Overlay,
+        slots: &[Anchor],
+    ) -> Result<Changes, Error> {
+        let mut read = Vec::new();
+        for anchor in self.statements_in(slots) {
+            read.push((anchor, self.read(original, overlay, anchor, None)?));
+        }
+        let mut changes = Changes::default();
+        let (mut systems, mut nebulae, mut header) = (false, false, false);
+        for (anchor, new) in read {
+            let old = match &new {
+                Some(stmt) => self.stmts.insert(anchor, stmt.clone()),
+                None => self.stmts.remove(&anchor),
             };
-            match node.key_str(buf) {
-                Some(keys::SYSTEM) => {
-                    let id = system_id(node, buf, anchor.start())?;
-                    if systems.insert(id, anchor).is_none() {
-                        order.push(id);
+            let id = |stmt: &Option<Stmt>| match stmt {
+                Some(Stmt::System(id)) => Some(*id),
+                _ => None,
+            };
+            let is_nebula = |stmt: &Option<Stmt>| matches!(stmt, Some(Stmt::Nebula));
+            systems |= id(&old) != id(&new);
+            nebulae |= is_nebula(&old) != is_nebula(&new);
+            for stmt in [&old, &new].into_iter().flatten() {
+                match stmt {
+                    Stmt::System(id) => {
+                        changes.systems.insert(*id);
                     }
-                    first_entity.get_or_insert(anchor);
+                    Stmt::Lane { ends, .. } => {
+                        changes.lanes.extend(ends.iter().flat_map(|e| [e.0, e.1]))
+                    }
+                    Stmt::Nebula => changes.nebulae = true,
+                    Stmt::Header { .. } => header = true,
                 }
-                Some(keys::ADD_HYPERLANE) => {
-                    lanes.push((anchor, false));
-                    first_entity.get_or_insert(anchor);
-                }
-                Some(keys::PREVENT_HYPERLANE) => {
-                    lanes.push((anchor, true));
-                    first_entity.get_or_insert(anchor);
-                }
-                Some(keys::NEBULA) => {
-                    nebulae.push(anchor);
-                    first_entity.get_or_insert(anchor);
-                }
-                Some(key) => {
-                    header.indent = indent_of(original, buf, anchor);
-                    header.statements.push(HeaderStmt {
-                        field: HeaderField {
-                            key: key.to_owned(),
-                            value: String::from_utf8_lossy(node.value_span().slice(buf))
-                                .into_owned(),
-                            line,
-                        },
-                        anchor,
-                    });
-                }
-                None => {}
+            }
+            if let Some(stmt) = &old {
+                self.index_lanes(anchor, stmt, false);
+            }
+            if let Some(stmt) = &new {
+                self.index_lanes(anchor, stmt, true);
             }
         }
-        if let Some(anchor) = first_entity {
-            header.insert_at = cst::line_start(original, anchor.start().min(original.len()));
+        if systems {
+            self.list_systems();
         }
-        read_scalars(&mut header);
-        self.systems = systems;
-        self.order = order;
-        self.lanes = lanes;
-        self.nebulae = nebulae;
-        self.header = header;
-        Ok(())
+        if nebulae {
+            self.list_nebulae();
+        }
+        if header {
+            self.list_header(original);
+        } else {
+            self.header.insert_at = self.first_entity(original);
+        }
+        Ok(changes)
     }
 
     /// The statement holding system `id`.
@@ -256,6 +291,17 @@ impl ScenarioIndex {
         self.order
             .iter()
             .filter_map(|&id| Some((id, self.system(id)?)))
+    }
+
+    /// The system last in file order, with its statement.
+    pub fn last_system(&self) -> Option<(u32, Anchor)> {
+        let &id = self.order.last()?;
+        Some((id, self.system(id)?))
+    }
+
+    /// System ids in file order.
+    pub fn order(&self) -> &[u32] {
+        &self.order
     }
 
     /// An id no system holds: one past the highest, or 1 when there are none.
@@ -285,48 +331,188 @@ impl ScenarioIndex {
         &self.nebulae
     }
 
-    /// Every hyperlane statement as its current bytes read it; one whose ends no longer
-    /// parse is left out.
-    pub fn lane_statements(&self, doc: &Document) -> Vec<LaneStmt> {
-        self.lanes
+    /// Every hyperlane statement as its current bytes read it, in file order; one whose
+    /// ends do not parse is left out.
+    pub fn lane_statements(&self) -> impl DoubleEndedIterator<Item = LaneStmt> + '_ {
+        self.stmts
             .iter()
-            .filter_map(|&(anchor, prevent)| {
-                let buf = doc.current(anchor).ok()?;
-                let root = cst::parse_script(buf, 0).ok()?;
-                let node = root.children().first()?;
-                let end = |key: &str| -> Option<u32> {
-                    node.find(key, buf)?.scalar_str(buf)?.parse().ok()
-                };
-                Some(LaneStmt {
-                    anchor,
-                    from: end(keys::FROM)?,
-                    to: end(keys::TO)?,
-                    prevent,
-                })
-            })
-            .collect()
+            .filter_map(|(&anchor, stmt)| lane_stmt(anchor, stmt))
     }
 
-    /// Every statement of the body in emission order: the ones the file holds plus the
-    /// ones inserted inside it. The insertion point sits at the closing brace, which is
-    /// the body's end, so the range is inclusive of it.
-    fn anchors(&self, overlay: &Overlay) -> Vec<Anchor> {
-        let mut anchors: Vec<Anchor> = self
-            .body
-            .sections()
-            .iter()
-            .map(|s| Anchor::Original(s.stmt))
-            .collect();
-        let body = self.body_span.start..=self.body_span.end;
-        anchors.extend(
-            overlay
-                .slots()
-                .map(|(anchor, _)| anchor)
-                .filter(|a| a.is_inserted() && body.contains(&a.start())),
-        );
-        anchors.sort_unstable();
+    /// Every hyperlane statement naming system `id` at either end, in file order.
+    pub fn lanes_naming(&self, id: u32) -> impl Iterator<Item = LaneStmt> + '_ {
+        self.lanes_of
+            .get(&id)
+            .into_iter()
+            .flatten()
+            .filter_map(|&anchor| lane_stmt(anchor, self.stmts.get(&anchor)?))
+    }
+
+    /// What the statement at `anchor` now reads as; `None` when it is gone or empty. `line`
+    /// is the one it starts on in the file as opened, counted here when not given.
+    fn read(
+        &self,
+        original: &[u8],
+        overlay: &Overlay,
+        anchor: Anchor,
+        line: Option<u32>,
+    ) -> Result<Option<Stmt>, Error> {
+        if anchor.is_inserted() && !self.in_body(anchor) {
+            return Ok(None);
+        }
+        if removed(overlay, anchor, original) {
+            return Ok(None);
+        }
+        let buf = match overlay.current(anchor, original) {
+            Ok(buf) => buf,
+            Err(OverlayError::MissingInsert { .. }) => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
+        let root = cst::parse_script(buf, 0)?;
+        let Some(node) = root.children().first() else {
+            return Ok(None);
+        };
+        let lane = |prevent| {
+            let end =
+                |key: &str| -> Option<u32> { node.find(key, buf)?.scalar_str(buf)?.parse().ok() };
+            Stmt::Lane {
+                prevent,
+                ends: end(keys::FROM).zip(end(keys::TO)),
+            }
+        };
+        Ok(match node.key_str(buf) {
+            Some(keys::SYSTEM) => Some(Stmt::System(system_id(node, buf, anchor.start())?)),
+            Some(keys::ADD_HYPERLANE) => Some(lane(false)),
+            Some(keys::PREVENT_HYPERLANE) => Some(lane(true)),
+            Some(keys::NEBULA) => Some(Stmt::Nebula),
+            Some(key) => Some(Stmt::Header {
+                field: HeaderField {
+                    key: key.to_owned(),
+                    value: String::from_utf8_lossy(node.value_span().slice(buf)).into_owned(),
+                    line: line.unwrap_or_else(|| {
+                        1 + newlines(&original[..anchor.start().min(original.len())])
+                    }),
+                },
+                indent: indent_of(original, buf, anchor),
+            }),
+            None => None,
+        })
+    }
+
+    /// Every body statement a slot holds: an inserted one is its own statement, and an
+    /// original slot holds the statements its span reaches, which is the one it rewrote or
+    /// the one whose line it took.
+    fn statements_in(&self, slots: &[Anchor]) -> BTreeSet<Anchor> {
+        let sections = self.body.sections();
+        let mut anchors = BTreeSet::new();
+        for &slot in slots {
+            let Anchor::Original(span) = slot else {
+                anchors.insert(slot);
+                continue;
+            };
+            let first = sections.partition_point(|s| s.stmt.end <= span.start);
+            anchors.extend(
+                sections[first..]
+                    .iter()
+                    .take_while(|s| s.stmt.start < span.end)
+                    .map(|s| Anchor::Original(s.stmt)),
+            );
+        }
         anchors
     }
+
+    fn in_body(&self, anchor: Anchor) -> bool {
+        (self.body_span.start..=self.body_span.end).contains(&anchor.start())
+    }
+
+    /// File `anchor` under the systems its hyperlane statement names, or take it away.
+    fn index_lanes(&mut self, anchor: Anchor, stmt: &Stmt, add: bool) {
+        let Stmt::Lane {
+            ends: Some((from, to)),
+            ..
+        } = *stmt
+        else {
+            return;
+        };
+        for id in [from, to] {
+            if add {
+                self.lanes_of.entry(id).or_default().insert(anchor);
+            } else if let Some(anchors) = self.lanes_of.get_mut(&id) {
+                anchors.remove(&anchor);
+                if anchors.is_empty() {
+                    self.lanes_of.remove(&id);
+                }
+            }
+        }
+    }
+
+    /// A repeated id keeps the place of its first statement and names its last.
+    fn list_systems(&mut self) {
+        self.systems.clear();
+        self.order.clear();
+        for (&anchor, stmt) in &self.stmts {
+            if let Stmt::System(id) = *stmt
+                && self.systems.insert(id, anchor).is_none()
+            {
+                self.order.push(id);
+            }
+        }
+    }
+
+    fn list_nebulae(&mut self) {
+        self.nebulae = self
+            .stmts
+            .iter()
+            .filter(|(_, stmt)| matches!(stmt, Stmt::Nebula))
+            .map(|(&anchor, _)| anchor)
+            .collect();
+    }
+
+    fn list_header(&mut self, original: &[u8]) {
+        let mut header = ScenarioHeader {
+            insert_at: self.first_entity(original),
+            indent: DEFAULT_INDENT.to_vec(),
+            ..ScenarioHeader::default()
+        };
+        for (&anchor, stmt) in &self.stmts {
+            if let Stmt::Header { field, indent } = stmt {
+                header.indent.clone_from(indent);
+                header.statements.push(HeaderStmt {
+                    field: field.clone(),
+                    anchor,
+                });
+            }
+        }
+        read_scalars(&mut header);
+        self.header = header;
+    }
+
+    /// Where a header key the file lacks goes: the line start of the first system,
+    /// hyperlane or nebula statement, else the scenario's own insertion slot.
+    fn first_entity(&self, original: &[u8]) -> usize {
+        self.stmts
+            .iter()
+            .find(|(_, stmt)| !matches!(stmt, Stmt::Header { .. }))
+            .map_or(self.insert_at, |(&anchor, _)| {
+                cst::line_start(original, anchor.start().min(original.len()))
+            })
+    }
+}
+
+fn lane_stmt(anchor: Anchor, stmt: &Stmt) -> Option<LaneStmt> {
+    let Stmt::Lane {
+        prevent,
+        ends: Some((from, to)),
+    } = *stmt
+    else {
+        return None;
+    };
+    Some(LaneStmt {
+        anchor,
+        from,
+        to,
+        prevent,
+    })
 }
 
 /// Whether the statement at `anchor` is gone: the bytes now standing for it, whether
