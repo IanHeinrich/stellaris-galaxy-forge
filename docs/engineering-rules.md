@@ -112,7 +112,10 @@ path renames aside as the backup, and the editor's bytes take its place.
   those files.
 - `CHANGELOG.md` follows Keep a Changelog. Every PR adds an entry under
   `## [Unreleased]`, or carries the `skip-changelog` label; the required
-  `Changelog entry` check enforces this.
+  `Changelog entry` check enforces this. The changelog is for the people
+  who use the editor, so an entry describes what they can now see or do.
+  Tooling, tests, refactors and anything else that leaves the app
+  unchanged take the label instead.
 - To release: `bash scripts/version.sh bump minor` (or
   `patch`/`major`), then `bash scripts/changelog.sh release
   $(cat VERSION)`, which renames Unreleased to `## [x.y.z] - YYYY-MM-DD`
