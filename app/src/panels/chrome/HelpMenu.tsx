@@ -36,11 +36,6 @@ export function HelpMenu() {
           <EyeRow pressed={checkAtStart} onClick={() => setCheckAtStart(!checkAtStart)}>
             <span>Check for updates at start</span>
           </EyeRow>
-          <div className="menu-rule" />
-          <EyeRow pressed={warnNotForPaint} onClick={() => setWarnNotForPaint(!warnNotForPaint)}>
-            <span>{WARN_NOT_FOR_PAINT}</span>
-          </EyeRow>
-          <div className="menu-rule" />
           <MenuItem
             label="Releases page"
             onClick={() => {
@@ -48,6 +43,11 @@ export function HelpMenu() {
               void openReleases();
             }}
           />
+          <div className="menu-rule" />
+          <div className="menu-section">Paint a Galaxy</div>
+          <EyeRow pressed={warnNotForPaint} onClick={() => setWarnNotForPaint(!warnNotForPaint)}>
+            <span>{WARN_NOT_FOR_PAINT}</span>
+          </EyeRow>
         </>
       )}
     </Menu>

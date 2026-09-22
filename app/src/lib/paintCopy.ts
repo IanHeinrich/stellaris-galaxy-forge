@@ -55,7 +55,7 @@ export const NEVER_WARN_WHY =
   "Turn the warning back on in the Help menu.";
 
 /** The Help menu's switch for that question. */
-export const WARN_NOT_FOR_PAINT = "Warn when opening a scenario that isn't for Paint a Galaxy";
+export const WARN_NOT_FOR_PAINT = "Warn on plain scenarios";
 
 /** The badge's tooltip for a scenario on the layer. */
 export const PAINT_PROFILE_TITLE = "This scenario is set up for the Paint a Galaxy mod";
