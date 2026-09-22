@@ -58,7 +58,7 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
       <div className="open-dialog-foot">
         <div className="setup-actions">
           {notForPaint && (
-            <label className="hint never-warn" title={NEVER_WARN_WHY}>
+            <label className="hint never-warn">
               <input
                 type="checkbox"
                 checked={neverWarn}
@@ -74,6 +74,7 @@ function Question({ prompt }: { prompt: ScenarioPrompt }) {
             Continue
           </button>
         </div>
+        {notForPaint && <p className="hint never-warn-why">{NEVER_WARN_WHY}</p>}
       </div>
     </Dialog>
   );

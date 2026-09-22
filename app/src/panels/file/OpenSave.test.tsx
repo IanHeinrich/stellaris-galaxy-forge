@@ -18,6 +18,7 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import {
   NEVER_WARN,
+  NEVER_WARN_WHY,
   OPEN_NOT_FOR_PAINT,
   OPEN_PAINT_MOD_OFF,
   PAINT_CHECK,
@@ -224,6 +225,7 @@ describe("opening a scenario file", () => {
     expect(shown(dialog())).toContain(PAINT_CHECK);
     expect(shown(dialog())).toContain(UNTICKED);
     expect(shown(dialog())).toContain(NEVER_WARN);
+    expect(shown(dialog())).toContain(NEVER_WARN_WHY.split(".")[0]);
     expect(buttons(dialog())).toEqual(["Cancel", "Continue"]);
   });
 

@@ -625,6 +625,10 @@ button.open-primary:hover:not([aria-disabled="true"]) {
   gap: 6px;
 }
 
+.never-warn-why {
+  margin: 0;
+}
+
 .start-card {
   gap: 8px;
 }
