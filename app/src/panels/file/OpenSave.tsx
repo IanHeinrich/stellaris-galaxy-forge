@@ -35,7 +35,7 @@ import { useRecentsStore } from "../../store/recentsStore";
 import { Twisty } from "../Twisty";
 import { Dialog } from "../overlays/Dialog";
 import { OpenAsScenarioDialog } from "./OpenAsScenarioDialog";
-import { CLOUD_TITLE, EmpireMark, IRONMAN_TITLE, OpenDetails } from "./OpenDetails";
+import { CLOUD_TITLE, EmpireMark, IRONMAN_TITLE, OpenDetails, PaintTag } from "./OpenDetails";
 import { formatSize, formatWhen, phaseLabel } from "./launchData";
 import "./open.css";
 
@@ -54,12 +54,14 @@ function CloudFlag({ cloud }: { cloud: boolean }) {
 }
 
 function RecentBody({ row, onForget }: { row: RecentRow; onForget: () => void }) {
+  const scenarios = useOpenScreenStore((s) => s.scenarios);
   return (
     <>
       <span className="open-main">
         <span className={row.missing ? "open-title gone" : "open-title"}>
           <span className="flag kind">{row.doc.kind === "save" ? "SAVE" : "SCENARIO"}</span>
           {row.doc.title}
+          {row.doc.kind === "scenario" && <PaintTag path={row.doc.path} listings={scenarios} />}
         </span>
         <span className="open-sub">{row.doc.subtitle || row.doc.path}</span>
       </span>
@@ -139,6 +141,7 @@ function ScenarioBody({ row }: { row: ScenarioRow }) {
       <span className="open-main">
         <span className="open-title">
           {listing.name}
+          <PaintTag path={listing.path} listings={[listing]} />
           {!listing.enabled && listing.source === "mod" && (
             <span className="flag" title="The playset does not carry this mod">
               not in playset

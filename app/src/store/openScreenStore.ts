@@ -5,7 +5,12 @@ import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { OpenLists, OpenTab } from "../lib/openRows";
-import { useFileSessionStore, type OpenMode } from "./fileSessionStore";
+import {
+  askScenarioOpen,
+  isSavePath,
+  useFileSessionStore,
+  type OpenMode,
+} from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
 import { standingProfile } from "./paintModStore";
 import { useRecentsStore } from "./recentsStore";
@@ -38,7 +43,10 @@ export interface OpenScreenState extends OpenLists {
   expand(dir: string): Promise<void>;
   collapse(): void;
   toggle(dir: string): Promise<void>;
-  /** Opens `path` as a save or as a scenario, reporting failure on the row it came from. */
+  /**
+   * Opens `path` as a save or as a scenario, reporting failure on the row it came from. A
+   * scenario file asks the Paint a Galaxy question first where it has to.
+   */
   open(path: string, mode: OpenMode): Promise<void>;
   forget(path: string): void;
 }
@@ -148,12 +156,14 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
 
   async open(path, mode) {
     const session = useFileSessionStore.getState();
-    if (get().busy !== null || session.saving || !(await session.confirmDiscard())) return;
+    if (get().busy !== null || session.saving) return;
+    const profile = mode === "save" && !isSavePath(path) ? await askScenarioOpen(path) : undefined;
+    if (profile === null || !(await session.confirmDiscard())) return;
     set({ busy: path, rowError: null });
     const opening =
       mode === "scenario"
         ? session.openScenarioFrom(path, standingProfile())
-        : session.openSave(path);
+        : session.openSave(path, profile);
     const opened = await opening.finally(() => set({ busy: null }));
     if (opened) {
       useLayoutStore.getState().hideOpenDialog();

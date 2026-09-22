@@ -61,6 +61,15 @@ a release is made.
 - Open as scenario asks the Paint a Galaxy question before it goes on, as
   the Open as dialog does. Before, a save taken as a scenario from the Open
   list ignored the checkbox.
+- Scenarios in the Open dialog are tagged "PaG" or "Plain". Hover the tag
+  for the full wording. The panel on the right says the same.
+- A Paint a Galaxy scenario opens straight away while the mod is enabled.
+  While the mod is off, opening one warns that the map will break in-game,
+  and the panel on the right shows the same warning.
+- Opening a scenario that isn't for Paint a Galaxy asks first. Tick the box
+  to edit it for the mod.
+- Tick "Don't warn me again" to open those scenarios as they are. The
+  switch in the Help menu turns the warning back on.
 - Click a row to select it and double-click to open it. Hovering no longer
   selects.
 

@@ -4,7 +4,7 @@ import type { CampaignListing } from "../../generated/CampaignListing";
 import type { GalaxySettings } from "../../generated/GalaxySettings";
 import type { SaveFile } from "../../generated/SaveFile";
 import type { ScenarioListing } from "../../generated/ScenarioListing";
-import { gameDataSummary, saveMeta, scenarioSummary } from "../../test/builders";
+import { gameDataSummary, paintModView, saveMeta, scenarioSummary } from "../../test/builders";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -16,13 +16,24 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
-import { PAINT_CHECK, PAINT_UNTICKED } from "../../lib/paintCopy";
+import {
+  NEVER_WARN,
+  OPEN_NOT_FOR_PAINT,
+  OPEN_PAINT_MOD_OFF,
+  PAINT_CHECK,
+  PAINT_MOD_NOT_ENABLED,
+  PAINT_MOD_OFF_BREAKS,
+  PAINT_UNTICKED,
+  SCENARIO_FOR_PAINT,
+  SCENARIO_PLAIN,
+} from "../../lib/paintCopy";
 import { footerOpens, type CampaignRow, type SaveRow, type ScenarioRow } from "../../lib/openRows";
 import { detailsKey, useOpenScreenStore } from "../../store/openScreenStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
 import { useTextureUrl } from "../useTextureUrl";
 import { EmpireMark, OpenDetails } from "./OpenDetails";
 import { OpenAsScenarioDialog } from "./OpenAsScenarioDialog";
+import { OpenScenarioDialog } from "./OpenScenarioDialog";
 import { OpenSave, RowBody } from "./OpenSave";
 import { openRoute } from "./openRoute";
 
@@ -66,6 +77,7 @@ function scenarioListing(over: Partial<ScenarioListing> = {}): ScenarioListing {
     size: 1024,
     error: null,
     summary: scenarioSummary(),
+    painted: false,
     ...over,
   };
 }
@@ -136,6 +148,7 @@ const noop = () => undefined;
 function shown(html: string): string {
   return html
     .replace(/<[^>]*>/g, " ")
+    .replace(/&#x27;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -165,7 +178,7 @@ describe("a row", () => {
 
   it("gives a scenario its systems and mod, and no scenario action", () => {
     const html = renderToStaticMarkup(<RowBody row={scenarioRow()} onForget={noop} />);
-    expect(shown(html)).toContain("a_galaxy 100 systems · Stellaris");
+    expect(shown(html)).toContain("a_galaxy Plain 100 systems · Stellaris");
     expect(buttons(html)).toEqual([]);
   });
 });
@@ -185,6 +198,98 @@ describe("opening a save as a scenario", () => {
 
     usePaintModStore.setState({ paintChoice: true });
     expect(shown(dialog())).not.toContain(UNTICKED);
+  });
+});
+
+describe("opening a scenario file", () => {
+  const UNTICKED = PAINT_UNTICKED.split(":")[0];
+  const dialog = () => renderToStaticMarkup(<OpenScenarioDialog />);
+  const ask = (kind: "not_for_paint" | "paint_mod_off") =>
+    useFileSessionStore.setState({
+      scenarioPrompt: { path: scenarioListing().path, kind, resolve: noop },
+    });
+
+  beforeEach(() => {
+    usePaintModStore.setState({ known: true, paintMod: paintModView({ enabled: false }) });
+  });
+
+  it("shows nothing while no scenario is waiting", () => {
+    expect(dialog()).toBe("");
+  });
+
+  it("asks about a scenario that isn't for Paint a Galaxy, with the warning and a way to stop asking", () => {
+    ask("not_for_paint");
+    usePaintModStore.setState({ paintChoice: false });
+    expect(shown(dialog())).toContain(OPEN_NOT_FOR_PAINT);
+    expect(shown(dialog())).toContain(PAINT_CHECK);
+    expect(shown(dialog())).toContain(UNTICKED);
+    expect(shown(dialog())).toContain(NEVER_WARN);
+    expect(buttons(dialog())).toEqual(["Cancel", "Continue"]);
+  });
+
+  it("warns that the mod a Paint a Galaxy scenario needs is off, and offers no way to stop warning", () => {
+    ask("paint_mod_off");
+    expect(shown(dialog())).toContain(OPEN_PAINT_MOD_OFF);
+    expect(shown(dialog())).toContain(PAINT_MOD_NOT_ENABLED);
+    expect(shown(dialog())).not.toContain(NEVER_WARN);
+    expect(shown(dialog())).not.toContain(PAINT_CHECK);
+  });
+
+  it("leaves the Open as scenario question without a way to stop asking", () => {
+    const html = renderToStaticMarkup(
+      <OpenAsScenarioDialog path={saveFile().path} onContinue={noop} onCancel={noop} />,
+    );
+    expect(shown(html)).not.toContain(NEVER_WARN);
+  });
+
+  it("tags a scenario row PaG or Plain, with the full wording on hover", () => {
+    const painted = renderToStaticMarkup(
+      <RowBody
+        row={scenarioRow({ listing: scenarioListing({ painted: true }) })}
+        onForget={noop}
+      />,
+    );
+    expect(painted).toContain(`title="${SCENARIO_FOR_PAINT.line}">PaG<`);
+    const plain = renderToStaticMarkup(<RowBody row={scenarioRow()} onForget={noop} />);
+    expect(plain).toContain(`title="${SCENARIO_PLAIN.line}">Plain<`);
+  });
+
+  it("tags a recent scenario only when the listing or the mod's folder can tell", () => {
+    const recent = (path: string) =>
+      renderToStaticMarkup(
+        <RowBody
+          row={{
+            kind: "recent",
+            key: `recent:${path}`,
+            doc: { kind: "scenario", path, title: "mine", subtitle: "", openedAt: 5 },
+            missing: false,
+          }}
+          onForget={noop}
+        />,
+      );
+    usePaintModStore.setState({
+      paintMod: paintModView({ scenarios_dir: "C:/mods/pag/map/setup_scenarios" }),
+    });
+    expect(shown(recent("C:/mods/pag/map/setup_scenarios/mine.txt"))).toContain("PaG");
+    useOpenScreenStore.setState({ scenarios: [scenarioListing()] });
+    expect(shown(recent(scenarioListing().path))).toContain("Plain");
+    expect(shown(recent("C:/elsewhere/mine.txt"))).not.toMatch(/PaG|Plain/);
+  });
+
+  it("says in the details pane which kind a scenario is, and warns while the mod it needs is off", () => {
+    const pane = (painted: boolean) =>
+      shown(
+        renderToStaticMarkup(
+          <OpenDetails row={scenarioRow({ listing: scenarioListing({ painted }) })} />,
+        ),
+      );
+    expect(pane(true)).toContain(SCENARIO_FOR_PAINT.line);
+    expect(pane(true)).toContain(PAINT_MOD_OFF_BREAKS);
+    expect(pane(false)).toContain(SCENARIO_PLAIN.line);
+    expect(pane(false)).not.toContain(PAINT_MOD_OFF_BREAKS);
+
+    usePaintModStore.setState({ paintMod: paintModView({ enabled: true }) });
+    expect(pane(true)).not.toContain(PAINT_MOD_OFF_BREAKS);
   });
 });
 

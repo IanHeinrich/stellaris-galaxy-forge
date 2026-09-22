@@ -1,8 +1,13 @@
+import { WARN_NOT_FOR_PAINT } from "../../lib/paintCopy";
+import { usePaintModStore } from "../../store/paintModStore";
 import { useUpdateStore } from "../../store/updateStore";
 import "./chrome.css";
 import { EyeRow, Menu, MenuItem } from "./Menu";
 
-/** The app's own corner: what is running, whether it looks for something newer, and where. */
+/**
+ * The app's own corner: what is running, whether it looks for something newer, and where; and
+ * whether it asks before opening a scenario that isn't for Paint a Galaxy.
+ */
 export function HelpMenu() {
   const status = useUpdateStore((s) => s.status);
   const version = useUpdateStore((s) => s.version);
@@ -10,6 +15,8 @@ export function HelpMenu() {
   const check = useUpdateStore((s) => s.check);
   const setCheckAtStart = useUpdateStore((s) => s.setCheckAtStart);
   const openReleases = useUpdateStore((s) => s.openReleases);
+  const warnNotForPaint = usePaintModStore((s) => s.warnNotForPaint);
+  const setWarnNotForPaint = usePaintModStore((s) => s.setWarnNotForPaint);
   const busy = status === "checking" || status === "installing";
 
   return (
@@ -28,6 +35,10 @@ export function HelpMenu() {
           />
           <EyeRow pressed={checkAtStart} onClick={() => setCheckAtStart(!checkAtStart)}>
             <span>Check for updates at start</span>
+          </EyeRow>
+          <div className="menu-rule" />
+          <EyeRow pressed={warnNotForPaint} onClick={() => setWarnNotForPaint(!warnNotForPaint)}>
+            <span>{WARN_NOT_FOR_PAINT}</span>
           </EyeRow>
           <div className="menu-rule" />
           <MenuItem

@@ -9,9 +9,12 @@ import type { Setting } from "../../generated/Setting";
 import { saveFlagKey } from "../../lib/flagKey";
 import { displayNameIn, stripped, type Names } from "../../lib/names";
 import { plural, recentTarget, type Row } from "../../lib/openRows";
+import { scenarioForPaint } from "../../lib/paint";
+import { PAINT_MOD_OFF_BREAKS, SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
 import { fileName } from "../../lib/paths";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { detailsKey, useOpenScreenStore } from "../../store/openScreenStore";
+import { usePaintModStore } from "../../store/paintModStore";
 import type { RecentDoc } from "../../store/recentsStore";
 import { useTextureUrl } from "../useTextureUrl";
 import { formatSize, formatWhen } from "./launchData";
@@ -41,6 +44,49 @@ export function EmpireMark({ meta, size }: { meta: SaveMeta | null; size: "row" 
   const url = useTextureUrl(key === null ? [] : [key]);
   if (url === undefined) return <EmpireDot meta={meta} />;
   return <img className={`empire-flag ${size}`} src={url} alt="" />;
+}
+
+/** Whether the scenario file at `path` is for Paint a Galaxy, by `listings` and the mod's folder. */
+function useForPaint(path: string, listings: readonly ScenarioListing[] | null): boolean | null {
+  const paintMod = usePaintModStore((s) => s.paintMod);
+  return scenarioForPaint(path, listings, paintMod);
+}
+
+/** A scenario row's tag: for Paint a Galaxy or plain, when that can be told. */
+export function PaintTag({
+  path,
+  listings,
+}: {
+  path: string;
+  listings: readonly ScenarioListing[] | null;
+}) {
+  const forPaint = useForPaint(path, listings);
+  if (forPaint === null) return null;
+  const copy = forPaint ? SCENARIO_FOR_PAINT : SCENARIO_PLAIN;
+  return (
+    <span className="flag" title={copy.line}>
+      {copy.tag}
+    </span>
+  );
+}
+
+/** The same fact in the pane, and a warning while the mod the scenario is for is off. */
+function PaintFact({
+  path,
+  listings,
+}: {
+  path: string;
+  listings: readonly ScenarioListing[] | null;
+}) {
+  const forPaint = useForPaint(path, listings);
+  const modOff = usePaintModStore((s) => s.known && !s.paintMod?.enabled);
+  if (forPaint === null) return null;
+  return (
+    <>
+      <div className="od-soft">{(forPaint ? SCENARIO_FOR_PAINT : SCENARIO_PLAIN).line}</div>
+      {forPaint && modOff && <Warning>{PAINT_MOD_OFF_BREAKS}</Warning>}
+    </>
+  );
 }
 
 /** The game's text for `key`, else the key made readable. */
@@ -393,6 +439,7 @@ function ScenarioBody({ listing, group }: { listing: ScenarioListing; group: str
           {listing.mod_name ?? "Stellaris"} · {group}
         </div>
         {playset && <div className="od-soft">{playset}</div>}
+        <PaintFact path={listing.path} listings={[listing]} />
       </header>
       {listing.error && <Warning>{listing.error}</Warning>}
       {listing.shadowed_by && (
@@ -447,6 +494,7 @@ function RecentBody({ doc, missing }: { doc: RecentDoc; missing: boolean }) {
           <span>{doc.title}</span>
         </div>
         {doc.subtitle && <div className="od-soft">{doc.subtitle}</div>}
+        {doc.kind === "scenario" && <PaintFact path={doc.path} listings={null} />}
       </header>
       {missing && <Warning>The file was not found the last time it was opened.</Warning>}
       <Block title="File">

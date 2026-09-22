@@ -22,6 +22,41 @@ export const PAINT_NOTICE_WHY =
   "Custom galaxies hit game-breaking bugs without the Paint a Galaxy mod. Save this map into " +
   "the mod unless it belongs to a mod of your own.";
 
+/** A scenario row's tag in the Open list, and the line the details pane shows for it. */
+export interface ScenarioKindCopy {
+  tag: string;
+  line: string;
+}
+
+export const SCENARIO_FOR_PAINT: ScenarioKindCopy = {
+  tag: "PaG",
+  line: "Written for the Paint a Galaxy mod",
+};
+export const SCENARIO_PLAIN: ScenarioKindCopy = {
+  tag: "Plain",
+  line: "A plain scenario, not for Paint a Galaxy",
+};
+
+/** Why a scenario for the mod will not play right while the mod is off. */
+export const PAINT_MOD_OFF_BREAKS =
+  "The Paint a Galaxy mod isn't enabled in your playset, so this map will break in-game until it is.";
+
+/** Opening a scenario for the mod while the mod is off. */
+export const OPEN_PAINT_MOD_OFF = `This scenario is written for the Paint a Galaxy mod. ${PAINT_MOD_OFF_BREAKS}`;
+
+/** Opening a scenario that is not for the mod, above the checkbox. */
+export const OPEN_NOT_FOR_PAINT =
+  "This scenario isn't written for the Paint a Galaxy mod. With the box ticked, you edit it for the mod.";
+
+/** The checkbox that turns off the question above, and where to turn it back on. */
+export const NEVER_WARN = "Don't warn me again";
+export const NEVER_WARN_WHY =
+  "Scenarios that aren't for Paint a Galaxy will open as they are. " +
+  "Turn the warning back on in the Help menu.";
+
+/** The Help menu's switch for that question. */
+export const WARN_NOT_FOR_PAINT = "Warn when opening a scenario that isn't for Paint a Galaxy";
+
 /** The badge's tooltip for a scenario on the layer. */
 export const PAINT_PROFILE_TITLE = "This scenario is set up for the Paint a Galaxy mod";
 

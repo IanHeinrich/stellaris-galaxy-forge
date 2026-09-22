@@ -55,6 +55,7 @@ function scenario(over: Partial<ScenarioListing> = {}): ScenarioListing {
     size: 1024,
     error: null,
     summary: scenarioSummary(),
+    painted: false,
     ...over,
   };
 }

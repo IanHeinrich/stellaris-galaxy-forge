@@ -21,6 +21,8 @@ export interface PaintModState {
   noticeDismissed: boolean;
   /** The user's standing choice, kept per machine: new files are written for the Paint a Galaxy mod. */
   paintChoice: boolean;
+  /** Opening a scenario that isn't for the mod asks first; kept per machine. */
+  warnNotForPaint: boolean;
 
   /**
    * Asks the shell again; a failed ask leaves the last answer standing, and an answer that says
@@ -34,6 +36,7 @@ export interface PaintModState {
   watch(): () => void;
   dismissNotice(): void;
   setPaintChoice(on: boolean): void;
+  setWarnNotForPaint(on: boolean): void;
   /** Save As into the mod's scenarios folder; nothing when that folder is unknown. */
   saveIntoPaintMod(): Promise<void>;
 }
@@ -53,6 +56,7 @@ export const usePaintModStore = create<PaintModState>((set, get) => ({
   known: false,
   noticeDismissed: readPref(PREF_KEYS.paintNoticeDismissed, false, isBoolean),
   paintChoice: readPref(PREF_KEYS.paintProfile, true, isBoolean),
+  warnNotForPaint: readPref(PREF_KEYS.warnNotForPaint, true, isBoolean),
 
   async refresh() {
     let fresh: PaintModView | null;
@@ -90,6 +94,11 @@ export const usePaintModStore = create<PaintModState>((set, get) => ({
   setPaintChoice(on) {
     set({ paintChoice: on });
     writePref(PREF_KEYS.paintProfile, on);
+  },
+
+  setWarnNotForPaint(on) {
+    set({ warnNotForPaint: on });
+    writePref(PREF_KEYS.warnNotForPaint, on);
   },
 
   async saveIntoPaintMod() {

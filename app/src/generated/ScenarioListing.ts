@@ -25,4 +25,8 @@ error: string | null,
 /**
  * The header's setup values; all empty when the file could not be read.
  */
-summary: ScenarioSummary, };
+summary: ScenarioSummary, 
+/**
+ * Written for Paint a Galaxy.
+ */
+painted: boolean, };

@@ -275,11 +275,24 @@ fn each_listed_scenario_carries_its_header_summary() {
         load_rank: Some(0),
         replaces: false,
     };
+    let listings = list_scenarios_in(&[root]);
     let mut report = String::new();
-    for listing in list_scenarios_in(&[root]) {
+    for listing in &listings {
         writeln!(report, "{}: {:#?}", listing.name, listing.summary).unwrap();
     }
     common::snapshot("header_summaries", &report);
+    let painted: Vec<(&str, bool)> = listings
+        .iter()
+        .map(|l| (l.name.as_str(), l.painted))
+        .collect();
+    assert_eq!(
+        painted,
+        [
+            ("2206.11.16", false),
+            ("Painted Reach", true),
+            ("unreadable", false)
+        ],
+    );
 }
 
 #[test]

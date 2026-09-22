@@ -76,6 +76,11 @@ useFileSessionStore.subscribe((state) => {
   }
 });
 
+/** Every scenario file these tests open is taken as its bytes say, whatever the prompt asks. */
+useFileSessionStore.subscribe((state) => {
+  if (state.scenarioPrompt !== null) session().answerScenarioPrompt("plain");
+});
+
 bindStores();
 
 /** One applied edit, so the session is dirty. */
