@@ -5,6 +5,7 @@ import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useSystemNames } from "../../../store/browserRows";
 import { linkedSystems, selectionLanes, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { counted } from "../../../lib/text";
 import { browseInitializers, NEEDS_GAME_DATA } from "../../initializers/entry";
 import { BulkActions } from "./BulkActions";
 import { Chip, FILTER_MIN, FilterField, Section, Swatch } from "../parts";
@@ -25,6 +26,7 @@ export function SelectionView() {
   );
   const lanes = selectionLanes(systems, selection).linked.length;
   const isolated = selection.length - linkedSystems(systems, selection).length;
+  const between = `${counted(lanes, "lane")} between them · ${counted(owners.size, "owner")}`;
   return (
     <>
       <div className="ins-head">
@@ -35,7 +37,7 @@ export function SelectionView() {
       </div>
       <div className="ins-line muted">
         <span>
-          {lanes} lanes between them · {owners.size} owners · {isolated} isolated
+          {between} · {isolated} isolated
         </span>
       </div>
       <Section id="selection.actions" title="Actions">

@@ -1,4 +1,4 @@
-import { confirm, open, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { confirm, open } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import { isSgfError } from "../api/errors";
 import { onProgress } from "../api/events";
@@ -13,41 +13,41 @@ import type { OpenResult } from "../generated/OpenResult";
 import type { Progress } from "../generated/Progress";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SaveResult } from "../generated/SaveResult";
+import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
-import type { AppIssue } from "../lib/issues";
+import { documentCapabilities, supports } from "../lib/capabilities";
 import {
   paintLayer,
   scenarioForPaint,
   scenarioOpenPrompt,
   type ScenarioOpenPrompt,
 } from "../lib/paint";
-import { fileName, joinPath } from "../lib/paths";
+import { fileName } from "../lib/paths";
+import { saveGateActions } from "./fileSessionStore.saveGate";
+import { SAVE_FILTER, SCENARIO_FILTER, writeActions } from "./fileSessionStore.writes";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
-import {
-  RESERVED_SPAWNS,
-  isNote,
-  issueKey,
-  noteDuplicateNames,
-  noteGalaxySize,
-  noteInitializerLimits,
-  noteReservedSpawns,
-  useIssuesStore,
-} from "./issuesStore";
-import { useLayoutStore } from "./layoutStore";
-import { useOpenScreenStore } from "./openScreenStore";
-import {
-  noteSavedIntoPaintMod,
-  paintScenariosDir,
-  standingProfile,
-  usePaintModStore,
-} from "./paintModStore";
+import { useIssuesStore } from "./issuesStore";
+import { standingProfile, usePaintModStore } from "./paintModStore";
 import { recentSubtitle, useRecentsStore } from "./recentsStore";
 
 export type Status = "empty" | "loading" | "ready" | "error";
 
 /** What a picked save is opened as: edited in place, or taken as the start of a scenario. */
 export type OpenMode = "save" | "scenario";
+
+/** How an open the user asked for ended: the document opened, it failed, or nothing happened. */
+export type OpenOutcome = "opened" | "failed" | "cancelled";
+
+/** What the caller knows of a file it asks to open, beyond its path. */
+export interface OpenRequest {
+  /** Open a scenario file for the Paint a Galaxy mod, whatever the file says. */
+  asPaint?: boolean;
+  /** Take a save straight into a new scenario; only the Paint a Galaxy choice is asked. */
+  asScenario?: boolean;
+  /** The scenarios the Open screen lists, which say whether a file outside the mod is for it. */
+  listings: readonly ScenarioListing[] | null;
+}
 
 /** What the user says to a save that found issues: go and look, write it anyway, or stop. */
 export type SaveIssuesAnswer = "review" | "save" | "cancel";
@@ -77,9 +77,6 @@ export interface PausedSave {
   keys: string[];
   resume(): Promise<void>;
 }
-
-const SAVE_FILTER = { name: "Stellaris save", extensions: ["sav"] };
-const SCENARIO_FILTER = { name: "Stellaris static galaxy scenario", extensions: ["txt"] };
 
 export interface FileSessionState {
   status: Status;
@@ -122,6 +119,8 @@ export interface FileSessionState {
   pausedSave: PausedSave | null;
   /** A save waiting for the user to say which way to open it. */
   pendingOpen: string | null;
+  /** The pending save is already taken as a scenario, so only the Paint a Galaxy choice is asked. */
+  pendingAsScenario: boolean;
   /** A scenario file waiting for the user to answer the Paint a Galaxy question. */
   scenarioPrompt: ScenarioPrompt | null;
   /** What an export would carry over, waiting for the user to confirm or cancel it. */
@@ -147,24 +146,36 @@ export interface FileSessionState {
     coreRadius: number,
     profile?: ScenarioProfile,
   ): Promise<boolean>;
-  /** Opens `path`, asking first how a save is to be opened. */
-  requestOpen(path: string): Promise<void>;
+  /**
+   * Opens `path` as a save, a scenario file, or a save taken into a new scenario, once any
+   * unsaved changes are agreed to go and any Paint a Galaxy question is answered.
+   */
+  openPath(path: string, mode: OpenMode, request: OpenRequest): Promise<OpenOutcome>;
+  /** Opens `path`, asking first how a save is to be opened, or only the Paint a Galaxy choice. */
+  requestOpen(path: string, request: OpenRequest): Promise<void>;
   /** Answers the pending open; null cancels it. */
   chooseOpenMode(mode: OpenMode | null): Promise<void>;
   /** Answers the Paint a Galaxy question with the profile to open under; null cancels the open. */
   answerScenarioPrompt(profile: ScenarioProfile | null): void;
   /**
-   * With a `mode`, the picker filters to `.sav` and skips straight to that mode, no dialog;
-   * `profile` is what a scenario made from the pick is written under, the standing choice
-   * when left out.
+   * Picks a save and opens it as `mode`, no dialog; `profile` is what a scenario made from the
+   * pick is written under, the standing choice when left out.
    */
-  pickAndOpen(mode?: OpenMode, profile?: ScenarioProfile): Promise<void>;
+  pickAndOpen(mode: OpenMode, profile?: ScenarioProfile): Promise<void>;
+  /** Picks a save or a scenario file and routes it as `requestOpen` does, over the Open screen's `listings`. */
+  pickAndOpen(
+    mode: undefined,
+    profile: undefined,
+    listings: readonly ScenarioListing[] | null,
+  ): Promise<void>;
   /** Re-reads the open file from disk, discarding unsaved changes on confirmation. */
   reload(): Promise<void>;
   close(): Promise<void>;
   save(): Promise<void>;
   /** Asks where the file goes, starting at `defaultPath`; left out, its own path or a name for it. */
   saveAs(defaultPath?: string): Promise<void>;
+  /** Save As into the mod's scenarios folder under the file's own name; nothing while that folder is unknown. */
+  saveIntoPaintMod(): Promise<void>;
   /** Previews what exporting the open save carries over, and asks whether to write it. */
   exportScenario(): Promise<void>;
   /** Answers the pending export: writes the scenario under `profile`, or cancels on null. */
@@ -208,18 +219,17 @@ const INITIAL = {
   saveIssuesPrompt: null as SaveIssuesPrompt | null,
   pausedSave: null as PausedSave | null,
   pendingOpen: null as string | null,
+  pendingAsScenario: false,
   scenarioPrompt: null as ScenarioPrompt | null,
   pendingExport: null as ExportReport | null,
   painted: false,
   paintChosen: false,
 } satisfies Partial<FileSessionState>;
 
-const CLOUD_WARNING =
-  "This file is in Steam's cloud folder. Steam can overwrite it with the cloud copy. " +
-  "Close Steam or disable Steam Cloud for Stellaris before you play it. Save anyway?";
-
-export const useFileSessionStore = create<FileSessionState>((set, get) => ({
+export const useFileSessionStore = create<FileSessionState>((set, get, session) => ({
   ...INITIAL,
+  ...writeActions(session, () => opens),
+  ...saveGateActions(session),
 
   openSave(path, profile) {
     return openDocument(path, () => ipc.openSave(path), { profile });
@@ -245,18 +255,22 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     });
   },
 
-  async requestOpen(path) {
+  async openPath(path, mode, { asPaint = false, listings }) {
+    if (get().saving || !(await get().confirmDiscard())) return "cancelled";
+    return openAs(path, mode, asPaint, listings);
+  },
+
+  async requestOpen(path, { asScenario = false, listings }) {
     if (get().saving || !(await get().confirmDiscard())) return;
-    await routeOpen(path);
+    if (asScenario) set({ pendingOpen: path, pendingAsScenario: true });
+    else await routeOpen(path, listings);
   },
 
   async chooseOpenMode(mode) {
     const path = get().pendingOpen;
-    set({ pendingOpen: null });
+    set({ pendingOpen: null, pendingAsScenario: false });
     if (path === null || mode === null) return;
-    await (mode === "scenario"
-      ? get().openScenarioFrom(path, standingProfile())
-      : get().openSave(path));
+    await openAs(path, mode, false, null);
   },
 
   answerScenarioPrompt(profile) {
@@ -265,7 +279,11 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     prompt?.resolve(profile);
   },
 
-  async pickAndOpen(mode, profile = standingProfile()) {
+  async pickAndOpen(
+    mode?: OpenMode,
+    profile: ScenarioProfile = standingProfile(),
+    listings: readonly ScenarioListing[] | null = null,
+  ) {
     if (get().saving || !(await get().confirmDiscard())) return;
     const [defaultPath] = await ipc.saveDirs().catch(() => []);
     const picked = await open({
@@ -279,7 +297,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     });
     if (typeof picked !== "string") return;
     if (mode === undefined) {
-      await routeOpen(picked);
+      await routeOpen(picked, listings);
     } else {
       await (mode === "scenario"
         ? get().openScenarioFrom(picked, profile)
@@ -307,59 +325,6 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     }
   },
 
-  async save() {
-    const { status, saving, path, cloud } = get();
-    if (status !== "ready" || saving) return;
-    if (path === null) {
-      await get().saveAs();
-      return;
-    }
-    if (!(await confirmIssues(() => get().save()))) return;
-    if (cloud && !(await confirmCloudWrite(path))) return;
-    if (await writeSave(() => ipc.save())) void noteDuplicateNames();
-  },
-
-  async saveAs(defaultPath) {
-    const { status, saving, kind, path, title } = get();
-    if (status !== "ready" || saving) return;
-    const filter = kind === "scenario" ? SCENARIO_FILTER : SAVE_FILTER;
-    await saveTo(
-      defaultPath ?? path ?? newFilePath(title, filter.extensions[0], getPaintLayer()),
-      filter,
-    );
-  },
-
-  async exportScenario() {
-    const { status, saving, kind } = get();
-    if (status !== "ready" || saving || kind !== "save") return;
-    const mine = opens;
-    try {
-      const report = await ipc.previewExport();
-      // A preview that lands after another document opened belongs to nobody.
-      if (mine !== opens || get().status !== "ready") return;
-      set({ pendingExport: report });
-    } catch (e) {
-      set({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
-    }
-  },
-
-  async confirmExport(profile) {
-    const { pendingExport, status, saving, kind, title } = get();
-    if (pendingExport === null || status !== "ready" || saving || kind !== "save") return;
-    set({ pendingExport: null });
-    if (profile === null) return;
-    const picked = await saveDialog({
-      defaultPath: newFilePath(title, "txt", profile === "paint_a_galaxy"),
-      filters: [SCENARIO_FILTER],
-    });
-    if (picked === null) return;
-    // The export is a second file: the session keeps its own path, and its edits stay unsaved.
-    await runWrite(
-      () => ipc.exportScenario(picked, profile),
-      (result) => ({ lastExport: result, exportedAt: Date.now() }),
-    );
-  },
-
   async confirmDiscard() {
     if (!get().dirty) return true;
     return confirm("Discard unsaved changes?", {
@@ -370,34 +335,9 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     });
   },
 
-  answerSaveIssues(answer) {
-    const prompt = get().saveIssuesPrompt;
-    if (prompt === null) return;
-    set({ saveIssuesPrompt: null });
-    prompt.resolve(answer);
-  },
-
-  async resumePausedSave() {
-    const { pausedSave, dismissedIssues } = get();
-    if (pausedSave === null) return;
-    set({
-      pausedSave: null,
-      dismissedIssues: [...new Set([...dismissedIssues, ...pausedSave.keys])],
-    });
-    await pausedSave.resume();
-  },
-
-  dismissPausedSave() {
-    if (get().pausedSave !== null) set({ pausedSave: null });
-  },
-
   noteEdit({ issues, dirty }) {
     set({ dirty, error: null, errorKind: null });
     useIssuesStore.getState().setFindings(issues);
-    // A seat's kind can change with an edit, so the reserved seats are counted again.
-    noteReservedSpawns();
-    noteGalaxySize();
-    noteInitializerLimits();
   },
 
   setError(message) {
@@ -408,6 +348,16 @@ export const useFileSessionStore = create<FileSessionState>((set, get) => ({
     set({ notice: message });
   },
 }));
+
+/** Whether the open document supports `cap`; everything until a document reports what it supports. */
+export function canEdit(cap: keyof Capabilities): boolean {
+  return supports(documentCapabilities(useFileSessionStore.getState()), cap);
+}
+
+/** The same fact, for a component. */
+export function useCanEdit(cap: keyof Capabilities): boolean {
+  return useFileSessionStore((s) => supports(documentCapabilities(s), cap));
+}
 
 /** Whether the open document is written for the Paint a Galaxy mod, for a component. */
 export function usePaintLayer(): boolean {
@@ -422,18 +372,6 @@ export function getPaintLayer(): boolean {
 
 export function isSavePath(path: string): boolean {
   return path.toLowerCase().endsWith(".sav");
-}
-
-/** What a document with no file of its own is offered as a name. */
-function defaultName(title: string | null, extension: string): string | undefined {
-  return title === null ? undefined : `${title}.${extension}`;
-}
-
-/** Where a new file is offered: inside the mod's scenarios folder when it is written for the mod. */
-function newFilePath(title: string | null, extension: string, forPaintMod: boolean) {
-  const name = defaultName(title, extension);
-  const dir = forPaintMod ? paintScenariosDir() : null;
-  return dir !== null && name !== undefined ? joinPath(dir, name) : name;
 }
 
 /** The open a late answer still belongs to; a newer open leaves the older one's to nobody. */
@@ -490,10 +428,6 @@ async function openDocument(
       });
     }
     useGalaxyStore.getState().load(result.galaxy);
-    noteReservedSpawns();
-    noteGalaxySize();
-    noteInitializerLimits();
-    void noteDuplicateNames();
     if (result.kind === "scenario" && useGameDataStore.getState().status === "ready") {
       setState({ settling: true });
       try {
@@ -519,6 +453,7 @@ async function openDocument(
     // A failed open leaves the previous session alive on the Rust side.
     await ipc.closeSave().catch(() => undefined);
     useGalaxyStore.getState().clear();
+    useGameDataStore.getState().onSaveClosed();
     setState({
       ...INITIAL,
       status: "error",
@@ -534,15 +469,22 @@ async function openDocument(
 
 /**
  * The profile the scenario file at `path` opens under, once the Paint a Galaxy question is
- * answered where it has to be asked; null when the user cancelled.
+ * answered where it has to be asked; null when the user cancelled. A file no listing covers is
+ * read from disk for its dialect.
  */
-export function askScenarioOpen(path: string, asPaint = false): Promise<ScenarioProfile | null> {
+export async function askScenarioOpen(
+  path: string,
+  listings: readonly ScenarioListing[] | null,
+  asPaint = false,
+): Promise<ScenarioProfile | null> {
   const { paintMod, warnNotForPaint } = usePaintModStore.getState();
   const forPaint =
-    asPaint || scenarioForPaint(path, useOpenScreenStore.getState().scenarios, paintMod);
+    asPaint ||
+    (scenarioForPaint(path, listings, paintMod) ??
+      (await ipc.scenarioPainted(path).catch(() => null)));
   const kind = scenarioOpenPrompt(forPaint, paintMod, warnNotForPaint);
   const profile: ScenarioProfile = asPaint ? "paint_a_galaxy" : "plain";
-  if (kind === "none") return Promise.resolve(profile);
+  if (kind === "none") return profile;
   return new Promise((resolve) => {
     useFileSessionStore.setState({
       scenarioPrompt: {
@@ -556,116 +498,32 @@ export function askScenarioOpen(path: string, asPaint = false): Promise<Scenario
 }
 
 /** A scenario opens once any Paint a Galaxy question is answered; a save first asks how to open it. */
-async function routeOpen(path: string): Promise<void> {
-  const { getState, setState } = useFileSessionStore;
-  if (!isSavePath(path)) {
-    const profile = await askScenarioOpen(path);
-    if (profile !== null) await getState().openSave(path, profile);
-    return;
-  }
-  setState({ pendingOpen: path });
-}
-
-/** Asks where the file goes, starting at `defaultPath`, and writes it there. */
-async function saveTo(
-  defaultPath: string | undefined,
-  filter: { name: string; extensions: string[] },
-): Promise<void> {
-  if (!(await confirmIssues(() => saveTo(defaultPath, filter)))) return;
-  const picked = await saveDialog({ defaultPath, filters: [filter] });
-  if (picked === null) return;
-  const cloud = await ipc.isCloudSave(picked).catch(() => false);
-  if (cloud && !(await confirmCloudWrite(picked))) return;
-  if (await writeSave(() => ipc.saveAs(picked))) {
-    noteSavedIntoPaintMod();
-    void noteDuplicateNames();
-  }
+async function routeOpen(path: string, listings: readonly ScenarioListing[] | null): Promise<void> {
+  if (isSavePath(path))
+    useFileSessionStore.setState({ pendingOpen: path, pendingAsScenario: false });
+  else await openAs(path, "save", false, listings);
 }
 
 /**
- * Whether saving with `issue` unresolved is worth a question: a warning or error the validator
- * found, or the one note under which the map will not play as designed.
+ * Opens `path` once its discard is agreed to: a save as itself or taken into a new scenario, a
+ * scenario file once any Paint a Galaxy question is answered.
  */
-function blocksSave(issue: AppIssue): boolean {
-  if (issue.severity === "info") return false;
-  return !isNote(issue) || issue.code === RESERVED_SPAWNS;
-}
-
-/**
- * Resolves true when the document may be saved with its warnings and errors: every one of them
- * was already agreed to, or the user agreed now. `resume` is the save itself, kept for the bar
- * the Issues tab shows when the user goes to look at them instead.
- */
-async function confirmIssues(resume: () => Promise<void>): Promise<boolean> {
-  const { getState, setState } = useFileSessionStore;
-  const { dismissedIssues, saveIssuesPrompt } = getState();
-  if (saveIssuesPrompt !== null) return false;
-  const unresolved = useIssuesStore.getState().issues.filter(blocksSave);
-  const keys = unresolved.map(issueKey);
-  if (keys.every((key) => dismissedIssues.includes(key))) return true;
-  const count = unresolved.length;
-  const answer = await new Promise<SaveIssuesAnswer>((resolve) => {
-    setState({ saveIssuesPrompt: { count, resolve } });
-  });
-  if (answer === "save") {
-    setState({ dismissedIssues: [...new Set([...dismissedIssues, ...keys])] });
-    return true;
+async function openAs(
+  path: string,
+  mode: OpenMode,
+  asPaint: boolean,
+  listings: readonly ScenarioListing[] | null,
+): Promise<OpenOutcome> {
+  const { getState } = useFileSessionStore;
+  let opened: boolean;
+  if (mode === "scenario") {
+    opened = await getState().openScenarioFrom(path, standingProfile());
+  } else if (isSavePath(path)) {
+    opened = await getState().openSave(path);
+  } else {
+    const profile = await askScenarioOpen(path, listings, asPaint);
+    if (profile === null) return "cancelled";
+    opened = await getState().openSave(path, profile);
   }
-  if (answer === "review") {
-    const layout = useLayoutStore.getState();
-    layout.setTab("issues");
-    if (layout.collapsed) layout.toggleDock();
-    useIssuesStore.getState().flash();
-    setState({ pausedSave: { count, keys, resume } });
-  }
-  return false;
-}
-
-/** Resolves true when `path` may be written: already acknowledged this session, or the user agreed now. */
-async function confirmCloudWrite(path: string): Promise<boolean> {
-  const { getState, setState } = useFileSessionStore;
-  if (getState().cloudAcknowledged === path) return true;
-  const ok = await confirm(CLOUD_WARNING, { title: "Steam Cloud save", kind: "warning" });
-  if (ok) setState({ cloudAcknowledged: path });
-  return ok;
-}
-
-/**
- * Runs `write`, reporting its progress until it settles; `settle` says what its result changes.
- * Resolves true once the write landed, so a caller can act on a save that actually happened.
- */
-async function runWrite<T>(
-  write: () => Promise<T>,
-  settle: (result: T) => Partial<FileSessionState>,
-): Promise<boolean> {
-  const { getState, setState } = useFileSessionStore;
-  setState({ saving: true });
-  let unlisten: (() => void) | null = null;
-  let ok = false;
-  try {
-    unlisten = await onProgress((progress) => {
-      if (getState().saving) setState({ progress });
-    });
-    const result = await write();
-    setState({ ...settle(result), error: null, errorKind: null });
-    ok = true;
-  } catch (e) {
-    setState({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
-  } finally {
-    unlisten?.();
-    setState({ saving: false, progress: null });
-  }
-  return ok;
-}
-
-/** Writes the session to its own file: where it lands becomes the session's path. */
-function writeSave(write: () => Promise<SaveResult>): Promise<boolean> {
-  return runWrite(write, (result) => ({
-    lastSave: result,
-    path: result.path,
-    cloud: result.cloud,
-    dirty: result.dirty,
-    savedAt: Date.now(),
-    pausedSave: null,
-  }));
+  return opened ? "opened" : "failed";
 }

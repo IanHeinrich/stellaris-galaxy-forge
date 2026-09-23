@@ -182,7 +182,7 @@ function Browsing() {
         <div className="ib-foot">
           <span className="ib-summary">{summary}</span>
           <span className="muted ib-hints">
-            ↑↓ move · ↵ {verb} · ⇧↵ {verb} and keep open · Ctrl+D pin · Esc close
+            Up/Down move · Enter {verb} · Shift+Enter {verb} and keep open · Ctrl+D pin · Esc close
           </span>
           <button
             type="button"

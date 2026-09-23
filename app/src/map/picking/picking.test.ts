@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { name, systemNode } from "../../test/builders";
+import { name, placedNode as node } from "../../test/builders";
 import type { Nebula } from "../../generated/Nebula";
 import type { SystemNode } from "../../generated/SystemNode";
 import { Camera } from "../Camera";
@@ -7,15 +7,7 @@ import { pickEdge, pickFeZone, pickNebula, pickSystem, snapTarget } from "./inde
 import { newFeZone } from "../../lib/feZone";
 import { SpatialGrid } from "../../lib/spatialGrid";
 import { PickIndex } from "./pickIndex";
-
-const node = (id: number, x: number, y: number, to: number[] = []): SystemNode =>
-  systemNode({
-    id,
-    name: name(`S${id}`),
-    x,
-    y,
-    lanes: to.map((t) => ({ to: t, length: 0, bridge: false, stale: false })),
-  });
+import { zoneOf } from "./zones";
 
 function nebula(x: number, y: number, radius: number): Nebula {
   return { name: name("N"), x, y, radius, systems: [] };
@@ -319,5 +311,24 @@ describe("pickFeZone", () => {
       anchor: 2,
       zone: "ring",
     });
+  });
+});
+
+describe("zoneOf", () => {
+  it("is the star inside the pick radius and the port on the band, only when ports show", () => {
+    expect(zoneOf(0, 1, true)).toBe("star");
+    expect(zoneOf(12, 1, true)).toBe("star");
+    expect(zoneOf(12.5, 1, true)).toBe("port");
+    expect(zoneOf(16, 1, true)).toBe("port");
+    expect(zoneOf(16.5, 1, true)).toBeNull();
+    expect(zoneOf(12.5, 1, false)).toBeNull();
+    expect(zoneOf(12, 1, false)).toBe("star");
+  });
+
+  it("grows with the marker scale so the hit band matches the drawn ring", () => {
+    expect(zoneOf(19, 2, true)).toBe("star");
+    expect(zoneOf(21, 2, true)).toBe("port");
+    expect(zoneOf(32, 2, true)).toBe("port");
+    expect(zoneOf(33, 2, true)).toBeNull();
   });
 });

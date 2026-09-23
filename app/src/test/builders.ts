@@ -1,6 +1,7 @@
 import type { ExportReport } from "../generated/ExportReport";
 import type { FleetSummary } from "../generated/FleetSummary";
 import type { GameDataSummary } from "../generated/GameDataSummary";
+import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { InitPlanetView } from "../generated/InitPlanetView";
 import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
@@ -10,6 +11,7 @@ import type { SaveMeta } from "../generated/SaveMeta";
 import type { ScenarioSummary } from "../generated/ScenarioSummary";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
+import type { WorkshopLinks } from "../generated/WorkshopLinks";
 
 /** A plain localisation key as a name template, which is what the save writes for most nodes. */
 export function name(key: string): NameTemplate {
@@ -86,6 +88,16 @@ export function systemNode(over: Partial<SystemNode> = {}): SystemNode {
     owner: null,
     ...over,
   };
+}
+
+/** Lanes from a system to each of `ids`, of no stated length. */
+export function lanesTo(...ids: number[]): SystemNode["lanes"] {
+  return ids.map((to) => ({ to, length: 0, bridge: false, stale: false }));
+}
+
+/** A system named `S<id>` at (x, y), laned to each of `to`. */
+export function placedNode(id: number, x: number, y: number, to: number[] = []): SystemNode {
+  return systemNode({ id, name: name(`S${id}`), x, y, lanes: lanesTo(...to) });
 }
 
 /** The report of an export that carried everything over; a test adds what it left out. */
@@ -232,4 +244,19 @@ export function gameDataSummary(over: Partial<GameDataSummary> = {}): GameDataSu
     watch: { watching: 0, paused: false, reason: null },
     ...over,
   };
+}
+
+/** The Workshop pages as the shell answers them. */
+export function workshopLinks(): WorkshopLinks {
+  const page = (id: string) => `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`;
+  return {
+    paint_a_galaxy: page("3532904115"),
+    reserved_spawns: page("3762808682"),
+    local_cluster: page("3634498401"),
+  };
+}
+
+/** One step of the change log. */
+export function historyEntry(seq = 1, description = `Change ${seq}`): HistoryEntry {
+  return { seq, description };
 }

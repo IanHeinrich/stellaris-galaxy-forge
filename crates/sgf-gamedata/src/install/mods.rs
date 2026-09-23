@@ -15,6 +15,16 @@ const WORKSHOP_CONTENT: &str = "steamapps/workshop/content/281990";
 pub const PAINT_MOD_WORKSHOP_ID: &str = sgf_core::format::scenario::paint::WORKSHOP_ID;
 /// The Reserved Spawns submod's Steam Workshop item, whose traits a reserved seat's empire holds.
 pub const RESERVED_SPAWNS_WORKSHOP_ID: &str = "3762808682";
+/// The Local Cluster submod's Steam Workshop item, the usual workaround for Sol having no
+/// Sol-specific neighbours.
+pub const LOCAL_CLUSTER_WORKSHOP_ID: &str = "3634498401";
+/// A Steam Workshop item's page, less its id.
+const WORKSHOP_PAGE: &str = "https://steamcommunity.com/sharedfiles/filedetails/?id=";
+
+/// The Steam Workshop page of the item `id`.
+pub fn workshop_url(id: &str) -> String {
+    format!("{WORKSHOP_PAGE}{id}")
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModInfo {
@@ -48,6 +58,29 @@ pub struct PaintMod {
     /// The mod's content directory, `None` when the launcher lists it but its files are gone.
     pub dir: Option<PathBuf>,
     pub enabled: bool,
+}
+
+/// Paint a Galaxy on this machine, and whether the playset loads the Reserved Spawns submod.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PaintModStatus {
+    pub paint: PaintMod,
+    pub reserved_spawns: bool,
+}
+
+/// Where Paint a Galaxy is on this machine, from the launcher's files under `user_dir` and
+/// the Workshop folders in `libraries` alone, so it is known before game data loads. `None`
+/// when neither knows of a copy.
+pub fn paint_mod_status(
+    user_dir: &Path,
+    libraries: &[PathBuf],
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Option<PaintModStatus> {
+    let installed = installed_mods(user_dir, libraries, diagnostics);
+    let enabled = enabled_mods(user_dir, libraries, diagnostics);
+    Some(PaintModStatus {
+        paint: find_paint_mod(&installed, &enabled, libraries)?,
+        reserved_spawns: reserved_spawns_enabled(&enabled),
+    })
 }
 
 /// Paint a Galaxy among `enabled` and `installed`: the Workshop item by id, or a copy

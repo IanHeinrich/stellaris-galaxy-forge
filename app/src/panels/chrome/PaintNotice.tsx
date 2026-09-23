@@ -8,7 +8,7 @@ import { PaintModStatus } from "./PaintModStatus";
 export function PaintNotice() {
   const ready = useFileSessionStore((s) => s.status === "ready");
   const kind = useFileSessionStore((s) => s.kind);
-  const saveIntoPaintMod = usePaintModStore((s) => s.saveIntoPaintMod);
+  const saveIntoPaintMod = useFileSessionStore((s) => s.saveIntoPaintMod);
   const paint = usePaintLayer();
   const dismissed = usePaintModStore((s) => s.noticeDismissed);
   const dismissNotice = usePaintModStore((s) => s.dismissNotice);

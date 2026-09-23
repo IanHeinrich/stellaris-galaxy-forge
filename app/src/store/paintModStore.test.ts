@@ -1,5 +1,6 @@
 import { paintModView } from "../test/builders";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -11,7 +12,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
 import { PAINT_MOD_POLL_MS, usePaintModStore } from "./paintModStore";
 
-const mocked = { paintMod: vi.mocked(ipc.paintMod) };
+const mocked = { paintMod: vi.mocked(ipc.paintMod), workshopLinks: vi.mocked(ipc.workshopLinks) };
 
 const INSTALLED = paintModView();
 
@@ -24,11 +25,7 @@ const asked = () => mocked.paintMod.mock.calls.length;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useLayoutStore.setState({ ...useLayoutStore.getInitialState() });
   usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
@@ -227,5 +224,23 @@ describe("the Paint a Galaxy mod's status", () => {
         vi.useRealTimers();
       }
     });
+  });
+});
+
+describe("the Workshop pages", () => {
+  it("asks the shell for them once, the first time one is wanted", async () => {
+    mocked.workshopLinks.mockResolvedValue({
+      paint_a_galaxy: "https://example.test/pag",
+      reserved_spawns: "https://example.test/reserved",
+      local_cluster: "https://example.test/cluster",
+    });
+
+    expect(await usePaintModStore.getState().workshopLink("reserved_spawns")).toBe(
+      "https://example.test/reserved",
+    );
+    expect(await usePaintModStore.getState().workshopLink("paint_a_galaxy")).toBe(
+      "https://example.test/pag",
+    );
+    expect(mocked.workshopLinks).toHaveBeenCalledTimes(1);
   });
 });

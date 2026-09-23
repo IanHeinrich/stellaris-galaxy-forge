@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -31,11 +32,7 @@ const SHIPS: Entry = {
 const stored = new Map<string, string>();
 
 beforeEach(() => {
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   useInspectorStore.setState(useInspectorStore.getInitialState());
   useLayoutStore.setState({ tab: "inspector", collapsed: false });
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });

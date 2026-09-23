@@ -9,6 +9,8 @@ import type { RecentDoc } from "../store/recentsStore";
 import { displayName } from "./names";
 import { scenarioForPaint } from "./paint";
 import { fileName } from "./paths";
+import { counted } from "./text";
+import { versionShort } from "./version";
 
 export type SectionId = "recent" | "saves" | "scenarios";
 
@@ -111,17 +113,6 @@ export interface OpenLists {
   missing: string[];
 }
 
-/** "1 save", "3 saves". */
-export function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-/** The trailing word of a game version string, `"Pegasus v4.4.6"` -> `"v4.4.6"`. */
-function versionShort(version: string): string {
-  const parts = version.trim().split(/\s+/);
-  return parts[parts.length - 1] ?? "";
-}
-
 function haystack(fields: Array<string | null | undefined>): string {
   return fields.filter(Boolean).join(" ").toLowerCase();
 }
@@ -190,7 +181,7 @@ function savesSection(state: OpenLists, words: string[]): Section {
       campaign,
       empire,
       subtitle: meta ? [versionShort(meta.version), meta.date].filter(Boolean).join(" · ") : "",
-      count: plural(campaign.files, "save"),
+      count: counted(campaign.files, "save"),
       expanded,
       loading: state.loadingDir === campaign.dir,
       error: state.fileErrors[campaign.dir] ?? null,
@@ -241,7 +232,7 @@ function scenariosSection(state: OpenLists, words: string[]): Section {
         key: `scenario:${listing.path}`,
         listing,
         group: SOURCE_LABEL[source],
-        subtitle: `${plural(listing.systems, "system")} · ${listing.mod_name ?? "Stellaris"}`,
+        subtitle: `${counted(listing.systems, "system")} · ${listing.mod_name ?? "Stellaris"}`,
         disabled: listing.error !== null,
       });
     }
@@ -337,7 +328,10 @@ export type RecentTarget =
   | { kind: "scenario"; listing: ScenarioListing; group: string }
   | null;
 
-export function recentTarget(doc: RecentDoc, state: OpenLists): RecentTarget {
+export function recentTarget(
+  doc: RecentDoc,
+  state: Pick<OpenLists, "files" | "scenarios">,
+): RecentTarget {
   if (doc.kind === "save") {
     for (const files of Object.values(state.files)) {
       const file = files.find((f) => f.path === doc.path);

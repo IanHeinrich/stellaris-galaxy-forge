@@ -15,7 +15,14 @@ use crate::install::mods::{self, ModInfo};
 use crate::{Diagnostic, GameData};
 
 /// Where a layer keeps its scenarios, and the `replace_path` that hides the layers below.
-pub(crate) const SCENARIO_DIR: [&str; 2] = ["map", "setup_scenarios"];
+pub(crate) const SCENARIO_DIR: &str = "map/setup_scenarios";
+
+/// The scenarios directory of the layer rooted at `root`.
+pub fn scenarios_dir(root: &Path) -> PathBuf {
+    SCENARIO_DIR
+        .split('/')
+        .fold(root.to_path_buf(), |dir, part| dir.join(part))
+}
 
 /// Every layer that may hold scenarios, in the order the Open screen lists them. A
 /// directory already listed is not listed again, so a user mod the playset enables
@@ -65,7 +72,7 @@ pub fn scenario_roots(
         taken.push(dir);
     }
     roots.extend(install.map(|install| ScenarioRoot {
-        dir: SCENARIO_DIR.iter().fold(install, |p, part| p.join(part)),
+        dir: scenarios_dir(&install),
         source: ScenarioSource::Install,
         mod_name: None,
         enabled: true,
@@ -90,11 +97,8 @@ fn mod_root(
         .chain(enabled)
         .find(|m| m.dir.as_deref() == Some(dir))
         .map(|m| m.name.clone());
-    let replace_path = SCENARIO_DIR.join("/");
     ScenarioRoot {
-        dir: SCENARIO_DIR
-            .iter()
-            .fold(dir.to_path_buf(), |p, part| p.join(part)),
+        dir: scenarios_dir(dir),
         source,
         mod_name: named.or_else(|| dir.file_name().map(|n| n.to_string_lossy().into_owned())),
         enabled: at.is_some(),
@@ -104,7 +108,7 @@ fn mod_root(
             enabled[i]
                 .replace_paths
                 .iter()
-                .any(|p| p.replace('\\', "/").trim_matches('/') == replace_path)
+                .any(|p| p.replace('\\', "/").trim_matches('/') == SCENARIO_DIR)
         }),
     }
 }

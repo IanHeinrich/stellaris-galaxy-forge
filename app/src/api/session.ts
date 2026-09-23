@@ -49,6 +49,11 @@ export function listScenarios(): Promise<ScenarioListings> {
   return invoke<ScenarioListings>("list_scenarios");
 }
 
+/** Whether the scenario file at `path` is for Paint a Galaxy, as its listing would say. */
+export function scenarioPainted(path: string): Promise<boolean> {
+  return invoke<boolean>("scenario_painted", { path });
+}
+
 /** The setup screen the save at `path` was started with, read without opening it. */
 export function saveDetails(path: string): Promise<GalaxySettings> {
   return invoke<GalaxySettings>("save_details", { path });

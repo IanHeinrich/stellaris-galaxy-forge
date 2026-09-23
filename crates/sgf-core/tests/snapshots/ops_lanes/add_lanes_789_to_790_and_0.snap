@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/ops.rs
 expression: "report(&session, &result)"
 ---
-Added 2 lane(s) from 789 to 790, 0
+Added 2 lanes from 789 to 790, 0
 touched: [0, 789, 790]
 inverse: RemoveLanes { from: 789, to: [790, 0] }
 … and 2 other issues

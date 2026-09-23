@@ -1,37 +1,14 @@
 import { create } from "zustand";
-import type { Capabilities } from "../generated/Capabilities";
-import { documentCapabilities, supports } from "../lib/capabilities";
-import { useFileSessionStore } from "./fileSessionStore";
+import type { EraseTarget } from "../lib/brush/brushTools";
+import type { LaneMode } from "../lib/brush/lanes";
+import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
+import { toolRequires, type Tool } from "../lib/tools";
+import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isBoolean, isFiniteNumber, readPref, writePref } from "./prefs";
-
-/** What a left-drag on the map does: select and edit in place (ADR 0003), or one brush (ADR 0005). */
-export type Tool = "select" | "paint" | "erase" | "connect" | "cut";
-
-/** How the paint brush joins the systems it lays down: not at all, among themselves, or to neighbours too. */
-export type LaneMode = "off" | "new" | "nearby";
-
-export type EraseTarget = "systems" | "lanes";
-
-export type SymmetryAxis = "x" | "y";
-
-export type RotationOrder = 2 | 3 | 4 | 6 | 8;
-
-/** The global symmetry: each edit and brush stroke repeated about the galaxy's centre. */
-export type Symmetry =
-  { kind: "off" } | { kind: "mirror"; axis: SymmetryAxis } | { kind: "rotate"; n: RotationOrder };
-
-/** A symmetry that makes copies, as M turns back on. */
-export type ActiveSymmetry = Exclude<Symmetry, { kind: "off" }>;
+import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
 
 /** What M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
-
-/** What each tool needs of the open document; a tool absent here works on every kind. */
-export const TOOL_REQUIRES: Partial<Record<Tool, keyof Capabilities>> = {
-  paint: "create_systems",
-  erase: "create_systems",
-};
 
 /** Brush diameter, in world units. */
 export const SIZE_RANGE = { min: 5, max: 400, fallback: 40 } as const;
@@ -85,7 +62,6 @@ export function spacingOfSlider(v: number): number {
 
 const LANE_MODES: readonly LaneMode[] = ["off", "new", "nearby"];
 const ERASE_TARGETS: readonly EraseTarget[] = ["systems", "lanes"];
-const ROTATION_ORDERS: readonly number[] = [2, 3, 4, 6, 8];
 const SYMMETRY_OFF: Symmetry = { kind: "off" };
 
 export interface ToolState {
@@ -96,6 +72,7 @@ export interface ToolState {
   eraseTarget: EraseTarget;
   /** Whether the erase brush takes systems that carry an initializer, a spawn or a special. */
   eraseSpecials: boolean;
+  /** The global symmetry: each edit and brush stroke repeated about the galaxy's centre. */
   symmetry: Symmetry;
   /** The symmetry M turns back on: the last one picked. */
   lastSymmetry: ActiveSymmetry;
@@ -124,47 +101,45 @@ function oneOf<T extends string>(values: readonly T[]) {
   return (value: unknown): value is T => typeof value === "string" && values.includes(value as T);
 }
 
-function isSymmetry(value: unknown): value is Symmetry {
-  if (typeof value !== "object" || value === null) return false;
-  const s = value as Record<string, unknown>;
-  if (s.kind === "off") return true;
-  if (s.kind === "mirror") return s.axis === "x" || s.axis === "y";
-  return s.kind === "rotate" && typeof s.n === "number" && ROTATION_ORDERS.includes(s.n);
-}
-
 function isActiveSymmetry(value: unknown): value is ActiveSymmetry {
   return isSymmetry(value) && value.kind !== "off";
 }
 
+const SIZE = prefField(PREF_KEYS.brushSize, SIZE_RANGE.fallback, isFiniteNumber);
+const SPACING = prefField(PREF_KEYS.brushSpacing, SPACING_RANGE.fallback, isFiniteNumber);
+const LANE_MODE = prefField(PREF_KEYS.brushLaneMode, "nearby", oneOf(LANE_MODES));
+const ERASE_TARGET = prefField(PREF_KEYS.eraseTarget, "systems", oneOf(ERASE_TARGETS));
+const ERASE_SPECIALS = prefField(PREF_KEYS.eraseSpecials, false, isBoolean);
+const SYMMETRY = prefField(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry);
+const LAST_SYMMETRY = prefField(PREF_KEYS.symmetryLast, DEFAULT_SYMMETRY, isActiveSymmetry);
+
 function storedLastSymmetry(): ActiveSymmetry {
-  const current = readPref(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry);
-  return readPref(
-    PREF_KEYS.symmetryLast,
-    current.kind === "off" ? DEFAULT_SYMMETRY : current,
-    isActiveSymmetry,
-  );
+  const current = SYMMETRY.read();
+  return LAST_SYMMETRY.read(current.kind === "off" ? DEFAULT_SYMMETRY : current);
 }
 
-function storedNumber(key: string, range: { min: number; max: number; fallback: number }): number {
-  return clamp(readPref(key, range.fallback, isFiniteNumber), range);
+function storedNumber(
+  field: PrefField<number>,
+  range: { min: number; max: number; fallback: number },
+): number {
+  return clamp(field.read(), range);
 }
 
 /** Whether the open document can take `tool`. */
 export function toolAllowed(tool: Tool): boolean {
-  const session = useFileSessionStore.getState();
-  const requires = TOOL_REQUIRES[tool];
+  const requires = toolRequires(tool);
   if (requires === undefined) return true;
-  return session.status === "ready" && supports(documentCapabilities(session), requires);
+  return useFileSessionStore.getState().status === "ready" && canEdit(requires);
 }
 
 export const useToolStore = create<ToolState>((set, get) => ({
   tool: "select",
-  size: storedNumber(PREF_KEYS.brushSize, SIZE_RANGE),
-  spacing: storedNumber(PREF_KEYS.brushSpacing, SPACING_RANGE),
-  laneMode: readPref(PREF_KEYS.brushLaneMode, "nearby", oneOf(LANE_MODES)),
-  eraseTarget: readPref(PREF_KEYS.eraseTarget, "systems", oneOf(ERASE_TARGETS)),
-  eraseSpecials: readPref(PREF_KEYS.eraseSpecials, false, isBoolean),
-  symmetry: readPref(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry),
+  size: storedNumber(SIZE, SIZE_RANGE),
+  spacing: storedNumber(SPACING, SPACING_RANGE),
+  laneMode: LANE_MODE.read(),
+  eraseTarget: ERASE_TARGET.read(),
+  eraseSpecials: ERASE_SPECIALS.read(),
+  symmetry: SYMMETRY.read(),
   lastSymmetry: storedLastSymmetry(),
   symmetryMenu: false,
 
@@ -177,7 +152,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   setSize(size) {
     const clamped = clamp(Math.round(size), SIZE_RANGE);
     set({ size: clamped });
-    writePref(PREF_KEYS.brushSize, clamped);
+    SIZE.save(clamped);
   },
 
   stepSize(dir) {
@@ -188,30 +163,30 @@ export const useToolStore = create<ToolState>((set, get) => ({
   setSpacing(spacing) {
     const clamped = clamp(roundSpacing(spacing), SPACING_RANGE);
     set({ spacing: clamped });
-    writePref(PREF_KEYS.brushSpacing, clamped);
+    SPACING.save(clamped);
   },
 
   setLaneMode(laneMode) {
     set({ laneMode });
-    writePref(PREF_KEYS.brushLaneMode, laneMode);
+    LANE_MODE.save(laneMode);
   },
 
   setEraseTarget(eraseTarget) {
     set({ eraseTarget });
-    writePref(PREF_KEYS.eraseTarget, eraseTarget);
+    ERASE_TARGET.save(eraseTarget);
   },
 
   setEraseSpecials(eraseSpecials) {
     set({ eraseSpecials });
-    writePref(PREF_KEYS.eraseSpecials, eraseSpecials);
+    ERASE_SPECIALS.save(eraseSpecials);
   },
 
   setSymmetry(symmetry) {
     set({ symmetry });
-    writePref(PREF_KEYS.symmetry, symmetry);
+    SYMMETRY.save(symmetry);
     if (symmetry.kind === "off") return;
     set({ lastSymmetry: symmetry });
-    writePref(PREF_KEYS.symmetryLast, symmetry);
+    LAST_SYMMETRY.save(symmetry);
   },
 
   setSymmetryMenu(symmetryMenu) {

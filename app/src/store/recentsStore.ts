@@ -2,7 +2,9 @@ import { create } from "zustand";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { SaveMeta } from "../generated/SaveMeta";
 import { PREF_KEYS } from "./prefKeys";
-import { readPref, writePref } from "./prefs";
+import { prefField } from "./prefs";
+import { counted } from "../lib/text";
+import { versionShort } from "../lib/version";
 
 /** One document recently opened, either kind, for the Open screen and the File menu. */
 export interface RecentDoc {
@@ -22,11 +24,7 @@ export interface RecentsState {
 
 const RECENTS_CAP = 20;
 
-/** The trailing word of a game version string, `"Pegasus v4.4.6"` -> `"v4.4.6"`. */
-function versionShort(version: string): string {
-  const parts = version.trim().split(/\s+/);
-  return parts[parts.length - 1] ?? "";
-}
+const RECENTS = prefField<unknown[]>(PREF_KEYS.recents, [], Array.isArray);
 
 /** A save's empire, date and version; a scenario's system count when one is given. */
 export function recentSubtitle(
@@ -39,7 +37,7 @@ export function recentSubtitle(
     return [meta.name, meta.date, versionShort(meta.version)].filter(Boolean).join(" · ");
   }
   if (typeof galaxySystems !== "number") return "";
-  return `${galaxySystems} system${galaxySystems === 1 ? "" : "s"}`;
+  return counted(galaxySystems, "system");
 }
 
 function isDocumentKind(value: unknown): value is DocumentKind {
@@ -59,8 +57,7 @@ function isRecentDoc(value: unknown): value is RecentDoc {
 }
 
 function loadRecents(): RecentDoc[] {
-  const raw = readPref<unknown[]>(PREF_KEYS.recents, [], Array.isArray);
-  return raw.filter(isRecentDoc).slice(0, RECENTS_CAP);
+  return RECENTS.read().filter(isRecentDoc).slice(0, RECENTS_CAP);
 }
 
 export const useRecentsStore = create<RecentsState>((set, get) => ({
@@ -70,12 +67,12 @@ export const useRecentsStore = create<RecentsState>((set, get) => ({
     const rest = get().recents.filter((r) => r.path !== doc.path);
     const recents = [{ ...doc, openedAt: Date.now() }, ...rest].slice(0, RECENTS_CAP);
     set({ recents });
-    writePref(PREF_KEYS.recents, recents);
+    RECENTS.save(recents);
   },
 
   forget(path) {
     const recents = get().recents.filter((r) => r.path !== path);
     set({ recents });
-    writePref(PREF_KEYS.recents, recents);
+    RECENTS.save(recents);
   },
 }));

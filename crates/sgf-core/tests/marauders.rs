@@ -2,44 +2,19 @@
 //! its raid bases, the next clan free to place, and the issues a scenario raises when a
 //! clan has two homes, a base has no home beside it, or a home stands beside a seat.
 
-use sgf_core::document::Document;
 use sgf_core::format::scenario::marauder::{
     CLANS, MarauderRole, clan_count, home_initializer, homes, next_free_clan,
 };
 use sgf_core::ops::Op;
-use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode, Severity};
 
 mod common;
-
-const FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/paint_a_galaxy.txt"
-);
-const PAINT_FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/2206.11.16.paint.txt"
-);
+use common::fixture::{EXPORTED_PAINT, PAINTED};
 
 const VOID: &str = "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" }";
 const UNNAMED: &str = "id = \"11\" position = { x = -150 y = -30 } }";
 const INGRESS: &str = "id = \"7\" position = { x = 20 y = -20 } name = \"Ingress\"";
 const EGRESS: &str = "id = \"8\" position = { x = -160 y = -160 } name = \"Egress\"";
-
-fn open() -> Session {
-    Session::open(FIXTURE).expect("open the painted fixture")
-}
-
-/// The fixture with each `from` replaced by its `to` once, in order.
-fn open_edited_all(edits: &[(&str, &str)]) -> Session {
-    let mut text = std::fs::read_to_string(FIXTURE).expect("read the fixture");
-    for (from, to) in edits {
-        assert!(text.contains(from), "{from}");
-        text = text.replacen(from, to, 1);
-    }
-    let doc = Document::from_scenario_bytes(text.into_bytes()).expect("index");
-    Session::from_document(None, doc).expect("open")
-}
 
 fn coded(issues: &[Issue], code: IssueCode) -> Vec<&Issue> {
     issues.iter().filter(|issue| issue.code == code).collect()
@@ -61,7 +36,7 @@ fn marauder_issues(issues: &[Issue]) -> Vec<&Issue> {
 
 #[test]
 fn two_homes_of_one_clan_are_reported_together_and_only_one_spawns() {
-    let session = open_edited_all(&[
+    let session = PAINTED.open_edited(&[
         (
             VOID,
             "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
@@ -92,7 +67,7 @@ fn two_homes_of_one_clan_are_reported_together_and_only_one_spawns() {
 
 #[test]
 fn a_raid_base_with_no_home_of_its_clan_beside_it_is_an_orphan() {
-    let orphaned = open_edited_all(&[(
+    let orphaned = PAINTED.open_edited(&[(
         EGRESS,
         "id = \"8\" position = { x = -160 y = -160 } name = \"Egress\" initializer = marauder_2_2",
     )]);
@@ -110,7 +85,7 @@ fn a_raid_base_with_no_home_of_its_clan_beside_it_is_an_orphan() {
     assert_eq!(orphan[0].severity, Severity::Warning);
     assert_eq!(orphan[0].systems, [8]);
 
-    let beside_home = open_edited_all(&[
+    let beside_home = PAINTED.open_edited(&[
         (
             EGRESS,
             "id = \"8\" position = { x = -160 y = -160 } name = \"Egress\" initializer = marauder_2_2",
@@ -123,7 +98,7 @@ fn a_raid_base_with_no_home_of_its_clan_beside_it_is_an_orphan() {
     let issues = beside_home.validate();
     assert!(marauder_issues(&issues).is_empty(), "{issues:?}");
 
-    let wrong_clan = open_edited_all(&[
+    let wrong_clan = PAINTED.open_edited(&[
         (
             EGRESS,
             "id = \"8\" position = { x = -160 y = -160 } name = \"Egress\" initializer = marauder_2_2",
@@ -141,7 +116,7 @@ fn a_raid_base_with_no_home_of_its_clan_beside_it_is_an_orphan() {
 
 #[test]
 fn a_home_beside_a_seat_is_worth_a_look_on_a_painted_map() {
-    let session = open_edited_all(&[(
+    let session = PAINTED.open_edited(&[(
         VOID,
         "id = \"10\" position = { x = 130 y = 40 } name = \"Void\" initializer = marauder_1_1 }",
     )]);
@@ -157,7 +132,7 @@ fn a_home_beside_a_seat_is_worth_a_look_on_a_painted_map() {
     assert!(coded(&issues, IssueCode::MarauderHomeDuplicate).is_empty());
     assert!(coded(&issues, IssueCode::MarauderBaseOrphan).is_empty());
 
-    let clear = open_edited_all(&[(
+    let clear = PAINTED.open_edited(&[(
         VOID,
         "id = \"10\" position = { x = 150 y = 40 } name = \"Void\" initializer = marauder_1_1 }",
     )]);
@@ -167,12 +142,12 @@ fn a_home_beside_a_seat_is_worth_a_look_on_a_painted_map() {
 #[test]
 fn the_next_free_clan_is_the_lowest_without_a_home_and_an_op_keeps_the_role_in_step() {
     assert_eq!(CLANS, 3);
-    let plain = open();
+    let plain = PAINTED.open();
     assert!(homes(&plain.graph).is_empty());
     assert_eq!(clan_count(&plain.graph), 0);
     assert_eq!(next_free_clan(&plain.graph), Some(1));
 
-    let two = open_edited_all(&[
+    let two = PAINTED.open_edited(&[
         (
             VOID,
             "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
@@ -185,7 +160,7 @@ fn the_next_free_clan_is_the_lowest_without_a_home_and_an_op_keeps_the_role_in_s
     assert_eq!(clan_count(&two.graph), 2);
     assert_eq!(next_free_clan(&two.graph), Some(3));
 
-    let three = open_edited_all(&[
+    let three = PAINTED.open_edited(&[
         (
             VOID,
             "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
@@ -202,7 +177,7 @@ fn the_next_free_clan_is_the_lowest_without_a_home_and_an_op_keeps_the_role_in_s
     assert_eq!(clan_count(&three.graph), 3);
     assert_eq!(next_free_clan(&three.graph), None);
 
-    let mut session = open();
+    let mut session = PAINTED.open();
     session
         .apply(Op::SetInitializer {
             id: 10,
@@ -247,7 +222,7 @@ fn the_sample_saves_two_clans_read_from_their_initializers_and_raise_no_issue() 
 
 #[test]
 fn a_home_with_two_raid_bases_hyperlaned_to_it_raises_no_issue() {
-    let session = open_edited_all(&[
+    let session = PAINTED.open_edited(&[
         (
             VOID,
             "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
@@ -270,7 +245,7 @@ fn a_home_with_two_raid_bases_hyperlaned_to_it_raises_no_issue() {
 
 #[test]
 fn a_home_with_one_raid_base_beside_it_is_reported_with_one() {
-    let session = open_edited_all(&[
+    let session = PAINTED.open_edited(&[
         (
             VOID,
             "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
@@ -293,7 +268,7 @@ fn a_home_with_one_raid_base_beside_it_is_reported_with_one() {
 
 #[test]
 fn a_home_with_two_bases_but_one_not_hyperlaned_still_raises_the_issue() {
-    let session = open_edited_all(&[
+    let session = PAINTED.open_edited(&[
         (
             VOID,
             "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
@@ -320,7 +295,7 @@ fn a_home_with_two_bases_but_one_not_hyperlaned_still_raises_the_issue() {
 
 #[test]
 fn the_paint_fixture_exports_both_clans_complete_and_raises_no_bases_missing_issue() {
-    let session = Session::open(PAINT_FIXTURE).expect("open the paint fixture");
+    let session = EXPORTED_PAINT.open();
     assert_eq!(homes(&session.graph).get(&1), Some(&vec![13]));
     assert_eq!(homes(&session.graph).get(&2), Some(&vec![12]));
     let issues = session.validate();

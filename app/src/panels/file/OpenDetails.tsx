@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useShallow } from "zustand/react/shallow";
 import type { CampaignListing } from "../../generated/CampaignListing";
 import type { EmpireCount } from "../../generated/EmpireCount";
 import type { GalaxySettings } from "../../generated/GalaxySettings";
@@ -8,20 +9,19 @@ import type { ScenarioListing } from "../../generated/ScenarioListing";
 import type { Setting } from "../../generated/Setting";
 import { saveFlagKey } from "../../lib/flagKey";
 import { displayNameIn, stripped, type Names } from "../../lib/names";
-import { plural, recentTarget, type Row } from "../../lib/openRows";
+import { recentTarget, type Row } from "../../lib/openRows";
 import { scenarioForPaint } from "../../lib/paint";
 import { PAINT_MOD_OFF_BREAKS, SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
-import { fileName } from "../../lib/paths";
+import { fileName, folderOf } from "../../lib/paths";
+import { CLOUD_TITLE } from "../../lib/sessionCopy";
+import { counted } from "../../lib/text";
+import { versionNumber } from "../../lib/version";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { detailsKey, useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import type { RecentDoc } from "../../store/recentsStore";
 import { useTextureUrl } from "../useTextureUrl";
 import { formatSize, formatWhen } from "./launchData";
-
-export const CLOUD_TITLE =
-  "In Steam's cloud folder: Steam can overwrite an edited file with its cloud copy. " +
-  "Close Steam or disable Steam Cloud for Stellaris before playing it.";
 
 export const IRONMAN_TITLE = "Ironman save: the game only loads it in ironman mode.";
 
@@ -35,7 +35,7 @@ function EmpireDot({ meta }: { meta: SaveMeta | null }) {
   const mapColors = useGameDataStore((s) => s.mapColors);
   const color = meta?.color ? mapColors.get(meta.color)?.flag : undefined;
   if (!color) return null;
-  return <span className="dot" style={{ background: color }} />;
+  return <span className="swatch dot" style={{ background: color }} />;
 }
 
 /** The empire's flag once game data has drawn it, its colour until then. */
@@ -130,16 +130,15 @@ function range(setting: Setting | null): string | null {
   return setting.default === null ? null : num(setting.default);
 }
 
-function folderOf(path: string): string {
-  return path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
-}
-
-/** The number in a version string, `"Cygnus v4.5.0"` -> `"4.5.0"`. */
-function versionNumber(version: string): string | null {
-  return /\d+(?:\.\d+)+/.exec(version)?.[0] ?? null;
-}
-
 type Fact = [label: string, value: ReactNode | null | undefined];
+
+/** The last two rows of every File block: the file's name and the folder it sits in. */
+function whereFacts(path: string): Fact[] {
+  return [
+    ["File", fileName(path)],
+    ["Folder", folderOf(path)],
+  ];
+}
 
 function Facts({ facts }: { facts: Fact[] }) {
   const shown = facts.filter(([, value]) => value !== null && value !== undefined && value !== "");
@@ -211,8 +210,8 @@ function MetaHead({ meta, fallback }: { meta: SaveMeta | null; fallback: string 
       {meta && (
         <Facts
           facts={[
-            ["Planets", meta.planets === null ? null : plural(meta.planets, "planet")],
-            ["Fleets", meta.fleets === null ? null : plural(meta.fleets, "fleet")],
+            ["Planets", meta.planets === null ? null : counted(meta.planets, "planet")],
+            ["Fleets", meta.fleets === null ? null : counted(meta.fleets, "fleet")],
           ]}
         />
       )}
@@ -320,7 +319,7 @@ function RequiredDlc({ dlcs }: { dlcs: string[] }) {
   );
 }
 
-function SaveBody({ file }: { file: SaveFile }) {
+function SaveDetails({ file }: { file: SaveFile }) {
   const meta = file.meta;
   return (
     <>
@@ -334,8 +333,7 @@ function SaveBody({ file }: { file: SaveFile }) {
           facts={[
             ["Saved", formatWhen(file.modified)],
             ["Size", formatSize(file.size)],
-            ["File", file.file_name],
-            ["Folder", folderOf(file.path)],
+            ...whereFacts(file.path),
           ]}
         />
       </Block>
@@ -352,7 +350,7 @@ function dateRange(files: SaveFile[]): string | null {
   return first === last ? first : `${first} – ${last}`;
 }
 
-function CampaignBody({ campaign, empire }: { campaign: CampaignListing; empire: string }) {
+function CampaignDetails({ campaign, empire }: { campaign: CampaignListing; empire: string }) {
   const files = useOpenScreenStore((s) => s.files[campaign.dir]);
   const newest = files?.[0];
   return (
@@ -362,7 +360,7 @@ function CampaignBody({ campaign, empire }: { campaign: CampaignListing; empire:
       <Block title="Campaign">
         <Facts
           facts={[
-            ["Saves", plural(campaign.files, "save")],
+            ["Saves", counted(campaign.files, "save")],
             ["Dates", files ? dateRange(files) : null],
             ["Last saved", formatWhen(campaign.newest)],
           ]}
@@ -423,7 +421,7 @@ function EmpireTable({ listing }: { listing: ScenarioListing }) {
   );
 }
 
-function ScenarioBody({ listing, group }: { listing: ScenarioListing; group: string }) {
+function ScenarioDetails({ listing, group }: { listing: ScenarioListing; group: string }) {
   const label = useLabel();
   const summary = listing.summary;
   useNameKeys(summary.supports_shape);
@@ -448,7 +446,7 @@ function ScenarioBody({ listing, group }: { listing: ScenarioListing; group: str
       <Block title="Scenario">
         <Facts
           facts={[
-            ["Systems", plural(listing.systems, "system")],
+            ["Systems", counted(listing.systems, "system")],
             ["Radius", count(summary.radius)],
             ["Core radius", count(summary.core_radius)],
             ["Shapes", summary.supports_shape.map(label).join(", ")],
@@ -474,8 +472,7 @@ function ScenarioBody({ listing, group }: { listing: ScenarioListing; group: str
           facts={[
             ["Modified", formatWhen(listing.modified)],
             ["Size", formatSize(listing.size)],
-            ["File", fileName(listing.path)],
-            ["Folder", folderOf(listing.path)],
+            ...whereFacts(listing.path),
           ]}
         />
       </Block>
@@ -483,10 +480,11 @@ function ScenarioBody({ listing, group }: { listing: ScenarioListing; group: str
   );
 }
 
-function RecentBody({ doc, missing }: { doc: RecentDoc; missing: boolean }) {
-  const target = recentTarget(doc, useOpenScreenStore());
-  if (target?.kind === "save") return <SaveBody file={target.file} />;
-  if (target?.kind === "scenario") return <ScenarioBody {...target} />;
+function RecentDetails({ doc, missing }: { doc: RecentDoc; missing: boolean }) {
+  const lists = useOpenScreenStore(useShallow((s) => ({ files: s.files, scenarios: s.scenarios })));
+  const target = recentTarget(doc, lists);
+  if (target?.kind === "save") return <SaveDetails file={target.file} />;
+  if (target?.kind === "scenario") return <ScenarioDetails {...target} />;
   return (
     <>
       <header className="od-head">
@@ -502,8 +500,7 @@ function RecentBody({ doc, missing }: { doc: RecentDoc; missing: boolean }) {
           facts={[
             ["Kind", doc.kind === "save" ? "Save" : "Scenario"],
             ["Opened", formatWhen(doc.openedAt / 1000)],
-            ["File", fileName(doc.path)],
-            ["Folder", folderOf(doc.path)],
+            ...whereFacts(doc.path),
           ]}
         />
       </Block>
@@ -511,16 +508,16 @@ function RecentBody({ doc, missing }: { doc: RecentDoc; missing: boolean }) {
   );
 }
 
-function Body({ row }: { row: Row }) {
+function RowDetails({ row }: { row: Row }) {
   switch (row.kind) {
     case "save":
-      return <SaveBody file={row.file} />;
+      return <SaveDetails file={row.file} />;
     case "campaign":
-      return <CampaignBody campaign={row.campaign} empire={row.empire} />;
+      return <CampaignDetails campaign={row.campaign} empire={row.empire} />;
     case "scenario":
-      return <ScenarioBody listing={row.listing} group={row.group} />;
+      return <ScenarioDetails listing={row.listing} group={row.group} />;
     case "recent":
-      return <RecentBody doc={row.doc} missing={row.missing} />;
+      return <RecentDetails doc={row.doc} missing={row.missing} />;
   }
 }
 
@@ -528,7 +525,7 @@ function Body({ row }: { row: Row }) {
 export function OpenDetails({ row }: { row: Row | undefined }) {
   return (
     <aside className="open-details" aria-label="Details">
-      {row ? <Body row={row} /> : <p className="od-soft">Nothing selected.</p>}
+      {row ? <RowDetails row={row} /> : <p className="od-soft">Nothing selected.</p>}
     </aside>
   );
 }

@@ -31,8 +31,8 @@ leaves the previous file beside it as a backup (see "Saving" below).
 
 ### Opening a save
 
-The app starts on a list of the documents it found on this machine: the
-ones you opened recently, the saves grouped by campaign folder, newest
+The app starts on the Open screen, a list of the documents it found on
+this machine: the ones you opened recently, the saves grouped by campaign folder, newest
 first, and the scenario scripts from your mods, your playset and the
 install. It looks in the game's save folder:
 
@@ -45,18 +45,42 @@ and in Steam's cloud folder for each Steam account on the machine,
 cloud folder carry a "☁" flag; see "Steam Cloud saves" below for why
 that matters. An ironman save carries a "⚿" flag.
 
-A campaign row shows the empire, the folder, how many saves it holds and
-when the newest was written; open it to see the saves themselves, each
-with its empire, planet and fleet counts, file name, in-game date, game
-version, size and the time it was last written. A scenario row shows its
-system count, the mod it came from and whatever overrides it.
+Tabs down the left show All, Recent, Saves or Scenarios, each with a
+count, and Ctrl+1 to Ctrl+4 pick one. The field at the top filters every
+tab by empire, campaign, file, scenario or mod.
 
-The field at the top filters by empire, campaign, file, scenario or mod.
-The arrow keys move through the list, Enter opens the row, Shift+Enter
-opens a save as a scenario, and the left and right arrows fold a campaign
-open and shut. Two buttons sit along the foot of the screen: "New
-scenario…", and "Browse…" for any `.sav` or scenario `.txt` file anywhere
-on the machine.
+A campaign row shows the empire, the game version and in-game date of its
+newest save, how many saves it holds and when the newest was written.
+Click it to fold it open and list its saves, each with its in-game date
+and the time it was written. A scenario row shows its system count, the
+mod it came from and whatever overrides it, grouped under My mods,
+Workshop mods and Install. A recent file that has gone missing shows
+"not found" and a "forget" button that takes it off the list.
+
+A pane on the right shows the selected row at more length. For a save it
+shows the empire, the date, the game version and whether it matches your
+install, the planet and fleet counts, the galaxy settings and rules the
+game was started with, the DLC it requires, and the file. For a scenario
+it shows the systems, radius, shapes, empire counts and galaxy settings
+its header gives, and whether it is for the Paint a Galaxy mod.
+
+The arrow keys move through the list, and the left and right arrows fold
+a campaign open and shut. Enter or a double-click opens the selected save
+or scenario. Enter on a campaign folds it open or shut. A save first asks whether to edit it as a save or as a scenario.
+Shift+Enter on a save goes straight to the scenario choice.
+
+The foot of the screen holds "New scenario…", and "Browse…" for any
+`.sav` or scenario `.txt` file anywhere on the machine. The buttons on
+the right open the selected row. "Open as scenario" is there for a save
+and asks only the scenario choice. "Open for Paint a Galaxy" is there for
+a scenario not made for that mod, and opens it with the mod's layer on.
+"Open" opens the row as it is. For a save it skips the save-or-scenario
+question. On a campaign row it opens the newest save once the campaign has
+been folded open.
+
+Opening a save as a scenario leaves the save untouched. The scenario
+choice carries the "For the Paint a Galaxy mod" checkbox described under
+"Static galaxy scenarios".
 
 With a document already open, Ctrl+O brings the same list back as a
 dialog and Ctrl+Shift+O goes straight to a file picker. The File menu at
@@ -83,7 +107,8 @@ repeats your edits about the galaxy centre, as described under
   arrow keys. A plain left drag on empty space does nothing.
 - Zoom: mouse wheel, centred on the pointer.
 - Home fits the whole galaxy in the window. Shift+F frames the
-  selection.
+  selected systems or nebula, or the whole galaxy when nothing is
+  selected.
 - F, Ctrl+K or `/` puts the cursor in the search box, which widens while
   you type. It matches systems, empires, planets, fleets and nebulae;
   `s:`, `e:`, `p:`, `f:` and `n:` narrow it to one of those, and Tab
@@ -145,6 +170,10 @@ while the map has focus, and dragging its left edge resizes it.
 - The Empires and Points of interest tabs each have a "⊙" button per row
   that selects what the row names.
 - Shift+F frames the selection.
+- Delete (or Backspace) removes what is selected. A selected lane is cut
+  at once. A selected nebula goes after you agree to what leaves it. In
+  a scenario, one or more selected systems go after you agree to how many
+  systems and lanes go with them.
 - Escape clears the selection. In the Inspector it steps back one crumb
   first, and it closes a menu, a dialog or the initializer browser
   before it touches the selection.
@@ -217,8 +246,8 @@ or a scenario:
 While the button is held the map previews the new lanes or the lanes to
 be cut, and the cursor counts them. Each stroke is one step in Undo. Size
 sets the circle's diameter, and `[` and `]` shrink and grow it. Holding
-Alt when you press turns a connect stroke into a cut and a cut into a
-connect. Esc drops a stroke in progress and a second Esc returns to
+Alt swaps connect and cut. The circle follows Alt while it is held, and a
+stroke keeps the brush it started with. Esc drops a stroke in progress and a second Esc returns to
 Select.
 
 Symmetry repeats your edits about the galaxy centre. The Symmetry button
@@ -440,8 +469,8 @@ it did not touch copied out exactly as it came in.
 Opening one: the open list carries every scenario it can find, from your
 mods, your playset and the install, with its system count and who
 overrides it; or use "Browse…" and pick any `.txt`. A save row can be
-opened as a scenario instead of as a save (the "as scenario" button, or
-Shift+Enter), which turns that galaxy into one you can edit and start a
+opened as a scenario instead of as a save (the "Open as scenario"
+button, or Shift+Enter), which turns that galaxy into one you can edit and start a
 fresh campaign from, and "Export as scenario…" in the File menu does the
 same for the open save. That one first shows what the export will hold:
 how many empire seats it has (one spawn point on each empire's capital;
@@ -547,9 +576,12 @@ ticked. Its Target option set to "Lanes only" cuts the hyperlanes the
 circle passes over and leaves every system. While the button is held the
 map previews the stroke and the cursor counts what it will add or
 remove. Each stroke is one step in Undo. `[` and `]` shrink and grow the
-brush, holding Alt when you press inverts it (paint erases, erase
-paints), Esc drops a stroke in progress and a second Esc returns to
-Select. The middle button and the wheel still pan and zoom.
+brush. Holding Alt inverts it: paint erases, and erase paints. With
+Erase's Target set to "Lanes only", Alt turns paint into a lane cut and
+erase into a lane connect. The circle
+follows Alt while it is held, and a stroke keeps the brush it started
+with. Esc drops a stroke in progress and a second Esc returns to Select.
+The middle button and the wheel still pan and zoom.
 
 With symmetry on (see "Hyperlanes"), a paint stroke places a copy of
 every system at each image. The copies keep the spacing from each other
@@ -809,6 +841,7 @@ commands write in place, with the same backup as the app, unless `-o
 | Command | Does |
 |---------|------|
 | `sgf inspect <sav> [--galaxy]` | Print the header, section sizes and entity counts; `--galaxy` adds systems, lanes, components, nebulae and bypasses. |
+| `sgf shape <sav> [--diff <other>] [--section a,b]` | Print every key path of a save with its count. `--diff` prints the paths only one of the two saves has, and `--section` keeps either to the named top-level sections. |
 | `sgf validate <doc>` | Print every issue the validator finds in the galaxy, and the ones the document itself raises; exits 1 if any is an error. |
 | `sgf details <sav> <id>`, or `--all` | Print a system's planets, deposits, starbase and fleet presence; `--all` gives one line per system that has anything to show. |
 | `sgf export-scenario <sav> <out> [--name <n>] [--gamedata] [--install <dir>] [--profile plain\|paint-a-galaxy]` | Write the save's galaxy as a static galaxy scenario script; the save is untouched. |

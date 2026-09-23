@@ -13,8 +13,23 @@ pub(crate) const COUNTRY_SCOPES: [&str; 4] = [
     "random_playable_country",
 ];
 
+/// The keys that save the scope they run in under an event target's name.
+pub(crate) const SAVES_TARGET: [&str; 2] = ["save_global_event_target_as", "save_event_target_as"];
+
 pub(crate) fn is_country_scope(key: &str) -> bool {
     COUNTRY_SCOPES.contains(&key)
+}
+
+/// The flag a country scope's `limit = { has_country_flag = … }` identifies its empire by.
+pub(crate) fn country_flag<'s>(node: &Node, src: &'s [u8]) -> Option<&'s str> {
+    node.find("limit", src)?
+        .find("has_country_flag", src)?
+        .scalar_str(src)
+}
+
+/// A guard is read as true, so its body says nothing about what the effect does.
+pub(crate) fn is_guard(key: &str) -> bool {
+    matches!(key, "limit" | "trigger")
 }
 
 /// Blocks whose body still runs where the block itself does; every other

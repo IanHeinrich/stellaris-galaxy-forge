@@ -12,7 +12,7 @@ import { editor, mocked, openFixtureSave } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { SCENARIO_RESULT, editResult, node } from "./fixture";
+import { SCENARIO_RESULT, editResult, lanesTo, node } from "./fixture";
 import { useToolStore } from "./toolStore";
 
 const MIRROR_X: Symmetry = { kind: "mirror", axis: "x" };
@@ -38,7 +38,6 @@ const FIRST_FREE = 24;
 /** Links each pair both ways, over the placed systems as they stand. */
 function link(...pairs: Array<[number, number]>): void {
   const all = useGalaxyStore.getState().systems;
-  const lane = (to: number) => ({ to, length: 0, bridge: false, stale: false });
   const touched = new Map<number, (typeof PLACED)[number]>();
   for (const [a, b] of pairs) {
     for (const [from, to] of [
@@ -46,7 +45,7 @@ function link(...pairs: Array<[number, number]>): void {
       [b, a],
     ]) {
       const s = touched.get(from) ?? all.get(from)!;
-      touched.set(from, { ...s, lanes: [...s.lanes, lane(to)] });
+      touched.set(from, { ...s, lanes: [...s.lanes, ...lanesTo(to)] });
     }
   }
   useGalaxyStore.getState().applyDelta({ systems: [...touched.values()] });

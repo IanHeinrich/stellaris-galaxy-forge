@@ -95,8 +95,9 @@ impl GameData {
     /// Reread `kinds` from disk, sharing every other registry with `self`.
     /// A registry that comes back empty when the old one was not keeps the
     /// old one and raises [`Diagnostic::RebuildFailed`]. Diagnostics of the
-    /// rebuilt registries are replaced, the rest kept.
-    pub fn rebuild(&self, kinds: &BTreeSet<RegistryKind>) -> GameData {
+    /// rebuilt registries are replaced, the rest kept. Returns the registries
+    /// actually replaced beside the result.
+    pub fn rebuild(&self, kinds: &BTreeSet<RegistryKind>) -> (GameData, BTreeSet<RegistryKind>) {
         let kinds = RegistryKind::closure(kinds);
         let mut fresh = Vec::new();
         let mut replaced = BTreeSet::new();
@@ -172,7 +173,7 @@ impl GameData {
         out.diagnostics
             .retain(|d| !superseded(d, &self.layout, &replaced));
         out.diagnostics.extend(fresh);
-        out
+        (out, replaced)
     }
 }
 

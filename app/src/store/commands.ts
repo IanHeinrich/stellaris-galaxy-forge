@@ -1,5 +1,5 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
-import type { KeyAction, Nudge } from "../lib/keys";
+import { isToolAction, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -8,12 +8,12 @@ import { useInitializerBrowserStore } from "./initializerBrowserStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
+import { useOpenScreenStore } from "./openScreenStore";
 import { useToolStore } from "./toolStore";
 
 export interface CommandEffects {
   focusSearch(): void;
   browseInitializers(targets: readonly number[]): void;
-  confirmRemoveNebula(index: number): void;
 }
 
 export function canGoBack(): boolean {
@@ -53,6 +53,48 @@ export function toggleLayerKey(index: number): void {
   useMapChromeStore.getState().toggleLayerKey(index);
 }
 
+/** Removes whatever Delete names for the selection, asking first where the store does. */
+export function deleteSelected(): void {
+  void useEditorStore.getState().deleteSelection();
+}
+
+export function selectAll(): void {
+  void useEditorStore.getState().selectAll();
+}
+
+export function fitAll(): void {
+  useEditorStore.getState().requestFit();
+}
+
+/** Frames the selected systems or nebula, or the whole galaxy when nothing is selected. */
+export function fitSelected(): void {
+  const editor = useEditorStore.getState();
+  if (editor.selection.length === 0 && editor.selectedNebula === null) editor.requestFit();
+  else editor.fitSelection();
+}
+
+export function undo(): void {
+  void useEditorStore.getState().undo();
+}
+
+export function redo(): void {
+  void useEditorStore.getState().redo();
+}
+
+export function save(): void {
+  void useFileSessionStore.getState().save();
+}
+
+export function saveAs(): void {
+  void useFileSessionStore.getState().saveAs();
+}
+
+/** Closes the open document, once any unsaved changes are agreed to go. */
+export function closeDocument(): void {
+  const session = useFileSessionStore.getState();
+  if (session.status === "ready") void session.close();
+}
+
 function escape(inInput: boolean): void {
   if (useInitializerBrowserStore.getState().open) {
     useInitializerBrowserStore.getState().close();
@@ -79,7 +121,7 @@ function focusOnMap(): boolean {
 
 /** Runs one command, and says whether the key press was the app's to keep. */
 export function run(action: KeyAction, inInput: boolean, effects: CommandEffects): boolean {
-  const editor = useEditorStore.getState();
+  if (isToolAction(action)) return useToolStore.getState().setTool(toolOfAction(action));
   const chrome = useMapChromeStore.getState();
   const session = useFileSessionStore.getState();
   const layout = useLayoutStore.getState();
@@ -89,28 +131,26 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       return true;
     case "browse":
       if (session.status !== "loading" && useGameDataStore.getState().startup !== "setup") {
-        void session.pickAndOpen();
+        void session.pickAndOpen(undefined, undefined, useOpenScreenStore.getState().scenarios);
       }
       return true;
     case "close":
-      if (session.status === "ready") void session.close();
+      closeDocument();
       return true;
     case "clearSelection":
       escape(inInput);
       return false;
     case "deleteSelection":
-      if (editor.selectedNebula === null) void editor.deleteSelection();
-      else effects.confirmRemoveNebula(editor.selectedNebula);
+      deleteSelected();
       return true;
     case "selectAll":
-      void editor.selectAll();
+      selectAll();
       return true;
     case "fit":
-      editor.requestFit();
+      fitAll();
       return true;
     case "fitSelection":
-      if (editor.selection.length === 0 && editor.selectedNebula === null) editor.requestFit();
-      else editor.fitSelection();
+      fitSelected();
       return true;
     case "focusSearch":
       effects.focusSearch();
@@ -126,19 +166,19 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       useInspectorStore.getState().back();
       return true;
     case "undo":
-      void editor.undo();
+      undo();
       return true;
     case "redo":
-      void editor.redo();
+      redo();
       return true;
     case "save":
-      void session.save();
+      save();
       return true;
     case "saveAs":
-      void session.saveAs();
+      saveAs();
       return true;
     case "browseInitializers":
-      effects.browseInitializers(editor.selection);
+      effects.browseInitializers(useEditorStore.getState().selection);
       return true;
     case "toggleScriptLayers":
     case "toggleInitializerLayers":
@@ -147,17 +187,6 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       }
       chrome.toggleGroup(action === "toggleScriptLayers" ? "scripts" : "initializers");
       return true;
-    case "selectTool":
-      useToolStore.getState().setTool("select");
-      return true;
-    case "paintTool":
-      return useToolStore.getState().setTool("paint");
-    case "eraseTool":
-      return useToolStore.getState().setTool("erase");
-    case "connectTool":
-      return useToolStore.getState().setTool("connect");
-    case "cutTool":
-      return useToolStore.getState().setTool("cut");
     case "toggleSymmetry":
       useToolStore.getState().toggleSymmetry();
       return true;

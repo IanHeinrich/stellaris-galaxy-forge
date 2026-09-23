@@ -15,42 +15,20 @@ use sgf_gamedata::views::GameDataSummary;
 use sgf_gamedata::{GameData, LoadOptions, RegistryKind};
 use tempfile::TempDir;
 
+use common::scripts::sys;
+
 const SCENARIO: [ScenarioSystem<'static>; 3] = [
-    ScenarioSystem {
-        id: 1,
-        initializer: Some("empire_capital_init"),
-        effect: None,
-    },
-    ScenarioSystem {
-        id: 2,
-        initializer: Some("empire_colony_init"),
-        effect: None,
-    },
-    ScenarioSystem {
-        id: 5,
-        initializer: Some("basic_init_01"),
-        effect: None,
-    },
+    sys(1, "empire_capital_init"),
+    sys(2, "empire_colony_init"),
+    sys(5, "basic_init_01"),
 ];
 
 /// The systems the bypass readers reach: the two ends of the day-one pair
 /// and one whose own initializer spawns a wormhole.
 const BYPASSES: [ScenarioSystem<'static>; 3] = [
-    ScenarioSystem {
-        id: 40,
-        initializer: Some("wormhole_a_init"),
-        effect: None,
-    },
-    ScenarioSystem {
-        id: 41,
-        initializer: Some("wormhole_b_init"),
-        effect: None,
-    },
-    ScenarioSystem {
-        id: 43,
-        initializer: Some("tunnel_init"),
-        effect: None,
-    },
+    sys(40, "wormhole_a_init"),
+    sys(41, "wormhole_b_init"),
+    sys(43, "tunnel_init"),
 ];
 
 const INITIALIZERS: &str = "userdata/mod/one/common/solar_system_initializers/zz_one.txt";
@@ -67,7 +45,7 @@ fn rebuilding_the_initializers_says_what_a_full_load_says() {
         "\nreloaded_init = {\n\tclass = sc_sun\n\tusage = misc_system_init\n\tinit_effect = { set_star_flag = fixture_beacon }\n}\n",
     );
 
-    let rebuilt = before.rebuild(&kinds([RegistryKind::Initializers]));
+    let (rebuilt, replaced) = before.rebuild(&kinds([RegistryKind::Initializers]));
     let full = load(tree.path());
 
     assert!(
@@ -97,6 +75,10 @@ fn rebuilding_the_initializers_says_what_a_full_load_says() {
     );
     assert_eq!(scripts, full.system_scripts(9, Some("reloaded_init"), None));
 
+    assert_eq!(
+        replaced,
+        kinds([RegistryKind::Initializers, RegistryKind::Scripts])
+    );
     assert!(!Arc::ptr_eq(&before.initializers, &rebuilt.initializers));
     assert!(!Arc::ptr_eq(&before.scripts, &rebuilt.scripts));
     assert!(Arc::ptr_eq(&before.colors, &rebuilt.colors));
@@ -117,7 +99,7 @@ fn rebuilding_the_scripts_says_what_a_full_load_says_about_the_bypasses() {
         "\non_game_start = {\n\tevents = {\n\t\tfixture.11\n\t}\n}\n",
     );
 
-    let rebuilt = before.rebuild(&kinds([RegistryKind::Scripts]));
+    let (rebuilt, _) = before.rebuild(&kinds([RegistryKind::Scripts]));
     let full = load(tree.path());
 
     let found = rebuilt.scenario_bypasses(&BYPASSES);
@@ -144,7 +126,7 @@ fn rebuilding_the_localisation_says_what_a_full_load_says() {
         " reloaded_key:0 \"read again\"\n",
     );
 
-    let rebuilt = before.rebuild(&kinds([RegistryKind::Localisation]));
+    let (rebuilt, _) = before.rebuild(&kinds([RegistryKind::Localisation]));
     let full = load(tree.path());
 
     assert_eq!(
@@ -165,6 +147,26 @@ fn rebuilding_the_localisation_says_what_a_full_load_says() {
     assert!(Arc::ptr_eq(&before.initializers, &rebuilt.initializers));
     assert!(Arc::ptr_eq(&before.scripts, &rebuilt.scripts));
     assert!(Arc::ptr_eq(&before.colors, &rebuilt.colors));
+}
+
+#[test]
+fn a_reread_that_finds_nothing_keeps_the_old_registry_and_is_not_named_replaced() {
+    let tree = fixture_copy();
+    let before = load(tree.path());
+    fs::remove_file(tree.path().join("install/flags/colors.txt")).expect("remove the colours");
+
+    let (rebuilt, replaced) = before.rebuild(&kinds([RegistryKind::Colors]));
+
+    assert!(replaced.is_empty(), "{replaced:?}");
+    assert!(Arc::ptr_eq(&before.colors, &rebuilt.colors));
+    assert!(
+        rebuilt
+            .diagnostics
+            .iter()
+            .any(|d| d.kind() == "rebuild_failed"),
+        "{:?}",
+        rebuilt.diagnostics
+    );
 }
 
 #[test]

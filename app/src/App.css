@@ -92,6 +92,18 @@ input[type="search"]:focus {
   border-color: var(--accent-dim);
 }
 
+.filter-input {
+  width: 100%;
+  height: 22px;
+  margin: 2px 0 4px;
+  padding: 0 6px;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
 h1,
 h2,
 h3 {
@@ -204,62 +216,23 @@ button.icon:hover:not(:disabled) {
   color: var(--fg);
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  color: var(--fg);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-}
-
-.chip.kind {
-  background: #2a2410;
-  border-color: var(--accent-dim);
-  color: var(--accent);
-}
-
-.chip.src {
-  background: var(--src-bg);
-  border-color: var(--src-dim);
+/* A derived source's soft fill; it follows button.icon:hover so a pressed icon keeps its hue. */
+.chip.src,
+button.icon.src[aria-pressed="true"],
+button.master.src[aria-pressed="mixed"],
+.menu-section .master-pill.src[aria-pressed="mixed"] > span {
   color: var(--src);
+  border-color: var(--src-dim);
+  background: var(--src-bg);
 }
 
-.chip.warn {
-  background: #2f1a12;
-  border-color: #6a3a28;
-  color: var(--warn);
-}
-
-button.chip.pick {
-  cursor: pointer;
-  font: inherit;
-  font-size: 10px;
-}
-
-button.chip.pick:hover {
-  border-color: var(--warn);
-  color: var(--warn);
-}
-
-button.chip.jump {
-  cursor: pointer;
-  font: inherit;
-  font-size: 10px;
-}
-
-button.chip.jump:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.chip.init {
-  background: var(--init-bg);
-  border-color: var(--init-dim);
+.chip.init,
+button.icon.init[aria-pressed="true"],
+button.master.init[aria-pressed="mixed"],
+.menu-section .master-pill.init[aria-pressed="mixed"] > span {
   color: var(--init);
+  border-color: var(--init-dim);
+  background: var(--init-bg);
 }
 
 kbd {

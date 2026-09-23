@@ -1,11 +1,10 @@
 //! Fallen empire zones: the `set_star_flag`s in a system's `effect` block that Paint a
 //! Galaxy seats a fallen empire by.
 
-use std::collections::BTreeSet;
-
 use super::flags::rewrite_flags;
 use crate::format::scenario::fe_zone::{FeZone, flags, is_zone_flag};
 use crate::ops::rules::fe_zone::{decide_set, label};
+use crate::ops::rules::{bulk_description, each_once};
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::galaxy::SystemNode;
 use crate::session::Session;
@@ -31,22 +30,16 @@ pub(super) fn set_zones(
     s: &Session,
     entries: &[(u32, Option<FeZone>)],
 ) -> Result<Planned, OpError> {
-    if entries.is_empty() {
-        return Err(OpError::Empty);
-    }
-    let mut seen = BTreeSet::new();
-    for (id, _) in entries {
-        if !seen.insert(*id) {
-            return Err(OpError::DuplicateSystem(*id));
-        }
-    }
+    each_once(entries, |&(id, _)| id)?;
+    let mut one = String::new();
     let mut previous = Vec::with_capacity(entries.len());
     for (id, zone) in entries {
-        let (_, was) = write_zone(plan, s, *id, zone.as_ref())?;
+        let (description, was) = write_zone(plan, s, *id, zone.as_ref())?;
+        one = description;
         previous.push(was);
     }
     Ok(Planned {
-        description: "Recompute automatic fallen empire zones".to_owned(),
+        description: bulk_description(entries.len(), one, "Set the fallen empire zone of"),
         inverse: Op::SetFeZones { entries: previous },
     })
 }

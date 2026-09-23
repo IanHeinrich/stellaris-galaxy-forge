@@ -42,12 +42,14 @@ const NOTES: Issue[] = [
     code: "export_dropped",
     message: "6 wormhole pairs were not carried into the scenario",
     systems: [],
+    note: true,
   },
   {
     severity: "warning",
     code: "home_initializer",
     message: "system 2 is an empire seat on shattered_ring_start, not a generic home initializer",
     systems: [2],
+    note: true,
   },
 ];
 const SPLIT: Issue = {
@@ -55,6 +57,7 @@ const SPLIT: Issue = {
   code: "disconnected",
   message: "galaxy has 3 components, 2 at load; newly separated: 2",
   systems: [2],
+  note: false,
 };
 
 /** A scenario of `count` systems, ids from 0. */
@@ -237,6 +240,7 @@ describe("issuesStore", () => {
           "1,300 systems is well above Huge, the game's largest galaxy (1,000 stars). " +
           "Very large galaxies can make the game slow.",
         systems: [],
+        note: true,
       },
     ]);
 
@@ -314,6 +318,7 @@ describe("the initializer limit note", () => {
         code: "initializer_over_limit",
         message: "3 systems use distar_crystal_system, which the game allows 2 times.",
         systems: [0, 1, 2],
+        note: true,
       },
     ]);
 

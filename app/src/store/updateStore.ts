@@ -6,7 +6,7 @@ import type { UpdateProgress } from "../generated/UpdateProgress";
 import type { UpdateView } from "../generated/UpdateView";
 import { useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isBoolean, readPref, writePref } from "./prefs";
+import { isBoolean, prefField } from "./prefs";
 
 export type UpdateStatus = "idle" | "checking" | "current" | "available" | "installing" | "failed";
 
@@ -48,6 +48,10 @@ function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
+const SKIPPED = prefField(PREF_KEYS.skippedUpdate, "", isString);
+const NOTICED = prefField(PREF_KEYS.noticedUpdate, "", isString);
+const CHECK_AT_START = prefField(PREF_KEYS.checkAtStart, true, isBoolean);
+
 export const useUpdateStore = create<UpdateState>((set, get) => ({
   status: "idle",
   version: null,
@@ -56,9 +60,9 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   progress: null,
   error: null,
   dialog: false,
-  skipped: readPref<string>(PREF_KEYS.skippedUpdate, "", isString),
-  noticed: readPref<string>(PREF_KEYS.noticedUpdate, "", isString),
-  checkAtStart: readPref<boolean>(PREF_KEYS.checkAtStart, true, isBoolean),
+  skipped: SKIPPED.read(),
+  noticed: NOTICED.read(),
+  checkAtStart: CHECK_AT_START.read(),
 
   async start() {
     // A dev build is served by Vite and has no bundle to replace, so there is nothing to offer.
@@ -84,7 +88,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
         found.version !== get().noticed
           ? found.version
           : null;
-      if (notice !== null) writePref(PREF_KEYS.noticedUpdate, notice);
+      if (notice !== null) NOTICED.save(notice);
       set({
         status: found === null ? "current" : "available",
         version: result.current,
@@ -110,7 +114,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   skip() {
     const { update } = get();
     if (update === null) return;
-    writePref(PREF_KEYS.skippedUpdate, update.version);
+    SKIPPED.save(update.version);
     set({ skipped: update.version, dialog: false });
   },
 
@@ -146,7 +150,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   },
 
   setCheckAtStart(on) {
-    writePref(PREF_KEYS.checkAtStart, on);
+    CHECK_AT_START.save(on);
     set({ checkAtStart: on });
   },
 }));

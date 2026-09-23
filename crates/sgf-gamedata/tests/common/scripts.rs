@@ -1,7 +1,5 @@
 //! The fixture scenario and the readers the script test binaries share.
 
-use std::fs;
-
 use sgf_gamedata::scripts::{
     ScenarioOwners, ScenarioSystem, ScriptRow, ScriptRowKind, ScriptSite, SystemScripts,
 };
@@ -19,11 +17,7 @@ pub const SCENARIO: [ScenarioSystem<'static>; 5] = [
 
 /// A scenario system that names an initializer and carries no effect.
 pub const fn sys(id: u32, initializer: &str) -> ScenarioSystem<'_> {
-    ScenarioSystem {
-        id,
-        initializer: Some(initializer),
-        effect: None,
-    }
+    ScenarioSystem::new(id, initializer, None)
 }
 
 pub fn owners(gd: &GameData) -> ScenarioOwners {
@@ -56,22 +50,7 @@ pub fn names(scripts: &SystemScripts) -> Vec<&str> {
 pub fn install_with_mod(files: &[(&str, &str)]) -> (tempfile::TempDir, GameData) {
     let user_dir = tempfile::tempdir().expect("temp dir");
     let root = user_dir.path();
-    fs::create_dir_all(root.join("mod/many")).expect("mod tree");
-    fs::write(
-        root.join("dlc_load.json"),
-        br#"{"disabled_dlcs":[],"enabled_mods":["mod/many.mod"]}"#,
-    )
-    .expect("dlc_load");
-    fs::write(
-        root.join("mod/many.mod"),
-        b"name=\"Many\"\npath=\"mod/many\"\nsupported_version=\"v9.9.*\"\n",
-    )
-    .expect("descriptor");
-    for (rel, text) in files {
-        let file = root.join("mod/many").join(rel);
-        fs::create_dir_all(file.parent().expect("a directory")).expect("mod tree");
-        fs::write(file, text).expect("mod file");
-    }
+    super::playset(root, &[("many", files)]);
 
     let opts = LoadOptions {
         install: Some(super::fixture("install")),

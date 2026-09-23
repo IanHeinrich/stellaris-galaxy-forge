@@ -34,6 +34,9 @@ export const PREF_KEYS = {
 } as const;
 
 /** The collapse memory of one browser list, which keys on the list's name. */
-export function browserCollapseKey(list: string): string {
+export function browserCollapseKey(list: string): `sgf.browser.${string}.flipped` {
   return `sgf.browser.${list}.flipped`;
 }
+
+export type PrefKey =
+  (typeof PREF_KEYS)[keyof typeof PREF_KEYS] | ReturnType<typeof browserCollapseKey>;

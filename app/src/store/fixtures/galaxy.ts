@@ -1,11 +1,10 @@
 import { ALL_CAPABILITIES } from "../../lib/capabilities";
 import type { Capabilities } from "../../generated/Capabilities";
 import type { EditResult } from "../../generated/EditResult";
-import type { HistoryEntry } from "../../generated/HistoryEntry";
 import type { OpenResult } from "../../generated/OpenResult";
 import type { SaveResult } from "../../generated/SaveResult";
 import type { SystemNode } from "../../generated/SystemNode";
-import { name, saveMeta, systemNode } from "../../test/builders";
+import { historyEntry, name, saveMeta, systemNode } from "../../test/builders";
 
 export type LaneSpec = [to: number, length: number, bridge?: boolean, stale?: boolean];
 
@@ -81,7 +80,13 @@ export const OPEN_RESULT: OpenResult & { path: string } = {
     components: 2,
   },
   issues: [
-    { severity: "warning", code: "system_isolated", message: "Deneb has no lanes", systems: [5] },
+    {
+      severity: "warning",
+      code: "system_isolated",
+      message: "Deneb has no lanes",
+      systems: [5],
+      note: false,
+    },
   ],
   capabilities: ALL_CAPABILITIES,
 };
@@ -109,17 +114,9 @@ export const SCENARIO_RESULT: OpenResult & { path: string } = {
   capabilities: SCENARIO_CAPABILITIES,
 };
 
-function historyEntry(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
-  return {
-    seq: 1,
-    description: "Move Sol",
-    ...overrides,
-  };
-}
-
 /** A minimal `EditResult` built from `SYSTEMS`: an untouched delta and one undo entry. */
 export function editResult(overrides: Partial<EditResult> = {}): EditResult {
-  const entry = historyEntry();
+  const entry = historyEntry(1, "Move Sol");
   return {
     entry,
     delta: { systems: [] },

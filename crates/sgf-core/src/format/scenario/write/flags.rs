@@ -3,7 +3,6 @@
 //! its statements are written in; every other statement of the block stays byte for
 //! byte.
 
-use super::spawn::{insert_after, starts_line};
 use crate::Span;
 use crate::cst::Node;
 use crate::format::scenario::fe_zone::SET_STAR_FLAG;
@@ -30,7 +29,7 @@ pub(super) fn rewrite_flags(
                 .ok_or_else(|| edit.parse_error(0, "empty system"))?
                 .span()
                 .end;
-            insert_after(edit, last, &text);
+            edit.insert_after(last, &text);
         }
         return Ok(());
     };
@@ -103,7 +102,7 @@ fn block(
 /// statement written there follows what stands before it.
 fn append(edit: &mut Edit, block: &Block, text: &str) {
     match block.last_child {
-        Some(child) if starts_line(edit, child.start) => {
+        Some(child) if edit.starts_line(child.start) => {
             let indent = edit.indent(child.start);
             let line = [&indent[..], text.as_bytes(), b"\n"].concat();
             let at = edit.line_end(child.end);

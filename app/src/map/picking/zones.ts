@@ -1,12 +1,12 @@
 /** Pick radius for a system's star, in screen pixels. */
-export const PICK_RADIUS_PX = 12;
+const PICK_RADIUS_PX = 12;
 /** Pick radius for a lane, in screen pixels; only tried when no system is under the pointer. */
 export const LANE_PICK_RADIUS_PX = 6;
 /** The port ring around a hovered star, in marker units (scaled like the other rings). */
 export const PORT_INNER = 10;
 export const PORT_OUTER = 16;
 /** How wide a port band is, in marker units: a star's, and a zone's just outside its ring band. */
-export const PORT_WIDTH = PORT_OUTER - PORT_INNER;
+const PORT_WIDTH = PORT_OUTER - PORT_INNER;
 /** A lane drag snaps to the nearest system inside this many screen pixels. */
 export const SNAP_RADIUS_PX = 24;
 /** Radius of a hovered lane's midpoint "×" button, in screen pixels. */

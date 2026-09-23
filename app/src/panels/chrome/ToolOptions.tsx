@@ -1,6 +1,7 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
-import { betaOfSlider, sliderOfBeta } from "../../lib/geometry/mesh";
-import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useState, type ComponentType, type CSSProperties, type InputHTMLAttributes } from "react";
+import type { EraseTarget } from "../../lib/brush/brushTools";
+import type { LaneMode } from "../../lib/brush/lanes";
+import type { Tool } from "../../lib/tools";
 import {
   effectiveSpacing,
   MAX_SYSTEMS_PER_BRUSH,
@@ -11,23 +12,45 @@ import {
   sliderOfSpacing,
   spacingOfSlider,
   useToolStore,
-  type EraseTarget,
-  type LaneMode,
-  type Tool,
 } from "../../store/toolStore";
+import { ENTER } from "../keys";
+import { LaneDensitySlider } from "../LaneDensitySlider";
 import "./chrome.css";
 
-/** The brush diameter as a slider and a number; the number applies on Enter or when it loses focus. */
-function SizeOption() {
-  const size = useToolStore((s) => s.size);
-  const setSize = useToolStore((s) => s.setSize);
+/** A number field that applies on Enter or when it loses focus; text that is no number is dropped. */
+function DraftNumber({
+  value,
+  onApply,
+  ...input
+}: { value: number; onApply(value: number): void } & Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type" | "value" | "onChange" | "onBlur" | "onKeyDown"
+>) {
   const [draft, setDraft] = useState<string | null>(null);
   const apply = () => {
     if (draft !== null && Number.isFinite(Number(draft)) && draft.trim() !== "") {
-      setSize(Number(draft));
+      onApply(Number(draft));
     }
     setDraft(null);
   };
+  return (
+    <input
+      type="number"
+      {...input}
+      value={draft ?? value}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={apply}
+      onKeyDown={(e) => {
+        if (e.key === ENTER) apply();
+      }}
+    />
+  );
+}
+
+/** The brush diameter as a slider and a number. */
+function SizeOption() {
+  const size = useToolStore((s) => s.size);
+  const setSize = useToolStore((s) => s.setSize);
   return (
     <label className="tool-option">
       Size
@@ -39,16 +62,11 @@ function SizeOption() {
         onChange={(e) => setSize(Number(e.target.value))}
         aria-label="Brush size"
       />
-      <input
-        type="number"
+      <DraftNumber
         min={SIZE_RANGE.min}
         max={SIZE_RANGE.max}
-        value={draft ?? size}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={apply}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") apply();
-        }}
+        value={size}
+        onApply={setSize}
         aria-label="Brush size in world units"
       />
     </label>
@@ -57,21 +75,10 @@ function SizeOption() {
 
 /** The β of the lanes a brush adds, shared with the selection's mesh. */
 function LaneDensityOption({ disabled = false }: { disabled?: boolean }) {
-  const meshBeta = useMapChromeStore((s) => s.meshBeta);
-  const setMeshBeta = useMapChromeStore((s) => s.setMeshBeta);
   return (
     <label className="tool-option">
       Lane density
-      <input
-        type="range"
-        min={0}
-        max={1}
-        step={0.01}
-        value={sliderOfBeta(meshBeta)}
-        disabled={disabled}
-        onChange={(e) => setMeshBeta(betaOfSlider(Number(e.target.value)))}
-        aria-label="Lane density"
-      />
+      <LaneDensitySlider label="Lane density" disabled={disabled} />
     </label>
   );
 }
@@ -87,13 +94,6 @@ function PaintOptions() {
   const setSpacing = useToolStore((s) => s.setSpacing);
   const laneMode = useToolStore((s) => s.laneMode);
   const setLaneMode = useToolStore((s) => s.setLaneMode);
-  const [draft, setDraft] = useState<string | null>(null);
-  const apply = () => {
-    if (draft !== null && Number.isFinite(Number(draft)) && draft.trim() !== "") {
-      setSpacing(Number(draft));
-    }
-    setDraft(null);
-  };
   return (
     <>
       <SizeOption />
@@ -112,17 +112,12 @@ function PaintOptions() {
           {reach < 1 && <span className="density-blocked" title={why} aria-hidden="true" />}
         </span>
         <span className="muted">dense</span>
-        <input
-          type="number"
+        <DraftNumber
           min={SPACING_RANGE.min}
           max={SPACING_RANGE.max}
           step={0.1}
-          value={draft ?? spacing}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={apply}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") apply();
-          }}
+          value={spacing}
+          onApply={setSpacing}
           aria-label="Spacing between painted systems in world units"
           title="Distance between painted systems, in world units"
         />
@@ -173,35 +168,31 @@ function EraseOptions() {
   );
 }
 
-/** The controls a tool shows while it is active; null for a tool with none. */
-function optionsFor(tool: Tool): ReactNode {
-  switch (tool) {
-    case "paint":
-      return <PaintOptions />;
-    case "erase":
-      return <EraseOptions />;
-    case "connect":
-      return (
-        <>
-          <SizeOption />
-          <LaneDensityOption />
-        </>
-      );
-    case "cut":
-      return <SizeOption />;
-    case "select":
-      return null;
-  }
+function ConnectOptions() {
+  return (
+    <>
+      <SizeOption />
+      <LaneDensityOption />
+    </>
+  );
 }
+
+/** The controls a tool shows while it is active; null for a tool with none. */
+const OPTIONS: Record<Tool, ComponentType | null> = {
+  select: null,
+  paint: PaintOptions,
+  erase: EraseOptions,
+  connect: ConnectOptions,
+  cut: SizeOption,
+};
 
 /** The active brush's options, floating over the map's top-left corner beside the tool rail. */
 export function ToolOptions() {
-  const tool = useToolStore((s) => s.tool);
-  const options = optionsFor(tool);
-  if (options === null) return null;
+  const Options = OPTIONS[useToolStore((s) => s.tool)];
+  if (Options === null) return null;
   return (
     <div className="tool-options" role="toolbar" aria-label="Brush options">
-      {options}
+      <Options />
     </div>
   );
 }

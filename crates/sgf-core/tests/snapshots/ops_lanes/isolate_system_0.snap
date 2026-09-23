@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/ops.rs
 expression: "report(&session, &result)"
 ---
-Isolated Gamma Refuge (#0): removed 5 lane(s) (10 entries)
+Isolated Gamma Refuge (#0): removed 5 lanes (10 entries)
 touched: [0, 64, 86, 200, 246, 752]
 inverse: AddLanes { from: 0, to: [(752, false), (200, false), (86, false), (64, false), (246, false)] }
 warning system_isolated: system 0 has no hyperlanes

@@ -25,12 +25,6 @@ export function formatSize(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-/** The trailing word of a game version string, `"Pegasus v4.4.6"` -> `"v4.4.6"`. */
-export function versionShort(version: string): string {
-  const parts = version.trim().split(/\s+/);
-  return parts[parts.length - 1] ?? "";
-}
-
 const GAME_DATA_PHASE: Record<string, string> = {
   discover: "finding Stellaris",
   definitions: "reading definitions",

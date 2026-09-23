@@ -5,27 +5,10 @@
 use sgf_core::format::scenario::paint;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::BypassLink;
-use sgf_core::session::Session;
 
 mod common;
 use common::diff::{plain_report, round_trip};
-
-const FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/paint_a_galaxy.txt"
-);
-
-fn open() -> Session {
-    Session::open(FIXTURE).expect("open the painted fixture")
-}
-
-fn bytes() -> Vec<u8> {
-    std::fs::read(FIXTURE).expect("read the fixture")
-}
-
-fn text(session: &Session) -> String {
-    String::from_utf8(common::current(session)).expect("utf-8")
-}
+use common::fixture::{PAINTED, from_scenario_text};
 
 fn set_pair(a: u32, b: u32, pair: Option<u32>) -> Op {
     Op::SetWormholePair { a, b, pair }
@@ -33,7 +16,7 @@ fn set_pair(a: u32, b: u32, pair: Option<u32>) -> Op {
 
 #[test]
 fn each_pair_reads_from_its_flags_and_projects_as_one_link() {
-    let session = open();
+    let session = PAINTED.open();
     let systems = &session.graph.systems;
     for (id, pair) in [(7, Some(1)), (8, Some(1)), (12, Some(2)), (13, Some(2))] {
         assert_eq!(systems[&id].wormhole_pair, pair, "system {id}");
@@ -136,27 +119,27 @@ fn a_pair_is_written_on_both_ends_and_taken_off_both() {
         written,
     } in cases
     {
-        let mut session = open();
+        let mut session = PAINTED.open();
         let result = session.apply(set_pair(a, b, pair)).expect(name);
         assert_eq!(session.graph.systems[&a].wormhole_pair, pair, "{name}");
         assert_eq!(session.graph.systems[&b].wormhole_pair, pair, "{name}");
         for fragment in written {
             assert!(
-                text(&session).contains(fragment),
+                common::text(&session).contains(fragment),
                 "{name}: {}",
-                text(&session)
+                common::text(&session)
             );
         }
         common::snapshot(name, &plain_report(&session, &result));
         session.undo().expect("undo").expect("an op to undo");
-        assert_eq!(common::current(&session), bytes(), "{name}");
-        round_trip(open(), set_pair(a, b, pair));
+        assert_eq!(common::current(&session), PAINTED.bytes(), "{name}");
+        round_trip(PAINTED.open(), set_pair(a, b, pair));
     }
 }
 
 #[test]
 fn rejoining_one_end_inverts_end_by_end_and_the_links_follow() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     let result = session
         .apply(set_pair(7, 13, Some(3)))
         .expect("Ingress leaves Egress for Low Seat");
@@ -196,9 +179,9 @@ fn rejoining_one_end_inverts_end_by_end_and_the_links_follow() {
     assert_eq!(session.graph.systems[&13].wormhole_pair, Some(3));
     session.undo().expect("undo").expect("an op to undo");
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(common::current(&session), bytes());
+    assert_eq!(common::current(&session), PAINTED.bytes());
     round_trip(
-        open(),
+        PAINTED.open(),
         Op::SetWormholeEnds {
             entries: vec![(7, None), (13, Some(1))],
         },
@@ -226,16 +209,14 @@ fn an_empire_cluster_of_its_own_stays_when_the_pair_goes() {
 	}
 }
 ";
-    let doc = sgf_core::document::Document::from_scenario_bytes(multi_line.as_bytes().to_vec())
-        .expect("index");
-    let mut session = Session::from_document(None, doc).expect("open");
+    let mut session = from_scenario_text(multi_line);
     assert_eq!(
         session.graph.bypasses,
         [BypassLink::Wormhole { a: 7, b: 8 }]
     );
     session.apply(set_pair(7, 8, None)).expect("remove");
     assert_eq!(
-        text(&session),
+        common::text(&session),
         "static_galaxy_scenario = {
 	name = \"lines\"
 	system = {
@@ -254,25 +235,25 @@ fn an_empire_cluster_of_its_own_stays_when_the_pair_goes() {
 "
     );
     session.apply(set_pair(8, 7, Some(2))).expect("join again");
-    assert!(text(&session).contains(
+    assert!(common::text(&session).contains(
         "			set_star_flag = painted_galaxy_fe_custom_connections
 			set_star_flag = painted_galaxy_wormhole_2
 			set_star_flag = empire_cluster
 		}"
     ));
-    assert!(text(&session).contains(
+    assert!(common::text(&session).contains(
         "		position = { x = 3 y = 4 }
 		effect = { set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster }
 	}"
     ));
     session.undo().expect("undo").expect("an op to undo");
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(text(&session), multi_line);
+    assert_eq!(common::text(&session), multi_line);
 }
 
 #[test]
 fn a_pair_needs_two_systems_that_exist_and_a_number_nobody_else_holds() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     for (op, name) in [
         (set_pair(7, 7, Some(3)), "WormholeSelf"),
         (set_pair(7, 99, Some(3)), "UnknownSystem"),
@@ -315,4 +296,22 @@ fn a_pair_needs_two_systems_that_exist_and_a_number_nobody_else_holds() {
             BypassLink::Wormhole { a: 12, b: 13 },
         ]
     );
+}
+
+#[test]
+fn an_end_listed_twice_is_refused_whether_or_not_it_carries_flags() {
+    let mut session = PAINTED.open();
+    for id in [7, 10] {
+        let error = session
+            .apply(Op::SetWormholeEnds {
+                entries: vec![(id, Some(3)), (id, Some(3))],
+            })
+            .expect_err("a repeated end");
+        assert!(
+            matches!(error, OpError::DuplicateSystem(repeated) if repeated == id),
+            "{id}: {error}"
+        );
+    }
+    assert!(!session.is_dirty());
+    assert_eq!(common::text(&session).as_bytes(), PAINTED.bytes());
 }

@@ -17,6 +17,7 @@ use crate::install::script::{self, Def};
 use crate::scripts::chain::{self, Chain};
 use crate::scripts::claims::{self, Claims};
 use crate::scripts::scan::{self, Dir};
+use crate::scripts::scope::SAVES_TARGET;
 use crate::scripts::view::ScriptRef;
 
 /// Which kind of script a reference sits in.
@@ -433,9 +434,9 @@ fn read_country(block: &Node, src: &[u8], location: ScriptRef) -> Option<Created
 }
 
 fn saved_targets(node: &Node, src: &[u8]) -> Vec<String> {
-    values_of(node, "save_global_event_target_as", src)
-        .into_iter()
-        .chain(values_of(node, "save_event_target_as", src))
+    SAVES_TARGET
+        .iter()
+        .flat_map(|key| values_of(node, key, src))
         .collect()
 }
 

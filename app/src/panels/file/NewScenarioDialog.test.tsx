@@ -1,7 +1,8 @@
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { elements } from "../../test/elements";
+import { buttonIn, elements } from "../../test/elements";
+import { stubPrefs } from "../../test/prefs";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -17,15 +18,6 @@ import { NewScenarioDialog, RouteCards, RouteFoot, RouteHelp } from "./NewScenar
 const BLANK = { name: "new_galaxy", radius: 400, coreRadius: 100, profile: "plain" as const };
 
 const noop = () => undefined;
-
-function button(tree: ReactNode, text: string): ReactElement<{ onClick: () => void }> {
-  const found = elements(tree).find(
-    (el): el is ReactElement<{ onClick: () => void }> =>
-      el.type === "button" && renderToStaticMarkup(el).includes(text),
-  );
-  expect(found).toBeDefined();
-  return found!;
-}
 
 function radiogroup(tree: ReactNode): ReactElement<{ onKeyDown: (e: unknown) => void }> {
   const found = elements(tree).find(
@@ -48,15 +40,9 @@ const checked = (tree: ReactNode) =>
     .filter((el) => el.type === "button")
     .map((el) => (el.props as { "aria-checked": boolean })["aria-checked"]);
 
-const stored = new Map<string, string>();
-
 beforeEach(() => {
   vi.clearAllMocks();
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useLayoutStore.setState({ ...useLayoutStore.getInitialState(), scenarioDialog: true });
   usePaintModStore.setState({ ...usePaintModStore.getInitialState(), paintChoice: true });
@@ -99,7 +85,7 @@ describe("the blank canvas", () => {
     const newScenario = vi.fn();
     useFileSessionStore.setState({ newScenario });
 
-    button(<RouteFoot route="blank" blank={BLANK} />, "Create").props.onClick();
+    buttonIn(<RouteFoot route="blank" blank={BLANK} />, "Create")!.props.onClick();
 
     expect(newScenario).toHaveBeenCalledWith(BLANK.name, BLANK.radius, BLANK.coreRadius, "plain");
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);
@@ -135,7 +121,7 @@ describe("the blank canvas", () => {
     useFileSessionStore.setState({ newScenario });
 
     const blank = { ...BLANK, profile: "paint_a_galaxy" as const };
-    button(<RouteFoot route="blank" blank={blank} />, "Create").props.onClick();
+    buttonIn(<RouteFoot route="blank" blank={blank} />, "Create")!.props.onClick();
 
     expect(newScenario).toHaveBeenCalledWith(
       BLANK.name,
@@ -153,7 +139,7 @@ describe("a galaxy from the game", () => {
 
     const foot = <RouteFoot route="game" blank={BLANK} />;
     expect(renderToStaticMarkup(foot)).toContain("Open a save…");
-    button(foot, "Open a save…").props.onClick();
+    buttonIn(foot, "Open a save…")!.props.onClick();
 
     expect(pickAndOpen).toHaveBeenCalledWith("scenario", "plain");
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);
@@ -164,7 +150,7 @@ describe("a galaxy from the game", () => {
     useFileSessionStore.setState({ pickAndOpen });
 
     const blank = { ...BLANK, profile: "paint_a_galaxy" as const };
-    button(<RouteFoot route="game" blank={blank} />, "Open a save…").props.onClick();
+    buttonIn(<RouteFoot route="game" blank={blank} />, "Open a save…")!.props.onClick();
 
     expect(pickAndOpen).toHaveBeenCalledWith("scenario", "paint_a_galaxy");
   });

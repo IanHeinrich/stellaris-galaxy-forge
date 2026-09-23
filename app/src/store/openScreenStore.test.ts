@@ -23,6 +23,7 @@ const mocked = {
   listCampaigns: vi.mocked(ipc.listCampaigns),
   listCampaignSaves: vi.mocked(ipc.listCampaignSaves),
   listScenarios: vi.mocked(ipc.listScenarios),
+  scenarioPainted: vi.mocked(ipc.scenarioPainted),
   saveDetails: vi.mocked(ipc.saveDetails),
   openSave: vi.mocked(ipc.openSave),
   openAsScenario: vi.mocked(ipc.openAsScenario),
@@ -355,12 +356,15 @@ describe("opening a scenario file", () => {
 
   it("asks first about a scenario that isn't for Paint a Galaxy, and opens it as answered", async () => {
     const cancelled = screen().open(PLAIN.path, "save");
-    expect(prompt()).toMatchObject({ path: PLAIN.path, kind: "not_for_paint" });
+    await vi.waitFor(() =>
+      expect(prompt()).toMatchObject({ path: PLAIN.path, kind: "not_for_paint" }),
+    );
     session().answerScenarioPrompt(null);
     await cancelled;
     expect(mocked.openSave).not.toHaveBeenCalled();
 
     const opening = screen().open(PLAIN.path, "save");
+    await vi.waitFor(() => expect(prompt()).not.toBeNull());
     session().answerScenarioPrompt("paint_a_galaxy");
     await opening;
     expect(mocked.openSave).toHaveBeenCalledWith(PLAIN.path);
@@ -373,15 +377,18 @@ describe("opening a scenario file", () => {
       warnNotForPaint: false,
     });
     const opening = screen().open(PAINTED.path, "save");
-    expect(prompt()).toMatchObject({ path: PAINTED.path, kind: "paint_mod_off" });
+    await vi.waitFor(() =>
+      expect(prompt()).toMatchObject({ path: PAINTED.path, kind: "paint_mod_off" }),
+    );
     session().answerScenarioPrompt("plain");
     await opening;
     expect(mocked.openSave).toHaveBeenCalledWith(PAINTED.path);
 
     usePaintModStore.setState({ known: false, paintMod: null });
-    void screen().open(PAINTED.path, "save");
-    expect(prompt()?.kind).toBe("paint_mod_off");
+    const asking = screen().open(PAINTED.path, "save");
+    await vi.waitFor(() => expect(prompt()?.kind).toBe("paint_mod_off"));
     session().answerScenarioPrompt(null);
+    await asking;
   });
 
   it("opens a plain scenario for Paint a Galaxy on request, asking only while the mod is off", async () => {
@@ -391,7 +398,9 @@ describe("opening a scenario file", () => {
 
     usePaintModStore.setState({ paintMod: paintModView({ enabled: false }) });
     const opening = screen().open(PLAIN.path, "save", true);
-    expect(prompt()).toMatchObject({ path: PLAIN.path, kind: "paint_mod_off", forPaint: true });
+    await vi.waitFor(() =>
+      expect(prompt()).toMatchObject({ path: PLAIN.path, kind: "paint_mod_off", forPaint: true }),
+    );
     session().answerScenarioPrompt("plain");
     await opening;
     expect(session().paintChosen).toBe(true);
@@ -410,23 +419,42 @@ describe("opening a scenario file", () => {
   });
 
   it("asks the same of a scenario file picked with Browse", async () => {
-    const asking = session().requestOpen(PLAIN.path);
+    const asking = session().requestOpen(PLAIN.path, { listings: screen().scenarios });
     await vi.waitFor(() => expect(prompt()?.kind).toBe("not_for_paint"));
     session().answerScenarioPrompt(null);
     await asking;
     expect(mocked.openSave).not.toHaveBeenCalled();
 
-    await session().requestOpen(PAINTED.path);
+    await session().requestOpen(PAINTED.path, { listings: screen().scenarios });
     expect(mocked.openSave).toHaveBeenCalledWith(PAINTED.path);
+    expect(mocked.scenarioPainted).not.toHaveBeenCalled();
+  });
+
+  it("reads a file Browse found outside every listed folder for whether it is for the mod", async () => {
+    const painted = "C:/elsewhere/painted.txt";
+    mocked.scenarioPainted.mockResolvedValueOnce(true);
+    await session().requestOpen(painted, { listings: screen().scenarios });
+    expect(mocked.scenarioPainted).toHaveBeenCalledWith(painted);
+    expect(prompt()).toBeNull();
+    expect(mocked.openSave).toHaveBeenCalledWith(painted);
+
+    const plain = "C:/elsewhere/plain.txt";
+    mocked.scenarioPainted.mockResolvedValueOnce(false);
+    const asking = session().requestOpen(plain, { listings: screen().scenarios });
+    await vi.waitFor(() => expect(prompt()?.kind).toBe("not_for_paint"));
+    session().answerScenarioPrompt(null);
+    await asking;
+    expect(mocked.openSave).not.toHaveBeenCalledWith(plain);
   });
 
   it("asks nothing more of a save once the user chose to edit it as a scenario", async () => {
     mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
-    await session().requestOpen("C:/saves/a.sav");
+    await session().requestOpen("C:/saves/a.sav", { listings: null });
     expect(session().pendingOpen).toBe("C:/saves/a.sav");
     await session().chooseOpenMode("scenario");
     expect(prompt()).toBeNull();
     expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/a.sav", "paint_a_galaxy");
+    expect(mocked.scenarioPainted).not.toHaveBeenCalled();
   });
 });
 

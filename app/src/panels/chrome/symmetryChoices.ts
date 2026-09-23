@@ -1,4 +1,4 @@
-import type { Symmetry } from "../../store/toolStore";
+import { ROTATION_ORDERS, sameSymmetry, type Symmetry } from "../../lib/geometry/symmetry";
 
 export interface SymmetryChoice {
   value: string;
@@ -30,21 +30,13 @@ export const MIRRORS: readonly SymmetryChoice[] = [
   },
 ];
 
-export const ROTATIONS: readonly SymmetryChoice[] = ([2, 3, 4, 6, 8] as const).map(
-  (n): SymmetryChoice => ({
-    value: `rotate-${n}`,
-    label: `${n}-fold rotation`,
-    short: `${n}`,
-    symmetry: { kind: "rotate", n },
-  }),
-);
+export const ROTATIONS: readonly SymmetryChoice[] = ROTATION_ORDERS.map((n): SymmetryChoice => ({
+  value: `rotate-${n}`,
+  label: `${n}-fold rotation`,
+  short: `${n}`,
+  symmetry: { kind: "rotate", n },
+}));
 
 export function choiceOf(symmetry: Symmetry): SymmetryChoice {
-  const value =
-    symmetry.kind === "off"
-      ? "off"
-      : symmetry.kind === "mirror"
-        ? `mirror-${symmetry.axis}`
-        : `rotate-${symmetry.n}`;
-  return [...MIRRORS, ...ROTATIONS].find((c) => c.value === value) ?? SYMMETRY_OFF;
+  return [...MIRRORS, ...ROTATIONS].find((c) => sameSymmetry(c.symmetry, symmetry)) ?? SYMMETRY_OFF;
 }

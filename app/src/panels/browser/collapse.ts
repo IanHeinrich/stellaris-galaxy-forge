@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { browserCollapseKey } from "../../store/prefKeys";
 import { isStringArray, readPref, writePref } from "../../store/prefs";
 
 export interface Collapse {
@@ -9,7 +10,7 @@ export interface Collapse {
 
 /** Which of a list's groups the user has turned away from their default, across launches. */
 export function useCollapse(list: string): Collapse {
-  const key = `sgf.browser.${list}.flipped`;
+  const key = browserCollapseKey(list);
   const [flipped, setFlipped] = useState<Set<string>>(
     () => new Set(readPref<string[]>(key, [], isStringArray)),
   );

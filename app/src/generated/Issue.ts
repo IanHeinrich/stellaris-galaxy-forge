@@ -6,4 +6,8 @@ export type Issue = { severity: Severity, code: IssueCode, message: string,
 /**
  * The systems involved, in the order the message names them.
  */
-systems: Array<number>, };
+systems: Array<number>, 
+/**
+ * [`IssueCode::is_note`] of the code.
+ */
+note: boolean, };

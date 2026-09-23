@@ -37,37 +37,7 @@ pub enum Subject {
     Header(Anchor),
 }
 
-/// The kind of entity a [`Subject`] names, and what an edit of it costs the projections.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EntityKind {
-    System,
-    Nebula,
-    Statement,
-    Header,
-}
-
-impl EntityKind {
-    /// Whether an edit of this kind is reported in a [`crate::views::GalaxyDelta`].
-    pub const fn in_galaxy_delta(self) -> bool {
-        match self {
-            Self::System => true,
-            Self::Nebula => true,
-            Self::Statement => true,
-            Self::Header => true,
-        }
-    }
-}
-
 impl Subject {
-    pub const fn kind(self) -> EntityKind {
-        match self {
-            Self::System(_) => EntityKind::System,
-            Self::Nebula(_) => EntityKind::Nebula,
-            Self::Statement { .. } => EntityKind::Statement,
-            Self::Header(_) => EntityKind::Header,
-        }
-    }
-
     /// The system id, when this subject names a system.
     pub const fn system(self) -> Option<u32> {
         match self {
@@ -230,11 +200,11 @@ impl Edit {
     /// Delete one statement inside the entity: the whole line when it is alone on one,
     /// else the statement and the whitespace that separated it from its neighbour.
     pub fn remove_statement(&mut self, span: Span) {
-        if self.alone_on_line(span) {
+        if alone_on_line(&self.buf, span) {
             return self.remove_lines(span);
         }
         let mut start = span.start;
-        while start > 0 && matches!(self.buf[start - 1], b' ' | b'\t') {
+        while start > 0 && is_blank(self.buf[start - 1]) {
             start -= 1;
         }
         self.splices.push((start..span.end, Vec::new()));
@@ -283,7 +253,7 @@ impl Edit {
         let well_formed = self.line_start(value.start) > key.start
             && braces
                 .iter()
-                .all(|&at| self.alone_on_line(Span::new(at, at + 1)));
+                .all(|&at| alone_on_line(&self.buf, Span::new(at, at + 1)));
         if !well_formed {
             return Err(self.parse_error(
                 key.start,
@@ -298,21 +268,107 @@ impl Edit {
 
     /// Refuse a statement sharing its line with anything but whitespace, `what` naming it.
     pub fn require_alone_on_line(&self, span: Span, what: &str) -> Result<(), OpError> {
-        if self.alone_on_line(span) {
+        if alone_on_line(&self.buf, span) {
             return Ok(());
         }
         Err(self.parse_error(span.start, format!("{what} holds other text")))
     }
 
-    fn alone_on_line(&self, span: Span) -> bool {
-        let (start, end) = (self.line_start(span.start), self.line_end(span.end));
-        let blank = |&b: &u8| b == b'\t' || b == b' ' || b == b'\n';
-        self.buf[start..span.start].iter().all(blank) && self.buf[span.end..end].iter().all(blank)
+    /// Whether only blanks stand between the start of `at`'s line and `at`.
+    pub fn starts_line(&self, at: usize) -> bool {
+        starts_line(&self.buf, at)
     }
+
+    /// Write `text` as the statement following the one ending at `after`, in the shape that
+    /// statement is written in: on a line of its own when that one ends its line, else
+    /// beside it. Two statements written after the same one land in the order written.
+    pub fn insert_after(&mut self, after: usize, text: &str) {
+        let end = self.line_end(after);
+        if ends_line(&self.buf, after) && self.buf[..end].ends_with(b"\n") {
+            let line = [&self.indent(after)[..], text.as_bytes(), b"\n"].concat();
+            self.insert_lines(end, line);
+        } else {
+            self.insert(after, format!(" {text}").into_bytes());
+        }
+    }
+
+    /// Write `text` as the first statement of the block whose braces `value` spans, in the
+    /// shape `first_child`, the statement standing first, is written in.
+    pub fn insert_first(&mut self, value: Span, first_child: Option<Span>, text: &str) {
+        match first_child {
+            Some(child) if self.starts_line(child.start) => {
+                let line = [&self.indent(child.start)[..], text.as_bytes(), b"\n"].concat();
+                self.insert_lines(self.line_start(child.start), line);
+            }
+            _ => self.insert(value.start + 1, format!(" {text}").into_bytes()),
+        }
+    }
+
+    /// Write `text` where the statement at `span` stands, taking that statement back. The
+    /// two splices meet at a boundary rather than overlapping: the replacement lands at the
+    /// start of the line the removal takes, or right where a statement removed in place
+    /// ended.
+    pub fn replace_statement(&mut self, span: Span, text: &str) {
+        if self.starts_line(span.start) {
+            let line = [&self.indent(span.start)[..], text.as_bytes(), b"\n"].concat();
+            self.insert_lines(self.line_start(span.start), line);
+        } else {
+            self.insert(span.end, format!(" {text}").into_bytes());
+        }
+        self.remove_statement(span);
+    }
+}
+
+/// What stands beside a statement on its line without being text: a space, a tab, or
+/// the carriage return of a CRLF line end.
+fn is_blank(b: u8) -> bool {
+    matches!(b, b' ' | b'\t' | b'\r')
+}
+
+/// Whether a slot holds nothing but blanks and line ends: a statement emptied there.
+pub(crate) fn blank_slot(bytes: &[u8]) -> bool {
+    bytes.iter().all(|&b| is_blank(b) || b == b'\n')
+}
+
+/// Whether the statement at `span` of `src` has its line to itself: only blanks before
+/// it and after it. A comment after it is text of its own, which removing the line would
+/// take.
+pub(crate) fn alone_on_line(src: &[u8], span: Span) -> bool {
+    starts_line(src, span.start) && ends_line(src, span.end)
+}
+
+/// Whether the statement at `span` of `src` has its line to itself but for a trailing
+/// comment, which belongs to the line and goes with it.
+pub(crate) fn owns_line(src: &[u8], span: Span) -> bool {
+    starts_line(src, span.start)
+        && src[span.end..cst::line_end(src, span.end)]
+            .iter()
+            .take_while(|&&b| b != b'#')
+            .all(|&b| is_blank(b) || b == b'\n')
+}
+
+fn starts_line(src: &[u8], at: usize) -> bool {
+    src[cst::line_start(src, at)..at]
+        .iter()
+        .all(|&b| is_blank(b))
+}
+
+fn ends_line(src: &[u8], at: usize) -> bool {
+    blank_slot(&src[at..cst::line_end(src, at)])
 }
 
 pub(super) fn load(doc: &Document, subject: Subject, stmt: Anchor) -> Result<Edit, OpError> {
     let buf = doc.current(stmt)?.to_vec();
+    parsed(doc, subject, stmt, buf)
+}
+
+/// An edit of `stmt`, whose current bytes are `buf`.
+pub(super) fn parsed(
+    doc: &Document,
+    subject: Subject,
+    stmt: Anchor,
+    buf: Vec<u8>,
+) -> Result<Edit, OpError> {
     let root = format::of(doc.kind())
         .parse(&buf, 0)
         .map_err(|e| subject.parse_error(e.offset, e.reason))?;

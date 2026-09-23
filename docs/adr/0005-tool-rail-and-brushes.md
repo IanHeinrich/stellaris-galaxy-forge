@@ -25,7 +25,8 @@ also a key:
 | `X` | Cut lanes brush |
 | `M` | Symmetry on and off |
 
-`[` and `]` shrink and grow the brush. `Alt` inverts a brush while held. `Esc` drops a stroke in progress, and a
+`[` and `]` shrink and grow the brush. `Alt` inverts a brush: the model reads it at each input, so the circle
+follows it while held, and a stroke keeps the brush it was pressed with. `Esc` drops a stroke in progress, and a
 second `Esc` returns to Select. A tool the open document cannot take is refused, and opening such a document or
 closing the document returns to Select.
 

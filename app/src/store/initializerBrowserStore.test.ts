@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
 import { gameDataSummary, initializerView, SYSTEMS, editResult } from "./fixture";
@@ -59,11 +60,7 @@ const visible = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   mocked.applyOp.mockResolvedValue(editResult());
   mocked.getInitializers.mockResolvedValue(LIST);
   useGameDataStore.setState({

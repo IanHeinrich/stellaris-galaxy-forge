@@ -11,15 +11,7 @@ use sgf_gamedata::views::{GalaxySizeView, GameDataSummary};
 use sgf_gamedata::{GameData, LoadOptions};
 
 fn load(install: &Path, user_dir: &Path, mods: &[&str]) -> GameData {
-    let enabled: Vec<String> = mods.iter().map(|m| format!("\"mod/{m}.mod\"")).collect();
-    fs::write(
-        user_dir.join("dlc_load.json"),
-        format!(
-            "{{\"disabled_dlcs\":[],\"enabled_mods\":[{}]}}",
-            enabled.join(",")
-        ),
-    )
-    .unwrap();
+    common::enable(user_dir, mods);
     let opts = LoadOptions {
         install: Some(install.to_path_buf()),
         user_dir: Some(user_dir.to_path_buf()),
@@ -43,17 +35,6 @@ fn scenarios(root: &Path) -> std::path::PathBuf {
     let dir = root.join("map").join("setup_scenarios");
     fs::create_dir_all(&dir).unwrap();
     dir
-}
-
-fn add_mod(user_dir: &Path, name: &str) -> std::path::PathBuf {
-    let root = user_dir.join("mod").join(name);
-    fs::create_dir_all(&root).unwrap();
-    fs::write(
-        user_dir.join("mod").join(format!("{name}.mod")),
-        format!("name=\"{name}\"\npath=\"mod/{name}\"\n"),
-    )
-    .unwrap();
-    scenarios(&root)
 }
 
 #[test]
@@ -81,11 +62,11 @@ fn the_largest_size_follows_the_mods_that_add_and_override_sizes() {
     )
     .unwrap();
 
-    let bigger = add_mod(&user_dir, "bigger");
+    let bigger = scenarios(&common::add_mod(&user_dir, "bigger", &[]));
     fs::write(bigger.join("gargantuan.txt"), size("gargantuan", 2000)).unwrap();
-    let emptied = add_mod(&user_dir, "emptied");
+    let emptied = scenarios(&common::add_mod(&user_dir, "emptied", &[]));
     fs::write(emptied.join("huge.txt"), "").unwrap();
-    let shrunk = add_mod(&user_dir, "shrunk");
+    let shrunk = scenarios(&common::add_mod(&user_dir, "shrunk", &[]));
     fs::write(shrunk.join("huge.txt"), size("huge", 800)).unwrap();
 
     let huge = GalaxySizeView {

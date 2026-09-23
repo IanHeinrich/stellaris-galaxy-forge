@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 import type { UpdateCheck } from "../generated/UpdateCheck";
 import type { UpdateProgress } from "../generated/UpdateProgress";
 import type { UpdateView } from "../generated/UpdateView";
@@ -46,11 +47,7 @@ let unlisten: ReturnType<typeof vi.fn<() => void>>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   progressHandler = null;
   unlisten = vi.fn<() => void>();
   mocked.onUpdateProgress.mockImplementation(async (h) => {

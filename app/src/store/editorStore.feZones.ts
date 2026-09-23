@@ -12,7 +12,8 @@ import {
   NO_FREE_DIRECTION,
   snapFeZone,
 } from "../lib/feZone";
-import { nearestSystem, refuseOr, runEdit, systems, type EditorState } from "./editorStore";
+import { nearestSystem, refuseOr, systems, type RunEdit } from "./editorEdits";
+import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
@@ -22,6 +23,9 @@ export const NEEDS_A_SYSTEM =
 
 /** What the status bar says when a fit would change no zone. */
 export const NOTHING_TO_FIT = "The automatic fallen empire zones already stand as asked.";
+
+/** What the history calls a fit. */
+const RECOMPUTE_FE_ZONES = "Recompute automatic fallen empire zones";
 
 type FeZoneActions = Pick<
   EditorState,
@@ -42,14 +46,22 @@ type FeZoneActions = Pick<
 export function feZoneActions(
   set: StoreApi<EditorState>["setState"],
   get: StoreApi<EditorState>["getState"],
+  runEdit: RunEdit,
 ): FeZoneActions {
   /** Writes a zone by hand, shows the rings, and selects the anchor so the inspector shows it. */
   async function placeFeZone(id: number, zone: FeZone): Promise<boolean> {
     if (!(await get().setFeZone(id, zone))) return false;
 
-    useMapChromeStore.getState().showLayer("feZones");
+    useMapChromeStore.getState().setLayerQuietly("feZones", true);
     await get().select(id);
     return true;
+  }
+
+  /** Writes the zone's whole set of linked systems, and shows the rings once it has. */
+  async function setFeLinks(anchor: number, linked: number[]): Promise<boolean> {
+    const applied = (await runEdit(() => ipc.setFeLinks(anchor, linked))) !== null;
+    if (applied) useMapChromeStore.getState().setLayerQuietly("feZones", true);
+    return applied;
   }
 
   return {
@@ -110,15 +122,19 @@ export function feZoneActions(
 
     async fitFeZones(count) {
       set({ feZoneFitPrompt: null });
-      const applied = await runEdit(async () => {
+      const fitted = await runEdit(async () => {
         const entries = await ipc.feZoneFit(count);
         if (entries.length === 0) {
           useFileSessionStore.getState().setError(NOTHING_TO_FIT);
           return null;
         }
-        return ipc.applyOp({ type: "SetFeZones", entries });
+        return ipc.applyOp({
+          type: "Batch",
+          description: RECOMPUTE_FE_ZONES,
+          ops: [{ type: "SetFeZones", entries }],
+        });
       });
-      if (applied) useMapChromeStore.getState().showLayer("feZones");
+      if (fitted !== null) useMapChromeStore.getState().setLayerQuietly("feZones", true);
     },
 
     linkToFeZone(anchor, system) {
@@ -173,13 +189,6 @@ export function feZoneActions(
       });
     },
   };
-}
-
-/** Writes the zone's whole set of linked systems, and shows the rings once it has. */
-async function setFeLinks(anchor: number, linked: number[]): Promise<boolean> {
-  const applied = await runEdit(() => ipc.setFeLinks(anchor, linked));
-  if (applied) useMapChromeStore.getState().showLayer("feZones");
-  return applied;
 }
 
 /** A system's name for a refusal, as the status bar shows it. */

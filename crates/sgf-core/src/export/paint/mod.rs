@@ -19,16 +19,14 @@ use crate::format::scenario::fe_zone::SET_STAR_FLAG;
 use crate::format::scenario::header_counts::SeatCounts;
 use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::paint::{
-    AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, RL_BASIC, UNE_FLAG, WORMHOLE_FLAG_PREFIX,
-    basic_initializer,
+    AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, RL_BASIC, SEAT_MODULO, UNE_FLAG,
+    WORMHOLE_FLAG_PREFIX, basic_initializer,
 };
 use crate::projections::galaxy::{BypassLink, Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript};
 use crate::search::NameResolver;
 
 /// How many lane jumps from a spawn an empty system is given [`RL_BASIC`].
 const NEIGHBOURHOOD: usize = 2;
-/// The `RANDOM_VALUE` a spawn system's weight is varied by cycles through this many.
-const RANDOM_VALUES: usize = 10;
 
 /// Rewrite `draft` in Paint a Galaxy's shape: each fallen empire's cluster is left out
 /// for a typed zone at its old capital; the spawn systems are the capitals of the
@@ -157,7 +155,7 @@ fn mark_spawns(
                 let players = player.as_ref().filter(|(id, _)| *id == system.id);
                 SpawnScript::PaintAGalaxy {
                     kind: players.map_or(PaintSpawnKind::Enabled, |(_, kind)| kind.clone()),
-                    random_value: (i % RANDOM_VALUES) as u8,
+                    random_value: (i % usize::from(SEAT_MODULO)) as u8,
                     player: players.is_some(),
                 }
             });

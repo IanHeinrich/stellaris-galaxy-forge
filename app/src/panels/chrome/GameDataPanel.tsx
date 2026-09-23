@@ -4,6 +4,7 @@ import type { DiagnosticView } from "../../generated/DiagnosticView";
 import type { GameDataSummary } from "../../generated/GameDataSummary";
 import type { ModView } from "../../generated/ModView";
 import type { Progress } from "../../generated/Progress";
+import { counted } from "../../lib/text";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { FilterField } from "../inspector/parts";
 import { phaseLabel } from "../file/launchData";
@@ -67,12 +68,7 @@ function ModsSection({ mods }: { mods: ModView[] }) {
       ) : (
         <>
           {mods.length > MOD_SEARCH_MIN && (
-            <FilterField
-              className="menu-search"
-              label={`Filter ${mods.length} mods`}
-              value={query}
-              onChange={setQuery}
-            />
+            <FilterField label={`Filter ${mods.length} mods`} value={query} onChange={setQuery} />
           )}
           <div className="menu-list">
             {filtered.map((mod) => (
@@ -105,7 +101,7 @@ function pillLabel(
 /** What the auto-reload watcher holds, or that it holds nothing. */
 function watchingNote(watching: number): string {
   if (watching === 0) return "Auto-reload off";
-  return `Watching ${watching} ${watching === 1 ? "folder" : "folders"}`;
+  return `Watching ${counted(watching, "folder")}`;
 }
 
 /** The status pill at the status bar's right end and its menu: install, reload, unload and the start preference. */
@@ -179,26 +175,16 @@ export function GameDataPanel() {
             <MenuItem
               label={status === "ready" ? "Reload" : "Load now"}
               disabled={status === "loading"}
-              onClick={() => {
-                dismiss();
-                void load();
-              }}
+              dismiss={dismiss}
+              onClick={() => load()}
             />
             <MenuItem
               label="Unload"
               disabled={status !== "ready"}
-              onClick={() => {
-                dismiss();
-                void unload();
-              }}
+              dismiss={dismiss}
+              onClick={unload}
             />
-            <MenuItem
-              label="Locate Stellaris…"
-              onClick={() => {
-                dismiss();
-                void locate();
-              }}
-            />
+            <MenuItem label="Locate Stellaris…" dismiss={dismiss} onClick={locate} />
           </>
         )}
       </Menu>

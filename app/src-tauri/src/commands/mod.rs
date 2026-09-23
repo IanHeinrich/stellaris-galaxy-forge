@@ -42,9 +42,7 @@ async fn with_scenario<R: Runtime, T: Send + 'static>(
     app: AppHandle<R>,
     f: impl FnOnce(&Session, &GameData, &GameDataState, u64) -> Option<T> + Send + 'static,
 ) -> Result<Option<T>, SgfError> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        let guard = lock(&state);
+    with_session(app.clone(), move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
         let game_data = app.state::<GameDataState>();
         let Some((generation, gd)) = game_data.snapshot() else {
@@ -56,7 +54,17 @@ async fn with_scenario<R: Runtime, T: Send + 'static>(
         Ok(f(session, &gd, &game_data, generation))
     })
     .await
-    .map_err(join_error)?
+}
+
+/// Run `f` over the open session on the blocking pool, so neither the main thread nor an
+/// async worker waits on the session lock. `f` holds the lock and may release it early.
+async fn with_session<R: Runtime, T: Send + 'static>(
+    app: AppHandle<R>,
+    f: impl FnOnce(MutexGuard<'_, Option<Session>>) -> Result<T, SgfError> + Send + 'static,
+) -> Result<T, SgfError> {
+    tauri::async_runtime::spawn_blocking(move || f(lock(&app.state::<AppState>())))
+        .await
+        .map_err(io_error)?
 }
 
 fn lock<'a>(state: &'a State<'_, AppState>) -> MutexGuard<'a, Option<Session>> {
@@ -69,7 +77,7 @@ fn load_error(e: LoadError) -> SgfError {
     }
 }
 
-fn join_error(e: tauri::Error) -> SgfError {
+fn io_error(e: impl ToString) -> SgfError {
     SgfError::new(ErrorKind::Io, e.to_string())
 }
 

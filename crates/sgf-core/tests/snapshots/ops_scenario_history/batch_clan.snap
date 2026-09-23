@@ -5,7 +5,7 @@ expression: value
 Added marauder clan 1
 touched: [4000, 4001, 4002]
 inverse: Batch { description: "Added marauder clan 1", ops: [RemoveLanes { from: 4000, to: [4001, 4002] }, RemoveSystem { id: 4002 }, RemoveSystem { id: 4001 }, RemoveSystem { id: 4000 }] }
-warning disconnected: galaxy has 3 components, 2 at load; newly separated: 
+warning disconnected: galaxy has 3 components, 2 at load; newly separated: 4000, 4001, 4002
 … and 2 other issues
 
 --- scenario

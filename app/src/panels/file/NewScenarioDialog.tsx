@@ -3,11 +3,12 @@ import type { ScenarioProfile } from "../../generated/ScenarioProfile";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
+import { Glyph } from "../Glyph";
 import { Dialog } from "../overlays/Dialog";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
 
-export const MAX_RADIUS = 460;
+const MAX_RADIUS = 460;
 const DEFAULT_NAME = "new_galaxy";
 
 /** The galaxy sizes the generator offers, by the radius each one lays out. */
@@ -59,33 +60,13 @@ const GAME_STEPS = [
   "Open that save here as a scenario.",
 ];
 
-function Glyph({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      className="route-icon"
-      viewBox="0 0 16 16"
-      width="16"
-      height="16"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {children}
-    </svg>
-  );
-}
-
 const DOTS = [3.2, 8, 12.8];
 
 function glyphOf(route: Route): ReactNode {
   switch (route) {
     case "blank":
       return (
-        <Glyph>
+        <Glyph className="route-icon">
           <g fill="currentColor" stroke="none">
             {DOTS.flatMap((cy) =>
               DOTS.map((cx) => <circle key={`${cx},${cy}`} cx={cx} cy={cy} r="1" />),
@@ -95,7 +76,7 @@ function glyphOf(route: Route): ReactNode {
       );
     case "game":
       return (
-        <Glyph>
+        <Glyph className="route-icon">
           <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" />
           <path d="M8 4.4c3.4 0 5.4 2.4 4.9 5.2-.4 2.4-2.6 4-5.3 3.9" />
           <path d="M8 11.6c-3.4 0-5.4-2.4-4.9-5.2.4-2.4 2.6-4 5.3-3.9" />

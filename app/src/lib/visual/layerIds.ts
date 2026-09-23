@@ -26,26 +26,6 @@ export const LAYER_IDS = [
 ] as const;
 export type LayerId = (typeof LAYER_IDS)[number];
 
-/** The plain on/off layers, as the Layers menu lists them. */
-export const TOGGLEABLE_LAYERS: readonly LayerId[] = [
-  "lanes",
-  "systems",
-  "classes",
-  "labels",
-  "details",
-  "colonies",
-  "owners",
-  "claims",
-  "bypasses",
-  "waylines",
-  "day_one_bypasses",
-  "nebulae",
-  "issues",
-  "initializers",
-  "mapBorder",
-  "lCluster",
-];
-
 /** The layers with their own icon toggle in the top bar. */
 export const PRIMARY_LAYERS: readonly LayerId[] = [
   "lanes",

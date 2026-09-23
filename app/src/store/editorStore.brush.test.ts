@@ -7,18 +7,19 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import type { NewSystem } from "../generated/NewSystem";
 import type { Op } from "../generated/Op";
 import { BrushStroke, type BrushSettings } from "../lib/brush/brushStroke";
-import type { Pair } from "../lib/brush/lanes";
+import type { Pair } from "../lib/geometry/pairs";
 import { stampsAlong } from "../lib/brush/stroke";
 import type { Symmetry } from "../lib/geometry/symmetry";
-import { segmentsCross } from "../lib/geometry/joinIslands";
+import { segmentsCross } from "../lib/geometry/segments";
 import type { Pt } from "../lib/geometry/pt";
 import { run } from "./commands";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
+import { canDelete, deletableSelection } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { SCENARIO_RESULT, SYSTEMS, editResult, node } from "./fixture";
+import { SCENARIO_RESULT, SYSTEMS, editResult, node, placedNode } from "./fixture";
 
-const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn(), confirmRemoveNebula: vi.fn() };
+const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
 
 const ERASE: BrushSettings = {
   tool: "erase",
@@ -586,6 +587,25 @@ describe("joining islands", () => {
     expect(mocked.applyOp.mock.calls[0][0]).toMatchObject({ description: "Joined 2 islands" });
   });
 
+  it("says as a notice, not an error, how many islands a join leaves walled off", async () => {
+    // A lone system amid a pinwheel of three lanes, each lane's ends hidden behind another.
+    const blade = (id: number, [ax, ay]: number[], [bx, by]: number[]) => [
+      placedNode(id, ax, ay, [id + 1]),
+      placedNode(id + 1, bx, by, [id]),
+    ];
+    const systems = [
+      placedNode(0, 0, 0),
+      ...blade(1, [-3, -26], [32, 42]),
+      ...blade(3, [24.017, 10.402], [-52.373, 6.713]),
+      ...blade(5, [-21.017, 15.598], [20.373, -48.713]),
+    ];
+    useGalaxyStore.getState().load({ ...SCENARIO_RESULT.galaxy, systems });
+
+    expect(await editor().joinIslands()).toBe(true);
+    expect(useFileSessionStore.getState().notice).toMatch(/^\d islands remain: /);
+    expect(sessionError()).toBeNull();
+  });
+
   it("sends nothing when the galaxy is already one piece", async () => {
     useGalaxyStore.getState().applyDelta({
       systems: [
@@ -628,11 +648,25 @@ describe("deleting a selection of systems", () => {
     expect(mocked.applyOp).not.toHaveBeenCalled();
   });
 
-  it("leaves a save's systems, and a single selected system, alone", async () => {
-    await editor().select(3);
-    await editor().deleteSelection();
+  it("deletes a single selected system too, asking about it and its lanes", async () => {
+    await editor().select(1);
+    run("deleteSelection", false, effects);
+    await vi.waitFor(() => expect(mocked.applyOp).toHaveBeenCalled());
+    expect(mocked.confirm).toHaveBeenCalledWith(
+      "Delete Alpha Centauri and its 4 lanes?",
+      expect.objectContaining({ kind: "warning" }),
+    );
+    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 1 });
+  });
+
+  it("names the selection as deletable on a scenario, and nothing on a save", async () => {
+    await editor().setSelection([0, 1], "replace");
+    expect(deletableSelection(editor())).toEqual({ kind: "systems", ids: [0, 1] });
+    expect(canDelete(editor())).toBe(true);
+
     await openFixtureSave();
     await editor().setSelection([0, 1], "replace");
+    expect(canDelete(editor())).toBe(false);
     await editor().deleteSelection();
     expect(mocked.confirm).not.toHaveBeenCalled();
     expect(mocked.applyOp).not.toHaveBeenCalled();

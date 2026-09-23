@@ -1,5 +1,5 @@
 import type { HistoryEntry } from "../../generated/HistoryEntry";
-import { useEditorStore } from "../../store/editorStore";
+import { nextUndo, useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { ENTER, SPACE } from "../keys";
 import "./browser.css";
@@ -10,9 +10,9 @@ export function HistoryPanel() {
   const history = useEditorStore((s) => s.history);
   const undoTo = useEditorStore((s) => s.undoTo);
   const redoTo = useEditorStore((s) => s.redoTo);
+  const current = useEditorStore(nextUndo);
 
   if (status !== "ready") return null;
-  const current = history.undo[history.undo.length - 1];
   const row = (entry: HistoryEntry, applied: boolean) => {
     const go = () => void (applied ? undoTo(entry.seq) : redoTo(entry.seq));
     return (

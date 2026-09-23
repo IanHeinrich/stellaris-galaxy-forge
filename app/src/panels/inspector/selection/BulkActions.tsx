@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { betaOfSlider, sliderOfBeta } from "../../../lib/geometry/mesh";
 import { CONNECT_ALL_MAX, useEditorStore } from "../../../store/editorStore";
 import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { clanMenuItem, nextFreeClan } from "../../../lib/marauder";
@@ -14,6 +13,7 @@ import {
   staleLaneCount,
   useGalaxyStore,
 } from "../../../store/galaxyStore";
+import { LaneDensitySlider } from "../../LaneDensitySlider";
 
 /** Above this many selected systems the mesh is worked out only while its row is previewed. */
 const MESH_COUNT_MAX = 1000;
@@ -177,7 +177,6 @@ export function WormholePairButton({
 function MeshRow({ afterRun, itemRole }: { afterRun?: () => void; itemRole?: "menuitem" }) {
   const selection = useEditorStore((s) => s.selection);
   const meshBeta = useMapChromeStore((s) => s.meshBeta);
-  const setMeshBeta = useMapChromeStore((s) => s.setMeshBeta);
   const setLanePreview = useMapChromeStore((s) => s.setLanePreview);
   const connectSelectedMesh = useEditorStore((s) => s.connectSelectedMesh);
   const galaxy = useGalaxyStore(useShallow((s) => ({ systems: s.systems, version: s.version })));
@@ -204,16 +203,10 @@ function MeshRow({ afterRun, itemRole }: { afterRun?: () => void; itemRole?: "me
     >
       <label className="mesh-slider">
         <span className="muted">sparse</span>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={sliderOfBeta(meshBeta)}
-          onChange={(e) => setMeshBeta(betaOfSlider(Number(e.target.value)))}
+        <LaneDensitySlider
+          label="Mesh density"
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          aria-label="Mesh density"
         />
         <span className="muted">dense</span>
       </label>

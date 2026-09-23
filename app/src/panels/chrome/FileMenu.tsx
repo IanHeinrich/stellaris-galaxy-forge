@@ -1,7 +1,10 @@
+import { shortcutLabel } from "../../lib/keys";
 import { fileName, isUnder } from "../../lib/paths";
+import { closeDocument, save, saveAs } from "../../store/commands";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useLayoutStore } from "../../store/layoutStore";
+import { useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
 import { formatWhen } from "../file/launchData";
@@ -47,15 +50,13 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
   const status = useFileSessionStore((s) => s.status);
   const dirty = useFileSessionStore((s) => s.dirty);
   const requestOpen = useFileSessionStore((s) => s.requestOpen);
+  const listings = useOpenScreenStore((s) => s.scenarios);
   const reload = useFileSessionStore((s) => s.reload);
-  const save = useFileSessionStore((s) => s.save);
-  const saveAs = useFileSessionStore((s) => s.saveAs);
-  const close = useFileSessionStore((s) => s.close);
   const exportScenario = useFileSessionStore((s) => s.exportScenario);
   const pickAndOpen = useFileSessionStore((s) => s.pickAndOpen);
   const kind = useFileSessionStore((s) => s.kind);
   const path = useFileSessionStore((s) => s.path);
-  const saveIntoPaintMod = usePaintModStore((s) => s.saveIntoPaintMod);
+  const saveIntoPaintMod = useFileSessionStore((s) => s.saveIntoPaintMod);
   const modKnown = usePaintModStore((s) => s.known);
   const paintDir = usePaintModStore((s) => s.paintMod?.scenarios_dir ?? null);
   const showOpenDialog = useLayoutStore((s) => s.showOpenDialog);
@@ -64,50 +65,62 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
   const modMissing = modKnown && paintDir === null;
   const inPaintMod = path !== null && paintDir !== null && isUnder(path, paintDir);
 
-  const run = (action: () => Promise<void>) => () => {
-    dismiss();
-    void action();
-  };
   return (
     <>
       <RecentDocs
         onOpen={(doc) => {
           dismiss();
-          void requestOpen(doc.path);
+          void requestOpen(doc.path, { listings });
         }}
       />
-      <MenuItem
-        label="New scenario…"
-        onClick={() => {
-          dismiss();
-          showScenarioDialog();
-        }}
-      />
+      <MenuItem label="New scenario…" dismiss={dismiss} onClick={showScenarioDialog} />
       <MenuItem
         label="Open…"
-        shortcut="Ctrl O"
-        onClick={() => {
-          dismiss();
-          showOpenDialog();
-        }}
+        shortcut={shortcutLabel("open")}
+        dismiss={dismiss}
+        onClick={showOpenDialog}
       />
-      <MenuItem label="Reload from disk" disabled={!open} onClick={run(reload)} />
+      <MenuItem label="Reload from disk" disabled={!open} dismiss={dismiss} onClick={reload} />
       <div className="menu-rule" />
-      <MenuItem label="Save" shortcut="Ctrl S" disabled={!open || !dirty} onClick={run(save)} />
-      <MenuItem label="Save as…" shortcut="Ctrl ⇧ S" disabled={!open} onClick={run(saveAs)} />
+      <MenuItem
+        label="Save"
+        shortcut={shortcutLabel("save")}
+        disabled={!open || !dirty}
+        dismiss={dismiss}
+        onClick={save}
+      />
+      <MenuItem
+        label="Save as…"
+        shortcut={shortcutLabel("saveAs")}
+        disabled={!open}
+        dismiss={dismiss}
+        onClick={saveAs}
+      />
       <MenuItem
         label="Save into the Paint a Galaxy mod…"
         disabled={!open || kind !== "scenario" || paintDir === null || inPaintMod}
         title={modMissing ? SUBSCRIBE_FIRST : undefined}
-        onClick={run(saveIntoPaintMod)}
+        dismiss={dismiss}
+        onClick={saveIntoPaintMod}
       />
       <MenuItem
         label="Export as scenario…"
         disabled={!open || kind !== "save"}
-        onClick={run(exportScenario)}
+        dismiss={dismiss}
+        onClick={exportScenario}
       />
-      <MenuItem label="Open save as scenario…" onClick={run(() => pickAndOpen("scenario"))} />
-      <MenuItem label="Close" shortcut="Ctrl W" disabled={!open} onClick={run(close)} />
+      <MenuItem
+        label="Open save as scenario…"
+        dismiss={dismiss}
+        onClick={() => pickAndOpen("scenario")}
+      />
+      <MenuItem
+        label="Close"
+        shortcut={shortcutLabel("close")}
+        disabled={!open}
+        dismiss={dismiss}
+        onClick={closeDocument}
+      />
     </>
   );
 }

@@ -8,9 +8,10 @@ use sgf_core::format::save::details::ResourceAmount;
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::initializers::{Initializer, PartnerRef};
-use sgf_gamedata::scripts::ScenarioSystem;
 use sgf_gamedata::special::classify_session;
 use sgf_gamedata::views::InitializerView;
+
+use common::scripts::sys;
 
 const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -388,9 +389,9 @@ fn a_body_is_a_colony_only_when_an_owner_meets_a_colonisation_effect() {
 fn a_colonised_body_names_its_territory_in_the_systems_details() {
     let gd = common::cached_fixture_with_mods();
     let scenario = [
-        scenario_system(1, "empire_capital_init"),
-        scenario_system(2, "empire_colony_init"),
-        scenario_system(24, "colony_only_init"),
+        sys(1, "empire_capital_init"),
+        sys(2, "empire_colony_init"),
+        sys(24, "colony_only_init"),
     ];
     let owners = gd.scenario_owners(&scenario);
     let empire = owners
@@ -434,14 +435,6 @@ fn a_colonised_body_names_its_territory_in_the_systems_details() {
         alone.planets[0].owner, None,
         "no owners, no territory to name"
     );
-}
-
-fn scenario_system(id: u32, initializer: &str) -> ScenarioSystem<'_> {
-    ScenarioSystem {
-        id,
-        initializer: Some(initializer),
-        effect: None,
-    }
 }
 
 fn resources(rows: &[ResourceAmount]) -> Vec<(&str, f64)> {

@@ -1,7 +1,4 @@
-/**
- * Paint a Galaxy: its companion mod on the Steam Workshop, and the seats its spawn script
- * names.
- */
+/** Paint a Galaxy: its companion mod, and the seats its spawn script names. */
 
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { HeaderField } from "../generated/HeaderField";
@@ -11,26 +8,6 @@ import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemNode } from "../generated/SystemNode";
 import { isUnder, normalise } from "./paths";
-
-/** The companion mod on the Steam Workshop, whose fixes a painted galaxy needs. */
-export const PAINT_MOD_WORKSHOP_ID = "3532904115";
-
-/** The mod's Workshop page; also allowlisted in the shell's `open_url`. */
-export const PAINT_WORKSHOP_URL = `https://steamcommunity.com/sharedfiles/filedetails/?id=${PAINT_MOD_WORKSHOP_ID}`;
-
-/**
- * The Reserved Spawns submod on the Steam Workshop, whose "Reserved Spawn A"–"Z" traits a
- * reserved seat's empire must hold; also allowlisted in the shell's `open_url`.
- */
-export const RESERVED_SPAWNS_WORKSHOP_URL =
-  "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682";
-
-/**
- * The Local Cluster submod on the Steam Workshop, the usual workaround for Sol having no
- * Sol-specific neighbours under the site's script; also allowlisted in the shell's `open_url`.
- */
-export const LOCAL_CLUSTER_WORKSHOP_URL =
-  "https://steamcommunity.com/sharedfiles/filedetails/?id=3634498401";
 
 /** The facts of the open document the Paint a Galaxy layer is derived from. */
 export interface PaintDocument {

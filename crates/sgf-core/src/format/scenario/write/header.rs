@@ -10,10 +10,10 @@ use super::index;
 use crate::cst;
 use crate::document::Document;
 use crate::format::scenario::header_counts::KEYS;
-use crate::format::scenario::index::HeaderStmt;
-use crate::keys::scenario as keys;
-use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject};
+use crate::format::scenario::index::{ENTITY_KEYS, HeaderStmt};
+use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject, blank_slot};
 use crate::overlay::Anchor;
+use crate::plural;
 use crate::session::Session;
 
 pub(super) fn set_field(
@@ -92,7 +92,7 @@ pub(super) fn set_fields(
         description: if counts {
             "Update empire counts".to_owned()
         } else {
-            format!("Set {} header keys", entries.len())
+            format!("Set {}", plural(entries.len(), "header key"))
         },
         inverse: Op::SetHeaderKeys { entries: previous },
     })
@@ -158,7 +158,7 @@ fn after(doc: &Document, anchor: Anchor) -> usize {
         if let Anchor::Original(emptied) = slot
             && emptied.start == at
             && emptied.end > at
-            && bytes.iter().all(u8::is_ascii_whitespace)
+            && blank_slot(bytes)
         {
             at = emptied.end;
         }
@@ -220,13 +220,7 @@ fn check_key(key: &str, at: usize) -> Result<(), OpError> {
     if key.is_empty() || key.bytes().any(separator) {
         return Err(refuse(at, format!("{key:?} is not a header key")));
     }
-    let entities = [
-        keys::SYSTEM,
-        keys::ADD_HYPERLANE,
-        keys::PREVENT_HYPERLANE,
-        keys::NEBULA,
-    ];
-    if entities.contains(&key) {
+    if ENTITY_KEYS.contains(&key) {
         return Err(refuse(
             at,
             format!("{key} is a scenario statement, not a header key"),

@@ -7,8 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::export::SourceResolver;
 use crate::export::policy::{Category, builds_gateway, builds_lgate, classify, is_generic_home};
+use crate::export::{Draft, SourceResolver};
 use crate::format::scenario::fe_zone::FeKind;
 use crate::projections::galaxy::{BypassLink, GalaxyGraph, PaintSpawnKind};
 use crate::validate::{Issue, IssueCode, Severity};
@@ -47,6 +47,18 @@ pub struct ExportReport {
     pub omitted: Vec<OmittedCount>,
     /// Whether the header's counts come from the save's own setup screen.
     pub setup_from_save: bool,
+    /// The `system` statements the file holds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub systems: Option<u32>,
+    /// The `add_hyperlane` statements the file holds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub hyperlanes: Option<u32>,
+    /// The `nebula` statements the file holds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub nebulae: Option<u32>,
 }
 
 /// An empire seat whose initializer may only fit the empire that started there.
@@ -153,6 +165,13 @@ impl ExportReport {
             }
         }));
         issues
+    }
+
+    /// Count the statements of `draft`, which the file is rendered from.
+    pub(super) fn count(&mut self, draft: &Draft) {
+        self.systems = Some(as_u32(draft.systems.len()));
+        self.hyperlanes = Some(as_u32(draft.lanes.len()));
+        self.nebulae = Some(as_u32(draft.nebulae.len()));
     }
 
     /// `9 L-Cluster systems`, or `None` when nothing was left out.
@@ -276,6 +295,9 @@ pub(super) fn build(
         player_seat_kind: None,
         omitted: Vec::new(),
         setup_from_save: false,
+        systems: None,
+        hyperlanes: None,
+        nebulae: None,
     }
 }
 

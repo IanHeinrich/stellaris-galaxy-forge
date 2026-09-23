@@ -17,7 +17,7 @@ import { useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isStringArray, readPref, writePref } from "./prefs";
+import { isStringArray, prefField } from "./prefs";
 
 /** The choice that leaves the system to the game, which is no initializer at all. */
 export const RANDOM_KEY = "@random";
@@ -194,6 +194,10 @@ function isKey(value: unknown): value is string {
   return typeof value === "string";
 }
 
+const PINNED = prefField(PREF_KEYS.initializerPins, [], isStringArray);
+const RECENT = prefField(PREF_KEYS.initializerRecent, [], isStringArray);
+const DEFAULT_KEY = prefField<string | null>(PREF_KEYS.initializerDefault, null, isKey);
+
 export const useInitializerBrowserStore = create<InitializerBrowserState>((set, get) => ({
   open: false,
   mode: "assign",
@@ -202,9 +206,9 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
   query: "",
   group: null,
   highlighted: null,
-  pinned: readPref(PREF_KEYS.initializerPins, [], isStringArray),
-  recent: readPref(PREF_KEYS.initializerRecent, [], isStringArray),
-  defaultKey: readPref<string | null>(PREF_KEYS.initializerDefault, null, isKey),
+  pinned: PINNED.read(),
+  recent: RECENT.read(),
+  defaultKey: DEFAULT_KEY.read(),
   spawnWeight: null,
 
   openFor(targets) {
@@ -250,12 +254,12 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
   togglePin(key) {
     const pinned = pinToggle(get().pinned, key);
     set({ pinned });
-    writePref(PREF_KEYS.initializerPins, pinned);
+    PINNED.save(pinned);
   },
 
   setDefault(key) {
     set({ defaultKey: key });
-    writePref(PREF_KEYS.initializerDefault, key);
+    DEFAULT_KEY.save(key);
   },
 
   async assign(keepOpen = false) {
@@ -277,7 +281,7 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
     if (!random) {
       const recent = notedRecent(get().recent, highlighted);
       set({ recent });
-      writePref(PREF_KEYS.initializerRecent, recent);
+      RECENT.save(recent);
     }
     if (!keepOpen) get().close();
     return applied;

@@ -1,17 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Pt } from "../geometry/pt";
-import { seeded } from "./random";
+import { drag } from "../../test/brush";
+import { seeded } from "../random";
 import { sampleStroke, StrokeSampler } from "./sample";
-import { inStroke, stampsAlong } from "./stroke";
+import { inStroke } from "./stroke";
 
-function drag(path: Pt[], r: number): Pt[] {
-  const stamps: Pt[] = [];
-  let prev: Pt | null = null;
-  for (const p of path) {
-    stamps.push(...stampsAlong(prev, p, r));
-    prev = p;
-  }
-  return stamps;
+/** Every stamp of a drag through `path`. */
+function stampsOf(path: Pt[], r: number): Pt[] {
+  return drag(path, r).flat();
 }
 
 function minGap(points: readonly Pt[], others: readonly Pt[] = points): number {
@@ -27,7 +23,7 @@ function minGap(points: readonly Pt[], others: readonly Pt[] = points): number {
 
 const R = 40;
 const SPACING = 12;
-const STAMPS = drag(
+const STAMPS = stampsOf(
   [
     { x: -150, y: 0 },
     { x: -60, y: 35 },

@@ -1,5 +1,8 @@
 import type { FocusEvent, KeyboardEvent, ReactNode } from "react";
-import { useToolStore, type Symmetry } from "../../store/toolStore";
+import type { Symmetry } from "../../lib/geometry/symmetry";
+import { shortcutLabel } from "../../lib/keys";
+import { useToolStore } from "../../store/toolStore";
+import { outsidePressRef } from "../useOutsidePress";
 import { choiceOf, MIRRORS, ROTATIONS, SYMMETRY_OFF, type SymmetryChoice } from "./symmetryChoices";
 import "./chrome.css";
 
@@ -26,20 +29,6 @@ function onMenuKey(e: KeyboardEvent<HTMLDivElement>, close: () => void): void {
     const all = items();
     all[e.key === "Home" ? 0 : all.length - 1]?.focus();
   }
-}
-
-/**
- * While the flyout is open, a press outside the control closes it: the map's canvas takes no
- * focus, so no blur follows a press on it.
- */
-function closeOnPressOutside(menu: HTMLDivElement | null): (() => void) | undefined {
-  const control = menu?.closest(".symmetry-control");
-  if (!control) return undefined;
-  const onPointerDown = (e: PointerEvent) => {
-    if (!control.contains(e.target as Node | null)) useToolStore.getState().setSymmetryMenu(false);
-  };
-  document.addEventListener("pointerdown", onPointerDown);
-  return () => document.removeEventListener("pointerdown", onPointerDown);
 }
 
 function Choice({ choice, current }: { choice: SymmetryChoice; current: Symmetry }) {
@@ -83,6 +72,8 @@ export function SymmetryControl() {
   const on = symmetry.kind !== "off";
   const choice = choiceOf(on ? symmetry : last);
   const close = () => setMenu(false);
+  const pressOutside = outsidePressRef(close, (menu) => menu.closest(".symmetry-control"));
+  const key = shortcutLabel("toggleSymmetry");
   const onBlur = (e: FocusEvent<HTMLDivElement>) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
   };
@@ -97,8 +88,8 @@ export function SymmetryControl() {
         aria-expanded={open}
         title={
           on
-            ? `Symmetry: ${choice.label} (M turns it off)`
-            : `Symmetry off (M turns on ${choice.label.toLowerCase()})`
+            ? `Symmetry: ${choice.label} (${key} turns it off)`
+            : `Symmetry off (${key} turns on ${choice.label.toLowerCase()})`
         }
         onClick={() => setMenu(!open)}
         onKeyDown={(e) => {
@@ -129,7 +120,7 @@ export function SymmetryControl() {
           className="symmetry-menu"
           role="menu"
           aria-label="Symmetry"
-          ref={closeOnPressOutside}
+          ref={pressOutside}
           onKeyDown={(e) => onMenuKey(e, close)}
         >
           <Row>

@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use install::{discovery, mods};
+use registries::galaxy_sizes::GalaxySizes;
 use registries::{colors, gfx, registry, starbase_levels};
 
 pub use initializers::Initializers;
@@ -33,7 +34,6 @@ pub use registries::country_types::CountryTypes;
 pub use registries::defines::BorderDefines;
 pub use registries::deposits::Deposits;
 pub use registries::galaxy_shapes::GalaxyShapes;
-pub use registries::galaxy_sizes::GalaxySizes;
 pub use registries::gfx::Sprites;
 pub use registries::planet_classes::PlanetClasses;
 pub use registries::registry::Registry;
@@ -41,7 +41,7 @@ pub use registries::ship_sizes::ShipSizes;
 pub use registries::star_classes::StarClasses;
 pub use registries::starbase_levels::StarbaseLevels;
 pub use reload::RegistryKind;
-pub use resolver::resolver;
+pub use resolver::{export_resolvers, resolver};
 pub use scripts::ScriptIndex;
 
 /// Every registry is an [`Arc`] so a partial rebuild

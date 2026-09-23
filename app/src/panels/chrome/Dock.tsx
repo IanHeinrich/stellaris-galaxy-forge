@@ -1,13 +1,16 @@
 import { useRef } from "react";
 import { documentCapabilities } from "../../lib/capabilities";
+import { shortcutLabel } from "../../lib/keys";
 import { useEmpireCount, usePointCount } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore, type DockTab } from "../../store/layoutStore";
-import { newIssues, useIssuesStore } from "../../store/issuesStore";
+import { useFreshIssues } from "../../store/issuesStore";
 import { DOCK_TAB_REGISTRY, dockTabsFor } from "./dockTabs";
 
 const PANEL_ID = "dock-panel";
+
+const DOCK_KEY = shortcutLabel("toggleDock");
 
 function tabId(tab: DockTab): string {
   return `dock-tab-${tab}`;
@@ -56,11 +59,9 @@ function Resizer() {
 function TabStrip({ tab }: { tab: DockTab }) {
   const setTab = useLayoutStore((s) => s.setTab);
   const toggleDock = useLayoutStore((s) => s.toggleDock);
-  const issues = useIssuesStore((s) => s.issues);
+  const { fresh, errors } = useFreshIssues();
   const changes = useEditorStore((s) => s.history.undo.length);
   const capabilities = useFileSessionStore(documentCapabilities);
-  const baseline = useIssuesStore((s) => s.baseline);
-  const fresh = newIssues(issues, baseline);
   const empires = useEmpireCount();
   const points = usePointCount();
   const counts: Record<DockTab, number | null> = {
@@ -70,7 +71,6 @@ function TabStrip({ tab }: { tab: DockTab }) {
     issues: fresh.length,
     changes,
   };
-  const errors = fresh.some((i) => i.severity === "error");
   return (
     <div className="dock-tabs">
       <div className="dock-tablist" role="tablist" aria-label="Dock">
@@ -90,7 +90,9 @@ function TabStrip({ tab }: { tab: DockTab }) {
             >
               <span className="label">{DOCK_TAB_REGISTRY[id].short}</span>
               {count !== null && count > 0 && (
-                <span className={id === "issues" && errors ? "count warn" : "count"}>{count}</span>
+                <span className={id === "issues" && errors > 0 ? "count warn" : "count"}>
+                  {count}
+                </span>
               )}
             </button>
           );
@@ -99,7 +101,7 @@ function TabStrip({ tab }: { tab: DockTab }) {
       <button
         type="button"
         className="dock-collapse icon"
-        title="Collapse the dock (Tab)"
+        title={`Collapse the dock (${DOCK_KEY})`}
         aria-label="Collapse the dock"
         onClick={toggleDock}
       >
@@ -122,7 +124,7 @@ export function Dock() {
         <button
           type="button"
           className="dock-collapse icon"
-          title="Show the dock (Tab)"
+          title={`Show the dock (${DOCK_KEY})`}
           aria-label="Show the dock"
           onClick={toggleDock}
         >

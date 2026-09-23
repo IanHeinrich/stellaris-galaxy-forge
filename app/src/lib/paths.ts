@@ -5,6 +5,11 @@ export function fileName(path: string | null): string {
   return path.slice(i + 1);
 }
 
+/** Everything before the last path component, for either separator. */
+export function folderOf(path: string): string {
+  return path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
+}
+
 /** A path as two of them are compared: forward slashes, no trailing one, lowercase. */
 export function normalise(path: string): string {
   return path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();

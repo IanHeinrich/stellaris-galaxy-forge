@@ -29,21 +29,20 @@ pub fn run(
             None
         }
     });
-    let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-    let sources = |initializer: &str| {
-        gd.as_ref()
-            .and_then(|gd| gd.initializer_source(initializer))
-    };
-    let name = name.map_or_else(|| stem(sav), str::to_owned);
+    let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_ref());
+    let name = name.map_or_else(
+        || stem(out).unwrap_or_else(|| session.title()),
+        str::to_owned,
+    );
     let options = export::options_for_session(&session, &name);
     let (text, report) =
         export::scenario_text(&session.graph, &options, &resolve, &sources, profile.core());
     let outcome = export::write_scenario(out, &text)?;
     println!(
         "{} system(s), {} hyperlane(s), {} nebula(e) as \"{name}\"",
-        statements(&text, "system"),
-        statements(&text, "add_hyperlane"),
-        statements(&text, "nebula")
+        report.systems.unwrap_or_default(),
+        report.hyperlanes.unwrap_or_default(),
+        report.nebulae.unwrap_or_default()
     );
     println!("wrote {}", outcome.path.display());
     if let Some(backup) = &outcome.backup {
@@ -157,17 +156,6 @@ impl Profile {
     }
 }
 
-/// Generated statements are one per line, so counting them is counting lines.
-fn statements(text: &[u8], key: &str) -> usize {
-    let prefix = format!("\t{key} = ").into_bytes();
-    text.split(|&b| b == b'\n')
-        .filter(|line| line.starts_with(&prefix))
-        .count()
-}
-
-fn stem(path: &Path) -> String {
-    path.file_stem()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .into_owned()
+fn stem(path: &Path) -> Option<String> {
+    path.file_stem().map(|s| s.to_string_lossy().into_owned())
 }

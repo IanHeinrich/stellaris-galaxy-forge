@@ -39,6 +39,13 @@ const SOL: &str = "SOL";
 const RANDOM_MODULO: &str = "RANDOM_MODULO";
 const RANDOM_VALUE: &str = "RANDOM_VALUE";
 const YES: &str = "yes";
+/// The `RANDOM_MODULO` of an enabled or a preferred seat: the most values any kind is
+/// drawn from.
+pub(crate) const SEAT_MODULO: u8 = 10;
+/// The `RANDOM_MODULO` of a reserved seat.
+const RESERVED_MODULO: u8 = 3;
+/// The `RANDOM_MODULO` of the Sol seat, which has one value.
+const SOL_MODULO: u8 = 1;
 /// What the player's seat adds to its weight, against the mod's 110 to 120 for a
 /// preferred seat and 1000 for a Sol or reserved one.
 const PLAYER_SEAT_WEIGHT: u32 = 100000;
@@ -147,8 +154,8 @@ pub(crate) fn recognise(weight: &Node, src: &[u8]) -> Option<SpawnScript> {
     }
     let player = player_marker(weight, src, &kind);
     Some(SpawnScript::PaintAGalaxy {
+        random_value: random_value % modulo(&kind),
         kind,
-        random_value,
         player,
     })
 }
@@ -218,20 +225,26 @@ pub(crate) fn render(script: &SpawnScript) -> String {
     let SpawnScript::PaintAGalaxy {
         kind, random_value, ..
     } = script;
+    let modulo = modulo(kind);
+    let random = format!(
+        "{RANDOM_MODULO}|{modulo}|{RANDOM_VALUE}|{}",
+        random_value % modulo
+    );
     let params = match kind {
-        PaintSpawnKind::Enabled => {
-            format!("{RANDOM_MODULO}|10|{RANDOM_VALUE}|{random_value}")
-        }
-        PaintSpawnKind::Preferred => {
-            format!("{PREFERRED}|{YES}|{RANDOM_MODULO}|10|{RANDOM_VALUE}|{random_value}")
-        }
-        PaintSpawnKind::Reserved(letter) => format!(
-            "{RESERVED}|{letter}|{RANDOM_MODULO}|3|{RANDOM_VALUE}|{}",
-            random_value % 3
-        ),
-        PaintSpawnKind::Sol => format!("{SOL}|{YES}|{RANDOM_MODULO}|1|{RANDOM_VALUE}|0"),
+        PaintSpawnKind::Enabled => random,
+        PaintSpawnKind::Preferred => format!("{PREFERRED}|{YES}|{random}"),
+        PaintSpawnKind::Reserved(letter) => format!("{RESERVED}|{letter}|{random}"),
+        PaintSpawnKind::Sol => format!("{SOL}|{YES}|{random}"),
     };
     format!("{}{SPAWN_WEIGHT_VALUE}|{params}|", keys::VALUE_PREFIX)
+}
+
+fn modulo(kind: &PaintSpawnKind) -> u8 {
+    match kind {
+        PaintSpawnKind::Enabled | PaintSpawnKind::Preferred => SEAT_MODULO,
+        PaintSpawnKind::Reserved(_) => RESERVED_MODULO,
+        PaintSpawnKind::Sol => SOL_MODULO,
+    }
 }
 
 /// The whole `spawn_weight` statement a scripted system carries, on one line, the
@@ -263,14 +276,22 @@ pub(crate) fn weight_statement(script: &SpawnScript) -> String {
 /// The starting initializer a spawn system is given when it names none, spread over
 /// the six the game ships by the system's id.
 pub(crate) fn basic_initializer(id: u32) -> &'static str {
-    BASIC_INITIALIZERS[(id % 6) as usize]
+    BASIC_INITIALIZERS[id as usize % BASIC_INITIALIZERS.len()]
 }
 
 /// Whether a script is one Paint a Galaxy can read back: a reserved seat is named by
-/// one lowercase ASCII letter, as its flags are, and an enabled seat has no marker to
-/// make it the player's.
+/// one lowercase ASCII letter, as its flags are, an enabled seat has no marker to make
+/// it the player's, and the random value is one some kind is drawn from. A kind drawn
+/// from fewer takes the value modulo its own.
 pub(crate) fn check(script: &SpawnScript) -> Result<(), OpError> {
-    let SpawnScript::PaintAGalaxy { kind, player, .. } = script;
+    let SpawnScript::PaintAGalaxy {
+        kind,
+        random_value,
+        player,
+    } = script;
+    if *random_value >= SEAT_MODULO {
+        return Err(OpError::RandomValueOutOfRange(*random_value, SEAT_MODULO));
+    }
     if let PaintSpawnKind::Reserved(letter) = kind
         && !valid_letter(letter)
     {
@@ -392,6 +413,14 @@ mod tests {
         assert_eq!(
             weight_statement(&script(PaintSpawnKind::Enabled, 3)),
             "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|3| }"
+        );
+    }
+
+    #[test]
+    fn a_hand_written_random_value_reads_modulo_its_kinds() {
+        assert_eq!(
+            recognised("value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|37|"),
+            Some(script(PaintSpawnKind::Enabled, 7))
         );
     }
 

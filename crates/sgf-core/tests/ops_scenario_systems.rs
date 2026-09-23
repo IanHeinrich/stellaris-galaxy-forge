@@ -6,12 +6,13 @@ use sgf_core::ops::{InitializerSet, NewSystem, Op, OpError};
 use sgf_core::session::Session;
 
 mod common;
-use common::diff::{round_trip, snapshot};
-use common::scenario::{bytes, current, open};
+use common::current;
+use common::diff::{assert_removal_inverts_exactly, round_trip, snapshot};
+use common::fixture::GRAMMAR;
 
 #[test]
 fn a_system_edited_earlier_can_still_be_removed() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     session
         .apply(Op::MoveSystem {
             id: 2,
@@ -33,7 +34,7 @@ fn a_system_edited_earlier_can_still_be_removed() {
     for _ in 0..3 {
         session.undo().expect("undo").expect("something to undo");
     }
-    assert_eq!(current(&session), bytes());
+    assert_eq!(current(&session), GRAMMAR.bytes());
 }
 
 #[test]
@@ -70,8 +71,8 @@ fn a_system_the_file_left_nameless_gets_its_statement_back_on_undo() {
 
 #[test]
 fn clearing_the_name_of_a_named_system_takes_the_statement_away_and_undo_puts_it_back() {
-    let fixture = bytes();
-    let mut session = open();
+    let fixture = GRAMMAR.bytes();
+    let mut session = GRAMMAR.open();
 
     let cleared = session
         .apply(Op::SetSystemName {
@@ -100,7 +101,7 @@ fn clearing_the_name_of_a_named_system_takes_the_statement_away_and_undo_puts_it
 
 #[test]
 fn a_name_that_cannot_be_quoted_is_refused() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     for name in ["Sol \"Prime\"", "back\\slash", "two\nlines"] {
         let err = session
             .apply(Op::SetSystemName {
@@ -141,7 +142,7 @@ fn a_name_that_cannot_be_quoted_is_refused() {
 fn add_system_takes_the_next_id_and_lands_before_the_closing_brace() {
     snapshot(
         "add_system",
-        open(),
+        GRAMMAR.open(),
         Op::AddSystem {
             id: None,
             x: 20.0,
@@ -156,7 +157,7 @@ fn add_system_takes_the_next_id_and_lands_before_the_closing_brace() {
 
 #[test]
 fn add_system_is_refused_when_the_id_is_taken() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let error = session
         .apply(Op::AddSystem {
             id: Some(2),
@@ -175,12 +176,16 @@ fn add_system_is_refused_when_the_id_is_taken() {
 
 #[test]
 fn remove_system_1_takes_its_line_and_every_lane_naming_it() {
-    snapshot("remove_system_1", open(), Op::RemoveSystem { id: 1 });
+    snapshot(
+        "remove_system_1",
+        GRAMMAR.open(),
+        Op::RemoveSystem { id: 1 },
+    );
 }
 
 #[test]
 fn removing_a_system_tells_the_map_to_drop_it_and_redraw_its_neighbours() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let result = session.apply(Op::RemoveSystem { id: 1 }).expect("remove");
     let delta = session.edit_result(result).delta;
     assert_eq!(delta.removed, [1]);
@@ -191,8 +196,8 @@ fn removing_a_system_tells_the_map_to_drop_it_and_redraw_its_neighbours() {
 
 #[test]
 fn adding_a_system_and_removing_it_again_is_byte_identical() {
-    let fixture = bytes();
-    let mut session = open();
+    let fixture = GRAMMAR.bytes();
+    let mut session = GRAMMAR.open();
     session
         .apply(Op::AddSystem {
             id: None,
@@ -216,7 +221,7 @@ fn adding_a_system_and_removing_it_again_is_byte_identical() {
 fn set_system_name_writes_a_name_the_statement_had_empty() {
     snapshot(
         "set_system_name_16",
-        open(),
+        GRAMMAR.open(),
         Op::SetSystemName {
             id: 16,
             name: "Alderaan".to_owned(),
@@ -228,7 +233,7 @@ fn set_system_name_writes_a_name_the_statement_had_empty() {
 fn set_system_name_reaches_into_a_multi_line_system() {
     snapshot(
         "set_system_name_3018",
-        open(),
+        GRAMMAR.open(),
         Op::SetSystemName {
             id: 3018,
             name: "NAME_Iridonia".to_owned(),
@@ -240,7 +245,7 @@ fn set_system_name_reaches_into_a_multi_line_system() {
 fn set_initializer_adds_one_to_a_system_that_had_none() {
     snapshot(
         "set_initializer_16",
-        open(),
+        GRAMMAR.open(),
         Op::SetInitializer {
             id: 16,
             initializer: Some("random_empire_init_01".to_owned()),
@@ -252,7 +257,7 @@ fn set_initializer_adds_one_to_a_system_that_had_none() {
 fn set_initializer_leaves_the_spawn_weight_beside_it_alone() {
     snapshot(
         "set_initializer_2",
-        open(),
+        GRAMMAR.open(),
         Op::SetInitializer {
             id: 2,
             initializer: Some("misc_system_init_01".to_owned()),
@@ -282,7 +287,7 @@ fn three_entries() -> Vec<InitializerSet> {
 fn set_initializers_writes_three_systems_at_once() {
     snapshot(
         "set_initializers_1_16_3018",
-        open(),
+        GRAMMAR.open(),
         Op::SetInitializers {
             entries: three_entries(),
         },
@@ -291,7 +296,7 @@ fn set_initializers_writes_three_systems_at_once() {
 
 #[test]
 fn set_initializers_is_one_history_entry_and_stales_every_system() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let result = session
         .apply(Op::SetInitializers {
             entries: three_entries(),
@@ -307,7 +312,7 @@ fn set_initializers_is_one_history_entry_and_stales_every_system() {
 #[test]
 fn set_initializers_undo_and_redo_are_byte_identical() {
     round_trip(
-        open(),
+        GRAMMAR.open(),
         Op::SetInitializers {
             entries: three_entries(),
         },
@@ -318,7 +323,7 @@ fn set_initializers_undo_and_redo_are_byte_identical() {
 fn clearing_an_initializer_leaves_the_spawn_weight_standing() {
     snapshot(
         "clear_initializer_3018",
-        open(),
+        GRAMMAR.open(),
         Op::SetInitializer {
             id: 3018,
             initializer: None,
@@ -336,6 +341,7 @@ fn three_new_systems() -> Vec<NewSystem> {
         initializer: None,
         spawn_weight: None,
         spawn_script: None,
+        statement: None,
     };
     vec![
         NewSystem {
@@ -355,7 +361,7 @@ fn three_new_systems() -> Vec<NewSystem> {
 fn add_systems_writes_three_systems_before_the_closing_brace() {
     snapshot(
         "add_systems_4000_4001_4002",
-        open(),
+        GRAMMAR.open(),
         Op::AddSystems {
             systems: three_new_systems(),
         },
@@ -364,7 +370,7 @@ fn add_systems_writes_three_systems_before_the_closing_brace() {
 
 #[test]
 fn add_systems_is_one_history_entry_and_undo_and_redo_are_byte_identical() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let result = session
         .apply(Op::AddSystems {
             systems: three_new_systems(),
@@ -383,7 +389,7 @@ fn add_systems_is_one_history_entry_and_undo_and_redo_are_byte_identical() {
         "three systems, one undo step"
     );
     round_trip(
-        open(),
+        GRAMMAR.open(),
         Op::AddSystems {
             systems: three_new_systems(),
         },
@@ -394,7 +400,7 @@ fn add_systems_is_one_history_entry_and_undo_and_redo_are_byte_identical() {
 fn remove_systems_takes_each_line_and_every_lane_naming_one_once() {
     snapshot(
         "remove_systems_1_16_888",
-        open(),
+        GRAMMAR.open(),
         Op::RemoveSystems {
             ids: vec![1, 16, 888],
         },
@@ -402,39 +408,42 @@ fn remove_systems_takes_each_line_and_every_lane_naming_one_once() {
 }
 
 #[test]
-fn remove_systems_undo_and_redo_are_byte_identical_and_its_inverse_adds_them_back() {
+fn remove_systems_undo_and_redo_are_byte_identical_and_its_inverse_puts_them_back_exactly() {
     round_trip(
-        open(),
+        GRAMMAR.open(),
         Op::RemoveSystems {
             ids: vec![1, 16, 888],
         },
     );
-    let mut session = open();
-    let result = session
-        .apply(Op::RemoveSystems {
-            ids: vec![1, 16, 888],
-        })
-        .expect("remove three systems");
-    for id in [1, 16, 888] {
-        assert!(!session.graph.systems.contains_key(&id));
-    }
-    assert!(session.graph.lane(2, 1).is_none() && session.graph.lane(1, 2).is_none());
-    let Op::AddSystems { systems } = result.inverse.clone() else {
-        panic!("{:?}", result.inverse);
-    };
-    let ids: Vec<u32> = systems.iter().map(|s| s.id).collect();
-    assert_eq!(ids, [1, 16, 888]);
+    // 2 and 888 weigh by a modifier, 16 has a z, 111 a range and a spawn design, 3018 an
+    // effect block over several lines and 9 a prevented pair; 1 is linked to 2 and to 16
+    // twice each.
+    assert_removal_inverts_exactly(GRAMMAR.open(), &[1, 2, 16, 111, 3018, 9, 888]);
+}
+
+#[test]
+fn clearing_an_initializer_keeps_the_comment_that_follows_it() {
+    let text = String::from_utf8(GRAMMAR.bytes()).unwrap().replacen(
+        "\t\tinitializer = random_empire_init_01\n",
+        "\t\tinitializer = random_empire_init_01 # the seat\n",
+        1,
+    );
+    let doc = Document::from_scenario_bytes(text.into_bytes()).expect("index the bytes");
+    let mut session = Session::from_document(None, doc).expect("project the bytes");
     session
-        .apply(result.inverse)
-        .expect("the inverse adds the three back");
-    for id in [1, 16, 888] {
-        assert!(session.graph.systems.contains_key(&id));
-    }
+        .apply(Op::SetInitializer {
+            id: 3018,
+            initializer: None,
+        })
+        .expect("clear the initializer");
+    let edited = String::from_utf8(current(&session)).unwrap();
+    assert!(!edited.contains("random_empire_init_01"), "{edited}");
+    assert!(edited.contains("# the seat\n"), "{edited}");
 }
 
 #[test]
 fn bulk_system_ops_refuse_a_repeated_taken_or_unknown_id_and_leave_the_file_alone() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let mut repeated = three_new_systems();
     repeated[2].id = 4000;
     let error = session
@@ -484,6 +493,6 @@ fn bulk_system_ops_refuse_a_repeated_taken_or_unknown_id_and_leave_the_file_alon
     assert!(matches!(error, OpError::Empty), "{error:?}");
 
     assert!(!session.doc.is_dirty());
-    assert_eq!(current(&session), bytes());
+    assert_eq!(current(&session), GRAMMAR.bytes());
     assert!(session.history().undo.is_empty());
 }

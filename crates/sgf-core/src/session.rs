@@ -180,7 +180,7 @@ impl Session {
             ..GalaxyDelta::default()
         };
         let mut listed = HashSet::new();
-        for subject in subjects.iter().filter(|s| s.kind().in_galaxy_delta()) {
+        for subject in subjects {
             match *subject {
                 Subject::Nebula(_) if delta.nebulae.is_none() => {
                     delta.nebulae = Some(self.graph.nebulae.clone());

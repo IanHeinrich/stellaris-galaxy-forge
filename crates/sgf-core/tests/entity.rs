@@ -7,9 +7,9 @@ use sgf_core::document::Document;
 use sgf_core::entity::views::{EntityAddr, EntityKind, EntityView, NodeValue};
 use sgf_core::entity::{EntityError, FieldType, get_entity, get_entity_schema, get_entity_source};
 use sgf_core::ops::Op;
-use sgf_core::session::Session;
 
 mod common;
+use common::fixture::GRAMMAR;
 
 /// One entity of each kind the address table names, chosen for a readable snapshot.
 const SAMPLES: [(EntityKind, u32); 11] = [
@@ -382,18 +382,9 @@ fn a_block_an_op_created_marks_every_node_in_it_changed() {
 
 // ---- scenario documents ----------------------------------------------------------
 
-const SCENARIO: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/scenario_grammar.txt"
-);
-
-fn scenario() -> Session {
-    Session::open(SCENARIO).expect("open the scenario fixture")
-}
-
 #[test]
 fn a_scenario_system_reads_its_own_nodes() {
-    let session = scenario();
+    let session = GRAMMAR.open();
     let system = addr(EntityKind::System, 3018);
     let view = get_entity(&session.doc, system, &[]).expect("read the scenario system");
 
@@ -458,7 +449,7 @@ fn a_scenario_system_reads_its_own_nodes() {
 
 #[test]
 fn a_scenario_systems_source_marks_what_a_move_changed() {
-    let mut session = scenario();
+    let mut session = GRAMMAR.open();
     let system = addr(EntityKind::System, 3018);
 
     let before = get_entity_source(&session.doc, system).expect("read source");
@@ -504,7 +495,7 @@ fn a_scenario_systems_source_marks_what_a_move_changed() {
 
 #[test]
 fn a_scenario_system_an_op_added_reads_as_new() {
-    let mut session = scenario();
+    let mut session = GRAMMAR.open();
     session
         .apply(Op::AddSystem {
             id: Some(4242),
@@ -531,7 +522,7 @@ fn a_scenario_system_an_op_added_reads_as_new() {
 
 #[test]
 fn only_a_scenarios_systems_are_addressable_and_the_save_path_is_unchanged() {
-    let session = scenario();
+    let session = GRAMMAR.open();
     for kind in EntityKind::ALL
         .into_iter()
         .filter(|k| *k != EntityKind::System)

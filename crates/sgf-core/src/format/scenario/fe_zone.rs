@@ -35,7 +35,7 @@ pub(crate) const DEFAULT_DISTANCE: u16 = 40;
 /// How far apart two centres must stand for both rings to be empty.
 const ZONE_SPACING: f64 = 2.0 * FE_ZONE_RADIUS;
 /// How far from the origin, on either axis, a centre may lie.
-pub const FE_ZONE_EXTENT: f64 = 470.0;
+const FE_ZONE_EXTENT: f64 = 470.0;
 
 /// Which way from the anchor the zone's centre lies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -248,12 +248,12 @@ pub fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
 /// `anchor` centres: the map's edge, and every other system of `galaxy` standing in
 /// the ring, lowest id first.
 #[derive(Debug)]
-pub struct Obstacles<'a> {
+pub(crate) struct Obstacles<'a> {
     pub off_map: bool,
     pub blockers: Vec<&'a SystemNode>,
 }
 
-pub fn obstacles<'a>(galaxy: &'a Galaxy, anchor: u32, centre: (f64, f64)) -> Obstacles<'a> {
+pub(crate) fn obstacles<'a>(galaxy: &'a Galaxy, anchor: u32, centre: (f64, f64)) -> Obstacles<'a> {
     let mut blockers: Vec<&SystemNode> = galaxy
         .systems
         .values()

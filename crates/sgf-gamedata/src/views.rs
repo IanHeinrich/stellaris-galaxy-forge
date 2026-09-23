@@ -4,10 +4,12 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::GameData;
 use crate::initializers::{InitPlanet, Initializer, SpawnedCountry};
-use crate::install::mods::{ModInfo, PaintMod};
-use crate::install::scenarios::SCENARIO_DIR;
+use crate::install::mods::{
+    self, LOCAL_CLUSTER_WORKSHOP_ID, ModInfo, PAINT_MOD_WORKSHOP_ID, PaintModStatus,
+    RESERVED_SPAWNS_WORKSHOP_ID,
+};
+use crate::install::scenarios::scenarios_dir;
 use crate::registries::bypasses::BypassDef;
 use crate::registries::colors::ColorDef;
 use crate::registries::country_types::CountryType;
@@ -21,6 +23,7 @@ use crate::registries::star_classes::StarClass;
 use crate::registries::starbase_levels::StarbaseLevelDef;
 use crate::scripts::identity;
 use crate::textures::TextureKey;
+use crate::{Diagnostic, GameData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -54,21 +57,57 @@ pub struct PaintModView {
     pub enabled: bool,
     /// The playset loads the Reserved Spawns submod, whose traits a reserved seat needs.
     pub reserved_spawns: bool,
+    /// What reading the launcher's files ran into.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub diagnostics: Option<Vec<String>>,
 }
 
 impl PaintModView {
-    pub fn new(m: &PaintMod, reserved_spawns: bool) -> Self {
+    pub fn new(status: &PaintModStatus, diagnostics: &[Diagnostic]) -> Self {
+        let m = &status.paint;
         Self {
-            scenarios_dir: m.dir.as_ref().map(|dir| {
-                SCENARIO_DIR
-                    .iter()
-                    .fold(dir.clone(), |p, part| p.join(part))
-                    .display()
-                    .to_string()
-            }),
+            scenarios_dir: m
+                .dir
+                .as_deref()
+                .map(|dir| scenarios_dir(dir).display().to_string()),
             enabled: m.enabled,
-            reserved_spawns,
+            reserved_spawns: status.reserved_spawns,
+            diagnostics: Some(diagnostics.iter().map(ToString::to_string).collect()),
         }
+    }
+}
+
+/// The Steam Workshop pages the app links to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct WorkshopLinks {
+    pub paint_a_galaxy: String,
+    /// Reserved Spawns, whose "Reserved Spawn A"-"Z" traits a reserved seat's empire needs.
+    pub reserved_spawns: String,
+    /// Local Cluster, the usual workaround for Sol having no Sol-specific neighbours.
+    pub local_cluster: String,
+}
+
+impl Default for WorkshopLinks {
+    fn default() -> Self {
+        Self {
+            paint_a_galaxy: mods::workshop_url(PAINT_MOD_WORKSHOP_ID),
+            reserved_spawns: mods::workshop_url(RESERVED_SPAWNS_WORKSHOP_ID),
+            local_cluster: mods::workshop_url(LOCAL_CLUSTER_WORKSHOP_ID),
+        }
+    }
+}
+
+impl WorkshopLinks {
+    pub fn contains(&self, url: &str) -> bool {
+        [
+            &self.paint_a_galaxy,
+            &self.reserved_spawns,
+            &self.local_cluster,
+        ]
+        .into_iter()
+        .any(|link| link == url)
     }
 }
 

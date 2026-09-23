@@ -4,14 +4,16 @@ import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
+import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import {
+  noteDuplicateNames,
   noteGalaxySize,
   noteInitializerLimits,
   noteReservedSpawns,
-  useIssuesStore,
-} from "./issuesStore";
+} from "./issueNotes";
+import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
@@ -38,7 +40,23 @@ export function bindStores(): void {
   followScenarioInitializers();
   followPaintMod();
   followGalaxySize();
+  followNotes();
   followTool();
+}
+
+// The galaxy the document holds decides the notes raised on it: a seat's kind or a system count
+// can change with any edit, and a scenario's name is checked against its folder on open and save.
+function followNotes(): void {
+  useGalaxyStore.subscribe((state, previous) => {
+    if (state.version === previous.version) return;
+    noteReservedSpawns();
+    noteGalaxySize();
+    noteInitializerLimits();
+    if (state.galaxy !== previous.galaxy) void noteDuplicateNames();
+  });
+  useFileSessionStore.subscribe((state, previous) => {
+    if (state.lastSave !== previous.lastSave && state.lastSave !== null) void noteDuplicateNames();
+  });
 }
 
 // Game data loading, reloading or going away changes the largest galaxy size a scenario is held to.

@@ -246,10 +246,6 @@
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex: none;
   box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.35);
 }
 

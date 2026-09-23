@@ -7,6 +7,7 @@
 
 import type { FeKind } from "../generated/FeKind";
 import type { Pt } from "./geometry/pt";
+import { seeded } from "./random";
 
 /** How much fainter the spawn ghosts are drawn than the ring that carries them. */
 export const SPAWN_GHOST_ALPHA_FRACTION = 1 / 3;
@@ -94,17 +95,6 @@ export const SPAWN_TREES: Readonly<Record<FeKind, readonly Satellite[]>> = {
   ],
 };
 
-/** A tiny deterministic generator: the same seed always yields the same sequence. */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /** Spreads an id's bits before it seeds the generator, so consecutive ids do not draw alike. */
 function hashId(id: number): number {
   let x = Math.imul(id ^ (id >>> 16), 0x45d9f3b);
@@ -120,7 +110,7 @@ export interface SpawnSatellite extends Pt {
 
 /** The kind's satellites placed about the home, one roll of the mod's ranges, seeded by anchor id. */
 export function spawnSatellites(id: number, kind: FeKind): SpawnSatellite[] {
-  const rand = mulberry32(hashId(id));
+  const rand = seeded(hashId(id));
   const placed: SpawnSatellite[] = [];
   for (const {
     angle: [min, max],

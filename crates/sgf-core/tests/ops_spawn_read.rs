@@ -2,11 +2,11 @@
 //! the country flag a modifier holds the system for.
 
 mod common;
-use common::scenario::open;
+use common::fixture::GRAMMAR;
 
 #[test]
 fn a_modifier_is_read_as_its_numbers_its_trigger_text_and_its_country_flag() {
-    let session = open();
+    let session = GRAMMAR.open();
     let modifiers = |id: u32| session.graph.systems[&id].spawn_modifiers.clone();
 
     let [flagged] = &modifiers(2)[..] else {
@@ -35,7 +35,7 @@ fn a_modifier_is_read_as_its_numbers_its_trigger_text_and_its_country_flag() {
 
 #[test]
 fn a_spawn_design_is_read_and_a_save_states_none_of_this() {
-    let session = open();
+    let session = GRAMMAR.open();
     assert_eq!(
         session.graph.systems[&111].spawn_design.as_deref(),
         Some("my_design")

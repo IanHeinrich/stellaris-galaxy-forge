@@ -19,4 +19,5 @@ zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2
 [dev-dependencies]
 insta = "1.48.0"
 proptest = "1.11.0"
+serde_json = "1.0.151"
 similar = "3.2.0"

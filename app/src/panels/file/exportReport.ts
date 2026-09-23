@@ -2,6 +2,7 @@ import type { Category } from "../../generated/Category";
 import type { DroppedBypasses } from "../../generated/DroppedBypasses";
 import type { ExportReport } from "../../generated/ExportReport";
 import { feKindLabel } from "../../lib/feZone";
+import { counted } from "../../lib/text";
 
 export const CATEGORY_LABELS: Record<Category, string> = {
   home: "Home",
@@ -20,14 +21,10 @@ const DROPPED_NOUNS: [keyof DroppedBypasses, string][] = [
   ["lgates", "L-Gate"],
 ];
 
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
 /** `6 wormhole pairs, 1 L-Gate`, worded as the Rust side words it; null when nothing was dropped. */
 export function droppedSummary(dropped: DroppedBypasses): string | null {
-  const parts = DROPPED_NOUNS.filter(([kind]) => dropped[kind] > 0).map(
-    ([kind, noun]) => `${dropped[kind]} ${noun}${dropped[kind] === 1 ? "" : "s"}`,
+  const parts = DROPPED_NOUNS.filter(([kind]) => dropped[kind] > 0).map(([kind, noun]) =>
+    counted(dropped[kind], noun),
   );
   return parts.length === 0 ? null : parts.join(", ");
 }
@@ -40,7 +37,7 @@ export type NameOf = (system: number) => string;
  * and it will.` Any other empire's capital is a weighted preferred seat, the likeliest start.
  */
 export function seatsSummary(report: ExportReport, nameOf: NameOf): string {
-  const seats = `${plural(report.seats, "seat")}.`;
+  const seats = `${counted(report.seats, "seat")}.`;
   if (report.player_seat === null) return seats;
   const capital = `Your capital, ${nameOf(report.player_seat)},`;
   if (report.player_seat_kind === "sol") {
@@ -61,14 +58,14 @@ export function fallenEmpiresSummary(report: ExportReport): string | null {
   const added = empires.filter((fe) => fe.anchor !== null && fe.exact).length;
   const nearby = empires.filter((fe) => fe.anchor !== null && !fe.exact).length;
   const parts = [
-    `${plural(empires.length, "fallen empire zone")} at the old ${empires.length === 1 ? "capital" : "capitals"}: ${kinds}.`,
-    `${plural(leftOut, "system")} left out for the mod to rebuild.`,
+    `${counted(empires.length, "fallen empire zone")} at the old ${empires.length === 1 ? "capital" : "capitals"}: ${kinds}.`,
+    `${counted(leftOut, "system")} left out for the mod to rebuild.`,
   ];
-  if (added > 0) parts.push(`${plural(added, "anchor system")} added.`);
+  if (added > 0) parts.push(`${counted(added, "anchor system")} added.`);
   if (nearby > 0) parts.push(`${nearby} placed nearby: the old spot was not clear.`);
   for (const fe of empires) {
     if (fe.anchor === null) parts.push(`${fe.name} has no clear spot within reach.`);
-    if (fe.links > 0) parts.push(`${fe.name} linked to ${plural(fe.links, "system")}.`);
+    if (fe.links > 0) parts.push(`${fe.name} linked to ${counted(fe.links, "system")}.`);
   }
   return parts.join(" ");
 }
@@ -77,7 +74,7 @@ export function fallenEmpiresSummary(report: ExportReport): string | null {
 export function omittedLines(report: ExportReport): string[] {
   return report.omitted.map(
     (count) =>
-      `${plural(count.systems, `${CATEGORY_LABELS[count.category]} system`)} left out: the game adds its own.`,
+      `${counted(count.systems, `${CATEGORY_LABELS[count.category]} system`)} left out: the game adds its own.`,
   );
 }
 

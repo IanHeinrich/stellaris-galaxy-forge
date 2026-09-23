@@ -109,7 +109,12 @@ fn restore_before(doc: &mut Document, applied: &Applied) {
 
 fn replay_after(doc: &mut Document, applied: &Applied) -> Result<(), OpError> {
     for (anchor, bytes) in &applied.after {
-        doc.replace(*anchor, bytes.clone())?;
+        match bytes {
+            Some(bytes) => {
+                doc.replace(*anchor, bytes.clone())?;
+            }
+            None => doc.restore(*anchor, None),
+        }
     }
     Ok(())
 }

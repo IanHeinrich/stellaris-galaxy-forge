@@ -13,4 +13,8 @@ scenarios_dir: string | null, enabled: boolean,
 /**
  * The playset loads the Reserved Spawns submod, whose traits a reserved seat needs.
  */
-reserved_spawns: boolean, };
+reserved_spawns: boolean, 
+/**
+ * What reading the launcher's files ran into.
+ */
+diagnostics?: Array<string>, };

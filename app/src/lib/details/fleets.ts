@@ -4,6 +4,7 @@ import type { FleetSummary } from "../../generated/FleetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { type CountryTypes, isFauna } from "../countryKinds";
 import { flagKey } from "../flagKey";
+import { counted } from "../text";
 
 export interface FleetGroup {
   owner: number | null;
@@ -36,7 +37,7 @@ export function formatPower(n: number): string {
 }
 
 export function fleetLabel(count: number): string {
-  return `${count} fleet${count === 1 ? "" : "s"}`;
+  return counted(count, "fleet");
 }
 
 export function militaryFleets(d: SystemDetails): FleetSummary[] {

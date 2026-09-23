@@ -56,4 +56,16 @@ omitted: Array<OmittedCount>,
 /**
  * Whether the header's counts come from the save's own setup screen.
  */
-setup_from_save: boolean, };
+setup_from_save: boolean, 
+/**
+ * The `system` statements the file holds.
+ */
+systems?: number, 
+/**
+ * The `add_hyperlane` statements the file holds.
+ */
+hyperlanes?: number, 
+/**
+ * The `nebula` statements the file holds.
+ */
+nebulae?: number, };

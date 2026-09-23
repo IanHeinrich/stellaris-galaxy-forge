@@ -37,15 +37,15 @@ export const FE_DIRECTIONS: ReadonlyArray<{ key: FeDirection; label: string }> =
   { key: "ne", label: "North-east" },
 ];
 
-/** The fallen empires the mod can seat, with the tag the map draws at the ring's centre. */
-export const FE_KINDS: ReadonlyArray<{ key: FeKind; label: string; tag: string }> = [
-  { key: "random", label: "Random", tag: "" },
-  { key: "materialist", label: "Materialist", tag: "Mat" },
-  { key: "spiritualist", label: "Spiritualist", tag: "Spir" },
-  { key: "xenophobe", label: "Xenophobe", tag: "Xphobe" },
-  { key: "xenophile", label: "Xenophile", tag: "Xphile" },
-  { key: "machine", label: "Machine", tag: "Mach" },
-  { key: "hive", label: "Hive", tag: "Hive" },
+/** The fallen empires the mod can seat. */
+export const FE_KINDS: ReadonlyArray<{ key: FeKind; label: string }> = [
+  { key: "random", label: "Random" },
+  { key: "materialist", label: "Materialist" },
+  { key: "spiritualist", label: "Spiritualist" },
+  { key: "xenophobe", label: "Xenophobe" },
+  { key: "xenophile", label: "Xenophile" },
+  { key: "machine", label: "Machine" },
+  { key: "hive", label: "Hive" },
 ];
 
 const HALF_DIAGONAL = 1 / Math.SQRT2;
@@ -68,11 +68,6 @@ export function feDirectionLabel(direction: FeDirection): string {
 
 export function feKindLabel(kind: FeKind): string {
   return FE_KINDS.find((k) => k.key === kind)?.label ?? kind;
-}
-
-/** The short tag the map draws for a kind; empty for a random one. */
-export function feKindTag(kind: FeKind): string {
-  return FE_KINDS.find((k) => k.key === kind)?.tag ?? "";
 }
 
 /** The zone a new anchor gets: the mod's defaults, placed by hand. */

@@ -2,10 +2,10 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Painted 500 systems
+Painted 500 systems and 975 lanes
 systems: 791 -> 1291
-lane pairs added: 975
 issues: 2
+
 --- scenario
 +++ scenario
 @@ -1930,4 +1930,1479 @@

@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 use sgf_core::cst::Node;
 
 use crate::scripts::claims;
-use crate::scripts::scope::Scopes;
+use crate::scripts::scope::{Scopes, is_guard};
 use crate::scripts::trigger::Trigger;
 use crate::scripts::view::BypassKind;
 
@@ -115,7 +115,8 @@ fn collect(node: &Node, src: &[u8], scopes: &Scopes<InitSite>, spawns: &mut Vec<
             continue;
         };
         match key {
-            "planet" | "moon" | "limit" | "trigger" => continue,
+            "planet" | "moon" => continue,
+            _ if is_guard(key) => continue,
             "spawn_natural_wormhole" => {
                 last = Some(spawns.len());
                 spawns.push(Spawn {

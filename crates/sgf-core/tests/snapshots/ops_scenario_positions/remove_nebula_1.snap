@@ -5,7 +5,6 @@ expression: "report(&session, &result)"
 Removed nebula "Far Cloud" (1 system released)
 touched: [9]
 inverse: AddNebula { x: -90.0, y: 90.0, radius: 20.0, name: Some("Far Cloud") }
-warning system_isolated: system 9 has no hyperlanes
 … and 1 other issues
 
 --- scenario
