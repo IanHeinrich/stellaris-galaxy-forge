@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarClassView } from "../../generated/StarClassView";
 import { planet } from "./fixture";
-import { setStarClassOp, starBodies, starClassChoices, starClassRows } from "./starClass";
+import {
+  bulkStarClassChoices,
+  planStarClass,
+  setStarClassOp,
+  skippedNote,
+  starBodies,
+  starClassChoices,
+  starClassNameKeys,
+  starClassRows,
+  type StarClassTarget,
+} from "./starClass";
 
 function view(key: string, ...planet_keys: string[]): StarClassView {
   return { key, texture_key: `star_class:${key}`, icon_scale: 1, planet_keys };
@@ -55,27 +65,58 @@ describe("starClassChoices", () => {
 });
 
 describe("starClassRows", () => {
-  it("lists the stars before the exotic classes, each by name", () => {
-    const names = new Map([
-      ["sc_m", "Class M"],
-      ["sc_black_hole", "Black Hole"],
-      ["sc_neutron_star", "Neutron Star"],
-      ["sc_binary_2", "X-ray Binary"],
-      ["sc_g", "Class G"],
-    ]);
-    const rows = starClassRows(
-      ["sc_neutron_star", "sc_m", "sc_black_hole", "sc_binary_2", "sc_g"].map(
-        (key) => CLASSES.get(key) as StarClassView,
-      ),
+  const names = new Map([
+    ["sc_m", "Class M"],
+    ["sc_black_hole", "Black Hole"],
+    ["sc_neutron_star", "Neutron Star"],
+    ["sc_binary_2", "Binary Stars"],
+    ["sc_binary_6", "Binary Stars"],
+    ["sc_trinary_1", "Trinary Stars"],
+    ["sc_g", "Class G"],
+    ["pc_b_star", "Class B Star"],
+    ["pc_g_star", "Class G Star"],
+    ["pc_m_star", "Class M Star"],
+    ["pc_k_star", "Class K Star"],
+    ["pc_neutron_star", "Neutron Star"],
+  ]);
+  const rows = (...keys: string[]) =>
+    starClassRows(
+      keys.map((key) => CLASSES.get(key) as StarClassView),
       (key) => names.get(key) ?? key,
     );
-    expect(rows.map((r) => [r.group, r.label])).toEqual([
-      ["Stars", "Class G"],
-      ["Stars", "Class M"],
-      ["Stars", "X-ray Binary"],
-      ["Exotic", "Black Hole"],
-      ["Exotic", "Neutron Star"],
+
+  it("lists single stars before exotic ones, then binaries and trinaries, each by name", () => {
+    const listed = rows(
+      "sc_trinary_1",
+      "sc_neutron_star",
+      "sc_binary_6",
+      "sc_m",
+      "sc_black_hole",
+      "sc_binary_2",
+      "sc_g",
+    );
+    expect(listed.map((r) => [r.group, r.label, r.note])).toEqual([
+      ["Stars", "Class G", undefined],
+      ["Stars", "Class M", undefined],
+      ["Exotic", "Black Hole", undefined],
+      ["Exotic", "Neutron Star", undefined],
+      ["Binaries", "Binary Stars", "Class B Star + Neutron Star"],
+      ["Binaries", "Binary Stars", "Class M Star + Class G Star"],
+      ["Trinaries", "Trinary Stars", "Class G Star + Class M Star + Class K Star"],
     ]);
+  });
+
+  it("falls back to the key for a class with no localisation", () => {
+    expect(rows("sc_binary_5").map((r) => [r.label, r.note])).toEqual([
+      ["sc_binary_5", "Class B Star + Class B Star"],
+    ]);
+  });
+});
+
+describe("starClassNameKeys", () => {
+  it("asks for each class and each of its bodies once", () => {
+    const choices = ["sc_g", "sc_binary_6"].map((key) => CLASSES.get(key) as StarClassView);
+    expect(starClassNameKeys(choices)).toEqual(["sc_g", "pc_g_star", "sc_binary_6", "pc_m_star"]);
   });
 });
 
@@ -165,5 +206,82 @@ describe("setStarClassOp", () => {
         { planet: 51, class: "pc_m_star" },
       ],
     });
+  });
+});
+
+describe("a bulk star class edit", () => {
+  const target = (key: string) => CLASSES.get(key) as StarClassView;
+  const single = (id: number, star_class: string, body: string): StarClassTarget => ({
+    system: { id, star_class },
+    bodies: [planet({ id: id * 10, class: body })],
+  });
+  const TARGETS: StarClassTarget[] = [
+    single(1, "sc_g", "pc_g_star"),
+    single(2, "sc_m", "pc_m_star"),
+    single(3, "sc_black_hole", "pc_black_hole"),
+    {
+      system: { id: 4, star_class: "sc_binary_2" },
+      bodies: [
+        planet({ id: 40, class: "pc_b_star" }),
+        planet({ id: 41, class: "pc_neutron_star" }),
+      ],
+    },
+    { system: { id: 5, star_class: "sc_g" }, bodies: null },
+    { system: { id: 6, star_class: "sc_nothing" }, bodies: [] },
+  ];
+
+  it("offers the classes for every star count the selection has", () => {
+    expect(bulkStarClassChoices(TARGETS, CLASSES).map((c) => c.key)).toEqual([
+      "sc_g",
+      "sc_m",
+      "sc_black_hole",
+      "sc_neutron_star",
+      "sc_binary_2",
+      "sc_binary_6",
+      "sc_binary_5",
+    ]);
+    expect(bulkStarClassChoices([TARGETS[4], TARGETS[5]], CLASSES)).toEqual([]);
+  });
+
+  it("changes every system with as many stars as one batch, skipping the rest and saying why", () => {
+    const plan = planStarClass(TARGETS, target("sc_black_hole"), "Black Hole", CLASSES);
+    expect(plan.op).toEqual({
+      type: "Batch",
+      description: "Set the star class of 2 systems to Black Hole",
+      ops: [
+        {
+          type: "SetStarClass",
+          id: 1,
+          class: "sc_black_hole",
+          bodies: [{ planet: 10, class: "pc_black_hole" }],
+        },
+        {
+          type: "SetStarClass",
+          id: 2,
+          class: "sc_black_hole",
+          bodies: [{ planet: 20, class: "pc_black_hole" }],
+        },
+      ],
+    });
+    expect(plan.changed).toBe(2);
+    expect(plan.skipped).toEqual({ same: 1, stars: 2, unread: 1 });
+    expect(skippedNote(plan.skipped, "Black Hole")).toBe(
+      "4 systems skipped: a different number of stars (2), already Black Hole (1), no details read (1)",
+    );
+  });
+
+  it("sends nothing when no system would change", () => {
+    const plan = planStarClass([TARGETS[2]], target("sc_black_hole"), "Black Hole", CLASSES);
+    expect(plan.op).toBeNull();
+    expect(skippedNote(plan.skipped, "Black Hole")).toBe("1 system skipped: already Black Hole");
+  });
+
+  it("notes a single reason on its own, and nothing when none was skipped", () => {
+    const plan = planStarClass(TARGETS.slice(0, 4), target("sc_binary_6"), "Binary Stars", CLASSES);
+    expect(plan.changed).toBe(1);
+    expect(skippedNote(plan.skipped, "Binary Stars")).toBe(
+      "3 systems skipped: a different number of stars",
+    );
+    expect(skippedNote({ same: 0, stars: 0, unread: 0 }, "Binary Stars")).toBeNull();
   });
 });

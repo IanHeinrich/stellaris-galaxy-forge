@@ -279,12 +279,13 @@ kbd {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 0 3px 0 0;
+  padding: 0 4px 0 2px;
   font: inherit;
   color: inherit;
   background: none;
   border-color: transparent;
   border-radius: 3px;
+  cursor: pointer;
 }
 
 .icon-picker-trigger:hover:not(:disabled),
@@ -294,14 +295,20 @@ kbd {
   border-color: var(--border);
 }
 
+/* The icon may be taller than the line; it overflows its box so the line keeps its height. */
 .icon-picker-trigger .icon-picker-icon {
-  width: 16px;
+  width: 18px;
   height: 12px;
 }
 
 .icon-picker-caret {
-  font-size: 9px;
-  color: var(--fg-muted);
+  font-size: 10px;
+  color: var(--fg-soft);
+}
+
+.icon-picker-trigger:hover:not(:disabled) .icon-picker-caret,
+.icon-picker-trigger[aria-expanded="true"] .icon-picker-caret {
+  color: var(--accent);
 }
 
 .icon-picker-pop {
@@ -339,7 +346,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 26px;
+  min-height: 34px;
   padding: 0 6px;
   border-radius: 3px;
   cursor: pointer;
@@ -358,8 +365,14 @@ kbd {
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
+}
+
+/* Game star art sits on opaque black, which the map draws additively; so do these. */
+.star-class-icon {
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter;
 }
 
 .icon-picker-note {

@@ -14,7 +14,7 @@ export interface IconPickerItem {
 function Row({ item }: { item: IconPickerItem }) {
   return (
     <>
-      <span className="icon-picker-icon">{item.icon}</span>
+      {item.icon !== undefined && <span className="icon-picker-icon">{item.icon}</span>}
       <span className="icon-picker-label">{item.label}</span>
       {item.note !== undefined && <span className="icon-picker-note muted">{item.note}</span>}
     </>

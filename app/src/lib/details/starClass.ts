@@ -3,16 +3,17 @@ import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
+import { counted } from "../text";
 import { isStarClass } from "./labels";
 
 type Body = Pick<PlanetSummary, "id" | "class">;
 
-export type StarClassGroup = "Stars" | "Exotic";
-
 export interface StarClassRow {
   view: StarClassView;
   label: string;
-  group: StarClassGroup;
+  group: string;
+  /** The names of a multiple star's bodies, which its class name alone does not tell apart. */
+  note?: string;
 }
 
 /** The star bodies of the collapsed remnants: none of them is a star as the picker groups them. */
@@ -39,21 +40,46 @@ export function starClassChoices(
   );
 }
 
-/** `Exotic` for a class none of whose bodies is an ordinary `*_star`, else `Stars`. */
-export function starClassGroup(view: StarClassView): StarClassGroup {
+/**
+ * A single star is `Exotic` when its body is no ordinary `*_star`, else `Stars`; a multiple
+ * star is grouped by how many bodies it has.
+ */
+function starClassGroup(view: StarClassView): string {
+  const count = view.planet_keys.length;
+  if (count === 2) return "Binaries";
+  if (count === 3) return "Trinaries";
+  if (count !== 1) return `${count} stars`;
   const ordinary = view.planet_keys.some((k) => k.endsWith("_star") && !EXOTIC_BODIES.has(k));
   return ordinary ? "Stars" : "Exotic";
 }
 
-/** The picker's rows: the stars, then the exotic classes, each sorted by name. */
+/** Every localisation key the picker's rows read: each class and each of its bodies. */
+export function starClassNameKeys(choices: readonly StarClassView[]): string[] {
+  return [...new Set(choices.flatMap((view) => [view.key, ...view.planet_keys]))];
+}
+
+/**
+ * The picker's rows by star count: single stars before the exotic ones, then binaries, then
+ * trinaries, each sorted by name. A multiple star notes its bodies' names.
+ */
 export function starClassRows(
   choices: readonly StarClassView[],
   label: (key: string) => string,
 ): StarClassRow[] {
-  const rank = (group: StarClassGroup) => (group === "Stars" ? 0 : 1);
+  const rank = (row: StarClassRow) =>
+    row.view.planet_keys.length * 2 + (row.group === "Exotic" ? 1 : 0);
   return choices
-    .map((view) => ({ view, label: label(view.key), group: starClassGroup(view) }))
-    .sort((a, b) => rank(a.group) - rank(b.group) || a.label.localeCompare(b.label));
+    .map((view): StarClassRow => {
+      const row: StarClassRow = { view, label: label(view.key), group: starClassGroup(view) };
+      if (view.planet_keys.length > 1) row.note = view.planet_keys.map(label).join(" + ");
+      return row;
+    })
+    .sort(
+      (a, b) =>
+        rank(a) - rank(b) ||
+        a.label.localeCompare(b.label) ||
+        (a.note ?? "").localeCompare(b.note ?? ""),
+    );
 }
 
 /**
@@ -88,4 +114,74 @@ export function setStarClassOp(
     class: target.key,
     bodies: bodies.map((body, i) => ({ planet: body.id, class: target.planet_keys[at[i]] })),
   };
+}
+
+/** A selected save system for a bulk star class edit, with its star bodies, or `null` unread. */
+export interface StarClassTarget {
+  system: { id: number; star_class: string };
+  bodies: readonly Body[] | null;
+}
+
+/** Why a system a bulk star class edit was asked for is left as it is. */
+export interface StarClassSkips {
+  /** Already the class picked. */
+  same: number;
+  /** A different number of star bodies from the class picked. */
+  stars: number;
+  /** No details were read for it. */
+  unread: number;
+}
+
+export interface StarClassPlan {
+  /** One undo step for every system that changes, `null` when none does. */
+  op: Op | null;
+  changed: number;
+  skipped: StarClassSkips;
+}
+
+/** The classes any of `targets` can become: those with as many bodies as one of them has stars. */
+export function bulkStarClassChoices(
+  targets: readonly StarClassTarget[],
+  starClasses: ReadonlyMap<string, StarClassView>,
+): StarClassView[] {
+  const counts = new Set(targets.flatMap((t) => (t.bodies?.length ? [t.bodies.length] : [])));
+  return [...starClasses.values()].filter((c) => counts.has(c.planet_keys.length));
+}
+
+/** The edit that turns every target with as many stars as `target` has into it. */
+export function planStarClass(
+  targets: readonly StarClassTarget[],
+  target: StarClassView,
+  label: string,
+  starClasses: ReadonlyMap<string, StarClassView>,
+): StarClassPlan {
+  const skipped: StarClassSkips = { same: 0, stars: 0, unread: 0 };
+  const ops: Op[] = [];
+  for (const { system, bodies } of targets) {
+    if (bodies === null) skipped.unread++;
+    else if (system.star_class === target.key) skipped.same++;
+    else if (bodies.length !== target.planet_keys.length) skipped.stars++;
+    else ops.push(setStarClassOp(system, target, bodies, starClasses));
+  }
+  const description = `Set the star class of ${counted(ops.length, "system")} to ${label}`;
+  return {
+    op: ops.length > 0 ? { type: "Batch", description, ops } : null,
+    changed: ops.length,
+    skipped,
+  };
+}
+
+/** What a bulk star class edit left alone and why, or `null` when it left nothing. */
+export function skippedNote(skipped: StarClassSkips, label: string): string | null {
+  const reasons: [number, string][] = [
+    [skipped.stars, "a different number of stars"],
+    [skipped.same, `already ${label}`],
+    [skipped.unread, "no details read"],
+  ];
+  const given = reasons.filter(([n]) => n > 0);
+  const total = given.reduce((sum, [n]) => sum + n, 0);
+  if (total === 0) return null;
+  const why =
+    given.length === 1 ? given[0][1] : given.map(([n, reason]) => `${reason} (${n})`).join(", ");
+  return `${counted(total, "system")} skipped: ${why}`;
 }

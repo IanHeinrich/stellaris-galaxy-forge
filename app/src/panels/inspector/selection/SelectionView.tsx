@@ -7,7 +7,7 @@ import { linkedSystems, selectionLanes, useGalaxyStore } from "../../../store/ga
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { counted } from "../../../lib/text";
 import { browseInitializers, NEEDS_GAME_DATA } from "../../initializers/entry";
-import { BulkActions } from "./BulkActions";
+import { BulkActions, BulkStarClass } from "./BulkActions";
 import { Chip, FILTER_MIN, FilterField, Section, Swatch } from "../parts";
 
 /** How many chips a long selection shows before asking for a filter. */
@@ -19,7 +19,9 @@ export function SelectionView() {
   const select = useEditorStore((s) => s.select);
   const systems = useGalaxyStore((s) => s.systems);
   const gameData = useGameDataStore((s) => s.status === "ready");
-  const canAssign = supports(useFileSessionStore(documentCapabilities), "create_systems");
+  const capabilities = useFileSessionStore(documentCapabilities);
+  const canAssign = supports(capabilities, "create_systems");
+  const save = useFileSessionStore((s) => s.kind === "save") && supports(capabilities, "details");
 
   const owners = new Set(
     selection.map((id) => systems.get(id)?.owner ?? null).filter((o) => o !== null),
@@ -43,6 +45,7 @@ export function SelectionView() {
       <Section id="selection.actions" title="Actions">
         <div className="ins-bulk">
           <BulkActions />
+          {save && <BulkStarClass ids={selection} />}
           {canAssign && (
             <button
               type="button"
