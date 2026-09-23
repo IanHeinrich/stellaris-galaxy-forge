@@ -104,6 +104,40 @@ describe("the Galaxy crumb", () => {
   });
 });
 
+describe("back", () => {
+  const empire: Entry = { ref: { kind: "country", id: 7 }, label: "Hissma Consciousness" };
+
+  it("returns a page opened from another tab of the dock to that tab", () => {
+    useLayoutStore.setState({ tab: "empires", previousTab: "empires" });
+    inspector().openPage(empire);
+    expect(useLayoutStore.getState().tab).toBe("inspector");
+
+    inspector().back();
+
+    expect(useLayoutStore.getState().tab).toBe("empires");
+    expect(labels()).toEqual(["Galaxy"]);
+  });
+
+  it("stays in the inspector for a page opened from inside it", () => {
+    inspector().setRoot(SOL);
+    inspector().open(EARTH);
+
+    inspector().back();
+
+    expect(useLayoutStore.getState().tab).toBe("inspector");
+    expect(labels()).toEqual(["Sol"]);
+  });
+
+  it("names where it goes", () => {
+    useLayoutStore.setState({ tab: "empires", previousTab: "empires" });
+    inspector().openPage(empire);
+    expect(inspector().backTo()).toBe("empires");
+    inspector().setRoot(SOL);
+    inspector().open(EARTH);
+    expect(inspector().backTo()).toBe("inspector");
+  });
+});
+
 describe("drilling across kinds", () => {
   it("walks a system to a planet to its colony without nesting, and Alt+Left comes back", () => {
     inspector().setRoot(SOL);

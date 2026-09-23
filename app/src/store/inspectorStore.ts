@@ -3,7 +3,7 @@ import type { EntityAddr } from "../generated/EntityAddr";
 import type { EntityKind } from "../generated/EntityKind";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
-import { useLayoutStore } from "./layoutStore";
+import { useLayoutStore, type DockTab } from "./layoutStore";
 import { PREF_KEYS } from "./prefKeys";
 import { readPref, writePref } from "./prefs";
 
@@ -51,6 +51,8 @@ export interface Entry {
   ref: EntityRef;
   /** The breadcrumb text; the entity's name where it has one. */
   label: string;
+  /** The dock tab the page was opened from, which Back returns to. */
+  from?: DockTab;
 }
 
 export const GALAXY_ENTRY: Entry = { ref: { kind: "galaxy" }, label: "Galaxy" };
@@ -155,7 +157,10 @@ export interface InspectorState {
    * rooted on a selection says false, and clearing the selection restarts it instead.
    */
   home(): boolean;
+  /** Pops one crumb, turning the dock back to the tab the page came from, if another. */
   back(): void;
+  /** The dock tab Back leaves the reader on. */
+  backTo(): DockTab;
   /**
    * What Esc does first: pops one crumb, and says so. With nothing to pop, or with the dock
    * showing anything but the inspector, it says false and Esc clears the selection instead.
@@ -215,7 +220,9 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
 
   openPage(entry) {
     const root = get().stack[0];
-    const stack = refKey(root.ref) === refKey(entry.ref) ? [root] : [root, entry];
+    const from = useLayoutStore.getState().tab;
+    const page = from === "inspector" ? entry : { ...entry, from };
+    const stack = refKey(root.ref) === refKey(entry.ref) ? [root] : [root, page];
     set({ stack, tab: tabsFor(entry.ref)[0] });
     useLayoutStore.getState().showInspector();
   },
@@ -227,7 +234,14 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
   },
 
   back() {
+    const to = get().backTo();
     get().popTo(get().stack.length - 2);
+    if (to !== "inspector") useLayoutStore.getState().setTab(to);
+  },
+
+  backTo() {
+    const { stack } = get();
+    return stack[stack.length - 1].from ?? "inspector";
   },
 
   escape() {
