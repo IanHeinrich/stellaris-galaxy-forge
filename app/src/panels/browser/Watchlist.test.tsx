@@ -29,6 +29,7 @@ describe("the Watchlist tab", () => {
 
     expect(html).toContain('placeholder="Pin a search…"');
     expect(html).toContain(WATCHLIST_EMPTY.replace(/"/g, "&quot;"));
+    expect(html).not.toContain("Clear all");
   });
 
   it("lists each entry with its colour, its count and the systems it finds", () => {
@@ -46,6 +47,8 @@ describe("the Watchlist tab", () => {
     const html = render();
 
     expect(html).not.toContain("Nothing pinned yet");
+    expect(html).toContain("2 searches pinned");
+    expect(html).toContain(">Clear all</button>");
     expect(html).toContain(">salvager</button>");
     expect(html).toContain(">gaia</button>");
     expect(html).toContain(`background:${toCss(WATCH_COLOURS[0])}`);

@@ -117,9 +117,20 @@ export function Watchlist() {
     (results.get(entry.query) ?? [])
       .map((id) => ({ id, name: systemNameOf(systems, names, id) }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  const clear = useWatchlistStore((s) => s.clear);
   return (
-    <div className="browser">
+    <div className="browser watchlist">
       <PinField />
+      {entries.length > 0 && (
+        <div className="watch-bar muted">
+          <span>
+            {entries.length} {entries.length === 1 ? "search" : "searches"} pinned
+          </span>
+          <button type="button" className="link" onClick={() => clear()}>
+            Clear all
+          </button>
+        </div>
+      )}
       {entries.length === 0 ? (
         <div className="muted">{WATCHLIST_EMPTY}</div>
       ) : (

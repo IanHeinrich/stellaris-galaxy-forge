@@ -391,3 +391,14 @@
 .watch-add {
   margin-bottom: 6px;
 }
+
+.watch-bar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+/* A pinned search's remove button stays in sight, so the list can always be pruned. */
+.watchlist .browser-head .browser-actions {
+  opacity: 1;
+}

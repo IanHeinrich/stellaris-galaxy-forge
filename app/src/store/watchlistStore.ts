@@ -15,6 +15,8 @@ export interface WatchlistState {
   /** Adds a search to the list; false for an empty one or one already on it. */
   pin(query: string): boolean;
   remove(query: string): void;
+  /** Empties the list. */
+  clear(): void;
   toggleShown(query: string): void;
   /** Runs every entry against the open document. */
   refresh(): Promise<void>;
@@ -72,6 +74,12 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => {
       keep(get().entries.filter((entry) => entry.query !== query));
       const results = new Map(get().results);
       if (results.delete(query)) set({ results });
+    },
+
+    clear() {
+      latest++;
+      keep([]);
+      set({ results: NO_RESULTS });
     },
 
     toggleShown(query) {

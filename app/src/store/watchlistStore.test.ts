@@ -58,6 +58,15 @@ describe("pinning", () => {
     ]);
   });
 
+  it("clears every entry, in the preferences too", () => {
+    const store = useWatchlistStore.getState();
+    store.pin("salvager");
+    store.pin("gaia");
+    useWatchlistStore.getState().clear();
+    expect(useWatchlistStore.getState().entries).toEqual([]);
+    expect(storedWatchlist()).toEqual([]);
+  });
+
   it("toggles whether an entry's rings are shown", () => {
     watch().pin("salvager");
 
