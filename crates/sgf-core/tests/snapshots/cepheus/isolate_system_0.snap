@@ -1,0 +1,66 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Isolated Lavis system (#0): removed 3 lanes (6 entries)
+inverse: AddLanes { from: 0, to: [(398, false), (386, false), (248, false)] }
+
+--- gamestate
++++ gamestate
+@@ -36542,21 +36542,6 @@
+ 		planet=99
+ 		planet=100
+ 		star_class="sc_trinary_1"
+-		hyperlane={
+-			{
+-				to=398
+-				length=37
+-			}
+- {
+-				to=386
+-				length=19
+-			}
+- {
+-				to=248
+-				length=14
+-			}
+- 
+-		}
+ 		flags={
+ 			empire_home_system=62808000
+ 			empire_cluster=62808000
+@@ -53056,11 +53041,6 @@
+ 				to=219
+ 				length=27
+ 			}
+- {
+-				to=0
+-				length=14
+-			}
+- 
+ 		}
+ 		flags={
+ 			empire_cluster=62808000
+@@ -61992,11 +61972,6 @@
+ 				to=177
+ 				length=23
+ 			}
+- {
+-				to=0
+-				length=19
+-			}
+- 
+ 		}
+ 		asteroid_belts={
+ 			{
+@@ -62738,10 +62713,6 @@
+ 		planet=4250
+ 		star_class="sc_g"
+ 		hyperlane={
+-			{
+-				to=0
+-				length=37
+-			}
+  {
+ 				to=185
+ 				length=28
