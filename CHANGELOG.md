@@ -12,6 +12,8 @@ a release is made.
 
 - The Galaxy panel can reveal which L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance, or an empty cluster. It stays behind a Reveal link until you click it.
 
+## [0.10.1] - 2026-09-23
+
 ### Changed
 
 - Alt on the Erase brush with "Lanes only" connects lanes instead of painting systems.
