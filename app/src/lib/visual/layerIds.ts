@@ -140,7 +140,7 @@ export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   highlights: true,
 };
 
-/** What a save opens with: the galaxy map the game itself draws, and nothing over it. */
+/** What a save opens with: the galaxy map the game itself draws, with star classes and colonies. */
 const SAVE_LAYERS: Record<LayerId, boolean> = {
   nebulae: true,
   lanes: true,
@@ -148,7 +148,7 @@ const SAVE_LAYERS: Record<LayerId, boolean> = {
   bypasses: false,
   waylines: false,
   systems: true,
-  classes: false,
+  classes: true,
   special: false,
   initializers: false,
   spawns: false,
@@ -159,7 +159,7 @@ const SAVE_LAYERS: Record<LayerId, boolean> = {
   issues: false,
   labels: true,
   details: true,
-  colonies: false,
+  colonies: true,
   claims: false,
   day_one_bypasses: false,
   watchlist: true,

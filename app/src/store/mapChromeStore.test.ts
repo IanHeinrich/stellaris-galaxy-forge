@@ -89,15 +89,17 @@ describe("layers", () => {
     ]);
   });
 
-  it("a save opens on the galaxy map the game itself draws, and nothing over it", async () => {
+  it("a save opens on the galaxy map the game itself draws, with star classes and colonies", async () => {
     await session().openSave(OPEN_RESULT.path);
     expect(onLayers()).toEqual([
       "nebulae",
       "lanes",
       "owners",
       "systems",
+      "classes",
       "labels",
       "details",
+      "colonies",
       "watchlist",
       "highlights",
     ]);
@@ -115,7 +117,7 @@ describe("layers", () => {
     await session().openSave(OPEN_RESULT.path);
     expect(chrome().layers.waylines).toBe(true);
     expect(chrome().layers.labels).toBe(false);
-    expect(chrome().layers.classes).toBe(false);
+    expect(chrome().layers.bypasses).toBe(false);
   });
 
   it("reset over a save puts the save's own layers back", async () => {
@@ -125,9 +127,18 @@ describe("layers", () => {
 
     chrome().resetLayers();
     expect(chrome().layers.bypasses).toBe(false);
-    expect(chrome().layers.classes).toBe(false);
+    expect(chrome().layers.classes).toBe(true);
     expect(chrome().layers.labels).toBe(true);
     expect(chrome().layers.nebulae).toBe(true);
+  });
+
+  it("a reset over a save leaves a scenario opening on its own layers", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    chrome().resetLayers();
+
+    vi.mocked(ipc.openSave).mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().openSave(SCENARIO_RESULT.path);
+    expect(chrome().layers).toEqual(DEFAULT_LAYERS);
   });
 
   it("toggles a layer and one point-of-interest kind, and resets both", () => {
