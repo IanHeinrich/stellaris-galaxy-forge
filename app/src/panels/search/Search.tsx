@@ -296,9 +296,9 @@ function SearchPanel() {
             ))}
           </ul>
           <div className="palette-foot">
-            <span>↑↓ move</span>
-            <span>↵ go</span>
-            <span>⇧↵ add to selection</span>
+            <span>Up/Down move</span>
+            <span>Enter go</span>
+            <span>Shift+Enter add to selection</span>
             <span>Tab {prefixLabel(parsed).toLowerCase()}</span>
             <span>Esc close</span>
           </div>
