@@ -8,6 +8,14 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- In a save, a system's star class can be changed from the system
+  inspector. The picker shows the game's star icons and lists only
+  classes with the same number of stars.
+- Several selected systems can be given one star class at once. Systems
+  with a different number of stars are left as they are.
+
 ## [0.11.1] - 2026-09-23
 
 ### Changed
