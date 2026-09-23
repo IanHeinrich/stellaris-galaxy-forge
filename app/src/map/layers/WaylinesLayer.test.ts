@@ -5,8 +5,10 @@ import type { StarbaseSummary } from "../../generated/StarbaseSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { Wayline } from "../../generated/Wayline";
 import type { Waystation } from "../../generated/Waystation";
+import { ALL_CAPABILITIES } from "../../lib/capabilities";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { name, systemDetails } from "../../test/builders";
+import { DETAIL_SCALE } from "../../lib/visual/labels";
 import type { RenderContext } from "../RenderContext";
 import {
   childByLabel,
@@ -16,6 +18,7 @@ import {
   stubTextMeasurement,
   viewport,
 } from "./fixture";
+import { layersFor } from "./registry";
 import { WaylinesLayer } from "./WaylinesLayer";
 
 stubTextMeasurement();
@@ -67,6 +70,7 @@ function context(
   });
 }
 
+/** Drawn at the zoom system names show at, where every station's badge carries its plate. */
 function drawn(
   waylines: readonly Wayline[] = LINES,
   stations: readonly Waystation[] = STATIONS,
@@ -74,7 +78,7 @@ function drawn(
 ): WaylinesLayer {
   const layer = new WaylinesLayer();
   layer.rebuild(context(waylines, stations, over));
-  viewport(layer, 1);
+  viewport(layer, DETAIL_SCALE);
   return layer;
 }
 
@@ -138,7 +142,26 @@ describe("the waylines layer", () => {
 
   it("puts the badge on the side the bypass badge leaves free", () => {
     // A bypass badge takes the far side of `badgeSide`, so a station's takes that side itself.
-    expect(badges(drawn()).map(side)).toEqual(["above", "below", "above"]);
+    expect(badges(drawn()).map(side)).toEqual(["above", "above", "above"]);
+  });
+
+  it("rings the stations on the whole-galaxy view, leaving their names to the zoom system names show at", () => {
+    const layer = drawn();
+    viewport(layer, 1);
+    for (const root of badges(layer)) {
+      expect(plate(root).visible).toBe(false);
+      expect(root.children.filter((c) => c.visible)).toHaveLength(1);
+    }
+
+    viewport(layer, DETAIL_SCALE);
+    for (const root of badges(layer)) expect(plate(root).visible).toBe(true);
+  });
+
+  it("draws above the territories, beside the bypass badges and under the system names", () => {
+    const order = layersFor(ALL_CAPABILITIES).map((entry) => entry.id);
+    expect(order.indexOf("waylines")).toBeGreaterThan(order.indexOf("owners"));
+    expect(order.indexOf("waylines")).toBe(order.indexOf("bypasses") - 1);
+    expect(order.indexOf("waylines")).toBeLessThan(order.indexOf("labels"));
   });
 
   it("drops a band when a delta drops its wayline", () => {

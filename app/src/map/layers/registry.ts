@@ -43,12 +43,12 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "nebulae", requires: "nebulae", create: () => new NebulaeLayer() },
   { id: "feZones", requires: "create_systems", create: () => new FeZonesLayer() },
   { id: "lanes", create: () => new LanesLayer() },
-  { id: "waylines", requires: "waylines", create: () => new WaylinesLayer() },
   {
     id: "owners",
     requires: "empires",
     create: () => new OwnersLayer(new WorkerTerritoryClient()),
   },
+  { id: "waylines", requires: "waylines", create: () => new WaylinesLayer() },
   { id: "claims", requires: "create_systems" },
   { id: "marauders", requires: "create_systems" },
   { id: "day_one_bypasses", requires: "create_systems" },

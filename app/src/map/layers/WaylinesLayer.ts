@@ -41,7 +41,8 @@ interface StationBadge {
 
 /**
  * A save's wayline network as the game draws it: a dashed grey band along the lane between two
- * waystations, and a badge naming its level on every station's star.
+ * waystations, and a badge naming its level on every station's star. On the whole-galaxy view,
+ * where the empires' names stand in for the systems', the badge is its ring alone.
  */
 export class WaylinesLayer implements MapLayer {
   readonly id = "waylines" as const;
@@ -168,6 +169,7 @@ export class WaylinesLayer implements MapLayer {
       badge.setIcon(null, geo.icon, BAND.color);
       const side = badgeSide(station.system, this.tier);
       badge.layout(geo, side, BAND.color, RING_RADIUS * this.ringScale);
+      badge.setPlated(this.tier !== "none");
     }
   }
 
