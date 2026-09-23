@@ -179,14 +179,21 @@ export function closeSave(): Promise<void> {
   return invoke<void>("close_save");
 }
 
-/** Save the session to its current path; emits `sgf://progress` while it writes. */
-export function save(): Promise<SaveResult> {
-  return invoke<SaveResult>("save");
+/**
+ * Save the session to its current path; emits `sgf://progress` while it writes. Rejects with
+ * `SgfError` (kind `changed_on_disk`) when something else wrote the file since it was opened or
+ * last saved; `force` writes over it, keeping that version as the backup.
+ */
+export function save(force = false): Promise<SaveResult> {
+  return invoke<SaveResult>("save", { force });
 }
 
-/** Save the session to a new path; emits `sgf://progress` while it writes. */
-export function saveAs(path: string): Promise<SaveResult> {
-  return invoke<SaveResult>("save_as", { path });
+/**
+ * Save the session to a new path; emits `sgf://progress` while it writes. A path that is the
+ * session's own file is refused, and forced, as `save` is.
+ */
+export function saveAs(path: string, force = false): Promise<SaveResult> {
+  return invoke<SaveResult>("save_as", { path, force });
 }
 
 /** True when `path` is under a Steam Cloud directory, where Steam may overwrite the file with its cloud copy. */

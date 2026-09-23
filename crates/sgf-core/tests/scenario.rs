@@ -1,6 +1,8 @@
 //! Static galaxy scenario scripts through the public API, on the grammar fixture.
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 use sgf_core::document::{self, Document};
 use sgf_core::format::scenario::listings::{ScenarioRoot, ScenarioSource, list_scenarios_in};
@@ -151,6 +153,99 @@ fn saving_an_untouched_scenario_is_byte_identical_and_writes_nothing_twice() {
     let outcome = session.save_as(&path).expect("save over the written file");
     assert_eq!(outcome.backup, None, "identical bytes make no backup");
     assert_eq!(std::fs::read(&path).unwrap(), original);
+}
+
+/// A session on a copy of the grammar fixture in `dir`, opened from that copy.
+fn open_copy(dir: &Path) -> (Session, PathBuf) {
+    let path = dir.join("scenario_grammar.txt");
+    std::fs::write(&path, GRAMMAR.bytes()).unwrap();
+    (Session::open(&path).expect("open the copy"), path)
+}
+
+/// What Stellaris does to the file behind the editor's back: new bytes and an mtime set
+/// outright, so the change shows whatever the clock's resolution.
+fn write_outside(path: &Path) -> Vec<u8> {
+    let mut bytes = GRAMMAR.bytes();
+    bytes.extend_from_slice(b"\n# written by something else\n");
+    std::fs::write(path, &bytes).unwrap();
+    let file = std::fs::File::options().write(true).open(path).unwrap();
+    file.set_modified(SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000_000))
+        .unwrap();
+    bytes
+}
+
+#[test]
+fn saving_in_place_over_a_file_changed_on_disk_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut session, path) = open_copy(dir.path());
+    let outside = write_outside(&path);
+
+    for refused in [session.save_to(None), session.save_as(&path)] {
+        match refused {
+            Err(document::Error::ChangedOnDisk { path: p }) => assert_eq!(p, path),
+            other => panic!("expected ChangedOnDisk, got {other:?}"),
+        }
+    }
+    assert_eq!(
+        std::fs::read(&path).unwrap(),
+        outside,
+        "nothing was written"
+    );
+}
+
+#[test]
+fn a_forced_save_writes_over_the_changed_file_and_keeps_it_as_the_backup() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut session, path) = open_copy(dir.path());
+    let outside = write_outside(&path);
+
+    let outcome = session
+        .save_to_with(None, true, |_| {})
+        .expect("forced save");
+    let backup = outcome.backup.expect("the changed file is backed up");
+    assert_eq!(std::fs::read(backup).unwrap(), outside);
+    assert_eq!(std::fs::read(&path).unwrap(), GRAMMAR.bytes());
+
+    session
+        .save_to(None)
+        .expect("the forced write is the new baseline");
+}
+
+#[test]
+fn saving_in_place_twice_with_nothing_else_writing_is_not_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut session, _) = open_copy(dir.path());
+    for x in [12.5, 30.0] {
+        session
+            .apply(Op::MoveSystem {
+                id: 2,
+                x,
+                y: -60.25,
+            })
+            .expect("move a system");
+        let outcome = session.save_to(None).expect("save in place");
+        assert!(outcome.backup.is_some(), "the edit rewrote the file");
+    }
+    session.save_to(None).expect("an untouched save in place");
+}
+
+#[test]
+fn saving_as_another_path_ignores_a_change_to_the_opened_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut session, path) = open_copy(dir.path());
+    let outside = write_outside(&path);
+    let other = dir.path().join("elsewhere.txt");
+
+    session.save_as(&other).expect("save as another path");
+    assert_eq!(session.path.as_deref(), Some(other.as_path()));
+    assert_eq!(
+        std::fs::read(&path).unwrap(),
+        outside,
+        "the opened file is left alone"
+    );
+    session
+        .save_to(None)
+        .expect("the new path is the baseline now");
 }
 
 #[test]

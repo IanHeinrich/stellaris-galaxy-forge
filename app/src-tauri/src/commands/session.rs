@@ -322,28 +322,39 @@ pub async fn redo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, S
     .await
 }
 
-/// Write the open session in place, backing up any file already there. Emits `sgf://progress`.
+/// Write the open session in place, backing up any file already there. Refuses with
+/// `changed_on_disk` when something else wrote the file since it was opened or last saved,
+/// unless `force`. Emits `sgf://progress`.
 #[tauri::command]
-pub async fn save<R: Runtime>(app: AppHandle<R>) -> Result<SaveResult, SgfError> {
-    save_to(app, None).await
+pub async fn save<R: Runtime>(
+    app: AppHandle<R>,
+    force: Option<bool>,
+) -> Result<SaveResult, SgfError> {
+    save_to(app, None, force.unwrap_or(false)).await
 }
 
-/// Write the open session to `path`, which becomes the session's path. Emits `sgf://progress`.
+/// Write the open session to `path`, which becomes the session's path. When `path` is the
+/// session's own file it refuses and takes `force` as `save` does. Emits `sgf://progress`.
 #[tauri::command]
-pub async fn save_as<R: Runtime>(app: AppHandle<R>, path: String) -> Result<SaveResult, SgfError> {
-    save_to(app, Some(path)).await
+pub async fn save_as<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+    force: Option<bool>,
+) -> Result<SaveResult, SgfError> {
+    save_to(app, Some(path), force.unwrap_or(false)).await
 }
 
 async fn save_to<R: Runtime>(
     app: AppHandle<R>,
     path: Option<String>,
+    force: bool,
 ) -> Result<SaveResult, SgfError> {
     progress(&app, ProgressPhase::Write, START);
     let task_app = app.clone();
     let result = with_session(app.clone(), move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         let report = |fraction| progress(&task_app, ProgressPhase::Write, fraction);
-        let outcome = session.save_to_with(path.as_deref().map(Path::new), report)?;
+        let outcome = session.save_to_with(path.as_deref().map(Path::new), force, report)?;
         Ok(session.save_result(outcome))
     })
     .await?;

@@ -1,4 +1,6 @@
 import { Application } from "pixi.js";
+// The app's CSP forbids eval; this swaps Pixi's generated shader code for precompiled paths.
+import "pixi.js/unsafe-eval";
 import { useEffect, useRef } from "react";
 import { MapController } from "./MapController";
 

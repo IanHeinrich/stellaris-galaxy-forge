@@ -7,7 +7,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import type { SaveResult } from "../generated/SaveResult";
 import { duplicateNameNote, reservedSpawnsNote } from "../lib/issues";
 import { paintModView } from "../test/builders";
-import { type SaveIssuesAnswer } from "./fileSessionStore";
+import { type ChangedOnDiskAnswer, type SaveIssuesAnswer } from "./fileSessionStore";
 import { OPEN_RESULT, SCENARIO_RESULT, saveResult } from "./fixture";
 import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
@@ -373,5 +373,87 @@ describe("the paused save bar", () => {
     await pause();
     await session().close();
     expect(session().pausedSave).toBeNull();
+  });
+});
+
+describe("a file changed on disk", () => {
+  const CHANGED = { kind: "changed_on_disk", message: "the file changed on disk" };
+
+  beforeEach(async () => {
+    await session().openSave(OPEN_RESULT.path);
+    await edit();
+    mocked.save.mockRejectedValueOnce(CHANGED);
+  });
+
+  /** Runs `start`, answers the dialog it raises, and waits for the save to settle. */
+  async function answering(answer: ChangedOnDiskAnswer, start: () => Promise<void>) {
+    const done = start();
+    await vi.waitFor(() => expect(session().changedOnDiskPrompt).not.toBeNull());
+    expect(session().error).toBeNull();
+    expect(session().saving).toBe(false);
+    session().answerChangedOnDisk(answer);
+    await done;
+    expect(session().changedOnDiskPrompt).toBeNull();
+  }
+
+  it("Overwrite saves again with force, and the save lands", async () => {
+    const result = saveResult({ dirty: false });
+    mocked.save.mockResolvedValueOnce(result);
+    await answering("overwrite", () => session().save());
+
+    expect(mocked.save).toHaveBeenCalledTimes(2);
+    expect(mocked.save).toHaveBeenNthCalledWith(1);
+    expect(mocked.save).toHaveBeenNthCalledWith(2, true);
+    expect(session().dirty).toBe(false);
+    expect(session().lastSave).toEqual(result);
+    expect(session().error).toBeNull();
+  });
+
+  it("Save As picks a path and writes there, leaving the changed file alone", async () => {
+    mocked.saveDialog.mockResolvedValueOnce("C:/saves/other.sav");
+    mocked.saveAs.mockResolvedValueOnce(saveResult({ path: "C:/saves/other.sav", dirty: false }));
+    await answering("save_as", () => session().save());
+
+    expect(mocked.save).toHaveBeenCalledTimes(1);
+    expect(mocked.saveAs).toHaveBeenCalledWith("C:/saves/other.sav");
+    expect(session().path).toBe("C:/saves/other.sav");
+    expect(session().dirty).toBe(false);
+  });
+
+  it("Cancel writes nothing and keeps the session dirty, with no error shown", async () => {
+    await answering("cancel", () => session().save());
+
+    expect(mocked.save).toHaveBeenCalledTimes(1);
+    expect(mocked.saveAs).not.toHaveBeenCalled();
+    expect(session().dirty).toBe(true);
+    expect(session().lastSave).toBeNull();
+    expect(session().error).toBeNull();
+  });
+
+  it("Ctrl+S or Save As while the prompt is open writes nothing", async () => {
+    const done = session().save();
+    await vi.waitFor(() => expect(session().changedOnDiskPrompt).not.toBeNull());
+
+    await session().save();
+    await session().saveAs();
+    expect(mocked.save).toHaveBeenCalledTimes(1);
+    expect(mocked.saveDialog).not.toHaveBeenCalled();
+    expect(session().saving).toBe(false);
+    expect(session().changedOnDiskPrompt).not.toBeNull();
+
+    session().answerChangedOnDisk("cancel");
+    await done;
+  });
+
+  it("a Save As onto the session's own changed file asks too, and Overwrite forces it", async () => {
+    mocked.save.mockReset();
+    mocked.saveDialog.mockResolvedValueOnce(OPEN_RESULT.path);
+    mocked.saveAs.mockRejectedValueOnce(CHANGED);
+    mocked.saveAs.mockResolvedValueOnce(saveResult({ dirty: false }));
+    await answering("overwrite", () => session().saveAs());
+
+    expect(mocked.saveAs).toHaveBeenNthCalledWith(1, OPEN_RESULT.path);
+    expect(mocked.saveAs).toHaveBeenNthCalledWith(2, OPEN_RESULT.path, true);
+    expect(session().dirty).toBe(false);
   });
 });

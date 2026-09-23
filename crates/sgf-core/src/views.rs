@@ -365,6 +365,9 @@ pub enum ErrorKind {
     Op,
     /// No Stellaris install was found; the message lists the searched paths.
     NoInstall,
+    /// Something else wrote the file after it was opened or last saved; saving again with
+    /// `force` writes over it, keeping that version as the backup.
+    ChangedOnDisk,
 }
 
 impl SgfError {
@@ -404,6 +407,9 @@ impl From<document::Error> for SgfError {
             }
             document::Error::Io { ref source, .. } => Self::new(io_kind(source), e.to_string()),
             document::Error::NoPath => Self::new(ErrorKind::Io, e.to_string()),
+            document::Error::ChangedOnDisk { .. } => {
+                Self::new(ErrorKind::ChangedOnDisk, e.to_string())
+            }
         }
     }
 }
