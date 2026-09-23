@@ -12,30 +12,18 @@ a release is made.
 
 - The update screen shows release notes with their headings and bullets
   instead of raw Markdown.
-- Waystation badges no longer pile up over empire names and emblems on the
-  whole-galaxy view. There, each station shows only a ring, and its level
-  appears once you zoom in far enough for system names. Waystation badges
-  and wayline bands also draw over empire territories instead of being
-  dimmed under them.
+
+## [0.12.0] - 2026-09-24
 
 ### Added
 
-- In a save, each star of a system has its own page in the inspector,
-  opened from the system's planet list. Its type and size can be changed
-  there. The system's star class follows when a class has the new stars.
-- Several selected systems can be given one star class at once. Systems
-  with a different number of stars are left as they are. The picker shows
-  the game's star icons, and lists crisis variants and the unnamed
-  classes some mods add apart from the rest.
-- Binary and trinary systems show each of their stars on the map, drawn
-  as its own type and sized by its size.
-- In a Stellaris 4.5 save, an empire's map border and fill colours can
-  be picked on its page in the inspector. Click the empire's name in the
-  Empires list to open it. The palette is the one the game shows,
-  including one from a mod. An empire can also go back to its flag
-  colours.
-- Fields that can be edited share one outlined style, so they stand out
-  from information. The inspector has a Back button.
+- A system's stars can be edited in a save: type and size per star, or
+  one star class for several selected systems at once.
+- Binary and trinary systems show each of their stars on the map.
+- In a Stellaris 4.5 save, an empire's map colours can be picked from
+  its inspector page.
+- The inspector has a Back button, and fields you can edit have an
+  outlined style.
 
 ### Changed
 
@@ -44,7 +32,9 @@ a release is made.
 ### Fixed
 
 - Hyperlanes can be added and removed in saves from Stellaris 3.4 to
-  3.9. I haven't tested saves older than 3.4.
+  3.9.
+- Waystations no longer clutter the whole-galaxy view or get dimmed
+  under empire territories.
 
 ## [0.11.1] - 2026-09-23
 
