@@ -828,6 +828,7 @@ function landSpecial(): void {
           flags: [],
           countries: [],
           label: "Alpha Centauri",
+          label_is_generated_name: false,
         },
       ],
     ]),

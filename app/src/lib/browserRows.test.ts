@@ -91,7 +91,14 @@ function lane(to: number) {
 }
 
 function countryRef(id: number): CountryRef {
-  return { id, name_key: `NAME_${id}`, name: null, country_type: "default", icon: null };
+  return {
+    id,
+    name_key: `NAME_${id}`,
+    name: null,
+    country_type: "default",
+    icon: null,
+    generated_name: false,
+  };
 }
 
 function special(id: number, extra: Partial<SpecialSystem> = {}): SpecialSystem {
@@ -105,6 +112,7 @@ function special(id: number, extra: Partial<SpecialSystem> = {}): SpecialSystem 
     flags: [],
     countries: [],
     label: "",
+    label_is_generated_name: false,
     ...extra,
   };
 }

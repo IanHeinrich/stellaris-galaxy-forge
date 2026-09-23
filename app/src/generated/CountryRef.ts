@@ -9,4 +9,10 @@ id: number | null, name_key: string,
 /**
  * Localised, when game data is present and knows the key.
  */
-name: string | null, country_type: string, icon: FlagIcon | null, };
+name: string | null, country_type: string, icon: FlagIcon | null, 
+/**
+ * `name` was built from a template with variables (a procedurally assembled empire
+ * name), not a fixed key or literal: a caller that wants a stable label should prefer
+ * something else, such as [`SpecialSystem::label_is_generated_name`].
+ */
+generated_name: boolean, };

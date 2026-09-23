@@ -104,9 +104,17 @@ function initializerLabel(special: SpecialSystem | undefined): string | null {
   return special && special.initializer !== "" ? humaniseInitializer(special.initializer) : null;
 }
 
+/** Vanilla enclaves whose country takes a random generated name, so the badge names the enclave. */
+const GENERATED_NAME_HIDDEN: ReadonlySet<string> = new Set(["salvager_enclave"]);
+
+function hidesGeneratedName(initializer: string): boolean {
+  return GENERATED_NAME_HIDDEN.has(initializer.replace(INITIALIZER_SUFFIX, ""));
+}
+
 /**
  * The badge text, always saying what the system is: a leviathan by the country the classifier
- * found, a landmark by the megastructure standing there, else the classifier's name; a
+ * found, a landmark by the megastructure standing there, an enclave by the classifier's name
+ * unless that name is a generated one this map hides, else the classifier's name; a
  * humanised initializer before the kind alone.
  */
 export function badgeLabel(
@@ -132,6 +140,12 @@ export function badgeLabel(
         classifierLabel(special, systemName) ??
         kindLabel(kind)
       );
+    }
+    case "enclave": {
+      const hidden =
+        special?.label_is_generated_name === true && hidesGeneratedName(special.initializer);
+      const label = hidden ? null : classifierLabel(special, systemName);
+      return label ?? initializerLabel(special) ?? kindLabel(kind);
     }
     default:
       return classifierLabel(special, systemName) ?? kindLabel(kind);
