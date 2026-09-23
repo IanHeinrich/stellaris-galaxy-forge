@@ -65,7 +65,7 @@ because the file dialog already asked about overwriting it.
 - `testdata/`: save corpus via git-lfs (`2206.11.16.sav`, Stellaris
   4.4, early game; `2201.03.25.sav`, Stellaris 4.5.0, day one, the
   player empire has Independent Map Color on; `2200.04.11.sav`,
-  Stellaris 3.4.5, for lane edits on the brace shape 3.9 and older
+  Stellaris 3.4.5, for lane edits on the brace shape 3.4 to 3.9
   write). Personal saves are never
   committed without asking; larger local saves are found via
   `SGF_CORPUS_DIR`. `issues.sav` and `issues.paint.txt` are built to

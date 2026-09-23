@@ -48,7 +48,7 @@ examples from the sample saves in `testdata/`. Sibling of
   \t\t}
   ```
 
-- Saves from 3.9 and older put every block's opening brace on its key's
+- Saves from 3.4 to 3.9 put every block's opening brace on its key's
   line, drop the indentation-only line, and start each entry after the
   first with a single space. 3.10 onwards writes the shape above.
 

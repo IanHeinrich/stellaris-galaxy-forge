@@ -260,7 +260,7 @@ impl Edit {
     }
 
     /// Refuse a block that is not in the game's multi-line shape: the open brace either
-    /// alone on its own line, or the last non-blank thing on the key's line (as 3.9 and older
+    /// alone on its own line, or the last non-blank thing on the key's line (as 3.4 to 3.9
     /// write it), and the close brace and every child's braces alone on theirs. Line
     /// insertion and removal assume that shape.
     pub fn require_block_shape(&self, block: &Node) -> Result<(), OpError> {
