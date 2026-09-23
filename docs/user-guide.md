@@ -233,6 +233,18 @@ Cutting a lane:
 Isolating a system removes every one of its lanes: right-click it and
 choose "Isolate", or select several and use "Isolate" in the Inspector.
 
+Preventing a lane (scenarios only) stops the galaxy generator from ever
+linking two systems. The map draws a prevented pair as a faint dashed
+line.
+
+- Right-click a lane for "Cut and prevent".
+- Select some systems, then right-click another for "Prevent lanes to
+  selected". Any lanes between them are cut first. "Allow lanes to
+  selected" lifts the preventions again.
+- Right-click a dashed line for "Allow".
+- The Inspector lists a system's prevented pairs under its hyperlanes,
+  each with an "Allow" button.
+
 Two brushes on the tool strip work on lanes in broad strokes, in a save
 or a scenario:
 

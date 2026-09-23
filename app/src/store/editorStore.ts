@@ -221,6 +221,15 @@ export interface EditorState {
   cutLanesBetweenSelected(): Promise<void>;
   /** Cuts every lane between `target` and a selected system. */
   cutLanesToSelected(target: number): Promise<void>;
+  /**
+   * Prevents a lane between each pair and, under the global symmetry, each counterpart pair, as
+   * one edit; a lane standing between any of them is cut first.
+   */
+  preventLanes(pairs: readonly Pair[]): Promise<boolean>;
+  /** Prevents a lane between `target` and every selected system not kept from it yet. */
+  preventLanesToSelected(target: number): Promise<void>;
+  /** Allows a lane again between `target` and every selected system kept from it. */
+  allowLanesToSelected(target: number): Promise<void>;
   /** Cuts every lane of every selected system. */
   isolateSelected(): Promise<void>;
   /** Sets every lane touching a selected system to `floor(distance)` where it differs. */

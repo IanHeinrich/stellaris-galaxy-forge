@@ -1,6 +1,9 @@
 import type { Nebula } from "../../generated/Nebula";
 import type { SystemNode } from "../../generated/SystemNode";
+import type { LaneRef } from "../../store/editorStore";
 import { unlinkedTo } from "../../store/galaxyStore";
+import { distToSegmentSq } from "../../lib/geometry/geometry";
+import { pairOf } from "../../lib/geometry/pairs";
 import { dist2, type Pt } from "../../lib/geometry/pt";
 import type { Camera } from "../Camera";
 import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
@@ -197,6 +200,28 @@ export function pickEdge(
   }
   const edge = index.nearestEdge(at.x, at.y, LANE_PICK_RADIUS_PX / cam.scale, links);
   return { edge, midpointHit: edge !== null && nearMidpoint(cam, edgeEnds(systems, edge), at) };
+}
+
+/**
+ * The pair the scenario keeps from a lane whose dash lies under a world point, the nearest where
+ * two do. Only a right-click asks, so it scans every pair rather than keep an index of them.
+ */
+export function pickPrevented(systems: Systems, cam: Camera, at: Pt): LaneRef | null {
+  let best: LaneRef | null = null;
+  let bestD2 = (LANE_PICK_RADIUS_PX / cam.scale) ** 2;
+  for (const s of systems.values()) {
+    for (const to of s.prevented) {
+      const b = systems.get(to);
+      if (!b) continue;
+      const d2 = distToSegmentSq(at.x, at.y, s.x, s.y, b.x, b.y);
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        const [lo, hi] = pairOf(s.id, to);
+        best = { a: lo, b: hi };
+      }
+    }
+  }
+  return best;
 }
 
 /** Whether a world point is within the midpoint button of a segment. */

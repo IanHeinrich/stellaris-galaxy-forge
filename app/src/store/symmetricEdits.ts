@@ -16,7 +16,7 @@ import {
 } from "../lib/geometry/symmetry";
 import { enabledScriptFor, nextSystemId } from "../lib/paint";
 import { counted } from "../lib/text";
-import { useGalaxyStore } from "./galaxyStore";
+import { isPrevented, useGalaxyStore } from "./galaxyStore";
 import { useToolStore } from "./toolStore";
 
 function symmetry(): Symmetry {
@@ -133,8 +133,7 @@ function linked(a: number, b: number): boolean {
 }
 
 function barred(a: number, b: number): boolean {
-  const all = useGalaxyStore.getState().systems;
-  return !!all.get(a)?.prevented.includes(b) || !!all.get(b)?.prevented.includes(a);
+  return isPrevented(useGalaxyStore.getState().systems, a, b);
 }
 
 /**
@@ -255,6 +254,60 @@ function cutLanes(op: Op, pairs: readonly Pair[]): Op {
   return widened(op, all.length > pairs.length, wide, `Cut ${counted(all.length, "lane")}`);
 }
 
+/** `pairs` and each one's images between the ends' counterparts that `wanted` takes, each once. */
+function counterpartPairs(
+  pairs: readonly Pair[],
+  wanted: (a: number, b: number) => boolean,
+): Pair[] {
+  const lanes = pairs.map(([a, b]) => ({ a, b, bridge: false }));
+  return counterpartLanes(lanes, wanted).map(({ a, b }): Pair => [a, b]);
+}
+
+/** `ops` as one edit named `description`: the op itself when there is one, null when none. */
+function oneEdit(ops: Op[], description: string): Op | null {
+  if (ops.length <= 1) return ops[0] ?? null;
+  return { type: "Batch", description, ops };
+}
+
+/**
+ * Prevents a lane between each of `pairs` and, under the global symmetry, each counterpart pair
+ * not prevented yet, as one edit; null when there is nothing to do. With `cutting` a lane
+ * standing between any of them is cut first, even where the pair is already prevented. Without
+ * it a pair joined by a lane is left out, as the core refuses to prevent it.
+ */
+export function preventOp(pairs: readonly Pair[], cutting: boolean): Op | null {
+  const cuts = (a: number, b: number) => cutting && linked(a, b);
+  const prevents = (a: number, b: number) => !barred(a, b) && (cutting || !linked(a, b));
+  const wanted = (a: number, b: number) => cuts(a, b) || prevents(a, b);
+  const all = counterpartPairs(pairs, wanted).filter(([a, b]) => wanted(a, b));
+  const cut = all.filter(([a, b]) => cuts(a, b));
+  const prevent = all.filter(([a, b]) => prevents(a, b));
+  const ops: Op[] = [];
+  if (cut.length === 1) ops.push({ type: "RemoveLane", a: cut[0][0], b: cut[0][1] });
+  else if (cut.length > 1) ops.push({ type: "RemoveLanePairs", lanes: cut });
+  for (const [a, b] of prevent) ops.push({ type: "PreventLane", a, b });
+  return oneEdit(ops, preventDescription(prevent, cut.length));
+}
+
+function preventDescription(prevent: readonly Pair[], cut: number): string {
+  if (cut === 0) return `Prevented ${counted(prevent.length, "lane")}`;
+  if (prevent.length === 0) return `Cut ${counted(cut, "lane")}`;
+  if (prevent.length === 1 && cut === 1) {
+    return `Cut and prevented lane ${prevent[0][0]} <-> ${prevent[0][1]}`;
+  }
+  return `Cut ${counted(cut, "lane")} and prevented ${counted(prevent.length, "lane")}`;
+}
+
+/**
+ * Allows a lane again between each of `pairs` and, under the global symmetry, each counterpart
+ * pair the scenario prevents, as one edit; null for no pairs.
+ */
+export function allowOp(pairs: readonly Pair[]): Op | null {
+  const all = counterpartPairs(pairs, barred).filter(([a, b]) => barred(a, b));
+  const ops = all.map(([a, b]): Op => ({ type: "UnpreventLane", a, b }));
+  return oneEdit(ops, `Allowed ${counted(all.length, "lane")}`);
+}
+
 function isolate(op: Op, ids: readonly number[]): Op {
   const asked = new Set(ids);
   const all = symmetricIds(ids).filter(
@@ -290,8 +343,9 @@ type Widen<T extends Op["type"]> = (op: Extract<Op, { type: T }>) => Op;
 
 /**
  * How the global symmetry widens each kind of op: adding, moving, deleting or isolating
- * systems, adding or cutting lanes and setting an initializer or spawn reach every counterpart
- * too, the system at each image of the one edited. Null for an op symmetry leaves as it is.
+ * systems, adding, cutting, preventing or allowing lanes and setting an initializer or spawn
+ * reach every counterpart too, the system at each image of the one edited. Null for an op
+ * symmetry leaves as it is.
  */
 const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   AddSystem: addSystems,
@@ -347,8 +401,8 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   SetWormholeEnds: null,
   SetFeLinks: null,
   SetFeLinkFlags: null,
-  PreventLane: null,
-  UnpreventLane: null,
+  PreventLane: (op) => preventOp([[op.a, op.b]], false) ?? op,
+  UnpreventLane: (op) => allowOp([[op.a, op.b]]) ?? op,
   Batch: null,
 };
 

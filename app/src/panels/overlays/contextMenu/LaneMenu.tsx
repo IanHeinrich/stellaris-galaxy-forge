@@ -1,5 +1,6 @@
 import { useSystemNames } from "../../../store/browserRows";
 import { useEditorStore } from "../../../store/editorStore";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { MenuFrame, type Frame } from "./MenuFrame";
@@ -18,7 +19,9 @@ export function LaneMenu({
 }) {
   const applyOp = useEditorStore((s) => s.applyOp);
   const applySymmetric = useEditorStore((s) => s.applySymmetric);
+  const preventLanes = useEditorStore((s) => s.preventLanes);
   const systems = useGalaxyStore((s) => s.systems);
+  const scenario = useFileSessionStore((s) => s.kind === "scenario");
   const { a, b } = target.lane;
   const named = useSystemNames([a, b]);
 
@@ -36,6 +39,15 @@ export function LaneMenu({
       >
         Cut
       </MenuItem>
+      {scenario && (
+        <MenuItem
+          disabled={gone}
+          title={gone ? LANE_GONE : undefined}
+          run={() => preventLanes([[a, b]])}
+        >
+          Cut and prevent
+        </MenuItem>
+      )}
       {canReset && (
         <MenuItem run={() => applyOp({ type: "NormaliseLaneLength", a, b })}>Reset length</MenuItem>
       )}
