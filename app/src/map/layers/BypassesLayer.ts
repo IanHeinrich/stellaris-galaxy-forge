@@ -2,9 +2,11 @@ import { Circle, Container, type FederatedPointerEvent, Graphics } from "pixi.js
 import type { BypassLink } from "../../generated/BypassLink";
 import type { Camera } from "../Camera";
 import { type BypassKinds, bypassIconKey } from "../../lib/details/icons";
+import { lgateOutcomeLine } from "../../lib/lgate";
 import { titleCase } from "../../lib/text";
 import { labelTier } from "../../lib/visual/labels";
 import { badgeGeometry, badgeSide } from "../../lib/visual/specialStyle";
+import { useLGateStore } from "../../store/lgateStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { Badge, badgeTexture, badgeTextStyle, otherSide, RING_RADIUS } from "./badge";
@@ -236,11 +238,16 @@ export class BypassesLayer implements MapLayer {
     const s = this.systems.get(link.system);
     if (!s) return;
     this.hovered = link;
+    const lines = [this.nodeName(s.name)];
+    const lgate = this.galaxy?.lgate;
+    if (link.type === "l_gate" && lgate && useLGateStore.getState().revealed) {
+      lines.push(lgateOutcomeLine(lgate));
+    }
     useMapChromeStore.getState().showTooltip({
       x: at.x,
       y: at.y,
       title: badgeStyle(link, this.bypassKinds).label,
-      lines: [this.nodeName(s.name)],
+      lines,
     });
   }
 

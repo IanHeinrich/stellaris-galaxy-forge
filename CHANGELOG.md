@@ -12,6 +12,7 @@ a release is made.
 
 - Search finds systems by what is in them as well as by name: "salvager", "gaia", "l-gate" or "leviathan" all work. It matches a system's initializer, its flags, its planet classes and its gateways and wormholes. Leviathans, enclaves and the other special kinds match only with game data loaded.
 - While the search field holds a query, every matching system is ringed on the map.
+- The Galaxy panel can reveal which L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance, or an empty cluster. It stays behind a Reveal link until you click it.
 
 ### Changed
 

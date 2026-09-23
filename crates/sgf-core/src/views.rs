@@ -17,7 +17,7 @@ use crate::export::ExportReport;
 use crate::format;
 use crate::ops::OpError;
 use crate::projections::galaxy::{
-    BypassLink, CountryNode, Galaxy, GalaxyGraph, HeaderField, Nebula, SystemNode, Wayline,
+    BypassLink, CountryNode, Galaxy, GalaxyGraph, HeaderField, LGate, Nebula, SystemNode, Wayline,
     Waystation,
 };
 use crate::projections::name::NameTemplate;
@@ -44,6 +44,9 @@ pub struct GalaxyView {
     pub components: usize,
     /// A scenario's header keys in file order, duplicates kept; empty for a save.
     pub header: Vec<HeaderField>,
+    /// What day-one's L-Cluster roll landed on; `None` when the galaxy has no L-Gate, or
+    /// for a scenario.
+    pub lgate: Option<LGate>,
 }
 
 impl GalaxyView {
@@ -64,6 +67,7 @@ impl GalaxyView {
             core_radius: galaxy.core_radius,
             components,
             header: galaxy.header.clone(),
+            lgate: galaxy.lgate,
         }
     }
 }
