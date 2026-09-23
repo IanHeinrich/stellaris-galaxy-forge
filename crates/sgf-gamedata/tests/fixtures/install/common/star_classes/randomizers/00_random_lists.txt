@@ -1,0 +1,5 @@
+rl_pair_stars = {
+	stars = {
+		"sc_pair"
+	}
+}

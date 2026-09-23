@@ -10,6 +10,9 @@ const CLASSES = new Map<string, StarClassView>([
       texture_key: "star_class:black_hole",
       icon_scale: 2,
       planet_keys: ["pc_black_hole"],
+      crisis_star_class: null,
+      spawn_odds: 1,
+      localised: true,
     },
   ],
 ]);

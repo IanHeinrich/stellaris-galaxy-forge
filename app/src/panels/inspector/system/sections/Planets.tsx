@@ -6,6 +6,7 @@ import { resourceRows } from "../../../../lib/details/resources";
 import { initClassLabel } from "../../../../lib/initializer/initializerRows";
 import { templateName } from "../../../../lib/names";
 import { useDetailsStore } from "../../../../store/detailsStore";
+import { useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { useInspectorStore } from "../../../../store/inspectorStore";
 import { Chip, DrillRow, Empty, Icon, MoreButton, Section, Swatch } from "../../parts";
@@ -35,7 +36,15 @@ function SizeAndPops({ size, pops }: { size: number | null; pops: number }) {
   );
 }
 
-function PlanetRow({ planet, details }: { planet: PlanetSummary; details: SystemDetails }) {
+function PlanetRow({
+  planet,
+  details,
+  editable,
+}: {
+  planet: PlanetSummary;
+  details: SystemDetails;
+  editable: boolean;
+}) {
   const icons = useDetailsStore((s) => s.resourceIcons);
   const classes = useGameDataStore((s) => s.planetClasses);
   const names = useGameDataStore((s) => s.names);
@@ -54,6 +63,7 @@ function PlanetRow({ planet, details }: { planet: PlanetSummary; details: System
     <DrillRow
       className={`ins-prow${planet.moon ? " moon" : ""}${wide ? " wide" : ""}`}
       requires="details"
+      title={editable ? "Open this star's page to change its type and size" : undefined}
       onOpen={() => open({ ref: { kind: "planet", id: planet.id }, label: name })}
     >
       <PlanetIcon planetClass={planet.class} sprite={sprite} />
@@ -63,6 +73,11 @@ function PlanetRow({ planet, details }: { planet: PlanetSummary; details: System
           {name}
           {planet.capital && <Chip>capital</Chip>}
           {planet.pre_ftl && <Chip>pre-FTL</Chip>}
+          {editable && (
+            <span className="ins-edit-chip">
+              <span aria-hidden="true">✎</span> Edit
+            </span>
+          )}
         </span>
         <span className="l2">
           {named !== "" && classText}
@@ -104,10 +119,10 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const icons = useDetailsStore((s) => s.resourceIcons);
   const classes = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
+  const scenario = useFileSessionStore((s) => s.kind === "scenario");
   const [all, setAll] = useState(false);
-  const planets = orderedPlanets(details.planets, (p) =>
-    isStarClass(p.class, classes, starClasses),
-  );
+  const isStar = (p: PlanetSummary) => isStarClass(p.class, classes, starClasses);
+  const planets = orderedPlanets(details.planets, isStar);
   const totals = planetTotals(details.planets);
   const shown = all ? planets : planets.slice(0, LIST_LIMIT);
   const summary = [
@@ -137,7 +152,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
             </span>
           </div>
           {shown.map((p) => (
-            <PlanetRow key={p.id} planet={p} details={details} />
+            <PlanetRow key={p.id} planet={p} details={details} editable={!scenario && isStar(p)} />
           ))}
           {!all && planets.length > LIST_LIMIT && (
             <MoreButton count={planets.length - LIST_LIMIT} onClick={() => setAll(true)} />

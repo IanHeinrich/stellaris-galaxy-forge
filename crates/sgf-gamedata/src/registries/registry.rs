@@ -11,6 +11,12 @@ use crate::install::script::{self, Def};
 pub(crate) trait FromDef: Sized {
     const DIR: &'static str;
 
+    /// True for a definition under `DIR` that this registry does not represent, left out
+    /// before `read` is called. Most registries keep the default: every definition counts.
+    fn skip(_def: &Def) -> bool {
+        false
+    }
+
     fn read(key: String, def: &Def) -> Self;
 }
 
@@ -49,6 +55,7 @@ impl<T> Registry<T> {
 pub(crate) fn load<T: FromDef>(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Registry<T> {
     script::parse_dir(layout, T::DIR, diagnostics)
         .into_iter()
+        .filter(|(_, def)| !T::skip(def))
         .map(|(key, def)| (key.clone(), T::read(key, &def)))
         .collect()
 }

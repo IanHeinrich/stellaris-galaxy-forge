@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { Capabilities } from "../../generated/Capabilities";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { useEditorStore } from "../../store/editorStore";
@@ -12,7 +12,7 @@ import {
   splitsBySource,
   type Source,
 } from "../../lib/visual/layerGroups";
-import { ENTER, ESCAPE, SPACE } from "../keys";
+import { ENTER, SPACE } from "../keys";
 import { Twisty } from "../Twisty";
 import { useTextureUrl } from "../useTextureUrl";
 import { useOwnerCss } from "./ownerCss";
@@ -261,6 +261,57 @@ export function DrillLink({
   );
 }
 
+/** A property row whose value opens that entity's own page. */
+export function LinkRow({
+  label,
+  requires,
+  title,
+  onOpen,
+  children,
+}: {
+  label: string;
+  requires?: keyof Capabilities;
+  title?: string;
+  onOpen: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <PropertyRow label={label}>
+      <DrillLink requires={requires} title={title} onOpen={onOpen}>
+        {children}
+      </DrillLink>
+    </PropertyRow>
+  );
+}
+
+/**
+ * A property row the user would expect to edit but cannot yet: its value, and a muted lock that
+ * says so. Only for such values; the rest of a page's information carries no mark.
+ */
+export function LockedRow({
+  label,
+  reason,
+  children,
+}: {
+  label: string;
+  /** What the lock says on hover. */
+  reason: string;
+  children: ReactNode;
+}) {
+  return (
+    <PropertyRow label={label}>
+      {children}
+      <span className="ins-locked" title={reason}>
+        <svg viewBox="0 0 10 12" width="8" height="10" aria-hidden="true">
+          <path d="M2.5 5V3.5a2.5 2.5 0 0 1 5 0V5" fill="none" stroke="currentColor" />
+          <rect x="1" y="5" width="8" height="6.5" rx="1" fill="currentColor" />
+        </svg>
+        can&apos;t edit yet
+      </span>
+    </PropertyRow>
+  );
+}
+
 /** Above this many rows a list carries a filter of its own. */
 export const FILTER_MIN = 20;
 
@@ -318,66 +369,5 @@ export function MoreButton({
     <button type="button" className="link ins-more" onClick={onClick}>
       show {count} more{where === undefined ? "" : ` ${where}`}
     </button>
-  );
-}
-
-type FieldProps = {
-  label: string;
-  className?: string;
-  id?: string;
-  autoFocus?: boolean;
-  /** Called once the field is done with: after a commit, and when Escape abandons the edit. */
-  onDone?: () => void;
-} & (
-  | {
-      kind: "number";
-      value: number;
-      decimals?: number;
-      step?: number;
-      onCommit: (v: number) => void;
-    }
-  | { kind: "text"; value: string; onCommit: (v: string) => void }
-);
-
-function fieldText(props: FieldProps): string {
-  if (props.kind === "text") return props.value;
-  return props.decimals === undefined ? String(props.value) : props.value.toFixed(props.decimals);
-}
-
-/** An editable value: commits on Enter or blur when the text differs from the shown one; Escape restores it. */
-export function Field(props: FieldProps) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const shown = fieldText(props);
-  const commit = () => {
-    props.onDone?.();
-    if (draft === null) return;
-    setDraft(null);
-    if (draft === shown) return;
-    if (props.kind === "text") {
-      props.onCommit(draft);
-      return;
-    }
-    const n = Number(draft);
-    if (draft.trim() !== "" && Number.isFinite(n)) props.onCommit(n);
-  };
-  return (
-    <input
-      type={props.kind}
-      id={props.id}
-      step={props.kind === "number" ? (props.step ?? 1) : undefined}
-      className={props.className}
-      aria-label={props.label}
-      autoFocus={props.autoFocus}
-      value={draft ?? shown}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === ENTER) e.currentTarget.blur();
-        else if (e.key === ESCAPE) {
-          setDraft(null);
-          props.onDone?.();
-        }
-      }}
-    />
   );
 }

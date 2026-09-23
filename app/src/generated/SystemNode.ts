@@ -6,12 +6,18 @@ import type { MarauderRole } from "./MarauderRole";
 import type { NameTemplate } from "./NameTemplate";
 import type { SpawnModifier } from "./SpawnModifier";
 import type { SpawnScript } from "./SpawnScript";
+import type { SystemBody } from "./SystemBody";
 
 export type SystemNode = { id: number, name: NameTemplate, x: number, y: number, star_class: string, lanes: Array<Lane>, 
 /**
  * Index into `Galaxy::nebulae`.
  */
-nebula: number | null, bypass_ids: Array<number>, planet_count: number, initializer: string, 
+nebula: number | null, bypass_ids: Array<number>, planet_count: number, 
+/**
+ * A save system's planets in the order it lists them, star bodies included: which of
+ * them are stars is the install's to say. `None` for a scenario.
+ */
+bodies?: Array<SystemBody>, initializer: string, 
 /**
  * What the initializer makes of the system for the marauders: a clan's home or one
  * of its raid bases. Read the same way from a save and a scenario.

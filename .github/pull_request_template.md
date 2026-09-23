@@ -24,4 +24,5 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] An edited scenario in a local mod is picked up by auto-reload while the app is open
 - [ ] An L-Gate outcome set in the editor is the one that spawns when a gate opens
 - [ ] A system given a new star class loads with that star drawn on the galaxy map and in the system view
+- [ ] A single star body given a new type or size loads drawn that way in the system view, and a month passes cleanly
 - [ ] An empire given new map colours shows them as its border and fill; one set back to flag colours shows those

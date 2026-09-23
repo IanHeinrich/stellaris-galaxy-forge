@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the size of planet #748 from 25 to 30
+inverse: SetPlanetSize { id: 748, size: 25 }
+
+--- gamestate
++++ gamestate
+@@ -130460,7 +130460,7 @@
+ 		748=
+ 		{
+ 			planet_class="pc_g_star"
+-			planet_size=25
++			planet_size=30
+ 			carrier_binary_flags=3
+ 			build_queue=874
+ 			name=

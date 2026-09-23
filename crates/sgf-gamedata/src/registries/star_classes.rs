@@ -14,6 +14,11 @@ pub struct StarClass {
     /// Each `planet = { key = pc_… }` in order: the planet class of each star body, two
     /// or three of them for a binary or trinary system.
     pub planet_keys: Vec<String>,
+    /// The class the game swaps this one for during a crisis, when it has one.
+    pub crisis_star_class: Option<String>,
+    /// The weight a fresh galaxy draws this class with; `0` when the definition omits it, as
+    /// crisis variants and classes set only by events do.
+    pub spawn_odds: f64,
 }
 
 impl StarClass {
@@ -24,6 +29,12 @@ impl StarClass {
 
 impl FromDef for StarClass {
     const DIR: &'static str = "common/star_classes";
+
+    /// The weighted lists beside the classes (`rl_binary_stars = { stars = { … } }`) have no
+    /// `class`; a placeholder class with no bodies still has one.
+    fn skip(def: &Def) -> bool {
+        def.scalar("class").is_none()
+    }
 
     fn read(key: String, def: &Def) -> Self {
         let planet_keys = def
@@ -36,11 +47,19 @@ impl FromDef for StarClass {
             key,
             class: def.scalar("class").unwrap_or_default().to_owned(),
             icon: def.scalar("icon").map(str::to_owned),
-            icon_scale: def
-                .scalar("icon_scale")
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(1.0),
+            icon_scale: number(def, "icon_scale").unwrap_or(1.0),
             planet_keys,
+            crisis_star_class: def.scalar("crisis_star_class").map(str::to_owned),
+            spawn_odds: number(def, "spawn_odds").unwrap_or(0.0),
         }
+    }
+}
+
+/// A number, or the file's `@variable` it names.
+fn number(def: &Def, key: &str) -> Option<f64> {
+    let text = def.scalar(key)?;
+    match text.strip_prefix('@') {
+        Some(name) => def.vars.get(name)?.parse().ok(),
+        None => text.parse().ok(),
     }
 }

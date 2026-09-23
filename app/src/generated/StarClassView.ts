@@ -9,4 +9,17 @@ texture_key: string, icon_scale: number,
  * The planet class of each star body, in the order the install's definition lists
  * its `planet` entries.
  */
-planet_keys: Array<string>, };
+planet_keys: Array<string>, 
+/**
+ * The class the game swaps this one for during a crisis, when it has one.
+ */
+crisis_star_class: string | null, 
+/**
+ * The weight a fresh galaxy draws this class with; `0` marks one the game only sets by
+ * script.
+ */
+spawn_odds: number, 
+/**
+ * Whether the localisation names the class itself.
+ */
+localised: boolean, };

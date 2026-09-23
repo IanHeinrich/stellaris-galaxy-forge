@@ -79,6 +79,11 @@ pub struct SystemNode {
     pub nebula: Option<usize>,
     pub bypass_ids: Vec<u32>,
     pub planet_count: u32,
+    /// A save system's planets in the order it lists them, star bodies included: which of
+    /// them are stars is the install's to say. `None` for a scenario.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub bodies: Option<Vec<SystemBody>>,
     pub initializer: String,
     /// What the initializer makes of the system for the marauders: a clan's home or one
     /// of its raid bases. Read the same way from a save and a scenario.
@@ -125,6 +130,15 @@ pub struct SystemNode {
     /// starbase (marauder systems have a null sector but a marauder starbase). `None` when
     /// neither resolves.
     pub owner: Option<u32>,
+}
+
+/// One planet a save system lists: its `planet_class` and `planet_size`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SystemBody {
+    pub class: String,
+    /// `None` when the planet writes no size the editor can read.
+    pub size: Option<u32>,
 }
 
 impl SystemNode {

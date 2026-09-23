@@ -85,6 +85,9 @@ describe("the bulk star class", () => {
       texture_key: `star_class:${key}`,
       icon_scale: 1,
       planet_keys,
+      crisis_star_class: null,
+      spawn_odds: 1,
+      localised: true,
     });
     const bodies = Object.values(STARS).flat();
     useGameDataStore.setState({

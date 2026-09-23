@@ -23,7 +23,7 @@ import {
   staleLaneCount,
   useGalaxyStore,
 } from "../../../store/galaxyStore";
-import { IconPicker } from "../../IconPicker";
+import { PickerField } from "../../EditField";
 import { NEEDS_GAME_DATA } from "../../initializers/entry";
 import { LaneDensitySlider } from "../../LaneDensitySlider";
 import { useApplyOp } from "../../useApplyOp";
@@ -206,13 +206,13 @@ export function BulkStarClass({ ids }: { ids: readonly number[] }) {
   const tooMany = ids.length > STAR_CLASS_COUNT_MAX;
   if (!gameData || tooMany) {
     return (
-      <button
-        type="button"
-        disabled
-        title={tooMany ? `Limited to ${STAR_CLASS_COUNT_MAX} systems` : NEEDS_GAME_DATA}
-      >
-        {label}
-      </button>
+      <PickerField
+        label="Star class"
+        disabledReason={tooMany ? `Limited to ${STAR_CLASS_COUNT_MAX} systems` : NEEDS_GAME_DATA}
+        current={{ key: "", label }}
+        items={[]}
+        onPick={() => undefined}
+      />
     );
   }
   const waiting = targets.filter((t) => t.bodies === null && !failed.has(t.system.id));
@@ -234,7 +234,7 @@ export function BulkStarClass({ ids }: { ids: readonly number[] }) {
   };
   return (
     <>
-      <IconPicker
+      <PickerField
         label="Star class"
         title="Change the star class of the selected systems with as many stars"
         current={{ key: "", label: loading ? "Star class… (loading…)" : label }}

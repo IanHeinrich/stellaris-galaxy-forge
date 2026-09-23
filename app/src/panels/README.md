@@ -20,3 +20,22 @@ beside `overlays.css`. `inspector/selection/` and `overlays/contextMenu/` have n
 stylesheet, and `inspector/system/sections/` has none of its own. The
 `panels/` root's own components, such as `IconPicker`, keep theirs in
 `panels.css`.
+
+## Editable fields
+
+The inspector is the only place anything is edited. Every entity has one page
+there, and a page edits only its own entity: its children are summarised
+read-only and link to their own pages. Right-click menus and list pencils open
+a page; they never edit.
+
+- Every editable value uses the one field style from `EditField.tsx`: an
+  outlined, lightly tinted box whose pencil, chevron or swatch always shows.
+  Plain text is information.
+- A page puts its editable fields first, in an `EditBlock`, then an About
+  block of what it only shows.
+- `LockedRow` marks a value the user would expect to edit but cannot yet. Other
+  read-only values carry no mark.
+- A link to another page (`LinkRow`, `DrillLink`) is underlined text, never a
+  box.
+- A change is one op, applied as soon as the field commits. Undo takes it back,
+  so there is no Apply, Cancel or edit mode.

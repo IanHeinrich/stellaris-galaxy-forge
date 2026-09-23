@@ -1,9 +1,12 @@
 import { Container, Graphics, Sprite, type Renderer, type Texture } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
+import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
+import { singleStarClasses } from "../../lib/details/starBody";
 import { dimmedByInitializer } from "../../lib/initializer/initializerLabels";
+import { starCluster, type ClusterStar } from "../../lib/visual/starCluster";
 import { effectiveStarClass, starGlyph, starTextureKey } from "../../lib/visual/starGlyphs";
 import { STAR_BASE_PX, starDiameterPx } from "../../lib/visual/starSize";
 import { FILTERED_ALPHA, ORIGIN_ALPHA } from "../../lib/visual/style";
@@ -52,9 +55,15 @@ const RING_ALPHA = 0.6;
 /** Matches no class and no game texture, so the star takes the neutral glyph. */
 const NO_CLASS = "";
 
+interface Cluster {
+  stars: ClusterStar[];
+  sprites: Sprite[];
+}
+
 /**
  * One sprite per system: the game's star art scaling with the world when game data is loaded,
- * else a shared radial glow that stays screen-size-stable across zoom.
+ * else a shared radial glow that stays screen-size-stable across zoom. A save system with more
+ * than one star body draws each star's own art instead, clustered where its one sprite would be.
  */
 export class SystemsLayer implements MapLayer {
   readonly id = "systems" as const;
@@ -63,6 +72,9 @@ export class SystemsLayer implements MapLayer {
   private readonly ring: Texture;
   private readonly sprites = new Map<number, Sprite>();
   private readonly rings = new Map<number, Sprite>();
+  private readonly clusters = new Map<number, Cluster>();
+  private singles: ReadonlyMap<string, StarClassView> = new Map<string, StarClassView>();
+  private singlesFrom: ReadonlyMap<string, StarClassView> | null = null;
   /** Glyph radius in screen pixels for the glow path, else the star's diameter in world units. */
   private readonly sizes = new Map<number, number>();
   private readonly gameTextured = new Set<number>();
@@ -85,6 +97,7 @@ export class SystemsLayer implements MapLayer {
     if (ctx.galaxy === prev.galaxy) {
       if (
         ctx.starClasses !== prev.starClasses ||
+        ctx.planetClasses !== prev.planetClasses ||
         ctx.initializerClasses !== prev.initializerClasses ||
         ctx.kind !== prev.kind ||
         ctx.starTints !== prev.starTints ||
@@ -97,6 +110,7 @@ export class SystemsLayer implements MapLayer {
     this.container.removeChildren().forEach((c) => c.destroy());
     this.sprites.clear();
     this.rings.clear();
+    this.clusters.clear();
     this.sizes.clear();
     this.gameTextured.clear();
     this.nodes.clear();
@@ -123,7 +137,9 @@ export class SystemsLayer implements MapLayer {
       const ring = this.rings.get(id);
       if (sprite) doomed.add(sprite);
       if (ring) doomed.add(ring);
+      for (const star of this.clusters.get(id)?.sprites ?? []) doomed.add(star);
       this.sprites.delete(id);
+      this.clusters.delete(id);
       this.rings.delete(id);
       this.sizes.delete(id);
       this.gameTextured.delete(id);
@@ -167,6 +183,7 @@ export class SystemsLayer implements MapLayer {
     if (sprite) sprite.alpha = alpha;
     const ring = this.rings.get(id);
     if (ring) ring.alpha = RING_ALPHA * alpha;
+    for (const star of this.clusters.get(id)?.sprites ?? []) star.alpha = alpha;
   }
 
   onViewport(cam: Camera): void {
@@ -191,6 +208,21 @@ export class SystemsLayer implements MapLayer {
     if (ring) {
       const k = ((size * factor * 2) / ring.texture.width) * 2.2;
       ring.scale.set(k, k);
+    }
+    const cluster = this.clusters.get(id);
+    const node = this.nodes.get(id);
+    if (cluster && node) {
+      const footprint = starDiameterPx(STAR_BASE_PX, camScale);
+      cluster.sprites.forEach((star, i) => {
+        const place = cluster.stars[i];
+        const width = star.texture.width;
+        const px = Math.min(width, footprint * place.diameter * place.texture.scale);
+        star.scale.set(px / (camScale * width));
+        star.position.set(
+          node.x + (place.dx * footprint) / camScale,
+          node.y + (place.dy * footprint) / camScale,
+        );
+      });
     }
   }
 
@@ -260,7 +292,59 @@ export class SystemsLayer implements MapLayer {
       }
     }
     ring?.position.set(s.x, s.y);
+    this.placeCluster(s, sprite, resolved && tex ? resolved : null);
     this.rescale(s.id);
     this.applyFade(s.id, this.faded.has(s.id) ? ORIGIN_ALPHA : 1);
+  }
+
+  /**
+   * Draws `s` star by star when it has more than one star body and every star's art has landed,
+   * hiding its one sprite; `art` is the system class's own, the stand-in for a star with none.
+   */
+  private placeCluster(
+    s: SystemNode,
+    sprite: Sprite,
+    art: { key: string; scale: number } | null,
+  ): void {
+    const stars = art ? this.clusterOf(s, art) : null;
+    const textures = stars?.map((star) => getTexture(star.texture.key));
+    const held = this.clusters.get(s.id);
+    if (!stars || !textures || textures.some((t) => !t)) {
+      held?.sprites.forEach((star) => star.destroy());
+      this.clusters.delete(s.id);
+      sprite.renderable = true;
+      return;
+    }
+    const sprites = held?.sprites ?? [];
+    while (sprites.length > stars.length) sprites.pop()?.destroy();
+    while (sprites.length < stars.length) {
+      const star = new Sprite(this.glow);
+      star.anchor.set(0.5);
+      // Game star art sits on opaque black; drawn additively, black reads as transparent.
+      star.blendMode = "add";
+      sprites.push(star);
+      this.container.addChild(star);
+    }
+    sprites.forEach((star, i) => {
+      star.texture = textures[i] ?? this.glow;
+    });
+    this.clusters.set(s.id, { stars, sprites });
+    sprite.renderable = false;
+  }
+
+  private clusterOf(s: SystemNode, art: { key: string; scale: number }): ClusterStar[] | null {
+    if (this.singlesFrom !== this.ctx.starClasses) {
+      this.singlesFrom = this.ctx.starClasses;
+      this.singles = singleStarClasses(this.ctx.starClasses);
+    }
+    const stars = starCluster(
+      s.bodies,
+      this.ctx.planetClasses,
+      this.ctx.starClasses,
+      this.singles,
+      art,
+    );
+    if (stars) requestTextures(stars.map((star) => star.texture.key));
+    return stars;
   }
 }

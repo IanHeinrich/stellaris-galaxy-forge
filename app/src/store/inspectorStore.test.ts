@@ -87,6 +87,57 @@ describe("the entity stack", () => {
   });
 });
 
+describe("the Galaxy crumb", () => {
+  it("brings a page opened over the galaxy back to the galaxy", () => {
+    const empire: Entry = { ref: { kind: "country", id: 7 }, label: "Hissma Consciousness" };
+    inspector().openPage(empire);
+    expect(inspector().stack.map((e) => e.label)).toEqual(["Galaxy", "Hissma Consciousness"]);
+    expect(inspector().home()).toBe(true);
+    expect(inspector().stack.map((e) => e.label)).toEqual(["Galaxy"]);
+  });
+
+  it("leaves a selected system's stack to the selection to clear", () => {
+    inspector().setRoot(SOL);
+    inspector().open(EARTH);
+    expect(inspector().home()).toBe(false);
+    expect(inspector().stack).toEqual([SOL, EARTH]);
+  });
+});
+
+describe("back", () => {
+  const empire: Entry = { ref: { kind: "country", id: 7 }, label: "Hissma Consciousness" };
+
+  it("returns a page opened from another tab of the dock to that tab", () => {
+    useLayoutStore.setState({ tab: "empires", previousTab: "empires" });
+    inspector().openPage(empire);
+    expect(useLayoutStore.getState().tab).toBe("inspector");
+
+    inspector().back();
+
+    expect(useLayoutStore.getState().tab).toBe("empires");
+    expect(labels()).toEqual(["Galaxy"]);
+  });
+
+  it("stays in the inspector for a page opened from inside it", () => {
+    inspector().setRoot(SOL);
+    inspector().open(EARTH);
+
+    inspector().back();
+
+    expect(useLayoutStore.getState().tab).toBe("inspector");
+    expect(labels()).toEqual(["Sol"]);
+  });
+
+  it("names where it goes", () => {
+    useLayoutStore.setState({ tab: "empires", previousTab: "empires" });
+    inspector().openPage(empire);
+    expect(inspector().backTo()).toBe("empires");
+    inspector().setRoot(SOL);
+    inspector().open(EARTH);
+    expect(inspector().backTo()).toBe("inspector");
+  });
+});
+
 describe("drilling across kinds", () => {
   it("walks a system to a planet to its colony without nesting, and Alt+Left comes back", () => {
     inspector().setRoot(SOL);

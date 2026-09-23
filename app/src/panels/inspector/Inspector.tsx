@@ -25,25 +25,40 @@ import { INSPECTOR_VIEWS } from "./entity/views";
 function Breadcrumb() {
   const stack = useInspectorStore((s) => s.stack);
   const popTo = useInspectorStore((s) => s.popTo);
+  const home = useInspectorStore((s) => s.home);
+  const back = useInspectorStore((s) => s.back);
   const select = useEditorStore((s) => s.select);
   if (stack.length === 1 && stack[0].ref.kind === "galaxy") return null;
   return (
     <div className="ins-crumbs">
-      <button type="button" className="link" onClick={() => void select(null)}>
+      {stack.length > 1 && (
+        <button
+          type="button"
+          className="ins-back"
+          aria-label="Back"
+          title="Back (Alt+←)"
+          onClick={() => back()}
+        >
+          ‹
+        </button>
+      )}
+      <button type="button" className="link" onClick={() => home() || void select(null)}>
         Galaxy
       </button>
-      {stack.map((entry, i) => (
-        <span key={`${entry.label}-${i}`}>
-          <span className="sep">›</span>
-          {i === stack.length - 1 ? (
-            <span className="here">{entry.label}</span>
-          ) : (
-            <button type="button" className="link" onClick={() => popTo(i)}>
-              {entry.label}
-            </button>
-          )}
-        </span>
-      ))}
+      {stack.map((entry, i) =>
+        entry.ref.kind === "galaxy" ? null : (
+          <span key={`${entry.label}-${i}`}>
+            <span className="sep">›</span>
+            {i === stack.length - 1 ? (
+              <span className="here">{entry.label}</span>
+            ) : (
+              <button type="button" className="link" onClick={() => popTo(i)}>
+                {entry.label}
+              </button>
+            )}
+          </span>
+        ),
+      )}
     </div>
   );
 }
