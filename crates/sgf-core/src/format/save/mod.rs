@@ -4,6 +4,7 @@ pub mod details;
 pub(crate) mod galaxy;
 pub(crate) mod write;
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use crate::archive;
@@ -64,6 +65,7 @@ impl Format for Save {
         _slots: &[Anchor],
     ) -> Result<Vec<Subject>, OpError> {
         let mut nebulae = false;
+        let mut bodies = BTreeSet::new();
         for &subject in touched {
             match subject {
                 Subject::System(id) => {
@@ -73,6 +75,9 @@ impl Format for Save {
                         .parse(buf, 0)
                         .map_err(|e| subject.parse_error(e.offset, e.reason))?;
                     graph.refresh_system(id, &root, buf)?;
+                }
+                Subject::Planet { system, .. } => {
+                    bodies.insert(system);
                 }
                 Subject::Nebula(_) => nebulae = true,
                 Subject::Flags => {
@@ -97,9 +102,16 @@ impl Format for Save {
                         .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
                     graph.refresh_country(id, country, buf);
                 }
-                // The galaxy reads nothing from a planet: its class is the details' concern.
-                Subject::Planet { .. } | Subject::Statement { .. } | Subject::Header(_) => {}
+                Subject::Statement { .. } | Subject::Header(_) => {}
             }
+        }
+        for id in bodies {
+            let subject = Subject::System(id);
+            let buf = doc.current(self.statement(doc, subject)?)?;
+            let root = self
+                .parse(buf, 0)
+                .map_err(|e| subject.parse_error(e.offset, e.reason))?;
+            graph.refresh_bodies(id, &root, buf, doc)?;
         }
         let reassigned = if nebulae {
             doc.rebuild_nebulae();

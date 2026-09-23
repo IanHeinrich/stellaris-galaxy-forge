@@ -8,6 +8,7 @@
 //! one country through [`GalaxyGraph::refresh_country`]; all run the same extraction as
 //! the build, so ops need no incremental bookkeeping.
 
+mod bodies;
 mod bypasses;
 mod countries;
 pub(crate) mod lgate;
@@ -20,6 +21,7 @@ use std::collections::HashMap;
 
 use crate::cst::Node;
 use crate::document::Document;
+use crate::overlay::Anchor;
 use crate::projections::galaxy::{Galaxy, GalaxyGraph, GameSetup, ProjectionError};
 use crate::projections::read;
 use crate::scan::{Index, Section, Value};
@@ -31,9 +33,11 @@ impl Galaxy {
     /// a document with edits must pass its current bytes and index, not the originals.
     ///
     /// `sector_owner` and `starbase_owner` resolve each system's owner; a document
-    /// without empires has neither and passes empty maps.
+    /// without empires has neither and passes empty maps. `planets`, the inner index of
+    /// the `planets` section over the same `src`, gives each system its bodies.
     pub fn build(
         index: &Index,
+        planets: Option<&Index>,
         src: &[u8],
         sector_owner: &HashMap<u32, u32>,
         starbase_owner: &HashMap<u32, u32>,
@@ -55,9 +59,16 @@ impl Galaxy {
                     starbase_system.entry(starbase).or_insert(id);
                 }
             }
-            let node = systems::extract(id, &node, src, sector_owner, starbase_owner)?;
-            order.push(node.id);
-            systems.insert(node.id, node);
+            let mut system = systems::extract(id, &node, src, sector_owner, starbase_owner)?;
+            system.bodies = Some(
+                bodies::planet_ids(&node, src)
+                    .into_iter()
+                    .filter_map(|planet| planets.and_then(|p| bodies::planet(p, planet)))
+                    .map(|entity| bodies::body(entity.stmt.slice(src)))
+                    .collect(),
+            );
+            order.push(system.id);
+            systems.insert(system.id, system);
         }
 
         let nebulae = nebulae::extract(index, src)?;
@@ -126,7 +137,8 @@ impl GalaxyGraph {
         let starbase_owner = starbases::starbase_owners(doc, &fleet_owner)?;
         let (mut countries, capitals) = countries::extract(raw_countries);
 
-        let galaxy = Galaxy::build(index, src, &sector_owner, &starbase_owner)?;
+        let planets = doc.inner_index(keys::PLANETS)?;
+        let galaxy = Galaxy::build(index, planets, src, &sector_owner, &starbase_owner)?;
 
         let wanted = capitals
             .values()
@@ -156,23 +168,47 @@ impl GalaxyGraph {
         node: &Node,
         src: &[u8],
     ) -> Result<(), ProjectionError> {
-        let key = id.to_string();
-        let entity = if node.key_str(src) == Some(key.as_str()) {
-            node
-        } else {
-            node.find(&key, src)
-                .ok_or_else(|| ProjectionError::EntityField {
-                    section: keys::GALACTIC_OBJECT,
-                    id: u64::from(id),
-                    reason: "entity not found in the parsed node".to_owned(),
-                })?
-        };
-        let nebula = self.systems.get(&id).and_then(|s| s.nebula);
+        let entity = system_entity(id, node, src)?;
         let mut refreshed =
             systems::extract(id, entity, src, &self.sector_owner, &self.starbase_owner)?;
-        refreshed.nebula = nebula;
+        if let Some(previous) = self.systems.get_mut(&id) {
+            refreshed.nebula = previous.nebula;
+            refreshed.bodies = previous.bodies.take();
+        }
         if self.systems.insert(id, refreshed).is_none() {
             self.order.push(id);
+        }
+        Ok(())
+    }
+
+    /// Re-read system `id`'s bodies from `node`, its `galactic_object` entity as it now
+    /// stands (parsed as for [`GalaxyGraph::refresh_system`]), and each planet as `doc`
+    /// now holds it.
+    pub(crate) fn refresh_bodies(
+        &mut self,
+        id: u32,
+        node: &Node,
+        src: &[u8],
+        doc: &Document,
+    ) -> Result<(), ProjectionError> {
+        let entity = system_entity(id, node, src)?;
+        let planets = doc.inner_index(keys::PLANETS)?;
+        let mut read = Vec::new();
+        for planet in bodies::planet_ids(entity, src) {
+            let Some(found) = planets.and_then(|p| bodies::planet(p, planet)) else {
+                continue;
+            };
+            let bytes = doc.current(Anchor::Original(found.stmt)).map_err(|e| {
+                ProjectionError::EntityField {
+                    section: keys::PLANETS,
+                    id: found.id,
+                    reason: e.to_string(),
+                }
+            })?;
+            read.push(bodies::body(bytes));
+        }
+        if let Some(system) = self.systems.get_mut(&id) {
+            system.bodies = Some(read);
         }
         Ok(())
     }
@@ -196,6 +232,20 @@ impl GalaxyGraph {
     pub fn refresh_country(&mut self, id: u32, node: &Node, src: &[u8]) {
         countries::refresh(&mut self.countries, read::country(id, node, src));
     }
+}
+
+/// System `id`'s `<id>=` node: `node` itself, or the one it holds as `cst::parse` returns it.
+fn system_entity<'n>(id: u32, node: &'n Node, src: &[u8]) -> Result<&'n Node, ProjectionError> {
+    let key = id.to_string();
+    if node.key_str(src) == Some(key.as_str()) {
+        return Ok(node);
+    }
+    node.find(&key, src)
+        .ok_or_else(|| ProjectionError::EntityField {
+            section: keys::GALACTIC_OBJECT,
+            id: u64::from(id),
+            reason: "entity not found in the parsed node".to_owned(),
+        })
 }
 
 /// The setup screen off `node`, the parsed top-level `galaxy` block: strings empty and

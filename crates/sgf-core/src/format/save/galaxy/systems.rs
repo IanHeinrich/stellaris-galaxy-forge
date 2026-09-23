@@ -67,6 +67,7 @@ pub(super) fn extract(
         nebula: None,
         bypass_ids: read::ids(node, keys::BYPASSES, src),
         planet_count: as_u32(node.find_all(keys::PLANET, src).count()),
+        bodies: None,
         marauder: marauder::role(&initializer),
         initializer,
         spawn_weight: None,

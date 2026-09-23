@@ -3,6 +3,7 @@
 //! the new body classes, and undo puts the original bytes back.
 
 use sgf_core::ops::{Op, OpError, StarBody};
+use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 
@@ -299,4 +300,71 @@ fn a_refused_member_leaves_the_whole_batch_unapplied() {
     assert_eq!(current(&session), session.doc.original());
     assert_eq!(star_class(&session, 1), "sc_g");
     assert_eq!(body_class(&session, 1, 748), "pc_g_star");
+}
+
+fn bodies(system: &SystemNode) -> Vec<(String, Option<u32>)> {
+    system
+        .bodies
+        .as_ref()
+        .expect("a save system lists its bodies")
+        .iter()
+        .map(|b| (b.class.clone(), b.size))
+        .collect()
+}
+
+#[test]
+fn a_binarys_bodies_are_read_at_load_and_follow_a_change_of_one_star() {
+    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let system = &session.graph.systems[&5];
+    assert_eq!(system.star_class, "sc_binary_7");
+    let loaded = bodies(system);
+    assert_eq!(loaded.len(), 9);
+    assert_eq!(
+        loaded[..3],
+        [
+            ("pc_k_star".to_owned(), Some(33)),
+            ("pc_f_star".to_owned(), Some(20)),
+            ("pc_gas_giant".to_owned(), Some(22)),
+        ]
+    );
+
+    let result = session
+        .apply(set(5, "sc_binary_7", &[(619, "pc_t_star")]))
+        .expect("rewrite the second star alone");
+    let edit = session.edit_result(result);
+    let sent = edit
+        .delta
+        .systems
+        .iter()
+        .find(|s| s.id == 5)
+        .expect("the system reaches the map");
+    let mut expected = loaded.clone();
+    expected[1] = ("pc_t_star".to_owned(), Some(20));
+    assert_eq!(bodies(sent), expected, "the delta");
+    assert_eq!(
+        bodies(&session.graph.systems[&5]),
+        expected,
+        "the projection"
+    );
+    assert_eq!(
+        bodies(&reprojected(&session).systems[&5]),
+        expected,
+        "a reload"
+    );
+
+    let undone = session.undo().expect("undo").expect("something to undo");
+    let edit = session.edit_result(undone);
+    let sent = edit
+        .delta
+        .systems
+        .iter()
+        .find(|s| s.id == 5)
+        .expect("undo reaches the map");
+    assert_eq!(bodies(sent), loaded, "undo");
+}
+
+#[test]
+fn a_scenario_system_carries_no_bodies() {
+    let scenario = examples::scenario();
+    assert!(scenario.graph.systems.values().all(|s| s.bodies.is_none()));
 }

@@ -165,3 +165,22 @@ fn a_size_change_rereads_its_planet_and_keeps_the_details_built() {
     kept(&session, "the redo");
     assert_eq!(planet_size(&session, 1, 748), Some(30));
 }
+
+#[test]
+fn a_star_bodys_new_size_reaches_the_map() {
+    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let size_of = |system: &sgf_core::projections::galaxy::SystemNode| {
+        system.bodies.as_ref().expect("the system's bodies")[1].size
+    };
+    assert_eq!(size_of(&session.graph.systems[&5]), Some(20));
+    let result = session.apply(set(619, 31)).expect("grow the second star");
+    let edit = session.edit_result(result);
+    let sent = edit
+        .delta
+        .systems
+        .iter()
+        .find(|s| s.id == 5)
+        .expect("the system reaches the map");
+    assert_eq!(size_of(sent), Some(31));
+    assert_eq!(sent.bodies.as_ref().unwrap()[1].class, "pc_f_star");
+}
