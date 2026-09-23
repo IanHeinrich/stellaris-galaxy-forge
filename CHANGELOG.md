@@ -10,6 +10,8 @@ a release is made.
 
 ### Fixed
 
+- The update screen shows release notes with their headings and bullets
+  instead of raw Markdown.
 - Waystation badges no longer pile up over empire names and emblems on the
   whole-galaxy view. There, each station shows only a ring, and its level
   appears once you zoom in far enough for system names. Waystation badges
