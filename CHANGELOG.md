@@ -8,6 +8,17 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-09-23
+
+### Changed
+
+- Saves open with the Star classes and Colonies layers on.
+
+### Fixed
+
+- "Reset layers to defaults" no longer makes every later document open
+  with the layers of the one that was open at the time.
+
 ## [0.11.0] - 2026-09-23
 
 ### Added
