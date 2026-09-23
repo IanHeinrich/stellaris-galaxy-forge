@@ -10,6 +10,7 @@ import type { DepositView } from "../generated/DepositView";
 import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
+import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
@@ -152,4 +153,9 @@ export function getCountryTypes(): Promise<CountryTypeView[]> {
 
 export function getResourceIcons(): Promise<ResourceIcon[]> {
   return invoke<ResourceIcon[]>("get_resource_icons");
+}
+
+/** Every loaded mod file that could change the L-Cluster outcome; empty without game data. */
+export function getLgateOutcomeMods(): Promise<LGateModTouch[]> {
+  return invoke<LGateModTouch[]>("get_lgate_outcome_mods");
 }

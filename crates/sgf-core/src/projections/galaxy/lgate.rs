@@ -14,6 +14,18 @@ pub enum LGateOutcome {
     Empty,
 }
 
+impl LGateOutcome {
+    /// What the game calls the outcome.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::GrayTempest => "Gray Tempest",
+            Self::LDrakes => "L-Drakes",
+            Self::DessanuConsonance => "Dessanu Consonance",
+            Self::Empty => "Empty cluster",
+        }
+    }
+}
+
 /// `None` when the galaxy has no L-Gate, or for a document that carries no global flags
 /// (a scenario).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

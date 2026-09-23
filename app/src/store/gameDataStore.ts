@@ -6,6 +6,7 @@ import type { GameDataChanged } from "../generated/GameDataChanged";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
 import type { KindCount } from "../generated/KindCount";
+import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PlanetClassView } from "../generated/PlanetClassView";
@@ -65,6 +66,8 @@ export interface GameDataState {
   /** Ship size key → its `common/ship_sizes` icon, for the badge a fleet wears. */
   shipSizes: Map<string, ShipSizeView>;
   countryTypes: Map<string, CountryTypeView>;
+  /** Every loaded mod file that could change the L-Cluster outcome. */
+  lgateMods: LGateModTouch[];
   /** Every solar system initializer, read on first use; `null` until then. */
   initializers: InitializerView[] | null;
   /** Each initializer's own star class, drawn for a scenario system until the game rolls one. */
@@ -148,6 +151,7 @@ const UNLOADED = {
   starbaseLevels: new Map<string, StarbaseLevelView>(),
   shipSizes: new Map<string, ShipSizeView>(),
   countryTypes: new Map<string, CountryTypeView>(),
+  lgateMods: [] as LGateModTouch[],
   initializers: null as InitializerView[] | null,
   initializerClasses: NO_CLASSES,
   initializersPending: false,
@@ -586,6 +590,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     starbaseLevels,
     shipSizes,
     countryTypes,
+    lgateMods,
   ] = await Promise.all([
     ipc.getStarClasses(),
     ipc.getMapColors(),
@@ -595,6 +600,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     ipc.getStarbaseLevels(),
     ipc.getShipSizes(),
     ipc.getCountryTypes(),
+    ipc.getLgateOutcomeMods(),
   ]);
   if (alive?.() === false) return;
   useGameDataStore.setState({
@@ -606,6 +612,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     starbaseLevels: new Map(starbaseLevels.map((l) => [l.key, l])),
     shipSizes: new Map(shipSizes.map((s) => [s.key, s])),
     countryTypes: new Map(countryTypes.map((t) => [t.name, t])),
+    lgateMods,
   });
   await useDetailsStore.getState().loadResourceIcons();
 }

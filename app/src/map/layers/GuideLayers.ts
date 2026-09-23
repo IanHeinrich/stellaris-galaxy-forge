@@ -1,9 +1,13 @@
-import { BitmapText, Container, Graphics, TextStyle } from "pixi.js";
+import { BitmapText, Container, type FederatedPointerEvent, Graphics, TextStyle } from "pixi.js";
 import type { Guide } from "../../generated/Guide";
+import type { LGate } from "../../generated/LGate";
 import { lClusterGuide, SCENARIO_HALF_EXTENT } from "../../lib/guides";
 import type { LayerId } from "../../lib/visual/layerIds";
-import { MAP_FONT } from "../../lib/visual/style";
+import { ACCENT_COLOR, MAP_FONT } from "../../lib/visual/style";
+import { useLGateStore } from "../../store/lgateStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { Camera } from "../Camera";
+import { lgateOutcomeLine } from "../../lib/lgate";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
 import type { MapLayer } from "./MapLayer";
 
@@ -26,6 +30,22 @@ const LABEL_STYLE = new TextStyle({
 
 /** Screen pixels between the shape's top and the label above it. */
 const LABEL_GAP_PX = 4;
+
+/** The L-Cluster's reveal link, coloured to read as something to click. */
+const LINK_STYLE = new TextStyle({
+  fontFamily: MAP_FONT,
+  fontSize: 9,
+  fontWeight: "700",
+  fill: ACCENT_COLOR,
+});
+
+/** Screen pixels between the circle's top and the link just inside it. */
+const LINK_GAP_PX = 6;
+const LINK_ALPHA = 0.8;
+const REVEAL_LABEL = "Reveal outcome";
+const HIDE_LABEL = "Hide";
+const REVEAL_TOOLTIP = "Reveal which outcome the L-Cluster rolled on day one";
+const HIDE_TOOLTIP = "Hide the outcome again";
 
 /** Where a shape sits: its centre and the y of its top, in world units. */
 interface Placed {
@@ -73,9 +93,10 @@ abstract class GuideLayer implements MapLayer {
   abstract readonly id: LayerId;
   readonly container = new Container();
   private readonly shape = new Graphics();
-  private readonly label: BitmapText;
-  private readonly scale = { x: 1, y: 1 };
-  private placed: Placed | null = null;
+  /** The shape's name, in world units so a subclass can lay out more beside it (`LClusterLayer`'s chip). */
+  protected readonly label: BitmapText;
+  protected readonly scale = { x: 1, y: 1 };
+  protected placed: Placed | null = null;
   private shown = true;
   private ctx: RenderContext = EMPTY_CONTEXT;
 
@@ -163,19 +184,44 @@ export class MapBorderLayer extends GuideLayer {
 
 /**
  * Where the game builds the L-Cluster: the fixed circle it spawns into for every galaxy size,
- * or, on a save that already has one, the circle about the systems marked as the cluster.
+ * or, on a save that already has one, the circle about the systems marked as the cluster. When
+ * the document has an L-Gate outcome, a link just inside the circle's top reveals or hides it,
+ * in step with the global preference `useLGateStore` holds; a click never reaches the map.
  */
 export class LClusterLayer extends GuideLayer {
   readonly id = "lCluster" as const;
   private guide: Guide | null = null;
+  private lgate: LGate | null = null;
+  private revealed = useLGateStore.getState().revealed;
+  private readonly link: BitmapText;
+  private linkHovered = false;
 
   constructor() {
     super(L_CLUSTER_LABEL);
+    // The base guide never answers the pointer; this one's link does, so its container must.
+    this.container.eventMode = "passive";
+    this.link = new BitmapText({ text: "", style: LINK_STYLE });
+    this.link.label = "lgateLink";
+    this.link.anchor.set(0.5, 0);
+    this.link.alpha = LINK_ALPHA;
+    this.link.eventMode = "static";
+    this.link.cursor = "pointer";
+    this.link.on("pointerdown", (e: FederatedPointerEvent) => this.clickLink(e));
+    this.link.on("pointerover", (e: FederatedPointerEvent) => this.hoverLink(e));
+    this.link.on("pointerout", () => this.unhoverLink());
+    this.container.addChild(this.link);
   }
 
   /** The circle the layer last drew, in world units; null while nothing is drawn. */
   get circle(): Guide | null {
     return this.guide;
+  }
+
+  /** Whether the link shows the outcome or offers to; followed from `useLGateStore` by the map view. */
+  setLGateRevealed(revealed: boolean): void {
+    if (revealed === this.revealed) return;
+    this.revealed = revealed;
+    this.placeLink();
   }
 
   protected same(ctx: RenderContext, prev: RenderContext): boolean {
@@ -186,5 +232,62 @@ export class LClusterLayer extends GuideLayer {
     this.guide = lClusterGuide(ctx.kind, ctx.systems.values());
     dashedCircle(g, this.guide.radius);
     return { x: this.guide.x, y: this.guide.y, top: this.guide.y - this.guide.radius };
+  }
+
+  rebuild(ctx: RenderContext): void {
+    super.rebuild(ctx);
+    this.lgate = ctx.lgate;
+    this.placeLink();
+  }
+
+  onViewport(cam: Camera): void {
+    super.onViewport(cam);
+    this.placeLink();
+  }
+
+  destroy(): void {
+    this.unhoverLink();
+    super.destroy();
+  }
+
+  private placeLink(): void {
+    if (this.lgate === null || this.placed === null) {
+      this.link.visible = false;
+      return;
+    }
+    this.link.text = this.revealed
+      ? `${lgateOutcomeLine(this.lgate)} · ${HIDE_LABEL}`
+      : REVEAL_LABEL;
+    this.link.scale.set(this.scale.x, this.scale.y);
+    this.link.position.set(this.placed.x, this.placed.top + LINK_GAP_PX * this.scale.y);
+    this.link.visible = true;
+  }
+
+  private clickLink(e: FederatedPointerEvent): void {
+    // The map's own pointer handling listens on the canvas outside PixiJS's event system, so
+    // the native event must be stopped too or the click would start a marquee or a drag.
+    e.stopImmediatePropagation();
+    if (e.nativeEvent instanceof Event) e.nativeEvent.stopImmediatePropagation();
+    if (this.revealed) useLGateStore.getState().hide();
+    else useLGateStore.getState().reveal();
+    this.unhoverLink();
+  }
+
+  private hoverLink(e: FederatedPointerEvent): void {
+    this.linkHovered = true;
+    this.link.alpha = 1;
+    useMapChromeStore.getState().showTooltip({
+      x: e.global.x,
+      y: e.global.y,
+      title: L_CLUSTER_LABEL,
+      lines: [this.revealed ? HIDE_TOOLTIP : REVEAL_TOOLTIP],
+    });
+  }
+
+  private unhoverLink(): void {
+    if (!this.linkHovered) return;
+    this.linkHovered = false;
+    this.link.alpha = LINK_ALPHA;
+    useMapChromeStore.getState().hideTooltip();
   }
 }

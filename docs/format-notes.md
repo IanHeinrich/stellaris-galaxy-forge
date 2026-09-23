@@ -158,6 +158,27 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   derives one between two stations of a network whose systems a hyperlane
   or a bypass joins, so cutting a lane ends it with no other edit.
 
+## Global flags
+
+- The top-level `flags={ ... }` block holds the galaxy's global flags,
+  one per line. Most are a plain date int (`game_started=62808000`,
+  always present); a timed flag is a block
+  `{ flag_date=62808000 flag_days=3156 }`.
+- `distar.8000` (`events/distant_stars_events_3.txt`), fired only from
+  `on_game_start`, rolls the L-Cluster outcome and sets at most one of
+  `gray_goo_crisis_set` with `active_gray_goo` (Gray Tempest),
+  `dragon_season` (L-Drakes) or `gray_goo_empire_set` (Dessanu
+  Consonance). None of them means an empty cluster. `active_gray_goo`
+  only drives the Tempest's scripted text. The outcome flags carry the
+  same date as `game_started`.
+- `distar.10950` reads those flags when a gate first opens and sets
+  `l_cluster_opened`, after which the outcome has spawned. The game's own
+  test events `graygoo.25`, `graygoo.29` and `graygoo.30`
+  (`events/gray_goo_events.txt`) switch outcomes only by removing and
+  setting these flags.
+- The 4.5 sample rolled the Gray Tempest, and its two flags close the
+  block. The 4.4 sample has L-Gates and none of the outcome flags.
+
 ## Static galaxy scenarios
 
 - `map/setup_scenarios/*.txt` is the only folder the game reads for

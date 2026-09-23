@@ -12,7 +12,7 @@ use sgf_core::projections::galaxy::FlagRef;
 
 use crate::Diagnostic;
 use crate::initializers::Initializers;
-use crate::install::layers::Layout;
+use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def};
 use crate::scripts::chain::{self, Chain};
 use crate::scripts::claims::{self, Claims};
@@ -94,6 +94,9 @@ impl ParsedScript {
 #[derive(Debug, Default)]
 pub struct ScriptIndex {
     refs: HashMap<String, Vec<RefSite>>,
+    global_writes: HashMap<String, Vec<RefSite>>,
+    /// Every event a mod layer defines, the base game's own left out.
+    mod_events: HashMap<String, Vec<ScriptRef>>,
     fired_by: HashMap<String, Vec<String>>,
     effects: BTreeMap<String, Def>,
     by_country_flag: HashMap<String, CreatedCountry>,
@@ -175,6 +178,16 @@ impl ScriptIndex {
     /// Every script in loaded game data that names `token`.
     pub fn references(&self, token: &str) -> &[RefSite] {
         self.refs.get(token).map_or(&[][..], Vec::as_slice)
+    }
+
+    /// Every script in loaded game data that sets or removes the global flag `flag`.
+    pub fn global_flag_writes(&self, flag: &str) -> &[RefSite] {
+        self.global_writes.get(flag).map_or(&[][..], Vec::as_slice)
+    }
+
+    /// Where the loaded mods define the event with this id, in the order the game reads the files.
+    pub fn mod_event_definitions(&self, id: &str) -> &[ScriptRef] {
+        self.mod_events.get(id).map_or(&[][..], Vec::as_slice)
     }
 
     /// Where the event with this id is written; when two files define it,
@@ -301,10 +314,29 @@ impl ScriptIndex {
                 location,
             });
         }
+        for write in scanned.global_writes {
+            let location = script_ref(&self.layers, file, write.line);
+            self.global_writes
+                .entry(write.token)
+                .or_default()
+                .push(RefSite {
+                    verb: write.verb,
+                    owner: write.owner,
+                    kind,
+                    location,
+                });
+        }
         for fired in scanned.fired {
             self.fired_by.entry(fired.event).or_default().push(fired.by);
         }
         for event in scanned.events {
+            let location = script_ref(&self.layers, file, event.line);
+            if location.layer != VANILLA {
+                self.mod_events
+                    .entry(event.id.clone())
+                    .or_default()
+                    .push(location);
+            }
             self.events.insert(
                 event.id,
                 EventLoc {

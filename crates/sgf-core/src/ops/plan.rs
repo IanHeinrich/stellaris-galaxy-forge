@@ -78,6 +78,11 @@ impl Plan {
         self.subject(doc, Subject::Header(anchor))
     }
 
+    /// The edit for a save's top-level `flags` section, loading and parsing it on first use.
+    pub fn edit_flags(&mut self, doc: &Document) -> Result<&mut Edit, OpError> {
+        self.subject(doc, Subject::Flags)
+    }
+
     /// Emit `bytes` as a new statement at original offset `at`.
     pub fn emit(&mut self, what: Emitted, at: usize, bytes: Vec<u8>) {
         self.emits.push((what, at, bytes));

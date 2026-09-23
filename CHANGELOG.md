@@ -12,7 +12,7 @@ a release is made.
 
 - Search finds systems by what is in them as well as by name: "salvager", "gaia", "l-gate" or "leviathan" all work. It matches a system's initializer, its flags, its planet classes and its gateways and wormholes. Leviathans, enclaves and the other special kinds match only with game data loaded.
 - While the search field holds a query, every matching system is ringed on the map.
-- The Galaxy panel can reveal which L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance, or an empty cluster. It stays behind a Reveal link until you click it.
+- The Galaxy panel can reveal the L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance or an empty cluster. It stays hidden until you click Reveal, in the panel or inside the L-Cluster circle on the map. Once revealed, a dropdown changes the outcome until a gate opens. The panel warns when an enabled mod also changes the outcome.
 - You can pin a search, such as "salvager" or "alpha refuge", with the Pin button in the search field or with Ctrl+Enter. Pinned searches ring their systems in their own colour on every save you open. They are listed when you open search and in the Pinned tab.
 
 ### Changed

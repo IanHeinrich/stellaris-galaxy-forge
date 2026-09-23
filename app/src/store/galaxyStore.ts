@@ -3,6 +3,7 @@ import type { CountryNode } from "../generated/CountryNode";
 import type { GalaxyDelta } from "../generated/GalaxyDelta";
 import type { GalaxyView } from "../generated/GalaxyView";
 import type { HeaderField } from "../generated/HeaderField";
+import type { LGate } from "../generated/LGate";
 import type { Nebula } from "../generated/Nebula";
 import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
@@ -20,6 +21,8 @@ export interface GalaxyState {
   /** A save's waystations, one per station, and the waylines the game derives between them. */
   waystations: Waystation[];
   waylines: Wayline[];
+  /** A save's L-Gate outcome as it now reads, on its own so an edit of it leaves `galaxy` alone. */
+  lgate: LGate | null;
   /** Current nodes by id, in file order. The truth for positions after deltas. */
   systems: Map<number, SystemNode>;
   /** In file order; `SystemNode.nebula` indexes into it. The truth for nebulae after deltas. */
@@ -55,6 +58,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   header: [],
   waystations: [],
   waylines: [],
+  lgate: null,
   systems: new Map(),
   nebulae: [],
   countries: new Map(),
@@ -75,6 +79,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       header: view.header,
       waystations: view.waystations,
       waylines: view.waylines,
+      lgate: view.lgate,
       systems,
       nebulae: view.nebulae,
       countries: countryMap(view.countries, []),
@@ -108,7 +113,8 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     const nebulae = delta.nebulae ?? get().nebulae;
     const header = delta.header ?? get().header;
     const waylines = delta.waylines ?? get().waylines;
-    set({ systems, nebulae, header, waylines, lastDelta: delta, version: version + 1 });
+    const lgate = delta.lgate ?? get().lgate;
+    set({ systems, nebulae, header, waylines, lgate, lastDelta: delta, version: version + 1 });
   },
 
   setScriptedOwners(owners, countries) {
@@ -140,6 +146,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       header: [],
       waystations: [],
       waylines: [],
+      lgate: null,
       systems: new Map(),
       nebulae: [],
       countries: new Map(),

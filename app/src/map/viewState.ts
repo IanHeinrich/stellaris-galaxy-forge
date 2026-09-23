@@ -9,6 +9,7 @@ import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useIssuesStore } from "../store/issuesStore";
+import { useLGateStore } from "../store/lgateStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
 import { useWatchlistStore } from "../store/watchlistStore";
@@ -147,6 +148,12 @@ const BINDINGS: Binding[] = [
     (s, view) => setWatchlist(view, watchRings(s.entries, s.results)),
     "layers",
   ),
+  follows(
+    useLGateStore,
+    [(s) => s.revealed],
+    (s, view) => setLGateRevealed(view, s.revealed),
+    "layers",
+  ),
   follows(useFileSessionStore, [(s) => s.capabilities], (_s, view) => view.syncLayers()),
   follows(useFileSessionStore, [(s) => s.kind], (_s, view) => {
     view.refreshContext();
@@ -234,6 +241,11 @@ function setIssues(view: MapView, issues: readonly AppIssue[]): void {
 
 function setWatchlist(view: MapView, rings: readonly WatchRings[]): void {
   for (const layer of view.layers) layer.setWatchlist?.(rings);
+  view.invalidate();
+}
+
+function setLGateRevealed(view: MapView, revealed: boolean): void {
+  for (const layer of view.layers) layer.setLGateRevealed?.(revealed);
   view.invalidate();
 }
 

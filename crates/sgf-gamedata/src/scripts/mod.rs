@@ -12,6 +12,7 @@ pub mod facts;
 pub mod identity;
 pub mod index;
 pub mod init_bypasses;
+pub mod lgate;
 pub mod owners;
 pub(crate) mod scan;
 pub(crate) mod scope;
@@ -21,10 +22,11 @@ pub mod view;
 
 pub use index::{CreatedCountry, Prescripted, RefSite, ScriptIndex, SiteKind};
 pub use view::{
-    BypassKind, BypassSource, OwnerIdentity, OwnerTier, ROW_KIND_ORDER, ROW_LIMIT, ReferenceVia,
-    SITE_LIMIT, ScenarioBypass, ScenarioBypasses, ScenarioOwners, ScenarioSystem, ScriptRef,
-    ScriptRow, ScriptRowKind, ScriptSite, ScriptTiming, SystemColony, SystemOwner, SystemOwnerView,
-    SystemScripts, TERRITORY_BASE, Territory, UnresolvedOwner,
+    BypassKind, BypassSource, LGateModTouch, LGateTouchKind, OwnerIdentity, OwnerTier,
+    ROW_KIND_ORDER, ROW_LIMIT, ReferenceVia, SITE_LIMIT, ScenarioBypass, ScenarioBypasses,
+    ScenarioOwners, ScenarioSystem, ScriptRef, ScriptRow, ScriptRowKind, ScriptSite, ScriptTiming,
+    SystemColony, SystemOwner, SystemOwnerView, SystemScripts, TERRITORY_BASE, Territory,
+    UnresolvedOwner,
 };
 
 use std::collections::HashMap;
@@ -91,6 +93,11 @@ impl GameData {
     /// frame: their initializers' own, and the day-one events' placements.
     pub fn scenario_bypasses(&self, systems: &[ScenarioSystem<'_>]) -> ScenarioBypasses {
         bypasses::scenario_bypasses(self, systems)
+    }
+
+    /// The files of loaded mods that could change the L-Cluster outcome.
+    pub fn lgate_outcome_mods(&self) -> Vec<LGateModTouch> {
+        lgate::lgate_outcome_mods(&self.scripts)
     }
 
     /// One system's Scripts section. `scenario_effect` is the system

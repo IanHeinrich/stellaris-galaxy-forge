@@ -1,15 +1,15 @@
 //! Reading a save's galaxy: every `galactic_object` entity plus the top-level `nebula`,
-//! `bypasses`, `natural_wormholes`, `waystation_networks`, `galaxy_radius` and `galaxy`
-//! sections.
+//! `bypasses`, `natural_wormholes`, `waystation_networks`, `galaxy_radius`, `galaxy` and
+//! `flags` sections.
 //!
 //! Built once at load by [`GalaxyGraph::build`]. One system is re-extracted after an op
-//! through [`GalaxyGraph::refresh_system`], and the nebulae with their membership through
-//! [`GalaxyGraph::refresh_nebulae`]; both run the same extraction as the build, so ops
-//! need no incremental bookkeeping.
+//! through [`GalaxyGraph::refresh_system`], the nebulae with their membership through
+//! [`GalaxyGraph::refresh_nebulae`] and the L-Gate through [`GalaxyGraph::refresh_lgate`];
+//! all run the same extraction as the build, so ops need no incremental bookkeeping.
 
 mod bypasses;
 mod countries;
-mod lgate;
+pub(crate) mod lgate;
 mod nebulae;
 pub(super) mod starbases;
 mod systems;
@@ -181,6 +181,14 @@ impl GalaxyGraph {
     pub fn refresh_nebulae(&mut self, doc: &Document) -> Result<Vec<u32>, ProjectionError> {
         self.nebulae = nebulae::extract_current(doc)?;
         Ok(self.assign_nebulae())
+    }
+
+    /// Re-read the L-Gate from `flags`, the `flags=` block as it now stands. A galaxy with
+    /// no L-Gate keeps none, whatever the flags say.
+    pub fn refresh_lgate(&mut self, flags: &Node, src: &[u8]) {
+        if self.lgate.is_some() {
+            self.lgate = Some(lgate::read_flags(flags, src));
+        }
     }
 }
 

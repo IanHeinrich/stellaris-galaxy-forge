@@ -8,7 +8,6 @@ vi.mock("../../lib/visual/textures", async (importOriginal) => {
 });
 
 import type { BypassLink } from "../../generated/BypassLink";
-import type { GalaxyView } from "../../generated/GalaxyView";
 import type { BypassKinds } from "../../lib/details/icons";
 import { requestTextures } from "../../lib/visual/textures";
 import { useLGateStore } from "../../store/lgateStore";
@@ -169,10 +168,8 @@ describe("the bypasses layer", () => {
 
   it("adds the L-Cluster outcome to the L-Gate tooltip once it is revealed, never before", () => {
     const layer = new BypassesLayer();
-    const galaxy = {
-      lgate: { outcome: "l_drakes", opened: true },
-    } as GalaxyView;
-    layer.rebuild(mapContext(SYSTEMS, { bypasses: [{ type: "l_gate", system: 2 }], galaxy }));
+    const lgate = { outcome: "l_drakes", opened: true } as const;
+    layer.rebuild(mapContext(SYSTEMS, { bypasses: [{ type: "l_gate", system: 2 }], lgate }));
     viewport(layer, 1);
     const [badge] = badges(layer);
 

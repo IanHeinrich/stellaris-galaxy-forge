@@ -8,6 +8,7 @@ use sgf_app_lib::watch;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::views::{ErrorKind, OpenResult, SearchHit, SearchKind, SearchResult};
 use sgf_gamedata::install::layers::Layer;
+use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::special::{SpecialKind, SpecialSystem, SpecialSystems};
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
@@ -151,6 +152,9 @@ fn game_data_commands_degrade_without_an_install() {
     let icons: Vec<ResourceIcon> =
         invoke(&w, "get_resource_icons", json!({})).expect("resource icons");
     assert!(icons.is_empty());
+    let lgate_mods: Vec<LGateModTouch> =
+        invoke(&w, "get_lgate_outcome_mods", json!({})).expect("lgate outcome mods");
+    assert!(lgate_mods.is_empty());
 
     let textures: Vec<TextureView> = invoke(
         &w,
@@ -428,6 +432,9 @@ fn game_data_commands_with_the_install() {
         .find(|s| s.key == "sc_black_hole")
         .expect("sc_black_hole");
     assert_eq!(black_hole.icon_scale, 2.0);
+    let lgate_mods: Vec<LGateModTouch> =
+        invoke(&w, "get_lgate_outcome_mods", json!({})).expect("lgate outcome mods");
+    assert!(lgate_mods.is_empty(), "the base game alone: {lgate_mods:?}");
 
     invoke::<()>(&w, "unload_game_data", json!({})).expect("unload");
     invoke::<()>(&w, "resume_auto_reload", json!({})).expect("resume with the watcher stopped");

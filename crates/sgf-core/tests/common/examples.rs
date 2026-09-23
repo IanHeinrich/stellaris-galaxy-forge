@@ -2,7 +2,7 @@
 //! the tests of a property of the whole enum run over.
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::ops::{InitializerSet, LaneLength, LanePair, Op, SystemMove};
-use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
+use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 
 use super::brush::new_system;
@@ -295,6 +295,9 @@ pub fn one_of_each() -> Vec<Example> {
         }),
         Example::scenario(Op::PreventLane { a: 0, b: 1 }),
         Example::scenario(Op::UnpreventLane { a: 10, b: 12 }),
+        Example::save(Op::SetLGateOutcome {
+            outcome: LGateOutcome::LDrakes,
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),
@@ -379,7 +382,8 @@ fn position(op: &Op) -> usize {
         Op::SetFeLinkFlags { .. } => 38,
         Op::PreventLane { .. } => 39,
         Op::UnpreventLane { .. } => 40,
-        Op::Batch { .. } => 41,
+        Op::SetLGateOutcome { .. } => 41,
+        Op::Batch { .. } => 42,
     }
 }
 

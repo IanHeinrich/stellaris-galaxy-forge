@@ -47,6 +47,8 @@ export interface MapLayer {
   setDetailsShown?(shown: boolean): void;
   /** Whether the marauder clans layer is on, for a layer that paints the clans' territories. */
   setClansShown?(shown: boolean): void;
+  /** Whether the L-Cluster guide's chip shows the L-Gate outcome, for `LClusterLayer`. */
+  setLGateRevealed?(revealed: boolean): void;
   destroy(): void;
 }
 

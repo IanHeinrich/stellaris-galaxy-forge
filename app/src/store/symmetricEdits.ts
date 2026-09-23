@@ -403,6 +403,7 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   SetFeLinkFlags: null,
   PreventLane: (op) => preventOp([[op.a, op.b]], false) ?? op,
   UnpreventLane: (op) => allowOp([[op.a, op.b]]) ?? op,
+  SetLGateOutcome: null,
   Batch: null,
 };
 

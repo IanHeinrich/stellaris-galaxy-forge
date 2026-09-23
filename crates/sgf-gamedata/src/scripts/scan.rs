@@ -28,6 +28,10 @@ const TRACKED: [&str; 4] = [
     "has_country_flag",
 ];
 
+/// Keys that set or clear a global flag. They name no system, so they are
+/// kept apart from [`TRACKED`], for the game-wide outcomes a flag decides.
+const GLOBAL_WRITES: [&str; 2] = ["set_global_flag", "remove_global_flag"];
+
 pub(crate) const EVENT_TARGET: &str = "event_target";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,6 +62,7 @@ pub(crate) struct RawFired {
 #[derive(Debug, Default)]
 pub(crate) struct Scan {
     pub hits: Vec<RawHit>,
+    pub global_writes: Vec<RawHit>,
     pub fired: Vec<RawFired>,
     pub events: Vec<RawEvent>,
 }
@@ -179,6 +184,7 @@ struct Walk<'a> {
     top_at: usize,
     top_line: u32,
     hits: Vec<RawHit>,
+    writes: Vec<RawHit>,
     calls: Vec<String>,
 }
 
@@ -196,6 +202,7 @@ impl<'a> Walk<'a> {
             top_at: 0,
             top_line: 1,
             hits: Vec::new(),
+            writes: Vec::new(),
             calls: Vec::new(),
         }
     }
@@ -225,6 +232,7 @@ impl<'a> Walk<'a> {
             self.top_line = opener.map_or(line, |(_, w_line)| w_line);
             self.event_id = None;
             self.hits.clear();
+            self.writes.clear();
             self.calls.clear();
         }
         self.frames.push(opener.map(|(w, _)| w));
@@ -262,6 +270,11 @@ impl<'a> Walk<'a> {
         if let Some(verb) = TRACKED.iter().find(|v| **v == key) {
             self.hit(verb, value, line);
         }
+        if let Some(verb) = GLOBAL_WRITES.iter().find(|v| **v == key)
+            && let Some(write) = self.raw(verb, value, line)
+        {
+            self.writes.push(write);
+        }
         if key == "flag"
             && let Some(verb) = self
                 .frames
@@ -283,15 +296,18 @@ impl<'a> Walk<'a> {
     }
 
     fn hit(&mut self, verb: &'static str, token: &str, line: u32) {
-        if token.is_empty() || self.frames.is_empty() {
-            return;
+        if let Some(hit) = self.raw(verb, token, line) {
+            self.hits.push(hit);
         }
-        self.hits.push(RawHit {
+    }
+
+    fn raw(&self, verb: &'static str, token: &str, line: u32) -> Option<RawHit> {
+        (!token.is_empty() && !self.frames.is_empty()).then(|| RawHit {
             owner: String::new(),
             verb,
             token: token.to_owned(),
             line,
-        });
+        })
     }
 
     fn flush(&mut self) {
@@ -307,6 +323,10 @@ impl<'a> Walk<'a> {
         for mut hit in self.hits.drain(..) {
             hit.owner.clone_from(&owner);
             self.out.hits.push(hit);
+        }
+        for mut write in self.writes.drain(..) {
+            write.owner.clone_from(&owner);
+            self.out.global_writes.push(write);
         }
         let by = caller(self.dir, &owner);
         for event in self.calls.drain(..) {

@@ -8,6 +8,7 @@ use sgf_core::library;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
 use sgf_gamedata::install::{discovery, mods};
+use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
     BypassView, CountryTypeView, DepositView, GalaxyShapeView, GameDataSummary, InitializerView,
@@ -267,6 +268,13 @@ pub fn get_resource_icons(game_data: State<'_, GameDataState>) -> Vec<ResourceIc
     game_data
         .loaded()
         .map_or_else(Vec::new, |gd| gd.resource_icons())
+}
+
+#[tauri::command(async)]
+pub fn get_lgate_outcome_mods(game_data: State<'_, GameDataState>) -> Vec<LGateModTouch> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.lgate_outcome_mods())
 }
 
 /// One view per key, in order; a key that fails carries its error instead of failing the call.

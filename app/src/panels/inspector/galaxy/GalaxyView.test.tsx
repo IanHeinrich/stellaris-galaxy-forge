@@ -1,6 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HeaderField } from "../../../generated/HeaderField";
+import type { LGateModTouch } from "../../../generated/LGateModTouch";
+import type { LGateOutcome } from "../../../generated/LGateOutcome";
 
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
@@ -9,6 +11,7 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
 import { onProgress } from "../../../api/events";
 import * as ipc from "../../../api/ipc";
+import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
 import { bindStores } from "../../../store/bindStores";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
@@ -94,6 +97,12 @@ async function open(kind: "save" | "scenario"): Promise<void> {
 function count(html: string, needle: string): number {
   return html.split(needle).length - 1;
 }
+
+const modTouch = (mod: string, file: string, what: LGateModTouch["what"]): LGateModTouch => ({
+  mod_name: mod,
+  file,
+  what,
+});
 
 describe("the components row", () => {
   const JOIN = /<button type="button" class="link" title="[^"]*">Join<\/button>/;
@@ -399,37 +408,96 @@ describe("the shapes row", () => {
 });
 
 describe("the L-Gate outcome", () => {
-  it("stays hidden behind Reveal until it is clicked, then names the outcome until hidden", async () => {
+  async function openWith(outcome: LGateOutcome, opened = false): Promise<void> {
     mocked.openSave.mockResolvedValueOnce({
       ...OPEN_RESULT,
-      galaxy: { ...OPEN_RESULT.galaxy, lgate: { outcome: "gray_tempest", opened: false } },
+      galaxy: { ...OPEN_RESULT.galaxy, lgate: { outcome, opened } },
     });
     await open("save");
+  }
+
+  it("stays hidden behind Reveal until it is clicked, then offers every outcome until hidden", async () => {
+    await openWith("gray_tempest");
 
     let html = galaxy();
     expect(html).toContain(">L-Gate outcome</span>");
     expect(html).toContain(">Reveal</button>");
     expect(html).not.toContain("Gray Tempest");
+    expect(html).not.toContain(LGATE_TEMPEST_NOTE);
 
     useLGateStore.getState().reveal();
     html = galaxy();
     expect(html).not.toContain(">Reveal</button>");
-    expect(html).toContain(">Gray Tempest</span>");
+    expect(html).toContain('<select aria-label="L-Gate outcome">');
+    expect(html).toContain('<option value="gray_tempest" selected="">Gray Tempest</option>');
+    for (const label of ["L-Drakes", "Dessanu Consonance", "Empty cluster"]) {
+      expect(html).toContain(`>${label}</option>`);
+    }
     expect(html).toContain(">Hide</button>");
 
     useLGateStore.getState().hide();
     expect(galaxy()).not.toContain("Gray Tempest");
   });
 
-  it("adds the opened note once a gate has been used", async () => {
-    mocked.openSave.mockResolvedValueOnce({
-      ...OPEN_RESULT,
-      galaxy: { ...OPEN_RESULT.galaxy, lgate: { outcome: "empty", opened: true } },
+  it("applies the outcome chosen and shows it once the edit comes back", async () => {
+    await openWith("gray_tempest");
+    useLGateStore.getState().reveal();
+    expect(galaxy()).toContain(LGATE_TEMPEST_NOTE);
+
+    mocked.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], lgate: { outcome: "l_drakes", opened: false } } }),
+    );
+    await useEditorStore.getState().applyOp({ type: "SetLGateOutcome", outcome: "l_drakes" });
+    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      type: "SetLGateOutcome",
+      outcome: "l_drakes",
     });
-    await open("save");
+
+    const html = galaxy();
+    expect(html).toContain('<option value="l_drakes" selected="">L-Drakes</option>');
+    expect(html).not.toContain(LGATE_TEMPEST_NOTE);
+  });
+
+  it("locks the choice once a gate has opened", async () => {
+    await openWith("gray_tempest", true);
     useLGateStore.getState().reveal();
 
-    expect(galaxy()).toContain(">Empty cluster, opened</span>");
+    const html = galaxy();
+    expect(html).toContain(`disabled="" title="${LGATE_OPENED_TITLE}"`);
+    expect(html).not.toContain(LGATE_TEMPEST_NOTE);
+  });
+
+  it("warns under the dropdown when an enabled mod also touches the outcome, folding past three", async () => {
+    await openWith("gray_tempest");
+    useLGateStore.getState().reveal();
+    useGameDataStore.setState({
+      lgateMods: [
+        modTouch("Alpha Mod", "events/alpha.txt", { type: "overrides_roll" }),
+        modTouch("Alpha Mod", "events/alpha_2.txt", { type: "sets_flag", flag: "dragon_season" }),
+        modTouch("Beta Mod", "events/beta.txt", { type: "overrides_gate_opening" }),
+        modTouch("Gamma Mod", "events/gamma.txt", { type: "reads_flag", flag: "l_cluster_opened" }),
+        modTouch("Delta Mod", "events/delta.txt", {
+          type: "removes_flag",
+          flag: "active_gray_goo",
+        }),
+      ],
+    });
+
+    const html = galaxy();
+    expect(html).toContain(
+      '<div class="muted ins-hint ins-lgate-note" title="events/alpha.txt: overrides the day-one roll (distar.8000); events/alpha_2.txt: sets dragon_season">Alpha Mod also changes the L-Gate outcome, so the game may not follow this choice.</div>',
+    );
+    expect(html).toContain("Beta Mod also changes the L-Gate outcome");
+    expect(html).toContain("Gamma Mod also changes the L-Gate outcome");
+    expect(html).not.toContain("Delta Mod also changes");
+    expect(html).toContain('<div class="muted ins-hint ins-lgate-note">and 1 more</div>');
+  });
+
+  it("says nothing about mods while none of the loaded ones touch the outcome", async () => {
+    await openWith("gray_tempest");
+    useLGateStore.getState().reveal();
+
+    expect(galaxy()).not.toContain("also changes the L-Gate outcome");
   });
 
   it("says nothing when the galaxy has no L-Gate", async () => {
