@@ -174,16 +174,25 @@ describe("GestureModel", () => {
     ]);
   });
 
-  it("right-click opens the context menu for a system, a lane or empty space", () => {
+  it("right-click opens the context menu for a system, a lane, a prevented pair or empty space, a lane before a pair", () => {
     const model = new GestureModel();
     const intent = recorder();
-    for (const extra of [{ system: 7 }, { edge: LANE_EDGE }, {}]) {
+    const PREVENTED = { a: 3, b: 5 };
+    for (const extra of [
+      { system: 7 },
+      { edge: LANE_EDGE },
+      { edge: LANE_EDGE, prevented: PREVENTED },
+      { prevented: PREVENTED },
+      {},
+    ]) {
       model.handle(at("down", 10, 20, { ...extra, button: 2 }), intent);
       model.handle(at("up", 10, 20, { ...extra, button: 2 }), intent);
     }
     expect(intent.calls).toEqual([
       ["contextMenu", { kind: "system", id: 7 }, 10, 20],
       ["contextMenu", { kind: "lane", lane: LANE }, 10, 20],
+      ["contextMenu", { kind: "lane", lane: LANE }, 10, 20],
+      ["contextMenu", { kind: "prevented", a: 3, b: 5 }, 10, 20],
       ["contextMenu", { kind: "space", x: 10, y: 20 }, 10, 20],
     ]);
   });

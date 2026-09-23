@@ -43,6 +43,7 @@ describe("a lane's context menu", () => {
     expect(html).toContain(">Cut</button>");
     expect(html).not.toContain("disabled=");
     expect(html).not.toContain("no longer in the galaxy");
+    expect(html).not.toContain("Cut and prevent");
   });
 
   it("refuses Cut once a delta has taken one of the lane's systems away, and says why", () => {
@@ -54,6 +55,40 @@ describe("a lane's context menu", () => {
     const html = menu();
     expect(html).toContain("disabled=");
     expect(html).toContain("One of this lane&#x27;s systems is no longer in the galaxy.");
+  });
+});
+
+describe("a scenario's prevented pairs", () => {
+  beforeEach(async () => {
+    vi.mocked(ipc.openSave).mockResolvedValue(SCENARIO_RESULT);
+    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
+  });
+
+  it("are made from a lane's menu and a system's, counting the selected systems each covers", () => {
+    const chrome = useMapChromeStore.getState();
+    chrome.openContextMenu({ target: { kind: "lane", lane: { a: 0, b: 1 } }, x: 0, y: 0 });
+    expect(menu()).toContain(">Cut and prevent</button>");
+
+    const sirius = useGalaxyStore.getState().systems.get(3)!;
+    useGalaxyStore.getState().applyDelta({ systems: [{ ...sirius, prevented: [1] }] });
+    useEditorStore.setState({ selection: [2, 3] });
+    chrome.openContextMenu({ target: { kind: "system", id: 1 }, x: 0, y: 0 });
+    const html = menu();
+    expect(html).toContain("Prevent lanes to selected (1)");
+    expect(html).toContain("Allow lanes to selected (1)");
+    expect(html.indexOf("Cut hyperlanes to selected")).toBeLessThan(
+      html.indexOf("Prevent lanes to selected"),
+    );
+  });
+
+  it("are allowed again from the menu on a prevented dash, which names both systems", () => {
+    useMapChromeStore
+      .getState()
+      .openContextMenu({ target: { kind: "prevented", a: 0, b: 1 }, x: 0, y: 0 });
+
+    const html = menu();
+    expect(html).toContain("Sol — Alpha Centauri");
+    expect(html).toContain(">Allow</button>");
   });
 });
 

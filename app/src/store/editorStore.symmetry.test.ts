@@ -402,6 +402,122 @@ describe("cutting lanes under symmetry", () => {
   });
 });
 
+describe("preventing and allowing lanes", () => {
+  /** Has the scenario keep each pair from a lane, named on both ends. */
+  function bar(...pairs: Array<[number, number]>): void {
+    const all = useGalaxyStore.getState().systems;
+    const touched = new Map<number, (typeof PLACED)[number]>();
+    for (const [a, b] of pairs) {
+      for (const [from, to] of [
+        [a, b],
+        [b, a],
+      ]) {
+        const s = touched.get(from) ?? all.get(from)!;
+        touched.set(from, { ...s, prevented: [...s.prevented, to] });
+      }
+    }
+    useGalaxyStore.getState().applyDelta({ systems: [...touched.values()] });
+  }
+
+  it("cuts a lane and prevents it as one edit, and prevents a pair with no lane alone", async () => {
+    link([10, 12]);
+    await editor().preventLanes([[10, 12]]);
+    expect(sent()).toEqual({
+      type: "Batch",
+      description: "Cut and prevented lane 10 <-> 12",
+      ops: [
+        { type: "RemoveLane", a: 10, b: 12 },
+        { type: "PreventLane", a: 10, b: 12 },
+      ],
+    });
+
+    await editor().preventLanes([[13, 12]]);
+    expect(sent()).toEqual({ type: "PreventLane", a: 13, b: 12 });
+  });
+
+  it("only cuts a lane the scenario already prevents", async () => {
+    link([10, 12]);
+    bar([10, 12]);
+    await editor().preventLanes([[10, 12]]);
+    expect(sent()).toEqual({ type: "RemoveLane", a: 10, b: 12 });
+  });
+
+  it("prevents lanes to the selected systems not kept from the target yet, and allows the ones that are", async () => {
+    link([10, 12]);
+    bar([11, 12]);
+    useEditorStore.setState({ selection: [10, 11, 13] });
+
+    await editor().preventLanesToSelected(12);
+    expect(sent()).toEqual({
+      type: "Batch",
+      description: "Cut 1 lane and prevented 2 lanes",
+      ops: [
+        { type: "RemoveLane", a: 10, b: 12 },
+        { type: "PreventLane", a: 10, b: 12 },
+        { type: "PreventLane", a: 12, b: 13 },
+      ],
+    });
+
+    await editor().allowLanesToSelected(12);
+    expect(sent()).toEqual({ type: "UnpreventLane", a: 11, b: 12 });
+  });
+
+  it("does the same to each counterpart pair under symmetry, as one edit", async () => {
+    sym(MIRROR_X);
+    link([10, 12], [11, 12]);
+    await editor().preventLanes([[10, 12]]);
+    expect(sent()).toEqual({
+      type: "Batch",
+      description: "Cut 2 lanes and prevented 2 lanes",
+      ops: [
+        {
+          type: "RemoveLanePairs",
+          lanes: [
+            [10, 12],
+            [11, 12],
+          ],
+        },
+        { type: "PreventLane", a: 10, b: 12 },
+        { type: "PreventLane", a: 11, b: 12 },
+      ],
+    });
+
+    bar([10, 12], [11, 12]);
+    await editor().applySymmetric({ type: "UnpreventLane", a: 12, b: 11 });
+    expect(sent()).toEqual({
+      type: "Batch",
+      description: "Allowed 2 lanes",
+      ops: [
+        { type: "UnpreventLane", a: 12, b: 11 },
+        { type: "UnpreventLane", a: 12, b: 10 },
+      ],
+    });
+  });
+
+  it("leaves out a counterpart the core would refuse: already prevented, joined by a lane, or not prevented", async () => {
+    sym(MIRROR_X);
+    bar([11, 12]);
+    await editor().preventLanes([[10, 12]]);
+    expect(sent()).toEqual({ type: "PreventLane", a: 10, b: 12 });
+
+    await editor().applySymmetric({ type: "UnpreventLane", a: 11, b: 12 });
+    expect(sent()).toEqual({ type: "UnpreventLane", a: 11, b: 12 });
+
+    sym(QUARTER);
+    link([20, 0]);
+    await editor().applySymmetric({ type: "PreventLane", a: 21, b: 0 });
+    expect(sent()).toEqual({
+      type: "Batch",
+      description: "Prevented 3 lanes",
+      ops: [
+        { type: "PreventLane", a: 21, b: 0 },
+        { type: "PreventLane", a: 22, b: 0 },
+        { type: "PreventLane", a: 23, b: 0 },
+      ],
+    });
+  });
+});
+
 describe("isolating systems under symmetry", () => {
   it("isolates the counterparts that have lanes, as one edit", async () => {
     sym(MIRROR_X);

@@ -49,7 +49,8 @@ import {
   sections,
   SYSTEM,
 } from "../inspectorFixture";
-import { preventLaneOp, preventTarget, unpreventLaneOp } from "./sections/scenario/prevented";
+import { PREVENT_HINT } from "./sections/Hyperlanes";
+import { unpreventLaneOp } from "./sections/scenario/prevented";
 import { SCRIPTS_LIMITS, SCRIPTS_TAB_TITLE } from "./sections/scenario/ScriptsTab";
 import { DEFAULT_SPAWN_WEIGHT, spawnPointOp } from "./sections/scenario/spawnPoint";
 import { renameSystemOp } from "./systemName";
@@ -665,7 +666,7 @@ describe("a scenario system's prevented lanes", () => {
     useGalaxyStore.getState().applyDelta({ systems: [{ ...system, prevented: ids }] });
   }
 
-  it("names each forbidden pair under the lanes, with the way to allow it and to add one", async () => {
+  it("names each forbidden pair under the lanes, with the way to allow it and where to add one", async () => {
     await open("scenario");
     preventing([3, 4]);
 
@@ -674,34 +675,24 @@ describe("a scenario system's prevented lanes", () => {
     expect(html).toContain('title="Allow a lane between #1 and #3"');
     expect(html).toContain('title="Allow a lane between #1 and #4"');
     expect(html).toContain(">#3<");
-    expect(html).toContain("Prevent lane to…");
-    expect(html).toContain('aria-label="Prevent lane to id"');
+    expect(html).toContain(PREVENT_HINT);
+    expect(html).not.toContain("Prevent lane to");
     expect(html.indexOf("Hyperlanes · 4")).toBeLessThan(html.indexOf("Prevented · 2"));
   });
 
-  it("sends the pair Allow clears and the one the id field forbids", async () => {
+  it("sends the pair Allow clears", async () => {
     await open("scenario");
     preventing([3]);
 
-    await useEditorStore.getState().applyOp(unpreventLaneOp(SYSTEM, 3));
+    await useEditorStore.getState().applySymmetric(unpreventLaneOp(SYSTEM, 3));
     expect(mocked.applyOp).toHaveBeenLastCalledWith({ type: "UnpreventLane", a: SYSTEM, b: 3 });
-
-    await useEditorStore.getState().applyOp(preventLaneOp(SYSTEM, 5));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({ type: "PreventLane", a: SYSTEM, b: 5 });
-  });
-
-  it("sends whatever whole number the field names and leaves the refusing to the core", () => {
-    expect(preventTarget("5")).toBe(5);
-    expect(preventTarget("")).toBeNull();
-    expect(preventTarget("two")).toBeNull();
-    expect(preventTarget("4.5")).toBeNull();
   });
 
   it("offers none of it on a save, whose lanes no scenario statement forbids", async () => {
     await open("save");
     await land(details());
 
-    expect(overview()).not.toContain("Prevent lane to");
+    expect(overview()).not.toContain(PREVENT_HINT);
   });
 });
 

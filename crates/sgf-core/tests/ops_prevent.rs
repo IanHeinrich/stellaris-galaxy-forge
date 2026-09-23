@@ -83,6 +83,23 @@ fn the_prevent_ops_undo_and_redo_byte_for_byte() {
 }
 
 #[test]
+fn a_linked_pair_is_cut_and_prevented_as_one_edit() {
+    let cut_and_prevent = || Op::Batch {
+        description: "Cut and prevented lane 1 <-> 2".into(),
+        ops: vec![
+            Op::RemoveLane { a: 1, b: 2 },
+            Op::PreventLane { a: 1, b: 2 },
+        ],
+    };
+    let mut session = GRAMMAR.open();
+    session.apply(cut_and_prevent()).expect("apply");
+    assert!(session.graph.lane(1, 2).is_none());
+    assert!(session.graph.lane(2, 1).is_none());
+    assert!(session.graph.systems[&1].prevented.contains(&2));
+    round_trip(GRAMMAR.open(), cut_and_prevent());
+}
+
+#[test]
 fn a_prevention_this_session_inserted_can_be_taken_out_again() {
     let fixture = GRAMMAR.bytes();
     let mut session = GRAMMAR.open();
