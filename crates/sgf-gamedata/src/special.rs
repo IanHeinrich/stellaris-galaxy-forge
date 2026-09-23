@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use sgf_core::export::policy::is_generic_initializer;
 use sgf_core::format::save::details::DetailsProjection;
 use sgf_core::projections::galaxy::{CountryNode, GalaxyGraph, SystemNode, display_name};
+use sgf_core::projections::name::NameTemplate;
 use sgf_core::session::Session;
 use ts_rs::TS;
 
@@ -59,6 +60,10 @@ pub struct CountryRef {
     pub name: Option<String>,
     pub country_type: String,
     pub icon: Option<FlagIcon>,
+    /// `name` was built from a template with variables (a procedurally assembled empire
+    /// name), not a fixed key or literal: a caller that wants a stable label should prefer
+    /// something else, such as [`SpecialSystem::label_is_generated_name`].
+    pub generated_name: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -78,6 +83,10 @@ pub struct SpecialSystem {
     /// the countries the save itself puts in the system.
     pub countries: Vec<CountryRef>,
     pub label: String,
+    /// `label` came from a present country's procedurally generated name (a spawned
+    /// enclave's own randomly-assembled name, say), not a fixed one: a caller that wants
+    /// a stable label, such as a map badge, should prefer the initializer's name instead.
+    pub label_is_generated_name: bool,
 }
 
 /// A country the save puts in a system: the owner of a fleet or starbase standing there.
@@ -87,6 +96,7 @@ pub struct SpecialSystem {
 pub struct PresentCountry {
     pub id: u32,
     pub name_key: String,
+    pub name: NameTemplate,
     pub country_type: String,
     pub icon: Option<FlagIcon>,
 }
@@ -118,6 +128,7 @@ pub fn present_countries(graph: &GalaxyGraph, details: &DetailsProjection) -> Pr
                 present.extend(by_id.get(&owner).map(|c| PresentCountry {
                     id: c.id,
                     name_key: c.name_key.clone(),
+                    name: c.name.clone(),
                     country_type: c.country_type.clone(),
                     icon: c.flag_icon.as_ref().map(|f| FlagIcon {
                         category: f.category.clone(),
@@ -274,14 +285,16 @@ fn classify_one(
                 name: gd.and_then(|gd| gd.loc.get(&c.name_key)),
                 country_type: c.country_type.clone(),
                 icon: c.icon.clone(),
+                generated_name: false,
             })
             .collect()
     };
-    let label = countries
-        .iter()
-        .find_map(|c| c.name.clone())
+    let label_country = countries.iter().find(|c| c.name.is_some());
+    let label = label_country
+        .and_then(|c| c.name.clone())
         .or_else(|| gd.map(|gd| gd.loc.resolve_template(&node.name)))
         .unwrap_or_else(|| node.display_name());
+    let label_is_generated_name = label_country.is_some_and(|c| c.generated_name);
     Some(SpecialSystem {
         id: node.id,
         primary,
@@ -292,11 +305,14 @@ fn classify_one(
         flags: node.flags.clone(),
         countries,
         label,
+        label_is_generated_name,
     })
 }
 
-/// The countries standing in the system, the one whose type fits `primary` first. Their
-/// name key is the save's own text, which stands in where localisation has no entry.
+/// The countries standing in the system, the one whose type fits `primary` first. A
+/// country the game names outright resolves through its own template (a spawned
+/// enclave's country has no fixed loc key, only the save's own name); where localisation
+/// has no entry at all, the save's own text stands in.
 fn present_refs(
     gd: Option<&GameData>,
     present: &[PresentCountry],
@@ -309,12 +325,13 @@ fn present_refs(
         .map(|c| CountryRef {
             id: Some(c.id),
             name_key: c.name_key.clone(),
-            name: Some(
-                gd.and_then(|gd| gd.loc.get(&c.name_key))
-                    .unwrap_or_else(|| display_name(&c.name_key)),
-            ),
+            name: Some(match gd {
+                Some(gd) => gd.loc.resolve_template(&c.name),
+                None => display_name(&c.name_key),
+            }),
             country_type: c.country_type.clone(),
             icon: c.icon.clone(),
+            generated_name: !c.name.variables.is_empty(),
         })
         .collect()
 }
