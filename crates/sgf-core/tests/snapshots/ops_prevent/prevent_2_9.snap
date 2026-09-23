@@ -5,7 +5,6 @@ expression: "report(&session, &result)"
 Prevented lane 2 <-> 9
 touched: [2, 9]
 inverse: UnpreventLane { a: 2, b: 9 }
-warning system_isolated: system 9 has no hyperlanes
 … and 1 other issues
 
 --- scenario

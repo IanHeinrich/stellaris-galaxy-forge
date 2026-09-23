@@ -2,26 +2,15 @@
 //! the projection and the index must agree with a fresh open of the current bytes, and the
 //! same follow-up edit must write the same bytes on both.
 
-use sgf_core::document::Document;
-use sgf_core::ops::{InitializerSet, LanePair, NewSystem, Op, SystemMove};
+use sgf_core::ops::{InitializerSet, LanePair, Op, SystemMove};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 
 mod common;
+use common::brush::new_system;
 use common::current;
-
-const GRAMMAR: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/scenario_grammar.txt"
-);
-const SAMPLE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/2206.11.16.scenario.txt"
-);
-const PAINTED: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/paint_a_galaxy.txt"
-);
+use common::diff::{assert_fresh, round_trip_step as step};
+use common::fixture::{EXPORTED, GRAMMAR, PAINTED, from_scenario_text};
 
 /// System 1 twice, the second statement winning, and two statements sharing a line.
 const DUPLICATES: &str = "static_galaxy_scenario = {
@@ -33,135 +22,6 @@ const DUPLICATES: &str = "static_galaxy_scenario = {
 \tnebula = { name = \"N\" position = { x = 0 y = 0 } radius = 8 }
 }
 ";
-
-fn open(path: &str) -> Session {
-    Session::open(path).expect("open the scenario")
-}
-
-fn from_bytes(bytes: Vec<u8>) -> Session {
-    let doc = Document::from_scenario_bytes(bytes).expect("index the bytes");
-    Session::from_document(None, doc).expect("project the bytes")
-}
-
-/// What the index says, without the anchors, which differ between an edited document and
-/// a fresh open of its bytes.
-fn index_view(session: &Session) -> String {
-    let scenario = session.doc.scenario().expect("a scenario");
-    let mut view = format!(
-        "name {:?} core {:?} transform {} next {} nebulae {}\n",
-        scenario.header.name,
-        scenario.header.core_radius,
-        scenario.header.has_coordinate_transform,
-        scenario.next_id(),
-        scenario.nebulae().len()
-    );
-    for stmt in &scenario.header.statements {
-        view.push_str(&format!(
-            "header {} = {}\n",
-            stmt.field.key, stmt.field.value
-        ));
-    }
-    for (id, anchor) in scenario.systems() {
-        let bytes = session.doc.current(anchor).expect("the system's bytes");
-        view.push_str(&format!(
-            "system {id}: {}\n",
-            String::from_utf8_lossy(bytes).trim()
-        ));
-    }
-    for lane in scenario.lane_statements() {
-        view.push_str(&format!(
-            "lane {} {} {}\n",
-            lane.from, lane.to, lane.prevent
-        ));
-    }
-    view
-}
-
-/// Insertions at the header, among the systems, lanes and nebulae, and a removal, as one
-/// edit: every place the index says a statement goes or stands.
-fn probe(session: &Session) -> Op {
-    let first = session.graph.order[0];
-    let last = *session.graph.order.last().unwrap();
-    let next = session.graph.systems.keys().max().unwrap() + 1;
-    Op::Batch {
-        description: "Probe".to_owned(),
-        ops: vec![
-            Op::SetHeaderField {
-                key: "sgf_probe".to_owned(),
-                value: Some("1".to_owned()),
-            },
-            Op::AddSystems {
-                systems: vec![new_system(next, 1.0, 1.0)],
-            },
-            Op::AddLane {
-                a: next,
-                b: first,
-                bridge: false,
-            },
-            Op::AddNebula {
-                x: 5.0,
-                y: 5.0,
-                radius: 1.0,
-                name: None,
-            },
-            Op::RemoveSystem { id: last },
-        ],
-    }
-}
-
-fn probed(mut session: Session) -> Vec<u8> {
-    let op = probe(&session);
-    session.apply(op).expect("the probe");
-    current(&session)
-}
-
-fn assert_fresh(session: &Session, step: &str) {
-    let fresh = from_bytes(current(session));
-    let (now, then) = (&session.graph, &fresh.graph);
-    assert_eq!(now.systems, then.systems, "{step}: systems");
-    assert_eq!(now.order, then.order, "{step}: order");
-    assert_eq!(now.nebulae, then.nebulae, "{step}: nebulae");
-    assert_eq!(now.header.len(), then.header.len(), "{step}: header");
-    assert_eq!(now.bypasses, then.bypasses, "{step}: bypasses");
-    assert_eq!(now.galaxy_radius, then.galaxy_radius, "{step}: radius");
-    assert_eq!(now.core_radius, then.core_radius, "{step}: core radius");
-    assert_eq!(index_view(session), index_view(&fresh), "{step}: index");
-    let edited = Session::from_document(None, session.doc.clone()).expect("project the doc");
-    assert_eq!(
-        String::from_utf8_lossy(&probed(edited)),
-        String::from_utf8_lossy(&probed(fresh)),
-        "{step}: a follow-up edit"
-    );
-}
-
-/// Apply `op`, then undo and redo it, checking each step, and leave it applied.
-fn step(session: &mut Session, label: &str, op: Op) {
-    let before = current(session);
-    session.apply(op).unwrap_or_else(|e| panic!("{label}: {e}"));
-    assert_fresh(session, label);
-    session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(
-        current(session),
-        before,
-        "{label}: undo is not byte-identical"
-    );
-    assert_fresh(session, &format!("{label} undone"));
-    session.redo().expect("redo").expect("an op to redo");
-    assert_fresh(session, &format!("{label} redone"));
-}
-
-fn new_system(id: u32, x: f64, y: f64) -> NewSystem {
-    NewSystem {
-        id,
-        x,
-        y,
-        name: None,
-        initializer: None,
-        spawn_weight: None,
-        spawn_script: None,
-        statement: None,
-    }
-}
 
 fn set_header(key: &str, value: Option<&str>) -> Op {
     Op::SetHeaderField {
@@ -437,10 +297,10 @@ fn edits(session: &mut Session) {
 
 #[test]
 fn grammar_fixture_edits_match_a_fresh_open() {
-    let mut session = open(GRAMMAR);
+    let mut session = GRAMMAR.open();
     edits(&mut session);
 
-    let mut session = open(GRAMMAR);
+    let mut session = GRAMMAR.open();
     step(
         &mut session,
         "duplicated 1-2 and 2-1",
@@ -467,15 +327,15 @@ fn grammar_fixture_edits_match_a_fresh_open() {
 
 #[test]
 fn sample_scenario_edits_match_a_fresh_open() {
-    edits(&mut open(SAMPLE));
+    edits(&mut EXPORTED.open());
 }
 
 #[test]
 fn painted_fixture_edits_match_a_fresh_open() {
-    let mut session = open(PAINTED);
+    let mut session = PAINTED.open();
     edits(&mut session);
 
-    let mut session = open(PAINTED);
+    let mut session = PAINTED.open();
     let zone = session.graph.systems[&9].fe_zone.clone();
     assert!(zone.is_some(), "system 9 anchors a zone");
     step(
@@ -518,7 +378,7 @@ fn painted_fixture_edits_match_a_fresh_open() {
 
 #[test]
 fn duplicate_ids_and_shared_lines_match_a_fresh_open() {
-    let mut session = from_bytes(DUPLICATES.as_bytes().to_vec());
+    let mut session = from_scenario_text(DUPLICATES);
     assert_fresh(&session, "open");
     step(
         &mut session,
@@ -551,5 +411,28 @@ fn duplicate_ids_and_shared_lines_match_a_fresh_open() {
         &mut session,
         "remove a shared line's first",
         Op::RemoveSystem { id: 3 },
+    );
+}
+
+#[test]
+#[ignore = "erasure_slot leaves a tab-only line after a rewrite; fixed in a later batch"]
+fn removing_a_rewritten_statement_takes_its_line() {
+    let rename = Op::SetSystemName {
+        id: 9,
+        name: "Renamed".to_owned(),
+    };
+    let mut edited = GRAMMAR.open();
+    edited.apply(rename).expect("rewrite system 9's statement");
+    let mut fresh = from_scenario_text(current(&edited));
+
+    edited
+        .apply(Op::RemoveSystem { id: 9 })
+        .expect("remove the rewritten statement");
+    fresh
+        .apply(Op::RemoveSystem { id: 9 })
+        .expect("remove the statement as a fresh open reads it");
+    assert_eq!(
+        String::from_utf8_lossy(&current(&edited)),
+        String::from_utf8_lossy(&current(&fresh))
     );
 }

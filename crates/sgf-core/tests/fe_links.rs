@@ -3,39 +3,17 @@
 //! reaches, the refusals, what the validator says about each and that a fit keeps a
 //! linked zone.
 
-use sgf_core::document::Document;
 use sgf_core::format::scenario::fe_link::{self, FeLinkFlags};
 use sgf_core::format::scenario::fe_zone;
 use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::ops::{Op, OpError};
-use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode, Severity};
 
 mod common;
 use common::diff::{plain_report, round_trip};
+use common::fixture::{PAINTED, from_scenario_text};
 
-const FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/paint_a_galaxy.txt"
-);
 const PREFERRED_FLAG: &str = " set_star_flag = painted_galaxy_fe_spawn_preferred";
-
-fn open() -> Session {
-    Session::open(FIXTURE).expect("open the painted fixture")
-}
-
-fn bytes() -> Vec<u8> {
-    std::fs::read(FIXTURE).expect("read the fixture")
-}
-
-fn text(session: &Session) -> String {
-    String::from_utf8(common::current(session)).expect("utf-8")
-}
-
-fn from_text(text: &str) -> Session {
-    let doc = Document::from_scenario_bytes(text.as_bytes().to_vec()).expect("index");
-    Session::from_document(None, doc).expect("open")
-}
 
 fn set_links(anchor: u32, linked: &[u32]) -> Op {
     Op::SetFeLinks {
@@ -86,7 +64,7 @@ fn link_warnings(issues: &[Issue]) -> Vec<&Issue> {
 
 #[test]
 fn the_fixture_carries_no_connections_and_a_save_never_does() {
-    let session = open();
+    let session = PAINTED.open();
     for system in session.graph.systems.values() {
         assert_eq!(system.fe_link, FeLinkFlags::default(), "{}", system.id);
     }
@@ -113,7 +91,7 @@ fn the_fixture_carries_no_connections_and_a_save_never_does() {
 
 #[test]
 fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_changes() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     let result = session
         .apply(set_links(9, &[3, 2]))
         .expect("link Sol and Gamma to Old Seat");
@@ -139,7 +117,11 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
         "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| } effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }",
         "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| } effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }",
     ] {
-        assert!(text(&session).contains(fragment), "{}", text(&session));
+        assert!(
+            common::text(&session).contains(fragment),
+            "{}",
+            common::text(&session)
+        );
     }
     let issues = session.validate();
     assert!(link_warnings(&issues).is_empty(), "{issues:?}");
@@ -170,10 +152,10 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
     assert_eq!(session.graph.systems[&9].fe_link, link(true, Some(0), &[]));
     assert_eq!(session.graph.systems[&2].fe_link, FeLinkFlags::default());
     assert_eq!(session.graph.systems[&7].fe_link, link(false, None, &[0]));
-    assert!(text(&session).contains(
+    assert!(common::text(&session).contains(
         "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2| } }"
     ));
-    assert!(text(&session).contains(
+    assert!(common::text(&session).contains(
         "effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }"
     ));
     common::snapshot("link_9_to_7_3", &plain_report(&session, &result));
@@ -197,19 +179,22 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
         assert_eq!(session.graph.systems[&id].fe_link, FeLinkFlags::default());
     }
     assert_eq!(fe_link::next_free_id(&session.graph), Some(0));
-    assert_eq!(text(&session), String::from_utf8(bytes()).unwrap());
+    assert_eq!(
+        common::text(&session),
+        String::from_utf8(PAINTED.bytes()).unwrap()
+    );
     common::snapshot("unlink_9", &plain_report(&session, &result));
 
     for _ in 0..3 {
         session.undo().expect("undo").expect("an op to undo");
     }
-    assert_eq!(common::current(&session), bytes());
-    round_trip(open(), set_links(9, &[3, 2]));
+    assert_eq!(common::current(&session), PAINTED.bytes());
+    round_trip(PAINTED.open(), set_links(9, &[3, 2]));
 }
 
 #[test]
 fn a_second_anchor_takes_the_next_free_id_and_a_freed_id_is_taken_again() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     session.apply(set_links(9, &[3])).expect("link 9");
     let result = session
         .apply(set_links(12, &[1]))
@@ -221,7 +206,7 @@ fn a_second_anchor_takes_the_next_free_id_and_a_freed_id_is_taken_again() {
     assert_eq!(session.graph.systems[&12].fe_link, link(true, Some(1), &[]));
     assert_eq!(session.graph.systems[&1].fe_link, link(false, None, &[1]));
     assert_eq!(fe_link::next_free_id(&session.graph), Some(2));
-    assert!(text(&session).contains(
+    assert!(common::text(&session).contains(
         "set_star_flag = painted_galaxy_fe_spawn_fallback set_star_flag = painted_galaxy_fe_custom_connections set_star_flag = painted_galaxy_fe_custom_connection_id_1 } }"
     ));
     let issues = session.validate();
@@ -237,18 +222,18 @@ fn a_second_anchor_takes_the_next_free_id_and_a_freed_id_is_taken_again() {
         session.graph.systems[&1].fe_link,
         link(false, None, &[0, 1])
     );
-    assert!(text(&session).contains(
+    assert!(common::text(&session).contains(
         "effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_0 set_star_flag = painted_galaxy_fe_custom_connection_to_1 } }"
     ));
     for _ in 0..4 {
         session.undo().expect("undo").expect("an op to undo");
     }
-    assert_eq!(common::current(&session), bytes());
+    assert_eq!(common::current(&session), PAINTED.bytes());
 }
 
 #[test]
 fn a_link_needs_a_zone_anchor_other_systems_that_exist_and_ids_the_mod_reads() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     for (op, name) in [
         (set_links(10, &[3]), "FeLinkNoZone"),
         (set_links(9, &[3, 9]), "FeLinkSelf"),
@@ -298,7 +283,7 @@ fn a_link_needs_a_zone_anchor_other_systems_that_exist_and_ids_the_mod_reads() {
     for n in 0..fe_link::MOST_IDS {
         every_id.push((u32::from(n) % 14, link(true, Some(n), &[])));
     }
-    let mut taken = open();
+    let mut taken = PAINTED.open();
     for (i, (_, flags)) in every_id.iter().enumerate() {
         let id = (i % 14) as u32;
         if taken.graph.systems[&id].fe_link.id.is_none() {
@@ -308,7 +293,7 @@ fn a_link_needs_a_zone_anchor_other_systems_that_exist_and_ids_the_mod_reads() {
         }
     }
     assert_eq!(fe_link::next_free_id(&taken.graph), Some(14));
-    let mut all_taken = from_text(&hundred_anchors());
+    let mut all_taken = from_scenario_text(hundred_anchors());
     assert_eq!(fe_link::next_free_id(&all_taken.graph), None);
     let error = all_taken
         .apply(set_links(100, &[0]))
@@ -338,7 +323,7 @@ fn hundred_anchors() -> String {
 
 #[test]
 fn the_flag_op_reaches_the_states_the_mod_reads_oddly_and_undoes_them_exactly() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     let result = session
         .apply(set_flags(vec![(9, link(true, None, &[]))]))
         .expect("the custom flag with no id");
@@ -348,7 +333,7 @@ fn the_flag_op_reaches_the_states_the_mod_reads_oddly_and_undoes_them_exactly() 
     );
     assert_eq!(result.inverse, set_flags(vec![(9, FeLinkFlags::default())]));
     assert_eq!(session.graph.systems[&9].fe_link, link(true, None, &[]));
-    assert!(text(&session).contains(
+    assert!(common::text(&session).contains(
         "set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_custom_connections } }"
     ));
     let isolated = coded(&result.issues, IssueCode::FeLinkIsolated);
@@ -363,7 +348,7 @@ fn the_flag_op_reaches_the_states_the_mod_reads_oddly_and_undoes_them_exactly() 
         &plain_report(&session, &result),
     );
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(common::current(&session), bytes());
+    assert_eq!(common::current(&session), PAINTED.bytes());
 
     // An id and a link on a system with no effect block write the block; the id
     // without the custom flag takes nothing, so the link dangles.
@@ -377,10 +362,10 @@ fn the_flag_op_reaches_the_states_the_mod_reads_oddly_and_undoes_them_exactly() 
         result.entry.description,
         "Set the fallen empire connections of 2 systems"
     );
-    assert!(text(&session).contains(
+    assert!(common::text(&session).contains(
         "system = { id = \"11\" position = { x = -150 y = -30 } effect = { set_star_flag = painted_galaxy_fe_custom_connection_id_3 set_star_flag = painted_galaxy_fe_custom_connection_to_5 } }"
     ));
-    assert!(text(&session).contains(
+    assert!(common::text(&session).contains(
         "name = \"Void\" effect = { set_star_flag = painted_galaxy_fe_custom_connections } }"
     ));
     assert_eq!(
@@ -404,12 +389,14 @@ fn the_flag_op_reaches_the_states_the_mod_reads_oddly_and_undoes_them_exactly() 
     session
         .apply(set_flags(vec![(11, FeLinkFlags::default())]))
         .expect("clearing the flags takes the block with them");
-    assert!(text(&session).contains("system = { id = \"11\" position = { x = -150 y = -30 } }"));
+    assert!(
+        common::text(&session).contains("system = { id = \"11\" position = { x = -150 y = -30 } }")
+    );
     session.undo().expect("undo").expect("an op to undo");
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(common::current(&session), bytes());
+    assert_eq!(common::current(&session), PAINTED.bytes());
     round_trip(
-        open(),
+        PAINTED.open(),
         set_flags(vec![(11, link(false, Some(3), &[5, 5, 1]))]),
     );
 }
@@ -440,13 +427,13 @@ fn flags_on_their_own_lines_are_taken_out_and_put_back_line_by_line() {
 	}
 }
 ";
-    let mut session = from_text(multi_line);
+    let mut session = from_scenario_text(multi_line);
     assert_eq!(session.graph.systems[&7].fe_link, link(true, Some(4), &[4]));
     assert_eq!(session.graph.systems[&8].fe_link, link(false, None, &[4]));
     assert_eq!(fe_link::next_free_id(&session.graph), Some(0));
     session.apply(set_links(7, &[9])).expect("relink to 9");
     assert_eq!(
-        text(&session),
+        common::text(&session),
         "static_galaxy_scenario = {
 	name = \"lines\"
 	system = {
@@ -472,7 +459,7 @@ fn flags_on_their_own_lines_are_taken_out_and_put_back_line_by_line() {
 "
     );
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(text(&session), multi_line);
+    assert_eq!(common::text(&session), multi_line);
 }
 
 #[test]
@@ -544,7 +531,7 @@ fn the_flags_parse_as_the_mod_reads_them() {
 
 #[test]
 fn the_validator_names_every_way_a_connection_can_go_wrong() {
-    let session = from_text(
+    let session = from_scenario_text(
         "static_galaxy_scenario = {
 	name = \"links\"
 	system = { id = \"1\" name = \"Taker\" position = { x = 0 y = 0 } effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_e set_star_flag = painted_galaxy_fe_custom_connections set_star_flag = painted_galaxy_fe_custom_connection_id_0 } }
@@ -647,9 +634,7 @@ fn the_validator_names_every_way_a_connection_can_go_wrong() {
 
 #[test]
 fn a_fit_keeps_an_automatic_zone_that_systems_are_linked_to() {
-    let text = std::fs::read_to_string(FIXTURE).expect("read the fixture");
-    let (before, after) = text.split_once(PREFERRED_FLAG).expect("system 9's flag");
-    let mut session = from_text(&format!("{before}{after}"));
+    let mut session = PAINTED.open_edited(&[(PREFERRED_FLAG, "")]);
     let sites = placement::sites(&session.graph);
     assert_eq!(placement::fit(&sites, 0), [(9, None)]);
 

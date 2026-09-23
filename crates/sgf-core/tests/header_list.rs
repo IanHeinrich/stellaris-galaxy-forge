@@ -8,11 +8,7 @@ use sgf_core::session::Session;
 mod common;
 use common::current;
 use common::diff::{plain_snapshot, round_trip};
-
-const FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/paint_a_galaxy.txt"
-);
+use common::fixture::PAINTED;
 
 const SHAPES: [&str; 10] = [
     "elliptical",
@@ -26,10 +22,6 @@ const SHAPES: [&str; 10] = [
     "cluster",
     "starburst",
 ];
-
-fn open() -> Session {
-    Session::open(FIXTURE).expect("open the painted fixture")
-}
 
 fn set(key: &str, values: &[&str]) -> Op {
     Op::SetHeaderList {
@@ -54,10 +46,14 @@ fn owned(values: &[&str]) -> Vec<String> {
 
 #[test]
 fn a_shorter_list_rewrites_the_first_statements_and_removes_the_rest() {
-    plain_snapshot("shapes_to_two", open(), shapes(&["elliptical", "spoked"]));
-    round_trip(open(), shapes(&["elliptical", "spoked"]));
+    plain_snapshot(
+        "shapes_to_two",
+        PAINTED.open(),
+        shapes(&["elliptical", "spoked"]),
+    );
+    round_trip(PAINTED.open(), shapes(&["elliptical", "spoked"]));
 
-    let mut session = open();
+    let mut session = PAINTED.open();
     let result = session
         .apply(shapes(&["elliptical", "spoked"]))
         .expect("set two shapes");
@@ -76,20 +72,20 @@ fn a_shorter_list_rewrites_the_first_statements_and_removes_the_rest() {
 fn a_longer_list_writes_the_extra_values_after_the_last_statement() {
     let mut longer = SHAPES.to_vec();
     longer.push("spoked");
-    plain_snapshot("shapes_plus_spoked", open(), shapes(&longer));
-    round_trip(open(), shapes(&longer));
+    plain_snapshot("shapes_plus_spoked", PAINTED.open(), shapes(&longer));
+    round_trip(PAINTED.open(), shapes(&longer));
 
-    let mut session = open();
+    let mut session = PAINTED.open();
     session.apply(shapes(&longer)).expect("add a shape");
     assert_eq!(values(&session, "supports_shape"), owned(&longer));
 }
 
 #[test]
 fn an_empty_list_removes_every_statement_and_undo_puts_them_back() {
-    plain_snapshot("shapes_to_none", open(), shapes(&[]));
-    round_trip(open(), shapes(&[]));
+    plain_snapshot("shapes_to_none", PAINTED.open(), shapes(&[]));
+    round_trip(PAINTED.open(), shapes(&[]));
 
-    let mut session = open();
+    let mut session = PAINTED.open();
     let result = session.apply(shapes(&[])).expect("clear the shapes");
     assert_eq!(result.entry.description, "Set supports_shape to 0 values");
     assert_eq!(result.inverse, shapes(&SHAPES));
@@ -101,7 +97,7 @@ fn an_empty_list_removes_every_statement_and_undo_puts_them_back() {
 
 #[test]
 fn a_key_the_header_lacks_is_inserted_before_the_first_system() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     session.apply(shapes(&[])).expect("clear the shapes");
     let cleared = current(&session);
     let result = session
@@ -117,15 +113,18 @@ fn a_key_the_header_lacks_is_inserted_before_the_first_system() {
 
     plain_snapshot(
         "insert_supports_language",
-        open(),
+        PAINTED.open(),
         set("supports_language", &["english", "german"]),
     );
-    round_trip(open(), set("supports_language", &["english", "german"]));
+    round_trip(
+        PAINTED.open(),
+        set("supports_language", &["english", "german"]),
+    );
 }
 
 #[test]
 fn the_extra_values_step_over_a_line_an_earlier_removal_emptied() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     session
         .apply(Op::SetHeaderField {
             key: "random_hyperlanes".to_owned(),
@@ -151,7 +150,7 @@ fn the_extra_values_step_over_a_line_an_earlier_removal_emptied() {
 
 #[test]
 fn a_missing_key_with_no_values_a_bad_value_and_a_save_are_refused() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     for (op, name) in [
         (set("supports_language", &[]), "nothing to remove"),
         (shapes(&["ring spoked"]), "two values in one"),

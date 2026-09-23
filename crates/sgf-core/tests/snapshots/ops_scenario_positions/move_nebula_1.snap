@@ -5,7 +5,6 @@ expression: "report(&session, &result)"
 Moved Far Cloud to (-54, -88.5); its radius now covers 1 system (was 1)
 touched: [9, 16]
 inverse: MoveNebula { index: 1, x: -90.0, y: 90.0 }
-warning system_isolated: system 9 has no hyperlanes
 … and 1 other issues
 
 --- scenario

@@ -5,7 +5,6 @@ expression: "report(&session, &result)"
 Set N Heart Galaxy radius to 30 (was 60); 2 systems left
 touched: [2, 111]
 inverse: SetNebulaRadius { index: 0, radius: 60.0 }
-warning position_range: system 111 position was a range and will be fixed on move
 … and 1 other issues
 
 --- scenario

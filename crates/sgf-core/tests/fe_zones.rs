@@ -2,7 +2,6 @@
 //! on a system, the issues that say when a move put one there, and Paint a Galaxy's
 //! own rule for the zones it places by itself.
 
-use sgf_core::document::Document;
 use sgf_core::format::scenario::fe_zone::{self, FeDirection, FeKind, FeZone, Site};
 use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::ops::{Op, OpError};
@@ -11,24 +10,13 @@ use sgf_core::validate::{Issue, IssueCode};
 
 mod common;
 use common::diff::{plain_snapshot, round_trip};
+use common::fixture::PAINTED;
 
-const FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/paint_a_galaxy.txt"
-);
 const PREFERRED_FLAG: &str = " set_star_flag = painted_galaxy_fe_spawn_preferred";
-
-fn open() -> Session {
-    Session::open(FIXTURE).expect("open the painted fixture")
-}
 
 /// The fixture with system 9's zone made automatic: its `preferred` flag dropped.
 fn open_with_automatic_9() -> Session {
-    let text = std::fs::read_to_string(FIXTURE).expect("read the fixture");
-    let (before, after) = text.split_once(PREFERRED_FLAG).expect("system 9's flag");
-    let doc =
-        Document::from_scenario_bytes(format!("{before}{after}").into_bytes()).expect("index");
-    let session = Session::from_document(None, doc).expect("open");
+    let session = PAINTED.open_edited(&[(PREFERRED_FLAG, "")]);
     assert!(
         !session.graph.systems[&9]
             .fe_zone
@@ -89,7 +77,7 @@ fn zone_issues(issues: &[Issue]) -> Vec<&Issue> {
 
 #[test]
 fn a_zone_whose_ring_holds_a_system_or_lies_off_the_map_is_refused() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     let over_sol = zone(FeDirection::Nw, FeKind::Spiritualist, 120, true);
     let error = session
         .apply(set_zone(11, Some(over_sol.clone())))
@@ -140,7 +128,7 @@ fn a_zone_whose_ring_holds_a_system_or_lies_off_the_map_is_refused() {
 
 #[test]
 fn a_system_moved_into_a_ring_is_reported_against_its_anchor() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     assert!(zone_issues(&session.validate()).is_empty());
     let result = session
         .apply(move_system(7, 10.0, -210.0))
@@ -173,7 +161,7 @@ fn a_system_moved_into_a_ring_is_reported_against_its_anchor() {
 
 #[test]
 fn two_rings_that_share_space_are_reported_once_lower_anchor_first() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     session
         .apply(move_system(10, 50.0, -180.0))
         .expect("move Void beside Old Seat");
@@ -206,7 +194,7 @@ fn two_rings_that_share_space_are_reported_once_lower_anchor_first() {
 
 #[test]
 fn an_anchor_moved_so_its_centre_leaves_the_map_is_reported() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     session
         .apply(set_zone(
             10,
@@ -292,7 +280,7 @@ fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
 
 #[test]
 fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_ones() {
-    let session = open();
+    let session = PAINTED.open();
     let sites = placement::sites(&session.graph);
     assert_eq!(placement::candidate_count(&sites), 9);
     let entries = placement::fit(&sites, usize::MAX);
@@ -306,12 +294,12 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
     assert_eq!(ids.len(), entries.len());
     plain_snapshot(
         "recompute",
-        open(),
+        PAINTED.open(),
         Op::SetFeZones {
             entries: entries.clone(),
         },
     );
-    round_trip(open(), Op::SetFeZones { entries });
+    round_trip(PAINTED.open(), Op::SetFeZones { entries });
 
     let session = open_with_automatic_9();
     let entries = placement::fit(&placement::sites(&session.graph), usize::MAX);
@@ -323,7 +311,7 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
     assert_eq!(entries.iter().filter(|(id, _)| *id == 9).count(), 1);
     assert!(entries.iter().all(|(id, _)| *id != 12));
 
-    let mut session = open();
+    let mut session = PAINTED.open();
     let entries = placement::fit(&placement::sites(&session.graph), usize::MAX);
     session
         .apply(Op::SetFeZones { entries })
@@ -336,7 +324,7 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
 
 #[test]
 fn fitting_a_count_spreads_that_many_candidates_away_from_the_placed_zones() {
-    let mut session = open();
+    let mut session = PAINTED.open();
     session
         .apply(Op::SetFeZones {
             entries: placement::fit(&placement::sites(&session.graph), usize::MAX),
@@ -347,7 +335,7 @@ fn fitting_a_count_spreads_that_many_candidates_away_from_the_placed_zones() {
     assert_eq!(cleared.len(), 9, "{cleared:?}");
     assert!(cleared.iter().all(|(_, zone)| zone.is_none()));
 
-    let session = open();
+    let session = PAINTED.open();
     let sites = placement::sites(&session.graph);
     let two = placement::fit(&sites, 2);
     assert_eq!(two, placement::fit(&sites, 2), "deterministic");

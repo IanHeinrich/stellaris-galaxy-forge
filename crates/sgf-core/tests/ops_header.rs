@@ -7,8 +7,9 @@ use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 
 mod common;
+use common::current;
 use common::diff::{plain_snapshot, round_trip};
-use common::scenario::{FIXTURE, bytes, current, open};
+use common::fixture::GRAMMAR;
 
 fn set(key: &str, value: Option<&str>) -> Op {
     Op::SetHeaderField {
@@ -25,14 +26,18 @@ fn field(session: &Session, key: &str) -> Option<String> {
 
 #[test]
 fn setting_a_scalar_rewrites_it_where_it_stands() {
-    plain_snapshot("set_core_radius", open(), set("core_radius", Some("25")));
+    plain_snapshot(
+        "set_core_radius",
+        GRAMMAR.open(),
+        set("core_radius", Some("25")),
+    );
 }
 
 #[test]
 fn setting_a_block_writes_raw_text_over_the_whole_value() {
     plain_snapshot(
         "set_num_empires",
-        open(),
+        GRAMMAR.open(),
         set("num_empires", Some("{ min = 3 max = 5 }")),
     );
 }
@@ -41,27 +46,34 @@ fn setting_a_block_writes_raw_text_over_the_whole_value() {
 fn a_key_the_header_lacks_is_inserted_before_the_first_system() {
     plain_snapshot(
         "insert_nomad_empire_default",
-        open(),
+        GRAMMAR.open(),
         set("nomad_empire_default", Some("1")),
     );
 }
 
 #[test]
 fn clearing_a_key_takes_the_line_it_had_to_itself() {
-    plain_snapshot("remove_supports_shape", open(), set("supports_shape", None));
+    plain_snapshot(
+        "remove_supports_shape",
+        GRAMMAR.open(),
+        set("supports_shape", None),
+    );
 }
 
 #[test]
 fn the_header_ops_undo_and_redo_byte_for_byte() {
-    round_trip(open(), set("core_radius", Some("25")));
-    round_trip(open(), set("num_empires", Some("{ min = 3 max = 5 }")));
-    round_trip(open(), set("nomad_empire_default", Some("1")));
-    round_trip(open(), set("supports_shape", None));
+    round_trip(GRAMMAR.open(), set("core_radius", Some("25")));
+    round_trip(
+        GRAMMAR.open(),
+        set("num_empires", Some("{ min = 3 max = 5 }")),
+    );
+    round_trip(GRAMMAR.open(), set("nomad_empire_default", Some("1")));
+    round_trip(GRAMMAR.open(), set("supports_shape", None));
 }
 
 #[test]
 fn the_rebuilt_header_reads_back_what_the_op_wrote() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     assert_eq!(field(&session, "core_radius").as_deref(), Some("10"));
 
     let result = session
@@ -118,7 +130,7 @@ fn the_rebuilt_header_reads_back_what_the_op_wrote() {
 
 #[test]
 fn an_edited_header_survives_a_save_and_reopen() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     session
         .apply(set("name", Some("\"Renamed Scenario\"")))
         .expect("rename");
@@ -144,7 +156,7 @@ fn an_edited_header_survives_a_save_and_reopen() {
 
 #[test]
 fn raw_text_that_is_not_one_statements_value_is_refused() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     for value in ["{ min = 1", "1 }", "1\nmax = 2", "  "] {
         let error = session
             .apply(set("num_empires", Some(value)))
@@ -175,7 +187,7 @@ fn raw_text_that_is_not_one_statements_value_is_refused() {
 /// the lexer reads it rather than counted.
 #[test]
 fn a_quoted_value_may_hold_a_brace() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     session
         .apply(set("name", Some("\"Sector { Alpha\"")))
         .expect("a brace inside quotes is text");
@@ -190,7 +202,7 @@ fn a_quoted_value_may_hold_a_brace() {
 /// written as an entity and read back as a phantom system, lane or cloud.
 #[test]
 fn a_key_that_names_an_entity_statement_is_refused() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     for key in ["system", "add_hyperlane", "prevent_hyperlane", "nebula"] {
         let error = session.apply(set(key, Some("5"))).expect_err("refused");
         assert!(
@@ -207,7 +219,7 @@ fn a_key_that_names_an_entity_statement_is_refused() {
 /// survivor's statement, so the op is refused rather than half-described.
 #[test]
 fn removing_a_key_the_header_holds_twice_is_refused() {
-    let fixture = std::fs::read_to_string(FIXTURE).expect("read the fixture");
+    let fixture = GRAMMAR.text();
     let doubled = fixture.replacen(
         "\tsupports_shape = elliptical\n",
         "\tsupports_shape = elliptical\n\tsupports_shape = ring\n",
@@ -245,8 +257,8 @@ fn removing_a_key_the_header_holds_twice_is_refused() {
 /// removing it again empties that slot.
 #[test]
 fn a_key_inserted_and_removed_again_is_byte_identical() {
-    let fixture = bytes();
-    let mut session = open();
+    let fixture = GRAMMAR.bytes();
+    let mut session = GRAMMAR.open();
     session
         .apply(set("nomad_empire_default", Some("1")))
         .expect("insert");
