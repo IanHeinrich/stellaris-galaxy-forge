@@ -39,6 +39,11 @@ a release is made.
 
 - The L-Gate outcome is hidden again each time you open a save.
 
+### Fixed
+
+- Hyperlanes can be added and removed in saves from Stellaris 3.4 to
+  3.9. I haven't tested saves older than 3.4.
+
 ## [0.11.1] - 2026-09-23
 
 ### Changed

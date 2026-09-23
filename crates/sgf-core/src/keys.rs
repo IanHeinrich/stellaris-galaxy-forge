@@ -389,6 +389,11 @@ mod tests {
         let mut missing = Vec::new();
         for path in sample_saves() {
             let doc = Document::load(&path).unwrap();
+            // The 3.x sample is there for lane edits; it predates keys the core reads.
+            let version = crate::archive::parse_meta(doc.meta()).unwrap().version;
+            if !version.contains(" v4.") {
+                continue;
+            }
             let written = keys_written(doc.original());
             for key in ALL {
                 if !OPTIONAL.contains(key) && !written.contains(key.as_bytes()) {

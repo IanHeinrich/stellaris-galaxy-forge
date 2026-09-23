@@ -259,21 +259,26 @@ impl Edit {
         cst::indent_of(&self.buf, at).to_vec()
     }
 
-    /// Refuse a block that is not in the game's multi-line shape: the key on its own
-    /// line, and the braces of the block and of every child alone on theirs. Line
+    /// Refuse a block that is not in the game's multi-line shape: the open brace either
+    /// alone on its own line, or the last non-blank thing on the key's line (as 3.4 to 3.9
+    /// write it), and the close brace and every child's braces alone on theirs. Line
     /// insertion and removal assume that shape.
     pub fn require_block_shape(&self, block: &Node) -> Result<(), OpError> {
         let key = block
             .key
             .ok_or_else(|| self.parse_error(block.span().start, "block has no key"))?;
         let value = block.value_span();
-        let mut braces = vec![value.start, value.end - 1];
+        let open = Span::new(value.start, value.start + 1);
+        let open_well_formed = alone_on_line(&self.buf, open)
+            || (self.line_start(value.start) == self.line_start(key.start)
+                && ends_line(&self.buf, open.end));
+        let mut braces = vec![value.end - 1];
         for child in block.children() {
             let span = child.value_span();
             braces.push(span.start);
             braces.push(span.end - 1);
         }
-        let well_formed = self.line_start(value.start) > key.start
+        let well_formed = open_well_formed
             && braces
                 .iter()
                 .all(|&at| alone_on_line(&self.buf, Span::new(at, at + 1)));

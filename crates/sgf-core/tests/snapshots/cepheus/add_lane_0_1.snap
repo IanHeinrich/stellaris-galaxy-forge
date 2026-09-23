@@ -1,0 +1,33 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added lane 0 <-> 1 (length 410)
+inverse: RemoveLane { a: 0, b: 1 }
+
+--- gamestate
++++ gamestate
+@@ -36556,6 +36556,11 @@
+ 				length=14
+ 			}
+  
++			{
++				to=1
++				length=410
++			}
++ 
+ 		}
+ 		flags={
+ 			empire_home_system=62808000
+@@ -36641,6 +36646,11 @@
+ 				length=38
+ 			}
+  
++			{
++				to=0
++				length=410
++			}
++ 
+ 		}
+ 		flags={
+ 			AI_hub=62808000

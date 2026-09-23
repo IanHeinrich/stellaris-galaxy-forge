@@ -1,0 +1,31 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed lane 0 <-> 398 (2 entries)
+inverse: AddLane { a: 0, b: 398, bridge: false }
+
+--- gamestate
++++ gamestate
+@@ -36543,10 +36543,6 @@
+ 		planet=100
+ 		star_class="sc_trinary_1"
+ 		hyperlane={
+-			{
+-				to=398
+-				length=37
+-			}
+  {
+ 				to=386
+ 				length=19
+@@ -62738,10 +62734,6 @@
+ 		planet=4250
+ 		star_class="sc_g"
+ 		hyperlane={
+-			{
+-				to=0
+-				length=37
+-			}
+  {
+ 				to=185
+ 				length=28
