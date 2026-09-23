@@ -11,7 +11,7 @@ folder uses sits at the root of `panels/`.
 
 `App.css` keeps design tokens, element resets, the app frame (`.app`, `.main`,
 `.map-area`, `.map-host`, `.top-bar`, `.status-bar`, `.dock*`) and the
-primitives three or more panels use (`.badge`, `.swatch`, `.tri`,
+primitives three or more panels use (`.badge`, `.swatch`, `.tri`, `.filter-input`,
 `.muted`/`.hinted`/`.warn`/`.spacer`, `kbd`, `.progress-*`, `button.icon`,
 `button.link`). Everything else belongs to the folder that draws it, imported
 by the components that folder owns. A folder has at most one stylesheet of its

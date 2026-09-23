@@ -8,6 +8,32 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- Alt on the Erase brush with "Lanes only" now connects lanes. It used to paint systems.
+- Edit > Delete works for selected systems on a scenario, and Delete removes a single selected system after the same confirm as several.
+- F with a nebula selected frames the nebula.
+- `sgf export` names a scenario after the output file when no name is given, as the app does.
+- `sgf gamedata` prints the largest galaxy size and the Paint a Galaxy mod's status.
+- The history entry for recomputing fallen empire zones keeps its wording, and other bulk zone edits say what they set.
+
+### Fixed
+
+- After painting or adding a system while another edit was queued, the wrong system could be selected.
+- The message after a Join that left islands apart showed as an error.
+- "View issues" saved the dock as expanded, as if you had toggled it.
+- A failed open kept the previous document's details and scripts in the inspector.
+- The Open screen asked the Paint question and the discard question in the opposite order to the File menu.
+- Browsing to a painted scenario outside the mod's folder asked whether to open it for Paint a Galaxy.
+- The selection summary read "1 lanes" and "1 owners".
+- The brush circle now follows Alt without a pointer move, and switching tool by key clears the hover hints.
+- Setting a wormhole pair with the same system at both ends failed, or wrote the flags twice.
+- A hand-edited seat with a random value above its range was written as it stood. It is now folded into range.
+- The warning after adding an isolated system named no system.
+- Removing a system after renaming or moving it left an empty indented line in the file.
+- A watcher error is shown in the status instead of missed silently, and a reread that found nothing says which definitions it kept.
+- `sgf move-nebula` help said member systems move with the nebula. They do not.
+
 ## [0.10.0] - 2026-09-22
 
 ### Added

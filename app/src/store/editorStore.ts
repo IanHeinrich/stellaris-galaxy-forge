@@ -113,7 +113,7 @@ export interface EditorState {
   deleteSelection(): Promise<void>;
   /** Moves every selected system by a world offset in one op. */
   nudgeSelection(dx: number, dy: number): Promise<void>;
-  /** Moves the nebula at `index` (file order) to a world position together with its member systems. */
+  /** Moves the nebula at `index` (file order) to a world position. Nothing else moves. */
   moveNebula(index: number, x: number, y: number): Promise<void>;
   /** Adds a nebula at a world point, remembers its radius and selects it. */
   addNebulaAt(x: number, y: number, radius?: number, name?: string | null): Promise<boolean>;
