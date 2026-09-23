@@ -51,6 +51,11 @@ function EmpireLine({
       ownerColor(row.country ?? undefined, row.index, mapColors),
   );
   const target = row.capital ?? station;
+  const openEmpirePage = (id: number) => {
+    const node = target === null ? undefined : systems.get(target);
+    if (node) panTo(node.x, node.y);
+    openPage({ ref: { kind: "country", id }, label: row.name });
+  };
   const title =
     target === null
       ? `${row.name} holds no systems`
@@ -95,16 +100,18 @@ function EmpireLine({
         </>
       }
       name={row.name}
-      title={title}
+      title={country === null ? title : `Open ${row.name}'s page`}
       subline={row.subline}
       count={row.systemCount}
       onName={
-        target === null
-          ? null
-          : () => {
-              const node = systems.get(target);
-              if (node) panTo(node.x, node.y);
-            }
+        country !== null
+          ? () => openEmpirePage(country.id)
+          : target === null
+            ? null
+            : () => {
+                const node = systems.get(target);
+                if (node) panTo(node.x, node.y);
+              }
       }
       actions={
         <>
@@ -112,9 +119,8 @@ function EmpireLine({
             <Action
               glyph="✎"
               label={`Open ${row.name}'s page`}
-              onClick={() =>
-                openPage({ ref: { kind: "country", id: country.id }, label: row.name })
-              }
+              onClick={() => openEmpirePage(country.id)}
+              persistent
             />
           )}
           {row.systemCount > 0 && (

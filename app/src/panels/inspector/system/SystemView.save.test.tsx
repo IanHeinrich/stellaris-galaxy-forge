@@ -142,6 +142,9 @@ function armStarClasses(): void {
     texture_key: `star_class:${key}`,
     icon_scale: 1,
     planet_keys,
+    crisis_star_class: null,
+    spawn_odds: 1,
+    localised: true,
   });
   const body = (key: string) => ({ key, icon_sprite: null, habitable: false, star: true });
   useGameDataStore.setState({
@@ -184,7 +187,8 @@ describe("the star class at the head", () => {
     expect(html).toContain('<span class="edit-label">Star class</span>');
     expect(html).toContain('class="icon-picker-trigger edit-field"');
     expect(html).toContain('aria-haspopup="listbox"');
-    expect(html).toContain('aria-label="Star class: X-ray Binary"');
+    // A multiple star is named by its bodies; the fixture has no names for them.
+    expect(html).toContain('aria-label="Star class: pc_a_star + pc_pulsar"');
     // The planets and the nebula stay read-only information under the field.
     expect(html).toMatch(/<div class="ins-sub muted">\d+ planets · nebula/);
   });

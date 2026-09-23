@@ -10,6 +10,8 @@ export interface IconPickerItem {
   /** The header the item sits under; a new header starts wherever the group changes. */
   group?: string;
   note?: ReactNode;
+  /** Runs instead of picking this row: a local action (revealing more rows) that leaves the list open. */
+  onSelect?: () => void;
 }
 
 function Row({ item }: { item: IconPickerItem }) {
@@ -80,6 +82,11 @@ export function IconPicker({
     trigger.current?.focus();
   };
   const pick = (key: string) => {
+    const item = items.find((i) => i.key === key);
+    if (item?.onSelect) {
+      item.onSelect();
+      return;
+    }
     close();
     onPick(key);
   };

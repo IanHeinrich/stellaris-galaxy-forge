@@ -1,7 +1,15 @@
+@odds_low = 5
+
 sc_sun = {
 	class = sun_star
 	planet = { key = pc_sun_star }
 	spawn_odds = 30
+	crisis_star_class = sc_crisis_sun
+}
+
+sc_crisis_sun = {
+	class = sun_star
+	planet = { key = pc_sun_star }
 }
 
 sc_ember = {
@@ -25,4 +33,15 @@ sc_pair = {
 sc_vanilla_only = {
 	class = m_star
 	planet = { key = pc_m_star }
+}
+
+sc_by_variable = {
+	class = sun_star
+	planet = { key = pc_sun_star }
+	spawn_odds = @odds_low
+}
+
+sc_placeholder = {
+	class = sc_empty_space
+	spawn_odds = 0
 }

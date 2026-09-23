@@ -209,6 +209,23 @@
   opacity: 1;
 }
 
+.browser-actions:has(.browser-edit) {
+  opacity: 1;
+}
+
+.browser-actions:has(.browser-edit) > button:not(.browser-edit) {
+  visibility: hidden;
+}
+
+.browser-row:hover .browser-actions > button,
+.browser-row:focus-within .browser-actions > button {
+  visibility: visible;
+}
+
+.browser-actions button.browser-edit {
+  color: var(--accent);
+}
+
 .browser-actions .browser-fix {
   width: auto;
   padding: 0 6px;

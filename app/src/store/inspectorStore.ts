@@ -150,6 +150,11 @@ export interface InspectorState {
    * root, with the dock turned to the inspector.
    */
   openPage(entry: Entry): void;
+  /**
+   * The Galaxy crumb: pops a stack that stands on the galaxy back to it, and says so. A stack
+   * rooted on a selection says false, and clearing the selection restarts it instead.
+   */
+  home(): boolean;
   back(): void;
   /**
    * What Esc does first: pops one crumb, and says so. With nothing to pop, or with the dock
@@ -213,6 +218,12 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     const stack = refKey(root.ref) === refKey(entry.ref) ? [root] : [root, entry];
     set({ stack, tab: tabsFor(entry.ref)[0] });
     useLayoutStore.getState().showInspector();
+  },
+
+  home() {
+    if (get().stack[0].ref.kind !== "galaxy") return false;
+    get().popTo(0);
+    return true;
   },
 
   back() {

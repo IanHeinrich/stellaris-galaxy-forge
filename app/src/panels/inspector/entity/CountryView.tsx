@@ -84,9 +84,11 @@ export function MapColorFields({ country }: { country: CountryNode }) {
   const source = useGameDataStore((s) => s.mapColorSource);
   const entries = country.flag_colors;
   if (entries.length <= MAP_FILL) return <MapColorsUnavailable />;
-  const border = entries[MAP_BORDER];
-  const fill = entries[MAP_FILL];
   const on = country.use_map_color;
+  // With map colours off the game paints the first two flag colours, and the map entries
+  // may hold "null".
+  const border = on ? entries[MAP_BORDER] : entries[0];
+  const fill = on ? entries[MAP_FILL] : entries[1];
   const set = (colors: MapColorPair | null) =>
     applyOp({ type: "SetEmpireMapColors", country: country.id, colors });
   const pick = (pair: MapColorPair) => {

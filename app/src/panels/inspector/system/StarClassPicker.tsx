@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemNode } from "../../../generated/SystemNode";
 import {
@@ -43,9 +45,17 @@ export function StarClassPicker({
   const items = useStarClassItems(choices);
 
   const own = starClasses.get(system.star_class);
+  const names = useGameDataStore((s) => s.names);
+  const bodyKeys = own && own.planet_keys.length > 1 ? own.planet_keys : [];
+  const bodyKeyList = bodyKeys.join("|");
+  useEffect(() => {
+    if (bodyKeyList !== "") void useGameDataStore.getState().fetchNames(bodyKeyList.split("|"));
+  }, [bodyKeyList]);
+  // Every binary is called "Binary Stars", so a multiple star is named by its bodies, as the
+  // picker's rows are.
   const shown: IconPickerItem = {
     key: system.star_class,
-    label,
+    label: bodyKeys.length > 0 ? bodyKeys.map((key) => names.get(key) ?? key).join(" + ") : label,
     icon: own && <StarTriggerIcon view={own} />,
   };
   const reason =
