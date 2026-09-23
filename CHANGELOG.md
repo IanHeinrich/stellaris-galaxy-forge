@@ -8,6 +8,14 @@ a release is made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Waystation badges no longer pile up over empire names and emblems on the
+  whole-galaxy view. There, each station shows only a ring, and its level
+  appears once you zoom in far enough for system names. Waystation badges
+  and wayline bands also draw over empire territories instead of being
+  dimmed under them.
+
 ### Added
 
 - In a save, a system's star class can be changed from the system

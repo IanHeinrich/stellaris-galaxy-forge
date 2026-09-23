@@ -393,7 +393,9 @@ circle around its systems.
 A save with waystations also offers a Waylines layer under "Overlays":
 the game derives a wayline between two stations of one network joined by
 a lane or a bypass, and the map draws it as a dashed band along that lane
-with each station badged by its level.
+with each station badged by its level. Zoomed out to the whole galaxy,
+where empire names replace system names, each station shows only a ring;
+its level appears once you zoom in far enough for system names.
 
 A save opens with hyperlanes, systems, star classes, names, system
 details, colonies, empires and nebulae on and everything else off. A scenario opens with everything on

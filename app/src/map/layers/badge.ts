@@ -62,6 +62,8 @@ export class Badge {
   readonly icon = new Sprite();
   readonly dot = new Graphics();
   readonly text: BitmapText;
+  private hasIcon = false;
+  private plated = true;
 
   constructor(geo: BadgeGeometry) {
     this.root.eventMode = "passive";
@@ -86,8 +88,8 @@ export class Badge {
   }
 
   setIcon(texture: Texture | null, size: number, color: number): void {
-    this.icon.visible = texture !== null;
-    this.dot.visible = texture === null;
+    this.hasIcon = texture !== null;
+    this.showParts();
     if (texture) {
       this.icon.texture = texture;
       const k = size / Math.max(texture.width, texture.height, 1);
@@ -95,6 +97,18 @@ export class Badge {
     } else {
       this.dot.clear().circle(0, 0, DOT_RADIUS).fill({ color });
     }
+  }
+
+  /** Whether the badge leads its plate off the star, or shows the ring alone. */
+  setPlated(plated: boolean): void {
+    this.plated = plated;
+    this.showParts();
+  }
+
+  private showParts(): void {
+    for (const c of [this.halo, this.leader, this.plate, this.text]) c.visible = this.plated;
+    this.icon.visible = this.plated && this.hasIcon;
+    this.dot.visible = this.plated && !this.hasIcon;
   }
 
   /** `slot` stacks a second badge on one star further out along the same diagonal. */
