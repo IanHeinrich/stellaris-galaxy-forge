@@ -14,11 +14,14 @@ a release is made.
 - While the search field holds a query, every matching system is ringed on the map.
 - The Galaxy panel can reveal the L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance or an empty cluster. It stays hidden until you click Reveal, in the panel or inside the L-Cluster circle on the map. Once revealed, a dropdown changes the outcome until a gate opens. The panel warns when an enabled mod also changes the outcome.
 - You can pin a search, such as "salvager" or "alpha refuge", with the Pin button in the search field or with Ctrl+Enter. Pinned searches ring their systems in their own colour on every save you open. They are listed when you open search and in the Pinned tab.
+- Save asks before replacing a file that changed on disk after you opened it, for example because Stellaris saved over it. Overwrite keeps the newer file as the backup; Save As and Cancel leave it alone.
 
 ### Changed
 
 - Preventing lanes in a scenario happens on the map. Right-click a lane for "Cut and prevent". Right-click a system with others selected to prevent or allow lanes to all of them. Right-click a prevented pair's dashed line to allow it again. The system ID field in the Inspector is gone.
 - Preventing and allowing lanes follow the symmetry mode.
+- A save is flushed to disk before it replaces the old file, so a crash or power cut mid-save can't leave a half-written file under the save's name.
+- The app sets a content security policy.
 
 ### Fixed
 

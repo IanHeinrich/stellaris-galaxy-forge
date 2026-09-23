@@ -58,6 +58,14 @@ export interface SaveIssuesPrompt {
   resolve(answer: SaveIssuesAnswer): void;
 }
 
+/** What the user says to a save whose file something else wrote since: write over it, save elsewhere, or stop. */
+export type ChangedOnDiskAnswer = "overwrite" | "save_as" | "cancel";
+
+/** A save waiting on that answer; `resolve` hands it back to the save that asked. */
+export interface ChangedOnDiskPrompt {
+  resolve(answer: ChangedOnDiskAnswer): void;
+}
+
 /**
  * A scenario file waiting on the Paint a Galaxy question before it opens; `resolve` hands back
  * the profile it opens under, or null when the user cancelled.
@@ -115,6 +123,8 @@ export interface FileSessionState {
   dismissedIssues: string[];
   /** A save waiting for the user to say what to do about the issues it found. */
   saveIssuesPrompt: SaveIssuesPrompt | null;
+  /** A save waiting for the user to say what to do about its file changing on disk. */
+  changedOnDiskPrompt: ChangedOnDiskPrompt | null;
   /** The save the user left to go and look at the issues; null when none is waiting. */
   pausedSave: PausedSave | null;
   /** A save waiting for the user to say which way to open it. */
@@ -184,6 +194,8 @@ export interface FileSessionState {
   confirmDiscard(): Promise<boolean>;
   /** Answers the dialog a save raised over its issues. */
   answerSaveIssues(answer: SaveIssuesAnswer): void;
+  /** Answers the dialog a save raised over its file changing on disk. */
+  answerChangedOnDisk(answer: ChangedOnDiskAnswer): void;
   /** Writes the paused save, with the issues it stopped on already agreed to. */
   resumePausedSave(): Promise<void>;
   /** Drops the paused save, writing nothing and agreeing to nothing. */
@@ -217,6 +229,7 @@ const INITIAL = {
   cloudAcknowledged: null as string | null,
   dismissedIssues: [] as string[],
   saveIssuesPrompt: null as SaveIssuesPrompt | null,
+  changedOnDiskPrompt: null as ChangedOnDiskPrompt | null,
   pausedSave: null as PausedSave | null,
   pendingOpen: null as string | null,
   pendingAsScenario: false,

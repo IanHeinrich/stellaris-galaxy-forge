@@ -6,7 +6,12 @@ import type { SaveResult } from "../generated/SaveResult";
 import { paintLayer, scenarioHeaderName } from "../lib/paint";
 import { fileName, isUnder, joinPath } from "../lib/paths";
 import type { FileSessionState } from "./fileSessionStore";
-import { confirmCloudWrite, confirmIssues, type SessionApi } from "./fileSessionStore.saveGate";
+import {
+  askChangedOnDisk,
+  confirmCloudWrite,
+  confirmIssues,
+  type SessionApi,
+} from "./fileSessionStore.saveGate";
 import { useGalaxyStore } from "./galaxyStore";
 import { paintScenariosDir, usePaintModStore } from "./paintModStore";
 
@@ -35,25 +40,34 @@ export function writeActions(session: SessionApi, opens: () => number): WriteAct
     if (picked === null) return;
     const cloud = await ipc.isCloudSave(picked).catch(() => false);
     if (cloud && !(await confirmCloudWrite(session, picked))) return;
-    if (await writeSave(session, () => ipc.saveAs(picked))) noteSavedIntoPaintMod(session);
+    const saved = await writeOwnFile(
+      session,
+      () => ipc.saveAs(picked),
+      () => ipc.saveAs(picked, true),
+    );
+    if (saved) noteSavedIntoPaintMod(session);
   }
 
   return {
     async save() {
-      const { status, saving, path, cloud } = get();
-      if (status !== "ready" || saving) return;
+      const { status, saving, changedOnDiskPrompt, path, cloud } = get();
+      if (status !== "ready" || saving || changedOnDiskPrompt !== null) return;
       if (path === null) {
         await get().saveAs();
         return;
       }
       if (!(await confirmIssues(session, () => get().save()))) return;
       if (cloud && !(await confirmCloudWrite(session, path))) return;
-      await writeSave(session, () => ipc.save());
+      await writeOwnFile(
+        session,
+        () => ipc.save(),
+        () => ipc.save(true),
+      );
     },
 
     async saveAs(defaultPath) {
-      const { status, saving, kind, path, title } = get();
-      if (status !== "ready" || saving) return;
+      const { status, saving, changedOnDiskPrompt, kind, path, title } = get();
+      if (status !== "ready" || saving || changedOnDiskPrompt !== null) return;
       const filter = kind === "scenario" ? SCENARIO_FILTER : SAVE_FILTER;
       const forPaintMod = paintLayer(get(), usePaintModStore.getState().paintMod);
       await saveTo(
@@ -132,35 +146,60 @@ function noteSavedIntoPaintMod({ getState }: SessionApi): void {
 }
 
 /**
+ * How a write ended: it landed, it failed with the error shown, or it was refused because
+ * something else wrote the session's file since, which is left to the caller to ask about.
+ */
+type WriteOutcome = "written" | "failed" | "changed_on_disk";
+
+/**
  * Runs `write`, reporting its progress until it settles; `settle` says what its result changes.
- * Resolves true once the write landed, so a caller can act on a save that actually happened.
+ * Resolves "written" once the write landed, so a caller can act on a save that actually happened.
  */
 async function runWrite<T>(
   { getState, setState }: SessionApi,
   write: () => Promise<T>,
   settle: (result: T) => Partial<FileSessionState>,
-): Promise<boolean> {
+): Promise<WriteOutcome> {
   setState({ saving: true });
   let unlisten: (() => void) | null = null;
-  let ok = false;
+  let outcome: WriteOutcome = "failed";
   try {
     unlisten = await onProgress((progress) => {
       if (getState().saving) setState({ progress });
     });
     const result = await write();
     setState({ ...settle(result), error: null, errorKind: null });
-    ok = true;
+    outcome = "written";
   } catch (e) {
-    setState({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
+    if (isSgfError(e) && e.kind === "changed_on_disk") outcome = "changed_on_disk";
+    else setState({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
   } finally {
     unlisten?.();
     setState({ saving: false, progress: null });
   }
-  return ok;
+  return outcome;
+}
+
+/**
+ * Writes the session to its own file with `write`. When something else wrote that file since it
+ * was opened or last saved, asks first: `overwrite` writes over it, or Save As picks elsewhere.
+ * Resolves true once a write landed here.
+ */
+async function writeOwnFile(
+  session: SessionApi,
+  write: () => Promise<SaveResult>,
+  overwrite: () => Promise<SaveResult>,
+): Promise<boolean> {
+  const outcome = await writeSave(session, write);
+  if (outcome !== "changed_on_disk") return outcome === "written";
+  const answer = await askChangedOnDisk(session);
+  if (answer === "overwrite") return (await writeSave(session, overwrite)) === "written";
+  if (answer === "save_as") await session.getState().saveAs();
+  return false;
 }
 
 /** Writes the session to its own file: where it lands becomes the session's path. */
-function writeSave(session: SessionApi, write: () => Promise<SaveResult>): Promise<boolean> {
+function writeSave(session: SessionApi, write: () => Promise<SaveResult>): Promise<WriteOutcome> {
   return runWrite(session, write, (result) => ({
     lastSave: result,
     path: result.path,

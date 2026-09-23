@@ -60,12 +60,19 @@ and generated names rather than corrupting anything.
 - The file is edited as bytes. Only the statements you changed differ.
   Everything else, including anything from mods or a newer game version
   the editor does not understand, is copied out byte for byte. A load
-  then save with no edits is byte-identical.
+  then save with no edits gives a byte-identical scenario, or a save
+  whose `gamestate` and `meta` are byte-identical; the zip around them
+  is written fresh.
 - Every save leaves the previous file beside it as a timestamped backup,
   eight per file at most.
+- If the file changed on disk after you opened it, say because Stellaris
+  saved over it, Save asks before replacing it.
 - Every edit is undoable and listed in a change log.
-- A validator flags anything the game could not cope with, before you
-  save.
+- Before you save, a validator flags the problems it knows to look for:
+  lanes listed on one end only or to missing systems, systems off the
+  map or cut off from the rest, nebula lists that disagree with the
+  nebula's radius, and the like. It is not the game;
+  loading the save in Stellaris is the final check.
 
 ![The whole galaxy with empire territories drawn](docs/media/galaxy.png)
 

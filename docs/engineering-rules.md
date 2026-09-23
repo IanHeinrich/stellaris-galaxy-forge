@@ -32,10 +32,14 @@ architecture `docs/adr/`, and the in-game checks a change must pass
 - **Nothing from the game or mods is bundled.** Definitions, localisation
   and art are read from the user's install at runtime.
 
-The open document is not watched. The editor holds the bytes it read at
-open and writes those bytes back on Save, so if Stellaris autosaves over
-the file in the meantime the game's version is what the backup-then-persist
-path renames aside as the backup, and the editor's bytes take its place.
+The open document is not watched, but Save checks it. The session notes
+the file's length and modification time when it opens the file and again
+after each save. If Stellaris (or anything else) has written the file
+since, a save in place refuses with `changed_on_disk` and the app asks:
+Overwrite saves again with `force`, and the backup-then-persist path
+renames the game's version aside as the backup; Save As picks another
+file; Cancel writes nothing. A save to a different path is not checked,
+because the file dialog already asked about overwriting it.
 
 ## Layout
 

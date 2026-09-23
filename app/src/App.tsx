@@ -25,6 +25,7 @@ import { MapTooltip } from "./panels/overlays/MapTooltip";
 import { FeZoneFitDialog } from "./panels/overlays/FeZoneFitDialog";
 import { NewNebulaDialog } from "./panels/overlays/NewNebulaDialog";
 import { SaveIssuesDialog } from "./panels/overlays/SaveIssuesDialog";
+import { ChangedOnDiskDialog } from "./panels/overlays/ChangedOnDiskDialog";
 import { UpdateBadge } from "./panels/chrome/UpdateBadge";
 import { UpdateDialog } from "./panels/overlays/UpdateDialog";
 import { OpenSave } from "./panels/file/OpenSave";
@@ -119,6 +120,7 @@ function App() {
   const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
   const updateDialog = useUpdateStore((s) => s.dialog);
   const saveIssuesPrompt = useFileSessionStore((s) => s.saveIssuesPrompt);
+  const changedOnDiskPrompt = useFileSessionStore((s) => s.changedOnDiskPrompt);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -213,6 +215,7 @@ function App() {
           {nebulaPrompt && <NewNebulaDialog />}
           {feZoneFitPrompt && <FeZoneFitDialog />}
           {saveIssuesPrompt && <SaveIssuesDialog />}
+          {changedOnDiskPrompt && <ChangedOnDiskDialog />}
           <OpenModeDialog />
           <OpenScenarioDialog />
           {updateDialog && <UpdateDialog />}

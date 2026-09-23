@@ -21,6 +21,10 @@ use crate::scan::{self, ScanError, Value};
 /// How often write progress is reported, in bytes.
 const STEP: usize = 1 << 20;
 
+/// Cap on the buffer a member's declared size preallocates, so a forged zip header can't
+/// demand a huge allocation.
+const PREALLOC_CAP: usize = 512 << 20;
+
 /// The sink a writer body pours the document's pieces into.
 type Sink<'w> = dyn FnMut(&mut dyn Write) -> Result<(), Error> + 'w;
 
@@ -452,6 +456,10 @@ fn streamed<'a>(
         Ok(())
     };
     body(tmp.as_file(), &mut pour)?;
+    // Durable before the rename, so a crash can't leave a truncated file at the save's name.
+    tmp.as_file()
+        .sync_all()
+        .map_err(|source| io_err(path, source))?;
     progress(1.0);
     persist(path, tmp)
 }
@@ -541,7 +549,8 @@ fn read_member(
     name: &'static str,
 ) -> Result<Vec<u8>, Error> {
     let mut entry = member(archive, path, name)?;
-    let mut buf = Vec::with_capacity(usize::try_from(entry.size()).unwrap_or(0));
+    let cap = usize::try_from(entry.size()).unwrap_or(0).min(PREALLOC_CAP);
+    let mut buf = Vec::with_capacity(cap);
     entry
         .read_to_end(&mut buf)
         .map_err(|source| io_err(path, source))?;

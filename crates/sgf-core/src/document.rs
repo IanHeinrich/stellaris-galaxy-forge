@@ -40,6 +40,8 @@ pub enum Error {
     Scenario(#[from] scenario::Error),
     #[error("the document has never been saved, so it has no path to save to")]
     NoPath,
+    #[error("{path} changed on disk after it was opened or last saved")]
+    ChangedOnDisk { path: PathBuf },
 }
 
 /// Where a save landed and the backup it displaced, if any.

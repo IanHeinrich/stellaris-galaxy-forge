@@ -2,7 +2,7 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import type { StoreApi } from "zustand";
 import { blocksSave } from "../lib/issues";
 import { CLOUD_SAVE_ANYWAY } from "../lib/sessionCopy";
-import type { FileSessionState, SaveIssuesAnswer } from "./fileSessionStore";
+import type { ChangedOnDiskAnswer, FileSessionState, SaveIssuesAnswer } from "./fileSessionStore";
 import { issueKey, useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 
@@ -10,7 +10,7 @@ export type SessionApi = Pick<StoreApi<FileSessionState>, "getState" | "setState
 
 type SaveGateActions = Pick<
   FileSessionState,
-  "answerSaveIssues" | "resumePausedSave" | "dismissPausedSave"
+  "answerSaveIssues" | "answerChangedOnDisk" | "resumePausedSave" | "dismissPausedSave"
 >;
 
 /** What the user says to the questions a save asks before it writes. */
@@ -20,6 +20,13 @@ export function saveGateActions({ getState, setState }: SessionApi): SaveGateAct
       const prompt = getState().saveIssuesPrompt;
       if (prompt === null) return;
       setState({ saveIssuesPrompt: null });
+      prompt.resolve(answer);
+    },
+
+    answerChangedOnDisk(answer) {
+      const prompt = getState().changedOnDiskPrompt;
+      if (prompt === null) return;
+      setState({ changedOnDiskPrompt: null });
       prompt.resolve(answer);
     },
 
@@ -80,4 +87,10 @@ export async function confirmCloudWrite(
   const ok = await confirm(CLOUD_SAVE_ANYWAY, { title: "Steam Cloud save", kind: "warning" });
   if (ok) setState({ cloudAcknowledged: path });
   return ok;
+}
+
+/** What the user says to a save refused because something else wrote its file; cancel while one is already asking. */
+export function askChangedOnDisk({ getState, setState }: SessionApi): Promise<ChangedOnDiskAnswer> {
+  if (getState().changedOnDiskPrompt !== null) return Promise.resolve("cancel");
+  return new Promise((resolve) => setState({ changedOnDiskPrompt: { resolve } }));
 }
