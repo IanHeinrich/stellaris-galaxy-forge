@@ -456,13 +456,20 @@ fn result(graph: &GalaxyGraph, seq: usize, applied: &Applied, waylines: &[Waylin
     }
 }
 
-/// The systems `op` left the details of stale, ascending; the lane statements it also
-/// rewrote name no system of their own.
+/// The systems `op` left the details of stale, ascending: those it rewrote and those
+/// whose bodies it rewrote. The lane statements it also rewrote name no system of their
+/// own.
 fn details_stale(op: &Op, subjects: &[Subject]) -> Vec<u32> {
     if !op.stales_details() {
         return Vec::new();
     }
-    let mut ids: Vec<u32> = subjects.iter().filter_map(|s| s.system()).collect();
+    let mut ids: Vec<u32> = subjects
+        .iter()
+        .filter_map(|s| match *s {
+            Subject::System(id) | Subject::Planet { system: id, .. } => Some(id),
+            _ => None,
+        })
+        .collect();
     ids.sort_unstable();
     ids.dedup();
     ids

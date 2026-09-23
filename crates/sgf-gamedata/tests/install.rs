@@ -50,7 +50,7 @@ fn vanilla_definitions_and_localisation() {
     assert_eq!(hole.icon_scale, 2.0);
     let binary = gd.star_classes.get("sc_binary_1").expect("sc_binary_1");
     assert_eq!(binary.icon.as_deref(), Some("e_binary_star"));
-    assert_eq!(binary.planet_key.as_deref(), Some("pc_a_star"));
+    assert_eq!(binary.planet_keys, ["pc_a_star", "pc_pulsar"]);
 
     assert_eq!(
         gd.loc.get("NAME_Gamma_Refuge").as_deref(),

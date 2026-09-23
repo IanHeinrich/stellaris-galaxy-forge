@@ -78,7 +78,7 @@ fn replace_path_discards_the_vanilla_folder_and_same_filename_replaces() {
     let g = gd.star_classes.get("sc_sun").expect("sc_sun");
     assert_eq!(g.texture_icon(), "g_star_modded");
     assert_eq!(g.icon_scale, 1.5);
-    assert_eq!(g.planet_key.as_deref(), Some("pc_sun_star"));
+    assert_eq!(g.planet_keys, ["pc_sun_star"]);
     assert!(gd.star_classes.get("sc_two").is_some());
     assert_eq!(gd.star_classes.len(), 2);
     assert!(
@@ -89,7 +89,7 @@ fn replace_path_discards_the_vanilla_folder_and_same_filename_replaces() {
 }
 
 #[test]
-fn star_classes_read_hsv_colour_and_icon_scale_default() {
+fn star_classes_read_hsv_colour_icon_scale_default_and_every_star_body() {
     let gd = common::cached_fixture();
     let k = gd.star_classes.get("sc_ember").expect("sc_ember");
     assert_eq!(k.class, "ember_star");
@@ -97,7 +97,9 @@ fn star_classes_read_hsv_colour_and_icon_scale_default() {
     assert_eq!(k.icon_scale, 1.0);
     let hole = gd.star_classes.get("sc_pit").expect("sc_pit");
     assert_eq!(hole.icon_scale, 2.0);
-    assert_eq!(hole.planet_key.as_deref(), Some("pc_pit"));
+    assert_eq!(hole.planet_keys, ["pc_pit"]);
+    let pair = gd.star_classes.get("sc_pair").expect("sc_pair");
+    assert_eq!(pair.planet_keys, ["pc_sun_star", "pc_ember_star"]);
 }
 
 #[test]

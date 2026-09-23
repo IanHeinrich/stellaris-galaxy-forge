@@ -32,7 +32,8 @@ pub struct DetailsProjection {
 }
 
 impl DetailsProjection {
-    /// Project every system in `graph` from the document's original bytes.
+    /// Project every system in `graph` from the document's original bytes, and its
+    /// planets from the bytes now standing for them, whose classes an op may have rewritten.
     pub fn build(doc: &Document, graph: &GalaxyGraph) -> Result<Self, ProjectionError> {
         let src = doc.original();
         let index = doc.index();

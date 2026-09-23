@@ -134,6 +134,74 @@ describe("a save system's overview", () => {
   });
 });
 
+/** The install's classes for the binary under test, its bodies and a class to change it to. */
+function armStarClasses(): void {
+  const star = (key: string, ...planet_keys: string[]) => ({
+    key,
+    texture_key: `star_class:${key}`,
+    icon_scale: 1,
+    planet_keys,
+  });
+  const body = (key: string) => ({ key, icon_sprite: null, habitable: false, star: true });
+  useGameDataStore.setState({
+    names: new Map([
+      ["sc_binary_1", "X-ray Binary"],
+      ["sc_binary_2", "Neutron Binary"],
+    ]),
+    starClasses: new Map(
+      [
+        star("sc_g", "pc_g_star"),
+        star("sc_binary_1", "pc_a_star", "pc_pulsar"),
+        star("sc_binary_2", "pc_b_star", "pc_neutron_star"),
+      ].map((c) => [c.key, c]),
+    ),
+    planetClasses: new Map(
+      ["pc_a_star", "pc_pulsar", "pc_b_star", "pc_neutron_star", "pc_g_star"].map((k) => [
+        k,
+        body(k),
+      ]),
+    ),
+  });
+}
+
+describe("the star class at the head", () => {
+  const stars = () =>
+    details({
+      planets: [
+        planet(100, "Tarkin"),
+        planet(101, "Alpha", { class: "pc_a_star" }),
+        planet(102, "Beta", { class: "pc_pulsar" }),
+      ],
+    });
+
+  it("opens a picker of the classes with as many stars on a save", async () => {
+    armStarClasses();
+    await open("save");
+    await land(stars());
+
+    const html = overview();
+    expect(html).toContain('aria-haspopup="listbox"');
+    expect(html).toContain('aria-label="Star class: X-ray Binary"');
+  });
+
+  it("stays text on a save whose details have not landed", async () => {
+    armStarClasses();
+    await open("save");
+
+    expect(overview()).not.toContain('aria-haspopup="listbox"');
+  });
+
+  it("stays text on a scenario", async () => {
+    armStarClasses();
+    await open("scenario");
+    await land(stars());
+
+    const html = overview();
+    expect(html).toContain("X-ray Binary");
+    expect(html).not.toContain('aria-haspopup="listbox"');
+  });
+});
+
 /** A station of the system under test, named `Bastion`, at the level and kind given. */
 function starbase(level: string, kind: string): StarbaseSummary {
   return {

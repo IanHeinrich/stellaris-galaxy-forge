@@ -16,6 +16,12 @@ sc_pit = {
 	planet = { key = pc_pit }
 }
 
+sc_pair = {
+	class = pair_star
+	planet = { key = pc_sun_star }
+	planet = { key = pc_ember_star }
+}
+
 sc_vanilla_only = {
 	class = m_star
 	planet = { key = pc_m_star }

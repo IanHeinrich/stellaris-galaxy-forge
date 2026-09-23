@@ -1,6 +1,7 @@
 //! Edit operations: every edit is an [`Op`] with an inverse and a description.
 //!
-//! One overlay slot per `galactic_object` entity and per top-level `nebula` section.
+//! One overlay slot per `galactic_object` entity, per `planets.planet` entity and per
+//! top-level `nebula` section.
 //! The commit is atomic: the document is unchanged on error.
 //!
 //! `op` holds the vocabulary and its errors, `plan` the planning and the commit; this
@@ -20,7 +21,7 @@ use crate::session::Session;
 
 pub use edit::Subject;
 pub(crate) use edit::{Edit, blank_slot, replace_lengths};
-pub use op::{InitializerSet, LaneLength, LanePair, NewSystem, Op, OpError, SystemMove};
+pub use op::{InitializerSet, LaneLength, LanePair, NewSystem, Op, OpError, StarBody, SystemMove};
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 
 /// The record of one committed op: what changed, how to describe it, and the bytes

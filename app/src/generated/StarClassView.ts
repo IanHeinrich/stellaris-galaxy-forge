@@ -4,4 +4,8 @@ export type StarClassView = { key: string,
 /**
  * `star_class:<icon>`, the map's texture key.
  */
-texture_key: string, icon_scale: number, };
+texture_key: string, icon_scale: number, 
+/**
+ * The planet class of each star body, in the order the system lists its bodies.
+ */
+planet_keys: Array<string>, };

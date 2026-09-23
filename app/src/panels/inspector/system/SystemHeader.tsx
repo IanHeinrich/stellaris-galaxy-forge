@@ -13,6 +13,7 @@ import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
 import { Chip, Field, Section, SourceChip, Swatch } from "../parts";
 import { useEditableSystem } from "./editable";
 import { kindHover } from "./sections/kindHover";
+import { StarClassPicker } from "./StarClassPicker";
 import { renameSystemOp } from "./systemName";
 
 /** Why the owner line's day-one chip means what it means, shown on hover. */
@@ -141,7 +142,13 @@ export function Header({ detail }: { detail: SystemDetail }) {
         </div>
       )}
       <div className="ins-sub muted">
-        {starClass === "" ? "" : `${starClass} · `}
+        {starClass !== "" &&
+          (!scenario && details ? (
+            <StarClassPicker system={system} planets={details.planets} label={starClass} />
+          ) : (
+            starClass
+          ))}
+        {starClass !== "" && " · "}
         {planets} planets · nebula: {detail.nebula ? nodeName(detail.nebula.name) : "none"}
       </div>
       {ownerId !== null && (

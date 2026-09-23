@@ -68,6 +68,17 @@ impl Plan {
         self.subject(doc, Subject::System(id))
     }
 
+    /// The edit for a save's planet `id`, a body of `system`, loading and parsing its
+    /// entity on first use.
+    pub fn edit_planet(
+        &mut self,
+        doc: &Document,
+        id: u32,
+        system: u32,
+    ) -> Result<&mut Edit, OpError> {
+        self.subject(doc, Subject::Planet { id, system })
+    }
+
     /// The edit for the `index`th `nebula` section, loading and parsing it on first use.
     pub fn edit_nebula(&mut self, doc: &Document, index: usize) -> Result<&mut Edit, OpError> {
         self.subject(doc, Subject::Nebula(index))
