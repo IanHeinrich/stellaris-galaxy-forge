@@ -447,6 +447,44 @@ fn removing_a_rewritten_statement_takes_its_line() {
 }
 
 #[test]
+fn removing_a_rewritten_statement_inverts_to_the_rewritten_text() {
+    let statement = |session: &Session| -> String {
+        let anchor = session
+            .doc
+            .scenario()
+            .expect("a scenario")
+            .system(9)
+            .expect("system 9");
+        let bytes = session.doc.current(anchor).expect("its bytes");
+        String::from_utf8_lossy(bytes).trim().to_owned()
+    };
+    let lanes = |session: &Session| {
+        let mut lanes = session.graph.systems[&9].lanes.clone();
+        lanes.sort_by_key(|lane| lane.to);
+        lanes
+    };
+
+    let mut session = GRAMMAR.open();
+    step(
+        &mut session,
+        "rename",
+        Op::SetSystemName {
+            id: 9,
+            name: "Renamed".to_owned(),
+        },
+    );
+    let renamed = statement(&session);
+    let linked = lanes(&session);
+
+    let removed = step(&mut session, "remove", Op::RemoveSystem { id: 9 });
+    assert!(!session.graph.systems.contains_key(&9), "9 is gone");
+
+    step(&mut session, "inverse", removed.inverse);
+    assert_eq!(statement(&session), renamed);
+    assert_eq!(lanes(&session), linked);
+}
+
+#[test]
 fn removing_the_first_system_beside_an_inserted_header_key() {
     for rewrite in [false, true] {
         let mut session = GRAMMAR.open();
