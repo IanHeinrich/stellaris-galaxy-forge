@@ -58,6 +58,7 @@ fn grid(session: &Session) -> (Vec<NewSystem>, Vec<LanePair>) {
                 initializer: None,
                 spawn_weight: None,
                 spawn_script: None,
+                statement: None,
             });
             let lane = |b| LanePair {
                 a: id_at(row, col),

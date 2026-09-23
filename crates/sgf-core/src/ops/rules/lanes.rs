@@ -5,6 +5,7 @@
 use std::collections::BTreeSet;
 
 use crate::emit::coord;
+use crate::ops::rules::each_once;
 use crate::ops::{LanePair, OpError, projected_lane};
 use crate::projections::galaxy::{GalaxyGraph, lane_length};
 
@@ -80,16 +81,9 @@ pub(crate) fn decide_remove_pairs(
 /// What the graph says isolating `ids` cuts: every lane with an end among them, each
 /// undirected lane once, in projection order. Shared by both formats' isolate writers.
 pub(crate) fn decide_isolate(graph: &GalaxyGraph, ids: &[u32]) -> Result<Vec<Touching>, OpError> {
-    if ids.is_empty() {
-        return Err(OpError::Empty);
-    }
-    for (i, &id) in ids.iter().enumerate() {
-        if !graph.systems.contains_key(&id) {
-            return Err(OpError::UnknownSystem(id));
-        }
-        if ids[..i].contains(&id) {
-            return Err(OpError::DuplicateSystem(id));
-        }
+    each_once(ids, |&id| id)?;
+    if let Some(&id) = ids.iter().find(|id| !graph.systems.contains_key(id)) {
+        return Err(OpError::UnknownSystem(id));
     }
     let lanes = touching_lanes(graph, ids.iter().copied());
     if lanes.is_empty() {

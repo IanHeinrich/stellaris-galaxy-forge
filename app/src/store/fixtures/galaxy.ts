@@ -81,7 +81,13 @@ export const OPEN_RESULT: OpenResult & { path: string } = {
     components: 2,
   },
   issues: [
-    { severity: "warning", code: "system_isolated", message: "Deneb has no lanes", systems: [5] },
+    {
+      severity: "warning",
+      code: "system_isolated",
+      message: "Deneb has no lanes",
+      systems: [5],
+      note: false,
+    },
   ],
   capabilities: ALL_CAPABILITIES,
 };

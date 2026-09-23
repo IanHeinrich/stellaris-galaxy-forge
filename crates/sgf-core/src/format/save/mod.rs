@@ -77,56 +77,6 @@ impl Format for Save {
         Ok(reassigned.into_iter().map(Subject::System).collect())
     }
 
-    /// A save's systems come with planets, a starbase and an owner, its names and
-    /// initializers are the game's to set, and it has neither a scenario header nor a
-    /// generator to prevent a lane from; only a scenario writes those.
-    fn supports(&self, op: &Op) -> bool {
-        match op {
-            Op::MoveSystem { .. }
-            | Op::AddLane { .. }
-            | Op::AddLanes { .. }
-            | Op::RemoveLane { .. }
-            | Op::RemoveLanes { .. }
-            | Op::SetLaneLength { .. }
-            | Op::IsolateSystem { .. }
-            | Op::MoveSystems { .. }
-            | Op::AddLanePairs { .. }
-            | Op::RemoveLanePairs { .. }
-            | Op::IsolateSystems { .. }
-            | Op::SetLaneLengths { .. }
-            | Op::NormaliseLaneLength { .. }
-            | Op::NormaliseLaneLengths { .. }
-            | Op::MoveNebula { .. }
-            | Op::AddNebula { .. }
-            | Op::RemoveNebula { .. }
-            | Op::SetNebulaRadius { .. }
-            | Op::SetNebulaName { .. }
-            | Op::Batch { .. } => true,
-            Op::AddSystem { .. }
-            | Op::RemoveSystem { .. }
-            | Op::AddSystems { .. }
-            | Op::RemoveSystems { .. }
-            | Op::SetSystemName { .. }
-            | Op::SetInitializer { .. }
-            | Op::SetInitializers { .. }
-            | Op::SetHeaderField { .. }
-            | Op::SetHeaderKeys { .. }
-            | Op::SetHeaderList { .. }
-            | Op::SetSpawnWeight { .. }
-            | Op::SetSpawnWeights { .. }
-            | Op::SetSpawnScript { .. }
-            | Op::SetSpawnScripts { .. }
-            | Op::SetFeZone { .. }
-            | Op::SetFeZones { .. }
-            | Op::SetWormholePair { .. }
-            | Op::SetWormholeEnds { .. }
-            | Op::SetFeLinks { .. }
-            | Op::SetFeLinkFlags { .. }
-            | Op::PreventLane { .. }
-            | Op::UnpreventLane { .. } => false,
-        }
-    }
-
     fn write(&self, plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, OpError> {
         match op {
             Op::MoveSystem { id, x, y } => move_system::plan(plan, s, *id, *x, *y),
@@ -152,10 +102,35 @@ impl Format for Save {
                 nebula::plan_set_radius(plan, s, *index, *radius)
             }
             Op::SetNebulaName { index, name } => nebula::plan_set_name(plan, s, *index, name),
-            _ => Err(OpError::Unsupported {
+            // A save's systems come with planets, a starbase and an owner, its names and
+            // initializers are the game's to set, and it has neither a scenario header nor
+            // a generator to prevent a lane from.
+            Op::AddSystem { .. }
+            | Op::RemoveSystem { .. }
+            | Op::AddSystems { .. }
+            | Op::RemoveSystems { .. }
+            | Op::SetSystemName { .. }
+            | Op::SetInitializer { .. }
+            | Op::SetInitializers { .. }
+            | Op::SetHeaderField { .. }
+            | Op::SetHeaderKeys { .. }
+            | Op::SetHeaderList { .. }
+            | Op::SetSpawnWeight { .. }
+            | Op::SetSpawnWeights { .. }
+            | Op::SetSpawnScript { .. }
+            | Op::SetSpawnScripts { .. }
+            | Op::SetFeZone { .. }
+            | Op::SetFeZones { .. }
+            | Op::SetWormholePair { .. }
+            | Op::SetWormholeEnds { .. }
+            | Op::SetFeLinks { .. }
+            | Op::SetFeLinkFlags { .. }
+            | Op::PreventLane { .. }
+            | Op::UnpreventLane { .. } => Err(OpError::Unsupported {
                 op: op.name(),
                 kind: DocumentKind::Save,
             }),
+            Op::Batch { .. } => Err(OpError::NestedBatch),
         }
     }
 

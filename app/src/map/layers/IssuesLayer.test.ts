@@ -12,6 +12,7 @@ const ISOLATED: Issue = {
   code: "system_isolated",
   message: "Sol has no hyperlanes",
   systems: [0],
+  note: false,
 };
 
 /** The ring drawn on the system at `x`, as the pointer would find it. */

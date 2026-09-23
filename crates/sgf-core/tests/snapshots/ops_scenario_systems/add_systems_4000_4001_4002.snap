@@ -8,7 +8,7 @@ inverse: RemoveSystems { ids: [4000, 4001, 4002] }
 warning system_isolated: system 4000 has no hyperlanes
 warning system_isolated: system 4001 has no hyperlanes
 warning system_isolated: system 4002 has no hyperlanes
-warning disconnected: galaxy has 5 components, 2 at load; newly separated: 
+warning disconnected: galaxy has 5 components, 2 at load; newly separated: 4000, 4001, 4002
 … and 2 other issues
 
 --- scenario

@@ -2,21 +2,18 @@
 
 use std::collections::BTreeSet;
 
-use super::{index, set_position, some_text, system_indent};
-use crate::cst::Node;
-use crate::document::Document;
+use super::{index, set_position, some_text, system_indent, undirected};
+use crate::cst::{self, Node};
 use crate::emit::coord;
-use crate::format;
 use crate::format::scenario::emit::{SpawnStmt, SystemStmt, system_stmt};
-use crate::format::scenario::index::{SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
+use crate::format::scenario::index::{LaneStmt, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, statement_id};
 use crate::format::scenario::paint;
 use crate::keys::scenario as keys;
 use crate::ops::rules::systems::{decide_move, decide_moves};
-use crate::ops::rules::{check_name, quoted};
+use crate::ops::rules::{bulk_description, check_name, each_once, quoted};
 use crate::ops::{
-    Emitted, InitializerSet, NewSystem, Op, OpError, Plan, Planned, Subject, SystemMove,
+    Emitted, InitializerSet, LanePair, NewSystem, Op, OpError, Plan, Planned, Subject, SystemMove,
 };
-use crate::overlay::Anchor;
 use crate::projections::galaxy::SpawnScript;
 use crate::session::Session;
 use crate::{NULL_ID, plural};
@@ -41,9 +38,6 @@ pub(super) fn move_many(
     s: &Session,
     moves: &[SystemMove],
 ) -> Result<Planned, OpError> {
-    if moves.is_empty() {
-        return Err(OpError::Empty);
-    }
     let origin = decide_moves(&s.graph, moves)?;
     for m in moves {
         set_position(plan.edit(&s.doc, m.id)?, m.x, m.y)?;
@@ -63,6 +57,7 @@ pub(super) struct SystemFields<'a> {
     pub initializer: Option<&'a str>,
     pub spawn_weight: Option<f64>,
     pub spawn_script: Option<&'a SpawnScript>,
+    pub statement: Option<&'a str>,
 }
 
 impl<'a> From<&'a NewSystem> for SystemFields<'a> {
@@ -75,6 +70,7 @@ impl<'a> From<&'a NewSystem> for SystemFields<'a> {
             initializer: new.initializer.as_deref(),
             spawn_weight: new.spawn_weight,
             spawn_script: new.spawn_script.as_ref(),
+            statement: new.statement.as_deref(),
         }
     }
 }
@@ -97,26 +93,14 @@ pub(super) fn add_systems(
     s: &Session,
     systems: &[NewSystem],
 ) -> Result<Planned, OpError> {
-    if systems.is_empty() {
-        return Err(OpError::Empty);
-    }
-    let mut seen = BTreeSet::new();
-    for new in systems {
-        if !seen.insert(new.id) {
-            return Err(OpError::DuplicateSystem(new.id));
-        }
-    }
+    each_once(systems, |new| new.id)?;
     let indent = system_indent(&s.doc, index(&s.doc));
     let mut one = String::new();
     for new in systems {
         (_, one) = emit_system(plan, s, &indent, new.into())?;
     }
-    let description = match systems.len() {
-        1 => one,
-        n => format!("Added {}", plural(n, "system")),
-    };
     Ok(Planned {
-        description,
+        description: bulk_description(systems.len(), one, "Added"),
         inverse: Op::RemoveSystems {
             ids: systems.iter().map(|new| new.id).collect(),
         },
@@ -124,14 +108,17 @@ pub(super) fn add_systems(
 }
 
 /// A seat needs a starting initializer, so a scripted system naming none is given the
-/// dialect's basic one, as [`Op::SetSpawnScript`] gives it. Returns the id written and
-/// what to call the change.
+/// dialect's basic one, as [`Op::SetSpawnScript`] gives it. A statement carried whole is
+/// written as it stands. Returns the id written and what to call the change.
 fn emit_system(
     plan: &mut Plan,
     s: &Session,
     indent: &[u8],
     new: SystemFields,
 ) -> Result<(u32, String), OpError> {
+    if new.statement.is_none() {
+        check_fields(&new)?;
+    }
     let SystemFields {
         id,
         x,
@@ -140,22 +127,8 @@ fn emit_system(
         initializer,
         spawn_weight,
         spawn_script,
+        statement,
     } = new;
-    if !x.is_finite() || !y.is_finite() {
-        return Err(OpError::NotFinite);
-    }
-    if spawn_weight.is_some() && spawn_script.is_some() {
-        return Err(OpError::WeightAndScript);
-    }
-    if let Some(weight) = spawn_weight {
-        super::spawn::check_weight(weight)?;
-    }
-    if let Some(script) = spawn_script {
-        paint::check(script)?;
-    }
-    if let Some(name) = name {
-        check_name(name)?;
-    }
     let scenario = index(&s.doc);
     let id = id.unwrap_or_else(|| scenario.next_id());
     if id == NULL_ID {
@@ -164,27 +137,32 @@ fn emit_system(
     if scenario.system(id).is_some() {
         return Err(OpError::SystemExists(id));
     }
-    let initializer = match (initializer, spawn_script) {
-        (None, Some(_)) => Some(paint::basic_initializer(id)),
-        (initializer, _) => initializer,
+    let text = match statement {
+        Some(statement) => verbatim(indent, id, statement)?,
+        None => {
+            let initializer = match (initializer, spawn_script) {
+                (None, Some(_)) => Some(paint::basic_initializer(id)),
+                (initializer, _) => initializer,
+            };
+            let spawn = match (spawn_weight, spawn_script) {
+                (Some(weight), _) => SpawnStmt::Base(weight),
+                (_, Some(script)) => SpawnStmt::Script(script.clone()),
+                (None, None) => SpawnStmt::None,
+            };
+            system_stmt(
+                indent,
+                &SystemStmt {
+                    id,
+                    name: name.unwrap_or("").to_owned(),
+                    x: x * SCENARIO_X_SIGN,
+                    y: y * SCENARIO_Y_SIGN,
+                    initializer: initializer.map(str::to_owned),
+                    spawn,
+                    effect: None,
+                },
+            )
+        }
     };
-    let spawn = match (spawn_weight, spawn_script) {
-        (Some(weight), _) => SpawnStmt::Base(weight),
-        (_, Some(script)) => SpawnStmt::Script(script.clone()),
-        (None, None) => SpawnStmt::None,
-    };
-    let text = system_stmt(
-        indent,
-        &SystemStmt {
-            id,
-            name: name.unwrap_or("").to_owned(),
-            x: x * SCENARIO_X_SIGN,
-            y: y * SCENARIO_Y_SIGN,
-            initializer: initializer.map(str::to_owned),
-            spawn,
-            effect: None,
-        },
-    );
     plan.emit(Emitted::System(id), scenario.insert_at, text);
     let seat = match spawn_script {
         Some(script) => format!(" as a Paint a Galaxy spawn ({})", paint::label(script)),
@@ -196,28 +174,51 @@ fn emit_system(
     ))
 }
 
+fn check_fields(new: &SystemFields) -> Result<(), OpError> {
+    if !new.x.is_finite() || !new.y.is_finite() {
+        return Err(OpError::NotFinite);
+    }
+    if new.spawn_weight.is_some() && new.spawn_script.is_some() {
+        return Err(OpError::WeightAndScript);
+    }
+    if let Some(weight) = new.spawn_weight {
+        super::spawn::check_weight(weight)?;
+    }
+    if let Some(script) = new.spawn_script {
+        paint::check(script)?;
+    }
+    if let Some(name) = new.name {
+        check_name(name)?;
+    }
+    Ok(())
+}
+
+/// `statement` on a line of its own, once it reads as one `system` statement for `id`
+/// with nothing before or after it.
+fn verbatim(indent: &[u8], id: u32, statement: &str) -> Result<Vec<u8>, OpError> {
+    let bytes = statement.trim().as_bytes();
+    let refuse = |offset: usize, reason: &str| OpError::Parse {
+        system: id,
+        offset,
+        reason: reason.to_owned(),
+    };
+    let root = cst::parse_script(bytes, 0).map_err(|e| refuse(e.offset, e.reason))?;
+    match root.children() {
+        [node]
+            if node.key_str(bytes) == Some(keys::SYSTEM)
+                && node.span().start == 0
+                && node.span().end == bytes.len()
+                && statement_id(node, bytes) == Some(id) => {}
+        _ => return Err(refuse(0, "not one system statement with this id")),
+    }
+    Ok([indent, bytes, b"\n"].concat())
+}
+
 pub(super) fn remove_system(plan: &mut Plan, s: &Session, id: u32) -> Result<Planned, OpError> {
-    let (mut restore, lanes) = erase_systems(plan, s, &[id])?;
-    let NewSystem {
-        id,
-        x,
-        y,
-        name,
-        initializer,
-        spawn_weight,
-        spawn_script,
-    } = restore.pop().expect("one system erased");
+    let (inverse, lanes) = erase_systems(plan, s, &[id])?;
     Ok(Planned {
         description: format!("Removed system {id} ({lanes} lanes)"),
-        inverse: Op::AddSystem {
-            id: Some(id),
-            x,
-            y,
-            name,
-            initializer,
-            spawn_weight,
-            spawn_script,
-        },
+        inverse,
     })
 }
 
@@ -226,73 +227,81 @@ pub(super) fn remove_systems(
     s: &Session,
     ids: &[u32],
 ) -> Result<Planned, OpError> {
-    if ids.is_empty() {
-        return Err(OpError::Empty);
-    }
-    let (restore, lanes) = erase_systems(plan, s, ids)?;
+    let (inverse, lanes) = erase_systems(plan, s, ids)?;
     let description = match ids {
         [id] => format!("Removed system {id} ({lanes} lanes)"),
         _ => format!("Removed {} ({lanes} lanes)", plural(ids.len(), "system")),
     };
     Ok(Planned {
         description,
-        inverse: Op::AddSystems { systems: restore },
+        inverse,
     })
 }
 
 /// Empty each system's statement and every hyperlane statement naming any of them, once
-/// each. Returns what puts each system back (the spawn weight best effort, `None` when a
-/// modifier stood) and how many `add_hyperlane` statements went with them.
-fn erase_systems(
-    plan: &mut Plan,
-    s: &Session,
-    ids: &[u32],
-) -> Result<(Vec<NewSystem>, usize), OpError> {
+/// each. Returns the op that puts them all back and how many `add_hyperlane` statements
+/// went with them.
+fn erase_systems(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<(Op, usize), OpError> {
+    each_once(ids, |&id| id)?;
     let scenario = index(&s.doc);
-    let mut seen = BTreeSet::new();
     let mut restore = Vec::with_capacity(ids.len());
     for &id in ids {
-        if !seen.insert(id) {
-            return Err(OpError::DuplicateSystem(id));
-        }
         let anchor = scenario.system(id).ok_or(OpError::UnknownSystem(id))?;
         let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
-        let spawn_script = system.spawn_script.clone();
+        let statement =
+            std::str::from_utf8(s.doc.current(anchor)?).map_err(|e| OpError::Parse {
+                system: id,
+                offset: e.valid_up_to(),
+                reason: "the statement is not UTF-8 text".to_owned(),
+            })?;
         restore.push(NewSystem {
             id,
             x: system.x,
             y: system.y,
             name: some_text(&system.name.key),
             initializer: some_text(&system.initializer),
-            spawn_weight: match spawn_script {
-                Some(_) => None,
-                None => spawn_weight_of(&s.doc, anchor),
-            },
-            spawn_script,
+            spawn_weight: None,
+            spawn_script: system.spawn_script.clone(),
+            statement: Some(statement.trim().to_owned()),
         });
         plan.erase(&s.doc, Subject::System(id), anchor)?;
     }
-    let statements = super::matching(&s.doc, seen.iter().copied(), |_| true);
+    let statements = super::matching(&s.doc, ids.iter().copied(), |_| true);
     for stmt in &statements {
         super::erase(plan, &s.doc, stmt)?;
     }
     let lanes = statements.iter().filter(|l| !l.prevent).count();
-    Ok((restore, lanes))
+    Ok((put_back(s, restore, &statements), lanes))
 }
 
-/// The removed statement's spawn weight, when it stood as a plain `base = N` with no
-/// modifier; `None` otherwise, same best-effort limit as the rest of the inverse.
-fn spawn_weight_of(doc: &Document, anchor: Anchor) -> Option<f64> {
-    let buf = doc.current(anchor).ok()?;
-    let root = format::of(doc.kind()).parse(buf, 0).ok()?;
-    let weight = root.children().first()?.find(keys::SPAWN_WEIGHT, buf)?;
-    if weight.find(keys::MODIFIER, buf).is_some() {
-        return None;
+/// The batch that undoes [`erase_systems`]: the systems' statements as they stood, then
+/// each pair the erased hyperlane statements prevented and linked, once, where the graph
+/// holds both ends. A pair is prevented before it is linked, since a linked pair cannot be.
+fn put_back(s: &Session, systems: Vec<NewSystem>, statements: &[LaneStmt]) -> Op {
+    let description = format!("Restored {}", plural(systems.len(), "system"));
+    let mut ops = vec![Op::AddSystems { systems }];
+    let mut seen = BTreeSet::new();
+    let mut lanes = Vec::new();
+    for stmt in statements {
+        let (a, b) = (stmt.from, stmt.to);
+        let held = [a, b].iter().all(|id| s.graph.systems.contains_key(id));
+        if a == b || !held || !seen.insert((stmt.prevent, undirected(a, b))) {
+            continue;
+        }
+        if stmt.prevent {
+            ops.push(Op::PreventLane { a, b });
+        } else {
+            lanes.push(LanePair {
+                a,
+                b,
+                bridge: false,
+            });
+        }
     }
-    weight
-        .find(keys::BASE, buf)
-        .and_then(|n| n.scalar_str(buf))
-        .and_then(|text| text.parse::<f64>().ok())
+    if !lanes.is_empty() {
+        ops.push(Op::AddLanePairs { lanes });
+    }
+    Op::Batch { description, ops }
 }
 
 /// No name is not a name: an empty one takes the `name` statement away, so the inverse
@@ -354,15 +363,7 @@ pub(super) fn set_initializers(
     s: &Session,
     entries: &[InitializerSet],
 ) -> Result<Planned, OpError> {
-    if entries.is_empty() {
-        return Err(OpError::Empty);
-    }
-    let mut seen = BTreeSet::new();
-    for entry in entries {
-        if !seen.insert(entry.id) {
-            return Err(OpError::DuplicateSystem(entry.id));
-        }
-    }
+    each_once(entries, |entry| entry.id)?;
     let mut one = String::new();
     let mut previous = Vec::with_capacity(entries.len());
     for entry in entries {
@@ -371,12 +372,8 @@ pub(super) fn set_initializers(
         one = description;
         previous.push(was);
     }
-    let description = match entries.len() {
-        1 => one,
-        n => format!("Set initializer of {}", plural(n, "system")),
-    };
     Ok(Planned {
-        description,
+        description: bulk_description(entries.len(), one, "Set initializer of"),
         inverse: Op::SetInitializers { entries: previous },
     })
 }

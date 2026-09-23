@@ -7,7 +7,7 @@ use sgf_core::session::Session;
 
 mod common;
 use common::diff::{round_trip, snapshot};
-use common::scenario::{bytes, current, open};
+use common::scenario::{assert_removal_inverts_exactly, bytes, current, open};
 
 #[test]
 fn a_system_edited_earlier_can_still_be_removed() {
@@ -336,6 +336,7 @@ fn three_new_systems() -> Vec<NewSystem> {
         initializer: None,
         spawn_weight: None,
         spawn_script: None,
+        statement: None,
     };
     vec![
         NewSystem {
@@ -402,34 +403,37 @@ fn remove_systems_takes_each_line_and_every_lane_naming_one_once() {
 }
 
 #[test]
-fn remove_systems_undo_and_redo_are_byte_identical_and_its_inverse_adds_them_back() {
+fn remove_systems_undo_and_redo_are_byte_identical_and_its_inverse_puts_them_back_exactly() {
     round_trip(
         open(),
         Op::RemoveSystems {
             ids: vec![1, 16, 888],
         },
     );
-    let mut session = open();
-    let result = session
-        .apply(Op::RemoveSystems {
-            ids: vec![1, 16, 888],
-        })
-        .expect("remove three systems");
-    for id in [1, 16, 888] {
-        assert!(!session.graph.systems.contains_key(&id));
-    }
-    assert!(session.graph.lane(2, 1).is_none() && session.graph.lane(1, 2).is_none());
-    let Op::AddSystems { systems } = result.inverse.clone() else {
-        panic!("{:?}", result.inverse);
-    };
-    let ids: Vec<u32> = systems.iter().map(|s| s.id).collect();
-    assert_eq!(ids, [1, 16, 888]);
+    // 2 and 888 weigh by a modifier, 16 has a z, 111 a range and a spawn design, 3018 an
+    // effect block over several lines and 9 a prevented pair; 1 is linked to 2 and to 16
+    // twice each.
+    assert_removal_inverts_exactly(open(), &[1, 2, 16, 111, 3018, 9, 888]);
+}
+
+#[test]
+fn clearing_an_initializer_keeps_the_comment_that_follows_it() {
+    let text = String::from_utf8(bytes()).unwrap().replacen(
+        "\t\tinitializer = random_empire_init_01\n",
+        "\t\tinitializer = random_empire_init_01 # the seat\n",
+        1,
+    );
+    let doc = Document::from_scenario_bytes(text.into_bytes()).expect("index the bytes");
+    let mut session = Session::from_document(None, doc).expect("project the bytes");
     session
-        .apply(result.inverse)
-        .expect("the inverse adds the three back");
-    for id in [1, 16, 888] {
-        assert!(session.graph.systems.contains_key(&id));
-    }
+        .apply(Op::SetInitializer {
+            id: 3018,
+            initializer: None,
+        })
+        .expect("clear the initializer");
+    let edited = String::from_utf8(current(&session)).unwrap();
+    assert!(!edited.contains("random_empire_init_01"), "{edited}");
+    assert!(edited.contains("# the seat\n"), "{edited}");
 }
 
 #[test]

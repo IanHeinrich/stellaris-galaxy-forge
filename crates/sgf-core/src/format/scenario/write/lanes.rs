@@ -43,8 +43,8 @@ pub(super) fn add_lanes(
     let ids: Vec<String> = to.iter().map(|(id, _)| id.to_string()).collect();
     Ok(Planned {
         description: format!(
-            "Added {} lane(s) from {from} to {}",
-            to.len(),
+            "Added {} from {from} to {}",
+            plural(to.len(), "lane"),
             ids.join(", ")
         ),
         inverse: Op::RemoveLanes {
@@ -132,8 +132,8 @@ pub(super) fn remove_lanes(
     let ids: Vec<String> = to.iter().map(u32::to_string).collect();
     Ok(Planned {
         description: format!(
-            "Removed {} lane(s) from {from} to {} ({erased} statements)",
-            to.len(),
+            "Removed {} from {from} to {} ({erased} statements)",
+            plural(to.len(), "lane"),
             ids.join(", ")
         ),
         inverse: Op::AddLanes {

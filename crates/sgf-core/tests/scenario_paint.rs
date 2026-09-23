@@ -670,6 +670,75 @@ fn clearing_a_scripted_seat_among_plain_weights_inverts_each_its_own_way() {
     round_trip(open(), Op::SetSpawnWeights { entries });
 }
 
+/// A member whose own inverse is a batch joins the batch's inverse op by op, so the
+/// inverse is one batch that applies.
+#[test]
+fn a_scripted_seat_cleared_inside_a_batch_inverts_to_one_flat_batch() {
+    let mut session = open();
+    let result = session
+        .apply(Op::Batch {
+            description: "Clear and weigh".to_owned(),
+            ops: vec![
+                Op::SetSpawnWeights {
+                    entries: vec![(2, None)],
+                },
+                Op::SetSpawnWeight {
+                    id: 10,
+                    base: Some(1.0),
+                },
+            ],
+        })
+        .expect("apply the batch");
+    assert_eq!(
+        result.inverse,
+        Op::Batch {
+            description: "Clear and weigh".to_owned(),
+            ops: vec![
+                Op::SetSpawnWeight { id: 10, base: None },
+                set(2, script(reserved("a"), 2)),
+            ],
+        }
+    );
+    session.apply(result.inverse).expect("apply the inverse");
+    assert_eq!(
+        session.graph.systems[&2].spawn_script,
+        script(reserved("a"), 2)
+    );
+    assert_eq!(common::current(&session), bytes());
+}
+
+/// No seat is drawn from more than ten values, so a random value of 37 is refused rather
+/// than written beside a modulo of 10.
+#[test]
+fn a_random_value_no_seat_is_drawn_from_is_refused() {
+    let mut session = open();
+    for kind in [
+        PaintSpawnKind::Enabled,
+        PaintSpawnKind::Preferred,
+        reserved("a"),
+    ] {
+        let error = session
+            .apply(set(10, script(kind, 37)))
+            .expect_err("a random value of 37");
+        assert!(
+            matches!(error, OpError::RandomValueOutOfRange(37, 10)),
+            "{error}"
+        );
+    }
+    assert!(!session.is_dirty());
+    session
+        .apply(set(10, script(reserved("a"), 5)))
+        .expect("a reserved seat takes 5 modulo its own 3");
+    assert!(text(&session).contains("RESERVED|a|RANDOM_MODULO|3|RANDOM_VALUE|2|"));
+}
+
+/// 3 is a scripted seat, 7 a wormhole end and 12 a fallen empire zone with a wormhole
+/// of its own; all three have lanes.
+#[test]
+fn removing_painted_systems_inverts_to_their_statements_and_lanes() {
+    common::scenario::assert_removal_inverts_exactly(open(), &[3, 7, 12]);
+}
+
 #[test]
 fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
     let add = |spawn_weight, spawn_script| Op::AddSystem {
@@ -699,17 +768,10 @@ fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
     let removed = session
         .apply(Op::RemoveSystem { id: 14 })
         .expect("remove the seat");
+    session.apply(removed.inverse).expect("put the seat back");
     assert_eq!(
-        removed.inverse,
-        Op::AddSystem {
-            id: Some(14),
-            x: 60.0,
-            y: 10.0,
-            name: Some("New Seat".to_owned()),
-            initializer: Some("random_empire_init_03".to_owned()),
-            spawn_weight: None,
-            spawn_script: script(PaintSpawnKind::Enabled, 5),
-        }
+        session.graph.systems[&14].spawn_script,
+        script(PaintSpawnKind::Enabled, 5)
     );
 
     let mut session = open();

@@ -10,6 +10,7 @@ use crate::format::save::write::bulk;
 use crate::keys;
 use crate::ops::rules::lanes as rules;
 use crate::ops::{Edit, Op, OpError, Plan, Planned, projected_lane, replace_lengths};
+use crate::plural;
 use crate::projections::galaxy::bypass_between;
 use crate::projections::galaxy::{GalaxyGraph, lane_length};
 use crate::session::Session;
@@ -55,8 +56,8 @@ pub(crate) fn plan_add_many(
     let ids: Vec<String> = to.iter().map(|(id, _)| id.to_string()).collect();
     Ok(Planned {
         description: format!(
-            "Added {} lane(s) from {from} to {}",
-            to.len(),
+            "Added {} from {from} to {}",
+            plural(to.len(), "lane"),
             ids.join(", ")
         ),
         inverse: Op::RemoveLanes {
@@ -104,8 +105,8 @@ pub(crate) fn plan_remove_many(
     let ids: Vec<String> = to.iter().map(u32::to_string).collect();
     Ok(Planned {
         description: format!(
-            "Removed {} lane(s) from {from} to {} ({removed} entries){}",
-            to.len(),
+            "Removed {} from {from} to {} ({removed} entries){}",
+            plural(to.len(), "lane"),
             ids.join(", "),
             wayline_note(&s.graph, &pairs)
         ),
@@ -187,9 +188,9 @@ pub(crate) fn plan_isolate(plan: &mut Plan, s: &Session, id: u32) -> Result<Plan
         .collect();
     Ok(Planned {
         description: format!(
-            "Isolated {} (#{id}): removed {} lane(s) ({removed} entries){}",
+            "Isolated {} (#{id}): removed {} ({removed} entries){}",
             s.graph.systems[&id].display_name(),
-            lanes.len(),
+            plural(lanes.len(), "lane"),
             wayline_note(&s.graph, &pairs(&lanes))
         ),
         inverse: Op::AddLanes {

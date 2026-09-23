@@ -234,6 +234,7 @@ describe("the Issues tab", () => {
     code,
     message: `${code} on ${systems.join(",")}`,
     systems,
+    note: false,
   });
 
   it("groups by code, errors first then the biggest group, and names the systems", () => {

@@ -214,6 +214,10 @@ static_galaxy_scenario = {{
 
     let issues = report.issues();
     assert!(issues.iter().all(|i| i.severity == Severity::Warning));
+    assert!(
+        issues.iter().all(|i| i.note),
+        "an export's issues are notes"
+    );
     let dropped: Vec<&str> = issues
         .iter()
         .filter(|i| i.code == IssueCode::ExportDropped)

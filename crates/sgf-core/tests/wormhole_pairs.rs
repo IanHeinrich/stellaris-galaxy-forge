@@ -316,3 +316,21 @@ fn a_pair_needs_two_systems_that_exist_and_a_number_nobody_else_holds() {
         ]
     );
 }
+
+#[test]
+fn an_end_listed_twice_is_refused_whether_or_not_it_carries_flags() {
+    let mut session = open();
+    for id in [7, 10] {
+        let error = session
+            .apply(Op::SetWormholeEnds {
+                entries: vec![(id, Some(3)), (id, Some(3))],
+            })
+            .expect_err("a repeated end");
+        assert!(
+            matches!(error, OpError::DuplicateSystem(repeated) if repeated == id),
+            "{id}: {error}"
+        );
+    }
+    assert!(!session.is_dirty());
+    assert_eq!(text(&session).as_bytes(), bytes());
+}
