@@ -11,7 +11,6 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 import type { StarbaseSummary } from "../../../generated/StarbaseSummary";
 import { kindTitle } from "../../../lib/special";
 import { bindStores } from "../../../store/bindStores";
-import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
@@ -142,6 +141,9 @@ function armStarClasses(): void {
     texture_key: `star_class:${key}`,
     icon_scale: 1,
     planet_keys,
+    crisis_star_class: null,
+    spawn_odds: 1,
+    localised: true,
   });
   const body = (key: string) => ({ key, icon_sprite: null, habitable: false, star: true });
   useGameDataStore.setState({
@@ -175,44 +177,77 @@ describe("the star class at the head", () => {
       ],
     });
 
-  it("opens a picker of the classes with as many stars on a save", async () => {
+  it("names a multiple star by its class's bodies, as plain text on a save", async () => {
     armStarClasses();
     await open("save");
     await land(stars());
 
     const html = overview();
-    expect(html).toContain('aria-haspopup="listbox"');
-    expect(html).toContain('aria-label="Star class: X-ray Binary"');
+    // The fixture has no names for the bodies.
+    expect(html).toMatch(
+      /<div class="ins-sub muted">pc_a_star \+ pc_pulsar · \d+ planets · nebula/,
+    );
+    expect(html).not.toContain("Star class");
+    expect(html).not.toContain('aria-haspopup="listbox"');
   });
 
-  it("waits while an edit has left the details stale", async () => {
+  it("notes stars no class has, by their names, and what the game treats the system as", async () => {
+    armStarClasses();
+    useGameDataStore.setState({
+      names: new Map([
+        ["pc_a_star", "Class A Star"],
+        ["pc_g_star", "Class G Star"],
+        ["pc_pulsar", "Pulsar"],
+      ]),
+    });
+    await open("save");
+    await land(
+      details({
+        planets: [
+          planet(101, "Alpha", { class: "pc_a_star" }),
+          planet(102, "Beta", { class: "pc_g_star" }),
+        ],
+      }),
+    );
+
+    expect(overview()).toContain(
+      "No star class has these stars (Class A Star + Class G Star). The map and the game treat the system as Class A Star + Pulsar.",
+    );
+  });
+
+  it("leaves the note out when the stars match the class, in any order", async () => {
+    armStarClasses();
+    await open("save");
+    await land(
+      details({
+        planets: [
+          planet(102, "Beta", { class: "pc_pulsar" }),
+          planet(101, "Alpha", { class: "pc_a_star" }),
+        ],
+      }),
+    );
+
+    expect(overview()).not.toContain("No star class has these stars");
+  });
+
+  it("marks each star in the planet list as a page with fields to edit", async () => {
     armStarClasses();
     await open("save");
     await land(stars());
-    const trigger = /class="icon-picker-trigger"[^>]*>/;
-    expect(overview().match(trigger)?.[0]).not.toContain("disabled");
 
-    useDetailsStore.getState().invalidate([SYSTEM]);
-    const html = overview();
-    expect(html.match(trigger)?.[0]).toContain("disabled");
-    expect(html).toContain("Reading the system&#x27;s stars…");
+    expect(overview().match(/class="ins-edit-chip"/g)).toHaveLength(2);
   });
 
-  it("stays text on a save whose details have not landed", async () => {
-    armStarClasses();
-    await open("save");
-
-    expect(overview()).not.toContain('aria-haspopup="listbox"');
-  });
-
-  it("stays text on a scenario", async () => {
+  it("stays plain text on a scenario", async () => {
     armStarClasses();
     await open("scenario");
     await land(stars());
 
     const html = overview();
-    expect(html).toContain("X-ray Binary");
+    expect(html).toContain("X-ray Binary · ");
+    expect(html).not.toContain("Star class");
     expect(html).not.toContain('aria-haspopup="listbox"');
+    expect(html).not.toContain("ins-edit-chip");
   });
 });
 

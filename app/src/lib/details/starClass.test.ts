@@ -4,7 +4,9 @@ import type { StarClassView } from "../../generated/StarClassView";
 import { planet } from "./fixture";
 import {
   bulkStarClassChoices,
+  crisisVariantKeys,
   currentStarBodies,
+  isInternalStarClass,
   planStarClass,
   setStarClassOp,
   skippedNote,
@@ -12,12 +14,23 @@ import {
   starClassChoices,
   starClassNameKeys,
   starClassRows,
+  visibleStarClassRows,
   type StarClassTarget,
 } from "./starClass";
 
 function view(key: string, ...planet_keys: string[]): StarClassView {
-  return { key, texture_key: `star_class:${key}`, icon_scale: 1, planet_keys };
+  return {
+    key,
+    texture_key: `star_class:${key}`,
+    icon_scale: 1,
+    planet_keys,
+    crisis_star_class: null,
+    spawn_odds: 1,
+    localised: true,
+  };
 }
+
+const NO_CRISIS: ReadonlySet<string> = new Set();
 
 const CLASSES = new Map(
   [
@@ -114,6 +127,7 @@ describe("starClassRows", () => {
     starClassRows(
       keys.map((key) => CLASSES.get(key) as StarClassView),
       (key) => names.get(key) ?? key,
+      NO_CRISIS,
     );
 
   it("lists single stars before exotic ones, then binaries and trinaries, each by name", () => {
@@ -126,20 +140,77 @@ describe("starClassRows", () => {
       "sc_binary_2",
       "sc_g",
     );
-    expect(listed.map((r) => [r.group, r.label, r.note])).toEqual([
-      ["Stars", "Class G", undefined],
-      ["Stars", "Class M", undefined],
-      ["Exotic", "Black Hole", undefined],
-      ["Exotic", "Neutron Star", undefined],
-      ["Binaries", "Binary Stars", "Class B Star + Neutron Star"],
-      ["Binaries", "Binary Stars", "Class M Star + Class G Star"],
-      ["Trinaries", "Trinary Stars", "Class G Star + Class M Star + Class K Star"],
+    expect(listed.map((r) => [r.group, r.label])).toEqual([
+      ["Stars", "Class G"],
+      ["Stars", "Class M"],
+      ["Exotic", "Black Hole"],
+      ["Exotic", "Neutron Star"],
+      ["Binaries", "Class B Star + Neutron Star"],
+      ["Binaries", "Class M Star + Class G Star"],
+      ["Trinaries", "Class G Star + Class M Star + Class K Star"],
     ]);
   });
 
-  it("falls back to the key for a class with no localisation", () => {
-    expect(rows("sc_binary_5").map((r) => [r.label, r.note])).toEqual([
-      ["sc_binary_5", "Class B Star + Class B Star"],
+  it("names a multiple star by its bodies even when its class has no localisation", () => {
+    expect(rows("sc_binary_5").map((r) => r.label)).toEqual(["Class B Star + Class B Star"]);
+  });
+
+  it("groups classes a new galaxy never rolls after the others: special, then crisis variants", () => {
+    const crisis = { ...view("sc_crisis", "pc_m_star", "pc_g_star"), spawn_odds: 0 };
+    const special = { ...view("sc_rift", "pc_g_star", "pc_b_star"), spawn_odds: 0 };
+    const listed = starClassRows(
+      [crisis, special, CLASSES.get("sc_binary_2") as StarClassView],
+      (key) => names.get(key) ?? key,
+      new Set(["sc_crisis"]),
+    );
+    expect(listed.map((r) => [r.group, r.label])).toEqual([
+      ["Binaries", "Class B Star + Neutron Star"],
+      ["Special", "Class G Star + Class B Star"],
+      ["Crisis variants", "Class M Star + Class G Star"],
+    ]);
+  });
+});
+
+describe("crisisVariantKeys", () => {
+  it("collects the crisis_star_class of every class that has one", () => {
+    const classes = [
+      { ...view("sc_a"), crisis_star_class: "sc_crisis_a" },
+      { ...view("sc_b"), crisis_star_class: null },
+    ];
+    expect(crisisVariantKeys(classes)).toEqual(new Set(["sc_crisis_a"]));
+  });
+});
+
+describe("isInternalStarClass", () => {
+  it("is a class with no spawn odds and no name of its own", () => {
+    const internal = { ...view("sc_giga_internal"), spawn_odds: 0, localised: false };
+    expect(isInternalStarClass(internal)).toBe(true);
+    expect(isInternalStarClass({ ...internal, spawn_odds: 5 })).toBe(false);
+    expect(isInternalStarClass({ ...internal, localised: true })).toBe(false);
+  });
+});
+
+describe("visibleStarClassRows", () => {
+  const rows = starClassRows(
+    ["sc_normal", "sc_internal_1", "sc_internal_2"].map((key) =>
+      key === "sc_normal"
+        ? view(key, "pc_g_star")
+        : { ...view(key, "pc_g_star"), spawn_odds: 0, localised: false },
+    ),
+    (key) => key,
+    NO_CRISIS,
+  );
+
+  it("keeps internal classes out of the list and counts them, until revealed", () => {
+    const hidden = visibleStarClassRows(rows, false);
+    expect(hidden.rows.map((r) => r.view.key)).toEqual(["sc_normal"]);
+    expect(hidden.internalCount).toBe(2);
+
+    const revealed = visibleStarClassRows(rows, true);
+    expect(revealed.rows.map((r) => [r.group, r.view.key])).toEqual([
+      ["Stars", "sc_normal"],
+      ["Internal", "sc_internal_1"],
+      ["Internal", "sc_internal_2"],
     ]);
   });
 });

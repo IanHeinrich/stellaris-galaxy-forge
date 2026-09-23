@@ -17,7 +17,9 @@ import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { Empires, MAP_COLORS_NEED_4_5, MapColorStrip } from "./Empires";
+import { useInspectorStore } from "../../store/inspectorStore";
+import { useLayoutStore } from "../../store/layoutStore";
+import { Empires } from "./Empires";
 
 const mocked = {
   openSave: vi.mocked(ipc.openSave),
@@ -127,68 +129,35 @@ describe("a save's empire rows", () => {
     expect(html).not.toContain(">assumed<");
   });
 
-  it("offers the map colour edit on each empire", async () => {
+  it("offers a pencil on each empire that opens its page in the inspector", async () => {
     mocked.openSave.mockResolvedValue(SAVE_WITH_EMPIRE);
     await useFileSessionStore.getState().openSave(SAVE_WITH_EMPIRE.path);
-
-    expect(empires()).toContain('aria-label="Edit Test Empire&#x27;s map colours"');
-  });
-});
-
-describe("an empire's map colour strip", () => {
-  /** An empire of a 4.5 save with a map border and fill of its own. */
-  const CHOSEN: CountryNode = {
-    ...EMPIRE,
-    flag_colors: ["red", "purple", "black", "grey", "intense_red", "light_pink"],
-    use_map_color: true,
-  };
-  const PALETTE = [
-    { name: "intense_red", map: "#e02020", flag: "#e02020", ship: "#e02020" },
-    { name: "light_pink", map: "#f0b0c0", flag: "#f0b0c0", ship: "#f0b0c0" },
-  ];
-  const strip = (country: CountryNode) => renderToStaticMarkup(<MapColorStrip country={country} />);
-
-  beforeEach(() => {
-    useGameDataStore.setState({
-      mapColors: new Map(PALETTE.map((c) => [c.name, c])),
-      mapColorSource: null,
+    useLayoutStore.setState({ tab: "empires", previousTab: "empires" });
+    useInspectorStore.setState({
+      stack: [
+        { ref: { kind: "system", id: 1 }, label: "Sol" },
+        { ref: { kind: "planet", id: 100 }, label: "Earth" },
+      ],
+      tab: "data",
     });
+
+    const html = empires();
+    expect(html).toContain('aria-label="Open Test Empire&#x27;s page"');
+    expect(html).not.toContain("Map colours");
+
+    useInspectorStore
+      .getState()
+      .openPage({ ref: { kind: "country", id: 7 }, label: "Test Empire" });
+    const { stack, tab } = useInspectorStore.getState();
+    expect(stack.map((e) => e.label)).toEqual(["Sol", "Test Empire"]);
+    expect(stack[1].ref).toEqual({ kind: "country", id: 7 });
+    expect(tab).toBe("overview");
+    expect(useLayoutStore.getState()).toMatchObject({ tab: "inspector", previousTab: "empires" });
   });
 
-  it("shows the current border and fill with their swatches, and the game's palette", () => {
-    const html = strip(CHOSEN);
-    expect(html).toContain("Map colours");
-    expect(html).toContain('aria-label="Border: intense_red"');
-    expect(html).toContain('aria-label="Fill: light_pink"');
-    expect(html).toContain("background:#e02020");
-    expect(html).toContain("background:#f0b0c0");
-    expect(html).toContain("Use flag colours instead");
-    expect(html).not.toMatch(/<input[^>]*checked/);
-    expect(html).toContain("Palette: Stellaris");
-    expect(html).not.toContain(MAP_COLORS_NEED_4_5);
-  });
+  it("offers no pencil on a scenario's territories", async () => {
+    await openScenarioWithOwners();
 
-  it("ticks the flag colours box when map colours are off, and names a colour it cannot find", () => {
-    const html = strip({
-      ...CHOSEN,
-      flag_colors: [...CHOSEN.flag_colors.slice(0, 4), "red", "purple"],
-      use_map_color: false,
-    });
-    expect(html).toMatch(/<input[^>]*checked/);
-    expect(html).toContain('aria-label="Border: unknown: red"');
-  });
-
-  it("asks for a 4.5 save when the empire has only its four flag colours", () => {
-    const html = strip({ ...EMPIRE, flag_colors: ["red", "purple", "black", "grey"] });
-    expect(html).toContain(MAP_COLORS_NEED_4_5);
-    expect(html).not.toContain("Border");
-  });
-
-  it("names the mod the palette comes from, and that the save needs it", () => {
-    useGameDataStore.setState({ mapColorSource: "More Colours" });
-
-    const html = strip(CHOSEN);
-    expect(html).toContain("Palette: More Colours");
-    expect(html).toContain("The save needs this mod to show these colours.");
+    expect(empires()).not.toContain("&#x27;s page");
   });
 });

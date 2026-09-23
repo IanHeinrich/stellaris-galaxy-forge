@@ -23,7 +23,7 @@ use crate::registries::star_classes::StarClass;
 use crate::registries::starbase_levels::StarbaseLevelDef;
 use crate::scripts::identity;
 use crate::textures::TextureKey;
-use crate::{Diagnostic, GameData};
+use crate::{Diagnostic, GameData, Localisation};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -258,10 +258,17 @@ pub struct StarClassView {
     /// The planet class of each star body, in the order the install's definition lists
     /// its `planet` entries.
     pub planet_keys: Vec<String>,
+    /// The class the game swaps this one for during a crisis, when it has one.
+    pub crisis_star_class: Option<String>,
+    /// The weight a fresh galaxy draws this class with; `0` marks one the game only sets by
+    /// script.
+    pub spawn_odds: f64,
+    /// Whether the localisation names the class itself.
+    pub localised: bool,
 }
 
-impl From<&StarClass> for StarClassView {
-    fn from(sc: &StarClass) -> Self {
+impl StarClassView {
+    pub fn new(sc: &StarClass, loc: &Localisation) -> Self {
         Self {
             key: sc.key.clone(),
             texture_key: TextureKey::StarClass {
@@ -270,6 +277,9 @@ impl From<&StarClass> for StarClassView {
             .to_string(),
             icon_scale: sc.icon_scale,
             planet_keys: sc.planet_keys.clone(),
+            crisis_star_class: sc.crisis_star_class.clone(),
+            spawn_odds: sc.spawn_odds,
+            localised: loc.raw(&sc.key).is_some(),
         }
     }
 }

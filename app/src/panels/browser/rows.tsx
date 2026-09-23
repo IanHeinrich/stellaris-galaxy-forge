@@ -115,13 +115,22 @@ export function Action({
   glyph,
   label,
   onClick,
+  persistent,
 }: {
   glyph: string;
   label: string;
   onClick(): void;
+  /** Shown whether or not the row is hovered: the way into something the user can edit. */
+  persistent?: boolean;
 }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick}>
+    <button
+      type="button"
+      className={persistent ? "browser-edit" : undefined}
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+    >
       {glyph}
     </button>
   );

@@ -177,6 +177,14 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Set a save planet's size, star bodies included.
+    PlanetSize {
+        sav: PathBuf,
+        planet: u32,
+        size: u32,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Write a synthetic Stellaris-shaped save with N systems, for stress-testing.
     Synth {
         #[arg(long)]

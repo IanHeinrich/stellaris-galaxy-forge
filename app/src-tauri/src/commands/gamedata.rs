@@ -190,7 +190,10 @@ pub async fn resolve_names(
 #[tauri::command(async)]
 pub fn get_star_classes(game_data: State<'_, GameDataState>) -> Vec<StarClassView> {
     game_data.loaded().map_or_else(Vec::new, |gd| {
-        gd.star_classes.iter().map(StarClassView::from).collect()
+        gd.star_classes
+            .iter()
+            .map(|sc| StarClassView::new(sc, &gd.loc))
+            .collect()
     })
 }
 

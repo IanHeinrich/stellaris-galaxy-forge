@@ -276,6 +276,13 @@ pub enum Op {
         class: String,
         bodies: Vec<StarBody>,
     },
+    /// A save planet's `planet_size`, star bodies included, written as given: nothing
+    /// holds it to the range its class allows. Zero is refused; the inverse carries the
+    /// size displaced. Save documents only.
+    SetPlanetSize {
+        id: u32,
+        size: u32,
+    },
     /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
     /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
     /// writes both and turns that on; `None` turns it off and mirrors the first two flag
@@ -341,6 +348,7 @@ impl Op {
             Self::UnpreventLane { .. } => "UnpreventLane",
             Self::SetLGateOutcome { .. } => "SetLGateOutcome",
             Self::SetStarClass { .. } => "SetStarClass",
+            Self::SetPlanetSize { .. } => "SetPlanetSize",
             Self::SetEmpireMapColors { .. } => "SetEmpireMapColors",
             Self::Batch { .. } => "Batch",
         }
@@ -351,10 +359,12 @@ impl Op {
     /// one stales it, and a scenario system's planets and resources come from its
     /// initializer, so an op that writes one stales it too, a scripted seat included
     /// because it may bring an initializer with it. A save's details list a star's
-    /// bodies, whose classes [`Op::SetStarClass`] writes.
+    /// bodies, whose classes [`Op::SetStarClass`] writes and whose sizes
+    /// [`Op::SetPlanetSize`] does.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
+            | Self::SetPlanetSize { .. }
             | Self::AddSystem { .. }
             | Self::RemoveSystem { .. }
             | Self::AddSystems { .. }
@@ -368,14 +378,14 @@ impl Op {
         }
     }
 
-    /// Whether the details this op stales come up to date by rereading the classes of the
-    /// planets it rewrote, without building the projection again.
-    pub fn stales_only_planet_classes(&self) -> bool {
+    /// Whether the details this op stales come up to date by rereading the class and size
+    /// of the planets it rewrote, without building the projection again.
+    pub fn stales_only_planets(&self) -> bool {
         match self {
-            Self::SetStarClass { .. } => true,
+            Self::SetStarClass { .. } | Self::SetPlanetSize { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
-                .all(|op| op.stales_only_planet_classes() || !op.stales_details()),
+                .all(|op| op.stales_only_planets() || !op.stales_details()),
             _ => false,
         }
     }
@@ -388,7 +398,7 @@ impl Op {
             Self::SetSystemName { .. }
             | Self::SetWormholePair { .. }
             | Self::SetWormholeEnds { .. } => true,
-            Self::SetStarClass { .. } => false,
+            Self::SetStarClass { .. } | Self::SetPlanetSize { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -589,6 +599,10 @@ pub enum OpError {
     DuplicatePlanet(u32),
     #[error("system {0} is already {1} with those star bodies")]
     StarClassUnchanged(u32, String),
+    #[error("a planet size may not be zero")]
+    ZeroPlanetSize,
+    #[error("planet {0} is already size {1}")]
+    PlanetSizeUnchanged(u32, u32),
     #[error("country {0} does not exist")]
     UnknownCountry(u32),
     #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]

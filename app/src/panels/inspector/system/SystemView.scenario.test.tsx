@@ -860,7 +860,7 @@ describe("the head of a scenario system", () => {
     });
 
     const html = overview();
-    expect(html).toContain('<span class="ins-random-name">Random name</span>');
+    expect(html).toContain('placeholder="Random name"');
     expect(html).toContain("No name. Stellaris picks a random one when the game starts.");
   });
 
@@ -870,6 +870,8 @@ describe("the head of a scenario system", () => {
 
     const html = overview();
     expect(html).toContain('title="Rename this system"');
+    expect(html).toContain('aria-label="System name"');
+    expect(html).toContain('class="edit-field edit-text ins-name-field"');
     expect(sections(html)).not.toContain("Name");
 
     await useEditorStore.getState().applyOp(renameSystemOp(SYSTEM, "Sea of Ghosts"));

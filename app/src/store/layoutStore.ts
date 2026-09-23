@@ -25,6 +25,8 @@ export interface LayoutState {
   noteEventSource(inDock: boolean): void;
   /** Switches to the inspector for a selection made on the map or from search. */
   revealInspector(): void;
+  /** Switches to the inspector for a page opened from another tab of the dock. */
+  showInspector(): void;
   /** Esc: back to the tab the selection interrupted. */
   restoreTab(): void;
   setWidth(width: number): void;
@@ -65,6 +67,11 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     const { fromDock, tab } = get();
     if (fromDock || tab === "inspector") return;
     set({ tab: "inspector", previousTab: tab });
+  },
+
+  showInspector() {
+    const { tab } = get();
+    if (tab !== "inspector") set({ tab: "inspector", previousTab: tab });
   },
 
   restoreTab() {

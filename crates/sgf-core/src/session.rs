@@ -4,7 +4,7 @@
 //! undo and validates the projection. Undo and redo replay recorded bytes.
 //!
 //! The details projection is built on first use and dropped by an op that stales it
-//! (`Op::stales_details`), unless all the op staled is the classes of the planets it
+//! (`Op::stales_details`), unless all the op staled is the class and size of the planets it
 //! rewrote, which are read again in place. A scenario has no details sections at all:
 //! its systems' planets and resources come from the initializer, which the app resolves
 //! through game data.
@@ -127,7 +127,7 @@ impl Session {
         if self.saved_at.is_some_and(|at| at > self.history.undo_len()) {
             self.saved_at = None;
         }
-        let classes_only = applied.op.stales_only_planet_classes();
+        let classes_only = applied.op.stales_only_planets();
         self.history.push(applied);
         self.update_details(classes_only, &result);
         Ok(result)
@@ -141,7 +141,7 @@ impl Session {
             return Ok(None);
         };
         let result = result(&self.graph, seq, applied, &waylines);
-        let classes_only = applied.op.stales_only_planet_classes();
+        let classes_only = applied.op.stales_only_planets();
         self.update_details(classes_only, &result);
         Ok(Some(result))
     }
@@ -154,7 +154,7 @@ impl Session {
             return Ok(None);
         };
         let result = result(&self.graph, seq, applied, &waylines);
-        let classes_only = applied.op.stales_only_planet_classes();
+        let classes_only = applied.op.stales_only_planets();
         self.update_details(classes_only, &result);
         Ok(Some(result))
     }
@@ -241,7 +241,7 @@ impl Session {
             _ => None,
         });
         if Arc::make_mut(details)
-            .refresh_classes(&self.doc, planets)
+            .refresh_planets(&self.doc, planets)
             .is_err()
         {
             self.details.take();

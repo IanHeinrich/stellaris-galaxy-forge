@@ -12,12 +12,36 @@ export interface StarClassRow {
   view: StarClassView;
   label: string;
   group: string;
-  /** The names of a multiple star's bodies, which its class name alone does not tell apart. */
-  note?: string;
 }
 
 /** The star bodies of the collapsed remnants: none of them is a star as the picker groups them. */
 const EXOTIC_BODIES = new Set(["pc_black_hole", "pc_neutron_star", "pc_pulsar"]);
+
+export const INTERNAL = "Internal";
+
+/** Whether a star body's class is an ordinary `*_star`, not one of the collapsed remnants. */
+export function isOrdinaryStarBody(planetClass: string): boolean {
+  return planetClass.endsWith("_star") && !EXOTIC_BODIES.has(planetClass);
+}
+
+/** Whether a planet class reads as a star body by its key alone, for when no game data says. */
+export function looksLikeStarBody(planetClass: string): boolean {
+  return planetClass.endsWith("_star") || EXOTIC_BODIES.has(planetClass);
+}
+
+/** Every key some class points to as its `crisis_star_class`: the crisis variant of that class. */
+export function crisisVariantKeys(starClasses: Iterable<StarClassView>): Set<string> {
+  const keys = new Set<string>();
+  for (const view of starClasses) {
+    if (view.crisis_star_class !== null) keys.add(view.crisis_star_class);
+  }
+  return keys;
+}
+
+/** A class only scripts set that has no name of its own, as mods define by the hundred. */
+export function isInternalStarClass(view: StarClassView): boolean {
+  return view.spawn_odds === 0 && !view.localised;
+}
 
 /** The system's planets whose class is a star, in the order the details list them. */
 export function starBodies<P extends Body>(
@@ -57,15 +81,26 @@ export function starClassChoices(
 
 /**
  * A single star is `Exotic` when its body is no ordinary `*_star`, else `Stars`; a multiple
- * star is grouped by how many bodies it has.
+ * star is grouped by how many bodies it has. Classes a new galaxy never rolls group apart, so a
+ * crisis variant does not read as a duplicate of its normal class.
  */
-function starClassGroup(view: StarClassView): string {
+function starClassGroup(view: StarClassView, crisisVariants: ReadonlySet<string>): string {
+  if (isInternalStarClass(view)) return INTERNAL;
+  if (crisisVariants.has(view.key)) return "Crisis variants";
+  if (view.spawn_odds === 0) return "Special";
   const count = view.planet_keys.length;
   if (count === 2) return "Binaries";
   if (count === 3) return "Trinaries";
   if (count !== 1) return `${count} stars`;
-  const ordinary = view.planet_keys.some((k) => k.endsWith("_star") && !EXOTIC_BODIES.has(k));
-  return ordinary ? "Stars" : "Exotic";
+  return view.planet_keys.some(isOrdinaryStarBody) ? "Stars" : "Exotic";
+}
+
+/** Where a group ranks, after the star-count groups: special, crisis variants, then internal. */
+function groupRank(row: StarClassRow): number {
+  if (row.group === INTERNAL) return 3000;
+  if (row.group === "Crisis variants") return 2000;
+  if (row.group === "Special") return 1000;
+  return row.view.planet_keys.length * 2 + (row.group === "Exotic" ? 1 : 0);
 }
 
 /** Every localisation key the picker's rows read: each class and each of its bodies. */
@@ -75,26 +110,34 @@ export function starClassNameKeys(choices: readonly StarClassView[]): string[] {
 
 /**
  * The picker's rows by star count: single stars before the exotic ones, then binaries, then
- * trinaries, each sorted by name. A multiple star notes its bodies' names.
+ * trinaries, then the classes a new galaxy never rolls, each sorted by name.
  */
 export function starClassRows(
   choices: readonly StarClassView[],
   label: (key: string) => string,
+  crisisVariants: ReadonlySet<string>,
 ): StarClassRow[] {
-  const rank = (row: StarClassRow) =>
-    row.view.planet_keys.length * 2 + (row.group === "Exotic" ? 1 : 0);
   return choices
     .map((view): StarClassRow => {
-      const row: StarClassRow = { view, label: label(view.key), group: starClassGroup(view) };
-      if (view.planet_keys.length > 1) row.note = view.planet_keys.map(label).join(" + ");
-      return row;
+      // Every binary is called "Binary Stars", so a multiple star is named by its bodies.
+      const name =
+        view.planet_keys.length > 1 ? view.planet_keys.map(label).join(" + ") : label(view.key);
+      return { view, label: name, group: starClassGroup(view, crisisVariants) };
     })
-    .sort(
-      (a, b) =>
-        rank(a) - rank(b) ||
-        a.label.localeCompare(b.label) ||
-        (a.note ?? "").localeCompare(b.note ?? ""),
-    );
+    .sort((a, b) => groupRank(a) - groupRank(b) || a.label.localeCompare(b.label));
+}
+
+/**
+ * `rows` split into what the picker shows and how many stay behind the "Internal" reveal, unless
+ * `revealInternal`.
+ */
+export function visibleStarClassRows(
+  rows: readonly StarClassRow[],
+  revealInternal: boolean,
+): { rows: StarClassRow[]; internalCount: number } {
+  const internalCount = rows.filter((row) => row.group === INTERNAL).length;
+  const shown = revealInternal ? [...rows] : rows.filter((row) => row.group !== INTERNAL);
+  return { rows: shown, internalCount };
 }
 
 /**

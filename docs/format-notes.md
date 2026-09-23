@@ -255,6 +255,10 @@ Id-keyed tables cross-reference each other, often in both directions.
   bodies also loads, and the system shows both stars as their bodies
   say. Working megastructures and starbase modules that need a certain
   star have not been tried.
+- `planets.planet.<id>.planet_size=25` is a bare integer on every planet
+  row, star bodies included. In the 4.4 sample, system 1's G star is 25
+  and two of its barren worlds are 28 and 19. A size outside the range the
+  planet class generates with has not been tried.
 - `country.<id>.flag={ icon={ category file } background={ category file }
   colors={ ... } }`. `colors` lists bare entries: the four flag colours,
   and in 4.5 two more, the map border colour then the map fill colour.

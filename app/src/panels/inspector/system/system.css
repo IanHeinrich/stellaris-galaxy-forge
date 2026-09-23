@@ -8,8 +8,9 @@
   color: var(--fg-muted);
 }
 
+/* Room for a coordinate like -1000.00 beside the field's pencil. */
 .ins-position .coord {
-  width: 78px;
+  width: 100px;
 }
 
 .ins-spawn-point {
@@ -109,6 +110,25 @@
 .ins-prow > :nth-child(2),
 .ins-total > :nth-child(2) {
   min-width: 0;
+}
+
+/* A row whose page has editable fields, marked in the editable-field style. */
+.ins-edit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 3px;
+}
+
+.ins-prow:hover .ins-edit-chip {
+  border-color: var(--accent);
 }
 
 .ins-prow.moon {

@@ -45,6 +45,23 @@
   margin-bottom: 2px;
 }
 
+.ins-crumbs .ins-back {
+  margin-right: 4px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--fg);
+  background: none;
+  border: 1px solid var(--ins-rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.ins-crumbs .ins-back:hover {
+  background: var(--bg-elevated);
+}
+
 .ins-crumbs .sep {
   margin: 0 2px;
 }
@@ -70,38 +87,10 @@
   font-weight: 600;
 }
 
-.ins-head button.name {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  padding: 0;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  color: inherit;
-  text-align: left;
-  background: none;
-  border: none;
-}
-
-.ins-head button.name:hover {
-  color: var(--accent);
-}
-
-.ins-pencil {
-  font-size: 10px;
-  color: var(--fg-muted);
-  opacity: 0;
-}
-
-.ins-head button.name:hover .ins-pencil,
-.ins-head button.name:focus-visible .ins-pencil {
-  opacity: 1;
-}
-
 .ins-head .ins-name-field {
   flex: 1;
-  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .ins-close {
@@ -253,15 +242,8 @@ button.chip.jump:hover {
   padding: 2px 0;
 }
 
-.ins-header-row input {
-  min-width: 0;
+.ins-header-row .edit-field {
   height: 22px;
-  padding: 0 6px;
-  font: inherit;
-  color: inherit;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
 }
 
 .ins-header-row.add {
@@ -327,14 +309,8 @@ button.chip.jump:hover {
 }
 
 .ins-bulk .icon-picker-trigger {
+  flex: 1;
   padding: 4px 10px;
-  background: var(--bg-elevated);
-  border-color: var(--border);
-  border-radius: 4px;
-}
-
-.ins-bulk .icon-picker-trigger:hover:not(:disabled) {
-  border-color: var(--fg-muted);
 }
 
 .ins-bulk .icon-picker-caret {
@@ -371,9 +347,28 @@ button.chip.jump:hover {
   width: 100%;
 }
 
+/* A link to another entity's page: underlined text, never boxed like an editable field. */
 button.link.ins-drill {
   padding: 0;
   font: inherit;
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: var(--fg-muted);
+  text-underline-offset: 2px;
+}
+
+button.link.ins-drill:hover {
+  text-decoration-color: var(--fg);
+}
+
+.ins-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--fg-muted);
+  opacity: 0.8;
 }
 
 .ins-badge {
@@ -383,23 +378,8 @@ button.link.ins-drill {
   vertical-align: middle;
 }
 
-input.coord {
-  font: inherit;
-  color: var(--fg);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 1px 4px;
+.edit-field.coord {
   width: 72px;
-  outline: none;
-}
-
-input.coord:focus {
-  border-color: var(--accent-dim);
-}
-
-input.coord:disabled {
-  opacity: 0.6;
 }
 
 .mesh-row {

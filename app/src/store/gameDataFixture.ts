@@ -135,7 +135,15 @@ export function armGameData(): void {
     names.map((name) => name.variables.map((v) => v.value.key).join(" ") || name.key),
   );
   mocked.getStarClasses.mockResolvedValue([
-    { key: "sc_g", texture_key: "star_class:g", icon_scale: 1, planet_keys: ["pc_g_star"] },
+    {
+      key: "sc_g",
+      texture_key: "star_class:g",
+      icon_scale: 1,
+      planet_keys: ["pc_g_star"],
+      crisis_star_class: null,
+      spawn_odds: 1,
+      localised: true,
+    },
   ]);
   mocked.getMapColors.mockResolvedValue([
     { name: "red", map: "#ff0000", flag: "#ff0000", ship: "#ff0000" },

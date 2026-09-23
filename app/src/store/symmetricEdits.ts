@@ -405,6 +405,7 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   UnpreventLane: (op) => allowOp([[op.a, op.b]]) ?? op,
   SetLGateOutcome: null,
   SetStarClass: null,
+  SetPlanetSize: null,
   SetEmpireMapColors: null,
   Batch: null,
 };

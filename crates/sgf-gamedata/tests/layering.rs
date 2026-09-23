@@ -9,6 +9,7 @@ use sgf_gamedata::Diagnostic;
 use sgf_gamedata::LoadOptions;
 use sgf_gamedata::install::mods::ModStatus;
 use sgf_gamedata::install::scenarios::scenario_roots;
+use sgf_gamedata::views::StarClassView;
 
 use common::fixture;
 
@@ -100,6 +101,32 @@ fn star_classes_read_hsv_colour_icon_scale_default_and_every_star_body() {
     assert_eq!(hole.planet_keys, ["pc_pit"]);
     let pair = gd.star_classes.get("sc_pair").expect("sc_pair");
     assert_eq!(pair.planet_keys, ["pc_sun_star", "pc_ember_star"]);
+}
+
+#[test]
+fn star_classes_read_crisis_star_class_spawn_odds_and_localisation() {
+    let gd = common::cached_fixture();
+    let view = |key: &str| StarClassView::new(gd.star_classes.get(key).expect(key), &gd.loc);
+    let sun = view("sc_sun");
+    assert_eq!(sun.crisis_star_class.as_deref(), Some("sc_crisis_sun"));
+    assert_eq!(sun.spawn_odds, 30.0);
+    assert!(sun.localised);
+    let crisis = view("sc_crisis_sun");
+    assert_eq!(crisis.crisis_star_class, None);
+    assert_eq!(crisis.spawn_odds, 0.0);
+    assert!(!crisis.localised);
+    assert_eq!(view("sc_by_variable").spawn_odds, 5.0);
+}
+
+#[test]
+fn randomizer_lists_are_not_star_classes_but_a_placeholder_without_bodies_is() {
+    let gd = common::cached_fixture();
+    assert!(gd.star_classes.get("rl_pair_stars").is_none());
+    let placeholder = gd
+        .star_classes
+        .get("sc_placeholder")
+        .expect("sc_placeholder");
+    assert!(placeholder.planet_keys.is_empty());
 }
 
 #[test]

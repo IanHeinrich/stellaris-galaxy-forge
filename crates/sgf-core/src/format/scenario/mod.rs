@@ -280,6 +280,7 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         nebula: None,
         bypass_ids: Vec::new(),
         planet_count: 0,
+        bodies: None,
         marauder: marauder::role(&initializer),
         initializer,
         spawn_weight: spawn_weight(node, src),
