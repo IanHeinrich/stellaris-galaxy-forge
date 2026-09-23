@@ -1,37 +1,15 @@
 import { create } from "zustand";
-import type { Capabilities } from "../generated/Capabilities";
+import type { EraseTarget } from "../lib/brush/brushTools";
+import type { LaneMode } from "../lib/brush/lanes";
 import { documentCapabilities, supports } from "../lib/capabilities";
+import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
+import { toolRequires, type Tool } from "../lib/tools";
 import { useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, readPref, writePref } from "./prefs";
 
-/** What a left-drag on the map does: select and edit in place (ADR 0003), or one brush (ADR 0005). */
-export type Tool = "select" | "paint" | "erase" | "connect" | "cut";
-
-/** How the paint brush joins the systems it lays down: not at all, among themselves, or to neighbours too. */
-export type LaneMode = "off" | "new" | "nearby";
-
-export type EraseTarget = "systems" | "lanes";
-
-export type SymmetryAxis = "x" | "y";
-
-export type RotationOrder = 2 | 3 | 4 | 6 | 8;
-
-/** The global symmetry: each edit and brush stroke repeated about the galaxy's centre. */
-export type Symmetry =
-  { kind: "off" } | { kind: "mirror"; axis: SymmetryAxis } | { kind: "rotate"; n: RotationOrder };
-
-/** A symmetry that makes copies, as M turns back on. */
-export type ActiveSymmetry = Exclude<Symmetry, { kind: "off" }>;
-
 /** What M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
-
-/** What each tool needs of the open document; a tool absent here works on every kind. */
-export const TOOL_REQUIRES: Partial<Record<Tool, keyof Capabilities>> = {
-  paint: "create_systems",
-  erase: "create_systems",
-};
 
 /** Brush diameter, in world units. */
 export const SIZE_RANGE = { min: 5, max: 400, fallback: 40 } as const;
@@ -85,7 +63,6 @@ export function spacingOfSlider(v: number): number {
 
 const LANE_MODES: readonly LaneMode[] = ["off", "new", "nearby"];
 const ERASE_TARGETS: readonly EraseTarget[] = ["systems", "lanes"];
-const ROTATION_ORDERS: readonly number[] = [2, 3, 4, 6, 8];
 const SYMMETRY_OFF: Symmetry = { kind: "off" };
 
 export interface ToolState {
@@ -96,6 +73,7 @@ export interface ToolState {
   eraseTarget: EraseTarget;
   /** Whether the erase brush takes systems that carry an initializer, a spawn or a special. */
   eraseSpecials: boolean;
+  /** The global symmetry: each edit and brush stroke repeated about the galaxy's centre. */
   symmetry: Symmetry;
   /** The symmetry M turns back on: the last one picked. */
   lastSymmetry: ActiveSymmetry;
@@ -124,14 +102,6 @@ function oneOf<T extends string>(values: readonly T[]) {
   return (value: unknown): value is T => typeof value === "string" && values.includes(value as T);
 }
 
-function isSymmetry(value: unknown): value is Symmetry {
-  if (typeof value !== "object" || value === null) return false;
-  const s = value as Record<string, unknown>;
-  if (s.kind === "off") return true;
-  if (s.kind === "mirror") return s.axis === "x" || s.axis === "y";
-  return s.kind === "rotate" && typeof s.n === "number" && ROTATION_ORDERS.includes(s.n);
-}
-
 function isActiveSymmetry(value: unknown): value is ActiveSymmetry {
   return isSymmetry(value) && value.kind !== "off";
 }
@@ -152,7 +122,7 @@ function storedNumber(key: string, range: { min: number; max: number; fallback: 
 /** Whether the open document can take `tool`. */
 export function toolAllowed(tool: Tool): boolean {
   const session = useFileSessionStore.getState();
-  const requires = TOOL_REQUIRES[tool];
+  const requires = toolRequires(tool);
   if (requires === undefined) return true;
   return session.status === "ready" && supports(documentCapabilities(session), requires);
 }

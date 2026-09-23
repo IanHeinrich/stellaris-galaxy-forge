@@ -11,7 +11,7 @@ import type { SpawnScript } from "../../generated/SpawnScript";
 import type { SystemNode } from "../../generated/SystemNode";
 import { spawnScriptLabel } from "../../lib/paint";
 import { isSpawnPoint } from "../../lib/spawn";
-import { GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
+import { CAUTION_COLOR, GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { MoveGhost } from "../moveGhosts";
@@ -20,7 +20,7 @@ import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
 const MARKER = { size: 4.5, width: 1.5, alpha: 0.95, dot: 1.4 };
 
-const MARKER_COLOR = 0xfbbf24;
+const MARKER_COLOR = CAUTION_COLOR;
 
 /** Marker centre relative to the star, in marker units: clear of the ring, opposite the bypasses. */
 const OFFSET = { x: -12, y: -12 };

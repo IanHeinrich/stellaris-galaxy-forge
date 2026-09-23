@@ -3,8 +3,8 @@ import { cellKey } from "../spatialGrid";
 
 /** What new points keep their distance from: any index that answers "is anything near here". */
 export interface Blockers {
-  /** Whether something lies within `d` of (x, y), or strictly closer than `d` when `strict`. */
-  near(x: number, y: number, d: number, strict?: boolean): boolean;
+  /** Whether something lies strictly closer than `d` to (x, y). */
+  closerThan(x: number, y: number, d: number): boolean;
 }
 
 /** `blockers` as a query: a list is bucketed into a grid of `cell`, an index is used as it is. */
@@ -52,14 +52,23 @@ export class PointGrid<T extends Pt = Pt> implements Blockers {
     return false;
   }
 
-  /** Whether some point lies within `d` of (x, y), or strictly closer than `d` when `strict`. */
-  near(x: number, y: number, d: number, strict = false): boolean {
+  /** Whether some point lies within `d` of (x, y), edge included. */
+  within(x: number, y: number, d: number): boolean {
     const d2 = d * d;
     return this.someInBox(x - d, y - d, x + d, y + d, (p) => {
       const dx = p.x - x;
       const dy = p.y - y;
-      const e2 = dx * dx + dy * dy;
-      return strict ? e2 < d2 : e2 <= d2;
+      return dx * dx + dy * dy <= d2;
+    });
+  }
+
+  /** Whether some point lies strictly closer than `d` to (x, y). */
+  closerThan(x: number, y: number, d: number): boolean {
+    const d2 = d * d;
+    return this.someInBox(x - d, y - d, x + d, y + d, (p) => {
+      const dx = p.x - x;
+      const dy = p.y - y;
+      return dx * dx + dy * dy < d2;
     });
   }
 }

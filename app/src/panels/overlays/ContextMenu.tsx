@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useOutsidePress } from "../useOutsidePress";
 import { FeZoneMenu } from "./contextMenu/FeZoneMenu";
 import { LaneMenu } from "./contextMenu/LaneMenu";
 import type { Frame } from "./contextMenu/MenuFrame";
@@ -18,15 +19,10 @@ export function ContextMenu() {
   const closeContextMenu = useMapChromeStore((s) => s.closeContextMenu);
   const ref = useRef<HTMLDivElement>(null);
 
+  useOutsidePress(contextMenu !== null, closeContextMenu, ref);
   useEffect(() => {
-    if (!contextMenu) return;
-    itemsOf(ref.current)[0]?.focus();
-    const onPointerDown = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) closeContextMenu();
-    };
-    window.addEventListener("pointerdown", onPointerDown, { capture: true });
-    return () => window.removeEventListener("pointerdown", onPointerDown, { capture: true });
-  }, [contextMenu, closeContextMenu]);
+    if (contextMenu) itemsOf(ref.current)[0]?.focus();
+  }, [contextMenu]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const items = itemsOf(ref.current);

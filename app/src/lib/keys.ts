@@ -1,4 +1,8 @@
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "./geometry/geometry";
+import { TOOLS, type Tool } from "./tools";
+
+/** The key that picks a tool. */
+export type ToolAction = `${Tool}Tool`;
 
 /** Global keyboard bindings. Pan keys (WASD/arrows) are held keys and live in the map. */
 export type KeyAction =
@@ -21,12 +25,8 @@ export type KeyAction =
   | "browseInitializers"
   | "toggleScriptLayers"
   | "toggleInitializerLayers"
-  | "selectTool"
-  | "paintTool"
-  | "eraseTool"
-  | "connectTool"
-  | "cutTool"
-  | "toggleSymmetry";
+  | "toggleSymmetry"
+  | ToolAction;
 
 /** A world offset that moves the selection one step across the screen. */
 export interface Nudge {
@@ -50,39 +50,93 @@ export interface KeyLike {
   shiftKey: boolean;
 }
 
+interface Binding {
+  /** `KeyboardEvent.key`, lower case for a letter. */
+  key: string;
+  action: KeyAction;
+  /** Ctrl, or Cmd on a Mac. Alt is never part of a binding. */
+  mod?: boolean;
+  /** Whether Shift must be held, or must not be; either when absent. */
+  shift?: boolean;
+  /** Fires while a field has the caret. */
+  inInput?: boolean;
+  /** Fires whatever modifiers are held. */
+  anyModifiers?: boolean;
+  /** Fires only while the inspector has a crumb to go back to. */
+  whileBack?: boolean;
+}
+
+/** Every binding, first match wins; an action's first binding is the one its label spells. */
+const BINDINGS: readonly Binding[] = [
+  { key: "Escape", action: "clearSelection", inInput: true, anyModifiers: true },
+  { key: "o", mod: true, shift: false, action: "open", inInput: true },
+  { key: "o", mod: true, shift: true, action: "browse", inInput: true },
+  { key: "s", mod: true, shift: false, action: "save", inInput: true },
+  { key: "s", mod: true, shift: true, action: "saveAs", inInput: true },
+  { key: "w", mod: true, action: "close", inInput: true },
+  { key: "k", mod: true, action: "focusSearch", inInput: true },
+  { key: "z", mod: true, shift: false, action: "undo" },
+  { key: "y", mod: true, action: "redo" },
+  { key: "z", mod: true, shift: true, action: "redo" },
+  { key: "a", mod: true, action: "selectAll" },
+  { key: "`", action: "toggleScriptLayers" },
+  { key: "~", action: "toggleScriptLayers" },
+  { key: "0", action: "toggleInitializerLayers" },
+  { key: "Home", action: "fit" },
+  { key: "f", shift: true, action: "fitSelection" },
+  { key: "f", shift: false, action: "focusSearch" },
+  { key: "/", action: "focusSearch" },
+  { key: "Backspace", action: "inspectorBack", whileBack: true },
+  { key: "Delete", action: "deleteSelection" },
+  { key: "Backspace", action: "deleteSelection" },
+  { key: "Tab", shift: false, action: "toggleDock" },
+  { key: "i", shift: false, action: "issuesTab" },
+  { key: "i", shift: true, action: "browseInitializers" },
+  ...TOOLS.map((t): Binding => ({ key: t.key, shift: false, action: toolAction(t.id) })),
+  { key: "m", shift: false, action: "toggleSymmetry" },
+];
+
+/** The action that picks `tool`. */
+export function toolAction(tool: Tool): ToolAction {
+  return `${tool}Tool`;
+}
+
+export function isToolAction(action: KeyAction): action is ToolAction {
+  return TOOLS.some((t) => toolAction(t.id) === action);
+}
+
+/** The tool `action` picks. */
+export function toolOfAction(action: ToolAction): Tool {
+  return TOOLS.find((t) => toolAction(t.id) === action)!.id;
+}
+
+const KEY_NAMES: Record<string, string> = { Escape: "Esc", Delete: "Del" };
+
+function labelOf(b: Binding): string {
+  const key = KEY_NAMES[b.key] ?? (b.key.length === 1 ? b.key.toUpperCase() : b.key);
+  return [b.mod && "Ctrl", b.shift && "Shift", key].filter(Boolean).join("+");
+}
+
+/** How menus and tooltips spell the key for `action`, such as "Ctrl+Z" or "V". */
+export function shortcutLabel(action: KeyAction): string {
+  const binding = BINDINGS.find((b) => b.action === action);
+  return binding ? labelOf(binding) : "";
+}
+
+function matches(b: Binding, e: KeyLike, key: string, inInput: boolean, canGoBack: boolean) {
+  if (b.key !== key || (inInput && !b.inInput) || (b.whileBack && !canGoBack)) return false;
+  if (b.anyModifiers) return true;
+  const mod = e.ctrlKey || e.metaKey;
+  return mod === !!b.mod && !e.altKey && (b.shift === undefined || b.shift === e.shiftKey);
+}
+
 /**
  * The action bound to a key press, or null. `inInput` suppresses bare keys while typing, and
  * `canGoBack` gives Backspace to the inspector while it has a crumb to go back to.
  */
 export function keyAction(e: KeyLike, inInput: boolean, canGoBack = false): KeyAction | null {
-  const mod = e.ctrlKey || e.metaKey;
-  const key = e.key.toLowerCase();
-  if (mod && !e.altKey && key === "o") return e.shiftKey ? "browse" : "open";
-  if (mod && !e.altKey && key === "s") return e.shiftKey ? "saveAs" : "save";
-  if (mod && !e.altKey && key === "w") return "close";
-  if (mod && !e.altKey && key === "k") return "focusSearch";
-  if (e.key === "Escape") return "clearSelection";
-  if (inInput) return null;
-  if (mod && !e.altKey && key === "z") return e.shiftKey ? "redo" : "undo";
-  if (mod && !e.altKey && key === "y") return "redo";
-  if (mod && !e.altKey && key === "a") return "selectAll";
-  if (mod || e.altKey) return null;
-  if (e.key === "`" || e.key === "~") return "toggleScriptLayers";
-  if (e.key === "0") return "toggleInitializerLayers";
-  if (e.key === "Home") return "fit";
-  if (key === "f") return e.shiftKey ? "fitSelection" : "focusSearch";
-  if (e.key === "/") return "focusSearch";
-  if (e.key === "Backspace") return canGoBack ? "inspectorBack" : "deleteSelection";
-  if (e.key === "Delete") return "deleteSelection";
-  if (e.key === "Tab" && !e.shiftKey) return "toggleDock";
-  if (key === "i") return e.shiftKey ? "browseInitializers" : "issuesTab";
-  if (key === "v" && !e.shiftKey) return "selectTool";
-  if (key === "b" && !e.shiftKey) return "paintTool";
-  if (key === "e" && !e.shiftKey) return "eraseTool";
-  if (key === "c" && !e.shiftKey) return "connectTool";
-  if (key === "x" && !e.shiftKey) return "cutTool";
-  if (key === "m" && !e.shiftKey) return "toggleSymmetry";
-  return null;
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  return BINDINGS.find((b) => matches(b, e, key, inInput, canGoBack))?.action ?? null;
 }
 
 /** The layer a number key toggles, as an index into the store's number-key table, or null. */

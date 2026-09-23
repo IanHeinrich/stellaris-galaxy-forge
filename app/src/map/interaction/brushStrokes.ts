@@ -1,21 +1,24 @@
-import type { Pair, Segment } from "../../lib/brush/lanes";
+import type { BrushTool } from "../../lib/brush/brushTools";
+import { provisionalIndex, type Segment } from "../../lib/brush/lanes";
+import type { Pair } from "../../lib/geometry/pairs";
 import { stampsAlong } from "../../lib/brush/stroke";
 import type { Pt } from "../../lib/geometry/pt";
-import type { Symmetry } from "../../lib/geometry/symmetry";
+import { copies, type Symmetry } from "../../lib/geometry/symmetry";
 import { useEditorStore } from "../../store/editorStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import { effectiveSpacing, useToolStore } from "../../store/toolStore";
 import {
   BrushStroke,
   strokeLabel,
   type BrushSettings,
-  type BrushTool,
   type StrokeResult,
 } from "../../lib/brush/brushStroke";
 import type { Camera } from "../Camera";
-import type { BrushPreview, HighlightsLayer } from "../layers/HighlightsLayer";
+import type { BrushOverlay, BrushPreview } from "../layers/highlights/BrushOverlay";
+import type { SymmetryGuide } from "../layers/highlights/SymmetryGuide";
 import type { Systems } from "../RenderContext";
+import { SettlingPreview } from "./settlingPreview";
 
 function settingsFor(tool: BrushTool): BrushSettings {
   const t = useToolStore.getState();
@@ -32,32 +35,28 @@ function settingsFor(tool: BrushTool): BrushSettings {
 }
 
 /** Where what a stroke would do lies on the map; a negative id is the stroke's own point. */
-export function previewOf(result: StrokeResult, systems: Systems): BrushPreview {
+function previewOf(result: StrokeResult, systems: Systems): BrushPreview {
   const empty: BrushPreview = { points: [], lanes: [], doomed: [], kept: [], cut: [], swept: [] };
   const at = (ids: readonly number[]) => ids.flatMap((id) => systems.get(id) ?? []);
-  const segments = (pairs: readonly Pair[]) =>
+  const segments = (pairs: readonly Pair[], end: (id: number) => Pt | undefined) =>
     pairs.flatMap(([a, b]): Segment[] => {
-      const p = systems.get(a);
-      const q = systems.get(b);
+      const p = end(a);
+      const q = end(b);
       return p && q ? [[p, q]] : [];
     });
+  const existing = (id: number) => systems.get(id);
   switch (result.kind) {
     case "paint": {
       const end = (id: number): Pt | undefined =>
-        id < 0 ? result.points[-id - 1] : systems.get(id);
-      const lanes = result.pairs.flatMap(([a, b]): Segment[] => {
-        const p = end(a);
-        const q = end(b);
-        return p && q ? [[p, q]] : [];
-      });
-      return { ...empty, points: result.points, lanes };
+        id < 0 ? result.points[provisionalIndex(id)] : systems.get(id);
+      return { ...empty, points: result.points, lanes: segments(result.pairs, end) };
     }
     case "erase":
       return { ...empty, doomed: at(result.doomed), kept: at(result.kept) };
     case "cut":
-      return { ...empty, cut: segments(result.lanes) };
+      return { ...empty, cut: segments(result.lanes, existing) };
     case "connect":
-      return { ...empty, swept: at(result.swept), lanes: segments(result.pairs) };
+      return { ...empty, swept: at(result.swept), lanes: segments(result.pairs, existing) };
   }
 }
 
@@ -77,8 +76,7 @@ function send(result: StrokeResult): Promise<boolean> {
 
 /**
  * The brush's side of `MapIntent`: the circle at the pointer, one stroke at a time previewed at
- * most once per frame, and the edit it sends on release. The preview stays until that edit
- * settles, so the map never shows the stroke gone before its systems arrive.
+ * most once per frame, and the edit it sends on release, whose preview stays until it settles.
  */
 export class BrushStrokes {
   private stroke: BrushStroke | null = null;
@@ -88,13 +86,15 @@ export class BrushStrokes {
   private last: Pt | null = null;
   private at: { tool: BrushTool; x: number; y: number } | null = null;
   private frame = 0;
-  private seq = 0;
-  private tip: MapTooltip | null = null;
+  private readonly preview: SettlingPreview;
 
   constructor(
     private readonly cam: Camera,
-    private readonly highlights: HighlightsLayer,
-  ) {}
+    private readonly overlay: BrushOverlay,
+    private readonly guide: SymmetryGuide,
+  ) {
+    this.preview = new SettlingPreview(() => overlay.setPreview(null));
+  }
 
   hover(tool: BrushTool, x: number, y: number): void {
     this.at = { tool, x, y };
@@ -105,13 +105,13 @@ export class BrushStrokes {
   drawCursor(): void {
     const at = this.at;
     const size = useToolStore.getState().size;
-    this.highlights.setBrushCursor(at && { ...at, r: size / 2, symmetry: this.symmetry() });
+    this.overlay.setCursor(at && { ...at, r: size / 2, symmetry: this.symmetry() });
   }
 
   /** The symmetry guides, in every tool while symmetry is on. */
   drawGuide(): void {
     const symmetry = this.symmetry();
-    this.highlights.setSymmetryGuide(symmetry.kind === "off" ? null : symmetry);
+    this.guide.set(copies(symmetry) > 1 ? symmetry : null);
   }
 
   private symmetry(): Symmetry {
@@ -127,7 +127,7 @@ export class BrushStrokes {
   begin(tool: BrushTool, x: number, y: number): void {
     const { systems, grid } = useGalaxyStore.getState();
     if (!grid) return;
-    this.seq++;
+    this.preview.update();
     this.tool = tool;
     const seed = Math.floor(Math.random() * 2 ** 32);
     const settings = settingsFor(tool);
@@ -160,18 +160,14 @@ export class BrushStrokes {
     this.hold(null);
     const result = stroke.result();
     this.draw(result);
-    const seq = ++this.seq;
-    void send(result).finally(() => {
-      if (this.seq === seq) this.clear();
-    });
+    this.preview.settle(send(result));
   }
 
   cancel(): void {
-    this.seq++;
     this.stroke = null;
     this.hold(null);
     this.stopFrame();
-    this.clear();
+    this.preview.drop();
   }
 
   end(): void {
@@ -185,18 +181,13 @@ export class BrushStrokes {
   }
 
   private draw(result: StrokeResult): void {
-    this.highlights.setBrushPreview(previewOf(result, useGalaxyStore.getState().systems));
+    this.overlay.setPreview(previewOf(result, useGalaxyStore.getState().systems));
     const at = this.at;
-    if (!at) return;
+    if (!at) {
+      this.preview.update();
+      return;
+    }
     const p = this.cam.worldToScreen(at.x, at.y);
-    this.tip = { x: p.x, y: p.y, title: strokeLabel(result), lines: [] };
-    useMapChromeStore.getState().showTooltip(this.tip);
-  }
-
-  private clear(): void {
-    this.highlights.setBrushPreview(null);
-    const chrome = useMapChromeStore.getState();
-    if (this.tip && chrome.tooltip === this.tip) chrome.hideTooltip();
-    this.tip = null;
+    this.preview.update({ x: p.x, y: p.y, title: strokeLabel(result), lines: [] });
   }
 }

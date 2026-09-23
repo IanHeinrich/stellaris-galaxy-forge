@@ -9,6 +9,7 @@ import { HighlightsLayer } from "./layers/HighlightsLayer";
 import type { MapLayer } from "./layers/MapLayer";
 import { layersFor } from "./layers/registry";
 import { EMPTY_CONTEXT, renderContext, sameContext, type RenderContext } from "./RenderContext";
+import { selectionFrame } from "./selectionFrame";
 import { bindViewState, dressLayers, type MapView } from "./viewState";
 
 const ZOOM_PER_100PX = 1.1;
@@ -126,24 +127,16 @@ export class MapController implements MapView {
     this.appliedRev = -1;
   }
 
-  /** Frames the selected systems with the margin of the galaxy fit, or the galaxy when none are. */
+  /** Frames what Shift+F frames with the margin of the galaxy fit, or the galaxy when nothing is selected. */
   fitSelection(): void {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const id of useEditorStore.getState().selection) {
-      const s = this.ctx.systems.get(id);
-      if (!s) continue;
-      minX = Math.min(minX, s.x);
-      minY = Math.min(minY, s.y);
-      maxX = Math.max(maxX, s.x);
-      maxY = Math.max(maxY, s.y);
-    }
-    if (minX === Infinity) {
+    const { selection, selectedNebula } = useEditorStore.getState();
+    const nebula = selectedNebula === null ? undefined : this.ctx.nebulae[selectedNebula];
+    const frame = selectionFrame(this.ctx.systems, selection, nebula);
+    if (!frame) {
       this.fit();
       return;
     }
+    const { minX, minY, maxX, maxY } = frame;
     const { width, height } = this.app.renderer;
     const scale = Math.min(
       this.cam.fitScale((maxX - minX) / 2, width, width),

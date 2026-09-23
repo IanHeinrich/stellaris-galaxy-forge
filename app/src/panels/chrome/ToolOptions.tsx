@@ -1,5 +1,8 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type ComponentType, type CSSProperties } from "react";
+import type { EraseTarget } from "../../lib/brush/brushTools";
+import type { LaneMode } from "../../lib/brush/lanes";
 import { betaOfSlider, sliderOfBeta } from "../../lib/geometry/mesh";
+import type { Tool } from "../../lib/tools";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import {
   effectiveSpacing,
@@ -11,9 +14,6 @@ import {
   sliderOfSpacing,
   spacingOfSlider,
   useToolStore,
-  type EraseTarget,
-  type LaneMode,
-  type Tool,
 } from "../../store/toolStore";
 import "./chrome.css";
 
@@ -173,35 +173,31 @@ function EraseOptions() {
   );
 }
 
-/** The controls a tool shows while it is active; null for a tool with none. */
-function optionsFor(tool: Tool): ReactNode {
-  switch (tool) {
-    case "paint":
-      return <PaintOptions />;
-    case "erase":
-      return <EraseOptions />;
-    case "connect":
-      return (
-        <>
-          <SizeOption />
-          <LaneDensityOption />
-        </>
-      );
-    case "cut":
-      return <SizeOption />;
-    case "select":
-      return null;
-  }
+function ConnectOptions() {
+  return (
+    <>
+      <SizeOption />
+      <LaneDensityOption />
+    </>
+  );
 }
+
+/** The controls a tool shows while it is active; null for a tool with none. */
+const OPTIONS: Record<Tool, ComponentType | null> = {
+  select: null,
+  paint: PaintOptions,
+  erase: EraseOptions,
+  connect: ConnectOptions,
+  cut: SizeOption,
+};
 
 /** The active brush's options, floating over the map's top-left corner beside the tool rail. */
 export function ToolOptions() {
-  const tool = useToolStore((s) => s.tool);
-  const options = optionsFor(tool);
-  if (options === null) return null;
+  const Options = OPTIONS[useToolStore((s) => s.tool)];
+  if (Options === null) return null;
   return (
     <div className="tool-options" role="toolbar" aria-label="Brush options">
-      {options}
+      <Options />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seeded } from "./random";
+import { seeded } from "../random";
 import { inStroke, stampsAlong, STAMP_STEP } from "./stroke";
 
 describe("seeded", () => {

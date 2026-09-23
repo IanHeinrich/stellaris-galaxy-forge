@@ -3,8 +3,9 @@ import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
 import type { NewSystem } from "../generated/NewSystem";
 import type { Op } from "../generated/Op";
-import type { Pair } from "../lib/brush/lanes";
+import { provisionalIndex } from "../lib/brush/lanes";
 import { joinIslands as lanesJoining } from "../lib/geometry/joinIslands";
+import { PairSet, type Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
 import { nextSystemId } from "../lib/paint";
 import { counted } from "../lib/text";
@@ -66,7 +67,7 @@ export function brushActions(
           : `Joined islands with ${counted(pairs.length, "lane")}`;
       const joined = await get().applyOp(addLanes(pairs, description));
       if (joined && left > 1) {
-        session.setError(
+        session.setNotice(
           `${counted(left, "island")} remain: no more hyperlanes can join them without crossing another.`,
         );
       }
@@ -88,7 +89,7 @@ export function brushActions(
 
 function paintOp(points: readonly Pt[], pairs: readonly Pair[]): Op {
   const first = nextSystemId(systems().values());
-  const real = (id: number) => (id < 0 ? first - id - 1 : id);
+  const real = (id: number) => (id < 0 ? first + provisionalIndex(id) : id);
   const ops: Op[] = [
     { type: "AddSystems", systems: points.map((p, i) => newSystem(first + i, p)) },
   ];
@@ -132,12 +133,9 @@ function removeAll(ids: readonly number[], description: string): Op {
 
 /** How many lanes touch at least one of `ids`, each counted once. */
 function distinctLanes(ids: readonly number[]): number {
-  const lanes = new Set<string>();
+  const lanes = new PairSet();
   for (const id of ids) {
-    for (const lane of systems().get(id)?.lanes ?? []) {
-      const [a, b]: Pair = id < lane.to ? [id, lane.to] : [lane.to, id];
-      lanes.add(`${a},${b}`);
-    }
+    for (const lane of systems().get(id)?.lanes ?? []) lanes.add(id, lane.to);
   }
   return lanes.size;
 }

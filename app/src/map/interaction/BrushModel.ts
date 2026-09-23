@@ -1,12 +1,5 @@
-import type { BrushTool } from "../../lib/brush/brushStroke";
+import { BRUSH_TOOLS, type BrushTool, type EraseTarget } from "../../lib/brush/brushTools";
 import type { MapInput, MapIntent, MapModel } from "./MapIntent";
-
-const INVERSE: Record<BrushTool, BrushTool> = {
-  paint: "erase",
-  erase: "paint",
-  connect: "cut",
-  cut: "connect",
-};
 
 /**
  * A brush (ADR 0005): the left button lays one stroke from press to release, the middle button
@@ -16,7 +9,11 @@ export class BrushModel implements MapModel {
   private stroke: BrushTool | null = null;
   private panning = false;
 
-  constructor(private readonly tool: BrushTool) {}
+  /** `eraseTarget` is read at each input, since what Alt inverts Erase into follows it. */
+  constructor(
+    private readonly tool: BrushTool,
+    private readonly eraseTarget: () => EraseTarget = () => "systems",
+  ) {}
 
   handle(input: MapInput, intent: MapIntent): "consumed" | "pan" {
     switch (input.kind) {
@@ -53,7 +50,7 @@ export class BrushModel implements MapModel {
   }
 
   private toolAt(input: MapInput): BrushTool {
-    return input.alt ? INVERSE[this.tool] : this.tool;
+    return input.alt ? BRUSH_TOOLS[this.tool].inverse(this.eraseTarget()) : this.tool;
   }
 
   private down(input: MapInput, intent: MapIntent): void {

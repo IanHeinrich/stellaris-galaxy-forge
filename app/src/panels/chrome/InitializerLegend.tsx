@@ -10,6 +10,7 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { FilterField } from "../inspector/parts";
 import { ESCAPE } from "../keys";
+import { useOutsidePress } from "../useOutsidePress";
 import "./chrome.css";
 import type { Pressed } from "./layerState";
 import { EyeRow } from "./Menu";
@@ -115,17 +116,10 @@ export function InitializerLegend({
       e.stopImmediatePropagation();
       onClose();
     };
-    const onPointerDown = (e: PointerEvent) => {
-      const at = e.target as Node;
-      if (!self.current?.contains(at) && !anchor.current?.contains(at)) onClose();
-    };
     window.addEventListener("keydown", onKey, { capture: true });
-    window.addEventListener("pointerdown", onPointerDown, { capture: true });
-    return () => {
-      window.removeEventListener("keydown", onKey, { capture: true });
-      window.removeEventListener("pointerdown", onPointerDown, { capture: true });
-    };
-  }, [anchor, self, onClose]);
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, [onClose]);
+  useOutsidePress(true, onClose, self, anchor);
 
   const groups = useMemo(
     () =>

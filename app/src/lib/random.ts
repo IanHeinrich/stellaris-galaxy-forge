@@ -1,6 +1,6 @@
 export type Rand = () => number;
 
-/** mulberry32: numbers in [0, 1), the same sequence for the same seed, so a preview and its commit agree. */
+/** mulberry32: numbers in [0, 1), the same sequence for the same seed. */
 export function seeded(seed: number): Rand {
   let state = seed | 0;
   return () => {

@@ -5,10 +5,11 @@ import type { Op } from "../generated/Op";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemMove } from "../generated/SystemMove";
 import type { SystemNode } from "../generated/SystemNode";
-import type { Pair } from "../lib/brush/lanes";
+import { pairOf, PairMap, type Pair } from "../lib/geometry/pairs";
 import {
   copies,
   COUNTERPART_REACH,
+  counterpartAt,
   images,
   imageOf,
   type Symmetry,
@@ -18,9 +19,6 @@ import { counted } from "../lib/text";
 import { useGalaxyStore } from "./galaxyStore";
 import { useToolStore } from "./toolStore";
 
-/** Images of a new system closer than this to the original or to each other are one system. */
-const COINCIDENT = 0.5;
-
 function symmetry(): Symmetry {
   return useToolStore.getState().symmetry;
 }
@@ -29,9 +27,7 @@ function symmetry(): Symmetry {
 function imageId(id: number, k: number): number | null {
   const { systems, grid } = useGalaxyStore.getState();
   const s = systems.get(id);
-  if (!s || !grid) return null;
-  const p = imageOf(s, symmetry(), k);
-  return grid.nearestSystem(p.x, p.y, COUNTERPART_REACH)?.id ?? null;
+  return s && grid ? counterpartAt(grid, s, symmetry(), k) : null;
 }
 
 /** `ids` and every counterpart of them, each once, `ids` first. */
@@ -109,22 +105,19 @@ export function plannedMoves(plan: MovePlan, moves: readonly SystemMove[]): Syst
   });
 }
 
-function key(a: number, b: number): string {
-  return a < b ? `${a},${b}` : `${b},${a}`;
-}
-
 /** `lanes` and each one's images between the ends' counterparts that `wanted` takes, each once. */
-function symmetricLanes(
+function counterpartLanes(
   lanes: readonly LanePair[],
   wanted: (a: number, b: number) => boolean,
 ): LanePair[] {
-  const out = new Map(lanes.map((l) => [key(l.a, l.b), l]));
+  const out = new PairMap<LanePair>();
+  for (const l of lanes) out.set(l.a, l.b, l);
   for (const l of lanes) {
     for (let k = 1; k < copies(symmetry()); k++) {
       const a = imageId(l.a, k);
       const b = imageId(l.b, k);
-      if (a === null || b === null || a === b || out.has(key(a, b)) || !wanted(a, b)) continue;
-      out.set(key(a, b), { a, b, bridge: l.bridge });
+      if (a === null || b === null || a === b || out.has(a, b) || !wanted(a, b)) continue;
+      out.set(a, b, { a, b, bridge: l.bridge });
     }
   }
   return [...out.values()];
@@ -205,8 +198,8 @@ function addSystems(op: Extract<Op, { type: "AddSystem" }>): Op {
   const [origin, ...others] = images(op, symmetry());
   const kept = [origin];
   for (const p of others) {
-    const apart = kept.every((q) => Math.hypot(p.x - q.x, p.y - q.y) >= COINCIDENT);
-    if (apart && !grid?.nearestSystem(p.x, p.y, COINCIDENT)) kept.push(p);
+    const apart = kept.every((q) => Math.hypot(p.x - q.x, p.y - q.y) >= COUNTERPART_REACH);
+    if (apart && !grid?.nearestSystem(p.x, p.y, COUNTERPART_REACH)) kept.push(p);
   }
   if (kept.length === 1) return op;
   const first = op.id ?? nextSystemId(all.values());
@@ -250,14 +243,14 @@ export function plannedMoveOp(plan: MovePlan, op: MoveOp): Op {
 }
 
 function addLanes(op: Op, lanes: readonly LanePair[]): Op {
-  const all = symmetricLanes(lanes, (a, b) => !linked(a, b) && !barred(a, b));
+  const all = counterpartLanes(lanes, (a, b) => !linked(a, b) && !barred(a, b));
   const wide: Op = { type: "AddLanePairs", lanes: all };
   return widened(op, all.length > lanes.length, wide, `Added ${counted(all.length, "lane")}`);
 }
 
 function cutLanes(op: Op, pairs: readonly Pair[]): Op {
   const lanes = pairs.map(([a, b]) => ({ a, b, bridge: false }));
-  const all = symmetricLanes(lanes, linked).map(({ a, b }): Pair => (a < b ? [a, b] : [b, a]));
+  const all = counterpartLanes(lanes, linked).map(({ a, b }) => pairOf(a, b));
   const wide: Op = { type: "RemoveLanePairs", lanes: all };
   return widened(op, all.length > pairs.length, wide, `Cut ${counted(all.length, "lane")}`);
 }
@@ -293,65 +286,76 @@ function entriesOp<T>(
   );
 }
 
+type Widen<T extends Op["type"]> = (op: Extract<Op, { type: T }>) => Op;
+
 /**
- * `op` as the global symmetry makes it: adding, moving, deleting or isolating systems, adding or
- * cutting lanes and setting an initializer or spawn reach every counterpart too, the system
- * at each image of the one edited. An op symmetry adds nothing to is returned as it is.
+ * How the global symmetry widens each kind of op: adding, moving, deleting or isolating
+ * systems, adding or cutting lanes and setting an initializer or spawn reach every counterpart
+ * too, the system at each image of the one edited. Null for an op symmetry leaves as it is.
  */
+const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
+  AddSystem: addSystems,
+  MoveSystem: (op) => plannedMoveOp(movePlan(movedIds(op)), op),
+  MoveSystems: (op) => plannedMoveOp(movePlan(movedIds(op)), op),
+  AddLane: (op) => addLanes(op, [{ a: op.a, b: op.b, bridge: op.bridge }]),
+  AddLanes: (op) =>
+    addLanes(
+      op,
+      op.to.map(([to, bridge]) => ({ a: op.from, b: to, bridge })),
+    ),
+  AddLanePairs: (op) => addLanes(op, op.lanes),
+  RemoveLane: (op) => cutLanes(op, [[op.a, op.b]]),
+  RemoveLanes: (op) =>
+    cutLanes(
+      op,
+      op.to.map((to): Pair => [op.from, to]),
+    ),
+  RemoveLanePairs: (op) => cutLanes(op, op.lanes),
+  IsolateSystem: (op) => isolate(op, [op.id]),
+  IsolateSystems: (op) => isolate(op, op.ids),
+  RemoveSystem: (op) => remove(op, [op.id]),
+  RemoveSystems: (op) => remove(op, op.ids),
+  SetInitializer: (op) => entriesOp(op, [[op.id, op.initializer]], initializers, "initializer"),
+  SetInitializers: (op) =>
+    entriesOp(
+      op,
+      op.entries.map((e) => [e.id, e.initializer] as const),
+      initializers,
+      "initializer",
+    ),
+  SetSpawnWeight: (op) => entriesOp(op, [[op.id, op.base]], weights, "spawn weight"),
+  SetSpawnWeights: (op) => entriesOp(op, op.entries, weights, "spawn weight"),
+  SetSpawnScript: (op) => entriesOp(op, [[op.id, op.script]], scripts, "seat", sameSeat),
+  SetSpawnScripts: (op) => entriesOp(op, op.entries, scripts, "seat", sameSeat),
+  SetLaneLength: null,
+  SetLaneLengths: null,
+  NormaliseLaneLength: null,
+  NormaliseLaneLengths: null,
+  MoveNebula: null,
+  AddNebula: null,
+  RemoveNebula: null,
+  SetNebulaRadius: null,
+  SetNebulaName: null,
+  AddSystems: null,
+  SetSystemName: null,
+  SetHeaderField: null,
+  SetHeaderKeys: null,
+  SetHeaderList: null,
+  SetFeZone: null,
+  SetFeZones: null,
+  SetWormholePair: null,
+  SetWormholeEnds: null,
+  SetFeLinks: null,
+  SetFeLinkFlags: null,
+  PreventLane: null,
+  UnpreventLane: null,
+  Batch: null,
+};
+
+/** `op` as the global symmetry makes it; an op symmetry adds nothing to is returned as it is. */
 export function symmetricOp(op: Op): Op {
-  if (symmetry().kind === "off") return op;
-  switch (op.type) {
-    case "AddSystem":
-      return addSystems(op);
-    case "MoveSystem":
-    case "MoveSystems":
-      return plannedMoveOp(movePlan(movedIds(op)), op);
-    case "AddLane":
-      return addLanes(op, [{ a: op.a, b: op.b, bridge: op.bridge }]);
-    case "AddLanes":
-      return addLanes(
-        op,
-        op.to.map(([to, bridge]) => ({ a: op.from, b: to, bridge })),
-      );
-    case "AddLanePairs":
-      return addLanes(op, op.lanes);
-    case "RemoveLane":
-      return cutLanes(op, [[op.a, op.b]]);
-    case "RemoveLanes":
-      return cutLanes(
-        op,
-        op.to.map((to): Pair => [op.from, to]),
-      );
-    case "RemoveLanePairs":
-      return cutLanes(op, op.lanes);
-    case "IsolateSystem":
-      return isolate(op, [op.id]);
-    case "IsolateSystems":
-      return isolate(op, op.ids);
-    case "RemoveSystem":
-      return remove(op, [op.id]);
-    case "RemoveSystems":
-      return remove(op, op.ids);
-    case "SetInitializer":
-      return entriesOp(op, [[op.id, op.initializer]], initializers, "initializer");
-    case "SetInitializers":
-      return entriesOp(
-        op,
-        op.entries.map((e) => [e.id, e.initializer] as const),
-        initializers,
-        "initializer",
-      );
-    case "SetSpawnWeight":
-      return entriesOp(op, [[op.id, op.base]], weights, "spawn weight");
-    case "SetSpawnWeights":
-      return entriesOp(op, op.entries, weights, "spawn weight");
-    case "SetSpawnScript":
-      return entriesOp(op, [[op.id, op.script]], scripts, "seat", sameSeat);
-    case "SetSpawnScripts":
-      return entriesOp(op, op.entries, scripts, "seat", sameSeat);
-    default:
-      return op;
-  }
+  const widen = WIDEN[op.type] as ((op: Op) => Op) | null;
+  return widen && copies(symmetry()) > 1 ? widen(op) : op;
 }
 
 /**
@@ -366,7 +370,7 @@ export function symmetricSeat(
   const script = seat(system);
   if (script === undefined) return null;
   const op: Op = { type: "SetSpawnScript", id: system.id, script };
-  if (symmetry().kind === "off" || reservedSeat(script)) return op;
+  if (copies(symmetry()) === 1 || reservedSeat(script)) return op;
   return entriesOp(op, [[system.id, script]], scripts, "seat", (_, counterpart) =>
     seat(counterpart),
   );

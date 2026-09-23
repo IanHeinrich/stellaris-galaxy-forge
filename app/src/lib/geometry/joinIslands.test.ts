@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { joinIslands, SegmentIndex, segmentsCross } from "./joinIslands";
+import { joinIslands } from "./joinIslands";
 import type { MeshPoint } from "./mesh";
+import { segmentsCross } from "./segments";
 
 function components(points: readonly MeshPoint[], edges: readonly [number, number][]): number {
   const parent = new Map(points.map((p) => [p.id, p.id]));
@@ -48,23 +49,6 @@ const EDGES: [number, number][] = [
   [7, 4],
   [9, 10],
 ];
-
-describe("segmentsCross", () => {
-  it("counts interior crossings only", () => {
-    const o = { x: 0, y: 0 };
-    expect(segmentsCross(o, { x: 2, y: 2 }, { x: 0, y: 2 }, { x: 2, y: 0 })).toBe(true);
-    expect(segmentsCross(o, { x: 2, y: 2 }, o, { x: 2, y: 0 })).toBe(false);
-    expect(segmentsCross(o, { x: 2, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 3 })).toBe(false);
-    expect(segmentsCross(o, { x: 1, y: 1 }, { x: 3, y: 0 }, { x: 3, y: 5 })).toBe(false);
-  });
-
-  it("is found through the index across cells", () => {
-    const index = new SegmentIndex(10);
-    index.add({ x: -100, y: 5 }, { x: 100, y: 5 });
-    expect(index.crosses({ x: 50, y: 0 }, { x: 50, y: 30 })).toBe(true);
-    expect(index.crosses({ x: 50, y: 10 }, { x: 60, y: 30 })).toBe(false);
-  });
-});
 
 describe("joinIslands", () => {
   it("joins four islands with three lanes that cross nothing", () => {

@@ -91,4 +91,13 @@ describe("fitSelection", () => {
 
     expect(useEditorStore.getState().fitSelectionNonce).toBe(framed + 1);
   });
+
+  it("frames a nebula selected alone, rather than fitting the whole galaxy", () => {
+    const fitted = useEditorStore.getState().fitNonce;
+    const framed = useEditorStore.getState().fitSelectionNonce;
+    useEditorStore.setState({ selectedNebula: 0 });
+    run("fitSelection", false, effects);
+    expect(useEditorStore.getState().fitSelectionNonce).toBe(framed + 1);
+    expect(useEditorStore.getState().fitNonce).toBe(fitted);
+  });
 });

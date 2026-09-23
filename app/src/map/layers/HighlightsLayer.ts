@@ -11,93 +11,56 @@ import { ghostLaneSegments, type MoveGhost } from "../moveGhosts";
 import type { FeZonePreview } from "../feZonePreview";
 import type { NebulaPreview } from "../nebulaPreview";
 import { toRing, type Segment } from "../../lib/feLinks";
-import { FE_DIRECTIONS, FE_ZONE_DISTANCES, FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
+import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { ORIGIN_ALPHA } from "../../lib/visual/style";
-import type { Segment as BrushSegment } from "../../lib/brush/lanes";
-import type { BrushTool } from "../../lib/brush/brushStroke";
-import { guideLines, images, type Symmetry } from "../../lib/geometry/symmetry";
+import {
+  ACCENT_COLOR,
+  ALLOWED_COLOR,
+  CAUTION_COLOR,
+  ORIGIN_ALPHA,
+  REFUSED_COLOR,
+} from "../../lib/visual/style";
 import { SCENARIO_HALF_EXTENT } from "../../lib/guides";
 import { destroyChildren } from "./destroyChildren";
+import { BrushOverlay } from "./highlights/BrushOverlay";
+import { dashedCircle } from "./highlights/dashedCircle";
+import { FeZoneDragOverlay } from "./highlights/FeZoneDragOverlay";
+import { SymmetryGuide } from "./highlights/SymmetryGuide";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
-const SELECTION = { color: 0xffd166, radius: 11, width: 2, alpha: 1 };
+const SELECTION = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
 const HOVER = { color: 0xffffff, radius: 9, width: 1.5, alpha: 0.6 };
-const GHOST = { color: 0xffd166, radius: 11, width: 2, alpha: 1 };
+const GHOST = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
 /** Systems using the initializer the browser is highlighting: muted, distinct from selection and hover. */
 const MATCHED = { color: 0x7dd3fc, radius: 13, width: 2, alpha: 0.6 };
-const TARGET_VALID = { color: 0x6ee7b7, radius: 13, width: 2, alpha: 0.9 };
+const TARGET_VALID = { color: ALLOWED_COLOR, radius: 13, width: 2, alpha: 0.9 };
 /** Systems a nebula drag would take in, and those it would let go. */
-const JOINING = { color: 0x6ee7b7, radius: 15, width: 2, alpha: 0.85 };
-const LEAVING = { color: 0xfbbf24, radius: 15, width: 2, alpha: 0.85 };
-const TARGET_INVALID = { color: 0xf87171, radius: 13, width: 2, alpha: 0.9 };
+const JOINING = { color: ALLOWED_COLOR, radius: 15, width: 2, alpha: 0.85 };
+const LEAVING = { color: CAUTION_COLOR, radius: 15, width: 2, alpha: 0.85 };
+const TARGET_INVALID = { color: REFUSED_COLOR, radius: 13, width: 2, alpha: 0.9 };
 /** How far outside a targeted zone's ring its target ring is drawn, in screen pixels. */
 const FE_ZONE_TARGET_MARGIN_PX = 14;
-const PORT_RING = { color: 0x6ee7b7, alpha: 0.45, hotAlpha: 1, width: 1.5, dashes: 16 };
+const PORT_RING = { color: ALLOWED_COLOR, alpha: 0.45, hotAlpha: 1, width: 1.5, dashes: 16 };
 /** A zone's port ring is longer than a star's, so it takes more dashes to read the same. */
 const FE_ZONE_PORT_DASHES = 48;
-const GHOST_LANE = { color: 0xffd166, alpha: 0.9 };
-const RUBBER_LANE = { color: 0x6ee7b7, alpha: 0.9 };
+const GHOST_LANE = { color: ACCENT_COLOR, alpha: 0.9 };
+const RUBBER_LANE = { color: ALLOWED_COLOR, alpha: 0.9 };
 const HOVER_LANE = { color: 0xffffff, alpha: 0.5, widthPx: 3 };
-const SELECTED_LANE = { color: 0xffd166, alpha: 0.9, widthPx: 4 };
+const SELECTED_LANE = { color: ACCENT_COLOR, alpha: 0.9, widthPx: 4 };
 const MIDPOINT = { fill: 0x1c2333, stroke: 0xffffff, arm: 3.5 };
-const MARQUEE = { color: 0xffd166, strokeAlpha: 0.9, fillAlpha: 0.08 };
+const MARQUEE = { color: ACCENT_COLOR, strokeAlpha: 0.9, fillAlpha: 0.08 };
 /** The dashed ring a nebula drag proposes, until the pointer comes up. */
 const GHOST_RING = { color: 0xc4b5fd, alpha: 0.9 };
 const GHOST_RING_DASHES = 48;
-/** The dashed ring a zone drag proposes: the zones' own hue, or the refusal's where it cannot go. */
-const GHOST_ZONE = { color: 0xf0abfc, alpha: 0.9 };
-const GHOST_ZONE_BLOCKED = { color: 0xf87171, alpha: 0.9 };
-/** The grid a zone drag chooses from, under the ghost ring: faint rays and one dot per slot. */
-const FE_GRID_RAY = { color: GHOST_ZONE.color, alpha: 0.15 };
-const FE_GRID_RAY_LENGTH = FE_ZONE_DISTANCES[FE_ZONE_DISTANCES.length - 1];
-const FE_GRID_DOT = { color: GHOST_ZONE.color, alpha: 0.35, radiusPx: 2.5 };
-const FE_GRID_DOT_BLOCKED = { color: GHOST_ZONE_BLOCKED.color, alpha: 0.35, radiusPx: 2.5 };
-const FE_GRID_SNAPPED_RADIUS_PX = 4.5;
 const ORIGIN_MARK = { color: 0xffffff, alpha: 0.3, armPx: 7 };
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
-/** The brush circle and what a stroke would do: paint and connect in the accent, erase and cut in the refusal red. */
-const BRUSH_PAINT = 0xffd166;
-const BRUSH_ERASE = 0xf87171;
-const BRUSH_KEPT = 0xfbbf24;
-const BRUSH_DASHES = 48;
-const BRUSH_DOT_PX = 3;
-const BRUSH_RING_PX = 7;
-const BRUSH_CUT_PX = 3;
-/** The copies of the brush circle a symmetric stroke also lays, fainter than the one at the pointer. */
-const BRUSH_IMAGE_ALPHA = 0.45;
-/** Symmetry's axis or spokes while a brush is out: the brush accent, faint enough to paint over. */
-const SYMMETRY_GUIDE = { color: BRUSH_PAINT, alpha: 0.3 };
 
 export interface RubberLane {
   from: LaneSource;
   x: number;
   y: number;
   target: LaneTarget | null;
-}
-
-/** The brush circle at the pointer, `r` its world radius, with a copy at each image under `symmetry`. */
-export interface BrushCursor {
-  tool: BrushTool;
-  x: number;
-  y: number;
-  r: number;
-  symmetry: Symmetry;
-}
-
-/** What a held stroke would do, in world positions. */
-export interface BrushPreview {
-  /** New systems and the lanes to them. */
-  points: readonly Pt[];
-  lanes: readonly BrushSegment[];
-  /** Systems an erase stroke removes, and the special ones it spares. */
-  doomed: readonly Pt[];
-  kept: readonly Pt[];
-  /** Lanes an erase or cut stroke cuts. */
-  cut: readonly BrushSegment[];
-  /** Systems a connect stroke has swept, whose new lanes are `lanes`. */
-  swept: readonly Pt[];
 }
 
 /** A world-space rectangle with `x0 <= x1` and `y0 <= y1`. */
@@ -119,22 +82,6 @@ function ring(spec: typeof SELECTION): Graphics {
   g.visible = false;
   return g;
 }
-
-function dashedCircle(g: Graphics, x: number, y: number, r: number, dashes: number): void {
-  const step = (Math.PI * 2) / dashes;
-  for (let i = 0; i < dashes; i++) {
-    const start = i * step;
-    g.moveTo(x + r * Math.cos(start), y + r * Math.sin(start)).arc(
-      x,
-      y,
-      r,
-      start,
-      start + step * 0.6,
-    );
-  }
-}
-
-const GHOST_ZONE_DASHES = 32;
 
 /** The galaxy origin: a reference point for a document whose canvas may be empty. */
 function originCross(): Graphics {
@@ -250,17 +197,14 @@ export class HighlightsLayer implements MapLayer {
   private readonly previewLines = new Graphics({ label: "previewLines" });
   private readonly laneLines = new Graphics({ label: "laneLines" });
   private readonly marqueeBox = new Graphics();
-  private readonly feZoneGrid = new Graphics();
   private readonly ghostRing = new Graphics();
   private readonly origin = originCross();
   private readonly coreRing = new Graphics();
-  private readonly brushLines = new Graphics({ label: "brushLines" });
-  private readonly brushMarks = new Graphics({ label: "brushMarks" });
-  private readonly brushCircle = new Graphics({ label: "brushCircle" });
-  private readonly symmetryGuide = new Graphics({ label: "symmetryGuide" });
-  private brushPreview: BrushPreview | null = null;
-  private symmetry: Symmetry | null = null;
-  private guideReach = guideReachOf(EMPTY_CONTEXT);
+  /** The brush circle and what a held stroke would do. */
+  readonly brush = new BrushOverlay();
+  /** The axis or spokes of the symmetry edits repeat under. */
+  readonly guide = new SymmetryGuide(guideReachOf(EMPTY_CONTEXT));
+  private readonly feZoneDrag = new FeZoneDragOverlay();
   private coreRadius = EMPTY_CONTEXT.coreRadius;
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
@@ -274,7 +218,6 @@ export class HighlightsLayer implements MapLayer {
   private lanePreview: Array<[number, number]> | null = null;
   private marquee: WorldRect | null = null;
   private nebula: NebulaPreview | null = null;
-  private feZone: FeZonePreview | null = null;
   private hoverEdge: MapEdge | null = null;
   private selectedLane: LaneRef | null = null;
   private camScale = 1;
@@ -286,19 +229,17 @@ export class HighlightsLayer implements MapLayer {
   constructor() {
     this.container.addChild(
       this.coreRing,
-      this.symmetryGuide,
+      this.guide.graphics,
       this.origin,
       this.laneLines,
       this.previewLines,
       this.marqueeBox,
-      this.feZoneGrid,
+      this.feZoneDrag.container,
       this.ghostRing,
       this.port,
       this.hover,
       this.target,
-      this.brushLines,
-      this.brushMarks,
-      this.brushCircle,
+      this.brush.container,
     );
     this.container.addChild(
       this.selectionRings.container,
@@ -318,11 +259,7 @@ export class HighlightsLayer implements MapLayer {
       this.coreRadius = ctx.coreRadius;
       this.drawCoreRing();
     }
-    const reach = guideReachOf(ctx);
-    if (reach !== this.guideReach) {
-      this.guideReach = reach;
-      this.drawSymmetryGuide();
-    }
+    this.guide.setReach(guideReachOf(ctx));
     if (!loaded) return;
     this.placeSelection();
     this.placeMatched();
@@ -353,8 +290,8 @@ export class HighlightsLayer implements MapLayer {
       this.portCapable = portCapable;
       this.placeAll();
       this.drawLanes();
-      this.drawFeZoneGrid();
-      this.drawBrushMarks();
+      this.feZoneDrag.onScale(cam.scale);
+      this.brush.onScale(cam.scale);
     }
   }
 
@@ -426,39 +363,8 @@ export class HighlightsLayer implements MapLayer {
 
   /** The ring a zone drag is proposing, with the system it would cover ringed as leaving. */
   setFeZonePreview(preview: FeZonePreview | null): void {
-    this.feZone = preview;
+    this.feZoneDrag.set(preview);
     this.placeAll();
-    this.drawGhostRing();
-    this.drawFeZoneGrid();
-  }
-
-  setBrushCursor(cursor: BrushCursor | null): void {
-    const g = this.brushCircle;
-    g.clear();
-    if (!cursor) return;
-    dashedCircle(g, cursor.x, cursor.y, cursor.r, BRUSH_DASHES);
-    const color = cursor.tool === "paint" || cursor.tool === "connect" ? BRUSH_PAINT : BRUSH_ERASE;
-    g.stroke({ color, alpha: 0.9, pixelLine: true });
-    const copies = images(cursor, cursor.symmetry).slice(1);
-    for (const p of copies) dashedCircle(g, p.x, p.y, cursor.r, BRUSH_DASHES);
-    if (copies.length > 0) g.stroke({ color, alpha: BRUSH_IMAGE_ALPHA, pixelLine: true });
-  }
-
-  /** The axis or spokes of the symmetry brush strokes repeat under; null hides them. */
-  setSymmetryGuide(symmetry: Symmetry | null): void {
-    this.symmetry = symmetry;
-    this.drawSymmetryGuide();
-  }
-
-  setBrushPreview(preview: BrushPreview | null): void {
-    this.brushPreview = preview;
-    const g = this.brushLines;
-    g.clear();
-    if (preview) {
-      for (const [a, b] of preview.lanes) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
-      if (preview.lanes.length > 0) g.stroke({ ...GHOST_LANE, pixelLine: true });
-    }
-    this.drawBrushMarks();
   }
 
   setMarquee(rect: WorldRect | null): void {
@@ -516,7 +422,7 @@ export class HighlightsLayer implements MapLayer {
     this.drawTarget();
     this.ghostRings.place(this.ghosts);
     this.joiningRings.place(pointsOf(this.systems, this.nebula?.joining ?? []));
-    const covered = this.feZone?.blocked;
+    const covered = this.feZoneDrag.preview?.blocked;
     this.leavingRings.place([
       ...pointsOf(this.systems, this.nebula?.leaving ?? []),
       ...(covered ? [covered] : []),
@@ -632,79 +538,6 @@ export class HighlightsLayer implements MapLayer {
       dashedCircle(g, n.x, n.y, n.radius, GHOST_RING_DASHES);
       g.stroke({ ...GHOST_RING, pixelLine: true });
     }
-    const z = this.feZone;
-    if (!z) return;
-    const style = z.blocked || z.offMap ? GHOST_ZONE_BLOCKED : GHOST_ZONE;
-    dashedCircle(g, z.x, z.y, FE_ZONE_RADIUS, GHOST_ZONE_DASHES);
-    const tie = toRing(z.anchor, z);
-    if (tie) g.moveTo(tie.a.x, tie.a.y).lineTo(tie.b.x, tie.b.y);
-    g.stroke({ ...style, pixelLine: true });
-  }
-
-  /**
-   * The grid a zone drag chooses from, under the ghost ring: eight faint rays to distance 200,
-   * a faint dot at every clear slot, a faint hollow circle at every blocked one, and the snapped
-   * slot as a brighter, slightly larger dot. Dot radii stay constant in screen pixels.
-   */
-  private drawFeZoneGrid(): void {
-    const g = this.feZoneGrid;
-    g.clear();
-    const z = this.feZone;
-    if (!z) return;
-    for (const { key: direction } of FE_DIRECTIONS) {
-      const tip = feZoneCentre(z.anchor, { direction, distance: FE_GRID_RAY_LENGTH });
-      g.moveTo(z.anchor.x, z.anchor.y).lineTo(tip.x, tip.y);
-    }
-    g.stroke({ ...FE_GRID_RAY, pixelLine: true });
-    const dotRadius = FE_GRID_DOT.radiusPx / this.camScale;
-    for (const slot of z.slots) {
-      if (slot.direction === z.direction && slot.distance === z.distance) continue;
-      if (slot.clear) {
-        g.circle(slot.x, slot.y, dotRadius).fill({
-          color: FE_GRID_DOT.color,
-          alpha: FE_GRID_DOT.alpha,
-        });
-      } else {
-        g.circle(slot.x, slot.y, dotRadius).stroke({
-          color: FE_GRID_DOT_BLOCKED.color,
-          alpha: FE_GRID_DOT_BLOCKED.alpha,
-          pixelLine: true,
-        });
-      }
-    }
-    const snappedStyle = z.blocked || z.offMap ? GHOST_ZONE_BLOCKED : GHOST_ZONE;
-    g.circle(z.x, z.y, FE_GRID_SNAPPED_RADIUS_PX / this.camScale).fill({
-      color: snappedStyle.color,
-      alpha: snappedStyle.alpha,
-    });
-  }
-
-  /** The stroke's new systems as dots, its doomed, spared and swept systems as rings, and the lanes it cuts, sized in screen pixels. */
-  private drawBrushMarks(): void {
-    const g = this.brushMarks;
-    g.clear();
-    const p = this.brushPreview;
-    if (!p) return;
-    const px = 1 / this.camScale;
-    for (const [a, b] of p.cut) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
-    if (p.cut.length > 0) g.stroke({ color: BRUSH_ERASE, alpha: 0.9, width: BRUSH_CUT_PX * px });
-    for (const s of p.points) g.circle(s.x, s.y, BRUSH_DOT_PX * px);
-    if (p.points.length > 0) g.fill({ color: BRUSH_PAINT, alpha: 0.9 });
-    for (const s of p.doomed) g.circle(s.x, s.y, BRUSH_RING_PX * px);
-    if (p.doomed.length > 0) g.stroke({ color: BRUSH_ERASE, alpha: 0.9, width: 2 * px });
-    for (const s of p.kept) g.circle(s.x, s.y, BRUSH_RING_PX * px);
-    if (p.kept.length > 0) g.stroke({ color: BRUSH_KEPT, alpha: 0.9, width: 2 * px });
-    for (const s of p.swept) g.circle(s.x, s.y, BRUSH_RING_PX * px);
-    if (p.swept.length > 0) g.stroke({ color: BRUSH_PAINT, alpha: 0.9, width: 2 * px });
-  }
-
-  private drawSymmetryGuide(): void {
-    const g = this.symmetryGuide;
-    g.clear();
-    if (!this.symmetry) return;
-    const lines = guideLines(this.symmetry, this.guideReach);
-    for (const [a, b] of lines) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
-    if (lines.length > 0) g.stroke({ ...SYMMETRY_GUIDE, pixelLine: true });
   }
 
   /** A world-space circle of the core radius, stroked one screen pixel wide at any zoom. */
