@@ -18,6 +18,10 @@ import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { toolAllowed, useToolStore } from "./toolStore";
+import { useWatchlistStore } from "./watchlistStore";
+
+/** How long after the last edit the watchlist runs its searches again. */
+const WATCHLIST_SETTLE_MS = 400;
 
 let bound = false;
 
@@ -42,6 +46,7 @@ export function bindStores(): void {
   followGalaxySize();
   followNotes();
   followTool();
+  followWatchlist();
 }
 
 // The galaxy the document holds decides the notes raised on it: a seat's kind or a system count
@@ -56,6 +61,36 @@ function followNotes(): void {
   });
   useFileSessionStore.subscribe((state, previous) => {
     if (state.lastSave !== previous.lastSave && state.lastSave !== null) void noteDuplicateNames();
+  });
+}
+
+// The watchlist answers for the open document: every entry runs when one opens, and again once
+// edits or a fresh read of what the systems hold settle. Its answers go with the document.
+function followWatchlist(): void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const cancel = () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  };
+  const settle = () => {
+    if (useFileSessionStore.getState().status !== "ready") return;
+    cancel();
+    timer = setTimeout(() => {
+      timer = null;
+      void useWatchlistStore.getState().refresh();
+    }, WATCHLIST_SETTLE_MS);
+  };
+  useFileSessionStore.subscribe((state, previous) => {
+    if (state.status === previous.status) return;
+    cancel();
+    if (state.status === "ready") void useWatchlistStore.getState().refresh();
+    else useWatchlistStore.getState().clearResults();
+  });
+  useGalaxyStore.subscribe((state, previous) => {
+    if (state.version !== previous.version && state.galaxy === previous.galaxy) settle();
+  });
+  useGameDataStore.subscribe((state, previous) => {
+    if (state.special !== previous.special) settle();
   });
 }
 

@@ -371,6 +371,21 @@ export function unlinkedTo(systems: Systems, target: number, ids: number[]): num
   return ids.filter((id) => id !== target && !linked(systems, target, id));
 }
 
+/** Whether the scenario keeps a lane from between `a` and `b`, which either end may name. */
+export function isPrevented(systems: Systems, a: number, b: number): boolean {
+  return !!systems.get(a)?.prevented.includes(b) || !!systems.get(b)?.prevented.includes(a);
+}
+
+/** The ids in `ids` (other than `target`) the scenario does not yet keep from a lane to `target`. */
+export function unpreventedTo(systems: Systems, target: number, ids: number[]): number[] {
+  return ids.filter((id) => id !== target && !isPrevented(systems, target, id));
+}
+
+/** The ids in `ids` (other than `target`) the scenario keeps from a lane to `target`. */
+export function preventedTo(systems: Systems, target: number, ids: number[]): number[] {
+  return ids.filter((id) => id !== target && isPrevented(systems, target, id));
+}
+
 /** The ids in `ids` that have at least one lane. */
 export function linkedSystems(systems: Systems, ids: number[]): number[] {
   return ids.filter((id) => (systems.get(id)?.lanes.length ?? 0) > 0);

@@ -1,4 +1,5 @@
 import type { StoreApi } from "zustand";
+import { pairOf } from "../lib/geometry/pairs";
 import { systems } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 import { canEdit } from "./fileSessionStore";
@@ -7,11 +8,14 @@ import {
   linkedSystems,
   linkedTo,
   meshLanes,
+  preventedTo,
   staleLaneCount,
   unlinkedPairs,
   unlinkedTo,
+  unpreventedTo,
 } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
+import { allowOp, preventOp } from "./symmetricEdits";
 
 /** Above this many selected systems "connect to each other" gives way to the mesh. */
 export const CONNECT_ALL_MAX = 5;
@@ -23,6 +27,9 @@ type LaneActions = Pick<
   | "connectSelectedTo"
   | "cutLanesBetweenSelected"
   | "cutLanesToSelected"
+  | "preventLanes"
+  | "preventLanesToSelected"
+  | "allowLanesToSelected"
   | "isolateSelected"
   | "resetSelectedLaneLengths"
 >;
@@ -66,6 +73,22 @@ export function laneActions(
     async cutLanesToSelected(target) {
       const to = linkedTo(systems(), target, get().selection);
       if (to.length > 0) await get().applySymmetric({ type: "RemoveLanes", from: target, to });
+    },
+
+    async preventLanes(pairs) {
+      const op = preventOp(pairs, true);
+      return op !== null && get().applyOp(op);
+    },
+
+    async preventLanesToSelected(target) {
+      const to = unpreventedTo(systems(), target, get().selection);
+      await get().preventLanes(to.map((id) => pairOf(target, id)));
+    },
+
+    async allowLanesToSelected(target) {
+      const to = preventedTo(systems(), target, get().selection);
+      const op = allowOp(to.map((id) => pairOf(target, id)));
+      if (op !== null) await get().applyOp(op);
     },
 
     async isolateSelected() {

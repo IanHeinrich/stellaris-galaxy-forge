@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { SystemDetail } from "../../../../generated/SystemDetail";
 import type { ScenarioBypass } from "../../../../generated/ScenarioBypass";
 import { bypassIcons, scenarioBypassIcon } from "../../../../lib/details/labels";
@@ -11,7 +11,7 @@ import { useGalaxyVersion, useSystemName } from "../../../../store/browserRows";
 import { useGalaxyStore } from "../../../../store/galaxyStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { useInspectorStore } from "../../../../store/inspectorStore";
-import { useApplyOp, useApplySymmetricOp } from "../../../useApplyOp";
+import { useApplySymmetricOp } from "../../../useApplyOp";
 import {
   Chip,
   DrillLink,
@@ -22,10 +22,11 @@ import {
   Section,
   SourceChip,
 } from "../../parts";
-import { preventLaneOp, preventTarget, unpreventLaneOp } from "./scenario/prevented";
+import { unpreventLaneOp } from "./scenario/prevented";
 
-/** The id field the "Prevent lane to…" label names. */
-export const PREVENT_INPUT_ID = "prevent-lane-to";
+/** Where a scenario's prevented pairs are made, since the inspector makes none. */
+export const PREVENT_HINT =
+  "Right-click a lane to prevent it, or select other systems and right-click this one.";
 
 /** A row naming another system: a lane the reader can jump to, or a pair the file forbids. */
 function LaneRow({
@@ -97,7 +98,7 @@ function CutLane({ a, b, missing }: { a: number; b: number; missing: boolean }) 
 
 /** A pair the scenario forbids a generated lane between, and the way to allow it again. */
 function PreventedRow({ system, other }: { system: number; other: number }) {
-  const applyOp = useApplyOp();
+  const applyOp = useApplySymmetricOp();
   const name = useSystemName(other);
   return (
     <LaneRow className="ins-prevented" name={name}>
@@ -115,16 +116,10 @@ function PreventedRow({ system, other }: { system: number; other: number }) {
 }
 
 /**
- * The pairs `prevent_hyperlane` forbids, under the lanes themselves. A pair is named by the id
- * of the other system; the core says which pairs it will take, and refuses the rest.
+ * The pairs `prevent_hyperlane` forbids, under the lanes themselves, and where the map makes
+ * more of them.
  */
 function Prevented({ system, prevented }: { system: number; prevented: readonly number[] }) {
-  const applyOp = useEditorStore((s) => s.applyOp);
-  const [target, setTarget] = useState("");
-  const id = preventTarget(target);
-  const prevent = async () => {
-    if (id !== null && (await applyOp(preventLaneOp(system, id)))) setTarget("");
-  };
   return (
     <>
       {prevented.length > 0 && (
@@ -133,22 +128,7 @@ function Prevented({ system, prevented }: { system: number; prevented: readonly 
       {prevented.map((other) => (
         <PreventedRow key={other} system={system} other={other} />
       ))}
-      <div className="ins-prevent-add">
-        <label className="k" htmlFor={PREVENT_INPUT_ID}>
-          Prevent lane to…
-        </label>
-        <input
-          id={PREVENT_INPUT_ID}
-          aria-label="Prevent lane to id"
-          inputMode="numeric"
-          placeholder="id"
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
-        />
-        <button type="button" disabled={id === null} onClick={() => void prevent()}>
-          Prevent
-        </button>
-      </div>
+      <div className="muted ins-hint">{PREVENT_HINT}</div>
     </>
   );
 }

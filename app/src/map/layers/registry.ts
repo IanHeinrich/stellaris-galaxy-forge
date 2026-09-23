@@ -16,6 +16,7 @@ import { OwnersLayer } from "./OwnersLayer";
 import { SpawnsLayer } from "./SpawnsLayer";
 import { SpecialLayer } from "./SpecialLayer";
 import { SystemsLayer } from "./SystemsLayer";
+import { WatchlistLayer } from "./WatchlistLayer";
 import { WaylinesLayer } from "./WaylinesLayer";
 
 /** One layer the map can draw, and the document capability it needs to be worth drawing. */
@@ -55,6 +56,7 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "systems", create: (renderer) => new SystemsLayer(renderer) },
   { id: "classes" },
   { id: "issues", create: () => new IssuesLayer() },
+  { id: "watchlist", create: () => new WatchlistLayer() },
   { id: "labels", create: () => new LabelsLayer() },
   { id: "initializers", requires: "create_systems" },
   { id: "spawns", requires: "create_systems", create: () => new SpawnsLayer() },

@@ -82,6 +82,7 @@ const SCENARIO_GROUPS: readonly Group[] = [
       "mapBorder",
       "lCluster",
       "issues",
+      "watchlist",
       "highlights",
     ],
     master: false,

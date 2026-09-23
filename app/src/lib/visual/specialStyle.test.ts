@@ -21,12 +21,20 @@ function special(overrides: Partial<SpecialSystem>): SpecialSystem {
     flags: [],
     countries: [],
     label: "",
+    label_is_generated_name: false,
     ...overrides,
   };
 }
 
 function countryRef(icon: CountryRef["icon"]): CountryRef {
-  return { id: null, name_key: "", name: null, country_type: "guardian", icon };
+  return {
+    id: null,
+    name_key: "",
+    name: null,
+    country_type: "guardian",
+    icon,
+    generated_name: false,
+  };
 }
 
 const NAMES = new Map([
@@ -91,6 +99,42 @@ describe("badgeLabel", () => {
     expect(badgeLabel("marauder", special({ primary: "marauder" }), "Ruprecht", NAMES)).toBe(
       "Marauder",
     );
+  });
+
+  it("names an enclave after its country, generated or not", () => {
+    const shroudwalkers = special({
+      primary: "enclave",
+      initializer: "shroudwalker_enclave_init_01",
+      label: "Covenant of the Shroud",
+      label_is_generated_name: true,
+    });
+    expect(badgeLabel("enclave", shroudwalkers, "Xanthe", NAMES)).toBe("Covenant of the Shroud");
+    const trader = special({
+      primary: "enclave",
+      initializer: "guardians_trader_init_01",
+      label: "XuraCorp",
+    });
+    expect(badgeLabel("enclave", trader, "Xanthe", NAMES)).toBe("XuraCorp");
+  });
+
+  it("names the Salvager Enclave after its kind instead of its generated country name", () => {
+    const salvager = special({
+      primary: "enclave",
+      initializer: "salvager_enclave_init_02",
+      label: "Union of Scrappers",
+      label_is_generated_name: true,
+    });
+    expect(badgeLabel("enclave", salvager, "Xanthe", NAMES)).toBe("Salvager Enclave");
+  });
+
+  it("names an enclave with no country present after its initializer, then the bare kind", () => {
+    const noCountry = special({
+      primary: "enclave",
+      initializer: "salvager_enclave_init_02",
+      label: "Xanthe",
+    });
+    expect(badgeLabel("enclave", noCountry, "Xanthe", NAMES)).toBe("Salvager Enclave");
+    expect(badgeLabel("enclave", special({ primary: "enclave" }), "Xanthe", NAMES)).toBe("Enclave");
   });
 });
 

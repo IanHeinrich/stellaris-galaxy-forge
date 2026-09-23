@@ -55,6 +55,7 @@ export const SPECIAL: SpecialSystems = {
       flags: [],
       countries: [],
       label: "Landmark",
+      label_is_generated_name: false,
     },
   ],
   counts: [{ kind: "landmark", count: 1, primary_count: 1 }],

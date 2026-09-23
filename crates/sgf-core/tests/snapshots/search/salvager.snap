@@ -1,0 +1,7 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+System #17 Ponnell · matched=salvager_enclave_init_01 → #17 at (-30.52, -300.86)
+System #57 Ter Meku Black Hole · matched=salvager_enclave_init_03 → #57 at (-154.95, 225.37)
+System #90 Soejiemia · matched=salvager_enclave_init_02 → #90 at (48.44, 253.08)

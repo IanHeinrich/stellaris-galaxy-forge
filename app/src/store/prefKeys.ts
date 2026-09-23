@@ -31,6 +31,7 @@ export const PREF_KEYS = {
   paintProfile: "sgf.paint.profile",
   paintNoticeDismissed: "sgf.paint.noticeDismissed",
   warnNotForPaint: "sgf.paint.warnNotForPaint",
+  watchlist: "sgf.search.watchlist",
   lgateRevealed: "sgf.lgate.revealed",
 } as const;
 

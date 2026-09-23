@@ -22,6 +22,7 @@ export const LAYER_IDS = [
   "day_one_bypasses",
   "special",
   "waylines",
+  "watchlist",
   "highlights",
 ] as const;
 export type LayerId = (typeof LAYER_IDS)[number];
@@ -66,6 +67,7 @@ export const LAYER_GROUPS: ReadonlyArray<{ label: string; layers: readonly Layer
       "bypasses",
       "waylines",
       "special",
+      "watchlist",
       "initializers",
       "spawns",
       "feZones",
@@ -105,6 +107,7 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   colonies: "Colonies",
   claims: "Day-one claims",
   day_one_bypasses: "Day-one bypasses",
+  watchlist: "Pinned searches",
   highlights: "Highlights",
 };
 
@@ -133,6 +136,7 @@ export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   colonies: true,
   claims: false,
   day_one_bypasses: false,
+  watchlist: true,
   highlights: true,
 };
 
@@ -158,6 +162,7 @@ const SAVE_LAYERS: Record<LayerId, boolean> = {
   colonies: false,
   claims: false,
   day_one_bypasses: false,
+  watchlist: true,
   highlights: true,
 };
 

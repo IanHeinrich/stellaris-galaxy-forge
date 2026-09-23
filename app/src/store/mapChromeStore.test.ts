@@ -80,6 +80,7 @@ describe("layers", () => {
       "labels",
       "details",
       "colonies",
+      "watchlist",
       "highlights",
     ]);
     expect(KIND_ORDER.filter((kind) => chrome().shownKinds.has(kind))).toEqual([
@@ -97,6 +98,7 @@ describe("layers", () => {
       "systems",
       "labels",
       "details",
+      "watchlist",
       "highlights",
     ]);
   });
