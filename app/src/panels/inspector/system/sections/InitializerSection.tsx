@@ -6,7 +6,8 @@ import { useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { browseInitializers, NEEDS_GAME_DATA } from "../../../initializers/entry";
 import { useApplySymmetricOp } from "../../../useApplyOp";
-import { Field, Section, SourceChip } from "../../parts";
+import { TextField } from "../../../EditField";
+import { Section, SourceChip } from "../../parts";
 import { useEditableSystem } from "../editable";
 import { kindHover } from "./kindHover";
 import { InitializerSpawn } from "./scenario/Initializer";
@@ -25,7 +26,7 @@ function InitializerEditor({ system }: { system: SystemNode }) {
   if (!ready) {
     return (
       <>
-        <Field
+        <TextField
           kind="text"
           className="ins-init-field"
           label="Initializer"

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { SystemDetail } from "../../../generated/SystemDetail";
 import type { SystemNode } from "../../../generated/SystemNode";
 import { nodeName } from "../../../lib/names";
@@ -7,10 +6,13 @@ import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useCountryName } from "../../../store/browserRows";
+import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { useInspectorStore } from "../../../store/inspectorStore";
 import { useOwnership } from "../../../store/ownership";
+import { EditBlock, EditRow, TextField } from "../../EditField";
 import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
-import { Chip, Field, Section, SourceChip, Swatch } from "../parts";
+import { Chip, DrillLink, Section, SourceChip, Swatch } from "../parts";
 import { useEditableSystem } from "./editable";
 import { kindHover } from "./sections/kindHover";
 import { StarClassPicker } from "./StarClassPicker";
@@ -29,7 +31,7 @@ function PositionSection({ system }: { system: SystemNode }) {
   return (
     <div className="ins-position">
       <span className="k">x</span>
-      <Field
+      <TextField
         kind="number"
         className="coord"
         label="x"
@@ -38,7 +40,7 @@ function PositionSection({ system }: { system: SystemNode }) {
         onCommit={(x) => move(x, system.y)}
       />
       <span className="k">y</span>
-      <Field
+      <TextField
         kind="number"
         className="coord"
         label="y"
@@ -65,13 +67,12 @@ function NameText({ system }: { system: SystemNode }) {
 }
 
 /**
- * The name at the head: a click turns it into the field that writes it, as the file states it,
- * a literal, or the key a plain system has none of. A document that cannot name a system shows text.
+ * The name at the head: a field that writes it as the file states it, a literal, or the key a
+ * plain system has none of. A document that cannot name a system shows text.
  */
 function HeadName({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
   const editable = useEditableSystem();
-  const [editing, setEditing] = useState(false);
   const unnamed = system.name.key === "";
   if (!editable) {
     return (
@@ -80,29 +81,33 @@ function HeadName({ system }: { system: SystemNode }) {
       </span>
     );
   }
-  if (editing) {
-    return (
-      <Field
-        kind="text"
-        className="ins-name-field"
-        label="System name"
-        value={system.name.key}
-        autoFocus
-        onDone={() => setEditing(false)}
-        onCommit={(name) => applyOp(renameSystemOp(system.id, name))}
-      />
-    );
-  }
   return (
-    <button
-      type="button"
-      className="name"
-      title={unnamed ? `${RANDOM_NAME_TITLE} Click to name it.` : RENAME_TITLE}
-      onClick={() => setEditing(true)}
+    <TextField
+      kind="text"
+      className="ins-name-field"
+      label="System name"
+      title={unnamed ? `${RANDOM_NAME_TITLE} Type to name it.` : RENAME_TITLE}
+      placeholder={RANDOM_NAME}
+      value={system.name.key}
+      display={unnamed ? undefined : nodeName(system.name)}
+      onCommit={(name) => applyOp(renameSystemOp(system.id, name))}
+    />
+  );
+}
+
+/** The owner at the head: a link to the empire's page where the document has empires. */
+function OwnerName({ id, label }: { id: number; label: string | null }) {
+  const open = useInspectorStore((s) => s.open);
+  const known = useGalaxyStore((s) => s.countries.has(id));
+  if (!known || label === null) return <span>{label}</span>;
+  return (
+    <DrillLink
+      requires="empires"
+      title={`Open ${label}'s page`}
+      onOpen={() => open({ ref: { kind: "country", id }, label })}
     >
-      <NameText system={system} />
-      <span className="ins-pencil">✎</span>
-    </button>
+      {label}
+    </DrillLink>
   );
 }
 
@@ -141,20 +146,21 @@ export function Header({ detail }: { detail: SystemDetail }) {
           No name. Stellaris picks a random one when the game starts.
         </div>
       )}
+      {!scenario && starClass !== "" && (
+        <EditBlock title="Edit">
+          <EditRow label="Star class">
+            <StarClassPicker system={system} planets={details?.planets} label={starClass} />
+          </EditRow>
+        </EditBlock>
+      )}
       <div className="ins-sub muted">
-        {starClass !== "" &&
-          (!scenario && details ? (
-            <StarClassPicker system={system} planets={details.planets} label={starClass} />
-          ) : (
-            starClass
-          ))}
-        {starClass !== "" && " · "}
+        {scenario && starClass !== "" && `${starClass} · `}
         {planets} planets · nebula: {detail.nebula ? nodeName(detail.nebula.name) : "none"}
       </div>
       {ownerId !== null && (
         <div className="ins-line">
           <Swatch owner={ownerId} />
-          <span>{owner}</span>
+          <OwnerName id={ownerId} label={owner} />
           {capital && <Chip>capital</Chip>}
           {scenarioOwner?.tier === "day_one" && (
             <Chip title={DAY_ONE_OWNER_TITLE}>

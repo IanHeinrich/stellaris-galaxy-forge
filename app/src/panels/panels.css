@@ -106,3 +106,137 @@
   margin-left: auto;
   padding-left: 8px;
 }
+
+/* The one editable-field style: an outlined, lightly tinted box whose affordance always shows. */
+.edit-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 22px;
+  padding: 0 6px;
+  font: inherit;
+  color: var(--fg);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+}
+
+.edit-field:hover:not(.disabled):not(:disabled),
+.edit-field:focus-within,
+.edit-field[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+
+.edit-field.disabled,
+.edit-field:disabled {
+  opacity: 0.55;
+  border-style: dashed;
+  cursor: default;
+}
+
+.edit-field-icon {
+  flex: none;
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.edit-text input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.edit-text input::placeholder {
+  font-style: italic;
+  color: var(--fg-muted);
+}
+
+.icon-picker-trigger.edit-field {
+  padding: 0 6px 0 4px;
+  color: var(--fg);
+  background: var(--accent-bg);
+  border-color: var(--accent-dim);
+}
+
+.icon-picker-trigger.edit-field:hover:not(:disabled),
+.icon-picker-trigger.edit-field[aria-expanded="true"] {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.icon-picker-trigger.edit-field .icon-picker-caret {
+  margin-left: 2px;
+  color: var(--accent);
+}
+
+.edit-toggle {
+  gap: 6px;
+  cursor: pointer;
+}
+
+.edit-toggle input {
+  margin: 0;
+}
+
+.edit-block {
+  margin: 6px 0 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.edit-block-title {
+  margin-bottom: 4px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
+
+.edit-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-items: center;
+}
+
+.edit-label {
+  color: var(--fg-muted);
+}
+
+.edit-cell {
+  min-width: 0;
+}
+
+.edit-grid > .edit-toggle,
+.edit-grid > .edit-note {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.edit-note {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--fg-muted);
+}
+
+.edit-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 10.5px;
+  color: var(--fg-muted);
+}
+
+.edit-key-sample {
+  min-height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+}

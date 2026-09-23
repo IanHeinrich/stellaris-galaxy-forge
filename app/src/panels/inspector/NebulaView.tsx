@@ -3,7 +3,8 @@ import { useEditorStore } from "../../store/editorStore";
 import { useSystemNames } from "../../store/browserRows";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { NEBULA_RADIUS_INPUT_ID, systemCount } from "./nebula";
-import { Empty, Field, Properties, PropertyRow, Swatch } from "./parts";
+import { TextField } from "../EditField";
+import { Empty, Properties, PropertyRow, Swatch } from "./parts";
 
 const NO_SYSTEMS: number[] = [];
 
@@ -31,7 +32,7 @@ export function NebulaView({ index }: { index: number }) {
       </div>
       <div className="ins-name">
         <span className="k">Name</span>
-        <Field
+        <TextField
           kind="text"
           className="ins-name-field"
           label="Nebula name"
@@ -49,7 +50,7 @@ export function NebulaView({ index }: { index: number }) {
       </Properties>
       <div className="ins-radius">
         <span className="k">Radius</span>
-        <Field
+        <TextField
           kind="number"
           id={NEBULA_RADIUS_INPUT_ID}
           className="coord"

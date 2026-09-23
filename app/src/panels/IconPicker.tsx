@@ -26,6 +26,7 @@ function Row({ item }: { item: IconPickerItem }) {
  * A button showing `current` that opens a list of `items` to pick from, each with its icon: what
  * a native `<select>` cannot draw. Arrows move, Enter picks, Esc or a press outside closes.
  * `onOpen` runs as the list opens, and `empty` stands in the list while it has no items.
+ * `triggerClassName` dresses the button, as the editable fields do.
  */
 export function IconPicker({
   label,
@@ -34,6 +35,7 @@ export function IconPicker({
   title,
   disabled,
   empty,
+  triggerClassName,
   onOpen,
   onPick,
 }: {
@@ -43,6 +45,7 @@ export function IconPicker({
   title?: string;
   disabled?: boolean;
   empty?: ReactNode;
+  triggerClassName?: string;
   onOpen?: () => void;
   onPick: (key: string) => void;
 }) {
@@ -107,7 +110,11 @@ export function IconPicker({
     <span className="icon-picker" ref={root}>
       <button
         type="button"
-        className="icon-picker-trigger"
+        className={
+          triggerClassName === undefined
+            ? "icon-picker-trigger"
+            : `icon-picker-trigger ${triggerClassName}`
+        }
         ref={trigger}
         aria-haspopup="listbox"
         aria-expanded={open}

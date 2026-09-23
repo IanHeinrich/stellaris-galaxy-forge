@@ -1,7 +1,4 @@
-import { useMemo, useState } from "react";
-import type { CountryNode } from "../../generated/CountryNode";
-import type { MapColor } from "../../generated/MapColor";
-import type { MapColorPair } from "../../generated/MapColorPair";
+import { useMemo } from "react";
 import type { ScenarioOwners } from "../../generated/ScenarioOwners";
 import type { Territory } from "../../generated/Territory";
 import { empireGroups, specialSystemOfCountry } from "../../lib/browserRows";
@@ -13,10 +10,9 @@ import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useInspectorStore } from "../../store/inspectorStore";
 import { useOwnership } from "../../store/ownership";
-import { IconPicker, type IconPickerItem } from "../IconPicker";
 import { Chip, SourceChip } from "../inspector/parts";
-import { useApplyOp } from "../useApplyOp";
 import { useCollapse } from "./collapse";
 import { Action, Emblem, Eye, Group, Row } from "./rows";
 
@@ -27,111 +23,19 @@ const DAY_ONE_TITLE =
 /** Why a territory's assumed marker means what it means, shown on hover. */
 const ASSUMED_TITLE = "A claim whose conditions this editor cannot judge is marked assumed.";
 
-/** Where `flag.colors` keeps the map border and fill in a 4.5 save: after the four flag colours. */
-const MAP_BORDER = 4;
-const MAP_FILL = 5;
-
-export const MAP_COLORS_NEED_4_5 = "Map colours need a Stellaris 4.5 save";
-
-/** A palette colour as a picker row: its map colour as a swatch, and its name. */
-function colorItem(name: string, palette: ReadonlyMap<string, MapColor>): IconPickerItem {
-  const color = palette.get(name);
-  if (color === undefined) return { key: name, label: `unknown: ${name}` };
-  return {
-    key: name,
-    label: name,
-    icon: <span className="swatch" style={{ background: color.map }} />,
-  };
-}
-
-/** Which palette the swatches come from, and what choosing from a mod's asks of the save. */
-function paletteLines(palette: ReadonlyMap<string, MapColor>, source: string | null): string[] {
-  if (palette.size === 0) return ["Load game data to pick from the game's palette."];
-  if (source === null) return ["Palette: Stellaris"];
-  return [`Palette: ${source}`, "The save needs this mod to show these colours."];
-}
-
-/** A save empire's edit strip: its map border and fill, or its flag colours in their place. */
-export function MapColorStrip({ country }: { country: CountryNode }) {
-  const applyOp = useApplyOp();
-  const palette = useGameDataStore((s) => s.mapColors);
-  const source = useGameDataStore((s) => s.mapColorSource);
-  const entries = country.flag_colors;
-  if (entries.length <= MAP_FILL) {
-    return (
-      <div className="browser-edit">
-        <div className="browser-edit-note">{MAP_COLORS_NEED_4_5}</div>
-      </div>
-    );
-  }
-  const border = entries[MAP_BORDER];
-  const fill = entries[MAP_FILL];
-  const on = country.use_map_color;
-  const set = (colors: MapColorPair | null) =>
-    applyOp({ type: "SetEmpireMapColors", country: country.id, colors });
-  const pick = (pair: MapColorPair) => {
-    if (!on || pair.border !== border || pair.fill !== fill) set(pair);
-  };
-  const items = [...palette.keys()].map((name) => colorItem(name, palette));
-  return (
-    <div className="browser-edit">
-      <div className="browser-edit-line">
-        <span className="browser-edit-label">Map colours</span>
-        <span className="browser-edit-field">
-          Border
-          <IconPicker
-            label="Border"
-            title="The colour of the empire's border on the map"
-            current={colorItem(border, palette)}
-            items={items}
-            onPick={(name) => pick({ border: name, fill })}
-          />
-        </span>
-        <span className="browser-edit-field">
-          Fill
-          <IconPicker
-            label="Fill"
-            title="The colour the empire's territory is filled with on the map"
-            current={colorItem(fill, palette)}
-            items={items}
-            onPick={(name) => pick({ border, fill: name })}
-          />
-        </span>
-      </div>
-      <label className="browser-edit-check">
-        <input
-          type="checkbox"
-          checked={!on}
-          onChange={(e) => set(e.currentTarget.checked ? null : { border, fill })}
-        />
-        Use flag colours instead
-      </label>
-      {paletteLines(palette, source).map((line) => (
-        <div key={line} className="browser-edit-note">
-          {line}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function EmpireLine({
   row,
   station,
   territory,
   ownership,
   editable,
-  editing,
-  onEdit,
 }: {
   row: EmpireRow;
   station: number | null;
   territory: Territory | undefined;
   ownership: Ownership;
-  /** Whether the row offers its edit strip: a save's empire. */
+  /** Whether the row opens the empire's page to edit it: a save's empire. */
   editable: boolean;
-  editing: boolean;
-  onEdit(): void;
 }) {
   const hidden = useGalaxyStore((s) => s.hiddenCountries.has(row.id));
   const toggleCountryHidden = useGalaxyStore((s) => s.toggleCountryHidden);
@@ -141,6 +45,7 @@ function EmpireLine({
   const setSelection = useEditorStore((s) => s.setSelection);
   const fitSelection = useEditorStore((s) => s.fitSelection);
   const panTo = useEditorStore((s) => s.panTo);
+  const openPage = useInspectorStore((s) => s.openPage);
   const color = toCss(
     ownership.table.get(row.id)?.colors.outline ??
       ownerColor(row.country ?? undefined, row.index, mapColors),
@@ -158,71 +63,74 @@ function EmpireLine({
             : "Go to the capital system";
   const country = editable ? row.country : null;
   return (
-    <>
-      <Row
-        lead={
-          <>
-            <Eye
-              on={!hidden}
-              label={hidden ? `Show ${row.name}` : `Hide ${row.name}`}
-              onToggle={() => toggleCountryHidden(row.id)}
-            />
-            <Emblem flagKey={empireFlagKey(row.country ?? undefined)} color={color} />
-            {territory?.tier === "day_one" && (
-              <Chip src title={DAY_ONE_TITLE}>
-                day 1
-              </Chip>
-            )}
-            {territory?.assumed && (
-              <Chip warn title={ASSUMED_TITLE}>
-                assumed
-              </Chip>
-            )}
-            {territory && (
-              <SourceChip
-                source={territory.tier === "day_one" ? "scripts" : "initializers"}
-                title={
-                  territory.tier === "day_one"
-                    ? "These systems are claimed on day one, by the events on_game_start fires."
-                    : "These systems are claimed at generation, by the initializers the file names."
-                }
-              />
-            )}
-          </>
-        }
-        name={row.name}
-        title={title}
-        subline={row.subline}
-        count={row.systemCount}
-        onName={
-          target === null
-            ? null
-            : () => {
-                const node = systems.get(target);
-                if (node) panTo(node.x, node.y);
+    <Row
+      lead={
+        <>
+          <Eye
+            on={!hidden}
+            label={hidden ? `Show ${row.name}` : `Hide ${row.name}`}
+            onToggle={() => toggleCountryHidden(row.id)}
+          />
+          <Emblem flagKey={empireFlagKey(row.country ?? undefined)} color={color} />
+          {territory?.tier === "day_one" && (
+            <Chip src title={DAY_ONE_TITLE}>
+              day 1
+            </Chip>
+          )}
+          {territory?.assumed && (
+            <Chip warn title={ASSUMED_TITLE}>
+              assumed
+            </Chip>
+          )}
+          {territory && (
+            <SourceChip
+              source={territory.tier === "day_one" ? "scripts" : "initializers"}
+              title={
+                territory.tier === "day_one"
+                  ? "These systems are claimed on day one, by the events on_game_start fires."
+                  : "These systems are claimed at generation, by the initializers the file names."
               }
-        }
-        actions={
-          <>
-            {country !== null && (
-              <Action glyph="✎" label={`Edit ${row.name}'s map colours`} onClick={onEdit} />
-            )}
-            {row.systemCount > 0 && (
-              <Action
-                glyph="⊙"
-                label={`Select and fit the ${row.systemCount} systems of ${row.name}`}
-                onClick={() =>
-                  void setSelection(systemsOf(ownership.owners, row.id), "replace").then(() =>
-                    fitSelection(),
-                  )
-                }
-              />
-            )}
-          </>
-        }
-      />
-      {editing && country !== null && <MapColorStrip country={country} />}
-    </>
+            />
+          )}
+        </>
+      }
+      name={row.name}
+      title={title}
+      subline={row.subline}
+      count={row.systemCount}
+      onName={
+        target === null
+          ? null
+          : () => {
+              const node = systems.get(target);
+              if (node) panTo(node.x, node.y);
+            }
+      }
+      actions={
+        <>
+          {country !== null && (
+            <Action
+              glyph="✎"
+              label={`Open ${row.name}'s page`}
+              onClick={() =>
+                openPage({ ref: { kind: "country", id: country.id }, label: row.name })
+              }
+            />
+          )}
+          {row.systemCount > 0 && (
+            <Action
+              glyph="⊙"
+              label={`Select and fit the ${row.systemCount} systems of ${row.name}`}
+              onClick={() =>
+                void setSelection(systemsOf(ownership.owners, row.id), "replace").then(() =>
+                  fitSelection(),
+                )
+              }
+            />
+          )}
+        </>
+      }
+    />
   );
 }
 
@@ -246,7 +154,6 @@ const TERRITORY_NEEDS_GAME_DATA =
 export function Empires() {
   const scenario = useFileSessionStore((s) => s.kind === "scenario");
   const save = useFileSessionStore((s) => s.kind === "save");
-  const [editing, setEditing] = useState<number | null>(null);
   const ready = useGameDataStore((s) => s.status === "ready");
   const countries = useGalaxyStore((s) => s.countries);
   const systems = useGalaxyStore((s) => s.systems);
@@ -287,8 +194,6 @@ export function Empires() {
               territory={territories.get(row.id)}
               ownership={ownership}
               editable={save}
-              editing={editing === row.id}
-              onEdit={() => setEditing(editing === row.id ? null : row.id)}
             />
           ))}
         </Group>

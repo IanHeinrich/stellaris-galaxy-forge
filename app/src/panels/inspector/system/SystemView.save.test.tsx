@@ -175,21 +175,25 @@ describe("the star class at the head", () => {
       ],
     });
 
-  it("opens a picker of the classes with as many stars on a save", async () => {
+  it("is a labelled field offering the classes with as many stars on a save", async () => {
     armStarClasses();
     await open("save");
     await land(stars());
 
     const html = overview();
+    expect(html).toContain('<span class="edit-label">Star class</span>');
+    expect(html).toContain('class="icon-picker-trigger edit-field"');
     expect(html).toContain('aria-haspopup="listbox"');
     expect(html).toContain('aria-label="Star class: X-ray Binary"');
+    // The planets and the nebula stay read-only information under the field.
+    expect(html).toMatch(/<div class="ins-sub muted">\d+ planets · nebula/);
   });
 
   it("waits while an edit has left the details stale", async () => {
     armStarClasses();
     await open("save");
     await land(stars());
-    const trigger = /class="icon-picker-trigger"[^>]*>/;
+    const trigger = /class="icon-picker-trigger edit-field"[^>]*>/;
     expect(overview().match(trigger)?.[0]).not.toContain("disabled");
 
     useDetailsStore.getState().invalidate([SYSTEM]);
@@ -198,20 +202,32 @@ describe("the star class at the head", () => {
     expect(html).toContain("Reading the system&#x27;s stars…");
   });
 
-  it("stays text on a save whose details have not landed", async () => {
+  it("waits, disabled, on a save whose details have not landed", async () => {
     armStarClasses();
     await open("save");
 
-    expect(overview()).not.toContain('aria-haspopup="listbox"');
+    const html = overview();
+    expect(html).toMatch(/class="icon-picker-trigger edit-field"[^>]*disabled/);
+    expect(html).toContain("Reading the system&#x27;s stars…");
   });
 
-  it("stays text on a scenario", async () => {
+  it("says why it is disabled without game data", async () => {
+    await open("save");
+    await land(stars());
+
+    const html = overview();
+    expect(html).toMatch(/class="icon-picker-trigger edit-field"[^>]*disabled/);
+    expect(html).toContain("Load game data to change the star class");
+  });
+
+  it("stays plain text on a scenario", async () => {
     armStarClasses();
     await open("scenario");
     await land(stars());
 
     const html = overview();
-    expect(html).toContain("X-ray Binary");
+    expect(html).toContain("X-ray Binary · ");
+    expect(html).not.toContain("Star class");
     expect(html).not.toContain('aria-haspopup="listbox"');
   });
 });

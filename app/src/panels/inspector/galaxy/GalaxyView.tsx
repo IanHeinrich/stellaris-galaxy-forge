@@ -34,7 +34,8 @@ import {
   removeHeaderField,
   setHeaderField,
 } from "./header";
-import { Empty, Field, Properties, PropertyRow, Section } from "../parts";
+import { TextField } from "../../EditField";
+import { Empty, Properties, PropertyRow, Section } from "../parts";
 import "./galaxy.css";
 
 /** One header statement as the file writes it: its key, its raw text, and the way to drop it. */
@@ -43,7 +44,7 @@ function HeaderRow({ field }: { field: HeaderField }) {
   return (
     <div className="ins-header-row">
       <span className="k mono">{field.key}</span>
-      <Field
+      <TextField
         kind="text"
         className="mono"
         label={`${field.key} value`}

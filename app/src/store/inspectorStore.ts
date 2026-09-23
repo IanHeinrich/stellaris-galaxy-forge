@@ -145,6 +145,11 @@ export interface InspectorState {
   setRoot(entry: Entry): void;
   /** Drills into a child of the entity on top of the stack. */
   open(entry: Entry): void;
+  /**
+   * Opens an entity's page from outside the inspector: on its Overview, straight above the map's
+   * root, with the dock turned to the inspector.
+   */
+  openPage(entry: Entry): void;
   back(): void;
   /**
    * What Esc does first: pops one crumb, and says so. With nothing to pop, or with the dock
@@ -201,6 +206,13 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     const top = stack[stack.length - 1];
     if (refKey(top.ref) === refKey(entry.ref)) return;
     set({ stack: [...stack, entry], tab: tabFor(entry.ref, tab) });
+  },
+
+  openPage(entry) {
+    const root = get().stack[0];
+    const stack = refKey(root.ref) === refKey(entry.ref) ? [root] : [root, entry];
+    set({ stack, tab: tabsFor(entry.ref)[0] });
+    useLayoutStore.getState().showInspector();
   },
 
   back() {

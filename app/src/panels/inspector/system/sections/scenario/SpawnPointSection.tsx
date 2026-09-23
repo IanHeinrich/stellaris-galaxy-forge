@@ -5,7 +5,8 @@ import { isSpawnWeight } from "../../../../../lib/spawn";
 import { useEditorStore } from "../../../../../store/editorStore";
 import { usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useApplySymmetricOp } from "../../../../useApplyOp";
-import { Chip, Field, Section } from "../../../parts";
+import { TextField } from "../../../../EditField";
+import { Chip, Section } from "../../../parts";
 import { useEditableSystem } from "../../editable";
 import { ScriptedSeat } from "./ScriptedSeat";
 import {
@@ -59,7 +60,7 @@ function SpawnPoint({ system }: { system: SystemNode }) {
         {!scripted && weight !== null && (
           <>
             <span className="k">weight</span>
-            <Field
+            <TextField
               kind="number"
               className="coord"
               label="Spawn weight"
