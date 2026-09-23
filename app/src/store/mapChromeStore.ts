@@ -272,7 +272,7 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
       hiddenInitializers: new Set<string>(),
     });
     rememberKinds(shownKinds);
-    rememberLayers(layers);
+    writePref(PREF_KEYS.layers, {});
   },
 
   toggleGroup(source) {

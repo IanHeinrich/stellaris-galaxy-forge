@@ -395,12 +395,13 @@ the game derives a wayline between two stations of one network joined by
 a lane or a bypass, and the map draws it as a dashed band along that lane
 with each station badged by its level.
 
-A save opens with hyperlanes, systems, names, system details, empires and
-nebulae on and everything else off. A scenario opens with everything on
+A save opens with hyperlanes, systems, star classes, names, system
+details, colonies, empires and nebulae on and everything else off. A scenario opens with everything on
 except nebulae, waylines, issue highlights and the day-one claims and
 day-one bypasses that the scripts add. A layer you switch on yourself
-stays on the next time you open a document, and "Reset to defaults" puts
-back the set for the kind of document that is open. A scenario splits both the bar and the menu into
+stays on the next time you open a document. "Reset to defaults" puts
+back the set for the kind of document that is open, and forgets the
+layers you switched yourself. A scenario splits both the bar and the menu into
 what the file itself says, what its initializers place and what the
 day-one scripts add, with an "all" button over each of the last two: `0`
 switches the initializer layers, `` ` `` the script ones.
