@@ -1,5 +1,6 @@
 import type { UpdateProgress } from "../../generated/UpdateProgress";
 import type { UpdateView } from "../../generated/UpdateView";
+import { parseReleaseNotes, type NoteSpan } from "../../lib/releaseNotes";
 import { useUpdateStore, type UpdateStatus } from "../../store/updateStore";
 import { formatSize, formatWhen } from "../file/launchData";
 import { Dialog } from "./Dialog";
@@ -31,6 +32,44 @@ function downloadLabel(progress: UpdateProgress | null): string {
   const got = formatSize(progress.downloaded);
   if (progress.total === null) return `Downloading… ${got}`;
   return `Downloading… ${got} of ${formatSize(progress.total)}`;
+}
+
+function Spans({ spans }: { spans: NoteSpan[] }) {
+  return spans.map((span, i) =>
+    span.kind === "code" ? (
+      <code key={i}>{span.text}</code>
+    ) : span.kind === "strong" ? (
+      <strong key={i}>{span.text}</strong>
+    ) : (
+      span.text
+    ),
+  );
+}
+
+function ReleaseNotes({ notes }: { notes: string }) {
+  return (
+    <div className="update-notes">
+      {parseReleaseNotes(notes).map((block, i) =>
+        block.kind === "heading" ? (
+          <h2 key={i}>
+            <Spans spans={block.spans} />
+          </h2>
+        ) : block.kind === "list" ? (
+          <ul key={i}>
+            {block.items.map((item, j) => (
+              <li key={j}>
+                <Spans spans={item} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p key={i}>
+            <Spans spans={block.spans} />
+          </p>
+        ),
+      )}
+    </div>
+  );
 }
 
 function DownloadState({ progress }: { progress: UpdateProgress | null }) {
@@ -106,7 +145,7 @@ export function UpdateBody({
         You are running {version ?? "an unknown version"}
         {update.date !== null && ` · published ${published(update.date)}`}
       </p>
-      {update.notes !== "" && <div className="update-notes">{update.notes}</div>}
+      {update.notes !== "" && <ReleaseNotes notes={update.notes} />}
       {update.install === "manual" && (
         <p>This copy is replaced by hand: download the new version from the releases page.</p>
       )}

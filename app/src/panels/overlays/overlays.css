@@ -137,17 +137,37 @@
   margin: 0;
 }
 
-/* The release notes as the changelog wrote them: no renderer, so the text keeps its own breaks. */
 .update-notes {
   max-height: 220px;
   padding: 8px 10px;
   overflow-y: auto;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 12px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
+}
+
+.update-notes h2 {
+  font-size: 12px;
+  margin: 10px 0 4px;
+}
+
+.update-notes h2:first-child {
+  margin-top: 0;
+}
+
+.update-notes ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.update-notes li + li {
+  margin-top: 3px;
+}
+
+.update-notes p + p {
+  margin-top: 6px;
 }
 
 .update-download {
