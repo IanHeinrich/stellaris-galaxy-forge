@@ -14,6 +14,8 @@ a release is made.
 - While the search field holds a query, every matching system is ringed on the map.
 - A watchlist keeps searches you pin, such as "salvager" or "alpha refuge", and rings their systems in a colour of their own on every save you open. Ctrl+Enter in the search field pins a search. The watchlist has its own dock tab and map layer.
 
+## [0.10.1] - 2026-09-23
+
 ### Changed
 
 - Alt on the Erase brush with "Lanes only" connects lanes instead of painting systems.

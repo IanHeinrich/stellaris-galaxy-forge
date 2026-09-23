@@ -28,7 +28,7 @@ const GHOST = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
 /** Systems using the initializer the browser is highlighting: muted, distinct from selection and hover. */
 const MATCHED = { color: 0x7dd3fc, radius: 13, width: 2, alpha: 0.6 };
 /** Systems the search palette's query locates, while it holds one. */
-const SEARCHED = { color: 0xf472b6, radius: 14, width: 2, alpha: 0.8 };
+const SEARCHED = { color: 0xf472b6, radius: 17, width: 2.5, alpha: 1 };
 const TARGET_VALID = { color: ALLOWED_COLOR, radius: 13, width: 2, alpha: 0.9 };
 /** Systems a nebula drag would take in, and those it would let go. */
 const JOINING = { color: ALLOWED_COLOR, radius: 15, width: 2, alpha: 0.85 };
