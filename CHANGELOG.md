@@ -8,6 +8,8 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-09-23
+
 ### Changed
 
 - Alt on the Erase brush with "Lanes only" connects lanes instead of painting systems.
