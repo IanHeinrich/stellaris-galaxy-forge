@@ -13,6 +13,7 @@ import { OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 import { laneCount, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
+import { useLGateStore } from "./lgateStore";
 import { usePaintModStore } from "./paintModStore";
 import { useRecentsStore } from "./recentsStore";
 import { edit, listen, mocked, resetSession, session } from "./sessionFixture";
@@ -100,6 +101,15 @@ describe("openSave", () => {
     const state = session();
     expect(state.error).toBe("no such file");
     expect(state.errorKind).toBe("not_found");
+  });
+
+  it("every save opens with the L-Gate outcome hidden, whatever the one before showed", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    useLGateStore.getState().reveal();
+
+    await session().openSave(OPEN_RESULT.path);
+
+    expect(useLGateStore.getState().revealed).toBe(false);
   });
 
   it("an open forgets the selection and the history of the file before it", async () => {

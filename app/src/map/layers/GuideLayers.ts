@@ -186,7 +186,7 @@ export class MapBorderLayer extends GuideLayer {
  * Where the game builds the L-Cluster: the fixed circle it spawns into for every galaxy size,
  * or, on a save that already has one, the circle about the systems marked as the cluster. When
  * the document has an L-Gate outcome, a link just inside the circle's top reveals or hides it,
- * in step with the global preference `useLGateStore` holds; a click never reaches the map.
+ * in step with the reveal `useLGateStore` holds; a click never reaches the map.
  */
 export class LClusterLayer extends GuideLayer {
   readonly id = "lCluster" as const;
