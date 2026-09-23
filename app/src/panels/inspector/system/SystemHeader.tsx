@@ -10,12 +10,13 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { useOwnership } from "../../../store/ownership";
-import { EditBlock, EditRow, TextField } from "../../EditField";
+import { TextField } from "../../EditField";
 import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
 import { Chip, DrillLink, Section, SourceChip, Swatch } from "../parts";
 import { useEditableSystem } from "./editable";
 import { kindHover } from "./sections/kindHover";
-import { StarClassPicker, StarMismatchNote } from "./StarClassPicker";
+import { StarMismatchNote } from "./StarClassLine";
+import { useStarClassLabel } from "./useStarNames";
 import { renameSystemOp } from "./systemName";
 
 /** Why the owner line's day-one chip means what it means, shown on hover. */
@@ -131,6 +132,8 @@ export function Header({ detail }: { detail: SystemDetail }) {
   const capital = details?.planets.some((p) => p.capital && p.owner === system.owner) ?? false;
   const planets = details?.planets.length ?? system.planet_count;
   const starClass = names.get(system.star_class) ?? system.star_class;
+  const multiple = useStarClassLabel(system, starClass);
+  const starLabel = scenario ? starClass : multiple;
   const kinds = special?.kinds ?? [];
   return (
     <>
@@ -146,18 +149,13 @@ export function Header({ detail }: { detail: SystemDetail }) {
           No name. Stellaris picks a random one when the game starts.
         </div>
       )}
-      {!scenario && starClass !== "" && (
-        <EditBlock title="Edit">
-          <EditRow label="Star class">
-            <StarClassPicker system={system} planets={details?.planets} label={starClass} />
-          </EditRow>
-          <StarMismatchNote system={system} planets={details?.planets} />
-        </EditBlock>
-      )}
       <div className="ins-sub muted">
-        {scenario && starClass !== "" && `${starClass} · `}
+        {starLabel !== "" && `${starLabel} · `}
         {planets} planets · nebula: {detail.nebula ? nodeName(detail.nebula.name) : "none"}
       </div>
+      {!scenario && starLabel !== "" && (
+        <StarMismatchNote system={system} planets={details?.planets} label={starLabel} />
+      )}
       {ownerId !== null && (
         <div className="ins-line">
           <Swatch owner={ownerId} />

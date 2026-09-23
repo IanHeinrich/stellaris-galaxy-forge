@@ -23,7 +23,7 @@ import type { IconPickerItem } from "../../IconPicker";
 import { useApplyOp } from "../../useApplyOp";
 import { LinkRow, Properties, PropertyRow } from "../parts";
 import { StarRowIcon, StarTriggerIcon } from "../StarIcon";
-import { READING_STARS } from "../system/StarClassPicker";
+import { READING_STARS } from "../system/StarClassLine";
 import { EntityView } from "./EntityView";
 import "./entity.css";
 
@@ -86,11 +86,13 @@ function StarTypeField({ planet, system }: { planet: PlanetSummary; system: Syst
   return (
     <PickerField
       label="Star type"
-      title="Change this star's type. The system's star class stays as it is."
+      title="Change this star's type. The system's star class follows when a class has these stars."
       disabledReason={reason}
       current={current}
       items={items}
-      onPick={(key) => applyOp(setStarTypeOp(system, planet.id, key))}
+      onPick={(key) => {
+        if (fresh) applyOp(setStarTypeOp(system, fresh, planet.id, key, starClasses));
+      }}
     />
   );
 }

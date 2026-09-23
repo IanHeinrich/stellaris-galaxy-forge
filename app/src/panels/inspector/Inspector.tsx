@@ -26,10 +26,22 @@ function Breadcrumb() {
   const stack = useInspectorStore((s) => s.stack);
   const popTo = useInspectorStore((s) => s.popTo);
   const home = useInspectorStore((s) => s.home);
+  const back = useInspectorStore((s) => s.back);
   const select = useEditorStore((s) => s.select);
   if (stack.length === 1 && stack[0].ref.kind === "galaxy") return null;
   return (
     <div className="ins-crumbs">
+      {stack.length > 1 && (
+        <button
+          type="button"
+          className="ins-back"
+          aria-label="Back"
+          title="Back (Alt+←)"
+          onClick={() => back()}
+        >
+          ‹
+        </button>
+      )}
       <button type="button" className="link" onClick={() => home() || void select(null)}>
         Galaxy
       </button>

@@ -13,7 +13,7 @@ import { useDetailsStore } from "../../../store/detailsStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
 import { details, land, open, planet, resetStores, SYSTEM } from "../inspectorFixture";
-import { READING_STARS } from "../system/StarClassPicker";
+import { READING_STARS } from "../system/StarClassLine";
 import { NEEDS_GAME_DATA, PlanetView } from "./PlanetView";
 
 bindStores();

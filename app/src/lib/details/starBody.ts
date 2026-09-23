@@ -78,16 +78,38 @@ export function singleStarClasses(
   return singles;
 }
 
-/** The edit that turns one star body into `planetClass`, leaving the system's star class alone. */
+/**
+ * The class whose stars are exactly `bodies`, in any order: `current` when it fits, else one a new
+ * galaxy rolls, else any; `null` when no class has them.
+ */
+export function classForBodies(
+  bodies: readonly string[],
+  current: string,
+  starClasses: ReadonlyMap<string, StarClassView>,
+): string | null {
+  const sorted = (keys: readonly string[]) => [...keys].sort().join("|");
+  const want = sorted(bodies);
+  const fits = [...starClasses.values()].filter((c) => sorted(c.planet_keys) === want);
+  const pick = fits.find((c) => c.key === current) ?? fits.find((c) => c.spawn_odds > 0) ?? fits[0];
+  return pick?.key ?? null;
+}
+
+/**
+ * The edit that turns star body `body` into `planetClass`. The system's star class, which draws
+ * its map icon and applies its modifier, follows when some class has the stars it leaves.
+ */
 export function setStarTypeOp(
   system: { id: number; star_class: string },
+  bodies: readonly { id: number; class: string }[],
   body: number,
   planetClass: string,
+  starClasses: ReadonlyMap<string, StarClassView>,
 ): Op {
+  const next = bodies.map((b) => (b.id === body ? planetClass : b.class));
   return {
     type: "SetStarClass",
     id: system.id,
-    class: system.star_class,
+    class: classForBodies(next, system.star_class, starClasses) ?? system.star_class,
     bodies: [{ planet: body, class: planetClass }],
   };
 }

@@ -45,6 +45,23 @@
   margin-bottom: 2px;
 }
 
+.ins-crumbs .ins-back {
+  margin-right: 4px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--fg);
+  background: none;
+  border: 1px solid var(--ins-rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.ins-crumbs .ins-back:hover {
+  background: var(--bg-elevated);
+}
+
 .ins-crumbs .sep {
   margin: 0 2px;
 }

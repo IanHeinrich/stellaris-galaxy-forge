@@ -11,7 +11,6 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 import type { StarbaseSummary } from "../../../generated/StarbaseSummary";
 import { kindTitle } from "../../../lib/special";
 import { bindStores } from "../../../store/bindStores";
-import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
@@ -178,58 +177,27 @@ describe("the star class at the head", () => {
       ],
     });
 
-  it("is a labelled field offering the classes with as many stars on a save", async () => {
+  it("names a multiple star by its class's bodies, as plain text on a save", async () => {
     armStarClasses();
     await open("save");
     await land(stars());
 
     const html = overview();
-    expect(html).toContain('<span class="edit-label">Star class</span>');
-    expect(html).toContain('class="icon-picker-trigger edit-field"');
-    expect(html).toContain('aria-haspopup="listbox"');
-    // A multiple star is named by its bodies; the fixture has no names for them.
-    expect(html).toContain('aria-label="Star class: pc_a_star + pc_pulsar"');
-    // The planets and the nebula stay read-only information under the field.
-    expect(html).toMatch(/<div class="ins-sub muted">\d+ planets · nebula/);
+    // The fixture has no names for the bodies.
+    expect(html).toMatch(
+      /<div class="ins-sub muted">pc_a_star \+ pc_pulsar · \d+ planets · nebula/,
+    );
+    expect(html).not.toContain("Star class");
+    expect(html).not.toContain('aria-haspopup="listbox"');
   });
 
-  it("waits while an edit has left the details stale", async () => {
-    armStarClasses();
-    await open("save");
-    await land(stars());
-    const trigger = /class="icon-picker-trigger edit-field"[^>]*>/;
-    expect(overview().match(trigger)?.[0]).not.toContain("disabled");
-
-    useDetailsStore.getState().invalidate([SYSTEM]);
-    const html = overview();
-    expect(html.match(trigger)?.[0]).toContain("disabled");
-    expect(html).toContain("Reading the system&#x27;s stars…");
-  });
-
-  it("waits, disabled, on a save whose details have not landed", async () => {
-    armStarClasses();
-    await open("save");
-
-    const html = overview();
-    expect(html).toMatch(/class="icon-picker-trigger edit-field"[^>]*disabled/);
-    expect(html).toContain("Reading the system&#x27;s stars…");
-  });
-
-  it("says why it is disabled without game data", async () => {
-    await open("save");
-    await land(stars());
-
-    const html = overview();
-    expect(html).toMatch(/class="icon-picker-trigger edit-field"[^>]*disabled/);
-    expect(html).toContain("Load game data to change the star class");
-  });
-
-  it("notes stars that do not match the class, by their names", async () => {
+  it("notes stars no class has, by their names, and what the game treats the system as", async () => {
     armStarClasses();
     useGameDataStore.setState({
       names: new Map([
         ["pc_a_star", "Class A Star"],
         ["pc_g_star", "Class G Star"],
+        ["pc_pulsar", "Pulsar"],
       ]),
     });
     await open("save");
@@ -243,7 +211,7 @@ describe("the star class at the head", () => {
     );
 
     expect(overview()).toContain(
-      '<div class="edit-note">The stars don&#x27;t match this class: Class A Star + Class G Star</div>',
+      "No star class has these stars (Class A Star + Class G Star). The map and the game treat the system as Class A Star + Pulsar.",
     );
   });
 
@@ -259,7 +227,15 @@ describe("the star class at the head", () => {
       }),
     );
 
-    expect(overview()).not.toContain("match this class");
+    expect(overview()).not.toContain("No star class has these stars");
+  });
+
+  it("marks each star in the planet list as a page with fields to edit", async () => {
+    armStarClasses();
+    await open("save");
+    await land(stars());
+
+    expect(overview().match(/class="ins-edit-chip"/g)).toHaveLength(2);
   });
 
   it("stays plain text on a scenario", async () => {
@@ -271,6 +247,7 @@ describe("the star class at the head", () => {
     expect(html).toContain("X-ray Binary · ");
     expect(html).not.toContain("Star class");
     expect(html).not.toContain('aria-haspopup="listbox"');
+    expect(html).not.toContain("ins-edit-chip");
   });
 });
 
