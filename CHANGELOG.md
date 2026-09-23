@@ -8,24 +8,30 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-23
+
 ### Added
 
-- Search finds systems by what is in them as well as by name: "salvager", "gaia", "l-gate" or "leviathan" all work. It matches a system's initializer, its flags, its planet classes and its gateways and wormholes. Leviathans, enclaves and the other special kinds match only with game data loaded.
-- While the search field holds a query, every matching system is ringed on the map.
-- The Galaxy panel can reveal the L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance or an empty cluster. It stays hidden until you click Reveal, in the panel or inside the L-Cluster circle on the map. Once revealed, a dropdown changes the outcome until a gate opens. The panel warns when an enabled mod also changes the outcome.
-- You can pin a search, such as "salvager" or "alpha refuge", with the Pin button in the search field or with Ctrl+Enter. Pinned searches ring their systems in their own colour on every save you open. They are listed when you open search and in the Pinned tab.
-- Save asks before replacing a file that changed on disk after you opened it, for example because Stellaris saved over it. Overwrite keeps the newer file as the backup; Save As and Cancel leave it alone.
+- Search finds systems by what is in them, such as "salvager", "gaia",
+  "l-gate" or "leviathan". Every match is ringed on the map.
+- Pinned searches. Pin a search and its systems are ringed in their own
+  colour on every save you open.
+- The Galaxy panel can reveal which L-Gate outcome the save rolled, and
+  change it until a gate opens. It stays hidden until you click Reveal.
+- Save asks before replacing a file that changed on disk since you
+  opened it, for example after Stellaris autosaved over it.
 
 ### Changed
 
-- Preventing lanes in a scenario happens on the map. Right-click a lane for "Cut and prevent". Right-click a system with others selected to prevent or allow lanes to all of them. Right-click a prevented pair's dashed line to allow it again. The system ID field in the Inspector is gone.
-- Preventing and allowing lanes follow the symmetry mode.
-- A save is flushed to disk before it replaces the old file, so a crash or power cut mid-save can't leave a half-written file under the save's name.
-- The app sets a content security policy.
+- Preventing lanes in a scenario is done from the map's right-click
+  menus instead of the Inspector. It follows the symmetry mode.
+- A crash or power cut during a save can no longer leave a half-written
+  file behind.
 
 ### Fixed
 
-- Salvager Enclaves are labelled as such on the map instead of just "Enclave".
+- Salvager Enclaves are labelled as such on the map instead of just
+  "Enclave".
 
 ## [0.10.1] - 2026-09-23
 
