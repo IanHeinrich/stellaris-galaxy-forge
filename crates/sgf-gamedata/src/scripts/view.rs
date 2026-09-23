@@ -342,3 +342,27 @@ impl SystemScripts {
         }
     }
 }
+
+/// What a mod's file does to the L-Cluster outcome `distar.8000` rolls.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "type", content = "flag", rename_all = "snake_case")]
+pub enum LGateTouchKind {
+    /// Defines `distar.8000`, the day-one roll.
+    OverridesRoll,
+    /// Defines `distar.10950`, which reads the outcome when a gate opens.
+    OverridesGateOpening,
+    SetsFlag(String),
+    RemovesFlag(String),
+    ReadsFlag(String),
+}
+
+/// One file of a loaded mod that could change the L-Cluster outcome.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct LGateModTouch {
+    pub mod_name: String,
+    /// Relative to the mod's root: `events/distant_stars_events_3.txt`.
+    pub file: String,
+    pub what: LGateTouchKind,
+}
