@@ -8,6 +8,7 @@
 mod bypasses;
 mod countries;
 mod header;
+mod lgate;
 mod nebulae;
 mod spawn;
 mod systems;
@@ -25,6 +26,7 @@ use crate::views::DocumentKind;
 
 pub use bypasses::BypassLink;
 pub use countries::{CountryNode, FlagRef};
+pub use lgate::{LGate, LGateOutcome};
 pub use nebulae::Nebula;
 pub(crate) use nebulae::nearest_prospective;
 pub use spawn::{PaintSpawnKind, SpawnModifier, SpawnScript};
@@ -99,6 +101,9 @@ pub struct Galaxy {
     /// The `country` of the first `player` entry; `None` for a scenario or a save with
     /// none.
     pub player_country: Option<u32>,
+    /// What day-one's L-Cluster roll landed on; `None` when the galaxy has no L-Gate, or
+    /// for a scenario.
+    pub lgate: Option<LGate>,
 }
 
 /// The setup screen a save was started with, as its top-level `galaxy` block still holds

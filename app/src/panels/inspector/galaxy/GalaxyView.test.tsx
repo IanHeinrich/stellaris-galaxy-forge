@@ -15,6 +15,7 @@ import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
+import { useLGateStore } from "../../../store/lgateStore";
 import {
   editResult,
   OPEN_RESULT,
@@ -71,6 +72,7 @@ beforeEach(() => {
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
   useInspectorStore.setState({ ...useInspectorStore.getInitialState() });
   useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
+  useLGateStore.setState({ revealed: false });
   mocked.onProgress.mockResolvedValue(() => undefined);
   mocked.openSave.mockResolvedValue(OPEN_RESULT);
   mocked.openAsScenario.mockResolvedValue({
@@ -393,5 +395,45 @@ describe("the shapes row", () => {
       key: "supports_shape",
       values: ["elliptical"],
     });
+  });
+});
+
+describe("the L-Gate outcome", () => {
+  it("stays hidden behind Reveal until it is clicked, then names the outcome until hidden", async () => {
+    mocked.openSave.mockResolvedValueOnce({
+      ...OPEN_RESULT,
+      galaxy: { ...OPEN_RESULT.galaxy, lgate: { outcome: "gray_tempest", opened: false } },
+    });
+    await open("save");
+
+    let html = galaxy();
+    expect(html).toContain(">L-Gate outcome</span>");
+    expect(html).toContain(">Reveal</button>");
+    expect(html).not.toContain("Gray Tempest");
+
+    useLGateStore.getState().reveal();
+    html = galaxy();
+    expect(html).not.toContain(">Reveal</button>");
+    expect(html).toContain(">Gray Tempest</span>");
+    expect(html).toContain(">Hide</button>");
+
+    useLGateStore.getState().hide();
+    expect(galaxy()).not.toContain("Gray Tempest");
+  });
+
+  it("adds the opened note once a gate has been used", async () => {
+    mocked.openSave.mockResolvedValueOnce({
+      ...OPEN_RESULT,
+      galaxy: { ...OPEN_RESULT.galaxy, lgate: { outcome: "empty", opened: true } },
+    });
+    await open("save");
+    useLGateStore.getState().reveal();
+
+    expect(galaxy()).toContain(">Empty cluster, opened</span>");
+  });
+
+  it("says nothing when the galaxy has no L-Gate", async () => {
+    await open("save");
+    expect(galaxy()).not.toContain("L-Gate outcome");
   });
 });

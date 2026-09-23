@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
+import { lgateOutcomeLine } from "../../../lib/lgate";
 import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
 import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
@@ -9,6 +10,7 @@ import { useGalaxyVersion } from "../../../store/browserRows";
 import { galaxyIslandCount, galaxyLaneCount, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useIssuesStore } from "../../../store/issuesStore";
+import { useLGateStore } from "../../../store/lgateStore";
 import { useApplyOp } from "../../useApplyOp";
 import { GameSetupSection } from "./GameSetupSection";
 import { handledKeys } from "./gameSetup";
@@ -157,6 +159,9 @@ export function GalaxyView() {
   const nebulae = useGalaxyStore((s) => s.nebulae);
   const placed = useGameDataStore((s) => s.scenarioBypasses);
   const paint = usePaintLayer();
+  const lgateRevealed = useLGateStore((s) => s.revealed);
+  const revealLGate = useLGateStore((s) => s.reveal);
+  const hideLGate = useLGateStore((s) => s.hide);
   useGalaxyVersion();
 
   const scenario = kind === "scenario";
@@ -186,6 +191,22 @@ export function GalaxyView() {
           <PropertyRow label="Empires">{countries.size}</PropertyRow>
           <PropertyRow label="Nebulae">{nebulae.length}</PropertyRow>
           <PropertyRow label="Bypasses">{bypasses}</PropertyRow>
+          {kind === "save" && galaxy.lgate !== null && (
+            <PropertyRow label="L-Gate outcome">
+              {lgateRevealed ? (
+                <>
+                  <span>{lgateOutcomeLine(galaxy.lgate)}</span>{" "}
+                  <button type="button" className="link" onClick={() => hideLGate()}>
+                    Hide
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="link" onClick={() => revealLGate()}>
+                  Reveal
+                </button>
+              )}
+            </PropertyRow>
+          )}
           <PropertyRow label="Components">
             {components}
             {components > 1 && (

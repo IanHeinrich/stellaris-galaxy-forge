@@ -9,6 +9,7 @@
 
 mod bypasses;
 mod countries;
+mod lgate;
 mod nebulae;
 pub(super) mod starbases;
 mod systems;
@@ -62,6 +63,7 @@ impl Galaxy {
         let ids: Vec<u32> = systems.keys().copied().collect();
 
         let bypasses = bypasses::extract(index, src, &systems)?;
+        let lgate = lgate::extract(index, src, &bypasses)?;
         let galaxy_radius = index
             .section(keys::GALAXY_RADIUS)
             .map(|s| scalar_f64(s, src))
@@ -100,6 +102,7 @@ impl Galaxy {
             kind: DocumentKind::Save,
             setup,
             player_country,
+            lgate,
         };
         galaxy.assign_nebulae();
         galaxy.refresh_stale(&ids);
