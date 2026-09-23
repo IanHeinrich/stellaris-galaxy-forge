@@ -128,5 +128,7 @@
 }
 
 .search.wide {
+  flex: 0 1 auto;
   width: min(360px, 28vw);
+  min-width: 160px;
 }

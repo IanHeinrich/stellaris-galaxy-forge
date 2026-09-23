@@ -139,12 +139,14 @@ button.master.init[aria-pressed="true"] {
 .menu {
   position: relative;
   display: flex;
+  flex: none;
   align-items: center;
 }
 
 .menu-label {
   height: 34px;
   padding: 0 8px;
+  white-space: nowrap;
   background: none;
   border-color: transparent;
 }
