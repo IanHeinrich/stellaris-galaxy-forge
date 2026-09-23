@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use sgf_core::ops::StarBody;
 use sgf_gamedata::LoadOptions;
 
 #[derive(Parser)]
@@ -162,6 +163,17 @@ pub enum Command {
     Isolate {
         sav: PathBuf,
         id: u32,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Set a save system's star class and the planet class of each star body named.
+    Star {
+        sav: PathBuf,
+        id: u32,
+        class: String,
+        /// A star body and its new planet class, as `<planet>=<class>`; repeat per body.
+        #[arg(long = "body", value_parser = parse_star_body, required = true)]
+        bodies: Vec<StarBody>,
         #[command(flatten)]
         out: OutArg,
     },
@@ -347,4 +359,18 @@ pub enum LaneCommand {
         #[command(flatten)]
         out: OutArg,
     },
+}
+
+/// `<planet>=<class>`, one `--body` of the `star` command.
+fn parse_star_body(text: &str) -> Result<StarBody, String> {
+    let (planet, class) = text
+        .split_once('=')
+        .ok_or_else(|| format!("{text} is not <planet>=<class>"))?;
+    let planet = planet
+        .parse()
+        .map_err(|_| format!("{planet} is not a planet id"))?;
+    Ok(StarBody {
+        planet,
+        class: class.to_owned(),
+    })
 }
