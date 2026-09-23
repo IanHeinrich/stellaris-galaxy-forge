@@ -784,7 +784,7 @@ fn the_paint_a_galaxy_profile_is_opt_in_on_both_scenario_commands() {
         plain.contains(
             "
 static_galaxy_scenario = {
-	name = \"2206.11.16\"
+	name = \"plain\"
 	priority = 5
 "
         ),
@@ -796,6 +796,8 @@ static_galaxy_scenario = {
         "export-scenario",
         SAMPLE,
         paint_path.to_str().unwrap(),
+        "--name",
+        "2206.11.16",
         "--profile",
         "paint-a-galaxy",
     ]);
@@ -859,7 +861,7 @@ static_galaxy_scenario = {
             "/../../testdata/2206.11.16.paint.txt"
         ))
         .unwrap(),
-        "the fixture is generated: re-export it with `sgf export-scenario --profile paint-a-galaxy`"
+        "the fixture is generated: re-export it with `sgf export-scenario --name 2206.11.16 --profile paint-a-galaxy`"
     );
     let validated = sgf(&["validate", paint_path.to_str().unwrap()]);
     assert_eq!(

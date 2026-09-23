@@ -1,7 +1,9 @@
 //! `sgf gamedata`: what was read from the install and the enabled mods.
 
-use sgf_gamedata::LoadOptions;
-use sgf_gamedata::views::GameDataSummary;
+use sgf_core::library;
+use sgf_gamedata::install::{discovery, mods};
+use sgf_gamedata::views::{GameDataSummary, PaintModView};
+use sgf_gamedata::{GameData, LoadOptions};
 
 use super::{Outcome, Run};
 
@@ -9,7 +11,8 @@ use super::{Outcome, Run};
 const DIAGNOSTIC_ROWS: usize = 20;
 
 pub fn run(opts: &LoadOptions) -> Run {
-    let summary = GameDataSummary::from(&super::game_data(opts)?);
+    let gd = super::game_data(opts)?;
+    let summary = GameDataSummary::from(&gd);
     println!("install:      {}", summary.install);
     println!(
         "version:      {}",
@@ -45,10 +48,39 @@ pub fn run(opts: &LoadOptions) -> Run {
         "border: system radius {}, hyperlane thickness {}",
         summary.border.system_radius, summary.border.hyperlane_thickness
     );
+    if let Some(size) = &summary.largest_galaxy {
+        println!("largest galaxy: {} ({} stars)", size.label, size.num_stars);
+    }
+    print_paint_mod(&gd);
     println!("localisation: {} keys", summary.localisation_keys);
     println!("diagnostics:  {}", summary.diagnostics.len());
     for d in summary.diagnostics.iter().take(DIAGNOSTIC_ROWS) {
         println!("  {:<12} {}", d.kind, d.message);
     }
     Ok(Outcome::Ok)
+}
+
+/// Where Paint a Galaxy is and whether the playset loads it and the Reserved Spawns submod.
+fn print_paint_mod(gd: &GameData) {
+    let paint = gd
+        .layout
+        .user_dir
+        .clone()
+        .or_else(library::paradox_user_dir)
+        .and_then(|user_dir| {
+            let mut diagnostics = Vec::new();
+            mods::paint_mod_status(&user_dir, &discovery::steam_libraries(), &mut diagnostics)
+                .map(|status| PaintModView::new(&status, &diagnostics))
+        });
+    let Some(paint) = paint else {
+        println!("paint mod:    not found");
+        return;
+    };
+    let on = |enabled: bool| if enabled { "enabled" } else { "not enabled" };
+    println!(
+        "paint mod:    {}, reserved spawns {}, {}",
+        on(paint.enabled),
+        on(paint.reserved_spawns),
+        paint.scenarios_dir.as_deref().unwrap_or("files missing")
+    );
 }

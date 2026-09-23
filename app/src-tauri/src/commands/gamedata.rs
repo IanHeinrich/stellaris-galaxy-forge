@@ -12,12 +12,12 @@ use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
     BypassView, CountryTypeView, DepositView, GalaxyShapeView, GameDataSummary, InitializerView,
     MapColor, PaintModView, PlanetClassView, ResourceIcon, ShipSizeView, StarClassView,
-    StarbaseLevelView,
+    StarbaseLevelView, WorkshopLinks,
 };
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 use tauri::{AppHandle, Manager, Runtime, State};
 
-use super::{DEFINITIONS_AT, DISCOVER_AT, DONE, LOCALISATION_AT, join_error, load_error, progress};
+use super::{DEFINITIONS_AT, DISCOVER_AT, DONE, LOCALISATION_AT, io_error, load_error, progress};
 use crate::state::{GameDataState, TextureState};
 use crate::watch;
 
@@ -49,7 +49,7 @@ pub async fn load_game_data<R: Runtime>(
         sgf_gamedata::load(&opts, &mut report).map_err(load_error)
     })
     .await
-    .map_err(join_error)??;
+    .map_err(io_error)??;
     let gd = Arc::new(gd);
     app.state::<GameDataState>().store(Some(Arc::clone(&gd)));
     watch::start(&app, &gd);
@@ -112,34 +112,21 @@ pub fn open_script(
         true => tauri_plugin_opener::reveal_item_in_dir(file),
         false => tauri_plugin_opener::open_path(file, None::<&str>),
     };
-    result.map_err(|e| SgfError::new(ErrorKind::Io, e.to_string()))
+    result.map_err(io_error)
 }
 
-/// The links the app itself offers. Only these are opened: the check keeps a URL that reached a
-/// view from elsewhere from being handed to the shell.
-const LINKS: &[&str] = &[
-    PAINT_MOD_WORKSHOP_URL,
-    // Reserved Spawns submod, whose "Reserved Spawn A"-"Z" traits a reserved seat's empire needs.
-    "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682",
-    // Local Cluster submod, the usual workaround for Sol having no Sol-specific neighbours.
-    "https://steamcommunity.com/sharedfiles/filedetails/?id=3634498401",
-    super::update::RELEASES_URL,
-];
-/// Paint a Galaxy's Steam Workshop page, whose id must match `mods::PAINT_MOD_WORKSHOP_ID`.
-const PAINT_MOD_WORKSHOP_URL: &str =
-    "https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115";
-
-/// Open one of the app's own links in the user's browser.
+/// Open one of the app's own links in the user's browser. Only the releases page and the
+/// [`WorkshopLinks`] pages are opened: the check keeps a URL that reached a view from
+/// elsewhere from being handed to the shell.
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), SgfError> {
-    if !LINKS.contains(&url.as_str()) {
+    if url != super::update::RELEASES_URL && !WorkshopLinks::default().contains(&url) {
         return Err(SgfError::new(
             ErrorKind::NotFound,
             format!("{url} is not a link this app opens"),
         ));
     }
-    tauri_plugin_opener::open_url(url, None::<&str>)
-        .map_err(|e| SgfError::new(ErrorKind::Io, e.to_string()))
+    tauri_plugin_opener::open_url(url, None::<&str>).map_err(io_error)
 }
 
 /// Where Paint a Galaxy is on this machine, from the launcher's files alone, so it is known
@@ -155,17 +142,19 @@ pub async fn paint_mod<R: Runtime>(app: AppHandle<R>) -> Result<Option<PaintModV
         let Some(user_dir) = user_dir else {
             return Ok(None);
         };
-        let libraries = discovery::steam_libraries();
         let mut diagnostics = Vec::new();
-        let installed = mods::installed_mods(&user_dir, &libraries, &mut diagnostics);
-        let enabled = mods::enabled_mods(&user_dir, &libraries, &mut diagnostics);
-        let reserved_spawns = mods::reserved_spawns_enabled(&enabled);
-        Ok(mods::find_paint_mod(&installed, &enabled, &libraries)
-            .as_ref()
-            .map(|m| PaintModView::new(m, reserved_spawns)))
+        let status =
+            mods::paint_mod_status(&user_dir, &discovery::steam_libraries(), &mut diagnostics);
+        Ok(status.map(|status| PaintModView::new(&status, &diagnostics)))
     })
     .await
-    .map_err(join_error)?
+    .map_err(io_error)?
+}
+
+/// The Steam Workshop pages the app links to, which `open_url` opens.
+#[tauri::command]
+pub fn workshop_links() -> WorkshopLinks {
+    WorkshopLinks::default()
 }
 
 /// The localised text of each key the loaded localisation knows; empty without game data.
@@ -194,7 +183,7 @@ pub async fn resolve_names(
         None => names.iter().map(NameTemplate::stand_in).collect(),
     })
     .await
-    .map_err(join_error)
+    .map_err(io_error)
 }
 
 #[tauri::command(async)]
@@ -303,5 +292,5 @@ pub async fn get_textures<R: Runtime>(
             .collect()
     })
     .await
-    .map_err(join_error)
+    .map_err(io_error)
 }

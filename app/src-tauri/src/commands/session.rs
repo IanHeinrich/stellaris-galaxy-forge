@@ -21,8 +21,8 @@ use sgf_core::views::{
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::{DONE, START, VALIDATE_AT, join_error, lock, progress};
-use crate::state::{AppState, GameDataState};
+use super::{DONE, START, VALIDATE_AT, io_error, progress, with_session};
+use crate::state::GameDataState;
 
 /// Open `path`, a save or a scenario script, as the session, replacing any open one.
 /// Emits `sgf://progress`.
@@ -44,11 +44,7 @@ pub async fn open_as_scenario<R: Runtime>(
     profile: Option<ScenarioProfile>,
 ) -> Result<OpenResult, SgfError> {
     install_reporting(app, move |gd| {
-        let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-        let sources = |initializer: &str| {
-            gd.as_ref()
-                .and_then(|gd| gd.initializer_source(initializer))
-        };
+        let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let (session, report) = export::open_save_as_scenario(
             Path::new(&path),
             &resolve,
@@ -89,17 +85,10 @@ pub async fn export_scenario<R: Runtime>(
     profile: Option<ScenarioProfile>,
 ) -> Result<ExportResult, SgfError> {
     progress(&app, ProgressPhase::Write, START);
-    let task_app = app.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || -> Result<ExportResult, SgfError> {
-        let state = task_app.state::<AppState>();
-        let guard = lock(&state);
+    let gd = app.state::<GameDataState>().loaded();
+    let result = with_session(app.clone(), move |guard| {
         let session = exportable(&guard)?;
-        let gd = task_app.state::<GameDataState>().loaded();
-        let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-        let sources = |initializer: &str| {
-            gd.as_ref()
-                .and_then(|gd| gd.initializer_source(initializer))
-        };
+        let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let path = Path::new(&path);
         let name = path
             .file_stem()
@@ -121,26 +110,20 @@ pub async fn export_scenario<R: Runtime>(
         };
         Ok(ExportResult { save, report })
     })
-    .await
-    .map_err(join_error)??;
+    .await?;
     progress(&app, ProgressPhase::Done, DONE);
     Ok(result)
 }
 
 /// What exporting the open save would report, without writing anything. The report is
-/// the plain draft's, which every profile shares.
+/// the plain draft's: the statement counts are the plain profile's, and the rest every
+/// profile shares.
 #[tauri::command]
 pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportReport, SgfError> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        let guard = lock(&state);
+    let gd = app.state::<GameDataState>().loaded();
+    with_session(app, move |guard| {
         let session = exportable(&guard)?;
-        let gd = app.state::<GameDataState>().loaded();
-        let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-        let sources = |initializer: &str| {
-            gd.as_ref()
-                .and_then(|gd| gd.initializer_source(initializer))
-        };
+        let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let (_, report) = export::draft(
             &session.graph,
             &export::options_for_session(session, &session.title()),
@@ -150,7 +133,6 @@ pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportRepor
         Ok(report)
     })
     .await
-    .map_err(join_error)?
 }
 
 /// The open session when it is a save, the only document an export reads.
@@ -191,8 +173,8 @@ async fn install_reporting<R: Runtime>(
         Ok::<_, SgfError>((session, result))
     })
     .await
-    .map_err(join_error)??;
-    with_session(app.clone(), move |guard| {
+    .map_err(io_error)??;
+    with_session(app.clone(), move |mut guard| {
         *guard = Some(session);
         Ok(())
     })
@@ -225,35 +207,17 @@ fn opened(session: &Session) -> Result<OpenResult, SgfError> {
 /// Builds the details projection so search also finds planets and fleets; idempotent.
 #[tauri::command]
 pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        let mut guard = lock(&state);
+    with_session(app, |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         session.warm_details().map_err(SessionError::from)?;
         Ok(())
     })
     .await
-    .map_err(join_error)?
-}
-
-/// Run `f` over the open session on the blocking pool, so neither the main thread nor an
-/// async worker waits on the session lock.
-async fn with_session<R: Runtime, T: Send + 'static>(
-    app: AppHandle<R>,
-    f: impl FnOnce(&mut Option<Session>) -> Result<T, SgfError> + Send + 'static,
-) -> Result<T, SgfError> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        let mut guard = lock(&state);
-        f(&mut guard)
-    })
-    .await
-    .map_err(join_error)?
 }
 
 #[tauri::command]
 pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResult, SgfError> {
-    with_session(app, move |guard| {
+    with_session(app, move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         let result = session.apply(op)?;
         Ok(session.edit_result(result))
@@ -283,7 +247,7 @@ pub async fn fe_zone_fit<R: Runtime>(
     count: usize,
 ) -> Result<Vec<(u32, Option<FeZone>)>, SgfError> {
     with_session(app, move |guard| {
-        let session = scenario(guard)?;
+        let session = scenario(&guard)?;
         Ok(placement::fit(&placement::sites(&session.graph), count))
     })
     .await
@@ -294,7 +258,7 @@ pub async fn fe_zone_fit<R: Runtime>(
 #[tauri::command]
 pub async fn fe_zone_candidate_count<R: Runtime>(app: AppHandle<R>) -> Result<usize, SgfError> {
     with_session(app, |guard| {
-        let session = scenario(guard)?;
+        let session = scenario(&guard)?;
         Ok(placement::candidate_count(&placement::sites(
             &session.graph,
         )))
@@ -340,7 +304,7 @@ pub async fn header_empire_counts<R: Runtime>(
 
 #[tauri::command]
 pub async fn undo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, SgfError> {
-    with_session(app, |guard| {
+    with_session(app, |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         let result = session.undo()?;
         Ok(result.map(|r| session.edit_result(r)))
@@ -350,7 +314,7 @@ pub async fn undo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, S
 
 #[tauri::command]
 pub async fn redo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, SgfError> {
-    with_session(app, |guard| {
+    with_session(app, |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         let result = session.redo()?;
         Ok(result.map(|r| session.edit_result(r)))
@@ -376,23 +340,20 @@ async fn save_to<R: Runtime>(
 ) -> Result<SaveResult, SgfError> {
     progress(&app, ProgressPhase::Write, START);
     let task_app = app.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || -> Result<SaveResult, SgfError> {
-        let state = task_app.state::<AppState>();
-        let mut guard = lock(&state);
+    let result = with_session(app.clone(), move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         let report = |fraction| progress(&task_app, ProgressPhase::Write, fraction);
         let outcome = session.save_to_with(path.as_deref().map(Path::new), report)?;
         Ok(session.save_result(outcome))
     })
-    .await
-    .map_err(join_error)??;
+    .await?;
     progress(&app, ProgressPhase::Done, DONE);
     Ok(result)
 }
 
 #[tauri::command]
 pub async fn close_save<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
-    with_session(app, |guard| {
+    with_session(app, |mut guard| {
         *guard = None;
         Ok(())
     })

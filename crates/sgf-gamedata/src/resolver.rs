@@ -14,6 +14,21 @@ pub fn resolver(gd: Option<&GameData>) -> &dyn DetailsResolver {
     }
 }
 
+/// The name and source resolvers an export takes: the install's localisation and each
+/// initializer's DLC or mod when game data is loaded; without it, the save's own name keys
+/// and no sources.
+pub fn export_resolvers(
+    gd: Option<&GameData>,
+) -> (
+    impl Fn(&str) -> Option<String> + '_,
+    impl Fn(&str) -> Option<String> + '_,
+) {
+    (
+        move |key: &str| gd.and_then(|gd| gd.loc.get(key)),
+        move |initializer: &str| gd.and_then(|gd| gd.initializer_source(initializer)),
+    )
+}
+
 impl DetailsResolver for GameData {
     fn deposit_produces(&self, key: &str) -> Option<Vec<(String, f64)>> {
         let deposit = self.deposits.get(key)?;

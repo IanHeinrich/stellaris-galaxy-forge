@@ -7,6 +7,7 @@ use tauri::utils::platform::bundle_type;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_updater::UpdaterExt;
 
+use super::io_error;
 use crate::state::UpdateState;
 use crate::views::{InstallKind, UpdateCheck, UpdateProgress, UpdateView};
 
@@ -20,10 +21,10 @@ pub async fn check_for_update<R: Runtime>(app: AppHandle<R>) -> Result<UpdateChe
     let current = app.package_info().version.to_string();
     let found = app
         .updater()
-        .map_err(update_error)?
+        .map_err(io_error)?
         .check()
         .await
-        .map_err(update_error)?;
+        .map_err(io_error)?;
     let update = found.as_ref().map(|u| UpdateView {
         version: u.version.clone(),
         notes: u.body.clone().unwrap_or_default(),
@@ -84,7 +85,7 @@ pub async fn install_update<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfErro
     if let Err(e) = installed {
         // A failed install is retried from the same check.
         app.state::<UpdateState>().put(Some(update));
-        return Err(update_error(e));
+        return Err(io_error(e));
     }
     app.restart()
 }
@@ -98,8 +99,4 @@ fn install_kind() -> InstallKind {
         }
         _ => InstallKind::Manual,
     }
-}
-
-fn update_error(e: tauri_plugin_updater::Error) -> SgfError {
-    SgfError::new(ErrorKind::Io, e.to_string())
 }

@@ -101,6 +101,7 @@ pub fn scenario_text(
     let (mut draft, mut report) = draft(graph, options, resolve, sources);
     if profile == ScenarioProfile::PaintAGalaxy {
         paint::decorate(&mut draft, &mut report, options, graph, resolve);
+        report.count(&draft);
     }
     let mut text = match &options.exported_from {
         Some(save) => comment_block(save, &draft, &report).into_bytes(),
@@ -172,6 +173,7 @@ pub fn draft(
         lanes: lane_pairs(galaxy, &omitted),
         nebulae,
     };
+    report.count(&draft);
     (draft, report)
 }
 

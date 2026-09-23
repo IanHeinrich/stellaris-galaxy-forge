@@ -1,8 +1,5 @@
 //! What the loaded scripts say about systems: territories, bypasses and details.
 
-use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use sgf_core::format::save::details::SystemDetails;
@@ -15,22 +12,19 @@ use sgf_gamedata::scripts::{
 use sgf_gamedata::special::{self, SpecialSystems};
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::{join_error, lock, with_scenario};
-use crate::state::{AppState, GameDataState};
+use super::{with_scenario, with_session};
+use crate::state::GameDataState;
 
 #[tauri::command]
 pub async fn get_special_systems<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<SpecialSystems, SgfError> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        let guard = lock(&state);
+    let gd = app.state::<GameDataState>().loaded();
+    with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        let gd = app.state::<GameDataState>().loaded();
         Ok(special::classify_session(session, gd.as_deref()))
     })
     .await
-    .map_err(join_error)?
 }
 
 /// Who owns each scenario system at galaxy generation, read from the loaded scripts.
@@ -53,9 +47,7 @@ pub async fn get_scenario_owners<R: Runtime>(
 pub async fn get_scenario_bypasses<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Option<ScenarioBypasses>, SgfError> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        let guard = lock(&state);
+    with_session(app.clone(), move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
         if session.kind() != DocumentKind::Scenario {
             return Ok(None);
@@ -77,7 +69,6 @@ pub async fn get_scenario_bypasses<R: Runtime>(
         Ok(Some(bypasses))
     })
     .await
-    .map_err(join_error)?
 }
 
 /// The scripts that reach one scenario system: its initializer chain, and everything in the
@@ -91,7 +82,11 @@ pub async fn get_system_scripts<R: Runtime>(
     with_scenario(app, move |session, gd, state, generation| {
         let system = session.system(id)?;
         let effect = session.scenario_system_effect(id);
-        let mut scripts = gd.system_scripts(id, initializer_of(&system.initializer), effect);
+        let mut scripts = gd.system_scripts(
+            id,
+            ScenarioSystem::initializer_of(&system.initializer),
+            effect,
+        );
         scripts.attach_territory(&scenario_owners(session, gd, state, generation));
         Some(scripts)
     })
@@ -109,10 +104,8 @@ pub async fn get_system_details<R: Runtime>(
     app: AppHandle<R>,
     ids: Vec<u32>,
 ) -> Result<Vec<SystemDetails>, SgfError> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
+    with_session(app.clone(), move |guard| {
         let gd_state = app.state::<GameDataState>();
-        let guard = lock(&state);
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
         if session.kind() == DocumentKind::Scenario {
             let Some((generation, gd)) = gd_state.snapshot() else {
@@ -139,12 +132,6 @@ pub async fn get_system_details<R: Runtime>(
             .collect())
     })
     .await
-    .map_err(join_error)?
-}
-
-/// A scenario system's initializer key; the empty string means "random", which has none.
-fn initializer_of(key: &str) -> Option<&str> {
-    Some(key).filter(|k| !k.is_empty())
 }
 
 /// Who owns each scenario system, computed from every system at once and kept until the
@@ -155,7 +142,7 @@ fn scenario_owners(
     state: &GameDataState,
     generation: u64,
 ) -> Arc<ScenarioOwners> {
-    scenario_systems(session, |systems, digest| {
+    ScenarioSystem::of_session(session, |systems, digest| {
         if let Some(cached) = state.owners(generation, digest) {
             return cached;
         }
@@ -172,7 +159,7 @@ fn scenario_bypasses(
     state: &GameDataState,
     generation: u64,
 ) -> Arc<ScenarioBypasses> {
-    scenario_systems(session, |systems, digest| {
+    ScenarioSystem::of_session(session, |systems, digest| {
         if let Some(cached) = state.bypasses(generation, digest) {
             return cached;
         }
@@ -180,37 +167,4 @@ fn scenario_bypasses(
         state.store_bypasses(generation, digest, Arc::clone(&bypasses));
         bypasses
     })
-}
-
-/// Every scenario system as the scripts see it, with the digest a cache is keyed on.
-fn scenario_systems<T>(session: &Session, f: impl FnOnce(&[ScenarioSystem<'_>], u64) -> T) -> T {
-    let effects = session.scenario_system_effects();
-    let by_system: HashMap<u32, &str> = effects
-        .iter()
-        .map(|(id, text, _)| (*id, text.as_str()))
-        .collect();
-    let systems: Vec<ScenarioSystem<'_>> = session
-        .graph
-        .systems
-        .values()
-        .map(|s| ScenarioSystem {
-            id: s.id,
-            initializer: initializer_of(&s.initializer),
-            effect: by_system.get(&s.id).copied(),
-        })
-        .collect();
-    let digest = digest(&systems);
-    f(&systems, digest)
-}
-
-/// What the territories are computed from: every system's id, initializer and effect.
-fn digest(systems: &[ScenarioSystem<'_>]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    systems.len().hash(&mut hasher);
-    for system in systems {
-        system.id.hash(&mut hasher);
-        system.initializer.hash(&mut hasher);
-        system.effect.hash(&mut hasher);
-    }
-    hasher.finish()
 }

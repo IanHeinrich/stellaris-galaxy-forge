@@ -57,6 +57,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::open_script,
             commands::open_url,
             commands::paint_mod,
+            commands::workshop_links,
             commands::get_system_scripts,
             commands::get_names,
             commands::resolve_names,

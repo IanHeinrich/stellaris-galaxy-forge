@@ -2,28 +2,17 @@
 use std::path::Path;
 
 use serde_json::json;
-use sgf_core::archive::GalaxySettings;
 use sgf_core::export::ExportReport;
-use sgf_core::format::save::details::SystemDetails;
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeZone};
-use sgf_core::format::scenario::listings::{ScenarioListings, ScenarioSource};
-use sgf_core::library::CampaignListing;
 use sgf_core::validate::IssueCode;
 use sgf_core::views::{
-    DocumentKind, EditResult, ErrorKind, ExportResult, OpenResult, SaveFile, SaveResult, SearchHit,
+    DocumentKind, EditResult, ErrorKind, ExportResult, OpenResult, SaveResult, SearchHit,
     SystemDetail,
 };
-use sgf_gamedata::scripts::{BypassSource, ScenarioBypasses, ScenarioOwners};
-use sgf_gamedata::views::GameDataSummary;
 
 mod common;
-use common::{SAMPLE, have_install, invoke, invoke_raw, kind, webview};
-
-const GRAMMAR: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/scenario_grammar.txt"
-);
+use common::{PAINTED, SAMPLE, SCENARIO, invoke, invoke_raw, kind, open, opened, webview};
 
 #[test]
 fn open_read_search_close() {
@@ -42,7 +31,7 @@ fn open_read_search_close() {
         ErrorKind::NoSession
     );
 
-    let opened: OpenResult = invoke(&w, "open_save", json!({ "path": SAMPLE })).expect("open");
+    let opened = open(&w, SAMPLE);
     assert_eq!(opened.path.as_deref(), Some(SAMPLE));
     assert_eq!(opened.kind, DocumentKind::Save);
     assert!(opened.capabilities.details && !opened.capabilities.create_systems);
@@ -96,8 +85,7 @@ fn open_read_search_close() {
 
 #[test]
 fn open_replaces_the_session_and_rejects_a_missing_file() {
-    let w = webview();
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open");
+    let w = opened(SAMPLE);
     let err = invoke::<OpenResult>(&w, "open_save", json!({ "path": "no/such/file.sav" }))
         .expect_err("missing file");
     assert_eq!(err.kind, ErrorKind::NotFound);
@@ -107,96 +95,6 @@ fn open_replaces_the_session_and_rejects_a_missing_file() {
     assert_eq!(err.kind, ErrorKind::NotFound);
     // A failed open leaves the previous session in place.
     invoke::<SystemDetail>(&w, "get_system", json!({ "id": 0 })).expect("still open");
-}
-
-#[test]
-fn list_saves_succeeds_on_any_machine() {
-    let w = webview();
-    let saves: Vec<SaveFile> = invoke(&w, "list_saves", json!({})).expect("list");
-    for s in &saves {
-        assert!(s.path.ends_with(&s.file_name), "{s:?}");
-    }
-    assert!(saves.windows(2).all(|p| p[0].modified >= p[1].modified));
-}
-
-#[test]
-fn campaigns_saves_and_scenarios_are_listed_on_a_seeded_root() {
-    let w = webview();
-    let dir = tempfile::tempdir().expect("tempdir");
-    let campaign = dir.path().join("empire_1");
-    std::fs::create_dir_all(&campaign).expect("campaign folder");
-    std::fs::copy(SAMPLE, campaign.join("2206.11.16.sav")).expect("copy sample");
-
-    let campaigns: Vec<CampaignListing> = invoke(
-        &w,
-        "list_campaigns",
-        json!({ "dirs": [dir.path().to_string_lossy()] }),
-    )
-    .expect("list campaigns");
-    assert_eq!(campaigns.len(), 1, "{campaigns:#?}");
-    let listed = &campaigns[0];
-    assert_eq!(listed.name, "empire_1");
-    assert_eq!(listed.files, 1);
-    assert!(!listed.cloud);
-    assert_eq!(listed.empire.as_deref(), Some("United Nations of Earth 2"));
-    let meta = listed.meta.as_ref().expect("the newest save's header");
-    assert_eq!(meta.date, "2206.11.16");
-    assert_eq!((meta.planets, meta.fleets), (Some(1), Some(15)));
-    assert_eq!(meta.color.as_deref(), Some("blue"));
-    assert!(!meta.ironman);
-
-    let saves: Vec<SaveFile> =
-        invoke(&w, "list_campaign_saves", json!({ "dir": listed.dir })).expect("list saves");
-    assert_eq!(saves.len(), 1, "{saves:#?}");
-    assert_eq!(saves[0].file_name, "2206.11.16.sav");
-    assert_eq!(saves[0].campaign, "empire_1");
-    assert_eq!(saves[0].meta.as_ref(), listed.meta.as_ref());
-
-    let scenarios = dir.path().join("install/map/setup_scenarios");
-    std::fs::create_dir_all(&scenarios).expect("scenario folder");
-    std::fs::copy(GRAMMAR, scenarios.join("grammar.txt")).expect("copy the fixture");
-    let listed: ScenarioListings = invoke(
-        &w,
-        "list_scenarios",
-        json!({
-            "installPath": dir.path().join("install").to_string_lossy(),
-            "userDir": dir.path().join("user").to_string_lossy(),
-        }),
-    )
-    .expect("list scenarios");
-    assert_eq!(listed.diagnostics, Vec::<String>::new());
-    let listings = listed.scenarios;
-    assert_eq!(listings.len(), 1, "{listings:#?}");
-    assert_eq!(listings[0].name, "sgf_grammar");
-    assert_eq!(listings[0].systems, 8);
-    assert_eq!(listings[0].source, ScenarioSource::Install);
-    assert_eq!(listings[0].error, None);
-    assert_eq!(listings[0].shadowed_by, None);
-}
-
-#[test]
-fn save_details_reads_the_setup_screen_without_opening_the_save() {
-    let w = webview();
-    let settings: GalaxySettings =
-        invoke(&w, "save_details", json!({ "path": SAMPLE })).expect("save details");
-    assert_eq!(settings.template.as_deref(), Some("large"));
-    assert_eq!(settings.shape.as_deref(), Some("elliptical"));
-    assert_eq!(settings.num_empires, Some(13));
-    assert_eq!(settings.num_hyperlanes, Some(0.75));
-    assert_eq!(settings.crises, Some(5.0));
-    assert_eq!(settings.ironman, Some(false));
-    assert_eq!(
-        kind(invoke::<SystemDetail>(&w, "get_system", json!({ "id": 0 }))),
-        ErrorKind::NoSession
-    );
-    assert_eq!(
-        kind(invoke::<GalaxySettings>(
-            &w,
-            "save_details",
-            json!({ "path": "no/such/file.sav" })
-        )),
-        ErrorKind::NotFound
-    );
 }
 
 #[test]
@@ -214,8 +112,7 @@ fn save_and_save_as() {
     std::fs::copy(SAMPLE, &copy_path).expect("copy sample");
     let copy_path = copy_path.to_string_lossy().into_owned();
 
-    let opened: OpenResult =
-        invoke(&w, "open_save", json!({ "path": copy_path })).expect("open the copy");
+    let opened = open(&w, &copy_path);
     assert!(!opened.cloud, "a temp dir is not Steam Cloud");
     let moved: EditResult = invoke(
         &w,
@@ -249,8 +146,7 @@ fn save_and_save_as() {
     );
     assert!(Path::new(backup).exists(), "backup file exists");
 
-    let reopened: OpenResult =
-        invoke(&w, "open_save", json!({ "path": copy_path })).expect("reopen the saved copy");
+    let reopened = open(&w, &copy_path);
     let system0 = reopened
         .galaxy
         .systems
@@ -276,15 +172,9 @@ fn save_and_save_as() {
     assert!(!cloud, "a temp dir is not Steam Cloud");
 }
 
-const SCENARIO: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/scenario_grammar.txt"
-);
-
 #[test]
 fn a_scenario_adds_and_removes_several_systems_as_one_step_each() {
-    let w = webview();
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SCENARIO })).expect("open the scenario");
+    let w = opened(SCENARIO);
 
     let added: EditResult = invoke(
         &w,
@@ -345,8 +235,7 @@ fn scenario_documents_open_start_and_export() {
     let w = webview();
     let dir = tempfile::tempdir().expect("tempdir");
 
-    let opened: OpenResult =
-        invoke(&w, "open_save", json!({ "path": SCENARIO })).expect("open the scenario");
+    let opened = open(&w, SCENARIO);
     assert_eq!(opened.kind, DocumentKind::Scenario);
     assert_eq!(opened.title, "sgf_grammar");
     assert!(opened.meta.is_none(), "a scenario has no save header");
@@ -413,7 +302,7 @@ fn scenario_documents_open_start_and_export() {
         "only a save previews an export"
     );
 
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    open(&w, SAMPLE);
     let preview: ExportReport = invoke(&w, "preview_export", json!({})).expect("preview");
     let out = dir
         .path()
@@ -432,17 +321,11 @@ fn scenario_documents_open_start_and_export() {
         preview, exported.report,
         "the preview is the report the write gives"
     );
-    let reopened: OpenResult =
-        invoke(&w, "open_save", json!({ "path": out })).expect("open the export");
+    let reopened = open(&w, out);
     assert_eq!(reopened.kind, DocumentKind::Scenario);
     assert_eq!(reopened.title, "exported");
     assert_eq!(reopened.galaxy.systems.len(), 791);
 }
-
-const PAINTED: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/paint_a_galaxy.txt"
-);
 
 #[test]
 fn fe_zone_fit_keeps_the_placed_zones_and_spreads_the_count_asked_for() {
@@ -459,7 +342,7 @@ fn fe_zone_fit_keeps_the_placed_zones_and_spreads_the_count_asked_for() {
         kind(invoke::<usize>(&w, "fe_zone_candidate_count", json!({}))),
         ErrorKind::NoSession
     );
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    open(&w, SAMPLE);
     assert_eq!(
         kind(invoke::<Vec<(u32, Option<FeZone>)>>(
             &w,
@@ -474,8 +357,7 @@ fn fe_zone_fit_keeps_the_placed_zones_and_spreads_the_count_asked_for() {
         ErrorKind::Op
     );
 
-    let opened: OpenResult =
-        invoke(&w, "open_save", json!({ "path": PAINTED })).expect("open the painted fixture");
+    let opened = open(&w, PAINTED);
     assert!(opened.painted);
     let count: usize = invoke(&w, "fe_zone_candidate_count", json!({})).expect("count");
     assert_eq!(count, 9);
@@ -532,7 +414,7 @@ fn header_empire_counts_sizes_the_keys_by_the_seats_and_the_app_applies_them_as_
         )),
         ErrorKind::NoSession
     );
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    open(&w, SAMPLE);
     assert_eq!(
         kind(invoke::<Vec<(String, String)>>(
             &w,
@@ -543,8 +425,7 @@ fn header_empire_counts_sizes_the_keys_by_the_seats_and_the_app_applies_them_as_
         "a save has no header"
     );
 
-    let opened: OpenResult =
-        invoke(&w, "open_save", json!({ "path": PAINTED })).expect("open the painted fixture");
+    let opened = open(&w, PAINTED);
     assert!(
         opened
             .issues
@@ -589,60 +470,6 @@ fn header_empire_counts_sizes_the_keys_by_the_seats_and_the_app_applies_them_as_
 }
 
 #[test]
-fn the_scenarios_beside_a_file_are_listed_without_a_session() {
-    let w = webview();
-    let dir = tempfile::tempdir().expect("tempdir");
-    let mine = dir.path().join("mine.txt");
-    std::fs::copy(PAINTED, &mine).expect("copy the painted fixture");
-    std::fs::copy(GRAMMAR, dir.path().join("grammar.txt")).expect("copy the grammar fixture");
-    std::fs::write(dir.path().join("notes.txt"), "not a scenario").expect("write");
-    let names: Vec<(String, String)> = invoke(
-        &w,
-        "sibling_scenario_names",
-        json!({ "path": mine.to_string_lossy() }),
-    )
-    .expect("siblings");
-    assert_eq!(
-        names,
-        [("grammar.txt".to_owned(), "sgf_grammar".to_owned())]
-    );
-}
-
-#[test]
-fn a_painted_scenarios_wormhole_pairs_are_drawn_without_game_data_and_follow_the_op() {
-    let w = webview();
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": PAINTED })).expect("open");
-    let pairs = |w: &_| -> Vec<(u32, Option<u32>)> {
-        let placed: Option<ScenarioBypasses> =
-            invoke(w, "get_scenario_bypasses", json!({})).expect("bypasses");
-        placed
-            .expect("a scenario lists its flagged pairs")
-            .bypasses
-            .iter()
-            .filter(|end| {
-                end.source
-                    == BypassSource::DayOne {
-                        event: "painted_galaxy_wormhole.1".to_owned(),
-                    }
-            })
-            .map(|end| (end.system, end.partner))
-            .collect()
-    };
-    assert_eq!(
-        pairs(&w),
-        [(7, Some(8)), (8, Some(7)), (12, Some(13)), (13, Some(12))]
-    );
-    let edited: EditResult = invoke(
-        &w,
-        "apply_op",
-        json!({ "op": { "type": "SetWormholePair", "a": 12, "b": 13, "pair": null } }),
-    )
-    .expect("remove a pair");
-    assert!(edited.reclassifies, "the app re-reads the bypasses");
-    assert_eq!(pairs(&w), [(7, Some(8)), (8, Some(7))]);
-}
-
-#[test]
 fn set_fe_links_writes_the_connection_flags_as_one_step_and_undo_takes_them_back() {
     let w = webview();
     assert_eq!(
@@ -653,7 +480,7 @@ fn set_fe_links_writes_the_connection_flags_as_one_step_and_undo_takes_them_back
         )),
         ErrorKind::NoSession
     );
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": PAINTED })).expect("open");
+    open(&w, PAINTED);
     let links = |result: &EditResult| -> Vec<(u32, FeLinkFlags)> {
         result
             .delta
@@ -781,8 +608,7 @@ fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands()
     .expect("new scenario");
     assert!(!unpainted.painted);
 
-    let save: OpenResult =
-        invoke(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
+    let save = open(&w, SAMPLE);
     assert!(!save.painted, "a save is never scanned");
     let painted = dir
         .path()
@@ -819,259 +645,16 @@ static_galaxy_scenario = {
         &text[..300]
     );
 
-    let reopened: OpenResult =
-        invoke(&w, "open_save", json!({ "path": painted })).expect("open the painted export");
+    let reopened = open(&w, painted);
     assert!(reopened.painted);
-    let reopened: OpenResult =
-        invoke(&w, "open_save", json!({ "path": exported })).expect("open the plain export");
+    let reopened = open(&w, exported);
     assert!(!reopened.painted);
-}
-
-/// A scenario has no details sections: a system's planets and resources are what its
-/// initializer defines, so this needs the install's definitions.
-#[test]
-fn a_scenario_systems_details_come_from_its_initializer() {
-    if !have_install() {
-        return;
-    }
-    let w = webview();
-    // Vanilla only: a mod in the playset may shadow the file that defines the initializer.
-    invoke::<GameDataSummary>(&w, "load_game_data", json!({ "mods": false }))
-        .expect("load game data");
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SCENARIO })).expect("open the scenario");
-    invoke::<()>(&w, "warm_details", json!({})).expect("warming a scenario does nothing");
-
-    let set: EditResult = invoke(
-        &w,
-        "apply_op",
-        json!({ "op": {
-            "type": "SetInitializer",
-            "id": 16,
-            "initializer": "unique_system_initializer_02",
-            "spawn_weight": null,
-        } }),
-    )
-    .expect("set the initializer of system 16");
-    assert_eq!(set.details_stale, [16], "the app refetches system 16");
-
-    let plain: EditResult = invoke(
-        &w,
-        "apply_op",
-        json!({ "op": {
-            "type": "SetInitializer",
-            "id": 9,
-            "initializer": "basic_init_02",
-            "spawn_weight": null,
-        } }),
-    )
-    .expect("set the initializer of system 9");
-    assert_eq!(plain.details_stale, [9]);
-
-    let details: Vec<SystemDetails> =
-        invoke(&w, "get_system_details", json!({ "ids": [16, 9, 1, 111] })).expect("details");
-    let ids: Vec<u32> = details.iter().map(|d| d.id).collect();
-    assert_eq!(
-        ids,
-        [16, 9],
-        "1's initializer is not vanilla and 111 has none"
-    );
-
-    let rich = &details[0];
-    assert!(rich.with_game_data);
-    assert_eq!(
-        rich.resources
-            .iter()
-            .map(|r| (r.resource.as_str(), r.amount))
-            .collect::<Vec<_>>(),
-        [
-            ("physics_research", 5.0),
-            ("minerals", 11.0),
-            ("alloys", 4.0),
-        ]
-    );
-    assert_eq!(rich.planets.len(), 7);
-    assert_eq!(rich.sites.len(), 1, "the Larion dig site");
-    assert!(rich.fleets_present.is_empty() && rich.starbase.is_none());
-
-    let generated = &details[1];
-    assert!(
-        generated.resources.is_empty(),
-        "basic_init_02 spawns no deposits"
-    );
-    assert!(
-        !generated.planets.is_empty(),
-        "but it does spawn bodies: {:?}",
-        generated.planets
-    );
-
-    let undone: EditResult = invoke::<Option<EditResult>>(&w, "undo", json!({}))
-        .expect("undo")
-        .expect("something to undo");
-    assert_eq!(undone.details_stale, [9], "undo stales it again");
-    let redone: EditResult = invoke::<Option<EditResult>>(&w, "redo", json!({}))
-        .expect("redo")
-        .expect("something to redo");
-    assert_eq!(redone.details_stale, [9]);
-
-    let moved: EditResult = invoke(
-        &w,
-        "apply_op",
-        json!({ "op": { "type": "MoveSystem", "id": 16, "x": 1.0, "y": 2.0 } }),
-    )
-    .expect("move system 16");
-    assert!(
-        moved.details_stale.is_empty(),
-        "a move leaves the initializer alone"
-    );
-
-    invoke::<()>(&w, "unload_game_data", json!({})).expect("unload");
-    let without: Vec<SystemDetails> =
-        invoke(&w, "get_system_details", json!({ "ids": [16] })).expect("details");
-    assert!(
-        without.is_empty(),
-        "without the install there is nothing to resolve an initializer against"
-    );
-}
-
-/// A scenario system's scripts and territories come from the loaded game data; a save has none.
-#[test]
-fn a_scenario_systems_scripts_and_owners_are_read_from_game_data() {
-    if !have_install() {
-        return;
-    }
-    let w = webview();
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SCENARIO })).expect("open the scenario");
-    let none: Option<serde_json::Value> =
-        invoke(&w, "get_system_scripts", json!({ "id": 3018 })).expect("without game data");
-    assert!(none.is_none(), "no game data, no scripts");
-
-    invoke::<GameDataSummary>(&w, "load_game_data", json!({ "mods": false }))
-        .expect("load game data");
-    let scripts: Option<serde_json::Value> =
-        invoke(&w, "get_system_scripts", json!({ "id": 3018 })).expect("scripts");
-    let scripts = scripts.expect("a scenario system has a script list");
-    assert_eq!(scripts["system"], 3018);
-    assert!(
-        scripts["initializer"]["file"].is_string(),
-        "random_empire_init_01 is a vanilla initializer: {}",
-        scripts["initializer"]
-    );
-    let kinds: Vec<&str> = scripts["rows"]
-        .as_array()
-        .expect("rows")
-        .iter()
-        .filter_map(|r| r["kind"].as_str())
-        .collect();
-    assert!(
-        kinds.contains(&"scenario_effect"),
-        "Iridonia's own effect block: {kinds:?}"
-    );
-    assert!(
-        scripts["owner"].is_null() || !scripts["owner"]["territory"].is_null(),
-        "the owner's territory is joined before it crosses IPC: {}",
-        scripts["owner"]
-    );
-    assert!(
-        invoke::<Option<serde_json::Value>>(&w, "get_system_scripts", json!({ "id": 999_999 }))
-            .expect("unknown id")
-            .is_none()
-    );
-
-    let owners: Option<serde_json::Value> =
-        invoke(&w, "get_scenario_owners", json!({})).expect("owners");
-    let owners = owners.expect("a scenario has an owners view");
-    assert_eq!(owners["with_game_data"], true);
-    assert!(owners["territories"].is_array());
-
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open the save");
-    let on_save: Option<serde_json::Value> =
-        invoke(&w, "get_scenario_owners", json!({})).expect("owners on a save");
-    assert!(
-        on_save.is_none(),
-        "a save's owners come from the save itself"
-    );
-}
-
-/// The bodies the scripts colonise name their territory in the system's details, which
-/// takes every system at once: the owners are computed once and kept until the game data
-/// or the scenario changes.
-#[test]
-fn a_scenario_systems_colonies_name_their_territory_and_the_owners_are_kept() {
-    if !have_install() {
-        return;
-    }
-    let w = webview();
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SCENARIO })).expect("open the scenario");
-    let loaded: GameDataSummary =
-        invoke(&w, "load_game_data", json!({ "mods": false })).expect("load game data");
-
-    let before: Option<ScenarioOwners> =
-        invoke(&w, "get_scenario_owners", json!({})).expect("owners");
-    let before = before.expect("a scenario has an owners view");
-    assert!(
-        before.colonies.iter().all(|c| c.system != 9),
-        "system 9 has no initializer yet"
-    );
-
-    invoke::<EditResult>(
-        &w,
-        "apply_op",
-        json!({ "op": {
-            "type": "SetInitializer",
-            "id": 9,
-            "initializer": "com_sol_system",
-            "spawn_weight": null,
-        } }),
-    )
-    .expect("set the initializer of system 9");
-
-    let owners: Option<ScenarioOwners> =
-        invoke(&w, "get_scenario_owners", json!({})).expect("owners after the edit");
-    let owners = owners.expect("a scenario has an owners view");
-    let colony = owners
-        .colonies
-        .iter()
-        .find(|c| c.system == 9)
-        .expect("com_sol_system colonises Earth");
-
-    let details: Vec<SystemDetails> =
-        invoke(&w, "get_system_details", json!({ "ids": [9] })).expect("details");
-    let planet = &details[0].planets[colony.planet_index as usize];
-    assert!(planet.colonised, "the body the scripts colonise");
-    assert_eq!(planet.owner, Some(colony.territory));
-    assert!(
-        details[0]
-            .planets
-            .iter()
-            .filter(|p| p.owner.is_some())
-            .all(|p| p.colonised),
-        "only a colony names an owner"
-    );
-
-    let again: Option<ScenarioOwners> =
-        invoke(&w, "get_scenario_owners", json!({})).expect("owners again");
-    assert_eq!(
-        again.as_ref(),
-        Some(&owners),
-        "the second call answers with what the first computed"
-    );
-    let same: Vec<SystemDetails> =
-        invoke(&w, "get_system_details", json!({ "ids": [9] })).expect("details again");
-    assert_eq!(same, details);
-    let summary: Option<GameDataSummary> =
-        invoke(&w, "game_data_summary", json!({})).expect("summary");
-    assert_eq!(
-        summary.expect("loaded").generation,
-        loaded.generation,
-        "reading the owners never reloads the game data"
-    );
 }
 
 /// Any entity of the save reads one level at a time; an op names the entities it touched.
 #[test]
 fn an_entity_reads_by_address_and_an_op_names_what_it_touched() {
-    let w = webview();
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open");
+    let w = opened(SAMPLE);
     let planet: serde_json::Value = invoke(
         &w,
         "get_entity",

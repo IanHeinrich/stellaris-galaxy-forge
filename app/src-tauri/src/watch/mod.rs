@@ -56,16 +56,21 @@ struct Status {
     start: Option<String>,
     /// Why the last reread failed; the next one that succeeds takes it back.
     rebuild: Option<String>,
+    /// The last error the OS watcher reported, after which changes may have gone
+    /// unseen; it stands as long as the watcher does.
+    missed: Option<String>,
 }
 
 impl Status {
-    /// What the watcher is failing to do: the last reread's news, then the roots it
-    /// never got.
+    /// What the watcher is failing to do: the last reread's news, the changes it
+    /// missed, then the roots it never got.
     fn reason(&self) -> Option<String> {
-        match (&self.rebuild, &self.start) {
-            (Some(rebuild), Some(start)) => Some(format!("{rebuild}; {start}")),
-            (rebuild, start) => rebuild.clone().or_else(|| start.clone()),
-        }
+        let reasons: Vec<&str> = [&self.rebuild, &self.missed, &self.start]
+            .into_iter()
+            .flatten()
+            .map(String::as_str)
+            .collect();
+        (!reasons.is_empty()).then(|| reasons.join("; "))
     }
 }
 
@@ -74,6 +79,7 @@ pub struct WatchState(Mutex<Status>);
 
 enum Message {
     Changed(Vec<PathBuf>),
+    Failed(String),
     Resume,
 }
 
@@ -130,6 +136,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>, gd: &GameData) {
         }),
         start: reason,
         rebuild: None,
+        missed: None,
     };
 }
 
@@ -149,6 +156,7 @@ pub fn stop<R: Runtime>(app: &AppHandle<R>) {
         let mut status = lock(&state);
         status.start = None;
         status.rebuild = None;
+        status.missed = None;
         status.watch.take()
     };
     let Some(watch) = stopped else {
@@ -188,6 +196,10 @@ fn note_rebuild<R: Runtime>(app: &AppHandle<R>, reason: Option<String>) {
     lock(&app.state::<WatchState>()).rebuild = reason;
 }
 
+fn note_missed<R: Runtime>(app: &AppHandle<R>, reason: String) {
+    lock(&app.state::<WatchState>()).missed = Some(reason);
+}
+
 async fn run<R: Runtime>(
     app: AppHandle<R>,
     mut from_watcher: UnboundedReceiver<Message>,
@@ -205,6 +217,11 @@ async fn run<R: Runtime>(
                 paused.store(false, Ordering::Relaxed);
                 announce(&app, Vec::new(), None);
                 action
+            }
+            Woke::Message(Message::Failed(reason)) => {
+                note_missed(&app, reason);
+                announce(&app, Vec::new(), None);
+                continue;
             }
             Woke::Message(Message::Changed(paths)) => {
                 let Some(gd) = app.state::<GameDataState>().loaded() else {
@@ -261,28 +278,40 @@ async fn rebuild<R: Runtime>(
     let Some((from, gd)) = state.snapshot() else {
         return;
     };
-    let registries = RegistryKind::closure(&kinds)
-        .iter()
-        .map(|k| k.as_str().to_owned())
-        .collect();
-    let rebuilt = match tauri::async_runtime::spawn_blocking(move || gd.rebuild(&kinds)).await {
-        Ok(rebuilt) => rebuilt,
-        Err(e) => {
-            note_rebuild(
-                app,
-                Some(format!("a reread of the changed files failed: {e}")),
-            );
-            announce(app, Vec::new(), None);
-            return;
-        }
-    };
-    note_rebuild(app, None);
+    let asked = RegistryKind::closure(&kinds);
+    let (rebuilt, replaced) =
+        match tauri::async_runtime::spawn_blocking(move || gd.rebuild(&kinds)).await {
+            Ok(rebuilt) => rebuilt,
+            Err(e) => {
+                note_rebuild(
+                    app,
+                    Some(format!("a reread of the changed files failed: {e}")),
+                );
+                announce(app, Vec::new(), None);
+                return;
+            }
+        };
+    note_rebuild(app, all_kept(&asked, &replaced));
     if shutdown.load(Ordering::Relaxed) {
         return;
     }
     if state.swap(from, Arc::new(rebuilt)).is_some() {
+        let registries = replaced.iter().map(|k| k.as_str().to_owned()).collect();
         announce(app, registries, None);
     }
+}
+
+/// Why a rebuild that replaced none of the registries it reread changed nothing, naming
+/// the ones that kept their old definitions; `None` when any was replaced.
+fn all_kept(asked: &BTreeSet<RegistryKind>, replaced: &BTreeSet<RegistryKind>) -> Option<String> {
+    if !replaced.is_empty() || asked.is_empty() {
+        return None;
+    }
+    let kinds: Vec<&str> = asked.iter().map(|k| k.as_str()).collect();
+    Some(format!(
+        "a reread of {} found nothing; the definitions already loaded stay in use",
+        kinds.join(", ")
+    ))
 }
 
 fn announce<R: Runtime>(app: &AppHandle<R>, registries: Vec<String>, hot: Option<(PathBuf, u32)>) {
@@ -345,7 +374,14 @@ impl DebounceEventHandler for Sink {
     /// A path still being written comes back as `AnyContinuous` and again as
     /// `Any` once it settles, so only the settled report is passed on.
     fn handle_event(&mut self, result: DebounceEventResult) {
-        let Ok(events) = result else { return };
+        let events = match result {
+            Ok(events) => events,
+            Err(e) => {
+                let reason = format!("the file watcher may have missed changes: {e}");
+                let _ = self.0.send(Message::Failed(reason));
+                return;
+            }
+        };
         let paths: Vec<PathBuf> = events
             .into_iter()
             .filter(|e| e.kind == DebouncedEventKind::Any)
@@ -392,6 +428,7 @@ mod tests {
             watch: None,
             start: Some("could not watch C:/mods/gone".to_owned()),
             rebuild: Some("a reread of the changed files failed".to_owned()),
+            missed: None,
         };
         assert_eq!(
             status.reason().as_deref(),
@@ -402,6 +439,48 @@ mod tests {
         assert_eq!(
             status.reason().as_deref(),
             Some("could not watch C:/mods/gone")
+        );
+    }
+
+    /// A rebuild that kept every registry it reread says so; one that replaced any says nothing.
+    #[test]
+    fn a_rebuild_that_replaced_nothing_names_what_it_kept() {
+        let asked = BTreeSet::from([RegistryKind::Colors, RegistryKind::Localisation]);
+        let reason = all_kept(&asked, &BTreeSet::new()).expect("a reason");
+        assert!(reason.contains(RegistryKind::Colors.as_str()), "{reason}");
+        assert!(
+            reason.contains(RegistryKind::Localisation.as_str()),
+            "{reason}"
+        );
+        assert_eq!(
+            all_kept(&asked, &BTreeSet::from([RegistryKind::Colors])),
+            None
+        );
+    }
+
+    /// An error the OS watcher reports reaches the task as a reason, and the reason
+    /// rides the view beside the others.
+    #[test]
+    fn a_watcher_error_becomes_a_reason() {
+        let (to_task, mut from_watcher) = unbounded_channel();
+        Sink(to_task).handle_event(Err(notify_debouncer_mini::notify::Error::generic(
+            "event buffer overflow",
+        )));
+
+        let Ok(Message::Failed(reason)) = from_watcher.try_recv() else {
+            panic!("the error was not passed on");
+        };
+        assert!(reason.contains("event buffer overflow"), "{reason}");
+
+        let status = Status {
+            watch: None,
+            start: Some("could not watch C:/mods/gone".to_owned()),
+            rebuild: None,
+            missed: Some(reason.clone()),
+        };
+        assert_eq!(
+            status.reason(),
+            Some(format!("{reason}; could not watch C:/mods/gone"))
         );
     }
 }

@@ -13,7 +13,9 @@ use sgf_core::cst::{self, Node};
 
 use crate::initializers::Initializers;
 use crate::scripts::index::ScriptIndex;
-use crate::scripts::scope::{is_call, is_country_scope, keeps_scope};
+use crate::scripts::scope::{
+    SAVES_TARGET, country_flag, is_call, is_country_scope, is_guard, keeps_scope,
+};
 use crate::scripts::view::ScriptRef;
 
 /// How far `neighbor_system` / `spawn_system` chains are followed.
@@ -153,10 +155,9 @@ impl Walk<'_> {
                 continue;
             };
             match key {
-                // A guard is read as true, so its body says nothing about the system.
-                "limit" | "trigger" => continue,
+                _ if is_guard(key) => continue,
                 "set_owner" => owner(&mut self.chain, child, scope.src),
-                "save_global_event_target_as" | "save_event_target_as" => {
+                _ if SAVES_TARGET.contains(&key) => {
                     self.saved(child, scope);
                 }
                 "set_star_flag" => flag(child, scope.src, &mut self.chain.star_flags),
@@ -249,11 +250,7 @@ fn flag(node: &Node, src: &[u8], into: &mut Vec<String>) {
 }
 
 fn country_scope(chain: &mut Chain, node: &Node, src: &[u8]) {
-    let Some(flag) = node
-        .find("limit", src)
-        .and_then(|l| l.find("has_country_flag", src))
-        .and_then(|f| f.scalar_str(src))
-    else {
+    let Some(flag) = country_flag(node, src) else {
         return;
     };
     for target in node.find_all("save_global_event_target_as", src) {

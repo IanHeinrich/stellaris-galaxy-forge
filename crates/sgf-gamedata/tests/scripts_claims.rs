@@ -5,8 +5,8 @@
 mod common;
 
 use std::collections::BTreeSet;
-use std::fs;
 
+use sgf_gamedata::GameData;
 use sgf_gamedata::scripts::claims::{Claim, ClaimEffect, DAY_ONE_DAYS, OwnerExpr};
 use sgf_gamedata::scripts::facts::{self, ScenarioFacts};
 use sgf_gamedata::scripts::trigger::Trigger;
@@ -14,7 +14,6 @@ use sgf_gamedata::scripts::{
     OwnerTier, ReferenceVia, ScenarioOwners, ScenarioSystem, ScriptRowKind, ScriptTiming,
     SystemColony,
 };
-use sgf_gamedata::{GameData, LoadOptions};
 
 use common::scripts::{install_with_mod, names, row, site, sys};
 
@@ -22,28 +21,14 @@ use common::scripts::{install_with_mod, names, row, site, sys};
 /// starbase and one whose statement carries an `effect` of its own.
 fn fact_systems() -> Vec<ScenarioSystem<'static>> {
     vec![
-        ScenarioSystem {
-            id: 1,
-            initializer: Some("empire_capital_init"),
-            effect: None,
-        },
-        ScenarioSystem {
-            id: 5,
-            initializer: Some("basic_init_01"),
-            effect: None,
-        },
-        ScenarioSystem {
-            id: 6,
-            initializer: Some("contested_init"),
-            effect: None,
-        },
-        ScenarioSystem {
-            id: 7,
-            initializer: Some("mod_one_init"),
-            effect: Some(
-                "set_star_flag = fixture_scenario\nset_global_flag = fixture_scenario_seen",
-            ),
-        },
+        sys(1, "empire_capital_init"),
+        sys(5, "basic_init_01"),
+        sys(6, "contested_init"),
+        ScenarioSystem::new(
+            7,
+            "mod_one_init",
+            Some("set_star_flag = fixture_scenario\nset_global_flag = fixture_scenario_seen"),
+        ),
     ]
 }
 
@@ -550,69 +535,40 @@ fn a_claim_that_rests_on_a_condition_it_cannot_judge_is_assumed() {
 /// The fixture install plus a mod that sweeps on a guard this editor cannot
 /// judge: the fixture's own sweep only hands such a branch to a scope.
 fn install_with_sweep() -> (tempfile::TempDir, GameData) {
-    let user_dir = tempfile::tempdir().expect("temp dir");
-    let root = user_dir.path();
-    for dir in [
-        "events",
-        "common/on_actions",
-        "common/solar_system_initializers",
-    ] {
-        fs::create_dir_all(root.join("mod/sweep").join(dir)).expect("mod tree");
-    }
-    fs::write(
-        root.join("dlc_load.json"),
-        br#"{"disabled_dlcs":[],"enabled_mods":["mod/sweep.mod"]}"#,
-    )
-    .expect("dlc_load");
-    fs::write(
-        root.join("mod/sweep.mod"),
-        b"name=\"Sweep\"\npath=\"mod/sweep\"\nsupported_version=\"v9.9.*\"\n",
-    )
-    .expect("descriptor");
-    fs::write(
-        root.join("mod/sweep/common/on_actions/zz_sweep.txt"),
-        "on_game_start = {\n\tevents = {\n\t\tsweep.1\n\t}\n}\n",
-    )
-    .expect("on_action");
-    fs::write(
-        root.join("mod/sweep/events/zz_sweep.txt"),
-        concat!(
-            "namespace = sweep\n",
-            "event = {\n",
-            "\tid = sweep.1\n",
-            "\tis_triggered_only = yes\n",
-            "\timmediate = {\n",
-            "\t\tevery_system = {\n",
-            "\t\t\tif = {\n",
-            "\t\t\t\tlimit = {\n",
-            "\t\t\t\t\thas_star_flag = sweep_guess\n",
-            "\t\t\t\t\tis_capital = yes\n",
-            "\t\t\t\t}\n",
-            "\t\t\t\tcreate_starbase = {\n",
-            "\t\t\t\t\tsize = starbase_hut\n",
-            "\t\t\t\t\towner = event_target:sweep_empire\n",
-            "\t\t\t\t}\n",
-            "\t\t\t}\n",
-            "\t\t}\n",
-            "\t}\n",
-            "}\n",
+    install_with_mod(&[
+        (
+            "common/on_actions/zz_sweep.txt",
+            "on_game_start = {\n\tevents = {\n\t\tsweep.1\n\t}\n}\n",
         ),
-    )
-    .expect("events");
-    fs::write(
-        root.join("mod/sweep/common/solar_system_initializers/zz_sweep.txt"),
-        "sweep_guess_init = {\n\tclass = sc_sun\n\tflags = { sweep_guess }\n}\n",
-    )
-    .expect("initializer");
-
-    let opts = LoadOptions {
-        install: Some(common::fixture("install")),
-        user_dir: Some(root.to_path_buf()),
-        language: "english".to_owned(),
-        mods: true,
-    };
-    let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("loads");
-    (user_dir, gd)
+        (
+            "events/zz_sweep.txt",
+            concat!(
+                "namespace = sweep\n",
+                "event = {\n",
+                "\tid = sweep.1\n",
+                "\tis_triggered_only = yes\n",
+                "\timmediate = {\n",
+                "\t\tevery_system = {\n",
+                "\t\t\tif = {\n",
+                "\t\t\t\tlimit = {\n",
+                "\t\t\t\t\thas_star_flag = sweep_guess\n",
+                "\t\t\t\t\tis_capital = yes\n",
+                "\t\t\t\t}\n",
+                "\t\t\t\tcreate_starbase = {\n",
+                "\t\t\t\t\tsize = starbase_hut\n",
+                "\t\t\t\t\towner = event_target:sweep_empire\n",
+                "\t\t\t\t}\n",
+                "\t\t\t}\n",
+                "\t\t}\n",
+                "\t}\n",
+                "}\n",
+            ),
+        ),
+        (
+            "common/solar_system_initializers/zz_sweep.txt",
+            "sweep_guess_init = {\n\tclass = sc_sun\n\tflags = { sweep_guess }\n}\n",
+        ),
+    ])
 }
 
 #[test]

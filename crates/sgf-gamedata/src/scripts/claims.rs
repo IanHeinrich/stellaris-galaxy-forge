@@ -14,7 +14,9 @@ use sgf_core::cst::Node;
 use crate::install::layers::Layout;
 use crate::install::script;
 use crate::scripts::index::ScriptIndex;
-use crate::scripts::scope::{Scopes, is_call, is_country_scope};
+use crate::scripts::scope::{
+    SAVES_TARGET, Scopes, country_flag, is_call, is_country_scope, is_guard,
+};
 use crate::scripts::trigger::Trigger;
 use crate::scripts::view::BypassKind;
 
@@ -436,7 +438,7 @@ impl<'a> Build<'a> {
                 continue;
             };
             match key {
-                "limit" | "trigger" => continue,
+                _ if is_guard(key) => continue,
                 "if" | "else_if" => {
                     let limit = Self::limit(child, state.src);
                     let mut guards = state.guards.clone();
@@ -502,7 +504,7 @@ impl<'a> Build<'a> {
                     }
                     continue;
                 }
-                "save_event_target_as" | "save_global_event_target_as" => {
+                _ if SAVES_TARGET.contains(&key) => {
                     if let Some(token) = child.scalar_str(state.src)
                         && matches!(state.scopes.here(), Site::Guarded { .. })
                     {
@@ -657,10 +659,7 @@ impl<'a> Build<'a> {
     /// The token a `random_country = { limit = { has_country_flag = F } … }`
     /// scope is, through the country that flag names.
     fn country_token(&self, node: &Node, src: &[u8]) -> Option<String> {
-        let flag = node
-            .find("limit", src)?
-            .find("has_country_flag", src)?
-            .scalar_str(src)?;
+        let flag = country_flag(node, src)?;
         let country = self.index.country_of_flag(flag)?;
         country.saves_targets.first().cloned()
     }

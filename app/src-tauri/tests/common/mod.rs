@@ -1,15 +1,24 @@
 //! Scaffolding shared by the IPC command test binaries, on the real sample save.
 #![allow(dead_code)]
 
+use serde::Serialize;
 use serde::de::DeserializeOwned;
-use serde_json::Value;
-use sgf_core::views::{ErrorKind, SgfError};
+use serde_json::{Value, json};
+use sgf_core::views::{ErrorKind, OpenResult, SgfError};
 use tauri::ipc::{CallbackFn, InvokeBody, InvokeResponseBody};
 use tauri::test::{INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder};
 use tauri::webview::InvokeRequest;
 use tauri::{WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2206.11.16.sav");
+pub const SCENARIO: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/scenario_grammar.txt"
+);
+pub const PAINTED: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/paint_a_galaxy.txt"
+);
 
 pub fn webview() -> WebviewWindow<MockRuntime> {
     let app = sgf_app_lib::configure(mock_builder())
@@ -29,6 +38,20 @@ pub fn invoke<T: DeserializeOwned>(
         Ok(body) => Ok(body.deserialize().expect("deserialise response")),
         Err(v) => Err(serde_json::from_value(v.clone()).unwrap_or_else(|e| panic!("{e}: {v}"))),
     }
+}
+
+/// Open the document at `path` as the session; the test fails if it does not open.
+pub fn open(webview: &WebviewWindow<MockRuntime>, path: impl Serialize) -> OpenResult {
+    let path = json!(path);
+    invoke(webview, "open_save", json!({ "path": path }))
+        .unwrap_or_else(|e| panic!("open {path}: {}", e.message))
+}
+
+/// A fresh app with the document at `path` open.
+pub fn opened(path: impl Serialize) -> WebviewWindow<MockRuntime> {
+    let webview = webview();
+    open(&webview, path);
+    webview
 }
 
 /// The command's response as the IPC layer hands it back, from the webview's own

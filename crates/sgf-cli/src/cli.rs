@@ -72,7 +72,7 @@ pub enum Command {
     ExportScenario {
         sav: PathBuf,
         out: PathBuf,
-        /// The scenario's `name`; the save file's stem by default.
+        /// The scenario's `name`; the output file's stem by default.
         #[arg(long)]
         name: Option<String>,
         #[command(flatten)]
@@ -126,8 +126,8 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
-    /// Move a nebula (by its index in file order) to (x, y) together with every member
-    /// system, updating lane lengths.
+    /// Move a nebula's centre (by its index in file order) to (x, y). Its systems and
+    /// lanes stay where they are.
     MoveNebula {
         sav: PathBuf,
         index: usize,
