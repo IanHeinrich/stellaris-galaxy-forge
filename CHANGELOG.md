@@ -13,9 +13,9 @@ a release is made.
 ### Added
 
 - Search finds systems by what is in them, such as "salvager", "gaia",
-  "l-gate" or "leviathan". Every match is ringed on the map.
-- Pinned searches. Pin a search and its systems are ringed in their own
-  colour on every save you open.
+  "l-gate" or "leviathan". Every match is highlighted on the map.
+- Pinned searches. Pin a search and its systems are highlighted in their
+  own colour on every save you open.
 - The Galaxy panel can reveal which L-Gate outcome the save rolled, and
   change it until a gate opens. It stays hidden until you click Reveal.
 - Save asks before replacing a file that changed on disk since you
