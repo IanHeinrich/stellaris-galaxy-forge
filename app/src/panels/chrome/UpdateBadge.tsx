@@ -1,3 +1,4 @@
+import { releaseHeadline } from "../../lib/releaseNotes";
 import { updateReady, useUpdateStore } from "../../store/updateStore";
 import "./chrome.css";
 
@@ -8,7 +9,7 @@ export function UpdateBadge() {
   const showDialog = useUpdateStore((s) => s.showDialog);
   if (!ready || update === null) return null;
 
-  const headline = update.notes.split("\n")[0].trim();
+  const headline = releaseHeadline(update.notes);
   return (
     <button
       type="button"

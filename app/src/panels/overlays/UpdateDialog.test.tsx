@@ -58,6 +58,29 @@ describe("an update the app can install itself", () => {
     expect(onInstall).toHaveBeenCalledTimes(1);
   });
 
+  it("formats notes written as the changelog writes them", () => {
+    const notes = [
+      "### Added",
+      "",
+      "- Binary and trinary systems show each of their stars on",
+      "  the map.",
+      "- `sgf lane` takes **two** systems.",
+      "",
+      "### Fixed",
+      "",
+      "- Waystations no longer clutter the whole-galaxy view.",
+    ].join("\n");
+    const html = renderToStaticMarkup(body({ update: { ...UPDATE, notes } }));
+
+    expect(html).toContain("<h2>Added</h2>");
+    expect(html).toContain(
+      "<li>Binary and trinary systems show each of their stars on the map.</li>",
+    );
+    expect(html).toContain("<li><code>sgf lane</code> takes <strong>two</strong> systems.</li>");
+    expect(html).toContain("<h2>Fixed</h2>");
+    expect(html).not.toContain("###");
+  });
+
   it("says why an install failed over the buttons that try it again", () => {
     const tree = body({ error: "signature mismatch" });
 
