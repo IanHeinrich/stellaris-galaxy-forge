@@ -76,7 +76,7 @@ pub fn search(
         .take(limit)
         .map(|m| system_hit(g, &g.systems[&m.id], m.matched_on))
         .collect();
-    hits.extend(countries(g, &needle, limit, resolve));
+    hits.extend(countries(g, details, &needle, limit, resolve));
     hits.extend(
         planets
             .iter()
@@ -236,6 +236,7 @@ fn strip_filler(text: &str) -> String {
 
 fn countries(
     g: &GalaxyGraph,
+    details: Option<&DetailsProjection>,
     needle: &str,
     limit: usize,
     resolve: NameResolver<'_>,
@@ -252,21 +253,33 @@ fn countries(
         .take(limit)
         .map(|&(_, _, i)| {
             let country = &g.countries[i];
+            let home = country
+                .capital_system
+                .or_else(|| details.and_then(|d| fleet_system(g, d, country.id)));
             SearchHit {
                 kind: SearchKind::Country,
                 id: country.id,
                 name: country.name.clone(),
                 name_key: country.name_key.clone(),
-                system_id: country.capital_system,
+                system_id: home,
                 owner: None,
                 country_type: Some(country.country_type.clone()),
                 system_count: Some(country.system_count),
                 planet_class: None,
-                position: position(g, country.capital_system),
+                position: position(g, home),
                 matched_on: None,
             }
         })
         .collect()
+}
+
+/// Where a country without a capital, such as a guardian, has its first fleet.
+fn fleet_system(g: &GalaxyGraph, details: &DetailsProjection, country: u32) -> Option<u32> {
+    g.order.iter().copied().find(|&system| {
+        details
+            .raw(system)
+            .is_some_and(|raw| raw.fleets.iter().any(|f| f.owner == Some(country)))
+    })
 }
 
 /// Every matching planet with its system, best first.

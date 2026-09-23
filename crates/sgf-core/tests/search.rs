@@ -1,4 +1,7 @@
 //! Search by id, name and what a system holds, on the real sample save.
+use std::path::PathBuf;
+
+use sgf_core::document::Document;
 use sgf_core::projections::galaxy::display_name;
 use sgf_core::search::NameResolver;
 use sgf_core::session::Session;
@@ -243,13 +246,21 @@ fn search_never_builds_the_details_projection_and_warming_widens_it() {
 }
 
 #[test]
-fn a_hit_with_nowhere_to_pan_has_no_position() {
-    let s = warm();
-    let marauders = of_kind(&find(&s, "marauders", 5, &no_loc), SearchKind::Country);
-    let hit = marauders.first().expect("a marauder country");
-    assert_eq!(hit.system_id, None, "{hit:?}");
-    assert_eq!(hit.position, None, "not the galaxy centre");
+fn an_empire_without_a_capital_goes_where_its_fleet_is() {
+    let doc = Document::load(common::SAMPLE_4_5).expect("load the 4.5 sample");
+    let mut s = Session::from_document(Some(PathBuf::from(common::SAMPLE_4_5)), doc).expect("open");
+    s.warm_details().expect("build details");
+    let hits = find(&s, "automated dreadnought", 5, &no_loc);
+    let empire = &of_kind(&hits, SearchKind::Country)[0];
+    let fleet = &of_kind(&hits, SearchKind::Fleet)[0];
+    assert_eq!(empire.system_count, Some(0), "a guardian owns no system");
+    assert_eq!(empire.system_id, fleet.system_id);
+    assert!(empire.position.is_some());
+}
 
+#[test]
+fn a_hit_carries_the_position_of_what_it_locates() {
+    let s = warm();
     let sol = of_kind(&find(&s, "sol", 5, &no_loc), SearchKind::System);
     assert!(sol[0].position.is_some());
 
