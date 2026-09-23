@@ -126,8 +126,9 @@ pub fn round_trip(mut session: Session, op: Op) {
 /// Apply `op` to the session as it stands, undo it and redo it, and leave it applied.
 /// Undo puts back the bytes and the galaxy from before, redo writes what apply wrote,
 /// each moves one entry between the history's stacks, and after every step the session
-/// agrees with a fresh open of its bytes (see [`assert_fresh`]).
-pub fn round_trip_step(session: &mut Session, label: &str, op: Op) {
+/// agrees with a fresh open of its bytes (see [`assert_fresh`]). Returns what the apply
+/// returned.
+pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
     let before = current(session);
     let before_graph = session.graph.clone();
     let before_view = GalaxyView::from(&session.graph);
@@ -172,6 +173,7 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) {
     assert_history(session, label, done + 1, 0);
     assert!(session.redo().expect("redo").is_none());
     assert_fresh(session, &format!("{label} redone"));
+    applied
 }
 
 fn assert_history(session: &Session, label: &str, undo: usize, redo: usize) {
