@@ -228,6 +228,11 @@ its own scenario files and can empty a vanilla dynamic scenario with a
 0-byte file of the same name. Grammar and the `setup_scenario` /
 `static_galaxy_scenario` dispatch: [format-notes.md](format-notes.md).
 
+A galaxy size defined twice under one name, in two differently named
+files, is kept twice, and the "too many systems" warning uses the higher
+star count. I haven't checked in-game which of the two definitions the
+game takes.
+
 A scenario `system.initializer` names a block under
 `common/solar_system_initializers/**`, resolved like any other vocabulary
 here: install first, then enabled mods in load order. `usage` sorts the

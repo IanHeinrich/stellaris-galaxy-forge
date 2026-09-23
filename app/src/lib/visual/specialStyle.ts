@@ -4,7 +4,7 @@ import type { SpecialKind } from "../../generated/SpecialKind";
 import type { SpecialSystem } from "../../generated/SpecialSystem";
 import { megastructureLabel, shownMegastructures } from "../details/labels";
 import { displayNameIn } from "../names";
-import { KIND_ORDER, kindLabel } from "../special";
+import { kindLabel } from "../special";
 import { titleCase } from "../text";
 import type { LabelTier } from "./labels";
 
@@ -30,11 +30,6 @@ export const NOTABLE_KINDS: ReadonlySet<SpecialKind> = new Set([
 export const TERRITORY_KINDS: ReadonlySet<SpecialKind> = new Set(["marauder", "fallen_empire"]);
 /** One bright colour for every emphasised territory. */
 export const EMPHASIS_COLOR = 0xffe08a;
-
-/** Plentiful kinds: badges only once the map is zoomed in some. */
-export const COMMON_KINDS: ReadonlySet<SpecialKind> = new Set(
-  KIND_ORDER.filter((kind) => !NOTABLE_KINDS.has(kind)),
-);
 
 /** Whether a kind's badge shows at the given zoom tier. */
 export function badgeVisible(kind: SpecialKind, tier: LabelTier): boolean {

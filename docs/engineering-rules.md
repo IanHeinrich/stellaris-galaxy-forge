@@ -40,7 +40,8 @@ path renames aside as the backup, and the editor's bytes take its place.
 ## Layout
 
 - `crates/sgf-core`: archive I/O, index scan, lexer/CST, overlay,
-  emit, projections, ops, validator, session, IPC view types.
+  emit, projections, ops, validator, session, the scenario export,
+  entity addressing for the inspector, search, IPC view types.
 - `crates/sgf-gamedata`: the user's install and its mods, read at
   runtime: definitions, localisation, scripts and textures.
 - `crates/sgf-cli`: the `sgf` binary; also the test harness.
@@ -48,10 +49,12 @@ path renames aside as the backup, and the editor's bytes take its place.
   `sgf-app`.
 - `app/src-tauri/tests`: the Tauri commands end to end, on a session
   opened on the sample save.
-- `app/src` is split by layer: `api/`, `store/`, `lib/`, `map/`, `panels/`.
+- `app/src` is split by layer: `api/`, `lib/`, `store/`, `map/`, `panels/`.
   `app/src/lib/README.md` states the import rule the layers keep and the
   exceptions to it; `app/src/panels/README.md` states which folder owns
   which slice of the UI and which stylesheet.
+- `app/src/test/`: builders and stand-ins shared by the tests of every
+  layer.
 - `app/src/generated/`: TypeScript types exported by ts-rs. Generated:
   regenerate with `cargo test --workspace` (`sgf-core`, `sgf-gamedata` and
   `sgf-app`, via its `views.rs`, all export types); never hand-edit.
@@ -63,8 +66,14 @@ path renames aside as the backup, and the editor's bytes take its place.
   raise as many findings as one file can, so every kind the Issues tab
   shows has a real example behind it; `crates/sgf-core/tests/issues.rs`
   asserts what each of them raises and how the two were made.
-- `docs/`: the user guide, the save format notes, the game data and mod
-  notes, and the ADRs.
+  `2206.11.16.scenario.txt` and `2206.11.16.paint.txt` are the 4.4
+  save's galaxy exported as a plain scenario and for Paint a Galaxy.
+  `paint_a_galaxy.txt` is a scenario as the Paint a Galaxy mod writes
+  one, and `scenario_grammar.txt` holds every statement shape the
+  scenario grammar allows.
+- `docs/`: the user guide, the architecture, the save format notes, the
+  game data and mod notes, the Paint a Galaxy integration notes, and the
+  ADRs.
 
 ## Commands
 

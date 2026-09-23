@@ -26,16 +26,16 @@ function systems(...nodes: SystemNode[]): Map<number, SystemNode> {
 const at = (id: number, x: number, y: number) => systemNode({ id, x, y });
 
 describe("the zone vocabulary", () => {
-  it("lists the eight directions in the mod's order and the seven kinds with their tags", () => {
+  it("lists the eight directions in the mod's order and the seven kinds", () => {
     expect(FE_DIRECTIONS.map((d) => d.key)).toEqual(["e", "se", "s", "sw", "w", "nw", "n", "ne"]);
-    expect(FE_KINDS.map((k) => k.tag)).toEqual([
-      "",
-      "Mat",
-      "Spir",
-      "Xphobe",
-      "Xphile",
-      "Mach",
-      "Hive",
+    expect(FE_KINDS.map((k) => k.key)).toEqual([
+      "random",
+      "materialist",
+      "spiritualist",
+      "xenophobe",
+      "xenophile",
+      "machine",
+      "hive",
     ]);
     expect(FE_ZONE_DISTANCES).toHaveLength(18);
     expect(FE_ZONE_DISTANCES[0]).toBe(30);

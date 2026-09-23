@@ -44,10 +44,6 @@ export function kindLabel(kind: SpecialKind): string {
   return LABELS[kind];
 }
 
-export function kindDescription(kind: SpecialKind): string {
-  return DESCRIPTIONS[kind];
-}
-
 /** What a chip or row naming `kind` says on hover. */
 export function kindTitle(kind: SpecialKind): string {
   return `${LABELS[kind]}: ${DESCRIPTIONS[kind]}`;
