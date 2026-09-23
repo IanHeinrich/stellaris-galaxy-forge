@@ -10,7 +10,7 @@ a release is made.
 
 ### Added
 
-- The Galaxy panel can reveal the L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance or an empty cluster. It stays hidden until you click Reveal, in the panel or beside the L-Cluster label on the map. Once revealed, a dropdown changes the outcome until a gate opens. The panel warns when an enabled mod also changes the outcome.
+- The Galaxy panel can reveal the L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance or an empty cluster. It stays hidden until you click Reveal, in the panel or inside the L-Cluster circle on the map. Once revealed, a dropdown changes the outcome until a gate opens. The panel warns when an enabled mod also changes the outcome.
 
 ## [0.10.1] - 2026-09-23
 

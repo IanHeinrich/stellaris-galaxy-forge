@@ -100,12 +100,14 @@ describe("the L-Cluster guide", () => {
   });
 });
 
-describe("the L-Cluster reveal chip", () => {
-  it("draws no chip when the document has no L-Gate outcome", () => {
+describe("the L-Cluster reveal link", () => {
+  const link = (layer: LClusterLayer) => childByLabel(layer.container, "lgateLink") as BitmapText;
+
+  it("draws no link when the document has no L-Gate outcome", () => {
     const layer = new LClusterLayer();
     layer.rebuild(mapContext(PLAIN));
     viewport(layer, 1);
-    expect(childByLabel(layer.container, "lgateChip").visible).toBe(false);
+    expect(link(layer).visible).toBe(false);
   });
 
   it("offers to reveal the outcome, and reveals it on a click, without the click reaching the map", () => {
@@ -114,14 +116,13 @@ describe("the L-Cluster reveal chip", () => {
     layer.rebuild(mapContext(PLAIN, { lgate }));
     viewport(layer, 1);
 
-    const chip = childByLabel(layer.container, "lgateChip");
-    const chipText = childByLabel(layer.container, "lgateChipText") as BitmapText;
-    expect(chip.visible).toBe(true);
-    expect(chipText.text).toBe("Reveal outcome");
+    expect(link(layer).visible).toBe(true);
+    expect(link(layer).text).toBe("Reveal outcome");
+    expect(label(layer).text).toBe(L_CLUSTER_LABEL);
 
     const native = new Event("pointerdown");
     const stopImmediatePropagation = vi.spyOn(native, "stopImmediatePropagation");
-    chip.emit("pointerdown", {
+    link(layer).emit("pointerdown", {
       stopImmediatePropagation: () => {},
       nativeEvent: native,
     } as never);
@@ -129,39 +130,40 @@ describe("the L-Cluster reveal chip", () => {
     expect(useLGateStore.getState().revealed).toBe(true);
   });
 
-  it("shows the outcome tooltip while hidden, never once revealed", () => {
+  it("says on hover what a click does", () => {
     const layer = new LClusterLayer();
     const lgate = { outcome: "l_drakes", opened: false } as const;
     layer.rebuild(mapContext(PLAIN, { lgate }));
     viewport(layer, 1);
-    const chip = childByLabel(layer.container, "lgateChip");
 
-    chip.emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    link(layer).emit("pointerover", { global: { x: 4, y: 6 } } as never);
     expect(useMapChromeStore.getState().tooltip).toMatchObject({
       title: L_CLUSTER_LABEL,
       lines: ["Reveal which outcome the L-Cluster rolled on day one"],
     });
-    chip.emit("pointerout", {} as never);
+    link(layer).emit("pointerout", {} as never);
     expect(useMapChromeStore.getState().tooltip).toBeNull();
 
     layer.setLGateRevealed(true);
-    chip.emit("pointerover", { global: { x: 4, y: 6 } } as never);
-    expect(useMapChromeStore.getState().tooltip).toBeNull();
+    link(layer).emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toMatchObject({
+      lines: ["Hide the outcome again"],
+    });
   });
 
-  it("carries the outcome in the label and reads Hide, once revealed", () => {
+  it("names the outcome with a Hide once revealed, and hides it on a click", () => {
     useLGateStore.setState({ revealed: true });
     const layer = new LClusterLayer();
     const lgate = { outcome: "l_drakes", opened: true } as const;
     layer.rebuild(mapContext(PLAIN, { lgate }));
     viewport(layer, 1);
 
-    expect(label(layer).text).toBe(`${L_CLUSTER_LABEL} · L-Drakes, opened`);
-    expect((childByLabel(layer.container, "lgateChipText") as BitmapText).text).toBe("Hide");
+    expect(link(layer).text).toBe("L-Drakes, opened · Hide");
+    expect(label(layer).text).toBe(L_CLUSTER_LABEL);
 
-    childByLabel(layer.container, "lgateChip").emit("pointerdown", {
-      stopImmediatePropagation: () => {},
-    } as never);
+    link(layer).emit("pointerdown", { stopImmediatePropagation: () => {} } as never);
     expect(useLGateStore.getState().revealed).toBe(false);
+    layer.setLGateRevealed(false);
+    expect(link(layer).text).toBe("Reveal outcome");
   });
 });
