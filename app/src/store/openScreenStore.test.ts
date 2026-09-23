@@ -23,6 +23,7 @@ const mocked = {
   listCampaigns: vi.mocked(ipc.listCampaigns),
   listCampaignSaves: vi.mocked(ipc.listCampaignSaves),
   listScenarios: vi.mocked(ipc.listScenarios),
+  scenarioPainted: vi.mocked(ipc.scenarioPainted),
   saveDetails: vi.mocked(ipc.saveDetails),
   openSave: vi.mocked(ipc.openSave),
   openAsScenario: vi.mocked(ipc.openAsScenario),
@@ -426,15 +427,34 @@ describe("opening a scenario file", () => {
 
     await session().requestOpen(PAINTED.path, { listings: screen().scenarios });
     expect(mocked.openSave).toHaveBeenCalledWith(PAINTED.path);
+    expect(mocked.scenarioPainted).not.toHaveBeenCalled();
+  });
+
+  it("reads a file Browse found outside every listed folder for whether it is for the mod", async () => {
+    const painted = "C:/elsewhere/painted.txt";
+    mocked.scenarioPainted.mockResolvedValueOnce(true);
+    await session().requestOpen(painted, { listings: screen().scenarios });
+    expect(mocked.scenarioPainted).toHaveBeenCalledWith(painted);
+    expect(prompt()).toBeNull();
+    expect(mocked.openSave).toHaveBeenCalledWith(painted);
+
+    const plain = "C:/elsewhere/plain.txt";
+    mocked.scenarioPainted.mockResolvedValueOnce(false);
+    const asking = session().requestOpen(plain, { listings: screen().scenarios });
+    await vi.waitFor(() => expect(prompt()?.kind).toBe("not_for_paint"));
+    session().answerScenarioPrompt(null);
+    await asking;
+    expect(mocked.openSave).not.toHaveBeenCalledWith(plain);
   });
 
   it("asks nothing more of a save once the user chose to edit it as a scenario", async () => {
     mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
-    await session().requestOpen("C:/saves/a.sav");
+    await session().requestOpen("C:/saves/a.sav", { listings: null });
     expect(session().pendingOpen).toBe("C:/saves/a.sav");
     await session().chooseOpenMode("scenario");
     expect(prompt()).toBeNull();
     expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/a.sav", "paint_a_galaxy");
+    expect(mocked.scenarioPainted).not.toHaveBeenCalled();
   });
 });
 

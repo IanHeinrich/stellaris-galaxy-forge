@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { elements } from "../../test/elements";
+import { stubPrefs } from "../../test/prefs";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -104,11 +105,7 @@ function form(tree: ReactNode): ReactElement<{ onSubmit: (e: unknown) => void }>
 const stored = new Map<string, string>();
 
 beforeEach(() => {
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   useGalaxyStore.getState().clear();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   usePaintModStore.setState({ ...usePaintModStore.getInitialState(), paintChoice: false });

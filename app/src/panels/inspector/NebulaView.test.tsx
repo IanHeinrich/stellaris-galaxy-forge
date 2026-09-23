@@ -11,7 +11,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import { bindStores } from "../../store/bindStores";
 import { useEditorStore } from "../../store/editorStore";
 import { mocked, open, resetStores } from "./inspectorFixture";
-import { confirmRemoveNebula, NEBULA_RADIUS_INPUT_ID } from "./nebula";
+import { NEBULA_RADIUS_INPUT_ID } from "./nebula";
 import { NebulaView } from "./NebulaView";
 
 bindStores();
@@ -77,7 +77,7 @@ describe("a selected nebula", () => {
     await open("save");
     mocked.confirm.mockResolvedValueOnce(false);
 
-    await confirmRemoveNebula(0);
+    await useEditorStore.getState().removeNebula(0);
 
     expect(mocked.confirm).toHaveBeenCalledWith(
       "Delete Cloud? 1 system will leave it.",
@@ -86,7 +86,7 @@ describe("a selected nebula", () => {
     expect(mocked.applyOp).not.toHaveBeenCalled();
 
     mocked.confirm.mockResolvedValueOnce(true);
-    await confirmRemoveNebula(0);
+    await useEditorStore.getState().removeNebula(0);
 
     expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveNebula", index: 0 });
   });

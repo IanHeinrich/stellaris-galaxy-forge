@@ -23,7 +23,7 @@ describe("scenario documents", () => {
 
   it("opening a scenario file takes its kind, title and capabilities, and has no save header", async () => {
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
 
     const state = session();
     expect(mocked.openSave).toHaveBeenCalledWith(SCENARIO_PATH);
@@ -39,7 +39,7 @@ describe("scenario documents", () => {
   it("a save asks first: as a scenario, as a save, or not at all", async () => {
     usePaintModStore.setState({ paintChoice: false });
     mocked.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null });
-    await session().requestOpen(OPEN_RESULT.path);
+    await session().requestOpen(OPEN_RESULT.path, { listings: null });
     expect(session().pendingOpen).toBe(OPEN_RESULT.path);
     expect(mocked.openSave).not.toHaveBeenCalled();
     expect(mocked.openAsScenario).not.toHaveBeenCalled();
@@ -50,12 +50,12 @@ describe("scenario documents", () => {
     expect(session().kind).toBe("scenario");
     expect(session().path).toBeNull();
 
-    await session().requestOpen(OPEN_RESULT.path);
+    await session().requestOpen(OPEN_RESULT.path, { listings: null });
     await session().chooseOpenMode("save");
     expect(mocked.openSave).toHaveBeenCalledWith(OPEN_RESULT.path);
     expect(session().kind).toBe("save");
 
-    await session().requestOpen(OPEN_RESULT.path);
+    await session().requestOpen(OPEN_RESULT.path, { listings: null });
     await session().chooseOpenMode(null);
     expect(session().pendingOpen).toBeNull();
     expect(mocked.openSave).toHaveBeenCalledTimes(1);
@@ -107,7 +107,7 @@ describe("scenario documents", () => {
 
   it("a painted file turns the layer on without a profile; a plain open turns it off again", async () => {
     mocked.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, painted: true });
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
     expect(session().painted).toBe(true);
     expect(session().paintChosen).toBe(false);
     expect(getPaintLayer()).toBe(true);
@@ -117,7 +117,7 @@ describe("scenario documents", () => {
     expect(getPaintLayer()).toBe(false);
 
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
     expect(getPaintLayer()).toBe(false);
   });
 
@@ -157,11 +157,11 @@ describe("scenario documents", () => {
       paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
     });
     mocked.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: `${PAINT_DIR}/mine.txt` });
-    await session().requestOpen(`${PAINT_DIR}/mine.txt`);
+    await session().requestOpen(`${PAINT_DIR}/mine.txt`, { listings: null });
     expect(getPaintLayer()).toBe(true);
 
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
     expect(getPaintLayer()).toBe(false);
 
     mocked.openSave.mockResolvedValueOnce({ ...OPEN_RESULT, path: `${PAINT_DIR}/mine.sav` });
@@ -192,7 +192,7 @@ describe("scenario documents", () => {
     );
 
     mocked.openSave.mockResolvedValueOnce({ ...SCENARIO_RESULT, painted: true });
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
     mocked.saveDialog.mockResolvedValueOnce(null);
     await session().saveAs();
     expect(mocked.saveDialog).toHaveBeenLastCalledWith(
@@ -202,7 +202,7 @@ describe("scenario documents", () => {
 
   it("saving into the mod offers its folder under the file's own name, and does nothing without one", async () => {
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
     await session().saveIntoPaintMod();
     expect(mocked.saveDialog).not.toHaveBeenCalled();
 
@@ -234,7 +234,7 @@ describe("scenario documents", () => {
 
   it("says what to do next once a file lands in the mod's folder, named by the header's size", async () => {
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
     useGalaxyStore.setState({ header: [{ key: "name", value: '"Elysium"', line: 1 }] });
     usePaintModStore.setState({
       known: true,
@@ -253,7 +253,7 @@ describe("scenario documents", () => {
 
   it("says nothing next when the header names no size, or the file lands outside the mod's folder", async () => {
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
     usePaintModStore.setState({
       known: true,
       paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
@@ -291,7 +291,7 @@ describe("scenario documents", () => {
       ["other.txt", "Elysium"],
       ["third.txt", "Arcadia"],
     ]);
-    await session().requestOpen(mine);
+    await session().requestOpen(mine, { listings: null });
     await vi.waitFor(() => expect(useIssuesStore.getState().issues).toHaveLength(2));
     expect(mocked.siblingScenarioNames).toHaveBeenCalledWith(mine);
     expect(useIssuesStore.getState().issues[1]).toEqual({
@@ -324,7 +324,7 @@ describe("scenario documents", () => {
       paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
     });
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
     expect(mocked.siblingScenarioNames).not.toHaveBeenCalled();
 
     const mine = `${PAINT_DIR}/my_galaxy.txt`;
@@ -337,7 +337,7 @@ describe("scenario documents", () => {
       },
     });
     mocked.siblingScenarioNames.mockRejectedValueOnce(new Error("unreadable"));
-    await session().requestOpen(mine);
+    await session().requestOpen(mine, { listings: null });
     await vi.waitFor(() => expect(mocked.siblingScenarioNames).toHaveBeenCalledWith(mine));
     expect(useIssuesStore.getState().issues.map((issue) => issue.code)).toEqual([
       "system_isolated",
@@ -361,7 +361,7 @@ describe("scenario documents", () => {
         systems: SYSTEMS.map((s) => (s.id === 2 ? seated({ reserved: "a" }) : s)),
       },
     });
-    await session().requestOpen(SCENARIO_PATH);
+    await session().requestOpen(SCENARIO_PATH, { listings: null });
     expect(codes()).toEqual(["system_isolated"]);
 
     usePaintModStore.setState({ known: true, paintMod: mod(false) });

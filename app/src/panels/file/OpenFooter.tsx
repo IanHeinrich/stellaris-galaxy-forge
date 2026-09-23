@@ -24,6 +24,7 @@ export function OpenFooter({
   const paintMod = usePaintModStore((s) => s.paintMod);
   const footer = footerOpens(row, lists, paintMod);
   const open = (target: FooterOpen | null) => {
+    if (!idle) return;
     if (target?.mode === "scenario") onAsScenario(target.path);
     else if (target) void useOpenScreenStore.getState().open(target.path, target.mode);
   };

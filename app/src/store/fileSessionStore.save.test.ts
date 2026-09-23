@@ -288,7 +288,7 @@ describe("issues a save stops on", () => {
     expect(mocked.saveAs).toHaveBeenCalledTimes(1);
 
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    await session().requestOpen(SCENARIO_RESULT.path);
+    await session().requestOpen(SCENARIO_RESULT.path, { listings: null });
     usePaintModStore.setState({ known: true, paintMod: paintModView() });
     await answering("cancel", () => session().saveIntoPaintMod());
     expect(mocked.saveDialog).toHaveBeenCalledTimes(1);

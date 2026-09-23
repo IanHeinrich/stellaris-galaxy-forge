@@ -1,6 +1,7 @@
 import type { ExportResult } from "../../generated/ExportResult";
 import { shortcutLabel } from "../../lib/keys";
 import { nodeName } from "../../lib/names";
+import { CLOUD_TITLE } from "../../lib/sessionCopy";
 import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -12,7 +13,6 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { systemCount } from "../inspector/nebula";
 import { droppedSummary } from "../file/exportReport";
-import { CLOUD_TITLE } from "../file/OpenSave";
 import { GameDataPanel } from "./GameDataPanel";
 
 const DOCUMENT_KIND: Record<string, string> = {

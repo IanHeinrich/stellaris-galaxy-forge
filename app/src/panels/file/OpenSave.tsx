@@ -26,13 +26,10 @@ import { useRecentsStore } from "../../store/recentsStore";
 import { Dialog } from "../overlays/Dialog";
 import { OpenDetails } from "./OpenDetails";
 import { OpenFooter } from "./OpenFooter";
-import { OpenAsDialog } from "./OpenModeDialog";
 import { SectionRows } from "./OpenRows";
 import { TabPanel, TabRail } from "./OpenTabs";
 import { useDetailsFor } from "./useDetailsFor";
 import "./open.css";
-
-export { CLOUD_TITLE } from "../../lib/sessionCopy";
 
 /** What the screen lists and whether it is opening one: everything but the details pane's reads. */
 function screenLists(s: OpenScreenState) {
@@ -68,7 +65,6 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
   const lists = useOpenScreenStore(useShallow(screenLists));
   const actions = useOpenScreenStore.getState();
   const [selected, setSelected] = useState<string | null>(null);
-  const [scenarioFor, setScenarioFor] = useState<string | null>(null);
   const field = useRef<HTMLInputElement>(null);
   const rows = useRef(new Map<string, HTMLDivElement>());
   const firstPress = useRef<string | null>(null);
@@ -99,21 +95,17 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
 
   const open = (path: string, asScenario: boolean) => {
     const route = openRoute(path, asScenario);
-    if (route === "scenario") {
-      setScenarioFor(path);
+    if (route === "save") {
+      void actions.open(path, route);
       return;
     }
-    if (route === "ask") {
-      if (modal) hide();
-      void requestOpen(path);
-      return;
-    }
-    void actions.open(path, route);
+    if (modal) hide();
+    void requestOpen(path, { asScenario: route === "scenario", listings: lists.scenarios });
   };
 
   const browse = () => {
     if (modal) hide();
-    void pickAndOpen(undefined, undefined, screen.scenarios);
+    void pickAndOpen(undefined, undefined, lists.scenarios);
   };
 
   const newScenario = () => {
@@ -236,7 +228,7 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
         idle={idle}
         onNewScenario={newScenario}
         onBrowse={browse}
-        onAsScenario={setScenarioFor}
+        onAsScenario={(path) => open(path, true)}
       >
         {footnote}
       </OpenFooter>
@@ -259,33 +251,16 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
     </div>
   );
 
-  const asScenario = scenarioFor !== null && (
-    <OpenAsDialog
-      path={scenarioFor}
-      onCancel={() => setScenarioFor(null)}
-      onScenario={() => {
-        setScenarioFor(null);
-        void actions.open(scenarioFor, "scenario");
-      }}
-    />
-  );
-
   if (modal) {
     return (
-      <>
-        <Dialog className="open-dialog open-screen" label="Open" onClose={hide} onDismiss={hide}>
-          {frame}
-        </Dialog>
-        {asScenario}
-      </>
+      <Dialog className="open-dialog open-screen" label="Open" onClose={hide} onDismiss={hide}>
+        {frame}
+      </Dialog>
     );
   }
   return (
-    <>
-      <div className="launch">
-        <div className="open-dialog open-screen">{frame}</div>
-      </div>
-      {asScenario}
-    </>
+    <div className="launch">
+      <div className="open-dialog open-screen">{frame}</div>
+    </div>
   );
 }

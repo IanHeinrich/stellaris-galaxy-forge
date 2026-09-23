@@ -31,24 +31,14 @@ button.icon[aria-pressed="mixed"] {
   background: rgba(255, 209, 102, 0.04);
 }
 
-/* A toggle for what the scripts decide reads as derived even while it is on. */
-button.icon.src[aria-pressed="true"] {
-  color: var(--src);
-  border-color: var(--src-dim);
-  background: var(--src-bg);
-}
+/* A toggle for what the scripts decide keeps its derived hue, dimmed, while it is partly on. */
 button.icon.src[aria-pressed="mixed"] {
   color: var(--src-dim);
   border-color: var(--border);
   background: var(--src-bg);
 }
 
-/* A toggle for what an initializer places reads as derived in its own hue. */
-button.icon.init[aria-pressed="true"] {
-  color: var(--init);
-  border-color: var(--init-dim);
-  background: var(--init-bg);
-}
+/* A toggle for what an initializer places keeps its own hue, dimmed, while it is partly on. */
 button.icon.init[aria-pressed="mixed"] {
   color: var(--init-dim);
   border-color: var(--border);
@@ -73,7 +63,7 @@ button.master {
   border-radius: 999px;
 }
 
-button.master:hover:not(:disabled) {
+button.master[aria-pressed="false"]:hover:not(:disabled) {
   color: var(--fg);
 }
 
@@ -83,22 +73,10 @@ button.master.src[aria-pressed="true"] {
   border-color: var(--src);
 }
 
-button.master.src[aria-pressed="mixed"] {
-  color: var(--src);
-  background: var(--src-bg);
-  border-color: var(--src-dim);
-}
-
 button.master.init[aria-pressed="true"] {
   color: var(--bg);
   background: var(--init);
   border-color: var(--init);
-}
-
-button.master.init[aria-pressed="mixed"] {
-  color: var(--init);
-  background: var(--init-bg);
-  border-color: var(--init-dim);
 }
 
 .layer-toggles {
@@ -356,18 +334,6 @@ button.master.init[aria-pressed="mixed"] {
   overflow-y: auto;
 }
 
-.menu-search {
-  width: 100%;
-  height: 22px;
-  margin: 2px 0 4px;
-  padding: 0 6px;
-  font: inherit;
-  color: inherit;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-}
-
 .menu-item .eye {
   width: 12px;
   color: var(--fg-muted);
@@ -456,22 +422,10 @@ button.master.init[aria-pressed="mixed"] {
   border-color: var(--src);
 }
 
-.menu-section .master-pill.src[aria-pressed="mixed"] > span {
-  color: var(--src);
-  background: var(--src-bg);
-  border-color: var(--src-dim);
-}
-
 .menu-section .master-pill.init[aria-pressed="true"] > span {
   color: var(--bg);
   background: var(--init);
   border-color: var(--init);
-}
-
-.menu-section .master-pill.init[aria-pressed="mixed"] > span {
-  color: var(--init);
-  background: var(--init-bg);
-  border-color: var(--init-dim);
 }
 
 .menu-section .master-pill:disabled {

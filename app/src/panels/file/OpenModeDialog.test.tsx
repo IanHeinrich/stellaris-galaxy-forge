@@ -10,9 +10,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { NEVER_WARN, PAINT_CHECK, PAINT_UNTICKED } from "../../lib/paintCopy";
 import { buttons, saveFile, shown } from "../../test/openRows";
-import { OpenAsDialog, OpenModeDialog } from "./OpenModeDialog";
-
-const noop = () => undefined;
+import { OpenModeDialog } from "./OpenModeDialog";
 
 beforeEach(() => {
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
@@ -20,8 +18,10 @@ beforeEach(() => {
 
 describe("opening a save as a scenario", () => {
   const UNTICKED = PAINT_UNTICKED.split(":")[0];
-  const dialog = () =>
-    renderToStaticMarkup(<OpenAsDialog path={saveFile().path} onScenario={noop} onCancel={noop} />);
+  const dialog = () => {
+    useFileSessionStore.setState({ pendingOpen: saveFile().path, pendingAsScenario: true });
+    return renderToStaticMarkup(<OpenModeDialog />);
+  };
 
   it("asks the Paint a Galaxy question, with the warning while it is unticked", () => {
     usePaintModStore.setState({ paintChoice: false });

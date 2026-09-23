@@ -152,7 +152,7 @@ export interface FileSessionState {
    */
   openPath(path: string, mode: OpenMode, request: OpenRequest): Promise<OpenOutcome>;
   /** Opens `path`, asking first how a save is to be opened, or only the Paint a Galaxy choice. */
-  requestOpen(path: string, request?: OpenRequest): Promise<void>;
+  requestOpen(path: string, request: OpenRequest): Promise<void>;
   /** Answers the pending open; null cancels it. */
   chooseOpenMode(mode: OpenMode | null): Promise<void>;
   /** Answers the Paint a Galaxy question with the profile to open under; null cancels the open. */
@@ -260,7 +260,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
     return openAs(path, mode, asPaint, listings);
   },
 
-  async requestOpen(path, { asScenario = false, listings } = { listings: null }) {
+  async requestOpen(path, { asScenario = false, listings }) {
     if (get().saving || !(await get().confirmDiscard())) return;
     if (asScenario) set({ pendingOpen: path, pendingAsScenario: true });
     else await routeOpen(path, listings);
@@ -469,18 +469,22 @@ async function openDocument(
 
 /**
  * The profile the scenario file at `path` opens under, once the Paint a Galaxy question is
- * answered where it has to be asked; null when the user cancelled.
+ * answered where it has to be asked; null when the user cancelled. A file no listing covers is
+ * read from disk for its dialect.
  */
-export function askScenarioOpen(
+export async function askScenarioOpen(
   path: string,
   listings: readonly ScenarioListing[] | null,
   asPaint = false,
 ): Promise<ScenarioProfile | null> {
   const { paintMod, warnNotForPaint } = usePaintModStore.getState();
-  const forPaint = asPaint || scenarioForPaint(path, listings, paintMod);
+  const forPaint =
+    asPaint ||
+    (scenarioForPaint(path, listings, paintMod) ??
+      (await ipc.scenarioPainted(path).catch(() => null)));
   const kind = scenarioOpenPrompt(forPaint, paintMod, warnNotForPaint);
   const profile: ScenarioProfile = asPaint ? "paint_a_galaxy" : "plain";
-  if (kind === "none") return Promise.resolve(profile);
+  if (kind === "none") return profile;
   return new Promise((resolve) => {
     useFileSessionStore.setState({
       scenarioPrompt: {

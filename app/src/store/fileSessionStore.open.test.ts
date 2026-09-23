@@ -183,6 +183,12 @@ describe("openSave", () => {
     await session().pickAndOpen(undefined, undefined, null);
     await session().chooseOpenMode("scenario");
     expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/plain.sav", "plain");
+
+    await session().requestOpen("C:/saves/taken.sav", { asScenario: true, listings: null });
+    expect(session().pendingAsScenario).toBe(true);
+    await session().chooseOpenMode("scenario");
+    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/taken.sav", "plain");
+    expect(session().pendingAsScenario).toBe(false);
   });
 
   it("pickAndOpen with a profile opens the picked save as a scenario written under it", async () => {

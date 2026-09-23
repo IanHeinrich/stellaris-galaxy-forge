@@ -11,7 +11,7 @@ const AS_SCENARIO =
  * The question a save asks before it opens: edited as itself or taken into a scenario, with the
  * Paint a Galaxy choice beside the scenario. Without `onSave` the scenario is the only answer.
  */
-export function OpenAsDialog({
+function OpenAsDialog({
   path,
   onSave,
   onScenario,
@@ -75,15 +75,19 @@ export function OpenAsDialog({
   );
 }
 
-/** Which way a picked save opens: edited as itself, or taken as the start of a scenario. */
+/**
+ * Which way a picked save opens: edited as itself, or taken as the start of a scenario. A save
+ * already taken as a scenario asks only the Paint a Galaxy choice.
+ */
 export function OpenModeDialog() {
   const pendingOpen = useFileSessionStore((s) => s.pendingOpen);
+  const asScenario = useFileSessionStore((s) => s.pendingAsScenario);
   const chooseOpenMode = useFileSessionStore((s) => s.chooseOpenMode);
   if (pendingOpen === null) return null;
   return (
     <OpenAsDialog
       path={pendingOpen}
-      onSave={() => void chooseOpenMode("save")}
+      onSave={asScenario ? undefined : () => void chooseOpenMode("save")}
       onScenario={() => void chooseOpenMode("scenario")}
       onCancel={() => void chooseOpenMode(null)}
     />

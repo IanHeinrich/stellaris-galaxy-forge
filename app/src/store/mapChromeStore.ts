@@ -22,7 +22,7 @@ import {
 import type { LaneRef } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
-import { PREF_KEYS } from "./prefKeys";
+import { PREF_KEYS, type PrefKey } from "./prefKeys";
 import {
   isBooleanRecord,
   isFiniteNumber,
@@ -152,7 +152,7 @@ function coupled(changed: Partial<Record<LayerId, boolean>>): Partial<Record<Lay
 }
 
 /** A stored kind list, keeping the kinds this build still has: one it has dropped is forgotten. */
-function storedKinds(key: string): SpecialKind[] | null {
+function storedKinds(key: PrefKey): SpecialKind[] | null {
   const stored = readPref<string[] | null>(key, null, isStringArray);
   return stored === null ? null : KIND_ORDER.filter((kind) => stored.includes(kind));
 }
