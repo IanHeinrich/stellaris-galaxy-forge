@@ -6,10 +6,12 @@
 //! be kept in step by hand.
 //!
 //! One module per feature: [`move_system`] for one system's position, [`lanes`] for the
-//! hyperlane entries between them, [`bulk`] for the ops that take several at once, and
-//! [`nebula`] for the clouds over them.
+//! hyperlane entries between them, [`bulk`] for the ops that take several at once,
+//! [`nebula`] for the clouds over them, and [`lgate`] for the L-Cluster outcome the global
+//! flags hold.
 
 pub(crate) mod bulk;
 pub(crate) mod lanes;
+pub(crate) mod lgate;
 pub(crate) mod move_system;
 pub(crate) mod nebula;

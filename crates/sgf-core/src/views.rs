@@ -263,6 +263,9 @@ pub struct GalaxyDelta {
     /// galaxy connects; the map replaces the waylines it draws.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waylines: Option<Vec<Wayline>>,
+    /// The L-Gate as it now reads, present only when an op rewrote the global flags.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lgate: Option<LGate>,
 }
 
 /// One line of the change log.

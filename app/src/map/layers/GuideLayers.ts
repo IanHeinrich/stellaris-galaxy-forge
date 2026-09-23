@@ -1,9 +1,13 @@
-import { BitmapText, Container, Graphics, TextStyle } from "pixi.js";
+import { BitmapText, Container, type FederatedPointerEvent, Graphics, TextStyle } from "pixi.js";
 import type { Guide } from "../../generated/Guide";
+import type { LGate } from "../../generated/LGate";
 import { lClusterGuide, SCENARIO_HALF_EXTENT } from "../../lib/guides";
 import type { LayerId } from "../../lib/visual/layerIds";
-import { MAP_FONT } from "../../lib/visual/style";
+import { ACCENT_COLOR, MAP_FONT } from "../../lib/visual/style";
+import { useLGateStore } from "../../store/lgateStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import type { Camera } from "../Camera";
+import { lgateOutcomeLine } from "../../lib/lgate";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
 import type { MapLayer } from "./MapLayer";
 
@@ -26,6 +30,25 @@ const LABEL_STYLE = new TextStyle({
 
 /** Screen pixels between the shape's top and the label above it. */
 const LABEL_GAP_PX = 4;
+
+/** One shared instance for the L-Cluster reveal chip's own text, coloured to read as actionable. */
+const CHIP_TEXT_STYLE = new TextStyle({
+  fontFamily: MAP_FONT,
+  fontSize: 9,
+  fontWeight: "700",
+  fill: ACCENT_COLOR,
+});
+
+/** Screen pixels between the "L-Cluster" label and the reveal chip beside it. */
+const CHIP_GAP_PX = 8;
+const CHIP_PAD_X_PX = 6;
+const CHIP_PAD_Y_PX = 3;
+const CHIP_RADIUS_PX = 3;
+const CHIP_FILL = { color: 0x0b0f14, alpha: 0.85 };
+const CHIP_BORDER = { color: ACCENT_COLOR, alpha: 0.9 };
+const REVEAL_LABEL = "Reveal outcome";
+const HIDE_LABEL = "Hide";
+const REVEAL_TOOLTIP = "Reveal which outcome the L-Cluster rolled on day one";
 
 /** Where a shape sits: its centre and the y of its top, in world units. */
 interface Placed {
@@ -73,9 +96,10 @@ abstract class GuideLayer implements MapLayer {
   abstract readonly id: LayerId;
   readonly container = new Container();
   private readonly shape = new Graphics();
-  private readonly label: BitmapText;
-  private readonly scale = { x: 1, y: 1 };
-  private placed: Placed | null = null;
+  /** The shape's name, in world units so a subclass can lay out more beside it (`LClusterLayer`'s chip). */
+  protected readonly label: BitmapText;
+  protected readonly scale = { x: 1, y: 1 };
+  protected placed: Placed | null = null;
   private shown = true;
   private ctx: RenderContext = EMPTY_CONTEXT;
 
@@ -163,19 +187,45 @@ export class MapBorderLayer extends GuideLayer {
 
 /**
  * Where the game builds the L-Cluster: the fixed circle it spawns into for every galaxy size,
- * or, on a save that already has one, the circle about the systems marked as the cluster.
+ * or, on a save that already has one, the circle about the systems marked as the cluster. When
+ * the document has an L-Gate outcome, a small chip beside the label reveals or hides it, in step
+ * with the global preference `useLGateStore` holds; a click never reaches the map underneath.
  */
 export class LClusterLayer extends GuideLayer {
   readonly id = "lCluster" as const;
   private guide: Guide | null = null;
+  private lgate: LGate | null = null;
+  private revealed = useLGateStore.getState().revealed;
+  private readonly chip = new Graphics({ label: "lgateChip" });
+  private readonly chipText: BitmapText;
+  private chipHovered = false;
 
   constructor() {
     super(L_CLUSTER_LABEL);
+    // The base guide never answers the pointer; this one's chip does, so its container must.
+    this.container.eventMode = "passive";
+    this.chip.eventMode = "static";
+    this.chip.cursor = "pointer";
+    this.chip.on("pointerdown", (e: FederatedPointerEvent) => this.clickChip(e));
+    this.chip.on("pointerover", (e: FederatedPointerEvent) => this.hoverChip(e));
+    this.chip.on("pointerout", () => this.unhoverChip());
+    this.chipText = new BitmapText({ text: "", style: CHIP_TEXT_STYLE });
+    this.chipText.label = "lgateChipText";
+    this.chipText.anchor.set(0.5, 0.5);
+    this.chipText.eventMode = "none";
+    this.container.addChild(this.chip, this.chipText);
   }
 
   /** The circle the layer last drew, in world units; null while nothing is drawn. */
   get circle(): Guide | null {
     return this.guide;
+  }
+
+  /** Whether the chip shows the outcome or offers to; followed from `useLGateStore` by the map view. */
+  setLGateRevealed(revealed: boolean): void {
+    if (revealed === this.revealed) return;
+    this.revealed = revealed;
+    this.layoutChip();
   }
 
   protected same(ctx: RenderContext, prev: RenderContext): boolean {
@@ -186,5 +236,79 @@ export class LClusterLayer extends GuideLayer {
     this.guide = lClusterGuide(ctx.kind, ctx.systems.values());
     dashedCircle(g, this.guide.radius);
     return { x: this.guide.x, y: this.guide.y, top: this.guide.y - this.guide.radius };
+  }
+
+  rebuild(ctx: RenderContext): void {
+    super.rebuild(ctx);
+    this.lgate = ctx.lgate;
+    this.layoutChip();
+  }
+
+  onViewport(cam: Camera): void {
+    super.onViewport(cam);
+    this.layoutChip();
+  }
+
+  destroy(): void {
+    this.unhoverChip();
+    super.destroy();
+  }
+
+  /** Redraws the chip beside the label, and keeps the label itself carrying the outcome once revealed. */
+  private layoutChip(): void {
+    this.label.text =
+      this.lgate && this.revealed
+        ? `${L_CLUSTER_LABEL} · ${lgateOutcomeLine(this.lgate)}`
+        : L_CLUSTER_LABEL;
+    if (this.lgate === null || this.placed === null) {
+      this.chip.visible = false;
+      this.chipText.visible = false;
+      return;
+    }
+    this.chipText.text = this.revealed ? HIDE_LABEL : REVEAL_LABEL;
+    this.chipText.scale.set(this.scale.x, this.scale.y);
+    const padX = CHIP_PAD_X_PX * this.scale.x;
+    const padY = CHIP_PAD_Y_PX * this.scale.y;
+    const w = this.chipText.width + padX * 2;
+    const h = this.chipText.height + padY * 2;
+    const cx = this.label.x + this.label.width / 2 + CHIP_GAP_PX * this.scale.x + w / 2;
+    const cy = this.label.y - this.label.height / 2;
+    this.chip
+      .clear()
+      .roundRect(-w / 2, -h / 2, w, h, CHIP_RADIUS_PX * this.scale.x)
+      .fill(CHIP_FILL)
+      .stroke({ ...CHIP_BORDER, width: this.scale.x });
+    this.chip.position.set(cx, cy);
+    this.chipText.position.set(cx, cy);
+    this.chip.visible = true;
+    this.chipText.visible = true;
+  }
+
+  private clickChip(e: FederatedPointerEvent): void {
+    // The map's own pointer handling listens on the canvas outside PixiJS's event system, so
+    // stopping propagation on the FederatedPointerEvent alone would not keep this click from
+    // starting a marquee or a drag; the underlying native event must be stopped too.
+    e.stopImmediatePropagation();
+    if (e.nativeEvent instanceof Event) e.nativeEvent.stopImmediatePropagation();
+    if (this.revealed) useLGateStore.getState().hide();
+    else useLGateStore.getState().reveal();
+    this.unhoverChip();
+  }
+
+  private hoverChip(e: FederatedPointerEvent): void {
+    if (this.revealed) return;
+    this.chipHovered = true;
+    useMapChromeStore.getState().showTooltip({
+      x: e.global.x,
+      y: e.global.y,
+      title: L_CLUSTER_LABEL,
+      lines: [REVEAL_TOOLTIP],
+    });
+  }
+
+  private unhoverChip(): void {
+    if (!this.chipHovered) return;
+    this.chipHovered = false;
+    useMapChromeStore.getState().hideTooltip();
   }
 }

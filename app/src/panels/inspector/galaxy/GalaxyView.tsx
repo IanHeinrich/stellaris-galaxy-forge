@@ -1,6 +1,13 @@
 import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
-import { lgateOutcomeLine } from "../../../lib/lgate";
+import type { LGate } from "../../../generated/LGate";
+import type { LGateOutcome } from "../../../generated/LGateOutcome";
+import {
+  LGATE_OPENED_TITLE,
+  LGATE_OUTCOME_LABELS,
+  LGATE_OUTCOMES,
+  LGATE_TEMPEST_NOTE,
+} from "../../../lib/lgate";
 import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
 import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
@@ -101,6 +108,50 @@ function AddHeaderRow({ header }: { header: readonly HeaderField[] }) {
   );
 }
 
+/** The outcome day one rolled for the L-Cluster, behind Reveal, and editable until a gate opens. */
+function LGateRow({ lgate }: { lgate: LGate }) {
+  const applyOp = useApplyOp();
+  const revealed = useLGateStore((s) => s.revealed);
+  const reveal = useLGateStore((s) => s.reveal);
+  const hide = useLGateStore((s) => s.hide);
+  if (!revealed) {
+    return (
+      <PropertyRow label="L-Gate outcome">
+        <button type="button" className="link" onClick={() => reveal()}>
+          Reveal
+        </button>
+      </PropertyRow>
+    );
+  }
+  return (
+    <>
+      <PropertyRow label="L-Gate outcome">
+        <select
+          aria-label="L-Gate outcome"
+          value={lgate.outcome}
+          disabled={lgate.opened}
+          title={lgate.opened ? LGATE_OPENED_TITLE : undefined}
+          onChange={(e) =>
+            applyOp({ type: "SetLGateOutcome", outcome: e.currentTarget.value as LGateOutcome })
+          }
+        >
+          {LGATE_OUTCOMES.map((outcome) => (
+            <option key={outcome} value={outcome}>
+              {LGATE_OUTCOME_LABELS[outcome]}
+            </option>
+          ))}
+        </select>{" "}
+        <button type="button" className="link" onClick={() => hide()}>
+          Hide
+        </button>
+      </PropertyRow>
+      {!lgate.opened && lgate.outcome === "gray_tempest" && (
+        <div className="muted ins-hint ins-lgate-note">{LGATE_TEMPEST_NOTE}</div>
+      )}
+    </>
+  );
+}
+
 const LISTED_AS_SIZE =
   "Listed in-game as a galaxy size. Start a new game with the Elliptical shape and this size.";
 
@@ -157,11 +208,9 @@ export function GalaxyView() {
   const systems = useGalaxyStore((s) => s.systems);
   const countries = useGalaxyStore((s) => s.countries);
   const nebulae = useGalaxyStore((s) => s.nebulae);
+  const lgate = useGalaxyStore((s) => s.lgate);
   const placed = useGameDataStore((s) => s.scenarioBypasses);
   const paint = usePaintLayer();
-  const lgateRevealed = useLGateStore((s) => s.revealed);
-  const revealLGate = useLGateStore((s) => s.reveal);
-  const hideLGate = useLGateStore((s) => s.hide);
   useGalaxyVersion();
 
   const scenario = kind === "scenario";
@@ -191,22 +240,7 @@ export function GalaxyView() {
           <PropertyRow label="Empires">{countries.size}</PropertyRow>
           <PropertyRow label="Nebulae">{nebulae.length}</PropertyRow>
           <PropertyRow label="Bypasses">{bypasses}</PropertyRow>
-          {kind === "save" && galaxy.lgate !== null && (
-            <PropertyRow label="L-Gate outcome">
-              {lgateRevealed ? (
-                <>
-                  <span>{lgateOutcomeLine(galaxy.lgate)}</span>{" "}
-                  <button type="button" className="link" onClick={() => hideLGate()}>
-                    Hide
-                  </button>
-                </>
-              ) : (
-                <button type="button" className="link" onClick={() => revealLGate()}>
-                  Reveal
-                </button>
-              )}
-            </PropertyRow>
-          )}
+          {kind === "save" && lgate !== null && <LGateRow lgate={lgate} />}
           <PropertyRow label="Components">
             {components}
             {components > 1 && (

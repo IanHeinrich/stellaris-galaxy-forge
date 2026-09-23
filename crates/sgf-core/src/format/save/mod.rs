@@ -10,7 +10,7 @@ use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
 use crate::format::Format;
-use crate::format::save::write::{bulk, lanes, move_system, nebula};
+use crate::format::save::write::{bulk, lanes, lgate, move_system, nebula};
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
@@ -41,6 +41,11 @@ impl Format for Save {
                 .ok_or(OpError::UnknownNebula(index)),
             // A save keeps its lanes inside the two systems, so no statement stands alone.
             Subject::Statement { anchor, .. } | Subject::Header(anchor) => Ok(anchor),
+            Subject::Flags => doc
+                .index()
+                .section(keys::FLAGS)
+                .map(|section| Anchor::Original(section.stmt))
+                .ok_or(OpError::NoFlags),
         }
     }
 
@@ -63,6 +68,17 @@ impl Format for Save {
                     graph.refresh_system(id, &root, buf)?;
                 }
                 Subject::Nebula(_) => nebulae = true,
+                Subject::Flags => {
+                    let buf = doc.current(self.statement(doc, subject)?)?;
+                    let root = self
+                        .parse(buf, 0)
+                        .map_err(|e| subject.parse_error(e.offset, e.reason))?;
+                    let flags = root
+                        .children()
+                        .first()
+                        .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
+                    graph.refresh_lgate(flags, buf);
+                }
                 Subject::Statement { .. } | Subject::Header(_) => {}
             }
         }
@@ -102,6 +118,7 @@ impl Format for Save {
                 nebula::plan_set_radius(plan, s, *index, *radius)
             }
             Op::SetNebulaName { index, name } => nebula::plan_set_name(plan, s, *index, name),
+            Op::SetLGateOutcome { outcome } => lgate::plan_set_outcome(plan, s, *outcome),
             // A save's systems come with planets, a starbase and an owner, its names and
             // initializers are the game's to set, and it has neither a scenario header nor
             // a generator to prevent a lane from.

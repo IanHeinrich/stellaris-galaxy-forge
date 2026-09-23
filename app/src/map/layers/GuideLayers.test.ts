@@ -1,8 +1,19 @@
 import { BitmapText, Graphics } from "pixi.js";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { L_CLUSTER, SCENARIO_HALF_EXTENT } from "../../lib/guides";
+import { useLGateStore } from "../../store/lgateStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import { L_CLUSTER_LABEL, LClusterLayer, MAP_BORDER_LABEL, MapBorderLayer } from "./GuideLayers";
-import { mapContext, mapNode, strokes, viewport } from "./fixture";
+import {
+  childByLabel,
+  mapContext,
+  mapNode,
+  strokes,
+  stubTextMeasurement,
+  viewport,
+} from "./fixture";
+
+stubTextMeasurement();
 
 const PLAIN = [mapNode(0, 0, "S0"), mapNode(1, 200, "S1")];
 
@@ -24,6 +35,11 @@ function reach(g: Graphics): number {
     ...strokes(g).flatMap((op) => op.segments.map((seg) => Math.hypot(seg[0], seg[1]))),
   );
 }
+
+beforeEach(() => {
+  useLGateStore.setState({ revealed: false });
+  useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
+});
 
 describe("the map border guide", () => {
   it("draws the ±500 square for a scenario, labelled above its top edge", () => {
@@ -81,5 +97,71 @@ describe("the L-Cluster guide", () => {
 
     layer.rebuild(mapContext(PLAIN, { kind: "save" }));
     expect(layer.circle).toEqual(L_CLUSTER);
+  });
+});
+
+describe("the L-Cluster reveal chip", () => {
+  it("draws no chip when the document has no L-Gate outcome", () => {
+    const layer = new LClusterLayer();
+    layer.rebuild(mapContext(PLAIN));
+    viewport(layer, 1);
+    expect(childByLabel(layer.container, "lgateChip").visible).toBe(false);
+  });
+
+  it("offers to reveal the outcome, and reveals it on a click, without the click reaching the map", () => {
+    const layer = new LClusterLayer();
+    const lgate = { outcome: "l_drakes", opened: false } as const;
+    layer.rebuild(mapContext(PLAIN, { lgate }));
+    viewport(layer, 1);
+
+    const chip = childByLabel(layer.container, "lgateChip");
+    const chipText = childByLabel(layer.container, "lgateChipText") as BitmapText;
+    expect(chip.visible).toBe(true);
+    expect(chipText.text).toBe("Reveal outcome");
+
+    const native = new Event("pointerdown");
+    const stopImmediatePropagation = vi.spyOn(native, "stopImmediatePropagation");
+    chip.emit("pointerdown", {
+      stopImmediatePropagation: () => {},
+      nativeEvent: native,
+    } as never);
+    expect(stopImmediatePropagation).toHaveBeenCalled();
+    expect(useLGateStore.getState().revealed).toBe(true);
+  });
+
+  it("shows the outcome tooltip while hidden, never once revealed", () => {
+    const layer = new LClusterLayer();
+    const lgate = { outcome: "l_drakes", opened: false } as const;
+    layer.rebuild(mapContext(PLAIN, { lgate }));
+    viewport(layer, 1);
+    const chip = childByLabel(layer.container, "lgateChip");
+
+    chip.emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toMatchObject({
+      title: L_CLUSTER_LABEL,
+      lines: ["Reveal which outcome the L-Cluster rolled on day one"],
+    });
+    chip.emit("pointerout", {} as never);
+    expect(useMapChromeStore.getState().tooltip).toBeNull();
+
+    layer.setLGateRevealed(true);
+    chip.emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toBeNull();
+  });
+
+  it("carries the outcome in the label and reads Hide, once revealed", () => {
+    useLGateStore.setState({ revealed: true });
+    const layer = new LClusterLayer();
+    const lgate = { outcome: "l_drakes", opened: true } as const;
+    layer.rebuild(mapContext(PLAIN, { lgate }));
+    viewport(layer, 1);
+
+    expect(label(layer).text).toBe(`${L_CLUSTER_LABEL} · L-Drakes, opened`);
+    expect((childByLabel(layer.container, "lgateChipText") as BitmapText).text).toBe("Hide");
+
+    childByLabel(layer.container, "lgateChip").emit("pointerdown", {
+      stopImmediatePropagation: () => {},
+    } as never);
+    expect(useLGateStore.getState().revealed).toBe(false);
   });
 });

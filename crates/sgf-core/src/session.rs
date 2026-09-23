@@ -190,6 +190,7 @@ impl Session {
                     delta.header = Some(self.graph.header.clone());
                 }
                 Subject::Header(_) => {}
+                Subject::Flags => delta.lgate = self.graph.lgate,
                 subject => {
                     for id in subject.systems() {
                         if !listed.insert(id) {

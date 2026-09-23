@@ -113,6 +113,11 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),
+        // A scenario holds no global flags: the game rolls the outcome once it starts.
+        Op::SetLGateOutcome { .. } => Err(OpError::Unsupported {
+            op: op.name(),
+            kind: DocumentKind::Scenario,
+        }),
         Op::Batch { .. } => Err(OpError::NestedBatch),
     }
 }

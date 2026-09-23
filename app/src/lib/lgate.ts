@@ -14,3 +14,11 @@ export function lgateOutcomeLine(lgate: LGate): string {
   const label = LGATE_OUTCOME_LABELS[lgate.outcome];
   return lgate.opened ? `${label}, opened` : label;
 }
+
+/** The outcomes in the order the dropdown offers them. */
+export const LGATE_OUTCOMES = Object.keys(LGATE_OUTCOME_LABELS) as LGateOutcome[];
+
+export const LGATE_OPENED_TITLE = "A gate has opened: the outcome has already spawned";
+
+export const LGATE_TEMPEST_NOTE =
+  "Chosen by hand, the Gray Tempest ignores the game rule that keeps disruptive outcomes out.";

@@ -349,6 +349,7 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   SetFeLinkFlags: null,
   PreventLane: null,
   UnpreventLane: null,
+  SetLGateOutcome: null,
   Batch: null,
 };
 
