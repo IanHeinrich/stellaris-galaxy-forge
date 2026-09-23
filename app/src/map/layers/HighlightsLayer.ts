@@ -1,4 +1,4 @@
-import { Container, Graphics, GraphicsContext } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { LaneRef } from "../../store/editorStore";
 import type { Camera } from "../Camera";
@@ -13,26 +13,22 @@ import type { NebulaPreview } from "../nebulaPreview";
 import { toRing, type Segment } from "../../lib/feLinks";
 import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import {
-  ACCENT_COLOR,
-  ALLOWED_COLOR,
-  CAUTION_COLOR,
-  ORIGIN_ALPHA,
-  REFUSED_COLOR,
-} from "../../lib/visual/style";
+import { ACCENT_COLOR, ALLOWED_COLOR, CAUTION_COLOR, REFUSED_COLOR } from "../../lib/visual/style";
 import { SCENARIO_HALF_EXTENT } from "../../lib/guides";
-import { destroyChildren } from "./destroyChildren";
 import { BrushOverlay } from "./highlights/BrushOverlay";
 import { dashedCircle } from "./highlights/dashedCircle";
 import { FeZoneDragOverlay } from "./highlights/FeZoneDragOverlay";
+import { pointsOf, RingBatch, type RingSpec } from "./highlights/RingBatch";
 import { SymmetryGuide } from "./highlights/SymmetryGuide";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
-const SELECTION = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
+const SELECTION: RingSpec = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
 const HOVER = { color: 0xffffff, radius: 9, width: 1.5, alpha: 0.6 };
 const GHOST = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
 /** Systems using the initializer the browser is highlighting: muted, distinct from selection and hover. */
 const MATCHED = { color: 0x7dd3fc, radius: 13, width: 2, alpha: 0.6 };
+/** Systems the search palette's query locates, while it holds one. */
+const SEARCHED = { color: 0xf472b6, radius: 17, width: 2.5, alpha: 1 };
 const TARGET_VALID = { color: ALLOWED_COLOR, radius: 13, width: 2, alpha: 0.9 };
 /** Systems a nebula drag would take in, and those it would let go. */
 const JOINING = { color: ALLOWED_COLOR, radius: 15, width: 2, alpha: 0.85 };
@@ -76,7 +72,7 @@ function guideReachOf(ctx: RenderContext): number {
   return ctx.kind === "save" && ctx.radius > 0 ? ctx.radius : SCENARIO_HALF_EXTENT * Math.SQRT2;
 }
 
-function ring(spec: typeof SELECTION): Graphics {
+function ring(spec: RingSpec): Graphics {
   const g = new Graphics();
   g.circle(0, 0, spec.radius).stroke({ color: spec.color, width: spec.width, alpha: spec.alpha });
   g.visible = false;
@@ -103,71 +99,6 @@ function midpointButton(): Graphics {
   return g;
 }
 
-/** Spare rings kept past what a placement needs before the rest are destroyed. */
-const SPARE_RINGS = 256;
-
-/**
- * Identical rings around any number of points, some of them dimmed: one shape shared by every
- * ring, so a zoom only rescales them and a placement only moves them.
- */
-class RingBatch {
-  readonly container: Container;
-  private readonly shape: GraphicsContext;
-  private readonly rings: Graphics[] = [];
-  private shown = 0;
-  private readonly scale: Pt = { x: 1, y: 1 };
-
-  constructor(spec: typeof SELECTION, label: string) {
-    this.container = new Container({ label });
-    this.shape = new GraphicsContext()
-      .circle(0, 0, spec.radius)
-      .stroke({ color: spec.color, width: spec.width, alpha: spec.alpha });
-  }
-
-  place(bright: readonly Pt[], dimmed: readonly Pt[] = []): void {
-    const count = bright.length + dimmed.length;
-    while (this.rings.length < count) {
-      const g = new Graphics(this.shape);
-      this.rings.push(g);
-      this.container.addChild(g);
-    }
-    for (let i = 0; i < count; i++) {
-      const g = this.rings[i];
-      const at = i < bright.length ? bright[i] : dimmed[i - bright.length];
-      g.position.set(at.x, at.y);
-      g.scale.set(this.scale.x, this.scale.y);
-      g.alpha = i < bright.length ? 1 : ORIGIN_ALPHA;
-      g.visible = true;
-    }
-    for (let i = count; i < this.shown; i++) this.rings[i].visible = false;
-    this.shown = count;
-    if (this.rings.length - count > SPARE_RINGS) {
-      destroyChildren(this.container, new Set(this.rings.splice(count + SPARE_RINGS)));
-    }
-  }
-
-  setScale(scale: Pt): void {
-    if (scale.x === this.scale.x && scale.y === this.scale.y) return;
-    this.scale.x = scale.x;
-    this.scale.y = scale.y;
-    for (let i = 0; i < this.shown; i++) this.rings[i].scale.set(scale.x, scale.y);
-  }
-
-  destroy(): void {
-    this.shape.destroy();
-  }
-}
-
-/** The systems of `ids` the map holds, skipping the rest. */
-function pointsOf(systems: Systems, ids: Iterable<number>): Pt[] {
-  const points: Pt[] = [];
-  for (const id of ids) {
-    const s = systems.get(id);
-    if (s) points.push(s);
-  }
-  return points;
-}
-
 function touches(d: GalaxyDelta, ids: ReadonlySet<number>): boolean {
   if (ids.size === 0) return false;
   return d.systems.some((s) => ids.has(s.id)) || (d.removed ?? []).some((id) => ids.has(id));
@@ -191,6 +122,7 @@ export class HighlightsLayer implements MapLayer {
   private readonly selectionRings = new RingBatch(SELECTION, "selectionRings");
   private readonly ghostRings = new RingBatch(GHOST, "ghostRings");
   private readonly matchedRings = new RingBatch(MATCHED, "matchedRings");
+  private readonly searchedRings = new RingBatch(SEARCHED, "searchedRings");
   private readonly joiningRings = new RingBatch(JOINING, "joiningRings");
   private readonly leavingRings = new RingBatch(LEAVING, "leavingRings");
   private readonly midpoint = midpointButton();
@@ -212,6 +144,7 @@ export class HighlightsLayer implements MapLayer {
   private hoverId: number | null = null;
   private hoverFeZone: number | null = null;
   private matched: ReadonlySet<number> = new Set();
+  private searched: ReadonlySet<number> = new Set();
   private ghosts: readonly MoveGhost[] = [];
   private dragged: ReadonlyMap<number, MoveGhost> = new Map();
   private rubber: RubberLane | null = null;
@@ -245,6 +178,7 @@ export class HighlightsLayer implements MapLayer {
       this.selectionRings.container,
       this.ghostRings.container,
       this.matchedRings.container,
+      this.searchedRings.container,
       this.joiningRings.container,
       this.leavingRings.container,
       this.midpoint,
@@ -263,6 +197,7 @@ export class HighlightsLayer implements MapLayer {
     if (!loaded) return;
     this.placeSelection();
     this.placeMatched();
+    this.placeSearched();
     this.placeAll();
     this.drawPreviews();
     this.drawLanes();
@@ -271,6 +206,7 @@ export class HighlightsLayer implements MapLayer {
   applyDelta(d: GalaxyDelta): void {
     if (touches(d, this.selection)) this.placeSelection();
     if (touches(d, this.matched)) this.placeMatched();
+    if (touches(d, this.searched)) this.placeSearched();
     this.placeAll();
     this.drawPreviews();
     this.drawLanes();
@@ -354,6 +290,11 @@ export class HighlightsLayer implements MapLayer {
     this.placeMatched();
   }
 
+  setSearched(ids: ReadonlySet<number>): void {
+    this.searched = ids;
+    this.placeSearched();
+  }
+
   /** The ghost ring a nebula drag is proposing, with the systems it would gain and lose. */
   setNebulaPreview(preview: NebulaPreview | null): void {
     this.nebula = preview;
@@ -389,6 +330,7 @@ export class HighlightsLayer implements MapLayer {
       this.selectionRings,
       this.ghostRings,
       this.matchedRings,
+      this.searchedRings,
       this.joiningRings,
       this.leavingRings,
     ];
@@ -409,6 +351,10 @@ export class HighlightsLayer implements MapLayer {
     this.matchedRings.place(pointsOf(this.systems, this.matched));
   }
 
+  private placeSearched(): void {
+    this.searchedRings.place(pointsOf(this.systems, this.searched));
+  }
+
   /** The hover ring, unless the selection already rings that system, and the port ring. */
   private placeHover(): void {
     const hoverId = this.hoverId !== null && this.selection.has(this.hoverId) ? null : this.hoverId;
@@ -416,7 +362,7 @@ export class HighlightsLayer implements MapLayer {
     this.drawPort();
   }
 
-  /** Everything but the selection and the matched systems, each a handful of rings at most. */
+  /** Everything but the selection, matched and searched systems: a handful of rings at most. */
   private placeAll(): void {
     this.placeHover();
     this.drawTarget();

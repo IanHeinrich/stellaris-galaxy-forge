@@ -1,0 +1,19 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the L-Gate outcome to L-Drakes
+inverse: SetLGateOutcome { outcome: GrayTempest }
+
+--- gamestate
++++ gamestate
+@@ -1140246,8 +1140246,7 @@
+ 		flag_date=62808000
+ 		flag_days=3156
+ 	}
+-	gray_goo_crisis_set=62808000
+-	active_gray_goo=62808000
++	dragon_season=62808000
+ }
+ saved_event_target=
+ {

@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the L-Gate outcome to L-Drakes
+inverse: SetLGateOutcome { outcome: Empty }
+
+--- gamestate
++++ gamestate
+@@ -1567067,6 +1567067,7 @@
+ 		flag_days=1125
+ 	}
+ 	kaleidoscope_will_spawn=62808000
++	dragon_season=62808000
+ }
+ saved_event_target=
+ {

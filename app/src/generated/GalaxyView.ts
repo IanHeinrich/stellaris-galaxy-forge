@@ -2,6 +2,7 @@
 import type { BypassLink } from "./BypassLink";
 import type { CountryNode } from "./CountryNode";
 import type { HeaderField } from "./HeaderField";
+import type { LGate } from "./LGate";
 import type { Nebula } from "./Nebula";
 import type { SystemNode } from "./SystemNode";
 import type { Wayline } from "./Wayline";
@@ -22,4 +23,9 @@ components: number,
 /**
  * A scenario's header keys in file order, duplicates kept; empty for a save.
  */
-header: Array<HeaderField>, };
+header: Array<HeaderField>, 
+/**
+ * What day-one's L-Cluster roll landed on; `None` when the galaxy has no L-Gate, or
+ * for a scenario.
+ */
+lgate: LGate | null, };

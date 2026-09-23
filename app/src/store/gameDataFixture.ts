@@ -32,6 +32,7 @@ export const mocked = {
   getStarbaseLevels: vi.mocked(ipc.getStarbaseLevels),
   getShipSizes: vi.mocked(ipc.getShipSizes),
   getCountryTypes: vi.mocked(ipc.getCountryTypes),
+  getLgateOutcomeMods: vi.mocked(ipc.getLgateOutcomeMods),
   getInitializers: vi.mocked(ipc.getInitializers),
   getScenarioOwners: vi.mocked(ipc.getScenarioOwners),
   getScenarioBypasses: vi.mocked(ipc.getScenarioBypasses),
@@ -54,6 +55,7 @@ export const SPECIAL: SpecialSystems = {
       flags: [],
       countries: [],
       label: "Landmark",
+      label_is_generated_name: false,
     },
   ],
   counts: [{ kind: "landmark", count: 1, primary_count: 1 }],
@@ -171,6 +173,7 @@ export function armGameData(): void {
       leviathan: false,
     },
   ]);
+  mocked.getLgateOutcomeMods.mockResolvedValue([]);
 }
 
 /** Puts back the real `localStorage` and the document the save hooks watch. */

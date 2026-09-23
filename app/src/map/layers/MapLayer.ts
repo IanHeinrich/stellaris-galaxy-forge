@@ -4,6 +4,7 @@ import type { SpecialKind } from "../../generated/SpecialKind";
 import type { Camera } from "../Camera";
 import type { AppIssue } from "../../lib/issues";
 import type { LayerId } from "../../lib/visual/layerIds";
+import type { WatchRings } from "../../lib/watchlist";
 import type { MoveGhost } from "../moveGhosts";
 import type { RenderContext } from "../RenderContext";
 
@@ -36,6 +37,8 @@ export interface MapLayer {
   setSelection?(ids: readonly number[]): void;
   /** The validator's latest findings. */
   setIssues?(issues: readonly AppIssue[]): void;
+  /** The watchlist's shown entries and the systems each finds. */
+  setWatchlist?(rings: readonly WatchRings[]): void;
   /** Systems whose label is placed before any other, whatever their rank. */
   setPinned?(ids: readonly number[]): void;
   /** The system under the pointer, for a layer that labels it whatever its rank. */
@@ -44,6 +47,8 @@ export interface MapLayer {
   setDetailsShown?(shown: boolean): void;
   /** Whether the marauder clans layer is on, for a layer that paints the clans' territories. */
   setClansShown?(shown: boolean): void;
+  /** Whether the L-Cluster guide's chip shows the L-Gate outcome, for `LClusterLayer`. */
+  setLGateRevealed?(revealed: boolean): void;
   destroy(): void;
 }
 

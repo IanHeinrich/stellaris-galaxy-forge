@@ -6,8 +6,9 @@ use serde_json::{Value, json};
 use sgf_app_lib::state::GameDataState;
 use sgf_app_lib::watch;
 use sgf_core::format::save::details::SystemDetails;
-use sgf_core::views::{ErrorKind, OpenResult, SearchHit, SearchKind};
+use sgf_core::views::{ErrorKind, OpenResult, SearchHit, SearchKind, SearchResult};
 use sgf_gamedata::install::layers::Layer;
+use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::special::{SpecialKind, SpecialSystem, SpecialSystems};
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
@@ -151,6 +152,9 @@ fn game_data_commands_degrade_without_an_install() {
     let icons: Vec<ResourceIcon> =
         invoke(&w, "get_resource_icons", json!({})).expect("resource icons");
     assert!(icons.is_empty());
+    let lgate_mods: Vec<LGateModTouch> =
+        invoke(&w, "get_lgate_outcome_mods", json!({})).expect("lgate outcome mods");
+    assert!(lgate_mods.is_empty());
 
     let textures: Vec<TextureView> = invoke(
         &w,
@@ -175,8 +179,9 @@ fn game_data_commands_degrade_without_an_install() {
     assert_eq!(resource(sol, "minerals"), Some(13.0));
     assert_eq!(resource(sol, "engineering"), Some(5.0));
 
-    let hits: Vec<SearchHit> =
-        invoke(&w, "search", json!({ "query": "sol", "limit": 5 })).expect("search");
+    let hits = invoke::<SearchResult>(&w, "search", json!({ "query": "sol", "limit": 5 }))
+        .expect("search")
+        .hits;
     assert_eq!(hits[0].id, 217, "{hits:?}");
     assert_eq!(hits[0].name_key, "NAME_Sol");
 
@@ -361,33 +366,48 @@ fn game_data_commands_with_the_install() {
 
     // The dragon's system carries a random name, so the localised match is checked on
     // the Custodian Nexus, whose loc text shares no word with its key.
-    let hits: Vec<SearchHit> = invoke(
+    let hits = invoke::<SearchResult>(
         &w,
         "search",
         json!({ "query": "central processing", "limit": 5 }),
     )
-    .expect("search");
+    .expect("search")
+    .hits;
     let systems: Vec<&SearchHit> = hits
         .iter()
         .filter(|h| matches!(h.kind, SearchKind::System))
         .collect();
     assert_eq!(systems.len(), 1, "{hits:?}");
     assert_eq!(systems[0].name_key, "NAME_Custodian_Nexus");
-    let by_key: Vec<SearchHit> = invoke(
+    let by_key = invoke::<SearchResult>(
         &w,
         "search",
         json!({ "query": "custodian nexus", "limit": 5 }),
     )
-    .expect("search");
+    .expect("search")
+    .hits;
     let by_key_systems: Vec<&SearchHit> = by_key
         .iter()
         .filter(|h| matches!(h.kind, SearchKind::System))
         .collect();
     assert_eq!(by_key_systems, systems, "the key still matches");
-    let hits: Vec<SearchHit> =
-        invoke(&w, "search", json!({ "query": "sol", "limit": 5 })).expect("search");
+    let hits = invoke::<SearchResult>(&w, "search", json!({ "query": "sol", "limit": 5 }))
+        .expect("search")
+        .hits;
     assert_eq!(hits[0].id, 217);
     assert_eq!(hits[0].name_key, "NAME_Sol");
+
+    // No flag or key says "leviathan"; the special kind game data gives the lairs does.
+    let lairs = invoke::<SearchResult>(&w, "search", json!({ "query": "leviathan", "limit": 50 }))
+        .expect("search");
+    assert!(
+        lairs
+            .hits
+            .iter()
+            .any(|h| h.matched_on.as_deref() == Some("Leviathan")),
+        "{:?}",
+        lairs.hits
+    );
 
     let special: SpecialSystems =
         invoke(&w, "get_special_systems", json!({})).expect("special systems");
@@ -412,6 +432,9 @@ fn game_data_commands_with_the_install() {
         .find(|s| s.key == "sc_black_hole")
         .expect("sc_black_hole");
     assert_eq!(black_hole.icon_scale, 2.0);
+    let lgate_mods: Vec<LGateModTouch> =
+        invoke(&w, "get_lgate_outcome_mods", json!({})).expect("lgate outcome mods");
+    assert!(lgate_mods.is_empty(), "the base game alone: {lgate_mods:?}");
 
     invoke::<()>(&w, "unload_game_data", json!({})).expect("unload");
     invoke::<()>(&w, "resume_auto_reload", json!({})).expect("resume with the watcher stopped");

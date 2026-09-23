@@ -149,3 +149,62 @@ fn a_system_with_no_initializer_country_is_named_after_the_country_in_it() {
     assert!(fallback.countries.is_empty());
     assert_ne!(fallback.label, shroudwalkers.label);
 }
+
+/// The 4.5 save's day-one Salvager Enclave: its country's name is a template
+/// (`%ADJ%` over `Union_of` over `Scrappers`), unresolvable through a single localisation
+/// lookup, and the shroudwalkers' `AofB` name shows the same is true of another enclave.
+const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
+
+#[test]
+fn a_salvager_enclaves_templated_country_name_resolves_and_is_flagged_generated() {
+    let Some(gd) = common::load_real() else {
+        return;
+    };
+    let session = Session::open(SAMPLE_45).expect("4.5 sample save");
+    let result = classify_session(&session, Some(&gd));
+    let salvager = result
+        .systems
+        .iter()
+        .find(|s| s.initializer.starts_with("salvager_enclave_init") && !s.countries.is_empty())
+        .expect("the salvager enclave's own system");
+    assert_eq!(salvager.primary, SpecialKind::Enclave);
+    assert_eq!(salvager.countries.len(), 1);
+    assert_eq!(salvager.countries[0].country_type, "enclave");
+    assert_eq!(
+        salvager.countries[0].name.as_deref(),
+        Some("Union of Scrappers")
+    );
+    assert!(salvager.countries[0].generated_name);
+    assert_eq!(salvager.label, "Union of Scrappers");
+    assert!(salvager.label_is_generated_name);
+
+    // The 4.4 sample's own shroudwalker enclave is built the same way (a save-only
+    // template, not a fixed key: `AofB` over "Covenant" and "the_Shroud"), so the
+    // generated-name flag alone is not what keeps a shroudwalker badge showing its own
+    // name; that is a choice the UI makes, not this classifier.
+    let sample_44 = Session::open(SAMPLE).expect("4.4 sample save");
+    let with_44_countries = classify_session(&sample_44, Some(&gd));
+    let shroudwalkers = with_44_countries
+        .systems
+        .iter()
+        .find(|s| s.initializer == "shroudwalker_enclave_init_01")
+        .expect("the 4.4 sample's shroudwalker enclave");
+    assert_eq!(shroudwalkers.label, "Covenant of the Shroud");
+    assert!(shroudwalkers.label_is_generated_name);
+
+    for kind in [
+        "guardians_trader_init",
+        "guardians_artist_init",
+        "guardians_curator_init",
+    ] {
+        let system = result
+            .systems
+            .iter()
+            .find(|s| s.initializer.starts_with(kind))
+            .unwrap_or_else(|| panic!("a {kind} system"));
+        assert!(
+            !system.label_is_generated_name,
+            "{kind} names its country from game data, not the save's own template"
+        );
+    }
+}

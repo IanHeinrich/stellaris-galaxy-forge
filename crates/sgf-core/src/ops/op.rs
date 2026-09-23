@@ -7,7 +7,7 @@ use ts_rs::TS;
 use crate::document;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::OverlayError;
-use crate::projections::galaxy::{ProjectionError, SpawnScript};
+use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
 use crate::views::DocumentKind;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -261,6 +261,12 @@ pub enum Op {
         a: u32,
         b: u32,
     },
+    /// The L-Cluster outcome a save's global flags hold: every outcome flag goes, and the
+    /// chosen outcome's flags are written dated like `game_started`. Refused for a galaxy
+    /// with no L-Gate and once a gate has opened. Save documents only.
+    SetLGateOutcome {
+        outcome: LGateOutcome,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -314,6 +320,7 @@ impl Op {
             Self::SetFeLinkFlags { .. } => "SetFeLinkFlags",
             Self::PreventLane { .. } => "PreventLane",
             Self::UnpreventLane { .. } => "UnpreventLane",
+            Self::SetLGateOutcome { .. } => "SetLGateOutcome",
             Self::Batch { .. } => "Batch",
         }
     }
@@ -498,6 +505,16 @@ pub enum OpError {
     },
     #[error("scenario header: {reason} at byte {offset}")]
     HeaderParse { offset: usize, reason: String },
+    #[error("global flags: {reason} at byte {offset}")]
+    FlagsParse { offset: usize, reason: String },
+    #[error("the document has no global flags")]
+    NoFlags,
+    #[error("the galaxy has no L-Gate")]
+    NoLGate,
+    #[error("a gate has opened: the outcome has already spawned")]
+    LGateOpened,
+    #[error("the L-Gate outcome is already {0}")]
+    LGateUnchanged(&'static str),
     #[error("{op} is not supported for a {kind} document")]
     Unsupported {
         op: &'static str,

@@ -46,6 +46,11 @@ export interface MapInput {
   feZone: FeZonePick | null;
   /** The nebula part under the pointer, looked up only when no system, edge or ring is. */
   nebula: NebulaPick | null;
+  /**
+   * A prevented pair's dash under the pointer, looked up only for a right-click on no system and
+   * no edge, so nothing else a pointer does ever meets it.
+   */
+  prevented: LaneRef | null;
 }
 
 /** What the control model asks of the map. Edits become ops; previews stay on the map. */

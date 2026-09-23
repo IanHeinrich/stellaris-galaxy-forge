@@ -36,6 +36,8 @@ import {
 export type ContextTarget =
   | { kind: "system"; id: number }
   | { kind: "lane"; lane: LaneRef }
+  /** A pair the scenario keeps from a lane, drawn as a dashed line. */
+  | { kind: "prevented"; a: number; b: number }
   | { kind: "nebula"; index: number }
   /** A fallen empire zone's ring, named by the system that anchors it. */
   | { kind: "feZone"; anchor: number }

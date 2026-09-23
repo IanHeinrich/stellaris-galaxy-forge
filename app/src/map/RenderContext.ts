@@ -5,6 +5,7 @@ import type { CountryNode } from "../generated/CountryNode";
 import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { GalaxyView } from "../generated/GalaxyView";
+import type { LGate } from "../generated/LGate";
 import type { MapColor } from "../generated/MapColor";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { Nebula } from "../generated/Nebula";
@@ -51,6 +52,8 @@ export const VANILLA_BORDER: BorderDefines = { system_radius: 35, hyperlane_thic
 export interface RenderContext {
   /** The open galaxy, one object per load: what a layer keys "everything changed" on. */
   readonly galaxy: GalaxyView | null;
+  /** The L-Gate outcome as edits leave it; `galaxy.lgate` is only what the save opened with. */
+  readonly lgate: LGate | null;
   /** The open document's format, or null while nothing is open. */
   readonly kind: DocumentKind | null;
   /** Whether the document is written for the Paint a Galaxy mod, whose zones the map draws. */
@@ -243,6 +246,7 @@ function hiddenOwnersIn(
 
 export const EMPTY_CONTEXT: RenderContext = Object.freeze({
   galaxy: null,
+  lgate: null,
   kind: null,
   paintLayer: false,
   systems: new Map<number, SystemNode>(),
@@ -304,6 +308,7 @@ export function renderContext(): RenderContext {
   const ownership = currentOwnership();
   return Object.freeze({
     galaxy: galaxy.galaxy,
+    lgate: galaxy.lgate,
     kind,
     paintLayer: getPaintLayer(),
     systems: galaxy.systems,

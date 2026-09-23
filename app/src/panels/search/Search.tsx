@@ -1,22 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../api/errors";
-import { search } from "../../api/session";
 import type { SearchHit } from "../../generated/SearchHit";
 import { planetClassLabel } from "../../lib/details/labels";
-import { displayTemplate, templateName } from "../../lib/names";
+import { displayName, displayTemplate, templateName } from "../../lib/names";
+import { pinnedEntry, type WatchEntry } from "../../lib/watchlist";
 import { useEditorStore } from "../../store/editorStore";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore, type Systems } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useWatchlistStore } from "../../store/watchlistStore";
 import { useOutsidePress } from "../useOutsidePress";
 import { RowIcon, type RowKind } from "./icons";
+import { PinnedRows, PinToggle } from "./Pins";
 import { GROUP_LABELS, KIND_ORDER, nextPrefix, parseQuery, prefixLabel, type Query } from "./query";
 import "./search.css";
 
 export const SEARCH_INPUT_ID = "system-search";
 const DEBOUNCE_MS = 120;
 const LIMIT = 20;
+const NO_PINS: readonly WatchEntry[] = [];
 
 /** One line of the palette: a hit, under the heading of its group. */
 interface Row {
@@ -67,12 +70,18 @@ function classLabel(look: Lookups, key: string | null): string | null {
   return look.names.get(key) ?? planetClassLabel(key);
 }
 
+/** What a system found by its contents matched on: a planet class, or a key or label. */
+function matchedLabel(look: Lookups, matched: string | null): string | null {
+  if (matched === null) return null;
+  return matched.startsWith("pc_") ? classLabel(look, matched) : displayName(matched);
+}
+
 /** What each kind of hit says under its name. */
 function subline(hit: SearchHit, look: Lookups): string {
   const owner = hit.owner === null ? null : displayTemplate(hit.owner);
   switch (hit.kind) {
     case "system":
-      return owner ?? "unclaimed";
+      return parts([owner ?? "unclaimed", matchedLabel(look, hit.matched_on)]);
     case "country":
       return parts([hit.country_type, systemCount(hit.system_count)]);
     case "planet":
@@ -120,6 +129,11 @@ function buildRows({ kind, text }: Query, hits: Hits, recent: SearchHit[], look:
     .map((hit) => hitRow(hit, GROUP_LABELS[hit.kind], look));
 }
 
+/** Lets the palette open out past the field without leaving the window. */
+function fitToWindow(el: HTMLDivElement | null) {
+  if (el) el.style.maxWidth = `${window.innerWidth - el.getBoundingClientRect().left - 8}px`;
+}
+
 /** Find anything the document names; nothing to search without one. */
 export function Search() {
   const ready = useFileSessionStore((s) => s.status === "ready");
@@ -155,6 +169,7 @@ const PLACEHOLDER: Record<DocumentKind, string> = {
 function SearchPanel() {
   const kind = useFileSessionStore((s) => s.kind);
   const recent = useEditorStore((s) => s.recentHits);
+  const ringed = useEditorStore((s) => s.searchRings.length);
   const systems = useGalaxyStore((s) => s.systems);
   const names = useGameDataStore((s) => s.names);
   const [query, setQuery] = useState("");
@@ -168,22 +183,31 @@ function SearchPanel() {
 
   const parsed = parseQuery(query);
   const { text } = parsed;
+  const entries = useWatchlistStore((s) => s.entries);
+  const pinned = text !== "" && pinnedEntry(entries, text) !== undefined;
 
   useOutsidePress(open, () => setOpen(false), box);
 
   useEffect(() => {
     const seq = ++latest.current;
-    if (text === "") return;
+    if (text === "" || !open) {
+      useEditorStore.getState().clearSearch();
+      return;
+    }
     const timer = setTimeout(() => {
-      search(text, LIMIT)
+      useEditorStore
+        .getState()
+        .runSearch(text, LIMIT)
         .then((result) => {
-          if (seq !== latest.current) return;
-          setHits({ text, items: result });
+          if (result === null || seq !== latest.current) return;
+          setHits({ text, items: result.hits });
           setFailed(null);
           setActive(0);
           void useGameDataStore
             .getState()
-            .resolveNames(result.flatMap((h) => (h.owner === null ? [h.name] : [h.name, h.owner])));
+            .resolveNames(
+              result.hits.flatMap((h) => (h.owner === null ? [h.name] : [h.name, h.owner])),
+            );
         })
         .catch((e: unknown) => {
           if (seq !== latest.current) return;
@@ -192,32 +216,55 @@ function SearchPanel() {
         });
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [text]);
+  }, [text, open]);
 
   const rows = buildRows(parsed, hits, recent, { systems, names });
   const failure = failed !== null && failed.text === text ? failed.message : null;
 
-  const shown = open && (rows.length > 0 || failure !== null);
-  const current = rows[Math.min(active, rows.length - 1)];
+  const pins = text === "" ? entries : NO_PINS;
+  const total = pins.length + rows.length;
+  const at = Math.min(active, total - 1);
+  const pinAt = at >= 0 && at < pins.length ? pins[at] : undefined;
+  const current = at >= pins.length ? rows[at - pins.length] : undefined;
+  const shown = open && (total > 0 || failure !== null);
 
   const close = () => {
+    useEditorStore.getState().clearSearch();
     setQuery("");
     setHits({ text: "", items: [] });
     setOpen(false);
     input.current?.blur();
   };
 
+  const run = (entry: WatchEntry) => {
+    setQuery(entry.query);
+    setActive(0);
+  };
+
   const take = (row: Row | undefined, add: boolean) => {
     if (!row) return;
+    useEditorStore.getState().clearSearch();
     row.activate(add);
     if (!add) close();
   };
 
   const wide = open || query !== "";
   const placeholder = kind === null ? "Search…" : PLACEHOLDER[kind];
+  const hints =
+    text === ""
+      ? [pinAt ? "Enter run" : "Enter go", ...(pins.length > 0 ? ["Del unpin"] : []), "Esc close"]
+      : [
+          "Enter go",
+          "Shift+Enter select",
+          pinned ? "Ctrl+Enter unpin" : "Ctrl+Enter pin",
+          "Esc close",
+        ];
+  const classes = ["search"];
+  if (wide) classes.push("wide");
+  if (text !== "") classes.push("has-pin");
 
   return (
-    <div className={wide ? "search wide" : "search"} ref={box}>
+    <div className={classes.join(" ")} ref={box}>
       <SearchGlyph />
       {!wide && (
         <kbd className="search-key" aria-hidden="true">
@@ -231,7 +278,7 @@ function SearchPanel() {
         className="palette-field"
         placeholder={wide ? placeholder : ""}
         aria-label="Search"
-        title={wide ? undefined : "Search (F)"}
+        title={wide ? "Tab filters by kind" : "Search (F)"}
         value={query}
         autoComplete="off"
         role="combobox"
@@ -247,15 +294,22 @@ function SearchPanel() {
           setOpen(true);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
-            take(current, e.shiftKey);
+            useWatchlistStore.getState().togglePin(text);
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (pinAt) run(pinAt);
+            else take(current, e.shiftKey);
+          } else if (pinAt && (e.key === "Delete" || (e.key === "Backspace" && query === ""))) {
+            e.preventDefault();
+            useWatchlistStore.getState().unpin(pinAt.query);
           } else if (e.key === "ArrowDown") {
             e.preventDefault();
-            setActive((a) => Math.min(a + 1, rows.length - 1));
+            setActive(Math.max(Math.min(at + 1, total - 1), 0));
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
-            setActive((a) => Math.max(a - 1, 0));
+            setActive(Math.max(at - 1, 0));
           } else if (e.key === "Tab" && !e.shiftKey && query !== "") {
             e.preventDefault();
             setQuery(nextPrefix(query));
@@ -265,24 +319,51 @@ function SearchPanel() {
           }
         }}
       />
+      {query !== "" && (
+        <span className="search-trail">
+          {text !== "" && <PinToggle text={text} />}
+          <button
+            type="button"
+            className="search-clear"
+            aria-label="Clear the search"
+            title="Clear the search"
+            tabIndex={-1}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setQuery("");
+              setActive(0);
+            }}
+          >
+            ×
+          </button>
+        </span>
+      )}
       {shown && (
-        <div className="palette" id="search-palette">
+        <div className="palette" id="search-palette" ref={fitToWindow}>
           {failure !== null && (
             <div className="palette-error warn" role="alert">
               Search failed · {failure}
             </div>
           )}
           <ul className="palette-rows" role="listbox" aria-label={prefixLabel(parsed)}>
+            {pins.length > 0 && (
+              <PinnedRows active={pinAt ? at : -1} onHover={setActive} onRun={run} />
+            )}
             {rows.map((row, i) => (
               <li key={row.key}>
                 {row.group !== rows[i - 1]?.group && (
-                  <div className="palette-group">{row.group}</div>
+                  <div className="palette-group">
+                    <span>{row.group}</span>
+                    {i === 0 && ringed > 0 && (
+                      <span className="palette-group-count">{ringed} ringed on the map</span>
+                    )}
+                  </div>
                 )}
                 <div
                   role="option"
                   aria-selected={row === current}
                   className={row === current ? "palette-row active" : "palette-row"}
-                  onMouseEnter={() => setActive(i)}
+                  onMouseEnter={() => setActive(pins.length + i)}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     take(row, e.shiftKey);
@@ -296,11 +377,9 @@ function SearchPanel() {
             ))}
           </ul>
           <div className="palette-foot">
-            <span>Up/Down move</span>
-            <span>Enter go</span>
-            <span>Shift+Enter add to selection</span>
-            <span>Tab {prefixLabel(parsed).toLowerCase()}</span>
-            <span>Esc close</span>
+            {hints.map((hint) => (
+              <span key={hint}>{hint}</span>
+            ))}
           </div>
         </div>
       )}

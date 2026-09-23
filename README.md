@@ -106,7 +106,7 @@ save can be opened as a scenario. An empty scenario or one from a
 paint-a-galaxy export can be started from the New scenario dialog.
 
 <p>
-  <img src="docs/media/inspectors.png" height="420" alt="The inspector for a save system beside the inspector for a scenario system: position, hyperlanes, planets, fleets and flags on one side, spawn point, initializer, the planets it will spawn and a prevent-lane control on the other">
+  <img src="docs/media/inspectors.png" height="420" alt="The inspector for a save system beside the inspector for a scenario system: position, hyperlanes, planets, fleets and flags on one side, spawn point, initializer, the planets it will spawn and the lanes it prevents on the other">
   <img src="docs/media/scripts-tab.png" height="200" alt="The Scripts tab listing the initializer and scripted effects that touch a system, with the file and line each comes from">
 </p>
 

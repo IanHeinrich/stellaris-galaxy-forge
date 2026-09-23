@@ -6,6 +6,7 @@ import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore, type DockTab } from "../../store/layoutStore";
 import { useFreshIssues } from "../../store/issuesStore";
+import { useWatchlistStore } from "../../store/watchlistStore";
 import { DOCK_TAB_REGISTRY, dockTabsFor } from "./dockTabs";
 
 const PANEL_ID = "dock-panel";
@@ -64,10 +65,12 @@ function TabStrip({ tab }: { tab: DockTab }) {
   const capabilities = useFileSessionStore(documentCapabilities);
   const empires = useEmpireCount();
   const points = usePointCount();
+  const watched = useWatchlistStore((s) => s.entries.length);
   const counts: Record<DockTab, number | null> = {
     inspector: null,
     empires,
     poi: points,
+    watchlist: watched,
     issues: fresh.length,
     changes,
   };

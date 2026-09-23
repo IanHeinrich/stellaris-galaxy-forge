@@ -78,6 +78,7 @@ export const OPEN_RESULT: OpenResult & { path: string } = {
     core_radius: 15,
     header: [],
     components: 2,
+    lgate: null,
   },
   issues: [
     {

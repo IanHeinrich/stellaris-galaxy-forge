@@ -24,17 +24,19 @@ pub(crate) type Splice = (Range<usize>, Vec<u8>);
 
 /// What an [`Edit`] stands for: a `galactic_object` entity, the `index`th `nebula`
 /// section, one statement that is nobody's entity (a scenario's standalone
-/// `add_hyperlane`, which belongs to the two systems it names rather than to either), or
-/// one of a scenario header's statements, which belongs to no system at all.
+/// `add_hyperlane`, which belongs to the two systems it names rather than to either),
+/// one of a scenario header's statements, which belongs to no system at all, or a save's
+/// top-level `flags` section.
 ///
 /// The order is the order edits are committed in: every system, then every nebula, then
-/// every standalone statement, then the header.
+/// every standalone statement, then the header, then the flags.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Subject {
     System(u32),
     Nebula(usize),
     Statement { anchor: Anchor, ends: (u32, u32) },
     Header(Anchor),
+    Flags,
 }
 
 impl Subject {
@@ -42,7 +44,7 @@ impl Subject {
     pub const fn system(self) -> Option<u32> {
         match self {
             Self::System(id) => Some(id),
-            Self::Nebula(_) | Self::Statement { .. } | Self::Header(_) => None,
+            Self::Nebula(_) | Self::Statement { .. } | Self::Header(_) | Self::Flags => None,
         }
     }
 
@@ -50,7 +52,7 @@ impl Subject {
     pub fn systems(self) -> impl Iterator<Item = u32> {
         let ids = match self {
             Self::System(id) => vec![id],
-            Self::Nebula(_) | Self::Header(_) => Vec::new(),
+            Self::Nebula(_) | Self::Header(_) | Self::Flags => Vec::new(),
             Self::Statement { ends, .. } => vec![ends.0, ends.1],
         };
         ids.into_iter()
@@ -73,6 +75,7 @@ impl Subject {
                 reason,
             },
             Self::Header(_) => OpError::HeaderParse { offset, reason },
+            Self::Flags => OpError::FlagsParse { offset, reason },
         }
     }
 }

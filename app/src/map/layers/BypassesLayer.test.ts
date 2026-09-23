@@ -10,6 +10,7 @@ vi.mock("../../lib/visual/textures", async (importOriginal) => {
 import type { BypassLink } from "../../generated/BypassLink";
 import type { BypassKinds } from "../../lib/details/icons";
 import { requestTextures } from "../../lib/visual/textures";
+import { useLGateStore } from "../../store/lgateStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { BypassesLayer } from "./BypassesLayer";
 import {
@@ -74,6 +75,7 @@ function markers(layer: BypassesLayer): Graphics[] {
 
 beforeEach(() => {
   useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
+  useLGateStore.setState({ revealed: false });
 });
 
 describe("the bypasses layer", () => {
@@ -162,6 +164,24 @@ describe("the bypasses layer", () => {
 
     plate(badge).emit("pointerout", {} as never);
     expect(useMapChromeStore.getState().tooltip).toBeNull();
+  });
+
+  it("adds the L-Cluster outcome to the L-Gate tooltip once it is revealed, never before", () => {
+    const layer = new BypassesLayer();
+    const lgate = { outcome: "l_drakes", opened: true } as const;
+    layer.rebuild(mapContext(SYSTEMS, { bypasses: [{ type: "l_gate", system: 2 }], lgate }));
+    viewport(layer, 1);
+    const [badge] = badges(layer);
+
+    plate(badge).emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toMatchObject({ lines: ["Beta"] });
+    plate(badge).emit("pointerout", {} as never);
+
+    useLGateStore.setState({ revealed: true });
+    plate(badge).emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toMatchObject({
+      lines: ["Beta", "L-Drakes, opened"],
+    });
   });
 
   it("names the marker's bypass kind and its system while the pointer is on it", () => {

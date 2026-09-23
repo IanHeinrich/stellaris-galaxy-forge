@@ -5,7 +5,9 @@ import { type BypassKinds, bypassIconKey } from "../../lib/details/icons";
 import { titleCase } from "../../lib/text";
 import { labelTier } from "../../lib/visual/labels";
 import { badgeGeometry, badgeSide } from "../../lib/visual/specialStyle";
+import { useLGateStore } from "../../store/lgateStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { lgateOutcomeLine } from "../../lib/lgate";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { Badge, badgeTexture, badgeTextStyle, otherSide, RING_RADIUS } from "./badge";
 import { markerScale, type MapLayer } from "./MapLayer";
@@ -86,6 +88,7 @@ export class BypassesLayer implements MapLayer {
   private readonly badges: BadgeEntry[] = [];
   private wormholes: Array<{ a: number; b: number }> = [];
   private galaxy = EMPTY_CONTEXT.galaxy;
+  private lgate = EMPTY_CONTEXT.lgate;
   private systems: Systems = EMPTY_CONTEXT.systems;
   private bypasses = EMPTY_CONTEXT.bypasses;
   private bypassKinds = EMPTY_CONTEXT.bypassKinds;
@@ -108,6 +111,7 @@ export class BypassesLayer implements MapLayer {
       ctx.bypasses !== this.bypasses ||
       ctx.bypassKinds !== this.bypassKinds;
     this.galaxy = ctx.galaxy;
+    this.lgate = ctx.lgate;
     this.systems = ctx.systems;
     this.nodeName = ctx.nodeName;
     if (!loaded) return;
@@ -236,11 +240,16 @@ export class BypassesLayer implements MapLayer {
     const s = this.systems.get(link.system);
     if (!s) return;
     this.hovered = link;
+    const lines = [this.nodeName(s.name)];
+    const lgate = this.lgate;
+    if (link.type === "l_gate" && lgate && useLGateStore.getState().revealed) {
+      lines.push(lgateOutcomeLine(lgate));
+    }
     useMapChromeStore.getState().showTooltip({
       x: at.x,
       y: at.y,
       title: badgeStyle(link, this.bypassKinds).label,
-      lines: [this.nodeName(s.name)],
+      lines,
     });
   }
 
