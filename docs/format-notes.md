@@ -48,6 +48,24 @@ examples from the sample saves in `testdata/`. Sibling of
   \t\t}
   ```
 
+- Saves from 3.9 and older put every block's opening brace on its key's
+  line, drop the indentation-only line, and start each entry after the
+  first with a single space. 3.10 onwards writes the shape above.
+
+  ```
+  \t\thyperlane={
+  \t\t\t{
+  \t\t\t\tto=398
+  \t\t\t\tlength=37
+  \t\t\t}
+  \x20{
+  \t\t\t\tto=386
+  \t\t\t\tlength=19
+  \t\t\t}
+  \x20
+  \t\t}
+  ```
+
 - Scalars: integers; decimals to 5 places, trailing zeros stripped, no
   exponents (`-333`, `-144.22`, `-339.74518`); quoted strings; `yes`/`no`;
   bare identifiers (`none`, `planet`, `not_set`); dates as `"2206.11.16"`.

@@ -64,7 +64,9 @@ because the file dialog already asked about overwriting it.
   `sgf-app`, via its `views.rs`, all export types); never hand-edit.
 - `testdata/`: save corpus via git-lfs (`2206.11.16.sav`, Stellaris
   4.4, early game; `2201.03.25.sav`, Stellaris 4.5.0, day one, the
-  player empire has Independent Map Color on). Personal saves are never
+  player empire has Independent Map Color on; `2200.04.11.sav`,
+  Stellaris 3.4.5, for lane edits on the brace shape 3.9 and older
+  write). Personal saves are never
   committed without asking; larger local saves are found via
   `SGF_CORPUS_DIR`. `issues.sav` and `issues.paint.txt` are built to
   raise as many findings as one file can, so every kind the Issues tab

@@ -1,0 +1,37 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added lane 591 <-> 590 (length 29)
+inverse: RemoveLane { a: 591, b: 590 }
+
+--- gamestate
++++ gamestate
+@@ -75278,6 +75278,11 @@
+ 				length=10.26096
+ 			}
+  
++			{
++				to=591
++				length=29
++			}
++ 
+ 		}
+ 		natural_wormholes={
+ 			11 
+@@ -75330,6 +75335,15 @@
+ 			176 
+ 		}
+ 		star_class="sc_trinary_3"
++		hyperlane=
++		{
++			
++			{
++				to=590
++				length=29
++			}
++ 
++		}
+ 		natural_wormholes={
+ 			12 
+ 		}
