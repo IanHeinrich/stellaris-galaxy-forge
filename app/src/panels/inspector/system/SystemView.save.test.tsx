@@ -224,6 +224,44 @@ describe("the star class at the head", () => {
     expect(html).toContain("Load game data to change the star class");
   });
 
+  it("notes stars that do not match the class, by their names", async () => {
+    armStarClasses();
+    useGameDataStore.setState({
+      names: new Map([
+        ["pc_a_star", "Class A Star"],
+        ["pc_g_star", "Class G Star"],
+      ]),
+    });
+    await open("save");
+    await land(
+      details({
+        planets: [
+          planet(101, "Alpha", { class: "pc_a_star" }),
+          planet(102, "Beta", { class: "pc_g_star" }),
+        ],
+      }),
+    );
+
+    expect(overview()).toContain(
+      '<div class="edit-note">The stars don&#x27;t match this class: Class A Star + Class G Star</div>',
+    );
+  });
+
+  it("leaves the note out when the stars match the class, in any order", async () => {
+    armStarClasses();
+    await open("save");
+    await land(
+      details({
+        planets: [
+          planet(102, "Beta", { class: "pc_pulsar" }),
+          planet(101, "Alpha", { class: "pc_a_star" }),
+        ],
+      }),
+    );
+
+    expect(overview()).not.toContain("match this class");
+  });
+
   it("stays plain text on a scenario", async () => {
     armStarClasses();
     await open("scenario");

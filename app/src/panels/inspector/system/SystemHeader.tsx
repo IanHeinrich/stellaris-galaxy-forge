@@ -15,7 +15,7 @@ import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
 import { Chip, DrillLink, Section, SourceChip, Swatch } from "../parts";
 import { useEditableSystem } from "./editable";
 import { kindHover } from "./sections/kindHover";
-import { StarClassPicker } from "./StarClassPicker";
+import { StarClassPicker, StarMismatchNote } from "./StarClassPicker";
 import { renameSystemOp } from "./systemName";
 
 /** Why the owner line's day-one chip means what it means, shown on hover. */
@@ -151,6 +151,7 @@ export function Header({ detail }: { detail: SystemDetail }) {
           <EditRow label="Star class">
             <StarClassPicker system={system} planets={details?.planets} label={starClass} />
           </EditRow>
+          <StarMismatchNote system={system} planets={details?.planets} />
         </EditBlock>
       )}
       <div className="ins-sub muted">

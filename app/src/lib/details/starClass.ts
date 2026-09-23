@@ -19,6 +19,16 @@ const EXOTIC_BODIES = new Set(["pc_black_hole", "pc_neutron_star", "pc_pulsar"])
 
 export const INTERNAL = "Internal";
 
+/** Whether a star body's class is an ordinary `*_star`, not one of the collapsed remnants. */
+export function isOrdinaryStarBody(planetClass: string): boolean {
+  return planetClass.endsWith("_star") && !EXOTIC_BODIES.has(planetClass);
+}
+
+/** Whether a planet class reads as a star body by its key alone, for when no game data says. */
+export function looksLikeStarBody(planetClass: string): boolean {
+  return planetClass.endsWith("_star") || EXOTIC_BODIES.has(planetClass);
+}
+
 /** Every key some class points to as its `crisis_star_class`: the crisis variant of that class. */
 export function crisisVariantKeys(starClasses: Iterable<StarClassView>): Set<string> {
   const keys = new Set<string>();
@@ -82,8 +92,7 @@ function starClassGroup(view: StarClassView, crisisVariants: ReadonlySet<string>
   if (count === 2) return "Binaries";
   if (count === 3) return "Trinaries";
   if (count !== 1) return `${count} stars`;
-  const ordinary = view.planet_keys.some((k) => k.endsWith("_star") && !EXOTIC_BODIES.has(k));
-  return ordinary ? "Stars" : "Exotic";
+  return view.planet_keys.some(isOrdinaryStarBody) ? "Stars" : "Exotic";
 }
 
 /** Where a group ranks, after the star-count groups: special, crisis variants, then internal. */

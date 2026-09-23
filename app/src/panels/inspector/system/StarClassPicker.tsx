@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemNode } from "../../../generated/SystemNode";
+import { starMismatch } from "../../../lib/details/starBody";
 import {
   currentStarBodies,
   setStarClassOp,
@@ -10,13 +11,13 @@ import {
 } from "../../../lib/details/starClass";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { PickerField } from "../../EditField";
+import { EditNote, PickerField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
 import { useApplyOp } from "../../useApplyOp";
 import { StarTriggerIcon } from "../StarIcon";
 import { useStarClassItems } from "../useStarClassItems";
 
-const READING_STARS = "Reading the system's stars…";
+export const READING_STARS = "Reading the system's stars…";
 const NEEDS_GAME_DATA = "Load game data to change the star class";
 const NO_CHOICE = "No other star class has as many stars as this system";
 
@@ -80,4 +81,34 @@ export function StarClassPicker({
       onPick={pick}
     />
   );
+}
+
+const MISMATCH = "The stars don't match this class";
+
+/**
+ * The note under a save system's star class field when its star bodies are not the class's own,
+ * as after one body's type was changed. It waits for details read since the last edit.
+ */
+export function StarMismatchNote({
+  system,
+  planets,
+}: {
+  system: SystemNode;
+  planets: readonly PlanetSummary[] | undefined;
+}) {
+  const starClasses = useGameDataStore((s) => s.starClasses);
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
+  const names = useGameDataStore((s) => s.names);
+  const stale = useDetailsStore((s) => s.stale.has(system.id));
+  const read = planets === undefined ? undefined : { planets };
+  const fresh = currentStarBodies(read, stale, planetClasses, starClasses);
+  const bodies = fresh?.map((body) => body.class) ?? [];
+  const mismatch = starMismatch(bodies, starClasses.get(system.star_class));
+  const mismatchKeys = mismatch?.join("|") ?? "";
+  useEffect(() => {
+    if (mismatchKeys !== "") void useGameDataStore.getState().fetchNames(mismatchKeys.split("|"));
+  }, [mismatchKeys]);
+  if (mismatch === null) return null;
+  const named = mismatch.map((key) => names.get(key) ?? key).join(" + ");
+  return <EditNote>{`${MISMATCH}: ${named}`}</EditNote>;
 }

@@ -4,6 +4,7 @@ import type { EntityRef, Entry } from "../../../store/inspectorStore";
 import { CountryView } from "./CountryView";
 import { EntityView } from "./EntityView";
 import { LaneEntry, NebulaEntry, SystemEntry } from "./entries";
+import { PlanetView } from "./PlanetView";
 import { GalaxyView } from "../galaxy/GalaxyView";
 import { SelectionView } from "../selection/SelectionView";
 
@@ -26,7 +27,7 @@ export const INSPECTOR_VIEWS: Record<EntityRef["kind"], InspectorView> = {
   lane: { label: "Hyperlane", component: LaneEntry },
   nebula: { label: "Nebula", component: NebulaEntry },
   system: { label: "System", component: SystemEntry },
-  planet: entity("Planet", "details"),
+  planet: { label: "Planet", component: PlanetView, requires: "details" },
   colony: entity("Colony", "details"),
   fleet: entity("Fleet", "details"),
   ship: entity("Ship", "details"),
