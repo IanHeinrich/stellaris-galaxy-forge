@@ -10,6 +10,7 @@ import { ACCENT_COLOR, REFUSED_COLOR } from "../../lib/visual/style";
 import { run, type CommandEffects } from "../../store/commands";
 import { useEditorStore } from "../../store/editorStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useToolStore } from "../../store/toolStore";
 import { lanesTo } from "../../test/builders";
 import { Camera } from "../Camera";
@@ -20,8 +21,12 @@ import { InteractionController } from "./InteractionController";
 
 type Listener = (e: PointerEvent) => void;
 
+type Surface = HTMLCanvasElement & {
+  fire(type: string, x: number, y: number, button?: number): void;
+};
+
 /** A canvas that records its listeners, so a test can press, drag and release on it. */
-function canvas(): HTMLCanvasElement & { fire(type: string, x: number, y: number): void } {
+function canvas(): Surface {
   const listeners = new Map<string, Listener>();
   return {
     style: {},
@@ -30,11 +35,11 @@ function canvas(): HTMLCanvasElement & { fire(type: string, x: number, y: number
     setPointerCapture: () => undefined,
     hasPointerCapture: () => false,
     releasePointerCapture: () => undefined,
-    fire(type: string, x: number, y: number) {
+    fire(type: string, x: number, y: number, button?: number) {
       listeners.get(type)?.({
         offsetX: x,
         offsetY: y,
-        button: type === "pointermove" ? -1 : 0,
+        button: button ?? (type === "pointermove" ? -1 : 0),
         pointerId: 1,
         shiftKey: false,
         ctrlKey: false,
@@ -42,7 +47,7 @@ function canvas(): HTMLCanvasElement & { fire(type: string, x: number, y: number
         altKey: false,
       } as PointerEvent);
     },
-  } as unknown as HTMLCanvasElement & { fire(type: string, x: number, y: number): void };
+  } as unknown as Surface;
 }
 
 let controller: InteractionController | null = null;
@@ -245,6 +250,36 @@ describe("the brush circle", () => {
     expect(colour()).toBe(ACCENT_COLOR);
     key("keyup", "Alt");
     expect(colour()).toBe(REFUSED_COLOR);
+  });
+});
+
+describe("a prevented pair's dash", () => {
+  it("opens its own menu on a right-click and is passed over by hover and a left click", () => {
+    const systems = [
+      systemNode({ id: 1, x: -50, prevented: [2] }),
+      systemNode({ id: 2, x: 50, prevented: [1] }),
+    ];
+    useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems });
+    const cam = new Camera();
+    cam.setViewport(800, 600);
+    const surface = canvas();
+    controller = new InteractionController(surface, cam, new HighlightsLayer());
+    const mid = cam.worldToScreen(0, 0);
+
+    surface.fire("pointerdown", mid.x, mid.y, 2);
+    surface.fire("pointerup", mid.x, mid.y, 2);
+    expect(useMapChromeStore.getState().contextMenu?.target).toEqual({
+      kind: "prevented",
+      a: 1,
+      b: 2,
+    });
+
+    surface.fire("pointermove", mid.x, mid.y);
+    expect(useMapChromeStore.getState().gesture).toBeNull();
+    surface.fire("pointerdown", mid.x, mid.y);
+    surface.fire("pointerup", mid.x, mid.y);
+    expect(useEditorStore.getState().selectedLane).toBeNull();
+    expect(useMapChromeStore.getState().contextMenu).toBeNull();
   });
 });
 

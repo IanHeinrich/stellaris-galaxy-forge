@@ -74,6 +74,7 @@ export function at(
     snap: null,
     feZone: null,
     nebula: null,
+    prevented: null,
     ...extra,
   };
 }

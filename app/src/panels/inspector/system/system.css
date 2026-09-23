@@ -85,29 +85,6 @@
   padding: 0 4px;
 }
 
-.ins-prevent-add {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.ins-prevent-add .k {
-  flex: 1;
-}
-
-.ins-prevent-add input {
-  width: 64px;
-  min-width: 0;
-  height: 22px;
-  padding: 0 6px;
-  font: inherit;
-  color: inherit;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-}
-
 .ins-prow {
   display: grid;
   grid-template-columns: 24px 1fr auto;
