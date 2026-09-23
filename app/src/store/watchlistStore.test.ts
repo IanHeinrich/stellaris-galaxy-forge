@@ -58,6 +58,27 @@ describe("pinning", () => {
     ]);
   });
 
+  it("unpins the same search whatever its case, and leaves the others", () => {
+    watch().pin("salvager");
+    watch().pin("gaia");
+
+    watch().unpin("  SALVAGER ");
+
+    expect(watch().entries.map((e) => e.query)).toEqual(["gaia"]);
+    expect(storedWatchlist()).toEqual(watch().entries);
+  });
+
+  it("toggles a search between pinned and not, matching it whatever its case", () => {
+    expect(watch().togglePin("salvager")).toBe(true);
+    expect(watch().entries.map((e) => e.query)).toEqual(["salvager"]);
+
+    expect(watch().togglePin("Salvager")).toBe(false);
+    expect(watch().entries).toEqual([]);
+
+    expect(watch().togglePin("   ")).toBe(false);
+    expect(watch().entries).toEqual([]);
+  });
+
   it("clears every entry, in the preferences too", () => {
     const store = useWatchlistStore.getState();
     store.pin("salvager");
@@ -113,6 +134,17 @@ describe("results", () => {
     await session().close();
 
     expect(watch().results.size).toBe(0);
+  });
+
+  it("drops an unpinned search's systems", async () => {
+    watch().pin("salvager");
+    watch().pin("alpha refuge");
+    await session().openSave(OPEN_RESULT.path);
+    await vi.waitFor(() => expect(watch().results.size).toBe(2));
+
+    watch().togglePin("SALVAGER");
+
+    expect([...watch().results.keys()]).toEqual(["alpha refuge"]);
   });
 
   it("runs a search pinned while a document is open", async () => {

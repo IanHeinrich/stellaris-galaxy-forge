@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
-import { nextColour, sameQuery, type WatchEntry } from "../lib/watchlist";
+import { nextColour, pinnedEntry, type WatchEntry } from "../lib/watchlist";
 import { useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField } from "./prefs";
@@ -14,6 +14,10 @@ export interface WatchlistState {
   results: ReadonlyMap<string, readonly number[]>;
   /** Adds a search to the list; false for an empty one or one already on it. */
   pin(query: string): boolean;
+  /** Takes off the entry that is the same search as `query`, whatever its case. */
+  unpin(query: string): void;
+  /** Pins `query`, or unpins it when it already is; true when it is pinned afterwards. */
+  togglePin(query: string): boolean;
   remove(query: string): void;
   /** Empties the list. */
   clear(): void;
@@ -35,7 +39,7 @@ function isEntries(value: unknown): value is WatchEntry[] {
 
 const ENTRIES = prefField<WatchEntry[]>(PREF_KEYS.watchlist, [], isEntries);
 
-/** The watchlist as the preferences hold it. */
+/** The pinned searches as the preferences hold them. */
 export function storedWatchlist(): WatchEntry[] {
   return ENTRIES.read();
 }
@@ -63,11 +67,22 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => {
     pin(query) {
       const text = query.trim();
       const { entries } = get();
-      if (text === "" || entries.some((entry) => sameQuery(entry.query, text))) return false;
+      if (text === "" || pinnedEntry(entries, text) !== undefined) return false;
       const colour = nextColour(entries.map((entry) => entry.colour));
       keep([...entries, { query: text, colour, shown: true }]);
       if (useFileSessionStore.getState().status === "ready") void get().refresh();
       return true;
+    },
+
+    unpin(query) {
+      const entry = pinnedEntry(get().entries, query);
+      if (entry !== undefined) get().remove(entry.query);
+    },
+
+    togglePin(query) {
+      if (pinnedEntry(get().entries, query) === undefined) return get().pin(query);
+      get().unpin(query);
+      return false;
     },
 
     remove(query) {

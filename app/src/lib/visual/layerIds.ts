@@ -107,7 +107,7 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   colonies: "Colonies",
   claims: "Day-one claims",
   day_one_bypasses: "Day-one bypasses",
-  watchlist: "Watchlist",
+  watchlist: "Pinned searches",
   highlights: "Highlights",
 };
 

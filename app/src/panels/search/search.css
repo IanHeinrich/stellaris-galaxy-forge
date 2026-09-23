@@ -4,6 +4,57 @@
   padding: 0 26px 0 28px;
 }
 
+.search input.palette-field::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search.has-pin input.palette-field {
+  padding-right: 100px;
+}
+
+/* The field's own buttons, after the text: Pin, then clear. */
+.search-trail {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transform: translateY(-50%);
+}
+
+.search-trail button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--fg-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.search-trail button:hover {
+  color: var(--fg);
+  background: var(--bg-elevated);
+}
+
+.search-trail .pin-toggle {
+  border-color: var(--border);
+}
+
+.search-trail .pin-toggle.on {
+  color: var(--fg);
+}
+
+.search-trail .search-clear {
+  font-size: 14px;
+}
+
 .search-glyph {
   position: absolute;
   top: 50%;
@@ -34,7 +85,7 @@
 .palette {
   position: absolute;
   left: 0;
-  right: 0;
+  width: max(100%, 420px);
   top: 100%;
   z-index: 4;
   margin-top: 4px;
@@ -54,11 +105,19 @@
 }
 
 .palette-group {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
   padding: 6px 12px 2px;
   font-size: 10px;
   color: var(--fg-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.palette-group-count {
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .palette-row {
@@ -97,6 +156,41 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.palette-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.palette-row.pinned .palette-dot {
+  margin: 0 4px;
+}
+
+.palette-row.pinned.off .palette-name,
+.palette-row.pinned.off .palette-dot {
+  opacity: 0.45;
+}
+
+.palette-row-button {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+  color: var(--fg-muted);
+  background: none;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.palette-row-button:hover {
+  color: var(--fg);
+  background: var(--bg-panel);
 }
 
 .palette-foot {

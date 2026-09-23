@@ -1,4 +1,4 @@
-/** A search kept on the watchlist: the text it runs, the colour its rings take, whether they draw. */
+/** A pinned search: the text it runs, the colour its rings take, whether they draw. */
 export interface WatchEntry {
   query: string;
   colour: number;
@@ -29,6 +29,11 @@ export function nextColour(inUse: readonly number[]): number {
 /** Whether two queries are the same search, whatever their case and surrounding space. */
 export function sameQuery(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/** The entry that pins `query`, if one does. */
+export function pinnedEntry(entries: readonly WatchEntry[], query: string): WatchEntry | undefined {
+  return entries.find((entry) => sameQuery(entry.query, query));
 }
 
 /** The rings the map draws: one set per shown entry, placed by the entry's slot in the list. */

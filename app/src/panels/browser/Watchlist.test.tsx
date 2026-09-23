@@ -23,7 +23,7 @@ beforeEach(() => {
 
 const render = () => renderToStaticMarkup(<Watchlist />);
 
-describe("the Watchlist tab", () => {
+describe("the Pinned searches tab", () => {
   it("suggests searches to pin while nothing is", () => {
     const html = render();
 
@@ -46,7 +46,7 @@ describe("the Watchlist tab", () => {
 
     const html = render();
 
-    expect(html).not.toContain("Nothing pinned yet");
+    expect(html).not.toContain("No pinned searches yet");
     expect(html).toContain("2 searches pinned");
     expect(html).toContain(">Clear all</button>");
     expect(html).toContain(">salvager</button>");
@@ -54,7 +54,7 @@ describe("the Watchlist tab", () => {
     expect(html).toContain(`background:${toCss(WATCH_COLOURS[0])}`);
     expect(html).toContain('aria-label="Hide &quot;salvager&quot; on the map"');
     expect(html).toContain('aria-label="Show &quot;gaia&quot; on the map"');
-    expect(html).toContain('aria-label="Remove &quot;salvager&quot; from the watchlist"');
+    expect(html).toContain('aria-label="Unpin &quot;salvager&quot;"');
     expect(html.match(/class="browser-count">(\d+)</g)).toEqual([
       'class="browser-count">2<',
       'class="browser-count">0<',

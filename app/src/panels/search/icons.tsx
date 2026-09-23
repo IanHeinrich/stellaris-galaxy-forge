@@ -69,3 +69,24 @@ function glyphOf(kind: RowKind): ReactNode {
 export function RowIcon({ kind }: { kind: RowKind }) {
   return <>{glyphOf(kind)}</>;
 }
+
+/** The pin on the field's Pin button, 12 px in `currentColor`. */
+export function PinGlyph() {
+  return (
+    <svg
+      className="pin-glyph"
+      viewBox="0 0 16 16"
+      width="12"
+      height="12"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5.5 2.5h5M6.5 2.5v4L4 9.5h8L9.5 6.5v-4M8 9.5v4.5" />
+    </svg>
+  );
+}

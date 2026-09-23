@@ -10,9 +10,9 @@ import { Action, Eye, Group, Row } from "./rows";
 
 /** What the tab says before anything is pinned. */
 export const WATCHLIST_EMPTY =
-  'Nothing pinned yet. Pin a search such as "salvager", "alpha refuge" or "gaia" and its ' +
-  "systems are ringed in their own colour on every save you open. Ctrl+Enter in the search " +
-  "field pins what it holds.";
+  'No pinned searches yet. Pin a search such as "salvager", "alpha refuge" or "gaia" and its ' +
+  "systems are ringed in their own colour on every save you open. The Pin button in the " +
+  "search field (or Ctrl+Enter) pins what it holds.";
 
 interface WatchRow {
   id: number;
@@ -48,7 +48,7 @@ function WatchSection({
   collapse: Collapse;
 }) {
   const toggleShown = useWatchlistStore((s) => s.toggleShown);
-  const remove = useWatchlistStore((s) => s.remove);
+  const unpin = useWatchlistStore((s) => s.unpin);
   const key = entry.query.toLowerCase();
   return (
     <Group
@@ -69,11 +69,7 @@ function WatchSection({
         </>
       }
       actions={
-        <Action
-          glyph="×"
-          label={`Remove "${entry.query}" from the watchlist`}
-          onClick={() => remove(entry.query)}
-        />
+        <Action glyph="×" label={`Unpin "${entry.query}"`} onClick={() => unpin(entry.query)} />
       }
       onToggle={() => collapse.toggle(key)}
     >

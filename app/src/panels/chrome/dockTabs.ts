@@ -23,7 +23,7 @@ export const DOCK_TAB_REGISTRY: Record<DockTab, DockTabEntry> = {
   inspector: { label: "Inspector", short: "Inspector", component: Inspector },
   empires: { label: "Empires", short: "Empires", component: Empires, requires: "empires" },
   poi: { label: "Points of interest", short: "POI", component: Points, requires: "special" },
-  watchlist: { label: "Watchlist", short: "Watch", component: Watchlist },
+  watchlist: { label: "Pinned searches", short: "Pinned", component: Watchlist },
   issues: { label: "Issues", short: "Issues", component: Issues },
   changes: { label: "Changes", short: "Changes", component: HistoryPanel },
 };
