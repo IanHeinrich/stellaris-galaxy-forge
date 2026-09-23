@@ -259,6 +259,8 @@ fn territories(
                     colors: identity.colors.clone(),
                     border_color: None,
                     fill_color: None,
+                    flag_colors: Vec::new(),
+                    use_map_color: false,
                     flag_icon: identity.icon.clone(),
                     flag_background: identity.background.clone(),
                     flags: Vec::new(),

@@ -62,6 +62,7 @@ export const getBypasses = command("getBypasses");
 export const getInitializers = command("getInitializers");
 export const getGalaxyShapes = command("getGalaxyShapes");
 export const getMapColors = command("getMapColors");
+export const getMapColorSource = command("getMapColorSource");
 export const getPlanetClasses = command("getPlanetClasses");
 export const getStarbaseLevels = command("getStarbaseLevels");
 export const getShipSizes = command("getShipSizes");

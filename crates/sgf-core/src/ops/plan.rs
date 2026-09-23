@@ -94,6 +94,11 @@ impl Plan {
         self.subject(doc, Subject::Flags)
     }
 
+    /// The edit for a save's `country` entity `id`, loading and parsing it on first use.
+    pub fn edit_country(&mut self, doc: &Document, id: u32) -> Result<&mut Edit, OpError> {
+        self.subject(doc, Subject::Country(id))
+    }
+
     /// Emit `bytes` as a new statement at original offset `at`.
     pub fn emit(&mut self, what: Emitted, at: usize, bytes: Vec<u8>) {
         self.emits.push((what, at, bytes));

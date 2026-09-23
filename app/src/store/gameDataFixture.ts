@@ -26,6 +26,7 @@ export const mocked = {
   resolveNames: vi.mocked(ipc.resolveNames),
   getStarClasses: vi.mocked(ipc.getStarClasses),
   getMapColors: vi.mocked(ipc.getMapColors),
+  getMapColorSource: vi.mocked(ipc.getMapColorSource),
   getPlanetClasses: vi.mocked(ipc.getPlanetClasses),
   getDeposits: vi.mocked(ipc.getDeposits),
   getBypasses: vi.mocked(ipc.getBypasses),
@@ -86,6 +87,8 @@ export const RIHINAR = {
   colors: [],
   border_color: null,
   fill_color: null,
+  flag_colors: [],
+  use_map_color: false,
   flag_icon: null,
   flag_background: null,
 };
@@ -137,6 +140,7 @@ export function armGameData(): void {
   mocked.getMapColors.mockResolvedValue([
     { name: "red", map: "#ff0000", flag: "#ff0000", ship: "#ff0000" },
   ]);
+  mocked.getMapColorSource.mockResolvedValue(null);
   mocked.getPlanetClasses.mockResolvedValue([
     { key: "pc_continental", icon_sprite: null, habitable: true, star: false },
   ]);

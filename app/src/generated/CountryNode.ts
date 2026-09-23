@@ -26,4 +26,14 @@ border_color: string | null,
 /**
  * `flag.colors[5]`, the map fill colour; set only under `flag.use_map_color=yes`.
  */
-fill_color: string | null, flag_icon: FlagRef | null, flag_background: FlagRef | null, };
+fill_color: string | null, 
+/**
+ * Every `flag.colors` entry in order, the `"null"` placeholders kept; empty for a
+ * scenario's territories.
+ */
+flag_colors: Array<string>, 
+/**
+ * Whether `flag.use_map_color=yes`: the game paints the map in `flag_colors[4]` and
+ * `[5]` rather than the first two.
+ */
+use_map_color: boolean, flag_icon: FlagRef | null, flag_background: FlagRef | null, };

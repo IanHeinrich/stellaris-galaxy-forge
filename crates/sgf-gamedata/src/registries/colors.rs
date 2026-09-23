@@ -5,11 +5,34 @@
 use sgf_core::cst::Node;
 
 use crate::Diagnostic;
-use crate::install::layers::Layout;
+use crate::install::layers::{Layout, VANILLA};
 use crate::install::script;
 use crate::registries::registry::Registry;
 
-pub type Colors = Registry<ColorDef>;
+#[derive(Debug, Default)]
+pub struct Colors {
+    entries: Registry<ColorDef>,
+    /// The name of the mod whose `colors.txt` won; `None` for vanilla's, or for none.
+    pub source: Option<String>,
+}
+
+impl Colors {
+    pub fn get(&self, name: &str) -> Option<&ColorDef> {
+        self.entries.get(name)
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ColorDef> {
+        self.entries.iter()
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColorDef {
@@ -21,8 +44,17 @@ pub struct ColorDef {
 
 pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Colors {
     let mut colors = Colors::default();
-    if let Some(file) = layout.file_in("flags", "colors.txt")
-        && let Some((root, src)) = script::parse_file(&file, diagnostics)
+    let Some(file) = layout.file_in("flags", "colors.txt") else {
+        return colors;
+    };
+    colors.source = layout
+        .layers
+        .iter()
+        .rev()
+        .find(|layer| file.starts_with(&layer.root))
+        .map(|layer| layer.name.clone())
+        .filter(|name| name != VANILLA);
+    if let Some((root, src)) = script::parse_file(&file, diagnostics)
         && let Some(block) = root.find("colors", &src)
     {
         for child in block.children() {
@@ -30,7 +62,7 @@ pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Colors
                 continue;
             };
             if let Some(def) = read_color(name.to_owned(), child, &src) {
-                colors.insert(def.name.clone(), def);
+                colors.entries.insert(def.name.clone(), def);
             }
         }
     }

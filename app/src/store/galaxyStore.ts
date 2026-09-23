@@ -114,7 +114,17 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     const header = delta.header ?? get().header;
     const waylines = delta.waylines ?? get().waylines;
     const lgate = delta.lgate ?? get().lgate;
-    set({ systems, nebulae, header, waylines, lgate, lastDelta: delta, version: version + 1 });
+    const countries = withCountries(get().countries, delta.countries);
+    set({
+      systems,
+      nebulae,
+      header,
+      waylines,
+      lgate,
+      countries,
+      lastDelta: delta,
+      version: version + 1,
+    });
   },
 
   setScriptedOwners(owners, countries) {
@@ -195,6 +205,17 @@ function countryMap(
   for (const c of own) countries.set(c.id, c);
   for (const c of scripted) countries.set(c.id, c);
   return countries;
+}
+
+/** `countries` with each re-read country in place of its old copy, keeping the palette's order. */
+function withCountries(
+  countries: Map<number, CountryNode>,
+  changed: readonly CountryNode[] | undefined,
+): Map<number, CountryNode> {
+  if (changed === undefined || changed.length === 0) return countries;
+  const next = new Map(countries);
+  for (const c of changed) next.set(c.id, c);
+  return next;
 }
 
 /** Undirected lane count: every lane is listed from both ends. */

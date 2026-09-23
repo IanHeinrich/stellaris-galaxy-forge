@@ -402,3 +402,49 @@
 .watchlist .browser-head .browser-actions {
   opacity: 1;
 }
+
+/* An empire's edit strip, open under its row. */
+.browser-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 1px 2px 4px 14px;
+  padding: 5px 7px;
+  font-size: 11px;
+  color: var(--fg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.browser-edit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.browser-edit-label {
+  color: var(--fg-muted);
+}
+
+.browser-edit-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.browser-edit-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.browser-edit-check input {
+  margin: 0;
+}
+
+.browser-edit-note {
+  line-height: 1.4;
+  color: var(--fg-muted);
+}

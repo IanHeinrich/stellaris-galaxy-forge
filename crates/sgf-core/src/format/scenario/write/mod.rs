@@ -119,6 +119,11 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),
+        // A scenario's empires are created when the game starts, so it holds no countries.
+        Op::SetEmpireMapColors { .. } => Err(OpError::Unsupported {
+            op: op.name(),
+            kind: DocumentKind::Scenario,
+        }),
         Op::Batch { .. } => Err(OpError::NestedBatch),
     }
 }

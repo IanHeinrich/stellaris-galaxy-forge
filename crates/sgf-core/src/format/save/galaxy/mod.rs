@@ -4,8 +4,9 @@
 //!
 //! Built once at load by [`GalaxyGraph::build`]. One system is re-extracted after an op
 //! through [`GalaxyGraph::refresh_system`], the nebulae with their membership through
-//! [`GalaxyGraph::refresh_nebulae`] and the L-Gate through [`GalaxyGraph::refresh_lgate`];
-//! all run the same extraction as the build, so ops need no incremental bookkeeping.
+//! [`GalaxyGraph::refresh_nebulae`], the L-Gate through [`GalaxyGraph::refresh_lgate`] and
+//! one country through [`GalaxyGraph::refresh_country`]; all run the same extraction as
+//! the build, so ops need no incremental bookkeeping.
 
 mod bypasses;
 mod countries;
@@ -189,6 +190,11 @@ impl GalaxyGraph {
         if self.lgate.is_some() {
             self.lgate = Some(lgate::read_flags(flags, src));
         }
+    }
+
+    /// Re-read country `id` from `node`, its `<id>=` entity node as it now stands.
+    pub fn refresh_country(&mut self, id: u32, node: &Node, src: &[u8]) {
+        countries::refresh(&mut self.countries, read::country(id, node, src));
     }
 }
 

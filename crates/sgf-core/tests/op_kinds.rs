@@ -72,7 +72,7 @@ fn each_kind_refuses_exactly_the_ops_it_has_no_statement_for() {
         );
         match &example.save {
             Some(op) => {
-                examples::save()
+                (example.open_save)()
                     .apply(op.clone())
                     .unwrap_or_else(|e| panic!("{name}: {e}"));
             }
@@ -108,7 +108,8 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
     let cases = one_of_each()
         .into_iter()
         .flat_map(|example| {
-            let save = example.save.map(|op| (examples::save(), op));
+            let open_save = example.open_save;
+            let save = example.save.map(|op| (open_save(), op));
             let scenario = example.scenario.map(|op| (examples::scenario(), op));
             save.into_iter().chain(scenario)
         })

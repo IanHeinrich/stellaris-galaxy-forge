@@ -276,6 +276,16 @@ pub enum Op {
         class: String,
         bodies: Vec<StarBody>,
     },
+    /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
+    /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
+    /// writes both and turns that on; `None` turns it off and mirrors the first two flag
+    /// colours into them, as the game does. Needs the six-entry list Stellaris 4.5 writes.
+    /// The inverse carries the pair displaced only when map colours were on: it describes
+    /// the change, and undo puts the bytes back exactly. Save documents only.
+    SetEmpireMapColors {
+        country: u32,
+        colors: Option<MapColorPair>,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -331,6 +341,7 @@ impl Op {
             Self::UnpreventLane { .. } => "UnpreventLane",
             Self::SetLGateOutcome { .. } => "SetLGateOutcome",
             Self::SetStarClass { .. } => "SetStarClass",
+            Self::SetEmpireMapColors { .. } => "SetEmpireMapColors",
             Self::Batch { .. } => "Batch",
         }
     }
@@ -418,6 +429,15 @@ pub struct NewSystem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub statement: Option<String>,
+}
+
+/// The map border and fill in [`Op::SetEmpireMapColors`], each a colour name from
+/// `flags/colors.txt`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct MapColorPair {
+    pub border: String,
+    pub fill: String,
 }
 
 /// One system's destination in [`Op::MoveSystems`].
@@ -569,6 +589,20 @@ pub enum OpError {
     DuplicatePlanet(u32),
     #[error("system {0} is already {1} with those star bodies")]
     StarClassUnchanged(u32, String),
+    #[error("country {0} does not exist")]
+    UnknownCountry(u32),
+    #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
+    NoMapColors(u32),
+    #[error("colour name {0:?} may not be empty or hold a space, a quote or a backslash")]
+    InvalidColorName(String),
+    #[error("country {0}'s map colours are already set that way")]
+    MapColorsUnchanged(u32),
+    #[error("country {country}: {reason} at byte {offset}")]
+    CountryParse {
+        country: u32,
+        offset: usize,
+        reason: String,
+    },
     #[error("{op} is not supported for a {kind} document")]
     Unsupported {
         op: &'static str,

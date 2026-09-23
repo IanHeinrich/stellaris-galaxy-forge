@@ -229,6 +229,13 @@ pub fn get_map_colors(game_data: State<'_, GameDataState>) -> Vec<MapColor> {
     })
 }
 
+/// The mod whose `flags/colors.txt` the palette comes from; `None` for vanilla's, or without
+/// game data.
+#[tauri::command(async)]
+pub fn get_map_color_source(game_data: State<'_, GameDataState>) -> Option<String> {
+    game_data.loaded().and_then(|gd| gd.colors.source.clone())
+}
+
 #[tauri::command(async)]
 pub fn get_planet_classes(game_data: State<'_, GameDataState>) -> Vec<PlanetClassView> {
     game_data.loaded().map_or_else(Vec::new, |gd| {

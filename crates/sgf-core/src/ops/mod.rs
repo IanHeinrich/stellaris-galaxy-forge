@@ -21,7 +21,10 @@ use crate::session::Session;
 
 pub use edit::Subject;
 pub(crate) use edit::{Edit, blank_slot, replace_lengths};
-pub use op::{InitializerSet, LaneLength, LanePair, NewSystem, Op, OpError, StarBody, SystemMove};
+pub use op::{
+    InitializerSet, LaneLength, LanePair, MapColorPair, NewSystem, Op, OpError, StarBody,
+    SystemMove,
+};
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 
 /// The record of one committed op: what changed, how to describe it, and the bytes

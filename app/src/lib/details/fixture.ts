@@ -16,6 +16,8 @@ export const COUNTRY: CountryNode = {
   colors: ["blue", "black"],
   border_color: null,
   fill_color: null,
+  flag_colors: [],
+  use_map_color: false,
   flag_icon: { category: "human", file: "flag_human_9.dds" },
   flag_background: { category: "backgrounds", file: "00_solid.dds" },
 };

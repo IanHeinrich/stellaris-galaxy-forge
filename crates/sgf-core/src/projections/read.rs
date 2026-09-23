@@ -155,6 +155,10 @@ pub(crate) struct RawCountry {
     pub border_color: Option<String>,
     /// `flag.colors[5]`, the map fill colour, read only under `flag.use_map_color=yes`.
     pub fill_color: Option<String>,
+    /// Every `flag.colors` entry in order, the `"null"` placeholders kept.
+    pub flag_colors: Vec<String>,
+    /// Whether `flag.use_map_color=yes`.
+    pub use_map_color: bool,
     pub flag_icon: Option<FlagRef>,
     pub flag_background: Option<FlagRef>,
     /// The keys of the `flags` map.
@@ -182,7 +186,8 @@ pub(crate) fn countries(index: &Index, src: &[u8]) -> Result<Vec<RawCountry>, Pr
 const MAP_BORDER_SLOT: usize = 4;
 const MAP_FILL_SLOT: usize = 5;
 
-fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
+/// What the projections read off one `country` entity, `node` being its `<id>=` node.
+pub(crate) fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
     let flag = node.find(keys::FLAG, src);
     let entries: Vec<&str> = flag
         .and_then(|f| f.find(keys::COLORS, src))
@@ -201,8 +206,9 @@ fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
         .filter(|&s| named(s))
         .map(str::to_owned)
         .collect();
+    let use_map_color = flag.and_then(|f| scalar(f, keys::USE_MAP_COLOR, src)) == Some("yes");
     let map_color = |slot: usize| {
-        if scalar(flag?, keys::USE_MAP_COLOR, src) != Some("yes") {
+        if !use_map_color {
             return None;
         }
         entries
@@ -250,6 +256,8 @@ fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
         colors,
         border_color: map_color(MAP_BORDER_SLOT),
         fill_color: map_color(MAP_FILL_SLOT),
+        flag_colors: entries.iter().copied().map(str::to_owned).collect(),
+        use_map_color,
         flag_icon: layer(keys::ICON),
         flag_background: layer(keys::BACKGROUND),
         flags,

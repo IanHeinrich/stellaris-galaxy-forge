@@ -10,7 +10,7 @@ use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
 use crate::format::Format;
-use crate::format::save::write::{bulk, lanes, lgate, move_system, nebula, star_class};
+use crate::format::save::write::{bulk, lanes, lgate, map_colors, move_system, nebula, star_class};
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
@@ -47,6 +47,10 @@ impl Format for Save {
                 .section(keys::FLAGS)
                 .map(|section| Anchor::Original(section.stmt))
                 .ok_or(OpError::NoFlags),
+            Subject::Country(id) => match doc.index().entity(keys::COUNTRY, u64::from(id)) {
+                Some(e) if matches!(e.value, Value::Block { .. }) => Ok(Anchor::Original(e.stmt)),
+                _ => Err(OpError::UnknownCountry(id)),
+            },
         }
     }
 
@@ -79,6 +83,17 @@ impl Format for Save {
                         .first()
                         .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
                     graph.refresh_lgate(flags, buf);
+                }
+                Subject::Country(id) => {
+                    let buf = doc.current(self.statement(doc, subject)?)?;
+                    let root = self
+                        .parse(buf, 0)
+                        .map_err(|e| subject.parse_error(e.offset, e.reason))?;
+                    let country = root
+                        .children()
+                        .first()
+                        .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
+                    graph.refresh_country(id, country, buf);
                 }
                 // The galaxy reads nothing from a planet: its class is the details' concern.
                 Subject::Planet { .. } | Subject::Statement { .. } | Subject::Header(_) => {}
@@ -123,6 +138,9 @@ impl Format for Save {
             Op::SetLGateOutcome { outcome } => lgate::plan_set_outcome(plan, s, *outcome),
             Op::SetStarClass { id, class, bodies } => {
                 star_class::plan_set(plan, s, *id, class, bodies)
+            }
+            Op::SetEmpireMapColors { country, colors } => {
+                map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
             // A save's systems come with planets, a starbase and an owner, its names and
             // initializers are the game's to set, and it has neither a scenario header nor
