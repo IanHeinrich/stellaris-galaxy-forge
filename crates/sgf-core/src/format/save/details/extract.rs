@@ -295,6 +295,18 @@ pub(super) fn planets(
     Ok(planet_system)
 }
 
+/// The `planet_class` now standing for planet `id`; `None` when the save holds no such
+/// planet.
+pub(super) fn planet_class(doc: &Document, id: u32) -> Result<Option<String>, ProjectionError> {
+    let Some(entity) = doc
+        .inner_index(keys::PLANETS)?
+        .and_then(|index| index.entity(keys::PLANET, u64::from(id)))
+    else {
+        return Ok(None);
+    };
+    Ok(current_planet(doc, entity)?.map(|(node, src)| read::text(&node, keys::PLANET_CLASS, src)))
+}
+
 /// A planet's `<id>=` node parsed from the bytes now standing for it, which an op may
 /// have rewritten, with those bytes; `None` for a tombstone.
 fn current_planet<'d>(

@@ -210,3 +210,93 @@ fn a_body_alone_changes_when_the_star_class_already_stands() {
     session.undo().expect("undo").expect("something to undo");
     assert_eq!(current(&session), session.doc.original());
 }
+
+#[test]
+fn a_star_class_change_rereads_its_bodies_and_keeps_the_other_systems_details() {
+    let mut session = open();
+    session.warm_details().expect("build details");
+    let other = session
+        .details()
+        .unwrap()
+        .raw(35)
+        .cloned()
+        .expect("system 35's details");
+    let kept = |session: &Session, step: &str| {
+        let details = session
+            .built_details()
+            .unwrap_or_else(|| panic!("{step} dropped the details"));
+        assert_eq!(details.raw(35), Some(&other), "{step}");
+    };
+
+    session
+        .apply(set(1, "sc_pulsar", &[(748, "pc_pulsar")]))
+        .expect("set the star class");
+    kept(&session, "the apply");
+    assert_eq!(body_class(&session, 1, 748), "pc_pulsar");
+
+    session.undo().expect("undo").expect("something to undo");
+    kept(&session, "the undo");
+    assert_eq!(body_class(&session, 1, 748), "pc_g_star");
+
+    session.redo().expect("redo").expect("something to redo");
+    kept(&session, "the redo");
+    assert_eq!(body_class(&session, 1, 748), "pc_pulsar");
+}
+
+#[test]
+fn a_batch_of_star_classes_is_one_step_that_undoes_to_the_original_bytes() {
+    let mut session = open();
+    let batch = Op::Batch {
+        description: "Set two star classes".to_owned(),
+        ops: vec![
+            set(1, "sc_pulsar", &[(748, "pc_pulsar")]),
+            set(
+                35,
+                "sc_binary_7",
+                &[(1063, "pc_k_star"), (1064, "pc_f_star")],
+            ),
+        ],
+    };
+    let result = session.apply(batch).expect("apply the batch");
+    assert_eq!(result.details_stale, [1, 35]);
+    assert_eq!(star_class(&session, 1), "sc_pulsar");
+    assert_eq!(star_class(&session, 35), "sc_binary_7");
+    assert_eq!(body_class(&session, 1, 748), "pc_pulsar");
+    assert_eq!(body_class(&session, 35, 1063), "pc_k_star");
+    assert_eq!(body_class(&session, 35, 1064), "pc_f_star");
+    assert_eq!(session.history().undo.len(), 1);
+
+    session.undo().expect("undo").expect("something to undo");
+    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(star_class(&session, 1), "sc_g");
+    assert_eq!(star_class(&session, 35), "sc_binary_2");
+    assert_eq!(body_class(&session, 1, 748), "pc_g_star");
+}
+
+#[test]
+fn a_refused_member_leaves_the_whole_batch_unapplied() {
+    let mut session = open();
+    let batch = Op::Batch {
+        description: "Set two star classes".to_owned(),
+        ops: vec![
+            set(1, "sc_pulsar", &[(748, "pc_pulsar")]),
+            set(35, "sc_binary_7", &[(748, "pc_k_star")]),
+        ],
+    };
+    let error = session.apply(batch).expect_err("748 is not a body of 35");
+    assert!(
+        matches!(
+            error,
+            OpError::NotABody {
+                planet: 748,
+                system: 35
+            }
+        ),
+        "{error}"
+    );
+    assert!(!session.doc.is_dirty());
+    assert!(session.history().undo.is_empty());
+    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(star_class(&session, 1), "sc_g");
+    assert_eq!(body_class(&session, 1, 748), "pc_g_star");
+}

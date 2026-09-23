@@ -4,6 +4,7 @@ import type { StarClassView } from "../../generated/StarClassView";
 import { planet } from "./fixture";
 import {
   bulkStarClassChoices,
+  currentStarBodies,
   planStarClass,
   setStarClassOp,
   skippedNote,
@@ -46,6 +47,36 @@ describe("starBodies", () => {
       planet({ id: 12, class: "pc_neutron_star" }),
     ];
     expect(starBodies(planets, PLANET_CLASSES, CLASSES).map((p) => p.id)).toEqual([10, 12]);
+  });
+});
+
+describe("currentStarBodies", () => {
+  const planets = [
+    planet({ id: 20, class: "pc_b_star" }),
+    planet({ id: 21, class: "pc_neutron_star" }),
+  ];
+
+  it("gives the star bodies of details read since the last edit", () => {
+    expect(
+      currentStarBodies({ planets }, false, PLANET_CLASSES, CLASSES)?.map((p) => p.id),
+    ).toEqual([20, 21]);
+  });
+
+  it("gives none while the details are unread or an edit has staled them", () => {
+    expect(currentStarBodies(undefined, false, PLANET_CLASSES, CLASSES)).toBeNull();
+    expect(currentStarBodies({ planets }, true, PLANET_CLASSES, CLASSES)).toBeNull();
+  });
+
+  it("leaves a system whose details an edit staled out of a bulk edit, as unread", () => {
+    // Read as sc_binary_2, since turned into sc_binary_6: the old bodies must not be matched
+    // against the new class's planet keys.
+    const stale: StarClassTarget = {
+      system: { id: 2, star_class: "sc_binary_6" },
+      bodies: currentStarBodies({ planets }, true, PLANET_CLASSES, CLASSES),
+    };
+    const plan = planStarClass([stale], CLASSES.get("sc_binary_5") as StarClassView, "B", CLASSES);
+    expect(plan.op).toBeNull();
+    expect(plan.skipped).toEqual({ same: 0, stars: 0, unread: 1 });
   });
 });
 

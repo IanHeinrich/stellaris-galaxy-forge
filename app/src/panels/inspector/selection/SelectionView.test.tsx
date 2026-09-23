@@ -117,16 +117,17 @@ describe("the bulk star class", () => {
     await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
   }
 
-  it("offers a star class picker for a save selection once its details are read", async () => {
+  it("offers a star class picker for a save selection without reading its details", async () => {
     armStarClasses();
     await open("save");
     await useEditorStore.getState().setSelection(CHAIN, "replace");
-    expect(renderToStaticMarkup(<SelectionView />)).toContain("Star class… (loading…)");
+    mocked.getSystemDetails.mockClear();
 
-    await landChain();
     const html = renderToStaticMarkup(<SelectionView />);
+    await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
     expect(html).toContain('aria-haspopup="listbox"');
     expect(html).toContain('aria-label="Star class: Star class… (3 systems)"');
+    expect(mocked.getSystemDetails).not.toHaveBeenCalled();
   });
 
   it("is not offered on a scenario", async () => {

@@ -316,6 +316,12 @@ button.chip.jump:hover {
   text-align: left;
 }
 
+/* Game star art sits on opaque black, which the map draws additively; so do these. */
+.star-class-icon {
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter;
+}
+
 .ins-bulk .icon-picker {
   display: flex;
 }

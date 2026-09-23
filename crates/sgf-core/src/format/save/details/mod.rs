@@ -55,6 +55,28 @@ impl DetailsProjection {
         Ok(Self { by_system })
     }
 
+    /// Read again the class of each of `planets`, as (planet, system), from the bytes now
+    /// standing for it, leaving everything else as it was projected.
+    pub fn refresh_classes(
+        &mut self,
+        doc: &Document,
+        planets: impl IntoIterator<Item = (u32, u32)>,
+    ) -> Result<(), ProjectionError> {
+        for (id, system) in planets {
+            let Some(planet) = self
+                .by_system
+                .get_mut(&system)
+                .and_then(|d| d.planets.iter_mut().find(|p| p.id == id))
+            else {
+                continue;
+            };
+            if let Some(class) = extract::planet_class(doc, id)? {
+                planet.class = class;
+            }
+        }
+        Ok(())
+    }
+
     /// The system's details with each planet's deposits summed into resources by
     /// `resolver`, and the system's resources the sum of those rows.
     pub fn resolve(

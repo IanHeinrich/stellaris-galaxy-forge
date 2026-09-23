@@ -11,6 +11,7 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 import type { StarbaseSummary } from "../../../generated/StarbaseSummary";
 import { kindTitle } from "../../../lib/special";
 import { bindStores } from "../../../store/bindStores";
+import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
@@ -182,6 +183,19 @@ describe("the star class at the head", () => {
     const html = overview();
     expect(html).toContain('aria-haspopup="listbox"');
     expect(html).toContain('aria-label="Star class: X-ray Binary"');
+  });
+
+  it("waits while an edit has left the details stale", async () => {
+    armStarClasses();
+    await open("save");
+    await land(stars());
+    const trigger = /class="icon-picker-trigger"[^>]*>/;
+    expect(overview().match(trigger)?.[0]).not.toContain("disabled");
+
+    useDetailsStore.getState().invalidate([SYSTEM]);
+    const html = overview();
+    expect(html.match(trigger)?.[0]).toContain("disabled");
+    expect(html).toContain("Reading the system&#x27;s stars…");
   });
 
   it("stays text on a save whose details have not landed", async () => {

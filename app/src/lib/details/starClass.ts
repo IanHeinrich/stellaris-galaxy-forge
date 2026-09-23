@@ -28,6 +28,21 @@ export function starBodies<P extends Body>(
   return planets.filter((p) => isStarClass(p.class, planetClasses, starClasses));
 }
 
+/**
+ * The star bodies an edit may be built from, or `null` while the details are unread or `stale`:
+ * details read before an edit may predate the system's current class, and matching the new
+ * class's planet keys against the old bodies would swap them.
+ */
+export function currentStarBodies<P extends Body>(
+  read: { planets: readonly P[] } | undefined,
+  stale: boolean,
+  planetClasses: ReadonlyMap<string, PlanetClassView>,
+  starClasses: ReadonlyMap<string, StarClassView>,
+): P[] | null {
+  if (read === undefined || stale) return null;
+  return starBodies(read.planets, planetClasses, starClasses);
+}
+
 /** The classes a system with `count` star bodies can become: the same count, not `current`. */
 export function starClassChoices(
   current: string,

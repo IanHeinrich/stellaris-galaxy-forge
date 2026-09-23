@@ -357,6 +357,18 @@ impl Op {
         }
     }
 
+    /// Whether the details this op stales come up to date by rereading the classes of the
+    /// planets it rewrote, without building the projection again.
+    pub fn stales_only_planet_classes(&self) -> bool {
+        match self {
+            Self::SetStarClass { .. } => true,
+            Self::Batch { ops, .. } => ops
+                .iter()
+                .all(|op| op.stales_only_planet_classes() || !op.stales_details()),
+            _ => false,
+        }
+    }
+
     /// Whether this op can have moved how the systems it touched are classified: the
     /// initializer a classification is read from, the name it is labelled by, or the
     /// star flags the scripts place a wormhole by.

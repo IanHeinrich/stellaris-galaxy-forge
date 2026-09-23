@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { ENTER, ESCAPE, SPACE } from "./keys";
 import { useOutsidePress } from "./useOutsidePress";
+import "./panels.css";
 
 export interface IconPickerItem {
   key: string;
@@ -24,18 +25,25 @@ function Row({ item }: { item: IconPickerItem }) {
 /**
  * A button showing `current` that opens a list of `items` to pick from, each with its icon: what
  * a native `<select>` cannot draw. Arrows move, Enter picks, Esc or a press outside closes.
+ * `onOpen` runs as the list opens, and `empty` stands in the list while it has no items.
  */
 export function IconPicker({
   label,
   current,
   items,
   title,
+  disabled,
+  empty,
+  onOpen,
   onPick,
 }: {
   label: string;
   current: IconPickerItem;
   items: readonly IconPickerItem[];
   title?: string;
+  disabled?: boolean;
+  empty?: ReactNode;
+  onOpen?: () => void;
   onPick: (key: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -62,6 +70,7 @@ export function IconPicker({
       ),
     );
     setOpen(true);
+    onOpen?.();
   };
   const close = () => {
     setOpen(false);
@@ -104,22 +113,28 @@ export function IconPicker({
         aria-expanded={open}
         aria-label={`${label}: ${current.label}`}
         title={title}
+        disabled={disabled}
         onClick={() => (open ? setOpen(false) : show())}
         onKeyDown={onTriggerKey}
       >
         <Row item={current} />
         <span className="icon-picker-caret">▾</span>
       </button>
-      {open && (
+      {open && !disabled && (
         <ul
           className="icon-picker-pop"
           role="listbox"
           aria-label={label}
-          aria-activedescendant={optionId(active)}
+          aria-activedescendant={items.length > 0 ? optionId(active) : undefined}
           tabIndex={-1}
           ref={list}
           onKeyDown={onListKey}
         >
+          {items.length === 0 && empty !== undefined && (
+            <li className="icon-picker-empty muted" role="presentation">
+              {empty}
+            </li>
+          )}
           {items.map((item, i) => (
             <Option
               key={item.key}

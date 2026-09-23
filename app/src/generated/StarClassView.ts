@@ -6,6 +6,7 @@ export type StarClassView = { key: string,
  */
 texture_key: string, icon_scale: number, 
 /**
- * The planet class of each star body, in the order the system lists its bodies.
+ * The planet class of each star body, in the order the install's definition lists
+ * its `planet` entries.
  */
 planet_keys: Array<string>, };
