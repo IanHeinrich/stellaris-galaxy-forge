@@ -10,15 +10,7 @@ use sgf_core::validate::IssueCode;
 use sgf_core::views::{DocumentKind, GalaxyView};
 
 mod common;
-
-const FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/scenario_grammar.txt"
-);
-
-fn open() -> Session {
-    Session::open(FIXTURE).expect("open the scenario fixture")
-}
+use common::fixture::{GRAMMAR, from_scenario_text};
 
 /// Every distinct lane with its length, ascending.
 fn lanes(session: &Session) -> Vec<(u32, u32, f64)> {
@@ -37,7 +29,7 @@ fn lanes(session: &Session) -> Vec<(u32, u32, f64)> {
 
 #[test]
 fn the_grammar_fixture_projects_into_the_galaxy() {
-    let session = open();
+    let session = GRAMMAR.open();
     assert_eq!(session.kind(), DocumentKind::Scenario);
     assert_eq!(session.title(), "sgf_grammar");
 
@@ -147,11 +139,11 @@ fn the_grammar_fixture_projects_into_the_galaxy() {
 
 #[test]
 fn saving_an_untouched_scenario_is_byte_identical_and_writes_nothing_twice() {
-    let original = std::fs::read(FIXTURE).expect("read the fixture");
+    let original = GRAMMAR.bytes();
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("scenario_grammar.txt");
 
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let outcome = session.save_as(&path).expect("save_as");
     assert_eq!(outcome.backup, None);
     assert_eq!(std::fs::read(&path).unwrap(), original);
@@ -169,7 +161,7 @@ fn the_kind_comes_from_the_bytes_not_the_extension() {
 
     assert_eq!(document::sniff(&misnamed), DocumentKind::Save);
     assert_eq!(document::sniff(common::SAMPLE), DocumentKind::Save);
-    assert_eq!(document::sniff(FIXTURE), DocumentKind::Scenario);
+    assert_eq!(document::sniff(GRAMMAR.path), DocumentKind::Scenario);
     assert_eq!(
         Document::load(&misnamed)
             .expect("load the misnamed save")
@@ -208,7 +200,7 @@ fn a_file_that_is_not_one_static_galaxy_scenario_is_refused() {
 
 #[test]
 fn a_length_op_is_refused_and_leaves_the_scenario_untouched() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let error = session
         .apply(Op::SetLaneLength {
             a: 1,
@@ -302,8 +294,8 @@ fn every_scenario_root_is_listed_with_its_name_count_and_overrides() {
     let install = tmp.path().join("install/map/setup_scenarios");
     std::fs::create_dir_all(&modded).expect("mod root");
     std::fs::create_dir_all(&install).expect("install root");
-    std::fs::copy(FIXTURE, modded.join("grammar.txt")).expect("copy the fixture");
-    std::fs::copy(FIXTURE, install.join("grammar.txt")).expect("copy the fixture");
+    std::fs::copy(GRAMMAR.path, modded.join("grammar.txt")).expect("copy the fixture");
+    std::fs::copy(GRAMMAR.path, install.join("grammar.txt")).expect("copy the fixture");
     std::fs::write(
         modded.join("example.txt"),
         b"# the vanilla example, every line of it commented out\n# static_galaxy_scenario = { }\n",
@@ -353,7 +345,7 @@ fn every_scenario_root_is_listed_with_its_name_count_and_overrides() {
 
 #[test]
 fn a_system_effect_block_is_read_with_its_line() {
-    let session = open();
+    let session = GRAMMAR.open();
     let (text, line) = session
         .scenario_system_effect(3018)
         .expect("Iridonia carries an effect block");
@@ -365,7 +357,7 @@ fn a_system_effect_block_is_read_with_its_line() {
 
 #[test]
 fn the_header_is_listed_in_file_order_and_survives_an_op_that_leaves_it_alone() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let header = |session: &Session| GalaxyView::from(&session.graph).header;
     let before = header(&session);
     let keys: Vec<&str> = before.iter().map(|f| f.key.as_str()).collect();
@@ -420,7 +412,7 @@ fn the_header_is_listed_in_file_order_and_survives_an_op_that_leaves_it_alone() 
 
 #[test]
 fn a_spawn_weight_and_its_modifiers_reach_the_projection() {
-    let session = open();
+    let session = GRAMMAR.open();
     // `base = 0` beside a modifier is still a stated base; a system with no block has none.
     assert_eq!(session.graph.systems[&2].spawn_weight, Some(0.0));
     assert_eq!(session.graph.systems[&3018].spawn_weight, Some(1.0));
@@ -438,7 +430,7 @@ fn a_spawn_weight_and_its_modifiers_reach_the_projection() {
 
 #[test]
 fn a_prevented_pair_reaches_both_ends_and_is_no_lane() {
-    let session = open();
+    let session = GRAMMAR.open();
     assert_eq!(session.graph.systems[&9].prevented, [1]);
     assert_eq!(session.graph.systems[&1].prevented, [9]);
     assert!(session.graph.systems[&2].prevented.is_empty());
@@ -448,7 +440,7 @@ fn a_prevented_pair_reaches_both_ends_and_is_no_lane() {
 
 #[test]
 fn an_axis_written_as_a_range_is_warned_about_until_a_move_fixes_it() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     assert!(session.graph.systems[&111].position_range);
     assert!(!session.graph.systems[&2].position_range);
     let ranged = |session: &Session| {
@@ -474,7 +466,7 @@ fn an_axis_written_as_a_range_is_warned_about_until_a_move_fixes_it() {
 
 #[test]
 fn every_effect_block_in_the_scenario_is_listed_in_one_pass() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let effects = session.scenario_system_effects();
     assert_eq!(
         effects.iter().map(|&(id, ..)| id).collect::<Vec<_>>(),
@@ -522,8 +514,7 @@ fn a_new_system_is_never_given_the_null_id() {
         "static_galaxy_scenario = {{\n\tname = \"high ids\"\n\tsystem = {{ id = \"{}\" position = {{ x = 0 y = 0 }} }}\n}}\n",
         sgf_core::NULL_ID - 1
     );
-    let doc = Document::from_scenario_bytes(text.into_bytes()).expect("index");
-    let mut session = Session::from_document(None, doc).expect("project");
+    let mut session = from_scenario_text(text);
     assert_ne!(session.doc.scenario().unwrap().next_id(), sgf_core::NULL_ID);
 
     session

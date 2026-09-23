@@ -7,21 +7,14 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use serde::ser::{
-    self, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
-    SerializeTupleStruct, SerializeTupleVariant, Serializer,
-};
 use sgf_core::emit;
-use sgf_core::ops::{LanePair, NewSystem, Op};
+use sgf_core::ops::Op;
 use sgf_core::session::{OpResult, Session};
 
 mod common;
+use common::brush::{grid, new_system, paint};
 use common::current;
-
-const SAMPLE_SCENARIO: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/2206.11.16.scenario.txt"
-);
+use common::fixture::EXPORTED;
 
 /// The huge galaxy: a grid of `GRID_COLS` by `GRID_ROWS` systems 10 apart, centred on
 /// the origin, each jittered by up to ±3 and laned to its right and lower neighbour.
@@ -50,7 +43,7 @@ impl Rng {
 }
 
 fn huge_scenario_text() -> String {
-    let sample = std::fs::read_to_string(SAMPLE_SCENARIO).expect("read the sample scenario");
+    let sample = EXPORTED.text();
     let start = sample
         .find("static_galaxy_scenario")
         .expect("a scenario block");
@@ -121,55 +114,6 @@ fn next_id(session: &Session) -> u32 {
     session.graph.systems.keys().max().map_or(1, |max| max + 1)
 }
 
-fn new_system(id: u32, x: f64, y: f64) -> NewSystem {
-    NewSystem {
-        id,
-        x,
-        y,
-        name: None,
-        initializer: None,
-        spawn_weight: None,
-        spawn_script: None,
-        statement: None,
-    }
-}
-
-/// The Batch the map's paint brush sends: the stroke's systems, then its lanes.
-fn paint_op(session: &Session, (x0, y0): (f64, f64)) -> Op {
-    let first = next_id(session);
-    let id_at = |row: u32, col: u32| first + row * PAINT_COLS + col;
-    let mut systems = Vec::new();
-    let mut lanes = Vec::new();
-    for row in 0..PAINT_ROWS {
-        for col in 0..PAINT_COLS {
-            systems.push(new_system(
-                id_at(row, col),
-                x0 + f64::from(col) * 10.0,
-                y0 + f64::from(row) * 10.0,
-            ));
-            let lane = |b| LanePair {
-                a: id_at(row, col),
-                b,
-                bridge: false,
-            };
-            if col + 1 < PAINT_COLS {
-                lanes.push(lane(id_at(row, col + 1)));
-            }
-            if row + 1 < PAINT_ROWS {
-                lanes.push(lane(id_at(row + 1, col)));
-            }
-        }
-    }
-    Op::Batch {
-        description: format!(
-            "Painted {} systems and {} lanes",
-            systems.len(),
-            lanes.len()
-        ),
-        ops: vec![Op::AddSystems { systems }, Op::AddLanePairs { lanes }],
-    }
-}
-
 /// What the app receives after an edit, built and serialised piece by piece.
 fn report_edit(session: &Session, label: &str, applied: Duration, result: OpResult) {
     let start = Instant::now();
@@ -204,7 +148,8 @@ fn report_edit(session: &Session, label: &str, applied: Duration, result: OpResu
 fn paint_and_undo(session: &mut Session, label: &str, origin: (f64, f64)) {
     let before = current(session);
     let systems_before = session.graph.systems.len();
-    let op = paint_op(session, origin);
+    let (systems, lanes) = grid(next_id(session), origin, PAINT_COLS, PAINT_ROWS);
+    let op = paint(systems, lanes);
     println!("{label}: paint op JSON {} B", to_json(&op).len());
 
     let start = Instant::now();
@@ -272,7 +217,7 @@ fn huge_scenario_edit_timings() {
     };
     println!("build: {build}");
 
-    let mut sample = open_timed(Path::new(SAMPLE_SCENARIO), "sample scenario");
+    let mut sample = open_timed(Path::new(EXPORTED.path), "sample scenario");
     paint_and_undo(&mut sample, "sample scenario", (1000.0, -200.0));
 
     let dir = tempfile::tempdir().expect("tempdir");
@@ -324,352 +269,6 @@ fn huge_scenario_edit_timings() {
     );
 }
 
-fn to_json<T: Serialize + ?Sized>(value: &T) -> String {
-    let mut json = Json(String::new());
-    value.serialize(&mut json).expect("serialise");
-    json.0
-}
-
-/// Compact JSON as `serde_json::to_vec` writes it (floats via `{:?}`, which agrees with
-/// its output at these magnitudes): serde_json is not among sgf-core's dependencies.
-struct Json(String);
-
-impl Json {
-    fn string(&mut self, s: &str) {
-        self.0.push('"');
-        for c in s.chars() {
-            match c {
-                '"' => self.0.push_str("\\\""),
-                '\\' => self.0.push_str("\\\\"),
-                '\n' => self.0.push_str("\\n"),
-                '\r' => self.0.push_str("\\r"),
-                '\t' => self.0.push_str("\\t"),
-                '\u{8}' => self.0.push_str("\\b"),
-                '\u{c}' => self.0.push_str("\\f"),
-                c if (c as u32) < 0x20 => write!(self.0, "\\u{:04x}", c as u32).unwrap(),
-                c => self.0.push(c),
-            }
-        }
-        self.0.push('"');
-    }
-
-    fn number(&mut self, v: impl std::fmt::Display) {
-        write!(self.0, "{v}").unwrap();
-    }
-
-    fn float(&mut self, v: f64) {
-        if v.is_finite() {
-            write!(self.0, "{v:?}").unwrap();
-        } else {
-            self.0.push_str("null");
-        }
-    }
-
-    fn open(&mut self, open: &str, close: &'static str) -> Compound<'_> {
-        self.0.push_str(open);
-        Compound {
-            json: self,
-            first: true,
-            close,
-        }
-    }
-
-    fn variant(&mut self, variant: &str) {
-        self.0.push('{');
-        self.string(variant);
-        self.0.push(':');
-    }
-}
-
-#[derive(Debug)]
-struct JsonError(String);
-
-impl std::fmt::Display for JsonError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl std::error::Error for JsonError {}
-
-impl ser::Error for JsonError {
-    fn custom<T: std::fmt::Display>(msg: T) -> Self {
-        Self(msg.to_string())
-    }
-}
-
-struct Compound<'a> {
-    json: &'a mut Json,
-    first: bool,
-    close: &'static str,
-}
-
-impl Compound<'_> {
-    fn comma(&mut self) {
-        if !self.first {
-            self.json.0.push(',');
-        }
-        self.first = false;
-    }
-
-    fn element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), JsonError> {
-        self.comma();
-        value.serialize(&mut *self.json)
-    }
-
-    fn field<T: Serialize + ?Sized>(&mut self, key: &str, value: &T) -> Result<(), JsonError> {
-        self.comma();
-        self.json.string(key);
-        self.json.0.push(':');
-        value.serialize(&mut *self.json)
-    }
-
-    fn close(self) -> Result<(), JsonError> {
-        self.json.0.push_str(self.close);
-        Ok(())
-    }
-}
-
-impl<'a> Serializer for &'a mut Json {
-    type Ok = ();
-    type Error = JsonError;
-    type SerializeSeq = Compound<'a>;
-    type SerializeTuple = Compound<'a>;
-    type SerializeTupleStruct = Compound<'a>;
-    type SerializeTupleVariant = Compound<'a>;
-    type SerializeMap = Compound<'a>;
-    type SerializeStruct = Compound<'a>;
-    type SerializeStructVariant = Compound<'a>;
-
-    fn serialize_bool(self, v: bool) -> Result<(), JsonError> {
-        self.0.push_str(if v { "true" } else { "false" });
-        Ok(())
-    }
-    fn serialize_i8(self, v: i8) -> Result<(), JsonError> {
-        self.number(v);
-        Ok(())
-    }
-    fn serialize_i16(self, v: i16) -> Result<(), JsonError> {
-        self.number(v);
-        Ok(())
-    }
-    fn serialize_i32(self, v: i32) -> Result<(), JsonError> {
-        self.number(v);
-        Ok(())
-    }
-    fn serialize_i64(self, v: i64) -> Result<(), JsonError> {
-        self.number(v);
-        Ok(())
-    }
-    fn serialize_u8(self, v: u8) -> Result<(), JsonError> {
-        self.number(v);
-        Ok(())
-    }
-    fn serialize_u16(self, v: u16) -> Result<(), JsonError> {
-        self.number(v);
-        Ok(())
-    }
-    fn serialize_u32(self, v: u32) -> Result<(), JsonError> {
-        self.number(v);
-        Ok(())
-    }
-    fn serialize_u64(self, v: u64) -> Result<(), JsonError> {
-        self.number(v);
-        Ok(())
-    }
-    fn serialize_f32(self, v: f32) -> Result<(), JsonError> {
-        self.float(f64::from(v));
-        Ok(())
-    }
-    fn serialize_f64(self, v: f64) -> Result<(), JsonError> {
-        self.float(v);
-        Ok(())
-    }
-    fn serialize_char(self, v: char) -> Result<(), JsonError> {
-        self.string(v.encode_utf8(&mut [0; 4]));
-        Ok(())
-    }
-    fn serialize_str(self, v: &str) -> Result<(), JsonError> {
-        self.string(v);
-        Ok(())
-    }
-    fn serialize_bytes(self, v: &[u8]) -> Result<(), JsonError> {
-        let mut seq = self.open("[", "]");
-        for b in v {
-            seq.element(b)?;
-        }
-        seq.close()
-    }
-    fn serialize_none(self) -> Result<(), JsonError> {
-        self.0.push_str("null");
-        Ok(())
-    }
-    fn serialize_some<T: Serialize + ?Sized>(self, value: &T) -> Result<(), JsonError> {
-        value.serialize(self)
-    }
-    fn serialize_unit(self) -> Result<(), JsonError> {
-        self.serialize_none()
-    }
-    fn serialize_unit_struct(self, _: &'static str) -> Result<(), JsonError> {
-        self.serialize_none()
-    }
-    fn serialize_unit_variant(
-        self,
-        _: &'static str,
-        _: u32,
-        variant: &'static str,
-    ) -> Result<(), JsonError> {
-        self.string(variant);
-        Ok(())
-    }
-    fn serialize_newtype_struct<T: Serialize + ?Sized>(
-        self,
-        _: &'static str,
-        value: &T,
-    ) -> Result<(), JsonError> {
-        value.serialize(self)
-    }
-    fn serialize_newtype_variant<T: Serialize + ?Sized>(
-        self,
-        _: &'static str,
-        _: u32,
-        variant: &'static str,
-        value: &T,
-    ) -> Result<(), JsonError> {
-        self.variant(variant);
-        value.serialize(&mut *self)?;
-        self.0.push('}');
-        Ok(())
-    }
-    fn serialize_seq(self, _: Option<usize>) -> Result<Compound<'a>, JsonError> {
-        Ok(self.open("[", "]"))
-    }
-    fn serialize_tuple(self, _: usize) -> Result<Compound<'a>, JsonError> {
-        Ok(self.open("[", "]"))
-    }
-    fn serialize_tuple_struct(self, _: &'static str, _: usize) -> Result<Compound<'a>, JsonError> {
-        Ok(self.open("[", "]"))
-    }
-    fn serialize_tuple_variant(
-        self,
-        _: &'static str,
-        _: u32,
-        variant: &'static str,
-        _: usize,
-    ) -> Result<Compound<'a>, JsonError> {
-        self.variant(variant);
-        Ok(self.open("[", "]}"))
-    }
-    fn serialize_map(self, _: Option<usize>) -> Result<Compound<'a>, JsonError> {
-        Ok(self.open("{", "}"))
-    }
-    fn serialize_struct(self, _: &'static str, _: usize) -> Result<Compound<'a>, JsonError> {
-        Ok(self.open("{", "}"))
-    }
-    fn serialize_struct_variant(
-        self,
-        _: &'static str,
-        _: u32,
-        variant: &'static str,
-        _: usize,
-    ) -> Result<Compound<'a>, JsonError> {
-        self.variant(variant);
-        Ok(self.open("{", "}}"))
-    }
-}
-
-impl SerializeSeq for Compound<'_> {
-    type Ok = ();
-    type Error = JsonError;
-    fn serialize_element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), JsonError> {
-        self.element(value)
-    }
-    fn end(self) -> Result<(), JsonError> {
-        self.close()
-    }
-}
-
-impl SerializeTuple for Compound<'_> {
-    type Ok = ();
-    type Error = JsonError;
-    fn serialize_element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), JsonError> {
-        self.element(value)
-    }
-    fn end(self) -> Result<(), JsonError> {
-        self.close()
-    }
-}
-
-impl SerializeTupleStruct for Compound<'_> {
-    type Ok = ();
-    type Error = JsonError;
-    fn serialize_field<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), JsonError> {
-        self.element(value)
-    }
-    fn end(self) -> Result<(), JsonError> {
-        self.close()
-    }
-}
-
-impl SerializeTupleVariant for Compound<'_> {
-    type Ok = ();
-    type Error = JsonError;
-    fn serialize_field<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), JsonError> {
-        self.element(value)
-    }
-    fn end(self) -> Result<(), JsonError> {
-        self.close()
-    }
-}
-
-impl SerializeMap for Compound<'_> {
-    type Ok = ();
-    type Error = JsonError;
-    fn serialize_key<T: Serialize + ?Sized>(&mut self, key: &T) -> Result<(), JsonError> {
-        self.comma();
-        let key = to_json(key);
-        if key.starts_with('"') {
-            self.json.0.push_str(&key);
-        } else {
-            self.json.string(&key);
-        }
-        self.json.0.push(':');
-        Ok(())
-    }
-    fn serialize_value<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), JsonError> {
-        value.serialize(&mut *self.json)
-    }
-    fn end(self) -> Result<(), JsonError> {
-        self.close()
-    }
-}
-
-impl SerializeStruct for Compound<'_> {
-    type Ok = ();
-    type Error = JsonError;
-    fn serialize_field<T: Serialize + ?Sized>(
-        &mut self,
-        key: &'static str,
-        value: &T,
-    ) -> Result<(), JsonError> {
-        self.field(key, value)
-    }
-    fn end(self) -> Result<(), JsonError> {
-        self.close()
-    }
-}
-
-impl SerializeStructVariant for Compound<'_> {
-    type Ok = ();
-    type Error = JsonError;
-    fn serialize_field<T: Serialize + ?Sized>(
-        &mut self,
-        key: &'static str,
-        value: &T,
-    ) -> Result<(), JsonError> {
-        self.field(key, value)
-    }
-    fn end(self) -> Result<(), JsonError> {
-        self.close()
-    }
+fn to_json<T: Serialize + ?Sized>(value: &T) -> Vec<u8> {
+    serde_json::to_vec(value).expect("serialise")
 }

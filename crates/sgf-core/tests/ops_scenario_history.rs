@@ -3,13 +3,14 @@
 use sgf_core::ops::{Op, OpError};
 
 mod common;
+use common::current;
 use common::diff::{report, round_trip, snapshot};
-use common::scenario::{bytes, current, open};
+use common::fixture::GRAMMAR;
 
 #[test]
 fn add_lane_undo_and_redo_are_byte_identical() {
     round_trip(
-        open(),
+        GRAMMAR.open(),
         Op::AddLane {
             a: 2,
             b: 16,
@@ -21,7 +22,7 @@ fn add_lane_undo_and_redo_are_byte_identical() {
 #[test]
 fn add_system_undo_and_redo_are_byte_identical() {
     round_trip(
-        open(),
+        GRAMMAR.open(),
         Op::AddSystem {
             id: None,
             x: 20.0,
@@ -38,7 +39,7 @@ fn add_system_undo_and_redo_are_byte_identical() {
 fn add_system_with_a_spawn_weight_writes_it_on_one_history_entry() {
     snapshot(
         "add_system_with_spawn_weight",
-        open(),
+        GRAMMAR.open(),
         Op::AddSystem {
             id: None,
             x: 20.0,
@@ -54,7 +55,7 @@ fn add_system_with_a_spawn_weight_writes_it_on_one_history_entry() {
 #[test]
 fn add_system_with_a_spawn_weight_undo_and_redo_are_byte_identical() {
     round_trip(
-        open(),
+        GRAMMAR.open(),
         Op::AddSystem {
             id: None,
             x: 20.0,
@@ -69,7 +70,7 @@ fn add_system_with_a_spawn_weight_undo_and_redo_are_byte_identical() {
 
 #[test]
 fn remove_system_undo_and_redo_are_byte_identical() {
-    round_trip(open(), Op::RemoveSystem { id: 1 });
+    round_trip(GRAMMAR.open(), Op::RemoveSystem { id: 1 });
 }
 
 fn add_system(id: u32, x: f64, y: f64, initializer: &str) -> Op {
@@ -102,7 +103,7 @@ fn clan() -> Op {
 
 #[test]
 fn a_batch_of_systems_and_lanes_is_one_edit_and_one_undo_step() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let result = session.apply(clan()).expect("apply the batch");
     assert_eq!(session.history().undo.len(), 1);
     assert!(session.graph.lane(4000, 4001).is_some());
@@ -110,16 +111,16 @@ fn a_batch_of_systems_and_lanes_is_one_edit_and_one_undo_step() {
     common::snapshot("batch_clan", &report(&session, &result));
 
     session.undo().expect("undo").expect("the batch to undo");
-    assert_eq!(current(&session), bytes());
+    assert_eq!(current(&session), GRAMMAR.bytes());
     assert_eq!(session.history().undo.len(), 0);
     assert!(!session.graph.systems.contains_key(&4000));
-    round_trip(open(), clan());
+    round_trip(GRAMMAR.open(), clan());
 }
 
 #[test]
 fn a_batch_that_rewrites_a_statement_it_inserted_undoes_and_redoes_byte_for_byte() {
     round_trip(
-        open(),
+        GRAMMAR.open(),
         Op::Batch {
             description: "Added and named a system".to_owned(),
             ops: vec![
@@ -135,7 +136,7 @@ fn a_batch_that_rewrites_a_statement_it_inserted_undoes_and_redoes_byte_for_byte
 
 #[test]
 fn a_batch_whose_last_member_is_refused_leaves_nothing_behind() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let error = session
         .apply(Op::Batch {
             description: "Added a base to nowhere".to_owned(),
@@ -149,7 +150,7 @@ fn a_batch_whose_last_member_is_refused_leaves_nothing_behind() {
         })
         .expect_err("a lane to a system the file lacks");
     assert!(matches!(error, OpError::UnknownSystem(9999)), "{error}");
-    assert_eq!(current(&session), bytes());
+    assert_eq!(current(&session), GRAMMAR.bytes());
     assert_eq!(session.history().undo.len(), 0);
     assert!(!session.is_dirty());
     assert!(!session.graph.systems.contains_key(&4000));
@@ -157,7 +158,7 @@ fn a_batch_whose_last_member_is_refused_leaves_nothing_behind() {
 
 #[test]
 fn an_empty_batch_and_a_nested_one_are_refused() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     let error = session
         .apply(Op::Batch {
             description: "Nothing".to_owned(),
@@ -174,6 +175,6 @@ fn an_empty_batch_and_a_nested_one_are_refused() {
         .expect_err("nested");
     assert!(matches!(error, OpError::NestedBatch), "{error}");
     assert_eq!(error.to_string(), "a batch may not hold another batch");
-    assert_eq!(current(&session), bytes());
+    assert_eq!(current(&session), GRAMMAR.bytes());
     assert!(!session.is_dirty());
 }

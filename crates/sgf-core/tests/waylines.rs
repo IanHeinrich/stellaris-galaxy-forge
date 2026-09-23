@@ -8,15 +8,13 @@ use sgf_core::session::Session;
 use sgf_core::synth::{self, SynthOptions};
 use sgf_core::views::GalaxyView;
 
+mod common;
+use common::fixture::GRAMMAR;
+
 /// Names a local 4.4 save holding three waystation networks, the third being three
 /// stations on a chain of two lanes (systems 20, 577, 236); the test that reads it skips
 /// when the variable is unset, as the corpus tests do.
 const REAL_SAVE_VAR: &str = "SGF_WAYSTATION_SAVE";
-
-const FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/scenario_grammar.txt"
-);
 
 /// A 12-system synthetic save holding one network of `network`, opened as a session.
 fn synth_session(path: &Path, network: &[u32]) -> Session {
@@ -121,7 +119,7 @@ fn a_lane_removed_elsewhere_leaves_the_waylines_out_of_the_delta() {
 
 #[test]
 fn a_scenario_holds_no_waystations() {
-    let session = Session::open(FIXTURE).expect("open the scenario fixture");
+    let session = GRAMMAR.open();
     assert!(session.graph.waystations.is_empty());
     assert!(session.graph.waylines.is_empty());
     let view = GalaxyView::from(&session.graph);

@@ -3798,6 +3798,7 @@ dependencies = [
  "memchr",
  "proptest",
  "serde",
+ "serde_json",
  "similar 3.2.0",
  "tempfile",
  "thiserror 2.0.20",

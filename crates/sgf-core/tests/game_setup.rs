@@ -1,14 +1,9 @@
 //! The save's setup screen and player country, and their absence on a scenario.
 use sgf_core::projections::galaxy::{GalaxyGraph, GameSetup};
-use sgf_core::session::Session;
 
 mod common;
+use common::fixture::PAINTED;
 use common::load;
-
-const SCENARIO_FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/paint_a_galaxy.txt"
-);
 
 #[test]
 fn the_sample_save_carries_its_setup_screen_and_player_country() {
@@ -37,7 +32,7 @@ fn the_sample_save_carries_its_setup_screen_and_player_country() {
 
 #[test]
 fn a_scenario_carries_neither() {
-    let session = Session::open(SCENARIO_FIXTURE).expect("open the painted fixture");
+    let session = PAINTED.open();
     assert_eq!(session.graph.setup, None);
     assert_eq!(session.graph.player_country, None);
 }

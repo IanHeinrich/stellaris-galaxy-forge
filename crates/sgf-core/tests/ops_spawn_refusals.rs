@@ -5,11 +5,11 @@ use sgf_core::ops::{Op, OpError};
 use sgf_core::views::DocumentKind;
 
 mod common;
-use common::scenario::open;
+use common::fixture::GRAMMAR;
 
 #[test]
 fn a_weight_that_is_no_number_is_refused() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     for base in [-1.0, f64::NAN, f64::INFINITY] {
         let error = session
             .apply(Op::SetSpawnWeight {
@@ -27,7 +27,7 @@ fn a_weight_that_is_no_number_is_refused() {
 
 #[test]
 fn an_unknown_system_an_empty_list_and_a_repeated_id_are_refused() {
-    let mut session = open();
+    let mut session = GRAMMAR.open();
     for op in [
         Op::SetSpawnWeight {
             id: 4242,
