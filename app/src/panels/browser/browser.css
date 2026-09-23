@@ -184,6 +184,7 @@
 }
 
 .browser-row:hover .browser-actions,
+.browser-head:hover .browser-actions,
 .browser-row:focus-within .browser-actions,
 .browser-actions:focus-within {
   opacity: 1;
@@ -385,4 +386,19 @@
 
 .history-list li > .muted {
   flex: none;
+}
+
+.watch-add {
+  margin-bottom: 6px;
+}
+
+.watch-bar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+/* A pinned search's remove button stays in sight, so the list can always be pruned. */
+.watchlist .browser-head .browser-actions {
+  opacity: 1;
 }

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField } from "./prefs";
 
-export const DOCK_TABS = ["inspector", "empires", "poi", "issues", "changes"] as const;
+export const DOCK_TABS = ["inspector", "empires", "poi", "watchlist", "issues", "changes"] as const;
 export type DockTab = (typeof DOCK_TABS)[number];
 
 export const DOCK_MIN_WIDTH = 280;

@@ -1,4 +1,4 @@
-import { Container, Graphics, GraphicsContext } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { LaneRef } from "../../store/editorStore";
 import type { Camera } from "../Camera";
@@ -13,22 +13,16 @@ import type { NebulaPreview } from "../nebulaPreview";
 import { toRing, type Segment } from "../../lib/feLinks";
 import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import {
-  ACCENT_COLOR,
-  ALLOWED_COLOR,
-  CAUTION_COLOR,
-  ORIGIN_ALPHA,
-  REFUSED_COLOR,
-} from "../../lib/visual/style";
+import { ACCENT_COLOR, ALLOWED_COLOR, CAUTION_COLOR, REFUSED_COLOR } from "../../lib/visual/style";
 import { SCENARIO_HALF_EXTENT } from "../../lib/guides";
-import { destroyChildren } from "./destroyChildren";
 import { BrushOverlay } from "./highlights/BrushOverlay";
 import { dashedCircle } from "./highlights/dashedCircle";
 import { FeZoneDragOverlay } from "./highlights/FeZoneDragOverlay";
+import { pointsOf, RingBatch, type RingSpec } from "./highlights/RingBatch";
 import { SymmetryGuide } from "./highlights/SymmetryGuide";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
-const SELECTION = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
+const SELECTION: RingSpec = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
 const HOVER = { color: 0xffffff, radius: 9, width: 1.5, alpha: 0.6 };
 const GHOST = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
 /** Systems using the initializer the browser is highlighting: muted, distinct from selection and hover. */
@@ -78,7 +72,7 @@ function guideReachOf(ctx: RenderContext): number {
   return ctx.kind === "save" && ctx.radius > 0 ? ctx.radius : SCENARIO_HALF_EXTENT * Math.SQRT2;
 }
 
-function ring(spec: typeof SELECTION): Graphics {
+function ring(spec: RingSpec): Graphics {
   const g = new Graphics();
   g.circle(0, 0, spec.radius).stroke({ color: spec.color, width: spec.width, alpha: spec.alpha });
   g.visible = false;
@@ -103,71 +97,6 @@ function midpointButton(): Graphics {
   g.stroke({ color: MIDPOINT.stroke, width: 1.5, alpha: 0.9 });
   g.visible = false;
   return g;
-}
-
-/** Spare rings kept past what a placement needs before the rest are destroyed. */
-const SPARE_RINGS = 256;
-
-/**
- * Identical rings around any number of points, some of them dimmed: one shape shared by every
- * ring, so a zoom only rescales them and a placement only moves them.
- */
-class RingBatch {
-  readonly container: Container;
-  private readonly shape: GraphicsContext;
-  private readonly rings: Graphics[] = [];
-  private shown = 0;
-  private readonly scale: Pt = { x: 1, y: 1 };
-
-  constructor(spec: typeof SELECTION, label: string) {
-    this.container = new Container({ label });
-    this.shape = new GraphicsContext()
-      .circle(0, 0, spec.radius)
-      .stroke({ color: spec.color, width: spec.width, alpha: spec.alpha });
-  }
-
-  place(bright: readonly Pt[], dimmed: readonly Pt[] = []): void {
-    const count = bright.length + dimmed.length;
-    while (this.rings.length < count) {
-      const g = new Graphics(this.shape);
-      this.rings.push(g);
-      this.container.addChild(g);
-    }
-    for (let i = 0; i < count; i++) {
-      const g = this.rings[i];
-      const at = i < bright.length ? bright[i] : dimmed[i - bright.length];
-      g.position.set(at.x, at.y);
-      g.scale.set(this.scale.x, this.scale.y);
-      g.alpha = i < bright.length ? 1 : ORIGIN_ALPHA;
-      g.visible = true;
-    }
-    for (let i = count; i < this.shown; i++) this.rings[i].visible = false;
-    this.shown = count;
-    if (this.rings.length - count > SPARE_RINGS) {
-      destroyChildren(this.container, new Set(this.rings.splice(count + SPARE_RINGS)));
-    }
-  }
-
-  setScale(scale: Pt): void {
-    if (scale.x === this.scale.x && scale.y === this.scale.y) return;
-    this.scale.x = scale.x;
-    this.scale.y = scale.y;
-    for (let i = 0; i < this.shown; i++) this.rings[i].scale.set(scale.x, scale.y);
-  }
-
-  destroy(): void {
-    this.shape.destroy();
-  }
-}
-
-/** The systems of `ids` the map holds, skipping the rest. */
-function pointsOf(systems: Systems, ids: Iterable<number>): Pt[] {
-  const points: Pt[] = [];
-  for (const id of ids) {
-    const s = systems.get(id);
-    if (s) points.push(s);
-  }
-  return points;
 }
 
 function touches(d: GalaxyDelta, ids: ReadonlySet<number>): boolean {
