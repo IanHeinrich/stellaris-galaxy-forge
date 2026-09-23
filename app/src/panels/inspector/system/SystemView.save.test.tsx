@@ -113,6 +113,7 @@ describe("a save system's overview", () => {
             flags,
             countries: [],
             label: "Dragon",
+            label_is_generated_name: false,
           },
         ],
       ]),

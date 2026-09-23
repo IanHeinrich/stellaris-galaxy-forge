@@ -19,4 +19,10 @@ source_file: string | null, flags: Array<string>,
  * Countries the initializer (or one that spawned it) creates; when it creates none,
  * the countries the save itself puts in the system.
  */
-countries: Array<CountryRef>, label: string, };
+countries: Array<CountryRef>, label: string, 
+/**
+ * `label` came from a present country's procedurally generated name (a spawned
+ * enclave's own randomly-assembled name, say), not a fixed one: a caller that wants
+ * a stable label, such as a map badge, should prefer the initializer's name instead.
+ */
+label_is_generated_name: boolean, };

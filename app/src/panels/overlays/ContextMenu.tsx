@@ -5,6 +5,7 @@ import { FeZoneMenu } from "./contextMenu/FeZoneMenu";
 import { LaneMenu } from "./contextMenu/LaneMenu";
 import type { Frame } from "./contextMenu/MenuFrame";
 import { NebulaMenu } from "./contextMenu/NebulaMenu";
+import { PreventedMenu } from "./contextMenu/PreventedMenu";
 import { SpaceMenu } from "./contextMenu/SpaceMenu";
 import { SystemMenu } from "./contextMenu/SystemMenu";
 import "./overlays.css";
@@ -52,5 +53,7 @@ export function ContextMenu() {
       return <FeZoneMenu target={target} frame={frame} />;
     case "lane":
       return <LaneMenu target={target} frame={frame} />;
+    case "prevented":
+      return <PreventedMenu target={target} frame={frame} />;
   }
 }

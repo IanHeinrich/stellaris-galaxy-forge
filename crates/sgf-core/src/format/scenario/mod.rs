@@ -142,6 +142,7 @@ fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
         kind: DocumentKind::Scenario,
         setup: None,
         player_country: None,
+        lgate: None,
     };
     let everything = Changes {
         systems: index(doc).order().iter().copied().collect(),
