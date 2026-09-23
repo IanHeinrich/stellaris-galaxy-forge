@@ -2,9 +2,8 @@
 //! destination is a place. Both formats' move writers start here and differ only in the
 //! bytes they then splice.
 
-use std::collections::BTreeSet;
-
 use crate::emit::coord;
+use crate::ops::rules::each_once;
 use crate::ops::{Op, OpError, SystemMove};
 use crate::projections::galaxy::GalaxyGraph;
 
@@ -61,7 +60,7 @@ pub(crate) fn decide_moves(
     graph: &GalaxyGraph,
     moves: &[SystemMove],
 ) -> Result<Vec<SystemMove>, OpError> {
-    let mut seen = BTreeSet::new();
+    each_once(moves, |m| m.id)?;
     let mut origin = Vec::with_capacity(moves.len());
     for m in moves {
         if !m.x.is_finite() || !m.y.is_finite() {
@@ -71,9 +70,6 @@ pub(crate) fn decide_moves(
             .systems
             .get(&m.id)
             .ok_or(OpError::UnknownSystem(m.id))?;
-        if !seen.insert(m.id) {
-            return Err(OpError::DuplicateSystem(m.id));
-        }
         origin.push(SystemMove {
             id: m.id,
             x: system.x,

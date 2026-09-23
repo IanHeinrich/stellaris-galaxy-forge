@@ -41,11 +41,9 @@ pub(crate) trait Format: Sync {
         slots: &[Anchor],
     ) -> Result<Vec<Subject>, OpError>;
 
-    /// Whether this format takes `op` at all. An op it does not take is refused before
-    /// anything is planned.
-    fn supports(&self, op: &Op) -> bool;
-
-    /// Plan `op`: the edits it makes, its description and its inverse.
+    /// Plan `op`: the edits it makes, its description and its inverse, or
+    /// [`OpError::Unsupported`] before anything is planned when this format does not take
+    /// it.
     fn write(&self, plan: &mut Plan, session: &Session, op: &Op) -> Result<Planned, OpError>;
 
     /// Write the document's current bytes to `path`, returning the backup it displaced.

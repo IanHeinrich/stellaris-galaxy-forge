@@ -42,12 +42,14 @@ const NOTES: Issue[] = [
     code: "export_dropped",
     message: "6 wormhole pairs were not carried into the scenario",
     systems: [],
+    note: true,
   },
   {
     severity: "warning",
     code: "home_initializer",
     message: "system 2 is an empire seat on shattered_ring_start, not a generic home initializer",
     systems: [2],
+    note: true,
   },
 ];
 const SPLIT: Issue = {
@@ -55,6 +57,7 @@ const SPLIT: Issue = {
   code: "disconnected",
   message: "galaxy has 3 components, 2 at load; newly separated: 2",
   systems: [2],
+  note: false,
 };
 
 /** A scenario of `count` systems, ids from 0. */

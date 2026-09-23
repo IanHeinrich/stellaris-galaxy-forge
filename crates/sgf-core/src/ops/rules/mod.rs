@@ -11,7 +11,10 @@ pub(crate) mod lanes;
 pub(crate) mod nebula;
 pub(crate) mod systems;
 
+use std::collections::BTreeSet;
+
 use crate::ops::OpError;
+use crate::plural;
 
 /// A name is written between quotes with no escaping, so these bytes cannot be in it,
 /// and nothing at all is not a name. A save's `key="…"` and a scenario's `name = "…"`
@@ -28,4 +31,28 @@ pub(crate) fn check_name(name: &str) -> Result<(), OpError> {
 
 pub(crate) fn quoted(text: &str) -> String {
     format!("\"{text}\"")
+}
+
+/// A plural op's entries: at least one, and no system named twice.
+pub(crate) fn each_once<T>(entries: &[T], id: impl Fn(&T) -> u32) -> Result<(), OpError> {
+    if entries.is_empty() {
+        return Err(OpError::Empty);
+    }
+    let mut seen = BTreeSet::new();
+    for entry in entries {
+        let id = id(entry);
+        if !seen.insert(id) {
+            return Err(OpError::DuplicateSystem(id));
+        }
+    }
+    Ok(())
+}
+
+/// What a plural op over `n` systems is called: its one entry's own description, else
+/// `many` followed by the count.
+pub(crate) fn bulk_description(n: usize, one: String, many: &str) -> String {
+    match n {
+        1 => one,
+        n => format!("{many} {}", plural(n, "system")),
+    }
 }

@@ -29,7 +29,7 @@ use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
 use crate::format::Format;
 use crate::format::scenario::index::{
-    Changes, LaneStmt, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, ScenarioIndex, index,
+    Changes, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, ScenarioIndex, index,
 };
 use crate::keys::scenario as keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -76,54 +76,6 @@ impl Format for Scenario {
         let changes = doc.refresh_scenario(slots)?;
         let reassigned = follow(doc, graph, &changes)?;
         Ok(reassigned.into_iter().map(Subject::System).collect())
-    }
-
-    /// A scenario's lanes carry no length: the game measures them from the two ends.
-    fn supports(&self, op: &Op) -> bool {
-        match op {
-            Op::MoveSystem { .. }
-            | Op::AddLane { .. }
-            | Op::AddLanes { .. }
-            | Op::RemoveLane { .. }
-            | Op::RemoveLanes { .. }
-            | Op::IsolateSystem { .. }
-            | Op::MoveSystems { .. }
-            | Op::AddLanePairs { .. }
-            | Op::RemoveLanePairs { .. }
-            | Op::IsolateSystems { .. }
-            | Op::MoveNebula { .. }
-            | Op::AddNebula { .. }
-            | Op::RemoveNebula { .. }
-            | Op::SetNebulaRadius { .. }
-            | Op::SetNebulaName { .. }
-            | Op::AddSystem { .. }
-            | Op::RemoveSystem { .. }
-            | Op::AddSystems { .. }
-            | Op::RemoveSystems { .. }
-            | Op::SetSystemName { .. }
-            | Op::SetInitializer { .. }
-            | Op::SetInitializers { .. }
-            | Op::SetHeaderField { .. }
-            | Op::SetHeaderKeys { .. }
-            | Op::SetHeaderList { .. }
-            | Op::SetSpawnWeight { .. }
-            | Op::SetSpawnWeights { .. }
-            | Op::SetSpawnScript { .. }
-            | Op::SetSpawnScripts { .. }
-            | Op::SetFeZone { .. }
-            | Op::SetFeZones { .. }
-            | Op::SetWormholePair { .. }
-            | Op::SetWormholeEnds { .. }
-            | Op::SetFeLinks { .. }
-            | Op::SetFeLinkFlags { .. }
-            | Op::PreventLane { .. }
-            | Op::UnpreventLane { .. }
-            | Op::Batch { .. } => true,
-            Op::SetLaneLength { .. }
-            | Op::SetLaneLengths { .. }
-            | Op::NormaliseLaneLength { .. }
-            | Op::NormaliseLaneLengths { .. } => false,
-        }
     }
 
     fn write(&self, plan: &mut Plan, session: &Session, op: &Op) -> Result<Planned, OpError> {
@@ -175,42 +127,28 @@ impl Format for Scenario {
 }
 
 /// Project the whole scenario: systems, the lanes between them, and the nebulae covering
-/// them.
+/// them, as [`follow`] brings an empty galaxy in step with every statement.
 fn galaxy(doc: &Document) -> Result<Galaxy, ProjectionError> {
-    let scenario = index(doc);
-    let mut systems = HashMap::new();
-    let mut order = Vec::new();
-    for (id, anchor) in scenario.systems() {
-        let (src, node) = statement(doc, anchor)?;
-        systems.insert(id, system(id, &node, src));
-        order.push(id);
-    }
-    let statements: Vec<LaneStmt> = scenario.lane_statements().collect();
-    add_lanes(&mut systems, &statements);
-    add_prevented(&mut systems, &statements);
-
-    let galaxy_radius = galaxy_radius(&systems);
     let mut galaxy = Galaxy {
-        systems,
-        order,
+        systems: HashMap::new(),
+        order: Vec::new(),
         nebulae: Vec::new(),
         bypasses: Vec::new(),
         waystations: Vec::new(),
         waylines: Vec::new(),
-        galaxy_radius,
-        core_radius: scenario.header.core_radius.unwrap_or(0.0),
-        header: scenario.header.fields(),
+        galaxy_radius: 0.0,
+        core_radius: 0.0,
+        header: Vec::new(),
         kind: DocumentKind::Scenario,
         setup: None,
         player_country: None,
     };
-    galaxy.bypasses = paint::wormhole_pairs(&galaxy);
-    let mut nebulae = Vec::new();
-    for &anchor in scenario.nebulae() {
-        let (src, node) = statement(doc, anchor)?;
-        nebulae.push(nebula(&node, src));
-    }
-    galaxy.set_nebulae_by_radius(nebulae);
+    let everything = Changes {
+        systems: index(doc).order().iter().copied().collect(),
+        nebulae: true,
+        ..Changes::default()
+    };
+    follow(doc, &mut galaxy, &everything)?;
     Ok(galaxy)
 }
 
@@ -276,8 +214,10 @@ fn follow(
     Ok(reassigned)
 }
 
-/// System `id`'s lanes and prevented pairs as [`add_lanes`] and [`add_prevented`] lay
-/// them, from the statements naming it alone.
+/// System `id`'s lanes and prevented pairs, from the statements naming it: one lane per
+/// other end, whichever way round and however many times the file lists it, and every
+/// other end a `prevent_hyperlane` names, ascending. A prevented pair is not a lane: it
+/// says the generator may not add one where it otherwise would.
 fn lay_lanes(systems: &mut HashMap<u32, SystemNode>, scenario: &ScenarioIndex, id: u32) {
     if !systems.contains_key(&id) {
         return;
@@ -321,50 +261,6 @@ fn galaxy_radius(systems: &HashMap<u32, SystemNode>) -> f64 {
         .map(|s| s.x.hypot(s.y))
         .fold(0.0f64, f64::max)
         .ceil()
-}
-
-/// One lane per pair of ends, whichever way round and however many times the file lists
-/// it; `prevent_hyperlane` statements are not lanes.
-fn add_lanes(systems: &mut HashMap<u32, SystemNode>, statements: &[LaneStmt]) {
-    let mut seen: HashSet<(u32, u32)> = HashSet::new();
-    for stmt in statements.iter().filter(|s| !s.prevent) {
-        let pair = (stmt.from.min(stmt.to), stmt.from.max(stmt.to));
-        if !seen.insert(pair) {
-            continue;
-        }
-        let length = match (systems.get(&pair.0), systems.get(&pair.1)) {
-            (Some(a), Some(b)) => lane_length(a, b),
-            _ => 0.0,
-        };
-        let ends = [(pair.0, pair.1), (pair.1, pair.0)];
-        let ends = &ends[..if pair.0 == pair.1 { 1 } else { 2 }];
-        for &(from, to) in ends {
-            if let Some(system) = systems.get_mut(&from) {
-                system.lanes.push(Lane {
-                    to,
-                    length,
-                    bridge: false,
-                    stale: false,
-                });
-            }
-        }
-    }
-}
-
-/// Both ends of every `prevent_hyperlane`, ascending and deduplicated. A prevented pair
-/// is not a lane: it says the generator may not add one where it otherwise would.
-fn add_prevented(systems: &mut HashMap<u32, SystemNode>, statements: &[LaneStmt]) {
-    for stmt in statements.iter().filter(|s| s.prevent) {
-        for (from, to) in [(stmt.from, stmt.to), (stmt.to, stmt.from)] {
-            if let Some(system) = systems.get_mut(&from) {
-                system.prevented.push(to);
-            }
-        }
-    }
-    for system in systems.values_mut() {
-        system.prevented.sort_unstable();
-        system.prevented.dedup();
-    }
 }
 
 fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {

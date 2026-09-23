@@ -12,6 +12,7 @@ use crate::format::save::write::lanes::{
 };
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::nebula::plan_membership;
+use crate::ops::rules::each_once;
 use crate::ops::rules::lanes::{
     Touching, check_length, check_new_lane, decide_isolate, decide_remove_pairs, touching_lanes,
     undirected,
@@ -30,9 +31,6 @@ pub(crate) fn plan_move_many(
     s: &Session,
     moves: &[SystemMove],
 ) -> Result<Planned, OpError> {
-    if moves.is_empty() {
-        return Err(OpError::Empty);
-    }
     let (origin, updated) = move_systems(plan, s, moves)?;
     let membership = plan_membership(plan, s, moves)?;
     Ok(Planned {
@@ -207,16 +205,9 @@ pub(crate) fn plan_normalise_lengths(
     s: &Session,
     systems: &[u32],
 ) -> Result<Planned, OpError> {
-    if systems.is_empty() {
-        return Err(OpError::Empty);
-    }
-    for (i, &id) in systems.iter().enumerate() {
-        if !s.graph.systems.contains_key(&id) {
-            return Err(OpError::UnknownSystem(id));
-        }
-        if systems[..i].contains(&id) {
-            return Err(OpError::DuplicateSystem(id));
-        }
+    each_once(systems, |&id| id)?;
+    if let Some(&id) = systems.iter().find(|id| !s.graph.systems.contains_key(id)) {
+        return Err(OpError::UnknownSystem(id));
     }
     let mut restore = Vec::new();
     for (a, b, _) in touching_lanes(&s.graph, systems.iter().copied()) {

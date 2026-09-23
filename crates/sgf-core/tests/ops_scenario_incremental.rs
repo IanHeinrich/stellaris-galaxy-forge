@@ -159,6 +159,7 @@ fn new_system(id: u32, x: f64, y: f64) -> NewSystem {
         initializer: None,
         spawn_weight: None,
         spawn_script: None,
+        statement: None,
     }
 }
 

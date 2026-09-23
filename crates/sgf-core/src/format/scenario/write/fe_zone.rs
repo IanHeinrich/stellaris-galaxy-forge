@@ -1,10 +1,9 @@
 //! Fallen empire zones: the `set_star_flag`s in a system's `effect` block that Paint a
 //! Galaxy seats a fallen empire by.
 
-use std::collections::BTreeSet;
-
 use super::flags::rewrite_flags;
 use crate::format::scenario::fe_zone::{FeZone, flags, is_zone_flag};
+use crate::ops::rules::each_once;
 use crate::ops::rules::fe_zone::{decide_set, label};
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::galaxy::SystemNode;
@@ -31,15 +30,7 @@ pub(super) fn set_zones(
     s: &Session,
     entries: &[(u32, Option<FeZone>)],
 ) -> Result<Planned, OpError> {
-    if entries.is_empty() {
-        return Err(OpError::Empty);
-    }
-    let mut seen = BTreeSet::new();
-    for (id, _) in entries {
-        if !seen.insert(*id) {
-            return Err(OpError::DuplicateSystem(*id));
-        }
-    }
+    each_once(entries, |&(id, _)| id)?;
     let mut previous = Vec::with_capacity(entries.len());
     for (id, zone) in entries {
         let (_, was) = write_zone(plan, s, *id, zone.as_ref())?;

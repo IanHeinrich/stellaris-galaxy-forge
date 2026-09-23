@@ -6,7 +6,7 @@ Added system 3019 at (20, -30.5)
 touched: [3019]
 inverse: RemoveSystem { id: 3019 }
 warning system_isolated: system 3019 has no hyperlanes
-warning disconnected: galaxy has 3 components, 2 at load; newly separated: 
+warning disconnected: galaxy has 3 components, 2 at load; newly separated: 3019
 … and 2 other issues
 
 --- scenario

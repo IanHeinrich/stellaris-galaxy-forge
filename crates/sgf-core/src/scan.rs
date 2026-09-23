@@ -347,7 +347,7 @@ impl Scanner<'_> {
             return Ok(Span::new(start, self.pos));
         }
         while let Some(b) = self.peek() {
-            if is_ws(b) || matches!(b, b'{' | b'}' | b'=' | b'"') {
+            if is_separator(b) {
                 break;
             }
             if self.mode == Mode::Script && b == b'#' {
@@ -393,6 +393,11 @@ impl Scanner<'_> {
 
 fn is_ws(b: u8) -> bool {
     matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+}
+
+/// Whether `b` ends a bare token: whitespace, a brace, `=` or an opening quote.
+pub(crate) fn is_separator(b: u8) -> bool {
+    is_ws(b) || matches!(b, b'{' | b'}' | b'=' | b'"')
 }
 
 fn parse_id(key: &[u8]) -> Option<u64> {

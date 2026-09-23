@@ -283,7 +283,13 @@ pub(crate) const OPTIONAL: &[&str] = &[
 
 /// The keys only the `meta` member writes, which the save-key test does not look for.
 pub(crate) mod meta {
+    pub(crate) const DATE: &str = "date";
+    pub(crate) const IRONMAN: &str = "ironman";
+    pub(crate) const META_FLEETS: &str = "meta_fleets";
+    pub(crate) const META_PLANETS: &str = "meta_planets";
+    pub(crate) const NAME: &str = "name";
     pub(crate) const PLAYER_PORTRAIT: &str = "player_portrait";
+    pub(crate) const VERSION: &str = "version";
 }
 
 /// The keys of a static galaxy scenario script, which shares only a few names with a save.

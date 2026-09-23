@@ -896,6 +896,7 @@ fn one_of_each() -> Vec<Op> {
                 initializer: None,
                 spawn_weight: None,
                 spawn_script: None,
+                statement: None,
             }],
         },
         Op::RemoveSystems { ids: vec![0] },

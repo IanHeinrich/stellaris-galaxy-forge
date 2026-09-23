@@ -5,8 +5,10 @@ use std::collections::BTreeSet;
 
 use super::flags::rewrite_flags;
 use crate::format::scenario::fe_link::{self, FeLinkFlags, MOST_IDS, flags, is_link_flag};
+use crate::ops::rules::each_once;
 use crate::ops::rules::fe_zone::label;
 use crate::ops::{Op, OpError, Plan, Planned};
+use crate::plural;
 use crate::projections::galaxy::SystemNode;
 use crate::session::Session;
 
@@ -48,7 +50,7 @@ pub(super) fn set_links(
     } else {
         format!(
             "Link {} to the fallen empire zone at {}",
-            count(wanted.len()),
+            plural(wanted.len(), "system"),
             label(system)
         )
     };
@@ -84,14 +86,8 @@ pub(super) fn set_flags(
     s: &Session,
     entries: &[(u32, FeLinkFlags)],
 ) -> Result<Planned, OpError> {
-    if entries.is_empty() {
-        return Err(OpError::Empty);
-    }
-    let mut seen = BTreeSet::new();
-    for (id, link) in entries {
-        if !seen.insert(*id) {
-            return Err(OpError::DuplicateSystem(*id));
-        }
+    each_once(entries, |&(id, _)| id)?;
+    for (_, link) in entries {
         if let Some(n) = link
             .id
             .into_iter()
@@ -110,7 +106,7 @@ pub(super) fn set_flags(
     Ok(Planned {
         description: format!(
             "Set the fallen empire connections of {}",
-            count(entries.len())
+            plural(entries.len(), "system")
         ),
         inverse: Op::SetFeLinkFlags { entries: previous },
     })
@@ -119,12 +115,4 @@ pub(super) fn set_flags(
 fn write_flags(plan: &mut Plan, s: &Session, id: u32, link: &FeLinkFlags) -> Result<(), OpError> {
     let edit = plan.edit(&s.doc, id)?;
     rewrite_flags(edit, |flag, _| is_link_flag(flag), &flags(link))
-}
-
-fn count(systems: usize) -> String {
-    if systems == 1 {
-        "1 system".to_owned()
-    } else {
-        format!("{systems} systems")
-    }
 }

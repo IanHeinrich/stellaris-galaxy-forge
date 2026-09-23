@@ -14,6 +14,7 @@ use crate::cst::{self, CstError, Node};
 use crate::document::Document;
 use crate::keys::scenario as keys;
 use crate::lexer::Mode;
+use crate::ops::blank_slot;
 use crate::overlay::{Anchor, Overlay, OverlayError};
 use crate::projections::galaxy::HeaderField;
 use crate::scan::{self, Index, Value};
@@ -30,8 +31,17 @@ pub(crate) fn index(doc: &Document) -> &ScenarioIndex {
         .expect("a scenario document holds a scenario index")
 }
 
-/// What a header statement is indented with when the file holds none to copy.
-const DEFAULT_INDENT: &[u8] = b"	";
+/// What a statement is indented with when the file holds none to copy.
+pub(crate) const DEFAULT_INDENT: &[u8] = b"\t";
+
+/// The statements a scenario reads as entities; a statement under any other key belongs
+/// to the header.
+pub(crate) const ENTITY_KEYS: [&str; 4] = [
+    keys::SYSTEM,
+    keys::ADD_HYPERLANE,
+    keys::PREVENT_HYPERLANE,
+    keys::NEBULA,
+];
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -393,7 +403,7 @@ impl ScenarioIndex {
                         1 + newlines(&original[..anchor.start().min(original.len())])
                     }),
                 },
-                indent: indent_of(original, buf, anchor),
+                indent: indent_of(original, anchor, Some(buf)),
             }),
             None => None,
         })
@@ -522,10 +532,9 @@ pub(crate) fn removed(overlay: &Overlay, anchor: Anchor, original: &[u8]) -> boo
     let Anchor::Original(span) = anchor else {
         return false;
     };
-    let blank = |bytes: &[u8]| bytes.iter().all(u8::is_ascii_whitespace);
     match overlay.current(anchor, original) {
-        Ok(bytes) => blank(bytes),
-        Err(_) => overlay.enclosing(span).is_some_and(blank),
+        Ok(bytes) => blank_slot(bytes),
+        Err(_) => overlay.enclosing(span).is_some_and(blank_slot),
     }
 }
 
@@ -545,16 +554,23 @@ fn read_scalars(header: &mut ScenarioHeader) {
 }
 
 /// The indentation the statement at `anchor` carries; an inserted one brought its own
-/// along in its text.
-fn indent_of(original: &[u8], buf: &[u8], anchor: Anchor) -> Vec<u8> {
+/// along in `current`, its bytes.
+pub(crate) fn indent_of(original: &[u8], anchor: Anchor, current: Option<&[u8]>) -> Vec<u8> {
     match anchor {
         Anchor::Original(span) => cst::indent_of(original, span.start).to_vec(),
-        Anchor::Inserted { .. } => cst::indent_of(buf, 0).to_vec(),
+        Anchor::Inserted { .. } => current
+            .map(|buf| cst::indent_of(buf, 0).to_vec())
+            .unwrap_or_default(),
     }
 }
 
 fn newlines(bytes: &[u8]) -> u32 {
     crate::as_u32(bytes.iter().filter(|&&b| b == b'\n').count())
+}
+
+/// The id a `system=` statement names, when it names one that is a number.
+pub(crate) fn statement_id(node: &Node, src: &[u8]) -> Option<u32> {
+    system_id(node, src, 0).ok()
 }
 
 /// `node` is one `system=` statement; `base` is where its bytes start in the file.

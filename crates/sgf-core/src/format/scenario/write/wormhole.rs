@@ -3,8 +3,10 @@
 
 use super::flags::rewrite_flags;
 use crate::format::scenario::paint::{EMPIRE_CLUSTER, WORMHOLE_FLAG_PREFIX, is_wormhole_flag};
+use crate::ops::rules::each_once;
 use crate::ops::rules::fe_zone::label;
 use crate::ops::{Op, OpError, Plan, Planned};
+use crate::plural;
 use crate::session::Session;
 
 pub(super) fn set_pair(
@@ -54,9 +56,7 @@ pub(super) fn set_ends(
     s: &Session,
     entries: &[(u32, Option<u32>)],
 ) -> Result<Planned, OpError> {
-    if entries.is_empty() {
-        return Err(OpError::Empty);
-    }
+    each_once(entries, |&(id, _)| id)?;
     let mut previous = Vec::with_capacity(entries.len());
     for (id, pair) in entries {
         let system = s.graph.systems.get(id).ok_or(OpError::UnknownSystem(*id))?;
@@ -64,7 +64,10 @@ pub(super) fn set_ends(
         write_end(plan, s, *id, *pair)?;
     }
     Ok(Planned {
-        description: format!("Set the wormhole pair of {} systems", entries.len()),
+        description: format!(
+            "Set the wormhole pair of {}",
+            plural(entries.len(), "system")
+        ),
         inverse: inverse(previous),
     })
 }

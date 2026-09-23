@@ -136,6 +136,13 @@ impl IssueCode {
         }
     }
 
+    /// Whether an issue of this code is a note on how the document came to be rather than
+    /// a finding the validator makes again: it stays out of the baseline, counts as new
+    /// and outlives every edit.
+    pub const fn is_note(self) -> bool {
+        matches!(self, Self::ExportDropped | Self::HomeInitializer)
+    }
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::LaneAsymmetric => "lane_asymmetric",
@@ -185,16 +192,14 @@ pub struct Issue {
     pub message: String,
     /// The systems involved, in the order the message names them.
     pub systems: Vec<u32>,
+    /// [`IssueCode::is_note`] of the code.
+    #[serde(default)]
+    pub note: bool,
 }
 
 impl Issue {
     pub(crate) fn new(code: IssueCode, message: String, systems: Vec<u32>) -> Self {
-        Self {
-            severity: code.severity(),
-            code,
-            message,
-            systems,
-        }
+        Self::at(code.severity(), code, message, systems)
     }
 
     pub(crate) fn at(
@@ -208,6 +213,7 @@ impl Issue {
             code,
             message,
             systems,
+            note: code.is_note(),
         }
     }
 }

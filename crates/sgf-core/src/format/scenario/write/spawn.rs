@@ -4,15 +4,13 @@
 //! statement in its dialect's text, written and taken back whole, the player's marker
 //! with it.
 
-use std::collections::BTreeSet;
-
 use crate::Span;
 use crate::cst::Node;
 use crate::emit::coord;
 use crate::format::scenario::paint;
 use crate::keys::scenario as keys;
+use crate::ops::rules::{bulk_description, each_once};
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
-use crate::plural;
 use crate::projections::galaxy::SpawnScript;
 use crate::session::Session;
 
@@ -44,15 +42,7 @@ pub(super) fn set_weights(
     s: &Session,
     entries: &[(u32, Option<f64>)],
 ) -> Result<Planned, OpError> {
-    if entries.is_empty() {
-        return Err(OpError::Empty);
-    }
-    let mut seen = BTreeSet::new();
-    for &(id, _) in entries {
-        if !seen.insert(id) {
-            return Err(OpError::DuplicateSystem(id));
-        }
-    }
+    each_once(entries, |&(id, _)| id)?;
     let mut one = String::new();
     let mut previous = Vec::with_capacity(entries.len());
     let mut scripts = Vec::with_capacity(entries.len());
@@ -62,10 +52,7 @@ pub(super) fn set_weights(
         previous.push(was);
         scripts.push(script);
     }
-    let description = match entries.len() {
-        1 => one,
-        n => format!("Set the spawn weight of {}", plural(n, "system")),
-    };
+    let description = bulk_description(entries.len(), one, "Set the spawn weight of");
     let inverse = if scripts.iter().all(Option::is_none) {
         Op::SetSpawnWeights { entries: previous }
     } else {
@@ -112,15 +99,7 @@ pub(super) fn set_scripts(
     s: &Session,
     entries: &[(u32, Option<SpawnScript>)],
 ) -> Result<Planned, OpError> {
-    if entries.is_empty() {
-        return Err(OpError::Empty);
-    }
-    let mut seen = BTreeSet::new();
-    for (id, _) in entries {
-        if !seen.insert(*id) {
-            return Err(OpError::DuplicateSystem(*id));
-        }
-    }
+    each_once(entries, |&(id, _)| id)?;
     let mut one = String::new();
     let mut previous = Vec::with_capacity(entries.len());
     for (id, script) in entries {
@@ -128,12 +107,8 @@ pub(super) fn set_scripts(
         one = description;
         previous.push(was);
     }
-    let description = match entries.len() {
-        1 => one,
-        n => format!("Set the scripted spawn of {}", plural(n, "system")),
-    };
     Ok(Planned {
-        description,
+        description: bulk_description(entries.len(), one, "Set the scripted spawn of"),
         inverse: Op::SetSpawnScripts { entries: previous },
     })
 }
@@ -172,7 +147,12 @@ fn write_weight(
     match (base, standing) {
         (Some(base), Some(block)) => match block.base {
             Some(_) => edit.set_value(&[keys::SPAWN_WEIGHT, keys::BASE], coord(base))?,
-            None => insert_first(edit, &block, &format!("{} = {}", keys::BASE, coord(base))),
+            // `base = N` stands before the modifiers, as the game's own example writes it.
+            None => edit.insert_first(
+                block.value,
+                block.first_child,
+                &format!("{} = {}", keys::BASE, coord(base)),
+            ),
         },
         (Some(base), None) => insert_statement(
             edit,
@@ -233,11 +213,11 @@ fn write_script(
             if edit.entity()?.find(keys::INITIALIZER, &edit.buf).is_none() {
                 let after = last_of_id_name_position(edit)?;
                 let text = format!("{} = {}", keys::INITIALIZER, paint::basic_initializer(id));
-                insert_after(edit, after, &text);
+                edit.insert_after(after, &text);
             }
             let text = paint::weight_statement(script);
             match standing {
-                Some(block) => replace_statement(edit, block.statement, &text),
+                Some(block) => edit.replace_statement(block.statement, &text),
                 None => insert_statement(edit, &text)?,
             }
         }
@@ -301,36 +281,6 @@ fn block(edit: &Edit) -> Result<Option<Block>, OpError> {
     }))
 }
 
-/// Write `text` as the block's first statement, `base = N` standing before the modifiers
-/// as the game's own example writes it.
-fn insert_first(edit: &mut Edit, block: &Block, text: &str) {
-    let at = block.value.start + 1;
-    match block.first_child {
-        Some(child) if starts_line(edit, child.start) => {
-            let indent = edit.indent(child.start);
-            let line = [&indent[..], text.as_bytes(), b"\n"].concat();
-            let at = edit.line_start(child.start);
-            edit.insert_lines(at, line);
-        }
-        _ => edit.insert(at, format!(" {text}").into_bytes()),
-    }
-}
-
-/// Write `text` where the statement at `span` stands, taking that statement back. The two
-/// splices meet at a boundary rather than overlapping: the replacement lands at the start
-/// of the line the removal takes, or right where a statement removed in place ended.
-fn replace_statement(edit: &mut Edit, span: Span, text: &str) {
-    if starts_line(edit, span.start) {
-        let indent = edit.indent(span.start);
-        let line = [&indent[..], text.as_bytes(), b"\n"].concat();
-        let at = edit.line_start(span.start);
-        edit.insert_lines(at, line);
-    } else {
-        edit.insert(span.end, format!(" {text}").into_bytes());
-    }
-    edit.remove_statement(span);
-}
-
 /// Write `text` as a statement of the system: beside its `initializer`, or after its
 /// `name` and `position` when it names none.
 fn insert_statement(edit: &mut Edit, text: &str) -> Result<(), OpError> {
@@ -338,7 +288,7 @@ fn insert_statement(edit: &mut Edit, text: &str) -> Result<(), OpError> {
         Some(node) => node.span().end,
         None => last_of_id_name_position(edit)?,
     };
-    insert_after(edit, after, text);
+    edit.insert_after(after, text);
     Ok(())
 }
 
@@ -351,34 +301,6 @@ fn last_of_id_name_position(edit: &Edit) -> Result<usize, OpError> {
         .find(keys::NAME, &edit.buf)
         .map_or(0, |node| node.span().end);
     Ok(position.max(name))
-}
-
-/// Write `text` as the statement following the one ending at `after`, in the shape that
-/// statement is written in: on a line of its own when that one ends its line, else
-/// beside it. Two statements written after the same one land in the order written.
-pub(super) fn insert_after(edit: &mut Edit, after: usize, text: &str) {
-    if ends_line(edit, after) {
-        let indent = edit.indent(after);
-        let line = [&indent[..], text.as_bytes(), b"\n"].concat();
-        let at = edit.line_end(after);
-        edit.insert_lines(at, line);
-    } else {
-        edit.insert(after, format!(" {text}").into_bytes());
-    }
-}
-
-/// Whether nothing but whitespace stands between `at` and the end of its line, so a
-/// statement inserted there belongs on a line of its own.
-fn ends_line(edit: &Edit, at: usize) -> bool {
-    let rest = &edit.buf[at.min(edit.buf.len())..];
-    let line = rest.split(|&b| b == b'\n').next().unwrap_or_default();
-    line.len() < rest.len() && line.iter().all(|&b| b == b' ' || b == b'\t')
-}
-
-pub(super) fn starts_line(edit: &Edit, at: usize) -> bool {
-    edit.buf[edit.line_start(at)..at]
-        .iter()
-        .all(|&b| b == b' ' || b == b'\t')
 }
 
 /// A weight is a number the generator multiplies and adds to, so a negative one says

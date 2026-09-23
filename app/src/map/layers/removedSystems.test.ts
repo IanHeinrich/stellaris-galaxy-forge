@@ -12,6 +12,7 @@ const ISSUE: Issue = {
   code: "lane_asymmetric",
   message: "Sol and Alpha disagree about the lane between them",
   systems: [0, 1],
+  note: false,
 };
 
 const renderer = { generateTexture: () => Texture.EMPTY } as unknown as Renderer;

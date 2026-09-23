@@ -165,12 +165,12 @@ pub fn parse_meta(meta: &[u8]) -> Result<SaveMeta, Error> {
     let scalar = |key: &'static str| optional(key).ok_or(Error::MetaField(key));
     let flag = meta_flag(meta, &index);
     Ok(SaveMeta {
-        name: scalar("name")?,
-        date: scalar("date")?,
-        version: scalar("version")?,
-        ironman: optional("ironman").is_some_and(|v| v == "yes"),
-        planets: optional("meta_planets").and_then(|v| v.parse().ok()),
-        fleets: optional("meta_fleets").and_then(|v| v.parse().ok()),
+        name: scalar(keys::meta::NAME)?,
+        date: scalar(keys::meta::DATE)?,
+        version: scalar(keys::meta::VERSION)?,
+        ironman: optional(keys::meta::IRONMAN).is_some_and(|v| v == "yes"),
+        planets: optional(keys::meta::META_PLANETS).and_then(|v| v.parse().ok()),
+        fleets: optional(keys::meta::META_FLEETS).and_then(|v| v.parse().ok()),
         color: flag.as_ref().and_then(|f| f.colors.first().cloned()),
         version_revision: optional(keys::VERSION_CONTROL_REVISION).and_then(|v| v.parse().ok()),
         required_dlcs: block(meta, &index, keys::REQUIRED_DLCS)
@@ -330,7 +330,7 @@ fn top_level_block(mut reader: impl Read, key: &[u8]) -> io::Result<Option<Vec<u
             }
             let b = chunk[i];
             i += 1;
-            if !(b.is_ascii_whitespace() || matches!(b, b'{' | b'}' | b'=' | b'"')) {
+            if !scan::is_separator(b) {
                 if word.len() <= key.len() {
                     word.push(b);
                 }
@@ -559,5 +559,48 @@ fn zip_err(path: &Path, source: zip::result::ZipError) -> Error {
     Error::Zip {
         path: path.to_path_buf(),
         source,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{self, Read};
+
+    use super::top_level_block;
+
+    /// Hands out one byte per read, so every state crosses a chunk boundary.
+    struct Trickle<'a>(&'a [u8]);
+
+    impl Read for Trickle<'_> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            let Some((&first, rest)) = self.0.split_first() else {
+                return Ok(0);
+            };
+            buf[0] = first;
+            self.0 = rest;
+            Ok(1)
+        }
+    }
+
+    fn galaxy(text: &str) -> Option<String> {
+        let whole = top_level_block(text.as_bytes(), b"galaxy").unwrap();
+        let trickled = top_level_block(Trickle(text.as_bytes()), b"galaxy").unwrap();
+        assert_eq!(whole, trickled, "{text}");
+        whole.map(|block| String::from_utf8(block).unwrap())
+    }
+
+    #[test]
+    fn the_block_is_found_past_quoted_braces_stray_braces_and_nested_keys() {
+        let found = Some("{ x=1 }".to_owned());
+        assert_eq!(galaxy("name=\"{galaxy={\" galaxy={ x=1 }"), found);
+        assert_eq!(galaxy("} galaxy={ x=1 } galaxy={ y=2 }"), found);
+        assert_eq!(galaxy("other={ galaxy={ y=2 } } galaxy={ x=1 }"), found);
+        assert_eq!(galaxy("galaxy_size=1 galaxy={ x=1 }"), found);
+        assert_eq!(
+            galaxy("galaxy=\n{\n\tname=\"}\" x={ 1 }\n}\nrest={ }"),
+            Some("{\n\tname=\"}\" x={ 1 }\n}".to_owned())
+        );
+        assert_eq!(galaxy("other={ galaxy={ y=2 } }"), None);
+        assert_eq!(galaxy("galaxy={ x=1"), None);
     }
 }

@@ -29,11 +29,10 @@ mod wormhole;
 
 use std::collections::BTreeMap;
 
-use crate::cst;
 use crate::document::Document;
 use crate::emit::coord;
 use crate::format::scenario::index::{
-    LaneStmt, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, ScenarioIndex, index,
+    DEFAULT_INDENT, LaneStmt, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, ScenarioIndex, indent_of, index,
 };
 use crate::keys::scenario as keys;
 use crate::ops::rules::lanes::undirected;
@@ -41,9 +40,6 @@ use crate::ops::{Edit, Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::session::Session;
 use crate::views::DocumentKind;
-
-/// What a statement is indented with when the file holds none to copy.
-const DEFAULT_INDENT: &[u8] = b"\t";
 
 pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, OpError> {
     match op {
@@ -85,6 +81,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
                 initializer: initializer.as_deref(),
                 spawn_weight: *spawn_weight,
                 spawn_script: spawn_script.as_ref(),
+                statement: None,
             },
         ),
         Op::RemoveSystem { id } => system::remove_system(plan, s, *id),
@@ -108,14 +105,15 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetWormholeEnds { entries } => wormhole::set_ends(plan, s, entries),
         Op::SetFeLinks { anchor, linked } => fe_link::set_links(plan, s, *anchor, linked),
         Op::SetFeLinkFlags { entries } => fe_link::set_flags(plan, s, entries),
-        _ => Err(unsupported(op)),
-    }
-}
-
-fn unsupported(op: &Op) -> OpError {
-    OpError::Unsupported {
-        op: op.name(),
-        kind: DocumentKind::Scenario,
+        // A scenario's lanes carry no length: the game measures them from the two ends.
+        Op::SetLaneLength { .. }
+        | Op::SetLaneLengths { .. }
+        | Op::NormaliseLaneLength { .. }
+        | Op::NormaliseLaneLengths { .. } => Err(OpError::Unsupported {
+            op: op.name(),
+            kind: DocumentKind::Scenario,
+        }),
+        Op::Batch { .. } => Err(OpError::NestedBatch),
     }
 }
 
@@ -182,14 +180,6 @@ fn system_indent(doc: &Document, scenario: &ScenarioIndex) -> Vec<u8> {
         .map_or_else(|| DEFAULT_INDENT.to_vec(), |(_, a)| indent(doc, a))
 }
 
-/// The indentation the statement at `anchor` carries; an inserted statement brought its
-/// own along in its text.
 fn indent(doc: &Document, anchor: Anchor) -> Vec<u8> {
-    match anchor {
-        Anchor::Original(span) => cst::indent_of(doc.original(), span.start).to_vec(),
-        Anchor::Inserted { .. } => doc
-            .current(anchor)
-            .map(|buf| cst::indent_of(buf, 0).to_vec())
-            .unwrap_or_default(),
-    }
+    indent_of(doc.original(), anchor, doc.current(anchor).ok())
 }

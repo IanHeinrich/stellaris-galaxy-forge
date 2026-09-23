@@ -4,4 +4,10 @@ import type { SpawnScript } from "./SpawnScript";
 /**
  * One system to add in [`Op::AddSystems`]: an [`Op::AddSystem`] with its id given.
  */
-export type NewSystem = { id: number, x: number, y: number, name: string | null, initializer: string | null, spawn_weight: number | null, spawn_script: SpawnScript | null, };
+export type NewSystem = { id: number, x: number, y: number, name: string | null, initializer: string | null, spawn_weight: number | null, spawn_script: SpawnScript | null, 
+/**
+ * The whole `system` statement, written as it stands instead of one built from the
+ * fields, which then only describe it: what a removal's inverse carries. It must
+ * read as one `system` statement with this id.
+ */
+statement?: string, };

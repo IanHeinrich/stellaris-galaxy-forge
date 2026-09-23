@@ -298,7 +298,8 @@ impl GalaxyGraph {
 
     /// Systems no longer connected to the bulk of the component they were in at build:
     /// for each baseline component, the current component holding most of its members is
-    /// its home; members anywhere else are separated. Sorted by id. O(V+E).
+    /// its home; members anywhere else are separated, and so is a system added since build
+    /// that stands in no home. Sorted by id. O(V+E).
     pub fn separated_systems(&self, components: &[Vec<u32>]) -> Vec<u32> {
         let current = membership(components);
         // Per baseline component, how many members each current component holds.
@@ -330,6 +331,10 @@ impl GalaxyGraph {
             })
             .map(|(&id, _)| id)
             .collect();
+        let homes: HashSet<usize> = home.values().map(|&(now, _)| now).collect();
+        separated.extend(current.iter().filter_map(|(&id, now)| {
+            (!self.baseline_component.contains_key(&id) && !homes.contains(now)).then_some(id)
+        }));
         separated.sort_unstable();
         separated
     }
