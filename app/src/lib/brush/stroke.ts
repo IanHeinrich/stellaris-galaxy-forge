@@ -1,4 +1,4 @@
-import type { Pt } from "../geometry/pt";
+import { dist2, type Pt } from "../geometry/pt";
 
 /** Stamps sit at most this fraction of the radius apart, so a swept edge stays round. */
 export const STAMP_STEP = 0.25;
@@ -21,9 +21,5 @@ export function stampsAlong(prev: Pt | null, next: Pt, r: number): Pt[] {
 /** Whether `p` lies in the union of the discs of radius `r` about the stamps, edge included. */
 export function inStroke(p: Pt, stamps: readonly Pt[], r: number): boolean {
   const r2 = r * r;
-  return stamps.some((s) => {
-    const dx = s.x - p.x;
-    const dy = s.y - p.y;
-    return dx * dx + dy * dy <= r2;
-  });
+  return stamps.some((s) => dist2(s, p) <= r2);
 }

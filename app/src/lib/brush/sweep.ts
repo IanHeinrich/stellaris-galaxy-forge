@@ -4,7 +4,7 @@ import type { MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import type { SpatialGrid } from "../spatialGrid";
 import { PointGrid } from "./grid";
-import type { Pair } from "./lanes";
+import { PairSet, type Pair } from "../geometry/pairs";
 import { isSpecialSystem } from "./special";
 
 export interface Swept {
@@ -26,15 +26,8 @@ export function sweptSystems(
   grid: SpatialGrid,
   { isSpecial = isSpecialSystem, includeSpecials = false }: SweepOptions = {},
 ): Swept {
-  const r2 = r * r;
   const hit = new Map<number, SystemNode>();
-  for (const s of stamps) {
-    grid.forEachIn(s.x - r, s.y - r, s.x + r, s.y + r, (n) => {
-      const dx = n.x - s.x;
-      const dy = n.y - s.y;
-      if (dx * dx + dy * dy <= r2) hit.set(n.id, n);
-    });
-  }
+  for (const s of stamps) grid.forEachWithin(s.x, s.y, r, (n) => hit.set(n.id, n));
   const doomed: number[] = [];
   const kept: number[] = [];
   for (const n of hit.values()) {
@@ -52,7 +45,7 @@ export function sweptLanes(
   const index = new PointGrid(r);
   for (const s of stamps) index.add(s);
   const r2 = r * r;
-  const cut = new Map<string, Pair>();
+  const cut = new PairSet();
   for (const [a, b] of lanes) {
     const touched = index.someInBox(
       Math.min(a.x, b.x) - r,
@@ -61,9 +54,7 @@ export function sweptLanes(
       Math.max(a.y, b.y) + r,
       (s) => distToSegmentSq(s.x, s.y, a.x, a.y, b.x, b.y) <= r2,
     );
-    if (!touched) continue;
-    const pair: Pair = a.id < b.id ? [a.id, b.id] : [b.id, a.id];
-    cut.set(`${pair[0]},${pair[1]}`, pair);
+    if (touched) cut.add(a.id, b.id);
   }
-  return [...cut.values()].sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  return cut.sorted();
 }

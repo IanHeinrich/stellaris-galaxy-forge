@@ -1,4 +1,5 @@
 import Delaunator from "delaunator";
+import { comparePairs, pairOf } from "./pairs";
 
 export interface MeshPoint {
   id: number;
@@ -30,12 +31,10 @@ export function meshPairs(points: MeshPoint[], beta: number): Array<[number, num
   const index = beta <= MESH_BETA.dense || edges.length === 0 ? null : new PointIndex(points);
   for (const [i, j] of edges) {
     if (index === null || !blocked(points, index, i, j, beta)) {
-      const a = points[i].id;
-      const b = points[j].id;
-      pairs.push(a < b ? [a, b] : [b, a]);
+      pairs.push(pairOf(points[i].id, points[j].id));
     }
   }
-  return pairs.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  return pairs.sort(comparePairs);
 }
 
 /** Each undirected triangle edge once, as index pairs; collinear input yields the hull chain. */

@@ -13,6 +13,22 @@ export function cellKey(cx: number, cy: number): number {
   return (cx + OFFSET) * (OFFSET * 2) + (cy + OFFSET);
 }
 
+/** Calls `fn` with the key of every cell of side `cell` that the closed box covers. */
+export function forEachCell(
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  cell: number,
+  fn: (key: number) => void,
+): void {
+  const x1 = Math.floor(maxX / cell);
+  const y1 = Math.floor(maxY / cell);
+  for (let cx = Math.floor(minX / cell); cx <= x1; cx++) {
+    for (let cy = Math.floor(minY / cell); cy <= y1; cy++) fn(cellKey(cx, cy));
+  }
+}
+
 /** Uniform grid over system positions for nearest-system and range queries. Pure: no pixi. */
 export class SpatialGrid {
   private cells = new Map<number, SystemNode[]>();
@@ -96,8 +112,18 @@ export class SpatialGrid {
     }
   }
 
-  /** Whether some system lies within `d` of (x, y), or strictly closer than `d` when `strict`. */
-  near(x: number, y: number, d: number, strict = false): boolean {
+  /** Calls `fn` for every system within `r` of (x, y), edge included. */
+  forEachWithin(x: number, y: number, r: number, fn: (s: SystemNode) => void): void {
+    const r2 = r * r;
+    this.forEachIn(x - r, y - r, x + r, y + r, (s) => {
+      const dx = s.x - x;
+      const dy = s.y - y;
+      if (dx * dx + dy * dy <= r2) fn(s);
+    });
+  }
+
+  /** Whether some system lies strictly closer than `d` to (x, y). */
+  closerThan(x: number, y: number, d: number): boolean {
     const d2 = d * d;
     const x0 = Math.max(cellOf(x - d), this.minCx);
     const y0 = Math.max(cellOf(y - d), this.minCy);
@@ -110,8 +136,7 @@ export class SpatialGrid {
         for (const s of bucket) {
           const dx = s.x - x;
           const dy = s.y - y;
-          const e2 = dx * dx + dy * dy;
-          if (strict ? e2 < d2 : e2 <= d2) return true;
+          if (dx * dx + dy * dy < d2) return true;
         }
       }
     }

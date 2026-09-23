@@ -1,21 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
-import { systemNode } from "../../test/builders";
+import { lanesTo, systemNode } from "../../test/builders";
 import { SpatialGrid } from "../spatialGrid";
 import { laneSegments } from "./lanes";
 import { isSpecialSystem } from "./special";
 import { stampsAlong } from "./stroke";
 import { sweptLanes, sweptSystems } from "./sweep";
 
-function lane(to: number) {
-  return { to, length: 0, bridge: false, stale: false };
-}
-
 const SYSTEMS: SystemNode[] = [
-  systemNode({ id: 1, x: 0, y: 0, lanes: [lane(2)] }),
-  systemNode({ id: 2, x: 50, y: 4, lanes: [lane(1), lane(3)] }),
-  systemNode({ id: 3, x: 100, y: 60, lanes: [lane(2), lane(4)] }),
-  systemNode({ id: 4, x: 100, y: -60, lanes: [lane(3)] }),
+  systemNode({ id: 1, x: 0, y: 0, lanes: lanesTo(2) }),
+  systemNode({ id: 2, x: 50, y: 4, lanes: lanesTo(1, 3) }),
+  systemNode({ id: 3, x: 100, y: 60, lanes: lanesTo(2, 4) }),
+  systemNode({ id: 4, x: 100, y: -60, lanes: lanesTo(3) }),
   systemNode({ id: 5, x: 25, y: 6, initializer: "guardians_init_dragon" }),
   systemNode({ id: 6, x: 25, y: 30 }),
 ];

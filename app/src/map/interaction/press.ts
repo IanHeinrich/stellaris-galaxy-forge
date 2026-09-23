@@ -1,41 +1,13 @@
-import type { FeZonePick, NebulaPick } from "../picking";
-import type { MapEdge } from "../picking/edges";
-import { DRAG_THRESHOLD_PX, type LaneSource, type MapInput } from "./MapIntent";
-import type { Zone } from "../picking/zones";
+import type { LaneSource, MapInput } from "./MapIntent";
+
+/** Pointer travel before a press becomes a drag rather than a click. */
+const DRAG_THRESHOLD_PX = 4;
 
 /** What was under the pointer and which modifiers were held when the button went down. */
-export interface Press {
-  sx: number;
-  sy: number;
-  wx: number;
-  wy: number;
-  system: number | null;
-  zone: Zone | null;
-  edge: MapEdge | null;
-  midpointHit: boolean;
-  feZone: FeZonePick | null;
-  nebula: NebulaPick | null;
-  shift: boolean;
-  ctrl: boolean;
-  selection: number[];
-}
+export type Press = Omit<MapInput, "kind" | "button" | "alt" | "snap">;
 
 export function pressFrom(input: MapInput): Press {
-  return {
-    sx: input.sx,
-    sy: input.sy,
-    wx: input.wx,
-    wy: input.wy,
-    system: input.system,
-    zone: input.zone,
-    edge: input.edge,
-    midpointHit: input.midpointHit,
-    feZone: input.feZone,
-    nebula: input.nebula,
-    shift: input.shift,
-    ctrl: input.ctrl,
-    selection: input.selection,
-  };
+  return { ...input };
 }
 
 export function pastThreshold(press: Press, input: MapInput): boolean {

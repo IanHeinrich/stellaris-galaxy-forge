@@ -5,6 +5,7 @@ import { cellKey } from "../../lib/spatialGrid";
 import type { Camera } from "../Camera";
 import { DETAIL_SCALE } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
+import { addTo } from "../multiMap";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { ORIGIN_LANE_ALPHA } from "../../lib/visual/style";
 import type { DragState, MapLayer } from "./MapLayer";
@@ -98,15 +99,6 @@ interface Tile {
 
 function tileOf(x: number, y: number): number {
   return cellKey(Math.floor(x / TILE), Math.floor(y / TILE));
-}
-
-function addTo<K, V>(map: Map<K, Set<V>>, key: K, value: V): void {
-  let set = map.get(key);
-  if (!set) {
-    set = new Set();
-    map.set(key, set);
-  }
-  set.add(value);
 }
 
 /**

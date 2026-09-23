@@ -1,7 +1,7 @@
 import type { Nebula } from "../../generated/Nebula";
 import type { SystemNode } from "../../generated/SystemNode";
 import { unlinkedTo } from "../../store/galaxyStore";
-import type { Pt } from "../../lib/geometry/pt";
+import { dist2, type Pt } from "../../lib/geometry/pt";
 import type { Camera } from "../Camera";
 import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
 import { linkRefusal, type Segment } from "../../lib/feLinks";
@@ -25,8 +25,13 @@ import { markerScale } from "../layers/MapLayer";
 import type { Systems } from "../RenderContext";
 import type { SpatialGrid } from "../../lib/spatialGrid";
 
-/** So a near-zero nebula stays grabbable. */
-const NEBULA_CENTRE_MIN_HIT_PX = 4;
+/** So a near-zero nebula or zone stays grabbable. */
+const CENTRE_MIN_HIT_PX = 4;
+
+/** How far from its centre a disc of world `radius` is grabbed by the centre, in screen pixels. */
+function centreReachPx(radius: number, scale: number): number {
+  return Math.max(CENTRE_MIN_HIT_PX, Math.min(NEBULA_CENTRE_HIT_PX, (radius * scale) / 2));
+}
 
 export interface SystemPick {
   system: number | null;
@@ -97,11 +102,7 @@ function hitOn(
 ): { part: NebulaPart; dist: number; axis?: "x" | "y" } | null {
   const toCentre = Math.hypot(n.x - at.x, n.y - at.y);
   const centrePx = toCentre * cam.scale;
-  const centreHit = Math.max(
-    NEBULA_CENTRE_MIN_HIT_PX,
-    Math.min(NEBULA_CENTRE_HIT_PX, (n.radius * cam.scale) / 2),
-  );
-  if (centrePx <= centreHit) {
+  if (centrePx <= centreReachPx(n.radius, cam.scale)) {
     return { part: "centre", dist: centrePx };
   }
   if (selected) {
@@ -127,7 +128,8 @@ export interface FeZonePick {
   zone: "ring" | "port";
 }
 
-const RING_ZONE_RANK = { ring: 0, port: 1 } as const;
+/** Which part of a zone wins where a point is on more than one zone: the ring band first. */
+const ZONE_RANK = { ring: 0, port: 1, centre: 2 } as const;
 
 /**
  * The zone whose ring band, port band or centre a world point is on, a ring band winning over a
@@ -145,7 +147,7 @@ export function pickFeZone(index: PickIndex, cam: Camera, at: Pt): FeZonePick | 
     if (offset === null) continue;
     const px = Math.abs(offset) * cam.scale;
     const ring = ringZoneOf(offset * cam.scale, k);
-    const rank = ring ? RING_ZONE_RANK[ring] : centreHit(offset, cam) ? CENTRE_RANK : null;
+    const rank = ring ? ZONE_RANK[ring] : centreHit(offset, cam) ? ZONE_RANK.centre : null;
     if (rank === null) continue;
     if (rank > bestRank || (rank === bestRank && px >= bestPx)) continue;
     best = { anchor: s.id, zone: ring ?? "ring" };
@@ -155,16 +157,9 @@ export function pickFeZone(index: PickIndex, cam: Camera, at: Pt): FeZonePick | 
   return best;
 }
 
-const CENTRE_RANK = 2;
-
 /** Whether a point `offset` outside the ring (negative inside) is within the zone's centre handle. */
 function centreHit(offset: number, cam: Camera): boolean {
-  const fromCentrePx = (offset + FE_ZONE_RADIUS) * cam.scale;
-  const reach = Math.max(
-    NEBULA_CENTRE_MIN_HIT_PX,
-    Math.min(NEBULA_CENTRE_HIT_PX, (FE_ZONE_RADIUS * cam.scale) / 2),
-  );
-  return fromCentrePx <= reach;
+  return (offset + FE_ZONE_RADIUS) * cam.scale <= centreReachPx(FE_ZONE_RADIUS, cam.scale);
 }
 
 /** How far a world point lies outside the ring `anchor` anchors, negative inside; null without a zone. */
@@ -205,7 +200,7 @@ export function pickEdge(
 }
 
 /** Whether a world point is within the midpoint button of a segment. */
-export function nearMidpoint(cam: Camera, segment: Segment | null, at: Pt): boolean {
+function nearMidpoint(cam: Camera, segment: Segment | null, at: Pt): boolean {
   if (!segment) return false;
   const { a, b } = segment;
   const d = Math.hypot((a.x + b.x) / 2 - at.x, (a.y + b.y) / 2 - at.y);
@@ -275,17 +270,17 @@ function nearestRing(index: PickIndex, at: Pt, maxDist: number): SystemNode | nu
 }
 
 /** The closest system to a world point within `maxDist`, skipping `excluded`. */
-export function nearestOutside(
+function nearestOutside(
   grid: SpatialGrid,
   at: Pt,
   maxDist: number,
   excluded: ReadonlySet<number>,
 ): SystemNode | null {
   let best: SystemNode | null = null;
-  let bestD2 = maxDist * maxDist;
-  grid.forEachIn(at.x - maxDist, at.y - maxDist, at.x + maxDist, at.y + maxDist, (s) => {
+  let bestD2 = Infinity;
+  grid.forEachWithin(at.x, at.y, maxDist, (s) => {
     if (excluded.has(s.id)) return;
-    const d2 = (s.x - at.x) ** 2 + (s.y - at.y) ** 2;
+    const d2 = dist2(s, at);
     if (d2 <= bestD2) {
       bestD2 = d2;
       best = s;

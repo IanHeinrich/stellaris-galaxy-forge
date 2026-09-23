@@ -6,7 +6,38 @@ import type { Pt } from "./pt";
  * gives copy k turned by k/n of a full turn, counter-clockwise in world coordinates.
  */
 export type Symmetry =
-  { kind: "off" } | { kind: "mirror"; axis: "x" | "y" } | { kind: "rotate"; n: 2 | 3 | 4 | 6 | 8 };
+  { kind: "off" } | { kind: "mirror"; axis: SymmetryAxis } | { kind: "rotate"; n: RotationOrder };
+
+export type SymmetryAxis = "x" | "y";
+
+export const ROTATION_ORDERS = [2, 3, 4, 6, 8] as const;
+
+export type RotationOrder = (typeof ROTATION_ORDERS)[number];
+
+/** Whether two symmetries are the same kind with the same axis or order. */
+export function sameSymmetry(a: Symmetry, b: Symmetry): boolean {
+  const key = (s: Symmetry) => `${s.kind}:${"axis" in s ? s.axis : ""}:${"n" in s ? s.n : ""}`;
+  return key(a) === key(b);
+}
+
+/** A symmetry that makes copies. */
+export type ActiveSymmetry = Exclude<Symmetry, { kind: "off" }>;
+
+/** Whether `value`, read back from storage, is a symmetry. */
+export function isSymmetry(value: unknown): value is Symmetry {
+  if (typeof value !== "object" || value === null) return false;
+  const s = value as Record<string, unknown>;
+  switch (s.kind) {
+    case "off":
+      return true;
+    case "mirror":
+      return s.axis === "x" || s.axis === "y";
+    case "rotate":
+      return ROTATION_ORDERS.some((n) => n === s.n);
+    default:
+      return false;
+  }
+}
 
 /** Row-major 2x2 matrices, copy 0 the identity. */
 type Matrix = readonly [number, number, number, number];
@@ -17,15 +48,36 @@ function snap(v: number): number {
   return Math.abs(v - half) < 1e-12 ? half + 0 : v;
 }
 
-const cache = new WeakMap<Symmetry, readonly Matrix[]>();
+interface Group {
+  matrices: readonly Matrix[];
+  /** `products[m][k]`: the copy whose matrix is copy m's times copy k's. */
+  products: readonly (readonly number[])[];
+}
 
-function matrices(sym: Symmetry): readonly Matrix[] {
+const cache = new WeakMap<Symmetry, Group>();
+
+function group(sym: Symmetry): Group {
   let found = cache.get(sym);
   if (!found) {
-    found = build(sym);
+    const matrices = build(sym);
+    const products = matrices.map((m) =>
+      matrices.map((k) => {
+        const mk = times(m, k);
+        return matrices.findIndex((j) => j.every((v, i) => Math.abs(v - mk[i]) < 1e-9));
+      }),
+    );
+    found = { matrices, products };
     cache.set(sym, found);
   }
   return found;
+}
+
+function matrices(sym: Symmetry): readonly Matrix[] {
+  return group(sym).matrices;
+}
+
+function times([a, b, c, d]: Matrix, [e, f, g, h]: Matrix): Matrix {
+  return [a * e + b * g, a * f + b * h, c * e + d * g, c * f + d * h];
 }
 
 function build(sym: Symmetry): Matrix[] {
@@ -64,14 +116,7 @@ export function imageOf(p: Pt, sym: Symmetry, k: number): Pt {
 
 /** The copy that image `m` of a point in copy `k` lands in. */
 export function composed(sym: Symmetry, m: number, k: number): number {
-  switch (sym.kind) {
-    case "off":
-      return 0;
-    case "mirror":
-      return m ^ k;
-    case "rotate":
-      return (m + k) % sym.n;
-  }
+  return group(sym).products[m][k];
 }
 
 /** Each copy's stamps: element k holds copy k of every stamp, copy 0 the stamps themselves. */
@@ -109,3 +154,14 @@ export function guideLines(sym: Symmetry, reach: number): Array<[Pt, Pt]> {
  * systems ever sit.
  */
 export const COUNTERPART_REACH = 0.5;
+
+/** What finds the nearest of its points to a place, as the spatial grid does. */
+export interface NearestIndex {
+  nearestSystem(x: number, y: number, maxDist: number): { id: number } | null;
+}
+
+/** The point of `index` standing for image `k` of `p`, by its id; null where none does. */
+export function counterpartAt(index: NearestIndex, p: Pt, sym: Symmetry, k: number): number | null {
+  const q = imageOf(p, sym, k);
+  return index.nearestSystem(q.x, q.y, COUNTERPART_REACH)?.id ?? null;
+}

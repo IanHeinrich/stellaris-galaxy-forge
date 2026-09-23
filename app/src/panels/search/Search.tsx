@@ -9,6 +9,7 @@ import type { DocumentKind } from "../../generated/DocumentKind";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore, type Systems } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useOutsidePress } from "../useOutsidePress";
 import { RowIcon, type RowKind } from "./icons";
 import { GROUP_LABELS, KIND_ORDER, nextPrefix, parseQuery, prefixLabel, type Query } from "./query";
 import "./search.css";
@@ -168,14 +169,7 @@ function SearchPanel() {
   const parsed = parseQuery(query);
   const { text } = parsed;
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener("pointerdown", onPointerDown, { capture: true });
-    return () => window.removeEventListener("pointerdown", onPointerDown, { capture: true });
-  }, [open]);
+  useOutsidePress(open, () => setOpen(false), box);
 
   useEffect(() => {
     const seq = ++latest.current;

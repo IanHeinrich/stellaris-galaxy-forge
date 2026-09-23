@@ -1,5 +1,5 @@
 import { images, type Symmetry } from "../geometry/symmetry";
-import type { Pt } from "../geometry/pt";
+import { dist2, type Pt } from "../geometry/pt";
 import { PointGrid, type Blockers } from "./grid";
 
 /**
@@ -25,10 +25,10 @@ export class SymmetricSpacing {
     for (let k = 0; k < imgs.length; k++) {
       const q = imgs[k];
       for (let j = k + 1; j < imgs.length; j++) {
-        if ((imgs[j].x - q.x) ** 2 + (imgs[j].y - q.y) ** 2 < this.s2) return false;
+        if (dist2(imgs[j], q) < this.s2) return false;
       }
-      if (this.blockers.near(q.x, q.y, this.spacing, true)) return false;
-      if (this.taken.near(q.x, q.y, this.spacing, true)) return false;
+      if (this.blockers.closerThan(q.x, q.y, this.spacing)) return false;
+      if (this.taken.closerThan(q.x, q.y, this.spacing)) return false;
     }
     return true;
   }

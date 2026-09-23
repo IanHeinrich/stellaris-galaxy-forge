@@ -1,21 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
-import { segmentsCross } from "../geometry/joinIslands";
+import { segmentsCross } from "../geometry/segments";
 import { MESH_BETA } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
-import { stampsAlong } from "./stroke";
 import { SpatialGrid } from "../spatialGrid";
-import { systemNode } from "../../test/builders";
+import { drag } from "../../test/brush";
+import { lanesTo, systemNode } from "../../test/builders";
 import { BrushStroke, strokeLabel, type BrushSettings, type StrokeResult } from "./brushStroke";
-
-function lane(to: number) {
-  return { to, length: 0, bridge: false, stale: false };
-}
 
 /** A lane 1-2 along y = 0, a guardian just above it, and a lone system far below. */
 const SYSTEMS: SystemNode[] = [
-  systemNode({ id: 1, x: 0, y: 0, lanes: [lane(2)] }),
-  systemNode({ id: 2, x: 100, y: 0, lanes: [lane(1)] }),
+  systemNode({ id: 1, x: 0, y: 0, lanes: lanesTo(2) }),
+  systemNode({ id: 2, x: 100, y: 0, lanes: lanesTo(1) }),
   systemNode({ id: 3, x: 50, y: 5, initializer: "guardians_init_dragon" }),
   systemNode({ id: 4, x: 0, y: -200 }),
 ];
@@ -37,16 +33,6 @@ function stroke(settings: BrushSettings, seed = 7): BrushStroke {
   const grid = new SpatialGrid();
   grid.build(SYSTEMS);
   return new BrushStroke(settings, GALAXY, grid, seed);
-}
-
-/** The stamps of a drag through `path`, as the brush lays them one pointer move at a time. */
-function drag(path: Pt[], r: number): Pt[][] {
-  let prev: Pt | null = null;
-  return path.map((next) => {
-    const stamps = stampsAlong(prev, next, r);
-    prev = next;
-    return stamps;
-  });
 }
 
 function run(settings: BrushSettings, path: Pt[]): StrokeResult {

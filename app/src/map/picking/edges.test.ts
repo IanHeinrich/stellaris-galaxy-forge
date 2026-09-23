@@ -1,17 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { name, systemNode } from "../../test/builders";
+import { placedNode as node } from "../../test/builders";
 import type { SystemNode } from "../../generated/SystemNode";
 import { newFeZone } from "../../lib/feZone";
 import { edgeEnds, sameEdge } from "./edges";
-
-const node = (id: number, x: number, y: number, to: number[] = []): SystemNode =>
-  systemNode({
-    id,
-    name: name(`S${id}`),
-    x,
-    y,
-    lanes: to.map((t) => ({ to: t, length: 0, bridge: false, stale: false })),
-  });
 
 /** An anchor whose ring lies east at 40 and takes custom connections under `linkId`. */
 const anchor = (id: number, x: number, y: number, linkId: number): SystemNode => ({

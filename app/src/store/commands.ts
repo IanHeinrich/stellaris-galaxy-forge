@@ -1,5 +1,5 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
-import type { KeyAction, Nudge } from "../lib/keys";
+import { isToolAction, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -79,6 +79,7 @@ function focusOnMap(): boolean {
 
 /** Runs one command, and says whether the key press was the app's to keep. */
 export function run(action: KeyAction, inInput: boolean, effects: CommandEffects): boolean {
+  if (isToolAction(action)) return useToolStore.getState().setTool(toolOfAction(action));
   const editor = useEditorStore.getState();
   const chrome = useMapChromeStore.getState();
   const session = useFileSessionStore.getState();
@@ -147,17 +148,6 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       }
       chrome.toggleGroup(action === "toggleScriptLayers" ? "scripts" : "initializers");
       return true;
-    case "selectTool":
-      useToolStore.getState().setTool("select");
-      return true;
-    case "paintTool":
-      return useToolStore.getState().setTool("paint");
-    case "eraseTool":
-      return useToolStore.getState().setTool("erase");
-    case "connectTool":
-      return useToolStore.getState().setTool("connect");
-    case "cutTool":
-      return useToolStore.getState().setTool("cut");
     case "toggleSymmetry":
       useToolStore.getState().toggleSymmetry();
       return true;

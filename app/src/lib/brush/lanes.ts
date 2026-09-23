@@ -1,20 +1,30 @@
 import type { SystemNode } from "../../generated/SystemNode";
-import { SEGMENT_CELL, SegmentIndex } from "../geometry/joinIslands";
 import { meshPairs, type MeshPoint } from "../geometry/mesh";
-import type { Pt } from "../geometry/pt";
-import { cellKey } from "../spatialGrid";
+import type { Pair } from "../geometry/pairs";
+import { dist2, type Pt } from "../geometry/pt";
+import { forEachSegmentCell, SEGMENT_CELL, SegmentIndex } from "../geometry/segments";
+import { forEachCell } from "../spatialGrid";
 
-/** Two ids, the smaller first. */
-export type Pair = [number, number];
+export type { Pair };
 
 export type Segment = readonly [Pt, Pt];
 
 /** Which lanes a paint stroke adds: none, among its new systems, or also to the systems near it. */
 export type LaneMode = "off" | "new" | "nearby";
 
-/** New points under provisional ids -1, -2, …, -n, so they never collide with a system id. */
+/** The provisional id of a stroke's new point `index`: -1, -2, …, so it never collides with a system id. */
+export function provisionalId(index: number): number {
+  return -(index + 1);
+}
+
+/** The index of the new point a provisional id names. */
+export function provisionalIndex(id: number): number {
+  return -id - 1;
+}
+
+/** New points under their provisional ids. */
 export function withProvisionalIds(points: readonly Pt[]): MeshPoint[] {
-  return points.map((p, i) => ({ id: -(i + 1), x: p.x, y: p.y }));
+  return points.map((p, i) => ({ id: provisionalId(i), x: p.x, y: p.y }));
 }
 
 /** Every lane once, as its two endpoints, skipping lanes to systems not in `systems`. */
@@ -46,18 +56,13 @@ export class LaneIndex {
     private readonly cell = SEGMENT_CELL,
   ) {
     this.seen = new Uint32Array(segments.length);
-    segments.forEach(([a, b], i) => {
-      const x1 = this.cellOf(Math.max(a.x, b.x));
-      const y1 = this.cellOf(Math.max(a.y, b.y));
-      for (let cx = this.cellOf(Math.min(a.x, b.x)); cx <= x1; cx++) {
-        for (let cy = this.cellOf(Math.min(a.y, b.y)); cy <= y1; cy++) {
-          const k = cellKey(cx, cy);
-          const bucket = this.cells.get(k);
-          if (bucket) bucket.push(i);
-          else this.cells.set(k, [i]);
-        }
-      }
-    });
+    segments.forEach(([a, b], i) =>
+      forEachSegmentCell(a, b, cell, (k) => {
+        const bucket = this.cells.get(k);
+        if (bucket) bucket.push(i);
+        else this.cells.set(k, [i]);
+      }),
+    );
   }
 
   /** The lanes whose bounding box comes within `d` of some point, each once. */
@@ -65,32 +70,24 @@ export class LaneIndex {
     const query = ++this.query;
     const found: Array<[MeshPoint, MeshPoint]> = [];
     for (const p of points) {
-      const x1 = this.cellOf(p.x + d);
-      const y1 = this.cellOf(p.y + d);
-      for (let cx = this.cellOf(p.x - d); cx <= x1; cx++) {
-        for (let cy = this.cellOf(p.y - d); cy <= y1; cy++) {
-          for (const i of this.cells.get(cellKey(cx, cy)) ?? []) {
-            if (this.seen[i] === query) continue;
-            const [a, b] = this.segments[i];
-            if (
-              Math.max(a.x, b.x) < p.x - d ||
-              Math.min(a.x, b.x) > p.x + d ||
-              Math.max(a.y, b.y) < p.y - d ||
-              Math.min(a.y, b.y) > p.y + d
-            ) {
-              continue;
-            }
-            this.seen[i] = query;
-            found.push(this.segments[i]);
+      forEachCell(p.x - d, p.y - d, p.x + d, p.y + d, this.cell, (k) => {
+        for (const i of this.cells.get(k) ?? []) {
+          if (this.seen[i] === query) continue;
+          const [a, b] = this.segments[i];
+          if (
+            Math.max(a.x, b.x) < p.x - d ||
+            Math.min(a.x, b.x) > p.x + d ||
+            Math.max(a.y, b.y) < p.y - d ||
+            Math.min(a.y, b.y) > p.y + d
+          ) {
+            continue;
           }
+          this.seen[i] = query;
+          found.push(this.segments[i]);
         }
-      }
+      });
     }
     return found;
-  }
-
-  private cellOf(v: number): number {
-    return Math.floor(v / this.cell);
   }
 }
 
@@ -115,9 +112,7 @@ export function meshWithin(points: readonly MeshPoint[], options: MeshWithinOpti
     if (keep && !keep(a, b)) return false;
     const p = at.get(a)!;
     const q = at.get(b)!;
-    const dx = p.x - q.x;
-    const dy = p.y - q.y;
-    return dx * dx + dy * dy <= max2 && !lanes.crosses(p, q);
+    return dist2(p, q) <= max2 && !lanes.crosses(p, q);
   });
 }
 

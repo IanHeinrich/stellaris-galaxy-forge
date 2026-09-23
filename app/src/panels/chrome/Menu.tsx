@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ESCAPE } from "../keys";
+import { useOutsidePress } from "../useOutsidePress";
 import "./chrome.css";
 import type { Pressed } from "./layerState";
 
@@ -36,9 +37,6 @@ export function Menu({
   useEffect(() => {
     if (!open) return;
     itemsOf(pop.current)[0]?.focus();
-    const onPointerDown = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== ESCAPE) return;
       e.stopPropagation();
@@ -48,13 +46,10 @@ export function Menu({
         if (!e.defaultPrevented) setOpen(false);
       });
     };
-    window.addEventListener("pointerdown", onPointerDown, { capture: true });
     window.addEventListener("keydown", onKey, { capture: true });
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown, { capture: true });
-      window.removeEventListener("keydown", onKey, { capture: true });
-    };
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [open]);
+  useOutsidePress(open, () => setOpen(false), ref);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const items = itemsOf(pop.current);

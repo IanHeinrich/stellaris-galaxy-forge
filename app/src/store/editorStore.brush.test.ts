@@ -7,16 +7,16 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import type { NewSystem } from "../generated/NewSystem";
 import type { Op } from "../generated/Op";
 import { BrushStroke, type BrushSettings } from "../lib/brush/brushStroke";
-import type { Pair } from "../lib/brush/lanes";
+import type { Pair } from "../lib/geometry/pairs";
 import { stampsAlong } from "../lib/brush/stroke";
 import type { Symmetry } from "../lib/geometry/symmetry";
-import { segmentsCross } from "../lib/geometry/joinIslands";
+import { segmentsCross } from "../lib/geometry/segments";
 import type { Pt } from "../lib/geometry/pt";
 import { run } from "./commands";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { SCENARIO_RESULT, SYSTEMS, editResult, node } from "./fixture";
+import { SCENARIO_RESULT, SYSTEMS, editResult, node, placedNode } from "./fixture";
 
 const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn(), confirmRemoveNebula: vi.fn() };
 
@@ -584,6 +584,25 @@ describe("joining islands", () => {
     mocked.applyOp.mockResolvedValue(editResult());
     expect(await editor().joinIslands()).toBe(true);
     expect(mocked.applyOp.mock.calls[0][0]).toMatchObject({ description: "Joined 2 islands" });
+  });
+
+  it("says as a notice, not an error, how many islands a join leaves walled off", async () => {
+    // A lone system amid a pinwheel of three lanes, each lane's ends hidden behind another.
+    const blade = (id: number, [ax, ay]: number[], [bx, by]: number[]) => [
+      placedNode(id, ax, ay, [id + 1]),
+      placedNode(id + 1, bx, by, [id]),
+    ];
+    const systems = [
+      placedNode(0, 0, 0),
+      ...blade(1, [-3, -26], [32, 42]),
+      ...blade(3, [24.017, 10.402], [-52.373, 6.713]),
+      ...blade(5, [-21.017, 15.598], [20.373, -48.713]),
+    ];
+    useGalaxyStore.getState().load({ ...SCENARIO_RESULT.galaxy, systems });
+
+    expect(await editor().joinIslands()).toBe(true);
+    expect(useFileSessionStore.getState().notice).toMatch(/^\d islands remain: /);
+    expect(sessionError()).toBeNull();
   });
 
   it("sends nothing when the galaxy is already one piece", async () => {

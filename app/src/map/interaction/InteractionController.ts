@@ -1,6 +1,9 @@
+import type { BrushTool } from "../../lib/brush/brushTools";
+import type { Pt } from "../../lib/geometry/pt";
 import { isEditableTarget } from "../../lib/keys";
+import type { Tool } from "../../lib/tools";
 import { useEditorStore } from "../../store/editorStore";
-import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
@@ -12,43 +15,29 @@ import {
   type MoveOp,
   type MovePlan,
 } from "../../store/symmetricEdits";
-import { useToolStore, type Tool } from "../../store/toolStore";
-import { feDirectionLabel, feZoneRefusal } from "../../lib/feZone";
-import type { Pt } from "../../lib/geometry/pt";
+import { useToolStore } from "../../store/toolStore";
 import type { Camera } from "../Camera";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
 import type { DragState, MapLayer } from "../layers/MapLayer";
 import type { MoveGhost } from "../moveGhosts";
-import { feZonePreview, type FeZonePreview } from "../feZonePreview";
-import { nebulaPreview, type NebulaGeometry, type NebulaPreview } from "../nebulaPreview";
 import { pickEdge, pickFeZone, pickNebula, pickSystem, snapTarget } from "../picking";
 import type { MapEdge } from "../picking/edges";
 import { PickIndex } from "../picking/pickIndex";
+import { trackGalaxy } from "../picking/trackGalaxy";
 import { BrushModel } from "./BrushModel";
 import { BrushStrokes } from "./brushStrokes";
+import { FeZoneDrag } from "./feZoneDrag";
 import { GestureModel } from "./GestureModel";
 import { GestureReporter } from "./gesture";
 import type { InputKind, LaneSource, MapInput, MapIntent, MapModel } from "./MapIntent";
+import { NebulaDrag } from "./nebulaDrag";
 import { groupOf } from "./press";
+import { SettlingPreview } from "./settlingPreview";
 
 const editor = () => useEditorStore.getState();
 
-/** What the cursor says while a nebula drag is open: its members, and the swing either way. */
-function readout(preview: NebulaPreview): string {
-  const unit = preview.total === 1 ? "system" : "systems";
-  return `${preview.total} ${unit} (+${preview.joining.length} −${preview.leaving.length})`;
-}
-
 /** The inspector section a click on a ring opens; the section's own id. */
 const FE_ZONE_SECTION = "system.feZone";
-
-/** What the cursor says while a ring is dragged: where it would snap, and what is in the way. */
-function zoneReadout(preview: FeZonePreview): MapTooltip["lines"] {
-  if (preview.blocked) {
-    return [feZoneRefusal(preview.blocked, (s) => useGalaxyStore.getState().systemName(s.id))];
-  }
-  return preview.offMap ? [feZoneRefusal(null, () => "")] : [];
-}
 
 /** Opens a section the user has folded, leaving one that is open alone. */
 function expandSection(id: string): void {
@@ -61,18 +50,30 @@ function dragState(ghosts: MoveGhost[]): DragState | null {
   return { ghosts, byId: new Map(ghosts.map((g) => [g.id, g])) };
 }
 
+/** One control model per tool, the brushes each reading the erase target at the press. */
+function models(): Record<Tool, MapModel> {
+  const eraseTarget = () => useToolStore.getState().eraseTarget;
+  const brush = (tool: BrushTool) => new BrushModel(tool, eraseTarget);
+  return {
+    select: new GestureModel(),
+    paint: brush("paint"),
+    erase: brush("erase"),
+    connect: brush("connect"),
+    cut: brush("cut"),
+  };
+}
+
 /**
  * Turns the canvas's pointer events into `MapInput`, feeds them to the active tool's model
  * (ADRs 0003 and 0005) and implements `MapIntent` against the stores and the highlights layer.
  */
 export class InteractionController {
-  private readonly selectModel: MapModel = new GestureModel();
-  private readonly paintModel: MapModel = new BrushModel("paint");
-  private readonly eraseModel: MapModel = new BrushModel("erase");
-  private readonly connectModel: MapModel = new BrushModel("connect");
-  private readonly cutModel: MapModel = new BrushModel("cut");
+  private readonly models = models();
   private readonly brushes: BrushStrokes;
-  private model: MapModel = this.selectModel;
+  private readonly nebulae: NebulaDrag;
+  private readonly feZones: FeZoneDrag;
+  private readonly moves: SettlingPreview;
+  private model: MapModel = this.models.select;
   private readonly intent: MapIntent;
   private panFrom: { sx: number; sy: number } | null = null;
   /** What a lane drag would start from once the button is down; the snap skips it. */
@@ -80,14 +81,11 @@ export class InteractionController {
   /** Offset from the pointer to the pressed system's or nebula's centre, so a move keeps the grab point. */
   private grab = { dx: 0, dy: 0 };
   private hoverEdge: MapEdge | null = null;
+  /** The last move over the canvas, so Alt going down or up can be replayed there. */
+  private lastMove: MapInput | null = null;
   private readonly gesture = new GestureReporter();
-  private moveSeq = 0;
   /** The counterparts the drag in progress carries, found once when it starts. */
   private movePlan: MovePlan | null = null;
-  private nebulaSeq = 0;
-  private feZoneSeq = 0;
-  /** The readout this controller put up, so a drag only ever takes down its own tooltip. */
-  private nebulaTip: MapTooltip | null = null;
   /** The pointer in world units, rewritten per event rather than allocated. */
   private readonly at: Pt = { x: 0, y: 0 };
   private readonly index = new PickIndex();
@@ -99,91 +97,54 @@ export class InteractionController {
     private readonly highlights: HighlightsLayer,
     private readonly layers: readonly MapLayer[] = [],
   ) {
+    this.brushes = new BrushStrokes(cam, highlights.brush, highlights.guide);
+    this.nebulae = new NebulaDrag(cam, highlights);
+    this.feZones = new FeZoneDrag(cam, highlights);
+    this.moves = new SettlingPreview(() => this.showGhosts([]));
+    this.intent = this.buildIntent();
+
+    this.model = this.models[useToolStore.getState().tool];
+    this.bindPointer();
+    this.bindKeyboard();
+    this.brushes.drawGuide();
+    this.cleanups.push(
+      trackGalaxy(this.index),
+      useToolStore.subscribe((state, previous) => {
+        if (state.tool !== previous.tool) this.swapModel(this.models[state.tool]);
+        if (state.symmetry !== previous.symmetry) this.brushes.drawGuide();
+        if (state.size !== previous.size || state.symmetry !== previous.symmetry) {
+          this.brushes.drawCursor();
+        }
+      }),
+    );
+  }
+
+  private showGhosts(ghosts: MoveGhost[]): void {
+    const drag = dragState(ghosts);
+    for (const layer of this.layers) layer.setDragState?.(drag);
+  }
+
+  private buildIntent(): MapIntent {
+    const { cam, highlights } = this;
     const systems = () => useGalaxyStore.getState().systems;
-    const showGhosts = (ghosts: MoveGhost[]) => {
-      this.moveSeq++;
-      const drag = dragState(ghosts);
-      for (const layer of this.layers) layer.setDragState?.(drag);
-    };
     const plan = (ids: readonly number[]) => (this.movePlan ??= movePlan(ids));
-    const showMoves = (ids: readonly number[], moves: MoveGhost[]) =>
-      showGhosts(plannedMoves(plan(ids), moves));
+    const showMoves = (ids: readonly number[], moves: MoveGhost[]) => {
+      this.moves.update();
+      this.showGhosts(plannedMoves(plan(ids), moves));
+    };
     const commit = (op: MoveOp) => {
       const planned = plannedMoveOp(plan(movedIds(op)), op);
       this.movePlan = null;
-      const seq = ++this.moveSeq;
-      void editor()
-        .applyOp(planned)
-        .finally(() => {
-          if (this.moveSeq === seq) showGhosts([]);
-        });
+      this.moves.settle(editor().applyOp(planned));
     };
     const groupGhosts = (ids: number[], dx: number, dy: number): MoveGhost[] =>
       ids.flatMap((id) => {
         const s = systems().get(id);
         return s ? [{ id, x: s.x + dx, y: s.y + dy }] : [];
       });
-
-    const nebulaeNow = () => useGalaxyStore.getState().nebulae;
-    const centreOf = (index: number): NebulaGeometry => {
-      const n = nebulaeNow()[index];
-      return { x: n?.x ?? 0, y: n?.y ?? 0, radius: n?.radius ?? 0 };
-    };
-    const radiusTo = (index: number, x: number, y: number): NebulaGeometry => {
-      const c = centreOf(index);
-      return { ...c, radius: Math.hypot(x - c.x, y - c.y) };
-    };
-    const clearNebula = () => {
-      highlights.setNebulaPreview(null);
-      const chrome = useMapChromeStore.getState();
-      if (this.nebulaTip && chrome.tooltip === this.nebulaTip) chrome.hideTooltip();
-      this.nebulaTip = null;
-    };
-    const showNebulaPreview = (index: number, geometry: NebulaGeometry, wx: number, wy: number) => {
-      this.nebulaSeq++;
-      const grid = useGalaxyStore.getState().grid;
-      const preview = nebulaPreview(systems(), grid, nebulaeNow(), index, geometry);
-      highlights.setNebulaPreview(preview);
-      const at = cam.worldToScreen(wx, wy);
-      this.nebulaTip = { x: at.x, y: at.y, title: readout(preview), lines: [] };
-      useMapChromeStore.getState().showTooltip(this.nebulaTip);
-    };
-    const settleNebula = (applied: Promise<unknown>) => {
-      const seq = ++this.nebulaSeq;
-      void applied.finally(() => {
-        if (this.nebulaSeq === seq) clearNebula();
-      });
-    };
-
-    const clearFeZone = () => {
-      highlights.setFeZonePreview(null);
-      const chrome = useMapChromeStore.getState();
-      if (this.nebulaTip && chrome.tooltip === this.nebulaTip) chrome.hideTooltip();
-      this.nebulaTip = null;
-    };
-    const showFeZonePreview = (anchor: number, wx: number, wy: number) => {
-      this.feZoneSeq++;
-      const preview = feZonePreview(systems(), anchor, { x: wx, y: wy });
-      highlights.setFeZonePreview(preview);
-      if (!preview) return;
-      const at = cam.worldToScreen(wx, wy);
-      this.nebulaTip = {
-        x: at.x,
-        y: at.y,
-        title: `${feDirectionLabel(preview.direction)} · ${preview.distance}`,
-        lines: zoneReadout(preview),
-      };
-      useMapChromeStore.getState().showTooltip(this.nebulaTip);
-    };
-    const settleFeZone = (applied: Promise<unknown>) => {
-      const seq = ++this.feZoneSeq;
-      void applied.finally(() => {
-        if (this.feZoneSeq === seq) clearFeZone();
-      });
-    };
     const linkAll = (anchor: number, ids: number[]) => editor().linkToFeZoneAll(anchor, ids);
 
-    this.intent = {
+    return {
       select: (id) => {
         void editor().select(id);
       },
@@ -222,7 +183,7 @@ export class InteractionController {
         commit({ type: "MoveSystems", moves: groupGhosts(ids, dx, dy) }),
       cancelMove: () => {
         this.movePlan = null;
-        showGhosts([]);
+        this.moves.drop();
       },
       previewLane: (from, x, y, target) => {
         highlights.setRubberLane({ from, x, y, target });
@@ -250,35 +211,19 @@ export class InteractionController {
       },
       selectNebula: (index) => editor().selectNebula(index),
       previewNebula: (index, x, y) =>
-        showNebulaPreview(
-          index,
-          { ...centreOf(index), x: x + this.grab.dx, y: y + this.grab.dy },
-          x,
-          y,
-        ),
+        this.nebulae.move(index, x + this.grab.dx, y + this.grab.dy, x, y),
       commitNebula: (index, x, y) =>
-        settleNebula(editor().moveNebula(index, x + this.grab.dx, y + this.grab.dy)),
-      previewNebulaRadius: (index, x, y) => showNebulaPreview(index, radiusTo(index, x, y), x, y),
-      commitNebulaRadius: (index, x, y) => {
-        const { radius } = radiusTo(index, x, y);
-        if (radius > 0) settleNebula(editor().setNebulaRadius(index, radius));
-        else clearNebula();
-      },
-      endNebula: () => clearNebula(),
+        this.nebulae.commitMove(index, x + this.grab.dx, y + this.grab.dy),
+      previewNebulaRadius: (index, x, y) => this.nebulae.resize(index, x, y),
+      commitNebulaRadius: (index, x, y) => this.nebulae.commitResize(index, x, y),
+      endNebula: () => this.nebulae.end(),
       selectFeZone: (anchor) => {
         void editor().select(anchor);
         expandSection(FE_ZONE_SECTION);
       },
-      previewFeZone: (anchor, x, y) => showFeZonePreview(anchor, x, y),
-      commitFeZone: (anchor, x, y) => {
-        const preview = feZonePreview(systems(), anchor, { x, y });
-        if (!preview) {
-          clearFeZone();
-          return;
-        }
-        settleFeZone(editor().moveFeZone(anchor, preview.direction, preview.distance));
-      },
-      endFeZone: () => clearFeZone(),
+      previewFeZone: (anchor, x, y) => this.feZones.move(anchor, x, y),
+      commitFeZone: (anchor, x, y) => this.feZones.commit(anchor, x, y),
+      endFeZone: () => this.feZones.end(),
       cut: (edge) => {
         this.hover(null);
         if (edge.kind === "lane") {
@@ -295,51 +240,12 @@ export class InteractionController {
       cancelStroke: () => this.brushes.cancel(),
       endBrush: () => this.brushes.end(),
     };
-    this.brushes = new BrushStrokes(cam, highlights);
-
-    this.model = this.modelFor(useToolStore.getState().tool);
-    this.bindPointer();
-    this.bindKeyboard();
-    this.index.build(systems());
-    this.brushes.drawGuide();
-    this.cleanups.push(
-      useToolStore.subscribe((state, previous) => {
-        if (state.tool !== previous.tool) this.swapModel(this.modelFor(state.tool));
-        if (state.symmetry !== previous.symmetry) this.brushes.drawGuide();
-        if (state.size !== previous.size || state.symmetry !== previous.symmetry) {
-          this.brushes.drawCursor();
-        }
-      }),
-      useGalaxyStore.subscribe((state, previous) => {
-        if (state.version === previous.version) return;
-        if (state.galaxy === previous.galaxy && state.lastDelta) {
-          this.index.apply(state.lastDelta, state.systems);
-        } else {
-          this.index.build(state.systems);
-        }
-      }),
-    );
-  }
-
-  /** The control model behind `tool`. */
-  private modelFor(tool: Tool): MapModel {
-    switch (tool) {
-      case "paint":
-        return this.paintModel;
-      case "erase":
-        return this.eraseModel;
-      case "connect":
-        return this.connectModel;
-      case "cut":
-        return this.cutModel;
-      case "select":
-        return this.selectModel;
-    }
   }
 
   /** Drops whatever the outgoing model had half done before the next one takes the pointer. */
   private swapModel(next: MapModel): void {
     this.dropDrag();
+    this.hover(null);
     this.model = next;
     this.canvas.style.cursor = this.model.cursor();
   }
@@ -379,7 +285,7 @@ export class InteractionController {
       snap: null,
       nebula: null,
     };
-    return this.model === this.selectModel ? this.pick(input, w) : input;
+    return this.model === this.models.select ? this.pick(input, w) : input;
   }
 
   /** What is under the pointer; a brush reads only where the pointer is, so it never asks. */
@@ -465,11 +371,12 @@ export class InteractionController {
     });
     on("pointermove", (e) => {
       const input = this.input("move", e);
+      this.lastMove = input;
       if (this.handle(input) === "pan" && this.panFrom) {
         this.cam.panBy(input.sx - this.panFrom.sx, input.sy - this.panFrom.sy);
         this.panFrom = { sx: input.sx, sy: input.sy };
         this.hover(null);
-      } else if (this.model.busy() || this.model !== this.selectModel) {
+      } else if (this.model.busy() || this.model !== this.models.select) {
         this.hover(null);
       } else {
         this.hover(input);
@@ -487,6 +394,7 @@ export class InteractionController {
       this.laneFrom = null;
     });
     on("pointerleave", () => {
+      this.lastMove = null;
       this.hover(null);
       if (!this.model.busy()) this.brushes.end();
     });
@@ -494,12 +402,28 @@ export class InteractionController {
 
   private bindKeyboard(): void {
     const down = (e: KeyboardEvent) => {
+      if (e.key === "Alt") this.altChanged(true);
       if (e.key !== "Escape" || isEditableTarget(e.target)) return;
       if (this.model.busy()) e.stopImmediatePropagation();
       this.dropDrag();
       this.canvas.style.cursor = this.model.cursor();
     };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === "Alt") this.altChanged(false);
+    };
     window.addEventListener("keydown", down, { capture: true });
-    this.cleanups.push(() => window.removeEventListener("keydown", down, { capture: true }));
+    window.addEventListener("keyup", up, { capture: true });
+    this.cleanups.push(() => {
+      window.removeEventListener("keydown", down, { capture: true });
+      window.removeEventListener("keyup", up, { capture: true });
+    });
+  }
+
+  /** Alt went down or up with the pointer still: the model sees the move again under it. */
+  private altChanged(alt: boolean): void {
+    const last = this.lastMove;
+    if (!last || last.alt === alt || this.model.busy()) return;
+    this.lastMove = { ...last, alt };
+    this.handle(this.lastMove);
   }
 }

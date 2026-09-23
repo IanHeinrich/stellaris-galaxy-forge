@@ -1,4 +1,3 @@
-import type { Graphics } from "pixi.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OPEN_RESULT } from "../../store/fixture";
 import { systemNode } from "../../test/builders";
@@ -6,12 +5,16 @@ import { systemNode } from "../../test/builders";
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 
+import type { Graphics } from "pixi.js";
+import { ACCENT_COLOR, REFUSED_COLOR } from "../../lib/visual/style";
+import { run, type CommandEffects } from "../../store/commands";
 import { useEditorStore } from "../../store/editorStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useToolStore } from "../../store/toolStore";
+import { lanesTo } from "../../test/builders";
 import { Camera } from "../Camera";
 import { HighlightsLayer } from "../layers/HighlightsLayer";
-import { childByLabel, strokes } from "../layers/fixture";
+import { strokes } from "../layers/fixture";
 import type { DragState, MapLayer } from "../layers/MapLayer";
 import { InteractionController } from "./InteractionController";
 
@@ -43,9 +46,31 @@ function canvas(): HTMLCanvasElement & { fire(type: string, x: number, y: number
 }
 
 let controller: InteractionController | null = null;
+/** The window's key listeners, by event type, as the controller registered them. */
+const keyListeners = new Map<string, (e: KeyboardEvent) => void>();
+
+/** A key going down or up on the window; the returned spy says whether the press was kept from the app. */
+function key(type: "keydown" | "keyup", name: string): () => boolean {
+  const stop = vi.fn();
+  keyListeners.get(type)?.({ key: name, target: null, stopImmediatePropagation: stop } as never);
+  return () => stop.mock.calls.length > 0;
+}
 
 beforeEach(() => {
-  vi.stubGlobal("window", { addEventListener: () => {}, removeEventListener: () => {} });
+  keyListeners.clear();
+  vi.stubGlobal("window", {
+    addEventListener: (type: string, fn: (e: KeyboardEvent) => void) => keyListeners.set(type, fn),
+    removeEventListener: (type: string) => keyListeners.delete(type),
+  });
+  vi.stubGlobal("HTMLElement", class {});
+  // A frame runs at once, and hands back no handle, so every move draws straight away.
+  vi.stubGlobal("requestAnimationFrame", (draw: FrameRequestCallback) => {
+    draw(0);
+    return 0;
+  });
+  vi.stubGlobal("cancelAnimationFrame", () => undefined);
+  useEditorStore.setState({ ...useEditorStore.getInitialState() });
+  useToolStore.setState({ ...useToolStore.getInitialState() });
 });
 
 afterEach(() => {
@@ -77,15 +102,13 @@ describe("a box select", () => {
 
 describe("the symmetry guides", () => {
   it("show in every tool while symmetry is on, and keep a held stroke's own until it ends", () => {
-    vi.stubGlobal("requestAnimationFrame", () => 1);
-    vi.stubGlobal("cancelAnimationFrame", () => undefined);
     useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems: [systemNode({ id: 1 })] });
     useToolStore.setState({ tool: "select", symmetry: { kind: "mirror", axis: "x" } });
     const cam = new Camera();
     cam.setViewport(800, 600);
     const surface = canvas();
     const highlights = new HighlightsLayer();
-    const guide = childByLabel(highlights.container, "symmetryGuide") as Graphics;
+    const guide = highlights.guide.graphics;
     const segments = () => strokes(guide).flatMap((op) => op.segments).length;
     controller = new InteractionController(surface, cam, highlights);
     expect(segments()).toBe(1);
@@ -127,5 +150,112 @@ describe("a drag under symmetry", () => {
     expect(ghosts).toHaveLength(2);
     expect(ghosts![0]).toEqual({ id: 1, x: expect.closeTo(110), y: expect.closeTo(60) });
     expect(ghosts![1]).toEqual({ id: 2, x: expect.closeTo(110), y: expect.closeTo(-60) });
+  });
+});
+
+/** Two systems 100 apart across the origin with a lane between, and a controller over them. */
+function laned(tool: "select" | "cut") {
+  const systems = [
+    systemNode({ id: 1, x: -50, lanes: lanesTo(2) }),
+    systemNode({ id: 2, x: 50, lanes: lanesTo(1) }),
+  ];
+  useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems });
+  useToolStore.setState({ tool, size: 40, symmetry: { kind: "off" } });
+  const cam = new Camera();
+  cam.setViewport(800, 600);
+  const surface = canvas();
+  const highlights = new HighlightsLayer();
+  controller = new InteractionController(surface, cam, highlights);
+  const brush = (label: string) => highlights.brush.container.getChildByLabel(label) as Graphics;
+  const mid = cam.worldToScreen(0, 0);
+  const star = cam.worldToScreen(-50, 0);
+  return { surface, brush, mid, star };
+}
+
+/** An edit that settles only when the test says so. */
+function pending() {
+  let settle: (applied: boolean) => void = () => undefined;
+  const promise = new Promise<boolean>((resolve) => (settle = resolve));
+  return { promise, settle };
+}
+
+const effects: CommandEffects = {
+  focusSearch: () => undefined,
+  browseInitializers: () => undefined,
+  confirmRemoveNebula: () => undefined,
+};
+
+describe("a brush stroke", () => {
+  it("keeps its preview until the edit it sent settles", async () => {
+    const edit = pending();
+    const cutLanes = vi.fn(() => edit.promise);
+    useEditorStore.setState({ cutLanes });
+    const { surface, brush, mid } = laned("cut");
+
+    surface.fire("pointerdown", mid.x, mid.y);
+    surface.fire("pointerup", mid.x, mid.y);
+    expect(cutLanes).toHaveBeenCalledWith([[1, 2]]);
+    expect(strokes(brush("brushMarks"))).toHaveLength(1);
+
+    edit.settle(true);
+    await vi.waitFor(() => expect(strokes(brush("brushMarks"))).toHaveLength(0));
+  });
+
+  it("is dropped by the first Esc, and the second returns to Select", () => {
+    const cutLanes = vi.fn(async () => true);
+    useEditorStore.setState({ cutLanes });
+    const { surface, brush, mid } = laned("cut");
+
+    surface.fire("pointerdown", mid.x, mid.y);
+    expect(strokes(brush("brushMarks"))).toHaveLength(1);
+    const kept = key("keydown", "Escape");
+    expect(kept()).toBe(true);
+    expect(strokes(brush("brushMarks"))).toHaveLength(0);
+    surface.fire("pointerup", mid.x, mid.y);
+    expect(cutLanes).not.toHaveBeenCalled();
+    expect(useToolStore.getState().tool).toBe("cut");
+
+    expect(key("keydown", "Escape")()).toBe(false);
+    run("clearSelection", false, effects);
+    expect(useToolStore.getState().tool).toBe("select");
+  });
+
+  it("is dropped with the brush it belongs to when the tool changes", () => {
+    const cutLanes = vi.fn(async () => true);
+    useEditorStore.setState({ cutLanes });
+    const { surface, brush, mid } = laned("cut");
+
+    surface.fire("pointerdown", mid.x, mid.y);
+    expect(strokes(brush("brushMarks"))).toHaveLength(1);
+    useToolStore.setState({ tool: "select" });
+    expect(strokes(brush("brushMarks"))).toHaveLength(0);
+    surface.fire("pointerup", mid.x, mid.y);
+    expect(cutLanes).not.toHaveBeenCalled();
+    expect(strokes(brush("brushCircle"))).toHaveLength(0);
+  });
+});
+
+describe("the brush circle", () => {
+  it("turns to the inverse brush as Alt goes down, and back as it comes up", () => {
+    const { surface, brush, mid } = laned("cut");
+    const colour = () => strokes(brush("brushCircle"))[0]?.color;
+
+    surface.fire("pointermove", mid.x, mid.y);
+    expect(colour()).toBe(REFUSED_COLOR);
+    key("keydown", "Alt");
+    expect(colour()).toBe(ACCENT_COLOR);
+    key("keyup", "Alt");
+    expect(colour()).toBe(REFUSED_COLOR);
+  });
+});
+
+describe("switching tools by key", () => {
+  it("lets go of the system the pointer was resting on", () => {
+    const { surface, star } = laned("select");
+    surface.fire("pointermove", star.x, star.y);
+    expect(useEditorStore.getState().hover).toBe(1);
+
+    run("cutTool", false, effects);
+    expect(useEditorStore.getState().hover).toBeNull();
   });
 });

@@ -1,12 +1,9 @@
 import type { LaneRef, SelectionMode } from "../../store/editorStore";
-import type { BrushTool } from "../../lib/brush/brushStroke";
+import type { BrushTool } from "../../lib/brush/brushTools";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { FeZonePick, NebulaPick } from "../picking";
 import type { MapEdge } from "../picking/edges";
 import type { Zone } from "../picking/zones";
-
-/** Pointer travel before a press becomes a drag rather than a click. */
-export const DRAG_THRESHOLD_PX = 4;
 
 export type InputKind = "down" | "move" | "up" | "cancel";
 

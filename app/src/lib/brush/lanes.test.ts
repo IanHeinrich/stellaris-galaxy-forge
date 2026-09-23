@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { systemNode } from "../../test/builders";
-import { segmentsCross } from "../geometry/joinIslands";
+import { lanesTo, systemNode } from "../../test/builders";
+import { segmentsCross } from "../geometry/segments";
 import { MESH_BETA, type MeshPoint } from "../geometry/mesh";
 import { laneSegments, meshWithin, strokeLanes, withProvisionalIds, type Pair } from "./lanes";
 
@@ -14,8 +14,8 @@ const ADDED = withProvisionalIds(
 
 /** Existing systems ringing the grid, with one lane cutting across its top-left corner. */
 const SYSTEMS = [
-  systemNode({ id: 1, x: -35, y: 0, lanes: [{ to: 2, length: 35, bridge: false, stale: false }] }),
-  systemNode({ id: 2, x: 0, y: -35, lanes: [{ to: 1, length: 35, bridge: false, stale: false }] }),
+  systemNode({ id: 1, x: -35, y: 0, lanes: lanesTo(2) }),
+  systemNode({ id: 2, x: 0, y: -35, lanes: lanesTo(1) }),
   systemNode({ id: 3, x: 35, y: 0 }),
   systemNode({ id: 4, x: 0, y: 35 }),
   systemNode({ id: 5, x: 300, y: 300 }),

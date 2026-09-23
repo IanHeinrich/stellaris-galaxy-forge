@@ -88,6 +88,16 @@ export function systemNode(over: Partial<SystemNode> = {}): SystemNode {
   };
 }
 
+/** Lanes from a system to each of `ids`, of no stated length. */
+export function lanesTo(...ids: number[]): SystemNode["lanes"] {
+  return ids.map((to) => ({ to, length: 0, bridge: false, stale: false }));
+}
+
+/** A system named `S<id>` at (x, y), laned to each of `to`. */
+export function placedNode(id: number, x: number, y: number, to: number[] = []): SystemNode {
+  return systemNode({ id, name: name(`S${id}`), x, y, lanes: lanesTo(...to) });
+}
+
 /** The report of an export that carried everything over; a test adds what it left out. */
 export function exportReport(over: Partial<ExportReport> = {}): ExportReport {
   return {

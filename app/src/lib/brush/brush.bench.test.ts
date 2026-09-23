@@ -3,9 +3,9 @@ import { buildGalaxy } from "../geometry/territory.fixture";
 import { MESH_BETA, type MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import { laneSegments, strokeLanes, withProvisionalIds } from "./lanes";
-import { seeded } from "./random";
+import { seeded } from "../random";
 import { SAMPLE_CAP, sampleStroke } from "./sample";
-import { stampsAlong } from "./stroke";
+import { drag } from "../../test/brush";
 
 const BLOCKER_COUNT = 600;
 const R = 120;
@@ -18,14 +18,10 @@ describe("a paint stroke at the sample cap", () => {
     const systems = [...buildGalaxy().systems].sort((a, b) => a.x - b.x).slice(0, BLOCKER_COUNT);
     const blockers: MeshPoint[] = systems.map(({ id, x, y }) => ({ id, x, y }));
     const existing = laneSegments(systems);
-    const stamps: Pt[] = [];
-    let prev: Pt | null = null;
-    [-360, -150, 60, 270].forEach((y, row) => {
-      for (const x of row % 2 === 0 ? [-500, 500] : [500, -500]) {
-        stamps.push(...stampsAlong(prev, { x, y }, R));
-        prev = stamps[stamps.length - 1];
-      }
-    });
+    const path = [-360, -150, 60, 270].flatMap((y, row) =>
+      (row % 2 === 0 ? [-500, 500] : [500, -500]).map((x): Pt => ({ x, y })),
+    );
+    const stamps = drag(path, R).flat();
 
     const start = performance.now();
     const points = sampleStroke(stamps, R, SPACING, blockers, seeded(1));

@@ -15,3 +15,15 @@ export const GHOST_ALPHA = 0.4;
 
 /** A system with no name of its own: the initializer key standing in for it sits a step back. */
 export const INITIALIZER_ALPHA = 0.6;
+
+/** The app's accent (`--accent`): the selection, what an edit adds, and the brush that adds. */
+export const ACCENT_COLOR = 0xffd166;
+
+/** What an edit may go ahead with: a valid target, a lane being drawn, a system joining. */
+export const ALLOWED_COLOR = 0x6ee7b7;
+
+/** What an edit refuses or removes: an invalid target, a blocked slot, the brush that erases. */
+export const REFUSED_COLOR = 0xf87171;
+
+/** What is set apart without being refused: a system leaving, a special an eraser spares, a spawn. */
+export const CAUTION_COLOR = 0xfbbf24;

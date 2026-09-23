@@ -1,6 +1,8 @@
 /** The synthetic late-game galaxy the territory bench and the tiled-union test share. */
 import type { SystemNode } from "../../generated/SystemNode";
 import { name, systemNode } from "../../test/builders";
+import { seeded } from "../random";
+import { dist2 } from "./pt";
 
 const GALAXY_SEED = 0xc0ffee;
 const GALAXY_RADIUS = 500;
@@ -23,24 +25,6 @@ export interface Galaxy {
   laneCount: number;
   /** Every country and how many systems it holds, largest first. */
   sizes: { country: number; size: number }[];
-}
-
-/** mulberry32: a small, fast, seeded PRNG so the galaxy is the same on every run. */
-function mulberry32(seed: number): () => number {
-  let state = seed;
-  return () => {
-    state |= 0;
-    state = (state + 0x6d2b79f5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function dist2(a: Point, b: Point): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return dx * dx + dy * dy;
 }
 
 function shuffledIndices(count: number, rand: () => number): number[] {
@@ -205,7 +189,7 @@ function buildSystems(
  * holds ~100 systems and several 50 or more, ~15% unowned.
  */
 export function buildGalaxy(): Galaxy {
-  const rand = mulberry32(GALAXY_SEED);
+  const rand = seeded(GALAXY_SEED);
   const points = scatterSystems(rand, GALAXY_RADIUS, MIN_SPACING);
   const graph = buildLaneGraph(points, rand);
   const owner = assignCountries(graph, rand, COUNTRY_COUNT, UNOWNED_FRACTION);

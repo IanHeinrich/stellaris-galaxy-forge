@@ -1,6 +1,6 @@
-import type { Pt } from "../geometry/pt";
+import { dist2, type Pt } from "../geometry/pt";
 import { blockersOf, PointGrid, type Blockers } from "./grid";
-import type { Rand } from "./random";
+import type { Rand } from "../random";
 import { copies, type Symmetry } from "../geometry/symmetry";
 import { SymmetricSpacing } from "./symmetricSpacing";
 
@@ -8,7 +8,7 @@ import { SymmetricSpacing } from "./symmetricSpacing";
 export const SAMPLE_CAP = 1000;
 
 /** Bridson's k: candidates tried about a point before it stops spawning. */
-export const TRIES = 30;
+const TRIES = 30;
 
 export interface SamplerOptions {
   /** Stamp radius. */
@@ -95,10 +95,8 @@ export class StrokeSampler {
     const inner = this.r - 2 * this.spacing;
     const found: number[] = [];
     this.grid.someInBox(s.x - reach, s.y - reach, s.x + reach, s.y + reach, (p) => {
-      const dx = p.x - s.x;
-      const dy = p.y - s.y;
-      if (dx * dx + dy * dy >= reach * reach) return false;
-      if (inner >= 0 && this.stamps.near(p.x, p.y, inner)) return false;
+      if (dist2(p, s) >= reach * reach) return false;
+      if (inner >= 0 && this.stamps.within(p.x, p.y, inner)) return false;
       found.push(p.i);
       return false;
     });
@@ -130,9 +128,9 @@ export class StrokeSampler {
 
   private fits(c: Pt): boolean {
     return (
-      this.stamps.near(c.x, c.y, this.r) &&
-      !this.grid.near(c.x, c.y, this.spacing, true) &&
-      !this.blockers.near(c.x, c.y, this.spacing, true) &&
+      this.stamps.within(c.x, c.y, this.r) &&
+      !this.grid.closerThan(c.x, c.y, this.spacing) &&
+      !this.blockers.closerThan(c.x, c.y, this.spacing) &&
       (this.images?.fits(c) ?? true)
     );
   }

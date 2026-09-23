@@ -2,7 +2,7 @@ import type { Graphics } from "pixi.js";
 import { describe, expect, it, vi } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { newFeZone } from "../../lib/feZone";
-import { systemNode } from "../../test/builders";
+import { lanesTo, systemNode } from "../../test/builders";
 import { HighlightsLayer } from "./HighlightsLayer";
 import { childByLabel, drawOps, mapContext, mapNode, strokes, viewport } from "./fixture";
 
@@ -21,13 +21,13 @@ const LANE_A = systemNode({
   id: 2,
   x: 100,
   y: 100,
-  lanes: [{ to: 3, length: 0, bridge: false, stale: false }],
+  lanes: lanesTo(3),
 });
 const LANE_B = systemNode({
   id: 3,
   x: 300,
   y: 100,
-  lanes: [{ to: 2, length: 0, bridge: false, stale: false }],
+  lanes: lanesTo(2),
 });
 
 const LANE = { kind: "lane", lane: { a: 2, b: 3 } } as const;
@@ -41,7 +41,7 @@ function drawn(scale = 1): HighlightsLayer {
 }
 
 function graphics(layer: HighlightsLayer, label: string): Graphics {
-  return childByLabel(layer.container, label) as Graphics;
+  return layer.container.getChildByLabel(label, true) as Graphics;
 }
 
 /** The straights a graphics strokes, as `[ax, ay, bx, by]`. */
@@ -226,12 +226,12 @@ describe("the highlights layer's symmetry guides", () => {
     const guide = graphics(layer, "symmetryGuide");
     expect(strokes(guide)).toEqual([]);
 
-    layer.setSymmetryGuide({ kind: "mirror", axis: "x" });
+    layer.guide.set({ kind: "mirror", axis: "x" });
     const corner = 500 * Math.SQRT2;
     expect(strokedSegments(guide)).toEqual([[-corner, 0, corner, 0]]);
 
     layer.rebuild(mapContext([ANCHOR], { kind: "save", radius: 300 }));
-    layer.setSymmetryGuide({ kind: "rotate", n: 4 });
+    layer.guide.set({ kind: "rotate", n: 4 });
     expect(strokedSegments(guide)).toEqual([
       [0, 0, 300, 0],
       [0, 0, 0, 300],
@@ -239,13 +239,13 @@ describe("the highlights layer's symmetry guides", () => {
       [0, 0, 0, -300],
     ]);
 
-    layer.setSymmetryGuide(null);
+    layer.guide.set(null);
     expect(strokes(guide)).toEqual([]);
   });
 
   it("rings the brush circle's copies at each image, fainter than the one at the pointer", () => {
     const layer = drawn();
-    layer.setBrushCursor({
+    layer.brush.setCursor({
       tool: "paint",
       x: 100,
       y: 50,
@@ -261,7 +261,7 @@ describe("the highlights layer's symmetry guides", () => {
     expect(centres(copies)).toEqual(["-50,100", "-100,-50", "50,-100"]);
     expect(copies.alpha).toBeLessThan(pointer.alpha!);
 
-    layer.setBrushCursor({ tool: "cut", x: 100, y: 50, r: 10, symmetry: { kind: "off" } });
+    layer.brush.setCursor({ tool: "cut", x: 100, y: 50, r: 10, symmetry: { kind: "off" } });
     expect(strokes(graphics(layer, "brushCircle"))).toHaveLength(1);
   });
 });

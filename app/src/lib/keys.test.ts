@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "./geometry/geometry";
-import { keyAction, layerKeyOf, nudgeOf, radiusStepOf, type KeyLike } from "./keys";
+import {
+  keyAction,
+  layerKeyOf,
+  nudgeOf,
+  radiusStepOf,
+  shortcutLabel,
+  toolAction,
+  type KeyLike,
+} from "./keys";
+import { TOOLS } from "./tools";
 
 function press(key: string, mods: Partial<KeyLike> = {}): KeyLike {
   return { key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...mods };
@@ -128,5 +137,15 @@ describe("keys", () => {
     expect(radiusStepOf(press("]", { ctrlKey: true }), false)).toBeNull();
     expect(radiusStepOf(press("]"), true)).toBeNull();
     expect(radiusStepOf(press("f"), false)).toBeNull();
+  });
+
+  it("spells each binding as the tooltips show it, and gives every tool its own key", () => {
+    expect(shortcutLabel("undo")).toBe("Ctrl+Z");
+    expect(shortcutLabel("redo")).toBe("Ctrl+Y");
+    expect(shortcutLabel("saveAs")).toBe("Ctrl+Shift+S");
+    expect(shortcutLabel("fitSelection")).toBe("Shift+F");
+    expect(shortcutLabel("clearSelection")).toBe("Esc");
+    expect(TOOLS.map((t) => shortcutLabel(toolAction(t.id)))).toEqual(["V", "B", "E", "C", "X"]);
+    for (const t of TOOLS) expect(keyAction(press(t.key), false)).toBe(toolAction(t.id));
   });
 });
