@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 import { OPEN_RESULT, SCENARIO_RESULT, detailOf } from "./fixture";
 
 vi.mock("../api/ipc");
@@ -39,11 +40,7 @@ bindStores();
 
 beforeEach(() => {
   vi.clearAllMocks();
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   useGalaxyStore.getState().clear();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
@@ -167,12 +164,12 @@ describe("layers", () => {
     expect([...chrome().shownKinds]).toEqual(reversed);
   });
 
-  it("showLayer turns a layer on and leaves one that is already on alone", () => {
-    chrome().showLayer("nebulae");
+  it("setLayerQuietly turns a layer on and leaves one that is already on alone", () => {
+    chrome().setLayerQuietly("nebulae", true);
     expect(chrome().layers.nebulae).toBe(true);
 
     const layers = chrome().layers;
-    chrome().showLayer("nebulae");
+    chrome().setLayerQuietly("nebulae", true);
     expect(chrome().layers).toBe(layers);
   });
 
@@ -527,7 +524,7 @@ describe("persisted preferences", () => {
   });
 
   it("writes nothing for a layer the app shows for an edit the user must see", () => {
-    chrome().showLayer("nebulae");
+    chrome().setLayerQuietly("nebulae", true);
     expect(chrome().layers.nebulae).toBe(true);
     expect(stored.has("sgf.layers.visible")).toBe(false);
   });

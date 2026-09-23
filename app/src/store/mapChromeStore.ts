@@ -23,7 +23,14 @@ import type { LaneRef } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isBooleanRecord, isFiniteNumber, isStringArray, readPref, writePref } from "./prefs";
+import {
+  isBooleanRecord,
+  isFiniteNumber,
+  isStringArray,
+  prefField,
+  readPref,
+  writePref,
+} from "./prefs";
 
 /** What a right-click landed on; `space` carries the world point the pointer was over. */
 export type ContextTarget =
@@ -82,8 +89,6 @@ export interface MapChromeState {
   /** A lane under the pointer, or a lane being dragged out of a system's ring; null otherwise. */
   gesture: MapGesture | null;
   toggleLayer(id: LayerId): void;
-  /** Turns `id` on, leaving it on when it already is; for an edit the user must be able to see. */
-  showLayer(id: LayerId): void;
   /** Shows or hides one point-of-interest kind. */
   toggleKind(kind: SpecialKind): void;
   /** Shows every point-of-interest kind, or hides them all when they are all shown. */
@@ -108,7 +113,10 @@ export interface MapChromeState {
   showTooltip(tip: MapTooltip): void;
   hideTooltip(): void;
   setMeshBeta(beta: number): void;
-  /** Sets a layer without persisting it; for state the app borrows rather than the user sets. */
+  /**
+   * Sets a layer without persisting it: for state the app borrows rather than the user sets, or
+   * an edit the user must be able to see.
+   */
   setLayerQuietly(id: LayerId, on: boolean): void;
   setLanePreview(pairs: Array<[number, number]> | null): void;
   setHighlightInitializer(key: string | null): void;
@@ -129,6 +137,19 @@ const NO_OVERLAYS = {
   // The keys belong to the document that was open, so the filter goes with it.
   hiddenInitializers: new Set<string>(),
 } satisfies Partial<MapChromeState>;
+
+const MESH_BETA_PREF = prefField(PREF_KEYS.meshBeta, MESH_BETA.gabriel, isFiniteNumber);
+
+/**
+ * `changed` with the layers it drags along: the day-one claims draw only inside the empire
+ * borders, so they come on with them and go with them; the borders themselves are drawn either way.
+ */
+function coupled(changed: Partial<Record<LayerId, boolean>>): Partial<Record<LayerId, boolean>> {
+  const out = { ...changed };
+  if (changed.claims === true) out.owners = true;
+  if (changed.owners === false) out.claims = false;
+  return out;
+}
 
 /** A stored kind list, keeping the kinds this build still has: one it has dropped is forgotten. */
 function storedKinds(key: string): SpecialKind[] | null {
@@ -175,23 +196,12 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   ...NO_OVERLAYS,
   layers: storedLayers(DEFAULT_LAYERS),
   shownKinds: new Set<SpecialKind>(storedShownKinds()),
-  meshBeta: readPref(PREF_KEYS.meshBeta, MESH_BETA.gabriel, isFiniteNumber),
+  meshBeta: MESH_BETA_PREF.read(),
 
   toggleLayer(id) {
-    const on = !get().layers[id];
-    const changed: Partial<Record<LayerId, boolean>> = {};
-    changed[id] = on;
-    // The day-one claims draw only inside the empire borders, so they come on with them and go
-    // with them; the borders themselves are drawn either way.
-    if (id === "claims" && on) changed.owners = true;
-    if (id === "owners" && !on) changed.claims = false;
+    const changed = coupled({ [id]: !get().layers[id] });
     set({ layers: { ...get().layers, ...changed } });
     rememberLayers(changed);
-  },
-
-  showLayer(id) {
-    const layers = get().layers;
-    if (!layers[id]) set({ layers: { ...layers, [id]: true } });
   },
 
   toggleKind(kind) {
@@ -199,7 +209,7 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
     if (kindVisible(get(), kind)) shownKinds.delete(kind);
     else {
       shownKinds.add(kind);
-      get().showLayer("special");
+      get().setLayerQuietly("special", true);
     }
     set({ shownKinds });
     rememberKinds(shownKinds);
@@ -234,7 +244,7 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   toggleAllKinds() {
     const all = allKindsVisible(get());
     const shownKinds = new Set<SpecialKind>(all ? [] : allKinds());
-    if (!all) get().showLayer("special");
+    if (!all) get().setLayerQuietly("special", true);
     set({ shownKinds });
     rememberKinds(shownKinds);
   },
@@ -271,10 +281,7 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
     const hide = groupState(get(), kind, source) !== "off";
     const ids = barLayers(group);
     const kinds = barKinds(group);
-    const changed: Partial<Record<LayerId, boolean>> = {};
-    for (const id of ids) changed[id] = !hide;
-    if (hide && ids.includes("owners")) changed.claims = false;
-    if (!hide && ids.includes("claims")) changed.owners = true;
+    const changed = coupled(Object.fromEntries(ids.map((id) => [id, !hide])));
     const layers = { ...get().layers, ...changed };
     // The bar's kind buttons switch with the group; the kinds only the menu lists stay as they are.
     const shownKinds = new Set(get().shownKinds);
@@ -306,7 +313,7 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
 
   setMeshBeta(beta) {
     set({ meshBeta: beta });
-    writePref(PREF_KEYS.meshBeta, beta);
+    MESH_BETA_PREF.save(beta);
   },
 
   setLayerQuietly(id, on) {

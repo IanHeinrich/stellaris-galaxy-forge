@@ -1,7 +1,6 @@
-import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { elements } from "../../test/elements";
+import { buttonIn } from "../../test/elements";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -18,14 +17,7 @@ let dismiss: ReturnType<typeof vi.fn<() => void>>;
 const items = () => renderToStaticMarkup(<ViewMenuItems dismiss={dismiss} />);
 
 /** The menu's button reading `label`, whose `onClick` a test calls in place of a click. */
-function item(label: string): ReactElement<{ onClick(): void }> {
-  const found = elements(<ViewMenuItems dismiss={dismiss} />).find(
-    (el): el is ReactElement<{ onClick(): void }> =>
-      el.type === "button" && renderToStaticMarkup(el).includes(`<span>${label}</span>`),
-  );
-  expect(found).toBeDefined();
-  return found!;
-}
+const item = (label: string) => buttonIn(<ViewMenuItems dismiss={dismiss} />, label)!;
 
 function html(label: string): string {
   return renderToStaticMarkup(item(label));
@@ -41,7 +33,7 @@ beforeEach(() => {
 describe("the View menu", () => {
   it("shows each command's key beside it", () => {
     expect(html("Fit all")).toContain("<kbd>Home</kbd>");
-    expect(html("Fit selection")).toContain("<kbd>⇧ F</kbd>");
+    expect(html("Fit selection")).toContain("<kbd>Shift+F</kbd>");
     expect(html("Hide dock")).toContain("<kbd>Tab</kbd>");
   });
 

@@ -1,14 +1,14 @@
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { elements } from "../../test/elements";
+import { historyEntry as entry } from "../../test/builders";
+import { buttonIn, elements } from "../../test/elements";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
-import type { HistoryEntry } from "../../generated/HistoryEntry";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { OPEN_RESULT, SCENARIO_CAPABILITIES } from "../../store/fixture";
@@ -20,18 +20,7 @@ import { ToolRail } from "./ToolRail";
 const rail = () => renderToStaticMarkup(<ToolRail />);
 
 /** The markup of the rail's one button labelled `label`. */
-function button(label: string): string {
-  const found = elements(<ToolRail />).find(
-    (el): el is ReactElement =>
-      el.type === "button" && (el.props as { "aria-label"?: string })["aria-label"] === label,
-  );
-  expect(found).toBeDefined();
-  return renderToStaticMarkup(found!);
-}
-
-function entry(seq: number, description: string): HistoryEntry {
-  return { seq, description };
-}
+const button = (label: string) => renderToStaticMarkup(buttonIn(<ToolRail />, label)!);
 
 beforeEach(() => {
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
@@ -101,12 +90,7 @@ describe("the tool rail", () => {
     expect(button("Symmetry")).toContain('aria-haspopup="menu" aria-expanded="false"');
     expect(rail()).not.toContain('role="menu"');
 
-    const toggle = elements(<ToolRail />).find(
-      (el): el is ReactElement<{ onClick: () => void }> =>
-        el.type === "button" &&
-        (el.props as { "aria-label"?: string })["aria-label"] === "Symmetry",
-    );
-    toggle!.props.onClick();
+    buttonIn(<ToolRail />, "Symmetry")!.props.onClick();
     expect(useToolStore.getState().symmetryMenu).toBe(true);
     useToolStore.setState({ symmetry: { kind: "rotate", n: 4 } });
     const html = rail();

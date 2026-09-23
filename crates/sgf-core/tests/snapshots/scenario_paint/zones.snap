@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Recompute automatic fallen empire zones
+Set the fallen empire zone of 3 systems
 inverse: SetFeZones { entries: [(9, Some(FeZone { direction: N, kind: Random, distance: 40, preferred: true, fallback: false })), (11, None), (12, Some(FeZone { direction: Se, kind: Materialist, distance: 60, preferred: true, fallback: true }))] }
 
 --- scenario

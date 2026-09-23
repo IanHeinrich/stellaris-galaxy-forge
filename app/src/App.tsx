@@ -8,7 +8,6 @@ import { ContextMenu } from "./panels/overlays/ContextMenu";
 import { LoadingOverlay } from "./panels/overlays/LoadingOverlay";
 import { InitializerBrowser } from "./panels/initializers/Browser";
 import { browseInitializers } from "./panels/initializers/entry";
-import { confirmRemoveNebula } from "./panels/inspector/nebula";
 import { Dock } from "./panels/chrome/Dock";
 import { EditMenu } from "./panels/chrome/EditMenu";
 import { FileMenu } from "./panels/chrome/FileMenu";
@@ -110,7 +109,6 @@ function TopBar() {
 const EFFECTS: CommandEffects = {
   focusSearch: () => document.getElementById(SEARCH_INPUT_ID)?.focus(),
   browseInitializers,
-  confirmRemoveNebula: (index) => void confirmRemoveNebula(index),
 };
 
 function App() {

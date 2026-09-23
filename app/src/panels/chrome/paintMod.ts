@@ -1,27 +1,28 @@
 import * as ipc from "../../api/ipc";
-import {
-  LOCAL_CLUSTER_WORKSHOP_URL,
-  PAINT_WORKSHOP_URL,
-  RESERVED_SPAWNS_WORKSHOP_URL,
-} from "../../lib/paint";
+import type { WorkshopLinks } from "../../generated/WorkshopLinks";
 import { useFileSessionStore } from "../../store/fileSessionStore";
+import { usePaintModStore } from "../../store/paintModStore";
 
-/** Opens one of the shell's allowlisted addresses in the user's browser; a refusal lands on the session. */
-function openAllowlisted(url: string): void {
-  void ipc.openUrl(url).catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
+/** Opens one of the shell's Workshop pages in the user's browser; a refusal lands on the session. */
+function openWorkshop(page: keyof WorkshopLinks): void {
+  void usePaintModStore
+    .getState()
+    .workshopLink(page)
+    .then(ipc.openUrl)
+    .catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
 }
 
-/** Opens the mod's Workshop page in the user's browser, through the allowlisted address only. */
+/** Opens the mod's Workshop page in the user's browser. */
 export function openPaintWorkshop(): void {
-  openAllowlisted(PAINT_WORKSHOP_URL);
+  openWorkshop("paint_a_galaxy");
 }
 
-/** Opens the Reserved Spawns submod's Workshop page, through the allowlisted address only. */
+/** Opens the Reserved Spawns submod's Workshop page. */
 export function openReservedSpawnsWorkshop(): void {
-  openAllowlisted(RESERVED_SPAWNS_WORKSHOP_URL);
+  openWorkshop("reserved_spawns");
 }
 
-/** Opens the Local Cluster submod's Workshop page, through the allowlisted address only. */
+/** Opens the Local Cluster submod's Workshop page. */
 export function openLocalClusterWorkshop(): void {
-  openAllowlisted(LOCAL_CLUSTER_WORKSHOP_URL);
+  openWorkshop("local_cluster");
 }

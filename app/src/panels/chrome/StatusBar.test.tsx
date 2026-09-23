@@ -1,7 +1,6 @@
-import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { elements } from "../../test/elements";
+import { buttonIn } from "../../test/elements";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -20,12 +19,7 @@ import { StatusBar } from "./StatusBar";
 const bar = () => renderToStaticMarkup(<StatusBar />);
 
 /** The bar's button reading `label`, whose `onClick` a test calls in place of a click. */
-function button(label: string): ReactElement<{ onClick(): void }> | undefined {
-  return elements(<StatusBar />).find(
-    (el): el is ReactElement<{ onClick(): void }> =>
-      el.type === "button" && renderToStaticMarkup(el).includes(label),
-  );
-}
+const button = (label: string) => buttonIn(<StatusBar />, label);
 
 beforeEach(() => {
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
@@ -147,7 +141,7 @@ describe("the gesture hint", () => {
 
     const html = bar();
     expect(html).toContain("Cloud selected · 5 systems");
-    expect(html).toContain("drag the centre to move · drag the ring to resize · Delete to remove");
+    expect(html).toContain("drag the centre to move · drag the ring to resize · Del to remove");
   });
 });
 

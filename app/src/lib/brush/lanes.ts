@@ -5,8 +5,6 @@ import { dist2, type Pt } from "../geometry/pt";
 import { forEachSegmentCell, SEGMENT_CELL, SegmentIndex } from "../geometry/segments";
 import { forEachCell } from "../spatialGrid";
 
-export type { Pair };
-
 export type Segment = readonly [Pt, Pt];
 
 /** Which lanes a paint stroke adds: none, among its new systems, or also to the systems near it. */

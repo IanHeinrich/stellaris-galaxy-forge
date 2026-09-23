@@ -136,7 +136,7 @@ describe("fallen empire zones", () => {
     expect(sessionError()).toBe("ring covers Sol");
   });
 
-  it("fitFeZones applies what the backend answers as one SetFeZones, and shows the rings", async () => {
+  it("fitFeZones applies what the backend answers as one SetFeZones under the fit's name, and shows the rings", async () => {
     const entries: Array<[number, FeZone | null]> = [
       [3, { ...newFeZone("n"), preferred: false }],
       [5, null],
@@ -147,7 +147,11 @@ describe("fallen empire zones", () => {
     await editor().fitFeZones(2);
 
     expect(feZoneFit).toHaveBeenCalledWith(2);
-    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "SetFeZones", entries });
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Recompute automatic fallen empire zones",
+      ops: [{ type: "SetFeZones", entries }],
+    });
     expect(useMapChromeStore.getState().layers.feZones).toBe(true);
   });
 
@@ -176,10 +180,7 @@ describe("fallen empire zones", () => {
     land(editResult({ delta: { systems: [], removed: [5] } }));
     await Promise.all([removing, fitting]);
     expect(feZoneFit).toHaveBeenCalledWith(1);
-    expect(mocked.applyOp.mock.calls.map(([op]) => op.type)).toEqual([
-      "RemoveSystem",
-      "SetFeZones",
-    ]);
+    expect(mocked.applyOp.mock.calls.map(([op]) => op.type)).toEqual(["RemoveSystem", "Batch"]);
   });
 
   it("fitFeZones reports a backend that refused to answer", async () => {

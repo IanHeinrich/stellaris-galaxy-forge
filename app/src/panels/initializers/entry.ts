@@ -1,5 +1,4 @@
-import { documentCapabilities, supports } from "../../lib/capabilities";
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { canEdit } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInitializerBrowserStore } from "../../store/initializerBrowserStore";
 
@@ -9,7 +8,7 @@ export const NEEDS_GAME_DATA =
 
 /** Whether the open document is one whose systems carry an initializer of their own. */
 export function initializerDocument(): boolean {
-  return supports(documentCapabilities(useFileSessionStore.getState()), "create_systems");
+  return canEdit("create_systems");
 }
 
 /** Whether the browser is worth offering: a document that sets initializers, with game data read. */

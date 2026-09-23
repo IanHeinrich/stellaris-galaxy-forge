@@ -9,7 +9,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import * as ipc from "../../api/ipc";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { usePaintModStore } from "../../store/paintModStore";
-import { paintModView } from "../../test/builders";
+import { paintModView, workshopLinks } from "../../test/builders";
 import { elements } from "../../test/elements";
 import { PaintModStatus } from "./PaintModStatus";
 
@@ -17,6 +17,7 @@ const status = () => renderToStaticMarkup(<PaintModStatus />);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(ipc.workshopLinks).mockResolvedValue(workshopLinks());
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
 });
@@ -26,7 +27,7 @@ describe("the mod's status line", () => {
     expect(status()).toBe("");
   });
 
-  it("says to subscribe and enable when the mod is not installed, with a link to the Workshop", () => {
+  it("says to subscribe and enable when the mod is not installed, with a link to the Workshop", async () => {
     usePaintModStore.setState({ known: true, paintMod: null });
 
     const html = status();
@@ -37,8 +38,8 @@ describe("the mod's status line", () => {
 
     const link = elements(<PaintModStatus />).find((el) => el.type === "button")!;
     (link.props as { onClick: () => void }).onClick();
-    expect(ipc.openUrl).toHaveBeenCalledWith(
-      "https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115",
+    await vi.waitFor(() =>
+      expect(ipc.openUrl).toHaveBeenCalledWith(workshopLinks().paint_a_galaxy),
     );
   });
 

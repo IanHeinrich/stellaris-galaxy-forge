@@ -1,3 +1,5 @@
+import type { PrefKey } from "./prefKeys";
+
 /** Preferences kept in `localStorage`; anything absent, unreadable or malformed falls back. */
 export function readPref<T>(key: string, fallback: T, valid: (value: unknown) => value is T): T {
   try {
@@ -16,6 +18,23 @@ export function writePref(key: string, value: unknown): void {
   } catch {
     return;
   }
+}
+
+/** One preference under its key: `read` falls back to `fallback` unless given another. */
+export interface PrefField<T> {
+  read(fallback?: T): T;
+  save(value: T): void;
+}
+
+export function prefField<T>(
+  key: PrefKey,
+  fallback: T,
+  valid: (value: unknown) => value is T,
+): PrefField<T> {
+  return {
+    read: (instead = fallback) => readPref(key, instead, valid),
+    save: (value) => writePref(key, value),
+  };
 }
 
 export function isFiniteNumber(value: unknown): value is number {

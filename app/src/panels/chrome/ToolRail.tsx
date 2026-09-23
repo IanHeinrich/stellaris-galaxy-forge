@@ -2,67 +2,53 @@ import type { ReactNode } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { shortcutLabel, toolAction } from "../../lib/keys";
 import { TOOLS, toolRequires, type Tool } from "../../lib/tools";
-import { useEditorStore } from "../../store/editorStore";
+import { redo, undo } from "../../store/commands";
+import { nextRedo, nextUndo, useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useToolStore } from "../../store/toolStore";
+import { Glyph } from "../Glyph";
 import { SymmetryControl } from "./SymmetryControl";
 import "./chrome.css";
 
-function Glyph({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      className="rail-icon"
-      viewBox="0 0 16 16"
-      width="16"
-      height="16"
-      aria-hidden="true"
-      focusable="false"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {children}
-    </svg>
-  );
+function RailGlyph({ children }: { children: ReactNode }) {
+  return <Glyph className="rail-icon">{children}</Glyph>;
 }
 
 const ICONS: Record<Tool, ReactNode> = {
   select: (
-    <Glyph>
+    <RailGlyph>
       <path d="M4 2.5v10.2l2.9-2.7 2 4.2 1.8-.9-2-4.1 3.9-.3Z" fill="currentColor" />
-    </Glyph>
+    </RailGlyph>
   ),
   paint: (
-    <Glyph>
+    <RailGlyph>
       <path d="m13.5 2.5-6 6.5" />
       <path d="M7.5 9c-1.6-.5-3.2.4-3.5 2-.2 1.2-.8 2-1.5 2.5 2.4.6 5.5-.4 5.8-2.6Z" />
       <circle cx="11" cy="12.5" r=".6" fill="currentColor" />
       <circle cx="13.5" cy="10" r=".6" fill="currentColor" />
-    </Glyph>
+    </RailGlyph>
   ),
   erase: (
-    <Glyph>
+    <RailGlyph>
       <path d="M9.5 2.5 14 7l-6.5 6.5H4.5l-2-2Z" />
       <path d="m6 6 4.5 4.5" />
       <path d="M7.5 13.5h6" />
-    </Glyph>
+    </RailGlyph>
   ),
   connect: (
-    <Glyph>
+    <RailGlyph>
       <circle cx="3.5" cy="11.5" r="1.5" />
       <circle cx="8" cy="4.5" r="1.5" />
       <circle cx="12.5" cy="11.5" r="1.5" />
       <path d="m4.3 10.2 2.9-4.4M8.8 5.8l2.9 4.4M5 11.5h6" />
-    </Glyph>
+    </RailGlyph>
   ),
   cut: (
-    <Glyph>
+    <RailGlyph>
       <circle cx="4" cy="12" r="1.8" />
       <circle cx="12" cy="12" r="1.8" />
       <path d="M5.2 10.6 11 2.5M10.8 10.6 5 2.5" />
-    </Glyph>
+    </RailGlyph>
   ),
 };
 
@@ -76,12 +62,8 @@ export function ToolRail() {
   const tool = useToolStore((s) => s.tool);
   const setTool = useToolStore((s) => s.setTool);
   const capabilities = useFileSessionStore(documentCapabilities);
-  const history = useEditorStore((s) => s.history);
-  const undo = useEditorStore((s) => s.undo);
-  const redo = useEditorStore((s) => s.redo);
-
-  const undoEntry = history.undo[history.undo.length - 1];
-  const redoEntry = history.redo[0];
+  const undoEntry = useEditorStore(nextUndo);
+  const redoEntry = useEditorStore(nextRedo);
 
   return (
     <div className="tool-rail" role="toolbar" aria-orientation="vertical" aria-label="Map tools">
@@ -107,34 +89,34 @@ export function ToolRail() {
         <button
           type="button"
           className="icon"
-          disabled={history.undo.length === 0}
+          disabled={!undoEntry}
           aria-label="Undo"
           title={titled(
             undoEntry ? `Undo ${undoEntry.description}` : "Undo",
             shortcutLabel("undo"),
           )}
-          onClick={() => void undo()}
+          onClick={undo}
         >
-          <Glyph>
+          <RailGlyph>
             <path d="M5.5 3.5 2.5 6.5l3 3" />
             <path d="M2.5 6.5h7a4 4 0 0 1 0 8H7" />
-          </Glyph>
+          </RailGlyph>
         </button>
         <button
           type="button"
           className="icon"
-          disabled={history.redo.length === 0}
+          disabled={!redoEntry}
           aria-label="Redo"
           title={titled(
             redoEntry ? `Redo ${redoEntry.description}` : "Redo",
             shortcutLabel("redo"),
           )}
-          onClick={() => void redo()}
+          onClick={redo}
         >
-          <Glyph>
+          <RailGlyph>
             <path d="m10.5 3.5 3 3-3 3" />
             <path d="M13.5 6.5h-7a4 4 0 0 0 0 8H9" />
-          </Glyph>
+          </RailGlyph>
         </button>
       </div>
     </div>

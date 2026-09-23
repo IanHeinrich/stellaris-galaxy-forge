@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -17,18 +18,13 @@ const EARTH: Entry = { ref: { kind: "planet", id: 1207 }, label: "Earth" };
 const effects: CommandEffects = {
   focusSearch: vi.fn(),
   browseInitializers: vi.fn(),
-  confirmRemoveNebula: vi.fn(),
 };
 
 const stored = new Map<string, string>();
 
 beforeEach(() => {
   vi.clearAllMocks();
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
   useInitializerBrowserStore.setState({ ...useInitializerBrowserStore.getInitialState() });
   useInspectorStore.setState({ ...useInspectorStore.getInitialState() });

@@ -17,7 +17,8 @@ import {
   type BaseSite,
 } from "../lib/marauder";
 import { nextSystemId } from "../lib/paint";
-import { refuseOr, systems, type EditorState } from "./editorStore";
+import { refuseOr, systems } from "./editorEdits";
+import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useMapChromeStore } from "./mapChromeStore";
 
@@ -48,7 +49,7 @@ export function marauderActions(
       ];
       const op: Op = { type: "Batch", description: `Added marauder clan ${clan}`, ops };
       if (!(await get().applyOp(op))) return false;
-      useMapChromeStore.getState().showLayer("marauders");
+      useMapChromeStore.getState().setLayerQuietly("marauders", true);
       await get().select(home);
       return true;
     },
@@ -73,7 +74,7 @@ export function marauderActions(
         };
         return get().applyOp(op);
       });
-      if (applied) useMapChromeStore.getState().showLayer("marauders");
+      if (applied) useMapChromeStore.getState().setLayerQuietly("marauders", true);
       return applied;
     },
 

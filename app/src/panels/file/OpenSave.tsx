@@ -364,7 +364,7 @@ export function OpenSave({ modal = false }: { modal?: boolean }) {
 
   const browse = () => {
     if (modal) hide();
-    void pickAndOpen();
+    void pickAndOpen(undefined, undefined, screen.scenarios);
   };
 
   const newScenario = () => {

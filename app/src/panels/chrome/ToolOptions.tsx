@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type CSSProperties } from "react";
+import { useState, type ComponentType, type CSSProperties, type InputHTMLAttributes } from "react";
 import type { EraseTarget } from "../../lib/brush/brushTools";
 import type { LaneMode } from "../../lib/brush/lanes";
 import { betaOfSlider, sliderOfBeta } from "../../lib/geometry/mesh";
@@ -15,19 +15,43 @@ import {
   spacingOfSlider,
   useToolStore,
 } from "../../store/toolStore";
+import { ENTER } from "../keys";
 import "./chrome.css";
 
-/** The brush diameter as a slider and a number; the number applies on Enter or when it loses focus. */
-function SizeOption() {
-  const size = useToolStore((s) => s.size);
-  const setSize = useToolStore((s) => s.setSize);
+/** A number field that applies on Enter or when it loses focus; text that is no number is dropped. */
+function DraftNumber({
+  value,
+  onApply,
+  ...input
+}: { value: number; onApply(value: number): void } & Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type" | "value" | "onChange" | "onBlur" | "onKeyDown"
+>) {
   const [draft, setDraft] = useState<string | null>(null);
   const apply = () => {
     if (draft !== null && Number.isFinite(Number(draft)) && draft.trim() !== "") {
-      setSize(Number(draft));
+      onApply(Number(draft));
     }
     setDraft(null);
   };
+  return (
+    <input
+      type="number"
+      {...input}
+      value={draft ?? value}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={apply}
+      onKeyDown={(e) => {
+        if (e.key === ENTER) apply();
+      }}
+    />
+  );
+}
+
+/** The brush diameter as a slider and a number. */
+function SizeOption() {
+  const size = useToolStore((s) => s.size);
+  const setSize = useToolStore((s) => s.setSize);
   return (
     <label className="tool-option">
       Size
@@ -39,16 +63,11 @@ function SizeOption() {
         onChange={(e) => setSize(Number(e.target.value))}
         aria-label="Brush size"
       />
-      <input
-        type="number"
+      <DraftNumber
         min={SIZE_RANGE.min}
         max={SIZE_RANGE.max}
-        value={draft ?? size}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={apply}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") apply();
-        }}
+        value={size}
+        onApply={setSize}
         aria-label="Brush size in world units"
       />
     </label>
@@ -87,13 +106,6 @@ function PaintOptions() {
   const setSpacing = useToolStore((s) => s.setSpacing);
   const laneMode = useToolStore((s) => s.laneMode);
   const setLaneMode = useToolStore((s) => s.setLaneMode);
-  const [draft, setDraft] = useState<string | null>(null);
-  const apply = () => {
-    if (draft !== null && Number.isFinite(Number(draft)) && draft.trim() !== "") {
-      setSpacing(Number(draft));
-    }
-    setDraft(null);
-  };
   return (
     <>
       <SizeOption />
@@ -112,17 +124,12 @@ function PaintOptions() {
           {reach < 1 && <span className="density-blocked" title={why} aria-hidden="true" />}
         </span>
         <span className="muted">dense</span>
-        <input
-          type="number"
+        <DraftNumber
           min={SPACING_RANGE.min}
           max={SPACING_RANGE.max}
           step={0.1}
-          value={draft ?? spacing}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={apply}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") apply();
-          }}
+          value={spacing}
+          onApply={setSpacing}
           aria-label="Spacing between painted systems in world units"
           title="Distance between painted systems, in world units"
         />

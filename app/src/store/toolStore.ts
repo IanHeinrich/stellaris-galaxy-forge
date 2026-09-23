@@ -1,12 +1,11 @@
 import { create } from "zustand";
 import type { EraseTarget } from "../lib/brush/brushTools";
 import type { LaneMode } from "../lib/brush/lanes";
-import { documentCapabilities, supports } from "../lib/capabilities";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
 import { toolRequires, type Tool } from "../lib/tools";
-import { useFileSessionStore } from "./fileSessionStore";
+import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isBoolean, isFiniteNumber, readPref, writePref } from "./prefs";
+import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
 
 /** What M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
@@ -106,35 +105,41 @@ function isActiveSymmetry(value: unknown): value is ActiveSymmetry {
   return isSymmetry(value) && value.kind !== "off";
 }
 
+const SIZE = prefField(PREF_KEYS.brushSize, SIZE_RANGE.fallback, isFiniteNumber);
+const SPACING = prefField(PREF_KEYS.brushSpacing, SPACING_RANGE.fallback, isFiniteNumber);
+const LANE_MODE = prefField(PREF_KEYS.brushLaneMode, "nearby", oneOf(LANE_MODES));
+const ERASE_TARGET = prefField(PREF_KEYS.eraseTarget, "systems", oneOf(ERASE_TARGETS));
+const ERASE_SPECIALS = prefField(PREF_KEYS.eraseSpecials, false, isBoolean);
+const SYMMETRY = prefField(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry);
+const LAST_SYMMETRY = prefField(PREF_KEYS.symmetryLast, DEFAULT_SYMMETRY, isActiveSymmetry);
+
 function storedLastSymmetry(): ActiveSymmetry {
-  const current = readPref(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry);
-  return readPref(
-    PREF_KEYS.symmetryLast,
-    current.kind === "off" ? DEFAULT_SYMMETRY : current,
-    isActiveSymmetry,
-  );
+  const current = SYMMETRY.read();
+  return LAST_SYMMETRY.read(current.kind === "off" ? DEFAULT_SYMMETRY : current);
 }
 
-function storedNumber(key: string, range: { min: number; max: number; fallback: number }): number {
-  return clamp(readPref(key, range.fallback, isFiniteNumber), range);
+function storedNumber(
+  field: PrefField<number>,
+  range: { min: number; max: number; fallback: number },
+): number {
+  return clamp(field.read(), range);
 }
 
 /** Whether the open document can take `tool`. */
 export function toolAllowed(tool: Tool): boolean {
-  const session = useFileSessionStore.getState();
   const requires = toolRequires(tool);
   if (requires === undefined) return true;
-  return session.status === "ready" && supports(documentCapabilities(session), requires);
+  return useFileSessionStore.getState().status === "ready" && canEdit(requires);
 }
 
 export const useToolStore = create<ToolState>((set, get) => ({
   tool: "select",
-  size: storedNumber(PREF_KEYS.brushSize, SIZE_RANGE),
-  spacing: storedNumber(PREF_KEYS.brushSpacing, SPACING_RANGE),
-  laneMode: readPref(PREF_KEYS.brushLaneMode, "nearby", oneOf(LANE_MODES)),
-  eraseTarget: readPref(PREF_KEYS.eraseTarget, "systems", oneOf(ERASE_TARGETS)),
-  eraseSpecials: readPref(PREF_KEYS.eraseSpecials, false, isBoolean),
-  symmetry: readPref(PREF_KEYS.symmetry, SYMMETRY_OFF, isSymmetry),
+  size: storedNumber(SIZE, SIZE_RANGE),
+  spacing: storedNumber(SPACING, SPACING_RANGE),
+  laneMode: LANE_MODE.read(),
+  eraseTarget: ERASE_TARGET.read(),
+  eraseSpecials: ERASE_SPECIALS.read(),
+  symmetry: SYMMETRY.read(),
   lastSymmetry: storedLastSymmetry(),
   symmetryMenu: false,
 
@@ -147,7 +152,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   setSize(size) {
     const clamped = clamp(Math.round(size), SIZE_RANGE);
     set({ size: clamped });
-    writePref(PREF_KEYS.brushSize, clamped);
+    SIZE.save(clamped);
   },
 
   stepSize(dir) {
@@ -158,30 +163,30 @@ export const useToolStore = create<ToolState>((set, get) => ({
   setSpacing(spacing) {
     const clamped = clamp(roundSpacing(spacing), SPACING_RANGE);
     set({ spacing: clamped });
-    writePref(PREF_KEYS.brushSpacing, clamped);
+    SPACING.save(clamped);
   },
 
   setLaneMode(laneMode) {
     set({ laneMode });
-    writePref(PREF_KEYS.brushLaneMode, laneMode);
+    LANE_MODE.save(laneMode);
   },
 
   setEraseTarget(eraseTarget) {
     set({ eraseTarget });
-    writePref(PREF_KEYS.eraseTarget, eraseTarget);
+    ERASE_TARGET.save(eraseTarget);
   },
 
   setEraseSpecials(eraseSpecials) {
     set({ eraseSpecials });
-    writePref(PREF_KEYS.eraseSpecials, eraseSpecials);
+    ERASE_SPECIALS.save(eraseSpecials);
   },
 
   setSymmetry(symmetry) {
     set({ symmetry });
-    writePref(PREF_KEYS.symmetry, symmetry);
+    SYMMETRY.save(symmetry);
     if (symmetry.kind === "off") return;
     set({ lastSymmetry: symmetry });
-    writePref(PREF_KEYS.symmetryLast, symmetry);
+    LAST_SYMMETRY.save(symmetry);
   },
 
   setSymmetryMenu(symmetryMenu) {

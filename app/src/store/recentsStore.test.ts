@@ -1,19 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 import { saveMeta } from "../test/builders";
 import { recentSubtitle, useRecentsStore, type RecentDoc } from "./recentsStore";
 
 const stored = new Map<string, string>();
 
-function stubStorage(): void {
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
-}
-
 beforeEach(() => {
-  stored.clear();
-  stubStorage();
+  stubPrefs(stored);
   useRecentsStore.setState({ recents: [] });
 });
 

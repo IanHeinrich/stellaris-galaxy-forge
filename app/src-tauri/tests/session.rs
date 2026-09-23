@@ -392,7 +392,7 @@ fn fe_zone_fit_keeps_the_placed_zones_and_spreads_the_count_asked_for() {
     .expect("apply the entries");
     assert_eq!(
         edited.entry.description,
-        "Recompute automatic fallen empire zones"
+        "Set the fallen empire zone of 2 systems"
     );
     assert!(edited.dirty);
     let again: Vec<(u32, Option<FeZone>)> =

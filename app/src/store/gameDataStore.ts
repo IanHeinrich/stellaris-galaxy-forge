@@ -26,7 +26,7 @@ import { useScriptsStore } from "./scriptsStore";
 import { NAMES_BATCH } from "./batching";
 import { useGalaxyStore } from "./galaxyStore";
 import { PREF_KEYS } from "./prefKeys";
-import { readPref, writePref } from "./prefs";
+import { prefField } from "./prefs";
 
 export type GameDataStatus = "idle" | "loading" | "ready" | "error";
 
@@ -197,6 +197,8 @@ function isAutoLoad(value: unknown): value is AutoLoad {
   return value === "ask" || value === "on" || value === "off";
 }
 
+const AUTO_LOAD = prefField<AutoLoad>(PREF_KEYS.autoLoad, "ask", isAutoLoad);
+
 export const useGameDataStore = create<GameDataState>((set, get) => ({
   ...UNLOADED,
   ...NO_SAVE,
@@ -206,7 +208,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
   installPath: rememberedInstallPath() ?? null,
 
   async start() {
-    const autoLoad = readPref<AutoLoad>(PREF_KEYS.autoLoad, "ask", isAutoLoad);
+    const autoLoad = AUTO_LOAD.read();
     set({ autoLoad });
     await get().sync();
     if (autoLoad === "ask") {
@@ -228,7 +230,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
   },
 
   setAutoLoad(autoLoad) {
-    writePref(PREF_KEYS.autoLoad, autoLoad);
+    AUTO_LOAD.save(autoLoad);
     set({ autoLoad });
   },
 
