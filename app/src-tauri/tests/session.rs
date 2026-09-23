@@ -7,7 +7,7 @@ use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeZone};
 use sgf_core::validate::IssueCode;
 use sgf_core::views::{
-    DocumentKind, EditResult, ErrorKind, ExportResult, OpenResult, SaveResult, SearchHit,
+    DocumentKind, EditResult, ErrorKind, ExportResult, OpenResult, SaveResult, SearchResult,
     SystemDetail,
 };
 
@@ -23,7 +23,7 @@ fn open_read_search_close() {
         ErrorKind::NoSession
     );
     assert_eq!(
-        kind(invoke::<Vec<SearchHit>>(
+        kind(invoke::<SearchResult>(
             &w,
             "search",
             json!({ "query": "gamma", "limit": 5 })
@@ -70,10 +70,21 @@ fn open_read_search_close() {
         ErrorKind::NotFound
     );
 
-    let hits: Vec<SearchHit> =
+    let found: SearchResult =
         invoke(&w, "search", json!({ "query": "gamma", "limit": 5 })).expect("search");
-    assert_eq!(hits[0].id, 0);
-    assert!(hits.len() <= 5);
+    assert_eq!(found.hits[0].id, 0);
+    assert!(found.hits.len() <= 5);
+    assert!(found.systems.contains(&0));
+
+    // A system is found by its initializer too, and every system the hits locate comes back.
+    let salvagers: SearchResult =
+        invoke(&w, "search", json!({ "query": "salvager", "limit": 1 })).expect("search");
+    assert_eq!(salvagers.hits.len(), 1, "{:?}", salvagers.hits);
+    assert_eq!(
+        salvagers.hits[0].matched_on.as_deref(),
+        Some("salvager_enclave_init_01")
+    );
+    assert_eq!(salvagers.systems, [17, 57, 90]);
 
     invoke::<()>(&w, "close_save", json!({})).expect("close");
     assert_eq!(

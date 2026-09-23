@@ -33,6 +33,8 @@ const HOVER = { color: 0xffffff, radius: 9, width: 1.5, alpha: 0.6 };
 const GHOST = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
 /** Systems using the initializer the browser is highlighting: muted, distinct from selection and hover. */
 const MATCHED = { color: 0x7dd3fc, radius: 13, width: 2, alpha: 0.6 };
+/** Systems the search palette's query locates, while it holds one. */
+const SEARCHED = { color: 0xf472b6, radius: 14, width: 2, alpha: 0.8 };
 const TARGET_VALID = { color: ALLOWED_COLOR, radius: 13, width: 2, alpha: 0.9 };
 /** Systems a nebula drag would take in, and those it would let go. */
 const JOINING = { color: ALLOWED_COLOR, radius: 15, width: 2, alpha: 0.85 };
@@ -191,6 +193,7 @@ export class HighlightsLayer implements MapLayer {
   private readonly selectionRings = new RingBatch(SELECTION, "selectionRings");
   private readonly ghostRings = new RingBatch(GHOST, "ghostRings");
   private readonly matchedRings = new RingBatch(MATCHED, "matchedRings");
+  private readonly searchedRings = new RingBatch(SEARCHED, "searchedRings");
   private readonly joiningRings = new RingBatch(JOINING, "joiningRings");
   private readonly leavingRings = new RingBatch(LEAVING, "leavingRings");
   private readonly midpoint = midpointButton();
@@ -212,6 +215,7 @@ export class HighlightsLayer implements MapLayer {
   private hoverId: number | null = null;
   private hoverFeZone: number | null = null;
   private matched: ReadonlySet<number> = new Set();
+  private searched: ReadonlySet<number> = new Set();
   private ghosts: readonly MoveGhost[] = [];
   private dragged: ReadonlyMap<number, MoveGhost> = new Map();
   private rubber: RubberLane | null = null;
@@ -245,6 +249,7 @@ export class HighlightsLayer implements MapLayer {
       this.selectionRings.container,
       this.ghostRings.container,
       this.matchedRings.container,
+      this.searchedRings.container,
       this.joiningRings.container,
       this.leavingRings.container,
       this.midpoint,
@@ -263,6 +268,7 @@ export class HighlightsLayer implements MapLayer {
     if (!loaded) return;
     this.placeSelection();
     this.placeMatched();
+    this.placeSearched();
     this.placeAll();
     this.drawPreviews();
     this.drawLanes();
@@ -271,6 +277,7 @@ export class HighlightsLayer implements MapLayer {
   applyDelta(d: GalaxyDelta): void {
     if (touches(d, this.selection)) this.placeSelection();
     if (touches(d, this.matched)) this.placeMatched();
+    if (touches(d, this.searched)) this.placeSearched();
     this.placeAll();
     this.drawPreviews();
     this.drawLanes();
@@ -354,6 +361,11 @@ export class HighlightsLayer implements MapLayer {
     this.placeMatched();
   }
 
+  setSearched(ids: ReadonlySet<number>): void {
+    this.searched = ids;
+    this.placeSearched();
+  }
+
   /** The ghost ring a nebula drag is proposing, with the systems it would gain and lose. */
   setNebulaPreview(preview: NebulaPreview | null): void {
     this.nebula = preview;
@@ -389,6 +401,7 @@ export class HighlightsLayer implements MapLayer {
       this.selectionRings,
       this.ghostRings,
       this.matchedRings,
+      this.searchedRings,
       this.joiningRings,
       this.leavingRings,
     ];
@@ -409,6 +422,10 @@ export class HighlightsLayer implements MapLayer {
     this.matchedRings.place(pointsOf(this.systems, this.matched));
   }
 
+  private placeSearched(): void {
+    this.searchedRings.place(pointsOf(this.systems, this.searched));
+  }
+
   /** The hover ring, unless the selection already rings that system, and the port ring. */
   private placeHover(): void {
     const hoverId = this.hoverId !== null && this.selection.has(this.hoverId) ? null : this.hoverId;
@@ -416,7 +433,7 @@ export class HighlightsLayer implements MapLayer {
     this.drawPort();
   }
 
-  /** Everything but the selection and the matched systems, each a handful of rings at most. */
+  /** Everything but the selection, matched and searched systems: a handful of rings at most. */
   private placeAll(): void {
     this.placeHover();
     this.drawTarget();

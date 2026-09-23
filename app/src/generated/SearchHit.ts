@@ -44,4 +44,10 @@ planet_class: string | null,
  * Where to pan: the focused system's position, or the nebula's centre. `None` when
  * nothing locates the hit, such as a country with no capital.
  */
-position: [number, number] | null, };
+position: [number, number] | null, 
+/**
+ * For a system found by what it holds rather than its name, the thing matched: an
+ * initializer or flag key, a special kind (`Enclave`), a bypass (`L-Gate`), or a
+ * planet class, localised when the resolver knows it. `None` for a name match.
+ */
+matched_on: string | null, };

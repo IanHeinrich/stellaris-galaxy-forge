@@ -1,0 +1,14 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+System #46 Waledan Black Hole · - → #46 at (27.98, -450.42)
+System #55 Nivogi Black Hole · - → #55 at (219, 58.85)
+System #57 Ter Meku Black Hole · - → #57 at (-154.95, 225.37)
+System #208 Proteemas Black Hole · - → #208 at (-237.2, -96.35)
+System #258 Verrakas Black Hole · - → #258 at (238.06, -208.52)
+System #508 Gindor Black Hole · - → #508 at (352.84, 192.85)
+System #610 Xuukanis Black Hole · - → #610 at (-203.08, -218.36)
+System #6 Gaping Maw · matched=pc_black_hole → #6 at (192.35, -238.8)
+System #11 VOIDWORM SYSTEM 05 · matched=pc_black_hole → #11 at (42.43, -420.36)
+System #12 Quiet Dark · owner=Hathgum Marauders matched=pc_black_hole → #12 at (-146.97, 134.84)

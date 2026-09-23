@@ -1,5 +1,6 @@
-//! Search by id and name on the real sample save.
+//! Search by id, name and what a system holds, on the real sample save.
 use sgf_core::projections::galaxy::display_name;
+use sgf_core::search::NameResolver;
 use sgf_core::session::Session;
 use sgf_core::views::{SearchHit, SearchKind};
 
@@ -15,6 +16,14 @@ fn warm() -> Session {
 
 fn no_loc(_: &str) -> Option<String> {
     None
+}
+
+fn no_special(_: u32) -> Vec<&'static str> {
+    Vec::new()
+}
+
+fn find(s: &Session, query: &str, limit: usize, loc: NameResolver<'_>) -> Vec<SearchHit> {
+    s.search(query, limit, loc, &no_special).hits
 }
 
 /// What the palette shows without game data, as `app/src/lib/names.ts` resolves the template.
@@ -40,6 +49,9 @@ fn fields(h: &SearchHit) -> String {
     }
     if let Some(class) = &h.planet_class {
         parts.push(format!("class={class}"));
+    }
+    if let Some(matched_on) = &h.matched_on {
+        parts.push(format!("matched={matched_on}"));
     }
     if parts.is_empty() {
         "-".to_owned()
@@ -74,7 +86,7 @@ fn report(hits: &[SearchHit]) -> String {
 fn finds_systems_by_name_and_id() {
     let s = open();
 
-    let hits = of_kind(&s.search("gamma", 10, &no_loc), SearchKind::System);
+    let hits = of_kind(&find(&s, "gamma", 10, &no_loc), SearchKind::System);
     assert_eq!(hits[0].id, 0, "{hits:?}");
     assert_eq!(hits[0].name_key, "NAME_Gamma_Refuge");
     assert_eq!(shown(&hits[0]), "Gamma Refuge");
@@ -83,27 +95,27 @@ fn finds_systems_by_name_and_id() {
     assert!(hits.len() <= 10);
 
     // Exact display name, any case, with or without the prefix.
-    assert_eq!(s.search("Gamma Refuge", 10, &no_loc)[0].id, 0);
-    assert_eq!(s.search("  gamma refuge ", 10, &no_loc)[0].id, 0);
-    assert_eq!(s.search("NAME_Gamma_Refuge", 10, &no_loc)[0].id, 0);
+    assert_eq!(find(&s, "Gamma Refuge", 10, &no_loc)[0].id, 0);
+    assert_eq!(find(&s, "  gamma refuge ", 10, &no_loc)[0].id, 0);
+    assert_eq!(find(&s, "NAME_Gamma_Refuge", 10, &no_loc)[0].id, 0);
 
     // An id wins over any name match.
-    let hits = of_kind(&s.search("0", 10, &no_loc), SearchKind::System);
+    let hits = of_kind(&find(&s, "0", 10, &no_loc), SearchKind::System);
     assert_eq!(hits[0].id, 0);
     assert!(hits.iter().filter(|h| h.id == 0).count() == 1);
-    assert_eq!(s.search("790", 10, &no_loc)[0].id, 790);
+    assert_eq!(find(&s, "790", 10, &no_loc)[0].id, 790);
 
     // A word-start match ranks above a mid-word substring, ties by id.
-    let hits = of_kind(&s.search("refuge", 10, &no_loc), SearchKind::System);
+    let hits = of_kind(&find(&s, "refuge", 10, &no_loc), SearchKind::System);
     assert_eq!(hits[0].id, 0);
     let ids: Vec<u32> = hits.iter().map(|h| h.id).collect();
     let mut sorted = ids.clone();
     sorted.sort_unstable();
     assert_eq!(ids, sorted, "same rank, id ascending");
 
-    assert!(s.search("", 10, &no_loc).is_empty());
-    assert!(s.search("   ", 10, &no_loc).is_empty());
-    assert!(s.search("no such system anywhere", 10, &no_loc).is_empty());
+    assert!(find(&s, "", 10, &no_loc).is_empty());
+    assert!(find(&s, "   ", 10, &no_loc).is_empty());
+    assert!(find(&s, "no such system anywhere", 10, &no_loc).is_empty());
 }
 
 #[test]
@@ -111,19 +123,19 @@ fn matches_the_resolved_name_and_carries_the_template() {
     let s = open();
     let loc = |key: &str| (key == "NAME_Gamma_Refuge").then(|| "The Haven".to_owned());
 
-    let hits = s.search("haven", 10, &loc);
+    let hits = find(&s, "haven", 10, &loc);
     assert_eq!(hits[0].id, 0, "{hits:?}");
     assert_eq!(
         hits[0].name.key, "NAME_Gamma_Refuge",
         "the UI resolves the name"
     );
-    assert_eq!(s.search("The Haven", 10, &loc)[0].id, 0);
+    assert_eq!(find(&s, "The Haven", 10, &loc)[0].id, 0);
 
     // The key still matches when the localised text does not.
-    assert_eq!(s.search("gamma refuge", 10, &loc)[0].id, 0);
+    assert_eq!(find(&s, "gamma refuge", 10, &loc)[0].id, 0);
 
     // Unresolved systems fall back to the display form of the key.
-    let other = s.search("790", 10, &loc);
+    let other = find(&s, "790", 10, &loc);
     assert_eq!(other[0].id, 790);
     assert!(
         !shown(&other[0]).starts_with("NAME_"),
@@ -135,19 +147,19 @@ fn matches_the_resolved_name_and_carries_the_template() {
 #[test]
 fn respects_the_limit_within_each_kind() {
     let s = warm();
-    let all = of_kind(&s.search("a", 1000, &no_loc), SearchKind::System);
+    let all = of_kind(&find(&s, "a", 1000, &no_loc), SearchKind::System);
     assert!(all.len() > 3, "{}", all.len());
-    let three = s.search("a", 3, &no_loc);
+    let three = find(&s, "a", 3, &no_loc);
     assert_eq!(of_kind(&three, SearchKind::System).len(), 3);
     assert_eq!(of_kind(&three, SearchKind::Planet).len(), 3);
     assert_eq!(of_kind(&three, SearchKind::System), all[..3]);
-    assert!(s.search("a", 0, &no_loc).is_empty());
+    assert!(find(&s, "a", 0, &no_loc).is_empty());
 }
 
 #[test]
 fn hits_come_back_grouped_by_kind() {
     let s = warm();
-    let hits = s.search("a", 5, &no_loc);
+    let hits = find(&s, "a", 5, &no_loc);
     let kinds: Vec<SearchKind> = hits.iter().map(|h| h.kind).collect();
     let mut grouped = kinds.clone();
     grouped.sort();
@@ -170,29 +182,29 @@ fn hits_come_back_grouped_by_kind() {
 fn finds_a_planet_a_country_a_fleet_and_a_nebula() {
     let s = warm();
 
-    let earth = of_kind(&s.search("earth", 5, &no_loc), SearchKind::Planet);
+    let earth = of_kind(&find(&s, "earth", 5, &no_loc), SearchKind::Planet);
     assert_eq!(shown(&earth[0]), "Earth");
     assert_eq!(earth[0].system_id, Some(217), "Earth is in Sol");
-    common::snapshot("earth", &report(&s.search("earth", 5, &no_loc)));
+    common::snapshot("earth", &report(&find(&s, "earth", 5, &no_loc)));
 
-    let man = of_kind(&s.search("commonwealth", 5, &no_loc), SearchKind::Country);
+    let man = of_kind(&find(&s, "commonwealth", 5, &no_loc), SearchKind::Country);
     assert_eq!(shown(&man[0]), "Commonwealth of Man");
     assert_eq!(man[0].system_id, Some(4), "its capital's system");
     assert_eq!(man[0].country_type.as_deref(), Some("default"));
     assert!(man[0].system_count.is_some_and(|n| n > 0));
     common::snapshot(
         "commonwealth",
-        &report(&s.search("commonwealth", 5, &no_loc)),
+        &report(&find(&s, "commonwealth", 5, &no_loc)),
     );
 
-    let drake = of_kind(&s.search("ether drake", 5, &no_loc), SearchKind::Fleet);
+    let drake = of_kind(&find(&s, "ether drake", 5, &no_loc), SearchKind::Fleet);
     assert_eq!(shown(&drake[0]), "Ether Drake");
     assert!(drake[0].system_id.is_some(), "the system it sits in");
     assert!(drake[0].owner.is_some(), "the country running it");
-    common::snapshot("ether_drake", &report(&s.search("ether drake", 5, &no_loc)));
+    common::snapshot("ether_drake", &report(&find(&s, "ether drake", 5, &no_loc)));
 
     // A templated name travels whole, so the UI resolves it instead of showing the stand-in.
-    let trans = of_kind(&s.search("commonwealth", 5, &no_loc), SearchKind::Fleet);
+    let trans = of_kind(&find(&s, "commonwealth", 5, &no_loc), SearchKind::Fleet);
     assert_eq!(trans[0].name.key, "TRANS_FLEET_NAME");
     assert_eq!(
         trans[0]
@@ -204,44 +216,144 @@ fn finds_a_planet_a_country_a_fleet_and_a_nebula() {
         ["COUNTRY", "NUMBER"]
     );
 
-    let miasma = of_kind(&s.search("miasma", 5, &no_loc), SearchKind::Nebula);
+    let miasma = of_kind(&find(&s, "miasma", 5, &no_loc), SearchKind::Nebula);
     assert_eq!(shown(&miasma[0]), "Phantom Streak Miasma");
     assert_eq!(miasma[0].system_id, None, "a nebula has its own position");
-    common::snapshot("miasma", &report(&s.search("miasma", 5, &no_loc)));
+    common::snapshot("miasma", &report(&find(&s, "miasma", 5, &no_loc)));
 }
 
 #[test]
 fn search_never_builds_the_details_projection_and_warming_widens_it() {
     let mut s = open();
-    let hits = s.search("earth", 5, &no_loc);
+    let hits = find(&s, "earth", 5, &no_loc);
     assert!(s.built_details().is_none(), "search built the details");
     assert!(of_kind(&hits, SearchKind::Planet).is_empty());
     assert!(of_kind(&hits, SearchKind::Fleet).is_empty());
     // Systems, countries and nebulae come from the galaxy projection alone.
-    assert!(!of_kind(&s.search("miasma", 5, &no_loc), SearchKind::Nebula).is_empty());
-    let man = of_kind(&s.search("commonwealth", 5, &no_loc), SearchKind::Country);
+    assert!(!of_kind(&find(&s, "miasma", 5, &no_loc), SearchKind::Nebula).is_empty());
+    let man = of_kind(&find(&s, "commonwealth", 5, &no_loc), SearchKind::Country);
     assert_eq!(shown(&man[0]), "Commonwealth of Man");
 
     s.warm_details().expect("build details");
     s.warm_details().expect("warming twice is a no-op");
     assert!(s.built_details().is_some());
-    let hits = s.search("earth", 5, &no_loc);
+    let hits = find(&s, "earth", 5, &no_loc);
     assert_eq!(shown(&of_kind(&hits, SearchKind::Planet)[0]), "Earth");
-    assert!(!of_kind(&s.search("ether drake", 5, &no_loc), SearchKind::Fleet).is_empty());
+    assert!(!of_kind(&find(&s, "ether drake", 5, &no_loc), SearchKind::Fleet).is_empty());
 }
 
 #[test]
 fn a_hit_with_nowhere_to_pan_has_no_position() {
     let s = warm();
-    let marauders = of_kind(&s.search("marauders", 5, &no_loc), SearchKind::Country);
+    let marauders = of_kind(&find(&s, "marauders", 5, &no_loc), SearchKind::Country);
     let hit = marauders.first().expect("a marauder country");
     assert_eq!(hit.system_id, None, "{hit:?}");
     assert_eq!(hit.position, None, "not the galaxy centre");
 
-    let sol = of_kind(&s.search("sol", 5, &no_loc), SearchKind::System);
+    let sol = of_kind(&find(&s, "sol", 5, &no_loc), SearchKind::System);
     assert!(sol[0].position.is_some());
 
     // An unowned system carries no owner; the palette, not sgf-core, calls it unclaimed.
-    let unowned = of_kind(&s.search("790", 5, &no_loc), SearchKind::System);
+    let unowned = of_kind(&find(&s, "790", 5, &no_loc), SearchKind::System);
     assert_eq!(unowned[0].owner, None, "{:?}", unowned[0]);
+}
+
+#[test]
+fn finds_systems_by_what_they_hold() {
+    let s = warm();
+    let systems = |query: &str| of_kind(&find(&s, query, 20, &no_loc), SearchKind::System);
+    let matched = |hits: &[SearchHit]| -> Vec<Option<String>> {
+        hits.iter().map(|h| h.matched_on.clone()).collect()
+    };
+
+    let salvager = systems("salvager");
+    assert_eq!(salvager[0].id, 17, "{salvager:?}");
+    assert_eq!(
+        salvager[0].matched_on.as_deref(),
+        Some("salvager_enclave_init_01")
+    );
+    common::snapshot("salvager", &report(&salvager));
+
+    let gaia = systems("gaia");
+    assert!(!gaia.is_empty());
+    assert!(
+        gaia.iter()
+            .all(|h| h.matched_on.as_deref() == Some("pc_gaia"))
+    );
+    let loc = |key: &str| (key == "pc_gaia").then(|| "Gaia World".to_owned());
+    let localised = of_kind(&find(&s, "gaia world", 20, &loc), SearchKind::System);
+    assert_eq!(localised.len(), gaia.len());
+    assert_eq!(localised[0].matched_on.as_deref(), Some("Gaia World"));
+
+    let lgates = systems("l-gate");
+    assert!(!lgates.is_empty());
+    assert!(
+        lgates
+            .iter()
+            .all(|h| h.matched_on.as_deref() == Some("L-Gate"))
+    );
+    let wormholes = systems("wormhole");
+    assert!(
+        [788, 789]
+            .iter()
+            .all(|id| wormholes.iter().any(|h| h.id == *id)),
+        "both ends of the pair"
+    );
+    assert!(!systems("gateway").is_empty());
+
+    // Filler words and mid-word hits match nothing by content.
+    for query in ["system", "age", "init", "01", "star", "g"] {
+        assert!(
+            systems(query).iter().all(|h| h.matched_on.is_none()),
+            "{query}"
+        );
+    }
+
+    // Every name match ranks before every content match.
+    let black = systems("black");
+    let first_content = black.iter().position(|h| h.matched_on.is_some());
+    let first_content = first_content.expect("a black hole with another name");
+    assert!(first_content > 0);
+    assert!(matched(&black[first_content..]).iter().all(Option::is_some));
+    common::snapshot("black", &report(&black[..first_content + 3]));
+}
+
+#[test]
+fn a_special_kind_matches_only_when_game_data_names_it() {
+    let s = open();
+    let without = of_kind(&find(&s, "leviathan", 50, &no_loc), SearchKind::System);
+    assert!(without.iter().all(|h| h.id != 31), "{without:?}");
+
+    let lair = |id: u32| {
+        if id == 31 {
+            vec!["Leviathan"]
+        } else {
+            Vec::new()
+        }
+    };
+    let with = of_kind(
+        &s.search("leviathan", 50, &no_loc, &lair).hits,
+        SearchKind::System,
+    );
+    let hit = with.iter().find(|h| h.id == 31).expect("the lair");
+    assert_eq!(hit.matched_on.as_deref(), Some("Leviathan"));
+}
+
+#[test]
+fn every_located_system_is_returned_beyond_the_limit() {
+    let s = warm();
+    let all = s.search("gaia", 100, &no_loc, &no_special);
+    let few = s.search("gaia", 2, &no_loc, &no_special);
+    assert_eq!(of_kind(&few.hits, SearchKind::System).len(), 2);
+    assert_eq!(few.systems, all.systems);
+    assert!(
+        few.systems.windows(2).all(|w| w[0] < w[1]),
+        "ascending, no repeats"
+    );
+
+    // A planet locates its system; a nebula locates none.
+    let earth = s.search("earth", 5, &no_loc, &no_special);
+    assert!(earth.systems.contains(&217), "{:?}", earth.systems);
+    let miasma = s.search("miasma", 5, &no_loc, &no_special);
+    assert!(miasma.systems.is_empty(), "{:?}", miasma.systems);
 }
