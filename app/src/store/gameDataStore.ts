@@ -58,6 +58,8 @@ export interface GameDataState {
   names: Map<string, string>;
   starClasses: Map<string, StarClassView>;
   mapColors: Map<string, MapColor>;
+  /** The mod whose `flags/colors.txt` `mapColors` comes from; null for the game's own. */
+  mapColorSource: string | null;
   planetClasses: Map<string, PlanetClassView>;
   deposits: Map<string, DepositView>;
   /** Bypass kind → its map icon frame, for the badge a bypass wears. */
@@ -145,6 +147,7 @@ const UNLOADED = {
   names: new Map<string, string>(),
   starClasses: new Map<string, StarClassView>(),
   mapColors: new Map<string, MapColor>(),
+  mapColorSource: null as string | null,
   planetClasses: new Map<string, PlanetClassView>(),
   deposits: new Map<string, DepositView>(),
   bypasses: new Map<string, BypassView>(),
@@ -584,6 +587,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
   const [
     starClasses,
     mapColors,
+    mapColorSource,
     planetClasses,
     deposits,
     bypasses,
@@ -594,6 +598,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
   ] = await Promise.all([
     ipc.getStarClasses(),
     ipc.getMapColors(),
+    ipc.getMapColorSource(),
     ipc.getPlanetClasses(),
     ipc.getDeposits(),
     ipc.getBypasses(),
@@ -606,6 +611,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
   useGameDataStore.setState({
     starClasses: new Map(starClasses.map((c) => [c.key, c])),
     mapColors: new Map(mapColors.map((c) => [c.name, c])),
+    mapColorSource,
     planetClasses: new Map(planetClasses.map((c) => [c.key, c])),
     deposits: new Map(deposits.map((d) => [d.key, d])),
     bypasses: new Map(bypasses.map((b) => [b.key, b])),

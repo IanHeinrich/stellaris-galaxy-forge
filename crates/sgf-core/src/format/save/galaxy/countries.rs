@@ -49,6 +49,8 @@ fn node(raw: RawCountry) -> Option<CountryNode> {
         colors: raw.colors,
         border_color: raw.border_color,
         fill_color: raw.fill_color,
+        flag_colors: raw.flag_colors,
+        use_map_color: raw.use_map_color,
         flag_icon: raw.flag_icon,
         flag_background: raw.flag_background,
         flags: raw.flags,

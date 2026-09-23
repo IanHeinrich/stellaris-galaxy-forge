@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { CountryNode } from "../generated/CountryNode";
 import type { EditResult } from "../generated/EditResult";
 import type { Op } from "../generated/Op";
 import type { SystemDetails } from "../generated/SystemDetails";
@@ -23,6 +24,7 @@ import {
   planetSummary,
   systemDetails,
 } from "./fixture";
+import { name } from "../test/builders";
 
 beforeEach(openFixtureSave);
 
@@ -122,6 +124,51 @@ describe("editing", () => {
 
     expect(mocked.applyOp).toHaveBeenCalledWith({ type: "MoveNebula", index: 0, x: -20, y: 30 });
     expect(useGalaxyStore.getState().nebulae[0]).toEqual(moved);
+  });
+
+  it("a delta's countries replace the copies the map paints, on an op and on its undo", async () => {
+    const empire: CountryNode = {
+      id: 0,
+      name: name("EMPIRE_Fixture"),
+      name_key: "EMPIRE_Fixture",
+      country_type: "default",
+      capital_system: 0,
+      system_count: 1,
+      colors: ["red", "purple", "black", "grey", "red", "purple"],
+      border_color: null,
+      fill_color: null,
+      flag_colors: ["red", "purple", "black", "grey", "red", "purple"],
+      use_map_color: false,
+      flag_icon: null,
+      flag_background: null,
+    };
+    mocked.openSave.mockResolvedValueOnce({
+      ...OPEN_RESULT,
+      galaxy: { ...OPEN_RESULT.galaxy, countries: [empire] },
+    });
+    await useFileSessionStore.getState().openSave(OPEN_RESULT.path);
+    const chosen: CountryNode = {
+      ...empire,
+      colors: ["red", "purple", "black", "grey", "intense_red", "light_pink"],
+      border_color: "intense_red",
+      fill_color: "light_pink",
+      flag_colors: ["red", "purple", "black", "grey", "intense_red", "light_pink"],
+      use_map_color: true,
+    };
+    mocked.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], countries: [chosen] } }),
+    );
+
+    await editor().applyOp({
+      type: "SetEmpireMapColors",
+      country: 0,
+      colors: { border: "intense_red", fill: "light_pink" },
+    });
+    expect(useGalaxyStore.getState().countries.get(0)).toEqual(chosen);
+
+    mocked.undo.mockResolvedValueOnce(editResult({ delta: { systems: [], countries: [empire] } }));
+    await editor().undo();
+    expect(useGalaxyStore.getState().countries.get(0)).toEqual(empire);
   });
 
   it("stale details stay cached, the projection is warmed again and the system is re-read", async () => {

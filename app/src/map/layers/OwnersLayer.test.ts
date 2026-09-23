@@ -31,6 +31,8 @@ const COUNTRY: CountryNode = {
   colors: [],
   border_color: null,
   fill_color: null,
+  flag_colors: [],
+  use_map_color: false,
   flag_icon: null,
   flag_background: null,
 };

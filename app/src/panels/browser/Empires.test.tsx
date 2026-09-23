@@ -17,7 +17,7 @@ import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { Empires } from "./Empires";
+import { Empires, MAP_COLORS_NEED_4_5, MapColorStrip } from "./Empires";
 
 const mocked = {
   openSave: vi.mocked(ipc.openSave),
@@ -102,6 +102,8 @@ const EMPIRE: CountryNode = {
   colors: ["fixture_blue", "fixture_blue"],
   border_color: null,
   fill_color: null,
+  flag_colors: [],
+  use_map_color: false,
   flag_icon: null,
   flag_background: null,
 };
@@ -123,5 +125,70 @@ describe("a save's empire rows", () => {
     expect(html).not.toContain('class="chip init"');
     expect(html).not.toContain(">day 1<");
     expect(html).not.toContain(">assumed<");
+  });
+
+  it("offers the map colour edit on each empire", async () => {
+    mocked.openSave.mockResolvedValue(SAVE_WITH_EMPIRE);
+    await useFileSessionStore.getState().openSave(SAVE_WITH_EMPIRE.path);
+
+    expect(empires()).toContain('aria-label="Edit Test Empire&#x27;s map colours"');
+  });
+});
+
+describe("an empire's map colour strip", () => {
+  /** An empire of a 4.5 save with a map border and fill of its own. */
+  const CHOSEN: CountryNode = {
+    ...EMPIRE,
+    flag_colors: ["red", "purple", "black", "grey", "intense_red", "light_pink"],
+    use_map_color: true,
+  };
+  const PALETTE = [
+    { name: "intense_red", map: "#e02020", flag: "#e02020", ship: "#e02020" },
+    { name: "light_pink", map: "#f0b0c0", flag: "#f0b0c0", ship: "#f0b0c0" },
+  ];
+  const strip = (country: CountryNode) => renderToStaticMarkup(<MapColorStrip country={country} />);
+
+  beforeEach(() => {
+    useGameDataStore.setState({
+      mapColors: new Map(PALETTE.map((c) => [c.name, c])),
+      mapColorSource: null,
+    });
+  });
+
+  it("shows the current border and fill with their swatches, and the game's palette", () => {
+    const html = strip(CHOSEN);
+    expect(html).toContain("Map colours");
+    expect(html).toContain('aria-label="Border: intense_red"');
+    expect(html).toContain('aria-label="Fill: light_pink"');
+    expect(html).toContain("background:#e02020");
+    expect(html).toContain("background:#f0b0c0");
+    expect(html).toContain("Use flag colours instead");
+    expect(html).not.toMatch(/<input[^>]*checked/);
+    expect(html).toContain("Palette: Stellaris");
+    expect(html).not.toContain(MAP_COLORS_NEED_4_5);
+  });
+
+  it("ticks the flag colours box when map colours are off, and names a colour it cannot find", () => {
+    const html = strip({
+      ...CHOSEN,
+      flag_colors: [...CHOSEN.flag_colors.slice(0, 4), "red", "purple"],
+      use_map_color: false,
+    });
+    expect(html).toMatch(/<input[^>]*checked/);
+    expect(html).toContain('aria-label="Border: unknown: red"');
+  });
+
+  it("asks for a 4.5 save when the empire has only its four flag colours", () => {
+    const html = strip({ ...EMPIRE, flag_colors: ["red", "purple", "black", "grey"] });
+    expect(html).toContain(MAP_COLORS_NEED_4_5);
+    expect(html).not.toContain("Border");
+  });
+
+  it("names the mod the palette comes from, and that the save needs it", () => {
+    useGameDataStore.setState({ mapColorSource: "More Colours" });
+
+    const html = strip(CHOSEN);
+    expect(html).toContain("Palette: More Colours");
+    expect(html).toContain("The save needs this mod to show these colours.");
   });
 });
