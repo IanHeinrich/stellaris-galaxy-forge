@@ -20,7 +20,7 @@ import type { SaveFile } from "../generated/SaveFile";
 import type { SaveResult } from "../generated/SaveResult";
 import type { ScenarioListings } from "../generated/ScenarioListings";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
-import type { SearchHit } from "../generated/SearchHit";
+import type { SearchResult } from "../generated/SearchResult";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemDetails } from "../generated/SystemDetails";
 
@@ -94,9 +94,12 @@ export function getSystem(id: number): Promise<SystemDetail> {
   return invoke<SystemDetail>("get_system", { id });
 }
 
-/** Systems whose id or name matches `query`, best first, at most `limit`. */
-export function search(query: string, limit = 20): Promise<SearchHit[]> {
-  return invoke<SearchHit[]>("search", { query, limit });
+/**
+ * What matches `query` by id, name or what a system holds, best first, at most `limit` of each
+ * kind, with every system the matches locate.
+ */
+export function search(query: string, limit = 20): Promise<SearchResult> {
+  return invoke<SearchResult>("search", { query, limit });
 }
 
 /** Build the details projection so search also finds planets and fleets. */

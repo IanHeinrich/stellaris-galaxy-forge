@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../api/errors";
-import { search } from "../../api/session";
 import type { SearchHit } from "../../generated/SearchHit";
 import { planetClassLabel } from "../../lib/details/labels";
-import { displayTemplate, templateName } from "../../lib/names";
+import { displayName, displayTemplate, templateName } from "../../lib/names";
 import { useEditorStore } from "../../store/editorStore";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -67,12 +66,18 @@ function classLabel(look: Lookups, key: string | null): string | null {
   return look.names.get(key) ?? planetClassLabel(key);
 }
 
+/** What a system found by its contents matched on: a planet class, or a key or label. */
+function matchedLabel(look: Lookups, matched: string | null): string | null {
+  if (matched === null) return null;
+  return matched.startsWith("pc_") ? classLabel(look, matched) : displayName(matched);
+}
+
 /** What each kind of hit says under its name. */
 function subline(hit: SearchHit, look: Lookups): string {
   const owner = hit.owner === null ? null : displayTemplate(hit.owner);
   switch (hit.kind) {
     case "system":
-      return owner ?? "unclaimed";
+      return parts([owner ?? "unclaimed", matchedLabel(look, hit.matched_on)]);
     case "country":
       return parts([hit.country_type, systemCount(hit.system_count)]);
     case "planet":
@@ -155,6 +160,7 @@ const PLACEHOLDER: Record<DocumentKind, string> = {
 function SearchPanel() {
   const kind = useFileSessionStore((s) => s.kind);
   const recent = useEditorStore((s) => s.recentHits);
+  const ringed = useEditorStore((s) => s.searchRings.length);
   const systems = useGalaxyStore((s) => s.systems);
   const names = useGameDataStore((s) => s.names);
   const [query, setQuery] = useState("");
@@ -173,17 +179,24 @@ function SearchPanel() {
 
   useEffect(() => {
     const seq = ++latest.current;
-    if (text === "") return;
+    if (text === "" || !open) {
+      useEditorStore.getState().clearSearch();
+      return;
+    }
     const timer = setTimeout(() => {
-      search(text, LIMIT)
+      useEditorStore
+        .getState()
+        .runSearch(text, LIMIT)
         .then((result) => {
-          if (seq !== latest.current) return;
-          setHits({ text, items: result });
+          if (result === null || seq !== latest.current) return;
+          setHits({ text, items: result.hits });
           setFailed(null);
           setActive(0);
           void useGameDataStore
             .getState()
-            .resolveNames(result.flatMap((h) => (h.owner === null ? [h.name] : [h.name, h.owner])));
+            .resolveNames(
+              result.hits.flatMap((h) => (h.owner === null ? [h.name] : [h.name, h.owner])),
+            );
         })
         .catch((e: unknown) => {
           if (seq !== latest.current) return;
@@ -192,7 +205,7 @@ function SearchPanel() {
         });
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [text]);
+  }, [text, open]);
 
   const rows = buildRows(parsed, hits, recent, { systems, names });
   const failure = failed !== null && failed.text === text ? failed.message : null;
@@ -201,6 +214,7 @@ function SearchPanel() {
   const current = rows[Math.min(active, rows.length - 1)];
 
   const close = () => {
+    useEditorStore.getState().clearSearch();
     setQuery("");
     setHits({ text: "", items: [] });
     setOpen(false);
@@ -209,6 +223,7 @@ function SearchPanel() {
 
   const take = (row: Row | undefined, add: boolean) => {
     if (!row) return;
+    useEditorStore.getState().clearSearch();
     row.activate(add);
     if (!add) close();
   };
@@ -301,6 +316,7 @@ function SearchPanel() {
             <span>Shift+Enter add to selection</span>
             <span>Tab {prefixLabel(parsed).toLowerCase()}</span>
             <span>Esc close</span>
+            {ringed > 0 && <span>{systemCount(ringed)} ringed</span>}
           </div>
         </div>
       )}

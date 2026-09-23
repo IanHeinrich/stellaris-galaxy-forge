@@ -96,6 +96,12 @@ const BINDINGS: Binding[] = [
     (s, view) => setSelectedNebula(view, s.selectedNebula),
     "layers",
   ),
+  follows(
+    useEditorStore,
+    [(s) => s.searchRings],
+    (s, view) => view.highlights.setSearched(new Set(s.searchRings)),
+    "bind",
+  ),
   follows(useEditorStore, [(s) => s.focus], (s, view) => {
     if (s.focus) view.focusOn(s.focus.id);
   }),

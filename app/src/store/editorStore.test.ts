@@ -83,6 +83,7 @@ describe("selection and navigation", () => {
       system_count: null,
       planet_class: null,
       position: [0, 0],
+      matched_on: null,
     });
     for (let id = 0; id < RECENT_HITS + 2; id++) editor().noteSearchHit(hit(id));
     editor().noteSearchHit(hit(1));

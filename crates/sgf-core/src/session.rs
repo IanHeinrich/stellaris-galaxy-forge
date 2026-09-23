@@ -27,7 +27,7 @@ use crate::search;
 use crate::validate::{self, Issue, validate};
 use crate::views::{
     DocumentKind, EditResult, ErrorKind, GalaxyDelta, HistoryEntry, HistoryView, SaveResult,
-    SearchHit, SgfError,
+    SearchResult, SgfError,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -314,13 +314,15 @@ impl Session {
         query: &str,
         limit: usize,
         resolve: search::NameResolver<'_>,
-    ) -> Vec<SearchHit> {
+        special: search::SpecialLabels<'_>,
+    ) -> SearchResult {
         search::search(
             &self.graph,
             self.built_details().as_deref(),
             query,
             limit,
             resolve,
+            special,
         )
     }
 

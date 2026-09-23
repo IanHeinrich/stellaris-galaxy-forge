@@ -10,12 +10,18 @@ a release is made.
 
 ### Added
 
+- Search finds systems by what is in them as well as by name: "salvager", "gaia", "l-gate" or "leviathan" all work. It matches a system's initializer, its flags, its planet classes and its gateways and wormholes. Leviathans, enclaves and the other special kinds match only with game data loaded.
+- While the search field holds a query, every matching system is ringed on the map.
 - The Galaxy panel can reveal which L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance, or an empty cluster. It stays behind a Reveal link until you click it.
 
 ### Changed
 
 - Preventing lanes in a scenario happens on the map. Right-click a lane for "Cut and prevent". Right-click a system with others selected to prevent or allow lanes to all of them. Right-click a prevented pair's dashed line to allow it again. The system ID field in the Inspector is gone.
 - Preventing and allowing lanes follow the symmetry mode.
+
+### Fixed
+
+- Salvager Enclaves are labelled as such on the map instead of just "Enclave".
 
 ## [0.10.1] - 2026-09-23
 

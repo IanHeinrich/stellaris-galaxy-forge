@@ -9,6 +9,7 @@ import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
 import type { Op } from "../generated/Op";
 import type { SearchHit } from "../generated/SearchHit";
+import type { SearchResult } from "../generated/SearchResult";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
@@ -20,6 +21,7 @@ import { feZoneActions } from "./editorStore.feZones";
 import { laneActions } from "./editorStore.lanes";
 import { marauderActions } from "./editorStore.marauders";
 import { nebulaActions } from "./editorStore.nebulae";
+import { searchActions } from "./editorStore.search";
 import { canEdit, getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useLayoutStore } from "./layoutStore";
@@ -76,6 +78,8 @@ export interface EditorState {
   pan: Pan | null;
   /** The search hits taken this session, most recent first; the palette shows them on an empty query. */
   recentHits: SearchHit[];
+  /** Every system the search palette's current query locates; the map rings them. */
+  searchRings: number[];
   /** Bumped by requestFit; the map re-fits the galaxy whenever it changes. */
   fitNonce: number;
   /** Bumped by fitSelection; the map eases to the selected systems whenever it changes. */
@@ -105,6 +109,13 @@ export interface EditorState {
   panTo(x: number, y: number): void;
   /** Remembers a hit the search palette went to. */
   noteSearchHit(hit: SearchHit): void;
+  /**
+   * Searches for `text` and rings what the result locates. Resolves null when a later search or
+   * a clear has overtaken it; a failure clears the rings and rejects.
+   */
+  runSearch(text: string, limit: number): Promise<SearchResult | null>;
+  /** Drops the rings and whatever search is still on its way. */
+  clearSearch(): void;
   setHover(id: number | null): void;
   requestFit(): void;
   /** Frames the selected systems, or the whole galaxy when nothing is selected. */
@@ -258,6 +269,7 @@ const INITIAL = {
   focus: null as Focus | null,
   pan: null as Pan | null,
   recentHits: [] as SearchHit[],
+  searchRings: [] as number[],
   history: { undo: [], redo: [] } as HistoryView,
   nebulaPrompt: null as { x: number; y: number } | null,
   feZoneFitPrompt: null as { candidates: number; automatic: number } | null,
@@ -275,6 +287,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     ...feZoneActions(set, get, edits.runEdit),
     ...marauderActions(set, get),
     ...brushActions(set, get, edits.runEdit),
+    ...searchActions(set, get),
 
     async select(id) {
       await selectSystems(id === null ? [] : [id]);
