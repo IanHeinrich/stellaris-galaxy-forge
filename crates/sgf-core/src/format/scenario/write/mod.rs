@@ -115,10 +115,12 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         }),
         // A scenario holds no global flags: the game rolls the outcome once it starts. Its
         // stars are drawn by the generator from the initializer, and it holds no planets.
-        Op::SetLGateOutcome { .. } | Op::SetStarClass { .. } => Err(OpError::Unsupported {
-            op: op.name(),
-            kind: DocumentKind::Scenario,
-        }),
+        Op::SetLGateOutcome { .. } | Op::SetStarClass { .. } | Op::SetPlanetSize { .. } => {
+            Err(OpError::Unsupported {
+                op: op.name(),
+                kind: DocumentKind::Scenario,
+            })
+        }
         // A scenario's empires are created when the game starts, so it holds no countries.
         Op::SetEmpireMapColors { .. } => Err(OpError::Unsupported {
             op: op.name(),

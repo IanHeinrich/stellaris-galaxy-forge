@@ -326,6 +326,7 @@ pub fn one_of_each() -> Vec<Example> {
                 class: "pc_pulsar".to_owned(),
             }],
         }),
+        Example::save(Op::SetPlanetSize { id: 748, size: 30 }),
         Example::save_4_5(Op::SetEmpireMapColors {
             country: 1,
             colors: Some(MapColorPair {
@@ -419,8 +420,9 @@ fn position(op: &Op) -> usize {
         Op::UnpreventLane { .. } => 40,
         Op::SetLGateOutcome { .. } => 41,
         Op::SetStarClass { .. } => 42,
-        Op::SetEmpireMapColors { .. } => 43,
-        Op::Batch { .. } => 44,
+        Op::SetPlanetSize { .. } => 43,
+        Op::SetEmpireMapColors { .. } => 44,
+        Op::Batch { .. } => 45,
     }
 }
 

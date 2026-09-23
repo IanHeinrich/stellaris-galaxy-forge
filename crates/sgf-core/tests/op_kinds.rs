@@ -2,8 +2,9 @@
 //! by applying one op of every variant to the sample save and to a scenario: the ops a
 //! kind refuses, the systems whose details an op stales, and whether it reclassifies.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
+use sgf_core::format::save::details::RawSystemDetails;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
@@ -49,6 +50,34 @@ fn details_changed(before: &GalaxyGraph, after: &GalaxyGraph) -> Vec<u32> {
     every_id(before, after)
         .into_iter()
         .filter(|&id| source(before, id) != source(after, id))
+        .collect()
+}
+
+/// Each system's raw details as a save projects them, empty for a scenario, which has
+/// none of its own.
+fn raw_details(session: &Session) -> BTreeMap<u32, RawSystemDetails> {
+    if session.kind() != DocumentKind::Save {
+        return BTreeMap::new();
+    }
+    let details = session.details().expect("details");
+    session
+        .graph
+        .systems
+        .keys()
+        .filter_map(|&id| Some((id, details.raw(id)?.clone())))
+        .collect()
+}
+
+/// The systems whose raw details differ between `before` and `after`.
+fn raw_details_changed(
+    before: &BTreeMap<u32, RawSystemDetails>,
+    after: &BTreeMap<u32, RawSystemDetails>,
+) -> BTreeSet<u32> {
+    before
+        .keys()
+        .chain(after.keys())
+        .filter(|id| before.get(id) != after.get(id))
+        .copied()
         .collect()
 }
 
@@ -116,11 +145,17 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
         .chain([(examples::scenario(), renamed_in_a_batch)]);
     for (mut session, op) in cases {
         let name = format!("{} on a {:?}", op.name(), session.kind());
+        session.warm_details().expect("build details");
         let before = session.graph.clone();
+        let before_raw = raw_details(&session);
         let result = session.apply(op).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let mut changed: BTreeSet<u32> = details_changed(&before, &session.graph)
+            .into_iter()
+            .collect();
+        changed.extend(raw_details_changed(&before_raw, &raw_details(&session)));
         assert_eq!(
             result.details_stale,
-            details_changed(&before, &session.graph),
+            changed.into_iter().collect::<Vec<_>>(),
             "{name}: details stale"
         );
         let reclassified = every_id(&before, &session.graph)

@@ -55,9 +55,9 @@ impl DetailsProjection {
         Ok(Self { by_system })
     }
 
-    /// Read again the class of each of `planets`, as (planet, system), from the bytes now
-    /// standing for it, leaving everything else as it was projected.
-    pub fn refresh_classes(
+    /// Read again the class and size of each of `planets`, as (planet, system), from the
+    /// bytes now standing for it, leaving everything else as it was projected.
+    pub fn refresh_planets(
         &mut self,
         doc: &Document,
         planets: impl IntoIterator<Item = (u32, u32)>,
@@ -70,8 +70,9 @@ impl DetailsProjection {
             else {
                 continue;
             };
-            if let Some(class) = extract::planet_class(doc, id)? {
-                planet.class = class;
+            if let Some(facts) = extract::planet_facts(doc, id)? {
+                planet.class = facts.class;
+                planet.size = facts.size;
             }
         }
         Ok(())

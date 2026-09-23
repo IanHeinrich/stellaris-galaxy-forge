@@ -10,7 +10,9 @@ use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
 use crate::format::Format;
-use crate::format::save::write::{bulk, lanes, lgate, map_colors, move_system, nebula, star_class};
+use crate::format::save::write::{
+    bulk, lanes, lgate, map_colors, move_system, nebula, planet_size, star_class,
+};
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
@@ -139,6 +141,7 @@ impl Format for Save {
             Op::SetStarClass { id, class, bodies } => {
                 star_class::plan_set(plan, s, *id, class, bodies)
             }
+            Op::SetPlanetSize { id, size } => planet_size::plan_set(plan, s, *id, *size),
             Op::SetEmpireMapColors { country, colors } => {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
