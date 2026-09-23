@@ -19,6 +19,20 @@ export interface AppIssue {
   message: string;
   /** The systems involved, in the order the message names them. */
   systems: number[];
+  /**
+   * A note on how the document came to be, not a finding the validator would make again: it
+   * stays out of the baseline, counts as new, and outlives every edit.
+   */
+  note: boolean;
+}
+
+/**
+ * Whether saving with `issue` unresolved is worth a question: a warning or error the validator
+ * found, or the one note under which the map will not play as designed.
+ */
+export function blocksSave(issue: AppIssue): boolean {
+  if (issue.severity === "info") return false;
+  return !issue.note || issue.code === "reserved_spawns_missing";
 }
 
 /** The note on another scenario file in the mod's folder whose header lists the same name. */
@@ -30,6 +44,7 @@ export function duplicateNameNote(name: string, file: string): AppIssue {
       `Another file in the mod lists the same name "${name}": ${file}. ` +
       "The game shows one size per name.",
     systems: [],
+    note: true,
   };
 }
 
@@ -42,6 +57,7 @@ export function reservedSpawnsNote(systems: number[]): AppIssue {
       "Reserved seats need the Reserved Spawns submod, which is not enabled. Subscribe to it " +
       "and enable it in your playset, or these seats spawn at random.",
     systems,
+    note: true,
   };
 }
 
@@ -63,6 +79,7 @@ export function galaxySizeNote(systems: number, largest: GalaxySizeView): AppIss
       `${count(systems)} systems is well above ${largest.label}, the game's largest galaxy ` +
       `(${count(largest.num_stars)} stars). Very large galaxies can make the game slow.`,
     systems: [],
+    note: true,
   };
 }
 
@@ -90,6 +107,7 @@ export function initializerLimitNotes(
         code: "initializer_over_limit",
         message: `${ids.length} systems use ${initializer}, which the game allows ${max === 1 ? "once" : `${max} times`}.`,
         systems: ids,
+        note: true,
       },
     ];
   });

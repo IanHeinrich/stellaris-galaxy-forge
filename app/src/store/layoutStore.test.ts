@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 import { DEFAULT_LAYERS } from "../lib/visual/layerIds";
 import { bindStores } from "./bindStores";
 import { DOCK_MAX_WIDTH, DOCK_MIN_WIDTH, useLayoutStore } from "./layoutStore";
@@ -12,11 +13,7 @@ const stored = new Map<string, string>();
 bindStores();
 
 beforeEach(() => {
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   useLayoutStore.setState({ ...useLayoutStore.getInitialState() });
   useMapChromeStore.setState({ layers: { ...DEFAULT_LAYERS } });
 });

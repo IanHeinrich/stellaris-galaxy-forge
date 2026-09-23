@@ -170,10 +170,24 @@ describe("editing nebulae", () => {
     editor().selectNebula(0);
     await editor().deleteSelection();
 
+    expect(mocked.confirm).toHaveBeenCalledWith(
+      "Delete Cloud? 1 system will leave it.",
+      expect.objectContaining({ kind: "warning" }),
+    );
     expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveNebula", index: 0 });
     expect(useGalaxyStore.getState().nebulae).toEqual([]);
     expect(useGalaxyStore.getState().systems.get(5)?.nebula).toBeNull();
     expect(editor().selectedNebula).toBeNull();
+  });
+
+  it("deleteSelection asks first, and a declined question keeps the nebula", async () => {
+    mocked.confirm.mockResolvedValueOnce(false);
+
+    editor().selectNebula(0);
+    await editor().deleteSelection();
+
+    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(editor().selectedNebula).toBe(0);
   });
 
   it("a refused RemoveNebula keeps the nebula selected", async () => {

@@ -12,7 +12,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { SCENARIO_RESULT } from "../../store/fixture";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { usePaintModStore } from "../../store/paintModStore";
-import { paintModView } from "../../test/builders";
+import { paintModView, workshopLinks } from "../../test/builders";
 import { elements } from "../../test/elements";
 import { PaintBadge } from "./PaintBadge";
 
@@ -37,6 +37,7 @@ function openPainted(): void {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(ipc.workshopLinks).mockResolvedValue(workshopLinks());
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
   useGalaxyStore.getState().clear();
@@ -77,7 +78,7 @@ describe("the Paint a Galaxy badge", () => {
     );
   });
 
-  it("is a button to the Workshop page when the mod is not installed", () => {
+  it("is a button to the Workshop page when the mod is not installed", async () => {
     openPainted();
     withMod(null);
 
@@ -91,8 +92,8 @@ describe("the Paint a Galaxy badge", () => {
 
     const button = elements(<PaintBadge />).find((el) => el.type === "button")!;
     (button.props as { onClick: () => void }).onClick();
-    expect(ipc.openUrl).toHaveBeenCalledWith(
-      "https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115",
+    await vi.waitFor(() =>
+      expect(ipc.openUrl).toHaveBeenCalledWith(workshopLinks().paint_a_galaxy),
     );
   });
 

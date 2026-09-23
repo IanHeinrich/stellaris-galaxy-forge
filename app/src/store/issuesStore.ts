@@ -1,22 +1,6 @@
 import { create } from "zustand";
-import * as ipc from "../api/ipc";
 import type { Issue } from "../generated/Issue";
-import {
-  duplicateNameNote,
-  exceedsGalaxySize,
-  galaxySizeNote,
-  initializerLimitNotes,
-  reservedSpawnsNote,
-  type AppIssue,
-  type AppIssueCode,
-  type NoteCode,
-} from "../lib/issues";
-import { reservedSeatIds, scenarioHeaderName } from "../lib/paint";
-import { isUnder } from "../lib/paths";
-import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
-import { useGalaxyStore } from "./galaxyStore";
-import { useGameDataStore } from "./gameDataStore";
-import { paintScenariosDir, usePaintModStore } from "./paintModStore";
+import type { AppIssue, AppIssueCode, NoteCode } from "../lib/issues";
 
 /** Which issues the tab lists: the ones an edit introduced, the ones the save arrived with, or both. */
 export type IssueFilter = "new" | "baseline" | "all";
@@ -25,28 +9,6 @@ export type IssueFilter = "new" | "baseline" | "all";
 export function issueKey(issue: AppIssue): string {
   return `${issue.code}:${issue.systems.join(",")}`;
 }
-
-/**
- * The codes that are notes on how the document came to be, not findings the validator
- * would make again: they stay out of the baseline, count as new, and outlive every edit.
- */
-const NOTE_CODES: readonly AppIssueCode[] = [
-  "export_dropped",
-  "home_initializer",
-  "scenario_name_duplicate",
-  "reserved_spawns_missing",
-  "galaxy_size_exceeded",
-  "initializer_over_limit",
-];
-
-export function isNote(issue: AppIssue): boolean {
-  return NOTE_CODES.includes(issue.code);
-}
-
-export const DUPLICATE_NAME: NoteCode = "scenario_name_duplicate";
-export const RESERVED_SPAWNS: NoteCode = "reserved_spawns_missing";
-export const GALAXY_SIZE: NoteCode = "galaxy_size_exceeded";
-export const INITIALIZER_LIMIT: NoteCode = "initializer_over_limit";
 
 export interface IssuesState {
   /** The validator's findings, with the notes the document opened with and the app's own after them. */
@@ -98,6 +60,11 @@ function stopFlash(): void {
 /** The document a late answer still belongs to; a load or clear since leaves it to nobody. */
 let documents = 0;
 
+/** Which document the issues are of now, for an answer that has to know it is still the same one. */
+export function issuesDocument(): number {
+  return documents;
+}
+
 export const useIssuesStore = create<IssuesState>((set, get) => ({
   ...EMPTY,
 
@@ -115,8 +82,8 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
     set({
       ...EMPTY,
       issues,
-      baseline: new Set(issues.filter((issue) => !isNote(issue)).map(issueKey)),
-      notes: issues.filter(isNote),
+      baseline: new Set(issues.filter((issue) => !issue.note).map(issueKey)),
+      notes: issues.filter((issue) => issue.note),
     });
   },
 
@@ -161,73 +128,12 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
   },
 }));
 
-/**
- * Notes every other file in the Paint a Galaxy mod's scenarios folder whose header lists the
- * open scenario's name, since the game shows one size per name. Nothing for a file elsewhere,
- * and a folder that cannot be read leaves no note.
- */
-export async function noteDuplicateNames(): Promise<void> {
-  const mine = documents;
-  const { kind, path } = useFileSessionStore.getState();
-  const dir = paintScenariosDir();
-  const name = scenarioHeaderName(useGalaxyStore.getState().header);
-  let notes: AppIssue[] = [];
-  if (kind === "scenario" && path !== null && dir !== null && isUnder(path, dir) && name !== null) {
-    const siblings = await ipc.siblingScenarioNames(path).catch(() => []);
-    if (mine !== documents || useFileSessionStore.getState().path !== path) return;
-    notes = siblings
-      .filter(([, other]) => other === name)
-      .map(([file]) => duplicateNameNote(name, file));
-  }
-  useIssuesStore.getState().setNotes(DUPLICATE_NAME, notes);
-}
-
-/**
- * Notes the reserved seats of a scenario on the Paint a Galaxy layer once the launcher has
- * answered and its playset does not load the Reserved Spawns submod, whose traits those seats
- * need. Nothing until the launcher answers, and nothing for a Sol seat, which needs no trait.
- */
-export function noteReservedSpawns(): void {
-  const { known, paintMod } = usePaintModStore.getState();
-  let notes: AppIssue[] = [];
-  if (known && paintMod?.reserved_spawns !== true && getPaintLayer()) {
-    const seats = reservedSeatIds(useGalaxyStore.getState().systems.values());
-    if (seats.length > 0) notes = [reservedSpawnsNote(seats)];
-  }
-  useIssuesStore.getState().setNotes(RESERVED_SPAWNS, notes);
-}
-
-/**
- * Notes a scenario with far more systems than the largest galaxy size the loaded game data
- * defines. Nothing for a save, and nothing without game data or a size to compare against.
- */
-export function noteGalaxySize(): void {
-  const { status, summary } = useGameDataStore.getState();
-  const largest = status === "ready" ? (summary?.largest_galaxy ?? null) : null;
-  let notes: AppIssue[] = [];
-  if (largest !== null && useFileSessionStore.getState().kind === "scenario") {
-    const systems = useGalaxyStore.getState().systems.size;
-    if (exceedsGalaxySize(systems, largest)) notes = [galaxySizeNote(systems, largest)];
-  }
-  useIssuesStore.getState().setNotes(GALAXY_SIZE, notes);
-}
-
-/**
- * Notes each initializer a scenario gives to more systems than the game's `max_instances`
- * allows. Nothing for a save, and nothing until the initializers are read.
- */
-export function noteInitializerLimits(): void {
-  const initializers = useGameDataStore.getState().initializers;
-  let notes: AppIssue[] = [];
-  if (initializers !== null && useFileSessionStore.getState().kind === "scenario") {
-    const limits = new Map(
-      initializers.flatMap((i): Array<[string, number]> =>
-        i.max_instances === null ? [] : [[i.name, i.max_instances]],
-      ),
-    );
-    notes = initializerLimitNotes(useGalaxyStore.getState().systems.values(), limits);
-  }
-  useIssuesStore.getState().setNotes(INITIALIZER_LIMIT, notes);
+/** The issues since load, and how many of them are errors, for the badge and the dock's tab. */
+export function useFreshIssues(): { fresh: AppIssue[]; errors: number } {
+  const issues = useIssuesStore((s) => s.issues);
+  const baseline = useIssuesStore((s) => s.baseline);
+  const fresh = newIssues(issues, baseline);
+  return { fresh, errors: fresh.filter((i) => i.severity === "error").length };
 }
 
 /** The issues no edit is answerable for: they were there when the save opened. */

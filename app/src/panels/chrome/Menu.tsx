@@ -94,19 +94,21 @@ export function Menu({
   );
 }
 
-/** One command in a `Menu`, with its shortcut on the right. */
+/** One command in a `Menu`, with its shortcut on the right; `dismiss` closes the menu before it runs. */
 export function MenuItem({
   label,
   shortcut,
   disabled,
   title,
+  dismiss,
   onClick,
 }: {
   label: string;
   shortcut?: string;
   disabled?: boolean;
   title?: string;
-  onClick: () => void;
+  dismiss?: () => void;
+  onClick: () => unknown;
 }) {
   return (
     <button
@@ -115,7 +117,10 @@ export function MenuItem({
       className="menu-item"
       disabled={disabled}
       title={title}
-      onClick={onClick}
+      onClick={() => {
+        dismiss?.();
+        void onClick();
+      }}
     >
       <span>{label}</span>
       {shortcut && <kbd>{shortcut}</kbd>}

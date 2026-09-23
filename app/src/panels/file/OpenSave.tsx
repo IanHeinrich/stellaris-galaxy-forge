@@ -113,7 +113,7 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
 
   const browse = () => {
     if (modal) hide();
-    void pickAndOpen();
+    void pickAndOpen(undefined, undefined, screen.scenarios);
   };
 
   const newScenario = () => {

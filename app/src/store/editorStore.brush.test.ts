@@ -14,11 +14,12 @@ import { segmentsCross } from "../lib/geometry/segments";
 import type { Pt } from "../lib/geometry/pt";
 import { run } from "./commands";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
+import { canDelete, deletableSelection } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { SCENARIO_RESULT, SYSTEMS, editResult, node, placedNode } from "./fixture";
 
-const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn(), confirmRemoveNebula: vi.fn() };
+const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
 
 const ERASE: BrushSettings = {
   tool: "erase",
@@ -647,11 +648,25 @@ describe("deleting a selection of systems", () => {
     expect(mocked.applyOp).not.toHaveBeenCalled();
   });
 
-  it("leaves a save's systems, and a single selected system, alone", async () => {
-    await editor().select(3);
-    await editor().deleteSelection();
+  it("deletes a single selected system too, asking about it and its lanes", async () => {
+    await editor().select(1);
+    run("deleteSelection", false, effects);
+    await vi.waitFor(() => expect(mocked.applyOp).toHaveBeenCalled());
+    expect(mocked.confirm).toHaveBeenCalledWith(
+      "Delete Alpha Centauri and its 4 lanes?",
+      expect.objectContaining({ kind: "warning" }),
+    );
+    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 1 });
+  });
+
+  it("names the selection as deletable on a scenario, and nothing on a save", async () => {
+    await editor().setSelection([0, 1], "replace");
+    expect(deletableSelection(editor())).toEqual({ kind: "systems", ids: [0, 1] });
+    expect(canDelete(editor())).toBe(true);
+
     await openFixtureSave();
     await editor().setSelection([0, 1], "replace");
+    expect(canDelete(editor())).toBe(false);
     await editor().deleteSelection();
     expect(mocked.confirm).not.toHaveBeenCalled();
     expect(mocked.applyOp).not.toHaveBeenCalled();

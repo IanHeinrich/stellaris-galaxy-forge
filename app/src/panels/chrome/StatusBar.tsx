@@ -1,11 +1,13 @@
 import type { ExportResult } from "../../generated/ExportResult";
+import { shortcutLabel } from "../../lib/keys";
 import { nodeName } from "../../lib/names";
+import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyVersion, useSystemNames } from "../../store/browserRows";
 import { galaxyLaneCount, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { newIssues, useIssuesStore } from "../../store/issuesStore";
+import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { systemCount } from "../inspector/nebula";
@@ -19,7 +21,10 @@ const DOCUMENT_KIND: Record<string, string> = {
 };
 
 const IDLE_HINT =
-  "middle-drag to pan · wheel to zoom · WASD/arrows · Home to fit · Shift+F fits the selection · F to search";
+  `middle-drag to pan · wheel to zoom · WASD/arrows · ${shortcutLabel("fit")} to fit · ` +
+  `${shortcutLabel("fitSelection")} fits the selection · ${shortcutLabel("focusSearch")} to search`;
+
+const DELETE_KEY = shortcutLabel("deleteSelection");
 
 /** `14:02`: when the save landed, by the clock the user reads. */
 function clockTime(at: number): string {
@@ -47,19 +52,15 @@ function Counts() {
   const lanes = galaxyLaneCount(systems);
   return (
     <span>
-      {systems.size} systems · {lanes} lanes · {galaxy.components}{" "}
-      {galaxy.components === 1 ? "component" : "components"}
+      {systems.size} systems · {lanes} lanes · {counted(galaxy.components, "component")}
     </span>
   );
 }
 
 function IssueBadge() {
-  const issues = useIssuesStore((s) => s.issues);
-  const baseline = useIssuesStore((s) => s.baseline);
+  const { fresh, errors } = useFreshIssues();
   const setTab = useLayoutStore((s) => s.setTab);
-  const fresh = newIssues(issues, baseline);
   if (fresh.length === 0) return null;
-  const errors = fresh.filter((i) => i.severity === "error").length;
   return (
     <button
       type="button"
@@ -67,7 +68,7 @@ function IssueBadge() {
       title={`Since this save was opened: ${errors} errors, ${fresh.length - errors} warnings`}
       onClick={() => setTab("issues")}
     >
-      ⚠ {fresh.length} {fresh.length === 1 ? "issue" : "issues"}
+      ⚠ {counted(fresh.length, "issue")}
     </button>
   );
 }
@@ -152,11 +153,13 @@ function Hint() {
   if (selectedNebula !== null) {
     return (
       <span className="muted">
-        drag the centre to move · drag the ring to resize · Delete to remove
+        drag the centre to move · drag the ring to resize · {DELETE_KEY} to remove
       </span>
     );
   }
-  if (selectedLane) return <span className="muted">Delete to cut · right-click for more</span>;
+  if (selectedLane) {
+    return <span className="muted">{DELETE_KEY} to cut · right-click for more</span>;
+  }
   return <span className="muted">{IDLE_HINT}</span>;
 }
 

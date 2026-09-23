@@ -22,6 +22,7 @@ import type { SpecialSystems } from "../generated/SpecialSystems";
 import type { StarClassView } from "../generated/StarClassView";
 import type { SystemScripts } from "../generated/SystemScripts";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
+import type { WorkshopLinks } from "../generated/WorkshopLinks";
 
 /**
  * Load the game's definitions, localisation and mods from `installPath` (or the discovered install);
@@ -72,6 +73,11 @@ export function paintMod(): Promise<PaintModView | null> {
 /** Open a game-data file in the shell's editor, or show it in its folder; refused outside the loaded roots. */
 export function openScript(path: string, reveal: boolean): Promise<void> {
   return invoke<void>("open_script", { path, reveal });
+}
+
+/** The Steam Workshop pages the app links to, which `openUrl` opens. */
+export function workshopLinks(): Promise<WorkshopLinks> {
+  return invoke<WorkshopLinks>("workshop_links");
 }
 
 /** Open one of the app's own links in the user's browser; refused for any other URL. */

@@ -1,7 +1,6 @@
-import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { elements } from "../../test/elements";
+import { buttonIn } from "../../test/elements";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -20,14 +19,7 @@ let dismiss: ReturnType<typeof vi.fn<() => void>>;
 const items = () => renderToStaticMarkup(<FileMenuItems dismiss={dismiss} />);
 
 /** The menu's button reading `label`, whose `onClick` a test calls in place of a click. */
-function item(label: string): ReactElement<{ onClick(): void }> {
-  const found = elements(<FileMenuItems dismiss={dismiss} />).find(
-    (el): el is ReactElement<{ onClick(): void }> =>
-      el.type === "button" && renderToStaticMarkup(el).includes(label),
-  );
-  expect(found).toBeDefined();
-  return found!;
-}
+const item = (label: string) => buttonIn(<FileMenuItems dismiss={dismiss} />, label)!;
 
 /** The markup of the one button reading `label`. */
 function html(label: string): string {
@@ -119,7 +111,7 @@ describe("saving into the Paint a Galaxy mod", () => {
     const saveIntoPaintMod = vi.fn();
     open(SCENARIO_RESULT);
     usePaintModStore.setState({ known: true, paintMod: paintModView() });
-    usePaintModStore.setState({ saveIntoPaintMod });
+    useFileSessionStore.setState({ saveIntoPaintMod });
 
     item(LABEL).props.onClick();
     expect(saveIntoPaintMod).toHaveBeenCalledTimes(1);

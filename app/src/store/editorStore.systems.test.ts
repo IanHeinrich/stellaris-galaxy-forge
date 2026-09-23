@@ -5,6 +5,7 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
+import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { SYSTEMS, editResult, node } from "./fixture";
@@ -32,6 +33,28 @@ describe("adding and removing systems", () => {
     expect(useGalaxyStore.getState().systems.get(9)).toEqual(added);
     expect(editor().selection).toEqual([9]);
     expect(editor().inspected?.system.id).toBe(9);
+  });
+
+  it("addSystemAt selects the system its own edit added, whatever lands while it reclassifies", async () => {
+    const mine = node(9, "", -120, 45, "sc_g");
+    const later = node(10, "", 200, 200, "sc_g");
+    mocked.applyOp
+      .mockResolvedValueOnce(editResult({ delta: { systems: [mine] }, reclassifies: true }))
+      .mockResolvedValueOnce(editResult({ delta: { systems: [later] } }));
+    mocked.getSystem.mockImplementation(async (id) => ({
+      system: id === 9 ? mine : later,
+      neighbours: [],
+      nebula: null,
+    }));
+    const selected: number[][] = [];
+    const unsubscribe = useEditorStore.subscribe((state, prev) => {
+      if (state.selection !== prev.selection) selected.push(state.selection);
+    });
+
+    await Promise.all([editor().addSystemAt(-120, 45), editor().addSystemAt(200, 200)]);
+    unsubscribe();
+
+    expect(selected).toEqual([[10], [9]]);
   });
 
   it("addSystemAt carries the initializer and its spawn weight", async () => {

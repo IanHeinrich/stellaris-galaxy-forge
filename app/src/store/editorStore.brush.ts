@@ -9,7 +9,8 @@ import { PairSet, type Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
 import { nextSystemId } from "../lib/paint";
 import { counted } from "../lib/text";
-import { runEdit, systems, type EditorState } from "./editorStore";
+import { systems, type RunEdit } from "./editorEdits";
+import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { islandCount, laneGraph } from "./galaxyStore";
 import { symmetricIds } from "./symmetricEdits";
@@ -22,12 +23,13 @@ type BrushActions = Pick<
 export function brushActions(
   _set: StoreApi<EditorState>["setState"],
   get: StoreApi<EditorState>["getState"],
+  runEdit: RunEdit,
 ): BrushActions {
   return {
     async paintStroke(points, pairs) {
       if (points.length === 0) return false;
       // Numbered in the queue, once any stroke sent before it has landed and taken its ids.
-      return runEdit(() => ipc.applyOp(paintOp(points, pairs)));
+      return (await runEdit(() => ipc.applyOp(paintOp(points, pairs)))) !== null;
     },
 
     async eraseStroke(ids) {

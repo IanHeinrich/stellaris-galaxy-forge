@@ -172,24 +172,28 @@ describe("a scenario system's fallen empire zone", () => {
           message:
             "Fallen empire zones from Sol and Alpha Centauri overlap: the mod cannot fill both.",
           systems: [0, 1],
+          note: false,
         },
         {
           severity: "warning",
           code: "fe_zone_blocked",
           message: "Fallen empire zone from Sol is blocked by Barnard's Star.",
           systems: [0, 2],
+          note: false,
         },
         {
           severity: "warning",
           code: "fe_link_isolated",
           message: "Alpha Centauri takes custom connections but no system links to it.",
           systems: [1],
+          note: false,
         },
         {
           severity: "info",
           code: "fe_link_far",
           message: "Deneb is 140 from the fallen empire zone it links to.",
           systems: [5, 1],
+          note: false,
         },
       ],
     });

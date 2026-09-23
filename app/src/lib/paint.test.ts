@@ -4,11 +4,7 @@ import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { SpawnScript } from "../generated/SpawnScript";
 import { paintModView, scenarioSummary, systemNode } from "../test/builders";
 import {
-  LOCAL_CLUSTER_WORKSHOP_URL,
-  PAINT_MOD_WORKSHOP_ID,
   PAINT_SPAWN_KINDS,
-  PAINT_WORKSHOP_URL,
-  RESERVED_SPAWNS_WORKSHOP_URL,
   canBeWeighted,
   enabledScript,
   paintKindDescription,
@@ -82,18 +78,6 @@ describe("a painted galaxy", () => {
     expect(paintKindDescription(script({ reserved: "c" }))).not.toContain("The trait comes from");
   });
 
-  it("links the Reserved Spawns submod by its id", () => {
-    expect(RESERVED_SPAWNS_WORKSHOP_URL).toBe(
-      "https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682",
-    );
-  });
-
-  it("links the Local Cluster submod by its id", () => {
-    expect(LOCAL_CLUSTER_WORKSHOP_URL).toBe(
-      "https://steamcommunity.com/sharedfiles/filedetails/?id=3634498401",
-    );
-  });
-
   it("keeps a system's random value across a change of seat, and spreads a new one by id", () => {
     expect(scriptForKind("reserved:c", scripted(7, "enabled", 4))).toEqual({
       paint_a_galaxy: { kind: { reserved: "c" }, random_value: 4, player: false },
@@ -158,13 +142,6 @@ describe("the Paint a Galaxy layer", () => {
     painted: false,
     paintChosen: false,
     ...over,
-  });
-
-  it("links the mod's Workshop page by its id", () => {
-    expect(PAINT_MOD_WORKSHOP_ID).toBe("3532904115");
-    expect(PAINT_WORKSHOP_URL).toBe(
-      "https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115",
-    );
   });
 
   it("is on for a painted scenario, or one the user chose as such, whatever the mod says", () => {

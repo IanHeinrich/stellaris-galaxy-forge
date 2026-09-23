@@ -1,46 +1,36 @@
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
-import type { EditResult } from "../generated/EditResult";
 import type { FeDirection } from "../generated/FeDirection";
 import type { FeZone } from "../generated/FeZone";
+import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { HistoryView } from "../generated/HistoryView";
-import type { Pair } from "../lib/brush/lanes";
+import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
 import type { Op } from "../generated/Op";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
-import { documentCapabilities, supports } from "../lib/capabilities";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
-import {
-  linkedPairs,
-  linkedSystems,
-  linkedTo,
-  meshLanes,
-  staleLaneCount,
-  unlinkedPairs,
-  unlinkedTo,
-  useGalaxyStore,
-} from "./galaxyStore";
-import { useDetailsStore } from "./detailsStore";
+import { counted } from "../lib/text";
+import { editPipeline, systems } from "./editorEdits";
 import { brushActions } from "./editorStore.brush";
 import { feZoneActions } from "./editorStore.feZones";
+import { laneActions } from "./editorStore.lanes";
 import { marauderActions } from "./editorStore.marauders";
-import { useEntityStore } from "./entityStore";
-import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
-import { useGameDataStore } from "./gameDataStore";
-import { useInspectorStore, type EntityRef } from "./inspectorStore";
+import { nebulaActions } from "./editorStore.nebulae";
+import { canEdit, getPaintLayer, useFileSessionStore } from "./fileSessionStore";
+import { useGalaxyStore } from "./galaxyStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
-import { useScriptsStore } from "./scriptsStore";
-import { symmetricIds, symmetricOp, symmetricSeat } from "./symmetricEdits";
-import { PREF_KEYS } from "./prefKeys";
-import { isFiniteNumber, readPref, writePref } from "./prefs";
+import { symmetricIds, symmetricOp } from "./symmetricEdits";
 
 export type { MapTooltip, MapTooltipLine, MapTooltipText } from "./mapChromeStore";
+export { nearestSystem } from "./editorEdits";
 export { NEEDS_A_SYSTEM, NOTHING_TO_FIT } from "./editorStore.feZones";
+export { CONNECT_ALL_MAX } from "./editorStore.lanes";
+export { DEFAULT_NEBULA_RADIUS } from "./editorStore.nebulae";
 
 export interface Focus {
   id: number;
@@ -65,11 +55,11 @@ export interface LaneRef {
 
 export type SelectionMode = "replace" | "add";
 
-/** Above this many selected systems "connect to each other" gives way to the mesh. */
-export const CONNECT_ALL_MAX = 5;
-
-/** The radius a new nebula gets on a profile that has never made one. */
-export const DEFAULT_NEBULA_RADIUS = 30;
+/** What Delete removes: the selected nebula, the selected lane, or the selected systems. */
+export type Deletable =
+  | { kind: "nebula"; index: number }
+  | { kind: "lane"; lane: LaneRef }
+  | { kind: "systems"; ids: number[] };
 
 export interface EditorState {
   /** Selected system ids in selection order, no duplicates; at most one of a non-empty `selection`, `selectedLane` and `selectedNebula` is set. */
@@ -119,10 +109,7 @@ export interface EditorState {
   requestFit(): void;
   /** Frames the selected systems, or the whole galaxy when nothing is selected. */
   fitSelection(): void;
-  /**
-   * Cuts the selected lane or removes the selected nebula, whichever is selected, or on a
-   * scenario deletes two or more selected systems once the user has confirmed.
-   */
+  /** Removes what `deletableSelection` names, asking first for a nebula or systems. */
   deleteSelection(): Promise<void>;
   /** Moves every selected system by a world offset in one op. */
   nudgeSelection(dx: number, dy: number): Promise<void>;
@@ -139,7 +126,10 @@ export interface EditorState {
   setNebulaRadius(index: number, radius: number): Promise<void>;
   /** Renames the nebula at `index`; the text is written as the file's own literal. */
   setNebulaName(index: number, name: string): Promise<void>;
-  /** Removes the nebula at `index`, renumbering the ones after it, and deselects. */
+  /**
+   * Removes the nebula at `index` once the user has agreed to the systems that leave it,
+   * renumbering the ones after it, and deselects.
+   */
   removeNebula(index: number): Promise<void>;
   /** Adds a system at a world point, with the initializer it spawns from, and selects it. */
   addSystemAt(
@@ -264,383 +254,197 @@ const INITIAL = {
   feZoneFitPrompt: null as { candidates: number; automatic: number } | null,
 } satisfies Partial<EditorState>;
 
-export const useEditorStore = create<EditorState>((set, get) => ({
-  ...INITIAL,
-  fitNonce: 0,
-  fitSelectionNonce: 0,
-  lastNebulaRadius: readPref(PREF_KEYS.nebulaRadius, DEFAULT_NEBULA_RADIUS, isFiniteNumber),
-  ...feZoneActions(set, get),
-  ...marauderActions(set, get),
-  ...brushActions(set, get),
+export const useEditorStore = create<EditorState>((set, get) => {
+  const edits = editPipeline(set, get, (ids) => selectSystems(ids, false));
+  return {
+    ...INITIAL,
+    fitNonce: 0,
+    fitSelectionNonce: 0,
+    ...edits.actions,
+    ...nebulaActions(set, get, edits.runEdit),
+    ...laneActions(set, get),
+    ...feZoneActions(set, get, edits.runEdit),
+    ...marauderActions(set, get),
+    ...brushActions(set, get, edits.runEdit),
 
-  async select(id) {
-    await selectSystems(id === null ? [] : [id]);
-  },
+    async select(id) {
+      await selectSystems(id === null ? [] : [id]);
+    },
 
-  async clearSelection() {
-    await get().select(null);
-    get().selectLane(null);
-    useLayoutStore.getState().restoreTab();
-  },
+    async clearSelection() {
+      await get().select(null);
+      get().selectLane(null);
+      useLayoutStore.getState().restoreTab();
+    },
 
-  async toggleSelect(id) {
-    const { selection } = get();
-    await selectSystems(
-      selection.includes(id) ? selection.filter((s) => s !== id) : [...selection, id],
-    );
-  },
+    async toggleSelect(id) {
+      const { selection } = get();
+      await selectSystems(
+        selection.includes(id) ? selection.filter((s) => s !== id) : [...selection, id],
+      );
+    },
 
-  async setSelection(ids, mode) {
-    await selectSystems(unique(mode === "add" ? [...get().selection, ...ids] : ids));
-  },
+    async setSelection(ids, mode) {
+      await selectSystems(unique(mode === "add" ? [...get().selection, ...ids] : ids));
+    },
 
-  async selectAll() {
-    await selectSystems([...useGalaxyStore.getState().systems.keys()]);
-  },
+    async selectAll() {
+      await selectSystems([...useGalaxyStore.getState().systems.keys()]);
+    },
 
-  async jumpTo(id) {
-    const nonce = (get().focus?.nonce ?? 0) + 1;
-    set({ focus: { id, nonce } });
-    await get().select(id);
-  },
+    async jumpTo(id) {
+      const nonce = (get().focus?.nonce ?? 0) + 1;
+      set({ focus: { id, nonce } });
+      await get().select(id);
+    },
 
-  panTo(x, y) {
-    set({ pan: { x, y, nonce: (get().pan?.nonce ?? 0) + 1 } });
-  },
+    panTo(x, y) {
+      set({ pan: { x, y, nonce: (get().pan?.nonce ?? 0) + 1 } });
+    },
 
-  noteSearchHit(hit) {
-    const rest = get().recentHits.filter((h) => h.kind !== hit.kind || h.id !== hit.id);
-    set({ recentHits: [hit, ...rest].slice(0, RECENT_HITS) });
-  },
+    noteSearchHit(hit) {
+      const rest = get().recentHits.filter((h) => h.kind !== hit.kind || h.id !== hit.id);
+      set({ recentHits: [hit, ...rest].slice(0, RECENT_HITS) });
+    },
 
-  selectLane(lane) {
-    set({ selectedLane: lane, selection: [], selectedNebula: null, inspected: null });
-  },
+    selectLane(lane) {
+      set({ selectedLane: lane, selection: [], selectedNebula: null, inspected: null });
+    },
 
-  selectNebula(index) {
-    set({ selectedNebula: index, selection: [], selectedLane: null, inspected: null });
-    if (index !== null) useLayoutStore.getState().revealInspector();
-  },
+    selectNebula(index) {
+      set({ selectedNebula: index, selection: [], selectedLane: null, inspected: null });
+      if (index !== null) useLayoutStore.getState().revealInspector();
+    },
 
-  setHover(id) {
-    if (get().hover !== id) set({ hover: id });
-  },
+    setHover(id) {
+      if (get().hover !== id) set({ hover: id });
+    },
 
-  requestFit() {
-    set({ fitNonce: get().fitNonce + 1 });
-  },
+    requestFit() {
+      set({ fitNonce: get().fitNonce + 1 });
+    },
 
-  fitSelection() {
-    set({ fitSelectionNonce: get().fitSelectionNonce + 1 });
-  },
+    fitSelection() {
+      set({ fitSelectionNonce: get().fitSelectionNonce + 1 });
+    },
 
-  async deleteSelection() {
-    const { selectedLane: lane, selectedNebula, selection } = get();
-    if (selectedNebula !== null) {
-      await get().removeNebula(selectedNebula);
-      return;
-    }
-    if (selection.length > 1) {
-      if (systemsEditable()) await get().removeSystems(selection);
-      return;
-    }
-    if (!lane) return;
-    if (await get().applySymmetric({ type: "RemoveLane", a: lane.a, b: lane.b })) {
-      set({ selectedLane: null });
-    }
-  },
+    async deleteSelection() {
+      const target = deletableSelection(get());
+      if (target === null) return;
+      switch (target.kind) {
+        case "nebula":
+          await get().removeNebula(target.index);
+          return;
+        case "systems":
+          await (target.ids.length === 1
+            ? get().removeSystem(target.ids[0])
+            : get().removeSystems(target.ids));
+          return;
+        case "lane": {
+          const { a, b } = target.lane;
+          if (await get().applySymmetric({ type: "RemoveLane", a, b })) set({ selectedLane: null });
+        }
+      }
+    },
 
-  async nudgeSelection(dx, dy) {
-    const moves = get().selection.flatMap((id) => {
-      const s = systems().get(id);
-      return s ? [{ id, x: s.x + dx, y: s.y + dy }] : [];
-    });
-    if (moves.length === 0) return;
-    await get().applySymmetric(
-      moves.length === 1 ? { type: "MoveSystem", ...moves[0] } : { type: "MoveSystems", moves },
-    );
-  },
+    async nudgeSelection(dx, dy) {
+      const moves = get().selection.flatMap((id) => {
+        const s = systems().get(id);
+        return s ? [{ id, x: s.x + dx, y: s.y + dy }] : [];
+      });
+      if (moves.length === 0) return;
+      await get().applySymmetric(
+        moves.length === 1 ? { type: "MoveSystem", ...moves[0] } : { type: "MoveSystems", moves },
+      );
+    },
 
-  async moveNebula(index, x, y) {
-    await get().applyOp({ type: "MoveNebula", index, x, y });
-  },
+    async addSystemAt(x, y, initializer = null, spawnWeight = null) {
+      // Under the Paint a Galaxy profile the weight is the site's script, keyed to the id the core will give.
+      const paint = getPaintLayer() && spawnWeight !== null;
+      const op: Op = {
+        type: "AddSystem",
+        id: null,
+        x,
+        y,
+        name: null,
+        initializer,
+        spawn_weight: paint ? null : spawnWeight,
+        spawn_script: paint ? enabledScriptFor(nextSystemId(systems().values())) : null,
+      };
+      const result = await edits.runEdit(() => ipc.applyOp(symmetricOp(op)));
+      if (result === null) return false;
+      const added = nearestTo(result.delta.systems, x, y);
+      if (added) await get().select(added.id);
+      return true;
+    },
 
-  async addNebulaAt(x, y, radius = get().lastNebulaRadius, name = null) {
-    if (!(await get().applyOp({ type: "AddNebula", x, y, radius, name }))) return false;
-    set({ lastNebulaRadius: radius });
-    writePref(PREF_KEYS.nebulaRadius, radius);
-    // A cloud nobody can see is a cloud nobody can edit.
-    useMapChromeStore.getState().showLayer("nebulae");
-    // A new nebula always lands last, so it is the last of the list the op left behind.
-    get().selectNebula(useGalaxyStore.getState().nebulae.length - 1);
-    return true;
-  },
+    async removeSystem(id) {
+      const system = systems().get(id);
+      if (!system) return;
+      if (symmetricIds([id]).length > 1) {
+        await get().removeSystems([id]);
+        return;
+      }
+      const name = useGalaxyStore.getState().systemName(id);
+      const lanes = system.lanes.length;
+      const what = lanes === 0 ? name : `${name} and its ${counted(lanes, "lane")}`;
+      if (!(await confirm(`Delete ${what}?`, { title: name, kind: "warning" }))) return;
+      await get().applyOp({ type: "RemoveSystem", id });
+    },
 
-  promptNebulaAt(x, y) {
-    set({ nebulaPrompt: { x, y } });
-  },
+    async updateEmpireCounts() {
+      await edits.runEdit(async () => {
+        const entries = await ipc.headerEmpireCounts();
+        return ipc.applyOp({ type: "SetHeaderKeys", entries });
+      });
+    },
 
-  cancelNebulaPrompt() {
-    if (get().nebulaPrompt) set({ nebulaPrompt: null });
-  },
+    async linkWormholePair(a, b) {
+      const pair = nextWormholePair(systems().values());
+      const linked = await get().applyOp({ type: "SetWormholePair", a, b, pair });
+      if (linked) useMapChromeStore.getState().setLayerQuietly("day_one_bypasses", true);
+      return linked;
+    },
 
-  async createPromptedNebula(name) {
-    const at = get().nebulaPrompt;
-    const named = name.trim();
-    // The label is the handle the cloud is dragged by, so it is named before it exists.
-    if (!at || named === "") return false;
-    // A refused op leaves the prompt standing with the point and the name still in it.
-    if (!(await get().addNebulaAt(at.x, at.y, undefined, named))) return false;
-    set({ nebulaPrompt: null });
-    return true;
-  },
+    async unlinkWormholePair(a, b) {
+      if (sharedWormholePair(systems(), a, b) === null) return false;
+      return get().applyOp({ type: "SetWormholePair", a, b, pair: null });
+    },
 
-  async setNebulaRadius(index, radius) {
-    await get().applyOp({ type: "SetNebulaRadius", index, radius });
-  },
-
-  async setNebulaName(index, name) {
-    await get().applyOp({ type: "SetNebulaName", index, name });
-  },
-
-  async removeNebula(index) {
-    // Removing renumbers everything after `index`, so no selection survives it.
-    if (await get().applyOp({ type: "RemoveNebula", index })) set({ selectedNebula: null });
-  },
-
-  async addSystemAt(x, y, initializer = null, spawnWeight = null) {
-    // Under the Paint a Galaxy profile the weight is the site's script, keyed to the id the core will give.
-    const paint = getPaintLayer() && spawnWeight !== null;
-    const op: Op = {
-      type: "AddSystem",
-      id: null,
-      x,
-      y,
-      name: null,
-      initializer,
-      spawn_weight: paint ? null : spawnWeight,
-      spawn_script: paint ? enabledScriptFor(nextSystemId(systems().values())) : null,
-    };
-    if (!(await get().applySymmetric(op))) return false;
-    const added = nearestTo(lastEdited, x, y);
-    if (added) await get().select(added.id);
-    return true;
-  },
-
-  async removeSystem(id) {
-    const system = systems().get(id);
-    if (!system) return;
-    if (symmetricIds([id]).length > 1) {
-      await get().removeSystems([id]);
-      return;
-    }
-    const name = useGalaxyStore.getState().systemName(id);
-    const lanes = system.lanes.length;
-    const what = lanes === 0 ? name : `${name} and its ${lanes} lane${lanes === 1 ? "" : "s"}`;
-    if (!(await confirm(`Delete ${what}?`, { title: name, kind: "warning" }))) return;
-    await get().applyOp({ type: "RemoveSystem", id });
-  },
-
-  async updateEmpireCounts() {
-    await runEdit(async () => {
-      const entries = await ipc.headerEmpireCounts();
-      return ipc.applyOp({ type: "SetHeaderKeys", entries });
-    });
-  },
-
-  async linkWormholePair(a, b) {
-    const pair = nextWormholePair(systems().values());
-    const linked = await get().applyOp({ type: "SetWormholePair", a, b, pair });
-    if (linked) useMapChromeStore.getState().showLayer("day_one_bypasses");
-    return linked;
-  },
-
-  async unlinkWormholePair(a, b) {
-    if (sharedWormholePair(systems(), a, b) === null) return false;
-    return get().applyOp({ type: "SetWormholePair", a, b, pair: null });
-  },
-
-  async connectSelected() {
-    const { selection } = get();
-    if (selection.length > CONNECT_ALL_MAX) return;
-    const lanes = unlinkedPairs(systems(), selection).map(([a, b]) => ({ a, b, bridge: false }));
-    if (lanes.length > 0) await get().applySymmetric({ type: "AddLanePairs", lanes });
-  },
-
-  async connectSelectedMesh() {
-    const chrome = useMapChromeStore.getState();
-    const lanes = meshLanes(systems(), get().selection, chrome.meshBeta).map(([a, b]) => ({
-      a,
-      b,
-      bridge: false,
-    }));
-    if (lanes.length > 0) await get().applySymmetric({ type: "AddLanePairs", lanes });
-    chrome.setLanePreview(null);
-  },
-
-  async connectSelectedTo(target) {
-    const to = unlinkedTo(systems(), target, get().selection).map((id): [number, boolean] => [
-      id,
-      false,
-    ]);
-    if (to.length > 0) await get().applySymmetric({ type: "AddLanes", from: target, to });
-  },
-
-  async cutLanesBetweenSelected() {
-    const lanes = linkedPairs(systems(), get().selection);
-    if (lanes.length > 0) await get().applySymmetric({ type: "RemoveLanePairs", lanes });
-  },
-
-  async cutLanesToSelected(target) {
-    const to = linkedTo(systems(), target, get().selection);
-    if (to.length > 0) await get().applySymmetric({ type: "RemoveLanes", from: target, to });
-  },
-
-  async isolateSelected() {
-    const ids = linkedSystems(systems(), get().selection);
-    if (ids.length > 0) await get().applySymmetric({ type: "IsolateSystems", ids });
-  },
-
-  async resetSelectedLaneLengths() {
-    if (!laneLengthsEditable()) return;
-    const ids = get().selection;
-    if (staleLaneCount(systems(), ids) > 0) {
-      await get().applyOp({ type: "NormaliseLaneLengths", systems: ids });
-    }
-  },
-
-  applyOp(op) {
-    return runEdit(() => ipc.applyOp(op));
-  },
-
-  applySymmetric(op) {
-    return get().applyOp(symmetricOp(op));
-  },
-
-  async setSeat(id, seat) {
-    const system = systems().get(id);
-    const op = system && symmetricSeat(system, seat);
-    return op ? get().applyOp(op) : false;
-  },
-
-  async undo() {
-    if (await enqueue(() => stepEdit(ipc.undo))) await reclassify();
-  },
-
-  async redo() {
-    if (await enqueue(() => stepEdit(ipc.redo))) await reclassify();
-  },
-
-  async undoTo(seq) {
-    await stepHistory(ipc.undo, () => get().history.undo.length <= seq);
-  },
-
-  async redoTo(seq) {
-    await stepHistory(ipc.redo, () => get().history.undo.length >= seq);
-  },
-
-  resetSession() {
-    session += 1;
-    set({ ...INITIAL });
-  },
-}));
-
-/** The session a late answer still belongs to; a document closing or opening leaves it to nobody. */
-let session = 0;
-
-/** The system nearest a world point, wherever it is; null for a galaxy with none. */
-export function nearestSystem(
-  point: { x: number; y: number },
-  among: Iterable<SystemNode> = systems().values(),
-): SystemNode | null {
-  let best: SystemNode | null = null;
-  let bestD2 = Infinity;
-  for (const s of among) {
-    const d2 = (s.x - point.x) ** 2 + (s.y - point.y) ** 2;
-    if (d2 < bestD2) {
-      bestD2 = d2;
-      best = s;
-    }
-  }
-  return best;
-}
+    resetSession() {
+      edits.newSession();
+      set({ ...INITIAL });
+    },
+  };
+});
 
 /**
- * Runs one edit command through the queue and applies its result, on `applyOp`'s terms. An
- * edit that reads the session to build its op reads it inside `edit`, after every edit queued
- * before it; one that answers null sent nothing.
+ * What Delete would remove, or null for nothing: the selected nebula or lane, or the selected
+ * systems while the document makes and deletes them. The Edit menu and the key both ask it.
  */
-export async function runEdit(edit: () => Promise<EditResult | null>): Promise<boolean> {
-  const reclassifies = await enqueue(async () => {
-    try {
-      const result = await edit();
-      if (result === null) return null;
-      applyEdit(result);
-      return result.reclassifies;
-    } catch (e) {
-      useFileSessionStore.getState().setError(ipc.errorMessage(e));
-      return null;
-    }
-  });
-  if (reclassifies === null) return false;
-  if (reclassifies) await reclassify();
-  return true;
+export function deletableSelection(
+  state: Pick<EditorState, "selection" | "selectedLane" | "selectedNebula">,
+  systemsDeletable = canEdit("create_systems"),
+): Deletable | null {
+  const { selection, selectedLane, selectedNebula } = state;
+  if (selectedNebula !== null) return { kind: "nebula", index: selectedNebula };
+  if (selectedLane !== null) return { kind: "lane", lane: selectedLane };
+  if (selection.length > 0 && systemsDeletable) return { kind: "systems", ids: selection };
+  return null;
 }
 
-/** Reports `refusal` and resolves false, or runs `apply` when there is none. */
-export function refuseOr(refusal: string | null, apply: () => Promise<boolean>): Promise<boolean> {
-  if (refusal === null) return apply();
-  useFileSessionStore.getState().setError(refusal);
-  return Promise.resolve(false);
+export function canDelete(state: EditorState, systemsDeletable?: boolean): boolean {
+  return deletableSelection(state, systemsDeletable) !== null;
 }
 
-let edits: Promise<unknown> = Promise.resolve();
-
-/** Runs edits one at a time, so their results apply in the order they were asked for. */
-function enqueue<T>(run: () => Promise<T>): Promise<T> {
-  const next = edits.then(run, run);
-  edits = next.catch(() => undefined);
-  return next;
+/** The step Undo takes back; undefined with none. */
+export function nextUndo(state: EditorState): HistoryEntry | undefined {
+  return state.history.undo[state.history.undo.length - 1];
 }
 
-/** Applies one history step, answering whether it re-classifies; a step with nothing left to do leaves the session alone. */
-async function stepEdit(step: () => Promise<EditResult | null>): Promise<boolean> {
-  try {
-    const result = await step();
-    if (!result) return false;
-    applyEdit(result);
-    return result.reclassifies;
-  } catch (e) {
-    useFileSessionStore.getState().setError(ipc.errorMessage(e));
-    return false;
-  }
-}
-
-/** Repeats `step` until `done`, or until a step leaves the history unchanged; the run re-classifies once. */
-async function stepHistory(
-  step: () => Promise<EditResult | null>,
-  done: () => boolean,
-): Promise<void> {
-  let reclassifies = false;
-  while (!done()) {
-    const before = useEditorStore.getState().history;
-    if (await enqueue(() => stepEdit(step))) reclassifies = true;
-    if (useEditorStore.getState().history === before) break;
-  }
-  if (reclassifies) await reclassify();
-}
-
-export function systems() {
-  return useGalaxyStore.getState().systems;
-}
-
-/** Whether the open document keeps the lane lengths the normalise op rewrites. */
-function laneLengthsEditable(): boolean {
-  return supports(documentCapabilities(useFileSessionStore.getState()), "lane_lengths");
-}
-
-function systemsEditable(): boolean {
-  return supports(documentCapabilities(useFileSessionStore.getState()), "create_systems");
+/** The step Redo puts back; undefined with none. */
+export function nextRedo(state: EditorState): HistoryEntry | undefined {
+  return state.history.redo[0];
 }
 
 function unique(ids: number[]): number[] {
@@ -674,22 +478,6 @@ async function selectSystems(ids: number[], reveal = true): Promise<void> {
   }
 }
 
-/** The reclassification that still counts; a later edit's takes it over. */
-let reclassification = 0;
-
-/** What an initializer change moves: how a system is classified, and who its scripts give it to. */
-async function reclassify(): Promise<void> {
-  const mine = ++reclassification;
-  // It reads the whole galaxy, so it waits outside the queue and a run of edits reclassifies once.
-  await edits;
-  const alive = () => mine === reclassification;
-  if (!alive()) return;
-  const data = useGameDataStore.getState();
-  await data.refreshSpecial(alive);
-  if (!alive()) return;
-  await data.refreshScenarioOwners(alive);
-}
-
 /** Of `nodes`, the one nearest (x, y). */
 function nearestTo(nodes: readonly SystemNode[], x: number, y: number): SystemNode | undefined {
   let best: SystemNode | undefined;
@@ -697,94 +485,4 @@ function nearestTo(nodes: readonly SystemNode[], x: number, y: number): SystemNo
     if (!best || Math.hypot(n.x - x, n.y - y) < Math.hypot(best.x - x, best.y - y)) best = n;
   }
   return best;
-}
-
-/** The systems the last edit re-projected, read before a reclassification writes its own delta. */
-let lastEdited: readonly SystemNode[] = [];
-
-function applyEdit(result: EditResult): void {
-  lastEdited = result.delta.systems;
-  useGalaxyStore.getState().applyDelta(result.delta);
-  useFileSessionStore.getState().noteEdit({ issues: result.issues, dirty: result.dirty });
-  useEditorStore.setState({ history: result.history });
-  const touched = touchedSystems(result);
-  useScriptsStore.getState().invalidate([...touched]);
-  useEntityStore.getState().noteEdit(result);
-  const { selection, selectedLane } = useEditorStore.getState();
-  const kept = selection.filter((id) => systems().has(id));
-  // Only a single selection re-reads anything; a lane or the galaxy follows galaxyStore's version.
-  const stale =
-    kept.length !== selection.length ||
-    (kept.length === 1 && (touched.has(kept[0]) || showsTouched(touched, result.details_stale)));
-  if (result.details_stale.length > 0) {
-    useDetailsStore.getState().invalidate(result.details_stale);
-    const mine = session;
-    // The details projection, and the planet and fleet search index over it, are rebuilt lazily.
-    void ipc.warmDetails().catch((e: unknown) => {
-      if (mine === session) useFileSessionStore.getState().setError(ipc.errorMessage(e));
-    });
-  }
-  if (stale) void selectSystems(kept, false);
-  if (selectedLane && !laneExists(selectedLane)) useEditorStore.setState({ selectedLane: null });
-  const { selectedNebula } = useEditorStore.getState();
-  if (selectedNebula !== null && selectedNebula >= useGalaxyStore.getState().nebulae.length) {
-    useEditorStore.setState({ selectedNebula: null });
-  }
-  const { hover } = useEditorStore.getState();
-  if (hover !== null && !systems().has(hover)) useEditorStore.setState({ hover: null });
-}
-
-/** What an edit touched: the systems it re-projected and the details it staled. */
-function touchedSystems(result: EditResult): Set<number> {
-  const touched = new Set<number>(result.details_stale);
-  for (const node of result.delta.systems) touched.add(node.id);
-  return touched;
-}
-
-/** The entities the inspector reaches through a system's details. */
-type DetailRef = Extract<EntityRef, { kind: "planet" | "fleet" | "megastructure" }>;
-
-/** True when what the inspector is looking at lives in a system the edit touched. */
-function showsTouched(touched: Set<number>, detailsStale: number[]): boolean {
-  const { stack } = useInspectorStore.getState();
-  const ref = stack[stack.length - 1].ref;
-  switch (ref.kind) {
-    case "system":
-      return touched.has(ref.id);
-    case "starbase":
-      return touched.has(ref.system);
-    case "lane":
-      return touched.has(ref.a) || touched.has(ref.b);
-    case "planet":
-    case "fleet":
-    case "megastructure": {
-      const owner = owningSystem(ref);
-      return owner === null ? detailsStale.length > 0 : detailsStale.includes(owner);
-    }
-    default:
-      return false;
-  }
-}
-
-/** The system whose cached details list `ref`, or null while they are not cached. */
-function owningSystem(ref: DetailRef): number | null {
-  for (const details of useDetailsStore.getState().details.values()) {
-    const members =
-      ref.kind === "planet"
-        ? details.planets
-        : ref.kind === "fleet"
-          ? details.fleets_present
-          : details.megastructures;
-    if (members.some((m) => m.id === ref.id)) return details.id;
-  }
-  return null;
-}
-
-function laneExists({ a, b }: LaneRef): boolean {
-  return (
-    useGalaxyStore
-      .getState()
-      .systems.get(a)
-      ?.lanes.some((l) => l.to === b) ?? false
-  );
 }

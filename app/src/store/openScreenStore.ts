@@ -5,14 +5,8 @@ import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { OpenLists, OpenTab } from "../lib/openRows";
-import {
-  askScenarioOpen,
-  isSavePath,
-  useFileSessionStore,
-  type OpenMode,
-} from "./fileSessionStore";
+import { useFileSessionStore, type OpenMode } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
-import { standingProfile } from "./paintModStore";
 import { useRecentsStore } from "./recentsStore";
 
 /** A save's galaxy settings as the details pane has them: still reading, read, or failed. */
@@ -45,9 +39,9 @@ export interface OpenScreenState extends OpenLists {
   toggle(dir: string): Promise<void>;
   /**
    * Opens `path` as a save or as a scenario, reporting failure on the row it came from. A
-   * scenario file asks the Paint a Galaxy question first where it has to.
+   * scenario file asks the Paint a Galaxy question first where it has to, and `asPaint` opens
+   * it for the mod whatever the file says.
    */
-  /** `asPaint` opens a scenario file for the Paint a Galaxy mod, whatever the file says. */
   open(path: string, mode: OpenMode, asPaint?: boolean): Promise<void>;
   forget(path: string): void;
 }
@@ -106,12 +100,12 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
     if (get().details[key] !== undefined) return Promise.resolve();
     const put = (entry: SaveDetails) => set({ details: { ...get().details, [key]: entry } });
     put({ status: "loading" });
-    const reading = ipc.saveDetails(path).then(
+    const read = ipc.saveDetails(path).then(
       (settings) => put({ status: "ready", settings }),
       (e: unknown) => put({ status: "error", message: ipc.errorMessage(e) }),
     );
-    readingDetails.set(key, reading);
-    return reading.finally(() => readingDetails.delete(key));
+    readingDetails.set(key, read);
+    return read.finally(() => readingDetails.delete(key));
   },
 
   load(token) {
@@ -156,21 +150,17 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
   },
 
   async open(path, mode, asPaint = false) {
-    const session = useFileSessionStore.getState();
-    if (get().busy !== null || session.saving) return;
-    const profile =
-      mode === "save" && !isSavePath(path) ? await askScenarioOpen(path, asPaint) : undefined;
-    if (profile === null || !(await session.confirmDiscard())) return;
+    if (get().busy !== null) return;
     set({ busy: path, rowError: null });
-    const opening =
-      mode === "scenario"
-        ? session.openScenarioFrom(path, standingProfile())
-        : session.openSave(path, profile);
-    const opened = await opening.finally(() => set({ busy: null }));
-    if (opened) {
+    const outcome = await useFileSessionStore
+      .getState()
+      .openPath(path, mode, { asPaint, listings: get().scenarios })
+      .finally(() => set({ busy: null }));
+    if (outcome === "opened") {
       useLayoutStore.getState().hideOpenDialog();
       return;
     }
+    if (outcome === "cancelled") return;
     const failed = useFileSessionStore.getState();
     const message = failed.error ?? ANOTHER_OPENING;
     const missing = failed.errorKind === "not_found" && !get().missing.includes(path);

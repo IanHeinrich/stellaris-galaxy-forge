@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { PREF_KEYS } from "./prefKeys";
-import { isBoolean, isFiniteNumber, readPref, writePref } from "./prefs";
+import { isBoolean, isFiniteNumber, prefField } from "./prefs";
 
 export const DOCK_TABS = ["inspector", "empires", "poi", "issues", "changes"] as const;
 export type DockTab = (typeof DOCK_TABS)[number];
@@ -29,11 +29,16 @@ export interface LayoutState {
   restoreTab(): void;
   setWidth(width: number): void;
   toggleDock(): void;
+  /** Opens a collapsed dock for the app's own reasons, leaving the user's preference alone. */
+  expandDock(): void;
   showOpenDialog(): void;
   hideOpenDialog(): void;
   showScenarioDialog(): void;
   hideScenarioDialog(): void;
 }
+
+const DOCK_WIDTH = prefField(PREF_KEYS.dockWidth, DOCK_DEFAULT_WIDTH, isFiniteNumber);
+const DOCK_COLLAPSED = prefField(PREF_KEYS.dockCollapsed, false, isBoolean);
 
 function clampWidth(width: number): number {
   return Math.min(DOCK_MAX_WIDTH, Math.max(DOCK_MIN_WIDTH, Math.round(width)));
@@ -42,8 +47,8 @@ function clampWidth(width: number): number {
 export const useLayoutStore = create<LayoutState>((set, get) => ({
   tab: "inspector",
   previousTab: "inspector",
-  width: clampWidth(readPref<number>(PREF_KEYS.dockWidth, DOCK_DEFAULT_WIDTH, isFiniteNumber)),
-  collapsed: readPref<boolean>(PREF_KEYS.dockCollapsed, false, isBoolean),
+  width: clampWidth(DOCK_WIDTH.read()),
+  collapsed: DOCK_COLLAPSED.read(),
   fromDock: false,
   openDialog: false,
   scenarioDialog: false,
@@ -70,13 +75,17 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   setWidth(width) {
     const clamped = clampWidth(width);
     set({ width: clamped });
-    writePref(PREF_KEYS.dockWidth, clamped);
+    DOCK_WIDTH.save(clamped);
   },
 
   toggleDock() {
     const collapsed = !get().collapsed;
     set({ collapsed });
-    writePref(PREF_KEYS.dockCollapsed, collapsed);
+    DOCK_COLLAPSED.save(collapsed);
+  },
+
+  expandDock() {
+    if (get().collapsed) set({ collapsed: false });
   },
 
   showOpenDialog() {

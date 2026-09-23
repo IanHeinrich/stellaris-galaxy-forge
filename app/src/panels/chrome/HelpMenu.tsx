@@ -28,21 +28,13 @@ export function HelpMenu() {
           <MenuItem
             label="Check for updates…"
             disabled={busy}
-            onClick={() => {
-              dismiss();
-              void check(true);
-            }}
+            dismiss={dismiss}
+            onClick={() => check(true)}
           />
           <EyeRow pressed={checkAtStart} onClick={() => setCheckAtStart(!checkAtStart)}>
             <span>Check for updates at start</span>
           </EyeRow>
-          <MenuItem
-            label="Releases page"
-            onClick={() => {
-              dismiss();
-              void openReleases();
-            }}
-          />
+          <MenuItem label="Releases page" dismiss={dismiss} onClick={openReleases} />
           <div className="menu-rule" />
           <div className="menu-section">Paint a Galaxy</div>
           <EyeRow pressed={warnNotForPaint} onClick={() => setWarnNotForPaint(!warnNotForPaint)}>

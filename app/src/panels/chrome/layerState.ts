@@ -1,5 +1,6 @@
 import type { SpecialKind } from "../../generated/SpecialKind";
 import { documentCapabilities } from "../../lib/capabilities";
+import { shortcutLabel } from "../../lib/keys";
 import { kindLabel } from "../../lib/special";
 import type { LayerId } from "../../lib/visual/layerIds";
 import {
@@ -23,8 +24,8 @@ export function kindsLabel(kind: SpecialKind): string {
 /** The key that flips each master; the scenario is the document itself and has none. */
 export const MASTER_KEYS: Record<Source, string> = {
   scenario: "",
-  initializers: "0",
-  scripts: "`",
+  initializers: shortcutLabel("toggleInitializerLayers"),
+  scripts: shortcutLabel("toggleScriptLayers"),
 };
 
 /** What a master's pill reads: it flips a whole group, not the one layer an icon carries. */

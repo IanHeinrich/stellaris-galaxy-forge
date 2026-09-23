@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 import { OPEN_RESULT, SCENARIO_RESULT, detailOf } from "./fixture";
 
 vi.mock("../api/ipc");
@@ -31,7 +32,7 @@ const stored = new Map<string, string>();
 
 bindStores();
 
-const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn(), confirmRemoveNebula: vi.fn() };
+const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
 
 async function openScenario(): Promise<void> {
   vi.mocked(ipc.openSave).mockResolvedValueOnce(SCENARIO_RESULT);
@@ -40,11 +41,7 @@ async function openScenario(): Promise<void> {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   useGalaxyStore.getState().clear();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useToolStore.setState({ ...useToolStore.getInitialState() });

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { lanesTo, systemNode } from "../../test/builders";
 import { segmentsCross } from "../geometry/segments";
 import { MESH_BETA, type MeshPoint } from "../geometry/mesh";
-import { laneSegments, meshWithin, strokeLanes, withProvisionalIds, type Pair } from "./lanes";
+import type { Pair } from "../geometry/pairs";
+import { laneSegments, meshWithin, strokeLanes, withProvisionalIds } from "./lanes";
 
 const SPACING = 10;
 const MAX = 3 * SPACING;

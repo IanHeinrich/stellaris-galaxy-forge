@@ -240,6 +240,7 @@ describe("issuesStore", () => {
           "1,300 systems is well above Huge, the game's largest galaxy (1,000 stars). " +
           "Very large galaxies can make the game slow.",
         systems: [],
+        note: true,
       },
     ]);
 
@@ -317,6 +318,7 @@ describe("the initializer limit note", () => {
         code: "initializer_over_limit",
         message: "3 systems use distar_crystal_system, which the game allows 2 times.",
         systems: [0, 1, 2],
+        note: true,
       },
     ]);
 

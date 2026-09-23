@@ -2,12 +2,9 @@ import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { PaintModView } from "../generated/PaintModView";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
-import { scenarioHeaderName } from "../lib/paint";
-import { fileName, isUnder, joinPath } from "../lib/paths";
-import { useFileSessionStore } from "./fileSessionStore";
-import { useGalaxyStore } from "./galaxyStore";
+import type { WorkshopLinks } from "../generated/WorkshopLinks";
 import { PREF_KEYS } from "./prefKeys";
-import { isBoolean, readPref, writePref } from "./prefs";
+import { isBoolean, prefField } from "./prefs";
 
 /** How often to look again while the mod is missing or disabled: a Steam download is a minute. */
 export const PAINT_MOD_POLL_MS = 5000;
@@ -23,6 +20,8 @@ export interface PaintModState {
   paintChoice: boolean;
   /** Opening a scenario that isn't for the mod asks first; kept per machine. */
   warnNotForPaint: boolean;
+  /** The Workshop pages the shell opens, asked for the first time one is wanted. */
+  links: WorkshopLinks | null;
 
   /**
    * Asks the shell again; a failed ask leaves the last answer standing, and an answer that says
@@ -37,9 +36,13 @@ export interface PaintModState {
   dismissNotice(): void;
   setPaintChoice(on: boolean): void;
   setWarnNotForPaint(on: boolean): void;
-  /** Save As into the mod's scenarios folder; nothing when that folder is unknown. */
-  saveIntoPaintMod(): Promise<void>;
+  /** The address of one Workshop page, asking the shell for them once. */
+  workshopLink(page: keyof WorkshopLinks): Promise<string>;
 }
+
+const NOTICE_DISMISSED = prefField(PREF_KEYS.paintNoticeDismissed, false, isBoolean);
+const PAINT_CHOICE = prefField(PREF_KEYS.paintProfile, true, isBoolean);
+const WARN_NOT_FOR_PAINT = prefField(PREF_KEYS.warnNotForPaint, true, isBoolean);
 
 /** Whether two answers say the same of the mod. */
 function samePaintMod(a: PaintModView | null, b: PaintModView | null): boolean {
@@ -54,9 +57,10 @@ function samePaintMod(a: PaintModView | null, b: PaintModView | null): boolean {
 export const usePaintModStore = create<PaintModState>((set, get) => ({
   paintMod: null,
   known: false,
-  noticeDismissed: readPref(PREF_KEYS.paintNoticeDismissed, false, isBoolean),
-  paintChoice: readPref(PREF_KEYS.paintProfile, true, isBoolean),
-  warnNotForPaint: readPref(PREF_KEYS.warnNotForPaint, true, isBoolean),
+  noticeDismissed: NOTICE_DISMISSED.read(),
+  paintChoice: PAINT_CHOICE.read(),
+  warnNotForPaint: WARN_NOT_FOR_PAINT.read(),
+  links: null,
 
   async refresh() {
     let fresh: PaintModView | null;
@@ -87,26 +91,27 @@ export const usePaintModStore = create<PaintModState>((set, get) => ({
   },
 
   dismissNotice() {
-    writePref(PREF_KEYS.paintNoticeDismissed, true);
+    NOTICE_DISMISSED.save(true);
     set({ noticeDismissed: true });
   },
 
   setPaintChoice(on) {
     set({ paintChoice: on });
-    writePref(PREF_KEYS.paintProfile, on);
+    PAINT_CHOICE.save(on);
   },
 
   setWarnNotForPaint(on) {
     set({ warnNotForPaint: on });
-    writePref(PREF_KEYS.warnNotForPaint, on);
+    WARN_NOT_FOR_PAINT.save(on);
   },
 
-  async saveIntoPaintMod() {
-    const dir = paintScenariosDir();
-    const { kind, path, title, saveAs } = useFileSessionStore.getState();
-    if (kind !== "scenario" || dir === null) return;
-    const name = fileName(path) || (title === null ? undefined : `${title}.txt`);
-    await saveAs(name === undefined ? dir : joinPath(dir, name));
+  async workshopLink(page) {
+    let links = get().links;
+    if (links === null) {
+      links = await ipc.workshopLinks();
+      set({ links });
+    }
+    return links[page];
   },
 }));
 
@@ -118,19 +123,4 @@ export function standingProfile(): ScenarioProfile {
 /** The mod's scenarios folder on this machine; null until known. */
 export function paintScenariosDir(): string | null {
   return usePaintModStore.getState().paintMod?.scenarios_dir ?? null;
-}
-
-/**
- * The "now what": once the file the session just wrote sits inside the mod's scenarios folder,
- * says how to find it in Stellaris. Silent when the header names no size yet.
- */
-export function noteSavedIntoPaintMod(): void {
-  const { kind, path, setNotice } = useFileSessionStore.getState();
-  const dir = paintScenariosDir();
-  if (kind !== "scenario" || path === null || dir === null || !isUnder(path, dir)) return;
-  const name = scenarioHeaderName(useGalaxyStore.getState().header);
-  if (name === null) return;
-  setNotice(
-    `Saved into the Paint a Galaxy mod. In Stellaris, start a new game and pick the size ${name}.`,
-  );
 }

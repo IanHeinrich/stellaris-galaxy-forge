@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { stubPrefs } from "../test/prefs";
 import type { GameDataChanged } from "../generated/GameDataChanged";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { Progress } from "../generated/Progress";
@@ -104,11 +105,7 @@ export function armGameData(): void {
   useGalaxyStore.getState().clear();
   useDetailsStore.getState().clear();
   useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
-  listeners.storage = new Map();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => listeners.storage.get(key) ?? null,
-    setItem: (key: string, value: string) => void listeners.storage.set(key, value),
-  });
+  listeners.storage = stubPrefs();
   listeners.unlisten = vi.fn<() => void>();
   listeners.unlistenChanges = vi.fn<() => void>();
   listeners.progress = null;

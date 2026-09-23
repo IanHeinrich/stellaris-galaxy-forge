@@ -182,7 +182,6 @@ function pending() {
 const effects: CommandEffects = {
   focusSearch: () => undefined,
   browseInitializers: () => undefined,
-  confirmRemoveNebula: () => undefined,
 };
 
 describe("a brush stroke", () => {

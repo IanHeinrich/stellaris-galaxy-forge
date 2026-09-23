@@ -1,6 +1,6 @@
-import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { stubPrefs } from "../../test/prefs";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -11,7 +11,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
 import { usePaintModStore } from "../../store/paintModStore";
 import { paintModView } from "../../test/builders";
-import { elements } from "../../test/elements";
+import { buttonIn } from "../../test/elements";
 import { PaintNotice } from "./PaintNotice";
 
 const notice = () => renderToStaticMarkup(<PaintNotice />);
@@ -19,14 +19,7 @@ const notice = () => renderToStaticMarkup(<PaintNotice />);
 const DIR = "C:/mods/pag/map/setup_scenarios";
 
 /** The notice's button reading `label`. */
-function button(label: string): ReactElement<{ onClick(): void; disabled?: boolean }> {
-  const found = elements(<PaintNotice />).find(
-    (el): el is ReactElement<{ onClick(): void; disabled?: boolean }> =>
-      el.type === "button" && renderToStaticMarkup(el).includes(label),
-  );
-  expect(found).toBeDefined();
-  return found!;
-}
+const button = (label: string) => buttonIn(<PaintNotice />, label)!;
 
 function open(result: typeof OPEN_RESULT): void {
   useFileSessionStore.setState({ status: "ready", kind: result.kind, path: result.path });
@@ -36,11 +29,7 @@ const stored = new Map<string, string>();
 
 beforeEach(() => {
   vi.clearAllMocks();
-  stored.clear();
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
-  });
+  stubPrefs(stored);
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
 });
@@ -77,7 +66,7 @@ describe("the notice for a scenario outside the mod", () => {
     expect(button("Save into the Paint a Galaxy mod…").props.disabled).toBe(false);
 
     const saveIntoPaintMod = vi.fn();
-    usePaintModStore.setState({ saveIntoPaintMod });
+    useFileSessionStore.setState({ saveIntoPaintMod });
     button("Save into the Paint a Galaxy mod…").props.onClick();
     expect(saveIntoPaintMod).toHaveBeenCalledTimes(1);
   });
