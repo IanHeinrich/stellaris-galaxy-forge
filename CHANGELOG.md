@@ -15,6 +15,10 @@ a release is made.
   classes with the same number of stars.
 - Several selected systems can be given one star class at once. Systems
   with a different number of stars are left as they are.
+- In a Stellaris 4.5 save, an empire's map border and fill colours can
+  be picked from the Empires list. The palette is the one the game
+  shows, including one from a mod. An empire can also go back to its
+  flag colours.
 
 ## [0.11.1] - 2026-09-23
 
