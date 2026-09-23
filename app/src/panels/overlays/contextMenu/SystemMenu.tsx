@@ -3,8 +3,14 @@ import { addFeZoneRefusal } from "../../../lib/feZone";
 import { clanOf, REMOVE_CLAN_HINT } from "../../../lib/marauder";
 import { useSystemNames } from "../../../store/browserRows";
 import { useEditorStore } from "../../../store/editorStore";
-import { usePaintLayer } from "../../../store/fileSessionStore";
-import { linkedTo, unlinkedTo, useGalaxyStore } from "../../../store/galaxyStore";
+import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
+import {
+  linkedTo,
+  preventedTo,
+  unlinkedTo,
+  unpreventedTo,
+  useGalaxyStore,
+} from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useMapChromeStore, type ContextTarget } from "../../../store/mapChromeStore";
 import { browseInitializers, NEEDS_GAME_DATA } from "../../initializers/entry";
@@ -34,11 +40,14 @@ export function SystemMenu({
   const applySymmetric = useEditorStore((s) => s.applySymmetric);
   const connectSelectedTo = useEditorStore((s) => s.connectSelectedTo);
   const cutLanesToSelected = useEditorStore((s) => s.cutLanesToSelected);
+  const preventLanesToSelected = useEditorStore((s) => s.preventLanesToSelected);
+  const allowLanesToSelected = useEditorStore((s) => s.allowLanesToSelected);
   const removeMarauderClan = useEditorStore((s) => s.removeMarauderClan);
   const removeSystem = useEditorStore((s) => s.removeSystem);
   const addFeZone = useEditorStore((s) => s.addFeZone);
   const systems = useGalaxyStore((s) => s.systems);
   const paint = usePaintLayer();
+  const scenario = useFileSessionStore((s) => s.kind === "scenario");
   const canCreate = useCanCreate();
   const zones = useZones();
   const { selection, selected, selectedName } = useSelected();
@@ -51,6 +60,8 @@ export function SystemMenu({
   const canIsolate = (system?.lanes.length ?? 0) > 0;
   const connectable = unlinkedTo(systems, target.id, selection).length;
   const cuttable = linkedTo(systems, target.id, selection).length;
+  const preventable = unpreventedTo(systems, target.id, selection).length;
+  const allowable = preventedTo(systems, target.id, selection).length;
   const initializerTargets = selection.length > 1 && inSelection ? selection : [target.id];
   // Only a system with an initializer can carry a weight, so a mixed selection weighs the rest.
   const weighable = spawnTargets(initializerTargets, systems, paint);
@@ -92,6 +103,19 @@ export function SystemMenu({
               <MenuItem disabled={cuttable === 0} run={() => cutLanesToSelected(target.id)}>
                 Cut hyperlanes to selected ({cuttable})
               </MenuItem>
+              {scenario && (
+                <>
+                  <MenuItem
+                    disabled={preventable === 0}
+                    run={() => preventLanesToSelected(target.id)}
+                  >
+                    Prevent lanes to selected ({preventable})
+                  </MenuItem>
+                  <MenuItem disabled={allowable === 0} run={() => allowLanesToSelected(target.id)}>
+                    Allow lanes to selected ({allowable})
+                  </MenuItem>
+                </>
+              )}
             </>
           )}
         </>

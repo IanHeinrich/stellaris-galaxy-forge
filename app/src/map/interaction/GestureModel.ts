@@ -109,6 +109,8 @@ export class GestureModel implements MapModel {
         intent.contextMenu({ kind: "lane", lane: input.edge.lane }, input.sx, input.sy);
       } else if (input.edge) {
         intent.contextMenu({ kind: "feZone", anchor: input.edge.anchor }, input.sx, input.sy);
+      } else if (input.prevented) {
+        intent.contextMenu({ kind: "prevented", ...input.prevented }, input.sx, input.sy);
       } else if (input.feZone) {
         intent.contextMenu({ kind: "feZone", anchor: input.feZone.anchor }, input.sx, input.sy);
       } else if (input.nebula) {

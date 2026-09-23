@@ -20,7 +20,14 @@ import type { Camera } from "../Camera";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
 import type { DragState, MapLayer } from "../layers/MapLayer";
 import type { MoveGhost } from "../moveGhosts";
-import { pickEdge, pickFeZone, pickNebula, pickSystem, snapTarget } from "../picking";
+import {
+  pickEdge,
+  pickFeZone,
+  pickNebula,
+  pickPrevented,
+  pickSystem,
+  snapTarget,
+} from "../picking";
 import type { MapEdge } from "../picking/edges";
 import { PickIndex } from "../picking/pickIndex";
 import { trackGalaxy } from "../picking/trackGalaxy";
@@ -284,6 +291,7 @@ export class InteractionController {
       feZone: null,
       snap: null,
       nebula: null,
+      prevented: null,
     };
     return this.model === this.models.select ? this.pick(input, w) : input;
   }
@@ -305,6 +313,9 @@ export class InteractionController {
       layers.nebulae && system === null && edge === null && feZone === null
         ? pickNebula(nebulae, this.cam, w, editor().selectedNebula)
         : null;
+    const rightClick = input.kind === "down" && input.button === 2;
+    const prevented =
+      rightClick && system === null && edge === null ? pickPrevented(systems, this.cam, w) : null;
     return {
       ...input,
       system,
@@ -317,6 +328,7 @@ export class InteractionController {
           ? null
           : snapTarget(grid, this.index, systems, this.cam, w, this.laneFrom, zones),
       nebula,
+      prevented,
     };
   }
 

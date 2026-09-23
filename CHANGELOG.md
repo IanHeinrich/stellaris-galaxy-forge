@@ -12,6 +12,11 @@ a release is made.
 
 - The Galaxy panel can reveal which L-Gate outcome the save rolled on day one: Gray Tempest, L-Drakes, Dessanu Consonance, or an empty cluster. It stays behind a Reveal link until you click it.
 
+### Changed
+
+- Preventing lanes in a scenario happens on the map. Right-click a lane for "Cut and prevent". Right-click a system with others selected to prevent or allow lanes to all of them. Right-click a prevented pair's dashed line to allow it again. The system ID field in the Inspector is gone.
+- Preventing and allowing lanes follow the symmetry mode.
+
 ## [0.10.1] - 2026-09-23
 
 ### Changed
