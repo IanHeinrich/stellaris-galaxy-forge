@@ -8,10 +8,14 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
+import { DETAILS_DEBOUNCE_MS } from "../../../store/batching";
 import { bindStores } from "../../../store/bindStores";
+import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
-import { open, resetStores } from "../inspectorFixture";
+import { useGameDataStore } from "../../../store/gameDataStore";
+import { planetSummary, systemDetails } from "../../../test/builders";
+import { mocked, open, resetStores } from "../inspectorFixture";
 import { SelectionView } from "./SelectionView";
 
 bindStores();
@@ -64,5 +68,75 @@ describe("several systems selected", () => {
     expect(html).toContain("Isolate (3)");
     expect(html).toContain("Reset lane lengths");
     expect(html).not.toContain("Set initializer");
+  });
+});
+
+describe("the bulk star class", () => {
+  const CHAIN = [0, 1, 2];
+  const STARS: Record<number, string[]> = {
+    0: ["pc_g_star"],
+    1: ["pc_a_star", "pc_pulsar"],
+    2: ["pc_m_star"],
+  };
+
+  function armStarClasses(): void {
+    const star = (key: string, ...planet_keys: string[]) => ({
+      key,
+      texture_key: `star_class:${key}`,
+      icon_scale: 1,
+      planet_keys,
+    });
+    const bodies = Object.values(STARS).flat();
+    useGameDataStore.setState({
+      names: new Map([["sc_pulsar", "Pulsar"]]),
+      starClasses: new Map(
+        [
+          star("sc_g", "pc_g_star"),
+          star("sc_m", "pc_m_star"),
+          star("sc_pulsar", "pc_pulsar"),
+          star("sc_binary_1", "pc_a_star", "pc_pulsar"),
+        ].map((c) => [c.key, c]),
+      ),
+      planetClasses: new Map(
+        bodies.map((key) => [key, { key, icon_sprite: null, habitable: false, star: true }]),
+      ),
+    });
+  }
+
+  async function landChain(): Promise<void> {
+    mocked.getSystemDetails.mockResolvedValue(
+      CHAIN.map((id) =>
+        systemDetails({
+          id,
+          with_game_data: true,
+          planets: STARS[id].map((cls, i) => planetSummary({ id: id * 10 + i, class: cls })),
+        }),
+      ),
+    );
+    useDetailsStore.getState().request(CHAIN);
+    await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
+  }
+
+  it("offers a star class picker for a save selection without reading its details", async () => {
+    armStarClasses();
+    await open("save");
+    await useEditorStore.getState().setSelection(CHAIN, "replace");
+    mocked.getSystemDetails.mockClear();
+
+    const html = renderToStaticMarkup(<SelectionView />);
+    await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
+    expect(html).toContain('aria-haspopup="listbox"');
+    expect(html).toContain('aria-label="Star class: Star class… (3 systems)"');
+    expect(mocked.getSystemDetails).not.toHaveBeenCalled();
+  });
+
+  it("is not offered on a scenario", async () => {
+    armStarClasses();
+    await open("scenario");
+    await useEditorStore.getState().setSelection(CHAIN, "replace");
+    await landChain();
+    const html = renderToStaticMarkup(<SelectionView />);
+    expect(html).not.toContain("Star class");
+    expect(html).not.toContain('aria-haspopup="listbox"');
   });
 });

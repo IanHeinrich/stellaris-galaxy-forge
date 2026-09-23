@@ -4,9 +4,10 @@
 //! undo and validates the projection. Undo and redo replay recorded bytes.
 //!
 //! The details projection is built on first use and dropped by an op that stales it
-//! (`Op::stales_details`). A scenario has no details sections at all: its systems'
-//! planets and resources come from the initializer, which the app resolves through
-//! game data.
+//! (`Op::stales_details`), unless all the op staled is the classes of the planets it
+//! rewrote, which are read again in place. A scenario has no details sections at all:
+//! its systems' planets and resources come from the initializer, which the app resolves
+//! through game data.
 
 use std::cell::OnceCell;
 use std::collections::HashSet;
@@ -126,8 +127,9 @@ impl Session {
         if self.saved_at.is_some_and(|at| at > self.history.undo_len()) {
             self.saved_at = None;
         }
+        let classes_only = applied.op.stales_only_planet_classes();
         self.history.push(applied);
-        self.drop_stale_details(&result);
+        self.update_details(classes_only, &result);
         Ok(result)
     }
 
@@ -139,7 +141,8 @@ impl Session {
             return Ok(None);
         };
         let result = result(&self.graph, seq, applied, &waylines);
-        self.drop_stale_details(&result);
+        let classes_only = applied.op.stales_only_planet_classes();
+        self.update_details(classes_only, &result);
         Ok(Some(result))
     }
 
@@ -151,7 +154,8 @@ impl Session {
             return Ok(None);
         };
         let result = result(&self.graph, seq, applied, &waylines);
-        self.drop_stale_details(&result);
+        let classes_only = applied.op.stales_only_planet_classes();
+        self.update_details(classes_only, &result);
         Ok(Some(result))
     }
 
@@ -218,8 +222,24 @@ impl Session {
         delta
     }
 
-    fn drop_stale_details(&mut self, result: &OpResult) {
-        if !result.details_stale.is_empty() {
+    /// Bring a built details projection up to date with `result`: reread the classes of the
+    /// planets it rewrote when that is all it staled, else drop the projection.
+    fn update_details(&mut self, classes_only: bool, result: &OpResult) {
+        if result.details_stale.is_empty() {
+            return;
+        }
+        let Some(details) = self.details.get_mut().filter(|_| classes_only) else {
+            self.details.take();
+            return;
+        };
+        let planets = result.subjects.iter().filter_map(|s| match *s {
+            Subject::Planet { id, system } => Some((id, system)),
+            _ => None,
+        });
+        if Arc::make_mut(details)
+            .refresh_classes(&self.doc, planets)
+            .is_err()
+        {
             self.details.take();
         }
     }
@@ -456,13 +476,20 @@ fn result(graph: &GalaxyGraph, seq: usize, applied: &Applied, waylines: &[Waylin
     }
 }
 
-/// The systems `op` left the details of stale, ascending; the lane statements it also
-/// rewrote name no system of their own.
+/// The systems `op` left the details of stale, ascending: those it rewrote and those
+/// whose bodies it rewrote. The lane statements it also rewrote name no system of their
+/// own.
 fn details_stale(op: &Op, subjects: &[Subject]) -> Vec<u32> {
     if !op.stales_details() {
         return Vec::new();
     }
-    let mut ids: Vec<u32> = subjects.iter().filter_map(|s| s.system()).collect();
+    let mut ids: Vec<u32> = subjects
+        .iter()
+        .filter_map(|s| match *s {
+            Subject::System(id) | Subject::Planet { system: id, .. } => Some(id),
+            _ => None,
+        })
+        .collect();
     ids.sort_unstable();
     ids.dedup();
     ids

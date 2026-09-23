@@ -1,0 +1,108 @@
+.icon-picker {
+  position: relative;
+  display: inline-flex;
+  vertical-align: bottom;
+}
+
+.icon-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 4px 0 2px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border-color: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.icon-picker-trigger:hover:not(:disabled),
+.icon-picker-trigger[aria-expanded="true"] {
+  color: var(--fg);
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
+
+/* The icon may be taller than the line; it overflows its box so the line keeps its height. */
+.icon-picker-trigger .icon-picker-icon {
+  width: 18px;
+  height: 12px;
+}
+
+.icon-picker-caret {
+  font-size: 10px;
+  color: var(--fg-soft);
+}
+
+.icon-picker-trigger:hover:not(:disabled) .icon-picker-caret,
+.icon-picker-trigger[aria-expanded="true"] .icon-picker-caret {
+  color: var(--accent);
+}
+
+.icon-picker-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 4;
+  min-width: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.icon-picker-pop:focus {
+  outline: none;
+}
+
+.icon-picker-group {
+  padding: 6px 6px 2px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+
+.icon-picker-empty {
+  padding: 6px;
+}
+
+.icon-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 6px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.icon-picker-option.active {
+  background: var(--bg-panel);
+}
+
+.icon-picker-option[aria-selected="true"] .icon-picker-label {
+  color: var(--accent);
+}
+
+.icon-picker-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.icon-picker-note {
+  margin-left: auto;
+  padding-left: 8px;
+}

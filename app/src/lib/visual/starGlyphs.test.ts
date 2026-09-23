@@ -3,7 +3,15 @@ import type { StarClassView } from "../../generated/StarClassView";
 import { RANDOM_STAR_CLASS, effectiveStarClass, starTextureKey } from "./starGlyphs";
 
 const CLASSES = new Map<string, StarClassView>([
-  ["sc_black_hole", { key: "sc_black_hole", texture_key: "star_class:black_hole", icon_scale: 2 }],
+  [
+    "sc_black_hole",
+    {
+      key: "sc_black_hole",
+      texture_key: "star_class:black_hole",
+      icon_scale: 2,
+      planet_keys: ["pc_black_hole"],
+    },
+  ],
 ]);
 
 describe("starTextureKey", () => {

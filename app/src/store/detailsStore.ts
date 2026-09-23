@@ -9,6 +9,8 @@ export interface DetailsState {
   pending: Set<number>;
   /** Systems whose reading failed, by the message to show; asking again waits for an edit or a reload. */
   failed: Map<number, string>;
+  /** Cached ids an edit staled: still shown, and asked for again, until the fresh answer replaces them. */
+  stale: ReadonlySet<number>;
   /** Bumped whenever an answer lands or the cache is cleared. */
   version: number;
   /** Resource key → `GFX_` sprite name from the game's resource definitions. */
@@ -32,20 +34,19 @@ let issued = 0;
 const staled = new Map<number, number>();
 /** Ids a batch was asked for and did not answer: there is nothing to show until an edit stales them. */
 const absent = new Set<number>();
-/** Cached ids an edit staled: still shown, and asked for again, until the fresh answer replaces them. */
-const stale = new Set<number>();
 let iconsInFlight: Promise<void> | null = null;
 
 export const useDetailsStore = create<DetailsState>((set, get) => ({
   details: new Map(),
   pending: new Set(),
   failed: new Map(),
+  stale: new Set(),
   version: 0,
   resourceIcons: new Map(),
   resourceIconsError: null,
 
   request(ids) {
-    const { details, pending, failed } = get();
+    const { details, pending, failed, stale } = get();
     const asked = new Set(pending);
     for (const id of ids) {
       // A failure is not retried on its own: its own version bump would ask again forever.
@@ -75,6 +76,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
     const { version, details } = get();
     const pending = new Set(get().pending);
     const failed = new Map(get().failed);
+    const stale = new Set(get().stale);
     let dropped = false;
     for (const id of ids) {
       absent.delete(id);
@@ -88,14 +90,13 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
         dropped = true;
       }
     }
-    if (dropped) set({ pending, failed, version: version + 1 });
+    if (dropped) set({ pending, failed, stale, version: version + 1 });
   },
 
   clear() {
     generation++;
     staled.clear();
     absent.clear();
-    stale.clear();
     if (timer !== null) clearTimeout(timer);
     timer = null;
     queue = [];
@@ -103,6 +104,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
       details: new Map(),
       pending: new Set(),
       failed: new Map(),
+      stale: new Set(),
       version: get().version + 1,
     });
   },
@@ -157,11 +159,12 @@ function settle(ids: number[], outcome: { fresh?: SystemDetails[]; failed?: stri
   for (const id of ids) pending.delete(id);
   const details = new Map(state.details);
   const failed = new Map(state.failed);
+  const stale = new Set(state.stale);
   for (const d of outcome.fresh ?? []) {
     details.set(d.id, d);
     failed.delete(d.id);
     stale.delete(d.id);
   }
   if (outcome.failed !== undefined) for (const id of ids) failed.set(id, outcome.failed);
-  useDetailsStore.setState({ details, pending, failed, version: state.version + 1 });
+  useDetailsStore.setState({ details, pending, failed, stale, version: state.version + 1 });
 }

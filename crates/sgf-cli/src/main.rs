@@ -167,6 +167,17 @@ fn run(cli: Cli) -> commands::Run {
         Some(Command::Isolate { sav, id, out }) => {
             commands::mutate::run(&sav, out.path.as_deref(), Op::IsolateSystem { id })
         }
+        Some(Command::Star {
+            sav,
+            id,
+            class,
+            bodies,
+            out,
+        }) => commands::mutate::run(
+            &sav,
+            out.path.as_deref(),
+            Op::SetStarClass { id, class, bodies },
+        ),
         Some(Command::Synth {
             systems,
             seed,

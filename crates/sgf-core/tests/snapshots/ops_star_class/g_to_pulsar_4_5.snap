@@ -1,0 +1,27 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the star class of Xu Nur (#1) from sc_g to sc_pulsar
+inverse: SetStarClass { id: 1, class: "sc_g", bodies: [StarBody { planet: 584, class: "pc_g_star" }] }
+
+--- gamestate
++++ gamestate
+@@ -28940,7 +28940,7 @@
+ 		planet=589
+ 		planet=590
+ 		planet=591
+-		star_class="sc_g"
++		star_class="sc_pulsar"
+ 		hyperlane=
+ 		{
+ 			
+@@ -110029,7 +110029,7 @@
+ 		}
+ 		584=
+ 		{
+-			planet_class="pc_g_star"
++			planet_class="pc_pulsar"
+ 			planet_size=29
+ 			carrier_binary_flags=3
+ 			build_queue=701

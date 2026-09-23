@@ -23,3 +23,4 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A prevented lane is not generated; an edited header key takes effect
 - [ ] An edited scenario in a local mod is picked up by auto-reload while the app is open
 - [ ] An L-Gate outcome set in the editor is the one that spawns when a gate opens
+- [ ] A system given a new star class loads with that star drawn on the galaxy map and in the system view

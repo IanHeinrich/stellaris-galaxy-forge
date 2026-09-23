@@ -267,6 +267,15 @@ pub enum Op {
     SetLGateOutcome {
         outcome: LGateOutcome,
     },
+    /// A save system's `star_class` and the `planet_class` of each of its star bodies,
+    /// each written as given. Which bodies are stars and what they become is the caller's
+    /// to say from the install's star classes; each must be one the system lists, once.
+    /// The inverse carries the class and body classes displaced. Save documents only.
+    SetStarClass {
+        id: u32,
+        class: String,
+        bodies: Vec<StarBody>,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -321,6 +330,7 @@ impl Op {
             Self::PreventLane { .. } => "PreventLane",
             Self::UnpreventLane { .. } => "UnpreventLane",
             Self::SetLGateOutcome { .. } => "SetLGateOutcome",
+            Self::SetStarClass { .. } => "SetStarClass",
             Self::Batch { .. } => "Batch",
         }
     }
@@ -329,11 +339,12 @@ impl Op {
     /// projection is keyed by the systems the graph holds, so an op that adds or removes
     /// one stales it, and a scenario system's planets and resources come from its
     /// initializer, so an op that writes one stales it too, a scripted seat included
-    /// because it may bring an initializer with it. A save's details are read from
-    /// sections no op writes, which is why none of these ops is one a save takes.
+    /// because it may bring an initializer with it. A save's details list a star's
+    /// bodies, whose classes [`Op::SetStarClass`] writes.
     pub fn stales_details(&self) -> bool {
         match self {
-            Self::AddSystem { .. }
+            Self::SetStarClass { .. }
+            | Self::AddSystem { .. }
             | Self::RemoveSystem { .. }
             | Self::AddSystems { .. }
             | Self::RemoveSystems { .. }
@@ -346,6 +357,18 @@ impl Op {
         }
     }
 
+    /// Whether the details this op stales come up to date by rereading the classes of the
+    /// planets it rewrote, without building the projection again.
+    pub fn stales_only_planet_classes(&self) -> bool {
+        match self {
+            Self::SetStarClass { .. } => true,
+            Self::Batch { ops, .. } => ops
+                .iter()
+                .all(|op| op.stales_only_planet_classes() || !op.stales_details()),
+            _ => false,
+        }
+    }
+
     /// Whether this op can have moved how the systems it touched are classified: the
     /// initializer a classification is read from, the name it is labelled by, or the
     /// star flags the scripts place a wormhole by.
@@ -354,6 +377,7 @@ impl Op {
             Self::SetSystemName { .. }
             | Self::SetWormholePair { .. }
             | Self::SetWormholeEnds { .. } => true,
+            Self::SetStarClass { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -366,6 +390,14 @@ impl Op {
 pub struct InitializerSet {
     pub id: u32,
     pub initializer: Option<String>,
+}
+
+/// One star body's new planet class in [`Op::SetStarClass`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StarBody {
+    pub planet: u32,
+    pub class: String,
 }
 
 /// One system to add in [`Op::AddSystems`]: an [`Op::AddSystem`] with its id given.
@@ -507,6 +539,12 @@ pub enum OpError {
     HeaderParse { offset: usize, reason: String },
     #[error("global flags: {reason} at byte {offset}")]
     FlagsParse { offset: usize, reason: String },
+    #[error("planet {planet}: {reason} at byte {offset}")]
+    PlanetParse {
+        planet: u32,
+        offset: usize,
+        reason: String,
+    },
     #[error("the document has no global flags")]
     NoFlags,
     #[error("the galaxy has no L-Gate")]
@@ -515,6 +553,22 @@ pub enum OpError {
     LGateOpened,
     #[error("the L-Gate outcome is already {0}")]
     LGateUnchanged(&'static str),
+    #[error("planet {0} does not exist")]
+    UnknownPlanet(u32),
+    #[error("a star class may not be empty")]
+    EmptyStarClass,
+    #[error("planet {0}'s class may not be empty")]
+    EmptyPlanetClass(u32),
+    #[error("class {0:?} may not hold a quote, a backslash or a line break")]
+    InvalidClass(String),
+    #[error("no star bodies given")]
+    NoStarBodies,
+    #[error("planet {planet} is not a body of system {system}")]
+    NotABody { planet: u32, system: u32 },
+    #[error("planet {0} is listed more than once")]
+    DuplicatePlanet(u32),
+    #[error("system {0} is already {1} with those star bodies")]
+    StarClassUnchanged(u32, String),
     #[error("{op} is not supported for a {kind} document")]
     Unsupported {
         op: &'static str,

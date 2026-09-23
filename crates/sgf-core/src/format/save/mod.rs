@@ -10,7 +10,7 @@ use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
 use crate::format::Format;
-use crate::format::save::write::{bulk, lanes, lgate, move_system, nebula};
+use crate::format::save::write::{bulk, lanes, lgate, move_system, nebula, star_class};
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
@@ -34,6 +34,7 @@ impl Format for Save {
     fn statement(&self, doc: &Document, subject: Subject) -> Result<Anchor, OpError> {
         match subject {
             Subject::System(id) => Ok(Anchor::Original(find_entity(doc, id)?.stmt)),
+            Subject::Planet { id, .. } => Ok(Anchor::Original(find_planet(doc, id)?.stmt)),
             Subject::Nebula(index) => doc
                 .nebulae()
                 .get(index)
@@ -79,7 +80,8 @@ impl Format for Save {
                         .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
                     graph.refresh_lgate(flags, buf);
                 }
-                Subject::Statement { .. } | Subject::Header(_) => {}
+                // The galaxy reads nothing from a planet: its class is the details' concern.
+                Subject::Planet { .. } | Subject::Statement { .. } | Subject::Header(_) => {}
             }
         }
         let reassigned = if nebulae {
@@ -119,6 +121,9 @@ impl Format for Save {
             }
             Op::SetNebulaName { index, name } => nebula::plan_set_name(plan, s, *index, name),
             Op::SetLGateOutcome { outcome } => lgate::plan_set_outcome(plan, s, *outcome),
+            Op::SetStarClass { id, class, bodies } => {
+                star_class::plan_set(plan, s, *id, class, bodies)
+            }
             // A save's systems come with planets, a starbase and an owner, its names and
             // initializers are the game's to set, and it has neither a scenario header nor
             // a generator to prevent a lane from.
@@ -198,6 +203,16 @@ fn find_entity(doc: &Document, id: u32) -> Result<Entity, OpError> {
     match doc.index().entity(keys::GALACTIC_OBJECT, u64::from(id)) {
         Some(e) if matches!(e.value, Value::Block { .. }) => Ok(*e),
         _ => Err(OpError::UnknownSystem(id)),
+    }
+}
+
+fn find_planet(doc: &Document, id: u32) -> Result<Entity, OpError> {
+    let found = doc
+        .inner_index(keys::PLANETS)?
+        .and_then(|index| index.entity(keys::PLANET, u64::from(id)));
+    match found {
+        Some(e) if matches!(e.value, Value::Block { .. }) => Ok(*e),
+        _ => Err(OpError::UnknownPlanet(id)),
     }
 }
 

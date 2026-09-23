@@ -1,5 +1,5 @@
-//! `common/planet_classes`: what a `planets.planet_class` (or a
-//! `galactic_object.star_class`'s `planet_key`) looks like and whether it
+//! `common/planet_classes`: what a `planets.planet_class` (or one of a
+//! `galactic_object.star_class`'s `planet_keys`) looks like and whether it
 //! can be colonised.
 
 use crate::install::script::Def;

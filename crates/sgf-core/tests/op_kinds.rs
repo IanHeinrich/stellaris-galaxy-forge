@@ -37,13 +37,18 @@ fn every_id(before: &GalaxyGraph, after: &GalaxyGraph) -> Vec<u32> {
 }
 
 /// The systems `before` and `after` hold differently in what their details come from:
-/// whether they are there, and their initializer.
+/// whether they are there, their initializer, and their star, whose bodies a save's
+/// details list.
 fn details_changed(before: &GalaxyGraph, after: &GalaxyGraph) -> Vec<u32> {
-    let initializer =
-        |graph: &GalaxyGraph, id: u32| graph.systems.get(&id).map(|s| s.initializer.clone());
+    let source = |graph: &GalaxyGraph, id: u32| {
+        graph
+            .systems
+            .get(&id)
+            .map(|s| (s.initializer.clone(), s.star_class.clone()))
+    };
     every_id(before, after)
         .into_iter()
-        .filter(|&id| initializer(before, id) != initializer(after, id))
+        .filter(|&id| source(before, id) != source(after, id))
         .collect()
 }
 

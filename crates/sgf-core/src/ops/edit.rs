@@ -22,17 +22,18 @@ use crate::overlay::Anchor;
 /// One local splice: replace `range` of the statement's current bytes with the text.
 pub(crate) type Splice = (Range<usize>, Vec<u8>);
 
-/// What an [`Edit`] stands for: a `galactic_object` entity, the `index`th `nebula`
-/// section, one statement that is nobody's entity (a scenario's standalone
-/// `add_hyperlane`, which belongs to the two systems it names rather than to either),
-/// one of a scenario header's statements, which belongs to no system at all, or a save's
-/// top-level `flags` section.
+/// What an [`Edit`] stands for: a `galactic_object` entity, a save's `planets.planet`
+/// entity with the system it is a body of, the `index`th `nebula` section, one statement
+/// that is nobody's entity (a scenario's standalone `add_hyperlane`, which belongs to the
+/// two systems it names rather than to either), one of a scenario header's statements,
+/// which belongs to no system at all, or a save's top-level `flags` section.
 ///
-/// The order is the order edits are committed in: every system, then every nebula, then
-/// every standalone statement, then the header, then the flags.
+/// The order is the order edits are committed in: every system, then every planet, then
+/// every nebula, then every standalone statement, then the header, then the flags.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Subject {
     System(u32),
+    Planet { id: u32, system: u32 },
     Nebula(usize),
     Statement { anchor: Anchor, ends: (u32, u32) },
     Header(Anchor),
@@ -44,14 +45,19 @@ impl Subject {
     pub const fn system(self) -> Option<u32> {
         match self {
             Self::System(id) => Some(id),
-            Self::Nebula(_) | Self::Statement { .. } | Self::Header(_) | Self::Flags => None,
+            Self::Planet { .. }
+            | Self::Nebula(_)
+            | Self::Statement { .. }
+            | Self::Header(_)
+            | Self::Flags => None,
         }
     }
 
-    /// Every system this subject re-projects: itself, or both ends of a lane statement.
+    /// Every system this subject re-projects: itself, the system a planet is a body of, or
+    /// both ends of a lane statement.
     pub fn systems(self) -> impl Iterator<Item = u32> {
         let ids = match self {
-            Self::System(id) => vec![id],
+            Self::System(id) | Self::Planet { system: id, .. } => vec![id],
             Self::Nebula(_) | Self::Header(_) | Self::Flags => Vec::new(),
             Self::Statement { ends, .. } => vec![ends.0, ends.1],
         };
@@ -66,6 +72,11 @@ impl Subject {
                 ends: (system, _), ..
             } => OpError::Parse {
                 system,
+                offset,
+                reason,
+            },
+            Self::Planet { id: planet, .. } => OpError::PlanetParse {
+                planet,
                 offset,
                 reason,
             },

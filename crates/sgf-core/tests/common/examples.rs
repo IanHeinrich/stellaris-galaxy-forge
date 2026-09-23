@@ -1,7 +1,7 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
 use sgf_core::format::scenario::FeLinkFlags;
-use sgf_core::ops::{InitializerSet, LaneLength, LanePair, Op, SystemMove};
+use sgf_core::ops::{InitializerSet, LaneLength, LanePair, Op, StarBody, SystemMove};
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 
@@ -298,6 +298,14 @@ pub fn one_of_each() -> Vec<Example> {
         Example::save(Op::SetLGateOutcome {
             outcome: LGateOutcome::LDrakes,
         }),
+        Example::save(Op::SetStarClass {
+            id: 1,
+            class: "sc_pulsar".to_owned(),
+            bodies: vec![StarBody {
+                planet: 748,
+                class: "pc_pulsar".to_owned(),
+            }],
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),
@@ -383,7 +391,8 @@ fn position(op: &Op) -> usize {
         Op::PreventLane { .. } => 39,
         Op::UnpreventLane { .. } => 40,
         Op::SetLGateOutcome { .. } => 41,
-        Op::Batch { .. } => 42,
+        Op::SetStarClass { .. } => 42,
+        Op::Batch { .. } => 43,
     }
 }
 

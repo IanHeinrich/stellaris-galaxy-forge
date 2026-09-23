@@ -17,4 +17,6 @@ primitives three or more panels use (`.badge`, `.swatch`, `.tri`, `.filter-input
 by the components that folder owns. A folder has at most one stylesheet of its
 own, nested folders included. `overlays/` is the exception, with `loading.css`
 beside `overlays.css`. `inspector/selection/` and `overlays/contextMenu/` have no
-stylesheet, and `inspector/system/sections/` has none of its own.
+stylesheet, and `inspector/system/sections/` has none of its own. The
+`panels/` root's own components, such as `IconPicker`, keep theirs in
+`panels.css`.

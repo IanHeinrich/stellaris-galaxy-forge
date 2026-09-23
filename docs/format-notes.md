@@ -245,6 +245,16 @@ Id-keyed tables cross-reference each other, often in both directions.
 - Star type is `galactic_object.star_class="sc_g"` **and** the star's
   planet row `planet_class="pc_g_star"`; binary and trinary classes own
   several star planets.
+  The install's star class lists its star bodies in order, one
+  `planet = { key = pc_… }` each. Nothing else in the save caches the
+  class. A save with every single-star system rewritten to
+  `sc_black_hole` and `pc_black_hole` loads in 4.5.0. So do a pulsar or
+  neutron star in place of a G star, a pulsar at the player's capital, a
+  black hole under a ruined Dyson sphere or ring world, and one binary
+  class swapped for another. A single-star class left with two star
+  bodies also loads, and the system shows both stars as their bodies
+  say. Working megastructures and starbase modules that need a certain
+  star have not been tried.
 - `country.<id>.flag={ icon={ category file } background={ category file }
   colors={ ... } }`. `colors` lists bare entries: the four flag colours,
   and in 4.5 two more, the map border colour then the map fill colour.

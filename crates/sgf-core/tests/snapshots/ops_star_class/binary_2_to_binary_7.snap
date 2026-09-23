@@ -1,0 +1,36 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the star class of Escont (#35) from sc_binary_2 to sc_binary_7
+inverse: SetStarClass { id: 35, class: "sc_binary_2", bodies: [StarBody { planet: 1063, class: "pc_b_star" }, StarBody { planet: 1064, class: "pc_neutron_star" }] }
+
+--- gamestate
++++ gamestate
+@@ -31383,7 +31383,7 @@
+ 		{
+ 			1058 
+ 		}
+-		star_class="sc_binary_2"
++		star_class="sc_binary_7"
+ 		hyperlane=
+ 		{
+ 			
+@@ -146837,7 +146837,7 @@
+ 		}
+ 		1063=
+ 		{
+-			planet_class="pc_b_star"
++			planet_class="pc_k_star"
+ 			planet_size=30
+ 			carrier_binary_flags=3
+ 			build_queue=1182
+@@ -146877,7 +146877,7 @@
+ 		}
+ 		1064=
+ 		{
+-			planet_class="pc_neutron_star"
++			planet_class="pc_f_star"
+ 			planet_size=19
+ 			carrier_binary_flags=3
+ 			build_queue=1183

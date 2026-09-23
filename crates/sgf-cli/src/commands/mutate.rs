@@ -1,4 +1,4 @@
-//! The editing commands (`move`, `move-nebula`, `lane`, `isolate`): one op, then a save.
+//! The editing commands (`move`, `move-nebula`, `lane`, `isolate`, `star`): one op, then a save.
 
 use std::path::Path;
 

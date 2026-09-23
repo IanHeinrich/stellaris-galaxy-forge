@@ -255,6 +255,9 @@ pub struct StarClassView {
     /// `star_class:<icon>`, the map's texture key.
     pub texture_key: String,
     pub icon_scale: f64,
+    /// The planet class of each star body, in the order the install's definition lists
+    /// its `planet` entries.
+    pub planet_keys: Vec<String>,
 }
 
 impl From<&StarClass> for StarClassView {
@@ -266,6 +269,7 @@ impl From<&StarClass> for StarClassView {
             }
             .to_string(),
             icon_scale: sc.icon_scale,
+            planet_keys: sc.planet_keys.clone(),
         }
     }
 }

@@ -1,0 +1,27 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the star class of Grugmora (#1) from sc_g to sc_pulsar
+inverse: SetStarClass { id: 1, class: "sc_g", bodies: [StarBody { planet: 748, class: "pc_g_star" }] }
+
+--- gamestate
++++ gamestate
+@@ -28941,7 +28941,7 @@
+ 		planet=759
+ 		planet=760
+ 		planet=761
+-		star_class="sc_g"
++		star_class="sc_pulsar"
+ 		hyperlane=
+ 		{
+ 			
+@@ -130459,7 +130459,7 @@
+ 		}
+ 		748=
+ 		{
+-			planet_class="pc_g_star"
++			planet_class="pc_pulsar"
+ 			planet_size=25
+ 			carrier_binary_flags=3
+ 			build_queue=874
