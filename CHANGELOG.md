@@ -10,28 +10,21 @@ a release is made.
 
 ### Changed
 
-- Alt on the Erase brush with "Lanes only" now connects lanes. It used to paint systems.
-- Edit > Delete works for selected systems on a scenario. Delete also removes a single selected system, after a confirm.
+- Alt on the Erase brush with "Lanes only" connects lanes instead of painting systems.
+- Delete removes the selected systems on a scenario, one or several, after a confirm. Edit > Delete does the same.
 - Shift+F with a nebula selected frames the nebula.
-- `sgf export` names a scenario after the output file when no name is given, as the app does.
-- `sgf gamedata` prints the largest galaxy size and the Paint a Galaxy mod's status.
-- A bulk change to fallen empire zones says in the history what it set.
+- `sgf export` names a scenario after the output file, as the app does. `sgf gamedata` reports the largest galaxy size and the Paint a Galaxy mod's status.
 
 ### Fixed
 
-- After painting or adding a system while another edit was queued, the wrong system could be selected.
-- The message after a Join that left islands apart showed as an error.
-- "View issues" saved the dock as expanded, as if you had toggled it.
-- A failed open kept the previous document's details and scripts in the inspector.
-- The Open screen asked the Paint question and the discard question in the opposite order to the File menu.
-- Browsing to a painted scenario outside the mod's folder asked whether to open it for Paint a Galaxy.
-- The selection summary read "1 lanes" and "1 owners".
-- The brush circle now follows Alt without a pointer move. Switching tool by key clears the hover hints.
-- A hand-edited seat with a random value above its range was written as it stood. It is now folded into range.
-- The warning after adding an isolated system named no system.
-- Removing a system after renaming or moving it left an empty indented line in the file.
-- An error while watching the game files is shown in the status instead of missed silently. A reread that found nothing says which definitions it kept.
-- `sgf move-nebula` help said member systems move with the nebula. They do not.
+- The system selected after painting or adding one could be the wrong one.
+- The Open screen asked its questions in a different order from the File menu, and asked the Paint question for a painted scenario outside the mod's folder.
+- After a failed open the inspector could still show the previous document.
+- A Join that left islands apart reported it as an error. "View issues" saved the dock's state as a preference.
+- Removing a system after renaming or moving it left an empty line in the scenario file. A Paint seat with a hand-edited value above its range is now folded into range.
+- The warning after adding an isolated system names the system, and the selection summary no longer says "1 lanes".
+- The brush circle follows Alt without a pointer move, and switching tool by key clears the hover hints.
+- Errors while watching the game files show in the status bar instead of being missed.
 
 ## [0.10.0] - 2026-09-22
 
