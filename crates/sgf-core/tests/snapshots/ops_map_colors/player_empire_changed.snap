@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set empire 0's map colours to green and light_pink
+inverse: SetEmpireMapColors { country: 0, colors: Some(MapColorPair { border: "intense_red", fill: "light_pink" }) }
+
+--- gamestate
++++ gamestate
+@@ -412333,7 +412333,7 @@
+ 				"dark_blue"
+ 				"black"
+ 				"grey"
+-				"intense_red"
++				"green"
+ 				"light_pink"
+ 			}
+ 			use_map_color=yes

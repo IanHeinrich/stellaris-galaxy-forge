@@ -62,6 +62,7 @@ impl Format for Scenario {
             Subject::Statement { anchor, .. } | Subject::Header(anchor) => Ok(anchor),
             Subject::Planet { id, .. } => Err(OpError::UnknownPlanet(id)),
             Subject::Flags => Err(OpError::NoFlags),
+            Subject::Country(id) => Err(OpError::UnknownCountry(id)),
         }
     }
 

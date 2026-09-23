@@ -12,28 +12,47 @@ pub(super) fn extract(raw: Vec<RawCountry>) -> (Vec<CountryNode>, HashMap<u32, u
     let mut countries = Vec::new();
     let mut capitals = HashMap::new();
     for country in raw {
-        let Some(name) = country.name else {
-            continue;
-        };
-        if let Some(capital) = country.capital {
+        if let (Some(_), Some(capital)) = (&country.name, country.capital) {
             capitals.insert(country.id, capital);
         }
-        countries.push(CountryNode {
-            id: country.id,
-            name_key: name.stand_in(),
-            name,
-            country_type: country.country_type,
-            capital_system: None,
-            system_count: 0,
-            colors: country.colors,
-            border_color: country.border_color,
-            fill_color: country.fill_color,
-            flag_icon: country.flag_icon,
-            flag_background: country.flag_background,
-            flags: country.flags,
-        });
+        countries.extend(node(country));
     }
     (countries, capitals)
+}
+
+/// Replace the country `raw` was read from with what it now reads, keeping the capital's
+/// system and the system count, which other sections give it.
+pub(super) fn refresh(countries: &mut [CountryNode], raw: RawCountry) {
+    let Some(country) = countries.iter_mut().find(|c| c.id == raw.id) else {
+        return;
+    };
+    let Some(refreshed) = node(raw) else {
+        return;
+    };
+    *country = CountryNode {
+        capital_system: country.capital_system,
+        system_count: country.system_count,
+        ..refreshed
+    };
+}
+
+/// The country `raw` projects to; `None` when it has no `name`.
+fn node(raw: RawCountry) -> Option<CountryNode> {
+    let name = raw.name?;
+    Some(CountryNode {
+        id: raw.id,
+        name_key: name.stand_in(),
+        name,
+        country_type: raw.country_type,
+        capital_system: None,
+        system_count: 0,
+        colors: raw.colors,
+        border_color: raw.border_color,
+        fill_color: raw.fill_color,
+        flag_icon: raw.flag_icon,
+        flag_background: raw.flag_background,
+        flags: raw.flags,
+    })
 }
 
 /// The system each wanted capital sits in, from `planets.planet` and its

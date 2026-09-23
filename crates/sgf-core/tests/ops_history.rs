@@ -17,7 +17,7 @@ use common::{NEBULA_0_CENTRE, current, open};
 fn every_op_undoes_to_the_original_and_redoes_to_the_edit() {
     for example in one_of_each() {
         if let Some(op) = example.save {
-            round_trip(examples::save(), op);
+            round_trip((example.open_save)(), op);
         }
         if let Some(op) = example.scenario {
             round_trip(examples::scenario(), op);

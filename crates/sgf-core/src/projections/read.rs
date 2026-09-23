@@ -182,7 +182,8 @@ pub(crate) fn countries(index: &Index, src: &[u8]) -> Result<Vec<RawCountry>, Pr
 const MAP_BORDER_SLOT: usize = 4;
 const MAP_FILL_SLOT: usize = 5;
 
-fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
+/// What the projections read off one `country` entity, `node` being its `<id>=` node.
+pub(crate) fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
     let flag = node.find(keys::FLAG, src);
     let entries: Vec<&str> = flag
         .and_then(|f| f.find(keys::COLORS, src))

@@ -72,6 +72,55 @@ fn colors_read_rgb_and_hsv() {
 }
 
 #[test]
+fn a_mod_shipping_its_own_colors_txt_supplies_the_palette_and_is_named_as_its_source() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let install = dir.path().join("install");
+    let user_dir = dir.path().join("user");
+    let flags = install.join("flags");
+    std::fs::create_dir_all(install.join("common")).unwrap();
+    std::fs::create_dir_all(install.join("localisation")).unwrap();
+    std::fs::create_dir_all(&flags).unwrap();
+    std::fs::write(
+        flags.join("colors.txt"),
+        "colors = {\n\tblue = { flag = rgb { 0 0 200 } map = rgb { 0 0 150 } ship = rgb { 0 0 100 } }\n}\n",
+    )
+    .unwrap();
+    common::add_mod(
+        &user_dir,
+        "palette",
+        &[(
+            "flags/colors.txt",
+            "colors = {\n\tmod_teal = { flag = rgb { 0 128 128 } map = rgb { 0 100 100 } ship = rgb { 0 80 80 } }\n}\n",
+        )],
+    );
+    let load = |mods: &[&str]| {
+        common::enable(&user_dir, mods);
+        let opts = sgf_gamedata::LoadOptions {
+            install: Some(install.clone()),
+            user_dir: Some(user_dir.clone()),
+            language: "english".to_owned(),
+            mods: true,
+        };
+        sgf_gamedata::load(&opts, &mut |_| {}).expect("the throwaway install loads")
+    };
+
+    let vanilla = load(&[]);
+    assert!(vanilla.colors.get("blue").is_some());
+    assert_eq!(vanilla.colors.source, None);
+
+    let modded = load(&["palette"]);
+    assert!(
+        modded.colors.get("blue").is_none(),
+        "the mod's file wins whole"
+    );
+    assert_eq!(
+        modded.colors.get("mod_teal").map(|c| c.map),
+        Some([0, 100, 100])
+    );
+    assert_eq!(modded.colors.source.as_deref(), Some("palette"));
+}
+
+#[test]
 fn deposit_produces_sums_repeated_keys_and_skips_triggers() {
     let gd = common::cached_fixture();
     let glow = gd.deposits.get("d_glow_2").expect("d_glow_2");

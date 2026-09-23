@@ -1,0 +1,22 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set empire 0 to use its flag colours on the map
+inverse: SetEmpireMapColors { country: 0, colors: Some(MapColorPair { border: "intense_red", fill: "light_pink" }) }
+
+--- gamestate
++++ gamestate
+@@ -412333,10 +412333,9 @@
+ 				"dark_blue"
+ 				"black"
+ 				"grey"
+-				"intense_red"
+-				"light_pink"
++				"grey"
++				"dark_blue"
+ 			}
+-			use_map_color=yes
+ 		}
+ 		name=
+ 		{

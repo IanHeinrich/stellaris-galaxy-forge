@@ -187,8 +187,8 @@ impl Session {
         }
     }
 
-    /// What the map must replace after an edit of `subjects`: the systems as they now
-    /// project, and the ones the document no longer holds so the map drops them.
+    /// What the map must replace after an edit of `subjects`: the systems and countries as
+    /// they now project, and the systems the document no longer holds so the map drops them.
     fn delta(&self, subjects: &[Subject], waylines: Option<Vec<Wayline>>) -> GalaxyDelta {
         let mut delta = GalaxyDelta {
             waylines,
@@ -206,6 +206,10 @@ impl Session {
                 }
                 Subject::Header(_) => {}
                 Subject::Flags => delta.lgate = self.graph.lgate,
+                Subject::Country(id) => {
+                    let country = self.graph.countries.iter().find(|c| c.id == id);
+                    delta.countries.extend(country.cloned());
+                }
                 subject => {
                     for id in subject.systems() {
                         if !listed.insert(id) {

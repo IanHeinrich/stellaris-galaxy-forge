@@ -1,18 +1,20 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
 use sgf_core::format::scenario::FeLinkFlags;
-use sgf_core::ops::{InitializerSet, LaneLength, LanePair, Op, StarBody, SystemMove};
+use sgf_core::ops::{InitializerSet, LaneLength, LanePair, MapColorPair, Op, StarBody, SystemMove};
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 
 use super::brush::new_system;
 use super::fixture::PAINTED;
-use super::{NEW_NEBULA, open};
+use super::{NEW_NEBULA, SAMPLE_4_5, open};
 
 /// One variant's op for each document kind; `None` where that kind refuses the variant.
 pub struct Example {
     pub save: Option<Op>,
     pub scenario: Option<Op>,
+    /// Opens the save the save example applies to.
+    pub open_save: fn() -> Session,
 }
 
 impl Example {
@@ -20,13 +22,15 @@ impl Example {
         Self {
             save: Some(op.clone()),
             scenario: Some(op),
+            open_save: save,
         }
     }
 
-    fn each(save: Op, scenario: Op) -> Self {
+    fn each(save_op: Op, scenario: Op) -> Self {
         Self {
-            save: Some(save),
+            save: Some(save_op),
             scenario: Some(scenario),
+            open_save: save,
         }
     }
 
@@ -34,6 +38,16 @@ impl Example {
         Self {
             save: Some(op),
             scenario: None,
+            open_save: save,
+        }
+    }
+
+    /// A save example only the 4.5 sample takes.
+    fn save_4_5(op: Op) -> Self {
+        Self {
+            save: Some(op),
+            scenario: None,
+            open_save: save_4_5,
         }
     }
 
@@ -41,6 +55,7 @@ impl Example {
         Self {
             save: None,
             scenario: Some(op),
+            open_save: save,
         }
     }
 
@@ -60,6 +75,11 @@ impl Example {
 /// The sample save, which every save example applies to.
 pub fn save() -> Session {
     open()
+}
+
+/// The 4.5 sample, which the save examples that need its six-entry flag colours apply to.
+pub fn save_4_5() -> Session {
+    Session::open(SAMPLE_4_5).expect("open the 4.5 sample")
 }
 
 /// The painted fixture with a `prevent_hyperlane` added, which every scenario example
@@ -306,6 +326,13 @@ pub fn one_of_each() -> Vec<Example> {
                 class: "pc_pulsar".to_owned(),
             }],
         }),
+        Example::save_4_5(Op::SetEmpireMapColors {
+            country: 1,
+            colors: Some(MapColorPair {
+                border: "blue".to_owned(),
+                fill: "dark_blue".to_owned(),
+            }),
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),
@@ -392,7 +419,8 @@ fn position(op: &Op) -> usize {
         Op::UnpreventLane { .. } => 40,
         Op::SetLGateOutcome { .. } => 41,
         Op::SetStarClass { .. } => 42,
-        Op::Batch { .. } => 43,
+        Op::SetEmpireMapColors { .. } => 43,
+        Op::Batch { .. } => 44,
     }
 }
 

@@ -131,6 +131,11 @@ export function getMapColors(): Promise<MapColor[]> {
   return invoke<MapColor[]>("get_map_colors");
 }
 
+/** The mod whose palette the map colours come from; null for vanilla's, or without game data. */
+export function getMapColorSource(): Promise<string | null> {
+  return invoke<string | null>("get_map_color_source");
+}
+
 /** Every planet class of the loaded game data; empty without it. */
 export function getPlanetClasses(): Promise<PlanetClassView[]> {
   return invoke<PlanetClassView[]>("get_planet_classes");

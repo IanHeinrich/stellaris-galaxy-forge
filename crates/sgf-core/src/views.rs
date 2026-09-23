@@ -281,6 +281,9 @@ pub struct GalaxyDelta {
     /// The L-Gate as it now reads, present only when an op rewrote the global flags.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lgate: Option<LGate>,
+    /// Countries re-projected by an op; the app replaces its copy of each.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub countries: Vec<CountryNode>,
 }
 
 /// One line of the change log.

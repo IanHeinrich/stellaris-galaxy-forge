@@ -8,11 +8,13 @@
 //! One module per feature: [`move_system`] for one system's position, [`lanes`] for the
 //! hyperlane entries between them, [`bulk`] for the ops that take several at once,
 //! [`nebula`] for the clouds over them, [`lgate`] for the L-Cluster outcome the global
-//! flags hold, and [`star_class`] for a system's star and its star bodies.
+//! flags hold, [`star_class`] for a system's star and its star bodies, and [`map_colors`]
+//! for the colours an empire paints its territory in.
 
 pub(crate) mod bulk;
 pub(crate) mod lanes;
 pub(crate) mod lgate;
+pub(crate) mod map_colors;
 pub(crate) mod move_system;
 pub(crate) mod nebula;
 pub(crate) mod star_class;

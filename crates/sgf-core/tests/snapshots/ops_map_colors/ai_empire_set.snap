@@ -1,0 +1,22 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set empire 1's map colours to blue and dark_blue
+inverse: SetEmpireMapColors { country: 1, colors: None }
+
+--- gamestate
++++ gamestate
+@@ -418444,9 +418444,10 @@
+ 				"purple"
+ 				"black"
+ 				"red"
+-				"red"
+-				"purple"
++				"blue"
++				"dark_blue"
+ 			}
++			use_map_color=yes
+ 		}
+ 		name=
+ 		{
