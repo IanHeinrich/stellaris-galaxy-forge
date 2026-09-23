@@ -101,11 +101,16 @@
 
 .palette-foot {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 2px 14px;
   padding: 6px 12px;
   border-top: 1px solid var(--border);
   font-size: 10.5px;
   color: var(--fg-muted);
+}
+
+.palette-foot > span {
+  white-space: nowrap;
 }
 
 .palette-error {
@@ -123,5 +128,7 @@
 }
 
 .search.wide {
+  flex: 0 1 auto;
   width: min(360px, 28vw);
+  min-width: 160px;
 }

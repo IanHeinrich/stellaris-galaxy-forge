@@ -237,6 +237,21 @@ pub struct SearchHit {
     /// Where to pan: the focused system's position, or the nebula's centre. `None` when
     /// nothing locates the hit, such as a country with no capital.
     pub position: Option<[f64; 2]>,
+    /// For a system found by what it holds rather than its name, the thing matched: an
+    /// initializer or flag key, a special kind (`Enclave`), a bypass (`L-Gate`), or a
+    /// planet class, localised when the resolver knows it. `None` for a name match.
+    pub matched_on: Option<String>,
+}
+
+/// The hits of one search, and every system a system, planet or fleet match locates.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SearchResult {
+    /// At most `limit` of each kind; see [`SearchHit`].
+    pub hits: Vec<SearchHit>,
+    /// Ascending, without duplicates, and not capped by `limit`; countries and nebulae
+    /// add none.
+    pub systems: Vec<u32>,
 }
 
 /// Systems re-projected by an op; the map replaces its copy of each.
