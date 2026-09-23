@@ -10,6 +10,9 @@ use walkdir::WalkDir;
 
 use crate::install::mods::{ModInfo, ModStatus};
 
+/// The name of the base game's layer, the first of every [`Layout`].
+pub const VANILLA: &str = "vanilla";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layer {
     pub name: String,
@@ -28,7 +31,7 @@ pub struct Layout {
 impl Layout {
     pub(crate) fn new(install: PathBuf, user_dir: Option<PathBuf>, mods: &[ModInfo]) -> Self {
         let vanilla = Layer {
-            name: "vanilla".to_owned(),
+            name: VANILLA.to_owned(),
             root: install.clone(),
             replace_paths: Vec::new(),
         };
