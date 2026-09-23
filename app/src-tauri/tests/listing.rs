@@ -119,3 +119,12 @@ fn the_scenarios_beside_a_file_are_listed_without_a_session() {
         [("grammar.txt".to_owned(), "sgf_grammar".to_owned())]
     );
 }
+
+#[test]
+fn one_scenario_file_says_whether_it_is_for_paint_a_galaxy() {
+    let w = webview();
+    let painted = |path: &str| invoke::<bool>(&w, "scenario_painted", json!({ "path": path }));
+    assert_eq!(painted(PAINTED), Ok(true));
+    assert_eq!(painted(SCENARIO), Ok(false));
+    assert_eq!(kind(painted("no/such/file.txt")), ErrorKind::Io);
+}

@@ -2,7 +2,7 @@ import { nodeName } from "../../lib/names";
 import { useEditorStore } from "../../store/editorStore";
 import { useSystemNames } from "../../store/browserRows";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { confirmRemoveNebula, NEBULA_RADIUS_INPUT_ID, systemCount } from "./nebula";
+import { NEBULA_RADIUS_INPUT_ID, systemCount } from "./nebula";
 import { Empty, Field, Properties, PropertyRow, Swatch } from "./parts";
 
 const NO_SYSTEMS: number[] = [];
@@ -13,6 +13,7 @@ export function NebulaView({ index }: { index: number }) {
   const setNebulaRadius = useEditorStore((s) => s.setNebulaRadius);
   const setNebulaName = useEditorStore((s) => s.setNebulaName);
   const jumpTo = useEditorStore((s) => s.jumpTo);
+  const removeNebula = useEditorStore((s) => s.removeNebula);
   const nebulae = useGalaxyStore((s) => s.nebulae);
   const systems = useGalaxyStore((s) => s.systems);
   const nebula = nebulae[index];
@@ -77,7 +78,7 @@ export function NebulaView({ index }: { index: number }) {
         </div>
       )}
       <div className="ins-actions">
-        <button type="button" onClick={() => void confirmRemoveNebula(index)}>
+        <button type="button" onClick={() => void removeNebula(index)}>
           Delete nebula
         </button>
       </div>

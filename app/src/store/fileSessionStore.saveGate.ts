@@ -1,6 +1,7 @@
 import { confirm } from "@tauri-apps/plugin-dialog";
 import type { StoreApi } from "zustand";
 import { blocksSave } from "../lib/issues";
+import { CLOUD_SAVE_ANYWAY } from "../lib/sessionCopy";
 import type { FileSessionState, SaveIssuesAnswer } from "./fileSessionStore";
 import { issueKey, useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
@@ -11,10 +12,6 @@ type SaveGateActions = Pick<
   FileSessionState,
   "answerSaveIssues" | "resumePausedSave" | "dismissPausedSave"
 >;
-
-const CLOUD_WARNING =
-  "This file is in Steam's cloud folder. Steam can overwrite it with the cloud copy. " +
-  "Close Steam or disable Steam Cloud for Stellaris before you play it. Save anyway?";
 
 /** What the user says to the questions a save asks before it writes. */
 export function saveGateActions({ getState, setState }: SessionApi): SaveGateActions {
@@ -80,7 +77,7 @@ export async function confirmCloudWrite(
   path: string,
 ): Promise<boolean> {
   if (getState().cloudAcknowledged === path) return true;
-  const ok = await confirm(CLOUD_WARNING, { title: "Steam Cloud save", kind: "warning" });
+  const ok = await confirm(CLOUD_SAVE_ANYWAY, { title: "Steam Cloud save", kind: "warning" });
   if (ok) setState({ cloudAcknowledged: path });
   return ok;
 }

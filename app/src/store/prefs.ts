@@ -1,7 +1,7 @@
 import type { PrefKey } from "./prefKeys";
 
 /** Preferences kept in `localStorage`; anything absent, unreadable or malformed falls back. */
-export function readPref<T>(key: string, fallback: T, valid: (value: unknown) => value is T): T {
+export function readPref<T>(key: PrefKey, fallback: T, valid: (value: unknown) => value is T): T {
   try {
     const raw = localStorage.getItem(key);
     if (raw === null) return fallback;
@@ -12,7 +12,7 @@ export function readPref<T>(key: string, fallback: T, valid: (value: unknown) =>
   }
 }
 
-export function writePref(key: string, value: unknown): void {
+export function writePref(key: PrefKey, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {

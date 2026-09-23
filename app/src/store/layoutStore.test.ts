@@ -4,6 +4,7 @@ import { DEFAULT_LAYERS } from "../lib/visual/layerIds";
 import { bindStores } from "./bindStores";
 import { DOCK_MAX_WIDTH, DOCK_MIN_WIDTH, useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
+import { PREF_KEYS } from "./prefKeys";
 import { isFiniteNumber, isStringArray, readPref } from "./prefs";
 
 const layout = () => useLayoutStore.getState();
@@ -114,13 +115,14 @@ describe("dock size", () => {
 
 describe("stored preferences", () => {
   it("falls back to the default when a stored value is missing, corrupt or the wrong shape", () => {
-    expect(readPref("sgf.test", 340, isFiniteNumber)).toBe(340);
-    stored.set("sgf.test", "{not json");
-    expect(readPref("sgf.test", 340, isFiniteNumber)).toBe(340);
-    stored.set("sgf.test", '"wide"');
-    expect(readPref("sgf.test", 340, isFiniteNumber)).toBe(340);
-    stored.set("sgf.test", "[1, 2]");
-    expect(readPref<string[]>("sgf.test", ["leviathan"], isStringArray)).toEqual(["leviathan"]);
+    const KEY = PREF_KEYS.dockWidth;
+    expect(readPref(KEY, 340, isFiniteNumber)).toBe(340);
+    stored.set(KEY, "{not json");
+    expect(readPref(KEY, 340, isFiniteNumber)).toBe(340);
+    stored.set(KEY, '"wide"');
+    expect(readPref(KEY, 340, isFiniteNumber)).toBe(340);
+    stored.set(KEY, "[1, 2]");
+    expect(readPref<string[]>(KEY, ["leviathan"], isStringArray)).toEqual(["leviathan"]);
   });
 });
 

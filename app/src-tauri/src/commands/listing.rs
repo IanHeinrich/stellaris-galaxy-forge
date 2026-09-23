@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use sgf_core::archive::{self, GalaxySettings};
+use sgf_core::format::scenario::is_painted;
 use sgf_core::format::scenario::listings::{self, ScenarioListings};
 use sgf_core::library::{self, CampaignListing};
 use sgf_core::views::{SaveFile, SgfError};
@@ -83,6 +84,17 @@ pub async fn list_scenarios<R: Runtime>(
         }
     })
     .await
+    .map_err(io_error)
+}
+
+/// Whether the scenario file at `path` is for Paint a Galaxy, as its listing would say.
+#[tauri::command]
+pub async fn scenario_painted(path: String) -> Result<bool, SgfError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::read(&path).map(|bytes| is_painted(&bytes))
+    })
+    .await
+    .map_err(io_error)?
     .map_err(io_error)
 }
 

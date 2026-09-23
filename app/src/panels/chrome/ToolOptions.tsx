@@ -1,9 +1,7 @@
 import { useState, type ComponentType, type CSSProperties, type InputHTMLAttributes } from "react";
 import type { EraseTarget } from "../../lib/brush/brushTools";
 import type { LaneMode } from "../../lib/brush/lanes";
-import { betaOfSlider, sliderOfBeta } from "../../lib/geometry/mesh";
 import type { Tool } from "../../lib/tools";
-import { useMapChromeStore } from "../../store/mapChromeStore";
 import {
   effectiveSpacing,
   MAX_SYSTEMS_PER_BRUSH,
@@ -16,6 +14,7 @@ import {
   useToolStore,
 } from "../../store/toolStore";
 import { ENTER } from "../keys";
+import { LaneDensitySlider } from "../LaneDensitySlider";
 import "./chrome.css";
 
 /** A number field that applies on Enter or when it loses focus; text that is no number is dropped. */
@@ -76,21 +75,10 @@ function SizeOption() {
 
 /** The β of the lanes a brush adds, shared with the selection's mesh. */
 function LaneDensityOption({ disabled = false }: { disabled?: boolean }) {
-  const meshBeta = useMapChromeStore((s) => s.meshBeta);
-  const setMeshBeta = useMapChromeStore((s) => s.setMeshBeta);
   return (
     <label className="tool-option">
       Lane density
-      <input
-        type="range"
-        min={0}
-        max={1}
-        step={0.01}
-        value={sliderOfBeta(meshBeta)}
-        disabled={disabled}
-        onChange={(e) => setMeshBeta(betaOfSlider(Number(e.target.value)))}
-        aria-label="Lane density"
-      />
+      <LaneDensitySlider label="Lane density" disabled={disabled} />
     </label>
   );
 }

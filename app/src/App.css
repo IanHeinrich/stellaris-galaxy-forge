@@ -92,6 +92,18 @@ input[type="search"]:focus {
   border-color: var(--accent-dim);
 }
 
+.filter-input {
+  width: 100%;
+  height: 22px;
+  margin: 2px 0 4px;
+  padding: 0 6px;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
 h1,
 h2,
 h3 {
@@ -202,6 +214,25 @@ button.icon {
 
 button.icon:hover:not(:disabled) {
   color: var(--fg);
+}
+
+/* A derived source's soft fill; it follows button.icon:hover so a pressed icon keeps its hue. */
+.chip.src,
+button.icon.src[aria-pressed="true"],
+button.master.src[aria-pressed="mixed"],
+.menu-section .master-pill.src[aria-pressed="mixed"] > span {
+  color: var(--src);
+  border-color: var(--src-dim);
+  background: var(--src-bg);
+}
+
+.chip.init,
+button.icon.init[aria-pressed="true"],
+button.master.init[aria-pressed="mixed"],
+.menu-section .master-pill.init[aria-pressed="mixed"] > span {
+  color: var(--init);
+  border-color: var(--init-dim);
+  background: var(--init-bg);
 }
 
 kbd {

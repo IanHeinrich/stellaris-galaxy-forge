@@ -139,7 +139,6 @@ export function InitializerLegend({
     <div className="menu-flyout" role="dialog" aria-label={LEGEND_LABEL} ref={self}>
       {counts.length > INITIALIZER_SEARCH_MIN && (
         <FilterField
-          className="menu-search"
           label={`Filter ${counts.length} initializers`}
           value={query}
           onChange={setQuery}

@@ -1,6 +1,6 @@
 import { useEditorStore } from "../../../store/editorStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
-import { confirmRemoveNebula, focusNebulaRadius, nebulaLabel } from "../../inspector/nebula";
+import { focusNebulaRadius, nebulaLabel } from "../../inspector/nebula";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
 
@@ -13,6 +13,7 @@ export function NebulaMenu({
   frame: Frame;
 }) {
   const selectNebula = useEditorStore((s) => s.selectNebula);
+  const removeNebula = useEditorStore((s) => s.removeNebula);
   const name = nebulaLabel(target.index);
   return (
     <MenuFrame {...frame} label={name}>
@@ -25,7 +26,7 @@ export function NebulaMenu({
       >
         Set radius…
       </MenuItem>
-      <MenuItem className="context-menu-separated" run={() => confirmRemoveNebula(target.index)}>
+      <MenuItem className="context-menu-separated" run={() => removeNebula(target.index)}>
         Delete nebula
       </MenuItem>
     </MenuFrame>

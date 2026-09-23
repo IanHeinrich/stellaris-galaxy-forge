@@ -4,6 +4,7 @@ import type { SaveMeta } from "../generated/SaveMeta";
 import { PREF_KEYS } from "./prefKeys";
 import { prefField } from "./prefs";
 import { counted } from "../lib/text";
+import { versionShort } from "../lib/version";
 
 /** One document recently opened, either kind, for the Open screen and the File menu. */
 export interface RecentDoc {
@@ -24,12 +25,6 @@ export interface RecentsState {
 const RECENTS_CAP = 20;
 
 const RECENTS = prefField<unknown[]>(PREF_KEYS.recents, [], Array.isArray);
-
-/** The trailing word of a game version string, `"Pegasus v4.4.6"` -> `"v4.4.6"`. */
-function versionShort(version: string): string {
-  const parts = version.trim().split(/\s+/);
-  return parts[parts.length - 1] ?? "";
-}
 
 /** A save's empire, date and version; a scenario's system count when one is given. */
 export function recentSubtitle(

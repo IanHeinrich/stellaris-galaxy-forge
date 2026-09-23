@@ -267,18 +267,16 @@ export const FILTER_MIN = 20;
 /** The filter a long list grows, in the shape the Layers menu's legend already uses. */
 export function FilterField({
   label,
-  className = "ins-filter",
   value,
   onChange,
 }: {
   label: string;
-  className?: string;
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
     <input
-      className={className}
+      className="filter-input"
       type="search"
       aria-label={label}
       placeholder={label}

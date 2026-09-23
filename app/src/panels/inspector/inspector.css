@@ -146,12 +146,6 @@
   color: var(--accent);
 }
 
-.chip.src {
-  background: var(--src-bg);
-  border-color: var(--src-dim);
-  color: var(--src);
-}
-
 .chip.warn {
   background: #2f1a12;
   border-color: #6a3a28;
@@ -178,12 +172,6 @@ button.chip.jump {
 button.chip.jump:hover {
   border-color: var(--accent);
   color: var(--accent);
-}
-
-.chip.init {
-  background: var(--init-bg);
-  border-color: var(--init-dim);
-  color: var(--init);
 }
 
 .ins-sec {
@@ -356,18 +344,6 @@ button.chip.jump:hover {
 
 .ins-name-field {
   width: 100%;
-}
-
-.ins-filter {
-  width: 100%;
-  height: 22px;
-  margin: 2px 0 4px;
-  padding: 0 6px;
-  font: inherit;
-  color: inherit;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
 }
 
 button.link.ins-drill {

@@ -68,12 +68,7 @@ function ModsSection({ mods }: { mods: ModView[] }) {
       ) : (
         <>
           {mods.length > MOD_SEARCH_MIN && (
-            <FilterField
-              className="menu-search"
-              label={`Filter ${mods.length} mods`}
-              value={query}
-              onChange={setQuery}
-            />
+            <FilterField label={`Filter ${mods.length} mods`} value={query} onChange={setQuery} />
           )}
           <div className="menu-list">
             {filtered.map((mod) => (
