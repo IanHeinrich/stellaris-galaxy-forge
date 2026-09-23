@@ -28,6 +28,7 @@ import { SAVE_FILTER, SCENARIO_FILTER, writeActions } from "./fileSessionStore.w
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
+import { useLGateStore } from "./lgateStore";
 import { standingProfile, usePaintModStore } from "./paintModStore";
 import { recentSubtitle, useRecentsStore } from "./recentsStore";
 
@@ -412,6 +413,7 @@ async function openDocument(
   if (getState().status === "loading") return false;
   const mine = ++opens;
   setState({ ...INITIAL, status: "loading", path, loadingName: name ?? (fileName(path) || null) });
+  useLGateStore.getState().hide();
   let unlisten: (() => void) | null = null;
   try {
     unlisten = await onProgress((progress) => {

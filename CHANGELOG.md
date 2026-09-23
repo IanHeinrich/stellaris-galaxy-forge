@@ -20,6 +20,10 @@ a release is made.
   shows, including one from a mod. An empire can also go back to its
   flag colours.
 
+### Changed
+
+- The L-Gate outcome is hidden again each time you open a save.
+
 ## [0.11.1] - 2026-09-23
 
 ### Changed
