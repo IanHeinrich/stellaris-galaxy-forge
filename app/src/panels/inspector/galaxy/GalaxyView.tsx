@@ -3,10 +3,13 @@ import type { HeaderField } from "../../../generated/HeaderField";
 import type { LGate } from "../../../generated/LGate";
 import type { LGateOutcome } from "../../../generated/LGateOutcome";
 import {
+  LGATE_MOD_WARNING_LIMIT,
   LGATE_OPENED_TITLE,
   LGATE_OUTCOME_LABELS,
   LGATE_OUTCOMES,
   LGATE_TEMPEST_NOTE,
+  lgateModWarningLine,
+  lgateModWarnings,
 } from "../../../lib/lgate";
 import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
@@ -114,6 +117,7 @@ function LGateRow({ lgate }: { lgate: LGate }) {
   const revealed = useLGateStore((s) => s.revealed);
   const reveal = useLGateStore((s) => s.reveal);
   const hide = useLGateStore((s) => s.hide);
+  const lgateMods = useGameDataStore((s) => s.lgateMods);
   if (!revealed) {
     return (
       <PropertyRow label="L-Gate outcome">
@@ -123,6 +127,9 @@ function LGateRow({ lgate }: { lgate: LGate }) {
       </PropertyRow>
     );
   }
+  const modWarnings = lgateModWarnings(lgateMods);
+  const shownWarnings = modWarnings.slice(0, LGATE_MOD_WARNING_LIMIT);
+  const moreWarnings = modWarnings.length - shownWarnings.length;
   return (
     <>
       <PropertyRow label="L-Gate outcome">
@@ -147,6 +154,14 @@ function LGateRow({ lgate }: { lgate: LGate }) {
       </PropertyRow>
       {!lgate.opened && lgate.outcome === "gray_tempest" && (
         <div className="muted ins-hint ins-lgate-note">{LGATE_TEMPEST_NOTE}</div>
+      )}
+      {shownWarnings.map((warning) => (
+        <div key={warning.mod} className="muted ins-hint ins-lgate-note" title={warning.title}>
+          {lgateModWarningLine(warning.mod)}
+        </div>
+      ))}
+      {moreWarnings > 0 && (
+        <div className="muted ins-hint ins-lgate-note">and {moreWarnings} more</div>
       )}
     </>
   );

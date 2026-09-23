@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HeaderField } from "../../../generated/HeaderField";
+import type { LGateModTouch } from "../../../generated/LGateModTouch";
 import type { LGateOutcome } from "../../../generated/LGateOutcome";
 
 vi.mock("../../../api/ipc");
@@ -96,6 +97,12 @@ async function open(kind: "save" | "scenario"): Promise<void> {
 function count(html: string, needle: string): number {
   return html.split(needle).length - 1;
 }
+
+const modTouch = (mod: string, file: string, what: LGateModTouch["what"]): LGateModTouch => ({
+  mod_name: mod,
+  file,
+  what,
+});
 
 describe("the components row", () => {
   const JOIN = /<button type="button" class="link" title="[^"]*">Join<\/button>/;
@@ -458,6 +465,39 @@ describe("the L-Gate outcome", () => {
     const html = galaxy();
     expect(html).toContain(`disabled="" title="${LGATE_OPENED_TITLE}"`);
     expect(html).not.toContain(LGATE_TEMPEST_NOTE);
+  });
+
+  it("warns under the dropdown when an enabled mod also touches the outcome, folding past three", async () => {
+    await openWith("gray_tempest");
+    useLGateStore.getState().reveal();
+    useGameDataStore.setState({
+      lgateMods: [
+        modTouch("Alpha Mod", "events/alpha.txt", { type: "overrides_roll" }),
+        modTouch("Alpha Mod", "events/alpha_2.txt", { type: "sets_flag", flag: "dragon_season" }),
+        modTouch("Beta Mod", "events/beta.txt", { type: "overrides_gate_opening" }),
+        modTouch("Gamma Mod", "events/gamma.txt", { type: "reads_flag", flag: "l_cluster_opened" }),
+        modTouch("Delta Mod", "events/delta.txt", {
+          type: "removes_flag",
+          flag: "active_gray_goo",
+        }),
+      ],
+    });
+
+    const html = galaxy();
+    expect(html).toContain(
+      '<div class="muted ins-hint ins-lgate-note" title="events/alpha.txt: overrides the day-one roll (distar.8000); events/alpha_2.txt: sets dragon_season">Alpha Mod also changes the L-Gate outcome, so the game may not follow this choice.</div>',
+    );
+    expect(html).toContain("Beta Mod also changes the L-Gate outcome");
+    expect(html).toContain("Gamma Mod also changes the L-Gate outcome");
+    expect(html).not.toContain("Delta Mod also changes");
+    expect(html).toContain('<div class="muted ins-hint ins-lgate-note">and 1 more</div>');
+  });
+
+  it("says nothing about mods while none of the loaded ones touch the outcome", async () => {
+    await openWith("gray_tempest");
+    useLGateStore.getState().reveal();
+
+    expect(galaxy()).not.toContain("also changes the L-Gate outcome");
   });
 
   it("says nothing when the galaxy has no L-Gate", async () => {

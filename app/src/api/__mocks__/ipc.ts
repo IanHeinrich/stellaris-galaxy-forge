@@ -67,6 +67,7 @@ export const getStarbaseLevels = command("getStarbaseLevels");
 export const getShipSizes = command("getShipSizes");
 export const getCountryTypes = command("getCountryTypes");
 export const getResourceIcons = command("getResourceIcons");
+export const getLgateOutcomeMods = command("getLgateOutcomeMods");
 export const getTextures = command("getTextures");
 export const getSystemDetails = command("getSystemDetails");
 export const checkForUpdate = command("checkForUpdate");

@@ -73,6 +73,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_ship_sizes,
             commands::get_country_types,
             commands::get_resource_icons,
+            commands::get_lgate_outcome_mods,
             commands::get_textures,
             commands::get_system_details,
             commands::check_for_update,
