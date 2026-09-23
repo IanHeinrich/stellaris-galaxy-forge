@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 use sgf_core::ops::{NewSystem, Op};
-use sgf_core::overlay::Anchor;
 use sgf_core::projections::galaxy::{GalaxyGraph, SystemNode};
 use sgf_core::session::{OpResult, Session};
 use sgf_core::validate::IssueCode;
@@ -279,22 +278,12 @@ fn probe(session: &Session) -> Op {
             bridge: false,
         });
     }
-    // Skips rewritten statements: see `removing_a_rewritten_statement_takes_its_line`.
-    let scenario = session.doc.scenario().expect("a scenario");
-    let rewritten = |id: u32| {
-        scenario.system(id).is_some_and(|anchor| {
-            matches!(anchor, Anchor::Original(_))
-                && session.doc.overlay().has_original_at(anchor.start())
-        })
-    };
     if !session.graph.order.is_empty() {
         let last = session
             .graph
             .order
-            .iter()
-            .rev()
-            .find(|&&id| !rewritten(id))
-            .expect("a system no edit rewrote, for the probe to remove");
+            .last()
+            .expect("a system for the probe to remove");
         ops.push(Op::RemoveSystem { id: *last });
     }
     Op::Batch {

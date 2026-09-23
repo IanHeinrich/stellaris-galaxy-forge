@@ -359,6 +359,16 @@ fn ends_line(src: &[u8], at: usize) -> bool {
 
 pub(super) fn load(doc: &Document, subject: Subject, stmt: Anchor) -> Result<Edit, OpError> {
     let buf = doc.current(stmt)?.to_vec();
+    parsed(doc, subject, stmt, buf)
+}
+
+/// An edit of `stmt`, whose current bytes are `buf`.
+pub(super) fn parsed(
+    doc: &Document,
+    subject: Subject,
+    stmt: Anchor,
+    buf: Vec<u8>,
+) -> Result<Edit, OpError> {
     let root = format::of(doc.kind())
         .parse(&buf, 0)
         .map_err(|e| subject.parse_error(e.offset, e.reason))?;

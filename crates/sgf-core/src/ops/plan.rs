@@ -4,13 +4,13 @@
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 
-use super::edit::{Edit, load, owns_line, splice};
+use super::edit::{Edit, load, owns_line, parsed, splice};
 use super::{Applied, Op, OpError, Subject, refresh, rollback};
 use crate::Span;
 use crate::cst;
 use crate::document::Document;
 use crate::format;
-use crate::overlay::Anchor;
+use crate::overlay::{Anchor, OverlayError};
 use crate::session::Session;
 
 /// What a planner returns once it has planned its edits: an inverse cannot be forgotten.
@@ -50,6 +50,8 @@ impl Emitted {
 pub(crate) struct Plan {
     edits: BTreeMap<Subject, Edit>,
     emits: Vec<(Emitted, usize, Vec<u8>)>,
+    /// The slot of a statement an earlier op rewrote, which its erasure's line replaces.
+    absorbed: BTreeMap<Subject, Anchor>,
 }
 
 impl Plan {
@@ -57,6 +59,7 @@ impl Plan {
         Self {
             edits: BTreeMap::new(),
             emits: Vec::new(),
+            absorbed: BTreeMap::new(),
         }
     }
 
@@ -82,7 +85,8 @@ impl Plan {
 
     /// Leave nothing where the statement at `anchor` stands. An original statement alone
     /// on its line takes the line with it, so the slot is the line rather than the
-    /// statement; an inserted one empties its own slot.
+    /// statement, and a slot an earlier op gave the statement goes into the line's; an
+    /// inserted one empties its own slot.
     pub fn erase(
         &mut self,
         doc: &Document,
@@ -93,7 +97,21 @@ impl Plan {
         let Entry::Vacant(vacant) = self.edits.entry(subject) else {
             return Ok(());
         };
-        let edit = vacant.insert(load(doc, subject, slot)?);
+        let rewritten = slot != anchor && doc.overlay().has_original_at(anchor.start());
+        let edit = if rewritten {
+            let src = doc.original();
+            let buf = [
+                &src[slot.start()..anchor.start()],
+                doc.current(anchor)?,
+                &src[anchor.end()..slot.end()],
+            ]
+            .concat();
+            let edit = parsed(doc, subject, slot, buf)?;
+            self.absorbed.insert(subject, anchor);
+            vacant.insert(edit)
+        } else {
+            vacant.insert(load(doc, subject, slot)?)
+        };
         let end = edit.buf.len();
         edit.splices.push((0..end, Vec::new()));
         Ok(())
@@ -124,10 +142,18 @@ impl Plan {
             replacements.push((subject, edit.stmt, new_buf));
         }
         for (subject, stmt, new_buf) in replacements {
-            match session.doc.replace(stmt, new_buf.clone()) {
+            let replaced = match self.absorbed.get(&subject) {
+                Some(&inner) => absorb(&mut session.doc, inner).map(|prev| {
+                    before.push((inner, Some(prev)));
+                    after.push((inner, None));
+                }),
+                None => Ok(()),
+            }
+            .and_then(|()| session.doc.replace(stmt, new_buf.clone()));
+            match replaced {
                 Ok(prev) => {
                     before.push((stmt, prev));
-                    after.push((stmt, new_buf));
+                    after.push((stmt, Some(new_buf)));
                     touched.push(subject);
                 }
                 Err(e) => {
@@ -140,7 +166,7 @@ impl Plan {
             match session.doc.insert(at, bytes.clone()) {
                 Ok(anchor) => {
                     before.push((anchor, None));
-                    after.push((anchor, bytes));
+                    after.push((anchor, Some(bytes)));
                     touched.push(what.subject(anchor));
                 }
                 Err(e) => {
@@ -176,6 +202,13 @@ impl Plan {
     }
 }
 
+/// Take away the slot `inner`, returning its bytes, so the line enclosing it can have one.
+fn absorb(doc: &mut Document, inner: Anchor) -> Result<Vec<u8>, OverlayError> {
+    let prev = doc.current(inner)?.to_vec();
+    doc.restore(inner, None);
+    Ok(prev)
+}
+
 /// The slots a record of displaced bytes names.
 pub(crate) fn slots(before: &[(Anchor, Option<Vec<u8>>)]) -> Vec<Anchor> {
     before.iter().map(|(anchor, _)| *anchor).collect()
@@ -188,22 +221,23 @@ fn statement(doc: &Document, subject: Subject) -> Result<Anchor, OpError> {
 
 /// The slot an erasure replaces: the whole line for an original statement that has it to
 /// itself, so that no blank line is left behind, and the statement's own span otherwise.
-/// A trailing comment belongs to the line, and so goes with it. A statement an earlier op
-/// rewrote already owns a slot, which nothing may overlap, so it keeps its span and leaves
-/// its line blank.
+/// A trailing comment belongs to the line, and so goes with it. The line is read from the
+/// original bytes, so a statement an earlier op rewrote takes the same line. A line an
+/// insert stands in cannot be a slot, so there the statement keeps its span.
 fn erasure_slot(doc: &Document, anchor: Anchor) -> Anchor {
     let Anchor::Original(span) = anchor else {
         return anchor;
     };
-    if doc.overlay().has_original_at(span.start) {
-        return anchor;
-    }
     let src = doc.original();
     if !owns_line(src, span) {
         return anchor;
     }
-    Anchor::Original(Span::new(
+    let line = Span::new(
         cst::line_start(src, span.start),
         cst::line_end(src, span.end),
-    ))
+    );
+    if doc.overlay().has_insert_within(line) {
+        return anchor;
+    }
+    Anchor::Original(line)
 }

@@ -9,7 +9,7 @@ use sgf_core::session::Session;
 mod common;
 use common::brush::new_system;
 use common::current;
-use common::diff::{assert_fresh, round_trip_step as step};
+use common::diff::{assert_fresh, round_trip, round_trip_step as step};
 use common::fixture::{EXPORTED, GRAMMAR, PAINTED, from_scenario_text};
 
 /// System 1 twice, the second statement winning, and two statements sharing a line.
@@ -415,14 +415,15 @@ fn duplicate_ids_and_shared_lines_match_a_fresh_open() {
 }
 
 #[test]
-#[ignore = "erasure_slot leaves a tab-only line after a rewrite; fixed in a later batch"]
 fn removing_a_rewritten_statement_takes_its_line() {
     let rename = Op::SetSystemName {
         id: 9,
         name: "Renamed".to_owned(),
     };
     let mut edited = GRAMMAR.open();
-    edited.apply(rename).expect("rewrite system 9's statement");
+    edited
+        .apply(rename.clone())
+        .expect("rewrite system 9's statement");
     let mut fresh = from_scenario_text(current(&edited));
 
     edited
@@ -435,4 +436,40 @@ fn removing_a_rewritten_statement_takes_its_line() {
         String::from_utf8_lossy(&current(&edited)),
         String::from_utf8_lossy(&current(&fresh))
     );
+
+    round_trip(
+        GRAMMAR.open(),
+        Op::Batch {
+            description: "Rename and remove".to_owned(),
+            ops: vec![rename, Op::RemoveSystem { id: 9 }],
+        },
+    );
+}
+
+#[test]
+fn removing_the_first_system_beside_an_inserted_header_key() {
+    for rewrite in [false, true] {
+        let mut session = GRAMMAR.open();
+        let first = session.graph.order[0];
+        step(
+            &mut session,
+            "a header key the file lacks",
+            set_header("sgf_added", Some("1")),
+        );
+        if rewrite {
+            step(
+                &mut session,
+                "rename the first system",
+                Op::SetSystemName {
+                    id: first,
+                    name: "Renamed".to_owned(),
+                },
+            );
+        }
+        step(
+            &mut session,
+            "remove the first system",
+            Op::RemoveSystem { id: first },
+        );
+    }
 }

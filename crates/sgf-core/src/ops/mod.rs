@@ -32,8 +32,9 @@ pub struct Applied {
     pub inverse: Op,
     /// Per replaced statement: the slot content it displaced (`None` = the original).
     pub before: Vec<(Anchor, Option<Vec<u8>>)>,
-    /// Per replaced statement: the bytes now standing for it.
-    pub after: Vec<(Anchor, Vec<u8>)>,
+    /// Per replaced statement: the bytes now standing for it (`None` = no slot, the
+    /// line an erasure took having swallowed it).
+    pub after: Vec<(Anchor, Option<Vec<u8>>)>,
     /// The entities the op rewrote and the systems its nebula edits reassigned, sorted
     /// and deduplicated.
     pub touched: Vec<Subject>,

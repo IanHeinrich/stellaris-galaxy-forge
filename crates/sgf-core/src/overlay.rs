@@ -289,6 +289,12 @@ impl Overlay {
             .map(|(_, slot)| slot.current.as_slice())
     }
 
+    /// Whether a replacement of `span` would swallow an insert: one strictly inside it,
+    /// or at the start of a non-empty `span`.
+    pub(crate) fn has_insert_within(&self, span: Span) -> bool {
+        self.insert_within(span).is_some()
+    }
+
     /// Whether an original slot starts at `start`.
     pub fn has_original_at(&self, start: usize) -> bool {
         self.slots.contains_key(&(start, 0))
@@ -368,8 +374,9 @@ impl Overlay {
         }
         self.slots
             .range((span.start, 1)..(span.end, 0))
-            .map(|(&(at, _), _)| at)
-            .next()
+            .map(|(&key, _)| key)
+            .find(|&(_, seq)| seq != 0)
+            .map(|(at, _)| at)
     }
 
     /// The invariants a write of the slot at `key` could have broken: its own shape, the
