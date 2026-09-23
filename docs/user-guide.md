@@ -138,10 +138,12 @@ The panel down the right of the window is a set of tabs:
   when nothing is selected. A system's inspector has tabs of its own:
   Overview, Contents, Lanes, Data and Source for a save; a scenario
   swaps Data for Scripts, once game data is loaded. A row that names
-  another entity drills into it and leaves a crumb; Backspace goes back
-  one crumb, and the crumbs at the top go back further.
+  another entity drills into it and leaves a crumb; Backspace or the
+  "‹" button goes back one crumb, and the crumbs at the top go back
+  further. A page opened from another tab goes back to that tab.
 - **Empires**: every empire in the save, grouped by type. The eye hides
-  an empire's territory on the map, the name goes to its capital, and
+  an empire's territory on the map, the name or the pencil opens the
+  empire's page in the Inspector (see "Editing stars and empires"), and
   "⊙" selects its systems and frames them.
 - **Points of interest**: the leviathans, enclaves, marauders, fallen
   empires, landmarks and unique systems, grouped by kind. The eye beside
@@ -181,6 +183,31 @@ while the map has focus, and dragging its left edge resizes it.
 With several systems selected the Inspector lists them as chips, says
 how many lanes run between them, how many owners they have and how many
 are isolated, and offers the bulk actions described under "Hyperlanes".
+
+### Editing stars and empires
+
+A save's editable values sit on the Inspector's pages. Every field that
+can be changed has the same outlined, tinted box with a pencil or an
+arrow on it. Plain text is information. A change applies as soon as the
+field commits, and Ctrl+Z takes it back.
+
+- **A star.** In a system's planet list, each star carries an "Edit"
+  mark. Its page has two fields. Star type offers every star the game
+  data knows, black holes, pulsars and neutron stars included. Size
+  takes a whole number. The system's star class follows the change when
+  a class has the new stars: a G star turned into a black hole makes a
+  black hole system. When no class has them, the system keeps its class,
+  and its page says so. The class sets the map icon and the star's
+  effects in the game.
+- **Several systems' star class.** With several systems selected, the
+  Star class action gives them all one class. Systems with a different
+  number of stars are left as they are.
+- **An empire's map colours** (Stellaris 4.5 saves). The empire's page
+  has Border and Fill pickers with the game's palette, or a mod's where
+  one replaces it, and "Use flag colours instead".
+
+A binary or trinary system shows each of its stars on the map, drawn as
+its own type and sized by its size.
 
 ### Moving systems
 
@@ -868,6 +895,8 @@ commands write in place, with the same backup as the app, unless `-o
 | `sgf nebula remove <doc> <index> [-o out]` | Remove the nebula at that index in file order; the ones after it renumber. |
 | `sgf nebula radius <doc> <index> <radius> [-o out]` | Set a nebula's radius about its fixed centre. |
 | `sgf nebula name <doc> <index> <name> [-o out]` | Rename a nebula. |
+| `sgf star <sav> <id> <class> --body <planet>=<class> [-o out]` | Set a save system's star class and the planet class of each star body named. |
+| `sgf planet-size <sav> <planet> <size> [-o out]` | Set a save planet's size, star bodies included. |
 | `sgf lane add <doc> <a> <b> [--bridge] [-o out]` | Add a lane whose length is the floor of the distance, as the generator writes it. |
 | `sgf lane remove <doc> <a> <b> [-o out]` | Remove every entry of the lane on both ends. |
 | `sgf lane length <doc> <a> <b> <length> [-o out]` | Set a lane's stored length on both ends. |

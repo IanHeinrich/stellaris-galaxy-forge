@@ -18,15 +18,22 @@ a release is made.
 
 ### Added
 
-- In a save, a system's star class can be changed from the system
-  inspector. The picker shows the game's star icons and lists only
-  classes with the same number of stars.
+- In a save, each star of a system has its own page in the inspector,
+  opened from the system's planet list. Its type and size can be changed
+  there. The system's star class follows when a class has the new stars.
 - Several selected systems can be given one star class at once. Systems
-  with a different number of stars are left as they are.
+  with a different number of stars are left as they are. The picker shows
+  the game's star icons, and lists crisis variants and the unnamed
+  classes some mods add apart from the rest.
+- Binary and trinary systems show each of their stars on the map, drawn
+  as its own type and sized by its size.
 - In a Stellaris 4.5 save, an empire's map border and fill colours can
-  be picked from the Empires list. The palette is the one the game
-  shows, including one from a mod. An empire can also go back to its
-  flag colours.
+  be picked on its page in the inspector. Click the empire's name in the
+  Empires list to open it. The palette is the one the game shows,
+  including one from a mod. An empire can also go back to its flag
+  colours.
+- Fields that can be edited share one outlined style, so they stand out
+  from information. The inspector has a Back button.
 
 ### Changed
 
