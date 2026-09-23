@@ -10,6 +10,7 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
 import { bindStores } from "../../../store/bindStores";
 import { useEditorStore } from "../../../store/editorStore";
+import { useGalaxyStore } from "../../../store/galaxyStore";
 import { open, resetStores } from "../inspectorFixture";
 import { SelectionView } from "./SelectionView";
 
@@ -47,6 +48,15 @@ describe("several systems selected", () => {
     expect(html).toMatch(/title="Remove [^"]+ from the selection"/);
     expect(html).not.toContain("Filter the selection");
     expect(html).not.toContain("Jump to");
+  });
+
+  it("counts one lane and one owner in the singular", async () => {
+    await selectChain("scenario");
+    const systems = new Map(useGalaxyStore.getState().systems);
+    systems.set(0, { ...systems.get(0)!, owner: 7 });
+    useGalaxyStore.setState({ systems });
+    await useEditorStore.getState().setSelection([0, 1], "replace");
+    expect(renderToStaticMarkup(<SelectionView />)).toContain("1 lane between them · 1 owner ·");
   });
 
   it("offers no initializer on a save, whose systems cannot take one", async () => {

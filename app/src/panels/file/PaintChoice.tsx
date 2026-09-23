@@ -3,7 +3,7 @@ import { usePaintModStore } from "../../store/paintModStore";
 import { PaintModStatus } from "../chrome/PaintModStatus";
 
 /**
- * The Paint a Galaxy checkbox the New scenario and Export dialogs share: the user's standing
+ * The Paint a Galaxy checkbox of every dialog that asks the Paint question: the user's standing
  * choice, the mod's status while it is ticked, and a warning while it is not.
  */
 export function PaintChoice() {

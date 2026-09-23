@@ -204,64 +204,6 @@ button.icon:hover:not(:disabled) {
   color: var(--fg);
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  color: var(--fg);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-}
-
-.chip.kind {
-  background: #2a2410;
-  border-color: var(--accent-dim);
-  color: var(--accent);
-}
-
-.chip.src {
-  background: var(--src-bg);
-  border-color: var(--src-dim);
-  color: var(--src);
-}
-
-.chip.warn {
-  background: #2f1a12;
-  border-color: #6a3a28;
-  color: var(--warn);
-}
-
-button.chip.pick {
-  cursor: pointer;
-  font: inherit;
-  font-size: 10px;
-}
-
-button.chip.pick:hover {
-  border-color: var(--warn);
-  color: var(--warn);
-}
-
-button.chip.jump {
-  cursor: pointer;
-  font: inherit;
-  font-size: 10px;
-}
-
-button.chip.jump:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.chip.init {
-  background: var(--init-bg);
-  border-color: var(--init-dim);
-  color: var(--init);
-}
-
 kbd {
   padding: 0 4px;
   font: inherit;

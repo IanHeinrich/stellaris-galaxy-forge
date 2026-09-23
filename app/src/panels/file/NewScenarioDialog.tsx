@@ -7,7 +7,7 @@ import { Dialog } from "../overlays/Dialog";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
 
-export const MAX_RADIUS = 460;
+const MAX_RADIUS = 460;
 const DEFAULT_NAME = "new_galaxy";
 
 /** The galaxy sizes the generator offers, by the radius each one lays out. */

@@ -3,8 +3,18 @@ import type { CampaignListing } from "../generated/CampaignListing";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { RecentDoc } from "../store/recentsStore";
-import { saveMeta, scenarioSummary } from "../test/builders";
+import { saveMeta } from "../test/builders";
 import {
+  CAMPAIGN,
+  DIR,
+  campaignRow,
+  saveFile,
+  saveRow,
+  scenarioListing,
+  scenarioRow,
+} from "../test/openRows";
+import {
+  footerOpens,
   navigableRows,
   openSections,
   openTabs,
@@ -17,47 +27,16 @@ import {
 } from "./openRows";
 
 function campaign(over: Partial<CampaignListing> = {}): CampaignListing {
-  return {
-    dir: "C:/saves/terran",
-    name: "terran_1",
-    empire: "Terran Federation",
-    files: 2,
-    newest: 200,
-    meta: null,
-    cloud: false,
-    ...over,
-  };
+  return { ...CAMPAIGN, files: 2, meta: null, ...over };
 }
 
 function save(over: Partial<SaveFile> = {}): SaveFile {
-  return {
-    path: "C:/saves/terran/2206.11.16.sav",
-    campaign: "terran_1",
-    file_name: "2206.11.16.sav",
-    meta: saveMeta({ name: "Terran Federation", planets: 4, fleets: 7, color: "blue" }),
-    modified: 200,
-    size: 4096,
-    cloud: false,
-    ...over,
-  };
+  const meta = saveMeta({ name: "Terran Federation", planets: 4, fleets: 7, color: "blue" });
+  return saveFile({ meta, ...over });
 }
 
 function scenario(over: Partial<ScenarioListing> = {}): ScenarioListing {
-  return {
-    path: "C:/mods/a/map/setup_scenarios/a.txt",
-    name: "a_galaxy",
-    systems: 100,
-    source: "mod",
-    mod_name: "A Mod",
-    enabled: true,
-    shadowed_by: null,
-    modified: 10,
-    size: 1024,
-    error: null,
-    summary: scenarioSummary(),
-    painted: false,
-    ...over,
-  };
+  return scenarioListing({ source: "mod", mod_name: "A Mod", ...over });
 }
 
 const RECENT: RecentDoc = {
@@ -278,5 +257,32 @@ describe("a press on a row", () => {
     expect(first).toEqual({ select: saveRow.key, toggle: null, activate: null });
     expect(pressRow(rows, saveRow, 2, first.select).activate).toBe(saveRow);
     expect(pressRow(rows, saveRow, 3, first.select).activate).toBeNull();
+  });
+});
+
+describe("the footer's targets", () => {
+  it("opens a save as a save or as a scenario, and anything else as it is", () => {
+    const targets = lists({ files: { [DIR]: [saveFile()] } });
+    const path = saveFile().path;
+    expect(footerOpens(saveRow(), targets)).toEqual({
+      open: { path, mode: "save" },
+      asScenario: { path, mode: "scenario" },
+      forPaint: null,
+    });
+    expect(footerOpens(scenarioRow(), targets)).toEqual({
+      open: { path: scenarioListing().path, mode: "save" },
+      asScenario: null,
+      forPaint: scenarioListing().path,
+    });
+    expect(footerOpens(scenarioRow({ disabled: true }), targets).open).toBeNull();
+    const painted = scenarioRow({ listing: scenarioListing({ painted: true }) });
+    expect(footerOpens(painted, targets).forPaint).toBeNull();
+    expect(footerOpens(campaignRow(), targets).open).toEqual({ path, mode: "save" });
+    expect(footerOpens(campaignRow(), { ...targets, files: {} }).open).toBeNull();
+    expect(footerOpens(undefined, targets)).toEqual({
+      open: null,
+      asScenario: null,
+      forPaint: null,
+    });
   });
 });
