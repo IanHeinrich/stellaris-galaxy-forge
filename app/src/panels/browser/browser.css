@@ -184,6 +184,7 @@
 }
 
 .browser-row:hover .browser-actions,
+.browser-head:hover .browser-actions,
 .browser-row:focus-within .browser-actions,
 .browser-actions:focus-within {
   opacity: 1;
@@ -385,4 +386,8 @@
 
 .history-list li > .muted {
   flex: none;
+}
+
+.watch-add {
+  margin-bottom: 6px;
 }

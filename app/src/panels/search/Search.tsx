@@ -3,11 +3,13 @@ import { errorMessage } from "../../api/errors";
 import type { SearchHit } from "../../generated/SearchHit";
 import { planetClassLabel } from "../../lib/details/labels";
 import { displayName, displayTemplate, templateName } from "../../lib/names";
+import { sameQuery } from "../../lib/watchlist";
 import { useEditorStore } from "../../store/editorStore";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore, type Systems } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useWatchlistStore } from "../../store/watchlistStore";
 import { useOutsidePress } from "../useOutsidePress";
 import { RowIcon, type RowKind } from "./icons";
 import { GROUP_LABELS, KIND_ORDER, nextPrefix, parseQuery, prefixLabel, type Query } from "./query";
@@ -174,6 +176,9 @@ function SearchPanel() {
 
   const parsed = parseQuery(query);
   const { text } = parsed;
+  const pinned = useWatchlistStore(
+    (s) => text !== "" && s.entries.some((entry) => sameQuery(entry.query, text)),
+  );
 
   useOutsidePress(open, () => setOpen(false), box);
 
@@ -262,7 +267,10 @@ function SearchPanel() {
           setOpen(true);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            useWatchlistStore.getState().pin(text);
+          } else if (e.key === "Enter") {
             e.preventDefault();
             take(current, e.shiftKey);
           } else if (e.key === "ArrowDown") {
@@ -314,6 +322,7 @@ function SearchPanel() {
             <span>Up/Down move</span>
             <span>Enter go</span>
             <span>Shift+Enter add to selection</span>
+            <span>{pinned ? "Pinned to the watchlist" : "Ctrl+Enter pin"}</span>
             <span>Tab {prefixLabel(parsed).toLowerCase()}</span>
             <span>Esc close</span>
             {ringed > 0 && <span>{systemCount(ringed)} ringed</span>}

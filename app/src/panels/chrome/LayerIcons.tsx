@@ -169,6 +169,14 @@ function glyphOf(id: LayerId): ReactNode {
           <path d="M8 6.6v3.2M8 11.6v.1" />
         </LayerGlyph>
       );
+    case "watchlist":
+      return (
+        <LayerGlyph>
+          <circle cx="8" cy="8" r="5.6" />
+          <circle cx="8" cy="8" r="3" />
+          <circle cx="8" cy="8" r="0.9" fill="currentColor" stroke="none" />
+        </LayerGlyph>
+      );
     case "highlights":
       return (
         <LayerGlyph>

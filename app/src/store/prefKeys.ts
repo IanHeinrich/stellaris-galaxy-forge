@@ -31,6 +31,7 @@ export const PREF_KEYS = {
   paintProfile: "sgf.paint.profile",
   paintNoticeDismissed: "sgf.paint.noticeDismissed",
   warnNotForPaint: "sgf.paint.warnNotForPaint",
+  watchlist: "sgf.search.watchlist",
 } as const;
 
 /** The collapse memory of one browser list, which keys on the list's name. */

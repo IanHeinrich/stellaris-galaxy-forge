@@ -27,6 +27,7 @@ export function Group({
   error = false,
   sub = false,
   lead,
+  actions,
   note,
   onToggle,
   children,
@@ -38,6 +39,8 @@ export function Group({
   error?: boolean;
   sub?: boolean;
   lead?: ReactNode;
+  /** Hover actions after the count, for the section as a whole. */
+  actions?: ReactNode;
   /** What the whole section means and what to do about it, shown while it is open. */
   note?: ReactNode;
   onToggle(): void;
@@ -60,6 +63,7 @@ export function Group({
           {label}
         </button>
         <span className="browser-count">{count}</span>
+        {actions !== undefined && <span className="browser-actions">{actions}</span>}
       </div>
       {open && note !== undefined && <div className="browser-group-note">{note}</div>}
       {open && children}

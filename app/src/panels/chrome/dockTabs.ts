@@ -6,6 +6,7 @@ import { Empires } from "../browser/Empires";
 import { HistoryPanel } from "../browser/HistoryPanel";
 import { Issues } from "../browser/Issues";
 import { Points } from "../browser/Points";
+import { Watchlist } from "../browser/Watchlist";
 import { Inspector } from "../inspector/Inspector";
 
 /** One dock tab: what the strip calls it, what fills the panel, and what the document must support. */
@@ -22,6 +23,7 @@ export const DOCK_TAB_REGISTRY: Record<DockTab, DockTabEntry> = {
   inspector: { label: "Inspector", short: "Inspector", component: Inspector },
   empires: { label: "Empires", short: "Empires", component: Empires, requires: "empires" },
   poi: { label: "Points of interest", short: "POI", component: Points, requires: "special" },
+  watchlist: { label: "Watchlist", short: "Watch", component: Watchlist },
   issues: { label: "Issues", short: "Issues", component: Issues },
   changes: { label: "Changes", short: "Changes", component: HistoryPanel },
 };

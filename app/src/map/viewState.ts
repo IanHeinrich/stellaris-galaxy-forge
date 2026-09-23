@@ -2,6 +2,7 @@ import type { GalaxyDelta } from "../generated/GalaxyDelta";
 import type { SpecialKind } from "../generated/SpecialKind";
 import type { AppIssue } from "../lib/issues";
 import type { LayerId } from "../lib/visual/layerIds";
+import { watchRings, type WatchRings } from "../lib/watchlist";
 import { useDetailsStore } from "../store/detailsStore";
 import { useEditorStore } from "../store/editorStore";
 import { useFileSessionStore } from "../store/fileSessionStore";
@@ -10,6 +11,7 @@ import { useGameDataStore } from "../store/gameDataStore";
 import { useIssuesStore } from "../store/issuesStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
+import { useWatchlistStore } from "../store/watchlistStore";
 import type { HighlightsLayer } from "./layers/HighlightsLayer";
 import type { MapLayer } from "./layers/MapLayer";
 import { layerShown } from "./layerVisibility";
@@ -139,6 +141,12 @@ const BINDINGS: Binding[] = [
   ),
 
   follows(useIssuesStore, [(s) => s.issues], (s, view) => setIssues(view, s.issues), "layers"),
+  follows(
+    useWatchlistStore,
+    [(s) => s.entries, (s) => s.results],
+    (s, view) => setWatchlist(view, watchRings(s.entries, s.results)),
+    "layers",
+  ),
   follows(useFileSessionStore, [(s) => s.capabilities], (_s, view) => view.syncLayers()),
   follows(useFileSessionStore, [(s) => s.kind], (_s, view) => {
     view.refreshContext();
@@ -222,6 +230,11 @@ function setSelectedNebula(view: MapView, index: number | null): void {
 
 function setIssues(view: MapView, issues: readonly AppIssue[]): void {
   for (const layer of view.layers) layer.setIssues?.(issues);
+}
+
+function setWatchlist(view: MapView, rings: readonly WatchRings[]): void {
+  for (const layer of view.layers) layer.setWatchlist?.(rings);
+  view.invalidate();
 }
 
 function setMatched(view: MapView, key: string | null): void {

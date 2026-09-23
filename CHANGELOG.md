@@ -12,6 +12,7 @@ a release is made.
 
 - Search finds systems by what is in them as well as by name: "salvager", "gaia", "l-gate" or "leviathan" all work. It matches a system's initializer, its flags, its planet classes and its gateways and wormholes. Leviathans, enclaves and the other special kinds match only with game data loaded.
 - While the search field holds a query, every matching system is ringed on the map.
+- A watchlist keeps searches you pin, such as "salvager" or "alpha refuge", and rings their systems in a colour of their own on every save you open. Ctrl+Enter in the search field pins a search. The watchlist has its own dock tab and map layer.
 
 ### Changed
 
