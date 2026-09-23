@@ -179,6 +179,27 @@ complex or specific.
   sign to test one level further out instead.
 - Prefer fewer, broader tests that fail loudly over many narrow ones.
 
+### Where TDD applies
+
+- **Bug fixes: always.** Write the test that reproduces the bug first, at
+  the outermost level that shows it, and see it fail. A fix without a
+  test that fails without it is not done.
+- **Ops, projections and parsing rules: when the behaviour can be stated
+  before the code.** Refusals, what a projection reads back, what undo
+  restores and what a round-trip keeps are written as tests first. An
+  op's diff snapshot can only be taken once the code produces it; read
+  it before accepting it.
+- **Not for layout or drawing.** Component and map tests stub text
+  measurement and rendering, so they pass while a label overlaps or a
+  row wraps. Nor for refactors the existing tests already cover.
+
+### Looking at the running app
+
+A change to what the map or panels draw is looked at in the running app
+(`npm run tauri dev`) before its PR is marked ready, and the PR body says
+what was looked at. Until the app has Playwright tests, this is the only
+check on layout, hit areas and how a feature reads to someone using it.
+
 ## Comments
 
 Code speaks for itself: good names, small functions, obvious control
