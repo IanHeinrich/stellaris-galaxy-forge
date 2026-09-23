@@ -8,8 +8,9 @@
   color: var(--fg-muted);
 }
 
+/* Room for a coordinate like -1000.00 beside the field's pencil. */
 .ins-position .coord {
-  width: 78px;
+  width: 100px;
 }
 
 .ins-spawn-point {

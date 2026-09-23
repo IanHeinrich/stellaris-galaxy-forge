@@ -152,6 +152,18 @@
   outline: none;
 }
 
+/* The spinner arrows take the room of two digits; typing and the arrow keys still step. */
+.edit-text input[type="number"] {
+  appearance: textfield;
+  font-variant-numeric: tabular-nums;
+}
+
+.edit-text input[type="number"]::-webkit-inner-spin-button,
+.edit-text input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
 .edit-text input::placeholder {
   font-style: italic;
   color: var(--fg-muted);
