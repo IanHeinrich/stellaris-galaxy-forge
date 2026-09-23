@@ -499,7 +499,7 @@ export async function askScenarioOpen(
 
 /** A scenario opens once any Paint a Galaxy question is answered; a save first asks how to open it. */
 async function routeOpen(path: string, listings: readonly ScenarioListing[] | null): Promise<void> {
-  if (isSavePath(path)) useFileSessionStore.setState({ pendingOpen: path });
+  if (isSavePath(path)) useFileSessionStore.setState({ pendingOpen: path, pendingAsScenario: false });
   else await openAs(path, "save", false, listings);
 }
 

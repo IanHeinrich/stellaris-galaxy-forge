@@ -48,15 +48,15 @@ pub struct ExportReport {
     /// Whether the header's counts come from the save's own setup screen.
     pub setup_from_save: bool,
     /// The `system` statements the file holds.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub systems: Option<u32>,
     /// The `add_hyperlane` statements the file holds.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub hyperlanes: Option<u32>,
     /// The `nebula` statements the file holds.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub nebulae: Option<u32>,
 }

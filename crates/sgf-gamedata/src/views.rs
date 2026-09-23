@@ -58,7 +58,7 @@ pub struct PaintModView {
     /// The playset loads the Reserved Spawns submod, whose traits a reserved seat needs.
     pub reserved_spawns: bool,
     /// What reading the launcher's files ran into.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub diagnostics: Option<Vec<String>>,
 }

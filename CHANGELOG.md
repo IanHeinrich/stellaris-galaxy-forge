@@ -11,11 +11,11 @@ a release is made.
 ### Changed
 
 - Alt on the Erase brush with "Lanes only" now connects lanes. It used to paint systems.
-- Edit > Delete works for selected systems on a scenario, and Delete removes a single selected system after the same confirm as several.
-- F with a nebula selected frames the nebula.
+- Edit > Delete works for selected systems on a scenario. Delete also removes a single selected system, after a confirm.
+- Shift+F with a nebula selected frames the nebula.
 - `sgf export` names a scenario after the output file when no name is given, as the app does.
 - `sgf gamedata` prints the largest galaxy size and the Paint a Galaxy mod's status.
-- The history entry for recomputing fallen empire zones keeps its wording, and other bulk zone edits say what they set.
+- A bulk change to fallen empire zones says in the history what it set.
 
 ### Fixed
 
@@ -26,12 +26,11 @@ a release is made.
 - The Open screen asked the Paint question and the discard question in the opposite order to the File menu.
 - Browsing to a painted scenario outside the mod's folder asked whether to open it for Paint a Galaxy.
 - The selection summary read "1 lanes" and "1 owners".
-- The brush circle now follows Alt without a pointer move, and switching tool by key clears the hover hints.
-- Setting a wormhole pair with the same system at both ends failed, or wrote the flags twice.
+- The brush circle now follows Alt without a pointer move. Switching tool by key clears the hover hints.
 - A hand-edited seat with a random value above its range was written as it stood. It is now folded into range.
 - The warning after adding an isolated system named no system.
 - Removing a system after renaming or moving it left an empty indented line in the file.
-- A watcher error is shown in the status instead of missed silently, and a reread that found nothing says which definitions it kept.
+- An error while watching the game files is shown in the status instead of missed silently. A reread that found nothing says which definitions it kept.
 - `sgf move-nebula` help said member systems move with the nebula. They do not.
 
 ## [0.10.0] - 2026-09-22
