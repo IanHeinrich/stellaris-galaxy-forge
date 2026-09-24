@@ -1,3 +1,7 @@
 [env]
 # ts-rs writes the IPC types here on `cargo test --workspace`; never hand-edit them.
 TS_RS_EXPORT_DIR = { value = "app/src/generated", relative = true }
+
+[alias]
+# The Workshop uploader is outside the workspace (workshop/README.md).
+workshop = "run --quiet --release --manifest-path workshop/uploader/Cargo.toml --"
