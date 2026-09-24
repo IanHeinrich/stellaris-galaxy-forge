@@ -86,6 +86,13 @@ describe("the tool rail", () => {
     expect(button("Symmetry")).toContain('<span class="symmetry-badge">6</span>');
   });
 
+  it("hides the symmetry control on a save, since symmetry only applies to a scenario", () => {
+    useFileSessionStore.setState({ kind: "scenario" });
+    expect(rail()).toContain('aria-label="Symmetry"');
+    useFileSessionStore.setState({ kind: "save" });
+    expect(rail()).not.toContain('aria-label="Symmetry"');
+  });
+
   it("opens the symmetry flyout from its button, marking the setting in force", () => {
     expect(button("Symmetry")).toContain('aria-haspopup="menu" aria-expanded="false"');
     expect(rail()).not.toContain('role="menu"');

@@ -62,7 +62,7 @@ export function spacingOfSlider(v: number): number {
 
 const LANE_MODES: readonly LaneMode[] = ["off", "new", "nearby"];
 const ERASE_TARGETS: readonly EraseTarget[] = ["systems", "lanes"];
-const SYMMETRY_OFF: Symmetry = { kind: "off" };
+export const SYMMETRY_OFF: Symmetry = { kind: "off" };
 
 export interface ToolState {
   tool: Tool;
@@ -132,6 +132,11 @@ export function toolAllowed(tool: Tool): boolean {
   return useFileSessionStore.getState().status === "ready" && canEdit(requires);
 }
 
+/** Whether the open document can take symmetry: a scenario, never a save. */
+export function symmetryAllowed(): boolean {
+  return useFileSessionStore.getState().kind !== "save";
+}
+
 export const useToolStore = create<ToolState>((set, get) => ({
   tool: "select",
   size: storedNumber(SIZE, SIZE_RANGE),
@@ -182,6 +187,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   },
 
   setSymmetry(symmetry) {
+    if (symmetry.kind !== "off" && !symmetryAllowed()) return;
     set({ symmetry });
     SYMMETRY.save(symmetry);
     if (symmetry.kind === "off") return;
