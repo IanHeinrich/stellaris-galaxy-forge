@@ -88,7 +88,9 @@ it.
 
 Switch on the Nebulae layer first. Drag a nebula's ring to move it.
 Select it and drag a handle on the ring, or press `[` and `]`, to resize
-it. Right-click empty space for "New nebula here".
+it. Right-click empty space for "New nebula here". The new nebula
+arrives with a name from the game's own list, and you can rename it on
+its page.
 
 ### Stars and empires
 

@@ -1,0 +1,26 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Renamed nebula 9 from "Picaress_Drift" to "Yinarim_Nebula"
+inverse: SetNebulaName { index: 9, name: "Picaress_Drift" }
+--- before
++++ after
+@@ -6223,7 +6223,7 @@
+ 	}
+ 	name=
+ 	{
+-		key="Picaress_Drift"
++		key="Yinarim_Nebula"
+ 	}
+ 	radius=40
+ 	galactic_object=113
+@@ -1546034,7 +1546034,7 @@
+ 	}
+ 	nebula_names=
+ 	{
+-		"Yinarim_Nebula"
++		"Picaress_Drift"
+ 		"Temestra_Badlands"
+ 		"Arija_Patch"
+ 		"Tyjanock_Expanse"

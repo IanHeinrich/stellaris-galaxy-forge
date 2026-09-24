@@ -93,6 +93,7 @@ pub(crate) const MOVEMENT_MANAGER: &str = "movement_manager";
 pub(crate) const NAME: &str = "name";
 pub(crate) const NATURAL_WORMHOLES: &str = "natural_wormholes";
 pub(crate) const NEBULA: &str = "nebula";
+pub(crate) const NEBULA_NAMES: &str = "nebula_names";
 pub(crate) const NUM_ADVANCED_EMPIRES: &str = "num_advanced_empires";
 pub(crate) const NUM_EMPIRES: &str = "num_empires";
 pub(crate) const NUM_FALLEN_EMPIRES: &str = "num_fallen_empires";
@@ -254,6 +255,7 @@ pub(crate) const ALL: &[&str] = &[
     NAME,
     NATURAL_WORMHOLES,
     NEBULA,
+    NEBULA_NAMES,
     NUM_ADVANCED_EMPIRES,
     NUM_EMPIRES,
     NUM_FALLEN_EMPIRES,

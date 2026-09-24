@@ -12,6 +12,7 @@ import {
 } from "../../../store/initializerBrowserStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { createSystemFrom, NEEDS_GAME_DATA } from "../../initializers/entry";
+import { focusNebulaRadius } from "../../inspector/nebula";
 import { AddSystemItems } from "./AddSystemItems";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
@@ -27,7 +28,7 @@ export function SpaceMenu({
 }) {
   const addSystemAt = useEditorStore((s) => s.addSystemAt);
   const addMarauderClanAt = useEditorStore((s) => s.addMarauderClanAt);
-  const promptNebulaAt = useEditorStore((s) => s.promptNebulaAt);
+  const addNebulaAt = useEditorStore((s) => s.addNebulaAt);
   const addFeZoneAt = useEditorStore((s) => s.addFeZoneAt);
   const systems = useGalaxyStore((s) => s.systems);
   const canCreate = useCanCreate();
@@ -69,7 +70,9 @@ export function SpaceMenu({
       {canNebulae && (
         <MenuItem
           className={canCreate || save ? "menu-item context-menu-separated" : "menu-item"}
-          run={() => promptNebulaAt(target.x, target.y)}
+          run={async () => {
+            if (await addNebulaAt(target.x, target.y)) focusNebulaRadius();
+          }}
         >
           New nebula here
         </MenuItem>
