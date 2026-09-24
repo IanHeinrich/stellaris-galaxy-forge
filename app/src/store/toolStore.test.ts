@@ -212,6 +212,31 @@ describe("the symmetry toggle", () => {
   });
 });
 
+describe("symmetry on a save", () => {
+  it("cannot be turned on, and M does nothing", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    tools().setSymmetry({ kind: "rotate", n: 4 });
+    expect(tools().symmetry).toEqual({ kind: "off" });
+    expect(run("toggleSymmetry", false, effects)).toBe(false);
+    expect(tools().symmetry).toEqual({ kind: "off" });
+  });
+
+  it("is dropped when a save opens with it still on", async () => {
+    tools().setSymmetry({ kind: "mirror", axis: "y" });
+    expect(tools().symmetry).toEqual({ kind: "mirror", axis: "y" });
+    await session().openSave(OPEN_RESULT.path);
+    expect(tools().symmetry).toEqual({ kind: "off" });
+  });
+
+  it("is left alone on a scenario", async () => {
+    await openScenario();
+    tools().setSymmetry({ kind: "rotate", n: 6 });
+    expect(tools().symmetry).toEqual({ kind: "rotate", n: 6 });
+    expect(run("toggleSymmetry", false, effects)).toBe(true);
+    expect(tools().symmetry).toEqual({ kind: "off" });
+  });
+});
+
 describe("the least spacing a brush size allows", () => {
   it("leaves a small brush free and widens a large one's spacing so its circle holds at most the cap", () => {
     expect(minSpacingFor(40)).toBe(SPACING_RANGE.min);

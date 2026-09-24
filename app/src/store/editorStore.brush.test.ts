@@ -171,6 +171,7 @@ describe("a connect stroke", () => {
         [0, 2],
         [2, 3],
       ],
+      sparse: false,
     });
     await editor().connectStroke(pairsOf(dense));
     expect(mocked.applyOp).toHaveBeenCalledTimes(1);
@@ -212,7 +213,7 @@ describe("a connect stroke", () => {
       systems: [node(6, "NAME_West", 0, -15, "sc_g"), node(7, "NAME_East", 20, -15, "sc_g")],
     });
     const across = brush({ tool: "connect", size: 6 }, { x: 0, y: -15 }, { x: 20, y: -15 });
-    expect(across).toEqual({ kind: "connect", swept: [6, 7], pairs: [] });
+    expect(across).toEqual({ kind: "connect", swept: [6, 7], pairs: [], sparse: false });
     expect(await editor().connectStroke(pairsOf(across))).toBe(false);
     expect(mocked.applyOp).not.toHaveBeenCalled();
   });
@@ -527,6 +528,7 @@ describe("symmetric erase, cut and connect strokes", () => {
         [11, 12],
         [12, 13],
       ],
+      sparse: false,
     });
   });
 
@@ -550,6 +552,7 @@ describe("symmetric erase, cut and connect strokes", () => {
         [10, 11],
         [12, 13],
       ],
+      sparse: false,
     });
     await editor().connectStroke(pairsOf(connect));
     expect(mocked.applyOp).toHaveBeenCalledWith({

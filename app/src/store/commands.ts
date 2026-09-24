@@ -188,6 +188,7 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       chrome.toggleGroup(action === "toggleScriptLayers" ? "scripts" : "initializers");
       return true;
     case "toggleSymmetry":
+      if (session.kind === "save") return false;
       useToolStore.getState().toggleSymmetry();
       return true;
   }

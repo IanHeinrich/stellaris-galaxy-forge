@@ -17,6 +17,14 @@ const SYSTEMS: SystemNode[] = [
 ];
 const GALAXY = new Map(SYSTEMS.map((s) => [s.id, s]));
 
+/** A flat triangle: 11 and 12 already lane to the hub 13 between them, but not to each other. */
+const CONNECT_SYSTEMS: SystemNode[] = [
+  systemNode({ id: 11, x: 0, y: 0, lanes: lanesTo(13) }),
+  systemNode({ id: 12, x: 10, y: 0, lanes: lanesTo(13) }),
+  systemNode({ id: 13, x: 5, y: 1, lanes: lanesTo(11, 12) }),
+];
+const CONNECT_GALAXY = new Map(CONNECT_SYSTEMS.map((s) => [s.id, s]));
+
 const PAINT: BrushSettings = {
   tool: "paint",
   size: 40,
@@ -137,6 +145,53 @@ describe("an erase stroke", () => {
   });
 });
 
+/** A connect stroke that only touches the two points named, without sweeping what lies between them. */
+function connectPoints(
+  settings: Partial<BrushSettings>,
+  systems: SystemNode[],
+  galaxy: ReadonlyMap<number, SystemNode>,
+  points: Pt[],
+): StrokeResult {
+  const grid = new SpatialGrid();
+  grid.build(systems);
+  const s = new BrushStroke({ ...PAINT, tool: "connect", ...settings }, galaxy, grid, 3);
+  for (const p of points) s.add([p]);
+  return s.result();
+}
+
+describe("a connect stroke", () => {
+  it("says nothing of density once the systems it swept are already linked", () => {
+    const result = connectPoints({}, SYSTEMS, GALAXY, [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+    ]);
+    expect(result).toEqual({ kind: "connect", swept: [1, 2], pairs: [], sparse: false });
+  });
+
+  it("flags when raising the lane density would add a lane the current one would not", () => {
+    const points = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 5, y: 1 },
+    ];
+    const gabriel = connectPoints(
+      { beta: MESH_BETA.gabriel },
+      CONNECT_SYSTEMS,
+      CONNECT_GALAXY,
+      points,
+    );
+    expect(gabriel).toEqual({ kind: "connect", swept: [11, 12, 13], pairs: [], sparse: true });
+
+    const dense = connectPoints({ beta: MESH_BETA.dense }, CONNECT_SYSTEMS, CONNECT_GALAXY, points);
+    expect(dense).toEqual({
+      kind: "connect",
+      swept: [11, 12, 13],
+      pairs: [[11, 12]],
+      sparse: false,
+    });
+  });
+});
+
 describe("the stroke's count", () => {
   it("says what the release would do", () => {
     const p = { x: 0, y: 0 };
@@ -156,5 +211,14 @@ describe("the stroke's count", () => {
         ],
       }),
     ).toBe("−2 lanes");
+    expect(strokeLabel({ kind: "connect", swept: [1, 2], pairs: [[1, 2]], sparse: false })).toBe(
+      "+1 lane",
+    );
+    expect(strokeLabel({ kind: "connect", swept: [1, 2], pairs: [], sparse: false })).toBe(
+      "+0 lanes",
+    );
+    expect(strokeLabel({ kind: "connect", swept: [1, 2, 3], pairs: [], sparse: true })).toBe(
+      "+0 lanes · raise lane density",
+    );
   });
 });
