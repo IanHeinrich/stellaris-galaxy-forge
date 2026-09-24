@@ -1130,6 +1130,7 @@ fn add_system_takes_specs_or_a_generate_with_its_seed_and_place() {
         &["--generate", "--seed", "1"],
         &["--spec", spec, "--seed", "1"],
         &["--spec", spec, "--lane", "169"],
+        &["--spec", spec, "--star-class", "sc_g"],
         &[
             "--generate",
             "--seed",
@@ -1256,4 +1257,67 @@ fn deposit_refusals_write_nothing() {
         assert!(err.contains(message), "{err}");
         assert!(!out_path.exists());
     }
+}
+
+#[test]
+fn add_system_generates_around_the_star_class_asked_for() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("classed.sav");
+    let out_str = out_path.to_str().unwrap();
+    let run = |class: &str, extra: &[&str]| {
+        let mut args = vec![
+            "add-system",
+            SAMPLE_4_5,
+            "--generate",
+            "--seed",
+            "11",
+            "--at",
+            "-292.23404,-137.62265",
+            "--lane",
+            "169",
+            "--star-class",
+            class,
+        ];
+        args.extend_from_slice(extra);
+        args.extend_from_slice(&["-o", out_str]);
+        sgf(&args)
+    };
+    let printed = run("sc_m", &["--print-spec"]);
+    if without_install(&printed) {
+        return;
+    }
+    assert_eq!(
+        printed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&printed.stderr)
+    );
+    let spec: serde_json::Value =
+        serde_json::from_str(&stdout(&printed)).expect("the spec as JSON");
+    assert_eq!(spec["star_class"], serde_json::json!("sc_m"));
+    assert_eq!(spec["star"]["class"], serde_json::json!("pc_m_star"));
+    assert_eq!(
+        stdout(&run("sc_m", &["--print-spec"])),
+        stdout(&printed),
+        "the same seed and class"
+    );
+
+    let refused = run("sc_black_hole", &[]);
+    assert_ne!(refused.status.code(), Some(0));
+    assert!(
+        String::from_utf8_lossy(&refused.stderr).contains("sc_black_hole"),
+        "{}",
+        String::from_utf8_lossy(&refused.stderr)
+    );
+    assert!(!out_path.exists());
+
+    let out = run("sc_m", &[]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(stdout(&out).contains(" sc_m ("), "{}", stdout(&out));
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 }

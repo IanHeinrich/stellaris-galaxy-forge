@@ -15,10 +15,11 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use crate::as_u32;
 use crate::cst::{self, Node};
 use crate::document::Document;
+use crate::emit::coord;
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, Counter, SlotTable};
 use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
-use crate::format::save::write::add_system::pool_entries;
+use crate::format::save::write::add_system::{polar, pool_entries};
 use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::lanes::remove_entries;
 use crate::format::save::{planet_statement, system_statement};
@@ -72,7 +73,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
     })
 }
 
-fn check_added(s: &Session, id: u32) -> Result<(), OpError> {
+pub(crate) fn check_added(s: &Session, id: u32) -> Result<(), OpError> {
     if s.doc.added().get(Table::System, id).is_some() {
         Ok(())
     } else if s.graph.systems.contains_key(&id) {
@@ -116,10 +117,23 @@ fn renumbering(
 
 /// Take out each system's entry and its bodies' and their deposits' entries.
 fn erase_systems(plan: &mut Plan, doc: &Document, ids: &BTreeSet<u32>) -> Result<(), OpError> {
+    erase_bodies(plan, doc, ids)?;
+    for &id in ids {
+        let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
+        plan.erase(doc, Subject::System(id), anchor)?;
+    }
+    Ok(())
+}
+
+/// Take out the entries of each system's bodies an op added, and their deposits'.
+pub(crate) fn erase_bodies(
+    plan: &mut Plan,
+    doc: &Document,
+    ids: &BTreeSet<u32>,
+) -> Result<(), OpError> {
     let mut planets = BTreeMap::new();
     let mut deposits = BTreeMap::new();
     for &id in ids {
-        let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
         for planet in bodies(doc, id)? {
             let Some(slot) = doc.added().get(Table::Planet, planet) else {
                 continue;
@@ -143,7 +157,6 @@ fn erase_systems(plan: &mut Plan, doc: &Document, ids: &BTreeSet<u32>) -> Result
             }
             free(plan, doc, subject, planet, slot, &mut planets)?;
         }
-        plan.erase(doc, Subject::System(id), anchor)?;
     }
     if !planets.is_empty() {
         free_appended(plan, doc, SlotTable::planets(doc)?.end.at(), &planets)?;
@@ -374,7 +387,7 @@ fn return_names(plan: &mut Plan, s: &Session, removed: &BTreeSet<u32>) -> Result
 /// Put a removed asteroid's name back in its prefix's block when its add took it from
 /// there, as [`return_names`] does for a star name: of the entries taken for a name, as
 /// many stay taken as the asteroids an add wrote that stay hold it.
-fn return_asteroid_names(
+pub(crate) fn return_asteroid_names(
     plan: &mut Plan,
     s: &Session,
     removed: &BTreeSet<u32>,
@@ -418,7 +431,7 @@ fn return_asteroid_names(
 }
 
 /// Write each pool entry an add erased back as it was loaded.
-fn put_back<'a>(
+pub(crate) fn put_back<'a>(
     plan: &mut Plan,
     doc: &Document,
     entries: impl Iterator<Item = &'a Anchor>,
@@ -464,7 +477,7 @@ fn belts(doc: &Document, id: u32) -> Result<Vec<BeltSpec>, OpError> {
 }
 
 /// The planets system `id`'s entry lists, star first.
-fn bodies(doc: &Document, id: u32) -> Result<Vec<u32>, OpError> {
+pub(crate) fn bodies(doc: &Document, id: u32) -> Result<Vec<u32>, OpError> {
     let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
     let (node, src) = entity(doc, Subject::System(id), anchor)?;
     Ok(node
@@ -474,7 +487,11 @@ fn bodies(doc: &Document, id: u32) -> Result<Vec<u32>, OpError> {
 }
 
 /// The `<id>=` node the bytes standing at `anchor` hold, with those bytes.
-fn entity(doc: &Document, subject: Subject, anchor: Anchor) -> Result<(Node, &[u8]), OpError> {
+pub(crate) fn entity(
+    doc: &Document,
+    subject: Subject,
+    anchor: Anchor,
+) -> Result<(Node, &[u8]), OpError> {
     let src = doc.current(anchor)?;
     let root = cst::parse(src, 0).map_err(|e| subject.parse_error(e.offset, e.reason))?;
     let node = root
@@ -563,8 +580,8 @@ fn restoring(
 }
 
 /// System `id` as the spec that writes it: its bodies read back from their entries, each
-/// angle measured from the star, or from its planet for a moon.
-fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpec, OpError> {
+/// angle measured from the star, or from where the add placed its planet for a moon.
+pub(crate) fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpec, OpError> {
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
     let mut read = Vec::new();
     for planet in bodies(&s.doc, id)? {
@@ -576,13 +593,14 @@ fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpec, OpError>
         return Err(Subject::System(id).parse_error(0, "the system lists no bodies"));
     };
     let mut planets: Vec<BodySpec> = Vec::new();
-    let mut planet_at: HashMap<u32, (usize, f64, f64)> = HashMap::new();
+    let mut planet_at: HashMap<u32, (usize, (f64, f64))> = HashMap::new();
     for (planet, body) in rest {
         match body.moon_of.and_then(|parent| planet_at.get(&parent)) {
-            Some(&(at, x, y)) => planets[at].moons.push(body.spec(x, y)),
+            Some(&(at, centre)) => planets[at].moons.push(body.spec(centre).0),
             None => {
-                planet_at.insert(*planet, (planets.len(), body.x, body.y));
-                planets.push(body.spec(0.0, 0.0));
+                let (spec, placed) = body.spec((0.0, 0.0));
+                planet_at.insert(*planet, (planets.len(), placed));
+                planets.push(spec);
             }
         }
     }
@@ -592,7 +610,7 @@ fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpec, OpError>
         y: system.y,
         star_class: system.star_class.clone(),
         initializer: system.initializer.clone(),
-        star: star.spec(0.0, 0.0),
+        star: star.spec((0.0, 0.0)).0,
         planets,
         belts: belts(&s.doc, id)?,
         lanes,
@@ -614,23 +632,38 @@ struct ReadBody {
 }
 
 impl ReadBody {
-    /// The body as it orbits (`x`, `y`).
-    fn spec(&self, x: f64, y: f64) -> BodySpec {
-        let angle = (self.y - y)
-            .atan2(self.x - x)
+    /// The body as it orbits `centre`, where the add placed that, and where the add places
+    /// the body from it. The angle measured from the written coordinates can miss them in
+    /// the last decimal, so the nearest hundredth of a degree, which the generator writes,
+    /// is taken instead whenever it gives the same coordinates.
+    fn spec(&self, (cx, cy): (f64, f64)) -> (BodySpec, (f64, f64)) {
+        let measured = (self.y - cy)
+            .atan2(self.x - cx)
             .to_degrees()
             .rem_euclid(360.0)
             + 0.0;
-        BodySpec {
+        let hundredth = (measured * 100.0).round() / 100.0;
+        let mut spec = BodySpec {
             class: self.class.clone(),
             size: self.size,
             orbit: self.orbit,
-            angle,
+            angle: measured,
             entity: self.entity,
             deposits: self.deposits.clone(),
             moons: Vec::new(),
             asteroid: self.asteroid,
+        };
+        let written = (coord(self.x), coord(self.y));
+        let candidates = [hundredth, hundredth.rem_euclid(360.0) + 0.0, measured];
+        for angle in candidates {
+            spec.angle = angle;
+            let (x, y) = polar(cx, cy, &spec);
+            if (coord(x), coord(y)) == written {
+                break;
+            }
         }
+        let placed = polar(cx, cy, &spec);
+        (spec, placed)
     }
 }
 

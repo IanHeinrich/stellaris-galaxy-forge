@@ -18,7 +18,7 @@ use crate::format::Format;
 use crate::format::save::added::Table;
 use crate::format::save::write::{
     add_system, bulk, deposits, lanes, lgate, map_colors, move_system, nebula, planet_size,
-    remove_system, star_class,
+    remove_system, rename_system, replace_system, star_class,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -94,6 +94,10 @@ impl Format for Save {
                         bodies.insert(id);
                     }
                     graph.refresh_system(id, &root, buf)?;
+                    let added = doc.added().get(Table::System, id).is_some();
+                    if let Some(system) = graph.systems.get_mut(&id) {
+                        system.added = added;
+                    }
                 }
                 Subject::Planet { system, .. } => {
                     bodies.insert(system);
@@ -182,6 +186,12 @@ impl Format for Save {
             Op::RemoveSaveDeposit { deposit } => deposits::plan_remove(plan, s, *deposit),
             Op::RemoveSystem { id } => remove_system::plan_remove(plan, s, &[*id]),
             Op::RemoveSystems { ids } => remove_system::plan_remove(plan, s, ids),
+            Op::ReplaceSaveSystem { system, spec } => {
+                replace_system::plan_strip(plan, s, *system, spec)
+            }
+            Op::RenameSaveSystem { system, name } => {
+                rename_system::plan_rename(plan, s, *system, name)
+            }
             // A save's systems come with planets, a starbase and an owner, its names and
             // initializers are the game's to set, and it has neither a scenario header nor
             // a generator to prevent a lane from.
@@ -209,6 +219,15 @@ impl Format for Save {
                 kind: DocumentKind::Save,
             }),
             Op::Batch { .. } => Err(OpError::NestedBatch),
+        }
+    }
+
+    fn follow_up(&self, plan: &mut Plan, s: &Session, op: &Op) -> Result<Option<Planned>, OpError> {
+        match op {
+            Op::ReplaceSaveSystem { system, spec } => {
+                replace_system::plan_fill(plan, s, *system, spec).map(Some)
+            }
+            _ => Ok(None),
         }
     }
 

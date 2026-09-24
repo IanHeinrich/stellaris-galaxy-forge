@@ -305,6 +305,7 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         position_range: position_range(node, src),
         flags: Vec::new(),
         owner: None,
+        added: false,
     }
 }
 

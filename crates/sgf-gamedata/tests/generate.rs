@@ -6,12 +6,16 @@ mod common;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
-use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec};
+use sgf_core::archive;
+use sgf_core::document::Document;
+use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec, free_star_names};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
-use sgf_gamedata::generate::{generate, pick_name, plain_initializers};
+use sgf_gamedata::generate::{
+    GenerateError, generate, pick_name, pick_system_name, plain_initializers, star_classes,
+};
 use sgf_gamedata::install::script::Range;
 
 const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
@@ -21,7 +25,7 @@ const SEEDS: u64 = 1000;
 
 static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(common::load_real);
 
-const FILES: [(&str, &str); 6] = [
+const FILES: [(&str, &str); 8] = [
     (
         "common/scripted_variables/00_fx.txt",
         "@fx_min = 60\n@fx_max = 100\n@fx_odds = 0.5\n@fx_moon = 10\n",
@@ -30,12 +34,14 @@ const FILES: [(&str, &str); 6] = [
         "common/star_classes/00_stars.txt",
         "sc_sun = {\n\tclass = sun_star\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 30\n\tnum_planets = { min = 2 max = 5 }\n\tpc_meadow = { spawn_odds = 0.25 }\n}\n\
          sc_ember = {\n\tclass = ember_star\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 10\n}\n\
-         sc_pair = {\n\tclass = sun_star\n\tplanet = { key = pc_sun_star }\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 5\n}\n",
+         sc_pair = {\n\tclass = sun_star\n\tplanet = { key = pc_sun_star }\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 5\n}\n\
+         sc_blaze = {\n\tclass = blaze_star\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 90\n}\n",
     ),
     (
         "common/star_classes/randomizers/00_lists.txt",
         "rl_single = {\n\tstars = {\n\t\t\"sc_sun\"\n\t\t\"sc_ember\"\n\t}\n}\n\
-         rl_pair = {\n\tstars = { \"sc_pair\" }\n}\n",
+         rl_pair = {\n\tstars = { \"sc_pair\" }\n}\n\
+         rl_warm = {\n\tstars = { sc_sun sc_blaze }\n}\n",
     ),
     (
         "common/planet_classes/00_planets.txt",
@@ -51,6 +57,10 @@ const FILES: [(&str, &str); 6] = [
          \tplanet = { count = 1 class = star orbit_distance = 0 orbit_angle = 1 size = { min = 20 max = 30 } }\n\
          \tchange_orbit = 30\n\tchange_orbit = 10\n\
          \tplanet = {\n\t\tcount = { min = 2 max = 4 }\n\t\torbit_distance = 20\n\t\torbit_angle = { min = 90 max = 270 }\n\t\tchange_orbit = @fx_moon\n\t\tmoon = { count = { min = 0 max = 1 } orbit_distance = 5 orbit_angle = { min = 90 max = 270 } }\n\t}\n}\n\
+         fx_warm = {\n\tclass = rl_warm\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 orbit_angle = 1 size = { min = 20 max = 30 } }\n\
+         \tchange_orbit = 40\n\
+         \tplanet = {\n\t\tcount = { min = 2 max = 4 }\n\t\torbit_distance = 20\n\t\torbit_angle = { min = 90 max = 270 }\n\t}\n}\n\
          fx_rocks = {\n\tclass = rl_single\n\tasteroid_belt = { type = rocky_asteroid_belt radius = 40 }\n\tusage = misc_system_init\n\tusage_odds = 5\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\tplanet = { count = { min = 2 max = 4 } class = pc_boulder orbit_distance = 0 orbit_angle = { min = 90 max = 270 } }\n\tchange_orbit = -10\n\tplanet = { count = 1 orbit_distance = 40 }\n}\n\
          fx_moonrock = {\n\tclass = rl_single\n\tusage = misc_system_init\n\tusage_odds = 5\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\tplanet = { count = 1 class = pc_boulder orbit_distance = 0 moon = { count = 1 orbit_distance = 5 } }\n}\n\
          fx_unmeasured = {\n\tclass = rl_single\n\tasteroid_belt = { type = rocky_asteroid_belt }\n\tusage = misc_system_init\n\tusage_odds = 5\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n}\n\
@@ -59,6 +69,14 @@ const FILES: [(&str, &str); 6] = [
          fx_conditional = {\n\tclass = rl_single\n\tusage = misc_system_init\n\tusage_odds = { base = 5 }\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n}\n",
     ),
     ("localisation/english/fx_l_english.yml", "l_english:\n"),
+    (
+        "common/random_names/base/00_names.txt",
+        "asteroid_prefix = {\n\tZz\n}\nstar_names = {\n\t### REAL ###\n\t\"Fx_Alpha\"\n\tFx_Beta\n}\n",
+    ),
+    (
+        "common/random_names/01_more.txt",
+        "star_names = {\n\tFx_Beta\n\tFx_Gamma\n}\n",
+    ),
 ];
 
 fn hand_written() -> (tempfile::TempDir, GameData) {
@@ -160,7 +178,7 @@ fn a_hand_written_install_rolls_its_plain_initializers() {
         .collect();
     assert_eq!(
         plain,
-        BTreeSet::from(["fx_plain", "fx_rocks"]),
+        BTreeSet::from(["fx_plain", "fx_rocks", "fx_warm"]),
         "the binary, effect, conditional, moon-bearing asteroid and radius-less belt ones are left out"
     );
 
@@ -172,14 +190,14 @@ fn a_hand_written_install_rolls_its_plain_initializers() {
 
     let mut rolled = BTreeSet::new();
     for seed in 0..100 {
-        let spec = generate(&gd, seed, "Fx", 1.0, 2.0).expect("a system");
+        let spec = generate(&gd, seed, "Fx", (1.0, 2.0), None).expect("a system");
         rolled.insert(spec.initializer.clone());
         if spec.initializer == "fx_rocks" {
             check_rocks(&spec, seed);
             continue;
         }
         assert!(spec.belts.is_empty());
-        assert!(["sc_sun", "sc_ember"].contains(&spec.star_class.as_str()));
+        assert!(["sc_sun", "sc_ember", "sc_blaze"].contains(&spec.star_class.as_str()));
         assert_eq!(spec.star.class, "pc_sun_star");
         assert!((20..=30).contains(&spec.star.size));
         let orbits: Vec<f64> = spec.planets.iter().map(|p| p.orbit).collect();
@@ -231,7 +249,7 @@ fn install() -> Option<&'static GameData> {
 
 fn specs(gd: &GameData) -> Vec<SystemSpec> {
     (0..SEEDS)
-        .map(|seed| generate(gd, seed, "Gen", SPOT.0, SPOT.1).expect("a system"))
+        .map(|seed| generate(gd, seed, "Gen", SPOT, None).expect("a system"))
         .collect()
 }
 
@@ -462,7 +480,7 @@ fn a_seed_always_rolls_the_same_system_and_another_seed_another() {
     let Some(gd) = install() else {
         return;
     };
-    let roll = |seed| generate(gd, seed, "Gen", 0.0, 0.0).unwrap();
+    let roll = |seed| generate(gd, seed, "Gen", (0.0, 0.0), None).unwrap();
     assert_eq!(roll(7), roll(7));
     assert_ne!(roll(1), roll(2));
     let names = ["Aaa".to_owned(), "Bbb".to_owned(), "Ccc".to_owned()];
@@ -477,7 +495,7 @@ fn a_rolled_system_is_added_to_a_save_and_reopens_with_its_findings() {
     };
     let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
     let before = findings(&session);
-    let mut spec = generate(gd, 3, "Gen", SPOT.0, SPOT.1).unwrap();
+    let mut spec = generate(gd, 3, "Gen", SPOT, None).unwrap();
     spec.lanes = vec![169];
     let bodies = 1 + spec
         .planets
@@ -506,4 +524,180 @@ fn findings(session: &Session) -> BTreeSet<(String, Vec<u32>, String)> {
         .into_iter()
         .map(|issue| (issue.code.to_string(), issue.systems, issue.message))
         .collect()
+}
+
+#[test]
+fn a_hand_written_install_rolls_the_star_class_asked_for() {
+    let (_dir, gd) = hand_written();
+    assert_eq!(star_classes(&gd), ["sc_sun", "sc_ember", "sc_blaze"]);
+    for seed in 0..50 {
+        let spec = generate(&gd, seed, "Fx", (1.0, 2.0), Some("sc_ember")).expect("a system");
+        assert_eq!(spec.star_class, "sc_ember", "seed {seed}");
+        assert_eq!(spec.star.class, "pc_sun_star");
+        assert_eq!(
+            generate(&gd, seed, "Fx", (1.0, 2.0), Some("sc_ember")),
+            Ok(spec),
+            "the same seed and class"
+        );
+    }
+    assert_eq!(
+        generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_pair")),
+        Err(GenerateError::NoLayoutFor("sc_pair".to_owned())),
+        "only a binary layout makes it"
+    );
+    assert_eq!(
+        generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_nowhere")),
+        Err(GenerateError::UnknownStar("sc_nowhere".to_owned())),
+        "no star class at all"
+    );
+}
+
+#[test]
+fn a_star_class_draws_each_layout_as_often_as_it_rolls_that_class() {
+    let (_dir, gd) = hand_written();
+    let draws = 4000;
+    let mut drawn: BTreeMap<String, f64> = BTreeMap::new();
+    for seed in 0..draws {
+        let spec = generate(&gd, seed, "Fx", (0.0, 0.0), Some("sc_sun")).expect("a system");
+        assert_eq!(spec.star_class, "sc_sun");
+        *drawn.entry(spec.initializer).or_default() += 1.0 / draws as f64;
+    }
+    // sc_sun is 30 of rl_single's 40 and 30 of rl_warm's 120, each layout at odds 5.
+    let expected = [("fx_plain", 3.75), ("fx_rocks", 3.75), ("fx_warm", 1.25)];
+    for (layout, weight) in expected {
+        let share = drawn.get(layout).copied().unwrap_or_default();
+        assert!(
+            (share - weight / 8.75).abs() < 0.03,
+            "{layout}: drawn {share:.3} of {drawn:?}"
+        );
+    }
+    for seed in 0..50 {
+        let spec = generate(&gd, seed, "Fx", (0.0, 0.0), Some("sc_blaze")).unwrap();
+        assert_eq!(spec.initializer, "fx_warm", "the one list that holds it");
+    }
+}
+
+#[test]
+fn a_hand_written_install_lists_its_star_names_once_each_in_file_order() {
+    let (_dir, gd) = hand_written();
+    assert_eq!(*gd.star_names, ["Fx_Beta", "Fx_Gamma", "Fx_Alpha"]);
+}
+
+#[test]
+fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let classes = star_classes(gd);
+    assert_eq!(
+        classes,
+        gd.star_lists.get("rl_standard_stars").unwrap().stars
+    );
+    assert_eq!(star_classes(gd), classes, "a stable order");
+    for class in &classes {
+        let star = gd.star_classes.get(class).unwrap();
+        for seed in 0..40 {
+            let spec = generate(gd, seed, "Gen", SPOT, Some(class)).expect("a system");
+            assert_eq!(spec.star_class, *class, "seed {seed}");
+            assert_eq!(spec.star.class, star.planet_keys[0], "seed {seed}");
+            assert!(
+                plain_initializers(gd)
+                    .iter()
+                    .any(|i| i.name == spec.initializer)
+            );
+            assert_eq!(generate(gd, seed, "Gen", SPOT, Some(class)), Ok(spec));
+        }
+    }
+    let error = generate(gd, 1, "Gen", SPOT, Some("sc_black_hole")).expect_err("no layout");
+    assert_eq!(
+        error,
+        GenerateError::NoLayoutFor("sc_black_hole".to_owned())
+    );
+}
+
+/// The 4.5 sample with its pool of unused star names holding `pool` instead.
+fn with_star_pool(pool: &str) -> Session {
+    let raw = archive::read_sav(SAMPLE_4_5).expect("read the 4.5 sample");
+    let mut text = String::from_utf8(raw.gamestate).expect("utf-8");
+    let head = "\tstar_names=\n\t{\n";
+    let start = text.find(head).expect("the pool") + head.len();
+    let end = start + text[start..].find("\t}\n").expect("its end");
+    text.replace_range(start..end, pool);
+    let doc = Document::from_bytes(text.into_bytes(), raw.meta).expect("index the gamestate");
+    Session::from_document(None, doc).expect("project the gamestate")
+}
+
+fn star_pool(bytes: &[u8]) -> String {
+    let text = String::from_utf8_lossy(bytes);
+    let start = text.find("\tstar_names=").expect("the pool");
+    let end = start + text[start..].find("\t}\n").expect("its end");
+    text[start..end].to_owned()
+}
+
+#[test]
+fn a_name_comes_from_the_pool_then_from_the_install_then_from_no_one() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let pool = free_star_names(&session.doc);
+    assert!(
+        pool.iter().all(|name| gd.star_names.contains(name)),
+        "the pool is the install's list less the names the galaxy took"
+    );
+    let name = pick_system_name(&session, gd, 5).expect("a name");
+    assert!(pool.contains(&name));
+
+    let mut session = with_star_pool("");
+    assert!(free_star_names(&session.doc).is_empty());
+    let used: Vec<String> = session
+        .graph
+        .systems
+        .values()
+        .map(|s| s.name.key.clone())
+        .collect();
+    let name = pick_system_name(&session, gd, 5).expect("a name from the install");
+    assert!(
+        gd.star_names.contains(&name) && !used.contains(&name),
+        "{name}"
+    );
+    assert_eq!(pick_system_name(&session, gd, 5), Some(name.clone()));
+
+    let mut spec = generate(gd, 5, &name, SPOT, None).unwrap();
+    spec.lanes = vec![169];
+    session
+        .apply(Op::AddSaveSystem { spec })
+        .expect("the op takes a name the pool lacks");
+    let current: Vec<u8> = session.doc.pieces().flatten().copied().collect();
+    assert_eq!(
+        star_pool(&current),
+        star_pool(session.doc.original()),
+        "nothing taken from the pool"
+    );
+    assert_eq!(session.system(601).unwrap().name.key, name);
+
+    let mut spent = gd.clone();
+    spent.star_names = Arc::new(used);
+    assert_eq!(pick_system_name(&session, &spent, 5), None);
+}
+
+#[test]
+fn a_pooled_name_a_system_holds_is_passed_over_and_one_listed_twice_counts_once() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let session = with_star_pool("\t\t\"Sgf_Twice\"\n\t\t\"Sgf_Twice\"\n\t\t\"Dristmak\"\n");
+    assert_eq!(session.system(0).unwrap().name.key, "Dristmak");
+    assert_eq!(free_star_names(&session.doc).len(), 3);
+    for seed in 0..20 {
+        assert_eq!(
+            pick_system_name(&session, gd, seed).as_deref(),
+            Some("Sgf_Twice"),
+            "seed {seed}"
+        );
+    }
+    let session = with_star_pool("\t\t\"Dristmak\"\n");
+    let name = pick_system_name(&session, gd, 3).expect("a name from the install");
+    assert_ne!(name, "Dristmak");
+    assert!(gd.star_names.contains(&name));
 }

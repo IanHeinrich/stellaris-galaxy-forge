@@ -130,6 +130,10 @@ pub struct SystemNode {
     /// starbase (marauder systems have a null sector but a marauder starbase). `None` when
     /// neither resolves.
     pub owner: Option<u32>,
+    /// A save system an op added since the file was opened, which can be removed, rolled
+    /// again and renamed. Always false for a scenario.
+    #[serde(default)]
+    pub added: bool,
 }
 
 /// One planet a save system lists: its `planet_class` and `planet_size`.

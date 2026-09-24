@@ -126,7 +126,9 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetEmpireMapColors { .. }
         | Op::AddSaveSystem { .. }
         | Op::AddSaveDeposit { .. }
-        | Op::RemoveSaveDeposit { .. } => Err(OpError::Unsupported {
+        | Op::RemoveSaveDeposit { .. }
+        | Op::ReplaceSaveSystem { .. }
+        | Op::RenameSaveSystem { .. } => Err(OpError::Unsupported {
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),
