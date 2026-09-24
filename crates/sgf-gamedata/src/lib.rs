@@ -6,6 +6,7 @@
 //! Without an install [`load`] fails with [`LoadError::NoInstall`] and the
 //! caller degrades to raw keys.
 
+pub mod deposit_roll;
 pub mod details;
 pub mod generate;
 pub mod initializers;
@@ -25,6 +26,7 @@ use std::sync::Arc;
 
 use install::script::Variables;
 use install::{discovery, mods};
+use registries::defines::DefineFiles;
 use registries::galaxy_sizes::GalaxySizes;
 use registries::{colors, gfx, registry, starbase_levels};
 
@@ -35,7 +37,7 @@ pub use registries::bypasses::Bypasses;
 pub use registries::colony_types::ColonyTypes;
 pub use registries::colors::Colors;
 pub use registries::country_types::CountryTypes;
-pub use registries::defines::BorderDefines;
+pub use registries::defines::{BorderDefines, DepositDefines};
 pub use registries::deposit_categories::DepositCategories;
 pub use registries::deposits::Deposits;
 pub use registries::galaxy_shapes::GalaxyShapes;
@@ -43,6 +45,7 @@ pub use registries::gfx::Sprites;
 pub use registries::planet_classes::PlanetClasses;
 pub use registries::planet_modifiers::PlanetModifiers;
 pub use registries::registry::Registry;
+pub use registries::scripted_triggers::ScriptedTriggers;
 pub use registries::ship_sizes::ShipSizes;
 pub use registries::star_classes::{StarClasses, StarLists};
 pub use registries::starbase_levels::StarbaseLevels;
@@ -81,6 +84,10 @@ pub struct GameData {
     pub galaxy_shapes: Arc<GalaxyShapes>,
     pub galaxy_sizes: Arc<GalaxySizes>,
     pub border: Arc<BorderDefines>,
+    /// `NGameplay`'s deposit counts and Resource Abundance range.
+    pub deposit_defines: Arc<DepositDefines>,
+    /// `common/scripted_triggers`, which a deposit's `potential` and `drop_weight` call.
+    pub scripted_triggers: Arc<ScriptedTriggers>,
     pub loc: Arc<Localisation>,
     pub diagnostics: Vec<Diagnostic>,
     /// What finding the mods raised, which a reread through the same layout keeps.
@@ -242,7 +249,10 @@ impl GameData {
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
         let sprites = gfx::load(&layout, &mut diagnostics);
         let colors = colors::load(&layout, &mut diagnostics);
-        let border = BorderDefines::load(&layout, &mut diagnostics);
+        let define_files = DefineFiles::load(&layout, &mut diagnostics);
+        let border = BorderDefines::load(&define_files);
+        let deposit_defines = DepositDefines::load(&define_files);
+        let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
 
         progress(Phase::Localisation);
         let loc = Localisation::load(&layout, language, &mut diagnostics);
@@ -271,6 +281,8 @@ impl GameData {
             galaxy_shapes: Arc::new(galaxy_shapes),
             galaxy_sizes: Arc::new(galaxy_sizes),
             border: Arc::new(border),
+            deposit_defines: Arc::new(deposit_defines),
+            scripted_triggers: Arc::new(scripted_triggers),
             loc: Arc::new(loc),
             diagnostics,
             discovery,
