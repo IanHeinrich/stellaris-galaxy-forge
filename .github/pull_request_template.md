@@ -26,3 +26,4 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A system given a new star class loads with that star drawn on the galaxy map and in the system view
 - [ ] A single star body given a new type or size loads drawn that way in the system view, and a month passes cleanly
 - [ ] An empire given new map colours shows them as its border and fill; one set back to flag colours shows those
+- [ ] An added system loads with its bodies, names and lanes; it can be surveyed, claimed and colonised, and survives a save and reload

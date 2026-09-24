@@ -1,0 +1,604 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 105
+expression: value
+---
+Added Dorellion (#791) at (433.43269, -205.48736) with 9 bodies and 1 lane
+touched: [217, 791]
+inverse: RemoveSystem { id: 791 }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -44220,6 +44220,11 @@
+ 				length=18
+ 			}
+  
++			{
++				to=791
++				length=43
++			}
++ 
+ 		}
+ 		asteroid_belts=
+ 		{
+@@ -82543,6 +82548,49 @@
+ 		index=0
+ 		storm=4294967295
+ 	}
++	791=
++	{
++		coordinate=
++		{
++			x=433.43269
++			y=-205.48736
++			origin=4294967295
++			visual_height=4.31213
++		}
++		name=
++		{
++			key="Dorellion"
++		}
++		planet=8403
++		planet=8404
++		planet=8405
++		planet=8406
++		planet=8407
++		planet=8408
++		planet=8409
++		planet=8410
++		planet=8411
++		star_class="sc_g"
++		hyperlane=
++		{
++			
++			{
++				to=217
++				length=43
++			}
++ 
++		}
++		initializer="basic_init_01"
++		inner_radius=235
++		outer_radius=335
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+ }
+ starbase_mgr=
+ {
+@@ -530216,6 +530264,455 @@
+ 				4988 
+ 			}
+ 		}
++		8403=
++		{
++			planet_class="pc_g_star"
++			planet_size=25
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="Dorellion"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=791
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777216 
++			}
++		}
++		8404=
++		{
++			planet_class="pc_molten"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Dorellion"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=56.29165
++				y=32.5
++				origin=791
++			}
++			orbit=65
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		8405=
++		{
++			planet_class="pc_barren"
++			planet_size=14
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Dorellion"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-73.61216
++				y=42.5
++				origin=791
++			}
++			orbit=85
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		8406=
++		{
++			planet_class="pc_continental"
++			planet_size=16
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Dorellion"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-18.23306
++				y=-103.40481
++				origin=791
++			}
++			orbit=105
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++			deposits=
++			{
++				16777217 16777218 16777219 
++			}
++		}
++		8407=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=25
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Dorellion"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IV"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=136.25543
++				y=49.59292
++				origin=791
++			}
++			orbit=145
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				8408 8409 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++			deposits=
++			{
++				16777220 
++			}
++		}
++		8408=
++		{
++			planet_class="pc_frozen"
++			planet_size=8
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Dorellion"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="IV"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=143.75543
++				y=62.5833
++				origin=791
++			}
++			orbit=15
++			last_bombardment=			"0.01.01"
++			moon_of=8407
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		8409=
++		{
++			planet_class="pc_barren_cold"
++			planet_size=6
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Dorellion"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="IV"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="b"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=125.25543
++				y=30.54036
++				origin=791
++			}
++			orbit=22
++			last_bombardment=			"0.01.01"
++			moon_of=8407
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		8410=
++		{
++			planet_class="pc_toxic"
++			planet_size=15
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Dorellion"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="V"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-164.44621
++				y=-59.85353
++				origin=791
++			}
++			orbit=175
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		8411=
++		{
++			planet_class="pc_frozen"
++			planet_size=13
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Dorellion"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="VI"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-70.11413
++				y=192.63699
++				origin=791
++			}
++			orbit=205
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
+ 	}
+ }
+ astral_rifts=
+@@ -954250,7 +954747,7 @@
+ {
+ }
+ last_created_country=56
+-last_created_system=790
++last_created_system=791
+ leaders=
+ {
+ 	419430400=
+@@ -1466966,11 +1467463,51 @@
+ }
+ deposit=
+ {
+-	0=none
+-	1=none
+-	2=none
+-	3=none
+-	4=none
++	16777216=
++	{
++		type="d_energy_5"
++		deposit_holder=
++		{
++			type=0
++			id=8403
++		}
++	}
++	16777217=
++	{
++		type="d_rugged_woods"
++		deposit_holder=
++		{
++			type=0
++			id=8406
++		}
++	}
++	16777218=
++	{
++		type="d_dense_jungle"
++		deposit_holder=
++		{
++			type=0
++			id=8406
++		}
++	}
++	16777219=
++	{
++		type="d_dense_jungle"
++		deposit_holder=
++		{
++			type=0
++			id=8406
++		}
++	}
++	16777220=
++	{
++		type="d_energy_5"
++		deposit_holder=
++		{
++			type=0
++			id=8407
++		}
++	}
+ 	5=none
+ 	6=none
+ 	7=none
+@@ -1544877,7 +1545414,6 @@
+ 	}
+ 	star_names=
+ 	{
+-		"Dorellion"
+ 		"Romin"
+ 		"Tau_Ceti"
+ 		"Horschim"

@@ -185,6 +185,23 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Add a star system with its bodies, deposits and lanes to a Stellaris 4.x save.
+    ///
+    /// The spec is JSON, every value chosen: a G star with one planet and a lane to 169,
+    /// {"name":"Mura","x":-292.2,"y":-137.6,"star_class":"sc_g","initializer":"basic_init_01",
+    ///  "star":{"class":"pc_g_star","size":25,"orbit":0,"angle":0,"entity":0,"deposits":["d_energy_5"]},
+    ///  "planets":[{"class":"pc_molten","size":12,"orbit":65,"angle":30,"entity":1}],
+    ///  "lanes":[169]}
+    /// A planet takes `moons`, a list of bodies whose orbit is measured from it.
+    #[command(verbatim_doc_comment)]
+    AddSystem {
+        sav: PathBuf,
+        /// The system to add, as JSON.
+        #[arg(long)]
+        spec: PathBuf,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Write a synthetic Stellaris-shaped save with N systems, for stress-testing.
     Synth {
         #[arg(long)]

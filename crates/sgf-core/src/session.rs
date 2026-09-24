@@ -481,16 +481,19 @@ fn result(graph: &GalaxyGraph, seq: usize, applied: &Applied, waylines: &[Waylin
 }
 
 /// The systems `op` left the details of stale, ascending: those it rewrote and those
-/// whose bodies it rewrote. The lane statements it also rewrote name no system of their
-/// own.
+/// whose bodies it rewrote, or only the latter when that is all it stales (see
+/// [`Op::stales_only_bodies`]). The lane statements it also rewrote name no system of
+/// their own.
 fn details_stale(op: &Op, subjects: &[Subject]) -> Vec<u32> {
     if !op.stales_details() {
         return Vec::new();
     }
+    let bodies_only = op.stales_only_bodies();
     let mut ids: Vec<u32> = subjects
         .iter()
         .filter_map(|s| match *s {
-            Subject::System(id) | Subject::Planet { system: id, .. } => Some(id),
+            Subject::System(id) if !bodies_only => Some(id),
+            Subject::Planet { system: id, .. } => Some(id),
             _ => None,
         })
         .collect();

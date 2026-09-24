@@ -941,3 +941,57 @@ fn new_scenario_writes_an_empty_scenario_that_opens() {
         String::from_utf8_lossy(&validated.stderr)
     );
 }
+
+#[test]
+fn add_system_writes_the_spec_and_the_new_system_reads_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("added.sav");
+    let out_str = out_path.to_str().unwrap();
+    let spec = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/mura.json");
+
+    let out = sgf(&["add-system", SAMPLE_4_5, "--spec", spec, "-o", out_str]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = stdout(&out);
+    assert!(
+        text.contains("Added Mura (#601) at (-292.23404, -137.62265) with 9 bodies and 1 lane"),
+        "{text}"
+    );
+    assert!(text.contains(&format!("wrote {out_str}")), "{text}");
+
+    let details = sgf(&["details", out_str, "601"]);
+    assert_eq!(details.status.code(), Some(0), "{}", stdout(&details));
+    assert!(
+        stdout(&details).contains("planets: 9"),
+        "{}",
+        stdout(&details)
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+}
+
+#[test]
+fn add_system_refuses_a_3_x_save_without_writing() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("added.sav");
+    let old = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2200.04.11.sav");
+    let spec = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/dorellion.json");
+    let out = sgf(&[
+        "add-system",
+        old,
+        "--spec",
+        spec,
+        "-o",
+        out_path.to_str().unwrap(),
+    ]);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("Stellaris 4.0 or later"),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(!out_path.exists());
+}

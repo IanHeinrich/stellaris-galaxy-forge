@@ -334,6 +334,9 @@ pub fn one_of_each() -> Vec<Example> {
                 fill: "dark_blue".to_owned(),
             }),
         }),
+        Example::save(Op::AddSaveSystem {
+            spec: super::spec::dorellion(),
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),
@@ -422,7 +425,8 @@ fn position(op: &Op) -> usize {
         Op::SetStarClass { .. } => 42,
         Op::SetPlanetSize { .. } => 43,
         Op::SetEmpireMapColors { .. } => 44,
-        Op::Batch { .. } => 45,
+        Op::AddSaveSystem { .. } => 45,
+        Op::Batch { .. } => 46,
     }
 }
 

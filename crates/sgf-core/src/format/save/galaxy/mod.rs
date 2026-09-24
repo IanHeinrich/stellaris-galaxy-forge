@@ -21,7 +21,7 @@ use std::collections::HashMap;
 
 use crate::cst::Node;
 use crate::document::Document;
-use crate::overlay::Anchor;
+use crate::format::save::planet_statement;
 use crate::projections::galaxy::{Galaxy, GalaxyGraph, GameSetup, ProjectionError};
 use crate::projections::read;
 use crate::scan::{Index, Section, Value};
@@ -192,25 +192,32 @@ impl GalaxyGraph {
         doc: &Document,
     ) -> Result<(), ProjectionError> {
         let entity = system_entity(id, node, src)?;
-        let planets = doc.inner_index(keys::PLANETS)?;
         let mut read = Vec::new();
         for planet in bodies::planet_ids(entity, src) {
-            let Some(found) = planets.and_then(|p| bodies::planet(p, planet)) else {
+            let Some(anchor) = planet_statement(doc, planet)? else {
                 continue;
             };
-            let bytes = doc.current(Anchor::Original(found.stmt)).map_err(|e| {
-                ProjectionError::EntityField {
+            let bytes = doc
+                .current(anchor)
+                .map_err(|e| ProjectionError::EntityField {
                     section: keys::PLANETS,
-                    id: found.id,
+                    id: u64::from(planet),
                     reason: e.to_string(),
-                }
-            })?;
+                })?;
             read.push(bodies::body(bytes));
         }
         if let Some(system) = self.systems.get_mut(&id) {
             system.bodies = Some(read);
         }
         Ok(())
+    }
+
+    /// Forget system `id`, which the document no longer holds: an undo took back the op
+    /// that added it.
+    pub(crate) fn drop_system(&mut self, id: u32) {
+        if self.systems.remove(&id).is_some() {
+            self.order.retain(|&held| held != id);
+        }
     }
 
     /// Re-extract every nebula from the document's current bytes and reassign each

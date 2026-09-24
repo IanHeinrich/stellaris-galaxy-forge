@@ -14,6 +14,7 @@ use crate::Span;
 use crate::archive::{self, RawSave};
 use crate::entity::inner_sections;
 use crate::format;
+use crate::format::save::added::Added;
 use crate::format::scenario::index::{self as scenario, Changes, ScenarioIndex};
 use crate::keys;
 use crate::overlay::{Anchor, Overlay, OverlayError};
@@ -83,6 +84,8 @@ pub struct Document {
     nebulae: Vec<Anchor>,
     /// Present exactly when the document is a scenario script.
     scenario: Option<ScenarioIndex>,
+    /// A save's systems, planets and deposits an op wrote; empty for a scenario.
+    added: Added,
     /// See [`Self::inner_index`]; one cell per section, so a damaged one is nobody
     /// else's business.
     inner: HashMap<&'static str, OnceLock<Option<Index>>>,
@@ -150,6 +153,7 @@ impl Document {
             overlay: Overlay::new(),
             nebulae: Vec::new(),
             scenario: None,
+            added: Added::default(),
             inner: inner_cells(),
         };
         doc.rebuild_nebulae();
@@ -166,6 +170,7 @@ impl Document {
             overlay: Overlay::new(),
             nebulae: Vec::new(),
             scenario: Some(scenario),
+            added: Added::default(),
             inner: inner_cells(),
         })
     }
@@ -218,6 +223,21 @@ impl Document {
             return Ok(Changes::default());
         };
         Ok(scenario.refresh(&self.original, &self.overlay, slots)?)
+    }
+
+    /// A save's systems, planets and deposits an op wrote, which the index cannot know.
+    pub(crate) fn added(&self) -> &Added {
+        &self.added
+    }
+
+    /// Re-read which entities the save's `slots` now hold, so one an op wrote is found and
+    /// one an undo took away is gone. A scenario keeps its own id map.
+    pub(crate) fn refresh_added(&mut self, slots: &[Anchor]) {
+        if self.scenario.is_some() {
+            return;
+        }
+        self.added
+            .refresh(&self.original, &self.index, &self.overlay, slots);
     }
 
     /// The original bytes as loaded.
