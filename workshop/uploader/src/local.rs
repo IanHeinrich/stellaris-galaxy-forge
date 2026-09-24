@@ -52,6 +52,10 @@ impl Repo {
         self.workshop().join("carousel")
     }
 
+    pub fn content_dir(&self) -> PathBuf {
+        self.workshop().join("content")
+    }
+
     pub fn previews(&self) -> Result<Vec<PathBuf>, String> {
         Ok(images_in(&self.workshop())?
             .into_iter()

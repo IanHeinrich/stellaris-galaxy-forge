@@ -1,5 +1,6 @@
 mod changelog;
 mod commands;
+mod content;
 mod local;
 mod plan;
 mod state;

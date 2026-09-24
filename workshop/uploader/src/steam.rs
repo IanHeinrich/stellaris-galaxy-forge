@@ -40,6 +40,7 @@ pub struct Update {
     pub add_previews: Vec<PathBuf>,
     pub metadata: String,
     pub change_note: Option<String>,
+    pub content: Option<PathBuf>,
 }
 
 pub struct Submitted {
@@ -118,6 +119,12 @@ impl Steam {
             let path = c_path(preview)?;
             check("SetItemPreview", unsafe {
                 sys::SteamAPI_ISteamUGC_SetItemPreview(ugc, handle, path.as_ptr())
+            })?;
+        }
+        if let Some(content) = &update.content {
+            let path = c_path(content)?;
+            check("SetItemContent", unsafe {
+                sys::SteamAPI_ISteamUGC_SetItemContent(ugc, handle, path.as_ptr())
             })?;
         }
         for &index in &update.remove_previews {

@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use crate::changelog::{self, Version};
+use crate::content::Content;
 use crate::local::{LocalFiles, Repo, image_extension};
 use crate::plan::{self, Page, Plan};
 use crate::state::UploadedState;
@@ -164,14 +165,17 @@ pub fn push(repo: &Repo, item: u64, mode: PushMode, force: bool) -> Result<(), S
         },
         force,
     )?;
-    let change_note = match plan.version_moved {
-        Some((since, current)) => Some(changelog::change_note(
-            &repo.changelog()?,
-            since,
-            current,
-            has_release(current),
-        )?),
-        None => None,
+    let (change_note, content) = match plan.version_moved {
+        Some((since, current)) => (
+            Some(changelog::change_note(
+                &repo.changelog()?,
+                since,
+                current,
+                has_release(current),
+            )?),
+            Some((Content::read(repo, &files.preview)?, current)),
+        ),
+        None => (None, None),
     };
     print_decisions(&plan, &live, &files);
 
@@ -182,6 +186,9 @@ pub fn push(repo: &Repo, item: u64, mode: PushMode, force: bool) -> Result<(), S
     match &change_note {
         Some(note) => println!("change note:\n{note}"),
         None => println!("change note: none"),
+    }
+    if let Some((_, version)) = &content {
+        println!("{}", Content::describe(*version));
     }
     match mode {
         PushMode::DryRun => {
@@ -194,7 +201,12 @@ pub fn push(repo: &Repo, item: u64, mode: PushMode, force: bool) -> Result<(), S
         }
         _ => {}
     }
-    let update = update_for(&plan, &live, &files, change_note);
+    let staged = content
+        .as_ref()
+        .map(|(content, version)| content.stage(*version))
+        .transpose()?;
+    let mut update = update_for(&plan, &live, &files, change_note);
+    update.content = staged.as_ref().map(|staged| staged.dir.clone());
     report(steam.submit(item, &update)?)
 }
 
@@ -202,6 +214,7 @@ pub fn push(repo: &Repo, item: u64, mode: PushMode, force: bool) -> Result<(), S
 /// the item's metadata records, oldest first, so Steam lists them newest on top.
 pub fn backfill(repo: &Repo, item: u64, from: Version, mode: PushMode) -> Result<(), String> {
     let changelog = repo.changelog()?;
+    let content = Content::read(repo, &LocalFiles::read(repo)?.preview)?;
     let steam = Steam::connect()?;
     let metadata = steam
         .fetch_item(item)?
@@ -220,8 +233,9 @@ pub fn backfill(repo: &Repo, item: u64, from: Version, mode: PushMode) -> Result
         .iter()
         .map(|&version| changelog::version_note(&changelog, version, has_release(version)))
         .collect::<Result<Vec<_>, _>>()?;
-    for (i, note) in notes.iter().enumerate() {
-        println!("change note {} of {}:\n{note}\n", i + 1, notes.len());
+    for (i, (version, note)) in versions.iter().zip(&notes).enumerate() {
+        println!("change note {} of {}:\n{note}", i + 1, notes.len());
+        println!("{}\n", Content::describe(*version));
     }
     match mode {
         PushMode::DryRun => {
@@ -236,9 +250,11 @@ pub fn backfill(repo: &Repo, item: u64, from: Version, mode: PushMode) -> Result
     }
     for (version, note) in versions.iter().zip(notes) {
         println!("{version}:");
+        let staged = content.stage(*version)?;
         let update = Update {
             metadata: metadata.clone(),
             change_note: Some(note),
+            content: Some(staged.dir.clone()),
             ..Update::default()
         };
         report(steam.submit(item, &update)?)?;

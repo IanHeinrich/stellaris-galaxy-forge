@@ -1,11 +1,15 @@
 # Steam Workshop page
 
 Galaxy Forge has a page on the Stellaris Workshop (item 3805578137) so
-players can find it. The item has no mod content. This folder holds the
-page, and the uploader keeps Steam in step with it.
+players can find it. The item carries no mod, only a descriptor and a
+thumbnail. This folder holds the page, and the uploader keeps Steam in
+step with it.
 
 - `description.bbcode`: the description, in Steam's BBCode.
-- `preview.png`: the main image. A JPEG or GIF works too.
+- `preview.png`: the main image. It also goes up in the item's content
+  as `thumbnail.png`, so it has to stay a PNG.
+- `content/`: the item's files, uploaded beside `preview.png`.
+  `descriptor.mod` is the only one now.
 - `carousel/`: the extra images, shown in file-name order, so name them
   `01-*.png`, `02-*.png` and so on.
 - `images/`: the images the description shows inline. Steam loads them
@@ -42,6 +46,12 @@ cargo workshop <command>
   top. Steam dates each note the day it is posted, so every heading
   carries the release date from the changelog. It asks first, and takes
   `--dry-run` and `--yes` like `push`.
+
+Steam only shows a change note on the Change Notes tab when the content
+changes. So every upload that carries a change note also uploads the
+content, with the descriptor's `version` set to that release. `push`
+does this when `VERSION` has moved, and `backfill` does it once per
+version. `--dry-run` lists each upload that would carry content.
 
 `--item <id>` picks another item.
 
