@@ -62,6 +62,7 @@ export function ToolRail() {
   const tool = useToolStore((s) => s.tool);
   const setTool = useToolStore((s) => s.setTool);
   const capabilities = useFileSessionStore(documentCapabilities);
+  const symmetryShown = useFileSessionStore((s) => s.kind !== "save");
   const undoEntry = useEditorStore(nextUndo);
   const redoEntry = useEditorStore(nextRedo);
 
@@ -82,9 +83,11 @@ export function ToolRail() {
           </button>
         ))}
       </div>
-      <div className="tool-rail-group tool-rail-symmetry" role="group" aria-label="Symmetry">
-        <SymmetryControl />
-      </div>
+      {symmetryShown && (
+        <div className="tool-rail-group tool-rail-symmetry" role="group" aria-label="Symmetry">
+          <SymmetryControl />
+        </div>
+      )}
       <div className="tool-rail-group tool-rail-foot" role="group" aria-label="History">
         <button
           type="button"

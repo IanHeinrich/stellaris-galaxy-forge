@@ -18,7 +18,7 @@ import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
-import { toolAllowed, useToolStore } from "./toolStore";
+import { SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
 
 /** How long after the last edit the watchlist runs its searches again. */
@@ -48,6 +48,7 @@ export function bindStores(): void {
   followGalaxySize();
   followNotes();
   followTool();
+  followSymmetry();
   followWatchlist();
 }
 
@@ -110,6 +111,16 @@ function followTool(): void {
     const { tool } = useToolStore.getState();
     if (tool === "select") return;
     if (state.status !== "ready" || !toolAllowed(tool)) useToolStore.setState({ tool: "select" });
+  });
+}
+
+// A save cannot take symmetry: opening one turns off any symmetry left on from a scenario.
+function followSymmetry(): void {
+  useFileSessionStore.subscribe((state, previous) => {
+    if (state.kind === previous.kind) return;
+    if (state.kind === "save" && useToolStore.getState().symmetry.kind !== "off") {
+      useToolStore.getState().setSymmetry(SYMMETRY_OFF);
+    }
   });
 }
 

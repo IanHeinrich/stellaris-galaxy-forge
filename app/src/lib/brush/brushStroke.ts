@@ -43,13 +43,14 @@ export interface BrushSettings {
 /**
  * What a stroke does so far. A paint stroke's new points carry provisional ids -1..-n in
  * `points` order, and its lanes may join them to existing systems by their real ids. A
- * connect stroke's pairs join systems it swept.
+ * connect stroke's pairs join systems it swept; `sparse` is true when the lane density is the
+ * only reason it added none.
  */
 export type StrokeResult =
   | { kind: "paint"; points: Pt[]; pairs: Pair[] }
   | { kind: "erase"; doomed: number[]; kept: number[] }
   | { kind: "cut"; lanes: Pair[] }
-  | { kind: "connect"; swept: number[]; pairs: Pair[] };
+  | { kind: "connect"; swept: number[]; pairs: Pair[]; sparse: boolean };
 
 /** A new lane is at most this many spacings long. */
 const LANE_REACH = 3;
@@ -295,7 +296,13 @@ class ConnectStroke implements Strategy {
     const pairs = ground.symmetric
       ? ground.symmetricLanes(meshed, 0, (id) => systems.get(id)!, existing, keep)
       : meshed;
-    const result: StrokeResult = { kind: "connect", swept, pairs };
+    // Nothing to add at the chosen density: true only when the densest mesh would add one, so an
+    // already-linked or crossing pair still reads as a plain zero.
+    const sparse =
+      meshed.length === 0 &&
+      points.length >= 2 &&
+      meshWithin(points, { beta: MESH_BETA.dense, maxLength, existing, keep }).length > 0;
+    const result: StrokeResult = { kind: "connect", swept, pairs, sparse };
     this.connected = { swept: this.swept.size, result };
     return result;
   }
@@ -367,6 +374,8 @@ export function strokeLabel(result: StrokeResult): string {
     case "cut":
       return `−${counted(result.lanes.length, "lane")}`;
     case "connect":
-      return `+${counted(result.pairs.length, "lane")}`;
+      return result.sparse
+        ? "+0 lanes · raise lane density"
+        : `+${counted(result.pairs.length, "lane")}`;
   }
 }

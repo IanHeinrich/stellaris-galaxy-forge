@@ -20,6 +20,12 @@ a release is made.
   tool and version that wrote the file. Scenarios neither tool made are
   saved without one.
 
+### Changed
+
+- Symmetry is no longer offered when editing a save.
+- The Connect brush says when the lane density is too low to add any
+  lanes.
+
 ### Fixed
 
 - A planet's orbital station link opens the station, not an unrelated
