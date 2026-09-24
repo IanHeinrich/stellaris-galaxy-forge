@@ -233,3 +233,11 @@ inverse: RemoveSystem { id: 601 }
  	1=none
  	2=none
  	3=none
+@@ -1122853,7 +1123029,6 @@
+ 		"Viskarrons_Maw"
+ 		"Rixikars_Maw"
+ 		"Zultars_Maw"
+-		"Xulbaks_Maw"
+ 		"Urakhannons_Maw"
+ 		"Proteemas_Black_Hole"
+ 		"Xuukanis_Black_Hole"

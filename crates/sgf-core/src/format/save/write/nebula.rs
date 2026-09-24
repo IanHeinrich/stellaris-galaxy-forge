@@ -116,7 +116,7 @@ pub(crate) fn plan_add(
         },
     );
     plan.emit(Emitted::Nebula(added.index), at, text);
-    name_pool::take(plan, &s.doc, keys::NEBULA_NAMES, &added.name)?;
+    name_pool::take(plan, &s.doc, &[keys::NEBULA_NAMES], &added.name)?;
     Ok(Planned {
         description: added.describe(),
         inverse: added.inverse(),
@@ -130,7 +130,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, index: usize) -> Result<
     plan.erase(&s.doc, Subject::Nebula(index), anchor)?;
     let name = &removed.nebula.name.key;
     let staying = others_named(s, index, name);
-    name_pool::give_back(plan, &s.doc, keys::NEBULA_NAMES, name, staying)?;
+    name_pool::give_back(plan, &s.doc, &[keys::NEBULA_NAMES], name, staying)?;
     Ok(Planned {
         description: removed.describe(&s.graph),
         inverse: removed.inverse(),
@@ -209,7 +209,7 @@ pub(crate) fn plan_set_name(
     name_pool::swap(
         plan,
         &s.doc,
-        keys::NEBULA_NAMES,
+        &[keys::NEBULA_NAMES],
         (&set.from, &set.to),
         staying,
     )?;

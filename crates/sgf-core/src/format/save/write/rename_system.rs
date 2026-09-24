@@ -2,15 +2,15 @@
 //! opened: the name in the system's entry, and in its star's, planets' and moons', which
 //! carry it as the text of their `NAME` or `PARENT` variable, or as the whole name of a
 //! star named by its class. A body with a fixed name of its own keeps it. The old name goes
-//! back to the pool of unused star names as [`super::remove_system`] returns one, and the
-//! new one leaves it as an add takes one.
+//! back to the pool of unused star or black hole names as [`super::remove_system`]
+//! returns one, and the new one leaves its pool as an add takes one.
 
 use std::ops::Range;
 
 use crate::cst::Node;
 use crate::format::save::added::Table;
 use crate::format::save::write::add_system::{NAME_VAR, PARENT_VAR};
-use crate::format::save::write::name_pool;
+use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::format::save::write::remove_system::{bodies, check_added};
 use crate::keys;
 use crate::ops::rules::{check_name, quoted};
@@ -117,8 +117,9 @@ fn system_names(name: &Node, src: &[u8], old: &str, out: &mut Vec<Range<usize>>)
     }
 }
 
-/// Put `old` back in the pool of unused star names when system `id`'s add took it from
-/// there and no other added system holds it, and take `new` out when the pool holds it.
+/// Put `old` back in the pool of unused star or black hole names system `id`'s add took
+/// it from when no other added system holds it, and take `new` out of whichever pool
+/// holds it.
 pub(crate) fn swap_name(
     plan: &mut Plan,
     s: &Session,
@@ -138,5 +139,5 @@ pub(crate) fn swap_name(
                 .is_some_and(|o| o.name.key == old)
         })
         .count();
-    name_pool::swap(plan, &s.doc, keys::STAR_NAMES, (old, new), staying)
+    name_pool::swap(plan, &s.doc, SYSTEM_POOLS, (old, new), staying)
 }
