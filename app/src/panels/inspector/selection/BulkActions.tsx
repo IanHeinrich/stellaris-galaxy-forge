@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { CONNECT_ALL_MAX, useEditorStore } from "../../../store/editorStore";
+import { addedAmong, deleteAddedLabel } from "../../../lib/addSystem";
 import { documentCapabilities, supports } from "../../../lib/capabilities";
 import {
   bulkStarClassChoices,
@@ -48,8 +49,10 @@ export function BulkActions({
   const isolateSelected = useEditorStore((s) => s.isolateSelected);
   const resetSelectedLaneLengths = useEditorStore((s) => s.resetSelectedLaneLengths);
   const removeSystems = useEditorStore((s) => s.removeSystems);
+  const removeAddedSystems = useEditorStore((s) => s.removeAddedSystems);
   const systems = useGalaxyStore((s) => s.systems);
   const capabilities = useFileSessionStore(documentCapabilities);
+  const save = useFileSessionStore((s) => s.kind === "save");
   const paint = usePaintLayer();
 
   const laneLengths = supports(capabilities, "lane_lengths");
@@ -61,6 +64,11 @@ export function BulkActions({
     }),
     [systems, selection, laneLengths],
   );
+  const added = useMemo(() => addedAmong(systems, selection), [systems, selection]);
+  const deleteAdded =
+    save && selection.length > 1
+      ? deleteAddedLabel(added.length, selection.length - added.length)
+      : null;
 
   const tooMany = selection.length > CONNECT_ALL_MAX;
   const actions = [
@@ -122,6 +130,18 @@ export function BulkActions({
           }}
         >
           Delete systems ({selection.length})
+        </button>
+      )}
+      {deleteAdded !== null && (
+        <button
+          type="button"
+          role={itemRole}
+          onClick={() => {
+            void removeAddedSystems(selection);
+            afterRun?.();
+          }}
+        >
+          {deleteAdded}
         </button>
       )}
     </>

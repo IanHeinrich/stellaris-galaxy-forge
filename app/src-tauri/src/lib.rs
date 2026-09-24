@@ -36,6 +36,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::apply_op,
             commands::add_random_system,
             commands::reroll_system,
+            commands::remove_added_systems,
             commands::add_nebula,
             commands::set_fe_links,
             commands::fe_zone_fit,

@@ -174,6 +174,14 @@ export function rerollSystem(
 }
 
 /**
+ * Delete the systems among `ids` added to the open save this session as one edit, leaving the
+ * file's own. Rejects with `SgfError` (kind `op`) on a scenario or when none of them was added.
+ */
+export function removeAddedSystems(ids: number[]): Promise<EditResult> {
+  return invoke<EditResult>("remove_added_systems", { ids });
+}
+
+/**
  * The entries of one `SetFeZones` that replaces the automatic fallen empire zones with `count`
  * of the Paint a Galaxy mod's candidates, spread across the map; empty when the zones already
  * stand as asked. Zones the user placed stay.

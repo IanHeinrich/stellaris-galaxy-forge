@@ -207,16 +207,24 @@ export interface TrackedSystem {
 const trackers = new Set<TrackedSystem>();
 
 /** Follows `id` through every edit until `run` settles, handing `run` the id it has by then. */
-export async function withTrackedSystem<T>(
+export function withTrackedSystem<T>(
   id: number,
   run: (tracked: TrackedSystem) => Promise<T>,
 ): Promise<T> {
-  const tracked: TrackedSystem = { id };
-  trackers.add(tracked);
+  return withTrackedSystems([id], ([tracked]) => run(tracked));
+}
+
+/** As `withTrackedSystem`, for each of `ids`. */
+export async function withTrackedSystems<T>(
+  ids: readonly number[],
+  run: (tracked: TrackedSystem[]) => Promise<T>,
+): Promise<T> {
+  const tracked = ids.map((id): TrackedSystem => ({ id }));
+  for (const t of tracked) trackers.add(t);
   try {
     return await run(tracked);
   } finally {
-    trackers.delete(tracked);
+    for (const t of tracked) trackers.delete(t);
   }
 }
 
