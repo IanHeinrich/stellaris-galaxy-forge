@@ -2,7 +2,8 @@
 //! wrote since the file was opened; a system the file held when it was opened is refused.
 //!
 //! What the add wrote comes out again: the `galactic_object` entry, each body's entry and
-//! its deposits' entries, where a tombstone's slot gets the tombstone back, the lanes on
+//! its deposits' entries, where a tombstone's slot gets the tombstone back and an appended
+//! slot below the end of its table becomes a tombstone, the lanes on
 //! the other ends, the nebula member lines, and the name taken from the pool of unused
 //! star names. `last_created_system` goes down by one per system removed. Every system
 //! added after the first one removed takes the id below its own for each removed before
@@ -15,7 +16,7 @@ use crate::as_u32;
 use crate::cst::{self, Node};
 use crate::document::Document;
 use crate::format::save::added::Table;
-use crate::format::save::alloc::{self, Counter};
+use crate::format::save::alloc::{self, Counter, SlotTable};
 use crate::format::save::system_spec::{BodySpec, SystemSpec};
 use crate::format::save::write::add_system::pool_entries;
 use crate::format::save::write::lanes::remove_entries;
@@ -40,8 +41,8 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
     let inverse = restoring(s, &removed, &renumber)?;
     let description = describe(s, &removed, &renumber);
 
+    erase_systems(plan, &s.doc, &removed)?;
     for &id in &removed {
-        erase_system(plan, &s.doc, id)?;
         plan.renumber(id, None);
     }
     for (&old, &new) in &renumber {
@@ -111,37 +112,95 @@ fn renumbering(
     Ok(renumber)
 }
 
-/// Take out system `id`'s entry and its bodies' and their deposits' entries.
-fn erase_system(plan: &mut Plan, doc: &Document, id: u32) -> Result<(), OpError> {
-    let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
-    for planet in bodies(doc, id)? {
-        let Some(slot) = doc.added().get(Table::Planet, planet) else {
-            continue;
-        };
-        let subject = Subject::Planet {
-            id: planet,
-            system: id,
-        };
-        let (node, src) = entity(doc, subject, slot)?;
-        for deposit in read::ids(&node, keys::DEPOSITS, src) {
-            if let Some(held) = doc.added().get(Table::Deposit, deposit) {
-                free(plan, doc, Subject::Record(held), held)?;
+/// Take out each system's entry and its bodies' and their deposits' entries.
+fn erase_systems(plan: &mut Plan, doc: &Document, ids: &BTreeSet<u32>) -> Result<(), OpError> {
+    let mut planets = BTreeMap::new();
+    let mut deposits = BTreeMap::new();
+    for &id in ids {
+        let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
+        for planet in bodies(doc, id)? {
+            let Some(slot) = doc.added().get(Table::Planet, planet) else {
+                continue;
+            };
+            let subject = Subject::Planet {
+                id: planet,
+                system: id,
+            };
+            let (node, src) = entity(doc, subject, slot)?;
+            for deposit in read::ids(&node, keys::DEPOSITS, src) {
+                if let Some(held) = doc.added().get(Table::Deposit, deposit) {
+                    free(plan, doc, Subject::Record(held), held, &mut deposits)?;
+                }
             }
+            free(plan, doc, subject, slot, &mut planets)?;
         }
-        free(plan, doc, subject, slot)?;
+        plan.erase(doc, Subject::System(id), anchor)?;
     }
-    plan.erase(doc, Subject::System(id), anchor)
+    if !planets.is_empty() {
+        free_appended(plan, doc, SlotTable::planets(doc)?.end.at(), &planets)?;
+    }
+    if !deposits.is_empty() {
+        free_appended(plan, doc, SlotTable::deposits(doc)?.end.at(), &deposits)?;
+    }
+    Ok(())
 }
 
-/// Take back what an add wrote at `slot`: an inserted entry goes, and a tombstone's slot
-/// holds its tombstone again, as loaded.
-fn free(plan: &mut Plan, doc: &Document, subject: Subject, slot: Anchor) -> Result<(), OpError> {
+/// Take back what an add wrote in place of a tombstone the file held: the tombstone, as
+/// loaded. An entry an add appended is left in `appended` for [`free_appended`].
+fn free(
+    plan: &mut Plan,
+    doc: &Document,
+    subject: Subject,
+    slot: Anchor,
+    appended: &mut BTreeMap<Anchor, Subject>,
+) -> Result<(), OpError> {
     match slot {
-        Anchor::Inserted { .. } => plan.erase(doc, subject, slot),
+        Anchor::Inserted { .. } => {
+            appended.insert(slot, subject);
+            Ok(())
+        }
         Anchor::Original(span) => {
             plan.replace(doc, subject, slot, span.slice(doc.original()).to_vec())
         }
     }
+}
+
+/// The entries `leaving` of the table whose appended entries go at `at`. The game leaves
+/// no slot missing below the highest, so only the end of the table can shrink: from the
+/// last entry back, each leaving entry, and each tombstone an earlier removal left, is
+/// deleted until a live one stands. Every other leaving entry becomes a tombstone, in the
+/// table's `<id>=none` form, holding the id its slot held before the add took it.
+fn free_appended(
+    plan: &mut Plan,
+    doc: &Document,
+    at: usize,
+    leaving: &BTreeMap<Anchor, Subject>,
+) -> Result<(), OpError> {
+    let mut at_end = true;
+    for entry in alloc::appended(doc, at).into_iter().rev() {
+        let subject = leaving.get(&entry.anchor).copied();
+        if at_end && (subject.is_some() || entry.dead) {
+            let subject = subject.unwrap_or(Subject::Record(entry.anchor));
+            plan.erase(doc, subject, entry.anchor)?;
+            continue;
+        }
+        at_end = false;
+        let Some(subject) = subject else {
+            continue;
+        };
+        let current = doc.current(entry.anchor)?;
+        let span = alloc::statement_span(current)
+            .ok_or_else(|| subject.parse_error(0, "the entry holds no statement"))?;
+        let tombstone = alloc::tombstone(alloc::tombstone_id(entry.id));
+        let bytes = [
+            &current[..span.start],
+            tombstone.as_bytes(),
+            &current[span.end..],
+        ]
+        .concat();
+        plan.replace(doc, subject, entry.anchor, bytes)?;
+    }
+    Ok(())
 }
 
 /// Every surviving system's lanes: an entry to a removed system goes, and one to a

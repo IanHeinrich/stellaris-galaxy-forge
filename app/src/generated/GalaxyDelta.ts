@@ -24,8 +24,7 @@ removed?: Array<number>,
  * Systems whose id the edit changed, as `[before, after]`, read together rather than
  * in turn; `after` is null for a system the edit removed, whose id another system
  * may now hold. Removing a system added since the save was opened renumbers the ones
- * added after it down, and an undo numbers them back. Anything keyed by a system id
- * (the selection, an open inspector page) maps its ids through this list first.
+ * added after it down, and an undo numbers them back.
  */
 renumbered?: Array<[number, number | null]>, 
 /**

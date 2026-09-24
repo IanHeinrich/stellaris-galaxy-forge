@@ -17,6 +17,9 @@ use common::diff::{assert_fresh, round_trip_step};
 use common::spec::{body, dorellion, mura};
 use common::{SAMPLE_4_5, current, open, text};
 
+const GENERATION: u32 = 1 << 24;
+const SLOT_MASK: u32 = GENERATION - 1;
+
 /// One sample with the ids and systems a test adds to it.
 struct Sample {
     session: Session,
@@ -415,13 +418,14 @@ fn a_batch_reports_the_renumbering_of_its_members_as_one() {
     let mut sample = samples().into_iter().next().expect("the 4.5 sample");
     three(&mut sample);
     let first = sample.first;
-    let result = sample
-        .session
-        .apply(Op::Batch {
+    let result = round_trip_step(
+        &mut sample.session,
+        "remove the first twice over",
+        Op::Batch {
             description: "Removed two".to_owned(),
             ops: vec![remove(first), remove(first)],
-        })
-        .expect("remove the first twice over");
+        },
+    );
     assert_eq!(
         result.renumbered,
         [(first, None), (first + 1, None), (first + 2, Some(first))]
@@ -500,4 +504,95 @@ fn nebula_member_lines_follow_the_renumbering() {
     assert_eq!(session.system(middle).unwrap().nebula, Some(0));
     assert!(text(session).contains(&format!("\tgalactic_object={middle}\n")));
     assert!(!text(session).contains(&format!("\tgalactic_object={last}\n")));
+}
+
+/// The slots of a table's entries, as the text holds them, and whether none is missing
+/// between the lowest and the highest.
+fn contiguous(text: &str, head: &str, close: &str, indent: &str) -> bool {
+    let start = text.find(head).expect("the table") + head.len();
+    let end = start + text[start..].find(close).expect("its end");
+    let mut slots: Vec<u32> = text[start..end]
+        .lines()
+        .filter_map(|line| line.strip_prefix(indent))
+        .filter(|line| !line.starts_with('\t'))
+        .filter_map(|line| line.split_once('=')?.0.parse::<u32>().ok())
+        .map(|id| id & SLOT_MASK)
+        .collect();
+    slots.sort_unstable();
+    let (Some(&low), Some(&high)) = (slots.first(), slots.last()) else {
+        return true;
+    };
+    slots == (low..=high).collect::<Vec<_>>()
+}
+
+fn no_slot_missing(session: &Session) -> bool {
+    let text = text(session);
+    let planets = "\nplanets=\n{\n\tplanet=\n\t{\n";
+    let deposits = "\ndeposit=\n{\n";
+    contiguous(&text, planets, "\n\t}\n", "\t\t") && contiguous(&text, deposits, "\n}\n", "\t")
+}
+
+#[test]
+fn a_removal_leaves_no_slot_missing_and_the_next_add_takes_its_tombstones() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    for mut sample in samples() {
+        assert!(no_slot_missing(&sample.session), "the sample as opened");
+        three(&mut sample);
+        let (first, middle) = (sample.first, sample.first + 1);
+        let freed = planets_of(&sample.session, middle);
+        let session = &mut sample.session;
+        round_trip_step(session, "remove the middle", remove(middle));
+        assert!(no_slot_missing(session), "{first}: after the removal");
+        let text = text(session);
+        for planet in &freed {
+            assert!(
+                text.contains(&format!("\n\t\t{planet}=none\n")),
+                "{first}: planet {planet}'s tombstone"
+            );
+        }
+
+        let path = dir.path().join(format!("{first}.sav"));
+        session.save_as(&path).expect("save");
+        let mut reopened = Session::open(&path).expect("reopen");
+        assert!(no_slot_missing(&reopened), "{first}: reopened");
+        let (name, at, _) = sample.second;
+        let again = small(name, at, vec![first]);
+        let expected: Vec<u32> = freed.iter().map(|&p| p | GENERATION).collect();
+        let taken = round_trip_step(session, "add again", add(again.clone())).touched;
+        assert!(taken.contains(&(first + 2)));
+        assert_eq!(
+            planets_of(session, first + 2),
+            expected,
+            "{first}: in the session"
+        );
+        reopened.apply(add(again)).expect("add after reopening");
+        assert_eq!(
+            planets_of(&reopened, first + 2),
+            expected,
+            "{first}: reopened"
+        );
+        assert!(no_slot_missing(session) && no_slot_missing(&reopened));
+    }
+}
+
+#[test]
+fn a_name_the_removal_put_back_is_taken_again() {
+    for mut sample in samples() {
+        let name = sample.spike.name.clone();
+        let session = &mut sample.session;
+        let opened = current(session);
+        session.apply(add(sample.spike.clone())).expect("add");
+        let added = current(session);
+        session.apply(remove(sample.first)).expect("remove");
+        assert_eq!(pooled(session, &name), 1);
+        round_trip_step(session, "add it again", add(sample.spike.clone()));
+        assert_eq!(pooled(session, &name), 0);
+        assert_eq!(
+            current(session),
+            added,
+            "the pool line goes as the first add took it"
+        );
+        session.undo().expect("undo").expect("an op to undo");
+        assert_eq!(current(session), opened);
+    }
 }

@@ -1,5 +1,6 @@
 ---
 source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 105
 expression: value
 ---
 Removed Tau Ceti (#602) and 3 lanes; renumbered 603 to 602
@@ -113,7 +114,7 @@ renumbered: [(602, None), (603, Some(602))]
  				to=544
  				length=23
  			}
-@@ -412546,89 +412485,6 @@
+@@ -412546,89 +412485,8 @@
  			bombardment_damage=0
  			entity=1
  		}
@@ -200,10 +201,12 @@ renumbered: [(602, None), (603, Some(602))]
 -				16777221 
 -			}
 -		}
++		6383=none
++		6384=none
  		6385=
  		{
  			planet_class="pc_k_star"
-@@ -412654,7 +412510,7 @@
+@@ -412654,7 +412512,7 @@
  			{
  				x=0
  				y=0
@@ -212,7 +215,7 @@ renumbered: [(602, None), (603, Some(602))]
  			}
  			orbit=0
  			last_bombardment=			"0.01.01"
-@@ -412698,7 +412554,7 @@
+@@ -412698,7 +412556,7 @@
  			{
  				x=42.42641
  				y=42.42641
@@ -221,7 +224,7 @@ renumbered: [(602, None), (603, Some(602))]
  			}
  			orbit=60
  			last_bombardment=			"0.01.01"
-@@ -692833,7 +692689,7 @@
+@@ -692833,7 +692691,7 @@
  {
  }
  last_created_country=55
@@ -230,7 +233,7 @@ renumbered: [(602, None), (603, Some(602))]
  leaders=
  {
  	285212672=
-@@ -1077049,15 +1076905,7 @@
+@@ -1077049,15 +1076907,7 @@
  			id=6378
  		}
  	}
@@ -247,7 +250,7 @@ renumbered: [(602, None), (603, Some(602))]
  	16777222=
  	{
  		type="d_minerals_3"
-@@ -1122423,6 +1122271,7 @@
+@@ -1122423,6 +1122273,7 @@
  	star_names=
  	{
  		"Epsilon_Eridani"
