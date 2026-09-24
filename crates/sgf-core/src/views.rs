@@ -271,6 +271,13 @@ pub struct GalaxyDelta {
     /// Systems the document no longer holds; the map drops each.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub removed: Vec<u32>,
+    /// Systems whose id the edit changed, as `[before, after]`, read together rather than
+    /// in turn; `after` is null for a system the edit removed, whose id another system
+    /// may now hold. Removing a system added since the save was opened renumbers the ones
+    /// added after it down, and an undo numbers them back. Anything keyed by a system id
+    /// (the selection, an open inspector page) maps its ids through this list first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub renumbered: Vec<(u32, Option<u32>)>,
     /// The whole header, present only when an op rewrote a header key.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub header: Option<Vec<HeaderField>>,

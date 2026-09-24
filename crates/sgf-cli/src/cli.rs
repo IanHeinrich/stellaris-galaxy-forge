@@ -185,20 +185,26 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
-    /// Add a star system with its bodies, deposits and lanes to a Stellaris 4.x save.
+    /// Add star systems with their bodies, deposits and lanes to a Stellaris 4.x save.
     ///
-    /// The spec is JSON, every value chosen: a G star with one planet and a lane to 169,
+    /// Each spec is JSON, every value chosen: a G star with one planet and a lane to 169,
     /// {"name":"Mura","x":-292.2,"y":-137.6,"star_class":"sc_g","initializer":"basic_init_01",
     ///  "star":{"class":"pc_g_star","size":25,"orbit":0,"angle":0,"entity":0,"deposits":["d_energy_5"]},
     ///  "planets":[{"class":"pc_molten","size":12,"orbit":65,"angle":30,"entity":1}],
     ///  "lanes":[169]}
     /// A planet takes `moons`, a list of bodies whose orbit is measured from it.
+    /// Several specs are added in order, so a later one can name an earlier one's id in
+    /// its lanes.
     #[command(verbatim_doc_comment)]
     AddSystem {
         sav: PathBuf,
-        /// The system to add, as JSON.
-        #[arg(long)]
-        spec: PathBuf,
+        /// A system to add, as JSON; repeat for more.
+        #[arg(long, required = true)]
+        spec: Vec<PathBuf>,
+        /// Remove this system again before saving, as the app's undo history allows for a
+        /// system added in the same session; the systems added after it take the id below.
+        #[arg(long, value_name = "ID")]
+        then_remove: Option<u32>,
         #[command(flatten)]
         out: OutArg,
     },

@@ -1,0 +1,38 @@
+{
+  "name": "Fellix",
+  "x": -300,
+  "y": -120,
+  "star_class": "sc_m",
+  "initializer": "basic_init_01",
+  "star": {
+    "class": "pc_m_star",
+    "size": 18,
+    "orbit": 0,
+    "angle": 0,
+    "entity": 0
+  },
+  "planets": [
+    {
+      "class": "pc_toxic",
+      "size": 14,
+      "orbit": 55,
+      "angle": 120,
+      "entity": 1,
+      "deposits": [
+        "d_minerals_5"
+      ]
+    },
+    {
+      "class": "pc_barren_cold",
+      "size": 9,
+      "orbit": 90,
+      "angle": 300,
+      "entity": 1
+    }
+  ],
+  "lanes": [
+    601,
+    602,
+    544
+  ]
+}

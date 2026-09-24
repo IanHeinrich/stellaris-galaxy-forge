@@ -51,6 +51,15 @@ impl Example {
         }
     }
 
+    /// A save example that needs a system added in the session, with its scenario twin.
+    fn each_added(save_op: Op, scenario: Op) -> Self {
+        Self {
+            save: Some(save_op),
+            scenario: Some(scenario),
+            open_save: save_with_added,
+        }
+    }
+
     fn scenario(op: Op) -> Self {
         Self {
             save: None,
@@ -75,6 +84,18 @@ impl Example {
 /// The sample save, which every save example applies to.
 pub fn save() -> Session {
     open()
+}
+
+/// The sample save with Dorellion added as system 791, which only the removal of a system
+/// added in the session needs.
+pub fn save_with_added() -> Session {
+    let mut session = open();
+    session
+        .apply(Op::AddSaveSystem {
+            spec: super::spec::dorellion(),
+        })
+        .expect("add Dorellion");
+    session
 }
 
 /// The 4.5 sample, which the save examples that need its six-entry flag colours apply to.
@@ -234,11 +255,14 @@ pub fn one_of_each() -> Vec<Example> {
             spawn_weight: None,
             spawn_script: None,
         }),
-        Example::scenario(Op::RemoveSystem { id: 10 }),
+        Example::each_added(Op::RemoveSystem { id: 791 }, Op::RemoveSystem { id: 10 }),
         Example::scenario(Op::AddSystems {
             systems: vec![new_system(20, 200.0, 200.0), new_system(21, 210.0, 200.0)],
         }),
-        Example::scenario(Op::RemoveSystems { ids: vec![10, 11] }),
+        Example::each_added(
+            Op::RemoveSystems { ids: vec![791] },
+            Op::RemoveSystems { ids: vec![10, 11] },
+        ),
         Example::scenario(Op::SetSystemName {
             id: 10,
             name: "Renamed".to_owned(),

@@ -43,6 +43,10 @@ pub struct Applied {
     /// The entities the op rewrote and the systems its nebula edits reassigned, sorted
     /// and deduplicated.
     pub touched: Vec<Subject>,
+    /// The systems whose id the op changed, each as its id before and after, `None` after
+    /// for one it removed; read together, not in turn. Only a save's removal of a system
+    /// added in the session renumbers the systems added after it, so that ids stay dense.
+    pub renumbered: Vec<(u32, Option<u32>)>,
 }
 
 /// Apply `op` to the session's document and projection.
@@ -90,6 +94,7 @@ fn apply_batch(
     let mut before = Vec::new();
     let mut after = Vec::new();
     let mut touched = Vec::new();
+    let mut renumbered = Vec::new();
     for member in members {
         match member.inverse {
             Op::Batch { ops, .. } => inverses.extend(ops.into_iter().rev()),
@@ -98,6 +103,7 @@ fn apply_batch(
         before.extend(member.before);
         after.extend(member.after);
         touched.extend(member.touched);
+        renumbered = then(&renumbered, &member.renumbered);
     }
     inverses.reverse();
     touched.sort_unstable();
@@ -112,7 +118,33 @@ fn apply_batch(
         before,
         after,
         touched,
+        renumbered,
     })
+}
+
+/// `first`'s renumbering followed by `second`'s, as one: an id `second` names is the id
+/// `first` left, so it is traced back to the id it had before `first`.
+fn then(first: &[(u32, Option<u32>)], second: &[(u32, Option<u32>)]) -> Vec<(u32, Option<u32>)> {
+    let lookup = |id: u32| {
+        second
+            .iter()
+            .find(|&&(old, _)| old == id)
+            .map(|&(_, new)| new)
+    };
+    let mut out: Vec<(u32, Option<u32>)> = first
+        .iter()
+        .map(|&(old, mid)| (old, mid.and_then(|mid| lookup(mid).unwrap_or(Some(mid)))))
+        .collect();
+    for &(mid, new) in second {
+        let traced = first
+            .iter()
+            .any(|&(old, left)| old == mid || left == Some(mid));
+        if !traced {
+            out.push((mid, new));
+        }
+    }
+    out.retain(|&(old, new)| new != Some(old));
+    out
 }
 
 /// The lane `a`-`b` as the projection lists it on either end.

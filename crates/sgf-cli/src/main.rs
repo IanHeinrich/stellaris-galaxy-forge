@@ -188,13 +188,21 @@ fn run(cli: Cli) -> commands::Run {
             out.path.as_deref(),
             Op::SetPlanetSize { id: planet, size },
         ),
-        Some(Command::AddSystem { sav, spec, out }) => commands::mutate::run(
-            &sav,
-            out.path.as_deref(),
-            Op::AddSaveSystem {
-                spec: commands::mutate::system_spec(&spec)?,
-            },
-        ),
+        Some(Command::AddSystem {
+            sav,
+            spec,
+            then_remove,
+            out,
+        }) => {
+            let mut ops = Vec::with_capacity(spec.len() + 1);
+            for path in &spec {
+                ops.push(Op::AddSaveSystem {
+                    spec: commands::mutate::system_spec(path)?,
+                });
+            }
+            ops.extend(then_remove.map(|id| Op::RemoveSystem { id }));
+            commands::mutate::run_all(&sav, out.path.as_deref(), ops)
+        }
         Some(Command::Synth {
             systems,
             seed,
