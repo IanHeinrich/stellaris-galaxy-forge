@@ -1,5 +1,5 @@
-//! The editing commands (`move`, `move-nebula`, `lane`, `isolate`, `star`, `add-system`):
-//! one op, then a save.
+//! The editing commands (`move`, `move-nebula`, `lane`, `isolate`, `star`, `deposit`,
+//! `add-system`): one op, then a save.
 
 use std::path::Path;
 

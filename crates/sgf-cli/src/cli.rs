@@ -185,6 +185,11 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Add or remove deposits on uncolonised planets of a Stellaris 4.x save.
+    Deposit {
+        #[command(subcommand)]
+        command: DepositCommand,
+    },
     /// Add star systems with their bodies, deposits and lanes to a Stellaris 4.x save.
     ///
     /// Each spec is JSON, every value chosen: a G star with one planet and a lane to 169,
@@ -322,6 +327,30 @@ pub enum NebulaCommand {
         sav: PathBuf,
         index: usize,
         name: String,
+        #[command(flatten)]
+        out: OutArg,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum DepositCommand {
+    /// Add a deposit of a type to a planet; repeat `--planet` and `--type` for more, the
+    /// nth type going to the nth planet.
+    Add {
+        sav: PathBuf,
+        #[arg(long = "planet", value_name = "ID", required = true)]
+        planets: Vec<u32>,
+        /// The deposit's type, such as `d_minerals_3`.
+        #[arg(long = "type", value_name = "TYPE", required = true)]
+        kinds: Vec<String>,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Remove a deposit from the planet holding it; repeat `--deposit` for more.
+    Remove {
+        sav: PathBuf,
+        #[arg(long = "deposit", value_name = "ID", required = true)]
+        deposits: Vec<u32>,
         #[command(flatten)]
         out: OutArg,
     },

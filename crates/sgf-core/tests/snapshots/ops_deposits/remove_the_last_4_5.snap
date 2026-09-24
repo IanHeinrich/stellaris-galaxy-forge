@@ -1,0 +1,39 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed d_minerals_6 (#16777696) from planet #1129
+touched: [59]
+inverse: AddSaveDeposit { planet: 1129, kind: "d_minerals_6" }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -138015,10 +138015,6 @@
+ 			planet_modifier="pm_carbon_world"
+ 			entity=0
+ 			surveyed_by=0
+-			deposits=
+-			{
+-				16777696 
+-			}
+ 		}
+ 		1130=
+ 		{
+@@ -1079023,15 +1079019,7 @@
+ 			id=45
+ 		}
+ 	}
+-	16777696=
+-	{
+-		type="d_minerals_6"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=1129
+-		}
+-	}
++	16777696=none
+ 	481=
+ 	{
+ 		type="d_rushing_waterfalls"

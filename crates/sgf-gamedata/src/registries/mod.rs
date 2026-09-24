@@ -15,6 +15,7 @@ pub mod planet_classes;
 pub mod planet_modifiers;
 pub mod registry;
 pub mod resources;
+pub mod scripted_triggers;
 pub mod ship_sizes;
 pub mod star_classes;
 pub mod starbase_levels;

@@ -9,8 +9,8 @@
 //! game builds them on load.
 //!
 //! Every rule reads the table as it stands now, so a second add takes nothing the first
-//! one took, and a tombstone a removal wrote into an appended slot is a dead slot like any
-//! other.
+//! one took, and a tombstone a removal wrote, into an appended slot or one the file held,
+//! is a dead slot like any other.
 
 use std::collections::VecDeque;
 
@@ -198,12 +198,20 @@ impl SlotTable {
             let id = u32::try_from(entity.id).ok()?;
             highest = highest.max(Some(id & SLOT_MASK));
             let anchor = Anchor::Original(entity.stmt);
-            let dead = match entity.value {
-                Value::Scalar(span) => scan::unquote(span.slice(src)) == TOMBSTONE,
-                Value::Block { .. } => false,
+            let dead = if doc.overlay().has_original_at(anchor.start()) {
+                doc.current(anchor).ok().and_then(tombstone_of)
+            } else {
+                match entity.value {
+                    Value::Scalar(span) => {
+                        (scan::unquote(span.slice(src)) == TOMBSTONE).then_some(id)
+                    }
+                    Value::Block { .. } => None,
+                }
             };
-            if dead && !added.replaces(anchor) && id >> GENERATION_SHIFT < LAST_GENERATION {
-                free.push((id, anchor));
+            if let Some(dead) = dead
+                && dead >> GENERATION_SHIFT < LAST_GENERATION
+            {
+                free.push((dead, anchor));
             }
         }
         for (id, _) in added.entries(table) {
@@ -274,6 +282,14 @@ pub(crate) fn tombstone_id(id: u32) -> u32 {
 /// `id`'s tombstone statement.
 pub(crate) fn tombstone(id: u32) -> String {
     format!("{id}=none")
+}
+
+/// The id of the tombstone `bytes` hold; `None` for a live entry or anything else.
+pub(crate) fn tombstone_of(bytes: &[u8]) -> Option<u32> {
+    let root = cst::parse(bytes, 0).ok()?;
+    let node = root.children().first()?;
+    (node.scalar_str(bytes)?.as_bytes() == TOMBSTONE).then_some(())?;
+    node.key_str(bytes)?.parse().ok()
 }
 
 /// The span of the one statement `bytes` hold, which may stand after a line break and

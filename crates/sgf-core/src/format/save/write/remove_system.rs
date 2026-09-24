@@ -131,10 +131,17 @@ fn erase_systems(plan: &mut Plan, doc: &Document, ids: &BTreeSet<u32>) -> Result
             let (node, src) = entity(doc, subject, slot)?;
             for deposit in read::ids(&node, keys::DEPOSITS, src) {
                 if let Some(held) = doc.added().get(Table::Deposit, deposit) {
-                    free(plan, doc, Subject::Record(held), held, &mut deposits)?;
+                    free(
+                        plan,
+                        doc,
+                        Subject::Record(held),
+                        deposit,
+                        held,
+                        &mut deposits,
+                    )?;
                 }
             }
-            free(plan, doc, subject, slot, &mut planets)?;
+            free(plan, doc, subject, planet, slot, &mut planets)?;
         }
         plan.erase(doc, Subject::System(id), anchor)?;
     }
@@ -147,12 +154,14 @@ fn erase_systems(plan: &mut Plan, doc: &Document, ids: &BTreeSet<u32>) -> Result
     Ok(())
 }
 
-/// Take back what an add wrote in place of a tombstone the file held: the tombstone, as
-/// loaded. An entry an add appended is left in `appended` for [`free_appended`].
-fn free(
+/// Take back what an add wrote as entity `id` in place of a tombstone: the tombstone the
+/// file held, as loaded, or the one a removal wrote over an entry the file held. An entry
+/// an add appended is left in `appended` for [`free_appended`].
+pub(crate) fn free(
     plan: &mut Plan,
     doc: &Document,
     subject: Subject,
+    id: u32,
     slot: Anchor,
     appended: &mut BTreeMap<Anchor, Subject>,
 ) -> Result<(), OpError> {
@@ -162,7 +171,12 @@ fn free(
             Ok(())
         }
         Anchor::Original(span) => {
-            plan.replace(doc, subject, slot, span.slice(doc.original()).to_vec())
+            let loaded = span.slice(doc.original());
+            let bytes = match alloc::tombstone_of(loaded) {
+                Some(_) => loaded.to_vec(),
+                None => alloc::tombstone(alloc::tombstone_id(id)).into_bytes(),
+            };
+            plan.replace(doc, subject, slot, bytes)
         }
     }
 }
@@ -172,7 +186,7 @@ fn free(
 /// last entry back, each leaving entry, and each tombstone an earlier removal left, is
 /// deleted until a live one stands. Every other leaving entry becomes a tombstone, in the
 /// table's `<id>=none` form, holding the id its slot held before the add took it.
-fn free_appended(
+pub(crate) fn free_appended(
     plan: &mut Plan,
     doc: &Document,
     at: usize,

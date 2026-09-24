@@ -310,6 +310,26 @@ pub enum Op {
     AddSaveSystem {
         spec: SystemSpec,
     },
+    /// A new deposit of type `kind` on an uncolonised save planet, a star or moon included,
+    /// written as the game writes one: an entry of the `deposit` table in the lowest dead
+    /// slot one generation on, or past the highest, and its id last in the planet's
+    /// `deposits`, which the planet gains when it has none. The type is written as given:
+    /// only an empty one, or one that is not an identifier, is refused. The inverse is
+    /// [`Op::RemoveSaveDeposit`]. Stellaris 4.x save documents only.
+    AddSaveDeposit {
+        planet: u32,
+        kind: String,
+    },
+    /// A deposit of an uncolonised save planet, as the game removes one: its entry becomes
+    /// the tombstone `<id>=none` and its id leaves the planet's `deposits`, which goes with
+    /// its last id. A station working it is left standing. A deposit an
+    /// [`Op::AddSaveDeposit`] wrote gives its slot back: a reused slot gets back the
+    /// tombstone that stood there before the add, and an appended one goes when it is last,
+    /// else becomes a tombstone. A deposit held by no planet is refused. The inverse adds
+    /// one of the same type to the same planet. Stellaris 4.x save documents only.
+    RemoveSaveDeposit {
+        deposit: u32,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -368,6 +388,8 @@ impl Op {
             Self::SetPlanetSize { .. } => "SetPlanetSize",
             Self::SetEmpireMapColors { .. } => "SetEmpireMapColors",
             Self::AddSaveSystem { .. } => "AddSaveSystem",
+            Self::AddSaveDeposit { .. } => "AddSaveDeposit",
+            Self::RemoveSaveDeposit { .. } => "RemoveSaveDeposit",
             Self::Batch { .. } => "Batch",
         }
     }
@@ -377,12 +399,15 @@ impl Op {
     /// one stales it, and a scenario system's planets and resources come from its
     /// initializer, so an op that writes one stales it too, a scripted seat included
     /// because it may bring an initializer with it. A save's details list a star's
-    /// bodies, whose classes [`Op::SetStarClass`] writes and whose sizes
-    /// [`Op::SetPlanetSize`] does, and a save system an op adds brings its bodies with it.
+    /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
+    /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
+    /// a save system an op adds brings its bodies with it.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
+            | Self::AddSaveDeposit { .. }
+            | Self::RemoveSaveDeposit { .. }
             | Self::AddSaveSystem { .. }
             | Self::AddSystem { .. }
             | Self::RemoveSystem { .. }
@@ -414,9 +439,11 @@ impl Op {
     /// as they were. A scenario's systems have no bodies, so there it stales them all.
     pub fn stales_only_bodies(&self) -> bool {
         match self {
-            Self::AddSaveSystem { .. } | Self::RemoveSystem { .. } | Self::RemoveSystems { .. } => {
-                true
-            }
+            Self::AddSaveSystem { .. }
+            | Self::RemoveSystem { .. }
+            | Self::RemoveSystems { .. }
+            | Self::AddSaveDeposit { .. }
+            | Self::RemoveSaveDeposit { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.stales_only_bodies() || !op.stales_details()),
@@ -432,7 +459,10 @@ impl Op {
             Self::SetSystemName { .. }
             | Self::SetWormholePair { .. }
             | Self::SetWormholeEnds { .. } => true,
-            Self::SetStarClass { .. } | Self::SetPlanetSize { .. } => false,
+            Self::SetStarClass { .. }
+            | Self::SetPlanetSize { .. }
+            | Self::AddSaveDeposit { .. }
+            | Self::RemoveSaveDeposit { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -647,9 +677,9 @@ pub enum OpError {
     MapColorsUnchanged(u32),
     #[error("save statement: {reason} at byte {offset}")]
     RecordParse { offset: usize, reason: String },
-    #[error("adding a system needs a save from Stellaris 4.0 or later, not {0}")]
+    #[error("this edit needs a save from Stellaris 4.0 or later, not {0}")]
     SaveTooOld(String),
-    #[error("the save's version {0:?} names no major version, so it cannot take a new system")]
+    #[error("the save's version {0:?} names no major version, so it cannot take this edit")]
     UnknownSaveVersion(String),
     #[error("the save has no `{0}`")]
     MissingSaveKey(&'static str),
@@ -675,6 +705,14 @@ pub enum OpError {
         "system {0} was in the save when it was opened: only a system added since then can be removed"
     )]
     SystemNotAdded(u32),
+    #[error("deposit {0} does not exist")]
+    UnknownDeposit(u32),
+    #[error("deposit {0} is not held by a planet")]
+    DepositNotOnPlanet(u32),
+    #[error("planet {0} is colonised: only an uncolonised planet's deposits can be edited")]
+    PlanetColonised(u32),
+    #[error("deposit type {0:?} may hold only letters, digits and underscores")]
+    InvalidDepositType(String),
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,

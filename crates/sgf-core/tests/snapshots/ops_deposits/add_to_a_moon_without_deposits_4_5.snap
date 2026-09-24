@@ -1,0 +1,39 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added d_minerals_3 (#16777216) to planet #3
+touched: [169]
+inverse: RemoveSaveDeposit { deposit: 16777216 }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -80153,6 +80153,10 @@
+ 			}
+ 			bombardment_damage=0
+ 			entity=1
++			deposits=
++			{
++				16777216 
++			}
+ 		}
+ 		4=
+ 		{
+@@ -1076220,7 +1076224,15 @@
+ }
+ deposit=
+ {
+-	0=none
++	16777216=
++	{
++		type="d_minerals_3"
++		deposit_holder=
++		{
++			type=0
++			id=3
++		}
++	}
+ 	1=none
+ 	2=none
+ 	3=none

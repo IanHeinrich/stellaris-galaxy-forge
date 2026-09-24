@@ -361,6 +361,11 @@ pub fn one_of_each() -> Vec<Example> {
         Example::save(Op::AddSaveSystem {
             spec: super::spec::dorellion(),
         }),
+        Example::save(Op::AddSaveDeposit {
+            planet: 2,
+            kind: "d_minerals_3".to_owned(),
+        }),
+        Example::save(Op::RemoveSaveDeposit { deposit: 26 }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),
@@ -450,7 +455,9 @@ fn position(op: &Op) -> usize {
         Op::SetPlanetSize { .. } => 43,
         Op::SetEmpireMapColors { .. } => 44,
         Op::AddSaveSystem { .. } => 45,
-        Op::Batch { .. } => 46,
+        Op::AddSaveDeposit { .. } => 46,
+        Op::RemoveSaveDeposit { .. } => 47,
+        Op::Batch { .. } => 48,
     }
 }
 

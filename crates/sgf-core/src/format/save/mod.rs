@@ -1,5 +1,6 @@
 //! The `.sav` side of the seam: how a save is projected, written and saved.
 
+mod abundance;
 pub(crate) mod added;
 pub(crate) mod alloc;
 pub mod details;
@@ -16,8 +17,8 @@ use crate::document::{self, Document};
 use crate::format::Format;
 use crate::format::save::added::Table;
 use crate::format::save::write::{
-    add_system, bulk, lanes, lgate, map_colors, move_system, nebula, planet_size, remove_system,
-    star_class,
+    add_system, bulk, deposits, lanes, lgate, map_colors, move_system, nebula, planet_size,
+    remove_system, star_class,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -177,6 +178,8 @@ impl Format for Save {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
             Op::AddSaveSystem { spec } => add_system::plan_add(plan, s, spec),
+            Op::AddSaveDeposit { planet, kind } => deposits::plan_add(plan, s, *planet, kind),
+            Op::RemoveSaveDeposit { deposit } => deposits::plan_remove(plan, s, *deposit),
             Op::RemoveSystem { id } => remove_system::plan_remove(plan, s, &[*id]),
             Op::RemoveSystems { ids } => remove_system::plan_remove(plan, s, ids),
             // A save's systems come with planets, a starbase and an owner, its names and
