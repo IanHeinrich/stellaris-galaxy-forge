@@ -8,7 +8,13 @@ import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SystemNode } from "../generated/SystemNode";
-import { IRONMAN, NEEDS_GAME_DATA, NEEDS_STELLARIS_4 } from "../lib/addSystem";
+import {
+  addedAmong,
+  deleteAddedLabel,
+  IRONMAN,
+  NEEDS_GAME_DATA,
+  NEEDS_STELLARIS_4,
+} from "../lib/addSystem";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
 import { addSystemRefusalAt } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -30,6 +36,7 @@ import { useWatchlistStore } from "./watchlistStore";
 
 const addRandomSystem = vi.mocked(ipc.addRandomSystem);
 const rerollSystem = vi.mocked(ipc.rerollSystem);
+const removeAddedSystems = vi.mocked(ipc.removeAddedSystems);
 
 function added(id: number, x: number, y: number, extra: Partial<SystemNode> = {}): SystemNode {
   return node(id, `NAME_Added_${id}`, x, y, "sc_g", [], { added: true, ...extra });
@@ -298,6 +305,109 @@ describe("following a delete that renumbers", () => {
     await removeSix(seven);
 
     expect(useInspectorStore.getState().stack).toEqual([GALAXY_ENTRY]);
+  });
+});
+
+describe("deleting several added systems at once", () => {
+  /** 6, 7 and 8 added; removing 6 and 8 moves 7 down to 6, as the core reports it. */
+  function withThreeAdded(): SystemNode {
+    const [, seven] = withAddedSystems();
+    useGalaxyStore.getState().applyDelta({ systems: [added(8, 30, -30)] });
+    return seven;
+  }
+
+  function removedSixAndEight(seven: SystemNode): EditResult {
+    return editResult({
+      entry: historyEntry(4, "Removed 2 systems (#6, #8) and 0 lanes; renumbered 7 to 6"),
+      delta: {
+        systems: [{ ...seven, id: 6 }],
+        removed: [7, 8],
+        renumbered: [
+          [6, null],
+          [8, null],
+          [7, 6],
+        ],
+      },
+    });
+  }
+
+  it("labels the entry with the added systems and the file's own it skips", () => {
+    withThreeAdded();
+    const systems = useGalaxyStore.getState().systems;
+    const label = (ids: number[]) => {
+      const among = addedAmong(systems, ids);
+      return deleteAddedLabel(among.length, ids.length - among.length);
+    };
+    expect(label([6, 8])).toBe("Delete 2 added systems");
+    expect(label([0, 6, 3, 8, 7])).toBe("Delete 3 added systems (skips 2 already in the save)");
+    expect(label([7, 0])).toBe("Delete 1 added system (skips 1 already in the save)");
+    expect(label([0, 3])).toBeNull();
+  });
+
+  it("deletes them in one edit once confirmed and drops them from the selection and the inspector", async () => {
+    const seven = withThreeAdded();
+    await editor().setSelection([0, 6, 8], "replace");
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: 8 }, label: "Added 8" });
+    removeAddedSystems.mockResolvedValueOnce(removedSixAndEight(seven));
+
+    expect(await editor().removeAddedSystems([0, 6, 8])).toBe(true);
+
+    expect(mocked.confirm).toHaveBeenCalledWith("Delete 2 added systems?", {
+      title: "Delete added systems",
+      kind: "warning",
+    });
+    expect(removeAddedSystems).toHaveBeenCalledTimes(1);
+    expect(removeAddedSystems).toHaveBeenCalledWith([6, 8]);
+    const systems = useGalaxyStore.getState().systems;
+    expect(systems.get(6)?.name).toEqual(seven.name);
+    expect(systems.has(7) || systems.has(8)).toBe(false);
+    expect(editor().selection).toEqual([0]);
+    expect(useInspectorStore.getState().stack.map((e) => e.ref)).not.toContainEqual({
+      kind: "system",
+      id: 8,
+    });
+    await vi.waitFor(() => expect(editor().inspected?.system.id).toBe(0));
+  });
+
+  it("sends nothing without an added system among them, or when not confirmed", async () => {
+    withThreeAdded();
+    expect(await editor().removeAddedSystems([0, 3])).toBe(false);
+    expect(mocked.confirm).not.toHaveBeenCalled();
+
+    mocked.confirm.mockResolvedValueOnce(false);
+    expect(await editor().removeAddedSystems([6, 8])).toBe(false);
+    expect(removeAddedSystems).not.toHaveBeenCalled();
+  });
+
+  it("sends the ids a delete queued ahead of it moved them to", async () => {
+    const [, seven] = withAddedSystems();
+    const eight = added(8, 30, -30);
+    useGalaxyStore.getState().applyDelta({ systems: [eight] });
+    const removal = deferred<EditResult>();
+    mocked.applyOp.mockReturnValueOnce(removal.promise);
+    removeAddedSystems.mockResolvedValueOnce(editResult());
+
+    const removing = editor().applyOp({ type: "RemoveSystem", id: 6 });
+    const bulk = editor().removeAddedSystems([7, 8]);
+    removal.resolve(
+      editResult({
+        delta: {
+          systems: [
+            { ...seven, id: 6 },
+            { ...eight, id: 7 },
+          ],
+          removed: [8],
+          renumbered: [
+            [6, null],
+            [7, 6],
+            [8, 7],
+          ],
+        },
+      }),
+    );
+    await Promise.all([removing, bulk]);
+
+    expect(removeAddedSystems).toHaveBeenCalledWith([6, 7]);
   });
 });
 

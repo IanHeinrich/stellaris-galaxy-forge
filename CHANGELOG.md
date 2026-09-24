@@ -15,6 +15,8 @@ a release is made.
   roll it again, change its star, rename it or delete it until you reopen
   the file. A small green plus marks it on the map. Adding systems needs
   game data and a Stellaris 4 save that isn't Ironman.
+- Right-click a selection in a save to delete every system in it that you
+  added. Systems the save already had stay. One undo brings them all back.
 - A save system's planet list shows how far out each body orbits.
 - Planets, moons, stars and asteroids in a save have their own page in
   the inspector. It shows their deposits with the game's pictures and

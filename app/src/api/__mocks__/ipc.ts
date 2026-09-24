@@ -30,6 +30,7 @@ export const warmDetails = command("warmDetails");
 export const applyOp = command("applyOp");
 export const addRandomSystem = command("addRandomSystem");
 export const rerollSystem = command("rerollSystem");
+export const removeAddedSystems = command("removeAddedSystems");
 export const addNebula = command("addNebula");
 export const feZoneFit = command("feZoneFit");
 export const feZoneCandidateCount = command("feZoneCandidateCount");

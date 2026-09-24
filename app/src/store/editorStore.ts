@@ -160,6 +160,11 @@ export interface EditorState {
   rerollSystem(id: number, starClass?: string | null): Promise<boolean>;
   /** Renames a system added this session; a blank name sends nothing. */
   renameAddedSystem(id: number, name: string): Promise<boolean>;
+  /**
+   * Deletes the systems among `ids` added this session in one edit, once the user has confirmed;
+   * the file's own among them stay. The ids are followed through the edits queued before it.
+   */
+  removeAddedSystems(ids: readonly number[]): Promise<boolean>;
   /** Adds the next free marauder clan at a world point: its home there, two raid bases beside it. */
   addMarauderClanAt(point: { x: number; y: number }): Promise<boolean>;
   /** Makes `home` and the two `bases` hyperlaned to it the next free marauder clan, in one op. */
