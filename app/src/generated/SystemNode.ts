@@ -86,4 +86,9 @@ flags: Array<string>,
  * starbase (marauder systems have a null sector but a marauder starbase). `None` when
  * neither resolves.
  */
-owner: number | null, };
+owner: number | null, 
+/**
+ * A save system an op added since the file was opened, which can be removed, rolled
+ * again and renamed. Always false for a scenario.
+ */
+added: boolean, };

@@ -203,6 +203,7 @@ pub enum Command {
     ///
     /// With --generate the system is rolled from the install's own rules instead:
     ///   sgf add-system game.sav --generate --seed 7 --at -310,-95 --lane 169 -o out.sav
+    /// and --star-class sc_g rolls it around that star.
     #[command(verbatim_doc_comment)]
     AddSystem {
         sav: PathBuf,
@@ -235,9 +236,13 @@ pub enum Command {
         /// A system the generated one is joined to by a hyperlane; repeatable.
         #[arg(long = "lane", requires = "generate")]
         lanes: Vec<u32>,
-        /// The generated system's name; one left in the save's pool of star names otherwise.
+        /// The generated system's name; one left in the save's pool of star names otherwise,
+        /// or one of the install's star names no system of the save holds.
         #[arg(long, requires = "generate")]
         name: Option<String>,
+        /// The generated system's star class (`sc_g`), drawn among the layouts that make it.
+        #[arg(long, requires = "generate")]
+        star_class: Option<String>,
         /// Print the generated spec as JSON and write nothing, so it takes no --then-remove.
         #[arg(long, requires = "generate", conflicts_with = "then_remove")]
         print_spec: bool,

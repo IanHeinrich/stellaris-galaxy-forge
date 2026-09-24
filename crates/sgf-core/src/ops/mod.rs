@@ -61,7 +61,36 @@ pub fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
 fn apply_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     let mut plan = Plan::new();
     let planned = session.format().write(&mut plan, session, &op)?;
-    plan.commit(session, op, planned)
+    let first = plan.commit(session, op, planned)?;
+    let mut plan = Plan::new();
+    let second = match session.format().follow_up(&mut plan, session, &first.op) {
+        Ok(None) => return Ok(first),
+        Ok(Some(planned)) => plan.commit(session, first.op.clone(), planned),
+        Err(e) => Err(e),
+    };
+    match second {
+        Ok(second) => Ok(joined(first, second)),
+        Err(e) => {
+            rollback(session, &first.before, &first.touched);
+            Err(e)
+        }
+    }
+}
+
+/// The two committed steps of one op as the one edit history records, described and
+/// inverted by the first.
+fn joined(first: Applied, second: Applied) -> Applied {
+    let mut touched = first.touched;
+    touched.extend(second.touched);
+    touched.sort_unstable();
+    touched.dedup();
+    Applied {
+        renumbered: then(&first.renumbered, &second.renumbered),
+        before: [first.before, second.before].concat(),
+        after: [first.after, second.after].concat(),
+        touched,
+        ..first
+    }
 }
 
 fn apply_batch(

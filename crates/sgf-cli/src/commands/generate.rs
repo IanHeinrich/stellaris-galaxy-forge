@@ -3,10 +3,10 @@
 
 use std::path::Path;
 
-use sgf_core::ops::{BodySpec, Op, SystemSpec, free_star_names};
+use sgf_core::ops::{BodySpec, Op, SystemSpec};
 use sgf_core::session::Session;
 use sgf_gamedata::LoadOptions;
-use sgf_gamedata::generate::{generate, pick_name};
+use sgf_gamedata::generate::{generate, pick_system_name};
 
 use super::{Outcome, Run, game_data, mutate};
 
@@ -16,6 +16,8 @@ pub struct Generate {
     pub at: (f64, f64),
     pub lanes: Vec<u32>,
     pub name: Option<String>,
+    /// The star class to roll the system around; any the plain layouts draw otherwise.
+    pub star_class: Option<String>,
     pub print_spec: bool,
     /// A system to remove again once the generated one is added.
     pub then_remove: Option<u32>,
@@ -26,12 +28,11 @@ pub fn run(sav: &Path, out: Option<&Path>, generating: Generate, opts: &LoadOpti
     let session = Session::open(sav)?;
     let name = match generating.name {
         Some(name) => name,
-        None => pick_name(&free_star_names(&session.doc), generating.seed)
-            .ok_or("the save has no star names left in its pool; pass --name")?
-            .to_owned(),
+        None => pick_system_name(&session, &gd, generating.seed)
+            .ok_or("no star name is left that the save does not use; pass --name")?,
     };
-    let (x, y) = generating.at;
-    let mut spec = generate(&gd, generating.seed, &name, x, y)?;
+    let star_class = generating.star_class.as_deref();
+    let mut spec = generate(&gd, generating.seed, &name, generating.at, star_class)?;
     spec.lanes = generating.lanes;
     if generating.print_spec {
         println!("{}", serde_json::to_string_pretty(&spec)?);

@@ -81,6 +81,7 @@ pub(super) fn extract(
         position_range: false,
         flags,
         owner,
+        added: false,
     })
 }
 

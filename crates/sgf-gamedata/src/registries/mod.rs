@@ -17,5 +17,6 @@ pub mod registry;
 pub mod resources;
 pub mod ship_sizes;
 pub mod star_classes;
+pub mod star_names;
 pub mod starbase_levels;
 pub mod static_modifiers;

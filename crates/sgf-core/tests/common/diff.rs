@@ -189,7 +189,12 @@ fn assert_history(session: &Session, label: &str, undo: usize, redo: usize) {
 /// must agree too: what it lists, and the bytes the same follow-up edit writes on both.
 pub fn assert_fresh(session: &Session, step: &str) {
     match session.kind() {
-        DocumentKind::Save => assert_same_galaxy(&session.graph, &reprojected(session), step),
+        DocumentKind::Save => {
+            // Bytes read afresh hold no system an op added: that is the session's to know.
+            let mut graph = session.graph.clone();
+            graph.systems.values_mut().for_each(|s| s.added = false);
+            assert_same_galaxy(&graph, &reprojected(session), step);
+        }
         DocumentKind::Scenario => {
             let fresh = from_scenario_text(current(session));
             assert_same_galaxy(&session.graph, &fresh.graph, step);

@@ -410,6 +410,8 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   AddSaveSystem: null,
   AddSaveDeposit: null,
   RemoveSaveDeposit: null,
+  ReplaceSaveSystem: null,
+  RenameSaveSystem: null,
   Batch: null,
 };
 
