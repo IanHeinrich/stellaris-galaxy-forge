@@ -1,7 +1,10 @@
 import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
+import type { GalaxyDelta } from "../generated/GalaxyDelta";
+import type { SearchHit } from "../generated/SearchHit";
 import type { SystemNode } from "../generated/SystemNode";
+import { renumberedId, renumberedIds, type Renumbering } from "../lib/renumber";
 import { useDetailsStore } from "./detailsStore";
 import type { EditorState, LaneRef } from "./editorStore";
 import { useEntityStore } from "./entityStore";
@@ -11,6 +14,7 @@ import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore, type EntityRef } from "./inspectorStore";
 import { useScriptsStore } from "./scriptsStore";
 import { symmetricOp, symmetricSeat } from "./symmetricEdits";
+import { useWatchlistStore } from "./watchlistStore";
 
 /**
  * Runs one edit command through the queue and applies its result, resolving to it; null when
@@ -51,10 +55,14 @@ export function editPipeline(
     const touched = touchedSystems(result);
     useScriptsStore.getState().invalidate([...touched]);
     useEntityStore.getState().noteEdit(result);
+    const before = get().selection;
+    const pairs = renumbering(result.delta);
+    if (pairs.length > 0) followRenumbering(pairs);
     const { selection, selectedLane } = get();
     const kept = selection.filter((id) => systems().has(id));
     // Only a single selection re-reads anything; a lane or the galaxy follows galaxyStore's version.
     const stale =
+      selection !== before ||
       kept.length !== selection.length ||
       (kept.length === 1 && (touched.has(kept[0]) || showsTouched(touched, result.details_stale)));
     if (result.details_stale.length > 0) {
@@ -73,6 +81,34 @@ export function editPipeline(
     }
     const { hover } = get();
     if (hover !== null && !systems().has(hover)) set({ hover: null });
+  }
+
+  /**
+   * Moves every system id the stores hold as the edit renumbered them; a removed system goes, with
+   * the pages on its planets. The hover goes too: the pointer is on what the map drew before.
+   */
+  function followRenumbering(pairs: Renumbering): void {
+    const { selection, selectedLane, searchRings, recentHits } = get();
+    const lane = selectedLane && {
+      a: renumberedId(pairs, selectedLane.a),
+      b: renumberedId(pairs, selectedLane.b),
+    };
+    set({
+      selection: renumberedIds(pairs, selection),
+      hover: null,
+      selectedLane:
+        lane === null
+          ? null
+          : lane.a === null || lane.b === null
+            ? null
+            : { a: Math.min(lane.a, lane.b), b: Math.max(lane.a, lane.b) },
+      searchRings: renumberedIds(pairs, searchRings),
+      recentHits: renumberedHits(pairs, recentHits),
+    });
+    for (const tracked of trackers)
+      tracked.id = tracked.id === null ? null : renumberedId(pairs, tracked.id);
+    useInspectorStore.getState().renumber(pairs, planetsOf(removedBy(pairs)));
+    useWatchlistStore.getState().renumber(pairs);
   }
 
   const runEdit: RunEdit = async (edit) => {
@@ -95,7 +131,11 @@ export function editPipeline(
     try {
       const result = await step();
       if (!result) return false;
+      const held = new Set(systems().keys());
       applyEdit(result);
+      // An undone removal or a redone add brings its system back selected.
+      const back = cameBack(result.delta, held);
+      if (back !== null) void reselect([back]);
       return result.reclassifies;
     } catch (e) {
       useFileSessionStore.getState().setError(ipc.errorMessage(e));
@@ -156,6 +196,80 @@ export function editPipeline(
       session += 1;
     },
   };
+}
+
+/** A system id held across queued edits: the renumberings that land before it runs move it. */
+export interface TrackedSystem {
+  /** The id the system has now; null once an edit removed it. */
+  id: number | null;
+}
+
+const trackers = new Set<TrackedSystem>();
+
+/** Follows `id` through every edit until `run` settles, handing `run` the id it has by then. */
+export async function withTrackedSystem<T>(
+  id: number,
+  run: (tracked: TrackedSystem) => Promise<T>,
+): Promise<T> {
+  const tracked: TrackedSystem = { id };
+  trackers.add(tracked);
+  try {
+    return await run(tracked);
+  } finally {
+    trackers.delete(tracked);
+  }
+}
+
+/** The edit's renumbering; an edit that only removed systems reports each as gone. */
+function renumbering(delta: GalaxyDelta): Renumbering {
+  const pairs = delta.renumbered ?? [];
+  if (pairs.length > 0) return pairs;
+  return (delta.removed ?? []).map((id) => [id, null] as const);
+}
+
+function removedBy(pairs: Renumbering): number[] {
+  return pairs.flatMap(([before, after]) => (after === null ? [before] : []));
+}
+
+/** The planets of `ids` as their cached details list them, read before the edit stales them. */
+function planetsOf(ids: readonly number[]): Set<number> {
+  const planets = new Set<number>();
+  const { details } = useDetailsStore.getState();
+  for (const id of ids) for (const p of details.get(id)?.planets ?? []) planets.add(p.id);
+  return planets;
+}
+
+/** Hits as the edit left them: one on a removed system, or in one, goes. */
+function renumberedHits(pairs: Renumbering, hits: SearchHit[]): SearchHit[] {
+  let moved = false;
+  const next: SearchHit[] = [];
+  for (const hit of hits) {
+    const id = hit.kind === "system" ? renumberedId(pairs, hit.id) : hit.id;
+    const system = hit.system_id === null ? null : renumberedId(pairs, hit.system_id);
+    if (id === null || (hit.system_id !== null && system === null)) {
+      moved = true;
+      continue;
+    }
+    if (id === hit.id && system === hit.system_id) {
+      next.push(hit);
+      continue;
+    }
+    moved = true;
+    next.push({ ...hit, id, system_id: system });
+  }
+  return moved ? next : hits;
+}
+
+/** The added save system a history step brought back, which the galaxy did not hold before it. */
+function cameBack(delta: GalaxyDelta, held: ReadonlySet<number>): number | null {
+  const pairs = delta.renumbered ?? [];
+  const before = new Set<number>();
+  for (const id of held) {
+    const after = renumberedId(pairs, id);
+    if (after !== null) before.add(after);
+  }
+  const back = delta.systems.find((s) => s.added && !before.has(s.id));
+  return back?.id ?? null;
 }
 
 export function systems() {

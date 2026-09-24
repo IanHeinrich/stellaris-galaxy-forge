@@ -51,10 +51,13 @@ export function Chip({
   kind,
   src,
   warn,
+  added,
   title,
 }: {
   children: ReactNode;
   kind?: boolean;
+  /** Green, for a system added this session. */
+  added?: boolean;
   /** Tinted like the scripts source, for a value the scripts rather than the file decide. */
   src?: boolean;
   warn?: boolean;
@@ -62,7 +65,7 @@ export function Chip({
 }) {
   return (
     <span
-      className={`chip${kind ? " kind" : ""}${src ? " src" : ""}${warn ? " warn" : ""}`}
+      className={`chip${kind ? " kind" : ""}${src ? " src" : ""}${warn ? " warn" : ""}${added ? " added" : ""}`}
       title={title}
     >
       {children}

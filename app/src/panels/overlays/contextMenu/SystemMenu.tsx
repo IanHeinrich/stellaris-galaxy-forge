@@ -168,7 +168,7 @@ export function SystemMenu({
           <span className="muted">{REMOVE_CLAN_HINT}</span>
         </MenuItem>
       )}
-      {canCreate && (
+      {(canCreate || (!scenario && system?.added)) && (
         <MenuItem className="context-menu-separated" run={() => removeSystem(target.id)}>
           Delete system
         </MenuItem>

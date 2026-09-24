@@ -109,6 +109,14 @@ export function getStarClasses(): Promise<StarClassView[]> {
   return invoke<StarClassView[]>("get_star_classes");
 }
 
+/**
+ * The star classes a rolled system can have, as `[key, localised name]`, in the order the
+ * install's layouts name them; empty without game data.
+ */
+export function getGeneratorStarClasses(): Promise<Array<[string, string]>> {
+  return invoke<Array<[string, string]>>("get_generator_star_classes");
+}
+
 /** Every deposit definition of the loaded game data; empty without it. */
 export function getDeposits(): Promise<DepositView[]> {
   return invoke<DepositView[]>("get_deposits");

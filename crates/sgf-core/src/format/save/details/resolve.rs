@@ -105,6 +105,9 @@ pub struct PlanetSummary {
     pub pre_ftl: bool,
     /// `planet_size`, the game's tile count.
     pub size: Option<u32>,
+    /// `orbit`: the radius around the star, or around the planet a moon orbits. `None`
+    /// for a scenario's bodies, which the game places at generation.
+    pub orbit: Option<f64>,
     /// The planet's own deposits summed per resource; the system's `resources` are the
     /// sum of these rows.
     pub deposits: Vec<ResourceAmount>,
@@ -178,6 +181,7 @@ pub(super) fn resolve(
             moon: p.moon,
             pre_ftl: p.pre_ftl,
             size: p.size,
+            orbit: p.orbit,
             deposits,
             deposit_keys: p
                 .deposits

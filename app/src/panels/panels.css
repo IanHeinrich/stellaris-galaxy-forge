@@ -203,6 +203,14 @@
   border-radius: 4px;
 }
 
+.edit-block.added {
+  border-color: var(--allowed-dim);
+}
+
+.edit-block.added > .edit-block-title {
+  color: var(--allowed);
+}
+
 .edit-block-title {
   margin-bottom: 4px;
   font-size: 10.5px;

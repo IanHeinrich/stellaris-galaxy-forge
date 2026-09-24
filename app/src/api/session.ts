@@ -139,6 +139,32 @@ export function applyOp(op: Op): Promise<EditResult> {
 }
 
 /**
+ * Roll a system at (x, y) from `seed`, around `starClass` when given, and add it to the open save
+ * as one edit. Rejects with `SgfError` (kind `op`) without game data, on a scenario, or when the
+ * core refuses the spot.
+ */
+export function addRandomSystem(
+  seed: number,
+  x: number,
+  y: number,
+  starClass: string | null,
+): Promise<EditResult> {
+  return invoke<EditResult>("add_random_system", { seed, x, y, starClass });
+}
+
+/**
+ * Roll the added save system `system` again from `seed`, around `starClass` when given, keeping
+ * its name, position and lanes, as one edit.
+ */
+export function rerollSystem(
+  system: number,
+  seed: number,
+  starClass: string | null,
+): Promise<EditResult> {
+  return invoke<EditResult>("reroll_system", { system, seed, starClass });
+}
+
+/**
  * The entries of one `SetFeZones` that replaces the automatic fallen empire zones with `count`
  * of the Paint a Galaxy mod's candidates, spread across the map; empty when the zones already
  * stand as asked. Zones the user placed stay.

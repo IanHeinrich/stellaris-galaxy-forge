@@ -1,0 +1,62 @@
+import type { SaveMeta } from "../generated/SaveMeta";
+import { versionNumber } from "./version";
+
+/** How near another system the game spawns one: its `SPAWN_SYSTEM_BUFFER_DISTANCE`. */
+export const SPAWN_BUFFER = 10;
+
+export const NEEDS_GAME_DATA = "Load game data to add a system";
+export const NEEDS_STELLARIS_4 = "Adding systems needs a Stellaris 4 save";
+export const IRONMAN = "Ironman save: adding systems is turned off";
+export const ADDED_THIS_SESSION = "Added this session";
+/** What the placing rules read about the open save and the spot. */
+export interface PlaceFacts {
+  meta: SaveMeta | null;
+  gameData: boolean;
+  /** The save's galaxy radius; 0 when it records none. */
+  radius: number;
+  x: number;
+  y: number;
+  /** The system nearest the spot, when the galaxy has any. */
+  nearest: { name: string; distance: number } | null;
+}
+
+/** Why a system cannot be added, and which of the spot's limits the map should draw. */
+export interface AddRefusal {
+  reason: string;
+  /** Another system is inside the spawn buffer around the spot. */
+  tooClose: boolean;
+  /** The spot is past the galaxy's edge. */
+  outside: boolean;
+}
+
+function refusal(reason: string, tooClose = false, outside = false): AddRefusal {
+  return { reason, tooClose, outside };
+}
+
+/** Whether the save's version is Stellaris 4 or later, the only saves the core adds a system to. */
+export function isStellaris4(meta: SaveMeta | null): boolean {
+  const major = Number(versionNumber(meta?.version ?? "")?.split(".")[0]);
+  return Number.isFinite(major) && major >= 4;
+}
+
+/** Why the core would refuse a system at the spot, checked as it checks, or null when it would take one. */
+export function addSystemRefusal(facts: PlaceFacts): AddRefusal | null {
+  if (!facts.gameData) return refusal(NEEDS_GAME_DATA);
+  if (!isStellaris4(facts.meta)) return refusal(NEEDS_STELLARIS_4);
+  if (facts.meta?.ironman) return refusal(IRONMAN);
+  if (facts.radius > 0 && Math.hypot(facts.x, facts.y) > facts.radius) {
+    return refusal(`Outside the galaxy's edge (radius ${Math.round(facts.radius)})`, false, true);
+  }
+  const near = facts.nearest;
+  if (near && near.distance < SPAWN_BUFFER) {
+    const away = Math.max(1, Math.round(near.distance));
+    return refusal(`Too close to ${near.name}: ${away} away, the game needs ${SPAWN_BUFFER}`, true);
+  }
+  return null;
+}
+
+/** A fresh seed for the generator: a random whole number JSON carries exactly. */
+export function newSeed(): number {
+  const [high, low] = crypto.getRandomValues(new Uint32Array(2));
+  return (high & 0x1fffff) * 0x100000000 + low;
+}

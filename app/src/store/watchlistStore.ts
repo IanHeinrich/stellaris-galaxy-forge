@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
+import { renumberedIds, type Renumbering } from "../lib/renumber";
 import { nextColour, pinnedEntry, type WatchEntry } from "../lib/watchlist";
 import { useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
@@ -25,6 +26,8 @@ export interface WatchlistState {
   /** Runs every entry against the open document. */
   refresh(): Promise<void>;
   clearResults(): void;
+  /** Moves the systems each entry found as an edit renumbered them, until the next refresh reads them again. */
+  renumber(pairs: Renumbering): void;
 }
 
 function isEntry(value: unknown): value is WatchEntry {
@@ -110,6 +113,18 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => {
       const answers = await Promise.all(get().entries.map((entry) => systemsFor(entry.query)));
       if (seq !== latest) return;
       set({ results: answers.length === 0 ? NO_RESULTS : new Map(answers) });
+    },
+
+    renumber(pairs) {
+      const { results } = get();
+      let moved = false;
+      const next = new Map<string, readonly number[]>();
+      for (const [query, ids] of results) {
+        const after = renumberedIds(pairs, ids);
+        moved ||= after !== ids;
+        next.set(query, after);
+      }
+      if (moved) set({ results: next });
     },
 
     clearResults() {

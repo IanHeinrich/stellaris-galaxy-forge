@@ -159,6 +159,7 @@ impl GameData {
             moon,
             pre_ftl: body.pre_ftl,
             size: body.size.map(|(min, _)| min),
+            orbit: None,
             deposits: self.deposit_rows(&body.deposits),
             deposit_keys: deposit_counts(&body.deposits),
             pops: 0,

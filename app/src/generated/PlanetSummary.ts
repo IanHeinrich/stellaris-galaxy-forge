@@ -13,6 +13,11 @@ pre_ftl: boolean,
  */
 size: number | null, 
 /**
+ * `orbit`: the radius around the star, or around the planet a moon orbits. `None`
+ * for a scenario's bodies, which the game places at generation.
+ */
+orbit: number | null, 
+/**
  * The planet's own deposits summed per resource; the system's `resources` are the
  * sum of these rows.
  */

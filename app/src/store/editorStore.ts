@@ -15,6 +15,7 @@ import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
 import { counted } from "../lib/text";
+import { addSystemActions } from "./editorStore.addSystem";
 import { editPipeline, systems } from "./editorEdits";
 import { brushActions } from "./editorStore.brush";
 import { feZoneActions } from "./editorStore.feZones";
@@ -30,6 +31,7 @@ import { symmetricIds, symmetricOp } from "./symmetricEdits";
 
 export type { MapTooltip, MapTooltipLine, MapTooltipText } from "./mapChromeStore";
 export { nearestSystem } from "./editorEdits";
+export { addSystemRefusalAt } from "./editorStore.addSystem";
 export { NEEDS_A_SYSTEM, NOTHING_TO_FIT } from "./editorStore.feZones";
 export { CONNECT_ALL_MAX } from "./editorStore.lanes";
 export { DEFAULT_NEBULA_RADIUS } from "./editorStore.nebulae";
@@ -149,6 +151,19 @@ export interface EditorState {
     initializer?: string | null,
     spawnWeight?: number | null,
   ): Promise<boolean>;
+  /**
+   * Rolls a system at a world point of the open save, around `starClass` when given, in one edit,
+   * and selects it. A spot the core would refuse is reported without asking it.
+   */
+  addRandomSystemAt(x: number, y: number, starClass?: string | null): Promise<boolean>;
+  /**
+   * Rolls a system added this session again in place: around `starClass`, a random class for
+   * null, and the class it has when the edit runs when left out. The id is followed through the
+   * edits queued before it.
+   */
+  rerollSystem(id: number, starClass?: string | null): Promise<boolean>;
+  /** Renames a system added this session; a blank name sends nothing. */
+  renameAddedSystem(id: number, name: string): Promise<boolean>;
   /** Adds the next free marauder clan at a world point: its home there, two raid bases beside it. */
   addMarauderClanAt(point: { x: number; y: number }): Promise<boolean>;
   /** Makes `home` and the two `bases` hyperlaned to it the next free marauder clan, in one op. */
@@ -288,6 +303,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     ...marauderActions(set, get),
     ...brushActions(set, get, edits.runEdit),
     ...searchActions(set, get),
+    ...addSystemActions(set, get, edits.runEdit),
 
     async select(id) {
       await selectSystems(id === null ? [] : [id]);
@@ -403,7 +419,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     async removeSystem(id) {
       const system = systems().get(id);
       if (!system) return;
-      if (symmetricIds([id]).length > 1) {
+      if (!system.added && symmetricIds([id]).length > 1) {
         await get().removeSystems([id]);
         return;
       }

@@ -188,9 +188,17 @@ export function ToggleField({
 }
 
 /** The editable fields a page opens with, under a small title, each row a label and its field. */
-export function EditBlock({ title, children }: { title: string; children: ReactNode }) {
+export function EditBlock({
+  title,
+  className,
+  children,
+}: {
+  title: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="edit-block" role="group" aria-label={title}>
+    <div className={classes("edit-block", className)} role="group" aria-label={title}>
       <div className="edit-block-title">{title}</div>
       <div className="edit-grid">{children}</div>
     </div>
