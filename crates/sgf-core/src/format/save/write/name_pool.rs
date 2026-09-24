@@ -1,7 +1,8 @@
-//! The save's pools of unused names: the `star_names` and `nebula_names` lists of
-//! `random_name_database`, which hold what the galaxy has not named anything yet. An add
-//! takes the first entry left for its name out of the list, and a removal or a rename puts
-//! entries back as the bytes they were loaded as.
+//! The save's pools of unused names: the `star_names`, `black_hole_names` and
+//! `nebula_names` lists of `random_name_database`, which hold what the galaxy has not named
+//! anything yet. An add takes the first entry left for its name out of its lists, and a
+//! removal or a rename puts entries back as the bytes they were loaded as. A system's name
+//! comes from [`SYSTEM_POOLS`], read as one list, star names first.
 
 use crate::document::Document;
 use crate::format::save::write::asteroid_names;
@@ -12,10 +13,19 @@ use crate::overlay::Anchor;
 use crate::scan;
 use crate::span::Span;
 
+/// The pools a system's name is taken from.
+pub(crate) const SYSTEM_POOLS: &[&str] = &[keys::STAR_NAMES, keys::BLACK_HOLE_NAMES];
+
 /// The names left in the save's pool of unused star names, in file order; empty when the
 /// save has no pool.
 pub fn free_star_names(doc: &Document) -> Vec<String> {
     free(doc, keys::STAR_NAMES)
+}
+
+/// The names left in the save's pool of unused black hole names, in file order; empty when
+/// the save has no pool.
+pub fn free_black_hole_names(doc: &Document) -> Vec<String> {
+    free(doc, keys::BLACK_HOLE_NAMES)
 }
 
 /// The names left in the save's pool of unused nebula names, in file order; empty when the
@@ -24,12 +34,13 @@ pub fn free_nebula_names(doc: &Document) -> Vec<String> {
     free(doc, keys::NEBULA_NAMES)
 }
 
-/// Every entry of the `list` pool, as loaded, that holds `name`, in file order, whether an
-/// add has since taken it or not.
-pub(crate) fn entries(doc: &Document, list: &str, name: &str) -> Vec<Anchor> {
+/// Every entry of the `lists` pools, as loaded, that holds `name`, list by list in file
+/// order, whether an add has since taken it or not.
+fn entries(doc: &Document, lists: &[&str], name: &str) -> Vec<Anchor> {
     let src = doc.original();
-    pool(doc, list)
-        .into_iter()
+    lists
+        .iter()
+        .flat_map(|list| pool(doc, list))
         .filter(|span| scan::unquote(span.slice(src)) == name.as_bytes())
         .map(Anchor::Original)
         .collect()
@@ -44,10 +55,15 @@ fn free(doc: &Document, list: &str) -> Vec<String> {
         .collect()
 }
 
-/// Take `name` out of the `list` pool, when an entry for it is left.
-pub(crate) fn take(plan: &mut Plan, doc: &Document, list: &str, name: &str) -> Result<(), OpError> {
+/// Take `name` out of the first of the `lists` pools that has an entry for it left.
+pub(crate) fn take(
+    plan: &mut Plan,
+    doc: &Document,
+    lists: &[&str],
+    name: &str,
+) -> Result<(), OpError> {
     let src = doc.original();
-    let unused = entries(doc, list, name)
+    let unused = entries(doc, lists, name)
         .into_iter()
         .find(|&entry| !removed(doc.overlay(), entry, src));
     match unused {
@@ -56,38 +72,38 @@ pub(crate) fn take(plan: &mut Plan, doc: &Document, list: &str, name: &str) -> R
     }
 }
 
-/// Put `name` back in the `list` pool when adds took it from there. Adds take the pool's
-/// entries for a name first to last, so of the entries taken, `staying` stay taken for the
-/// holders of the name that remain, and the rest come back.
+/// Put `name` back in the `lists` pools when adds took it from there. Adds take the
+/// pools' entries for a name first to last, so of the entries taken, `staying` stay taken
+/// for the holders of the name that remain, and the rest come back.
 pub(crate) fn give_back(
     plan: &mut Plan,
     doc: &Document,
-    list: &str,
+    lists: &[&str],
     name: &str,
     staying: usize,
 ) -> Result<(), OpError> {
     let src = doc.original();
-    let taken: Vec<Anchor> = entries(doc, list, name)
+    let taken: Vec<Anchor> = entries(doc, lists, name)
         .into_iter()
         .filter(|&entry| removed(doc.overlay(), entry, src))
         .collect();
     put_back(plan, doc, taken.iter().skip(staying))
 }
 
-/// A rename from `old` to `new` in the `list` pool: `old` goes back, less the `staying`
+/// A rename from `old` to `new` in the `lists` pools: `old` goes back, less the `staying`
 /// entries other holders keep, and `new` is taken out.
 pub(crate) fn swap(
     plan: &mut Plan,
     doc: &Document,
-    list: &str,
+    lists: &[&str],
     (old, new): (&str, &str),
     staying: usize,
 ) -> Result<(), OpError> {
     if old == new {
         return Ok(());
     }
-    give_back(plan, doc, list, old, staying)?;
-    take(plan, doc, list, new)
+    give_back(plan, doc, lists, old, staying)?;
+    take(plan, doc, lists, new)
 }
 
 /// Write each pool entry an add erased back as it was loaded.

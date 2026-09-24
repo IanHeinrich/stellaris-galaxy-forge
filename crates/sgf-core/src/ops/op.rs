@@ -140,7 +140,7 @@ pub enum Op {
     /// A save removes only a system [`Op::AddSaveSystem`] added since the file was opened,
     /// with its bodies, their deposits, its lanes on both ends and its nebula member lines.
     /// A reused slot gets its tombstone back, the name returns to the pool of unused star
-    /// names when the add took it from there, and `last_created_system` goes down. The
+    /// or black hole names the add took it from, and `last_created_system` goes down. The
     /// systems added after it take the id below their own, so that ids stay dense. The
     /// inverse adds the system again, read back as a spec, at the end of the list.
     RemoveSystem {
@@ -305,7 +305,7 @@ pub enum Op {
     /// game writes a system it spawns by script. It takes `last_created_system + 1`, which
     /// must be the number of systems the save holds; planets and deposits take the lowest
     /// dead slot of their tables first. Its name leaves the save's pool of unused star
-    /// names when the pool holds it. The inverse is [`Op::RemoveSystem`]. Stellaris 4.x
+    /// names, or failing that of black hole names, when one holds it. The inverse is [`Op::RemoveSystem`]. Stellaris 4.x
     /// save documents only.
     AddSaveSystem {
         spec: SystemSpec,
@@ -334,8 +334,8 @@ pub enum Op {
     /// in place: its star class, initializer, belts, radii and bodies with their deposits
     /// become the spec's, and its id, position and lanes stay: the spec's `x`, `y` and
     /// `lanes` are ignored. The old bodies' slots and asteroid names are freed before the
-    /// new bodies take theirs, and a new name swaps places in the pool of unused star
-    /// names as [`Op::RenameSaveSystem`] does. The inverse rolls the old system back in,
+    /// new bodies take theirs, and a new name swaps places in the pools of unused star
+    /// and black hole names as [`Op::RenameSaveSystem`] does. The inverse rolls the old system back in,
     /// read back as a spec that carries the system's position and lanes as they stand.
     /// Save documents only.
     ReplaceSaveSystem {
@@ -344,8 +344,8 @@ pub enum Op {
     },
     /// A save system [`Op::AddSaveSystem`] added since the file was opened, renamed: its
     /// own name and the names of its star, planets and moons, which carry it as text. The
-    /// old name goes back to the pool of unused star names when the add took it from
-    /// there, and the new one leaves the pool when the pool holds it. Empty is refused;
+    /// old name goes back to the pool of unused star or black hole names the add took it
+    /// from, and the new one leaves whichever of those pools holds it. Empty is refused;
     /// the inverse carries the name displaced. Save documents only.
     RenameSaveSystem {
         system: u32,

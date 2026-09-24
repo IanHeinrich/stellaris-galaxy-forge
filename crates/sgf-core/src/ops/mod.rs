@@ -21,7 +21,9 @@ use crate::session::Session;
 
 pub use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
 pub use crate::format::save::write::initializer_counter::initializer_counts;
-pub use crate::format::save::write::name_pool::{free_nebula_names, free_star_names};
+pub use crate::format::save::write::name_pool::{
+    free_black_hole_names, free_nebula_names, free_star_names,
+};
 pub use edit::Subject;
 pub(crate) use edit::{Edit, blank_slot, replace_lengths};
 pub use op::{

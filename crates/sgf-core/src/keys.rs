@@ -11,6 +11,7 @@ pub(crate) const ASTEROID_POSTFIX: &str = "asteroid_postfix";
 pub(crate) const ASTEROID_PREFIX: &str = "asteroid_prefix";
 pub(crate) const BACKGROUND: &str = "background";
 pub(crate) const BINARY_FLAGS: &str = "binary_flags";
+pub(crate) const BLACK_HOLE_NAMES: &str = "black_hole_names";
 pub(crate) const BOMBARDMENT_DAMAGE: &str = "bombardment_damage";
 pub(crate) const BRIDGE: &str = "bridge";
 pub(crate) const BUILDINGS: &str = "buildings";
@@ -173,6 +174,7 @@ pub(crate) const ALL: &[&str] = &[
     ASTEROID_PREFIX,
     BACKGROUND,
     BINARY_FLAGS,
+    BLACK_HOLE_NAMES,
     BOMBARDMENT_DAMAGE,
     BRIDGE,
     BUILDINGS,
