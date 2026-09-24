@@ -1,0 +1,49 @@
+{
+  "name": "Tau_Ceti",
+  "x": -270,
+  "y": -130,
+  "star_class": "sc_k",
+  "initializer": "basic_init_01",
+  "star": {
+    "class": "pc_k_star",
+    "size": 20,
+    "orbit": 0,
+    "angle": 0,
+    "entity": 0,
+    "deposits": [
+      "d_energy_3"
+    ]
+  },
+  "planets": [
+    {
+      "class": "pc_arid",
+      "size": 12,
+      "orbit": 60,
+      "angle": 40,
+      "entity": 1,
+      "deposits": [
+        "d_minerals_3"
+      ]
+    },
+    {
+      "class": "pc_gas_giant",
+      "size": 22,
+      "orbit": 110,
+      "angle": 200,
+      "entity": 2,
+      "moons": [
+        {
+          "class": "pc_barren_cold",
+          "size": 5,
+          "orbit": 14,
+          "angle": 90,
+          "entity": 1
+        }
+      ]
+    }
+  ],
+  "lanes": [
+    601,
+    420
+  ]
+}

@@ -27,3 +27,4 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A single star body given a new type or size loads drawn that way in the system view, and a month passes cleanly
 - [ ] An empire given new map colours shows them as its border and fill; one set back to flag colours shows those
 - [ ] An added system loads with its bodies, names and lanes; it can be surveyed, claimed and colonised, and survives a save and reload
+- [ ] With the middle one of three added systems removed, the save loads, the renumbered system keeps its lanes and bodies, and it survives a save and reload

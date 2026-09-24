@@ -132,10 +132,17 @@ pub enum Op {
         #[serde(default)]
         spawn_script: Option<SpawnScript>,
     },
-    /// A system and every hyperlane statement naming it, `prevent_hyperlane` included.
-    /// Scenario documents only. The inverse is a batch that restores the system's
-    /// statement text and each distinct lane and prevented pair between systems the graph
-    /// holds; undo through history stays byte-exact.
+    /// A scenario system and every hyperlane statement naming it, `prevent_hyperlane`
+    /// included. The inverse is a batch that restores the system's statement text and
+    /// each distinct lane and prevented pair between systems the graph holds. Undo through
+    /// history stays byte-exact in either kind of document.
+    ///
+    /// A save removes only a system [`Op::AddSaveSystem`] added since the file was opened,
+    /// with its bodies, their deposits, its lanes on both ends and its nebula member lines.
+    /// A reused slot gets its tombstone back, the name returns to the pool of unused star
+    /// names when the add took it from there, and `last_created_system` goes down. The
+    /// systems added after it take the id below their own, so that ids stay dense. The
+    /// inverse adds the system again, read back as a spec, at the end of the list.
     RemoveSystem {
         id: u32,
     },
@@ -147,7 +154,7 @@ pub enum Op {
     /// Several systems as one undo step, each as [`Op::RemoveSystem`]; a statement naming
     /// two of them is removed once. An id listed twice is refused. The inverse restores
     /// what [`Op::RemoveSystem`]'s does, for every system; undo through history stays
-    /// byte-exact. Scenario documents only.
+    /// byte-exact.
     RemoveSystems {
         ids: Vec<u32>,
     },
@@ -298,9 +305,8 @@ pub enum Op {
     /// game writes a system it spawns by script. It takes `last_created_system + 1`, which
     /// must be the number of systems the save holds; planets and deposits take the lowest
     /// dead slot of their tables first. Its name leaves the save's pool of unused star
-    /// names when the pool holds it. The inverse is [`Op::RemoveSystem`], which a save
-    /// refuses: it describes the change, and undo puts the bytes back exactly. Stellaris
-    /// 4.x save documents only.
+    /// names when the pool holds it. The inverse is [`Op::RemoveSystem`]. Stellaris 4.x
+    /// save documents only.
     AddSaveSystem {
         spec: SystemSpec,
     },
@@ -403,11 +409,14 @@ impl Op {
         }
     }
 
-    /// Whether the details this op stales are only those of the systems whose bodies it
-    /// wrote: a save system's lanes rewrite its neighbours, whose details stand as they were.
+    /// Whether, in a save, the details this op stales are only those of the systems whose
+    /// bodies it wrote: a save system's lanes rewrite its neighbours, whose details stand
+    /// as they were. A scenario's systems have no bodies, so there it stales them all.
     pub fn stales_only_bodies(&self) -> bool {
         match self {
-            Self::AddSaveSystem { .. } => true,
+            Self::AddSaveSystem { .. } | Self::RemoveSystem { .. } | Self::RemoveSystems { .. } => {
+                true
+            }
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.stales_only_bodies() || !op.stales_details()),
@@ -660,6 +669,10 @@ pub enum OpError {
     InvalidKey(String),
     #[error("{0} cannot have moons")]
     MoonsNotAllowed(&'static str),
+    #[error(
+        "system {0} was in the save when it was opened: only a system added since then can be removed"
+    )]
+    SystemNotAdded(u32),
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,

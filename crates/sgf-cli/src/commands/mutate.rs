@@ -10,10 +10,20 @@ use super::{Outcome, Run, print_issues};
 
 /// Open a session, apply one op, report it and save (to `out`, or in place with a backup).
 pub fn run(sav: &Path, out: Option<&Path>, op: Op) -> Run {
+    run_all(sav, out, vec![op])
+}
+
+/// [`run`] for several ops, applied in order in the one session, each reported, and the
+/// findings once after the last.
+pub fn run_all(sav: &Path, out: Option<&Path>, ops: Vec<Op>) -> Run {
     let mut session = Session::open(sav)?;
-    let result = session.apply(op)?;
-    println!("{}", result.entry.description);
-    print_issues(&result.issues);
+    let mut issues = Vec::new();
+    for op in ops {
+        let result = session.apply(op)?;
+        println!("{}", result.entry.description);
+        issues = result.issues;
+    }
+    print_issues(&issues);
     let outcome = session.save_to(out)?;
     println!("wrote {}", outcome.path.display());
     if let Some(backup) = &outcome.backup {

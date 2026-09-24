@@ -16,7 +16,8 @@ use crate::document::{self, Document};
 use crate::format::Format;
 use crate::format::save::added::Table;
 use crate::format::save::write::{
-    add_system, bulk, lanes, lgate, map_colors, move_system, nebula, planet_size, star_class,
+    add_system, bulk, lanes, lgate, map_colors, move_system, nebula, planet_size, remove_system,
+    star_class,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -86,6 +87,11 @@ impl Format for Save {
                     let root = self
                         .parse(buf, 0)
                         .map_err(|e| subject.parse_error(e.offset, e.reason))?;
+                    // A system new to the graph has no bodies read yet: an undo of a
+                    // removal brings back the system whose id it had renumbered.
+                    if !graph.systems.contains_key(&id) {
+                        bodies.insert(id);
+                    }
                     graph.refresh_system(id, &root, buf)?;
                 }
                 Subject::Planet { system, .. } => {
@@ -171,13 +177,13 @@ impl Format for Save {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
             Op::AddSaveSystem { spec } => add_system::plan_add(plan, s, spec),
+            Op::RemoveSystem { id } => remove_system::plan_remove(plan, s, &[*id]),
+            Op::RemoveSystems { ids } => remove_system::plan_remove(plan, s, ids),
             // A save's systems come with planets, a starbase and an owner, its names and
             // initializers are the game's to set, and it has neither a scenario header nor
             // a generator to prevent a lane from.
             Op::AddSystem { .. }
-            | Op::RemoveSystem { .. }
             | Op::AddSystems { .. }
-            | Op::RemoveSystems { .. }
             | Op::SetSystemName { .. }
             | Op::SetInitializer { .. }
             | Op::SetInitializers { .. }

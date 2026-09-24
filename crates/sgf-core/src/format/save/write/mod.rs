@@ -10,7 +10,8 @@
 //! [`nebula`] for the clouds over them, [`lgate`] for the L-Cluster outcome the global
 //! flags hold, [`star_class`] for a system's star and its star bodies, [`planet_size`]
 //! for the size of one planet or star body, [`map_colors`] for the colours an empire
-//! paints its territory in, and [`add_system`] for a whole new system with its bodies.
+//! paints its territory in, [`add_system`] for a whole new system with its bodies, and
+//! [`remove_system`] for taking one of those out again.
 
 pub(crate) mod add_system;
 pub(crate) mod bulk;
@@ -20,4 +21,5 @@ pub(crate) mod map_colors;
 pub(crate) mod move_system;
 pub(crate) mod nebula;
 pub(crate) mod planet_size;
+pub(crate) mod remove_system;
 pub(crate) mod star_class;

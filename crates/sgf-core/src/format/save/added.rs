@@ -61,7 +61,11 @@ impl Added {
     /// was loaded names nothing, and one holding a new entity names it.
     pub fn refresh(&mut self, original: &[u8], index: &Index, overlay: &Overlay, slots: &[Anchor]) {
         for &slot in slots {
-            if let Some(old) = self.by_slot.remove(&slot) {
+            // A renumbering moves an id from one slot to another, so the id may already
+            // stand for a slot read earlier in this pass.
+            if let Some(old) = self.by_slot.remove(&slot)
+                && self.by_id.get(&old) == Some(&slot)
+            {
                 self.by_id.remove(&old);
             }
             let Some(table) = table_at(original, index, slot.start()) else {

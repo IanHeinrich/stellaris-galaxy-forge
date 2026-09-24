@@ -1,0 +1,260 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 105
+expression: value
+---
+Removed Tau Ceti (#602) and 3 lanes; renumbered 603 to 602
+renumbered: [(602, None), (603, Some(602))]
+--- before
++++ after
+@@ -39628,7 +39628,7 @@
+ 			}
+  
+ 			{
+-				to=603
++				to=602
+ 				length=45
+ 			}
+  
+@@ -58672,11 +58672,6 @@
+ 				length=39
+ 			}
+  
+-			{
+-				to=602
+-				length=22
+-			}
+- 
+ 		}
+ 		arm=2
+ 		flags=
+@@ -67603,7 +67598,7 @@
+ 			}
+  
+ 			{
+-				to=603
++				to=602
+ 				length=23
+ 			}
+  
+@@ -71456,11 +71451,6 @@
+  
+ 			{
+ 				to=602
+-				length=23
+-			}
+- 
+-			{
+-				to=603
+ 				length=19
+ 			}
+  
+@@ -71480,52 +71470,6 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=-270
+-			y=-130
+-			origin=4294967295
+-			visual_height=4.31213
+-		}
+-		name=
+-		{
+-			key="Tau_Ceti"
+-		}
+-		planet=6383
+-		planet=6384
+-		star_class="sc_k"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=601
+-				length=23
+-			}
+- 
+-			{
+-				to=420
+-				length=22
+-			}
+- 
+-			{
+-				to=603
+-				length=31
+-			}
+- 
+-		}
+-		initializer="basic_init_01"
+-		inner_radius=150
+-		outer_radius=250
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=0
+-		storm=4294967295
+-	}
+-	603=
+-	{
+-		coordinate=
+-		{
+ 			x=-300
+ 			y=-120
+ 			origin=4294967295
+@@ -71547,11 +71491,6 @@
+ 			}
+  
+ 			{
+-				to=602
+-				length=31
+-			}
+- 
+-			{
+ 				to=544
+ 				length=23
+ 			}
+@@ -412546,89 +412485,8 @@
+ 			bombardment_damage=0
+ 			entity=1
+ 		}
+-		6383=
+-		{
+-			planet_class="pc_k_star"
+-			planet_size=20
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_1"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Tau_Ceti"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=602
+-			}
+-			orbit=0
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
+-		6384=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=10
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Tau_Ceti"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=42.42641
+-				y=42.42641
+-				origin=602
+-			}
+-			orbit=60
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-			deposits=
+-			{
+-				16777221 
+-			}
+-		}
++		6383=none
++		6384=none
+ 		6385=
+ 		{
+ 			planet_class="pc_k_star"
+@@ -412654,7 +412512,7 @@
+ 			{
+ 				x=0
+ 				y=0
+-				origin=603
++				origin=602
+ 			}
+ 			orbit=0
+ 			last_bombardment=			"0.01.01"
+@@ -412698,7 +412556,7 @@
+ 			{
+ 				x=42.42641
+ 				y=42.42641
+-				origin=603
++				origin=602
+ 			}
+ 			orbit=60
+ 			last_bombardment=			"0.01.01"
+@@ -692833,7 +692691,7 @@
+ {
+ }
+ last_created_country=55
+-last_created_system=603
++last_created_system=602
+ leaders=
+ {
+ 	285212672=
+@@ -1077049,15 +1076907,7 @@
+ 			id=6378
+ 		}
+ 	}
+-	16777221=
+-	{
+-		type="d_minerals_3"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=6384
+-		}
+-	}
++	5=none
+ 	16777222=
+ 	{
+ 		type="d_minerals_3"
+@@ -1122423,6 +1122273,7 @@
+ 	star_names=
+ 	{
+ 		"Epsilon_Eridani"
++		"Tau_Ceti"
+ 		"Altair"
+ 		"Arcturus"
+ 		"Vega"
