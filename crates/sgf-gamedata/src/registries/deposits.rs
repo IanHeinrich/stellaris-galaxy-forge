@@ -3,6 +3,7 @@
 
 use sgf_core::cst::Node;
 
+use crate::deposit_roll::DepositRoll;
 use crate::install::script::{self, Def};
 use crate::registries::registry::{FromDef, Registry};
 
@@ -31,6 +32,8 @@ pub struct DepositDef {
     pub time: Option<f64>,
     /// The technologies clearing a blocker needs.
     pub prerequisites: Vec<String>,
+    /// What the random roll for a new body reads.
+    pub roll: DepositRoll,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -87,6 +90,7 @@ impl FromDef for DepositDef {
             cost: numbers_in("cost"),
             time: def.number("time"),
             prerequisites: script::list_items(&def.node, "prerequisites", src),
+            roll: DepositRoll::read(def),
             key,
         }
     }
