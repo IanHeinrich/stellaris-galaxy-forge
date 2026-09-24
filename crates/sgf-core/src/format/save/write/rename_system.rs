@@ -9,13 +9,12 @@ use std::ops::Range;
 
 use crate::cst::Node;
 use crate::format::save::added::Table;
-use crate::format::save::write::add_system::{NAME_VAR, PARENT_VAR, pool_entries, take_name};
-use crate::format::save::write::remove_system::{bodies, check_added, put_back};
-use crate::format::scenario::index::removed as emptied;
+use crate::format::save::write::add_system::{NAME_VAR, PARENT_VAR};
+use crate::format::save::write::name_pool;
+use crate::format::save::write::remove_system::{bodies, check_added};
 use crate::keys;
 use crate::ops::rules::{check_name, quoted};
 use crate::ops::{Op, OpError, Plan, Planned};
-use crate::overlay::Anchor;
 use crate::session::Session;
 
 /// The variables a body's name carries its system's name in.
@@ -139,11 +138,5 @@ pub(crate) fn swap_name(
                 .is_some_and(|o| o.name.key == old)
         })
         .count();
-    let src = s.doc.original();
-    let taken: Vec<Anchor> = pool_entries(&s.doc, old)
-        .into_iter()
-        .filter(|&entry| emptied(s.doc.overlay(), entry, src))
-        .collect();
-    put_back(plan, &s.doc, taken.iter().skip(staying))?;
-    take_name(plan, &s.doc, new)
+    name_pool::swap(plan, &s.doc, keys::STAR_NAMES, (old, new), staying)
 }

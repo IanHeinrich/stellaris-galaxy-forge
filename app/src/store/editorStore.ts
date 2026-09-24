@@ -89,8 +89,6 @@ export interface EditorState {
   history: HistoryView;
   /** The radius `addNebulaAt` reaches for, kept across sessions on this machine. */
   lastNebulaRadius: number;
-  /** The world point a new nebula is being named for, null while none is being created. */
-  nebulaPrompt: { x: number; y: number } | null;
   /** What the fit dialog is asked over: the mod's candidate rings and the automatic zones standing now. */
   feZoneFitPrompt: { candidates: number; automatic: number } | null;
 
@@ -128,13 +126,11 @@ export interface EditorState {
   nudgeSelection(dx: number, dy: number): Promise<void>;
   /** Moves the nebula at `index` (file order) to a world position. Nothing else moves. */
   moveNebula(index: number, x: number, y: number): Promise<void>;
-  /** Adds a nebula at a world point, remembers its radius and selects it. */
-  addNebulaAt(x: number, y: number, radius?: number, name?: string | null): Promise<boolean>;
-  /** Asks for the name a new nebula at a world point is to carry; nothing is created yet. */
-  promptNebulaAt(x: number, y: number): void;
-  cancelNebulaPrompt(): void;
-  /** Creates the nebula the prompt is waiting on. A blank name creates nothing. */
-  createPromptedNebula(name: string): Promise<boolean>;
+  /**
+   * Adds a nebula at a world point, named from the game's unused nebula names, remembers its
+   * radius and selects it.
+   */
+  addNebulaAt(x: number, y: number, radius?: number): Promise<boolean>;
   /** Resizes the nebula at `index` about its centre; the members follow. */
   setNebulaRadius(index: number, radius: number): Promise<void>;
   /** Renames the nebula at `index`; the text is written as the file's own literal. */
@@ -286,7 +282,6 @@ const INITIAL = {
   recentHits: [] as SearchHit[],
   searchRings: [] as number[],
   history: { undo: [], redo: [] } as HistoryView,
-  nebulaPrompt: null as { x: number; y: number } | null,
   feZoneFitPrompt: null as { candidates: number; automatic: number } | null,
 } satisfies Partial<EditorState>;
 

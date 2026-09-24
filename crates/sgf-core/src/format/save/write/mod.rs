@@ -11,7 +11,8 @@
 //! flags hold, [`star_class`] for a system's star and its star bodies, [`planet_size`]
 //! for the size of one planet or star body, [`map_colors`] for the colours an empire
 //! paints its territory in, [`add_system`] for a whole new system with its bodies,
-//! [`asteroid_names`] for the names its asteroids take, [`initializer_counter`] for
+//! [`asteroid_names`] for the names its asteroids take, [`name_pool`] for the star and
+//! nebula names new ones take, [`initializer_counter`] for
 //! the count of its layout, [`remove_system`] for taking
 //! one of those out again, [`deposits`] for one deposit added to or removed from a
 //! planet, [`replace_system`] for rolling an added system's bodies again in place, and
@@ -26,6 +27,7 @@ pub(crate) mod lanes;
 pub(crate) mod lgate;
 pub(crate) mod map_colors;
 pub(crate) mod move_system;
+pub(crate) mod name_pool;
 pub(crate) mod nebula;
 pub(crate) mod planet_size;
 pub(crate) mod remove_system;

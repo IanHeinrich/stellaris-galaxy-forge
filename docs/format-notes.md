@@ -231,6 +231,12 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   index, so removing one renumbers those after it. A new one goes at the
   end of the last `nebula=` section, or, in a save with none, at the line
   start of the first top-level section after `galactic_object`.
+- `random_name_database.nebula_names` is the pool of unused nebula names,
+  laid out like `star_names`: the install's `nebula_names` less the names
+  the galaxy's nebulae took. The 4.5.0 sample holds 46 of the install's
+  55 and its 9 nebulae hold the rest. A nebula the editor adds with a
+  pooled name takes it out of the pool. Removing that nebula, or renaming
+  it to another name, puts the entry back where it was.
 - `natural_wormholes` and `bypasses` are keyed tables; a bypass row has
   `type` (gateway, lgate, shroud_tunnel, ...), `active`,
   `owner={ type=N id=M }`, `linked_to`/`connections`. A bypass's system

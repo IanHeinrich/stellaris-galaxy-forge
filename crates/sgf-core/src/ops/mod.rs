@@ -20,8 +20,8 @@ use crate::projections::galaxy::{GalaxyGraph, Lane};
 use crate::session::Session;
 
 pub use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
-pub use crate::format::save::write::add_system::free_star_names;
 pub use crate::format::save::write::initializer_counter::initializer_counts;
+pub use crate::format::save::write::name_pool::{free_nebula_names, free_star_names};
 pub use edit::Subject;
 pub(crate) use edit::{Edit, blank_slot, replace_lengths};
 pub use op::{

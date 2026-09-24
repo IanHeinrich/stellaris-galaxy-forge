@@ -23,7 +23,6 @@ import { OpenModeDialog } from "./panels/file/OpenModeDialog";
 import { OpenScenarioDialog } from "./panels/file/OpenScenarioDialog";
 import { MapTooltip } from "./panels/overlays/MapTooltip";
 import { FeZoneFitDialog } from "./panels/overlays/FeZoneFitDialog";
-import { NewNebulaDialog } from "./panels/overlays/NewNebulaDialog";
 import { SaveIssuesDialog } from "./panels/overlays/SaveIssuesDialog";
 import { ChangedOnDiskDialog } from "./panels/overlays/ChangedOnDiskDialog";
 import { UpdateBadge } from "./panels/chrome/UpdateBadge";
@@ -116,7 +115,6 @@ function App() {
   const status = useFileSessionStore((s) => s.status);
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
-  const nebulaPrompt = useEditorStore((s) => s.nebulaPrompt);
   const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
   const updateDialog = useUpdateStore((s) => s.dialog);
   const saveIssuesPrompt = useFileSessionStore((s) => s.saveIssuesPrompt);
@@ -212,7 +210,6 @@ function App() {
           {status !== "ready" && <Launch />}
           {status === "ready" && openDialog && <OpenSave modal />}
           {scenarioDialog && <NewScenarioDialog />}
-          {nebulaPrompt && <NewNebulaDialog />}
           {feZoneFitPrompt && <FeZoneFitDialog />}
           {saveIssuesPrompt && <SaveIssuesDialog />}
           {changedOnDiskPrompt && <ChangedOnDiskDialog />}

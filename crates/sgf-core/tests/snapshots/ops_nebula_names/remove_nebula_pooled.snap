@@ -1,0 +1,51 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed nebula "Yinarim Nebula" (4 systems released; 1 joined Demons Eye Nebula)
+inverse: AddNebula { x: -57.5, y: -305.0, radius: 40.0, name: Some("Yinarim_Nebula") }
+--- before
++++ after
+@@ -6175,6 +6175,7 @@
+ 		key="Demons_Eye_Nebula"
+ 	}
+ 	radius=30
++	galactic_object=134
+ 	galactic_object=256
+ }
+ nebula=
+@@ -6210,26 +6211,6 @@
+ 	}
+ 	radius=25
+ 	galactic_object=17
+-}
+-nebula=
+-{
+-	coordinate=
+-	{
+-		x=-57.5
+-		y=-305
+-		origin=4294967295
+-		randomized=yes
+-		visual_height=3.65056
+-	}
+-	name=
+-	{
+-		key="Yinarim_Nebula"
+-	}
+-	radius=40
+-	galactic_object=113
+-	galactic_object=134
+-	galactic_object=600
+-	galactic_object=688
+ }
+ pop=
+ {
+@@ -1546035,6 +1546016,7 @@
+ 	nebula_names=
+ 	{
+ 		"Picaress_Drift"
++		"Yinarim_Nebula"
+ 		"Temestra_Badlands"
+ 		"Arija_Patch"
+ 		"Tyjanock_Expanse"
