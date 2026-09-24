@@ -1,0 +1,48 @@
+//! What a new save system is made of, fully resolved: every class, size, orbit and deposit
+//! is chosen by the caller, and [`crate::ops::Op::AddSaveSystem`] writes it as given.
+
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+/// One star system to add to a save.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SystemSpec {
+    /// The system's name key, which its star and planets are named after.
+    pub name: String,
+    pub x: f64,
+    pub y: f64,
+    /// `sc_g`, `sc_m`, …
+    pub star_class: String,
+    /// `basic_init_01`, …
+    pub initializer: String,
+    /// The body at the centre, orbit 0.
+    pub star: BodySpec,
+    /// The bodies orbiting the star, numbered I, II, … in this order.
+    #[serde(default)]
+    pub planets: Vec<BodySpec>,
+    /// The systems a hyperlane joins it to.
+    #[serde(default)]
+    pub lanes: Vec<u32>,
+}
+
+/// A star, planet or moon.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BodySpec {
+    /// `pc_g_star`, `pc_gas_giant`, …
+    pub class: String,
+    pub size: u32,
+    /// Distance from the body it orbits: the star, or a moon's planet.
+    pub orbit: f64,
+    /// Degrees.
+    pub angle: f64,
+    /// Which of the class's models the game draws.
+    pub entity: u32,
+    /// Deposit keys, `d_energy_5`, …
+    #[serde(default)]
+    pub deposits: Vec<String>,
+    /// Lettered a, b, … in this order. Only a planet has moons.
+    #[serde(default)]
+    pub moons: Vec<BodySpec>,
+}

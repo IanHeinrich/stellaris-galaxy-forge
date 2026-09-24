@@ -3,6 +3,8 @@
 //! Indentation is never computed; callers measure it from the entity the text is
 //! inserted into (`cst::indent_of`) and pass it in.
 
+pub mod system;
+
 /// Decimals the game writes a coordinate with.
 pub const COORD_DECIMALS: usize = 5;
 
@@ -16,6 +18,11 @@ pub fn coord(v: f64) -> String {
     let s = fixed(v);
     let s = s.trim_end_matches('0').trim_end_matches('.');
     if s == "-0" { "0" } else { s }.to_owned()
+}
+
+/// `text` between quotes, as the game writes a name or a key; nothing is escaped.
+pub fn quoted(text: &str) -> String {
+    format!("\"{text}\"")
 }
 
 /// `v` as it reads back once [`coord`] has written it.

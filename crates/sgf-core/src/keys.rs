@@ -7,6 +7,8 @@ pub(crate) const ACTIVE: &str = "active";
 pub(crate) const AMBIENT_OBJECT: &str = "ambient_object";
 pub(crate) const ARCHAEOLOGICAL_SITES: &str = "archaeological_sites";
 pub(crate) const BACKGROUND: &str = "background";
+pub(crate) const BINARY_FLAGS: &str = "binary_flags";
+pub(crate) const BOMBARDMENT_DAMAGE: &str = "bombardment_damage";
 pub(crate) const BRIDGE: &str = "bridge";
 pub(crate) const BUILDINGS: &str = "buildings";
 pub(crate) const BUILD_QUEUE: &str = "build_queue";
@@ -14,6 +16,7 @@ pub(crate) const BYPASS: &str = "bypass";
 pub(crate) const BYPASSES: &str = "bypasses";
 pub(crate) const CACHED_DISABLED_SHIPS: &str = "cached_disabled_ships";
 pub(crate) const CAPITAL: &str = "capital";
+pub(crate) const CARRIER_BINARY_FLAGS: &str = "carrier_binary_flags";
 pub(crate) const CATEGORY: &str = "category";
 pub(crate) const COLONIZE_DATE: &str = "colonize_date";
 pub(crate) const COLONY: &str = "colony";
@@ -29,6 +32,7 @@ pub(crate) const CRISIS_TYPE: &str = "crisis_type";
 pub(crate) const CURRENT_ORDER: &str = "current_order";
 pub(crate) const DEPOSIT: &str = "deposit";
 pub(crate) const DEPOSITS: &str = "deposits";
+pub(crate) const DEPOSIT_HOLDER: &str = "deposit_holder";
 pub(crate) const DESIGN: &str = "design";
 pub(crate) const DIFFICULTY: &str = "difficulty";
 pub(crate) const DISMANTLE_FINISH_DATE: &str = "dismantle_finish_date";
@@ -61,6 +65,7 @@ pub(crate) const INNER_RADIUS: &str = "inner_radius";
 pub(crate) const IRONMAN: &str = "ironman";
 pub(crate) const KEY: &str = "key";
 pub(crate) const LAST_BOMBARDMENT: &str = "last_bombardment";
+pub(crate) const LAST_CREATED_SYSTEM: &str = "last_created_system";
 pub(crate) const LENGTH: &str = "length";
 pub(crate) const LEVEL: &str = "level";
 pub(crate) const LINKED_TO: &str = "linked_to";
@@ -72,6 +77,7 @@ pub(crate) const MIA_FROM: &str = "mia_from";
 pub(crate) const MID_GAME_START: &str = "mid_game_start";
 pub(crate) const MILITARY_POWER: &str = "military_power";
 pub(crate) const MODULES: &str = "modules";
+pub(crate) const MOONS: &str = "moons";
 pub(crate) const MOON_OF: &str = "moon_of";
 pub(crate) const MOVEMENT_MANAGER: &str = "movement_manager";
 pub(crate) const NAME: &str = "name";
@@ -101,6 +107,7 @@ pub(crate) const PLAYER: &str = "player";
 pub(crate) const POP_GROUPS: &str = "pop_groups";
 pub(crate) const PRIMITIVE: &str = "primitive";
 pub(crate) const RADIUS: &str = "radius";
+pub(crate) const RANDOM_NAME_DATABASE: &str = "random_name_database";
 pub(crate) const REQUIRED_DLCS: &str = "required_dlcs";
 pub(crate) const RESOURCE_ABUNDANCE: &str = "resource_abundance";
 pub(crate) const SCALING: &str = "scaling";
@@ -119,6 +126,7 @@ pub(crate) const SITES: &str = "sites";
 pub(crate) const STARBASES: &str = "starbases";
 pub(crate) const STARBASE_MGR: &str = "starbase_mgr";
 pub(crate) const STAR_CLASS: &str = "star_class";
+pub(crate) const STAR_NAMES: &str = "star_names";
 pub(crate) const STATION: &str = "station";
 pub(crate) const STORM: &str = "storm";
 pub(crate) const SURVEYED_BY: &str = "surveyed_by";
@@ -130,6 +138,7 @@ pub(crate) const USE_MAP_COLOR: &str = "use_map_color";
 pub(crate) const VALUE: &str = "value";
 pub(crate) const VARIABLES: &str = "variables";
 pub(crate) const VERSION_CONTROL_REVISION: &str = "version_control_revision";
+pub(crate) const VISUAL_HEIGHT: &str = "visual_height";
 pub(crate) const WAYSTATIONS: &str = "waystations";
 pub(crate) const WAYSTATION_NETWORKS: &str = "waystation_networks";
 pub(crate) const X: &str = "x";
@@ -143,6 +152,8 @@ pub(crate) const ALL: &[&str] = &[
     AMBIENT_OBJECT,
     ARCHAEOLOGICAL_SITES,
     BACKGROUND,
+    BINARY_FLAGS,
+    BOMBARDMENT_DAMAGE,
     BRIDGE,
     BUILDINGS,
     BUILD_QUEUE,
@@ -150,6 +161,7 @@ pub(crate) const ALL: &[&str] = &[
     BYPASSES,
     CACHED_DISABLED_SHIPS,
     CAPITAL,
+    CARRIER_BINARY_FLAGS,
     CATEGORY,
     COLONIZE_DATE,
     COLONY,
@@ -165,6 +177,7 @@ pub(crate) const ALL: &[&str] = &[
     CURRENT_ORDER,
     DEPOSIT,
     DEPOSITS,
+    DEPOSIT_HOLDER,
     DESIGN,
     DIFFICULTY,
     DISMANTLE_FINISH_DATE,
@@ -197,6 +210,7 @@ pub(crate) const ALL: &[&str] = &[
     IRONMAN,
     KEY,
     LAST_BOMBARDMENT,
+    LAST_CREATED_SYSTEM,
     LENGTH,
     LEVEL,
     LINKED_TO,
@@ -208,6 +222,7 @@ pub(crate) const ALL: &[&str] = &[
     MID_GAME_START,
     MILITARY_POWER,
     MODULES,
+    MOONS,
     MOON_OF,
     MOVEMENT_MANAGER,
     NAME,
@@ -237,6 +252,7 @@ pub(crate) const ALL: &[&str] = &[
     POP_GROUPS,
     PRIMITIVE,
     RADIUS,
+    RANDOM_NAME_DATABASE,
     REQUIRED_DLCS,
     RESOURCE_ABUNDANCE,
     SCALING,
@@ -255,6 +271,7 @@ pub(crate) const ALL: &[&str] = &[
     STARBASES,
     STARBASE_MGR,
     STAR_CLASS,
+    STAR_NAMES,
     STATION,
     STORM,
     SURVEYED_BY,
@@ -266,6 +283,7 @@ pub(crate) const ALL: &[&str] = &[
     VALUE,
     VARIABLES,
     VERSION_CONTROL_REVISION,
+    VISUAL_HEIGHT,
     WAYSTATIONS,
     WAYSTATION_NETWORKS,
     X,

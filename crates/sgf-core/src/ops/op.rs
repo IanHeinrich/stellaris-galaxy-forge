@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::document;
+use crate::format::save::system_spec::SystemSpec;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::OverlayError;
 use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
@@ -293,6 +294,16 @@ pub enum Op {
         country: u32,
         colors: Option<MapColorPair>,
     },
+    /// A new save system with its bodies, their deposits and its lanes, written as the
+    /// game writes a system it spawns by script. It takes `last_created_system + 1`, which
+    /// must be the number of systems the save holds; planets and deposits take the lowest
+    /// dead slot of their tables first. Its name leaves the save's pool of unused star
+    /// names when the pool holds it. The inverse is [`Op::RemoveSystem`], which a save
+    /// refuses: it describes the change, and undo puts the bytes back exactly. Stellaris
+    /// 4.x save documents only.
+    AddSaveSystem {
+        spec: SystemSpec,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -350,6 +361,7 @@ impl Op {
             Self::SetStarClass { .. } => "SetStarClass",
             Self::SetPlanetSize { .. } => "SetPlanetSize",
             Self::SetEmpireMapColors { .. } => "SetEmpireMapColors",
+            Self::AddSaveSystem { .. } => "AddSaveSystem",
             Self::Batch { .. } => "Batch",
         }
     }
@@ -360,11 +372,12 @@ impl Op {
     /// initializer, so an op that writes one stales it too, a scripted seat included
     /// because it may bring an initializer with it. A save's details list a star's
     /// bodies, whose classes [`Op::SetStarClass`] writes and whose sizes
-    /// [`Op::SetPlanetSize`] does.
+    /// [`Op::SetPlanetSize`] does, and a save system an op adds brings its bodies with it.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
+            | Self::AddSaveSystem { .. }
             | Self::AddSystem { .. }
             | Self::RemoveSystem { .. }
             | Self::AddSystems { .. }
@@ -386,6 +399,18 @@ impl Op {
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.stales_only_planets() || !op.stales_details()),
+            _ => false,
+        }
+    }
+
+    /// Whether the details this op stales are only those of the systems whose bodies it
+    /// wrote: a save system's lanes rewrite its neighbours, whose details stand as they were.
+    pub fn stales_only_bodies(&self) -> bool {
+        match self {
+            Self::AddSaveSystem { .. } => true,
+            Self::Batch { ops, .. } => ops
+                .iter()
+                .all(|op| op.stales_only_bodies() || !op.stales_details()),
             _ => false,
         }
     }
@@ -611,6 +636,30 @@ pub enum OpError {
     InvalidColorName(String),
     #[error("country {0}'s map colours are already set that way")]
     MapColorsUnchanged(u32),
+    #[error("save statement: {reason} at byte {offset}")]
+    RecordParse { offset: usize, reason: String },
+    #[error("adding a system needs a save from Stellaris 4.0 or later, not {0}")]
+    SaveTooOld(String),
+    #[error("the save's version {0:?} names no major version, so it cannot take a new system")]
+    UnknownSaveVersion(String),
+    #[error("the save has no `{0}`")]
+    MissingSaveKey(&'static str),
+    #[error(
+        "the save's last system is {last} but it holds {count} systems: a new system needs ids 0 to {last} held, without a gap"
+    )]
+    SystemIdsNotDense { last: u32, count: usize },
+    #[error("system {id} is {distance:.2} away; a new system needs 10 between them")]
+    TooClose { id: u32, distance: f64 },
+    #[error("({x}, {y}) is outside the galaxy's radius of {radius}")]
+    OutsideGalaxy { x: f64, y: f64, radius: f64 },
+    #[error("a body's planet class may not be empty")]
+    EmptyBodyClass,
+    #[error("{0} may not be empty")]
+    EmptyKey(&'static str),
+    #[error("{0:?} may not hold a quote, a backslash or a line break")]
+    InvalidKey(String),
+    #[error("{0} cannot have moons")]
+    MoonsNotAllowed(&'static str),
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,

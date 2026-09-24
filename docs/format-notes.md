@@ -144,6 +144,31 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
 - Planet `orbit` is the orbital radius, `x`/`y` the current point on that
   orbit. A moon has `moon_of=<planet>`, `orbit` around its parent, and
   system-relative coordinates.
+- Planets, deposits and construction queues are slot tables. An id is
+  `slot | generation<<24`, the table is sorted by slot, and a dead slot
+  keeps its old id as `<id>=none`. The game reuses a dead slot with the
+  generation one higher. System ids have no generation and no gaps: a
+  gap crashes the game on load, so a new system takes
+  `last_created_system`+1.
+- A system the game spawns by script (and one the editor adds) is a
+  `galactic_object` entry in this order: `coordinate={ x y
+  origin=4294967295 visual_height }`, `name`, `planet=` per body (star
+  first), `star_class`, `hyperlane`, `initializer`, `inner_radius`,
+  `outer_radius`, `starbases={ 4294967295 }`, `sector=4294967295`,
+  `index=0`, `storm=4294967295`. It has no `arm`. `inner_radius` is
+  max(150, outermost reach + 30), where a moon reaches its own orbit plus
+  its planet's, and `outer_radius` is `inner_radius` + 100. Each body is
+  a `planets.planet` entry with `deposit` entries holding
+  `deposit_holder={ type=0 id=<planet> }`. The name is taken out of
+  `random_name_database.star_names`. Names are templates:
+  `STAR_NAME_1_OF_1`, `PLANET_NAME_FORMAT` with a roman numeral,
+  `SUBPLANET_NAME_FORMAT` with the parent's whole name and a letter.
+- Loading a save builds whatever a new system is missing: a construction
+  queue per body (and the planet's `build_queue`), an entry in every
+  country's `intel_level` and `highest_intel_level`, the
+  `terra_incognita` and `visited_objects` entries of countries that know
+  every system, and `randomized=yes` on the coordinate. Checked on 4.5.0
+  and 4.4.6, so the editor writes none of them.
 - A nebula is a top-level `nebula={ coordinate name radius
   galactic_object=... }`, written as `coordinate={ x y origin=4294967295
   randomized=yes visual_height=3.65056 }`, `name={ key="…" }`,

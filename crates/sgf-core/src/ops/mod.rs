@@ -19,6 +19,7 @@ use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, Lane};
 use crate::session::Session;
 
+pub use crate::format::save::system_spec::{BodySpec, SystemSpec};
 pub use edit::Subject;
 pub(crate) use edit::{Edit, blank_slot, replace_lengths};
 pub use op::{

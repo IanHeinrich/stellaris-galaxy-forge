@@ -121,8 +121,9 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
                 kind: DocumentKind::Scenario,
             })
         }
-        // A scenario's empires are created when the game starts, so it holds no countries.
-        Op::SetEmpireMapColors { .. } => Err(OpError::Unsupported {
+        // A scenario's empires are created when the game starts, so it holds no countries,
+        // and its systems are statements `AddSystem` writes, with no bodies of their own.
+        Op::SetEmpireMapColors { .. } | Op::AddSaveSystem { .. } => Err(OpError::Unsupported {
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),

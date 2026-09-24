@@ -11,12 +11,14 @@ use ts_rs::TS;
 use crate::cst::{self, Node};
 use crate::document::Document;
 use crate::entity::facts;
+use crate::format::save::added::Table;
 use crate::format::save::galaxy::starbases::fleet_owners;
+use crate::format::save::{planet_statement, planet_statements};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::projections::name::NameTemplate;
 use crate::projections::read::{self, RawCountry};
-use crate::scan::{Entity, Index, Value};
+use crate::scan::Index;
 use crate::{as_u32, keys};
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -145,11 +147,10 @@ pub(super) fn countries(raw: &[RawCountry]) -> Countries {
     }
 }
 
-/// Deposit id → `type` key, from the top-level `deposit` table.
-pub(super) fn deposit_kinds(
-    index: &Index,
-    src: &[u8],
-) -> Result<HashMap<u32, String>, ProjectionError> {
+/// Deposit id → `type` key, from the top-level `deposit` table as loaded and the
+/// deposits an op added to it.
+pub(super) fn deposit_kinds(doc: &Document) -> Result<HashMap<u32, String>, ProjectionError> {
+    let (index, src) = (doc.index(), doc.original());
     let mut kinds = HashMap::new();
     for entity in index.entities(keys::DEPOSIT) {
         let Some(node) = read::entity_node(entity, src, keys::DEPOSIT)? else {
@@ -162,6 +163,14 @@ pub(super) fn deposit_kinds(
             continue;
         };
         kinds.insert(id, kind.to_owned());
+    }
+    for (id, anchor) in doc.added().entries(Table::Deposit) {
+        let Some((node, bytes)) = current_entity(doc, keys::DEPOSIT, u64::from(id), anchor)? else {
+            continue;
+        };
+        if let Some(kind) = read::scalar(&node, keys::TYPE, bytes) {
+            kinds.insert(id, kind.to_owned());
+        }
     }
     Ok(kinds)
 }
@@ -234,8 +243,8 @@ pub(super) fn ship_sizes(
     Ok(sizes)
 }
 
-/// Every entity of `planets.planet` as it now stands, filed under its
-/// `coordinate.origin`; returns planet id → system id.
+/// Every entity of `planets.planet` as it now stands, the ones an op added included,
+/// filed under its `coordinate.origin`; returns planet id → system id.
 pub(super) fn planets(
     doc: &Document,
     countries: &Countries,
@@ -244,14 +253,8 @@ pub(super) fn planets(
     by_system: &mut HashMap<u32, RawSystemDetails>,
 ) -> Result<HashMap<u32, u32>, ProjectionError> {
     let mut planet_system = HashMap::new();
-    let Some(inner) = doc.inner_index(keys::PLANETS)? else {
-        return Ok(planet_system);
-    };
-    for entity in inner.entities(keys::PLANET) {
-        let Some((node, src)) = current_planet(doc, entity)? else {
-            continue;
-        };
-        let Ok(id) = u32::try_from(entity.id) else {
+    for (id, anchor) in planet_statements(doc)? {
+        let Some((node, src)) = current_entity(doc, keys::PLANETS, u64::from(id), anchor)? else {
             continue;
         };
         let planet = facts::planet::read(&node, src);
@@ -300,35 +303,30 @@ pub(super) fn planet_facts(
     doc: &Document,
     id: u32,
 ) -> Result<Option<facts::planet::PlanetFacts>, ProjectionError> {
-    let Some(entity) = doc
-        .inner_index(keys::PLANETS)?
-        .and_then(|index| index.entity(keys::PLANET, u64::from(id)))
-    else {
+    let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(None);
     };
-    Ok(current_planet(doc, entity)?.map(|(node, src)| facts::planet::read(&node, src)))
+    Ok(current_entity(doc, keys::PLANETS, u64::from(id), anchor)?
+        .map(|(node, src)| facts::planet::read(&node, src)))
 }
 
-/// A planet's `<id>=` node parsed from the bytes now standing for it, which an op may
-/// have rewritten, with those bytes; `None` for a tombstone.
-fn current_planet<'d>(
+/// An entity's `<id>=` node parsed from the bytes now standing for it, which an op may
+/// have rewritten or written, with those bytes; `None` for a tombstone.
+fn current_entity<'d>(
     doc: &'d Document,
-    entity: &Entity,
+    section: &'static str,
+    id: u64,
+    anchor: Anchor,
 ) -> Result<Option<(Node, &'d [u8])>, ProjectionError> {
-    if !matches!(entity.value, Value::Block { .. }) {
-        return Ok(None);
-    }
     let field = |reason: String| ProjectionError::EntityField {
-        section: keys::PLANETS,
-        id: entity.id,
+        section,
+        id,
         reason,
     };
-    let src = doc
-        .current(Anchor::Original(entity.stmt))
-        .map_err(|e| field(e.to_string()))?;
+    let src = doc.current(anchor).map_err(|e| field(e.to_string()))?;
     let root = cst::parse(src, 0).map_err(|source| ProjectionError::Entity {
-        section: keys::PLANETS,
-        id: entity.id,
+        section,
+        id,
         source,
     })?;
     let node = root
@@ -336,7 +334,7 @@ fn current_planet<'d>(
         .first()
         .cloned()
         .ok_or_else(|| field("empty entity".to_owned()))?;
-    Ok(Some((node, src)))
+    Ok(node.scalar_span().is_none().then_some((node, src)))
 }
 
 /// Every entity of the top-level `megastructures`, filed under its `coordinate.origin`.

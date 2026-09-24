@@ -188,6 +188,13 @@ fn run(cli: Cli) -> commands::Run {
             out.path.as_deref(),
             Op::SetPlanetSize { id: planet, size },
         ),
+        Some(Command::AddSystem { sav, spec, out }) => commands::mutate::run(
+            &sav,
+            out.path.as_deref(),
+            Op::AddSaveSystem {
+                spec: commands::mutate::system_spec(&spec)?,
+            },
+        ),
         Some(Command::Synth {
             systems,
             seed,

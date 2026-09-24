@@ -23,15 +23,18 @@ pub(crate) fn check_name(name: &str) -> Result<(), OpError> {
     if name.is_empty() {
         return Err(OpError::EmptyName);
     }
-    if name.contains(['"', '\\', '\n', '\r']) {
+    if !quotable(name) {
         return Err(OpError::InvalidName(name.to_owned()));
     }
     Ok(())
 }
 
-pub(crate) fn quoted(text: &str) -> String {
-    format!("\"{text}\"")
+/// Whether `text` can be written between quotes, which the game reads with no escaping.
+pub(crate) fn quotable(text: &str) -> bool {
+    !text.contains(['"', '\\', '\n', '\r'])
 }
+
+pub(crate) use crate::emit::quoted;
 
 /// A plural op's entries: at least one, and no system named twice.
 pub(crate) fn each_once<T>(entries: &[T], id: impl Fn(&T) -> u32) -> Result<(), OpError> {

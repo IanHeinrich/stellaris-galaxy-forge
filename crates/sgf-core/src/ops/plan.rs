@@ -24,23 +24,32 @@ pub(crate) struct Planned {
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Emitted {
     System(u32),
+    /// A save planet and the system it is a body of.
+    Planet {
+        id: u32,
+        system: u32,
+    },
     Lane(u32, u32),
     /// A whole `nebula` statement, which lands last and so knows its own index.
     Nebula(usize),
     /// A header statement a key the file lacked was written as.
     Header,
+    /// A save statement no projection reads, such as a deposit.
+    Record,
 }
 
 impl Emitted {
-    fn subject(self, anchor: Anchor) -> Subject {
+    pub(crate) fn subject(self, anchor: Anchor) -> Subject {
         match self {
             Self::System(id) => Subject::System(id),
+            Self::Planet { id, system } => Subject::Planet { id, system },
             Self::Nebula(index) => Subject::Nebula(index),
             Self::Lane(a, b) => Subject::Statement {
                 anchor,
                 ends: (a, b),
             },
             Self::Header => Subject::Header(anchor),
+            Self::Record => Subject::Record(anchor),
         }
     }
 }
@@ -97,6 +106,30 @@ impl Plan {
     /// The edit for a save's `country` entity `id`, loading and parsing it on first use.
     pub fn edit_country(&mut self, doc: &Document, id: u32) -> Result<&mut Edit, OpError> {
         self.subject(doc, Subject::Country(id))
+    }
+
+    /// The edit for a save statement no projection reads, at `anchor`, loading and parsing
+    /// it on first use.
+    pub fn edit_record(&mut self, doc: &Document, anchor: Anchor) -> Result<&mut Edit, OpError> {
+        self.subject(doc, Subject::Record(anchor))
+    }
+
+    /// Write `bytes` in place of the statement at `anchor`, which then stands for `subject`:
+    /// a new entity taking the slot of a tombstone.
+    pub fn replace(
+        &mut self,
+        doc: &Document,
+        subject: Subject,
+        anchor: Anchor,
+        bytes: Vec<u8>,
+    ) -> Result<(), OpError> {
+        let edit = match self.edits.entry(subject) {
+            Entry::Occupied(e) => e.into_mut(),
+            Entry::Vacant(e) => e.insert(load(doc, subject, anchor)?),
+        };
+        let end = edit.buf.len();
+        edit.splices.push((0..end, bytes));
+        Ok(())
     }
 
     /// Emit `bytes` as a new statement at original offset `at`.
