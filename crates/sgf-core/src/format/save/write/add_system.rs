@@ -24,6 +24,7 @@ use crate::projections::galaxy::GalaxyGraph;
 use crate::projections::name::{NameTemplate, NameVariable};
 use crate::scan::{self, Value};
 use crate::session::Session;
+use crate::span::Span;
 
 /// How close the game lets a system it spawns stand to another
 /// (`SPAWN_SYSTEM_BUFFER_DISTANCE`).
@@ -499,6 +500,27 @@ fn systems_end(doc: &Document) -> Result<TableEnd, OpError> {
 /// in file order, whether an add has since taken it or not.
 pub(crate) fn pool_entries(doc: &Document, name: &str) -> Vec<Anchor> {
     let src = doc.original();
+    pool(doc)
+        .into_iter()
+        .filter(|span| scan::unquote(span.slice(src)) == name.as_bytes())
+        .map(Anchor::Original)
+        .collect()
+}
+
+/// The names left in the save's pool of unused star names, in file order; empty when the
+/// save has no pool.
+pub fn free_star_names(doc: &Document) -> Vec<String> {
+    let src = doc.original();
+    pool(doc)
+        .into_iter()
+        .filter(|&span| !removed(doc.overlay(), Anchor::Original(span), src))
+        .map(|span| String::from_utf8_lossy(scan::unquote(span.slice(src))).into_owned())
+        .collect()
+}
+
+/// Each entry of the pool as loaded, as the span of its name.
+fn pool(doc: &Document) -> Vec<Span> {
+    let src = doc.original();
     let names = || {
         let Value::Block { open, close } = doc.index().section(keys::RANDOM_NAME_DATABASE)?.value
         else {
@@ -518,7 +540,5 @@ pub(crate) fn pool_entries(doc: &Document, name: &str) -> Vec<Anchor> {
         .iter()
         .filter(|entry| entry.key.is_none())
         .filter_map(cst::Node::scalar_span)
-        .filter(|span| scan::unquote(span.slice(src)) == name.as_bytes())
-        .map(Anchor::Original)
         .collect()
 }

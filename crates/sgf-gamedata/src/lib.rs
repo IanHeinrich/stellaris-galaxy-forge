@@ -7,6 +7,7 @@
 //! caller degrades to raw keys.
 
 pub mod details;
+pub mod generate;
 pub mod initializers;
 pub mod install;
 pub mod loc;
@@ -43,7 +44,7 @@ pub use registries::planet_classes::PlanetClasses;
 pub use registries::planet_modifiers::PlanetModifiers;
 pub use registries::registry::Registry;
 pub use registries::ship_sizes::ShipSizes;
-pub use registries::star_classes::StarClasses;
+pub use registries::star_classes::{StarClasses, StarLists};
 pub use registries::starbase_levels::StarbaseLevels;
 pub use registries::static_modifiers::StaticModifiers;
 pub use reload::RegistryKind;
@@ -64,6 +65,8 @@ pub struct GameData {
     pub scripts: Arc<ScriptIndex>,
     pub country_types: Arc<CountryTypes>,
     pub star_classes: Arc<StarClasses>,
+    /// `common/star_classes/randomizers`: the `rl_` lists an initializer draws its star from.
+    pub star_lists: Arc<StarLists>,
     pub sprites: Arc<Sprites>,
     pub colors: Arc<Colors>,
     pub deposits: Arc<Deposits>,
@@ -217,6 +220,8 @@ impl GameData {
         let scripts = ScriptIndex::load(&layout, &initializers, &vars, &mut diagnostics);
         let country_types = registry::load(&layout, &vars, &mut diagnostics);
         let star_classes = registry::load(&layout, &vars, &mut diagnostics);
+        // The same directory as the star classes, whose load has already reported its files.
+        let star_lists = registry::load(&layout, &vars, &mut Vec::new());
         let deposits = registry::load(&layout, &vars, &mut diagnostics);
         let deposit_categories = registry::load(&layout, &vars, &mut diagnostics);
         // Vanilla defines a few static modifiers in two files, which is no one's mistake to report.
@@ -251,6 +256,7 @@ impl GameData {
             scripts: Arc::new(scripts),
             country_types: Arc::new(country_types),
             star_classes: Arc::new(star_classes),
+            star_lists: Arc::new(star_lists),
             sprites: Arc::new(sprites),
             colors: Arc::new(colors),
             deposits: Arc::new(deposits),

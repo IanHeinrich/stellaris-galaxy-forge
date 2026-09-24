@@ -68,20 +68,20 @@ fn sol_spawns_its_star_its_planets_and_their_moons() {
     let star = &sol.planets[0];
     assert_eq!(star.class, "pc_g_star");
     assert_eq!(star.size, Some((30, 30)));
-    assert_eq!(star.orbit_distance, Some(0.0));
+    assert_eq!(star.orbit(), Some(0.0));
 
     let earth = &sol.planets[3];
     assert_eq!(earth.class, "pc_continental");
     assert_eq!(earth.size, Some((18, 18)));
-    assert_eq!(earth.orbit_distance, Some(25.0));
-    assert_eq!(earth.count, 1);
+    assert_eq!(earth.orbit(), Some(25.0));
+    assert_eq!(earth.instances(), 1);
     assert!(earth.home_planet, "starting_planet = yes");
     assert!(!earth.has_ring);
     assert_eq!(earth.moons.len(), 1);
     assert_eq!(earth.moons[0].name.as_deref(), Some("NAME_Luna"));
     assert_eq!(earth.moons[0].class, "pc_barren_cold");
     assert_eq!(earth.moons[0].size, Some((5, 5)));
-    assert_eq!(earth.moons[0].orbit_distance, Some(12.0));
+    assert_eq!(earth.moons[0].orbit(), Some(12.0));
     assert!(earth.moons[0].moons.is_empty());
 
     let jupiter = &sol.planets[9];
@@ -96,7 +96,7 @@ fn sol_spawns_its_star_its_planets_and_their_moons() {
         moons,
         ["NAME_Io", "NAME_Europa", "NAME_Ganymede", "NAME_Callisto"]
     );
-    assert_eq!(jupiter.moons[1].orbit_distance, Some(2.5));
+    assert_eq!(jupiter.moons[1].orbit(), Some(2.5));
 
     assert!(sol.planets[10].has_ring, "Saturn");
     assert!(!sol.planets[12].has_ring, "Neptune");
@@ -152,7 +152,7 @@ fn the_valley_of_zanaam_lands_on_the_gaia_world() {
         .expect("the gaia world");
     assert_eq!(gaia.name.as_deref(), Some("NAME_Zanaam"));
     assert_eq!(gaia.size, Some((25, 25)));
-    assert_eq!(gaia.orbit_distance, Some(30.0));
+    assert_eq!(gaia.orbit(), Some(30.0));
     assert_eq!(gaia.deposits, ["d_valley_of_zanaam"]);
     for other in zanaam.planets.iter().filter(|p| p.class != "pc_gaia") {
         assert!(other.deposits.is_empty(), "{:?}", other.name);
@@ -168,7 +168,7 @@ fn ranges_and_file_variables_resolve() {
     let broken = &black_hole.planets[1];
     assert_eq!(broken.class, "pc_broken");
     assert_eq!(broken.size, Some((10, 15)), "a min/max size range");
-    assert_eq!(broken.count, 1, "the midpoint of a 0-to-1 count");
+    assert_eq!(broken.instances(), 1, "the midpoint of a 0-to-1 count");
 
     let Some(hauer) = initializer("hauer_system_initializer") else {
         return;
@@ -180,12 +180,12 @@ fn ranges_and_file_variables_resolve() {
         .expect("NAME_Bhete");
     let moon = &bhete.moons[0];
     assert_eq!(
-        moon.orbit_distance,
+        moon.orbit(),
         Some(10.0),
         "@base_moon_distance, defined at the top of the same file"
     );
     assert_eq!(moon.class, "random", "a moon that names no class");
-    assert_eq!(moon.count, 1, "the midpoint of a 0-to-2 count");
+    assert_eq!(moon.instances(), 1, "the midpoint of a 0-to-2 count");
 }
 
 #[test]
@@ -196,13 +196,13 @@ fn the_grammar_documentation_file_is_a_definition_like_any_other() {
     assert_eq!(example.planets.len(), 2, "orbital_line is not a planet");
     let planet = &example.planets[1];
     assert!(planet.home_planet, "home_planet = yes");
-    assert_eq!(
-        planet.orbit_distance,
-        Some(45.0),
-        "the midpoint of 40 to 50"
-    );
+    assert_eq!(planet.orbit(), Some(45.0), "the midpoint of 40 to 50");
     assert_eq!(planet.moons.len(), 2);
-    assert_eq!(planet.moons[1].count, 2, "the midpoint of a 1-to-3 count");
+    assert_eq!(
+        planet.moons[1].instances(),
+        2,
+        "the midpoint of a 1-to-3 count"
+    );
     assert_eq!(InitializerView::from(example).planet_count, 5);
 }
 

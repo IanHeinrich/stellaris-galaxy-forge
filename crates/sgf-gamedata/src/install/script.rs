@@ -51,6 +51,28 @@ impl Def {
         text.parse().ok()
     }
 
+    /// `key` below `node` as a [`Range`]: `key = n` or `key = { min = a max = b }`,
+    /// `@variables` substituted; one no file defines gives `None`.
+    pub fn range_in(&self, node: &Node, key: &str) -> Option<Range> {
+        let found = node.find(key, &self.src)?;
+        if let Some(text) = found.scalar_str(&self.src) {
+            return self.number_of(text).map(Range::fixed);
+        }
+        let bound = |key: &str| {
+            let text = found.find(key, &self.src)?.scalar_str(&self.src)?;
+            self.number_of(text)
+        };
+        Some(Range {
+            min: bound("min")?,
+            max: bound("max")?,
+        })
+    }
+
+    /// The definition's own `key` as a [`Range`].
+    pub fn range(&self, key: &str) -> Option<Range> {
+        self.range_in(&self.node, key)
+    }
+
     /// Each `key = number` child of `node` in order, repeated keys summed; blocks and
     /// non-numeric values are left out.
     pub fn numbers(&self, node: &Node) -> Vec<(String, f64)> {
@@ -71,6 +93,27 @@ impl Def {
             }
         }
         out
+    }
+}
+
+/// A value the game draws between two bounds, both included; a fixed one has them equal.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Range {
+    pub min: f64,
+    pub max: f64,
+}
+
+impl Range {
+    pub fn fixed(n: f64) -> Self {
+        Self { min: n, max: n }
+    }
+
+    pub fn midpoint(self) -> f64 {
+        (self.min + self.max) / 2.0
+    }
+
+    pub fn contains(self, n: f64) -> bool {
+        self.min <= n && n <= self.max
     }
 }
 
