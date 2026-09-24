@@ -8,7 +8,7 @@ use sgf_core::views::{EditResult, ErrorKind, GalaxyView, OpenResult};
 /// The Stellaris 4.5 sample, whose galaxy was set up at 2x resource abundance.
 const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
 
-mod common;
+use crate::common;
 use common::{SAMPLE, SCENARIO, have_install, invoke, kind, open, webview};
 
 /// A point inside the galaxy at least `clear` from every system.

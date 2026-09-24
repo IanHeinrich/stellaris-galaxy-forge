@@ -1,18 +1,17 @@
 //! Rolling a new body's deposits from the install's own rules, on a hand-written install
 //! and on the real one, against the shares the research tallied in day-one saves.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::sync::LazyLock;
 
 use sgf_core::ops::{BodySpec, SystemSpec};
 use sgf_gamedata::GameData;
 use sgf_gamedata::deposit_roll::{RollBody, roll_deposits};
 use sgf_gamedata::generate::generate;
 
-static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(common::load_real);
+use common::INSTALL;
 
 const FILES: [(&str, &str); 8] = [
     (
@@ -316,8 +315,9 @@ fn size_of(gd: &GameData, class: &str, unit: &mut impl FnMut() -> f64) -> u32 {
 #[test]
 fn the_real_install_matches_the_tallied_shares_at_abundance_2() {
     let Some(gd) = INSTALL.as_ref() else { return };
-    let mut unit = stream(5);
-    for (class, want) in TALLIES {
+    common::parallel(TALLIES.len(), |i| {
+        let (class, want) = TALLIES[i];
+        let mut unit = stream(5 + i as u64);
         let n = 6_000;
         let mut with = 0;
         for _ in 0..n {
@@ -329,7 +329,7 @@ fn the_real_install_matches_the_tallied_shares_at_abundance_2() {
         let got = f64::from(with) / f64::from(n);
         eprintln!("{class}: {got:.3} against {want:.3}");
         assert!((got - want).abs() < 0.035, "{class}: {got} against {want}");
-    }
+    });
 }
 
 #[test]
@@ -423,9 +423,10 @@ fn the_real_install_gives_habitable_worlds_the_same_counts_and_blockers_at_every
         .map(|d| d.key.as_str())
         .collect();
     assert!(!nulls.is_empty());
-    let mut unit = stream(13);
-    let mut means = Vec::new();
-    for abundance in [0.25, 2.0, 5.0] {
+    const ABUNDANCES: [f64; 3] = [0.25, 2.0, 5.0];
+    let means = common::parallel(ABUNDANCES.len(), |i| {
+        let abundance = ABUNDANCES[i];
+        let mut unit = stream(13 + i as u64);
         let (mut total, mut blocked_total, mut n) = (0, 0, 0u32);
         for (class, size, planets) in HABITABLE_MIX {
             let habitable = body(class, size);
@@ -465,8 +466,8 @@ fn the_real_install_gives_habitable_worlds_the_same_counts_and_blockers_at_every
             (2.4..=2.9).contains(&mean_blocked),
             "2.5 to 2.8 in the saves, {mean_blocked} at {abundance}"
         );
-        means.push((mean, mean_blocked));
-    }
+        (mean, mean_blocked)
+    });
     let (first, first_blocked) = means[0];
     for &(mean, blocked) in &means {
         assert!(

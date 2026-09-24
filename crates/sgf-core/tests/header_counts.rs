@@ -14,7 +14,7 @@ use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode, Severity};
 
-mod common;
+use crate::common;
 use common::diff::{plain_snapshot, round_trip};
 use common::fixture::{GRAMMAR, PAINTED};
 

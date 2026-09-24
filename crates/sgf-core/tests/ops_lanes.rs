@@ -3,7 +3,7 @@
 
 use sgf_core::ops::{LaneLength, LanePair, Op, OpError, SystemMove};
 
-mod common;
+use crate::common;
 use common::diff::{report, snapshot};
 use common::{current, open, reprojected};
 

@@ -8,7 +8,7 @@ use sgf_core::entity::views::{EntityAddr, EntityKind, EntityView, NodeValue};
 use sgf_core::entity::{EntityError, FieldType, get_entity, get_entity_schema, get_entity_source};
 use sgf_core::ops::Op;
 
-mod common;
+use crate::common;
 use common::fixture::GRAMMAR;
 
 /// One entity of each kind the address table names, chosen for a readable snapshot.

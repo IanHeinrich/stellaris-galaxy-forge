@@ -18,7 +18,7 @@ use sgf_gamedata::views::{
 };
 use tauri::Manager;
 
-mod common;
+use crate::common;
 use common::{SAMPLE, have_install, install_version, invoke, kind, webview};
 
 fn special_count(result: &SpecialSystems, kind: SpecialKind) -> u32 {

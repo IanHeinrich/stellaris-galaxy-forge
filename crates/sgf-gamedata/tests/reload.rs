@@ -3,7 +3,7 @@
 //! did not change are the same allocation, and which registry a changed
 //! path belongs to.
 
-mod common;
+use crate::common;
 
 use std::collections::BTreeSet;
 use std::fs;

@@ -13,10 +13,10 @@ use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 use similar::{Algorithm, TextDiff};
 
-mod common;
+use crate::common;
 use common::diff::{assert_fresh, round_trip_step};
 use common::spec::{belted, body, dorellion, mura};
-use common::{SAMPLE_4_5, current, open, text};
+use common::{current, open, open_4_5, text};
 
 const GENERATION: u32 = 1 << 24;
 const SLOT_MASK: u32 = GENERATION - 1;
@@ -38,7 +38,7 @@ struct Sample {
 fn samples() -> [Sample; 2] {
     [
         Sample {
-            session: Session::open(SAMPLE_4_5).expect("open the 4.5 sample"),
+            session: open_4_5(),
             spike: mura(),
             first: 601,
             second: ("Tau_Ceti", (-270.0, -130.0), 420),
@@ -306,7 +306,7 @@ fn a_system_the_file_held_is_refused() {
 
 #[test]
 fn reused_slots_get_their_tombstones_back() {
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = open_4_5();
     let mut second = mura();
     second.name = "Tau_Ceti".to_owned();
     (second.x, second.y) = (-270.0, -130.0);

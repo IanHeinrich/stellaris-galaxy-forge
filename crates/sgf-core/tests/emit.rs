@@ -8,7 +8,7 @@ use sgf_core::cst::{self, Node, Value};
 use sgf_core::emit::{coord, hyperlane_block, lane_entry};
 use sgf_core::scan;
 
-mod common;
+use crate::common;
 
 #[test]
 fn coord_matches_the_games_style() {

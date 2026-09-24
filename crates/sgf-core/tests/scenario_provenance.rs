@@ -8,7 +8,7 @@ use sgf_core::export::{self, ScenarioProfile};
 use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
-mod common;
+use crate::common;
 use common::export::{NAME, SAVE_FILE, exported_as, no_names, no_sources};
 use common::fixture::PAINTED;
 

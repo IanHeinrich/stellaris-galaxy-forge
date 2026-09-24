@@ -1,7 +1,7 @@
 //! The special-systems classifier on the sample save: flags only, then
 //! with the real install when one exists.
 
-mod common;
+use crate::common;
 
 use std::sync::LazyLock;
 

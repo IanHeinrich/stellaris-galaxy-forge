@@ -2,7 +2,7 @@
 use sgf_core::document::Document;
 use sgf_core::projections::galaxy::{GalaxyGraph, LGate, LGateOutcome};
 
-mod common;
+use crate::common;
 use common::SAMPLE_4_5;
 
 #[test]

@@ -118,3 +118,25 @@ pub fn load_real() -> Option<GameData> {
     };
     sgf_gamedata::load(&opts, &mut |_| {}).ok()
 }
+
+/// [`load_real`], read once for the whole test binary.
+pub static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(load_real);
+
+/// Runs `f(i)` for every `i` in `0..n` on its own thread and returns the results in order. A
+/// panic in any thread resumes on the caller's, so it still fails the test and its message
+/// still reaches the output.
+pub fn parallel<R: Send>(n: usize, f: impl Fn(usize) -> R + Sync) -> Vec<R> {
+    let f = &f;
+    std::thread::scope(|scope| {
+        (0..n)
+            .map(|i| scope.spawn(move || f(i)))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|handle| {
+                handle
+                    .join()
+                    .unwrap_or_else(|e| std::panic::resume_unwind(e))
+            })
+            .collect()
+    })
+}

@@ -10,9 +10,9 @@ use sgf_core::ops::{Op, free_nebula_names};
 use sgf_core::session::Session;
 use similar::{Algorithm, TextDiff};
 
-mod common;
+use crate::common;
 use common::diff::{report, round_trip_step};
-use common::{NEW_NEBULA, SAMPLE_4_5, current, open, text};
+use common::{NEW_NEBULA, current, open, open_4_5, text};
 
 const UNPOOLED: &str = "Sea of Ghosts";
 
@@ -40,10 +40,7 @@ fn step(session: &mut Session, op: Op) -> String {
 }
 
 fn samples() -> [Session; 2] {
-    [
-        Session::open(SAMPLE_4_5).expect("open the 4.5 sample"),
-        open(),
-    ]
+    [open_4_5(), open()]
 }
 
 fn add(name: &str) -> Op {

@@ -1,7 +1,7 @@
 //! Which loaded mods could change the L-Cluster outcome, on the real install
 //! and on a mod layer over the synthetic one.
 
-mod common;
+use crate::common;
 
 use sgf_gamedata::scripts::{LGateModTouch, LGateTouchKind};
 

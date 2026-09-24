@@ -13,10 +13,10 @@ use sgf_core::validate::IssueCode;
 use sgf_core::views::{GalaxyView, SystemDetail};
 use similar::{Algorithm, TextDiff};
 
-mod common;
+use crate::common;
 use common::diff::round_trip_step;
 use common::spec::{belted, body, dorellion, mura, rerolled};
-use common::{SAMPLE_4_5, current, examples, open, text};
+use common::{current, examples, open, open_4_5, text};
 
 /// One sample, the spike's system and the id it takes, where a second system fits, and
 /// a system the file holds that a lane to the spike can come from.
@@ -33,7 +33,7 @@ struct Sample {
 fn samples() -> [Sample; 2] {
     [
         Sample {
-            session: Session::open(SAMPLE_4_5).expect("open the 4.5 sample"),
+            session: open_4_5(),
             spike: mura(),
             first: 601,
             second: (-270.0, -130.0),

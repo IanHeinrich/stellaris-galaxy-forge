@@ -6,7 +6,7 @@ use sgf_core::cst;
 use sgf_core::projections::galaxy::{BypassLink, GalaxyGraph, Lane};
 use sgf_core::validate::{IssueCode, Severity, validate};
 
-mod common;
+use crate::common;
 use common::load;
 
 #[test]

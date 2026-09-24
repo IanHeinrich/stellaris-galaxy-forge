@@ -4,7 +4,7 @@
 use sgf_core::ops::{Op, SystemMove};
 use sgf_core::session::OpResult;
 
-mod common;
+use crate::common;
 use common::current;
 use common::diff::{report, round_trip, snapshot};
 use common::fixture::GRAMMAR;

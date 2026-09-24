@@ -9,8 +9,8 @@ pub mod fixture;
 pub mod paint;
 pub mod spec;
 
-use std::path::PathBuf;
-use std::sync::{LazyLock, OnceLock};
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use sgf_core::archive;
 use sgf_core::document::Document;
@@ -32,16 +32,40 @@ pub const NEBULA_0_CENTRE: (f64, f64) = (66.15, -136.85);
 /// reaches four systems, one of which Demon's Eye lists today.
 pub const NEW_NEBULA: (f64, f64, f64) = (-57.5, -305.0, 40.0);
 
-/// The sample save read and indexed once per test binary, for [`open`] to clone.
+/// Each sample save read and indexed once per test binary, for its opener to clone.
 static SAMPLE_DOCUMENT: OnceLock<Document> = OnceLock::new();
+static SAMPLE_4_5_DOCUMENT: OnceLock<Document> = OnceLock::new();
+static SAMPLE_3_4_DOCUMENT: OnceLock<Document> = OnceLock::new();
+
+/// Every cached sample with its path, for [`issues_at_open`] to recognise.
+static CACHED: [(&OnceLock<Document>, &str); 3] = [
+    (&SAMPLE_DOCUMENT, SAMPLE),
+    (&SAMPLE_4_5_DOCUMENT, SAMPLE_4_5),
+    (&SAMPLE_3_4_DOCUMENT, SAMPLE_3_4),
+];
 
 pub fn load() -> Document {
     Document::load(SAMPLE).expect("load sample")
 }
 
+fn open_cached(cache: &OnceLock<Document>, path: &str) -> Session {
+    let doc = cache
+        .get_or_init(|| Document::load(path).unwrap_or_else(|e| panic!("load {path}: {e}")))
+        .clone();
+    Session::from_document(Some(PathBuf::from(path)), doc)
+        .unwrap_or_else(|e| panic!("open {path}: {e}"))
+}
+
 pub fn open() -> Session {
-    let doc = SAMPLE_DOCUMENT.get_or_init(load).clone();
-    Session::from_document(Some(PathBuf::from(SAMPLE)), doc).expect("open sample")
+    open_cached(&SAMPLE_DOCUMENT, SAMPLE)
+}
+
+pub fn open_4_5() -> Session {
+    open_cached(&SAMPLE_4_5_DOCUMENT, SAMPLE_4_5)
+}
+
+pub fn open_3_4() -> Session {
+    open_cached(&SAMPLE_3_4_DOCUMENT, SAMPLE_3_4)
 }
 
 pub fn current(session: &Session) -> Vec<u8> {
@@ -62,13 +86,17 @@ pub fn reprojected(session: &Session) -> GalaxyGraph {
 
 /// The issues the session's document raised as it was opened.
 pub fn issues_at_open(session: &Session) -> Vec<Issue> {
-    static SAMPLE_ISSUES: LazyLock<Vec<Issue>> = LazyLock::new(|| validate(&open().graph));
+    static SAMPLE_ISSUES: [OnceLock<Vec<Issue>>; 3] = [const { OnceLock::new() }; 3];
     let original = session.doc.original();
-    if SAMPLE_DOCUMENT
-        .get()
-        .is_some_and(|sample| std::ptr::eq(sample.original(), original))
-    {
-        return SAMPLE_ISSUES.clone();
+    for ((cache, path), issues) in CACHED.into_iter().zip(&SAMPLE_ISSUES) {
+        if cache
+            .get()
+            .is_some_and(|sample| std::ptr::eq(sample.original(), original))
+        {
+            return issues
+                .get_or_init(|| validate(&open_cached(cache, path).graph))
+                .clone();
+        }
     }
     let doc = match session.kind() {
         DocumentKind::Save => Document::from_bytes(original.to_vec(), session.doc.meta().to_vec()),
@@ -96,11 +124,15 @@ pub fn gamestate() -> Vec<u8> {
         .gamestate
 }
 
-/// `insta::assert_snapshot!`, with each test binary's snapshots under a folder of its
-/// own: `module_path!()` starts with the name of the file the binary was built from.
+/// `insta::assert_snapshot!`, with each test file's snapshots under a folder named after it.
+#[track_caller]
 pub fn snapshot(name: &str, value: &str) {
-    let binary = module_path!().split("::").next().expect("a module path");
-    let path = format!("../snapshots/{binary}");
+    let caller = std::panic::Location::caller().file();
+    let file = Path::new(caller)
+        .file_stem()
+        .expect("a test file")
+        .to_string_lossy();
+    let path = format!("../snapshots/{file}");
     insta::with_settings!({snapshot_path => path, prepend_module_to_snapshot => false}, {
         insta::assert_snapshot!(name, value);
     });

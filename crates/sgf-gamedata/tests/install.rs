@@ -1,7 +1,7 @@
 //! Against the real Stellaris install when this machine has one; skipped
 //! (with a message) otherwise, so CI without the game stays green.
 
-mod common;
+use crate::common;
 
 /// One line in the log either way, so a run that asserted nothing can be
 /// told from one that did. `cargo test -- --nocapture` shows it.

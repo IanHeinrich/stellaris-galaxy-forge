@@ -2,7 +2,7 @@
 //! install's lists less the names the document's nebulae hold, then from no one. On a
 //! hand-written install, the real one and the 4.5 sample save and a scenario.
 
-mod common;
+use crate::common;
 
 use std::fs;
 use std::sync::Arc;

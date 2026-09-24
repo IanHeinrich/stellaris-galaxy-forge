@@ -4,22 +4,17 @@
 
 use sgf_core::ops::{MapColorPair, Op, OpError};
 use sgf_core::projections::galaxy::CountryNode;
-use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 
-mod common;
+use crate::common;
 use common::diff::{plain_report, round_trip};
 use common::examples;
-use common::{SAMPLE_4_5, current, open, reprojected};
+use common::{current, open, open_4_5, reprojected};
 
 /// The player empire, created with Independent Map Color on.
 const PLAYER: u32 = 0;
 /// An AI empire whose map colours mirror its flag's first two.
 const AI: u32 = 1;
-
-fn open_4_5() -> Session {
-    Session::open(SAMPLE_4_5).expect("open the 4.5 sample")
-}
 
 fn pair(border: &str, fill: &str) -> Option<MapColorPair> {
     Some(MapColorPair {

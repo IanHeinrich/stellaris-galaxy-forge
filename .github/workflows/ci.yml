@@ -22,6 +22,8 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
+  # CI never reads the debug info, and leaving it out shortens the build and the links.
+  CARGO_PROFILE_DEV_DEBUG: 0
 
 jobs:
   checks:

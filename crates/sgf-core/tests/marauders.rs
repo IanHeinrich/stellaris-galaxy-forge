@@ -8,7 +8,7 @@ use sgf_core::format::scenario::marauder::{
 use sgf_core::ops::Op;
 use sgf_core::validate::{Issue, IssueCode, Severity};
 
-mod common;
+use crate::common;
 use common::fixture::{EXPORTED_PAINT, PAINTED};
 
 const VOID: &str = "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" }";

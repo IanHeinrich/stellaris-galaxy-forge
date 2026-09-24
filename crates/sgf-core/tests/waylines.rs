@@ -8,7 +8,7 @@ use sgf_core::session::Session;
 use sgf_core::synth::{self, SynthOptions};
 use sgf_core::views::GalaxyView;
 
-mod common;
+use crate::common;
 use common::fixture::GRAMMAR;
 
 /// Names a local 4.4 save holding three waystation networks, the third being three

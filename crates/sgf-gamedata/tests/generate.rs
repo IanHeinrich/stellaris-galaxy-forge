@@ -2,11 +2,11 @@
 //! fields it reads, on a hand-written install and on the real one, and the spec it rolls
 //! added to the 4.5 sample save.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use sgf_core::archive;
 use sgf_core::document::Document;
@@ -27,7 +27,7 @@ const SEEDS: u64 = 1000;
 /// The Resource Abundance both sample saves were generated with.
 const ABUNDANCE: f64 = 2.0;
 
-static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(common::load_real);
+use common::INSTALL;
 
 const FILES: [(&str, &str); 8] = [
     (

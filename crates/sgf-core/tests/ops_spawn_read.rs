@@ -1,7 +1,7 @@
 //! What the grammar fixture's spawn weights read as: the numbers, the trigger text and
 //! the country flag a modifier holds the system for.
 
-mod common;
+use crate::common;
 use common::fixture::GRAMMAR;
 
 #[test]

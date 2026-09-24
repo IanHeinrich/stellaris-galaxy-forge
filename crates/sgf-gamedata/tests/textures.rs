@@ -2,7 +2,7 @@
 //! first, then the real install when this machine has one (skipped with a
 //! message otherwise).
 
-mod common;
+use crate::common;
 
 use std::fs;
 use std::path::PathBuf;

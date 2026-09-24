@@ -7,7 +7,7 @@ use sgf_core::views::EditResult;
 use sgf_gamedata::scripts::{BypassSource, ScenarioBypasses, ScenarioOwners};
 use sgf_gamedata::views::GameDataSummary;
 
-mod common;
+use crate::common;
 use common::{PAINTED, SAMPLE, SCENARIO, have_install, invoke, open, opened, webview};
 
 #[test]

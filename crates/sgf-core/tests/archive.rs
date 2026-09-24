@@ -8,7 +8,7 @@ use sgf_core::library::{
 };
 use sgf_core::session::Session;
 
-mod common;
+use crate::common;
 
 use common::{SAMPLE, SAMPLE_4_5};
 

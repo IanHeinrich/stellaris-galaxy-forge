@@ -9,7 +9,7 @@ use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::validate::{Issue, IssueCode, Severity};
 
-mod common;
+use crate::common;
 use common::diff::{plain_report, round_trip};
 use common::fixture::{PAINTED, from_scenario_text};
 

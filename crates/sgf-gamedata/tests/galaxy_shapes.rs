@@ -1,7 +1,7 @@
 //! The galaxy shapes `map/galaxy` defines, read from a throwaway install in file
 //! order, then from the real Stellaris install when this machine has one.
 
-mod common;
+use crate::common;
 
 use std::fs;
 

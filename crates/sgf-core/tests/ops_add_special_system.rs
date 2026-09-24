@@ -11,14 +11,10 @@ use sgf_core::ops::{BeltSpec, BodySpec, Op, OpError, SystemSpec, initializer_cou
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 
-mod common;
+use crate::common;
 use common::diff::{report, round_trip, round_trip_step};
 use common::spec::{body, dorellion, mura, rerolled};
-use common::{SAMPLE_4_5, current, open, text};
-
-fn open_4_5() -> Session {
-    Session::open(SAMPLE_4_5).expect("open the 4.5 sample")
-}
+use common::{current, open, open_4_5, text};
 
 /// Both samples, each with the spike's system for it, whose place and lane the special
 /// systems take, and the id a new system takes.
