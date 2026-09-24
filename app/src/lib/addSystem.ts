@@ -1,6 +1,10 @@
+import type { Feature } from "../generated/Feature";
+import type { PickSummary } from "../generated/PickSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SystemNode } from "../generated/SystemNode";
 import { counted } from "./text";
+import type { Span } from "../generated/Span";
+import type { SpecialLayout } from "../generated/SpecialLayout";
 import { versionNumber } from "./version";
 
 /** How near another system the game spawns one: its `SPAWN_SYSTEM_BUFFER_DISTANCE`. */
@@ -79,4 +83,85 @@ export function deleteAddedLabel(added: number, skipped: number): string | null 
   if (added === 0) return null;
   const label = `Delete ${counted(added, "added system")}`;
   return skipped === 0 ? label : `${label} (skips ${skipped} already in the save)`;
+}
+
+/** One labelled line of a pick's hover card. */
+export interface CardLine {
+  label: string;
+  text: string;
+}
+
+/** What a pick's hover card says: what it can produce, then how this galaxy and save stand with it. */
+export interface PickCardCopy {
+  lines: CardLine[];
+  /** A unique layout's closing line, in the warning colour once the galaxy has one; null for others. */
+  unique: { text: string; warn: boolean } | null;
+  /** The line saying the save lacks the layout's DLC; null when it has it or needs none. */
+  missingDlc: string | null;
+}
+
+function spanText({ min, max }: Span): string {
+  return min === max ? `${min}` : `${min}–${max}`;
+}
+
+function featureText(features: Feature[]): string {
+  return features.map((f) => (f.every ? f.name : `${f.name} (sometimes)`)).join(", ");
+}
+
+function starText(names: string[]): string {
+  if (names.length > 3) return `One of ${names.length} classes`;
+  if (names.length < 2) return names.join("");
+  return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+}
+
+/** The hover card of a pick of the Add system menu, leaving out the lines it has nothing for. */
+export function pickCard(summary: PickSummary): PickCardCopy {
+  const lines: CardLine[] = [];
+  const add = (label: string, text: string) => {
+    if (text !== "") lines.push({ label, text });
+  };
+  add("Star", starText(summary.star_classes.map((c) => c.name)));
+  add("Planets", spanText(summary.planets));
+  if (summary.belts.max > 0) {
+    const kinds = featureText(summary.belt_kinds);
+    add("Belts", kinds === "" ? spanText(summary.belts) : `${spanText(summary.belts)} (${kinds})`);
+  }
+  add("Notable", featureText([...summary.named_bodies, ...summary.notable_classes]));
+  add("Modifiers", featureText(summary.modifiers));
+  if (summary.dlc) add("DLC", summary.dlc.name);
+  const inGalaxy = summary.in_galaxy ?? 0;
+  const cap = summary.max_instances;
+  const limit = cap === 1 ? "One per galaxy." : `Up to ${cap} per galaxy.`;
+  const unique =
+    cap === null
+      ? null
+      : inGalaxy >= cap
+        ? {
+            text: `${limit} Already in this galaxy (${inGalaxy}). You can still place it.`,
+            warn: true,
+          }
+        : {
+            text:
+              inGalaxy === 0 ? `${limit} Not in this galaxy yet.` : `${limit} ${inGalaxy} so far.`,
+            warn: false,
+          };
+  const dlc = summary.dlc;
+  const missingDlc =
+    dlc && !dlc.met ? `This save doesn't have ${dlc.name}, so its events won't run.` : null;
+  return { lines, unique, missingDlc };
+}
+
+/** The marks a Special menu row carries. */
+export interface SpecialMarks {
+  /** A layout the galaxy already holds as many of as the game places, `cap`. */
+  inGalaxy: boolean;
+  /** The layout's DLC: a tag when the save has it, a lock when it doesn't. */
+  dlc: "tag" | "lock" | null;
+}
+
+export function specialMarks(layout: SpecialLayout, cap: number | null): SpecialMarks {
+  return {
+    inGalaxy: cap !== null && layout.in_galaxy >= cap,
+    dlc: layout.dlc === null ? null : layout.dlc.met ? "tag" : "lock",
+  };
 }

@@ -19,7 +19,7 @@ use sgf_gamedata::layouts::{
     special_layouts,
 };
 use sgf_gamedata::summary::{
-    Feature, Presence, Span, layout_summary, random_summary, star_pick_summary,
+    Feature, Presence, Span, add_system_picks, layout_summary, random_summary, star_pick_summary,
 };
 
 /// Free ground beside the player's home system 169.
@@ -71,7 +71,7 @@ const FILES: [(&str, &str); 9] = [
          \tplanet = { count = 2 orbit_distance = 20 }\n}\n\
          fx_haven = {\n\tname = \"NAME_Fx_Haven\"\n\tclass = sc_sun\n\tusage = misc_system_init\n\
          \tusage_odds = {\n\t\tbase = 3\n\t\tmodifier = { factor = 0 has_fx_pack = no }\n\t}\n\
-         \tmax_instances = 1\n\tflags = { fx_haven }\n\
+         \tmax_instances = 1\n\tflags = { fx_haven unique_system }\n\
          \tasteroid_belt = { type = rocky_asteroid_belt radius = 50 }\n\
          \tplanet = { class = pc_sun_star orbit_distance = 0 size = 25 }\n\
          \tplanet = {\n\t\tname = \"NAME_Husk\"\n\t\tclass = pc_husk\n\t\torbit_distance = 70\n\t\thas_ring = yes\n\t\thome_planet = yes\n\t\tentity = \"husk_entity\"\n\
@@ -250,6 +250,11 @@ fn a_special_layout_gives_its_bodies_names_models_modifiers_rings_and_deposits()
         assert_eq!(spec.name, "NAME_Fx_Haven", "the layout's fixed name");
         assert_eq!(spec.initializer, "fx_haven");
         assert!(spec.capped, "max_instances");
+        assert_eq!(
+            spec.flags,
+            ["fx_haven", "unique_system"],
+            "the layout's star flags"
+        );
         assert!(spec.star_named_by_class, "a star written as a class");
         assert_eq!(spec.star_class, "sc_sun");
         assert_eq!(
@@ -387,16 +392,21 @@ fn a_layouts_odds_add_and_multiply_what_the_save_decides_and_nothing_else() {
 }
 
 #[test]
-fn the_special_menu_labels_counts_and_marks_each_layout() {
+fn the_add_system_menu_labels_groups_counts_and_marks_each_pick() {
     let (_dir, gd) = hand_written();
     let session = common::open_4_5();
-    let entries = special_layouts(&gd, &session);
-    let rows: Vec<(&str, &str, bool, u32, Option<&DlcNeed>)> = entries
+    let picks = add_system_picks(&gd, &session);
+    /// Key, label, unique, capped, in the galaxy and DLC.
+    type Row<'a> = (&'a str, &'a str, bool, bool, u32, Option<&'a DlcNeed>);
+    let rows: Vec<Row> = picks
+        .special
         .iter()
-        .map(|e| {
+        .map(|pick| {
+            let e = &pick.layout;
             (
                 e.key.as_str(),
                 e.label.as_str(),
+                e.unique,
                 e.capped,
                 e.in_galaxy,
                 e.dlc.as_ref(),
@@ -410,17 +420,33 @@ fn the_special_menu_labels_counts_and_marks_each_layout() {
     assert_eq!(
         rows,
         [
-            ("fx_forced", "Fx Forced", true, 0, None),
-            ("fx_haven", "Fx Haven", true, 0, Some(&pack)),
-            ("fx_named_hole", "Fx Named Hole", false, 0, None),
-            ("fx_hole", "Hole, Husk World", false, 0, None),
-            ("fx_pole", "Pole, Husk World", true, 0, Some(&pack)),
-            ("fx_offcentre", "Sun", false, 0, None),
-            ("fx_works", "Sun, Fx Blessing", true, 0, None),
+            ("fx_works", "Fx Blessing", false, true, 0, None),
+            ("fx_forced", "Fx Forced", false, true, 0, None),
+            ("fx_haven", "Fx Haven", true, true, 0, Some(&pack)),
+            ("fx_named_hole", "Fx Named Hole", false, false, 0, None),
+            ("fx_offcentre", "Fx Offcentre", false, false, 0, None),
+            ("fx_pole", "Husk World", false, true, 0, Some(&pack)),
         ],
-        "by label: the fixed name, else the star and notable bodies, else the key made \
-         readable, as is a name with no localisation; a DLC gate as a factor or an add"
+        "by label: the fixed name, else the notable bodies and modifiers without the star, \
+         else the key made readable, as is a name with no localisation; a DLC gate as a \
+         factor or an add; unique by the unique_system flag, not the fixed name; fx_hole \
+         left to the star pick that draws it"
     );
+    let haven = &picks.special[2];
+    assert_eq!(haven.summary.max_instances, Some(1));
+    assert_eq!(haven.summary.in_galaxy, Some(0));
+    assert_eq!(haven.summary.dlc, Some(pack));
+    let stars: Vec<(&str, &str)> = picks
+        .star_classes
+        .iter()
+        .map(|pick| (pick.key.as_str(), pick.name.as_str()))
+        .collect();
+    assert_eq!(stars, [("sc_sun", "Sun"), ("sc_hole", "Hole")]);
+    assert_eq!(
+        picks.star_classes[1].summary,
+        star_pick_summary(&gd, "sc_hole", &session).unwrap()
+    );
+    assert_eq!(picks.random, random_summary(&gd, &session));
 }
 
 /// `None`, and the test returns, when this machine has no Stellaris install.
@@ -538,6 +564,15 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
             .capped
     };
     assert!(!capped("special_init_01"));
+    let zevox = generate_layout(
+        gd,
+        1,
+        "Gen",
+        SPOT,
+        "unique_system_initializer_03",
+        ABUNDANCE,
+    );
+    assert_eq!(zevox.unwrap().flags, ["unique_system"]);
     assert!(capped("trappist_initializer"));
 }
 
@@ -548,26 +583,51 @@ fn the_real_install_lists_its_special_stars_and_labels_its_menu() {
     };
     let session = common::open_4_5();
     let entries = special_layouts(gd, &session);
-    assert_eq!(entries.len(), special_initializers(gd).len());
+    let keys: BTreeSet<&str> = entries.iter().map(|e| e.key.as_str()).collect();
+    for generic in ["special_init_01", "special_init_08", "special_init_09"] {
+        assert!(
+            !keys.contains(generic),
+            "{generic} is left to the star pick that draws it"
+        );
+    }
+    assert_eq!(entries.len(), special_initializers(gd).len() - 3);
     let entry = |key: &str| entries.iter().find(|e| e.key == key).expect(key);
     assert_eq!(entry("trappist_initializer").label, "Trappist");
+    for unique in ["unique_system_initializer_03", "oasis_system"] {
+        assert!(entry(unique).unique, "{unique} is flagged unique_system");
+    }
+    for named in [
+        "trappist_initializer",
+        "wenkwort_initializer",
+        "parvus_system",
+    ] {
+        assert!(
+            !entry(named).unique,
+            "{named} has a fixed name and no unique_system flag"
+        );
+    }
     assert_eq!(entry("trappist_initializer").in_galaxy, 0);
     assert_eq!(entry("wenkwort_initializer").in_galaxy, 1);
-    assert_eq!(entry("special_init_01").label, "Black Hole, Broken World");
-    assert!(!entry("special_init_01").capped);
     let labels: BTreeSet<&str> = entries.iter().map(|e| e.label.as_str()).collect();
     assert_eq!(labels.len(), entries.len(), "no two alike: {labels:?}");
     assert!(
-        labels.iter().all(|label| !label.contains('_')),
+        labels
+            .iter()
+            .all(|label| !label.contains('_') && !label.starts_with("Class ")),
         "{labels:?}"
     );
     assert_eq!(
-        entry("special_init_09").label,
-        "Pulsar",
-        "the uncapped one keeps it"
+        entry("star_lifting_system").label,
+        "Star Lifting System",
+        "a pulsar with nothing notable"
     );
-    assert_eq!(entry("star_lifting_system").label, "Star Lifting System");
-    assert_eq!(entry("ice_system").label, "Class M Star, Icy Asteroid Belt");
+    assert_eq!(entry("big_rip_system").label, "Big Rip System");
+    assert_eq!(entry("ice_system").label, "Icy Asteroid Belt");
+    assert!(!entry("ice_system").unique);
+    assert_eq!(
+        entry("wooden_planet_system_initializer").label,
+        "Arboreal World"
+    );
     assert_eq!(entry("oasis_system").label, "Kira");
     assert_eq!(
         entry("oasis_system").dlc,

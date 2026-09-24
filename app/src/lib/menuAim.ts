@@ -11,6 +11,47 @@ export interface Rect {
   bottom: number;
 }
 
+/** How near the window's edge a menu or card may come. */
+export const EDGE_PX = 8;
+
+/** Which side of its anchor a menu or card opens on. */
+export type Side = "right" | "left";
+
+/** Where a box goes beside its anchor, and the side it took. */
+export interface Placed {
+  left: number;
+  top: number;
+  side: Side;
+}
+
+/**
+ * Where a box of `size` goes beside `anchor`, its top at `top`: on the `prefer` side, reaching
+ * back over the anchor by `overlap` (a negative one leaves a gap), unless the viewport has no
+ * room there and has it on the other side. With room on neither, it goes on the left, kept inside
+ * the edge. It moves up to stay above the bottom edge.
+ */
+export function placeBeside(
+  anchor: Rect,
+  top: number,
+  size: { width: number; height: number },
+  viewport: { width: number; height: number },
+  overlap = 0,
+  prefer: Side = "right",
+): Placed {
+  const right = anchor.right - overlap;
+  const left = anchor.left + overlap - size.width;
+  const fitsRight = right + size.width <= viewport.width - EDGE_PX;
+  const fitsLeft = left >= EDGE_PX;
+  const side: Side =
+    prefer === "right" ? (fitsRight ? "right" : "left") : fitsLeft || !fitsRight ? "left" : "right";
+  const lowest = viewport.height - EDGE_PX - size.height;
+  return {
+    left: side === "right" ? right : Math.max(EDGE_PX, left),
+    top: Math.max(EDGE_PX, Math.min(top, lowest)),
+    side,
+  };
+}
+
 function cross(o: Pt, a: Pt, b: Pt): number {
   return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
 }

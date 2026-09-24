@@ -40,6 +40,9 @@ pub struct SystemEntry<'a> {
     pub lanes: &'a [(u32, u32)],
     /// `(type, inner_radius)`; no `asteroid_belts` block is written when empty.
     pub belts: &'a [(&'a str, f64)],
+    /// Star flags, each dated `flag_date`; no `flags` block is written when empty.
+    pub flags: &'a [String],
+    pub flag_date: &'a str,
     pub initializer: &'a str,
     pub inner_radius: f64,
     pub outer_radius: f64,
@@ -114,6 +117,13 @@ pub fn system_entry(indent: &[u8], s: &SystemEntry<'_>) -> Vec<u8> {
             w.pair(3, keys::INNER_RADIUS, &coord(radius));
             w.line(2, "}");
             w.separator();
+        }
+        w.close(1);
+    }
+    if !s.flags.is_empty() {
+        w.open(1, keys::FLAGS);
+        for flag in s.flags {
+            w.pair(2, flag, s.flag_date);
         }
         w.close(1);
     }

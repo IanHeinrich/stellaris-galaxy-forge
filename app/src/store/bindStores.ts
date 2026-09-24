@@ -42,6 +42,7 @@ export function bindStores(): void {
   followGroups();
   followIssuesTab();
   followEntities();
+  followAddSystemPicks();
   followPlanetData();
   followDetails();
   followScenarioInitializers();
@@ -174,6 +175,13 @@ function paintModPollWanted(): boolean {
 function followEntities(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status !== previous.status) useEntityStore.getState().clear();
+  });
+}
+
+// The Add system menu's picks count what the open save's galaxy holds.
+function followAddSystemPicks(): void {
+  useFileSessionStore.subscribe((state, previous) => {
+    if (state.status !== previous.status) useGeneratorStore.getState().clearPicks();
   });
 }
 

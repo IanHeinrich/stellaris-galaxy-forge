@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SUBMENU_CLOSE_MS, SubmenuAim, aimsAt, inTriangle } from "./menuAim";
+import { SUBMENU_CLOSE_MS, SubmenuAim, aimsAt, inTriangle, placeBeside } from "./menuAim";
 
 /** A submenu to the right of an entry that the pointer left at (100, 50). */
 const MENU = { left: 110, top: 20, right: 250, bottom: 220 };
@@ -98,5 +98,44 @@ describe("when a submenu opens and closes", () => {
     aim.move({ x: 104, y: 70 }, MENU);
     vi.advanceTimersByTime(SUBMENU_CLOSE_MS);
     expect(open).toBe(false);
+  });
+});
+
+describe("where a submenu or card goes beside its anchor", () => {
+  const anchor = { left: 300, top: 100, right: 400, bottom: 122 };
+  const size = { width: 200, height: 300 };
+
+  it("opens on the right, over the anchor's edge by the overlap", () => {
+    expect(placeBeside(anchor, 93, size, { width: 1000, height: 800 }, 2)).toEqual({
+      left: 398,
+      top: 93,
+      side: "right",
+    });
+  });
+
+  it("opens on the left near the right edge, still over the anchor's edge", () => {
+    expect(placeBeside(anchor, 93, size, { width: 560, height: 800 }, 2)).toEqual({
+      left: 102,
+      top: 93,
+      side: "left",
+    });
+  });
+
+  it("keeps opening left under a parent that opened left, though the right has room", () => {
+    const wide = { width: 1000, height: 800 };
+    expect(placeBeside(anchor, 93, size, wide, 2, "left")).toEqual({
+      left: 102,
+      top: 93,
+      side: "left",
+    });
+  });
+
+  it("goes right under a parent that opened left when the left has no room", () => {
+    const near = { left: 150, top: 100, right: 250, bottom: 122 };
+    expect(placeBeside(near, 93, size, { width: 1000, height: 800 }, 2, "left").side).toBe("right");
+  });
+
+  it("moves up to stay above the bottom edge", () => {
+    expect(placeBeside(anchor, 93, size, { width: 1000, height: 350 }).top).toBe(42);
   });
 });

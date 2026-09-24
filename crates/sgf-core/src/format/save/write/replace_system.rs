@@ -90,7 +90,15 @@ pub(crate) fn plan_fill(
         edit.buf[edit.line_start(span.start)..edit.line_end(span.end)].to_vec()
     });
     let indent = edit.indent(entity.span().start);
-    let text = system_text(&indent, id, (system.x, system.y), spec, &written, &[]);
+    let text = system_text(
+        &s.doc,
+        &indent,
+        id,
+        (system.x, system.y),
+        spec,
+        &written,
+        &[],
+    )?;
     let mut text = transplant(id, &text, coordinate.slice(&edit.buf), lanes.as_deref())?;
     text.pop();
     text.drain(..indent.len());

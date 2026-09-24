@@ -79,6 +79,21 @@ pub fn star_classes(gd: &GameData) -> Vec<String> {
     classes
 }
 
+/// Every layout a star-class pick of [`generate`] can draw, for any class of
+/// [`star_classes`]: the plain ones, and the [`generic`] special ones a class only they make
+/// draws from.
+pub fn star_pick_layouts(gd: &GameData) -> Vec<&Initializer> {
+    let mut layouts: Vec<&Initializer> = Vec::new();
+    for class in star_classes(gd) {
+        for (init, _) in candidates(gd, Some(&class)) {
+            if !layouts.iter().any(|held| held.name == init.name) {
+                layouts.push(init);
+            }
+        }
+    }
+    layouts
+}
+
 /// A system named `name` at (`x`, `y`) with no lanes, rolled from `seed`. Without a
 /// `star_class` it is drawn from the plain layouts. With one, the star is that class and
 /// each layout that makes it is drawn as often as it would roll it: its odds times the
@@ -230,6 +245,7 @@ fn build(
         star,
         planets,
         belts: init.asteroid_belts.iter().filter_map(belt).collect(),
+        flags: init.flags.clone(),
         lanes: Vec::new(),
     })
 }

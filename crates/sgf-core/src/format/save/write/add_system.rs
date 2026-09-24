@@ -15,6 +15,7 @@ use crate::emit::system::{
 use crate::emit::{coord, rounded};
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, Slot, SlotTable, TableEnd};
+use crate::format::save::galaxy::lgate::GAME_STARTED;
 use crate::format::save::system_spec::{BodySpec, SystemSpec};
 use crate::format::save::write::asteroid_names::Pool;
 use crate::format::save::write::initializer_counter;
@@ -61,7 +62,7 @@ pub(crate) fn plan_add(
 
     let written = write_bodies(plan, s, id, spec)?;
     let mut end = systems_end(&s.doc)?;
-    let text = system_text(end.indent(), id, (x, y), spec, &written, &lanes);
+    let text = system_text(&s.doc, end.indent(), id, (x, y), spec, &written, &lanes)?;
     let text = end.shape(text);
     plan.emit(Emitted::System(id), end.at(), text);
     for &(to, length) in &lanes {
@@ -156,19 +157,24 @@ pub(crate) fn write_bodies(
 /// System `id`'s `galactic_object` entry, indented with `indent`, at (`x`, `y`) with
 /// the bodies `written` holds and `lanes` as (other end, length).
 pub(crate) fn system_text(
+    doc: &Document,
     indent: &[u8],
     id: u32,
     (x, y): (f64, f64),
     spec: &SystemSpec,
     written: &Written,
     lanes: &[(u32, u32)],
-) -> Vec<u8> {
+) -> Result<Vec<u8>, OpError> {
+    let flag_date = match spec.flags.is_empty() {
+        true => String::new(),
+        false => day_one(doc)?,
+    };
     let belts: Vec<(&str, f64)> = spec
         .belts
         .iter()
         .map(|belt| (belt.kind.as_str(), belt.inner_radius))
         .collect();
-    system_entry(
+    Ok(system_entry(
         indent,
         &SystemEntry {
             id,
@@ -179,11 +185,28 @@ pub(crate) fn system_text(
             star_class: &spec.star_class,
             lanes,
             belts: &belts,
+            flags: &spec.flags,
+            flag_date: &flag_date,
             initializer: &spec.initializer,
             inner_radius: written.inner_radius,
             outer_radius: written.inner_radius + OUTER_MARGIN,
         },
-    )
+    ))
+}
+
+/// The save's day one as its global `game_started` flag dates it.
+fn day_one(doc: &Document) -> Result<String, OpError> {
+    let missing = OpError::MissingSaveKey(GAME_STARTED);
+    let section = doc.index().section(keys::FLAGS).ok_or(missing)?;
+    let bytes = doc.current(Anchor::Original(section.stmt))?;
+    cst::parse(bytes, 0)
+        .ok()
+        .and_then(|root| {
+            let flags = root.children().first()?.clone();
+            let date = flags.find(GAME_STARTED, bytes)?.scalar_str(bytes)?;
+            Some(date.to_owned())
+        })
+        .ok_or(OpError::MissingSaveKey(GAME_STARTED))
 }
 
 /// Refuse a spec whose `capped` differs from that of a system added since the file was
