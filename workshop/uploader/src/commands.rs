@@ -90,17 +90,60 @@ fn download_page(repo: &Repo, live: &LiveItem) -> Result<Vec<PulledFile>, String
         });
     }
     let images = live.previews.iter().filter(|preview| preview.is_image);
-    for (number, preview) in (1..).zip(images) {
-        let (bytes, extension) = download_image(&preview.url, &format!("carousel image {number}"))?;
+    let downloaded = (1..)
+        .zip(images)
+        .map(|(number, preview)| download_image(&preview.url, &format!("carousel image {number}")))
+        .collect::<Result<Vec<_>, _>>()?;
+    let local = repo
+        .carousel()?
+        .into_iter()
+        .map(|path| {
+            let bytes =
+                fs::read(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
+            Ok((name, bytes))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let names = carousel_names(&downloaded, &local);
+    for ((bytes, _), name) in downloaded.into_iter().zip(names) {
         pulled.push(PulledFile {
-            path: repo
-                .carousel_dir()
-                .join(format!("{number:02}-preview.{extension}")),
+            path: repo.carousel_dir().join(name),
             bytes,
             is_description: false,
         });
     }
     Ok(pulled)
+}
+
+/// A downloaded image keeps the name of a byte-identical local file, and any
+/// other takes `NN-preview.<ext>` for its position. If those names would not
+/// sort into Steam's order, every image takes the `NN-preview` name.
+fn carousel_names(downloaded: &[(Vec<u8>, &str)], local: &[(String, Vec<u8>)]) -> Vec<String> {
+    let numbered = |number: usize, extension: &str| format!("{number:02}-preview.{extension}");
+    let mut unclaimed: Vec<&(String, Vec<u8>)> = local.iter().collect();
+    let names: Vec<String> = (1..)
+        .zip(downloaded)
+        .map(|(number, (bytes, extension))| {
+            match unclaimed
+                .iter()
+                .position(|(_, local_bytes)| local_bytes == bytes)
+            {
+                Some(i) => unclaimed.remove(i).0.clone(),
+                None => numbered(number, extension),
+            }
+        })
+        .collect();
+    if names.windows(2).all(|pair| pair[0] < pair[1]) {
+        return names;
+    }
+    (1..)
+        .zip(downloaded)
+        .map(|(number, (_, extension))| numbered(number, extension))
+        .collect()
 }
 
 fn stale_files(
@@ -410,4 +453,54 @@ fn shown(repo: &Repo, path: &Path) -> String {
         .display()
         .to_string()
         .replace('\\', "/")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn image(bytes: &str, extension: &'static str) -> (Vec<u8>, &'static str) {
+        (bytes.as_bytes().to_vec(), extension)
+    }
+
+    fn local(name: &str, bytes: &str) -> (String, Vec<u8>) {
+        (name.to_string(), bytes.as_bytes().to_vec())
+    }
+
+    #[test]
+    fn identical_local_files_keep_their_names() {
+        let downloaded = [
+            image("hero", "gif"),
+            image("galaxy", "png"),
+            image("new", "png"),
+            image("hero", "gif"),
+        ];
+        let local = [
+            local("01-hero.gif", "hero"),
+            local("02-galaxy.png", "galaxy"),
+            local("03-old.png", "old"),
+        ];
+        assert_eq!(
+            carousel_names(&downloaded, &local),
+            [
+                "01-hero.gif",
+                "02-galaxy.png",
+                "03-preview.png",
+                "04-preview.gif"
+            ]
+        );
+    }
+
+    #[test]
+    fn names_out_of_steam_order_are_all_numbered() {
+        let downloaded = [image("galaxy", "png"), image("hero", "gif")];
+        let local = [
+            local("01-hero.gif", "hero"),
+            local("02-galaxy.png", "galaxy"),
+        ];
+        assert_eq!(
+            carousel_names(&downloaded, &local),
+            ["01-preview.png", "02-preview.gif"]
+        );
+    }
 }
