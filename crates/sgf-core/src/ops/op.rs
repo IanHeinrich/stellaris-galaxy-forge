@@ -669,6 +669,8 @@ pub enum OpError {
     InvalidKey(String),
     #[error("{0} cannot have moons")]
     MoonsNotAllowed(&'static str),
+    #[error("{0} cannot be an asteroid")]
+    AsteroidNotAllowed(&'static str),
     #[error(
         "system {0} was in the save when it was opened: only a system added since then can be removed"
     )]

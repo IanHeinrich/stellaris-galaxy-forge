@@ -48,6 +48,9 @@ fn print_summary(spec: &SystemSpec, seed: u64) {
         "seed {seed}: {} {} ({})",
         spec.name, spec.star_class, spec.initializer
     );
+    for belt in &spec.belts {
+        println!("  belt {} at {}", belt.kind, belt.inner_radius);
+    }
     println!("  star {}", body(&spec.star));
     for (i, planet) in spec.planets.iter().enumerate() {
         println!("  {:<4} {}", i + 1, body(planet));
@@ -58,8 +61,9 @@ fn print_summary(spec: &SystemSpec, seed: u64) {
 }
 
 fn body(body: &BodySpec) -> String {
+    let asteroid = if body.asteroid { " (asteroid)" } else { "" };
     format!(
-        "{} size {} orbit {} angle {}",
+        "{} size {} orbit {} angle {}{asteroid}",
         body.class, body.size, body.orbit, body.angle
     )
 }

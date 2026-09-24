@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::sync::LazyLock;
 
-use sgf_core::ops::{BodySpec, Op, SystemSpec};
+use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{generate, pick_name, plain_initializers};
@@ -51,7 +51,9 @@ const FILES: [(&str, &str); 6] = [
          \tplanet = { count = 1 class = star orbit_distance = 0 orbit_angle = 1 size = { min = 20 max = 30 } }\n\
          \tchange_orbit = 30\n\tchange_orbit = 10\n\
          \tplanet = {\n\t\tcount = { min = 2 max = 4 }\n\t\torbit_distance = 20\n\t\torbit_angle = { min = 90 max = 270 }\n\t\tchange_orbit = @fx_moon\n\t\tmoon = { count = { min = 0 max = 1 } orbit_distance = 5 orbit_angle = { min = 90 max = 270 } }\n\t}\n}\n\
-         fx_rocks = {\n\tclass = rl_single\n\tusage = misc_system_init\n\tusage_odds = 5\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\tplanet = { count = { min = 2 max = 4 } class = pc_boulder orbit_distance = 0 }\n}\n\
+         fx_rocks = {\n\tclass = rl_single\n\tasteroid_belt = { type = rocky_asteroid_belt radius = 40 }\n\tusage = misc_system_init\n\tusage_odds = 5\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\tplanet = { count = { min = 2 max = 4 } class = pc_boulder orbit_distance = 0 orbit_angle = { min = 90 max = 270 } }\n\tchange_orbit = -10\n\tplanet = { count = 1 orbit_distance = 40 }\n}\n\
+         fx_moonrock = {\n\tclass = rl_single\n\tusage = misc_system_init\n\tusage_odds = 5\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\tplanet = { count = 1 class = pc_boulder orbit_distance = 0 moon = { count = 1 orbit_distance = 5 } }\n}\n\
+         fx_unmeasured = {\n\tclass = rl_single\n\tasteroid_belt = { type = rocky_asteroid_belt }\n\tusage = misc_system_init\n\tusage_odds = 5\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n}\n\
          fx_pair = {\n\tclass = rl_pair\n\tusage = misc_system_init\n\tusage_odds = 5\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n}\n\
          fx_effect = {\n\tclass = rl_single\n\tusage = misc_system_init\n\tusage_odds = 5\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n\tinit_effect = { set_star_flag = fx }\n}\n\
          fx_conditional = {\n\tclass = rl_single\n\tusage = misc_system_init\n\tusage_odds = { base = 5 }\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n}\n",
@@ -150,25 +152,33 @@ fn a_hand_written_install_gives_its_ranges_lists_and_class_fields() {
 }
 
 #[test]
-fn a_hand_written_install_rolls_its_one_plain_initializer() {
+fn a_hand_written_install_rolls_its_plain_initializers() {
     let (_dir, gd) = hand_written();
-    let plain: Vec<&str> = plain_initializers(&gd)
+    let plain: BTreeSet<&str> = plain_initializers(&gd)
         .iter()
         .map(|i| i.name.as_str())
         .collect();
     assert_eq!(
         plain,
-        ["fx_plain"],
-        "the binary, asteroid, effect and conditional ones are left out"
-    );
-    let rocks = gd.initializers.get("fx_rocks").unwrap();
-    assert!(
-        rocks.asteroid_belts.is_empty(),
-        "left out for its fixed asteroids alone"
+        BTreeSet::from(["fx_plain", "fx_rocks"]),
+        "the binary, effect, conditional, moon-bearing asteroid and radius-less belt ones are left out"
     );
 
-    for seed in 0..50 {
+    let unmeasured = gd.initializers.get("fx_unmeasured").unwrap();
+    assert_eq!(
+        unmeasured.asteroid_belts[0].radius, None,
+        "left out for that alone"
+    );
+
+    let mut rolled = BTreeSet::new();
+    for seed in 0..100 {
         let spec = generate(&gd, seed, "Fx", 1.0, 2.0).expect("a system");
+        rolled.insert(spec.initializer.clone());
+        if spec.initializer == "fx_rocks" {
+            check_rocks(&spec, seed);
+            continue;
+        }
+        assert!(spec.belts.is_empty());
         assert!(["sc_sun", "sc_ember"].contains(&spec.star_class.as_str()));
         assert_eq!(spec.star.class, "pc_sun_star");
         assert!((20..=30).contains(&spec.star.size));
@@ -184,6 +194,34 @@ fn a_hand_written_install_rolls_its_one_plain_initializer() {
             }
         }
     }
+    assert_eq!(rolled, plain.iter().map(|&n| n.to_owned()).collect());
+}
+
+/// Two to four boulders on the belt at 40, then one drawn planet at 70.
+fn check_rocks(spec: &SystemSpec, seed: u64) {
+    assert_eq!(
+        spec.belts,
+        [BeltSpec {
+            kind: "rocky_asteroid_belt".to_owned(),
+            inner_radius: 40.0
+        }]
+    );
+    let (rocks, rest) = spec.planets.split_at(spec.planets.len() - 1);
+    assert!((2..=4).contains(&rocks.len()), "seed {seed}");
+    for rock in rocks {
+        assert_eq!(
+            (rock.class.as_str(), rock.size, rock.orbit, rock.asteroid),
+            ("pc_boulder", 5, 40.0, true),
+            "seed {seed}"
+        );
+        assert!(rock.moons.is_empty());
+    }
+    assert_eq!(rest[0].orbit, 70.0, "seed {seed}");
+    assert!(!rest[0].asteroid);
+    assert_ne!(
+        rest[0].class, "pc_boulder",
+        "a drawn class is never an asteroid"
+    );
 }
 
 /// `None`, and the test returns, when this machine has no Stellaris install.
@@ -213,11 +251,27 @@ fn the_real_install_rolls_its_plain_single_star_initializers() {
     let Some(gd) = install() else {
         return;
     };
-    let plain: Vec<&str> = plain_initializers(gd)
+    let plain: BTreeSet<&str> = plain_initializers(gd)
         .iter()
         .map(|i| i.name.as_str())
         .collect();
-    assert_eq!(plain, ["basic_init_01", "basic_init_03"]);
+    assert_eq!(
+        plain,
+        BTreeSet::from([
+            "asteroid_init_01",
+            "basic_init_01",
+            "basic_init_02",
+            "basic_init_03",
+            "basic_init_04",
+            "basic_init_05",
+            "basic_init_06",
+        ])
+    );
+    let odds: f64 = plain_initializers(gd)
+        .iter()
+        .filter_map(|i| i.usage_odds)
+        .sum();
+    assert_eq!(odds, 72.0);
     assert_eq!(
         gd.star_lists.get("rl_standard_stars").unwrap().stars.len(),
         7
@@ -256,10 +310,23 @@ fn every_rolled_body_is_a_real_class_of_a_size_and_orbit_it_allows() {
             .flat_map(|p| &p.moons)
             .find_map(|m| m.size)
             .map(range_of);
+        let belts: Vec<f64> = spec.belts.iter().map(|b| b.inner_radius).collect();
         let mut last = 0.0;
         for planet in &spec.planets {
             let class = gd.planet_classes.get(&planet.class).expect("a real class");
             assert!(!class.star, "seed {seed}: {}", planet.class);
+            assert_eq!(planet.asteroid, class.asteroid);
+            if class.asteroid {
+                assert!(
+                    belts.contains(&planet.orbit),
+                    "seed {seed}: {} at {} off the belts {belts:?}",
+                    planet.class,
+                    planet.orbit
+                );
+                assert!(within(planet.size, class.planet_size.unwrap()));
+                assert!(planet.moons.is_empty());
+                continue;
+            }
             assert!(planet.orbit > last, "seed {seed}: orbits increase");
             last = planet.orbit;
             let band = class.distance_from_sun.expect("a band");
@@ -306,6 +373,55 @@ fn check_moons(gd: &GameData, seed: usize, planet: &BodySpec, fixed: Option<Rang
         );
         assert!(class.distance_from_sun.unwrap().contains(planet.orbit));
     }
+}
+
+#[test]
+fn belt_layouts_are_drawn_with_their_asteroids_on_the_belts() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let mut drawn: BTreeMap<String, usize> = BTreeMap::new();
+    for (seed, spec) in specs(gd).iter().enumerate() {
+        *drawn.entry(spec.initializer.clone()).or_default() += 1;
+        let init = gd.initializers.get(&spec.initializer).unwrap();
+        let radii: Vec<Option<f64>> = init.asteroid_belts.iter().map(|b| b.radius).collect();
+        let written: Vec<Option<f64>> = spec.belts.iter().map(|b| Some(b.inner_radius)).collect();
+        assert_eq!(written, radii, "seed {seed}: the layout's belts in order");
+        let asteroids: Vec<&BodySpec> = spec.planets.iter().filter(|p| p.asteroid).collect();
+        assert_eq!(asteroids.is_empty(), spec.belts.is_empty(), "seed {seed}");
+        for belt in &spec.belts {
+            let class = match belt.kind.as_str() {
+                "icy_asteroid_belt" => "pc_ice_asteroid",
+                _ => "pc_asteroid",
+            };
+            let on: Vec<&&BodySpec> = asteroids
+                .iter()
+                .filter(|a| a.orbit == belt.inner_radius)
+                .collect();
+            assert!(
+                !on.is_empty() && on.iter().all(|a| a.class == class && a.size == 5),
+                "seed {seed}: {} at {}: {on:?}",
+                belt.kind,
+                belt.inner_radius
+            );
+        }
+    }
+    for layout in [
+        "basic_init_02",
+        "basic_init_04",
+        "basic_init_05",
+        "basic_init_06",
+        "asteroid_init_01",
+    ] {
+        assert!(drawn.contains_key(layout), "{layout} in {drawn:?}");
+    }
+    let belted: usize = drawn
+        .iter()
+        .filter(|(name, _)| !matches!(name.as_str(), "basic_init_01" | "basic_init_03"))
+        .map(|(_, n)| n)
+        .sum();
+    let share = belted as f64 / SEEDS as f64;
+    assert!((share - 42.0 / 72.0).abs() < 0.05, "{share:.3} {drawn:?}");
 }
 
 #[test]
