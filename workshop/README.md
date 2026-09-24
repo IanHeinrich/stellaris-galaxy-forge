@@ -5,7 +5,7 @@ players can find it. The item has no mod content. This folder holds the
 page, and the uploader keeps Steam in step with it.
 
 - `description.bbcode`: the description, in Steam's BBCode.
-- `preview.png`: the main image. A JPEG works too.
+- `preview.png`: the main image. A JPEG or GIF works too.
 - `carousel/`: the extra images, shown in file-name order, so name them
   `01-*.png`, `02-*.png` and so on.
 - `images/`: the images the description shows inline. Steam loads them
@@ -13,7 +13,7 @@ page, and the uploader keeps Steam in step with it.
   description that uses it. The uploader does not upload these.
 - `uploader/`: the tool.
 
-Images uploaded to Steam must be PNG or JPEG and at most 1 MB. The
+Images uploaded to Steam must be PNG, JPEG or GIF and at most 1 MB. The
 description can be up to 7999 bytes of UTF-8.
 
 ## Running it

@@ -293,7 +293,7 @@ fn download_image(url: &str, what: &str) -> Result<(Vec<u8>, &'static str), Stri
         .and_then(|response| response.into_body().read_to_vec())
         .map_err(|e| format!("cannot download {what} ({url}): {e}"))?;
     let extension = image_extension(&bytes).ok_or_else(|| {
-        format!("{what} ({url}) is not a PNG or JPEG image, so push could not upload it back")
+        format!("{what} ({url}) is not a PNG, JPEG or GIF image, so push could not upload it back")
     })?;
     Ok((bytes, extension))
 }

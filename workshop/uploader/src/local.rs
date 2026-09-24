@@ -9,7 +9,7 @@ use crate::state::UploadedState;
 const MAX_DESCRIPTION_BYTES: usize =
     steamworks::sys::k_cchPublishedDocumentDescriptionMax as usize - 1;
 const MAX_IMAGE_BYTES: u64 = 1024 * 1024;
-const IMAGE_EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
+const IMAGE_EXTENSIONS: [&str; 4] = ["png", "jpg", "jpeg", "gif"];
 
 pub struct Repo {
     pub root: PathBuf,
@@ -80,7 +80,7 @@ impl LocalFiles {
         let description = read_text(&repo.description_path())?.replace("\r\n", "\n");
         let preview = match repo.previews()?.as_slice() {
             [one] => one.clone(),
-            [] => return Err("workshop/ has no preview.png or preview.jpg".into()),
+            [] => return Err("workshop/ has no preview.png, preview.jpg or preview.gif".into()),
             _ => return Err("workshop/ has more than one preview image".into()),
         };
         let carousel = repo.carousel()?;
@@ -126,7 +126,10 @@ fn validate_image(path: &Path) -> Result<(), String> {
         ));
     }
     if image_extension(&bytes).is_none() {
-        return Err(format!("{} is not a PNG or JPEG image", path.display()));
+        return Err(format!(
+            "{} is not a PNG, JPEG or GIF image",
+            path.display()
+        ));
     }
     Ok(())
 }
@@ -136,6 +139,8 @@ pub fn image_extension(bytes: &[u8]) -> Option<&'static str> {
         Some("png")
     } else if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
         Some("jpg")
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        Some("gif")
     } else {
         None
     }
