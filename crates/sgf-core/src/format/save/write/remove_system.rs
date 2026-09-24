@@ -5,7 +5,7 @@
 //! its deposits' entries, where a tombstone's slot gets the tombstone back and an appended
 //! slot below the end of its table becomes a tombstone, the lanes on
 //! the other ends, the nebula member lines, the count of a capped layout, the name taken
-//! from the pool of unused star names and the asteroids' names taken from the pool of
+//! from the pool of unused star or black hole names and the asteroids' names taken from the pool of
 //! asteroid names. `last_created_system` goes down by one per system removed. Every system
 //! added after the first one removed takes the id below its own for each removed before
 //! it, so the ids stay dense: its entry's key, its bodies' `coordinate.origin`, the lanes
@@ -25,7 +25,7 @@ use crate::format::save::write::add_system::polar;
 use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::initializer_counter::{self, counted};
 use crate::format::save::write::lanes::remove_entries;
-use crate::format::save::write::name_pool;
+use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::format::save::{planet_statement, system_statement};
 use crate::format::scenario::index::removed as emptied;
 use crate::keys;
@@ -378,10 +378,10 @@ pub(crate) fn uncount(
     initializer_counter::count(plan, &s.doc, &changes)
 }
 
-/// Put a removed system's name back in the pool of unused star names when its add took it
-/// from there. Adds take the pool's entries for a name first to last, so of the entries
-/// taken, as many stay taken as systems of that name stay, and the rest come back, last
-/// first, as the bytes they were loaded as.
+/// Put a removed system's name back in the pool of unused star or black hole names its
+/// add took it from. Adds take the pools' entries for a name first to last, so of the
+/// entries taken, as many stay taken as systems of that name stay, and the rest come back,
+/// last first, as the bytes they were loaded as.
 fn return_names(plan: &mut Plan, s: &Session, removed: &BTreeSet<u32>) -> Result<(), OpError> {
     let name = |id: &u32| {
         s.graph
@@ -397,7 +397,7 @@ fn return_names(plan: &mut Plan, s: &Session, removed: &BTreeSet<u32>) -> Result
             .entries(Table::System)
             .filter(|(id, _)| !removed.contains(id) && name(id) == Some(pooled))
             .count();
-        name_pool::give_back(plan, &s.doc, keys::STAR_NAMES, pooled, staying)?;
+        name_pool::give_back(plan, &s.doc, SYSTEM_POOLS, pooled, staying)?;
     }
     Ok(())
 }

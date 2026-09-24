@@ -1,0 +1,35 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Renamed Demons_Maw (#601) to Devils_Maw
+inverse: RenameSaveSystem { system: 601, name: "Demons_Maw" }
+--- before
++++ after
+@@ -71419,7 +71419,7 @@
+ 		}
+ 		name=
+ 		{
+-			key="Demons_Maw"
++			key="Devils_Maw"
+ 		}
+ 		planet=16777273
+ 		star_class="sc_black_hole"
+@@ -82424,7 +82424,7 @@
+ 						key="NAME"
+ 						value=
+ 						{
+-							key="Demons_Maw"
++							key="Devils_Maw"
+ 						}
+ 					}
+  
+@@ -1122920,7 +1122920,7 @@
+ 	}
+ 	black_hole_names=
+ 	{
+-		"Devils_Maw"
++		"Demons_Maw"
+ 		"Hells_Maw"
+ 		"Suskats_Maw"
+ 		"Viskarrons_Maw"

@@ -1,0 +1,122 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed Devils Maw (#601) and 1 lane
+inverse: AddSaveSystem { spec: SystemSpec { name: "Devils_Maw", x: -292.23404, y: -137.62265, star_class: "sc_black_hole", initializer: "special_init_01", capped: false, star_named_by_class: false, star: BodySpec { class: "pc_black_hole", size: 30, orbit: 0.0, angle: 0.0, entity: 0, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, planets: [], belts: [], lanes: [169] } }
+--- before
++++ after
+@@ -41044,11 +41044,6 @@
+ 				length=24
+ 			}
+  
+-			{
+-				to=601
+-				length=44
+-			}
+- 
+ 		}
+ 		arm=1
+ 		flags=
+@@ -71400,41 +71395,6 @@
+ 		initializer="basic_init_04"
+ 		inner_radius=270
+ 		outer_radius=370
+-		starbases=
+-		{
+-			4294967295 
+-		}
+-		sector=4294967295
+-		index=0
+-		storm=4294967295
+-	}
+-	601=
+-	{
+-		coordinate=
+-		{
+-			x=-292.23404
+-			y=-137.62265
+-			origin=4294967295
+-			visual_height=4.31213
+-		}
+-		name=
+-		{
+-			key="Devils_Maw"
+-		}
+-		planet=16777273
+-		star_class="sc_black_hole"
+-		hyperlane=
+-		{
+-			
+-			{
+-				to=169
+-				length=44
+-			}
+- 
+-		}
+-		initializer="special_init_01"
+-		inner_radius=150
+-		outer_radius=250
+ 		starbases=
+ 		{
+ 			4294967295 
+@@ -82409,41 +82369,7 @@
+ 				128 
+ 			}
+ 		}
+-		16777273=
+-		{
+-			planet_class="pc_black_hole"
+-			planet_size=30
+-			carrier_binary_flags=3
+-			name=
+-			{
+-				key="STAR_NAME_1_OF_1"
+-				variables=
+-				{
+-					
+-					{
+-						key="NAME"
+-						value=
+-						{
+-							key="Devils_Maw"
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=601
+-			}
+-			orbit=0
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-		}
++		57=none
+ 		58=
+ 		{
+ 			colony=30
+@@ -692123,7 +692049,7 @@
+ {
+ }
+ last_created_country=55
+-last_created_system=601
++last_created_system=600
+ leaders=
+ {
+ 	285212672=
+@@ -1122921,6 +1122847,7 @@
+ 	black_hole_names=
+ 	{
+ 		"Demons_Maw"
++		"Devils_Maw"
+ 		"Hells_Maw"
+ 		"Suskats_Maw"
+ 		"Viskarrons_Maw"

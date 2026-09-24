@@ -165,7 +165,8 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   its planet's, and `outer_radius` is `inner_radius` + 100. Each body is
   a `planets.planet` entry with `deposit` entries holding
   `deposit_holder={ type=0 id=<planet> }`. The name is taken out of
-  `random_name_database.star_names`. Names are templates:
+  `random_name_database.star_names`, or out of `black_hole_names` when
+  that pool holds it instead. Names are templates:
   `STAR_NAME_1_OF_1`, `PLANET_NAME_FORMAT` with a roman numeral,
   `SUBPLANET_NAME_FORMAT` with the parent's whole name and a letter.
 - A system with belts writes `asteroid_belts={ { type="icy_asteroid_belt"
@@ -237,6 +238,13 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   55 and its 9 nebulae hold the rest. A nebula the editor adds with a
   pooled name takes it out of the pool. Removing that nebula, or renaming
   it to another name, puts the entry back where it was.
+- `random_name_database.black_hole_names` is the pool of unused black
+  hole names, laid out the same way. The 4.5.0 sample holds 55 and the
+  4.4.6 sample 44, and neither shares a name with `star_names`. A system
+  the editor adds takes its name from `star_names` first, then from
+  `black_hole_names`, whatever its star class. Removing or renaming it
+  puts the entry back in the pool it came from, and a rename takes the
+  new name out of whichever pool holds it.
 - `natural_wormholes` and `bypasses` are keyed tables; a bypass row has
   `type` (gateway, lgate, shroud_tunnel, ...), `active`,
   `owner={ type=N id=M }`, `linked_to`/`connections`. A bypass's system

@@ -1,7 +1,7 @@
 //! `AddSaveSystem`: a new `galactic_object` entry with its belts, its bodies in
 //! `planets.planet`, their deposits in `deposit`, its lanes on both ends, the system
 //! counter raised, a capped layout counted, the name taken out of the pool of unused star
-//! names and each asteroid's out of the pool of asteroid names. The game builds everything
+//! or black hole names and each asteroid's out of the pool of asteroid names. The game builds everything
 //! else a spawned system has (construction queues, intel, terra incognita) when it loads.
 
 use std::collections::BTreeMap;
@@ -19,7 +19,7 @@ use crate::format::save::system_spec::{BodySpec, SystemSpec};
 use crate::format::save::write::asteroid_names::Pool;
 use crate::format::save::write::initializer_counter;
 use crate::format::save::write::lanes::insert_entries;
-use crate::format::save::write::name_pool;
+use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::keys;
 use crate::ops::rules::{check_name, quotable};
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject};
@@ -77,7 +77,7 @@ pub(crate) fn plan_add(
     edit.splices
         .push((span.range(), id.to_string().into_bytes()));
     count_layout(plan, &s.doc, spec)?;
-    name_pool::take(plan, &s.doc, keys::STAR_NAMES, &spec.name)?;
+    name_pool::take(plan, &s.doc, SYSTEM_POOLS, &spec.name)?;
 
     Ok(Planned {
         description: format!(
