@@ -80,6 +80,11 @@ because the file dialog already asked about overwriting it.
 - `docs/`: the user guide, the architecture, the save format notes, the
   game data and mod notes, the Paint a Galaxy integration notes, and the
   ADRs.
+- `workshop/`: the Steam Workshop page, which carries no mod content:
+  its description, preview images and inline images, and
+  `workshop/uploader`, the tool that pushes them to Steam. The uploader
+  is its own Cargo package, outside the workspace, so CI never builds
+  it. `workshop/README.md` says how to use it.
 
 ## Commands
 
@@ -157,6 +162,10 @@ because the file dialog already asked about overwriting it.
   changelog section, and the app reads it from
   `releases/latest/download/latest.json`, so a release must be the latest
   to be offered (a future prerelease would need `--latest=false`).
+- Once the GitHub Release is out, run `cargo workshop push` with Steam
+  open (`workshop/README.md`). It posts the changelog sections since the
+  last push as the Workshop change note, with any description or image
+  changes.
 
 ## Testing: outside-in first
 
