@@ -1,6 +1,7 @@
-//! `AddSaveSystem`: a new `galactic_object` entry with its bodies in `planets.planet`,
-//! their deposits in `deposit`, its lanes on both ends, the system counter raised and the
-//! name taken out of the pool of unused star names. The game builds everything else a
+//! `AddSaveSystem`: a new `galactic_object` entry with its belts, its bodies in
+//! `planets.planet`, their deposits in `deposit`, its lanes on both ends, the system
+//! counter raised, the name taken out of the pool of unused star names and each
+//! asteroid's out of the pool of asteroid names. The game builds everything else a
 //! spawned system has (construction queues, intel, terra incognita) when it loads.
 
 use crate::archive;
@@ -13,6 +14,7 @@ use crate::emit::{coord, rounded};
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, Slot, SlotTable, TableEnd};
 use crate::format::save::system_spec::{BodySpec, SystemSpec};
+use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::lanes::insert_entries;
 use crate::format::scenario::index::removed;
 use crate::keys;
@@ -54,7 +56,10 @@ pub(crate) fn plan_add(
     check_place(&s.graph, x, y)?;
     let lanes = lane_lengths(&s.graph, id, x, y, &spec.lanes)?;
 
-    let layout = layout(spec);
+    let asteroids = spec.planets.iter().filter(|p| p.asteroid).count();
+    let picks = Pool::read(&s.doc).pick(&s.doc, &spec.name, asteroids)?;
+    let names: Vec<NameTemplate> = picks.iter().map(|pick| pick.name.clone()).collect();
+    let layout = layout(spec, names);
     let mut planets = SlotTable::planets(&s.doc)?;
     let mut deposits = match layout.iter().any(|b| !b.spec.deposits.is_empty()) {
         true => Some(SlotTable::deposits(&s.doc)?),
@@ -89,6 +94,11 @@ pub(crate) fn plan_add(
     }
 
     let extent = layout.iter().map(|b| b.extent).fold(0.0, f64::max);
+    let belts: Vec<(&str, f64)> = spec
+        .belts
+        .iter()
+        .map(|belt| (belt.kind.as_str(), belt.inner_radius))
+        .collect();
     let inner_radius = MIN_INNER_RADIUS.max(extent + INNER_MARGIN);
     let mut end = systems_end(&s.doc)?;
     let text = system_entry(
@@ -101,6 +111,7 @@ pub(crate) fn plan_add(
             planets: &ids,
             star_class: &spec.star_class,
             lanes: &lanes,
+            belts: &belts,
             initializer: &spec.initializer,
             inner_radius,
             outer_radius: inner_radius + OUTER_MARGIN,
@@ -127,11 +138,17 @@ pub(crate) fn plan_add(
     if let Some(entry) = unused {
         plan.erase(&s.doc, Subject::Record(entry), entry)?;
     }
+    for entry in picks.iter().filter_map(|pick| pick.entry) {
+        plan.erase(&s.doc, Subject::Record(entry), entry)?;
+    }
 
-    let bodies = match layout.len() {
+    let mut bodies = match layout.len() {
         1 => "1 body".to_owned(),
         n => format!("{n} bodies"),
     };
+    if !spec.belts.is_empty() {
+        bodies = format!("{bodies}, {}", plural(spec.belts.len(), "belt"));
+    }
     Ok(Planned {
         description: format!(
             "Added {} (#{id}) at ({}, {}) with {bodies} and {}",
@@ -247,7 +264,8 @@ fn write_slot(
 }
 
 /// A body of the spec with its name and position, in the order the system lists them:
-/// the star, then each planet followed by its moons.
+/// the star, then each planet followed by its moons. An asteroid takes the next of
+/// `asteroid_names` and no numeral.
 struct Placed<'a> {
     spec: &'a BodySpec,
     name: NameTemplate,
@@ -259,7 +277,9 @@ struct Placed<'a> {
     extent: f64,
 }
 
-fn layout(spec: &SystemSpec) -> Vec<Placed<'_>> {
+fn layout(spec: &SystemSpec, asteroid_names: Vec<NameTemplate>) -> Vec<Placed<'_>> {
+    let mut asteroid_names = asteroid_names.into_iter();
+    let mut numeral = 0;
     let (sx, sy) = polar(0.0, 0.0, &spec.star);
     let mut placed = vec![Placed {
         spec: &spec.star,
@@ -269,14 +289,20 @@ fn layout(spec: &SystemSpec) -> Vec<Placed<'_>> {
         parent: None,
         extent: spec.star.orbit,
     }];
-    for (i, planet) in spec.planets.iter().enumerate() {
-        let name = format(
-            PLANET_NAME,
-            vec![
-                (PARENT_VAR, NameTemplate::plain(&spec.name)),
-                (NUMERAL_VAR, literal(&roman(i + 1))),
-            ],
-        );
+    for planet in &spec.planets {
+        let name = match planet.asteroid {
+            true => asteroid_names.next().unwrap_or_default(),
+            false => {
+                numeral += 1;
+                format(
+                    PLANET_NAME,
+                    vec![
+                        (PARENT_VAR, NameTemplate::plain(&spec.name)),
+                        (NUMERAL_VAR, literal(&roman(numeral))),
+                    ],
+                )
+            }
+        };
         let (px, py) = polar(0.0, 0.0, planet);
         let parent = placed.len();
         for (j, moon) in planet.moons.iter().enumerate() {
@@ -408,12 +434,30 @@ fn check_spec(spec: &SystemSpec) -> Result<(), OpError> {
     if !spec.star.moons.is_empty() {
         return Err(OpError::MoonsNotAllowed("the star"));
     }
+    if spec.star.asteroid {
+        return Err(OpError::AsteroidNotAllowed("the star"));
+    }
     check_body(&spec.star)?;
+    for belt in &spec.belts {
+        if belt.kind.is_empty() {
+            return Err(OpError::EmptyKey("a belt type"));
+        }
+        check_text(&belt.kind)?;
+        if !belt.inner_radius.is_finite() {
+            return Err(OpError::NotFinite);
+        }
+    }
     for planet in &spec.planets {
         check_body(planet)?;
+        if planet.asteroid && !planet.moons.is_empty() {
+            return Err(OpError::MoonsNotAllowed("an asteroid"));
+        }
         for moon in &planet.moons {
             if !moon.moons.is_empty() {
                 return Err(OpError::MoonsNotAllowed("a moon"));
+            }
+            if moon.asteroid {
+                return Err(OpError::AsteroidNotAllowed("a moon"));
             }
             check_body(moon)?;
         }
@@ -520,25 +564,8 @@ pub fn free_star_names(doc: &Document) -> Vec<String> {
 
 /// Each entry of the pool as loaded, as the span of its name.
 fn pool(doc: &Document) -> Vec<Span> {
-    let src = doc.original();
-    let names = || {
-        let Value::Block { open, close } = doc.index().section(keys::RANDOM_NAME_DATABASE)?.value
-        else {
-            return None;
-        };
-        let database = scan::scan_range(src, open + 1..close).ok()?;
-        let Value::Block { open, close } = database.section(keys::STAR_NAMES)?.value else {
-            return None;
-        };
-        cst::parse(&src[open + 1..close], open + 1).ok()
-    };
-    let Some(names) = names() else {
-        return Vec::new();
-    };
-    names
-        .children()
-        .iter()
-        .filter(|entry| entry.key.is_none())
-        .filter_map(cst::Node::scalar_span)
-        .collect()
+    asteroid_names::name_lists(doc, keys::STAR_NAMES)
+        .into_iter()
+        .next()
+        .unwrap_or_default()
 }

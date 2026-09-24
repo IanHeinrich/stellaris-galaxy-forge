@@ -1,18 +1,19 @@
 //! Adding a star system to a save, on the 4.5 and the 4.4 sample: the new system, its
 //! bodies and their deposits stand as first-class entities for the projection, the
 //! details, search and later ops; undo is byte-exact; a saved file reopens with the same
-//! findings; slots are reused lowest first; and what the op refuses.
+//! findings; slots are reused lowest first; belts and asteroids are written as the game
+//! writes them; and what the op refuses.
 
 use std::collections::BTreeSet;
 
 use sgf_core::entity::{EntityAddr, EntityKind, get_entity};
-use sgf_core::ops::{Op, OpError, StarBody, SystemSpec};
+use sgf_core::ops::{BeltSpec, Op, OpError, StarBody, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 
 mod common;
 use common::diff::{report, round_trip, round_trip_step};
-use common::spec::{body, dorellion, mura};
+use common::spec::{belted, body, dorellion, mura};
 use common::{SAMPLE_3_4, SAMPLE_4_5, current, open, open_edited, text};
 
 const GENERATION: u32 = 1 << 24;
@@ -119,6 +120,183 @@ fn a_saved_system_reopens_with_its_lanes_bodies_and_the_saves_findings() {
         assert_eq!(held, 5, "{listed:?}");
         let moons = reopened.details().unwrap().raw(id).unwrap().planets.clone();
         assert_eq!(moons.iter().filter(|p| p.moon).count(), 2);
+    }
+}
+
+#[test]
+fn a_belted_system_is_written_as_the_game_spawns_one() {
+    for (mut session, spec, _) in samples() {
+        let name = spec.name.clone();
+        let result = session.apply(add(belted(spec))).expect("add the system");
+        common::snapshot(
+            &format!("add_{}_belted", name.to_lowercase()),
+            &report(&session, &result),
+        );
+    }
+}
+
+/// Each body the details list for system `id`, as its name's key and what it shows: a
+/// planet's numeral, an asteroid's prefix and suffix joined.
+fn body_names(session: &Session, id: u32) -> Vec<(String, String)> {
+    let details = session.details().expect("details");
+    let raw = details.raw(id).expect("the system's details");
+    raw.planets
+        .iter()
+        .map(|p| {
+            let variables = p.name.variables.iter();
+            let shown = match p.name.key.as_str() {
+                "ASTEROID_NAME_FORMAT" => variables.map(|v| v.value.key.as_str()).collect(),
+                _ => variables
+                    .filter(|v| v.name == "NUMERAL")
+                    .map(|v| v.value.key.clone())
+                    .collect(),
+            };
+            (p.name.key.clone(), shown)
+        })
+        .collect()
+}
+
+/// The pool block of suffixes still free for `prefix`, as the text holds it.
+fn suffixes(text: &str, prefix: &str) -> Vec<String> {
+    let names = |block: &str| -> Vec<String> {
+        block[..block.find("\n\t}").expect("the block's end")]
+            .lines()
+            .filter(|line| line.starts_with("\t\t"))
+            .map(|line| line.trim().trim_matches('"').to_owned())
+            .collect()
+    };
+    let pool = &text[text.find("\nrandom_name_database=").expect("the pool")..];
+    let prefixes = names(&pool[pool.find("\tasteroid_prefix=").expect("the prefixes")..]);
+    let at = prefixes
+        .iter()
+        .position(|held| held == prefix)
+        .expect("the prefix");
+    names(
+        pool.split("\tasteroid_postfix=")
+            .nth(at + 1)
+            .expect("its block"),
+    )
+}
+
+/// The sample system `id` is added to, as opened.
+fn open_again(id: u32) -> Session {
+    match id {
+        601 => open_4_5(),
+        _ => open(),
+    }
+}
+
+#[test]
+fn a_saved_belted_system_reopens_with_its_belts_and_named_asteroids() {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    for (mut session, spec, id) in samples() {
+        let before = findings(&session);
+        session.apply(add(belted(spec))).expect("add the system");
+        let path = dir.path().join(format!("{id}.sav"));
+        session.save_as(&path).expect("save");
+
+        let reopened = Session::open(&path).expect("reopen");
+        let saved = text(&reopened);
+        let systems = &saved[saved.find("\ngalactic_object=").expect("the systems")..];
+        let entry = &systems[systems
+            .find(&format!("\n\t{id}=\n\t{{\n"))
+            .expect("the entry")..];
+        let entry = &entry[..entry.find("\n\t}\n").expect("its end")];
+        assert!(entry.contains("\t\tasteroid_belts=\n\t\t{\n\t\t\t\n\t\t\t{\n\t\t\t\ttype=\"rocky_asteroid_belt\"\n\t\t\t\tinner_radius=95\n\t\t\t}\n \n\t\t\t{\n\t\t\t\ttype=\"icy_asteroid_belt\"\n\t\t\t\tinner_radius=240\n\t\t\t}\n \n\t\t}\n\t\tinitializer=\"basic_init_05\"\n\t\tinner_radius=270\n\t\touter_radius=370\n"), "{entry}");
+        assert_eq!(reopened.system(id).expect("the system").planet_count, 13);
+
+        let names = body_names(&reopened, id);
+        assert_eq!(names, body_names(&session, id), "{id}: before the save");
+        let keys: Vec<&str> = names.iter().map(|(key, _)| key.as_str()).collect();
+        assert_eq!(
+            keys[1..6],
+            [
+                "PLANET_NAME_FORMAT",
+                "PLANET_NAME_FORMAT",
+                "ASTEROID_NAME_FORMAT",
+                "ASTEROID_NAME_FORMAT",
+                "PLANET_NAME_FORMAT"
+            ]
+        );
+        let numerals: Vec<&str> = names
+            .iter()
+            .filter(|(key, _)| key == "PLANET_NAME_FORMAT")
+            .map(|(_, numeral)| numeral.as_str())
+            .collect();
+        assert_eq!(numerals, ["I", "II", "III", "IV", "V", "VI"], "{names:?}");
+
+        let opened = text(&open_again(id));
+        let details = reopened.details().expect("details");
+        let raw = details.raw(id).expect("the system's details");
+        let asteroids: Vec<_> = raw
+            .planets
+            .iter()
+            .filter(|p| p.name.key == "ASTEROID_NAME_FORMAT")
+            .collect();
+        assert_eq!(asteroids.len(), 4);
+        let mut seen = BTreeSet::new();
+        for asteroid in asteroids {
+            assert!(asteroid.class.ends_with("asteroid"), "{}", asteroid.class);
+            assert_eq!(asteroid.size, Some(5));
+            let [prefix, suffix] = &asteroid.name.variables[..] else {
+                panic!("{:?}", asteroid.name);
+            };
+            assert_eq!(
+                (prefix.name.as_str(), suffix.name.as_str()),
+                ("prefix", "suffix")
+            );
+            let (prefix, suffix) = (&prefix.value.key, &suffix.value.key);
+            assert!(seen.insert((prefix.clone(), suffix.clone())), "a name once");
+            assert!(
+                suffixes(&opened, prefix).contains(suffix),
+                "{prefix}{suffix} was free in the pool"
+            );
+            assert!(
+                !suffixes(&saved, prefix).contains(suffix),
+                "{prefix}{suffix} leaves the pool"
+            );
+        }
+        assert_eq!(findings(&reopened), before, "{id}: the save's own findings");
+    }
+}
+
+#[test]
+fn undo_puts_back_the_bytes_of_a_belted_system() {
+    for (session, spec, _) in samples() {
+        round_trip(session, add(belted(spec)));
+    }
+}
+
+#[test]
+fn belted_systems_take_different_asteroid_names() {
+    for (mut session, spec, id) in samples() {
+        let mut other = belted(spec.clone());
+        other.name = "Sgf_Second".to_owned();
+        (other.x, other.y) = (spec.x + 20.0, spec.y + 20.0);
+        other.lanes = vec![id];
+        let mut twin = belted(spec.clone());
+        (twin.x, twin.y) = match id {
+            601 => (-300.0, -120.0),
+            _ => (420.0, -222.0),
+        };
+        twin.lanes = vec![id];
+        round_trip_step(&mut session, "first", add(belted(spec)));
+        round_trip_step(&mut session, "other", add(other));
+        round_trip_step(&mut session, "twin", add(twin));
+        let asteroids = |system: u32| -> BTreeSet<String> {
+            body_names(&session, system)
+                .into_iter()
+                .filter(|(key, _)| key == "ASTEROID_NAME_FORMAT")
+                .map(|(_, name)| name)
+                .collect()
+        };
+        let (first, other, twin) = (asteroids(id), asteroids(id + 1), asteroids(id + 2));
+        assert_eq!((first.len(), other.len(), twin.len()), (4, 4, 4));
+        assert!(first.is_disjoint(&other), "{first:?} {other:?}");
+        assert!(
+            first.is_disjoint(&twin),
+            "the same system name: {first:?} {twin:?}"
+        );
     }
 }
 
@@ -394,6 +572,39 @@ fn what_the_op_refuses() {
             |s| s.planets[3].moons[0].moons = vec![body("pc_barren", 5, 10.0, 0.0, 1)],
             |e| matches!(e, OpError::MoonsNotAllowed("a moon")),
         ),
+        (
+            |s| {
+                s.planets[1].asteroid = true;
+                s.planets[1].moons = vec![body("pc_barren", 5, 10.0, 0.0, 1)];
+            },
+            |e| matches!(e, OpError::MoonsNotAllowed("an asteroid")),
+        ),
+        (
+            |s| s.star.asteroid = true,
+            |e| matches!(e, OpError::AsteroidNotAllowed("the star")),
+        ),
+        (
+            |s| s.planets[3].moons[0].asteroid = true,
+            |e| matches!(e, OpError::AsteroidNotAllowed("a moon")),
+        ),
+        (
+            |s| {
+                s.belts = vec![BeltSpec {
+                    kind: String::new(),
+                    inner_radius: 95.0,
+                }]
+            },
+            |e| matches!(e, OpError::EmptyKey("a belt type")),
+        ),
+        (
+            |s| {
+                s.belts = vec![BeltSpec {
+                    kind: "rocky_asteroid_belt".to_owned(),
+                    inner_radius: f64::INFINITY,
+                }]
+            },
+            |e| matches!(e, OpError::NotFinite),
+        ),
     ];
     for (edit, expected) in cases {
         let mut spec = dorellion();
@@ -475,6 +686,51 @@ fn a_refused_batch_forgets_the_system_it_wrote() {
         session.apply(add(spec)).expect("add");
         assert_eq!(current(&session), fresh);
     }
+}
+
+/// The 4.4 sample with its asteroid name pool, the prefix list and every suffix block,
+/// swapped for `pool`.
+fn with_asteroid_pool(pool: &str) -> Session {
+    open_edited(|bytes| {
+        let text = String::from_utf8(bytes.clone()).expect("utf-8");
+        let start = text.find("\n\tasteroid_prefix=\n").expect("the prefixes") + 1;
+        let last = text.rfind("\n\tasteroid_postfix=\n").expect("the suffixes") + 1;
+        let end = last + text[last..].find("\n\t}\n").expect("the last block's end") + 4;
+        *bytes = format!("{}{pool}{}", &text[..start], &text[end..]).into_bytes();
+    })
+}
+
+#[test]
+fn a_save_without_an_asteroid_pool_takes_no_asteroids() {
+    round_trip(with_asteroid_pool(""), add(dorellion()));
+    assert!(matches!(
+        refused(with_asteroid_pool(""), belted(dorellion())),
+        OpError::MissingSaveKey("asteroid_prefix")
+    ));
+}
+
+/// AA- has no suffix left and BB- one: the first asteroid takes it, the rest use it again.
+const SPENT_POOL: &str = "\tasteroid_prefix=\n\t{\n\t\t\"AA-\"\n\t\t\"BB-\"\n\t}\n\tasteroid_postfix=\n\t{\n\t}\n\tasteroid_postfix=\n\t{\n\t\t\"1\"\n\t}\n";
+
+#[test]
+fn a_spent_asteroid_pool_names_asteroids_again() {
+    round_trip(with_asteroid_pool(SPENT_POOL), add(belted(dorellion())));
+    let mut session = with_asteroid_pool(SPENT_POOL);
+    session.apply(add(belted(dorellion()))).expect("add");
+    let asteroids: Vec<String> = body_names(&session, 791)
+        .into_iter()
+        .filter(|(key, _)| key == "ASTEROID_NAME_FORMAT")
+        .map(|(_, name)| name)
+        .collect();
+    assert_eq!(asteroids, ["BB-1"; 4]);
+    let spent = SPENT_POOL.replace("\t\t\"1\"\n", "");
+    assert!(
+        text(&session).contains(&spent),
+        "the one suffix leaves the pool"
+    );
+
+    session.apply(Op::RemoveSystem { id: 791 }).expect("remove");
+    assert_eq!(current(&session), session.doc.original());
 }
 
 /// The 4.4 sample with a top-level section swapped for `replacement`, which is empty

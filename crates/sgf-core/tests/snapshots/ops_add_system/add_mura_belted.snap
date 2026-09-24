@@ -1,0 +1,833 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added Mura (#601) at (-292.23404, -137.62265) with 13 bodies, 2 belts and 1 lane
+touched: [169, 601]
+inverse: RemoveSystem { id: 601 }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -41044,6 +41044,11 @@
+ 				length=24
+ 			}
+  
++			{
++				to=601
++				length=44
++			}
++ 
+ 		}
+ 		arm=1
+ 		flags=
+@@ -71403,6 +71408,67 @@
+ 		index=0
+ 		storm=4294967295
+ 	}
++	601=
++	{
++		coordinate=
++		{
++			x=-292.23404
++			y=-137.62265
++			origin=4294967295
++			visual_height=4.31213
++		}
++		name=
++		{
++			key="Mura"
++		}
++		planet=16777273
++		planet=6375
++		planet=6376
++		planet=6377
++		planet=6378
++		planet=6379
++		planet=6380
++		planet=6381
++		planet=6382
++		planet=6383
++		planet=6384
++		planet=6385
++		planet=6386
++		star_class="sc_g"
++		hyperlane=
++		{
++			
++			{
++				to=169
++				length=44
++			}
++ 
++		}
++		asteroid_belts=
++		{
++			
++			{
++				type="rocky_asteroid_belt"
++				inner_radius=95
++			}
++ 
++			{
++				type="icy_asteroid_belt"
++				inner_radius=240
++			}
++ 
++		}
++		initializer="basic_init_05"
++		inner_radius=270
++		outer_radius=370
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+ }
+ starbase_mgr=
+ {
+@@ -82369,7 +82435,45 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_g_star"
++			planet_size=25
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=601
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777216 
++			}
++		}
+ 		58=
+ 		{
+ 			colony=30
+@@ -411928,6 +412032,588 @@
+ 				4047 
+ 			}
+ 		}
++		6375=
++		{
++			planet_class="pc_molten"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=56.29165
++				y=32.5
++				origin=601
++			}
++			orbit=65
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6376=
++		{
++			planet_class="pc_barren"
++			planet_size=14
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-73.61216
++				y=42.5
++				origin=601
++			}
++			orbit=85
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6377=
++		{
++			planet_class="pc_asteroid"
++			planet_size=5
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="AR-2-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="44-D1"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-16.49658
++				y=93.55674
++				origin=601
++			}
++			orbit=95
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
++		6378=
++		{
++			planet_class="pc_asteroid"
++			planet_size=5
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="1337-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="984"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-93.55674
++				y=-16.49658
++				origin=601
++			}
++			orbit=95
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
++		6379=
++		{
++			planet_class="pc_continental"
++			planet_size=16
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-18.23306
++				y=-103.40481
++				origin=601
++			}
++			orbit=105
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++			deposits=
++			{
++				16777217 16777218 16777219 
++			}
++		}
++		6380=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=25
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IV"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=136.25543
++				y=49.59292
++				origin=601
++			}
++			orbit=145
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6381 6382 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++			deposits=
++			{
++				16777220 
++			}
++		}
++		6381=
++		{
++			planet_class="pc_frozen"
++			planet_size=8
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Mura"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="IV"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=143.75543
++				y=62.5833
++				origin=601
++			}
++			orbit=15
++			last_bombardment=			"0.01.01"
++			moon_of=6380
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6382=
++		{
++			planet_class="pc_barren_cold"
++			planet_size=6
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Mura"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="IV"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="b"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=125.25543
++				y=30.54036
++				origin=601
++			}
++			orbit=22
++			last_bombardment=			"0.01.01"
++			moon_of=6380
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6383=
++		{
++			planet_class="pc_toxic"
++			planet_size=15
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="V"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-164.44621
++				y=-59.85353
++				origin=601
++			}
++			orbit=175
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6384=
++		{
++			planet_class="pc_frozen"
++			planet_size=13
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="VI"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-70.11413
++				y=192.63699
++				origin=601
++			}
++			orbit=205
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6385=
++		{
++			planet_class="pc_ice_asteroid"
++			planet_size=5
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="8Y-I-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="757"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=41.67556
++				y=236.35386
++				origin=601
++			}
++			orbit=240
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
++		6386=
++		{
++			planet_class="pc_ice_asteroid"
++			planet_size=5
++			carrier_binary_flags=1
++			name=
++			{
++				key="ASTEROID_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="prefix"
++						value=
++						{
++							key="47-"
++						}
++					}
++ 
++					{
++						key="suffix"
++						value=
++						{
++							key="872"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-236.35386
++				y=41.67556
++				origin=601
++			}
++			orbit=240
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+ 	}
+ }
+ astral_rifts=
+@@ -692049,7 +692735,7 @@
+ {
+ }
+ last_created_country=55
+-last_created_system=600
++last_created_system=601
+ leaders=
+ {
+ 	285212672=
+@@ -1076220,11 +1076906,51 @@
+ }
+ deposit=
+ {
+-	0=none
+-	1=none
+-	2=none
+-	3=none
+-	4=none
++	16777216=
++	{
++		type="d_energy_5"
++		deposit_holder=
++		{
++			type=0
++			id=16777273
++		}
++	}
++	16777217=
++	{
++		type="d_black_soil"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
++	16777218=
++	{
++		type="d_hot_springs"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
++	16777219=
++	{
++		type="d_veiny_cliffs"
++		deposit_holder=
++		{
++			type=0
++			id=6379
++		}
++	}
++	16777220=
++	{
++		type="d_energy_5"
++		deposit_holder=
++		{
++			type=0
++			id=6380
++		}
++	}
+ 	5=none
+ 	6=none
+ 	7=none
+@@ -1121583,7 +1122309,6 @@
+ 	star_names=
+ 	{
+ 		"Epsilon_Eridani"
+-		"Mura"
+ 		"Tau_Ceti"
+ 		"Altair"
+ 		"Fellix"
+@@ -1131348,7 +1132073,6 @@
+ 		"63089"
+ 		"63"
+ 		"6498"
+-		"984"
+ 		"009"
+ 		"LT-47"
+ 		"002"
+@@ -1131685,7 +1132409,6 @@
+ 		"951"
+ 		"863"
+ 		"915"
+-		"872"
+ 		"138"
+ 		"947"
+ 		"863"
+@@ -1137359,7 +1138082,6 @@
+ 		"XR-1"
+ 		"399"
+ 		"866"
+-		"757"
+ 		"044"
+ 		"076"
+ 		"99"
+@@ -1138205,7 +1138927,6 @@
+ 		"DX-1"
+ 		"354-F"
+ 		"76-1"
+-		"44-D1"
+ 		"12"
+ 		"94"
+ 		"BS12"

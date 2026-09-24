@@ -1,12 +1,12 @@
-//! A random star system rolled from the install's own rules: the initializer, star class
-//! and planet classes a fresh galaxy would draw, as the spec
+//! A random star system rolled from the install's own rules: the initializer, star class,
+//! planet classes and asteroid belts a fresh galaxy would draw, as the spec
 //! [`sgf_core::ops::Op::AddSaveSystem`] writes. The same seed and install give the same
 //! spec.
 
-use sgf_core::ops::{BodySpec, SystemSpec};
+use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
 
 use crate::GameData;
-use crate::initializers::{InitPlanet, Initializer};
+use crate::initializers::{InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::script::Range;
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
@@ -39,7 +39,8 @@ pub enum GenerateError {
 }
 
 /// The initializers [`generate`] draws from: an ordinary system of one star, drawn from a
-/// star list, with no effects, belts, flags, countries, asteroids or special bodies.
+/// star list, with no effects, flags, countries or special bodies. Its belts and fixed
+/// asteroids are kept.
 pub fn plain_initializers(gd: &GameData) -> Vec<&Initializer> {
     gd.initializers.iter().filter(|i| plain(gd, i)).collect()
 }
@@ -73,6 +74,7 @@ pub fn generate(
         initializer: init.name.clone(),
         star,
         planets,
+        belts: init.asteroid_belts.iter().filter_map(belt).collect(),
         lanes: Vec::new(),
     })
 }
@@ -92,7 +94,7 @@ fn plain(gd: &GameData, init: &Initializer) -> bool {
         && init.usage_odds.is_some_and(|odds| odds > 0.0)
         && !init.init_effect
         && init.countries.is_empty()
-        && init.asteroid_belts.is_empty()
+        && init.asteroid_belts.iter().all(|b| belt(b).is_some())
         && init.flags.is_empty()
         && init.max_instances.is_none()
         && init.spawns.is_empty()
@@ -105,12 +107,26 @@ fn plain(gd: &GameData, init: &Initializer) -> bool {
         && star.count == Range::fixed(1.0)
         && star.orbit_distance.is_none_or(|d| d == Range::fixed(0.0))
         && rest.iter().all(|planet| {
-            plain_body(gd, planet)
+            plain_body(gd, planet, true)
+                && (planet.moons.is_empty() || !asteroid(gd, &planet.class))
                 && planet
                     .moons
                     .iter()
-                    .all(|moon| plain_body(gd, moon) && moon.moons.is_empty())
+                    .all(|moon| plain_body(gd, moon, false) && moon.moons.is_empty())
         })
+}
+
+/// A belt as the save writes it: its `radius` is the `inner_radius`.
+fn belt(belt: &InitAsteroidBelt) -> Option<BeltSpec> {
+    (!belt.kind.is_empty()).then_some(())?;
+    Some(BeltSpec {
+        kind: belt.kind.clone(),
+        inner_radius: belt.radius?,
+    })
+}
+
+fn asteroid(gd: &GameData, class: &str) -> bool {
+    gd.planet_classes.get(class).is_some_and(|c| c.asteroid)
 }
 
 /// A star list whose every class has one star body.
@@ -124,12 +140,14 @@ fn single_stars(gd: &GameData, list: &str) -> bool {
     })
 }
 
-fn plain_body(gd: &GameData, body: &InitPlanet) -> bool {
+/// A random body, or one of a fixed class that is no star; an asteroid only when
+/// `asteroids` allows it.
+fn plain_body(gd: &GameData, body: &InitPlanet, asteroids: bool) -> bool {
     let class = body.class == RANDOM
         || gd
             .planet_classes
             .get(&body.class)
-            .is_some_and(|class| !class.star && !class.asteroid);
+            .is_some_and(|class| !class.star && (asteroids || !class.asteroid));
     class && !body.colonised && !body.pre_ftl && body.sites.is_empty()
 }
 
@@ -334,6 +352,7 @@ fn body(
         entity: 0,
         deposits: block.deposits.clone(),
         moons,
+        asteroid: class.asteroid,
     }
 }
 

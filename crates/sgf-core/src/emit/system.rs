@@ -30,6 +30,8 @@ pub struct SystemEntry<'a> {
     pub star_class: &'a str,
     /// `(to, length)`; no `hyperlane` block is written when empty.
     pub lanes: &'a [(u32, u32)],
+    /// `(type, inner_radius)`; no `asteroid_belts` block is written when empty.
+    pub belts: &'a [(&'a str, f64)],
     pub initializer: &'a str,
     pub inner_radius: f64,
     pub outer_radius: f64,
@@ -88,6 +90,18 @@ pub fn system_entry(indent: &[u8], s: &SystemEntry<'_>) -> Vec<u8> {
             .flat_map(|&(to, length)| lane_entry(entry.as_bytes(), to, length, false))
             .collect();
         w.bytes(&hyperlane_block(key.as_bytes(), &entries));
+    }
+    if !s.belts.is_empty() {
+        w.open(1, keys::ASTEROID_BELTS);
+        w.line(2, "");
+        for &(kind, radius) in s.belts {
+            w.line(2, "{");
+            w.pair(3, keys::TYPE, &quoted(kind));
+            w.pair(3, keys::INNER_RADIUS, &coord(radius));
+            w.line(2, "}");
+            w.separator();
+        }
+        w.close(1);
     }
     w.pair(1, keys::INITIALIZER, &quoted(s.initializer));
     w.pair(1, keys::INNER_RADIUS, &coord(s.inner_radius));
@@ -213,11 +227,16 @@ impl Lines {
                 self.line(depth + 3, &format!("{}=", keys::VALUE));
                 self.name(depth + 3, &variable.value);
                 self.line(depth + 2, "}");
-                self.out.push_str(" \n");
+                self.separator();
             }
             self.close(depth + 1);
         }
         self.close(depth);
+    }
+
+    /// The single-space line the game writes after each entry of an anonymous list.
+    fn separator(&mut self) {
+        self.out.push_str(" \n");
     }
 
     fn bytes(&mut self, bytes: &[u8]) {

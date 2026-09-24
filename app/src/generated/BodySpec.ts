@@ -27,4 +27,8 @@ deposits: Array<string>,
 /**
  * Lettered a, b, … in this order. Only a planet has moons.
  */
-moons: Array<BodySpec>, };
+moons: Array<BodySpec>, 
+/**
+ * Named from the save's pool of asteroid names and left out of the numbering.
+ */
+asteroid: boolean, };

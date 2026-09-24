@@ -1,6 +1,7 @@
 //! Removing a system added since the save was opened, on the 4.5 and the 4.4 sample: what
 //! the add wrote comes out byte for byte, the systems added after it take the ids below
-//! theirs, undo and redo are byte-exact, and a system the file held is refused.
+//! theirs, undo and redo are byte-exact, belts and asteroid names come out with it, and a
+//! system the file held is refused.
 
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
@@ -14,7 +15,7 @@ use similar::{Algorithm, TextDiff};
 
 mod common;
 use common::diff::{assert_fresh, round_trip_step};
-use common::spec::{body, dorellion, mura};
+use common::spec::{belted, body, dorellion, mura};
 use common::{SAMPLE_4_5, current, open, text};
 
 const GENERATION: u32 = 1 << 24;
@@ -77,6 +78,7 @@ fn small(name: &str, (x, y): (f64, f64), lanes: Vec<u32>) -> SystemSpec {
         initializer: "basic_init_01".to_owned(),
         star: body("pc_k_star", 20, 0.0, 0.0, 0),
         planets: vec![planet],
+        belts: Vec::new(),
         lanes,
     }
 }
@@ -594,5 +596,46 @@ fn a_name_the_removal_put_back_is_taken_again() {
         );
         session.undo().expect("undo").expect("an op to undo");
         assert_eq!(current(session), opened);
+    }
+}
+
+/// A spec with every angle zeroed, since one read back is measured from the coordinates.
+fn without_angles(spec: &SystemSpec) -> SystemSpec {
+    let mut spec = spec.clone();
+    for planet in &mut spec.planets {
+        planet.angle = 0.0;
+        planet.moons.iter_mut().for_each(|moon| moon.angle = 0.0);
+    }
+    spec
+}
+
+#[test]
+fn a_belted_system_comes_out_whole_and_its_removal_adds_it_back() {
+    for mut sample in samples() {
+        let first = sample.first;
+        let spike = belted(sample.spike.clone());
+        let mut other = belted(sample.spike.clone());
+        other.name = "Tau_Ceti".to_owned();
+        (other.x, other.y) = sample.second.1;
+        let session = &mut sample.session;
+        round_trip_step(session, "add", add(spike.clone()));
+        let added = current(session);
+        round_trip_step(session, "add another", add(other));
+        let both = current(session);
+
+        let result = round_trip_step(session, "remove the first", remove(first));
+        let Op::AddSaveSystem { spec } = &result.inverse else {
+            panic!("{:?}", result.inverse);
+        };
+        assert_eq!(without_angles(spec), without_angles(&spike));
+        session.undo().expect("undo").expect("an op to undo");
+        assert_eq!(current(session), both);
+
+        round_trip_step(session, "remove the other", remove(first + 1));
+        assert_eq!(current(session), added);
+        let result = round_trip_step(session, "remove it", remove(first));
+        assert_eq!(current(session), session.doc.original());
+        session.apply(result.inverse).expect("apply the inverse");
+        assert_eq!(current(session), added, "the same text at the same id");
     }
 }
