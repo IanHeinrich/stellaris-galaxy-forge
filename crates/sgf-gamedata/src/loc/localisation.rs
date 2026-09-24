@@ -89,6 +89,11 @@ impl Localisation {
         Some(text)
     }
 
+    /// `key`'s entry with references substituted and markup intact.
+    pub(crate) fn resolved(&self, key: &str) -> Option<String> {
+        self.resolve_key(key, &mut Vec::new())
+    }
+
     /// `key`'s entry with references substituted. A reference to a key on
     /// the current chain, or deeper than [`MAX_REF_DEPTH`], stays literal;
     /// only fully resolved entries are memoised.
@@ -204,7 +209,7 @@ fn unescape(value: &str) -> String {
 
 /// Remove `£icon£`, `§X` … `§!` colour codes and `[scope.Expression]`
 /// substitutions, keeping the text around and inside colour spans.
-fn strip_markup(text: &str) -> String {
+pub(crate) fn strip_markup(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut chars = text.char_indices().peekable();
     while let Some((i, c)) = chars.next() {

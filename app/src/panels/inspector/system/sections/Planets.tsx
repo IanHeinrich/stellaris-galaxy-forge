@@ -36,7 +36,7 @@ function SizeAndPops({ size, pops }: { size: number | null; pops: number }) {
   );
 }
 
-function PlanetRow({
+export function PlanetRow({
   planet,
   details,
   editable,

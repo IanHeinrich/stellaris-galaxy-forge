@@ -187,7 +187,7 @@ const PLANET: &[Field] = &[
     reference(
         keys::SHIPCLASS_ORBITAL_STATION,
         "Orbital station",
-        EntityKind::Ship,
+        EntityKind::Fleet,
     ),
     date(keys::COLONIZE_DATE, "Colonised"),
     date(keys::LAST_BOMBARDMENT, "Last bombardment").computed(),

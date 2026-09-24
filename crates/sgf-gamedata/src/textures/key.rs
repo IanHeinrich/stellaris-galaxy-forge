@@ -10,6 +10,15 @@ pub enum TextureKey {
     StarClass {
         icon: String,
     },
+    /// Deposit art under `gfx/interface/icons/deposits/`, `.dds` left off; at most one
+    /// folder deep (`unused/d_strategic_resources`).
+    Deposit {
+        icon: String,
+    },
+    /// An icon under `gfx/interface/icons/`, named by its path (`planet_modifiers/pm_x.dds`).
+    Icon {
+        path: String,
+    },
     Flag {
         category: String,
         file: String,
@@ -40,6 +49,14 @@ impl FromStr for TextureKey {
         let key = match kind {
             "star_class" => Self::StarClass {
                 icon: component(rest).ok_or_else(bad)?,
+            },
+            "deposit" => Self::Deposit {
+                icon: relative_path(rest, 2).ok_or_else(bad)?,
+            },
+            "icon" => Self::Icon {
+                path: relative_path(rest, usize::MAX)
+                    .filter(|p| p.ends_with(".dds"))
+                    .ok_or_else(bad)?,
             },
             "flag" => {
                 let (category, file) = split_file(rest).ok_or_else(bad)?;
@@ -87,6 +104,8 @@ impl fmt::Display for TextureKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::StarClass { icon } => write!(f, "star_class:{icon}"),
+            Self::Deposit { icon } => write!(f, "deposit:{icon}"),
+            Self::Icon { path } => write!(f, "icon:{path}"),
             Self::Flag { category, file } => write!(f, "flag:{category}/{file}"),
             Self::Symbol { category, file } => write!(f, "symbol:{category}/{file}"),
             Self::Sprite { name, frame: None } => write!(f, "sprite:{name}"),
@@ -117,6 +136,18 @@ fn component(s: &str) -> Option<String> {
 /// A colour name or `#rrggbb`: non-empty, none of the key's own separators.
 fn colour_name(s: &str) -> Option<String> {
     let clean = !s.is_empty() && !s.contains([':', ',']) && !s.chars().any(char::is_control);
+    clean.then(|| s.to_owned())
+}
+
+/// Up to `max_parts` `/`-separated path segments, each a [`component`] that does not end
+/// in a dot or a space (Windows trims those, so `.. ` would be `..`), so the path stays
+/// below the folder the key kind names.
+fn relative_path(s: &str, max_parts: usize) -> Option<String> {
+    let parts: Vec<&str> = s.split('/').collect();
+    let clean = parts.len() <= max_parts
+        && parts
+            .iter()
+            .all(|part| !part.ends_with(['.', ' ']) && component(part).is_some());
     clean.then(|| s.to_owned())
 }
 

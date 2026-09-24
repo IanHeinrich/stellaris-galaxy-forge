@@ -17,6 +17,7 @@ import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
+import { usePlanetDataStore } from "./planetDataStore";
 import { toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
 
@@ -40,6 +41,7 @@ export function bindStores(): void {
   followGroups();
   followIssuesTab();
   followEntities();
+  followPlanetData();
   followDetails();
   followScenarioInitializers();
   followPaintMod();
@@ -160,6 +162,15 @@ function paintModPollWanted(): boolean {
 function followEntities(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status !== previous.status) useEntityStore.getState().clear();
+  });
+}
+
+// A planet page's deposits, modifiers and designations are the loaded game data's to say.
+function followPlanetData(): void {
+  useGameDataStore.subscribe((state, previous) => {
+    if (state.status !== previous.status || state.version !== previous.version) {
+      usePlanetDataStore.getState().clear();
+    }
   });
 }
 

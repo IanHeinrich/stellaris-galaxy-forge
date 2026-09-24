@@ -9,7 +9,7 @@ use sgf_core::cst::Node;
 use ts_rs::TS;
 
 use crate::install::layers::Layout;
-use crate::install::script::{self, Def};
+use crate::install::script::{self, Def, Variables};
 use crate::registries::registry::{FromDef, Registry};
 use crate::scripts::init_bypasses::bypasses;
 use crate::{Diagnostic, GameData};
@@ -40,7 +40,7 @@ pub struct InitPlanet {
     pub class: String,
     /// `(min, max)`, equal for a fixed size.
     pub size: Option<(u32, u32)>,
-    /// The midpoint of a range; `None` for an `@variable` the file does not define.
+    /// The midpoint of a range; `None` for an `@variable` no file defines.
     pub orbit_distance: Option<f64>,
     pub has_ring: bool,
     pub count: u32,
@@ -192,7 +192,7 @@ impl FromDef for Initializer {
             flags: script::list_items(node, "flags", src),
             countries: countries(node, src),
             spawns: spawns(node, src),
-            planets: bodies(node, "planet", src, &def.vars),
+            planets: bodies(node, "planet", def),
             megastructures: megastructures(node, src),
             bypasses: bypasses(node, src),
             sites: sites(node, src),
@@ -213,9 +213,13 @@ pub struct Initializers {
 }
 
 impl Initializers {
-    pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Self {
+    pub(crate) fn load(
+        layout: &Layout,
+        globals: &Arc<Variables>,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> Self {
         let files = layout.files_in(Initializer::DIR);
-        let defs = script::parse_dir(layout, Initializer::DIR, diagnostics);
+        let defs = script::parse_dir(layout, Initializer::DIR, globals, diagnostics);
         let by_name: Registry<Initializer> = defs
             .iter()
             .map(|(key, def)| (key.clone(), Initializer::read(key.clone(), def)))
@@ -325,26 +329,25 @@ fn icon(country: &Node, src: &[u8]) -> Option<FlagIcon> {
     })
 }
 
-type Vars = BTreeMap<String, String>;
-
-fn bodies(parent: &Node, key: &str, src: &[u8], vars: &Vars) -> Vec<InitPlanet> {
+fn bodies(parent: &Node, key: &str, def: &Def) -> Vec<InitPlanet> {
     parent
-        .find_all(key, src)
-        .map(|node| body(node, src, vars))
+        .find_all(key, &def.src)
+        .map(|node| body(node, def))
         .collect()
 }
 
-fn body(node: &Node, src: &[u8], vars: &Vars) -> InitPlanet {
+fn body(node: &Node, def: &Def) -> InitPlanet {
+    let src = &def.src;
     let home_planet = scalar(node, "home_planet", src) == Some("yes")
         || scalar(node, "starting_planet", src) == Some("yes");
     let colony_owner = colony_owner(node, src);
     InitPlanet {
         name: scalar(node, "name", src).map(str::to_owned),
         class: scalar(node, "class", src).unwrap_or("random").to_owned(),
-        size: range(node, "size", src, vars).map(|(min, max)| (whole(min), whole(max))),
-        orbit_distance: range(node, "orbit_distance", src, vars).map(midpoint),
+        size: range(node, "size", def).map(|(min, max)| (whole(min), whole(max))),
+        orbit_distance: range(node, "orbit_distance", def).map(midpoint),
         has_ring: scalar(node, "has_ring", src) == Some("yes"),
-        count: range(node, "count", src, vars).map_or(1, |r| whole(midpoint(r))),
+        count: range(node, "count", def).map_or(1, |r| whole(midpoint(r))),
         home_planet,
         colonised: home_planet
             || colony_owner.is_some()
@@ -360,7 +363,7 @@ fn body(node: &Node, src: &[u8], vars: &Vars) -> InitPlanet {
         }),
         sites: sites(node, src),
         deposits: deposits(node, src),
-        moons: bodies(node, "moon", src, vars),
+        moons: bodies(node, "moon", def),
     }
 }
 
@@ -473,25 +476,18 @@ fn scalar<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<&'a str> {
     node.find(key, src)?.scalar_str(src)
 }
 
-/// `key = n` as `(n, n)` and `key = { min = a max = b }` as `(a, b)`. An
-/// `@variable` the defining file declares is substituted; one it does not
-/// (they may come from `common/scripted_variables`) gives `None`.
-fn range(node: &Node, key: &str, src: &[u8], vars: &Vars) -> Option<(f64, f64)> {
+/// `key = n` as `(n, n)` and `key = { min = a max = b }` as `(a, b)`, `@variables`
+/// substituted; one no file defines gives `None`.
+fn range(node: &Node, key: &str, def: &Def) -> Option<(f64, f64)> {
+    let src = &def.src;
     let found = node.find(key, src)?;
     if let Some(text) = found.scalar_str(src) {
-        let n = number(text, vars)?;
+        let n = def.number_of(text)?;
         return Some((n, n));
     }
-    let min = number(scalar(found, "min", src)?, vars)?;
-    let max = number(scalar(found, "max", src)?, vars)?;
+    let min = def.number_of(scalar(found, "min", src)?)?;
+    let max = def.number_of(scalar(found, "max", src)?)?;
     Some((min, max))
-}
-
-fn number(text: &str, vars: &Vars) -> Option<f64> {
-    match text.strip_prefix('@') {
-        Some(name) => vars.get(name)?.parse().ok(),
-        None => text.parse().ok(),
-    }
 }
 
 fn midpoint((min, max): (f64, f64)) -> f64 {
