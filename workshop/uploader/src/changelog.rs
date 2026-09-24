@@ -40,8 +40,14 @@ impl Section<'_> {
 }
 
 /// The change note for moving from `since` to `current`, or an error when
-/// CHANGELOG.md has no section for `current`.
-pub fn change_note(changelog: &str, since: Version, current: Version) -> Result<String, String> {
+/// CHANGELOG.md has no section for `current`. `released` says whether
+/// `current` has a GitHub release to link to.
+pub fn change_note(
+    changelog: &str,
+    since: Version,
+    current: Version,
+    released: bool,
+) -> Result<String, String> {
     let mut sections: Vec<Section> = sections(changelog)
         .into_iter()
         .filter(|section| section.version > since && section.version <= current)
@@ -57,7 +63,7 @@ pub fn change_note(changelog: &str, since: Version, current: Version) -> Result<
         .collect();
     let note = (0..=rendered.len())
         .rev()
-        .map(|kept| assemble(&rendered[..kept], current, kept < rendered.len()))
+        .map(|kept| assemble(&rendered[..kept], current, released, kept < rendered.len()))
         .find(|note| note.len() <= MAX_CHANGE_NOTE_BYTES)
         .expect("the note with no sections fits");
     Ok(note)
@@ -75,21 +81,26 @@ pub fn versions_between(changelog: &str, from: Version, to: Version) -> Vec<Vers
 }
 
 /// The change note for `version` alone.
-pub fn version_note(changelog: &str, version: Version) -> Result<String, String> {
+pub fn version_note(changelog: &str, version: Version, released: bool) -> Result<String, String> {
     let previous = sections(changelog)
         .iter()
         .map(|section| section.version)
         .filter(|other| *other < version)
         .max()
         .unwrap_or(Version(0, 0, 0));
-    change_note(changelog, previous, version)
+    change_note(changelog, previous, version, released)
 }
 
-fn assemble(sections: &[String], current: Version, cut: bool) -> String {
+pub fn release_url(version: Version) -> String {
+    format!("{RELEASE_URL}{version}")
+}
+
+fn assemble(sections: &[String], current: Version, released: bool, cut: bool) -> String {
     let mut parts = sections.to_vec();
-    parts.push(format!(
-        "[url={RELEASE_URL}{current}]{RELEASE_URL}{current}[/url]"
-    ));
+    if released {
+        let url = release_url(current);
+        parts.push(format!("[url={url}]{url}[/url]"));
+    }
     if cut {
         parts.push(format!(
             "Earlier versions: [url={CHANGELOG_URL}]{CHANGELOG_URL}[/url]"
@@ -255,7 +266,7 @@ mod tests {
 
     #[test]
     fn converts_the_0_12_0_section() {
-        let note = change_note(CHANGELOG, v("0.11.1"), v("0.12.0")).unwrap();
+        let note = change_note(CHANGELOG, v("0.11.1"), v("0.12.0"), true).unwrap();
         let expected = "\
 [h2]0.12.0 (2026-09-24)[/h2]
 [h3]Added[/h3]
@@ -281,7 +292,7 @@ mod tests {
 
     #[test]
     fn includes_every_version_since_the_last_upload_newest_first() {
-        let note = change_note(CHANGELOG, v("0.10.1"), v("0.12.0")).unwrap();
+        let note = change_note(CHANGELOG, v("0.10.1"), v("0.12.0"), true).unwrap();
         let headings: Vec<&str> = note.lines().filter(|l| l.starts_with("[h2]")).collect();
         assert_eq!(
             headings,
@@ -296,7 +307,7 @@ mod tests {
 
     #[test]
     fn stops_at_the_current_version_and_ignores_unreleased() {
-        let note = change_note(CHANGELOG, v("0.11.0"), v("0.11.1")).unwrap();
+        let note = change_note(CHANGELOG, v("0.11.0"), v("0.11.1"), true).unwrap();
         assert!(note.starts_with("[h2]0.11.1 (2026-09-23)[/h2]\n[h3]Changed[/h3]"));
         assert!(!note.contains("0.12.0"));
         assert!(!note.contains("raw Markdown"));
@@ -304,7 +315,7 @@ mod tests {
 
     #[test]
     fn a_version_missing_from_the_changelog_is_an_error() {
-        let error = change_note(CHANGELOG, v("0.12.0"), v("99.0.0")).unwrap_err();
+        let error = change_note(CHANGELOG, v("0.12.0"), v("99.0.0"), true).unwrap_err();
         assert_eq!(error, "CHANGELOG.md has no section for 99.0.0");
     }
 
@@ -320,7 +331,7 @@ mod tests {
                 )
             })
             .collect();
-        let note = change_note(&changelog, v("0.0.1"), v("0.5.0")).unwrap();
+        let note = change_note(&changelog, v("0.0.1"), v("0.5.0"), true).unwrap();
         assert!(note.len() <= 7999, "{} bytes", note.len());
         let headings: Vec<&str> = note.lines().filter(|l| l.starts_with("[h2]")).collect();
         assert_eq!(
@@ -334,7 +345,7 @@ mod tests {
 
     #[test]
     fn a_note_that_fits_has_no_changelog_link() {
-        let note = change_note(CHANGELOG, v("0.9.0"), v("0.12.0")).unwrap();
+        let note = change_note(CHANGELOG, v("0.9.0"), v("0.12.0"), true).unwrap();
         assert!(note.len() <= 7999);
         assert!(!note.contains("CHANGELOG.md"));
     }
@@ -351,7 +362,7 @@ A [guide](https://example.com/guide) with **bold** and `code`.
 - `sgf export` names a [scenario](https://example.com/s) after
   the output file, **always**.
 ";
-        let note = change_note(changelog, v("0.9.0"), v("1.0.0")).unwrap();
+        let note = change_note(changelog, v("0.9.0"), v("1.0.0"), true).unwrap();
         let body: Vec<&str> = note.lines().skip(1).take(5).collect();
         assert_eq!(
             body,
@@ -371,11 +382,12 @@ A [guide](https://example.com/guide) with **bold** and `code`.
             versions_between(CHANGELOG, v("0.10.1"), v("0.12.0")),
             [v("0.10.1"), v("0.11.0"), v("0.11.1"), v("0.12.0")]
         );
-        let note = version_note(CHANGELOG, v("0.11.0")).unwrap();
+        let note = version_note(CHANGELOG, v("0.11.0"), true).unwrap();
         let headings: Vec<&str> = note.lines().filter(|l| l.starts_with("[h2]")).collect();
         assert_eq!(headings, ["[h2]0.11.0 (2026-09-23)[/h2]"]);
-        let undated = version_note(CHANGELOG, v("0.1.0")).unwrap();
+        let undated = version_note(CHANGELOG, v("0.1.0"), false).unwrap();
         assert!(undated.starts_with("[h2]0.1.0[/h2]\n"));
+        assert!(!undated.contains("releases/tag"));
     }
 
     #[test]

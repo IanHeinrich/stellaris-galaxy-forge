@@ -165,7 +165,12 @@ pub fn push(repo: &Repo, item: u64, mode: PushMode, force: bool) -> Result<(), S
         force,
     )?;
     let change_note = match plan.version_moved {
-        Some((since, current)) => Some(changelog::change_note(&repo.changelog()?, since, current)?),
+        Some((since, current)) => Some(changelog::change_note(
+            &repo.changelog()?,
+            since,
+            current,
+            has_release(current),
+        )?),
         None => None,
     };
     print_decisions(&plan, &live, &files);
@@ -213,7 +218,7 @@ pub fn backfill(repo: &Repo, item: u64, from: Version, mode: PushMode) -> Result
     }
     let notes = versions
         .iter()
-        .map(|&version| changelog::version_note(&changelog, version))
+        .map(|&version| changelog::version_note(&changelog, version, has_release(version)))
         .collect::<Result<Vec<_>, _>>()?;
     for (i, note) in notes.iter().enumerate() {
         println!("change note {} of {}:\n{note}\n", i + 1, notes.len());
@@ -239,6 +244,10 @@ pub fn backfill(repo: &Repo, item: u64, from: Version, mode: PushMode) -> Result
         report(steam.submit(item, &update)?)?;
     }
     Ok(())
+}
+
+fn has_release(version: Version) -> bool {
+    ureq::head(&changelog::release_url(version)).call().is_ok()
 }
 
 #[derive(Clone, Copy)]
