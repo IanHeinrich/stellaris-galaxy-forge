@@ -28,6 +28,7 @@ pub use crate::format::scenario::emit::{
 };
 use crate::format::scenario::header_counts::SeatCounts;
 use crate::format::scenario::index::{self as scenario, SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
+use crate::format::scenario::provenance;
 use crate::keys::scenario as keys;
 use crate::ops::rules::check_name;
 use crate::projections::galaxy::{Galaxy, GalaxyGraph, ProjectionError};
@@ -105,7 +106,7 @@ pub fn scenario_text(
     }
     let mut text = match &options.exported_from {
         Some(save) => comment_block(save, &draft, &report).into_bytes(),
-        None => Vec::new(),
+        None => format!("{}\n", provenance::created(None)).into_bytes(),
     };
     text.extend(render(&draft));
     (text, report)
@@ -206,14 +207,17 @@ fn shape_first(header: &mut Vec<u8>, shape: &str) {
 
 /// The lines above a save's export that say where it came from and what it lacks.
 fn comment_block(save: &str, draft: &Draft, report: &ExportReport) -> String {
-    let save: String = save.chars().filter(|c| !matches!(c, '\n' | '\r')).collect();
+    let save: String = save
+        .chars()
+        .filter(|c| !matches!(c, '(' | ')' | '\n' | '\r'))
+        .collect();
     let seats = draft
         .systems
         .iter()
         .filter(|system| system.spawn != SpawnDraft::None)
         .count();
     let mut lines = vec![
-        format!("# Exported by Stellaris Galaxy Forge from {save}"),
+        provenance::created(Some(&format!("converted from save {save}"))),
         format!(
             "# Systems: {} · Empire seats: {seats} · Nebulae: {}",
             draft.systems.len(),
@@ -300,7 +304,8 @@ pub fn write_scenario(path: &Path, text: &[u8]) -> Result<SaveOutcome, document:
     })
 }
 
-/// A scenario with no systems, never saved: the header and its closing brace.
+/// A scenario with no systems, never saved: Forge's `# created by` line, the header and
+/// its closing brace.
 pub fn new_scenario(
     name: &str,
     core_radius: f64,
@@ -314,13 +319,14 @@ pub fn new_scenario(
         num_empires: (0, MIN_EMPIRES),
         exported_from: None,
     };
-    let mut text = match profile {
+    let mut text = format!("{}\n", provenance::created(None)).into_bytes();
+    text.extend(match profile {
         ScenarioProfile::Plain => header(&options),
         ScenarioProfile::PaintAGalaxy => {
             let seats = SeatCounts::from_scripts(0, []);
             paint::header(&options, &paint::HeaderCounts::sized(0, seats, 0, 0))
         }
-    };
+    });
     text.extend_from_slice(FOOTER);
     Session::from_document(None, Document::from_scenario_bytes(text)?)
 }

@@ -45,6 +45,22 @@ pub fn exported_as(
     export::scenario_text(&session.graph, &options, &no_names, &no_sources, profile)
 }
 
+/// `text` with this version of Forge in its first line written as `0.0.0`, the version
+/// the committed fixtures and snapshots hold so a release does not change them.
+pub fn at_fixture_version(text: &[u8]) -> Vec<u8> {
+    let end = text
+        .iter()
+        .position(|&b| b == b'\n')
+        .map_or(text.len(), |i| i + 1);
+    let first = String::from_utf8(text[..end].to_vec()).expect("utf-8");
+    let this = format!("Stellaris Galaxy Forge {}", sgf_core::VERSION);
+    let mut out = first
+        .replacen(&this, "Stellaris Galaxy Forge 0.0.0", 1)
+        .into_bytes();
+    out.extend_from_slice(&text[end..]);
+    out
+}
+
 /// The ids of the `system` lines that carry a base spawn weight of 1.
 pub fn seated(text: &str) -> BTreeSet<u32> {
     text.lines()
