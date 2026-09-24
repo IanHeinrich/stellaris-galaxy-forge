@@ -1,16 +1,19 @@
 //! `ReplaceSaveSystem`, for the systems [`super::add_system`] wrote since the file was
 //! opened, in two steps. The first takes the old bodies out as a removal does, which
-//! frees their slots and asteroid names. The second writes the new bodies as an add
-//! does, taking the lowest free slots, and writes the system's entry again around the
-//! coordinate and hyperlane blocks it had, so its position and lanes stay.
+//! frees their slots and asteroid names and uncounts its layout. The second writes the new
+//! bodies as an add does, taking the lowest free slots, counts the new layout, and writes
+//! the system's entry again around the coordinate and hyperlane blocks it had, so its
+//! position and lanes stay.
 
 use std::collections::BTreeSet;
 
 use crate::cst;
 use crate::format::save::system_spec::SystemSpec;
-use crate::format::save::write::add_system::{bodies, check_contents, system_text, write_bodies};
+use crate::format::save::write::add_system::{
+    bodies, check_capped, check_contents, count_layout, system_text, write_bodies,
+};
 use crate::format::save::write::remove_system::{
-    check_added, erase_bodies, return_asteroid_names, spec_of,
+    check_added, erase_bodies, return_asteroid_names, spec_of, uncount,
 };
 use crate::format::save::write::rename_system::swap_name;
 use crate::keys;
@@ -25,6 +28,7 @@ pub(crate) fn plan_strip(
 ) -> Result<Planned, OpError> {
     check_added(s, id)?;
     check_contents(spec)?;
+    check_capped(s, spec, Some(id))?;
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
     let mut lanes: Vec<u32> = Vec::new();
     for lane in &system.lanes {
@@ -39,6 +43,7 @@ pub(crate) fn plan_strip(
     let ids = BTreeSet::from([id]);
     erase_bodies(plan, &s.doc, &ids)?;
     return_asteroid_names(plan, s, &ids)?;
+    uncount(plan, s, &ids)?;
 
     let mut became = Vec::new();
     if spec.name != system.name.key {
@@ -93,6 +98,7 @@ pub(crate) fn plan_fill(
     if spec.name != system.name.key {
         swap_name(plan, s, id, &system.name.key, &spec.name)?;
     }
+    count_layout(plan, &s.doc, spec)?;
     Ok(Planned {
         description: String::new(),
         inverse: Op::RemoveSystem { id },

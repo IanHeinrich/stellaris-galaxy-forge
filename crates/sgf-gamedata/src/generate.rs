@@ -133,6 +133,7 @@ pub fn generate(
         planets,
         belts: init.asteroid_belts.iter().filter_map(belt).collect(),
         lanes: Vec::new(),
+        ..Default::default()
     })
 }
 
@@ -473,6 +474,7 @@ fn body(
         deposits: Vec::new(),
         moons,
         asteroid: class.asteroid,
+        ..Default::default()
     }
 }
 

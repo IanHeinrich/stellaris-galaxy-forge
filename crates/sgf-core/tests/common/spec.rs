@@ -76,9 +76,7 @@ pub fn body(class: &str, size: u32, orbit: f64, angle: f64, entity: u32) -> Body
         orbit,
         angle,
         entity,
-        deposits: Vec::new(),
-        moons: Vec::new(),
-        asteroid: false,
+        ..BodySpec::default()
     }
 }
 
@@ -108,7 +106,7 @@ fn spike(name: &str, (x, y): (f64, f64), home: u32, habitable: [&str; 3]) -> Sys
             body("pc_toxic", 15, 175.0, 200.0, 1),
             body("pc_frozen", 13, 205.0, 110.0, 1),
         ],
-        belts: Vec::new(),
         lanes: vec![home],
+        ..SystemSpec::default()
     }
 }

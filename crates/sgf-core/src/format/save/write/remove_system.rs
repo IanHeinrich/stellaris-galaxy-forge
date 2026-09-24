@@ -4,8 +4,9 @@
 //! What the add wrote comes out again: the `galactic_object` entry, each body's entry and
 //! its deposits' entries, where a tombstone's slot gets the tombstone back and an appended
 //! slot below the end of its table becomes a tombstone, the lanes on
-//! the other ends, the nebula member lines, the name taken from the pool of unused
-//! star names and the asteroids' names taken from the pool of asteroid names. `last_created_system` goes down by one per system removed. Every system
+//! the other ends, the nebula member lines, the count of a capped layout, the name taken
+//! from the pool of unused star names and the asteroids' names taken from the pool of
+//! asteroid names. `last_created_system` goes down by one per system removed. Every system
 //! added after the first one removed takes the id below its own for each removed before
 //! it, so the ids stay dense: its entry's key, its bodies' `coordinate.origin`, the lanes
 //! and the nebula member lines naming it. Planet and deposit ids do not change.
@@ -16,11 +17,13 @@ use crate::as_u32;
 use crate::cst::{self, Node};
 use crate::document::Document;
 use crate::emit::coord;
+use crate::emit::system::RING_FLAG;
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, Counter, SlotTable};
 use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
 use crate::format::save::write::add_system::{polar, pool_entries};
 use crate::format::save::write::asteroid_names::{self, Pool};
+use crate::format::save::write::initializer_counter::{self, counted};
 use crate::format::save::write::lanes::remove_entries;
 use crate::format::save::{planet_statement, system_statement};
 use crate::format::scenario::index::removed as emptied;
@@ -65,6 +68,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
                 count: s.graph.systems.len(),
             })?;
     set_counter(plan, &s.doc, &counter, last)?;
+    uncount(plan, s, &removed)?;
     return_names(plan, s, &removed)?;
     return_asteroid_names(plan, s, &removed)?;
     Ok(Planned {
@@ -355,6 +359,24 @@ fn set_counter(
     Ok(())
 }
 
+/// Take one off the count of each removed system's layout that its add counted.
+pub(crate) fn uncount(
+    plan: &mut Plan,
+    s: &Session,
+    removed: &BTreeSet<u32>,
+) -> Result<(), OpError> {
+    let mut changes: BTreeMap<&str, i64> = BTreeMap::new();
+    for id in removed {
+        let Some(system) = s.graph.systems.get(id) else {
+            continue;
+        };
+        if counted(&s.doc, &system.initializer) {
+            *changes.entry(system.initializer.as_str()).or_default() -= 1;
+        }
+    }
+    initializer_counter::count(plan, &s.doc, &changes)
+}
+
 /// Put a removed system's name back in the pool of unused star names when its add took it
 /// from there. Adds take the pool's entries for a name first to last, so of the entries
 /// taken, as many stay taken as systems of that name stay, and the rest come back, last
@@ -580,7 +602,8 @@ fn restoring(
 }
 
 /// System `id` as the spec that writes it: its bodies read back from their entries, each
-/// angle measured from the star, or from where the add placed its planet for a moon.
+/// angle measured from the star, or from where the add placed its planet for a moon. A
+/// star whose name is the system's own was named by its class.
 pub(crate) fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpec, OpError> {
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
     let mut read = Vec::new();
@@ -604,13 +627,17 @@ pub(crate) fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpe
             }
         }
     }
+    let mut star = star.spec((0.0, 0.0)).0;
+    let star_named_by_class = star.name.take().is_some();
     Ok(SystemSpec {
         name: system.name.key.clone(),
         x: system.x,
         y: system.y,
         star_class: system.star_class.clone(),
         initializer: system.initializer.clone(),
-        star: star.spec((0.0, 0.0)).0,
+        capped: counted(&s.doc, &system.initializer),
+        star_named_by_class,
+        star,
         planets,
         belts: belts(&s.doc, id)?,
         lanes,
@@ -629,6 +656,10 @@ struct ReadBody {
     moon_of: Option<u32>,
     deposits: Vec<String>,
     asteroid: bool,
+    name: Option<String>,
+    entity_name: Option<String>,
+    modifiers: Vec<String>,
+    ring: bool,
 }
 
 impl ReadBody {
@@ -652,6 +683,10 @@ impl ReadBody {
             deposits: self.deposits.clone(),
             moons: Vec::new(),
             asteroid: self.asteroid,
+            name: self.name.clone(),
+            entity_name: self.entity_name.clone(),
+            modifiers: self.modifiers.clone(),
+            ring: self.ring,
         };
         let written = (coord(self.x), coord(self.y));
         let candidates = [hundredth, hundredth.rem_euclid(360.0) + 0.0, measured];
@@ -681,6 +716,20 @@ fn read_body(
         .into_iter()
         .filter_map(|deposit| deposit_kind(doc, deposit))
         .collect();
+    let name = read::name(&node, src);
+    let fixed = !name.literal && name.variables.is_empty();
+    let modifiers = node
+        .find(keys::TIMED_MODIFIER, src)
+        .and_then(|block| block.find(keys::ITEMS, src))
+        .map(|items| {
+            items
+                .children()
+                .iter()
+                .map(|item| read::text(item, keys::MODIFIER, src))
+                .collect()
+        })
+        .unwrap_or_default();
+    let flags = read::scalar_u32(&node, keys::BINARY_FLAGS, src).unwrap_or(0);
     Ok(ReadBody {
         class: read::text(&node, keys::PLANET_CLASS, src),
         size: read::required(&node, keys::PLANET_SIZE, src).map_err(field)?,
@@ -690,7 +739,11 @@ fn read_body(
         entity: read::scalar_u32(&node, keys::ENTITY, src).unwrap_or(0),
         moon_of: read::scalar_u32(&node, keys::MOON_OF, src),
         deposits,
-        asteroid: asteroid_names::parts(&read::name(&node, src)).is_some(),
+        asteroid: asteroid_names::parts(&name).is_some(),
+        name: fixed.then_some(name.key),
+        entity_name: read::scalar(&node, keys::ENTITY_NAME, src).map(str::to_owned),
+        modifiers,
+        ring: flags & RING_FLAG != 0,
     })
 }
 

@@ -1,0 +1,323 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added Sgf_Terraformed (#601) at (-292.23404, -137.62265) with 4 bodies, 2 belts and 1 lane
+touched: [169, 601]
+inverse: RemoveSystem { id: 601 }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -41044,6 +41044,11 @@
+ 				length=24
+ 			}
+  
++			{
++				to=601
++				length=44
++			}
++ 
+ 		}
+ 		arm=1
+ 		flags=
+@@ -71403,6 +71408,58 @@
+ 		index=0
+ 		storm=4294967295
+ 	}
++	601=
++	{
++		coordinate=
++		{
++			x=-292.23404
++			y=-137.62265
++			origin=4294967295
++			visual_height=4.31213
++		}
++		name=
++		{
++			key="Sgf_Terraformed"
++		}
++		planet=16777273
++		planet=6375
++		planet=6376
++		planet=6377
++		star_class="sc_g"
++		hyperlane=
++		{
++			
++			{
++				to=169
++				length=44
++			}
++ 
++		}
++		asteroid_belts=
++		{
++			
++			{
++				type="debris_asteroid_belt"
++				inner_radius=158
++			}
++ 
++			{
++				type="rocky_asteroid_belt"
++				inner_radius=100
++			}
++ 
++		}
++		initializer="previously_terraformed_planet_system_initializer"
++		inner_radius=220
++		outer_radius=320
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+ }
+ starbase_mgr=
+ {
+@@ -82369,7 +82426,41 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_g_star"
++			planet_size=25
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="Sgf_Terraformed"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-20
++				y=34.64102
++				origin=601
++			}
++			orbit=40
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+ 		58=
+ 		{
+ 			colony=30
+@@ -411928,6 +412019,179 @@
+ 				4047 
+ 			}
+ 		}
++		6375=
++		{
++			planet_class="pc_continental"
++			planet_size=21
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Sgf_Terraformed"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=322
++			coordinate=
++			{
++				x=159.97563
++				y=2.79239
++				origin=601
++			}
++			orbit=160
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="previously_terraformed_planet"
++						days=-1
++					}
++ 
++				}
++			}
++			entity=0
++			entity_name="previously_terraformed_planet_entity"
++		}
++		6376=
++		{
++			planet_class="pc_barren"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Sgf_Terraformed"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-115.70177
++				y=137.888
++				origin=601
++			}
++			orbit=180
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6377 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6377=
++		{
++			planet_class="pc_frozen"
++			planet_size=6
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Sgf_Terraformed"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="II"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=-125.0987
++				y=134.4678
++				origin=601
++			}
++			orbit=10
++			last_bombardment=			"0.01.01"
++			moon_of=6376
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
+ 	}
+ }
+ astral_rifts=
+@@ -692049,7 +692313,7 @@
+ {
+ }
+ last_created_country=55
+-last_created_system=600
++last_created_system=601
+ leaders=
+ {
+ 	285212672=
+@@ -709170,7 +709434,7 @@
+ {
+ 	count=
+ 	{
+-		1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 15 1 1 1 1 1 1 1 1 1 1 1 1 1 8 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 
++		1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 15 1 1 1 1 1 1 1 1 1 1 1 1 1 8 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 2 1 1 1 1 1 
+ 	}
+ 	initializer=
+ 	{

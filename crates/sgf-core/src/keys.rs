@@ -29,6 +29,7 @@ pub(crate) const CONSTRUCTION_TYPE: &str = "construction_type";
 pub(crate) const CONTROLLER: &str = "controller";
 pub(crate) const COORDINATE: &str = "coordinate";
 pub(crate) const CORE_RADIUS: &str = "core_radius";
+pub(crate) const COUNT: &str = "count";
 pub(crate) const COUNTRY: &str = "country";
 pub(crate) const CRISES: &str = "crises";
 pub(crate) const CRISIS_TYPE: &str = "crisis_type";
@@ -44,6 +45,7 @@ pub(crate) const DISMANTLE_FINISH_DATE: &str = "dismantle_finish_date";
 pub(crate) const DISMANTLE_PROGRESS: &str = "dismantle_progress";
 pub(crate) const END_GAME_START: &str = "end_game_start";
 pub(crate) const ENTITY: &str = "entity";
+pub(crate) const ENTITY_NAME: &str = "entity_name";
 pub(crate) const FILE: &str = "file";
 pub(crate) const FINAL_DESIGNATION: &str = "final_designation";
 pub(crate) const FLAG: &str = "flag";
@@ -143,6 +145,7 @@ pub(crate) const STATION: &str = "station";
 pub(crate) const STORM: &str = "storm";
 pub(crate) const SURVEYED_BY: &str = "surveyed_by";
 pub(crate) const SWAP_TYPE: &str = "swap_type";
+pub(crate) const SYSTEM_INITIALIZER_COUNTER: &str = "system_initializer_counter";
 pub(crate) const TEMPLATE: &str = "template";
 pub(crate) const TIMED_MODIFIER: &str = "timed_modifier";
 pub(crate) const TO: &str = "to";
@@ -187,6 +190,7 @@ pub(crate) const ALL: &[&str] = &[
     CONTROLLER,
     COORDINATE,
     CORE_RADIUS,
+    COUNT,
     COUNTRY,
     CRISES,
     CRISIS_TYPE,
@@ -202,6 +206,7 @@ pub(crate) const ALL: &[&str] = &[
     DISMANTLE_PROGRESS,
     END_GAME_START,
     ENTITY,
+    ENTITY_NAME,
     FILE,
     FINAL_DESIGNATION,
     FLAG,
@@ -301,6 +306,7 @@ pub(crate) const ALL: &[&str] = &[
     STORM,
     SURVEYED_BY,
     SWAP_TYPE,
+    SYSTEM_INITIALIZER_COUNTER,
     TEMPLATE,
     TIMED_MODIFIER,
     TO,

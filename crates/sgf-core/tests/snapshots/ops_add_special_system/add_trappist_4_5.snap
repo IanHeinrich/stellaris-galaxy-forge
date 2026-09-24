@@ -1,0 +1,460 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added NAME_Trappist (#601) at (-292.23404, -137.62265) with 8 bodies and 1 lane
+touched: [169, 601]
+inverse: RemoveSystem { id: 601 }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -41044,6 +41044,11 @@
+ 				length=24
+ 			}
+  
++			{
++				to=601
++				length=44
++			}
++ 
+ 		}
+ 		arm=1
+ 		flags=
+@@ -71403,6 +71408,48 @@
+ 		index=0
+ 		storm=4294967295
+ 	}
++	601=
++	{
++		coordinate=
++		{
++			x=-292.23404
++			y=-137.62265
++			origin=4294967295
++			visual_height=4.31213
++		}
++		name=
++		{
++			key="NAME_Trappist"
++		}
++		planet=16777273
++		planet=6375
++		planet=6376
++		planet=6377
++		planet=6378
++		planet=6379
++		planet=6380
++		planet=6381
++		star_class="sc_m"
++		hyperlane=
++		{
++			
++			{
++				to=169
++				length=44
++			}
++ 
++		}
++		initializer="trappist_initializer"
++		inner_radius=150
++		outer_radius=250
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		storm=4294967295
++	}
+ }
+ starbase_mgr=
+ {
+@@ -82369,7 +82416,29 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_m_star"
++			planet_size=20
++			carrier_binary_flags=3
++			name=
++			{
++				key="NAME_Trappist"
++			}
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=601
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+ 		58=
+ 		{
+ 			colony=30
+@@ -411928,6 +411997,338 @@
+ 				4047 
+ 			}
+ 		}
++		6375=
++		{
++			planet_class="pc_molten"
++			planet_size=16
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Trappist"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=19.31852
++				y=5.17638
++				origin=601
++			}
++			orbit=20
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6376=
++		{
++			planet_class="pc_barren"
++			planet_size=16
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Trappist"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-6.25133
++				y=35.45308
++				origin=601
++			}
++			orbit=36
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6377=
++		{
++			planet_class="pc_toxic"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Trappist"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-45.03332
++				y=-26
++				origin=601
++			}
++			orbit=52
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6378=
++		{
++			planet_class="pc_barren"
++			planet_size=14
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Trappist"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IV"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=61.62893
++				y=-28.73804
++				origin=601
++			}
++			orbit=68
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="terraforming_candidate"
++						days=-1
++					}
++ 
++				}
++			}
++			entity=1
++		}
++		6379=
++		{
++			planet_class="pc_continental"
++			planet_size=16
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Trappist"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="V"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=64.34773
++				y=53.99416
++				origin=601
++			}
++			orbit=84
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++		}
++		6380=
++		{
++			planet_class="pc_barren_cold"
++			planet_size=18
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Trappist"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="VI"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=0
++				y=-100
++				origin=601
++			}
++			orbit=100
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="terraforming_candidate"
++						days=-1
++					}
++ 
++				}
++			}
++			entity=1
++		}
++		6381=
++		{
++			planet_class="pc_frozen"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="NAME_Trappist"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="VII"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-105.1317
++				y=49.02372
++				origin=601
++			}
++			orbit=116
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
+ 	}
+ }
+ astral_rifts=
+@@ -692049,7 +692450,7 @@
+ {
+ }
+ last_created_country=55
+-last_created_system=600
++last_created_system=601
+ leaders=
+ {
+ 	285212672=
+@@ -709170,7 +709571,7 @@
+ {
+ 	count=
+ 	{
+-		1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 15 1 1 1 1 1 1 1 1 1 1 1 1 1 8 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 
++		1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 15 1 1 1 1 1 1 1 1 1 1 1 1 1 8 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 2 1 1 
+ 	}
+ 	initializer=
+ 	{
