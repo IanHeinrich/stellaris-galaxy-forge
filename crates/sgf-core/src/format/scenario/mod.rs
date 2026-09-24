@@ -59,7 +59,9 @@ impl Format for Scenario {
         match subject {
             Subject::System(id) => scenario.system(id).ok_or(OpError::UnknownSystem(id)),
             Subject::Nebula(i) => scenario.nebula(i).ok_or(OpError::UnknownNebula(i)),
-            Subject::Statement { anchor, .. } | Subject::Header(anchor) => Ok(anchor),
+            Subject::Statement { anchor, .. }
+            | Subject::Header(anchor)
+            | Subject::Record(anchor) => Ok(anchor),
             Subject::Planet { id, .. } => Err(OpError::UnknownPlanet(id)),
             Subject::Flags => Err(OpError::NoFlags),
             Subject::Country(id) => Err(OpError::UnknownCountry(id)),

@@ -1,8 +1,9 @@
-//! The editing commands (`move`, `move-nebula`, `lane`, `isolate`, `star`): one op, then a save.
+//! The editing commands (`move`, `move-nebula`, `lane`, `isolate`, `star`, `add-system`):
+//! one op, then a save.
 
 use std::path::Path;
 
-use sgf_core::ops::Op;
+use sgf_core::ops::{Op, SystemSpec};
 use sgf_core::session::Session;
 
 use super::{Outcome, Run, print_issues};
@@ -29,4 +30,10 @@ pub fn spawn_base(text: &str) -> Result<Option<f64>, String> {
     text.parse()
         .map(Some)
         .map_err(|_| format!("{text} is neither a number nor \"none\""))
+}
+
+/// The system `add-system` reads from a JSON file.
+pub fn system_spec(path: &Path) -> Result<SystemSpec, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
 }

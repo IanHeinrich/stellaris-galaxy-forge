@@ -26,12 +26,13 @@ pub(crate) type Splice = (Range<usize>, Vec<u8>);
 /// entity with the system it is a body of, the `index`th `nebula` section, one statement
 /// that is nobody's entity (a scenario's standalone `add_hyperlane`, which belongs to the
 /// two systems it names rather than to either), one of a scenario header's statements,
-/// which belongs to no system at all, a save's top-level `flags` section, or a save's
-/// `country` entity.
+/// which belongs to no system at all, a save's top-level `flags` section, a save's
+/// `country` entity, or a save statement no projection reads (a counter, a deposit, an
+/// entry of a name pool).
 ///
 /// The order is the order edits are committed in: every system, then every planet, then
 /// every nebula, then every standalone statement, then the header, then the flags, then
-/// every country.
+/// every country, then every such save statement.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Subject {
     System(u32),
@@ -41,6 +42,7 @@ pub enum Subject {
     Header(Anchor),
     Flags,
     Country(u32),
+    Record(Anchor),
 }
 
 impl Subject {
@@ -53,7 +55,8 @@ impl Subject {
             | Self::Statement { .. }
             | Self::Header(_)
             | Self::Flags
-            | Self::Country(_) => None,
+            | Self::Country(_)
+            | Self::Record(_) => None,
         }
     }
 
@@ -62,7 +65,11 @@ impl Subject {
     pub fn systems(self) -> impl Iterator<Item = u32> {
         let ids = match self {
             Self::System(id) | Self::Planet { system: id, .. } => vec![id],
-            Self::Nebula(_) | Self::Header(_) | Self::Flags | Self::Country(_) => Vec::new(),
+            Self::Nebula(_)
+            | Self::Header(_)
+            | Self::Flags
+            | Self::Country(_)
+            | Self::Record(_) => Vec::new(),
             Self::Statement { ends, .. } => vec![ends.0, ends.1],
         };
         ids.into_iter()
@@ -96,6 +103,7 @@ impl Subject {
                 offset,
                 reason,
             },
+            Self::Record(_) => OpError::RecordParse { offset, reason },
         }
     }
 }

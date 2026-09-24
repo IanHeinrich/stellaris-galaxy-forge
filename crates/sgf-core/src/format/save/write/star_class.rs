@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 
 use crate::keys;
-use crate::ops::rules::quoted;
+use crate::ops::rules::{quotable, quoted};
 use crate::ops::{Op, OpError, Plan, Planned, StarBody};
 use crate::projections::read;
 use crate::session::Session;
@@ -84,7 +84,7 @@ fn check_class(class: &str, empty: OpError) -> Result<(), OpError> {
     if class.is_empty() {
         return Err(empty);
     }
-    if class.contains(['"', '\\', '\n', '\r']) {
+    if !quotable(class) {
         return Err(OpError::InvalidClass(class.to_owned()));
     }
     Ok(())

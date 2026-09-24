@@ -2,11 +2,10 @@
 //! included. The size is written as given; the game is the judge of what a class allows.
 
 use crate::cst;
+use crate::format::save::planet_statement;
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned};
-use crate::overlay::Anchor;
 use crate::projections::read;
-use crate::scan::Value;
 use crate::session::Session;
 
 pub(crate) fn plan_set(
@@ -39,13 +38,8 @@ pub(crate) fn plan_set(
 
 /// The system planet `id` sits in, from its `coordinate.origin`.
 fn system_of(s: &Session, id: u32) -> Result<u32, OpError> {
-    let entity = s
-        .doc
-        .inner_index(keys::PLANETS)?
-        .and_then(|index| index.entity(keys::PLANET, u64::from(id)))
-        .filter(|e| matches!(e.value, Value::Block { .. }))
-        .ok_or(OpError::UnknownPlanet(id))?;
-    let buf = s.doc.current(Anchor::Original(entity.stmt))?;
+    let anchor = planet_statement(&s.doc, id)?.ok_or(OpError::UnknownPlanet(id))?;
+    let buf = s.doc.current(anchor)?;
     let parse_error = |offset: usize, reason: String| OpError::PlanetParse {
         planet: id,
         offset,

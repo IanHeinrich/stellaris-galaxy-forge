@@ -10,6 +10,7 @@ use crate::Span;
 use crate::document::Document;
 use crate::entity::EntityError;
 use crate::entity::views::{EntityAddr, EntityKind};
+use crate::format::save::added::Table;
 use crate::keys;
 use crate::overlay::Anchor;
 
@@ -75,6 +76,12 @@ pub(crate) fn locate(doc: &Document, addr: EntityAddr) -> Result<Located, Entity
         };
         return anchor.map(Located::at).ok_or(EntityError::NotFound(addr));
     }
+    if let Some(anchor) = added(doc, addr) {
+        return Ok(Located {
+            anchor,
+            original: None,
+        });
+    }
     let table = address(addr.kind);
     let id = u64::from(addr.id);
     let found = match table.inner {
@@ -86,4 +93,16 @@ pub(crate) fn locate(doc: &Document, addr: EntityAddr) -> Result<Located, Entity
     found
         .map(|entity| Located::at(Anchor::Original(entity.stmt)))
         .ok_or(EntityError::NotFound(addr))
+}
+
+/// The statement an op wrote for `addr`, which stands against no original: an inserted
+/// one, or a tombstone's slot a new entity took.
+fn added(doc: &Document, addr: EntityAddr) -> Option<Anchor> {
+    let table = match addr.kind {
+        EntityKind::System => Table::System,
+        EntityKind::Planet => Table::Planet,
+        EntityKind::Deposit => Table::Deposit,
+        _ => return None,
+    };
+    doc.added().get(table, addr.id)
 }

@@ -38,7 +38,7 @@ impl DetailsProjection {
         let src = doc.original();
         let index = doc.index();
         let countries = extract::countries(&read::countries(index, src)?);
-        let deposit_kind = extract::deposit_kinds(index, src)?;
+        let deposit_kind = extract::deposit_kinds(doc)?;
         let colony_pops = extract::colony_pops(index, src)?;
         let ship_sizes = extract::ship_sizes(index, src)?;
 

@@ -9,9 +9,10 @@
 //! hyperlane entries between them, [`bulk`] for the ops that take several at once,
 //! [`nebula`] for the clouds over them, [`lgate`] for the L-Cluster outcome the global
 //! flags hold, [`star_class`] for a system's star and its star bodies, [`planet_size`]
-//! for the size of one planet or star body, and [`map_colors`] for the colours an empire
-//! paints its territory in.
+//! for the size of one planet or star body, [`map_colors`] for the colours an empire
+//! paints its territory in, and [`add_system`] for a whole new system with its bodies.
 
+pub(crate) mod add_system;
 pub(crate) mod bulk;
 pub(crate) mod lanes;
 pub(crate) mod lgate;

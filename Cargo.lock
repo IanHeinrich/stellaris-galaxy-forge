@@ -3784,6 +3784,7 @@ name = "sgf-cli"
 version = "0.12.0"
 dependencies = [
  "clap",
+ "serde_json",
  "sgf-core",
  "sgf-gamedata",
  "tempfile",

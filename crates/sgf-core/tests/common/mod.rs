@@ -7,6 +7,7 @@ pub mod examples;
 pub mod export;
 pub mod fixture;
 pub mod paint;
+pub mod spec;
 
 use std::path::PathBuf;
 use std::sync::{LazyLock, OnceLock};

@@ -1,7 +1,10 @@
 //! The `.sav` side of the seam: how a save is projected, written and saved.
 
+pub(crate) mod added;
+pub(crate) mod alloc;
 pub mod details;
 pub(crate) mod galaxy;
+pub mod system_spec;
 pub(crate) mod write;
 
 use std::collections::BTreeSet;
@@ -11,14 +14,15 @@ use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
 use crate::format::Format;
+use crate::format::save::added::Table;
 use crate::format::save::write::{
-    bulk, lanes, lgate, map_colors, move_system, nebula, planet_size, star_class,
+    add_system, bulk, lanes, lgate, map_colors, move_system, nebula, planet_size, star_class,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
-use crate::scan::{self, Entity, Value};
+use crate::scan::{self, Value};
 use crate::session::Session;
 use crate::validate::Issue;
 use crate::views::{Capabilities, DocumentKind};
@@ -36,15 +40,19 @@ impl Format for Save {
 
     fn statement(&self, doc: &Document, subject: Subject) -> Result<Anchor, OpError> {
         match subject {
-            Subject::System(id) => Ok(Anchor::Original(find_entity(doc, id)?.stmt)),
-            Subject::Planet { id, .. } => Ok(Anchor::Original(find_planet(doc, id)?.stmt)),
+            Subject::System(id) => system_statement(doc, id).ok_or(OpError::UnknownSystem(id)),
+            Subject::Planet { id, .. } => {
+                planet_statement(doc, id)?.ok_or(OpError::UnknownPlanet(id))
+            }
             Subject::Nebula(index) => doc
                 .nebulae()
                 .get(index)
                 .copied()
                 .ok_or(OpError::UnknownNebula(index)),
             // A save keeps its lanes inside the two systems, so no statement stands alone.
-            Subject::Statement { anchor, .. } | Subject::Header(anchor) => Ok(anchor),
+            Subject::Statement { anchor, .. }
+            | Subject::Header(anchor)
+            | Subject::Record(anchor) => Ok(anchor),
             Subject::Flags => doc
                 .index()
                 .section(keys::FLAGS)
@@ -62,14 +70,18 @@ impl Format for Save {
         doc: &mut Document,
         graph: &mut GalaxyGraph,
         touched: &[Subject],
-        _slots: &[Anchor],
+        slots: &[Anchor],
     ) -> Result<Vec<Subject>, OpError> {
+        doc.refresh_added(slots);
         let mut nebulae = false;
         let mut bodies = BTreeSet::new();
         for &subject in touched {
             match subject {
                 Subject::System(id) => {
-                    let anchor = self.statement(doc, subject)?;
+                    let Some(anchor) = system_statement(doc, id) else {
+                        graph.drop_system(id);
+                        continue;
+                    };
                     let buf = doc.current(anchor)?;
                     let root = self
                         .parse(buf, 0)
@@ -102,9 +114,10 @@ impl Format for Save {
                         .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
                     graph.refresh_country(id, country, buf);
                 }
-                Subject::Statement { .. } | Subject::Header(_) => {}
+                Subject::Statement { .. } | Subject::Header(_) | Subject::Record(_) => {}
             }
         }
+        bodies.retain(|id| graph.systems.contains_key(id));
         for id in bodies {
             let subject = Subject::System(id);
             let buf = doc.current(self.statement(doc, subject)?)?;
@@ -157,6 +170,7 @@ impl Format for Save {
             Op::SetEmpireMapColors { country, colors } => {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
+            Op::AddSaveSystem { spec } => add_system::plan_add(plan, s, spec),
             // A save's systems come with planets, a starbase and an owner, its names and
             // initializers are the game's to set, and it has neither a scenario header nor
             // a generator to prevent a lane from.
@@ -232,21 +246,44 @@ impl Format for Save {
     }
 }
 
-fn find_entity(doc: &Document, id: u32) -> Result<Entity, OpError> {
-    match doc.index().entity(keys::GALACTIC_OBJECT, u64::from(id)) {
-        Some(e) if matches!(e.value, Value::Block { .. }) => Ok(*e),
-        _ => Err(OpError::UnknownSystem(id)),
-    }
+/// The statement standing for system `id`: one an op added, or the one loaded.
+pub(crate) fn system_statement(doc: &Document, id: u32) -> Option<Anchor> {
+    doc.added().get(Table::System, id).or_else(|| {
+        doc.index()
+            .entity(keys::GALACTIC_OBJECT, u64::from(id))
+            .filter(|e| matches!(e.value, Value::Block { .. }))
+            .map(|e| Anchor::Original(e.stmt))
+    })
 }
 
-fn find_planet(doc: &Document, id: u32) -> Result<Entity, OpError> {
-    let found = doc
-        .inner_index(keys::PLANETS)?
-        .and_then(|index| index.entity(keys::PLANET, u64::from(id)));
-    match found {
-        Some(e) if matches!(e.value, Value::Block { .. }) => Ok(*e),
-        _ => Err(OpError::UnknownPlanet(id)),
+/// The statement standing for planet `id`: one an op added, or the one loaded; `None` for
+/// a planet the save does not hold or holds as a tombstone.
+pub(crate) fn planet_statement(doc: &Document, id: u32) -> Result<Option<Anchor>, ProjectionError> {
+    if let Some(anchor) = doc.added().get(Table::Planet, id) {
+        return Ok(Some(anchor));
     }
+    Ok(doc
+        .inner_index(keys::PLANETS)?
+        .and_then(|index| index.entity(keys::PLANET, u64::from(id)))
+        .filter(|e| matches!(e.value, Value::Block { .. }))
+        .map(|e| Anchor::Original(e.stmt)))
+}
+
+/// Every planet the save now holds, loaded or added, with its statement, in file order;
+/// a tombstone is left out.
+pub(crate) fn planet_statements(doc: &Document) -> Result<Vec<(u32, Anchor)>, ProjectionError> {
+    let mut planets: Vec<(u32, Anchor)> = doc.added().entries(Table::Planet).collect();
+    if let Some(index) = doc.inner_index(keys::PLANETS)? {
+        planets.extend(
+            index
+                .entities(keys::PLANET)
+                .iter()
+                .filter(|e| matches!(e.value, Value::Block { .. }))
+                .filter_map(|e| Some((u32::try_from(e.id).ok()?, Anchor::Original(e.stmt)))),
+        );
+    }
+    planets.sort_by_key(|&(_, anchor)| anchor);
+    Ok(planets)
 }
 
 /// Where a new `nebula` section's bytes go: past the last one the file holds, else at
