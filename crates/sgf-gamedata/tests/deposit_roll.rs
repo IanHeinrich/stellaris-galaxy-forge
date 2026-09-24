@@ -7,8 +7,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::sync::LazyLock;
 
+use sgf_core::ops::{BodySpec, SystemSpec};
 use sgf_gamedata::GameData;
 use sgf_gamedata::deposit_roll::{RollBody, roll_deposits};
+use sgf_gamedata::generate::generate;
 
 static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(common::load_real);
 
@@ -510,4 +512,75 @@ fn the_real_install_uses_no_condition_the_roll_cannot_judge() {
         }
     }
     assert!(unknown.is_empty(), "{unknown:?}");
+}
+
+/// Every body of `spec`, the star first, then each planet and its moons, with whether it
+/// is a moon.
+fn generated(spec: &SystemSpec) -> Vec<(&BodySpec, bool)> {
+    let mut out = vec![(&spec.star, false)];
+    for planet in &spec.planets {
+        out.push((planet, false));
+        out.extend(planet.moons.iter().map(|moon| (moon, true)));
+    }
+    out
+}
+
+fn generate_at(gd: &GameData, seed: u64, abundance: f64) -> SystemSpec {
+    generate(gd, seed, "Gen", (-313.94, -124.34), None, abundance).expect("a system")
+}
+
+#[test]
+fn a_generated_system_rolls_deposits_on_every_kind_of_body_at_abundance_2() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let mut seen: BTreeMap<&str, (u32, u32)> = BTreeMap::new();
+    for seed in 0..300 {
+        let spec = generate_at(gd, seed, 2.0);
+        assert_eq!(spec.star.deposits.len(), 1, "seed {seed}: the star's one");
+        for (body, moon) in generated(&spec).into_iter().skip(1) {
+            let class = gd.planet_classes.get(&body.class).unwrap();
+            let kind = match (class.colonizable, body.asteroid, moon) {
+                (true, ..) => "habitable",
+                (_, true, _) => "asteroid",
+                (.., true) => "moon",
+                _ => "planet",
+            };
+            let entry = seen.entry(kind).or_default();
+            entry.0 += 1;
+            entry.1 += u32::from(!body.deposits.is_empty());
+            for key in &body.deposits {
+                assert!(gd.deposits.get(key).is_some(), "seed {seed}: {key}");
+            }
+            if class.colonizable {
+                assert!(
+                    body.deposits.len() >= 4 && blockers(gd, &body.deposits) >= 1,
+                    "seed {seed}: {} {:?}",
+                    body.class,
+                    body.deposits
+                );
+            } else {
+                assert!(body.deposits.len() <= 1, "seed {seed}: {body:?}");
+            }
+        }
+    }
+    let (worlds, with) = seen["habitable"];
+    assert!(worlds > 0 && with == worlds, "{seen:?}");
+    for kind in ["asteroid", "planet", "moon"] {
+        let (bodies, with) = seen[kind];
+        assert!(with > 0 && with < bodies, "{kind}: {seen:?}");
+    }
+}
+
+#[test]
+fn a_generated_system_rolls_no_deposits_at_abundance_0() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    for seed in 0..300 {
+        let spec = generate_at(gd, seed, 0.0);
+        for (body, _) in generated(&spec) {
+            assert!(body.deposits.is_empty(), "seed {seed}: {body:?}");
+        }
+    }
 }
