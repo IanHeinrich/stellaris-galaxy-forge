@@ -3,6 +3,7 @@
 //! wormholes it flags.
 use std::collections::BTreeSet;
 
+use sgf_core::VERSION;
 use sgf_core::export::{self, DroppedBypasses, ScenarioProfile};
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeKind};
@@ -14,7 +15,8 @@ use sgf_core::validate::{IssueCode, Severity};
 
 mod common;
 use common::export::{
-    NAME, SAVE_FILE, default_capitals, exported_as, find, no_names, no_sources, seated,
+    NAME, SAVE_FILE, at_fixture_version, default_capitals, exported_as, find, no_names, no_sources,
+    seated,
 };
 use common::fixture::{EXPORTED_PAINT, from_scenario_text};
 use common::paint::{assert_paint_export_holds_together, left_out};
@@ -91,21 +93,22 @@ fn the_paint_a_galaxy_export_of_the_sample_matches_its_fixture_and_holds_togethe
     let committed = EXPORTED_PAINT.bytes();
     let (text, report) = exported_as(&save, NAME, ScenarioProfile::PaintAGalaxy);
     assert_eq!(
-        text, committed,
-        "the fixture is generated: re-export it with `sgf export-scenario --profile paint-a-galaxy`"
+        at_fixture_version(&text),
+        committed,
+        "the fixture is generated: re-export it with `sgf export-scenario --profile paint-a-galaxy` and write its version as 0.0.0"
     );
     let text = String::from_utf8(text).expect("utf-8");
     assert!(
-        text.starts_with(
-            "# Exported by Stellaris Galaxy Forge from 2206.11.16.sav
+        text.starts_with(&format!(
+            "# created by Stellaris Galaxy Forge {VERSION} (converted from save 2206.11.16.sav)
 # Systems: 765 · Empire seats: 17 · Nebulae: 9
 # Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
-static_galaxy_scenario = {
+static_galaxy_scenario = {{
 	name = \"2206.11.16\"
 	priority = 10
 	supports_shape = elliptical
 "
-        ),
+        )),
         "{}",
         &text[..300]
     );
@@ -515,7 +518,7 @@ fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flag
         .count();
     assert!(
         text.starts_with(&format!(
-            "# Exported by Stellaris Galaxy Forge from {SAVE_FILE}
+            "# created by Stellaris Galaxy Forge {VERSION} (converted from save {SAVE_FILE})
 # Systems: {systems} · Empire seats: {} · Nebulae: 9
 # Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
 static_galaxy_scenario = {{

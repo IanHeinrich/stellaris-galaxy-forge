@@ -380,7 +380,7 @@ jobs:
             echo "  [Installing](https://github.com/$GITHUB_REPOSITORY#installing) for how to open it."
             echo "- **Linux:** [Linux.AppImage]($dl-Linux.AppImage), or the \`.deb\` or \`.rpm\` package for your distribution."
             echo
-            echo "You don't need the other files. They are for automatic updates, IT departments and the command-line tool."
+            echo "You don't need the other files."
             echo
             bash scripts/changelog.sh notes "$v"
           } > notes.md

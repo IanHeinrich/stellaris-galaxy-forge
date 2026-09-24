@@ -107,13 +107,40 @@ machine), and by the CLI's `--profile paint-a-galaxy` flag on
 `crates/sgf-core/src/export/paint.rs` is the one module that writes it, laid
 over a plain draft; the exact statement shapes below are drawn from it.
 
-The header opens with a comment naming Forge and the mod, then the block
+Every scenario Forge writes, under either profile, opens with a `# created
+by` line, which Paint a Galaxy writes too. The line names the tool and
+version that last wrote the file, and in brackets where that tool got it
+from:
+
+```
+# created by Stellaris Galaxy Forge <version> (converted from save <file>)
+# created by Stellaris Galaxy Forge <version>
+# created by Stellaris Galaxy Forge <version> (imported from txt created by Paint a Galaxy 1.4.2 (imported from generic txt))
+```
+
+A save's export writes the first, with `(`, `)` and line breaks dropped from
+the file name. A new scenario writes the second. When Forge saves an edited
+scenario whose first line is a `# created by` line, it wraps that line in
+its own, as in the third, so the chain grows by one level each time the
+file passes to another tool or version. A line that already names this version of Forge is kept as
+it is. When the wrapped line would name more than ten writers, Forge keeps
+the eight newest (its own included), one `...` level and the original writer
+with its note, and never adds a second `...`. A line whose brackets do not
+parse is wrapped whole. A file that opens with the `# Exported by` or
+`# Written by` comment an earlier Forge wrote gets `# created by Stellaris
+Galaxy Forge <version> (imported from txt created by an earlier Stellaris
+Galaxy Forge)` above it. A file neither tool made gets no line, and a file
+saved without edits is written unchanged. A byte order mark stays in front
+and the line takes the file's own line ending.
+
+Below that line, the header opens with a comment naming Forge and the mod, then the block
 `generate_galaxy_txt.ts` writes for `S` spawn systems (`R` of them reserved
 for one empire) and `systems` systems in total, plus Forge's own
 `core_radius`. A save's export takes its defaults from the save's own setup
 screen (the top-level `galaxy` block) where the placeholders below name it:
 
 ```
+# created by Stellaris Galaxy Forge <version> ...
 # Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
 static_galaxy_scenario = {
 	name = "<name>"

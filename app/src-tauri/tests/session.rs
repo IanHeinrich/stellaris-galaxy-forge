@@ -644,10 +644,11 @@ fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands()
     let text = std::fs::read_to_string(&exported).unwrap();
     assert!(
         !text.contains(idiom)
-            && text.starts_with(
-                "# Exported by Stellaris Galaxy Forge from 2206.11.16.sav
-"
-            )
+            && text.starts_with(&format!(
+                "# created by Stellaris Galaxy Forge {} (converted from save 2206.11.16.sav)
+",
+                sgf_core::VERSION
+            ))
             && text.contains(
                 "
 static_galaxy_scenario = {

@@ -12,6 +12,7 @@ pub mod index;
 pub mod listings;
 pub mod marauder;
 pub mod paint;
+pub(crate) mod provenance;
 pub(crate) mod spawn;
 pub mod summary;
 pub(crate) mod write;
@@ -93,7 +94,10 @@ impl Format for Scenario {
         path: &Path,
         progress: &mut dyn FnMut(f64),
     ) -> Result<Option<PathBuf>, document::Error> {
-        Ok(archive::write_text_with(path, doc.pieces(), progress)?)
+        let (dropped, head) = provenance::stamp(doc);
+        let pieces =
+            std::iter::once(head.as_slice()).chain(provenance::skip(doc.pieces(), dropped));
+        Ok(archive::write_text_with(path, pieces, progress)?)
     }
 
     fn title(&self, doc: &Document) -> String {

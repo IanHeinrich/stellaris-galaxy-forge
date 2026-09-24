@@ -506,7 +506,9 @@ generated from instead of a random one: a `.txt` file under
 `map/setup_scenarios/` in the game or in a mod, listing every system, its
 position, its hyperlanes and what it starts with. The editor opens one the
 way it opens a save, edits it as bytes, and writes it back with everything
-it did not touch copied out exactly as it came in.
+it did not touch copied out exactly as it came in. The one exception is the
+`# created by` line at the top of a scenario made in Forge or Paint a
+Galaxy. Saving an edited scenario adds Forge and its version to that line.
 
 Opening one: the open list carries every scenario it can find, from your
 mods, your playset and the install, with its system count and who
@@ -522,8 +524,8 @@ homes, fallen empires, marauders and the rest, what the file cannot carry
 initializers), which DLC or mods its initializers come from when game
 data is loaded, and any home system whose initializer is not a generic
 start. The dialog carries the same "For the Paint a Galaxy mod" checkbox
-as the blank canvas below, and the written file opens with those facts
-as `#` comment lines; the status bar's "Exported" time shows them again
+as the blank canvas below, and the written file opens with a line naming
+Forge's version and the save, then those facts as `#` comment lines; the status bar's "Exported" time shows them again
 in its tooltip. The "Open as" question a picked save asks carries the
 same checkbox under "Edit as scenario", and "Open save as scenario…"
 in the File menu follows the standing choice, so a save taken into the

@@ -753,7 +753,10 @@ fn export_scenario_writes_a_file_that_opens_as_the_saves_galaxy() {
         &written[..200]
     );
     assert!(
-        written.starts_with("# Exported by Stellaris Galaxy Forge from 2206.11.16.sav\n"),
+        written.starts_with(&format!(
+            "# created by Stellaris Galaxy Forge {} (converted from save 2206.11.16.sav)\n",
+            env!("CARGO_PKG_VERSION")
+        )),
         "{}",
         &written[..200]
     );
@@ -847,9 +850,14 @@ static_galaxy_scenario = {
     );
     assert!(paint.contains("set_star_flag = painted_galaxy_wormhole_1"));
     assert!(paint.contains("set_star_flag = painted_galaxy_fe_spawn_machine"));
+    let paint = paint.replacen(
+        concat!("Stellaris Galaxy Forge ", env!("CARGO_PKG_VERSION"), " "),
+        "Stellaris Galaxy Forge 0.0.0 ",
+        1,
+    );
     assert!(
         paint.starts_with(
-            "# Exported by Stellaris Galaxy Forge from 2206.11.16.sav\n# Systems: 765 · Empire seats: 17 · Nebulae: 9\n# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod"
+            "# created by Stellaris Galaxy Forge 0.0.0 (converted from save 2206.11.16.sav)\n# Systems: 765 · Empire seats: 17 · Nebulae: 9\n# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod"
         ),
         "{}",
         &paint[..300]
@@ -861,7 +869,7 @@ static_galaxy_scenario = {
             "/../../testdata/2206.11.16.paint.txt"
         ))
         .unwrap(),
-        "the fixture is generated: re-export it with `sgf export-scenario --name 2206.11.16 --profile paint-a-galaxy`"
+        "the fixture is generated: re-export it with `sgf export-scenario --name 2206.11.16 --profile paint-a-galaxy` and write its version as 0.0.0"
     );
     let validated = sgf(&["validate", paint_path.to_str().unwrap()]);
     assert_eq!(
