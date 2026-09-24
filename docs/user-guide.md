@@ -119,6 +119,10 @@ one:
 - Pick any save and click "Open as scenario", or use File → "Export as
   scenario…". The save itself is left untouched.
 
+The file starts with a `# created by` line naming Forge's version.
+Saving an edited scenario from Forge or Paint a Galaxy adds Forge to that
+line, so it lists every tool and version that wrote the file.
+
 ### The Paint a Galaxy checkbox
 
 Each route has a "For the Paint a Galaxy mod" checkbox, ticked by

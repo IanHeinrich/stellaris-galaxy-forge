@@ -1,4 +1,4 @@
-# Exported by Stellaris Galaxy Forge from 2206.11.16.sav
+#​ created by Stellaris Galaxy Forge 0.0.0 (converted from save 2206.11.16.sav)
 # Systems: 791 · Empire seats: 17 · Nebulae: 9
 # Not carried over: 6 wormhole pairs
 static_galaxy_scenario = {

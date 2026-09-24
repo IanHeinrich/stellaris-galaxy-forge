@@ -2,6 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
+#​ created by Stellaris Galaxy Forge 0.0.0
 # Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
 static_galaxy_scenario = {
 	name = "sgf_test"

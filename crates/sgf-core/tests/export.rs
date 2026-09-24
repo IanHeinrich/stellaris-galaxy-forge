@@ -4,6 +4,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use sgf_core::VERSION;
 use sgf_core::document;
 use sgf_core::emit::rounded;
 use sgf_core::export::policy::Category;
@@ -15,7 +16,8 @@ use sgf_core::views::DocumentKind;
 
 mod common;
 use common::export::{
-    NAME, SAVE_FILE, default_capitals, exported_as, lanes, no_names, no_sources, seated,
+    NAME, SAVE_FILE, at_fixture_version, default_capitals, exported_as, lanes, no_names,
+    no_sources, seated,
 };
 use common::fixture::{EXPORTED, GRAMMAR, from_scenario_text};
 
@@ -63,8 +65,9 @@ fn the_sample_exports_to_the_committed_fixture_and_reads_back_as_the_same_galaxy
     let committed = EXPORTED.bytes();
     let (text, report) = exported(&save, NAME);
     assert_eq!(
-        text, committed,
-        "the fixture is generated: re-export it with `sgf export-scenario`"
+        at_fixture_version(&text),
+        committed,
+        "the fixture is generated: re-export it with `sgf export-scenario` and write its version as 0.0.0"
     );
     let text = String::from_utf8(text).expect("utf-8");
 
@@ -74,7 +77,7 @@ fn the_sample_exports_to_the_committed_fixture_and_reads_back_as_the_same_galaxy
     let empires = seats - 1;
     assert!(
         text.starts_with(&format!(
-            "# Exported by Stellaris Galaxy Forge from {SAVE_FILE}
+            "#\u{200B} created by Stellaris Galaxy Forge {VERSION} (converted from save {SAVE_FILE})
 # Systems: 791 · Empire seats: {seats} · Nebulae: 9
 # Not carried over: 6 wormhole pairs
 static_galaxy_scenario = {{
@@ -247,9 +250,14 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
     assert_eq!(session.path, None);
     assert!(session.is_dirty());
     assert_eq!(report, exported(&common::open(), NAME).1);
-    assert!(common::current(&session).starts_with(
-        format!("# Exported by Stellaris Galaxy Forge from {SAVE_FILE}\n").as_bytes()
-    ));
+    assert!(
+        common::current(&session).starts_with(
+            format!(
+                "#\u{200B} created by Stellaris Galaxy Forge {VERSION} (converted from save {SAVE_FILE})\n"
+            )
+            .as_bytes()
+        )
+    );
 
     let error = session
         .save_to(None)
@@ -297,7 +305,7 @@ fn a_new_scenario_is_a_header_with_nothing_in_it() {
     assert!(reopened.graph.systems.is_empty());
     common::snapshot(
         "new_scenario",
-        &String::from_utf8(std::fs::read(&path).unwrap()).unwrap(),
+        &String::from_utf8(at_fixture_version(&std::fs::read(&path).unwrap())).unwrap(),
     );
 }
 
@@ -315,7 +323,7 @@ fn a_new_paint_a_galaxy_scenario_is_the_mods_header_with_nothing_in_it() {
     assert_eq!(reopened.title(), "sgf_test");
     common::snapshot(
         "new_scenario_paint",
-        &String::from_utf8(std::fs::read(&path).unwrap()).unwrap(),
+        &String::from_utf8(at_fixture_version(&std::fs::read(&path).unwrap())).unwrap(),
     );
 }
 
