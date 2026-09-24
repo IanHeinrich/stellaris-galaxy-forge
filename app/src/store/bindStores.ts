@@ -6,6 +6,7 @@ import { useEntityStore } from "./entityStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
+import { useGeneratorStore } from "./generatorStore";
 import { useInspectorStore } from "./inspectorStore";
 import {
   noteDuplicateNames,
@@ -165,11 +166,13 @@ function followEntities(): void {
   });
 }
 
-// A planet page's deposits, modifiers and designations are the loaded game data's to say.
+// A planet page's deposits, modifiers and designations, and the star classes a rolled system can
+// have, are the loaded game data's to say.
 function followPlanetData(): void {
   useGameDataStore.subscribe((state, previous) => {
     if (state.status !== previous.status || state.version !== previous.version) {
       usePlanetDataStore.getState().clear();
+      useGeneratorStore.getState().clear();
     }
   });
 }

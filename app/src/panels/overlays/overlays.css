@@ -114,6 +114,56 @@
   padding-top: 4px;
 }
 
+.context-submenu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.context-submenu-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.context-submenu-caret {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--fg-muted);
+}
+
+.context-submenu-item.hinted {
+  flex-direction: column;
+  align-items: stretch;
+  height: auto;
+  min-height: 22px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+/* A refused entry dims its label as a disabled button does; its reason stays readable. */
+.context-menu button.context-submenu-item:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.context-menu button.context-submenu-item:disabled > .context-submenu-label {
+  opacity: 0.5;
+}
+
+.context-menu button.context-submenu-item:disabled > .muted {
+  color: var(--fg-soft);
+}
+
+/* Over the entry's right edge, so the pointer never crosses a gap on its way in. */
+.context-submenu-list {
+  top: -7px;
+  left: calc(100% - 2px);
+  max-height: 60vh;
+  overflow-y: auto;
+  white-space: nowrap;
+}
+
 .update-dialog {
   width: min(520px, 100%);
   max-height: min(70vh, 640px);

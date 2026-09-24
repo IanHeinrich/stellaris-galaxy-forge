@@ -129,6 +129,12 @@ const BINDINGS: Binding[] = [
   ),
   follows(
     useMapChromeStore,
+    [(s) => s.addSystemPreview],
+    (s, view) => view.highlights.setAddSystemPreview(s.addSystemPreview),
+    "bind",
+  ),
+  follows(
+    useMapChromeStore,
     [(s) => s.shownKinds],
     (s, view) => setShownKinds(view, s.shownKinds),
     "layers",

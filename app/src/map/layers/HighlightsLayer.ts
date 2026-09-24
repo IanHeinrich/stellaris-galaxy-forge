@@ -1,6 +1,8 @@
 import { Container, Graphics } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { LaneRef } from "../../store/editorStore";
+import type { AddSystemPreview } from "../../store/mapChromeStore";
+import { SPAWN_BUFFER } from "../../lib/addSystem";
 import type { Camera } from "../Camera";
 import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
 import { edgeEnds, sameEdge, sameLane, type MapEdge } from "../picking/edges";
@@ -15,6 +17,7 @@ import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { ACCENT_COLOR, ALLOWED_COLOR, CAUTION_COLOR, REFUSED_COLOR } from "../../lib/visual/style";
 import { SCENARIO_HALF_EXTENT } from "../../lib/guides";
+import { AddedMarks } from "./highlights/AddedMarks";
 import { BrushOverlay } from "./highlights/BrushOverlay";
 import { dashedCircle } from "./highlights/dashedCircle";
 import { FeZoneDragOverlay } from "./highlights/FeZoneDragOverlay";
@@ -49,6 +52,11 @@ const MARQUEE = { color: ACCENT_COLOR, strokeAlpha: 0.9, fillAlpha: 0.08 };
 const GHOST_RING = { color: 0xc4b5fd, alpha: 0.9 };
 const GHOST_RING_DASHES = 48;
 const ORIGIN_MARK = { color: 0xffffff, alpha: 0.3, armPx: 7 };
+/** Where a system is being added: the spawn buffer, clear or not, and the galaxy's edge it is past. */
+const ADD_CLEAR = { color: ALLOWED_COLOR, alpha: 0.9 };
+const ADD_REFUSED = { color: REFUSED_COLOR, alpha: 0.9 };
+const ADD_BUFFER_DASHES = 24;
+const ADD_EDGE_DASHES = 160;
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
 
@@ -132,6 +140,9 @@ export class HighlightsLayer implements MapLayer {
   private readonly ghostRing = new Graphics();
   private readonly origin = originCross();
   private readonly coreRing = new Graphics();
+  private readonly addPreviewLines = new Graphics({ label: "addSystemPreview" });
+  /** The plus on every system added this session. */
+  private readonly added = new AddedMarks();
   /** The brush circle and what a held stroke would do. */
   readonly brush = new BrushOverlay();
   /** The axis or spokes of the symmetry edits repeat under. */
@@ -149,6 +160,7 @@ export class HighlightsLayer implements MapLayer {
   private dragged: ReadonlyMap<number, MoveGhost> = new Map();
   private rubber: RubberLane | null = null;
   private lanePreview: Array<[number, number]> | null = null;
+  private addPreview: AddSystemPreview | null = null;
   private marquee: WorldRect | null = null;
   private nebula: NebulaPreview | null = null;
   private hoverEdge: MapEdge | null = null;
@@ -166,6 +178,7 @@ export class HighlightsLayer implements MapLayer {
       this.origin,
       this.laneLines,
       this.previewLines,
+      this.addPreviewLines,
       this.marqueeBox,
       this.feZoneDrag.container,
       this.ghostRing,
@@ -181,6 +194,7 @@ export class HighlightsLayer implements MapLayer {
       this.searchedRings.container,
       this.joiningRings.container,
       this.leavingRings.container,
+      this.added.container,
       this.midpoint,
     );
   }
@@ -195,6 +209,8 @@ export class HighlightsLayer implements MapLayer {
     }
     this.guide.setReach(guideReachOf(ctx));
     if (!loaded) return;
+    this.added.place(this.systems);
+    this.drawAddPreview();
     this.placeSelection();
     this.placeMatched();
     this.placeSearched();
@@ -207,6 +223,8 @@ export class HighlightsLayer implements MapLayer {
     if (touches(d, this.selection)) this.placeSelection();
     if (touches(d, this.matched)) this.placeMatched();
     if (touches(d, this.searched)) this.placeSearched();
+    this.added.place(this.systems);
+    this.drawAddPreview();
     this.placeAll();
     this.drawPreviews();
     this.drawLanes();
@@ -217,6 +235,7 @@ export class HighlightsLayer implements MapLayer {
     cam.childScale(this.markerK, this.scale);
     this.hover.scale.set(this.scale.x, this.scale.y);
     for (const rings of this.batches()) rings.setScale(this.scale);
+    this.added.setScale(this.scale);
     cam.childScale(1, this.pixelScale);
     this.midpoint.scale.set(this.pixelScale.x, this.pixelScale.y);
     this.origin.scale.set(this.pixelScale.x, this.pixelScale.y);
@@ -238,6 +257,7 @@ export class HighlightsLayer implements MapLayer {
   destroy(): void {
     this.container.destroy({ children: true });
     for (const rings of this.batches()) rings.destroy();
+    this.added.destroy();
   }
 
   setSelection(ids: readonly number[]): void {
@@ -283,6 +303,11 @@ export class HighlightsLayer implements MapLayer {
   setLanePreview(pairs: Array<[number, number]> | null): void {
     this.lanePreview = pairs;
     this.drawPreviews();
+  }
+
+  setAddSystemPreview(preview: AddSystemPreview | null): void {
+    this.addPreview = preview;
+    this.drawAddPreview();
   }
 
   setMatched(ids: ReadonlySet<number>): void {
@@ -474,6 +499,19 @@ export class HighlightsLayer implements MapLayer {
       if (segment) segments.push(segment);
     }
     return segments;
+  }
+
+  private drawAddPreview(): void {
+    const g = this.addPreviewLines;
+    g.clear();
+    const p = this.addPreview;
+    if (!p) return;
+    dashedCircle(g, p.x, p.y, SPAWN_BUFFER, ADD_BUFFER_DASHES);
+    g.stroke({ ...(p.tooClose ? ADD_REFUSED : ADD_CLEAR), pixelLine: true });
+    if (p.edge !== null) {
+      dashedCircle(g, 0, 0, p.edge, ADD_EDGE_DASHES);
+      g.stroke({ ...ADD_REFUSED, pixelLine: true });
+    }
   }
 
   private drawGhostRing(): void {

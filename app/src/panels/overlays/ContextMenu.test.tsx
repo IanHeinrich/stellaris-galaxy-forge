@@ -17,6 +17,7 @@ import type { MarauderRole } from "../../generated/MarauderRole";
 import { newFeZone } from "../../lib/feZone";
 import { clanOf } from "../../lib/marauder";
 import { useEditorStore } from "../../store/editorStore";
+import { useGameDataStore } from "../../store/gameDataStore";
 import { ContextMenu } from "./ContextMenu";
 
 bindStores();
@@ -382,5 +383,46 @@ describe("the marauder clan items", () => {
     html = menu();
     expect(html).toContain(remove);
     expect(html).not.toContain("Add marauder clan");
+  });
+});
+
+describe("the add system item", () => {
+  const space = (x: number, y: number) =>
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "space", x, y }, x: 0, y: 0 });
+
+  beforeEach(() => {
+    useGameDataStore.setState({ status: "ready" });
+  });
+
+  it("offers a rolled system on a clear spot of a save, and nothing linked", () => {
+    space(-50, -20);
+    const html = menu();
+    expect(html.match(/aria-haspopup="menu"/g)).toHaveLength(1);
+    expect(html).toContain('Add system here<span class="context-submenu-caret"');
+    expect(html).not.toContain("linked to");
+    expect(html).not.toContain("disabled=");
+  });
+
+  it("stays on a refused spot, disabled, with the reason under it", () => {
+    space(3, 0);
+    const html = menu();
+    expect(html.match(/aria-haspopup="menu"[^>]*disabled=""/g)).toHaveLength(1);
+    expect(html.match(/Too close to [^<]+: 3 away, the game needs 10<\/span>/g)).toHaveLength(1);
+  });
+
+  it("is not offered on a scenario", async () => {
+    vi.mocked(ipc.openSave).mockResolvedValue(SCENARIO_RESULT);
+    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
+    space(-50, -20);
+    expect(menu()).not.toContain("Add system here");
+  });
+
+  it("put Delete system on an added system's menu and on no other save system's", () => {
+    const sol = useGalaxyStore.getState().systems.get(0)!;
+    useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
+    expect(menu()).not.toContain("Delete system");
+
+    useGalaxyStore.getState().applyDelta({ systems: [{ ...sol, added: true }] });
+    expect(menu()).toContain(">Delete system</button>");
   });
 });

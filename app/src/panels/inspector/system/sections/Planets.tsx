@@ -83,6 +83,7 @@ export function PlanetRow({
           {named !== "" && classText}
           {planet.moon && !unrolled && <span>moon</span>}
           <SizeAndPops size={planet.size} pops={planet.pops} />
+          {planet.orbit !== null && <span>orbit {Math.round(planet.orbit)}</span>}
           {!planet.colonised && habitable(planet) && (
             <span className="ok">habitable, unclaimed</span>
           )}

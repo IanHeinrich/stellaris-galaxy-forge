@@ -157,6 +157,7 @@ export function planetSummary(over: Partial<PlanetSummary> = {}): PlanetSummary 
     name_key: "NAME_Planet",
     pre_ftl: false,
     size: null,
+    orbit: null,
     deposits: [],
     deposit_keys: [],
     pops: 0,

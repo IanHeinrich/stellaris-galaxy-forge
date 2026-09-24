@@ -34,7 +34,7 @@ pub struct RawSystemDetails {
     pub sites: Vec<ArchaeologySite>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RawPlanet {
     pub id: u32,
     pub class: String,
@@ -46,6 +46,8 @@ pub struct RawPlanet {
     pub moon: bool,
     pub pre_ftl: bool,
     pub size: Option<u32>,
+    /// `orbit`: the radius around the star, or around the planet a moon orbits.
+    pub orbit: Option<f64>,
     /// Deposit key → count, in order of first appearance. A colony's deposits are
     /// planetary features and blockers; the resolver decides what each key yields.
     pub deposits: Vec<(String, u32)>,
@@ -288,6 +290,7 @@ pub(super) fn planets(
                 .owner
                 .is_some_and(|o| countries.primitives.contains(&o)),
             size: planet.size,
+            orbit: read::scalar(&node, keys::ORBIT, src).and_then(|o| o.parse().ok()),
             deposits,
             pops: planet
                 .colony
