@@ -1,0 +1,37 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed d_boggy_fens (#367) from planet #230
+touched: [694]
+inverse: AddSaveDeposit { planet: 230, kind: "d_boggy_fens" }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -102697,7 +102697,7 @@
+ 			surveyed_by=16777218
+ 			deposits=
+ 			{
+-				364 365 367 368 370 371 372 373 374 375 
++				364 365 368 370 371 372 373 374 375 
+ 			}
+ 		}
+ 		231=
+@@ -1468311,15 +1468311,7 @@
+ 		}
+ 	}
+ 	366=none
+-	367=
+-	{
+-		type="d_boggy_fens"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=230
+-		}
+-	}
++	367=none
+ 	368=
+ 	{
+ 		type="d_green_hills"

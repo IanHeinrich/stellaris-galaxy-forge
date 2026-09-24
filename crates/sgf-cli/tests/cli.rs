@@ -1149,3 +1149,111 @@ fn add_system_takes_specs_or_a_generate_with_its_seed_and_place() {
         assert!(!out_path.exists(), "{args:?}");
     }
 }
+
+#[test]
+fn deposit_add_then_remove_leaves_tombstones_in_a_later_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let added = dir.path().join("added.sav");
+    let removed = dir.path().join("removed.sav");
+    let (added_str, removed_str) = (added.to_str().unwrap(), removed.to_str().unwrap());
+
+    let out = sgf(&[
+        "deposit",
+        "add",
+        SAMPLE_4_5,
+        "--planet",
+        "3",
+        "--type",
+        "d_minerals_3",
+        "--planet",
+        "0",
+        "--type",
+        "d_energy_2",
+        "-o",
+        added_str,
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = stdout(&out);
+    assert!(
+        text.contains("Added d_minerals_3 (#16777216) to planet #3"),
+        "{text}"
+    );
+    assert!(
+        text.contains("Added d_energy_2 (#16777217) to planet #0"),
+        "{text}"
+    );
+    assert!(text.contains(&format!("wrote {added_str}")), "{text}");
+    assert_eq!(sgf(&["validate", added_str]).status.code(), Some(0));
+
+    let out = sgf(&[
+        "deposit",
+        "remove",
+        added_str,
+        "--deposit",
+        "16777216",
+        "--deposit",
+        "16777217",
+        "-o",
+        removed_str,
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        stdout(&out).contains("Removed d_minerals_3 (#16777216) from planet #3"),
+        "{}",
+        stdout(&out)
+    );
+    let gamestate = |path: &str| sgf_core::archive::read_sav(path).unwrap().gamestate;
+    let text = String::from_utf8(gamestate(removed_str)).unwrap();
+    assert!(text.contains("\n\t16777216=none\n\t16777217=none\n\t2=none\n"));
+    assert_eq!(sgf(&["validate", removed_str]).status.code(), Some(0));
+}
+
+#[test]
+fn deposit_refusals_write_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("refused.sav");
+    let out_str = out_path.to_str().unwrap();
+    let refusals: [(&[&str], &str); 3] = [
+        (
+            &["remove", SAMPLE_4_5, "--deposit", "440"],
+            "planet 2 is colonised",
+        ),
+        (
+            &[
+                "add",
+                SAMPLE_4_5,
+                "--planet",
+                "3",
+                "--planet",
+                "4",
+                "--type",
+                "d_minerals_3",
+            ],
+            "each --planet takes one --type",
+        ),
+        (
+            &["remove", SAMPLE_4_5, "--deposit", "96"],
+            "deposit 96 is not held by a planet",
+        ),
+    ];
+    for (args, message) in refusals {
+        let mut command = vec!["deposit"];
+        command.extend_from_slice(args);
+        command.extend_from_slice(&["-o", out_str]);
+        let out = sgf(&command);
+        assert_eq!(out.status.code(), Some(1), "{args:?}");
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(err.contains(message), "{err}");
+        assert!(!out_path.exists());
+    }
+}

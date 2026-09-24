@@ -7,7 +7,7 @@ use sgf_gamedata::LoadOptions;
 mod cli;
 mod commands;
 
-use cli::{Cli, Command, HeaderCommand, LaneCommand, NebulaCommand, SpawnCommand};
+use cli::{Cli, Command, DepositCommand, HeaderCommand, LaneCommand, NebulaCommand, SpawnCommand};
 use commands::Outcome;
 
 fn main() -> ExitCode {
@@ -188,6 +188,31 @@ fn run(cli: Cli) -> commands::Run {
             out.path.as_deref(),
             Op::SetPlanetSize { id: planet, size },
         ),
+        Some(Command::Deposit { command }) => match command {
+            DepositCommand::Add {
+                sav,
+                planets,
+                kinds,
+                out,
+            } => {
+                if planets.len() != kinds.len() {
+                    return Err("each --planet takes one --type".into());
+                }
+                let ops = planets
+                    .into_iter()
+                    .zip(kinds)
+                    .map(|(planet, kind)| Op::AddSaveDeposit { planet, kind })
+                    .collect();
+                commands::mutate::run_all(&sav, out.path.as_deref(), ops)
+            }
+            DepositCommand::Remove { sav, deposits, out } => {
+                let ops = deposits
+                    .into_iter()
+                    .map(|deposit| Op::RemoveSaveDeposit { deposit })
+                    .collect();
+                commands::mutate::run_all(&sav, out.path.as_deref(), ops)
+            }
+        },
         Some(Command::AddSystem {
             sav,
             spec,

@@ -1,0 +1,37 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed d_prosperous_mesa (#257) from planet #135
+touched: [408]
+inverse: AddSaveDeposit { planet: 135, kind: "d_prosperous_mesa" }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -85565,7 +85565,7 @@
+ 			entity=0
+ 			deposits=
+ 			{
+-				254 255 256 257 259 260 262 263 264 
++				254 255 256 259 260 262 263 264 
+ 			}
+ 		}
+ 		136=
+@@ -1077144,15 +1077144,7 @@
+ 			id=135
+ 		}
+ 	}
+-	257=
+-	{
+-		type="d_prosperous_mesa"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=135
+-		}
+-	}
++	257=none
+ 	258=none
+ 	259=
+ 	{

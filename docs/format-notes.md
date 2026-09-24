@@ -150,6 +150,11 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   generation one higher. System ids have no generation and no gaps: a
   gap crashes the game on load, so a new system takes
   `last_created_system`+1.
+- When the game removes a deposit, its entry becomes `<id>=none` in
+  place, the table's last entry included, and the id leaves the planet's
+  `deposits={ }`. The key goes with its last id: no save holds an empty
+  `deposits`. In 4.x `deposits` is the last key of a planet entry. A
+  station over a removed deposit stays, and produces nothing.
 - A system the game spawns by script (and one the editor adds) is a
   `galactic_object` entry in this order: `coordinate={ x y
   origin=4294967295 visual_height }`, `name`, `planet=` per body (star

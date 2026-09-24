@@ -1,0 +1,37 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added d_energy_2 (#16777216) to planet #0
+touched: [169]
+inverse: RemoveSaveDeposit { deposit: 16777216 }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -80034,7 +80034,7 @@
+ 			surveyed_by=0
+ 			deposits=
+ 			{
+-				18 
++				18 16777216 
+ 			}
+ 		}
+ 		1=
+@@ -1076220,7 +1076220,15 @@
+ }
+ deposit=
+ {
+-	0=none
++	16777216=
++	{
++		type="d_energy_2"
++		deposit_holder=
++		{
++			type=0
++			id=0
++		}
++	}
+ 	1=none
+ 	2=none
+ 	3=none

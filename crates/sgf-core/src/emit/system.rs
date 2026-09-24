@@ -166,6 +166,13 @@ pub fn deposit_entry(indent: &[u8], d: &DepositEntry<'_>) -> Vec<u8> {
     w.into_bytes()
 }
 
+/// A planet's `deposits` list, for a planet entry that has none.
+pub fn deposits_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.list(0, keys::DEPOSITS, ids);
+    w.into_bytes()
+}
+
 /// Lines at a depth below the entry's own indentation.
 struct Lines {
     base: String,
