@@ -1,5 +1,6 @@
 //! The `.sav` side of the seam: how a save is projected, written and saved.
 
+mod abundance;
 pub(crate) mod added;
 pub(crate) mod alloc;
 pub mod details;
