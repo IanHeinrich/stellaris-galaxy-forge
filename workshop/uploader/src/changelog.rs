@@ -26,7 +26,17 @@ impl fmt::Display for Version {
 
 struct Section<'a> {
     version: Version,
+    date: Option<&'a str>,
     body: Vec<&'a str>,
+}
+
+impl Section<'_> {
+    fn heading(&self) -> String {
+        match self.date {
+            Some(date) => format!("[h2]{} ({date})[/h2]", self.version),
+            None => format!("[h2]{}[/h2]", self.version),
+        }
+    }
 }
 
 /// The change note for moving from `since` to `current`, or an error when
@@ -43,7 +53,7 @@ pub fn change_note(changelog: &str, since: Version, current: Version) -> Result<
 
     let rendered: Vec<String> = sections
         .iter()
-        .map(|section| format!("[h2]{}[/h2]\n{}", section.version, to_bbcode(&section.body)))
+        .map(|section| format!("{}\n{}", section.heading(), to_bbcode(&section.body)))
         .collect();
     let note = (0..=rendered.len())
         .rev()
@@ -51,6 +61,28 @@ pub fn change_note(changelog: &str, since: Version, current: Version) -> Result<
         .find(|note| note.len() <= MAX_CHANGE_NOTE_BYTES)
         .expect("the note with no sections fits");
     Ok(note)
+}
+
+/// The released versions from `from` to `to`, oldest first.
+pub fn versions_between(changelog: &str, from: Version, to: Version) -> Vec<Version> {
+    let mut versions: Vec<Version> = sections(changelog)
+        .iter()
+        .map(|section| section.version)
+        .filter(|version| (from..=to).contains(version))
+        .collect();
+    versions.sort();
+    versions
+}
+
+/// The change note for `version` alone.
+pub fn version_note(changelog: &str, version: Version) -> Result<String, String> {
+    let previous = sections(changelog)
+        .iter()
+        .map(|section| section.version)
+        .filter(|other| *other < version)
+        .max()
+        .unwrap_or(Version(0, 0, 0));
+    change_note(changelog, previous, version)
 }
 
 fn assemble(sections: &[String], current: Version, cut: bool) -> String {
@@ -72,8 +104,9 @@ fn sections(changelog: &str) -> Vec<Section<'_>> {
     for line in changelog.lines() {
         if line.starts_with("## ") {
             sections.extend(current.take());
-            current = heading_version(line).map(|version| Section {
+            current = heading_version(line).map(|(version, date)| Section {
                 version,
+                date,
                 body: Vec::new(),
             });
         } else if let Some(section) = current.as_mut() {
@@ -84,13 +117,14 @@ fn sections(changelog: &str) -> Vec<Section<'_>> {
     sections
 }
 
-fn heading_version(line: &str) -> Option<Version> {
+fn heading_version(line: &str) -> Option<(Version, Option<&str>)> {
     let rest = line.strip_prefix("## [")?;
     let (version, after) = rest.split_once(']')?;
     if !(after.is_empty() || after.starts_with(' ')) {
         return None;
     }
-    Version::parse(version)
+    let date = after.trim().strip_prefix("- ").map(str::trim);
+    Some((Version::parse(version)?, date))
 }
 
 enum Block {
@@ -223,7 +257,7 @@ mod tests {
     fn converts_the_0_12_0_section() {
         let note = change_note(CHANGELOG, v("0.11.1"), v("0.12.0")).unwrap();
         let expected = "\
-[h2]0.12.0[/h2]
+[h2]0.12.0 (2026-09-24)[/h2]
 [h3]Added[/h3]
 [list]
 [*]A system's stars can be edited in a save: type and size per star, or one star class for several selected systems at once.
@@ -251,7 +285,11 @@ mod tests {
         let headings: Vec<&str> = note.lines().filter(|l| l.starts_with("[h2]")).collect();
         assert_eq!(
             headings,
-            ["[h2]0.12.0[/h2]", "[h2]0.11.1[/h2]", "[h2]0.11.0[/h2]"]
+            [
+                "[h2]0.12.0 (2026-09-24)[/h2]",
+                "[h2]0.11.1 (2026-09-23)[/h2]",
+                "[h2]0.11.0 (2026-09-23)[/h2]"
+            ]
         );
         assert!(note.ends_with("releases/tag/v0.12.0[/url]"));
     }
@@ -259,7 +297,7 @@ mod tests {
     #[test]
     fn stops_at_the_current_version_and_ignores_unreleased() {
         let note = change_note(CHANGELOG, v("0.11.0"), v("0.11.1")).unwrap();
-        assert!(note.starts_with("[h2]0.11.1[/h2]\n[h3]Changed[/h3]"));
+        assert!(note.starts_with("[h2]0.11.1 (2026-09-23)[/h2]\n[h3]Changed[/h3]"));
         assert!(!note.contains("0.12.0"));
         assert!(!note.contains("raw Markdown"));
     }
@@ -285,7 +323,10 @@ mod tests {
         let note = change_note(&changelog, v("0.0.1"), v("0.5.0")).unwrap();
         assert!(note.len() <= 7999, "{} bytes", note.len());
         let headings: Vec<&str> = note.lines().filter(|l| l.starts_with("[h2]")).collect();
-        assert_eq!(headings, ["[h2]0.5.0[/h2]", "[h2]0.4.0[/h2]"]);
+        assert_eq!(
+            headings,
+            ["[h2]0.5.0 (2026-01-01)[/h2]", "[h2]0.4.0 (2026-01-01)[/h2]"]
+        );
         assert!(note.ends_with(
             "releases/tag/v0.5.0[/url]\n\nEarlier versions: [url=https://github.com/IanHeinrich/stellaris-galaxy-forge/blob/main/CHANGELOG.md]https://github.com/IanHeinrich/stellaris-galaxy-forge/blob/main/CHANGELOG.md[/url]"
         ));
@@ -322,6 +363,19 @@ A [guide](https://example.com/guide) with **bold** and `code`.
                 "[/list]",
             ]
         );
+    }
+
+    #[test]
+    fn backfill_takes_each_version_alone_oldest_first() {
+        assert_eq!(
+            versions_between(CHANGELOG, v("0.10.1"), v("0.12.0")),
+            [v("0.10.1"), v("0.11.0"), v("0.11.1"), v("0.12.0")]
+        );
+        let note = version_note(CHANGELOG, v("0.11.0")).unwrap();
+        let headings: Vec<&str> = note.lines().filter(|l| l.starts_with("[h2]")).collect();
+        assert_eq!(headings, ["[h2]0.11.0 (2026-09-23)[/h2]"]);
+        let undated = version_note(CHANGELOG, v("0.1.0")).unwrap();
+        assert!(undated.starts_with("[h2]0.1.0[/h2]\n"));
     }
 
     #[test]

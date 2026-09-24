@@ -2,7 +2,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use crate::changelog;
+use crate::changelog::{self, Version};
 use crate::local::{LocalFiles, Repo, image_extension};
 use crate::plan::{self, Page, Plan};
 use crate::state::UploadedState;
@@ -191,6 +191,54 @@ pub fn push(repo: &Repo, item: u64, mode: PushMode, force: bool) -> Result<(), S
     }
     let update = update_for(&plan, &live, &files, change_note);
     report(steam.submit(item, &update)?)
+}
+
+/// Posts one change note per released version from `from` up to the version
+/// the item's metadata records, oldest first, so Steam lists them newest on top.
+pub fn backfill(repo: &Repo, item: u64, from: Version, mode: PushMode) -> Result<(), String> {
+    let changelog = repo.changelog()?;
+    let steam = Steam::connect()?;
+    let metadata = steam
+        .fetch_item(item)?
+        .metadata
+        .ok_or("the item has no upload state in its metadata; run `init` first")?;
+    let recorded = UploadedState::from_json(&metadata)?.version;
+    let to = Version::parse(&recorded)
+        .ok_or_else(|| format!("the metadata version {recorded:?} is not x.y.z"))?;
+
+    let versions = changelog::versions_between(&changelog, from, to);
+    if versions.is_empty() {
+        println!("No released versions from {from} to {to}");
+        return Ok(());
+    }
+    let notes = versions
+        .iter()
+        .map(|&version| changelog::version_note(&changelog, version))
+        .collect::<Result<Vec<_>, _>>()?;
+    for (i, note) in notes.iter().enumerate() {
+        println!("change note {} of {}:\n{note}\n", i + 1, notes.len());
+    }
+    match mode {
+        PushMode::DryRun => {
+            println!("Dry run: nothing submitted");
+            return Ok(());
+        }
+        PushMode::Ask if !confirm(&format!("Post these {} change notes?", notes.len()))? => {
+            println!("Nothing submitted");
+            return Ok(());
+        }
+        _ => {}
+    }
+    for (version, note) in versions.iter().zip(notes) {
+        println!("{version}:");
+        let update = Update {
+            metadata: metadata.clone(),
+            change_note: Some(note),
+            ..Update::default()
+        };
+        report(steam.submit(item, &update)?)?;
+    }
+    Ok(())
 }
 
 #[derive(Clone, Copy)]

@@ -37,6 +37,11 @@ cargo workshop <command>
   it also shows the change note, made from the changelog sections since
   the last push. It asks before uploading. `--dry-run` only shows,
   `--yes` skips the question, and `--force` uploads everything.
+- `backfill <x.y.z>` posts one change note per released version from
+  that one up to the last push, oldest first, so the newest ends up on
+  top. Steam dates each note the day it is posted, so every heading
+  carries the release date from the changelog. It asks first, and takes
+  `--dry-run` and `--yes` like `push`.
 
 `--item <id>` picks another item.
 

@@ -7,6 +7,7 @@ mod steam;
 
 use std::process::ExitCode;
 
+use changelog::Version;
 use commands::PushMode;
 use local::Repo;
 
@@ -27,6 +28,9 @@ commands:
                               show what changed since the last push, ask, then upload
                               (--dry-run only shows; --yes skips the question;
                               --force uploads everything)
+  backfill <x.y.z> [--dry-run] [--yes]
+                              post a change note for each released version from x.y.z
+                              up to the last push, oldest first, after asking
 
 options:
   --item <id>                 the workshop item (default 3805578137)";
@@ -35,6 +39,7 @@ enum Command {
     Pull,
     Init,
     Push,
+    Backfill(Version),
 }
 
 struct Args {
@@ -65,6 +70,7 @@ fn run(args: &Args) -> Result<(), String> {
         Command::Pull => commands::pull(&repo, args.item, args.force),
         Command::Init => commands::init(&repo, args.item, args.force),
         Command::Push => commands::push(&repo, args.item, args.push_mode, args.force),
+        Command::Backfill(from) => commands::backfill(&repo, args.item, from, args.push_mode),
     }
 }
 
@@ -73,22 +79,34 @@ fn parse(raw: &[String]) -> Result<Args, String> {
         "pull" => Command::Pull,
         "init" => Command::Init,
         "push" => Command::Push,
+        "backfill" => {
+            let from = raw
+                .get(1)
+                .ok_or("backfill needs the first version, e.g. 0.7.0")?;
+            Command::Backfill(
+                Version::parse(from).ok_or_else(|| format!("{from:?} is not a version x.y.z"))?,
+            )
+        }
         other => return Err(format!("unknown command {other:?}; see --help")),
     };
+    let options = if matches!(command, Command::Backfill(_)) {
+        &raw[2..]
+    } else {
+        &raw[1..]
+    };
+    let asks = matches!(command, Command::Push | Command::Backfill(_));
     let mut args = Args {
         command,
         item: DEFAULT_ITEM,
         force: false,
         push_mode: PushMode::Ask,
     };
-    let mut rest = raw[1..].iter();
+    let mut rest = options.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
             "--force" => args.force = true,
-            "--dry-run" if matches!(args.command, Command::Push) => {
-                args.push_mode = PushMode::DryRun
-            }
-            "--yes" if matches!(args.command, Command::Push) => args.push_mode = PushMode::Yes,
+            "--dry-run" if asks => args.push_mode = PushMode::DryRun,
+            "--yes" if asks => args.push_mode = PushMode::Yes,
             "--item" => {
                 let id = rest.next().ok_or("--item needs a workshop item id")?;
                 args.item = id
