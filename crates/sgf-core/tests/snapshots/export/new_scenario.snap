@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-# created by Stellaris Galaxy Forge 0.0.0
+#​ created by Stellaris Galaxy Forge 0.0.0
 static_galaxy_scenario = {
 	name = "sgf_test"
 	priority = 5

@@ -9,7 +9,8 @@ use memchr::memchr;
 use crate::VERSION;
 use crate::document::Document;
 
-const PREFIX: &str = "# created by ";
+/// A zero-width space follows the `#`, so a comment someone typed never reads as the line.
+const PREFIX: &str = "#\u{200B} created by ";
 const TOOL: &str = "Stellaris Galaxy Forge";
 const BOM: &[u8] = b"\xEF\xBB\xBF";
 /// How files an earlier Forge wrote open, before it wrote the line.

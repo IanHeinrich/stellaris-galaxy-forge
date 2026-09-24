@@ -77,7 +77,7 @@ fn the_sample_exports_to_the_committed_fixture_and_reads_back_as_the_same_galaxy
     let empires = seats - 1;
     assert!(
         text.starts_with(&format!(
-            "# created by Stellaris Galaxy Forge {VERSION} (converted from save {SAVE_FILE})
+            "#\u{200B} created by Stellaris Galaxy Forge {VERSION} (converted from save {SAVE_FILE})
 # Systems: 791 · Empire seats: {seats} · Nebulae: 9
 # Not carried over: 6 wormhole pairs
 static_galaxy_scenario = {{
@@ -253,7 +253,7 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
     assert!(
         common::current(&session).starts_with(
             format!(
-                "# created by Stellaris Galaxy Forge {VERSION} (converted from save {SAVE_FILE})\n"
+                "#\u{200B} created by Stellaris Galaxy Forge {VERSION} (converted from save {SAVE_FILE})\n"
             )
             .as_bytes()
         )

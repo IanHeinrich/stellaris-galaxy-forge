@@ -12,10 +12,10 @@ mod common;
 use common::export::{NAME, SAVE_FILE, exported_as, no_names, no_sources};
 use common::fixture::PAINTED;
 
-const PAINT_LINE: &str = "# created by Paint a Galaxy 1.4.2 (imported from generic txt)";
+const PAINT_LINE: &str = "#\u{200B} created by Paint a Galaxy 1.4.2 (imported from generic txt)";
 
 fn forge() -> String {
-    format!("# created by Stellaris Galaxy Forge {VERSION}")
+    format!("#\u{200B} created by Stellaris Galaxy Forge {VERSION}")
 }
 
 fn nudge() -> Op {
@@ -60,11 +60,11 @@ fn saving_an_edited_scenario_wraps_the_line_of_whoever_wrote_it_last() {
             "Paint a Galaxy 1.4.2 (imported from generic txt)",
         ),
         (
-            "# created by Stellaris Galaxy Forge 0.0.1 (converted from save x.sav)",
+            "#\u{200B} created by Stellaris Galaxy Forge 0.0.1 (converted from save x.sav)",
             "Stellaris Galaxy Forge 0.0.1 (converted from save x.sav)",
         ),
         (
-            "# created by Stellaris Galaxy Forge 0.0.1",
+            "#\u{200B} created by Stellaris Galaxy Forge 0.0.1",
             "Stellaris Galaxy Forge 0.0.1",
         ),
     ] {
@@ -99,7 +99,12 @@ fn saving_an_edited_scenario_wraps_the_line_of_whoever_wrote_it_last() {
     reopened.apply(nudge()).expect("move it back and forth");
     reopened.save_to(None).expect("save the reopened file");
     let text = String::from_utf8(std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(text.matches("# created by").count(), 1, "{}", &text[..300]);
+    assert_eq!(
+        text.matches("#\u{200B} created by").count(),
+        1,
+        "{}",
+        &text[..300]
+    );
     assert_eq!(
         text.lines().next(),
         String::from_utf8(once).unwrap().lines().next()
@@ -109,7 +114,7 @@ fn saving_an_edited_scenario_wraps_the_line_of_whoever_wrote_it_last() {
 /// A `# created by` line naming `writers`, newest first, each wrapping the next.
 fn chain(writers: &[&str]) -> String {
     format!(
-        "# created by {}{}",
+        "#\u{200B} created by {}{}",
         writers.join(" (imported from txt created by "),
         ")".repeat(writers.len() - 1)
     )
@@ -168,7 +173,7 @@ fn a_long_line_keeps_the_newest_writers_and_the_original_one() {
         .next()
         .unwrap()
         .to_owned();
-    let whole = odd.strip_prefix("# created by ").unwrap();
+    let whole = odd.strip_prefix("#\u{200B} created by ").unwrap();
     assert_eq!(
         line,
         format!("{} (imported from txt created by {whole})", forge())
@@ -179,7 +184,15 @@ fn a_long_line_keeps_the_newest_writers_and_the_original_one() {
 #[test]
 fn a_scenario_neither_tool_made_gains_no_line_and_an_undone_edit_changes_nothing() {
     let saved = String::from_utf8(saved_after_a_nudge(&PAINTED.bytes())).unwrap();
-    assert!(!saved.contains("# created by"), "{}", &saved[..200]);
+    assert!(!saved.contains("#\u{200B} created by"), "{}", &saved[..200]);
+
+    let typed = with_first_line("# created by hand", &PAINTED.bytes());
+    let saved = String::from_utf8(saved_after_a_nudge(&typed)).unwrap();
+    assert!(
+        saved.starts_with("# created by hand\n") && !saved.contains('\u{200B}'),
+        "{}",
+        &saved[..200]
+    );
 
     let stamped = with_first_line(PAINT_LINE, &PAINTED.bytes());
     let dir = tempfile::tempdir().unwrap();
@@ -276,7 +289,7 @@ fn a_save_exports_with_the_line_on_top_under_both_profiles() {
         let (text, _) = exported_as(&save, NAME, profile);
         let text = String::from_utf8(text).unwrap();
         assert!(text.starts_with(&converted), "{}", &text[..300]);
-        assert_eq!(text.matches("# created by").count(), 1);
+        assert_eq!(text.matches("#\u{200B} created by").count(), 1);
         assert!(!text.contains("# Exported by"));
         assert_eq!(
             text.contains(
@@ -339,7 +352,7 @@ fn a_new_scenario_starts_with_a_bare_line_that_saving_keeps() {
         reopened.save_to(None).expect("save the edit");
         let text = String::from_utf8(std::fs::read(&path).unwrap()).unwrap();
         assert!(text.starts_with(&bare), "{}", &text[..200]);
-        assert_eq!(text.matches("# created by").count(), 1);
+        assert_eq!(text.matches("#\u{200B} created by").count(), 1);
         assert!(text.contains("Alderaan"));
     }
 }

@@ -118,12 +118,16 @@ from:
 # created by Stellaris Galaxy Forge <version> (imported from txt created by Paint a Galaxy 1.4.2 (imported from generic txt))
 ```
 
+The `#` is followed by a zero-width space (U+200B) and then an ordinary
+space, so a comment someone types by hand is never taken for the line. The
+examples here show it as `# created by`.
+
 A save's export writes the first, with `(`, `)` and line breaks dropped from
 the file name. A new scenario writes the second. When Forge saves an edited
 scenario whose first line is a `# created by` line, it wraps that line in
 its own, as in the third, so the chain grows by one level each time the
-file passes to another tool or version. A line that already names this version of Forge is kept as
-it is. When the wrapped line would name more than ten writers, Forge keeps
+file passes to another tool or version. A line that already names this
+version of Forge is kept as it is. When the wrapped line would name more than ten writers, Forge keeps
 the eight newest (its own included), one `...` level and the original writer
 with its note, and never adds a second `...`. A line whose brackets do not
 parse is wrapped whole. A file that opens with the `# Exported by` or

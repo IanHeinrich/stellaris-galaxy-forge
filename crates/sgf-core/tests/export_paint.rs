@@ -100,7 +100,7 @@ fn the_paint_a_galaxy_export_of_the_sample_matches_its_fixture_and_holds_togethe
     let text = String::from_utf8(text).expect("utf-8");
     assert!(
         text.starts_with(&format!(
-            "# created by Stellaris Galaxy Forge {VERSION} (converted from save 2206.11.16.sav)
+            "#\u{200B} created by Stellaris Galaxy Forge {VERSION} (converted from save 2206.11.16.sav)
 # Systems: 765 · Empire seats: 17 · Nebulae: 9
 # Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
 static_galaxy_scenario = {{
@@ -518,7 +518,7 @@ fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flag
         .count();
     assert!(
         text.starts_with(&format!(
-            "# created by Stellaris Galaxy Forge {VERSION} (converted from save {SAVE_FILE})
+            "#\u{200B} created by Stellaris Galaxy Forge {VERSION} (converted from save {SAVE_FILE})
 # Systems: {systems} · Empire seats: {} · Nebulae: 9
 # Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
 static_galaxy_scenario = {{
