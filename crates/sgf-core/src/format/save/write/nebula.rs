@@ -4,12 +4,16 @@
 //!
 //! A member line is inserted in id order among the existing ones (the game writes them
 //! ascending), so moving a system out and back restores the section byte for byte.
+//!
+//! A new nebula's name is taken out of the pool of unused nebula names when the pool holds
+//! it, a removed one's goes back when an add took it from there, and a rename does both.
 
 use crate::Span;
 use crate::cst::{self, Node};
 use crate::emit::{self, NebulaSection, coord};
 use crate::format;
 use crate::format::save::write::move_system::splice_coordinate;
+use crate::format::save::write::name_pool;
 use crate::keys;
 use crate::ops::rules::nebula::{
     Membership, Prospect, all_systems, decide_add, decide_membership, decide_move, decide_name,
@@ -112,6 +116,7 @@ pub(crate) fn plan_add(
         },
     );
     plan.emit(Emitted::Nebula(added.index), at, text);
+    name_pool::take(plan, &s.doc, keys::NEBULA_NAMES, &added.name)?;
     Ok(Planned {
         description: added.describe(),
         inverse: added.inverse(),
@@ -123,6 +128,9 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, index: usize) -> Result<
     write_membership(plan, s, &removed.changes, Some(index))?;
     let anchor = format::of(s.doc.kind()).statement(&s.doc, Subject::Nebula(index))?;
     plan.erase(&s.doc, Subject::Nebula(index), anchor)?;
+    let name = &removed.nebula.name.key;
+    let staying = others_named(s, index, name);
+    name_pool::give_back(plan, &s.doc, keys::NEBULA_NAMES, name, staying)?;
     Ok(Planned {
         description: removed.describe(&s.graph),
         inverse: removed.inverse(),
@@ -197,10 +205,30 @@ pub(crate) fn plan_set_name(
         edit.remove_lines(span);
         set.dropped_variables = true;
     }
+    let staying = others_named(s, index, &set.from);
+    name_pool::swap(
+        plan,
+        &s.doc,
+        keys::NEBULA_NAMES,
+        (&set.from, &set.to),
+        staying,
+    )?;
     Ok(Planned {
         description: set.describe(),
         inverse: set.inverse(),
     })
+}
+
+/// How many nebulae besides the `index`th are named `name`: a pool entry taken for the
+/// name stays taken for each of them. Every nebula counts, the file's own included, since
+/// a rename can give one of those a pooled name, where only an added system holds one.
+fn others_named(s: &Session, index: usize, name: &str) -> usize {
+    s.graph
+        .nebulae
+        .iter()
+        .enumerate()
+        .filter(|&(i, nebula)| i != index && nebula.name.key == name)
+        .count()
 }
 
 /// Whether a name is written `literal=yes`: one the user typed rather than a localisation

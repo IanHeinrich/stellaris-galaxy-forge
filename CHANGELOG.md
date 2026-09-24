@@ -31,6 +31,9 @@ a release is made.
 - Symmetry is no longer offered when editing a save.
 - The Connect brush says when the lane density is too low to add any
   lanes.
+- "New nebula here" places the nebula straight away with a name from the
+  game's own list. You can rename it on its page. Once every name is
+  used, or in a scenario without game data, it's called New Nebula.
 
 ### Fixed
 

@@ -4,6 +4,7 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
+import * as ipc from "../api/ipc";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
 import { DEFAULT_NEBULA_RADIUS, useEditorStore } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -11,35 +12,46 @@ import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { OPEN_RESULT, SYSTEMS, editResult, name } from "./fixture";
 
+const addNebula = vi.mocked(ipc.addNebula);
+
 beforeEach(openFixtureSave);
 
 describe("editing nebulae", () => {
   const cloud = OPEN_RESULT.galaxy.nebulae[0];
 
-  it("addNebulaAt sends AddNebula at the point and selects the nebula it appends", async () => {
-    const added = { ...cloud, x: 60, y: -10, systems: [] };
-    mocked.applyOp.mockResolvedValueOnce(
+  it("addNebulaAt places a named nebula at once, with no prompt, and selects it", async () => {
+    const added = { ...cloud, name: name("Yinarim_Nebula"), x: 60, y: -10, systems: [] };
+    addNebula.mockResolvedValueOnce(
       editResult({ delta: { systems: [], nebulae: [cloud, added] } }),
     );
 
     expect(await editor().addNebulaAt(60, -10)).toBe(true);
 
-    expect(mocked.applyOp).toHaveBeenCalledWith({
-      type: "AddNebula",
-      x: 60,
-      y: -10,
-      radius: DEFAULT_NEBULA_RADIUS,
-      name: null,
-    });
+    expect(addNebula).toHaveBeenCalledTimes(1);
+    const [seed, x, y, radius] = addNebula.mock.calls[0];
+    expect(Number.isSafeInteger(seed)).toBe(true);
+    expect([x, y, radius]).toEqual([60, -10, DEFAULT_NEBULA_RADIUS]);
+    expect(mocked.applyOp).not.toHaveBeenCalled();
     expect(useGalaxyStore.getState().nebulae).toEqual([cloud, added]);
     expect(editor().selectedNebula).toBe(1);
     expect(useLayoutStore.getState().tab).toBe("inspector");
+    expect(Object.keys(editor())).not.toContain("nebulaPrompt");
+  });
+
+  it("each new nebula is asked for with a fresh seed", async () => {
+    addNebula.mockResolvedValue(editResult({ delta: { systems: [], nebulae: [cloud] } }));
+
+    await editor().addNebulaAt(0, 0);
+    await editor().addNebulaAt(0, 0);
+
+    const [first, second] = addNebula.mock.calls.map(([seed]) => seed);
+    expect(first).not.toBe(second);
   });
 
   it("two nebulae asked for at once each select the one that call made", async () => {
     const first = { ...cloud, x: 60, y: -10, systems: [] };
     const second = { ...cloud, x: 70, y: -20, systems: [] };
-    mocked.applyOp
+    addNebula
       .mockResolvedValueOnce(editResult({ delta: { systems: [], nebulae: [cloud, first] } }))
       .mockResolvedValueOnce(
         editResult({ delta: { systems: [], nebulae: [cloud, first, second] } }),
@@ -57,26 +69,18 @@ describe("editing nebulae", () => {
   });
 
   it("addNebulaAt remembers the radius it was given for the next one", async () => {
-    mocked.applyOp.mockResolvedValue(editResult({ delta: { systems: [], nebulae: [cloud] } }));
+    addNebula.mockResolvedValue(editResult({ delta: { systems: [], nebulae: [cloud] } }));
 
-    await editor().addNebulaAt(0, 0, 45, "Far Cloud");
+    await editor().addNebulaAt(0, 0, 45);
     expect(editor().lastNebulaRadius).toBe(45);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
-      type: "AddNebula",
-      x: 0,
-      y: 0,
-      radius: 45,
-      name: "Far Cloud",
-    });
+    expect(addNebula).toHaveBeenLastCalledWith(expect.any(Number), 0, 0, 45);
 
     await editor().addNebulaAt(10, 10);
-    expect(mocked.applyOp).toHaveBeenLastCalledWith(
-      expect.objectContaining({ radius: 45, name: null }),
-    );
+    expect(addNebula).toHaveBeenLastCalledWith(expect.any(Number), 10, 10, 45);
   });
 
-  it("a refused AddNebula selects nothing and leaves the remembered radius alone", async () => {
-    mocked.applyOp.mockRejectedValueOnce({ kind: "op", message: "radius must be above 0" });
+  it("a refused nebula selects nothing and leaves the remembered radius alone", async () => {
+    addNebula.mockRejectedValueOnce({ kind: "op", message: "radius must be above 0" });
 
     expect(await editor().addNebulaAt(0, 0, 0)).toBe(false);
 
@@ -86,7 +90,7 @@ describe("editing nebulae", () => {
   });
 
   it("addNebulaAt shows the nebulae layer, and leaves it on when it already was", async () => {
-    mocked.applyOp.mockResolvedValue(editResult({ delta: { systems: [], nebulae: [cloud] } }));
+    addNebula.mockResolvedValue(editResult({ delta: { systems: [], nebulae: [cloud] } }));
     const chrome = useMapChromeStore.getState();
     useMapChromeStore.setState({ layers: { ...chrome.layers, nebulae: false } });
 
@@ -95,41 +99,6 @@ describe("editing nebulae", () => {
 
     await editor().addNebulaAt(20, 20);
     expect(useMapChromeStore.getState().layers.nebulae).toBe(true);
-  });
-
-  it("a new nebula is named before it is created, and a blank name creates nothing", async () => {
-    mocked.applyOp.mockResolvedValue(editResult({ delta: { systems: [], nebulae: [cloud] } }));
-
-    editor().promptNebulaAt(60, -10);
-    expect(editor().nebulaPrompt).toEqual({ x: 60, y: -10 });
-
-    expect(await editor().createPromptedNebula("  ")).toBe(false);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
-    expect(editor().nebulaPrompt).toEqual({ x: 60, y: -10 });
-
-    mocked.applyOp.mockRejectedValueOnce({ kind: "op", message: "radius must be above 0" });
-    expect(await editor().createPromptedNebula("Far Cloud")).toBe(false);
-    expect(editor().nebulaPrompt).toEqual({ x: 60, y: -10 });
-
-    expect(await editor().createPromptedNebula("  Far Cloud  ")).toBe(true);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
-      type: "AddNebula",
-      x: 60,
-      y: -10,
-      radius: DEFAULT_NEBULA_RADIUS,
-      name: "Far Cloud",
-    });
-    expect(editor().nebulaPrompt).toBeNull();
-    expect(useMapChromeStore.getState().layers.nebulae).toBe(true);
-  });
-
-  it("a cancelled prompt forgets the point and creates nothing", async () => {
-    editor().promptNebulaAt(1, 2);
-    editor().cancelNebulaPrompt();
-
-    expect(editor().nebulaPrompt).toBeNull();
-    expect(await editor().createPromptedNebula("Far Cloud")).toBe(false);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
   });
 
   it("setNebulaName renames the cloud at its file index", async () => {

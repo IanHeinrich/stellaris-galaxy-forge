@@ -21,10 +21,11 @@ use crate::emit::system::RING_FLAG;
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, Counter, SlotTable};
 use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
-use crate::format::save::write::add_system::{polar, pool_entries};
+use crate::format::save::write::add_system::polar;
 use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::initializer_counter::{self, counted};
 use crate::format::save::write::lanes::remove_entries;
+use crate::format::save::write::name_pool;
 use crate::format::save::{planet_statement, system_statement};
 use crate::format::scenario::index::removed as emptied;
 use crate::keys;
@@ -389,7 +390,6 @@ fn return_names(plan: &mut Plan, s: &Session, removed: &BTreeSet<u32>) -> Result
             .map(|system| system.name.key.as_str())
     };
     let names: BTreeSet<&str> = removed.iter().filter_map(name).collect();
-    let src = s.doc.original();
     for pooled in names {
         let staying = s
             .doc
@@ -397,11 +397,7 @@ fn return_names(plan: &mut Plan, s: &Session, removed: &BTreeSet<u32>) -> Result
             .entries(Table::System)
             .filter(|(id, _)| !removed.contains(id) && name(id) == Some(pooled))
             .count();
-        let taken: Vec<Anchor> = pool_entries(&s.doc, pooled)
-            .into_iter()
-            .filter(|&entry| emptied(s.doc.overlay(), entry, src))
-            .collect();
-        put_back(plan, &s.doc, taken.iter().skip(staying))?;
+        name_pool::give_back(plan, &s.doc, keys::STAR_NAMES, pooled, staying)?;
     }
     Ok(())
 }
@@ -447,33 +443,9 @@ pub(crate) fn return_asteroid_names(
             .filter(|&entry| emptied(s.doc.overlay(), entry, src))
             .collect();
         let keep = staying.get(&held).copied().unwrap_or(0);
-        put_back(plan, &s.doc, taken.iter().skip(keep))?;
+        name_pool::put_back(plan, &s.doc, taken.iter().skip(keep))?;
     }
     Ok(())
-}
-
-/// Write each pool entry an add erased back as it was loaded.
-pub(crate) fn put_back<'a>(
-    plan: &mut Plan,
-    doc: &Document,
-    entries: impl Iterator<Item = &'a Anchor>,
-) -> Result<(), OpError> {
-    let src = doc.original();
-    for &entry in entries {
-        let Some(slot @ Anchor::Original(span)) = slot_holding(doc, entry) else {
-            continue;
-        };
-        plan.replace(doc, Subject::Record(slot), slot, span.slice(src).to_vec())?;
-    }
-    Ok(())
-}
-
-/// The original slot an erasure left `entry` in: its own span, or its line.
-fn slot_holding(doc: &Document, entry: Anchor) -> Option<Anchor> {
-    doc.overlay().slots().map(|(slot, _)| slot).find(|slot| {
-        matches!(slot, Anchor::Original(span)
-            if span.start <= entry.start() && entry.end() <= span.end)
-    })
 }
 
 /// The belts system `id`'s entry lists, in order.

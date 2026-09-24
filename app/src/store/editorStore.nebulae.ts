@@ -1,6 +1,7 @@
 import { confirm } from "@tauri-apps/plugin-dialog";
 import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
+import { newSeed } from "../lib/addSystem";
 import { nodeName } from "../lib/names";
 import { counted } from "../lib/text";
 import type { RunEdit } from "./editorEdits";
@@ -20,9 +21,6 @@ type NebulaActions = Pick<
   | "lastNebulaRadius"
   | "moveNebula"
   | "addNebulaAt"
-  | "promptNebulaAt"
-  | "cancelNebulaPrompt"
-  | "createPromptedNebula"
   | "setNebulaRadius"
   | "setNebulaName"
   | "removeNebula"
@@ -40,8 +38,8 @@ export function nebulaActions(
       await get().applyOp({ type: "MoveNebula", index, x, y });
     },
 
-    async addNebulaAt(x, y, radius = get().lastNebulaRadius, name = null) {
-      const result = await runEdit(() => ipc.applyOp({ type: "AddNebula", x, y, radius, name }));
+    async addNebulaAt(x, y, radius = get().lastNebulaRadius) {
+      const result = await runEdit(() => ipc.addNebula(newSeed(), x, y, radius));
       if (result === null) return false;
       set({ lastNebulaRadius: radius });
       NEBULA_RADIUS.save(radius);
@@ -50,25 +48,6 @@ export function nebulaActions(
       // A new nebula always lands last, so it is the last of the list its own edit left behind.
       const nebulae = result.delta.nebulae ?? useGalaxyStore.getState().nebulae;
       get().selectNebula(nebulae.length - 1);
-      return true;
-    },
-
-    promptNebulaAt(x, y) {
-      set({ nebulaPrompt: { x, y } });
-    },
-
-    cancelNebulaPrompt() {
-      if (get().nebulaPrompt) set({ nebulaPrompt: null });
-    },
-
-    async createPromptedNebula(name) {
-      const at = get().nebulaPrompt;
-      const named = name.trim();
-      // The label is the handle the cloud is dragged by, so it is named before it exists.
-      if (!at || named === "") return false;
-      // A refused op leaves the prompt standing with the point and the name still in it.
-      if (!(await get().addNebulaAt(at.x, at.y, undefined, named))) return false;
-      set({ nebulaPrompt: null });
       return true;
     },
 

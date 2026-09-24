@@ -12,6 +12,7 @@ pub mod generate;
 pub mod initializers;
 pub mod install;
 pub mod loc;
+pub mod naming;
 pub mod planet_views;
 pub mod registries;
 pub mod reload;
@@ -28,7 +29,7 @@ use install::script::Variables;
 use install::{discovery, mods};
 use registries::defines::DefineFiles;
 use registries::galaxy_sizes::GalaxySizes;
-use registries::{colors, gfx, registry, star_names, starbase_levels};
+use registries::{colors, gfx, nebula_names, registry, star_names, starbase_levels};
 
 pub use initializers::Initializers;
 pub use install::layers::Layout;
@@ -72,6 +73,8 @@ pub struct GameData {
     pub star_lists: Arc<StarLists>,
     /// `common/random_names`: every star name a galaxy can be named from, in file order.
     pub star_names: Arc<Vec<String>>,
+    /// `common/random_names`: every nebula name a galaxy can be named from, in file order.
+    pub nebula_names: Arc<Vec<String>>,
     pub sprites: Arc<Sprites>,
     pub colors: Arc<Colors>,
     pub deposits: Arc<Deposits>,
@@ -232,6 +235,8 @@ impl GameData {
         // The same directory as the star classes, whose load has already reported its files.
         let star_lists = registry::load(&layout, &vars, &mut Vec::new());
         let star_names = star_names::load(&layout, &mut diagnostics);
+        // The same files as the star names, whose load has already reported them.
+        let nebula_names = nebula_names::load(&layout, &mut Vec::new());
         let deposits = registry::load(&layout, &vars, &mut diagnostics);
         let deposit_categories = registry::load(&layout, &vars, &mut diagnostics);
         // Vanilla defines a few static modifiers in two files, which is no one's mistake to report.
@@ -271,6 +276,7 @@ impl GameData {
             star_classes: Arc::new(star_classes),
             star_lists: Arc::new(star_lists),
             star_names: Arc::new(star_names),
+            nebula_names: Arc::new(nebula_names),
             sprites: Arc::new(sprites),
             colors: Arc::new(colors),
             deposits: Arc::new(deposits),

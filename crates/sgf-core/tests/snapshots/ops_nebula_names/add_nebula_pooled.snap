@@ -1,0 +1,54 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added nebula "Picaress_Drift" at (-57.5, -305) radius 40; 4 systems joined
+touched: [113, 134, 600, 688]
+inverse: RemoveNebula { index: 9 }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -6175,7 +6175,6 @@
+ 		key="Demons_Eye_Nebula"
+ 	}
+ 	radius=30
+-	galactic_object=134
+ 	galactic_object=256
+ }
+ nebula=
+@@ -6212,6 +6211,26 @@
+ 	radius=25
+ 	galactic_object=17
+ }
++nebula=
++{
++	coordinate=
++	{
++		x=-57.5
++		y=-305
++		origin=4294967295
++		randomized=yes
++		visual_height=3.65056
++	}
++	name=
++	{
++		key="Picaress_Drift"
++	}
++	radius=40
++	galactic_object=113
++	galactic_object=134
++	galactic_object=600
++	galactic_object=688
++}
+ pop=
+ {
+ }
+@@ -1546015,7 +1546034,6 @@
+ 	}
+ 	nebula_names=
+ 	{
+-		"Picaress_Drift"
+ 		"Yinarim_Nebula"
+ 		"Temestra_Badlands"
+ 		"Arija_Patch"
