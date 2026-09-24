@@ -186,6 +186,34 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   with its own block. So the game itself repeats asteroid names, and
   taking the second "863" can give a name the save already uses.
   Checked on the 4.5.0 and 4.4.6 samples.
+- A layout's fixed system name (`NAME_Trappist`) is written like a pool
+  name, `name={ key="NAME_Trappist" }`. A body's fixed name is a plain
+  `name={ key="NAME_Vermilion" }`, takes no numeral and uses none up. Its
+  moons are `SUBPLANET_NAME_FORMAT` with the plain key as `PARENT`. A
+  star the layout writes as a class (`class = pc_m_star`, not `class =
+  star`) is named with the system's name key itself, not
+  `STAR_NAME_1_OF_1`.
+- A body's `binary_flags` sits after `name`. Its bits are 1 for a name
+  the layout fixed, 2 for an `entity_name`, 4 for surveyed, 8 for
+  `prevent_anomaly`, 256 for a ring and 512 for a moon. 64 is set beside
+  any of them. A body with none writes no `binary_flags`. So a plain moon
+  is 576, a fixed-name planet 65 and a ringed planet 320.
+- A layout's `entity = "…"` is written as `entity_name="…"` after
+  `entity=`, which is still written. `add_modifier = { modifier = X days
+  = -1 }` is an item of the planet's `timed_modifier={ items={ {
+  modifier="X" days=-1 } } }` after `bombardment_damage`, laid out like
+  the `hyperlane` entries. It writes no `planet_modifier`, which belongs
+  to the game's random modifier roll.
+- A star-class body besides the star (the Great Wound's black holes)
+  has `carrier_binary_flags=3`, as the star has. A star off centre (the
+  previously terraformed layout's, at 40) writes its `orbit` and
+  position like a planet, and the planets still orbit the centre.
+- The top-level `system_initializer_counter={ count={ 1 2 … }
+  initializer={ "ai_system_01" … } }` holds two lists side by side: the
+  layouts with `max_instances`, and how often generation drew each. A
+  layout drawn whose system did not survive is still counted. The editor
+  adds one for a capped layout it adds, appending the entry if missing,
+  and takes it off again when the system is removed.
 - Loading a save builds whatever a new system is missing: a construction
   queue per body (and the planet's `build_queue`), an entry in every
   country's `intel_level` and `highest_intel_level`, the

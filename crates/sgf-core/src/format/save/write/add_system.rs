@@ -1,8 +1,10 @@
 //! `AddSaveSystem`: a new `galactic_object` entry with its belts, its bodies in
 //! `planets.planet`, their deposits in `deposit`, its lanes on both ends, the system
-//! counter raised, the name taken out of the pool of unused star names and each
-//! asteroid's out of the pool of asteroid names. The game builds everything else a
-//! spawned system has (construction queues, intel, terra incognita) when it loads.
+//! counter raised, a capped layout counted, the name taken out of the pool of unused star
+//! names and each asteroid's out of the pool of asteroid names. The game builds everything
+//! else a spawned system has (construction queues, intel, terra incognita) when it loads.
+
+use std::collections::BTreeMap;
 
 use crate::archive;
 use crate::cst;
@@ -15,6 +17,7 @@ use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, Slot, SlotTable, TableEnd};
 use crate::format::save::system_spec::{BodySpec, SystemSpec};
 use crate::format::save::write::asteroid_names::{self, Pool};
+use crate::format::save::write::initializer_counter;
 use crate::format::save::write::lanes::insert_entries;
 use crate::format::scenario::index::removed;
 use crate::keys;
@@ -51,6 +54,7 @@ pub(crate) fn plan_add(
 ) -> Result<Planned, OpError> {
     check_version(&s.doc)?;
     check_spec(spec)?;
+    check_capped(s, spec, None)?;
     let id = alloc::next_system(&s.doc, &s.graph)?;
     let (x, y) = (rounded(spec.x), rounded(spec.y));
     check_place(&s.graph, x, y)?;
@@ -73,6 +77,7 @@ pub(crate) fn plan_add(
         .ok_or_else(|| edit.parse_error(0, "last_created_system is not a scalar"))?;
     edit.splices
         .push((span.range(), id.to_string().into_bytes()));
+    count_layout(plan, &s.doc, spec)?;
     take_name(plan, &s.doc, &spec.name)?;
 
     Ok(Planned {
@@ -182,6 +187,54 @@ pub(crate) fn system_text(
     )
 }
 
+/// Refuse a spec whose `capped` differs from that of a system added since the file was
+/// opened with the same layout, other than `except`. The core cannot read `max_instances`,
+/// so it holds the flag to one value per layout, and a removal can tell from the count
+/// alone whether the system it takes out was counted.
+pub(crate) fn check_capped(
+    s: &Session,
+    spec: &SystemSpec,
+    except: Option<u32>,
+) -> Result<(), OpError> {
+    let other = s
+        .doc
+        .added()
+        .entries(Table::System)
+        .map(|(id, _)| id)
+        .filter(|&id| Some(id) != except)
+        .find(|id| {
+            s.graph
+                .systems
+                .get(id)
+                .is_some_and(|system| system.initializer == spec.initializer)
+        });
+    let Some(other) = other else {
+        return Ok(());
+    };
+    let capped = initializer_counter::counted(&s.doc, &spec.initializer);
+    if capped == spec.capped {
+        return Ok(());
+    }
+    Err(OpError::CappedMismatch {
+        initializer: spec.initializer.clone(),
+        other,
+        capped,
+    })
+}
+
+/// Count one more of the spec's layout when it is capped.
+pub(crate) fn count_layout(
+    plan: &mut Plan,
+    doc: &Document,
+    spec: &SystemSpec,
+) -> Result<(), OpError> {
+    if !spec.capped {
+        return Ok(());
+    }
+    let changes = BTreeMap::from([(spec.initializer.as_str(), 1)]);
+    initializer_counter::count(plan, doc, &changes)
+}
+
 /// Take `name` out of the save's pool of unused star names, when an entry for it is left.
 pub(crate) fn take_name(plan: &mut Plan, doc: &Document, name: &str) -> Result<(), OpError> {
     let src = doc.original();
@@ -258,7 +311,11 @@ pub(crate) fn write_body(
         orbit: body.spec.orbit,
         moon_of: body.moon_of,
         moons: &body.moons,
+        fixed_name: body.spec.name.is_some(),
+        ring: body.spec.ring,
+        modifiers: &body.spec.modifiers,
         entity: body.spec.entity,
+        entity_name: body.spec.entity_name.as_deref(),
         deposits: &held,
     };
     let text = |indent: &[u8]| planet_entry(indent, &entry);
@@ -310,7 +367,7 @@ pub(crate) fn write_slot(
 
 /// A body of the spec with its name and position, in the order the system lists them:
 /// the star, then each planet followed by its moons. An asteroid takes the next of
-/// `asteroid_names` and no numeral.
+/// `asteroid_names` and no numeral, and a body with a fixed name takes that and none.
 struct Placed<'a> {
     spec: &'a BodySpec,
     name: NameTemplate,
@@ -326,18 +383,23 @@ fn layout(spec: &SystemSpec, asteroid_names: Vec<NameTemplate>) -> Vec<Placed<'_
     let mut asteroid_names = asteroid_names.into_iter();
     let mut numeral = 0;
     let (sx, sy) = polar(0.0, 0.0, &spec.star);
+    let star_name = match spec.star_named_by_class {
+        true => NameTemplate::plain(&spec.name),
+        false => format(STAR_NAME, vec![(NAME_VAR, NameTemplate::plain(&spec.name))]),
+    };
     let mut placed = vec![Placed {
         spec: &spec.star,
-        name: format(STAR_NAME, vec![(NAME_VAR, NameTemplate::plain(&spec.name))]),
+        name: star_name,
         x: sx,
         y: sy,
         parent: None,
         extent: spec.star.orbit,
     }];
     for planet in &spec.planets {
-        let name = match planet.asteroid {
-            true => asteroid_names.next().unwrap_or_default(),
-            false => {
+        let name = match (&planet.name, planet.asteroid) {
+            (Some(fixed), _) => NameTemplate::plain(fixed),
+            (None, true) => asteroid_names.next().unwrap_or_default(),
+            (None, false) => {
                 numeral += 1;
                 format(
                     PLANET_NAME,
@@ -350,17 +412,25 @@ fn layout(spec: &SystemSpec, asteroid_names: Vec<NameTemplate>) -> Vec<Placed<'_
         };
         let (px, py) = polar(0.0, 0.0, planet);
         let parent = placed.len();
-        for (j, moon) in planet.moons.iter().enumerate() {
+        let mut letters = 0;
+        for moon in &planet.moons {
             let (mx, my) = polar(px, py, moon);
+            let moon_name = match &moon.name {
+                Some(fixed) => NameTemplate::plain(fixed),
+                None => {
+                    letters += 1;
+                    format(
+                        MOON_NAME,
+                        vec![
+                            (PARENT_VAR, name.clone()),
+                            (NUMERAL_VAR, literal(&letter(letters - 1))),
+                        ],
+                    )
+                }
+            };
             placed.push(Placed {
                 spec: moon,
-                name: format(
-                    MOON_NAME,
-                    vec![
-                        (PARENT_VAR, name.clone()),
-                        (NUMERAL_VAR, literal(&letter(j))),
-                    ],
-                ),
+                name: moon_name,
                 x: mx,
                 y: my,
                 parent: Some(parent),
@@ -487,6 +557,9 @@ pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
     if spec.star.asteroid {
         return Err(OpError::AsteroidNotAllowed("the star"));
     }
+    if spec.star.name.is_some() {
+        return Err(OpError::FixedNameNotAllowed("the star"));
+    }
     check_body(&spec.star)?;
     for belt in &spec.belts {
         if belt.kind.is_empty() {
@@ -502,12 +575,20 @@ pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
         if planet.asteroid && !planet.moons.is_empty() {
             return Err(OpError::MoonsNotAllowed("an asteroid"));
         }
+        if planet.asteroid && planet.name.is_some() {
+            return Err(OpError::FixedNameNotAllowed(
+                "an asteroid named from the pool",
+            ));
+        }
         for moon in &planet.moons {
             if !moon.moons.is_empty() {
                 return Err(OpError::MoonsNotAllowed("a moon"));
             }
             if moon.asteroid {
                 return Err(OpError::AsteroidNotAllowed("a moon"));
+            }
+            if moon.ring {
+                return Err(OpError::RingNotAllowed("a moon"));
             }
             check_body(moon)?;
         }
@@ -531,6 +612,21 @@ fn check_body(body: &BodySpec) -> Result<(), OpError> {
             return Err(OpError::EmptyKey("a deposit type"));
         }
         check_text(deposit)?;
+    }
+    if let Some(name) = &body.name {
+        check_name(name)?;
+    }
+    if let Some(entity) = &body.entity_name {
+        if entity.is_empty() {
+            return Err(OpError::EmptyKey("an entity name"));
+        }
+        check_text(entity)?;
+    }
+    for modifier in &body.modifiers {
+        if modifier.is_empty() {
+            return Err(OpError::EmptyKey("a modifier"));
+        }
+        check_text(modifier)?;
     }
     Ok(())
 }

@@ -75,8 +75,8 @@ fn small(name: &str, (x, y): (f64, f64), lanes: Vec<u32>) -> SystemSpec {
         initializer: "basic_init_01".to_owned(),
         star: body("pc_k_star", 20, 0.0, 0.0, 0),
         planets: vec![planet],
-        belts: Vec::new(),
         lanes,
+        ..SystemSpec::default()
     }
 }
 

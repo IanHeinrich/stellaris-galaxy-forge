@@ -25,10 +25,29 @@ entity: number,
  */
 deposits: Array<string>, 
 /**
- * Lettered a, b, … in this order. Only a planet has moons.
+ * Lettered a, b, … in this order, but for those with a fixed name. Only a planet has
+ * moons.
  */
 moons: Array<BodySpec>, 
 /**
  * Named from the save's pool of asteroid names and left out of the numbering.
  */
-asteroid: boolean, };
+asteroid: boolean, 
+/**
+ * A fixed name key, `NAME_Vermilion`, written as it is and left out of the numbering.
+ * Its moons are lettered after it.
+ */
+name: string | null, 
+/**
+ * The model the game draws in place of the class's own,
+ * `previously_terraformed_planet_entity`, ….
+ */
+entity_name: string | null, 
+/**
+ * Planet modifiers that never expire, `terraforming_candidate`, ….
+ */
+modifiers: Array<string>, 
+/**
+ * Drawn with a ring around it.
+ */
+ring: boolean, };
