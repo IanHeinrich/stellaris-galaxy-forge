@@ -19,7 +19,9 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   they are searched, the rows they read as and the labels the legend shows.
 - `lib/details/`: one system's own detail: where its name row and plate sit
   (`layout`), the English its keys read as (`labels`), the textures and frames
-  it draws with (`icons`), and its fleets and resources.
+  it draws with (`icons`), and its fleets and resources. `planetPage` is one
+  body's page: its deposits grouped by type, the district caps they add up to,
+  and its planet and timed modifiers as rows.
 - `lib/spatialGrid.ts`: the uniform grid behind nearest-system and range
   queries: hit-testing maths, so it lives here and not in `map/`.
 - The game's concepts, one module each and named for it: `feZone`, `feLinks`,

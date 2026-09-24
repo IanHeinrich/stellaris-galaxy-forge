@@ -5,13 +5,16 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import type { BypassView } from "../generated/BypassView";
+import type { ColonyTypeView } from "../generated/ColonyTypeView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
+import type { DepositTypeView } from "../generated/DepositTypeView";
 import type { DepositView } from "../generated/DepositView";
 import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
+import type { ModifierView } from "../generated/ModifierView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetClassView } from "../generated/PlanetClassView";
@@ -109,6 +112,21 @@ export function getStarClasses(): Promise<StarClassView[]> {
 /** Every deposit definition of the loaded game data; empty without it. */
 export function getDeposits(): Promise<DepositView[]> {
   return invoke<DepositView[]>("get_deposits");
+}
+
+/** The planet page's view of each deposit type in `keys` the game data defines; empty without it. */
+export function getDepositTypes(keys: string[]): Promise<DepositTypeView[]> {
+  return invoke<DepositTypeView[]>("get_deposit_types", { keys });
+}
+
+/** Each planet (`pm_*`) or timed modifier in `keys` the game data defines; empty without it. */
+export function getModifiers(keys: string[]): Promise<ModifierView[]> {
+  return invoke<ModifierView[]>("get_modifiers", { keys });
+}
+
+/** Each colony designation in `keys` the game data defines; empty without it. */
+export function getColonyTypes(keys: string[]): Promise<ColonyTypeView[]> {
+  return invoke<ColonyTypeView[]>("get_colony_types", { keys });
 }
 
 /** Every bypass kind of the loaded game data with its map icon frame; empty without it. */

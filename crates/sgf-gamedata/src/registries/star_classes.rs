@@ -47,19 +47,10 @@ impl FromDef for StarClass {
             key,
             class: def.scalar("class").unwrap_or_default().to_owned(),
             icon: def.scalar("icon").map(str::to_owned),
-            icon_scale: number(def, "icon_scale").unwrap_or(1.0),
+            icon_scale: def.number("icon_scale").unwrap_or(1.0),
             planet_keys,
             crisis_star_class: def.scalar("crisis_star_class").map(str::to_owned),
-            spawn_odds: number(def, "spawn_odds").unwrap_or(0.0),
+            spawn_odds: def.number("spawn_odds").unwrap_or(0.0),
         }
-    }
-}
-
-/// A number, or the file's `@variable` it names.
-fn number(def: &Def, key: &str) -> Option<f64> {
-    let text = def.scalar(key)?;
-    match text.strip_prefix('@') {
-        Some(name) => def.vars.get(name)?.parse().ok(),
-        None => text.parse().ok(),
     }
 }

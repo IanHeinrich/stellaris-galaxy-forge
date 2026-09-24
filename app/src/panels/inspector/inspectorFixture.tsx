@@ -15,6 +15,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
+import { usePlanetDataStore } from "../../store/planetDataStore";
 import { useScriptsStore } from "../../store/scriptsStore";
 import {
   detailOf,
@@ -82,6 +83,7 @@ export function resetStores(): void {
   useDetailsStore.getState().clear();
   useEntityStore.getState().clear();
   useScriptsStore.getState().clear();
+  usePlanetDataStore.getState().clear();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
   useInspectorStore.setState({ ...useInspectorStore.getInitialState() });

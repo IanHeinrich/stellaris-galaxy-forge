@@ -17,6 +17,7 @@ use crate::cst::{self, Node};
 use crate::document::Document;
 use crate::entity::address;
 use crate::entity::views::{ContentsRow, EntityAddr, EntityKind, Fact};
+use crate::overlay::Anchor;
 
 /// The curated rows of one entity's root level.
 #[derive(Debug, Default)]
@@ -131,7 +132,13 @@ pub(crate) fn sheet(doc: &Document, addr: EntityAddr, node: &Node, src: &[u8]) -
 /// (a planet's pops, a starbase's hull). `None` when it is absent or a tombstone.
 fn other(doc: &Document, addr: EntityAddr) -> Option<(Node, &[u8])> {
     let located = address::locate(doc, addr).ok()?;
-    let bytes = doc.current(located.anchor).ok()?;
+    statement_at(doc, located.anchor)
+}
+
+/// The parsed statement standing at `anchor`; `None` when it will not parse or is a
+/// tombstone.
+fn statement_at(doc: &Document, anchor: Anchor) -> Option<(Node, &[u8])> {
+    let bytes = doc.current(anchor).ok()?;
     let statement = cst::parse(bytes, 0).ok()?.children().first()?.clone();
     statement
         .scalar_span()

@@ -2,6 +2,7 @@
 use std::path::Path;
 
 use serde_json::json;
+use sgf_core::entity::PlanetPage;
 use sgf_core::export::ExportReport;
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeZone};
@@ -694,5 +695,52 @@ fn an_entity_reads_by_address_and_an_op_names_what_it_touched() {
     assert_eq!(
         moved["touched_entities"][0],
         json!({ "kind": "system", "id": 0 })
+    );
+}
+
+/// A save body's page reads the planet with its colony; a scenario has no planet entities.
+#[test]
+fn a_planet_page_reads_a_save_body_and_is_not_found_elsewhere() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<PlanetPage>(
+            &w,
+            "get_planet_page",
+            json!({ "id": 731 })
+        )),
+        ErrorKind::NoSession
+    );
+
+    open(&w, SAMPLE);
+    let nekkar_i: PlanetPage =
+        invoke(&w, "get_planet_page", json!({ "id": 731 })).expect("Nekkar I");
+    assert_eq!(nekkar_i.class, "pc_tropical");
+    assert_eq!(nekkar_i.parent, Some(730));
+    assert_eq!(nekkar_i.deposits.len(), 11);
+    let colony = nekkar_i.colony.expect("a colony");
+    assert_eq!(colony.id, 29);
+    assert_eq!(colony.pops, 1600);
+
+    let nekkar_viii: PlanetPage =
+        invoke(&w, "get_planet_page", json!({ "id": 744 })).expect("Nekkar VIII");
+    assert_eq!(nekkar_viii.station, Some(498));
+    assert_eq!(nekkar_viii.moons.len(), 2);
+
+    assert_eq!(
+        kind(invoke::<PlanetPage>(
+            &w,
+            "get_planet_page",
+            json!({ "id": 999_999 })
+        )),
+        ErrorKind::NotFound
+    );
+    open(&w, SCENARIO);
+    assert_eq!(
+        kind(invoke::<PlanetPage>(
+            &w,
+            "get_planet_page",
+            json!({ "id": 0 })
+        )),
+        ErrorKind::NotFound
     );
 }

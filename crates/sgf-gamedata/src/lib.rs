@@ -10,6 +10,7 @@ pub mod details;
 pub mod initializers;
 pub mod install;
 pub mod loc;
+pub mod planet_views;
 pub mod registries;
 pub mod reload;
 pub(crate) mod resolver;
@@ -21,6 +22,7 @@ pub mod views;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use install::script::Variables;
 use install::{discovery, mods};
 use registries::galaxy_sizes::GalaxySizes;
 use registries::{colors, gfx, registry, starbase_levels};
@@ -29,17 +31,21 @@ pub use initializers::Initializers;
 pub use install::layers::Layout;
 pub use loc::localisation::Localisation;
 pub use registries::bypasses::Bypasses;
+pub use registries::colony_types::ColonyTypes;
 pub use registries::colors::Colors;
 pub use registries::country_types::CountryTypes;
 pub use registries::defines::BorderDefines;
+pub use registries::deposit_categories::DepositCategories;
 pub use registries::deposits::Deposits;
 pub use registries::galaxy_shapes::GalaxyShapes;
 pub use registries::gfx::Sprites;
 pub use registries::planet_classes::PlanetClasses;
+pub use registries::planet_modifiers::PlanetModifiers;
 pub use registries::registry::Registry;
 pub use registries::ship_sizes::ShipSizes;
 pub use registries::star_classes::StarClasses;
 pub use registries::starbase_levels::StarbaseLevels;
+pub use registries::static_modifiers::StaticModifiers;
 pub use reload::RegistryKind;
 pub use resolver::{export_resolvers, resolver};
 pub use scripts::ScriptIndex;
@@ -52,6 +58,8 @@ pub struct GameData {
     pub version: Option<String>,
     /// Every enabled mod in load order, `Missing` ones included.
     pub mods: Vec<mods::ModInfo>,
+    /// `common/scripted_variables`, which every definition's `@name` can refer to.
+    pub variables: Arc<Variables>,
     pub initializers: Arc<Initializers>,
     pub scripts: Arc<ScriptIndex>,
     pub country_types: Arc<CountryTypes>,
@@ -59,6 +67,10 @@ pub struct GameData {
     pub sprites: Arc<Sprites>,
     pub colors: Arc<Colors>,
     pub deposits: Arc<Deposits>,
+    pub deposit_categories: Arc<DepositCategories>,
+    pub static_modifiers: Arc<StaticModifiers>,
+    pub planet_modifiers: Arc<PlanetModifiers>,
+    pub colony_types: Arc<ColonyTypes>,
     pub bypasses: Arc<Bypasses>,
     pub planet_classes: Arc<PlanetClasses>,
     pub starbase_levels: Arc<StarbaseLevels>,
@@ -68,6 +80,8 @@ pub struct GameData {
     pub border: Arc<BorderDefines>,
     pub loc: Arc<Localisation>,
     pub diagnostics: Vec<Diagnostic>,
+    /// What finding the mods raised, which a reread through the same layout keeps.
+    discovery: Vec<Diagnostic>,
 }
 
 #[derive(Debug, Clone)]
@@ -176,47 +190,86 @@ pub fn load(opts: &LoadOptions, progress: &mut dyn FnMut(Phase)) -> Result<GameD
         _ => Vec::new(),
     };
     let layout = Layout::new(install, user_dir, &mods);
-
-    progress(Phase::Definitions);
-    let initializers = Initializers::load(&layout, &mut diagnostics);
-    let scripts = ScriptIndex::load(&layout, &initializers, &mut diagnostics);
-    let country_types = registry::load(&layout, &mut diagnostics);
-    let star_classes = registry::load(&layout, &mut diagnostics);
-    let deposits = registry::load(&layout, &mut diagnostics);
-    let bypasses = registry::load(&layout, &mut diagnostics);
-    let planet_classes = registry::load(&layout, &mut diagnostics);
-    let ship_sizes = registry::load(&layout, &mut diagnostics);
-    let starbase_levels = starbase_levels::load(&layout, &ship_sizes, &mut diagnostics);
-    let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
-    let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
-    let sprites = gfx::load(&layout, &mut diagnostics);
-    let colors = colors::load(&layout, &mut diagnostics);
-    let border = BorderDefines::load(&layout, &mut diagnostics);
-
-    progress(Phase::Localisation);
-    let loc = Localisation::load(&layout, &opts.language, &mut diagnostics);
-
-    Ok(GameData {
+    Ok(GameData::read(
         layout,
         version,
         mods,
-        initializers: Arc::new(initializers),
-        scripts: Arc::new(scripts),
-        country_types: Arc::new(country_types),
-        star_classes: Arc::new(star_classes),
-        sprites: Arc::new(sprites),
-        colors: Arc::new(colors),
-        deposits: Arc::new(deposits),
-        bypasses: Arc::new(bypasses),
-        planet_classes: Arc::new(planet_classes),
-        starbase_levels: Arc::new(starbase_levels),
-        ship_sizes: Arc::new(ship_sizes),
-        galaxy_shapes: Arc::new(galaxy_shapes),
-        galaxy_sizes: Arc::new(galaxy_sizes),
-        border: Arc::new(border),
-        loc: Arc::new(loc),
+        &opts.language,
         diagnostics,
-    })
+        progress,
+    ))
+}
+
+impl GameData {
+    /// Every definition and the localisation, read through `layout`.
+    pub(crate) fn read(
+        layout: Layout,
+        version: Option<String>,
+        mods: Vec<mods::ModInfo>,
+        language: &str,
+        discovery: Vec<Diagnostic>,
+        progress: &mut dyn FnMut(Phase),
+    ) -> Self {
+        let mut diagnostics = discovery.clone();
+        progress(Phase::Definitions);
+        let vars = Arc::new(Variables::load(&layout, &mut diagnostics));
+        let initializers = Initializers::load(&layout, &vars, &mut diagnostics);
+        let scripts = ScriptIndex::load(&layout, &initializers, &vars, &mut diagnostics);
+        let country_types = registry::load(&layout, &vars, &mut diagnostics);
+        let star_classes = registry::load(&layout, &vars, &mut diagnostics);
+        let deposits = registry::load(&layout, &vars, &mut diagnostics);
+        let deposit_categories = registry::load(&layout, &vars, &mut diagnostics);
+        // Vanilla defines a few static modifiers in two files, which is no one's mistake to report.
+        let mut parsing = Vec::new();
+        let static_modifiers = registry::load(&layout, &vars, &mut parsing);
+        diagnostics.extend(
+            parsing
+                .into_iter()
+                .filter(|d| !matches!(d, Diagnostic::Override { .. })),
+        );
+        let planet_modifiers = registry::load(&layout, &vars, &mut diagnostics);
+        let colony_types = registry::load(&layout, &vars, &mut diagnostics);
+        let bypasses = registry::load(&layout, &vars, &mut diagnostics);
+        let planet_classes = registry::load(&layout, &vars, &mut diagnostics);
+        let ship_sizes = registry::load(&layout, &vars, &mut diagnostics);
+        let starbase_levels = starbase_levels::load(&layout, &ship_sizes, &vars, &mut diagnostics);
+        let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
+        let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
+        let sprites = gfx::load(&layout, &mut diagnostics);
+        let colors = colors::load(&layout, &mut diagnostics);
+        let border = BorderDefines::load(&layout, &mut diagnostics);
+
+        progress(Phase::Localisation);
+        let loc = Localisation::load(&layout, language, &mut diagnostics);
+
+        GameData {
+            layout,
+            version,
+            mods,
+            variables: vars,
+            initializers: Arc::new(initializers),
+            scripts: Arc::new(scripts),
+            country_types: Arc::new(country_types),
+            star_classes: Arc::new(star_classes),
+            sprites: Arc::new(sprites),
+            colors: Arc::new(colors),
+            deposits: Arc::new(deposits),
+            deposit_categories: Arc::new(deposit_categories),
+            static_modifiers: Arc::new(static_modifiers),
+            planet_modifiers: Arc::new(planet_modifiers),
+            colony_types: Arc::new(colony_types),
+            bypasses: Arc::new(bypasses),
+            planet_classes: Arc::new(planet_classes),
+            starbase_levels: Arc::new(starbase_levels),
+            ship_sizes: Arc::new(ship_sizes),
+            galaxy_shapes: Arc::new(galaxy_shapes),
+            galaxy_sizes: Arc::new(galaxy_sizes),
+            border: Arc::new(border),
+            loc: Arc::new(loc),
+            diagnostics,
+            discovery,
+        }
+    }
 }
 
 fn join_paths(paths: &[PathBuf]) -> String {

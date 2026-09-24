@@ -8,7 +8,17 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Planets, moons, stars and asteroids in a save have their own page in
+  the inspector. It shows their deposits with the game's pictures and
+  what each one gives, blockers with what clearing them costs, planet
+  modifiers, moons, and a colony summary for owned planets.
+
 ### Fixed
+
+- A planet's orbital station link opens the station, not an unrelated
+  ship.
 
 - The update screen shows release notes with their headings and bullets
   instead of raw Markdown.

@@ -1,0 +1,7 @@
+deposit_cat_blockers = {
+	blocker = yes
+}
+
+deposit_cat_rare = {
+	important = yes
+}

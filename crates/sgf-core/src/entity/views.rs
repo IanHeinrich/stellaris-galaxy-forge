@@ -201,3 +201,90 @@ pub struct EntitySource {
     /// `text` is the first mebibyte only.
     pub truncated: bool,
 }
+
+/// A save body's own Overview: a planet, moon, star or asteroid and its resources, as the
+/// save's keys and ids, which the app joins with game data.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPage {
+    pub id: u32,
+    pub name: NameTemplate,
+    pub name_key: String,
+    /// The no-game-data stand-in, as [`EntityView::label`].
+    pub label: String,
+    pub class: String,
+    pub size: Option<u32>,
+    /// `orbit`: the radius around the body it orbits.
+    pub orbit: Option<f64>,
+    /// `coordinate.origin`.
+    pub system: Option<u32>,
+    /// `moon_of`, or else the system's primary body when this body is not it.
+    pub parent: Option<u32>,
+    pub moons: Vec<PlanetPageMoon>,
+    /// One entry per deposit, in save order.
+    pub deposits: Vec<PlanetPageDeposit>,
+    /// `planet_modifier`, in save order.
+    pub planet_modifiers: Vec<String>,
+    pub timed_modifiers: Vec<PlanetPageTimedModifier>,
+    pub surveyed_by: Option<u32>,
+    /// `shipclass_orbital_station`: the mining or research station's fleet.
+    pub station: Option<u32>,
+    pub owner: Option<u32>,
+    pub controller: Option<u32>,
+    pub colony: Option<PlanetPageColony>,
+    /// Entries in `flags`.
+    pub flags: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPageMoon {
+    pub id: u32,
+    pub name: NameTemplate,
+    pub name_key: String,
+    pub class: String,
+    pub size: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPageDeposit {
+    pub id: u32,
+    /// The deposit's `type`.
+    pub kind: String,
+    /// The feature clearing this blocker reveals.
+    pub swap_type: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPageTimedModifier {
+    pub modifier: String,
+    /// Days left; `-1` is permanent.
+    pub days: i32,
+}
+
+/// What the planet's `colony` entity says about it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPageColony {
+    pub id: u32,
+    /// The planet's `colonize_date`.
+    pub colonised: Option<String>,
+    pub final_designation: Option<String>,
+    /// Set only when the player chose a designation by hand.
+    pub designation: Option<String>,
+    /// `num_sapient_pops`.
+    pub pops: u32,
+    /// `species_information`, in save order.
+    pub species: Vec<PlanetPageSpecies>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPageSpecies {
+    pub id: u32,
+    /// The `species_db` entry's `name`, empty when the save has no such species.
+    pub name: NameTemplate,
+    pub pops: u32,
+}

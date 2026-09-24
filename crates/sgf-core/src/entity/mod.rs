@@ -27,7 +27,8 @@ pub(crate) use address::inner_sections;
 pub use schema::{EntitySchema, FieldSchema, FieldType};
 pub use views::{
     ContentsRow, EntityAddr, EntityKind, EntityNode, EntitySource, EntityView, Fact, NodeValue,
-    ScalarForm,
+    PlanetPage, PlanetPageColony, PlanetPageDeposit, PlanetPageMoon, PlanetPageSpecies,
+    PlanetPageTimedModifier, ScalarForm,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -127,6 +128,20 @@ pub fn get_entity(
         overview: sheet.overview,
         contents: sheet.contents,
     })
+}
+
+/// A save body's own Overview, read from its current bytes. A scenario addresses no
+/// planets, so there every id is [`EntityError::NotFound`].
+pub fn get_planet_page(doc: &Document, id: u32) -> Result<PlanetPage, EntityError> {
+    let addr = EntityAddr::new(EntityKind::Planet, id);
+    let located = address::locate(doc, addr)?;
+    let current = doc.current(located.anchor)?;
+    let root = parse(doc, addr, current)?;
+    let statement = first_statement(addr, &root)?;
+    if statement.scalar_span().is_some() {
+        return Err(EntityError::NotFound(addr));
+    }
+    Ok(facts::planet::page(doc, id, statement, current))
 }
 
 /// The entity's current bytes as text, with the ranges an op changed.

@@ -8,6 +8,7 @@ use sgf_core::library;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
 use sgf_gamedata::install::{discovery, mods};
+use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
@@ -202,6 +203,36 @@ pub fn get_deposits(game_data: State<'_, GameDataState>) -> Vec<DepositView> {
     game_data.loaded().map_or_else(Vec::new, |gd| {
         gd.deposits.iter().map(DepositView::from).collect()
     })
+}
+
+/// The planet page's row for each deposit type the install defines; empty without game data.
+#[tauri::command(async)]
+pub fn get_deposit_types(
+    game_data: State<'_, GameDataState>,
+    keys: Vec<String>,
+) -> Vec<DepositTypeView> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.deposit_type_views(&keys))
+}
+
+/// Each planet (`pm_*`) or timed modifier the install defines; empty without game data.
+#[tauri::command(async)]
+pub fn get_modifiers(game_data: State<'_, GameDataState>, keys: Vec<String>) -> Vec<ModifierView> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.modifier_views(&keys))
+}
+
+/// Each colony designation the install defines; empty without game data.
+#[tauri::command(async)]
+pub fn get_colony_types(
+    game_data: State<'_, GameDataState>,
+    keys: Vec<String>,
+) -> Vec<ColonyTypeView> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.colony_type_views(&keys))
 }
 
 #[tauri::command(async)]

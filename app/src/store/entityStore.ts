@@ -6,6 +6,7 @@ import type { EntityKind } from "../generated/EntityKind";
 import type { EntitySchema } from "../generated/EntitySchema";
 import type { EntitySource } from "../generated/EntitySource";
 import type { EntityView } from "../generated/EntityView";
+import type { PlanetPage } from "../generated/PlanetPage";
 
 /** One entity, whichever level of it is being read. */
 export function addrKey(addr: EntityAddr): string {
@@ -22,9 +23,17 @@ function sourceKey(addr: EntityAddr): string {
   return `source/${addrKey(addr)}`;
 }
 
+/** A save body's page, which is one read of its own. */
+export function planetPageKey(id: number): string {
+  return `page/${addrKey({ kind: "planet", id })}`;
+}
+
+const PAGE_PREFIX = "page/";
+const READ_PREFIX = /^(source|page)\//;
+
 /** The entity a key belongs to: the read it names, without its kind of read or its path. */
 function ownerOf(key: string): string {
-  const body = key.startsWith("source/") ? key.slice("source/".length) : key;
+  const body = key.replace(READ_PREFIX, "");
   const cut = body.indexOf("/");
   return cut === -1 ? body : body.slice(0, cut);
 }
@@ -35,6 +44,8 @@ export interface EntityState {
   /** Sources by `addrKey`; an entity has one whole text, not one per level. */
   sources: Map<string, EntitySource>;
   schemas: Map<EntityKind, EntitySchema>;
+  /** Save bodies' pages by planet id. */
+  pages: Map<number, PlanetPage>;
   /** Reads asked for and not yet answered, by the key of what was asked for. */
   pending: Set<string>;
   /** What a refused read said, by the same key; a refused read is not asked for again. */
@@ -45,7 +56,11 @@ export interface EntityState {
   request(addr: EntityAddr, path?: readonly string[]): void;
   requestSource(addr: EntityAddr): void;
   requestSchema(kind: EntityKind): void;
-  /** What an applied edit leaves behind: every entity it rewrote is stale. */
+  requestPlanetPage(id: number): void;
+  /**
+   * What an applied edit, undo or redo leaves behind: every entity it rewrote is stale, and so
+   * is every page of a body in a system it touched or removed.
+   */
   noteEdit(result: EditResult): void;
   /** Drops every level and the source of each entity, so the next request reads it again. */
   invalidate(addrs: readonly EntityAddr[]): void;
@@ -62,6 +77,7 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   views: new Map(),
   sources: new Map(),
   schemas: new Map(),
+  pages: new Map(),
   pending: new Set(),
   errors: new Map(),
   version: 0,
@@ -89,8 +105,25 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     }));
   },
 
+  requestPlanetPage(id) {
+    const key = planetPageKey(id);
+    if (!begin(key, get().pages.has(id))) return;
+    void land(key, generation, ipc.getPlanetPage(id), (page) => ({
+      pages: new Map(useEntityStore.getState().pages).set(id, page),
+    }));
+  },
+
   noteEdit(result) {
-    get().invalidate(result.touched_entities);
+    const systems = new Set([
+      ...result.touched_entities.filter((addr) => addr.kind === "system").map((addr) => addr.id),
+      ...result.details_stale,
+      ...(result.delta.removed ?? []),
+    ]);
+    const pages = [...get().pages.values()]
+      .filter((page) => page.system !== null && systems.has(page.system))
+      .map((page): EntityAddr => ({ kind: "planet", id: page.id }));
+    get().invalidate([...result.touched_entities, ...pages]);
+    if (systems.size > 0) dropPendingPages();
   },
 
   invalidate(addrs) {
@@ -99,6 +132,7 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     const stale = (key: string) => owners.has(ownerOf(key));
     const views = new Map([...get().views].filter(([key]) => !stale(key)));
     const sources = new Map([...get().sources].filter(([key]) => !stale(key)));
+    const pages = new Map([...get().pages].filter(([id]) => !stale(planetPageKey(id))));
     const errors = new Map([...get().errors].filter(([key]) => !stale(key)));
     // A read already out would land on the pre-edit bytes: it is dropped, not cached.
     const pending = new Set(get().pending);
@@ -107,7 +141,7 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       pending.delete(key);
       dropped.add(key);
     }
-    set({ views, sources, errors, pending, version: get().version + 1 });
+    set({ views, sources, pages, errors, pending, version: get().version + 1 });
   },
 
   clear() {
@@ -117,12 +151,22 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       views: new Map(),
       sources: new Map(),
       schemas: new Map(),
+      pages: new Map(),
       pending: new Set(),
       errors: new Map(),
       version: get().version + 1,
     });
   },
 }));
+
+/** A page read already out does not say which system it is in, so any edit to a system drops it. */
+function dropPendingPages(): void {
+  const { pending, version } = useEntityStore.getState();
+  const kept = new Set([...pending].filter((key) => !key.startsWith(PAGE_PREFIX)));
+  if (kept.size === pending.size) return;
+  for (const key of pending) if (!kept.has(key)) dropped.add(key);
+  useEntityStore.setState({ pending: kept, version: version + 1 });
+}
 
 /** Starts one read, or says the cache, a read in flight or a refusal already answers for it. */
 function begin(key: string, cached: boolean): boolean {

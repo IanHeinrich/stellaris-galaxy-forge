@@ -5,7 +5,8 @@ import type { EntitySchema } from "../../../generated/EntitySchema";
 import type { EntitySource } from "../../../generated/EntitySource";
 import type { EntityView } from "../../../generated/EntityView";
 import type { FieldSchema } from "../../../generated/FieldSchema";
-import { addrKey, useEntityStore, viewKey } from "../../../store/entityStore";
+import type { PlanetPage } from "../../../generated/PlanetPage";
+import { addrKey, planetPageKey, useEntityStore, viewKey } from "../../../store/entityStore";
 import { refFor, useInspectorStore } from "../../../store/inspectorStore";
 
 /** The system the stack is rooted in: what a station drill needs and the map keeps selected. */
@@ -57,6 +58,19 @@ export function useEntitySource(addr: EntityAddr): Read<EntitySource> {
   const value = useEntityStore((s) => s.sources.get(key));
   const error = useEntityStore((s) => s.errors.get(`source/${key}`));
   useEffect(() => request(addr), [request, addr]);
+  return { value, error };
+}
+
+/**
+ * A save body's page, asked for the first time it is shown and again once an edit, undo or redo
+ * to its system has dropped it.
+ */
+export function usePlanetPage(id: number): Read<PlanetPage> {
+  const request = useEntityStore((s) => s.requestPlanetPage);
+  const value = useEntityStore((s) => s.pages.get(id));
+  const error = useEntityStore((s) => s.errors.get(planetPageKey(id)));
+  const version = useEntityStore((s) => s.version);
+  useEffect(() => request(id), [request, id, version]);
   return { value, error };
 }
 

@@ -1,0 +1,21 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+planet 731 PLANET_NAME_FORMAT (PLANET_NAME_FORMAT)
+class pc_tropical size 16 orbit 60
+system 396 parent 730 owner 16 controller 16 surveyed by - station - flags 1
+deposit 1025 d_bubbling_swamp
+deposit 1026 d_crystalline_caverns
+deposit 1027 d_tropical_island
+deposit 1028 d_prosperous_mesa
+deposit 1029 d_mineral_fields
+deposit 1031 d_alien_pets_deposit
+deposit 1032 d_lush_jungle
+deposit 1033 d_mineral_fields
+deposit 1034 d_bubbling_swamp
+deposit 1036 d_prosperous_mesa
+deposit 1037 d_tempestous_mountain
+colony 29 colonised 2200.01.01 designation col_fe_colony manual - pops 1600
+species 20 SPEC_Ti-Zru pops 800
+species 22 NAME_Synthetic pops 800

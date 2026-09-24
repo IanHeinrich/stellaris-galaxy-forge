@@ -206,6 +206,34 @@ fn the_schema_matches_the_bytes_it_labels() {
     assert!(get_entity_schema(EntityKind::Country).fields.is_empty());
 }
 
+/// The Data tab opens a reference as the schema's kind at the id the node holds. Nekkar
+/// VIII's station is fleet 498, its mining station; ship 498 is a Tiyanki elsewhere.
+#[test]
+fn a_planets_orbital_station_opens_the_station_fleet() {
+    let doc = common::load();
+    let schema = get_entity_schema(EntityKind::Planet);
+    let field = schema
+        .fields
+        .iter()
+        .find(|f| f.key == "shipclass_orbital_station")
+        .expect("the station is in the schema");
+    let planet = get_entity(&doc, addr(EntityKind::Planet, 744), &[]).expect("Nekkar VIII");
+    let id = planet
+        .nodes
+        .iter()
+        .find_map(|n| match (&n.key, &n.value) {
+            (Some(key), NodeValue::Scalar { text, .. }) if key == "shipclass_orbital_station" => {
+                text.parse::<u32>().ok()
+            }
+            _ => None,
+        })
+        .expect("Nekkar VIII has a station");
+    let kind = field.reference.expect("the station is a reference");
+    let station = get_entity(&doc, addr(kind, id), &[]).expect("the station");
+    assert_eq!(station.addr, addr(EntityKind::Fleet, 498));
+    assert_eq!(station.label, "shipclass_mining_station_name");
+}
+
 #[test]
 fn a_child_block_drills_one_level() {
     let doc = common::load();

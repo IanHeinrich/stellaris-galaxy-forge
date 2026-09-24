@@ -22,7 +22,19 @@ pub enum RegistryKind {
     Bypasses,
     Colors,
     Localisation,
+    /// `common/scripted_variables`, which every definition can read: a change rereads all.
+    Variables,
 }
+
+const ALL: [RegistryKind; 7] = [
+    RegistryKind::Initializers,
+    RegistryKind::Scripts,
+    RegistryKind::CountryTypes,
+    RegistryKind::Bypasses,
+    RegistryKind::Colors,
+    RegistryKind::Localisation,
+    RegistryKind::Variables,
+];
 
 impl RegistryKind {
     /// The registry `path` feeds, by its path relative to the layer root it
@@ -48,6 +60,7 @@ impl RegistryKind {
             Self::Bypasses => "bypasses",
             Self::Colors => "colors",
             Self::Localisation => "localisation",
+            Self::Variables => "variables",
         }
     }
 
@@ -62,6 +75,9 @@ impl RegistryKind {
             || txt("prescripted_countries/")
         {
             return Some(Self::Scripts);
+        }
+        if txt("common/scripted_variables/") {
+            return Some(Self::Variables);
         }
         if txt("common/country_types/") {
             return Some(Self::CountryTypes);
@@ -98,13 +114,16 @@ impl GameData {
     /// rebuilt registries are replaced, the rest kept. Returns the registries
     /// actually replaced beside the result.
     pub fn rebuild(&self, kinds: &BTreeSet<RegistryKind>) -> (GameData, BTreeSet<RegistryKind>) {
+        if kinds.contains(&RegistryKind::Variables) {
+            return (self.reread(), ALL.into_iter().collect());
+        }
         let kinds = RegistryKind::closure(kinds);
         let mut fresh = Vec::new();
         let mut replaced = BTreeSet::new();
         let mut out = self.clone();
 
         if kinds.contains(&RegistryKind::Initializers) {
-            let built = Initializers::load(&self.layout, &mut fresh);
+            let built = Initializers::load(&self.layout, &self.variables, &mut fresh);
             out.initializers = kept(
                 RegistryKind::Initializers,
                 &self.initializers,
@@ -115,7 +134,8 @@ impl GameData {
             );
         }
         if kinds.contains(&RegistryKind::Scripts) {
-            let built = ScriptIndex::load(&self.layout, &out.initializers, &mut fresh);
+            let built =
+                ScriptIndex::load(&self.layout, &out.initializers, &self.variables, &mut fresh);
             out.scripts = kept(
                 RegistryKind::Scripts,
                 &self.scripts,
@@ -126,7 +146,7 @@ impl GameData {
             );
         }
         if kinds.contains(&RegistryKind::CountryTypes) {
-            let built = registry::load(&self.layout, &mut fresh);
+            let built = registry::load(&self.layout, &self.variables, &mut fresh);
             out.country_types = kept(
                 RegistryKind::CountryTypes,
                 &self.country_types,
@@ -137,7 +157,7 @@ impl GameData {
             );
         }
         if kinds.contains(&RegistryKind::Bypasses) {
-            let built = registry::load(&self.layout, &mut fresh);
+            let built = registry::load(&self.layout, &self.variables, &mut fresh);
             out.bypasses = kept(
                 RegistryKind::Bypasses,
                 &self.bypasses,
@@ -174,6 +194,20 @@ impl GameData {
             .retain(|d| !superseded(d, &self.layout, &replaced));
         out.diagnostics.extend(fresh);
         (out, replaced)
+    }
+}
+
+impl GameData {
+    /// Everything read again through the same layout, as a full load would read it.
+    fn reread(&self) -> GameData {
+        GameData::read(
+            self.layout.clone(),
+            self.version.clone(),
+            self.mods.clone(),
+            &self.loc.language,
+            self.discovery.clone(),
+            &mut |_| {},
+        )
     }
 }
 
