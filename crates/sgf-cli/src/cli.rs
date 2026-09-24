@@ -203,7 +203,8 @@ pub enum Command {
     ///
     /// With --generate the system is rolled from the install's own rules instead:
     ///   sgf add-system game.sav --generate --seed 7 --at -310,-95 --lane 169 -o out.sav
-    /// and --star-class sc_g rolls it around that star.
+    /// and --star-class sc_g rolls it around that star, or --layout trappist_initializer
+    /// builds that layout (`sgf special-layouts` lists the special ones).
     #[command(verbatim_doc_comment)]
     AddSystem {
         sav: PathBuf,
@@ -241,8 +242,11 @@ pub enum Command {
         #[arg(long, requires = "generate")]
         name: Option<String>,
         /// The generated system's star class (`sc_g`), drawn among the layouts that make it.
-        #[arg(long, requires = "generate")]
+        #[arg(long, requires = "generate", conflicts_with = "layout")]
         star_class: Option<String>,
+        /// The initializer to build the generated system from, plain or special.
+        #[arg(long, requires = "generate")]
+        layout: Option<String>,
         /// Print the generated spec as JSON and write nothing, so it takes no --then-remove.
         #[arg(long, requires = "generate", conflicts_with = "then_remove")]
         print_spec: bool,
@@ -282,6 +286,13 @@ pub enum Command {
         /// Classify from the save's flags alone, without reading the install.
         #[arg(long)]
         no_gamedata: bool,
+    },
+    /// List the special layouts a system can be generated from, with how many systems of
+    /// the save already have each.
+    SpecialLayouts {
+        sav: PathBuf,
+        #[command(flatten)]
+        install: InstallArg,
     },
     /// Decode a game texture by key (`star_class:g_star`, `flag:human/flag_human_9.dds`,
     /// `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>`) to a PNG.

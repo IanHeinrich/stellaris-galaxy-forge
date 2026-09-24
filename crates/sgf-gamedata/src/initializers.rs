@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
 use ts_rs::TS;
 
+use crate::body_effects::{self, BodyEffect};
 use crate::install::layers::Layout;
 use crate::install::script::{self, Def, Range, Variables};
 use crate::registries::registry::{FromDef, Registry};
@@ -48,7 +49,10 @@ pub struct InitPlanet {
     /// The sum of the `change_orbit` statements between the previous sibling block and
     /// this one, which moves every later instance out (or in).
     pub change_orbit: f64,
-    pub has_ring: bool,
+    /// `has_ring = yes` or `no`; `None` leaves it to the class's `chance_of_ring`.
+    pub has_ring: Option<bool>,
+    /// `entity = "…"`: the model drawn in place of the class's own.
+    pub entity: Option<String>,
     /// How many instances the block spawns; `1` when it says nothing.
     pub count: Range,
     pub home_planet: bool,
@@ -63,41 +67,14 @@ pub struct InitPlanet {
     pub sites: Vec<String>,
     /// Every `add_deposit = d_…` in this block's effects, its moons aside.
     pub deposits: Vec<String>,
-    /// The deposit statements written straight in this block's `init_effect`, in the
-    /// order they run; those under a condition or naming no `d_` key are left out.
-    pub deposit_effects: Vec<DepositEffect>,
+    /// What this block's `init_effect` runs that a generated body is given, in order.
+    pub effects: Vec<BodyEffect>,
+    /// The first statement of this block's `init_effect` that is neither given to a
+    /// generated body nor dropped with the script.
+    pub unwritten: Option<String>,
+    /// Its `moon` blocks, and the `planet` blocks written inside it, which the game spawns
+    /// around it the same way, in file order.
     pub moons: Vec<InitPlanet>,
-}
-
-/// A body's `init_effect` statement that changes its deposits.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DepositEffect {
-    /// `clear_deposits = yes`.
-    Clear,
-    /// `set_deposit = d_…`, which replaces the body's deposit.
-    Set(String),
-    /// `add_deposit = d_…`.
-    Add(String),
-}
-
-impl DepositEffect {
-    /// Every effect of `effects` run on `deposits` in order.
-    pub fn apply_all(effects: &[Self], deposits: &mut Vec<String>) {
-        for effect in effects {
-            effect.apply(deposits);
-        }
-    }
-
-    pub fn apply(&self, deposits: &mut Vec<String>) {
-        match self {
-            Self::Clear => deposits.clear(),
-            Self::Set(key) => {
-                deposits.clear();
-                deposits.push(key.clone());
-            }
-            Self::Add(key) => deposits.push(key.clone()),
-        }
-    }
 }
 
 impl InitPlanet {
@@ -260,7 +237,7 @@ impl FromDef for Initializer {
             countries: countries(node, src),
             spawns: spawns(node, src),
             asteroid_belts: asteroid_belts(def),
-            planets: bodies(node, "planet", def),
+            planets: bodies(node, &["planet"], def),
             megastructures: megastructures(node, src),
             bypasses: bypasses(node, src),
             sites: sites(node, src),
@@ -397,7 +374,7 @@ fn icon(country: &Node, src: &[u8]) -> Option<FlagIcon> {
     })
 }
 
-fn bodies(parent: &Node, key: &str, def: &Def) -> Vec<InitPlanet> {
+fn bodies(parent: &Node, keys: &[&str], def: &Def) -> Vec<InitPlanet> {
     let mut out = Vec::new();
     let mut change_orbit = 0.0;
     for child in parent.children() {
@@ -408,7 +385,7 @@ fn bodies(parent: &Node, key: &str, def: &Def) -> Vec<InitPlanet> {
                     .and_then(|text| def.number_of(text))
                     .unwrap_or(0.0);
             }
-            Some(found) if found == key => {
+            Some(found) if keys.contains(&found) => {
                 out.push(body(child, change_orbit, def));
                 change_orbit = 0.0;
             }
@@ -423,6 +400,7 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
     let home_planet = scalar(node, "home_planet", src) == Some("yes")
         || scalar(node, "starting_planet", src) == Some("yes");
     let colony_owner = colony_owner(node, src);
+    let (effects, unwritten) = body_effects::read(node, def);
     InitPlanet {
         name: scalar(node, "name", src).map(str::to_owned),
         class: scalar(node, "class", src).unwrap_or("random").to_owned(),
@@ -432,7 +410,12 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
         orbit_distance: def.range_in(node, "orbit_distance"),
         orbit_angle: def.range_in(node, "orbit_angle"),
         change_orbit,
-        has_ring: scalar(node, "has_ring", src) == Some("yes"),
+        has_ring: match scalar(node, "has_ring", src) {
+            Some("yes") => Some(true),
+            Some("no") => Some(false),
+            _ => None,
+        },
+        entity: scalar(node, "entity", src).map(str::to_owned),
         count: def.range_in(node, "count").unwrap_or(Range::fixed(1.0)),
         home_planet,
         colonised: home_planet
@@ -449,8 +432,9 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
         }),
         sites: sites(node, src),
         deposits: deposits(node, src),
-        deposit_effects: deposit_effects(node, src),
-        moons: bodies(node, "moon", def),
+        effects,
+        unwritten,
+        moons: bodies(node, &["moon", "planet"], def),
     }
 }
 
@@ -488,22 +472,6 @@ fn deposits(node: &Node, src: &[u8]) -> Vec<String> {
         .filter_map(|n| n.scalar_str(src))
         .filter(|d| d.starts_with("d_"))
         .map(str::to_owned)
-        .collect()
-}
-
-fn deposit_effects(node: &Node, src: &[u8]) -> Vec<DepositEffect> {
-    node.find_all("init_effect", src)
-        .flat_map(Node::children)
-        .filter_map(|effect| {
-            let value = effect.scalar_str(src)?;
-            let key = value.starts_with("d_").then(|| value.to_owned());
-            match effect.key_str(src)? {
-                "clear_deposits" => (value == "yes").then_some(DepositEffect::Clear),
-                "set_deposit" => key.map(DepositEffect::Set),
-                "add_deposit" => key.map(DepositEffect::Add),
-                _ => None,
-            }
-        })
         .collect()
 }
 

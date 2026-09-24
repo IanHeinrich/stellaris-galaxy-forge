@@ -6,11 +6,13 @@
 //! Without an install [`load`] fails with [`LoadError::NoInstall`] and the
 //! caller degrades to raw keys.
 
+pub mod body_effects;
 pub mod deposit_roll;
 pub mod details;
 pub mod generate;
 pub mod initializers;
 pub mod install;
+pub mod layouts;
 pub mod loc;
 pub mod naming;
 pub mod planet_views;
@@ -19,6 +21,7 @@ pub mod reload;
 pub(crate) mod resolver;
 pub mod scripts;
 pub mod special;
+pub mod summary;
 pub mod textures;
 pub mod views;
 
@@ -29,7 +32,7 @@ use install::script::Variables;
 use install::{discovery, mods};
 use registries::defines::DefineFiles;
 use registries::galaxy_sizes::GalaxySizes;
-use registries::{colors, gfx, nebula_names, registry, star_names, starbase_levels};
+use registries::{colors, gfx, nebula_names, planet_lists, registry, star_names, starbase_levels};
 
 pub use initializers::Initializers;
 pub use install::layers::Layout;
@@ -44,6 +47,7 @@ pub use registries::deposits::Deposits;
 pub use registries::galaxy_shapes::GalaxyShapes;
 pub use registries::gfx::Sprites;
 pub use registries::planet_classes::PlanetClasses;
+pub use registries::planet_lists::PlanetLists;
 pub use registries::planet_modifiers::PlanetModifiers;
 pub use registries::registry::Registry;
 pub use registries::scripted_triggers::ScriptedTriggers;
@@ -75,6 +79,8 @@ pub struct GameData {
     pub star_names: Arc<Vec<String>>,
     /// `common/random_names`: every nebula name a galaxy can be named from, in file order.
     pub nebula_names: Arc<Vec<String>>,
+    /// `common/random_names`: every name a galaxy can give a black hole, in file order.
+    pub black_hole_names: Arc<Vec<String>>,
     pub sprites: Arc<Sprites>,
     pub colors: Arc<Colors>,
     pub deposits: Arc<Deposits>,
@@ -84,6 +90,8 @@ pub struct GameData {
     pub colony_types: Arc<ColonyTypes>,
     pub bypasses: Arc<Bypasses>,
     pub planet_classes: Arc<PlanetClasses>,
+    /// `common/planet_classes`' `rl_` lists an initializer's body draws its class from.
+    pub planet_lists: Arc<PlanetLists>,
     pub starbase_levels: Arc<StarbaseLevels>,
     pub ship_sizes: Arc<ShipSizes>,
     pub galaxy_shapes: Arc<GalaxyShapes>,
@@ -237,6 +245,8 @@ impl GameData {
         let star_names = star_names::load(&layout, &mut diagnostics);
         // The same files as the star names, whose load has already reported them.
         let nebula_names = nebula_names::load(&layout, &mut Vec::new());
+        // The same files, which the star names' load has already reported.
+        let black_hole_names = star_names::load_black_holes(&layout, &mut Vec::new());
         let deposits = registry::load(&layout, &vars, &mut diagnostics);
         let deposit_categories = registry::load(&layout, &vars, &mut diagnostics);
         // Vanilla defines a few static modifiers in two files, which is no one's mistake to report.
@@ -251,6 +261,8 @@ impl GameData {
         let colony_types = registry::load(&layout, &vars, &mut diagnostics);
         let bypasses = registry::load(&layout, &vars, &mut diagnostics);
         let planet_classes = registry::load(&layout, &vars, &mut diagnostics);
+        // The planet classes' files, whose load has already reported them.
+        let planet_lists = planet_lists::load(&layout, &mut Vec::new());
         let ship_sizes = registry::load(&layout, &vars, &mut diagnostics);
         let starbase_levels = starbase_levels::load(&layout, &ship_sizes, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
@@ -277,6 +289,7 @@ impl GameData {
             star_lists: Arc::new(star_lists),
             star_names: Arc::new(star_names),
             nebula_names: Arc::new(nebula_names),
+            black_hole_names: Arc::new(black_hole_names),
             sprites: Arc::new(sprites),
             colors: Arc::new(colors),
             deposits: Arc::new(deposits),
@@ -286,6 +299,7 @@ impl GameData {
             colony_types: Arc::new(colony_types),
             bypasses: Arc::new(bypasses),
             planet_classes: Arc::new(planet_classes),
+            planet_lists: Arc::new(planet_lists),
             starbase_levels: Arc::new(starbase_levels),
             ship_sizes: Arc::new(ship_sizes),
             galaxy_shapes: Arc::new(galaxy_shapes),

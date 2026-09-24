@@ -76,7 +76,7 @@ fn sol_spawns_its_star_its_planets_and_their_moons() {
     assert_eq!(earth.orbit(), Some(25.0));
     assert_eq!(earth.instances(), 1);
     assert!(earth.home_planet, "starting_planet = yes");
-    assert!(!earth.has_ring);
+    assert_ne!(earth.has_ring, Some(true));
     assert_eq!(earth.moons.len(), 1);
     assert_eq!(earth.moons[0].name.as_deref(), Some("NAME_Luna"));
     assert_eq!(earth.moons[0].class, "pc_barren_cold");
@@ -98,8 +98,8 @@ fn sol_spawns_its_star_its_planets_and_their_moons() {
     );
     assert_eq!(jupiter.moons[1].orbit(), Some(2.5));
 
-    assert!(sol.planets[10].has_ring, "Saturn");
-    assert!(!sol.planets[12].has_ring, "Neptune");
+    assert_eq!(sol.planets[10].has_ring, Some(true), "Saturn");
+    assert_ne!(sol.planets[12].has_ring, Some(true), "Neptune");
     assert_eq!(sol.planets[12].moons.len(), 1, "Triton");
 
     assert!(sol.planets.iter().all(|p| p.deposits.is_empty()));
