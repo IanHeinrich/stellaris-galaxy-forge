@@ -9,6 +9,7 @@ pub mod mutate;
 pub mod roundtrip;
 pub mod shape;
 pub mod special;
+pub mod special_layouts;
 pub mod synth;
 pub mod texture;
 pub mod validate;

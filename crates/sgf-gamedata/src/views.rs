@@ -330,7 +330,7 @@ impl From<&InitPlanet> for InitPlanetView {
             class: p.class.clone(),
             size: p.size,
             orbit_distance: p.orbit(),
-            has_ring: p.has_ring,
+            has_ring: p.has_ring == Some(true),
             count: p.instances(),
             home_planet: p.home_planet,
             deposits: p.deposits.clone(),

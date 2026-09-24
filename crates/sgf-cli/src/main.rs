@@ -223,6 +223,7 @@ fn run(cli: Cli) -> commands::Run {
             lanes,
             name,
             star_class,
+            layout,
             print_spec,
             install,
             out,
@@ -239,6 +240,7 @@ fn run(cli: Cli) -> commands::Run {
                     lanes,
                     name,
                     star_class,
+                    layout,
                     print_spec,
                     then_remove,
                 },
@@ -249,6 +251,7 @@ fn run(cli: Cli) -> commands::Run {
                     && lanes.is_empty()
                     && name.is_none()
                     && star_class.is_none()
+                    && layout.is_none()
                     && !print_spec =>
             {
                 let mut ops = Vec::with_capacity(spec.len() + 1);
@@ -285,6 +288,9 @@ fn run(cli: Cli) -> commands::Run {
             install,
             no_gamedata,
         }) => commands::special::run(&sav, &install.options(), !no_gamedata),
+        Some(Command::SpecialLayouts { sav, install }) => {
+            commands::special_layouts::run(&sav, &install.options())
+        }
         Some(Command::Texture { key, out, install }) => {
             commands::texture::run(&key, &out, &install.options())
         }

@@ -1462,10 +1462,18 @@ fn add_system_generates_around_the_star_class_asked_for() {
         "the same seed and class"
     );
 
-    let refused = run("sc_black_hole", &[]);
+    let hole = run("sc_black_hole", &["--print-spec"]);
+    let hole: serde_json::Value = serde_json::from_str(&stdout(&hole)).expect("a black hole");
+    assert_eq!(
+        hole["initializer"],
+        serde_json::json!("special_init_01"),
+        "the one special layout that makes it"
+    );
+
+    let refused = run("sc_binary_1", &[]);
     assert_ne!(refused.status.code(), Some(0));
     assert!(
-        String::from_utf8_lossy(&refused.stderr).contains("sc_black_hole"),
+        String::from_utf8_lossy(&refused.stderr).contains("sc_binary_1"),
         "{}",
         String::from_utf8_lossy(&refused.stderr)
     );
@@ -1480,4 +1488,86 @@ fn add_system_generates_around_the_star_class_asked_for() {
     );
     assert!(stdout(&out).contains(" sc_m ("), "{}", stdout(&out));
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+}
+
+#[test]
+fn add_system_generates_the_special_layout_asked_for_and_lists_them() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("trappist.sav");
+    let out_str = out_path.to_str().unwrap();
+    let run = |layout: &str, extra: &[&str]| {
+        let mut args = vec![
+            "add-system",
+            SAMPLE_4_5,
+            "--generate",
+            "--seed",
+            "4",
+            "--at",
+            "-292.23404,-137.62265",
+            "--lane",
+            "169",
+            "--layout",
+            layout,
+        ];
+        args.extend_from_slice(extra);
+        args.extend_from_slice(&["-o", out_str]);
+        sgf(&args)
+    };
+    let out = run("trappist_initializer", &[]);
+    if without_install(&out) {
+        return;
+    }
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = stdout(&out);
+    assert!(
+        text.contains("NAME_Trappist sc_m (trappist_initializer, capped)"),
+        "{text}"
+    );
+    assert!(text.contains("(named after the system)"), "{text}");
+    assert!(text.contains("modifiers terraforming_candidate"), "{text}");
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let again = sgf(&[
+        "add-system",
+        out_str,
+        "--generate",
+        "--seed",
+        "4",
+        "--at",
+        "-250,-160",
+        "--layout",
+        "trappist_initializer",
+        "--print-spec",
+    ]);
+    let spec: serde_json::Value = serde_json::from_str(&stdout(&again)).expect("the spec");
+    assert_ne!(
+        spec["name"],
+        serde_json::json!("NAME_Trappist"),
+        "a system already holds the fixed name"
+    );
+
+    let refused = run("great_wound_system", &["--print-spec"]);
+    assert_ne!(refused.status.code(), Some(0));
+    let err = String::from_utf8_lossy(&refused.stderr);
+    assert!(
+        err.contains("great_wound_system cannot be generated"),
+        "{err}"
+    );
+
+    let listed = sgf(&["special-layouts", out_str]);
+    assert_eq!(listed.status.code(), Some(0));
+    let text = stdout(&listed);
+    let trappist = text
+        .lines()
+        .find(|line| line.starts_with("trappist_initializer "))
+        .expect("Trappist is listed");
+    assert!(trappist.contains("Trappist"), "{trappist}");
+    assert!(trappist.contains("capped"), "{trappist}");
+    assert!(trappist.contains("in galaxy 1"), "{trappist}");
+    assert!(!text.contains("great_wound_system"), "{text}");
 }
