@@ -1,0 +1,17 @@
+[
+  {"file": "01-hero", "caption": null, "tag": null, "style": "none"},
+  {"file": "02-galaxy", "caption": "The galaxy map", "tag": "both", "style": "overlay"},
+  {"file": "03-layers-menu", "caption": "Layers menu", "tag": "both", "style": "strip"},
+  {"file": "04-move-system", "caption": "Move a system", "tag": "both", "style": "overlay"},
+  {"file": "05-draw-lane", "caption": "Draw a hyperlane", "tag": "both", "style": "overlay"},
+  {"file": "06-cut-lane", "caption": "Cut a hyperlane", "tag": "both", "style": "overlay"},
+  {"file": "07-connect-selection", "caption": "Connect a selection", "tag": "both", "style": "overlay"},
+  {"file": "08-initializer-browser", "caption": "Initializer browser", "tag": "scenario", "style": "strip"},
+  {"file": "09-inspector", "caption": "Inspector", "tag": "save", "style": "strip"},
+  {"file": "10-scenario-inspector", "caption": "Scenario inspector", "tag": "scenario", "style": "strip"},
+  {"file": "11-scripts-tab", "caption": "Scripts tab", "tag": "scenario", "style": "strip"},
+  {"file": "12-add-system", "caption": "Add a system", "tag": "scenario", "style": "overlay"},
+  {"file": "13-delete-system", "caption": "Delete a system", "tag": "scenario", "style": "overlay"},
+  {"file": "14-spawn-point", "caption": "Set a spawn point", "tag": "scenario", "style": "overlay"},
+  {"file": "15-prevent-lane", "caption": "Prevent a hyperlane", "tag": "scenario", "style": "overlay"}
+]
