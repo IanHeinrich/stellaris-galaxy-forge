@@ -1,9 +1,12 @@
 //! A random star system rolled from the install's own rules: the initializer, star class,
 //! planet classes and asteroid belts a fresh galaxy would draw, as the spec
-//! [`sgf_core::ops::Op::AddSaveSystem`] writes. The same seed and install give the same
-//! spec.
+//! [`sgf_core::ops::Op::AddSaveSystem`] writes. The same seed, star class and install
+//! give the same spec.
 
-use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
+use std::collections::HashSet;
+
+use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec, free_star_names};
+use sgf_core::session::Session;
 
 use crate::GameData;
 use crate::initializers::{InitAsteroidBelt, InitPlanet, Initializer};
@@ -24,6 +27,8 @@ const NAME_STREAM: u64 = 0x6E61_6D65;
 pub enum GenerateError {
     #[error("the install has no plain {USAGE} initializer to roll a system from")]
     NoInitializer,
+    #[error("no plain {USAGE} initializer of the install can make a system of star class {0}")]
+    NoLayoutFor(String),
     #[error("{0} is neither a star list nor a star class")]
     UnknownStar(String),
     #[error("no star class in {0} can spawn")]
@@ -45,21 +50,60 @@ pub fn plain_initializers(gd: &GameData) -> Vec<&Initializer> {
     gd.initializers.iter().filter(|i| plain(gd, i)).collect()
 }
 
-/// A system named `name` at (`x`, `y`) with no lanes, rolled from `seed`.
+/// The star classes [`generate`] can give a system: each class a plain initializer fixes
+/// or draws from its list with odds above zero, in the order the initializers and their
+/// lists name them.
+pub fn star_classes(gd: &GameData) -> Vec<String> {
+    let mut classes: Vec<String> = Vec::new();
+    for init in plain_initializers(gd) {
+        let key = init.class.as_deref().unwrap_or_default();
+        let listed = gd
+            .star_lists
+            .get(key)
+            .map_or(&[][..], |list| &list.stars[..]);
+        for class in std::iter::once(key).chain(listed.iter().map(String::as_str)) {
+            if produces(gd, init, class) && !classes.iter().any(|held| held == class) {
+                classes.push(class.to_owned());
+            }
+        }
+    }
+    classes
+}
+
+/// A system named `name` at (`x`, `y`) with no lanes, rolled from `seed`. With a
+/// `star_class`, the star is that class and each initializer is drawn as often as it
+/// would roll a system of that class: its odds times the class's share of its star list.
 pub fn generate(
     gd: &GameData,
     seed: u64,
     name: &str,
-    x: f64,
-    y: f64,
+    (x, y): (f64, f64),
+    star_class: Option<&str>,
 ) -> Result<SystemSpec, GenerateError> {
+    if let Some(class) = star_class
+        && gd.star_classes.get(class).is_none()
+    {
+        return Err(GenerateError::UnknownStar(class.to_owned()));
+    }
     let mut rng = Rng(seed);
     let plain: Vec<(&Initializer, f64)> = plain_initializers(gd)
         .into_iter()
-        .map(|i| (i, i.usage_odds.unwrap_or(0.0)))
+        .map(|i| {
+            let odds = i.usage_odds.unwrap_or(0.0);
+            (
+                i,
+                star_class.map_or(odds, |class| odds * share(gd, i, class)),
+            )
+        })
         .collect();
-    let init = *rng.weighted(&plain).ok_or(GenerateError::NoInitializer)?;
-    let star_class = roll_star(gd, init.class.as_deref().unwrap_or_default(), &mut rng)?;
+    let init = *rng.weighted(&plain).ok_or_else(|| match star_class {
+        Some(class) => GenerateError::NoLayoutFor(class.to_owned()),
+        None => GenerateError::NoInitializer,
+    })?;
+    let star_class = match star_class.and_then(|class| gd.star_classes.get(class)) {
+        Some(fixed) => fixed,
+        None => roll_star(gd, init.class.as_deref().unwrap_or_default(), &mut rng)?,
+    };
     let mut roller = Roller {
         gd,
         star_class,
@@ -79,11 +123,70 @@ pub fn generate(
     })
 }
 
+/// A name for a new system in `session`'s save, drawn from `seed`: one left in the save's
+/// pool of unused star names, else one of the install's star names no system of the save
+/// holds. `None` when neither has one left.
+pub fn pick_system_name(session: &Session, gd: &GameData, seed: u64) -> Option<String> {
+    let used: HashSet<&str> = session
+        .graph
+        .systems
+        .values()
+        .map(|system| system.name.key.as_str())
+        .collect();
+    let mut seen = HashSet::new();
+    let pooled: Vec<String> = free_star_names(&session.doc)
+        .into_iter()
+        .filter(|name| !used.contains(name.as_str()) && seen.insert(name.clone()))
+        .collect();
+    if let Some(name) = pick_name(&pooled, seed) {
+        return Some(name.to_owned());
+    }
+    let left: Vec<String> = gd
+        .star_names
+        .iter()
+        .filter(|name| !used.contains(name.as_str()))
+        .cloned()
+        .collect();
+    pick_name(&left, seed).map(str::to_owned)
+}
+
 /// One of `names`, drawn from `seed`; `None` when there are none.
 pub fn pick_name(names: &[String], seed: u64) -> Option<&str> {
     let last = i64::try_from(names.len()).ok()?.checked_sub(1)?;
     let index = Rng(seed ^ NAME_STREAM).int(0, last);
     names.get(usize::try_from(index).ok()?).map(String::as_str)
+}
+
+/// Whether `init` can give a system of star class `class`.
+fn produces(gd: &GameData, init: &Initializer, class: &str) -> bool {
+    share(gd, init, class) > 0.0
+}
+
+/// How often `init` gives a system of star class `class`: always for its fixed class,
+/// else the class's odds over those of every class its list names.
+fn share(gd: &GameData, init: &Initializer, class: &str) -> f64 {
+    let (Some(key), Some(star)) = (init.class.as_deref(), gd.star_classes.get(class)) else {
+        return 0.0;
+    };
+    if key == class {
+        return 1.0;
+    }
+    let Some(list) = gd.star_lists.get(key) else {
+        return 0.0;
+    };
+    if !list.stars.iter().any(|listed| listed == class) {
+        return 0.0;
+    }
+    let total: f64 = list
+        .stars
+        .iter()
+        .filter_map(|listed| gd.star_classes.get(listed))
+        .map(|listed| listed.spawn_odds.max(0.0))
+        .sum();
+    match total > 0.0 {
+        true => star.spawn_odds.max(0.0) / total,
+        false => 0.0,
+    }
 }
 
 fn plain(gd: &GameData, init: &Initializer) -> bool {

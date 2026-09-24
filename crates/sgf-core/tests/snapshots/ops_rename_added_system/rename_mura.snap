@@ -1,0 +1,107 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Renamed Mura (#601) to Epsilon_Eridani
+inverse: RenameSaveSystem { system: 601, name: "Mura" }
+--- before
++++ after
+@@ -71419,7 +71419,7 @@
+ 		}
+ 		name=
+ 		{
+-			key="Mura"
++			key="Epsilon_Eridani"
+ 		}
+ 		planet=16777273
+ 		planet=6375
+@@ -82432,7 +82432,7 @@
+ 						key="NAME"
+ 						value=
+ 						{
+-							key="Mura"
++							key="Epsilon_Eridani"
+ 						}
+ 					}
+  
+@@ -412029,7 +412029,7 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="Mura"
++							key="Epsilon_Eridani"
+ 						}
+ 					}
+  
+@@ -412073,7 +412073,7 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="Mura"
++							key="Epsilon_Eridani"
+ 						}
+ 					}
+  
+@@ -412117,7 +412117,7 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="Mura"
++							key="Epsilon_Eridani"
+ 						}
+ 					}
+  
+@@ -412165,7 +412165,7 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="Mura"
++							key="Epsilon_Eridani"
+ 						}
+ 					}
+  
+@@ -412225,7 +412225,7 @@
+ 									key="PARENT"
+ 									value=
+ 									{
+-										key="Mura"
++										key="Epsilon_Eridani"
+ 									}
+ 								}
+  
+@@ -412292,7 +412292,7 @@
+ 									key="PARENT"
+ 									value=
+ 									{
+-										key="Mura"
++										key="Epsilon_Eridani"
+ 									}
+ 								}
+  
+@@ -412351,7 +412351,7 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="Mura"
++							key="Epsilon_Eridani"
+ 						}
+ 					}
+  
+@@ -412395,7 +412395,7 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="Mura"
++							key="Epsilon_Eridani"
+ 						}
+ 					}
+  
+@@ -1122118,7 +1122118,7 @@
+ 	}
+ 	star_names=
+ 	{
+-		"Epsilon_Eridani"
++		"Mura"
+ 		"Tau_Ceti"
+ 		"Altair"
+ 		"Fellix"

@@ -60,6 +60,15 @@ impl Example {
         }
     }
 
+    /// A save example that needs a system added in the session; a scenario refuses it.
+    fn added(op: Op) -> Self {
+        Self {
+            save: Some(op),
+            scenario: None,
+            open_save: save_with_added,
+        }
+    }
+
     fn scenario(op: Op) -> Self {
         Self {
             save: None,
@@ -366,6 +375,14 @@ pub fn one_of_each() -> Vec<Example> {
             kind: "d_minerals_3".to_owned(),
         }),
         Example::save(Op::RemoveSaveDeposit { deposit: 26 }),
+        Example::added(Op::ReplaceSaveSystem {
+            system: 791,
+            spec: super::spec::rerolled(super::spec::dorellion()),
+        }),
+        Example::added(Op::RenameSaveSystem {
+            system: 791,
+            name: "Sgf_Renamed".to_owned(),
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),
@@ -457,7 +474,9 @@ fn position(op: &Op) -> usize {
         Op::AddSaveSystem { .. } => 45,
         Op::AddSaveDeposit { .. } => 46,
         Op::RemoveSaveDeposit { .. } => 47,
-        Op::Batch { .. } => 48,
+        Op::ReplaceSaveSystem { .. } => 48,
+        Op::RenameSaveSystem { .. } => 49,
+        Op::Batch { .. } => 50,
     }
 }
 

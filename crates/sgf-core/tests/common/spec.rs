@@ -55,6 +55,20 @@ pub fn belted(mut spec: SystemSpec) -> SystemSpec {
     spec
 }
 
+/// The spike's system rolled again from `basic_init_03`: an M star with three planets,
+/// the last holding a deposit.
+pub fn rerolled(mut spec: SystemSpec) -> SystemSpec {
+    spec.initializer = "basic_init_03".to_owned();
+    spec.star_class = "sc_m".to_owned();
+    spec.star = body("pc_m_star", 18, 0.0, 0.0, 0);
+    spec.planets = vec![
+        body("pc_barren", 10, 55.0, 40.0, 1),
+        body("pc_desert", 17, 90.0, 200.0, 2),
+        with_deposits(body("pc_gas_giant", 22, 130.0, 300.0, 2), &["d_minerals_4"]),
+    ];
+    spec
+}
+
 pub fn body(class: &str, size: u32, orbit: f64, angle: f64, entity: u32) -> BodySpec {
     BodySpec {
         class: class.to_owned(),

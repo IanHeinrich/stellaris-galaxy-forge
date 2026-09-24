@@ -28,7 +28,7 @@ use install::script::Variables;
 use install::{discovery, mods};
 use registries::defines::DefineFiles;
 use registries::galaxy_sizes::GalaxySizes;
-use registries::{colors, gfx, registry, starbase_levels};
+use registries::{colors, gfx, registry, star_names, starbase_levels};
 
 pub use initializers::Initializers;
 pub use install::layers::Layout;
@@ -70,6 +70,8 @@ pub struct GameData {
     pub star_classes: Arc<StarClasses>,
     /// `common/star_classes/randomizers`: the `rl_` lists an initializer draws its star from.
     pub star_lists: Arc<StarLists>,
+    /// `common/random_names`: every star name a galaxy can be named from, in file order.
+    pub star_names: Arc<Vec<String>>,
     pub sprites: Arc<Sprites>,
     pub colors: Arc<Colors>,
     pub deposits: Arc<Deposits>,
@@ -229,6 +231,7 @@ impl GameData {
         let star_classes = registry::load(&layout, &vars, &mut diagnostics);
         // The same directory as the star classes, whose load has already reported its files.
         let star_lists = registry::load(&layout, &vars, &mut Vec::new());
+        let star_names = star_names::load(&layout, &mut diagnostics);
         let deposits = registry::load(&layout, &vars, &mut diagnostics);
         let deposit_categories = registry::load(&layout, &vars, &mut diagnostics);
         // Vanilla defines a few static modifiers in two files, which is no one's mistake to report.
@@ -267,6 +270,7 @@ impl GameData {
             country_types: Arc::new(country_types),
             star_classes: Arc::new(star_classes),
             star_lists: Arc::new(star_lists),
+            star_names: Arc::new(star_names),
             sprites: Arc::new(sprites),
             colors: Arc::new(colors),
             deposits: Arc::new(deposits),

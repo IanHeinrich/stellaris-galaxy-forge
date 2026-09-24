@@ -40,8 +40,8 @@ const OUTER_MARGIN: f64 = 100.0;
 const STAR_NAME: &str = "STAR_NAME_1_OF_1";
 const PLANET_NAME: &str = "PLANET_NAME_FORMAT";
 const MOON_NAME: &str = "SUBPLANET_NAME_FORMAT";
-const NAME_VAR: &str = "NAME";
-const PARENT_VAR: &str = "PARENT";
+pub(crate) const NAME_VAR: &str = "NAME";
+pub(crate) const PARENT_VAR: &str = "PARENT";
 const NUMERAL_VAR: &str = "NUMERAL";
 
 pub(crate) fn plan_add(
@@ -56,6 +56,53 @@ pub(crate) fn plan_add(
     check_place(&s.graph, x, y)?;
     let lanes = lane_lengths(&s.graph, id, x, y, &spec.lanes)?;
 
+    let written = write_bodies(plan, s, id, spec)?;
+    let mut end = systems_end(&s.doc)?;
+    let text = system_text(end.indent(), id, (x, y), spec, &written, &lanes);
+    let text = end.shape(text);
+    plan.emit(Emitted::System(id), end.at(), text);
+    for &(to, length) in &lanes {
+        insert_entries(plan.edit(&s.doc, to)?, &[(id, length, false)])?;
+    }
+
+    let counter = alloc::system_counter(&s.doc)?;
+    let edit = plan.edit_record(&s.doc, counter.anchor)?;
+    let span = edit
+        .entity()?
+        .scalar_span()
+        .ok_or_else(|| edit.parse_error(0, "last_created_system is not a scalar"))?;
+    edit.splices
+        .push((span.range(), id.to_string().into_bytes()));
+    take_name(plan, &s.doc, &spec.name)?;
+
+    Ok(Planned {
+        description: format!(
+            "Added {} (#{id}) at ({}, {}) with {} and {}",
+            spec.name,
+            coord(x),
+            coord(y),
+            bodies(spec, written.ids.len()),
+            plural(lanes.len(), "lane")
+        ),
+        inverse: Op::RemoveSystem { id },
+    })
+}
+
+/// What [`write_bodies`] wrote: the planets the system lists, star first, and how far
+/// from its star its inner radius lies.
+pub(crate) struct Written {
+    pub ids: Vec<u32>,
+    pub inner_radius: f64,
+}
+
+/// Write the spec's bodies and their deposits as bodies of system `id`, each in the slot
+/// its table hands out next, and take their asteroids' names out of the pool.
+pub(crate) fn write_bodies(
+    plan: &mut Plan,
+    s: &Session,
+    id: u32,
+    spec: &SystemSpec,
+) -> Result<Written, OpError> {
     let asteroids = spec.planets.iter().filter(|p| p.asteroid).count();
     let picks = Pool::read(&s.doc).pick(&s.doc, &spec.name, asteroids)?;
     let names: Vec<NameTemplate> = picks.iter().map(|pick| pick.name.clone()).collect();
@@ -92,73 +139,71 @@ pub(crate) fn plan_add(
             deposits.as_mut(),
         )?;
     }
-
+    for entry in picks.iter().filter_map(|pick| pick.entry) {
+        plan.erase(&s.doc, Subject::Record(entry), entry)?;
+    }
     let extent = layout.iter().map(|b| b.extent).fold(0.0, f64::max);
+    Ok(Written {
+        ids,
+        inner_radius: MIN_INNER_RADIUS.max(extent + INNER_MARGIN),
+    })
+}
+
+/// System `id`'s `galactic_object` entry, indented with `indent`, at (`x`, `y`) with
+/// the bodies `written` holds and `lanes` as (other end, length).
+pub(crate) fn system_text(
+    indent: &[u8],
+    id: u32,
+    (x, y): (f64, f64),
+    spec: &SystemSpec,
+    written: &Written,
+    lanes: &[(u32, u32)],
+) -> Vec<u8> {
     let belts: Vec<(&str, f64)> = spec
         .belts
         .iter()
         .map(|belt| (belt.kind.as_str(), belt.inner_radius))
         .collect();
-    let inner_radius = MIN_INNER_RADIUS.max(extent + INNER_MARGIN);
-    let mut end = systems_end(&s.doc)?;
-    let text = system_entry(
-        end.indent(),
+    system_entry(
+        indent,
         &SystemEntry {
             id,
             x,
             y,
             name: &spec.name,
-            planets: &ids,
+            planets: &written.ids,
             star_class: &spec.star_class,
-            lanes: &lanes,
+            lanes,
             belts: &belts,
             initializer: &spec.initializer,
-            inner_radius,
-            outer_radius: inner_radius + OUTER_MARGIN,
+            inner_radius: written.inner_radius,
+            outer_radius: written.inner_radius + OUTER_MARGIN,
         },
-    );
-    let text = end.shape(text);
-    plan.emit(Emitted::System(id), end.at(), text);
-    for &(to, length) in &lanes {
-        insert_entries(plan.edit(&s.doc, to)?, &[(id, length, false)])?;
-    }
+    )
+}
 
-    let counter = alloc::system_counter(&s.doc)?;
-    let edit = plan.edit_record(&s.doc, counter.anchor)?;
-    let span = edit
-        .entity()?
-        .scalar_span()
-        .ok_or_else(|| edit.parse_error(0, "last_created_system is not a scalar"))?;
-    edit.splices
-        .push((span.range(), id.to_string().into_bytes()));
-    let src = s.doc.original();
-    let unused = pool_entries(&s.doc, &spec.name)
+/// Take `name` out of the save's pool of unused star names, when an entry for it is left.
+pub(crate) fn take_name(plan: &mut Plan, doc: &Document, name: &str) -> Result<(), OpError> {
+    let src = doc.original();
+    let unused = pool_entries(doc, name)
         .into_iter()
-        .find(|&entry| !removed(s.doc.overlay(), entry, src));
-    if let Some(entry) = unused {
-        plan.erase(&s.doc, Subject::Record(entry), entry)?;
+        .find(|&entry| !removed(doc.overlay(), entry, src));
+    match unused {
+        Some(entry) => plan.erase(doc, Subject::Record(entry), entry),
+        None => Ok(()),
     }
-    for entry in picks.iter().filter_map(|pick| pick.entry) {
-        plan.erase(&s.doc, Subject::Record(entry), entry)?;
-    }
+}
 
-    let mut bodies = match layout.len() {
+/// `7 bodies`, and the belts after them: `7 bodies, 2 belts`.
+pub(crate) fn bodies(spec: &SystemSpec, count: usize) -> String {
+    let mut bodies = match count {
         1 => "1 body".to_owned(),
         n => format!("{n} bodies"),
     };
     if !spec.belts.is_empty() {
         bodies = format!("{bodies}, {}", plural(spec.belts.len(), "belt"));
     }
-    Ok(Planned {
-        description: format!(
-            "Added {} (#{id}) at ({}, {}) with {bodies} and {}",
-            spec.name,
-            coord(x),
-            coord(y),
-            plural(lanes.len(), "lane")
-        ),
-        inverse: Op::RemoveSystem { id },
-    })
+    bodies
 }
 
 /// One body as its entry reads, once every body of the system has its id.
@@ -338,7 +383,7 @@ fn layout(spec: &SystemSpec, asteroid_names: Vec<NameTemplate>) -> Vec<Placed<'_
 }
 
 /// Where a body stands: `orbit` from (x, y) at `angle` degrees.
-fn polar(x: f64, y: f64, body: &BodySpec) -> (f64, f64) {
+pub(crate) fn polar(x: f64, y: f64, body: &BodySpec) -> (f64, f64) {
     let angle = body.angle.to_radians();
     (x + body.orbit * angle.cos(), y + body.orbit * angle.sin())
 }
@@ -419,10 +464,15 @@ pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
 }
 
 fn check_spec(spec: &SystemSpec) -> Result<(), OpError> {
-    check_name(&spec.name)?;
     if !spec.x.is_finite() || !spec.y.is_finite() {
         return Err(OpError::NotFinite);
     }
+    check_contents(spec)
+}
+
+/// Everything of the spec but where it stands and its lanes.
+pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
+    check_name(&spec.name)?;
     if spec.star_class.is_empty() {
         return Err(OpError::EmptyStarClass);
     }

@@ -330,6 +330,27 @@ pub enum Op {
     RemoveSaveDeposit {
         deposit: u32,
     },
+    /// A save system [`Op::AddSaveSystem`] added since the file was opened, rolled again
+    /// in place: its star class, initializer, belts, radii and bodies with their deposits
+    /// become the spec's, and its id, position and lanes stay: the spec's `x`, `y` and
+    /// `lanes` are ignored. The old bodies' slots and asteroid names are freed before the
+    /// new bodies take theirs, and a new name swaps places in the pool of unused star
+    /// names as [`Op::RenameSaveSystem`] does. The inverse rolls the old system back in,
+    /// read back as a spec that carries the system's position and lanes as they stand.
+    /// Save documents only.
+    ReplaceSaveSystem {
+        system: u32,
+        spec: SystemSpec,
+    },
+    /// A save system [`Op::AddSaveSystem`] added since the file was opened, renamed: its
+    /// own name and the names of its star, planets and moons, which carry it as text. The
+    /// old name goes back to the pool of unused star names when the add took it from
+    /// there, and the new one leaves the pool when the pool holds it. Empty is refused;
+    /// the inverse carries the name displaced. Save documents only.
+    RenameSaveSystem {
+        system: u32,
+        name: String,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -390,6 +411,8 @@ impl Op {
             Self::AddSaveSystem { .. } => "AddSaveSystem",
             Self::AddSaveDeposit { .. } => "AddSaveDeposit",
             Self::RemoveSaveDeposit { .. } => "RemoveSaveDeposit",
+            Self::ReplaceSaveSystem { .. } => "ReplaceSaveSystem",
+            Self::RenameSaveSystem { .. } => "RenameSaveSystem",
             Self::Batch { .. } => "Batch",
         }
     }
@@ -409,6 +432,8 @@ impl Op {
             | Self::AddSaveDeposit { .. }
             | Self::RemoveSaveDeposit { .. }
             | Self::AddSaveSystem { .. }
+            | Self::ReplaceSaveSystem { .. }
+            | Self::RenameSaveSystem { .. }
             | Self::AddSystem { .. }
             | Self::RemoveSystem { .. }
             | Self::AddSystems { .. }
@@ -440,6 +465,8 @@ impl Op {
     pub fn stales_only_bodies(&self) -> bool {
         match self {
             Self::AddSaveSystem { .. }
+            | Self::ReplaceSaveSystem { .. }
+            | Self::RenameSaveSystem { .. }
             | Self::RemoveSystem { .. }
             | Self::RemoveSystems { .. }
             | Self::AddSaveDeposit { .. }
@@ -457,6 +484,7 @@ impl Op {
     pub fn reclassifies(&self) -> bool {
         match self {
             Self::SetSystemName { .. }
+            | Self::RenameSaveSystem { .. }
             | Self::SetWormholePair { .. }
             | Self::SetWormholeEnds { .. } => true,
             Self::SetStarClass { .. }
@@ -702,7 +730,7 @@ pub enum OpError {
     #[error("{0} cannot be an asteroid")]
     AsteroidNotAllowed(&'static str),
     #[error(
-        "system {0} was in the save when it was opened: only a system added since then can be removed"
+        "system {0} was in the save when it was opened: only a system added since then can be removed, rolled again or renamed"
     )]
     SystemNotAdded(u32),
     #[error("deposit {0} does not exist")]
@@ -713,6 +741,8 @@ pub enum OpError {
     PlanetColonised(u32),
     #[error("deposit type {0:?} may hold only letters, digits and underscores")]
     InvalidDepositType(String),
+    #[error("system {0} is already named {1}")]
+    NameUnchanged(u32, String),
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,

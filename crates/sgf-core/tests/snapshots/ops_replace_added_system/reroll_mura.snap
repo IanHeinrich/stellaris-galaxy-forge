@@ -1,0 +1,478 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Rolled Mura (#601) again as sc_m, with 4 bodies
+touched: [601]
+--- before
++++ after
+@@ -71425,12 +71425,7 @@
+ 		planet=6375
+ 		planet=6376
+ 		planet=6377
+-		planet=6378
+-		planet=6379
+-		planet=6380
+-		planet=6381
+-		planet=6382
+-		star_class="sc_g"
++		star_class="sc_m"
+ 		hyperlane=
+ 		{
+ 			
+@@ -71440,9 +71435,9 @@
+ 			}
+  
+ 		}
+-		initializer="basic_init_01"
+-		inner_radius=235
+-		outer_radius=335
++		initializer="basic_init_03"
++		inner_radius=160
++		outer_radius=260
+ 		starbases=
+ 		{
+ 			4294967295 
+@@ -82419,8 +82414,8 @@
+ 		}
+ 		16777273=
+ 		{
+-			planet_class="pc_g_star"
+-			planet_size=25
++			planet_class="pc_m_star"
++			planet_size=18
+ 			carrier_binary_flags=3
+ 			name=
+ 			{
+@@ -82451,10 +82446,6 @@
+ 			}
+ 			bombardment_damage=0
+ 			entity=0
+-			deposits=
+-			{
+-				16777216 
+-			}
+ 		}
+ 		58=
+ 		{
+@@ -412016,8 +412007,8 @@
+ 		}
+ 		6375=
+ 		{
+-			planet_class="pc_molten"
+-			planet_size=12
++			planet_class="pc_barren"
++			planet_size=10
+ 			carrier_binary_flags=1
+ 			name=
+ 			{
+@@ -412046,11 +412037,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=56.29165
+-				y=32.5
++				x=42.13244
++				y=35.35332
+ 				origin=601
+ 			}
+-			orbit=65
++			orbit=55
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -412060,8 +412051,8 @@
+ 		}
+ 		6376=
+ 		{
+-			planet_class="pc_barren"
+-			planet_size=14
++			planet_class="pc_desert"
++			planet_size=17
+ 			carrier_binary_flags=1
+ 			name=
+ 			{
+@@ -412090,22 +412081,22 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-73.61216
+-				y=42.5
++				x=-84.57234
++				y=-30.78181
+ 				origin=601
+ 			}
+-			orbit=85
++			orbit=90
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
+-			entity=1
++			entity=2
+ 		}
+ 		6377=
+ 		{
+-			planet_class="pc_continental"
+-			planet_size=16
++			planet_class="pc_gas_giant"
++			planet_size=22
+ 			carrier_binary_flags=1
+ 			name=
+ 			{
+@@ -412134,64 +412125,12 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-18.23306
+-				y=-103.40481
++				x=65
++				y=-112.5833
+ 				origin=601
+ 			}
+-			orbit=105
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=2
+-			deposits=
+-			{
+-				16777217 16777218 16777219 
+-			}
+-		}
+-		6378=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=25
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Mura"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="IV"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=136.25543
+-				y=49.59292
+-				origin=601
+-			}
+-			orbit=145
++			orbit=130
+ 			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				6379 6380 
+-			}
+ 			planet_orbitals=
+ 			{
+ 			}
+@@ -412199,230 +412138,8 @@
+ 			entity=2
+ 			deposits=
+ 			{
+-				16777220 
+-			}
+-		}
+-		6379=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=8
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Mura"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="IV"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="a"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=143.75543
+-				y=62.5833
+-				origin=601
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=6378
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
+-		6380=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=6
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="SUBPLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Mura"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="IV"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="b"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			binary_flags=576
+-			coordinate=
+-			{
+-				x=125.25543
+-				y=30.54036
+-				origin=601
+-			}
+-			orbit=22
+-			last_bombardment=			"0.01.01"
+-			moon_of=6378
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
+-		6381=
+-		{
+-			planet_class="pc_toxic"
+-			planet_size=15
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Mura"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="V"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-164.44621
+-				y=-59.85353
+-				origin=601
+-			}
+-			orbit=175
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
+-		6382=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=13
+-			carrier_binary_flags=1
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Mura"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="VI"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-70.11413
+-				y=192.63699
+-				origin=601
+-			}
+-			orbit=205
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
++				16777216 
+ 			}
+-			bombardment_damage=0
+-			entity=1
+ 		}
+ 	}
+ }
+@@ -1076718,49 +1076435,17 @@
+ {
+ 	16777216=
+ 	{
+-		type="d_energy_5"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=16777273
+-		}
+-	}
+-	16777217=
+-	{
+-		type="d_black_soil"
++		type="d_minerals_4"
+ 		deposit_holder=
+ 		{
+ 			type=0
+ 			id=6377
+ 		}
+ 	}
+-	16777218=
+-	{
+-		type="d_hot_springs"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=6377
+-		}
+-	}
+-	16777219=
+-	{
+-		type="d_veiny_cliffs"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=6377
+-		}
+-	}
+-	16777220=
+-	{
+-		type="d_energy_5"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=6378
+-		}
+-	}
++	1=none
++	2=none
++	3=none
++	4=none
+ 	5=none
+ 	6=none
+ 	7=none

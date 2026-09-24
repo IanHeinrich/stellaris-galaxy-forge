@@ -46,6 +46,17 @@ pub(crate) trait Format: Sync {
     /// it.
     fn write(&self, plan: &mut Plan, session: &Session, op: &Op) -> Result<Planned, OpError>;
 
+    /// Plan the second step of an op that needs the slots its first step freed, once that
+    /// step is committed; `None` for an op of one step.
+    fn follow_up(
+        &self,
+        _plan: &mut Plan,
+        _session: &Session,
+        _op: &Op,
+    ) -> Result<Option<Planned>, OpError> {
+        Ok(None)
+    }
+
     /// Write the document's current bytes to `path`, returning the backup it displaced.
     fn save(
         &self,

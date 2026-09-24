@@ -222,6 +222,7 @@ fn run(cli: Cli) -> commands::Run {
             at,
             lanes,
             name,
+            star_class,
             print_spec,
             install,
             out,
@@ -237,13 +238,18 @@ fn run(cli: Cli) -> commands::Run {
                     at,
                     lanes,
                     name,
+                    star_class,
                     print_spec,
                     then_remove,
                 },
                 &install.options(),
             ),
             (false, None, None)
-                if !spec.is_empty() && lanes.is_empty() && name.is_none() && !print_spec =>
+                if !spec.is_empty()
+                    && lanes.is_empty()
+                    && name.is_none()
+                    && star_class.is_none()
+                    && !print_spec =>
             {
                 let mut ops = Vec::with_capacity(spec.len() + 1);
                 for path in &spec {

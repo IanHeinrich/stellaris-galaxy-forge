@@ -86,6 +86,7 @@ export function systemNode(over: Partial<SystemNode> = {}): SystemNode {
     position_range: false,
     flags: [],
     owner: null,
+    added: false,
     ...over,
   };
 }

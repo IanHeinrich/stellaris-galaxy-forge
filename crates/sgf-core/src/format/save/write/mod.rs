@@ -12,8 +12,9 @@
 //! for the size of one planet or star body, [`map_colors`] for the colours an empire
 //! paints its territory in, [`add_system`] for a whole new system with its bodies,
 //! [`asteroid_names`] for the names its asteroids take, [`remove_system`] for taking
-//! one of those out again, and [`deposits`] for one deposit added to or removed from a
-//! planet.
+//! one of those out again, [`deposits`] for one deposit added to or removed from a
+//! planet, [`replace_system`] for rolling an added system's bodies again in place, and
+//! [`rename_system`] for renaming it.
 
 pub(crate) mod add_system;
 pub(crate) mod asteroid_names;
@@ -26,4 +27,6 @@ pub(crate) mod move_system;
 pub(crate) mod nebula;
 pub(crate) mod planet_size;
 pub(crate) mod remove_system;
+pub(crate) mod rename_system;
+pub(crate) mod replace_system;
 pub(crate) mod star_class;
