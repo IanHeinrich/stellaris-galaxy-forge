@@ -19,7 +19,17 @@ star_class: string,
  */
 initializer: string, 
 /**
- * The body at the centre, orbit 0.
+ * The layout has `max_instances`, so the game counts it in
+ * `system_initializer_counter`, and so does the add.
+ */
+capped: boolean, 
+/**
+ * The star is named with the system's name key itself, as the game names a star its
+ * layout writes as a class (`class = pc_m_star`), rather than `STAR_NAME_1_OF_1`.
+ */
+star_named_by_class: boolean, 
+/**
+ * The body at the centre, or off it at its orbit.
  */
 star: BodySpec, 
 /**

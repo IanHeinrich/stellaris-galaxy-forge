@@ -1,8 +1,9 @@
 //! `RenameSaveSystem`, for the systems [`super::add_system`] wrote since the file was
 //! opened: the name in the system's entry, and in its star's, planets' and moons', which
-//! carry it as the text of their `NAME` or `PARENT` variable. The old name goes back to
-//! the pool of unused star names as [`super::remove_system`] returns one, and the new one
-//! leaves it as an add takes one.
+//! carry it as the text of their `NAME` or `PARENT` variable, or as the whole name of a
+//! star named by its class. A body with a fixed name of its own keeps it. The old name goes
+//! back to the pool of unused star names as [`super::remove_system`] returns one, and the
+//! new one leaves it as an add takes one.
 
 use std::ops::Range;
 
@@ -60,10 +61,13 @@ fn rename_entries(
         .and_then(Node::scalar_span)
         .ok_or_else(|| edit.parse_error(0, "the system's name has no key"))?;
     edit.splices.push((key.range(), quoted(new).into_bytes()));
-    for planet in bodies(&s.doc, id)? {
+    for (i, planet) in bodies(&s.doc, id)?.into_iter().enumerate() {
         let edit = plan.edit_planet(&s.doc, planet, id)?;
         let mut splices = Vec::new();
         if let Some(name) = edit.entity()?.find(keys::NAME, &edit.buf) {
+            if i == 0 {
+                splices.extend(plain_name(name, &edit.buf, old));
+            }
             system_names(name, &edit.buf, old, &mut splices);
         }
         let text = quoted(new).into_bytes();
@@ -71,6 +75,18 @@ fn rename_entries(
             .extend(splices.into_iter().map(|range| (range, text.clone())));
     }
     Ok(())
+}
+
+/// The `key` of `name` when it is `old` alone, as a star named by its class holds it.
+fn plain_name(name: &Node, src: &[u8], old: &str) -> Option<Range<usize>> {
+    if name.find(keys::LITERAL, src).is_some() || name.find(keys::VARIABLES, src).is_some() {
+        return None;
+    }
+    let key = name.find(keys::KEY, src)?;
+    if key.scalar_str(src) != Some(old) {
+        return None;
+    }
+    key.scalar_span().map(|span| span.range())
 }
 
 /// The `key` of every name inside `name` that stands for the system as `old`: a plain

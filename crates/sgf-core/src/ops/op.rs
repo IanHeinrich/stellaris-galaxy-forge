@@ -729,6 +729,18 @@ pub enum OpError {
     MoonsNotAllowed(&'static str),
     #[error("{0} cannot be an asteroid")]
     AsteroidNotAllowed(&'static str),
+    #[error("{0} cannot have a fixed name")]
+    FixedNameNotAllowed(&'static str),
+    #[error("{0} cannot have a ring")]
+    RingNotAllowed(&'static str),
+    #[error(
+        "system {other}, added since the file was opened, has layout {initializer} with capped set to {capped}: a system of the same layout must match it"
+    )]
+    CappedMismatch {
+        initializer: String,
+        other: u32,
+        capped: bool,
+    },
     #[error(
         "system {0} was in the save when it was opened: only a system added since then can be removed, rolled again or renamed"
     )]
