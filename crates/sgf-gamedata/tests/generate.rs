@@ -16,12 +16,15 @@ use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{
     GenerateError, generate, pick_name, pick_system_name, plain_initializers, star_classes,
 };
+use sgf_gamedata::initializers::DepositEffect;
 use sgf_gamedata::install::script::Range;
 
 const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
 /// Free ground beside the player's home system 169, where the spike's system stood.
 const SPOT: (f64, f64) = (-292.23404, -137.62265);
 const SEEDS: u64 = 1000;
+/// The Resource Abundance both sample saves were generated with.
+const ABUNDANCE: f64 = 2.0;
 
 static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(common::load_real);
 
@@ -80,9 +83,13 @@ const FILES: [(&str, &str); 8] = [
 ];
 
 fn hand_written() -> (tempfile::TempDir, GameData) {
+    install_of(&FILES)
+}
+
+fn install_of(files: &[(&str, &str)]) -> (tempfile::TempDir, GameData) {
     let dir = tempfile::tempdir().expect("temp dir");
     let install = dir.path().join("install");
-    for (rel, text) in FILES {
+    for &(rel, text) in files {
         let file = install.join(rel);
         fs::create_dir_all(file.parent().unwrap()).unwrap();
         fs::write(file, text).unwrap();
@@ -190,7 +197,7 @@ fn a_hand_written_install_rolls_its_plain_initializers() {
 
     let mut rolled = BTreeSet::new();
     for seed in 0..100 {
-        let spec = generate(&gd, seed, "Fx", (1.0, 2.0), None).expect("a system");
+        let spec = generate(&gd, seed, "Fx", (1.0, 2.0), None, ABUNDANCE).expect("a system");
         rolled.insert(spec.initializer.clone());
         if spec.initializer == "fx_rocks" {
             check_rocks(&spec, seed);
@@ -249,7 +256,7 @@ fn install() -> Option<&'static GameData> {
 
 fn specs(gd: &GameData) -> Vec<SystemSpec> {
     (0..SEEDS)
-        .map(|seed| generate(gd, seed, "Gen", SPOT, None).expect("a system"))
+        .map(|seed| generate(gd, seed, "Gen", SPOT, None, ABUNDANCE).expect("a system"))
         .collect()
 }
 
@@ -480,7 +487,7 @@ fn a_seed_always_rolls_the_same_system_and_another_seed_another() {
     let Some(gd) = install() else {
         return;
     };
-    let roll = |seed| generate(gd, seed, "Gen", (0.0, 0.0), None).unwrap();
+    let roll = |seed| generate(gd, seed, "Gen", (0.0, 0.0), None, ABUNDANCE).unwrap();
     assert_eq!(roll(7), roll(7));
     assert_ne!(roll(1), roll(2));
     let names = ["Aaa".to_owned(), "Bbb".to_owned(), "Ccc".to_owned()];
@@ -495,7 +502,7 @@ fn a_rolled_system_is_added_to_a_save_and_reopens_with_its_findings() {
     };
     let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
     let before = findings(&session);
-    let mut spec = generate(gd, 3, "Gen", SPOT, None).unwrap();
+    let mut spec = generate(gd, 3, "Gen", SPOT, None, ABUNDANCE).unwrap();
     spec.lanes = vec![169];
     let bodies = 1 + spec
         .planets
@@ -531,22 +538,23 @@ fn a_hand_written_install_rolls_the_star_class_asked_for() {
     let (_dir, gd) = hand_written();
     assert_eq!(star_classes(&gd), ["sc_sun", "sc_ember", "sc_blaze"]);
     for seed in 0..50 {
-        let spec = generate(&gd, seed, "Fx", (1.0, 2.0), Some("sc_ember")).expect("a system");
+        let spec =
+            generate(&gd, seed, "Fx", (1.0, 2.0), Some("sc_ember"), ABUNDANCE).expect("a system");
         assert_eq!(spec.star_class, "sc_ember", "seed {seed}");
         assert_eq!(spec.star.class, "pc_sun_star");
         assert_eq!(
-            generate(&gd, seed, "Fx", (1.0, 2.0), Some("sc_ember")),
+            generate(&gd, seed, "Fx", (1.0, 2.0), Some("sc_ember"), ABUNDANCE),
             Ok(spec),
             "the same seed and class"
         );
     }
     assert_eq!(
-        generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_pair")),
+        generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_pair"), ABUNDANCE),
         Err(GenerateError::NoLayoutFor("sc_pair".to_owned())),
         "only a binary layout makes it"
     );
     assert_eq!(
-        generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_nowhere")),
+        generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_nowhere"), ABUNDANCE),
         Err(GenerateError::UnknownStar("sc_nowhere".to_owned())),
         "no star class at all"
     );
@@ -558,7 +566,8 @@ fn a_star_class_draws_each_layout_as_often_as_it_rolls_that_class() {
     let draws = 4000;
     let mut drawn: BTreeMap<String, f64> = BTreeMap::new();
     for seed in 0..draws {
-        let spec = generate(&gd, seed, "Fx", (0.0, 0.0), Some("sc_sun")).expect("a system");
+        let spec =
+            generate(&gd, seed, "Fx", (0.0, 0.0), Some("sc_sun"), ABUNDANCE).expect("a system");
         assert_eq!(spec.star_class, "sc_sun");
         *drawn.entry(spec.initializer).or_default() += 1.0 / draws as f64;
     }
@@ -572,7 +581,7 @@ fn a_star_class_draws_each_layout_as_often_as_it_rolls_that_class() {
         );
     }
     for seed in 0..50 {
-        let spec = generate(&gd, seed, "Fx", (0.0, 0.0), Some("sc_blaze")).unwrap();
+        let spec = generate(&gd, seed, "Fx", (0.0, 0.0), Some("sc_blaze"), ABUNDANCE).unwrap();
         assert_eq!(spec.initializer, "fx_warm", "the one list that holds it");
     }
 }
@@ -597,7 +606,7 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
     for class in &classes {
         let star = gd.star_classes.get(class).unwrap();
         for seed in 0..40 {
-            let spec = generate(gd, seed, "Gen", SPOT, Some(class)).expect("a system");
+            let spec = generate(gd, seed, "Gen", SPOT, Some(class), ABUNDANCE).expect("a system");
             assert_eq!(spec.star_class, *class, "seed {seed}");
             assert_eq!(spec.star.class, star.planet_keys[0], "seed {seed}");
             assert!(
@@ -605,10 +614,14 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
                     .iter()
                     .any(|i| i.name == spec.initializer)
             );
-            assert_eq!(generate(gd, seed, "Gen", SPOT, Some(class)), Ok(spec));
+            assert_eq!(
+                generate(gd, seed, "Gen", SPOT, Some(class), ABUNDANCE),
+                Ok(spec)
+            );
         }
     }
-    let error = generate(gd, 1, "Gen", SPOT, Some("sc_black_hole")).expect_err("no layout");
+    let error =
+        generate(gd, 1, "Gen", SPOT, Some("sc_black_hole"), ABUNDANCE).expect_err("no layout");
     assert_eq!(
         error,
         GenerateError::NoLayoutFor("sc_black_hole".to_owned())
@@ -663,7 +676,7 @@ fn a_name_comes_from_the_pool_then_from_the_install_then_from_no_one() {
     );
     assert_eq!(pick_system_name(&session, gd, 5), Some(name.clone()));
 
-    let mut spec = generate(gd, 5, &name, SPOT, None).unwrap();
+    let mut spec = generate(gd, 5, &name, SPOT, None, ABUNDANCE).unwrap();
     spec.lanes = vec![169];
     session
         .apply(Op::AddSaveSystem { spec })
@@ -700,4 +713,152 @@ fn a_pooled_name_a_system_holds_is_passed_over_and_one_listed_twice_counts_once(
     let name = pick_system_name(&session, gd, 3).expect("a name from the install");
     assert_ne!(name, "Dristmak");
     assert!(gd.star_names.contains(&name));
+}
+
+const INITIALIZERS: &str = "common/solar_system_initializers/00_fx.txt";
+
+/// One layout whose bodies carry deposit effects, and the deposits they name.
+const EFFECTS: [(&str, &str); 2] = [
+    (
+        INITIALIZERS,
+        "fx_effects = {\n\tclass = rl_single\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 init_effect = { set_deposit = d_fx_bright } }\n\
+         \tchange_orbit = 40\n\
+         \tplanet = {\n\t\tcount = 1 class = pc_rock orbit_distance = 20\n\t\tinit_effect = {\n\t\t\tclear_deposits = yes\n\t\t\tadd_deposit = d_fx_gem\n\t\t\tadd_deposit = d_fx_gem\n\
+         \t\t\tif = { limit = { always = yes } add_deposit = d_fx_bright }\n\t\t\tadd_deposit = random_blocker\n\t\t}\n\t}\n\
+         \tplanet = {\n\t\tcount = 1 class = pc_rock orbit_distance = 20\n\t\tinit_effect = { add_deposit = d_fx_gem }\n\
+         \t\tmoon = { count = 1 class = pc_rock orbit_distance = 5 init_effect = { clear_deposits = yes } }\n\t}\n\
+         \tplanet = { count = 1 class = pc_rock orbit_distance = 20 init_effect = { add_deposit = d_fx_gem set_deposit = d_fx_bright } }\n}\n",
+    ),
+    (
+        "common/deposits/00_fx.txt",
+        "d_null_deposit = {\n\tis_null = yes\n\tpotential = { is_primary_star = no }\n\tdrop_weight = { weight = 100 }\n}\n\
+         d_fx_shine = {\n\tpotential = { is_star = yes }\n}\n\
+         d_fx_ore = {\n\tpotential = { is_planet_class = pc_rock }\n}\n\
+         d_fx_gem = {\n\tpotential = { always = no }\n}\n\
+         d_fx_bright = {\n\tpotential = { always = no }\n}\n",
+    ),
+];
+
+fn with_effects() -> (tempfile::TempDir, GameData) {
+    let files: Vec<(&str, &str)> = FILES
+        .iter()
+        .filter(|(rel, _)| *rel != INITIALIZERS)
+        .chain(&EFFECTS)
+        .copied()
+        .collect();
+    install_of(&files)
+}
+
+/// Each body's deposits, the star first, then every planet followed by its moons.
+fn deposits(spec: &SystemSpec) -> Vec<Vec<String>> {
+    let mut out = vec![spec.star.deposits.clone()];
+    for planet in &spec.planets {
+        out.push(planet.deposits.clone());
+        out.extend(planet.moons.iter().map(|m| m.deposits.clone()));
+    }
+    out
+}
+
+#[test]
+fn a_layouts_deposit_effects_are_read_in_order_without_the_conditional_ones() {
+    let (_dir, gd) = with_effects();
+    let init = gd.initializers.get("fx_effects").expect("fx_effects");
+    let gem = || "d_fx_gem".to_owned();
+    let bright = || "d_fx_bright".to_owned();
+    assert_eq!(
+        init.planets[0].deposit_effects,
+        [DepositEffect::Set(bright())]
+    );
+    assert_eq!(
+        init.planets[1].deposit_effects,
+        [
+            DepositEffect::Clear,
+            DepositEffect::Add(gem()),
+            DepositEffect::Add(gem())
+        ],
+        "the `if` and the random blocker left out"
+    );
+    assert_eq!(
+        init.planets[2].deposit_effects,
+        [DepositEffect::Add(gem())],
+        "its moon's aside"
+    );
+    assert_eq!(
+        init.planets[2].moons[0].deposit_effects,
+        [DepositEffect::Clear]
+    );
+    assert_eq!(
+        init.planets[3].deposit_effects,
+        [DepositEffect::Add(gem()), DepositEffect::Set(bright())]
+    );
+}
+
+#[test]
+fn a_layouts_deposit_effects_run_after_the_roll() {
+    let (_dir, gd) = with_effects();
+    let keys = |keys: &[&str]| keys.iter().map(|&k| k.to_owned()).collect::<Vec<_>>();
+    for seed in 0..20 {
+        let spec = generate(&gd, seed, "Fx", (0.0, 0.0), None, 5.0).expect("a system");
+        assert_eq!(spec.initializer, "fx_effects");
+        assert_eq!(
+            deposits(&spec),
+            [
+                keys(&["d_fx_bright"]),
+                keys(&["d_fx_gem", "d_fx_gem"]),
+                keys(&["d_fx_ore", "d_fx_gem"]),
+                keys(&[]),
+                keys(&["d_fx_bright"]),
+            ],
+            "seed {seed}: set replaces the star's roll, clear empties the first planet's and \
+             the moon's, add keeps the second planet's, and set after add leaves one"
+        );
+        let bare = generate(&gd, seed, "Fx", (0.0, 0.0), None, 0.0).unwrap();
+        assert_eq!(
+            deposits(&bare),
+            [
+                keys(&["d_fx_bright"]),
+                keys(&["d_fx_gem", "d_fx_gem"]),
+                keys(&["d_fx_gem"]),
+                keys(&[]),
+                keys(&["d_fx_bright"]),
+            ],
+            "seed {seed}: at 0 nothing is rolled and the effects still run"
+        );
+    }
+}
+
+/// `spec` with every body's deposits taken off.
+fn bare(mut spec: SystemSpec) -> SystemSpec {
+    spec.star.deposits.clear();
+    for planet in &mut spec.planets {
+        planet.deposits.clear();
+        for moon in &mut planet.moons {
+            moon.deposits.clear();
+        }
+    }
+    spec
+}
+
+#[test]
+fn deposits_are_drawn_apart_so_a_seed_rolls_the_same_bodies_at_any_abundance() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let mut with = 0;
+    for seed in 0..200 {
+        let rolled = generate(gd, seed, "Gen", SPOT, None, ABUNDANCE).unwrap();
+        assert_eq!(
+            generate(gd, seed, "Gen", SPOT, None, ABUNDANCE),
+            Ok(rolled.clone()),
+            "seed {seed}: the same seed and abundance"
+        );
+        let none = generate(gd, seed, "Gen", SPOT, None, 0.0).unwrap();
+        let most = generate(gd, seed, "Gen", SPOT, None, 5.0).unwrap();
+        assert!(deposits(&none).iter().all(Vec::is_empty), "seed {seed}");
+        with += usize::from(deposits(&rolled).iter().any(|d| !d.is_empty()));
+        assert_eq!(bare(rolled), none, "seed {seed}");
+        assert_eq!(bare(most), none, "seed {seed}");
+    }
+    assert_eq!(with, 200, "every star rolls one");
 }

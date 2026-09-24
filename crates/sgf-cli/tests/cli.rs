@@ -1119,6 +1119,158 @@ fn add_system_generates_a_system_from_a_seed_and_writes_it() {
 }
 
 #[test]
+fn add_system_generates_deposits_at_the_saves_abundance_and_writes_them() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("deposits.sav");
+    let out_str = out_path.to_str().unwrap();
+    let run = |extra: &[&str]| {
+        let mut args = vec![
+            "add-system",
+            SAMPLE_4_5,
+            "--generate",
+            "--seed",
+            "11",
+            "--at",
+            "-313.94,-124.34",
+            "--lane",
+            "169",
+        ];
+        args.extend_from_slice(extra);
+        args.extend_from_slice(&["-o", out_str]);
+        sgf(&args)
+    };
+    let printed = run(&["--print-spec"]);
+    if without_install(&printed) {
+        return;
+    }
+    assert_eq!(
+        printed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&printed.stderr)
+    );
+    let spec: serde_json::Value =
+        serde_json::from_str(&stdout(&printed)).expect("the spec as JSON");
+    let star = spec["star"]["deposits"]
+        .as_array()
+        .expect("the star's deposits");
+    assert_eq!(star.len(), 1, "every star rolls one at the sample's 2x");
+    let star = star[0].as_str().unwrap().to_owned();
+
+    let out = run(&[]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = stdout(&out);
+    let star_line = text
+        .lines()
+        .find(|line| line.trim_start().starts_with("star "))
+        .expect("the star's line");
+    assert!(star_line.ends_with(&format!(" deposits {star}")), "{text}");
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let details = stdout(&sgf(&["details", out_str, "601"]));
+    let resources = details
+        .lines()
+        .find_map(|line| line.strip_prefix("resources: "))
+        .expect("the resources line");
+    assert_ne!(resources, "none", "{details}");
+}
+
+/// A copy of the 4.5 sample in `dir` whose galaxy was set up at `abundance`.
+fn sample_at_abundance(dir: &Path, abundance: &str) -> std::path::PathBuf {
+    let raw = sgf_core::archive::read_sav(SAMPLE_4_5).expect("read the 4.5 sample");
+    let text = String::from_utf8(raw.gamestate).expect("utf-8");
+    let written = "\tresource_abundance=2\n";
+    assert_eq!(text.matches(written).count(), 1, "the sample's setting");
+    let text = text.replace(written, &format!("\tresource_abundance={abundance}\n"));
+    let path = dir.join(format!("abundance_{abundance}.sav"));
+    sgf_core::archive::write_sav(&path, std::iter::once(text.as_bytes()), &raw.meta)
+        .expect("write the copy");
+    path
+}
+
+/// Every body's deposits in a printed spec: the star, then each planet and its moons.
+fn spec_deposits(spec: &serde_json::Value) -> Vec<(String, Vec<serde_json::Value>)> {
+    let deposits = |body: &serde_json::Value| {
+        let class = body["class"].as_str().unwrap_or_default().to_owned();
+        let keys = body["deposits"].as_array().cloned().unwrap_or_default();
+        (class, keys)
+    };
+    let mut out = vec![deposits(&spec["star"])];
+    for planet in spec["planets"].as_array().expect("planets") {
+        out.push(deposits(planet));
+        let moons = planet["moons"].as_array().map_or(&[][..], Vec::as_slice);
+        out.extend(moons.iter().map(deposits));
+    }
+    out
+}
+
+#[test]
+fn add_system_rolls_deposits_at_the_abundance_the_save_was_set_up_with() {
+    let dir = tempfile::tempdir().unwrap();
+    let run = |sav: &Path, extra: &[&str]| {
+        let out_path = dir.path().join("generated.sav");
+        let mut args = vec![
+            "add-system",
+            sav.to_str().unwrap(),
+            "--generate",
+            "--seed",
+            "55",
+            "--at",
+            "-313.94,-124.34",
+            "--lane",
+            "169",
+        ];
+        args.extend_from_slice(extra);
+        args.extend_from_slice(&["-o", out_path.to_str().unwrap()]);
+        sgf(&args)
+    };
+    let spec_at = |abundance: &str| {
+        let printed = run(
+            &sample_at_abundance(dir.path(), abundance),
+            &["--print-spec"],
+        );
+        assert_eq!(
+            printed.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&printed.stderr)
+        );
+        let spec: serde_json::Value =
+            serde_json::from_str(&stdout(&printed)).expect("the spec as JSON");
+        spec_deposits(&spec)
+    };
+    let probe = run(Path::new(SAMPLE_4_5), &["--print-spec"]);
+    if without_install(&probe) {
+        return;
+    }
+
+    let none = spec_at("0");
+    assert!(none.len() > 1);
+    assert!(none.iter().all(|(_, keys)| keys.is_empty()), "{none:?}");
+    let most = spec_at("5");
+    assert_eq!(
+        most.iter().map(|(class, _)| class).collect::<Vec<_>>(),
+        none.iter().map(|(class, _)| class).collect::<Vec<_>>(),
+        "the same bodies"
+    );
+    assert!(most.iter().all(|(_, keys)| !keys.is_empty()), "{most:?}");
+
+    let out = run(&sample_at_abundance(dir.path(), "0"), &[]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(!stdout(&out).contains(" deposits "), "{}", stdout(&out));
+}
+
+#[test]
 fn add_system_takes_specs_or_a_generate_with_its_seed_and_place() {
     let dir = tempfile::tempdir().unwrap();
     let out_path = dir.path().join("refused.sav");

@@ -63,7 +63,41 @@ pub struct InitPlanet {
     pub sites: Vec<String>,
     /// Every `add_deposit = d_…` in this block's effects, its moons aside.
     pub deposits: Vec<String>,
+    /// The deposit statements written straight in this block's `init_effect`, in the
+    /// order they run; those under a condition or naming no `d_` key are left out.
+    pub deposit_effects: Vec<DepositEffect>,
     pub moons: Vec<InitPlanet>,
+}
+
+/// A body's `init_effect` statement that changes its deposits.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DepositEffect {
+    /// `clear_deposits = yes`.
+    Clear,
+    /// `set_deposit = d_…`, which replaces the body's deposit.
+    Set(String),
+    /// `add_deposit = d_…`.
+    Add(String),
+}
+
+impl DepositEffect {
+    /// Every effect of `effects` run on `deposits` in order.
+    pub fn apply_all(effects: &[Self], deposits: &mut Vec<String>) {
+        for effect in effects {
+            effect.apply(deposits);
+        }
+    }
+
+    pub fn apply(&self, deposits: &mut Vec<String>) {
+        match self {
+            Self::Clear => deposits.clear(),
+            Self::Set(key) => {
+                deposits.clear();
+                deposits.push(key.clone());
+            }
+            Self::Add(key) => deposits.push(key.clone()),
+        }
+    }
 }
 
 impl InitPlanet {
@@ -415,6 +449,7 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
         }),
         sites: sites(node, src),
         deposits: deposits(node, src),
+        deposit_effects: deposit_effects(node, src),
         moons: bodies(node, "moon", def),
     }
 }
@@ -453,6 +488,22 @@ fn deposits(node: &Node, src: &[u8]) -> Vec<String> {
         .filter_map(|n| n.scalar_str(src))
         .filter(|d| d.starts_with("d_"))
         .map(str::to_owned)
+        .collect()
+}
+
+fn deposit_effects(node: &Node, src: &[u8]) -> Vec<DepositEffect> {
+    node.find_all("init_effect", src)
+        .flat_map(Node::children)
+        .filter_map(|effect| {
+            let value = effect.scalar_str(src)?;
+            let key = value.starts_with("d_").then(|| value.to_owned());
+            match effect.key_str(src)? {
+                "clear_deposits" => (value == "yes").then_some(DepositEffect::Clear),
+                "set_deposit" => key.map(DepositEffect::Set),
+                "add_deposit" => key.map(DepositEffect::Add),
+                _ => None,
+            }
+        })
         .collect()
 }
 

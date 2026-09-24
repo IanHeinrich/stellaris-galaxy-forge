@@ -32,7 +32,15 @@ pub fn run(sav: &Path, out: Option<&Path>, generating: Generate, opts: &LoadOpti
             .ok_or("no star name is left that the save does not use; pass --name")?,
     };
     let star_class = generating.star_class.as_deref();
-    let mut spec = generate(&gd, generating.seed, &name, generating.at, star_class)?;
+    let abundance = gd.deposit_defines.abundance(session.resource_abundance());
+    let mut spec = generate(
+        &gd,
+        generating.seed,
+        &name,
+        generating.at,
+        star_class,
+        abundance,
+    )?;
     spec.lanes = generating.lanes;
     if generating.print_spec {
         println!("{}", serde_json::to_string_pretty(&spec)?);
@@ -63,8 +71,12 @@ fn print_summary(spec: &SystemSpec, seed: u64) {
 
 fn body(body: &BodySpec) -> String {
     let asteroid = if body.asteroid { " (asteroid)" } else { "" };
+    let deposits = match body.deposits.is_empty() {
+        true => String::new(),
+        false => format!(" deposits {}", body.deposits.join(" ")),
+    };
     format!(
-        "{} size {} orbit {} angle {}{asteroid}",
+        "{} size {} orbit {} angle {}{asteroid}{deposits}",
         body.class, body.size, body.orbit, body.angle
     )
 }

@@ -1,7 +1,7 @@
 //! A random star system rolled from the install's own rules: the initializer, star class,
-//! planet classes and asteroid belts a fresh galaxy would draw, as the spec
-//! [`sgf_core::ops::Op::AddSaveSystem`] writes. The same seed, star class and install
-//! give the same spec.
+//! planet classes, asteroid belts and deposits a fresh galaxy would draw, as the spec
+//! [`sgf_core::ops::Op::AddSaveSystem`] writes. The same seed, star class, abundance and
+//! install give the same spec.
 
 use std::collections::HashSet;
 
@@ -9,7 +9,8 @@ use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec, free_star_names};
 use sgf_core::session::Session;
 
 use crate::GameData;
-use crate::initializers::{InitAsteroidBelt, InitPlanet, Initializer};
+use crate::deposit_roll::{RollBody, roll_deposits};
+use crate::initializers::{DepositEffect, InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::script::Range;
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
@@ -22,6 +23,8 @@ const STAR: &str = "star";
 const RANDOM: &str = "random";
 /// Separates the name draw from the system draw of the same seed.
 const NAME_STREAM: u64 = 0x6E61_6D65;
+/// Separates the deposit draw from the system draw of the same seed.
+const DEPOSIT_STREAM: u64 = 0x6465_706F;
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum GenerateError {
@@ -73,12 +76,15 @@ pub fn star_classes(gd: &GameData) -> Vec<String> {
 /// A system named `name` at (`x`, `y`) with no lanes, rolled from `seed`. With a
 /// `star_class`, the star is that class and each initializer is drawn as often as it
 /// would roll a system of that class: its odds times the class's share of its star list.
+/// Every body rolls its deposits at `abundance`, the save's Resource Abundance, and then
+/// runs its layout's deposit effects.
 pub fn generate(
     gd: &GameData,
     seed: u64,
     name: &str,
     (x, y): (f64, f64),
     star_class: Option<&str>,
+    abundance: f64,
 ) -> Result<SystemSpec, GenerateError> {
     if let Some(class) = star_class
         && gd.star_classes.get(class).is_none()
@@ -108,8 +114,15 @@ pub fn generate(
         gd,
         star_class,
         rng,
+        blocks: Vec::new(),
     };
-    let (star, planets) = roller.bodies(&init.planets)?;
+    let (mut star, mut planets) = roller.bodies(&init.planets)?;
+    Deposits {
+        gd,
+        abundance,
+        rng: Rng(seed ^ DEPOSIT_STREAM),
+    }
+    .give(&mut star, &mut planets, &roller.blocks);
     Ok(SystemSpec {
         name: name.to_owned(),
         x,
@@ -289,12 +302,14 @@ struct Roller<'g> {
     gd: &'g GameData,
     star_class: &'g StarClass,
     rng: Rng,
+    /// The block each body was rolled from, the star first and then in spec order.
+    blocks: Vec<&'g InitPlanet>,
 }
 
 impl<'g> Roller<'g> {
     fn bodies(
         &mut self,
-        blocks: &[InitPlanet],
+        blocks: &'g [InitPlanet],
     ) -> Result<(BodySpec, Vec<BodySpec>), GenerateError> {
         let mut star = None;
         let mut planets = Vec::new();
@@ -310,12 +325,14 @@ impl<'g> Roller<'g> {
                 angle += self.angle(block.orbit_angle);
                 if block.class == STAR && star.is_none() {
                     star = Some(self.star(block, orbit, angle)?);
+                    self.blocks.insert(0, block);
                     continue;
                 }
                 let class = self.class(&block.class, orbit, false)?;
                 let size = self.size(block, class, class.planet_size)?;
+                self.blocks.push(block);
                 let moons = self.moons(&block.moons, orbit)?;
-                planets.push(body(class, size, orbit, angle, block, moons));
+                planets.push(body(class, size, orbit, angle, moons));
             }
         }
         let star = star.ok_or_else(|| GenerateError::NoStarBody(self.star_class.key.clone()))?;
@@ -339,12 +356,12 @@ impl<'g> Roller<'g> {
             .get(key)
             .ok_or_else(|| GenerateError::UnknownPlanetClass(key.clone()))?;
         let size = self.size(block, class, class.planet_size)?;
-        Ok(body(class, size, orbit, angle, block, Vec::new()))
+        Ok(body(class, size, orbit, angle, Vec::new()))
     }
 
     fn moons(
         &mut self,
-        blocks: &[InitPlanet],
+        blocks: &'g [InitPlanet],
         planet_orbit: f64,
     ) -> Result<Vec<BodySpec>, GenerateError> {
         let mut moons = Vec::new();
@@ -356,7 +373,8 @@ impl<'g> Roller<'g> {
                 let angle = self.angle(block.orbit_angle);
                 let class = self.class(&block.class, planet_orbit, true)?;
                 let size = self.size(block, class, class.moon_size)?;
-                moons.push(body(class, size, orbit, angle, block, Vec::new()));
+                self.blocks.push(block);
+                moons.push(body(class, size, orbit, angle, Vec::new()));
             }
         }
         Ok(moons)
@@ -444,7 +462,6 @@ fn body(
     size: u32,
     orbit: f64,
     angle: f64,
-    block: &InitPlanet,
     moons: Vec<BodySpec>,
 ) -> BodySpec {
     BodySpec {
@@ -453,9 +470,45 @@ fn body(
         orbit,
         angle: (angle.rem_euclid(360.0) * 100.0).round() / 100.0,
         entity: 0,
-        deposits: block.deposits.clone(),
+        deposits: Vec::new(),
         moons,
         asteroid: class.asteroid,
+    }
+}
+
+/// Rolls each body's deposits from a stream of its own, so the bodies a seed gives stay
+/// the same whatever the abundance, then runs the deposit effects of its block.
+struct Deposits<'g> {
+    gd: &'g GameData,
+    abundance: f64,
+    rng: Rng,
+}
+
+impl Deposits<'_> {
+    /// `blocks` holds the star's block, then each planet's and moon's in spec order.
+    fn give(&mut self, star: &mut BodySpec, planets: &mut [BodySpec], blocks: &[&InitPlanet]) {
+        let mut blocks = blocks.iter().copied();
+        self.roll(star, blocks.next(), true, false);
+        for planet in planets {
+            self.roll(planet, blocks.next(), false, false);
+            for moon in &mut planet.moons {
+                self.roll(moon, blocks.next(), false, true);
+            }
+        }
+    }
+
+    fn roll(&mut self, body: &mut BodySpec, block: Option<&InitPlanet>, star: bool, moon: bool) {
+        let rolled = RollBody {
+            class: &body.class,
+            size: body.size,
+            star,
+            moon,
+        };
+        let rng = &mut self.rng;
+        body.deposits = roll_deposits(self.gd, &rolled, self.abundance, &mut || rng.unit());
+        if let Some(block) = block {
+            DepositEffect::apply_all(&block.deposit_effects, &mut body.deposits);
+        }
     }
 }
 
