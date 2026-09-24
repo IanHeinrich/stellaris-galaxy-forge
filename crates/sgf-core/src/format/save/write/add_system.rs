@@ -223,7 +223,7 @@ pub(crate) fn write_body(
 
 /// Write an entry where `slot` stands: in place of its tombstone, indented as that was,
 /// or at the end of `table`.
-fn write_slot(
+pub(crate) fn write_slot(
     plan: &mut Plan,
     doc: &Document,
     slot: Slot,
@@ -402,7 +402,7 @@ fn letter(index: usize) -> String {
 /// Only a 4.x save: a 3.x system carries an `arm` and more that nothing here writes.
 /// The version is `Cygnus v4.5.0` or a bare `4.5.0`; one whose major number cannot be
 /// read is refused too.
-fn check_version(doc: &Document) -> Result<(), OpError> {
+pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
     let version = archive::parse_meta(doc.meta())
         .map(|meta| meta.version)
         .unwrap_or_default();

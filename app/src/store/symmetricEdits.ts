@@ -408,6 +408,8 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   SetPlanetSize: null,
   SetEmpireMapColors: null,
   AddSaveSystem: null,
+  AddSaveDeposit: null,
+  RemoveSaveDeposit: null,
   Batch: null,
 };
 
