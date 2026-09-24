@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use crate::changelog;
@@ -138,7 +139,7 @@ pub fn init(repo: &Repo, item: u64, force: bool) -> Result<(), String> {
     report(steam.submit(item, &update)?)
 }
 
-pub fn push(repo: &Repo, item: u64, dry_run: bool, force: bool) -> Result<(), String> {
+pub fn push(repo: &Repo, item: u64, mode: PushMode, force: bool) -> Result<(), String> {
     let files = LocalFiles::read(repo)?;
     files.validate()?;
     check_embedded_images(&files.description)?;
@@ -173,16 +174,40 @@ pub fn push(repo: &Repo, item: u64, dry_run: bool, force: bool) -> Result<(), St
         println!("Nothing to upload");
         return Ok(());
     }
-    if dry_run {
-        match &change_note {
-            Some(note) => println!("change note:\n{note}"),
-            None => println!("change note: none"),
+    match &change_note {
+        Some(note) => println!("change note:\n{note}"),
+        None => println!("change note: none"),
+    }
+    match mode {
+        PushMode::DryRun => {
+            println!("Dry run: nothing submitted");
+            return Ok(());
         }
-        println!("Dry run: nothing submitted");
-        return Ok(());
+        PushMode::Ask if !confirm("Upload these changes to the Workshop?")? => {
+            println!("Nothing submitted");
+            return Ok(());
+        }
+        _ => {}
     }
     let update = update_for(&plan, &live, &files, change_note);
     report(steam.submit(item, &update)?)
+}
+
+#[derive(Clone, Copy)]
+pub enum PushMode {
+    Ask,
+    Yes,
+    DryRun,
+}
+
+fn confirm(question: &str) -> Result<bool, String> {
+    print!("{question} [y/N] ");
+    io::stdout().flush().map_err(|e| e.to_string())?;
+    let mut answer = String::new();
+    io::stdin()
+        .read_line(&mut answer)
+        .map_err(|e| format!("cannot read the answer: {e}"))?;
+    Ok(matches!(answer.trim(), "y" | "Y" | "yes"))
 }
 
 fn update_for(

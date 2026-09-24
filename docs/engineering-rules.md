@@ -162,7 +162,7 @@ because the file dialog already asked about overwriting it.
   changelog section, and the app reads it from
   `releases/latest/download/latest.json`, so a release must be the latest
   to be offered (a future prerelease would need `--latest=false`).
-- Once the GitHub Release is out, run the uploader's `push` with Steam
+- Once the GitHub Release is out, run `cargo workshop push` with Steam
   open (`workshop/README.md`). It posts the changelog sections since the
   last push as the Workshop change note, with any description or image
   changes.

@@ -7,6 +7,7 @@ mod steam;
 
 use std::process::ExitCode;
 
+use commands::PushMode;
 use local::Repo;
 
 const DEFAULT_ITEM: u64 = 3805578137;
@@ -15,15 +16,17 @@ const USAGE: &str = "\
 Updates the Galaxy Forge page on the Steam Workshop from the files in workshop/.
 Steam must be open and logged in as the item's owner.
 
-usage: cargo run --release --manifest-path workshop/uploader/Cargo.toml -- <command> [options]
+usage: cargo workshop <command> [options]   (from the repo root)
 
 commands:
   pull [--force]              write the live description and images into workshop/
                               (--force replaces local files that differ)
   init [--force]              record the local images and VERSION as uploaded
                               (--force replaces the item's existing metadata)
-  push [--dry-run] [--force]  upload what changed since the last push
-                              (--dry-run only prints; --force uploads everything)
+  push [--dry-run] [--yes] [--force]
+                              show what changed since the last push, ask, then upload
+                              (--dry-run only shows; --yes skips the question;
+                              --force uploads everything)
 
 options:
   --item <id>                 the workshop item (default 3805578137)";
@@ -38,7 +41,7 @@ struct Args {
     command: Command,
     item: u64,
     force: bool,
-    dry_run: bool,
+    push_mode: PushMode,
 }
 
 fn main() -> ExitCode {
@@ -61,7 +64,7 @@ fn run(args: &Args) -> Result<(), String> {
     match args.command {
         Command::Pull => commands::pull(&repo, args.item, args.force),
         Command::Init => commands::init(&repo, args.item, args.force),
-        Command::Push => commands::push(&repo, args.item, args.dry_run, args.force),
+        Command::Push => commands::push(&repo, args.item, args.push_mode, args.force),
     }
 }
 
@@ -76,13 +79,16 @@ fn parse(raw: &[String]) -> Result<Args, String> {
         command,
         item: DEFAULT_ITEM,
         force: false,
-        dry_run: false,
+        push_mode: PushMode::Ask,
     };
     let mut rest = raw[1..].iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
             "--force" => args.force = true,
-            "--dry-run" if matches!(args.command, Command::Push) => args.dry_run = true,
+            "--dry-run" if matches!(args.command, Command::Push) => {
+                args.push_mode = PushMode::DryRun
+            }
+            "--yes" if matches!(args.command, Command::Push) => args.push_mode = PushMode::Yes,
             "--item" => {
                 let id = rest.next().ok_or("--item needs a workshop item id")?;
                 args.item = id

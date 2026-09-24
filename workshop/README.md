@@ -19,10 +19,11 @@ description can be up to 7999 bytes of UTF-8.
 ## Running it
 
 Run it from the repo root on Windows, with the Steam client open and
-logged in as the item's owner:
+logged in as the item's owner. `cargo workshop` is an alias in
+`.cargo/config.toml` for running the uploader:
 
 ```
-cargo run --release --manifest-path workshop/uploader/Cargo.toml -- <command>
+cargo workshop <command>
 ```
 
 - `pull` writes the live description and images into this folder. It
@@ -31,11 +32,11 @@ cargo run --release --manifest-path workshop/uploader/Cargo.toml -- <command>
 - `init` records the current images and `VERSION` in the item's hidden
   metadata as what was last uploaded. It uploads nothing else, and
   refuses if the item already has that record unless given `--force`.
-- `push` uploads whatever differs from the last upload: the
-  description, the main image, the carousel as a whole. When `VERSION`
-  has moved, it posts the changelog sections since the last push as the
-  change note. `--dry-run` prints what it would do and the change note,
-  and uploads nothing. `--force` uploads everything.
+- `push` shows what differs from the last upload: the description,
+  the main image, the carousel as a whole. When `VERSION` has moved,
+  it also shows the change note, made from the changelog sections since
+  the last push. It asks before uploading. `--dry-run` only shows,
+  `--yes` skips the question, and `--force` uploads everything.
 
 `--item <id>` picks another item.
 
