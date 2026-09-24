@@ -3,6 +3,7 @@
 pub mod details;
 pub mod export;
 pub mod gamedata;
+pub mod generate;
 pub mod inspect;
 pub mod mutate;
 pub mod roundtrip;

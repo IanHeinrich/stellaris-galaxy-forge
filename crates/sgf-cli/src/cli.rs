@@ -25,7 +25,7 @@ pub struct OutArg {
 #[derive(Args)]
 pub struct InstallArg {
     /// Game root, instead of searching the Steam libraries.
-    #[arg(long = "install")]
+    #[arg(long = "install", id = "install")]
     pub path: Option<PathBuf>,
 }
 
@@ -195,16 +195,49 @@ pub enum Command {
     /// A planet takes `moons`, a list of bodies whose orbit is measured from it.
     /// Several specs are added in order, so a later one can name an earlier one's id in
     /// its lanes.
+    ///
+    /// With --generate the system is rolled from the install's own rules instead:
+    ///   sgf add-system game.sav --generate --seed 7 --at -310,-95 --lane 169 -o out.sav
     #[command(verbatim_doc_comment)]
     AddSystem {
         sav: PathBuf,
         /// A system to add, as JSON; repeat for more.
-        #[arg(long, required = true)]
+        #[arg(
+            long,
+            required_unless_present = "generate",
+            conflicts_with = "generate"
+        )]
         spec: Vec<PathBuf>,
         /// Remove this system again before saving, as the app's undo history allows for a
         /// system added in the same session; the systems added after it take the id below.
         #[arg(long, value_name = "ID")]
         then_remove: Option<u32>,
+        /// Roll a random system from the install's initializers and classes.
+        #[arg(long)]
+        generate: bool,
+        /// What the generated system is rolled from; the same seed gives the same system.
+        #[arg(long, requires = "generate", required_if_eq("generate", "true"))]
+        seed: Option<u64>,
+        /// Where the generated system stands, as `X,Y`.
+        #[arg(
+            long,
+            value_parser = point,
+            allow_hyphen_values = true,
+            requires = "generate",
+            required_if_eq("generate", "true")
+        )]
+        at: Option<(f64, f64)>,
+        /// A system the generated one is joined to by a hyperlane; repeatable.
+        #[arg(long = "lane", requires = "generate")]
+        lanes: Vec<u32>,
+        /// The generated system's name; one left in the save's pool of star names otherwise.
+        #[arg(long, requires = "generate")]
+        name: Option<String>,
+        /// Print the generated spec as JSON and write nothing, so it takes no --then-remove.
+        #[arg(long, requires = "generate", conflicts_with = "then_remove")]
+        print_spec: bool,
+        #[command(flatten)]
+        install: InstallArg,
         #[command(flatten)]
         out: OutArg,
     },
@@ -404,4 +437,17 @@ fn parse_star_body(text: &str) -> Result<StarBody, String> {
         planet,
         class: class.to_owned(),
     })
+}
+
+/// `X,Y`, the `--at` of a generated system.
+fn point(text: &str) -> Result<(f64, f64), String> {
+    let (x, y) = text
+        .split_once(',')
+        .ok_or_else(|| format!("{text} is not X,Y"))?;
+    let coordinate = |part: &str| {
+        part.trim()
+            .parse::<f64>()
+            .map_err(|_| format!("{part} is not a number"))
+    };
+    Ok((coordinate(x)?, coordinate(y)?))
 }

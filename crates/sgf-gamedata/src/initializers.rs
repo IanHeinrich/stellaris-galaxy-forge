@@ -9,7 +9,7 @@ use sgf_core::cst::Node;
 use ts_rs::TS;
 
 use crate::install::layers::Layout;
-use crate::install::script::{self, Def, Variables};
+use crate::install::script::{self, Def, Range, Variables};
 use crate::registries::registry::{FromDef, Registry};
 use crate::scripts::init_bypasses::bypasses;
 use crate::{Diagnostic, GameData};
@@ -40,10 +40,17 @@ pub struct InitPlanet {
     pub class: String,
     /// `(min, max)`, equal for a fixed size.
     pub size: Option<(u32, u32)>,
-    /// The midpoint of a range; `None` for an `@variable` no file defines.
-    pub orbit_distance: Option<f64>,
+    /// How far each instance lies beyond the one before; `None` for an `@variable` no
+    /// file defines.
+    pub orbit_distance: Option<Range>,
+    /// Degrees each instance turns on from the one before.
+    pub orbit_angle: Option<Range>,
+    /// The sum of the `change_orbit` statements between the previous sibling block and
+    /// this one, which moves every later instance out (or in).
+    pub change_orbit: f64,
     pub has_ring: bool,
-    pub count: u32,
+    /// How many instances the block spawns; `1` when it says nothing.
+    pub count: Range,
     pub home_planet: bool,
     /// The `event_target:` token a `create_colony`, or a `set_owner` beside a
     /// colonisation effect, gives this body to.
@@ -60,10 +67,20 @@ pub struct InitPlanet {
 }
 
 impl InitPlanet {
+    /// The representative number of instances: the midpoint of `count`, rounded.
+    pub fn instances(&self) -> u32 {
+        whole(self.count.midpoint())
+    }
+
+    /// The representative orbit distance: the midpoint of `orbit_distance`.
+    pub fn orbit(&self) -> Option<f64> {
+        self.orbit_distance.map(Range::midpoint)
+    }
+
     /// This block's own instances and every moon they carry.
     pub fn total(&self) -> u32 {
         let moons: u32 = self.moons.iter().map(Self::total).sum();
-        self.count.saturating_mul(1 + moons)
+        self.instances().saturating_mul(1 + moons)
     }
 }
 
@@ -86,7 +103,7 @@ pub fn expand(planets: &[InitPlanet]) -> impl Iterator<Item = Body<'_>> {
 
 fn push_bodies<'p>(blocks: &'p [InitPlanet], moon: bool, out: &mut Vec<Body<'p>>) {
     for block in blocks {
-        for _ in 0..block.count {
+        for _ in 0..block.instances() {
             out.push(Body { block, moon });
             push_bodies(&block.moons, true, out);
         }
@@ -101,13 +118,19 @@ pub struct Initializer {
     pub display_name: Option<String>,
     pub class: Option<String>,
     pub usage: Option<String>,
+    /// The weight a galaxy draws this initializer with for its `usage`, when written as
+    /// a plain number; `None` when absent or a block of conditions.
+    pub usage_odds: Option<f64>,
     pub max_instances: Option<u32>,
     pub flags: Vec<String>,
+    /// Whether the system runs an `init_effect` once it is spawned.
+    pub init_effect: bool,
     /// Every `create_country` below `init_effect`, at any depth.
     pub countries: Vec<SpawnedCountry>,
     /// Initializers this one places nearby (`neighbor_system` / `spawn_system`).
     pub spawns: Vec<String>,
-    /// In file order; `change_orbit` between two of them is ignored.
+    pub asteroid_belts: Vec<InitAsteroidBelt>,
+    /// In file order, each carrying the `change_orbit` written before it.
     pub planets: Vec<InitPlanet>,
     /// Every `spawn_megastructure` type in the system's own effects, in file order.
     pub megastructures: Vec<String>,
@@ -167,6 +190,14 @@ fn source_label(source: &Path, install: &Path) -> Option<String> {
         .map(|i| parts[i].to_owned())
 }
 
+/// One `asteroid_belt = { type radius }` of the system.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InitAsteroidBelt {
+    /// `rocky_asteroid_belt`, `icy_asteroid_belt`, …
+    pub kind: String,
+    pub radius: Option<f64>,
+}
+
 /// The `create_starbase` block: what the system is generated with.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InitStarbase {
@@ -188,10 +219,13 @@ impl FromDef for Initializer {
             display_name: def.scalar("name").map(str::to_owned),
             class: def.scalar("class").map(str::to_owned),
             usage: def.scalar("usage").map(str::to_owned),
+            usage_odds: def.number("usage_odds"),
             max_instances: def.scalar("max_instances").and_then(|s| s.parse().ok()),
             flags: script::list_items(node, "flags", src),
+            init_effect: node.find("init_effect", src).is_some(),
             countries: countries(node, src),
             spawns: spawns(node, src),
+            asteroid_belts: asteroid_belts(def),
             planets: bodies(node, "planet", def),
             megastructures: megastructures(node, src),
             bypasses: bypasses(node, src),
@@ -330,13 +364,27 @@ fn icon(country: &Node, src: &[u8]) -> Option<FlagIcon> {
 }
 
 fn bodies(parent: &Node, key: &str, def: &Def) -> Vec<InitPlanet> {
-    parent
-        .find_all(key, &def.src)
-        .map(|node| body(node, def))
-        .collect()
+    let mut out = Vec::new();
+    let mut change_orbit = 0.0;
+    for child in parent.children() {
+        match child.key_str(&def.src) {
+            Some("change_orbit") => {
+                change_orbit += child
+                    .scalar_str(&def.src)
+                    .and_then(|text| def.number_of(text))
+                    .unwrap_or(0.0);
+            }
+            Some(found) if found == key => {
+                out.push(body(child, change_orbit, def));
+                change_orbit = 0.0;
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
-fn body(node: &Node, def: &Def) -> InitPlanet {
+fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
     let src = &def.src;
     let home_planet = scalar(node, "home_planet", src) == Some("yes")
         || scalar(node, "starting_planet", src) == Some("yes");
@@ -344,10 +392,14 @@ fn body(node: &Node, def: &Def) -> InitPlanet {
     InitPlanet {
         name: scalar(node, "name", src).map(str::to_owned),
         class: scalar(node, "class", src).unwrap_or("random").to_owned(),
-        size: range(node, "size", def).map(|(min, max)| (whole(min), whole(max))),
-        orbit_distance: range(node, "orbit_distance", def).map(midpoint),
+        size: def
+            .range_in(node, "size")
+            .map(|r| (whole(r.min), whole(r.max))),
+        orbit_distance: def.range_in(node, "orbit_distance"),
+        orbit_angle: def.range_in(node, "orbit_angle"),
+        change_orbit,
         has_ring: scalar(node, "has_ring", src) == Some("yes"),
-        count: range(node, "count", def).map_or(1, |r| whole(midpoint(r))),
+        count: def.range_in(node, "count").unwrap_or(Range::fixed(1.0)),
         home_planet,
         colonised: home_planet
             || colony_owner.is_some()
@@ -476,22 +528,16 @@ fn scalar<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<&'a str> {
     node.find(key, src)?.scalar_str(src)
 }
 
-/// `key = n` as `(n, n)` and `key = { min = a max = b }` as `(a, b)`, `@variables`
-/// substituted; one no file defines gives `None`.
-fn range(node: &Node, key: &str, def: &Def) -> Option<(f64, f64)> {
-    let src = &def.src;
-    let found = node.find(key, src)?;
-    if let Some(text) = found.scalar_str(src) {
-        let n = def.number_of(text)?;
-        return Some((n, n));
-    }
-    let min = def.number_of(scalar(found, "min", src)?)?;
-    let max = def.number_of(scalar(found, "max", src)?)?;
-    Some((min, max))
-}
-
-fn midpoint((min, max): (f64, f64)) -> f64 {
-    (min + max) / 2.0
+fn asteroid_belts(def: &Def) -> Vec<InitAsteroidBelt> {
+    def.node
+        .find_all("asteroid_belt", &def.src)
+        .map(|belt| InitAsteroidBelt {
+            kind: scalar(belt, "type", &def.src)
+                .unwrap_or_default()
+                .to_owned(),
+            radius: scalar(belt, "radius", &def.src).and_then(|text| def.number_of(text)),
+        })
+        .collect()
 }
 
 fn whole(n: f64) -> u32 {
