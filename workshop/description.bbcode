@@ -1,0 +1,58 @@
+[h1]Galaxy Forge[/h1]
+
+A desktop editor for the Stellaris galaxy map. It works on save files and on galaxy scenario files, and it runs outside the game. Subscribing here does nothing. There's no mod content in this item, it's just a page on the Workshop so people can find the editor.
+
+Also still works with 4.4.x
+
+[b]Download:[/b] [url=https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest]github.com/IanHeinrich/stellaris-galaxy-forge/releases[/url]
+(The app is still in the process of getting a signing certificate, your browser may show a warning until it has one)
+[b]Source, user guide and bug tracker:[/b] [url=https://github.com/IanHeinrich/stellaris-galaxy-forge]github.com/IanHeinrich/stellaris-galaxy-forge[/url]
+
+[h2]Making your own galaxy? Get Paint a Galaxy too[/h2]
+[b]If you're building a galaxy from scratch or playing on a custom map, I strongly recommend subscribing to [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115]Paint a Galaxy[/url] by Oatmeal Problem as well.[/b] Custom scenarios can break the game in ways that mod prevents. The editor supports it fully. You can open the scenario file it exports, or export one of your saves as a scenario and open that. [b]You don't need it for editing a .sav.[/b]
+
+[h2]Editing a save[/h2]
+Open a .sav, change the map, save, and keep playing the same campaign.
+[list]
+[*]Drag a system somewhere else. Its hyperlanes come with it.
+[*]Draw new hyperlanes, cut existing ones, cut a system off entirely, or link up a whole selection at once.
+[*]Add nebulae, move them, resize them, rename them, delete them.
+[/list]
+[b]Currently you can see more than you can edit. For .sav, you can only edit system position and hyperlanes. More editing capabilities coming soon.[/b]
+Editing requires careful testing for each new editing capability that is supported as I want to minimise the risk of corrupting saves.
+
+[img]https://raw.githubusercontent.com/IanHeinrich/stellaris-galaxy-forge/main/docs/media/save-editing.gif[/img]
+
+[h2]Editing a scenario[/h2]
+A scenario file (map/setup_scenarios/*.txt) is what a new game generates its galaxy from. Everything above works here too, and on top of that you can:
+[list]
+[*]Add systems, name them, delete them.
+[*]Pick what each system spawns by giving it an initializer.
+[*]Set spawn points and their weights, and mark pairs of systems the generator must never connect.
+[*]Edit the scenario header.
+[/list]
+Start a new game on the result and you're playing on a galaxy you laid out yourself.
+
+[img]https://raw.githubusercontent.com/IanHeinrich/stellaris-galaxy-forge/main/docs/media/scenario-editing.gif[/img]
+
+[h2]What you can see[/h2]
+Click a system and the inspector shows its position, its lanes (with the length stored in the file next to the real distance), bypasses, planets, fleets, flags and initializer. The Layers menu turns map layers and overlays on and off. In a scenario there's also a Scripts tab that lists the initializer and any scripted effects that touch the system, with the file and line each one comes from.
+
+[img]https://raw.githubusercontent.com/IanHeinrich/stellaris-galaxy-forge/main/docs/media/inspectors.png[/img]
+
+[h2]How it keeps your file safe[/h2]
+[list]
+[*]It edits the file as raw bytes. Only the lines you changed are different. Everything else, including things from mods or a newer game version it's never seen, comes out exactly as it went in. Open and save with no edits and the file is identical.
+[*]Every save leaves a timestamped backup of the previous file next to it.
+[*]Everything is undoable. There's a change log you can scroll back through.
+[*]A validator warns you about anything the game won't accept before you save.
+[/list]
+
+[h2]Mod compatibility[/h2]
+Full compatibility, with pretty much all mods, because System and hyperlane editing only changes the bytes it needs to changem, and nothing else, all custom properties etc. added by mods fall through completely unchanged. The application loads your own game and mod assets, so most mods will also have the correct localisations and images showing too.
+
+[h2]Limitations[/h2]
+It's a beta. Only the galaxy map is editable. Empires, pops, fleets and techs are shown where the file has them but can't be changed. I've tested save editing in-game on Stellaris 4.4 (4.4.6, all DLC, vanilla and modded). I haven't tried Ironman saves. Scenario editing is newer and has had less use. Star art, names and initializer details come from your own install and mods at runtime, so nothing from the game ships with the editor. There are Windows, Linux and macOS builds. The macOS one isn't signed.
+
+[h2]Bugs and requests[/h2]
+Open an issue on GitHub (link above). If you can attach the save or scenario file it happened on, that helps a lot.

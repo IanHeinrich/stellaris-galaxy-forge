@@ -17,3 +17,5 @@ testdata/*.sav filter=lfs diff=lfs merge=lfs -text
 *.ico binary
 *.icns binary
 *.dds binary
+*.gif binary
+*.jpg binary
