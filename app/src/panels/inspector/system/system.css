@@ -416,3 +416,34 @@
 .ins-fe-zone-intro li + li {
   margin-top: 3px;
 }
+
+button.ins-reroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent-dim);
+}
+
+.ins-added-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+
+button.ins-danger {
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+button.ins-danger:hover:not(:disabled) {
+  border-color: var(--sev-error);
+  color: var(--sev-error);
+}

@@ -145,6 +145,7 @@ describe("request", () => {
             moon: false,
             pre_ftl: false,
             size: 12,
+            orbit: null,
             deposits: [],
             deposit_keys: [],
             pops: 0,

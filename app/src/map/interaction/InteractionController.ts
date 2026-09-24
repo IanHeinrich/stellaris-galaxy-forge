@@ -31,6 +31,7 @@ import {
 import type { MapEdge } from "../picking/edges";
 import { PickIndex } from "../picking/pickIndex";
 import { trackGalaxy } from "../picking/trackGalaxy";
+import { AddedTooltip } from "./addedTooltip";
 import { BrushModel } from "./BrushModel";
 import { BrushStrokes } from "./brushStrokes";
 import { FeZoneDrag } from "./feZoneDrag";
@@ -83,6 +84,7 @@ export class InteractionController {
   private model: MapModel = this.models.select;
   private readonly intent: MapIntent;
   private panFrom: { sx: number; sy: number } | null = null;
+  private readonly addedTip = new AddedTooltip();
   /** What a lane drag would start from once the button is down; the snap skips it. */
   private laneFrom: LaneSource | null = null;
   /** Offset from the pointer to the pressed system's or nebula's centre, so a move keeps the grab point. */
@@ -239,7 +241,10 @@ export class InteractionController {
           void editor().unlinkFromFeZone(edge.anchor, edge.system);
         }
       },
-      contextMenu: (target, x, y) => useMapChromeStore.getState().openContextMenu({ target, x, y }),
+      contextMenu: (target, x, y) => {
+        this.hover(null);
+        useMapChromeStore.getState().openContextMenu({ target, x, y });
+      },
       hoverBrush: (tool, x, y) => this.brushes.hover(tool, x, y),
       beginStroke: (tool, x, y) => this.brushes.begin(tool, x, y),
       extendStroke: (x, y) => this.brushes.extend(x, y),
@@ -343,6 +348,8 @@ export class InteractionController {
     const edge = input?.edge ?? null;
     this.hoverEdge = edge;
     editor().setHover(input?.system ?? null);
+    if (input) this.addedTip.update(input.system, input.sx, input.sy);
+    else this.addedTip.drop();
     this.highlights.setHoverEdge(edge);
     this.highlights.setHoverFeZone(input?.feZone?.anchor ?? null);
     this.highlights.setPortHot(input?.zone === "port");

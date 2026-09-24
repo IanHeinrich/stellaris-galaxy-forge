@@ -1,0 +1,434 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../api/ipc");
+vi.mock("../api/events");
+vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
+
+import * as ipc from "../api/ipc";
+import type { EditResult } from "../generated/EditResult";
+import type { SearchHit } from "../generated/SearchHit";
+import type { SystemNode } from "../generated/SystemNode";
+import { IRONMAN, NEEDS_GAME_DATA, NEEDS_STELLARIS_4 } from "../lib/addSystem";
+import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
+import { addSystemRefusalAt } from "./editorStore";
+import { useFileSessionStore } from "./fileSessionStore";
+import { useGalaxyStore } from "./galaxyStore";
+import { useGameDataStore } from "./gameDataStore";
+import { GALAXY_ENTRY, useInspectorStore } from "./inspectorStore";
+import { useDetailsStore } from "./detailsStore";
+import { useEditorStore } from "./editorStore";
+import {
+  editResult,
+  historyEntry,
+  name,
+  node,
+  planetSummary,
+  saveMeta,
+  systemDetails,
+} from "./fixture";
+import { useWatchlistStore } from "./watchlistStore";
+
+const addRandomSystem = vi.mocked(ipc.addRandomSystem);
+const rerollSystem = vi.mocked(ipc.rerollSystem);
+
+function added(id: number, x: number, y: number, extra: Partial<SystemNode> = {}): SystemNode {
+  return node(id, `NAME_Added_${id}`, x, y, "sc_g", [], { added: true, ...extra });
+}
+
+/** The fixture save with two systems added this session, 6 and 7, and game data loaded. */
+function withAddedSystems(): [SystemNode, SystemNode] {
+  const six = added(6, -50, -20);
+  const seven = added(7, 50, 20);
+  useGalaxyStore.getState().applyDelta({ systems: [six, seven] });
+  mocked.getSystem.mockImplementation(async (id) => {
+    const system = useGalaxyStore.getState().systems.get(id);
+    if (!system) throw { kind: "not_found", message: `no system ${id}` };
+    return { system, neighbours: [], nebula: null };
+  });
+  return [six, seven];
+}
+
+beforeEach(async () => {
+  await openFixtureSave();
+  useGameDataStore.setState({ status: "ready" });
+});
+
+describe("adding a system to a save", () => {
+  it("rolls one at the point in one edit and selects it", async () => {
+    const system = added(6, -50, -20);
+    addRandomSystem.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
+    mocked.getSystem.mockResolvedValueOnce({ system, neighbours: [], nebula: null });
+
+    expect(await editor().addRandomSystemAt(-50, -20, "sc_m")).toBe(true);
+
+    const [seed, x, y, starClass] = addRandomSystem.mock.calls[0];
+    expect(Number.isSafeInteger(seed)).toBe(true);
+    expect([x, y, starClass]).toEqual([-50, -20, "sc_m"]);
+    expect(editor().selection).toEqual([6]);
+    expect(editor().inspected?.system.id).toBe(6);
+  });
+
+  it("gives each roll a fresh seed", async () => {
+    addRandomSystem.mockResolvedValue(editResult({ delta: { systems: [] } }));
+    await editor().addRandomSystemAt(-50, -20);
+    await editor().addRandomSystemAt(-50, -20);
+    const [first, second] = addRandomSystem.mock.calls.map(([seed]) => seed);
+    expect(first).not.toBe(second);
+  });
+
+  it("undoing the add clears the selection", async () => {
+    const system = added(6, -50, -20);
+    addRandomSystem.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
+    mocked.getSystem.mockResolvedValueOnce({ system, neighbours: [], nebula: null });
+    await editor().addRandomSystemAt(-50, -20);
+    mocked.undo.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], removed: [6] }, history: { undo: [], redo: [] } }),
+    );
+
+    await editor().undo();
+
+    expect(editor().selection).toEqual([]);
+    expect(editor().inspected).toBeNull();
+  });
+
+  it("reports a refused spot without asking the core", async () => {
+    expect(await editor().addRandomSystemAt(3, 0)).toBe(false);
+    expect(addRandomSystem).not.toHaveBeenCalled();
+    expect(sessionError()).toMatch(/^Too close to .+: 3 away, the game needs 10$/);
+  });
+});
+
+describe("why a system cannot be added", () => {
+  it("is null on a clear spot of a loaded 4.x save", () => {
+    expect(addSystemRefusalAt(-50, -20)).toBeNull();
+  });
+
+  it("names the system inside the spawn buffer", () => {
+    const refusal = addSystemRefusalAt(6, 8);
+    expect(refusal?.tooClose).toBe(true);
+    expect(refusal?.reason).toMatch(/^Too close to .+: \d+ away, the game needs 10$/);
+  });
+
+  it("names the galaxy's edge past its radius", () => {
+    expect(addSystemRefusalAt(100, 0)).toEqual({
+      reason: "Outside the galaxy's edge (radius 60)",
+      tooClose: false,
+      outside: true,
+    });
+  });
+
+  it("asks for game data", () => {
+    useGameDataStore.setState({ status: "idle" });
+    expect(addSystemRefusalAt(-50, -20)?.reason).toBe(NEEDS_GAME_DATA);
+  });
+
+  it("asks for a Stellaris 4 save", () => {
+    useFileSessionStore.setState({ meta: saveMeta({ version: "Libra v3.4.5" }) });
+    expect(addSystemRefusalAt(-50, -20)?.reason).toBe(NEEDS_STELLARIS_4);
+  });
+
+  it("is off for an Ironman save", () => {
+    useFileSessionStore.setState({ meta: saveMeta({ ironman: true }) });
+    expect(addSystemRefusalAt(-50, -20)?.reason).toBe(IRONMAN);
+  });
+});
+
+describe("editing a system added this session", () => {
+  it("rolls it again with the class asked for", async () => {
+    const [six] = withAddedSystems();
+    rerollSystem.mockResolvedValueOnce(
+      editResult({ delta: { systems: [{ ...six, star_class: "sc_m" }] } }),
+    );
+
+    expect(await editor().rerollSystem(6, "sc_m")).toBe(true);
+
+    const [id, seed, starClass] = rerollSystem.mock.calls[0];
+    expect([id, starClass]).toEqual([6, "sc_m"]);
+    expect(Number.isSafeInteger(seed)).toBe(true);
+    expect(useGalaxyStore.getState().systems.get(6)?.star_class).toBe("sc_m");
+  });
+
+  it("leaves a system the file already held alone", async () => {
+    expect(await editor().rerollSystem(0, null)).toBe(false);
+    expect(await editor().renameAddedSystem(0, "Dorellion")).toBe(false);
+    expect(rerollSystem).not.toHaveBeenCalled();
+    expect(mocked.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("renames it with one op", async () => {
+    withAddedSystems();
+    mocked.applyOp.mockResolvedValueOnce(editResult());
+
+    expect(await editor().renameAddedSystem(6, "  Dorellion ")).toBe(true);
+
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "RenameSaveSystem",
+      system: 6,
+      name: "Dorellion",
+    });
+  });
+
+  it("deletes it once confirmed", async () => {
+    withAddedSystems();
+    mocked.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], removed: [7], renumbered: [[7, null]] } }),
+    );
+
+    await editor().removeSystem(7);
+
+    expect(mocked.confirm).toHaveBeenCalled();
+    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 });
+    expect(useGalaxyStore.getState().systems.has(7)).toBe(false);
+  });
+});
+
+describe("following a delete that renumbers", () => {
+  /** Removing 6 moves 7 down to 6, as the core reports it. */
+  function removeSix(seven: SystemNode) {
+    mocked.applyOp.mockResolvedValueOnce(
+      editResult({
+        entry: historyEntry(3, "Removed Added 6 (#6); renumbered 7 to 6"),
+        delta: {
+          systems: [{ ...seven, id: 6 }],
+          removed: [7],
+          renumbered: [
+            [6, null],
+            [7, 6],
+          ],
+        },
+      }),
+    );
+    return editor().applyOp({ type: "RemoveSystem", id: 6 });
+  }
+
+  it("moves the selection, the pages and the pinned searches to the new id", async () => {
+    const [, seven] = withAddedSystems();
+    await editor().select(7);
+    const inspector = useInspectorStore.getState();
+    inspector.setRoot({ ref: { kind: "system", id: 7 }, label: "Added 7" });
+    inspector.open({ ref: { kind: "planet", id: 70 }, label: "Added 7 I" });
+    useWatchlistStore.setState({ results: new Map([["added", [7, 3]]]) });
+
+    await removeSix(seven);
+
+    expect(editor().selection).toEqual([6]);
+    expect(useInspectorStore.getState().stack.map((e) => e.ref)).toEqual([
+      { kind: "system", id: 6 },
+      { kind: "planet", id: 70 },
+    ]);
+    expect(useWatchlistStore.getState().results.get("added")).toEqual([6, 3]);
+    expect(editor().inspected?.system.id).toBe(6);
+  });
+
+  it("closes the page of the system it removed and clears the selection", async () => {
+    const [, seven] = withAddedSystems();
+    await editor().select(6);
+    const inspector = useInspectorStore.getState();
+    inspector.setRoot({ ref: { kind: "system", id: 6 }, label: "Added 6" });
+    inspector.open({ ref: { kind: "planet", id: 60 }, label: "Added 6 I" });
+    useWatchlistStore.setState({ results: new Map([["added", [6, 3]]]) });
+
+    await removeSix(seven);
+
+    expect(editor().selection).toEqual([]);
+    expect(editor().inspected).toBeNull();
+    expect(useInspectorStore.getState().stack).toEqual([GALAXY_ENTRY]);
+    expect(useWatchlistStore.getState().results.get("added")).toEqual([3]);
+  });
+
+  it("clears the hover and moves a selected lane", async () => {
+    const [, seven] = withAddedSystems();
+    const sirius = useGalaxyStore.getState().systems.get(3)!;
+    const lane = { length: 20, bridge: false, stale: false };
+    useGalaxyStore.getState().applyDelta({
+      systems: [
+        { ...seven, lanes: [{ to: 3, ...lane }] },
+        { ...sirius, lanes: [...sirius.lanes, { to: 7, ...lane }] },
+      ],
+    });
+    editor().setHover(7);
+    editor().selectLane({ a: 3, b: 7 });
+    mocked.applyOp.mockResolvedValueOnce(
+      editResult({
+        delta: {
+          systems: [
+            { ...seven, id: 6, lanes: [{ to: 3, ...lane }] },
+            { ...sirius, lanes: [...sirius.lanes, { to: 6, ...lane }] },
+          ],
+          removed: [7],
+          renumbered: [
+            [6, null],
+            [7, 6],
+          ],
+        },
+      }),
+    );
+
+    await editor().applyOp({ type: "RemoveSystem", id: 6 });
+
+    expect(editor().hover).toBeNull();
+    expect(editor().selectedLane).toEqual({ a: 3, b: 6 });
+  });
+
+  it("moves the search rings and the recent hits, dropping what was in the removed system", async () => {
+    const [, seven] = withAddedSystems();
+    useEditorStore.setState({
+      searchRings: [7, 3, 6],
+      recentHits: [hit("system", 7, 7), hit("planet", 60, 6), hit("system", 3, 3)],
+    });
+
+    await removeSix(seven);
+
+    expect(editor().searchRings).toEqual([6, 3]);
+    expect(editor().recentHits.map((h) => [h.kind, h.id, h.system_id])).toEqual([
+      ["system", 6, 6],
+      ["system", 3, 3],
+    ]);
+  });
+
+  it("closes a page on a planet of the removed system, wherever it was opened from", async () => {
+    const [, seven] = withAddedSystems();
+    useDetailsStore.setState({
+      details: new Map([[6, systemDetails({ id: 6, planets: [planetSummary({ id: 60 })] })]]),
+    });
+    const inspector = useInspectorStore.getState();
+    inspector.openPage({ ref: { kind: "planet", id: 60 }, label: "Added 6 I" });
+    inspector.open({ ref: { kind: "deposit", id: 600 }, label: "Minerals" });
+
+    await removeSix(seven);
+
+    expect(useInspectorStore.getState().stack).toEqual([GALAXY_ENTRY]);
+  });
+});
+
+describe("history steps that bring an added system back", () => {
+  it("an undone delete selects the system again and moves the later one back up", async () => {
+    const [six, seven] = withAddedSystems();
+    mocked.applyOp.mockResolvedValueOnce(
+      editResult({
+        delta: {
+          systems: [{ ...seven, id: 6 }],
+          removed: [7],
+          renumbered: [
+            [6, null],
+            [7, 6],
+          ],
+        },
+      }),
+    );
+    await editor().applyOp({ type: "RemoveSystem", id: 6 });
+    mocked.undo.mockResolvedValueOnce(
+      editResult({ delta: { systems: [six, seven], renumbered: [[6, 7]] } }),
+    );
+
+    await editor().undo();
+
+    await vi.waitFor(() => expect(editor().inspected?.system).toEqual(six));
+    expect(editor().selection).toEqual([6]);
+    expect(useGalaxyStore.getState().systems.get(7)).toEqual(seven);
+  });
+
+  it("a redone add selects the system again", async () => {
+    withAddedSystems();
+    const eight = added(8, 30, -30);
+    mocked.redo.mockResolvedValueOnce(editResult({ delta: { systems: [eight] } }));
+
+    await editor().redo();
+
+    await vi.waitFor(() => expect(editor().inspected?.system.id).toBe(8));
+    expect(editor().selection).toEqual([8]);
+  });
+
+  it("an undone reroll leaves the selection where it was", async () => {
+    const [six] = withAddedSystems();
+    await editor().select(7);
+    mocked.undo.mockResolvedValueOnce(editResult({ delta: { systems: [six] } }));
+
+    await editor().undo();
+
+    expect(editor().selection).toEqual([7]);
+  });
+});
+
+describe("edits queued behind others", () => {
+  it("send a reroll to the id a delete ahead of it moved the system to", async () => {
+    const [, seven] = withAddedSystems();
+    const removal = deferred<EditResult>();
+    mocked.applyOp.mockReturnValueOnce(removal.promise);
+    rerollSystem.mockResolvedValueOnce(editResult());
+
+    const removing = editor().applyOp({ type: "RemoveSystem", id: 6 });
+    const rolling = editor().rerollSystem(7);
+    removal.resolve(
+      editResult({
+        delta: {
+          systems: [{ ...seven, id: 6 }],
+          removed: [7],
+          renumbered: [
+            [6, null],
+            [7, 6],
+          ],
+        },
+      }),
+    );
+    await Promise.all([removing, rolling]);
+
+    expect(rerollSystem).toHaveBeenCalledTimes(1);
+    expect(rerollSystem.mock.calls[0][0]).toBe(6);
+  });
+
+  it("send nothing for a system a delete ahead of them removed", async () => {
+    withAddedSystems();
+    mocked.applyOp
+      .mockResolvedValueOnce(
+        editResult({ delta: { systems: [], removed: [7], renumbered: [[7, null]] } }),
+      )
+      .mockResolvedValueOnce(editResult());
+
+    const removing = editor().applyOp({ type: "RemoveSystem", id: 7 });
+    const rolling = editor().rerollSystem(7);
+    const renaming = editor().renameAddedSystem(7, "Dorellion");
+
+    expect(await Promise.all([removing, rolling, renaming])).toEqual([true, false, false]);
+    expect(rerollSystem).not.toHaveBeenCalled();
+    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
+  });
+
+  it("roll a reroll around the class a pick ahead of it chose", async () => {
+    const [six] = withAddedSystems();
+    const pick = deferred<EditResult>();
+    rerollSystem.mockReturnValueOnce(pick.promise).mockResolvedValueOnce(editResult());
+
+    const picking = editor().rerollSystem(6, "sc_m");
+    const rolling = editor().rerollSystem(6);
+    pick.resolve(editResult({ delta: { systems: [{ ...six, star_class: "sc_m" }] } }));
+    await Promise.all([picking, rolling]);
+
+    expect(rerollSystem.mock.calls.map(([id, , star]) => [id, star])).toEqual([
+      [6, "sc_m"],
+      [6, "sc_m"],
+    ]);
+  });
+});
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
+function hit(kind: "system" | "planet", id: number, system: number): SearchHit {
+  return {
+    kind,
+    id,
+    name: name(`NAME_${id}`),
+    name_key: `NAME_${id}`,
+    system_id: system,
+    owner: null,
+    country_type: null,
+    system_count: null,
+    planet_class: null,
+    position: [0, 0],
+    matched_on: null,
+  };
+}

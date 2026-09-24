@@ -10,6 +10,12 @@ a release is made.
 
 ### Added
 
+- Right-click empty space in a save to add a random star system, or one
+  around a star you pick. The new system opens on its page. There you can
+  roll it again, change its star, rename it or delete it until you reopen
+  the file. A small green plus marks it on the map. Adding systems needs
+  game data and a Stellaris 4 save that isn't Ironman.
+- A save system's planet list shows how far out each body orbits.
 - Planets, moons, stars and asteroids in a save have their own page in
   the inspector. It shows their deposits with the game's pictures and
   what each one gives, blockers with what clearing them costs, planet

@@ -13,6 +13,7 @@ import { kindTitle } from "../../../lib/special";
 import { bindStores } from "../../../store/bindStores";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { useGeneratorStore } from "../../../store/generatorStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import {
   details,
@@ -316,3 +317,54 @@ describe("a wayline network", () => {
 function laneRow(html: string, system: string): string {
   return html.split('class="ins-lane-name"').find((part) => part.includes(system)) ?? "";
 }
+
+describe("a save system's planet rows", () => {
+  it("say how far out each body orbits", async () => {
+    await open("save");
+    await land(details({ planets: [planet(100, "Tarkin", { orbit: 61.6 }), planet(101, "Ossa")] }));
+
+    const html = overview();
+    expect(html).toContain("<span>orbit 62</span>");
+    expect(html.match(/orbit \d/g)).toHaveLength(1);
+  });
+});
+
+describe("a system added this session", () => {
+  beforeEach(() => {
+    mocked.getSystem.mockImplementation(async (id) => {
+      const detail = detailOf(id);
+      return { ...detail, system: { ...detail.system, star_class: "sc_m", added: true } };
+    });
+    useGeneratorStore.setState({
+      starClasses: [
+        { key: "sc_g", label: "Yellow star" },
+        { key: "sc_m", label: "Red star" },
+      ],
+    });
+  });
+
+  it("opens with a green block of what only it can have changed, above its position", async () => {
+    await open("save");
+    await land(details({ planets: [planet(100, "Tarkin")] }));
+
+    const html = overview();
+    expect(html).toContain('class="edit-block added" role="group" aria-label="Added this session"');
+    expect(html).toContain("+ added this session");
+    expect(html).toContain('aria-label="System name"');
+    expect(html).toContain("Red star");
+    expect(html).toContain("Reroll");
+    expect(html).toContain(">Delete system</button>");
+    expect(html.indexOf("Added this session")).toBeLessThan(html.indexOf(">Position<"));
+  });
+
+  it("is plain on a system the file already held", async () => {
+    mocked.getSystem.mockImplementation(async (id) => detailOf(id));
+    await open("save");
+    await land(details({ planets: [planet(100, "Tarkin")] }));
+
+    const html = overview();
+    expect(html).not.toContain("Added this session");
+    expect(html).not.toContain("added this session");
+    expect(html).not.toContain("Delete system");
+  });
+});

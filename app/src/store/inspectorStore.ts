@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { EntityAddr } from "../generated/EntityAddr";
 import type { EntityKind } from "../generated/EntityKind";
+import { renumberedId, type Renumbering } from "../lib/renumber";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useLayoutStore, type DockTab } from "./layoutStore";
@@ -137,6 +138,35 @@ export function tabsFor(
   }
 }
 
+/** `ref` with the system ids it names moved as `pairs` move them; null when its system is gone. */
+export function renumberedRef(ref: EntityRef, pairs: Renumbering): EntityRef | null {
+  const id = (n: number) => renumberedId(pairs, n);
+  switch (ref.kind) {
+    case "system": {
+      const next = id(ref.id);
+      return next === null ? null : next === ref.id ? ref : { ...ref, id: next };
+    }
+    case "lane": {
+      const a = id(ref.a);
+      const b = id(ref.b);
+      if (a === null || b === null) return null;
+      return a === ref.a && b === ref.b ? ref : { ...ref, a: Math.min(a, b), b: Math.max(a, b) };
+    }
+    case "starbase": {
+      const system = id(ref.system);
+      return system === null ? null : system === ref.system ? ref : { ...ref, system };
+    }
+    case "nodelist": {
+      if (ref.parent.kind !== "system") return ref;
+      const parent = id(ref.parent.id);
+      if (parent === null) return null;
+      return parent === ref.parent.id ? ref : { ...ref, parent: { ...ref.parent, id: parent } };
+    }
+    default:
+      return ref;
+  }
+}
+
 export interface InspectorState {
   /** Never empty; `stack[0]` is what the map selection decided, the rest are drill-downs. */
   stack: Entry[];
@@ -145,6 +175,11 @@ export interface InspectorState {
   sections: Record<string, boolean>;
   /** Follows the map selection: a different entity restarts the stack, the same one leaves it alone. */
   setRoot(entry: Entry): void;
+  /**
+   * Follows an edit that renumbered systems: every page on a moved system names its new id, and
+   * a page on a removed one, or on a planet it held, closes with everything opened from it.
+   */
+  renumber(pairs: Renumbering, removedPlanets?: ReadonlySet<number>): void;
   /** Drills into a child of the entity on top of the stack. */
   open(entry: Entry): void;
   /**
@@ -209,6 +244,19 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
       return;
     }
     set({ stack: [entry], tab: tabFor(entry.ref, tab) });
+  },
+
+  renumber(pairs, removedPlanets = new Set()) {
+    const { stack, tab } = get();
+    const next: Entry[] = [];
+    for (const entry of stack) {
+      const ref = renumberedRef(entry.ref, pairs);
+      if (ref === null || (ref.kind === "planet" && removedPlanets.has(ref.id))) break;
+      next.push(ref === entry.ref ? entry : { ...entry, ref });
+    }
+    if (next.length === 0) next.push(GALAXY_ENTRY);
+    if (next.length === stack.length && next.every((entry, i) => entry === stack[i])) return;
+    set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
   },
 
   open(entry) {

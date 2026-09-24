@@ -63,6 +63,19 @@ export type MapTooltipLine =
   | { label: MapTooltipText; value: MapTooltipText; indent?: boolean; stacked?: boolean }
   | { heading: string; value?: string };
 
+/**
+ * What the map draws while the menu on empty space offers to add a system there: the game's spawn
+ * buffer around the point, and the galaxy's edge when the point is past it.
+ */
+export interface AddSystemPreview {
+  x: number;
+  y: number;
+  /** Another system is inside the buffer. */
+  tooClose: boolean;
+  /** The galaxy's radius, set only when the point is past the edge. */
+  edge: number | null;
+}
+
 /** What the pointer is doing on the map, where the status bar's hint differs from the idle one. */
 export type MapGesture = "lane" | "connecting";
 
@@ -84,6 +97,7 @@ export interface MapChromeState {
   tooltip: MapTooltip | null;
   /** β of the mesh action's skeleton. */
   meshBeta: number;
+  addSystemPreview: AddSystemPreview | null;
   /** Lanes the map draws as ghosts while the mesh action is being considered. */
   lanePreview: Array<[number, number]> | null;
   /** Initializer key the initializer browser is highlighting; its systems are ringed on the map. */
@@ -121,6 +135,7 @@ export interface MapChromeState {
    */
   setLayerQuietly(id: LayerId, on: boolean): void;
   setLanePreview(pairs: Array<[number, number]> | null): void;
+  setAddSystemPreview(preview: AddSystemPreview | null): void;
   setHighlightInitializer(key: string | null): void;
   setGesture(gesture: MapGesture | null): void;
   /** Drops what only makes sense over the save that was open: menu, tooltip, ghosts and filter. */
@@ -134,6 +149,7 @@ const NO_OVERLAYS = {
   contextMenu: null,
   tooltip: null,
   lanePreview: null,
+  addSystemPreview: null,
   highlightInitializer: null,
   gesture: null,
   // The keys belong to the document that was open, so the filter goes with it.
@@ -298,11 +314,13 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   },
 
   openContextMenu(menu) {
-    set({ contextMenu: menu });
+    set({ contextMenu: menu, addSystemPreview: null });
   },
 
   closeContextMenu() {
-    if (get().contextMenu) set({ contextMenu: null });
+    if (get().contextMenu || get().addSystemPreview) {
+      set({ contextMenu: null, addSystemPreview: null });
+    }
   },
 
   showTooltip(tip) {
@@ -325,6 +343,10 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
 
   setLanePreview(pairs) {
     set({ lanePreview: pairs });
+  },
+
+  setAddSystemPreview(preview) {
+    set({ addSystemPreview: preview });
   },
 
   setHighlightInitializer(key) {

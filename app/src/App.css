@@ -10,6 +10,9 @@
   --accent-dim: #8a6f2a;
   --accent-bg: rgba(255, 209, 102, 0.07);
   --warn: #ff8c66;
+  --allowed: #6ee7b7;
+  --allowed-dim: #2f6b55;
+  --allowed-bg: rgba(110, 231, 183, 0.1);
   --src: #6fb8a8;
   --src-dim: #35635a;
   --src-bg: rgba(111, 184, 168, 0.12);

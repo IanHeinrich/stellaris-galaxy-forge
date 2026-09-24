@@ -13,6 +13,7 @@ import { useOwnership } from "../../../store/ownership";
 import { TextField } from "../../EditField";
 import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
 import { Chip, DrillLink, Section, SourceChip, Swatch } from "../parts";
+import { ADDED_CHIP_TITLE, AddedSystemBlock } from "./AddedSystemBlock";
 import { useEditableSystem } from "./editable";
 import { kindHover } from "./sections/kindHover";
 import { StarMismatchNote } from "./StarClassLine";
@@ -181,8 +182,13 @@ export function Header({ detail }: { detail: SystemDetail }) {
           />
         </div>
       )}
-      {!scenario && kinds.length > 0 && (
+      {!scenario && (kinds.length > 0 || system.added) && (
         <div className="ins-chips">
+          {system.added && (
+            <Chip added title={ADDED_CHIP_TITLE}>
+              + added this session
+            </Chip>
+          )}
           {kinds.map((k) => (
             <Chip key={k} kind title={kindHover(system, k)}>
               {kindLabel(k)}
@@ -199,6 +205,7 @@ export function OverviewHead({ detail }: { detail: SystemDetail }) {
   return (
     <>
       <Header detail={detail} />
+      {detail.system.added && <AddedSystemBlock key={detail.system.id} system={detail.system} />}
       <Section id="system.position" title="Position">
         <PositionSection system={detail.system} />
       </Section>

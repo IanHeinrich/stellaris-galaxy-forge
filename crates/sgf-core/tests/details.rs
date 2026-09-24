@@ -410,6 +410,13 @@ fn sol_reads_as_the_inspector_lists_it() {
     assert_eq!(earth.owner, Some(0));
     assert_eq!(earth.habitable, None);
     assert_eq!(earth.size, Some(18));
+    let page = sgf_core::entity::get_planet_page(&session.doc, 3).expect("Earth's page");
+    assert!(earth.orbit.is_some_and(|orbit| orbit > 0.0));
+    assert_eq!(earth.orbit, page.orbit, "the orbit the planet page reads");
+    assert!(
+        sol.planets.iter().all(|p| p.orbit.is_some()),
+        "every body has one"
+    );
     // A colony's own deposits are features and blockers, which the resolver drops; the
     // raw keys stay beside the summed amounts so nothing on the planet is hidden.
     assert_eq!(earth.pops, 5445);

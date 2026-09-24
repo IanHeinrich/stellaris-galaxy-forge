@@ -135,6 +135,12 @@
   color: var(--accent);
 }
 
+.chip.added {
+  background: var(--allowed-bg);
+  border-color: var(--allowed-dim);
+  color: var(--allowed);
+}
+
 .chip.warn {
   background: #2f1a12;
   border-color: #6a3a28;
