@@ -16,7 +16,11 @@ pub fn run(sav: &Path, out: Option<&Path>, op: Op) -> Run {
 /// [`run`] for several ops, applied in order in the one session, each reported, and the
 /// findings once after the last.
 pub fn run_all(sav: &Path, out: Option<&Path>, ops: Vec<Op>) -> Run {
-    let mut session = Session::open(sav)?;
+    apply_all(Session::open(sav)?, out, ops)
+}
+
+/// [`run_all`] on a session already open.
+pub fn apply_all(mut session: Session, out: Option<&Path>, ops: Vec<Op>) -> Run {
     let mut issues = Vec::new();
     for op in ops {
         let result = session.apply(op)?;

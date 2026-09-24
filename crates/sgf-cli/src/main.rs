@@ -192,17 +192,48 @@ fn run(cli: Cli) -> commands::Run {
             sav,
             spec,
             then_remove,
+            generate,
+            seed,
+            at,
+            lanes,
+            name,
+            print_spec,
+            install,
             out,
-        }) => {
-            let mut ops = Vec::with_capacity(spec.len() + 1);
-            for path in &spec {
-                ops.push(Op::AddSaveSystem {
-                    spec: commands::mutate::system_spec(path)?,
-                });
+        }) => match (generate, seed, at) {
+            (true, ..) if print_spec && then_remove.is_some() => {
+                Err("--print-spec writes nothing, so it takes no --then-remove".into())
             }
-            ops.extend(then_remove.map(|id| Op::RemoveSystem { id }));
-            commands::mutate::run_all(&sav, out.path.as_deref(), ops)
-        }
+            (true, Some(seed), Some(at)) if spec.is_empty() => commands::generate::run(
+                &sav,
+                out.path.as_deref(),
+                commands::generate::Generate {
+                    seed,
+                    at,
+                    lanes,
+                    name,
+                    print_spec,
+                    then_remove,
+                },
+                &install.options(),
+            ),
+            (false, None, None)
+                if !spec.is_empty() && lanes.is_empty() && name.is_none() && !print_spec =>
+            {
+                let mut ops = Vec::with_capacity(spec.len() + 1);
+                for path in &spec {
+                    ops.push(Op::AddSaveSystem {
+                        spec: commands::mutate::system_spec(path)?,
+                    });
+                }
+                ops.extend(then_remove.map(|id| Op::RemoveSystem { id }));
+                commands::mutate::run_all(&sav, out.path.as_deref(), ops)
+            }
+            _ => Err(
+                "add-system takes --spec, or --generate with --seed and --at and its other options"
+                    .into(),
+            ),
+        },
         Some(Command::Synth {
             systems,
             seed,

@@ -327,7 +327,7 @@ fn a_global_variable_resolves_inside_an_initializer() {
     };
     let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("the throwaway install loads");
     let init = gd.initializers.get("gap_init").expect("gap_init");
-    assert_eq!(init.planets[0].orbit_distance, Some(12.0));
+    assert_eq!(init.planets[0].orbit(), Some(12.0));
 }
 
 #[test]
