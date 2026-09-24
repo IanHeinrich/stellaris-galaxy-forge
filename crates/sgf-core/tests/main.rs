@@ -26,6 +26,7 @@ mod marauders;
 mod op_kinds;
 mod ops_add_special_system;
 mod ops_add_system;
+mod ops_black_hole_names;
 mod ops_deposits;
 mod ops_header;
 mod ops_history;

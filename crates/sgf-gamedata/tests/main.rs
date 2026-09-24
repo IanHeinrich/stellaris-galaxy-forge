@@ -20,6 +20,7 @@ mod scripts_lgate;
 mod scripts_owners;
 mod scripts_rows;
 mod special;
+mod special_layouts;
 mod textures;
 
 #[test]
