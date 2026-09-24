@@ -13,7 +13,7 @@ use sgf_core::projections::galaxy::FlagRef;
 use crate::Diagnostic;
 use crate::initializers::Initializers;
 use crate::install::layers::{Layout, VANILLA};
-use crate::install::script::{self, Def};
+use crate::install::script::{self, Def, Variables};
 use crate::scripts::chain::{self, Chain};
 use crate::scripts::claims::{self, Claims};
 use crate::scripts::scan::{self, Dir};
@@ -135,6 +135,7 @@ impl ScriptIndex {
     pub(crate) fn load(
         layout: &Layout,
         initializers: &Initializers,
+        globals: &Arc<Variables>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Self {
         let mut index = Self {
@@ -148,7 +149,7 @@ impl ScriptIndex {
         // A mod overriding a vanilla effect is the point of a mod, not a
         // diagnostic; anything else this parse finds still is.
         let mut parsing = Vec::new();
-        index.effects = script::parse_dir(layout, "common/scripted_effects", &mut parsing);
+        index.effects = script::parse_dir(layout, "common/scripted_effects", globals, &mut parsing);
         diagnostics.extend(
             parsing
                 .into_iter()
@@ -158,7 +159,7 @@ impl ScriptIndex {
         for (rel, dir, kind, report) in DIRS {
             index.ingest(layout, rel, dir, kind, report, diagnostics);
         }
-        index.read_prescripted(layout, diagnostics);
+        index.read_prescripted(layout, globals, diagnostics);
         let claims = claims::build(&index, layout);
         index.claims = claims;
         index
@@ -386,8 +387,13 @@ impl ScriptIndex {
         }
     }
 
-    fn read_prescripted(&mut self, layout: &Layout, diagnostics: &mut Vec<Diagnostic>) {
-        let defs = script::parse_dir(layout, PRESCRIPTED_DIR, diagnostics);
+    fn read_prescripted(
+        &mut self,
+        layout: &Layout,
+        globals: &Arc<Variables>,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) {
+        let defs = script::parse_dir(layout, PRESCRIPTED_DIR, globals, diagnostics);
         for def in in_file_order(&layout.files_in(PRESCRIPTED_DIR), &defs) {
             let src = &def.src;
             let Some(initializer) = def.scalar("initializer") else {

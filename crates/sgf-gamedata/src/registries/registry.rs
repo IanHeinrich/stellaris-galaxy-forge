@@ -2,10 +2,11 @@
 //! definition key, last key wins.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::Diagnostic;
 use crate::install::layers::Layout;
-use crate::install::script::{self, Def};
+use crate::install::script::{self, Def, Variables};
 
 /// A definition read from one `common/` directory, one entry per key.
 pub(crate) trait FromDef: Sized {
@@ -52,8 +53,12 @@ impl<T> Registry<T> {
 }
 
 /// Every definition of `T::DIR` across the layout, keyed, last key wins.
-pub(crate) fn load<T: FromDef>(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Registry<T> {
-    script::parse_dir(layout, T::DIR, diagnostics)
+pub(crate) fn load<T: FromDef>(
+    layout: &Layout,
+    globals: &Arc<Variables>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Registry<T> {
+    script::parse_dir(layout, T::DIR, globals, diagnostics)
         .into_iter()
         .filter(|(_, def)| !T::skip(def))
         .map(|(key, def)| (key.clone(), T::read(key, &def)))

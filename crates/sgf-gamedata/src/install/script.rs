@@ -19,6 +19,7 @@ pub struct Def {
     pub file: PathBuf,
     /// The defining file's top-level `@name = value` scalars, `@` stripped.
     pub vars: Arc<BTreeMap<String, String>>,
+    pub globals: Arc<Variables>,
 }
 
 impl Def {
@@ -30,6 +31,76 @@ impl Def {
     pub fn flag(&self, key: &str) -> bool {
         self.scalar(key) == Some("yes")
     }
+
+    /// `key`'s value as a number, through [`Self::number_of`].
+    pub fn number(&self, key: &str) -> Option<f64> {
+        self.number_of(self.scalar(key)?)
+    }
+
+    /// A number as written, or the `@variable` it names: the defining file's own first,
+    /// then `common/scripted_variables`.
+    pub fn number_of(&self, text: &str) -> Option<f64> {
+        let text = match text.strip_prefix('@') {
+            Some(name) => self
+                .vars
+                .get(name)
+                .map(String::as_str)
+                .or_else(|| self.globals.get(name))?,
+            None => text,
+        };
+        text.parse().ok()
+    }
+
+    /// Each `key = number` child of `node` in order, repeated keys summed; blocks and
+    /// non-numeric values are left out.
+    pub fn numbers(&self, node: &Node) -> Vec<(String, f64)> {
+        let mut out: Vec<(String, f64)> = Vec::new();
+        for child in node.children() {
+            let Some(key) = child.key_str(&self.src) else {
+                continue;
+            };
+            let Some(amount) = child
+                .scalar_str(&self.src)
+                .and_then(|text| self.number_of(text))
+            else {
+                continue;
+            };
+            match out.iter_mut().find(|(k, _)| k == key) {
+                Some(entry) => entry.1 += amount,
+                None => out.push((key.to_owned(), amount)),
+            }
+        }
+        out
+    }
+}
+
+/// `common/scripted_variables`: the `@name = value` scalars every script file can use.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Variables(BTreeMap<String, String>);
+
+impl Variables {
+    pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Self {
+        let mut vars = BTreeMap::new();
+        for file in layout.files_in("common/scripted_variables") {
+            if let Some((root, src)) = parse_file(&file, diagnostics) {
+                vars.extend(file_vars(root.children(), &src));
+            }
+        }
+        Self(vars)
+    }
+
+    /// `name`'s value, `@` stripped from the name.
+    pub fn get(&self, name: &str) -> Option<&str> {
+        self.0.get(name).map(String::as_str)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 /// Parse every winning file of `rel_dir` in filename order and collect the
@@ -39,6 +110,7 @@ impl Def {
 pub fn parse_dir(
     layout: &Layout,
     rel_dir: &str,
+    globals: &Arc<Variables>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> BTreeMap<String, Def> {
     let mut defs = BTreeMap::new();
@@ -62,6 +134,7 @@ pub fn parse_dir(
                 src: Arc::clone(&src),
                 file: file.clone(),
                 vars: Arc::clone(&vars),
+                globals: Arc::clone(globals),
             };
             // A key repeated within one file is the game's own idiom (`random_list` in
             // planet_classes), not a mod overriding anything; the later block wins in silence.

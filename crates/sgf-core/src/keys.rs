@@ -30,16 +30,19 @@ pub(crate) const COUNTRY: &str = "country";
 pub(crate) const CRISES: &str = "crises";
 pub(crate) const CRISIS_TYPE: &str = "crisis_type";
 pub(crate) const CURRENT_ORDER: &str = "current_order";
+pub(crate) const DAYS: &str = "days";
 pub(crate) const DEPOSIT: &str = "deposit";
 pub(crate) const DEPOSITS: &str = "deposits";
 pub(crate) const DEPOSIT_HOLDER: &str = "deposit_holder";
 pub(crate) const DESIGN: &str = "design";
+pub(crate) const DESIGNATION: &str = "designation";
 pub(crate) const DIFFICULTY: &str = "difficulty";
 pub(crate) const DISMANTLE_FINISH_DATE: &str = "dismantle_finish_date";
 pub(crate) const DISMANTLE_PROGRESS: &str = "dismantle_progress";
 pub(crate) const END_GAME_START: &str = "end_game_start";
 pub(crate) const ENTITY: &str = "entity";
 pub(crate) const FILE: &str = "file";
+pub(crate) const FINAL_DESIGNATION: &str = "final_designation";
 pub(crate) const FLAG: &str = "flag";
 pub(crate) const FLAGS: &str = "flags";
 pub(crate) const FLEET: &str = "fleet";
@@ -63,6 +66,7 @@ pub(crate) const INITIALIZER: &str = "initializer";
 pub(crate) const INIT_PARENT: &str = "init_parent";
 pub(crate) const INNER_RADIUS: &str = "inner_radius";
 pub(crate) const IRONMAN: &str = "ironman";
+pub(crate) const ITEMS: &str = "items";
 pub(crate) const KEY: &str = "key";
 pub(crate) const LAST_BOMBARDMENT: &str = "last_bombardment";
 pub(crate) const LAST_CREATED_SYSTEM: &str = "last_created_system";
@@ -76,6 +80,7 @@ pub(crate) const MEGASTRUCTURES: &str = "megastructures";
 pub(crate) const MIA_FROM: &str = "mia_from";
 pub(crate) const MID_GAME_START: &str = "mid_game_start";
 pub(crate) const MILITARY_POWER: &str = "military_power";
+pub(crate) const MODIFIER: &str = "modifier";
 pub(crate) const MODULES: &str = "modules";
 pub(crate) const MOONS: &str = "moons";
 pub(crate) const MOON_OF: &str = "moon_of";
@@ -90,6 +95,7 @@ pub(crate) const NUM_GATEWAYS: &str = "num_gateways";
 pub(crate) const NUM_HYPERLANES: &str = "num_hyperlanes";
 pub(crate) const NUM_MARAUDER_EMPIRES: &str = "num_marauder_empires";
 pub(crate) const NUM_NOMAD_EMPIRES: &str = "num_nomad_empires";
+pub(crate) const NUM_POPS: &str = "num_pops";
 pub(crate) const NUM_SAPIENT_POPS: &str = "num_sapient_pops";
 pub(crate) const NUM_WORMHOLE_PAIRS: &str = "num_wormhole_pairs";
 pub(crate) const ORBIT: &str = "orbit";
@@ -101,6 +107,7 @@ pub(crate) const OWNER: &str = "owner";
 pub(crate) const PLANET: &str = "planet";
 pub(crate) const PLANETS: &str = "planets";
 pub(crate) const PLANET_CLASS: &str = "planet_class";
+pub(crate) const PLANET_MODIFIER: &str = "planet_modifier";
 pub(crate) const PLANET_ORBITALS: &str = "planet_orbitals";
 pub(crate) const PLANET_SIZE: &str = "planet_size";
 pub(crate) const PLAYER: &str = "player";
@@ -123,6 +130,8 @@ pub(crate) const SHIP_DESIGN_IMPLEMENTATION: &str = "ship_design_implementation"
 pub(crate) const SHIP_NAMES: &str = "ship_names";
 pub(crate) const SHIP_SIZE: &str = "ship_size";
 pub(crate) const SITES: &str = "sites";
+pub(crate) const SPECIES_DB: &str = "species_db";
+pub(crate) const SPECIES_INFORMATION: &str = "species_information";
 pub(crate) const STARBASES: &str = "starbases";
 pub(crate) const STARBASE_MGR: &str = "starbase_mgr";
 pub(crate) const STAR_CLASS: &str = "star_class";
@@ -130,6 +139,7 @@ pub(crate) const STAR_NAMES: &str = "star_names";
 pub(crate) const STATION: &str = "station";
 pub(crate) const STORM: &str = "storm";
 pub(crate) const SURVEYED_BY: &str = "surveyed_by";
+pub(crate) const SWAP_TYPE: &str = "swap_type";
 pub(crate) const TEMPLATE: &str = "template";
 pub(crate) const TIMED_MODIFIER: &str = "timed_modifier";
 pub(crate) const TO: &str = "to";
@@ -175,16 +185,19 @@ pub(crate) const ALL: &[&str] = &[
     CRISES,
     CRISIS_TYPE,
     CURRENT_ORDER,
+    DAYS,
     DEPOSIT,
     DEPOSITS,
     DEPOSIT_HOLDER,
     DESIGN,
+    DESIGNATION,
     DIFFICULTY,
     DISMANTLE_FINISH_DATE,
     DISMANTLE_PROGRESS,
     END_GAME_START,
     ENTITY,
     FILE,
+    FINAL_DESIGNATION,
     FLAG,
     FLAGS,
     FLEET,
@@ -208,6 +221,7 @@ pub(crate) const ALL: &[&str] = &[
     INIT_PARENT,
     INNER_RADIUS,
     IRONMAN,
+    ITEMS,
     KEY,
     LAST_BOMBARDMENT,
     LAST_CREATED_SYSTEM,
@@ -221,6 +235,7 @@ pub(crate) const ALL: &[&str] = &[
     MIA_FROM,
     MID_GAME_START,
     MILITARY_POWER,
+    MODIFIER,
     MODULES,
     MOONS,
     MOON_OF,
@@ -235,6 +250,7 @@ pub(crate) const ALL: &[&str] = &[
     NUM_HYPERLANES,
     NUM_MARAUDER_EMPIRES,
     NUM_NOMAD_EMPIRES,
+    NUM_POPS,
     NUM_SAPIENT_POPS,
     NUM_WORMHOLE_PAIRS,
     ORBIT,
@@ -246,6 +262,7 @@ pub(crate) const ALL: &[&str] = &[
     PLANET,
     PLANETS,
     PLANET_CLASS,
+    PLANET_MODIFIER,
     PLANET_ORBITALS,
     PLANET_SIZE,
     PLAYER,
@@ -268,6 +285,8 @@ pub(crate) const ALL: &[&str] = &[
     SHIP_NAMES,
     SHIP_SIZE,
     SITES,
+    SPECIES_DB,
+    SPECIES_INFORMATION,
     STARBASES,
     STARBASE_MGR,
     STAR_CLASS,
@@ -275,6 +294,7 @@ pub(crate) const ALL: &[&str] = &[
     STATION,
     STORM,
     SURVEYED_BY,
+    SWAP_TYPE,
     TEMPLATE,
     TIMED_MODIFIER,
     TO,

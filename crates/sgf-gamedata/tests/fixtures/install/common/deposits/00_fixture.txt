@@ -1,3 +1,5 @@
+@FIXTURE_DAYS = 90
+
 d_glow_2 = {
 	icon = d_glow
 	resources = {
@@ -17,4 +19,76 @@ d_glow_2 = {
 d_fixture_blocker = {
 	icon = d_fixture_blocker
 	category = deposit_cat_blockers
+	time = @FIXTURE_DAYS
+	resources = {
+		cost = {
+			glow = 250
+		}
+	}
+	planet_modifier = {
+		planet_max_districts_add = -1
+	}
+	prerequisites = { "tech_fixture_clearing" }
+}
+
+d_fixture_rare = {
+	category = deposit_cat_rare
+	planet_modifier = {
+		district_farming_max_add = @FIXTURE_DISTRICTS
+	}
+	triggered_planet_modifier = {
+		potential = {
+			exists = owner
+			owner = {
+				has_technology = tech_fixture_gas
+			}
+		}
+		planet_farmers_glow_produces_add = 0.05
+	}
+	triggered_planet_modifier = {
+		potential = {
+			always = no
+		}
+		planet_farmers_glow_produces_add = 1
+	}
+}
+
+d_fixture_hab_gas = {
+	category = deposit_cat_rare
+	triggered_planet_modifier = {
+		potential = {
+			exists = owner
+			owner = {
+				is_regular_empire = yes
+				has_technology = tech_fixture_gas
+			}
+		}
+		modifier = {
+			job_gas_extractor_add = 100
+		}
+	}
+	triggered_planet_modifier = {
+		potential = {
+			exists = owner
+			owner = {
+				is_gestalt = yes
+				has_technology = tech_fixture_gas
+			}
+		}
+		modifier = {
+			job_gas_extraction_drone_add = 100
+		}
+	}
+}
+
+d_fixture_hatchery = {
+	category = deposit_cat_blockers
+	planet_modifier = {
+		planet_max_districts_add = -1
+	}
+	triggered_planet_modifier = {
+		planet_max_districts_add = -4
+		habitability_ceil_add = -0.1
+		mult = 2
+	}
 }

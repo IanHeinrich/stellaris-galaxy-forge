@@ -2,7 +2,8 @@
 //! (mip 0 only) to a PNG that is cached on disk.
 //!
 //! Keys, never paths, cross the IPC boundary:
-//! `star_class:<icon>`, `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`
+//! `star_class:<icon>`, `deposit:<icon>`, `icon:<path under gfx/interface/icons>`,
+//! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`
 //! and `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>`.
 
 use std::fs;
@@ -78,6 +79,8 @@ impl TextureKey {
     fn rel_path(&self) -> Result<String, TextureError> {
         match self {
             Self::StarClass { icon } => Ok(format!("gfx/map/star_classes/{icon}.dds")),
+            Self::Deposit { icon } => Ok(format!("{DEPOSIT_ICONS}/{icon}.dds")),
+            Self::Icon { path } => Ok(format!("gfx/interface/icons/{path}")),
             Self::Flag { category, file } | Self::Symbol { category, file } => {
                 Ok(format!("flags/{category}/{file}"))
             }
@@ -251,6 +254,7 @@ enum Job {
     },
 }
 
+pub(crate) const DEPOSIT_ICONS: &str = "gfx/interface/icons/deposits";
 const EMPIRE_FLAG_MASK: &str = "gfx/interface/flags/empire_flag_64_mask.dds";
 const EMPIRE_FLAG_FRAME: &str = "gfx/interface/flags/empire_flag_64_frame.dds";
 

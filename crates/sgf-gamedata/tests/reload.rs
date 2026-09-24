@@ -35,6 +35,7 @@ const INITIALIZERS: &str = "userdata/mod/one/common/solar_system_initializers/zz
 const ENGLISH: &str = "userdata/mod/one/localisation/english/one_l_english.yml";
 const EVENTS: &str = "userdata/mod/one/events/zz_fixture_events.txt";
 const ON_ACTIONS: &str = "userdata/mod/one/common/on_actions/zz_fixture.txt";
+const VARIABLES: &str = "install/common/scripted_variables/00_fixture.txt";
 
 #[test]
 fn rebuilding_the_initializers_says_what_a_full_load_says() {
@@ -150,6 +151,34 @@ fn rebuilding_the_localisation_says_what_a_full_load_says() {
 }
 
 #[test]
+fn rebuilding_the_variables_rereads_everything_that_reads_them() {
+    let tree = fixture_copy();
+    let before = load(tree.path());
+    append(&tree.path().join(VARIABLES), "\n@FIXTURE_DISTRICTS = 5\n");
+
+    let (rebuilt, replaced) = before.rebuild(&kinds([RegistryKind::Variables]));
+    let full = load(tree.path());
+
+    let rare = ["d_fixture_rare".to_owned()];
+    let effect = |gd: &GameData| gd.deposit_type_views(&rare)[0].effects[0].value;
+    assert_eq!(effect(&before), 2.0);
+    assert_eq!(effect(&rebuilt), 5.0);
+    assert_eq!(
+        rebuilt.deposit_type_views(&rare),
+        full.deposit_type_views(&rare)
+    );
+    assert_eq!(summary(&rebuilt), summary(&full));
+    assert_eq!(
+        rebuilt.scenario_owners(&SCENARIO),
+        full.scenario_owners(&SCENARIO)
+    );
+    assert!(replaced.contains(&RegistryKind::Variables));
+    assert!(replaced.contains(&RegistryKind::Initializers));
+    assert!(!Arc::ptr_eq(&before.variables, &rebuilt.variables));
+    assert!(!Arc::ptr_eq(&before.deposits, &rebuilt.deposits));
+}
+
+#[test]
 fn a_reread_that_finds_nothing_keeps_the_old_registry_and_is_not_named_replaced() {
     let tree = fixture_copy();
     let before = load(tree.path());
@@ -176,7 +205,11 @@ fn a_changed_path_names_the_registry_that_reads_it() {
     let install = tree.path().join("install");
     let one = tree.path().join("userdata/mod/one");
 
-    let table: [(PathBuf, Option<RegistryKind>); 15] = [
+    let table: [(PathBuf, Option<RegistryKind>); 16] = [
+        (
+            install.join("common/scripted_variables/00_fixture.txt"),
+            Some(RegistryKind::Variables),
+        ),
         (
             install.join("common/solar_system_initializers/00_a.txt"),
             Some(RegistryKind::Initializers),

@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
-use sgf_core::entity::{self, EntityAddr, EntityKind, EntitySchema, EntitySource, EntityView};
+use sgf_core::entity::{
+    self, EntityAddr, EntityKind, EntitySchema, EntitySource, EntityView, PlanetPage,
+};
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::views::{SearchResult, SgfError, SystemDetail};
 use sgf_gamedata::GameData;
@@ -40,6 +42,14 @@ pub fn get_entity_source(
     let guard = lock(&state);
     let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
     Ok(entity::get_entity_source(&session.doc, addr)?)
+}
+
+/// A save body's own Overview; `not_found` on a scenario, whose planets have no entities.
+#[tauri::command(async)]
+pub fn get_planet_page(state: State<'_, AppState>, id: u32) -> Result<PlanetPage, SgfError> {
+    let guard = lock(&state);
+    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    Ok(entity::get_planet_page(&session.doc, id)?)
 }
 
 /// The fields the Data tab labels for a kind; unknown keys render raw.

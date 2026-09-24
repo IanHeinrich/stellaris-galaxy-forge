@@ -16,6 +16,7 @@ import type { FeZone } from "../generated/FeZone";
 import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { Op } from "../generated/Op";
 import type { OpenResult } from "../generated/OpenResult";
+import type { PlanetPage } from "../generated/PlanetPage";
 import type { SaveFile } from "../generated/SaveFile";
 import type { SaveResult } from "../generated/SaveResult";
 import type { ScenarioListings } from "../generated/ScenarioListings";
@@ -120,6 +121,11 @@ export function getEntity(addr: EntityAddr, path: string[] = []): Promise<Entity
 /** An entity's current bytes with the ranges an op changed. */
 export function getEntitySource(addr: EntityAddr): Promise<EntitySource> {
   return invoke<EntitySource>("get_entity_source", { addr });
+}
+
+/** A save body's own Overview. Rejects with `not_found` on a scenario or for an absent planet. */
+export function getPlanetPage(id: number): Promise<PlanetPage> {
+  return invoke<PlanetPage>("get_planet_page", { id });
 }
 
 /** The labelled fields of a kind; keys outside it render raw. */

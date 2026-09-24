@@ -6,6 +6,11 @@ export function titleCase(words: readonly string[], special: Record<string, stri
     .join(" ");
 }
 
+/** `1600` → `1,600`: a count or a cost as the game writes it. */
+export function thousands(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
 /** `3, "system"` → `3 systems`; `1, "lane"` → `1 lane`. */
 export function counted(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? "" : "s"}`;

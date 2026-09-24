@@ -8,6 +8,7 @@ use sgf_app_lib::watch;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::views::{ErrorKind, OpenResult, SearchHit, SearchKind, SearchResult};
 use sgf_gamedata::install::layers::Layer;
+use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::special::{SpecialKind, SpecialSystem, SpecialSystems};
 use sgf_gamedata::textures::TextureView;
@@ -141,6 +142,23 @@ fn game_data_commands_degrade_without_an_install() {
     assert!(star_classes.is_empty());
     let deposits: Vec<DepositView> = invoke(&w, "get_deposits", json!({})).expect("deposits");
     assert!(deposits.is_empty());
+    let deposit_types: Vec<DepositTypeView> = invoke(
+        &w,
+        "get_deposit_types",
+        json!({ "keys": ["d_massive_glacier"] }),
+    )
+    .expect("deposit types");
+    assert!(deposit_types.is_empty());
+    let modifiers: Vec<ModifierView> = invoke(
+        &w,
+        "get_modifiers",
+        json!({ "keys": ["pm_abundant_geothermal_activity"] }),
+    )
+    .expect("modifiers");
+    assert!(modifiers.is_empty());
+    let colony_types: Vec<ColonyTypeView> =
+        invoke(&w, "get_colony_types", json!({ "keys": ["col_fe_colony"] })).expect("colony types");
+    assert!(colony_types.is_empty());
     let initializers: Vec<InitializerView> =
         invoke(&w, "get_initializers", json!({})).expect("initializers");
     assert!(initializers.is_empty());
@@ -283,6 +301,47 @@ fn game_data_commands_with_the_install() {
         .find(|d| d.key == "d_energy_3")
         .expect("d_energy_3");
     assert_eq!(energy_3.produces, vec![("energy".to_owned(), 3.0)]);
+    let deposit_types: Vec<DepositTypeView> = invoke(
+        &w,
+        "get_deposit_types",
+        json!({ "keys": ["d_massive_glacier", "d_no_such_deposit", "d_energy_3"] }),
+    )
+    .expect("deposit types");
+    let keys: Vec<&str> = deposit_types.iter().map(|d| d.key.as_str()).collect();
+    assert_eq!(
+        keys,
+        ["d_massive_glacier", "d_energy_3"],
+        "unknown keys are left out"
+    );
+    let glacier = &deposit_types[0];
+    assert!(glacier.blocker && !glacier.orbital);
+    assert!(glacier.clearing.is_some());
+    let energy_3 = &deposit_types[1];
+    assert!(energy_3.orbital && energy_3.clearing.is_none());
+    assert_eq!(energy_3.yields[0].resource, "energy");
+    assert_eq!(energy_3.yields[0].amount, 3.0);
+    let modifiers: Vec<ModifierView> = invoke(
+        &w,
+        "get_modifiers",
+        json!({ "keys": ["pm_abundant_geothermal_activity", "abundant_geothermal_activity"] }),
+    )
+    .expect("modifiers");
+    assert_eq!(modifiers.len(), 2, "{modifiers:?}");
+    assert_eq!(
+        modifiers[0].static_modifier.as_deref(),
+        Some("abundant_geothermal_activity")
+    );
+    assert_eq!(modifiers[0].name, modifiers[1].name);
+    assert!(!modifiers[1].effects.is_empty());
+    let colony_types: Vec<ColonyTypeView> = invoke(
+        &w,
+        "get_colony_types",
+        json!({ "keys": ["col_fe_colony", "col_no_such_designation"] }),
+    )
+    .expect("colony types");
+    assert_eq!(colony_types.len(), 1);
+    assert_eq!(colony_types[0].key, "col_fe_colony");
+    assert!(colony_types[0].icon.is_some());
     let initializers: Vec<InitializerView> =
         invoke(&w, "get_initializers", json!({})).expect("initializers");
     assert_eq!(initializers.len(), summary.initializers as usize);
