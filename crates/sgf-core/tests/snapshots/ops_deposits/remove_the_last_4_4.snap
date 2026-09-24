@@ -1,0 +1,39 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed d_minerals_3 (#26) from planet #5
+touched: [217]
+inverse: AddSaveDeposit { planet: 5, kind: "d_minerals_3" }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -93677,10 +93677,6 @@
+ 			}
+ 			entity=1
+ 			entity_name="barren_planet_mars_entity"
+-			deposits=
+-			{
+-				26 
+-			}
+ 		}
+ 		6=
+ 		{
+@@ -1467032,15 +1467028,7 @@
+ 			id=1
+ 		}
+ 	}
+-	26=
+-	{
+-		type="d_minerals_3"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=5
+-		}
+-	}
++	26=none
+ 	27=
+ 	{
+ 		type="d_engineering_3"

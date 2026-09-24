@@ -52,11 +52,6 @@ impl Added {
             .map(|(&anchor, &(_, id))| (id, anchor))
     }
 
-    /// Whether the original statement at `anchor` now stands for another entity.
-    pub fn replaces(&self, anchor: Anchor) -> bool {
-        self.by_slot.contains_key(&anchor)
-    }
-
     /// Read `slots` again from the bytes they hold now: a slot emptied or put back as it
     /// was loaded names nothing, and one holding a new entity names it.
     pub fn refresh(&mut self, original: &[u8], index: &Index, overlay: &Overlay, slots: &[Anchor]) {
