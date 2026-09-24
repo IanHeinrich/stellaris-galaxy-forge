@@ -9,10 +9,12 @@
 //! game builds them on load.
 //!
 //! Every rule reads the table as it stands now, so a second add takes nothing the first
-//! one took.
+//! one took, and a tombstone a removal wrote into an appended slot is a dead slot like any
+//! other.
 
 use std::collections::VecDeque;
 
+use crate::Span;
 use crate::cst;
 use crate::document::Document;
 use crate::format::save::added::Table;
@@ -183,8 +185,15 @@ impl SlotTable {
         };
         let src = doc.original();
         let added = doc.added();
+        let end = TableEnd::read(doc, table, close, entities);
         let mut free = Vec::new();
         let mut highest = None;
+        for entry in appended(doc, end.at()) {
+            highest = highest.max(Some(entry.id & SLOT_MASK));
+            if entry.dead && entry.id >> GENERATION_SHIFT < LAST_GENERATION {
+                free.push((entry.id, entry.anchor));
+            }
+        }
         for entity in entities {
             let id = u32::try_from(entity.id).ok()?;
             highest = highest.max(Some(id & SLOT_MASK));
@@ -202,7 +211,7 @@ impl SlotTable {
         }
         free.sort_by_key(|&(id, _)| id & SLOT_MASK);
         Some(Self {
-            end: TableEnd::read(doc, table, close, entities),
+            end,
             free: free.into(),
             next: highest.map_or(0, |slot| slot + 1),
         })
@@ -222,4 +231,54 @@ impl SlotTable {
             }
         }
     }
+}
+
+/// An entry an op appended to a slot table: a live entity, or the tombstone a removal
+/// left in its place.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Appended {
+    pub anchor: Anchor,
+    pub id: u32,
+    pub dead: bool,
+}
+
+/// The entries ops appended to the table whose new entries go at `at`, in file order; a
+/// slot an erasure emptied is left out.
+pub(crate) fn appended(doc: &Document, at: usize) -> Vec<Appended> {
+    doc.overlay()
+        .slots()
+        .filter(|(anchor, _)| matches!(anchor, Anchor::Inserted { at: here, .. } if *here == at))
+        .filter_map(|(anchor, bytes)| {
+            let root = cst::parse(bytes, 0).ok()?;
+            let node = root.children().first()?;
+            Some(Appended {
+                anchor,
+                id: node.key_str(bytes)?.parse().ok()?,
+                dead: node
+                    .scalar_str(bytes)
+                    .is_some_and(|v| v.as_bytes() == TOMBSTONE),
+            })
+        })
+        .collect()
+}
+
+/// The id the tombstone of entity `id`'s slot holds once it dies there: the one the slot
+/// held before an add took it one generation on, or `id` itself in a slot an add appended.
+pub(crate) fn tombstone_id(id: u32) -> u32 {
+    match id >> GENERATION_SHIFT {
+        0 => id,
+        _ => id - (1 << GENERATION_SHIFT),
+    }
+}
+
+/// `id`'s tombstone statement.
+pub(crate) fn tombstone(id: u32) -> String {
+    format!("{id}=none")
+}
+
+/// The span of the one statement `bytes` hold, which may stand after a line break and
+/// before the indentation of a closing brace.
+pub(crate) fn statement_span(bytes: &[u8]) -> Option<Span> {
+    let root = cst::parse(bytes, 0).ok()?;
+    Some(root.children().first()?.span())
 }

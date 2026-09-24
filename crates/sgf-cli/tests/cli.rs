@@ -995,3 +995,47 @@ fn add_system_refuses_a_3_x_save_without_writing() {
     );
     assert!(!out_path.exists());
 }
+
+#[test]
+fn add_system_then_remove_renumbers_the_systems_added_after_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("removed.sav");
+    let out_str = out_path.to_str().unwrap();
+    let fixture = |name: &str| format!("{}/tests/fixtures/{name}.json", env!("CARGO_MANIFEST_DIR"));
+    let (mura, tau_ceti, fellix) = (fixture("mura"), fixture("tau_ceti"), fixture("fellix"));
+    let out = sgf(&[
+        "add-system",
+        SAMPLE_4_5,
+        "--spec",
+        &mura,
+        "--spec",
+        &tau_ceti,
+        "--spec",
+        &fellix,
+        "--then-remove",
+        "602",
+        "-o",
+        out_str,
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = stdout(&out);
+    assert!(
+        text.contains("Removed Tau Ceti (#602) and 3 lanes; renumbered 603 to 602"),
+        "{text}"
+    );
+
+    let details = sgf(&["details", out_str, "602"]);
+    assert_eq!(details.status.code(), Some(0), "{}", stdout(&details));
+    assert!(
+        stdout(&details).contains("planets: 3"),
+        "{}",
+        stdout(&details)
+    );
+    assert_ne!(sgf(&["details", out_str, "603"]).status.code(), Some(0));
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+}

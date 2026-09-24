@@ -119,7 +119,11 @@ pub(crate) fn plan_add(
         .ok_or_else(|| edit.parse_error(0, "last_created_system is not a scalar"))?;
     edit.splices
         .push((span.range(), id.to_string().into_bytes()));
-    if let Some(entry) = pool_entry(&s.doc, &spec.name) {
+    let src = s.doc.original();
+    let unused = pool_entries(&s.doc, &spec.name)
+        .into_iter()
+        .find(|&entry| !removed(s.doc.overlay(), entry, src));
+    if let Some(entry) = unused {
         plan.erase(&s.doc, Subject::Record(entry), entry)?;
     }
 
@@ -210,12 +214,28 @@ fn write_slot(
     entry: impl Fn(&[u8]) -> Vec<u8>,
 ) -> Result<(), OpError> {
     match slot {
-        Slot::Reused { tombstone, .. } => {
+        Slot::Reused {
+            tombstone: tombstone @ Anchor::Original(_),
+            ..
+        } => {
             let indent = cst::indent_of(doc.original(), tombstone.start());
             let mut text = entry(indent);
             text.pop();
             text.drain(..indent.len());
             plan.replace(doc, emitted.subject(tombstone), tombstone, text)
+        }
+        // A tombstone a removal left in an appended slot carries its line with it.
+        Slot::Reused { tombstone, .. } => {
+            let subject = emitted.subject(tombstone);
+            let current = doc.current(tombstone)?;
+            let span = alloc::statement_span(current)
+                .ok_or_else(|| subject.parse_error(0, "the tombstone holds no statement"))?;
+            let indent = cst::indent_of(current, span.start);
+            let mut text = entry(indent);
+            text.pop();
+            text.drain(..indent.len());
+            let bytes = [&current[..span.start], &text[..], &current[span.end..]].concat();
+            plan.replace(doc, subject, tombstone, bytes)
         }
         Slot::Appended { .. } => {
             let text = table.end.shape(entry(table.end.indent()));
@@ -475,29 +495,30 @@ fn systems_end(doc: &Document) -> Result<TableEnd, OpError> {
     Ok(TableEnd::read(doc, Table::System, close, entities))
 }
 
-/// The entry of the pool of unused star names that holds `name`, when one still does.
-fn pool_entry(doc: &Document, name: &str) -> Option<Anchor> {
+/// Every entry of the save's pool of unused star names, as loaded, that holds `name`,
+/// in file order, whether an add has since taken it or not.
+pub(crate) fn pool_entries(doc: &Document, name: &str) -> Vec<Anchor> {
     let src = doc.original();
-    let Value::Block { open, close } = doc.index().section(keys::RANDOM_NAME_DATABASE)?.value
-    else {
-        return None;
+    let names = || {
+        let Value::Block { open, close } = doc.index().section(keys::RANDOM_NAME_DATABASE)?.value
+        else {
+            return None;
+        };
+        let database = scan::scan_range(src, open + 1..close).ok()?;
+        let Value::Block { open, close } = database.section(keys::STAR_NAMES)?.value else {
+            return None;
+        };
+        cst::parse(&src[open + 1..close], open + 1).ok()
     };
-    let database = scan::scan_range(src, open + 1..close).ok()?;
-    let Value::Block { open, close } = database.section(keys::STAR_NAMES)?.value else {
-        return None;
+    let Some(names) = names() else {
+        return Vec::new();
     };
-    let names = cst::parse(&src[open + 1..close], open + 1).ok()?;
     names
         .children()
         .iter()
         .filter(|entry| entry.key.is_none())
         .filter_map(cst::Node::scalar_span)
+        .filter(|span| scan::unquote(span.slice(src)) == name.as_bytes())
         .map(Anchor::Original)
-        .find(|&anchor| {
-            let Anchor::Original(span) = anchor else {
-                return false;
-            };
-            scan::unquote(span.slice(src)) == name.as_bytes()
-                && !removed(doc.overlay(), anchor, src)
-        })
+        .collect()
 }

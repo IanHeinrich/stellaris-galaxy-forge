@@ -61,6 +61,8 @@ pub(crate) struct Plan {
     emits: Vec<(Emitted, usize, Vec<u8>)>,
     /// The slot of a statement an earlier op rewrote, which its erasure's line replaces.
     absorbed: BTreeMap<Subject, Anchor>,
+    /// See [`Applied::renumbered`].
+    renumbered: Vec<(u32, Option<u32>)>,
 }
 
 impl Plan {
@@ -69,7 +71,13 @@ impl Plan {
             edits: BTreeMap::new(),
             emits: Vec::new(),
             absorbed: BTreeMap::new(),
+            renumbered: Vec::new(),
         }
+    }
+
+    /// Record that system `old` is now `new`, or gone when `None`, once the plan commits.
+    pub fn renumber(&mut self, old: u32, new: Option<u32>) {
+        self.renumbered.push((old, new));
     }
 
     /// The edit for system `id`, loading and parsing its entity on first use.
@@ -252,6 +260,7 @@ impl Plan {
             before,
             after,
             touched,
+            renumbered: self.renumbered,
         })
     }
 }

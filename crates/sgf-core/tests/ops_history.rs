@@ -9,15 +9,22 @@ use sgf_core::session::Session;
 use sgf_core::validate::Severity;
 
 mod common;
-use common::diff::round_trip;
+use common::diff::{round_trip, round_trip_step};
 use common::examples::{self, one_of_each};
 use common::{NEBULA_0_CENTRE, current, open};
 
 #[test]
 fn every_op_undoes_to_the_original_and_redoes_to_the_edit() {
     for example in one_of_each() {
+        let name = example.name();
         if let Some(op) = example.save {
-            round_trip((example.open_save)(), op);
+            let mut session = (example.open_save)();
+            // A removal needs a system the session added, so it starts from that edit.
+            if session.is_dirty() {
+                round_trip_step(&mut session, name, op);
+            } else {
+                round_trip(session, op);
+            }
         }
         if let Some(op) = example.scenario {
             round_trip(examples::scenario(), op);

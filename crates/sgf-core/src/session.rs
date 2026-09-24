@@ -66,6 +66,8 @@ pub struct OpResult {
     pub reclassifies: bool,
     /// The whole wayline list when the op changed it, `None` when it stands as before.
     pub waylines: Option<Vec<Wayline>>,
+    /// See [`Applied::renumbered`]; an undo reports the renumbering that takes it back.
+    pub renumbered: Vec<(u32, Option<u32>)>,
     pub issues: Vec<Issue>,
 }
 
@@ -123,6 +125,7 @@ impl Session {
             self.history.undo_len() + 1,
             &applied,
             &waylines,
+            false,
         );
         if self.saved_at.is_some_and(|at| at > self.history.undo_len()) {
             self.saved_at = None;
@@ -140,7 +143,7 @@ impl Session {
         let Some(applied) = self.history.undo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let result = result(&self.graph, seq, applied, &waylines);
+        let result = result(&self.graph, seq, applied, &waylines, true);
         let classes_only = applied.op.stales_only_planets();
         self.update_details(classes_only, &result);
         Ok(Some(result))
@@ -153,7 +156,7 @@ impl Session {
         let Some(applied) = self.history.redo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let result = result(&self.graph, seq, applied, &waylines);
+        let result = result(&self.graph, seq, applied, &waylines, false);
         let classes_only = applied.op.stales_only_planets();
         self.update_details(classes_only, &result);
         Ok(Some(result))
@@ -163,7 +166,7 @@ impl Session {
     pub fn edit_result(&self, result: OpResult) -> EditResult {
         EditResult {
             entry: result.entry,
-            delta: self.delta(&result.subjects, result.waylines),
+            delta: self.delta(&result.subjects, result.waylines, result.renumbered),
             issues: result.issues,
             history: self.history(),
             dirty: self.is_dirty(),
@@ -189,9 +192,15 @@ impl Session {
 
     /// What the map must replace after an edit of `subjects`: the systems and countries as
     /// they now project, and the systems the document no longer holds so the map drops them.
-    fn delta(&self, subjects: &[Subject], waylines: Option<Vec<Wayline>>) -> GalaxyDelta {
+    fn delta(
+        &self,
+        subjects: &[Subject],
+        waylines: Option<Vec<Wayline>>,
+        renumbered: Vec<(u32, Option<u32>)>,
+    ) -> GalaxyDelta {
         let mut delta = GalaxyDelta {
             waylines,
+            renumbered,
             ..GalaxyDelta::default()
         };
         let mut listed = HashSet::new();
@@ -461,12 +470,38 @@ impl DiskStamp {
     }
 }
 
-fn result(graph: &GalaxyGraph, seq: usize, applied: &Applied, waylines: &[Wayline]) -> OpResult {
+/// What `applied` did, or what undoing it did when `undone`.
+fn result(
+    graph: &GalaxyGraph,
+    seq: usize,
+    applied: &Applied,
+    waylines: &[Wayline],
+    undone: bool,
+) -> OpResult {
     let mut touched: Vec<u32> = applied.touched.iter().flat_map(|s| s.systems()).collect();
     touched.sort_unstable();
     touched.dedup();
+    let renumbered = if undone {
+        applied
+            .renumbered
+            .iter()
+            .filter_map(|&(before, after)| Some((after?, Some(before))))
+            .collect()
+    } else {
+        applied.renumbered.clone()
+    };
+    let mut details_stale = details_stale(graph.kind, &applied.op, &applied.touched);
+    if !renumbered.is_empty() {
+        let ids = applied
+            .renumbered
+            .iter()
+            .flat_map(|&(old, new)| [Some(old), new]);
+        details_stale.extend(ids.flatten());
+        details_stale.sort_unstable();
+        details_stale.dedup();
+    }
     OpResult {
-        details_stale: details_stale(&applied.op, &applied.touched),
+        details_stale,
         reclassifies: applied.op.reclassifies(),
         entry: HistoryEntry {
             seq,
@@ -476,19 +511,20 @@ fn result(graph: &GalaxyGraph, seq: usize, applied: &Applied, waylines: &[Waylin
         subjects: applied.touched.clone(),
         touched,
         waylines: (graph.waylines != waylines).then(|| graph.waylines.clone()),
+        renumbered,
         issues: validate(graph),
     }
 }
 
 /// The systems `op` left the details of stale, ascending: those it rewrote and those
-/// whose bodies it rewrote, or only the latter when that is all it stales (see
+/// whose bodies it rewrote, or in a save only the latter when that is all it stales (see
 /// [`Op::stales_only_bodies`]). The lane statements it also rewrote name no system of
 /// their own.
-fn details_stale(op: &Op, subjects: &[Subject]) -> Vec<u32> {
+fn details_stale(kind: DocumentKind, op: &Op, subjects: &[Subject]) -> Vec<u32> {
     if !op.stales_details() {
         return Vec::new();
     }
-    let bodies_only = op.stales_only_bodies();
+    let bodies_only = kind == DocumentKind::Save && op.stales_only_bodies();
     let mut ids: Vec<u32> = subjects
         .iter()
         .filter_map(|s| match *s {
