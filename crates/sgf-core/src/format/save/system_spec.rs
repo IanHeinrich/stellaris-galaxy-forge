@@ -18,9 +18,13 @@ pub struct SystemSpec {
     pub initializer: String,
     /// The body at the centre, orbit 0.
     pub star: BodySpec,
-    /// The bodies orbiting the star, numbered I, II, … in this order.
+    /// The bodies orbiting the star, in this order: the planets numbered I, II, …, and the
+    /// asteroids named from the save's pool among them.
     #[serde(default)]
     pub planets: Vec<BodySpec>,
+    /// In the order the initializer lists them.
+    #[serde(default)]
+    pub belts: Vec<BeltSpec>,
     /// The systems a hyperlane joins it to.
     #[serde(default)]
     pub lanes: Vec<u32>,
@@ -45,4 +49,16 @@ pub struct BodySpec {
     /// Lettered a, b, … in this order. Only a planet has moons.
     #[serde(default)]
     pub moons: Vec<BodySpec>,
+    /// Named from the save's pool of asteroid names and left out of the numbering.
+    #[serde(default)]
+    pub asteroid: bool,
+}
+
+/// An asteroid belt, drawn as a ring around the star.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BeltSpec {
+    /// `rocky_asteroid_belt`, `icy_asteroid_belt`, …
+    pub kind: String,
+    pub inner_radius: f64,
 }

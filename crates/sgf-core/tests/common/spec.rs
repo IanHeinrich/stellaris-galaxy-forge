@@ -1,6 +1,6 @@
 //! The system the in-game spike added to each sample save, as an `AddSaveSystem` spec: a
 //! G star and six planets, the fourth a gas giant with two moons.
-use sgf_core::ops::{BodySpec, SystemSpec};
+use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
 
 /// Spike variant 8 on the 4.5 sample: Mura beside the player's home, linked to it.
 pub fn mura() -> SystemSpec {
@@ -22,6 +22,39 @@ pub fn dorellion() -> SystemSpec {
     )
 }
 
+/// The spike's system with `basic_init_05`'s two belts, the rocky one moved in from 130
+/// to 95: two asteroids on it between the second and third planets, and two on the icy
+/// belt at 240 past the last.
+pub fn belted(mut spec: SystemSpec) -> SystemSpec {
+    let asteroid = |class: &str, orbit: f64, angle: f64| BodySpec {
+        asteroid: true,
+        ..body(class, 5, orbit, angle, 0)
+    };
+    spec.initializer = "basic_init_05".to_owned();
+    spec.planets.splice(
+        2..2,
+        [
+            asteroid("pc_asteroid", 95.0, 100.0),
+            asteroid("pc_asteroid", 95.0, 190.0),
+        ],
+    );
+    spec.planets.extend([
+        asteroid("pc_ice_asteroid", 240.0, 80.0),
+        asteroid("pc_ice_asteroid", 240.0, 170.0),
+    ]);
+    spec.belts = vec![
+        BeltSpec {
+            kind: "rocky_asteroid_belt".to_owned(),
+            inner_radius: 95.0,
+        },
+        BeltSpec {
+            kind: "icy_asteroid_belt".to_owned(),
+            inner_radius: 240.0,
+        },
+    ];
+    spec
+}
+
 pub fn body(class: &str, size: u32, orbit: f64, angle: f64, entity: u32) -> BodySpec {
     BodySpec {
         class: class.to_owned(),
@@ -31,6 +64,7 @@ pub fn body(class: &str, size: u32, orbit: f64, angle: f64, entity: u32) -> Body
         entity,
         deposits: Vec::new(),
         moons: Vec::new(),
+        asteroid: false,
     }
 }
 
@@ -60,6 +94,7 @@ fn spike(name: &str, (x, y): (f64, f64), home: u32, habitable: [&str; 3]) -> Sys
             body("pc_toxic", 15, 175.0, 200.0, 1),
             body("pc_frozen", 13, 205.0, 110.0, 1),
         ],
+        belts: Vec::new(),
         lanes: vec![home],
     }
 }

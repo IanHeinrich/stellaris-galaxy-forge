@@ -4,8 +4,8 @@
 //! What the add wrote comes out again: the `galactic_object` entry, each body's entry and
 //! its deposits' entries, where a tombstone's slot gets the tombstone back and an appended
 //! slot below the end of its table becomes a tombstone, the lanes on
-//! the other ends, the nebula member lines, and the name taken from the pool of unused
-//! star names. `last_created_system` goes down by one per system removed. Every system
+//! the other ends, the nebula member lines, the name taken from the pool of unused
+//! star names and the asteroids' names taken from the pool of asteroid names. `last_created_system` goes down by one per system removed. Every system
 //! added after the first one removed takes the id below its own for each removed before
 //! it, so the ids stay dense: its entry's key, its bodies' `coordinate.origin`, the lanes
 //! and the nebula member lines naming it. Planet and deposit ids do not change.
@@ -17,8 +17,9 @@ use crate::cst::{self, Node};
 use crate::document::Document;
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, Counter, SlotTable};
-use crate::format::save::system_spec::{BodySpec, SystemSpec};
+use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
 use crate::format::save::write::add_system::pool_entries;
+use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::lanes::remove_entries;
 use crate::format::save::{planet_statement, system_statement};
 use crate::format::scenario::index::removed as emptied;
@@ -64,6 +65,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
             })?;
     set_counter(plan, &s.doc, &counter, last)?;
     return_names(plan, s, &removed)?;
+    return_asteroid_names(plan, s, &removed)?;
     Ok(Planned {
         description,
         inverse,
@@ -350,17 +352,69 @@ fn return_names(plan: &mut Plan, s: &Session, removed: &BTreeSet<u32>) -> Result
             .into_iter()
             .filter(|&entry| emptied(s.doc.overlay(), entry, src))
             .collect();
-        for &entry in taken.iter().skip(staying) {
-            let Some(slot @ Anchor::Original(span)) = slot_holding(&s.doc, entry) else {
-                continue;
-            };
-            plan.replace(
-                &s.doc,
-                Subject::Record(slot),
-                slot,
-                span.slice(src).to_vec(),
-            )?;
+        put_back(plan, &s.doc, taken.iter().skip(staying))?;
+    }
+    Ok(())
+}
+
+/// Put a removed asteroid's name back in its prefix's block when its add took it from
+/// there, as [`return_names`] does for a star name: of the entries taken for a name, as
+/// many stay taken as the asteroids an add wrote that stay hold it.
+fn return_asteroid_names(
+    plan: &mut Plan,
+    s: &Session,
+    removed: &BTreeSet<u32>,
+) -> Result<(), OpError> {
+    let mut leaving_planets = BTreeSet::new();
+    for &id in removed {
+        leaving_planets.extend(bodies(&s.doc, id)?);
+    }
+    let mut leaving = BTreeSet::new();
+    let mut staying: BTreeMap<(String, String), usize> = BTreeMap::new();
+    for (planet, slot) in s.doc.added().entries(Table::Planet) {
+        let Ok((node, src)) = entity(&s.doc, Subject::Record(slot), slot) else {
+            continue;
+        };
+        let name = read::name(&node, src);
+        let Some((prefix, suffix)) = asteroid_names::parts(&name) else {
+            continue;
+        };
+        let held = (prefix.to_owned(), suffix.to_owned());
+        if leaving_planets.contains(&planet) {
+            leaving.insert(held);
+        } else {
+            *staying.entry(held).or_default() += 1;
         }
+    }
+    if leaving.is_empty() {
+        return Ok(());
+    }
+    let pool = Pool::read(&s.doc);
+    let src = s.doc.original();
+    for held in leaving {
+        let taken: Vec<Anchor> = pool
+            .entries(&held.0, &held.1, src)
+            .into_iter()
+            .filter(|&entry| emptied(s.doc.overlay(), entry, src))
+            .collect();
+        let keep = staying.get(&held).copied().unwrap_or(0);
+        put_back(plan, &s.doc, taken.iter().skip(keep))?;
+    }
+    Ok(())
+}
+
+/// Write each pool entry an add erased back as it was loaded.
+fn put_back<'a>(
+    plan: &mut Plan,
+    doc: &Document,
+    entries: impl Iterator<Item = &'a Anchor>,
+) -> Result<(), OpError> {
+    let src = doc.original();
+    for &entry in entries {
+        let Some(slot @ Anchor::Original(span)) = slot_holding(doc, entry) else {
+            continue;
+        };
+        plan.replace(doc, Subject::Record(slot), slot, span.slice(src).to_vec())?;
     }
     Ok(())
 }
@@ -371,6 +425,28 @@ fn slot_holding(doc: &Document, entry: Anchor) -> Option<Anchor> {
         matches!(slot, Anchor::Original(span)
             if span.start <= entry.start() && entry.end() <= span.end)
     })
+}
+
+/// The belts system `id`'s entry lists, in order.
+fn belts(doc: &Document, id: u32) -> Result<Vec<BeltSpec>, OpError> {
+    let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
+    let subject = Subject::System(id);
+    let (node, src) = entity(doc, subject, anchor)?;
+    let Some(block) = node.find(keys::ASTEROID_BELTS, src) else {
+        return Ok(Vec::new());
+    };
+    block
+        .children()
+        .iter()
+        .filter(|belt| belt.key.is_none())
+        .map(|belt| {
+            Ok(BeltSpec {
+                kind: read::text(belt, keys::TYPE, src),
+                inner_radius: read::required(belt, keys::INNER_RADIUS, src)
+                    .map_err(|reason| subject.parse_error(0, reason))?,
+            })
+        })
+        .collect()
 }
 
 /// The planets system `id`'s entry lists, star first.
@@ -504,6 +580,7 @@ fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpec, OpError>
         initializer: system.initializer.clone(),
         star: star.spec(0.0, 0.0),
         planets,
+        belts: belts(&s.doc, id)?,
         lanes,
     })
 }
@@ -519,6 +596,7 @@ struct ReadBody {
     entity: u32,
     moon_of: Option<u32>,
     deposits: Vec<String>,
+    asteroid: bool,
 }
 
 impl ReadBody {
@@ -537,6 +615,7 @@ impl ReadBody {
             entity: self.entity,
             deposits: self.deposits.clone(),
             moons: Vec::new(),
+            asteroid: self.asteroid,
         }
     }
 }
@@ -564,6 +643,7 @@ fn read_body(
         entity: read::scalar_u32(&node, keys::ENTITY, src).unwrap_or(0),
         moon_of: read::scalar_u32(&node, keys::MOON_OF, src),
         deposits,
+        asteroid: asteroid_names::parts(&read::name(&node, src)).is_some(),
     })
 }
 

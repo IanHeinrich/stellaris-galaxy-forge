@@ -163,6 +163,24 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   `random_name_database.star_names`. Names are templates:
   `STAR_NAME_1_OF_1`, `PLANET_NAME_FORMAT` with a roman numeral,
   `SUBPLANET_NAME_FORMAT` with the parent's whole name and a letter.
+- A system with belts writes `asteroid_belts={ { type="icy_asteroid_belt"
+  inner_radius=120 } }` after `hyperlane` (after `star_class` when it has
+  no lanes), one block per initializer `asteroid_belt` in script order,
+  laid out like the `hyperlane` entries. `inner_radius` is the script's
+  `radius` as written. A belt does not move the system's `inner_radius`:
+  only the bodies do. An asteroid (`asteroid = yes` class) is a body
+  entry like a planet at the belt's `orbit`, `planet_size=5`,
+  `entity=0`, with no moons. It is named `ASTEROID_NAME_FORMAT` with
+  plain variables `prefix` (`"TR44-"`) and `suffix` (`"009"`), and takes
+  no numeral: the planets are numbered I, II, … in list order, skipping
+  the asteroids. The names come from `random_name_database`: the
+  `asteroid_prefix` list, then one `asteroid_postfix` block per prefix in
+  the same order, and the game takes the suffix it used out of that
+  prefix's block. The install's lists repeat names: the suffix list holds
+  "863" twice, and the prefixes BT- and M4- each appear twice, each copy
+  with its own block. So the game itself repeats asteroid names, and
+  taking the second "863" can give a name the save already uses.
+  Checked on the 4.5.0 and 4.4.6 samples.
 - Loading a save builds whatever a new system is missing: a construction
   queue per body (and the planet's `build_queue`), an entry in every
   country's `intel_level` and `highest_intel_level`, the

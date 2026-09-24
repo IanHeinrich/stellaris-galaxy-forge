@@ -6,6 +6,9 @@
 pub(crate) const ACTIVE: &str = "active";
 pub(crate) const AMBIENT_OBJECT: &str = "ambient_object";
 pub(crate) const ARCHAEOLOGICAL_SITES: &str = "archaeological_sites";
+pub(crate) const ASTEROID_BELTS: &str = "asteroid_belts";
+pub(crate) const ASTEROID_POSTFIX: &str = "asteroid_postfix";
+pub(crate) const ASTEROID_PREFIX: &str = "asteroid_prefix";
 pub(crate) const BACKGROUND: &str = "background";
 pub(crate) const BINARY_FLAGS: &str = "binary_flags";
 pub(crate) const BOMBARDMENT_DAMAGE: &str = "bombardment_damage";
@@ -161,6 +164,9 @@ pub(crate) const ALL: &[&str] = &[
     ACTIVE,
     AMBIENT_OBJECT,
     ARCHAEOLOGICAL_SITES,
+    ASTEROID_BELTS,
+    ASTEROID_POSTFIX,
+    ASTEROID_PREFIX,
     BACKGROUND,
     BINARY_FLAGS,
     BOMBARDMENT_DAMAGE,

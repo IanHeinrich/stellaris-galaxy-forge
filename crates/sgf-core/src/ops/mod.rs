@@ -19,7 +19,7 @@ use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, Lane};
 use crate::session::Session;
 
-pub use crate::format::save::system_spec::{BodySpec, SystemSpec};
+pub use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
 pub use crate::format::save::write::add_system::free_star_names;
 pub use edit::Subject;
 pub(crate) use edit::{Edit, blank_slot, replace_lengths};
