@@ -13,11 +13,12 @@ use sgf_core::document::Document;
 use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec, free_star_names};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
+use sgf_gamedata::body_effects::{BodyEffect, Check};
 use sgf_gamedata::generate::{
     GenerateError, generate, pick_name, pick_system_name, plain_initializers, star_classes,
 };
-use sgf_gamedata::initializers::DepositEffect;
 use sgf_gamedata::install::script::Range;
+use sgf_gamedata::layouts::special_initializers;
 
 const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
 /// Free ground beside the player's home system 169, where the spike's system stood.
@@ -598,22 +599,31 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
         return;
     };
     let classes = star_classes(gd);
-    assert_eq!(
-        classes,
-        gd.star_lists.get("rl_standard_stars").unwrap().stars
-    );
+    let standard = &gd.star_lists.get("rl_standard_stars").unwrap().stars;
+    let (plain, special) = classes.split_at(standard.len());
+    assert_eq!(plain, standard);
+    assert_eq!(special, ["sc_black_hole", "sc_neutron_star", "sc_pulsar"]);
     assert_eq!(star_classes(gd), classes, "a stable order");
+    let specials: Vec<String> = special_initializers(gd)
+        .iter()
+        .map(|i| i.name.clone())
+        .collect();
     for class in &classes {
         let star = gd.star_classes.get(class).unwrap();
         for seed in 0..40 {
             let spec = generate(gd, seed, "Gen", SPOT, Some(class), ABUNDANCE).expect("a system");
             assert_eq!(spec.star_class, *class, "seed {seed}");
             assert_eq!(spec.star.class, star.planet_keys[0], "seed {seed}");
-            assert!(
-                plain_initializers(gd)
-                    .iter()
-                    .any(|i| i.name == spec.initializer)
+            let plain_layout = plain_initializers(gd)
+                .iter()
+                .any(|i| i.name == spec.initializer);
+            assert_eq!(
+                plain_layout,
+                plain.contains(class),
+                "seed {seed}: {class} from {}",
+                spec.initializer
             );
+            assert!(plain_layout || specials.contains(&spec.initializer));
             assert_eq!(
                 generate(gd, seed, "Gen", SPOT, Some(class), ABUNDANCE),
                 Ok(spec)
@@ -621,11 +631,8 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
         }
     }
     let error =
-        generate(gd, 1, "Gen", SPOT, Some("sc_black_hole"), ABUNDANCE).expect_err("no layout");
-    assert_eq!(
-        error,
-        GenerateError::NoLayoutFor("sc_black_hole".to_owned())
-    );
+        generate(gd, 1, "Gen", SPOT, Some("sc_binary_1"), ABUNDANCE).expect_err("no layout");
+    assert_eq!(error, GenerateError::NoLayoutFor("sc_binary_1".to_owned()));
 }
 
 /// The 4.5 sample with its pool of unused star names holding `pool` instead.
@@ -761,36 +768,45 @@ fn deposits(spec: &SystemSpec) -> Vec<Vec<String>> {
 }
 
 #[test]
-fn a_layouts_deposit_effects_are_read_in_order_without_the_conditional_ones() {
+fn a_layouts_body_effects_are_read_in_order_with_what_cannot_be_written() {
     let (_dir, gd) = with_effects();
     let init = gd.initializers.get("fx_effects").expect("fx_effects");
     let gem = || "d_fx_gem".to_owned();
     let bright = || "d_fx_bright".to_owned();
+    assert_eq!(init.planets[0].effects, [BodyEffect::SetDeposit(bright())]);
     assert_eq!(
-        init.planets[0].deposit_effects,
-        [DepositEffect::Set(bright())]
-    );
-    assert_eq!(
-        init.planets[1].deposit_effects,
+        init.planets[1].effects,
         [
-            DepositEffect::Clear,
-            DepositEffect::Add(gem()),
-            DepositEffect::Add(gem())
+            BodyEffect::ClearDeposits,
+            BodyEffect::AddDeposit(gem()),
+            BodyEffect::AddDeposit(gem()),
+            BodyEffect::Branch(vec![(
+                Some(Check::All(vec![Check::Trigger("always".to_owned(), true)])),
+                vec![BodyEffect::AddDeposit(bright())]
+            )]),
         ],
-        "the `if` and the random blocker left out"
+        "the `if` kept with its check"
     );
     assert_eq!(
-        init.planets[2].deposit_effects,
-        [DepositEffect::Add(gem())],
+        init.planets[1].unwritten.as_deref(),
+        Some("add_deposit"),
+        "a random blocker is no deposit key"
+    );
+    assert_eq!(
+        init.planets[2].effects,
+        [BodyEffect::AddDeposit(gem())],
         "its moon's aside"
     );
     assert_eq!(
-        init.planets[2].moons[0].deposit_effects,
-        [DepositEffect::Clear]
+        init.planets[2].moons[0].effects,
+        [BodyEffect::ClearDeposits]
     );
     assert_eq!(
-        init.planets[3].deposit_effects,
-        [DepositEffect::Add(gem()), DepositEffect::Set(bright())]
+        init.planets[3].effects,
+        [
+            BodyEffect::AddDeposit(gem()),
+            BodyEffect::SetDeposit(bright())
+        ]
     );
 }
 

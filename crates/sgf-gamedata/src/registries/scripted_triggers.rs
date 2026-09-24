@@ -19,6 +19,9 @@ const MAX_DEPTH: usize = 16;
 pub struct ScriptedTrigger {
     pub key: String,
     pub condition: Condition,
+    /// The DLC a trigger that checks nothing but `host_has_dlc = "…"` names, as the save's
+    /// `required_dlcs` names it.
+    pub host_dlc: Option<String>,
 }
 
 impl FromDef for ScriptedTrigger {
@@ -30,8 +33,24 @@ impl FromDef for ScriptedTrigger {
         } else {
             Condition::compile(&def.node, def)
         };
-        Self { key, condition }
+        Self {
+            key,
+            condition,
+            host_dlc: host_dlc(def),
+        }
     }
+}
+
+fn host_dlc(def: &Def) -> Option<String> {
+    let mut checks = def.node.children().iter().filter(|c| {
+        c.key_str(&def.src)
+            .is_some_and(|key| key != "optimize_memory")
+    });
+    let only = checks.next()?;
+    if checks.next().is_some() || only.key_str(&def.src) != Some("host_has_dlc") {
+        return None;
+    }
+    only.scalar_str(&def.src).map(str::to_owned)
 }
 
 /// A trigger written for `$PARAM$` substitution or `[[PARAM] ... ]` sections, whose meaning

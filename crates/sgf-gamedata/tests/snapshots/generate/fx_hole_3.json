@@ -1,0 +1,41 @@
+{
+  "name": "Fx",
+  "x": 1.0,
+  "y": 2.0,
+  "star_class": "sc_hole",
+  "initializer": "fx_hole",
+  "capped": false,
+  "star_named_by_class": false,
+  "star": {
+    "class": "pc_hole",
+    "size": 36,
+    "orbit": 0.0,
+    "angle": 252.11,
+    "entity": 0,
+    "deposits": [],
+    "moons": [],
+    "asteroid": false,
+    "name": null,
+    "entity_name": null,
+    "modifiers": [],
+    "ring": false
+  },
+  "planets": [
+    {
+      "class": "pc_husk",
+      "size": 12,
+      "orbit": 60.0,
+      "angle": 252.11,
+      "entity": 0,
+      "deposits": [],
+      "moons": [],
+      "asteroid": false,
+      "name": null,
+      "entity_name": null,
+      "modifiers": [],
+      "ring": false
+    }
+  ],
+  "belts": [],
+  "lanes": []
+}
