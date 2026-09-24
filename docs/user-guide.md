@@ -62,6 +62,10 @@ Position fields on the Inspector's Overview tab. A moved system keeps its
 lanes, and their lengths are updated. Its planets and fleets move with
 it.
 
+To delete several systems you added since opening the save, select them,
+right-click one and pick "Delete N added systems". Systems the save
+already had are left alone.
+
 ### Hyperlanes
 
 - To add a lane, zoom in until a ring appears around a star, then drag

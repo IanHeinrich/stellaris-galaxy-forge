@@ -134,7 +134,7 @@ function removeAll(ids: readonly number[], description: string): Op {
 }
 
 /** How many lanes touch at least one of `ids`, each counted once. */
-function distinctLanes(ids: readonly number[]): number {
+export function distinctLanes(ids: readonly number[]): number {
   const lanes = new PairSet();
   for (const id of ids) {
     for (const lane of systems().get(id)?.lanes ?? []) lanes.add(id, lane.to);

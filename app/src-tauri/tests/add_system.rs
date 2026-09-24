@@ -3,7 +3,7 @@
 use serde_json::json;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::projections::galaxy::SystemNode;
-use sgf_core::views::{EditResult, ErrorKind, GalaxyView, OpenResult};
+use sgf_core::views::{EditResult, ErrorKind, GalaxyView, OpenResult, SystemDetail};
 
 /// The Stellaris 4.5 sample, whose galaxy was set up at 2x resource abundance.
 const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
@@ -246,6 +246,100 @@ fn deleting_the_middle_of_three_added_systems_renumbers_and_undo_and_redo_follow
     assert_eq!(redone.delta.renumbered, deleted.delta.renumbered);
     assert_eq!(redone.delta.removed, [c]);
     assert_eq!(name_of(&redone, b), names[2]);
+}
+
+fn name_at(w: &tauri::WebviewWindow<tauri::test::MockRuntime>, id: u32) -> String {
+    let detail: SystemDetail =
+        invoke(w, "get_system", json!({ "id": id })).unwrap_or_else(|e| panic!("{id}: {e:?}"));
+    detail.system.name.key
+}
+
+#[test]
+fn deleting_added_systems_in_bulk_skips_the_files_own_and_undoes_in_one_step() {
+    if !have_install() {
+        return;
+    }
+    let w = webview();
+    let opened: OpenResult = invoke(&w, "open_save", json!({ "path": SAMPLE_45 })).expect("open");
+    invoke::<serde_json::Value>(&w, "load_game_data", json!({ "mods": false })).expect("load");
+    let mut taken = Vec::new();
+    let mut ids = Vec::new();
+    let mut names = Vec::new();
+    for seed in [21, 22, 23, 24] {
+        let (x, y) = free_spot_beside(&opened.galaxy, 12.0, &taken);
+        taken.push((x, y));
+        let result: EditResult = invoke(
+            &w,
+            "add_random_system",
+            json!({ "seed": seed, "x": x, "y": y, "starClass": null }),
+        )
+        .expect("add a system");
+        ids.push(added(&result).id);
+        names.push(added(&result).name.key.clone());
+    }
+    let [first, second, third, fourth] = ids[..] else {
+        panic!("four systems added");
+    };
+    assert_eq!([second, third, fourth], [first + 1, first + 2, first + 3]);
+    let own = opened.galaxy.systems[0].id;
+    let own_name = name_at(&w, own);
+
+    let refused = invoke::<EditResult>(&w, "remove_added_systems", json!({ "ids": [own] }))
+        .expect_err("the file's own systems alone are refused");
+    assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
+
+    let deleted: EditResult = invoke(
+        &w,
+        "remove_added_systems",
+        json!({ "ids": [fourth, own, second] }),
+    )
+    .expect("delete the second and the fourth");
+    assert_eq!(
+        deleted.delta.renumbered,
+        [(second, None), (fourth, None), (third, Some(second))]
+    );
+    assert_eq!(deleted.delta.removed, [third, fourth]);
+    assert_eq!(deleted.history.undo.len(), 5, "four adds and one delete");
+    assert!(
+        deleted.entry.description.starts_with("Removed 2 systems"),
+        "{}",
+        deleted.entry.description
+    );
+    let left = |w| {
+        [first, second, own]
+            .iter()
+            .map(|&id| name_at(w, id))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        left(&w),
+        [names[0].clone(), names[2].clone(), own_name.clone()],
+        "the third takes the second's id and the file's own system stays"
+    );
+    for gone in [third, fourth] {
+        let missing = invoke::<SystemDetail>(&w, "get_system", json!({ "id": gone }))
+            .expect_err("no system past the renumbered third");
+        assert_eq!(missing.kind, ErrorKind::NotFound, "{gone}");
+    }
+
+    let undone: EditResult = invoke::<Option<EditResult>>(&w, "undo", json!({}))
+        .expect("undo")
+        .expect("a step to undo");
+    assert_eq!(
+        undone.history.undo.len(),
+        4,
+        "one undo takes the whole delete back"
+    );
+    for (&id, name) in ids.iter().zip(&names) {
+        assert_eq!(&name_at(&w, id), name, "{id} is back at its own id");
+    }
+
+    let redone: EditResult = invoke::<Option<EditResult>>(&w, "redo", json!({}))
+        .expect("redo")
+        .expect("a step to redo");
+    assert_eq!(redone.delta.renumbered, deleted.delta.renumbered);
+    assert_eq!(redone.delta.removed, deleted.delta.removed);
+    assert_eq!(left(&w), [names[0].clone(), names[2].clone(), own_name]);
 }
 
 #[test]

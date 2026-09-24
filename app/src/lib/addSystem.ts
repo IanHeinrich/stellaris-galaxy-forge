@@ -1,4 +1,6 @@
 import type { SaveMeta } from "../generated/SaveMeta";
+import type { SystemNode } from "../generated/SystemNode";
+import { counted } from "./text";
 import { versionNumber } from "./version";
 
 /** How near another system the game spawns one: its `SPAWN_SYSTEM_BUFFER_DISTANCE`. */
@@ -59,4 +61,22 @@ export function addSystemRefusal(facts: PlaceFacts): AddRefusal | null {
 export function newSeed(): number {
   const [high, low] = crypto.getRandomValues(new Uint32Array(2));
   return (high & 0x1fffff) * 0x100000000 + low;
+}
+
+/** The systems among `ids` added this session, in the order given. */
+export function addedAmong(
+  systems: ReadonlyMap<number, SystemNode>,
+  ids: readonly number[],
+): number[] {
+  return ids.filter((id) => systems.get(id)?.added === true);
+}
+
+/**
+ * The menu entry that deletes the `added` systems of a selection and skips the `skipped` the
+ * file already held, or null when none was added.
+ */
+export function deleteAddedLabel(added: number, skipped: number): string | null {
+  if (added === 0) return null;
+  const label = `Delete ${counted(added, "added system")}`;
+  return skipped === 0 ? label : `${label} (skips ${skipped} already in the save)`;
 }
