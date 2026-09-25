@@ -10,7 +10,7 @@ use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 
-mod common;
+use crate::common;
 use common::examples::{self, one_of_each};
 use common::fixture::GRAMMAR;
 

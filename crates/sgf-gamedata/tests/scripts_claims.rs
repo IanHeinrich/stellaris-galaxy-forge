@@ -2,7 +2,7 @@
 //! global flags a system carries, the claims a game-start sweep makes on
 //! them, and the day-one tier those claims give a territory.
 
-mod common;
+use crate::common;
 
 use std::collections::BTreeSet;
 

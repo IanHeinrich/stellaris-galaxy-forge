@@ -13,7 +13,7 @@ use sgf_core::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScr
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
 
-mod common;
+use crate::common;
 use common::export::{
     NAME, SAVE_FILE, at_fixture_version, default_capitals, exported_as, find, no_names, no_sources,
     seated,

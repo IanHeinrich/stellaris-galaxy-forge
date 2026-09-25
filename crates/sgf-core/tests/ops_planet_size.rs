@@ -5,10 +5,10 @@ use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 
-mod common;
+use crate::common;
 use common::diff::{plain_report, round_trip};
 use common::examples;
-use common::{SAMPLE_4_5, current, open};
+use common::{current, open, open_4_5};
 
 fn set(id: u32, size: u32) -> Op {
     Op::SetPlanetSize { id, size }
@@ -51,7 +51,7 @@ fn change_and_undo(session: &mut Session, system: u32, planet: u32, size: u32, s
 
 #[test]
 fn the_4_5_samples_star_body_grows_and_back() {
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = open_4_5();
     assert_eq!(planet_size(&session, 1, 584), Some(29));
     change_and_undo(&mut session, 1, 584, 40, "star_body_4_5");
 
@@ -68,7 +68,7 @@ fn the_4_5_samples_star_body_grows_and_back() {
 
 #[test]
 fn the_4_5_samples_barren_planet_shrinks() {
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = open_4_5();
     assert_eq!(planet_size(&session, 1, 585), Some(27));
     change_and_undo(&mut session, 1, 585, 12, "planet_4_5");
 }
@@ -168,7 +168,7 @@ fn a_size_change_rereads_its_planet_and_keeps_the_details_built() {
 
 #[test]
 fn a_star_bodys_new_size_reaches_the_map() {
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = open_4_5();
     let size_of = |system: &sgf_core::projections::galaxy::SystemNode| {
         system.bodies.as_ref().expect("the system's bodies")[1].size
     };

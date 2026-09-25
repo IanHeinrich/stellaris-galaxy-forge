@@ -4,7 +4,7 @@ use sgf_core::document::Document;
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::validate::{Severity, validate};
 
-mod common;
+use crate::common;
 use common::SAMPLE_4_5;
 
 fn load() -> Document {

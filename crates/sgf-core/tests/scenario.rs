@@ -11,7 +11,7 @@ use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 use sgf_core::views::{DocumentKind, GalaxyView};
 
-mod common;
+use crate::common;
 use common::fixture::{GRAMMAR, from_scenario_text};
 
 /// Every distinct lane with its length, ascending.

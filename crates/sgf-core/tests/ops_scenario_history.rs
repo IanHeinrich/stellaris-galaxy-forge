@@ -2,7 +2,7 @@
 
 use sgf_core::ops::{Op, OpError};
 
-mod common;
+use crate::common;
 use common::current;
 use common::diff::{report, round_trip, snapshot};
 use common::fixture::GRAMMAR;

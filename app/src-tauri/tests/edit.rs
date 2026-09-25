@@ -2,7 +2,7 @@
 use serde_json::json;
 use sgf_core::views::{EditResult, ErrorKind, OpenResult, SystemDetail};
 
-mod common;
+use crate::common;
 use common::{SAMPLE, invoke, kind, webview};
 
 #[test]

@@ -6,7 +6,7 @@ use sgf_core::ops::{InitializerSet, LanePair, Op, SystemMove};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 
-mod common;
+use crate::common;
 use common::brush::new_system;
 use common::current;
 use common::diff::{assert_fresh, round_trip, round_trip_step as step};

@@ -2,7 +2,7 @@
 //! route to an empire's identity, an owner set through a scope, and a
 //! system two statements fight over.
 
-mod common;
+use crate::common;
 
 use sgf_gamedata::scripts::{OwnerIdentity, TERRITORY_BASE};
 

@@ -9,19 +9,15 @@ use sgf_core::ops::{Op, SystemSpec, free_black_hole_names, free_star_names};
 use sgf_core::session::Session;
 use similar::{Algorithm, TextDiff};
 
-mod common;
+use crate::common;
 use common::diff::{report, round_trip_step};
 use common::spec::{body, mura};
-use common::{SAMPLE_4_5, current, text};
+use common::{current, open_4_5, text};
 
 const UNPOOLED: &str = "Sgf_Renamed";
 /// The id a new system takes on the 4.5 sample, and where a second one fits.
 const ADDED: u32 = 601;
 const TWIN_AT: (f64, f64) = (-270.0, -130.0);
-
-fn open_4_5() -> Session {
-    Session::open(SAMPLE_4_5).expect("open the 4.5 sample")
-}
 
 /// A lone black hole where the spike's system stands, linked to the player's home.
 fn black_hole(name: &str) -> SystemSpec {

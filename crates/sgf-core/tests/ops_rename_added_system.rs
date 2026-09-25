@@ -9,10 +9,10 @@ use sgf_core::ops::{Op, OpError, SystemSpec, free_star_names};
 use sgf_core::session::Session;
 use similar::{Algorithm, TextDiff};
 
-mod common;
+use crate::common;
 use common::diff::round_trip_step;
 use common::spec::{belted, dorellion, mura, rerolled};
-use common::{SAMPLE_4_5, current, examples, open, text};
+use common::{current, examples, open, open_4_5, text};
 
 const UNPOOLED: &str = "Sgf_Renamed";
 
@@ -22,13 +22,7 @@ type Sample = (Session, SystemSpec, u32, (f64, f64), u32);
 
 fn samples() -> [Sample; 2] {
     [
-        (
-            Session::open(SAMPLE_4_5).expect("open the 4.5 sample"),
-            mura(),
-            601,
-            (-270.0, -130.0),
-            169,
-        ),
+        (open_4_5(), mura(), 601, (-270.0, -130.0), 169),
         (open(), dorellion(), 791, (415.0, -190.0), 217),
     ]
 }

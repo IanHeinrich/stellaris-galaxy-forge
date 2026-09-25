@@ -1,7 +1,7 @@
 //! Visual definition registries on the synthetic fixture install, then
 //! against the real Stellaris install when this machine has one.
 
-mod common;
+use crate::common;
 
 use sgf_core::format::save::details::DetailsResolver;
 use sgf_gamedata::views::{BypassView, ShipSizeView};

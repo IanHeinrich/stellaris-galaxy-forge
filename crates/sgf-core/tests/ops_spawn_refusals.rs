@@ -4,7 +4,7 @@
 use sgf_core::ops::{Op, OpError};
 use sgf_core::views::DocumentKind;
 
-mod common;
+use crate::common;
 use common::fixture::GRAMMAR;
 
 #[test]

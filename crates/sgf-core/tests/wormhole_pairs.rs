@@ -6,7 +6,7 @@ use sgf_core::format::scenario::paint;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::BypassLink;
 
-mod common;
+use crate::common;
 use common::diff::{plain_report, round_trip};
 use common::fixture::{PAINTED, from_scenario_text};
 

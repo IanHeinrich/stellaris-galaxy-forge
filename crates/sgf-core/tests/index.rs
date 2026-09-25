@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use sgf_core::archive;
 use sgf_core::scan::{Value, key_name};
 
-mod common;
+use crate::common;
 use common::load;
 
 #[test]

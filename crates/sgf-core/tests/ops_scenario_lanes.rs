@@ -3,7 +3,7 @@
 
 use sgf_core::ops::{LanePair, Op, OpError};
 
-mod common;
+use crate::common;
 use common::diff::snapshot;
 use common::fixture::GRAMMAR;
 

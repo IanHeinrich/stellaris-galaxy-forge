@@ -12,7 +12,7 @@ use sgf_core::projections::galaxy::FlagRef;
 use sgf_core::projections::name::{NameTemplate, NameVariable};
 use sgf_core::session::Session;
 
-mod common;
+use crate::common;
 
 /// The sample save with its details projection built, shared by every test in this file:
 /// they all read it and none of them writes.

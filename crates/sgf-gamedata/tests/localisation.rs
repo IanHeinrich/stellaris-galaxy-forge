@@ -1,7 +1,7 @@
 //! Localisation on the synthetic install: the line format, layering,
 //! `replace/`, references and markup.
 
-mod common;
+use crate::common;
 
 use sgf_core::projections::name::{NameTemplate, NameVariable};
 use sgf_gamedata::{LoadOptions, Localisation};

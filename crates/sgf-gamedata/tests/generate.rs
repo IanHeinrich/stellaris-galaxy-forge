@@ -2,11 +2,11 @@
 //! fields it reads, on a hand-written install and on the real one, and the spec it rolls
 //! added to the 4.5 sample save.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use sgf_core::archive;
 use sgf_core::document::Document;
@@ -20,14 +20,14 @@ use sgf_gamedata::generate::{
 use sgf_gamedata::install::script::Range;
 use sgf_gamedata::layouts::special_initializers;
 
-const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
+use common::SAMPLE_4_5;
 /// Free ground beside the player's home system 169, where the spike's system stood.
 const SPOT: (f64, f64) = (-292.23404, -137.62265);
 const SEEDS: u64 = 1000;
 /// The Resource Abundance both sample saves were generated with.
 const ABUNDANCE: f64 = 2.0;
 
-static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(common::load_real);
+use common::INSTALL;
 
 const FILES: [(&str, &str); 8] = [
     (
@@ -501,7 +501,7 @@ fn a_rolled_system_is_added_to_a_save_and_reopens_with_its_findings() {
     let Some(gd) = install() else {
         return;
     };
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = common::open_4_5();
     let before = findings(&session);
     let mut spec = generate(gd, 3, "Gen", SPOT, None, ABUNDANCE).unwrap();
     spec.lanes = vec![169];
@@ -659,7 +659,7 @@ fn a_name_comes_from_the_pool_then_from_the_install_then_from_no_one() {
     let Some(gd) = install() else {
         return;
     };
-    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let session = common::open_4_5();
     let pool = free_star_names(&session.doc);
     assert!(
         pool.iter().all(|name| gd.star_names.contains(name)),

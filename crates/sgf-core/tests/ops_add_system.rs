@@ -11,16 +11,12 @@ use sgf_core::ops::{BeltSpec, Op, OpError, StarBody, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 
-mod common;
+use crate::common;
 use common::diff::{report, round_trip, round_trip_step};
 use common::spec::{belted, body, dorellion, mura};
-use common::{SAMPLE_3_4, SAMPLE_4_5, current, open, open_edited, text};
+use common::{current, open, open_3_4, open_4_5, open_edited, text};
 
 const GENERATION: u32 = 1 << 24;
-
-fn open_4_5() -> Session {
-    Session::open(SAMPLE_4_5).expect("open the 4.5 sample")
-}
 
 /// Both samples, each with the spike's system for it and the id it takes.
 fn samples() -> [(Session, SystemSpec, u32); 2] {
@@ -509,7 +505,7 @@ fn refused(mut session: Session, spec: SystemSpec) -> OpError {
 
 #[test]
 fn what_the_op_refuses() {
-    let old = Session::open(SAMPLE_3_4).expect("open the 3.4 sample");
+    let old = open_3_4();
     assert!(matches!(refused(old, dorellion()), OpError::SaveTooOld(v) if v.contains("v3.4")));
 
     let gap = open_edited(|bytes| {

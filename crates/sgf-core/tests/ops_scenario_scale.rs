@@ -1,6 +1,6 @@
 //! Scenario edits timed on a synthetic 8,800-system grid with 17,410 lanes, and the same
 //! paint on the exported sample scenario for comparison. Ignored by default: run with
-//! `cargo test -p sgf-core --test ops_scenario_scale -- --ignored --nocapture`.
+//! `cargo test -p sgf-core --test integration ops_scenario_scale -- --ignored --nocapture`.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -11,7 +11,7 @@ use sgf_core::emit;
 use sgf_core::ops::Op;
 use sgf_core::session::{OpResult, Session};
 
-mod common;
+use crate::common;
 use common::brush::{grid, new_system, paint};
 use common::current;
 use common::fixture::EXPORTED;

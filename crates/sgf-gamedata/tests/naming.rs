@@ -2,7 +2,7 @@
 //! install's lists less the names the document's nebulae hold, then from no one. On a
 //! hand-written install, the real one and the 4.5 sample save and a scenario.
 
-mod common;
+use crate::common;
 
 use std::fs;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::naming::{pick_nebula_name, pick_pooled_nebula_name};
 
-const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
+use common::SAMPLE_4_5;
 const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/2206.11.16.scenario.txt"
@@ -79,7 +79,7 @@ fn a_hand_written_install_lists_its_nebula_names_once_each_in_file_order() {
 #[test]
 fn a_save_names_a_nebula_from_its_pool_first() {
     let (_dir, gd) = install_naming(&[FREE]);
-    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let session = common::open_4_5();
     let pool = free_nebula_names(&session.doc);
     for seed in 0..20 {
         let name = pick_nebula_name(&session, &gd, seed).expect("a name");
@@ -127,7 +127,7 @@ fn the_real_install_lists_every_name_the_sample_pool_holds() {
     let Some(gd) = common::load_real() else {
         return;
     };
-    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let session = common::open_4_5();
     let pool = free_nebula_names(&session.doc);
     assert_eq!(
         pool.len() + session.graph.nebulae.len(),
