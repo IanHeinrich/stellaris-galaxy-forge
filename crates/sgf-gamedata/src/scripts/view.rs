@@ -17,8 +17,7 @@ pub const ROW_LIMIT: usize = 200;
 pub const SITE_LIMIT: usize = 50;
 
 /// One system of a scenario document, as the ownership pass reads it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
-#[ts(export)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScenarioSystem<'a> {
     pub id: u32,
     /// The `initializer = ` the system statement names.

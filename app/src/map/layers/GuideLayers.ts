@@ -1,14 +1,15 @@
 import { BitmapText, Container, type FederatedPointerEvent, Graphics, TextStyle } from "pixi.js";
 import type { Guide } from "../../generated/Guide";
 import type { LGate } from "../../generated/LGate";
-import { lClusterGuide, SCENARIO_HALF_EXTENT } from "../../lib/guides";
+import { lClusterGuide, mapExtent } from "../../lib/guides";
 import type { LayerId } from "../../lib/visual/layerIds";
 import { ACCENT_COLOR, MAP_FONT } from "../../lib/visual/style";
 import { useLGateStore } from "../../store/lgateStore";
-import { useMapChromeStore } from "../../store/mapChromeStore";
+import { OwnedTooltip } from "../ownedTooltip";
 import type { Camera } from "../Camera";
 import { lgateOutcomeLine } from "../../lib/lgate";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
+import { dashedCircle, dashedLine } from "./dashes";
 import type { MapLayer } from "./MapLayer";
 
 /** A neutral grey no other layer draws in, faint enough to sit under everything. */
@@ -54,35 +55,14 @@ interface Placed {
   top: number;
 }
 
-function dashedLine(g: Graphics, ax: number, ay: number, bx: number, by: number): void {
-  const length = Math.hypot(bx - ax, by - ay);
-  const ux = (bx - ax) / length;
-  const uy = (by - ay) / length;
-  for (let at = 0; at < length; at += DASH + GAP) {
-    const end = Math.min(at + DASH, length);
-    g.moveTo(ax + ux * at, ay + uy * at).lineTo(ax + ux * end, ay + uy * end);
-  }
-}
-
 function dashedSquare(g: Graphics, half: number): void {
-  dashedLine(g, -half, -half, half, -half);
-  dashedLine(g, half, -half, half, half);
-  dashedLine(g, half, half, -half, half);
-  dashedLine(g, -half, half, -half, -half);
-}
-
-function dashedCircle(g: Graphics, radius: number): void {
-  const step = (Math.PI * 2) / CIRCLE_DASHES;
-  for (let i = 0; i < CIRCLE_DASHES; i++) {
-    const start = i * step;
-    g.moveTo(radius * Math.cos(start), radius * Math.sin(start)).arc(
-      0,
-      0,
-      radius,
-      start,
-      start + step * 0.6,
-    );
-  }
+  const corners = [
+    { x: -half, y: -half },
+    { x: half, y: -half },
+    { x: half, y: half },
+    { x: -half, y: half },
+  ];
+  corners.forEach((a, i) => dashedLine(g, a, corners[(i + 1) % 4], DASH, GAP));
 }
 
 /**
@@ -172,13 +152,14 @@ export class MapBorderLayer extends GuideLayer {
   }
 
   protected draw(g: Graphics, ctx: RenderContext): Placed | null {
-    if (ctx.kind !== "save") {
-      dashedSquare(g, SCENARIO_HALF_EXTENT);
-      return { x: 0, y: 0, top: -SCENARIO_HALF_EXTENT };
+    const extent = mapExtent(ctx.kind, ctx.radius);
+    if (extent === null) return null;
+    if (extent.shape === "square") {
+      dashedSquare(g, extent.half);
+      return { x: 0, y: 0, top: -extent.half };
     }
-    if (ctx.radius <= 0) return null;
-    dashedCircle(g, ctx.radius);
-    return { x: 0, y: 0, top: -ctx.radius };
+    dashedCircle(g, 0, 0, extent.radius, CIRCLE_DASHES);
+    return { x: 0, y: 0, top: -extent.radius };
   }
 }
 
@@ -195,6 +176,7 @@ export class LClusterLayer extends GuideLayer {
   private revealed = useLGateStore.getState().revealed;
   private readonly link: BitmapText;
   private linkHovered = false;
+  private readonly tip = new OwnedTooltip();
 
   constructor() {
     super(L_CLUSTER_LABEL);
@@ -230,7 +212,7 @@ export class LClusterLayer extends GuideLayer {
 
   protected draw(g: Graphics, ctx: RenderContext): Placed | null {
     this.guide = lClusterGuide(ctx.kind, ctx.systems.values());
-    dashedCircle(g, this.guide.radius);
+    dashedCircle(g, 0, 0, this.guide.radius, CIRCLE_DASHES);
     return { x: this.guide.x, y: this.guide.y, top: this.guide.y - this.guide.radius };
   }
 
@@ -276,7 +258,7 @@ export class LClusterLayer extends GuideLayer {
   private hoverLink(e: FederatedPointerEvent): void {
     this.linkHovered = true;
     this.link.alpha = 1;
-    useMapChromeStore.getState().showTooltip({
+    this.tip.show({
       x: e.global.x,
       y: e.global.y,
       title: L_CLUSTER_LABEL,
@@ -288,6 +270,6 @@ export class LClusterLayer extends GuideLayer {
     if (!this.linkHovered) return;
     this.linkHovered = false;
     this.link.alpha = LINK_ALPHA;
-    useMapChromeStore.getState().hideTooltip();
+    this.tip.hide();
   }
 }

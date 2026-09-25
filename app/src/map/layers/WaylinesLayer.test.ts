@@ -5,7 +5,7 @@ import type { StarbaseSummary } from "../../generated/StarbaseSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { Wayline } from "../../generated/Wayline";
 import type { Waystation } from "../../generated/Waystation";
-import { ALL_CAPABILITIES } from "../../lib/capabilities";
+import { SAVE_CAPABILITIES } from "../../lib/capabilities";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { name, systemDetails } from "../../test/builders";
 import { DETAIL_SCALE } from "../../lib/visual/labels";
@@ -158,7 +158,7 @@ describe("the waylines layer", () => {
   });
 
   it("draws above the territories, beside the bypass badges and under the system names", () => {
-    const order = layersFor(ALL_CAPABILITIES).map((entry) => entry.id);
+    const order = layersFor(SAVE_CAPABILITIES).map((entry) => entry.id);
     expect(order.indexOf("waylines")).toBeGreaterThan(order.indexOf("owners"));
     expect(order.indexOf("waylines")).toBe(order.indexOf("bypasses") - 1);
     expect(order.indexOf("waylines")).toBeLessThan(order.indexOf("labels"));

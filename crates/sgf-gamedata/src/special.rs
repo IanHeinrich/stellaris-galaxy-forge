@@ -2,7 +2,7 @@
 //! why. The save's flags are ground truth; game data adds what the
 //! initializer and the countries it spawns say, and supplies display names.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use sgf_core::export::policy::is_generic_initializer;
@@ -13,6 +13,7 @@ use sgf_core::session::Session;
 use ts_rs::TS;
 
 use crate::GameData;
+use crate::generate::star_pick_layouts;
 use crate::initializers::{FlagIcon, Initializer, SpawnedCountry};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
@@ -46,6 +47,18 @@ impl SpecialKind {
             Self::FallenEmpire => "fallen_empire",
             Self::Landmark => "landmark",
             Self::Unique => "unique",
+        }
+    }
+
+    /// The name the app's chips and rows give the kind (`app/src/lib/special.ts`).
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Leviathan => "Leviathan",
+            Self::Enclave => "Enclave",
+            Self::Marauder => "Marauder",
+            Self::FallenEmpire => "Fallen empire",
+            Self::Landmark => "Landmark",
+            Self::Unique => "Unique",
         }
     }
 }
@@ -190,13 +203,21 @@ pub fn classify_with_countries(
             .entry(country.name_key.as_str())
             .or_insert(country.id);
     }
+    let drawn: HashSet<&str> = gd
+        .map(|gd| {
+            star_pick_layouts(gd)
+                .into_iter()
+                .map(|init| init.name.as_str())
+                .collect()
+        })
+        .unwrap_or_default();
     let systems: Vec<SpecialSystem> = graph
         .order
         .iter()
         .filter_map(|id| graph.systems.get(id))
         .filter_map(|node| {
             let here = present.get(&node.id).map_or(&[][..], Vec::as_slice);
-            classify_one(node, gd, here, &by_name_key)
+            classify_one(node, gd, here, &by_name_key, &drawn)
         })
         .collect();
     let counts = KIND_ORDER
@@ -269,9 +290,10 @@ fn classify_one(
     gd: Option<&GameData>,
     present: &[PresentCountry],
     by_name_key: &HashMap<&str, u32>,
+    drawn: &HashSet<&str>,
 ) -> Option<SpecialSystem> {
     let extra = enrich(node, gd);
-    let kinds = kinds_of(node, &extra);
+    let kinds = kinds_of(node, &extra, drawn);
     let primary = *kinds.first()?;
     let countries: Vec<CountryRef> = if extra.countries.is_empty() {
         present_refs(gd, present, primary)
@@ -350,11 +372,11 @@ fn fits_kind(gd: Option<&GameData>, country: &PresentCountry, kind: SpecialKind)
 
 /// Every kind the system matches, in [`KIND_ORDER`]; `Unique` only when
 /// nothing above it matched.
-fn kinds_of(node: &SystemNode, extra: &Enrichment<'_>) -> Vec<SpecialKind> {
+fn kinds_of(node: &SystemNode, extra: &Enrichment<'_>, drawn: &HashSet<&str>) -> Vec<SpecialKind> {
     let mut kinds = Vec::new();
     for kind in KIND_ORDER {
         if kind == SpecialKind::Unique {
-            if kinds.is_empty() && is_unique_initializer(&node.initializer) {
+            if kinds.is_empty() && is_unique_initializer(&node.initializer, drawn) {
                 kinds.push(kind);
             }
             continue;
@@ -378,6 +400,8 @@ fn matches(node: &SystemNode, extra: &Enrichment<'_>, kind: SpecialKind) -> bool
     }
 }
 
-fn is_unique_initializer(initializer: &str) -> bool {
-    !initializer.is_empty() && !is_generic_initializer(initializer)
+/// A layout neither the game's standard ones (without game data, the only ones known) nor
+/// one of the install's the generator draws for Random or a star pick, the set `drawn`.
+fn is_unique_initializer(initializer: &str, drawn: &HashSet<&str>) -> bool {
+    !initializer.is_empty() && !is_generic_initializer(initializer) && !drawn.contains(initializer)
 }

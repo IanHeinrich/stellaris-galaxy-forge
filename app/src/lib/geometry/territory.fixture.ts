@@ -20,7 +20,7 @@ interface Point {
   y: number;
 }
 
-export interface Galaxy {
+interface Galaxy {
   systems: SystemNode[];
   laneCount: number;
   /** Every country and how many systems it holds, largest first. */

@@ -15,26 +15,23 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::as_u32;
-use crate::cst::{self, Node};
+use crate::cst::Node;
 use crate::document::Document;
-use crate::emit::coord;
-use crate::emit::system::RING_FLAG;
-use crate::format::save::added::Table;
-use crate::format::save::alloc::{self, Counter, SlotTable};
-use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
-use crate::format::save::write::add_system::polar;
+use crate::entity::views::EntityKind;
+use crate::format::save::alloc::{self, SlotTable};
+use crate::format::save::read_spec::{bodies, spec_of};
 use crate::format::save::write::asteroid_names::{self, Pool};
-use crate::format::save::write::footprint::Footprints;
+use crate::format::save::write::footprint::{Footprints, is_bare};
 use crate::format::save::write::initializer_counter::{self, counted};
 use crate::format::save::write::lanes::remove_entries;
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
-use crate::format::save::{planet_statement, system_statement};
-use crate::format::scenario::index::removed as emptied;
+use crate::format::save::{check_version, entity, system_statement};
 use crate::keys;
 use crate::ops::rules::each_once;
-use crate::ops::{Edit, Op, OpError, Plan, Planned, Subject};
+use crate::ops::{Edit, LaneLength, NebulaFootprint, Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::plural;
+use crate::projections::galaxy::lane_length;
 use crate::projections::read;
 use crate::session::Session;
 
@@ -71,7 +68,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
                 last: counter.last,
                 count: s.graph.systems.len(),
             })?;
-    set_counter(plan, &s.doc, &counter, last)?;
+    counter.set(plan, &s.doc, last)?;
     uncount(plan, s, &removed)?;
     return_names(plan, s, &removed)?;
     return_asteroid_names(plan, s, &removed)?;
@@ -82,7 +79,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
 }
 
 pub(crate) fn check_added(s: &Session, id: u32) -> Result<(), OpError> {
-    if s.doc.added().get(Table::System, id).is_some() {
+    if s.doc.added().get(EntityKind::System, id).is_some() {
         Ok(())
     } else if s.graph.systems.contains_key(&id) {
         Err(OpError::SystemNotAdded(id))
@@ -114,7 +111,7 @@ fn renumbering(
     for id in first..=last {
         if removed.contains(&id) {
             gone += 1;
-        } else if s.doc.added().get(Table::System, id).is_some() {
+        } else if s.doc.added().get(EntityKind::System, id).is_some() {
             renumber.insert(id, id - gone);
         } else {
             return Err(not_dense());
@@ -139,11 +136,11 @@ pub(crate) fn erase_bodies(
     doc: &Document,
     ids: &BTreeSet<u32>,
 ) -> Result<(), OpError> {
-    let mut planets = BTreeMap::new();
-    let mut deposits = BTreeMap::new();
+    let mut planets = SlotTable::planets(doc)?;
+    let mut deposits: Option<SlotTable> = None;
     for &id in ids {
         for planet in bodies(doc, id)? {
-            let Some(slot) = doc.added().get(Table::Planet, planet) else {
+            let Some(slot) = doc.added().get(EntityKind::Planet, planet) else {
                 continue;
             };
             let subject = Subject::Planet {
@@ -152,90 +149,20 @@ pub(crate) fn erase_bodies(
             };
             let (node, src) = entity(doc, subject, slot)?;
             for deposit in read::ids(&node, keys::DEPOSITS, src) {
-                if let Some(held) = doc.added().get(Table::Deposit, deposit) {
-                    free(
-                        plan,
-                        doc,
-                        Subject::Record(held),
-                        deposit,
-                        held,
-                        &mut deposits,
-                    )?;
+                if let Some(held) = doc.added().get(EntityKind::Deposit, deposit) {
+                    let table = match &mut deposits {
+                        Some(table) => table,
+                        None => deposits.insert(SlotTable::deposits(doc)?),
+                    };
+                    table.free(plan, doc, Subject::Record(held), deposit, held)?;
                 }
             }
-            free(plan, doc, subject, planet, slot, &mut planets)?;
+            planets.free(plan, doc, subject, planet, slot)?;
         }
     }
-    if !planets.is_empty() {
-        free_appended(plan, doc, SlotTable::planets(doc)?.end.at(), &planets)?;
-    }
-    if !deposits.is_empty() {
-        free_appended(plan, doc, SlotTable::deposits(doc)?.end.at(), &deposits)?;
-    }
-    Ok(())
-}
-
-/// Take back what an add wrote as entity `id` in place of a tombstone: the tombstone the
-/// file held, as loaded, or the one a removal wrote over an entry the file held. An entry
-/// an add appended is left in `appended` for [`free_appended`].
-pub(crate) fn free(
-    plan: &mut Plan,
-    doc: &Document,
-    subject: Subject,
-    id: u32,
-    slot: Anchor,
-    appended: &mut BTreeMap<Anchor, Subject>,
-) -> Result<(), OpError> {
-    match slot {
-        Anchor::Inserted { .. } => {
-            appended.insert(slot, subject);
-            Ok(())
-        }
-        Anchor::Original(span) => {
-            let loaded = span.slice(doc.original());
-            let bytes = match alloc::tombstone_of(loaded) {
-                Some(_) => loaded.to_vec(),
-                None => alloc::tombstone(alloc::tombstone_id(id)).into_bytes(),
-            };
-            plan.replace(doc, subject, slot, bytes)
-        }
-    }
-}
-
-/// The entries `leaving` of the table whose appended entries go at `at`. The game leaves
-/// no slot missing below the highest, so only the end of the table can shrink: from the
-/// last entry back, each leaving entry, and each tombstone an earlier removal left, is
-/// deleted until a live one stands. Every other leaving entry becomes a tombstone, in the
-/// table's `<id>=none` form, holding the id its slot held before the add took it.
-pub(crate) fn free_appended(
-    plan: &mut Plan,
-    doc: &Document,
-    at: usize,
-    leaving: &BTreeMap<Anchor, Subject>,
-) -> Result<(), OpError> {
-    let mut at_end = true;
-    for entry in alloc::appended(doc, at).into_iter().rev() {
-        let subject = leaving.get(&entry.anchor).copied();
-        if at_end && (subject.is_some() || entry.dead) {
-            let subject = subject.unwrap_or(Subject::Record(entry.anchor));
-            plan.erase(doc, subject, entry.anchor)?;
-            continue;
-        }
-        at_end = false;
-        let Some(subject) = subject else {
-            continue;
-        };
-        let current = doc.current(entry.anchor)?;
-        let span = alloc::statement_span(current)
-            .ok_or_else(|| subject.parse_error(0, "the entry holds no statement"))?;
-        let tombstone = alloc::tombstone(alloc::tombstone_id(entry.id));
-        let bytes = [
-            &current[..span.start],
-            tombstone.as_bytes(),
-            &current[span.end..],
-        ]
-        .concat();
-        plan.replace(doc, subject, entry.anchor, bytes)?;
+    planets.settle(plan, doc)?;
+    if let Some(deposits) = deposits {
+        deposits.settle(plan, doc)?;
     }
     Ok(())
 }
@@ -278,8 +205,7 @@ fn rewrite_lanes(
                 .entity()?
                 .key
                 .ok_or_else(|| edit.parse_error(0, "the system has no key"))?;
-            edit.splices
-                .push((key.range(), new.to_string().into_bytes()));
+            edit.replace_span(key, new.to_string());
         }
     }
     Ok(())
@@ -299,9 +225,11 @@ fn retarget_entries(edit: &mut Edit, renumber: &BTreeMap<u32, u32>) -> Result<()
             .find(keys::TO, &edit.buf)
             .and_then(Node::scalar_span)
             .ok_or_else(|| edit.parse_error(entry.span().start, "lane entry has no to"))?;
-        splices.push((span.range(), new.to_string().into_bytes()));
+        splices.push((span, new));
     }
-    edit.splices.extend(splices);
+    for (span, new) in splices {
+        edit.replace_span(span, new.to_string());
+    }
     Ok(())
 }
 
@@ -333,7 +261,7 @@ fn rewrite_members(
             if removed.contains(&id) {
                 cut.push(member.span());
             } else if let Some(new) = renumber.get(&id) {
-                splices.push((span.range(), new.to_string().into_bytes()));
+                splices.push((span, *new));
             }
         }
         for &span in &cut {
@@ -342,7 +270,9 @@ fn rewrite_members(
         for span in cut {
             edit.remove_lines(span);
         }
-        edit.splices.extend(splices);
+        for (span, new) in splices {
+            edit.replace_span(span, new.to_string());
+        }
     }
     Ok(())
 }
@@ -355,9 +285,10 @@ fn rewrite_clouds(
     removed: &BTreeSet<u32>,
     renumber: &BTreeMap<u32, u32>,
 ) -> Result<(), OpError> {
-    let Some(mut footprints) = Footprints::new(&s.doc, &s.graph) else {
+    if check_version(&s.doc).is_err() {
         return Ok(());
-    };
+    }
+    let mut footprints = Footprints::new(&s.doc, &s.graph);
     for &id in removed {
         if let Some((cloud, at)) = footprints.read(id)?.cloud() {
             footprints.release(plan, cloud, at)?;
@@ -369,22 +300,6 @@ fn rewrite_clouds(
         }
     }
     footprints.finish(plan)
-}
-
-fn set_counter(
-    plan: &mut Plan,
-    doc: &Document,
-    counter: &Counter,
-    last: u32,
-) -> Result<(), OpError> {
-    let edit = plan.edit_record(doc, counter.anchor)?;
-    let span = edit
-        .entity()?
-        .scalar_span()
-        .ok_or_else(|| edit.parse_error(0, "last_created_system is not a scalar"))?;
-    edit.splices
-        .push((span.range(), last.to_string().into_bytes()));
-    Ok(())
 }
 
 /// Take one off the count of each removed system's layout that its add counted.
@@ -417,13 +332,9 @@ fn return_names(plan: &mut Plan, s: &Session, removed: &BTreeSet<u32>) -> Result
             .map(|system| system.name.key.as_str())
     };
     let names: BTreeSet<&str> = removed.iter().filter_map(name).collect();
+    let leaving: Vec<u32> = removed.iter().copied().collect();
     for pooled in names {
-        let staying = s
-            .doc
-            .added()
-            .entries(Table::System)
-            .filter(|(id, _)| !removed.contains(id) && name(id) == Some(pooled))
-            .count();
+        let staying = name_pool::holders(s, pooled, &leaving);
         name_pool::give_back(plan, &s.doc, SYSTEM_POOLS, pooled, staying)?;
     }
     Ok(())
@@ -443,7 +354,7 @@ pub(crate) fn return_asteroid_names(
     }
     let mut leaving = BTreeSet::new();
     let mut staying: BTreeMap<(String, String), usize> = BTreeMap::new();
-    for (planet, slot) in s.doc.added().entries(Table::Planet) {
+    for (planet, slot) in s.doc.added().entries(EntityKind::Planet) {
         let Ok((node, src)) = entity(&s.doc, Subject::Record(slot), slot) else {
             continue;
         };
@@ -467,60 +378,12 @@ pub(crate) fn return_asteroid_names(
         let taken: Vec<Anchor> = pool
             .entries(&held.0, &held.1, src)
             .into_iter()
-            .filter(|&entry| emptied(s.doc.overlay(), entry, src))
+            .filter(|&entry| s.doc.overlay().removed(entry, src))
             .collect();
         let keep = staying.get(&held).copied().unwrap_or(0);
         name_pool::put_back(plan, &s.doc, taken.iter().skip(keep))?;
     }
     Ok(())
-}
-
-/// The belts system `id`'s entry lists, in order.
-fn belts(doc: &Document, id: u32) -> Result<Vec<BeltSpec>, OpError> {
-    let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
-    let subject = Subject::System(id);
-    let (node, src) = entity(doc, subject, anchor)?;
-    let Some(block) = node.find(keys::ASTEROID_BELTS, src) else {
-        return Ok(Vec::new());
-    };
-    block
-        .children()
-        .iter()
-        .filter(|belt| belt.key.is_none())
-        .map(|belt| {
-            Ok(BeltSpec {
-                kind: read::text(belt, keys::TYPE, src),
-                inner_radius: read::required(belt, keys::INNER_RADIUS, src)
-                    .map_err(|reason| subject.parse_error(0, reason))?,
-            })
-        })
-        .collect()
-}
-
-/// The planets system `id`'s entry lists, star first.
-pub(crate) fn bodies(doc: &Document, id: u32) -> Result<Vec<u32>, OpError> {
-    let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
-    let (node, src) = entity(doc, Subject::System(id), anchor)?;
-    Ok(node
-        .find_all(keys::PLANET, src)
-        .filter_map(|planet| planet.scalar_str(src)?.parse().ok())
-        .collect())
-}
-
-/// The `<id>=` node the bytes standing at `anchor` hold, with those bytes.
-pub(crate) fn entity(
-    doc: &Document,
-    subject: Subject,
-    anchor: Anchor,
-) -> Result<(Node, &[u8]), OpError> {
-    let src = doc.current(anchor)?;
-    let root = cst::parse(src, 0).map_err(|e| subject.parse_error(e.offset, e.reason))?;
-    let node = root
-        .children()
-        .first()
-        .cloned()
-        .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
-    Ok((node, src))
 }
 
 fn describe(s: &Session, removed: &BTreeSet<u32>, renumber: &BTreeMap<u32, u32>) -> String {
@@ -558,7 +421,11 @@ fn describe(s: &Session, removed: &BTreeSet<u32>, renumber: &BTreeMap<u32, u32>)
 
 /// The op that adds the removed systems back: each read back as a spec, in id order, at
 /// the ids that then follow the last one, with its lanes to the systems that stay (at
-/// their new ids) and to the ones re-added before it. A lane's bridge flag is not kept.
+/// their new ids) and to the ones re-added before it. The spec's lanes run up to the
+/// first bridge, and an `AddLanes` after the add writes the rest in order, bridges
+/// included. A `SetLaneLengths` puts back each length that is not `floor(distance)`, and a
+/// `SetNebulaFootprints` each footprint, the join the add makes aside. What this leaves
+/// different from the bytes removed is listed on [`Op::RemoveSystem`].
 fn restoring(
     s: &Session,
     removed: &BTreeSet<u32>,
@@ -570,186 +437,73 @@ fn restoring(
         .enumerate()
         .map(|(i, &id)| (id, staying + as_u32(i)))
         .collect();
-    let mut adds = Vec::with_capacity(removed.len());
+    let mut footprints = check_version(&s.doc)
+        .is_ok()
+        .then(|| Footprints::new(&s.doc, &s.graph));
+    let mut ops = Vec::with_capacity(removed.len());
+    let mut lengths = Vec::new();
+    let mut dressed = Vec::new();
     for &id in removed {
         let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
-        let mut lanes = Vec::new();
+        let again = readded[&id];
+        let mut lanes: Vec<(u32, bool)> = Vec::new();
         for lane in &system.lanes {
             let to = match readded.get(&lane.to) {
-                Some(&again) if again < readded[&id] => again,
+                Some(&other) if other < again => other,
                 Some(_) => continue,
                 None if s.graph.systems.contains_key(&lane.to) => {
                     renumber.get(&lane.to).copied().unwrap_or(lane.to)
                 }
                 None => continue,
             };
-            if !lanes.contains(&to) {
-                lanes.push(to);
+            if lanes.iter().any(|&(seen, _)| seen == to) {
+                continue;
+            }
+            lanes.push((to, lane.bridge));
+            let other = &s.graph.systems[&lane.to];
+            if lane.length != lane_length(system.position(), other.position()) {
+                lengths.push(LaneLength {
+                    a: again,
+                    b: to,
+                    length: lane.length,
+                });
             }
         }
-        adds.push(Op::AddSaveSystem {
-            spec: spec_of(s, id, lanes)?,
+        let plain = lanes.iter().take_while(|&&(_, bridge)| !bridge).count();
+        let rest = lanes.split_off(plain);
+        let spec_lanes = lanes.into_iter().map(|(to, _)| to).collect();
+        ops.push(Op::AddSaveSystem {
+            spec: spec_of(s, id, spec_lanes)?,
+        });
+        if !rest.is_empty() {
+            ops.push(Op::AddLanes {
+                from: again,
+                to: rest,
+            });
+        }
+        if let Some(footprints) = &mut footprints {
+            let footprint = footprints.read(id)?.footprint;
+            if !is_bare(&footprint) {
+                dressed.push(NebulaFootprint {
+                    system: again,
+                    ..footprint
+                });
+            }
+        }
+    }
+    if !lengths.is_empty() {
+        ops.push(Op::SetLaneLengths { lanes: lengths });
+    }
+    if !dressed.is_empty() {
+        ops.push(Op::SetNebulaFootprints {
+            footprints: dressed,
         });
     }
-    Ok(match adds.len() {
-        1 => adds.remove(0),
-        n => Op::Batch {
-            description: format!("Added {}", plural(n, "system")),
-            ops: adds,
+    Ok(match ops.len() {
+        1 => ops.remove(0),
+        _ => Op::Batch {
+            description: format!("Added {}", plural(removed.len(), "system")),
+            ops,
         },
     })
-}
-
-/// System `id` as the spec that writes it: its bodies read back from their entries, each
-/// angle measured from the star, or from where the add placed its planet for a moon. A
-/// star whose name is the system's own was named by its class.
-pub(crate) fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpec, OpError> {
-    let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
-    let mut read = Vec::new();
-    for planet in bodies(&s.doc, id)? {
-        if let Some(anchor) = planet_statement(&s.doc, planet)? {
-            read.push((planet, read_body(&s.doc, planet, id, anchor)?));
-        }
-    }
-    let Some(((_, star), rest)) = read.split_first() else {
-        return Err(Subject::System(id).parse_error(0, "the system lists no bodies"));
-    };
-    let mut planets: Vec<BodySpec> = Vec::new();
-    let mut planet_at: HashMap<u32, (usize, (f64, f64))> = HashMap::new();
-    for (planet, body) in rest {
-        match body.moon_of.and_then(|parent| planet_at.get(&parent)) {
-            Some(&(at, centre)) => planets[at].moons.push(body.spec(centre).0),
-            None => {
-                let (spec, placed) = body.spec((0.0, 0.0));
-                planet_at.insert(*planet, (planets.len(), placed));
-                planets.push(spec);
-            }
-        }
-    }
-    let mut star = star.spec((0.0, 0.0)).0;
-    let star_named_by_class = star.name.take().is_some();
-    Ok(SystemSpec {
-        name: system.name.key.clone(),
-        x: system.x,
-        y: system.y,
-        star_class: system.star_class.clone(),
-        initializer: system.initializer.clone(),
-        capped: counted(&s.doc, &system.initializer),
-        star_named_by_class,
-        star,
-        planets,
-        belts: belts(&s.doc, id)?,
-        flags: system.flags.clone(),
-        lanes,
-    })
-}
-
-/// One body's entry as a spec reads it.
-struct ReadBody {
-    class: String,
-    size: u32,
-    orbit: f64,
-    /// Relative to the system's centre.
-    x: f64,
-    y: f64,
-    entity: u32,
-    moon_of: Option<u32>,
-    deposits: Vec<String>,
-    asteroid: bool,
-    name: Option<String>,
-    entity_name: Option<String>,
-    modifiers: Vec<String>,
-    ring: bool,
-}
-
-impl ReadBody {
-    /// The body as it orbits `centre`, where the add placed that, and where the add places
-    /// the body from it. The angle measured from the written coordinates can miss them in
-    /// the last decimal, so the nearest hundredth of a degree, which the generator writes,
-    /// is taken instead whenever it gives the same coordinates.
-    fn spec(&self, (cx, cy): (f64, f64)) -> (BodySpec, (f64, f64)) {
-        let measured = (self.y - cy)
-            .atan2(self.x - cx)
-            .to_degrees()
-            .rem_euclid(360.0)
-            + 0.0;
-        let hundredth = (measured * 100.0).round() / 100.0;
-        let mut spec = BodySpec {
-            class: self.class.clone(),
-            size: self.size,
-            orbit: self.orbit,
-            angle: measured,
-            entity: self.entity,
-            deposits: self.deposits.clone(),
-            moons: Vec::new(),
-            asteroid: self.asteroid,
-            name: self.name.clone(),
-            entity_name: self.entity_name.clone(),
-            modifiers: self.modifiers.clone(),
-            ring: self.ring,
-        };
-        let written = (coord(self.x), coord(self.y));
-        let candidates = [hundredth, hundredth.rem_euclid(360.0) + 0.0, measured];
-        for angle in candidates {
-            spec.angle = angle;
-            let (x, y) = polar(cx, cy, &spec);
-            if (coord(x), coord(y)) == written {
-                break;
-            }
-        }
-        let placed = polar(cx, cy, &spec);
-        (spec, placed)
-    }
-}
-
-fn read_body(
-    doc: &Document,
-    planet: u32,
-    system: u32,
-    anchor: Anchor,
-) -> Result<ReadBody, OpError> {
-    let subject = Subject::Planet { id: planet, system };
-    let (node, src) = entity(doc, subject, anchor)?;
-    let field = |reason: String| subject.parse_error(0, reason);
-    let (x, y) = read::coordinate(&node, src).map_err(field)?;
-    let deposits = read::ids(&node, keys::DEPOSITS, src)
-        .into_iter()
-        .filter_map(|deposit| deposit_kind(doc, deposit))
-        .collect();
-    let name = read::name(&node, src);
-    let fixed = !name.literal && name.variables.is_empty();
-    let modifiers = node
-        .find(keys::TIMED_MODIFIER, src)
-        .and_then(|block| block.find(keys::ITEMS, src))
-        .map(|items| {
-            items
-                .children()
-                .iter()
-                .map(|item| read::text(item, keys::MODIFIER, src))
-                .collect()
-        })
-        .unwrap_or_default();
-    let flags = read::scalar_u32(&node, keys::BINARY_FLAGS, src).unwrap_or(0);
-    Ok(ReadBody {
-        class: read::text(&node, keys::PLANET_CLASS, src),
-        size: read::required(&node, keys::PLANET_SIZE, src).map_err(field)?,
-        orbit: read::required(&node, keys::ORBIT, src).map_err(field)?,
-        x,
-        y,
-        entity: read::scalar_u32(&node, keys::ENTITY, src).unwrap_or(0),
-        moon_of: read::scalar_u32(&node, keys::MOON_OF, src),
-        deposits,
-        asteroid: asteroid_names::parts(&name).is_some(),
-        name: fixed.then_some(name.key),
-        entity_name: read::scalar(&node, keys::ENTITY_NAME, src).map(str::to_owned),
-        modifiers,
-        ring: flags & RING_FLAG != 0,
-    })
-}
-
-/// The `type` of a deposit an op added.
-fn deposit_kind(doc: &Document, id: u32) -> Option<String> {
-    let anchor = doc.added().get(Table::Deposit, id)?;
-    let (node, src) = entity(doc, Subject::Record(anchor), anchor).ok()?;
-    read::scalar(&node, keys::TYPE, src).map(str::to_owned)
 }

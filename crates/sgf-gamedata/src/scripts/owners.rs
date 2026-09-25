@@ -192,7 +192,7 @@ fn claim(
     };
     let judged = Facts::from(view);
     for claim in gd.scripts.claims().for_flags(view.star_flags) {
-        let verdict = claim.trigger.evaluate(&judged);
+        let verdict = claim.trigger.verdict(&judged);
         if !verdict.holds {
             continue;
         }
@@ -259,8 +259,10 @@ fn territories(
                     colors: identity.colors.clone(),
                     border_color: None,
                     fill_color: None,
-                    flag_colors: Vec::new(),
                     use_map_color: false,
+                    painted_border: identity.colors.first().cloned(),
+                    painted_fill: identity.colors.get(1).or(identity.colors.first()).cloned(),
+                    has_map_colors: Some(false),
                     flag_icon: identity.icon.clone(),
                     flag_background: identity.background.clone(),
                     flags: Vec::new(),

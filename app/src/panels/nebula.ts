@@ -1,0 +1,23 @@
+import { nebulaNameIn } from "../lib/names";
+import { useGalaxyStore } from "../store/galaxyStore";
+import { useGameDataStore } from "../store/gameDataStore";
+
+/** The radius field's id, so the map's menu can send the user straight to it. */
+export const NEBULA_RADIUS_INPUT_ID = "nebula-radius";
+
+/** The name a nebula goes by; the only other one it has is its place in the file. */
+export function nebulaLabel(index: number): string {
+  const nebula = useGalaxyStore.getState().nebulae[index];
+  return nebulaNameIn(useGameDataStore.getState().names, nebula, index);
+}
+
+/** Puts the caret in the radius field, once the inspector has drawn the nebula it belongs to. */
+export function focusNebulaRadius(): void {
+  requestAnimationFrame(() => {
+    const field = document.getElementById(NEBULA_RADIUS_INPUT_ID);
+    if (field instanceof HTMLInputElement) {
+      field.focus();
+      field.select();
+    }
+  });
+}

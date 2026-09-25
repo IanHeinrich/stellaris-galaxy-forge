@@ -12,10 +12,11 @@ use std::mem::{self, Discriminant};
 use sgf_core::projections::galaxy::BypassLink;
 
 use crate::GameData;
+use crate::condition::Condition;
 use crate::initializers::PartnerRef;
 use crate::scripts::claims::PartnerExpr;
 use crate::scripts::facts::{self, ScenarioFacts};
-use crate::scripts::trigger::{Facts, Trigger};
+use crate::scripts::trigger::Facts;
 use crate::scripts::view::{
     BypassKind, BypassSource, ScenarioBypass, ScenarioBypasses, ScenarioSystem,
 };
@@ -25,7 +26,7 @@ use crate::scripts::view::{
 /// happens to sit on the right system.
 enum Pending {
     /// The endpoint the same event spawned where this guard holds.
-    Guard { trigger: Trigger, event: String },
+    Guard { trigger: Condition, event: String },
     /// The endpoint on the system whose chain saved this token.
     Token(String),
 }
@@ -69,7 +70,7 @@ impl Pending {
     ) -> Option<bool> {
         match self {
             Self::Guard { trigger, .. } => {
-                let verdict = trigger.evaluate(&Facts::from(facts.view(system)?));
+                let verdict = trigger.verdict(&Facts::from(facts.view(system)?));
                 verdict.holds.then_some(verdict.assumed)
             }
             Self::Token(token) => facts
@@ -128,7 +129,7 @@ pub fn scenario_bypasses(gd: &GameData, systems: &[ScenarioSystem<'_>]) -> Scena
         };
         let judged = Facts::from(view);
         for placement in placements.for_flags(view.star_flags) {
-            let verdict = placement.trigger.evaluate(&judged);
+            let verdict = placement.trigger.verdict(&judged);
             if verdict.holds {
                 matched
                     .entry(placement.order)

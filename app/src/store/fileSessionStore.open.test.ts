@@ -11,12 +11,14 @@ import { useEditorStore } from "./editorStore";
 import { getPaintLayer } from "./fileSessionStore";
 import { OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 import { laneCount, useGalaxyStore } from "./galaxyStore";
+import { loadGameData } from "./gameDataFixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
 import { useLGateStore } from "./lgateStore";
 import { usePaintModStore } from "./paintModStore";
 import { useRecentsStore } from "./recentsStore";
-import { edit, listen, mocked, resetSession, session } from "./sessionFixture";
+import { edit, listen, resetSession, session } from "./sessionFixture";
+import { mockedIpc } from "../test/ipc";
 
 beforeEach(resetSession);
 
@@ -36,7 +38,7 @@ describe("openSave", () => {
     expect(useIssuesStore.getState().issues).toHaveLength(1);
     expect(state.progress).toBeNull();
     expect(listen.unlisten).toHaveBeenCalledTimes(1);
-    expect(mocked.openSave).toHaveBeenCalledWith(OPEN_RESULT.path);
+    expect(mockedIpc.openSave).toHaveBeenCalledWith(OPEN_RESULT.path);
 
     const galaxy = useGalaxyStore.getState();
     expect(galaxy.galaxy).toBe(OPEN_RESULT.galaxy);
@@ -57,12 +59,12 @@ describe("openSave", () => {
 
   it("asks for the special systems again once the details projection is warm", async () => {
     await session().openSave(OPEN_RESULT.path);
-    expect(mocked.warmDetails).toHaveBeenCalledTimes(1);
-    await vi.waitFor(() => expect(mocked.getSpecialSystems).toHaveBeenCalledTimes(2));
+    expect(mockedIpc.warmDetails).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(2));
   });
 
   it("a details projection that fails to warm says so on the session, which still opened", async () => {
-    mocked.warmDetails.mockRejectedValueOnce({ kind: "internal", message: "no projection" });
+    mockedIpc.warmDetails.mockRejectedValueOnce({ kind: "internal", message: "no projection" });
 
     expect(await session().openSave(OPEN_RESULT.path)).toBe(true);
 
@@ -71,14 +73,14 @@ describe("openSave", () => {
   });
 
   it("reports a rejection as an error and closes the session left on the Rust side", async () => {
-    mocked.openSave.mockRejectedValueOnce({ kind: "format", message: "not a zip" });
-    mocked.closeSave.mockRejectedValueOnce({ kind: "no_session", message: "nothing open" });
+    mockedIpc.openSave.mockRejectedValueOnce({ kind: "format", message: "not a zip" });
+    mockedIpc.closeSave.mockRejectedValueOnce({ kind: "no_session", message: "nothing open" });
     await session().openSave("bad.sav");
     const state = session();
     expect(state.status).toBe("error");
     expect(state.error).toBe("not a zip");
     expect(state.errorKind).toBe("format");
-    expect(mocked.closeSave).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.closeSave).toHaveBeenCalledTimes(1);
     expect(useGalaxyStore.getState().systems.size).toBe(0);
     expect(listen.unlisten).toHaveBeenCalledTimes(1);
   });
@@ -88,7 +90,7 @@ describe("openSave", () => {
     useDetailsStore.setState({ details: new Map([[0, systemDetails()]]) });
     useGameDataStore.setState({ counts: [{ kind: "leviathan", count: 1, primary_count: 1 }] });
 
-    mocked.openSave.mockRejectedValueOnce({ kind: "format", message: "not a zip" });
+    mockedIpc.openSave.mockRejectedValueOnce({ kind: "format", message: "not a zip" });
     await session().openSave("bad.sav");
 
     expect(useDetailsStore.getState().details.size).toBe(0);
@@ -96,7 +98,7 @@ describe("openSave", () => {
   });
 
   it("reports a missing file with the not_found kind", async () => {
-    mocked.openSave.mockRejectedValueOnce({ kind: "not_found", message: "no such file" });
+    mockedIpc.openSave.mockRejectedValueOnce({ kind: "not_found", message: "no such file" });
     await session().openSave("gone.sav");
     const state = session();
     expect(state.error).toBe("no such file");
@@ -126,15 +128,15 @@ describe("openSave", () => {
   });
 
   it("pickAndOpen asks how to open the picked save and does nothing when cancelled", async () => {
-    mocked.saveDirs.mockResolvedValue(["C:/saves"]);
-    mocked.open.mockResolvedValueOnce(null);
+    mockedIpc.saveDirs.mockResolvedValue(["C:/saves"]);
+    mockedIpc.open.mockResolvedValueOnce(null);
     await session().pickAndOpen(undefined, undefined, null);
-    expect(mocked.openSave).not.toHaveBeenCalled();
-    expect(mocked.confirm).not.toHaveBeenCalled();
+    expect(mockedIpc.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.confirm).not.toHaveBeenCalled();
 
-    mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
+    mockedIpc.open.mockResolvedValueOnce("C:/saves/picked.sav");
     await session().pickAndOpen(undefined, undefined, null);
-    expect(mocked.open).toHaveBeenCalledWith(
+    expect(mockedIpc.open).toHaveBeenCalledWith(
       expect.objectContaining({
         defaultPath: "C:/saves",
         multiple: false,
@@ -145,90 +147,96 @@ describe("openSave", () => {
         ],
       }),
     );
-    expect(mocked.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openSave).not.toHaveBeenCalled();
     expect(session().pendingOpen).toBe("C:/saves/picked.sav");
 
     await session().chooseOpenMode("save");
-    expect(mocked.openSave).toHaveBeenCalledWith("C:/saves/picked.sav");
+    expect(mockedIpc.openSave).toHaveBeenCalledWith("C:/saves/picked.sav");
     expect(session().pendingOpen).toBeNull();
     expect(session().status).toBe("ready");
   });
 
   it("pickAndOpen with mode 'scenario' filters to .sav and skips the mode dialog", async () => {
-    mocked.saveDirs.mockResolvedValue(["C:/saves"]);
-    mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
-    usePaintModStore.setState({ paintChoice: false });
-    mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
+    mockedIpc.saveDirs.mockResolvedValue(["C:/saves"]);
+    mockedIpc.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
+    usePaintModStore.getState().setPaintChoice(false);
+    mockedIpc.open.mockResolvedValueOnce("C:/saves/picked.sav");
 
     await session().pickAndOpen("scenario");
 
-    expect(mocked.open).toHaveBeenCalledWith(
+    expect(mockedIpc.open).toHaveBeenCalledWith(
       expect.objectContaining({
         defaultPath: "C:/saves",
         multiple: false,
         filters: [{ name: "Stellaris save", extensions: ["sav"] }],
       }),
     );
-    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "plain");
-    expect(mocked.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "plain");
+    expect(mockedIpc.openSave).not.toHaveBeenCalled();
     expect(session().pendingOpen).toBeNull();
   });
 
   it("a save taken as a scenario follows the standing Paint a Galaxy choice on every route", async () => {
-    mocked.saveDirs.mockResolvedValue(["C:/saves"]);
-    mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
-    usePaintModStore.setState({ paintChoice: true });
+    mockedIpc.saveDirs.mockResolvedValue(["C:/saves"]);
+    mockedIpc.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
+    usePaintModStore.getState().setPaintChoice(true);
 
-    mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
+    mockedIpc.open.mockResolvedValueOnce("C:/saves/picked.sav");
     await session().pickAndOpen("scenario");
-    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/picked.sav", "paint_a_galaxy");
+    expect(mockedIpc.openAsScenario).toHaveBeenLastCalledWith(
+      "C:/saves/picked.sav",
+      "paint_a_galaxy",
+    );
 
-    mocked.open.mockResolvedValueOnce("C:/saves/other.sav");
+    mockedIpc.open.mockResolvedValueOnce("C:/saves/other.sav");
     await session().pickAndOpen(undefined, undefined, null);
     await session().chooseOpenMode("scenario");
-    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/other.sav", "paint_a_galaxy");
+    expect(mockedIpc.openAsScenario).toHaveBeenLastCalledWith(
+      "C:/saves/other.sav",
+      "paint_a_galaxy",
+    );
 
-    usePaintModStore.setState({ paintChoice: false });
-    mocked.open.mockResolvedValueOnce("C:/saves/plain.sav");
+    usePaintModStore.getState().setPaintChoice(false);
+    mockedIpc.open.mockResolvedValueOnce("C:/saves/plain.sav");
     await session().pickAndOpen(undefined, undefined, null);
     await session().chooseOpenMode("scenario");
-    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/plain.sav", "plain");
+    expect(mockedIpc.openAsScenario).toHaveBeenLastCalledWith("C:/saves/plain.sav", "plain");
 
     await session().requestOpen("C:/saves/taken.sav", { asScenario: true, listings: null });
     expect(session().pendingAsScenario).toBe(true);
     await session().chooseOpenMode("scenario");
-    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/taken.sav", "plain");
+    expect(mockedIpc.openAsScenario).toHaveBeenLastCalledWith("C:/saves/taken.sav", "plain");
     expect(session().pendingAsScenario).toBe(false);
   });
 
   it("pickAndOpen with a profile opens the picked save as a scenario written under it", async () => {
-    mocked.saveDirs.mockResolvedValue(["C:/saves"]);
-    mocked.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null, painted: true });
-    mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
+    mockedIpc.saveDirs.mockResolvedValue(["C:/saves"]);
+    mockedIpc.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null, painted: true });
+    mockedIpc.open.mockResolvedValueOnce("C:/saves/picked.sav");
 
     await session().pickAndOpen("scenario", "paint_a_galaxy");
 
-    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "paint_a_galaxy");
+    expect(mockedIpc.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "paint_a_galaxy");
     expect(session().painted).toBe(true);
     expect(session().paintChosen).toBe(true);
     expect(getPaintLayer()).toBe(true);
   });
 
   it("pickAndOpen with an explicit plain profile opens plain even while the standing choice is on", async () => {
-    mocked.saveDirs.mockResolvedValue(["C:/saves"]);
-    mocked.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null });
-    usePaintModStore.setState({ paintChoice: true });
-    mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
+    mockedIpc.saveDirs.mockResolvedValue(["C:/saves"]);
+    mockedIpc.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null });
+    usePaintModStore.getState().setPaintChoice(true);
+    mockedIpc.open.mockResolvedValueOnce("C:/saves/picked.sav");
 
     await session().pickAndOpen("scenario", "plain");
 
-    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "plain");
+    expect(mockedIpc.openAsScenario).toHaveBeenCalledWith("C:/saves/picked.sav", "plain");
     expect(session().paintChosen).toBe(false);
     expect(getPaintLayer()).toBe(false);
 
-    mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    mockedIpc.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
     await session().newScenario("my_galaxy", 400, 100, "plain");
-    expect(mocked.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100, "plain");
+    expect(mockedIpc.newScenario).toHaveBeenCalledWith("my_galaxy", 400, 100, "plain");
     expect(getPaintLayer()).toBe(false);
   });
 });
@@ -239,13 +247,13 @@ describe("reload", () => {
     await edit();
     expect(session().dirty).toBe(true);
 
-    mocked.confirm.mockResolvedValueOnce(false);
+    mockedIpc.confirm.mockResolvedValueOnce(false);
     await session().reload();
-    expect(mocked.openSave).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.openSave).toHaveBeenCalledTimes(1);
     expect(session().dirty).toBe(true);
 
     await session().reload();
-    expect(mocked.openSave).toHaveBeenLastCalledWith(OPEN_RESULT.path);
+    expect(mockedIpc.openSave).toHaveBeenLastCalledWith(OPEN_RESULT.path);
     expect(session().dirty).toBe(false);
   });
 });
@@ -257,27 +265,27 @@ describe("close", () => {
 
   it("drops the session and the galaxy", async () => {
     await session().close();
-    expect(mocked.closeSave).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.closeSave).toHaveBeenCalledTimes(1);
     expect(session().status).toBe("empty");
     expect(useGalaxyStore.getState().galaxy).toBeNull();
   });
 
   it("when dirty and confirm -> false leaves the session open and calls no closeSave", async () => {
     await edit();
-    mocked.confirm.mockResolvedValueOnce(false);
+    mockedIpc.confirm.mockResolvedValueOnce(false);
     await session().close();
 
-    expect(mocked.confirm).toHaveBeenCalledTimes(1);
-    expect(mocked.closeSave).not.toHaveBeenCalled();
+    expect(mockedIpc.confirm).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.closeSave).not.toHaveBeenCalled();
     expect(session().status).toBe("ready");
   });
 
   it("when dirty and confirm -> true closes", async () => {
     await edit();
-    mocked.confirm.mockResolvedValueOnce(true);
+    mockedIpc.confirm.mockResolvedValueOnce(true);
     await session().close();
 
-    expect(mocked.closeSave).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.closeSave).toHaveBeenCalledTimes(1);
     expect(session().status).toBe("empty");
   });
 });
@@ -296,11 +304,11 @@ describe("recents", () => {
   });
 
   it("a new scenario and a save opened as a scenario have no path, so nothing is recorded", async () => {
-    mocked.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    mockedIpc.newScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
     await session().newScenario("my_galaxy", 400, 100);
     expect(useRecentsStore.getState().recents).toHaveLength(0);
 
-    mocked.openAsScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    mockedIpc.openAsScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
     await session().openScenarioFrom(OPEN_RESULT.path);
     expect(useRecentsStore.getState().recents).toHaveLength(0);
   });
@@ -308,10 +316,10 @@ describe("recents", () => {
 
 describe("settling", () => {
   it("a scenario open with game data ready holds settling until the owners pass resolves", async () => {
-    useGameDataStore.setState({ status: "ready" });
-    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await loadGameData();
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     let resolveOwners!: (owners: null) => void;
-    mocked.getScenarioOwners.mockImplementationOnce(
+    mockedIpc.getScenarioOwners.mockImplementationOnce(
       () => new Promise((resolve) => (resolveOwners = resolve)),
     );
 
@@ -327,22 +335,22 @@ describe("settling", () => {
   });
 
   it("a save open never sets settling", async () => {
-    useGameDataStore.setState({ status: "ready" });
+    await loadGameData();
     await session().openSave(OPEN_RESULT.path);
     expect(session().settling).toBe(false);
     expect(session().loadingName).toBeNull();
   });
 
   it("a scenario open before game data is ready never sets settling", async () => {
-    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_RESULT.path);
     expect(session().settling).toBe(false);
   });
 
   it("a failing owners pass still clears settling", async () => {
-    useGameDataStore.setState({ status: "ready" });
-    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-    mocked.getScenarioOwners.mockRejectedValueOnce({ kind: "ipc", message: "boom" });
+    await loadGameData();
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.getScenarioOwners.mockRejectedValueOnce({ kind: "ipc", message: "boom" });
 
     await session().openSave(SCENARIO_RESULT.path);
     expect(session().settling).toBe(false);

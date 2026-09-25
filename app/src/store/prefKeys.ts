@@ -2,7 +2,9 @@
  * Every `localStorage` key the app writes, so no two features can collide on one.
  *
  * The rule for what earns a key: a toggle, slider or pick the user set by hand persists
- * per machine; a value the open document or the app itself decides does not.
+ * per machine; a value the open document or the app itself decides does not. The one exception
+ * is `noticedUpdate`, the last version a background check stopped to announce, kept so a
+ * check announces each version once.
  */
 export const PREF_KEYS = {
   shownKinds: "sgf.layers.shownKinds",

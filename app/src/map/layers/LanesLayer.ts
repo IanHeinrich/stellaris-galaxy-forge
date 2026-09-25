@@ -1,14 +1,16 @@
 import { Container, Graphics } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
+import { pairKey } from "../../lib/geometry/pairs";
 import { cellKey } from "../../lib/spatialGrid";
 import type { Camera } from "../Camera";
 import { DETAIL_SCALE } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
-import { addTo } from "../multiMap";
+import { LaneTable } from "../laneTable";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { ORIGIN_LANE_ALPHA } from "../../lib/visual/style";
-import type { DragState, MapLayer } from "./MapLayer";
+import { evenDashedLine } from "./dashes";
+import { sameDragged, type DragState, type MapLayer } from "./MapLayer";
 
 export interface LaneStyle {
   color: number;
@@ -48,19 +50,6 @@ function mixStyle(far: LaneStyle, near: LaneStyle, t: number): LaneStyle {
   };
 }
 
-/** Pixi strokes no dashes, so the line is stepped in world units and breaks at every zoom. */
-function dash(g: Graphics, ax: number, ay: number, bx: number, by: number): void {
-  const steps = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / (DASH + GAP)));
-  const dx = (bx - ax) / steps;
-  const dy = (by - ay) / steps;
-  const ink = DASH / (DASH + GAP);
-  for (let i = 0; i < steps; i++) {
-    const x = ax + dx * i;
-    const y = ay + dy * i;
-    g.moveTo(x, y).lineTo(x + dx * ink, y + dy * ink);
-  }
-}
-
 /** 0 at and below `EASE_FROM_SCALE`, 1 at and above `DETAIL_SCALE`, log-linear between, quantised. */
 function laneEase(camScale: number): number {
   const t = Math.log(camScale / EASE_FROM_SCALE) / Math.log(DETAIL_SCALE / EASE_FROM_SCALE);
@@ -84,8 +73,7 @@ type LaneKind = "lane" | "bridge" | "prevented";
 
 interface LaneEntry {
   readonly key: string;
-  readonly a: number;
-  readonly b: number;
+  readonly ends: readonly [number, number];
   readonly kind: LaneKind;
   readonly tile: number;
 }
@@ -113,10 +101,7 @@ export class LanesLayer implements MapLayer {
   private readonly lanesLayer = new Container({ label: "lanes" });
   private readonly bridgesLayer = new Container({ label: "bridges" });
   private readonly tiles = new Map<number, Tile>();
-  private readonly entries = new Map<string, LaneEntry>();
-  private readonly byId = new Map<number, Set<LaneEntry>>();
-  /** Systems a lane or pair names that the document does not hold, and the systems naming them. */
-  private readonly dangling = new Map<number, Set<number>>();
+  private readonly table = new LaneTable<LaneEntry>();
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
   private dragged: ReadonlyMap<number, MoveGhost> = NO_DRAG;
@@ -135,18 +120,10 @@ export class LanesLayer implements MapLayer {
 
   applyDelta(d: GalaxyDelta): void {
     const dirty = new Set<number>();
-    const again = new Set<number>();
-    for (const id of [...(d.removed ?? []), ...d.systems.map((s) => s.id)]) {
-      for (const entry of [...(this.byId.get(id) ?? [])]) {
-        this.drop(entry);
-        dirty.add(entry.tile);
-        again.add(entry.a);
-        again.add(entry.b);
-      }
-      for (const from of this.dangling.get(id) ?? []) again.add(from);
-      this.dangling.delete(id);
-    }
-    for (const s of d.systems) again.add(s.id);
+    const again = this.table.release(d, (entry) => {
+      this.tiles.get(entry.tile)?.entries.delete(entry);
+      dirty.add(entry.tile);
+    });
     for (const id of again) {
       const s = this.systems.get(id);
       if (s) for (const tile of this.derive(s)) dirty.add(tile);
@@ -157,12 +134,11 @@ export class LanesLayer implements MapLayer {
   /** Dims the lanes of the systems being dragged; their ghost lanes take their place. */
   setDragState(drag: DragState | null): void {
     const dragged = drag?.byId ?? NO_DRAG;
-    const same =
-      dragged.size === this.dragged.size && [...dragged.keys()].every((id) => this.dragged.has(id));
+    const same = sameDragged(dragged, this.dragged);
     if (same) return;
     const dirty = new Set<number>();
     for (const ids of [this.dragged.keys(), dragged.keys()]) {
-      for (const id of ids) for (const entry of this.byId.get(id) ?? []) dirty.add(entry.tile);
+      for (const id of ids) for (const entry of this.table.of(id)) dirty.add(entry.tile);
     }
     this.dragged = dragged;
     for (const tile of dirty) this.drawTile(tile);
@@ -188,9 +164,7 @@ export class LanesLayer implements MapLayer {
     this.lanesLayer.removeChildren().forEach((c) => c.destroy());
     this.bridgesLayer.removeChildren().forEach((c) => c.destroy());
     this.tiles.clear();
-    this.entries.clear();
-    this.byId.clear();
-    this.dangling.clear();
+    this.table.clear();
     for (const s of this.systems.values()) this.derive(s);
     for (const tile of this.tiles.keys()) this.drawTile(tile);
   }
@@ -215,25 +189,15 @@ export class LanesLayer implements MapLayer {
   }
 
   private file(s: SystemNode, to: number, kind: LaneKind): number | null {
-    const [lo, hi] = s.id < to ? [s.id, to] : [to, s.id];
-    const key = `${kind === "prevented" ? "p" : "l"}${lo}:${hi}`;
-    if (this.entries.has(key)) return null;
+    const key = `${kind === "prevented" ? "p" : "l"}${pairKey(s.id, to)}`;
+    if (this.table.has(key)) return null;
     const b = this.systems.get(to);
-    if (!b) addTo(this.dangling, to, s.id);
+    if (!b) this.table.waitFor(to, s.id);
     const at = b ? { x: (s.x + b.x) / 2, y: (s.y + b.y) / 2 } : s;
-    const entry: LaneEntry = { key, a: s.id, b: to, kind, tile: tileOf(at.x, at.y) };
-    this.entries.set(key, entry);
-    addTo(this.byId, entry.a, entry);
-    addTo(this.byId, entry.b, entry);
+    const entry: LaneEntry = { key, ends: [s.id, to], kind, tile: tileOf(at.x, at.y) };
+    this.table.add(entry);
     this.tileAt(entry.tile).entries.add(entry);
     return entry.tile;
-  }
-
-  private drop(entry: LaneEntry): void {
-    this.entries.delete(entry.key);
-    this.byId.get(entry.a)?.delete(entry);
-    this.byId.get(entry.b)?.delete(entry);
-    this.tiles.get(entry.tile)?.entries.delete(entry);
   }
 
   private tileAt(key: number): Tile {
@@ -275,8 +239,8 @@ export class LanesLayer implements MapLayer {
         let any = false;
         for (const entry of tile.entries) {
           if (entry.kind !== kind || this.faded(entry) !== faded) continue;
-          const a = this.systems.get(entry.a);
-          const b = this.systems.get(entry.b);
+          const a = this.systems.get(entry.ends[0]);
+          const b = this.systems.get(entry.ends[1]);
           if (!a || !b) continue;
           g.moveTo(a.x, a.y).lineTo(b.x, b.y);
           any = true;
@@ -296,10 +260,10 @@ export class LanesLayer implements MapLayer {
       let any = false;
       for (const entry of tile.entries) {
         if (entry.kind !== "prevented" || this.faded(entry) !== faded) continue;
-        const a = this.systems.get(entry.a);
-        const b = this.systems.get(entry.b);
+        const a = this.systems.get(entry.ends[0]);
+        const b = this.systems.get(entry.ends[1]);
         if (!a || !b) continue;
-        dash(g, a.x, a.y, b.x, b.y);
+        evenDashedLine(g, a, b, DASH, GAP);
         any = true;
       }
       if (any) {
@@ -313,6 +277,6 @@ export class LanesLayer implements MapLayer {
   }
 
   private faded(entry: LaneEntry): boolean {
-    return this.dragged.has(entry.a) || this.dragged.has(entry.b);
+    return entry.ends.some((id) => this.dragged.has(id));
   }
 }

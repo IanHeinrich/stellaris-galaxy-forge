@@ -1,24 +1,19 @@
 //! The marauder clans a map places by initializer: which systems are a clan's home and
-//! its raid bases, the next clan free to place, and the issues a scenario raises when a
+//! its raid bases, how many clans a map places, and the issues a scenario raises when a
 //! clan has two homes, a base has no home beside it, or a home stands beside a seat.
 
-use sgf_core::format::scenario::marauder::{
-    CLANS, MarauderRole, clan_count, home_initializer, homes, next_free_clan,
-};
+use sgf_core::format::scenario::marauder::{CLANS, MarauderRole, clan_count, homes};
 use sgf_core::ops::Op;
 use sgf_core::validate::{Issue, IssueCode, Severity};
 
 use crate::common;
+use common::coded;
 use common::fixture::{EXPORTED_PAINT, PAINTED};
 
 const VOID: &str = "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" }";
 const UNNAMED: &str = "id = \"11\" position = { x = -150 y = -30 } }";
 const INGRESS: &str = "id = \"7\" position = { x = 20 y = -20 } name = \"Ingress\"";
 const EGRESS: &str = "id = \"8\" position = { x = -160 y = -160 } name = \"Egress\"";
-
-fn coded(issues: &[Issue], code: IssueCode) -> Vec<&Issue> {
-    issues.iter().filter(|issue| issue.code == code).collect()
-}
 
 fn marauder_issues(issues: &[Issue]) -> Vec<&Issue> {
     issues
@@ -140,12 +135,11 @@ fn a_home_beside_a_seat_is_worth_a_look_on_a_painted_map() {
 }
 
 #[test]
-fn the_next_free_clan_is_the_lowest_without_a_home_and_an_op_keeps_the_role_in_step() {
+fn clans_count_their_homes_and_an_op_keeps_the_role_in_step() {
     assert_eq!(CLANS, 3);
     let plain = PAINTED.open();
     assert!(homes(&plain.graph).is_empty());
     assert_eq!(clan_count(&plain.graph), 0);
-    assert_eq!(next_free_clan(&plain.graph), Some(1));
 
     let two = PAINTED.open_edited(&[
         (
@@ -158,7 +152,6 @@ fn the_next_free_clan_is_the_lowest_without_a_home_and_an_op_keeps_the_role_in_s
         ),
     ]);
     assert_eq!(clan_count(&two.graph), 2);
-    assert_eq!(next_free_clan(&two.graph), Some(3));
 
     let three = PAINTED.open_edited(&[
         (
@@ -175,13 +168,12 @@ fn the_next_free_clan_is_the_lowest_without_a_home_and_an_op_keeps_the_role_in_s
         ),
     ]);
     assert_eq!(clan_count(&three.graph), 3);
-    assert_eq!(next_free_clan(&three.graph), None);
 
     let mut session = PAINTED.open();
     session
         .apply(Op::SetInitializer {
             id: 10,
-            initializer: Some(home_initializer(3)),
+            initializer: Some("marauder_3_1".to_owned()),
         })
         .expect("set the initializer");
     assert_eq!(
@@ -189,7 +181,6 @@ fn the_next_free_clan_is_the_lowest_without_a_home_and_an_op_keeps_the_role_in_s
         Some(MarauderRole::Home(3))
     );
     assert_eq!(homes(&session.graph).get(&3), Some(&vec![10]));
-    assert_eq!(next_free_clan(&session.graph), Some(1));
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(session.system(10).and_then(|s| s.marauder), None);
 }
@@ -215,7 +206,6 @@ fn the_sample_saves_two_clans_read_from_their_initializers_and_raise_no_issue() 
     assert_eq!(homes(&save.graph).get(&1), Some(&vec![13]));
     assert_eq!(homes(&save.graph).get(&2), Some(&vec![12]));
     assert_eq!(clan_count(&save.graph), 2);
-    assert_eq!(next_free_clan(&save.graph), Some(3));
     let issues = save.validate();
     assert!(marauder_issues(&issues).is_empty(), "{issues:?}");
 }

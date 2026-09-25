@@ -7,12 +7,12 @@ import { systemsOf, type Ownership } from "../../lib/ownership";
 import { ownerColor, toCss } from "../../lib/visual/ownerColors";
 import { rowLookups, type EmpireRow } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useOwnership } from "../../store/ownership";
-import { Chip, SourceChip } from "../inspector/parts";
+import { Chip, SourceChip } from "../parts";
 import { useCollapse } from "./collapse";
 import { Action, Emblem, Eye, Group, Row } from "./rows";
 
@@ -159,7 +159,7 @@ const TERRITORY_NEEDS_GAME_DATA =
  */
 export function Empires() {
   const scenario = useFileSessionStore((s) => s.kind === "scenario");
-  const save = useFileSessionStore((s) => s.kind === "save");
+  const mapColors = useCanEdit("map_colors");
   const ready = useGameDataStore((s) => s.status === "ready");
   const countries = useGalaxyStore((s) => s.countries);
   const systems = useGalaxyStore((s) => s.systems);
@@ -199,7 +199,7 @@ export function Empires() {
               station={stations.get(row.id) ?? null}
               territory={territories.get(row.id)}
               ownership={ownership}
-              editable={save}
+              editable={mapColors}
             />
           ))}
         </Group>

@@ -14,7 +14,6 @@ use crate::cst::{self, CstError, Node};
 use crate::document::Document;
 use crate::keys::scenario as keys;
 use crate::lexer::Mode;
-use crate::ops::blank_slot;
 use crate::overlay::{Anchor, Overlay, OverlayError};
 use crate::projections::galaxy::HeaderField;
 use crate::scan::{self, Index, Value};
@@ -167,6 +166,8 @@ pub struct ScenarioIndex {
     nebulae: Vec<Anchor>,
     /// The hyperlane statements naming each system at either end.
     lanes_of: HashMap<u32, BTreeSet<Anchor>>,
+    /// Where each line of the file as opened ends, ascending.
+    line_ends: Vec<usize>,
 }
 
 impl ScenarioIndex {
@@ -204,9 +205,9 @@ impl ScenarioIndex {
             order: Vec::new(),
             nebulae: Vec::new(),
             lanes_of: HashMap::new(),
+            line_ends: memchr::memchr_iter(b'\n', bytes).collect(),
         };
         let overlay = Overlay::new();
-        let (mut counted, mut line) = (0, 1);
         let anchors: Vec<Anchor> = scenario
             .body
             .sections()
@@ -214,9 +215,7 @@ impl ScenarioIndex {
             .map(|s| Anchor::Original(s.stmt))
             .collect();
         for anchor in anchors {
-            line += newlines(&bytes[counted..anchor.start()]);
-            counted = anchor.start();
-            if let Some(stmt) = scenario.read(bytes, &overlay, anchor, Some(line))? {
+            if let Some(stmt) = scenario.read(bytes, &overlay, anchor)? {
                 scenario.index_lanes(anchor, &stmt, true);
                 scenario.stmts.insert(anchor, stmt);
             }
@@ -242,7 +241,7 @@ impl ScenarioIndex {
     ) -> Result<Changes, Error> {
         let mut read = Vec::new();
         for anchor in self.statements_in(slots) {
-            read.push((anchor, self.read(original, overlay, anchor, None)?));
+            read.push((anchor, self.read(original, overlay, anchor)?));
         }
         let mut changes = Changes::default();
         let (mut systems, mut nebulae, mut header) = (false, false, false);
@@ -289,6 +288,12 @@ impl ScenarioIndex {
             self.header.insert_at = self.first_entity(original);
         }
         Ok(changes)
+    }
+
+    /// The line of the file as opened that offset `at` stands on, counting from 1: where
+    /// a statement starts, or where an inserted one goes.
+    pub fn line_at(&self, at: usize) -> u32 {
+        1 + crate::as_u32(self.line_ends.partition_point(|&end| end < at))
     }
 
     /// The statement holding system `id`.
@@ -358,19 +363,17 @@ impl ScenarioIndex {
             .filter_map(|&anchor| lane_stmt(anchor, self.stmts.get(&anchor)?))
     }
 
-    /// What the statement at `anchor` now reads as; `None` when it is gone or empty. `line`
-    /// is the one it starts on in the file as opened, counted here when not given.
+    /// What the statement at `anchor` now reads as; `None` when it is gone or empty.
     fn read(
         &self,
         original: &[u8],
         overlay: &Overlay,
         anchor: Anchor,
-        line: Option<u32>,
     ) -> Result<Option<Stmt>, Error> {
         if anchor.is_inserted() && !self.in_body(anchor) {
             return Ok(None);
         }
-        if removed(overlay, anchor, original) {
+        if overlay.removed(anchor, original) {
             return Ok(None);
         }
         let buf = match overlay.current(anchor, original) {
@@ -399,9 +402,7 @@ impl ScenarioIndex {
                 field: HeaderField {
                     key: key.to_owned(),
                     value: String::from_utf8_lossy(node.value_span().slice(buf)).into_owned(),
-                    line: line.unwrap_or_else(|| {
-                        1 + newlines(&original[..anchor.start().min(original.len())])
-                    }),
+                    line: self.line_at(anchor.start()),
                 },
                 indent: indent_of(original, anchor, Some(buf)),
             }),
@@ -525,19 +526,6 @@ fn lane_stmt(anchor: Anchor, stmt: &Stmt) -> Option<LaneStmt> {
     })
 }
 
-/// Whether the statement at `anchor` is gone: the bytes now standing for it, whether
-/// that is its own slot or the bigger slot that swallowed it when a removal took the
-/// whole line, are blank.
-pub(crate) fn removed(overlay: &Overlay, anchor: Anchor, original: &[u8]) -> bool {
-    let Anchor::Original(span) = anchor else {
-        return false;
-    };
-    match overlay.current(anchor, original) {
-        Ok(bytes) => blank_slot(bytes),
-        Err(_) => overlay.enclosing(span).is_some_and(blank_slot),
-    }
-}
-
 /// The few header keys the editor reads as values rather than as raw text, from the
 /// fields just listed.
 fn read_scalars(header: &mut ScenarioHeader) {
@@ -562,10 +550,6 @@ pub(crate) fn indent_of(original: &[u8], anchor: Anchor, current: Option<&[u8]>)
             .map(|buf| cst::indent_of(buf, 0).to_vec())
             .unwrap_or_default(),
     }
-}
-
-fn newlines(bytes: &[u8]) -> u32 {
-    crate::as_u32(bytes.iter().filter(|&&b| b == b'\n').count())
 }
 
 /// The id a `system=` statement names, when it names one that is a number.

@@ -1,7 +1,7 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { elements } from "../../test/elements";
+import { buttonIn } from "../../test/elements";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -36,13 +36,6 @@ function body(props: Partial<UpdateBodyProps>): ReactElement {
   );
 }
 
-function button(tree: ReactNode, text: string): ReactElement<{ onClick: () => void }> | undefined {
-  return elements(tree).find(
-    (el): el is ReactElement<{ onClick: () => void }> =>
-      el.type === "button" && renderToStaticMarkup(el).includes(text),
-  );
-}
-
 describe("an update the app can install itself", () => {
   it("names both versions, shows the notes as they were written, and installs on the button", () => {
     const onInstall = vi.fn();
@@ -54,7 +47,7 @@ describe("an update the app can install itself", () => {
     expect(html).toContain("published");
     expect(html).toContain("Nebulae move with their systems");
 
-    button(tree, "Install and restart")!.props.onClick();
+    buttonIn(tree, "Install and restart")!.props.onClick();
     expect(onInstall).toHaveBeenCalledTimes(1);
   });
 
@@ -85,7 +78,7 @@ describe("an update the app can install itself", () => {
     const tree = body({ error: "signature mismatch" });
 
     expect(renderToStaticMarkup(tree)).toContain('class="warn">signature mismatch');
-    expect(button(tree, "Install and restart")!.props).toMatchObject({ disabled: false });
+    expect(buttonIn(tree, "Install and restart")!.props).toMatchObject({ disabled: false });
   });
 
   it("keeps the raw date when it is not one a clock can read", () => {
@@ -103,7 +96,7 @@ describe("an update the app can install itself", () => {
     expect(html).toContain("Downloading… 1.0 MB of 4.0 MB");
     expect(html).toContain("The app closes while the installer runs");
     expect(html).toContain('style="width:25%"');
-    expect(button(tree, "Install and restart")!.props).toMatchObject({ disabled: true });
+    expect(buttonIn(tree, "Install and restart")!.props).toMatchObject({ disabled: true });
   });
 });
 
@@ -112,8 +105,8 @@ describe("a copy that is replaced by hand", () => {
     const tree = body({ update: { ...UPDATE, install: "manual" } });
 
     expect(renderToStaticMarkup(tree)).toContain("This copy is replaced by hand");
-    expect(button(tree, "Install and restart")).toBeUndefined();
-    expect(button(tree, "Open releases page")).toBeDefined();
+    expect(buttonIn(tree, "Install and restart")).toBeUndefined();
+    expect(buttonIn(tree, "Open releases page")).toBeDefined();
   });
 });
 
@@ -122,7 +115,7 @@ describe("the other answers a check can give", () => {
     const tree = body({ status: "current", update: null });
 
     expect(renderToStaticMarkup(tree)).toContain("Stellaris Galaxy Forge 0.5.1 is up to date.");
-    expect(button(tree, "Skip this version")).toBeUndefined();
+    expect(buttonIn(tree, "Skip this version")).toBeUndefined();
   });
 
   it("shows a failure as a warning and keeps the releases page reachable", () => {
@@ -131,7 +124,7 @@ describe("the other answers a check can give", () => {
 
     expect(renderToStaticMarkup(tree)).toContain('class="warn">endpoint 403');
 
-    button(tree, "Open releases page")!.props.onClick();
+    buttonIn(tree, "Open releases page")!.props.onClick();
     expect(onReleases).toHaveBeenCalledTimes(1);
   });
 });

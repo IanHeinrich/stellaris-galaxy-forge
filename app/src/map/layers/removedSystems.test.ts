@@ -1,19 +1,19 @@
 import { Texture, type Renderer } from "pixi.js";
 import { describe, expect, it } from "vitest";
 import type { Issue } from "../../generated/Issue";
+import { appIssue } from "../../test/builders";
 import { IssuesLayer } from "./IssuesLayer";
 import { SystemsLayer } from "./SystemsLayer";
 import { mapContext, mapNode } from "./fixture";
 
 const NODES = [mapNode(0, 0, "Sol"), mapNode(1, 20, "Alpha")];
 
-const ISSUE: Issue = {
+const ISSUE: Issue = appIssue({
   severity: "warning",
   code: "lane_asymmetric",
   message: "Sol and Alpha disagree about the lane between them",
   systems: [0, 1],
-  note: false,
-};
+});
 
 const renderer = { generateTexture: () => Texture.EMPTY } as unknown as Renderer;
 

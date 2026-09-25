@@ -551,3 +551,14 @@ fn a_home_system_a_megastructure_and_a_starbase_come_through() {
     assert!(!starbase.shipyard);
     assert!(starbase.owner.is_none() && starbase.name_key.is_empty());
 }
+
+#[test]
+fn an_initializer_is_sourced_to_the_mod_that_defines_it_and_vanilla_to_nothing() {
+    let gd = common::cached_fixture_with_mods();
+    assert_eq!(
+        gd.initializer_source("mod_one_init").as_deref(),
+        Some("Mod One")
+    );
+    assert_eq!(gd.initializer_source("home_init"), None);
+    assert_eq!(gd.initializer_source("no_such_init"), None);
+}

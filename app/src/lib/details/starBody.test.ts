@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
-import type { StarClassView } from "../../generated/StarClassView";
+import { planetClassView, starClassView } from "../../test/builders";
 import { details, planet } from "./fixture";
 import {
   findPlanet,
@@ -13,30 +13,18 @@ import {
   starTypeRows,
 } from "./starBody";
 
-function view(key: string, ...planet_keys: string[]): StarClassView {
-  return {
-    key,
-    texture_key: `star_class:${key}`,
-    icon_scale: 1,
-    planet_keys,
-    crisis_star_class: null,
-    spawn_odds: 1,
-    localised: true,
-  };
-}
-
 const CLASSES = new Map(
   [
-    view("sc_g", "pc_g_star"),
-    view("sc_black_hole", "pc_black_hole"),
-    view("sc_binary_2", "pc_b_star", "pc_neutron_star"),
+    starClassView("sc_g", "pc_g_star"),
+    starClassView("sc_black_hole", "pc_black_hole"),
+    starClassView("sc_binary_2", "pc_b_star", "pc_neutron_star"),
   ].map((c) => [c.key, c]),
 );
 
 const PLANET_CLASSES = new Map<string, PlanetClassView>(
   ["pc_g_star", "pc_b_star", "pc_neutron_star", "pc_black_hole"]
-    .map((key) => ({ key, icon_sprite: null, habitable: false, star: true }))
-    .concat([{ key: "pc_barren", icon_sprite: null, habitable: false, star: false }])
+    .map((key) => planetClassView(key))
+    .concat([planetClassView("pc_barren", false)])
     .map((c) => [c.key, c]),
 );
 
@@ -60,6 +48,7 @@ describe("isStarBody", () => {
     expect(isStarBody("pc_k_star", new Map(), new Map())).toBe(true);
     expect(isStarBody("pc_pulsar", new Map(), new Map())).toBe(true);
     expect(isStarBody("pc_barren", new Map(), new Map())).toBe(false);
+    expect(isStarBody("star", new Map(), new Map())).toBe(true);
   });
 });
 
@@ -92,9 +81,12 @@ describe("the star type picker", () => {
   });
 
   it("finds the single star class of a body, preferring one a new galaxy rolls", () => {
-    const scripted = { ...view("sc_g_scripted", "pc_g_star"), spawn_odds: 0 };
+    const scripted = { ...starClassView("sc_g_scripted", "pc_g_star"), spawn_odds: 0 };
     const classes = new Map(
-      [scripted, ...CLASSES.values(), view("sc_g_again", "pc_g_star")].map((c) => [c.key, c]),
+      [scripted, ...CLASSES.values(), starClassView("sc_g_again", "pc_g_star")].map((c) => [
+        c.key,
+        c,
+      ]),
     );
     const singles = singleStarClasses(classes);
     expect(singles.get("pc_g_star")?.key).toBe("sc_g");
@@ -135,7 +127,7 @@ describe("setStarTypeOp", () => {
   });
 
   it("prefers a class a new galaxy rolls over a variant with the same stars", () => {
-    const variant = { ...view("sc_crisis_hole", "pc_black_hole"), spawn_odds: 0 };
+    const variant = { ...starClassView("sc_crisis_hole", "pc_black_hole"), spawn_odds: 0 };
     const classes = new Map([[variant.key, variant], ...CLASSES]);
     const single = { id: 7, star_class: "sc_g" };
     const op = setStarTypeOp(

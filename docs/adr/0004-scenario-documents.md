@@ -27,13 +27,12 @@ statement a subject lives in, refreshes what an edit touched, says whether it ta
 into byte splices, writes the file back, names the document, reports its own issues and declares its
 `Capabilities`, which the app reads per open document instead of guessing from the extension. What the writers
 absorb is `position` against `coordinate`, one standalone `add_hyperlane` against `hyperlane` entries carrying
-a `length` at both ends, and nebula membership by radius alone against a written member list. Ten ops are
-scenario-only: `AddSystem`, `RemoveSystem`, `SetSystemName`, `SetInitializer`, `SetInitializers`,
-`SetHeaderField`, `SetSpawnWeight`, `SetSpawnWeights`, `PreventLane` and `UnpreventLane`. Four are save-only,
-because a scenario lane carries no length: `SetLaneLength`, `SetLaneLengths`, `NormaliseLaneLength` and
-`NormaliseLaneLengths`, and a bridge lane is refused for the same reason.
+a `length` at both ends, and nebula membership by radius alone against a written member list. Which kind
+takes which op is asserted by `sgf-core/tests/op_kinds.rs` over the examples in `tests/common/examples.rs`.
+The lane length ops are save-only because a scenario lane carries no length, and a bridge lane is refused for
+the same reason.
 
-One generator serves the three ways to reach a scenario (`sgf-core/src/export.rs`): exporting the open save's
+One generator serves the three ways to reach a scenario (`sgf-core/src/export/`): exporting the open save's
 galaxy to a file, starting a new empty one from a header, and opening a `.sav` as an unsaved scenario named
 after its file stem. A save is never rewritten as a scenario in place and is only read. A scenario holds no
 planets, stations or fleets of its own, so what a system contains comes from the initializer it names,

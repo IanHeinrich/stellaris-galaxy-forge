@@ -1,7 +1,5 @@
 import type { SgfError } from "../generated/SgfError";
 
-export type { SgfError };
-
 /** True when `e` is a command failure from the Rust side. */
 export function isSgfError(e: unknown): e is SgfError {
   return (

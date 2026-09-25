@@ -1,0 +1,103 @@
+{
+  "name": "Dorellion",
+  "x": 433.43269,
+  "y": -205.48736,
+  "star_class": "sc_g",
+  "initializer": "basic_init_01",
+  "star": {
+    "class": "pc_g_star",
+    "size": 25,
+    "orbit": 0,
+    "angle": 0,
+    "entity": 0,
+    "deposits": [
+      "d_energy_5"
+    ],
+    "moons": [],
+    "star": true
+  },
+  "planets": [
+    {
+      "class": "pc_molten",
+      "size": 12,
+      "orbit": 65,
+      "angle": 30,
+      "entity": 1,
+      "deposits": [],
+      "moons": []
+    },
+    {
+      "class": "pc_barren",
+      "size": 14,
+      "orbit": 85,
+      "angle": 150,
+      "entity": 1,
+      "deposits": [],
+      "moons": []
+    },
+    {
+      "class": "pc_continental",
+      "size": 16,
+      "orbit": 105,
+      "angle": 260,
+      "entity": 2,
+      "deposits": [
+        "d_rugged_woods",
+        "d_dense_jungle",
+        "d_dense_jungle"
+      ],
+      "moons": []
+    },
+    {
+      "class": "pc_gas_giant",
+      "size": 25,
+      "orbit": 145,
+      "angle": 20,
+      "entity": 2,
+      "deposits": [
+        "d_energy_5"
+      ],
+      "moons": [
+        {
+          "class": "pc_frozen",
+          "size": 8,
+          "orbit": 15,
+          "angle": 60,
+          "entity": 1,
+          "deposits": [],
+          "moons": []
+        },
+        {
+          "class": "pc_barren_cold",
+          "size": 6,
+          "orbit": 22,
+          "angle": 240,
+          "entity": 1,
+          "deposits": [],
+          "moons": []
+        }
+      ]
+    },
+    {
+      "class": "pc_toxic",
+      "size": 15,
+      "orbit": 175,
+      "angle": 200,
+      "entity": 1,
+      "deposits": [],
+      "moons": []
+    },
+    {
+      "class": "pc_frozen",
+      "size": 13,
+      "orbit": 205,
+      "angle": 110,
+      "entity": 1,
+      "deposits": [],
+      "moons": []
+    }
+  ],
+  "lanes": [
+    217
+  ]
+}

@@ -1,73 +1,56 @@
-//! What the spawn ops refuse: a weight that is no number, an unknown system, a repeated
-//! id, and a save, which has no spawn weights at all.
+//! What the spawn ops refuse: a weight that is no number, an unknown system, an empty
+//! list and a repeated id.
 
 use sgf_core::ops::{Op, OpError};
-use sgf_core::views::DocumentKind;
 
 use crate::common;
+use common::Refused;
 use common::fixture::GRAMMAR;
+
+fn refuses_each(cases: Vec<Refused<Op>>) {
+    let mut session = GRAMMAR.open();
+    for (op, expected) in cases {
+        let label = format!("{op:?}");
+        let error = session.apply(op).expect_err(&label);
+        assert!(expected(&error), "{label}: {error:?}");
+    }
+    assert!(!session.is_dirty());
+}
+
+fn weight(base: f64) -> Op {
+    Op::SetSpawnWeight {
+        id: 2,
+        base: Some(base),
+    }
+}
 
 #[test]
 fn a_weight_that_is_no_number_is_refused() {
-    let mut session = GRAMMAR.open();
-    for base in [-1.0, f64::NAN, f64::INFINITY] {
-        let error = session
-            .apply(Op::SetSpawnWeight {
-                id: 2,
-                base: Some(base),
-            })
-            .expect_err("refused");
-        assert!(
-            matches!(error, OpError::NotFinite | OpError::InvalidWeight { .. }),
-            "{base}: {error}"
-        );
-    }
-    assert!(!session.is_dirty());
+    refuses_each(vec![
+        (weight(-1.0), |e| matches!(e, OpError::InvalidWeight { .. })),
+        (weight(f64::NAN), |e| matches!(e, OpError::NotFinite)),
+        (weight(f64::INFINITY), |e| matches!(e, OpError::NotFinite)),
+    ]);
 }
 
 #[test]
 fn an_unknown_system_an_empty_list_and_a_repeated_id_are_refused() {
-    let mut session = GRAMMAR.open();
-    for op in [
-        Op::SetSpawnWeight {
-            id: 4242,
-            base: Some(1.0),
-        },
-        Op::SetSpawnWeights { entries: vec![] },
-        Op::SetSpawnWeights {
-            entries: vec![(2, Some(1.0)), (2, None)],
-        },
-    ] {
-        let name = op.name();
-        session.apply(op).expect_err(name);
-    }
-    assert!(!session.is_dirty());
-}
-
-#[test]
-fn a_save_has_no_spawn_weights_to_write() {
-    let mut session = common::open();
-    for op in [
-        Op::SetSpawnWeight {
-            id: 0,
-            base: Some(1.0),
-        },
-        Op::SetSpawnWeights {
-            entries: vec![(0, Some(1.0))],
-        },
-    ] {
-        let name = op.name();
-        let error = session.apply(op).expect_err("a save has no such op");
-        assert!(
-            matches!(
-                error,
-                OpError::Unsupported {
-                    kind: DocumentKind::Save,
-                    ..
-                }
-            ),
-            "{name}: {error:?}"
-        );
-    }
-    assert!(!session.doc.is_dirty());
+    refuses_each(vec![
+        (
+            Op::SetSpawnWeight {
+                id: 4242,
+                base: Some(1.0),
+            },
+            |e| matches!(e, OpError::UnknownSystem(4242)),
+        ),
+        (Op::SetSpawnWeights { entries: vec![] }, |e| {
+            matches!(e, OpError::NoEntries)
+        }),
+        (
+            Op::SetSpawnWeights {
+                entries: vec![(2, Some(1.0)), (2, None)],
+            },
+            |e| matches!(e, OpError::DuplicateSystem(2)),
+        ),
+    ]);
 }

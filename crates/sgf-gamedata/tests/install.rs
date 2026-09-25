@@ -16,7 +16,7 @@ fn the_real_install_tests_ran_or_said_why() {
 
 #[test]
 fn vanilla_definitions_and_localisation() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     assert!(gd.version.as_deref().is_some_and(|v| v.starts_with('v')));
@@ -82,7 +82,7 @@ fn vanilla_definitions_and_localisation() {
 
 #[test]
 fn resource_icons_resolve_to_registered_sprites() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let icon = |resource: &str| gd.resource_icon(resource);

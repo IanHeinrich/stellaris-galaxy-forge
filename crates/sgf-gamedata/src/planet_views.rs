@@ -3,18 +3,17 @@
 //! localised text and texture keys so the app needs no further lookups.
 
 use serde::{Deserialize, Serialize};
-use sgf_core::projections::galaxy::display_name;
 use ts_rs::TS;
 
 use crate::GameData;
+use crate::loc::localisation::Localisation;
 use crate::registries::deposits::DepositDef;
 use crate::registries::static_modifiers::StaticModifierDef;
-use crate::textures::{DEPOSIT_ICONS, TextureKey};
+use crate::textures::{ICONS, TextureKey};
 
 const DEPOSIT_FALLBACK: &str = "GFX_deposit_unknown";
 const BLOCKER_FALLBACK: &str = "GFX_deposit_blocker_unknown";
 const MODIFIER_FRAMES: &str = "GFX_modifier_frames";
-const ICONS_DIR: &str = "gfx/interface/icons/";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -119,10 +118,7 @@ impl GameData {
 
     pub fn deposit_type_view(&self, key: &str) -> Option<DepositTypeView> {
         let def = self.deposits.get(key)?;
-        let category = def
-            .category
-            .as_deref()
-            .and_then(|c| self.deposit_categories.get(c));
+        let category = self.deposit_category(def);
         let blocker = category.is_some_and(|c| c.blocker);
         let clearing = blocker.then(|| DepositClearingView {
             cost: self.resource_amounts(&def.cost),
@@ -135,7 +131,7 @@ impl GameData {
             texture_key: self.deposit_texture_key(def, blocker),
             blocker,
             rare: category.is_some_and(|c| c.important),
-            orbital: !def.is_for_colonizable,
+            orbital: def.orbital(),
             category: def.category.clone(),
             station: def.station.clone(),
             yields: self.resource_amounts(&def.produces),
@@ -171,10 +167,9 @@ impl GameData {
             .and_then(|k| self.static_modifiers.get(k));
         let name = self
             .loc
-            .get(key)
-            .or_else(|| self.loc.get(static_key.as_deref()?))
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| display_name(key));
+            .name(key)
+            .or_else(|| self.loc.name(static_key.as_deref()?))
+            .unwrap_or_else(|| Localisation::readable(key));
         Some(ModifierView {
             key: key.to_owned(),
             name,
@@ -182,7 +177,8 @@ impl GameData {
             icon: def.and_then(|d| self.static_modifier_icon(d)),
             icon_frame: def
                 .and_then(|d| d.icon_frame)
-                .map(|frame| format!("sprite:{MODIFIER_FRAMES}#{frame}")),
+                .and_then(|frame| TextureKey::sprite(MODIFIER_FRAMES, Some(frame)))
+                .map(|key| key.to_string()),
             effects: def.map_or_else(Vec::new, |d| self.modifier_lines(&d.modifiers)),
         })
     }
@@ -202,44 +198,35 @@ impl GameData {
             icon: def
                 .icon
                 .as_deref()
-                .filter(|sprite| self.sprites.get(sprite).is_some())
-                .map(|sprite| format!("sprite:{sprite}")),
+                .and_then(|sprite| self.sprite_key(sprite)),
         })
     }
 
     fn deposit_texture_key(&self, def: &DepositDef, blocker: bool) -> String {
-        let icon = def.texture_icon();
-        let key = TextureKey::Deposit {
-            icon: icon.to_owned(),
-        }
-        .to_string();
-        let found = key.parse::<TextureKey>().is_ok()
-            && self
-                .layout
-                .resolve_file(&format!("{DEPOSIT_ICONS}/{icon}.dds"))
-                .is_some();
-        match (found, blocker) {
-            (true, _) => key,
-            (false, true) => format!("sprite:{BLOCKER_FALLBACK}"),
-            (false, false) => format!("sprite:{DEPOSIT_FALLBACK}"),
-        }
+        let fallback = match blocker {
+            true => BLOCKER_FALLBACK,
+            false => DEPOSIT_FALLBACK,
+        };
+        TextureKey::deposit(def.texture_icon())
+            .filter(|key| key.exists(&self.layout))
+            .or_else(|| TextureKey::sprite(fallback, None))
+            .map(|key| key.to_string())
+            .unwrap_or_default()
     }
 
     fn static_modifier_icon(&self, def: &StaticModifierDef) -> Option<String> {
         let icon = def.icon.as_deref()?.replace('\\', "/");
         if icon.starts_with("GFX_") {
-            return self
-                .sprites
-                .get(&icon)
-                .is_some()
-                .then(|| format!("sprite:{icon}"));
+            return self.sprite_key(&icon);
         }
-        let key = TextureKey::Icon {
-            path: icon.strip_prefix(ICONS_DIR)?.to_owned(),
-        }
-        .to_string();
-        let found = key.parse::<TextureKey>().is_ok() && self.layout.resolve_file(&icon).is_some();
-        found.then_some(key)
+        let key = TextureKey::icon(icon.strip_prefix(ICONS)?.strip_prefix('/')?)?;
+        key.exists(&self.layout).then(|| key.to_string())
+    }
+
+    /// The key of a sprite the install defines.
+    fn sprite_key(&self, sprite: &str) -> Option<String> {
+        self.sprites.get(sprite)?;
+        TextureKey::sprite(sprite, None).map(|key| key.to_string())
     }
 
     fn modifier_lines(&self, lines: &[(String, f64)]) -> Vec<ModifierLineView> {
@@ -262,7 +249,8 @@ impl GameData {
                 name: self.name_of(resource),
                 icon: self
                     .resource_icon(resource)
-                    .map(|sprite| format!("sprite:{sprite}")),
+                    .and_then(|sprite| TextureKey::sprite(&sprite, None))
+                    .map(|key| key.to_string()),
             })
             .collect()
     }
@@ -275,9 +263,6 @@ impl GameData {
     }
 
     fn name_of(&self, key: &str) -> String {
-        self.loc
-            .get(key)
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| display_name(key))
+        self.loc.name_or_readable(key)
     }
 }

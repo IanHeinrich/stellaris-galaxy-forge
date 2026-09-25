@@ -7,7 +7,7 @@ import {
   badgeSide,
   badgeVisible,
   humaniseInitializer,
-  LEVIATHAN_NAMES,
+  LEVIATHANS,
 } from "./specialStyle";
 
 function special(overrides: Partial<SpecialSystem>): SpecialSystem {
@@ -151,7 +151,7 @@ describe("humaniseInitializer", () => {
   });
 });
 
-describe("LEVIATHAN_NAMES", () => {
+describe("LEVIATHANS", () => {
   it("covers every vanilla guardian initializer", () => {
     for (const creature of [
       "dragon",
@@ -164,10 +164,10 @@ describe("LEVIATHAN_NAMES", () => {
       "hatchling",
       "wraith",
     ]) {
-      expect(LEVIATHAN_NAMES[`guardians_init_${creature}`]).toMatch(/^NAME_/);
+      expect(LEVIATHANS[`guardians_init_${creature}`].name).toMatch(/^NAME_/);
     }
-    expect(LEVIATHAN_NAMES.elderly_tiyanki_system).toBe("NAME_Elderly_Tiyanki");
-    expect(LEVIATHAN_NAMES.scavenger_system).toBe("NAME_Scavenger_Bot");
+    expect(LEVIATHANS.elderly_tiyanki_system.name).toBe("NAME_Elderly_Tiyanki");
+    expect(LEVIATHANS.scavenger_system.name).toBe("NAME_Scavenger_Bot");
   });
 });
 

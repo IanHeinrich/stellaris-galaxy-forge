@@ -21,14 +21,6 @@ pub fn save_dirs() -> Vec<String> {
         .collect()
 }
 
-/// Every `.sav` under the Stellaris save directories, local and Steam Cloud, newest first.
-#[tauri::command]
-pub async fn list_saves() -> Result<Vec<SaveFile>, SgfError> {
-    tauri::async_runtime::spawn_blocking(library::list_saves)
-        .await
-        .map_err(io_error)
-}
-
 /// Every campaign folder under this machine's save directories, or under `dirs` when
 /// given, newest first. One archive is opened per folder, for its newest save.
 #[tauri::command]

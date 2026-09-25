@@ -8,6 +8,7 @@
 use crate::Span;
 use crate::cst::Node;
 use crate::keys;
+use crate::ops::rules::{Form, check_text, quoted};
 use crate::ops::{MapColorPair, Op, OpError, Plan, Planned};
 use crate::session::Session;
 
@@ -23,8 +24,8 @@ pub(crate) fn plan_set(
     colors: Option<&MapColorPair>,
 ) -> Result<Planned, OpError> {
     if let Some(pair) = colors {
-        check_name(&pair.border)?;
-        check_name(&pair.fill)?;
+        check_text("a colour name", &pair.border, Form::Bare)?;
+        check_text("a colour name", &pair.fill, Form::Bare)?;
     }
     let edit = plan.edit_country(&s.doc, country)?;
     let entity = edit.entity()?;
@@ -74,8 +75,7 @@ pub(crate) fn plan_set(
         (fill_span, &old_fill, &fill),
     ] {
         if old != new {
-            edit.splices
-                .push((span.range(), format!("\"{new}\"").into_bytes()));
+            edit.replace_span(span, quoted(new));
         }
     }
     match (colors, switches.first()) {
@@ -105,13 +105,4 @@ pub(crate) fn plan_set(
             }),
         },
     })
-}
-
-/// Refuse a name that cannot stand as one quoted `colors` entry.
-fn check_name(name: &str) -> Result<(), OpError> {
-    let breaks = |c: char| c.is_whitespace() || c == '"' || c == '\\';
-    if name.is_empty() || name.contains(breaks) {
-        return Err(OpError::InvalidColorName(name.to_owned()));
-    }
-    Ok(())
 }

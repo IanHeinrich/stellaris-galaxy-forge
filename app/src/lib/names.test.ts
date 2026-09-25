@@ -5,7 +5,6 @@ import {
   displayName,
   displayNameExpr,
   displayTemplate,
-  planetName,
   stripped,
   templateKey,
   templateKeys,
@@ -100,7 +99,6 @@ describe("templateName", () => {
   it("shows the text the backend resolved", () => {
     ready([[templateKey(CYGGAN.name), "Cyggan Protectors"]]);
     expect(templateName(CYGGAN)).toBe("Cyggan Protectors");
-    expect(planetName(CYGGAN)).toBe("Cyggan Protectors");
     expect(requestName).not.toHaveBeenCalled();
   });
 

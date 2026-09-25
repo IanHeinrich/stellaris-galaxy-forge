@@ -11,6 +11,7 @@ use crate::cst;
 use crate::document::Document;
 use crate::format::scenario::header_counts::KEYS;
 use crate::format::scenario::index::{ENTITY_KEYS, HeaderStmt};
+use crate::ops::rules::{Form, check_text};
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject, blank_slot};
 use crate::overlay::Anchor;
 use crate::plural;
@@ -65,7 +66,7 @@ pub(super) fn set_fields(
     entries: &[(String, String)],
 ) -> Result<Planned, OpError> {
     if entries.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut seen = BTreeSet::new();
     for (key, _) in entries {
@@ -215,11 +216,7 @@ fn was(key: &str, value: Option<String>) -> Op {
 /// statements a scenario reads as an entity: `header set nebula 5` would otherwise leave
 /// a cloud of radius 0 at the galaxy's centre.
 fn check_key(key: &str, at: usize) -> Result<(), OpError> {
-    let separator =
-        |b: u8| b.is_ascii_whitespace() || matches!(b, b'{' | b'}' | b'=' | b'"' | b'#');
-    if key.is_empty() || key.bytes().any(separator) {
-        return Err(refuse(at, format!("{key:?} is not a header key")));
-    }
+    check_text("a header key", key, Form::Bare)?;
     if ENTITY_KEYS.contains(&key) {
         return Err(refuse(
             at,

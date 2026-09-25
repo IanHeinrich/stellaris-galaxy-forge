@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::document::Document;
+use crate::format::save::galaxy::bodies::head_values;
 use crate::keys;
 use crate::projections::galaxy::{CountryNode, ProjectionError};
 use crate::projections::read::{self, RawCountry};
@@ -49,8 +50,10 @@ fn node(raw: RawCountry) -> Option<CountryNode> {
         colors: raw.colors,
         border_color: raw.border_color,
         fill_color: raw.fill_color,
-        flag_colors: raw.flag_colors,
         use_map_color: raw.use_map_color,
+        painted_border: raw.painted.0,
+        painted_fill: raw.painted.1,
+        has_map_colors: Some(raw.has_map_colors),
         flag_icon: raw.flag_icon,
         flag_background: raw.flag_background,
         flags: raw.flags,
@@ -75,10 +78,9 @@ pub(super) fn colony_systems(
     let Some(inner) = doc.inner_index(keys::PLANETS)? else {
         return Ok(by_colony);
     };
-    let colony_key = format!("{}=", keys::COLONY);
     let mut colonies_written = false;
     for entity in inner.entities(keys::PLANET) {
-        let colony = colony_id(entity.stmt.slice(src), colony_key.as_bytes());
+        let colony = colony_id(entity.stmt.slice(src));
         colonies_written |= colony.is_some();
         let colony = colony.filter(|colony| wanted.contains(colony));
         let planet = u32::try_from(entity.id)
@@ -107,47 +109,15 @@ pub(super) fn colony_systems(
     })
 }
 
-/// A planet's own `colony=<id>` read from its bytes, so that the planets table (a quarter
-/// of the file) is only parsed for the few planets that are a capital.
-fn colony_id(bytes: &[u8], key: &[u8]) -> Option<u32> {
+/// A planet's own `colony` id read from its bytes, so that the planets table (a quarter
+/// of the file) is only parsed for the few planets that are a capital. Only a planet
+/// whose bytes hold `colony=` as a key of its own is lexed, which the game writes with no
+/// spaces; a colonised one writes it first, so lexing stops there.
+fn colony_id(bytes: &[u8]) -> Option<u32> {
+    let key = format!("{}=", keys::COLONY);
     let ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
-    let mut from = 0;
-    while let Some(at) = memchr::memmem::find(&bytes[from..], key) {
-        let start = from + at;
-        from = start + key.len();
-        if start > 0 && ident(bytes[start - 1]) {
-            continue;
-        }
-        if depth_at(bytes, start) != 1 {
-            continue;
-        }
-        let digits = &bytes[from..];
-        let end = digits
-            .iter()
-            .position(|b| !b.is_ascii_digit())
-            .unwrap_or(digits.len());
-        let id = std::str::from_utf8(&digits[..end])
-            .ok()
-            .and_then(|s| s.parse().ok());
-        if id.is_some() {
-            return id;
-        }
-    }
-    None
-}
-
-/// Brace depth at `at` counted from the start of an entity's statement, so the entity's own
-/// fields sit at 1; text inside quotes is skipped.
-fn depth_at(bytes: &[u8], at: usize) -> i32 {
-    let mut depth = 0;
-    let mut quoted = false;
-    for &b in &bytes[..at] {
-        match b {
-            b'"' => quoted = !quoted,
-            b'{' if !quoted => depth += 1,
-            b'}' if !quoted => depth -= 1,
-            _ => {}
-        }
-    }
-    depth
+    memchr::memmem::find_iter(bytes, key.as_bytes())
+        .find(|&at| at == 0 || !ident(bytes[at - 1]))?;
+    let [colony] = head_values(bytes, [keys::COLONY]);
+    std::str::from_utf8(colony?).ok()?.parse().ok()
 }

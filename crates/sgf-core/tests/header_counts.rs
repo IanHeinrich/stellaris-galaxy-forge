@@ -7,20 +7,16 @@
 use sgf_core::format::scenario::header_counts::{
     SeatCounts, empire_counts, seat_counts, zone_count,
 };
-use sgf_core::format::scenario::listings::sibling_names;
 use sgf_core::format::scenario::marauder::clan_count;
-use sgf_core::guides::{Guide, L_CLUSTER};
 use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
-use sgf_core::validate::{Issue, IssueCode, Severity};
+use sgf_core::validate::{IssueCode, Severity};
 
 use crate::common;
-use common::diff::{plain_snapshot, round_trip};
+use common::Refused;
+use common::diff::snapshot_step;
 use common::fixture::{GRAMMAR, PAINTED};
-
-fn coded(issues: &[Issue], code: IssueCode) -> Vec<&Issue> {
-    issues.iter().filter(|issue| issue.code == code).collect()
-}
+use common::{coded, only_message};
 
 fn seats(seats: u32, reserved: u32, player_on_reserved: bool) -> SeatCounts {
     SeatCounts {
@@ -107,8 +103,7 @@ fn updating_the_counts_rewrites_the_nine_keys_as_one_step_and_clears_the_issue()
             ]
         }
     );
-    plain_snapshot("update_empire_counts", PAINTED.open(), op.clone());
-    round_trip(PAINTED.open(), op.clone());
+    snapshot_step(&mut PAINTED.open(), "update_empire_counts", op.clone());
 
     let mut session = PAINTED.open();
     let result = session.apply(op).expect("update");
@@ -165,8 +160,7 @@ fn a_key_the_header_lacks_is_inserted_and_a_repeated_or_empty_list_is_refused() 
             ("num_empire_default".to_owned(), "2".to_owned()),
         ],
     };
-    plain_snapshot("set_two_header_keys", PAINTED.open(), op.clone());
-    round_trip(PAINTED.open(), op.clone());
+    snapshot_step(&mut PAINTED.open(), "set_two_header_keys", op.clone());
     let mut session = PAINTED.open();
     let result = session.apply(op).expect("set two keys");
     assert_eq!(result.entry.description, "Set 2 header keys");
@@ -180,24 +174,26 @@ fn a_key_the_header_lacks_is_inserted_and_a_repeated_or_empty_list_is_refused() 
     assert_eq!(session.graph.core_radius, 40.0);
 
     let mut session = PAINTED.open();
-    for (entries, name) in [
-        (vec![], "Empty"),
+    let cases: [Refused<Vec<(String, String)>>; 3] = [
+        (vec![], |e| matches!(e, OpError::NoEntries)),
         (
             vec![
                 ("core_radius".to_owned(), "1".to_owned()),
                 ("core_radius".to_owned(), "2".to_owned()),
             ],
-            "HeaderParse",
+            |e| matches!(e, OpError::HeaderParse { reason, .. } if reason.contains("more than once")),
         ),
-        (vec![("system".to_owned(), "5".to_owned())], "HeaderParse"),
-    ] {
+        (
+            vec![("system".to_owned(), "5".to_owned())],
+            |e| matches!(e, OpError::HeaderParse { reason, .. } if reason.contains("not a header key")),
+        ),
+    ];
+    for (entries, expected) in cases {
+        let label = format!("{entries:?}");
         let error = session
             .apply(Op::SetHeaderKeys { entries })
-            .expect_err(name);
-        assert!(
-            matches!(error, OpError::Empty | OpError::HeaderParse { .. }),
-            "{name}: {error}"
-        );
+            .expect_err(&label);
+        assert!(expected(&error), "{label}: {error:?}");
     }
     assert!(!session.is_dirty());
 }
@@ -212,20 +208,14 @@ fn a_wrong_maximum_is_reported_even_when_the_default_fits() {
         session.graph.header_block_count("num_empires", "max"),
         Some(5)
     );
-    let issues = session.validate();
-    let header = coded(&issues, IssueCode::HeaderEmpireCount);
-    assert_eq!(header.len(), 1, "{issues:?}");
     assert_eq!(
-        header[0].message,
+        only_message(&session.validate(), IssueCode::HeaderEmpireCount),
         "Header allows 5 empires but the file has 4 seats. Update the empire counts."
     );
 
     let fixed = PAINTED.open_edited(&[("num_empire_default = 3", "num_empire_default = 1")]);
-    let issues = fixed.validate();
-    let header = coded(&issues, IssueCode::HeaderEmpireCount);
-    assert_eq!(header.len(), 1, "{issues:?}");
     assert_eq!(
-        header[0].message,
+        only_message(&fixed.validate(), IssueCode::HeaderEmpireCount),
         "Header allows 6 fallen empires but the map has 2 fallen empire zones. Update the empire counts."
     );
 }
@@ -253,11 +243,8 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
         default_high.graph.header_count("fallen_empire_default"),
         Some(3)
     );
-    let issues = default_high.validate();
-    let header = coded(&issues, IssueCode::HeaderEmpireCount);
-    assert_eq!(header.len(), 1, "{issues:?}");
     assert_eq!(
-        header[0].message,
+        only_message(&default_high.validate(), IssueCode::HeaderEmpireCount),
         "Header allows 3 fallen empires but the map has 2 fallen empire zones. Update the empire counts."
     );
 
@@ -265,11 +252,8 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
         seats_fit,
         ("fallen_empire_max = 6", "fallen_empire_max = 1"),
     ]);
-    let issues = max_low.validate();
-    let header = coded(&issues, IssueCode::HeaderEmpireCount);
-    assert_eq!(header.len(), 1, "{issues:?}");
     assert_eq!(
-        header[0].message,
+        only_message(&max_low.validate(), IssueCode::HeaderEmpireCount),
         "Header allows 1 fallen empires but the map has 2 fallen empire zones. Update the empire counts."
     );
 
@@ -284,20 +268,14 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
 
     let fallen_fit = ("fallen_empire_max = 6", "fallen_empire_max = 2");
     let max_high = PAINTED.open_edited(&[seats_fit, fallen_fit]);
-    let issues = max_high.validate();
-    let header = coded(&issues, IssueCode::HeaderEmpireCount);
-    assert_eq!(header.len(), 1, "{issues:?}");
     assert_eq!(
-        header[0].message,
+        only_message(&max_high.validate(), IssueCode::HeaderEmpireCount),
         "Header allows 3 marauder clans but the map has 0 clan homes. Update the empire counts."
     );
 
     let default_high = PAINTED.open_edited(&[seats_fit, fallen_fit, no_clans]);
-    let issues = default_high.validate();
-    let header = coded(&issues, IssueCode::HeaderEmpireCount);
-    assert_eq!(header.len(), 1, "{issues:?}");
     assert_eq!(
-        header[0].message,
+        only_message(&default_high.validate(), IssueCode::HeaderEmpireCount),
         "Header allows 1 marauder clans but the map has 0 clan homes. Update the empire counts."
     );
 }
@@ -439,12 +417,8 @@ fn the_players_seat_is_set_aside_once_whichever_kind_it_is() {
         Op::SetHeaderKeys { entries } => entries[1].clone(),
         op => panic!("{op:?}"),
     };
-    let header_issue = |session: &Session| {
-        let issues = session.validate();
-        let header = coded(&issues, IssueCode::HeaderEmpireCount);
-        assert_eq!(header.len(), 1, "{issues:?}");
-        header[0].message.clone()
-    };
+    let header_issue =
+        |session: &Session| only_message(&session.validate(), IssueCode::HeaderEmpireCount);
 
     // The player's seat is the Sol seat: it is among the two reserved, so the other
     // two seats are open.
@@ -479,90 +453,4 @@ fn the_players_seat_is_set_aside_once_whichever_kind_it_is() {
     assert_eq!(seat_counts(&unmarked.graph), seats(4, 2, false));
     assert_eq!(default_of(&unmarked), default_of(&on_preferred));
     assert_eq!(header_issue(&unmarked), header_issue(&on_preferred));
-}
-
-#[test]
-fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
-    assert_eq!(L_CLUSTER, (-392.4, -392.4, 90.0));
-    let guide = Guide::l_cluster();
-    assert!(guide.contains(-392.0, -392.0));
-    assert!(guide.contains(-330.0, -330.0));
-    assert!(!guide.contains(-300.0, -300.0));
-
-    let mut session = PAINTED.open();
-    let result = session
-        .apply(Op::MoveSystem {
-            id: 10,
-            x: -392.0,
-            y: -392.0,
-        })
-        .expect("move Void into the circle");
-    let l_cluster = coded(&result.issues, IssueCode::LClusterSystem);
-    assert_eq!(l_cluster.len(), 1, "{:?}", result.issues);
-    assert_eq!(
-        l_cluster[0].message,
-        "Void sits where the game places the L-Cluster."
-    );
-    assert_eq!(l_cluster[0].systems, [10]);
-    session.undo().expect("undo").expect("an op to undo");
-    assert!(coded(&session.validate(), IssueCode::LClusterSystem).is_empty());
-
-    let mut plain = GRAMMAR.open();
-    let id = plain.graph.order[0];
-    let result = plain
-        .apply(Op::MoveSystem {
-            id,
-            x: -400.0,
-            y: -380.0,
-        })
-        .expect("move a plain scenario's system there");
-    assert_eq!(
-        coded(&result.issues, IssueCode::LClusterSystem).len(),
-        1,
-        "{:?}",
-        result.issues
-    );
-
-    let mut save = common::open();
-    let id = save.graph.order[0];
-    let result = save
-        .apply(Op::MoveSystem {
-            id,
-            x: -392.0,
-            y: -392.0,
-        })
-        .expect("move a save's system there");
-    assert!(
-        coded(&result.issues, IssueCode::LClusterSystem).is_empty(),
-        "a save is the galaxy the game already built"
-    );
-}
-
-#[test]
-fn the_other_scenarios_beside_a_file_are_listed_by_name() {
-    let dir = tempfile::tempdir().unwrap();
-    let mine = dir.path().join("mine.txt");
-    std::fs::copy(PAINTED.path, &mine).unwrap();
-    std::fs::copy(GRAMMAR.path, dir.path().join("grammar.txt")).unwrap();
-    std::fs::write(
-        dir.path().join("other.txt"),
-        "static_galaxy_scenario = {\n\tname = \"Other Reach\"\n}\n",
-    )
-    .unwrap();
-    std::fs::write(dir.path().join("notes.txt"), "not a scenario").unwrap();
-    std::fs::write(dir.path().join("mine.bak"), "static_galaxy_scenario = { }").unwrap();
-    assert_eq!(
-        sibling_names(&mine),
-        [
-            ("grammar.txt".to_owned(), "sgf_grammar".to_owned()),
-            ("other.txt".to_owned(), "Other Reach".to_owned()),
-        ]
-    );
-    assert_eq!(
-        sibling_names(&dir.path().join("other.txt")),
-        [
-            ("grammar.txt".to_owned(), "sgf_grammar".to_owned()),
-            ("mine.txt".to_owned(), "Painted Reach".to_owned()),
-        ]
-    );
 }

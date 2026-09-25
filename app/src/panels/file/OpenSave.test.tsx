@@ -13,7 +13,8 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { PAINT_CHECK } from "../../lib/paintCopy";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
-import { buttons, saveFile, scenarioListing, shown } from "../../test/openRows";
+import { buttons, shown } from "../../test/elements";
+import { saveFile, scenarioListing } from "../../test/openRows";
 import { OpenSave } from "./OpenSave";
 
 beforeEach(() => {

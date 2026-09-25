@@ -4,8 +4,8 @@ import { MESH_BETA, type MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import { laneSegments, strokeLanes, withProvisionalIds } from "./lanes";
 import { seeded } from "../random";
-import { SAMPLE_CAP, sampleStroke } from "./sample";
-import { drag } from "../../test/brush";
+import { SAMPLE_CAP } from "./sample";
+import { drag, sampleStroke } from "../../test/brush";
 
 const BLOCKER_COUNT = 600;
 const R = 120;

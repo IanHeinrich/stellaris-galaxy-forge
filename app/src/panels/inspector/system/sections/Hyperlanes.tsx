@@ -5,24 +5,15 @@ import { bypassIcons, scenarioBypassIcon } from "../../../../lib/details/labels"
 import { bypassSource, bypassSourceTitle, bypassesOf } from "../../../../lib/scenarioBypasses";
 import { displayName } from "../../../../lib/names";
 import { useEditorStore } from "../../../../store/editorStore";
-import { useFileSessionStore } from "../../../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { useGalaxyVersion, useSystemName } from "../../../../store/browserRows";
 import { useGalaxyStore } from "../../../../store/galaxyStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { useInspectorStore } from "../../../../store/inspectorStore";
 import { useApplySymmetricOp } from "../../../useApplyOp";
-import {
-  Chip,
-  DrillLink,
-  DrillRow,
-  Empty,
-  Icon,
-  MoreButton,
-  Section,
-  SourceChip,
-} from "../../parts";
-import { unpreventLaneOp } from "./scenario/prevented";
+import { Chip, Icon, SourceChip } from "../../../parts";
+import { DrillLink, DrillRow, Empty, MoreButton, Section } from "../../parts";
 
 /** Where a scenario's prevented pairs are made, since the inspector makes none. */
 export const PREVENT_HINT =
@@ -107,7 +98,7 @@ function PreventedRow({ system, other }: { system: number; other: number }) {
         type="button"
         className="link"
         title={`Allow a lane between #${system} and #${other}`}
-        onClick={() => applyOp(unpreventLaneOp(system, other))}
+        onClick={() => applyOp({ type: "UnpreventLane", a: system, b: other })}
       >
         Allow
       </button>
@@ -147,7 +138,7 @@ export function HyperlaneSection({
   const jumpTo = useEditorStore((s) => s.jumpTo);
   const setLanePreview = useMapChromeStore((s) => s.setLanePreview);
   const setTab = useInspectorStore((s) => s.setTab);
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
+  const canPrevent = useCanEdit("create_systems");
   const systems = useGalaxyStore((s) => s.systems);
   const waylines = useGalaxyStore((s) => s.waylines);
   useGalaxyVersion();
@@ -206,7 +197,7 @@ export function HyperlaneSection({
           )}
         </>
       )}
-      {scenario && <Prevented system={system.id} prevented={node?.prevented ?? []} />}
+      {canPrevent && <Prevented system={system.id} prevented={node?.prevented ?? []} />}
     </Section>
   );
 }

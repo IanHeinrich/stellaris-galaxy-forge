@@ -1,5 +1,5 @@
 //! Bulk ops over several systems or lanes at once: `MoveSystems`, `AddLanePairs`,
-//! `RemoveLanePairs`, `IsolateSystems`, `SetLaneLengths`.
+//! `RemoveLanePairs`, `IsolateSystems`, `SetLaneLengths`, `NormaliseLaneLengths`.
 //!
 //! An entity's splices must not overlap, so the pairs of an op are grouped per system
 //! before any text is planned: one insertion per entity, one removal per entity, and
@@ -8,7 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::format::save::write::lanes::{
-    insert_entries, length_form, length_text, pairs, remove_entries, wayline_note,
+    insert_entries, length_form, moved_length, pairs, remove_entries, wayline_note,
 };
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::nebula::{plan_membership, restoring};
@@ -19,11 +19,9 @@ use crate::ops::rules::lanes::{
 };
 use crate::ops::rules::nebula::describe_membership;
 use crate::ops::rules::systems::decide_moves;
-use crate::ops::{
-    LaneLength, LanePair, Op, OpError, Plan, Planned, SystemMove, projected_lane, replace_lengths,
-};
+use crate::ops::{LaneLength, LanePair, Op, OpError, Plan, Planned, SystemMove, replace_lengths};
 use crate::plural;
-use crate::projections::galaxy::{Lane, lane_length};
+use crate::projections::galaxy::lane_length;
 use crate::session::Session;
 
 pub(crate) fn plan_move_many(
@@ -69,9 +67,7 @@ pub(crate) fn move_systems(
         if a == b || !s.graph.systems.contains_key(&b) {
             continue;
         }
-        let ((ax, ay), (bx, by)) = (position(a), position(b));
-        let dist = (ax - bx).hypot(ay - by);
-        let text = move |existing: &str| length_text(existing, dist, false);
+        let text = moved_length(position(a), position(b));
         updated += replace_lengths(plan.edit(&s.doc, a)?, b, text)?;
         updated += replace_lengths(plan.edit(&s.doc, b)?, a, text)?;
     }
@@ -84,7 +80,7 @@ pub(crate) fn plan_add_pairs(
     lanes: &[LanePair],
 ) -> Result<Planned, OpError> {
     if lanes.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut seen = BTreeSet::new();
     let mut entries: BTreeMap<u32, Vec<(u32, u32, bool)>> = BTreeMap::new();
@@ -170,16 +166,29 @@ pub(crate) fn plan_set_lengths(
     s: &Session,
     lanes: &[LaneLength],
 ) -> Result<Planned, OpError> {
+    let (restore, _) = set_lengths(plan, s, lanes)?;
+    Ok(Planned {
+        description: format!("Set {}", plural(lanes.len(), "lane length")),
+        inverse: Op::SetLaneLengths { lanes: restore },
+    })
+}
+
+/// Rewrite each lane's length on both ends, refusing a lane whose ends disagree. Returns
+/// the lengths that put them back and how many entries were rewritten.
+pub(crate) fn set_lengths(
+    plan: &mut Plan,
+    s: &Session,
+    lanes: &[LaneLength],
+) -> Result<(Vec<LaneLength>, usize), OpError> {
     if lanes.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut seen = BTreeSet::new();
     let mut restore = Vec::with_capacity(lanes.len());
+    let mut updated = 0;
     for lane in lanes {
         check_length(lane.length)?;
-        let old = projected_lane(&s.graph, lane.a, lane.b)
-            .ok_or(OpError::NoSuchLane(lane.a, lane.b))?
-            .length;
+        let old = agreed_length(s, lane.a, lane.b)?;
         if !seen.insert(undirected(lane.a, lane.b)) {
             return Err(OpError::DuplicateLane(lane.a, lane.b));
         }
@@ -189,15 +198,12 @@ pub(crate) fn plan_set_lengths(
             length: old,
         });
         let text = length_form(lane.length);
-        replace_lengths(plan.edit(&s.doc, lane.a)?, lane.b, text)?;
+        updated += replace_lengths(plan.edit(&s.doc, lane.a)?, lane.b, text)?;
         if lane.b != lane.a {
-            replace_lengths(plan.edit(&s.doc, lane.b)?, lane.a, text)?;
+            updated += replace_lengths(plan.edit(&s.doc, lane.b)?, lane.a, text)?;
         }
     }
-    Ok(Planned {
-        description: format!("Set {}", plural(lanes.len(), "lane length")),
-        inverse: Op::SetLaneLengths { lanes: restore },
-    })
+    Ok((restore, updated))
 }
 
 /// Rewrite every stale lane touching one of `systems` to `floor(distance)`, on both ends.
@@ -210,45 +216,48 @@ pub(crate) fn plan_normalise_lengths(
     if let Some(&id) = systems.iter().find(|id| !s.graph.systems.contains_key(id)) {
         return Err(OpError::UnknownSystem(id));
     }
-    let mut restore = Vec::new();
+    let mut normalised = Vec::new();
     for (a, b, _) in touching_lanes(&s.graph, systems.iter().copied()) {
-        let (Some(here), Some(there)) = (sole_entry(s, a, b), sole_entry(s, b, a)) else {
+        let Some(there) = s.graph.systems.get(&b).filter(|_| a != b) else {
             continue;
         };
-        // One entry per end, agreeing, or the single restored length would not put back
-        // what each end had.
-        if !here.stale || here.length != there.length {
+        // A lane whose entries disagree has no one length an inverse could put back.
+        let Ok(old) = agreed_length(s, a, b) else {
             continue;
+        };
+        let length = lane_length(s.graph.systems[&a].position(), there.position());
+        if old != length {
+            normalised.push(LaneLength { a, b, length });
         }
-        let length = lane_length(&s.graph.systems[&a], &s.graph.systems[&b]);
-        check_length(length)?;
-        restore.push(LaneLength {
-            a,
-            b,
-            length: here.length,
-        });
-        let text = length_form(length);
-        replace_lengths(plan.edit(&s.doc, a)?, b, text)?;
-        replace_lengths(plan.edit(&s.doc, b)?, a, text)?;
     }
-    if restore.is_empty() {
-        return Err(OpError::Empty);
+    if normalised.is_empty() {
+        return Err(OpError::AlreadyNormal);
     }
+    let (restore, _) = set_lengths(plan, s, &normalised)?;
     Ok(Planned {
         description: format!("Normalised {}", plural(restore.len(), "lane length")),
         inverse: Op::SetLaneLengths { lanes: restore },
     })
 }
 
-/// The one entry `x` lists for `y`; `None` when it lists it none or more than once, and
-/// for a lane to itself, which no length rule measures.
-fn sole_entry(s: &Session, x: u32, y: u32) -> Option<&Lane> {
-    if x == y {
-        return None;
+/// The one length every entry of lane `a`-`b` holds, on both ends, which is what a single
+/// length put back restores; refused when the entries disagree.
+pub(crate) fn agreed_length(s: &Session, a: u32, b: u32) -> Result<f64, OpError> {
+    let entries = |x: u32, y: u32| {
+        s.graph
+            .systems
+            .get(&x)
+            .into_iter()
+            .flat_map(|system| &system.lanes)
+            .filter(move |lane| lane.to == y)
+            .map(|lane| lane.length)
+    };
+    let mut lengths = entries(a, b).chain(entries(b, a));
+    let first = lengths.next().ok_or(OpError::NoSuchLane(a, b))?;
+    match lengths.all(|length| length == first) {
+        true => Ok(first),
+        false => Err(OpError::LaneEndsDisagree(a, b)),
     }
-    let mut entries = s.graph.systems.get(&x)?.lanes.iter().filter(|l| l.to == y);
-    let first = entries.next()?;
-    entries.next().is_none().then_some(first)
 }
 
 /// Delete the entries of each lane on both ends, one removal per system. Returns how

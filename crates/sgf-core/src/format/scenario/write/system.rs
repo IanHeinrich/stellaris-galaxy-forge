@@ -10,7 +10,7 @@ use crate::format::scenario::index::{LaneStmt, SCENARIO_X_SIGN, SCENARIO_Y_SIGN,
 use crate::format::scenario::paint;
 use crate::keys::scenario as keys;
 use crate::ops::rules::systems::{decide_move, decide_moves};
-use crate::ops::rules::{bulk_description, check_name, each_once, quoted};
+use crate::ops::rules::{Form, bulk_description, check_name, check_text, each_once, quoted};
 use crate::ops::{
     Emitted, InitializerSet, LanePair, NewSystem, Op, OpError, Plan, Planned, Subject, SystemMove,
 };
@@ -190,7 +190,15 @@ fn check_fields(new: &SystemFields) -> Result<(), OpError> {
     if let Some(name) = new.name {
         check_name(name)?;
     }
+    if let Some(initializer) = new.initializer {
+        check_initializer(initializer)?;
+    }
     Ok(())
+}
+
+/// An initializer is written bare, as the key the game looks it up by.
+fn check_initializer(initializer: &str) -> Result<(), OpError> {
+    check_text("an initializer", initializer, Form::Bare)
 }
 
 /// `statement` on a line of its own, once it reads as one `system` statement for `id`
@@ -215,11 +223,7 @@ fn verbatim(indent: &[u8], id: u32, statement: &str) -> Result<Vec<u8>, OpError>
 }
 
 pub(super) fn remove_system(plan: &mut Plan, s: &Session, id: u32) -> Result<Planned, OpError> {
-    let (inverse, lanes) = erase_systems(plan, s, &[id])?;
-    Ok(Planned {
-        description: format!("Removed system {id} ({lanes} lanes)"),
-        inverse,
-    })
+    remove_systems(plan, s, &[id])
 }
 
 pub(super) fn remove_systems(
@@ -228,9 +232,10 @@ pub(super) fn remove_systems(
     ids: &[u32],
 ) -> Result<Planned, OpError> {
     let (inverse, lanes) = erase_systems(plan, s, ids)?;
+    let lanes = plural(lanes, "lane");
     let description = match ids {
-        [id] => format!("Removed system {id} ({lanes} lanes)"),
-        _ => format!("Removed {} ({lanes} lanes)", plural(ids.len(), "system")),
+        [id] => format!("Removed system {id} ({lanes})"),
+        _ => format!("Removed {} ({lanes})", plural(ids.len(), "system")),
     };
     Ok(Planned {
         description,
@@ -389,6 +394,9 @@ fn write_initializer(
 ) -> Result<(String, InitializerSet), OpError> {
     if !s.graph.systems.contains_key(&id) {
         return Err(OpError::UnknownSystem(id));
+    }
+    if let Some(initializer) = initializer {
+        check_initializer(initializer)?;
     }
     let edit = plan.edit(&s.doc, id)?;
     let entity = edit.entity()?;

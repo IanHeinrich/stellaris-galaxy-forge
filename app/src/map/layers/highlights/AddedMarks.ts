@@ -1,6 +1,6 @@
 import { Container, Graphics, GraphicsContext } from "pixi.js";
 import type { Pt } from "../../../lib/geometry/pt";
-import { ALLOWED_COLOR } from "../../../lib/visual/style";
+import { ALLOWED_COLOR, PLATE_COLOR } from "../../../lib/visual/style";
 import type { Systems } from "../../RenderContext";
 import { destroyChildren } from "../destroyChildren";
 
@@ -8,7 +8,7 @@ import { destroyChildren } from "../destroyChildren";
 const OFFSET = { x: 9, y: -9 };
 const RADIUS = 4.5;
 const ARM = 2.4;
-const PLATE = 0x0b0f18;
+const PLATE = PLATE_COLOR;
 
 /** A small green plus at the upper right of every save system added this session. */
 export class AddedMarks {

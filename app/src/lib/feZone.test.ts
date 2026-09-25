@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SystemNode } from "../generated/SystemNode";
-import { systemNode } from "../test/builders";
+import { byId, systemNode } from "../test/builders";
 import {
   addFeZoneRefusal,
   FE_DIRECTIONS,
@@ -18,10 +17,6 @@ import {
 
 const ORIGIN = { x: 0, y: 0 };
 const K = 40 / Math.SQRT2;
-
-function systems(...nodes: SystemNode[]): Map<number, SystemNode> {
-  return new Map(nodes.map((s) => [s.id, s]));
-}
 
 const at = (id: number, x: number, y: number) => systemNode({ id, x, y });
 
@@ -98,15 +93,15 @@ describe("feZoneBlocked", () => {
   it("names the first other system inside the ring, never the anchor", () => {
     const anchor = at(1, 0, 0);
     const other = at(2, 20, 0);
-    expect(feZoneBlocked({ x: 10, y: 0 }, systems(anchor), 1)).toBeNull();
-    expect(feZoneBlocked({ x: 10, y: 0 }, systems(anchor, other), 1)).toBe(other);
-    expect(feZoneBlocked({ x: 45, y: 0 }, systems(anchor, other), 1)).toBe(other);
+    expect(feZoneBlocked({ x: 10, y: 0 }, byId(anchor), 1)).toBeNull();
+    expect(feZoneBlocked({ x: 10, y: 0 }, byId(anchor, other), 1)).toBe(other);
+    expect(feZoneBlocked({ x: 45, y: 0 }, byId(anchor, other), 1)).toBe(other);
   });
 
   it("is clear when every system is at least the radius away", () => {
     const anchor = at(1, 0, 0);
-    expect(feZoneBlocked({ x: 30, y: 0 }, systems(anchor, at(2, 60, 0)), 1)).toBeNull();
-    expect(feZoneBlocked({ x: 40, y: 0 }, systems(anchor), 1)).toBeNull();
+    expect(feZoneBlocked({ x: 30, y: 0 }, byId(anchor, at(2, 60, 0)), 1)).toBeNull();
+    expect(feZoneBlocked({ x: 40, y: 0 }, byId(anchor), 1)).toBeNull();
   });
 });
 
@@ -121,14 +116,14 @@ describe("feZoneOffMap", () => {
 describe("firstFreeDirection", () => {
   it("takes east when nothing is in the way, and the first clear direction after it", () => {
     const anchor = at(1, 0, 0);
-    expect(firstFreeDirection(anchor, systems(anchor))).toBe("e");
-    expect(firstFreeDirection(anchor, systems(anchor, at(2, -40, 0)))).toBe("se");
+    expect(firstFreeDirection(anchor, byId(anchor))).toBe("e");
+    expect(firstFreeDirection(anchor, byId(anchor, at(2, -40, 0)))).toBe("se");
   });
 
   it("skips a direction whose ring would leave the map", () => {
     const anchor = at(1, -440, 0);
-    expect(firstFreeDirection(anchor, systems(anchor))).toBe("se");
-    expect(firstFreeDirection(at(1, -450, 0), systems(at(1, -450, 0)))).toBe("s");
+    expect(firstFreeDirection(anchor, byId(anchor))).toBe("se");
+    expect(firstFreeDirection(at(1, -450, 0), byId(at(1, -450, 0)))).toBe("s");
   });
 
   it("gives up when every ring at distance 40 is covered", () => {
@@ -137,7 +132,7 @@ describe("firstFreeDirection", () => {
       const c = feZoneCentre(anchor, { direction: key, distance: 40 });
       return at(10 + i, c.x, c.y);
     });
-    expect(firstFreeDirection(anchor, systems(anchor, ...ring))).toBeNull();
+    expect(firstFreeDirection(anchor, byId(anchor, ...ring))).toBeNull();
   });
 });
 
@@ -151,15 +146,15 @@ describe("the refusals", () => {
 
   it("refuses a second zone on one anchor, and an anchor with no room", () => {
     const zoned = systemNode({ id: 1, fe_zone: newFeZone("e") });
-    expect(addFeZoneRefusal(zoned, systems(zoned))).toBe("This system already anchors a zone");
+    expect(addFeZoneRefusal(zoned, byId(zoned))).toBe("This system already anchors a zone");
     const anchor = at(1, 0, 0);
     const ring = FE_DIRECTIONS.map(({ key }, i) => {
       const c = feZoneCentre(anchor, { direction: key, distance: 40 });
       return at(10 + i, c.x, c.y);
     });
-    expect(addFeZoneRefusal(anchor, systems(anchor, ...ring))).toBe(
+    expect(addFeZoneRefusal(anchor, byId(anchor, ...ring))).toBe(
       "No clear space for a ring at distance 40",
     );
-    expect(addFeZoneRefusal(anchor, systems(anchor))).toBeNull();
+    expect(addFeZoneRefusal(anchor, byId(anchor))).toBeNull();
   });
 });

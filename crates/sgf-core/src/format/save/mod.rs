@@ -5,6 +5,7 @@ pub(crate) mod added;
 pub(crate) mod alloc;
 pub mod details;
 pub(crate) mod galaxy;
+pub(crate) mod read_spec;
 pub mod system_spec;
 pub(crate) mod write;
 
@@ -14,8 +15,8 @@ use std::path::{Path, PathBuf};
 use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
+use crate::entity::views::EntityKind;
 use crate::format::Format;
-use crate::format::save::added::Table;
 use crate::format::save::write::{
     add_system, bulk, deposits, lanes, lgate, map_colors, move_system, nebula, planet_size,
     remove_system, rename_system, replace_system, star_class,
@@ -24,6 +25,7 @@ use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
+use crate::projections::read;
 use crate::scan::{self, Value};
 use crate::session::Session;
 use crate::validate::Issue;
@@ -51,7 +53,6 @@ impl Format for Save {
                 .get(index)
                 .copied()
                 .ok_or(OpError::UnknownNebula(index)),
-            // A save keeps its lanes inside the two systems, so no statement stands alone.
             Subject::Statement { anchor, .. }
             | Subject::Header(anchor)
             | Subject::Record(anchor) => Ok(anchor),
@@ -74,8 +75,8 @@ impl Format for Save {
         touched: &[Subject],
         slots: &[Anchor],
     ) -> Result<Vec<Subject>, OpError> {
-        doc.refresh_added(slots);
-        let mut nebulae = false;
+        let nebulae = touched.iter().any(|s| matches!(s, Subject::Nebula(_)));
+        doc.refresh_save(slots, nebulae);
         let mut bodies = BTreeSet::new();
         for &subject in touched {
             match subject {
@@ -84,17 +85,14 @@ impl Format for Save {
                         graph.drop_system(id);
                         continue;
                     };
-                    let buf = doc.current(anchor)?;
-                    let root = self
-                        .parse(buf, 0)
-                        .map_err(|e| subject.parse_error(e.offset, e.reason))?;
+                    let (root, buf) = parsed_statement(doc, subject, anchor)?;
                     // A system new to the graph has no bodies read yet: an undo of a
                     // removal brings back the system whose id it had renumbered.
                     if !graph.systems.contains_key(&id) {
                         bodies.insert(id);
                     }
                     graph.refresh_system(id, &root, buf)?;
-                    let added = doc.added().get(Table::System, id).is_some();
+                    let added = doc.added().get(EntityKind::System, id).is_some();
                     if let Some(system) = graph.systems.get_mut(&id) {
                         system.added = added;
                     }
@@ -102,28 +100,14 @@ impl Format for Save {
                 Subject::Planet { system, .. } => {
                     bodies.insert(system);
                 }
-                Subject::Nebula(_) => nebulae = true,
+                Subject::Nebula(_) => {}
                 Subject::Flags => {
-                    let buf = doc.current(self.statement(doc, subject)?)?;
-                    let root = self
-                        .parse(buf, 0)
-                        .map_err(|e| subject.parse_error(e.offset, e.reason))?;
-                    let flags = root
-                        .children()
-                        .first()
-                        .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
-                    graph.refresh_lgate(flags, buf);
+                    let (flags, buf) = entity(doc, subject, self.statement(doc, subject)?)?;
+                    graph.refresh_lgate(&flags, buf);
                 }
                 Subject::Country(id) => {
-                    let buf = doc.current(self.statement(doc, subject)?)?;
-                    let root = self
-                        .parse(buf, 0)
-                        .map_err(|e| subject.parse_error(e.offset, e.reason))?;
-                    let country = root
-                        .children()
-                        .first()
-                        .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
-                    graph.refresh_country(id, country, buf);
+                    let (country, buf) = entity(doc, subject, self.statement(doc, subject)?)?;
+                    graph.refresh_country(id, &country, buf);
                 }
                 Subject::Statement { .. } | Subject::Header(_) | Subject::Record(_) => {}
             }
@@ -131,14 +115,10 @@ impl Format for Save {
         bodies.retain(|id| graph.systems.contains_key(id));
         for id in bodies {
             let subject = Subject::System(id);
-            let buf = doc.current(self.statement(doc, subject)?)?;
-            let root = self
-                .parse(buf, 0)
-                .map_err(|e| subject.parse_error(e.offset, e.reason))?;
+            let (root, buf) = parsed_statement(doc, subject, self.statement(doc, subject)?)?;
             graph.refresh_bodies(id, &root, buf, doc)?;
         }
         let reassigned = if nebulae {
-            doc.rebuild_nebulae();
             graph.refresh_nebulae(doc)?
         } else {
             Vec::new()
@@ -188,7 +168,10 @@ impl Format for Save {
             Op::SetEmpireMapColors { country, colors } => {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
-            Op::AddSaveSystem { spec } => add_system::plan_add(plan, s, spec),
+            Op::AddSaveSystem { spec } => {
+                check_adds_system(&s.doc)?;
+                add_system::plan_add(plan, s, spec)
+            }
             Op::AddSaveDeposit { planet, kind } => deposits::plan_add(plan, s, *planet, kind),
             Op::RemoveSaveDeposit { deposit } => deposits::plan_remove(plan, s, *deposit),
             Op::RemoveSystem { id } => remove_system::plan_remove(plan, s, &[*id]),
@@ -205,9 +188,10 @@ impl Format for Save {
             Op::SetNebulaFootprints { footprints } => {
                 nebula::plan_set_footprints(plan, s, footprints)
             }
-            // A save's systems come with planets, a starbase and an owner, its names and
-            // initializers are the game's to set, and it has neither a scenario header nor
-            // a generator to prevent a lane from.
+            // A save adds, renames and rerolls a system through the save ops, which write the
+            // bodies and names a scenario statement leaves out. Its initializers, spawns,
+            // fallen empire zones and wormholes are the game's to set, and it has neither a
+            // scenario header nor a generator to prevent a lane from.
             Op::AddSystem { .. }
             | Op::AddSystems { .. }
             | Op::SetSystemName { .. }
@@ -237,6 +221,7 @@ impl Format for Save {
 
     fn follow_up(&self, plan: &mut Plan, s: &Session, op: &Op) -> Result<Option<Planned>, OpError> {
         match op {
+            Op::AddSaveSystem { spec } => add_system::plan_join(plan, s, spec),
             Op::ReplaceSaveSystem { system, spec } => {
                 replace_system::plan_fill(plan, s, *system, spec).map(Some)
             }
@@ -272,7 +257,7 @@ impl Format for Save {
         true
     }
 
-    fn capabilities(&self) -> Capabilities {
+    fn capabilities(&self, doc: &Document) -> Capabilities {
         Capabilities {
             empires: true,
             details: true,
@@ -283,13 +268,62 @@ impl Format for Save {
             create_systems: false,
             lane_bridges: true,
             waylines: true,
+            added_systems: check_adds_system(doc).is_ok(),
+            bodies: true,
+            deposits: check_version(doc).is_ok(),
+            map_colors: true,
+            lgate: true,
+            symmetry: false,
         }
     }
 }
 
+/// The bytes standing at `anchor`, `subject`'s statement, parsed whole.
+fn parsed_statement(
+    doc: &Document,
+    subject: Subject,
+    anchor: Anchor,
+) -> Result<(Node, &[u8]), OpError> {
+    let buf = doc.current(anchor)?;
+    let root = cst::parse(buf, 0).map_err(|e| subject.parse_error(e.offset, e.reason))?;
+    Ok((root, buf))
+}
+
+/// The first major version whose saves take the ops that write whole entries.
+pub const WHOLE_ENTRIES_FROM_MAJOR: u32 = 4;
+
+/// Only a 4.x save takes the ops that write whole entries: a 3.x system carries an `arm`
+/// and more that nothing here writes. The version is `Cygnus v4.5.0` or a bare `4.5.0`;
+/// one whose major number cannot be read is refused too.
+pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
+    let version = archive::parse_meta(doc.meta())
+        .map(|meta| meta.version)
+        .unwrap_or_default();
+    let major = version
+        .split_whitespace()
+        .next_back()
+        .map(|number| number.trim_start_matches(['v', 'V']))
+        .and_then(|number| number.split('.').next()?.parse::<u32>().ok());
+    match major {
+        Some(major) if major >= WHOLE_ENTRIES_FROM_MAJOR => Ok(()),
+        Some(_) => Err(OpError::SaveTooOld(version)),
+        None => Err(OpError::UnknownSaveVersion(version)),
+    }
+}
+
+/// Whether the save takes a new system: [`check_version`], and not an Ironman save.
+pub(crate) fn check_adds_system(doc: &Document) -> Result<(), OpError> {
+    check_version(doc)?;
+    let ironman = archive::parse_meta(doc.meta()).is_ok_and(|meta| meta.ironman);
+    if ironman {
+        return Err(OpError::Ironman);
+    }
+    Ok(())
+}
+
 /// The statement standing for system `id`: one an op added, or the one loaded.
 pub(crate) fn system_statement(doc: &Document, id: u32) -> Option<Anchor> {
-    doc.added().get(Table::System, id).or_else(|| {
+    doc.added().get(EntityKind::System, id).or_else(|| {
         doc.index()
             .entity(keys::GALACTIC_OBJECT, u64::from(id))
             .filter(|e| matches!(e.value, Value::Block { .. }))
@@ -300,7 +334,7 @@ pub(crate) fn system_statement(doc: &Document, id: u32) -> Option<Anchor> {
 /// The statement standing for planet `id`: one an op added, or the one loaded; `None` for
 /// a planet the save does not hold or holds as a tombstone.
 pub(crate) fn planet_statement(doc: &Document, id: u32) -> Result<Option<Anchor>, ProjectionError> {
-    if let Some(anchor) = doc.added().get(Table::Planet, id) {
+    if let Some(anchor) = doc.added().get(EntityKind::Planet, id) {
         return Ok(Some(anchor));
     }
     Ok(doc
@@ -310,10 +344,60 @@ pub(crate) fn planet_statement(doc: &Document, id: u32) -> Result<Option<Anchor>
         .map(|e| Anchor::Original(e.stmt)))
 }
 
+/// The `<id>={ … }` entity `bytes` hold; `None` for a tombstone, `<id>=none`, or no
+/// statement at all.
+pub(crate) fn entity_in(bytes: &[u8]) -> Result<Option<Node>, CstError> {
+    let root = cst::parse(bytes, 0)?;
+    let node = root.children().first();
+    Ok(node.filter(|node| node.scalar_span().is_none()).cloned())
+}
+
+/// The entity the bytes standing at `anchor` hold, with those bytes: see [`entity_in`].
+pub(crate) fn entity_at(doc: &Document, anchor: Anchor) -> Result<Option<(Node, &[u8])>, CstError> {
+    let bytes = doc.current(anchor).map_err(|_| CstError {
+        offset: 0,
+        reason: "no statement stands there",
+    })?;
+    Ok(entity_in(bytes)?.map(|node| (node, bytes)))
+}
+
+/// [`entity_at`] for an op, which refuses a slot holding no entity as its subject's.
+pub(crate) fn entity(
+    doc: &Document,
+    subject: Subject,
+    anchor: Anchor,
+) -> Result<(Node, &[u8]), OpError> {
+    entity_at(doc, anchor)
+        .map_err(|e| subject.parse_error(e.offset, e.reason))?
+        .ok_or_else(|| subject.parse_error(0, "no entity stands there"))
+}
+
+/// Planet `id`'s entity as it stands now.
+pub(crate) fn planet_entity(doc: &Document, id: u32) -> Result<(Node, &[u8]), OpError> {
+    let anchor = planet_statement(doc, id)?.ok_or(OpError::UnknownPlanet(id))?;
+    let parse_error = |offset, reason: &str| OpError::PlanetParse {
+        planet: id,
+        offset,
+        reason: reason.to_owned(),
+    };
+    entity_at(doc, anchor)
+        .map_err(|e| parse_error(e.offset, e.reason))?
+        .ok_or(OpError::UnknownPlanet(id))
+}
+
+/// The system planet `id`, whose entity is `node`, is a body of: its `coordinate.origin`.
+pub(crate) fn planet_system(node: &Node, src: &[u8], id: u32) -> Result<u32, OpError> {
+    read::origin(node, src).ok_or_else(|| OpError::PlanetParse {
+        planet: id,
+        offset: node.span().start,
+        reason: format!("missing {}.{}", keys::COORDINATE, keys::ORIGIN),
+    })
+}
+
 /// Every planet the save now holds, loaded or added, with its statement, in file order;
 /// a tombstone is left out.
 pub(crate) fn planet_statements(doc: &Document) -> Result<Vec<(u32, Anchor)>, ProjectionError> {
-    let mut planets: Vec<(u32, Anchor)> = doc.added().entries(Table::Planet).collect();
+    let mut planets: Vec<(u32, Anchor)> = doc.added().entries(EntityKind::Planet).collect();
     if let Some(index) = doc.inner_index(keys::PLANETS)? {
         planets.extend(
             index

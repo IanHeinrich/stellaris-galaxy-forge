@@ -5,9 +5,10 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import type { SystemNode } from "../generated/SystemNode";
-import { editor, mocked, openFixtureSave } from "./editorFixture";
+import { editor, openFixtureSave } from "./editorFixture";
 import { editResult, OPEN_RESULT, systemNode } from "./fixture";
 import { galaxyIslandCount, galaxyLaneCount, selectionLanes, useGalaxyStore } from "./galaxyStore";
+import { mockedIpc } from "../test/ipc";
 
 /** A 94 x 94 lattice: 8,836 systems, each laned to its right and lower neighbours. */
 const SIDE = 94;
@@ -79,10 +80,10 @@ describe("a galaxy of 8,836 systems and 17,390 lanes, all of it selected", () =>
   });
 
   it("cuts every lane between the selected systems in one op", async () => {
-    mocked.applyOp.mockResolvedValue(editResult());
+    mockedIpc.applyOp.mockResolvedValue(editResult());
     await editor().cutLanesBetweenSelected();
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
-    const op = mocked.applyOp.mock.calls[0][0];
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    const op = mockedIpc.applyOp.mock.calls[0][0];
     expect(op.type === "RemoveLanePairs" && op.lanes.length).toBe(LANE_COUNT);
     expect(op.type === "RemoveLanePairs" && op.lanes.slice(0, 2)).toEqual([
       [0, 1],

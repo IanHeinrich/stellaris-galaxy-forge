@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { toCss } from "../../lib/visual/ownerColors";
-import type { WatchEntry } from "../../lib/watchlist";
+import { shownLabel, unpinLabel, type WatchEntry } from "../../lib/watchlist";
 import { useEditorStore } from "../../store/editorStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useWatchlistStore } from "../../store/watchlistStore";
+import { PALETTE_KEYS } from "../paletteKeys";
 import { useCollapse, type Collapse } from "./collapse";
 import { Action, Eye, Group, Row } from "./rows";
+import { counted } from "../../lib/text";
 
 /** What the tab says before anything is pinned. */
 export const WATCHLIST_EMPTY =
   'No pinned searches yet. Pin a search such as "salvager", "alpha refuge" or "gaia" and its ' +
   "systems are ringed in their own colour on every save you open. The Pin button in the " +
-  "search field (or Ctrl+Enter) pins what it holds.";
+  `search field (or ${PALETTE_KEYS.pin.label}) pins what it holds.`;
 
 interface WatchRow {
   id: number;
@@ -60,16 +62,14 @@ function WatchSection({
         <>
           <Eye
             on={entry.shown}
-            label={
-              entry.shown ? `Hide "${entry.query}" on the map` : `Show "${entry.query}" on the map`
-            }
+            label={shownLabel(entry)}
             onToggle={() => toggleShown(entry.query)}
           />
           <span className="browser-swatch" style={{ background: toCss(entry.colour) }} />
         </>
       }
       actions={
-        <Action glyph="×" label={`Unpin "${entry.query}"`} onClick={() => unpin(entry.query)} />
+        <Action glyph="×" label={unpinLabel(entry.query)} onClick={() => unpin(entry.query)} />
       }
       onToggle={() => collapse.toggle(key)}
     >
@@ -119,9 +119,7 @@ export function Watchlist() {
       <PinField />
       {entries.length > 0 && (
         <div className="watch-bar muted">
-          <span>
-            {entries.length} {entries.length === 1 ? "search" : "searches"} pinned
-          </span>
+          <span>{counted(entries.length, "search", "searches")} pinned</span>
           <button type="button" className="link" onClick={() => clear()}>
             Clear all
           </button>

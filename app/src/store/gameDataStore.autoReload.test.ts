@@ -11,7 +11,6 @@ vi.mock("../lib/visual/textures", async (importOriginal) => {
   return { ...actual, clearTextures: vi.fn() };
 });
 
-import * as ipc from "../api/ipc";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import {
@@ -19,12 +18,13 @@ import {
   flush,
   GALAXY_KEYS,
   listeners,
-  mocked,
   releaseGameData,
   SPECIAL,
   SUMMARY,
 } from "./gameDataFixture";
 import { OPEN_RESULT, SCENARIO_OWNERS } from "./fixture";
+import { clearTextures } from "../lib/visual/textures";
+import { mockedIpc } from "../test/ipc";
 
 beforeEach(armGameData);
 afterEach(releaseGameData);
@@ -54,7 +54,7 @@ describe("auto-reload", () => {
   }
 
   it("takes the generation and the roots under watch from the summary a sync adopts", async () => {
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue({
+    mockedIpc.gameDataSummary.mockResolvedValue({
       ...SUMMARY,
       generation: 4,
       watch: { watching: 2, paused: false, reason: null },
@@ -66,26 +66,26 @@ describe("auto-reload", () => {
 
   it("a rebuilt registry re-reads everything the load read, and leaves the textures alone", async () => {
     const changed = await ready();
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue({ ...SUMMARY, generation: 2 });
+    mockedIpc.gameDataSummary.mockResolvedValue({ ...SUMMARY, generation: 2 });
 
     changed(CHANGED);
 
-    await vi.waitFor(() => expect(mocked.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
+    await vi.waitFor(() => expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
     const state = useGameDataStore.getState();
     expect(state.version).toBe(2);
     expect(state.watching).toBe(3);
     expect(state.autoReloadPaused).toBe(false);
-    expect(mocked.getSpecialSystems).toHaveBeenCalledTimes(1);
-    expect(mocked.getStarClasses).toHaveBeenCalledTimes(1);
-    expect(mocked.getScenarioOwners).toHaveBeenCalledTimes(1);
-    expect(mocked.clearTextures).not.toHaveBeenCalled();
-    expect(mocked.loadGameData).not.toHaveBeenCalled();
+    expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getStarClasses).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getScenarioOwners).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(clearTextures)).not.toHaveBeenCalled();
+    expect(mockedIpc.loadGameData).not.toHaveBeenCalled();
   });
 
   it("subscribes once and drops the subscription with the game data", async () => {
     await ready();
     await useGameDataStore.getState().load();
-    expect(mocked.onGameDataChanged).not.toHaveBeenCalled();
+    expect(mockedIpc.onGameDataChanged).not.toHaveBeenCalled();
 
     await useGameDataStore.getState().unload();
     expect(listeners.unlistenChanges).toHaveBeenCalledTimes(1);
@@ -95,9 +95,9 @@ describe("auto-reload", () => {
 
   it("a tail still running when the game data goes away writes nothing more", async () => {
     const changed = await ready();
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue({ ...SUMMARY, generation: 2 });
+    mockedIpc.gameDataSummary.mockResolvedValue({ ...SUMMARY, generation: 2 });
     let answer: (owners: ScenarioOwners | null) => void = () => {};
-    mocked.getScenarioOwners.mockImplementationOnce(
+    mockedIpc.getScenarioOwners.mockImplementationOnce(
       () =>
         new Promise<ScenarioOwners | null>((resolve) => {
           answer = resolve;
@@ -105,9 +105,9 @@ describe("auto-reload", () => {
     );
 
     changed(CHANGED);
-    await vi.waitFor(() => expect(mocked.getScenarioOwners).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockedIpc.getScenarioOwners).toHaveBeenCalledTimes(1));
 
-    mocked.getScenarioOwners.mockResolvedValue(null);
+    mockedIpc.getScenarioOwners.mockResolvedValue(null);
     await useGameDataStore.getState().unload();
     answer(SCENARIO_OWNERS);
     await flush();
@@ -116,13 +116,13 @@ describe("auto-reload", () => {
     expect(useGameDataStore.getState().scenarioOwners).toBeNull();
     expect(useGalaxyStore.getState().systems.get(1)?.owner).toBeNull();
     expect(useGalaxyStore.getState().countries.size).toBe(0);
-    expect(mocked.getNames).not.toHaveBeenCalled();
+    expect(mockedIpc.getNames).not.toHaveBeenCalled();
   });
 
   it("a second rebuild supersedes the first, whose answer no longer counts", async () => {
     const changed = await ready();
     let answer: (summary: GameDataSummary) => void = () => {};
-    vi.mocked(ipc.gameDataSummary)
+    mockedIpc.gameDataSummary
       .mockImplementationOnce(
         () =>
           new Promise<GameDataSummary>((resolve) => {
@@ -132,24 +132,24 @@ describe("auto-reload", () => {
       .mockResolvedValue({ ...SUMMARY, generation: 3 });
 
     changed({ ...CHANGED, version: 2 });
-    await vi.waitFor(() => expect(vi.mocked(ipc.gameDataSummary)).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockedIpc.gameDataSummary).toHaveBeenCalledTimes(1));
     changed({ ...CHANGED, version: 3 });
-    await vi.waitFor(() => expect(mocked.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
+    await vi.waitFor(() => expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
 
-    mocked.getStarClasses.mockClear();
+    mockedIpc.getStarClasses.mockClear();
     answer({ ...SUMMARY, generation: 2 });
     await flush();
 
     expect(useGameDataStore.getState().version).toBe(3);
     expect(useGameDataStore.getState().summary?.generation).toBe(3);
-    expect(mocked.getStarClasses).not.toHaveBeenCalled();
+    expect(mockedIpc.getStarClasses).not.toHaveBeenCalled();
   });
 
   it("an abandoned tail leaves no spinner behind", async () => {
     const changed = await ready();
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue({ ...SUMMARY, generation: 2 });
+    mockedIpc.gameDataSummary.mockResolvedValue({ ...SUMMARY, generation: 2 });
     let answer: (systems: SpecialSystems) => void = () => {};
-    mocked.getSpecialSystems.mockImplementationOnce(
+    mockedIpc.getSpecialSystems.mockImplementationOnce(
       () =>
         new Promise<SpecialSystems>((resolve) => {
           answer = resolve;
@@ -159,7 +159,7 @@ describe("auto-reload", () => {
     changed(CHANGED);
     await vi.waitFor(() => expect(useGameDataStore.getState().specialPending).toBe(true));
 
-    mocked.loadGameData.mockRejectedValueOnce({ kind: "no_install", message: "nope" });
+    mockedIpc.loadGameData.mockRejectedValueOnce({ kind: "no_install", message: "nope" });
     await useGameDataStore.getState().load();
     answer(SPECIAL);
     await flush();
@@ -171,7 +171,7 @@ describe("auto-reload", () => {
   it("the load's own tail stops writing once the game data is unloaded", async () => {
     await ready();
     let answer: (owners: ScenarioOwners | null) => void = () => {};
-    mocked.getScenarioOwners.mockImplementationOnce(
+    mockedIpc.getScenarioOwners.mockImplementationOnce(
       () =>
         new Promise<ScenarioOwners | null>((resolve) => {
           answer = resolve;
@@ -181,7 +181,7 @@ describe("auto-reload", () => {
     const loading = useGameDataStore.getState().load();
     await vi.waitFor(() => expect(useGameDataStore.getState().scenarioOwnersPending).toBe(true));
 
-    mocked.getScenarioOwners.mockResolvedValue(null);
+    mockedIpc.getScenarioOwners.mockResolvedValue(null);
     await useGameDataStore.getState().unload();
     answer(SCENARIO_OWNERS);
     await loading;
@@ -194,7 +194,7 @@ describe("auto-reload", () => {
   });
 
   it("a page reload adopts a watcher the breaker had already paused", async () => {
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue({
+    mockedIpc.gameDataSummary.mockResolvedValue({
       ...SUMMARY,
       watch: { watching: 2, paused: true, reason: null },
     });
@@ -204,7 +204,7 @@ describe("auto-reload", () => {
   });
 
   it("carries the watcher's reason from the summary a load takes", async () => {
-    vi.mocked(ipc.loadGameData).mockResolvedValueOnce({
+    mockedIpc.loadGameData.mockResolvedValueOnce({
       ...SUMMARY,
       generation: 1,
       watch: { watching: 1, paused: false, reason: "could not watch C:/mods/gone: not found" },
@@ -219,26 +219,29 @@ describe("auto-reload", () => {
 
   it("an event no newer than what the store has seen is a duplicate", async () => {
     const changed = await ready();
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue({ ...SUMMARY, generation: 2 });
+    mockedIpc.gameDataSummary.mockResolvedValue({ ...SUMMARY, generation: 2 });
 
     changed(CHANGED);
-    await vi.waitFor(() => expect(mocked.getStarClasses).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockedIpc.getStarClasses).toHaveBeenCalledTimes(1));
 
     vi.clearAllMocks();
     changed(CHANGED);
     await flush();
-    expect(vi.mocked(ipc.gameDataSummary)).not.toHaveBeenCalled();
-    expect(mocked.getStarClasses).not.toHaveBeenCalled();
+    expect(mockedIpc.gameDataSummary).not.toHaveBeenCalled();
+    expect(mockedIpc.getStarClasses).not.toHaveBeenCalled();
     expect(useGameDataStore.getState().version).toBe(2);
   });
 
   it("a subscription the bridge refused is not held, and the unload still runs", async () => {
-    mocked.onGameDataChanged.mockRejectedValueOnce({ kind: "ipc", message: "the bridge is gone" });
+    mockedIpc.onGameDataChanged.mockRejectedValueOnce({
+      kind: "ipc",
+      message: "the bridge is gone",
+    });
     await useGameDataStore.getState().load();
     await vi.waitFor(() => expect(useGameDataStore.getState().error).toBe("the bridge is gone"));
 
     await useGameDataStore.getState().unload();
-    expect(mocked.unloadGameData).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.unloadGameData).toHaveBeenCalledTimes(1);
     expect(useGameDataStore.getState().status).toBe("idle");
     expect(useGameDataStore.getState().error).toBeNull();
   });
@@ -258,10 +261,10 @@ describe("auto-reload", () => {
     expect(paused.autoReloadPaused).toBe(true);
     expect(paused.hotFile).toBe("C:/mods/1/common/country_types/00_country_types.txt");
     expect(paused.hotCount).toBe(10);
-    expect(mocked.getStarClasses).not.toHaveBeenCalled();
+    expect(mockedIpc.getStarClasses).not.toHaveBeenCalled();
 
     await useGameDataStore.getState().resumeAutoReload();
-    expect(vi.mocked(ipc.resumeAutoReload)).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.resumeAutoReload).toHaveBeenCalledTimes(1);
 
     changed({
       registries: [],

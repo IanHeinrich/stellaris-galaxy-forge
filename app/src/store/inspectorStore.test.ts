@@ -13,6 +13,7 @@ import {
   useInspectorStore,
   type Entry,
 } from "./inspectorStore";
+import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useLayoutStore } from "./layoutStore";
@@ -272,5 +273,19 @@ describe("sections", () => {
     expect(inspector().collapsed("system.scripts", true)).toBe(true);
     expect(inspector().collapsed("system.flags", true)).toBe(false);
     expect(stored.get("sgf.inspector.sections")).toBe(JSON.stringify({ "system.flags": false }));
+  });
+});
+
+describe("opening a system's page", () => {
+  it("goes back down the stack to a page on it, else selects the system, easing the map both ways", async () => {
+    inspector().setRoot(SOL);
+    inspector().open(EARTH);
+    inspector().openSystem(452);
+    expect(labels()).toEqual(["Sol"]);
+    expect(useEditorStore.getState().focus?.id).toBe(452);
+
+    inspector().openSystem(12);
+    expect(useEditorStore.getState().focus?.id).toBe(12);
+    await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([12]));
   });
 });

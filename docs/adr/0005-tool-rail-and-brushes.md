@@ -45,7 +45,7 @@ model behind the same `MapIntent` interface.
 
 - The brush model is tested without a canvas, as the gesture model is.
 - The rail takes a strip of the map's width whenever a document is open.
-- A brush on a save is limited to lanes, since a save cannot add or remove systems.
+- A brush on a save is limited to lanes: Paint and Erase need `create_systems`, which only a scenario has.
 - Symmetry and the brush settings persist per machine; the tool itself does not.
 
 ## Amendment: symmetry is a global mode
@@ -53,7 +53,8 @@ model behind the same `MapIntent` interface.
 Symmetry is not a brush option. It is a mode of editing that applies in every tool: adding, moving, deleting
 and isolating systems, adding and cutting lanes, and setting initializers and spawns each reach the counterparts
 at every image in the same op, as every brush stroke does. Its button sits below the tools and opens a flyout
-that picks the kind, and `M` turns it on and off. Its guides show whenever it is on.
+that picks the kind, and `M` turns it on and off. Its guides show whenever it is on. A save takes no symmetry
+(0.13): its added systems are few and hand-placed.
 
 Every single edit goes through one store helper, `symmetricOp`, which widens the op the action built. A seat
 edit goes through `symmetricSeat` instead, which builds each counterpart's seat from that counterpart. A drag

@@ -1,25 +1,65 @@
 //! The system the in-game spike added to each sample save, as an `AddSaveSystem` spec: a
 //! G star and six planets, the fourth a gas giant with two moons.
 use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
+use sgf_core::session::Session;
+
+/// A sample save the add-system tests run on, with the spike's system for it.
+pub struct Sample {
+    pub open: fn() -> Session,
+    pub spike: fn() -> SystemSpec,
+    /// The id a system added to the save as opened takes.
+    pub id: u32,
+    /// The sample's version, for snapshot names.
+    pub label: &'static str,
+    /// Two places beside the spike's, clear of every system and of each other, where
+    /// more systems fit.
+    pub spots: [(f64, f64); 2],
+    /// A system the file holds near each spot, for a lane to it.
+    pub near: [u32; 2],
+    /// A system the file holds further off, for a lane from it to an added one.
+    pub joiner: u32,
+}
+
+pub const SAMPLES: [Sample; 2] = [
+    Sample {
+        open: super::open_4_5,
+        spike: mura,
+        id: 601,
+        label: "4_5",
+        spots: [(-270.0, -130.0), (-300.0, -120.0)],
+        near: [420, 544],
+        joiner: 149,
+    },
+    Sample {
+        open: super::open,
+        spike: dorellion,
+        id: 791,
+        label: "4_4",
+        spots: [(415.0, -190.0), (420.0, -222.0)],
+        near: [217, 278],
+        joiner: 614,
+    },
+];
+
+pub const SAMPLE_4_5: &Sample = &SAMPLES[0];
+pub const SAMPLE_4_4: &Sample = &SAMPLES[1];
+
+impl Sample {
+    /// The system the file holds that the spike links to.
+    pub fn home(&self) -> u32 {
+        (self.spike)().lanes[0]
+    }
+}
 
 /// Spike variant 8 on the 4.5 sample: Mura beside the player's home, linked to it.
 pub fn mura() -> SystemSpec {
-    spike(
-        "Mura",
-        (-292.23404, -137.62265),
-        169,
-        ["d_black_soil", "d_hot_springs", "d_veiny_cliffs"],
-    )
+    serde_json::from_str(include_str!("../../../../testdata/mura.json")).expect("mura.json")
 }
 
 /// Spike variant 9 on the 4.4 sample: Dorellion beside the player's home, linked to it.
 pub fn dorellion() -> SystemSpec {
-    spike(
-        "Dorellion",
-        (433.43269, -205.48736),
-        217,
-        ["d_rugged_woods", "d_dense_jungle", "d_dense_jungle"],
-    )
+    serde_json::from_str(include_str!("../../../../testdata/dorellion.json"))
+        .expect("dorellion.json")
 }
 
 /// The spike's system with `basic_init_05`'s two belts, the rocky one moved in from 130
@@ -60,7 +100,7 @@ pub fn belted(mut spec: SystemSpec) -> SystemSpec {
 pub fn rerolled(mut spec: SystemSpec) -> SystemSpec {
     spec.initializer = "basic_init_03".to_owned();
     spec.star_class = "sc_m".to_owned();
-    spec.star = body("pc_m_star", 18, 0.0, 0.0, 0);
+    spec.star = star(body("pc_m_star", 18, 0.0, 0.0, 0));
     spec.planets = vec![
         body("pc_barren", 10, 55.0, 40.0, 1),
         body("pc_desert", 17, 90.0, 200.0, 2),
@@ -80,33 +120,31 @@ pub fn body(class: &str, size: u32, orbit: f64, angle: f64, entity: u32) -> Body
     }
 }
 
-fn with_deposits(mut body: BodySpec, deposits: &[&str]) -> BodySpec {
+/// `body` as the generator marks a body of a star class.
+pub fn star(body: BodySpec) -> BodySpec {
+    BodySpec { star: true, ..body }
+}
+
+pub fn with_deposits(mut body: BodySpec, deposits: &[&str]) -> BodySpec {
     body.deposits = deposits.iter().map(|d| (*d).to_owned()).collect();
     body
 }
 
-fn spike(name: &str, (x, y): (f64, f64), home: u32, habitable: [&str; 3]) -> SystemSpec {
-    let mut giant = with_deposits(body("pc_gas_giant", 25, 145.0, 20.0, 2), &["d_energy_5"]);
-    giant.moons = vec![
-        body("pc_frozen", 8, 15.0, 60.0, 1),
-        body("pc_barren_cold", 6, 22.0, 240.0, 1),
-    ];
+/// A K star with one planet holding a deposit.
+pub fn small(name: &str, (x, y): (f64, f64), lanes: Vec<u32>) -> SystemSpec {
+    let planet = BodySpec {
+        deposits: vec!["d_minerals_3".to_owned()],
+        ..body("pc_barren", 10, 60.0, 45.0, 1)
+    };
     SystemSpec {
         name: name.to_owned(),
         x,
         y,
-        star_class: "sc_g".to_owned(),
+        star_class: "sc_k".to_owned(),
         initializer: "basic_init_01".to_owned(),
-        star: with_deposits(body("pc_g_star", 25, 0.0, 0.0, 0), &["d_energy_5"]),
-        planets: vec![
-            body("pc_molten", 12, 65.0, 30.0, 1),
-            body("pc_barren", 14, 85.0, 150.0, 1),
-            with_deposits(body("pc_continental", 16, 105.0, 260.0, 2), &habitable),
-            giant,
-            body("pc_toxic", 15, 175.0, 200.0, 1),
-            body("pc_frozen", 13, 205.0, 110.0, 1),
-        ],
-        lanes: vec![home],
+        star: star(body("pc_k_star", 20, 0.0, 0.0, 0)),
+        planets: vec![planet],
+        lanes,
         ..SystemSpec::default()
     }
 }

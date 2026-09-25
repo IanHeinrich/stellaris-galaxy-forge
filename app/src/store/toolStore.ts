@@ -132,9 +132,9 @@ export function toolAllowed(tool: Tool): boolean {
   return useFileSessionStore.getState().status === "ready" && canEdit(requires);
 }
 
-/** Whether the open document can take symmetry: a scenario, never a save. */
+/** Whether the open document can take symmetry. */
 export function symmetryAllowed(): boolean {
-  return useFileSessionStore.getState().kind !== "save";
+  return canEdit("symmetry");
 }
 
 export const useToolStore = create<ToolState>((set, get) => ({

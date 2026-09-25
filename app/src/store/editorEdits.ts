@@ -2,14 +2,15 @@ import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import type { GalaxyDelta } from "../generated/GalaxyDelta";
+import type { Op } from "../generated/Op";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SystemNode } from "../generated/SystemNode";
-import { renumberedId, renumberedIds, type Renumbering } from "../lib/renumber";
+import { renumberedId, renumberedIds, renumberedLane, type Renumbering } from "../lib/renumber";
 import { useDetailsStore } from "./detailsStore";
-import type { EditorState, LaneRef } from "./editorStore";
+import type { EditorState } from "./editorStore";
 import { useEntityStore } from "./entityStore";
 import { useFileSessionStore } from "./fileSessionStore";
-import { useGalaxyStore } from "./galaxyStore";
+import { linked, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore, type EntityRef } from "./inspectorStore";
 import { useScriptsStore } from "./scriptsStore";
@@ -22,6 +23,16 @@ import { useWatchlistStore } from "./watchlistStore";
  * inside `edit`, after every edit queued before it; one that answers null sent nothing.
  */
 export type RunEdit = (edit: () => Promise<EditResult | null>) => Promise<EditResult | null>;
+
+/**
+ * An op, or what builds it inside the queue once every edit queued before it has landed; a
+ * builder that reads the galaxy must be one. A builder answering null sends nothing.
+ */
+export type OpSource = Op | (() => Op | null);
+
+function built(source: OpSource): Op | null {
+  return typeof source === "function" ? source() : source;
+}
 
 type EditActions = Pick<
   EditorState,
@@ -74,7 +85,8 @@ export function editPipeline(
       });
     }
     if (stale) void reselect(kept);
-    if (selectedLane && !laneExists(selectedLane)) set({ selectedLane: null });
+    if (selectedLane && !linked(systems(), selectedLane.a, selectedLane.b))
+      set({ selectedLane: null });
     const { selectedNebula } = get();
     if (selectedNebula !== null && selectedNebula >= useGalaxyStore.getState().nebulae.length) {
       set({ selectedNebula: null });
@@ -89,19 +101,10 @@ export function editPipeline(
    */
   function followRenumbering(pairs: Renumbering): void {
     const { selection, selectedLane, searchRings, recentHits } = get();
-    const lane = selectedLane && {
-      a: renumberedId(pairs, selectedLane.a),
-      b: renumberedId(pairs, selectedLane.b),
-    };
     set({
       selection: renumberedIds(pairs, selection),
       hover: null,
-      selectedLane:
-        lane === null
-          ? null
-          : lane.a === null || lane.b === null
-            ? null
-            : { a: Math.min(lane.a, lane.b), b: Math.max(lane.a, lane.b) },
+      selectedLane: selectedLane && renumberedLane(pairs, selectedLane),
       searchRings: renumberedIds(pairs, searchRings),
       recentHits: renumberedHits(pairs, recentHits),
     });
@@ -134,8 +137,8 @@ export function editPipeline(
       const held = new Set(systems().keys());
       applyEdit(result);
       // An undone removal or a redone add brings its system back selected.
-      const back = cameBack(result.delta, held);
-      if (back !== null) void reselect([back]);
+      const back = addedNear(result.delta, held);
+      if (back?.added) void reselect([back.id]);
       return result.reclassifies;
     } catch (e) {
       useFileSessionStore.getState().setError(ipc.errorMessage(e));
@@ -158,18 +161,26 @@ export function editPipeline(
   }
 
   const actions: EditActions = {
-    async applyOp(op) {
-      return (await runEdit(() => ipc.applyOp(op))) !== null;
+    async applyOp(source) {
+      const result = await runEdit(async () => {
+        const op = built(source);
+        return op === null ? null : ipc.applyOp(op);
+      });
+      return result !== null;
     },
 
-    applySymmetric(op) {
-      return get().applyOp(symmetricOp(op));
+    applySymmetric(source) {
+      return get().applyOp(() => {
+        const op = built(source);
+        return op && symmetricOp(op);
+      });
     },
 
-    async setSeat(id, seat) {
-      const system = systems().get(id);
-      const op = system && symmetricSeat(system, seat);
-      return op ? get().applyOp(op) : false;
+    setSeat(id, seat) {
+      return get().applyOp(() => {
+        const system = systems().get(id);
+        return (system && symmetricSeat(system, seat)) ?? null;
+      });
     },
 
     async undo() {
@@ -268,16 +279,38 @@ function renumberedHits(pairs: Renumbering, hits: SearchHit[]): SearchHit[] {
   return moved ? next : hits;
 }
 
-/** The added save system a history step brought back, which the galaxy did not hold before it. */
-function cameBack(delta: GalaxyDelta, held: ReadonlySet<number>): number | null {
+/**
+ * Of the systems `delta` brings that the galaxy did not hold before the edit (`held`, the ids it
+ * held then), the one nearest `point`, or the first without one; null when the edit added none.
+ */
+export function addedNear(
+  delta: GalaxyDelta,
+  held: ReadonlySet<number>,
+  point?: { x: number; y: number },
+): SystemNode | null {
   const pairs = delta.renumbered ?? [];
   const before = new Set<number>();
   for (const id of held) {
     const after = renumberedId(pairs, id);
     if (after !== null) before.add(after);
   }
-  const back = delta.systems.find((s) => s.added && !before.has(s.id));
-  return back?.id ?? null;
+  const fresh = delta.systems.filter((s) => !before.has(s.id));
+  return point === undefined ? (fresh[0] ?? null) : nearestSystem(point, fresh);
+}
+
+/** Runs `edit` as `runEdit` does, and the system it added nearest (x, y), or null for none. */
+export async function runAdd(
+  runEdit: RunEdit,
+  x: number,
+  y: number,
+  edit: () => Promise<EditResult | null>,
+): Promise<{ result: EditResult; added: SystemNode | null } | null> {
+  let held: ReadonlySet<number> = new Set();
+  const result = await runEdit(() => {
+    held = new Set(systems().keys());
+    return edit();
+  });
+  return result && { result, added: addedNear(result.delta, held, { x, y }) };
 }
 
 export function systems() {
@@ -377,13 +410,4 @@ function owningSystem(ref: DetailRef): number | null {
     if (members.some((m) => m.id === ref.id)) return details.id;
   }
   return null;
-}
-
-function laneExists({ a, b }: LaneRef): boolean {
-  return (
-    useGalaxyStore
-      .getState()
-      .systems.get(a)
-      ?.lanes.some((l) => l.to === b) ?? false
-  );
 }

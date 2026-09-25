@@ -1,10 +1,10 @@
 import { Container, Graphics } from "pixi.js";
 import { BRUSH_TOOLS, type BrushTool } from "../../../lib/brush/brushTools";
-import type { Segment } from "../../../lib/brush/lanes";
 import type { Pt } from "../../../lib/geometry/pt";
+import type { Segment } from "../../../lib/geometry/segments";
 import { images, type Symmetry } from "../../../lib/geometry/symmetry";
 import { ACCENT_COLOR, CAUTION_COLOR, REFUSED_COLOR } from "../../../lib/visual/style";
-import { dashedCircle } from "./dashedCircle";
+import { dashedCircle } from "../dashes";
 
 const LANE = { color: ACCENT_COLOR, alpha: 0.9 };
 const DASHES = 48;
@@ -70,7 +70,7 @@ export class BrushOverlay {
     const g = this.lines;
     g.clear();
     if (preview) {
-      for (const [a, b] of preview.lanes) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
+      for (const { a, b } of preview.lanes) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
       if (preview.lanes.length > 0) g.stroke({ ...LANE, pixelLine: true });
     }
     this.drawMarks();
@@ -90,7 +90,7 @@ export class BrushOverlay {
     const p = this.preview;
     if (!p) return;
     const px = 1 / this.camScale;
-    for (const [a, b] of p.cut) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
+    for (const { a, b } of p.cut) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
     if (p.cut.length > 0) g.stroke({ color: REFUSED_COLOR, alpha: 0.9, width: CUT_PX * px });
     for (const s of p.points) g.circle(s.x, s.y, DOT_PX * px);
     if (p.points.length > 0) g.fill({ color: ACCENT_COLOR, alpha: 0.9 });

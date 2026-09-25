@@ -6,13 +6,10 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { confirm } from "@tauri-apps/plugin-dialog";
-import { onProgress } from "../api/events";
-import * as ipc from "../api/ipc";
-import { bindStores } from "./bindStores";
+import { mockedIpc } from "../test/ipc";
 import { resizeBrush, resizeNebula, run } from "./commands";
-import { useFileSessionStore } from "./fileSessionStore";
-import { useGalaxyStore } from "./galaxyStore";
+import { session } from "./sessionFixture";
+import { armSession, resetStores } from "./storeFixture";
 import { PREF_KEYS } from "./prefKeys";
 import {
   SPACING_RANGE,
@@ -26,36 +23,21 @@ import {
 } from "./toolStore";
 
 const tools = () => useToolStore.getState();
-const session = () => useFileSessionStore.getState();
 
 const stored = new Map<string, string>();
-
-bindStores();
 
 const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
 
 async function openScenario(): Promise<void> {
-  vi.mocked(ipc.openSave).mockResolvedValueOnce(SCENARIO_RESULT);
+  mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
   await session().openSave(SCENARIO_RESULT.path);
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  resetStores();
   stubPrefs(stored);
-  useGalaxyStore.getState().clear();
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
-  useToolStore.setState({ ...useToolStore.getInitialState() });
-  vi.mocked(onProgress).mockResolvedValue(() => undefined);
-  vi.mocked(ipc.openSave).mockResolvedValue(OPEN_RESULT);
-  vi.mocked(ipc.getSystem).mockImplementation(async (id) => detailOf(id));
-  vi.mocked(ipc.closeSave).mockResolvedValue();
-  vi.mocked(ipc.warmDetails).mockResolvedValue();
-  vi.mocked(confirm).mockResolvedValue(true);
-  vi.mocked(ipc.getSpecialSystems).mockResolvedValue({
-    systems: [],
-    counts: [],
-    with_game_data: false,
-  });
+  armSession();
+  mockedIpc.getSystem.mockImplementation(async (id) => detailOf(id));
 });
 
 afterEach(() => {
@@ -226,6 +208,23 @@ describe("symmetry on a save", () => {
     expect(tools().symmetry).toEqual({ kind: "mirror", axis: "y" });
     await session().openSave(OPEN_RESULT.path);
     expect(tools().symmetry).toEqual({ kind: "off" });
+  });
+
+  it("is turned off by opening a save without touching the preference, and kept by closing a scenario", async () => {
+    await openScenario();
+    tools().setSymmetry({ kind: "mirror", axis: "x" });
+    const saved = stored.get(PREF_KEYS.symmetry);
+
+    await session().openSave(OPEN_RESULT.path);
+    expect(tools().symmetry).toEqual({ kind: "off" });
+    expect(stored.get(PREF_KEYS.symmetry)).toBe(saved);
+    expect(run("toggleSymmetry", false, effects)).toBe(false);
+    expect(tools().symmetry).toEqual({ kind: "off" });
+
+    await openScenario();
+    tools().setSymmetry({ kind: "rotate", n: 3 });
+    await session().close();
+    expect(tools().symmetry).toEqual({ kind: "rotate", n: 3 });
   });
 
   it("is left alone on a scenario", async () => {

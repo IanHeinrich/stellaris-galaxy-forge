@@ -1,0 +1,13 @@
+---
+source: crates/sgf-gamedata/tests/special_layouts.rs
+expression: out
+---
+NAME_Wenkwort at -292.23404 -137.62265 sc_b wenkwort_initializer capped flags ["wenkwort_system", "natural_spectacle_system"]
+belt rocky_asteroid_belt 135
+pc_b_star 21 orbit 0 angle 252.11 deposits ["d_physics_2"] star
+  pc_gaia 19 orbit 65 angle 297.11 deposits ["d_teeming_reef", "d_active_volcano", "d_crystalline_caverns", "d_ore_rich_caverns", "d_fuming_bog", "d_crystalline_caverns", "d_searing_desert", "d_prosperous_mesa", "d_ore_rich_caverns"] ring name NAME_wenkwort_prime modifiers ["pm_wenkwort_gardens"]
+    pc_barren_cold 9 orbit 19 angle 0 deposits ["d_minerals_2"] name NAME_wenkwort_moon
+  pc_barren 18 orbit 110 angle 72.11 name NAME_wenkwort_2 modifiers ["terraforming_candidate"]
+  pc_asteroid 4 orbit 138 angle 52.11 deposits ["d_minerals_3"] name NAME_wenkwort_asteroid
+  pc_toxic 27 orbit 168 angle 87.11 deposits ["d_trade_value_2"] name NAME_wenkwort_3
+  pc_gas_giant 33 orbit 198 angle 142.11 name NAME_wenkwort_4

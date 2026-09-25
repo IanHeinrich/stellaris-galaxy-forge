@@ -11,7 +11,8 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { OPEN_RESULT, SCENARIO_CAPABILITIES } from "../../store/fixture";
+import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
+import { OPEN_RESULT } from "../../store/fixture";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useToolStore } from "../../store/toolStore";
 import { ToolOptions } from "./ToolOptions";
@@ -70,7 +71,7 @@ describe("the tool rail", () => {
   });
 
   it("carries the symmetry button after the tools, showing the setting while it is on", () => {
-    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
+    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
     const off = button("Symmetry");
     expect(off).toContain('aria-pressed="false"');
     expect(off).toContain('title="Symmetry off (M turns on 4-fold rotation)"');
@@ -87,9 +88,9 @@ describe("the tool rail", () => {
   });
 
   it("hides the symmetry control on a save, since symmetry only applies to a scenario", () => {
-    useFileSessionStore.setState({ kind: "scenario" });
+    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
     expect(rail()).toContain('aria-label="Symmetry"');
-    useFileSessionStore.setState({ kind: "save" });
+    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
     expect(rail()).not.toContain('aria-label="Symmetry"');
   });
 

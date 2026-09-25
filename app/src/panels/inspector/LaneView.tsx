@@ -1,7 +1,8 @@
 import { useEditorStore } from "../../store/editorStore";
 import { useSystemNames } from "../../store/browserRows";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { Chip, Empty, Properties, PropertyRow } from "./parts";
+import { Chip } from "../parts";
+import { Empty, Properties, PropertyRow } from "./parts";
 
 /** One hyperlane: its length against the distance it spans, and the two edits it allows. */
 export function LaneView({ a, b }: { a: number; b: number }) {

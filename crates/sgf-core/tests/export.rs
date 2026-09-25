@@ -129,6 +129,7 @@ static_galaxy_scenario = {{
             lgates: 0,
         }
     );
+    assert_eq!(report.dropped_summary.as_deref(), Some("6 wormhole pairs"));
     assert_eq!(report.sources, []);
     assert_eq!(report.omitted, []);
     assert_eq!(report.fallen_empires, []);

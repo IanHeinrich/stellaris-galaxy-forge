@@ -1,8 +1,6 @@
 //! Details projection on the real sample save.
 use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::sync::{LazyLock, Mutex, MutexGuard};
-use std::time::Instant;
 
 use sgf_core::format::save::details::{
     ArchaeologySite, DepositCount, DetailsResolver, FleetPresence, FleetSummary, HeuristicResolver,
@@ -10,27 +8,12 @@ use sgf_core::format::save::details::{
 };
 use sgf_core::projections::galaxy::FlagRef;
 use sgf_core::projections::name::{NameTemplate, NameVariable};
-use sgf_core::session::Session;
 
 use crate::common;
 
-/// The sample save with its details projection built, shared by every test in this file:
-/// they all read it and none of them writes.
-static SAMPLE: LazyLock<Mutex<Session>> = LazyLock::new(|| {
-    let mut session = common::open();
-    let started = Instant::now();
-    session.warm_details().expect("build details");
-    eprintln!("details projection built in {:?}", started.elapsed());
-    Mutex::new(session)
-});
-
-fn sample() -> MutexGuard<'static, Session> {
-    SAMPLE.lock().unwrap_or_else(|held| held.into_inner())
-}
-
 #[test]
 fn the_projection_is_built_once_and_covers_every_system() {
-    let session = sample();
+    let session = common::warmed();
     let details = session.details().expect("build details");
     assert!(std::sync::Arc::ptr_eq(
         &details,
@@ -43,7 +26,7 @@ fn the_projection_is_built_once_and_covers_every_system() {
 
 #[test]
 fn planets_are_counted_colonised_populated_and_owned() {
-    let session = sample();
+    let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
     let systems = session.graph.systems.keys().map(|&id| raw(id));
@@ -85,7 +68,7 @@ fn planets_are_counted_colonised_populated_and_owned() {
 
 #[test]
 fn starbases_carry_their_level_modules_and_hull() {
-    let session = sample();
+    let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
     let systems = session.graph.systems.keys().map(|&id| raw(id));
@@ -139,7 +122,7 @@ fn starbases_carry_their_level_modules_and_hull() {
 
 #[test]
 fn fleets_carry_their_ships_orders_owner_and_power() {
-    let session = sample();
+    let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
     let systems = session.graph.systems.keys().map(|&id| raw(id));
@@ -265,7 +248,7 @@ fn fleets_carry_their_ships_orders_owner_and_power() {
 
 #[test]
 fn megastructures_name_their_kind_owner_and_orbit() {
-    let session = sample();
+    let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
     let systems = session.graph.systems.keys().map(|&id| raw(id));
@@ -320,7 +303,7 @@ fn megastructures_name_their_kind_owner_and_orbit() {
 
 #[test]
 fn sites_and_pre_ftl_planets_are_where_the_save_puts_them() {
-    let session = sample();
+    let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
     let systems = session.graph.systems.keys().map(|&id| raw(id));
@@ -384,7 +367,7 @@ fn sites_and_pre_ftl_planets_are_where_the_save_puts_them() {
 
 #[test]
 fn sol_reads_as_the_inspector_lists_it() {
-    let session = sample();
+    let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
     let sol = details
@@ -527,7 +510,7 @@ fn heuristic_resolver_reads_the_amount_from_the_key() {
 
 #[test]
 fn names_are_templates_with_the_stand_in_as_name_key() {
-    let session = sample();
+    let session = common::warmed();
     let country = |id: u32| {
         session
             .graph
@@ -595,7 +578,7 @@ fn names_are_templates_with_the_stand_in_as_name_key() {
 
 #[test]
 fn countries_carry_their_flag_layers() {
-    let session = sample();
+    let session = common::warmed();
     let humans = session
         .graph
         .countries
@@ -623,7 +606,7 @@ fn countries_carry_their_flag_layers() {
 /// ship) and Withrilli (a fallen empire's mixed fleet) as the inspector lists them.
 #[test]
 fn inspector_facts_of_the_home_systems() {
-    let session = sample();
+    let session = common::warmed();
     let details = session.details().expect("build details");
     let mut report = String::new();
     for id in [217, 448, 614, 521] {

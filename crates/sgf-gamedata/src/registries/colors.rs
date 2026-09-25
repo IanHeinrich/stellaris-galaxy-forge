@@ -11,27 +11,9 @@ use crate::registries::registry::Registry;
 
 #[derive(Debug, Default)]
 pub struct Colors {
-    entries: Registry<ColorDef>,
+    pub entries: Registry<ColorDef>,
     /// The name of the mod whose `colors.txt` won; `None` for vanilla's, or for none.
     pub source: Option<String>,
-}
-
-impl Colors {
-    pub fn get(&self, name: &str) -> Option<&ColorDef> {
-        self.entries.get(name)
-    }
-
-    pub fn len(&self) -> usize {
-        self.entries.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &ColorDef> {
-        self.entries.iter()
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,11 +30,8 @@ pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Colors
         return colors;
     };
     colors.source = layout
-        .layers
-        .iter()
-        .rev()
-        .find(|layer| file.starts_with(&layer.root))
-        .map(|layer| layer.name.clone())
+        .layer_of(&file)
+        .map(|(layer, _)| layer.name.clone())
         .filter(|name| name != VANILLA);
     if let Some((root, src)) = script::parse_file(&file, diagnostics)
         && let Some(block) = root.find("colors", &src)

@@ -1,18 +1,3 @@
-.ins-position {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ins-position .k {
-  color: var(--fg-muted);
-}
-
-/* Room for a coordinate like -1000.00 beside the field's pencil. */
-.ins-position .coord {
-  width: 100px;
-}
-
 .ins-spawn-point {
   display: flex;
   align-items: center;

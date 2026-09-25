@@ -12,8 +12,9 @@ import { bindStores } from "../../../../../store/bindStores";
 import { detailOf } from "../../../../../store/fixture";
 import { useFileSessionStore } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
-import { mocked, open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
+import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
 import { FE_LINKS_INTRO } from "./FeLinksSection";
+import { mockedIpc } from "../../../../../test/ipc";
 
 bindStores();
 
@@ -27,7 +28,7 @@ const TAKES_4: FeLinkFlags = { custom: true, id: 4, to: [] };
 async function openLinking(to: number[], anchorsItself = false): Promise<void> {
   const zone = anchorsItself ? newFeZone("n") : null;
   const fe_link: FeLinkFlags = { custom: false, id: null, to };
-  mocked.getSystem.mockImplementation(async (id) => {
+  mockedIpc.getSystem.mockImplementation(async (id) => {
     const detail = detailOf(id);
     return { ...detail, system: { ...detail.system, fe_zone: zone, fe_link } };
   });

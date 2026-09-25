@@ -1,8 +1,10 @@
 import type { BrushTool } from "../../lib/brush/brushTools";
-import { provisionalIndex, type Segment } from "../../lib/brush/lanes";
+import { provisionalIndex } from "../../lib/brush/lanes";
 import type { Pair } from "../../lib/geometry/pairs";
 import { stampsAlong } from "../../lib/brush/stroke";
 import type { Pt } from "../../lib/geometry/pt";
+import { newSeed } from "../../lib/random";
+import type { Segment } from "../../lib/geometry/segments";
 import { copies, type Symmetry } from "../../lib/geometry/symmetry";
 import { useEditorStore } from "../../store/editorStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -42,7 +44,7 @@ function previewOf(result: StrokeResult, systems: Systems): BrushPreview {
     pairs.flatMap(([a, b]): Segment[] => {
       const p = end(a);
       const q = end(b);
-      return p && q ? [[p, q]] : [];
+      return p && q ? [{ a: p, b: q }] : [];
     });
   const existing = (id: number) => systems.get(id);
   switch (result.kind) {
@@ -129,9 +131,8 @@ export class BrushStrokes {
     if (!grid) return;
     this.preview.update();
     this.tool = tool;
-    const seed = Math.floor(Math.random() * 2 ** 32);
     const settings = settingsFor(tool);
-    this.stroke = new BrushStroke(settings, systems, grid, seed);
+    this.stroke = new BrushStroke(settings, systems, grid, newSeed());
     this.hold(settings.symmetry);
     this.last = null;
     this.extend(x, y);

@@ -40,7 +40,7 @@ export function ownerFlag(
     d.planets.filter((p) => p.colonised && !p.pre_ftl),
   );
   // The flag is drawn oversized (EMBLEM_PX) but centred on the same cell as a row icon
-  // (ICON_PX wide, at `right`), so rowLeft/plateBox keep using the cell's own width.
+  // (ICON_PX wide, at `right`), so plateBox keeps using the cell's own width.
   const cx = right - ICON_PX / 2;
   const cy = y.icon + ICON_PX / 2;
   row.sprite(texture, cx - EMBLEM_PX / 2, cy - EMBLEM_PX / 2, EMBLEM_PX, {

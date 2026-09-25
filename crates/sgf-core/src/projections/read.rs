@@ -155,10 +155,12 @@ pub(crate) struct RawCountry {
     pub border_color: Option<String>,
     /// `flag.colors[5]`, the map fill colour, read only under `flag.use_map_color=yes`.
     pub fill_color: Option<String>,
-    /// Every `flag.colors` entry in order, the `"null"` placeholders kept.
-    pub flag_colors: Vec<String>,
     /// Whether `flag.use_map_color=yes`.
     pub use_map_color: bool,
+    /// The border and fill the game paints the territory in; see [`painted`].
+    pub painted: (Option<String>, Option<String>),
+    /// Whether `flag.colors` holds the map border and fill slots (4.5).
+    pub has_map_colors: bool,
     pub flag_icon: Option<FlagRef>,
     pub flag_background: Option<FlagRef>,
     /// The keys of the `flags` map.
@@ -185,6 +187,23 @@ pub(crate) fn countries(index: &Index, src: &[u8]) -> Result<Vec<RawCountry>, Pr
 /// Where `flag.colors` keeps the map border and fill (4.5): after the four flag colours.
 const MAP_BORDER_SLOT: usize = 4;
 const MAP_FILL_SLOT: usize = 5;
+
+/// The border and fill the map paints a territory in, from every `flag.colors` entry: the
+/// map slots under `flag.use_map_color=yes`, and where one is `"null"` or not chosen, the
+/// first two named flag colours, either standing in for the other when it is the only one.
+fn painted(entries: &[&str], use_map_color: bool) -> (Option<String>, Option<String>) {
+    let named: Vec<&str> = entries.iter().copied().filter(|&s| s != "null").collect();
+    let map_slot = |slot: usize| {
+        entries
+            .get(slot)
+            .copied()
+            .filter(|&s| use_map_color && s != "null")
+    };
+    let (first, second) = (named.first().copied(), named.get(1).copied());
+    let border = map_slot(MAP_BORDER_SLOT).or(first).or(second);
+    let fill = map_slot(MAP_FILL_SLOT).or(second).or(first);
+    (border.map(str::to_owned), fill.map(str::to_owned))
+}
 
 /// What the projections read off one `country` entity, `node` being its `<id>=` node.
 pub(crate) fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
@@ -256,7 +275,8 @@ pub(crate) fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
         colors,
         border_color: map_color(MAP_BORDER_SLOT),
         fill_color: map_color(MAP_FILL_SLOT),
-        flag_colors: entries.iter().copied().map(str::to_owned).collect(),
+        painted: painted(&entries, use_map_color),
+        has_map_colors: entries.len() > MAP_FILL_SLOT,
         use_map_color,
         flag_icon: layer(keys::ICON),
         flag_background: layer(keys::BACKGROUND),

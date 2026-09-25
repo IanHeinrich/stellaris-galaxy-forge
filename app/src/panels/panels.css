@@ -260,3 +260,57 @@
   padding: 0 4px;
   font-size: 10px;
 }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--fg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.chip.kind {
+  background: #2a2410;
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+.chip.added {
+  background: var(--allowed-bg);
+  border-color: var(--allowed-dim);
+  color: var(--allowed);
+}
+
+.chip.warn {
+  background: #2f1a12;
+  border-color: #6a3a28;
+  color: var(--warn);
+}
+
+.mesh-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mesh-row button {
+  width: 100%;
+}
+
+.mesh-slider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.mesh-slider input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}

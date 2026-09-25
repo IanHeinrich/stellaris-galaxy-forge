@@ -2,7 +2,7 @@ import { newSystemRows } from "../../../lib/initializer/initializerBrowser";
 import { ALL_CLANS_PLACED, nextFreeClan } from "../../../lib/marauder";
 import { useSystemNames } from "../../../store/browserRows";
 import { nearestSystem, useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { useCanEdit } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import {
@@ -11,12 +11,12 @@ import {
   useInitializerBrowserStore,
 } from "../../../store/initializerBrowserStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
-import { createSystemFrom, NEEDS_GAME_DATA } from "../../initializers/entry";
-import { focusNebulaRadius } from "../../inspector/nebula";
+import { createSystemFrom, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
+import { focusNebulaRadius } from "../../nebula";
 import { AddSystemItems } from "./AddSystemItems";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
-import { NO_SYSTEMS, useCanCreate, useCanNebulae, useZones } from "./menuState";
+import { NO_SYSTEMS, useZones } from "./menuState";
 
 /** The menu on empty space: what can be placed at the point right-clicked. */
 export function SpaceMenu({
@@ -31,9 +31,9 @@ export function SpaceMenu({
   const addNebulaAt = useEditorStore((s) => s.addNebulaAt);
   const addFeZoneAt = useEditorStore((s) => s.addFeZoneAt);
   const systems = useGalaxyStore((s) => s.systems);
-  const canCreate = useCanCreate();
-  const canNebulae = useCanNebulae();
-  const save = useFileSessionStore((s) => s.kind === "save");
+  const canCreate = useCanEdit("create_systems");
+  const canNebulae = useCanEdit("nebulae");
+  const canAdd = useCanEdit("added_systems");
   const zones = useZones();
   const anchor = nearestSystem(target, systems.values());
   const [anchorName] = useSystemNames(anchor ? [anchor.id] : NO_SYSTEMS);
@@ -41,11 +41,11 @@ export function SpaceMenu({
   const defaultKey = useInitializerBrowserStore((s) => s.defaultKey);
   useInitializerBrowserStore((s) => s.recent);
 
-  if (!canCreate && !canNebulae && !save) return null;
+  if (!canCreate && !canNebulae && !canAdd) return null;
   const freeClan = canCreate ? nextFreeClan(systems) : null;
   return (
     <MenuFrame {...frame} label="Empty space">
-      {save && <AddSystemItems x={target.x} y={target.y} />}
+      {canAdd && <AddSystemItems x={target.x} y={target.y} />}
       {canCreate &&
         newSystemRows(defaultKey, lastUsed()).map((row) => (
           <MenuItem
@@ -61,7 +61,7 @@ export function SpaceMenu({
         <MenuItem
           className="menu-item"
           disabled={!gameData}
-          title={gameData ? undefined : NEEDS_GAME_DATA}
+          title={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
           run={() => createSystemFrom(target.x, target.y)}
         >
           New system from…
@@ -69,7 +69,7 @@ export function SpaceMenu({
       )}
       {canNebulae && (
         <MenuItem
-          className={canCreate || save ? "menu-item context-menu-separated" : "menu-item"}
+          className={canCreate || canAdd ? "menu-item context-menu-separated" : "menu-item"}
           run={async () => {
             if (await addNebulaAt(target.x, target.y)) focusNebulaRadius();
           }}

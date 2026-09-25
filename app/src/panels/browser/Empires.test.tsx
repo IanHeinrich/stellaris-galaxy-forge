@@ -1,8 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CountryNode } from "../../generated/CountryNode";
-import type { OpenResult } from "../../generated/OpenResult";
-import { name, OPEN_RESULT, SCENARIO_OWNERS, SCENARIO_RESULT } from "../../store/fixture";
+import { countryNode, OPEN_RESULT, SCENARIO_OWNERS, SCENARIO_RESULT } from "../../store/fixture";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -11,31 +9,24 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"))
 vi.mock("../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
-import * as ipc from "../../api/ipc";
 import { bindStores } from "../../store/bindStores";
-import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
+import { armSession, resetStores } from "../../store/storeFixture";
+import { openWith } from "../../test/session";
 import { Empires } from "./Empires";
-
-const mocked = {
-  openSave: vi.mocked(ipc.openSave),
-  openAsScenario: vi.mocked(ipc.openAsScenario),
-};
+import { mockedIpc } from "../../test/ipc";
 
 bindStores();
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  useGalaxyStore.getState().clear();
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
-  useEditorStore.setState({ ...useEditorStore.getInitialState() });
-  useGameDataStore.setState({ ...useGameDataStore.getInitialState(), status: "ready" });
-  mocked.openSave.mockResolvedValue(OPEN_RESULT);
-  mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
+  resetStores();
+  armSession();
+  useGameDataStore.setState({ status: "ready" });
+  mockedIpc.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
 });
 
 /** Opens the scenario and stamps its territories the way `refreshScenarioOwners` does. */
@@ -94,31 +85,11 @@ describe("a scenario's territory rows", () => {
 });
 
 /** One empire of the save's own, which the shared galaxy fixture has none of. */
-const EMPIRE: CountryNode = {
-  id: 7,
-  name: name("NAME_Test_Empire"),
-  name_key: "NAME_Test_Empire",
-  country_type: "default",
-  capital_system: 1,
-  system_count: 2,
-  colors: ["fixture_blue", "fixture_blue"],
-  border_color: null,
-  fill_color: null,
-  flag_colors: [],
-  use_map_color: false,
-  flag_icon: null,
-  flag_background: null,
-};
-
-const SAVE_WITH_EMPIRE: OpenResult & { path: string } = {
-  ...OPEN_RESULT,
-  galaxy: { ...OPEN_RESULT.galaxy, countries: [EMPIRE] },
-};
+const EMPIRE = countryNode();
 
 describe("a save's empire rows", () => {
   it("carries no territory badge, since a save has no scripted tiers", async () => {
-    mocked.openSave.mockResolvedValue(SAVE_WITH_EMPIRE);
-    await useFileSessionStore.getState().openSave(SAVE_WITH_EMPIRE.path);
+    await openWith(OPEN_RESULT, { galaxy: { countries: [EMPIRE] } });
 
     const html = empires();
     expect(html).toContain("Test Empire");
@@ -130,8 +101,7 @@ describe("a save's empire rows", () => {
   });
 
   it("offers a pencil on each empire that opens its page in the inspector", async () => {
-    mocked.openSave.mockResolvedValue(SAVE_WITH_EMPIRE);
-    await useFileSessionStore.getState().openSave(SAVE_WITH_EMPIRE.path);
+    await openWith(OPEN_RESULT, { galaxy: { countries: [EMPIRE] } });
     useLayoutStore.setState({ tab: "empires", previousTab: "empires" });
     useInspectorStore.setState({
       stack: [

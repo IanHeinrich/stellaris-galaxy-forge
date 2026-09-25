@@ -4,20 +4,32 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import * as ipc from "../api/ipc";
-import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
+import { editor, openFixtureSave, sessionError } from "./editorFixture";
 import { DEFAULT_NEBULA_RADIUS, useEditorStore } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { OPEN_RESULT, SYSTEMS, editResult, name } from "./fixture";
+import { mockedIpc } from "../test/ipc";
 
-const addNebula = vi.mocked(ipc.addNebula);
+const addNebula = mockedIpc.addNebula;
 
 beforeEach(openFixtureSave);
 
 describe("editing nebulae", () => {
   const cloud = OPEN_RESULT.galaxy.nebulae[0];
+
+  it("moveNebula sends MoveNebula for the nebula at its file index and moves the cloud", async () => {
+    const moved = { ...cloud, x: -20, y: 30 };
+    mockedIpc.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], nebulae: [moved] } }),
+    );
+
+    await editor().moveNebula(0, -20, 30);
+
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "MoveNebula", index: 0, x: -20, y: 30 });
+    expect(useGalaxyStore.getState().nebulae[0]).toEqual(moved);
+  });
 
   it("addNebulaAt places a named nebula at once, with no prompt, and selects it", async () => {
     const added = { ...cloud, name: name("Yinarim_Nebula"), x: 60, y: -10, systems: [] };
@@ -31,7 +43,7 @@ describe("editing nebulae", () => {
     const [seed, x, y, radius] = addNebula.mock.calls[0];
     expect(Number.isSafeInteger(seed)).toBe(true);
     expect([x, y, radius]).toEqual([60, -10, DEFAULT_NEBULA_RADIUS]);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
     expect(useGalaxyStore.getState().nebulae).toEqual([cloud, added]);
     expect(editor().selectedNebula).toBe(1);
     expect(useLayoutStore.getState().tab).toBe("inspector");
@@ -102,13 +114,13 @@ describe("editing nebulae", () => {
   });
 
   it("setNebulaName renames the cloud at its file index", async () => {
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [], nebulae: [{ ...cloud, name: name("Sea of Ghosts") }] } }),
     );
 
     await editor().setNebulaName(0, "Sea of Ghosts");
 
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "SetNebulaName",
       index: 0,
       name: "Sea of Ghosts",
@@ -118,49 +130,53 @@ describe("editing nebulae", () => {
 
   it("setNebulaRadius resizes the cloud and the delta carries who joined it", async () => {
     const grown = { ...cloud, radius: 60, systems: [2, 5] };
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [{ ...SYSTEMS[2], nebula: 0 }], nebulae: [grown] } }),
     );
 
     editor().selectNebula(0);
     await editor().setNebulaRadius(0, 60);
 
-    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "SetNebulaRadius", index: 0, radius: 60 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "SetNebulaRadius",
+      index: 0,
+      radius: 60,
+    });
     expect(useGalaxyStore.getState().nebulae).toEqual([grown]);
     expect(useGalaxyStore.getState().systems.get(2)?.nebula).toBe(0);
     expect(editor().selectedNebula).toBe(0);
   });
 
   it("deleteSelection removes the selected nebula and drops the selection", async () => {
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [{ ...SYSTEMS[5], nebula: null }], nebulae: [] } }),
     );
 
     editor().selectNebula(0);
     await editor().deleteSelection();
 
-    expect(mocked.confirm).toHaveBeenCalledWith(
+    expect(mockedIpc.confirm).toHaveBeenCalledWith(
       "Delete Cloud? 1 system will leave it.",
       expect.objectContaining({ kind: "warning" }),
     );
-    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveNebula", index: 0 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveNebula", index: 0 });
     expect(useGalaxyStore.getState().nebulae).toEqual([]);
     expect(useGalaxyStore.getState().systems.get(5)?.nebula).toBeNull();
     expect(editor().selectedNebula).toBeNull();
   });
 
   it("deleteSelection asks first, and a declined question keeps the nebula", async () => {
-    mocked.confirm.mockResolvedValueOnce(false);
+    mockedIpc.confirm.mockResolvedValueOnce(false);
 
     editor().selectNebula(0);
     await editor().deleteSelection();
 
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
     expect(editor().selectedNebula).toBe(0);
   });
 
   it("a refused RemoveNebula keeps the nebula selected", async () => {
-    mocked.applyOp.mockRejectedValueOnce({ kind: "op", message: "no nebula 0" });
+    mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "no nebula 0" });
 
     editor().selectNebula(0);
     await editor().removeNebula(0);

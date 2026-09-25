@@ -115,7 +115,7 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
       readingFiles.clear();
       set({ files: {}, fileErrors: {}, expanded: null });
     }
-    reading ??= read();
+    reading ??= read(token);
     return reading;
   },
 
@@ -124,16 +124,19 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
     if (get().files[dir] !== undefined || readingFiles.has(dir)) return;
     readingFiles.add(dir);
     set({ loadingDir: dir });
+    const token = readFor;
     try {
       const files = await ipc.listCampaignSaves(dir);
+      if (token !== readFor) return;
       const fileErrors = { ...get().fileErrors };
       delete fileErrors[dir];
       set({ files: { ...get().files, [dir]: byNewest(files) }, fileErrors });
     } catch (e) {
+      if (token !== readFor) return;
       readingFiles.delete(dir);
       set({ fileErrors: { ...get().fileErrors, [dir]: ipc.errorMessage(e) } });
     } finally {
-      if (get().loadingDir === dir) set({ loadingDir: null });
+      if (token === readFor && get().loadingDir === dir) set({ loadingDir: null });
     }
   },
 
@@ -176,9 +179,15 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
   },
 }));
 
-/** Both lists, each reporting its own failure, and the newest campaign opened. */
-async function read(): Promise<void> {
-  const { getState, setState } = useOpenScreenStore;
+/**
+ * Both lists read for `token`, each reporting its own failure, and the newest campaign opened;
+ * a read a newer token overtook writes nothing.
+ */
+async function read(token: unknown): Promise<void> {
+  const { getState } = useOpenScreenStore;
+  const setState = (state: Partial<OpenScreenState>) => {
+    if (token === readFor) useOpenScreenStore.setState(state);
+  };
   await Promise.all([
     ipc.listCampaigns().then(
       (campaigns) =>
@@ -199,6 +208,7 @@ async function read(): Promise<void> {
         setState({ scenarios: [], scenarioNotices: [], scenariosError: ipc.errorMessage(e) }),
     ),
   ]);
+  if (token !== readFor) return;
   const newest = getState().campaigns?.[0];
   if (newest && getState().expanded === null) await getState().expand(newest.dir);
 }

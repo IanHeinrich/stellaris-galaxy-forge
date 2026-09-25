@@ -32,7 +32,7 @@ pub fn export_resolvers(
 impl DetailsResolver for GameData {
     fn deposit_produces(&self, key: &str) -> Option<Vec<(String, f64)>> {
         let deposit = self.deposits.get(key)?;
-        if deposit.is_for_colonizable {
+        if !deposit.orbital() {
             return None;
         }
         Some(deposit.produces.clone())

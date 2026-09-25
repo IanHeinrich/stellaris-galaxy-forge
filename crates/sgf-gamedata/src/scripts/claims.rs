@@ -11,13 +11,13 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 use sgf_core::cst::Node;
 
+use crate::condition::Condition;
 use crate::install::layers::Layout;
 use crate::install::script;
 use crate::scripts::index::ScriptIndex;
 use crate::scripts::scope::{
     SAVES_TARGET, Scopes, country_flag, is_call, is_country_scope, is_guard,
 };
-use crate::scripts::trigger::Trigger;
 use crate::scripts::view::BypassKind;
 
 /// How long after the game starts a claim is still the map the player opens
@@ -47,13 +47,13 @@ pub enum ClaimEffect {
 
 /// One owner statement inside a system loop, and what has to hold for the
 /// system the loop is on to be the one it takes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Claim {
     pub owner: OwnerExpr,
     pub effect: ClaimEffect,
     /// The loop's own guards, this branch's `limit`, and the negation of
     /// every earlier branch of the same `if` chain.
-    pub trigger: Trigger,
+    pub trigger: Condition,
     /// The positive `has_star_flag` conjuncts of `trigger`, which the index
     /// is keyed by.
     pub required_flags: Vec<String>,
@@ -63,7 +63,7 @@ pub struct Claim {
 }
 
 /// The far end of a bypass a day-one event spawns.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PartnerExpr {
     /// Nothing links the spawn to another system.
     None,
@@ -71,7 +71,7 @@ pub enum PartnerExpr {
     Random,
     /// The partner is the system whose facts hold this guard.
     Guarded {
-        trigger: Trigger,
+        trigger: Condition,
         required_flags: Vec<String>,
     },
 }
@@ -83,7 +83,7 @@ impl PartnerExpr {
         let Site::Guarded { guards, .. } = site else {
             return Self::Random;
         };
-        let trigger = Trigger::All(guards.clone());
+        let trigger = Condition::All(guards.clone());
         let mut required_flags = Vec::new();
         star_flags(&trigger, &mut required_flags);
         if required_flags.is_empty() {
@@ -98,11 +98,11 @@ impl PartnerExpr {
 
 /// One bypass a day-one event spawns, and what has to hold for the system
 /// it lands on to be the one it lands on.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Placement {
     pub kind: BypassKind,
     pub partner: PartnerExpr,
-    pub trigger: Trigger,
+    pub trigger: Condition,
     /// The positive `has_star_flag` conjuncts of `trigger`; empty where the
     /// spawn lands on a system nothing here names.
     pub required_flags: Vec<String>,
@@ -372,7 +372,7 @@ struct Build<'a> {
 #[derive(Debug, Clone)]
 enum Site {
     Unknown { every: bool },
-    Guarded { guards: Vec<Trigger>, every: bool },
+    Guarded { guards: Vec<Condition>, every: bool },
 }
 
 impl Default for Site {
@@ -383,7 +383,7 @@ impl Default for Site {
 
 impl Site {
     /// The same system, under one more branch of guards.
-    fn and(&self, more: &[Trigger]) -> Self {
+    fn and(&self, more: &[Condition]) -> Self {
         match self {
             Self::Unknown { .. } => self.clone(),
             Self::Guarded { guards, every } => Self::Guarded {
@@ -413,7 +413,7 @@ struct State<'s> {
     src: &'s [u8],
     event: &'s str,
     /// What holds for the system of the innermost enclosing loop.
-    guards: Vec<Trigger>,
+    guards: Vec<Condition>,
     /// The token an enclosing `event_target:X = { … }` or country scope
     /// names, which `prev` and its like resolve to.
     scope_token: Option<String>,
@@ -431,7 +431,7 @@ impl<'a> Build<'a> {
         // The spawn a `link_wormholes` of this body speaks for.
         let mut last: Option<usize> = None;
         // The branches of one `if` chain already ruled out here.
-        let mut prior: Vec<Trigger> = Vec::new();
+        let mut prior: Vec<Condition> = Vec::new();
         for child in node.children() {
             let Some(key) = child.key_str(state.src) else {
                 self.body(child, state);
@@ -444,7 +444,7 @@ impl<'a> Build<'a> {
                     let mut guards = state.guards.clone();
                     guards.extend(prior.iter().cloned());
                     guards.push(limit.clone());
-                    let branch: Vec<Trigger> =
+                    let branch: Vec<Condition> =
                         prior.iter().cloned().chain([limit.clone()]).collect();
                     self.body(
                         child,
@@ -454,7 +454,7 @@ impl<'a> Build<'a> {
                             ..state.clone()
                         },
                     );
-                    prior.push(Trigger::Not(Box::new(limit)));
+                    prior.push(Condition::Not(Box::new(limit)));
                     continue;
                 }
                 "else" => {
@@ -476,9 +476,9 @@ impl<'a> Build<'a> {
             // Only the innermost loop's guards describe the system its body
             // runs on, so a nested loop starts a scope of its own.
             if is_system_loop(key) {
-                let guards: Vec<Trigger> = child
+                let guards: Vec<Condition> = child
                     .find_all("limit", state.src)
-                    .map(|limit| Trigger::compile(limit, state.src))
+                    .map(|limit| Condition::compile(limit, state.src))
                     .collect();
                 self.body(
                     child,
@@ -623,7 +623,7 @@ impl<'a> Build<'a> {
             Site::Guarded { guards, .. } => guards.clone(),
             Site::Unknown { .. } => Vec::new(),
         };
-        let trigger = Trigger::All(guards);
+        let trigger = Condition::All(guards);
         let mut required_flags = Vec::new();
         star_flags(&trigger, &mut required_flags);
         self.placements.push(Placement {
@@ -643,7 +643,7 @@ impl<'a> Build<'a> {
         let Site::Guarded { guards, .. } = state.scopes.here() else {
             return;
         };
-        let trigger = Trigger::All(guards.clone());
+        let trigger = Condition::All(guards.clone());
         let mut required_flags = Vec::new();
         star_flags(&trigger, &mut required_flags);
         self.claims.push(Claim {
@@ -665,24 +665,24 @@ impl<'a> Build<'a> {
     }
 
     /// A branch with no `limit` of its own holds unconditionally.
-    fn limit(node: &Node, src: &[u8]) -> Trigger {
+    fn limit(node: &Node, src: &[u8]) -> Condition {
         match node.find("limit", src) {
-            Some(limit) => Trigger::compile(limit, src),
-            None => Trigger::All(Vec::new()),
+            Some(limit) => Condition::compile(limit, src),
+            None => Condition::All(Vec::new()),
         }
     }
 }
 
 /// The flags a guard insists on: a conjunct of an `AND`, never one under a
 /// negation or an alternative, which a system may pass without them.
-pub(crate) fn star_flags(trigger: &Trigger, out: &mut Vec<String>) {
+pub(crate) fn star_flags(trigger: &Condition, out: &mut Vec<String>) {
     match trigger {
-        Trigger::StarFlag(flag) => {
+        Condition::StarFlag(flag) => {
             if !out.contains(flag) {
                 out.push(flag.clone());
             }
         }
-        Trigger::All(items) => {
+        Condition::All(items) => {
             for item in items {
                 star_flags(item, out);
             }

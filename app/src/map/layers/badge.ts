@@ -1,15 +1,23 @@
-import { BitmapText, Container, Graphics, Sprite, type Texture, TextStyle } from "pixi.js";
+import {
+  BitmapText,
+  Container,
+  Graphics,
+  Sprite,
+  type FederatedPointerEvent,
+  type Texture,
+  TextStyle,
+} from "pixi.js";
+import type { Pt } from "../../lib/geometry/pt";
 import type { BadgeGeometry, BadgeSide } from "../../lib/visual/specialStyle";
-import { MAP_FONT } from "../../lib/visual/style";
+import { MAP_FONT, PLATE_COLOR, RING_RADIUS } from "../../lib/visual/style";
 import { getTexture, requestTextures } from "../../lib/visual/textures";
 
-export const RING_RADIUS = 15;
+export const BADGE_RING_RADIUS = RING_RADIUS.joining;
 const RING_WIDTH = 1.5;
 const RING_ALPHA = 0.9;
 const HALO_ALPHA = 0.35;
 const HALO_FRINGE = 6;
 const HALO_FRINGE_ALPHA = 0.12;
-const PLATE_COLOR = 0x0b0f14;
 const PLATE_ALPHA = 0.85;
 const PLATE_BORDER = 1.5;
 /** The plate's near corner sits this far outside the ring, on the diagonal. */
@@ -32,7 +40,7 @@ function textStyle(size: number): TextStyle {
 /** One instance per size: PixiJS keys a stroked dynamic bitmap font by the style object. */
 const TEXT_STYLES = new Map<number, TextStyle>();
 
-export function badgeTextStyle(geo: BadgeGeometry): TextStyle {
+function badgeTextStyle(geo: BadgeGeometry): TextStyle {
   let style = TEXT_STYLES.get(geo.font);
   if (!style) {
     style = textStyle(geo.font);
@@ -85,6 +93,24 @@ export class Badge {
       this.dot,
       this.text,
     );
+  }
+
+  /** Calls `over` with the pointer's canvas point as it comes onto the plate, and `out` as it leaves. */
+  onPlateHover(over: (at: Pt) => void, out: () => void): void {
+    this.plate.on("pointerover", (e: FederatedPointerEvent) => over(e.global));
+    this.plate.on("pointerout", out);
+  }
+
+  /** The zoom's scales: `root` for the whole badge, `ring` for the ring on the star. */
+  setScale(root: Pt, ring: number): void {
+    this.root.scale.set(root.x, root.y);
+    this.ring.scale.set(ring);
+  }
+
+  /** The plate's label, in the font `geo` sets for the zoom. */
+  setLabel(geo: BadgeGeometry, label: string): void {
+    if (this.text.style.fontSize !== geo.font) this.text.style = badgeTextStyle(geo);
+    if (this.text.text !== label) this.text.text = label;
   }
 
   setIcon(texture: Texture | null, size: number, color: number): void {
@@ -147,7 +173,7 @@ export class Badge {
     }
     this.ring
       .clear()
-      .circle(0, 0, RING_RADIUS)
+      .circle(0, 0, BADGE_RING_RADIUS)
       .stroke({ color, width: RING_WIDTH, alpha: RING_ALPHA });
   }
 

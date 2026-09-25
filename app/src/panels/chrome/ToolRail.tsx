@@ -4,7 +4,7 @@ import { shortcutLabel, toolAction } from "../../lib/keys";
 import { TOOLS, toolRequires, type Tool } from "../../lib/tools";
 import { redo, undo } from "../../store/commands";
 import { nextRedo, nextUndo, useEditorStore } from "../../store/editorStore";
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore } from "../../store/fileSessionStore";
 import { useToolStore } from "../../store/toolStore";
 import { Glyph } from "../Glyph";
 import { SymmetryControl } from "./SymmetryControl";
@@ -62,7 +62,7 @@ export function ToolRail() {
   const tool = useToolStore((s) => s.tool);
   const setTool = useToolStore((s) => s.setTool);
   const capabilities = useFileSessionStore(documentCapabilities);
-  const symmetryShown = useFileSessionStore((s) => s.kind !== "save");
+  const symmetryShown = useCanEdit("symmetry");
   const undoEntry = useEditorStore(nextUndo);
   const redoEntry = useEditorStore(nextRedo);
 

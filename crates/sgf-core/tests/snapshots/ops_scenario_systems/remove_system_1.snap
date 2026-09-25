@@ -7,6 +7,7 @@ touched: [1, 2, 9, 16]
 inverse: Batch { description: "Restored 1 system", ops: [AddSystems { systems: [NewSystem { id: 1, x: 0.0, y: 0.0, name: Some("Galactic Center"), initializer: Some("misc_system_init_01"), spawn_weight: None, spawn_script: None, statement: Some("system = { id = \"1\" name = \"Galactic Center\" position = { x = 0 y = 0 } initializer = misc_system_init_01 }") }] }, PreventLane { a: 9, b: 1 }, AddLanePairs { lanes: [LanePair { a: 1, b: 2, bridge: false }, LanePair { a: 1, b: 16, bridge: false }] }] }
 warning system_isolated: system 2 has no hyperlanes
 warning disconnected: galaxy has 3 components, 2 at load; newly separated: 2
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 1 other issues
 
 --- scenario

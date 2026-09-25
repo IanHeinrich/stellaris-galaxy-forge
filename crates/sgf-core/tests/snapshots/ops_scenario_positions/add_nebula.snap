@@ -5,6 +5,7 @@ expression: "report(&session, &result)"
 Added nebula "Test Cloud" at (0, -56) radius 20; 1 system joined
 touched: [2]
 inverse: RemoveNebula { index: 2 }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 2 other issues
 
 --- scenario

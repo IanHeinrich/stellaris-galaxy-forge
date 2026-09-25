@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BypassLink } from "../../generated/BypassLink";
 import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
-import { COUNTRY, details, planet } from "./fixture";
+import { COUNTRY, details, fleet, planet } from "./fixture";
 import { type BypassKinds, bypassIconKey } from "./icons";
 import {
   bypassIcons,
@@ -236,21 +236,7 @@ describe("detailNameKeys", () => {
   it("collects planet, fleet and station template keys and canonical resource ids", () => {
     const d = details({
       planets: [planet({ name: nested("PLANET_NAME_FORMAT", "NAME", "NAME_Alpha") })],
-      fleets_present: [
-        {
-          id: 1,
-          name: { key: "NAME_Fleet", literal: false, variables: [] },
-          name_key: "NAME_Fleet",
-          owner: null,
-          military: true,
-          military_power: 1,
-          ships: 1,
-          order: null,
-          planet_killer: false,
-          disabled_ships: 0,
-          ship_sizes: [],
-        },
-      ],
+      fleets_present: [fleet({ military_power: 1 })],
       starbase: {
         level: "starbase_level_outpost",
         kind: "starbase_outpost",

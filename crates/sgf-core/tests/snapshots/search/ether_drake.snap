@@ -1,5 +1,6 @@
 ---
-source: crates/sgf-core/tests/search.rs
-expression: "report(&s.search(\"ether drake\", 5, &no_loc))"
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 212
+expression: value
 ---
-Fleet #242 Ether Drake · owner=Voidwyrm → #74 at (8.92, -241.24)
+{"kind":"fleet","id":242,"name":{"key":"NAME_Ether_Drake","literal":false,"variables":[]},"name_key":"NAME_Ether_Drake","system_id":74,"owner":{"key":"NAME_Voidwyrm","literal":false,"variables":[]},"country_type":null,"system_count":null,"planet_class":null,"position":[8.92,-241.24],"matched_on":null}

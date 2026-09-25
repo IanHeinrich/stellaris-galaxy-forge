@@ -24,8 +24,8 @@ pub struct Lane {
 }
 
 /// The length rule: `length = floor(euclidean distance)`, as the generator writes it.
-pub fn lane_length(a: &SystemNode, b: &SystemNode) -> f64 {
-    (a.x - b.x).hypot(a.y - b.y).floor()
+pub fn lane_length((ax, ay): (f64, f64), (bx, by): (f64, f64)) -> f64 {
+    (ax - bx).hypot(ay - by).floor()
 }
 
 /// Re-measure the lanes of `ids` and of the systems they lead to, which is every lane
@@ -49,9 +49,9 @@ pub(super) fn mark_stale(systems: &mut HashMap<u32, SystemNode>, ids: &[u32]) {
                 .iter()
                 .map(|lane| {
                     lane.to != system.id
-                        && systems
-                            .get(&lane.to)
-                            .is_some_and(|other| lane.length != lane_length(system, other))
+                        && systems.get(&lane.to).is_some_and(|other| {
+                            lane.length != lane_length(system.position(), other.position())
+                        })
                 })
                 .collect();
             Some((*id, stale))
@@ -150,6 +150,11 @@ pub struct SystemBody {
 }
 
 impl SystemNode {
+    /// Where the system stands.
+    pub fn position(&self) -> (f64, f64) {
+        (self.x, self.y)
+    }
+
     /// See [`display_template`].
     pub fn display_name(&self) -> String {
         display_template(&self.name)

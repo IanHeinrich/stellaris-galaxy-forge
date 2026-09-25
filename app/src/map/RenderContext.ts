@@ -120,43 +120,53 @@ export interface RenderContext {
   readonly requestResourceIcons: () => void;
 }
 
-/** The fields a layer may compare between two contexts; the rest derive from them. */
-const SOURCES = [
-  "galaxy",
-  "kind",
-  "paintLayer",
-  "systems",
-  "nebulae",
-  "bypasses",
-  "waylines",
-  "waystations",
-  "radius",
-  "coreRadius",
-  "grid",
-  "countries",
-  "owners",
-  "table",
-  "hiddenCountries",
-  "names",
-  "starClasses",
-  "mapColors",
-  "planetClasses",
-  "starbaseLevels",
-  "bypassKinds",
-  "countryTypes",
-  "special",
-  "initializerClasses",
-  "hiddenInitializers",
-  "initializerLabels",
-  "starTints",
-  "coloniesShown",
-  "hiddenOwners",
-  "specialWithGameData",
-  "border",
-  "gameDataReady",
-  "detailsVersion",
-  "resourceIcons",
-] as const satisfies ReadonlyArray<keyof RenderContext>;
+/** The fields a layer may compare between two contexts: every one that is not a function. */
+type DataField = {
+  [K in keyof RenderContext]: RenderContext[K] extends (...args: never[]) => unknown ? never : K;
+}[keyof RenderContext];
+
+/** Listed as a record so that a field added to the context fails to compile until it is here. */
+const DATA_FIELDS: Record<DataField, true> = {
+  galaxy: true,
+  lgate: true,
+  kind: true,
+  paintLayer: true,
+  systems: true,
+  nebulae: true,
+  bypasses: true,
+  waylines: true,
+  waystations: true,
+  radius: true,
+  coreRadius: true,
+  grid: true,
+  countries: true,
+  owners: true,
+  table: true,
+  hiddenCountries: true,
+  names: true,
+  starClasses: true,
+  mapColors: true,
+  planetClasses: true,
+  starbaseLevels: true,
+  bypassKinds: true,
+  countryTypes: true,
+  special: true,
+  initializerClasses: true,
+  hiddenInitializers: true,
+  initializerLabels: true,
+  territoriesShown: true,
+  starTints: true,
+  coloniesShown: true,
+  hiddenOwners: true,
+  specialWithGameData: true,
+  border: true,
+  gameDataReady: true,
+  details: true,
+  detailsVersion: true,
+  resourceIcons: true,
+};
+
+const SOURCES = Object.keys(DATA_FIELDS) as DataField[];
 
 /** Whether two contexts draw the same map, so the layers can be left alone. */
 export function sameContext(a: RenderContext, b: RenderContext): boolean {

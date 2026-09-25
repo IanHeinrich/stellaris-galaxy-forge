@@ -300,6 +300,19 @@ impl Overlay {
         self.slots.contains_key(&(start, 0))
     }
 
+    /// Whether the statement at `anchor` is gone: the bytes now standing for it, whether
+    /// that is its own slot or the bigger slot that swallowed it when a removal took the
+    /// whole line, are blank.
+    pub(crate) fn removed(&self, anchor: Anchor, original: &[u8]) -> bool {
+        let Anchor::Original(span) = anchor else {
+            return false;
+        };
+        match self.current(anchor, original) {
+            Ok(bytes) => blank_slot(bytes),
+            Err(_) => self.enclosing(span).is_some_and(blank_slot),
+        }
+    }
+
     /// Every slot in emission order with its current bytes.
     pub fn slots(&self) -> impl Iterator<Item = (Anchor, &[u8])> {
         self.slots
@@ -474,4 +487,15 @@ impl<'a> Iterator for Pieces<'a> {
             }
         }
     }
+}
+
+/// What stands beside a statement on its line without being text: a space, a tab, or
+/// the carriage return of a CRLF line end.
+pub(crate) fn is_blank(b: u8) -> bool {
+    matches!(b, b' ' | b'\t' | b'\r')
+}
+
+/// Whether a slot holds nothing but blanks and line ends: a statement emptied there.
+pub(crate) fn blank_slot(bytes: &[u8]) -> bool {
+    bytes.iter().all(|&b| is_blank(b) || b == b'\n')
 }

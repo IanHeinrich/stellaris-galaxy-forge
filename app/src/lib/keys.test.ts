@@ -91,6 +91,14 @@ describe("keys", () => {
     expect(keyAction(press("Backspace"), true)).toBeNull();
   });
 
+  it("Alt+← goes back in the inspector when it can, and is spelled as its shortcut", () => {
+    expect(keyAction(press("ArrowLeft", { altKey: true }), false, true)).toBe("inspectorBack");
+    expect(keyAction(press("ArrowLeft", { altKey: true }), false)).toBeNull();
+    expect(keyAction(press("ArrowLeft", { altKey: true }), true, true)).toBeNull();
+    expect(keyAction(press("ArrowLeft"), false, true)).toBeNull();
+    expect(shortcutLabel("inspectorBack")).toBe("Alt+←");
+  });
+
   it("number keys 1-9 pick a layer, except while typing or with a modifier", () => {
     expect(layerKeyOf(press("1"), false)).toBe(0);
     expect(layerKeyOf(press("9"), false)).toBe(8);

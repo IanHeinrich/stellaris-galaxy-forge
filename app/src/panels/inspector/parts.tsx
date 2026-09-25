@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { Capabilities } from "../../generated/Capabilities";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { useEditorStore } from "../../store/editorStore";
@@ -10,90 +10,18 @@ import {
   UNFOLDED_SECTIONS,
   groupState,
   splitsBySource,
-  type Source,
 } from "../../lib/visual/layerGroups";
 import { ENTER, SPACE } from "../keys";
+import { LockGlyph } from "../Glyph";
 import { Twisty } from "../Twisty";
-import { useTextureUrl } from "../useTextureUrl";
+import { SourceChip } from "../parts";
 import { useOwnerCss } from "./ownerCss";
-
-/** A sprite from the game with the map's own fallback when its art is unavailable. */
-export function Icon({
-  keys,
-  glyph,
-  className,
-  style,
-  title,
-}: {
-  keys: readonly string[];
-  glyph?: string;
-  className?: string;
-  style?: CSSProperties;
-  title?: string;
-}) {
-  const url = useTextureUrl(keys);
-  return (
-    <span className={className} style={url ? undefined : style} title={title}>
-      {url ? <img src={url} alt="" /> : glyph}
-    </span>
-  );
-}
 
 /** The one colour that stands for a country, as the legend and the map labels use it. */
 export function Swatch({ owner }: { owner: number | null }) {
   const css = useOwnerCss(owner);
   if (css === null) return null;
   return <span className="swatch" style={{ background: css }} />;
-}
-
-export function Chip({
-  children,
-  kind,
-  src,
-  warn,
-  added,
-  title,
-}: {
-  children: ReactNode;
-  kind?: boolean;
-  /** Green, for a system added this session. */
-  added?: boolean;
-  /** Tinted like the scripts source, for a value the scripts rather than the file decide. */
-  src?: boolean;
-  warn?: boolean;
-  title?: string;
-}) {
-  return (
-    <span
-      className={`chip${kind ? " kind" : ""}${src ? " src" : ""}${warn ? " warn" : ""}${added ? " added" : ""}`}
-      title={title}
-    >
-      {children}
-    </span>
-  );
-}
-
-export type { Source };
-
-/** The chip class each source wears, the hues the layer bar frames its groups in. */
-const CHIP_CLASS: Record<Source, string> = {
-  scenario: "chip",
-  initializers: "chip init",
-  scripts: "chip src",
-};
-
-/**
- * What a section or a value came from. A save has one source, so it carries no chip; a scenario
- * marks what its own text says apart from what the initializers place and the scripts add.
- */
-export function SourceChip({ source, title }: { source: Source; title?: string }) {
-  const split = useFileSessionStore((s) => splitsBySource(s.kind));
-  if (!split) return null;
-  return (
-    <span className={CHIP_CLASS[source]} title={title}>
-      {source}
-    </span>
-  );
 }
 
 /**
@@ -175,7 +103,7 @@ export function Empty({ children }: { children: ReactNode }) {
   return <div className="muted ins-empty">{children}</div>;
 }
 
-/** What a view the Stage 2 entity work will fill says in the meantime. */
+/** What a page the open document cannot read says instead of its view. */
 export function Placeholder({ children }: { children: ReactNode }) {
   return <div className="muted ins-placeholder">{children}</div>;
 }
@@ -305,38 +233,10 @@ export function LockedRow({
     <PropertyRow label={label}>
       {children}
       <span className="ins-locked" title={reason}>
-        <svg viewBox="0 0 10 12" width="8" height="10" aria-hidden="true">
-          <path d="M2.5 5V3.5a2.5 2.5 0 0 1 5 0V5" fill="none" stroke="currentColor" />
-          <rect x="1" y="5" width="8" height="6.5" rx="1" fill="currentColor" />
-        </svg>
+        <LockGlyph />
         can&apos;t edit yet
       </span>
     </PropertyRow>
-  );
-}
-
-/** Above this many rows a list carries a filter of its own. */
-export const FILTER_MIN = 20;
-
-/** The filter a long list grows, in the shape the Layers menu's legend already uses. */
-export function FilterField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <input
-      className="filter-input"
-      type="search"
-      aria-label={label}
-      placeholder={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
   );
 }
 

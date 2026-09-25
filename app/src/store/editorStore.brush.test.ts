@@ -12,14 +12,11 @@ import { stampsAlong } from "../lib/brush/stroke";
 import type { Symmetry } from "../lib/geometry/symmetry";
 import { segmentsCross } from "../lib/geometry/segments";
 import type { Pt } from "../lib/geometry/pt";
-import { run } from "./commands";
-import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
-import { canDelete, deletableSelection } from "./editorStore";
+import { editor, openFixtureSave, openFixtureScenario, sessionError } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { SCENARIO_RESULT, SYSTEMS, editResult, node, placedNode } from "./fixture";
-
-const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
+import { SCENARIO_RESULT, SYSTEMS, editResult, placedNode } from "./fixture";
+import { mockedIpc } from "../test/ipc";
 
 const ERASE: BrushSettings = {
   tool: "erase",
@@ -32,20 +29,9 @@ const ERASE: BrushSettings = {
   beta: 1,
 };
 
-/** An erase stroke over the galaxy the store holds, by default from Sol to Alpha Centauri. */
-function erase(settings: Partial<BrushSettings> = {}, to = { x: 10, y: 0 }) {
-  const { systems, grid } = useGalaxyStore.getState();
-  const stroke = new BrushStroke({ ...ERASE, ...settings }, systems, grid!, 1);
-  stroke.add(stampsAlong(null, { x: 0, y: 0 }, 3));
-  stroke.add(stampsAlong({ x: 0, y: 0 }, to, 3));
-  return stroke.result();
-}
-
 beforeEach(async () => {
-  await openFixtureSave();
-  mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-  await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
-  mocked.applyOp.mockResolvedValue(editResult());
+  await openFixtureScenario();
+  mockedIpc.applyOp.mockResolvedValue(editResult());
 });
 
 describe("a paint stroke", () => {
@@ -67,8 +53,8 @@ describe("a paint stroke", () => {
       spawn_weight: null,
       spawn_script: null,
     });
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Painted 2 systems and 2 lanes",
       ops: [
@@ -86,7 +72,7 @@ describe("a paint stroke", () => {
 
   it("names one system and no lanes in the singular", async () => {
     await editor().paintStroke([{ x: 200, y: 200 }], []);
-    expect(mocked.applyOp.mock.calls[0][0]).toMatchObject({
+    expect(mockedIpc.applyOp.mock.calls[0][0]).toMatchObject({
       type: "Batch",
       description: "Painted 1 system",
     });
@@ -96,86 +82,42 @@ describe("a paint stroke", () => {
     expect(await editor().paintStroke([], [])).toBe(false);
     expect(await editor().eraseStroke([])).toBe(false);
     expect(await editor().cutLanes([])).toBe(false);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });
 
 describe("an erase stroke", () => {
-  it("keeps the special systems it passes over unless told to take them", async () => {
-    useGalaxyStore.getState().applyDelta({ systems: [{ ...SYSTEMS[0], initializer: "" }] });
-
-    const kept = erase();
-    expect(kept).toEqual({ kind: "erase", doomed: [0], kept: [1] });
-    await editor().eraseStroke(kept.kind === "erase" ? kept.doomed : []);
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+  it("removes the systems it swept as one edit", async () => {
+    await editor().eraseStroke([0]);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "Batch",
       description: "Erased 1 system",
       ops: [{ type: "RemoveSystems", ids: [0] }],
     });
 
-    const taken = erase({ eraseSpecials: true });
-    await editor().eraseStroke(taken.kind === "erase" ? taken.doomed : []);
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    await editor().eraseStroke([0, 1]);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "Batch",
       description: "Erased 2 systems",
       ops: [{ type: "RemoveSystems", ids: [0, 1] }],
     });
   });
 
-  it("cuts the lanes it passes over in lanes mode, as one edit", async () => {
-    // Short of Alpha Centauri, whose other lanes a stamp on it would cut too.
-    const cut = erase({ eraseTarget: "lanes" }, { x: 5, y: 0 });
-    expect(cut).toEqual({ kind: "cut", lanes: [[0, 1]] });
-    await editor().cutLanes(cut.kind === "cut" ? cut.lanes : []);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
-      type: "Batch",
-      description: "Cut 1 lane",
-      ops: [{ type: "RemoveLanePairs", lanes: [[0, 1]] }],
-    });
-  });
-
   it("a refused stroke reports why and leaves the galaxy as it was", async () => {
-    mocked.applyOp.mockRejectedValueOnce({ kind: "op", message: "no such system" });
+    mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "no such system" });
     expect(await editor().eraseStroke([0])).toBe(false);
     expect(sessionError()).toBe("no such system");
     expect(useGalaxyStore.getState().systems.has(0)).toBe(true);
   });
 });
 
-/** A stroke of `tool` from `from` to `to` over the galaxy the store holds. */
-function brush(
-  settings: Partial<BrushSettings>,
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-) {
-  const { systems, grid } = useGalaxyStore.getState();
-  const stroke = new BrushStroke({ ...ERASE, ...settings }, systems, grid!, 1);
-  stroke.add(stampsAlong(null, from, stroke.r));
-  stroke.add(stampsAlong(from, to, stroke.r));
-  return stroke.result();
-}
-
-const pairsOf = (result: ReturnType<typeof brush>) =>
-  result.kind === "connect" ? result.pairs : [];
-
 describe("a connect stroke", () => {
-  // Sol, Alpha Centauri, Barnard and Sirius, whose chain already links Alpha Centauri to the others.
-  const CHAIN = { from: { x: 0, y: 0 }, to: { x: 30, y: 0 } };
-
-  it("meshes the systems it passes over, leaving out pairs already linked, as one edit", async () => {
-    const dense = brush({ tool: "connect", size: 30, beta: 0.1 }, CHAIN.from, CHAIN.to);
-    expect(dense).toEqual({
-      kind: "connect",
-      swept: [0, 1, 2, 3],
-      pairs: [
-        [0, 2],
-        [2, 3],
-      ],
-      sparse: false,
-    });
-    await editor().connectStroke(pairsOf(dense));
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+  it("adds the lanes it found as one edit, on a save too", async () => {
+    await editor().connectStroke([
+      [0, 2],
+      [2, 3],
+    ]);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Connected 2 lanes",
       ops: [
@@ -189,74 +131,34 @@ describe("a connect stroke", () => {
       ],
     });
 
-    // The Gabriel graph drops Sol–Barnard, whose circle holds Alpha Centauri.
-    expect(pairsOf(brush({ tool: "connect", size: 30, beta: 1 }, CHAIN.from, CHAIN.to))).toEqual([
-      [2, 3],
-    ]);
-  });
-
-  it("leaves out a pair the scenario keeps apart", () => {
-    useGalaxyStore.getState().applyDelta({
-      systems: [
-        { ...SYSTEMS[2], prevented: [3] },
-        { ...SYSTEMS[3], prevented: [2] },
-      ],
-    });
-    expect(pairsOf(brush({ tool: "connect", size: 30, beta: 0.1 }, CHAIN.from, CHAIN.to))).toEqual([
-      [0, 2],
-    ]);
-  });
-
-  it("adds no lane that would cross an existing one, and then sends nothing", async () => {
-    // Either side of the Alpha Centauri–Vega lane, so the one lane between them would cross it.
-    useGalaxyStore.getState().applyDelta({
-      systems: [node(6, "NAME_West", 0, -15, "sc_g"), node(7, "NAME_East", 20, -15, "sc_g")],
-    });
-    const across = brush({ tool: "connect", size: 6 }, { x: 0, y: -15 }, { x: 20, y: -15 });
-    expect(across).toEqual({ kind: "connect", swept: [6, 7], pairs: [], sparse: false });
-    expect(await editor().connectStroke(pairsOf(across))).toBe(false);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
-  });
-
-  it("works on a save", async () => {
     await openFixtureSave();
-    mocked.applyOp.mockResolvedValue(editResult());
-    const pairs = pairsOf(brush({ tool: "connect", size: 30, beta: 1 }, CHAIN.from, CHAIN.to));
-    expect(await editor().connectStroke(pairs)).toBe(true);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    expect(await editor().connectStroke([[2, 3]])).toBe(true);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Connected 1 lane",
       ops: [{ type: "AddLanePairs", lanes: [{ a: 2, b: 3, bridge: false }] }],
     });
+  });
+
+  it("sends nothing when it found no lane", async () => {
+    expect(await editor().connectStroke([])).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });
 
 describe("a cut stroke", () => {
   it("cuts the lanes it passes over as one edit, on a save too", async () => {
     await openFixtureSave();
-    mocked.applyOp.mockResolvedValue(editResult());
-    const cut = brush({ tool: "cut", size: 6 }, { x: 0, y: 0 }, { x: 5, y: 0 });
-    expect(cut).toEqual({ kind: "cut", lanes: [[0, 1]] });
-    await editor().cutLanes(cut.kind === "cut" ? cut.lanes : []);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    await editor().cutLanes([[0, 1]]);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Cut 1 lane",
       ops: [{ type: "RemoveLanePairs", lanes: [[0, 1]] }],
     });
   });
 });
-
-/** Systems no eraser spares, at `at` from id `first` on, joined by `lanes`. */
-function place(first: number, at: Pt[], lanes: Array<[number, number]> = []): void {
-  const systems = at.map((p, i) => {
-    const id = first + i;
-    const to = lanes.flatMap(([a, b]): Array<[number, number]> =>
-      a === id ? [[b, 40]] : b === id ? [[a, 40]] : [],
-    );
-    return node(id, "NAME_Placed", p.x, p.y, "sc_g", to, { initializer: "" });
-  });
-  useGalaxyStore.getState().applyDelta({ systems });
-}
 
 /** A stroke through `path` over the galaxy the store holds. */
 function stroke(settings: Partial<BrushSettings>, path: Pt[]) {
@@ -272,7 +174,7 @@ function stroke(settings: Partial<BrushSettings>, path: Pt[]) {
 
 /** What the last paint edit sent: its systems, and its lanes as ordered pairs of real ids. */
 function sentPaint(): { description: string; systems: NewSystem[]; lanes: Pair[] } {
-  const calls = mocked.applyOp.mock.calls;
+  const calls = mockedIpc.applyOp.mock.calls;
   const op = calls[calls.length - 1][0] as Extract<Op, { type: "Batch" }>;
   const [add, link] = op.ops;
   if (add.type !== "AddSystems") throw new Error(add.type);
@@ -384,11 +286,9 @@ describe("a symmetric paint stroke", () => {
 
   it("links to the systems nearby only where every copy has one at the image", async () => {
     // 20 and 21 mirror each other; nothing mirrors 22.
-    place(20, [
-      { x: 200, y: 100 },
-      { x: 200, y: -100 },
-      { x: 300, y: 100 },
-    ]);
+    useGalaxyStore.getState().applyDelta({
+      systems: [placedNode(20, 200, 100), placedNode(21, 200, -100), placedNode(22, 300, 100)],
+    });
     const painted = stroke({ ...PAINT, laneMode: "nearby", symmetry: MIRROR_X }, [
       { x: 170, y: 120 },
       { x: 330, y: 120 },
@@ -425,11 +325,14 @@ describe("a symmetric paint stroke", () => {
     // As the file writes them back: five decimals.
     const rounded = (v: number) => Math.round(v * 1e5) / 1e5;
     const id = (p: number) => (p < 0 ? 99 - p : p);
-    place(
-      100,
-      before.points.map((p) => ({ x: rounded(p.x), y: rounded(p.y) })),
-      before.pairs.map(([a, b]): [number, number] => [id(a), id(b)]),
-    );
+    const pairs = before.pairs.map(([a, b]) => [id(a), id(b)]);
+    useGalaxyStore.getState().applyDelta({
+      systems: before.points.map((p, i) => {
+        const me = 100 + i;
+        const to = pairs.flatMap(([a, b]) => (a === me ? [b] : b === me ? [a] : []));
+        return placedNode(me, rounded(p.x), rounded(p.y), to);
+      }),
+    });
     const total = before.points.length;
     const turnedEarlier = new Map(
       before.points.map((_, i) => [100 + i, 100 + ((i + total / 3) % total)]),
@@ -447,135 +350,11 @@ describe("a symmetric paint stroke", () => {
   });
 });
 
-describe("symmetric erase, cut and connect strokes", () => {
-  it("erase what every image of the stroke passes over, as one edit", async () => {
-    place(10, [
-      { x: 100, y: 50 },
-      { x: 100, y: -50 },
-    ]);
-    expect(stroke({ symmetry: MIRROR_X }, [{ x: 100, y: 50 }])).toEqual({
-      kind: "erase",
-      doomed: [10, 11],
-      kept: [],
-    });
-
-    place(12, [
-      { x: -50, y: 100 },
-      { x: -100, y: -50 },
-      { x: 50, y: -100 },
-    ]);
-    const turned = stroke({ symmetry: QUARTER }, [{ x: 100, y: 50 }]);
-    expect(turned).toEqual({ kind: "erase", doomed: [10, 12, 13, 14], kept: [] });
-    await editor().eraseStroke(turned.kind === "erase" ? turned.doomed : []);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
-      type: "Batch",
-      description: "Erased 4 systems",
-      ops: [{ type: "RemoveSystems", ids: [10, 12, 13, 14] }],
-    });
-  });
-
-  it("cut the lanes every image of the stroke passes over, on a save too", async () => {
-    await openFixtureSave();
-    mocked.applyOp.mockResolvedValue(editResult());
-    place(
-      10,
-      [
-        { x: 60, y: 50 },
-        { x: 100, y: 50 },
-        { x: -60, y: 50 },
-        { x: -100, y: 50 },
-      ],
-      [
-        [10, 11],
-        [12, 13],
-      ],
-    );
-    const cut = stroke({ tool: "cut", size: 6, symmetry: { kind: "mirror", axis: "y" } }, [
-      { x: 80, y: 50 },
-    ]);
-    const lanes: Pair[] = [
-      [10, 11],
-      [12, 13],
-    ];
-    expect(cut).toEqual({ kind: "cut", lanes });
-    await editor().cutLanes(cut.kind === "cut" ? cut.lanes : []);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
-      type: "Batch",
-      description: "Cut 2 lanes",
-      ops: [{ type: "RemoveLanePairs", lanes }],
-    });
-  });
-
-  it("connect only lane patterns every copy repeats, so a square gets its sides and no diagonal", async () => {
-    await openFixtureSave();
-    mocked.applyOp.mockResolvedValue(editResult());
-    place(10, [
-      { x: 300, y: 0 },
-      { x: 0, y: 300 },
-      { x: -300, y: 0 },
-      { x: 0, y: -300 },
-    ]);
-    const square = stroke(
-      { tool: "connect", size: 10, beta: 0.1, symmetry: { kind: "rotate", n: 4 } },
-      [{ x: 300, y: 0 }],
-    );
-    expect(square).toEqual({
-      kind: "connect",
-      swept: [10, 11, 12, 13],
-      pairs: [
-        [10, 11],
-        [10, 13],
-        [11, 12],
-        [12, 13],
-      ],
-      sparse: false,
-    });
-  });
-
-  it("connect the systems every image of the stroke passes over, on a save too", async () => {
-    await openFixtureSave();
-    mocked.applyOp.mockResolvedValue(editResult());
-    place(10, [
-      { x: 60, y: 50 },
-      { x: 80, y: 50 },
-      { x: -60, y: -50 },
-      { x: -80, y: -50 },
-    ]);
-    const connect = stroke({ tool: "connect", size: 10, symmetry: { kind: "rotate", n: 2 } }, [
-      { x: 60, y: 50 },
-      { x: 80, y: 50 },
-    ]);
-    expect(connect).toEqual({
-      kind: "connect",
-      swept: [10, 11, 12, 13],
-      pairs: [
-        [10, 11],
-        [12, 13],
-      ],
-      sparse: false,
-    });
-    await editor().connectStroke(pairsOf(connect));
-    expect(mocked.applyOp).toHaveBeenCalledWith({
-      type: "Batch",
-      description: "Connected 2 lanes",
-      ops: [
-        {
-          type: "AddLanePairs",
-          lanes: [
-            { a: 10, b: 11, bridge: false },
-            { a: 12, b: 13, bridge: false },
-          ],
-        },
-      ],
-    });
-  });
-});
-
 describe("joining islands", () => {
   it("links the isolated Deneb to its nearest neighbour as one edit", async () => {
     expect(await editor().joinIslands()).toBe(true);
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Joined 2 islands",
       ops: [{ type: "AddLanePairs", lanes: [{ a: 0, b: 5, bridge: false }] }],
@@ -585,9 +364,9 @@ describe("joining islands", () => {
 
   it("works on a save", async () => {
     await openFixtureSave();
-    mocked.applyOp.mockResolvedValue(editResult());
+    mockedIpc.applyOp.mockResolvedValue(editResult());
     expect(await editor().joinIslands()).toBe(true);
-    expect(mocked.applyOp.mock.calls[0][0]).toMatchObject({ description: "Joined 2 islands" });
+    expect(mockedIpc.applyOp.mock.calls[0][0]).toMatchObject({ description: "Joined 2 islands" });
   });
 
   it("says as a notice, not an error, how many islands a join leaves walled off", async () => {
@@ -620,58 +399,6 @@ describe("joining islands", () => {
       ],
     });
     expect(await editor().joinIslands()).toBe(false);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
-  });
-});
-
-describe("deleting a selection of systems", () => {
-  it("asks, counting each lane touching them once, then removes them all as one edit", async () => {
-    await editor().setSelection([0, 1, 2], "replace");
-    run("deleteSelection", false, effects);
-    await vi.waitFor(() => expect(mocked.applyOp).toHaveBeenCalled());
-    expect(mocked.confirm).toHaveBeenCalledWith(
-      "Delete 3 systems and their 4 lanes?",
-      expect.objectContaining({ kind: "warning" }),
-    );
-    expect(mocked.applyOp).toHaveBeenCalledWith({
-      type: "Batch",
-      description: "Deleted 3 systems",
-      ops: [{ type: "RemoveSystems", ids: [0, 1, 2] }],
-    });
-  });
-
-  it("sends nothing when the question is declined", async () => {
-    mocked.confirm.mockResolvedValueOnce(false);
-    await editor().setSelection([0, 5], "replace");
-    await editor().deleteSelection();
-    expect(mocked.confirm).toHaveBeenCalledWith("Delete 2 systems and their 1 lane?", {
-      title: "Delete systems",
-      kind: "warning",
-    });
-    expect(mocked.applyOp).not.toHaveBeenCalled();
-  });
-
-  it("deletes a single selected system too, asking about it and its lanes", async () => {
-    await editor().select(1);
-    run("deleteSelection", false, effects);
-    await vi.waitFor(() => expect(mocked.applyOp).toHaveBeenCalled());
-    expect(mocked.confirm).toHaveBeenCalledWith(
-      "Delete Alpha Centauri and its 4 lanes?",
-      expect.objectContaining({ kind: "warning" }),
-    );
-    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 1 });
-  });
-
-  it("names the selection as deletable on a scenario, and nothing on a save", async () => {
-    await editor().setSelection([0, 1], "replace");
-    expect(deletableSelection(editor())).toEqual({ kind: "systems", ids: [0, 1] });
-    expect(canDelete(editor())).toBe(true);
-
-    await openFixtureSave();
-    await editor().setSelection([0, 1], "replace");
-    expect(canDelete(editor())).toBe(false);
-    await editor().deleteSelection();
-    expect(mocked.confirm).not.toHaveBeenCalled();
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });

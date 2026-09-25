@@ -1,11 +1,10 @@
-import { confirm } from "@tauri-apps/plugin-dialog";
 import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
 import type { NewSystem } from "../generated/NewSystem";
 import type { Op } from "../generated/Op";
 import { provisionalIndex } from "../lib/brush/lanes";
 import { joinIslands as lanesJoining } from "../lib/geometry/joinIslands";
-import { PairSet, type Pair } from "../lib/geometry/pairs";
+import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
 import { nextSystemId } from "../lib/paint";
 import { counted } from "../lib/text";
@@ -13,11 +12,11 @@ import { systems, type RunEdit } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { islandCount, laneGraph } from "./galaxyStore";
-import { symmetricIds } from "./symmetricEdits";
+import { removeAll } from "./editorStore.remove";
 
 type BrushActions = Pick<
   EditorState,
-  "paintStroke" | "eraseStroke" | "cutLanes" | "connectStroke" | "joinIslands" | "removeSystems"
+  "paintStroke" | "eraseStroke" | "cutLanes" | "connectStroke" | "joinIslands"
 >;
 
 export function brushActions(
@@ -52,39 +51,32 @@ export function brushActions(
     },
 
     async joinIslands() {
-      const galaxy = systems();
-      const before = islandCount(galaxy);
-      if (before <= 1) return false;
-      const { points, edges } = laneGraph(galaxy);
-      const pairs = lanesJoining(points, edges);
-      const left = before - pairs.length;
+      if (islandCount(systems()) <= 1) return false;
       const session = useFileSessionStore.getState();
-      if (pairs.length === 0) {
-        session.setError(`No hyperlane can join the ${before} islands without crossing another.`);
-        return false;
-      }
-      const description =
-        left === 1
-          ? `Joined ${counted(before, "island")}`
-          : `Joined islands with ${counted(pairs.length, "lane")}`;
-      const joined = await get().applyOp(addLanes(pairs, description));
+      let left = 0;
+      const joined = await get().applyOp(() => {
+        const galaxy = systems();
+        const before = islandCount(galaxy);
+        if (before <= 1) return null;
+        const { points, edges } = laneGraph(galaxy);
+        const pairs = lanesJoining(points, edges);
+        if (pairs.length === 0) {
+          session.setError(`No hyperlane can join the ${before} islands without crossing another.`);
+          return null;
+        }
+        left = before - pairs.length;
+        const description =
+          left === 1
+            ? `Joined ${counted(before, "island")}`
+            : `Joined islands with ${counted(pairs.length, "lane")}`;
+        return addLanes(pairs, description);
+      });
       if (joined && left > 1) {
         session.setNotice(
           `${counted(left, "island")} remain: no more hyperlanes can join them without crossing another.`,
         );
       }
       return joined;
-    },
-
-    async removeSystems(ids) {
-      const present = symmetricIds(ids.filter((id) => systems().has(id)));
-      if (present.length === 0) return false;
-      const lanes = distinctLanes(present);
-      const what = counted(present.length, "system");
-      const question =
-        lanes === 0 ? `Delete ${what}?` : `Delete ${what} and their ${counted(lanes, "lane")}?`;
-      if (!(await confirm(question, { title: "Delete systems", kind: "warning" }))) return false;
-      return get().applyOp(removeAll(present, `Deleted ${what}`));
     },
   };
 }
@@ -123,21 +115,4 @@ function newSystem(id: number, p: Pt): NewSystem {
     spawn_weight: null,
     spawn_script: null,
   };
-}
-
-function removeAll(ids: readonly number[], description: string): Op {
-  return {
-    type: "Batch",
-    description,
-    ops: [{ type: "RemoveSystems", ids: [...ids] }],
-  };
-}
-
-/** How many lanes touch at least one of `ids`, each counted once. */
-export function distinctLanes(ids: readonly number[]): number {
-  const lanes = new PairSet();
-  for (const id of ids) {
-    for (const lane of systems().get(id)?.lanes ?? []) lanes.add(id, lane.to);
-  }
-  return lanes.size;
 }

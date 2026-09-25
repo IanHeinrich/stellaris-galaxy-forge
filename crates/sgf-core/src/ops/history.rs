@@ -71,11 +71,6 @@ impl History {
         self.undo.len()
     }
 
-    /// Undone ops waiting to be redone.
-    pub fn redo_len(&self) -> usize {
-        self.redo.len()
-    }
-
     /// The change log: applied ops oldest first, then undone ops next-to-redo first.
     /// `seq` numbers ops from 1 in the order they were applied.
     pub fn entries(&self) -> HistoryView {

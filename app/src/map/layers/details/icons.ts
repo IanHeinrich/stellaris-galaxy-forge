@@ -1,13 +1,13 @@
 import type { Graphics } from "pixi.js";
 import type { Icon, IconFrame } from "../../../lib/details/icons";
-import { MAP_FONT } from "../../../lib/visual/style";
+import { MAP_FONT, PLATE_COLOR } from "../../../lib/visual/style";
 import type { MapTooltipLine } from "../../../store/mapChromeStore";
 import { DISC_PX, GLYPH_STYLE, ICON_PX, type RowY, type Textures } from "./cell";
 import type { Tip } from "./Hover";
 import type { Row } from "./Row";
 
 const BADGE_STYLE = { fontFamily: MAP_FONT, fontSize: 9, fill: 0xffffff };
-const DISC_COLOR = 0x0a0e14;
+const DISC_COLOR = PLATE_COLOR;
 const DISC_ALPHA = 0.85;
 const LGATE_DISC_COLOR = 0x6b1a1a;
 const RING_WIDTH = 1.5;

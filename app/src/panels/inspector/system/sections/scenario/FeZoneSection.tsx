@@ -11,11 +11,10 @@ import {
 } from "../../../../../lib/feZone";
 import { useSystemName, useSystemNames } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
-import { usePaintLayer } from "../../../../../store/fileSessionStore";
+import { useCanEdit, usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { useIssuesStore } from "../../../../../store/issuesStore";
 import { Section } from "../../../parts";
-import { useEditableSystem } from "../../editable";
 
 /** What a zone is, in four short lines: the ring is empty space the mod fills at game start. */
 export const FE_ZONE_INTRO = [
@@ -64,7 +63,7 @@ function placementHint(anchor: string): string {
  * at game start. Every change writes the whole zone back as the user's own.
  */
 export function FeZoneSection({ system }: { system: SystemNode }) {
-  const editable = useEditableSystem();
+  const editable = useCanEdit("create_systems");
   const paint = usePaintLayer();
   if (!editable || !paint) return null;
   return (

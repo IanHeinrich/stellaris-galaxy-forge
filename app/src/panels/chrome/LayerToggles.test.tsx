@@ -14,6 +14,7 @@ import {
   type Source,
 } from "../../lib/visual/layerGroups";
 import { useFileSessionStore } from "../../store/fileSessionStore";
+import { readyAs } from "../../test/session";
 import { OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { LayersMenu } from "./LayersMenu";
@@ -25,14 +26,6 @@ const menu = () => renderToStaticMarkup(<LayersMenu />);
 /** A group's name as the markup carries it, where `&` is an entity. */
 const label = (source: Source) => SOURCE_LABELS[source].replace("&", "&amp;");
 
-function open(result: typeof OPEN_RESULT): void {
-  useFileSessionStore.setState({
-    status: "ready",
-    kind: result.kind,
-    capabilities: result.capabilities,
-  });
-}
-
 beforeEach(() => {
   useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
@@ -40,7 +33,7 @@ beforeEach(() => {
 
 describe("the split layer bar", () => {
   it("frames a scenario's toggles in the three sources, the file's first", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
 
     const html = bar();
     for (const source of SOURCES) expect(html).toContain(`aria-label="${label(source)}"`);
@@ -52,7 +45,7 @@ describe("the split layer bar", () => {
   });
 
   it("gives each master a pill of its own rather than one more layer icon", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
 
     const html = bar();
     expect(html).toContain('class="master init"');
@@ -62,7 +55,7 @@ describe("the split layer bar", () => {
   });
 
   it("closes the initializers frame with Empires, after the kinds it also decides", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
 
     const html = bar();
     const empires = html.indexOf('aria-label="Empires"');
@@ -73,7 +66,7 @@ describe("the split layer bar", () => {
   });
 
   it("carries the nebulae after the spawn points, in the scenario's own frame", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
 
     const html = bar();
     const nebulae = html.indexOf('aria-label="Nebulae"');
@@ -82,7 +75,7 @@ describe("the split layer bar", () => {
   });
 
   it("carries the master and the icons of every group the scripts and the keys decide", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
 
     const html = bar();
     expect(html).toContain('aria-label="Scripts" aria-pressed');
@@ -95,7 +88,7 @@ describe("the split layer bar", () => {
   });
 
   it("a group off leaves its kinds reading as off, not as the user's own choice", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     useMapChromeStore.getState().toggleKind("landmark");
     useMapChromeStore.getState().toggleGroup("initializers");
 
@@ -109,7 +102,7 @@ describe("the split layer bar", () => {
   });
 
   it("the pill reads how much of the group's own icons the map draws", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     const chrome = () => useMapChromeStore.getState();
     expect(bar()).toContain('aria-label="Initializers" aria-pressed="true"');
     expect(bar()).toContain('aria-label="Scripts" aria-pressed="false"');
@@ -126,7 +119,7 @@ describe("the split layer bar", () => {
   });
 
   it("heads the two groups the install decides with a master of their own", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
 
     const html = bar();
     const masters = html.match(/aria-label="(Initializers|Scripts)" aria-pressed/g);
@@ -136,7 +129,7 @@ describe("the split layer bar", () => {
   });
 
   it("says why each master is dead until the install has been read, in its own words", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
 
     const html = bar();
     expect(html).toContain(NO_GAME_DATA_KEYS_TITLE);
@@ -144,7 +137,7 @@ describe("the split layer bar", () => {
   });
 
   it("leaves a save the one bar it has always had", () => {
-    open(OPEN_RESULT);
+    readyAs(OPEN_RESULT);
 
     const html = bar();
     for (const source of SOURCES) expect(html).not.toContain(`aria-label="${label(source)}"`);
@@ -154,7 +147,7 @@ describe("the split layer bar", () => {
   });
 
   it("gives a save's flat bar the nebulae last, after the bypasses", () => {
-    open(OPEN_RESULT);
+    readyAs(OPEN_RESULT);
 
     const html = bar();
     const nebulae = html.indexOf('aria-label="Nebulae"');
@@ -168,7 +161,7 @@ describe("the split layer bar", () => {
     expect(bar()).toBe("");
     expect(menu()).toBe("");
 
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     expect(bar()).not.toBe("");
     expect(menu()).toContain("Layers");
   });

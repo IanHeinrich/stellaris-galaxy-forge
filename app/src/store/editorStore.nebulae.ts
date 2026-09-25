@@ -1,7 +1,7 @@
 import { confirm } from "@tauri-apps/plugin-dialog";
 import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
-import { newSeed } from "../lib/addSystem";
+import { newSeed } from "../lib/random";
 import { nodeName } from "../lib/names";
 import { counted } from "../lib/text";
 import type { RunEdit } from "./editorEdits";

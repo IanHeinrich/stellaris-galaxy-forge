@@ -102,7 +102,7 @@ pub fn scenario_text(
     let (mut draft, mut report) = draft(graph, options, resolve, sources);
     if profile == ScenarioProfile::PaintAGalaxy {
         paint::decorate(&mut draft, &mut report, options, graph, resolve);
-        report.count(&draft);
+        report.finish(&draft);
     }
     let mut text = match &options.exported_from {
         Some(save) => comment_block(save, &draft, &report).into_bytes(),
@@ -174,7 +174,7 @@ pub fn draft(
         lanes: lane_pairs(galaxy, &omitted),
         nebulae,
     };
-    report.count(&draft);
+    report.finish(&draft);
     (draft, report)
 }
 
@@ -227,7 +227,7 @@ fn comment_block(save: &str, draft: &Draft, report: &ExportReport) -> String {
     if let Some(needs) = report.needs() {
         lines.push(format!("# Needs: {needs} (initializers from DLC or mods)"));
     }
-    if let Some(dropped) = report.dropped.summary() {
+    if let Some(dropped) = &report.dropped_summary {
         lines.push(format!("# Not carried over: {dropped}"));
     }
     if let Some(omitted) = report.omitted_summary() {

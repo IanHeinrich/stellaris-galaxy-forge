@@ -1,7 +1,5 @@
 //! `sgf gamedata`: what was read from the install and the enabled mods.
 
-use sgf_core::library;
-use sgf_gamedata::install::{discovery, mods};
 use sgf_gamedata::views::{GameDataSummary, PaintModView};
 use sgf_gamedata::{GameData, LoadOptions};
 
@@ -62,16 +60,7 @@ pub fn run(opts: &LoadOptions) -> Run {
 
 /// Where Paint a Galaxy is and whether the playset loads it and the Reserved Spawns submod.
 fn print_paint_mod(gd: &GameData) {
-    let paint = gd
-        .layout
-        .user_dir
-        .clone()
-        .or_else(library::paradox_user_dir)
-        .and_then(|user_dir| {
-            let mut diagnostics = Vec::new();
-            mods::paint_mod_status(&user_dir, &discovery::steam_libraries(), &mut diagnostics)
-                .map(|status| PaintModView::new(&status, &diagnostics))
-        });
+    let paint = PaintModView::find(Some(gd));
     let Some(paint) = paint else {
         println!("paint mod:    not found");
         return;

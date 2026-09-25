@@ -1,12 +1,11 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import type { CountryNode } from "../../../generated/CountryNode";
 import type { EntityView as EntityViewData } from "../../../generated/EntityView";
 import type { MapColor } from "../../../generated/MapColor";
 import type { MapColorPair } from "../../../generated/MapColorPair";
 import { empireFlagKey } from "../../../lib/details/fleets";
-import { displayNameIn, templateName } from "../../../lib/names";
+import { stripped, templateName } from "../../../lib/names";
 import { counted } from "../../../lib/text";
-import { useEditorStore } from "../../../store/editorStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
@@ -20,15 +19,13 @@ import {
   type Swatch,
 } from "../../EditField";
 import { useApplyOp } from "../../useApplyOp";
+import { useNamed } from "../../useNamed";
 import { useOwnerCss } from "../ownerCss";
-import { Icon, LinkRow, LockedRow, Properties, PropertyRow } from "../parts";
+import { Icon } from "../../parts";
+import { LinkRow, LockedRow, Properties, PropertyRow } from "../parts";
 import { EntityView } from "./EntityView";
 import "./entity.css";
 import { useEntityView } from "./useEntity";
-
-/** Where `flag.colors` keeps the map border and fill in a 4.5 save: after the four flag colours. */
-const MAP_BORDER = 4;
-const MAP_FILL = 5;
 
 export const MAP_COLORS_NEED_4_5 = "Map colours need a Stellaris 4.5 save";
 
@@ -78,17 +75,14 @@ function MapColorsUnavailable() {
 }
 
 /** A save empire's map border and fill, or its flag colours in their place. */
-export function MapColorFields({ country }: { country: CountryNode }) {
+function MapColorFields({ country }: { country: CountryNode }) {
   const applyOp = useApplyOp();
   const palette = useGameDataStore((s) => s.mapColors);
   const source = useGameDataStore((s) => s.mapColorSource);
-  const entries = country.flag_colors;
-  if (entries.length <= MAP_FILL) return <MapColorsUnavailable />;
+  if (!country.has_map_colors) return <MapColorsUnavailable />;
   const on = country.use_map_color;
-  // With map colours off the game paints the first two flag colours, and the map entries
-  // may hold "null".
-  const border = on ? entries[MAP_BORDER] : entries[0];
-  const fill = on ? entries[MAP_FILL] : entries[1];
+  const border = country.painted_border ?? "";
+  const fill = country.painted_fill ?? "";
   const set = (colors: MapColorPair | null) =>
     applyOp({ type: "SetEmpireMapColors", country: country.id, colors });
   const pick = (pair: MapColorPair) => {
@@ -138,20 +132,17 @@ function authorityOf(view: EntityViewData | undefined): string | null {
 function Government({ id }: { id: number }) {
   const addr = useMemo(() => ({ kind: "country" as const, id }), [id]);
   const { value: view } = useEntityView(addr, ROOT);
-  const names = useGameDataStore((s) => s.names);
   const authority = authorityOf(view);
-  useEffect(() => {
-    if (authority !== null) void useGameDataStore.getState().fetchNames([authority]);
-  }, [authority]);
+  const named = useNamed(authority === null ? [] : [authority], stripped);
   return (
     <LockedRow label="Government" reason="This editor cannot change an empire's government yet.">
-      {authority === null ? "on the Data tab" : displayNameIn(names, authority)}
+      {authority === null ? "on the Data tab" : named(authority)}
     </LockedRow>
   );
 }
 
 function About({ country }: { country: CountryNode }) {
-  const jumpTo = useEditorStore((s) => s.jumpTo);
+  const openSystem = useInspectorStore((s) => s.openSystem);
   const systemName = useGalaxyStore((s) => s.systemName);
   const capital = country.capital_system;
   return (
@@ -164,7 +155,7 @@ function About({ country }: { country: CountryNode }) {
           <LinkRow
             label="Capital"
             title="Select the capital system"
-            onOpen={() => void jumpTo(capital)}
+            onOpen={() => openSystem(capital)}
           >
             {systemName(capital)}
           </LinkRow>
@@ -177,7 +168,7 @@ function About({ country }: { country: CountryNode }) {
 }
 
 /** A save empire's own page: its map colours to edit first, then what it is. */
-export function EmpireOverview({ country }: { country: CountryNode }) {
+function EmpireOverview({ country }: { country: CountryNode }) {
   const color = useOwnerCss(country.id) ?? undefined;
   const flag = empireFlagKey(country);
   return (

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { seeded } from "../random";
-import { inStroke, stampsAlong, STAMP_STEP } from "./stroke";
+import { inStroke } from "../../test/brush";
+import { stampsAlong, STAMP_STEP } from "./stroke";
 
 describe("seeded", () => {
   it("repeats its sequence for a seed and differs across seeds", () => {

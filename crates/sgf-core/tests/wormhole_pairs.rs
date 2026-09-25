@@ -7,6 +7,7 @@ use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::BypassLink;
 
 use crate::common;
+use common::Refused;
 use common::diff::{plain_report, round_trip};
 use common::fixture::{PAINTED, from_scenario_text};
 
@@ -31,7 +32,6 @@ fn each_pair_reads_from_its_flags_and_projects_as_one_link() {
             BypassLink::Wormhole { a: 12, b: 13 },
         ]
     );
-    assert_eq!(paint::next_wormhole_pair(&session.graph), 3);
     assert_eq!(
         paint::wormhole_pair_of("painted_galaxy_wormhole_12"),
         Some(12)
@@ -46,11 +46,6 @@ fn each_pair_reads_from_its_flags_and_projects_as_one_link() {
             .values()
             .all(|s| s.wormhole_pair.is_none())
     );
-    assert_eq!(paint::next_wormhole_pair(&save.graph), 1);
-    let error = common::open()
-        .apply(set_pair(0, 1, Some(1)))
-        .expect_err("a save has no pairs");
-    assert!(matches!(error, OpError::Unsupported { .. }), "{error}");
 }
 
 #[test]
@@ -160,7 +155,6 @@ fn rejoining_one_end_inverts_end_by_end_and_the_links_follow() {
     );
     assert_eq!(session.graph.systems[&8].wormhole_pair, Some(1));
     assert_eq!(session.graph.systems[&12].wormhole_pair, Some(2));
-    assert_eq!(paint::next_wormhole_pair(&session.graph), 4);
 
     let result = session
         .apply(set_pair(7, 8, None))
@@ -254,28 +248,27 @@ fn an_empire_cluster_of_its_own_stays_when_the_pair_goes() {
 #[test]
 fn a_pair_needs_two_systems_that_exist_and_a_number_nobody_else_holds() {
     let mut session = PAINTED.open();
-    for (op, name) in [
-        (set_pair(7, 7, Some(3)), "WormholeSelf"),
-        (set_pair(7, 99, Some(3)), "UnknownSystem"),
-        (set_pair(10, 11, Some(2)), "WormholePairInUse"),
+    let cases: Vec<Refused<Op>> = vec![
+        (set_pair(7, 7, Some(3)), |e| {
+            matches!(e, OpError::WormholeSelf(7))
+        }),
+        (set_pair(7, 99, Some(3)), |e| {
+            matches!(e, OpError::UnknownSystem(99))
+        }),
+        (set_pair(10, 11, Some(2)), |e| {
+            matches!(e, OpError::WormholePairInUse(2))
+        }),
         (
             Op::SetWormholeEnds {
                 entries: Vec::new(),
             },
-            "Empty",
+            |e| matches!(e, OpError::NoEntries),
         ),
-    ] {
-        let error = session.apply(op).expect_err(name);
-        assert!(
-            matches!(
-                error,
-                OpError::WormholeSelf(7)
-                    | OpError::UnknownSystem(99)
-                    | OpError::WormholePairInUse(2)
-                    | OpError::Empty
-            ),
-            "{name}: {error}"
-        );
+    ];
+    for (op, expected) in cases {
+        let label = format!("{op:?}");
+        let error = session.apply(op).expect_err(&label);
+        assert!(expected(&error), "{label}: {error:?}");
     }
     assert_eq!(
         session

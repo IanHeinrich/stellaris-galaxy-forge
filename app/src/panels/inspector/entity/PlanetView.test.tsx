@@ -8,31 +8,37 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
-import type { CountryNode } from "../../../generated/CountryNode";
+import * as ipc from "../../../api/ipc";
 import type { PlanetPage } from "../../../generated/PlanetPage";
 import { bindStores } from "../../../store/bindStores";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { useEntityStore, viewKey } from "../../../store/entityStore";
+import { planetPageKey, useEntityStore, viewKey } from "../../../store/entityStore";
 import {
   colonyTypeView,
+  countryNode,
   depositTypeView,
   entityView,
   modifierLine,
   modifierView,
   name,
+  planetClassView,
   planetPage,
   resourceAmount,
+  starClassView,
 } from "../../../store/fixture";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { details, land, open, planet, resetStores, SYSTEM } from "../inspectorFixture";
+import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
-import { NEEDS_GAME_DATA } from "./StarBlock";
+import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 
 bindStores();
+
+/** The head the generic entity view draws for a planet. */
+const GENERIC_HEAD = '<div class="ins-sub muted">planet</div>';
 
 const STAR = 101;
 const WORLD = 100;
@@ -40,21 +46,6 @@ const EMPIRE = 16;
 
 /** The install's classes for a binary of a Class A star and a pulsar, and a Class G star. */
 function armStarClasses(): void {
-  const star = (key: string, ...planet_keys: string[]) => ({
-    key,
-    texture_key: `star_class:${key}`,
-    icon_scale: 1,
-    planet_keys,
-    crisis_star_class: null,
-    spawn_odds: 1,
-    localised: true,
-  });
-  const body = (key: string, isStar = true) => ({
-    key,
-    icon_sprite: null,
-    habitable: !isStar,
-    star: isStar,
-  });
   useGameDataStore.setState({
     names: new Map([
       ["pc_a_star", "Class A Star"],
@@ -65,18 +56,18 @@ function armStarClasses(): void {
     ]),
     starClasses: new Map(
       [
-        star("sc_a", "pc_a_star"),
-        star("sc_g", "pc_g_star"),
-        star("sc_binary_1", "pc_a_star", "pc_pulsar"),
+        starClassView("sc_a", "pc_a_star"),
+        starClassView("sc_g", "pc_g_star"),
+        starClassView("sc_binary_1", "pc_a_star", "pc_pulsar"),
       ].map((c) => [c.key, c]),
     ),
     planetClasses: new Map(
       [
-        body("pc_a_star"),
-        body("pc_g_star"),
-        body("pc_pulsar"),
-        body("pc_continental", false),
-        body("pc_barren_cold", false),
+        planetClassView("pc_a_star"),
+        planetClassView("pc_g_star"),
+        planetClassView("pc_pulsar"),
+        planetClassView("pc_continental", false),
+        planetClassView("pc_barren_cold", false),
       ].map((c) => [c.key, c]),
     ),
   });
@@ -91,7 +82,7 @@ const stars = () =>
     ],
   });
 
-const EMPIRE_NODE: CountryNode = {
+const EMPIRE_NODE = countryNode({
   id: EMPIRE,
   name: name("NAME_Ti_Zru_Conservers"),
   name_key: "NAME_Ti_Zru_Conservers",
@@ -99,16 +90,13 @@ const EMPIRE_NODE: CountryNode = {
   capital_system: SYSTEM,
   system_count: 1,
   colors: ["dark_teal", "dark_teal"],
-  border_color: null,
-  fill_color: null,
-  flag_colors: ["red", "purple", "black", "grey"],
-  use_map_color: false,
-  flag_icon: null,
-  flag_background: null,
-};
+});
 
-function landPage(page: PlanetPage): void {
-  useEntityStore.setState({ pages: new Map(useEntityStore.getState().pages).set(page.id, page) });
+/** Answers the read of `page` as the save does, once it has landed in the store. */
+async function landPage(page: PlanetPage): Promise<void> {
+  vi.mocked(ipc.getPlanetPage).mockResolvedValueOnce(page);
+  useEntityStore.getState().requestPlanetPage(page.id);
+  await vi.waitFor(() => expect(useEntityStore.getState().pages.get(page.id)).toBe(page));
 }
 
 /** The planet's page on `tab`, drilled onto from its system. */
@@ -205,7 +193,7 @@ describe("a colony's page", () => {
 
   it("groups its deposits by type, rare first, under the district caps they add up to", async () => {
     await open("save");
-    landPage(COLONY);
+    await landPage(COLONY);
     armDeposits();
 
     const html = render(WORLD);
@@ -225,11 +213,11 @@ describe("a colony's page", () => {
   it("shows its class and size as text, then the owner, designation, date and pops", async () => {
     await open("save");
     useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
-    landPage(COLONY);
+    await landPage(COLONY);
     armDeposits();
 
     const html = render(WORLD);
-    expect(html).toMatch(/<span class="k">Class<\/span><span>pc_tropical<\/span>/);
+    expect(html).toMatch(/<span class="k">Class<\/span><span>Tropical World<\/span>/);
     expect(html).toMatch(/<span class="k">Size<\/span><span>16<\/span>/);
     expect(html).not.toContain("edit-field");
     expect(html).toContain("Colony");
@@ -278,7 +266,7 @@ describe("an unowned world's page", () => {
 
   it("lists its blockers apart, with their clearing and the feature one hides", async () => {
     await open("save");
-    landPage(OLBERS);
+    await landPage(OLBERS);
     usePlanetDataStore.setState({
       depositTypes: new Map(
         [
@@ -312,7 +300,7 @@ describe("an unowned world's page", () => {
 
   it("marks only a loss of districts of every kind with the blocker", async () => {
     await open("save");
-    landPage(
+    await landPage(
       planetPage({ id: WORLD, deposits: [{ id: 1, kind: "d_open_plains", swap_type: null }] }),
     );
     usePlanetDataStore.setState({
@@ -332,7 +320,7 @@ describe("an unowned world's page", () => {
   it("reads a planet modifier with its timed twin as one permanent row", async () => {
     await open("save");
     useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
-    landPage(OLBERS);
+    await landPage(OLBERS);
     usePlanetDataStore.setState({
       modifiers: new Map(
         [
@@ -358,7 +346,7 @@ describe("a gas giant's page", () => {
 
   it("leads an orbital deposit with its yield and links the station that works it", async () => {
     await open("save");
-    landPage(
+    await landPage(
       planetPage({
         id: WORLD,
         class: "pc_gas_giant",
@@ -409,7 +397,7 @@ describe("a gas giant's page", () => {
         ],
       }),
     );
-    landPage(
+    await landPage(
       planetPage({
         id: WORLD,
         class: "pc_gas_giant",
@@ -460,7 +448,7 @@ describe("a save star body's page", () => {
     armStarClasses();
     await open("save");
     await land(stars());
-    armStar();
+    await armStar();
     usePlanetDataStore.setState({
       depositTypes: new Map([
         [
@@ -493,7 +481,7 @@ describe("a save star body's page", () => {
     armStarClasses();
     await open("save");
     await land(stars());
-    armStar();
+    await armStar();
 
     useDetailsStore.getState().invalidate([SYSTEM]);
     const html = render(STAR);
@@ -504,7 +492,7 @@ describe("a save star body's page", () => {
   it("waits for its system's details before showing the star's fields", async () => {
     armStarClasses();
     await open("save");
-    armStar();
+    await armStar();
 
     const html = render(STAR);
     expect(html).toContain(READING_STARS.replace("'", "&#x27;"));
@@ -514,22 +502,25 @@ describe("a save star body's page", () => {
   });
 
   it("says why the star type is disabled without game data", async () => {
+    armStarClasses();
     await open("save");
+    useGameDataStore.setState({ status: "idle" });
     await land(stars());
-    armStar();
+    await armStar();
 
     const html = render(STAR);
     expect(html.match(PICKER)?.[0]).toContain("disabled");
-    expect(html).toContain(NEEDS_GAME_DATA);
+    expect(html).toContain(STARS_NEED_GAME_DATA);
   });
 
   it("keeps the generic view on the Data tab", async () => {
     armStarClasses();
     await open("save");
     await land(stars());
-    armStar();
+    await armStar();
 
     const html = render(STAR, "data");
+    expect(html).toContain(GENERIC_HEAD);
     expect(html).not.toContain("Star type");
     expect(html).not.toContain("Deposits");
   });
@@ -539,7 +530,7 @@ describe("without game data", () => {
   it("lists deposit keys as text, with no art and no totals", async () => {
     await open("save");
     useGameDataStore.setState({ status: "idle" });
-    landPage(
+    await landPage(
       planetPage({
         id: WORLD,
         deposits: [
@@ -560,6 +551,26 @@ describe("without game data", () => {
     expect(html).not.toContain('class="pl-caps"');
     expect(html).not.toContain("pl-dep-art");
   });
+
+  it("names an unnamed body alike in its system's list, on its page and where a moon orbits it", async () => {
+    await open("save");
+    useGameDataStore.setState({ status: "idle" });
+    const unnamed = { name: name(""), name_key: "", class: "pc_tropical" };
+    await land(
+      details({
+        planets: [
+          planet(WORLD, "", unnamed),
+          planet(745, "Nekkar_a", { class: "pc_barren_cold", moon: true }),
+        ],
+      }),
+    );
+    await landPage(planetPage({ id: WORLD, ...unnamed }));
+    await landPage(planetPage({ id: 745, class: "pc_barren_cold", parent: WORLD }));
+
+    expect(overview()).toContain("Tropical World");
+    expect(render(WORLD)).toContain('<span class="name">Tropical World</span>');
+    expect(render(745)).toMatch(/Orbits<\/span>.*?Tropical World/);
+  });
 });
 
 describe("a planet with no page of its own", () => {
@@ -567,15 +578,16 @@ describe("a planet with no page of its own", () => {
     armStarClasses();
     await open("scenario");
     await land(stars());
-    armStar();
+    await armStar();
 
     const html = render(STAR);
+    expect(html).toContain(GENERIC_HEAD);
     expect(html).not.toContain("Star type");
     expect(html).not.toContain("Deposits");
   });
 
-  function armStar(): void {
-    landPage(
+  function armStar(): Promise<void> {
+    return landPage(
       planetPage({
         id: STAR,
         class: "pc_a_star",
@@ -586,10 +598,14 @@ describe("a planet with no page of its own", () => {
 
   it("is the generic view when the save cannot answer for the planet", async () => {
     await open("save");
-    useEntityStore.setState({ errors: new Map([["page/planet:100", "planet #100 not found"]]) });
+    vi.mocked(ipc.getPlanetPage).mockRejectedValueOnce(new Error("planet #100 not found"));
+    useEntityStore.getState().requestPlanetPage(WORLD);
+    await vi.waitFor(() =>
+      expect(useEntityStore.getState().errors.has(planetPageKey(WORLD))).toBe(true),
+    );
 
     const html = render(WORLD);
     expect(html).not.toContain("Deposits");
-    expect(html).toContain('<div class="ins-sub muted">planet</div>');
+    expect(html).toContain(GENERIC_HEAD);
   });
 });

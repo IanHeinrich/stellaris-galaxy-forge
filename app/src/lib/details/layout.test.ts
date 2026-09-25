@@ -10,7 +10,6 @@ import {
   plateBottom,
   plateBox,
   plateKey,
-  rowLeft,
   visiblePlanets,
 } from "./layout";
 
@@ -72,10 +71,8 @@ describe("nameRowY", () => {
   });
 });
 
-describe("rowLeft", () => {
-  it("puts the emblem left of the name and the plate under both", () => {
-    expect(rowLeft(20, false)).toBe(-20);
-    expect(rowLeft(20, true)).toBe(-20 - 3 - 26);
+describe("plateBox", () => {
+  it("puts the plate a few pixels past the name each side", () => {
     const box = plateBox(20, 20);
     expect(box.x).toBe(-23);
     expect(box.x + box.width).toBe(23);

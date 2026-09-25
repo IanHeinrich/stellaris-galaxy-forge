@@ -6,8 +6,9 @@
 
 use crate::Span;
 use crate::cst::Node;
-use crate::format::save::galaxy::lgate::{ALL_OUTCOME_FLAGS, GAME_STARTED, flags_of};
-use crate::ops::{Edit, Op, OpError, Plan, Planned};
+use crate::format::save::galaxy::lgate::{ALL_OUTCOME_FLAGS, flags_of};
+use crate::keys::GAME_STARTED;
+use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::galaxy::LGateOutcome;
 use crate::session::Session;
 
@@ -48,7 +49,7 @@ pub(crate) fn plan_set_outcome(
     match (present.first(), last) {
         (Some(&first), _) => {
             for text in &written {
-                write_before(edit, first, text);
+                edit.insert_before(first, text);
             }
             for span in present {
                 edit.remove_statement(span);
@@ -71,15 +72,4 @@ pub(crate) fn plan_set_outcome(
             outcome: lgate.outcome,
         },
     })
-}
-
-/// Write `text` as a statement just ahead of the one at `span`, in its shape: on a line of
-/// its own when that one starts its line, else beside it where its removal leaves off.
-fn write_before(edit: &mut Edit, span: Span, text: &str) {
-    if edit.starts_line(span.start) {
-        let line = [&edit.indent(span.start)[..], text.as_bytes(), b"\n"].concat();
-        edit.insert_lines(edit.line_start(span.start), line);
-    } else {
-        edit.insert(span.end, format!(" {text}").into_bytes());
-    }
 }

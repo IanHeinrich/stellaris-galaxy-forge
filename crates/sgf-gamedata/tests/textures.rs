@@ -28,12 +28,6 @@ fn decode(
     image::load_from_memory(&png).expect("valid PNG")
 }
 
-fn temp_textures() -> (tempfile::TempDir, Textures) {
-    let dir = tempfile::tempdir().unwrap();
-    let textures = Textures::new(Some(dir.path().join("cache")));
-    (dir, textures)
-}
-
 #[test]
 fn keys_round_trip_and_bad_ones_are_rejected() {
     for key in [
@@ -92,7 +86,7 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
 #[test]
 fn uncompressed_bgra_decodes_with_channels_in_rgba_order() {
     let gd = common::cached_fixture();
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     let image = decode(
         &textures,
         &gd.layout,
@@ -111,7 +105,7 @@ fn uncompressed_bgra_decodes_with_channels_in_rgba_order() {
 #[test]
 fn dxt1_solid_block_decodes_to_its_colour() {
     let gd = common::cached_fixture();
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     let image = decode(
         &textures,
         &gd.layout,
@@ -125,7 +119,7 @@ fn dxt1_solid_block_decodes_to_its_colour() {
 #[test]
 fn a_frame_crops_its_slice_of_the_strip() {
     let gd = common::cached_fixture();
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
     let whole = decode(&textures, layout, sprites, "sprite:GFX_fixture_strip");
     assert_eq!(whole.dimensions(), (8, 4));
@@ -160,7 +154,7 @@ fn a_frame_crops_its_slice_of_the_strip() {
 #[test]
 fn failures_are_errors_in_the_view_never_panics() {
     let gd = common::cached_fixture();
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
     let cut = textures.load(layout, sprites, &no_colour, "sprite:GFX_fixture_cut");
     assert!(cut.png_base64.is_none());
@@ -207,7 +201,7 @@ fn failures_are_errors_in_the_view_never_panics() {
 #[test]
 fn second_call_is_served_from_the_cache_file() {
     let gd = common::cached_fixture();
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
     let first = textures
         .png(layout, sprites, &no_colour, "sprite:GFX_fixture_bgra")
@@ -239,11 +233,11 @@ fn second_call_is_served_from_the_cache_file() {
 
 #[test]
 fn install_star_classes_flags_and_sprites_decode() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     for (key, width, height) in [
         ("star_class:g_star", 128, 128),
         ("star_class:black_hole", 128, 128),
@@ -292,11 +286,11 @@ fn install_star_classes_flags_and_sprites_decode() {
 
 #[test]
 fn install_second_call_hits_the_cache() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     let key = "star_class:black_hole";
     let started = Instant::now();
     let first = textures.png(layout, sprites, &no_colour, key).unwrap();
@@ -312,11 +306,11 @@ fn install_second_call_hits_the_cache() {
 
 #[test]
 fn install_empire_flag_composes() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     let colour = |name: &str| match name {
         "blue" => Some([34, 88, 218]),
         "black" => Some([20, 20, 20]),

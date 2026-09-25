@@ -1,11 +1,10 @@
 import { createContext } from "react";
 import type { SystemNode } from "../../../generated/SystemNode";
-import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { linkChange, type LinkChange } from "../../../lib/feLinks";
 import type { Side } from "../../../lib/menuAim";
 import { useSystemNames } from "../../../store/browserRows";
 import { useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
+import { useCanEdit, usePaintLayer } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 
 export const NO_SYSTEMS: number[] = [];
@@ -13,19 +12,9 @@ export const NO_SYSTEMS: number[] = [];
 /** The side the menu around an entry opened on, which its own submenu and cards keep to. */
 export const MenuSide = createContext<Side>("right");
 
-export function useCanCreate(): boolean {
-  const capabilities = useFileSessionStore((s) => s.capabilities);
-  return supports(documentCapabilities({ capabilities }), "create_systems");
-}
-
-export function useCanNebulae(): boolean {
-  const capabilities = useFileSessionStore((s) => s.capabilities);
-  return supports(documentCapabilities({ capabilities }), "nebulae");
-}
-
 /** Whether the menus offer fallen empire zones: a document that creates systems, under the paint layer. */
 export function useZones(): boolean {
-  const canCreate = useCanCreate();
+  const canCreate = useCanEdit("create_systems");
   const paint = usePaintLayer();
   return canCreate && paint;
 }

@@ -16,10 +16,11 @@ import {
 } from "./issueNotes";
 import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
+import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
-import { SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
+import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
 
 /** How long after the last edit the watchlist runs its searches again. */
@@ -116,12 +117,13 @@ function followTool(): void {
   });
 }
 
-// A save cannot take symmetry: opening one turns off any symmetry left on from a scenario.
+// Opening a document that takes no symmetry turns off any symmetry left on from the last one,
+// for this session only: the preference keeps the user's pick for the next launch.
 function followSymmetry(): void {
   useFileSessionStore.subscribe((state, previous) => {
-    if (state.kind === previous.kind) return;
-    if (state.kind === "save" && useToolStore.getState().symmetry.kind !== "off") {
-      useToolStore.getState().setSymmetry(SYMMETRY_OFF);
+    if (state.capabilities === previous.capabilities) return;
+    if (!symmetryAllowed() && useToolStore.getState().symmetry.kind !== "off") {
+      useToolStore.setState({ symmetry: SYMMETRY_OFF });
     }
   });
 }
@@ -238,9 +240,16 @@ function followGroups(): void {
   });
 }
 
+// Whatever belonged to the document that was open goes when another starts opening or none is
+// left; the galaxy stays on screen under the loading overlay until the next one lands.
 function followSession(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status === previous.status) return;
+    if (state.status === "loading") useLGateStore.getState().hide();
+    if (state.status === "empty" || state.status === "error") {
+      useGalaxyStore.getState().clear();
+      useGameDataStore.getState().onSaveClosed();
+    }
     if (state.status !== "ready") useLayoutStore.getState().hideOpenDialog();
     useEditorStore.getState().resetSession();
     useMapChromeStore.getState().clearOverlays();

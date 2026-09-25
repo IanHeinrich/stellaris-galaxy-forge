@@ -4,17 +4,14 @@
 
 use crate::common;
 
-use std::fs;
 use std::sync::Arc;
 
-use sgf_core::archive;
 use sgf_core::document::Document;
 use sgf_core::ops::free_nebula_names;
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::naming::{pick_nebula_name, pick_pooled_nebula_name};
 
-use common::SAMPLE_4_5;
 const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/2206.11.16.scenario.txt"
@@ -26,47 +23,24 @@ const FREE: &str = "Fx_Cloud";
 
 /// An install whose only files are two `common/random_names` files.
 fn install_naming(nebulae: &[&str]) -> (tempfile::TempDir, GameData) {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let install = dir.path().join("install");
-    let names = install.join("common/random_names");
-    fs::create_dir_all(names.join("base")).unwrap();
     let list: String = nebulae.iter().map(|n| format!("\t\"{n}\"\n")).collect();
-    fs::write(
-        names.join("base/00_names.txt"),
-        format!("star_names = {{\n\tFx_Star\n}}\nnebula_names = {{\n{list}}}\n"),
-    )
-    .unwrap();
-    fs::write(
-        names.join("01_more.txt"),
-        format!("nebula_names = {{\n{list}\tFx_Mist\n}}\n"),
-    )
-    .unwrap();
-    fs::create_dir_all(install.join("localisation/english")).unwrap();
-    fs::write(
-        install.join("localisation/english/fx_l_english.yml"),
-        "l_english:\n",
-    )
-    .unwrap();
-    let opts = sgf_gamedata::LoadOptions {
-        install: Some(install),
-        user_dir: Some(dir.path().join("user")),
-        language: "english".to_owned(),
-        mods: false,
-    };
-    let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("the hand-written install loads");
-    (dir, gd)
+    let base = format!("star_names = {{\n\tFx_Star\n}}\nnebula_names = {{\n{list}}}\n");
+    let more = format!("nebula_names = {{\n{list}\tFx_Mist\n}}\n");
+    common::hand_written(&[
+        ("common/random_names/base/00_names.txt", &base),
+        ("common/random_names/01_more.txt", &more),
+        ("localisation/english/fx_l_english.yml", "l_english:\n"),
+    ])
 }
 
 /// The 4.5 sample with its pool of unused nebula names emptied.
 fn without_pool() -> Session {
-    let raw = archive::read_sav(SAMPLE_4_5).expect("read the 4.5 sample");
-    let mut text = String::from_utf8(raw.gamestate).expect("utf-8");
-    let head = "\tnebula_names=\n\t{\n";
-    let start = text.find(head).expect("the pool") + head.len();
-    let end = start + text[start..].find("\t}\n").expect("its end");
-    text.replace_range(start..end, "");
-    let doc = Document::from_bytes(text.into_bytes(), raw.meta).expect("index the gamestate");
-    Session::from_document(None, doc).expect("project the gamestate")
+    common::open_4_5_edited(|text| {
+        let head = "\tnebula_names=\n\t{\n";
+        let start = text.find(head).expect("the pool") + head.len();
+        let end = start + text[start..].find("\t}\n").expect("its end");
+        text.replace_range(start..end, "");
+    })
 }
 
 #[test]
@@ -124,7 +98,7 @@ fn a_scenario_draws_from_the_install_less_its_own_nebulae() {
 
 #[test]
 fn the_real_install_lists_every_name_the_sample_pool_holds() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let session = common::open_4_5();

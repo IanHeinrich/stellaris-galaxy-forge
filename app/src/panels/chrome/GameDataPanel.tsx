@@ -4,10 +4,9 @@ import type { DiagnosticView } from "../../generated/DiagnosticView";
 import type { GameDataSummary } from "../../generated/GameDataSummary";
 import type { ModView } from "../../generated/ModView";
 import type { Progress } from "../../generated/Progress";
-import { counted } from "../../lib/text";
+import { counted, phaseLabel } from "../../lib/text";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { FilterField } from "../inspector/parts";
-import { phaseLabel } from "../file/launchData";
+import { FilterField } from "../parts";
 import "./chrome.css";
 import { EyeRow, Menu, MenuItem } from "./Menu";
 

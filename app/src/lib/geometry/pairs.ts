@@ -20,19 +20,19 @@ export class PairMap<V> {
   }
 
   has(a: number, b: number): boolean {
-    return this.map.has(key(a, b));
+    return this.map.has(pairKey(a, b));
   }
 
   get(a: number, b: number): V | undefined {
-    return this.map.get(key(a, b));
+    return this.map.get(pairKey(a, b));
   }
 
   set(a: number, b: number, value: V): void {
-    this.map.set(key(a, b), value);
+    this.map.set(pairKey(a, b), value);
   }
 
   delete(a: number, b: number): void {
-    this.map.delete(key(a, b));
+    this.map.delete(pairKey(a, b));
   }
 
   clear(): void {
@@ -56,6 +56,7 @@ export class PairSet extends PairMap<Pair> {
   }
 }
 
-function key(a: number, b: number): string {
+/** One string per unordered pair of ids, however round the pair is given. */
+export function pairKey(a: number, b: number): string {
   return a < b ? `${a},${b}` : `${b},${a}`;
 }

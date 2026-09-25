@@ -8,17 +8,19 @@ vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
+vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
-import { onProgress } from "../../../api/events";
-import * as ipc from "../../../api/ipc";
 import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
 import { bindStores } from "../../../store/bindStores";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { useInspectorStore } from "../../../store/inspectorStore";
 import { useLGateStore } from "../../../store/lgateStore";
+import { armSession, resetStores } from "../../../store/storeFixture";
+import { drawnBy, drawnButton, drawnField } from "../../../test/drawn";
+import { openWith } from "../../../test/session";
+import { PickerField } from "../../EditField";
 import {
   editResult,
   OPEN_RESULT,
@@ -37,13 +39,7 @@ import {
   SHAPES_TITLE,
 } from "./gameSetup";
 import { addHeaderField, DUPLICATE_KEY_TITLE, removeHeaderField, setHeaderField } from "./header";
-
-const mocked = {
-  openSave: vi.mocked(ipc.openSave),
-  openAsScenario: vi.mocked(ipc.openAsScenario),
-  applyOp: vi.mocked(ipc.applyOp),
-  onProgress: vi.mocked(onProgress),
-};
+import { mockedIpc } from "../../../test/ipc";
 
 /** A header as a scenario writes one: a name, its shapes, and a key the file states twice. */
 const HEADER: HeaderField[] = [
@@ -69,20 +65,13 @@ const SETUP_HEADER: HeaderField[] = [
 bindStores();
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  useGalaxyStore.getState().clear();
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
-  useEditorStore.setState({ ...useEditorStore.getInitialState() });
-  useInspectorStore.setState({ ...useInspectorStore.getInitialState() });
-  useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
-  useLGateStore.setState({ revealed: false });
-  mocked.onProgress.mockResolvedValue(() => undefined);
-  mocked.openSave.mockResolvedValue(OPEN_RESULT);
-  mocked.openAsScenario.mockResolvedValue({
+  resetStores();
+  armSession();
+  mockedIpc.openAsScenario.mockResolvedValue({
     ...SCENARIO_RESULT,
     galaxy: { ...SCENARIO_RESULT.galaxy, header: HEADER },
   });
-  mocked.applyOp.mockResolvedValue(editResult());
+  mockedIpc.applyOp.mockResolvedValue(editResult());
 });
 
 const galaxy = () => renderToStaticMarkup(<GalaxyView />);
@@ -200,14 +189,14 @@ describe("the scenario header", () => {
     await open("scenario");
 
     await useEditorStore.getState().applyOp(setHeaderField("name", ' "Other Galaxy" '));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "SetHeaderField",
       key: "name",
       value: '"Other Galaxy"',
     });
 
     await useEditorStore.getState().applyOp(removeHeaderField("priority"));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "SetHeaderField",
       key: "priority",
       value: null,
@@ -230,7 +219,7 @@ describe("the scenario header", () => {
   });
 
   it("names the size the mod lists the scenario under, and sums up its scripted seats", async () => {
-    mocked.openAsScenario.mockResolvedValueOnce({
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       painted: true,
       galaxy: {
@@ -269,7 +258,7 @@ describe("the game setup grid", () => {
   const count = (label: string, value: string) => cell(label, CLEAR_KEY_TITLE, value);
 
   async function openSetup(): Promise<string> {
-    mocked.openAsScenario.mockResolvedValueOnce({
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       galaxy: { ...SCENARIO_RESULT.galaxy, header: SETUP_HEADER },
     });
@@ -317,7 +306,7 @@ describe("the game setup grid", () => {
     expect(html).toContain(count("Gateways default", ""));
 
     await useEditorStore.getState().applyOp(removeHeaderField("num_empires"));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "SetHeaderField",
       key: "num_empires",
       value: null,
@@ -353,7 +342,7 @@ describe("the shapes row", () => {
   });
 
   it("marks a shape the header lists that the game data lacks", async () => {
-    mocked.openAsScenario.mockResolvedValueOnce({
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       galaxy: {
         ...SCENARIO_RESULT.galaxy,
@@ -381,7 +370,7 @@ describe("the shapes row", () => {
   });
 
   it("warns when no shape is ticked", async () => {
-    mocked.openAsScenario.mockResolvedValueOnce({
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       galaxy: { ...SCENARIO_RESULT.galaxy, header: [HEADER[0]] },
     });
@@ -399,7 +388,7 @@ describe("the shapes row", () => {
     await useEditorStore
       .getState()
       .applyOp({ type: "SetHeaderList", key: "supports_shape", values: ["elliptical"] });
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "SetHeaderList",
       key: "supports_shape",
       values: ["elliptical"],
@@ -408,67 +397,66 @@ describe("the shapes row", () => {
 });
 
 describe("the L-Gate outcome", () => {
-  async function openWith(outcome: LGateOutcome, opened = false): Promise<void> {
-    mocked.openSave.mockResolvedValueOnce({
-      ...OPEN_RESULT,
-      galaxy: { ...OPEN_RESULT.galaxy, lgate: { outcome, opened } },
-    });
-    await open("save");
-  }
+  const openLGate = (outcome: LGateOutcome, opened = false) =>
+    openWith(OPEN_RESULT, { galaxy: { lgate: { outcome, opened } } });
 
   it("stays hidden behind Reveal until it is clicked, then offers every outcome until hidden", async () => {
-    await openWith("gray_tempest");
+    await openLGate("gray_tempest");
 
-    let html = galaxy();
-    expect(html).toContain(">L-Gate outcome</span>");
+    let html = drawnBy(galaxy);
+    expect(html).toContain('aria-label="L-Gate"');
     expect(html).toContain(">Reveal</button>");
     expect(html).not.toContain("Gray Tempest");
     expect(html).not.toContain(LGATE_TEMPEST_NOTE);
 
-    useLGateStore.getState().reveal();
-    html = galaxy();
+    drawnButton("Reveal").onClick();
+    html = drawnBy(galaxy);
     expect(html).not.toContain(">Reveal</button>");
-    expect(html).toContain('<select aria-label="L-Gate outcome">');
-    expect(html).toContain('<option value="gray_tempest" selected="">Gray Tempest</option>');
-    for (const label of ["L-Drakes", "Dessanu Consonance", "Empty cluster"]) {
-      expect(html).toContain(`>${label}</option>`);
-    }
-    expect(html).toContain(">Hide</button>");
+    expect(html).toContain('aria-label="L-Gate outcome: Gray Tempest"');
+    expect(drawnField(PickerField, "L-Gate outcome").items.map((item) => item.label)).toEqual([
+      "Gray Tempest",
+      "L-Drakes",
+      "Dessanu Consonance",
+      "Empty cluster",
+    ]);
 
-    useLGateStore.getState().hide();
+    drawnButton("Hide").onClick();
     expect(galaxy()).not.toContain("Gray Tempest");
   });
 
-  it("applies the outcome chosen and shows it once the edit comes back", async () => {
-    await openWith("gray_tempest");
+  it("applies the outcome picked and shows it once the edit comes back", async () => {
+    await openLGate("gray_tempest");
     useLGateStore.getState().reveal();
-    expect(galaxy()).toContain(LGATE_TEMPEST_NOTE);
+    expect(drawnBy(galaxy)).toContain(LGATE_TEMPEST_NOTE);
 
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [], lgate: { outcome: "l_drakes", opened: false } } }),
     );
-    await useEditorStore.getState().applyOp({ type: "SetLGateOutcome", outcome: "l_drakes" });
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
-      type: "SetLGateOutcome",
-      outcome: "l_drakes",
-    });
+    drawnField(PickerField, "L-Gate outcome").onPick("l_drakes");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetLGateOutcome",
+        outcome: "l_drakes",
+      }),
+    );
+    await vi.waitFor(() => expect(useGalaxyStore.getState().lgate?.outcome).toBe("l_drakes"));
 
     const html = galaxy();
-    expect(html).toContain('<option value="l_drakes" selected="">L-Drakes</option>');
+    expect(html).toContain('aria-label="L-Gate outcome: L-Drakes"');
     expect(html).not.toContain(LGATE_TEMPEST_NOTE);
   });
 
   it("locks the choice once a gate has opened", async () => {
-    await openWith("gray_tempest", true);
+    await openLGate("gray_tempest", true);
     useLGateStore.getState().reveal();
 
-    const html = galaxy();
-    expect(html).toContain(`disabled="" title="${LGATE_OPENED_TITLE}"`);
+    const html = drawnBy(galaxy);
+    expect(drawnField(PickerField, "L-Gate outcome").disabledReason).toBe(LGATE_OPENED_TITLE);
     expect(html).not.toContain(LGATE_TEMPEST_NOTE);
   });
 
-  it("warns under the dropdown when an enabled mod also touches the outcome, folding past three", async () => {
-    await openWith("gray_tempest");
+  it("warns under the picker when an enabled mod also touches the outcome, folding past three", async () => {
+    await openLGate("gray_tempest");
     useLGateStore.getState().reveal();
     useGameDataStore.setState({
       lgateMods: [
@@ -485,16 +473,16 @@ describe("the L-Gate outcome", () => {
 
     const html = galaxy();
     expect(html).toContain(
-      '<div class="muted ins-hint ins-lgate-note" title="events/alpha.txt: overrides the day-one roll (distar.8000); events/alpha_2.txt: sets dragon_season">Alpha Mod also changes the L-Gate outcome, so the game may not follow this choice.</div>',
+      '<div class="edit-note"><span title="events/alpha.txt: overrides the day-one roll (distar.8000); events/alpha_2.txt: sets dragon_season">Alpha Mod also changes the L-Gate outcome, so the game may not follow this choice.</span></div>',
     );
     expect(html).toContain("Beta Mod also changes the L-Gate outcome");
     expect(html).toContain("Gamma Mod also changes the L-Gate outcome");
     expect(html).not.toContain("Delta Mod also changes");
-    expect(html).toContain('<div class="muted ins-hint ins-lgate-note">and 1 more</div>');
+    expect(html).toContain('<div class="edit-note">and 1 more</div>');
   });
 
   it("says nothing about mods while none of the loaded ones touch the outcome", async () => {
-    await openWith("gray_tempest");
+    await openLGate("gray_tempest");
     useLGateStore.getState().reveal();
 
     expect(galaxy()).not.toContain("also changes the L-Gate outcome");
@@ -502,6 +490,6 @@ describe("the L-Gate outcome", () => {
 
   it("says nothing when the galaxy has no L-Gate", async () => {
     await open("save");
-    expect(galaxy()).not.toContain("L-Gate outcome");
+    expect(galaxy()).not.toContain('aria-label="L-Gate"');
   });
 });

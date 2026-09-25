@@ -129,7 +129,7 @@ fn normalise_lane_length_is_refused_where_there_is_nothing_to_do() {
     assert!(!session.graph.lane(0, 752).unwrap().stale);
     assert!(matches!(
         session.apply(Op::NormaliseLaneLength { a: 0, b: 752 }),
-        Err(OpError::Empty)
+        Err(OpError::AlreadyNormal)
     ));
     assert!(matches!(
         session.apply(Op::NormaliseLaneLength { a: 0, b: 1 }),
@@ -283,7 +283,7 @@ fn normalising_after_a_move_rewrites_only_the_decimal_lengths() {
     let moved = current(&session);
     assert!(matches!(
         session.apply(Op::NormaliseLaneLengths { systems: vec![0] }),
-        Err(OpError::Empty)
+        Err(OpError::AlreadyNormal)
     ));
     assert_eq!(current(&session), moved);
 
@@ -311,8 +311,10 @@ fn normalising_after_a_move_rewrites_only_the_decimal_lengths() {
     assert!(session.graph.systems[&786].lanes.iter().all(|l| l.stale));
 }
 
+/// The game lists 154-708 twice on both ends. While every entry holds one length, one
+/// length put back restores them all, so the lane is normalised like any other.
 #[test]
-fn normalising_leaves_a_duplicated_lane_alone() {
+fn a_lane_listed_twice_is_normalised_on_every_entry_and_put_back() {
     let mut session = open();
     let set = session
         .apply(Op::SetLaneLength {
@@ -324,12 +326,20 @@ fn normalising_leaves_a_duplicated_lane_alone() {
     let lengthened = current(&session);
     assert!(session.graph.lane(154, 708).unwrap().stale);
 
-    // The game lists this lane twice on both ends, so one restored length could not put
-    // back what each entry had.
-    assert!(matches!(
-        session.apply(Op::NormaliseLaneLengths { systems: vec![154] }),
-        Err(OpError::Empty)
-    ));
+    let normalised = session
+        .apply(Op::NormaliseLaneLengths { systems: vec![154] })
+        .expect("normalise");
+    let floor = (session.graph.systems[&154].x - session.graph.systems[&708].x)
+        .hypot(session.graph.systems[&154].y - session.graph.systems[&708].y)
+        .floor();
+    for (a, b) in [(154, 708), (708, 154)] {
+        let lengths: Vec<f64> = (session.graph.systems[&a].lanes.iter())
+            .filter(|lane| lane.to == b)
+            .map(|lane| lane.length)
+            .collect();
+        assert_eq!(lengths, [floor, floor], "{a} lists {b}");
+    }
+    session.apply(normalised.inverse).unwrap();
     assert_eq!(current(&session), lengthened);
 
     session.apply(set.inverse).unwrap();
@@ -452,14 +462,14 @@ fn the_inverse_of_adding_lanes_removes_only_what_it_added() {
             from: 789,
             to: vec![],
         }),
-        Err(OpError::Empty)
+        Err(OpError::NoEntries)
     ));
     assert!(matches!(
         session.apply(Op::RemoveLanes {
             from: 0,
             to: vec![],
         }),
-        Err(OpError::Empty)
+        Err(OpError::NoEntries)
     ));
     assert_eq!(current(&session), session.doc.original());
 
@@ -493,12 +503,11 @@ fn removing_a_lane_to_a_missing_system_is_refused_singly_and_left_out_of_a_bulk_
     // The sample holds no dangling lane, so system 0's entry for 752 is pointed at an
     // id no `galactic_object` carries.
     let mut session = common::open_edited(|gamestate| {
-        let at = find(
+        *gamestate = only_once(
             gamestate,
-            b"				to=752
-				length=33",
+            "\t\t\t\tto=752\n\t\t\t\tlength=33",
+            "\t\t\t\tto=999\n\t\t\t\tlength=33",
         );
-        gamestate.splice(at + 7..at + 10, *b"999");
     });
     assert!(session.graph.systems[&0].lanes.iter().any(|l| l.to == 999));
     assert!(!session.graph.systems.contains_key(&999));
@@ -527,17 +536,54 @@ fn removing_a_lane_to_a_missing_system_is_refused_singly_and_left_out_of_a_bulk_
     assert!(session.graph.lane(0, 200).is_some());
 }
 
-/// Where `needle` starts in `haystack`; the sample holds it exactly once.
-fn find(haystack: &[u8], needle: &[u8]) -> usize {
-    let at = haystack
-        .windows(needle.len())
-        .position(|w| w == needle)
-        .expect("the sample holds the lane entry");
+/// A lane whose two ends hold different lengths cannot be set or normalised: the one
+/// length an inverse carries would write the wrong one back on one end.
+#[test]
+fn a_lane_whose_ends_disagree_is_refused_a_new_length() {
+    // System 0 lists 752 at 40 where 752 lists 0 at 33.
+    let mut session = common::open_edited(|gamestate| {
+        *gamestate = only_once(
+            gamestate,
+            "\t\t\t\tto=752\n\t\t\t\tlength=33",
+            "\t\t\t\tto=752\n\t\t\t\tlength=40",
+        );
+    });
+    assert_eq!(session.graph.lane(0, 752).map(|l| l.length), Some(40.0));
+    assert_eq!(session.graph.lane(752, 0).map(|l| l.length), Some(33.0));
+    let disagree =
+        |result: Result<_, OpError>| matches!(result, Err(OpError::LaneEndsDisagree(0, 752)));
+
+    let set = session.apply(Op::SetLaneLength {
+        a: 0,
+        b: 752,
+        length: 50.0,
+    });
+    assert!(disagree(set.map(|r| r.inverse)), "SetLaneLength");
+    let set = session.apply(Op::SetLaneLengths {
+        lanes: vec![LaneLength {
+            a: 0,
+            b: 752,
+            length: 50.0,
+        }],
+    });
+    assert!(disagree(set.map(|r| r.inverse)), "SetLaneLengths");
+    let normalise = session.apply(Op::NormaliseLaneLength { a: 0, b: 752 });
     assert!(
-        haystack[at + 1..]
-            .windows(needle.len())
-            .all(|w| w != needle),
-        "the lane entry is not unique"
+        disagree(normalise.map(|r| r.inverse)),
+        "NormaliseLaneLength"
     );
-    at
+    // The plural leaves the lane as it is and normalises the rest of system 0's.
+    let normalised = session.apply(Op::NormaliseLaneLengths { systems: vec![0] });
+    assert_eq!(session.graph.lane(0, 752).map(|l| l.length), Some(40.0));
+    assert_eq!(session.graph.lane(752, 0).map(|l| l.length), Some(33.0));
+    if normalised.is_ok() {
+        session.undo().expect("undo");
+    }
+    assert_eq!(current(&session), session.doc.original());
+}
+
+/// `text` with `from`, which it holds exactly once, replaced by `to`.
+fn only_once(text: &str, from: &str, to: &str) -> String {
+    assert_eq!(text.matches(from).count(), 1, "{from:?} once");
+    text.replacen(from, to, 1)
 }

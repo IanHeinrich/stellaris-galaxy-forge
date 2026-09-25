@@ -1,0 +1,52 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+{
+  "id": 56,
+  "name": {
+    "key": "ASTEROID_NAME_FORMAT",
+    "literal": false,
+    "variables": [
+      {
+        "name": "prefix",
+        "value": {
+          "key": "G1-",
+          "literal": false,
+          "variables": []
+        }
+      },
+      {
+        "name": "suffix",
+        "value": {
+          "key": "03-A",
+          "literal": false,
+          "variables": []
+        }
+      }
+    ]
+  },
+  "name_key": "ASTEROID_NAME_FORMAT",
+  "label": "ASTEROID_NAME_FORMAT",
+  "class": "pc_asteroid",
+  "size": 5,
+  "orbit": 85.0,
+  "system": 189,
+  "parent": 52,
+  "moons": [],
+  "deposits": [
+    {
+      "id": 101,
+      "kind": "d_minerals_5",
+      "swap_type": null
+    }
+  ],
+  "planet_modifiers": [],
+  "timed_modifiers": [],
+  "surveyed_by": null,
+  "station": 387,
+  "owner": null,
+  "controller": 3,
+  "colony": null,
+  "flags": 2
+}

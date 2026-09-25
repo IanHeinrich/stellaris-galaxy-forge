@@ -14,9 +14,16 @@ import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { planetSummary, systemDetails } from "../../../test/builders";
-import { mocked, open, resetStores } from "../inspectorFixture";
+import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
+import {
+  planetClassView,
+  planetSummary,
+  starClassView,
+  systemDetails,
+} from "../../../test/builders";
+import { open, resetStores } from "../inspectorFixture";
 import { SelectionView } from "./SelectionView";
+import { mockedIpc } from "../../../test/ipc";
 
 bindStores();
 
@@ -80,34 +87,23 @@ describe("the bulk star class", () => {
   };
 
   function armStarClasses(): void {
-    const star = (key: string, ...planet_keys: string[]) => ({
-      key,
-      texture_key: `star_class:${key}`,
-      icon_scale: 1,
-      planet_keys,
-      crisis_star_class: null,
-      spawn_odds: 1,
-      localised: true,
-    });
     const bodies = Object.values(STARS).flat();
     useGameDataStore.setState({
       names: new Map([["sc_pulsar", "Pulsar"]]),
       starClasses: new Map(
         [
-          star("sc_g", "pc_g_star"),
-          star("sc_m", "pc_m_star"),
-          star("sc_pulsar", "pc_pulsar"),
-          star("sc_binary_1", "pc_a_star", "pc_pulsar"),
+          starClassView("sc_g", "pc_g_star"),
+          starClassView("sc_m", "pc_m_star"),
+          starClassView("sc_pulsar", "pc_pulsar"),
+          starClassView("sc_binary_1", "pc_a_star", "pc_pulsar"),
         ].map((c) => [c.key, c]),
       ),
-      planetClasses: new Map(
-        bodies.map((key) => [key, { key, icon_sprite: null, habitable: false, star: true }]),
-      ),
+      planetClasses: new Map(bodies.map((key) => [key, planetClassView(key)])),
     });
   }
 
   async function landChain(): Promise<void> {
-    mocked.getSystemDetails.mockResolvedValue(
+    mockedIpc.getSystemDetails.mockResolvedValue(
       CHAIN.map((id) =>
         systemDetails({
           id,
@@ -124,13 +120,13 @@ describe("the bulk star class", () => {
     armStarClasses();
     await open("save");
     await useEditorStore.getState().setSelection(CHAIN, "replace");
-    mocked.getSystemDetails.mockClear();
+    mockedIpc.getSystemDetails.mockClear();
 
     const html = renderToStaticMarkup(<SelectionView />);
     await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
     expect(html).toContain('aria-haspopup="listbox"');
     expect(html).toContain('aria-label="Star class: Star class… (3 systems)"');
-    expect(mocked.getSystemDetails).not.toHaveBeenCalled();
+    expect(mockedIpc.getSystemDetails).not.toHaveBeenCalled();
   });
 
   it("is not offered on a scenario", async () => {
@@ -141,5 +137,14 @@ describe("the bulk star class", () => {
     const html = renderToStaticMarkup(<SelectionView />);
     expect(html).not.toContain("Star class");
     expect(html).not.toContain('aria-haspopup="listbox"');
+  });
+
+  it("says a star edit needs game data while none is loaded", async () => {
+    await open("save");
+    useGameDataStore.setState({ status: "idle" });
+    await useEditorStore.getState().setSelection(CHAIN, "replace");
+
+    const html = renderToStaticMarkup(<SelectionView />);
+    expect(html).toContain(`title="${STARS_NEED_GAME_DATA}"`);
   });
 });

@@ -58,7 +58,7 @@ fn a_mod_empire_is_named_through_the_country_flag_its_scripted_effect_sets() {
 
     let icon = empire.country.flag_icon.as_ref().expect("flag icon");
     assert_eq!(icon.file, "flag_synthetic_1.dds");
-    assert!(gd.colors.get("fixture_red").is_some());
+    assert!(gd.colors.entries.get("fixture_red").is_some());
 
     let origin = empire.origin.as_ref().expect("origin");
     assert_eq!(origin.layer, "Mod One");

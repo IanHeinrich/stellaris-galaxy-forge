@@ -3,7 +3,6 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-readonly MEMBERS="sgf-core sgf-gamedata sgf-cli sgf-app"
 readonly SEMVER='^[0-9]+\.[0-9]+\.[0-9]+$'
 
 usage() {
@@ -30,6 +29,13 @@ cargo_toml_version() {
 
 json_version() {
 	node -p "require('./$1').version"
+}
+
+workspace_members() {
+	cargo metadata --no-deps --format-version 1 |
+		node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+			for (const p of JSON.parse(s).packages) console.log(p.name);
+		})'
 }
 
 lock_version() {
@@ -104,13 +110,14 @@ cmd_bump() {
 }
 
 cmd_check() {
-	local want member status=0
+	local want member members status=0
 	want="$(version_file)"
+	members="$(workspace_members)"
 
 	report_if_differs "Cargo.toml" "$(cargo_toml_version)" "$want" || status=1
 	report_if_differs "app/package.json" "$(json_version app/package.json)" "$want" || status=1
 	report_if_differs "app/package-lock.json" "$(json_version app/package-lock.json)" "$want" || status=1
-	for member in $MEMBERS; do
+	for member in $members; do
 		report_if_differs "Cargo.lock ($member)" "$(lock_version "$member")" "$want" || status=1
 	done
 

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::archive;
-use crate::document;
+use crate::document::{self, Document};
 use crate::entity::views::EntityAddr;
 use crate::export::ExportReport;
 use crate::format;
@@ -79,7 +79,7 @@ impl From<&GalaxyGraph> for GalaxyView {
 }
 
 /// What the open document supports, so the app shows only the layers, tabs and ops it
-/// can answer for. A `.sav` supports everything.
+/// can answer for. Each format fills it, and the app reads these flags, not the kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct Capabilities {
@@ -93,17 +93,32 @@ pub struct Capabilities {
     pub bypasses: bool,
     /// Points of interest: initializers, flags and the countries standing in a system.
     pub special: bool,
-    /// Systems can be added and removed, named and given an initializer.
+    /// The scenario's system statements: any system added, removed, named and given an
+    /// initializer, so the paint and erase brushes, spawn points, marauder clans and the
+    /// day-one layers.
     pub create_systems: bool,
     /// Lanes carry a `bridge` flag.
     pub lane_bridges: bool,
     /// Waystations and the waylines the game derives between them.
     pub waylines: bool,
+    /// Systems can be added to the save, and the ones added this session rerolled, renamed
+    /// and deleted.
+    pub added_systems: bool,
+    /// A body's star class and planet size can be changed.
+    pub bodies: bool,
+    /// A planet's deposits can be added and removed.
+    pub deposits: bool,
+    /// An empire's map colours can be changed.
+    pub map_colors: bool,
+    /// The L-Gate's outcome can be read and set.
+    pub lgate: bool,
+    /// An edit can be mirrored across the galaxy's centre.
+    pub symmetry: bool,
 }
 
 impl Capabilities {
-    pub fn of(kind: DocumentKind) -> Self {
-        format::of(kind).capabilities()
+    pub fn of(doc: &Document) -> Self {
+        format::of(doc.kind()).capabilities(doc)
     }
 }
 
@@ -245,6 +260,31 @@ pub struct SearchHit {
     /// initializer or flag key, a special kind (`Enclave`), a bypass (`L-Gate`), or a
     /// planet class, localised when the resolver knows it. `None` for a name match.
     pub matched_on: Option<String>,
+    /// When [`Self::matched_on`] is a bypass, its key (`wormhole`, `gateway`, `l_gate`, or
+    /// the kind the save names), for the app to label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub matched_bypass: Option<String>,
+}
+
+impl SearchHit {
+    /// A hit of `kind` named `name`, standing at `position`, with nothing else known.
+    pub fn new(kind: SearchKind, id: u32, name: NameTemplate, position: Option<[f64; 2]>) -> Self {
+        Self {
+            kind,
+            id,
+            name_key: name.stand_in(),
+            name,
+            system_id: None,
+            owner: None,
+            country_type: None,
+            system_count: None,
+            planet_class: None,
+            position,
+            matched_on: None,
+            matched_bypass: None,
+        }
+    }
 }
 
 /// The hits of one search, and every system a system, planet or fleet match locates.
@@ -456,13 +496,6 @@ fn io_kind(e: &std::io::Error) -> ErrorKind {
 
 impl From<OpError> for SgfError {
     fn from(e: OpError) -> Self {
-        let kind = match e {
-            OpError::UnknownSystem(_) => ErrorKind::NotFound,
-            OpError::Parse { .. } | OpError::Projection(_) | OpError::Overlay(_) => {
-                ErrorKind::Format
-            }
-            _ => ErrorKind::Op,
-        };
-        Self::new(kind, e.to_string())
+        Self::new(e.kind(), e.to_string())
     }
 }

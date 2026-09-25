@@ -7,12 +7,14 @@ import {
   starbaseLabel,
   waystationType,
 } from "../../../../lib/details/labels";
+import { capabilityFor } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useCountryName } from "../../../../store/browserRows";
 import { useGalaxyStore } from "../../../../store/galaxyStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { useInspectorStore } from "../../../../store/inspectorStore";
-import { Chip, DrillRow, FocusButton, Icon, Section, Swatch } from "../../parts";
+import { useOpenEntity } from "../../entity/useEntity";
+import { Chip, Icon } from "../../../parts";
+import { DrillRow, FocusButton, Section, Swatch } from "../../parts";
 
 /** `research · Wayline network 2 · 3 stations`; a system the save lists no station in names its type alone. */
 function waystationLine(
@@ -45,7 +47,7 @@ export function StationSection({
   const countries = useGalaxyStore((s) => s.countries);
   const waystations = useGalaxyStore((s) => s.waystations);
   const ownerName = useCountryName(starbase.owner);
-  const open = useInspectorStore((s) => s.open);
+  const opener = useOpenEntity();
   const owner = starbase.owner === null ? undefined : countries.get(starbase.owner);
   const name = templateName(starbase);
   const level = starbaseLabel(starbase.level);
@@ -54,8 +56,8 @@ export function StationSection({
   return (
     <Section id="system.station" title="Station">
       <DrillRow
-        requires="details"
-        onOpen={() => open({ ref: { kind: "starbase", system, id: starbase.id }, label: name })}
+        requires={capabilityFor("starbase")}
+        onOpen={() => opener.open({ kind: "starbase", id: starbase.id }, name)}
       >
         <Icon className="stn" keys={starbaseKeys(starbase.level, levels, owner)} glyph="◉" />
         <span>

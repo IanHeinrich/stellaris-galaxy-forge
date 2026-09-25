@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { historyEntry as entry } from "../../test/builders";
-import { buttonIn } from "../../test/elements";
+import { menuItem } from "../../test/elements";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -10,13 +10,12 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { SCENARIO_CAPABILITIES } from "../../store/fixture";
+import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { EditMenuItems } from "./EditMenu";
 
 let dismiss: ReturnType<typeof vi.fn<() => void>>;
 
-/** The menu's button reading `label`, whose `onClick` a test calls in place of a click. */
-const item = (label: string) => buttonIn(<EditMenuItems dismiss={dismiss} />, label)!;
+const item = (label: string) => menuItem(<EditMenuItems dismiss={dismiss} />, label);
 
 function html(label: string): string {
   return renderToStaticMarkup(item(label));

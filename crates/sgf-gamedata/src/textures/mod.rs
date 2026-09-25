@@ -64,23 +64,29 @@ pub type ColourLookup<'a> = &'a dyn Fn(&str) -> Option<[u8; 3]>;
 impl GameData {
     /// `key` decoded through this install's sprites and flag colours.
     pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
-        let colour = |name: &str| self.colors.get(name).map(|c| c.flag);
+        let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
         textures.load(&self.layout, &*self.sprites, &colour, key)
     }
 
     pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {
-        let colour = |name: &str| self.colors.get(name).map(|c| c.flag);
+        let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
         textures.png(&self.layout, &*self.sprites, &colour, key)
     }
 }
 
 impl TextureKey {
+    /// Whether a layer of `layout` has the file this key names.
+    pub(crate) fn exists(&self, layout: &Layout) -> bool {
+        self.rel_path()
+            .is_ok_and(|rel| layout.resolve_file(&rel).is_some())
+    }
+
     /// The texture file relative to a layer root, for the keys that name one.
     fn rel_path(&self) -> Result<String, TextureError> {
         match self {
             Self::StarClass { icon } => Ok(format!("gfx/map/star_classes/{icon}.dds")),
             Self::Deposit { icon } => Ok(format!("{DEPOSIT_ICONS}/{icon}.dds")),
-            Self::Icon { path } => Ok(format!("gfx/interface/icons/{path}")),
+            Self::Icon { path } => Ok(format!("{ICONS}/{path}")),
             Self::Flag { category, file } | Self::Symbol { category, file } => {
                 Ok(format!("flags/{category}/{file}"))
             }
@@ -254,7 +260,8 @@ enum Job {
     },
 }
 
-pub(crate) const DEPOSIT_ICONS: &str = "gfx/interface/icons/deposits";
+pub(crate) const ICONS: &str = "gfx/interface/icons";
+const DEPOSIT_ICONS: &str = "gfx/interface/icons/deposits";
 const EMPIRE_FLAG_MASK: &str = "gfx/interface/flags/empire_flag_64_mask.dds";
 const EMPIRE_FLAG_FRAME: &str = "gfx/interface/flags/empire_flag_64_frame.dds";
 

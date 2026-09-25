@@ -2,10 +2,9 @@ import type { SystemNode } from "../../../../../generated/SystemNode";
 import { linkedAnchors } from "../../../../../lib/feLinks";
 import { useSystemNames } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
-import { usePaintLayer } from "../../../../../store/fileSessionStore";
+import { useCanEdit, usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { Section } from "../../../parts";
-import { useEditableSystem } from "../../editable";
 
 export const FE_LINKS_INTRO =
   "At game start the Paint a Galaxy mod lays a hyperlane from this system to the nearest " +
@@ -17,7 +16,7 @@ export const FE_LINKS_INTRO =
  * none; an anchor's own links are in its Fallen empire zone section.
  */
 export function FeLinksSection({ system }: { system: SystemNode }) {
-  const editable = useEditableSystem();
+  const editable = useCanEdit("create_systems");
   const paint = usePaintLayer();
   const systems = useGalaxyStore((s) => s.systems);
   const select = useEditorStore((s) => s.select);

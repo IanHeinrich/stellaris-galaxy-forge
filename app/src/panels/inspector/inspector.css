@@ -117,36 +117,6 @@
   margin: 2px 0 6px;
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  color: var(--fg);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-}
-
-.chip.kind {
-  background: #2a2410;
-  border-color: var(--accent-dim);
-  color: var(--accent);
-}
-
-.chip.added {
-  background: var(--allowed-bg);
-  border-color: var(--allowed-dim);
-  color: var(--allowed);
-}
-
-.chip.warn {
-  background: #2f1a12;
-  border-color: #6a3a28;
-  color: var(--warn);
-}
-
 button.chip.pick {
   cursor: pointer;
   font: inherit;
@@ -223,21 +193,9 @@ button.chip.jump:hover {
   overflow-wrap: anywhere;
 }
 
-.ins-radius,
-.ins-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 4px 0 2px;
-}
-
-.ins-radius .k,
-.ins-name .k {
-  color: var(--fg-muted);
-}
-
-.ins-radius .coord {
-  width: 78px;
+/* Room for a coordinate like -1000.00 beside the field's pencil. */
+.edit-cell > .coord {
+  width: 100px;
 }
 
 .ins-header-row {
@@ -386,30 +344,6 @@ button.link.ins-drill:hover {
 
 .edit-field.coord {
   width: 72px;
-}
-
-.mesh-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.mesh-row button {
-  width: 100%;
-}
-
-.mesh-slider {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 6px;
-  font-size: 11px;
-}
-
-.mesh-slider input[type="range"] {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
 }
 
 .ins-random-name {

@@ -1,4 +1,5 @@
-import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
+import type { MapTooltip } from "../../store/mapChromeStore";
+import { OwnedTooltip } from "../ownedTooltip";
 
 /**
  * A drag's preview, and the readout tooltip that goes with it, kept up until the edit it shows
@@ -7,17 +8,16 @@ import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
  */
 export class SettlingPreview {
   private seq = 0;
-  private tip: MapTooltip | null = null;
+  private readonly tip = new OwnedTooltip();
 
   /** `clear` takes the drawn preview down. */
   constructor(private readonly clear: () => void) {}
 
-  /** A new preview is drawn, with `tip` as its readout when given. */
+  /** A new preview is drawn, with `tip` as its readout, or none when not given. */
   update(tip?: MapTooltip): void {
     this.seq++;
-    if (!tip) return;
-    this.tip = tip;
-    useMapChromeStore.getState().showTooltip(tip);
+    if (tip) this.tip.show(tip);
+    else this.tip.hide();
   }
 
   /** Keeps the preview until `applied` settles, unless a newer one has taken over by then. */
@@ -32,8 +32,6 @@ export class SettlingPreview {
   drop(): void {
     this.seq++;
     this.clear();
-    const chrome = useMapChromeStore.getState();
-    if (this.tip && chrome.tooltip === this.tip) chrome.hideTooltip();
-    this.tip = null;
+    this.tip.hide();
   }
 }

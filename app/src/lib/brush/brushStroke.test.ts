@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
+import { PairSet } from "../geometry/pairs";
 import { segmentsCross } from "../geometry/segments";
 import { MESH_BETA } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
 import { SpatialGrid } from "../spatialGrid";
 import { drag } from "../../test/brush";
-import { lanesTo, systemNode } from "../../test/builders";
+import { lanesTo, placedNode, systemNode } from "../../test/builders";
+import { SYSTEMS as SAMPLE } from "../../store/fixture";
+import type { Symmetry } from "../geometry/symmetry";
+import { provisionalId, provisionalIndex } from "./lanes";
+import { stampsAlong } from "./stroke";
 import { BrushStroke, strokeLabel, type BrushSettings, type StrokeResult } from "./brushStroke";
 
 /** A lane 1-2 along y = 0, a guardian just above it, and a lone system far below. */
@@ -77,7 +82,7 @@ describe("a paint stroke", () => {
       for (const s of SYSTEMS) expect(Math.hypot(p.x - s.x, p.y - s.y)).toBeGreaterThanOrEqual(10);
     }
     expect(pairs.some(([, b]) => b >= 0)).toBe(true);
-    const at = (id: number): Pt => (id < 0 ? points[-id - 1] : GALAXY.get(id)!);
+    const at = (id: number): Pt => (id < 0 ? points[provisionalIndex(id)] : GALAXY.get(id)!);
     for (const [a, b] of pairs) {
       expect(a).toBeLessThan(b);
       expect(a).toBeGreaterThanOrEqual(-points.length);
@@ -109,10 +114,12 @@ describe("a paint stroke", () => {
     result.points.slice(0, half).forEach((p, i) => {
       expect(result.points[half + i]).toEqual({ x: -p.x, y: p.y });
     });
-    const pairs = new Set(result.pairs.map(([a, b]) => `${a},${b}`));
+    const pairs = new PairSet();
+    for (const [a, b] of result.pairs) pairs.add(a, b);
+    const image = (id: number) => provisionalId(provisionalIndex(id) + half);
     for (const [a, b] of result.pairs) {
-      if (a < -half) continue;
-      expect(pairs.has(`${a - half},${b - half}`)).toBe(true);
+      if (provisionalIndex(a) >= half) continue;
+      expect(pairs.has(image(a), image(b))).toBe(true);
     }
   });
 });
@@ -220,5 +227,185 @@ describe("the stroke's count", () => {
     expect(strokeLabel({ kind: "connect", swept: [1, 2, 3], pairs: [], sparse: true })).toBe(
       "+0 lanes · raise lane density",
     );
+  });
+});
+
+describe("a stroke over the sample galaxy", () => {
+  const SAMPLE_ERASE: BrushSettings = { ...ERASE, size: 6, spacing: 25, laneMode: "off", beta: 1 };
+  const MIRROR_X: Symmetry = { kind: "mirror", axis: "x" };
+  const QUARTER: Symmetry = { kind: "rotate", n: 4 };
+  // Sol, Alpha Centauri, Barnard and Sirius, whose chain already links Alpha Centauri to the others.
+  const CHAIN = [
+    { x: 0, y: 0 },
+    { x: 30, y: 0 },
+  ];
+
+  /** A stroke through `path` over the sample galaxy with `over` laid on top of it. */
+  function sampleStroke(
+    settings: Partial<BrushSettings>,
+    path: Pt[],
+    over: SystemNode[] = [],
+  ): StrokeResult {
+    const galaxy = new Map(SAMPLE.map((s) => [s.id, s]));
+    for (const s of over) galaxy.set(s.id, s);
+    const grid = new SpatialGrid();
+    grid.build(galaxy.values());
+    const s = new BrushStroke({ ...SAMPLE_ERASE, ...settings }, galaxy, grid, 1);
+    let prev: Pt | null = null;
+    for (const next of path) {
+      s.add(stampsAlong(prev, next, s.r));
+      prev = next;
+    }
+    return s.result();
+  }
+
+  it("erases Sol and keeps the special Alpha Centauri unless told to take it", () => {
+    const sol = { ...SAMPLE[0], initializer: "" };
+    const path = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ];
+    expect(sampleStroke({}, path, [sol])).toEqual({ kind: "erase", doomed: [0], kept: [1] });
+    expect(sampleStroke({ eraseSpecials: true }, path, [sol])).toEqual({
+      kind: "erase",
+      doomed: [0, 1],
+      kept: [],
+    });
+  });
+
+  it("cuts the lane it passes over in lanes mode", () => {
+    // Short of Alpha Centauri, whose other lanes a stamp on it would cut too.
+    const path = [
+      { x: 0, y: 0 },
+      { x: 5, y: 0 },
+    ];
+    expect(sampleStroke({ eraseTarget: "lanes" }, path)).toEqual({ kind: "cut", lanes: [[0, 1]] });
+    expect(sampleStroke({ tool: "cut" }, path)).toEqual({ kind: "cut", lanes: [[0, 1]] });
+  });
+
+  it("meshes the systems a connect stroke passes over, leaving out pairs already linked", () => {
+    expect(sampleStroke({ tool: "connect", size: 30, beta: 0.1 }, CHAIN)).toEqual({
+      kind: "connect",
+      swept: [0, 1, 2, 3],
+      pairs: [
+        [0, 2],
+        [2, 3],
+      ],
+      sparse: false,
+    });
+    // The Gabriel graph drops Sol–Barnard, whose circle holds Alpha Centauri.
+    expect(sampleStroke({ tool: "connect", size: 30, beta: 1 }, CHAIN)).toMatchObject({
+      pairs: [[2, 3]],
+    });
+  });
+
+  it("connects no pair the scenario keeps apart", () => {
+    const kept = [
+      { ...SAMPLE[2], prevented: [3] },
+      { ...SAMPLE[3], prevented: [2] },
+    ];
+    expect(sampleStroke({ tool: "connect", size: 30, beta: 0.1 }, CHAIN, kept)).toMatchObject({
+      pairs: [[0, 2]],
+    });
+  });
+
+  it("connects no pair whose lane would cross an existing one", () => {
+    // Either side of the Alpha Centauri–Vega lane, so the one lane between them would cross it.
+    const sides = [placedNode(6, 0, -15), placedNode(7, 20, -15)];
+    const path = [
+      { x: 0, y: -15 },
+      { x: 20, y: -15 },
+    ];
+    expect(sampleStroke({ tool: "connect" }, path, sides)).toEqual({
+      kind: "connect",
+      swept: [6, 7],
+      pairs: [],
+      sparse: false,
+    });
+  });
+
+  it("erases what every image of the stroke passes over", () => {
+    const pair = [placedNode(10, 100, 50), placedNode(11, 100, -50)];
+    expect(sampleStroke({ symmetry: MIRROR_X }, [{ x: 100, y: 50 }], pair)).toEqual({
+      kind: "erase",
+      doomed: [10, 11],
+      kept: [],
+    });
+    const quarter = [
+      ...pair,
+      placedNode(12, -50, 100),
+      placedNode(13, -100, -50),
+      placedNode(14, 50, -100),
+    ];
+    expect(sampleStroke({ symmetry: QUARTER }, [{ x: 100, y: 50 }], quarter)).toEqual({
+      kind: "erase",
+      doomed: [10, 12, 13, 14],
+      kept: [],
+    });
+  });
+
+  it("cuts the lanes every image of the stroke passes over", () => {
+    const lanes = [
+      placedNode(10, 60, 50, [11]),
+      placedNode(11, 100, 50, [10]),
+      placedNode(12, -60, 50, [13]),
+      placedNode(13, -100, 50, [12]),
+    ];
+    const cut = sampleStroke(
+      { tool: "cut", symmetry: { kind: "mirror", axis: "y" } },
+      [{ x: 80, y: 50 }],
+      lanes,
+    );
+    expect(cut).toEqual({
+      kind: "cut",
+      lanes: [
+        [10, 11],
+        [12, 13],
+      ],
+    });
+  });
+
+  it("connects only lane patterns every copy repeats, so a square gets its sides and no diagonal", () => {
+    const square = [
+      placedNode(10, 300, 0),
+      placedNode(11, 0, 300),
+      placedNode(12, -300, 0),
+      placedNode(13, 0, -300),
+    ];
+    const settings = { tool: "connect", size: 10, beta: 0.1, symmetry: QUARTER } as const;
+    expect(sampleStroke(settings, [{ x: 300, y: 0 }], square)).toEqual({
+      kind: "connect",
+      swept: [10, 11, 12, 13],
+      pairs: [
+        [10, 11],
+        [10, 13],
+        [11, 12],
+        [12, 13],
+      ],
+      sparse: false,
+    });
+  });
+
+  it("connects the systems every image of the stroke passes over", () => {
+    const halves = [
+      placedNode(10, 60, 50),
+      placedNode(11, 80, 50),
+      placedNode(12, -60, -50),
+      placedNode(13, -80, -50),
+    ];
+    const settings = { tool: "connect", size: 10, symmetry: { kind: "rotate", n: 2 } } as const;
+    const path = [
+      { x: 60, y: 50 },
+      { x: 80, y: 50 },
+    ];
+    expect(sampleStroke(settings, path, halves)).toEqual({
+      kind: "connect",
+      swept: [10, 11, 12, 13],
+      pairs: [
+        [10, 11],
+        [12, 13],
+      ],
+      sparse: false,
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { releaseHeadline } from "./releaseNotes";
+import { parseReleaseNotes, releaseHeadline } from "./releaseNotes";
 
 describe("the headline of a release's notes", () => {
   it("is the first entry, on one line and without its markup", () => {
@@ -12,5 +12,41 @@ describe("the headline of a release's notes", () => {
       "Lanes keep their length Nebulae move",
     );
     expect(releaseHeadline("")).toBe("");
+  });
+});
+
+describe("a release's notes as blocks", () => {
+  it("reads headings, lists and paragraphs, with code, bold and link spans", () => {
+    const notes = [
+      "## [0.13.0] - 2026-09-25",
+      "",
+      "### Fixed",
+      "- **Nebulae** keep their `radius`",
+      "  on save.",
+      "- See [the guide](https://example.com/guide).",
+      "",
+      "Thanks for the reports.",
+    ].join("\n");
+    expect(parseReleaseNotes(notes)).toEqual([
+      { kind: "heading", spans: [{ kind: "text", text: "[0.13.0] - 2026-09-25" }] },
+      { kind: "heading", spans: [{ kind: "text", text: "Fixed" }] },
+      {
+        kind: "list",
+        items: [
+          [
+            { kind: "strong", text: "Nebulae" },
+            { kind: "text", text: " keep their " },
+            { kind: "code", text: "radius" },
+            { kind: "text", text: " on save." },
+          ],
+          [
+            { kind: "text", text: "See " },
+            { kind: "text", text: "the guide" },
+            { kind: "text", text: "." },
+          ],
+        ],
+      },
+      { kind: "paragraph", spans: [{ kind: "text", text: "Thanks for the reports." }] },
+    ]);
   });
 });

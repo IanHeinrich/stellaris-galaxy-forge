@@ -6,9 +6,9 @@ use std::collections::VecDeque;
 
 use sgf_core::cst::Node;
 
+use crate::condition::Condition;
 use crate::scripts::claims;
 use crate::scripts::scope::{Scopes, is_guard};
-use crate::scripts::trigger::Trigger;
 use crate::scripts::view::BypassKind;
 
 /// A bypass the initializer spawns on the system it generates, and what
@@ -179,7 +179,7 @@ fn names_star_flag(node: &Node, src: &[u8]) -> bool {
         return false;
     };
     let mut found = Vec::new();
-    claims::star_flags(&Trigger::compile(limit, src), &mut found);
+    claims::star_flags(&Condition::compile(limit, src), &mut found);
     !found.is_empty()
 }
 

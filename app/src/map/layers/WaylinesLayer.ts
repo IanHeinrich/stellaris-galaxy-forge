@@ -1,16 +1,18 @@
-import { Container, type FederatedPointerEvent, Graphics } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { Wayline } from "../../generated/Wayline";
 import type { Waystation } from "../../generated/Waystation";
 import { isWaystationLevel, starbaseLabel } from "../../lib/details/labels";
 import { labelTier } from "../../lib/visual/labels";
 import { badgeGeometry, badgeSide } from "../../lib/visual/specialStyle";
-import { useMapChromeStore } from "../../store/mapChromeStore";
+import { OwnedTooltip } from "../ownedTooltip";
 import type { Camera } from "../Camera";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { Badge, badgeTextStyle, RING_RADIUS } from "./badge";
+import { Badge, BADGE_RING_RADIUS } from "./badge";
+import { evenDashedLine } from "./dashes";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
+import { counted } from "../../lib/text";
 
 /** The band the game lays over the lane: broad, translucent grey, its dashes twice their gaps. */
 const BAND = { color: 0xd6dde3, alpha: 0.35, width: 3, dash: 6, gap: 3 };
@@ -20,19 +22,6 @@ const UNREAD_LEVEL = "starbase_level_waystation_1";
 
 const NO_DRAG: ReadonlyMap<number, MoveGhost> = new Map();
 const NO_STATIONS: ReadonlyMap<number, Waystation> = new Map();
-
-/** Pixi strokes no dashes, so the band is stepped in world units and breaks at every zoom. */
-function dash(g: Graphics, ax: number, ay: number, bx: number, by: number): void {
-  const steps = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / (BAND.dash + BAND.gap)));
-  const dx = (bx - ax) / steps;
-  const dy = (by - ay) / steps;
-  const ink = BAND.dash / (BAND.dash + BAND.gap);
-  for (let i = 0; i < steps; i++) {
-    const x = ax + dx * i;
-    const y = ay + dy * i;
-    g.moveTo(x, y).lineTo(x + dx * ink, y + dy * ink);
-  }
-}
 
 interface StationBadge {
   station: Waystation;
@@ -63,6 +52,7 @@ export class WaylinesLayer implements MapLayer {
   private ringScale = 1;
   private tier = labelTier(0);
   private hovered: Waystation | null = null;
+  private readonly tip = new OwnedTooltip();
 
   constructor() {
     this.container.addChild(this.bands, this.badgeLayer);
@@ -103,7 +93,7 @@ export class WaylinesLayer implements MapLayer {
   onViewport(cam: Camera): void {
     cam.childScale(1, this.badgeScale);
     this.ringScale = markerScale(cam.scale);
-    for (const { badge } of this.badges) this.scaleBadge(badge);
+    for (const { badge } of this.badges) badge.setScale(this.badgeScale, this.ringScale);
     const tier = labelTier(cam.scale);
     if (tier !== this.tier) {
       this.tier = tier;
@@ -132,15 +122,12 @@ export class WaylinesLayer implements MapLayer {
 
   private makeBadge(station: Waystation): Badge {
     const badge = new Badge(badgeGeometry(this.tier));
-    badge.plate.on("pointerover", (e: FederatedPointerEvent) => this.hover(station, e.global));
-    badge.plate.on("pointerout", () => this.unhover(station));
+    badge.onPlateHover(
+      (at) => this.hover(station, at),
+      () => this.unhover(station),
+    );
     this.badgeLayer.addChild(badge.root);
     return badge;
-  }
-
-  private scaleBadge(badge: Badge): void {
-    badge.root.scale.set(this.badgeScale.x, this.badgeScale.y);
-    badge.ring.scale.set(this.ringScale);
   }
 
   /** Where a system is drawn: its ghost while it is dragged, else where it stands. */
@@ -162,13 +149,11 @@ export class WaylinesLayer implements MapLayer {
       badge.root.visible = at !== undefined;
       if (!at) continue;
       badge.root.position.set(at.x, at.y);
-      this.scaleBadge(badge);
-      if (badge.text.style.fontSize !== geo.font) badge.text.style = badgeTextStyle(geo);
-      const label = this.levelOf(station);
-      if (badge.text.text !== label) badge.text.text = label;
+      badge.setScale(this.badgeScale, this.ringScale);
+      badge.setLabel(geo, this.levelOf(station));
       badge.setIcon(null, geo.icon, BAND.color);
       const side = badgeSide(station.system, this.tier);
-      badge.layout(geo, side, BAND.color, RING_RADIUS * this.ringScale);
+      badge.layout(geo, side, BAND.color, BADGE_RING_RADIUS * this.ringScale);
       badge.setPlated(this.tier !== "none");
     }
   }
@@ -180,7 +165,7 @@ export class WaylinesLayer implements MapLayer {
       const a = this.point(line.a);
       const b = this.point(line.b);
       if (!a || !b) continue;
-      dash(g, a.x, a.y, b.x, b.y);
+      evenDashedLine(g, a, b, BAND.dash, BAND.gap);
       g.stroke({ color: BAND.color, alpha: BAND.alpha, width: BAND.width });
     }
   }
@@ -190,13 +175,13 @@ export class WaylinesLayer implements MapLayer {
     if (!s) return;
     this.hovered = station;
     const stations = this.counts.get(station.network) ?? 0;
-    useMapChromeStore.getState().showTooltip({
+    this.tip.show({
       x: at.x,
       y: at.y,
       title: this.levelOf(station),
       lines: [
         this.nodeName(s.name),
-        `Network ${station.network} · ${stations} ${stations === 1 ? "station" : "stations"}`,
+        `Network ${station.network} · ${counted(stations, "station")}`,
       ],
     });
   }
@@ -204,6 +189,6 @@ export class WaylinesLayer implements MapLayer {
   private unhover(station: Waystation): void {
     if (this.hovered !== station) return;
     this.hovered = null;
-    useMapChromeStore.getState().hideTooltip();
+    this.tip.hide();
   }
 }

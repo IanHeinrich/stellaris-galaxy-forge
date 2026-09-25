@@ -2,8 +2,8 @@ import type { UpdateProgress } from "../../generated/UpdateProgress";
 import type { UpdateView } from "../../generated/UpdateView";
 import { parseReleaseNotes, type NoteSpan } from "../../lib/releaseNotes";
 import { useUpdateStore, type UpdateStatus } from "../../store/updateStore";
-import { formatSize, formatWhen } from "../file/launchData";
-import { Dialog } from "./Dialog";
+import { formatSize, formatWhen } from "../../lib/text";
+import { Dialog } from "../Dialog";
 import "./loading.css";
 import "./overlays.css";
 

@@ -3,7 +3,6 @@
 //! identity against the file as it was opened.
 
 use sgf_core::ops::{Op, OpError};
-use sgf_core::views::DocumentKind;
 
 use crate::common;
 use common::current;
@@ -77,12 +76,6 @@ fn unprevent_is_refused_when_the_pair_is_not_prevented() {
 }
 
 #[test]
-fn the_prevent_ops_undo_and_redo_byte_for_byte() {
-    round_trip(GRAMMAR.open(), Op::PreventLane { a: 2, b: 9 });
-    round_trip(GRAMMAR.open(), Op::UnpreventLane { a: 9, b: 1 });
-}
-
-#[test]
 fn a_linked_pair_is_cut_and_prevented_as_one_edit() {
     let cut_and_prevent = || Op::Batch {
         description: "Cut and prevented lane 1 <-> 2".into(),
@@ -144,26 +137,4 @@ fn removing_an_endpoint_drops_the_prevent_statement() {
     assert!(session.graph.systems[&1].prevented.is_empty());
     let text = String::from_utf8(current(&session)).expect("utf-8");
     assert!(!text.contains("prevent_hyperlane"), "{text}");
-}
-
-#[test]
-fn a_save_refuses_both_ops() {
-    let mut session = common::open();
-    for op in [
-        Op::PreventLane { a: 1, b: 2 },
-        Op::UnpreventLane { a: 1, b: 2 },
-    ] {
-        let error = session.apply(op).expect_err("refused");
-        assert!(
-            matches!(
-                error,
-                OpError::Unsupported {
-                    kind: DocumentKind::Save,
-                    ..
-                }
-            ),
-            "{error}"
-        );
-    }
-    assert!(!session.is_dirty());
 }

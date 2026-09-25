@@ -14,8 +14,4 @@ fn install_without_a_check_finds_nothing() {
         kind(invoke::<()>(&w, "install_update", json!({}))),
         ErrorKind::NotFound
     );
-    assert_eq!(
-        kind(invoke::<()>(&w, "install_update", json!({}))),
-        ErrorKind::NotFound
-    );
 }

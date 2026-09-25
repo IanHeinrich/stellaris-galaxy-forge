@@ -1,11 +1,11 @@
-import { Container, type FederatedPointerEvent, type Texture } from "pixi.js";
+import { Container, type Texture } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { SpecialSystem } from "../../generated/SpecialSystem";
 import type { SystemNode } from "../../generated/SystemNode";
 import { kindLabel } from "../../lib/special";
-import { useMapChromeStore } from "../../store/mapChromeStore";
+import { OwnedTooltip } from "../ownedTooltip";
 import type { Camera } from "../Camera";
 import { labelTier, type LabelTier } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
@@ -21,7 +21,7 @@ import {
 } from "../../lib/visual/specialStyle";
 import { GHOST_ALPHA } from "../../lib/visual/style";
 import { onTextures } from "../../lib/visual/textures";
-import { Badge, badgeTexture, badgeTextStyle, RING_RADIUS } from "./badge";
+import { Badge, badgeTexture, BADGE_RING_RADIUS } from "./badge";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
 
 /** What the badge's tooltip says beyond the kind: the classifier's label, its countries, its initializer. */
@@ -56,6 +56,7 @@ export class SpecialLayer implements MapLayer {
   private shown: ReadonlySet<SpecialKind> = new Set();
   private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
   private hovered: number | null = null;
+  private readonly tip = new OwnedTooltip();
   private readonly pxScale = { x: 1, y: 1 };
   private ringScale = 1;
   private tier: LabelTier = "none";
@@ -110,7 +111,7 @@ export class SpecialLayer implements MapLayer {
   onViewport(cam: Camera): void {
     cam.childScale(1, this.pxScale);
     this.ringScale = markerScale(cam.scale);
-    for (const badge of this.badges.values()) this.scaleBadge(badge);
+    for (const badge of this.badges.values()) badge.setScale(this.pxScale, this.ringScale);
     const tier = labelTier(cam.scale);
     if (tier !== this.tier) {
       this.tier = tier;
@@ -151,11 +152,6 @@ export class SpecialLayer implements MapLayer {
     return this.ctx.special.get(s.id);
   }
 
-  private scaleBadge(badge: Badge): void {
-    badge.root.scale.set(this.pxScale.x, this.pxScale.y);
-    badge.ring.scale.set(this.ringScale);
-  }
-
   private place(s: SystemNode): void {
     const special = this.classify(s);
     const shown =
@@ -178,14 +174,11 @@ export class SpecialLayer implements MapLayer {
     const at = ghost ?? s;
     badge.root.position.set(at.x, at.y);
     badge.root.alpha = ghost ? GHOST_ALPHA : 1;
-    this.scaleBadge(badge);
-
-    if (badge.text.style.fontSize !== geo.font) badge.text.style = badgeTextStyle(geo);
-    const text = this.labelFor(s, kind, special);
-    if (badge.text.text !== text) badge.text.text = text;
+    badge.setScale(this.pxScale, this.ringScale);
+    badge.setLabel(geo, this.labelFor(s, kind, special));
 
     badge.setIcon(this.iconFor(s, kind, special), geo.icon, color);
-    badge.layout(geo, badgeSide(s.id, this.tier), color, RING_RADIUS * this.ringScale);
+    badge.layout(geo, badgeSide(s.id, this.tier), color, BADGE_RING_RADIUS * this.ringScale);
   }
 
   private labelFor(s: SystemNode, kind: SpecialKind, special: SpecialSystem): string {
@@ -214,8 +207,10 @@ export class SpecialLayer implements MapLayer {
 
   private makeBadge(id: number, geo: BadgeGeometry): Badge {
     const badge = new Badge(geo);
-    badge.plate.on("pointerover", (e: FederatedPointerEvent) => this.hover(id, e.global));
-    badge.plate.on("pointerout", () => this.unhover(id));
+    badge.onPlateHover(
+      (at) => this.hover(id, at),
+      () => this.unhover(id),
+    );
     this.container.addChild(badge.root);
     return badge;
   }
@@ -225,7 +220,7 @@ export class SpecialLayer implements MapLayer {
     const special = s && this.classify(s);
     if (!special) return;
     this.hovered = id;
-    useMapChromeStore.getState().showTooltip({
+    this.tip.show({
       x: at.x,
       y: at.y,
       title: kindLabel(special.primary),
@@ -236,7 +231,7 @@ export class SpecialLayer implements MapLayer {
   private unhover(id: number): void {
     if (this.hovered !== id) return;
     this.hovered = null;
-    useMapChromeStore.getState().hideTooltip();
+    this.tip.hide();
   }
 
   private remove(id: number): void {

@@ -1,6 +1,5 @@
 import { BRUSH_TOOLS, type BrushTool, type EraseTarget, type StrokeKind } from "./brushTools";
 import {
-  LaneIndex,
   laneSegments,
   meshWithin,
   provisionalId,
@@ -21,7 +20,7 @@ import {
 import { MESH_BETA, meshPairs, type MeshPoint } from "../geometry/mesh";
 import { comparePairs, pairOf, PairSet, type Pair } from "../geometry/pairs";
 import type { Pt } from "../geometry/pt";
-import { SegmentIndex, segmentsCross } from "../geometry/segments";
+import { SegmentIndex, segmentsCross, type Segment } from "../geometry/segments";
 import { seeded } from "../random";
 import type { SpatialGrid } from "../spatialGrid";
 import { counted } from "../text";
@@ -77,7 +76,7 @@ function medianNearest(points: readonly MeshPoint[]): number {
 /** The galaxy a stroke is laid over, fixed at its start, and what each kind of stroke asks of it. */
 class StrokeGround {
   readonly r: number;
-  private laneIndex: LaneIndex | null = null;
+  private laneIndex: SegmentIndex<MeshPoint> | null = null;
 
   constructor(
     readonly settings: BrushSettings,
@@ -97,8 +96,11 @@ class StrokeGround {
   }
 
   /** The existing lanes whose bounding box comes within `d` of some point. */
-  lanesNear(points: readonly Pt[], d: number): Array<[MeshPoint, MeshPoint]> {
-    this.laneIndex ??= new LaneIndex(laneSegments(this.systems.values()));
+  lanesNear(points: readonly Pt[], d: number): Array<Segment<MeshPoint>> {
+    if (!this.laneIndex) {
+      this.laneIndex = new SegmentIndex();
+      for (const { a, b } of laneSegments(this.systems.values())) this.laneIndex.add(a, b);
+    }
     return this.laneIndex.near(points, d);
   }
 
@@ -123,12 +125,12 @@ class StrokeGround {
     pairs: readonly Pair[],
     count: number,
     at: (id: number) => Pt,
-    existing: ReadonlyArray<readonly [Pt, Pt]>,
+    existing: readonly Segment[],
     keep: (a: number, b: number) => boolean = () => true,
   ): Pair[] {
     const length = ([a, b]: Pair) => Math.hypot(at(a).x - at(b).x, at(a).y - at(b).y);
     const lanes = new SegmentIndex();
-    for (const [a, b] of existing) lanes.add(a, b);
+    for (const { a, b } of existing) lanes.add(a, b);
     const seen = new PairSet();
     const out: Pair[] = [];
     for (const pair of [...pairs].sort((p, q) => length(p) - length(q))) {

@@ -12,7 +12,7 @@ import {
 } from "./countryKinds";
 import { supersededCountry, systemsOf, type Ownership } from "./ownership";
 import { kindLabel } from "./special";
-import { titleCase } from "./text";
+import { counted, titleCase } from "./text";
 
 export { issueTitle };
 
@@ -82,7 +82,7 @@ export function empireGroup(country: CountryNode, types: CountryTypes): EmpireGr
 }
 
 function subline(where: string, count: number): string {
-  return `${where} · ${count} ${count === 1 ? "system" : "systems"}`;
+  return `${where} · ${counted(count, "system")}`;
 }
 
 function empireRow(country: CountryNode, index: number, lookups: RowLookups): EmpireRow {

@@ -16,7 +16,7 @@ architecture `docs/adr/`, and the in-game checks a change must pass
 - **The save is edited as bytes.** `sgf-core` holds the original
   `gamestate` bytes once and applies patches keyed to original offsets
   (one slot per entity). Untouched bytes are copied verbatim on save.
-  Load → save with no edits is byte-identical, and a test asserts it.
+  Load → save with no edits is byte-identical, and is tested.
   Never re-serialise the file, a section or an entity from a typed model.
 - **Never rely on indentation.** The game writes keys at column 0 at any
   depth. Structure comes from brace counting; emitted text copies the
@@ -47,7 +47,9 @@ because the file dialog already asked about overwriting it.
   emit, projections, ops, validator, session, the scenario export,
   entity addressing for the inspector, search, IPC view types.
 - `crates/sgf-gamedata`: the user's install and its mods, read at
-  runtime: definitions, localisation, scripts and textures.
+  runtime: definitions, localisation, scripts and textures, and the
+  generator that rolls a system to add to a save from the install's
+  rules.
 - `crates/sgf-cli`: the `sgf` binary; also the test harness.
 - `app/`: Vite + React + TypeScript; `app/src-tauri` is the Tauri crate,
   `sgf-app`.
@@ -59,9 +61,11 @@ because the file dialog already asked about overwriting it.
   which slice of the UI and which stylesheet.
 - `app/src/test/`: builders and stand-ins shared by the tests of every
   layer.
-- `app/src/generated/`: TypeScript types exported by ts-rs. Generated:
-  regenerate with `cargo test --workspace` (`sgf-core`, `sgf-gamedata` and
-  `sgf-app`, via its `views.rs`, all export types); never hand-edit.
+- `app/src/generated/`: TypeScript types exported by ts-rs, and
+  `constants.ts`, the core's rules the app reads too, written by
+  `crates/sgf-core/tests/constants.rs`. Generated: regenerate with
+  `cargo test --workspace` (`sgf-core`, `sgf-gamedata` and `sgf-app`, via
+  its `views.rs`, all export types); never hand-edit.
 - `testdata/`: save corpus via git-lfs (`2206.11.16.sav`, Stellaris
   4.4, early game; `2201.03.25.sav`, Stellaris 4.5.0, day one, the
   player empire has Independent Map Color on; `2200.04.11.sav`,
@@ -76,7 +80,9 @@ because the file dialog already asked about overwriting it.
   save's galaxy exported as a plain scenario and for Paint a Galaxy.
   `paint_a_galaxy.txt` is a scenario as the Paint a Galaxy mod writes
   one, and `scenario_grammar.txt` holds every statement shape the
-  scenario grammar allows.
+  scenario grammar allows. `mura.json` and `dorellion.json` are
+  add-system specs, one system each, that the core and CLI tests add to
+  the sample saves.
 - `docs/`: the user guide, the architecture, the save format notes, the
   game data and mod notes, the Paint a Galaxy integration notes, and the
   ADRs.
@@ -97,17 +103,24 @@ because the file dialog already asked about overwriting it.
 - `cd app && npm run tauri dev` (one instance per machine)
 - `cargo test --workspace` also regenerates `app/src/generated/`; commit
   what it writes.
-- `cargo test --release -p sgf-core corpus` times opening the saves in
-  `SGF_CORPUS_DIR` against the budget, and round-trips the scenario
-  scripts in `SGF_SCENARIO_DIR`. Both are skipped when the variable is
-  unset, so run it in release after touching the load path.
+- `cargo test --release -p sgf-core --test corpus --test scenario_corpus
+  -- --nocapture` runs both corpus binaries. `corpus` times opening the
+  saves in `SGF_CORPUS_DIR` against the budget, adds a system to each
+  4.x save and removes it, and exports each save for Paint a Galaxy.
+  `scenario_corpus` round-trips the scenario scripts in
+  `SGF_SCENARIO_DIR`. Each is skipped
+  when its variable is unset, so run them in release after touching the
+  load path.
 - `SGF_REQUIRE_INSTALL=1` turns the tests that skip without a real
   Stellaris install into failures.
-- `ci.yml` runs all of the above on Windows, Ubuntu and macOS, on every
-  PR, and is also called by `release.yml` on every push to `main`. It also
-  runs `bash scripts/version.sh check`. A change that touches only
-  documentation (`*.md`, `docs/`, `LICENSE`, the PR template) skips the
-  build; `ci-docs.yml` reports the required checks as passed for it.
+- `ci.yml` runs on every PR that changes more than documentation, and is
+  also called by `release.yml` on every push to `main`. It runs `bash scripts/version.sh check` and `cargo test
+  --workspace` on Windows, Ubuntu and macOS, and fmt, clippy, the diff of
+  `app/src/generated/`, lint, Vitest and the app build on Ubuntu only.
+  A change that touches only documentation (`*.md`, `docs/`, `LICENSE`,
+  `.gitattributes` and `.gitignore`, listed in `scripts/docs-only.sh`)
+  skips the build, and `ci-docs.yml` reports the required checks as
+  passed for it; for any other change it reports nothing.
 
 ## When the game updates
 
@@ -120,6 +133,11 @@ because the file dialog already asked about overwriting it.
   `crates/sgf-core/src/keys.rs` names every key, `docs/format-notes.md`
   records the shape. The key-presence test in `keys.rs` fails naming any
   key the game no longer writes.
+- Compare the start event `game_start.50` and the define
+  `SPAWN_SYSTEM_BUFFER_DISTANCE` with the copies in
+  `crates/sgf-core/src/format/save/write/game_tables.rs`
+  (`docs/game-data-notes.md` lists what they hold). The tests do not
+  read them from the install, so a change there fails nothing.
 - A new major or minor version gets its save added to `testdata/` under
   LFS, so the tests cover it from then on.
 - Run the in-game checks in `.github/pull_request_template.md`.

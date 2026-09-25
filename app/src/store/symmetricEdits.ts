@@ -16,7 +16,7 @@ import {
 } from "../lib/geometry/symmetry";
 import { enabledScriptFor, nextSystemId } from "../lib/paint";
 import { counted } from "../lib/text";
-import { isPrevented, useGalaxyStore } from "./galaxyStore";
+import { isPrevented, linked, useGalaxyStore } from "./galaxyStore";
 import { useToolStore } from "./toolStore";
 
 function symmetry(): Symmetry {
@@ -123,13 +123,8 @@ function counterpartLanes(
   return [...out.values()];
 }
 
-function linked(a: number, b: number): boolean {
-  return (
-    useGalaxyStore
-      .getState()
-      .systems.get(a)
-      ?.lanes.some((l) => l.to === b) ?? false
-  );
+function joined(a: number, b: number): boolean {
+  return linked(useGalaxyStore.getState().systems, a, b);
 }
 
 function barred(a: number, b: number): boolean {
@@ -242,14 +237,14 @@ export function plannedMoveOp(plan: MovePlan, op: MoveOp): Op {
 }
 
 function addLanes(op: Op, lanes: readonly LanePair[]): Op {
-  const all = counterpartLanes(lanes, (a, b) => !linked(a, b) && !barred(a, b));
+  const all = counterpartLanes(lanes, (a, b) => !joined(a, b) && !barred(a, b));
   const wide: Op = { type: "AddLanePairs", lanes: all };
   return widened(op, all.length > lanes.length, wide, `Added ${counted(all.length, "lane")}`);
 }
 
 function cutLanes(op: Op, pairs: readonly Pair[]): Op {
   const lanes = pairs.map(([a, b]) => ({ a, b, bridge: false }));
-  const all = counterpartLanes(lanes, linked).map(({ a, b }) => pairOf(a, b));
+  const all = counterpartLanes(lanes, joined).map(({ a, b }) => pairOf(a, b));
   const wide: Op = { type: "RemoveLanePairs", lanes: all };
   return widened(op, all.length > pairs.length, wide, `Cut ${counted(all.length, "lane")}`);
 }
@@ -276,8 +271,8 @@ function oneEdit(ops: Op[], description: string): Op | null {
  * it a pair joined by a lane is left out, as the core refuses to prevent it.
  */
 export function preventOp(pairs: readonly Pair[], cutting: boolean): Op | null {
-  const cuts = (a: number, b: number) => cutting && linked(a, b);
-  const prevents = (a: number, b: number) => !barred(a, b) && (cutting || !linked(a, b));
+  const cuts = (a: number, b: number) => cutting && joined(a, b);
+  const prevents = (a: number, b: number) => !barred(a, b) && (cutting || !joined(a, b));
   const wanted = (a: number, b: number) => cuts(a, b) || prevents(a, b);
   const all = counterpartPairs(pairs, wanted).filter(([a, b]) => wanted(a, b));
   const cut = all.filter(([a, b]) => cuts(a, b));

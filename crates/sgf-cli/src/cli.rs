@@ -204,7 +204,8 @@ pub enum Command {
     /// With --generate the system is rolled from the install's own rules instead:
     ///   sgf add-system game.sav --generate --seed 7 --at -310,-95 --lane 169 -o out.sav
     /// and --star-class sc_g rolls it around that star, or --layout trappist_initializer
-    /// builds that layout (`sgf special-layouts` lists the special ones).
+    /// builds that layout (`sgf special-layouts` lists the special ones). --then-reroll 8
+    /// rolls it again from seed 8, keeping its name, position and lanes.
     #[command(verbatim_doc_comment)]
     AddSystem {
         sav: PathBuf,
@@ -215,41 +216,54 @@ pub enum Command {
             conflicts_with = "generate"
         )]
         spec: Vec<PathBuf>,
-        /// Remove this system again before saving, as the app's undo history allows for a
-        /// system added in the same session; the systems added after it take the id below.
+        /// Remove this system again before saving if this command added it, as the app
+        /// deletes a system added in the same session; the systems added after it take the
+        /// ids below. Repeat for more; the file's own systems among them are left alone.
         #[arg(long, value_name = "ID")]
-        then_remove: Option<u32>,
+        then_remove: Vec<u32>,
         /// Roll a random system from the install's initializers and classes.
         #[arg(long)]
         generate: bool,
         /// What the generated system is rolled from; the same seed gives the same system.
-        #[arg(long, requires = "generate", required_if_eq("generate", "true"))]
+        #[arg(long, conflicts_with = "spec", required_if_eq("generate", "true"))]
         seed: Option<u64>,
         /// Where the generated system stands, as `X,Y`.
         #[arg(
             long,
             value_parser = point,
             allow_hyphen_values = true,
-            requires = "generate",
+            conflicts_with = "spec",
             required_if_eq("generate", "true")
         )]
         at: Option<(f64, f64)>,
         /// A system the generated one is joined to by a hyperlane; repeatable.
-        #[arg(long = "lane", requires = "generate")]
+        #[arg(long = "lane", conflicts_with = "spec")]
         lanes: Vec<u32>,
         /// The generated system's name; one left in the save's pool of star names otherwise,
         /// or one of the install's star names no system of the save holds.
-        #[arg(long, requires = "generate")]
+        #[arg(long, conflicts_with = "spec")]
         name: Option<String>,
         /// The generated system's star class (`sc_g`), drawn among the layouts that make it.
-        #[arg(long, requires = "generate", conflicts_with = "layout")]
+        #[arg(long, conflicts_with_all = ["spec", "layout"])]
         star_class: Option<String>,
         /// The initializer to build the generated system from, plain or special.
-        #[arg(long, requires = "generate")]
+        #[arg(long, conflicts_with = "spec")]
         layout: Option<String>,
-        /// Print the generated spec as JSON and write nothing, so it takes no --then-remove.
-        #[arg(long, requires = "generate", conflicts_with = "then_remove")]
+        /// Print the generated spec as JSON and write nothing, so it takes no --then-remove
+        /// or --then-reroll.
+        #[arg(
+            long,
+            conflicts_with = "spec",
+            conflicts_with_all = ["then_remove", "then_reroll"]
+        )]
         print_spec: bool,
+        /// Roll the generated system again from this seed before saving, around
+        /// --star-class when given, keeping its name, position and lanes.
+        #[arg(long, value_name = "SEED", conflicts_with = "spec")]
+        then_reroll: Option<u64>,
+        /// On --then-reroll, build a system of a Special menu layout from that layout again.
+        #[arg(long, requires = "then_reroll")]
+        keep_special: bool,
         #[command(flatten)]
         install: InstallArg,
         #[command(flatten)]
@@ -316,9 +330,12 @@ pub enum NebulaCommand {
         y: f64,
         #[arg(allow_negative_numbers = true)]
         radius: f64,
-        /// The name key the statement carries.
+        /// The name key the statement carries; one from the save's pool or the install's
+        /// nebula names otherwise, as the app names a new nebula.
         #[arg(long)]
         name: Option<String>,
+        #[command(flatten)]
+        install: InstallArg,
         #[command(flatten)]
         out: OutArg,
     },
