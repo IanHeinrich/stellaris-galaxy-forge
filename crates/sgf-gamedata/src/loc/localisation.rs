@@ -68,6 +68,31 @@ impl Localisation {
         self.map.get(key).map(String::as_str)
     }
 
+    /// The display text of `key`, when it has any.
+    pub fn name(&self, key: &str) -> Option<String> {
+        self.get(key).filter(|text| !text.is_empty())
+    }
+
+    /// The display text of `key`, or the key made readable when it has none.
+    pub fn name_or_readable(&self, key: &str) -> String {
+        self.name(key).unwrap_or_else(|| Self::readable(key))
+    }
+
+    /// `star_lifting_system` as `Star Lifting System`.
+    pub fn readable(key: &str) -> String {
+        key.split('_')
+            .filter(|word| !word.is_empty())
+            .map(|word| {
+                let mut chars = word.chars();
+                chars
+                    .next()
+                    .map(|first| first.to_uppercase().chain(chars).collect::<String>())
+                    .unwrap_or_default()
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
     /// The display text: `$ref$` resolved, icon, colour and scope markup
     /// removed, whitespace trimmed. Memoised, as the callers ask for the
     /// same key once per system or per row.

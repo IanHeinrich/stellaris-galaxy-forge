@@ -8,30 +8,24 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use sgf_core::archive;
-use sgf_core::cst::Node;
 use sgf_core::session::Session;
 use ts_rs::TS;
 
 use crate::GameData;
-use crate::body_effects::{self, Check};
-use crate::generate;
-use crate::initializers::{InitAsteroidBelt, InitPlanet, Initializer, expand};
+use crate::body_effects;
+use crate::condition::{Condition, Subject};
+use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::script::Range;
-use crate::registries::star_classes::StarClass;
+use crate::registries::scripted_triggers::ScriptedTriggers;
+use crate::registries::star_classes::{StarClass, StarList};
+
+pub use crate::menu::{SpecialLayout, menu_initializers, special_layouts};
 
 /// The `usage` of the initializers a galaxy fills its ordinary systems with.
 pub const USAGE: &str = "misc_system_init";
 /// The star flag of the game's unique systems, which its timeline reads when an empire
 /// takes control of one.
 pub const UNIQUE_SYSTEM: &str = "unique_system";
-/// The body written as `class = star`, which takes the star class's own planet class.
-pub(crate) const STAR: &str = "star";
-/// A body whose class the engine draws.
-pub(crate) const RANDOM: &str = "random";
-/// A body whose class the engine draws among the classes that can be colonised, or the
-/// ones that cannot.
-pub(crate) const RANDOM_COLONIZABLE: &str = "random_colonizable";
-pub(crate) const RANDOM_NON_COLONIZABLE: &str = "random_non_colonizable";
 
 /// What the generator makes of a layout.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -103,6 +97,21 @@ impl fmt::Display for Unsupported {
 
 /// What the generator makes of `init`.
 pub fn eligibility(gd: &GameData, init: &Initializer) -> Eligibility {
+    match gd.eligibility().get(&init.name) {
+        Some(known) => known.clone(),
+        None => judge(gd, init),
+    }
+}
+
+/// The layouts [`crate::generate::generate`] rolls at random.
+pub fn plain_initializers(gd: &GameData) -> Vec<&Initializer> {
+    gd.initializers
+        .iter()
+        .filter(|i| eligibility(gd, i) == Eligibility::Plain)
+        .collect()
+}
+
+pub(crate) fn judge(gd: &GameData, init: &Initializer) -> Eligibility {
     if plain(gd, init) {
         return Eligibility::Plain;
     }
@@ -110,11 +119,6 @@ pub fn eligibility(gd: &GameData, init: &Initializer) -> Eligibility {
         Some(why) => Eligibility::Unsupported(why),
         None => Eligibility::Special,
     }
-}
-
-/// The layouts [`crate::generate::generate`] rolls at random.
-pub fn plain_initializers(gd: &GameData) -> Vec<&Initializer> {
-    gd.initializers.iter().filter(|i| plain(gd, i)).collect()
 }
 
 /// The layouts a user picks by name, in the install's key order.
@@ -151,16 +155,73 @@ impl SaveFacts {
     pub fn in_galaxy(&self, layout: &str) -> u32 {
         self.layouts.get(layout).copied().unwrap_or(0)
     }
+
+    /// The DLC `init`'s odds need, and whether this save has it.
+    pub fn dlc_need(&self, gd: &GameData, init: &Initializer) -> Option<DlcNeed> {
+        required_dlc(gd, init).map(|name| DlcNeed {
+            met: self.has_dlc(&name),
+            name,
+        })
+    }
+
+    /// The save's `required_dlcs` lists `dlc`.
+    pub fn has_dlc(&self, dlc: &str) -> bool {
+        self.dlcs.contains(dlc)
+    }
 }
 
-/// The weight a galaxy draws `init` with: its `usage_odds`, or their `base` with each
-/// `modifier` whose conditions hold added and multiplied in, in order. A DLC check is
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct DlcNeed {
+    /// As `host_has_dlc` and the save's `required_dlcs` name it.
+    pub name: String,
+    /// The save's `required_dlcs` lists it.
+    pub met: bool,
+}
+
+/// A condition judged by the DLC alone, as a layout's odds and a body's `if`s are.
+pub(crate) struct Dlc<'a> {
+    has: Box<dyn Fn(&str) -> bool + 'a>,
+    triggers: &'a ScriptedTriggers,
+}
+
+impl<'a> Dlc<'a> {
+    /// The DLC of `save`, or every DLC without one.
+    pub(crate) fn of(gd: &'a GameData, save: Option<&'a SaveFacts>) -> Self {
+        Self {
+            has: Box::new(move |dlc| save.is_none_or(|save| save.has_dlc(dlc))),
+            triggers: &gd.scripted_triggers,
+        }
+    }
+
+    /// Every DLC but `missing`.
+    fn without(gd: &'a GameData, missing: &'a str) -> Self {
+        Self {
+            has: Box::new(move |dlc| dlc != missing),
+            triggers: &gd.scripted_triggers,
+        }
+    }
+}
+
+impl Subject for Dlc<'_> {
+    fn leaf(&self, leaf: &Condition) -> Option<bool> {
+        match leaf {
+            Condition::HostDlc(dlc) => Some((self.has)(dlc)),
+            _ => None,
+        }
+    }
+
+    fn triggers(&self) -> Option<&ScriptedTriggers> {
+        Some(self.triggers)
+    }
+}
+
+/// The weight a galaxy draws `init` with: its `usage_odds`, as a number or as a
+/// [`crate::weight::Weight`] block. A DLC check is
 /// answered from `save`, and holds without one. Any other condition (a cluster, the
 /// galaxy's setup, a neighbour) is taken as unmet, and so is the modifier it is part of.
 pub fn odds(gd: &GameData, init: &Initializer, save: Option<&SaveFacts>) -> f64 {
-    odds_with(gd, init, &|dlc| {
-        save.is_none_or(|save| save.dlcs.contains(dlc))
-    })
+    odds_with(init, &Dlc::of(gd, save))
 }
 
 /// A layout with no fixed system name and no `max_instances`: one a star-class pick may
@@ -169,32 +230,11 @@ pub fn generic(init: &Initializer) -> bool {
     init.display_name.is_none() && init.max_instances.is_none()
 }
 
-fn odds_with(gd: &GameData, init: &Initializer, has_dlc: &dyn Fn(&str) -> bool) -> f64 {
-    if let Some(odds) = init.usage_odds {
-        return odds;
+fn odds_with(init: &Initializer, dlc: &Dlc<'_>) -> f64 {
+    match (&init.usage_weight, init.usage_odds) {
+        (Some(weight), _) => weight.evaluate(dlc),
+        (None, odds) => odds.unwrap_or(0.0),
     }
-    let Some(def) = gd.initializers.def(&init.name) else {
-        return 0.0;
-    };
-    let src = &def.src;
-    let Some(block) = def.node.find("usage_odds", src) else {
-        return 0.0;
-    };
-    let number = |node: &Node, key: &str| {
-        node.find(key, src)
-            .and_then(|n| n.scalar_str(src))
-            .and_then(|text| def.number_of(text))
-    };
-    let mut odds = number(block, "base").unwrap_or(0.0);
-    for modifier in block.find_all("modifier", src) {
-        let check = Check::compile(modifier, def, &["factor", "add"]);
-        if check.decide(gd, has_dlc) != Some(true) {
-            continue;
-        }
-        odds += number(modifier, "add").unwrap_or(0.0);
-        odds *= number(modifier, "factor").unwrap_or(1.0);
-    }
-    odds
 }
 
 /// An ordinary system of one star, drawn from a star list, with no effects, flags,
@@ -212,11 +252,8 @@ fn plain(gd: &GameData, init: &Initializer) -> bool {
         && init.max_instances.is_none()
         && init.spawns.is_empty()
         && init.starbase.is_none()
-        && init
-            .class
-            .as_deref()
-            .is_some_and(|list| single_star_list(gd, list))
-        && star.class == STAR
+        && single_star_list(gd, init)
+        && star.class == BodyClass::Star
         && star.count == Range::fixed(1.0)
         && star.orbit_distance.is_none_or(|d| d == Range::fixed(0.0))
         && rest.iter().all(|planet| {
@@ -233,35 +270,46 @@ pub(crate) fn belt_measured(belt: &InitAsteroidBelt) -> bool {
     !belt.kind.is_empty() && belt.radius.is_some()
 }
 
-fn asteroid(gd: &GameData, class: &str) -> bool {
-    gd.planet_classes.get(class).is_some_and(|c| c.asteroid)
+fn asteroid(gd: &GameData, class: &BodyClass) -> bool {
+    class
+        .named()
+        .and_then(|key| gd.planet_classes.get(key))
+        .is_some_and(|c| c.asteroid)
 }
 
 /// A star list whose every class has one star body.
-fn single_star_list(gd: &GameData, list: &str) -> bool {
-    gd.star_lists.get(list).is_some_and(|list| {
-        list.stars.iter().all(|key| {
-            gd.star_classes
-                .get(key)
-                .is_some_and(|class| class.planet_keys.len() == 1)
-        })
+fn single_star_list(gd: &GameData, init: &Initializer) -> bool {
+    let StarSource::List(list) = star_source(gd, init) else {
+        return false;
+    };
+    list.stars.iter().all(|key| {
+        gd.star_classes
+            .get(key)
+            .is_some_and(|class| class.planet_keys.len() == 1)
     })
 }
 
 /// A random body, or one of a fixed class that is no star; an asteroid only when
 /// `asteroids` allows it.
 fn plain_body(gd: &GameData, body: &InitPlanet, asteroids: bool) -> bool {
-    let class = body.class == RANDOM
-        || gd
+    let class = match &body.class {
+        BodyClass::Random(None) => true,
+        BodyClass::Named(key) => gd
             .planet_classes
-            .get(&body.class)
-            .is_some_and(|class| !class.star && (asteroids || !class.asteroid));
+            .get(key)
+            .is_some_and(|class| !class.star && (asteroids || !class.asteroid)),
+        _ => false,
+    };
     class && !body.colonised && !body.pre_ftl && body.sites.is_empty()
 }
 
 /// Whether `class`, as a layout writes it, is a star's planet class.
-pub(crate) fn star_body(gd: &GameData, class: &str) -> bool {
-    class == STAR || gd.planet_classes.get(class).is_some_and(|c| c.star)
+pub(crate) fn star_body(gd: &GameData, class: &BodyClass) -> bool {
+    match class {
+        BodyClass::Star => true,
+        BodyClass::Named(key) => gd.planet_classes.get(key).is_some_and(|c| c.star),
+        BodyClass::Random(_) => false,
+    }
 }
 
 fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
@@ -318,16 +366,15 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
 fn unwritten(gd: &GameData, body: &InitPlanet) -> Option<String> {
     body.unwritten
         .clone()
-        .or_else(|| body_effects::undecided(gd, &body.effects))
+        .or_else(|| body_effects::undecided(&body.effects, &Dlc::of(gd, None)))
         .or_else(|| body.moons.iter().find_map(|moon| unwritten(gd, moon)))
 }
 
 fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
-    let key = init.class.as_deref().unwrap_or_default();
-    let stars: Vec<&str> = match (gd.star_classes.get(key), gd.star_lists.get(key)) {
-        (Some(_), _) => vec![key],
-        (None, Some(list)) => list.stars.iter().map(String::as_str).collect(),
-        (None, None) => return Some(Unsupported::NoStar),
+    let stars: Vec<&str> = match star_source(gd, init) {
+        StarSource::Fixed(class) => vec![class.key.as_str()],
+        StarSource::List(list) => list.stars.iter().map(String::as_str).collect(),
+        StarSource::Unknown => return Some(Unsupported::NoStar),
     };
     let mut counts = stars
         .iter()
@@ -338,7 +385,11 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if counts.any(|count| count != Some(1)) {
         return Some(Unsupported::MultiStar);
     }
-    let star_blocks = init.planets.iter().filter(|p| p.class == STAR).count();
+    let star_blocks = init
+        .planets
+        .iter()
+        .filter(|p| p.class == BodyClass::Star)
+        .count();
     let Some(star) = init.planets.iter().find(|p| star_body(gd, &p.class)) else {
         return Some(Unsupported::NoStar);
     };
@@ -346,7 +397,7 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
         return Some(Unsupported::MultiStar);
     }
     match layout_stars(gd, init).is_empty() {
-        true => Some(Unsupported::StarMismatch(star.class.clone())),
+        true => Some(Unsupported::StarMismatch(star.class.written().to_owned())),
         false => None,
     }
 }
@@ -356,22 +407,20 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
 /// star is that class, and when the layout names none, takes the install's that are:
 /// `oasis_system` writes `sc_m` with a red giant, and so gives `sc_m_giant`.
 pub(crate) fn layout_stars<'g>(gd: &'g GameData, init: &Initializer) -> Vec<&'g StarClass> {
-    let key = init.class.as_deref().unwrap_or_default();
-    let stars: Vec<&StarClass> = match (gd.star_classes.get(key), gd.star_lists.get(key)) {
-        (Some(fixed), _) => vec![fixed],
-        (None, Some(list)) => list
+    let stars: Vec<&StarClass> = match star_source(gd, init) {
+        StarSource::Fixed(fixed) => vec![fixed],
+        StarSource::List(list) => list
             .stars
             .iter()
             .filter_map(|star| gd.star_classes.get(star))
             .collect(),
-        (None, None) => Vec::new(),
+        StarSource::Unknown => Vec::new(),
     };
     let written = init
         .planets
         .iter()
         .find(|p| star_body(gd, &p.class))
-        .map(|p| p.class.as_str())
-        .filter(|&class| class != STAR);
+        .and_then(|p| p.class.named());
     let Some(class) = written else {
         return stars;
     };
@@ -380,6 +429,26 @@ pub(crate) fn layout_stars<'g>(gd: &'g GameData, init: &Initializer) -> Vec<&'g 
     match agreeing.is_empty() {
         true => gd.star_classes.iter().filter(is).collect(),
         false => agreeing,
+    }
+}
+
+/// What an initializer's `class` names.
+pub(crate) enum StarSource<'g> {
+    /// One star class.
+    Fixed(&'g StarClass),
+    /// A list the star class is drawn from.
+    List(&'g StarList),
+    /// Neither a star class nor a list of the install.
+    Unknown,
+}
+
+/// What `init`'s `class` names; a star class wins over a list of the same key.
+pub(crate) fn star_source<'g>(gd: &'g GameData, init: &Initializer) -> StarSource<'g> {
+    let key = init.class.as_deref().unwrap_or_default();
+    match (gd.star_classes.get(key), gd.star_lists.get(key)) {
+        (Some(fixed), _) => StarSource::Fixed(fixed),
+        (None, Some(list)) => StarSource::List(list),
+        (None, None) => StarSource::Unknown,
     }
 }
 
@@ -393,7 +462,7 @@ fn body_unsupported(gd: &GameData, body: &InitPlanet, moon: bool) -> Option<Unsu
         return Some(Unsupported::PreFtl);
     }
     if !drawable(gd, &body.class) {
-        return Some(Unsupported::Body(body.class.clone()));
+        return Some(Unsupported::Body(body.class.written().to_owned()));
     }
     if !body.moons.is_empty() && (moon || asteroid(gd, &body.class)) {
         return Some(Unsupported::Moons);
@@ -405,195 +474,15 @@ fn body_unsupported(gd: &GameData, body: &InitPlanet, moon: bool) -> Option<Unsu
 
 /// A class the generator can give a body: the star, a class of the install, one of the
 /// engine's random draws, or one of the install's planet lists.
-fn drawable(gd: &GameData, class: &str) -> bool {
-    matches!(
-        class,
-        STAR | RANDOM | RANDOM_COLONIZABLE | RANDOM_NON_COLONIZABLE
-    ) || gd.planet_classes.get(class).is_some()
-        || gd.planet_lists.get(class).is_some_and(|list| {
+fn drawable(gd: &GameData, class: &BodyClass) -> bool {
+    let Some(key) = class.named() else {
+        return true;
+    };
+    gd.planet_classes.get(key).is_some()
+        || gd.planet_lists.get(key).is_some_and(|list| {
             list.iter()
                 .any(|listed| gd.planet_classes.get(listed).is_some())
         })
-}
-
-/// One entry of the Special menu.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct SpecialLayout {
-    /// The initializer's key, which the added system records.
-    pub key: String,
-    /// The localised fixed system name, else the notable bodies, modifiers and belts:
-    /// `Arboreal World`. A layout with none of them, and labels that would repeat once they
-    /// take their belts, have the key made readable: `Star Lifting System`.
-    pub label: String,
-    /// Its `flags` set [`UNIQUE_SYSTEM`]: one of the game's unique systems, which the menu
-    /// lists apart from its other special systems.
-    pub unique: bool,
-    /// It has `max_instances`, which an add counts in `system_initializer_counter`.
-    pub capped: bool,
-    /// How many systems of the save record it as their `initializer`.
-    pub in_galaxy: u32,
-    /// The DLC its odds rule it out without, when they check one.
-    pub dlc: Option<DlcNeed>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct DlcNeed {
-    /// As `host_has_dlc` and the save's `required_dlcs` name it.
-    pub name: String,
-    /// The save's `required_dlcs` lists it.
-    pub met: bool,
-}
-
-/// The special layouts the Special menu offers: all but those a star-class pick of
-/// [`crate::generate::generate`] already draws, in the install's key order.
-pub fn menu_initializers(gd: &GameData) -> Vec<&Initializer> {
-    let drawn: HashSet<&str> = generate::star_pick_layouts(gd)
-        .into_iter()
-        .map(|init| init.name.as_str())
-        .collect();
-    special_initializers(gd)
-        .into_iter()
-        .filter(|init| !drawn.contains(init.name.as_str()))
-        .collect()
-}
-
-/// The Special menu's entries for `session`'s save, by label.
-pub fn special_layouts(gd: &GameData, session: &Session) -> Vec<SpecialLayout> {
-    let save = SaveFacts::read(session);
-    let layouts = menu_initializers(gd);
-    let labels = labels(gd, &layouts);
-    let mut entries: Vec<SpecialLayout> = layouts
-        .into_iter()
-        .zip(labels)
-        .map(|(init, label)| SpecialLayout {
-            key: init.name.clone(),
-            label,
-            unique: init.flags.iter().any(|flag| flag == UNIQUE_SYSTEM),
-            capped: init.max_instances.is_some(),
-            in_galaxy: save.in_galaxy(&init.name),
-            dlc: required_dlc(gd, init).map(|name| DlcNeed {
-                met: save.dlcs.contains(&name),
-                name,
-            }),
-        })
-        .collect();
-    entries.sort_by(|a, b| a.label.cmp(&b.label).then_with(|| a.key.cmp(&b.key)));
-    entries
-}
-
-/// What a label is built from: the fixed name, or the notable bodies and modifiers, and the
-/// belts that tell it from another. A phenomenon's card shows its star, so its label
-/// leaves the star out.
-struct LabelParts {
-    main: Vec<String>,
-    belts: Vec<String>,
-}
-
-/// A label for each of `layouts`, no two alike.
-fn labels(gd: &GameData, layouts: &[&Initializer]) -> Vec<String> {
-    let parts: Vec<LabelParts> = layouts.iter().map(|init| label_parts(gd, init)).collect();
-    let mut labels: Vec<String> = parts
-        .iter()
-        .zip(layouts)
-        .map(|(parts, init)| {
-            let main = match parts.main.is_empty() {
-                true => &parts.belts,
-                false => &parts.main,
-            };
-            match main.is_empty() {
-                true => readable(&init.name),
-                false => main.join(", "),
-            }
-        })
-        .collect();
-    let base = labels.clone();
-    for (i, part) in parts.iter().enumerate() {
-        if repeated(&base, i) && !part.main.is_empty() && !part.belts.is_empty() {
-            labels[i] = [part.main.clone(), part.belts.clone()].concat().join(", ");
-        }
-    }
-    let first = labels.clone();
-    for (i, init) in layouts.iter().enumerate() {
-        if !repeated(&first, i) {
-            continue;
-        }
-        let uncapped: Vec<usize> = (0..layouts.len())
-            .filter(|&j| first[j] == first[i] && layouts[j].max_instances.is_none())
-            .collect();
-        if uncapped != [i] {
-            labels[i] = readable(&init.name);
-        }
-    }
-    labels
-}
-
-fn repeated(labels: &[String], i: usize) -> bool {
-    labels
-        .iter()
-        .enumerate()
-        .any(|(j, label)| j != i && *label == labels[i])
-}
-
-fn label_parts(gd: &GameData, init: &Initializer) -> LabelParts {
-    let loc = |key: &str| gd.loc.get(key).unwrap_or_else(|| readable(key));
-    let mut belts: Vec<String> = Vec::new();
-    for belt in &init.asteroid_belts {
-        let name = readable(&belt.kind);
-        if !belts.contains(&name) {
-            belts.push(name);
-        }
-    }
-    if let Some(name) = &init.display_name {
-        let main = gd.loc.get(name).unwrap_or_else(|| readable(&init.name));
-        return LabelParts {
-            main: vec![main],
-            belts,
-        };
-    }
-    let mut main: Vec<String> = Vec::new();
-    let mut push = |part: String| {
-        if !main.contains(&part) {
-            main.push(part);
-        }
-    };
-    for body in expand(&init.planets)
-        .skip_while(|b| !star_body(gd, &b.block.class))
-        .skip(1)
-    {
-        if let Some(class) = resolved(gd, &body.block.class).filter(|c| notable(gd, c)) {
-            push(loc(class));
-        }
-        for modifier in body_effects::modifiers(&body.block.effects) {
-            push(loc(modifier));
-        }
-    }
-    LabelParts { main, belts }
-}
-
-/// The one class a body can be: its fixed class, or the only class of its planet list.
-fn resolved<'a>(gd: &'a GameData, class: &'a str) -> Option<&'a str> {
-    match gd.planet_lists.get(class) {
-        Some(list) if list.len() == 1 => Some(list[0].as_str()),
-        Some(_) => None,
-        None => Some(class),
-    }
-}
-
-/// `star_lifting_system` as `Star Lifting System`.
-pub(crate) fn readable(key: &str) -> String {
-    key.split('_')
-        .filter(|word| !word.is_empty())
-        .map(|word| {
-            let mut chars = word.chars();
-            chars
-                .next()
-                .map(|first| first.to_uppercase().chain(chars).collect::<String>())
-                .unwrap_or_default()
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 /// A fixed class no random draw gives, asteroids aside: a broken world, a black hole.
@@ -607,13 +496,12 @@ pub(crate) fn notable(gd: &GameData, class: &str) -> bool {
 /// `factor = 0` on `has_distar = no` or `NOT = { host_has_dlc = … }`, or a base of 0 that
 /// only `add = … host_has_dlc = …` raises.
 pub(crate) fn required_dlc(gd: &GameData, init: &Initializer) -> Option<String> {
-    let def = gd.initializers.def(&init.name)?;
-    let odds = def.node.find("usage_odds", &def.src)?;
+    let weight = init.usage_weight.as_ref()?;
     let mut named: Vec<String> = Vec::new();
-    for modifier in odds.find_all("modifier", &def.src) {
-        Check::compile(modifier, def, &["factor", "add"]).dlcs(gd, &mut named);
+    for modifier in &weight.modifiers {
+        modifier.when.dlcs(&gd.scripted_triggers, &mut named);
     }
     named
         .into_iter()
-        .find(|missing| odds_with(gd, init, &|dlc| dlc != missing) <= 0.0)
+        .find(|missing| odds_with(init, &Dlc::without(gd, missing)) <= 0.0)
 }

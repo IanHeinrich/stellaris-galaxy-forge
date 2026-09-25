@@ -1,35 +1,9 @@
 //! `common/defines`: the `NGraphics` constants the map uses to draw territory
 //! borders, and the `NGameplay` ones that set how many deposits a new body rolls.
 
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use sgf_core::cst::Node;
 
-use crate::Diagnostic;
-use crate::install::layers::Layout;
-use crate::install::script;
-
-type Parsed = (Node, Arc<[u8]>);
-
-/// Every file under `common/defines` in load order, each read and parsed once, so a
-/// broken file is reported once however many readers look at it. `None` where it failed.
-pub(crate) struct DefineFiles(Vec<(PathBuf, Option<Parsed>)>);
-
-impl DefineFiles {
-    pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Self {
-        Self(
-            layout
-                .files_in("common/defines")
-                .into_iter()
-                .map(|file| {
-                    let parsed = script::parse_file(&file, diagnostics);
-                    (file, parsed)
-                })
-                .collect(),
-        )
-    }
-}
+use crate::install::script::ParsedDir;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BorderDefines {
@@ -47,25 +21,20 @@ impl Default for BorderDefines {
 }
 
 impl BorderDefines {
-    pub(crate) fn load(files: &DefineFiles) -> Self {
-        let Some((root, src)) = files
-            .0
-            .iter()
-            .find(|(file, _)| file.file_name().is_some_and(|f| f == "00_defines.txt"))
-            .and_then(|(_, parsed)| parsed.as_ref())
-        else {
-            return Self::default();
-        };
-        let Some(graphics) = root.find("NGraphics", src) else {
-            return Self::default();
-        };
-        let defaults = Self::default();
-        Self {
-            system_radius: field(graphics, "BORDER_SYSTEM_RADIUS", src)
-                .unwrap_or(defaults.system_radius),
-            hyperlane_thickness: field(graphics, "BORDER_HYPERLANE_THICKNESS", src)
-                .unwrap_or(defaults.hyperlane_thickness),
+    /// Every file under `common/defines` in order, a later value replacing an earlier one.
+    pub(crate) fn load(files: &ParsedDir) -> Self {
+        let mut out = Self::default();
+        for (root, src) in files.roots() {
+            for graphics in root.find_all("NGraphics", src) {
+                if let Some(radius) = field(graphics, "BORDER_SYSTEM_RADIUS", src) {
+                    out.system_radius = radius;
+                }
+                if let Some(thickness) = field(graphics, "BORDER_HYPERLANE_THICKNESS", src) {
+                    out.hyperlane_thickness = thickness;
+                }
+            }
         }
+        out
     }
 }
 
@@ -139,9 +108,9 @@ impl Default for DepositDefines {
 }
 
 impl DepositDefines {
-    pub(crate) fn load(files: &DefineFiles) -> Self {
+    pub(crate) fn load(files: &ParsedDir) -> Self {
         let mut out = Self::default();
-        for (root, src) in files.0.iter().filter_map(|(_, parsed)| parsed.as_ref()) {
+        for (root, src) in files.roots() {
             for gameplay in root.find_all("NGameplay", src) {
                 out.read(gameplay, src);
             }

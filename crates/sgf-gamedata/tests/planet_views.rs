@@ -285,6 +285,7 @@ fn install_new_registries_raise_no_diagnostics() {
         "planet_modifiers",
         "colony_types",
         "scripted_variables",
+        "planet_classes",
     ];
     let raised: Vec<_> = gd
         .diagnostics

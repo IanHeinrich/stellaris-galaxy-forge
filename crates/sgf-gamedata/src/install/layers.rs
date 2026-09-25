@@ -20,7 +20,7 @@ pub struct Layer {
     pub replace_paths: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Layout {
     pub install: PathBuf,
     pub user_dir: Option<PathBuf>,
@@ -65,6 +65,23 @@ impl Layout {
         roots
             .filter_map(|root| root.canonicalize().ok())
             .any(|root| file.starts_with(root))
+    }
+
+    /// The layer `path` was read from, and the path below its root with forward slashes:
+    /// the deepest root that holds it, case aside, and the later layer of two alike.
+    pub fn layer_of(&self, path: &Path) -> Option<(&Layer, String)> {
+        let path = path.to_string_lossy().replace('\\', "/");
+        let lower = path.to_ascii_lowercase();
+        self.layers
+            .iter()
+            .rev()
+            .filter_map(|layer| {
+                let root = layer.root.to_string_lossy().replace('\\', "/");
+                let root = root.trim_end_matches('/').to_ascii_lowercase();
+                let rest = lower.strip_prefix(&root)?.strip_prefix('/')?;
+                Some((layer, path[path.len() - rest.len()..].to_owned()))
+            })
+            .min_by_key(|(_, rel)| rel.len())
     }
 
     /// The winning `.txt` file per filename directly under `rel_dir`

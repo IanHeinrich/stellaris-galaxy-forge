@@ -108,7 +108,7 @@ pub struct ScriptIndex {
     parsed: Mutex<HashMap<PathBuf, Option<Arc<ParsedScript>>>>,
     /// Initializer chains walked on demand, one per initializer key.
     chains: Mutex<HashMap<String, Arc<Chain>>>,
-    layers: Vec<(PathBuf, String)>,
+    layout: Layout,
 }
 
 /// The directories read for their own sake, and whether a CST failure in one
@@ -139,11 +139,7 @@ impl ScriptIndex {
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Self {
         let mut index = Self {
-            layers: layout
-                .layers
-                .iter()
-                .map(|l| (l.root.clone(), l.name.clone()))
-                .collect(),
+            layout: layout.clone(),
             ..Self::default()
         };
         // A mod overriding a vanilla effect is the point of a mod, not a
@@ -264,7 +260,7 @@ impl ScriptIndex {
 
     /// A reference to `line` of `file`, named by the layer the file came from.
     pub fn script_ref(&self, file: &Path, line: u32) -> ScriptRef {
-        script_ref(&self.layers, file, line)
+        script_ref(&self.layout, file, line)
     }
 
     /// The reference to a node's first byte, in the file its `Def` came from.
@@ -307,7 +303,7 @@ impl ScriptIndex {
     fn record(&mut self, file: &Path, bytes: &[u8], dir: Dir, kind: SiteKind) {
         let scanned = scan::scan(bytes, dir);
         for hit in scanned.hits {
-            let location = script_ref(&self.layers, file, hit.line);
+            let location = script_ref(&self.layout, file, hit.line);
             self.refs.entry(hit.token).or_default().push(RefSite {
                 verb: hit.verb,
                 owner: hit.owner,
@@ -316,7 +312,7 @@ impl ScriptIndex {
             });
         }
         for write in scanned.global_writes {
-            let location = script_ref(&self.layers, file, write.line);
+            let location = script_ref(&self.layout, file, write.line);
             self.global_writes
                 .entry(write.token)
                 .or_default()
@@ -331,7 +327,7 @@ impl ScriptIndex {
             self.fired_by.entry(fired.event).or_default().push(fired.by);
         }
         for event in scanned.events {
-            let location = script_ref(&self.layers, file, event.line);
+            let location = script_ref(&self.layout, file, event.line);
             if location.layer != VANILLA {
                 self.mod_events
                     .entry(event.id.clone())
@@ -368,7 +364,7 @@ impl ScriptIndex {
         let mut blocks = Vec::new();
         created_countries(&root, bytes, &mut blocks);
         for (block, next) in blocks {
-            let location = script_ref(&self.layers, file, line_of(bytes, block.span().start));
+            let location = script_ref(&self.layout, file, line_of(bytes, block.span().start));
             let Some(mut country) = read_country(block, bytes, location) else {
                 continue;
             };
@@ -403,7 +399,7 @@ impl ScriptIndex {
                 continue;
             };
             let flag = def.node.find("empire_flag", src);
-            let location = script_ref(&self.layers, &def.file, line_of(src, def.node.span().start));
+            let location = script_ref(&self.layout, &def.file, line_of(src, def.node.span().start));
             self.prescripted.insert(
                 initializer.to_owned(),
                 Prescripted {
@@ -503,17 +499,11 @@ fn flag_ref(flag: &Node, key: &str, src: &[u8]) -> Option<FlagRef> {
     })
 }
 
-fn script_ref(layers: &[(PathBuf, String)], file: &Path, line: u32) -> ScriptRef {
-    let (relative, layer) = layers
-        .iter()
-        .rev()
-        .find_map(|(root, name)| Some((file.strip_prefix(root).ok()?, name.as_str())))
-        .unwrap_or((file, "unknown"));
-    let path = relative
-        .components()
-        .map(|c| c.as_os_str().to_string_lossy())
-        .collect::<Vec<_>>()
-        .join("/");
+fn script_ref(layout: &Layout, file: &Path, line: u32) -> ScriptRef {
+    let (path, layer) = match layout.layer_of(file) {
+        Some((layer, rel)) => (rel, layer.name.as_str()),
+        None => (file.to_string_lossy().replace('\\', "/"), "unknown"),
+    };
     ScriptRef {
         file: Some(file.display().to_string()),
         display: format!("{path}:{line}"),

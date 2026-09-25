@@ -8,8 +8,10 @@ use std::fs;
 
 use sgf_core::ops::{BodySpec, SystemSpec};
 use sgf_gamedata::GameData;
-use sgf_gamedata::deposit_roll::{RollBody, roll_deposits};
+use sgf_gamedata::deposit_roll::{NewBody, RollBody, roll_deposits};
 use sgf_gamedata::generate::generate;
+use sgf_gamedata::layouts::odds;
+use sgf_gamedata::rng::Rng;
 
 use common::INSTALL;
 
@@ -22,7 +24,7 @@ const FILES: [(&str, &str); 8] = [
     ),
     (
         "common/defines/99_fx.txt",
-        "NGameplay = {\n\tMIN_BLOCKED_DEPOSITS = 2\n}\n",
+        "NGameplay = {\n\tMIN_BLOCKED_DEPOSITS = 2\n}\nNGraphics = {\n\tBORDER_SYSTEM_RADIUS = 40\n}\n",
     ),
     (
         "common/planet_classes/00_fx.txt",
@@ -58,7 +60,7 @@ const FILES: [(&str, &str); 8] = [
     ),
     (
         "common/deposits/01_fx_features.txt",
-        "d_fx_farmland = {\n\tcategory = deposit_cat_food\n\tis_for_colonizable = yes\n\tpotential = { is_wet = yes }\n\tdrop_weight = { weight = 10 }\n}\n\
+        "d_fx_farmland = {\n\tcategory = deposit_cat_food\n\tis_for_colonizable = yes\n\tuse_for_min_max_adjustments = yes\n\tpotential = { is_wet = yes }\n\tdrop_weight = { weight = 10 }\n}\n\
          d_fx_dry_farmland = {\n\tcategory = deposit_cat_food\n\tis_for_colonizable = yes\n\tpotential = { is_wet = no }\n}\n\
          d_fx_blocker = {\n\tcategory = deposit_cat_blockers\n\tis_for_colonizable = yes\n\
          \tdrop_weight = {\n\t\tweight = 2\n\t\tmodifier = { factor = 0 planet_size < 10 }\n\t\tmodifier = { factor = 0 num_free_districts = { type = district_city value < 2 } }\n\t}\n}\n\
@@ -92,19 +94,6 @@ fn install(files: &[(&str, &str)]) -> (tempfile::TempDir, GameData) {
     (dir, gd)
 }
 
-/// SplitMix64 in `[0, 1)`, the stream the generator draws from.
-fn stream(seed: u64) -> impl FnMut() -> f64 {
-    let mut state = seed;
-    move || {
-        state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = state;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^= z >> 31;
-        (z >> 11) as f64 / (1u64 << 53) as f64
-    }
-}
-
 fn body(class: &str, size: u32) -> RollBody<'_> {
     RollBody {
         class,
@@ -116,7 +105,7 @@ fn body(class: &str, size: u32) -> RollBody<'_> {
 
 /// The share of `n` rolls of `body` that got a deposit, and every key seen.
 fn share(gd: &GameData, body: &RollBody<'_>, abundance: f64, n: u32) -> (f64, BTreeSet<String>) {
-    let mut unit = stream(7);
+    let mut unit = Rng::new(7);
     let mut with = 0;
     let mut seen = BTreeSet::new();
     for _ in 0..n {
@@ -129,16 +118,7 @@ fn share(gd: &GameData, body: &RollBody<'_>, abundance: f64, n: u32) -> (f64, BT
 }
 
 fn blockers(gd: &GameData, rolled: &[String]) -> usize {
-    rolled
-        .iter()
-        .filter(|key| {
-            gd.deposits
-                .get(key)
-                .and_then(|d| d.category.as_deref())
-                .and_then(|c| gd.deposit_categories.get(c))
-                .is_some_and(|c| c.blocker)
-        })
-        .count()
+    rolled.iter().filter(|key| gd.is_blocker(key)).count()
 }
 
 fn keys(items: &[&str]) -> BTreeSet<String> {
@@ -150,6 +130,8 @@ fn a_hand_written_install_reads_its_defines_in_file_order() {
     let (_dir, gd) = hand_written();
     let defines = &gd.deposit_defines;
     assert_eq!(defines.min_blocked, 2.0, "the later file wins");
+    assert_eq!(gd.border.system_radius, 40.0, "the later file wins");
+    assert_eq!(gd.border.hyperlane_thickness, 20.0);
     assert_eq!(defines.min_unblocked, 3.0);
     assert_eq!(defines.colony.draws(20.0), 15);
     assert_eq!(defines.colony.minimum(20.0), 9);
@@ -157,11 +139,8 @@ fn a_hand_written_install_reads_its_defines_in_file_order() {
     assert_eq!(defines.abundance(None), 2.0);
     assert_eq!(defines.abundance(Some(0.25)), 0.25);
     let unmarked = gd.deposits.get("d_fx_unmarked").unwrap();
-    assert!(!unmarked.roll.for_colonizable);
-    assert!(
-        unmarked.is_for_colonizable,
-        "the planet page still reads a missing key as colonizable"
-    );
+    assert!(!unmarked.is_for_colonizable, "a missing key reads as no");
+    assert!(!unmarked.orbital(), "no station works it");
 }
 
 #[test]
@@ -200,7 +179,10 @@ fn a_parameterised_or_planet_scoped_condition_rolls_nothing() {
             .get(key)
             .unwrap()
             .condition
-            .unknown_keys(&gd.scripted_triggers, &mut unknown);
+            .unknown_keys(
+                &NewBody::new(&gd, &body("pc_fx_rock", 15), &[]),
+                &mut unknown,
+            );
         assert_eq!(unknown, keys(&[key]), "its meaning depends on the caller");
     }
     let (_, seen) = share(&gd, &body("pc_fx_rock", 15), 5.0, 2_000);
@@ -245,7 +227,7 @@ fn a_hand_written_star_always_gets_exactly_one() {
         star: true,
         ..body("pc_fx_star", 25)
     };
-    let mut unit = stream(3);
+    let mut unit = Rng::new(3);
     let mut tally: BTreeMap<String, u32> = BTreeMap::new();
     for _ in 0..4_000 {
         let rolled = roll_deposits(&gd, &star, 0.25, &mut unit);
@@ -260,7 +242,7 @@ fn a_hand_written_star_always_gets_exactly_one() {
 #[test]
 fn a_hand_written_habitable_world_gets_its_counts_and_minimums() {
     let (_dir, gd) = hand_written();
-    let mut unit = stream(11);
+    let mut unit = Rng::new(11);
     for size in [8, 12, 20] {
         let meadow = body("pc_fx_meadow", size);
         let most = (7.0 + 0.4 * f64::from(size)) as usize + 2 + 3;
@@ -269,9 +251,8 @@ fn a_hand_written_habitable_world_gets_its_counts_and_minimums() {
             let rolled = roll_deposits(&gd, &meadow, 0.25, &mut unit);
             let blocked = blockers(&gd, &rolled);
             assert!((least..=most).contains(&rolled.len()), "{rolled:?}");
-            match size {
-                8 => assert_eq!(blocked, 0, "no blocker can drop below size 10: {rolled:?}"),
-                _ => assert!(blocked >= 2, "size {size}: {rolled:?}"),
+            if size == 8 {
+                assert_eq!(blocked, 0, "no blocker can drop below size 10: {rolled:?}");
             }
             assert!(rolled.len() - blocked >= 3, "{rolled:?}");
             assert!(
@@ -286,12 +267,117 @@ fn a_hand_written_habitable_world_gets_its_counts_and_minimums() {
     }
 }
 
+/// A habitable world that draws nothing but its top-ups, beside flagged and unflagged
+/// deposits of each kind; the unflagged ones far outweigh the flagged.
+const TOP_UPS: [(&str, &str); 5] = [
+    (
+        "common/defines/00_defines.txt",
+        "NGameplay = {\n\tMIN_BLOCKED_DEPOSITS = 1\n\tMIN_UNBLOCKED_DEPOSITS = 3\n\
+         \tCOLONY_DEPOSITS_FIXED_BASE = 0\n\tCOLONY_DEPOSITS_RANDOM_BASE = 0\n\
+         \tCOLONY_DEPOSITS_FIXED_FROM_SIZE = 0\n\tCOLONY_DEPOSITS_RANDOM_FROM_SIZE = 0\n}\n",
+    ),
+    (
+        "common/planet_classes/00_fx.txt",
+        "pc_fx_meadow = {\n\tcolonizable = yes\n\tplanet_size = 15\n}\n",
+    ),
+    (
+        "common/deposit_categories/00_fx.txt",
+        "deposit_cat_blockers = {\n\tblocker = yes\n}\ndeposit_cat_food = {}\n",
+    ),
+    (
+        "common/deposits/00_fx.txt",
+        "d_fx_rubble = {\n\tcategory = deposit_cat_blockers\n\tis_for_colonizable = yes\n\tdrop_weight = { weight = 100 }\n}\n\
+         d_fx_marked_rubble = {\n\tcategory = deposit_cat_blockers\n\tis_for_colonizable = yes\n\tuse_for_min_max_adjustments = yes\n}\n\
+         d_fx_plain = {\n\tcategory = deposit_cat_food\n\tis_for_colonizable = yes\n\tdrop_weight = { weight = 100 }\n}\n\
+         d_fx_marked = {\n\tcategory = deposit_cat_food\n\tis_for_colonizable = yes\n\tuse_for_min_max_adjustments = yes\n}\n",
+    ),
+    ("localisation/english/fx_l_english.yml", "l_english:\n"),
+];
+
+#[test]
+fn a_habitable_world_is_topped_up_only_from_deposits_flagged_for_it() {
+    let (_dir, gd) = install(&TOP_UPS);
+    let meadow = body("pc_fx_meadow", 15);
+    let mut unit = Rng::new(19);
+    for _ in 0..200 {
+        assert_eq!(
+            roll_deposits(&gd, &meadow, 2.0, &mut unit),
+            [
+                "d_fx_marked_rubble",
+                "d_fx_marked",
+                "d_fx_marked",
+                "d_fx_marked"
+            ]
+        );
+    }
+
+    let unflagged: Vec<(&str, String)> = TOP_UPS
+        .iter()
+        .map(|&(rel, text)| {
+            (
+                rel,
+                text.replace("\tuse_for_min_max_adjustments = yes\n", ""),
+            )
+        })
+        .collect();
+    let unflagged: Vec<(&str, &str)> = unflagged.iter().map(|(rel, t)| (*rel, &**t)).collect();
+    let (_dir, gd) = install(&unflagged);
+    assert!(
+        roll_deposits(&gd, &meadow, 2.0, &mut unit).is_empty(),
+        "no deposit is flagged, so nothing tops the world up"
+    );
+}
+
+/// A layout's odds and a star's deposit weight, each from a base of 1 and one modifier
+/// that both adds 1 and multiplies by 3, beside a deposit that weighs 4.
+const ADD_AND_FACTOR: [(&str, &str); 5] = [
+    (
+        "common/star_classes/00_fx.txt",
+        "sc_fx = {\n\tclass = fx_star\n\tplanet = { key = pc_fx_star }\n\tspawn_odds = 1\n}\n",
+    ),
+    (
+        "common/planet_classes/00_fx.txt",
+        "pc_fx_star = {\n\tstar = yes\n\tplanet_size = 20\n}\n",
+    ),
+    (
+        "common/solar_system_initializers/00_fx.txt",
+        "fx_both = {\n\tclass = sc_fx\n\tusage = misc_system_init\n\
+         \tusage_odds = {\n\t\tbase = 1\n\t\tmodifier = { add = 1 factor = 3 host_has_dlc = \"Fx Pack\" }\n\t}\n\
+         \tplanet = { class = star orbit_distance = 0 }\n}\n",
+    ),
+    (
+        "common/deposits/00_fx.txt",
+        "d_fx_both = {\n\tis_for_colonizable = no\n\tdrop_weight = {\n\t\tweight = 1\n\t\tmodifier = { add = 1 factor = 3 }\n\t}\n}\n\
+         d_fx_four = {\n\tis_for_colonizable = no\n\tdrop_weight = { weight = 4 }\n}\n",
+    ),
+    ("localisation/english/fx_l_english.yml", "l_english:\n"),
+];
+
+#[test]
+fn a_modifier_that_adds_and_multiplies_weighs_a_layout_and_a_deposit_alike() {
+    let (_dir, gd) = install(&ADD_AND_FACTOR);
+    let layout = gd.initializers.get("fx_both").expect("fx_both");
+    assert_eq!(odds(&gd, layout, None), 4.0, "1 times 3, plus 1");
+
+    let star = RollBody {
+        star: true,
+        ..body("pc_fx_star", 20)
+    };
+    let mut unit = Rng::new(23);
+    let draws = 20_000;
+    let both = (0..draws)
+        .filter(|_| roll_deposits(&gd, &star, 2.0, &mut unit) == ["d_fx_both"])
+        .count();
+    let share = both as f64 / f64::from(draws);
+    assert!((share - 0.5).abs() < 0.02, "weighed 4 against 4: {share}");
+}
+
 #[test]
 fn the_same_stream_rolls_the_same_deposits() {
     let (_dir, gd) = hand_written();
     let meadow = body("pc_fx_meadow", 16);
-    let first = roll_deposits(&gd, &meadow, 2.0, &mut stream(42));
-    assert_eq!(roll_deposits(&gd, &meadow, 2.0, &mut stream(42)), first);
+    let first = roll_deposits(&gd, &meadow, 2.0, &mut Rng::new(42));
+    assert_eq!(roll_deposits(&gd, &meadow, 2.0, &mut Rng::new(42)), first);
 }
 
 /// The share of fresh bodies with a deposit per class in the 4.4 and 4.5 day-one saves, at
@@ -307,9 +393,9 @@ const TALLIES: [(&str, f64); 8] = [
     ("pc_toxic", 0.322),
 ];
 
-fn size_of(gd: &GameData, class: &str, unit: &mut impl FnMut() -> f64) -> u32 {
+fn size_of(gd: &GameData, class: &str, rng: &mut Rng) -> u32 {
     let range = gd.planet_classes.get(class).unwrap().planet_size.unwrap();
-    (range.min + (range.max - range.min) * unit()).round() as u32
+    (range.min + (range.max - range.min) * rng.unit()).round() as u32
 }
 
 #[test]
@@ -317,7 +403,7 @@ fn the_real_install_matches_the_tallied_shares_at_abundance_2() {
     let Some(gd) = INSTALL.as_ref() else { return };
     common::parallel(TALLIES.len(), |i| {
         let (class, want) = TALLIES[i];
-        let mut unit = stream(5 + i as u64);
+        let mut unit = Rng::new(5 + i as u64);
         let n = 6_000;
         let mut with = 0;
         for _ in 0..n {
@@ -335,7 +421,7 @@ fn the_real_install_matches_the_tallied_shares_at_abundance_2() {
 #[test]
 fn the_real_install_gives_every_star_one_deposit() {
     let Some(gd) = INSTALL.as_ref() else { return };
-    let mut unit = stream(9);
+    let mut unit = Rng::new(9);
     for class in [
         "pc_a_star",
         "pc_b_star",
@@ -426,8 +512,8 @@ fn the_real_install_gives_habitable_worlds_the_same_counts_and_blockers_at_every
     const ABUNDANCES: [f64; 3] = [0.25, 2.0, 5.0];
     let means = common::parallel(ABUNDANCES.len(), |i| {
         let abundance = ABUNDANCES[i];
-        let mut unit = stream(13 + i as u64);
-        let (mut total, mut blocked_total, mut n) = (0, 0, 0u32);
+        let mut unit = Rng::new(13 + i as u64);
+        let (mut total, mut blocked_total, mut unblocked, mut n) = (0, 0, 0u32, 0u32);
         for (class, size, planets) in HABITABLE_MIX {
             let habitable = body(class, size);
             for _ in 0..planets * 80 {
@@ -444,13 +530,13 @@ fn the_real_install_gives_habitable_worlds_the_same_counts_and_blockers_at_every
                     rolled.iter().all(|k| !nulls.contains(k.as_str())),
                     "{rolled:?}"
                 );
-                assert!(blocked as f64 >= defines.min_blocked, "{class}: {rolled:?}");
                 assert!(
                     (rolled.len() - blocked) as f64 >= defines.min_unblocked,
                     "{class}: {rolled:?}"
                 );
                 total += rolled.len();
                 blocked_total += blocked;
+                unblocked += u32::from(blocked == 0);
                 n += 1;
             }
             assert!(roll_deposits(gd, &habitable, 0.0, &mut unit).is_empty());
@@ -465,6 +551,11 @@ fn the_real_install_gives_habitable_worlds_the_same_counts_and_blockers_at_every
         assert!(
             (2.4..=2.9).contains(&mean_blocked),
             "2.5 to 2.8 in the saves, {mean_blocked} at {abundance}"
+        );
+        let none = f64::from(unblocked) / f64::from(n);
+        assert!(
+            (0.03..=0.2).contains(&none),
+            "7 of 80 and 9 of 79 unowned habitable worlds in the saves have no blocker, {none} at {abundance}"
         );
         (mean, mean_blocked)
     });
@@ -482,7 +573,7 @@ fn the_real_install_leaves_no_body_empty_at_the_maximum_and_all_at_zero() {
     let Some(gd) = INSTALL.as_ref() else { return };
     let max = gd.deposit_defines.abundance_max;
     assert_eq!(max, 5.0);
-    let mut unit = stream(17);
+    let mut unit = Rng::new(17);
     for (class, _) in TALLIES {
         for moon in [false, true] {
             for _ in 0..300 {
@@ -502,14 +593,14 @@ fn the_real_install_leaves_no_body_empty_at_the_maximum_and_all_at_zero() {
 fn the_real_install_uses_no_condition_the_roll_cannot_judge() {
     let Some(gd) = INSTALL.as_ref() else { return };
     let mut unknown = BTreeSet::new();
+    let habitable = body("pc_continental", 15);
+    let new = NewBody::new(gd, &habitable, &[]);
     for deposit in gd.deposits.iter() {
         if let Some(potential) = &deposit.roll.potential {
-            potential.unknown_keys(&gd.scripted_triggers, &mut unknown);
+            potential.unknown_keys(&new, &mut unknown);
         }
         for modifier in &deposit.roll.drop_weight.modifiers {
-            modifier
-                .when
-                .unknown_keys(&gd.scripted_triggers, &mut unknown);
+            modifier.when.unknown_keys(&new, &mut unknown);
         }
     }
     assert!(unknown.is_empty(), "{unknown:?}");
@@ -555,7 +646,7 @@ fn a_generated_system_rolls_deposits_on_every_kind_of_body_at_abundance_2() {
             }
             if class.colonizable {
                 assert!(
-                    body.deposits.len() >= 4 && blockers(gd, &body.deposits) >= 1,
+                    body.deposits.len() >= 4,
                     "seed {seed}: {} {:?}",
                     body.class,
                     body.deposits
@@ -570,18 +661,5 @@ fn a_generated_system_rolls_deposits_on_every_kind_of_body_at_abundance_2() {
     for kind in ["asteroid", "planet", "moon"] {
         let (bodies, with) = seen[kind];
         assert!(with > 0 && with < bodies, "{kind}: {seen:?}");
-    }
-}
-
-#[test]
-fn a_generated_system_rolls_no_deposits_at_abundance_0() {
-    let Some(gd) = INSTALL.as_ref() else {
-        return;
-    };
-    for seed in 0..300 {
-        let spec = generate_at(gd, seed, 0.0);
-        for (body, _) in generated(&spec) {
-            assert!(body.deposits.is_empty(), "seed {seed}: {body:?}");
-        }
     }
 }

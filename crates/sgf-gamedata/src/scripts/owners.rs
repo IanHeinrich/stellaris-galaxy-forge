@@ -192,7 +192,7 @@ fn claim(
     };
     let judged = Facts::from(view);
     for claim in gd.scripts.claims().for_flags(view.star_flags) {
-        let verdict = claim.trigger.evaluate(&judged);
+        let verdict = claim.trigger.verdict(&judged);
         if !verdict.holds {
             continue;
         }

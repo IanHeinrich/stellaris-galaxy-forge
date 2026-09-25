@@ -7,9 +7,9 @@ use crate::common;
 use std::collections::BTreeSet;
 
 use sgf_gamedata::GameData;
+use sgf_gamedata::condition::Condition;
 use sgf_gamedata::scripts::claims::{Claim, ClaimEffect, DAY_ONE_DAYS, OwnerExpr};
 use sgf_gamedata::scripts::facts::{self, ScenarioFacts};
-use sgf_gamedata::scripts::trigger::Trigger;
 use sgf_gamedata::scripts::{
     OwnerTier, ReferenceVia, ScenarioOwners, ScenarioSystem, ScriptRowKind, ScriptTiming,
     SystemColony,
@@ -112,13 +112,13 @@ fn a_game_start_sweep_claims_every_system_carrying_the_flag_its_limit_names() {
     assert_eq!(claim.required_flags, ["fixture_claimed"]);
     assert_eq!(
         claim.trigger,
-        Trigger::All(vec![
-            Trigger::All(vec![Trigger::Not(Box::new(Trigger::Any(vec![
-                Trigger::Starbase
+        Condition::All(vec![
+            Condition::All(vec![Condition::Not(Box::new(Condition::Any(vec![
+                Condition::Exists("starbase".to_owned())
             ])))]),
-            Trigger::All(vec![
-                Trigger::StarFlag("fixture_claimed".to_owned()),
-                Trigger::GlobalFlag("fixture_map_spawned".to_owned()),
+            Condition::All(vec![
+                Condition::StarFlag("fixture_claimed".to_owned()),
+                Condition::GlobalFlag("fixture_map_spawned".to_owned()),
             ]),
         ]),
         "the loop's own limit and the branch's",
@@ -144,17 +144,17 @@ fn a_later_branch_carries_the_negation_of_the_one_before_it() {
     assert_eq!(claim.required_flags, ["fixture_scoped"]);
     assert_eq!(
         claim.trigger,
-        Trigger::All(vec![
-            Trigger::All(vec![Trigger::Not(Box::new(Trigger::Any(vec![
-                Trigger::Starbase
+        Condition::All(vec![
+            Condition::All(vec![Condition::Not(Box::new(Condition::Any(vec![
+                Condition::Exists("starbase".to_owned())
             ])))]),
-            Trigger::Not(Box::new(Trigger::All(vec![
-                Trigger::StarFlag("fixture_claimed".to_owned()),
-                Trigger::GlobalFlag("fixture_map_spawned".to_owned()),
+            Condition::Not(Box::new(Condition::All(vec![
+                Condition::StarFlag("fixture_claimed".to_owned()),
+                Condition::GlobalFlag("fixture_map_spawned".to_owned()),
             ]))),
-            Trigger::All(vec![
-                Trigger::StarFlag("fixture_scoped".to_owned()),
-                Trigger::Unknown,
+            Condition::All(vec![
+                Condition::StarFlag("fixture_scoped".to_owned()),
+                Condition::Call("is_capital".to_owned(), true),
             ]),
         ]),
     );

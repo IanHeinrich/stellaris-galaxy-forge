@@ -6,9 +6,22 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::initializers::Initializer;
 use crate::install::layers::Layout;
 use crate::loc::localisation::Localisation;
-use crate::registries::{colors, registry};
+use crate::registries::bypasses::BypassDef;
+use crate::registries::colony_types::ColonyTypeDef;
+use crate::registries::country_types::CountryType;
+use crate::registries::deposit_categories::DepositCategory;
+use crate::registries::deposits::DepositDef;
+use crate::registries::planet_classes::PlanetClassDef;
+use crate::registries::planet_modifiers::PlanetModifierDef;
+use crate::registries::registry::FromDef;
+use crate::registries::scripted_triggers::ScriptedTrigger;
+use crate::registries::ship_sizes::ShipSizeDef;
+use crate::registries::star_classes::StarClass;
+use crate::registries::static_modifiers::StaticModifierDef;
+use crate::registries::{colors, registry, star_names};
 use crate::scripts::ScriptIndex;
 use crate::{Bypasses, Colors, CountryTypes, Diagnostic, GameData, Initializers};
 
@@ -24,9 +37,14 @@ pub enum RegistryKind {
     Localisation,
     /// `common/scripted_variables`, which every definition can read: a change rereads all.
     Variables,
+    /// The definitions the generator and the planet page read (deposits and their
+    /// categories, star and planet classes and their lists, scripted triggers, modifiers,
+    /// colony types, ship sizes, defines, random names). They feed one another and are
+    /// never rebuilt apart: a change rereads all.
+    Definitions,
 }
 
-const ALL: [RegistryKind; 7] = [
+const ALL: [RegistryKind; 8] = [
     RegistryKind::Initializers,
     RegistryKind::Scripts,
     RegistryKind::CountryTypes,
@@ -34,22 +52,39 @@ const ALL: [RegistryKind; 7] = [
     RegistryKind::Colors,
     RegistryKind::Localisation,
     RegistryKind::Variables,
+    RegistryKind::Definitions,
+];
+
+/// The `.txt` directories each registry's loader reads, by path below a layer root.
+const DIRS: [(&str, RegistryKind); 20] = [
+    (Initializer::DIR, RegistryKind::Initializers),
+    ("common/scripted_effects", RegistryKind::Scripts),
+    ("events", RegistryKind::Scripts),
+    ("common/on_actions", RegistryKind::Scripts),
+    ("prescripted_countries", RegistryKind::Scripts),
+    ("common/scripted_variables", RegistryKind::Variables),
+    (CountryType::DIR, RegistryKind::CountryTypes),
+    (BypassDef::DIR, RegistryKind::Bypasses),
+    (DepositDef::DIR, RegistryKind::Definitions),
+    (DepositCategory::DIR, RegistryKind::Definitions),
+    (StarClass::DIR, RegistryKind::Definitions),
+    (PlanetClassDef::DIR, RegistryKind::Definitions),
+    (ScriptedTrigger::DIR, RegistryKind::Definitions),
+    (StaticModifierDef::DIR, RegistryKind::Definitions),
+    (PlanetModifierDef::DIR, RegistryKind::Definitions),
+    (ColonyTypeDef::DIR, RegistryKind::Definitions),
+    (ShipSizeDef::DIR, RegistryKind::Definitions),
+    ("common/starbase_levels", RegistryKind::Definitions),
+    ("common/defines", RegistryKind::Definitions),
+    (star_names::DIR, RegistryKind::Definitions),
 ];
 
 impl RegistryKind {
     /// The registry `path` feeds, by its path relative to the layer root it
     /// sits under. A path under no root, or one no loader reads, is `None`.
     pub fn classify(layout: &Layout, path: &Path) -> Option<Self> {
-        let path = lower(path);
-        let rel = layout
-            .layers
-            .iter()
-            .filter_map(|layer| {
-                path.strip_prefix(lower(&layer.root).trim_end_matches('/'))?
-                    .strip_prefix('/')
-            })
-            .min_by_key(|rel| rel.len())?;
-        Self::of_relative(rel)
+        let (_, rel) = layout.layer_of(path)?;
+        Self::of_relative(&rel.to_ascii_lowercase())
     }
 
     pub fn as_str(self) -> &'static str {
@@ -61,29 +96,18 @@ impl RegistryKind {
             Self::Colors => "colors",
             Self::Localisation => "localisation",
             Self::Variables => "variables",
+            Self::Definitions => "definitions",
         }
     }
 
     fn of_relative(rel: &str) -> Option<Self> {
-        let txt = |dir: &str| rel.ends_with(".txt") && rel.starts_with(dir);
-        if txt("common/solar_system_initializers/") {
-            return Some(Self::Initializers);
-        }
-        if txt("common/scripted_effects/")
-            || txt("events/")
-            || txt("common/on_actions/")
-            || txt("prescripted_countries/")
+        if rel.ends_with(".txt")
+            && let Some((_, kind)) = DIRS.iter().find(|(dir, _)| {
+                rel.strip_prefix(dir)
+                    .is_some_and(|below| below.starts_with('/'))
+            })
         {
-            return Some(Self::Scripts);
-        }
-        if txt("common/scripted_variables/") {
-            return Some(Self::Variables);
-        }
-        if txt("common/country_types/") {
-            return Some(Self::CountryTypes);
-        }
-        if txt("common/bypass/") {
-            return Some(Self::Bypasses);
+            return Some(*kind);
         }
         if rel
             .strip_prefix("flags/")
@@ -111,10 +135,11 @@ impl GameData {
     /// Reread `kinds` from disk, sharing every other registry with `self`.
     /// A registry that comes back empty when the old one was not keeps the
     /// old one and raises [`Diagnostic::RebuildFailed`]. Diagnostics of the
-    /// rebuilt registries are replaced, the rest kept. Returns the registries
-    /// actually replaced beside the result.
+    /// reread registries are replaced by what the reread found, kept or not,
+    /// and the rest kept. Returns the registries actually replaced beside the
+    /// result.
     pub fn rebuild(&self, kinds: &BTreeSet<RegistryKind>) -> (GameData, BTreeSet<RegistryKind>) {
-        if kinds.contains(&RegistryKind::Variables) {
+        if kinds.contains(&RegistryKind::Variables) || kinds.contains(&RegistryKind::Definitions) {
             return (self.reread(), ALL.into_iter().collect());
         }
         let kinds = RegistryKind::closure(kinds);
@@ -173,7 +198,7 @@ impl GameData {
                 RegistryKind::Colors,
                 &self.colors,
                 built,
-                Colors::is_empty,
+                |colors: &Colors| colors.entries.is_empty(),
                 &mut replaced,
                 &mut fresh,
             );
@@ -190,8 +215,11 @@ impl GameData {
             );
         }
 
+        if !replaced.is_empty() {
+            out.eligibility = Arc::default();
+        }
         out.diagnostics
-            .retain(|d| !superseded(d, &self.layout, &replaced));
+            .retain(|d| !superseded(d, &self.layout, &kinds));
         out.diagnostics.extend(fresh);
         (out, replaced)
     }
@@ -231,7 +259,7 @@ fn kept<T>(
 }
 
 /// Whether a diagnostic from the previous load speaks for a registry this
-/// rebuild has just read again.
+/// rebuild has just read again, whether or not it kept the reread.
 fn superseded(d: &Diagnostic, layout: &Layout, kinds: &BTreeSet<RegistryKind>) -> bool {
     let of_file = |file| RegistryKind::classify(layout, file).is_some_and(|k| kinds.contains(&k));
     match d {
@@ -240,8 +268,4 @@ fn superseded(d: &Diagnostic, layout: &Layout, kinds: &BTreeSet<RegistryKind>) -
         Diagnostic::RebuildFailed { kind, .. } => kinds.iter().any(|k| k.as_str() == kind),
         Diagnostic::ModMissing { .. } => false,
     }
-}
-
-fn lower(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/").to_lowercase()
 }

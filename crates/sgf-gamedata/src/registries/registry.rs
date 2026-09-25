@@ -58,10 +58,14 @@ pub(crate) fn load<T: FromDef>(
     globals: &Arc<Variables>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Registry<T> {
-    script::parse_dir(layout, T::DIR, globals, diagnostics)
-        .into_iter()
+    from_defs(&script::parse_dir(layout, T::DIR, globals, diagnostics))
+}
+
+/// The registry `defs`, the definitions of `T::DIR`, feed.
+pub(crate) fn from_defs<T: FromDef>(defs: &BTreeMap<String, Def>) -> Registry<T> {
+    defs.iter()
         .filter(|(_, def)| !T::skip(def))
-        .map(|(key, def)| (key.clone(), T::read(key, &def)))
+        .map(|(key, def)| (key.clone(), T::read(key.clone(), def)))
         .collect()
 }
 

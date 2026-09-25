@@ -117,6 +117,11 @@ impl Range {
     }
 }
 
+/// `n` rounded to a whole count, `0` below zero.
+pub fn whole(n: f64) -> u32 {
+    n.round().max(0.0) as u32
+}
+
 /// `common/scripted_variables`: the `@name = value` scalars every script file can use.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Variables(BTreeMap<String, String>);
@@ -149,50 +154,80 @@ impl Variables {
 /// Parse every winning file of `rel_dir` in filename order and collect the
 /// top-level keyed blocks. `@variables` are skipped; a file that fails to
 /// parse contributes nothing and is reported. A repeated top-level key keeps
-/// only its last block; files that repeat keys need `parse_file` + `find_deep`.
+/// only its last block; files that repeat keys need [`ParsedDir::roots`].
 pub fn parse_dir(
     layout: &Layout,
     rel_dir: &str,
     globals: &Arc<Variables>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> BTreeMap<String, Def> {
-    let mut defs = BTreeMap::new();
-    for file in layout.files_in(rel_dir) {
-        let Some((root, src)) = parse_file(&file, diagnostics) else {
-            continue;
-        };
-        let Value::Block { children, .. } = root.value else {
-            continue;
-        };
-        let vars = Arc::new(file_vars(&children, &src));
-        for node in children {
-            let Some(key) = node.key_str(&src) else {
+    ParsedDir::load(layout, rel_dir, diagnostics).into_defs(globals, diagnostics)
+}
+
+/// Every winning file of one directory in load order, each read and parsed once, so every
+/// registry the directory feeds reads the same parse and a broken file is reported once.
+pub(crate) struct ParsedDir(Vec<(PathBuf, Node, Arc<[u8]>)>);
+
+impl ParsedDir {
+    pub(crate) fn load(layout: &Layout, rel_dir: &str, diagnostics: &mut Vec<Diagnostic>) -> Self {
+        Self(
+            layout
+                .files_in(rel_dir)
+                .into_iter()
+                .filter_map(|file| {
+                    let (root, src) = parse_file(&file, diagnostics)?;
+                    Some((file, root, src))
+                })
+                .collect(),
+        )
+    }
+
+    /// Each file's root block with its bytes, in load order.
+    pub(crate) fn roots(&self) -> impl Iterator<Item = (&Node, &[u8])> {
+        self.0.iter().map(|(_, root, src)| (root, &src[..]))
+    }
+
+    /// The top-level keyed blocks, as [`parse_dir`] collects them.
+    pub(crate) fn into_defs(
+        self,
+        globals: &Arc<Variables>,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> BTreeMap<String, Def> {
+        let mut defs = BTreeMap::new();
+        for (file, root, src) in self.0 {
+            let Value::Block { children, .. } = root.value else {
                 continue;
             };
-            if key.starts_with('@') || node.scalar_span().is_some() {
-                continue;
-            }
-            let def = Def {
-                node,
-                src: Arc::clone(&src),
-                file: file.clone(),
-                vars: Arc::clone(&vars),
-                globals: Arc::clone(globals),
-            };
-            // A key repeated within one file is the game's own idiom (`random_list` in
-            // planet_classes), not a mod overriding anything; the later block wins in silence.
-            if let Some(previous) = defs.insert(key.to_owned(), def)
-                && previous.file != file
-            {
-                diagnostics.push(Diagnostic::Override {
-                    key: key.to_owned(),
-                    from: previous.file,
-                    to: file.clone(),
-                });
+            let vars = Arc::new(file_vars(&children, &src));
+            for node in children {
+                let Some(key) = node.key_str(&src) else {
+                    continue;
+                };
+                if key.starts_with('@') || node.scalar_span().is_some() {
+                    continue;
+                }
+                let def = Def {
+                    node,
+                    src: Arc::clone(&src),
+                    file: file.clone(),
+                    vars: Arc::clone(&vars),
+                    globals: Arc::clone(globals),
+                };
+                // A key repeated within one file is the game's own idiom (`random_list` in
+                // planet_classes), not a mod overriding anything; the later block wins in silence.
+                if let Some(previous) = defs.insert(key.to_owned(), def)
+                    && previous.file != file
+                {
+                    diagnostics.push(Diagnostic::Override {
+                        key: key.to_owned(),
+                        from: previous.file,
+                        to: file.clone(),
+                    });
+                }
             }
         }
+        defs
     }
-    defs
 }
 
 fn file_vars(children: &[Node], src: &[u8]) -> BTreeMap<String, String> {
