@@ -1,6 +1,6 @@
 ---
-source: crates/sgf-core/tests/ops_nebula.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
 Moved Mihil (#455) from (100.07, -134.13) to (66.15, -136.85); updated 6 lane lengths; joined Phantom Streak Miasma
 touched: [108, 164, 455, 753]
@@ -46,7 +46,17 @@ inverse: MoveSystem { id: 455, x: 100.07, y: -134.13 }
  			origin=4294967295
  			randomized=yes
  			visual_height=3.65056
-@@ -60183,17 +60184,17 @@
+@@ -60177,23 +60178,27 @@
+ 		planet=5062
+ 		planet=5063
+ 		planet=5064
++		ambient_object=
++		{
++			1069 
++		}
+ 		star_class="sc_m"
+ 		hyperlane=
+ 		{
  			
  			{
  				to=753
@@ -67,7 +77,26 @@ inverse: MoveSystem { id: 455, x: 100.07, y: -134.13 }
  			}
   
  		}
-@@ -80118,7 +80119,7 @@
+@@ -60224,6 +60229,18 @@
+ 		}
+ 		sector=4294967295
+ 		index=19
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		storm=4294967295
+ 	}
+ 	456=
+@@ -80118,7 +80135,7 @@
   
  			{
  				to=455
@@ -76,3 +105,45 @@ inverse: MoveSystem { id: 455, x: 100.07, y: -134.13 }
  			}
   
  			{
+@@ -1544721,6 +1544738,41 @@
+ 			appear_state=""
+ 		}
+ 	}
++	1069=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=455
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=13.94
++				y=17.94
++				origin=455
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
+ }
+ orbital_line=
+ {

@@ -1,0 +1,301 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set Nythran Expanse radius to 45 (was 30); 4 systems joined
+touched: [64, 169, 478, 504]
+inverse: SetNebulaRadius { index: 5, radius: 30.0 }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -9653,10 +9653,14 @@
+ 	{
+ 		key="Nythran_Expanse"
+ 	}
+-	radius=30
++	radius=45
++	galactic_object=64
++	galactic_object=169
+ 	galactic_object=171
+ 	galactic_object=372
+ 	galactic_object=444
++	galactic_object=478
++	galactic_object=504
+ 	galactic_object=536
+ }
+ nebula=
+@@ -33647,7 +33651,7 @@
+ 		planet=1172
+ 		ambient_object=
+ 		{
+-			163 
++			163 361 
+ 		}
+ 		star_class="sc_m"
+ 		hyperlane=
+@@ -33695,6 +33699,18 @@
+ 		}
+ 		sector=4294967295
+ 		index=41
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		storm=4294967295
+ 	}
+ 	65=
+@@ -41025,6 +41041,10 @@
+ 		planet=12
+ 		planet=13
+ 		planet=14
++		ambient_object=
++		{
++			362 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -41067,6 +41087,18 @@
+ 		}
+ 		sector=0
+ 		index=42
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		colonies=
+ 		{
+ 			0 
+@@ -62738,6 +62770,10 @@
+ 		planet=5176
+ 		planet=5177
+ 		planet=5178
++		ambient_object=
++		{
++			363 
++		}
+ 		star_class="sc_m"
+ 		hyperlane=
+ 		{
+@@ -62782,6 +62818,18 @@
+ 		}
+ 		sector=4294967295
+ 		index=40
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		storm=4294967295
+ 	}
+ 	479=
+@@ -64627,6 +64675,10 @@
+ 		planet=5392
+ 		planet=5393
+ 		planet=5394
++		ambient_object=
++		{
++			364 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -64663,6 +64715,18 @@
+ 		}
+ 		sector=4294967295
+ 		index=40
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		colonies=
+ 		{
+ 			26 
+@@ -1121518,6 +1121582,146 @@
+ 			appear_state=""
+ 		}
+ 	}
++	361=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=64
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=9.32
++				y=13.32
++				origin=64
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
++	362=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=169
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=12.29
++				y=16.29
++				origin=169
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
++	363=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=478
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=13.28
++				y=17.28
++				origin=478
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
++	364=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=504
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=12.62
++				y=16.62
++				origin=504
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
+ }
+ orbital_line=
+ {
+@@ -1121544,7 +1121748,7 @@
+ 		}
+ 	}
+ }
+-last_created_ambient_object=360
++last_created_ambient_object=364
+ last_created_cosmic_storm_influence_field=6
+ last_notification_id=1
+ last_event_id=1

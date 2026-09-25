@@ -277,8 +277,11 @@ fn remove_nebula_0_releases_every_member() {
     for &id in &before.systems {
         assert_eq!(session.graph.systems[&id].nebula, None, "system {id}");
     }
+    let Op::Batch { ops, .. } = &result.inverse else {
+        panic!("{:?}", result.inverse);
+    };
     assert_eq!(
-        result.inverse,
+        ops[0],
         Op::AddNebula {
             x: before.x,
             y: before.y,

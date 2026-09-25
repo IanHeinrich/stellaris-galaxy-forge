@@ -1,0 +1,689 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed nebula "Demons Eye Nebula" (9 systems released)
+touched: [0, 46, 52, 61, 65, 87, 106, 107, 123, 126, 140, 148, 160, 167, 171, 177, 216, 275, 299, 315, 343, 349, 358, 372, 404, 439, 444, 485, 494, 508, 536]
+inverse: Batch { description: "Undo of \"Removed nebula \"Demons Eye Nebula\" (9 systems released)\"", ops: [AddNebula { x: 156.89, y: 139.82, radius: 30.0, name: Some("Demons_Eye_Nebula") }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 0, cloud: Some(NebulaCloud { id: 318, kind: "turbulent_nebula_2" }), cloaking: true, turbulent: true }, NebulaFootprint { system: 46, cloud: Some(NebulaCloud { id: 348, kind: "rare_nebula_2" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 52, cloud: Some(NebulaCloud { id: 347, kind: "rare_nebula_2" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 107, cloud: Some(NebulaCloud { id: 342, kind: "nebula_1" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 123, cloud: Some(NebulaCloud { id: 341, kind: "nebula_3" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 148, cloud: Some(NebulaCloud { id: 338, kind: "nebula_3" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 275, cloud: Some(NebulaCloud { id: 332, kind: "nebula_1" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 358, cloud: Some(NebulaCloud { id: 327, kind: "nebula_2" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 404, cloud: Some(NebulaCloud { id: 325, kind: "nebula_3" }), cloaking: true, turbulent: false }] }] }
+… and 2 other issues
+
+--- gamestate
++++ gamestate
+@@ -9539,31 +9539,6 @@
+ {
+ 	coordinate=
+ 	{
+-		x=156.89
+-		y=139.82
+-		origin=4294967295
+-		randomized=yes
+-		visual_height=3.65056
+-	}
+-	name=
+-	{
+-		key="Demons_Eye_Nebula"
+-	}
+-	radius=30
+-	galactic_object=0
+-	galactic_object=46
+-	galactic_object=52
+-	galactic_object=107
+-	galactic_object=123
+-	galactic_object=148
+-	galactic_object=275
+-	galactic_object=358
+-	galactic_object=404
+-}
+-nebula=
+-{
+-	coordinate=
+-	{
+ 		x=198.68
+ 		y=-91.7
+ 		origin=4294967295
+@@ -28849,10 +28824,6 @@
+ 		planet=581
+ 		planet=582
+ 		planet=583
+-		ambient_object=
+-		{
+-			318 
+-		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -28895,23 +28866,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=27
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-				{
+-					modifier="turbulent_nebula"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm_influence_fields=
+ 		{
+ 			2 4 6 
+@@ -32301,7 +32255,7 @@
+ 		planet=1021
+ 		ambient_object=
+ 		{
+-			105 106 107 108 109 110 111 112 113 114 115 116 117 348 
++			105 106 107 108 109 110 111 112 113 114 115 116 117 
+ 		}
+ 		star_class="sc_m_giant"
+ 		hyperlane=
+@@ -32354,18 +32308,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=27
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm_influence_fields=
+ 		{
+ 			2 4 6 
+@@ -32764,10 +32706,6 @@
+ 		planet=1065
+ 		planet=1066
+ 		planet=1067
+-		ambient_object=
+-		{
+-			347 
+-		}
+ 		star_class="sc_a"
+ 		hyperlane=
+ 		{
+@@ -32821,18 +32759,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=28
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm_influence_fields=
+ 		{
+ 			4 
+@@ -36700,10 +36626,6 @@
+ 		planet=1572
+ 		planet=1573
+ 		planet=1574
+-		ambient_object=
+-		{
+-			342 
+-		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -36749,18 +36671,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=59
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm_influence_fields=
+ 		{
+ 			2 4 6 
+@@ -37803,10 +37713,6 @@
+ 		planet=1730
+ 		planet=1731
+ 		planet=1732
+-		ambient_object=
+-		{
+-			341 
+-		}
+ 		star_class="sc_b"
+ 		hyperlane=
+ 		{
+@@ -37851,18 +37757,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=27
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm_influence_fields=
+ 		{
+ 			4 
+@@ -39528,10 +39422,6 @@
+ 		planet=1943
+ 		planet=1944
+ 		planet=6331
+-		ambient_object=
+-		{
+-			338 
+-		}
+ 		star_class="sc_f"
+ 		hyperlane=
+ 		{
+@@ -39569,18 +39459,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=59
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm_influence_fields=
+ 		{
+ 			2 4 6 
+@@ -48573,10 +48451,6 @@
+ 		planet=3226
+ 		planet=3227
+ 		planet=6316
+-		ambient_object=
+-		{
+-			332 
+-		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -48637,18 +48511,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=28
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm_influence_fields=
+ 		{
+ 			2 4 
+@@ -54449,10 +54311,6 @@
+ 		planet=4085
+ 		planet=4086
+ 		planet=4087
+-		ambient_object=
+-		{
+-			327 
+-		}
+ 		star_class="sc_m"
+ 		hyperlane=
+ 		{
+@@ -54504,18 +54362,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=27
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm_influence_fields=
+ 		{
+ 			4 
+@@ -57554,10 +57400,6 @@
+ 		planet=4493
+ 		planet=4494
+ 		planet=4495
+-		ambient_object=
+-		{
+-			325 
+-		}
+ 		star_class="sc_b"
+ 		hyperlane=
+ 		{
+@@ -57590,18 +57432,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=60
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm_influence_fields=
+ 		{
+ 			2 4 6 
+@@ -1119969,41 +1119799,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	318=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=0
+-		}
+-		data="turbulent_nebula_2"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=13.61
+-				y=17.61
+-				origin=0
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	318=none
+ 	319=
+ 	{
+ 		coordinate=
+@@ -1120214,41 +1120010,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	325=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=404
+-		}
+-		data="nebula_3"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=13.94
+-				y=17.94
+-				origin=404
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	325=none
+ 	326=
+ 	{
+ 		coordinate=
+@@ -1120284,41 +1120046,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	327=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=358
+-		}
+-		data="nebula_2"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=14.27
+-				y=18.27
+-				origin=358
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	327=none
+ 	328=
+ 	{
+ 		coordinate=
+@@ -1120459,41 +1120187,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	332=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=275
+-		}
+-		data="nebula_1"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=13.94
+-				y=17.94
+-				origin=275
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	332=none
+ 	333=
+ 	{
+ 		coordinate=
+@@ -1120669,41 +1120363,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	338=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=148
+-		}
+-		data="nebula_3"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=11.3
+-				y=15.3
+-				origin=148
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	338=none
+ 	339=
+ 	{
+ 		coordinate=
+@@ -1120774,76 +1120434,8 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	341=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=123
+-		}
+-		data="nebula_3"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=14.6
+-				y=18.6
+-				origin=123
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
+-	342=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=107
+-		}
+-		data="nebula_1"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=12.29
+-				y=16.29
+-				origin=107
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	341=none
++	342=none
+ 	343=
+ 	{
+ 		coordinate=
+@@ -1120984,76 +1120576,8 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	347=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=52
+-		}
+-		data="rare_nebula_2"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=11.96
+-				y=15.96
+-				origin=52
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
+-	348=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=46
+-		}
+-		data="rare_nebula_2"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=14.6
+-				y=18.6
+-				origin=46
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	347=none
++	348=none
+ 	16777565=
+ 	{
+ 		coordinate=

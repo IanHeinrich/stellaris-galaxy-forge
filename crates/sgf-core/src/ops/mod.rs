@@ -27,8 +27,8 @@ pub use crate::format::save::write::name_pool::{
 pub use edit::Subject;
 pub(crate) use edit::{Edit, blank_slot, replace_lengths};
 pub use op::{
-    InitializerSet, LaneLength, LanePair, MapColorPair, NewSystem, Op, OpError, StarBody,
-    SystemMove,
+    InitializerSet, LaneLength, LanePair, MapColorPair, NebulaCloud, NebulaFootprint, NewSystem,
+    Op, OpError, StarBody, SystemMove,
 };
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 

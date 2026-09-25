@@ -93,6 +93,19 @@ fn run(cli: Cli) -> commands::Run {
                 out.path.as_deref(),
                 Op::SetNebulaRadius { index, radius },
             ),
+            NebulaCommand::Turbulent {
+                sav,
+                index,
+                calm,
+                out,
+            } => commands::mutate::run(
+                &sav,
+                out.path.as_deref(),
+                Op::SetNebulaTurbulent {
+                    nebula: index,
+                    turbulent: !calm,
+                },
+            ),
             NebulaCommand::Name {
                 sav,
                 index,

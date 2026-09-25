@@ -1,10 +1,10 @@
 ---
-source: crates/sgf-core/tests/ops_nebula.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
 Moved 2 systems; updated 16 lane lengths; Ascensions End left Phantom Streak Miasma; Mihil joined Phantom Streak Miasma
 touched: [108, 164, 181, 438, 455, 484, 753]
-inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, SystemMove { id: 108, x: 83.2, y: -118.95 }] }
+inverse: Batch { description: "Undo of \"Moved 2 systems; updated 16 lane lengths; Ascensions End left Phantom Streak Miasma; Mihil joined Phantom Streak Miasma\"", ops: [MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, SystemMove { id: 108, x: 83.2, y: -118.95 }] }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 108, cloud: Some(NebulaCloud { id: 1055, kind: "nebula_4" }), cloaking: true, turbulent: false }] }] }
 … and 3 other issues
 
 --- gamestate
@@ -34,7 +34,18 @@ inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, Sy
  			origin=4294967295
  			randomized=yes
  			visual_height=3.65056
-@@ -36478,32 +36478,32 @@
+@@ -36464,10 +36464,6 @@
+ 		}
+ 		planet=1662
+ 		planet=1663
+-		ambient_object=
+-		{
+-			1055 
+-		}
+ 		megastructures=
+ 		{
+ 			15 
+@@ -36478,32 +36474,32 @@
  			
  			{
  				to=164
@@ -73,7 +84,26 @@ inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, Sy
  			}
   
  		}
-@@ -40482,12 +40482,12 @@
+@@ -36526,18 +36522,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=19
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	109=
+@@ -40482,12 +40466,12 @@
  			
  			{
  				to=108
@@ -88,7 +118,7 @@ inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, Sy
  			}
   
  			{
-@@ -41697,7 +41697,7 @@
+@@ -41697,7 +41681,7 @@
   
  			{
  				to=108
@@ -97,7 +127,7 @@ inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, Sy
  			}
   
  			{
-@@ -58998,7 +58998,7 @@
+@@ -58998,7 +58982,7 @@
  			
  			{
  				to=108
@@ -106,7 +136,7 @@ inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, Sy
  			}
   
  			{
-@@ -60144,8 +60144,8 @@
+@@ -60144,8 +60128,8 @@
  	{
  		coordinate=
  		{
@@ -117,7 +147,17 @@ inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, Sy
  			origin=4294967295
  			randomized=yes
  			visual_height=3.65056
-@@ -60183,17 +60183,17 @@
+@@ -60177,23 +60161,27 @@
+ 		planet=5062
+ 		planet=5063
+ 		planet=5064
++		ambient_object=
++		{
++			1069 
++		}
+ 		star_class="sc_m"
+ 		hyperlane=
+ 		{
  			
  			{
  				to=753
@@ -138,6 +178,25 @@ inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, Sy
  			}
   
  		}
+@@ -60224,6 +60212,18 @@
+ 		}
+ 		sector=4294967295
+ 		index=19
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		storm=4294967295
+ 	}
+ 	456=
 @@ -62109,7 +62109,7 @@
   
  			{
@@ -162,3 +221,88 @@ inverse: MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, Sy
  			}
   
  		}
+@@ -1544261,41 +1544261,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	1055=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=108
+-		}
+-		data="nebula_4"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=15.26
+-				y=19.26
+-				origin=108
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	1055=none
+ 	1056=
+ 	{
+ 		coordinate=
+@@ -1544721,6 +1544687,41 @@
+ 			appear_state=""
+ 		}
+ 	}
++	1069=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=455
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=13.94
++				y=17.94
++				origin=455
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
+ }
+ orbital_line=
+ {

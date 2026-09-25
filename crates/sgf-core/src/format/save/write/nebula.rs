@@ -5,13 +5,21 @@
 //! A member line is inserted in id order among the existing ones (the game writes them
 //! ascending), so moving a system out and back restores the section byte for byte.
 //!
+//! A system that enters its first nebula or leaves its last gets or loses what the game
+//! dresses a member with ([`super::footprint`]), and the inverse carries what each one
+//! had, so that applying it puts those back rather than new ones.
+//!
 //! A new nebula's name is taken out of the pool of unused nebula names when the pool holds
 //! it, a removed one's goes back when an add took it from there, and a rename does both.
+
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::Span;
 use crate::cst::{self, Node};
 use crate::emit::{self, NebulaSection, coord};
 use crate::format;
+use crate::format::save::write::add_system::check_version;
+use crate::format::save::write::footprint::{Footprints, is_bare, is_cloud_kind};
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::name_pool;
 use crate::keys;
@@ -19,8 +27,9 @@ use crate::ops::rules::nebula::{
     Membership, Prospect, all_systems, decide_add, decide_membership, decide_move, decide_name,
     decide_radius, decide_remove, prospective,
 };
-use crate::ops::rules::quoted;
-use crate::ops::{Edit, Emitted, OpError, Plan, Planned, Subject, SystemMove};
+use crate::ops::rules::{each_once, quoted};
+use crate::ops::{Edit, Emitted, NebulaFootprint, Op, OpError, Plan, Planned, Subject, SystemMove};
+use crate::plural;
 use crate::projections::name::looks_like_key;
 use crate::session::Session;
 
@@ -41,11 +50,11 @@ pub(crate) fn plan_move(
         patched.y = y;
     }
     let changes = decide_membership(&s.graph, &prospective, &all_systems(&s.graph))?;
-    write_membership(plan, s, &changes, None)?;
-
+    let had = write_membership(plan, s, &changes, None)?;
+    let description = moved.describe();
     Ok(Planned {
-        description: moved.describe(),
-        inverse: moved.inverse(),
+        inverse: restoring(moved.inverse(), had, &description),
+        description,
     })
 }
 
@@ -55,7 +64,7 @@ pub(crate) fn plan_membership(
     plan: &mut Plan,
     s: &Session,
     moves: &[SystemMove],
-) -> Result<Vec<Membership>, OpError> {
+) -> Result<(Vec<Membership>, Vec<NebulaFootprint>), OpError> {
     let mut subjects: Vec<Prospect> = moves
         .iter()
         .map(|m| Prospect {
@@ -66,14 +75,74 @@ pub(crate) fn plan_membership(
         .collect();
     subjects.sort_by_key(|p| p.id);
     let changes = decide_membership(&s.graph, &prospective(&s.graph), &subjects)?;
-    write_membership(plan, s, &changes, None)?;
-    Ok(changes)
+    let had = write_membership(plan, s, &changes, None)?;
+    Ok((changes, had))
 }
 
 /// Write the member-line edit each change asks for, leaving out `skip`: the cloud an op
 /// is adding, whose members go into its own text, or the one it is erasing, whose lines
-/// go with it.
+/// go with it. A system that enters its first nebula or leaves its last gets or loses its
+/// footprint, counting every section that lists it, since a hand-edited save can list one
+/// system in two. Returns what those systems carried that an inverse has to put back:
+/// each leaver's, and a joiner's when it carried anything.
 fn write_membership(
+    plan: &mut Plan,
+    s: &Session,
+    changes: &[Membership],
+    skip: Option<usize>,
+) -> Result<Vec<NebulaFootprint>, OpError> {
+    write_member_lines(plan, s, changes, skip)?;
+    let Some(mut footprints) = Footprints::new(&s.doc, &s.graph) else {
+        return Ok(Vec::new());
+    };
+    let erased = skip.filter(|&index| index < s.graph.nebulae.len());
+    let mut listed: BTreeMap<u32, (bool, BTreeSet<usize>)> = BTreeMap::new();
+    for change in changes {
+        let (_, after) = listed.entry(change.system).or_insert_with(|| {
+            let now: BTreeSet<usize> = (s.graph.nebulae.iter().enumerate())
+                .filter(|(_, nebula)| nebula.systems.contains(&change.system))
+                .map(|(index, _)| index)
+                .collect();
+            (!now.is_empty(), now)
+        });
+        match change.joined {
+            true => after.insert(change.nebula),
+            false => after.remove(&change.nebula),
+        };
+    }
+    let mut had = Vec::new();
+    for (id, (was, mut after)) in listed {
+        if let Some(index) = erased {
+            after.remove(&index);
+        }
+        match (was, !after.is_empty()) {
+            (false, true) => {
+                let before = footprints.join(plan, id)?;
+                if !is_bare(&before) {
+                    had.push(before);
+                }
+            }
+            (true, false) => had.push(footprints.leave(plan, id)?),
+            _ => {}
+        }
+    }
+    footprints.finish(plan)?;
+    Ok(had)
+}
+
+/// `inverse`, followed by the [`Op::SetNebulaFootprints`] that puts back what `had` holds
+/// when it holds anything, as one step described after the op it undoes.
+pub(crate) fn restoring(inverse: Op, had: Vec<NebulaFootprint>, description: &str) -> Op {
+    if had.is_empty() {
+        return inverse;
+    }
+    Op::Batch {
+        description: format!("Undo of \"{description}\""),
+        ops: vec![inverse, Op::SetNebulaFootprints { footprints: had }],
+    }
+}
+
+fn write_member_lines(
     plan: &mut Plan,
     s: &Session,
     changes: &[Membership],
@@ -102,7 +171,7 @@ pub(crate) fn plan_add(
     name: Option<&str>,
 ) -> Result<Planned, OpError> {
     let added = decide_add(&s.graph, x, y, radius, name)?;
-    write_membership(plan, s, &added.changes, Some(added.index))?;
+    let had = write_membership(plan, s, &added.changes, Some(added.index))?;
     let at = format::save::nebula_insert_at(&s.doc);
     let text = emit::nebula_section(
         &section_indent(s),
@@ -117,23 +186,25 @@ pub(crate) fn plan_add(
     );
     plan.emit(Emitted::Nebula(added.index), at, text);
     name_pool::take(plan, &s.doc, &[keys::NEBULA_NAMES], &added.name)?;
+    let description = added.describe();
     Ok(Planned {
-        description: added.describe(),
-        inverse: added.inverse(),
+        inverse: restoring(added.inverse(), had, &description),
+        description,
     })
 }
 
 pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, index: usize) -> Result<Planned, OpError> {
     let removed = decide_remove(&s.graph, index)?;
-    write_membership(plan, s, &removed.changes, Some(index))?;
+    let had = write_membership(plan, s, &removed.changes, Some(index))?;
     let anchor = format::of(s.doc.kind()).statement(&s.doc, Subject::Nebula(index))?;
     plan.erase(&s.doc, Subject::Nebula(index), anchor)?;
     let name = &removed.nebula.name.key;
     let staying = others_named(s, index, name);
     name_pool::give_back(plan, &s.doc, &[keys::NEBULA_NAMES], name, staying)?;
+    let description = removed.describe(&s.graph);
     Ok(Planned {
-        description: removed.describe(&s.graph),
-        inverse: removed.inverse(),
+        inverse: restoring(removed.inverse(), had, &description),
+        description,
     })
 }
 
@@ -144,12 +215,99 @@ pub(crate) fn plan_set_radius(
     radius: f64,
 ) -> Result<Planned, OpError> {
     let set = decide_radius(&s.graph, index, radius)?;
-    write_membership(plan, s, &set.changes, None)?;
+    let had = write_membership(plan, s, &set.changes, None)?;
     plan.edit_nebula(&s.doc, index)?
         .set_scalar(&[keys::RADIUS], coord(set.to))?;
+    let description = set.describe();
     Ok(Planned {
-        description: set.describe(),
-        inverse: set.inverse(),
+        inverse: restoring(set.inverse(), had, &description),
+        description,
+    })
+}
+
+/// `SetNebulaTurbulent`: every member not already so made turbulent or calm.
+pub(crate) fn plan_set_turbulent(
+    plan: &mut Plan,
+    s: &Session,
+    index: usize,
+    turbulent: bool,
+) -> Result<Planned, OpError> {
+    check_version(&s.doc)?;
+    let nebula = s
+        .graph
+        .nebulae
+        .get(index)
+        .ok_or(OpError::UnknownNebula(index))?;
+    let name = nebula.display_name();
+    let state = if turbulent { "turbulent" } else { "calm" };
+    let mut footprints = Footprints::new(&s.doc, &s.graph).ok_or(OpError::Empty)?;
+    let mut had = Vec::new();
+    let mut homes = Vec::new();
+    for &id in &nebula.systems {
+        let standing = footprints.read(id)?;
+        let target = standing.turbulent(turbulent);
+        if target == standing.footprint {
+            continue;
+        }
+        if turbulent && standing.home {
+            let system = s.graph.systems.get(&id);
+            homes.push(system.map_or_else(|| id.to_string(), |sys| sys.display_name()));
+        }
+        footprints.set(plan, &standing, &target)?;
+        had.push(standing.footprint);
+    }
+    if had.is_empty() {
+        return Err(OpError::TurbulenceUnchanged {
+            nebula: name,
+            state,
+        });
+    }
+    footprints.finish(plan)?;
+    let mut description = format!(
+        "Made {name} {state}: {} changed",
+        plural(had.len(), "system")
+    );
+    if !homes.is_empty() {
+        let verb = match homes.len() {
+            1 => "is an empire's home system",
+            _ => "are empires' home systems",
+        };
+        description.push_str(&format!(
+            "; {} {verb}, which the game never makes turbulent",
+            homes.join(", ")
+        ));
+    }
+    Ok(Planned {
+        description,
+        inverse: Op::SetNebulaFootprints { footprints: had },
+    })
+}
+
+/// `SetNebulaFootprints`: each system's footprint set as given.
+pub(crate) fn plan_set_footprints(
+    plan: &mut Plan,
+    s: &Session,
+    targets: &[NebulaFootprint],
+) -> Result<Planned, OpError> {
+    check_version(&s.doc)?;
+    each_once(targets, |f| f.system)?;
+    let mut footprints = Footprints::new(&s.doc, &s.graph).ok_or(OpError::Empty)?;
+    let mut had = Vec::new();
+    for target in targets {
+        if let Some(cloud) = target.cloud.as_ref().filter(|c| !is_cloud_kind(&c.kind)) {
+            return Err(OpError::InvalidCloudType(cloud.kind.clone()));
+        }
+        let standing = footprints.read(target.system)?;
+        footprints.set(plan, &standing, target)?;
+        had.push(standing.footprint);
+    }
+    footprints.finish(plan)?;
+    Ok(Planned {
+        description: format!(
+            "Set the nebula clouds and modifiers of {}",
+            plural(targets.len(), "system")
+        ),
+        inverse: Op::SetNebulaFootprints { footprints: had },
     })
 }
 

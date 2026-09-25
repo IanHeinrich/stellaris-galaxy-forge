@@ -8,6 +8,9 @@ use crate::format::scenario::marauder;
 use crate::projections::galaxy::{Lane, ProjectionError, SystemNode};
 use crate::projections::read;
 use crate::scan::Index;
+
+/// The modifier a turbulent nebula member carries.
+pub(crate) const TURBULENT_NEBULA: &str = "turbulent_nebula";
 use crate::{as_u32, keys};
 
 /// The one extraction path for a system, used by `build` and `refresh_system`.
@@ -82,7 +85,18 @@ pub(super) fn extract(
         flags,
         owner,
         added: false,
+        turbulent: timed_modifiers(node, src).any(|m| m == TURBULENT_NEBULA),
     })
+}
+
+/// The modifier every entry of the node's `timed_modifier.items` names, in file order.
+pub(crate) fn timed_modifiers<'a>(node: &'a Node, src: &'a [u8]) -> impl Iterator<Item = &'a str> {
+    node.find(keys::TIMED_MODIFIER, src)
+        .and_then(|block| block.find(keys::ITEMS, src))
+        .into_iter()
+        .flat_map(|items| items.children())
+        .filter_map(|item| read::scalar(item, keys::MODIFIER, src))
+        .map(|m| m.trim_matches('"'))
 }
 
 /// Sector id → owning country id, from the top-level `sectors` section.

@@ -16,6 +16,22 @@ pub struct Nebula {
     pub y: f64,
     pub radius: f64,
     pub systems: Vec<u32>,
+    /// How many of a save nebula's members are turbulent, read from their modifiers;
+    /// `None` for a scenario, whose members carry none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub turbulence: Option<Turbulence>,
+}
+
+/// Whether all, some or none of a nebula's members are turbulent. A nebula with no
+/// members is `None`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum Turbulence {
+    None,
+    Some,
+    All,
 }
 
 impl Nebula {
@@ -73,6 +89,29 @@ fn nearest<'a>(
             da.total_cmp(&db)
         })
         .map(|(i, _)| i)
+}
+
+/// Set each nebula's turbulence from its members' as `systems` holds them. Returns the
+/// nebulae whose turbulence changed.
+pub(super) fn set_turbulence(
+    nebulae: &mut [Nebula],
+    systems: &HashMap<u32, SystemNode>,
+) -> Vec<usize> {
+    let mut changed = Vec::new();
+    for (i, nebula) in nebulae.iter_mut().enumerate() {
+        let members = || nebula.systems.iter().filter_map(|id| systems.get(id));
+        let turbulent = members().filter(|s| s.turbulent).count();
+        let turbulence = Some(match turbulent {
+            0 => Turbulence::None,
+            n if n == members().count() => Turbulence::All,
+            _ => Turbulence::Some,
+        });
+        if nebula.turbulence != turbulence {
+            nebula.turbulence = turbulence;
+            changed.push(i);
+        }
+    }
+    changed
 }
 
 /// Point each system at the nebula listing it (the last one in file order wins).

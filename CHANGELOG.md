@@ -49,6 +49,11 @@ a release is made.
 - The update screen shows release notes with their headings and bullets
   instead of raw Markdown.
 
+- Nebulae you add, move or resize in a save now show their cloud inside
+  each system and hide ships there like the game's own. Systems that leave
+  a nebula lose the cloud and the cloaking. Without First Contact they get
+  the cloud and no cloaking, as in the game.
+
 ## [0.12.0] - 2026-09-24
 
 ### Added

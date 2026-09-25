@@ -144,6 +144,7 @@ pub(crate) fn decide_add(
         y,
         radius,
         systems: Vec::new(),
+        turbulence: None,
     }));
     let changes = decide_membership(graph, &prospective, &all_systems(graph))?;
     let members = changes

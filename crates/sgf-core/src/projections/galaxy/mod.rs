@@ -27,8 +27,8 @@ use crate::views::DocumentKind;
 pub use bypasses::BypassLink;
 pub use countries::{CountryNode, FlagRef};
 pub use lgate::{LGate, LGateOutcome};
-pub use nebulae::Nebula;
 pub(crate) use nebulae::nearest_prospective;
+pub use nebulae::{Nebula, Turbulence};
 pub use spawn::{PaintSpawnKind, SpawnModifier, SpawnScript};
 pub use systems::{Lane, SystemBody, SystemNode, lane_length};
 pub(crate) use waylines::bypass_between;
@@ -212,6 +212,12 @@ impl Galaxy {
     /// changed, ascending.
     pub(crate) fn assign_nebulae(&mut self) -> Vec<u32> {
         nebulae::assign(&mut self.systems, &self.nebulae)
+    }
+
+    /// Read each nebula's [`Turbulence`] again from its members, as a save needs after any
+    /// edit. Returns the nebulae whose turbulence changed.
+    pub(crate) fn refresh_turbulence(&mut self) -> Vec<usize> {
+        nebulae::set_turbulence(&mut self.nebulae, &self.systems)
     }
 
     /// Re-measure the lanes of `ids` and of their neighbours against [`lane_length`], and

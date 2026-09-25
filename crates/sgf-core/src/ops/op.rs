@@ -351,6 +351,26 @@ pub enum Op {
         system: u32,
         name: String,
     },
+    /// The `nebula`th nebula's members made turbulent or calm. A turbulent member carries
+    /// `turbulent_nebula` and a `turbulent_nebula_*` cloud; a calm one neither, its cloud
+    /// swapped back to a calm type its star class takes. A member already so is left
+    /// alone, and a nebula none of whose members would change is refused. A home system
+    /// is made turbulent too, which the game never does; the description names it. The
+    /// inverse is the [`Op::SetNebulaFootprints`] that puts back each member it changed.
+    /// Stellaris 4.x save documents only.
+    SetNebulaTurbulent {
+        nebula: usize,
+        turbulent: bool,
+    },
+    /// Each system's nebula footprint set as given: its `nebula_cloaking` and
+    /// `turbulent_nebula` modifiers, and its cloud, the last nebula ambient object it
+    /// lists. A cloud with another id takes that one's place, written back in its own
+    /// slot. What the inverse of a nebula op carries, so that undoing it puts back the
+    /// clouds and modifiers its members had rather than new ones. The inverse carries the
+    /// footprints displaced. Stellaris 4.x save documents only.
+    SetNebulaFootprints {
+        footprints: Vec<NebulaFootprint>,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -413,6 +433,8 @@ impl Op {
             Self::RemoveSaveDeposit { .. } => "RemoveSaveDeposit",
             Self::ReplaceSaveSystem { .. } => "ReplaceSaveSystem",
             Self::RenameSaveSystem { .. } => "RenameSaveSystem",
+            Self::SetNebulaTurbulent { .. } => "SetNebulaTurbulent",
+            Self::SetNebulaFootprints { .. } => "SetNebulaFootprints",
             Self::Batch { .. } => "Batch",
         }
     }
@@ -540,6 +562,29 @@ pub struct NewSystem {
 pub struct MapColorPair {
     pub border: String,
     pub fill: String,
+}
+
+/// What a nebula leaves on one member system besides its member line, in
+/// [`Op::SetNebulaFootprints`]: the cloud that draws it in the system view, and the two
+/// permanent modifiers, which give only its numbers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NebulaFootprint {
+    pub system: u32,
+    pub cloud: Option<NebulaCloud>,
+    /// `nebula_cloaking`, which a save carries only with First Contact.
+    pub cloaking: bool,
+    /// `turbulent_nebula`.
+    pub turbulent: bool,
+}
+
+/// One entry of the save's `ambient_object` table that draws a nebula cloud: its id and
+/// its type, such as `nebula_3`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NebulaCloud {
+    pub id: u32,
+    pub kind: String,
 }
 
 /// One system's destination in [`Op::MoveSystems`].
@@ -753,6 +798,12 @@ pub enum OpError {
     PlanetColonised(u32),
     #[error("deposit type {0:?} may hold only letters, digits and underscores")]
     InvalidDepositType(String),
+    #[error("every system of {nebula} is already {state}")]
+    TurbulenceUnchanged { nebula: String, state: &'static str },
+    #[error("{0:?} is not a nebula cloud type")]
+    InvalidCloudType(String),
+    #[error("ambient object {0} cannot be written back: its slot is taken")]
+    AmbientSlotTaken(u32),
     #[error("system {0} is already named {1}")]
     NameUnchanged(u32, String),
     #[error("country {country}: {reason} at byte {offset}")]

@@ -231,13 +231,41 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   galactic_object=... }`, written as `coordinate={ x y origin=4294967295
   randomized=yes visual_height=3.65056 }`, `name={ key="…" }`,
   `radius=N`, then one `galactic_object=<id>` per member, ascending.
-  Those lines are the membership and there is no system-side reference,
-  so moving a cloud moves no system: it rewrites the lines to the systems
-  the new centre and radius cover, and deleting a cloud erases the block
-  and nothing else. A nebula has no id, it is identified by file-order
+  Those lines are the membership, and the game reads "inside a nebula"
+  (the sensor text, the Nebula Refinery) from them alone. Moving a cloud
+  moves no system: it rewrites the lines to the systems the new centre and
+  radius cover. A nebula has no id, it is identified by file-order
   index, so removing one renumbers those after it. A new one goes at the
   end of the last `nebula=` section, or, in a save with none, at the line
   start of the first top-level section after `galactic_object`.
+- Each member also carries what event `game_start.50` gave it once, at
+  game start, and nothing re-runs: its `timed_modifier` holds
+  `{ modifier="nebula_cloaking" days=-1 }` (First Contact only), written
+  after `index=` in the planet's `timed_modifier` shape, and a turbulent
+  member also `turbulent_nebula`. These give the numbers only. The cloud in
+  the system view is one entry of the top-level `ambient_object` table,
+  listed by id in the system's `ambient_object={ 318 }` after its last
+  `planet=`:
+  `318={ coordinate={ x y origin=<system> } data="nebula_1" properties={
+  coordinate={ x y origin } attach={ type=10 id=4294967295 } offset={ 0 0
+  0 } scale=1 entity_face_object={ type=10 id=4294967295 } appear_state=""
+  } }`. `coordinate` is the star body's position in the system and
+  `properties.coordinate` adds `0.33 * star size + 4.7` to x and
+  `0.33 * star size + 8.7` to y. The type follows the star class
+  (`nebula_1..4`, `rare_nebula_1..2`, `turbulent_nebula_1..2`); a system
+  whose star class the event does not dress gets the modifier only. A
+  member may list other nebula objects an initializer placed (Tiyun Ort's
+  `nebula_L3_entity`, a home system's `rare_nebula_1`); its own is the last
+  one of those types without `flags`. Table ids use the planets' slot
+  scheme, a dead one is `<id>=none`, and `last_created_ambient_object`
+  after `planets` names the last one created. The game keeps a
+  hand-written entry, an unraised counter and a `none` slot through a load
+  and save on 4.5. A system the editor takes into its first nebula gets the
+  modifier and, unless it lists a cloud of its own already, one of its
+  star class's first calm type past the table's highest slot, with the
+  counter raised to it if that is higher. One leaving its last loses both,
+  its cloud becoming `<id>=none`. A system two sections list is a member
+  until neither does.
 - `random_name_database.nebula_names` is the pool of unused nebula names,
   laid out like `star_names`: the install's `nebula_names` less the names
   the galaxy's nebulae took. The 4.5.0 sample holds 46 of the install's

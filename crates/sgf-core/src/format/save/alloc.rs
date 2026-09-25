@@ -36,17 +36,19 @@ pub(crate) struct Counter {
 }
 
 pub(crate) fn system_counter(doc: &Document) -> Result<Counter, OpError> {
-    let missing = OpError::MissingSaveKey(keys::LAST_CREATED_SYSTEM);
-    let section = doc
-        .index()
-        .section(keys::LAST_CREATED_SYSTEM)
-        .ok_or(missing)?;
+    counter(doc, keys::LAST_CREATED_SYSTEM)
+}
+
+/// The top-level counter `key` and the id it now holds.
+pub(crate) fn counter(doc: &Document, key: &'static str) -> Result<Counter, OpError> {
+    let missing = OpError::MissingSaveKey(key);
+    let section = doc.index().section(key).ok_or(missing)?;
     let anchor = Anchor::Original(section.stmt);
     let bytes = doc.current(anchor)?;
     let last = cst::parse(bytes, 0)
         .ok()
         .and_then(|root| root.children().first()?.scalar_str(bytes)?.parse().ok())
-        .ok_or(OpError::MissingSaveKey(keys::LAST_CREATED_SYSTEM))?;
+        .ok_or(OpError::MissingSaveKey(key))?;
     Ok(Counter { anchor, last })
 }
 
@@ -179,6 +181,17 @@ impl SlotTable {
         Self::read(doc, Table::Deposit, section.value, entities).ok_or_else(missing)
     }
 
+    /// The top-level `ambient_object` table.
+    pub fn ambient_objects(doc: &Document) -> Result<Self, OpError> {
+        let missing = || OpError::MissingSaveKey(keys::AMBIENT_OBJECT);
+        let section = doc
+            .index()
+            .section(keys::AMBIENT_OBJECT)
+            .ok_or_else(missing)?;
+        let entities = doc.index().entities(keys::AMBIENT_OBJECT);
+        Self::read(doc, Table::AmbientObject, section.value, entities).ok_or_else(missing)
+    }
+
     fn read(doc: &Document, table: Table, value: Value, entities: &[Entity]) -> Option<Self> {
         let Value::Block { close, .. } = value else {
             return None;
@@ -223,6 +236,18 @@ impl SlotTable {
             free: free.into(),
             next: highest.map_or(0, |slot| slot + 1),
         })
+    }
+
+    /// The slot past the highest at generation 0, whatever dead slots there are.
+    pub fn append(&mut self) -> Slot {
+        let id = self.next;
+        self.next += 1;
+        Slot::Appended { id }
+    }
+
+    /// The id [`Self::append`] hands out next.
+    pub fn next_appended(&self) -> u32 {
+        self.next
     }
 
     /// The next slot: the lowest dead one, else one past the highest.

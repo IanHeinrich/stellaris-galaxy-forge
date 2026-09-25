@@ -1,10 +1,10 @@
 ---
-source: crates/sgf-core/tests/ops_nebula.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
 Moved Ascensions End (#108) from (83.2, -118.95) to (200, -50); updated 12 lane lengths; left Phantom Streak Miasma
 touched: [108, 164, 181, 438, 455, 484, 753]
-inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
+inverse: Batch { description: "Undo of \"Moved Ascensions End (#108) from (83.2, -118.95) to (200, -50); updated 12 lane lengths; left Phantom Streak Miasma\"", ops: [MoveSystem { id: 108, x: 83.2, y: -118.95 }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 108, cloud: Some(NebulaCloud { id: 1055, kind: "nebula_4" }), cloaking: true, turbulent: false }] }] }
 … and 3 other issues
 
 --- gamestate
@@ -28,7 +28,18 @@ inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
  			origin=4294967295
  			randomized=yes
  			visual_height=3.65056
-@@ -36478,32 +36477,32 @@
+@@ -36464,10 +36463,6 @@
+ 		}
+ 		planet=1662
+ 		planet=1663
+-		ambient_object=
+-		{
+-			1055 
+-		}
+ 		megastructures=
+ 		{
+ 			15 
+@@ -36478,32 +36473,32 @@
  			
  			{
  				to=164
@@ -67,7 +78,26 @@ inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
  			}
   
  		}
-@@ -40482,7 +40481,7 @@
+@@ -36526,18 +36521,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=19
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	109=
+@@ -40482,7 +40465,7 @@
  			
  			{
  				to=108
@@ -76,7 +106,7 @@ inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
  			}
   
  			{
-@@ -41697,7 +41696,7 @@
+@@ -41697,7 +41680,7 @@
   
  			{
  				to=108
@@ -85,7 +115,7 @@ inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
  			}
   
  			{
-@@ -58998,7 +58997,7 @@
+@@ -58998,7 +58981,7 @@
  			
  			{
  				to=108
@@ -94,7 +124,7 @@ inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
  			}
   
  			{
-@@ -60188,7 +60187,7 @@
+@@ -60188,7 +60171,7 @@
   
  			{
  				to=108
@@ -103,7 +133,7 @@ inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
  			}
   
  			{
-@@ -62109,7 +62108,7 @@
+@@ -62109,7 +62092,7 @@
   
  			{
  				to=108
@@ -112,7 +142,7 @@ inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
  			}
   
  			{
-@@ -80123,7 +80122,7 @@
+@@ -80123,7 +80106,7 @@
   
  			{
  				to=108
@@ -121,3 +151,46 @@ inverse: MoveSystem { id: 108, x: 83.2, y: -118.95 }
  			}
   
  		}
+@@ -1544261,41 +1544244,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	1055=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=108
+-		}
+-		data="nebula_4"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=15.26
+-				y=19.26
+-				origin=108
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	1055=none
+ 	1056=
+ 	{
+ 		coordinate=

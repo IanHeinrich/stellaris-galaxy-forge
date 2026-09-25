@@ -14,7 +14,7 @@ mod countries;
 pub(crate) mod lgate;
 mod nebulae;
 pub(super) mod starbases;
-mod systems;
+pub(crate) mod systems;
 mod waylines;
 
 use std::collections::HashMap;
@@ -117,6 +117,7 @@ impl Galaxy {
             lgate,
         };
         galaxy.assign_nebulae();
+        galaxy.refresh_turbulence();
         galaxy.refresh_stale(&ids);
         Ok(galaxy)
     }
@@ -224,7 +225,9 @@ impl GalaxyGraph {
     /// system's membership. Returns the systems whose `nebula` changed.
     pub fn refresh_nebulae(&mut self, doc: &Document) -> Result<Vec<u32>, ProjectionError> {
         self.nebulae = nebulae::extract_current(doc)?;
-        Ok(self.assign_nebulae())
+        let reassigned = self.assign_nebulae();
+        self.refresh_turbulence();
+        Ok(reassigned)
     }
 
     /// Re-read the L-Gate from `flags`, the `flags=` block as it now stands. A galaxy with

@@ -9,7 +9,8 @@
 //! asteroid names. `last_created_system` goes down by one per system removed. Every system
 //! added after the first one removed takes the id below its own for each removed before
 //! it, so the ids stay dense: its entry's key, its bodies' `coordinate.origin`, the lanes
-//! and the nebula member lines naming it. Planet and deposit ids do not change.
+//! and the nebula member lines naming it, and the nebula cloud it lists. Planet and deposit
+//! ids do not change. A removed system's nebula cloud gives its slot back.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -23,6 +24,7 @@ use crate::format::save::alloc::{self, Counter, SlotTable};
 use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
 use crate::format::save::write::add_system::polar;
 use crate::format::save::write::asteroid_names::{self, Pool};
+use crate::format::save::write::footprint::Footprints;
 use crate::format::save::write::initializer_counter::{self, counted};
 use crate::format::save::write::lanes::remove_entries;
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
@@ -60,6 +62,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
     }
     rewrite_lanes(plan, s, &removed, &renumber)?;
     rewrite_members(plan, s, &removed, &renumber)?;
+    rewrite_clouds(plan, s, &removed, &renumber)?;
     let last =
         counter
             .last
@@ -342,6 +345,30 @@ fn rewrite_members(
         edit.splices.extend(splices);
     }
     Ok(())
+}
+
+/// Give back the nebula cloud of each removed system, and point a renumbered system's at
+/// its new id.
+fn rewrite_clouds(
+    plan: &mut Plan,
+    s: &Session,
+    removed: &BTreeSet<u32>,
+    renumber: &BTreeMap<u32, u32>,
+) -> Result<(), OpError> {
+    let Some(mut footprints) = Footprints::new(&s.doc, &s.graph) else {
+        return Ok(());
+    };
+    for &id in removed {
+        if let Some((cloud, at)) = footprints.read(id)?.cloud() {
+            footprints.release(plan, cloud, at)?;
+        }
+    }
+    for (&old, &new) in renumber {
+        if let Some((_, at)) = footprints.read(old)?.cloud() {
+            footprints.renumber(plan, at, new)?;
+        }
+    }
+    footprints.finish(plan)
 }
 
 fn set_counter(

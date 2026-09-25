@@ -70,5 +70,6 @@ fn extract_nebula(node: &Node, src: &[u8]) -> Result<Nebula, ProjectionError> {
         y,
         radius,
         systems,
+        turbulence: None,
     })
 }

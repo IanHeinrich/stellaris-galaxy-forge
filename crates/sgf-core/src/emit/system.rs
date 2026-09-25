@@ -172,18 +172,7 @@ pub fn planet_entry(indent: &[u8], p: &PlanetEntry<'_>) -> Vec<u8> {
     w.close(1);
     w.pair(1, keys::BOMBARDMENT_DAMAGE, "0");
     if !p.modifiers.is_empty() {
-        w.open(1, keys::TIMED_MODIFIER);
-        w.open(2, keys::ITEMS);
-        w.line(3, "");
-        for modifier in p.modifiers {
-            w.line(3, "{");
-            w.pair(4, keys::MODIFIER, &quoted(modifier));
-            w.pair(4, keys::DAYS, PERMANENT);
-            w.line(3, "}");
-            w.separator();
-        }
-        w.close(2);
-        w.close(1);
+        w.timed_modifiers(1, p.modifiers);
     }
     w.pair(1, keys::ENTITY, &p.entity.to_string());
     if let Some(name) = p.entity_name {
@@ -236,6 +225,65 @@ pub fn deposit_entry(indent: &[u8], d: &DepositEntry<'_>) -> Vec<u8> {
 pub fn deposits_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
     let mut w = Lines::new(indent);
     w.list(0, keys::DEPOSITS, ids);
+    w.into_bytes()
+}
+
+/// A nebula cloud's entry in the top-level `ambient_object` table.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AmbientEntry<'a> {
+    pub id: u32,
+    pub kind: &'a str,
+    pub system: u32,
+    /// The star's position in the system.
+    pub star: (f64, f64),
+    /// Where the object stands beside the star.
+    pub at: (f64, f64),
+}
+
+pub fn ambient_entry(indent: &[u8], a: &AmbientEntry<'_>) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    let null = |w: &mut Lines, key: &str| {
+        w.open(2, key);
+        w.pair(3, keys::TYPE, "10");
+        w.pair(3, keys::ID, &crate::NULL_ID.to_string());
+        w.close(2);
+    };
+    w.open(0, &a.id.to_string());
+    w.coordinate(1, a.star, a.system);
+    w.pair(1, keys::DATA, &quoted(a.kind));
+    w.open(1, keys::PROPERTIES);
+    w.coordinate(2, a.at, a.system);
+    null(&mut w, keys::ATTACH);
+    w.open(2, keys::OFFSET);
+    w.line(3, "0 0 0 ");
+    w.close(2);
+    w.pair(2, keys::SCALE, "1");
+    null(&mut w, keys::ENTITY_FACE_OBJECT);
+    w.pair(2, keys::APPEAR_STATE, "\"\"");
+    w.close(1);
+    w.close(0);
+    w.into_bytes()
+}
+
+/// A system's `ambient_object` list, for a system that has none.
+pub fn ambient_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.list(0, keys::AMBIENT_OBJECT, ids);
+    w.into_bytes()
+}
+
+/// A `timed_modifier` block of permanent `modifiers`, for an entity that has none.
+pub fn timed_modifiers(indent: &[u8], modifiers: &[&str]) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.timed_modifiers(0, modifiers);
+    w.into_bytes()
+}
+
+/// One permanent modifier as an entry of `timed_modifier.items`, with the separator line
+/// after it.
+pub fn timed_modifier_item(indent: &[u8], modifier: &str) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.timed_modifier(0, modifier);
     w.into_bytes()
 }
 
@@ -305,6 +353,34 @@ impl Lines {
             self.close(depth + 1);
         }
         self.close(depth);
+    }
+
+    /// `coordinate={ x y origin }` at `depth`.
+    fn coordinate(&mut self, depth: usize, (x, y): (f64, f64), origin: u32) {
+        self.open(depth, keys::COORDINATE);
+        self.pair(depth + 1, keys::X, &coord(x));
+        self.pair(depth + 1, keys::Y, &coord(y));
+        self.pair(depth + 1, keys::ORIGIN, &origin.to_string());
+        self.close(depth);
+    }
+
+    fn timed_modifiers<S: AsRef<str>>(&mut self, depth: usize, modifiers: &[S]) {
+        self.open(depth, keys::TIMED_MODIFIER);
+        self.open(depth + 1, keys::ITEMS);
+        self.line(depth + 2, "");
+        for modifier in modifiers {
+            self.timed_modifier(depth + 2, modifier.as_ref());
+        }
+        self.close(depth + 1);
+        self.close(depth);
+    }
+
+    fn timed_modifier(&mut self, depth: usize, modifier: &str) {
+        self.line(depth, "{");
+        self.pair(depth + 1, keys::MODIFIER, &quoted(modifier));
+        self.pair(depth + 1, keys::DAYS, PERMANENT);
+        self.line(depth, "}");
+        self.separator();
     }
 
     /// The single-space line the game writes after each entry of an anonymous list.

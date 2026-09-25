@@ -132,6 +132,13 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),
+        // The game dresses a scenario's nebula members when it starts.
+        Op::SetNebulaTurbulent { .. } | Op::SetNebulaFootprints { .. } => {
+            Err(OpError::Unsupported {
+                op: op.name(),
+                kind: DocumentKind::Scenario,
+            })
+        }
         Op::Batch { .. } => Err(OpError::NestedBatch),
     }
 }

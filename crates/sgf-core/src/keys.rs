@@ -5,10 +5,12 @@
 
 pub(crate) const ACTIVE: &str = "active";
 pub(crate) const AMBIENT_OBJECT: &str = "ambient_object";
+pub(crate) const APPEAR_STATE: &str = "appear_state";
 pub(crate) const ARCHAEOLOGICAL_SITES: &str = "archaeological_sites";
 pub(crate) const ASTEROID_BELTS: &str = "asteroid_belts";
 pub(crate) const ASTEROID_POSTFIX: &str = "asteroid_postfix";
 pub(crate) const ASTEROID_PREFIX: &str = "asteroid_prefix";
+pub(crate) const ATTACH: &str = "attach";
 pub(crate) const BACKGROUND: &str = "background";
 pub(crate) const BINARY_FLAGS: &str = "binary_flags";
 pub(crate) const BLACK_HOLE_NAMES: &str = "black_hole_names";
@@ -35,6 +37,7 @@ pub(crate) const COUNTRY: &str = "country";
 pub(crate) const CRISES: &str = "crises";
 pub(crate) const CRISIS_TYPE: &str = "crisis_type";
 pub(crate) const CURRENT_ORDER: &str = "current_order";
+pub(crate) const DATA: &str = "data";
 pub(crate) const DAYS: &str = "days";
 pub(crate) const DEPOSIT: &str = "deposit";
 pub(crate) const DEPOSITS: &str = "deposits";
@@ -46,6 +49,7 @@ pub(crate) const DISMANTLE_FINISH_DATE: &str = "dismantle_finish_date";
 pub(crate) const DISMANTLE_PROGRESS: &str = "dismantle_progress";
 pub(crate) const END_GAME_START: &str = "end_game_start";
 pub(crate) const ENTITY: &str = "entity";
+pub(crate) const ENTITY_FACE_OBJECT: &str = "entity_face_object";
 pub(crate) const ENTITY_NAME: &str = "entity_name";
 pub(crate) const FILE: &str = "file";
 pub(crate) const FINAL_DESIGNATION: &str = "final_designation";
@@ -75,6 +79,7 @@ pub(crate) const IRONMAN: &str = "ironman";
 pub(crate) const ITEMS: &str = "items";
 pub(crate) const KEY: &str = "key";
 pub(crate) const LAST_BOMBARDMENT: &str = "last_bombardment";
+pub(crate) const LAST_CREATED_AMBIENT_OBJECT: &str = "last_created_ambient_object";
 pub(crate) const LAST_CREATED_SYSTEM: &str = "last_created_system";
 pub(crate) const LENGTH: &str = "length";
 pub(crate) const LEVEL: &str = "level";
@@ -105,6 +110,7 @@ pub(crate) const NUM_NOMAD_EMPIRES: &str = "num_nomad_empires";
 pub(crate) const NUM_POPS: &str = "num_pops";
 pub(crate) const NUM_SAPIENT_POPS: &str = "num_sapient_pops";
 pub(crate) const NUM_WORMHOLE_PAIRS: &str = "num_wormhole_pairs";
+pub(crate) const OFFSET: &str = "offset";
 pub(crate) const ORBIT: &str = "orbit";
 pub(crate) const ORBITALS: &str = "orbitals";
 pub(crate) const ORIGIN: &str = "origin";
@@ -120,10 +126,12 @@ pub(crate) const PLANET_SIZE: &str = "planet_size";
 pub(crate) const PLAYER: &str = "player";
 pub(crate) const POP_GROUPS: &str = "pop_groups";
 pub(crate) const PRIMITIVE: &str = "primitive";
+pub(crate) const PROPERTIES: &str = "properties";
 pub(crate) const RADIUS: &str = "radius";
 pub(crate) const RANDOM_NAME_DATABASE: &str = "random_name_database";
 pub(crate) const REQUIRED_DLCS: &str = "required_dlcs";
 pub(crate) const RESOURCE_ABUNDANCE: &str = "resource_abundance";
+pub(crate) const SCALE: &str = "scale";
 pub(crate) const SCALING: &str = "scaling";
 pub(crate) const SECTOR: &str = "sector";
 pub(crate) const SECTORS: &str = "sectors";
@@ -168,10 +176,12 @@ pub(crate) const Y: &str = "y";
 pub(crate) const ALL: &[&str] = &[
     ACTIVE,
     AMBIENT_OBJECT,
+    APPEAR_STATE,
     ARCHAEOLOGICAL_SITES,
     ASTEROID_BELTS,
     ASTEROID_POSTFIX,
     ASTEROID_PREFIX,
+    ATTACH,
     BACKGROUND,
     BINARY_FLAGS,
     BLACK_HOLE_NAMES,
@@ -198,6 +208,7 @@ pub(crate) const ALL: &[&str] = &[
     CRISES,
     CRISIS_TYPE,
     CURRENT_ORDER,
+    DATA,
     DAYS,
     DEPOSIT,
     DEPOSITS,
@@ -209,6 +220,7 @@ pub(crate) const ALL: &[&str] = &[
     DISMANTLE_PROGRESS,
     END_GAME_START,
     ENTITY,
+    ENTITY_FACE_OBJECT,
     ENTITY_NAME,
     FILE,
     FINAL_DESIGNATION,
@@ -238,6 +250,7 @@ pub(crate) const ALL: &[&str] = &[
     ITEMS,
     KEY,
     LAST_BOMBARDMENT,
+    LAST_CREATED_AMBIENT_OBJECT,
     LAST_CREATED_SYSTEM,
     LENGTH,
     LEVEL,
@@ -268,6 +281,7 @@ pub(crate) const ALL: &[&str] = &[
     NUM_POPS,
     NUM_SAPIENT_POPS,
     NUM_WORMHOLE_PAIRS,
+    OFFSET,
     ORBIT,
     ORBITALS,
     ORIGIN,
@@ -283,10 +297,12 @@ pub(crate) const ALL: &[&str] = &[
     PLAYER,
     POP_GROUPS,
     PRIMITIVE,
+    PROPERTIES,
     RADIUS,
     RANDOM_NAME_DATABASE,
     REQUIRED_DLCS,
     RESOURCE_ABUNDANCE,
+    SCALE,
     SCALING,
     SECTOR,
     SECTORS,

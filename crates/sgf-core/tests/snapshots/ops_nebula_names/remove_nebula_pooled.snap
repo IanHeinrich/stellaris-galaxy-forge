@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Removed nebula "Yinarim Nebula" (4 systems released; 1 joined Demons Eye Nebula)
-inverse: AddNebula { x: -57.5, y: -305.0, radius: 40.0, name: Some("Yinarim_Nebula") }
+inverse: Batch { description: "Undo of \"Removed nebula \"Yinarim Nebula\" (4 systems released; 1 joined Demons Eye Nebula)\"", ops: [AddNebula { x: -57.5, y: -305.0, radius: 40.0, name: Some("Yinarim_Nebula") }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 113, cloud: Some(NebulaCloud { id: 1069, kind: "nebula_3" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 600, cloud: Some(NebulaCloud { id: 1070, kind: "nebula_1" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 688, cloud: Some(NebulaCloud { id: 1071, kind: "nebula_1" }), cloaking: true, turbulent: false }] }] }
 --- before
 +++ after
 @@ -6175,6 +6175,7 @@
@@ -14,11 +14,10 @@ inverse: AddNebula { x: -57.5, y: -305.0, radius: 40.0, name: Some("Yinarim_Nebu
  	galactic_object=256
  }
  nebula=
-@@ -6210,26 +6211,6 @@
- 	}
+@@ -6211,26 +6212,6 @@
  	radius=25
  	galactic_object=17
--}
+ }
 -nebula=
 -{
 -	coordinate=
@@ -38,10 +37,213 @@ inverse: AddNebula { x: -57.5, y: -305.0, radius: 40.0, name: Some("Yinarim_Nebu
 -	galactic_object=134
 -	galactic_object=600
 -	galactic_object=688
- }
+-}
  pop=
  {
-@@ -1546035,6 +1546016,7 @@
+ }
+@@ -36851,10 +36832,6 @@
+ 		planet=1714
+ 		planet=1715
+ 		planet=8398
+-		ambient_object=
+-		{
+-			1069 
+-		}
+ 		star_class="sc_binary_9"
+ 		hyperlane=
+ 		{
+@@ -36888,18 +36865,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=46
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	114=
+@@ -69905,10 +69870,6 @@
+ 		planet=6452
+ 		planet=6453
+ 		planet=8338
+-		ambient_object=
+-		{
+-			1070 
+-		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -69943,18 +69904,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=46
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	601=
+@@ -75689,10 +75638,6 @@
+ 		planet=7289
+ 		planet=7290
+ 		planet=7291
+-		ambient_object=
+-		{
+-			1071 
+-		}
+ 		star_class="sc_k"
+ 		hyperlane=
+ 		{
+@@ -75736,18 +75681,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=47
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	689=
+@@ -1544788,111 +1544721,6 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	1069=
+-	{
+-		coordinate=
+-		{
+-			x=-25.11325
+-			y=0
+-			origin=113
+-		}
+-		data="nebula_3"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=-8.86325
+-				y=20.25
+-				origin=113
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
+-	1070=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=600
+-		}
+-		data="nebula_1"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=13.61
+-				y=17.61
+-				origin=600
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
+-	1071=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=688
+-		}
+-		data="nebula_1"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=14.6
+-				y=18.6
+-				origin=688
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
+ }
+ orbital_line=
+ {
+@@ -1546188,6 +1546016,7 @@
  	nebula_names=
  	{
  		"Picaress_Drift"

@@ -1,0 +1,363 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Rolled Mura (#601) again as sc_b, with 4 bodies
+touched: [601]
+inverse: ReplaceSaveSystem { system: 601, spec: SystemSpec { name: "Mura", x: -330.0, y: -75.0, star_class: "sc_g", initializer: "basic_init_01", capped: false, star_named_by_class: false, star: BodySpec { class: "pc_g_star", size: 25, orbit: 0.0, angle: 0.0, entity: 0, deposits: ["d_energy_5"], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, planets: [BodySpec { class: "pc_molten", size: 12, orbit: 65.0, angle: 30.0, entity: 1, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, BodySpec { class: "pc_barren", size: 14, orbit: 85.0, angle: 150.0, entity: 1, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, BodySpec { class: "pc_continental", size: 16, orbit: 105.0, angle: 260.0, entity: 2, deposits: ["d_black_soil", "d_hot_springs", "d_veiny_cliffs"], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, BodySpec { class: "pc_gas_giant", size: 25, orbit: 145.0, angle: 20.0, entity: 2, deposits: ["d_energy_5"], moons: [BodySpec { class: "pc_frozen", size: 8, orbit: 15.0, angle: 60.0, entity: 1, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, BodySpec { class: "pc_barren_cold", size: 6, orbit: 22.0, angle: 240.0, entity: 1, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, BodySpec { class: "pc_toxic", size: 15, orbit: 175.0, angle: 200.0, entity: 1, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, BodySpec { class: "pc_frozen", size: 13, orbit: 205.0, angle: 110.0, entity: 1, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }], belts: [], lanes: [169] } }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -9658,6 +9658,7 @@
+ 	galactic_object=372
+ 	galactic_object=444
+ 	galactic_object=536
++	galactic_object=601
+ }
+ nebula=
+ {
+@@ -41044,6 +41045,11 @@
+ 				length=24
+ 			}
+  
++			{
++				to=601
++				length=34
++			}
++ 
+ 		}
+ 		arm=1
+ 		flags=
+@@ -71403,6 +71409,60 @@
+ 		index=0
+ 		storm=4294967295
+ 	}
++	601=
++	{
++		coordinate=
++		{
++			x=-330
++			y=-75
++			origin=4294967295
++			visual_height=4.31213
++		}
++		name=
++		{
++			key="Mura"
++		}
++		planet=16777273
++		planet=6375
++		planet=6376
++		planet=6377
++		ambient_object=
++		{
++			361 
++		}
++		star_class="sc_b"
++		hyperlane=
++		{
++			
++			{
++				to=169
++				length=34
++			}
++ 
++		}
++		initializer="basic_init_03"
++		inner_radius=160
++		outer_radius=260
++		starbases=
++		{
++			4294967295 
++		}
++		sector=4294967295
++		index=0
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
++		storm=4294967295
++	}
+ }
+ starbase_mgr=
+ {
+@@ -82369,7 +82429,41 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_b_star"
++			planet_size=30
++			carrier_binary_flags=3
++			name=
++			{
++				key="STAR_NAME_1_OF_1"
++				variables=
++				{
++					
++					{
++						key="NAME"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=0
++				y=0
++				origin=601
++			}
++			orbit=0
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+ 		58=
+ 		{
+ 			colony=30
+@@ -411928,6 +412022,142 @@
+ 				4047 
+ 			}
+ 		}
++		6375=
++		{
++			planet_class="pc_barren"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=42.13244
++				y=35.35332
++				origin=601
++			}
++			orbit=55
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=1
++		}
++		6376=
++		{
++			planet_class="pc_desert"
++			planet_size=17
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="II"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-84.57234
++				y=-30.78181
++				origin=601
++			}
++			orbit=90
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++		}
++		6377=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=22
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Mura"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="III"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=65
++				y=-112.5833
++				origin=601
++			}
++			orbit=130
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=2
++			deposits=
++			{
++				16777216 
++			}
++		}
+ 	}
+ }
+ astral_rifts=
+@@ -692049,7 +692279,7 @@
+ {
+ }
+ last_created_country=55
+-last_created_system=600
++last_created_system=601
+ leaders=
+ {
+ 	285212672=
+@@ -1076220,7 +1076450,15 @@
+ }
+ deposit=
+ {
+-	0=none
++	16777216=
++	{
++		type="d_minerals_4"
++		deposit_holder=
++		{
++			type=0
++			id=6377
++		}
++	}
+ 	1=none
+ 	2=none
+ 	3=none
+@@ -1121518,6 +1121756,41 @@
+ 			appear_state=""
+ 		}
+ 	}
++	361=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=601
++		}
++		data="nebula_3"
++		properties=
++		{
++			coordinate=
++			{
++				x=14.6
++				y=18.6
++				origin=601
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
+ }
+ orbital_line=
+ {
+@@ -1121544,7 +1121817,7 @@
+ 		}
+ 	}
+ }
+-last_created_ambient_object=360
++last_created_ambient_object=361
+ last_created_cosmic_storm_influence_field=6
+ last_notification_id=1
+ last_event_id=1
+@@ -1121583,7 +1121856,6 @@
+ 	star_names=
+ 	{
+ 		"Epsilon_Eridani"
+-		"Mura"
+ 		"Tau_Ceti"
+ 		"Altair"
+ 		"Fellix"

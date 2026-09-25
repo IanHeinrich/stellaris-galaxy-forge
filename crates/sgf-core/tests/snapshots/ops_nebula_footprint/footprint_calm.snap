@@ -1,0 +1,32 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Made Demons Eye Nebula calm: 1 system changed
+touched: [0]
+inverse: SetNebulaFootprints { footprints: [NebulaFootprint { system: 0, cloud: Some(NebulaCloud { id: 318, kind: "turbulent_nebula_2" }), cloaking: true, turbulent: true }] }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -28905,11 +28905,6 @@
+ 					days=-1
+ 				}
+  
+-				{
+-					modifier="turbulent_nebula"
+-					days=-1
+-				}
+- 
+ 			}
+ 		}
+ 		storm_influence_fields=
+@@ -1119977,7 +1119972,7 @@
+ 			y=0
+ 			origin=0
+ 		}
+-		data="turbulent_nebula_2"
++		data="nebula_1"
+ 		properties=
+ 		{
+ 			coordinate=

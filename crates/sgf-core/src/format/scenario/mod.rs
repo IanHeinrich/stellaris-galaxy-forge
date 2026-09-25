@@ -310,6 +310,7 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         flags: Vec::new(),
         owner: None,
         added: false,
+        turbulent: false,
     }
 }
 
@@ -358,6 +359,7 @@ fn nebula(node: &Node, src: &[u8]) -> Nebula {
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0),
         systems: Vec::new(),
+        turbulence: None,
     }
 }
 
