@@ -519,8 +519,14 @@ Id-keyed tables cross-reference each other, often in both directions.
 - To find a system's owner, follow `galactic_object.starbases` to
   `starbase_mgr.starbases.<id>.station`, then to `ships.<id>.fleet`,
   then to the owning country. Sectors are not territory.
-- A polymorphic reference is `{ type=N id=M }`. Type 0 is a planet, 2 a
-  galactic object and 10 an ambient object.
+- A polymorphic reference is `{ type=N id=M }`, and what a code names
+  depends on the field. `deposit.<id>.deposit_holder` writes `type=0`
+  for a planet. `archaeological_sites.sites.<id>.location` and
+  `ambient_object.<id>.properties.attach` write `type=2` for a planet.
+  `attach` and `entity_face_object` write `type=10` with the null id on
+  an object attached to nothing, which is nearly all of them. 4.5 writes
+  `attach={ type=3 id=<n> }` on ten objects. I have not worked out what
+  type 3 names.
 - Many fields are caches the game recomputes: `produces`, `profits`,
   `stability`, `buildings_cache`, `military_power` and `economy_power`.
 
