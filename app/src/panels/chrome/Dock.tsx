@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { documentCapabilities } from "../../lib/capabilities";
 import { shortcutLabel } from "../../lib/keys";
 import { useEmpireCount, usePointCount } from "../../store/browserRows";
@@ -57,6 +57,37 @@ function Resizer() {
   );
 }
 
+/** A tab's width before it stretches to fill the strip: its padding, contents and the gaps between them. */
+function naturalWidth(tab: Element): number {
+  const style = getComputedStyle(tab);
+  const parts = [...tab.children].map((part) => part.getBoundingClientRect().width);
+  const gaps = Math.max(0, parts.length - 1) * parseFloat(style.columnGap);
+  return (
+    parts.reduce((sum, width) => sum + width, 0) +
+    gaps +
+    parseFloat(style.paddingLeft) +
+    parseFloat(style.paddingRight)
+  );
+}
+
+/** Whether the tabs at their natural widths overflow the list, measured on resize and whenever `content` changes. */
+function useTwoRows(list: RefObject<HTMLDivElement | null>, content: string): boolean {
+  const [twoRows, setTwoRows] = useState(false);
+  useLayoutEffect(() => {
+    const el = list.current;
+    if (!el) return;
+    const measure = () => {
+      const needed = [...el.children].reduce((sum, tab) => sum + naturalWidth(tab), 0);
+      setTwoRows(needed > el.getBoundingClientRect().width);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [list, content]);
+  return twoRows;
+}
+
 function TabStrip({ tab }: { tab: DockTab }) {
   const setTab = useLayoutStore((s) => s.setTab);
   const toggleDock = useLayoutStore((s) => s.toggleDock);
@@ -74,10 +105,19 @@ function TabStrip({ tab }: { tab: DockTab }) {
     issues: fresh.length,
     changes,
   };
+  const tabs = dockTabsFor(capabilities);
+  const list = useRef<HTMLDivElement>(null);
+  const twoRows = useTwoRows(list, tabs.map((id) => `${id}:${counts[id]}`).join());
   return (
     <div className="dock-tabs">
-      <div className="dock-tablist" role="tablist" aria-label="Dock">
-        {dockTabsFor(capabilities).map((id) => {
+      <div
+        ref={list}
+        className={twoRows ? "dock-tablist two-rows" : "dock-tablist"}
+        role="tablist"
+        aria-label="Dock"
+        style={{ "--dock-cols": Math.ceil(tabs.length / 2) } as CSSProperties}
+      >
+        {tabs.map((id) => {
           const count = counts[id];
           return (
             <button

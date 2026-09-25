@@ -12,7 +12,7 @@ import { Inspector } from "../inspector/Inspector";
 /** One dock tab: what the strip calls it, what fills the panel, and what the document must support. */
 export interface DockTabEntry {
   readonly label: string;
-  /** What the tab strip shows when it is narrow; `label` stays as the tooltip. */
+  /** What the tab strip shows; `label` stays as the tooltip. */
   readonly short: string;
   readonly component: ComponentType;
   readonly requires?: keyof Capabilities;

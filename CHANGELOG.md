@@ -21,6 +21,8 @@ a release is made.
 
 ### Changed
 
+- The dock's tabs move onto a second row when the dock is narrow, so
+  their names are no longer cut off.
 - A system added inside a nebula joins it, with the nebula's cloud and
   cloaking.
 - Added systems roll their deposits with the game's own minimums. A
