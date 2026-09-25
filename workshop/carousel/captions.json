@@ -10,8 +10,15 @@
   {"file": "09-inspector", "caption": "Inspector", "tag": "save", "style": "strip"},
   {"file": "10-scenario-inspector", "caption": "Scenario inspector", "tag": "scenario", "style": "strip"},
   {"file": "11-scripts-tab", "caption": "Scripts tab", "tag": "scenario", "style": "strip"},
-  {"file": "12-add-system", "caption": "Add a system", "tag": "scenario", "style": "overlay"},
+  {"file": "12-add-system", "caption": "Add a system", "tag": "both", "style": "overlay"},
   {"file": "13-delete-system", "caption": "Delete a system", "tag": "scenario", "style": "overlay"},
   {"file": "14-spawn-point", "caption": "Set a spawn point", "tag": "scenario", "style": "overlay"},
-  {"file": "15-prevent-lane", "caption": "Prevent a hyperlane", "tag": "scenario", "style": "overlay"}
+  {"file": "15-prevent-lane", "caption": "Prevent a hyperlane", "tag": "scenario", "style": "overlay"},
+  {"file": "16-add-system-save", "caption": "Add a system to a save", "tag": "save", "style": "overlay"},
+  {"file": "17-special-systems", "caption": "Special systems", "tag": "save", "style": "overlay"},
+  {"file": "18-planet-pages", "caption": "Planet pages", "tag": "save", "style": "strip"},
+  {"file": "19-star-type-size", "caption": "Star type and size", "tag": "save", "style": "strip"},
+  {"file": "20-map-colours", "caption": "Empire map colours", "tag": "save", "style": "strip"},
+  {"file": "21-add-nebula", "caption": "Add and resize a nebula", "tag": "both", "style": "overlay"},
+  {"file": "22-paint-symmetry", "caption": "Paint with symmetry", "tag": "scenario", "style": "overlay"}
 ]

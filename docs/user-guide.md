@@ -121,6 +121,27 @@ star class there rolls a regular system around that star.
 - With nothing selected, the Inspector can reveal which L-Gate outcome
   the save rolled, and change it until a gate opens.
 
+### Planet, moon, star and asteroid pages
+
+Click a body in a system's Planets list, or a moon in a body's own Moons
+list, to open its page in the Inspector. F search finds a planet by name
+too.
+
+- A star's page opens with its type and size to edit, as [Stars and
+  empires](#stars-and-empires) describes. Any other body's page shows its
+  class and size instead.
+- Deposits show the game's own art and the district capacity they add up
+  to, one row per type: what each yields, or what it does while unworked.
+  A blocked deposit carries a blocker mark, the tech and resources that
+  clear it, and how long clearing takes.
+- Modifiers follow, each with what it changes and how many days are left.
+- Moons are listed below that and open their own pages the same way.
+- An owned planet has a Colony section: its owner, designation, when it
+  was colonised, and its pops, split by species.
+
+The breadcrumb above the page goes back: "‹" for one step, a name in it
+for that page, or "Galaxy" for the whole map.
+
 ### Symmetry
 
 The Symmetry button under the tools, or M, repeats your edits about the
@@ -328,9 +349,16 @@ the app, or write elsewhere with `-o <file>`. System ids are the numbers
 shown as `#123` in the app. `sgf --help` lists every command, and
 `sgf <command> --help` its options.
 
-- Read a file: `inspect`, `validate`, `details`, `special`, `gamedata`.
+- Read a file: `inspect`, `validate`, `details`, `special`,
+  `special-layouts`, `gamedata`. `special-layouts` lists the layouts a
+  system can be rerolled from, and how many systems in the save already
+  use each.
 - Edit the galaxy: `move`, `isolate`, `lane`, `nebula`, `move-nebula`,
-  `star`, `planet-size`.
+  `star`, `planet-size`, `deposit`, `add-system`. `deposit add` and
+  `deposit remove` change the deposits on an uncolonised planet.
+  `add-system` adds systems from a JSON spec you write, or rolls one from
+  the install's own rules with `--generate`, a special layout included
+  with `--layout`.
 - Edit a scenario: `header`, `spawn`, `lane prevent` and `lane allow`.
 - Make a scenario: `export-scenario <sav> <out>` and
   `new-scenario <name> <out>`. Add `--profile paint-a-galaxy` to write
