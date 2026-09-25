@@ -6,6 +6,7 @@ pub mod entity;
 pub mod gamedata;
 pub mod listing;
 pub mod nebula;
+pub mod paint;
 pub mod scenario;
 pub mod session;
 pub mod update;
@@ -15,10 +16,12 @@ pub use entity::*;
 pub use gamedata::*;
 pub use listing::*;
 pub use nebula::*;
+pub use paint::*;
 pub use scenario::*;
 pub use session::*;
 pub use update::*;
 
+use std::ops::Deref;
 use std::sync::MutexGuard;
 
 use sgf_core::session::Session;
@@ -69,6 +72,19 @@ async fn with_session<R: Runtime, T: Send + 'static>(
     tauri::async_runtime::spawn_blocking(move || f(lock(&app.state::<AppState>())))
         .await
         .map_err(io_error)?
+}
+
+/// The open session when it is a document of `kind`; else `refusal`, as an `Op` error.
+fn require<S: Deref<Target = Session>>(
+    session: Option<S>,
+    kind: DocumentKind,
+    refusal: &str,
+) -> Result<S, SgfError> {
+    let session = session.ok_or_else(SgfError::no_session)?;
+    if session.kind() != kind {
+        return Err(SgfError::new(ErrorKind::Op, refusal));
+    }
+    Ok(session)
 }
 
 fn lock<'a>(state: &'a State<'_, AppState>) -> MutexGuard<'a, Option<Session>> {

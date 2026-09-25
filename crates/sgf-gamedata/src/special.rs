@@ -49,6 +49,18 @@ impl SpecialKind {
             Self::Unique => "unique",
         }
     }
+
+    /// The name the app's chips and rows give the kind (`app/src/lib/special.ts`).
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Leviathan => "Leviathan",
+            Self::Enclave => "Enclave",
+            Self::Marauder => "Marauder",
+            Self::FallenEmpire => "Fallen empire",
+            Self::Landmark => "Landmark",
+            Self::Unique => "Unique",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

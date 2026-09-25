@@ -16,12 +16,6 @@ pub struct Colors {
     pub source: Option<String>,
 }
 
-impl Colors {
-    pub fn iter(&self) -> impl Iterator<Item = &ColorDef> {
-        self.entries.iter()
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColorDef {
     pub name: String,

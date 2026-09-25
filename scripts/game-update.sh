@@ -61,17 +61,6 @@ step() {
 	fi
 }
 
-roundtrip_identical() {
-	local copy="$tmp/roundtrip.sav" member
-	"$sgf" roundtrip "$save" "$copy" || return 1
-	for member in gamestate meta; do
-		unzip -p "$save" "$member" >"$tmp/$member.in"
-		unzip -p "$copy" "$member" >"$tmp/$member.out"
-		cmp "$tmp/$member.in" "$tmp/$member.out" || { printf '%s differs\n' "$member"; return 1; }
-	done
-	printf 'gamestate and meta are byte-identical\n'
-}
-
 export_validates() {
 	local scenario="$tmp/exported.txt"
 	"$sgf" export-scenario "$save" "$scenario" && "$sgf" validate "$scenario"
@@ -89,7 +78,7 @@ sgf="target/release/sgf"
 step "gamedata parses" "^version:" "$sgf" gamedata
 step "save loads" "^version:" "$sgf" inspect "$save"
 step "save validates" "^validate:" "$sgf" validate "$save"
-step "save round-trips" "byte-identical" roundtrip_identical
+step "save round-trips" "byte-identical" "$sgf" roundtrip "$save" "$tmp/roundtrip.sav" --check
 step "save exports" "^validate:" export_validates
 
 printf 'INFO  shape of %s against %s\n' "$save" "$against"

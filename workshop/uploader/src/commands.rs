@@ -305,8 +305,18 @@ pub fn backfill(repo: &Repo, item: u64, from: Version, mode: PushMode) -> Result
     Ok(())
 }
 
+/// Whether `version` has a GitHub release page. A failed request other than a status
+/// answer is taken as no release, with a warning, since the note then loses its link.
 fn has_release(version: Version) -> bool {
-    ureq::head(&changelog::release_url(version)).call().is_ok()
+    let url = changelog::release_url(version);
+    match ureq::head(&url).call() {
+        Ok(_) => true,
+        Err(ureq::Error::StatusCode(_)) => false,
+        Err(e) => {
+            println!("warning: could not reach {url} ({e}); the change note has no release link");
+            false
+        }
+    }
 }
 
 #[derive(Clone, Copy)]

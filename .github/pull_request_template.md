@@ -28,3 +28,10 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] An empire given new map colours shows them as its border and fill; one set back to flag colours shows those
 - [ ] An added system loads with its bodies, names and lanes; it can be surveyed, claimed and colonised, and survives a save and reload
 - [ ] With the middle one of three added systems removed, the save loads, the renumbered system keeps its lanes and bodies, and it survives a save and reload
+- [ ] A deposit added to an uncolonised planet shows on its page in game, a removed one is gone, and both hold after a save and reload
+- [ ] A planet given a new size loads drawn at that size and a month passes cleanly
+- [ ] An added system rolled again loads as the new roll, with its name, position and lanes kept
+- [ ] An added system renamed shows the new name on the galaxy map, its star, planets and moons
+- [ ] A special layout placed in a save loads with its fixed bodies, flags and name
+- [ ] A nebula made turbulent or calm shows the change on its members in game
+- [ ] A nebula added in a save draws its cloud over its members, and a system inside it is cloaked as the game's own members are

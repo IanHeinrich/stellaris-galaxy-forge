@@ -19,8 +19,6 @@ use crate::install::script::Range;
 use crate::registries::scripted_triggers::ScriptedTriggers;
 use crate::registries::star_classes::{StarClass, StarList};
 
-pub use crate::menu::{SpecialLayout, menu_initializers, special_layouts};
-
 /// The `usage` of the initializers a galaxy fills its ordinary systems with.
 pub const USAGE: &str = "misc_system_init";
 /// The star flag of the game's unique systems, which its timeline reads when an empire

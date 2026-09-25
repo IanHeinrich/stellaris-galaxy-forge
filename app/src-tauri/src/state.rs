@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -19,10 +20,14 @@ pub struct GameDataState {
     pub generation: AtomicU64,
     owners: Mutex<Option<Cached<ScenarioOwners>>>,
     bypasses: Mutex<Option<Cached<ScenarioBypasses>>>,
+    special_labels: Mutex<Option<Cached<SpecialLabels>>>,
 }
 
-/// A whole-scenario pass last computed, with what it was computed from: the game-data
-/// generation and a digest of the scenario's systems.
+/// Each special system's kinds, by the labels search matches them on.
+pub type SpecialLabels = HashMap<u32, Vec<&'static str>>;
+
+/// A whole-document pass last computed, with what it was computed from: the game-data
+/// generation and a digest of the document's systems.
 struct Cached<T> {
     generation: u64,
     digest: u64,
@@ -99,6 +104,16 @@ impl GameDataState {
 
     pub fn store_bypasses(&self, generation: u64, digest: u64, bypasses: Arc<ScenarioBypasses>) {
         Cached::put(&self.bypasses, generation, digest, bypasses);
+    }
+
+    /// The cached search labels, when they were classified from this generation of the
+    /// game data and this digest of the document's systems.
+    pub fn special_labels(&self, generation: u64, digest: u64) -> Option<Arc<SpecialLabels>> {
+        Cached::get(&self.special_labels, generation, digest)
+    }
+
+    pub fn store_special_labels(&self, generation: u64, digest: u64, labels: Arc<SpecialLabels>) {
+        Cached::put(&self.special_labels, generation, digest, labels);
     }
 
     fn lock(&self) -> MutexGuard<'_, Option<Arc<GameData>>> {
