@@ -8,6 +8,12 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- Hyper relays no longer show the megastructure icon beside a system's
+  name. On the Bypasses layer, the square that marks a relay is much
+  fainter.
+
 ## [0.14.0] - 2026-09-25
 
 ### Added
