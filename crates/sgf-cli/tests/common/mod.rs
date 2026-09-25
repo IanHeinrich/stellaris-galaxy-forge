@@ -5,7 +5,10 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/4.4-early.sav");
-pub const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/4.5-day-one.sav");
+pub const SAMPLE_4_5: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/4.5-day-one.sav"
+);
 pub const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/4.4-early.scenario.txt"
