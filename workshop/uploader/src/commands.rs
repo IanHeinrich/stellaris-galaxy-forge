@@ -59,13 +59,13 @@ pub fn pull(repo: &Repo, item: u64, force: bool) -> Result<(), String> {
 struct PulledFile {
     path: PathBuf,
     bytes: Vec<u8>,
-    is_description: bool,
+    is_text: bool,
 }
 
 impl PulledFile {
     fn differs_from_disk(&self) -> bool {
         match fs::read(&self.path) {
-            Ok(existing) if self.is_description => {
+            Ok(existing) if self.is_text => {
                 plan::normalise(&String::from_utf8_lossy(&existing))
                     != plan::normalise(&String::from_utf8_lossy(&self.bytes))
             }
@@ -76,17 +76,29 @@ impl PulledFile {
 }
 
 fn download_page(repo: &Repo, live: &LiveItem) -> Result<Vec<PulledFile>, String> {
-    let mut pulled = vec![PulledFile {
-        path: repo.description_path(),
-        bytes: live.description.replace("\r\n", "\n").into_bytes(),
-        is_description: true,
-    }];
+    let mut pulled = vec![
+        PulledFile {
+            path: repo.title_path(),
+            bytes: format!(
+                "{}
+",
+                live.title
+            )
+            .into_bytes(),
+            is_text: true,
+        },
+        PulledFile {
+            path: repo.description_path(),
+            bytes: live.description.replace("\r\n", "\n").into_bytes(),
+            is_text: true,
+        },
+    ];
     if let Some(url) = &live.preview_url {
         let (bytes, extension) = download_image(url, "the main preview")?;
         pulled.push(PulledFile {
             path: repo.workshop().join(format!("preview.{extension}")),
             bytes,
-            is_description: false,
+            is_text: false,
         });
     }
     let images = live.previews.iter().filter(|preview| preview.is_image);
@@ -113,7 +125,7 @@ fn download_page(repo: &Repo, live: &LiveItem) -> Result<Vec<PulledFile>, String
         pulled.push(PulledFile {
             path: repo.carousel_dir().join(name),
             bytes,
-            is_description: false,
+            is_text: false,
         });
     }
     Ok(pulled)
@@ -199,10 +211,12 @@ pub fn push(repo: &Repo, item: u64, mode: PushMode, force: bool) -> Result<(), S
 
     let plan = plan::plan(
         &Page {
+            title: &live.title,
             description: &live.description,
             state: &live_state,
         },
         &Page {
+            title: &files.title,
             description: &files.description,
             state: &local_state,
         },
@@ -343,6 +357,7 @@ fn update_for(
     change_note: Option<String>,
 ) -> Update {
     let mut update = Update {
+        title: plan.title.then(|| files.title.clone()),
         description: plan.description.then(|| files.description.clone()),
         preview: plan.preview.then(|| files.preview.clone()),
         metadata: plan.new_state.to_json(),
@@ -369,6 +384,11 @@ fn live_image_indices(live: &LiveItem) -> Vec<u32> {
 }
 
 fn print_decisions(plan: &Plan, live: &LiveItem, files: &LocalFiles) {
+    if plan.title {
+        println!("title: upload ({:?} -> {:?})", live.title, files.title);
+    } else {
+        println!("title: unchanged");
+    }
     println!(
         "description: {}",
         if plan.description {

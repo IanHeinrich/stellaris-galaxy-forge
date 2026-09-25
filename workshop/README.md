@@ -5,6 +5,7 @@ players can find it. The item carries no mod, only a descriptor and a
 thumbnail. This folder holds the page, and the uploader keeps Steam in
 step with it.
 
+- `title.txt`: the item's title, one line.
 - `description.bbcode`: the description, in Steam's BBCode.
 - `preview.png`: the main image. It also goes up in the item's content
   as `thumbnail.png`, so it has to stay a PNG.
@@ -33,17 +34,18 @@ logged in as the item's owner. `cargo workshop` is an alias in
 cargo workshop <command>
 ```
 
-- `pull` writes the live description and images into this folder. It
-  downloads everything first, and refuses to change or remove a local
+- `pull` writes the live title, description and images into this folder.
+  It downloads everything first, and refuses to change or remove a local
   file that differs from Steam's copy unless given `--force`.
 - `init` records the current images and `VERSION` in the item's hidden
   metadata as what was last uploaded. It uploads nothing else, and
   refuses if the item already has that record unless given `--force`.
-- `push` shows what differs from the last upload: the description,
-  the main image, the carousel as a whole. When `VERSION` has moved,
-  it also shows the change note, made from the changelog sections since
-  the last push. It asks before uploading. `--dry-run` only shows,
-  `--yes` skips the question, and `--force` uploads everything.
+- `push` shows what differs from the last upload: the title, the
+  description, the main image, the carousel as a whole. When `VERSION`
+  has moved, it also shows the change note, made from the changelog
+  sections since the last push. It asks before uploading. `--dry-run`
+  only shows, `--yes` skips the question, and `--force` uploads
+  everything.
 - `backfill <x.y.z>` posts one change note per released version from
   that one up to the last push, oldest first, so the newest ends up on
   top. Steam dates each note the day it is posted, so every heading

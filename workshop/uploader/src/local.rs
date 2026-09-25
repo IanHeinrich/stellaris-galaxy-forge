@@ -8,6 +8,8 @@ use crate::state::UploadedState;
 // Steam reads the description back into a buffer of this size, NUL included.
 const MAX_DESCRIPTION_BYTES: usize =
     steamworks::sys::k_cchPublishedDocumentDescriptionMax as usize - 1;
+// Steam reads the title back into a buffer of this size, NUL included.
+const MAX_TITLE_BYTES: usize = steamworks::sys::k_cchPublishedDocumentTitleMax as usize - 1;
 const MAX_IMAGE_BYTES: u64 = 1024 * 1024;
 const IMAGE_EXTENSIONS: [&str; 4] = ["png", "jpg", "jpeg", "gif"];
 
@@ -48,6 +50,10 @@ impl Repo {
         self.workshop().join("description.bbcode")
     }
 
+    pub fn title_path(&self) -> PathBuf {
+        self.workshop().join("title.txt")
+    }
+
     pub fn carousel_dir(&self) -> PathBuf {
         self.workshop().join("carousel")
     }
@@ -74,6 +80,7 @@ impl Repo {
 
 /// The page as the local files describe it.
 pub struct LocalFiles {
+    pub title: String,
     pub description: String,
     pub preview: PathBuf,
     pub carousel: Vec<PathBuf>,
@@ -81,6 +88,7 @@ pub struct LocalFiles {
 
 impl LocalFiles {
     pub fn read(repo: &Repo) -> Result<LocalFiles, String> {
+        let title = read_text(&repo.title_path())?.trim_end().to_string();
         let description = read_text(&repo.description_path())?.replace("\r\n", "\n");
         let preview = match repo.previews()?.as_slice() {
             [one] => one.clone(),
@@ -89,6 +97,7 @@ impl LocalFiles {
         };
         let carousel = repo.carousel()?;
         Ok(LocalFiles {
+            title,
             description,
             preview,
             carousel,
@@ -108,6 +117,18 @@ impl LocalFiles {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        if self.title.is_empty() {
+            return Err("title.txt is empty".into());
+        }
+        if self.title.contains('\n') {
+            return Err("title.txt has more than one line".into());
+        }
+        let title_bytes = self.title.len();
+        if title_bytes > MAX_TITLE_BYTES {
+            return Err(format!(
+                "title.txt is {title_bytes} bytes in UTF-8, more than Steam's {MAX_TITLE_BYTES}"
+            ));
+        }
         let bytes = self.description.len();
         if bytes > MAX_DESCRIPTION_BYTES {
             return Err(format!(
