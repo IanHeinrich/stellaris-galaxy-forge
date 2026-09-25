@@ -333,20 +333,37 @@ kbd {
   flex: none;
   padding: 0 2px;
   border-bottom: 1px solid var(--border);
+  container-type: inline-size;
 }
 
 .dock-tablist {
   display: flex;
+  flex-wrap: wrap;
   flex: 1;
   min-width: 0;
+}
+
+/* The width one row of six tabs needs with three-digit counts. */
+@container (max-width: 440px) {
+  .dock-tablist:is([data-tabs="5"], [data-tabs="6"]) {
+    display: grid;
+    grid-template-columns: repeat(var(--dock-cols), minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 300px) {
+  .dock-tablist[data-tabs="4"] {
+    display: grid;
+    grid-template-columns: repeat(var(--dock-cols), minmax(0, 1fr));
+  }
 }
 
 .dock-tab {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  flex: 0 1 auto;
-  min-width: 0;
+  flex: none;
   height: 26px;
   padding: 0 5px;
   font-size: 11.5px;
@@ -358,9 +375,9 @@ kbd {
   border-radius: 0;
 }
 
-.dock-tab .label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.dock-tabs .dock-collapse {
+  align-self: flex-start;
+  height: 26px;
 }
 
 .dock-collapse {

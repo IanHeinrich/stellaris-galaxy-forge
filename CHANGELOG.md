@@ -8,6 +8,10 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- The dock's tabs move onto a second row when the dock is narrow, so their names are no longer cut off.
+
 ## [0.13.0] - 2026-09-25
 
 ### Added

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type CSSProperties } from "react";
 import { documentCapabilities } from "../../lib/capabilities";
 import { shortcutLabel } from "../../lib/keys";
 import { useEmpireCount, usePointCount } from "../../store/browserRows";
@@ -74,10 +74,17 @@ function TabStrip({ tab }: { tab: DockTab }) {
     issues: fresh.length,
     changes,
   };
+  const tabs = dockTabsFor(capabilities);
   return (
     <div className="dock-tabs">
-      <div className="dock-tablist" role="tablist" aria-label="Dock">
-        {dockTabsFor(capabilities).map((id) => {
+      <div
+        className="dock-tablist"
+        role="tablist"
+        aria-label="Dock"
+        data-tabs={tabs.length}
+        style={{ "--dock-cols": Math.ceil(tabs.length / 2) } as CSSProperties}
+      >
+        {tabs.map((id) => {
           const count = counts[id];
           return (
             <button
