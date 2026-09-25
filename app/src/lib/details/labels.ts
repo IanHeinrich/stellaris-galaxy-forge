@@ -244,9 +244,12 @@ export function megastructureLabel(kind: string): string {
   return PLAIN_MEGASTRUCTURE_STATES.has(state) ? name : `${name} (${state})`;
 }
 
-/** Gateways and L-Gates are megastructures the save also lists as bypasses, where their icon belongs. */
+/**
+ * Gateways, L-Gates and hyper relays are megastructures the save also lists as bypasses, where
+ * their icon belongs.
+ */
 export function isBypassMegastructure(kind: string): boolean {
-  return /^(gateway|lgate)/.test(kind);
+  return /^(gateway|lgate|hyper_relay)/.test(kind);
 }
 
 /** A gateway, whose open or closed state the save keeps in the bypass list, not in the type name. */

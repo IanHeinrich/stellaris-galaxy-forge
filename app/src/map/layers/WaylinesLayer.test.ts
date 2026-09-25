@@ -70,7 +70,7 @@ function context(
   });
 }
 
-/** Drawn at the zoom system names show at, where every station's badge carries its plate. */
+/** Drawn at the zoom system names show at, where every station's badge is its ring alone. */
 function drawn(
   waylines: readonly Wayline[] = LINES,
   stations: readonly Waystation[] = STATIONS,
@@ -145,15 +145,14 @@ describe("the waylines layer", () => {
     expect(badges(drawn()).map(side)).toEqual(["above", "above", "above"]);
   });
 
-  it("rings the stations on the whole-galaxy view, leaving their names to the zoom system names show at", () => {
+  it("names the stations on the whole-galaxy view and rings them alone once system names show", () => {
     const layer = drawn();
-    viewport(layer, 1);
     for (const root of badges(layer)) {
       expect(plate(root).visible).toBe(false);
       expect(root.children.filter((c) => c.visible)).toHaveLength(1);
     }
 
-    viewport(layer, DETAIL_SCALE);
+    viewport(layer, 1);
     for (const root of badges(layer)) expect(plate(root).visible).toBe(true);
   });
 

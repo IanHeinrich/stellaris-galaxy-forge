@@ -170,18 +170,19 @@ describe("megastructureParts / megastructureLabel / megastructureIcon", () => {
     expect(megastructureIcon([])).toBeNull();
   });
 
-  it("leaves gateways and L-Gates to the bypass icon", () => {
+  it("leaves gateways, L-Gates and hyper relays to the bypass icon", () => {
     const lgate = { id: 1, kind: "lgate_base", owner: null, planet: null };
     const gateway = { id: 2, kind: "gateway_final", owner: 3, planet: null };
     const relay = { id: 3, kind: "hyper_relay", owner: 3, planet: null };
-    expect(shownMegastructures([lgate, gateway, relay])).toEqual([relay]);
-    expect(megastructureIcon([lgate])).toBeNull();
-    expect(megastructureIcon([lgate, relay])?.label).toBe("Hyper Relay");
-    expect(["lgate_base", "gateway_final", "hyper_relay"].map(isBypassMegastructure)).toEqual([
-      true,
-      true,
-      false,
-    ]);
+    const ring = { id: 4, kind: "ring_world_ruined", owner: null, planet: null };
+    expect(shownMegastructures([lgate, gateway, relay, ring])).toEqual([ring]);
+    expect(megastructureIcon([lgate, relay])).toBeNull();
+    expect(megastructureIcon([relay, ring])?.label).toBe("Ring World (ruined)");
+    expect(
+      ["lgate_base", "gateway_final", "hyper_relay", "ring_world_ruined"].map(
+        isBypassMegastructure,
+      ),
+    ).toEqual([true, true, true, false]);
     expect(["gateway_final", "lgate_base"].map(isGatewayMegastructure)).toEqual([true, false]);
   });
 });
