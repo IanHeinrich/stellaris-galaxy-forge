@@ -1,7 +1,7 @@
 import polygonClipping from "polygon-clipping";
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
-import { name, systemNode } from "../../test/builders";
+import { placedNode } from "../../test/builders";
 import type { Pt } from "./pt";
 import {
   affectedCountries,
@@ -21,15 +21,7 @@ const system = (
   y: number,
   owner: number | null,
   lanes: number[] = [],
-): SystemNode =>
-  systemNode({
-    id,
-    name: name(`NAME_${id}`),
-    x,
-    y,
-    lanes: lanes.map((to) => ({ to, length: 0, bridge: false, stale: false })),
-    owner,
-  });
+): SystemNode => ({ ...placedNode(id, x, y, lanes), owner });
 
 function inRing(p: Pt, ring: Pt[]): boolean {
   let inside = false;

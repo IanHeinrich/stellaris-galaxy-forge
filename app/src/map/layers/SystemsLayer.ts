@@ -1,22 +1,22 @@
 import { Container, Graphics, Sprite, type Renderer, type Texture } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
-import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
-import { singleStarClasses } from "../../lib/details/starBody";
 import { dimmedByInitializer } from "../../lib/initializer/initializerLabels";
-import { starCluster, type ClusterStar } from "../../lib/visual/starCluster";
 import { effectiveStarClass, starGlyph, starTextureKey } from "../../lib/visual/starGlyphs";
 import { STAR_BASE_PX, starDiameterPx } from "../../lib/visual/starSize";
 import { FILTERED_ALPHA, ORIGIN_ALPHA } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
 import { destroyChildren } from "./destroyChildren";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
+import { STAR_ART_BLEND, StarClusters } from "./StarClusters";
 
 /** Radius of the generated glow texture in pixels; sprites are scaled from it. */
 const TEX_RADIUS = 16;
 const RING_COLOR = 0x8a7cb0;
+/** How many times its glyph's width a ringed glyph's ring (a black hole's) is drawn. */
+const GLYPH_RING_SCALE = 2.2;
 
 function glowTexture(renderer: Renderer): Texture {
   const g = new Graphics();
@@ -55,11 +55,6 @@ const RING_ALPHA = 0.6;
 /** Matches no class and no game texture, so the star takes the neutral glyph. */
 const NO_CLASS = "";
 
-interface Cluster {
-  stars: ClusterStar[];
-  sprites: Sprite[];
-}
-
 /**
  * One sprite per system: the game's star art scaling with the world when game data is loaded,
  * else a shared radial glow that stays screen-size-stable across zoom. A save system with more
@@ -72,9 +67,7 @@ export class SystemsLayer implements MapLayer {
   private readonly ring: Texture;
   private readonly sprites = new Map<number, Sprite>();
   private readonly rings = new Map<number, Sprite>();
-  private readonly clusters = new Map<number, Cluster>();
-  private singles: ReadonlyMap<string, StarClassView> = new Map<string, StarClassView>();
-  private singlesFrom: ReadonlyMap<string, StarClassView> | null = null;
+  private readonly clusters: StarClusters;
   /** Glyph radius in screen pixels for the glow path, else the star's diameter in world units. */
   private readonly sizes = new Map<number, number>();
   private readonly gameTextured = new Set<number>();
@@ -88,6 +81,7 @@ export class SystemsLayer implements MapLayer {
   constructor(renderer: Renderer) {
     this.glow = glowTexture(renderer);
     this.ring = ringTexture(renderer);
+    this.clusters = new StarClusters(this.container, this.glow);
     this.unsubTextures = onTextures(() => this.replaceAll());
   }
 
@@ -137,9 +131,8 @@ export class SystemsLayer implements MapLayer {
       const ring = this.rings.get(id);
       if (sprite) doomed.add(sprite);
       if (ring) doomed.add(ring);
-      for (const star of this.clusters.get(id)?.sprites ?? []) doomed.add(star);
+      this.clusters.drop(id, doomed);
       this.sprites.delete(id);
-      this.clusters.delete(id);
       this.rings.delete(id);
       this.sizes.delete(id);
       this.gameTextured.delete(id);
@@ -183,7 +176,7 @@ export class SystemsLayer implements MapLayer {
     if (sprite) sprite.alpha = alpha;
     const ring = this.rings.get(id);
     if (ring) ring.alpha = RING_ALPHA * alpha;
-    for (const star of this.clusters.get(id)?.sprites ?? []) star.alpha = alpha;
+    this.clusters.setAlpha(id, alpha);
   }
 
   onViewport(cam: Camera): void {
@@ -206,24 +199,10 @@ export class SystemsLayer implements MapLayer {
     }
     const ring = this.rings.get(id);
     if (ring) {
-      const k = ((size * factor * 2) / ring.texture.width) * 2.2;
+      const k = ((size * factor * 2) / ring.texture.width) * GLYPH_RING_SCALE;
       ring.scale.set(k, k);
     }
-    const cluster = this.clusters.get(id);
-    const node = this.nodes.get(id);
-    if (cluster && node) {
-      const footprint = starDiameterPx(STAR_BASE_PX, camScale);
-      cluster.sprites.forEach((star, i) => {
-        const place = cluster.stars[i];
-        const width = star.texture.width;
-        const px = Math.min(width, footprint * place.diameter * place.texture.scale);
-        star.scale.set(px / (camScale * width));
-        star.position.set(
-          node.x + (place.dx * footprint) / camScale,
-          node.y + (place.dy * footprint) / camScale,
-        );
-      });
-    }
+    this.clusters.rescale(id, camScale);
   }
 
   setVisible(v: boolean): void {
@@ -262,8 +241,7 @@ export class SystemsLayer implements MapLayer {
     if (resolved && tex) {
       sprite.texture = tex;
       sprite.tint = 0xffffff;
-      // Game star art sits on opaque black; drawn additively, black reads as transparent.
-      sprite.blendMode = "add";
+      sprite.blendMode = STAR_ART_BLEND;
       this.sizes.set(s.id, STAR_BASE_PX * resolved.scale);
       this.gameTextured.add(s.id);
       if (ring) {
@@ -292,59 +270,9 @@ export class SystemsLayer implements MapLayer {
       }
     }
     ring?.position.set(s.x, s.y);
-    this.placeCluster(s, sprite, resolved && tex ? resolved : null);
+    const art = resolved && tex ? resolved : null;
+    sprite.renderable = !this.clusters.place(s, art, this.ctx.planetClasses, this.ctx.starClasses);
     this.rescale(s.id);
     this.applyFade(s.id, this.faded.has(s.id) ? ORIGIN_ALPHA : 1);
-  }
-
-  /**
-   * Draws `s` star by star when it has more than one star body and every star's art has landed,
-   * hiding its one sprite; `art` is the system class's own, the stand-in for a star with none.
-   */
-  private placeCluster(
-    s: SystemNode,
-    sprite: Sprite,
-    art: { key: string; scale: number } | null,
-  ): void {
-    const stars = art ? this.clusterOf(s, art) : null;
-    const textures = stars?.map((star) => getTexture(star.texture.key));
-    const held = this.clusters.get(s.id);
-    if (!stars || !textures || textures.some((t) => !t)) {
-      held?.sprites.forEach((star) => star.destroy());
-      this.clusters.delete(s.id);
-      sprite.renderable = true;
-      return;
-    }
-    const sprites = held?.sprites ?? [];
-    while (sprites.length > stars.length) sprites.pop()?.destroy();
-    while (sprites.length < stars.length) {
-      const star = new Sprite(this.glow);
-      star.anchor.set(0.5);
-      // Game star art sits on opaque black; drawn additively, black reads as transparent.
-      star.blendMode = "add";
-      sprites.push(star);
-      this.container.addChild(star);
-    }
-    sprites.forEach((star, i) => {
-      star.texture = textures[i] ?? this.glow;
-    });
-    this.clusters.set(s.id, { stars, sprites });
-    sprite.renderable = false;
-  }
-
-  private clusterOf(s: SystemNode, art: { key: string; scale: number }): ClusterStar[] | null {
-    if (this.singlesFrom !== this.ctx.starClasses) {
-      this.singlesFrom = this.ctx.starClasses;
-      this.singles = singleStarClasses(this.ctx.starClasses);
-    }
-    const stars = starCluster(
-      s.bodies,
-      this.ctx.planetClasses,
-      this.ctx.starClasses,
-      this.singles,
-      art,
-    );
-    if (stars) requestTextures(stars.map((star) => star.texture.key));
-    return stars;
   }
 }

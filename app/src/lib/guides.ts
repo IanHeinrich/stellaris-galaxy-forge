@@ -5,6 +5,23 @@ import type { SystemNode } from "../generated/SystemNode";
 /** Half the side of the square a scenario's coordinates must fall in, in world units. */
 export const SCENARIO_HALF_EXTENT = 500;
 
+/** The edge a document's systems stay inside: a save's galaxy circle or a scenario's square. */
+export type MapExtent = { shape: "circle"; radius: number } | { shape: "square"; half: number };
+
+const SCENARIO_SQUARE: MapExtent = { shape: "square", half: SCENARIO_HALF_EXTENT };
+
+/** The edge of the map: a save's galaxy radius, null when it records none, else the scenario square. */
+export function mapExtent(kind: DocumentKind | null, radius: number): MapExtent | null {
+  if (kind !== "save") return SCENARIO_SQUARE;
+  return radius > 0 ? { shape: "circle", radius } : null;
+}
+
+/** How far from the origin the map reaches: its circle's radius, or out to its square's corners. */
+export function mapReach(kind: DocumentKind | null, radius: number): number {
+  const extent = mapExtent(kind, radius) ?? SCENARIO_SQUARE;
+  return extent.shape === "circle" ? extent.radius : extent.half * Math.SQRT2;
+}
+
 /** Where the game builds the L-Cluster for every galaxy size: `sgf_core::guides::L_CLUSTER`. */
 export const L_CLUSTER: Guide = { x: -392.4, y: -392.4, radius: 90 };
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CountryNode } from "../generated/CountryNode";
 import type { MarauderRole } from "../generated/MarauderRole";
 import type { SystemNode } from "../generated/SystemNode";
-import { systemNode } from "../test/builders";
+import { countryNode, systemNode } from "../test/builders";
 import {
   clanSystemsOf,
   composeOwnership,
@@ -15,21 +15,14 @@ import {
 import { MARAUDER_COLORS } from "./visual/ownerColors";
 
 function country(id: number, key: string, type: string): CountryNode {
-  return {
+  return countryNode({
     id,
     name: { key, literal: false, variables: [] },
     name_key: key,
     country_type: type,
     capital_system: null,
     system_count: 0,
-    colors: [],
-    border_color: null,
-    fill_color: null,
-    flag_colors: [],
-    use_map_color: false,
-    flag_icon: null,
-    flag_background: null,
-  };
+  });
 }
 
 /** A system owned by `owner`, in `role`, with lanes to `to`. */

@@ -9,7 +9,8 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { NEVER_WARN, PAINT_CHECK, PAINT_UNTICKED } from "../../lib/paintCopy";
-import { buttons, saveFile, shown } from "../../test/openRows";
+import { buttons, shown } from "../../test/elements";
+import { saveFile } from "../../test/openRows";
 import { OpenModeDialog } from "./OpenModeDialog";
 
 beforeEach(() => {

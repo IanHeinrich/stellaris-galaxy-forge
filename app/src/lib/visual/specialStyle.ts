@@ -61,20 +61,50 @@ export function badgeSide(id: number, tier: LabelTier): BadgeSide {
   return tier === "none" && id % 2 === 1 ? "below" : "above";
 }
 
-/** The game's name for each vanilla guardian, for when its definitions are not loaded. */
-export const LEVIATHAN_NAMES: Record<string, string> = {
-  guardians_init_dragon: "NAME_Ether_Drake",
-  guardians_init_horror: "NAME_Dimensional_Horror",
-  guardians_init_fortress: "NAME_Enigmatic_Fortress",
-  guardians_init_dreadnought: "NAME_Automated_Dreadnought",
-  guardians_init_stellarites: "NAME_Stellarite_Devourer",
-  guardians_init_technosphere: "NAME_Infinity_Machine",
-  guardians_init_hive: "NAME_Hive_Asteroid",
-  guardians_init_hatchling: "NAME_Voidspawn",
-  guardians_init_wraith: "NAME_Wraith",
-  elderly_tiyanki_system: "NAME_Elderly_Tiyanki",
-  scavenger_system: "NAME_Scavenger_Bot",
-  toxic_knights_finish: "NAME_Toxic_God",
+/** The game's name and art for each vanilla guardian, for when its definitions are not loaded. */
+export const LEVIATHANS: Record<string, { name: string; icon: string }> = {
+  guardians_init_dragon: {
+    name: "NAME_Ether_Drake",
+    icon: "symbol:zoological/flag_zoological_9.dds",
+  },
+  guardians_init_horror: {
+    name: "NAME_Dimensional_Horror",
+    icon: "symbol:zoological/flag_zoological_18.dds",
+  },
+  guardians_init_fortress: {
+    name: "NAME_Enigmatic_Fortress",
+    icon: "symbol:spherical/flag_spherical_1.dds",
+  },
+  guardians_init_dreadnought: {
+    name: "NAME_Automated_Dreadnought",
+    icon: "symbol:pointy/flag_pointy_15.dds",
+  },
+  guardians_init_stellarites: {
+    name: "NAME_Stellarite_Devourer",
+    icon: "symbol:ornate/flag_ornate_19.dds",
+  },
+  guardians_init_technosphere: {
+    name: "NAME_Infinity_Machine",
+    icon: "symbol:spherical/flag_spherical_2.dds",
+  },
+  guardians_init_hive: {
+    name: "NAME_Hive_Asteroid",
+    icon: "symbol:zoological/flag_zoological_1.dds",
+  },
+  guardians_init_hatchling: {
+    name: "NAME_Voidspawn",
+    icon: "symbol:zoological/flag_zoological_11.dds",
+  },
+  guardians_init_wraith: { name: "NAME_Wraith", icon: "symbol:ornate/flag_ornate_17.dds" },
+  elderly_tiyanki_system: {
+    name: "NAME_Elderly_Tiyanki",
+    icon: "symbol:zoological/flag_zoological_4.dds",
+  },
+  scavenger_system: { name: "NAME_Scavenger_Bot", icon: "symbol:spherical/flag_spherical_16.dds" },
+  toxic_knights_finish: {
+    name: "NAME_Toxic_God",
+    icon: "symbol:zoological/flag_zoological_24.dds",
+  },
 };
 
 const INITIALIZER_PREFIX = /^(guardians_init_|mem_|the_)+/;
@@ -126,7 +156,7 @@ export function badgeLabel(
 ): string {
   switch (kind) {
     case "leviathan": {
-      const key = vanilla(special, LEVIATHAN_NAMES);
+      const key = vanilla(special, LEVIATHANS)?.name;
       const name = key === undefined ? undefined : displayNameIn(names, key);
       return (
         classifierLabel(special, systemName) ?? name ?? initializerLabel(special) ?? kindLabel(kind)
@@ -152,22 +182,6 @@ export function badgeLabel(
   }
 }
 
-/** The game's own art for each vanilla guardian, likewise for when its definitions are not loaded. */
-const LEVIATHAN_ICONS: Record<string, string> = {
-  guardians_init_dragon: "symbol:zoological/flag_zoological_9.dds",
-  guardians_init_hatchling: "symbol:zoological/flag_zoological_11.dds",
-  guardians_init_horror: "symbol:zoological/flag_zoological_18.dds",
-  guardians_init_dreadnought: "symbol:pointy/flag_pointy_15.dds",
-  guardians_init_fortress: "symbol:spherical/flag_spherical_1.dds",
-  guardians_init_stellarites: "symbol:ornate/flag_ornate_19.dds",
-  guardians_init_technosphere: "symbol:spherical/flag_spherical_2.dds",
-  guardians_init_wraith: "symbol:ornate/flag_ornate_17.dds",
-  guardians_init_hive: "symbol:zoological/flag_zoological_1.dds",
-  scavenger_system: "symbol:spherical/flag_spherical_16.dds",
-  elderly_tiyanki_system: "symbol:zoological/flag_zoological_4.dds",
-  toxic_knights_finish: "symbol:zoological/flag_zoological_24.dds",
-};
-
 const KIND_ICONS: Record<SpecialKind, string> = {
   leviathan: "symbol:pirate/flag_pirate_3.dds",
   enclave: "symbol:enclaves/enclaves_flag_curator.dds",
@@ -190,7 +204,7 @@ export function badgeIconKey(kind: SpecialKind, special: SpecialSystem | undefin
   const countryIcon = symbolKey(special?.countries[0]?.icon);
   switch (kind) {
     case "leviathan":
-      return countryIcon ?? vanilla(special, LEVIATHAN_ICONS) ?? KIND_ICONS.leviathan;
+      return countryIcon ?? vanilla(special, LEVIATHANS)?.icon ?? KIND_ICONS.leviathan;
     case "enclave":
     case "fallen_empire":
       return countryIcon ?? KIND_ICONS[kind];

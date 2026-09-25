@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { CampaignListing } from "../../generated/CampaignListing";
 import type { EmpireCount } from "../../generated/EmpireCount";
@@ -6,69 +6,25 @@ import type { GalaxySettings } from "../../generated/GalaxySettings";
 import type { SaveFile } from "../../generated/SaveFile";
 import type { SaveMeta } from "../../generated/SaveMeta";
 import type { ScenarioListing } from "../../generated/ScenarioListing";
-import type { Setting } from "../../generated/Setting";
-import { saveFlagKey } from "../../lib/flagKey";
-import { displayNameIn, stripped, type Names } from "../../lib/names";
-import { recentTarget, type Row } from "../../lib/openRows";
-import { scenarioForPaint } from "../../lib/paint";
+import { displayNameIn, readableKey } from "../../lib/names";
+import { countText, rangeText, recentTarget, timesText, type Row } from "../../lib/openRows";
 import { PAINT_MOD_OFF_BREAKS, SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
 import { fileName, folderOf } from "../../lib/paths";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
-import { counted } from "../../lib/text";
+import { counted, formatSize, formatWhen } from "../../lib/text";
 import { versionNumber } from "../../lib/version";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { detailsKey, useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import type { RecentDoc } from "../../store/recentsStore";
-import { useTextureUrl } from "../useTextureUrl";
-import { formatSize, formatWhen } from "./launchData";
-
-export const IRONMAN_TITLE = "Ironman save: the game only loads it in ironman mode.";
+import { useNamed } from "../useNamed";
+import { EmpireMark, IRONMAN_TITLE } from "./OpenRows";
+import { useForPaint } from "./useForPaint";
 
 /** The first year of every game; the galaxy block states mid and end game as years after it. */
 const START_YEAR = 2200;
 
 const DLC_SHOWN = 5;
-
-/** The empire's own colour, when game data knows the key the header names. */
-function EmpireDot({ meta }: { meta: SaveMeta | null }) {
-  const mapColors = useGameDataStore((s) => s.mapColors);
-  const color = meta?.color ? mapColors.get(meta.color)?.flag : undefined;
-  if (!color) return null;
-  return <span className="swatch dot" style={{ background: color }} />;
-}
-
-/** The empire's flag once game data has drawn it, its colour until then. */
-export function EmpireMark({ meta, size }: { meta: SaveMeta | null; size: "row" | "large" }) {
-  const key = saveFlagKey(meta);
-  const url = useTextureUrl(key === null ? [] : [key]);
-  if (url === undefined) return <EmpireDot meta={meta} />;
-  return <img className={`empire-flag ${size}`} src={url} alt="" />;
-}
-
-/** Whether the scenario file at `path` is for Paint a Galaxy, by `listings` and the mod's folder. */
-function useForPaint(path: string, listings: readonly ScenarioListing[] | null): boolean | null {
-  const paintMod = usePaintModStore((s) => s.paintMod);
-  return scenarioForPaint(path, listings, paintMod);
-}
-
-/** A scenario row's tag: for Paint a Galaxy or plain, when that can be told. */
-export function PaintTag({
-  path,
-  listings,
-}: {
-  path: string;
-  listings: readonly ScenarioListing[] | null;
-}) {
-  const forPaint = useForPaint(path, listings);
-  if (forPaint === null) return null;
-  const copy = forPaint ? SCENARIO_FOR_PAINT : SCENARIO_PLAIN;
-  return (
-    <span className="flag" title={copy.line}>
-      {copy.tag}
-    </span>
-  );
-}
 
 /** The same fact in the pane, and a warning while the mod the scenario is for is off. */
 function PaintFact({
@@ -87,47 +43,6 @@ function PaintFact({
       {forPaint && modOff && <Warning>{PAINT_MOD_OFF_BREAKS}</Warning>}
     </>
   );
-}
-
-/** The game's text for `key`, else the key made readable. */
-function labelIn(names: Names, key: string): string {
-  const text = names.get(key);
-  if (text) return text;
-  const plain = stripped(key);
-  return plain.charAt(0).toUpperCase() + plain.slice(1);
-}
-
-function useLabel(): (key: string) => string {
-  const names = useGameDataStore((s) => s.names);
-  return (key) => labelIn(names, key);
-}
-
-/** Asks game data for the keys this pane shows, so they read as the game names them. */
-function useNameKeys(keys: Array<string | null | undefined>): void {
-  const ready = useGameDataStore((s) => s.status === "ready");
-  const wanted = keys.filter((k): k is string => Boolean(k)).join("\n");
-  useEffect(() => {
-    if (ready && wanted) void useGameDataStore.getState().fetchNames(wanted.split("\n"));
-  }, [ready, wanted]);
-}
-
-function num(n: number): string {
-  return String(Number(n.toFixed(2)));
-}
-
-function times(n: number | null): string | null {
-  return n === null ? null : `${num(n)}×`;
-}
-
-function count(n: number | null): string | null {
-  return n === null ? null : num(n);
-}
-
-function range(setting: Setting | null): string | null {
-  if (!setting) return null;
-  const { min, max } = setting;
-  if (min !== null && max !== null) return min === max ? num(min) : `${num(min)}–${num(max)}`;
-  return setting.default === null ? null : num(setting.default);
 }
 
 type Fact = [label: string, value: ReactNode | null | undefined];
@@ -185,9 +100,8 @@ function VersionBadge({ version }: { version: string }) {
 }
 
 function MetaHead({ meta, fallback }: { meta: SaveMeta | null; fallback: string }) {
-  const label = useLabel();
+  const label = useNamed(meta?.portrait ? [meta.portrait] : [], readableKey);
   const names = useGameDataStore((s) => s.names);
-  useNameKeys([meta?.portrait]);
   return (
     <header className="od-head">
       <div className="od-name">
@@ -221,35 +135,35 @@ function MetaHead({ meta, fallback }: { meta: SaveMeta | null; fallback: string 
 }
 
 function GalaxyFacts({ settings }: { settings: GalaxySettings }) {
-  const label = useLabel();
-  useNameKeys([settings.template, settings.shape]);
+  const label = useNamed([settings.template ?? "", settings.shape ?? ""], readableKey);
   const key = (k: string | null) => (k === null ? null : label(k));
   return (
     <Facts
       facts={[
         ["Size", key(settings.template)],
         ["Shape", key(settings.shape)],
-        ["AI empires", count(settings.num_empires)],
-        ["Advanced", count(settings.num_advanced_empires)],
-        ["Fallen", count(settings.num_fallen_empires)],
-        ["Marauders", count(settings.num_marauder_empires)],
-        ["Nomads", count(settings.num_nomad_empires)],
-        ["Gateways", times(settings.num_gateways)],
-        ["Wormholes", times(settings.num_wormhole_pairs)],
-        ["Hyperlanes", times(settings.num_hyperlanes)],
-        ["Habitable", times(settings.habitability)],
-        ["Primitives", times(settings.primitive)],
+        ["AI empires", countText(settings.num_empires)],
+        ["Advanced", countText(settings.num_advanced_empires)],
+        ["Fallen", countText(settings.num_fallen_empires)],
+        ["Marauders", countText(settings.num_marauder_empires)],
+        ["Nomads", countText(settings.num_nomad_empires)],
+        ["Gateways", timesText(settings.num_gateways)],
+        ["Wormholes", timesText(settings.num_wormhole_pairs)],
+        ["Hyperlanes", timesText(settings.num_hyperlanes)],
+        ["Habitable", timesText(settings.habitability)],
+        ["Primitives", timesText(settings.primitive)],
       ]}
     />
   );
 }
 
 function RulesFacts({ settings }: { settings: GalaxySettings }) {
-  const label = useLabel();
-  useNameKeys([settings.difficulty, settings.scaling]);
+  const label = useNamed([settings.difficulty ?? "", settings.scaling ?? ""], readableKey);
   const key = (k: string | null) => (k === null ? null : label(k));
   const year = (n: number | null) => (n === null ? null : String(START_YEAR + n));
-  const crisis = [key(settings.crisis_type), times(settings.crises)].filter(Boolean).join(" · ");
+  const crisis = [key(settings.crisis_type), timesText(settings.crises)]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <Facts
       facts={[
@@ -422,9 +336,8 @@ function EmpireTable({ listing }: { listing: ScenarioListing }) {
 }
 
 function ScenarioDetails({ listing, group }: { listing: ScenarioListing; group: string }) {
-  const label = useLabel();
   const summary = listing.summary;
-  useNameKeys(summary.supports_shape);
+  const label = useNamed(summary.supports_shape, readableKey);
   const playset =
     listing.source !== "mod" ? null : listing.enabled ? "In the playset" : "Not in the playset";
   return (
@@ -447,8 +360,8 @@ function ScenarioDetails({ listing, group }: { listing: ScenarioListing; group: 
         <Facts
           facts={[
             ["Systems", counted(listing.systems, "system")],
-            ["Radius", count(summary.radius)],
-            ["Core radius", count(summary.core_radius)],
+            ["Radius", countText(summary.radius)],
+            ["Core radius", countText(summary.core_radius)],
             ["Shapes", summary.supports_shape.map(label).join(", ")],
           ]}
         />
@@ -457,13 +370,13 @@ function ScenarioDetails({ listing, group }: { listing: ScenarioListing; group: 
       <Block title="Galaxy">
         <Facts
           facts={[
-            ["Habitable", times(summary.colonizable_planet_odds)],
-            ["Primitives", times(summary.primitive_odds)],
-            ["Gateways", range(summary.num_gateways)],
-            ["Wormholes", range(summary.num_wormhole_pairs)],
-            ["Nebulas", range(summary.num_nebulas)],
-            ["Hyperlanes", range(summary.num_hyperlanes)],
-            ["Crisis", times(summary.crisis_strength)],
+            ["Habitable", timesText(summary.colonizable_planet_odds)],
+            ["Primitives", timesText(summary.primitive_odds)],
+            ["Gateways", rangeText(summary.num_gateways)],
+            ["Wormholes", rangeText(summary.num_wormhole_pairs)],
+            ["Nebulas", rangeText(summary.num_nebulas)],
+            ["Hyperlanes", rangeText(summary.num_hyperlanes)],
+            ["Crisis", timesText(summary.crisis_strength)],
           ]}
         />
       </Block>

@@ -4,7 +4,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { Glyph } from "../Glyph";
-import { Dialog } from "../overlays/Dialog";
+import { Dialog } from "../Dialog";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
 

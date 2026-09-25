@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import type { InitializerView } from "../../generated/InitializerView";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { RANDOM_KEY, useInitializerBrowserStore } from "../../store/initializerBrowserStore";
-import { Icon } from "../inspector/parts";
+import { Icon } from "../parts";
 import { entryLabel, RANDOM_LABEL, sourceBadge } from "./rows";
 
 /** The id the listbox names its highlighted row by. */

@@ -14,18 +14,14 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { symmetricIds } from "./symmetricEdits";
 
-type RemoveActions = Pick<EditorState, "removeSystem" | "removeSystems" | "removeAddedSystems">;
+type RemoveActions = Pick<EditorState, "removeSystems">;
 
 export function removeActions(
   _set: StoreApi<EditorState>["setState"],
-  get: StoreApi<EditorState>["getState"],
+  _get: StoreApi<EditorState>["getState"],
   runEdit: RunEdit,
 ): RemoveActions {
   return {
-    async removeSystem(id) {
-      await get().removeSystems([id]);
-    },
-
     async removeSystems(ids) {
       const target = deletableSystems(ids.filter((id) => systems().has(id)));
       if (target === null || (target.kind !== "systems" && target.kind !== "added")) return false;
@@ -43,10 +39,6 @@ export function removeActions(
         });
         return result !== null;
       });
-    },
-
-    removeAddedSystems(ids) {
-      return get().removeSystems([...ids]);
     },
   };
 }

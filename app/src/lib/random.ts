@@ -10,3 +10,9 @@ export function seeded(seed: number): Rand {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+/** A fresh seed for the generator or a brush stroke: a random whole number JSON carries exactly. */
+export function newSeed(): number {
+  const [high, low] = crypto.getRandomValues(new Uint32Array(2));
+  return (high & 0x1fffff) * 0x100000000 + low;
+}

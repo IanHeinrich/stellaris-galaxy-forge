@@ -2,14 +2,15 @@ import { Circle, Container, type FederatedPointerEvent, Graphics } from "pixi.js
 import type { BypassLink } from "../../generated/BypassLink";
 import type { Camera } from "../Camera";
 import { type BypassKinds, bypassIconKey } from "../../lib/details/icons";
-import { titleCase } from "../../lib/text";
+import { bypassName } from "../../lib/details/labels";
 import { labelTier } from "../../lib/visual/labels";
 import { badgeGeometry, badgeSide } from "../../lib/visual/specialStyle";
 import { useLGateStore } from "../../store/lgateStore";
-import { useMapChromeStore } from "../../store/mapChromeStore";
+import { OwnedTooltip } from "../ownedTooltip";
 import { lgateOutcomeLine } from "../../lib/lgate";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { Badge, badgeTexture, badgeTextStyle, otherSide, RING_RADIUS } from "./badge";
+import { Badge, badgeTexture, otherSide, BADGE_RING_RADIUS } from "./badge";
+import { dashedLine } from "./dashes";
 import { markerScale, type MapLayer } from "./MapLayer";
 
 const WORMHOLE = { color: 0xc084fc, alpha: 0.8, dash: 5, gap: 4 };
@@ -30,7 +31,6 @@ interface BadgeStyle {
   color: number;
   label: string;
   icon: string | null;
-  alpha: number;
 }
 
 function badgeStyle(link: Badged, kinds: BypassKinds): BadgeStyle {
@@ -39,14 +39,12 @@ function badgeStyle(link: Badged, kinds: BypassKinds): BadgeStyle {
       color: LGATE.color,
       label: LGATE.label,
       icon: bypassIconKey(LGATE.icon, kinds),
-      alpha: 1,
     };
   }
   return {
     color: GATEWAY.color,
     label: link.active ? GATEWAY.label : GATEWAY.ruined,
     icon: bypassIconKey(GATEWAY.icon, kinds),
-    alpha: 1,
   };
 }
 
@@ -56,12 +54,6 @@ function drawMarker(g: Graphics): void {
   g.clear()
     .rect(x - s, y - s, s * 2, s * 2)
     .stroke({ color: OTHER.color, width: OTHER.width, alpha: OTHER.alpha });
-}
-
-/** What a marker's tooltip calls its bypass: `common/bypass` carries no display name, so a
- * known kind is titled from its key, the same way the details row labels it. */
-function markerName(kind: string): string {
-  return kind === "wormhole" ? "Wormhole" : titleCase(kind.split("_").filter(Boolean)) || kind;
 }
 
 interface BadgeEntry {
@@ -100,6 +92,8 @@ export class BypassesLayer implements MapLayer {
   private detailsShown = true;
   private hovered: Badged | null = null;
   private hoveredMarker: Marker | null = null;
+  private readonly badgeTip = new OwnedTooltip();
+  private readonly markerTip = new OwnedTooltip();
 
   constructor() {
     this.container.addChild(this.lines, this.markerLayer, this.badgeLayer);
@@ -157,7 +151,7 @@ export class BypassesLayer implements MapLayer {
     for (const { g } of this.markers) g.scale.set(this.scale.x, this.scale.y);
     cam.childScale(1, this.badgeScale);
     this.ringScale = markerScale(cam.scale);
-    for (const { badge } of this.badges) this.scaleBadge(badge);
+    for (const { badge } of this.badges) badge.setScale(this.badgeScale, this.ringScale);
     const tier = labelTier(cam.scale);
     if (tier !== this.tier) {
       this.tier = tier;
@@ -208,15 +202,12 @@ export class BypassesLayer implements MapLayer {
 
   private makeBadge(link: Badged): Badge {
     const badge = new Badge(badgeGeometry(this.tier));
-    badge.plate.on("pointerover", (e: FederatedPointerEvent) => this.hover(link, e.global));
-    badge.plate.on("pointerout", () => this.unhover(link));
+    badge.onPlateHover(
+      (at) => this.hover(link, at),
+      () => this.unhover(link),
+    );
     this.badgeLayer.addChild(badge.root);
     return badge;
-  }
-
-  private scaleBadge(badge: Badge): void {
-    badge.root.scale.set(this.badgeScale.x, this.badgeScale.y);
-    badge.ring.scale.set(this.ringScale);
   }
 
   private placeBadges(): void {
@@ -226,13 +217,11 @@ export class BypassesLayer implements MapLayer {
       badge.root.visible = s !== undefined;
       if (!s) continue;
       badge.root.position.set(s.x, s.y);
-      badge.root.alpha = style.alpha;
-      this.scaleBadge(badge);
-      if (badge.text.style.fontSize !== geo.font) badge.text.style = badgeTextStyle(geo);
-      if (badge.text.text !== style.label) badge.text.text = style.label;
+      badge.setScale(this.badgeScale, this.ringScale);
+      badge.setLabel(geo, style.label);
       badge.setIcon(style.icon === null ? null : badgeTexture(style.icon), geo.icon, style.color);
       const side = otherSide(badgeSide(link.system, this.tier));
-      badge.layout(geo, side, style.color, RING_RADIUS * this.ringScale, slot);
+      badge.layout(geo, side, style.color, BADGE_RING_RADIUS * this.ringScale, slot);
     }
   }
 
@@ -245,7 +234,7 @@ export class BypassesLayer implements MapLayer {
     if (link.type === "l_gate" && lgate && useLGateStore.getState().revealed) {
       lines.push(lgateOutcomeLine(lgate));
     }
-    useMapChromeStore.getState().showTooltip({
+    this.badgeTip.show({
       x: at.x,
       y: at.y,
       title: badgeStyle(link, this.bypassKinds).label,
@@ -256,17 +245,17 @@ export class BypassesLayer implements MapLayer {
   private unhover(link: Badged): void {
     if (this.hovered !== link) return;
     this.hovered = null;
-    useMapChromeStore.getState().hideTooltip();
+    this.badgeTip.hide();
   }
 
   private hoverMarker(link: Marker, at: { x: number; y: number }): void {
     const s = this.systems.get(link.system);
     if (!s) return;
     this.hoveredMarker = link;
-    useMapChromeStore.getState().showTooltip({
+    this.markerTip.show({
       x: at.x,
       y: at.y,
-      title: markerName(link.kind),
+      title: bypassName(link.kind),
       lines:
         link.kind === "wormhole"
           ? [WORMHOLE_ALONE_NOTE, this.nodeName(s.name)]
@@ -277,7 +266,7 @@ export class BypassesLayer implements MapLayer {
   private unhoverMarker(link: Marker): void {
     if (this.hoveredMarker !== link) return;
     this.hoveredMarker = null;
-    useMapChromeStore.getState().hideTooltip();
+    this.markerTip.hide();
   }
 
   private drawLines(): void {
@@ -288,23 +277,9 @@ export class BypassesLayer implements MapLayer {
       const sa = this.systems.get(a);
       const sb = this.systems.get(b);
       if (!sa || !sb) continue;
-      dashed(g, sa.x, sa.y, sb.x, sb.y);
+      dashedLine(g, sa, sb, WORMHOLE.dash, WORMHOLE.gap);
       any = true;
     }
     if (any) g.stroke({ color: WORMHOLE.color, alpha: WORMHOLE.alpha, pixelLine: true });
-  }
-}
-
-function dashed(g: Graphics, x0: number, y0: number, x1: number, y1: number): void {
-  const dx = x1 - x0;
-  const dy = y1 - y0;
-  const len = Math.hypot(dx, dy);
-  if (len === 0) return;
-  const ux = dx / len;
-  const uy = dy / len;
-  const period = WORMHOLE.dash + WORMHOLE.gap;
-  for (let t = 0; t < len; t += period) {
-    const end = Math.min(t + WORMHOLE.dash, len);
-    g.moveTo(x0 + ux * t, y0 + uy * t).lineTo(x0 + ux * end, y0 + uy * end);
   }
 }

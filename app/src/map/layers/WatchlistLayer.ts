@@ -5,22 +5,24 @@ import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { pointsOf, RingBatch, type RingSpec } from "./highlights/RingBatch";
 import { markerScale, type MapLayer } from "./MapLayer";
+import { RING_RADIUS, WATCH_RING_STEP } from "../../lib/visual/style";
 
-/** Outside the issue rings; each entry down the list sits a step further out than the one before. */
-const WATCH_RING = { radius: 21, step: 3, width: 2, alpha: 0.85 };
+const WATCH_RING = { width: 2, alpha: 0.85 };
 
 function specOf(rings: WatchRings): RingSpec {
+  // Past the last colour the rings repeat with the colours, so an entry's ring can hide another's.
   const step = rings.slot % WATCH_COLOURS.length;
   return {
     color: rings.colour,
-    radius: WATCH_RING.radius + WATCH_RING.step * step,
+    radius: RING_RADIUS.watchlist + WATCH_RING_STEP * step,
     width: WATCH_RING.width,
     alpha: WATCH_RING.alpha,
   };
 }
 
+/** One batch per entry: two entries share a colour once every colour is taken. */
 function batchKey(rings: WatchRings): string {
-  return `${rings.colour}:${rings.slot % WATCH_COLOURS.length}`;
+  return `${rings.slot}:${rings.colour}`;
 }
 
 /** A ring in its entry's colour around every system a shown watchlist entry finds. */

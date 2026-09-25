@@ -4,7 +4,7 @@ import { starMismatch } from "../../../lib/details/starBody";
 import { currentStarBodies } from "../../../lib/details/starClass";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { useNamed } from "./useStarNames";
+import { useNamed } from "../../useNamed";
 
 export const READING_STARS = "Reading the system's stars…";
 

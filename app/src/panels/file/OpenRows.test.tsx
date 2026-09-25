@@ -11,7 +11,8 @@ import { SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { paintModView } from "../../test/builders";
-import { buttons, saveRow, scenarioListing, scenarioRow, shown } from "../../test/openRows";
+import { buttons, shown } from "../../test/elements";
+import { saveRow, scenarioListing, scenarioRow } from "../../test/openRows";
 import { RowLine } from "./OpenRows";
 
 const noop = () => undefined;

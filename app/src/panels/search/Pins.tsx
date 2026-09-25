@@ -1,7 +1,7 @@
 import type { MouseEvent, ReactNode } from "react";
 import { counted } from "../../lib/text";
 import { toCss } from "../../lib/visual/ownerColors";
-import { pinnedEntry, type WatchEntry } from "../../lib/watchlist";
+import { pinnedEntry, shownLabel, unpinLabel, type WatchEntry } from "../../lib/watchlist";
 import { useWatchlistStore } from "../../store/watchlistStore";
 import { PinGlyph } from "./icons";
 
@@ -87,17 +87,13 @@ export function PinnedRows({
                 {found === undefined ? "" : counted(found.length, "system")}
               </span>
               <RowButton
-                label={
-                  entry.shown
-                    ? `Hide "${entry.query}" on the map`
-                    : `Show "${entry.query}" on the map`
-                }
+                label={shownLabel(entry)}
                 pressed={entry.shown}
                 onPress={() => toggleShown(entry.query)}
               >
                 {entry.shown ? "◉" : "○"}
               </RowButton>
-              <RowButton label={`Unpin "${entry.query}"`} onPress={() => unpin(entry.query)}>
+              <RowButton label={unpinLabel(entry.query)} onPress={() => unpin(entry.query)}>
                 ×
               </RowButton>
             </div>

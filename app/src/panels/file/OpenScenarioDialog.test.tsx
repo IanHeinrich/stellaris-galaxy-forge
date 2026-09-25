@@ -18,7 +18,8 @@ import {
   PAINT_UNTICKED,
 } from "../../lib/paintCopy";
 import { paintModView } from "../../test/builders";
-import { buttons, scenarioListing, shown } from "../../test/openRows";
+import { buttons, shown } from "../../test/elements";
+import { scenarioListing } from "../../test/openRows";
 import { OpenScenarioDialog } from "./OpenScenarioDialog";
 
 const noop = () => undefined;

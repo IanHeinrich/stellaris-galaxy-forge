@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ESCAPE } from "../keys";
+import { menuItems, menuKeyDown } from "../menuKeys";
 import { useOutsidePress } from "../useOutsidePress";
 import "./chrome.css";
 import type { Pressed } from "./layerState";
-
-function itemsOf(root: HTMLElement | null): HTMLElement[] {
-  return [...(root?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])];
-}
 
 /**
  * A drop-down: the label opens a panel that closes on Esc, on a click outside, or on `close`.
@@ -36,7 +33,7 @@ export function Menu({
 
   useEffect(() => {
     if (!open) return;
-    itemsOf(pop.current)[0]?.focus();
+    menuItems(pop.current)[0]?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== ESCAPE) return;
       e.stopPropagation();
@@ -52,17 +49,7 @@ export function Menu({
   useOutsidePress(open, () => setOpen(false), ref);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const items = itemsOf(pop.current);
-    if (items.length === 0) return;
-    const at = items.indexOf(document.activeElement as HTMLElement);
-    const go = (index: number) => {
-      e.preventDefault();
-      items[(index + items.length) % items.length].focus();
-    };
-    if (e.key === "ArrowDown") go(at + 1);
-    else if (e.key === "ArrowUp") go(at <= 0 ? items.length - 1 : at - 1);
-    else if (e.key === "Home") go(0);
-    else if (e.key === "End") go(items.length - 1);
+    menuKeyDown(pop.current, e);
   };
 
   return (

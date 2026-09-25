@@ -54,8 +54,10 @@ interface Binding {
   /** `KeyboardEvent.key`, lower case for a letter. */
   key: string;
   action: KeyAction;
-  /** Ctrl, or Cmd on a Mac. Alt is never part of a binding. */
+  /** Ctrl, or Cmd on a Mac. */
   mod?: boolean;
+  /** Whether Alt must be held; Alt is otherwise the brushes' own modifier. */
+  alt?: boolean;
   /** Whether Shift must be held, or must not be; either when absent. */
   shift?: boolean;
   /** Fires while a field has the caret. */
@@ -86,6 +88,7 @@ const BINDINGS: readonly Binding[] = [
   { key: "Home", action: "fit" },
   { key: "f", shift: true, action: "fitSelection" },
   { key: "/", action: "focusSearch" },
+  { key: "ArrowLeft", alt: true, action: "inspectorBack", whileBack: true },
   { key: "Backspace", action: "inspectorBack", whileBack: true },
   { key: "Delete", action: "deleteSelection" },
   { key: "Backspace", action: "deleteSelection" },
@@ -110,11 +113,11 @@ export function toolOfAction(action: ToolAction): Tool {
   return TOOLS.find((t) => toolAction(t.id) === action)!.id;
 }
 
-const KEY_NAMES: Record<string, string> = { Escape: "Esc", Delete: "Del" };
+const KEY_NAMES: Record<string, string> = { Escape: "Esc", Delete: "Del", ArrowLeft: "←" };
 
 function labelOf(b: Binding): string {
   const key = KEY_NAMES[b.key] ?? (b.key.length === 1 ? b.key.toUpperCase() : b.key);
-  return [b.mod && "Ctrl", b.shift && "Shift", key].filter(Boolean).join("+");
+  return [b.mod && "Ctrl", b.alt && "Alt", b.shift && "Shift", key].filter(Boolean).join("+");
 }
 
 /** How menus and tooltips spell the key for `action`, such as "Ctrl+Z" or "V". */
@@ -127,12 +130,14 @@ function matches(b: Binding, e: KeyLike, key: string, inInput: boolean, canGoBac
   if (b.key !== key || (inInput && !b.inInput) || (b.whileBack && !canGoBack)) return false;
   if (b.anyModifiers) return true;
   const mod = e.ctrlKey || e.metaKey;
-  return mod === !!b.mod && !e.altKey && (b.shift === undefined || b.shift === e.shiftKey);
+  return (
+    mod === !!b.mod && e.altKey === !!b.alt && (b.shift === undefined || b.shift === e.shiftKey)
+  );
 }
 
 /**
  * The action bound to a key press, or null. `inInput` suppresses bare keys while typing, and
- * `canGoBack` gives Backspace to the inspector while it has a crumb to go back to.
+ * `canGoBack` gives Backspace and Alt+← to the inspector while it has a crumb to go back to.
  */
 export function keyAction(e: KeyLike, inInput: boolean, canGoBack = false): KeyAction | null {
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;

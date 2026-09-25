@@ -5,9 +5,12 @@ import { useSystemNames } from "../../../store/browserRows";
 import { linkedSystems, selectionLanes, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { counted } from "../../../lib/text";
-import { browseInitializers, NEEDS_GAME_DATA } from "../../initializers/entry";
-import { BulkActions, BulkStarClass } from "./BulkActions";
-import { Chip, FILTER_MIN, FilterField, Section, Swatch } from "../parts";
+import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
+import { BulkActions } from "../../BulkActions";
+import { BulkStarClass } from "./BulkStarClass";
+import { Chip, FILTER_MIN, FilterField } from "../../parts";
+import { Section, Swatch } from "../parts";
+import { shortcutLabel } from "../../../lib/keys";
 
 /** How many chips a long selection shows before asking for a filter. */
 const CHIPS_SHOWN = 60;
@@ -31,7 +34,11 @@ export function SelectionView() {
     <>
       <div className="ins-head">
         <span className="name">{selection.length} systems selected</span>
-        <button className="link ins-close" onClick={() => void select(null)} title="Clear (Esc)">
+        <button
+          className="link ins-close"
+          onClick={() => void select(null)}
+          title={`Clear (${shortcutLabel("clearSelection")})`}
+        >
           Clear ×
         </button>
       </div>
@@ -48,7 +55,7 @@ export function SelectionView() {
             <button
               type="button"
               disabled={!gameData}
-              title={gameData ? undefined : NEEDS_GAME_DATA}
+              title={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
               onClick={() => browseInitializers(selection)}
             >
               Set initializer… ({selection.length} systems)

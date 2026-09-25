@@ -2,7 +2,8 @@ import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import type { SaveMeta } from "../generated/SaveMeta";
-import { addSystemRefusal, newSeed, type AddRefusal } from "../lib/addSystem";
+import { addSystemRefusal, type AddRefusal } from "../lib/addSystem";
+import { newSeed } from "../lib/random";
 import {
   nearestSystem,
   refuseOr,

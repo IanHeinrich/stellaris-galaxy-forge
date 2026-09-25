@@ -3,7 +3,8 @@ import { initializerView, initPlanetView } from "../../test/builders";
 import type { DepositView } from "../../generated/DepositView";
 import type { InitializerView } from "../../generated/InitializerView";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
-import { initClassLabel, initializerRows, starClassLabel } from "./initializerRows";
+import { initClassLabel } from "../details/labels";
+import { initializerRows, starClassLabel } from "./initializerRows";
 
 const CLASSES = new Map<string, PlanetClassView>([
   [

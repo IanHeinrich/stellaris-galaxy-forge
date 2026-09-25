@@ -1,5 +1,5 @@
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { Dialog } from "./Dialog";
+import { Dialog } from "../Dialog";
 import "./overlays.css";
 
 /** What a save found wrong with the map, and the three ways on from it. */

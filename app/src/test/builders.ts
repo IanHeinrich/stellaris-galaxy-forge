@@ -1,3 +1,4 @@
+import type { CountryNode } from "../generated/CountryNode";
 import type { ExportReport } from "../generated/ExportReport";
 import type { FleetSummary } from "../generated/FleetSummary";
 import type { GameDataSummary } from "../generated/GameDataSummary";
@@ -6,12 +7,15 @@ import type { InitPlanetView } from "../generated/InitPlanetView";
 import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
+import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetSummary } from "../generated/PlanetSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { ScenarioSummary } from "../generated/ScenarioSummary";
+import type { StarClassView } from "../generated/StarClassView";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
 import type { WorkshopLinks } from "../generated/WorkshopLinks";
+import { newFeZone } from "../lib/feZone";
 
 /** A plain localisation key as a name template, which is what the save writes for most nodes. */
 export function name(key: string): NameTemplate {
@@ -99,6 +103,25 @@ export function lanesTo(...ids: number[]): SystemNode["lanes"] {
 /** A system named `S<id>` at (x, y), laned to each of `to`. */
 export function placedNode(id: number, x: number, y: number, to: number[] = []): SystemNode {
   return systemNode({ id, name: name(`S${id}`), x, y, lanes: lanesTo(...to) });
+}
+
+/** An anchor at (x, y) whose ring lies east at 40, taking custom connections under `linkId`. */
+export function zoneAnchor(id: number, x: number, y: number, linkId: number): SystemNode {
+  return {
+    ...placedNode(id, x, y),
+    fe_zone: newFeZone("e"),
+    fe_link: { custom: true, id: linkId, to: [] },
+  };
+}
+
+/** A system at (x, y) linked to the zones taking each of `ids`. */
+export function feLinkedNode(id: number, x: number, y: number, ...ids: number[]): SystemNode {
+  return { ...placedNode(id, x, y), fe_link: { custom: false, id: null, to: ids } };
+}
+
+/** Systems keyed by id, as the galaxy store holds them. */
+export function byId(nodes: Iterable<SystemNode>): Map<number, SystemNode> {
+  return new Map([...nodes].map((s) => [s.id, s]));
 }
 
 /** The report of an export that carried everything over; a test adds what it left out. */
@@ -261,4 +284,45 @@ export function workshopLinks(): WorkshopLinks {
 /** One step of the change log. */
 export function historyEntry(seq = 1, description = `Change ${seq}`): HistoryEntry {
   return { seq, description };
+}
+
+/** A star class the game rolls, localised, whose stars are `planetKeys` in that order. */
+export function starClassView(key: string, ...planetKeys: string[]): StarClassView {
+  return {
+    key,
+    texture_key: `star_class:${key}`,
+    icon_scale: 1,
+    planet_keys: planetKeys,
+    crisis_star_class: null,
+    spawn_odds: 1,
+    localised: true,
+  };
+}
+
+/** A planet class with no art of its own: a star body when `star`, else a habitable world. */
+export function planetClassView(key: string, star = true): PlanetClassView {
+  return { key, icon_sprite: null, habitable: !star, star };
+}
+
+/** The one `CountryNode` builder: an empire of a 4.4 save, its four flag colours and no map colours. */
+export function countryNode(over: Partial<CountryNode> = {}): CountryNode {
+  return {
+    id: 7,
+    name: name("NAME_Test_Empire"),
+    name_key: "NAME_Test_Empire",
+    country_type: "default",
+    capital_system: 1,
+    system_count: 2,
+    colors: ["fixture_blue", "fixture_blue"],
+    border_color: null,
+    fill_color: null,
+    flag_colors: ["red", "purple", "black", "grey"],
+    use_map_color: false,
+    painted_border: "fixture_blue",
+    painted_fill: "fixture_blue",
+    has_map_colors: false,
+    flag_icon: null,
+    flag_background: null,
+    ...over,
+  };
 }

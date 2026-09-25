@@ -123,10 +123,10 @@ describe("adding and removing systems", () => {
     [1, "Delete Alpha Centauri and its 4 lanes?"],
     [0, "Delete Sol and its 1 lane?"],
     [5, "Delete Deneb?"],
-  ])("removeSystem asks about %i and sends nothing when declined", async (id, question) => {
+  ])("removeSystems asks about %i and sends nothing when declined", async (id, question) => {
     mocked.confirm.mockResolvedValueOnce(false);
 
-    await editor().removeSystem(id);
+    await editor().removeSystems([id]);
 
     expect(mocked.confirm).toHaveBeenCalledWith(
       question,
@@ -135,7 +135,7 @@ describe("adding and removing systems", () => {
     expect(mocked.applyOp).not.toHaveBeenCalled();
   });
 
-  it("removeSystem drops the system from the galaxy, the selection and the inspector", async () => {
+  it("removeSystems drops the system from the galaxy, the selection and the inspector", async () => {
     await editor().select(1);
     editor().setHover(1);
     expect(editor().inspected?.system.id).toBe(1);
@@ -147,7 +147,7 @@ describe("adding and removing systems", () => {
       editResult({ delta: { systems: neighbours, removed: [1] } }),
     );
 
-    await editor().removeSystem(1);
+    await editor().removeSystems([1]);
 
     expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 1 });
     expect(useGalaxyStore.getState().systems.has(1)).toBe(false);
@@ -157,8 +157,8 @@ describe("adding and removing systems", () => {
     expect(editor().inspected).toBeNull();
   });
 
-  it("removeSystem of an unknown id asks nothing", async () => {
-    await editor().removeSystem(99);
+  it("removeSystems of an unknown id asks nothing", async () => {
+    await editor().removeSystems([99]);
 
     expect(mocked.confirm).not.toHaveBeenCalled();
     expect(mocked.applyOp).not.toHaveBeenCalled();

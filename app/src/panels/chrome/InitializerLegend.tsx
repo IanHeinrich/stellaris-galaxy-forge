@@ -8,7 +8,7 @@ import {
 } from "../../lib/initializer/initializerLabels";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { FilterField } from "../inspector/parts";
+import { FilterField } from "../parts";
 import { ESCAPE } from "../keys";
 import { useOutsidePress } from "../useOutsidePress";
 import "./chrome.css";

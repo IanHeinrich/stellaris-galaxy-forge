@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
-import { Dialog } from "./Dialog";
+import { Dialog } from "../Dialog";
 import "./overlays.css";
 
 /**
@@ -67,7 +68,7 @@ export function FeZoneFitDialog() {
               Cancel
             </button>
             <button type="submit" disabled={roomless}>
-              {roomless ? "No room for a zone" : `Fit ${count} ${count === 1 ? "zone" : "zones"}`}
+              {roomless ? "No room for a zone" : `Fit ${counted(count, "zone")}`}
             </button>
           </div>
         </div>

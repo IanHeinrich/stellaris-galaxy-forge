@@ -1,22 +1,18 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { vi } from "vitest";
-import { confirm } from "@tauri-apps/plugin-dialog";
 import type { FleetSummary } from "../../generated/FleetSummary";
 import type { InitializerView } from "../../generated/InitializerView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
-import { onProgress } from "../../api/events";
-import * as ipc from "../../api/ipc";
 import { DETAILS_DEBOUNCE_MS } from "../../store/batching";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useEditorStore } from "../../store/editorStore";
 import { useEntityStore } from "../../store/entityStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { useInspectorStore } from "../../store/inspectorStore";
 import { usePlanetDataStore } from "../../store/planetDataStore";
 import { useScriptsStore } from "../../store/scriptsStore";
+import { armSession, mocked, resetStores as resetEveryStore } from "../../store/storeFixture";
 import {
   detailOf,
   fleetSummary,
@@ -43,18 +39,7 @@ export const INITIALIZER: InitializerView = initializerView({
   planet_count: 1,
 });
 
-export const mocked = {
-  openSave: vi.mocked(ipc.openSave),
-  openAsScenario: vi.mocked(ipc.openAsScenario),
-  getSystem: vi.mocked(ipc.getSystem),
-  getSystemDetails: vi.mocked(ipc.getSystemDetails),
-  closeSave: vi.mocked(ipc.closeSave),
-  warmDetails: vi.mocked(ipc.warmDetails),
-  getSpecialSystems: vi.mocked(ipc.getSpecialSystems),
-  applyOp: vi.mocked(ipc.applyOp),
-  confirm: vi.mocked(confirm),
-  onProgress: vi.mocked(onProgress),
-};
+export { mocked };
 
 /** A habitable world of the system under test, named by its key. */
 export function planet(id: number, key: string, extra: Partial<PlanetSummary> = {}): PlanetSummary {
@@ -79,21 +64,14 @@ export function details(extra: Partial<SystemDetails> = {}): SystemDetails {
 
 /** The state every test starts from: empty caches, a ready game data store, answered opens. */
 export function resetStores(): void {
-  useGalaxyStore.getState().clear();
-  useDetailsStore.getState().clear();
+  resetEveryStore();
   useEntityStore.getState().clear();
   useScriptsStore.getState().clear();
   usePlanetDataStore.getState().clear();
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
-  useEditorStore.setState({ ...useEditorStore.getInitialState() });
-  useInspectorStore.setState({ ...useInspectorStore.getInitialState() });
-  useGameDataStore.setState({
-    ...useGameDataStore.getInitialState(),
-    status: "ready",
-    initializers: [INITIALIZER],
-  });
-  mocked.onProgress.mockResolvedValue(() => undefined);
-  mocked.openSave.mockResolvedValue(OPEN_RESULT);
+  armSession();
+  // A test lands the special systems it needs itself, and no answer overwrites them.
+  mocked.getSpecialSystems.mockReset();
+  useGameDataStore.setState({ status: "ready", initializers: [INITIALIZER] });
   mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
   mocked.getSystem.mockImplementation(async (id) => detailOf(id));
 }

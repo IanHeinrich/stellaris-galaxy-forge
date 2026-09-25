@@ -23,13 +23,14 @@ import {
 } from "../../lib/openRows";
 import { useOpenScreenStore, type OpenScreenState } from "../../store/openScreenStore";
 import { useRecentsStore } from "../../store/recentsStore";
-import { Dialog } from "../overlays/Dialog";
+import { Dialog } from "../Dialog";
 import { OpenDetails } from "./OpenDetails";
 import { OpenFooter } from "./OpenFooter";
 import { SectionRows } from "./OpenRows";
 import { TabPanel, TabRail } from "./OpenTabs";
 import { useDetailsFor } from "./useDetailsFor";
 import "./open.css";
+import { OPEN_KEYS, tabOfKey } from "./openKeys";
 
 /** What the screen lists and whether it is opening one: everything but the details pane's reads. */
 function screenLists(s: OpenScreenState) {
@@ -139,18 +140,18 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
   const idle = lists.busy === null;
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
-    const tab = mod ? Number(e.key) : NaN;
+    const tab = tabOfKey(e);
     const onControl = e.target !== field.current && e.target !== e.currentTarget;
-    if (tab >= 1 && tab <= OPEN_TABS.length) {
+    const enter = OPEN_KEYS.open.matches(e) || OPEN_KEYS.asScenario.matches(e);
+    if (tab !== null && tab <= OPEN_TABS.length) {
       e.preventDefault();
       pickTab(OPEN_TABS[tab - 1]);
     } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       setSelected(steppedKey(walk, current?.key ?? null, e.key === "ArrowDown" ? 1 : -1));
-    } else if (e.key === "Enter" && !onControl) {
+    } else if (enter && !onControl) {
       e.preventDefault();
-      activate(current, e.shiftKey);
+      activate(current, OPEN_KEYS.asScenario.matches(e));
     } else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && current?.kind === "campaign") {
       e.preventDefault();
       if (e.key === "ArrowLeft" && current.expanded) actions.collapse();
@@ -173,7 +174,12 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
       <div className="open-dialog-head">
         <h1>Open</h1>
         {modal && (
-          <button type="button" className="link" title="Close (Esc)" onClick={hide}>
+          <button
+            type="button"
+            className="link"
+            title={`Close (${OPEN_KEYS.close.label})`}
+            onClick={hide}
+          >
             ✕
           </button>
         )}

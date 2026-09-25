@@ -1,10 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import type { SystemNode } from "../../../generated/SystemNode";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
+import { useNamed } from "../../useNamed";
 import { Empty } from "../parts";
 import "./system.css";
 import { Contents, Data, Lanes, Overview, Scripts, Source } from "./SystemTabs";
@@ -32,13 +32,7 @@ export function SystemView({ id }: { id: number }) {
   useEffect(() => request([id]), [id, request, version]);
 
   const system = detail?.system.id === id ? detail.system : null;
-  const keys = useMemo(
-    () => (system ? extraNameKeys(system, details).join("|") : ""),
-    [system, details],
-  );
-  useEffect(() => {
-    if (keys !== "") void useGameDataStore.getState().fetchNames(keys.split("|"));
-  }, [keys]);
+  useNamed(system ? extraNameKeys(system, details) : []);
 
   if (!detail || detail.system.id !== id) return <Empty>Loading #{id}…</Empty>;
   switch (tab) {

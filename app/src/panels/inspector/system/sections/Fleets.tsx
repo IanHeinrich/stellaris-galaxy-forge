@@ -1,13 +1,14 @@
 import { useState } from "react";
 import type { FleetSummary } from "../../../../generated/FleetSummary";
 import { fleetPowerClause } from "../../../../lib/details/fleets";
-import { orderLabel } from "../../../../lib/entities";
+import { capabilityFor, orderLabel } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useCountryName } from "../../../../store/browserRows";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { useInspectorStore } from "../../../../store/inspectorStore";
 import { useOwnerCss } from "../../ownerCss";
-import { DrillRow, FocusButton, Icon, MoreButton, Section, Swatch } from "../../parts";
+import { useOpenEntity } from "../../entity/useEntity";
+import { Icon } from "../../../parts";
+import { DrillRow, FocusButton, MoreButton, Section, Swatch } from "../../parts";
 import { fleetGlyph, fleetIcon, LIST_LIMIT, shipRole, shipSizeChips } from "../../rows";
 
 function FleetBadge({ fleet }: { fleet: FleetSummary }) {
@@ -24,13 +25,16 @@ function FleetBadge({ fleet }: { fleet: FleetSummary }) {
 function FleetRow({ fleet, system }: { fleet: FleetSummary; system: number }) {
   const owner = useCountryName(fleet.owner);
   const names = useGameDataStore((s) => s.names);
-  const open = useInspectorStore((s) => s.open);
+  const opener = useOpenEntity();
   const name = templateName(fleet);
   const detail = fleet.military
     ? `${fleet.ships} ships · ${fleetPowerClause(fleet)}`
     : shipRole(fleet, names);
   return (
-    <DrillRow onOpen={() => open({ ref: { kind: "fleet", id: fleet.id }, label: name })}>
+    <DrillRow
+      requires={capabilityFor("fleet")}
+      onOpen={() => opener.open({ kind: "fleet", id: fleet.id }, name)}
+    >
       <FleetBadge fleet={fleet} />
       <span>
         <span className="l1">

@@ -23,10 +23,10 @@ stylesheet, and `inspector/system/sections/` has none of its own. The
 
 ## Editable fields
 
-The inspector is the only place anything is edited. Every entity has one page
+The inspector is the only place a value is edited. Every entity has one page
 there, and a page edits only its own entity: its children are summarised
-read-only and link to their own pages. Right-click menus and list pencils open
-a page; they never edit.
+read-only and link to their own pages. List pencils open a page. A right-click
+menu never changes a value a page has a field for.
 
 - Every editable value uses the one field style from `EditField.tsx`: an
   outlined, lightly tinted box whose pencil, chevron or swatch always shows.

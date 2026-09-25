@@ -4,15 +4,15 @@ import type { Nebula } from "../../generated/Nebula";
 import type { Camera } from "../Camera";
 import { nebulaHandles } from "../picking";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
-import { MAP_FONT } from "../../lib/visual/style";
+import { HANDLE_COLOR, MAP_FONT, NEBULA_COLOR } from "../../lib/visual/style";
 import type { MapLayer } from "./MapLayer";
 
 const FILL = { color: 0x7c5cbf, alpha: 0.12 };
 const EDGE = { color: 0x9d7ce0, alpha: 0.25 };
 /** The selected nebula: the same ring, bright enough to grab, with a handle on each cardinal. */
-const SELECTED_EDGE = { color: 0xc4b5fd, alpha: 0.9 };
-const HANDLE_FILL = { color: 0x1c2333, alpha: 0.9 };
-const HANDLE_EDGE = { color: 0xc4b5fd, alpha: 1 };
+const SELECTED_EDGE = { color: NEBULA_COLOR, alpha: 0.9 };
+const HANDLE_FILL = { color: HANDLE_COLOR, alpha: 0.9 };
+const HANDLE_EDGE = { color: NEBULA_COLOR, alpha: 1 };
 const HANDLE_PX = 4;
 
 const LABEL_STYLE = {
@@ -20,7 +20,7 @@ const LABEL_STYLE = {
   fontSize: 12,
 };
 const LABEL_ALPHA = 0.7;
-const LABEL_TINT = 0xc4b5fd;
+const LABEL_TINT = NEBULA_COLOR;
 
 /** A translucent disc per nebula with its name at the centre, screen-sized like a map label. */
 export class NebulaeLayer implements MapLayer {

@@ -2,10 +2,7 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { meshPairs, type MeshPoint } from "../geometry/mesh";
 import type { Pair } from "../geometry/pairs";
 import { dist2, type Pt } from "../geometry/pt";
-import { forEachSegmentCell, SEGMENT_CELL, SegmentIndex } from "../geometry/segments";
-import { forEachCell } from "../spatialGrid";
-
-export type Segment = readonly [Pt, Pt];
+import { SegmentIndex, type Segment } from "../geometry/segments";
 
 /** Which lanes a paint stroke adds: none, among its new systems, or also to the systems near it. */
 export type LaneMode = "off" | "new" | "nearby";
@@ -26,67 +23,18 @@ export function withProvisionalIds(points: readonly Pt[]): MeshPoint[] {
 }
 
 /** Every lane once, as its two endpoints, skipping lanes to systems not in `systems`. */
-export function laneSegments(systems: Iterable<SystemNode>): Array<[MeshPoint, MeshPoint]> {
+export function laneSegments(systems: Iterable<SystemNode>): Array<Segment<MeshPoint>> {
   const byId = new Map<number, SystemNode>();
   for (const s of systems) byId.set(s.id, s);
-  const segments: Array<[MeshPoint, MeshPoint]> = [];
+  const segments: Array<Segment<MeshPoint>> = [];
   for (const s of byId.values()) {
     for (const lane of s.lanes) {
       const t = byId.get(lane.to);
       if (t === undefined || t.id <= s.id) continue;
-      segments.push([
-        { id: s.id, x: s.x, y: s.y },
-        { id: t.id, x: t.x, y: t.y },
-      ]);
+      segments.push({ a: { id: s.id, x: s.x, y: s.y }, b: { id: t.id, x: t.x, y: t.y } });
     }
   }
   return segments;
-}
-
-/** Lane segments bucketed by the grid cells their bounding boxes cover, for "which lanes pass near here". */
-export class LaneIndex {
-  private readonly cells = new Map<number, number[]>();
-  private readonly seen: Uint32Array;
-  private query = 0;
-
-  constructor(
-    private readonly segments: ReadonlyArray<[MeshPoint, MeshPoint]>,
-    private readonly cell = SEGMENT_CELL,
-  ) {
-    this.seen = new Uint32Array(segments.length);
-    segments.forEach(([a, b], i) =>
-      forEachSegmentCell(a, b, cell, (k) => {
-        const bucket = this.cells.get(k);
-        if (bucket) bucket.push(i);
-        else this.cells.set(k, [i]);
-      }),
-    );
-  }
-
-  /** The lanes whose bounding box comes within `d` of some point, each once. */
-  near(points: readonly Pt[], d: number): Array<[MeshPoint, MeshPoint]> {
-    const query = ++this.query;
-    const found: Array<[MeshPoint, MeshPoint]> = [];
-    for (const p of points) {
-      forEachCell(p.x - d, p.y - d, p.x + d, p.y + d, this.cell, (k) => {
-        for (const i of this.cells.get(k) ?? []) {
-          if (this.seen[i] === query) continue;
-          const [a, b] = this.segments[i];
-          if (
-            Math.max(a.x, b.x) < p.x - d ||
-            Math.min(a.x, b.x) > p.x + d ||
-            Math.max(a.y, b.y) < p.y - d ||
-            Math.min(a.y, b.y) > p.y + d
-          ) {
-            continue;
-          }
-          this.seen[i] = query;
-          found.push(this.segments[i]);
-        }
-      });
-    }
-    return found;
-  }
 }
 
 export interface MeshWithinOptions {
@@ -104,7 +52,7 @@ export function meshWithin(points: readonly MeshPoint[], options: MeshWithinOpti
   const { beta, maxLength, existing, keep } = options;
   const at = new Map(points.map((p) => [p.id, p]));
   const lanes = new SegmentIndex();
-  for (const [a, b] of existing) lanes.add(a, b);
+  for (const { a, b } of existing) lanes.add(a, b);
   const max2 = maxLength * maxLength;
   return meshPairs([...points], beta).filter(([a, b]) => {
     if (keep && !keep(a, b)) return false;

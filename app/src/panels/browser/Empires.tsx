@@ -12,7 +12,7 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useOwnership } from "../../store/ownership";
-import { Chip, SourceChip } from "../inspector/parts";
+import { Chip, SourceChip } from "../parts";
 import { useCollapse } from "./collapse";
 import { Action, Emblem, Eye, Group, Row } from "./rows";
 

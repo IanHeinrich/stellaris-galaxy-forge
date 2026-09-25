@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useMapChromeStore } from "../../../store/mapChromeStore";
 
-/** One entry of a menu: runs `run`, then closes the menu. */
+/** One entry of a menu: closes the menu, then runs `run`, as the menu bar's items do. */
 export function MenuItem({
   run,
   className,
@@ -24,8 +24,8 @@ export function MenuItem({
       disabled={disabled}
       title={title}
       onClick={() => {
-        void run();
         closeContextMenu();
+        void run();
       }}
     >
       {children}

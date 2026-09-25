@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Empty, FilterField, FILTER_MIN, Section } from "../../parts";
+import { FilterField, FILTER_MIN } from "../../../parts";
+import { Empty, Section } from "../../parts";
 
 export function FlagsSection({ flags }: { flags: readonly string[] }) {
   const [query, setQuery] = useState("");

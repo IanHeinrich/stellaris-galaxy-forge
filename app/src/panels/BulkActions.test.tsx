@@ -1,16 +1,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../api/ipc");
-vi.mock("../../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog"));
-vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
+vi.mock("../api/ipc");
+vi.mock("../api/events");
+vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
+vi.mock("zustand", () => import("../test/zustandSnapshot"));
 
-import { bindStores } from "../../../store/bindStores";
-import { useEditorStore } from "../../../store/editorStore";
-import { SYSTEMS } from "../../../store/fixture";
-import { useGalaxyStore } from "../../../store/galaxyStore";
-import { open, resetStores } from "../inspectorFixture";
+import { bindStores } from "../store/bindStores";
+import { useEditorStore } from "../store/editorStore";
+import { SYSTEMS } from "../store/fixture";
+import { useGalaxyStore } from "../store/galaxyStore";
+import { open, resetStores } from "./inspector/inspectorFixture";
 import { BulkActions } from "./BulkActions";
 
 bindStores();

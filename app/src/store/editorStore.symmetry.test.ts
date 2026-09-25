@@ -453,7 +453,7 @@ describe("deleting systems under symmetry", () => {
   it("deletes the counterparts too, counting them in the question", async () => {
     sym(QUARTER);
     link([20, 0]);
-    await editor().removeSystem(20);
+    await editor().removeSystems([20]);
     expect(mocked.confirm).toHaveBeenCalledWith("Delete 4 systems and their 1 lane?", {
       title: "Delete systems",
       kind: "warning",
@@ -475,7 +475,7 @@ describe("deleting systems under symmetry", () => {
 
   it("deletes a system with no counterpart as before", async () => {
     sym(MIRROR_X);
-    await editor().removeSystem(13);
+    await editor().removeSystems([13]);
     expect(mocked.confirm).toHaveBeenCalledWith("Delete Lone?", expect.anything());
     expect(sent()).toEqual({ type: "RemoveSystem", id: 13 });
   });

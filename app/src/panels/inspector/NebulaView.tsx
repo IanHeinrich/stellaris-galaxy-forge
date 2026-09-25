@@ -2,9 +2,11 @@ import { nodeName } from "../../lib/names";
 import { useEditorStore } from "../../store/editorStore";
 import { useSystemNames } from "../../store/browserRows";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { NEBULA_RADIUS_INPUT_ID, systemCount } from "./nebula";
-import { TextField } from "../EditField";
+import { NEBULA_RADIUS_INPUT_ID } from "../nebula";
+import { EditBlock, EditRow, TextField } from "../EditField";
 import { Empty, Properties, PropertyRow, Swatch } from "./parts";
+import { shortcutLabel } from "../../lib/keys";
+import { counted } from "../../lib/text";
 
 const NO_SYSTEMS: number[] = [];
 
@@ -26,20 +28,35 @@ export function NebulaView({ index }: { index: number }) {
       <div className="ins-head">
         <span className="name">{nodeName(nebula.name)}</span>
         <span className="muted mono">#{index}</span>
-        <button className="link ins-close" onClick={() => selectNebula(null)} title="Clear (Esc)">
+        <button
+          className="link ins-close"
+          onClick={() => selectNebula(null)}
+          title={`Clear (${shortcutLabel("clearSelection")})`}
+        >
           ×
         </button>
       </div>
-      <div className="ins-name">
-        <span className="k">Name</span>
-        <TextField
-          kind="text"
-          className="ins-name-field"
-          label="Nebula name"
-          value={nebula.name.key}
-          onCommit={(name) => void setNebulaName(index, name)}
-        />
-      </div>
+      <EditBlock title="Nebula">
+        <EditRow label="Name">
+          <TextField
+            kind="text"
+            label="Nebula name"
+            value={nebula.name.key}
+            onCommit={(name) => void setNebulaName(index, name)}
+          />
+        </EditRow>
+        <EditRow label="Radius">
+          <TextField
+            kind="number"
+            id={NEBULA_RADIUS_INPUT_ID}
+            className="coord"
+            label="Radius"
+            value={nebula.radius}
+            onCommit={(radius) => void setNebulaRadius(index, radius)}
+          />
+        </EditRow>
+      </EditBlock>
+      <div className="edit-block-title ins-about">About</div>
       <Properties>
         <PropertyRow label="x" mono>
           {nebula.x.toFixed(2)}
@@ -48,19 +65,8 @@ export function NebulaView({ index }: { index: number }) {
           {nebula.y.toFixed(2)}
         </PropertyRow>
       </Properties>
-      <div className="ins-radius">
-        <span className="k">Radius</span>
-        <TextField
-          kind="number"
-          id={NEBULA_RADIUS_INPUT_ID}
-          className="coord"
-          label="Radius"
-          value={nebula.radius}
-          onCommit={(radius) => void setNebulaRadius(index, radius)}
-        />
-      </div>
       <div className="ins-line muted">
-        <span>{systemCount(nebula.systems.length)}</span>
+        <span>{counted(nebula.systems.length, "system")}</span>
       </div>
       {nebula.systems.length > 0 && (
         <div className="ins-chips">

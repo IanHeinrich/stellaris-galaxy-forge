@@ -1,16 +1,17 @@
 import { useState } from "react";
 import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
-import { isStarClass } from "../../../../lib/details/labels";
+import { bodyClassName, bodyName } from "../../../../lib/details/labels";
 import { resourceRows } from "../../../../lib/details/resources";
-import { initClassLabel } from "../../../../lib/initializer/initializerRows";
+import { isStarBody, starBodyEditable } from "../../../../lib/details/starBody";
 import { capabilityFor } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useDetailsStore } from "../../../../store/detailsStore";
 import { useCanEdit } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { useInspectorStore } from "../../../../store/inspectorStore";
-import { Chip, DrillRow, Empty, Icon, MoreButton, Section, Swatch } from "../../parts";
+import { useOpenEntity } from "../../entity/useEntity";
+import { Chip, Icon } from "../../../parts";
+import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
 import { PlanetIcon, Pills, PlanetSize } from "./bodies";
 import {
   depositTitle,
@@ -49,23 +50,20 @@ export function PlanetRow({
   const icons = useDetailsStore((s) => s.resourceIcons);
   const classes = useGameDataStore((s) => s.planetClasses);
   const names = useGameDataStore((s) => s.names);
-  const open = useInspectorStore((s) => s.open);
+  const opener = useOpenEntity();
   const sprite = classes.get(planet.class)?.icon_sprite;
   const rows = resourceRows({ ...details, resources: planet.deposits }, icons);
   const wide = rows.length > INLINE_RESOURCES;
-  // The game localises the class key "random" to nothing, so an empty entry is a miss.
   const unrolled = planet.class === "" || planet.class === "random";
-  const classText =
-    names.get(planet.class) ||
-    (unrolled && planet.moon ? "random moon" : initClassLabel(planet.class));
+  const classText = bodyClassName(planet.class, names, planet.moon);
   const named = templateName(planet);
-  const name = named === "" ? classText.charAt(0).toUpperCase() + classText.slice(1) : named;
+  const name = bodyName(planet, names);
   return (
     <DrillRow
       className={`ins-prow${planet.moon ? " moon" : ""}${wide ? " wide" : ""}`}
       requires={capabilityFor("planet")}
       title={editable ? "Open this star's page to change its type and size" : undefined}
-      onOpen={() => open({ ref: { kind: "planet", id: planet.id }, label: name })}
+      onOpen={() => opener.open({ kind: "planet", id: planet.id }, name)}
     >
       <PlanetIcon planetClass={planet.class} sprite={sprite} />
       <span>
@@ -123,7 +121,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const starClasses = useGameDataStore((s) => s.starClasses);
   const bodies = useCanEdit("bodies");
   const [all, setAll] = useState(false);
-  const isStar = (p: PlanetSummary) => isStarClass(p.class, classes, starClasses);
+  const isStar = (p: PlanetSummary) => isStarBody(p.class, classes, starClasses);
   const planets = orderedPlanets(details.planets, isStar);
   const totals = planetTotals(details.planets);
   const shown = all ? planets : planets.slice(0, LIST_LIMIT);
@@ -154,7 +152,12 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
             </span>
           </div>
           {shown.map((p) => (
-            <PlanetRow key={p.id} planet={p} details={details} editable={bodies && isStar(p)} />
+            <PlanetRow
+              key={p.id}
+              planet={p}
+              details={details}
+              editable={starBodyEditable(p.class, bodies, classes, starClasses)}
+            />
           ))}
           {!all && planets.length > LIST_LIMIT && (
             <MoreButton count={planets.length - LIST_LIMIT} onClick={() => setAll(true)} />

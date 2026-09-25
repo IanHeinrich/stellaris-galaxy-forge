@@ -1,30 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { placedNode as node } from "../../test/builders";
+import { byId, feLinkedNode, placedNode as node, zoneAnchor } from "../../test/builders";
 import type { SystemNode } from "../../generated/SystemNode";
-import { newFeZone } from "../../lib/feZone";
 import { distToSegmentSq } from "../../lib/geometry/geometry";
+import { seeded } from "../../lib/random";
 import type { LaneRef } from "../../store/editorStore";
 import { PickIndex } from "./pickIndex";
 
-/** An anchor whose ring lies east at 40 and takes custom connections under `linkId`. */
-const anchor = (id: number, x: number, y: number, linkId: number): SystemNode => ({
-  ...node(id, x, y),
-  fe_zone: newFeZone("e"),
-  fe_link: { custom: true, id: linkId, to: [] },
-});
-
-const linked = (id: number, x: number, y: number, ...to: number[]): SystemNode => ({
-  ...node(id, x, y),
-  fe_link: { custom: false, id: null, to },
-});
-
-function world(...nodes: SystemNode[]): Map<number, SystemNode> {
-  return new Map(nodes.map((s) => [s.id, s]));
-}
-
 function indexed(...nodes: SystemNode[]): PickIndex {
   const index = new PickIndex();
-  index.build(world(...nodes));
+  index.build(byId([...nodes]));
   return index;
 }
 
@@ -53,8 +37,8 @@ describe("nearestLane", () => {
 describe("nearestEdge", () => {
   // S1's ring is centred on (-40, 0), so S2's link runs from (200, 0) to (-10, 0).
   const index = indexed(
-    anchor(1, 0, 0, 5),
-    linked(2, 200, 0, 5),
+    zoneAnchor(1, 0, 0, 5),
+    feLinkedNode(2, 200, 0, 5),
     node(3, 100, 40, [4]),
     node(4, 200, 40, [3]),
   );
@@ -77,29 +61,20 @@ describe("nearestEdge", () => {
   });
 
   it("ignores a link to an id no anchor takes, an anchor without a zone, and a system inside the ring", () => {
-    const inside = linked(6, -40, 0, 5);
-    const noZone = { ...anchor(7, 0, 300, 8), fe_zone: null };
+    const inside = feLinkedNode(6, -40, 0, 5);
+    const noZone = { ...zoneAnchor(7, 0, 300, 8), fe_zone: null };
     const all = indexed(
-      anchor(1, 0, 0, 5),
-      linked(2, 200, 0, 9),
+      zoneAnchor(1, 0, 0, 5),
+      feLinkedNode(2, 200, 0, 9),
       inside,
       noZone,
-      linked(8, 200, 300, 8),
+      feLinkedNode(8, 200, 300, 8),
     );
     expect(all.nearestEdge(100, 0, 5, true)).toBeNull();
     expect(all.nearestEdge(-30, 0, 5, true)).toBeNull();
     expect(all.nearestEdge(100, 300, 5, true)).toBeNull();
   });
 });
-
-/** A seeded generator, so a failure names the same galaxy every run. */
-function random(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 2 ** 32;
-  };
-}
 
 /** A few hundred systems over a 1000-unit square, each laned to a few near ones and a rare far one. */
 function galaxy(rand: () => number): SystemNode[] {
@@ -161,9 +136,9 @@ function expectSameAsScan(index: PickIndex, systems: Map<number, SystemNode>, ra
 
 describe("the pick index against a scan of every lane", () => {
   it("finds the same lane, before and after a delta moves, removes and relanes systems", () => {
-    const rand = random(7);
+    const rand = seeded(7);
     const nodes = galaxy(rand);
-    const systems = world(...nodes);
+    const systems = byId([...nodes]);
     const index = new PickIndex();
     index.build(systems);
     expectSameAsScan(index, systems, rand);
@@ -187,20 +162,20 @@ describe("the pick index against a scan of every lane", () => {
 });
 
 describe("a delta", () => {
-  const ANCHOR = anchor(1, 0, 0, 5);
-  const LINKED = linked(2, 200, 0, 5);
+  const ANCHOR = zoneAnchor(1, 0, 0, 5);
+  const LINKED = feLinkedNode(2, 200, 0, 5);
   const LINK = { kind: "feLink", anchor: 1, system: 2 };
 
   it("moves a zone's links with its anchor, and drops them when it stops taking links", () => {
     const index = indexed(ANCHOR, LINKED);
     const moved = { ...ANCHOR, y: 100 };
-    index.apply({ systems: [moved] }, world(moved, LINKED));
+    index.apply({ systems: [moved] }, byId([moved, LINKED]));
     expect(index.nearestEdge(100, 3, 5, true)).toBeNull();
     expect(index.nearestEdge(-10, 100, 5, true)).toBeNull();
     expect(index.nearestEdge(94, 44, 5, true)).toEqual(LINK);
 
     const closed = { ...moved, fe_link: { ...moved.fe_link, custom: false } };
-    index.apply({ systems: [closed] }, world(closed, LINKED));
+    index.apply({ systems: [closed] }, byId([closed, LINKED]));
     expect(index.nearestEdge(94, 44, 5, true)).toBeNull();
   });
 
@@ -211,11 +186,11 @@ describe("a delta", () => {
       ...LINKED,
       fe_link: { ...LINKED.fe_link, to: [] },
     });
-    index.apply({ systems: [LINKED, other] }, world(ANCHOR, one, other, LINKED));
+    index.apply({ systems: [LINKED, other] }, byId([ANCHOR, one, other, LINKED]));
     expect(index.nearestEdge(100, 3, 5, true)).toEqual(LINK);
     expect(index.nearestLane(50, 200, 5)).toEqual({ a: 3, b: 4 });
 
-    index.apply({ systems: [], removed: [1] }, world(one, other, LINKED));
+    index.apply({ systems: [], removed: [1] }, byId([one, other, LINKED]));
     expect(index.nearestEdge(100, 3, 5, true)).toBeNull();
     expect([...index.anchors()]).toEqual([]);
   });

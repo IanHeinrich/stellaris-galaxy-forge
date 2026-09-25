@@ -1,16 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { name, systemNode } from "../test/builders";
-import type { SystemNode } from "../generated/SystemNode";
+import { placedNode as node } from "../test/builders";
 import { ghostLaneSegments } from "./moveGhosts";
-
-const node = (id: number, x: number, y: number, to: number[]): SystemNode =>
-  systemNode({
-    id,
-    name: name(`s${id}`),
-    x,
-    y,
-    lanes: to.map((t) => ({ to: t, length: 1, bridge: false, stale: false })),
-  });
 
 describe("ghostLaneSegments", () => {
   it("joins two moved systems once at their ghosts and a moved one to its unmoved neighbour", () => {

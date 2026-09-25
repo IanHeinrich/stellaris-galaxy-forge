@@ -2,13 +2,15 @@ import { useState } from "react";
 import type { MegastructureSummary } from "../../../../generated/MegastructureSummary";
 import { MEGASTRUCTURE_ICON_KEY } from "../../../../lib/details/icons";
 import { isGatewayMegastructure, megastructureParts } from "../../../../lib/details/labels";
+import { capabilityFor } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useDetailsStore } from "../../../../store/detailsStore";
 import { useCountryName } from "../../../../store/browserRows";
 import { useGalaxyStore } from "../../../../store/galaxyStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { useInspectorStore } from "../../../../store/inspectorStore";
-import { Chip, DrillRow, FocusButton, Icon, MoreButton, Section, Swatch } from "../../parts";
+import { useOpenEntity } from "../../entity/useEntity";
+import { Chip, Icon } from "../../../parts";
+import { DrillRow, FocusButton, MoreButton, Section, Swatch } from "../../parts";
 import { gatewayActive, LIST_LIMIT } from "../../rows";
 
 function MegastructureRowView({
@@ -22,7 +24,7 @@ function MegastructureRowView({
   const galaxy = useGalaxyStore((s) => s.galaxy);
   const bypasses = galaxy?.bypasses ?? [];
   const names = useGameDataStore((s) => s.names);
-  const open = useInspectorStore((s) => s.open);
+  const opener = useOpenEntity();
   const orbits = useDetailsStore((s) =>
     megastructure.planet === null
       ? undefined
@@ -34,8 +36,8 @@ function MegastructureRowView({
   const state = gateway ? (gatewayActive(bypasses, system) ? "active" : "inactive") : parsed.state;
   return (
     <DrillRow
-      requires="details"
-      onOpen={() => open({ ref: { kind: "megastructure", id: megastructure.id }, label: name })}
+      requires={capabilityFor("megastructure")}
+      onOpen={() => opener.open({ kind: "megastructure", id: megastructure.id }, name)}
     >
       <Icon className="pi mega" keys={[MEGASTRUCTURE_ICON_KEY]} glyph="◈" />
       <span>

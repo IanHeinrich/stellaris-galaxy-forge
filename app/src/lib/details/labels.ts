@@ -3,15 +3,13 @@ import type { BypassKind } from "../../generated/BypassKind";
 import type { BypassLink } from "../../generated/BypassLink";
 import type { CountryNode } from "../../generated/CountryNode";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
-import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
-import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { MapTooltipText } from "../../store/editorStore";
-import { templateKeys } from "../names";
+import { templateKeys, templateName, type Names } from "../names";
 import { canonicalResource } from "../resources";
-import { titleCase } from "../text";
+import { keyWords, titleCase } from "../text";
 import {
   ARCHAEOLOGY_ICON_KEYS,
   MEGASTRUCTURE_ICON_KEY,
@@ -68,22 +66,6 @@ export interface MegastructureParts {
   warn: boolean;
 }
 
-/** The class an initializer writes for the body standing in for the system's own star. */
-const STAR_CLASS = "star";
-
-/**
- * Whether a body is a star: a planet class the game flags `star`, a `star_classes` key, or the
- * bare `star` an initializer writes for the body standing in for the system's own.
- */
-export function isStarClass(
-  planetClass: string,
-  planetClasses: ReadonlyMap<string, PlanetClassView>,
-  starClasses: ReadonlyMap<string, StarClassView>,
-): boolean {
-  if (planetClass === STAR_CLASS) return true;
-  return planetClasses.get(planetClass)?.star ?? starClasses.has(planetClass);
-}
-
 /** `Alpha Centauri III` → `Continental World · size 16 · capital · colonised by Earth`. */
 export function planetLine(
   p: PlanetSummary,
@@ -119,6 +101,54 @@ export function planetClassLabel(planetClass: string): string {
   const label = titleCase(words);
   const named = words.some((w) => /^(world|habitat|ringworld)$/.test(w));
   return FALLBACK_HABITABLE.test(planetClass) && !named ? `${label} World` : label;
+}
+
+/** A body block without a class leaves the choice to the game, like `random`. */
+const RANDOM_CLASSES: Record<string, string> = {
+  "": "random planet, any class",
+  none: "no planet",
+  random: "random planet, any class",
+  random_colonizable: "random habitable planet",
+  random_non_colonizable: "random uninhabitable planet",
+  random_asteroid: "random asteroid",
+  random_non_machine: "random planet, no machine world",
+  random_non_ideal: "random planet, not the ideal class",
+  random_ruler: "random habitable planet for a ruler",
+  random_pre_ftl: "random pre-FTL world",
+};
+
+/** `rl_habitable_planets` → `random from habitable planets`. */
+export function randomListLabel(key: string): string {
+  return `random from ${key.slice(3).replace(/_/g, " ")}`;
+}
+
+/** What a body's class is called: a planet class, one of the random kinds, or a random list. */
+export function initClassLabel(planetClass: string): string {
+  const random = RANDOM_CLASSES[planetClass];
+  if (random !== undefined) return random;
+  if (planetClass.startsWith("rl_")) return randomListLabel(planetClass);
+  if (planetClass.startsWith("random")) return planetClass.replace(/_/g, " ");
+  return planetClassLabel(planetClass);
+}
+
+/** What a body's class reads as: the game's name, else the random kinds' words or the key made readable. */
+export function bodyClassName(planetClass: string, names: Names, moon = false): string {
+  // The game localises the class key "random" to nothing, so an empty entry is a miss.
+  const text = names.get(planetClass);
+  if (text) return text;
+  const unrolled = planetClass === "" || planetClass === "random";
+  return unrolled && moon ? "random moon" : initClassLabel(planetClass);
+}
+
+/** A body's name: its own, else its class's, capitalised. */
+export function bodyName(
+  planet: Pick<PlanetSummary, "name" | "name_key" | "class"> & { moon?: boolean },
+  names: Names,
+): string {
+  const named = templateName(planet);
+  if (named !== "") return named;
+  const text = bodyClassName(planet.class, names, planet.moon);
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** A plain outpost earns no icon: the border already says the system is held. */
@@ -176,7 +206,7 @@ export function starbaseLabel(level: string): string {
   const name = level.startsWith(STARBASE_LEVEL_PREFIX)
     ? level.slice(STARBASE_LEVEL_PREFIX.length)
     : level;
-  return titleCase(name.split("_").filter(Boolean));
+  return keyWords(name);
 }
 
 /**
@@ -251,6 +281,19 @@ function collapsedIcon(labels: string[], noun: string, keys: string[], glyph: st
   return { keys, glyph, label, frame: "poi" };
 }
 
+/** The bypasses the game names itself; `common/bypass` carries no display name for the rest. */
+const BYPASS_NAMES: Record<string, string> = {
+  wormhole: "Wormhole",
+  gateway: "Gateway",
+  l_gate: "L-Gate",
+  lgate: "L-Gate",
+};
+
+/** What a bypass kind is called: the game's own word, else its key's words. */
+export function bypassName(kind: string): string {
+  return BYPASS_NAMES[kind] ?? (keyWords(kind) || kind);
+}
+
 function bypassIcon(kind: string, label: string, kinds?: BypassKinds): Icon {
   const key = bypassIconKey(kind, kinds);
   return {
@@ -269,7 +312,7 @@ export function scenarioBypassIcon(kind: BypassKind, kinds?: BypassKinds): Icon 
     case "gateway":
       return bypassIcon("gateway", kind.ruined ? "Gateway (ruined)" : "Gateway", kinds);
     case "other":
-      return bypassIcon(kind.kind, titleCase(kind.kind.split("_").filter(Boolean)), kinds);
+      return bypassIcon(kind.kind, bypassName(kind.kind), kinds);
   }
 }
 
@@ -293,8 +336,7 @@ export function bypassIcons(
         if (b.system === id) icons.push(bypassIcon("lgate", "L-Gate", kinds));
         break;
       case "other":
-        if (b.system === id)
-          icons.push(bypassIcon(b.kind, titleCase(b.kind.split("_").filter(Boolean)), kinds));
+        if (b.system === id) icons.push(bypassIcon(b.kind, bypassName(b.kind), kinds));
         break;
     }
   }

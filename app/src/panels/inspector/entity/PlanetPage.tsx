@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from "react";
 import type { PlanetPage } from "../../../generated/PlanetPage";
 import type { PlanetPageMoon } from "../../../generated/PlanetPageMoon";
-import { findPlanet, isStarBody } from "../../../lib/details/starBody";
+import { bodyClassName, bodyName } from "../../../lib/details/labels";
+import { findPlanet, isStarBody, starBodyEditable } from "../../../lib/details/starBody";
 import {
   daysLeft,
   modifierRows,
@@ -12,17 +13,18 @@ import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { useEditorStore } from "../../../store/editorStore";
+import { useCanEdit } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { refKey, useInspectorStore, type Entry } from "../../../store/inspectorStore";
+import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { EditKey } from "../../EditField";
+import { useNamed } from "../../useNamed";
+import { Icon } from "../../parts";
 import {
   DrillLink,
   DrillRow,
   Empty,
-  Icon,
   LinkRow,
   Properties,
   PropertyRow,
@@ -36,31 +38,26 @@ import { PlanetRow } from "../system/sections/Planets";
 import { EntityView } from "./EntityView";
 import { PlanetDeposits } from "./PlanetDeposits";
 import { StarBlock } from "./StarBlock";
-import { useClassLabel, useSingleStarClasses } from "./useBodyClasses";
+import { useSingleStarClasses } from "./useBodyClasses";
 import "./entity.css";
 import { useOpenEntity, usePlanetPage } from "./useEntity";
 
 /** Asks for the game data the page shows: its deposits, modifiers, designations and class names. */
 function usePlanetData(page: PlanetPage): void {
   const generation = usePlanetDataStore((s) => s.generation);
-  const gameData = useGameDataStore((s) => `${s.status}/${s.version}`);
   const keys = useMemo(() => planetDataKeys(page), [page]);
-  const classes = [page.class, ...page.moons.map((m) => m.class)].join("|");
   useEffect(() => {
     usePlanetDataStore.getState().request(keys);
   }, [keys, generation]);
-  useEffect(() => {
-    void useGameDataStore.getState().fetchNames(classes.split("|"));
-  }, [classes, gameData]);
+  useNamed([page.class, ...page.moons.map((m) => m.class)]);
 }
 
 function Head({ page }: { page: PlanetPage }) {
-  const label = useClassLabel();
+  const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const own = useSingleStarClasses().get(page.class);
   const star = isStarBody(page.class, planetClasses, starClasses);
-  const named = templateName(page);
   return (
     <div className={`ins-head${star ? " ins-star-head" : " pl-head"}`}>
       {star ? (
@@ -68,7 +65,7 @@ function Head({ page }: { page: PlanetPage }) {
       ) : (
         <PlanetIcon planetClass={page.class} sprite={planetClasses.get(page.class)?.icon_sprite} />
       )}
-      <span className="name">{named === "" ? label(page.class) : named}</span>
+      <span className="name">{bodyName(page, names)}</span>
       <span className="muted mono">#{page.id}</span>
     </div>
   );
@@ -176,11 +173,9 @@ function useFoundPlanet(id: number) {
 
 /** The body this one orbits, named as the system list names it. */
 function useBodyName(id: number): string {
-  const label = useClassLabel();
+  const names = useGameDataStore((s) => s.names);
   const found = useFoundPlanet(id);
-  if (found === null) return `#${id}`;
-  const named = templateName(found.planet);
-  return named === "" ? label(found.planet.class) : named;
+  return found === null ? `#${id}` : bodyName(found.planet, names);
 }
 
 function Orbits({ parent, orbit }: { parent: number; orbit: number | null }) {
@@ -201,24 +196,16 @@ function Orbits({ parent, orbit }: { parent: number; orbit: number | null }) {
 }
 
 function About({ page }: { page: PlanetPage }) {
-  const stack = useInspectorStore((s) => s.stack);
-  const popTo = useInspectorStore((s) => s.popTo);
-  const select = useEditorStore((s) => s.select);
+  const openSystem = useInspectorStore((s) => s.openSystem);
   const systemName = useGalaxyStore((s) => s.systemName);
   const system = page.system;
-  const toSystem = (id: number) => {
-    const key = refKey({ kind: "system", id });
-    const at = stack.findIndex((entry) => refKey(entry.ref) === key);
-    if (at >= 0) popTo(at);
-    else void select(id);
-  };
   const occupied = page.controller !== null && page.controller !== page.owner;
   return (
     <>
       <div className="edit-block-title ins-about">About</div>
       <Properties>
         {system !== null && (
-          <LinkRow label="System" title="Open the system's page" onOpen={() => toSystem(system)}>
+          <LinkRow label="System" title="Open the system's page" onOpen={() => openSystem(system)}>
             {systemName(system)}
           </LinkRow>
         )}
@@ -235,21 +222,21 @@ function About({ page }: { page: PlanetPage }) {
 
 /** A moon no read system lists: its class and size, opening its own page. */
 function MoonFallbackRow({ moon }: { moon: PlanetPageMoon }) {
-  const label = useClassLabel();
+  const names = useGameDataStore((s) => s.names);
   const classes = useGameDataStore((s) => s.planetClasses);
-  const open = useInspectorStore((s) => s.open);
+  const opener = useOpenEntity();
   const named = templateName(moon);
-  const name = named === "" ? label(moon.class) : named;
+  const name = bodyName(moon, names);
   return (
     <DrillRow
       requires={capabilityFor("planet")}
-      onOpen={() => open({ ref: { kind: "planet", id: moon.id }, label: name })}
+      onOpen={() => opener.open({ kind: "planet", id: moon.id }, name)}
     >
       <PlanetIcon planetClass={moon.class} sprite={classes.get(moon.class)?.icon_sprite} />
       <span>
         <span className="l1">{name}</span>
         <span className="l2">
-          {named !== "" && label(moon.class)}
+          {named !== "" && bodyClassName(moon.class, names)}
           {moon.size !== null && <PlanetSize size={moon.size} />}
         </span>
       </span>
@@ -263,6 +250,7 @@ function Moons({ page }: { page: PlanetPage }) {
   );
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
+  const bodies = useCanEdit("bodies");
   if (page.moons.length === 0) return null;
   return (
     <Section id="planet.moons" title="Moons" count={page.moons.length}>
@@ -276,7 +264,7 @@ function Moons({ page }: { page: PlanetPage }) {
             key={moon.id}
             planet={{ ...summary, moon: false }}
             details={read}
-            editable={isStarBody(summary.class, planetClasses, starClasses)}
+            editable={starBodyEditable(summary.class, bodies, planetClasses, starClasses)}
           />
         );
       })}
@@ -290,12 +278,13 @@ function Moons({ page }: { page: PlanetPage }) {
  */
 function PlanetOverview({ page }: { page: PlanetPage }) {
   usePlanetData(page);
-  const label = useClassLabel();
+  const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
+  const bodies = useCanEdit("bodies");
   const found = useFoundPlanet(page.id);
   const system = useGalaxyStore((s) => (found === null ? undefined : s.systems.get(found.system)));
-  const star = isStarBody(page.class, planetClasses, starClasses);
+  const star = starBodyEditable(page.class, bodies, planetClasses, starClasses);
   const starBlock = star && found !== null && system !== undefined;
   const requestDetails = useDetailsStore((s) => s.request);
   const detailsVersion = useDetailsStore((s) => s.version);
@@ -313,7 +302,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
         <Empty>{READING_STARS}</Empty>
       ) : (
         <Properties>
-          <PropertyRow label="Class">{label(page.class)}</PropertyRow>
+          <PropertyRow label="Class">{bodyClassName(page.class, names)}</PropertyRow>
           {page.size !== null && <PropertyRow label="Size">{page.size}</PropertyRow>}
         </Properties>
       )}

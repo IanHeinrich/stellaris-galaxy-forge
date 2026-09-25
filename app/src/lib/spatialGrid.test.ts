@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { name, systemNode } from "../test/builders";
-import type { SystemNode } from "../generated/SystemNode";
+import { placedNode as node } from "../test/builders";
 import { CELL_SIZE, SpatialGrid } from "./spatialGrid";
-
-const node = (id: number, x: number, y: number): SystemNode =>
-  systemNode({ id, name: name(`S${id}`), x, y });
 
 describe("SpatialGrid", () => {
   it("finds the nearest system across cell boundaries and respects maxDist", () => {

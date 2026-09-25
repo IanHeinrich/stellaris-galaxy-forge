@@ -1,6 +1,6 @@
 import { fileName } from "../../lib/paths";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { Dialog } from "../overlays/Dialog";
+import { Dialog } from "../Dialog";
 import { PaintChoice } from "./PaintChoice";
 import "./open.css";
 

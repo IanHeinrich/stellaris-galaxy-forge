@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { name, placedNode as node } from "../../test/builders";
+import { byId, feLinkedNode, name, placedNode as node, zoneAnchor } from "../../test/builders";
 import type { Nebula } from "../../generated/Nebula";
 import type { SystemNode } from "../../generated/SystemNode";
 import { Camera } from "../Camera";
-import { pickEdge, pickFeZone, pickNebula, pickSystem, snapTarget } from "./index";
+import { pickEdge, pickFeZone, pickNebula, pickPrevented, pickSystem, snapTarget } from "./index";
 import { newFeZone } from "../../lib/feZone";
 import { SpatialGrid } from "../../lib/spatialGrid";
 import { PickIndex } from "./pickIndex";
@@ -18,7 +18,7 @@ function world(nodes: SystemNode[]): {
   grid: SpatialGrid;
   index: PickIndex;
 } {
-  const systems = new Map(nodes.map((s) => [s.id, s]));
+  const systems = byId(nodes);
   const grid = new SpatialGrid();
   grid.build(nodes);
   const index = new PickIndex();
@@ -83,12 +83,8 @@ describe("picking", () => {
 
   it("picks a zone's link along its line and flags its midpoint, only while links are shown", () => {
     // S1's ring lies east at 40, so the link from S2 runs from (200, 0) to the ring at (-10, 0).
-    const anchor = {
-      ...node(1, 0, 0),
-      fe_zone: newFeZone("e"),
-      fe_link: { custom: true, id: 5, to: [] },
-    };
-    const linked = { ...node(2, 200, 0), fe_link: { custom: false, id: null, to: [5] } };
+    const anchor = zoneAnchor(1, 0, 0, 5);
+    const linked = feLinkedNode(2, 200, 0, 5);
     const { systems, index } = world([anchor, linked]);
     const cam = camera(1);
     const link = { kind: "feLink", anchor: 1, system: 2 };
@@ -148,12 +144,8 @@ describe("picking", () => {
 
   it("snaps a drag from systems to a zone's ring line while zones show, valid when one of them can link", () => {
     // S1's ring is centred on (-40, 0); S3 is already linked to it.
-    const anchor = {
-      ...node(1, 0, 0),
-      fe_zone: newFeZone("e"),
-      fe_link: { custom: true, id: 5, to: [] },
-    };
-    const linked = { ...node(3, 300, 0), fe_link: { custom: false, id: null, to: [5] } };
+    const anchor = zoneAnchor(1, 0, 0, 5);
+    const linked = feLinkedNode(3, 300, 0, 5);
     const { systems, grid, index } = world([anchor, node(2, 200, 0), linked]);
     const cam = camera(1);
 
@@ -178,12 +170,8 @@ describe("picking", () => {
   });
 
   it("snaps a drag from a zone's port to a system, refusing the anchor and one already linked", () => {
-    const anchor = {
-      ...node(1, 0, 0),
-      fe_zone: newFeZone("e"),
-      fe_link: { custom: true, id: 5, to: [] },
-    };
-    const linked = { ...node(3, 300, 0), fe_link: { custom: false, id: null, to: [5] } };
+    const anchor = zoneAnchor(1, 0, 0, 5);
+    const linked = feLinkedNode(3, 300, 0, 5);
     const { systems, grid, index } = world([anchor, node(2, 200, 0), linked]);
     const cam = camera(1);
 
@@ -257,17 +245,31 @@ describe("pickNebula", () => {
     expect(pickNebula(pair, cam, { x: 78, y: 0 }, null)).toEqual({ index: 1, part: "ring" });
   });
 
-  it("is not consulted while a system is under the pointer: the system wins the tie", () => {
-    const { grid } = world([node(1, 40, 0)]);
-    const at = { x: 40, y: 0 };
-    expect(pickSystem(grid, cam, at).system).toBe(1);
-    expect(pickNebula([CLOUD], cam, at, null)).toEqual({ index: 0, part: "ring" });
-  });
-
   it("keeps a nebula shrunk to near zero grabbable by its centre, with the ring still winning near the edge", () => {
     const shrunk = nebula(0, 0, 1);
     expect(pickNebula([shrunk], cam, { x: 2, y: 0 }, null)).toEqual({ index: 0, part: "centre" });
     expect(pickNebula([shrunk], cam, { x: 5, y: 0 }, null)).toEqual({ index: 0, part: "ring" });
+  });
+});
+
+describe("pickPrevented", () => {
+  it("picks the nearest kept-apart pair under the point, low id first, within the lane radius", () => {
+    const { systems } = world([
+      { ...node(3, 0, 0), prevented: [1] },
+      { ...node(1, 100, 0), prevented: [3] },
+      { ...node(2, 0, 10), prevented: [4, 9] },
+      node(4, 100, 10),
+    ]);
+
+    expect(pickPrevented(systems, camera(1), { x: 50, y: 3 })).toEqual({ a: 1, b: 3 });
+    expect(pickPrevented(systems, camera(1), { x: 50, y: 7 })).toEqual({ a: 2, b: 4 });
+    expect(pickPrevented(systems, camera(1), { x: 50, y: 17 })).toBeNull();
+    expect(pickPrevented(systems, camera(0.5), { x: 50, y: 17 })).toEqual({ a: 2, b: 4 });
+  });
+
+  it("passes over a pair whose other system the document does not hold", () => {
+    const { systems } = world([{ ...node(1, 0, 0), prevented: [9] }]);
+    expect(pickPrevented(systems, camera(1), { x: 0, y: 0 })).toBeNull();
   });
 });
 

@@ -2,6 +2,7 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { distToSegmentSq } from "../geometry/geometry";
 import type { MeshPoint } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
+import type { Segment } from "../geometry/segments";
 import type { SpatialGrid } from "../spatialGrid";
 import { PointGrid } from "./grid";
 import { PairSet, type Pair } from "../geometry/pairs";
@@ -40,13 +41,13 @@ export function sweptSystems(
 export function sweptLanes(
   stamps: readonly Pt[],
   r: number,
-  lanes: readonly (readonly [MeshPoint, MeshPoint])[],
+  lanes: readonly Segment<MeshPoint>[],
 ): Pair[] {
   const index = new PointGrid(r);
   for (const s of stamps) index.add(s);
   const r2 = r * r;
   const cut = new PairSet();
-  for (const [a, b] of lanes) {
+  for (const { a, b } of lanes) {
     const touched = index.someInBox(
       Math.min(a.x, b.x) - r,
       Math.min(a.y, b.y) - r,

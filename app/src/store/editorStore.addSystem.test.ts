@@ -135,15 +135,15 @@ describe("why a system cannot be added", () => {
 
   it("names the system inside the spawn buffer", () => {
     const refusal = addSystemRefusalAt(6, 8);
-    expect(refusal?.tooClose).toBe(true);
+    expect(refusal?.limit).toBe("tooClose");
     expect(refusal?.reason).toMatch(/^Too close to .+: \d+ away, the game needs 10$/);
   });
 
   it("names the galaxy's edge past its radius", () => {
     expect(addSystemRefusalAt(100, 0)).toEqual({
       reason: "Outside the galaxy's edge (radius 60)",
-      tooClose: false,
-      outside: true,
+      limit: "outside",
+      radius: 60,
     });
   });
 
@@ -204,7 +204,7 @@ describe("editing a system added this session", () => {
       editResult({ delta: { systems: [], removed: [7], renumbered: [[7, null]] } }),
     );
 
-    await editor().removeSystem(7);
+    await editor().removeSystems([7]);
 
     expect(mocked.confirm).toHaveBeenCalled();
     expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 });
@@ -293,7 +293,7 @@ describe("deleting several added systems at once", () => {
     useInspectorStore.getState().setRoot({ ref: { kind: "system", id: 8 }, label: "Added 8" });
     removeAddedSystems.mockResolvedValueOnce(removedSixAndEight(seven));
 
-    expect(await editor().removeAddedSystems([0, 6, 8])).toBe(true);
+    expect(await editor().removeSystems([0, 6, 8])).toBe(true);
 
     expect(mocked.confirm).toHaveBeenCalledWith("Delete 2 added systems?", {
       title: "Delete added systems",
@@ -314,11 +314,11 @@ describe("deleting several added systems at once", () => {
 
   it("sends nothing without an added system among them, or when not confirmed", async () => {
     withThreeAdded();
-    expect(await editor().removeAddedSystems([0, 3])).toBe(false);
+    expect(await editor().removeSystems([0, 3])).toBe(false);
     expect(mocked.confirm).not.toHaveBeenCalled();
 
     mocked.confirm.mockResolvedValueOnce(false);
-    expect(await editor().removeAddedSystems([6, 8])).toBe(false);
+    expect(await editor().removeSystems([6, 8])).toBe(false);
     expect(removeAddedSystems).not.toHaveBeenCalled();
   });
 
@@ -331,7 +331,7 @@ describe("deleting several added systems at once", () => {
     removeAddedSystems.mockResolvedValueOnce(editResult());
 
     const removing = editor().applyOp({ type: "RemoveSystem", id: 6 });
-    const bulk = editor().removeAddedSystems([7, 8]);
+    const bulk = editor().removeSystems([7, 8]);
     removal.resolve(
       editResult({
         delta: {
@@ -381,7 +381,7 @@ describe("edits queued behind others", () => {
   it("send a delete of one system to the id a delete ahead of it moved the system to", async () => {
     withAddedSystems();
     const { removing, land } = holdRemovalOfSix();
-    const deleting = editor().removeSystem(7);
+    const deleting = editor().removeSystems([7]);
     land();
     await Promise.all([removing, deleting]);
 

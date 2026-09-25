@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Pt } from "../geometry/pt";
-import { drag } from "../../test/brush";
+import { drag, sampleStroke } from "../../test/brush";
 import { seeded } from "../random";
-import { sampleStroke, StrokeSampler } from "./sample";
+import { StrokeSampler } from "./sample";
 import { inStroke } from "./stroke";
 
 /** Every stamp of a drag through `path`. */

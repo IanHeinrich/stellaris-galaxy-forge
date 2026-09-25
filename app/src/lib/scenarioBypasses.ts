@@ -1,6 +1,7 @@
 import type { BypassLink } from "../generated/BypassLink";
 import type { ScenarioBypass } from "../generated/ScenarioBypass";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
+import { PairSet } from "./geometry/pairs";
 import { counted } from "./text";
 import type { Source } from "./visual/layerGroups";
 
@@ -27,7 +28,7 @@ export function bypassLinks(
   dayOne: boolean,
 ): BypassLink[] {
   const links: BypassLink[] = [];
-  const paired = new Set<string>();
+  const paired = new PairSet();
   const all = bypasses?.bypasses ?? [];
   const shown = new Set<ScenarioBypass>(
     all.filter((bypass) => (bypassSource(bypass) === "initializers" ? initializers : dayOne)),
@@ -50,11 +51,9 @@ export function bypassLinks(
     } else if (partner === null || !farEndShown(system, partner)) {
       links.push({ type: "other", system, kind: "wormhole" });
     } else {
-      const a = Math.min(system, partner);
-      const b = Math.max(system, partner);
-      if (paired.has(`${a}-${b}`)) continue;
-      paired.add(`${a}-${b}`);
-      links.push({ type: "wormhole", a, b });
+      if (paired.has(system, partner)) continue;
+      paired.add(system, partner);
+      links.push({ type: "wormhole", a: Math.min(system, partner), b: Math.max(system, partner) });
     }
   }
   return links;

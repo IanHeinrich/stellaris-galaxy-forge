@@ -9,11 +9,11 @@ import {
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SpawnScript } from "../../generated/SpawnScript";
 import type { SystemNode } from "../../generated/SystemNode";
-import { spawnScriptLabel } from "../../lib/paint";
+import { SEAT_KINDS, seatKindOf, spawnScriptLabel } from "../../lib/paint";
 import { isSpawnPoint } from "../../lib/spawn";
 import { CAUTION_COLOR, GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
-import { useMapChromeStore } from "../../store/mapChromeStore";
+import { OwnedTooltip } from "../ownedTooltip";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
@@ -55,10 +55,11 @@ type Tag = "star" | { letters: string; weighted: boolean } | null;
 
 function tagOf(script: SpawnScript): Tag {
   const { kind, player } = script.paint_a_galaxy;
-  if (kind === "enabled") return null;
-  if (kind === "preferred") return player ? { letters: "P", weighted: true } : "star";
-  if (kind === "sol") return { letters: "Sol", weighted: player };
-  return { letters: kind.reserved.toUpperCase(), weighted: player };
+  const { seat, letter } = seatKindOf(kind);
+  const letters = SEAT_KINDS[seat].tag(letter);
+  if (letters === null) return null;
+  if (seat === "preferred" && !player) return "star";
+  return { letters, weighted: player };
 }
 
 /** A key that changes exactly when the tag drawn for a seat must change. */
@@ -134,6 +135,7 @@ export class SpawnsLayer implements MapLayer {
   private systems: Systems = EMPTY_CONTEXT.systems;
   private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
   private hovered: number | null = null;
+  private readonly tip = new OwnedTooltip();
   private readonly scale = { x: 1, y: 1 };
 
   constructor() {
@@ -290,7 +292,7 @@ export class SpawnsLayer implements MapLayer {
       s.spawn_script === null
         ? `Spawn point · weight ${s.spawn_weight ?? 0}`
         : `Spawn point · Paint a Galaxy ${spawnScriptLabel(s.spawn_script)}`;
-    useMapChromeStore.getState().showTooltip({
+    this.tip.show({
       x: at.x,
       y: at.y,
       title: name === "" ? "Spawn point" : name,
@@ -301,7 +303,7 @@ export class SpawnsLayer implements MapLayer {
   private unhover(id: number): void {
     if (this.hovered !== id) return;
     this.hovered = null;
-    useMapChromeStore.getState().hideTooltip();
+    this.tip.hide();
   }
 
   private remove(id: number): void {
