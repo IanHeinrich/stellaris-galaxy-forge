@@ -3762,7 +3762,7 @@ dependencies = [
 
 [[package]]
 name = "sgf-app"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "notify-debouncer-mini",
  "serde",
@@ -3781,7 +3781,7 @@ dependencies = [
 
 [[package]]
 name = "sgf-cli"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "clap",
  "serde_json",
@@ -3792,7 +3792,7 @@ dependencies = [
 
 [[package]]
 name = "sgf-core"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "dirs 7.0.0",
  "insta",
@@ -3811,7 +3811,7 @@ dependencies = [
 
 [[package]]
 name = "sgf-gamedata"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "base64 0.23.1",
  "dirs 7.0.0",
