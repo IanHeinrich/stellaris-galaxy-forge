@@ -1,8 +1,7 @@
 # Game data and mod notes
 
 Notes on the Stellaris install, its definition files, its localisation
-and how the launcher registers mods, as of Stellaris 4.5. Check them
-again on each new game version. The save itself is covered in
+and how the launcher registers mods. The save itself is covered in
 [format-notes.md](format-notes.md).
 
 ## What the save references, and where it is defined
