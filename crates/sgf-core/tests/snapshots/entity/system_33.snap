@@ -1,0 +1,47 @@
+---
+source: crates/sgf-core/tests/entity.rs
+expression: report(&view)
+---
+system 33 at []
+label: Baxom
+bytes: 747 dirty: false span: 439129..439876
+= Star class: sc_binary_5 @star_class
+= Initializer: distar_phaseshift_system @initializer
+= Inner radius: 299.11 @inner_radius
+= Outer radius: 399.11 @outer_radius
+> Planets x11 of planet
+> Hyperlanes x3 @hyperlane
+> Starbases x1 of starbase @starbases
+> Flags x3 @flags
+  coordinate = block[5] @9..117
+  coordinate.x = Decimal 109.27 @28..36
+  coordinate.y = Decimal -217.28 @40..49
+  coordinate.origin = Null 4294967295 @53..70
+  coordinate.randomized = Bool yes @74..88
+  coordinate.visual_height = Decimal 3.65056 @92..113
+  name = block[1] @120..148
+  name.key = Quoted Baxom @133..144
+  planet.1 = Int 1048 @151..162
+  planet.2 = Int 1049 @165..176
+  planet.3 = Int 1050 @179..190
+  planet.4 = Int 1051 @193..204
+  planet.5 = Int 1052 @207..218
+  planet.6 = Int 1053 @221..232
+  planet.7 = Int 1054 @235..246
+  planet.8 = Int 1055 @249..260
+  planet.9 = Int 1056 @263..274
+  planet.10 = Int 1057 @277..288
+  planet.11 = Int 8357 @291..302
+  star_class = Quoted sc_binary_5 @305..329
+  hyperlane = list[3] @332..465
+  flags = block[3] @468..573
+  flags.phaseshift_system = Int 62808000 @482..508
+  flags.natural_spectacle_system = Int 62808000 @512..545
+  flags.precursor_4 = Int 62808000 @549..569
+  initializer = Quoted distar_phaseshift_system @576..614
+  inner_radius = Decimal 299.11 @617..636
+  outer_radius = Decimal 399.11 @639..658
+  starbases = list[1] @661..694
+  sector = Null 4294967295 @697..714
+  index = Int 18 @717..725
+  storm = Null 4294967295 @728..744

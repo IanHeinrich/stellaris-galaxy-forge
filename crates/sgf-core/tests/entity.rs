@@ -117,6 +117,23 @@ fn every_kind_reads_one_level() {
     }
 }
 
+/// The game writes some systems' radii with a fractional part.
+#[test]
+fn a_system_with_fractional_radii_keeps_them() {
+    let doc = common::load();
+    let view = get_entity(&doc, addr(EntityKind::System, 33), &[]).expect("Baxom");
+    let fact = |label: &str| {
+        view.overview
+            .iter()
+            .find(|f| f.label == label)
+            .unwrap_or_else(|| panic!("no {label} row"))
+            .clone()
+    };
+    assert_eq!(fact("Inner radius").value, "299.11");
+    assert_eq!(fact("Outer radius").value, "399.11");
+    common::snapshot("system_33", &report(&view));
+}
+
 /// The kinds with a curated Overview, on entities rich enough to fill one: Earth carries
 /// an owner, a colony and its pops; fleet 801 is under orders to colonise a planet; the
 /// interstellar assembly orbits one.

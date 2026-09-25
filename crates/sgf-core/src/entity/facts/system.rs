@@ -9,7 +9,7 @@ use crate::entity::views::EntityKind;
 use crate::keys;
 use crate::projections::read;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct SystemFacts {
     pub star_class: String,
     pub initializer: String,
@@ -17,8 +17,8 @@ pub(crate) struct SystemFacts {
     pub planets: Vec<u32>,
     pub init_parent: Option<u32>,
     pub sector: Option<u32>,
-    pub inner_radius: Option<u32>,
-    pub outer_radius: Option<u32>,
+    pub inner_radius: Option<f64>,
+    pub outer_radius: Option<f64>,
     /// The ids each list holds, in save order.
     pub starbases: Vec<u32>,
     pub megastructures: Vec<u32>,
@@ -39,8 +39,8 @@ pub(crate) fn read(node: &Node, src: &[u8]) -> SystemFacts {
             .collect(),
         init_parent: reference(node, keys::INIT_PARENT, src),
         sector: reference(node, keys::SECTOR, src),
-        inner_radius: read::scalar_u32(node, keys::INNER_RADIUS, src),
-        outer_radius: read::scalar_u32(node, keys::OUTER_RADIUS, src),
+        inner_radius: read::scalar_f64(node, keys::INNER_RADIUS, src),
+        outer_radius: read::scalar_f64(node, keys::OUTER_RADIUS, src),
         starbases: read::ids(node, keys::STARBASES, src),
         megastructures: read::ids(node, keys::MEGASTRUCTURES, src),
         fleet_presence: read::ids(node, keys::FLEET_PRESENCE, src),

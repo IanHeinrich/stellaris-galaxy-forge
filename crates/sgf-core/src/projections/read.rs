@@ -23,6 +23,10 @@ pub(crate) fn scalar_u32(node: &Node, key: &str, src: &[u8]) -> Option<u32> {
     scalar(node, key, src)?.parse().ok()
 }
 
+pub(crate) fn scalar_f64(node: &Node, key: &str, src: &[u8]) -> Option<f64> {
+    scalar(node, key, src)?.parse().ok()
+}
+
 /// The scalar value of `node.<key>` as an owned string, empty when it is missing.
 pub(crate) fn text(node: &Node, key: &str, src: &[u8]) -> String {
     scalar(node, key, src).unwrap_or_default().to_owned()
