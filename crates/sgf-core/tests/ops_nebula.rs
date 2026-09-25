@@ -6,7 +6,7 @@ use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 
 use crate::common;
-use common::diff::report;
+use common::diff::section_report;
 use common::{NEBULA_0_CENTRE, NEW_NEBULA, current, open, reprojected};
 
 #[test]
@@ -23,7 +23,10 @@ fn move_system_108_out_of_its_nebula_removes_the_member_line() {
     assert_eq!(session.graph.systems[&108].nebula, None);
     assert!(!session.graph.nebulae[0].systems.contains(&108));
     assert_eq!(session.graph.systems, reprojected(&session).systems);
-    common::snapshot("move_system_108_out_of_nebula", &report(&session, &result));
+    common::snapshot(
+        "move_system_108_out_of_nebula",
+        &section_report(&session, &result, "nebula"),
+    );
 
     // The inverse op puts the line back where it was, not just the undo stack.
     session.apply(result.inverse).unwrap();
@@ -44,7 +47,10 @@ fn move_system_455_into_a_nebula_adds_the_member_line() {
         [108, 140, 164, 181, 348, 438, 455, 463, 623]
     );
     assert_eq!(session.graph.systems, reprojected(&session).systems);
-    common::snapshot("move_system_455_into_nebula", &report(&session, &result));
+    common::snapshot(
+        "move_system_455_into_nebula",
+        &section_report(&session, &result, "nebula"),
+    );
 
     session.apply(result.inverse).unwrap();
     assert_eq!(current(&session), session.doc.original());
@@ -76,7 +82,7 @@ fn move_systems_across_a_nebula_boundary_names_each_change() {
     assert_eq!(session.graph.systems, reprojected(&session).systems);
     common::snapshot(
         "move_systems_108_out_and_455_into_nebula",
-        &report(&session, &result),
+        &section_report(&session, &result, "nebula"),
     );
 
     session.apply(result.inverse).unwrap();
@@ -162,7 +168,10 @@ fn move_nebula_0_moves_the_cloud_alone_and_rewrites_its_member_list() {
         "{:?}",
         result.issues
     );
-    common::snapshot("move_nebula_0", &report(&session, &result));
+    common::snapshot(
+        "move_nebula_0",
+        &section_report(&session, &result, "nebula"),
+    );
 
     session.undo().unwrap().expect("undo");
     assert_eq!(current(&session), session.doc.original());
@@ -205,7 +214,7 @@ fn add_nebula_takes_the_systems_it_covers_from_their_clouds() {
         "{:?}",
         result.issues
     );
-    common::snapshot("add_nebula", &report(&session, &result));
+    common::snapshot("add_nebula", &section_report(&session, &result, "nebula"));
 }
 
 #[test]
@@ -290,7 +299,10 @@ fn remove_nebula_0_releases_every_member() {
         }
     );
     assert_eq!(session.graph.systems, reprojected(&session).systems);
-    common::snapshot("remove_nebula_0", &report(&session, &result));
+    common::snapshot(
+        "remove_nebula_0",
+        &section_report(&session, &result, "nebula"),
+    );
 }
 
 #[test]
@@ -311,7 +323,10 @@ fn growing_a_radius_takes_systems_in_and_shrinking_lets_them_go() {
     );
     assert_eq!(session.graph.systems[&455].nebula, Some(0));
     assert_eq!(session.graph.systems, reprojected(&session).systems);
-    common::snapshot("set_nebula_radius_45", &report(&session, &grown));
+    common::snapshot(
+        "set_nebula_radius_45",
+        &section_report(&session, &grown, "nebula"),
+    );
 
     let mut session = open();
     let shrunk = session
@@ -323,7 +338,10 @@ fn growing_a_radius_takes_systems_in_and_shrinking_lets_them_go() {
     assert_eq!(session.graph.nebulae[0].systems, [438, 623]);
     assert_eq!(session.graph.systems[&108].nebula, None);
     assert_eq!(session.graph.systems, reprojected(&session).systems);
-    common::snapshot("set_nebula_radius_15", &report(&session, &shrunk));
+    common::snapshot(
+        "set_nebula_radius_15",
+        &section_report(&session, &shrunk, "nebula"),
+    );
 
     session.apply(shrunk.inverse).unwrap();
     assert_eq!(current(&session), session.doc.original());
@@ -355,7 +373,10 @@ fn renaming_a_nebula_to_free_text_writes_a_literal_the_game_shows_as_typed() {
             name: before.name.key.clone(),
         }
     );
-    common::snapshot("set_nebula_name", &report(&session, &result));
+    common::snapshot(
+        "set_nebula_name",
+        &section_report(&session, &result, "nebula"),
+    );
 
     // The inverse is a key again, so the literal line it added goes with it.
     session.apply(result.inverse).unwrap();
@@ -384,7 +405,10 @@ fn renaming_a_nebula_to_a_key_writes_the_key_alone_and_drops_a_literal() {
     assert!(!after.name.literal, "a key is looked up, not shown");
     assert_eq!(after.display_name(), "N Maw");
     assert_eq!(session.graph.nebulae, reprojected(&session).nebulae);
-    common::snapshot("set_nebula_name_key", &report(&session, &result));
+    common::snapshot(
+        "set_nebula_name_key",
+        &section_report(&session, &result, "nebula"),
+    );
 }
 
 #[test]

@@ -7,13 +7,14 @@ use sgf_core::format::scenario::fe_link::{self, FeLinkFlags};
 use sgf_core::format::scenario::fe_zone;
 use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::ops::{Op, OpError};
-use sgf_core::validate::{Issue, IssueCode, Severity};
+use sgf_core::validate::{Issue, IssueCode};
 
 use crate::common;
-use common::diff::{plain_report, round_trip};
+use common::Refused;
+use common::coded;
+use common::diff::{plain_report, round_trip, snapshot_step};
 use common::fixture::{PAINTED, from_scenario_text};
-
-const PREFERRED_FLAG: &str = " set_star_flag = painted_galaxy_fe_spawn_preferred";
+use common::paint::PREFERRED_FLAG;
 
 fn set_links(anchor: u32, linked: &[u32]) -> Op {
     Op::SetFeLinks {
@@ -32,10 +33,6 @@ fn link(custom: bool, id: Option<u8>, to: &[u8]) -> FeLinkFlags {
         id,
         to: to.to_vec(),
     }
-}
-
-fn coded(issues: &[Issue], code: IssueCode) -> Vec<&Issue> {
-    issues.iter().filter(|issue| issue.code == code).collect()
 }
 
 fn link_issues(issues: &[Issue]) -> Vec<&Issue> {
@@ -78,23 +75,12 @@ fn the_fixture_carries_no_connections_and_a_save_never_does() {
             .values()
             .all(|s| s.fe_link == FeLinkFlags::default())
     );
-    for op in [
-        set_links(0, &[1]),
-        set_flags(vec![(0, link(true, Some(0), &[]))]),
-    ] {
-        let error = common::open()
-            .apply(op)
-            .expect_err("a save has no connections");
-        assert!(matches!(error, OpError::Unsupported { .. }), "{error}");
-    }
 }
 
 #[test]
 fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_changes() {
     let mut session = PAINTED.open();
-    let result = session
-        .apply(set_links(9, &[3, 2]))
-        .expect("link Sol and Gamma to Old Seat");
+    let result = snapshot_step(&mut session, "link_9_to_2_3", set_links(9, &[3, 2]));
     assert_eq!(
         result.entry.description,
         "Link 2 systems to the fallen empire zone at Old Seat"
@@ -132,11 +118,8 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
         "Sol is 139 from the fallen empire zone it links to. The mod lays the hyperlane anyway."
     );
     assert_eq!(far[1].systems, [3, 9]);
-    common::snapshot("link_9_to_2_3", &plain_report(&session, &result));
 
-    let result = session
-        .apply(set_links(9, &[7, 3]))
-        .expect("Ingress takes Gamma's place");
+    let result = snapshot_step(&mut session, "link_9_to_7_3", set_links(9, &[7, 3]));
     assert_eq!(
         result.inverse,
         set_flags(vec![
@@ -158,11 +141,8 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
     assert!(common::text(&session).contains(
         "effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_custom_connection_to_0 } }"
     ));
-    common::snapshot("link_9_to_7_3", &plain_report(&session, &result));
 
-    let result = session
-        .apply(set_links(9, &[]))
-        .expect("give the zone back to the mod");
+    let result = snapshot_step(&mut session, "unlink_9", set_links(9, &[]));
     assert_eq!(
         result.entry.description,
         "Let the mod link the fallen empire zone at Old Seat to its nearest systems"
@@ -183,13 +163,11 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
         common::text(&session),
         String::from_utf8(PAINTED.bytes()).unwrap()
     );
-    common::snapshot("unlink_9", &plain_report(&session, &result));
 
     for _ in 0..3 {
         session.undo().expect("undo").expect("an op to undo");
     }
     assert_eq!(common::current(&session), PAINTED.bytes());
-    round_trip(PAINTED.open(), set_links(9, &[3, 2]));
 }
 
 #[test]
@@ -234,41 +212,38 @@ fn a_second_anchor_takes_the_next_free_id_and_a_freed_id_is_taken_again() {
 #[test]
 fn a_link_needs_a_zone_anchor_other_systems_that_exist_and_ids_the_mod_reads() {
     let mut session = PAINTED.open();
-    for (op, name) in [
-        (set_links(10, &[3]), "FeLinkNoZone"),
-        (set_links(9, &[3, 9]), "FeLinkSelf"),
-        (set_links(9, &[99]), "UnknownSystem"),
-        (set_links(99, &[3]), "UnknownSystem"),
-        (set_flags(Vec::new()), "Empty"),
+    let cases: Vec<Refused<Op>> = vec![
+        (set_links(10, &[3]), |e| {
+            matches!(e, OpError::FeLinkNoZone(10))
+        }),
+        (set_links(9, &[3, 9]), |e| {
+            matches!(e, OpError::FeLinkSelf(9))
+        }),
+        (set_links(9, &[99]), |e| {
+            matches!(e, OpError::UnknownSystem(99))
+        }),
+        (set_links(99, &[3]), |e| {
+            matches!(e, OpError::UnknownSystem(99))
+        }),
+        (set_flags(Vec::new()), |e| matches!(e, OpError::NoEntries)),
         (
             set_flags(vec![
                 (3, link(false, None, &[0])),
                 (3, FeLinkFlags::default()),
             ]),
-            "DuplicateSystem",
+            |e| matches!(e, OpError::DuplicateSystem(3)),
         ),
-        (
-            set_flags(vec![(9, link(true, Some(100), &[]))]),
-            "FeLinkIdOutOfRange",
-        ),
-        (
-            set_flags(vec![(3, link(false, None, &[0, 200]))]),
-            "FeLinkIdOutOfRange",
-        ),
-    ] {
-        let error = session.apply(op).expect_err(name);
-        assert!(
-            matches!(
-                error,
-                OpError::FeLinkNoZone(10)
-                    | OpError::FeLinkSelf(9)
-                    | OpError::UnknownSystem(99)
-                    | OpError::Empty
-                    | OpError::DuplicateSystem(3)
-                    | OpError::FeLinkIdOutOfRange(100 | 200, 100)
-            ),
-            "{name}: {error}"
-        );
+        (set_flags(vec![(9, link(true, Some(100), &[]))]), |e| {
+            matches!(e, OpError::FeLinkIdOutOfRange(100, 100))
+        }),
+        (set_flags(vec![(3, link(false, None, &[0, 200]))]), |e| {
+            matches!(e, OpError::FeLinkIdOutOfRange(200, 100))
+        }),
+    ];
+    for (op, expected) in cases {
+        let label = format!("{op:?}");
+        let error = session.apply(op).expect_err(&label);
+        assert!(expected(&error), "{label}: {error:?}");
     }
     assert_eq!(
         session
@@ -527,6 +502,22 @@ fn the_flags_parse_as_the_mod_reads_them() {
         fe_link::flags(&link(false, None, &[0])),
         ["painted_galaxy_fe_custom_connection_to_0"]
     );
+    assert_eq!(
+        parsed(&[
+            "empire_cluster",
+            "painted_galaxy_fe_spawn",
+            "painted_galaxy_fe_custom_connection_to_2",
+            "painted_galaxy_fe_custom_connections",
+            "painted_galaxy_fe_custom_connection_id_0",
+            "painted_galaxy_fe_custom_connection_id_1",
+            "painted_galaxy_fe_custom_connection_to_0",
+        ]),
+        link(true, Some(0), &[0, 2])
+    );
+    assert_eq!(
+        parsed(&["painted_galaxy_fe_spawn", "painted_galaxy_wormhole_1"]),
+        FeLinkFlags::default()
+    );
 }
 
 #[test]
@@ -608,27 +599,8 @@ fn the_validator_names_every_way_a_connection_can_go_wrong() {
             ),
         ]
     );
-    for (code, severity, name) in [
-        (
-            IssueCode::FeLinkIsolated,
-            Severity::Warning,
-            "fe_link_isolated",
-        ),
-        (
-            IssueCode::FeLinkDangling,
-            Severity::Warning,
-            "fe_link_dangling",
-        ),
-        (IssueCode::FeLinkShared, Severity::Warning, "fe_link_shared"),
-        (IssueCode::FeLinkFar, Severity::Info, "fe_link_far"),
-    ] {
-        assert_eq!(code.severity(), severity, "{name}");
-        assert_eq!(code.as_str(), name);
-        assert!(
-            coded(&issues, code)
-                .iter()
-                .all(|issue| issue.severity == severity)
-        );
+    for issue in &issues {
+        assert_eq!(issue.severity, issue.code.severity(), "{issue:?}");
     }
 }
 

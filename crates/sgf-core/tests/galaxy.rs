@@ -3,10 +3,14 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::Instant;
 
 use sgf_core::cst;
+use sgf_core::guides::Guide;
+use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::{BypassLink, GalaxyGraph, Lane};
 use sgf_core::validate::{IssueCode, Severity, validate};
 
 use crate::common;
+use common::coded;
+use common::fixture::{GRAMMAR, PAINTED};
 use common::load;
 
 #[test]
@@ -490,4 +494,60 @@ fn a_lane_less_l_gate_system_is_reported_as_a_note() {
         .expect("208 is still reported");
     assert_eq!(issue.severity, Severity::Info);
     assert!(issue.message.contains("L-Gate"), "{}", issue.message);
+}
+
+#[test]
+fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
+    let guide = Guide::l_cluster();
+    assert!(guide.contains(-392.0, -392.0));
+    assert!(guide.contains(-330.0, -330.0));
+    assert!(!guide.contains(-300.0, -300.0));
+
+    let mut session = PAINTED.open();
+    let result = session
+        .apply(Op::MoveSystem {
+            id: 10,
+            x: -392.0,
+            y: -392.0,
+        })
+        .expect("move Void into the circle");
+    let l_cluster = coded(&result.issues, IssueCode::LClusterSystem);
+    assert_eq!(l_cluster.len(), 1, "{:?}", result.issues);
+    assert_eq!(
+        l_cluster[0].message,
+        "Void sits where the game places the L-Cluster."
+    );
+    assert_eq!(l_cluster[0].systems, [10]);
+    session.undo().expect("undo").expect("an op to undo");
+    assert!(coded(&session.validate(), IssueCode::LClusterSystem).is_empty());
+
+    let mut plain = GRAMMAR.open();
+    let id = plain.graph.order[0];
+    let result = plain
+        .apply(Op::MoveSystem {
+            id,
+            x: -400.0,
+            y: -380.0,
+        })
+        .expect("move a plain scenario's system there");
+    assert_eq!(
+        coded(&result.issues, IssueCode::LClusterSystem).len(),
+        1,
+        "{:?}",
+        result.issues
+    );
+
+    let mut save = common::open();
+    let id = save.graph.order[0];
+    let result = save
+        .apply(Op::MoveSystem {
+            id,
+            x: -392.0,
+            y: -392.0,
+        })
+        .expect("move a save's system there");
+    assert!(
+        coded(&result.issues, IssueCode::LClusterSystem).is_empty(),
+        "a save is the galaxy the game already built"
+    );
 }

@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use crate::as_u32;
 use crate::cst::Node;
 use crate::document::Document;
-use crate::format::save::added::Table;
+use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, SlotTable};
 use crate::format::save::read_spec::{bodies, spec_of};
 use crate::format::save::write::asteroid_names::{self, Pool};
@@ -79,7 +79,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
 }
 
 pub(crate) fn check_added(s: &Session, id: u32) -> Result<(), OpError> {
-    if s.doc.added().get(Table::System, id).is_some() {
+    if s.doc.added().get(EntityKind::System, id).is_some() {
         Ok(())
     } else if s.graph.systems.contains_key(&id) {
         Err(OpError::SystemNotAdded(id))
@@ -111,7 +111,7 @@ fn renumbering(
     for id in first..=last {
         if removed.contains(&id) {
             gone += 1;
-        } else if s.doc.added().get(Table::System, id).is_some() {
+        } else if s.doc.added().get(EntityKind::System, id).is_some() {
             renumber.insert(id, id - gone);
         } else {
             return Err(not_dense());
@@ -140,7 +140,7 @@ pub(crate) fn erase_bodies(
     let mut deposits: Option<SlotTable> = None;
     for &id in ids {
         for planet in bodies(doc, id)? {
-            let Some(slot) = doc.added().get(Table::Planet, planet) else {
+            let Some(slot) = doc.added().get(EntityKind::Planet, planet) else {
                 continue;
             };
             let subject = Subject::Planet {
@@ -149,7 +149,7 @@ pub(crate) fn erase_bodies(
             };
             let (node, src) = entity(doc, subject, slot)?;
             for deposit in read::ids(&node, keys::DEPOSITS, src) {
-                if let Some(held) = doc.added().get(Table::Deposit, deposit) {
+                if let Some(held) = doc.added().get(EntityKind::Deposit, deposit) {
                     let table = match &mut deposits {
                         Some(table) => table,
                         None => deposits.insert(SlotTable::deposits(doc)?),
@@ -354,7 +354,7 @@ pub(crate) fn return_asteroid_names(
     }
     let mut leaving = BTreeSet::new();
     let mut staying: BTreeMap<(String, String), usize> = BTreeMap::new();
-    for (planet, slot) in s.doc.added().entries(Table::Planet) {
+    for (planet, slot) in s.doc.added().entries(EntityKind::Planet) {
         let Ok((node, src)) = entity(&s.doc, Subject::Record(slot), slot) else {
             continue;
         };
@@ -461,7 +461,7 @@ fn restoring(
             }
             lanes.push((to, lane.bridge));
             let other = &s.graph.systems[&lane.to];
-            if lane.length != lane_length(system, other) {
+            if lane.length != lane_length(system.position(), other.position()) {
                 lengths.push(LaneLength {
                     a: again,
                     b: to,

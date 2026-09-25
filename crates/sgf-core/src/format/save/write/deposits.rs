@@ -13,7 +13,7 @@ use crate::document::Document;
 use crate::emit::inline;
 use crate::emit::system::{DepositEntry, PLANET_HOLDER, deposit_entry, deposits_list};
 use crate::entity::facts::planet::{self, PlanetFacts};
-use crate::format::save::added::Table;
+use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, SlotTable};
 use crate::format::save::check_version;
 use crate::format::save::write::add_system::write_slot;
@@ -102,7 +102,7 @@ fn held(doc: &Document, id: u32) -> Result<Held, OpError> {
     let unknown = OpError::UnknownDeposit(id);
     let anchor = doc
         .added()
-        .get(Table::Deposit, id)
+        .get(EntityKind::Deposit, id)
         .or_else(|| {
             let entity = doc.index().entity(keys::DEPOSIT, u64::from(id))?;
             Some(Anchor::Original(entity.stmt))
@@ -134,7 +134,7 @@ fn held(doc: &Document, id: u32) -> Result<Held, OpError> {
 /// add took.
 fn free_entry(plan: &mut Plan, doc: &Document, id: u32, anchor: Anchor) -> Result<(), OpError> {
     let subject = Subject::Record(anchor);
-    if doc.added().get(Table::Deposit, id).is_none() {
+    if doc.added().get(EntityKind::Deposit, id).is_none() {
         return plan.replace(doc, subject, anchor, alloc::tombstone(id).into_bytes());
     }
     let mut table = SlotTable::deposits(doc)?;

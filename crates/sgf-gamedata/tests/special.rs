@@ -5,18 +5,11 @@ use crate::common;
 
 use std::sync::LazyLock;
 
-use sgf_core::document::Document;
 use sgf_core::projections::galaxy::GalaxyGraph;
-use sgf_core::session::Session;
 use sgf_gamedata::special::{KIND_ORDER, SpecialKind, SpecialSystems, classify, classify_session};
 
-use common::SAMPLE;
-
 /// The sample save's galaxy, parsed once for every test in this file.
-static GRAPH: LazyLock<GalaxyGraph> = LazyLock::new(|| {
-    let doc = Document::load(SAMPLE).expect("sample save");
-    GalaxyGraph::build(&doc).expect("galaxy graph")
-});
+static GRAPH: LazyLock<GalaxyGraph> = LazyLock::new(|| common::open_4_4().graph);
 
 fn count(result: &SpecialSystems, kind: SpecialKind) -> u32 {
     result
@@ -90,10 +83,10 @@ fn unique_applies_only_when_nothing_else_matched() {
 
 #[test]
 fn game_data_keeps_the_counts_and_adds_names() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let result = classify(&GRAPH, Some(&gd));
+    let result = classify(&GRAPH, Some(gd));
     assert!(result.with_game_data);
     assert_sample_counts(&result);
     let dragon = result
@@ -124,7 +117,7 @@ fn game_data_keeps_the_counts_and_adds_names() {
 
 #[test]
 fn a_system_with_no_initializer_country_is_named_after_the_country_in_it() {
-    let session = Session::open(SAMPLE).expect("sample save");
+    let session = common::open_4_4();
     let result = classify_session(&session, None);
     assert_sample_counts(&result);
     let shroudwalkers = result
@@ -153,15 +146,13 @@ fn a_system_with_no_initializer_country_is_named_after_the_country_in_it() {
 /// The 4.5 save's day-one Salvager Enclave: its country's name is a template
 /// (`%ADJ%` over `Union_of` over `Scrappers`), unresolvable through a single localisation
 /// lookup, and the shroudwalkers' `AofB` name shows the same is true of another enclave.
-const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
-
 #[test]
 fn a_salvager_enclaves_templated_country_name_resolves_and_is_flagged_generated() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let session = Session::open(SAMPLE_45).expect("4.5 sample save");
-    let result = classify_session(&session, Some(&gd));
+    let session = common::open_4_5();
+    let result = classify_session(&session, Some(gd));
     let salvager = result
         .systems
         .iter()
@@ -182,8 +173,8 @@ fn a_salvager_enclaves_templated_country_name_resolves_and_is_flagged_generated(
     // template, not a fixed key: `AofB` over "Covenant" and "the_Shroud"), so the
     // generated-name flag alone is not what keeps a shroudwalker badge showing its own
     // name; that is a choice the UI makes, not this classifier.
-    let sample_44 = Session::open(SAMPLE).expect("4.4 sample save");
-    let with_44_countries = classify_session(&sample_44, Some(&gd));
+    let sample_44 = common::open_4_4();
+    let with_44_countries = classify_session(&sample_44, Some(gd));
     let shroudwalkers = with_44_countries
         .systems
         .iter()

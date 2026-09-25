@@ -42,6 +42,12 @@ fn saved_after_a_nudge(bytes: &[u8]) -> Vec<u8> {
     std::fs::read(&path).unwrap()
 }
 
+/// The first line of `bytes`, without its line end.
+fn first_line(bytes: &[u8]) -> String {
+    let text = String::from_utf8_lossy(bytes);
+    text.lines().next().expect("a first line").to_owned()
+}
+
 fn with_first_line(line: &str, rest: &[u8]) -> Vec<u8> {
     let mut bytes = format!("{line}\n").into_bytes();
     bytes.extend_from_slice(rest);
@@ -135,12 +141,7 @@ fn a_long_line_keeps_the_newest_writers_and_the_original_one() {
     let this = format!("Stellaris Galaxy Forge {VERSION}");
 
     let saved = saved_after_a_nudge(&with_first_line(&chain(&ten), &PAINTED.bytes()));
-    let line = String::from_utf8(saved)
-        .unwrap()
-        .lines()
-        .next()
-        .unwrap()
-        .to_owned();
+    let line = first_line(&saved);
     let mut kept = vec![this.as_str()];
     kept.extend(&ten[..7]);
     kept.extend(["...", origin]);
@@ -151,12 +152,7 @@ fn a_long_line_keeps_the_newest_writers_and_the_original_one() {
     elided.extend(&ten[..7]);
     elided.extend(["...", origin]);
     let saved = saved_after_a_nudge(&with_first_line(&chain(&elided), &PAINTED.bytes()));
-    let line = String::from_utf8(saved)
-        .unwrap()
-        .lines()
-        .next()
-        .unwrap()
-        .to_owned();
+    let line = first_line(&saved);
     let mut kept = vec![this.as_str()];
     kept.extend(&elided[..7]);
     kept.extend(["...", origin]);
@@ -167,12 +163,7 @@ fn a_long_line_keeps_the_newest_writers_and_the_original_one() {
     beta[4] = "Paint a Galaxy 1.4 (beta)";
     let odd = chain(&beta);
     let saved = saved_after_a_nudge(&with_first_line(&odd, &PAINTED.bytes()));
-    let line = String::from_utf8(saved)
-        .unwrap()
-        .lines()
-        .next()
-        .unwrap()
-        .to_owned();
+    let line = first_line(&saved);
     let whole = odd.strip_prefix("#\u{200B} created by ").unwrap();
     assert_eq!(
         line,

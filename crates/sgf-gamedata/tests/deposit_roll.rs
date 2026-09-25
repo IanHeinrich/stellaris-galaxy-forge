@@ -4,7 +4,6 @@
 use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
 
 use sgf_core::ops::{BodySpec, SystemSpec};
 use sgf_gamedata::GameData;
@@ -73,25 +72,7 @@ const FILES: [(&str, &str); 8] = [
 ];
 
 fn hand_written() -> (tempfile::TempDir, GameData) {
-    install(&FILES)
-}
-
-fn install(files: &[(&str, &str)]) -> (tempfile::TempDir, GameData) {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let install = dir.path().join("install");
-    for &(rel, text) in files {
-        let file = install.join(rel);
-        fs::create_dir_all(file.parent().unwrap()).unwrap();
-        fs::write(file, text).unwrap();
-    }
-    let opts = sgf_gamedata::LoadOptions {
-        install: Some(install),
-        user_dir: Some(dir.path().join("user")),
-        language: "english".to_owned(),
-        mods: false,
-    };
-    let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("the hand-written install loads");
-    (dir, gd)
+    common::hand_written(&FILES)
 }
 
 fn body(class: &str, size: u32) -> RollBody<'_> {
@@ -152,7 +133,7 @@ fn each_broken_defines_file_is_reported_once_and_the_rest_still_read() {
         "common/defines/50_fx.txt",
         "NGameplay = {\n\tMIN_UNBLOCKED_DEPOSITS = 4\n}\n",
     ));
-    let (_dir, gd) = install(&files);
+    let (_dir, gd) = common::hand_written(&files);
     let broken: Vec<_> = gd
         .diagnostics
         .iter()
@@ -296,7 +277,7 @@ const TOP_UPS: [(&str, &str); 5] = [
 
 #[test]
 fn a_habitable_world_is_topped_up_only_from_deposits_flagged_for_it() {
-    let (_dir, gd) = install(&TOP_UPS);
+    let (_dir, gd) = common::hand_written(&TOP_UPS);
     let meadow = body("pc_fx_meadow", 15);
     let mut unit = Rng::new(19);
     for _ in 0..200 {
@@ -321,7 +302,7 @@ fn a_habitable_world_is_topped_up_only_from_deposits_flagged_for_it() {
         })
         .collect();
     let unflagged: Vec<(&str, &str)> = unflagged.iter().map(|(rel, t)| (*rel, &**t)).collect();
-    let (_dir, gd) = install(&unflagged);
+    let (_dir, gd) = common::hand_written(&unflagged);
     assert!(
         roll_deposits(&gd, &meadow, 2.0, &mut unit).is_empty(),
         "no deposit is flagged, so nothing tops the world up"
@@ -355,7 +336,7 @@ const ADD_AND_FACTOR: [(&str, &str); 5] = [
 
 #[test]
 fn a_modifier_that_adds_and_multiplies_weighs_a_layout_and_a_deposit_alike() {
-    let (_dir, gd) = install(&ADD_AND_FACTOR);
+    let (_dir, gd) = common::hand_written(&ADD_AND_FACTOR);
     let layout = gd.initializers.get("fx_both").expect("fx_both");
     assert_eq!(odds(&gd, layout, None), 4.0, "1 times 3, plus 1");
 

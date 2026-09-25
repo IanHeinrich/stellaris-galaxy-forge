@@ -5,7 +5,7 @@
 //! caller expects; [`splice`] applies the planned ranges to a copy of the bytes.
 //!
 //! Ops reach the bytes through three primitives: [`Edit::set_scalar`] rewrites a value,
-//! [`Edit::insert_lines`] adds whole lines at a line boundary, and
+//! [`Edit::insert`] adds whole lines at a line boundary, and
 //! [`Edit::remove_lines`] deletes them. Structure comes from the CST and indentation is
 //! copied from the line the text lands beside; only a line written last in a block adds a
 //! tab to its closing brace's ([`Edit::before_close`]).
@@ -164,24 +164,29 @@ impl Edit {
         std::str::from_utf8(span.slice(&self.buf)).unwrap_or("")
     }
 
-    /// The span of the scalar at `path` below the entity, `path` being keys from the
-    /// entity down (`["coordinate", "x"]`).
-    pub fn scalar(&self, path: &[&str]) -> Result<Span, OpError> {
+    /// The node at `path` below the entity, `path` being keys from the entity down
+    /// (`["coordinate", "x"]`).
+    fn node_at(&self, path: &[&str]) -> Result<&Node, OpError> {
+        if path.is_empty() {
+            return Err(self.parse_error(0, "empty path"));
+        }
         let mut node = self.entity()?;
         for (i, key) in path.iter().enumerate() {
-            let missing = self.parse_error(
-                node.span().start,
-                format!("missing {}", path[..=i].join(".")),
-            );
-            node = match node.find(key, &self.buf) {
-                Some(child) => child,
-                None => return Err(missing),
-            };
-            if i + 1 == path.len() {
-                return node.scalar_span().ok_or(missing);
-            }
+            node = node
+                .find(key, &self.buf)
+                .ok_or_else(|| self.missing(node, &path[..=i]))?;
         }
-        Err(self.parse_error(0, "empty path"))
+        Ok(node)
+    }
+
+    fn missing(&self, near: &Node, path: &[&str]) -> OpError {
+        self.parse_error(near.span().start, format!("missing {}", path.join(".")))
+    }
+
+    /// The span of the scalar at `path` below the entity (see [`Self::node_at`]).
+    pub fn scalar(&self, path: &[&str]) -> Result<Span, OpError> {
+        let node = self.node_at(path)?;
+        node.scalar_span().ok_or_else(|| self.missing(node, path))
     }
 
     /// Rewrite the scalar at `path` (see [`Self::scalar`]).
@@ -195,21 +200,7 @@ impl Edit {
     /// scenario axis is one or the other (`x = 12`, `x = { min = 20 max = 30 }`), so a
     /// writer that fixes it to a point replaces the value rather than its text.
     pub fn value(&self, path: &[&str]) -> Result<Span, OpError> {
-        let mut node = self.entity()?;
-        for (i, key) in path.iter().enumerate() {
-            let missing = self.parse_error(
-                node.span().start,
-                format!("missing {}", path[..=i].join(".")),
-            );
-            node = match node.find(key, &self.buf) {
-                Some(child) => child,
-                None => return Err(missing),
-            };
-            if i + 1 == path.len() {
-                return Ok(node.value_span());
-            }
-        }
-        Err(self.parse_error(0, "empty path"))
+        Ok(self.node_at(path)?.value_span())
     }
 
     /// Rewrite the whole value at `path`, scalar or block (see [`Self::value`]).
@@ -224,15 +215,10 @@ impl Edit {
         self.splices.push((span.range(), text.into()));
     }
 
-    /// Insert `text` at offset `at` in the statement's bytes.
+    /// Insert `text` at offset `at` in the statement's bytes: whole lines at a line
+    /// boundary, which [`Self::line_start`] and [`Self::line_end`] produce.
     pub fn insert(&mut self, at: usize, text: Vec<u8>) {
         self.splices.push((at..at, text));
-    }
-
-    /// Insert whole lines at the line boundary `at`, which [`Self::line_start`] and
-    /// [`Self::line_end`] produce.
-    pub fn insert_lines(&mut self, at: usize, text: Vec<u8>) {
-        self.insert(at, text);
     }
 
     /// Delete one statement inside the entity: the whole line when it is alone on one,
@@ -329,7 +315,7 @@ impl Edit {
         let end = self.line_end(after);
         if ends_line(&self.buf, after) && self.buf[..end].ends_with(b"\n") {
             let line = [&self.indent(after)[..], text.as_bytes(), b"\n"].concat();
-            self.insert_lines(end, line);
+            self.insert(end, line);
         } else {
             self.insert(after, format!(" {text}").into_bytes());
         }
@@ -350,7 +336,7 @@ impl Edit {
     pub fn insert_before(&mut self, span: Span, text: &str) {
         if self.starts_line(span.start) {
             let line = [&self.indent(span.start)[..], text.as_bytes(), b"\n"].concat();
-            self.insert_lines(self.line_start(span.start), line);
+            self.insert(self.line_start(span.start), line);
         } else {
             self.insert(span.end, format!(" {text}").into_bytes());
         }
@@ -362,7 +348,7 @@ impl Edit {
         match first_child {
             Some(child) if self.starts_line(child.start) => {
                 let line = [&self.indent(child.start)[..], text.as_bytes(), b"\n"].concat();
-                self.insert_lines(self.line_start(child.start), line);
+                self.insert(self.line_start(child.start), line);
             }
             _ => self.insert(value.start + 1, format!(" {text}").into_bytes()),
         }

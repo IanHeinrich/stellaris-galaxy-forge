@@ -1,79 +1,81 @@
 //! Adding a star system to a save, on the 4.5 and the 4.4 sample: the new system, its
 //! bodies and their deposits stand as first-class entities for the projection, the
 //! details, search and later ops; undo is byte-exact; a saved file reopens with the same
-//! findings; slots are reused lowest first; belts and asteroids are written as the game
-//! writes them; and what the op refuses.
+//! findings; slots are reused lowest first; the name leaves the pool only when the pool
+//! holds it; belts and asteroids are written as the game writes them; and what the op
+//! refuses.
 
 use std::collections::BTreeSet;
 
 use sgf_core::entity::{EntityAddr, EntityKind, get_entity};
 use sgf_core::ops::{BeltSpec, Op, OpError, StarBody, SystemSpec};
 use sgf_core::session::Session;
-use sgf_core::validate::IssueCode;
 use sgf_core::views::Capabilities;
 
 use crate::common;
+use common::Refused;
 use common::diff::{report, round_trip, round_trip_step};
-use common::spec::{belted, body, dorellion, mura, star};
-use common::{current, open, open_3_4, open_4_5, open_edited, text};
+use common::spec::{SAMPLE_4_5, SAMPLES, belted, body, dorellion, mura, star};
+use common::{
+    SAMPLE, current, findings, open, open_3_4, open_4_5, open_edited, open_edited_sample, pooled,
+    text,
+};
 
 const GENERATION: u32 = 1 << 24;
-
-/// Both samples, each with the spike's system for it and the id it takes.
-fn samples() -> [(Session, SystemSpec, u32); 2] {
-    [(open_4_5(), mura(), 601), (open(), dorellion(), 791)]
-}
 
 fn add(spec: SystemSpec) -> Op {
     Op::AddSaveSystem { spec }
 }
 
-fn findings(session: &Session) -> BTreeSet<(IssueCode, Vec<u32>, String)> {
-    session
-        .validate()
-        .into_iter()
-        .map(|issue| (issue.code, issue.systems, issue.message))
-        .collect()
-}
-
 /// The planets the details list for system `id`, as (planet, class, deposit keys).
 fn bodies(session: &Session, id: u32) -> Vec<(u32, String, Vec<String>)> {
-    let details = session.details().expect("details");
-    details
-        .raw(id)
-        .expect("the system's details")
-        .planets
-        .iter()
+    common::planets(session, id)
+        .into_iter()
         .map(|p| {
             let deposits = p
                 .deposits
                 .iter()
                 .map(|(k, n)| format!("{k} x{n}"))
                 .collect();
-            (p.id, p.class.clone(), deposits)
+            (p.id, p.class, deposits)
         })
         .collect()
 }
 
+/// `spec` renamed and moved to `at`, linked to `lanes`.
+fn another(spec: &SystemSpec, name: &str, at: (f64, f64), lanes: Vec<u32>) -> SystemSpec {
+    let mut other = spec.clone();
+    other.name = name.to_owned();
+    (other.x, other.y) = at;
+    other.lanes = lanes;
+    other
+}
+
+/// `spec` as a second system 20 up and right of it, linked to the first at `id`.
+fn beside(spec: &SystemSpec, id: u32) -> SystemSpec {
+    another(spec, "Sgf_Second", (spec.x + 20.0, spec.y + 20.0), vec![id])
+}
+
 #[test]
 fn the_spike_system_is_written_as_the_game_spawns_one() {
-    for (mut session, spec, _) in samples() {
-        let name = spec.name.clone();
+    for sample in &SAMPLES {
+        let mut session = (sample.open)();
+        let spec = (sample.spike)();
+        let name = spec.name.to_lowercase();
         let result = session.apply(add(spec)).expect("add the system");
-        common::snapshot(
-            &format!("add_{}", name.to_lowercase()),
-            &report(&session, &result),
-        );
+        common::snapshot(&format!("add_{name}"), &report(&session, &result));
     }
 }
 
 #[test]
 fn a_saved_system_reopens_with_its_lanes_bodies_and_the_saves_findings() {
     let dir = tempfile::tempdir().expect("a temp dir");
-    for (mut session, spec, id) in samples() {
-        let home = spec.lanes[0];
+    for sample in &SAMPLES {
+        let (mut session, id, home) = ((sample.open)(), sample.id, sample.home());
         let before = findings(&session);
-        session.apply(add(spec)).expect("add the system");
+        session
+            .apply(add((sample.spike)()))
+            .expect("add the system");
         let path = dir.path().join(format!("{id}.sav"));
         session.save_as(&path).expect("save");
 
@@ -115,20 +117,19 @@ fn a_saved_system_reopens_with_its_lanes_bodies_and_the_saves_findings() {
             .map(|d| d.rsplit_once(" x").unwrap().1.parse::<u32>().unwrap())
             .sum();
         assert_eq!(held, 5, "{listed:?}");
-        let moons = reopened.details().unwrap().raw(id).unwrap().planets.clone();
+        let moons = common::planets(&reopened, id);
         assert_eq!(moons.iter().filter(|p| p.moon).count(), 2);
     }
 }
 
 #[test]
 fn a_belted_system_is_written_as_the_game_spawns_one() {
-    for (mut session, spec, _) in samples() {
-        let name = spec.name.clone();
+    for sample in &SAMPLES {
+        let mut session = (sample.open)();
+        let spec = (sample.spike)();
+        let name = spec.name.to_lowercase();
         let result = session.apply(add(belted(spec))).expect("add the system");
-        common::snapshot(
-            &format!("add_{}_belted", name.to_lowercase()),
-            &report(&session, &result),
-        );
+        common::snapshot(&format!("add_{name}_belted"), &report(&session, &result));
     }
 }
 
@@ -152,10 +153,8 @@ fn a_body_the_spec_marks_a_star_is_written_as_one() {
 /// Each body the details list for system `id`, as its name's key and what it shows: a
 /// planet's numeral, an asteroid's prefix and suffix joined.
 fn body_names(session: &Session, id: u32) -> Vec<(String, String)> {
-    let details = session.details().expect("details");
-    let raw = details.raw(id).expect("the system's details");
-    raw.planets
-        .iter()
+    common::planets(session, id)
+        .into_iter()
         .map(|p| {
             let variables = p.name.variables.iter();
             let shown = match p.name.key.as_str() {
@@ -165,7 +164,7 @@ fn body_names(session: &Session, id: u32) -> Vec<(String, String)> {
                     .map(|v| v.value.key.clone())
                     .collect(),
             };
-            (p.name.key.clone(), shown)
+            (p.name.key, shown)
         })
         .collect()
 }
@@ -192,20 +191,15 @@ fn suffixes(text: &str, prefix: &str) -> Vec<String> {
     )
 }
 
-/// The sample system `id` is added to, as opened.
-fn open_again(id: u32) -> Session {
-    match id {
-        601 => open_4_5(),
-        _ => open(),
-    }
-}
-
 #[test]
 fn a_saved_belted_system_reopens_with_its_belts_and_named_asteroids() {
     let dir = tempfile::tempdir().expect("a temp dir");
-    for (mut session, spec, id) in samples() {
+    for sample in &SAMPLES {
+        let (mut session, id) = ((sample.open)(), sample.id);
         let before = findings(&session);
-        session.apply(add(belted(spec))).expect("add the system");
+        session
+            .apply(add(belted((sample.spike)())))
+            .expect("add the system");
         let path = dir.path().join(format!("{id}.sav"));
         session.save_as(&path).expect("save");
 
@@ -239,12 +233,9 @@ fn a_saved_belted_system_reopens_with_its_belts_and_named_asteroids() {
             .collect();
         assert_eq!(numerals, ["I", "II", "III", "IV", "V", "VI"], "{names:?}");
 
-        let opened = text(&open_again(id));
-        let details = reopened.details().expect("details");
-        let raw = details.raw(id).expect("the system's details");
-        let asteroids: Vec<_> = raw
-            .planets
-            .iter()
+        let opened = text(&(sample.open)());
+        let asteroids: Vec<_> = common::planets(&reopened, id)
+            .into_iter()
             .filter(|p| p.name.key == "ASTEROID_NAME_FORMAT")
             .collect();
         assert_eq!(asteroids.len(), 4);
@@ -275,26 +266,13 @@ fn a_saved_belted_system_reopens_with_its_belts_and_named_asteroids() {
 }
 
 #[test]
-fn undo_puts_back_the_bytes_of_a_belted_system() {
-    for (session, spec, _) in samples() {
-        round_trip(session, add(belted(spec)));
-    }
-}
-
-#[test]
 fn belted_systems_take_different_asteroid_names() {
-    for (mut session, spec, id) in samples() {
-        let mut other = belted(spec.clone());
-        other.name = "Sgf_Second".to_owned();
-        (other.x, other.y) = (spec.x + 20.0, spec.y + 20.0);
-        other.lanes = vec![id];
-        let mut twin = belted(spec.clone());
-        (twin.x, twin.y) = match id {
-            601 => (-300.0, -120.0),
-            _ => (420.0, -222.0),
-        };
-        twin.lanes = vec![id];
-        round_trip_step(&mut session, "first", add(belted(spec)));
+    for sample in &SAMPLES {
+        let (mut session, id) = ((sample.open)(), sample.id);
+        let spec = belted((sample.spike)());
+        let other = beside(&spec, id);
+        let twin = another(&spec, &spec.name, sample.spots[1], vec![id]);
+        round_trip_step(&mut session, "first", add(spec));
         round_trip_step(&mut session, "other", add(other));
         round_trip_step(&mut session, "twin", add(twin));
         let asteroids = |system: u32| -> BTreeSet<String> {
@@ -314,42 +292,40 @@ fn belted_systems_take_different_asteroid_names() {
     }
 }
 
-#[test]
-fn undo_puts_back_the_bytes_and_redo_writes_them_again() {
-    for (session, spec, _) in samples() {
-        round_trip(session, add(spec));
-    }
+/// The name database as the text holds it, up to a point past the star names.
+fn pool(bytes: &[u8]) -> String {
+    let text = String::from_utf8_lossy(bytes).into_owned();
+    let start = text.find("\nrandom_name_database=").expect("the pool");
+    text[start..start + 200_000].to_owned()
 }
 
+/// The spike's system takes the next id and its name out of the pool, and search and the
+/// inspector find it; a second one under a name the pool lacks takes the id after it, no
+/// slot of the first and nothing from the pool; and once both are undone, the add writes
+/// the same text again.
 #[test]
-fn the_new_system_is_found_by_search_and_the_inspector() {
-    for (mut session, spec, id) in samples() {
-        session.apply(add(spec.clone())).expect("add the system");
-        session.warm_details().expect("details");
-        let no_loc = |_: &str| None;
-        let no_special = |_: u32| Vec::new();
-        let hits = session.search(&spec.name, 20, &no_loc, &no_special).hits;
-        assert!(hits.iter().any(|h| h.id == id), "{hits:?}");
+fn two_adds_take_consecutive_ids_share_no_slot_and_one_name_from_the_pool() {
+    for sample in &SAMPLES {
+        let (mut session, spec, id) = ((sample.open)(), (sample.spike)(), sample.id);
+        assert_eq!(pooled(&session, "star_names", &spec.name), 1);
+        round_trip_step(&mut session, "first", add(spec.clone()));
+        assert_eq!(pooled(&session, "star_names", &spec.name), 0);
+        let first_added = current(&session);
 
+        let hits = session
+            .search(&spec.name, 20, &|_| None, &|_| Vec::new())
+            .hits;
+        assert!(hits.iter().any(|h| h.id == id), "{hits:?}");
         let star = bodies(&session, id)[0].0;
         let system = get_entity(&session.doc, EntityAddr::new(EntityKind::System, id), &[])
             .expect("the system's entity");
         assert_eq!(system.addr.id, id);
         get_entity(&session.doc, EntityAddr::new(EntityKind::Planet, star), &[])
             .expect("the star's entity");
-    }
-}
 
-#[test]
-fn two_adds_take_consecutive_ids_and_share_no_slot() {
-    for (mut session, spec, id) in samples() {
-        let mut second = spec.clone();
-        second.name = "Sgf_Second".to_owned();
-        second.x += 20.0;
-        second.y += 20.0;
-        second.lanes = vec![id];
-        round_trip_step(&mut session, "first", add(spec));
-        round_trip_step(&mut session, "second", add(second));
+        round_trip_step(&mut session, "second", add(beside(&spec, id)));
+        assert_eq!(pool(&current(&session)), pool(&first_added));
+        assert!(text(&session).contains("key=\"Sgf_Second\""));
         assert!(session.system(id + 1).is_some());
         assert_eq!(
             session.graph.order[session.graph.order.len() - 2..],
@@ -387,13 +363,20 @@ fn two_adds_take_consecutive_ids_and_share_no_slot() {
         session.undo().unwrap().unwrap();
         assert_eq!(current(&session), session.doc.original());
         assert!(session.system(id).is_none());
+        session.apply(add(spec)).expect("add again");
+        assert_eq!(
+            current(&session),
+            first_added,
+            "the same ids and the same text"
+        );
     }
 }
 
 #[test]
 fn later_ops_work_on_the_new_system_and_undo_back_to_the_original() {
-    for (mut session, spec, id) in samples() {
-        let home = spec.lanes[0];
+    for sample in &SAMPLES {
+        let (mut session, spec, id) = ((sample.open)(), (sample.spike)(), sample.id);
+        let home = sample.home();
         round_trip_step(&mut session, "add", add(spec.clone()));
         let star = bodies(&session, id)[0].0;
         let far = *session
@@ -436,27 +419,6 @@ fn later_ops_work_on_the_new_system_and_undo_back_to_the_original() {
 }
 
 #[test]
-fn the_name_leaves_the_pool_only_when_the_pool_holds_it() {
-    for (mut session, spec, _) in samples() {
-        let entry = format!("\t\t\"{}\"\n", spec.name);
-        assert!(text(&session).contains(&entry));
-        session.apply(add(spec)).expect("add the system");
-        assert!(!text(&session).contains(&entry), "the name leaves the pool");
-    }
-    for (mut session, mut spec, _) in samples() {
-        spec.name = "Sgf_Unpooled".to_owned();
-        session.apply(add(spec)).expect("add the system");
-        let pool = |bytes: &[u8]| {
-            let text = String::from_utf8_lossy(bytes).into_owned();
-            let start = text.find("\nrandom_name_database=").expect("the pool");
-            text[start..start + 200_000].to_owned()
-        };
-        assert_eq!(pool(&current(&session)), pool(session.doc.original()));
-        assert!(text(&session).contains("key=\"Sgf_Unpooled\""));
-    }
-}
-
-#[test]
 fn the_lowest_dead_slots_are_taken_first_one_generation_on() {
     let mut session = open_4_5();
     assert!(text(&session).contains("\n\t\t57=none\n"));
@@ -469,39 +431,20 @@ fn the_lowest_dead_slots_are_taken_first_one_generation_on() {
     assert!(text.contains(&format!(
         "\n\t\t{star}=\n\t\t{{\n\t\t\tplanet_class=\"pc_g_star\""
     )));
-    let listed = bodies(&session, 601);
+    let listed = bodies(&session, SAMPLE_4_5.id);
     assert_eq!(listed[0].0, star);
     assert_eq!(
         listed[1].0, 6375,
         "then past the highest slot, generation 0"
     );
-    let table = &text[text
-        .find(
-            "
-deposit=
-{",
-        )
-        .expect("the deposit table")..];
+    let table = &text[text.find("\ndeposit=\n{").expect("the deposit table")..];
     for (slot, deposit) in [(0, "d_energy_5"), (1, "d_black_soil")] {
         let id = slot | GENERATION;
         assert!(
-            table.starts_with(
-                "
-deposit=
-{
-	"
-            ) && !table[..200].contains(&format!(
-                "
-	{slot}=none
-"
-            ))
+            table.starts_with("\ndeposit=\n{\n\t")
+                && !table[..200].contains(&format!("\n\t{slot}=none\n"))
         );
-        assert!(table.contains(&format!(
-            "
-	{id}=
-	{{
-		type=\"{deposit}\""
-        )));
+        assert!(table.contains(&format!("\n\t{id}=\n\t{{\n\t\ttype=\"{deposit}\"")));
     }
     let deposit = get_entity(
         &session.doc,
@@ -513,7 +456,7 @@ deposit=
 }
 
 /// A change to the spec, and whether an error is the refusal it should meet.
-type Case = (fn(&mut SystemSpec), fn(&OpError) -> bool);
+type Case = Refused<fn(&mut SystemSpec)>;
 
 fn refused(mut session: Session, spec: SystemSpec) -> OpError {
     let error = session.apply(add(spec)).expect_err("refused");
@@ -526,11 +469,8 @@ fn what_the_op_refuses() {
     let old = open_3_4();
     assert!(matches!(refused(old, dorellion()), OpError::SaveTooOld(v) if v.contains("v3.4")));
 
-    let gap = open_edited(|bytes| {
-        let text = String::from_utf8(bytes.clone()).unwrap();
-        *bytes = text
-            .replace("\nlast_created_system=790\n", "\nlast_created_system=795\n")
-            .into_bytes();
+    let gap = open_edited(|text| {
+        *text = text.replace("\nlast_created_system=790\n", "\nlast_created_system=795\n");
     });
     assert!(matches!(
         refused(gap, dorellion()),
@@ -673,28 +613,12 @@ fn what_the_op_refuses() {
 }
 
 #[test]
-fn a_scenario_refuses_it() {
-    let mut session = common::examples::scenario();
-    let error = session.apply(add(dorellion())).expect_err("refused");
-    assert!(matches!(
-        error,
-        OpError::Unsupported {
-            op: "AddSaveSystem",
-            ..
-        }
-    ));
-}
-
-#[test]
 fn two_adds_in_one_batch_undo_as_one_step() {
-    for (session, spec, id) in samples() {
-        let mut second = spec.clone();
-        second.name = "Sgf_Second".to_owned();
-        second.x += 20.0;
-        second.y += 20.0;
-        second.lanes = vec![id];
+    for sample in &SAMPLES {
+        let spec = (sample.spike)();
+        let second = beside(&spec, sample.id);
         round_trip(
-            session,
+            (sample.open)(),
             Op::Batch {
                 description: "Added two systems".to_owned(),
                 ops: vec![add(spec), add(second)],
@@ -703,28 +627,14 @@ fn two_adds_in_one_batch_undo_as_one_step() {
     }
 }
 
-#[test]
-fn an_add_after_an_undone_one_takes_the_same_ids() {
-    for (mut session, spec, id) in samples() {
-        session.apply(add(spec.clone())).expect("add");
-        let first = current(&session);
-        session.undo().expect("undo").expect("an op to undo");
-        session.apply(add(spec)).expect("add again");
-        assert!(session.system(id).is_some());
-        assert_eq!(current(&session), first, "the same ids and the same text");
-    }
-}
-
 /// A refused member rolls back the batch, and the entities the first member wrote leave
 /// the document's list of added ones with its bytes: the next add takes the same ids.
 #[test]
 fn a_refused_batch_forgets_the_system_it_wrote() {
-    for (mut session, spec, id) in samples() {
+    for sample in &SAMPLES {
+        let (mut session, spec, id) = ((sample.open)(), (sample.spike)(), sample.id);
         let fresh = {
-            let mut fresh = match id {
-                601 => open_4_5(),
-                _ => open(),
-            };
+            let mut fresh = (sample.open)();
             fresh.apply(add(spec.clone())).expect("add");
             current(&fresh)
         };
@@ -752,12 +662,11 @@ fn a_refused_batch_forgets_the_system_it_wrote() {
 /// The 4.4 sample with its asteroid name pool, the prefix list and every suffix block,
 /// swapped for `pool`.
 fn with_asteroid_pool(pool: &str) -> Session {
-    open_edited(|bytes| {
-        let text = String::from_utf8(bytes.clone()).expect("utf-8");
+    open_edited(|text| {
         let start = text.find("\n\tasteroid_prefix=\n").expect("the prefixes") + 1;
         let last = text.rfind("\n\tasteroid_postfix=\n").expect("the suffixes") + 1;
         let end = last + text[last..].find("\n\t}\n").expect("the last block's end") + 4;
-        *bytes = format!("{}{pool}{}", &text[..start], &text[end..]).into_bytes();
+        text.replace_range(start..end, pool);
     })
 }
 
@@ -775,9 +684,8 @@ const SPENT_POOL: &str = "\tasteroid_prefix=\n\t{\n\t\t\"AA-\"\n\t\t\"BB-\"\n\t}
 
 #[test]
 fn a_spent_asteroid_pool_names_asteroids_again() {
-    round_trip(with_asteroid_pool(SPENT_POOL), add(belted(dorellion())));
     let mut session = with_asteroid_pool(SPENT_POOL);
-    session.apply(add(belted(dorellion()))).expect("add");
+    round_trip_step(&mut session, "add", add(belted(dorellion())));
     let asteroids: Vec<String> = body_names(&session, 791)
         .into_iter()
         .filter(|(key, _)| key == "ASTEROID_NAME_FORMAT")
@@ -798,11 +706,10 @@ fn a_spent_asteroid_pool_names_asteroids_again() {
 /// when the section goes.
 fn without_section(key: &str, replacement: &str) -> Session {
     let head = format!("\n{key}=\n{{\n");
-    open_edited(|bytes| {
-        let text = String::from_utf8(bytes.clone()).expect("utf-8");
+    open_edited(|text| {
         let start = text.find(&head).expect("the section") + 1;
         let end = start + text[start..].find("\n}\n").expect("its closing brace") + 3;
-        *bytes = format!("{}{replacement}{}", &text[..start], &text[end..]).into_bytes();
+        text.replace_range(start..end, replacement);
     })
 }
 
@@ -825,13 +732,8 @@ fn a_save_without_a_deposit_table_takes_a_system_without_deposits() {
 #[test]
 fn entries_land_inside_a_table_whose_closing_brace_shares_a_line() {
     let mut session = without_section("deposit", "deposit={ }\n");
-    let mut second = dorellion();
-    second.name = "Sgf_Second".to_owned();
-    second.x += 20.0;
-    second.y += 20.0;
-    second.lanes = vec![791];
     round_trip_step(&mut session, "first", add(dorellion()));
-    round_trip_step(&mut session, "second", add(second));
+    round_trip_step(&mut session, "second", add(beside(&dorellion(), 791)));
     let text = text(&session);
     let start = text.find("\ndeposit={ \n").expect("the table") + 1;
     let table = &text[start..start + text[start..].find("\n}\n").expect("its end") + 3];
@@ -854,21 +756,17 @@ fn entries_land_inside_a_table_whose_closing_brace_shares_a_line() {
 }
 
 /// The 4.4 sample with its `meta` rewritten by `edit`.
-fn with_meta(edit: impl FnOnce(String) -> String) -> Session {
-    let raw = sgf_core::archive::read_sav(common::SAMPLE).expect("read the sample");
-    let meta = edit(String::from_utf8(raw.meta).expect("utf-8"));
-    let doc = sgf_core::document::Document::from_bytes(raw.gamestate, meta.into_bytes())
-        .expect("index the sample");
-    Session::from_document(None, doc).expect("project the sample")
+fn with_meta(edit: impl FnOnce(&mut String)) -> Session {
+    open_edited_sample(SAMPLE, |_, meta| edit(meta))
 }
 
 /// The 4.4 sample with its `meta` version written as `version`.
 fn with_version(version: &str) -> Session {
     with_meta(|meta| {
-        meta.replace(
+        *meta = meta.replace(
             "version=\"Pegasus v4.4.6\"",
             &format!("version=\"{version}\""),
-        )
+        );
     })
 }
 
@@ -900,7 +798,7 @@ fn a_save_that_refuses_the_add_offers_no_added_systems_but_keeps_bodies() {
     assert_eq!(offered(&open()), (true, true, true));
     assert_eq!(offered(&open_3_4()), (false, true, false));
 
-    let ironman = with_meta(|meta| meta + "ironman=yes\n");
+    let ironman = with_meta(|meta| meta.push_str("ironman=yes\n"));
     assert_eq!(offered(&ironman), (false, true, true));
     assert!(matches!(refused(ironman, dorellion()), OpError::Ironman));
 }

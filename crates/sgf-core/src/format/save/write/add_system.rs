@@ -14,7 +14,7 @@ use crate::emit::system::{
     DepositEntry, PlanetEntry, SystemEntry, deposit_entry, planet_entry, system_entry,
 };
 use crate::emit::{coord, inline, roman, rounded};
-use crate::format::save::added::Table;
+use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, Slot, SlotTable, TableEnd};
 use crate::format::save::system_spec::{BodySpec, SystemSpec, polar};
 use crate::format::save::write::asteroid_names::Pool;
@@ -253,7 +253,7 @@ pub(crate) fn check_capped(
     let other = s
         .doc
         .added()
-        .entries(Table::System)
+        .entries(EntityKind::System)
         .map(|(id, _)| id)
         .filter(|&id| Some(id) != except)
         .find(|id| {
@@ -637,7 +637,7 @@ fn lane_lengths(
         if lanes.iter().any(|&(seen, _)| seen == to) {
             return Err(OpError::DuplicateLane(id, to));
         }
-        lanes.push((to, lane_length(other, &(x, y)) as u32));
+        lanes.push((to, lane_length(other.position(), (x, y)) as u32));
     }
     Ok(lanes)
 }
@@ -650,5 +650,5 @@ fn systems_end(doc: &Document) -> Result<TableEnd, OpError> {
         return Err(OpError::MissingSaveKey(keys::GALACTIC_OBJECT));
     };
     let entities = doc.index().entities(keys::GALACTIC_OBJECT);
-    Ok(TableEnd::read(doc, Table::System, close, entities))
+    Ok(TableEnd::read(doc, EntityKind::System, close, entities))
 }

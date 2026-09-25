@@ -4,16 +4,13 @@
 //! is snapshotted, undo and redo put back the bytes, and the op's inverse, applied as an
 //! op, puts back the clouds its members had rather than new ones. A 3.4 save gets none.
 
-use sgf_core::archive;
-use sgf_core::document::Document;
 use sgf_core::ops::{NebulaCloud, NebulaFootprint, Op, OpError, SystemMove};
 use sgf_core::projections::galaxy::Turbulence;
-use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{report, round_trip_step};
 use common::spec::{body, mura, rerolled, star};
-use common::{SAMPLE_3_4, SAMPLE_4_5, current};
+use common::{SAMPLE_4_5, current, open_3_4, open_4_5};
 
 const DEMONS_EYE: usize = 0;
 const NYTHRAN_EXPANSE: usize = 5;
@@ -25,10 +22,6 @@ const MURA: u32 = 601;
 const NEAR_THE_CAPITAL: (f64, f64, f64) = (-362.33, -136.56, 30.0);
 /// Inside Nythran Expanse's radius and clear of its systems.
 const IN_NYTHRAN_EXPANSE: (f64, f64) = (-330.0, -75.0);
-
-fn open_4_5() -> Session {
-    Session::open(SAMPLE_4_5).expect("open the 4.5 sample")
-}
 
 fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
@@ -198,10 +191,9 @@ fn a_nebula_is_made_turbulent_and_calm_again_member_by_member() {
 
 #[test]
 fn a_save_without_first_contact_gets_clouds_and_no_cloaking() {
-    let raw = archive::read_sav(SAMPLE_4_5).expect("read the 4.5 sample");
-    let meta = text(&raw.meta).replace("\t\"First Contact Story Pack\"\n", "");
-    let doc = Document::from_bytes(raw.gamestate, meta.into_bytes()).expect("index it");
-    let mut session = Session::from_document(None, doc).expect("project it");
+    let mut session = common::open_edited_sample(SAMPLE_4_5, |_, meta| {
+        *meta = meta.replace("\t\"First Contact Story Pack\"\n", "");
+    });
     let (x, y, radius) = NEAR_THE_CAPITAL;
     session
         .apply(Op::AddNebula {
@@ -367,7 +359,7 @@ fn a_system_added_inside_a_nebula_joins_it() {
 /// another shape, so no cloud or modifier is written, and turbulence is refused.
 #[test]
 fn a_3_4_save_moves_members_and_writes_no_clouds() {
-    let mut session = Session::open(SAMPLE_3_4).expect("open the 3.4.5 sample");
+    let mut session = open_3_4();
     let nebula = session.graph.nebulae[0].clone();
     let outsider = (session.graph.systems.values())
         .filter(|s| s.nebula.is_none())

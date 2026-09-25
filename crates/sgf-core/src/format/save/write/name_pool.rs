@@ -6,7 +6,7 @@
 
 use crate::cst;
 use crate::document::Document;
-use crate::format::save::added::Table;
+use crate::entity::views::EntityKind;
 use crate::keys;
 use crate::ops::{OpError, Plan, Subject};
 use crate::overlay::Anchor;
@@ -21,12 +21,6 @@ pub(crate) const SYSTEM_POOLS: &[&str] = &[keys::STAR_NAMES, keys::BLACK_HOLE_NA
 /// save has no pool.
 pub fn free_star_names(doc: &Document) -> Vec<String> {
     free(doc, keys::STAR_NAMES)
-}
-
-/// The names left in the save's pool of unused black hole names, in file order; empty when
-/// the save has no pool.
-pub fn free_black_hole_names(doc: &Document) -> Vec<String> {
-    free(doc, keys::BLACK_HOLE_NAMES)
 }
 
 /// The names left in the save's pool of unused nebula names, in file order; empty when the
@@ -96,7 +90,7 @@ pub(crate) fn give_back(
 pub(crate) fn holders(s: &Session, name: &str, leaving: &[u32]) -> usize {
     s.doc
         .added()
-        .entries(Table::System)
+        .entries(EntityKind::System)
         .filter(|(id, _)| !leaving.contains(id))
         .filter(|(id, _)| (s.graph.systems.get(id)).is_some_and(|system| system.name.key == name))
         .count()

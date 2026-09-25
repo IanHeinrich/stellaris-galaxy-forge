@@ -47,7 +47,7 @@ pub(crate) fn check_new_lane(graph: &GalaxyGraph, a: u32, b: u32) -> Result<u32,
     if projected_lane(graph, a, b).is_some() {
         return Err(OpError::LaneExists(a, b));
     }
-    Ok(lane_length(sa, sb) as u32)
+    Ok(lane_length(sa.position(), sb.position()) as u32)
 }
 
 /// What the graph says about removing `pairs`: each is a lane it lists, and none twice.
@@ -58,7 +58,7 @@ pub(crate) fn decide_remove_pairs(
     pairs: &[(u32, u32)],
 ) -> Result<Vec<LanePair>, OpError> {
     if pairs.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut seen = BTreeSet::new();
     let mut restore = Vec::with_capacity(pairs.len());

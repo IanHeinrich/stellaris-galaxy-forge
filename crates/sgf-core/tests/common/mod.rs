@@ -9,14 +9,17 @@ pub mod fixture;
 pub mod paint;
 pub mod spec;
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{LazyLock, Mutex, MutexGuard, OnceLock};
 
 use sgf_core::archive;
 use sgf_core::document::Document;
+use sgf_core::format::save::details::RawPlanet;
+use sgf_core::ops::OpError;
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
-use sgf_core::validate::{Issue, validate};
+use sgf_core::validate::{Issue, IssueCode, validate};
 use sgf_core::views::DocumentKind;
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2206.11.16.sav");
@@ -44,14 +47,25 @@ static CACHED: [(&OnceLock<Document>, &str); 3] = [
     (&SAMPLE_3_4_DOCUMENT, SAMPLE_3_4),
 ];
 
-pub fn load() -> Document {
-    Document::load(SAMPLE).expect("load sample")
+fn cached(cache: &'static OnceLock<Document>, path: &str) -> &'static Document {
+    cache.get_or_init(|| Document::load(path).unwrap_or_else(|e| panic!("load {path}: {e}")))
 }
 
-fn open_cached(cache: &OnceLock<Document>, path: &str) -> Session {
-    let doc = cache
-        .get_or_init(|| Document::load(path).unwrap_or_else(|e| panic!("load {path}: {e}")))
-        .clone();
+/// The 4.4 sample's document as the cache holds it.
+pub fn load() -> Document {
+    cached(&SAMPLE_DOCUMENT, SAMPLE).clone()
+}
+
+pub fn load_4_5() -> Document {
+    cached(&SAMPLE_4_5_DOCUMENT, SAMPLE_4_5).clone()
+}
+
+pub fn load_3_4() -> Document {
+    cached(&SAMPLE_3_4_DOCUMENT, SAMPLE_3_4).clone()
+}
+
+fn open_cached(cache: &'static OnceLock<Document>, path: &str) -> Session {
+    let doc = cached(cache, path).clone();
     Session::from_document(Some(PathBuf::from(path)), doc)
         .unwrap_or_else(|e| panic!("open {path}: {e}"))
 }
@@ -107,14 +121,83 @@ pub fn issues_at_open(session: &Session) -> Vec<Issue> {
     validate(&opened.graph)
 }
 
-/// The sample save with `edit` applied to its gamestate, opened without going near a
-/// file: the way to reach a galaxy the committed save does not hold.
-pub fn open_edited(edit: impl FnOnce(&mut Vec<u8>)) -> Session {
-    let raw = archive::read_sav(SAMPLE).expect("read the sample save");
-    let mut gamestate = raw.gamestate;
-    edit(&mut gamestate);
-    let doc = Document::from_bytes(gamestate, raw.meta).expect("index the edited gamestate");
-    Session::from_document(None, doc).expect("project the edited gamestate")
+/// The 4.4 sample with `edit` applied to its gamestate: see [`open_edited_sample`].
+pub fn open_edited(edit: impl FnOnce(&mut String)) -> Session {
+    open_edited_sample(SAMPLE, |gamestate, _| edit(gamestate))
+}
+
+/// The sample save at `path` with `edit` applied to its gamestate and its meta, as a
+/// session with no path: the way to reach a galaxy the committed saves do not hold.
+pub fn open_edited_sample(path: &str, edit: impl FnOnce(&mut String, &mut String)) -> Session {
+    let (cache, _) = CACHED
+        .into_iter()
+        .find(|(_, cached)| *cached == path)
+        .unwrap_or_else(|| panic!("{path} is no sample save"));
+    let sample = cached(cache, path);
+    let mut gamestate = String::from_utf8(sample.original().to_vec()).expect("utf-8");
+    let mut meta = String::from_utf8(sample.meta().to_vec()).expect("utf-8");
+    edit(&mut gamestate, &mut meta);
+    let doc = Document::from_bytes(gamestate.into_bytes(), meta.into_bytes())
+        .expect("index the edited save");
+    Session::from_document(None, doc).expect("project the edited save")
+}
+
+/// The 4.4 sample with its details projection built, shared by the tests that only read
+/// it.
+pub fn warmed() -> MutexGuard<'static, Session> {
+    static WARMED: LazyLock<Mutex<Session>> = LazyLock::new(|| {
+        let mut session = open();
+        session.warm_details().expect("build details");
+        Mutex::new(session)
+    });
+    WARMED.lock().unwrap_or_else(|held| held.into_inner())
+}
+
+/// The session's findings, each as its code, systems and message.
+pub fn findings(session: &Session) -> BTreeSet<(IssueCode, Vec<u32>, String)> {
+    session
+        .validate()
+        .into_iter()
+        .map(|issue| (issue.code, issue.systems, issue.message))
+        .collect()
+}
+
+/// A refusal case: what is refused, and whether an error is the refusal it should meet.
+pub type Refused<T> = (T, fn(&OpError) -> bool);
+
+/// The issues of `code`.
+pub fn coded(issues: &[Issue], code: IssueCode) -> Vec<&Issue> {
+    issues.iter().filter(|issue| issue.code == code).collect()
+}
+
+/// The message of the one issue of `code`.
+#[track_caller]
+pub fn only_message(issues: &[Issue], code: IssueCode) -> String {
+    match coded(issues, code)[..] {
+        [issue] => issue.message.clone(),
+        ref found => panic!("one {code} issue, found {found:?}"),
+    }
+}
+
+/// The bodies the details list for system `id`, star first.
+pub fn planets(session: &Session, id: u32) -> Vec<RawPlanet> {
+    let details = session.details().expect("details");
+    let system = details
+        .raw(id)
+        .unwrap_or_else(|| panic!("system {id}'s details"));
+    system.planets.clone()
+}
+
+/// How many entries of the name database's `list` block hold `name`.
+pub fn pooled(session: &Session, list: &str, name: &str) -> usize {
+    let text = text(session);
+    let start = text
+        .find(&format!("\n\t{list}=\n"))
+        .unwrap_or_else(|| panic!("the {list} pool"));
+    let end = start + text[start..].find("\t}\n").expect("the pool's end");
+    text[start..end]
+        .matches(&format!("\t\t\"{name}\"\n"))
+        .count()
 }
 
 /// The whole sample gamestate, decompressed straight from the archive.
@@ -136,4 +219,23 @@ pub fn snapshot(name: &str, value: &str) {
     insta::with_settings!({snapshot_path => path, prepend_module_to_snapshot => false}, {
         insta::assert_snapshot!(name, value);
     });
+}
+
+/// The ids of the bodies the details list for system `id`, star first.
+pub fn planet_ids(session: &Session, id: u32) -> Vec<u32> {
+    planets(session, id).iter().map(|p| p.id).collect()
+}
+
+/// The names the name database's `list` block holds, in file order.
+pub fn pool_names(session: &Session, list: &str) -> Vec<String> {
+    let text = text(session);
+    let start = text
+        .find(&format!("\n\t{list}=\n\t{{\n"))
+        .unwrap_or_else(|| panic!("the {list} pool"));
+    let end = start + text[start..].find("\t}\n").expect("the pool's end");
+    text[start..end]
+        .lines()
+        .filter_map(|line| line.strip_prefix("\t\t\"")?.strip_suffix('"'))
+        .map(str::to_owned)
+        .collect()
 }

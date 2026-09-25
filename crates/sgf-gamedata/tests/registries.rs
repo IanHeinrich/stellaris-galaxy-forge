@@ -95,13 +95,7 @@ fn a_mod_shipping_its_own_colors_txt_supplies_the_palette_and_is_named_as_its_so
     );
     let load = |mods: &[&str]| {
         common::enable(&user_dir, mods);
-        let opts = sgf_gamedata::LoadOptions {
-            install: Some(install.clone()),
-            user_dir: Some(user_dir.clone()),
-            language: "english".to_owned(),
-            mods: true,
-        };
-        sgf_gamedata::load(&opts, &mut |_| {}).expect("the throwaway install loads")
+        common::load_tree(&install, Some(&user_dir), true)
     };
 
     let vanilla = load(&[]);
@@ -158,9 +152,7 @@ fn planet_class_colonizable_vs_star() {
 
 #[test]
 fn a_planet_list_is_no_planet_class_and_two_files_writing_lists_override_nothing() {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let install = dir.path().join("install");
-    for (rel, text) in [
+    let (_dir, gd) = common::hand_written(&[
         (
             "common/planet_classes/00_classes.txt",
             "pc_rock = {\n\tplanet_size = 10\n}\nrandom_list = {\n\tname = \"rl_one\"\n\tplanets = { pc_rock }\n}\n",
@@ -170,18 +162,7 @@ fn a_planet_list_is_no_planet_class_and_two_files_writing_lists_override_nothing
             "pc_ice = {\n\tplanet_size = 10\n}\nrandom_list = {\n\tname = \"rl_two\"\n\tplanets = { pc_ice }\n}\n",
         ),
         ("localisation/english/fx_l_english.yml", "l_english:\n"),
-    ] {
-        let file = install.join(rel);
-        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
-        std::fs::write(file, text).unwrap();
-    }
-    let opts = sgf_gamedata::LoadOptions {
-        install: Some(install),
-        user_dir: Some(dir.path().join("user")),
-        language: "english".to_owned(),
-        mods: false,
-    };
-    let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("the hand-written install loads");
+    ]);
     let classes: Vec<&str> = gd.planet_classes.iter().map(|c| c.key.as_str()).collect();
     assert_eq!(classes, ["pc_ice", "pc_rock"]);
     assert_eq!(gd.planet_lists.len(), 2);
@@ -305,7 +286,7 @@ fn resolver_distinguishes_orbital_from_colonizable_and_unknown() {
 
 #[test]
 fn vanilla_registries() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     assert!(gd.sprites.len() >= 76, "{}", gd.sprites.len());

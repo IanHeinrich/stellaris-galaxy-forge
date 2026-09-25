@@ -10,7 +10,6 @@ use crate::Span;
 use crate::document::Document;
 use crate::entity::EntityError;
 use crate::entity::views::{EntityAddr, EntityKind};
-use crate::format::save::added::Table;
 use crate::keys;
 use crate::overlay::Anchor;
 
@@ -98,5 +97,5 @@ pub(crate) fn locate(doc: &Document, addr: EntityAddr) -> Result<Located, Entity
 /// The statement an op wrote for `addr`, which stands against no original: an inserted
 /// one, or a tombstone's slot a new entity took.
 fn added(doc: &Document, addr: EntityAddr) -> Option<Anchor> {
-    doc.added().get(Table::of_kind(addr.kind)?, addr.id)
+    doc.added().get(addr.kind, addr.id)
 }

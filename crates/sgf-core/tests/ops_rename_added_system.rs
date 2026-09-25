@@ -3,29 +3,15 @@
 //! one back and gives up the new one, undo is byte-exact, a removal after it gives back
 //! the file as opened, and what the op refuses.
 
-use std::fmt::Write as _;
-
 use sgf_core::ops::{Op, OpError, SystemSpec, free_star_names};
 use sgf_core::session::Session;
-use similar::{Algorithm, TextDiff};
 
 use crate::common;
-use common::diff::round_trip_step;
-use common::spec::{belted, dorellion, mura, rerolled};
-use common::{current, examples, open, open_4_5, text};
+use common::diff::{round_trip_step, step_report};
+use common::spec::{SAMPLE_4_5, SAMPLES, belted, rerolled};
+use common::{current, text};
 
 const UNPOOLED: &str = "Sgf_Renamed";
-
-/// One sample, the spike's system and the id it takes, where a twin of it fits, and a
-/// system the file holds.
-type Sample = (Session, SystemSpec, u32, (f64, f64), u32);
-
-fn samples() -> [Sample; 2] {
-    [
-        (open_4_5(), mura(), 601, (-270.0, -130.0), 169),
-        (open(), dorellion(), 791, (415.0, -190.0), 217),
-    ]
-}
 
 fn add(spec: SystemSpec) -> Op {
     Op::AddSaveSystem { spec }
@@ -39,12 +25,7 @@ fn rename(system: u32, name: &str) -> Op {
 }
 
 fn pooled(session: &Session, name: &str) -> usize {
-    let text = text(session);
-    let start = text.find("\nrandom_name_database=").expect("the pool");
-    let end = start + text[start..].find("\n}\n").expect("the pool's end");
-    text[start..end]
-        .matches(&format!("\t\t\"{name}\"\n"))
-        .count()
+    common::pooled(session, "star_names", name)
 }
 
 fn keyed(session: &Session, name: &str) -> usize {
@@ -61,32 +42,17 @@ fn free_name(session: &Session, spike: &SystemSpec) -> String {
 
 #[test]
 fn the_diff_a_rename_writes() {
-    let (mut session, spike, id, ..) = samples().into_iter().next().expect("the 4.5 sample");
+    let (mut session, spike) = ((SAMPLE_4_5.open)(), (SAMPLE_4_5.spike)());
     let name = free_name(&session, &spike);
     session.apply(add(spike)).expect("add");
-    let before = text(&session);
-    let result = session.apply(rename(id, &name)).expect("rename");
-    let after = text(&session);
-    let mut report = String::new();
-    writeln!(report, "{}", result.entry.description).unwrap();
-    writeln!(report, "inverse: {:?}", result.inverse).unwrap();
-    let diff = TextDiff::configure()
-        .algorithm(Algorithm::Myers)
-        .diff_lines(&before, &after);
-    write!(
-        report,
-        "{}",
-        diff.unified_diff()
-            .context_radius(3)
-            .header("before", "after")
-    )
-    .unwrap();
+    let report = step_report(&mut session, rename(SAMPLE_4_5.id, &name));
     common::snapshot("rename_mura", &report);
 }
 
 #[test]
 fn the_system_and_every_body_named_after_it_take_the_new_name() {
-    for (mut session, spike, id, ..) in samples() {
+    for sample in &SAMPLES {
+        let (mut session, spike, id) = ((sample.open)(), (sample.spike)(), sample.id);
         let old = spike.name.clone();
         let held = keyed(&session, &old);
         round_trip_step(&mut session, "add", add(spike.clone()));
@@ -111,9 +77,12 @@ fn the_system_and_every_body_named_after_it_take_the_new_name() {
     }
 }
 
+/// Renames between a pooled name, one outside the pool and back swap the entries; a name
+/// a twin still holds stays out of the pool until the twin is renamed too.
 #[test]
 fn the_pool_gets_the_old_name_back_and_gives_up_the_new_one() {
-    for (mut session, spike, id, ..) in samples() {
+    for sample in &SAMPLES {
+        let (mut session, spike, id) = ((sample.open)(), (sample.spike)(), sample.id);
         let old = spike.name.clone();
         let new = free_name(&session, &spike);
         session.apply(add(spike)).expect("add");
@@ -125,30 +94,24 @@ fn the_pool_gets_the_old_name_back_and_gives_up_the_new_one() {
         assert_eq!((pooled(&session, &old), pooled(&session, &new)), (1, 1));
         round_trip_step(&mut session, "back", rename(id, &old));
         assert_eq!((pooled(&session, &old), pooled(&session, &new)), (0, 1));
-    }
-}
 
-#[test]
-fn a_name_another_added_system_holds_stays_out_of_the_pool() {
-    for (mut session, spike, id, twin_at, _) in samples() {
-        let name = spike.name.clone();
-        let mut twin = spike.clone();
-        (twin.x, twin.y) = twin_at;
+        let mut twin = (sample.spike)();
+        (twin.x, twin.y) = sample.spots[0];
         twin.lanes.clear();
-        session.apply(add(spike)).expect("add");
         session.apply(add(twin)).expect("add its twin");
         session.apply(rename(id, UNPOOLED)).expect("rename one");
-        assert_eq!(pooled(&session, &name), 0, "the twin still holds it");
+        assert_eq!(pooled(&session, &old), 0, "the twin still holds it");
         session
             .apply(rename(id + 1, UNPOOLED))
             .expect("rename the twin");
-        assert_eq!(pooled(&session, &name), 1);
+        assert_eq!(pooled(&session, &old), 1);
     }
 }
 
 #[test]
 fn rename_then_remove_gives_back_the_file_as_opened() {
-    for (mut session, spike, id, ..) in samples() {
+    for sample in &SAMPLES {
+        let (mut session, spike, id) = ((sample.open)(), (sample.spike)(), sample.id);
         let pooled_name = free_name(&session, &spike);
         round_trip_step(&mut session, "add", add(spike.clone()));
         round_trip_step(&mut session, "rename", rename(id, &pooled_name));
@@ -170,7 +133,9 @@ fn rename_then_remove_gives_back_the_file_as_opened() {
 
 #[test]
 fn what_a_rename_refuses() {
-    for (mut session, spike, id, _, home) in samples() {
+    for sample in &SAMPLES {
+        let (mut session, spike, id) = ((sample.open)(), (sample.spike)(), sample.id);
+        let home = sample.home();
         let error = session.apply(rename(home, UNPOOLED)).expect_err("original");
         assert!(
             matches!(error, OpError::SystemNotAdded(held) if held == home),
@@ -200,10 +165,6 @@ fn what_a_rename_refuses() {
         }
         assert_eq!(current(&session), written, "a refusal writes nothing");
     }
-    let error = examples::scenario()
-        .apply(rename(10, UNPOOLED))
-        .expect_err("a scenario");
-    assert!(matches!(error, OpError::Unsupported { .. }), "{error}");
 }
 
 /// Each body of system `id` as the details list it: the name, and whether it is an
@@ -224,7 +185,8 @@ fn body_names(session: &Session, id: u32) -> Vec<(String, bool)> {
 
 #[test]
 fn a_belted_system_keeps_its_asteroid_names_and_renames_every_other_body() {
-    for (mut session, spike, id, ..) in samples() {
+    for sample in &SAMPLES {
+        let (mut session, spike, id) = ((sample.open)(), (sample.spike)(), sample.id);
         let old = format!("{:?}", spike.name);
         round_trip_step(&mut session, "add", add(belted(spike)));
         let before = body_names(&session, id);

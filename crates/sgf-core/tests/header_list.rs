@@ -164,20 +164,4 @@ fn a_missing_key_with_no_values_a_bad_value_and_a_save_are_refused() {
         );
     }
     assert!(!session.is_dirty());
-
-    let mut save = common::open();
-    let error = save
-        .apply(shapes(&["ring"]))
-        .expect_err("a save has no header");
-    assert!(
-        matches!(
-            error,
-            OpError::Unsupported {
-                op: "SetHeaderList",
-                ..
-            }
-        ),
-        "{error}"
-    );
-    assert!(!save.is_dirty());
 }

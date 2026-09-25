@@ -8,7 +8,7 @@
 
 /// How close the game lets a system it spawns stand to another
 /// (`SPAWN_SYSTEM_BUFFER_DISTANCE`).
-pub(crate) const SPAWN_BUFFER: f64 = 10.0;
+pub const SPAWN_BUFFER: f64 = 10.0;
 pub(crate) const FIRST_CONTACT: &str = "First Contact Story Pack";
 /// The star flag that makes `game_start.50` give an A-class star `rare_nebula_1`.
 pub(crate) const OCEAN_PARADISE: &str = "ocean_paradise_nebula";

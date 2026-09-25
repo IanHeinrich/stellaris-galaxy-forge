@@ -7,18 +7,12 @@ use crate::common;
 use std::fs;
 use std::path::Path;
 
+use sgf_gamedata::GameData;
 use sgf_gamedata::views::{GalaxySizeView, GameDataSummary};
-use sgf_gamedata::{GameData, LoadOptions};
 
 fn load(install: &Path, user_dir: &Path, mods: &[&str]) -> GameData {
     common::enable(user_dir, mods);
-    let opts = LoadOptions {
-        install: Some(install.to_path_buf()),
-        user_dir: Some(user_dir.to_path_buf()),
-        language: "english".to_owned(),
-        mods: true,
-    };
-    sgf_gamedata::load(&opts, &mut |_| {}).expect("the throwaway install loads")
+    common::load_tree(install, Some(user_dir), true)
 }
 
 fn largest(gd: &GameData) -> Option<GalaxySizeView> {
@@ -105,11 +99,11 @@ fn the_largest_size_follows_the_mods_that_add_and_override_sizes() {
 
 #[test]
 fn the_real_install_s_largest_size_is_huge() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     assert_eq!(
-        largest(&gd),
+        largest(gd),
         Some(GalaxySizeView {
             name: "huge".to_owned(),
             label: "Huge".to_owned(),

@@ -40,6 +40,8 @@ const LGATE_INITIALIZERS: [&str; 3] = [
 ];
 const GUARANTEED_COLONY_SUFFIXES: [&str; 2] = ["_first_colony", "_second_colony"];
 const SPECIAL_FLAGS: [&str; 3] = ["guardian", "enclave", "galactic_landmark_system"];
+/// What an L-Cluster system's initializer, or one of its star flags, starts with.
+pub const LCLUSTER_PREFIX: &str = "lcluster";
 
 /// What a system is to the generator, in the order the export report lists them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -104,7 +106,8 @@ pub fn classify(initializer: &str, flags: &[String], is_capital: bool) -> Catego
         Category::Marauder
     } else if initializer.starts_with("ratling_") {
         Category::Ratling
-    } else if initializer.starts_with("lcluster") || flags.iter().any(|f| f.starts_with("lcluster"))
+    } else if initializer.starts_with(LCLUSTER_PREFIX)
+        || flags.iter().any(|f| f.starts_with(LCLUSTER_PREFIX))
     {
         Category::LCluster
     } else if GUARANTEED_COLONY_SUFFIXES

@@ -2,11 +2,12 @@
 //! `replace_path`, missing mods and unparseable files, which layers hold
 //! scenarios, and what counts as a file of the game data.
 
+use std::collections::BTreeSet;
+
 use crate::common;
 
 use sgf_core::format::scenario::listings::{self, ScenarioSource};
 use sgf_gamedata::Diagnostic;
-use sgf_gamedata::LoadOptions;
 use sgf_gamedata::install::mods::ModStatus;
 use sgf_gamedata::install::scenarios::scenario_roots;
 use sgf_gamedata::views::StarClassView;
@@ -189,8 +190,12 @@ fn initializers_read_flags_countries_spawns_and_ancestors() {
     assert_eq!(ancestors, ["fallen_colony", "fallen_home"]);
     assert!(gd.initializers.ancestors("fallen_home").is_empty());
 
-    let declared = gd.initializers.declared_flags();
-    let flags: Vec<&str> = declared.iter().map(String::as_str).collect();
+    let declared: BTreeSet<&str> = gd
+        .initializers
+        .iter()
+        .flat_map(|i| i.flags.iter().map(String::as_str))
+        .collect();
+    let flags: Vec<&str> = declared.into_iter().collect();
     assert_eq!(
         flags,
         [
@@ -342,13 +347,7 @@ fn a_sibling_whose_name_starts_with_the_install_is_not_game_data() {
     std::fs::create_dir_all(&sibling).expect("the sibling");
     std::fs::write(sibling.join("steal.txt"), "").expect("a file beside the install");
 
-    let opts = LoadOptions {
-        install: Some(install.clone()),
-        user_dir: Some(tmp.path().join("user")),
-        language: "english".to_owned(),
-        mods: false,
-    };
-    let bare = sgf_gamedata::load(&opts, &mut |_| {}).expect("the bare install loads");
+    let bare = common::load_tree(&install, Some(&tmp.path().join("user")), false);
     assert!(bare.layout.contains(&install.join("common/00_fixture.txt")));
     assert!(!bare.layout.contains(&sibling.join("steal.txt")));
 }

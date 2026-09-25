@@ -499,7 +499,7 @@ fn bulk_system_ops_refuse_a_repeated_taken_or_unknown_id_and_leave_the_file_alon
     let error = session
         .apply(Op::RemoveSystems { ids: Vec::new() })
         .expect_err("nothing to remove");
-    assert!(matches!(error, OpError::Empty), "{error:?}");
+    assert!(matches!(error, OpError::NoEntries), "{error:?}");
 
     assert!(!session.doc.is_dirty());
     assert_eq!(current(&session), GRAMMAR.bytes());

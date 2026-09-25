@@ -1,14 +1,15 @@
 ---
-source: crates/sgf-core/tests/ops_nebula.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 212
+expression: value
 ---
 Renamed nebula 0 from "Phantom_Streak_Miasma" to "Sea of Ghosts"
 touched: []
 inverse: SetNebulaName { index: 0, name: "Phantom_Streak_Miasma" }
 … and 3 other issues
 
---- gamestate
-+++ gamestate
+--- nebula
++++ nebula
 @@ -6050,7 +6050,8 @@
  	}
  	name=

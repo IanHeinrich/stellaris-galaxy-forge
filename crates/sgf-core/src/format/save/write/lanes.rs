@@ -41,7 +41,7 @@ pub(crate) fn plan_add_many(
     to: &[(u32, bool)],
 ) -> Result<Planned, OpError> {
     if to.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut entries = Vec::with_capacity(to.len());
     for (i, &(other, bridge)) in to.iter().enumerate() {
@@ -150,11 +150,11 @@ pub(crate) fn plan_normalise_length(
     }
     let sa = s.graph.systems.get(&a).ok_or(OpError::UnknownSystem(a))?;
     let sb = s.graph.systems.get(&b).ok_or(OpError::UnknownSystem(b))?;
-    let length = lane_length(sa, sb);
+    let length = lane_length(sa.position(), sb.position());
     let old = bulk::agreed_length(s, a, b)?;
     rules::check_length(length)?;
     if old == length {
-        return Err(OpError::Empty);
+        return Err(OpError::AlreadyNormal);
     }
     let (old, updated) = set_one_length(plan, s, a, b, length)?;
     Ok(Planned {
@@ -238,7 +238,7 @@ pub(crate) fn length_form(length: f64) -> impl Fn(&str) -> String + Copy {
 pub(crate) fn moved_length(a: (f64, f64), b: (f64, f64)) -> impl Fn(&str) -> String + Copy {
     move |existing: &str| match existing.contains('.') {
         true => coord((a.0 - b.0).hypot(a.1 - b.1)),
-        false => (lane_length(&a, &b) as u32).to_string(),
+        false => (lane_length(a, b) as u32).to_string(),
     }
 }
 
@@ -276,7 +276,7 @@ pub(crate) fn insert_entries(edit: &mut Edit, entries: &[(u32, u32, bool)]) -> R
     if !in_block {
         text = hyperlane_block(&key_indent, &text);
     }
-    edit.insert_lines(at, text);
+    edit.insert(at, text);
     Ok(())
 }
 

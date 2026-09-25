@@ -11,7 +11,7 @@ use ts_rs::TS;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::facts;
-use crate::format::save::added::Table;
+use crate::entity::views::EntityKind;
 use crate::format::save::galaxy::starbases::fleet_owners;
 use crate::format::save::{entity_at, planet_statement, planet_statements};
 use crate::overlay::Anchor;
@@ -166,7 +166,7 @@ pub(super) fn deposit_kinds(doc: &Document) -> Result<HashMap<u32, String>, Proj
         };
         kinds.insert(id, kind.to_owned());
     }
-    for (id, anchor) in doc.added().entries(Table::Deposit) {
+    for (id, anchor) in doc.added().entries(EntityKind::Deposit) {
         let Some((node, bytes)) = current_entity(doc, keys::DEPOSIT, u64::from(id), anchor)? else {
             continue;
         };

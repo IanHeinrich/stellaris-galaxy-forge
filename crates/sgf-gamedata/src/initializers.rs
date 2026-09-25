@@ -362,14 +362,6 @@ impl Initializers {
         }
         found
     }
-
-    /// Every flag any initializer sets on its system.
-    pub fn declared_flags(&self) -> BTreeSet<String> {
-        self.by_name
-            .iter()
-            .flat_map(|i| i.flags.iter().cloned())
-            .collect()
-    }
 }
 
 fn countries(node: &Node, src: &[u8]) -> Vec<SpawnedCountry> {

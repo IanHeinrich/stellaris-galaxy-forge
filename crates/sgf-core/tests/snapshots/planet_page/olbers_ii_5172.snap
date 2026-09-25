@@ -2,21 +2,159 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-planet 5172 PLANET_NAME_FORMAT (PLANET_NAME_FORMAT)
-class pc_arctic size 18 orbit 85
-system 466 parent 5169 owner - controller - surveyed by 16777221 station - flags 0
-moon 5173 SUBPLANET_NAME_FORMAT pc_barren_cold size 8
-deposit 3397 d_active_volcano
-deposit 3398 d_frozen_gas_lake
-deposit 3399 d_lichen_fields
-deposit 3401 d_dangerous_wildlife_blocker
-deposit 3402 d_veiny_cliffs
-deposit 3403 d_massive_glacier hides d_crystalline_caverns
-deposit 3404 d_veiny_cliffs
-deposit 3405 d_veiny_cliffs
-deposit 3406 d_dust_caverns
-deposit 3407 d_frozen_gas_lake
-deposit 3408 d_fungal_caves
-deposit 3409 d_ore_rich_caverns
-planet modifier pm_abundant_geothermal_activity
-timed modifier abundant_geothermal_activity days -1
+{
+  "id": 5172,
+  "name": {
+    "key": "PLANET_NAME_FORMAT",
+    "literal": false,
+    "variables": [
+      {
+        "name": "PARENT",
+        "value": {
+          "key": "Olbers",
+          "literal": false,
+          "variables": []
+        }
+      },
+      {
+        "name": "NUMERAL",
+        "value": {
+          "key": "II",
+          "literal": true,
+          "variables": []
+        }
+      }
+    ]
+  },
+  "name_key": "PLANET_NAME_FORMAT",
+  "label": "PLANET_NAME_FORMAT",
+  "class": "pc_arctic",
+  "size": 18,
+  "orbit": 85.0,
+  "system": 466,
+  "parent": 5169,
+  "moons": [
+    {
+      "id": 5173,
+      "name": {
+        "key": "SUBPLANET_NAME_FORMAT",
+        "literal": false,
+        "variables": [
+          {
+            "name": "PARENT",
+            "value": {
+              "key": "PLANET_NAME_FORMAT",
+              "literal": false,
+              "variables": [
+                {
+                  "name": "PARENT",
+                  "value": {
+                    "key": "Olbers",
+                    "literal": false,
+                    "variables": []
+                  }
+                },
+                {
+                  "name": "NUMERAL",
+                  "value": {
+                    "key": "II",
+                    "literal": true,
+                    "variables": []
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "NUMERAL",
+            "value": {
+              "key": "a",
+              "literal": true,
+              "variables": []
+            }
+          }
+        ]
+      },
+      "name_key": "SUBPLANET_NAME_FORMAT",
+      "class": "pc_barren_cold",
+      "size": 8
+    }
+  ],
+  "deposits": [
+    {
+      "id": 3397,
+      "kind": "d_active_volcano",
+      "swap_type": null
+    },
+    {
+      "id": 3398,
+      "kind": "d_frozen_gas_lake",
+      "swap_type": null
+    },
+    {
+      "id": 3399,
+      "kind": "d_lichen_fields",
+      "swap_type": null
+    },
+    {
+      "id": 3401,
+      "kind": "d_dangerous_wildlife_blocker",
+      "swap_type": null
+    },
+    {
+      "id": 3402,
+      "kind": "d_veiny_cliffs",
+      "swap_type": null
+    },
+    {
+      "id": 3403,
+      "kind": "d_massive_glacier",
+      "swap_type": "d_crystalline_caverns"
+    },
+    {
+      "id": 3404,
+      "kind": "d_veiny_cliffs",
+      "swap_type": null
+    },
+    {
+      "id": 3405,
+      "kind": "d_veiny_cliffs",
+      "swap_type": null
+    },
+    {
+      "id": 3406,
+      "kind": "d_dust_caverns",
+      "swap_type": null
+    },
+    {
+      "id": 3407,
+      "kind": "d_frozen_gas_lake",
+      "swap_type": null
+    },
+    {
+      "id": 3408,
+      "kind": "d_fungal_caves",
+      "swap_type": null
+    },
+    {
+      "id": 3409,
+      "kind": "d_ore_rich_caverns",
+      "swap_type": null
+    }
+  ],
+  "planet_modifiers": [
+    "pm_abundant_geothermal_activity"
+  ],
+  "timed_modifiers": [
+    {
+      "modifier": "abundant_geothermal_activity",
+      "days": -1
+    }
+  ],
+  "surveyed_by": 16777221,
+  "station": null,
+  "owner": null,
+  "controller": null,
+  "colony": null,
+  "flags": 0
+}

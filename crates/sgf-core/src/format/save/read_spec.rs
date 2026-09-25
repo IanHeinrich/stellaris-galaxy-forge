@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use crate::document::Document;
 use crate::emit::coord;
 use crate::emit::system::{RING_FLAG, STAR_CARRIER_FLAGS};
-use crate::format::save::added::Table;
+use crate::entity::views::EntityKind;
 use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::systems::timed_modifiers;
 use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec, polar};
@@ -161,7 +161,7 @@ fn read_body(
 
 /// The `type` of a deposit an op added.
 fn deposit_kind(doc: &Document, id: u32) -> Option<String> {
-    let anchor = doc.added().get(Table::Deposit, id)?;
+    let anchor = doc.added().get(EntityKind::Deposit, id)?;
     let (node, src) = entity(doc, Subject::Record(anchor), anchor).ok()?;
     read::scalar(&node, keys::TYPE, src).map(str::to_owned)
 }

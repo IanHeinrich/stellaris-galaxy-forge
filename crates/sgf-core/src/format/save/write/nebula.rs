@@ -347,7 +347,7 @@ pub(crate) fn plan_set_name(
 
     edit.set_scalar(&[keys::NAME, keys::KEY], quoted(&set.to))?;
     match (literal, flag) {
-        (true, None) => edit.insert_lines(after_key, emit::literal_line(&indent)),
+        (true, None) => edit.insert(after_key, emit::literal_line(&indent)),
         (true, Some(_)) => edit.set_scalar(&[keys::NAME, keys::LITERAL], "yes")?,
         (false, Some(span)) => edit.remove_lines(span),
         (false, None) => {}
@@ -439,7 +439,7 @@ fn insert_member(edit: &mut Edit, id: u32) -> Result<(), OpError> {
     } else {
         edit.before_close(entity)
     };
-    edit.insert_lines(at, emit::member_line(&indent, id));
+    edit.insert(at, emit::member_line(&indent, id));
     Ok(())
 }
 

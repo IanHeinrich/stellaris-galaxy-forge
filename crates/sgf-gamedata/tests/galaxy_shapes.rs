@@ -6,17 +6,7 @@ use crate::common;
 use std::fs;
 
 use sgf_gamedata::views::GalaxyShapeView;
-use sgf_gamedata::{Diagnostic, GameData, LoadOptions};
-
-fn load(install: &std::path::Path) -> GameData {
-    let opts = LoadOptions {
-        install: Some(install.to_path_buf()),
-        user_dir: None,
-        language: "english".to_owned(),
-        mods: false,
-    };
-    sgf_gamedata::load(&opts, &mut |_| {}).expect("the throwaway install loads")
-}
+use sgf_gamedata::{Diagnostic, GameData};
 
 fn names(gd: &GameData) -> Vec<String> {
     gd.galaxy_shape_views()
@@ -42,7 +32,7 @@ fn shapes_are_listed_in_file_order_and_a_later_file_overrides_by_name() {
     let more = galaxy.join("zz_more.txt");
     fs::write(&more, "spoked = {\n}\nelliptical = {\n\tradius = 500\n}\n").unwrap();
 
-    let gd = load(install);
+    let gd = common::load_tree(install, None, false);
     assert_eq!(names(&gd), ["ring", "elliptical", "bar", "spoked"]);
     let views = gd.galaxy_shape_views();
     assert_eq!(
@@ -64,15 +54,15 @@ fn shapes_are_listed_in_file_order_and_a_later_file_overrides_by_name() {
     );
 
     fs::remove_dir_all(&galaxy).unwrap();
-    assert!(names(&load(install)).is_empty());
+    assert!(names(&common::load_tree(install, None, false)).is_empty());
 }
 
 #[test]
 fn the_real_install_lists_ten_vanilla_shapes() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let names = names(&gd);
+    let names = names(gd);
     assert_eq!(names.len(), 10, "{names:?}");
     assert_eq!(names.first().map(String::as_str), Some("elliptical"));
     assert!(names.iter().any(|name| name == "spoked"), "{names:?}");

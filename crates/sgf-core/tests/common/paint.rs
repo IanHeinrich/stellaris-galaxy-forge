@@ -144,3 +144,6 @@ pub fn assert_paint_export_holds_together(
     );
     typed
 }
+
+/// The flag a painted scenario sets on a fallen empire's preferred zone.
+pub const PREFERRED_FLAG: &str = " set_star_flag = painted_galaxy_fe_spawn_preferred";

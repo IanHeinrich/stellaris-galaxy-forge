@@ -59,11 +59,6 @@ pub fn role(initializer: &str) -> Option<MarauderRole> {
     }
 }
 
-/// The initializer that makes a system clan `clan`'s home.
-pub fn home_initializer(clan: u8) -> String {
-    format!("{MARAUDER_PREFIX}{clan}_{HOME}")
-}
-
 /// Clan → the systems carrying its home, ascending; a clan with none is absent.
 pub fn homes(galaxy: &Galaxy) -> BTreeMap<u8, Vec<u32>> {
     let mut homes: BTreeMap<u8, Vec<u32>> = BTreeMap::new();
@@ -76,12 +71,6 @@ pub fn homes(galaxy: &Galaxy) -> BTreeMap<u8, Vec<u32>> {
         ids.sort_unstable();
     }
     homes
-}
-
-/// The lowest clan with no home on the map, `None` once all three are placed.
-pub fn next_free_clan(galaxy: &Galaxy) -> Option<u8> {
-    let placed = homes(galaxy);
-    (1..=CLANS).find(|clan| !placed.contains_key(clan))
 }
 
 /// How many clans have at least one home on the map.
@@ -137,7 +126,6 @@ mod tests {
         ] {
             assert_eq!(role(other), None, "{other}");
         }
-        assert_eq!(home_initializer(2), "marauder_2_1");
-        assert_eq!(role(&home_initializer(3)), Some(MarauderRole::Home(3)));
+        assert_eq!(role("marauder_3_1"), Some(MarauderRole::Home(3)));
     }
 }

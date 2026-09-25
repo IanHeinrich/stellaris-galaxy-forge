@@ -6,7 +6,7 @@ use sgf_core::session::OpResult;
 
 use crate::common;
 use common::current;
-use common::diff::{report, round_trip, snapshot};
+use common::diff::{report, snapshot};
 use common::fixture::GRAMMAR;
 
 #[test]
@@ -197,35 +197,6 @@ fn a_nebula_edit_reports_every_system_whose_membership_changed() {
         Some(1),
         "the map is told which nebulae are left"
     );
-}
-
-#[test]
-fn the_nebula_ops_undo_and_redo_byte_for_byte() {
-    let ops = [
-        Op::MoveNebula {
-            index: 1,
-            x: -80.0,
-            y: 80.0,
-        },
-        Op::AddNebula {
-            x: 0.0,
-            y: -56.0,
-            radius: 20.0,
-            name: Some("Test Cloud".to_owned()),
-        },
-        Op::RemoveNebula { index: 1 },
-        Op::SetNebulaRadius {
-            index: 0,
-            radius: 30.0,
-        },
-        Op::SetNebulaName {
-            index: 0,
-            name: "Heart of the Galaxy".to_owned(),
-        },
-    ];
-    for op in ops {
-        round_trip(GRAMMAR.open(), op);
-    }
 }
 
 #[test]

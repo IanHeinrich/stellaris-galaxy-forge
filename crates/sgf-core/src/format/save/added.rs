@@ -18,47 +18,35 @@ use crate::scan::{self, Index};
 /// which the inspector does not address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Table {
-    System,
-    Planet,
-    Deposit,
+    Entity(EntityKind),
     AmbientObject,
 }
 
 impl Table {
     const ALL: [Self; 4] = [
-        Self::System,
-        Self::Planet,
-        Self::Deposit,
+        Self::Entity(EntityKind::System),
+        Self::Entity(EntityKind::Planet),
+        Self::Entity(EntityKind::Deposit),
         Self::AmbientObject,
     ];
 
-    const fn kind(self) -> Option<EntityKind> {
-        match self {
-            Self::System => Some(EntityKind::System),
-            Self::Planet => Some(EntityKind::Planet),
-            Self::Deposit => Some(EntityKind::Deposit),
-            Self::AmbientObject => None,
-        }
-    }
-
-    /// The table entities of `kind` are added to, if an op adds any.
-    pub fn of_kind(kind: EntityKind) -> Option<Self> {
-        Self::ALL
-            .into_iter()
-            .find(|table| table.kind() == Some(kind))
-    }
-
     /// The top-level section the table's entities stand in.
     fn section(self) -> &'static str {
-        match self.kind() {
-            Some(kind) => address(kind).section,
-            None => keys::AMBIENT_OBJECT,
+        match self {
+            Self::Entity(kind) => address(kind).section,
+            Self::AmbientObject => keys::AMBIENT_OBJECT,
         }
     }
 
     /// The table a top-level section holds, if it is one of these.
     fn of_section(key: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|table| table.section() == key)
+    }
+}
+
+impl From<EntityKind> for Table {
+    fn from(kind: EntityKind) -> Self {
+        Self::Entity(kind)
     }
 }
 
@@ -77,12 +65,13 @@ impl Added {
     }
 
     /// The slot standing for entity `id` of `table`, when an op wrote it.
-    pub fn get(&self, table: Table, id: u32) -> Option<Anchor> {
-        self.by_id.get(&(table, id)).copied()
+    pub fn get(&self, table: impl Into<Table>, id: u32) -> Option<Anchor> {
+        self.by_id.get(&(table.into(), id)).copied()
     }
 
     /// Every entity of `table` an op wrote, with its slot, in emission order.
-    pub fn entries(&self, table: Table) -> impl Iterator<Item = (u32, Anchor)> + '_ {
+    pub fn entries(&self, table: impl Into<Table>) -> impl Iterator<Item = (u32, Anchor)> + '_ {
+        let table = table.into();
         self.by_slot
             .iter()
             .filter(move |(_, (t, _))| *t == table)
@@ -104,7 +93,7 @@ impl Added {
                 continue;
             };
             // A system is only ever inserted: none is written over another's slot.
-            if table == Table::System && !slot.is_inserted() {
+            if table == Table::Entity(EntityKind::System) && !slot.is_inserted() {
                 continue;
             }
             let Ok(bytes) = overlay.current(slot, original) else {
