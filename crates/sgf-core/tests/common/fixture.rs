@@ -23,9 +23,9 @@ pub static GRAMMAR: Fixture = fixture!("scenario_grammar.txt");
 /// wormhole pairs and a header of counts.
 pub static PAINTED: Fixture = fixture!("paint_a_galaxy.txt");
 /// The sample save's whole galaxy, exported as a plain scenario.
-pub static EXPORTED: Fixture = fixture!("2206.11.16.scenario.txt");
+pub static EXPORTED: Fixture = fixture!("4.4-early.scenario.txt");
 /// The sample save's whole galaxy, exported under the Paint a Galaxy profile.
-pub static EXPORTED_PAINT: Fixture = fixture!("2206.11.16.paint.txt");
+pub static EXPORTED_PAINT: Fixture = fixture!("4.4-early.paint.txt");
 
 pub struct Fixture {
     pub path: &'static str,

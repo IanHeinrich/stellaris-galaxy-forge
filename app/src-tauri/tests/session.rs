@@ -282,7 +282,7 @@ fn scenario_documents_open_start_and_export() {
     let as_scenario: OpenResult =
         invoke(&w, "open_as_scenario", json!({ "path": SAMPLE })).expect("open as scenario");
     assert_eq!(as_scenario.kind, DocumentKind::Scenario);
-    assert_eq!(as_scenario.title, "2206.11.16");
+    assert_eq!(as_scenario.title, "4.4-early");
     assert!(as_scenario.path.is_none());
     assert_eq!(as_scenario.galaxy.systems.len(), 791);
     let coded = |code: IssueCode| as_scenario.issues.iter().filter(|i| i.code == code).count();
@@ -644,7 +644,7 @@ fn the_paint_a_galaxy_profile_is_an_optional_argument_of_the_scenario_commands()
     assert!(
         !text.contains(idiom)
             && text.starts_with(&format!(
-                "#\u{200B} created by Stellaris Galaxy Forge {} (converted from save 2206.11.16.sav)
+                "#\u{200B} created by Stellaris Galaxy Forge {} (converted from save 4.4-early.sav)
 ",
                 sgf_core::VERSION
             ))

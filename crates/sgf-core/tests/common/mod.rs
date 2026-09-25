@@ -22,11 +22,14 @@ use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode, validate};
 use sgf_core::views::DocumentKind;
 
-pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2206.11.16.sav");
+pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/4.4-early.sav");
 /// A Stellaris 4.5.0 save on its first day, whose player empire set independent map colours.
-pub const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
+pub const SAMPLE_4_5: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/4.5-day-one.sav"
+);
 /// A Stellaris 3.4.5 save, which writes each block's opening brace on its key's line.
-pub const SAMPLE_3_4: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2200.04.11.sav");
+pub const SAMPLE_3_4: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
 
 /// The centre of the first nebula (Phantom Streak Miasma), which lists 108 first.
 pub const NEBULA_0_CENTRE: (f64, f64) = (66.15, -136.85);

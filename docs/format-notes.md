@@ -522,7 +522,7 @@ Id-keyed tables cross-reference each other, often in both directions.
 ## 4.5 (Cygnus)
 
 These are the shape changes seen in the 4.5 sample save
-(`testdata/2201.03.25.sav`), besides the flag colours above. The core
+(`testdata/4.5-day-one.sav`), besides the flag colours above. The core
 reads none of them. The save loads, validates and round-trips
 byte-identically with no change to the reader.
 

@@ -13,8 +13,11 @@ use sgf_core::session::Session;
 use sgf_gamedata::install::discovery::find_install;
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 
-pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2206.11.16.sav");
-pub const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
+pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/4.4-early.sav");
+pub const SAMPLE_4_5: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/4.5-day-one.sav"
+);
 
 static SAMPLE_DOCUMENT: LazyLock<Document> =
     LazyLock::new(|| Document::load(SAMPLE).expect("load the 4.4 sample"));

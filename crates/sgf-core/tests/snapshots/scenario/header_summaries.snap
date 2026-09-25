@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-2206.11.16: ScenarioSummary {
+4.4-early: ScenarioSummary {
     priority: Some(
         5,
     ),

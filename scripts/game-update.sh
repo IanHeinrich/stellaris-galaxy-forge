@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-readonly DEFAULT_AGAINST="testdata/2201.03.25.sav"
+readonly DEFAULT_AGAINST="testdata/4.5-day-one.sav"
 
 usage() {
 	cat >&2 <<'USAGE'

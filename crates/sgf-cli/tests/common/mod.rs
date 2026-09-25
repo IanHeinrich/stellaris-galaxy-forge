@@ -4,11 +4,14 @@
 use std::path::Path;
 use std::process::{Command, Output};
 
-pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2206.11.16.sav");
-pub const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
+pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/4.4-early.sav");
+pub const SAMPLE_4_5: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../testdata/4.5-day-one.sav"
+);
 pub const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/2206.11.16.scenario.txt"
+    "/../../testdata/4.4-early.scenario.txt"
 );
 /// The system the in-game spike added to the 4.5 sample, as an `add-system` spec.
 pub const MURA: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/mura.json");

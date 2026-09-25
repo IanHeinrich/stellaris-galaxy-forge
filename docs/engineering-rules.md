@@ -66,9 +66,9 @@ because the file dialog already asked about overwriting it.
   `crates/sgf-core/tests/constants.rs`. Generated: regenerate with
   `cargo test --workspace` (`sgf-core`, `sgf-gamedata` and `sgf-app`, via
   its `views.rs`, all export types); never hand-edit.
-- `testdata/`: save corpus via git-lfs (`2206.11.16.sav`, Stellaris
-  4.4, early game; `2201.03.25.sav`, Stellaris 4.5.0, day one, the
-  player empire has Independent Map Color on; `2200.04.11.sav`,
+- `testdata/`: save corpus via git-lfs (`4.4-early.sav`, Stellaris
+  4.4, early game; `4.5-day-one.sav`, Stellaris 4.5.0, day one, the
+  player empire has Independent Map Color on; `3.4.sav`,
   Stellaris 3.4.5, for lane edits on the brace shape 3.4 to 3.9
   write). Personal saves are never
   committed without asking; larger local saves are found via
@@ -76,7 +76,7 @@ because the file dialog already asked about overwriting it.
   raise as many findings as one file can, so every kind the Issues tab
   shows has a real example behind it; `crates/sgf-core/tests/issues.rs`
   asserts what each of them raises and how the two were made.
-  `2206.11.16.scenario.txt` and `2206.11.16.paint.txt` are the 4.4
+  `4.4-early.scenario.txt` and `4.4-early.paint.txt` are the 4.4
   save's galaxy exported as a plain scenario and for Paint a Galaxy.
   `paint_a_galaxy.txt` is a scenario as the Paint a Galaxy mod writes
   one, and `scenario_grammar.txt` holds every statement shape the
@@ -95,7 +95,7 @@ because the file dialog already asked about overwriting it.
 ## Commands
 
 - `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` · `cargo fmt --all`
-- `cargo run -p sgf-cli -- inspect testdata/2206.11.16.sav`
+- `cargo run -p sgf-cli -- inspect testdata/4.4-early.sav`
 - `sgf shape <save>` prints every key path of a save with its count, and
   `sgf shape <save> --diff <other>` the paths the two do not share;
   `--section a,b` keeps either to those sections.

@@ -133,11 +133,11 @@ fn the_paint_a_galaxy_export_of_the_sample_matches_its_fixture_and_the_saves_set
     );
     assert!(
         text.starts_with(&format!(
-            "#\u{200B} created by Stellaris Galaxy Forge {VERSION} (converted from save 2206.11.16.sav)
+            "#\u{200B} created by Stellaris Galaxy Forge {VERSION} (converted from save 4.4-early.sav)
 # Systems: 765 · Empire seats: 17 · Nebulae: 9
 # Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.
 static_galaxy_scenario = {{
-	name = \"2206.11.16\"
+	name = \"4.4-early\"
 	priority = 10
 	supports_shape = elliptical
 "
