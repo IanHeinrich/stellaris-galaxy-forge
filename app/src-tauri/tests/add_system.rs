@@ -4,6 +4,7 @@ use serde_json::json;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::views::{EditResult, ErrorKind, GalaxyView, OpenResult, SystemDetail};
+use sgf_gamedata::summary::AddSystemPicks;
 
 /// The Stellaris 4.5 sample, whose galaxy was set up at 2x resource abundance.
 const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
@@ -360,7 +361,15 @@ fn a_scenario_takes_no_rolled_system() {
         json!({ "system": 0, "seed": 1, "starClass": null }),
     )
     .expect_err("a scenario is refused");
-    for refused in [added, rolled] {
+    let special = invoke::<EditResult>(
+        &w,
+        "add_special_system",
+        json!({ "seed": 1, "x": 0.0, "y": 0.0, "layout": "trappist_initializer" }),
+    )
+    .expect_err("a scenario is refused");
+    let picks = invoke::<AddSystemPicks>(&w, "get_add_system_picks", json!({}))
+        .expect_err("a scenario has no picks");
+    for refused in [added, rolled, special, picks] {
         assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
         assert!(
             refused.message.contains("only a save"),
@@ -408,4 +417,143 @@ fn added_systems_roll_deposits_at_the_saves_abundance() {
         .map(|d| d.count)
         .sum();
     assert!(deposits > 0, "the rolled bodies carry deposits at 2x");
+}
+
+/// The picks the menu offers for the open save.
+fn picks(w: &tauri::WebviewWindow<tauri::test::MockRuntime>) -> AddSystemPicks {
+    invoke(w, "get_add_system_picks", json!({})).expect("the menu's picks")
+}
+
+fn history_step(w: &tauri::WebviewWindow<tauri::test::MockRuntime>, command: &str) -> EditResult {
+    invoke::<Option<EditResult>>(w, command, json!({}))
+        .expect(command)
+        .expect("a step")
+}
+
+#[test]
+fn a_capped_special_layout_the_galaxy_has_is_placed_rolled_again_and_undone() {
+    if !have_install() {
+        return;
+    }
+    let w = webview();
+    let opened: OpenResult = invoke(&w, "open_save", json!({ "path": SAMPLE_45 })).expect("open");
+    invoke::<serde_json::Value>(&w, "load_game_data", json!({ "mods": false })).expect("load");
+
+    let before = picks(&w);
+    assert!(!before.star_classes.is_empty());
+    assert!(before.random.planets.max > 0, "{:?}", before.random);
+    let keys: Vec<&str> = before
+        .special
+        .iter()
+        .map(|p| p.layout.key.as_str())
+        .collect();
+    assert!(
+        !keys.contains(&"special_init_09"),
+        "the generic pulsar is the Pulsar star pick's: {keys:?}"
+    );
+    let layout = "wenkwort_initializer";
+    let wenkwort = before
+        .special
+        .iter()
+        .find(|p| p.layout.key == layout)
+        .expect("Wenkwort is offered");
+    assert!(wenkwort.layout.capped);
+    assert!(
+        !wenkwort.layout.unique,
+        "a fixed name, but no unique_system flag"
+    );
+    let zevox = before
+        .special
+        .iter()
+        .find(|p| p.layout.key == "unique_system_initializer_03")
+        .expect("Zevox is offered");
+    assert!(zevox.layout.unique);
+    assert_eq!(wenkwort.layout.in_galaxy, 1, "the sample galaxy has one");
+    assert_eq!(wenkwort.summary.in_galaxy, Some(1));
+    let original = opened
+        .galaxy
+        .systems
+        .iter()
+        .find(|s| s.initializer == layout)
+        .expect("the galaxy's own Wenkwort");
+
+    let (x, y) = free_spot(&opened.galaxy, 12.0);
+    let placed: EditResult = invoke(
+        &w,
+        "add_special_system",
+        json!({ "seed": 5, "x": x, "y": y, "layout": layout }),
+    )
+    .expect("placed though the galaxy has one");
+    let system = added(&placed).clone();
+    assert_eq!(system.initializer, layout);
+    assert_eq!(
+        system.flags,
+        ["wenkwort_system", "natural_spectacle_system"],
+        "the layout's star flags"
+    );
+    assert_ne!(
+        system.name.key, original.name.key,
+        "the fixed name is taken, so the pool names it"
+    );
+    assert_eq!(placed.history.undo.len(), 1, "one step");
+    let counted = picks(&w);
+    let again = counted.special.iter().find(|p| p.layout.key == layout);
+    assert_eq!(again.map(|p| p.layout.in_galaxy), Some(2));
+
+    let rolled: EditResult = invoke(
+        &w,
+        "reroll_system",
+        json!({ "system": system.id, "seed": 6, "starClass": system.star_class, "keepSpecial": true }),
+    )
+    .expect("roll it again");
+    let rolled_node = added(&rolled);
+    assert_eq!(rolled_node.id, system.id);
+    assert_eq!(rolled_node.initializer, layout, "the same layout");
+    assert_eq!(rolled_node.name, system.name, "the name stays");
+
+    let changed: EditResult = invoke(
+        &w,
+        "reroll_system",
+        json!({ "system": system.id, "seed": 7, "starClass": "sc_g", "keepSpecial": false }),
+    )
+    .expect("change the star");
+    let changed_node = added(&changed);
+    assert_eq!(changed_node.star_class, "sc_g");
+    assert_ne!(
+        changed_node.initializer, layout,
+        "a new star rolls a regular system"
+    );
+    assert_eq!(changed_node.name, system.name);
+    assert_eq!(changed.history.undo.len(), 3);
+
+    let undone = history_step(&w, "undo");
+    let back = undone.delta.systems.iter().find(|s| s.id == system.id);
+    assert_eq!(back.map(|s| s.initializer.as_str()), Some(layout));
+    history_step(&w, "undo");
+    let gone = history_step(&w, "undo");
+    assert_eq!(gone.delta.removed, [system.id], "the add is undone");
+    let redone = history_step(&w, "redo");
+    assert_eq!(added(&redone).initializer, layout, "and redone");
+
+    let (x, y) = free_spot_beside(&opened.galaxy, 12.0, &[(x, y)]);
+    let unique: EditResult = invoke(
+        &w,
+        "add_special_system",
+        json!({ "seed": 8, "x": x, "y": y, "layout": "unique_system_initializer_03" }),
+    )
+    .expect("place Zevox");
+    assert_eq!(
+        added_with(&unique, "unique_system_initializer_03").flags,
+        ["unique_system"],
+        "the flag the game's timeline reads"
+    );
+}
+
+fn added_with<'r>(result: &'r EditResult, initializer: &str) -> &'r SystemNode {
+    result
+        .delta
+        .systems
+        .iter()
+        .find(|s| s.added && s.initializer == initializer)
+        .expect("the delta carries the added system")
 }

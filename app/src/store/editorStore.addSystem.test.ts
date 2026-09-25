@@ -32,11 +32,16 @@ import {
   saveMeta,
   systemDetails,
 } from "./fixture";
+import { useGeneratorStore } from "./generatorStore";
 import { useWatchlistStore } from "./watchlistStore";
+import type { AddSystemPicks } from "../generated/AddSystemPicks";
+import type { PickSummary } from "../generated/PickSummary";
 
 const addRandomSystem = vi.mocked(ipc.addRandomSystem);
+const addSpecialSystem = vi.mocked(ipc.addSpecialSystem);
 const rerollSystem = vi.mocked(ipc.rerollSystem);
 const removeAddedSystems = vi.mocked(ipc.removeAddedSystems);
+const getAddSystemPicks = vi.mocked(ipc.getAddSystemPicks);
 
 function added(id: number, x: number, y: number, extra: Partial<SystemNode> = {}): SystemNode {
   return node(id, `NAME_Added_${id}`, x, y, "sc_g", [], { added: true, ...extra });
@@ -102,6 +107,109 @@ describe("adding a system to a save", () => {
     expect(await editor().addRandomSystemAt(3, 0)).toBe(false);
     expect(addRandomSystem).not.toHaveBeenCalled();
     expect(sessionError()).toMatch(/^Too close to .+: 3 away, the game needs 10$/);
+  });
+});
+
+describe("placing a special layout", () => {
+  const trappist = (extra: Partial<SystemNode> = {}) =>
+    added(6, -50, -20, { initializer: "trappist_initializer", star_class: "sc_m", ...extra });
+
+  it("adds it at the point in one edit, selects it, and undo and redo take it away and back", async () => {
+    const system = trappist();
+    addSpecialSystem.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
+    mocked.getSystem.mockResolvedValue({ system, neighbours: [], nebula: null });
+
+    expect(await editor().addSpecialSystemAt(-50, -20, "trappist_initializer")).toBe(true);
+
+    const [seed, x, y, layout] = addSpecialSystem.mock.calls[0];
+    expect(Number.isSafeInteger(seed)).toBe(true);
+    expect([x, y, layout]).toEqual([-50, -20, "trappist_initializer"]);
+    expect(editor().selection).toEqual([6]);
+    expect(editor().inspected?.system.id).toBe(6);
+    expect(addRandomSystem).not.toHaveBeenCalled();
+
+    mocked.undo.mockResolvedValueOnce(editResult({ delta: { systems: [], removed: [6] } }));
+    await editor().undo();
+    expect(editor().selection).toEqual([]);
+
+    mocked.redo.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
+    await editor().redo();
+    await vi.waitFor(() => expect(editor().selection).toEqual([6]));
+  });
+
+  it("rolls the same layout again, and a new class rolls a regular system", async () => {
+    useGalaxyStore.getState().applyDelta({ systems: [trappist()] });
+    rerollSystem.mockResolvedValue(editResult());
+
+    expect(await editor().rerollSystem(6)).toBe(true);
+    expect(await editor().rerollSystem(6, "sc_g")).toBe(true);
+
+    expect(rerollSystem.mock.calls.map(([id, , star, keep]) => [id, star, keep])).toEqual([
+      [6, "sc_m", true],
+      [6, "sc_g", false],
+    ]);
+  });
+
+  it("reports a refused spot without asking the core", async () => {
+    expect(await editor().addSpecialSystemAt(3, 0, "trappist_initializer")).toBe(false);
+    expect(addSpecialSystem).not.toHaveBeenCalled();
+    expect(sessionError()).toMatch(/^Too close to .+/);
+  });
+});
+
+describe("the Add system menu's picks", () => {
+  const summary = (planets: number): PickSummary => ({
+    star_classes: [],
+    star_description: null,
+    planets: { min: planets, max: planets },
+    max_moons: 0,
+    moons: "never",
+    belts: { min: 0, max: 0 },
+    belt_kinds: [],
+    asteroids: { min: 0, max: 0 },
+    named_bodies: [],
+    notable_classes: [],
+    modifiers: [],
+    rings: "never",
+    dlc: null,
+    max_instances: null,
+    in_galaxy: null,
+  });
+  const picks = (planets: number): AddSystemPicks => ({
+    random: summary(planets),
+    star_classes: [],
+    special: [],
+  });
+
+  it("are read again each time, keeping the last ones until the next land, and drop a late answer", async () => {
+    let answerSecond!: (value: AddSystemPicks) => void;
+    getAddSystemPicks
+      .mockResolvedValueOnce(picks(1))
+      .mockReturnValueOnce(new Promise<AddSystemPicks>((r) => (answerSecond = r)))
+      .mockResolvedValueOnce(picks(3));
+    const generator = () => useGeneratorStore.getState();
+
+    generator().refreshPicks();
+    await vi.waitFor(() => expect(generator().picks?.random.planets.max).toBe(1));
+    generator().refreshPicks();
+    await Promise.resolve();
+    expect(generator().picks?.random.planets.max).toBe(1);
+    generator().refreshPicks();
+    await vi.waitFor(() => expect(generator().picks?.random.planets.max).toBe(3));
+    answerSecond(picks(2));
+    await Promise.resolve();
+
+    expect(generator().picks?.random.planets.max).toBe(3);
+  });
+
+  it("are forgotten when the document closes", async () => {
+    getAddSystemPicks.mockResolvedValueOnce(picks(1));
+    useGeneratorStore.getState().refreshPicks();
+    await vi.waitFor(() => expect(useGeneratorStore.getState().picks).not.toBeNull());
+
+    await useFileSessionStore.getState().close();
+
+    expect(useGeneratorStore.getState().picks).toBeNull();
   });
 });
 

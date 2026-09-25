@@ -164,6 +164,66 @@
   white-space: nowrap;
 }
 
+.pick-item,
+.pick-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pick-group-heading {
+  padding: 4px 6px 2px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.pick-group-heading.separated {
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+}
+
+.context-menu button.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pick-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.pick-dlc {
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.pick-lock {
+  color: var(--fg-muted);
+}
+
+/* The map tooltip's look, at a fixed width so it measures the same wherever it lands. */
+.map-tooltip.pick-card {
+  position: fixed;
+  z-index: 4;
+  width: 260px;
+  white-space: normal;
+}
+
+.pick-card .map-tooltip-value {
+  text-align: left;
+}
+
+.pick-card-note {
+  margin-top: 5px;
+}
+
 .update-dialog {
   width: min(520px, 100%);
   max-height: min(70vh, 640px);

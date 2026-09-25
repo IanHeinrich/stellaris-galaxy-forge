@@ -96,6 +96,20 @@ it. Right-click empty space for "New nebula here". The new nebula
 arrives with a name from the game's own list, and you can rename it on
 its page.
 
+### Add a system
+
+Right-click empty space and pick "Add system here", then Random or a
+star class. Its last entry, Special, lists the game's special systems in
+two groups: the unique systems, such as Zevox, and the other special
+systems, such as Trappist. Hover any entry to see its star, planets,
+belts and notable bodies. A warning mark means the galaxy already has
+that system and the game places only one, though you can still add
+another. A lock means the save doesn't have the DLC the system belongs
+to, so its events won't run. The game's scripted extras for special
+systems, such as anomalies and background clouds, aren't added. Reroll
+on the new system's page builds the same special system again. Picking a
+star class there rolls a regular system around that star.
+
 ### Stars and empires
 
 - Each star in a system's planet list has an "Edit" mark. Its page sets

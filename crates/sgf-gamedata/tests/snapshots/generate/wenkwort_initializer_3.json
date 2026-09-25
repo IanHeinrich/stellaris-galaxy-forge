@@ -135,5 +135,9 @@
       "inner_radius": 135.0
     }
   ],
+  "flags": [
+    "wenkwort_system",
+    "natural_spectacle_system"
+  ],
   "lanes": []
 }

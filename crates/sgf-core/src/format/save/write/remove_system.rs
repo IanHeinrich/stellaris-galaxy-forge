@@ -612,6 +612,7 @@ pub(crate) fn spec_of(s: &Session, id: u32, lanes: Vec<u32>) -> Result<SystemSpe
         star,
         planets,
         belts: belts(&s.doc, id)?,
+        flags: system.flags.clone(),
         lanes,
     })
 }

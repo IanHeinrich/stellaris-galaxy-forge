@@ -8,12 +8,13 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::body_effects;
-use crate::generate::GenerateError;
+use crate::generate::{GenerateError, star_classes};
 use crate::initializers::{InitPlanet, Initializer};
 use crate::install::script::Range;
 use crate::layouts::{
-    DlcNeed, RANDOM, RANDOM_COLONIZABLE, RANDOM_NON_COLONIZABLE, SaveFacts, generic, layout_stars,
-    notable, plain_initializers, readable, required_dlc, special_initializers, star_body,
+    DlcNeed, RANDOM, RANDOM_COLONIZABLE, RANDOM_NON_COLONIZABLE, SaveFacts, SpecialLayout, generic,
+    layout_stars, notable, plain_initializers, readable, required_dlc, special_initializers,
+    special_layouts, star_body,
 };
 
 /// The smallest and largest number a pick can give.
@@ -83,6 +84,59 @@ pub struct PickSummary {
     pub in_galaxy: Option<u32>,
 }
 
+/// A star-class entry of the Add system menu, named as the game names the class.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StarPick {
+    pub key: String,
+    pub name: String,
+    pub summary: PickSummary,
+}
+
+/// An entry of the Special menu with its card.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SpecialPick {
+    pub layout: SpecialLayout,
+    pub summary: PickSummary,
+}
+
+/// Everything the Add system menu offers for a save, each with its card: Random, a star
+/// class in the order [`star_classes`] gives them, and the Special menu's layouts by label.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct AddSystemPicks {
+    pub random: PickSummary,
+    pub star_classes: Vec<StarPick>,
+    pub special: Vec<SpecialPick>,
+}
+
+/// The Add system menu's picks for `session`'s save.
+pub fn add_system_picks(gd: &GameData, session: &Session) -> AddSystemPicks {
+    let save = SaveFacts::read(session);
+    let star_classes = star_classes(gd)
+        .into_iter()
+        .filter_map(|key| {
+            let summary = star_pick_summary(gd, &key, session).ok()?;
+            let name = gd.loc.get(&key).unwrap_or_else(|| key.clone());
+            Some(StarPick { key, name, summary })
+        })
+        .collect();
+    let special = special_layouts(gd, session)
+        .into_iter()
+        .filter_map(|layout| {
+            let init = gd.initializers.get(&layout.key)?;
+            let summary = special_summary(gd, init, &save);
+            Some(SpecialPick { layout, summary })
+        })
+        .collect();
+    AddSystemPicks {
+        random: random_summary(gd, session),
+        star_classes,
+        special,
+    }
+}
+
 /// The card for the Special entry `key`.
 pub fn layout_summary(
     gd: &GameData,
@@ -93,15 +147,18 @@ pub fn layout_summary(
         .into_iter()
         .find(|init| init.name == key)
         .ok_or_else(|| GenerateError::UnknownLayout(key.to_owned()))?;
-    let save = SaveFacts::read(session);
+    Ok(special_summary(gd, init, &SaveFacts::read(session)))
+}
+
+fn special_summary(gd: &GameData, init: &Initializer, save: &SaveFacts) -> PickSummary {
     let mut summary = merge(gd, &[init]);
     summary.dlc = required_dlc(gd, init).map(|name| DlcNeed {
         met: save.dlcs.contains(&name),
         name,
     });
     summary.max_instances = init.max_instances;
-    summary.in_galaxy = Some(save.in_galaxy(key));
-    Ok(summary)
+    summary.in_galaxy = Some(save.in_galaxy(&init.name));
+    summary
 }
 
 /// The card for a star-class pick: the layouts [`crate::generate::generate`] draws for

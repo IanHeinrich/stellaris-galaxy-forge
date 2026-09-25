@@ -14,12 +14,16 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::body_effects::{self, Check};
+use crate::generate;
 use crate::initializers::{InitAsteroidBelt, InitPlanet, Initializer, expand};
 use crate::install::script::Range;
 use crate::registries::star_classes::StarClass;
 
 /// The `usage` of the initializers a galaxy fills its ordinary systems with.
 pub const USAGE: &str = "misc_system_init";
+/// The star flag of the game's unique systems, which its timeline reads when an empire
+/// takes control of one.
+pub const UNIQUE_SYSTEM: &str = "unique_system";
 /// The body written as `class = star`, which takes the star class's own planet class.
 pub(crate) const STAR: &str = "star";
 /// A body whose class the engine draws.
@@ -413,14 +417,18 @@ fn drawable(gd: &GameData, class: &str) -> bool {
 }
 
 /// One entry of the Special menu.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct SpecialLayout {
     /// The initializer's key, which the added system records.
     pub key: String,
-    /// The localised fixed system name, else the localised star class with the notable
-    /// bodies, modifiers and belts: `Black Hole, Broken World`. Labels that would repeat
-    /// take their belts, and then the key made readable: `Star Lifting System`.
+    /// The localised fixed system name, else the notable bodies, modifiers and belts:
+    /// `Arboreal World`. A layout with none of them, and labels that would repeat once they
+    /// take their belts, have the key made readable: `Star Lifting System`.
     pub label: String,
+    /// Its `flags` set [`UNIQUE_SYSTEM`]: one of the game's unique systems, which the menu
+    /// lists apart from its other special systems.
+    pub unique: bool,
     /// It has `max_instances`, which an add counts in `system_initializer_counter`.
     pub capped: bool,
     /// How many systems of the save record it as their `initializer`.
@@ -438,10 +446,23 @@ pub struct DlcNeed {
     pub met: bool,
 }
 
+/// The special layouts the Special menu offers: all but those a star-class pick of
+/// [`crate::generate::generate`] already draws, in the install's key order.
+pub fn menu_initializers(gd: &GameData) -> Vec<&Initializer> {
+    let drawn: HashSet<&str> = generate::star_pick_layouts(gd)
+        .into_iter()
+        .map(|init| init.name.as_str())
+        .collect();
+    special_initializers(gd)
+        .into_iter()
+        .filter(|init| !drawn.contains(init.name.as_str()))
+        .collect()
+}
+
 /// The Special menu's entries for `session`'s save, by label.
 pub fn special_layouts(gd: &GameData, session: &Session) -> Vec<SpecialLayout> {
     let save = SaveFacts::read(session);
-    let layouts = special_initializers(gd);
+    let layouts = menu_initializers(gd);
     let labels = labels(gd, &layouts);
     let mut entries: Vec<SpecialLayout> = layouts
         .into_iter()
@@ -449,6 +470,7 @@ pub fn special_layouts(gd: &GameData, session: &Session) -> Vec<SpecialLayout> {
         .map(|(init, label)| SpecialLayout {
             key: init.name.clone(),
             label,
+            unique: init.flags.iter().any(|flag| flag == UNIQUE_SYSTEM),
             capped: init.max_instances.is_some(),
             in_galaxy: save.in_galaxy(&init.name),
             dlc: required_dlc(gd, init).map(|name| DlcNeed {
@@ -461,8 +483,9 @@ pub fn special_layouts(gd: &GameData, session: &Session) -> Vec<SpecialLayout> {
     entries
 }
 
-/// What a label is built from: the fixed name or the star and notable bodies, and the
-/// belts that tell it from another.
+/// What a label is built from: the fixed name, or the notable bodies and modifiers, and the
+/// belts that tell it from another. A phenomenon's card shows its star, so its label
+/// leaves the star out.
 struct LabelParts {
     main: Vec<String>,
     belts: Vec<String>,
@@ -535,13 +558,6 @@ fn label_parts(gd: &GameData, init: &Initializer) -> LabelParts {
             main.push(part);
         }
     };
-    if let Some(star) = init
-        .class
-        .as_deref()
-        .filter(|c| gd.star_classes.get(c).is_some())
-    {
-        push(loc(star));
-    }
     for body in expand(&init.planets)
         .skip_while(|b| !star_body(gd, &b.block.class))
         .skip(1)

@@ -194,6 +194,12 @@ Top-level counters: `last_created_species_ref`, `last_created_country`,
   star the layout writes as a class (`class = pc_m_star`, not `class =
   star`) is named with the system's name key itself, not
   `STAR_NAME_1_OF_1`.
+- A layout's `flags = { unique_system }` become the system's `flags={
+  unique_system=62808000 }`, just before `initializer=`, one `name=value`
+  per line. The value is the date the flag was set, in hours: every flag
+  set at generation carries the save's `game_started`, so the editor
+  dates an added system's flags with it. The game reads `unique_system`
+  for its "Unique System" timeline entry when an empire takes the system.
 - A body's `binary_flags` sits after `name`. Its bits are 1 for a name
   the layout fixed, 2 for an `entity_name`, 4 for surveyed, 8 for
   `prevent_anomaly`, 256 for a ring and 512 for a moon. 64 is set beside

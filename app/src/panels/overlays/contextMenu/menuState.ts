@@ -1,12 +1,17 @@
+import { createContext } from "react";
 import type { SystemNode } from "../../../generated/SystemNode";
 import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { linkChange, type LinkChange } from "../../../lib/feLinks";
+import type { Side } from "../../../lib/menuAim";
 import { useSystemNames } from "../../../store/browserRows";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 
 export const NO_SYSTEMS: number[] = [];
+
+/** The side the menu around an entry opened on, which its own submenu and cards keep to. */
+export const MenuSide = createContext<Side>("right");
 
 export function useCanCreate(): boolean {
   const capabilities = useFileSessionStore((s) => s.capabilities);

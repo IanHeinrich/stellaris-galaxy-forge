@@ -153,8 +153,14 @@ export interface EditorState {
    */
   addRandomSystemAt(x: number, y: number, starClass?: string | null): Promise<boolean>;
   /**
+   * Builds a system of the special layout `layout` at a world point of the open save in one edit,
+   * and selects it, as `addRandomSystemAt` does.
+   */
+  addSpecialSystemAt(x: number, y: number, layout: string): Promise<boolean>;
+  /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
-   * null, and the class it has when the edit runs when left out. The id is followed through the
+   * null. Left out, a system of a Special menu layout is built from that layout again, and any
+   * other is rolled around the class it has when the edit runs. The id is followed through the
    * edits queued before it.
    */
   rerollSystem(id: number, starClass?: string | null): Promise<boolean>;
