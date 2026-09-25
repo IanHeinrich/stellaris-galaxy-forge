@@ -447,7 +447,7 @@ fn set_modifiers(edit: &mut Edit, cloaking: bool, turbulent: bool) -> Result<(),
                     ),
                     None => edit.before_close(entity),
                 };
-                edit.insert_lines(at, text(&indent));
+                edit.insert(at, text(&indent));
                 Ok(())
             }
         };
@@ -468,7 +468,7 @@ fn set_modifiers(edit: &mut Edit, cloaking: bool, turbulent: bool) -> Result<(),
             CLOAKING => edit.line_start(first),
             _ => at_close,
         };
-        edit.insert_lines(at, timed_modifier_item(&indent, modifier));
+        edit.insert(at, timed_modifier_item(&indent, modifier));
     }
     Ok(())
 }
@@ -529,7 +529,7 @@ fn relist(edit: &mut Edit, drop: Option<u32>, add: Option<(u32, bool)>) -> Resul
             let block = ambient_list(&indent, &ids);
             match list {
                 Some(list) => edit.replace_statement(list.span(), &inline(&indent, &block)),
-                None => edit.insert_lines(at, block),
+                None => edit.insert(at, block),
             }
         }
     }

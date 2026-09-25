@@ -1,5 +1,6 @@
 ---
-source: crates/sgf-core/tests/search.rs
-expression: "report(&s.search(\"earth\", 5, &no_loc))"
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 212
+expression: value
 ---
-Planet #3 Earth · class=pc_continental → #217 at (397.39, -180.25)
+{"kind":"planet","id":3,"name":{"key":"NAME_Earth","literal":false,"variables":[]},"name_key":"NAME_Earth","system_id":217,"owner":null,"country_type":null,"system_count":null,"planet_class":"pc_continental","position":[397.39,-180.25],"matched_on":null}

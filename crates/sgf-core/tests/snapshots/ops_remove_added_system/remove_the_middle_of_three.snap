@@ -1,9 +1,10 @@
 ---
 source: crates/sgf-core/tests/common/mod.rs
-assertion_line: 105
+assertion_line: 212
 expression: value
 ---
 Removed Tau Ceti (#602) and 3 lanes; renumbered 603 to 602
+inverse: AddSaveSystem { spec: SystemSpec { name: "Tau_Ceti", x: -270.0, y: -130.0, star_class: "sc_k", initializer: "basic_init_01", capped: false, star_named_by_class: false, star: BodySpec { class: "pc_k_star", size: 20, orbit: 0.0, angle: 0.0, entity: 0, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false, star: true }, planets: [BodySpec { class: "pc_barren", size: 10, orbit: 60.0, angle: 45.0, entity: 1, deposits: ["d_minerals_3"], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false, star: false }], belts: [], flags: [], lanes: [601, 420, 602] } }
 renumbered: [(602, None), (603, Some(602))]
 --- before
 +++ after

@@ -5,11 +5,8 @@
 use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::fs;
 use std::sync::Arc;
 
-use sgf_core::archive;
-use sgf_core::document::Document;
 use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec, free_star_names};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
@@ -20,7 +17,6 @@ use sgf_gamedata::install::script::Range;
 use sgf_gamedata::layouts::{SaveFacts, plain_initializers, special_initializers};
 use sgf_gamedata::naming::{pick_system_name, pick_unused};
 
-use common::SAMPLE_4_5;
 /// Free ground beside the player's home system 169, where the spike's system stood.
 const SPOT: (f64, f64) = (-292.23404, -137.62265);
 const SEEDS: u64 = 1000;
@@ -84,25 +80,7 @@ const FILES: [(&str, &str); 8] = [
 ];
 
 fn hand_written() -> (tempfile::TempDir, GameData) {
-    install_of(&FILES)
-}
-
-fn install_of(files: &[(&str, &str)]) -> (tempfile::TempDir, GameData) {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let install = dir.path().join("install");
-    for &(rel, text) in files {
-        let file = install.join(rel);
-        fs::create_dir_all(file.parent().unwrap()).unwrap();
-        fs::write(file, text).unwrap();
-    }
-    let opts = sgf_gamedata::LoadOptions {
-        install: Some(install),
-        user_dir: Some(dir.path().join("user")),
-        language: "english".to_owned(),
-        mods: false,
-    };
-    let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("the hand-written install loads");
-    (dir, gd)
+    common::hand_written(&FILES)
 }
 
 #[test]
@@ -637,14 +615,12 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
 
 /// The 4.5 sample with its pool of unused star names holding `pool` instead.
 fn with_star_pool(pool: &str) -> Session {
-    let raw = archive::read_sav(SAMPLE_4_5).expect("read the 4.5 sample");
-    let mut text = String::from_utf8(raw.gamestate).expect("utf-8");
-    let head = "\tstar_names=\n\t{\n";
-    let start = text.find(head).expect("the pool") + head.len();
-    let end = start + text[start..].find("\t}\n").expect("its end");
-    text.replace_range(start..end, pool);
-    let doc = Document::from_bytes(text.into_bytes(), raw.meta).expect("index the gamestate");
-    Session::from_document(None, doc).expect("project the gamestate")
+    common::open_4_5_edited(|text| {
+        let head = "\tstar_names=\n\t{\n";
+        let start = text.find(head).expect("the pool") + head.len();
+        let end = start + text[start..].find("\t}\n").expect("its end");
+        text.replace_range(start..end, pool);
+    })
 }
 
 fn star_pool(bytes: &[u8]) -> String {
@@ -761,7 +737,7 @@ fn with_effects() -> (tempfile::TempDir, GameData) {
         .chain(&EFFECTS)
         .copied()
         .collect();
-    install_of(&files)
+    common::hand_written(&files)
 }
 
 /// Each body's deposits, the star first, then every planet followed by its moons.
@@ -869,7 +845,7 @@ fn a_not_of_two_conditions_holds_only_when_neither_does() {
         .chain([&NEITHER, &EFFECTS[1]])
         .copied()
         .collect();
-    let (_dir, gd) = install_of(&files);
+    let (_dir, gd) = common::hand_written(&files);
     for (dlcs, gem) in [
         (&[][..], true),
         (&["Fx A"][..], false),
@@ -905,7 +881,7 @@ fn bare(mut spec: SystemSpec) -> SystemSpec {
 #[test]
 fn deposits_are_drawn_apart_so_a_seed_rolls_the_same_bodies_at_any_abundance() {
     let files: Vec<(&str, &str)> = FILES.iter().chain([&EFFECTS[1]]).copied().collect();
-    let (_dir, gd) = install_of(&files);
+    let (_dir, gd) = common::hand_written(&files);
     let gd = &gd;
     let mut with = 0;
     for seed in 0..200 {

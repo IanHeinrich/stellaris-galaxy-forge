@@ -9,7 +9,7 @@ use common::scripts::install_with_mod;
 
 #[test]
 fn the_base_game_alone_touches_no_lgate_outcome() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let rolls = gd.scripts.global_flag_writes("dragon_season");

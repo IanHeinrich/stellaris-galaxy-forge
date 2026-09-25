@@ -5,53 +5,15 @@
 //! that tells the app which systems were added.
 
 use std::collections::BTreeSet;
-use std::fmt::Write as _;
 
-use sgf_core::ops::{BodySpec, Op, OpError, SystemSpec};
+use sgf_core::ops::{Op, OpError, SystemSpec};
 use sgf_core::session::Session;
-use sgf_core::validate::IssueCode;
 use sgf_core::views::{GalaxyView, SystemDetail};
-use similar::{Algorithm, TextDiff};
 
 use crate::common;
-use common::diff::round_trip_step;
-use common::spec::{belted, body, dorellion, mura, rerolled, star};
-use common::{current, examples, open, open_4_5, text};
-
-/// One sample, the spike's system and the id it takes, where a second system fits, and
-/// a system the file holds that a lane to the spike can come from.
-struct Sample {
-    session: Session,
-    spike: SystemSpec,
-    first: u32,
-    second: (f64, f64),
-    third: (f64, f64),
-    home: u32,
-    joiner: u32,
-}
-
-fn samples() -> [Sample; 2] {
-    [
-        Sample {
-            session: open_4_5(),
-            spike: mura(),
-            first: 601,
-            second: (-270.0, -130.0),
-            third: (-300.0, -120.0),
-            home: 420,
-            joiner: 149,
-        },
-        Sample {
-            session: open(),
-            spike: dorellion(),
-            first: 791,
-            second: (415.0, -190.0),
-            third: (420.0, -222.0),
-            home: 217,
-            joiner: 614,
-        },
-    ]
-}
+use common::diff::{round_trip_step, step_report};
+use common::spec::{SAMPLE_4_5, SAMPLES, belted, mura, rerolled, small};
+use common::{current, examples, findings, planet_ids, pooled};
 
 fn add(spec: SystemSpec) -> Op {
     Op::AddSaveSystem { spec }
@@ -61,55 +23,16 @@ fn reroll(system: u32, spec: SystemSpec) -> Op {
     Op::ReplaceSaveSystem { system, spec }
 }
 
-/// A K star with one planet holding a deposit.
-fn small(name: &str, (x, y): (f64, f64), lanes: Vec<u32>) -> SystemSpec {
-    let planet = BodySpec {
-        deposits: vec!["d_minerals_3".to_owned()],
-        ..body("pc_barren", 10, 60.0, 45.0, 1)
-    };
-    SystemSpec {
-        name: name.to_owned(),
-        x,
-        y,
-        star_class: "sc_k".to_owned(),
-        initializer: "basic_init_01".to_owned(),
-        star: star(body("pc_k_star", 20, 0.0, 0.0, 0)),
-        planets: vec![planet],
-        lanes,
-        ..SystemSpec::default()
-    }
-}
-
-fn findings(session: &Session) -> BTreeSet<(IssueCode, Vec<u32>, String)> {
-    session
-        .validate()
-        .into_iter()
-        .map(|issue| (issue.code, issue.systems, issue.message))
-        .collect()
-}
-
-fn planets_of(session: &Session, id: u32) -> Vec<u32> {
-    let details = session.details().expect("details");
-    let raw = details.raw(id).expect("the system's details");
-    raw.planets.iter().map(|p| p.id).collect()
-}
-
-fn pooled(session: &Session, name: &str) -> usize {
-    let text = text(session);
-    let start = text.find("\nrandom_name_database=").expect("the pool");
-    let end = start + text[start..].find("\n}\n").expect("the pool's end");
-    text[start..end]
-        .matches(&format!("\t\t\"{name}\"\n"))
-        .count()
-}
-
+/// A belted system, given a lane from a system the file held and moved, rolled again:
+/// what the reroll keeps and replaces, the same spec rolled back writes the same text,
+/// asteroid names included, and a removal after it gives back the file as opened.
 #[test]
 fn a_reroll_keeps_the_id_position_name_and_lanes_and_replaces_the_rest() {
-    for mut sample in samples() {
-        let (first, joiner) = (sample.first, sample.joiner);
-        let spike = sample.spike.clone();
-        let session = &mut sample.session;
-        round_trip_step(session, "add", add(spike.clone()));
+    for sample in &SAMPLES {
+        let (mut session, first, joiner) = ((sample.open)(), sample.id, sample.joiner);
+        let spike = belted((sample.spike)());
+        let session = &mut session;
+        session.apply(add(spike.clone())).expect("add");
         round_trip_step(
             session,
             "a lane from a system the file held",
@@ -130,6 +53,7 @@ fn a_reroll_keeps_the_id_position_name_and_lanes_and_replaces_the_rest() {
         );
         let before = session.system(first).expect("the spike").clone();
         let joiner_lanes = session.system(joiner).expect("the joiner").lanes.clone();
+        let moved = current(session);
 
         let mut again = rerolled(spike.clone());
         (again.x, again.y, again.lanes) = (f64::NAN, f64::INFINITY, vec![99_999]);
@@ -151,26 +75,17 @@ fn a_reroll_keeps_the_id_position_name_and_lanes_and_replaces_the_rest() {
             joiner_lanes,
             "{first}: the lane from the file's system, bridge and all"
         );
-        assert_eq!(planets_of(session, first).len(), 4);
-    }
-}
+        assert_eq!(planet_ids(session, first).len(), 4);
 
-#[test]
-fn add_reroll_and_remove_gives_back_the_file_as_opened() {
-    for mut sample in samples() {
-        let first = sample.first;
-        let spike = sample.spike.clone();
-        let session = &mut sample.session;
-        round_trip_step(session, "add", add(belted(spike.clone())));
-        let added = current(session);
-        round_trip_step(session, "reroll", reroll(first, rerolled(spike.clone())));
-        round_trip_step(session, "reroll back", reroll(first, belted(spike.clone())));
+        round_trip_step(session, "reroll back", reroll(first, spike.clone()));
         assert_eq!(
             current(session),
-            added,
+            moved,
             "{first}: the same spec gives the same text, asteroid names included"
         );
-        round_trip_step(session, "reroll again", reroll(first, rerolled(spike)));
+        session
+            .apply(reroll(first, rerolled(spike)))
+            .expect("reroll again");
         round_trip_step(session, "remove", Op::RemoveSystem { id: first });
         assert_eq!(current(session), session.doc.original(), "{first}");
     }
@@ -179,20 +94,21 @@ fn add_reroll_and_remove_gives_back_the_file_as_opened() {
 #[test]
 fn rerolling_a_middle_system_keeps_the_ids_after_it_and_reopens() {
     let dir = tempfile::tempdir().expect("a temp dir");
-    for mut sample in samples() {
-        let opened = findings(&sample.session);
-        let first = sample.first;
+    for sample in &SAMPLES {
+        let mut session = (sample.open)();
+        let opened = findings(&session);
+        let first = sample.id;
         let (middle, last) = (first + 1, first + 2);
-        let second = small("Tau_Ceti", sample.second, vec![first, sample.home]);
-        let third = small("Altair", sample.third, vec![middle]);
-        let session = &mut sample.session;
-        round_trip_step(session, "spike", add(sample.spike.clone()));
-        round_trip_step(session, "second", add(second.clone()));
-        round_trip_step(session, "third", add(third.clone()));
-        let third_planets = planets_of(session, last);
+        let second = small("Tau_Ceti", sample.spots[0], vec![first, sample.near[0]]);
+        let third = small("Altair", sample.spots[1], vec![middle]);
+        let session = &mut session;
+        for spec in [(sample.spike)(), second.clone(), third.clone()] {
+            session.apply(add(spec)).expect("add");
+        }
+        let third_planets = planet_ids(session, last);
         let lanes = session.system(middle).expect("the middle").lanes.clone();
 
-        let mut again = rerolled(sample.spike.clone());
+        let mut again = rerolled((sample.spike)());
         again.name = second.name.clone();
         let result = round_trip_step(session, "reroll the middle", reroll(middle, again));
         assert!(result.renumbered.is_empty());
@@ -201,7 +117,7 @@ fn rerolling_a_middle_system_keeps_the_ids_after_it_and_reopens() {
         assert_eq!(rolled.lanes, lanes);
         let kept = session.system(last).expect("the third keeps its id");
         assert_eq!((kept.name.key.as_str(), kept.x), ("Altair", third.x));
-        assert_eq!(planets_of(session, last), third_planets);
+        assert_eq!(planet_ids(session, last), third_planets);
 
         let path = dir.path().join(format!("{first}.sav"));
         session.save_as(&path).expect("save");
@@ -213,7 +129,7 @@ fn rerolling_a_middle_system_keeps_the_ids_after_it_and_reopens() {
         assert_eq!(system.planet_count, 4);
         assert!(!system.added, "a reopened file added nothing");
         assert_eq!(system.lanes, session.system(middle).unwrap().lanes);
-        assert_eq!(planets_of(&reopened, middle), planets_of(session, middle));
+        assert_eq!(planet_ids(&reopened, middle), planet_ids(session, middle));
         assert_eq!(
             findings(&reopened),
             opened,
@@ -224,28 +140,9 @@ fn rerolling_a_middle_system_keeps_the_ids_after_it_and_reopens() {
 
 #[test]
 fn the_diff_a_reroll_writes() {
-    let mut sample = samples().into_iter().next().expect("the 4.5 sample");
-    let session = &mut sample.session;
+    let mut session = (SAMPLE_4_5.open)();
     session.apply(add(mura())).expect("add");
-    let before = text(session);
-    let result = session
-        .apply(reroll(sample.first, rerolled(mura())))
-        .expect("reroll");
-    let after = text(session);
-    let mut report = String::new();
-    writeln!(report, "{}", result.entry.description).unwrap();
-    writeln!(report, "touched: {:?}", result.touched).unwrap();
-    let diff = TextDiff::configure()
-        .algorithm(Algorithm::Myers)
-        .diff_lines(&before, &after);
-    write!(
-        report,
-        "{}",
-        diff.unified_diff()
-            .context_radius(3)
-            .header("before", "after")
-    )
-    .unwrap();
+    let report = step_report(&mut session, reroll(SAMPLE_4_5.id, rerolled(mura())));
     common::snapshot("reroll_mura", &report);
 }
 
@@ -262,16 +159,17 @@ fn awkward(mut spec: SystemSpec) -> SystemSpec {
 #[test]
 fn the_inverse_writes_back_the_text_the_reroll_replaced() {
     for variant in ["plain", "belted", "awkward"] {
-        for mut sample in samples() {
-            let first = sample.first;
+        for sample in &SAMPLES {
+            let (mut session, spike) = ((sample.open)(), (sample.spike)());
+            let first = sample.id;
             let spike = match variant {
-                "belted" => belted(sample.spike.clone()),
-                "awkward" => awkward(sample.spike.clone()),
-                _ => sample.spike.clone(),
+                "belted" => belted(spike.clone()),
+                "awkward" => awkward(spike.clone()),
+                _ => spike.clone(),
             };
-            let session = &mut sample.session;
+            let session = &mut session;
             session.apply(add(spike.clone())).expect("add");
-            let star = planets_of(session, first)[0];
+            let star = planet_ids(session, first)[0];
             session
                 .apply(Op::SetPlanetSize { id: star, size: 30 })
                 .expect("an edit to the old star");
@@ -304,11 +202,12 @@ fn the_inverse_writes_back_the_text_the_reroll_replaced() {
 
 #[test]
 fn deposits_added_to_its_planets_later_leave_with_them() {
-    for mut sample in samples() {
-        let first = sample.first;
-        let session = &mut sample.session;
-        round_trip_step(session, "add", add(sample.spike.clone()));
-        let planet = planets_of(session, first)[1];
+    for sample in &SAMPLES {
+        let (mut session, spike) = ((sample.open)(), (sample.spike)());
+        let first = sample.id;
+        let session = &mut session;
+        session.apply(add(spike.clone())).expect("add");
+        let planet = planet_ids(session, first)[1];
         round_trip_step(
             session,
             "a deposit on the added planet",
@@ -318,11 +217,7 @@ fn deposits_added_to_its_planets_later_leave_with_them() {
             },
         );
         let with_deposit = current(session);
-        round_trip_step(
-            session,
-            "reroll",
-            reroll(first, rerolled(sample.spike.clone())),
-        );
+        round_trip_step(session, "reroll", reroll(first, rerolled(spike.clone())));
         round_trip_step(session, "remove", Op::RemoveSystem { id: first });
         assert_eq!(current(session), session.doc.original(), "{first}");
         session.undo().expect("undo").expect("the removal");
@@ -335,16 +230,17 @@ fn deposits_added_to_its_planets_later_leave_with_them() {
 
 #[test]
 fn a_reroll_under_another_name_swaps_it_in_the_pool() {
-    let mut sample = samples().into_iter().next().expect("the 4.5 sample");
-    let first = sample.first;
-    let session = &mut sample.session;
+    let sample = SAMPLE_4_5;
+    let (mut session, spike) = ((sample.open)(), (sample.spike)());
+    let first = sample.id;
+    let session = &mut session;
     let other = sgf_core::ops::free_star_names(&session.doc)
         .into_iter()
-        .find(|name| *name != sample.spike.name)
+        .find(|name| *name != spike.name)
         .expect("a free name");
-    session.apply(add(sample.spike.clone())).expect("add");
-    assert_eq!(pooled(session, &sample.spike.name), 0);
-    let mut again = rerolled(sample.spike.clone());
+    session.apply(add(spike.clone())).expect("add");
+    assert_eq!(pooled(session, "star_names", &spike.name), 0);
+    let mut again = rerolled(spike.clone());
     again.name = other.clone();
     let result = round_trip_step(session, "reroll renamed", reroll(first, again));
     assert_eq!(
@@ -352,8 +248,8 @@ fn a_reroll_under_another_name_swaps_it_in_the_pool() {
         format!("Rolled Mura (#601) again as {other}, sc_m, with 4 bodies")
     );
     assert_eq!(session.system(first).unwrap().name.key, other);
-    assert_eq!(pooled(session, &sample.spike.name), 1);
-    assert_eq!(pooled(session, &other), 0);
+    assert_eq!(pooled(session, "star_names", &spike.name), 1);
+    assert_eq!(pooled(session, "star_names", &other), 0);
     session
         .apply(Op::RemoveSystem { id: first })
         .expect("remove");
@@ -363,24 +259,25 @@ fn a_reroll_under_another_name_swaps_it_in_the_pool() {
 #[test]
 fn what_a_reroll_refuses() {
     let dir = tempfile::tempdir().expect("a temp dir");
-    for mut sample in samples() {
-        let first = sample.first;
-        let session = &mut sample.session;
+    for sample in &SAMPLES {
+        let (mut session, spike) = ((sample.open)(), (sample.spike)());
+        let first = sample.id;
+        let session = &mut session;
         let error = session
-            .apply(reroll(sample.joiner, rerolled(sample.spike.clone())))
+            .apply(reroll(sample.joiner, rerolled(spike.clone())))
             .expect_err("a system the file held");
         assert!(
             matches!(error, OpError::SystemNotAdded(id) if id == sample.joiner),
             "{error}"
         );
         let error = session
-            .apply(reroll(99_999, rerolled(sample.spike.clone())))
+            .apply(reroll(99_999, rerolled(spike.clone())))
             .expect_err("no such system");
         assert!(matches!(error, OpError::UnknownSystem(99_999)), "{error}");
 
-        session.apply(add(sample.spike.clone())).expect("add");
+        session.apply(add(spike.clone())).expect("add");
         let written = current(session);
-        let mut bad = rerolled(sample.spike.clone());
+        let mut bad = rerolled(spike.clone());
         bad.star_class.clear();
         let error = session
             .apply(reroll(first, bad))
@@ -400,7 +297,7 @@ fn what_a_reroll_refuses() {
         session.save_as(&path).expect("save");
         let mut reopened = Session::open(&path).expect("reopen");
         let error = reopened
-            .apply(reroll(first, rerolled(sample.spike.clone())))
+            .apply(reroll(first, rerolled(spike.clone())))
             .expect_err("added before the file was reopened");
         assert!(
             matches!(error, OpError::SystemNotAdded(id) if id == first),
@@ -420,12 +317,13 @@ fn added_ids(view: &GalaxyView) -> Vec<u32> {
 
 #[test]
 fn the_added_flag_follows_adds_undo_redo_and_renumbering() {
-    let mut sample = samples().into_iter().next().expect("the 4.5 sample");
-    let (first, home) = (sample.first, sample.home);
-    let session = &mut sample.session;
+    let sample = SAMPLE_4_5;
+    let (mut session, spike) = ((sample.open)(), (sample.spike)());
+    let (first, home) = (sample.id, sample.near[0]);
+    let session = &mut session;
     assert!(added_ids(&GalaxyView::from(&session.graph)).is_empty());
 
-    let result = session.apply(add(sample.spike.clone())).expect("add");
+    let result = session.apply(add(spike.clone())).expect("add");
     let delta = session.edit_result(result).delta;
     let sent: Vec<(u32, bool)> = delta.systems.iter().map(|s| (s.id, s.added)).collect();
     assert!(sent.contains(&(first, true)), "{sent:?}");
@@ -435,7 +333,7 @@ fn the_added_flag_follows_adds_undo_redo_and_renumbering() {
     assert!(!SystemDetail::of(&session.graph, home).unwrap().system.added);
 
     session
-        .apply(add(small("Tau_Ceti", sample.second, vec![home])))
+        .apply(add(small("Tau_Ceti", sample.spots[0], vec![home])))
         .expect("add a second");
     assert_eq!(
         added_ids(&GalaxyView::from(&session.graph)),

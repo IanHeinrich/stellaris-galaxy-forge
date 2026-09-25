@@ -15,8 +15,8 @@ use std::path::{Path, PathBuf};
 use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
+use crate::entity::views::EntityKind;
 use crate::format::Format;
-use crate::format::save::added::Table;
 use crate::format::save::write::{
     add_system, bulk, deposits, lanes, lgate, map_colors, move_system, nebula, planet_size,
     remove_system, rename_system, replace_system, star_class,
@@ -92,7 +92,7 @@ impl Format for Save {
                         bodies.insert(id);
                     }
                     graph.refresh_system(id, &root, buf)?;
-                    let added = doc.added().get(Table::System, id).is_some();
+                    let added = doc.added().get(EntityKind::System, id).is_some();
                     if let Some(system) = graph.systems.get_mut(&id) {
                         system.added = added;
                     }
@@ -289,6 +289,9 @@ fn parsed_statement(
     Ok((root, buf))
 }
 
+/// The first major version whose saves take the ops that write whole entries.
+pub const WHOLE_ENTRIES_FROM_MAJOR: u32 = 4;
+
 /// Only a 4.x save takes the ops that write whole entries: a 3.x system carries an `arm`
 /// and more that nothing here writes. The version is `Cygnus v4.5.0` or a bare `4.5.0`;
 /// one whose major number cannot be read is refused too.
@@ -302,7 +305,7 @@ pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
         .map(|number| number.trim_start_matches(['v', 'V']))
         .and_then(|number| number.split('.').next()?.parse::<u32>().ok());
     match major {
-        Some(major) if major >= 4 => Ok(()),
+        Some(major) if major >= WHOLE_ENTRIES_FROM_MAJOR => Ok(()),
         Some(_) => Err(OpError::SaveTooOld(version)),
         None => Err(OpError::UnknownSaveVersion(version)),
     }
@@ -320,7 +323,7 @@ pub(crate) fn check_adds_system(doc: &Document) -> Result<(), OpError> {
 
 /// The statement standing for system `id`: one an op added, or the one loaded.
 pub(crate) fn system_statement(doc: &Document, id: u32) -> Option<Anchor> {
-    doc.added().get(Table::System, id).or_else(|| {
+    doc.added().get(EntityKind::System, id).or_else(|| {
         doc.index()
             .entity(keys::GALACTIC_OBJECT, u64::from(id))
             .filter(|e| matches!(e.value, Value::Block { .. }))
@@ -331,7 +334,7 @@ pub(crate) fn system_statement(doc: &Document, id: u32) -> Option<Anchor> {
 /// The statement standing for planet `id`: one an op added, or the one loaded; `None` for
 /// a planet the save does not hold or holds as a tombstone.
 pub(crate) fn planet_statement(doc: &Document, id: u32) -> Result<Option<Anchor>, ProjectionError> {
-    if let Some(anchor) = doc.added().get(Table::Planet, id) {
+    if let Some(anchor) = doc.added().get(EntityKind::Planet, id) {
         return Ok(Some(anchor));
     }
     Ok(doc
@@ -394,7 +397,7 @@ pub(crate) fn planet_system(node: &Node, src: &[u8], id: u32) -> Result<u32, OpE
 /// Every planet the save now holds, loaded or added, with its statement, in file order;
 /// a tombstone is left out.
 pub(crate) fn planet_statements(doc: &Document) -> Result<Vec<(u32, Anchor)>, ProjectionError> {
-    let mut planets: Vec<(u32, Anchor)> = doc.added().entries(Table::Planet).collect();
+    let mut planets: Vec<(u32, Anchor)> = doc.added().entries(EntityKind::Planet).collect();
     if let Some(index) = doc.inner_index(keys::PLANETS)? {
         planets.extend(
             index

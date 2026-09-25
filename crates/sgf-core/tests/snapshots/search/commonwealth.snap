@@ -1,6 +1,7 @@
 ---
-source: crates/sgf-core/tests/search.rs
-expression: "report(&s.search(\"commonwealth\", 5, &no_loc))"
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 212
+expression: value
 ---
-Country #17 Commonwealth of Man · type=default systems=5 → #4 at (143.51, 9.31)
-Fleet #50332312 TRANS FLEET NAME · owner=Commonwealth of Man → #4 at (143.51, 9.31)
+{"kind":"country","id":17,"name":{"key":"NAME_Commonwealth_of_Man","literal":false,"variables":[]},"name_key":"NAME_Commonwealth_of_Man","system_id":4,"owner":null,"country_type":"default","system_count":5,"planet_class":null,"position":[143.51,9.31],"matched_on":null}
+{"kind":"fleet","id":50332312,"name":{"key":"TRANS_FLEET_NAME","literal":false,"variables":[{"name":"COUNTRY","value":{"key":"NAME_Commonwealth_of_Man","literal":false,"variables":[]}},{"name":"NUMBER","value":{"key":"2","literal":true,"variables":[]}}]},"name_key":"TRANS_FLEET_NAME","system_id":4,"owner":{"key":"NAME_Commonwealth_of_Man","literal":false,"variables":[]},"country_type":null,"system_count":null,"planet_class":null,"position":[143.51,9.31],"matched_on":null}

@@ -1,0 +1,9 @@
+---
+source: crates/sgf-gamedata/tests/special_layouts.rs
+expression: out
+---
+Gen at -292.23404 -137.62265 sc_k previously_terraformed_planet_system_initializer capped
+belt debris_asteroid_belt 158
+belt rocky_asteroid_belt 100
+pc_k_star 31 orbit 40 angle 170.65 deposits ["d_energy_2"] star
+  pc_continental 18 orbit 160 angle 171.65 deposits ["d_hot_springs", "d_rugged_woods", "d_tempestous_mountain", "d_toxic_kelp", "d_rugged_woods", "d_dense_jungle", "d_rushing_waterfalls", "d_prosperous_mesa", "d_rushing_waterfalls", "d_dense_jungle", "d_hot_springs", "d_rushing_waterfalls"] ring entity_name previously_terraformed_planet_entity modifiers ["previously_terraformed_planet"]

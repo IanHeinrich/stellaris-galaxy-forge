@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use sgf_gamedata::scripts::ScenarioSystem;
 use sgf_gamedata::views::GameDataSummary;
-use sgf_gamedata::{GameData, LoadOptions, RegistryKind};
+use sgf_gamedata::{GameData, RegistryKind};
 use tempfile::TempDir;
 
 use common::scripts::sys;
@@ -329,13 +329,7 @@ fn kinds<const N: usize>(kinds: [RegistryKind; N]) -> BTreeSet<RegistryKind> {
 }
 
 fn load(tree: &Path) -> GameData {
-    let opts = LoadOptions {
-        install: Some(tree.join("install")),
-        user_dir: Some(tree.join("userdata")),
-        language: "english".to_owned(),
-        mods: true,
-    };
-    sgf_gamedata::load(&opts, &mut |_| {}).expect("the copied fixture loads")
+    common::load_tree(&tree.join("install"), Some(&tree.join("userdata")), true)
 }
 
 fn fixture_copy() -> TempDir {

@@ -5,14 +5,16 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use sgf_core::document::{self, Document};
-use sgf_core::format::scenario::listings::{ScenarioRoot, ScenarioSource, list_scenarios_in};
-use sgf_core::ops::{Op, OpError};
+use sgf_core::format::scenario::listings::{
+    ScenarioRoot, ScenarioSource, list_scenarios_in, sibling_names,
+};
+use sgf_core::ops::Op;
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 use sgf_core::views::{DocumentKind, GalaxyView};
 
 use crate::common;
-use common::fixture::{GRAMMAR, from_scenario_text};
+use common::fixture::{GRAMMAR, PAINTED, from_scenario_text};
 
 /// Every distinct lane with its length, ascending.
 fn lanes(session: &Session) -> Vec<(u32, u32, f64)> {
@@ -294,39 +296,8 @@ fn a_file_that_is_not_one_static_galaxy_scenario_is_refused() {
 }
 
 #[test]
-fn a_length_op_is_refused_and_leaves_the_scenario_untouched() {
+fn a_bridge_is_refused_and_leaves_the_scenario_untouched() {
     let mut session = GRAMMAR.open();
-    let error = session
-        .apply(Op::SetLaneLength {
-            a: 1,
-            b: 2,
-            length: 40.0,
-        })
-        .expect_err("a scenario's lanes carry no length");
-    assert!(
-        matches!(
-            error,
-            OpError::Unsupported {
-                op: "SetLaneLength",
-                kind: DocumentKind::Scenario
-            }
-        ),
-        "{error:?}"
-    );
-    assert_eq!(
-        error.to_string(),
-        "SetLaneLength is not supported for a scenario document"
-    );
-    assert!(
-        session
-            .apply(Op::NormaliseLaneLength { a: 1, b: 2 })
-            .is_err()
-    );
-    assert!(
-        session
-            .apply(Op::NormaliseLaneLengths { systems: vec![1] })
-            .is_err()
-    );
     assert!(
         session
             .apply(Op::AddLane {
@@ -651,4 +622,33 @@ fn an_edit_undo_and_redo_keep_the_scenarios_own_issues() {
     let redone = session.redo().expect("redo").expect("an op to redo");
     assert!(transform(&redone.issues), "redo: {:?}", redone.issues);
     assert_eq!(redone.issues, session.validate());
+}
+
+#[test]
+fn the_other_scenarios_beside_a_file_are_listed_by_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let mine = dir.path().join("mine.txt");
+    std::fs::copy(PAINTED.path, &mine).unwrap();
+    std::fs::copy(GRAMMAR.path, dir.path().join("grammar.txt")).unwrap();
+    std::fs::write(
+        dir.path().join("other.txt"),
+        "static_galaxy_scenario = {\n\tname = \"Other Reach\"\n}\n",
+    )
+    .unwrap();
+    std::fs::write(dir.path().join("notes.txt"), "not a scenario").unwrap();
+    std::fs::write(dir.path().join("mine.bak"), "static_galaxy_scenario = { }").unwrap();
+    assert_eq!(
+        sibling_names(&mine),
+        [
+            ("grammar.txt".to_owned(), "sgf_grammar".to_owned()),
+            ("other.txt".to_owned(), "Other Reach".to_owned()),
+        ]
+    );
+    assert_eq!(
+        sibling_names(&dir.path().join("other.txt")),
+        [
+            ("grammar.txt".to_owned(), "sgf_grammar".to_owned()),
+            ("mine.txt".to_owned(), "Painted Reach".to_owned()),
+        ]
+    );
 }

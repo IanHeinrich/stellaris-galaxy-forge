@@ -2,6 +2,7 @@
 //! and the errors an op is refused with.
 
 use serde::{Deserialize, Serialize};
+use strum::IntoStaticStr;
 use ts_rs::TS;
 
 use crate::document;
@@ -11,7 +12,7 @@ use crate::overlay::OverlayError;
 use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
 use crate::views::{DocumentKind, ErrorKind};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, IntoStaticStr)]
 #[ts(export)]
 #[serde(tag = "type")]
 pub enum Op {
@@ -74,14 +75,14 @@ pub enum Op {
         lanes: Vec<LaneLength>,
     },
     /// One lane's length rewritten to the `floor(distance)` the generator writes, on both
-    /// ends; refuses with [`OpError::Empty`] when it already stands there. The inverse is
+    /// ends; refuses with [`OpError::AlreadyNormal`] when it already stands there. The inverse is
     /// the [`Op::SetLaneLength`] that puts the old length back.
     NormaliseLaneLength {
         a: u32,
         b: u32,
     },
     /// Every lane touching one of `systems` whose length is not `floor(distance)`,
-    /// rewritten to it as an integer; refuses with [`OpError::Empty`] when none is stale.
+    /// rewritten to it as an integer; refuses with [`OpError::AlreadyNormal`] when none is stale.
     NormaliseLaneLengths {
         systems: Vec<u32>,
     },
@@ -391,61 +392,7 @@ pub enum Op {
 impl Op {
     /// The variant's name, for an error that has to name the op.
     pub fn name(&self) -> &'static str {
-        match self {
-            Self::MoveSystem { .. } => "MoveSystem",
-            Self::AddLane { .. } => "AddLane",
-            Self::AddLanes { .. } => "AddLanes",
-            Self::RemoveLane { .. } => "RemoveLane",
-            Self::RemoveLanes { .. } => "RemoveLanes",
-            Self::SetLaneLength { .. } => "SetLaneLength",
-            Self::IsolateSystem { .. } => "IsolateSystem",
-            Self::MoveSystems { .. } => "MoveSystems",
-            Self::AddLanePairs { .. } => "AddLanePairs",
-            Self::RemoveLanePairs { .. } => "RemoveLanePairs",
-            Self::IsolateSystems { .. } => "IsolateSystems",
-            Self::SetLaneLengths { .. } => "SetLaneLengths",
-            Self::NormaliseLaneLength { .. } => "NormaliseLaneLength",
-            Self::NormaliseLaneLengths { .. } => "NormaliseLaneLengths",
-            Self::MoveNebula { .. } => "MoveNebula",
-            Self::AddNebula { .. } => "AddNebula",
-            Self::RemoveNebula { .. } => "RemoveNebula",
-            Self::SetNebulaRadius { .. } => "SetNebulaRadius",
-            Self::SetNebulaName { .. } => "SetNebulaName",
-            Self::AddSystem { .. } => "AddSystem",
-            Self::RemoveSystem { .. } => "RemoveSystem",
-            Self::AddSystems { .. } => "AddSystems",
-            Self::RemoveSystems { .. } => "RemoveSystems",
-            Self::SetSystemName { .. } => "SetSystemName",
-            Self::SetInitializer { .. } => "SetInitializer",
-            Self::SetInitializers { .. } => "SetInitializers",
-            Self::SetHeaderField { .. } => "SetHeaderField",
-            Self::SetHeaderKeys { .. } => "SetHeaderKeys",
-            Self::SetHeaderList { .. } => "SetHeaderList",
-            Self::SetSpawnWeight { .. } => "SetSpawnWeight",
-            Self::SetSpawnWeights { .. } => "SetSpawnWeights",
-            Self::SetSpawnScript { .. } => "SetSpawnScript",
-            Self::SetSpawnScripts { .. } => "SetSpawnScripts",
-            Self::SetFeZone { .. } => "SetFeZone",
-            Self::SetFeZones { .. } => "SetFeZones",
-            Self::SetWormholePair { .. } => "SetWormholePair",
-            Self::SetWormholeEnds { .. } => "SetWormholeEnds",
-            Self::SetFeLinks { .. } => "SetFeLinks",
-            Self::SetFeLinkFlags { .. } => "SetFeLinkFlags",
-            Self::PreventLane { .. } => "PreventLane",
-            Self::UnpreventLane { .. } => "UnpreventLane",
-            Self::SetLGateOutcome { .. } => "SetLGateOutcome",
-            Self::SetStarClass { .. } => "SetStarClass",
-            Self::SetPlanetSize { .. } => "SetPlanetSize",
-            Self::SetEmpireMapColors { .. } => "SetEmpireMapColors",
-            Self::AddSaveSystem { .. } => "AddSaveSystem",
-            Self::AddSaveDeposit { .. } => "AddSaveDeposit",
-            Self::RemoveSaveDeposit { .. } => "RemoveSaveDeposit",
-            Self::ReplaceSaveSystem { .. } => "ReplaceSaveSystem",
-            Self::RenameSaveSystem { .. } => "RenameSaveSystem",
-            Self::SetNebulaTurbulent { .. } => "SetNebulaTurbulent",
-            Self::SetNebulaFootprints { .. } => "SetNebulaFootprints",
-            Self::Batch { .. } => "Batch",
-        }
+        self.into()
     }
 
     /// Whether this op leaves the details of the systems it touched stale. The
@@ -693,8 +640,10 @@ pub enum OpError {
     FeLinkIdOutOfRange(u8, u8),
     #[error("random value {0} is beyond the {1} a Paint a Galaxy seat is drawn from")]
     RandomValueOutOfRange(u8, u8),
-    #[error("nothing to change")]
-    Empty,
+    #[error("no entries given")]
+    NoEntries,
+    #[error("every lane already has the length the game writes")]
+    AlreadyNormal,
     #[error("a batch with nothing in it")]
     EmptyBatch,
     #[error("a batch may not hold another batch")]
@@ -874,7 +823,8 @@ impl OpError {
             | Self::FeLinkIdsExhausted { .. }
             | Self::FeLinkIdOutOfRange { .. }
             | Self::RandomValueOutOfRange { .. }
-            | Self::Empty { .. }
+            | Self::NoEntries { .. }
+            | Self::AlreadyNormal { .. }
             | Self::EmptyBatch { .. }
             | Self::NestedBatch { .. }
             | Self::DuplicateSystem { .. }

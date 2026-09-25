@@ -60,7 +60,7 @@ pub(crate) use crate::emit::quoted;
 /// A plural op's entries: at least one, and no system named twice.
 pub(crate) fn each_once<T>(entries: &[T], id: impl Fn(&T) -> u32) -> Result<(), OpError> {
     if entries.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut seen = BTreeSet::new();
     for entry in entries {

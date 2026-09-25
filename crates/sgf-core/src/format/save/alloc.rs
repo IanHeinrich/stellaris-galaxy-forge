@@ -24,6 +24,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use crate::Span;
 use crate::cst;
 use crate::document::Document;
+use crate::entity::views::EntityKind;
 use crate::format::save::added::Table;
 use crate::keys;
 use crate::ops::{OpError, Plan, Subject};
@@ -123,7 +124,13 @@ pub(crate) struct TableEnd {
 
 impl TableEnd {
     /// The end of `table`, whose block closes at `close` and holds `entities`.
-    pub fn read(doc: &Document, table: Table, close: usize, entities: &[Entity]) -> Self {
+    pub fn read(
+        doc: &Document,
+        table: impl Into<Table>,
+        close: usize,
+        entities: &[Entity],
+    ) -> Self {
+        let table = table.into();
         let src = doc.original();
         let close_indent = cst::indent_of(src, close).to_vec();
         let indent = match entities.last() {
@@ -206,7 +213,7 @@ impl SlotTable {
         let section = inner.section(keys::PLANET).ok_or_else(missing)?;
         Self::read(
             doc,
-            Table::Planet,
+            EntityKind::Planet,
             section.value,
             inner.entities(keys::PLANET),
         )
@@ -218,7 +225,7 @@ impl SlotTable {
         let missing = || OpError::MissingSaveKey(keys::DEPOSIT);
         let section = doc.index().section(keys::DEPOSIT).ok_or_else(missing)?;
         let entities = doc.index().entities(keys::DEPOSIT);
-        Self::read(doc, Table::Deposit, section.value, entities).ok_or_else(missing)
+        Self::read(doc, EntityKind::Deposit, section.value, entities).ok_or_else(missing)
     }
 
     /// The top-level `ambient_object` table.
@@ -232,7 +239,13 @@ impl SlotTable {
         Self::read(doc, Table::AmbientObject, section.value, entities).ok_or_else(missing)
     }
 
-    fn read(doc: &Document, table: Table, value: Value, entities: &[Entity]) -> Option<Self> {
+    fn read(
+        doc: &Document,
+        table: impl Into<Table>,
+        value: Value,
+        entities: &[Entity],
+    ) -> Option<Self> {
+        let table = table.into();
         let Value::Block { close, .. } = value else {
             return None;
         };
@@ -384,7 +397,7 @@ impl SlotTable {
     fn tombstone_id(&self, id: u32) -> u32 {
         match self.table {
             Table::AmbientObject => id,
-            Table::System | Table::Planet | Table::Deposit => tombstone_id(id),
+            Table::Entity(_) => tombstone_id(id),
         }
     }
 }

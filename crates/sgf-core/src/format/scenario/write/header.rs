@@ -66,7 +66,7 @@ pub(super) fn set_fields(
     entries: &[(String, String)],
 ) -> Result<Planned, OpError> {
     if entries.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut seen = BTreeSet::new();
     for (key, _) in entries {

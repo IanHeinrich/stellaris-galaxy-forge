@@ -1,5 +1,6 @@
-//! Timed round-trip over the user's local save corpus (`SGF_CORPUS_DIR`), and the
-//! Paint a Galaxy export of every save in it read back and checked.
+//! Timed round-trip over the user's local save corpus (`SGF_CORPUS_DIR`), a system added
+//! to and removed from each 4.x save in it, and the Paint a Galaxy export of every save
+//! read back and checked.
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -7,12 +8,17 @@ use sgf_core::archive;
 use sgf_core::document::Document;
 use sgf_core::export::policy::{Category, classify};
 use sgf_core::export::{self, ScenarioProfile};
+use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
+use sgf_core::views::Capabilities;
 
 mod common;
 
+use common::diff::round_trip_step;
+use common::export::{default_capitals, no_names, no_sources};
 use common::paint::{assert_paint_export_holds_together, left_out};
+use common::spec::dorellion;
 
 const OPEN_BUDGET_MS: u128 = 3000;
 
@@ -51,7 +57,7 @@ fn corpus_round_trips_within_budget() {
     };
     let note = format!(" (open budget {budget} ms)");
     println!(
-        "{:<40} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}{note}",
+        "{:<40} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}{note}",
         "file",
         "MB",
         "systems",
@@ -62,11 +68,14 @@ fn corpus_round_trips_within_budget() {
         "open",
         "validate",
         "details",
-        "save"
+        "save",
+        "add",
+        "remove"
     );
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let mut over_budget = Vec::new();
+    let mut took_a_system = 0;
 
     for path in &saves {
         let name = path.file_name().unwrap().to_string_lossy().into_owned();
@@ -116,24 +125,30 @@ fn corpus_round_trips_within_budget() {
         );
         assert_eq!(written.meta, raw.meta, "{name}: meta diverged");
 
+        let systems = session.graph.systems.len();
+        let lanes: usize = session.graph.systems.values().map(|s| s.lanes.len()).sum();
+        let timed = add_and_remove(&mut session, &name);
+        took_a_system += usize::from(timed.is_some());
+        let (add_column, remove_column) = timed.map_or_else(
+            || ("-".to_owned(), "-".to_owned()),
+            |(add, remove)| (add.to_string(), remove.to_string()),
+        );
+
         println!(
-            "{:<40} {:>8.1} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}",
+            "{:<40} {:>8.1} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}",
             name,
             size_mb,
-            session.graph.systems.len(),
-            session
-                .graph
-                .systems
-                .values()
-                .map(|s| s.lanes.len())
-                .sum::<usize>(),
+            systems,
+            lanes,
             read_ms,
             galaxy_ms,
             parse_ms,
             open_ms,
             validate_ms,
             details_ms,
-            save_ms
+            save_ms,
+            add_column,
+            remove_column
         );
 
         if open_ms > budget {
@@ -141,15 +156,77 @@ fn corpus_round_trips_within_budget() {
         }
     }
 
+    println!(
+        "added and removed a system on {took_a_system} of {} saves; a 3.x or Ironman save takes none",
+        saves.len()
+    );
     assert!(
         over_budget.is_empty(),
         "Session::open exceeded {budget} ms budget for: {over_budget:?}"
     );
 }
 
-/// No game data: names as the save holds them, every initializer vanilla.
-fn none(_: &str) -> Option<String> {
-    None
+/// On a save that takes added systems, add the in-game spike's Dorellion one jump from
+/// system 0, at the first place near it the op accepts, and remove it again: the add
+/// round-trips, the removal gives back the bytes as opened and its undo the bytes of the
+/// add. Returns how long the add and the removal took to apply, in ms, or `None` when the
+/// save takes no added system.
+fn add_and_remove(session: &mut Session, name: &str) -> Option<(u128, u128)> {
+    if !Capabilities::of(&session.doc).added_systems {
+        return None;
+    }
+    let id = u32::try_from(session.graph.systems.len()).expect("a system count");
+    let home = &session.graph.systems[&0];
+    let (x0, y0) = (home.x, home.y);
+    let spots = (1..=8).flat_map(|ring| {
+        (0..12).map(move |turn| {
+            let (distance, angle) = (f64::from(ring) * 10.0, f64::from(turn * 30).to_radians());
+            (x0 + distance * angle.cos(), y0 + distance * angle.sin())
+        })
+    });
+    let original = session.doc.original().to_vec();
+    for (x, y) in spots {
+        let spec = sgf_core::ops::SystemSpec {
+            x,
+            y,
+            lanes: vec![0],
+            ..dorellion()
+        };
+        match session.apply(Op::AddSaveSystem { spec: spec.clone() }) {
+            Ok(_) => {
+                session.undo().expect("undo the probe").expect("the probe");
+                round_trip_step(session, name, Op::AddSaveSystem { spec: spec.clone() });
+                session.undo().expect("undo the add").expect("the add");
+                let t = Instant::now();
+                session
+                    .apply(Op::AddSaveSystem { spec })
+                    .unwrap_or_else(|e| panic!("{name}: add: {e}"));
+                let add_ms = t.elapsed().as_millis();
+                let added = common::current(session);
+                let t = Instant::now();
+                session
+                    .apply(Op::RemoveSystem { id })
+                    .unwrap_or_else(|e| panic!("{name}: remove: {e}"));
+                let remove_ms = t.elapsed().as_millis();
+                assert!(
+                    common::current(session) == original,
+                    "{name}: the removal left the save changed"
+                );
+                session
+                    .undo()
+                    .expect("undo the removal")
+                    .expect("the removal");
+                assert!(
+                    common::current(session) == added,
+                    "{name}: undoing the removal wrote other bytes"
+                );
+                return Some((add_ms, remove_ms));
+            }
+            Err(OpError::TooClose { .. } | OpError::OutsideGalaxy { .. }) => {}
+            Err(e) => panic!("{name}: add: {e}"),
+        }
+    }
+    panic!("{name}: no room one jump from system 0");
 }
 
 #[test]
@@ -178,8 +255,8 @@ fn corpus_paint_exports_read_back_and_hold_together() {
         let (text, report) = export::scenario_text(
             &save.graph,
             &options,
-            &none,
-            &none,
+            &no_names,
+            &no_sources,
             ScenarioProfile::PaintAGalaxy,
         );
         let doc = Document::from_scenario_bytes(text).expect("the export reads back");
@@ -214,13 +291,7 @@ fn corpus_paint_exports_read_back_and_hold_together() {
         assert_eq!(typed.len(), fallen.len(), "{name}");
         let exact = report.fallen_empires.iter().filter(|f| f.exact).count();
 
-        let capitals: std::collections::BTreeSet<u32> = save
-            .graph
-            .countries
-            .iter()
-            .filter(|c| c.country_type == "default")
-            .filter_map(|c| c.capital_system)
-            .collect();
+        let capitals = default_capitals(&save);
         let lcluster: Vec<u32> = save
             .graph
             .systems

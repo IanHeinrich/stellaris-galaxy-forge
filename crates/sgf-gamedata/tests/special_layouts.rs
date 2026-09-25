@@ -5,10 +5,9 @@
 use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
 use std::sync::LazyLock;
 
-use sgf_core::ops::{Op, SystemSpec};
+use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{
@@ -151,25 +150,7 @@ const FILES: [(&str, &str); 9] = [
 ];
 
 fn hand_written() -> (tempfile::TempDir, GameData) {
-    install_of(&FILES)
-}
-
-fn install_of(files: &[(&str, &str)]) -> (tempfile::TempDir, GameData) {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let install = dir.path().join("install");
-    for &(rel, text) in files {
-        let file = install.join(rel);
-        fs::create_dir_all(file.parent().unwrap()).unwrap();
-        fs::write(file, text).unwrap();
-    }
-    let opts = sgf_gamedata::LoadOptions {
-        install: Some(install),
-        user_dir: Some(dir.path().join("user")),
-        language: "english".to_owned(),
-        mods: false,
-    };
-    let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("the hand-written install loads");
-    (dir, gd)
+    common::hand_written(&FILES)
 }
 
 fn of(gd: &GameData, layout: &str) -> Eligibility {
@@ -405,7 +386,7 @@ fn a_star_pick_card_shows_only_the_layouts_the_pick_rolls() {
             _ => (rel, text),
         })
         .collect();
-    let (_dir, gd) = install_of(&files);
+    let (_dir, gd) = common::hand_written(&files);
     let session = common::open_4_5();
     assert_eq!(
         generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_cold"), ABUNDANCE),
@@ -759,32 +740,95 @@ fn a_fixed_name_a_system_already_holds_gives_way_to_a_pool_name() {
     assert_eq!(settled(&session, "fx_haven"), "Pooled");
 }
 
-/// Compare `spec` with the one pinned as `tests/snapshots/generate/<name>.json`, which
-/// `SGF_UPDATE_SNAPSHOTS=1` writes afresh. A pin of the real install changes when a game
-/// update changes the layouts, classes or deposits it reads.
+/// `spec` as the snapshot `name` under `snapshots/generate`: the system on the first line,
+/// then its belts, then one line per body, each moon under its planet. Every field is
+/// named, so a new one fails to compile until it is rendered. A snapshot of the real
+/// install changes when a game update changes the layouts, classes or deposits it reads.
 fn pinned(name: &str, spec: &SystemSpec) {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/snapshots/generate")
-        .join(format!("{name}.json"));
-    let actual = serde_json::to_string_pretty(spec).expect("a spec as JSON") + "\n";
-    let update = std::env::var_os("SGF_UPDATE_SNAPSHOTS").is_some_and(|v| !v.is_empty());
-    if update || !path.exists() {
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(&path, &actual).unwrap();
-        assert!(
-            update,
-            "{} was missing and is written now; review it",
-            path.display()
-        );
-        return;
+    let SystemSpec {
+        name: system,
+        x,
+        y,
+        star_class,
+        initializer,
+        capped,
+        star_named_by_class,
+        star,
+        planets,
+        belts,
+        flags,
+        lanes,
+    } = spec;
+    let mut out = format!("{system} at {x} {y} {star_class} {initializer}");
+    if *capped {
+        out.push_str(" capped");
     }
-    let expected = fs::read_to_string(&path).unwrap().replace("\r\n", "\n");
-    assert_eq!(
-        actual,
-        expected,
-        "{name} differs from {}; rerun with SGF_UPDATE_SNAPSHOTS=1 if the change is meant",
-        path.display()
-    );
+    if *star_named_by_class {
+        out.push_str(" star_named_by_class");
+    }
+    if !flags.is_empty() {
+        out.push_str(&format!(" flags {flags:?}"));
+    }
+    if !lanes.is_empty() {
+        out.push_str(&format!(" lanes {lanes:?}"));
+    }
+    out.push('\n');
+    for BeltSpec { kind, inner_radius } in belts {
+        out.push_str(&format!("belt {kind} {inner_radius}\n"));
+    }
+    body_line(&mut out, "", star);
+    for planet in planets {
+        body_line(&mut out, "  ", planet);
+    }
+    insta::with_settings!({snapshot_path => "snapshots/generate", prepend_module_to_snapshot => false}, {
+        insta::assert_snapshot!(name, out);
+    });
+}
+
+/// `body` on a line of its own below `indent`, then its moons one level further in.
+fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
+    let BodySpec {
+        class,
+        size,
+        orbit,
+        angle,
+        entity,
+        deposits,
+        moons,
+        asteroid,
+        name,
+        entity_name,
+        modifiers,
+        ring,
+        star,
+    } = body;
+    let mut line = format!("{indent}{class} {size} orbit {orbit} angle {angle}");
+    if *entity != 0 {
+        line.push_str(&format!(" entity {entity}"));
+    }
+    if !deposits.is_empty() {
+        line.push_str(&format!(" deposits {deposits:?}"));
+    }
+    for (set, word) in [(star, "star"), (asteroid, "asteroid"), (ring, "ring")] {
+        if *set {
+            line.push(' ');
+            line.push_str(word);
+        }
+    }
+    if let Some(name) = name {
+        line.push_str(&format!(" name {name}"));
+    }
+    if let Some(entity) = entity_name {
+        line.push_str(&format!(" entity_name {entity}"));
+    }
+    if !modifiers.is_empty() {
+        line.push_str(&format!(" modifiers {modifiers:?}"));
+    }
+    out.push_str(&line);
+    out.push('\n');
+    for moon in moons {
+        body_line(out, &format!("{indent}  "), moon);
+    }
 }
 
 #[test]
@@ -996,7 +1040,7 @@ fn a_black_hole_is_named_from_the_black_hole_names() {
             _ => (rel, text),
         })
         .collect();
-    let (_dir, gd) = install_of(&files);
+    let (_dir, gd) = common::hand_written(&files);
     let gd = &gd;
     let session = common::open_4_5();
     let used: BTreeSet<&str> = session

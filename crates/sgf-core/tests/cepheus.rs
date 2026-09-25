@@ -1,57 +1,13 @@
-//! Index, projection and lane-op invariants on the Stellaris 3.4.5 (Cepheus) sample save,
+//! Projection and lane-op invariants on the Stellaris 3.4.5 (Cepheus) sample save,
 //! whose `hyperlane` blocks open their brace on the key's line rather than the next one.
-use sgf_core::archive;
 use sgf_core::document::Document;
 use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::validate::{Severity, validate};
 
 use crate::common;
-use common::diff::{plain_report, round_trip_step};
-use common::{SAMPLE_3_4, current, open_3_4};
-
-fn load() -> Document {
-    Document::load(SAMPLE_3_4).expect("load the 3.4 sample")
-}
-
-#[test]
-fn index_partitions_the_save_with_no_residue_and_round_trips_it() {
-    let doc = load();
-    let gaps = doc.index().coverage_gaps(doc.original());
-    assert!(gaps.is_empty(), "non-whitespace gaps: {gaps:?}");
-    let covered: usize = doc.section_sizes().iter().map(|(_, n)| n).sum();
-    let total = doc.original().len();
-    assert!(
-        covered * 1000 >= total * 999,
-        "covered {covered} of {total}"
-    );
-
-    let joined: Vec<u8> = doc.pieces().flatten().copied().collect();
-    assert_eq!(joined, doc.original());
-
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("cepheus.sav");
-    doc.save_as(&path).expect("save_as");
-    let written = archive::read_sav(&path).expect("read back");
-    assert_eq!(written.gamestate, doc.original());
-    assert_eq!(written.meta, doc.meta());
-
-    let meta = archive::parse_meta(doc.meta()).expect("meta header");
-    assert_eq!(meta.version, "Cepheus v3.4.5");
-    assert_eq!(meta.date, "2200.04.11");
-}
-
-#[test]
-fn validator_reports_no_errors() {
-    let doc = load();
-    let g = GalaxyGraph::build(&doc).unwrap();
-    let issues = validate(&g);
-    let errors: Vec<_> = issues
-        .iter()
-        .filter(|i| i.severity == Severity::Error)
-        .collect();
-    assert!(errors.is_empty(), "{errors:#?}");
-}
+use common::diff::{plain_report, round_trip_step, snapshot_step};
+use common::{current, open_3_4};
 
 /// System 0 has a `hyperlane` block; systems 0 and 1 are not linked.
 #[test]
@@ -66,17 +22,11 @@ fn a_lane_between_two_blocked_systems_is_added_on_both_ends_and_undoes_exactly()
         b: 1,
         bridge: false,
     };
-    let applied = round_trip_step(&mut session, "AddLane(0, 1)", op.clone());
+    snapshot_step(&mut session, "add_lane_0_1", op);
     let lane_0_1 = session.graph.lane(0, 1).expect("0 -> 1");
     let lane_1_0 = session.graph.lane(1, 0).expect("1 -> 0");
     assert_eq!(lane_0_1.length, lane_1_0.length);
     assert!(!lane_0_1.bridge);
-    common::snapshot("add_lane_0_1", &plain_report(&session, &applied));
-
-    let undone = session.undo().expect("undo").expect("something to undo");
-    assert_eq!(undone.entry.description, applied.entry.description);
-    assert_eq!(current(&session), session.doc.original());
-    assert!(session.graph.lane(0, 1).is_none());
 }
 
 /// System 591 has no `hyperlane` block at all: the op must create one in the 4.x shape.

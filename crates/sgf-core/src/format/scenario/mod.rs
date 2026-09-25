@@ -253,7 +253,7 @@ fn lay_lanes(systems: &mut HashMap<u32, SystemNode>, scenario: &ScenarioIndex, i
             continue;
         }
         let length = match (systems.get(&pair.0), systems.get(&pair.1)) {
-            (Some(a), Some(b)) => lane_length(a, b),
+            (Some(a), Some(b)) => lane_length(a.position(), b.position()),
             _ => 0.0,
         };
         lanes.push(Lane {

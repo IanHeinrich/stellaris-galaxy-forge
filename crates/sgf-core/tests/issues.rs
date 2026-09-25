@@ -1,10 +1,10 @@
 //! The two fixtures built to raise as many findings as one document can, so every kind the
 //! Issues tab shows has something real behind it. `issues.sav` carries the faults a save can
 //! hold, including the three no op can write; `issues.paint.txt` carries the Paint a Galaxy
-//! ones. Between them they cover every code but the five that no single stored file can raise:
+//! ones. Between them they cover every code but the four that no single stored file can raise:
 //! `disconnected` needs an edit in the session, `export_dropped` and `home_initializer` are
-//! made at export, `fe_zone_no_automatic` cannot share a file with the other zone codes, and
-//! `header_empire_count` reports only its first mismatch.
+//! made at export, and `fe_zone_no_automatic` cannot share a file with the other zone codes.
+//! `header_empire_count` reports only its first mismatch, so the fixture shows one of them.
 //!
 //! How they were made, so either can be rebuilt. `issues.sav` is `2206.11.16.sav` with
 //! system 789 moved beyond the galaxy radius and into a nebula's list, 108 moved out of
@@ -135,5 +135,35 @@ fn each_code_names_itself_as_serde_does() {
         let code: IssueCode = serde_json::from_value(serde_json::Value::String(name.clone()))
             .unwrap_or_else(|e| panic!("{name}: {e}"));
         assert_eq!(code.as_str(), name);
+    }
+}
+
+/// The codes no single stored file can raise, as the module doc explains.
+const RAISED_ELSEWHERE: [&str; 4] = [
+    "disconnected",
+    "export_dropped",
+    "home_initializer",
+    "fe_zone_no_automatic",
+];
+
+#[test]
+fn every_code_is_raised_by_a_fixture_or_named_as_raised_elsewhere() {
+    let raised: BTreeSet<&str> = codes(SAVE)
+        .into_iter()
+        .chain(codes(SCENARIO))
+        .map(|(_, code)| code.as_str())
+        .collect();
+    let missing: Vec<String> = declared_codes()
+        .into_iter()
+        .filter(|name| {
+            !raised.contains(name.as_str()) && !RAISED_ELSEWHERE.contains(&name.as_str())
+        })
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "no fixture raises {missing:?}: add it to one, or to RAISED_ELSEWHERE with the reason"
+    );
+    for name in RAISED_ELSEWHERE {
+        assert!(!raised.contains(name), "{name} is raised");
     }
 }

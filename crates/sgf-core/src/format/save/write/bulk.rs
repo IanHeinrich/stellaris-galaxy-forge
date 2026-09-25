@@ -80,7 +80,7 @@ pub(crate) fn plan_add_pairs(
     lanes: &[LanePair],
 ) -> Result<Planned, OpError> {
     if lanes.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut seen = BTreeSet::new();
     let mut entries: BTreeMap<u32, Vec<(u32, u32, bool)>> = BTreeMap::new();
@@ -181,7 +181,7 @@ pub(crate) fn set_lengths(
     lanes: &[LaneLength],
 ) -> Result<(Vec<LaneLength>, usize), OpError> {
     if lanes.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut seen = BTreeSet::new();
     let mut restore = Vec::with_capacity(lanes.len());
@@ -225,13 +225,13 @@ pub(crate) fn plan_normalise_lengths(
         let Ok(old) = agreed_length(s, a, b) else {
             continue;
         };
-        let length = lane_length(&s.graph.systems[&a], there);
+        let length = lane_length(s.graph.systems[&a].position(), there.position());
         if old != length {
             normalised.push(LaneLength { a, b, length });
         }
     }
     if normalised.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::AlreadyNormal);
     }
     let (restore, _) = set_lengths(plan, s, &normalised)?;
     Ok(Planned {

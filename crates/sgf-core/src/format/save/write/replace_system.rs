@@ -134,7 +134,7 @@ fn respec(
 
     edit.set_scalar(&[keys::NAME, keys::KEY], quoted(&spec.name))?;
     let indent = edit.indent(first.start);
-    edit.insert_lines(
+    edit.insert(
         edit.line_start(first.start),
         planet_lines(&indent, &written.ids),
     );
@@ -170,7 +170,7 @@ fn rewrite_block(
     let at = block.unwrap_or(before);
     if wanted {
         let indent = edit.indent(at.start);
-        edit.insert_lines(edit.line_start(at.start), text(&indent));
+        edit.insert(edit.line_start(at.start), text(&indent));
     }
     if let Some(block) = block {
         edit.remove_lines(block);

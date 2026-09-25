@@ -1,0 +1,15 @@
+---
+source: crates/sgf-gamedata/tests/special_layouts.rs
+expression: out
+---
+Gen at -292.23404 -137.62265 sc_m debris_belt_initializer capped star_named_by_class
+belt debris_asteroid_belt 158
+pc_m_star 30 orbit 0 angle 41.84 deposits ["d_energy_4"] star
+  pc_molten 16 orbit 60 angle 56.84 deposits ["d_trade_value_2"] ring
+  pc_asteroid 1 orbit 146 angle 159.96 name NAME_The_Cabin
+  pc_gas_giant 22 orbit 216 angle 4.48 deposits ["d_energy_3"] ring
+    pc_frozen 8 orbit 16 angle 178.39
+    pc_frozen 11 orbit 22 angle 218.14
+  pc_gas_giant 35 orbit 276 angle 223.61 ring
+    pc_frozen 8 orbit 16 angle 108.7
+    pc_frozen 14 orbit 22 angle 237.5

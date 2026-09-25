@@ -113,17 +113,6 @@ pub fn wormhole_pairs(galaxy: &Galaxy) -> Vec<BypassLink> {
         .collect()
 }
 
-/// The number the next wormhole pair takes: one past the highest in use, 1 on a map
-/// with none.
-pub fn next_wormhole_pair(galaxy: &Galaxy) -> u32 {
-    galaxy
-        .systems
-        .values()
-        .filter_map(|system| system.wormhole_pair)
-        .max()
-        .map_or(1, |highest| highest.saturating_add(1))
-}
-
 /// Whether `bytes` carry the mod's dialect anywhere, or Forge's header for the mod.
 pub fn is_painted(bytes: &[u8]) -> bool {
     memmem::find(bytes, PREFIX.as_bytes()).is_some()

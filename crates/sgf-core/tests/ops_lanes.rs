@@ -129,7 +129,7 @@ fn normalise_lane_length_is_refused_where_there_is_nothing_to_do() {
     assert!(!session.graph.lane(0, 752).unwrap().stale);
     assert!(matches!(
         session.apply(Op::NormaliseLaneLength { a: 0, b: 752 }),
-        Err(OpError::Empty)
+        Err(OpError::AlreadyNormal)
     ));
     assert!(matches!(
         session.apply(Op::NormaliseLaneLength { a: 0, b: 1 }),
@@ -283,7 +283,7 @@ fn normalising_after_a_move_rewrites_only_the_decimal_lengths() {
     let moved = current(&session);
     assert!(matches!(
         session.apply(Op::NormaliseLaneLengths { systems: vec![0] }),
-        Err(OpError::Empty)
+        Err(OpError::AlreadyNormal)
     ));
     assert_eq!(current(&session), moved);
 
@@ -462,14 +462,14 @@ fn the_inverse_of_adding_lanes_removes_only_what_it_added() {
             from: 789,
             to: vec![],
         }),
-        Err(OpError::Empty)
+        Err(OpError::NoEntries)
     ));
     assert!(matches!(
         session.apply(Op::RemoveLanes {
             from: 0,
             to: vec![],
         }),
-        Err(OpError::Empty)
+        Err(OpError::NoEntries)
     ));
     assert_eq!(current(&session), session.doc.original());
 
@@ -503,12 +503,11 @@ fn removing_a_lane_to_a_missing_system_is_refused_singly_and_left_out_of_a_bulk_
     // The sample holds no dangling lane, so system 0's entry for 752 is pointed at an
     // id no `galactic_object` carries.
     let mut session = common::open_edited(|gamestate| {
-        let at = find(
+        *gamestate = only_once(
             gamestate,
-            b"				to=752
-				length=33",
+            "\t\t\t\tto=752\n\t\t\t\tlength=33",
+            "\t\t\t\tto=999\n\t\t\t\tlength=33",
         );
-        gamestate.splice(at + 7..at + 10, *b"999");
     });
     assert!(session.graph.systems[&0].lanes.iter().any(|l| l.to == 999));
     assert!(!session.graph.systems.contains_key(&999));
@@ -543,12 +542,11 @@ fn removing_a_lane_to_a_missing_system_is_refused_singly_and_left_out_of_a_bulk_
 fn a_lane_whose_ends_disagree_is_refused_a_new_length() {
     // System 0 lists 752 at 40 where 752 lists 0 at 33.
     let mut session = common::open_edited(|gamestate| {
-        let at = find(
+        *gamestate = only_once(
             gamestate,
-            b"				to=752
-				length=33",
+            "\t\t\t\tto=752\n\t\t\t\tlength=33",
+            "\t\t\t\tto=752\n\t\t\t\tlength=40",
         );
-        gamestate.splice(at + 22..at + 24, *b"40");
     });
     assert_eq!(session.graph.lane(0, 752).map(|l| l.length), Some(40.0));
     assert_eq!(session.graph.lane(752, 0).map(|l| l.length), Some(33.0));
@@ -584,17 +582,8 @@ fn a_lane_whose_ends_disagree_is_refused_a_new_length() {
     assert_eq!(current(&session), session.doc.original());
 }
 
-/// Where `needle` starts in `haystack`; the sample holds it exactly once.
-fn find(haystack: &[u8], needle: &[u8]) -> usize {
-    let at = haystack
-        .windows(needle.len())
-        .position(|w| w == needle)
-        .expect("the sample holds the lane entry");
-    assert!(
-        haystack[at + 1..]
-            .windows(needle.len())
-            .all(|w| w != needle),
-        "the lane entry is not unique"
-    );
-    at
+/// `text` with `from`, which it holds exactly once, replaced by `to`.
+fn only_once(text: &str, from: &str, to: &str) -> String {
+    assert_eq!(text.matches(from).count(), 1, "{from:?} once");
+    text.replacen(from, to, 1)
 }

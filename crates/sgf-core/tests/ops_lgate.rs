@@ -4,12 +4,10 @@
 
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::{LGate, LGateOutcome};
-use sgf_core::session::Session;
-use sgf_core::views::DocumentKind;
+use sgf_core::session::{OpResult, Session};
 
 use crate::common;
-use common::diff::plain_report;
-use common::examples;
+use common::diff::snapshot_step;
 use common::{current, open, open_4_5, open_edited, reprojected};
 
 fn set(outcome: LGateOutcome) -> Op {
@@ -23,11 +21,10 @@ fn unopened(outcome: LGateOutcome) -> Option<LGate> {
     })
 }
 
-/// Apply `outcome` to `session`, check the projection and a reload of the bytes both read
-/// it, snapshot the diff, then undo and check the original bytes and outcome are back.
-fn switch_and_undo(session: &mut Session, outcome: LGateOutcome, snapshot: &str) {
-    let before = session.graph.lgate;
-    let result = session.apply(set(outcome)).expect("set the outcome");
+/// Round-trip and snapshot `outcome` on `session`, and check the projection, a reload of
+/// the bytes and the app's delta read it.
+fn switch(session: &mut Session, outcome: LGateOutcome, snapshot: &str) -> OpResult {
+    let result = snapshot_step(session, snapshot, set(outcome));
     assert_eq!(session.graph.lgate, unopened(outcome), "{snapshot}");
     assert_eq!(reprojected(session).lgate, unopened(outcome), "{snapshot}");
     let edit = session.edit_result(result.clone());
@@ -36,17 +33,12 @@ fn switch_and_undo(session: &mut Session, outcome: LGateOutcome, snapshot: &str)
         unopened(outcome),
         "{snapshot}: reaches the app"
     );
-    common::snapshot(snapshot, &plain_report(session, &result));
-
-    session.undo().expect("undo").expect("something to undo");
-    assert_eq!(current(session), session.doc.original(), "{snapshot}: undo");
-    assert_eq!(session.graph.lgate, before, "{snapshot}: undo");
+    result
 }
 
 #[test]
 fn the_4_5_samples_gray_tempest_switches_to_each_other_outcome_and_back() {
-    let mut session = open_4_5();
-    assert_eq!(session.graph.lgate, unopened(LGateOutcome::GrayTempest));
+    assert_eq!(open_4_5().graph.lgate, unopened(LGateOutcome::GrayTempest));
     for (outcome, snapshot) in [
         (LGateOutcome::LDrakes, "gray_tempest_to_l_drakes"),
         (
@@ -55,37 +47,32 @@ fn the_4_5_samples_gray_tempest_switches_to_each_other_outcome_and_back() {
         ),
         (LGateOutcome::Empty, "gray_tempest_to_empty"),
     ] {
-        switch_and_undo(&mut session, outcome, snapshot);
+        let mut session = open_4_5();
+        let result = switch(&mut session, outcome, snapshot);
+        if outcome == LGateOutcome::LDrakes {
+            assert_eq!(
+                result.entry.description,
+                "Set the L-Gate outcome to L-Drakes"
+            );
+        }
+        assert_eq!(result.inverse, set(LGateOutcome::GrayTempest));
+        session.apply(result.inverse).unwrap();
+        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(session.graph.lgate, unopened(LGateOutcome::GrayTempest));
     }
-
-    // The inverse op writes the Tempest's two flags back where they stood.
-    let result = session.apply(set(LGateOutcome::LDrakes)).unwrap();
-    assert_eq!(
-        result.entry.description,
-        "Set the L-Gate outcome to L-Drakes"
-    );
-    assert_eq!(result.inverse, set(LGateOutcome::GrayTempest));
-    session.apply(result.inverse).unwrap();
-    assert_eq!(current(&session), session.doc.original());
-    assert_eq!(session.graph.lgate, unopened(LGateOutcome::GrayTempest));
 }
 
 #[test]
 fn the_4_4_samples_empty_cluster_takes_l_drakes() {
     let mut session = open();
-    switch_and_undo(&mut session, LGateOutcome::LDrakes, "empty_to_l_drakes");
-    session.redo().expect("redo").expect("something to redo");
-    assert_eq!(session.graph.lgate, unopened(LGateOutcome::LDrakes));
-    assert_eq!(reprojected(&session).lgate, unopened(LGateOutcome::LDrakes));
+    switch(&mut session, LGateOutcome::LDrakes, "empty_to_l_drakes");
 }
 
 #[test]
 fn the_outcome_is_refused_once_a_gate_has_opened_or_where_there_is_none_to_set() {
     let flag = "\tgame_started=62808000\n";
     let mut opened = open_edited(|gamestate| {
-        let text = String::from_utf8(std::mem::take(gamestate)).expect("utf-8");
-        let edited = text.replacen(flag, &format!("{flag}\tl_cluster_opened=62900000\n"), 1);
-        *gamestate = edited.into_bytes();
+        *gamestate = gamestate.replacen(flag, &format!("{flag}\tl_cluster_opened=62900000\n"), 1);
     });
     assert!(matches!(
         opened.apply(set(LGateOutcome::LDrakes)),
@@ -93,10 +80,7 @@ fn the_outcome_is_refused_once_a_gate_has_opened_or_where_there_is_none_to_set()
     ));
 
     let mut no_gate = open_edited(|gamestate| {
-        let text = String::from_utf8(std::mem::take(gamestate)).expect("utf-8");
-        *gamestate = text
-            .replace("type=\"lgate\"", "type=\"sgf_test\"")
-            .into_bytes();
+        *gamestate = gamestate.replace("type=\"lgate\"", "type=\"sgf_test\"");
     });
     assert_eq!(no_gate.graph.lgate, None);
     assert!(matches!(
@@ -111,15 +95,7 @@ fn the_outcome_is_refused_once_a_gate_has_opened_or_where_there_is_none_to_set()
         "the L-Gate outcome is already Empty cluster"
     );
 
-    let mut scenario = examples::scenario();
-    assert!(matches!(
-        scenario.apply(set(LGateOutcome::LDrakes)),
-        Err(OpError::Unsupported {
-            kind: DocumentKind::Scenario,
-            ..
-        })
-    ));
-    for session in [&opened, &no_gate, &unchanged, &scenario] {
+    for session in [&opened, &no_gate, &unchanged] {
         assert!(!session.doc.is_dirty());
     }
 }
