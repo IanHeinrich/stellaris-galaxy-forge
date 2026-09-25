@@ -133,6 +133,10 @@ too.
 - A star's page opens with its type and size to edit, as [Stars and
   empires](#stars-and-empires) describes. Any other body's page shows its
   class and size instead.
+- Barren, frozen, toxic and grey goo worlds have a Terraforming
+  candidate checkbox. It does what the console's `add_modifier` does. The planet
+  can be terraformed once the empire has Climate Restoration. Frozen
+  worlds also need Hydrocentric, and toxic worlds need Detox.
 - Deposits are shown with the game's own art and the district capacity
   they add up to, one row per type: what each one yields, or what it does
   while unworked. A blocked deposit shows a blocker mark, the tech and
@@ -363,8 +367,9 @@ shown as `#123` in the app. `sgf --help` lists every command, and
   lists every key path with its count, and `roundtrip` writes the save
   out unchanged.
 - Edit the galaxy: `move`, `isolate`, `lane`, `nebula`, `move-nebula`,
-  `star`, `planet-size`, `deposit`, `add-system`. `deposit add` and
-  `deposit remove` change the deposits on an uncolonised planet.
+  `star`, `planet-size`, `terraform-candidate`, `deposit`, `add-system`.
+  `deposit add` and `deposit remove` change the deposits on an
+  uncolonised planet.
   `add-system` adds systems from a JSON spec you write, or rolls one from
   the install's own rules with `--generate`, a special layout included
   with `--layout`.

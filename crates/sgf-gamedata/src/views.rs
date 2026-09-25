@@ -428,6 +428,9 @@ pub struct PlanetClassView {
     pub icon_sprite: Option<String>,
     pub habitable: bool,
     pub star: bool,
+    /// The modifier whose presence lets a planet of this class be terraformed, from the
+    /// install's terraform links.
+    pub terraform_candidate: Option<String>,
 }
 
 impl From<&PlanetClassDef> for PlanetClassView {
@@ -437,6 +440,7 @@ impl From<&PlanetClassDef> for PlanetClassView {
             icon_sprite: pc.icon.clone(),
             habitable: pc.colonizable,
             star: pc.star,
+            terraform_candidate: None,
         }
     }
 }
@@ -583,6 +587,20 @@ impl GameData {
         self.galaxy_shapes
             .iter()
             .map(GalaxyShapeView::from)
+            .collect()
+    }
+
+    /// Every planet class, each with the terraform candidate modifier the install's
+    /// terraform links give it, if any.
+    pub fn planet_class_views(&self) -> Vec<PlanetClassView> {
+        self.planet_classes
+            .iter()
+            .map(|pc| PlanetClassView {
+                terraform_candidate: self
+                    .terraform_links
+                    .candidate(&pc.key, &self.static_modifiers),
+                ..PlanetClassView::from(pc)
+            })
             .collect()
     }
 }

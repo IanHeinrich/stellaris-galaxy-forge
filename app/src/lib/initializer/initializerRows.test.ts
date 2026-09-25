@@ -14,11 +14,18 @@ const CLASSES = new Map<string, PlanetClassView>([
       icon_sprite: "GFX_planet_type_continental",
       habitable: true,
       star: false,
+      terraform_candidate: null,
     },
   ],
   [
     "pc_barren",
-    { key: "pc_barren", icon_sprite: "GFX_planet_type_barren", habitable: false, star: false },
+    {
+      key: "pc_barren",
+      icon_sprite: "GFX_planet_type_barren",
+      habitable: false,
+      star: false,
+      terraform_candidate: "terraforming_candidate",
+    },
   ],
 ]);
 

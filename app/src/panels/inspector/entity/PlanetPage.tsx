@@ -9,6 +9,12 @@ import {
   planetDataKeys,
   type ModifierRow,
 } from "../../../lib/details/planetPage";
+import {
+  setTerraformCandidateOp,
+  terraformCandidate,
+  terraformCandidateTitle,
+  type TerraformCandidate,
+} from "../../../lib/details/terraform";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
@@ -18,7 +24,8 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { EditKey } from "../../EditField";
+import { EditBlock, EditKey, ToggleField } from "../../EditField";
+import { useApplyOp } from "../../useApplyOp";
 import { useNamed } from "../../useNamed";
 import { Icon } from "../../parts";
 import {
@@ -68,6 +75,21 @@ function Head({ page }: { page: PlanetPage }) {
       <span className="name">{bodyName(page, names)}</span>
       <span className="muted mono">#{page.id}</span>
     </div>
+  );
+}
+
+/** The planet's terraforming candidate modifier as a checkbox: `id` and its resolved `candidate`. */
+function TerraformBlock({ id, candidate }: { id: number; candidate: TerraformCandidate }) {
+  const applyOp = useApplyOp();
+  return (
+    <EditBlock title="Terraforming">
+      <ToggleField
+        label="Terraforming candidate"
+        title={terraformCandidateTitle(candidate.modifier)}
+        checked={candidate.checked}
+        onChange={(on) => applyOp(setTerraformCandidateOp(id, candidate.modifier, on))}
+      />
+    </EditBlock>
   );
 }
 
@@ -286,6 +308,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const system = useGalaxyStore((s) => (found === null ? undefined : s.systems.get(found.system)));
   const star = starBodyEditable(page.class, bodies, planetClasses, starClasses);
   const starBlock = star && found !== null && system !== undefined;
+  const candidate = isStarBody(page.class, planetClasses, starClasses)
+    ? null
+    : terraformCandidate(page, planetClasses);
   const requestDetails = useDetailsStore((s) => s.request);
   const detailsVersion = useDetailsStore((s) => s.version);
   const waiting = useDetailsStore((s) => page.system !== null && !s.failed.has(page.system));
@@ -296,6 +321,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   return (
     <>
       <Head page={page} />
+      {candidate !== null && <TerraformBlock id={page.id} candidate={candidate} />}
       {starBlock ? (
         <StarBlock planet={found.planet} system={system} />
       ) : star && waiting ? (
@@ -311,7 +337,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       <Colony page={page} />
       <About page={page} />
       <Moons page={page} />
-      {starBlock && <EditKey />}
+      {(starBlock || candidate !== null) && <EditKey />}
     </>
   );
 }

@@ -63,6 +63,7 @@ pub use registries::ship_sizes::ShipSizes;
 pub use registries::star_classes::{StarClasses, StarLists};
 pub use registries::starbase_levels::StarbaseLevels;
 pub use registries::static_modifiers::StaticModifiers;
+pub use registries::terraform_links::TerraformLinks;
 pub use reload::RegistryKind;
 pub use resolver::{export_resolvers, resolver};
 pub use scripts::ScriptIndex;
@@ -100,6 +101,8 @@ pub struct GameData {
     pub planet_classes: Arc<PlanetClasses>,
     /// `common/planet_classes`' `rl_` lists an initializer's body draws its class from.
     pub planet_lists: Arc<PlanetLists>,
+    /// `common/terraform`: the modifier that lets a planet class be terraformed, by class.
+    pub terraform_links: Arc<TerraformLinks>,
     pub starbase_levels: Arc<StarbaseLevels>,
     pub ship_sizes: Arc<ShipSizes>,
     pub galaxy_shapes: Arc<GalaxyShapes>,
@@ -286,6 +289,7 @@ impl GameData {
         diagnostics.extend(overrides.into_iter().filter(
             |d| !matches!(d, Diagnostic::Override { key, .. } if key == planet_lists::KEY),
         ));
+        let terraform_links = TerraformLinks::load(&layout, &mut diagnostics);
         let ship_sizes = registry::load(&layout, &vars, &mut diagnostics);
         let starbase_levels = starbase_levels::load(&layout, &ship_sizes, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
@@ -323,6 +327,7 @@ impl GameData {
             bypasses: Arc::new(bypasses),
             planet_classes: Arc::new(planet_classes),
             planet_lists: Arc::new(planet_lists),
+            terraform_links: Arc::new(terraform_links),
             starbase_levels: Arc::new(starbase_levels),
             ship_sizes: Arc::new(ship_sizes),
             galaxy_shapes: Arc::new(galaxy_shapes),

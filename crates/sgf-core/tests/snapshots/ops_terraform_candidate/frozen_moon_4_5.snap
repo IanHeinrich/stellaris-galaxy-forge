@@ -1,0 +1,21 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Make planet #40 a terraforming candidate
+inverse: SetTerraformCandidate { id: 40, modifier: "frozen_terraforming_candidate", on: false }
+
+--- gamestate
++++ gamestate
+@@ -81673,6 +81673,11 @@
+ 						days=3426
+ 					}
+  
++					{
++						modifier="frozen_terraforming_candidate"
++						days=-1
++					}
++ 
+ 				}
+ 			}
+ 			flags=

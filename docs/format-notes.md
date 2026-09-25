@@ -250,6 +250,11 @@ for planets or deposits.
   `bombardment_damage`, laid out like the `hyperlane` entries. It
   writes no `planet_modifier`. That key belongs to the game's random
   modifier roll.
+- The console's `add_modifier` writes a terraforming candidate
+  (`terraforming_candidate`, `frozen_…` or `toxic_…`) the same way, as
+  the last item of `items`. A planet without a `timed_modifier` gets
+  one after `bombardment_damage`. Removing the last item removes the
+  block.
 - A star-class body other than the star, such as the Great Wound's
   black holes, has `carrier_binary_flags=3`, as the star does. A star
   off centre writes its `orbit` and position like a planet, and the

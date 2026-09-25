@@ -19,7 +19,7 @@ use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
     add_system, bulk, deposits, lanes, lgate, map_colors, move_system, nebula, planet_size,
-    remove_system, rename_system, replace_system, star_class,
+    remove_system, rename_system, replace_system, star_class, terraform_candidate,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -165,6 +165,9 @@ impl Format for Save {
                 star_class::plan_set(plan, s, *id, class, bodies)
             }
             Op::SetPlanetSize { id, size } => planet_size::plan_set(plan, s, *id, *size),
+            Op::SetTerraformCandidate { id, modifier, on } => {
+                terraform_candidate::plan_set(plan, s, *id, modifier, *on)
+            }
             Op::SetEmpireMapColors { country, colors } => {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
