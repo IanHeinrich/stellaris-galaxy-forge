@@ -16,8 +16,7 @@ a release is made.
   candidate checkbox on their page. It does what the console's
   `add_modifier` does. The planet can then be terraformed with Climate
   Restoration, plus Hydrocentric for frozen worlds or Detox for toxic
-  ones. Planets you can mark carry the Edit mark in a system's planet
-  list.
+  ones. In a system's planet list, these planets show an Edit mark.
 - On the command line, `sgf add-system --generate` can roll the new
   system again before saving. `sgf nebula add` picks a name from the
   save when you leave one out.
