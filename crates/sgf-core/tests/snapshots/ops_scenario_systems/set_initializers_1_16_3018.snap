@@ -5,6 +5,7 @@ expression: "report(&session, &result)"
 Set initializer of 3 systems
 touched: [1, 16, 3018]
 inverse: SetInitializers { entries: [InitializerSet { id: 1, initializer: Some("misc_system_init_01") }, InitializerSet { id: 16, initializer: None }, InitializerSet { id: 3018, initializer: Some("random_empire_init_01") }] }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 2 other issues
 
 --- scenario

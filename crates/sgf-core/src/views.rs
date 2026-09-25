@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::archive;
-use crate::document;
+use crate::document::{self, Document};
 use crate::entity::views::EntityAddr;
 use crate::export::ExportReport;
 use crate::format;
@@ -104,8 +104,10 @@ pub struct Capabilities {
     /// Systems can be added to the save, and the ones added this session rerolled, renamed
     /// and deleted.
     pub added_systems: bool,
-    /// A body's star class, planet size and deposits can be changed.
+    /// A body's star class and planet size can be changed.
     pub bodies: bool,
+    /// A planet's deposits can be added and removed.
+    pub deposits: bool,
     /// An empire's map colours can be changed.
     pub map_colors: bool,
     /// The L-Gate's outcome can be read and set.
@@ -115,8 +117,8 @@ pub struct Capabilities {
 }
 
 impl Capabilities {
-    pub fn of(kind: DocumentKind) -> Self {
-        format::of(kind).capabilities()
+    pub fn of(doc: &Document) -> Self {
+        format::of(doc.kind()).capabilities(doc)
     }
 }
 
@@ -258,6 +260,31 @@ pub struct SearchHit {
     /// initializer or flag key, a special kind (`Enclave`), a bypass (`L-Gate`), or a
     /// planet class, localised when the resolver knows it. `None` for a name match.
     pub matched_on: Option<String>,
+    /// When [`Self::matched_on`] is a bypass, its key (`wormhole`, `gateway`, `l_gate`, or
+    /// the kind the save names), for the app to label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub matched_bypass: Option<String>,
+}
+
+impl SearchHit {
+    /// A hit of `kind` named `name`, standing at `position`, with nothing else known.
+    pub fn new(kind: SearchKind, id: u32, name: NameTemplate, position: Option<[f64; 2]>) -> Self {
+        Self {
+            kind,
+            id,
+            name_key: name.stand_in(),
+            name,
+            system_id: None,
+            owner: None,
+            country_type: None,
+            system_count: None,
+            planet_class: None,
+            position,
+            matched_on: None,
+            matched_bypass: None,
+        }
+    }
 }
 
 /// The hits of one search, and every system a system, planet or fleet match locates.
@@ -469,13 +496,6 @@ fn io_kind(e: &std::io::Error) -> ErrorKind {
 
 impl From<OpError> for SgfError {
     fn from(e: OpError) -> Self {
-        let kind = match e {
-            OpError::UnknownSystem(_) => ErrorKind::NotFound,
-            OpError::Parse { .. } | OpError::Projection(_) | OpError::Overlay(_) => {
-                ErrorKind::Format
-            }
-            _ => ErrorKind::Op,
-        };
-        Self::new(kind, e.to_string())
+        Self::new(e.kind(), e.to_string())
     }
 }

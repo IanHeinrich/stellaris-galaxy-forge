@@ -5,6 +5,7 @@ expression: "report(&session, &result)"
 Unprevented lane 1 <-> 9 (1 statements)
 touched: [1, 9]
 inverse: PreventLane { a: 1, b: 9 }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 1 other issues
 
 --- scenario

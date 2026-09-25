@@ -9,7 +9,7 @@ use crate::format::save::system_spec::SystemSpec;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::OverlayError;
 use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
-use crate::views::DocumentKind;
+use crate::views::{DocumentKind, ErrorKind};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -312,8 +312,10 @@ pub enum Op {
     /// game writes a system it spawns by script. It takes `last_created_system + 1`, which
     /// must be the number of systems the save holds; planets and deposits take the lowest
     /// dead slot of their tables first. Its name leaves the save's pool of unused star
-    /// names, or failing that of black hole names, when one holds it. The inverse is [`Op::RemoveSystem`]. Stellaris 4.x
-    /// save documents only.
+    /// names, or failing that of black hole names, when one holds it. A system standing
+    /// in a nebula's radius joins that nebula, as a system moved there does. The inverse
+    /// is [`Op::RemoveSystem`]. Stellaris 4.x save documents only, and not an Ironman
+    /// save.
     AddSaveSystem {
         spec: SystemSpec,
     },
@@ -691,7 +693,7 @@ pub enum OpError {
     FeLinkIdOutOfRange(u8, u8),
     #[error("random value {0} is beyond the {1} a Paint a Galaxy seat is drawn from")]
     RandomValueOutOfRange(u8, u8),
-    #[error("no lanes given")]
+    #[error("nothing to change")]
     Empty,
     #[error("a batch with nothing in it")]
     EmptyBatch,
@@ -757,6 +759,8 @@ pub enum OpError {
     SaveTooOld(String),
     #[error("the save's version {0:?} names no major version, so it cannot take this edit")]
     UnknownSaveVersion(String),
+    #[error("an Ironman save cannot take this edit")]
+    Ironman,
     #[error("the save has no `{0}`")]
     MissingSaveKey(&'static str),
     #[error(
@@ -818,4 +822,95 @@ pub enum OpError {
     Projection(#[from] ProjectionError),
     #[error(transparent)]
     Document(#[from] document::Error),
+}
+
+impl OpError {
+    /// How the refusal crosses to the app: an entity the document does not hold, text it
+    /// could not read, or an edit refused.
+    pub fn kind(&self) -> ErrorKind {
+        match self {
+            Self::UnknownSystem { .. }
+            | Self::UnknownNebula { .. }
+            | Self::UnknownPlanet { .. }
+            | Self::UnknownCountry { .. }
+            | Self::UnknownDeposit { .. } => ErrorKind::NotFound,
+            Self::Parse { .. }
+            | Self::NebulaParse { .. }
+            | Self::HeaderParse { .. }
+            | Self::FlagsParse { .. }
+            | Self::PlanetParse { .. }
+            | Self::RecordParse { .. }
+            | Self::CountryParse { .. }
+            | Self::Overlay { .. }
+            | Self::Projection { .. }
+            | Self::Document { .. } => ErrorKind::Format,
+            Self::SystemExists { .. }
+            | Self::NullSystemId { .. }
+            | Self::EmptyText { .. }
+            | Self::InvalidText { .. }
+            | Self::OnPlanet { .. }
+            | Self::SelfLane { .. }
+            | Self::LaneExists { .. }
+            | Self::NoSuchLane { .. }
+            | Self::LaneEndsDisagree { .. }
+            | Self::PreventExists { .. }
+            | Self::PreventLinked { .. }
+            | Self::NotPrevented { .. }
+            | Self::NoLanes { .. }
+            | Self::NotFinite { .. }
+            | Self::InvalidLength { .. }
+            | Self::InvalidRadius { .. }
+            | Self::InvalidWeight { .. }
+            | Self::ScriptedSpawn { .. }
+            | Self::WeightAndScript { .. }
+            | Self::InvalidSeatLetter { .. }
+            | Self::EnabledSeatPlayer { .. }
+            | Self::FeZoneBlocked { .. }
+            | Self::FeZoneOffMap { .. }
+            | Self::WormholeSelf { .. }
+            | Self::WormholePairInUse { .. }
+            | Self::FeLinkNoZone { .. }
+            | Self::FeLinkSelf { .. }
+            | Self::FeLinkIdsExhausted { .. }
+            | Self::FeLinkIdOutOfRange { .. }
+            | Self::RandomValueOutOfRange { .. }
+            | Self::Empty { .. }
+            | Self::EmptyBatch { .. }
+            | Self::NestedBatch { .. }
+            | Self::DuplicateSystem { .. }
+            | Self::DuplicateLane { .. }
+            | Self::NoFlags { .. }
+            | Self::NoLGate { .. }
+            | Self::LGateOpened { .. }
+            | Self::LGateUnchanged { .. }
+            | Self::NoStarBodies { .. }
+            | Self::NotABody { .. }
+            | Self::DuplicatePlanet { .. }
+            | Self::StarClassUnchanged { .. }
+            | Self::ZeroPlanetSize { .. }
+            | Self::PlanetSizeUnchanged { .. }
+            | Self::NoMapColors { .. }
+            | Self::MapColorsUnchanged { .. }
+            | Self::SaveTooOld { .. }
+            | Self::UnknownSaveVersion { .. }
+            | Self::Ironman { .. }
+            | Self::MissingSaveKey { .. }
+            | Self::SystemIdsNotDense { .. }
+            | Self::TooClose { .. }
+            | Self::OutsideGalaxy { .. }
+            | Self::MoonsNotAllowed { .. }
+            | Self::AsteroidNotAllowed { .. }
+            | Self::FixedNameNotAllowed { .. }
+            | Self::RingNotAllowed { .. }
+            | Self::CappedMismatch { .. }
+            | Self::SystemNotAdded { .. }
+            | Self::DepositNotOnPlanet { .. }
+            | Self::PlanetColonised { .. }
+            | Self::TurbulenceUnchanged { .. }
+            | Self::InvalidCloudType { .. }
+            | Self::AmbientSlotTaken { .. }
+            | Self::NameUnchanged { .. }
+            | Self::Unsupported { .. } => ErrorKind::Op,
+        }
+    }
 }

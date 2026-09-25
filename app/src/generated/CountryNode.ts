@@ -36,4 +36,21 @@ flag_colors: Array<string>,
  * Whether `flag.use_map_color=yes`: the game paints the map in `flag_colors[4]` and
  * `[5]` rather than the first two.
  */
-use_map_color: boolean, flag_icon: FlagRef | null, flag_background: FlagRef | null, };
+use_map_color: boolean, 
+/**
+ * The colour the map paints the territory's border in: `flag.colors[4]` under
+ * `flag.use_map_color=yes`, else the first named flag colour, else the second. `None`
+ * only for a country with no named colour.
+ */
+painted_border?: string, 
+/**
+ * The colour the map paints the territory's fill in: `flag.colors[5]` under
+ * `flag.use_map_color=yes`, else the second named flag colour, else the first. `None`
+ * only for a country with no named colour.
+ */
+painted_fill?: string, 
+/**
+ * Whether `flag.colors` holds the six entries Stellaris 4.5 writes, the last two the
+ * map border and fill, so the map colours can be set. Always set.
+ */
+has_map_colors?: boolean, flag_icon: FlagRef | null, flag_background: FlagRef | null, };

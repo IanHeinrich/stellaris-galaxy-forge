@@ -5,6 +5,7 @@ expression: "report(&session, &result)"
 Cleared system 3018 initializer
 touched: [3018]
 inverse: SetInitializer { id: 3018, initializer: Some("random_empire_init_01") }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 2 other issues
 
 --- scenario

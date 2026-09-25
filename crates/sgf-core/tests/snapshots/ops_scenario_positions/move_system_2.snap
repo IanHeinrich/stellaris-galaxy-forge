@@ -5,6 +5,7 @@ expression: "report(&session, &result)"
 Moved Coruscant (#2) from (0, -56) to (12.5, -60.25)
 touched: [2]
 inverse: MoveSystem { id: 2, x: 0.0, y: -56.0 }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 2 other issues
 
 --- scenario

@@ -29,6 +29,23 @@ pub struct CountryNode {
     /// Whether `flag.use_map_color=yes`: the game paints the map in `flag_colors[4]` and
     /// `[5]` rather than the first two.
     pub use_map_color: bool,
+    /// The colour the map paints the territory's border in: `flag.colors[4]` under
+    /// `flag.use_map_color=yes`, else the first named flag colour, else the second. `None`
+    /// only for a country with no named colour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub painted_border: Option<String>,
+    /// The colour the map paints the territory's fill in: `flag.colors[5]` under
+    /// `flag.use_map_color=yes`, else the second named flag colour, else the first. `None`
+    /// only for a country with no named colour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub painted_fill: Option<String>,
+    /// Whether `flag.colors` holds the six entries Stellaris 4.5 writes, the last two the
+    /// map border and fill, so the map colours can be set. Always set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub has_map_colors: Option<bool>,
     pub flag_icon: Option<FlagRef>,
     pub flag_background: Option<FlagRef>,
     /// The keys of the save's `flags` map: the country flags scripts test.

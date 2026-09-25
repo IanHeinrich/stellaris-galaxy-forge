@@ -3,349 +3,188 @@
 //! A reader is `find(key)` over the parsed bytes and a missing key is an empty result,
 //! so a mistyped literal fails silently; a mistyped constant does not compile.
 
-pub(crate) const ACTIVE: &str = "active";
-pub(crate) const AMBIENT_OBJECT: &str = "ambient_object";
-pub(crate) const APPEAR_STATE: &str = "appear_state";
-pub(crate) const ARCHAEOLOGICAL_SITES: &str = "archaeological_sites";
-pub(crate) const ASTEROID_BELTS: &str = "asteroid_belts";
-pub(crate) const ASTEROID_POSTFIX: &str = "asteroid_postfix";
-pub(crate) const ASTEROID_PREFIX: &str = "asteroid_prefix";
-pub(crate) const ATTACH: &str = "attach";
-pub(crate) const BACKGROUND: &str = "background";
-pub(crate) const BINARY_FLAGS: &str = "binary_flags";
-pub(crate) const BLACK_HOLE_NAMES: &str = "black_hole_names";
-pub(crate) const BOMBARDMENT_DAMAGE: &str = "bombardment_damage";
-pub(crate) const BRIDGE: &str = "bridge";
-pub(crate) const BUILDINGS: &str = "buildings";
-pub(crate) const BUILD_QUEUE: &str = "build_queue";
-pub(crate) const BYPASS: &str = "bypass";
-pub(crate) const BYPASSES: &str = "bypasses";
-pub(crate) const CACHED_DISABLED_SHIPS: &str = "cached_disabled_ships";
-pub(crate) const CAPITAL: &str = "capital";
-pub(crate) const CARRIER_BINARY_FLAGS: &str = "carrier_binary_flags";
-pub(crate) const CATEGORY: &str = "category";
-pub(crate) const COLONIZE_DATE: &str = "colonize_date";
-pub(crate) const COLONY: &str = "colony";
-pub(crate) const COLORS: &str = "colors";
-pub(crate) const COMBAT: &str = "combat";
-pub(crate) const CONSTRUCTION_TYPE: &str = "construction_type";
-pub(crate) const CONTROLLER: &str = "controller";
-pub(crate) const COORDINATE: &str = "coordinate";
-pub(crate) const CORE_RADIUS: &str = "core_radius";
-pub(crate) const COUNT: &str = "count";
-pub(crate) const COUNTRY: &str = "country";
-pub(crate) const CRISES: &str = "crises";
-pub(crate) const CRISIS_TYPE: &str = "crisis_type";
-pub(crate) const CURRENT_ORDER: &str = "current_order";
-pub(crate) const DATA: &str = "data";
-pub(crate) const DAYS: &str = "days";
-pub(crate) const DEPOSIT: &str = "deposit";
-pub(crate) const DEPOSITS: &str = "deposits";
-pub(crate) const DEPOSIT_HOLDER: &str = "deposit_holder";
-pub(crate) const DESIGN: &str = "design";
-pub(crate) const DESIGNATION: &str = "designation";
-pub(crate) const DIFFICULTY: &str = "difficulty";
-pub(crate) const DISMANTLE_FINISH_DATE: &str = "dismantle_finish_date";
-pub(crate) const DISMANTLE_PROGRESS: &str = "dismantle_progress";
-pub(crate) const END_GAME_START: &str = "end_game_start";
-pub(crate) const ENTITY: &str = "entity";
-pub(crate) const ENTITY_FACE_OBJECT: &str = "entity_face_object";
-pub(crate) const ENTITY_NAME: &str = "entity_name";
-pub(crate) const FILE: &str = "file";
-pub(crate) const FINAL_DESIGNATION: &str = "final_designation";
-pub(crate) const FLAG: &str = "flag";
-pub(crate) const FLAGS: &str = "flags";
-pub(crate) const FLEET: &str = "fleet";
-pub(crate) const FLEETS_MANAGER: &str = "fleets_manager";
-pub(crate) const FLEET_PRESENCE: &str = "fleet_presence";
-pub(crate) const FLEET_STANCE: &str = "fleet_stance";
-pub(crate) const GALACTIC_OBJECT: &str = "galactic_object";
-pub(crate) const GALAXY: &str = "galaxy";
-pub(crate) const GALAXY_RADIUS: &str = "galaxy_radius";
-/// The global flag dated with the save's day one.
-pub(crate) const GAME_STARTED: &str = "game_started";
-pub(crate) const GROUND_SUPPORT_STANCE: &str = "ground_support_stance";
-pub(crate) const GROWTH_STAGE: &str = "growth_stage";
-pub(crate) const GROWTH_STAGES: &str = "growth_stages";
-pub(crate) const HABITABILITY: &str = "habitability";
-pub(crate) const HITPOINTS: &str = "hitpoints";
-pub(crate) const HIT_POINTS: &str = "hit_points";
-pub(crate) const HYPERLANE: &str = "hyperlane";
-pub(crate) const ICON: &str = "icon";
-pub(crate) const ID: &str = "id";
-pub(crate) const INDEX: &str = "index";
-pub(crate) const INITIALIZER: &str = "initializer";
-pub(crate) const INIT_PARENT: &str = "init_parent";
-pub(crate) const INNER_RADIUS: &str = "inner_radius";
-pub(crate) const IRONMAN: &str = "ironman";
-pub(crate) const ITEMS: &str = "items";
-pub(crate) const KEY: &str = "key";
-pub(crate) const LAST_BOMBARDMENT: &str = "last_bombardment";
-pub(crate) const LAST_CREATED_AMBIENT_OBJECT: &str = "last_created_ambient_object";
-pub(crate) const LAST_CREATED_SYSTEM: &str = "last_created_system";
-pub(crate) const LENGTH: &str = "length";
-pub(crate) const LEVEL: &str = "level";
-pub(crate) const LINKED_TO: &str = "linked_to";
-pub(crate) const LITERAL: &str = "literal";
-pub(crate) const LOCATION: &str = "location";
-pub(crate) const MAX_HITPOINTS: &str = "max_hitpoints";
-pub(crate) const MEGASTRUCTURES: &str = "megastructures";
-pub(crate) const MIA_FROM: &str = "mia_from";
-pub(crate) const MID_GAME_START: &str = "mid_game_start";
-pub(crate) const MILITARY_POWER: &str = "military_power";
-pub(crate) const MODIFIER: &str = "modifier";
-pub(crate) const MODULES: &str = "modules";
-pub(crate) const MOONS: &str = "moons";
-pub(crate) const MOON_OF: &str = "moon_of";
-pub(crate) const MOVEMENT_MANAGER: &str = "movement_manager";
-pub(crate) const NAME: &str = "name";
-pub(crate) const NATURAL_WORMHOLES: &str = "natural_wormholes";
-pub(crate) const NEBULA: &str = "nebula";
-pub(crate) const NEBULA_NAMES: &str = "nebula_names";
-pub(crate) const NUM_ADVANCED_EMPIRES: &str = "num_advanced_empires";
-pub(crate) const NUM_EMPIRES: &str = "num_empires";
-pub(crate) const NUM_FALLEN_EMPIRES: &str = "num_fallen_empires";
-pub(crate) const NUM_GATEWAYS: &str = "num_gateways";
-pub(crate) const NUM_HYPERLANES: &str = "num_hyperlanes";
-pub(crate) const NUM_MARAUDER_EMPIRES: &str = "num_marauder_empires";
-pub(crate) const NUM_NOMAD_EMPIRES: &str = "num_nomad_empires";
-pub(crate) const NUM_POPS: &str = "num_pops";
-pub(crate) const NUM_SAPIENT_POPS: &str = "num_sapient_pops";
-pub(crate) const NUM_WORMHOLE_PAIRS: &str = "num_wormhole_pairs";
-pub(crate) const OFFSET: &str = "offset";
-pub(crate) const ORBIT: &str = "orbit";
-pub(crate) const ORBITALS: &str = "orbitals";
-pub(crate) const ORIGIN: &str = "origin";
-pub(crate) const OUTER_RADIUS: &str = "outer_radius";
-pub(crate) const OWNED_FLEETS: &str = "owned_fleets";
-pub(crate) const OWNER: &str = "owner";
-pub(crate) const PLANET: &str = "planet";
-pub(crate) const PLANETS: &str = "planets";
-pub(crate) const PLANET_CLASS: &str = "planet_class";
-pub(crate) const PLANET_MODIFIER: &str = "planet_modifier";
-pub(crate) const PLANET_ORBITALS: &str = "planet_orbitals";
-pub(crate) const PLANET_SIZE: &str = "planet_size";
-pub(crate) const PLAYER: &str = "player";
-pub(crate) const POP_GROUPS: &str = "pop_groups";
-pub(crate) const PRIMITIVE: &str = "primitive";
-pub(crate) const PROPERTIES: &str = "properties";
-pub(crate) const RADIUS: &str = "radius";
-pub(crate) const RANDOMIZED: &str = "randomized";
-pub(crate) const RANDOM_NAME_DATABASE: &str = "random_name_database";
-pub(crate) const REQUIRED_DLCS: &str = "required_dlcs";
-pub(crate) const RESOURCE_ABUNDANCE: &str = "resource_abundance";
-pub(crate) const SCALE: &str = "scale";
-pub(crate) const SCALING: &str = "scaling";
-pub(crate) const SECTOR: &str = "sector";
-pub(crate) const SECTORS: &str = "sectors";
-pub(crate) const SHAPE: &str = "shape";
-pub(crate) const SHIPCLASS_ORBITAL_STATION: &str = "shipclass_orbital_station";
-pub(crate) const SHIPS: &str = "ships";
-pub(crate) const SHIPYARD_BUILD_QUEUE: &str = "shipyard_build_queue";
-pub(crate) const SHIP_CLASS: &str = "ship_class";
-pub(crate) const SHIP_DESIGN: &str = "ship_design";
-pub(crate) const SHIP_DESIGN_IMPLEMENTATION: &str = "ship_design_implementation";
-pub(crate) const SHIP_NAMES: &str = "ship_names";
-pub(crate) const SHIP_SIZE: &str = "ship_size";
-pub(crate) const SITES: &str = "sites";
-pub(crate) const SPECIES_DB: &str = "species_db";
-pub(crate) const SPECIES_INFORMATION: &str = "species_information";
-pub(crate) const STARBASES: &str = "starbases";
-pub(crate) const STARBASE_MGR: &str = "starbase_mgr";
-pub(crate) const STAR_CLASS: &str = "star_class";
-pub(crate) const STAR_NAMES: &str = "star_names";
-pub(crate) const STATION: &str = "station";
-pub(crate) const STORM: &str = "storm";
-pub(crate) const SURVEYED_BY: &str = "surveyed_by";
-pub(crate) const SWAP_TYPE: &str = "swap_type";
-pub(crate) const SYSTEM_INITIALIZER_COUNTER: &str = "system_initializer_counter";
-pub(crate) const TEMPLATE: &str = "template";
-pub(crate) const TIMED_MODIFIER: &str = "timed_modifier";
-pub(crate) const TO: &str = "to";
-pub(crate) const TYPE: &str = "type";
-pub(crate) const USE_MAP_COLOR: &str = "use_map_color";
-pub(crate) const VALUE: &str = "value";
-pub(crate) const VARIABLES: &str = "variables";
-pub(crate) const VERSION_CONTROL_REVISION: &str = "version_control_revision";
-pub(crate) const VISUAL_HEIGHT: &str = "visual_height";
-pub(crate) const WAYSTATIONS: &str = "waystations";
-pub(crate) const WAYSTATION_NETWORKS: &str = "waystation_networks";
-pub(crate) const X: &str = "x";
-pub(crate) const Y: &str = "y";
+/// Declares each save key as a constant and lists them all in `ALL`, which the key-presence
+/// test checks against the sample saves.
+macro_rules! save_keys {
+    ($($(#[$doc:meta])* $name:ident = $text:literal,)*) => {
+        $($(#[$doc])* pub(crate) const $name: &str = $text;)*
 
-/// Every save key above, so a test can check each against the sample saves. A new key
-/// is added here as well as above.
-#[cfg(test)]
-pub(crate) const ALL: &[&str] = &[
-    ACTIVE,
-    AMBIENT_OBJECT,
-    APPEAR_STATE,
-    ARCHAEOLOGICAL_SITES,
-    ASTEROID_BELTS,
-    ASTEROID_POSTFIX,
-    ASTEROID_PREFIX,
-    ATTACH,
-    BACKGROUND,
-    BINARY_FLAGS,
-    BLACK_HOLE_NAMES,
-    BOMBARDMENT_DAMAGE,
-    BRIDGE,
-    BUILDINGS,
-    BUILD_QUEUE,
-    BYPASS,
-    BYPASSES,
-    CACHED_DISABLED_SHIPS,
-    CAPITAL,
-    CARRIER_BINARY_FLAGS,
-    CATEGORY,
-    COLONIZE_DATE,
-    COLONY,
-    COLORS,
-    COMBAT,
-    CONSTRUCTION_TYPE,
-    CONTROLLER,
-    COORDINATE,
-    CORE_RADIUS,
-    COUNT,
-    COUNTRY,
-    CRISES,
-    CRISIS_TYPE,
-    CURRENT_ORDER,
-    DATA,
-    DAYS,
-    DEPOSIT,
-    DEPOSITS,
-    DEPOSIT_HOLDER,
-    DESIGN,
-    DESIGNATION,
-    DIFFICULTY,
-    DISMANTLE_FINISH_DATE,
-    DISMANTLE_PROGRESS,
-    END_GAME_START,
-    ENTITY,
-    ENTITY_FACE_OBJECT,
-    ENTITY_NAME,
-    FILE,
-    FINAL_DESIGNATION,
-    FLAG,
-    FLAGS,
-    FLEET,
-    FLEETS_MANAGER,
-    FLEET_PRESENCE,
-    FLEET_STANCE,
-    GALACTIC_OBJECT,
-    GALAXY,
-    GALAXY_RADIUS,
-    GAME_STARTED,
-    GROUND_SUPPORT_STANCE,
-    GROWTH_STAGE,
-    GROWTH_STAGES,
-    HABITABILITY,
-    HITPOINTS,
-    HIT_POINTS,
-    HYPERLANE,
-    ICON,
-    ID,
-    INDEX,
-    INITIALIZER,
-    INIT_PARENT,
-    INNER_RADIUS,
-    IRONMAN,
-    ITEMS,
-    KEY,
-    LAST_BOMBARDMENT,
-    LAST_CREATED_AMBIENT_OBJECT,
-    LAST_CREATED_SYSTEM,
-    LENGTH,
-    LEVEL,
-    LINKED_TO,
-    LITERAL,
-    LOCATION,
-    MAX_HITPOINTS,
-    MEGASTRUCTURES,
-    MIA_FROM,
-    MID_GAME_START,
-    MILITARY_POWER,
-    MODIFIER,
-    MODULES,
-    MOONS,
-    MOON_OF,
-    MOVEMENT_MANAGER,
-    NAME,
-    NATURAL_WORMHOLES,
-    NEBULA,
-    NEBULA_NAMES,
-    NUM_ADVANCED_EMPIRES,
-    NUM_EMPIRES,
-    NUM_FALLEN_EMPIRES,
-    NUM_GATEWAYS,
-    NUM_HYPERLANES,
-    NUM_MARAUDER_EMPIRES,
-    NUM_NOMAD_EMPIRES,
-    NUM_POPS,
-    NUM_SAPIENT_POPS,
-    NUM_WORMHOLE_PAIRS,
-    OFFSET,
-    ORBIT,
-    ORBITALS,
-    ORIGIN,
-    OUTER_RADIUS,
-    OWNED_FLEETS,
-    OWNER,
-    PLANET,
-    PLANETS,
-    PLANET_CLASS,
-    PLANET_MODIFIER,
-    PLANET_ORBITALS,
-    PLANET_SIZE,
-    PLAYER,
-    POP_GROUPS,
-    PRIMITIVE,
-    PROPERTIES,
-    RADIUS,
-    RANDOMIZED,
-    RANDOM_NAME_DATABASE,
-    REQUIRED_DLCS,
-    RESOURCE_ABUNDANCE,
-    SCALE,
-    SCALING,
-    SECTOR,
-    SECTORS,
-    SHAPE,
-    SHIPCLASS_ORBITAL_STATION,
-    SHIPS,
-    SHIPYARD_BUILD_QUEUE,
-    SHIP_CLASS,
-    SHIP_DESIGN,
-    SHIP_DESIGN_IMPLEMENTATION,
-    SHIP_NAMES,
-    SHIP_SIZE,
-    SITES,
-    SPECIES_DB,
-    SPECIES_INFORMATION,
-    STARBASES,
-    STARBASE_MGR,
-    STAR_CLASS,
-    STAR_NAMES,
-    STATION,
-    STORM,
-    SURVEYED_BY,
-    SWAP_TYPE,
-    SYSTEM_INITIALIZER_COUNTER,
-    TEMPLATE,
-    TIMED_MODIFIER,
-    TO,
-    TYPE,
-    USE_MAP_COLOR,
-    VALUE,
-    VARIABLES,
-    VERSION_CONTROL_REVISION,
-    VISUAL_HEIGHT,
-    WAYSTATIONS,
-    WAYSTATION_NETWORKS,
-    X,
-    Y,
-];
+        #[cfg(test)]
+        pub(crate) const ALL: &[&str] = &[$($name),*];
+    };
+}
+
+save_keys! {
+    ACTIVE = "active",
+    AMBIENT_OBJECT = "ambient_object",
+    APPEAR_STATE = "appear_state",
+    ARCHAEOLOGICAL_SITES = "archaeological_sites",
+    ASTEROID_BELTS = "asteroid_belts",
+    ASTEROID_POSTFIX = "asteroid_postfix",
+    ASTEROID_PREFIX = "asteroid_prefix",
+    ATTACH = "attach",
+    BACKGROUND = "background",
+    BINARY_FLAGS = "binary_flags",
+    BLACK_HOLE_NAMES = "black_hole_names",
+    BOMBARDMENT_DAMAGE = "bombardment_damage",
+    BRIDGE = "bridge",
+    BUILDINGS = "buildings",
+    BUILD_QUEUE = "build_queue",
+    BYPASS = "bypass",
+    BYPASSES = "bypasses",
+    CACHED_DISABLED_SHIPS = "cached_disabled_ships",
+    CAPITAL = "capital",
+    CARRIER_BINARY_FLAGS = "carrier_binary_flags",
+    CATEGORY = "category",
+    COLONIZE_DATE = "colonize_date",
+    COLONY = "colony",
+    COLORS = "colors",
+    COMBAT = "combat",
+    CONSTRUCTION_TYPE = "construction_type",
+    CONTROLLER = "controller",
+    COORDINATE = "coordinate",
+    CORE_RADIUS = "core_radius",
+    COUNT = "count",
+    COUNTRY = "country",
+    CRISES = "crises",
+    CRISIS_TYPE = "crisis_type",
+    CURRENT_ORDER = "current_order",
+    DATA = "data",
+    DAYS = "days",
+    DEPOSIT = "deposit",
+    DEPOSITS = "deposits",
+    DEPOSIT_HOLDER = "deposit_holder",
+    DESIGN = "design",
+    DESIGNATION = "designation",
+    DIFFICULTY = "difficulty",
+    DISMANTLE_FINISH_DATE = "dismantle_finish_date",
+    DISMANTLE_PROGRESS = "dismantle_progress",
+    END_GAME_START = "end_game_start",
+    ENTITY = "entity",
+    ENTITY_FACE_OBJECT = "entity_face_object",
+    ENTITY_NAME = "entity_name",
+    FILE = "file",
+    FINAL_DESIGNATION = "final_designation",
+    FLAG = "flag",
+    FLAGS = "flags",
+    FLEET = "fleet",
+    FLEETS_MANAGER = "fleets_manager",
+    FLEET_PRESENCE = "fleet_presence",
+    FLEET_STANCE = "fleet_stance",
+    GALACTIC_OBJECT = "galactic_object",
+    GALAXY = "galaxy",
+    GALAXY_RADIUS = "galaxy_radius",
+    /// The global flag dated with the save's day one.
+    GAME_STARTED = "game_started",
+    GROUND_SUPPORT_STANCE = "ground_support_stance",
+    GROWTH_STAGE = "growth_stage",
+    GROWTH_STAGES = "growth_stages",
+    HABITABILITY = "habitability",
+    HITPOINTS = "hitpoints",
+    HIT_POINTS = "hit_points",
+    HYPERLANE = "hyperlane",
+    ICON = "icon",
+    ID = "id",
+    INDEX = "index",
+    INITIALIZER = "initializer",
+    INIT_PARENT = "init_parent",
+    INNER_RADIUS = "inner_radius",
+    IRONMAN = "ironman",
+    ITEMS = "items",
+    KEY = "key",
+    LAST_BOMBARDMENT = "last_bombardment",
+    LAST_CREATED_AMBIENT_OBJECT = "last_created_ambient_object",
+    LAST_CREATED_SYSTEM = "last_created_system",
+    LENGTH = "length",
+    LEVEL = "level",
+    LINKED_TO = "linked_to",
+    LITERAL = "literal",
+    LOCATION = "location",
+    MAX_HITPOINTS = "max_hitpoints",
+    MEGASTRUCTURES = "megastructures",
+    MIA_FROM = "mia_from",
+    MID_GAME_START = "mid_game_start",
+    MILITARY_POWER = "military_power",
+    MODIFIER = "modifier",
+    MODULES = "modules",
+    MOONS = "moons",
+    MOON_OF = "moon_of",
+    MOVEMENT_MANAGER = "movement_manager",
+    NAME = "name",
+    NATURAL_WORMHOLES = "natural_wormholes",
+    NEBULA = "nebula",
+    NEBULA_NAMES = "nebula_names",
+    NUM_ADVANCED_EMPIRES = "num_advanced_empires",
+    NUM_EMPIRES = "num_empires",
+    NUM_FALLEN_EMPIRES = "num_fallen_empires",
+    NUM_GATEWAYS = "num_gateways",
+    NUM_HYPERLANES = "num_hyperlanes",
+    NUM_MARAUDER_EMPIRES = "num_marauder_empires",
+    NUM_NOMAD_EMPIRES = "num_nomad_empires",
+    NUM_POPS = "num_pops",
+    NUM_SAPIENT_POPS = "num_sapient_pops",
+    NUM_WORMHOLE_PAIRS = "num_wormhole_pairs",
+    OFFSET = "offset",
+    ORBIT = "orbit",
+    ORBITALS = "orbitals",
+    ORIGIN = "origin",
+    OUTER_RADIUS = "outer_radius",
+    OWNED_FLEETS = "owned_fleets",
+    OWNER = "owner",
+    PLANET = "planet",
+    PLANETS = "planets",
+    PLANET_CLASS = "planet_class",
+    PLANET_MODIFIER = "planet_modifier",
+    PLANET_ORBITALS = "planet_orbitals",
+    PLANET_SIZE = "planet_size",
+    PLAYER = "player",
+    POP_GROUPS = "pop_groups",
+    PRIMITIVE = "primitive",
+    PROPERTIES = "properties",
+    RADIUS = "radius",
+    RANDOMIZED = "randomized",
+    RANDOM_NAME_DATABASE = "random_name_database",
+    REQUIRED_DLCS = "required_dlcs",
+    RESOURCE_ABUNDANCE = "resource_abundance",
+    SCALE = "scale",
+    SCALING = "scaling",
+    SECTOR = "sector",
+    SECTORS = "sectors",
+    SHAPE = "shape",
+    SHIPCLASS_ORBITAL_STATION = "shipclass_orbital_station",
+    SHIPS = "ships",
+    SHIPYARD_BUILD_QUEUE = "shipyard_build_queue",
+    SHIP_CLASS = "ship_class",
+    SHIP_DESIGN = "ship_design",
+    SHIP_DESIGN_IMPLEMENTATION = "ship_design_implementation",
+    SHIP_NAMES = "ship_names",
+    SHIP_SIZE = "ship_size",
+    SITES = "sites",
+    SPECIES_DB = "species_db",
+    SPECIES_INFORMATION = "species_information",
+    STARBASES = "starbases",
+    STARBASE_MGR = "starbase_mgr",
+    STAR_CLASS = "star_class",
+    STAR_NAMES = "star_names",
+    STATION = "station",
+    STORM = "storm",
+    SURVEYED_BY = "surveyed_by",
+    SWAP_TYPE = "swap_type",
+    SYSTEM_INITIALIZER_COUNTER = "system_initializer_counter",
+    TEMPLATE = "template",
+    TIMED_MODIFIER = "timed_modifier",
+    TO = "to",
+    TYPE = "type",
+    USE_MAP_COLOR = "use_map_color",
+    VALUE = "value",
+    VARIABLES = "variables",
+    VERSION_CONTROL_REVISION = "version_control_revision",
+    VISUAL_HEIGHT = "visual_height",
+    WAYSTATIONS = "waystations",
+    WAYSTATION_NETWORKS = "waystation_networks",
+    X = "x",
+    Y = "y",
+}
 
 /// Save keys a save may lack. The test asks only that some sample save writes each.
 #[cfg(test)]

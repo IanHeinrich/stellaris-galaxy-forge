@@ -61,6 +61,23 @@ fn opens_nebula(bytes: &[u8]) -> bool {
         .is_some_and(|rest| rest.trim_ascii_start().starts_with(b"="))
 }
 
+/// A save's `nebula` sections as the bytes now stand, in emission order.
+fn save_nebulae(index: &Index, overlay: &Overlay, original: &[u8]) -> Vec<Anchor> {
+    let mut anchors: Vec<Anchor> = index
+        .sections_named(keys::NEBULA)
+        .map(|s| Anchor::Original(s.stmt))
+        .filter(|&a| !overlay.removed(a, original))
+        .collect();
+    anchors.extend(
+        overlay
+            .slots()
+            .filter(|&(anchor, bytes)| anchor.is_inserted() && opens_nebula(bytes))
+            .map(|(anchor, _)| anchor),
+    );
+    anchors.sort_unstable();
+    anchors
+}
+
 /// Which format `path` holds, read from its first bytes; the extension is never trusted.
 /// A file that cannot be read is treated as text, so opening it reports the read error.
 pub fn sniff(path: impl AsRef<Path>) -> DocumentKind {
@@ -73,19 +90,30 @@ pub fn sniff(path: impl AsRef<Path>) -> DocumentKind {
     }
 }
 
+/// What each kind keeps about its bytes beyond the index, read again by its format's
+/// refresh after every edit, undo and redo.
+#[derive(Clone, Debug)]
+enum Body {
+    Save {
+        /// The top-level `nebula` statements in emission order, the ones an op inserted
+        /// among them.
+        nebulae: Vec<Anchor>,
+        /// The systems, planets and deposits an op wrote.
+        added: Added,
+    },
+    Scenario(Box<ScenarioIndex>),
+}
+
+/// The `added` a scenario answers with: it keeps its own id map.
+static NOTHING_ADDED: Added = Added::new();
+
 #[derive(Clone, Debug)]
 pub struct Document {
     original: Arc<Vec<u8>>,
     meta: Vec<u8>,
     index: Index,
     overlay: Overlay,
-    /// A save's top-level `nebula` statements in emission order, the ones an op inserted
-    /// among them; empty for a scenario, whose index lists its own.
-    nebulae: Vec<Anchor>,
-    /// Present exactly when the document is a scenario script.
-    scenario: Option<ScenarioIndex>,
-    /// A save's systems, planets and deposits an op wrote; empty for a scenario.
-    added: Added,
+    body: Body,
     /// See [`Self::inner_index`]; one cell per section, so a damaged one is nobody
     /// else's business.
     inner: HashMap<&'static str, OnceLock<Option<Index>>>,
@@ -146,18 +174,19 @@ impl Document {
 
     pub fn from_bytes(gamestate: Vec<u8>, meta: Vec<u8>) -> Result<Self, Error> {
         let index = scan::scan(&gamestate)?;
-        let mut doc = Self {
+        let overlay = Overlay::new();
+        let nebulae = save_nebulae(&index, &overlay, &gamestate);
+        Ok(Self {
             original: Arc::new(gamestate),
             meta,
             index,
-            overlay: Overlay::new(),
-            nebulae: Vec::new(),
-            scenario: None,
-            added: Added::default(),
+            overlay,
+            body: Body::Save {
+                nebulae,
+                added: Added::new(),
+            },
             inner: inner_cells(),
-        };
-        doc.rebuild_nebulae();
-        Ok(doc)
+        })
     }
 
     /// Index a static galaxy scenario script; a document of this kind carries no `meta`.
@@ -168,76 +197,71 @@ impl Document {
             meta: Vec::new(),
             index,
             overlay: Overlay::new(),
-            nebulae: Vec::new(),
-            scenario: Some(scenario),
-            added: Added::default(),
+            body: Body::Scenario(Box::new(scenario)),
             inner: inner_cells(),
         })
     }
 
     pub fn kind(&self) -> DocumentKind {
-        match self.scenario {
-            Some(_) => DocumentKind::Scenario,
-            None => DocumentKind::Save,
+        match self.body {
+            Body::Save { .. } => DocumentKind::Save,
+            Body::Scenario(_) => DocumentKind::Scenario,
         }
     }
 
     /// The scenario's body index, `None` for a save.
     pub fn scenario(&self) -> Option<&ScenarioIndex> {
-        self.scenario.as_ref()
+        match &self.body {
+            Body::Scenario(scenario) => Some(scenario.as_ref()),
+            Body::Save { .. } => None,
+        }
     }
 
     /// A save's `nebula` statements in emission order, one per top-level section the
     /// document now holds; empty for a scenario, which lists its own
     /// ([`ScenarioIndex::nebulae`]).
     pub fn nebulae(&self) -> &[Anchor] {
-        &self.nebulae
+        match &self.body {
+            Body::Save { nebulae, .. } => nebulae,
+            Body::Scenario(_) => &[],
+        }
     }
 
-    /// Re-read which statements are `nebula` sections from the bytes now standing for
-    /// each, so one an op erased is gone and one it inserted is listed.
-    pub fn rebuild_nebulae(&mut self) {
-        if self.scenario.is_some() {
-            return;
+    /// A save's systems, planets and deposits an op wrote, which the index cannot know;
+    /// none for a scenario.
+    pub(crate) fn added(&self) -> &Added {
+        match &self.body {
+            Body::Save { added, .. } => added,
+            Body::Scenario(_) => &NOTHING_ADDED,
         }
-        let mut anchors: Vec<Anchor> = self
-            .index
-            .sections_named(keys::NEBULA)
-            .map(|s| Anchor::Original(s.stmt))
-            .filter(|&a| !scenario::removed(&self.overlay, a, &self.original))
-            .collect();
-        anchors.extend(
-            self.overlay
-                .slots()
-                .filter(|&(anchor, bytes)| anchor.is_inserted() && opens_nebula(bytes))
-                .map(|(anchor, _)| anchor),
-        );
-        anchors.sort_unstable();
-        self.nebulae = anchors;
     }
 
     /// Re-read the scenario statements `slots` hold from their current bytes, so the id
-    /// map matches what the document now holds. A save has nothing to refresh.
+    /// map matches what the document now holds.
     pub(crate) fn refresh_scenario(&mut self, slots: &[Anchor]) -> Result<Changes, Error> {
-        let Some(scenario) = self.scenario.as_mut() else {
-            return Ok(Changes::default());
-        };
-        Ok(scenario.refresh(&self.original, &self.overlay, slots)?)
-    }
-
-    /// A save's systems, planets and deposits an op wrote, which the index cannot know.
-    pub(crate) fn added(&self) -> &Added {
-        &self.added
+        match &mut self.body {
+            Body::Scenario(scenario) => {
+                Ok(scenario.refresh(&self.original, &self.overlay, slots)?)
+            }
+            Body::Save { .. } => Ok(Changes::default()),
+        }
     }
 
     /// Re-read which entities the save's `slots` now hold, so one an op wrote is found and
-    /// one an undo took away is gone. A scenario keeps its own id map.
-    pub(crate) fn refresh_added(&mut self, slots: &[Anchor]) {
-        if self.scenario.is_some() {
+    /// one an undo took away is gone; with `nebulae`, also which statements are `nebula`
+    /// sections, so one an op erased is gone and one it inserted is listed.
+    pub(crate) fn refresh_save(&mut self, slots: &[Anchor], nebulae: bool) {
+        let Body::Save {
+            nebulae: listed,
+            added,
+        } = &mut self.body
+        else {
             return;
+        };
+        added.refresh(&self.original, &self.index, &self.overlay, slots);
+        if nebulae {
+            *listed = save_nebulae(&self.index, &self.overlay, &self.original);
         }
-        self.added
-            .refresh(&self.original, &self.index, &self.overlay, slots);
     }
 
     /// The original bytes as loaded.

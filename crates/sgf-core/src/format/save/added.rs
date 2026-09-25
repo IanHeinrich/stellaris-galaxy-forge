@@ -5,15 +5,18 @@
 //! entity in its slot. Like a scenario's id map, it is read again from the bytes each slot
 //! holds after every edit, undo and redo, never kept as a running tally.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
+use crate::entity::address;
+use crate::entity::views::EntityKind;
 use crate::format::save::entity_in;
 use crate::keys;
 use crate::overlay::{Anchor, Overlay};
 use crate::scan::{self, Index};
 
-/// The id-keyed tables an op adds entities to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// The id-keyed tables an op adds entities to: an entity kind's, or the ambient objects,
+/// which the inspector does not address.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Table {
     System,
     Planet,
@@ -22,25 +25,57 @@ pub(crate) enum Table {
 }
 
 impl Table {
+    const ALL: [Self; 4] = [
+        Self::System,
+        Self::Planet,
+        Self::Deposit,
+        Self::AmbientObject,
+    ];
+
+    const fn kind(self) -> Option<EntityKind> {
+        match self {
+            Self::System => Some(EntityKind::System),
+            Self::Planet => Some(EntityKind::Planet),
+            Self::Deposit => Some(EntityKind::Deposit),
+            Self::AmbientObject => None,
+        }
+    }
+
+    /// The table entities of `kind` are added to, if an op adds any.
+    pub fn of_kind(kind: EntityKind) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|table| table.kind() == Some(kind))
+    }
+
+    /// The top-level section the table's entities stand in.
+    fn section(self) -> &'static str {
+        match self.kind() {
+            Some(kind) => address(kind).section,
+            None => keys::AMBIENT_OBJECT,
+        }
+    }
+
     /// The table a top-level section holds, if it is one of these.
     fn of_section(key: &str) -> Option<Self> {
-        match key {
-            keys::GALACTIC_OBJECT => Some(Self::System),
-            keys::PLANETS => Some(Self::Planet),
-            keys::DEPOSIT => Some(Self::Deposit),
-            keys::AMBIENT_OBJECT => Some(Self::AmbientObject),
-            _ => None,
-        }
+        Self::ALL.into_iter().find(|table| table.section() == key)
     }
 }
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Added {
     by_slot: BTreeMap<Anchor, (Table, u32)>,
-    by_id: HashMap<(Table, u32), Anchor>,
+    by_id: BTreeMap<(Table, u32), Anchor>,
 }
 
 impl Added {
+    pub const fn new() -> Self {
+        Self {
+            by_slot: BTreeMap::new(),
+            by_id: BTreeMap::new(),
+        }
+    }
+
     /// The slot standing for entity `id` of `table`, when an op wrote it.
     pub fn get(&self, table: Table, id: u32) -> Option<Anchor> {
         self.by_id.get(&(table, id)).copied()

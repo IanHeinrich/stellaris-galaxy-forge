@@ -98,11 +98,5 @@ pub(crate) fn locate(doc: &Document, addr: EntityAddr) -> Result<Located, Entity
 /// The statement an op wrote for `addr`, which stands against no original: an inserted
 /// one, or a tombstone's slot a new entity took.
 fn added(doc: &Document, addr: EntityAddr) -> Option<Anchor> {
-    let table = match addr.kind {
-        EntityKind::System => Table::System,
-        EntityKind::Planet => Table::Planet,
-        EntityKind::Deposit => Table::Deposit,
-        _ => return None,
-    };
-    doc.added().get(table, addr.id)
+    doc.added().get(Table::of_kind(addr.kind)?, addr.id)
 }

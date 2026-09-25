@@ -5,6 +5,7 @@ expression: "report(&session, &result)"
 Set system 2 initializer to misc_system_init_01
 touched: [2]
 inverse: SetInitializer { id: 2, initializer: Some("custom_starting_init_01") }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 2 other issues
 
 --- scenario

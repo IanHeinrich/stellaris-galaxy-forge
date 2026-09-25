@@ -8,6 +8,7 @@ use sgf_core::export::{self, DroppedBypasses, ScenarioProfile};
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeKind};
 use sgf_core::format::scenario::header_counts::{SeatCounts, seat_counts};
+use sgf_core::format::scenario::paint::basic_initializer;
 use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -376,7 +377,7 @@ static_galaxy_scenario = {{
     for home in &report.home_initializers {
         assert_eq!(
             galaxy.systems[&home.system].initializer,
-            format!("random_empire_init_0{}", home.system % 6 + 1)
+            basic_initializer(home.system)
         );
     }
     let issues = sgf_core::validate::validate(&reopened.graph);
@@ -504,6 +505,7 @@ fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flag
     // Every pair's ends are written, so the comment lines above the mod's own say
     // nothing was dropped.
     assert_eq!(report.dropped, DroppedBypasses::default());
+    assert_eq!(report.dropped_summary, None);
     assert!(
         report
             .issues()
@@ -586,7 +588,7 @@ static_galaxy_scenario = {{
         assert!(!system.initializer.is_empty(), "{id}");
         let expected = match save.graph.systems[id].initializer.as_str() {
             own if own.is_empty() || review.contains(id) || player => {
-                format!("random_empire_init_0{}", id % 6 + 1)
+                basic_initializer(*id).to_owned()
             }
             own => own.to_owned(),
         };

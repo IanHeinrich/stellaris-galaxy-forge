@@ -122,6 +122,9 @@ pub struct GameSetup {
     pub num_hyperlanes: f64,
     pub primitive: f64,
     pub habitability: f64,
+    /// The Resource Abundance multiplier as saved: `0` for 0x, `0.25` for 0.25x. `None`
+    /// for a save that does not write it.
+    pub resource_abundance: Option<f64>,
 }
 
 /// A save's galaxy: the plain values plus the state only a `.sav` carries.

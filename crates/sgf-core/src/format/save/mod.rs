@@ -75,8 +75,8 @@ impl Format for Save {
         touched: &[Subject],
         slots: &[Anchor],
     ) -> Result<Vec<Subject>, OpError> {
-        doc.refresh_added(slots);
-        let mut nebulae = false;
+        let nebulae = touched.iter().any(|s| matches!(s, Subject::Nebula(_)));
+        doc.refresh_save(slots, nebulae);
         let mut bodies = BTreeSet::new();
         for &subject in touched {
             match subject {
@@ -85,10 +85,7 @@ impl Format for Save {
                         graph.drop_system(id);
                         continue;
                     };
-                    let buf = doc.current(anchor)?;
-                    let root = self
-                        .parse(buf, 0)
-                        .map_err(|e| subject.parse_error(e.offset, e.reason))?;
+                    let (root, buf) = parsed_statement(doc, subject, anchor)?;
                     // A system new to the graph has no bodies read yet: an undo of a
                     // removal brings back the system whose id it had renumbered.
                     if !graph.systems.contains_key(&id) {
@@ -103,7 +100,7 @@ impl Format for Save {
                 Subject::Planet { system, .. } => {
                     bodies.insert(system);
                 }
-                Subject::Nebula(_) => nebulae = true,
+                Subject::Nebula(_) => {}
                 Subject::Flags => {
                     let (flags, buf) = entity(doc, subject, self.statement(doc, subject)?)?;
                     graph.refresh_lgate(&flags, buf);
@@ -118,14 +115,10 @@ impl Format for Save {
         bodies.retain(|id| graph.systems.contains_key(id));
         for id in bodies {
             let subject = Subject::System(id);
-            let buf = doc.current(self.statement(doc, subject)?)?;
-            let root = self
-                .parse(buf, 0)
-                .map_err(|e| subject.parse_error(e.offset, e.reason))?;
+            let (root, buf) = parsed_statement(doc, subject, self.statement(doc, subject)?)?;
             graph.refresh_bodies(id, &root, buf, doc)?;
         }
         let reassigned = if nebulae {
-            doc.rebuild_nebulae();
             graph.refresh_nebulae(doc)?
         } else {
             Vec::new()
@@ -175,7 +168,10 @@ impl Format for Save {
             Op::SetEmpireMapColors { country, colors } => {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
-            Op::AddSaveSystem { spec } => add_system::plan_add(plan, s, spec),
+            Op::AddSaveSystem { spec } => {
+                check_adds_system(&s.doc)?;
+                add_system::plan_add(plan, s, spec)
+            }
             Op::AddSaveDeposit { planet, kind } => deposits::plan_add(plan, s, *planet, kind),
             Op::RemoveSaveDeposit { deposit } => deposits::plan_remove(plan, s, *deposit),
             Op::RemoveSystem { id } => remove_system::plan_remove(plan, s, &[*id]),
@@ -261,7 +257,7 @@ impl Format for Save {
         true
     }
 
-    fn capabilities(&self) -> Capabilities {
+    fn capabilities(&self, doc: &Document) -> Capabilities {
         Capabilities {
             empires: true,
             details: true,
@@ -272,13 +268,25 @@ impl Format for Save {
             create_systems: false,
             lane_bridges: true,
             waylines: true,
-            added_systems: true,
+            added_systems: check_adds_system(doc).is_ok(),
             bodies: true,
+            deposits: check_version(doc).is_ok(),
             map_colors: true,
             lgate: true,
             symmetry: false,
         }
     }
+}
+
+/// The bytes standing at `anchor`, `subject`'s statement, parsed whole.
+fn parsed_statement(
+    doc: &Document,
+    subject: Subject,
+    anchor: Anchor,
+) -> Result<(Node, &[u8]), OpError> {
+    let buf = doc.current(anchor)?;
+    let root = cst::parse(buf, 0).map_err(|e| subject.parse_error(e.offset, e.reason))?;
+    Ok((root, buf))
 }
 
 /// Only a 4.x save takes the ops that write whole entries: a 3.x system carries an `arm`
@@ -298,6 +306,16 @@ pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
         Some(_) => Err(OpError::SaveTooOld(version)),
         None => Err(OpError::UnknownSaveVersion(version)),
     }
+}
+
+/// Whether the save takes a new system: [`check_version`], and not an Ironman save.
+pub(crate) fn check_adds_system(doc: &Document) -> Result<(), OpError> {
+    check_version(doc)?;
+    let ironman = archive::parse_meta(doc.meta()).is_ok_and(|meta| meta.ironman);
+    if ironman {
+        return Err(OpError::Ironman);
+    }
+    Ok(())
 }
 
 /// The statement standing for system `id`: one an op added, or the one loaded.

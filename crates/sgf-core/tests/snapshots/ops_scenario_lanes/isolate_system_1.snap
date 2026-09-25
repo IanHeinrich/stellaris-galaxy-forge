@@ -8,6 +8,7 @@ inverse: AddLanes { from: 1, to: [(2, false), (16, false)] }
 warning system_isolated: system 1 has no hyperlanes
 warning system_isolated: system 2 has no hyperlanes
 warning disconnected: galaxy has 4 components, 2 at load; newly separated: 1, 2
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 2 other issues
 
 --- scenario

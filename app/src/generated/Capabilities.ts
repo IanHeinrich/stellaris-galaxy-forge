@@ -41,9 +41,13 @@ waylines: boolean,
  */
 added_systems: boolean, 
 /**
- * A body's star class, planet size and deposits can be changed.
+ * A body's star class and planet size can be changed.
  */
 bodies: boolean, 
+/**
+ * A planet's deposits can be added and removed.
+ */
+deposits: boolean, 
 /**
  * An empire's map colours can be changed.
  */
