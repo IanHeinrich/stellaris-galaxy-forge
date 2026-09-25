@@ -8,6 +8,8 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-09-25
+
 ### Changed
 
 - Hyper relays no longer show the megastructure icon beside a system's
