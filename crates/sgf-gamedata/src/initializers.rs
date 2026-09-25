@@ -1,7 +1,7 @@
 //! `common/solar_system_initializers`: what a system was generated from.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -9,10 +9,11 @@ use sgf_core::cst::Node;
 use ts_rs::TS;
 
 use crate::body_effects::{self, BodyEffect};
-use crate::install::layers::Layout;
-use crate::install::script::{self, Def, Range, Variables};
+use crate::install::layers::{Layout, VANILLA};
+use crate::install::script::{self, Def, Range, Variables, whole};
 use crate::registries::registry::{FromDef, Registry};
 use crate::scripts::init_bypasses::bypasses;
+use crate::weight::Weight;
 use crate::{Diagnostic, GameData};
 
 pub use crate::scripts::init_bypasses::{InitBypass, InitBypasses, PartnerRef};
@@ -38,7 +39,7 @@ pub struct InitPlanet {
     /// The localisation key as written, when the block names one.
     pub name: Option<String>,
     /// As written: a `pc_` class, `star`, a `random_…` choice, an `rl_` list or `none`.
-    pub class: String,
+    pub class: BodyClass,
     /// `(min, max)`, equal for a fixed size.
     pub size: Option<(u32, u32)>,
     /// How far each instance lies beyond the one before; `None` for an `@variable` no
@@ -95,6 +96,63 @@ impl InitPlanet {
     }
 }
 
+/// The body written as `class = star`, which takes the star class's own planet class.
+const STAR: &str = "star";
+/// A body whose class the engine draws, among every class, the ones that can be colonised,
+/// or the ones that cannot.
+const RANDOM: &str = "random";
+const RANDOM_COLONIZABLE: &str = "random_colonizable";
+const RANDOM_NON_COLONIZABLE: &str = "random_non_colonizable";
+
+/// A body's `class`, as the engine reads it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BodyClass {
+    /// The star class's own planet class.
+    Star,
+    /// Drawn by the engine: among the classes that can be colonised (`Some(true)`), those
+    /// that cannot (`Some(false)`), or every one.
+    Random(Option<bool>),
+    /// A planet class or a planet list of the install, by key.
+    Named(String),
+}
+
+impl BodyClass {
+    pub fn of(written: &str) -> Self {
+        match written {
+            STAR => Self::Star,
+            RANDOM => Self::Random(None),
+            RANDOM_COLONIZABLE => Self::Random(Some(true)),
+            RANDOM_NON_COLONIZABLE => Self::Random(Some(false)),
+            key => Self::Named(key.to_owned()),
+        }
+    }
+
+    /// The class as the layout writes it.
+    pub fn written(&self) -> &str {
+        match self {
+            Self::Star => STAR,
+            Self::Random(None) => RANDOM,
+            Self::Random(Some(true)) => RANDOM_COLONIZABLE,
+            Self::Random(Some(false)) => RANDOM_NON_COLONIZABLE,
+            Self::Named(key) => key,
+        }
+    }
+
+    /// The key of a planet class or list the layout names.
+    pub fn named(&self) -> Option<&str> {
+        match self {
+            Self::Named(key) => Some(key),
+            _ => None,
+        }
+    }
+}
+
+impl PartialEq<&str> for BodyClass {
+    fn eq(&self, written: &&str) -> bool {
+        self.written() == *written
+    }
+}
+
 /// One body of a system's planet list: the block it was written as, and
 /// whether it orbits another body.
 #[derive(Debug, Clone, Copy)]
@@ -132,6 +190,9 @@ pub struct Initializer {
     /// The weight a galaxy draws this initializer with for its `usage`, when written as
     /// a plain number; `None` when absent or a block of conditions.
     pub usage_odds: Option<f64>,
+    /// `usage_odds` written as a block: its `base`, then each `modifier` whose conditions
+    /// hold.
+    pub usage_weight: Option<Weight>,
     pub max_instances: Option<u32>,
     pub flags: Vec<String>,
     /// Whether the system runs an `init_effect` once it is spawned.
@@ -152,53 +213,14 @@ pub struct Initializer {
     pub starbase: Option<InitStarbase>,
 }
 
-impl Initializer {
-    /// What the initializer needs beyond the base game: the mod's directory name (a
-    /// workshop mod's numeric folder id; its descriptor name is not looked up yet), or
-    /// `None` when it is vanilla or from nowhere known.
-    pub fn source_label(&self, install: &Path) -> Option<String> {
-        source_label(&self.source, install)
-    }
-}
-
 impl GameData {
-    /// Which DLC or mod `initializer` needs, when this install knows it.
+    /// The mod `initializer` comes from, by its name, when this install knows it; `None`
+    /// for the base game.
     pub fn initializer_source(&self, initializer: &str) -> Option<String> {
-        self.initializers
-            .get(initializer)?
-            .source_label(&self.layout.install)
+        let init = self.initializers.get(initializer)?;
+        let (layer, _) = self.layout.layer_of(&init.source)?;
+        (layer.name != VANILLA).then(|| layer.name.clone())
     }
-}
-
-/// `<install>/dlc/<dlc>/…` is that DLC; anything else under `install` is vanilla; a
-/// path elsewhere is a mod, named by the directory its `common` sits in.
-fn source_label(source: &Path, install: &Path) -> Option<String> {
-    let dlc = source
-        .strip_prefix(install.join("dlc"))
-        .ok()
-        .and_then(|rel| rel.components().next())
-        .and_then(|c| match c {
-            Component::Normal(dlc) => dlc.to_str(),
-            _ => None,
-        });
-    if let Some(dlc) = dlc {
-        return Some(dlc.to_owned());
-    }
-    if source.starts_with(install) {
-        return None;
-    }
-    let parts: Vec<&str> = source
-        .components()
-        .filter_map(|c| match c {
-            Component::Normal(part) => part.to_str(),
-            _ => None,
-        })
-        .collect();
-    parts
-        .iter()
-        .rposition(|part| *part == "common")
-        .and_then(|i| i.checked_sub(1))
-        .map(|i| parts[i].to_owned())
 }
 
 /// One `asteroid_belt = { type radius }` of the system.
@@ -231,6 +253,10 @@ impl FromDef for Initializer {
             class: def.scalar("class").map(str::to_owned),
             usage: def.scalar("usage").map(str::to_owned),
             usage_odds: def.number("usage_odds"),
+            usage_weight: node
+                .find("usage_odds", src)
+                .filter(|odds| odds.scalar_span().is_none())
+                .map(|odds| Weight::read(odds, def, 0.0)),
             max_instances: def.scalar("max_instances").and_then(|s| s.parse().ok()),
             flags: script::list_items(node, "flags", src),
             init_effect: node.find("init_effect", src).is_some(),
@@ -403,7 +429,7 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
     let (effects, unwritten) = body_effects::read(node, def);
     InitPlanet {
         name: scalar(node, "name", src).map(str::to_owned),
-        class: scalar(node, "class", src).unwrap_or("random").to_owned(),
+        class: BodyClass::of(scalar(node, "class", src).unwrap_or(RANDOM)),
         size: def
             .range_in(node, "size")
             .map(|r| (whole(r.min), whole(r.max))),
@@ -559,11 +585,6 @@ fn asteroid_belts(def: &Def) -> Vec<InitAsteroidBelt> {
         .collect()
 }
 
-fn whole(n: f64) -> u32 {
-    let rounded = n.round();
-    if rounded < 0.0 { 0 } else { rounded as u32 }
-}
-
 fn spawns(node: &Node, src: &[u8]) -> Vec<String> {
     let mut blocks = Vec::new();
     script::find_deep(node, "neighbor_system", src, &mut blocks);
@@ -573,34 +594,4 @@ fn spawns(node: &Node, src: &[u8]) -> Vec<String> {
         .filter_map(|block| block.find("initializer", src)?.scalar_str(src))
         .map(str::to_owned)
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_source_is_labelled_by_its_dlc_or_mod_and_vanilla_by_nothing() {
-        let install = Path::new("/games/Stellaris");
-        let label = |source: &str| source_label(Path::new(source), install);
-        assert_eq!(
-            label("/games/Stellaris/common/solar_system_initializers/00_basic.txt"),
-            None
-        );
-        assert_eq!(
-            label(
-                "/games/Stellaris/dlc/dlc021_distant_stars/common/solar_system_initializers/ds.txt"
-            ),
-            Some("dlc021_distant_stars".to_owned())
-        );
-        assert_eq!(
-            label("/mods/ugc_123/common/solar_system_initializers/mod.txt"),
-            Some("ugc_123".to_owned())
-        );
-        assert_eq!(
-            label("/mods/dlc/mymod/common/solar_system_initializers/x.txt"),
-            Some("mymod".to_owned())
-        );
-        assert_eq!(label("/elsewhere/loose.txt"), None);
-    }
 }

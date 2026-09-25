@@ -179,6 +179,25 @@ evaluate. Tier 1 filters on cheap structural attributes (deposit
 category, `is_for_colonizable`, planet `climate`) and Tier 2 permits any
 key. The game remains the oracle for whether a combination loads.
 
+## Rolling deposits and weights
+
+- A deposit without `is_for_colonizable` is not for colonisable bodies:
+  the game reads the missing key as `no`
+  (`common/deposits/99_README_DEPOSITS.txt`). A deposit is orbital when
+  its `station` names a station class. `none`, or no `station`, means the
+  colony works it.
+- A habitable world is topped up to `MIN_BLOCKED_DEPOSITS` and
+  `MIN_UNBLOCKED_DEPOSITS` only from deposits with
+  `use_for_min_max_adjustments = yes`, as the same README says. In 4.5 all
+  52 flagged deposits are non-blockers, so vanilla has no blocker top-up.
+  The two sample saves have 7 of 80 and 9 of 79 unowned habitable worlds
+  with no blocker. `DEPOSIT_USED_CATEGORY_WEIGHT` is not part of that rule
+  and is not read.
+- A weight `modifier` that writes both `factor` and `add` multiplies first,
+  then adds. No vanilla modifier writes both. I haven't checked the order
+  in game. `FACTOR_BEFORE_ADD` in `crates/sgf-gamedata/src/weight.rs`
+  holds it.
+
 ## Ownership and borders
 
 - `galactic_object.sector` is often null (`4294967295`), and a system

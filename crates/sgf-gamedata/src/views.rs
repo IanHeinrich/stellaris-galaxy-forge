@@ -190,7 +190,7 @@ impl From<&GameData> for GameDataSummary {
             country_types: count(gd.country_types.len()),
             star_classes: count(gd.star_classes.len()),
             sprites: count(gd.sprites.len()),
-            colors: count(gd.colors.len()),
+            colors: count(gd.colors.entries.len()),
             deposits: count(gd.deposits.len()),
             planet_classes: count(gd.planet_classes.len()),
             starbase_levels: count(gd.starbase_levels.len()),
@@ -327,7 +327,7 @@ impl From<&InitPlanet> for InitPlanetView {
     fn from(p: &InitPlanet) -> Self {
         Self {
             name: p.name.clone(),
-            class: p.class.clone(),
+            class: p.class.written().to_owned(),
             size: p.size,
             orbit_distance: p.orbit(),
             has_ring: p.has_ring == Some(true),

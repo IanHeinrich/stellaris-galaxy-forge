@@ -6,18 +6,19 @@ use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::sync::LazyLock;
 
 use sgf_core::ops::{Op, SystemSpec};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
-use sgf_gamedata::body_effects::blocker;
 use sgf_gamedata::generate::{
-    GenerateError, generate, generate_layout, generate_layout_for, settle_name, star_classes,
+    GenerateError, generate, generate_layout_for, settle_name, star_classes,
 };
 use sgf_gamedata::layouts::{
     DlcNeed, Eligibility, SaveFacts, Unsupported, eligibility, odds, special_initializers,
-    special_layouts,
 };
+use sgf_gamedata::menu::special_layouts;
+use sgf_gamedata::special::classify_session;
 use sgf_gamedata::summary::{
     Feature, Presence, Span, add_system_picks, layout_summary, random_summary, star_pick_summary,
 };
@@ -27,6 +28,20 @@ const SPOT: (f64, f64) = (-292.23404, -137.62265);
 const ABUNDANCE: f64 = 2.0;
 
 use common::INSTALL;
+
+/// The 4.5 sample's DLC, which the `if`s of a layout's bodies read.
+static SAMPLE: LazyLock<SaveFacts> = LazyLock::new(|| SaveFacts::read(&common::open_4_5()));
+
+/// A system of the layout `key`, added to the 4.5 sample.
+fn by_name(
+    gd: &GameData,
+    seed: u64,
+    name: &str,
+    at: (f64, f64),
+    key: &str,
+) -> Result<SystemSpec, GenerateError> {
+    generate_layout_for(gd, &SAMPLE, seed, name, at, key, ABUNDANCE)
+}
 
 const FILES: [(&str, &str); 9] = [
     (
@@ -117,7 +132,7 @@ const FILES: [(&str, &str); 9] = [
          \tplanet = { class = star orbit_distance = 0 }\n}\n\
          fx_nested = {\n\tclass = sc_sun\n\tusage = misc_system_init\n\tusage_odds = 4\n\
          \tplanet = { class = star orbit_distance = 0 }\n\
-         \tplanet = { class = pc_rock orbit_distance = 60 init_effect = { if = { limit = { always = yes } add_deposit = d_fx_gem } } }\n}\n\
+         \tplanet = { class = pc_rock orbit_distance = 60 init_effect = { if = { limit = { has_global_flag = fx_flag } add_deposit = d_fx_gem } } }\n}\n\
          fx_system_modifier = {\n\tclass = sc_sun\n\tusage = misc_system_init\n\tusage_odds = 4\n\
          \tplanet = { class = star orbit_distance = 0 }\n\tinit_effect = { add_modifier = { modifier = fx_mod days = -1 } }\n}\n\
          fx_forced = {\n\tclass = rl_both\n\tusage = misc_system_init\n\tusage_odds = 4\n\tmax_instances = 1\n\
@@ -136,9 +151,13 @@ const FILES: [(&str, &str); 9] = [
 ];
 
 fn hand_written() -> (tempfile::TempDir, GameData) {
+    install_of(&FILES)
+}
+
+fn install_of(files: &[(&str, &str)]) -> (tempfile::TempDir, GameData) {
     let dir = tempfile::tempdir().expect("temp dir");
     let install = dir.path().join("install");
-    for &(rel, text) in &FILES {
+    for &(rel, text) in files {
         let file = install.join(rel);
         fs::create_dir_all(file.parent().unwrap()).unwrap();
         fs::write(file, text).unwrap();
@@ -223,14 +242,14 @@ fn a_hand_written_install_sorts_its_layouts_by_what_they_are_made_of() {
         ]
     );
     assert_eq!(
-        generate_layout(&gd, 1, "Fx", (0.0, 0.0), "fx_fleet", ABUNDANCE),
+        by_name(&gd, 1, "Fx", (0.0, 0.0), "fx_fleet"),
         Err(GenerateError::Unsupported(
             "fx_fleet".to_owned(),
             Unsupported::Effect("create_fleet".to_owned())
         ))
     );
     assert_eq!(
-        generate_layout(&gd, 1, "Fx", (0.0, 0.0), "fx_nowhere", ABUNDANCE),
+        by_name(&gd, 1, "Fx", (0.0, 0.0), "fx_nowhere"),
         Err(GenerateError::UnknownLayout("fx_nowhere".to_owned()))
     );
 }
@@ -240,10 +259,9 @@ fn a_special_layout_gives_its_bodies_names_models_modifiers_rings_and_deposits()
     let (_dir, gd) = hand_written();
     let mut listed = BTreeSet::new();
     for seed in 0..60 {
-        let spec =
-            generate_layout(&gd, seed, "Fx", (1.0, 2.0), "fx_haven", ABUNDANCE).expect("a system");
+        let spec = by_name(&gd, seed, "Fx", (1.0, 2.0), "fx_haven").expect("a system");
         assert_eq!(
-            generate_layout(&gd, seed, "Fx", (1.0, 2.0), "fx_haven", ABUNDANCE),
+            by_name(&gd, seed, "Fx", (1.0, 2.0), "fx_haven"),
             Ok(spec.clone()),
             "seed {seed}: the same seed gives the same system"
         );
@@ -303,8 +321,7 @@ fn a_special_layout_gives_its_bodies_names_models_modifiers_rings_and_deposits()
 fn an_off_centre_star_stands_at_its_orbit_once_and_the_planets_count_from_the_centre() {
     let (_dir, gd) = hand_written();
     for seed in 0..30 {
-        let spec = generate_layout(&gd, seed, "Fx", (0.0, 0.0), "fx_offcentre", ABUNDANCE)
-            .expect("a system");
+        let spec = by_name(&gd, seed, "Fx", (0.0, 0.0), "fx_offcentre").expect("a system");
         assert_eq!(spec.name, "Fx", "no fixed name");
         assert!(!spec.capped, "no max_instances");
         assert!(!spec.star_named_by_class);
@@ -345,15 +362,68 @@ fn a_star_only_generic_special_layouts_make_is_listed_and_drawn_from_them() {
         generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_pole"), ABUNDANCE),
         Err(GenerateError::NoLayoutFor("sc_pole".to_owned()))
     );
-    let pole = generate_layout(&gd, 1, "Fx", (0.0, 0.0), "fx_pole", ABUNDANCE).unwrap();
+    let pole = by_name(&gd, 1, "Fx", (0.0, 0.0), "fx_pole").unwrap();
     assert_eq!(pole.star_class, "sc_pole", "by name it is placed");
+}
+
+#[test]
+fn a_system_of_a_layout_the_generator_draws_is_no_unique_system() {
+    let (_dir, gd) = hand_written();
+    let mut session = common::open_4_5();
+    let mut spec = generate(&gd, 1, "Fx", SPOT, Some("sc_hole"), ABUNDANCE).unwrap();
+    assert_eq!(spec.initializer, "fx_hole");
+    spec.lanes = vec![169];
+    session
+        .apply(Op::AddSaveSystem { spec })
+        .expect("add the system");
+    let special = |gd: Option<&GameData>| {
+        classify_session(&session, gd)
+            .systems
+            .iter()
+            .any(|s| s.id == 601)
+    };
+    assert!(
+        special(None),
+        "without game data only the game's own layouts are known"
+    );
+    assert!(!special(Some(&gd)), "a star pick draws it");
+}
+
+#[test]
+fn a_star_pick_card_shows_only_the_layouts_the_pick_rolls() {
+    let files: Vec<(&str, &str)> = FILES
+        .iter()
+        .map(|&(rel, text)| match rel {
+            "common/star_classes/00_stars.txt" => (
+                rel,
+                "sc_sun = {\n\tclass = sun_star\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 30\n}\n\
+                 sc_cold = {\n\tclass = cold_star\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 0\n}\n",
+            ),
+            "common/star_classes/randomizers/00_lists.txt" => {
+                (rel, "rl_single = {\n\tstars = { sc_sun sc_cold }\n}\n")
+            }
+            _ => (rel, text),
+        })
+        .collect();
+    let (_dir, gd) = install_of(&files);
+    let session = common::open_4_5();
+    assert_eq!(
+        generate(&gd, 1, "Fx", (0.0, 0.0), Some("sc_cold"), ABUNDANCE),
+        Err(GenerateError::NoLayoutFor("sc_cold".to_owned())),
+        "rl_single lists it at odds 0"
+    );
+    assert_eq!(
+        star_pick_summary(&gd, "sc_cold", &session),
+        Err(GenerateError::NoLayoutFor("sc_cold".to_owned())),
+        "so its card has no layout either"
+    );
 }
 
 #[test]
 fn a_star_written_as_a_class_takes_the_class_of_the_list_that_has_it() {
     let (_dir, gd) = hand_written();
     for seed in 0..30 {
-        let spec = generate_layout(&gd, seed, "Fx", (0.0, 0.0), "fx_forced", ABUNDANCE).unwrap();
+        let spec = by_name(&gd, seed, "Fx", (0.0, 0.0), "fx_forced").unwrap();
         assert_eq!(
             (spec.star_class.as_str(), spec.star.class.as_str()),
             ("sc_hole", "pc_hole"),
@@ -446,7 +516,7 @@ fn the_add_system_menu_labels_groups_counts_and_marks_each_pick() {
         picks.star_classes[1].summary,
         star_pick_summary(&gd, "sc_hole", &session).unwrap()
     );
-    assert_eq!(picks.random, random_summary(&gd, &session));
+    assert_eq!(picks.random, random_summary(&gd));
 }
 
 /// `None`, and the test returns, when this machine has no Stellaris install.
@@ -529,7 +599,7 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         odds(gd, gd.initializers.get("oasis_system").unwrap(), None),
         15.0
     );
-    let oasis = generate_layout(gd, 1, "Gen", SPOT, "oasis_system", ABUNDANCE).unwrap();
+    let oasis = by_name(gd, 1, "Gen", SPOT, "oasis_system").unwrap();
     assert_eq!(
         (oasis.star_class.as_str(), oasis.star.class.as_str()),
         ("sc_m_giant", "pc_m_giant_star"),
@@ -541,37 +611,26 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
     let mut session = common::open_4_5();
     for layout in &special {
         for seed in 0..20 {
-            let spec = generate_layout(gd, seed, "Gen", SPOT, layout, ABUNDANCE)
+            let spec = by_name(gd, seed, "Gen", SPOT, layout)
                 .unwrap_or_else(|e| panic!("{layout} seed {seed}: {e}"));
             assert_eq!(
-                generate_layout(gd, seed, "Gen", SPOT, layout, ABUNDANCE),
+                by_name(gd, seed, "Gen", SPOT, layout),
                 Ok(spec.clone()),
                 "{layout} seed {seed}"
             );
             let init = gd.initializers.get(layout).unwrap();
             assert_eq!(spec.capped, init.max_instances.is_some(), "{layout}");
         }
-        let mut spec = generate_layout(gd, 1, "Gen", SPOT, layout, ABUNDANCE).unwrap();
+        let mut spec = by_name(gd, 1, "Gen", SPOT, layout).unwrap();
         spec.lanes = vec![169];
         session
             .apply(Op::AddSaveSystem { spec })
             .unwrap_or_else(|e| panic!("{layout}: {e}"));
         session.undo().expect("undo the add");
     }
-    let capped = |layout: &str| {
-        generate_layout(gd, 1, "Gen", SPOT, layout, ABUNDANCE)
-            .unwrap()
-            .capped
-    };
+    let capped = |layout: &str| by_name(gd, 1, "Gen", SPOT, layout).unwrap().capped;
     assert!(!capped("special_init_01"));
-    let zevox = generate_layout(
-        gd,
-        1,
-        "Gen",
-        SPOT,
-        "unique_system_initializer_03",
-        ABUNDANCE,
-    );
+    let zevox = by_name(gd, 1, "Gen", SPOT, "unique_system_initializer_03");
     assert_eq!(zevox.unwrap().flags, ["unique_system"]);
     assert!(capped("trappist_initializer"));
 }
@@ -679,42 +738,25 @@ fn rings_come_up_about_as_often_as_their_class_allows() {
     assert!(ringed > 0.0, "plain systems get rings");
 }
 
-/// The sample with a Trappist added, so a system holds its fixed name.
-fn with_trappist(gd: &GameData) -> Session {
-    let mut session = common::open_4_5();
-    let mut spec: SystemSpec =
-        generate_layout(gd, 1, "Gen", SPOT, "trappist_initializer", ABUNDANCE).unwrap();
-    spec.lanes = vec![169];
-    session
-        .apply(Op::AddSaveSystem { spec })
-        .expect("add Trappist");
-    session
-}
-
 #[test]
 fn a_fixed_name_a_system_already_holds_gives_way_to_a_pool_name() {
-    let Some(gd) = install() else {
-        return;
-    };
+    let (_dir, gd) = hand_written();
+    let gd = &gd;
     let session = common::open_4_5();
     let settled = |session: &Session, layout: &str| {
-        let mut spec = generate_layout(gd, 2, "Pooled", (0.0, 0.0), layout, ABUNDANCE).unwrap();
+        let mut spec = by_name(gd, 2, "Gen", (0.0, 0.0), layout).unwrap();
         settle_name(session, gd, &mut spec, "Pooled", 2);
         spec.name
     };
-    assert_eq!(settled(&session, "trappist_initializer"), "NAME_Trappist");
-    assert_eq!(
-        settled(&session, "wenkwort_initializer"),
-        "Pooled",
-        "the sample's galaxy has a Wenkwort"
-    );
-    assert_eq!(
-        settled(&session, "special_init_09"),
-        "Pooled",
-        "no fixed name"
-    );
-    let session = with_trappist(gd);
-    assert_eq!(settled(&session, "trappist_initializer"), "Pooled");
+    assert_eq!(settled(&session, "fx_haven"), "NAME_Fx_Haven");
+    assert_eq!(settled(&session, "fx_offcentre"), "Gen", "no fixed name");
+    let mut session = common::open_4_5();
+    let mut haven = by_name(gd, 1, "Gen", SPOT, "fx_haven").unwrap();
+    haven.lanes = vec![169];
+    session
+        .apply(Op::AddSaveSystem { spec: haven })
+        .expect("add Fx Haven");
+    assert_eq!(settled(&session, "fx_haven"), "Pooled");
 }
 
 /// Compare `spec` with the one pinned as `tests/snapshots/generate/<name>.json`, which
@@ -752,7 +794,7 @@ fn a_hand_written_install_rolls_the_same_bodies_for_a_seed_as_before() {
         let spec = generate(&gd, seed, "Fx", (1.0, 2.0), None, ABUNDANCE).unwrap();
         pinned(&format!("fx_random_{seed}"), &spec);
     }
-    let spec = generate_layout(&gd, 1, "Fx", (1.0, 2.0), "fx_haven", ABUNDANCE).unwrap();
+    let spec = by_name(&gd, 1, "Fx", (1.0, 2.0), "fx_haven").unwrap();
     pinned("fx_haven_1", &spec);
     let spec = generate(&gd, 3, "Fx", (1.0, 2.0), Some("sc_hole"), ABUNDANCE).unwrap();
     pinned("fx_hole_3", &spec);
@@ -775,7 +817,7 @@ fn the_real_install_rolls_the_same_bodies_for_a_seed_as_before() {
         ("wenkwort_initializer", 3),
         ("debris_belt_initializer", 3),
     ] {
-        let spec = generate_layout(gd, seed, "Gen", SPOT, layout, ABUNDANCE).unwrap();
+        let spec = by_name(gd, seed, "Gen", SPOT, layout).unwrap();
         pinned(&format!("{layout}_{seed}"), &spec);
     }
 }
@@ -805,14 +847,19 @@ fn a_bodys_blockers_class_model_and_dlc_branches_run_in_order() {
     let (_dir, gd) = hand_written();
     let gem = || "d_fx_gem".to_owned();
     let block = || "d_fx_block".to_owned();
-    let with_pack = generate_layout(&gd, 1, "Fx", (0.0, 0.0), "fx_works", ABUNDANCE).unwrap();
+    let pack = SaveFacts {
+        dlcs: ["Fx Pack".to_owned()].into(),
+        ..SaveFacts::default()
+    };
+    let with_pack =
+        generate_layout_for(&gd, &pack, 1, "Fx", (0.0, 0.0), "fx_works", ABUNDANCE).unwrap();
     let rock = &with_pack.planets[0];
     assert_eq!(
         rock.deposits,
         [gem(), block(), gem(), gem(), gem()],
         "clear_blockers took the first blocker, add_blocker put one back, the loop ran three times"
     );
-    assert_eq!(rock.class, "pc_meadow", "the DLC taken as there");
+    assert_eq!(rock.class, "pc_meadow", "with the DLC");
     assert_eq!(rock.entity_name.as_deref(), Some("fx_meadow_entity"));
     assert!(rock.modifiers.is_empty());
     assert_eq!(
@@ -836,7 +883,7 @@ fn the_real_installs_effect_layouts_come_out_as_their_scripts_say() {
     let Some(gd) = install() else {
         return;
     };
-    let layout = |key: &str| generate_layout(gd, 1, "Gen", SPOT, key, ABUNDANCE).unwrap();
+    let layout = |key: &str| by_name(gd, 1, "Gen", SPOT, key).unwrap();
     let relic = |spec: &SystemSpec| {
         spec.planets
             .iter()
@@ -901,7 +948,7 @@ fn the_real_installs_effect_layouts_come_out_as_their_scripts_say() {
         .flat_map(|p| &p.moons)
         .find(|m| m.class == "pc_nuked")
         .expect("the nuked moon");
-    let blockers: Vec<&String> = nuked.deposits.iter().filter(|d| blocker(gd, d)).collect();
+    let blockers: Vec<&String> = nuked.deposits.iter().filter(|d| gd.is_blocker(d)).collect();
     assert!(
         blockers
             .iter()
@@ -912,9 +959,23 @@ fn the_real_installs_effect_layouts_come_out_as_their_scripts_say() {
 
 #[test]
 fn a_black_hole_is_named_from_the_black_hole_names() {
-    let Some(gd) = install() else {
-        return;
-    };
+    let files: Vec<(&str, &str)> = FILES
+        .iter()
+        .map(|&(rel, text)| match rel {
+            "common/star_classes/00_stars.txt" => (
+                rel,
+                "sc_sun = {\n\tclass = sun_star\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 30\n}\n\
+                 sc_hole = {\n\tclass = black_hole\n\tplanet = { key = pc_hole }\n\tspawn_odds = 5\n}\n",
+            ),
+            "common/random_names/base/00_names.txt" => (
+                rel,
+                "star_names = {\n\tFx_Alpha\n}\nblack_hole_names = {\n\tFx_Void\n\tFx_Maw\n\tDristmak\n}\n",
+            ),
+            _ => (rel, text),
+        })
+        .collect();
+    let (_dir, gd) = install_of(&files);
+    let gd = &gd;
     let session = common::open_4_5();
     let used: BTreeSet<&str> = session
         .graph
@@ -922,21 +983,16 @@ fn a_black_hole_is_named_from_the_black_hole_names() {
         .values()
         .map(|s| s.name.key.as_str())
         .collect();
-    assert!(
-        gd.black_hole_names.len() > 50,
-        "{}",
-        gd.black_hole_names.len()
-    );
+    assert_eq!(*gd.black_hole_names, ["Fx_Void", "Fx_Maw", "Dristmak"]);
     for seed in 0..20 {
-        let mut spec =
-            generate(gd, seed, "Pooled", SPOT, Some("sc_black_hole"), ABUNDANCE).unwrap();
+        let mut spec = generate(gd, seed, "Pooled", SPOT, Some("sc_hole"), ABUNDANCE).unwrap();
         settle_name(&session, gd, &mut spec, "Pooled", seed);
         assert!(gd.black_hole_names.contains(&spec.name), "{}", spec.name);
         assert!(!used.contains(spec.name.as_str()), "{}", spec.name);
     }
-    let mut pulsar = generate(gd, 1, "Pooled", SPOT, Some("sc_pulsar"), ABUNDANCE).unwrap();
-    settle_name(&session, gd, &mut pulsar, "Pooled", 1);
-    assert_eq!(pulsar.name, "Pooled", "only black holes");
+    let mut sun = generate(gd, 1, "Pooled", SPOT, Some("sc_sun"), ABUNDANCE).unwrap();
+    settle_name(&session, gd, &mut sun, "Pooled", 1);
+    assert_eq!(sun.name, "Pooled", "only black holes");
 }
 
 fn keys(features: &[Feature]) -> Vec<(&str, bool)> {
@@ -988,7 +1044,7 @@ fn a_hand_written_install_summarises_each_pick_from_its_layouts() {
         "no generic layout"
     );
 
-    let random = random_summary(&gd, &session);
+    let random = random_summary(&gd);
     assert_eq!(random.planets, Span { min: 2, max: 2 });
     assert_eq!(random.moons, Presence::Never);
     assert_eq!(random.rings, Presence::Every, "a meadow can have one");
@@ -1004,7 +1060,7 @@ fn the_real_install_summarises_pulsar_black_hole_trappist_and_random() {
     let pulsar = star_pick_summary(gd, "sc_pulsar", &session).unwrap();
     let hole = star_pick_summary(gd, "sc_black_hole", &session).unwrap();
     let trappist = layout_summary(gd, "trappist_initializer", &session).unwrap();
-    let random = random_summary(gd, &session);
+    let random = random_summary(gd);
     for (pick, summary) in [
         ("pulsar", &pulsar),
         ("black hole", &hole),

@@ -60,12 +60,12 @@ fn a_mod_overrides_a_sprite_by_name() {
 #[test]
 fn colors_read_rgb_and_hsv() {
     let gd = common::cached_fixture();
-    let navy = gd.colors.get("fixture_navy").expect("fixture_navy");
+    let navy = gd.colors.entries.get("fixture_navy").expect("fixture_navy");
     assert_eq!(navy.flag, [10, 20, 30]);
     assert_eq!(navy.map, [40, 50, 60]);
     assert_eq!(navy.ship, [70, 80, 90]);
 
-    let teal = gd.colors.get("fixture_teal").expect("fixture_teal");
+    let teal = gd.colors.entries.get("fixture_teal").expect("fixture_teal");
     assert_eq!(teal.flag, [71, 179, 179]);
     assert_eq!(teal.map, [71, 179, 179]);
     assert_eq!(teal.ship, [71, 179, 179]);
@@ -105,16 +105,16 @@ fn a_mod_shipping_its_own_colors_txt_supplies_the_palette_and_is_named_as_its_so
     };
 
     let vanilla = load(&[]);
-    assert!(vanilla.colors.get("blue").is_some());
+    assert!(vanilla.colors.entries.get("blue").is_some());
     assert_eq!(vanilla.colors.source, None);
 
     let modded = load(&["palette"]);
     assert!(
-        modded.colors.get("blue").is_none(),
+        modded.colors.entries.get("blue").is_none(),
         "the mod's file wins whole"
     );
     assert_eq!(
-        modded.colors.get("mod_teal").map(|c| c.map),
+        modded.colors.entries.get("mod_teal").map(|c| c.map),
         Some([0, 100, 100])
     );
     assert_eq!(modded.colors.source.as_deref(), Some("palette"));
@@ -133,9 +133,10 @@ fn deposit_produces_sums_repeated_keys_and_skips_triggers() {
         .expect("d_fixture_blocker");
     assert!(blocker.produces.is_empty());
     assert!(
-        blocker.is_for_colonizable,
-        "absent is_for_colonizable defaults to colonizable"
+        !blocker.is_for_colonizable,
+        "absent is_for_colonizable reads as no, as the game's README says"
     );
+    assert!(!blocker.orbital(), "no station works it");
     assert_eq!(blocker.category.as_deref(), Some("deposit_cat_blockers"));
 }
 
@@ -153,6 +154,38 @@ fn planet_class_colonizable_vs_star() {
         .expect("pc_fixture_star");
     assert!(star.star);
     assert!(!star.colonizable);
+}
+
+#[test]
+fn a_planet_list_is_no_planet_class_and_two_files_writing_lists_override_nothing() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let install = dir.path().join("install");
+    for (rel, text) in [
+        (
+            "common/planet_classes/00_classes.txt",
+            "pc_rock = {\n\tplanet_size = 10\n}\nrandom_list = {\n\tname = \"rl_one\"\n\tplanets = { pc_rock }\n}\n",
+        ),
+        (
+            "common/planet_classes/01_more.txt",
+            "pc_ice = {\n\tplanet_size = 10\n}\nrandom_list = {\n\tname = \"rl_two\"\n\tplanets = { pc_ice }\n}\n",
+        ),
+        ("localisation/english/fx_l_english.yml", "l_english:\n"),
+    ] {
+        let file = install.join(rel);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(file, text).unwrap();
+    }
+    let opts = sgf_gamedata::LoadOptions {
+        install: Some(install),
+        user_dir: Some(dir.path().join("user")),
+        language: "english".to_owned(),
+        mods: false,
+    };
+    let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("the hand-written install loads");
+    let classes: Vec<&str> = gd.planet_classes.iter().map(|c| c.key.as_str()).collect();
+    assert_eq!(classes, ["pc_ice", "pc_rock"]);
+    assert_eq!(gd.planet_lists.len(), 2);
+    assert!(gd.diagnostics.is_empty(), "{:?}", gd.diagnostics);
 }
 
 #[test]
@@ -277,12 +310,11 @@ fn vanilla_registries() {
     };
     assert!(gd.sprites.len() >= 76, "{}", gd.sprites.len());
     assert!(gd.deposits.len() >= 580, "{}", gd.deposits.len());
-    // 69 `pc_*` classes plus `random_list`, a same-directory utility block
-    // `common/planet_classes` also defines at top level.
-    assert_eq!(gd.planet_classes.len(), 70, "{}", gd.planet_classes.len());
-    assert_eq!(gd.colors.len(), 72, "{}", gd.colors.len());
+    assert_eq!(gd.planet_classes.len(), 69, "{}", gd.planet_classes.len());
+    assert!(gd.planet_classes.iter().all(|c| c.key.starts_with("pc_")));
+    assert_eq!(gd.colors.entries.len(), 72, "{}", gd.colors.entries.len());
 
-    let blue = gd.colors.get("blue").expect("blue");
+    let blue = gd.colors.entries.get("blue").expect("blue");
     assert_eq!(blue.map, [46, 63, 153]);
 
     let continental = gd

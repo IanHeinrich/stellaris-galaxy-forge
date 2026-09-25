@@ -11,7 +11,6 @@ pub mod deposits;
 pub mod galaxy_shapes;
 pub mod galaxy_sizes;
 pub mod gfx;
-pub mod nebula_names;
 pub mod planet_classes;
 pub mod planet_lists;
 pub mod planet_modifiers;

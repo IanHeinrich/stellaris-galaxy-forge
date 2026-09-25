@@ -3,8 +3,10 @@
 
 use sgf_core::cst::Node;
 
+use crate::GameData;
 use crate::deposit_roll::DepositRoll;
 use crate::install::script::{self, Def};
+use crate::registries::deposit_categories::DepositCategory;
 use crate::registries::registry::{FromDef, Registry};
 
 pub type Deposits = Registry<DepositDef>;
@@ -15,11 +17,10 @@ pub struct DepositDef {
     pub icon: Option<String>,
     pub category: Option<String>,
     pub produces: Vec<(String, f64)>,
-    /// `is_for_colonizable` explicitly `no`, or absent: every deposit file
-    /// that has no orbital deposits omits the key, and every orbital
-    /// deposit writes it explicitly, so absence means colonizable (a
-    /// planetary feature or blocker), not orbital.
+    /// `is_for_colonizable = yes`: a random roll gives it to bodies that can be colonised,
+    /// and otherwise to those that cannot. The game reads a missing key as `no`.
     pub is_for_colonizable: bool,
+    /// The station class that works it from orbit; `none` or absent for one the colony works.
     pub station: Option<String>,
     /// Every `planet_modifier` line, then the lines of each `triggered_planet_modifier`
     /// with no `potential`: what the deposit does to the planet it sits on.
@@ -43,9 +44,31 @@ pub struct SideEffect {
 }
 
 impl DepositDef {
+    /// Worked by an orbital station rather than by the colony.
+    pub fn orbital(&self) -> bool {
+        self.station
+            .as_deref()
+            .is_some_and(|station| station != "none")
+    }
+
     /// The file under `gfx/interface/icons/deposits/`, without `.dds`.
     pub fn texture_icon(&self) -> &str {
         self.icon.as_deref().unwrap_or(&self.key)
+    }
+}
+
+impl GameData {
+    /// The `deposit_categories` entry `deposit` names.
+    pub fn deposit_category(&self, deposit: &DepositDef) -> Option<&DepositCategory> {
+        self.deposit_categories.get(deposit.category.as_deref()?)
+    }
+
+    /// A deposit whose category says `blocker = yes`.
+    pub fn is_blocker(&self, deposit: &str) -> bool {
+        self.deposits
+            .get(deposit)
+            .and_then(|d| self.deposit_category(d))
+            .is_some_and(|category| category.blocker)
     }
 }
 
@@ -68,17 +91,12 @@ impl FromDef for DepositDef {
                 .map(|block| def.numbers(block))
                 .unwrap_or_default()
         };
-        let is_for_colonizable = def
-            .node
-            .find("is_for_colonizable", src)
-            .and_then(|n| n.scalar_str(src))
-            .is_none_or(|s| s == "yes");
         let (always, side_effects) = triggered(def);
         Self {
             icon: def.scalar("icon").map(str::to_owned),
             category,
             produces: numbers_in("produces"),
-            is_for_colonizable,
+            is_for_colonizable: def.flag("is_for_colonizable"),
             station: def.scalar("station").map(str::to_owned),
             planet_modifier: def
                 .node

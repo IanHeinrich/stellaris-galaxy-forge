@@ -7,7 +7,9 @@ use sgf_core::cst::Node;
 use sgf_core::ops::BodySpec;
 
 use crate::GameData;
+use crate::condition::{Condition, Subject};
 use crate::install::script::Def;
+use crate::scripts::scope::{is_guard, keeps_scope};
 
 /// One statement of a body's `init_effect`, run on the body once its deposits are rolled.
 #[derive(Debug, Clone, PartialEq)]
@@ -32,113 +34,7 @@ pub enum BodyEffect {
     Repeat(u32, Vec<BodyEffect>),
     /// An `if`, its `else_if`s and its `else`: the first arm whose check holds runs, an
     /// `else` having none.
-    Branch(Vec<(Option<Check>, Vec<BodyEffect>)>),
-}
-
-/// A condition an `if` or a layout's odds ask, as far as the generator can answer it.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Check {
-    /// `host_has_dlc = "…"`.
-    HostDlc(String),
-    /// `name = yes` or `no`, a scripted trigger the generator answers only when it checks a
-    /// DLC.
-    Trigger(String, bool),
-    Not(Box<Check>),
-    All(Vec<Check>),
-    Any(Vec<Check>),
-    /// Anything else: a cluster, the galaxy's setup, a neighbour, by its key.
-    Unknown(String),
-}
-
-impl Check {
-    /// The conditions of `block` but those keyed `skip`, all of which must hold.
-    pub(crate) fn compile(block: &Node, def: &Def, skip: &[&str]) -> Self {
-        Self::All(
-            block
-                .children()
-                .iter()
-                .filter(|c| c.key_str(&def.src).is_some_and(|key| !skip.contains(&key)))
-                .map(|c| Self::of(c, def))
-                .collect(),
-        )
-    }
-
-    fn of(node: &Node, def: &Def) -> Self {
-        let src = &def.src;
-        let key = node.key_str(src).unwrap_or_default();
-        match key {
-            "host_has_dlc" => match node.scalar_str(src) {
-                Some(dlc) => Self::HostDlc(dlc.to_owned()),
-                None => Self::Unknown(key.to_owned()),
-            },
-            "AND" => Self::compile(node, def, &[]),
-            "OR" => Self::Any(Self::compile_all(node, def)),
-            "NOT" => Self::Not(Box::new(Self::compile(node, def, &[]))),
-            "NOR" => Self::Not(Box::new(Self::Any(Self::compile_all(node, def)))),
-            _ => match node.scalar_str(src) {
-                Some("yes") => Self::Trigger(key.to_owned(), true),
-                Some("no") => Self::Trigger(key.to_owned(), false),
-                _ => Self::Unknown(key.to_owned()),
-            },
-        }
-    }
-
-    fn compile_all(node: &Node, def: &Def) -> Vec<Self> {
-        node.children()
-            .iter()
-            .filter(|c| c.key_str(&def.src).is_some())
-            .map(|c| Self::of(c, def))
-            .collect()
-    }
-
-    /// `Some` when the check asks only about DLC, which `has_dlc` answers; `None` when it
-    /// asks anything else.
-    pub fn decide(&self, gd: &GameData, has_dlc: &dyn Fn(&str) -> bool) -> Option<bool> {
-        match self {
-            Self::HostDlc(dlc) => Some(has_dlc(dlc)),
-            Self::Trigger(name, wanted) => {
-                let dlc = gd.scripted_triggers.get(name)?.host_dlc.as_deref()?;
-                Some(has_dlc(dlc) == *wanted)
-            }
-            Self::Not(inner) => inner.decide(gd, has_dlc).map(|held| !held),
-            Self::All(checks) => checks
-                .iter()
-                .try_fold(true, |every, c| Some(every && c.decide(gd, has_dlc)?)),
-            Self::Any(checks) => {
-                let mut unknown = false;
-                for check in checks {
-                    match check.decide(gd, has_dlc) {
-                        Some(true) => return Some(true),
-                        Some(false) => {}
-                        None => unknown = true,
-                    }
-                }
-                (!unknown).then_some(false)
-            }
-            Self::Unknown(_) => None,
-        }
-    }
-
-    /// Every DLC the check names, directly or through a trigger that checks one.
-    pub(crate) fn dlcs(&self, gd: &GameData, out: &mut Vec<String>) {
-        let named = match self {
-            Self::HostDlc(dlc) => Some(dlc.clone()),
-            Self::Trigger(name, _) => gd
-                .scripted_triggers
-                .get(name)
-                .and_then(|t| t.host_dlc.clone()),
-            Self::Not(inner) => return inner.dlcs(gd, out),
-            Self::All(checks) | Self::Any(checks) => {
-                return checks.iter().for_each(|c| c.dlcs(gd, out));
-            }
-            Self::Unknown(_) => None,
-        };
-        if let Some(dlc) = named
-            && !out.contains(&dlc)
-        {
-            out.push(dlc);
-        }
-    }
+    Branch(Vec<(Option<Condition>, Vec<BodyEffect>)>),
 }
 
 /// Effects dropped with the script: anomalies, archaeology sites, event targets and events,
@@ -162,12 +58,14 @@ const DROPPED: [&str; 17] = [
     "nebula_cloaking_effect",
     "log",
 ];
-/// Keys inside an effect block that hold its conditions or parameters.
-const CONDITIONS: [&str; 4] = ["limit", "trigger", "modifier", "count"];
-/// Blocks whose effects run on the same body, as if written beside them.
-const SAME_SCOPE: [&str; 1] = ["hidden_effect"];
-/// Blocks that run their effects by chance or in turn, and scopes by name.
-const FLOW: [&str; 3] = ["random_list", "IF", "effect"];
+/// Keys inside an effect block that hold its parameters beside its guards.
+const PARAMETERS: [&str; 2] = ["modifier", "count"];
+/// The blocks whose effects run on the same body, as if written beside them: the ones that
+/// keep the scope they are written in and are no branch, loop or chance.
+const SAME_SCOPE: [&str; 4] = ["hidden_effect", "immediate", "after", "init_effect"];
+/// Blocks that run their effects by chance or in turn.
+const CHANCE: [&str; 3] = ["random_list", "IF", "effect"];
+/// Scopes by name.
 const SCOPES: [&str; 11] = [
     "prev",
     "prevprev",
@@ -199,6 +97,11 @@ fn scope(key: &str) -> bool {
                 .any(|prefix| key.starts_with(prefix)))
 }
 
+/// A key that holds a block's conditions or parameters rather than an effect.
+fn condition_key(key: &str) -> bool {
+    is_guard(key) || PARAMETERS.contains(&key)
+}
+
 fn nested(node: &Node, def: &Def) -> bool {
     node.scalar_str(&def.src).is_none() && !node.children().is_empty()
 }
@@ -210,14 +113,10 @@ pub(crate) fn undropped(block: &Node, def: &Def) -> Option<String> {
         let Some(key) = child.key_str(&def.src) else {
             continue;
         };
-        if CONDITIONS.contains(&key) || dropped(key) {
+        if condition_key(key) || dropped(key) {
             continue;
         }
-        let walkable = FLOW.contains(&key)
-            || SAME_SCOPE.contains(&key)
-            || ["if", "else_if", "else", "while"].contains(&key)
-            || scope(key)
-            || key.parse::<f64>().is_ok();
+        let walkable = keeps_scope(key) || CHANCE.contains(&key) || scope(key);
         if nested(child, def) && walkable {
             match undropped(child, def) {
                 Some(found) => return Some(found),
@@ -250,7 +149,7 @@ fn read_block(block: &Node, def: &Def, out: &mut Vec<BodyEffect>, unwritten: &mu
         let Some(key) = child.key_str(src) else {
             continue;
         };
-        if CONDITIONS.contains(&key) || dropped(key) {
+        if condition_key(key) || dropped(key) {
             continue;
         }
         let scalar = child.scalar_str(src);
@@ -291,7 +190,7 @@ fn read_block(block: &Node, def: &Def, out: &mut Vec<BodyEffect>, unwritten: &mu
                 read_block(child, def, out, unwritten);
                 continue;
             }
-            _ if nested(child, def) && (FLOW.contains(&key) || scope(key)) => {
+            _ if nested(child, def) && (CHANCE.contains(&key) || scope(key)) => {
                 if let Some(found) = undropped(child, def) {
                     unwritten.get_or_insert(found);
                 }
@@ -326,26 +225,27 @@ fn arm(
     def: &Def,
     checked: bool,
     unwritten: &mut Option<String>,
-) -> (Option<Check>, Vec<BodyEffect>) {
+) -> (Option<Condition>, Vec<BodyEffect>) {
     let check = checked.then(|| match node.find("limit", &def.src) {
-        Some(limit) => Check::compile(limit, def, &[]),
-        None => Check::All(Vec::new()),
+        Some(limit) => Condition::of_def(limit, def),
+        None => Condition::All(Vec::new()),
     });
     let mut effects = Vec::new();
     read_block(node, def, &mut effects, unwritten);
     (check, effects)
 }
 
-/// The first check of `effects` that asks more than DLC, by what it asks.
-pub(crate) fn undecided(gd: &GameData, effects: &[BodyEffect]) -> Option<String> {
+/// The first check of `effects` that `dlc`, every DLC present, cannot settle, by what it
+/// asks.
+pub(crate) fn undecided(effects: &[BodyEffect], dlc: &dyn Subject) -> Option<String> {
     effects.iter().find_map(|effect| match effect {
-        BodyEffect::Repeat(_, inner) => undecided(gd, inner),
+        BodyEffect::Repeat(_, inner) => undecided(inner, dlc),
         BodyEffect::Branch(arms) => arms.iter().find_map(|(check, inner)| {
             check
                 .as_ref()
-                .filter(|c| c.decide(gd, &|_| true).is_none())
+                .filter(|c| c.evaluate(dlc).is_none())
                 .map(|_| "if".to_owned())
-                .or_else(|| undecided(gd, inner))
+                .or_else(|| undecided(inner, dlc))
         }),
         _ => None,
     })
@@ -371,13 +271,8 @@ fn collect_modifiers<'e>(effects: &'e [BodyEffect], out: &mut Vec<&'e str>) {
     }
 }
 
-/// Run `effects` on `body` in order, with `has_dlc` answering the `if`s.
-pub(crate) fn apply(
-    gd: &GameData,
-    effects: &[BodyEffect],
-    body: &mut BodySpec,
-    has_dlc: &dyn Fn(&str) -> bool,
-) {
+/// Run `effects` on `body` in order, with `dlc` answering the `if`s.
+pub(crate) fn apply(gd: &GameData, effects: &[BodyEffect], body: &mut BodySpec, dlc: &dyn Subject) {
     for effect in effects {
         match effect {
             BodyEffect::ClearDeposits => body.deposits.clear(),
@@ -388,7 +283,7 @@ pub(crate) fn apply(
             BodyEffect::AddDeposit(key) | BodyEffect::AddBlocker(key) => {
                 body.deposits.push(key.clone())
             }
-            BodyEffect::ClearBlockers => body.deposits.retain(|d| !blocker(gd, d)),
+            BodyEffect::ClearBlockers => body.deposits.retain(|d| !gd.is_blocker(d)),
             BodyEffect::ChangeClass(class) => body.class.clone_from(class),
             BodyEffect::Entity(entity) => body.entity_name = Some(entity.clone()),
             BodyEffect::Modifier(modifier) => {
@@ -398,28 +293,17 @@ pub(crate) fn apply(
             }
             BodyEffect::Repeat(count, inner) => {
                 for _ in 0..*count {
-                    apply(gd, inner, body, has_dlc);
+                    apply(gd, inner, body, dlc);
                 }
             }
             BodyEffect::Branch(arms) => {
                 let taken = arms.iter().find(|(check, _)| {
-                    check
-                        .as_ref()
-                        .is_none_or(|c| c.decide(gd, has_dlc) == Some(true))
+                    check.as_ref().is_none_or(|c| c.evaluate(dlc) == Some(true))
                 });
                 if let Some((_, inner)) = taken {
-                    apply(gd, inner, body, has_dlc);
+                    apply(gd, inner, body, dlc);
                 }
             }
         }
     }
-}
-
-/// A deposit whose category is a blocker's, as the planet page and the roller read it.
-pub fn blocker(gd: &GameData, deposit: &str) -> bool {
-    gd.deposits
-        .get(deposit)
-        .and_then(|d| d.category.as_deref())
-        .and_then(|category| gd.deposit_categories.get(category))
-        .is_some_and(|category| category.blocker)
 }

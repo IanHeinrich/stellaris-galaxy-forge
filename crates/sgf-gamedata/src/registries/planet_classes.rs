@@ -31,8 +31,26 @@ pub struct PlanetClassDef {
     pub extra_planet_count: f64,
 }
 
+impl PlanetClasses {
+    /// The classes a random body can be drawn as: no star or asteroid, with a distance from
+    /// the star it spawns at, and colonisable or not when `colonizable` says.
+    pub fn drawable(&self, colonizable: Option<bool>) -> impl Iterator<Item = &PlanetClassDef> {
+        self.iter().filter(move |c| {
+            !c.star
+                && !c.asteroid
+                && c.distance_from_sun.is_some()
+                && colonizable.is_none_or(|wanted| c.colonizable == wanted)
+        })
+    }
+}
+
 impl FromDef for PlanetClassDef {
     const DIR: &'static str = "common/planet_classes";
+
+    /// The planet lists beside the classes (`random_list = { name = rl_… planets = { … } }`).
+    fn skip(def: &Def) -> bool {
+        def.node.find("planets", &def.src).is_some()
+    }
 
     fn read(key: String, def: &Def) -> Self {
         let distance = |key: &str| def.number(key);
