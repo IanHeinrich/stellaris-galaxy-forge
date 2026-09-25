@@ -16,6 +16,11 @@ a release is made.
   name. On the Bypasses layer, the square that marks a relay is much
   fainter.
 
+### Fixed
+
+- On the Waylines layer, each waystation's level now shows when zoomed
+  out. Zoomed in, the station has only its white ring.
+
 ## [0.14.0] - 2026-09-25
 
 ### Added
