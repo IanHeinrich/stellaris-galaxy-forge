@@ -10,6 +10,7 @@ import {
   type ModifierRow,
 } from "../../../lib/details/planetPage";
 import {
+  bodyEditHint,
   setTerraformCandidateOp,
   terraformCandidate,
   terraformCandidateTitle,
@@ -286,7 +287,7 @@ function Moons({ page }: { page: PlanetPage }) {
             key={moon.id}
             planet={{ ...summary, moon: false }}
             details={read}
-            editable={starBodyEditable(summary.class, bodies, planetClasses, starClasses)}
+            editHint={bodyEditHint(summary.class, bodies, planetClasses, starClasses)}
           />
         );
       })}
@@ -308,9 +309,10 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const system = useGalaxyStore((s) => (found === null ? undefined : s.systems.get(found.system)));
   const star = starBodyEditable(page.class, bodies, planetClasses, starClasses);
   const starBlock = star && found !== null && system !== undefined;
-  const candidate = isStarBody(page.class, planetClasses, starClasses)
-    ? null
-    : terraformCandidate(page, planetClasses);
+  const candidate =
+    !bodies || isStarBody(page.class, planetClasses, starClasses)
+      ? null
+      : terraformCandidate(page, planetClasses);
   const requestDetails = useDetailsStore((s) => s.request);
   const detailsVersion = useDetailsStore((s) => s.version);
   const waiting = useDetailsStore((s) => page.system !== null && !s.failed.has(page.system));

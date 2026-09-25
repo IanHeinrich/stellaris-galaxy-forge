@@ -2,6 +2,8 @@
 import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetPage } from "../../generated/PlanetPage";
+import type { StarClassView } from "../../generated/StarClassView";
+import { isStarBody } from "./starBody";
 
 /** The game's own candidate modifiers, for a page shown before game data has loaded. */
 const VANILLA_CANDIDATES: readonly string[] = [
@@ -53,6 +55,26 @@ export function terraformCandidateTitle(modifier: string): string {
   return extra === undefined
     ? "Needs Climate Restoration to terraform"
     : `Needs Climate Restoration ${extra} to terraform`;
+}
+
+/**
+ * Why a body's row in a planet list carries the Edit chip, as its hover text: a star's type and
+ * size, or a planet that can be made a terraforming candidate. `null` when its page edits nothing.
+ */
+export function bodyEditHint(
+  planetClass: string,
+  bodies: boolean,
+  planetClasses: ReadonlyMap<string, PlanetClassView>,
+  starClasses: ReadonlyMap<string, StarClassView>,
+): string | null {
+  if (!bodies) return null;
+  if (isStarBody(planetClass, planetClasses, starClasses)) {
+    return "Open this star's page to change its type and size";
+  }
+  if ((planetClasses.get(planetClass)?.terraform_candidate ?? null) !== null) {
+    return "Open this planet's page to make it a terraforming candidate";
+  }
+  return null;
 }
 
 /** The edit that adds or removes a terraforming candidate modifier on planet `id`. */

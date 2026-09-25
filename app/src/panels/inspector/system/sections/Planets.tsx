@@ -3,7 +3,8 @@ import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { bodyClassName, bodyName } from "../../../../lib/details/labels";
 import { resourceRows } from "../../../../lib/details/resources";
-import { isStarBody, starBodyEditable } from "../../../../lib/details/starBody";
+import { isStarBody } from "../../../../lib/details/starBody";
+import { bodyEditHint } from "../../../../lib/details/terraform";
 import { capabilityFor } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useDetailsStore } from "../../../../store/detailsStore";
@@ -41,11 +42,12 @@ function SizeAndPops({ size, pops }: { size: number | null; pops: number }) {
 export function PlanetRow({
   planet,
   details,
-  editable,
+  editHint,
 }: {
   planet: PlanetSummary;
   details: SystemDetails;
-  editable: boolean;
+  /** Why the row carries the Edit chip, or `null` when its page edits nothing. */
+  editHint: string | null;
 }) {
   const icons = useDetailsStore((s) => s.resourceIcons);
   const classes = useGameDataStore((s) => s.planetClasses);
@@ -62,7 +64,7 @@ export function PlanetRow({
     <DrillRow
       className={`ins-prow${planet.moon ? " moon" : ""}${wide ? " wide" : ""}`}
       requires={capabilityFor("planet")}
-      title={editable ? "Open this star's page to change its type and size" : undefined}
+      title={editHint ?? undefined}
       onOpen={() => opener.open({ kind: "planet", id: planet.id }, name)}
     >
       <PlanetIcon planetClass={planet.class} sprite={sprite} />
@@ -72,7 +74,7 @@ export function PlanetRow({
           {name}
           {planet.capital && <Chip>capital</Chip>}
           {planet.pre_ftl && <Chip>pre-FTL</Chip>}
-          {editable && (
+          {editHint !== null && (
             <span className="ins-edit-chip">
               <span aria-hidden="true">✎</span> Edit
             </span>
@@ -156,7 +158,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
               key={p.id}
               planet={p}
               details={details}
-              editable={starBodyEditable(p.class, bodies, classes, starClasses)}
+              editHint={bodyEditHint(p.class, bodies, classes, starClasses)}
             />
           ))}
           {!all && planets.length > LIST_LIMIT && (

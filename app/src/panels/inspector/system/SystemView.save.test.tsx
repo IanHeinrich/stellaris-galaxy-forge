@@ -229,6 +229,27 @@ describe("the star class at the head", () => {
     expect(overview().match(/class="ins-edit-chip"/g)).toHaveLength(2);
   });
 
+  it("marks a planet that can be made a terraforming candidate", async () => {
+    armStarClasses();
+    const classes = new Map(useGameDataStore.getState().planetClasses);
+    classes.set("pc_barren", planetClassView("pc_barren", false, "terraforming_candidate"));
+    useGameDataStore.setState({ planetClasses: classes });
+    await open("save");
+    await land(
+      details({
+        planets: [
+          planet(100, "Tarkin"),
+          planet(101, "Alpha", { class: "pc_g_star" }),
+          planet(102, "Rock", { class: "pc_barren" }),
+        ],
+      }),
+    );
+
+    const html = overview();
+    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(2);
+    expect(html).toContain("Open this planet&#x27;s page to make it a terraforming candidate");
+  });
+
   it("marks a star as editable and lists it first without game data", async () => {
     useGameDataStore.setState({ status: "idle" });
     await open("save");
