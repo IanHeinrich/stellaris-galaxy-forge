@@ -7,7 +7,7 @@ use sgf_core::Span;
 use sgf_core::cst::{self, Node, Value};
 use sgf_core::lexer::{self, TokenKind};
 
-mod common;
+use crate::common;
 
 const FIXTURES: &[(&str, &str)] = &[
     (

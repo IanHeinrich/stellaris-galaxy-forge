@@ -11,16 +11,12 @@ use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 use sgf_core::views::DocumentKind;
 
-mod common;
+use crate::common;
 use common::diff::{plain_report, report, round_trip, round_trip_step};
 use common::spec::{dorellion, mura};
-use common::{SAMPLE_3_4, SAMPLE_4_5, current, open, open_edited, text};
+use common::{current, open, open_3_4, open_4_5, open_edited, text};
 
 const GENERATION: u32 = 1 << 24;
-
-fn open_4_5() -> Session {
-    Session::open(SAMPLE_4_5).expect("open the 4.5 sample")
-}
 
 fn add(planet: u32, kind: &str) -> Op {
     Op::AddSaveDeposit {
@@ -465,7 +461,7 @@ fn what_the_ops_refuse() {
         OpError::DepositNotOnPlanet(26)
     ));
 
-    let mut old = Session::open(SAMPLE_3_4).expect("open the 3.4 sample");
+    let mut old = open_3_4();
     assert!(matches!(
         refused(&mut old, add(3, "d_minerals_3")),
         OpError::SaveTooOld(_)

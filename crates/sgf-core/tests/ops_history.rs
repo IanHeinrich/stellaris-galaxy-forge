@@ -8,7 +8,7 @@ use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
 use sgf_core::validate::Severity;
 
-mod common;
+use crate::common;
 use common::diff::{round_trip, round_trip_step};
 use common::examples::{self, one_of_each};
 use common::{NEBULA_0_CENTRE, current, open};

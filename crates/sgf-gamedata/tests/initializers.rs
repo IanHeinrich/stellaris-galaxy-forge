@@ -1,12 +1,9 @@
 //! What a solar system initializer spawns, read from the real install.
 
-mod common;
-
-use std::sync::LazyLock;
+use crate::common;
 
 use sgf_core::format::save::details::ResourceAmount;
 use sgf_core::session::Session;
-use sgf_gamedata::GameData;
 use sgf_gamedata::initializers::{Initializer, PartnerRef};
 use sgf_gamedata::special::classify_session;
 use sgf_gamedata::views::InitializerView;
@@ -18,7 +15,7 @@ const SCENARIO: &str = concat!(
     "/../../testdata/scenario_grammar.txt"
 );
 
-static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(common::load_real);
+use common::INSTALL;
 
 /// `None`, and the test returns, when this machine has no Stellaris install.
 fn initializer(name: &str) -> Option<&'static Initializer> {

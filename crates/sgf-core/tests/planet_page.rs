@@ -7,7 +7,7 @@ use sgf_core::document::Document;
 use sgf_core::entity::{EntityError, PlanetPage, get_planet_page};
 use sgf_core::ops::Op;
 
-mod common;
+use crate::common;
 use common::fixture::GRAMMAR;
 
 fn page(doc: &Document, id: u32) -> PlanetPage {

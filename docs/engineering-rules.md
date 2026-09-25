@@ -193,6 +193,26 @@ complex or specific.
   maths. If a unit test needs private internals or mocks, that is a
   sign to test one level further out instead.
 - Prefer fewer, broader tests that fail loudly over many narrow ones.
+- The integration tests of sgf-core, sgf-gamedata and sgf-app each build
+  as one binary, so their shared `tests/common` compiles once and their
+  tests run in parallel. A new test file is declared in that crate's
+  `tests/main.rs`, and a test there fails if one is missing. sgf-core's
+  `corpus.rs` and `scenario_corpus.rs` are binaries of their own, so
+  their timings run alone.
+- In sgf-core, open a sample save with `common::open()`, `open_4_5()` or
+  `open_3_4()`. Each reads and indexes its save once per binary and
+  hands every test a copy. Call `Session::open` on a path only when the
+  test is about opening, saving or reloading a file. In sgf-gamedata, a
+  test that needs the real install reads `common::INSTALL`, which loads
+  it once.
+- The test harness runs one test per core. Splitting a slow test across
+  threads helped in sgf-gamedata, where the other tests finish early and
+  cores sit idle. In sgf-core every core is busy, and it made the run
+  slower.
+- A test that takes more than a few seconds in a debug build gets a look
+  before more cases are added to it.
+- The dev profile builds dependencies with `opt-level = 2`. The tests run
+  three to four times slower without it.
 
 ### Where TDD applies
 

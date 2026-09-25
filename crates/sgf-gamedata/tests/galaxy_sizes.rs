@@ -2,7 +2,7 @@
 //! the enabled mods, read from a throwaway install, then from the real Stellaris
 //! install when this machine has one.
 
-mod common;
+use crate::common;
 
 use std::fs;
 use std::path::Path;

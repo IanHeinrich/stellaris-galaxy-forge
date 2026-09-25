@@ -12,7 +12,7 @@ use sgf_core::views::{
     SystemDetail,
 };
 
-mod common;
+use crate::common;
 use common::{PAINTED, SAMPLE, SCENARIO, invoke, invoke_raw, kind, open, opened, webview};
 
 #[test]

@@ -9,7 +9,7 @@ use sgf_core::views::{EditResult, ErrorKind};
 /// The Stellaris 4.5 sample, whose pool holds 46 unused nebula names.
 const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
 
-mod common;
+use crate::common;
 use common::{SAMPLE, SCENARIO, have_install, invoke, kind, open, webview};
 
 fn place(w: &tauri::WebviewWindow<tauri::test::MockRuntime>, seed: u64) -> EditResult {

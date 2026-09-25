@@ -4,19 +4,14 @@ use sgf_core::archive;
 use sgf_core::document::Document;
 use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::GalaxyGraph;
-use sgf_core::session::Session;
 use sgf_core::validate::{Severity, validate};
 
-mod common;
+use crate::common;
 use common::diff::{plain_report, round_trip_step};
-use common::{SAMPLE_3_4, current};
+use common::{SAMPLE_3_4, current, open_3_4};
 
 fn load() -> Document {
     Document::load(SAMPLE_3_4).expect("load the 3.4 sample")
-}
-
-fn open() -> Session {
-    Session::open(SAMPLE_3_4).expect("open the 3.4 sample")
 }
 
 #[test]
@@ -61,7 +56,7 @@ fn validator_reports_no_errors() {
 /// System 0 has a `hyperlane` block; systems 0 and 1 are not linked.
 #[test]
 fn a_lane_between_two_blocked_systems_is_added_on_both_ends_and_undoes_exactly() {
-    let mut session = open();
+    let mut session = open_3_4();
     assert!(!session.graph.systems[&0].lanes.is_empty());
     assert!(!session.graph.systems[&1].lanes.is_empty());
     assert!(session.graph.lane(0, 1).is_none());
@@ -87,7 +82,7 @@ fn a_lane_between_two_blocked_systems_is_added_on_both_ends_and_undoes_exactly()
 /// System 591 has no `hyperlane` block at all: the op must create one in the 4.x shape.
 #[test]
 fn a_lane_to_a_system_with_no_hyperlane_block_creates_it() {
-    let mut session = open();
+    let mut session = open_3_4();
     assert!(session.graph.systems[&591].lanes.is_empty());
     assert!(!session.graph.systems[&590].lanes.is_empty());
 
@@ -116,7 +111,7 @@ fn a_lane_to_a_system_with_no_hyperlane_block_creates_it() {
 /// The existing lane 0 <-> 398, as `sgf lane remove` refused before the fix.
 #[test]
 fn removing_an_existing_lane_takes_it_from_both_ends() {
-    let mut session = open();
+    let mut session = open_3_4();
     assert!(session.graph.lane(0, 398).is_some());
 
     let op = Op::RemoveLane { a: 0, b: 398 };
@@ -134,7 +129,7 @@ fn removing_an_existing_lane_takes_it_from_both_ends() {
 /// to it, on the old brace shape.
 #[test]
 fn isolating_a_system_removes_its_whole_block_and_every_neighbours_entry() {
-    let mut session = open();
+    let mut session = open_3_4();
     let before = session.graph.systems[&0].clone();
     assert!(!before.lanes.is_empty());
 
@@ -163,7 +158,7 @@ fn isolating_a_system_removes_its_whole_block_and_every_neighbours_entry() {
 /// session's own graph, and the reload validates clean.
 #[test]
 fn edited_bytes_reload_and_validate_clean() {
-    let mut session = open();
+    let mut session = open_3_4();
     session
         .apply(Op::AddLane {
             a: 0,

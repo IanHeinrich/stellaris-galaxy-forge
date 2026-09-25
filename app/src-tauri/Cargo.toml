@@ -5,6 +5,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+autotests = false
+
+[[test]]
+name = "integration"
+path = "tests/main.rs"
 
 [lib]
 # Unique lib name so it does not collide with the bin on Windows.

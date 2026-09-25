@@ -14,7 +14,7 @@ use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
 use sgf_core::views::DocumentKind;
 
-mod common;
+use crate::common;
 use common::export::{
     NAME, SAVE_FILE, at_fixture_version, default_capitals, exported_as, lanes, no_names,
     no_sources, seated,

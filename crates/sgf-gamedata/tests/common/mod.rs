@@ -6,10 +6,22 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
+use sgf_core::document::Document;
+use sgf_core::session::Session;
 use sgf_gamedata::install::discovery::find_install;
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2206.11.16.sav");
+pub const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
+
+static SAMPLE_4_5_DOCUMENT: LazyLock<Document> =
+    LazyLock::new(|| Document::load(SAMPLE_4_5).expect("load the 4.5 sample"));
+
+/// The 4.5 sample, read and indexed once per binary. Each call gets a session of its own.
+pub fn open_4_5() -> Session {
+    Session::from_document(Some(PathBuf::from(SAMPLE_4_5)), SAMPLE_4_5_DOCUMENT.clone())
+        .expect("open the 4.5 sample")
+}
 
 pub fn fixture(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -117,4 +129,26 @@ pub fn load_real() -> Option<GameData> {
         ..LoadOptions::default()
     };
     sgf_gamedata::load(&opts, &mut |_| {}).ok()
+}
+
+/// [`load_real`], read once for the whole test binary.
+pub static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(load_real);
+
+/// Runs `f(i)` for every `i` in `0..n` on its own thread and returns the results in order. A
+/// panic in any thread resumes on the caller's, so it still fails the test and its message
+/// still reaches the output.
+pub fn parallel<R: Send>(n: usize, f: impl Fn(usize) -> R + Sync) -> Vec<R> {
+    let f = &f;
+    std::thread::scope(|scope| {
+        (0..n)
+            .map(|i| scope.spawn(move || f(i)))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|handle| {
+                handle
+                    .join()
+                    .unwrap_or_else(|e| std::panic::resume_unwind(e))
+            })
+            .collect()
+    })
 }

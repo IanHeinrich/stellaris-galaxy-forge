@@ -6,7 +6,7 @@ use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 
-mod common;
+use crate::common;
 use common::current;
 use common::diff::{plain_snapshot, round_trip};
 use common::fixture::GRAMMAR;

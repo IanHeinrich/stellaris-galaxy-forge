@@ -19,3 +19,7 @@ codegen-units = 1
 # `tauri dev` runs the core unoptimised otherwise, and scenario edits then run tens of times slower than a release.
 [profile.dev.package.sgf-core]
 opt-level = 2
+
+# The tests run three to four times faster with dependencies optimised; memchr and similar alone give half of it.
+[profile.dev.package."*"]
+opt-level = 2

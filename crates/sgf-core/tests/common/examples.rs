@@ -7,7 +7,7 @@ use sgf_core::session::Session;
 
 use super::brush::new_system;
 use super::fixture::PAINTED;
-use super::{NEW_NEBULA, SAMPLE_4_5, open};
+use super::{NEW_NEBULA, open};
 
 /// One variant's op for each document kind; `None` where that kind refuses the variant.
 pub struct Example {
@@ -109,7 +109,7 @@ pub fn save_with_added() -> Session {
 
 /// The 4.5 sample, which the save examples that need its six-entry flag colours apply to.
 pub fn save_4_5() -> Session {
-    Session::open(SAMPLE_4_5).expect("open the 4.5 sample")
+    super::open_4_5()
 }
 
 /// The painted fixture with a `prevent_hyperlane` added, which every scenario example

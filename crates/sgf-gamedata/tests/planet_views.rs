@@ -2,7 +2,7 @@
 //! designations, on the fixture install and then on the real one when this
 //! machine has one.
 
-mod common;
+use crate::common;
 
 use std::fs;
 

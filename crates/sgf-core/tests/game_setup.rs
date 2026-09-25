@@ -1,7 +1,7 @@
 //! The save's setup screen and player country, and their absence on a scenario.
 use sgf_core::projections::galaxy::{GalaxyGraph, GameSetup};
 
-mod common;
+use crate::common;
 use common::fixture::PAINTED;
 use common::load;
 

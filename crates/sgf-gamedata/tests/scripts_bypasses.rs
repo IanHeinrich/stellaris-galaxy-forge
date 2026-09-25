@@ -1,7 +1,7 @@
 //! The bypasses a scenario's scripts spawn: the pairs a day-one event
 //! links, the ends this reader can place, and the ones it can only count.
 
-mod common;
+use crate::common;
 
 use sgf_gamedata::GameData;
 use sgf_gamedata::scripts::{BypassKind, BypassSource, ScenarioBypass, ScenarioSystem};

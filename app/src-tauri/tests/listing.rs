@@ -7,7 +7,7 @@ use sgf_core::format::scenario::listings::{ScenarioListings, ScenarioSource};
 use sgf_core::library::CampaignListing;
 use sgf_core::views::{ErrorKind, SaveFile, SystemDetail};
 
-mod common;
+use crate::common;
 use common::{PAINTED, SAMPLE, SCENARIO, invoke, kind, webview};
 
 #[test]

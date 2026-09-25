@@ -5,6 +5,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+autotests = false
+
+[[test]]
+name = "integration"
+path = "tests/main.rs"
 
 [dependencies]
 base64 = "0.23.1"

@@ -9,7 +9,7 @@ use sgf_core::format::scenario::is_painted;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 
-mod common;
+use crate::common;
 use common::diff::{plain_report, plain_snapshot, round_trip};
 use common::fixture::{EXPORTED, GRAMMAR, PAINTED, from_scenario_text};
 

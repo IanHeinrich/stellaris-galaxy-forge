@@ -80,12 +80,14 @@ pub fn unified_diff(session: &Session, cap: Option<usize>) -> String {
 }
 
 /// Snapshot the [`report`] of `op` applied to `session`.
+#[track_caller]
 pub fn snapshot(name: &str, mut session: Session, op: Op) {
     let result = session.apply(op).expect("apply");
     super::snapshot(name, &report(&session, &result));
 }
 
 /// Snapshot the [`plain_report`] of `op` applied to `session`.
+#[track_caller]
 pub fn plain_snapshot(name: &str, mut session: Session, op: Op) {
     let result = session.apply(op).expect("apply");
     super::snapshot(name, &plain_report(&session, &result));

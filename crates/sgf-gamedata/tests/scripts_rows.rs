@@ -2,7 +2,7 @@
 //! row, what each row's sites say, and what the row and site caps do to a
 //! system more scripts name than the section can hold.
 
-mod common;
+use crate::common;
 
 use std::sync::Arc;
 

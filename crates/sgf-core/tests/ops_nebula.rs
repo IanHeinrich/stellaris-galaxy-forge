@@ -5,7 +5,7 @@ use sgf_core::ops::{Op, OpError, SystemMove};
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 
-mod common;
+use crate::common;
 use common::diff::report;
 use common::{NEBULA_0_CENTRE, NEW_NEBULA, current, open, reprojected};
 

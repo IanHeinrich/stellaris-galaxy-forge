@@ -7,10 +7,10 @@ use sgf_core::projections::galaxy::{LGate, LGateOutcome};
 use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 
-mod common;
+use crate::common;
 use common::diff::plain_report;
 use common::examples;
-use common::{SAMPLE_4_5, current, open, open_edited, reprojected};
+use common::{current, open, open_4_5, open_edited, reprojected};
 
 fn set(outcome: LGateOutcome) -> Op {
     Op::SetLGateOutcome { outcome }
@@ -45,7 +45,7 @@ fn switch_and_undo(session: &mut Session, outcome: LGateOutcome, snapshot: &str)
 
 #[test]
 fn the_4_5_samples_gray_tempest_switches_to_each_other_outcome_and_back() {
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = open_4_5();
     assert_eq!(session.graph.lgate, unopened(LGateOutcome::GrayTempest));
     for (outcome, snapshot) in [
         (LGateOutcome::LDrakes, "gray_tempest_to_l_drakes"),

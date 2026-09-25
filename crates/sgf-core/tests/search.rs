@@ -1,13 +1,10 @@
 //! Search by id, name and what a system holds, on the real sample save.
-use std::path::PathBuf;
-
-use sgf_core::document::Document;
 use sgf_core::projections::galaxy::display_name;
 use sgf_core::search::NameResolver;
 use sgf_core::session::Session;
 use sgf_core::views::{SearchHit, SearchKind};
 
-mod common;
+use crate::common;
 use common::open;
 
 /// Planets and fleets are searched only once the details projection is built.
@@ -247,8 +244,7 @@ fn search_never_builds_the_details_projection_and_warming_widens_it() {
 
 #[test]
 fn an_empire_without_a_capital_goes_where_its_fleet_is() {
-    let doc = Document::load(common::SAMPLE_4_5).expect("load the 4.5 sample");
-    let mut s = Session::from_document(Some(PathBuf::from(common::SAMPLE_4_5)), doc).expect("open");
+    let mut s = common::open_4_5();
     s.warm_details().expect("build details");
     let hits = find(&s, "automated dreadnought", 5, &no_loc);
     let empire = &of_kind(&hits, SearchKind::Country)[0];

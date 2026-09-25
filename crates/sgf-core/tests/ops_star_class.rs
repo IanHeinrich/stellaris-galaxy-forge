@@ -7,10 +7,10 @@ use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 
-mod common;
+use crate::common;
 use common::diff::{plain_report, round_trip};
 use common::examples;
-use common::{SAMPLE_4_5, current, open, reprojected};
+use common::{current, open, open_4_5, reprojected};
 
 fn set(id: u32, class: &str, bodies: &[(u32, &str)]) -> Op {
     Op::SetStarClass {
@@ -95,7 +95,7 @@ fn change_and_undo(session: &mut Session, op: Op, snapshot: &str) {
 
 #[test]
 fn the_4_5_samples_g_star_becomes_a_pulsar_and_back() {
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = open_4_5();
     assert_eq!(star_class(&session, 1), "sc_g");
     change_and_undo(
         &mut session,
@@ -314,7 +314,7 @@ fn bodies(system: &SystemNode) -> Vec<(String, Option<u32>)> {
 
 #[test]
 fn a_binarys_bodies_are_read_at_load_and_follow_a_change_of_one_star() {
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = open_4_5();
     let system = &session.graph.systems[&5];
     assert_eq!(system.star_class, "sc_binary_7");
     let loaded = bodies(system);

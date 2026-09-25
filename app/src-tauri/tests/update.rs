@@ -3,7 +3,7 @@
 use serde_json::json;
 use sgf_core::views::ErrorKind;
 
-mod common;
+use crate::common;
 use common::{invoke, kind, webview};
 
 #[test]

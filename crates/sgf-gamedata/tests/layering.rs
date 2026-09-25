@@ -2,7 +2,7 @@
 //! `replace_path`, missing mods and unparseable files, which layers hold
 //! scenarios, and what counts as a file of the game data.
 
-mod common;
+use crate::common;
 
 use sgf_core::format::scenario::listings::{self, ScenarioSource};
 use sgf_gamedata::Diagnostic;

@@ -9,7 +9,7 @@ use sgf_core::ops::{LanePair, NewSystem, Op};
 use sgf_core::session::{OpResult, Session};
 use sgf_core::validate::Severity;
 
-mod common;
+use crate::common;
 use common::brush::{connect, cut, erase, grid, lane, paint};
 use common::diff::{round_trip, unified_diff};
 use common::fixture::EXPORTED;

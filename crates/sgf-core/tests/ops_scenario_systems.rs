@@ -5,7 +5,7 @@ use sgf_core::document::Document;
 use sgf_core::ops::{InitializerSet, NewSystem, Op, OpError};
 use sgf_core::session::Session;
 
-mod common;
+use crate::common;
 use common::current;
 use common::diff::{assert_removal_inverts_exactly, round_trip, snapshot};
 use common::fixture::GRAMMAR;

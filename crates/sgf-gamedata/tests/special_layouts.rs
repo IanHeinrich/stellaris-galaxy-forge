@@ -2,11 +2,10 @@
 //! what a hand-written layout with every feature gives, the Special menu's entries, and the
 //! real install's layouts added to the 4.5 sample save.
 
-mod common;
+use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::sync::LazyLock;
 
 use sgf_core::ops::{Op, SystemSpec};
 use sgf_core::session::Session;
@@ -23,12 +22,11 @@ use sgf_gamedata::summary::{
     Feature, Presence, Span, layout_summary, random_summary, star_pick_summary,
 };
 
-const SAMPLE_4_5: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
 /// Free ground beside the player's home system 169.
 const SPOT: (f64, f64) = (-292.23404, -137.62265);
 const ABUNDANCE: f64 = 2.0;
 
-static INSTALL: LazyLock<Option<GameData>> = LazyLock::new(common::load_real);
+use common::INSTALL;
 
 const FILES: [(&str, &str); 9] = [
     (
@@ -391,7 +389,7 @@ fn a_layouts_odds_add_and_multiply_what_the_save_decides_and_nothing_else() {
 #[test]
 fn the_special_menu_labels_counts_and_marks_each_layout() {
     let (_dir, gd) = hand_written();
-    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let session = common::open_4_5();
     let entries = special_layouts(&gd, &session);
     let rows: Vec<(&str, &str, bool, u32, Option<&DlcNeed>)> = entries
         .iter()
@@ -514,7 +512,7 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
     assert_eq!(why("guardians_init_hatchling"), Unsupported::Guardian);
     assert_eq!(why("dyson_sphere_init_01"), Unsupported::Megastructure);
 
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = common::open_4_5();
     for layout in &special {
         for seed in 0..20 {
             let spec = generate_layout(gd, seed, "Gen", SPOT, layout, ABUNDANCE)
@@ -548,7 +546,7 @@ fn the_real_install_lists_its_special_stars_and_labels_its_menu() {
     let Some(gd) = install() else {
         return;
     };
-    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let session = common::open_4_5();
     let entries = special_layouts(gd, &session);
     assert_eq!(entries.len(), special_initializers(gd).len());
     let entry = |key: &str| entries.iter().find(|e| e.key == key).expect(key);
@@ -623,7 +621,7 @@ fn rings_come_up_about_as_often_as_their_class_allows() {
 
 /// The sample with a Trappist added, so a system holds its fixed name.
 fn with_trappist(gd: &GameData) -> Session {
-    let mut session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let mut session = common::open_4_5();
     let mut spec: SystemSpec =
         generate_layout(gd, 1, "Gen", SPOT, "trappist_initializer", ABUNDANCE).unwrap();
     spec.lanes = vec![169];
@@ -638,7 +636,7 @@ fn a_fixed_name_a_system_already_holds_gives_way_to_a_pool_name() {
     let Some(gd) = install() else {
         return;
     };
-    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let session = common::open_4_5();
     let settled = |session: &Session, layout: &str| {
         let mut spec = generate_layout(gd, 2, "Pooled", (0.0, 0.0), layout, ABUNDANCE).unwrap();
         settle_name(session, gd, &mut spec, "Pooled", 2);
@@ -857,7 +855,7 @@ fn a_black_hole_is_named_from_the_black_hole_names() {
     let Some(gd) = install() else {
         return;
     };
-    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let session = common::open_4_5();
     let used: BTreeSet<&str> = session
         .graph
         .systems
@@ -888,7 +886,7 @@ fn keys(features: &[Feature]) -> Vec<(&str, bool)> {
 #[test]
 fn a_hand_written_install_summarises_each_pick_from_its_layouts() {
     let (_dir, gd) = hand_written();
-    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let session = common::open_4_5();
     let haven = layout_summary(&gd, "fx_haven", &session).expect("a special layout");
     assert_eq!(haven.star_classes[0].name, "Sun");
     assert_eq!(
@@ -942,7 +940,7 @@ fn the_real_install_summarises_pulsar_black_hole_trappist_and_random() {
     let Some(gd) = install() else {
         return;
     };
-    let session = Session::open(SAMPLE_4_5).expect("open the 4.5 sample");
+    let session = common::open_4_5();
     let pulsar = star_pick_summary(gd, "sc_pulsar", &session).unwrap();
     let hole = star_pick_summary(gd, "sc_black_hole", &session).unwrap();
     let trappist = layout_summary(gd, "trappist_initializer", &session).unwrap();
