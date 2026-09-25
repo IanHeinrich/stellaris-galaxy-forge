@@ -1,8 +1,7 @@
 //! A save planet's size: `planet_size` in its `planets.planet` entity, star bodies
 //! included. The size is written as given; the game is the judge of what a class allows.
 
-use crate::cst;
-use crate::format::save::planet_statement;
+use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::read;
@@ -14,7 +13,8 @@ pub(crate) fn plan_set(
     id: u32,
     size: u32,
 ) -> Result<Planned, OpError> {
-    let system = system_of(s, id)?;
+    let (node, src) = planet_entity(&s.doc, id)?;
+    let system = planet_system(&node, src, id)?;
     if size == 0 {
         return Err(OpError::ZeroPlanetSize);
     }
@@ -33,27 +33,5 @@ pub(crate) fn plan_set(
     Ok(Planned {
         description: format!("Set the size of planet #{id} from {old} to {size}"),
         inverse: Op::SetPlanetSize { id, size: old },
-    })
-}
-
-/// The system planet `id` sits in, from its `coordinate.origin`.
-fn system_of(s: &Session, id: u32) -> Result<u32, OpError> {
-    let anchor = planet_statement(&s.doc, id)?.ok_or(OpError::UnknownPlanet(id))?;
-    let buf = s.doc.current(anchor)?;
-    let parse_error = |offset: usize, reason: String| OpError::PlanetParse {
-        planet: id,
-        offset,
-        reason,
-    };
-    let root = cst::parse(buf, 0).map_err(|e| parse_error(e.offset, e.reason.to_owned()))?;
-    let node = root
-        .children()
-        .first()
-        .ok_or_else(|| parse_error(0, "empty statement".to_owned()))?;
-    read::origin(node, buf).ok_or_else(|| {
-        parse_error(
-            node.span().start,
-            format!("missing {}.{}", keys::COORDINATE, keys::ORIGIN),
-        )
     })
 }

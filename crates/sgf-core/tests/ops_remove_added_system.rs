@@ -15,11 +15,15 @@ use similar::{Algorithm, TextDiff};
 
 use crate::common;
 use common::diff::{assert_fresh, round_trip_step};
-use common::spec::{belted, body, dorellion, mura};
+use common::spec::{belted, body, dorellion, mura, star};
 use common::{current, open, open_4_5, text};
 
 const GENERATION: u32 = 1 << 24;
 const SLOT_MASK: u32 = GENERATION - 1;
+/// Inside Nythran Expanse's radius on the 4.5 sample and clear of its systems.
+const IN_NYTHRAN_EXPANSE: (f64, f64) = (-330.0, -75.0);
+/// A member of Nythran Expanse on the 4.5 sample.
+const PHARGIS: u32 = 171;
 
 /// One sample with the ids and systems a test adds to it.
 struct Sample {
@@ -76,7 +80,7 @@ fn small(name: &str, (x, y): (f64, f64), lanes: Vec<u32>) -> SystemSpec {
         y,
         star_class: "sc_k".to_owned(),
         initializer: "basic_init_01".to_owned(),
-        star: body("pc_k_star", 20, 0.0, 0.0, 0),
+        star: star(body("pc_k_star", 20, 0.0, 0.0, 0)),
         planets: vec![planet],
         lanes,
         ..SystemSpec::default()
@@ -384,6 +388,138 @@ fn a_removals_inverse_adds_the_system_back() {
         session.apply(result.inverse).expect("apply the inverse");
         assert_eq!(current(&session), added, "the same text at the same id");
     }
+}
+
+/// What a removal's inverse puts back besides the spec: the nebula the system stood in,
+/// with its cloud and cloaking, a bridge lane and a lane length set by hand.
+#[test]
+fn a_removals_inverse_puts_back_its_nebula_its_bridge_and_a_set_length() {
+    let mut session = common::open_4_5();
+    let mut spike = mura();
+    (spike.x, spike.y) = IN_NYTHRAN_EXPANSE;
+    let (mura, home) = (601, spike.lanes[0]);
+    session
+        .apply(add(spike))
+        .expect("add inside Nythran Expanse");
+    session
+        .apply(Op::SetLaneLength {
+            a: mura,
+            b: home,
+            length: 123.5,
+        })
+        .expect("set a length by hand");
+    session
+        .apply(Op::AddLane {
+            a: mura,
+            b: PHARGIS,
+            bridge: true,
+        })
+        .expect("add a bridge");
+    let before = text(&session);
+
+    let result = session.apply(remove(mura)).expect("remove");
+    session.apply(result.inverse).expect("apply the inverse");
+    let after = text(&session);
+    let diff = TextDiff::configure()
+        .algorithm(Algorithm::Myers)
+        .diff_lines(&before, &after);
+    assert!(
+        before == after,
+        "{}",
+        diff.unified_diff()
+            .context_radius(3)
+            .header("before", "after")
+    );
+}
+
+/// The cloud system `id` lists last, as its ambient object's id and type.
+fn cloud(session: &Session, id: u32) -> Option<(u32, String)> {
+    let text = text(session);
+    let systems = text.find("\ngalactic_object=\n{\n")?;
+    let entry = systems + text[systems..].find(&format!("\n\t{id}=\n\t{{\n"))?;
+    let end = entry + text[entry..].find("\n\t}\n")?;
+    let list = entry + text[entry..end].find("\t\tambient_object=\n\t\t{\n\t\t\t")?;
+    let ids = text[list..].lines().nth(2)?;
+    let last: u32 = ids.split_whitespace().last()?.parse().ok()?;
+    let table = text.find("\nambient_object=\n{\n")?;
+    let at = table + text[table..].find(&format!("\n\t{last}=\n\t{{\n"))?;
+    let data = at + text[at..].find("\t\tdata=\"")? + "\t\tdata=\"".len();
+    let kind = &text[data..data + text[data..].find('"')?];
+    Some((last, kind.to_owned()))
+}
+
+/// System `id`'s lanes as (other end, bridge, length), each end in `ids` renamed.
+fn lanes_as(session: &Session, id: u32, ids: &[(u32, u32)]) -> BTreeSet<(u32, bool, String)> {
+    let system = session.system(id).expect("the system");
+    let rename = |to: u32| {
+        ids.iter()
+            .find(|&&(old, _)| old == to)
+            .map_or(to, |&(_, new)| new)
+    };
+    let lanes = system.lanes.iter();
+    lanes
+        .map(|lane| (rename(lane.to), lane.bridge, lane.length.to_string()))
+        .collect()
+}
+
+/// The same, where the removed system was not the last one added: its first lane is a
+/// bridge, it has two, and the system added after it takes its id and back again.
+#[test]
+fn a_removals_inverse_puts_back_bridges_first_and_a_cloud_when_a_later_system_renumbers() {
+    let mut session = common::open_4_5();
+    let mut spike = mura();
+    (spike.x, spike.y) = IN_NYTHRAN_EXPANSE;
+    let home = spike.lanes[0];
+    spike.lanes.clear();
+    let (mura, later) = (601, 602);
+    let other = session
+        .graph
+        .systems
+        .values()
+        .filter(|s| ![PHARGIS, home].contains(&s.id))
+        .min_by(|a, b| {
+            let d = |s: &sgf_core::projections::galaxy::SystemNode| {
+                (s.x - IN_NYTHRAN_EXPANSE.0).hypot(s.y - IN_NYTHRAN_EXPANSE.1)
+            };
+            d(a).total_cmp(&d(b))
+        })
+        .expect("a third neighbour")
+        .id;
+    let steps = [
+        add(spike),
+        Op::AddLanes {
+            from: mura,
+            to: vec![(PHARGIS, true), (home, false), (other, true)],
+        },
+        Op::SetLaneLength {
+            a: mura,
+            b: home,
+            length: 123.5,
+        },
+        add(small("Tau_Ceti", (-270.0, -130.0), vec![mura, 420])),
+    ];
+    for op in steps {
+        session.apply(op).expect("set the system up");
+    }
+    let nebula = session.system(mura).expect("the system").nebula;
+    assert!(nebula.is_some(), "it stands in Nythran Expanse");
+    // Once removed and put back, the later system is 601 and this one 602.
+    let lanes = lanes_as(&session, mura, &[(later, mura)]);
+    let cloud_before = cloud(&session, mura).expect("its cloud");
+
+    let result = session.apply(remove(mura)).expect("remove");
+    assert_eq!(result.renumbered, [(mura, None), (later, Some(mura))]);
+    assert!(
+        matches!(&result.inverse, Op::Batch { ops, .. } if ops.len() > 1),
+        "{:?}",
+        result.inverse
+    );
+    session.apply(result.inverse).expect("apply the inverse");
+
+    let again = session.system(later).expect("the system added back");
+    assert_eq!(again.nebula, nebula);
+    assert_eq!(lanes_as(&session, later, &[]), lanes);
+    assert_eq!(cloud(&session, later), Some(cloud_before));
 }
 
 #[test]

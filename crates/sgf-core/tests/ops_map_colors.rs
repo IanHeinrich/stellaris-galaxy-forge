@@ -137,7 +137,15 @@ fn map_colours_are_refused_without_a_4_5_colours_list_or_where_nothing_would_cha
     ] {
         let error = session.apply(set(AI, pair(border, fill))).unwrap_err();
         assert!(
-            matches!(error, OpError::InvalidColorName(_)),
+            matches!(
+                error,
+                OpError::EmptyText {
+                    what: "a colour name"
+                } | OpError::InvalidText {
+                    what: "a colour name",
+                    ..
+                }
+            ),
             "{border:?} {fill:?}: {error:?}"
         );
     }

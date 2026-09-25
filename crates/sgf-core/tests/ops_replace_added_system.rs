@@ -15,7 +15,7 @@ use similar::{Algorithm, TextDiff};
 
 use crate::common;
 use common::diff::round_trip_step;
-use common::spec::{belted, body, dorellion, mura, rerolled};
+use common::spec::{belted, body, dorellion, mura, rerolled, star};
 use common::{current, examples, open, open_4_5, text};
 
 /// One sample, the spike's system and the id it takes, where a second system fits, and
@@ -73,7 +73,7 @@ fn small(name: &str, (x, y): (f64, f64), lanes: Vec<u32>) -> SystemSpec {
         y,
         star_class: "sc_k".to_owned(),
         initializer: "basic_init_01".to_owned(),
-        star: body("pc_k_star", 20, 0.0, 0.0, 0),
+        star: star(body("pc_k_star", 20, 0.0, 0.0, 0)),
         planets: vec![planet],
         lanes,
         ..SystemSpec::default()
@@ -385,7 +385,15 @@ fn what_a_reroll_refuses() {
         let error = session
             .apply(reroll(first, bad))
             .expect_err("no star class");
-        assert!(matches!(error, OpError::EmptyStarClass), "{error}");
+        assert!(
+            matches!(
+                error,
+                OpError::EmptyText {
+                    what: "a star class"
+                }
+            ),
+            "{error}"
+        );
         assert_eq!(current(session), written, "a refusal writes nothing");
 
         let path = dir.path().join(format!("{first}.sav"));

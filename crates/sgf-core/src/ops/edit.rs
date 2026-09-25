@@ -7,7 +7,8 @@
 //! Ops reach the bytes through three primitives: [`Edit::set_scalar`] rewrites a value,
 //! [`Edit::insert_lines`] adds whole lines at a line boundary, and
 //! [`Edit::remove_lines`] deletes them. Structure comes from the CST and indentation is
-//! copied from the line the text lands beside, never computed.
+//! copied from the line the text lands beside; only a line written last in a block adds a
+//! tab to its closing brace's ([`Edit::before_close`]).
 
 use std::ops::Range;
 
@@ -17,7 +18,8 @@ use crate::document::Document;
 use crate::format;
 use crate::keys;
 use crate::ops::OpError;
-use crate::overlay::Anchor;
+pub(crate) use crate::overlay::blank_slot;
+use crate::overlay::{Anchor, is_blank};
 
 /// One local splice: replace `range` of the statement's current bytes with the text.
 pub(crate) type Splice = (Range<usize>, Vec<u8>);
@@ -185,7 +187,7 @@ impl Edit {
     /// Rewrite the scalar at `path` (see [`Self::scalar`]).
     pub fn set_scalar(&mut self, path: &[&str], text: impl Into<Vec<u8>>) -> Result<(), OpError> {
         let span = self.scalar(path)?;
-        self.splices.push((span.range(), text.into()));
+        self.replace_span(span, text);
         Ok(())
     }
 
@@ -215,6 +217,11 @@ impl Edit {
         let span = self.value(path)?;
         self.splices.push((span.range(), text.into()));
         Ok(())
+    }
+
+    /// Write `text` in place of `span` of the statement's bytes.
+    pub fn replace_span(&mut self, span: Span, text: impl Into<Vec<u8>>) {
+        self.splices.push((span.range(), text.into()));
     }
 
     /// Insert `text` at offset `at` in the statement's bytes.
@@ -328,6 +335,27 @@ impl Edit {
         }
     }
 
+    /// Where a line goes last in `node`'s block, and the indentation it takes: the start of
+    /// the closing brace's line, one tab deeper than the brace.
+    pub fn before_close(&self, node: &Node) -> (usize, Vec<u8>) {
+        let close = node.value_span().end - 1;
+        let mut indent = self.indent(close);
+        indent.push(b'\t');
+        (self.line_start(close), indent)
+    }
+
+    /// Write `text` in place of the statement at `span`, which the caller then removes: on
+    /// a line of its own ahead of it when it starts its line, else beside it, where its
+    /// removal leaves off. Without that removal, text beside a statement lands after it.
+    pub fn insert_before(&mut self, span: Span, text: &str) {
+        if self.starts_line(span.start) {
+            let line = [&self.indent(span.start)[..], text.as_bytes(), b"\n"].concat();
+            self.insert_lines(self.line_start(span.start), line);
+        } else {
+            self.insert(span.end, format!(" {text}").into_bytes());
+        }
+    }
+
     /// Write `text` as the first statement of the block whose braces `value` spans, in the
     /// shape `first_child`, the statement standing first, is written in.
     pub fn insert_first(&mut self, value: Span, first_child: Option<Span>, text: &str) {
@@ -345,25 +373,9 @@ impl Edit {
     /// start of the line the removal takes, or right where a statement removed in place
     /// ended.
     pub fn replace_statement(&mut self, span: Span, text: &str) {
-        if self.starts_line(span.start) {
-            let line = [&self.indent(span.start)[..], text.as_bytes(), b"\n"].concat();
-            self.insert_lines(self.line_start(span.start), line);
-        } else {
-            self.insert(span.end, format!(" {text}").into_bytes());
-        }
+        self.insert_before(span, text);
         self.remove_statement(span);
     }
-}
-
-/// What stands beside a statement on its line without being text: a space, a tab, or
-/// the carriage return of a CRLF line end.
-fn is_blank(b: u8) -> bool {
-    matches!(b, b' ' | b'\t' | b'\r')
-}
-
-/// Whether a slot holds nothing but blanks and line ends: a statement emptied there.
-pub(crate) fn blank_slot(bytes: &[u8]) -> bool {
-    bytes.iter().all(|&b| is_blank(b) || b == b'\n')
 }
 
 /// Whether the statement at `span` of `src` has its line to itself: only blanks before

@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::cst::{self, Node};
+use crate::format::save::entity_in;
 use crate::keys;
 use crate::overlay::{Anchor, Overlay};
 use crate::scan::{self, Index};
@@ -99,8 +99,5 @@ fn table_at(original: &[u8], index: &Index, at: usize) -> Option<Table> {
 
 /// The id of the `<id>={ … }` entity `bytes` hold; `None` for a tombstone or anything else.
 fn entity_id(bytes: &[u8]) -> Option<u32> {
-    let root = cst::parse(bytes, 0).ok()?;
-    let node: &Node = root.children().first()?;
-    node.scalar_span().is_none().then_some(())?;
-    node.key_str(bytes)?.parse().ok()
+    entity_in(bytes).ok()??.key_str(bytes)?.parse().ok()
 }

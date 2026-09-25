@@ -3,7 +3,7 @@
 //! nebula membership lists in step with the new position.
 
 use crate::emit::coord;
-use crate::format::save::write::lanes::length_text;
+use crate::format::save::write::lanes::moved_length;
 use crate::format::save::write::nebula::{plan_membership, restoring};
 use crate::keys;
 use crate::ops::rules::nebula::describe_membership;
@@ -34,8 +34,7 @@ pub(crate) fn plan(
     let mut updated = 0;
     for &n in &neighbours {
         let other = &s.graph.systems[&n];
-        let dist = (x - other.x).hypot(y - other.y);
-        let text = move |existing: &str| length_text(existing, dist, false);
+        let text = moved_length((x, y), (other.x, other.y));
         updated += replace_lengths(plan.edit(&s.doc, id)?, n, text)?;
         updated += replace_lengths(plan.edit(&s.doc, n)?, id, text)?;
     }

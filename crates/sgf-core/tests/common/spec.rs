@@ -60,7 +60,7 @@ pub fn belted(mut spec: SystemSpec) -> SystemSpec {
 pub fn rerolled(mut spec: SystemSpec) -> SystemSpec {
     spec.initializer = "basic_init_03".to_owned();
     spec.star_class = "sc_m".to_owned();
-    spec.star = body("pc_m_star", 18, 0.0, 0.0, 0);
+    spec.star = star(body("pc_m_star", 18, 0.0, 0.0, 0));
     spec.planets = vec![
         body("pc_barren", 10, 55.0, 40.0, 1),
         body("pc_desert", 17, 90.0, 200.0, 2),
@@ -80,6 +80,11 @@ pub fn body(class: &str, size: u32, orbit: f64, angle: f64, entity: u32) -> Body
     }
 }
 
+/// `body` as the generator marks a body of a star class.
+pub fn star(body: BodySpec) -> BodySpec {
+    BodySpec { star: true, ..body }
+}
+
 fn with_deposits(mut body: BodySpec, deposits: &[&str]) -> BodySpec {
     body.deposits = deposits.iter().map(|d| (*d).to_owned()).collect();
     body
@@ -97,7 +102,10 @@ fn spike(name: &str, (x, y): (f64, f64), home: u32, habitable: [&str; 3]) -> Sys
         y,
         star_class: "sc_g".to_owned(),
         initializer: "basic_init_01".to_owned(),
-        star: with_deposits(body("pc_g_star", 25, 0.0, 0.0, 0), &["d_energy_5"]),
+        star: star(with_deposits(
+            body("pc_g_star", 25, 0.0, 0.0, 0),
+            &["d_energy_5"],
+        )),
         planets: vec![
             body("pc_molten", 12, 65.0, 30.0, 1),
             body("pc_barren", 14, 85.0, 150.0, 1),

@@ -187,9 +187,12 @@ fn what_a_rename_refuses() {
         for (bad, check) in [
             (
                 "",
-                (|e: &OpError| matches!(e, OpError::EmptyName)) as fn(&OpError) -> bool,
+                (|e: &OpError| matches!(e, OpError::EmptyText { what: "a name" }))
+                    as fn(&OpError) -> bool,
             ),
-            ("Bad\"Name", |e| matches!(e, OpError::InvalidName(_))),
+            ("Bad\"Name", |e| {
+                matches!(e, OpError::InvalidText { what: "a name", .. })
+            }),
             (name.as_str(), |e| matches!(e, OpError::NameUnchanged(..))),
         ] {
             let error = session.apply(rename(id, bad)).expect_err("refused");

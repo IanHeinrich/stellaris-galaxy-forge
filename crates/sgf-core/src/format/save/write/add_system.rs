@@ -1,39 +1,41 @@
 //! `AddSaveSystem`: a new `galactic_object` entry with its belts, its bodies in
 //! `planets.planet`, their deposits in `deposit`, its lanes on both ends, the system
 //! counter raised, a capped layout counted, the name taken out of the pool of unused star
-//! or black hole names and each asteroid's out of the pool of asteroid names. The game builds everything
-//! else a spawned system has (construction queues, intel, terra incognita) when it loads.
+//! or black hole names and each asteroid's out of the pool of asteroid names. A system
+//! standing inside a nebula's radius then joins it, with its member line and footprint.
+//! The game builds everything else a spawned system has (construction queues, intel,
+//! terra incognita) when it loads.
 
 use std::collections::BTreeMap;
 
-use crate::archive;
 use crate::cst;
 use crate::document::Document;
 use crate::emit::system::{
     DepositEntry, PlanetEntry, SystemEntry, deposit_entry, planet_entry, system_entry,
 };
-use crate::emit::{coord, rounded};
+use crate::emit::{coord, inline, roman, rounded};
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, Slot, SlotTable, TableEnd};
-use crate::format::save::galaxy::lgate::GAME_STARTED;
-use crate::format::save::system_spec::{BodySpec, SystemSpec};
+use crate::format::save::system_spec::{BodySpec, SystemSpec, polar};
 use crate::format::save::write::asteroid_names::Pool;
+use crate::format::save::write::deposits::check_deposit_kind;
+use crate::format::save::write::game_tables::SPAWN_BUFFER;
 use crate::format::save::write::initializer_counter;
 use crate::format::save::write::lanes::insert_entries;
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
-use crate::keys;
-use crate::ops::rules::{check_name, quotable};
-use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject};
+use crate::format::save::write::nebula::plan_membership;
+use crate::format::save::{check_version, entity_at};
+use crate::keys::{self, GAME_STARTED};
+use crate::ops::rules::nebula::{Membership, describe_membership, prospective};
+use crate::ops::rules::{Form, check_name, check_text};
+use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject, SystemMove};
 use crate::overlay::Anchor;
 use crate::plural;
-use crate::projections::galaxy::GalaxyGraph;
+use crate::projections::galaxy::{GalaxyGraph, lane_length, nearest_prospective};
 use crate::projections::name::{NameTemplate, NameVariable};
 use crate::scan::Value;
 use crate::session::Session;
 
-/// How close the game lets a system it spawns stand to another
-/// (`SPAWN_SYSTEM_BUFFER_DISTANCE`).
-const SPAWN_BUFFER: f64 = 10.0;
 /// The smallest `inner_radius` a system has, and how far past its outermost body the
 /// inner radius lies and the outer one past that.
 const MIN_INNER_RADIUS: f64 = 150.0;
@@ -69,20 +71,19 @@ pub(crate) fn plan_add(
         insert_entries(plan.edit(&s.doc, to)?, &[(id, length, false)])?;
     }
 
-    let counter = alloc::system_counter(&s.doc)?;
-    let edit = plan.edit_record(&s.doc, counter.anchor)?;
-    let span = edit
-        .entity()?
-        .scalar_span()
-        .ok_or_else(|| edit.parse_error(0, "last_created_system is not a scalar"))?;
-    edit.splices
-        .push((span.range(), id.to_string().into_bytes()));
+    alloc::system_counter(&s.doc)?.set(plan, &s.doc, id)?;
     count_layout(plan, &s.doc, spec)?;
     name_pool::take(plan, &s.doc, SYSTEM_POOLS, &spec.name)?;
 
+    let joins = nearest_prospective(&prospective(&s.graph), x, y).map(|nebula| Membership {
+        system: id,
+        nebula,
+        joined: true,
+    });
+    let joins = describe_membership(&s.graph, joins.as_slice(), false);
     Ok(Planned {
         description: format!(
-            "Added {} (#{id}) at ({}, {}) with {} and {}",
+            "Added {} (#{id}) at ({}, {}) with {} and {}{joins}",
             spec.name,
             coord(x),
             coord(y),
@@ -93,11 +94,33 @@ pub(crate) fn plan_add(
     })
 }
 
+/// The second step of an add, once the graph holds the new system: it joins the nebula
+/// whose radius it stands in, as a system moved there does. `None` when it stands in none.
+pub(crate) fn plan_join(
+    plan: &mut Plan,
+    s: &Session,
+    spec: &SystemSpec,
+) -> Result<Option<Planned>, OpError> {
+    let id = alloc::system_counter(&s.doc)?.last;
+    let (x, y) = (rounded(spec.x), rounded(spec.y));
+    let (joined, _) = plan_membership(plan, s, &[SystemMove { id, x, y }])?;
+    Ok((!joined.is_empty()).then(|| Planned {
+        description: String::new(),
+        inverse: Op::RemoveSystem { id },
+    }))
+}
+
 /// What [`write_bodies`] wrote: the planets the system lists, star first, and how far
 /// from its star its inner radius lies.
 pub(crate) struct Written {
     pub ids: Vec<u32>,
     pub inner_radius: f64,
+}
+
+impl Written {
+    pub fn outer_radius(&self) -> f64 {
+        self.inner_radius + OUTER_MARGIN
+    }
 }
 
 /// Write the spec's bodies and their deposits as bodies of system `id`, each in the slot
@@ -165,15 +188,8 @@ pub(crate) fn system_text(
     written: &Written,
     lanes: &[(u32, u32)],
 ) -> Result<Vec<u8>, OpError> {
-    let flag_date = match spec.flags.is_empty() {
-        true => String::new(),
-        false => day_one(doc)?,
-    };
-    let belts: Vec<(&str, f64)> = spec
-        .belts
-        .iter()
-        .map(|belt| (belt.kind.as_str(), belt.inner_radius))
-        .collect();
+    let flag_date = flag_date(doc, spec)?;
+    let belts = belts(spec);
     Ok(system_entry(
         indent,
         &SystemEntry {
@@ -189,20 +205,36 @@ pub(crate) fn system_text(
             flag_date: &flag_date,
             initializer: &spec.initializer,
             inner_radius: written.inner_radius,
-            outer_radius: written.inner_radius + OUTER_MARGIN,
+            outer_radius: written.outer_radius(),
         },
     ))
+}
+
+/// The date the spec's star flags are written with: the save's day one, as the game dates
+/// the flags of a generated galaxy. Empty when there are none.
+pub(crate) fn flag_date(doc: &Document, spec: &SystemSpec) -> Result<String, OpError> {
+    match spec.flags.is_empty() {
+        true => Ok(String::new()),
+        false => day_one(doc),
+    }
+}
+
+/// The spec's belts as the emitter takes them.
+pub(crate) fn belts(spec: &SystemSpec) -> Vec<(&str, f64)> {
+    spec.belts
+        .iter()
+        .map(|belt| (belt.kind.as_str(), belt.inner_radius))
+        .collect()
 }
 
 /// The save's day one as its global `game_started` flag dates it.
 fn day_one(doc: &Document) -> Result<String, OpError> {
     let missing = OpError::MissingSaveKey(GAME_STARTED);
     let section = doc.index().section(keys::FLAGS).ok_or(missing)?;
-    let bytes = doc.current(Anchor::Original(section.stmt))?;
-    cst::parse(bytes, 0)
+    entity_at(doc, Anchor::Original(section.stmt))
         .ok()
-        .and_then(|root| {
-            let flags = root.children().first()?.clone();
+        .flatten()
+        .and_then(|(flags, bytes)| {
             let date = flags.find(GAME_STARTED, bytes)?.scalar_str(bytes)?;
             Some(date.to_owned())
         })
@@ -313,7 +345,7 @@ pub(crate) fn write_body(
         id: planet,
         class: &body.spec.class,
         size: body.spec.size,
-        star: body.star,
+        star: body.star || body.spec.star,
         name: body.name,
         x: body.x,
         y: body.y,
@@ -349,9 +381,7 @@ pub(crate) fn write_slot(
             ..
         } => {
             let indent = cst::indent_of(doc.original(), tombstone.start());
-            let mut text = entry(indent);
-            text.pop();
-            text.drain(..indent.len());
+            let text = inline(indent, &entry(indent)).into_bytes();
             plan.replace(doc, emitted.subject(tombstone), tombstone, text)
         }
         // A tombstone a removal left in an appended slot carries its line with it.
@@ -361,10 +391,13 @@ pub(crate) fn write_slot(
             let span = alloc::statement_span(current)
                 .ok_or_else(|| subject.parse_error(0, "the tombstone holds no statement"))?;
             let indent = cst::indent_of(current, span.start);
-            let mut text = entry(indent);
-            text.pop();
-            text.drain(..indent.len());
-            let bytes = [&current[..span.start], &text[..], &current[span.end..]].concat();
+            let text = inline(indent, &entry(indent));
+            let bytes = [
+                &current[..span.start],
+                text.as_bytes(),
+                &current[span.end..],
+            ]
+            .concat();
             plan.replace(doc, subject, tombstone, bytes)
         }
         Slot::Appended { .. } => {
@@ -462,12 +495,6 @@ fn layout(spec: &SystemSpec, asteroid_names: Vec<NameTemplate>) -> Vec<Placed<'_
     placed
 }
 
-/// Where a body stands: `orbit` from (x, y) at `angle` degrees.
-pub(crate) fn polar(x: f64, y: f64, body: &BodySpec) -> (f64, f64) {
-    let angle = body.angle.to_radians();
-    (x + body.orbit * angle.cos(), y + body.orbit * angle.sin())
-}
-
 fn format(key: &str, variables: Vec<(&str, NameTemplate)>) -> NameTemplate {
     NameTemplate {
         key: key.to_owned(),
@@ -489,57 +516,12 @@ fn literal(text: &str) -> NameTemplate {
     }
 }
 
-fn roman(mut n: usize) -> String {
-    const NUMERALS: [(usize, &str); 13] = [
-        (1000, "M"),
-        (900, "CM"),
-        (500, "D"),
-        (400, "CD"),
-        (100, "C"),
-        (90, "XC"),
-        (50, "L"),
-        (40, "XL"),
-        (10, "X"),
-        (9, "IX"),
-        (5, "V"),
-        (4, "IV"),
-        (1, "I"),
-    ];
-    let mut out = String::new();
-    for (value, numeral) in NUMERALS {
-        while n >= value {
-            out.push_str(numeral);
-            n -= value;
-        }
-    }
-    out
-}
-
 /// `a`, `b`, … `z`, `aa`, `ab`, …
 fn letter(index: usize) -> String {
     let this = char::from(b'a' + (index % 26) as u8);
     match index / 26 {
         0 => this.to_string(),
         n => format!("{}{this}", letter(n - 1)),
-    }
-}
-
-/// Only a 4.x save: a 3.x system carries an `arm` and more that nothing here writes.
-/// The version is `Cygnus v4.5.0` or a bare `4.5.0`; one whose major number cannot be
-/// read is refused too.
-pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
-    let version = archive::parse_meta(doc.meta())
-        .map(|meta| meta.version)
-        .unwrap_or_default();
-    let major = version
-        .split_whitespace()
-        .next_back()
-        .map(|number| number.trim_start_matches(['v', 'V']))
-        .and_then(|number| number.split('.').next()?.parse::<u32>().ok());
-    match major {
-        Some(major) if major >= 4 => Ok(()),
-        Some(_) => Err(OpError::SaveTooOld(version)),
-        None => Err(OpError::UnknownSaveVersion(version)),
     }
 }
 
@@ -553,14 +535,11 @@ fn check_spec(spec: &SystemSpec) -> Result<(), OpError> {
 /// Everything of the spec but where it stands and its lanes.
 pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
     check_name(&spec.name)?;
-    if spec.star_class.is_empty() {
-        return Err(OpError::EmptyStarClass);
+    check_text("a star class", &spec.star_class, Form::Bare)?;
+    check_text("an initializer", &spec.initializer, Form::Bare)?;
+    for flag in &spec.flags {
+        check_text("a star flag", flag, Form::Bare)?;
     }
-    check_text(&spec.star_class)?;
-    if spec.initializer.is_empty() {
-        return Err(OpError::EmptyKey("an initializer"));
-    }
-    check_text(&spec.initializer)?;
     if !spec.star.moons.is_empty() {
         return Err(OpError::MoonsNotAllowed("the star"));
     }
@@ -572,10 +551,7 @@ pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
     }
     check_body(&spec.star)?;
     for belt in &spec.belts {
-        if belt.kind.is_empty() {
-            return Err(OpError::EmptyKey("a belt type"));
-        }
-        check_text(&belt.kind)?;
+        check_text("a belt type", &belt.kind, Form::Bare)?;
         if !belt.inner_radius.is_finite() {
             return Err(OpError::NotFinite);
         }
@@ -607,10 +583,7 @@ pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
 }
 
 fn check_body(body: &BodySpec) -> Result<(), OpError> {
-    if body.class.is_empty() {
-        return Err(OpError::EmptyBodyClass);
-    }
-    check_text(&body.class)?;
+    check_text("a planet class", &body.class, Form::Bare)?;
     if body.size == 0 {
         return Err(OpError::ZeroPlanetSize);
     }
@@ -618,32 +591,16 @@ fn check_body(body: &BodySpec) -> Result<(), OpError> {
         return Err(OpError::NotFinite);
     }
     for deposit in &body.deposits {
-        if deposit.is_empty() {
-            return Err(OpError::EmptyKey("a deposit type"));
-        }
-        check_text(deposit)?;
+        check_deposit_kind(deposit)?;
     }
     if let Some(name) = &body.name {
         check_name(name)?;
     }
     if let Some(entity) = &body.entity_name {
-        if entity.is_empty() {
-            return Err(OpError::EmptyKey("an entity name"));
-        }
-        check_text(entity)?;
+        check_text("an entity name", entity, Form::Bare)?;
     }
     for modifier in &body.modifiers {
-        if modifier.is_empty() {
-            return Err(OpError::EmptyKey("a modifier"));
-        }
-        check_text(modifier)?;
-    }
-    Ok(())
-}
-
-fn check_text(text: &str) -> Result<(), OpError> {
-    if !quotable(text) {
-        return Err(OpError::InvalidKey(text.to_owned()));
+        check_text("a modifier", modifier, Form::Bare)?;
     }
     Ok(())
 }
@@ -680,7 +637,7 @@ fn lane_lengths(
         if lanes.iter().any(|&(seen, _)| seen == to) {
             return Err(OpError::DuplicateLane(id, to));
         }
-        lanes.push((to, (other.x - x).hypot(other.y - y).floor() as u32));
+        lanes.push((to, lane_length(other, &(x, y)) as u32));
     }
     Ok(lanes)
 }

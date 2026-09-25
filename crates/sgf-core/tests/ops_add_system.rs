@@ -13,7 +13,7 @@ use sgf_core::validate::IssueCode;
 
 use crate::common;
 use common::diff::{report, round_trip, round_trip_step};
-use common::spec::{belted, body, dorellion, mura};
+use common::spec::{belted, body, dorellion, mura, star};
 use common::{current, open, open_3_4, open_4_5, open_edited, text};
 
 const GENERATION: u32 = 1 << 24;
@@ -129,6 +129,23 @@ fn a_belted_system_is_written_as_the_game_spawns_one() {
             &report(&session, &result),
         );
     }
+}
+
+/// A body the spec marks a star gets a star's `carrier_binary_flags`, whatever its class is
+/// called, as a mod's star class may be named.
+#[test]
+fn a_body_the_spec_marks_a_star_is_written_as_one() {
+    let mut session = open_4_5();
+    let mut spec = mura();
+    spec.planets
+        .push(star(body("pc_modded_sun", 20, 240.0, 90.0, 0)));
+    session.apply(add(spec)).expect("add the system");
+    let text = text(&session);
+    let class = text
+        .find("\tplanet_class=\"pc_modded_sun\"\n")
+        .expect("the body's entry");
+    let entry = &text[class..class + text[class..].find("\tname=").expect("its name")];
+    assert!(entry.contains("\tcarrier_binary_flags=3\n"), "{entry}");
 }
 
 /// Each body the details list for system `id`, as its name's key and what it shows: a
@@ -534,7 +551,7 @@ fn what_the_op_refuses() {
         ),
         (
             |s| s.name = String::new(),
-            |e| matches!(e, OpError::EmptyName),
+            |e| matches!(e, OpError::EmptyText { what: "a name" }),
         ),
         (
             |s| s.lanes = vec![9999],
@@ -546,11 +563,25 @@ fn what_the_op_refuses() {
         ),
         (
             |s| s.star_class = String::new(),
-            |e| matches!(e, OpError::EmptyStarClass),
+            |e| {
+                matches!(
+                    e,
+                    OpError::EmptyText {
+                        what: "a star class"
+                    }
+                )
+            },
         ),
         (
             |s| s.planets[0].class = String::new(),
-            |e| matches!(e, OpError::EmptyBodyClass),
+            |e| {
+                matches!(
+                    e,
+                    OpError::EmptyText {
+                        what: "a planet class"
+                    }
+                )
+            },
         ),
         (
             |s| s.planets[0].size = 0,
@@ -558,7 +589,7 @@ fn what_the_op_refuses() {
         ),
         (
             |s| s.planets[0].deposits = vec!["d_\"x".to_owned()],
-            |e| matches!(e, OpError::InvalidKey(_)),
+            |e| matches!(e, OpError::InvalidText { .. }),
         ),
         (
             |s| s.star.moons = vec![body("pc_barren", 5, 10.0, 0.0, 1)],
@@ -590,7 +621,37 @@ fn what_the_op_refuses() {
                     inner_radius: 95.0,
                 }]
             },
-            |e| matches!(e, OpError::EmptyKey("a belt type")),
+            |e| {
+                matches!(
+                    e,
+                    OpError::EmptyText {
+                        what: "a belt type"
+                    }
+                )
+            },
+        ),
+        (
+            |s| s.flags = vec!["unique system".to_owned()],
+            |e| {
+                matches!(
+                    e,
+                    OpError::InvalidText {
+                        what: "a star flag",
+                        ..
+                    }
+                )
+            },
+        ),
+        (
+            |s| s.flags = vec![String::new()],
+            |e| {
+                matches!(
+                    e,
+                    OpError::EmptyText {
+                        what: "a star flag"
+                    }
+                )
+            },
         ),
         (
             |s| {
@@ -674,7 +735,10 @@ fn a_refused_batch_forgets_the_system_it_wrote() {
                 ops: vec![add(spec.clone()), add(refused_member)],
             })
             .expect_err("the second member is refused");
-        assert!(matches!(error, OpError::EmptyName), "{error}");
+        assert!(
+            matches!(error, OpError::EmptyText { what: "a name" }),
+            "{error}"
+        );
         assert!(!session.doc.is_dirty());
         assert!(session.system(id).is_none());
         let planet = EntityAddr::new(EntityKind::System, id);

@@ -11,7 +11,7 @@ use similar::{Algorithm, TextDiff};
 
 use crate::common;
 use common::diff::{report, round_trip_step};
-use common::spec::{body, mura};
+use common::spec::{body, mura, star};
 use common::{current, open_4_5, text};
 
 const UNPOOLED: &str = "Sgf_Renamed";
@@ -25,7 +25,7 @@ fn black_hole(name: &str) -> SystemSpec {
         name: name.to_owned(),
         star_class: "sc_black_hole".to_owned(),
         initializer: "special_init_01".to_owned(),
-        star: body("pc_black_hole", 30, 0.0, 0.0, 0),
+        star: star(body("pc_black_hole", 30, 0.0, 0.0, 0)),
         planets: Vec::new(),
         ..mura()
     }

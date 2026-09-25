@@ -12,7 +12,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{report, round_trip_step};
-use common::spec::{body, mura, rerolled};
+use common::spec::{body, mura, rerolled, star};
 use common::{SAMPLE_3_4, SAMPLE_4_5, current};
 
 const DEMONS_EYE: usize = 0;
@@ -23,6 +23,8 @@ const MURA: u32 = 601;
 /// A clear patch one jump from the player's capital: radius 30 reaches four systems in no
 /// nebula.
 const NEAR_THE_CAPITAL: (f64, f64, f64) = (-362.33, -136.56, 30.0);
+/// Inside Nythran Expanse's radius and clear of its systems.
+const IN_NYTHRAN_EXPANSE: (f64, f64) = (-330.0, -75.0);
 
 fn open_4_5() -> Session {
     Session::open(SAMPLE_4_5).expect("open the 4.5 sample")
@@ -321,7 +323,7 @@ fn a_rerolled_member_keeps_its_cloud_until_it_is_removed() {
     );
     let mut spec = rerolled(mura());
     spec.star_class = "sc_b".to_owned();
-    spec.star = body("pc_b_star", 30, 0.0, 0.0, 0);
+    spec.star = star(body("pc_b_star", 30, 0.0, 0.0, 0));
     let rolled = round_trip_step(
         &mut session,
         "reroll Mura",
@@ -332,6 +334,32 @@ fn a_rerolled_member_keeps_its_cloud_until_it_is_removed() {
     assert!(
         current(&session) == original,
         "removing Mura left something behind"
+    );
+}
+
+/// A system added inside a nebula's radius joins it as a move into it would: its member
+/// line, its cloud and the cloaking modifier, which its inverse takes out again.
+#[test]
+fn a_system_added_inside_a_nebula_joins_it() {
+    let mut session = common::open_4_5();
+    let original = session.doc.original().to_vec();
+    let mut spec = mura();
+    (spec.x, spec.y) = IN_NYTHRAN_EXPANSE;
+    let added = round_trip_step(&mut session, "add Mura inside", Op::AddSaveSystem { spec });
+    assert_eq!(session.graph.systems[&MURA].nebula, Some(NYTHRAN_EXPANSE));
+    let diff = common::diff::unified_diff(&session, None);
+    assert!(
+        diff.contains(&format!("+\tgalactic_object={MURA}\n")),
+        "{diff}"
+    );
+    assert!(diff.contains("+\t\tdata=\"nebula_"), "{diff}");
+    assert!(diff.contains("modifier=\"nebula_cloaking\""), "{diff}");
+    common::snapshot("footprint_add_system_inside", &report(&session, &added));
+
+    session.apply(added.inverse).expect("apply the inverse");
+    assert!(
+        current(&session) == original,
+        "the inverse left the membership behind"
     );
 }
 

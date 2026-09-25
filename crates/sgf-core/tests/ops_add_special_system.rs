@@ -13,7 +13,7 @@ use sgf_core::validate::IssueCode;
 
 use crate::common;
 use common::diff::{report, round_trip, round_trip_step};
-use common::spec::{body, dorellion, mura, rerolled};
+use common::spec::{body, dorellion, mura, rerolled, star};
 use common::{current, open, open_4_5, text};
 
 /// Both samples, each with the spike's system for it, whose place and lane the special
@@ -54,7 +54,7 @@ fn black_hole(at: &SystemSpec) -> SystemSpec {
         star_class: "sc_black_hole".to_owned(),
         initializer: "special_init_01".to_owned(),
         star: with(
-            body("pc_black_hole", 30, 0.0, 0.0, 0),
+            star(body("pc_black_hole", 30, 0.0, 0.0, 0)),
             &["d_dark_matter_deposit_1"],
         ),
         planets: vec![
@@ -78,7 +78,7 @@ fn trappist(at: &SystemSpec) -> SystemSpec {
         initializer: "trappist_initializer".to_owned(),
         capped: true,
         star_named_by_class: true,
-        star: body("pc_m_star", 20, 0.0, 0.0, 0),
+        star: star(body("pc_m_star", 20, 0.0, 0.0, 0)),
         planets: vec![
             body("pc_molten", 16, 20.0, 15.0, 1),
             body("pc_barren", 16, 36.0, 100.0, 1),
@@ -108,7 +108,7 @@ fn terraformed(at: &SystemSpec) -> SystemSpec {
         star_class: "sc_g".to_owned(),
         initializer: "previously_terraformed_planet_system_initializer".to_owned(),
         capped: true,
-        star: body("pc_g_star", 25, 40.0, 120.0, 0),
+        star: star(body("pc_g_star", 25, 40.0, 120.0, 0)),
         planets: vec![world, barren],
         belts: vec![
             belt("debris_asteroid_belt", 158.0),
@@ -146,7 +146,10 @@ fn larionessi(at: &SystemSpec) -> SystemSpec {
         star_class: "sc_neutron_star".to_owned(),
         initializer: "unique_system_initializer_02".to_owned(),
         capped: true,
-        star: with(body("pc_neutron_star", 25, 0.0, 0.0, 0), &["d_physics_5"]),
+        star: star(with(
+            body("pc_neutron_star", 25, 0.0, 0.0, 0),
+            &["d_physics_5"],
+        )),
         planets: vec![
             with(body("pc_barren", 18, 65.0, 20.0, 1), &["d_minerals_5"]),
             asteroid(120.0),
@@ -183,17 +186,17 @@ fn great_wound(at: &SystemSpec) -> SystemSpec {
         initializer: "great_wound_system".to_owned(),
         capped: true,
         star: with(
-            body("pc_black_hole", 40, 0.0, 0.0, 0),
+            star(body("pc_black_hole", 40, 0.0, 0.0, 0)),
             &["d_dark_matter_deposit_10"],
         ),
         planets: vec![
             named(
                 "NAME_Subspace_Rupture_1",
-                body("pc_black_hole", 20, 60.0, 1.0, 0),
+                star(body("pc_black_hole", 20, 60.0, 1.0, 0)),
             ),
             named(
                 "NAME_Subspace_Rupture_2",
-                body("pc_black_hole", 20, 120.0, 211.0, 0),
+                star(body("pc_black_hole", 20, 120.0, 211.0, 0)),
             ),
             body("pc_barren", 10, 150.0, 90.0, 1),
         ],
@@ -222,7 +225,7 @@ fn wenkwort(at: &SystemSpec) -> SystemSpec {
         star_class: "sc_f".to_owned(),
         initializer: "wenkwort_initializer".to_owned(),
         capped: true,
-        star: body("pc_f_star", 24, 0.0, 0.0, 0),
+        star: star(body("pc_f_star", 24, 0.0, 0.0, 0)),
         planets: vec![body("pc_molten", 12, 45.0, 170.0, 1), prime, giant],
         ..at.clone()
     }
@@ -779,19 +782,26 @@ fn what_the_op_refuses_of_the_new_fields() {
         ),
         (
             |s| s.planets[0].name = Some(String::new()),
-            |e| matches!(e, OpError::EmptyName),
+            |e| matches!(e, OpError::EmptyText { what: "a name" }),
         ),
         (
             |s| s.planets[0].modifiers = vec![String::new()],
-            |e| matches!(e, OpError::EmptyKey("a modifier")),
+            |e| matches!(e, OpError::EmptyText { what: "a modifier" }),
         ),
         (
             |s| s.planets[0].modifiers = vec!["a\"b".to_owned()],
-            |e| matches!(e, OpError::InvalidKey(_)),
+            |e| matches!(e, OpError::InvalidText { .. }),
         ),
         (
             |s| s.planets[3].moons[0].entity_name = Some(String::new()),
-            |e| matches!(e, OpError::EmptyKey("an entity name")),
+            |e| {
+                matches!(
+                    e,
+                    OpError::EmptyText {
+                        what: "an entity name"
+                    }
+                )
+            },
         ),
         (
             |s| s.planets[3].moons[1].ring = true,

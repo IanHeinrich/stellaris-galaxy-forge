@@ -5,6 +5,7 @@ pub(crate) mod added;
 pub(crate) mod alloc;
 pub mod details;
 pub(crate) mod galaxy;
+pub(crate) mod read_spec;
 pub mod system_spec;
 pub(crate) mod write;
 
@@ -24,6 +25,7 @@ use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
+use crate::projections::read;
 use crate::scan::{self, Value};
 use crate::session::Session;
 use crate::validate::Issue;
@@ -51,7 +53,6 @@ impl Format for Save {
                 .get(index)
                 .copied()
                 .ok_or(OpError::UnknownNebula(index)),
-            // A save keeps its lanes inside the two systems, so no statement stands alone.
             Subject::Statement { anchor, .. }
             | Subject::Header(anchor)
             | Subject::Record(anchor) => Ok(anchor),
@@ -104,26 +105,12 @@ impl Format for Save {
                 }
                 Subject::Nebula(_) => nebulae = true,
                 Subject::Flags => {
-                    let buf = doc.current(self.statement(doc, subject)?)?;
-                    let root = self
-                        .parse(buf, 0)
-                        .map_err(|e| subject.parse_error(e.offset, e.reason))?;
-                    let flags = root
-                        .children()
-                        .first()
-                        .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
-                    graph.refresh_lgate(flags, buf);
+                    let (flags, buf) = entity(doc, subject, self.statement(doc, subject)?)?;
+                    graph.refresh_lgate(&flags, buf);
                 }
                 Subject::Country(id) => {
-                    let buf = doc.current(self.statement(doc, subject)?)?;
-                    let root = self
-                        .parse(buf, 0)
-                        .map_err(|e| subject.parse_error(e.offset, e.reason))?;
-                    let country = root
-                        .children()
-                        .first()
-                        .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
-                    graph.refresh_country(id, country, buf);
+                    let (country, buf) = entity(doc, subject, self.statement(doc, subject)?)?;
+                    graph.refresh_country(id, &country, buf);
                 }
                 Subject::Statement { .. } | Subject::Header(_) | Subject::Record(_) => {}
             }
@@ -238,6 +225,7 @@ impl Format for Save {
 
     fn follow_up(&self, plan: &mut Plan, s: &Session, op: &Op) -> Result<Option<Planned>, OpError> {
         match op {
+            Op::AddSaveSystem { spec } => add_system::plan_join(plan, s, spec),
             Op::ReplaceSaveSystem { system, spec } => {
                 replace_system::plan_fill(plan, s, *system, spec).map(Some)
             }
@@ -293,6 +281,25 @@ impl Format for Save {
     }
 }
 
+/// Only a 4.x save takes the ops that write whole entries: a 3.x system carries an `arm`
+/// and more that nothing here writes. The version is `Cygnus v4.5.0` or a bare `4.5.0`;
+/// one whose major number cannot be read is refused too.
+pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
+    let version = archive::parse_meta(doc.meta())
+        .map(|meta| meta.version)
+        .unwrap_or_default();
+    let major = version
+        .split_whitespace()
+        .next_back()
+        .map(|number| number.trim_start_matches(['v', 'V']))
+        .and_then(|number| number.split('.').next()?.parse::<u32>().ok());
+    match major {
+        Some(major) if major >= 4 => Ok(()),
+        Some(_) => Err(OpError::SaveTooOld(version)),
+        None => Err(OpError::UnknownSaveVersion(version)),
+    }
+}
+
 /// The statement standing for system `id`: one an op added, or the one loaded.
 pub(crate) fn system_statement(doc: &Document, id: u32) -> Option<Anchor> {
     doc.added().get(Table::System, id).or_else(|| {
@@ -314,6 +321,56 @@ pub(crate) fn planet_statement(doc: &Document, id: u32) -> Result<Option<Anchor>
         .and_then(|index| index.entity(keys::PLANET, u64::from(id)))
         .filter(|e| matches!(e.value, Value::Block { .. }))
         .map(|e| Anchor::Original(e.stmt)))
+}
+
+/// The `<id>={ … }` entity `bytes` hold; `None` for a tombstone, `<id>=none`, or no
+/// statement at all.
+pub(crate) fn entity_in(bytes: &[u8]) -> Result<Option<Node>, CstError> {
+    let root = cst::parse(bytes, 0)?;
+    let node = root.children().first();
+    Ok(node.filter(|node| node.scalar_span().is_none()).cloned())
+}
+
+/// The entity the bytes standing at `anchor` hold, with those bytes: see [`entity_in`].
+pub(crate) fn entity_at(doc: &Document, anchor: Anchor) -> Result<Option<(Node, &[u8])>, CstError> {
+    let bytes = doc.current(anchor).map_err(|_| CstError {
+        offset: 0,
+        reason: "no statement stands there",
+    })?;
+    Ok(entity_in(bytes)?.map(|node| (node, bytes)))
+}
+
+/// [`entity_at`] for an op, which refuses a slot holding no entity as its subject's.
+pub(crate) fn entity(
+    doc: &Document,
+    subject: Subject,
+    anchor: Anchor,
+) -> Result<(Node, &[u8]), OpError> {
+    entity_at(doc, anchor)
+        .map_err(|e| subject.parse_error(e.offset, e.reason))?
+        .ok_or_else(|| subject.parse_error(0, "no entity stands there"))
+}
+
+/// Planet `id`'s entity as it stands now.
+pub(crate) fn planet_entity(doc: &Document, id: u32) -> Result<(Node, &[u8]), OpError> {
+    let anchor = planet_statement(doc, id)?.ok_or(OpError::UnknownPlanet(id))?;
+    let parse_error = |offset, reason: &str| OpError::PlanetParse {
+        planet: id,
+        offset,
+        reason: reason.to_owned(),
+    };
+    entity_at(doc, anchor)
+        .map_err(|e| parse_error(e.offset, e.reason))?
+        .ok_or(OpError::UnknownPlanet(id))
+}
+
+/// The system planet `id`, whose entity is `node`, is a body of: its `coordinate.origin`.
+pub(crate) fn planet_system(node: &Node, src: &[u8], id: u32) -> Result<u32, OpError> {
+    read::origin(node, src).ok_or_else(|| OpError::PlanetParse {
+        planet: id,
+        offset: node.span().start,
+        reason: format!("missing {}.{}", keys::COORDINATE, keys::ORIGIN),
+    })
 }
 
 /// Every planet the save now holds, loaded or added, with its statement, in file order;

@@ -395,14 +395,14 @@ fn renaming_a_nebula_refuses_an_empty_name_an_unquotable_one_and_an_unknown_inde
             index: 0,
             name: String::new(),
         }),
-        Err(OpError::EmptyName)
+        Err(OpError::EmptyText { what: "a name" })
     ));
     assert!(matches!(
         session.apply(Op::SetNebulaName {
             index: 0,
             name: "a \"quoted\" name".to_owned(),
         }),
-        Err(OpError::InvalidName(_))
+        Err(OpError::InvalidText { what: "a name", .. })
     ));
     assert!(matches!(
         session.apply(Op::SetNebulaName {
@@ -488,7 +488,7 @@ fn the_nebula_ops_refuse_an_impossible_radius_or_index() {
             radius: 30.0,
             name: Some("a \"quoted\" name".to_owned()),
         }),
-        Err(OpError::InvalidName(_))
+        Err(OpError::InvalidText { what: "a name", .. })
     ));
     assert_eq!(current(&session), session.doc.original());
 }

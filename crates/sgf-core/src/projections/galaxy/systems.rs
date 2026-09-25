@@ -23,9 +23,27 @@ pub struct Lane {
     pub stale: bool,
 }
 
+/// Where one end of a lane stands: a system, or the point one is about to stand at.
+pub trait Position {
+    fn position(&self) -> (f64, f64);
+}
+
+impl Position for SystemNode {
+    fn position(&self) -> (f64, f64) {
+        (self.x, self.y)
+    }
+}
+
+impl Position for (f64, f64) {
+    fn position(&self) -> (f64, f64) {
+        *self
+    }
+}
+
 /// The length rule: `length = floor(euclidean distance)`, as the generator writes it.
-pub fn lane_length(a: &SystemNode, b: &SystemNode) -> f64 {
-    (a.x - b.x).hypot(a.y - b.y).floor()
+pub fn lane_length(a: &impl Position, b: &impl Position) -> f64 {
+    let ((ax, ay), (bx, by)) = (a.position(), b.position());
+    (ax - bx).hypot(ay - by).floor()
 }
 
 /// Re-measure the lanes of `ids` and of the systems they lead to, which is every lane

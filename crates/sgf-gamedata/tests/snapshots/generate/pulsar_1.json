@@ -20,7 +20,8 @@
     "name": null,
     "entity_name": null,
     "modifiers": [],
-    "ring": false
+    "ring": false,
+    "star": true
   },
   "planets": [
     {

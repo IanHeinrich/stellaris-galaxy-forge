@@ -396,6 +396,30 @@ fn a_station_deposit_a_blocker_and_a_moons_deposit_can_be_removed() {
     assert!(page(&session, 135).iter().all(|(id, _)| *id != 262));
 }
 
+/// A deposit type is one key whichever op writes it, and both refuse the same ones.
+#[test]
+fn a_deposit_type_is_checked_the_same_way_by_both_ops() {
+    for kind in ["", "d minerals", "d_{x}", "d=x", "d_\"x", "d_é", "d_\u{7}"] {
+        let on_planet = refused(&mut open_4_5(), add(3, kind));
+        let mut spec = mura();
+        spec.planets[0].deposits = vec![kind.to_owned()];
+        let in_system = refused(&mut open_4_5(), Op::AddSaveSystem { spec });
+        assert_eq!(on_planet.to_string(), in_system.to_string());
+        assert!(
+            matches!(
+                on_planet,
+                OpError::EmptyText {
+                    what: "a deposit type"
+                } | OpError::InvalidText {
+                    what: "a deposit type",
+                    ..
+                }
+            ),
+            "{kind:?}: {on_planet}"
+        );
+    }
+}
+
 fn refused(session: &mut Session, op: Op) -> OpError {
     let error = session.apply(op).expect_err("refused");
     assert!(!session.doc.is_dirty(), "{error}");
@@ -421,11 +445,11 @@ fn what_the_ops_refuse() {
         (add(3, ""), "a deposit type may not be empty"),
         (
             add(3, "d minerals"),
-            "deposit type \"d minerals\" may hold only letters, digits and underscores",
+            "\"d minerals\" cannot be written as a deposit type",
         ),
         (
             add(3, "d_\"x"),
-            "deposit type \"d_\\\"x\" may hold only letters, digits and underscores",
+            "\"d_\\\"x\" cannot be written as a deposit type",
         ),
     ];
     for (op, message) in cases {

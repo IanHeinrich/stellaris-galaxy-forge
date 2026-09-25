@@ -62,6 +62,8 @@ pub(crate) const FLEET_STANCE: &str = "fleet_stance";
 pub(crate) const GALACTIC_OBJECT: &str = "galactic_object";
 pub(crate) const GALAXY: &str = "galaxy";
 pub(crate) const GALAXY_RADIUS: &str = "galaxy_radius";
+/// The global flag dated with the save's day one.
+pub(crate) const GAME_STARTED: &str = "game_started";
 pub(crate) const GROUND_SUPPORT_STANCE: &str = "ground_support_stance";
 pub(crate) const GROWTH_STAGE: &str = "growth_stage";
 pub(crate) const GROWTH_STAGES: &str = "growth_stages";
@@ -128,6 +130,7 @@ pub(crate) const POP_GROUPS: &str = "pop_groups";
 pub(crate) const PRIMITIVE: &str = "primitive";
 pub(crate) const PROPERTIES: &str = "properties";
 pub(crate) const RADIUS: &str = "radius";
+pub(crate) const RANDOMIZED: &str = "randomized";
 pub(crate) const RANDOM_NAME_DATABASE: &str = "random_name_database";
 pub(crate) const REQUIRED_DLCS: &str = "required_dlcs";
 pub(crate) const RESOURCE_ABUNDANCE: &str = "resource_abundance";
@@ -233,6 +236,7 @@ pub(crate) const ALL: &[&str] = &[
     GALACTIC_OBJECT,
     GALAXY,
     GALAXY_RADIUS,
+    GAME_STARTED,
     GROUND_SUPPORT_STANCE,
     GROWTH_STAGE,
     GROWTH_STAGES,
@@ -299,6 +303,7 @@ pub(crate) const ALL: &[&str] = &[
     PRIMITIVE,
     PROPERTIES,
     RADIUS,
+    RANDOMIZED,
     RANDOM_NAME_DATABASE,
     REQUIRED_DLCS,
     RESOURCE_ABUNDANCE,

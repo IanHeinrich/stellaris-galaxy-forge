@@ -8,7 +8,7 @@
 //! one country through [`GalaxyGraph::refresh_country`]; all run the same extraction as
 //! the build, so ops need no incremental bookkeeping.
 
-mod bodies;
+pub(crate) mod bodies;
 mod bypasses;
 mod countries;
 pub(crate) mod lgate;

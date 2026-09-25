@@ -8,12 +8,12 @@ use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::cst::{self, Node};
+use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::facts;
 use crate::format::save::added::Table;
 use crate::format::save::galaxy::starbases::fleet_owners;
-use crate::format::save::{planet_statement, planet_statements};
+use crate::format::save::{entity_at, planet_statement, planet_statements};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::projections::name::NameTemplate;
@@ -321,24 +321,15 @@ fn current_entity<'d>(
     id: u64,
     anchor: Anchor,
 ) -> Result<Option<(Node, &'d [u8])>, ProjectionError> {
-    let field = |reason: String| ProjectionError::EntityField {
-        section,
-        id,
-        reason,
-    };
-    let src = doc.current(anchor).map_err(|e| field(e.to_string()))?;
-    let root = cst::parse(src, 0).map_err(|source| ProjectionError::Entity {
+    entity_at(doc, anchor).map_err(|source| ProjectionError::Entity {
         section,
         id,
         source,
-    })?;
-    let node = root
-        .children()
-        .first()
-        .cloned()
-        .ok_or_else(|| field("empty entity".to_owned()))?;
-    Ok(node.scalar_span().is_none().then_some((node, src)))
+    })
 }
+
+/// `location.type` of an archaeological site on a planet.
+const PLANET_LOCATION: &str = "2";
 
 /// Every entity of the top-level `megastructures`, filed under its `coordinate.origin`.
 pub(super) fn megastructures(
@@ -386,7 +377,7 @@ pub(super) fn sites(
             continue;
         };
         let location = node.find(keys::LOCATION, src);
-        if location.and_then(|l| read::scalar(l, keys::TYPE, src)) != Some("2") {
+        if location.and_then(|l| read::scalar(l, keys::TYPE, src)) != Some(PLANET_LOCATION) {
             continue;
         }
         let Some(planet) = location.and_then(|l| read::scalar_u32(l, keys::ID, src)) else {

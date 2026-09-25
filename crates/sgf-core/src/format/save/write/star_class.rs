@@ -4,8 +4,9 @@
 
 use std::collections::BTreeSet;
 
+use crate::format::save::galaxy::bodies::planet_ids;
 use crate::keys;
-use crate::ops::rules::{quotable, quoted};
+use crate::ops::rules::{Form, check_text, quoted};
 use crate::ops::{Op, OpError, Plan, Planned, StarBody};
 use crate::projections::read;
 use crate::session::Session;
@@ -18,16 +19,13 @@ pub(crate) fn plan_set(
     bodies: &[StarBody],
 ) -> Result<Planned, OpError> {
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
-    check_class(class, OpError::EmptyStarClass)?;
+    check_text("a star class", class, Form::Bare)?;
     if bodies.is_empty() {
         return Err(OpError::NoStarBodies);
     }
     let edit = plan.edit(&s.doc, id)?;
     let entity = edit.entity()?;
-    let listed: Vec<u32> = entity
-        .find_all(keys::PLANET, &edit.buf)
-        .filter_map(|n| n.scalar_str(&edit.buf)?.parse().ok())
-        .collect();
+    let listed = planet_ids(entity, &edit.buf);
     let old_class = read::text(entity, keys::STAR_CLASS, &edit.buf);
     let mut seen = BTreeSet::new();
     for body in bodies {
@@ -40,7 +38,12 @@ pub(crate) fn plan_set(
                 system: id,
             });
         }
-        check_class(&body.class, OpError::EmptyPlanetClass(body.planet))?;
+        check_text("a planet class", &body.class, Form::Bare).map_err(|error| {
+            OpError::OnPlanet {
+                planet: body.planet,
+                error: Box::new(error),
+            }
+        })?;
     }
     if old_class != class {
         edit.set_scalar(&[keys::STAR_CLASS], quoted(class))?;
@@ -76,16 +79,4 @@ pub(crate) fn plan_set(
             bodies: old_bodies,
         },
     })
-}
-
-/// A class is written between quotes with no escaping, as a name is; `empty` is the
-/// refusal for none at all.
-fn check_class(class: &str, empty: OpError) -> Result<(), OpError> {
-    if class.is_empty() {
-        return Err(empty);
-    }
-    if !quotable(class) {
-        return Err(OpError::InvalidClass(class.to_owned()));
-    }
-    Ok(())
 }

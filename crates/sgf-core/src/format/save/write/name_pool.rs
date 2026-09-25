@@ -4,13 +4,14 @@
 //! removal or a rename puts entries back as the bytes they were loaded as. A system's name
 //! comes from [`SYSTEM_POOLS`], read as one list, star names first.
 
+use crate::cst;
 use crate::document::Document;
-use crate::format::save::write::asteroid_names;
-use crate::format::scenario::index::removed;
+use crate::format::save::added::Table;
 use crate::keys;
 use crate::ops::{OpError, Plan, Subject};
 use crate::overlay::Anchor;
-use crate::scan;
+use crate::scan::{self, Value};
+use crate::session::Session;
 use crate::span::Span;
 
 /// The pools a system's name is taken from.
@@ -50,7 +51,7 @@ fn free(doc: &Document, list: &str) -> Vec<String> {
     let src = doc.original();
     pool(doc, list)
         .into_iter()
-        .filter(|&span| !removed(doc.overlay(), Anchor::Original(span), src))
+        .filter(|&span| !doc.overlay().removed(Anchor::Original(span), src))
         .map(|span| String::from_utf8_lossy(scan::unquote(span.slice(src))).into_owned())
         .collect()
 }
@@ -65,7 +66,7 @@ pub(crate) fn take(
     let src = doc.original();
     let unused = entries(doc, lists, name)
         .into_iter()
-        .find(|&entry| !removed(doc.overlay(), entry, src));
+        .find(|&entry| !doc.overlay().removed(entry, src));
     match unused {
         Some(entry) => plan.erase(doc, Subject::Record(entry), entry),
         None => Ok(()),
@@ -85,9 +86,20 @@ pub(crate) fn give_back(
     let src = doc.original();
     let taken: Vec<Anchor> = entries(doc, lists, name)
         .into_iter()
-        .filter(|&entry| removed(doc.overlay(), entry, src))
+        .filter(|&entry| doc.overlay().removed(entry, src))
         .collect();
     put_back(plan, doc, taken.iter().skip(staying))
+}
+
+/// How many systems an add wrote, those in `leaving` aside, are named `name`: the entries
+/// [`give_back`] leaves taken for it.
+pub(crate) fn holders(s: &Session, name: &str, leaving: &[u32]) -> usize {
+    s.doc
+        .added()
+        .entries(Table::System)
+        .filter(|(id, _)| !leaving.contains(id))
+        .filter(|(id, _)| (s.graph.systems.get(id)).is_some_and(|system| system.name.key == name))
+        .count()
 }
 
 /// A rename from `old` to `new` in the `lists` pools: `old` goes back, less the `staying`
@@ -132,8 +144,38 @@ fn slot_holding(doc: &Document, entry: Anchor) -> Option<Anchor> {
 
 /// Each entry of the `list` pool as loaded, as the span of its name.
 fn pool(doc: &Document, list: &str) -> Vec<Span> {
-    asteroid_names::name_lists(doc, list)
-        .into_iter()
-        .next()
-        .unwrap_or_default()
+    name_lists(doc, list).into_iter().next().unwrap_or_default()
+}
+
+/// Every `key` list of the save's `random_name_database`, as loaded, as the spans of its
+/// names; empty when the save has none.
+pub(crate) fn name_lists(doc: &Document, key: &str) -> Vec<Vec<Span>> {
+    let src = doc.original();
+    let Some(Value::Block { open, close }) = doc
+        .index()
+        .section(keys::RANDOM_NAME_DATABASE)
+        .map(|section| section.value)
+    else {
+        return Vec::new();
+    };
+    let Ok(database) = scan::scan_range(src, open + 1..close) else {
+        return Vec::new();
+    };
+    database
+        .sections_named(key)
+        .map(|list| {
+            let Value::Block { open, close } = list.value else {
+                return Vec::new();
+            };
+            let Ok(names) = cst::parse(&src[open + 1..close], open + 1) else {
+                return Vec::new();
+            };
+            names
+                .children()
+                .iter()
+                .filter(|entry| entry.key.is_none())
+                .filter_map(cst::Node::scalar_span)
+                .collect()
+        })
+        .collect()
 }

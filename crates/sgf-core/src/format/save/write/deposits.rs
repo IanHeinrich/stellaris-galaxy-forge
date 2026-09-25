@@ -9,26 +9,22 @@
 //! id: the game writes no empty `deposits`. A deposit added since the file was opened
 //! gives its slot back instead, as [`super::remove_system`] does for a system's bodies.
 
-use std::collections::BTreeMap;
-
-use crate::cst;
 use crate::document::Document;
-use crate::emit::system::{DepositEntry, deposit_entry, deposits_list};
+use crate::emit::inline;
+use crate::emit::system::{DepositEntry, PLANET_HOLDER, deposit_entry, deposits_list};
 use crate::entity::facts::planet::{self, PlanetFacts};
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, SlotTable};
-use crate::format::save::planet_statement;
-use crate::format::save::write::add_system::{check_version, write_slot};
-use crate::format::save::write::remove_system::{free, free_appended};
+use crate::format::save::check_version;
+use crate::format::save::write::add_system::write_slot;
+use crate::format::save::{entity_at, planet_entity, planet_system};
 use crate::keys;
+use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Emitted, Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
 use crate::span::Span;
-
-/// `deposit_holder.type` of a planet.
-const PLANET_HOLDER: &str = "0";
 
 pub(crate) fn plan_add(
     plan: &mut Plan,
@@ -37,7 +33,7 @@ pub(crate) fn plan_add(
     kind: &str,
 ) -> Result<Planned, OpError> {
     check_version(&s.doc)?;
-    check_kind(kind)?;
+    check_deposit_kind(kind)?;
     let (system, _) = uncolonised(&s.doc, planet)?;
     let mut table = SlotTable::deposits(&s.doc)?;
     let slot = table.take();
@@ -79,42 +75,19 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, deposit: u32) -> Result<
 }
 
 /// A deposit type as the game names one: `d_minerals_3`.
-fn check_kind(kind: &str) -> Result<(), OpError> {
-    if kind.is_empty() {
-        return Err(OpError::EmptyKey("a deposit type"));
-    }
-    if !kind.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
-        return Err(OpError::InvalidDepositType(kind.to_owned()));
-    }
-    Ok(())
+pub(crate) fn check_deposit_kind(kind: &str) -> Result<(), OpError> {
+    check_text("a deposit type", kind, Form::Bare)
 }
 
 /// Planet `id`'s system and what its entry says, refused when the planet is colonised:
 /// an owner and a colony, which the game writes together.
 fn uncolonised(doc: &Document, id: u32) -> Result<(u32, PlanetFacts), OpError> {
-    let anchor = planet_statement(doc, id)?.ok_or(OpError::UnknownPlanet(id))?;
-    let buf = doc.current(anchor)?;
-    let parse_error = |offset: usize, reason: String| OpError::PlanetParse {
-        planet: id,
-        offset,
-        reason,
-    };
-    let root = cst::parse(buf, 0).map_err(|e| parse_error(e.offset, e.reason.to_owned()))?;
-    let node = root
-        .children()
-        .first()
-        .ok_or_else(|| parse_error(0, "empty statement".to_owned()))?;
-    let facts = planet::read(node, buf);
+    let (node, src) = planet_entity(doc, id)?;
+    let facts = planet::read(&node, src);
     if facts.colony.is_some() || facts.owner.is_some() {
         return Err(OpError::PlanetColonised(id));
     }
-    let system = facts.origin.ok_or_else(|| {
-        parse_error(
-            node.span().start,
-            format!("missing {}.{}", keys::COORDINATE, keys::ORIGIN),
-        )
-    })?;
-    Ok((system, facts))
+    Ok((planet_system(&node, src, id)?, facts))
 }
 
 /// A live deposit entry: where it stands, its type, and the planet holding it, `None` when
@@ -135,15 +108,15 @@ fn held(doc: &Document, id: u32) -> Result<Held, OpError> {
             Some(Anchor::Original(entity.stmt))
         })
         .ok_or(unknown)?;
-    let buf = doc.current(anchor)?;
     let subject = Subject::Record(anchor);
-    let root = cst::parse(buf, 0).map_err(|e| subject.parse_error(e.offset, e.reason))?;
+    let found = entity_at(doc, anchor).map_err(|e| subject.parse_error(e.offset, e.reason))?;
     // The slot may hold a tombstone, or another entity an add wrote in its place.
-    let Some(node) = root.children().first().filter(|node| {
-        node.scalar_span().is_none() && node.key_str(buf) == Some(id.to_string().as_str())
-    }) else {
+    let Some((node, buf)) =
+        found.filter(|(node, buf)| node.key_str(buf) == Some(id.to_string().as_str()))
+    else {
         return Err(OpError::UnknownDeposit(id));
     };
+    let node = &node;
     let kind = read::scalar(node, keys::TYPE, buf)
         .ok_or_else(|| subject.parse_error(node.span().start, "the deposit has no type"))?;
     let planet = node
@@ -164,12 +137,10 @@ fn free_entry(plan: &mut Plan, doc: &Document, id: u32, anchor: Anchor) -> Resul
     if doc.added().get(Table::Deposit, id).is_none() {
         return plan.replace(doc, subject, anchor, alloc::tombstone(id).into_bytes());
     }
-    let mut appended = BTreeMap::new();
-    free(plan, doc, subject, id, anchor, &mut appended)?;
-    if appended.is_empty() {
-        return Ok(());
-    }
-    free_appended(plan, doc, SlotTable::deposits(doc)?.end.at(), &appended)
+    let mut table = SlotTable::deposits(doc)?;
+    table.free(plan, doc, subject, id, anchor)?;
+    table.settle(plan, doc)?;
+    Ok(())
 }
 
 /// Put `id` last in the planet's `deposits`, writing the list last in the planet when it
@@ -206,10 +177,7 @@ fn list(edit: &mut Edit, id: u32) -> Result<(), OpError> {
 /// A `deposits` list of `id` alone, as a statement whose first line takes `indent` from
 /// the line it is written on.
 fn statement(indent: &[u8], id: u32) -> String {
-    let mut text = deposits_list(indent, &[id]);
-    text.pop();
-    text.drain(..indent.len());
-    String::from_utf8_lossy(&text).into_owned()
+    inline(indent, &deposits_list(indent, &[id]))
 }
 
 /// Take `id` out of the planet's `deposits`, and the list with it when nothing else is
@@ -239,7 +207,7 @@ fn unlist(edit: &mut Edit, id: u32) -> Result<(), OpError> {
                 .iter()
                 .take_while(|&&b| b == b' ' || b == b'\t')
                 .count();
-        edit.splices.push((item.start..end, Vec::new()));
+        edit.replace_span(Span::new(item.start, end), Vec::new());
     }
     Ok(())
 }

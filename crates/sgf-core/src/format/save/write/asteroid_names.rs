@@ -5,14 +5,13 @@
 
 use std::collections::HashSet;
 
-use crate::cst;
 use crate::document::Document;
-use crate::format::scenario::index::removed;
+use crate::format::save::write::name_pool::name_lists;
 use crate::keys;
 use crate::ops::OpError;
 use crate::overlay::Anchor;
 use crate::projections::name::{NameTemplate, NameVariable};
-use crate::scan::{self, Value};
+use crate::scan;
 use crate::span::Span;
 
 pub(crate) const FORMAT: &str = "ASTEROID_NAME_FORMAT";
@@ -64,7 +63,7 @@ impl Pool {
         for index in 0..count {
             let seed = spread(system, index);
             let free = |span: &Span| {
-                !taken.contains(span) && !removed(doc.overlay(), Anchor::Original(*span), src)
+                !taken.contains(span) && !doc.overlay().removed(Anchor::Original(*span), src)
             };
             let found = self.walk(seed).find_map(|(prefix, block)| {
                 block.into_iter().find(|s| free(s)).map(|s| (prefix, s))
@@ -140,39 +139,6 @@ fn name(prefix: &str, suffix: &str) -> NameTemplate {
         literal: false,
         variables: vec![variable(PREFIX_VAR, prefix), variable(SUFFIX_VAR, suffix)],
     }
-}
-
-/// Every `key` list of the save's `random_name_database`, as loaded, as the spans of its
-/// names; empty when the save has none.
-pub(crate) fn name_lists(doc: &Document, key: &str) -> Vec<Vec<Span>> {
-    let src = doc.original();
-    let Some(Value::Block { open, close }) = doc
-        .index()
-        .section(keys::RANDOM_NAME_DATABASE)
-        .map(|section| section.value)
-    else {
-        return Vec::new();
-    };
-    let Ok(database) = scan::scan_range(src, open + 1..close) else {
-        return Vec::new();
-    };
-    database
-        .sections_named(key)
-        .map(|list| {
-            let Value::Block { open, close } = list.value else {
-                return Vec::new();
-            };
-            let Ok(names) = cst::parse(&src[open + 1..close], open + 1) else {
-                return Vec::new();
-            };
-            names
-                .children()
-                .iter()
-                .filter(|entry| entry.key.is_none())
-                .filter_map(cst::Node::scalar_span)
-                .collect()
-        })
-        .collect()
 }
 
 fn text(src: &[u8], span: Span) -> String {

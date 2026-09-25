@@ -3,7 +3,7 @@
 //! deposit's `deposit` entry. `indent` is the entry's own indentation, copied from the
 //! table it joins; every entry ends with the newline that separates it from what follows.
 
-use super::{coord, hyperlane_block, lane_entry, quoted};
+use super::{Lines, coord, hyperlane_block, lane_entry, quoted};
 use crate::keys;
 use crate::projections::name::NameTemplate;
 
@@ -11,7 +11,7 @@ use crate::projections::name::NameTemplate;
 /// the value from a spawned system the game accepted rather than inventing one.
 const VISUAL_HEIGHT: &str = "4.31213";
 /// `carrier_binary_flags` of a star body and of any other body.
-const STAR_CARRIER_FLAGS: u32 = 3;
+pub(crate) const STAR_CARRIER_FLAGS: u32 = 3;
 const BODY_CARRIER_FLAGS: u32 = 1;
 /// The `binary_flags` bits of a body: a name fixed by its layout, a model named in
 /// `entity_name`, a ring and a moon. The game sets 64 beside any of them, and writes no
@@ -21,6 +21,8 @@ const ENTITY_NAME_FLAG: u32 = 2;
 const ANY_FLAG: u32 = 64;
 pub(crate) const RING_FLAG: u32 = 256;
 const MOON_FLAG: u32 = 512;
+/// `deposit_holder.type` of a planet.
+pub(crate) const PLANET_HOLDER: &str = "0";
 /// How long a modifier the layout gives a body lasts: for ever.
 const PERMANENT: &str = "-1";
 /// `last_bombardment` as a body that was never bombarded holds it, tabs included.
@@ -94,9 +96,7 @@ pub fn system_entry(indent: &[u8], s: &SystemEntry<'_>) -> Vec<u8> {
     w.open(1, keys::NAME);
     w.pair(2, keys::KEY, &quoted(s.name));
     w.close(1);
-    for planet in s.planets {
-        w.pair(1, keys::PLANET, &planet.to_string());
-    }
+    w.planets(1, s.planets);
     w.pair(1, keys::STAR_CLASS, &quoted(s.star_class));
     if !s.lanes.is_empty() {
         let key = w.indent(1);
@@ -109,23 +109,10 @@ pub fn system_entry(indent: &[u8], s: &SystemEntry<'_>) -> Vec<u8> {
         w.bytes(&hyperlane_block(key.as_bytes(), &entries));
     }
     if !s.belts.is_empty() {
-        w.open(1, keys::ASTEROID_BELTS);
-        w.line(2, "");
-        for &(kind, radius) in s.belts {
-            w.line(2, "{");
-            w.pair(3, keys::TYPE, &quoted(kind));
-            w.pair(3, keys::INNER_RADIUS, &coord(radius));
-            w.line(2, "}");
-            w.separator();
-        }
-        w.close(1);
+        w.belts(1, s.belts);
     }
     if !s.flags.is_empty() {
-        w.open(1, keys::FLAGS);
-        for flag in s.flags {
-            w.pair(2, flag, s.flag_date);
-        }
-        w.close(1);
+        w.flags(1, s.flags, s.flag_date);
     }
     w.pair(1, keys::INITIALIZER, &quoted(s.initializer));
     w.pair(1, keys::INNER_RADIUS, &coord(s.inner_radius));
@@ -138,8 +125,29 @@ pub fn system_entry(indent: &[u8], s: &SystemEntry<'_>) -> Vec<u8> {
     w.into_bytes()
 }
 
+/// A system's `planet=` lines, one per body, star first.
+pub fn planet_lines(indent: &[u8], planets: &[u32]) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.planets(0, planets);
+    w.into_bytes()
+}
+
+/// A system's `asteroid_belts` block of `(type, inner_radius)`.
+pub fn belts_block(indent: &[u8], belts: &[(&str, f64)]) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.belts(0, belts);
+    w.into_bytes()
+}
+
+/// A system's `flags` block, each flag dated `date`.
+pub fn flags_block(indent: &[u8], flags: &[String], date: &str) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.flags(0, flags, date);
+    w.into_bytes()
+}
+
 pub fn planet_entry(indent: &[u8], p: &PlanetEntry<'_>) -> Vec<u8> {
-    let carrier = if p.star || is_star_class(p.class) {
+    let carrier = if p.star {
         STAR_CARRIER_FLAGS
     } else {
         BODY_CARRIER_FLAGS
@@ -185,12 +193,6 @@ pub fn planet_entry(indent: &[u8], p: &PlanetEntry<'_>) -> Vec<u8> {
     w.into_bytes()
 }
 
-/// Whether a body of `class` is a star, as the extra black holes of a layout are. The
-/// vanilla star classes all match; a mod's star class named otherwise is taken as a planet.
-fn is_star_class(class: &str) -> bool {
-    class.ends_with("star") || matches!(class, "pc_black_hole" | "pc_pulsar")
-}
-
 fn binary_flags(p: &PlanetEntry<'_>) -> u32 {
     let bits = [
         (p.fixed_name, FIXED_NAME_FLAG),
@@ -214,7 +216,7 @@ pub fn deposit_entry(indent: &[u8], d: &DepositEntry<'_>) -> Vec<u8> {
     w.open(0, &d.id.to_string());
     w.pair(1, keys::TYPE, &quoted(d.kind));
     w.open(1, keys::DEPOSIT_HOLDER);
-    w.pair(2, keys::TYPE, "0");
+    w.pair(2, keys::TYPE, PLANET_HOLDER);
     w.pair(2, keys::ID, &d.holder.to_string());
     w.close(1);
     w.close(0);
@@ -287,48 +289,32 @@ pub fn timed_modifier_item(indent: &[u8], modifier: &str) -> Vec<u8> {
     w.into_bytes()
 }
 
-/// Lines at a depth below the entry's own indentation.
-struct Lines {
-    base: String,
-    out: String,
-}
-
+/// The system entry's own blocks, beside the lines every emitter writes.
 impl Lines {
-    fn new(indent: &[u8]) -> Self {
-        Self {
-            base: String::from_utf8_lossy(indent).into_owned(),
-            out: String::new(),
+    fn planets(&mut self, depth: usize, planets: &[u32]) {
+        for planet in planets {
+            self.pair(depth, keys::PLANET, &planet.to_string());
         }
     }
 
-    fn indent(&self, depth: usize) -> String {
-        format!("{}{}", self.base, "\t".repeat(depth))
+    fn belts(&mut self, depth: usize, belts: &[(&str, f64)]) {
+        self.open(depth, keys::ASTEROID_BELTS);
+        self.line(depth + 1, "");
+        for &(kind, radius) in belts {
+            self.line(depth + 1, "{");
+            self.pair(depth + 2, keys::TYPE, &quoted(kind));
+            self.pair(depth + 2, keys::INNER_RADIUS, &coord(radius));
+            self.line(depth + 1, "}");
+            self.separator();
+        }
+        self.close(depth);
     }
 
-    fn line(&mut self, depth: usize, text: &str) {
-        let indent = self.indent(depth);
-        self.out.push_str(&format!("{indent}{text}\n"));
-    }
-
-    fn pair(&mut self, depth: usize, key: &str, value: &str) {
-        self.line(depth, &format!("{key}={value}"));
-    }
-
-    /// `key=` and the opening brace below it.
-    fn open(&mut self, depth: usize, key: &str) {
-        self.line(depth, &format!("{key}="));
-        self.line(depth, "{");
-    }
-
-    fn close(&mut self, depth: usize) {
-        self.line(depth, "}");
-    }
-
-    /// `key={ a b }` as the game writes a list of ids: one line, a space after each.
-    fn list(&mut self, depth: usize, key: &str, ids: &[u32]) {
-        self.open(depth, key);
-        let items: String = ids.iter().map(|id| format!("{id} ")).collect();
-        self.line(depth + 1, &items);
+    fn flags(&mut self, depth: usize, flags: &[String], date: &str) {
+        self.open(depth, keys::FLAGS);
+        for flag in flags {
+            self.pair(depth + 1, flag, date);
+        }
         self.close(depth);
     }
 
@@ -381,18 +367,5 @@ impl Lines {
         self.pair(depth + 1, keys::DAYS, PERMANENT);
         self.line(depth, "}");
         self.separator();
-    }
-
-    /// The single-space line the game writes after each entry of an anonymous list.
-    fn separator(&mut self) {
-        self.out.push_str(" \n");
-    }
-
-    fn bytes(&mut self, bytes: &[u8]) {
-        self.out.push_str(&String::from_utf8_lossy(bytes));
-    }
-
-    fn into_bytes(self) -> Vec<u8> {
-        self.out.into_bytes()
     }
 }

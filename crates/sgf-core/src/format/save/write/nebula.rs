@@ -18,8 +18,9 @@ use crate::Span;
 use crate::cst::{self, Node};
 use crate::emit::{self, NebulaSection, coord};
 use crate::format;
-use crate::format::save::write::add_system::check_version;
-use crate::format::save::write::footprint::{Footprints, is_bare, is_cloud_kind};
+use crate::format::save::check_version;
+use crate::format::save::write::footprint::{Footprints, is_bare};
+use crate::format::save::write::game_tables::is_cloud_kind;
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::name_pool;
 use crate::keys;
@@ -92,9 +93,10 @@ fn write_membership(
     skip: Option<usize>,
 ) -> Result<Vec<NebulaFootprint>, OpError> {
     write_member_lines(plan, s, changes, skip)?;
-    let Some(mut footprints) = Footprints::new(&s.doc, &s.graph) else {
+    if check_version(&s.doc).is_err() {
         return Ok(Vec::new());
-    };
+    }
+    let mut footprints = Footprints::new(&s.doc, &s.graph);
     let erased = skip.filter(|&index| index < s.graph.nebulae.len());
     let mut listed: BTreeMap<u32, (bool, BTreeSet<usize>)> = BTreeMap::new();
     for change in changes {
@@ -240,7 +242,7 @@ pub(crate) fn plan_set_turbulent(
         .ok_or(OpError::UnknownNebula(index))?;
     let name = nebula.display_name();
     let state = if turbulent { "turbulent" } else { "calm" };
-    let mut footprints = Footprints::new(&s.doc, &s.graph).ok_or(OpError::Empty)?;
+    let mut footprints = Footprints::new(&s.doc, &s.graph);
     let mut had = Vec::new();
     let mut homes = Vec::new();
     for &id in &nebula.systems {
@@ -291,7 +293,7 @@ pub(crate) fn plan_set_footprints(
 ) -> Result<Planned, OpError> {
     check_version(&s.doc)?;
     each_once(targets, |f| f.system)?;
-    let mut footprints = Footprints::new(&s.doc, &s.graph).ok_or(OpError::Empty)?;
+    let mut footprints = Footprints::new(&s.doc, &s.graph);
     let mut had = Vec::new();
     for target in targets {
         if let Some(cloud) = target.cloud.as_ref().filter(|c| !is_cloud_kind(&c.kind)) {
@@ -345,14 +347,7 @@ pub(crate) fn plan_set_name(
 
     edit.set_scalar(&[keys::NAME, keys::KEY], quoted(&set.to))?;
     match (literal, flag) {
-        (true, None) => {
-            let mut text = indent;
-            text.extend_from_slice(
-                b"literal=yes
-",
-            );
-            edit.insert_lines(after_key, text);
-        }
+        (true, None) => edit.insert_lines(after_key, emit::literal_line(&indent)),
         (true, Some(_)) => edit.set_scalar(&[keys::NAME, keys::LITERAL], "yes")?,
         (false, Some(span)) => edit.remove_lines(span),
         (false, None) => {}
@@ -442,17 +437,9 @@ fn insert_member(edit: &mut Edit, id: u32) -> Result<(), OpError> {
         let span = radius.span();
         (edit.line_end(span.end), edit.indent(span.start))
     } else {
-        let close = entity.value_span().end - 1;
-        let mut indent = edit.indent(close);
-        indent.push(b'\t');
-        (edit.line_start(close), indent)
+        edit.before_close(entity)
     };
-    let mut text = indent;
-    text.extend_from_slice(keys::GALACTIC_OBJECT.as_bytes());
-    text.push(b'=');
-    text.extend_from_slice(id.to_string().as_bytes());
-    text.push(b'\n');
-    edit.insert_lines(at, text);
+    edit.insert_lines(at, emit::member_line(&indent, id));
     Ok(())
 }
 

@@ -407,6 +407,7 @@ impl<'g> Roller<'g> {
         let size = self.size(block, class, class.planet_size)?;
         Ok(BodySpec {
             name: None,
+            star: true,
             ..body(class, size, orbit, angle, block)
         })
     }
@@ -563,9 +564,9 @@ impl<'g> Roller<'g> {
     }
 }
 
-/// A body of `class` as `block` writes it: its fixed name and model. An
-/// asteroid with no fixed name is named from the save's pool, unless it is a moon, which is
-/// lettered after its planet.
+/// A body of `class` as `block` writes it: its fixed name and model, and whether the
+/// install makes its class a star. An asteroid with no fixed name is named from the save's
+/// pool, unless it is a moon, which is lettered after its planet.
 fn body(class: &PlanetClassDef, size: u32, orbit: f64, angle: f64, block: &InitPlanet) -> BodySpec {
     BodySpec {
         class: class.key.clone(),
@@ -576,6 +577,7 @@ fn body(class: &PlanetClassDef, size: u32, orbit: f64, angle: f64, block: &InitP
         asteroid: class.asteroid && block.name.is_none(),
         name: block.name.clone(),
         entity_name: block.entity.clone(),
+        star: class.star,
         ..Default::default()
     }
 }

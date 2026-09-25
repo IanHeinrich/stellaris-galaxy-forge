@@ -109,7 +109,10 @@ fn a_name_that_cannot_be_quoted_is_refused() {
                 name: name.into(),
             })
             .expect_err("refused");
-        assert!(matches!(err, OpError::InvalidName(_)), "{name}: {err}");
+        assert!(
+            matches!(err, OpError::InvalidText { what: "a name", .. }),
+            "{name}: {err}"
+        );
         let err = session
             .apply(Op::AddSystem {
                 id: None,
@@ -121,7 +124,10 @@ fn a_name_that_cannot_be_quoted_is_refused() {
                 spawn_script: None,
             })
             .expect_err("refused");
-        assert!(matches!(err, OpError::InvalidName(_)), "{name}: {err}");
+        assert!(
+            matches!(err, OpError::InvalidText { what: "a name", .. }),
+            "{name}: {err}"
+        );
     }
     let err = session
         .apply(Op::AddSystem {
@@ -134,7 +140,10 @@ fn a_name_that_cannot_be_quoted_is_refused() {
             spawn_script: None,
         })
         .expect_err("an empty name is no name");
-    assert!(matches!(err, OpError::EmptyName), "{err}");
+    assert!(
+        matches!(err, OpError::EmptyText { what: "a name" }),
+        "{err}"
+    );
     assert!(!session.is_dirty());
 }
 

@@ -8,10 +8,10 @@ use crate::format::scenario::marauder;
 use crate::projections::galaxy::{Lane, ProjectionError, SystemNode};
 use crate::projections::read;
 use crate::scan::Index;
+use crate::{as_u32, keys};
 
 /// The modifier a turbulent nebula member carries.
 pub(crate) const TURBULENT_NEBULA: &str = "turbulent_nebula";
-use crate::{as_u32, keys};
 
 /// The one extraction path for a system, used by `build` and `refresh_system`.
 pub(super) fn extract(
@@ -27,17 +27,7 @@ pub(super) fn extract(
         reason,
     };
     let (x, y) = read::coordinate(node, src).map_err(field)?;
-    let flags = node
-        .find(keys::FLAGS, src)
-        .map(|flags| {
-            flags
-                .children()
-                .iter()
-                .filter_map(|c| c.key_str(src))
-                .map(str::to_owned)
-                .collect()
-        })
-        .unwrap_or_default();
+    let flags = star_flags(node, src).map(str::to_owned).collect();
     let owner = read::scalar_u32(node, keys::SECTOR, src)
         .and_then(|s| sector_owner.get(&s).copied())
         .or_else(|| {
@@ -87,6 +77,14 @@ pub(super) fn extract(
         added: false,
         turbulent: timed_modifiers(node, src).any(|m| m == TURBULENT_NEBULA),
     })
+}
+
+/// The star flags a `galactic_object` entity's `flags` block sets, in file order.
+pub(crate) fn star_flags<'a>(node: &'a Node, src: &'a [u8]) -> impl Iterator<Item = &'a str> {
+    node.find(keys::FLAGS, src)
+        .into_iter()
+        .flat_map(|flags| flags.children())
+        .filter_map(|flag| flag.key_str(src))
 }
 
 /// The modifier every entry of the node's `timed_modifier.items` names, in file order.

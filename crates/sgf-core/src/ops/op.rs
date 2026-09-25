@@ -142,7 +142,14 @@ pub enum Op {
     /// A reused slot gets its tombstone back, the name returns to the pool of unused star
     /// or black hole names the add took it from, and `last_created_system` goes down. The
     /// systems added after it take the id below their own, so that ids stay dense. The
-    /// inverse adds the system again, read back as a spec, at the end of the list.
+    /// inverse adds the system again, read back as a spec, at the end of the list, which
+    /// joins it to the nebula it stands in; then its bridges, the lane lengths that are not
+    /// `floor(distance)` and its nebula footprint are put back. The bytes come back exactly
+    /// only for the last system added, with nothing written to its neighbours since. A
+    /// lane's entry on the other end comes back last in that system's list. A system taken
+    /// from among the added ones comes back at the next id, its bodies and deposits one
+    /// generation on in the slots they had. A lane whose two ends disagreed comes back with
+    /// one length. Undo through history is byte-exact either way.
     RemoveSystem {
         id: u32,
     },
@@ -622,10 +629,12 @@ pub enum OpError {
     SystemExists(u32),
     #[error("{0} is the null id, which no system may take")]
     NullSystemId(u32),
-    #[error("name {0:?} may not hold a quote, a backslash or a line break")]
-    InvalidName(String),
-    #[error("a name may not be empty")]
-    EmptyName,
+    #[error("{what} may not be empty")]
+    EmptyText { what: &'static str },
+    #[error("{text:?} cannot be written as {what}")]
+    InvalidText { what: &'static str, text: String },
+    #[error("planet {planet}: {error}")]
+    OnPlanet { planet: u32, error: Box<OpError> },
     #[error("nebula {0} does not exist")]
     UnknownNebula(usize),
     #[error("system {0} cannot have a lane to itself")]
@@ -634,6 +643,8 @@ pub enum OpError {
     LaneExists(u32, u32),
     #[error("systems {0} and {1} are not linked")]
     NoSuchLane(u32, u32),
+    #[error("lane {0} <-> {1} holds a different length on each end")]
+    LaneEndsDisagree(u32, u32),
     #[error("lane {0} <-> {1} is already prevented")]
     PreventExists(u32, u32),
     #[error("a hyperlane already runs between {0} and {1}: remove it before preventing the pair")]
@@ -722,12 +733,6 @@ pub enum OpError {
     LGateUnchanged(&'static str),
     #[error("planet {0} does not exist")]
     UnknownPlanet(u32),
-    #[error("a star class may not be empty")]
-    EmptyStarClass,
-    #[error("planet {0}'s class may not be empty")]
-    EmptyPlanetClass(u32),
-    #[error("class {0:?} may not hold a quote, a backslash or a line break")]
-    InvalidClass(String),
     #[error("no star bodies given")]
     NoStarBodies,
     #[error("planet {planet} is not a body of system {system}")]
@@ -744,8 +749,6 @@ pub enum OpError {
     UnknownCountry(u32),
     #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
     NoMapColors(u32),
-    #[error("colour name {0:?} may not be empty or hold a space, a quote or a backslash")]
-    InvalidColorName(String),
     #[error("country {0}'s map colours are already set that way")]
     MapColorsUnchanged(u32),
     #[error("save statement: {reason} at byte {offset}")]
@@ -764,12 +767,6 @@ pub enum OpError {
     TooClose { id: u32, distance: f64 },
     #[error("({x}, {y}) is outside the galaxy's radius of {radius}")]
     OutsideGalaxy { x: f64, y: f64, radius: f64 },
-    #[error("a body's planet class may not be empty")]
-    EmptyBodyClass,
-    #[error("{0} may not be empty")]
-    EmptyKey(&'static str),
-    #[error("{0:?} may not hold a quote, a backslash or a line break")]
-    InvalidKey(String),
     #[error("{0} cannot have moons")]
     MoonsNotAllowed(&'static str),
     #[error("{0} cannot be an asteroid")]
@@ -796,8 +793,6 @@ pub enum OpError {
     DepositNotOnPlanet(u32),
     #[error("planet {0} is colonised: only an uncolonised planet's deposits can be edited")]
     PlanetColonised(u32),
-    #[error("deposit type {0:?} may hold only letters, digits and underscores")]
-    InvalidDepositType(String),
     #[error("every system of {nebula} is already {state}")]
     TurbulenceUnchanged { nebula: String, state: &'static str },
     #[error("{0:?} is not a nebula cloud type")]

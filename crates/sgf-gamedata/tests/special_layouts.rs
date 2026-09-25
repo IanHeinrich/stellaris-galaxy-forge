@@ -800,6 +800,28 @@ fn a_hand_written_install_rolls_the_same_bodies_for_a_seed_as_before() {
     pinned("fx_hole_3", &spec);
 }
 
+/// A body whose class the install makes a star is marked a star, as the system's own star
+/// is, so the core writes it with a star's carrier flags whatever the class is called.
+#[test]
+fn a_body_of_a_star_class_is_marked_a_star() {
+    let (_dir, gd) = hand_written();
+    let spec = by_name(&gd, 1, "Fx", (1.0, 2.0), "fx_haven").unwrap();
+    assert!(spec.star.star, "the system's own star");
+    let marked: Vec<(&str, bool)> = spec
+        .planets
+        .iter()
+        .flat_map(|planet| std::iter::once(planet).chain(&planet.moons))
+        .map(|body| (body.class.as_str(), body.star))
+        .collect();
+    assert!(marked.contains(&("pc_hole", true)), "{marked:?}");
+    assert!(
+        marked
+            .iter()
+            .all(|&(class, star)| star == (class == "pc_hole")),
+        "{marked:?}"
+    );
+}
+
 #[test]
 fn the_real_install_rolls_the_same_bodies_for_a_seed_as_before() {
     let Some(gd) = install() else {

@@ -160,7 +160,7 @@ fn a_star_class_is_refused_where_it_names_no_body_of_the_system_or_changes_nothi
         ),
         (
             set(1, "sc_\"pulsar", &[(748, "pc_pulsar")]),
-            "class \"sc_\\\"pulsar\" may not hold a quote, a backslash or a line break",
+            "\"sc_\\\"pulsar\" cannot be written as a star class",
         ),
         (set(1, "sc_pulsar", &[]), "no star bodies given"),
         (
@@ -173,7 +173,7 @@ fn a_star_class_is_refused_where_it_names_no_body_of_the_system_or_changes_nothi
         ),
         (
             set(1, "sc_pulsar", &[(748, "")]),
-            "planet 748's class may not be empty",
+            "planet 748: a planet class may not be empty",
         ),
         (
             set(1, "sc_g", &[(748, "pc_g_star")]),

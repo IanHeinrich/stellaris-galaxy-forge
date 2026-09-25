@@ -239,6 +239,25 @@ Each top-level `nebula` block lists its member `galactic_object=<id>`
 systems explicitly, and the game never re-derives membership from
 positions. `radius` is typically 30.
 
+## Copies of 4.5 the core keeps
+
+Two things the save ops need are copied from Stellaris 4.5 into
+`sgf-core` instead of being read from the install, all in
+`crates/sgf-core/src/format/save/write/game_tables.rs`. They are a
+check on every game update:
+
+- The nebula dressing of the start event `game_start.50`
+  (`events/game_start.txt`): the calm cloud types each star class
+  weighs, the class A stars an `ocean_paradise_nebula` flag gives
+  `rare_nebula_1`, the turbulent type each calm type pairs with, the
+  cloud's offset beside its star (`0.33 * size` plus 4.7 and 8.7), and
+  that `nebula_cloaking` comes with First Contact. A new star class, or
+  a changed table, gets no cloud or the wrong one until it is copied
+  here.
+- `SPAWN_SYSTEM_BUFFER_DISTANCE = 10` from
+  `common/defines/00_defines.txt`, how close an added system may stand
+  to another.
+
 ## Scenario files
 
 `map/setup_scenarios/*.txt` is layered the same as `common/`: vanilla

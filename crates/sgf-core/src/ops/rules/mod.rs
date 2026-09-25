@@ -16,21 +16,42 @@ use std::collections::BTreeSet;
 use crate::ops::OpError;
 use crate::plural;
 
-/// A name is written between quotes with no escaping, so these bytes cannot be in it,
-/// and nothing at all is not a name. A save's `key="…"` and a scenario's `name = "…"`
-/// are written the same way and share the rule.
-pub(crate) fn check_name(name: &str) -> Result<(), OpError> {
-    if name.is_empty() {
-        return Err(OpError::EmptyName);
+/// How a text stands in the file: between quotes, which the game reads with no escaping,
+/// or as a key the game looks up, one token of printable ASCII whether quoted or not.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Form {
+    Quoted,
+    Bare,
+}
+
+/// Refuse `text`, named `what` in the error, when it is empty or cannot stand in `form`.
+pub(crate) fn check_text(what: &'static str, text: &str, form: Form) -> Result<(), OpError> {
+    if text.is_empty() {
+        return Err(OpError::EmptyText { what });
     }
-    if !quotable(name) {
-        return Err(OpError::InvalidName(name.to_owned()));
+    let fits = match form {
+        Form::Quoted => quotable(text),
+        Form::Bare => text.bytes().all(|b| {
+            b.is_ascii_graphic() && !matches!(b, b'{' | b'}' | b'=' | b'"' | b'#' | b'\\')
+        }),
+    };
+    if !fits {
+        return Err(OpError::InvalidText {
+            what,
+            text: text.to_owned(),
+        });
     }
     Ok(())
 }
 
+/// A save's `key="…"` and a scenario's `name = "…"` are written the same way and share
+/// the rule.
+pub(crate) fn check_name(name: &str) -> Result<(), OpError> {
+    check_text("a name", name, Form::Quoted)
+}
+
 /// Whether `text` can be written between quotes, which the game reads with no escaping.
-pub(crate) fn quotable(text: &str) -> bool {
+fn quotable(text: &str) -> bool {
     !text.contains(['"', '\\', '\n', '\r'])
 }
 
