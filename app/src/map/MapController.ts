@@ -1,21 +1,10 @@
-import { Container, type Application } from "pixi.js";
-import { documentCapabilities } from "../lib/capabilities";
+import type { Application } from "pixi.js";
 import { isEditableTarget } from "../lib/keys";
-import { useEditorStore } from "../store/editorStore";
-import { useFileSessionStore } from "../store/fileSessionStore";
-import { Camera } from "./Camera";
-import { InteractionController } from "./interaction/InteractionController";
-import { HighlightsLayer } from "./layers/HighlightsLayer";
-import type { MapLayer } from "./layers/MapLayer";
-import { layersFor } from "./layers/registry";
-import { EMPTY_CONTEXT, renderContext, sameContext, type RenderContext } from "./RenderContext";
-import { selectionFrame } from "./selectionFrame";
-import { bindViewState, dressLayers, type MapView } from "./viewState";
+import { GalaxyScene } from "./GalaxyScene";
+import type { Scene } from "./Scene";
 
 const ZOOM_PER_100PX = 1.1;
 const KEY_PAN_PX_PER_S = 700;
-const FOCUS_SCALE = 4;
-const FOCUS_MS = 350;
 
 const PAN_KEYS: Record<string, [dx: number, dy: number]> = {
   KeyW: [0, 1],
@@ -29,43 +18,26 @@ const PAN_KEYS: Record<string, [dx: number, dy: number]> = {
 };
 
 /**
- * Owns the camera, the world container and the layers for one Pixi application. It assembles
- * the `RenderContext` the layers draw from and passes the stores' view state to them; pointer
- * editing belongs to the InteractionController. Nothing here is React state.
+ * Hosts the scenes of one Pixi application: it puts the shown scene's root on the stage, and pans
+ * and zooms that scene's camera from the wheel and the held keys. Nothing here is React state.
  */
-export class MapController implements MapView {
-  readonly cam = new Camera();
-  /** Mutated in place, never replaced: the InteractionController holds this same array. */
-  readonly layers: MapLayer[] = [];
-  /** Outside the capability-driven set: the InteractionController holds this one instance. */
-  readonly highlights = new HighlightsLayer();
-  private readonly world = new Container();
+export class MapController {
+  private readonly galaxy: GalaxyScene;
+  private scene: Scene;
   private readonly transform = { x: 0, y: 0, scaleX: 1, scaleY: 1 };
   private readonly heldKeys = new Set<string>();
   private readonly cleanups: Array<() => void> = [];
-  private ctx: RenderContext = EMPTY_CONTEXT;
   private appliedRev = -1;
 
   constructor(
     private readonly app: Application,
     host: HTMLElement,
   ) {
-    this.syncLayers();
-    app.stage.addChild(this.world);
-    this.cam.setViewport(app.renderer.width, app.renderer.height);
-
-    this.rebuild();
-    this.fit();
-    this.cleanups.push(bindViewState(this));
+    this.galaxy = new GalaxyScene(app.renderer, app.canvas);
+    this.scene = this.galaxy;
+    this.enter(this.scene);
     this.bindWheel(app.canvas);
     this.bindKeyboard();
-    const interaction = new InteractionController(
-      app.canvas,
-      this.cam,
-      this.highlights,
-      this.layers,
-    );
-    this.cleanups.push(() => interaction.dispose());
 
     const observer = new ResizeObserver(() => app.resize());
     observer.observe(host);
@@ -78,87 +50,30 @@ export class MapController implements MapView {
 
   dispose(): void {
     for (const c of this.cleanups.splice(0)) c();
-    for (const layer of this.layers.splice(0)) layer.destroy();
-    this.world.destroy();
+    this.galaxy.dispose();
   }
 
-  /** Instantiates the layers the open document can answer for, leaving the set alone when it stands. */
-  syncLayers(): void {
-    const entries = layersFor(documentCapabilities(useFileSessionStore.getState()));
-    const wanted = [...entries.map((entry) => entry.id), this.highlights.id].join(" ");
-    if (wanted === this.layers.map((layer) => layer.id).join(" ")) return;
-    for (const layer of this.layers.splice(0)) {
-      if (layer !== this.highlights) layer.destroy();
-    }
-    for (const entry of entries) {
-      const layer = entry.create(this.app.renderer);
-      this.layers.push(layer);
-      this.world.addChild(layer.container);
-    }
-    this.layers.push(this.highlights);
-    this.world.addChild(this.highlights.container);
-    for (const layer of this.layers) layer.rebuild(this.ctx);
-    dressLayers(this);
+  /** Swaps `next` in for the scene shown now, which keeps its state while hidden. */
+  show(next: Scene): void {
+    if (next === this.scene) return;
+    this.scene.deactivate();
+    this.app.stage.removeChild(this.scene.root);
+    this.scene = next;
+    this.enter(next);
   }
 
-  /** Re-reads the stores and hands the layers the new context, unless nothing they draw moved. */
-  refreshContext(): void {
-    const next = renderContext();
-    if (sameContext(next, this.ctx)) return;
-    this.ctx = next;
-    for (const layer of this.layers) layer.rebuild(next);
-    this.invalidate();
-  }
-
-  rebuild(): void {
-    this.ctx = renderContext();
-    this.syncLayers();
-    for (const layer of this.layers) layer.rebuild(this.ctx);
-  }
-
-  fit(): void {
-    if (this.ctx.radius === 0) return;
-    this.cam.fit(this.ctx.radius, this.app.renderer.width, this.app.renderer.height);
-    this.invalidate();
-  }
-
-  /** Makes the next tick hand the camera to the layers again. */
-  invalidate(): void {
+  /** The canvas may have changed size while `scene` was hidden, so its camera is sized before its first tick. */
+  private enter(scene: Scene): void {
+    this.app.stage.addChild(scene.root);
+    scene.cam.setViewport(this.app.renderer.width, this.app.renderer.height);
     this.appliedRev = -1;
-  }
-
-  /** Frames what Shift+F frames with the margin of the galaxy fit, or the galaxy when nothing is selected. */
-  fitSelection(): void {
-    const { selection, selectedNebula } = useEditorStore.getState();
-    const nebula = selectedNebula === null ? undefined : this.ctx.nebulae[selectedNebula];
-    const frame = selectionFrame(this.ctx.systems, selection, nebula);
-    if (!frame) {
-      this.fit();
-      return;
-    }
-    const { minX, minY, maxX, maxY } = frame;
-    const { width, height } = this.app.renderer;
-    const scale = Math.min(
-      this.cam.fitScale((maxX - minX) / 2, width, width),
-      this.cam.fitScale((maxY - minY) / 2, height, height),
-      FOCUS_SCALE,
-    );
-    this.cam.easeTo((minX + maxX) / 2, (minY + maxY) / 2, scale, FOCUS_MS);
-  }
-
-  focusOn(id: number): void {
-    const s = this.ctx.systems.get(id);
-    if (!s) return;
-    this.cam.easeTo(s.x, s.y, Math.max(this.cam.scale, FOCUS_SCALE), FOCUS_MS);
-  }
-
-  panTo(x: number, y: number): void {
-    this.cam.easeTo(x, y, this.cam.scale, FOCUS_MS);
+    scene.activate();
   }
 
   private tick(dtMs: number): void {
+    const { cam } = this.scene;
     const { width, height } = this.app.renderer;
-    this.cam.setViewport(width, height);
+    cam.setViewport(width, height);
     if (this.heldKeys.size > 0) {
       let dx = 0;
       let dy = 0;
@@ -170,22 +85,26 @@ export class MapController implements MapView {
         }
       }
       const step = (KEY_PAN_PX_PER_S * dtMs) / 1000;
-      this.cam.panBy(dx * step, dy * step);
+      cam.panBy(dx * step, dy * step);
     }
-    this.cam.update(dtMs);
-    if (this.cam.rev === this.appliedRev) return;
-    this.appliedRev = this.cam.rev;
-    const t = this.cam.worldTransform(this.transform);
-    this.world.position.set(t.x, t.y);
-    this.world.scale.set(t.scaleX, t.scaleY);
-    for (const layer of this.layers) layer.onViewport(this.cam, this.ctx);
+    cam.update(dtMs);
+    this.place(this.scene);
+    this.scene.tick(dtMs);
+  }
+
+  private place(scene: Scene): void {
+    if (scene.cam.rev === this.appliedRev) return;
+    this.appliedRev = scene.cam.rev;
+    const t = scene.cam.worldTransform(this.transform);
+    scene.root.position.set(t.x, t.y);
+    scene.root.scale.set(t.scaleX, t.scaleY);
   }
 
   private bindWheel(canvas: HTMLCanvasElement): void {
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
       const px = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 33 : e.deltaY;
-      this.cam.zoomAt({ x: e.offsetX, y: e.offsetY }, Math.pow(ZOOM_PER_100PX, -px / 100));
+      this.scene.cam.zoomAt({ x: e.offsetX, y: e.offsetY }, Math.pow(ZOOM_PER_100PX, -px / 100));
     };
     canvas.addEventListener("wheel", wheel, { passive: false });
     this.cleanups.push(() => canvas.removeEventListener("wheel", wheel));

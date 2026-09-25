@@ -100,9 +100,11 @@ stellaris-galaxy-forge/
 │       ├── panels/            the React tree: chrome/ (top bar, dock, status bar), inspector/,
 │       │                      browser/ (empires, points of interest, issues, changes),
 │       │                      file/ (open screen, New scenario), initializers/, search/, overlays/
-│       ├── map/               the PixiJS renderer: Camera, MapController, interaction/ (the Select
-│       │                      and brush models), layers/ with highlights/ (the brush, drag and
-│       │                      symmetry overlays), picking/ (what lies under the pointer)
+│       ├── map/               the PixiJS renderer: Camera, MapController (the host: ticker, resize,
+│       │                      wheel and pan keys for the scene it shows), GalaxyScene (the galaxy's
+│       │                      camera, layers and bindings), interaction/ (the Select and brush
+│       │                      models), layers/ with highlights/ (the brush, drag and symmetry
+│       │                      overlays), picking/ (what lies under the pointer)
 │       ├── store/             Zustand stores, one per concern: session, editor, galaxy, game data, ...
 │       │                      editorStore.*.ts split the editor's actions by subject (nebulae,
 │       │                      lanes, brush, ...). editorEdits.ts runs all edits through a single
