@@ -299,6 +299,12 @@ fn finds_systems_by_what_they_hold() {
             .iter()
             .all(|h| h.matched_on.as_deref() == Some("L-Gate"))
     );
+    assert!(
+        lgates
+            .iter()
+            .all(|h| h.matched_bypass.as_deref() == Some("l_gate"))
+    );
+    assert_eq!(salvager[0].matched_bypass, None);
     let wormholes = systems("wormhole");
     assert!(
         [788, 789]

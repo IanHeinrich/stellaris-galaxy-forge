@@ -64,6 +64,15 @@ fn projection_reads_the_map_colours_only_where_the_empire_chose_them() {
         chosen, 1,
         "only the player empire set independent map colours"
     );
+
+    let painted = |c: &sgf_core::projections::galaxy::CountryNode| {
+        (c.painted_border.clone(), c.painted_fill.clone())
+    };
+    let pair = |border: &str, fill: &str| (Some(border.to_owned()), Some(fill.to_owned()));
+    assert_eq!(painted(player), pair("intense_red", "light_pink"));
+    assert_eq!(painted(ai), pair("red", "purple"));
+    assert_eq!(player.has_map_colors, Some(true));
+    assert_eq!(ai.has_map_colors, Some(true));
 }
 
 #[test]
@@ -77,4 +86,37 @@ fn validator_reports_no_errors() {
         .collect();
     assert!(errors.is_empty(), "{errors:#?}");
     assert_eq!(issues.len(), 3, "{issues:#?}");
+}
+
+/// The pair the map paints each country in: its chosen map colours, and the named flag
+/// colours wherever it chose none, each of the two standing in for the other.
+#[test]
+fn every_country_is_painted_in_its_map_colours_or_its_flag_colours() {
+    let expected = |c: &sgf_core::projections::galaxy::CountryNode| {
+        let (first, second) = (c.colors.first(), c.colors.get(1));
+        (
+            c.border_color.as_ref().or(first).or(second).cloned(),
+            c.fill_color.as_ref().or(second).or(first).cloned(),
+        )
+    };
+    let g = GalaxyGraph::build(&load()).expect("build galaxy");
+    for country in &g.countries {
+        assert_eq!(
+            (country.painted_border.clone(), country.painted_fill.clone()),
+            expected(country),
+            "country {}",
+            country.id
+        );
+    }
+
+    let raw = archive::read_sav(SAMPLE_4_5).expect("read the 4.5 sample");
+    let text = String::from_utf8(raw.gamestate).expect("utf-8");
+    let border = "\t\t\t\t\"intense_red\"\n\t\t\t\t\"light_pink\"\n";
+    assert_eq!(text.matches(border).count(), 1, "the player's map pair");
+    let edited = text.replacen(border, "\t\t\t\t\"null\"\n\t\t\t\t\"light_pink\"\n", 1);
+    let doc = Document::from_bytes(edited.into_bytes(), raw.meta).expect("index the edit");
+    let g = GalaxyGraph::build(&doc).expect("build galaxy");
+    let player = g.countries.iter().find(|c| c.id == 0).expect("country 0");
+    assert_eq!(player.painted_border.as_deref(), Some("grey"));
+    assert_eq!(player.painted_fill.as_deref(), Some("light_pink"));
 }

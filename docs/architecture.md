@@ -32,7 +32,7 @@ stellaris-galaxy-forge/
 │   │   │   ├── session.rs     document + graph + history; apply, undo, redo, save
 │   │   │   ├── validate/      what the game could not cope with: the codes, then paint.rs and
 │   │   │   │                  scenario.rs for the checks that only apply to one kind of file
-│   │   │   ├── search.rs      find systems and entities by name or id
+│   │   │   ├── search.rs      find systems and entities by name or id, systems by what they hold
 │   │   │   ├── entity/        addressing any entity in the file for the inspector
 │   │   │   ├── library.rs     small registers read from the save: colours, bypasses, ship sizes
 │   │   │   ├── export/        a save's galaxy written out as a scenario script: the draft and
@@ -159,8 +159,10 @@ inflated or read once and held unchanged for the life of the session.
 top-level statement and, inside the sections that hold entities, the span
 of every id-keyed block. Structure comes from counting braces; the game
 writes keys at column 0 at any depth, so indentation means nothing. The
-index is the only structure the editor keeps about the file as a whole:
-there is no typed model of it and nothing is ever serialised from one.
+index is the only structure the editor keeps about the file as a whole,
+besides two lists read back from the overlay after every edit: a save's
+`nebula` sections and the entities an op added. There is no typed model of
+the file and nothing is ever serialised from one.
 
 **Projections.** The galaxy graph is read from the index: systems with
 their positions and lanes, nebulae with their members, countries with the

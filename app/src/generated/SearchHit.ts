@@ -50,4 +50,9 @@ position: [number, number] | null,
  * initializer or flag key, a special kind (`Enclave`), a bypass (`L-Gate`), or a
  * planet class, localised when the resolver knows it. `None` for a name match.
  */
-matched_on: string | null, };
+matched_on: string | null, 
+/**
+ * When [`Self::matched_on`] is a bypass, its key (`wormhole`, `gateway`, `l_gate`, or
+ * the kind the save names), for the app to label.
+ */
+matched_bypass?: string, };

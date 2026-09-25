@@ -10,6 +10,7 @@ use sgf_core::entity::{EntityAddr, EntityKind, get_entity};
 use sgf_core::ops::{BeltSpec, Op, OpError, StarBody, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
+use sgf_core::views::Capabilities;
 
 use crate::common;
 use common::diff::{report, round_trip, round_trip_step};
@@ -852,16 +853,23 @@ fn entries_land_inside_a_table_whose_closing_brace_shares_a_line() {
     assert!(text.contains("\t\t\tentity=1\n\t\t}\n\t}\n}\n"));
 }
 
-/// The 4.4 sample with its `meta` version written as `version`.
-fn with_version(version: &str) -> Session {
+/// The 4.4 sample with its `meta` rewritten by `edit`.
+fn with_meta(edit: impl FnOnce(String) -> String) -> Session {
     let raw = sgf_core::archive::read_sav(common::SAMPLE).expect("read the sample");
-    let meta = String::from_utf8(raw.meta).expect("utf-8").replace(
-        "version=\"Pegasus v4.4.6\"",
-        &format!("version=\"{version}\""),
-    );
+    let meta = edit(String::from_utf8(raw.meta).expect("utf-8"));
     let doc = sgf_core::document::Document::from_bytes(raw.gamestate, meta.into_bytes())
         .expect("index the sample");
     Session::from_document(None, doc).expect("project the sample")
+}
+
+/// The 4.4 sample with its `meta` version written as `version`.
+fn with_version(version: &str) -> Session {
+    with_meta(|meta| {
+        meta.replace(
+            "version=\"Pegasus v4.4.6\"",
+            &format!("version=\"{version}\""),
+        )
+    })
 }
 
 #[test]
@@ -877,4 +885,22 @@ fn the_version_is_read_with_or_without_a_release_name() {
         refused(with_version("Pegasus"), dorellion()),
         OpError::UnknownSaveVersion(v) if v == "Pegasus"
     ));
+}
+
+#[test]
+fn a_save_that_refuses_the_add_offers_no_added_systems_but_keeps_bodies() {
+    let offered = |session: &Session| {
+        let capabilities = Capabilities::of(&session.doc);
+        (
+            capabilities.added_systems,
+            capabilities.bodies,
+            capabilities.deposits,
+        )
+    };
+    assert_eq!(offered(&open()), (true, true, true));
+    assert_eq!(offered(&open_3_4()), (false, true, false));
+
+    let ironman = with_meta(|meta| meta + "ironman=yes\n");
+    assert_eq!(offered(&ironman), (false, true, true));
+    assert!(matches!(refused(ironman, dorellion()), OpError::Ironman));
 }

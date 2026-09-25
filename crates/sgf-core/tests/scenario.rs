@@ -629,3 +629,26 @@ fn a_new_system_is_never_given_the_null_id() {
         session.graph.order
     );
 }
+
+#[test]
+fn an_edit_undo_and_redo_keep_the_scenarios_own_issues() {
+    let mut session = GRAMMAR.open();
+    let transform = |issues: &[sgf_core::validate::Issue]| {
+        issues
+            .iter()
+            .any(|i| i.code == IssueCode::CoordinateTransform)
+    };
+    let applied = session
+        .apply(Op::MoveSystem {
+            id: 1,
+            x: 5.0,
+            y: 5.0,
+        })
+        .expect("move");
+    assert!(transform(&applied.issues), "apply: {:?}", applied.issues);
+    let undone = session.undo().expect("undo").expect("an op to undo");
+    assert!(transform(&undone.issues), "undo: {:?}", undone.issues);
+    let redone = session.redo().expect("redo").expect("an op to redo");
+    assert!(transform(&redone.issues), "redo: {:?}", redone.issues);
+    assert_eq!(redone.issues, session.validate());
+}

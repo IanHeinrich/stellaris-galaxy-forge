@@ -25,6 +25,7 @@ fn the_sample_save_carries_its_setup_screen_and_player_country() {
             num_hyperlanes: 0.75,
             primitive: 0.25,
             habitability: 0.25,
+            resource_abundance: Some(2.0),
         })
     );
     assert_eq!(g.player_country, Some(0));

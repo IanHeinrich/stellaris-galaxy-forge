@@ -6,6 +6,7 @@ Removed lane 1 <-> 16 (2 statements)
 touched: [1, 16]
 inverse: AddLane { a: 1, b: 16, bridge: false }
 warning disconnected: galaxy has 3 components, 2 at load; newly separated: 1, 2
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 2 other issues
 
 --- scenario

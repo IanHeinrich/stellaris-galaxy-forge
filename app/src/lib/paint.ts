@@ -84,6 +84,8 @@ export interface PaintSpawnKindOption {
 }
 
 const RESERVED_PREFIX = "reserved:";
+/** The random values an enabled or preferred seat is drawn from, as the mod reads them. */
+const SEAT_MODULO = 10;
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 
 /** Every seat the site knows: enabled, preferred, Sol, then one reservation per letter. */
@@ -182,7 +184,7 @@ function kindOf(key: string): PaintSpawnKind {
 export function scriptForKind(key: string, system: SystemNode): SpawnScript {
   const current = system.spawn_script?.paint_a_galaxy;
   const kind = kindOf(key);
-  const random_value = current?.random_value ?? system.id % 10;
+  const random_value = current?.random_value ?? system.id % SEAT_MODULO;
   const player = canBeWeighted(kind) && (current?.player ?? false);
   return { paint_a_galaxy: { kind, random_value, player } };
 }
@@ -200,7 +202,7 @@ export function enabledScript(system: SystemNode): SpawnScript {
 
 /** The same for a system not yet in the galaxy, from the id it will take. */
 export function enabledScriptFor(id: number): SpawnScript {
-  return { paint_a_galaxy: { kind: "enabled", random_value: id % 10, player: false } };
+  return { paint_a_galaxy: { kind: "enabled", random_value: id % SEAT_MODULO, player: false } };
 }
 
 /** The id the core gives the next added system: one past the highest in use, 1 when none is. */

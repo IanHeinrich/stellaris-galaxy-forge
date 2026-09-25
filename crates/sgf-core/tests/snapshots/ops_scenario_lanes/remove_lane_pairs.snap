@@ -7,6 +7,7 @@ touched: [1, 2, 111, 3018]
 inverse: AddLanePairs { lanes: [LanePair { a: 1, b: 2, bridge: false }, LanePair { a: 111, b: 3018, bridge: false }] }
 warning system_isolated: system 2 has no hyperlanes
 warning disconnected: galaxy has 4 components, 2 at load; newly separated: 2, 512, 888, 3018
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 1 other issues
 
 --- scenario

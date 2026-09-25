@@ -272,6 +272,7 @@ mod tests {
             num_hyperlanes: 0.75,
             primitive: 0.25,
             habitability: 0.5,
+            resource_abundance: Some(1.0),
         };
         let counts = HeaderCounts::from_setup(&setup, 791, seats(17, 1, false), 3, 9, 2);
         let text = String::from_utf8(header(&options(), &counts)).unwrap();

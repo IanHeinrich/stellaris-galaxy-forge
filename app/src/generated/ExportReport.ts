@@ -21,6 +21,11 @@ seats: number,
  */
 home_initializers: Array<HomeInitializer>, dropped: DroppedBypasses, 
 /**
+ * [`DroppedBypasses::summary`] of `dropped`: `3 wormhole pairs, 1 L-Gate`, or `None`
+ * when nothing was dropped.
+ */
+dropped_summary?: string, 
+/**
  * Ascending by category; a category with no systems is left out.
  */
 by_category: Array<CategoryCount>, 

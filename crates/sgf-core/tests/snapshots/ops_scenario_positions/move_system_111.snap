@@ -5,6 +5,7 @@ expression: "report(&session, &result)"
 Moved Corellia (#111) from (25, 18) to (30, 20)
 touched: [111]
 inverse: MoveSystem { id: 111, x: 25.0, y: 18.0 }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 1 other issues
 
 --- scenario

@@ -16,12 +16,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use crate::cst;
 use crate::document::{self, Document, SaveOutcome};
 use crate::entity::views::{EntityAddr, EntityKind};
 use crate::format::save::details::DetailsProjection;
+use crate::format::scenario::effect;
 use crate::format::{self, Format};
-use crate::keys;
 use crate::library;
 use crate::ops::history::History;
 use crate::ops::{self, Applied, Op, OpError, Subject};
@@ -126,6 +125,7 @@ impl Session {
             &applied,
             &waylines,
             false,
+            self.validate(),
         );
         if self.saved_at.is_some_and(|at| at > self.history.undo_len()) {
             self.saved_at = None;
@@ -143,7 +143,8 @@ impl Session {
         let Some(applied) = self.history.undo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let result = result(&self.graph, seq, applied, &waylines, true);
+        let issues = validate_document(&self.doc, &self.graph);
+        let result = result(&self.graph, seq, applied, &waylines, true, issues);
         let classes_only = applied.op.stales_only_planets();
         self.update_details(classes_only, &result);
         Ok(Some(result))
@@ -156,7 +157,8 @@ impl Session {
         let Some(applied) = self.history.redo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let result = result(&self.graph, seq, applied, &waylines, false);
+        let issues = validate_document(&self.doc, &self.graph);
+        let result = result(&self.graph, seq, applied, &waylines, false, issues);
         let classes_only = applied.op.stales_only_planets();
         self.update_details(classes_only, &result);
         Ok(Some(result))
@@ -271,11 +273,9 @@ impl Session {
         format::of(self.doc.kind())
     }
 
+    /// The projection's issues and the document's own, as open and every edit report them.
     pub fn validate(&self) -> Vec<Issue> {
-        let mut issues = validate(&self.graph);
-        issues.extend(self.format().issues(&self.doc));
-        validate::sort(&mut issues);
-        issues
+        validate_document(&self.doc, &self.graph)
     }
 
     pub fn history(&self) -> HistoryView {
@@ -288,42 +288,13 @@ impl Session {
 
     /// A scenario system's own `effect = { … }` block and the line it starts on.
     pub fn scenario_system_effect(&self, id: u32) -> Option<(String, u32)> {
-        let anchor = self.doc.scenario()?.system(id)?;
-        let bytes = self.doc.current(anchor).ok()?;
-        let original = self.doc.original();
-        let before = newlines(&original[..anchor.start().min(original.len())]);
-        system_effect(bytes, before)
+        effect::system_effect(&self.doc, id)
     }
 
     /// Every scenario system carrying an `effect = { … }` block, in file order: its id,
     /// the block's text and the line it starts on. A save document has none.
-    ///
-    /// One pass over the index: the lines before each statement accumulate as the walk
-    /// advances, rather than the whole file being counted again per system.
     pub fn scenario_system_effects(&self) -> Vec<(u32, String, u32)> {
-        let Some(scenario) = self.doc.scenario() else {
-            return Vec::new();
-        };
-        let original = self.doc.original();
-        let (mut counted, mut lines) = (0, 0);
-        let mut effects = Vec::new();
-        for (id, anchor) in scenario.systems() {
-            let start = anchor.start().min(original.len());
-            // An inserted statement can anchor before the one ahead of it, so the running
-            // count starts again from the top of the file.
-            if start < counted {
-                (counted, lines) = (0, 0);
-            }
-            lines += newlines(&original[counted..start]);
-            counted = start;
-            let Ok(bytes) = self.doc.current(anchor) else {
-                continue;
-            };
-            if let Some((text, line)) = system_effect(bytes, lines) {
-                effects.push((id, text, line));
-            }
-        }
-        effects
+        effect::system_effects(&self.doc)
     }
 
     /// Per-system planets, deposits, starbase and fleets, built on first call.
@@ -342,7 +313,7 @@ impl Session {
 
     /// Build the details projection if it is not built yet, so that later calls are cheap.
     pub fn warm_details(&mut self) -> Result<(), ProjectionError> {
-        if !self.format().has_details() {
+        if !self.format().has_details(&self.doc) {
             return Ok(());
         }
         self.details().map(|_| ())
@@ -470,13 +441,21 @@ impl DiskStamp {
     }
 }
 
-/// What `applied` did, or what undoing it did when `undone`.
+fn validate_document(doc: &Document, graph: &GalaxyGraph) -> Vec<Issue> {
+    let mut issues = validate(graph);
+    issues.extend(format::of(doc.kind()).issues(doc));
+    validate::sort(&mut issues);
+    issues
+}
+
+/// What `applied` did, or what undoing it did when `undone`, with the `issues` it left.
 fn result(
     graph: &GalaxyGraph,
     seq: usize,
     applied: &Applied,
     waylines: &[Wayline],
     undone: bool,
+    issues: Vec<Issue>,
 ) -> OpResult {
     let mut touched: Vec<u32> = applied.touched.iter().flat_map(|s| s.systems()).collect();
     touched.sort_unstable();
@@ -512,7 +491,7 @@ fn result(
         touched,
         waylines: (graph.waylines != waylines).then(|| graph.waylines.clone()),
         renumbered,
-        issues: validate(graph),
+        issues,
     }
 }
 
@@ -536,21 +515,4 @@ fn details_stale(kind: DocumentKind, op: &Op, subjects: &[Subject]) -> Vec<u32> 
     ids.sort_unstable();
     ids.dedup();
     ids
-}
-
-/// One system statement's `effect = { … }` block and the line it starts on, counted
-/// from `before`, the lines standing ahead of the statement.
-fn system_effect(bytes: &[u8], before: usize) -> Option<(String, u32)> {
-    let root = cst::parse_script(bytes, 0).ok()?;
-    let effect = root
-        .children()
-        .first()?
-        .find(keys::scenario::EFFECT, bytes)?;
-    let text = String::from_utf8_lossy(effect.span().slice(bytes)).into_owned();
-    let line = before + newlines(&bytes[..effect.span().start]) + 1;
-    Some((text, crate::as_u32(line)))
-}
-
-fn newlines(bytes: &[u8]) -> usize {
-    bytes.iter().filter(|&&c| c == b'\n').count()
 }

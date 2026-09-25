@@ -275,7 +275,7 @@ pub(crate) fn weight_statement(script: &SpawnScript) -> String {
 
 /// The starting initializer a spawn system is given when it names none, spread over
 /// the six the game ships by the system's id.
-pub(crate) fn basic_initializer(id: u32) -> &'static str {
+pub fn basic_initializer(id: u32) -> &'static str {
     BASIC_INITIALIZERS[id as usize % BASIC_INITIALIZERS.len()]
 }
 

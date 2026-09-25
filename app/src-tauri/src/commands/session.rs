@@ -200,7 +200,7 @@ fn opened(session: &Session) -> Result<OpenResult, SgfError> {
         meta,
         galaxy: GalaxyView::from(&session.graph),
         issues: session.validate(),
-        capabilities: Capabilities::of(session.kind()),
+        capabilities: Capabilities::of(&session.doc),
     })
 }
 

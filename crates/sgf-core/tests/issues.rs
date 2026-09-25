@@ -110,3 +110,30 @@ fn both_fixtures_rebuild_from_their_own_pieces() {
         assert_eq!(joined, doc.original(), "{path} changed");
     }
 }
+
+/// Every code `IssueCode` declares, as its derived deserialiser lists them when refusing an
+/// unknown one.
+fn declared_codes() -> Vec<String> {
+    let error = serde_json::from_str::<IssueCode>(r#""?""#).expect_err("no such code");
+    let message = error.to_string();
+    let (_, listed) = message
+        .split_once("expected one of ")
+        .unwrap_or_else(|| panic!("{message}"));
+    listed
+        .split('`')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn each_code_names_itself_as_serde_does() {
+    let declared = declared_codes();
+    assert!(declared.len() > 20, "{declared:?}");
+    for name in declared {
+        let code: IssueCode = serde_json::from_value(serde_json::Value::String(name.clone()))
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert_eq!(code.as_str(), name);
+    }
+}

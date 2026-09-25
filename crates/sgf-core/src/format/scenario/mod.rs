@@ -4,6 +4,7 @@
 //! Positions are absolute and carry no length, so a lane's length is measured from the
 //! two ends and nebula membership follows the radii rather than a member list.
 
+pub(crate) mod effect;
 pub(crate) mod emit;
 pub mod fe_link;
 pub mod fe_zone;
@@ -120,7 +121,7 @@ impl Format for Scenario {
         false
     }
 
-    fn capabilities(&self) -> Capabilities {
+    fn capabilities(&self, _doc: &Document) -> Capabilities {
         Capabilities {
             empires: true,
             details: false,
@@ -133,6 +134,7 @@ impl Format for Scenario {
             waylines: false,
             added_systems: false,
             bodies: false,
+            deposits: false,
             map_colors: false,
             lgate: false,
             symmetry: true,
@@ -281,6 +283,10 @@ fn galaxy_radius(systems: &HashMap<u32, SystemNode>) -> f64 {
 fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
     let (x, y) = position(node, src);
     let initializer = read::text(node, keys::INITIALIZER, src);
+    let star_flags: Vec<&str> = node
+        .find(keys::EFFECT, src)
+        .map(|effect| fe_zone::star_flags(effect, src).collect())
+        .unwrap_or_default();
     SystemNode {
         id,
         name: name(node, src),
@@ -300,16 +306,9 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
             .find(keys::SPAWN_WEIGHT, src)
             .and_then(|weight| paint::recognise(weight, src)),
         spawn_design: read::scalar(node, keys::SPAWN_DESIGN, src).map(str::to_owned),
-        fe_zone: node
-            .find(keys::EFFECT, src)
-            .and_then(|effect| fe_zone::parse(fe_zone::star_flags(effect, src))),
-        wormhole_pair: node
-            .find(keys::EFFECT, src)
-            .and_then(|effect| paint::wormhole_pair(fe_zone::star_flags(effect, src))),
-        fe_link: node
-            .find(keys::EFFECT, src)
-            .map(|effect| fe_link::parse(fe_zone::star_flags(effect, src)))
-            .unwrap_or_default(),
+        fe_zone: fe_zone::parse(star_flags.iter().copied()),
+        wormhole_pair: paint::wormhole_pair(star_flags.iter().copied()),
+        fe_link: fe_link::parse(star_flags.iter().copied()),
         prevented: Vec::new(),
         position_range: position_range(node, src),
         flags: Vec::new(),

@@ -10,7 +10,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use crate::as_u32;
-use crate::format::save::details::{DetailsProjection, FleetSummary, RawPlanet};
+use crate::format::save::details::{DetailsProjection, RawSystemDetails};
 use crate::projections::galaxy::{BypassLink, GalaxyGraph, Nebula, SystemNode, display_name};
 use crate::projections::name::NameTemplate;
 use crate::views::{SearchHit, SearchKind, SearchResult};
@@ -25,8 +25,21 @@ pub type SpecialLabels<'a> = &'a dyn Fn(u32) -> Vec<&'static str>;
 /// Words a content key carries that say nothing about what the system holds.
 const FILLER: [&str; 4] = ["system", "init", "planet", "star"];
 
-/// Content ranks sit below every name rank (0 to 3).
-const CONTENT_RANK: u8 = 4;
+/// How closely a text matched the query, best first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Rank {
+    Exact,
+    Prefix,
+    WordStart,
+    Substring,
+}
+
+/// How a system matched: every name match ranks before every match on what it holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum SystemRank {
+    Name(Rank),
+    Content(Rank),
+}
 
 /// Shorter content queries ("g", "bl") would ring every G star or black hole.
 const MIN_CONTENT_NEEDLE: usize = 3;
@@ -61,33 +74,67 @@ pub fn search(
         special,
     };
     let systems = systems(g, query, &needle, &content, resolve);
-    let planets = details.map_or_else(Vec::new, |d| planets(g, d, &needle, resolve));
-    let fleets = details.map_or_else(Vec::new, |d| fleets(g, d, &needle, resolve));
+    let held_in = |of: fn(&RawSystemDetails) -> Vec<Named<'_>>| {
+        details.map_or_else(Vec::new, |d| in_details(g, d, of, &needle, resolve))
+    };
+    let planets = held_in(|raw| {
+        raw.planets
+            .iter()
+            .map(|p| Named {
+                id: p.id,
+                name: &p.name,
+                owner: None,
+                planet_class: Some(&p.class),
+            })
+            .collect()
+    });
+    let fleets = held_in(|raw| {
+        raw.fleets
+            .iter()
+            .map(|f| Named {
+                id: f.id,
+                name: &f.name,
+                owner: f.owner,
+                planet_class: None,
+            })
+            .collect()
+    });
 
     let located: BTreeSet<u32> = systems
         .iter()
         .map(|m| m.id)
-        .chain(planets.iter().map(|&(_, _, _, system)| system))
-        .chain(fleets.iter().map(|&(_, _, _, system)| system))
+        .chain(planets.iter().map(|&(_, system, _)| system))
+        .chain(fleets.iter().map(|&(_, system, _)| system))
         .collect();
 
     let mut hits: Vec<SearchHit> = systems
         .into_iter()
         .take(limit)
-        .map(|m| system_hit(g, &g.systems[&m.id], m.matched_on))
+        .map(|m| system_hit(g, &g.systems[&m.id], m.matched))
         .collect();
     hits.extend(countries(g, details, &needle, limit, resolve));
+    let held = |kind: SearchKind, (_, system, named): &(Rank, u32, Named<'_>)| SearchHit {
+        system_id: Some(*system),
+        owner: owner_name(g, named.owner),
+        planet_class: named.planet_class.cloned(),
+        ..SearchHit::new(
+            kind,
+            named.id,
+            named.name.clone(),
+            position(g, Some(*system)),
+        )
+    };
     hits.extend(
         planets
             .iter()
             .take(limit)
-            .map(|&(_, _, planet, system)| planet_hit(g, planet, system)),
+            .map(|p| held(SearchKind::Planet, p)),
     );
     hits.extend(
         fleets
             .iter()
             .take(limit)
-            .map(|&(_, _, fleet, system)| fleet_hit(g, fleet, system)),
+            .map(|f| held(SearchKind::Fleet, f)),
     );
     hits.extend(nebulae(g, &needle, limit, resolve));
     SearchResult {
@@ -98,9 +145,16 @@ pub fn search(
 
 /// A system the query matched, and what it matched on when that was not its name.
 struct SystemMatch {
-    rank: u8,
+    rank: SystemRank,
     id: u32,
-    matched_on: Option<String>,
+    matched: Option<Matched>,
+}
+
+/// What a system matched on besides its name: the text shown, and the bypass key when
+/// it was a bypass.
+struct Matched {
+    text: String,
+    bypass: Option<String>,
 }
 
 /// Every matching system, best first: the one the query names by id, then by rank and id.
@@ -121,23 +175,23 @@ fn systems(
         .filter(|s| Some(s.id) != by_id)
         .filter_map(|s| match rank_template(&s.name, needle, resolve) {
             Some(rank) => Some(SystemMatch {
-                rank,
+                rank: SystemRank::Name(rank),
                 id: s.id,
-                matched_on: None,
+                matched: None,
             }),
-            None => content.best(s).map(|(rank, matched_on)| SystemMatch {
-                rank,
+            None => content.best(s).map(|(rank, matched)| SystemMatch {
+                rank: SystemRank::Content(rank),
                 id: s.id,
-                matched_on: Some(matched_on),
+                matched: Some(matched),
             }),
         })
         .collect();
     ranked.sort_unstable_by_key(|m| (m.rank, m.id));
     if let Some(id) = by_id {
         let named = SystemMatch {
-            rank: 0,
+            rank: SystemRank::Name(Rank::Exact),
             id,
-            matched_on: None,
+            matched: None,
         };
         ranked.insert(0, named);
     }
@@ -154,27 +208,31 @@ struct Content<'a> {
 }
 
 impl Content<'_> {
-    /// The best content rank of `s` and what it matched on, the first found on a tie.
-    fn best(&self, s: &SystemNode) -> Option<(u8, String)> {
+    /// The best content rank of `s` and what it matched on, the first found on a tie. A
+    /// substring inside a word is too loose to count.
+    fn best(&self, s: &SystemNode) -> Option<(Rank, Matched)> {
         if self.needle.chars().count() < MIN_CONTENT_NEEDLE {
             return None;
         }
-        let mut best: Option<(u8, String)> = None;
-        let mut offer = |rank: Option<u8>, matched_on: &dyn Fn() -> String| {
-            if let Some(rank) = rank.filter(|&r| r <= 2)
-                && best.as_ref().is_none_or(|&(b, _)| rank < b)
+        let mut best: Option<(Rank, Matched)> = None;
+        let mut offer = |rank: Option<Rank>, matched: &dyn Fn() -> Matched| {
+            if let Some(rank) = rank.filter(|&r| r <= Rank::WordStart)
+                && best.as_ref().is_none_or(|(b, _)| rank < *b)
             {
-                best = Some((rank, matched_on()));
+                best = Some((rank, matched()));
             }
         };
+        let text = |text: String| Matched { text, bypass: None };
         if !s.initializer.is_empty() {
-            offer(self.rank_key(&s.initializer), &|| s.initializer.clone());
+            offer(self.rank_key(&s.initializer), &|| {
+                text(s.initializer.clone())
+            });
         }
         for flag in &s.flags {
-            offer(self.rank_key(flag), &|| flag.clone());
+            offer(self.rank_key(flag), &|| text(flag.clone()));
         }
         for label in (self.special)(s.id) {
-            offer(self.rank_text(label), &|| label.to_owned());
+            offer(self.rank_text(label), &|| text(label.to_owned()));
         }
         for &(key, label) in self.bypasses.get(&s.id).into_iter().flatten() {
             let rank = self
@@ -182,7 +240,10 @@ impl Content<'_> {
                 .into_iter()
                 .chain(self.rank_text(label))
                 .min();
-            offer(rank, &|| label.to_owned());
+            offer(rank, &|| Matched {
+                text: label.to_owned(),
+                bypass: Some(key.to_owned()),
+            });
         }
         for planet in self
             .details
@@ -195,16 +256,18 @@ impl Content<'_> {
             let by_name = resolved.as_deref().and_then(|name| self.rank_text(name));
             let by_key = self.rank_key(class.strip_prefix("pc_").unwrap_or(class));
             let rank = by_key.into_iter().chain(by_name).min();
-            offer(rank, &|| resolved.clone().unwrap_or_else(|| class.clone()));
+            offer(rank, &|| {
+                text(resolved.clone().unwrap_or_else(|| class.clone()))
+            });
         }
-        best.map(|(rank, matched_on)| (CONTENT_RANK + rank, matched_on))
+        best
     }
 
-    fn rank_key(&self, key: &str) -> Option<u8> {
+    fn rank_key(&self, key: &str) -> Option<Rank> {
         rank(&strip_filler(&normalise(key)), &self.needle)
     }
 
-    fn rank_text(&self, text: &str) -> Option<u8> {
+    fn rank_text(&self, text: &str) -> Option<Rank> {
         rank(&strip_filler(&text.trim().to_lowercase()), &self.needle)
     }
 }
@@ -241,7 +304,7 @@ fn countries(
     limit: usize,
     resolve: NameResolver<'_>,
 ) -> Vec<SearchHit> {
-    let mut ranked: Vec<(u8, u32, usize)> = g
+    let mut ranked: Vec<(Rank, u32, usize)> = g
         .countries
         .iter()
         .enumerate()
@@ -257,17 +320,15 @@ fn countries(
                 .capital_system
                 .or_else(|| details.and_then(|d| fleet_system(g, d, country.id)));
             SearchHit {
-                kind: SearchKind::Country,
-                id: country.id,
-                name: country.name.clone(),
-                name_key: country.name_key.clone(),
                 system_id: home,
-                owner: None,
                 country_type: Some(country.country_type.clone()),
                 system_count: Some(country.system_count),
-                planet_class: None,
-                position: position(g, home),
-                matched_on: None,
+                ..SearchHit::new(
+                    SearchKind::Country,
+                    country.id,
+                    country.name.clone(),
+                    position(g, home),
+                )
             }
         })
         .collect()
@@ -282,80 +343,36 @@ fn fleet_system(g: &GalaxyGraph, details: &DetailsProjection, country: u32) -> O
     })
 }
 
-/// Every matching planet with its system, best first.
-fn planets<'a>(
+/// One named thing a system's details hold: a planet or a fleet.
+struct Named<'a> {
+    id: u32,
+    name: &'a NameTemplate,
+    owner: Option<u32>,
+    planet_class: Option<&'a String>,
+}
+
+/// Every matching thing `of` lists in a system's details, with its rank and system, best
+/// first and then by id.
+fn in_details<'a>(
     g: &GalaxyGraph,
     details: &'a DetailsProjection,
+    of: fn(&'a RawSystemDetails) -> Vec<Named<'a>>,
     needle: &str,
     resolve: NameResolver<'_>,
-) -> Vec<(u8, u32, &'a RawPlanet, u32)> {
-    let mut ranked: Vec<(u8, u32, &RawPlanet, u32)> = Vec::new();
+) -> Vec<(Rank, u32, Named<'a>)> {
+    let mut ranked = Vec::new();
     for &system in &g.order {
         let Some(raw) = details.raw(system) else {
             continue;
         };
-        for planet in &raw.planets {
-            if let Some(rank) = rank_template(&planet.name, needle, resolve) {
-                ranked.push((rank, planet.id, planet, system));
+        for named in of(raw) {
+            if let Some(rank) = rank_template(named.name, needle, resolve) {
+                ranked.push((rank, system, named));
             }
         }
     }
-    ranked.sort_unstable_by_key(|&(rank, id, _, _)| (rank, id));
+    ranked.sort_unstable_by_key(|(rank, _, named)| (*rank, named.id));
     ranked
-}
-
-fn planet_hit(g: &GalaxyGraph, planet: &RawPlanet, system: u32) -> SearchHit {
-    SearchHit {
-        kind: SearchKind::Planet,
-        id: planet.id,
-        name: planet.name.clone(),
-        name_key: planet.name.stand_in(),
-        system_id: Some(system),
-        owner: None,
-        country_type: None,
-        system_count: None,
-        planet_class: Some(planet.class.clone()),
-        position: position(g, Some(system)),
-        matched_on: None,
-    }
-}
-
-/// Every matching fleet with its system, best first.
-fn fleets<'a>(
-    g: &GalaxyGraph,
-    details: &'a DetailsProjection,
-    needle: &str,
-    resolve: NameResolver<'_>,
-) -> Vec<(u8, u32, &'a FleetSummary, u32)> {
-    let mut ranked: Vec<(u8, u32, &FleetSummary, u32)> = Vec::new();
-    for &system in &g.order {
-        let Some(raw) = details.raw(system) else {
-            continue;
-        };
-        for fleet in &raw.fleets {
-            if let Some(rank) = rank_template(&fleet.name, needle, resolve) {
-                ranked.push((rank, fleet.id, fleet, system));
-            }
-        }
-    }
-    ranked.sort_unstable_by_key(|&(rank, id, _, _)| (rank, id));
-    ranked
-}
-
-fn fleet_hit(g: &GalaxyGraph, fleet: &FleetSummary, system: u32) -> SearchHit {
-    SearchHit {
-        kind: SearchKind::Fleet,
-        id: fleet.id,
-        name: fleet.name.clone(),
-        name_key: fleet.name.stand_in(),
-        system_id: Some(system),
-        owner: owner_name(g, fleet.owner),
-        country_type: None,
-        system_count: None,
-        planet_class: None,
-        position: position(g, Some(system)),
-        matched_on: None,
-    }
 }
 
 fn nebulae(
@@ -364,7 +381,7 @@ fn nebulae(
     limit: usize,
     resolve: NameResolver<'_>,
 ) -> Vec<SearchHit> {
-    let mut ranked: Vec<(u8, usize)> = g
+    let mut ranked: Vec<(Rank, usize)> = g
         .nebulae
         .iter()
         .enumerate()
@@ -378,35 +395,29 @@ fn nebulae(
         .collect()
 }
 
-fn system_hit(g: &GalaxyGraph, s: &SystemNode, matched_on: Option<String>) -> SearchHit {
+fn system_hit(g: &GalaxyGraph, s: &SystemNode, matched: Option<Matched>) -> SearchHit {
+    let (matched_on, matched_bypass) = match matched {
+        Some(Matched { text, bypass }) => (Some(text), bypass),
+        None => (None, None),
+    };
     SearchHit {
-        kind: SearchKind::System,
-        id: s.id,
-        name: s.name.clone(),
-        name_key: s.name.stand_in(),
         system_id: Some(s.id),
         owner: owner_name(g, s.owner),
-        country_type: None,
-        system_count: None,
-        planet_class: None,
-        position: Some([s.x, s.y]),
         matched_on,
+        matched_bypass,
+        ..SearchHit::new(SearchKind::System, s.id, s.name.clone(), Some([s.x, s.y]))
     }
 }
 
 fn nebula_hit(index: usize, n: &Nebula) -> SearchHit {
     SearchHit {
-        kind: SearchKind::Nebula,
-        id: as_u32(index),
-        name: n.name.clone(),
-        name_key: n.name.stand_in(),
-        system_id: None,
-        owner: None,
-        country_type: None,
         system_count: Some(as_u32(n.systems.len())),
-        planet_class: None,
-        position: Some([n.x, n.y]),
-        matched_on: None,
+        ..SearchHit::new(
+            SearchKind::Nebula,
+            as_u32(index),
+            n.name.clone(),
+            Some([n.x, n.y]),
+        )
     }
 }
 
@@ -422,7 +433,7 @@ fn owner_name(g: &GalaxyGraph, owner: Option<u32>) -> Option<NameTemplate> {
 }
 
 /// The best rank of any key in the template; a literal key matches as written.
-fn rank_template(name: &NameTemplate, needle: &str, resolve: NameResolver<'_>) -> Option<u8> {
+fn rank_template(name: &NameTemplate, needle: &str, resolve: NameResolver<'_>) -> Option<Rank> {
     let own = if name.literal {
         rank(&name.key.trim().to_lowercase(), needle)
     } else {
@@ -436,7 +447,7 @@ fn rank_template(name: &NameTemplate, needle: &str, resolve: NameResolver<'_>) -
 }
 
 /// The better of the display key and the resolved name.
-fn rank_key(key: &str, needle: &str, resolve: NameResolver<'_>) -> Option<u8> {
+fn rank_key(key: &str, needle: &str, resolve: NameResolver<'_>) -> Option<Rank> {
     let by_key = rank(&normalise(key), needle);
     let by_name = resolve(key).and_then(|name| rank(&name.trim().to_lowercase(), needle));
     by_key.into_iter().chain(by_name).min()
@@ -447,16 +458,16 @@ fn normalise(key: &str) -> String {
     display_name(key).to_lowercase()
 }
 
-/// 0 exact, 1 prefix, 2 word start, 3 substring; `None` when `needle` does not occur.
-fn rank(name: &str, needle: &str) -> Option<u8> {
+/// How `needle` occurs in `name`; `None` when it does not.
+fn rank(name: &str, needle: &str) -> Option<Rank> {
     if needle.is_empty() {
         return None;
     }
     if name == needle {
-        return Some(0);
+        return Some(Rank::Exact);
     }
     if name.starts_with(needle) {
-        return Some(1);
+        return Some(Rank::Prefix);
     }
     if !name.contains(needle) {
         return None;
@@ -464,5 +475,9 @@ fn rank(name: &str, needle: &str) -> Option<u8> {
     let word_start = name
         .match_indices(needle)
         .any(|(i, _)| name[..i].ends_with(' '));
-    Some(if word_start { 2 } else { 3 })
+    Some(if word_start {
+        Rank::WordStart
+    } else {
+        Rank::Substring
+    })
 }

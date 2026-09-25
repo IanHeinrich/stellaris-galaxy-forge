@@ -23,7 +23,7 @@ use crate::projections::name::NameTemplate;
 use crate::span::Span;
 use crate::views::{ErrorKind, SgfError};
 
-pub(crate) use address::inner_sections;
+pub(crate) use address::{address, inner_sections};
 pub use schema::{EntitySchema, FieldSchema, FieldType};
 pub use views::{
     ContentsRow, EntityAddr, EntityKind, EntityNode, EntitySource, EntityView, Fact, NodeValue,
