@@ -15,21 +15,21 @@ import { bindStores } from "../../../store/bindStores";
 import { useEntityStore } from "../../../store/entityStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
-import { armSession, mocked, resetStores } from "../../../store/storeFixture";
+import { armSession, resetStores } from "../../../store/storeFixture";
 import { openWith } from "../../../test/session";
 import { drawnBy, drawnField } from "../../../test/drawn";
 import { SwatchField, ToggleField } from "../../EditField";
 import { CountryView, MAP_COLORS_NEED_4_5 } from "./CountryView";
+import { mockedIpc } from "../../../test/ipc";
 
 bindStores();
 
-/** An empire of a 4.4 save: its four flag colours and no map colours. */
+/** An empire of a 4.4 save, with no map colours. */
 const EMPIRE = countryNode();
 
 /** The same empire in a 4.5 save, with a map border and fill of its own. */
 const CHOSEN: CountryNode = {
   ...EMPIRE,
-  flag_colors: ["red", "purple", "black", "grey", "intense_red", "light_pink"],
   use_map_color: true,
   painted_border: "intense_red",
   painted_fill: "light_pink",
@@ -129,7 +129,7 @@ describe("an empire's map colour fields", () => {
 
     drawnField(SwatchField, "Border").onPick("light_pink");
     await vi.waitFor(() =>
-      expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetEmpireMapColors",
         country: CHOSEN.id,
         colors: { border: "light_pink", fill: "light_pink" },
@@ -138,7 +138,7 @@ describe("an empire's map colour fields", () => {
 
     drawnField(ToggleField, "Use flag colours instead").onChange(true);
     await vi.waitFor(() =>
-      expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetEmpireMapColors",
         country: CHOSEN.id,
         colors: null,

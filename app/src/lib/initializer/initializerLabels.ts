@@ -5,7 +5,7 @@ export const RANDOM_INITIALIZER_LABEL = "random";
 export const INITIALIZER_SEARCH_MIN = 6;
 
 /** What the legend calls the keys the loaded game data does not account for. */
-export const OTHER_GROUP = { id: "other", label: "Other" };
+const OTHER_GROUP = { id: "other", label: "Other" };
 
 /** One initializer key and how many systems carry it. */
 export interface InitializerCount {

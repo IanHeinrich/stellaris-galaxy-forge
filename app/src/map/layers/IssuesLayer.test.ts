@@ -1,19 +1,19 @@
 import { Graphics } from "pixi.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Issue } from "../../generated/Issue";
+import { appIssue } from "../../test/builders";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { IssuesLayer, SEVERITY_COLOR } from "./IssuesLayer";
 import { mapContext, mapNode, strokes, viewport } from "./fixture";
 
 const SOL = mapNode(0, 0, "Sol");
 
-const ISOLATED: Issue = {
+const ISOLATED: Issue = appIssue({
   severity: "error",
   code: "system_isolated",
   message: "Sol has no hyperlanes",
   systems: [0],
-  note: false,
-};
+});
 
 /** The ring drawn on the system at `x`, as the pointer would find it. */
 function ringAt(layer: IssuesLayer, x: number): Graphics {

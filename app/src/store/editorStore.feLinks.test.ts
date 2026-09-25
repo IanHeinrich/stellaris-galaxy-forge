@@ -5,12 +5,13 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import type { SystemNode } from "../generated/SystemNode";
-import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
+import { editor, openFixtureSave, sessionError } from "./editorFixture";
 import { useGalaxyStore } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { FE_LINK_ANCHOR, FE_LINKED, SYSTEMS, editResult } from "./fixture";
+import { mockedIpc } from "../test/ipc";
 
-const setFeLinks = mocked.setFeLinks;
+const setFeLinks = mockedIpc.setFeLinks;
 
 /** Puts `nodes` into the galaxy the store reads, over the fixture's own. */
 function place(...nodes: SystemNode[]): void {
@@ -81,10 +82,10 @@ describe("a fallen empire zone's custom connections", () => {
 
   it("dropDanglingFeLinks keeps the ids a zone takes and drops the rest, in one op", async () => {
     place({ ...FE_LINKED, fe_link: { custom: false, id: null, to: [2, 5] } });
-    mocked.applyOp.mockResolvedValue(editResult());
+    mockedIpc.applyOp.mockResolvedValue(editResult());
     expect(await editor().dropDanglingFeLinks(5)).toBe(true);
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "SetFeLinkFlags",
       entries: [[5, { custom: false, id: null, to: [2] }]],
     });
@@ -92,7 +93,7 @@ describe("a fallen empire zone's custom connections", () => {
 
     place(FE_LINKED);
     expect(await editor().dropDanglingFeLinks(5)).toBe(true);
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
   });
 
   it("reports a refused command as the session error", async () => {

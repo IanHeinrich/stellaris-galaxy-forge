@@ -14,7 +14,7 @@ vi.mock("./gameDataStore", () => ({
 import * as ipc from "../api/ipc";
 import { bindStores } from "./bindStores";
 import { useDetailsStore } from "./detailsStore";
-import { systemDetails } from "./fixture";
+import { planetSummary, systemDetails } from "./fixture";
 
 bindStores();
 
@@ -127,9 +127,7 @@ describe("request", () => {
       ids.map((id) => ({
         ...systemDetails({ id }),
         planets: [
-          {
-            id: 1,
-            class: "pc_continental",
+          planetSummary({
             name: {
               key: "PLANET_NAME_FORMAT",
               literal: false,
@@ -138,18 +136,9 @@ describe("request", () => {
               ],
             },
             name_key: "NAME_Alpha",
-            colonised: false,
-            capital: false,
             habitable: true,
-            owner: null,
-            moon: false,
-            pre_ftl: false,
             size: 12,
-            orbit: null,
-            deposits: [],
-            deposit_keys: [],
-            pops: 0,
-          },
+          }),
         ],
         resources: [{ resource: "energy", amount: 3 }],
       })),

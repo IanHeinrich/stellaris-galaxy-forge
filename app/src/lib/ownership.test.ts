@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CountryNode } from "../generated/CountryNode";
 import type { MarauderRole } from "../generated/MarauderRole";
 import type { SystemNode } from "../generated/SystemNode";
-import { countryNode, systemNode } from "../test/builders";
+import { byId, countryNode, systemNode } from "../test/builders";
 import {
   clanSystemsOf,
   composeOwnership,
@@ -56,10 +56,6 @@ function input(over: Partial<OwnershipInput>): OwnershipInput {
     countryName: (c) => c.name_key,
     ...over,
   };
-}
-
-function byId(...systems: SystemNode[]): Map<number, SystemNode> {
-  return new Map(systems.map((s) => [s.id, s]));
 }
 
 describe("composeOwnership", () => {

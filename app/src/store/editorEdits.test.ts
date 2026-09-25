@@ -11,7 +11,6 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import {
   addedNode,
   editor,
-  mocked,
   openFixtureSave,
   sessionError,
   withAddedSystems,
@@ -34,17 +33,18 @@ import {
   systemDetails,
 } from "./fixture";
 import { name } from "../test/builders";
+import { mockedIpc } from "../test/ipc";
 
 beforeEach(openFixtureSave);
 
 describe("editing", () => {
   it("applyOp applies the delta, updates history and dirty, and refreshes the inspected system", async () => {
     await editor().select(0);
-    mocked.getSystem.mockClear();
+    mockedIpc.getSystem.mockClear();
 
     const moved = { ...SYSTEMS[0], x: -150, y: 60 };
     const result = editResult({ delta: { systems: [moved] } });
-    mocked.applyOp.mockResolvedValueOnce(result);
+    mockedIpc.applyOp.mockResolvedValueOnce(result);
 
     expect(await editor().applyOp({ type: "MoveSystem", id: 0, x: -150, y: 60 })).toBe(true);
 
@@ -59,13 +59,13 @@ describe("editing", () => {
     expect(useIssuesStore.getState().issues).toEqual(result.issues);
     expect(session.error).toBeNull();
 
-    expect(mocked.getSystem).toHaveBeenCalledTimes(1);
-    expect(mocked.getSystem).toHaveBeenCalledWith(0);
+    expect(mockedIpc.getSystem).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getSystem).toHaveBeenCalledWith(0);
   });
 
   it("a delta hands the map a new systems map, so a selector on it re-renders", async () => {
     const before = useGalaxyStore.getState().systems;
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 3, y: 3 }] } }),
     );
     await editor().applyOp({ type: "MoveSystem", id: 0, x: 3, y: 3 });
@@ -75,7 +75,7 @@ describe("editing", () => {
 
   it("applyOp refused sets the error and leaves the galaxy untouched", async () => {
     const before = useGalaxyStore.getState().systems.get(0);
-    mocked.applyOp.mockRejectedValueOnce({
+    mockedIpc.applyOp.mockRejectedValueOnce({
       kind: "op",
       message: "systems 0 and 1 are already linked",
     });
@@ -86,8 +86,8 @@ describe("editing", () => {
   });
 
   it.each([
-    ["undo", () => mocked.undo, (): Promise<void> => editor().undo()],
-    ["redo", () => mocked.redo, (): Promise<void> => editor().redo()],
+    ["undo", () => mockedIpc.undo, (): Promise<void> => editor().undo()],
+    ["redo", () => mockedIpc.redo, (): Promise<void> => editor().redo()],
   ])("%s resolving null leaves state alone", async (_name, step, run) => {
     const before = editor().history;
     step().mockResolvedValueOnce(null);
@@ -99,8 +99,8 @@ describe("editing", () => {
   });
 
   it.each([
-    ["undo", () => mocked.undo, (): Promise<void> => editor().undo()],
-    ["redo", () => mocked.redo, (): Promise<void> => editor().redo()],
+    ["undo", () => mockedIpc.undo, (): Promise<void> => editor().undo()],
+    ["redo", () => mockedIpc.redo, (): Promise<void> => editor().redo()],
   ])("%s resolving an EditResult applies its delta and clears the error", async (_n, step, run) => {
     useFileSessionStore.getState().setError("stale error");
     const moved = { ...SYSTEMS[0], x: -150, y: 60 };
@@ -117,7 +117,7 @@ describe("editing", () => {
 
   it("a rejected redo reports the message and leaves the history alone", async () => {
     const before = editor().history;
-    mocked.redo.mockRejectedValueOnce({ kind: "op", message: "nothing to redo" });
+    mockedIpc.redo.mockRejectedValueOnce({ kind: "op", message: "nothing to redo" });
 
     await editor().redo();
 
@@ -136,12 +136,11 @@ describe("editing", () => {
       colors: ["red", "purple", "black", "grey", "red", "purple"],
       border_color: null,
       fill_color: null,
-      flag_colors: ["red", "purple", "black", "grey", "red", "purple"],
       use_map_color: false,
       flag_icon: null,
       flag_background: null,
     };
-    mocked.openSave.mockResolvedValueOnce({
+    mockedIpc.openSave.mockResolvedValueOnce({
       ...OPEN_RESULT,
       galaxy: { ...OPEN_RESULT.galaxy, countries: [empire] },
     });
@@ -151,10 +150,9 @@ describe("editing", () => {
       colors: ["red", "purple", "black", "grey", "intense_red", "light_pink"],
       border_color: "intense_red",
       fill_color: "light_pink",
-      flag_colors: ["red", "purple", "black", "grey", "intense_red", "light_pink"],
       use_map_color: true,
     };
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [], countries: [chosen] } }),
     );
 
@@ -165,7 +163,9 @@ describe("editing", () => {
     });
     expect(useGalaxyStore.getState().countries.get(0)).toEqual(chosen);
 
-    mocked.undo.mockResolvedValueOnce(editResult({ delta: { systems: [], countries: [empire] } }));
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], countries: [empire] } }),
+    );
     await editor().undo();
     expect(useGalaxyStore.getState().countries.get(0)).toEqual(empire);
   });
@@ -176,22 +176,22 @@ describe("editing", () => {
       pending: new Set([2]),
     });
     await editor().select(1);
-    mocked.getSystem.mockClear();
-    mocked.warmDetails.mockClear();
-    mocked.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1, 2] }));
+    mockedIpc.getSystem.mockClear();
+    mockedIpc.warmDetails.mockClear();
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1, 2] }));
 
     await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
 
     const details = useDetailsStore.getState();
     expect(details.details.has(1)).toBe(true);
     expect(details.pending.has(2)).toBe(false);
-    expect(mocked.warmDetails).toHaveBeenCalledTimes(1);
-    expect(mocked.getSystem).toHaveBeenCalledWith(1);
+    expect(mockedIpc.warmDetails).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getSystem).toHaveBeenCalledWith(1);
   });
 
   it("a projection rebuild that fails says so on the session, and the edit still stands", async () => {
-    mocked.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
-    mocked.warmDetails.mockRejectedValueOnce({ kind: "internal", message: "no projection" });
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
+    mockedIpc.warmDetails.mockRejectedValueOnce({ kind: "internal", message: "no projection" });
 
     expect(await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 })).toBe(true);
 
@@ -204,8 +204,8 @@ describe("editing", () => {
     const warm = new Promise<void>((_warmed, rejected) => {
       fail = rejected;
     });
-    mocked.warmDetails.mockReturnValueOnce(warm);
-    mocked.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
+    mockedIpc.warmDetails.mockReturnValueOnce(warm);
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
 
     await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
     editor().resetSession();
@@ -223,37 +223,37 @@ describe("editing", () => {
     });
     await editor().select(1);
     useInspectorStore.getState().open({ ref: { kind: "planet", id: 42 }, label: "Planet" });
-    mocked.getSystem.mockClear();
-    mocked.applyOp.mockResolvedValueOnce(editResult({ details_stale: [7] }));
+    mockedIpc.getSystem.mockClear();
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [7] }));
 
     await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
 
-    expect(mocked.getSystem).toHaveBeenCalledWith(1);
+    expect(mockedIpc.getSystem).toHaveBeenCalledWith(1);
   });
 
   it("leaves the selected system alone when nothing it shows was touched", async () => {
     await editor().select(1);
     useInspectorStore.getState().open({ ref: { kind: "planet", id: 42 }, label: "Planet" });
-    mocked.getSystem.mockClear();
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.getSystem.mockClear();
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 1, y: 1 }] } }),
     );
 
     await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
 
-    expect(mocked.getSystem).not.toHaveBeenCalled();
+    expect(mockedIpc.getSystem).not.toHaveBeenCalled();
   });
 
   it("applies deltas in the order the ops were sent when their results arrive out of order", async () => {
     let finishFirst!: (result: EditResult) => void;
-    mocked.applyOp.mockReturnValueOnce(new Promise<EditResult>((r) => (finishFirst = r)));
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockReturnValueOnce(new Promise<EditResult>((r) => (finishFirst = r)));
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 20, y: 20 }] } }),
     );
 
     const first = editor().applyOp({ type: "MoveSystem", id: 0, x: 10, y: 10 });
     const second = editor().applyOp({ type: "MoveSystem", id: 0, x: 20, y: 20 });
-    await vi.waitFor(() => expect(mocked.applyOp).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1));
 
     finishFirst(editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 10, y: 10 }] } }));
     expect(await first).toBe(true);
@@ -272,36 +272,36 @@ describe("history navigation", () => {
     editResult({ history: { undo: entries.slice(0, applied), redo: entries.slice(applied) } });
 
   beforeEach(async () => {
-    mocked.undo.mockImplementation(async () => {
+    mockedIpc.undo.mockImplementation(async () => {
       const applied = editor().history.undo.length;
       return applied === 0 ? null : at(applied - 1);
     });
-    mocked.redo.mockImplementation(async () => {
+    mockedIpc.redo.mockImplementation(async () => {
       const applied = editor().history.undo.length;
       return applied === entries.length ? null : at(applied + 1);
     });
-    mocked.applyOp.mockResolvedValueOnce(at(3));
+    mockedIpc.applyOp.mockResolvedValueOnce(at(3));
     await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
   });
 
   it("undoTo undoes until the entry is the last applied and redoTo redoes forward to it", async () => {
     await editor().undoTo(1);
-    expect(mocked.undo).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.undo).toHaveBeenCalledTimes(2);
     expect(editor().history.undo.map((e) => e.seq)).toEqual([1]);
     expect(editor().history.redo.map((e) => e.seq)).toEqual([2, 3]);
 
     await editor().redoTo(3);
-    expect(mocked.redo).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.redo).toHaveBeenCalledTimes(2);
     expect(editor().history.undo.map((e) => e.seq)).toEqual([1, 2, 3]);
   });
 
   it("clicking the current entry does nothing, and a failing step stops the loop", async () => {
     await editor().undoTo(3);
-    expect(mocked.undo).not.toHaveBeenCalled();
+    expect(mockedIpc.undo).not.toHaveBeenCalled();
 
-    mocked.undo.mockRejectedValue({ kind: "op", message: "broken" });
+    mockedIpc.undo.mockRejectedValue({ kind: "op", message: "broken" });
     await editor().undoTo(1);
-    expect(mocked.undo).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.undo).toHaveBeenCalledTimes(1);
     expect(sessionError()).toBe("broken");
     expect(editor().history.undo).toHaveLength(3);
   });
@@ -312,8 +312,8 @@ describe("the systems the core reports stale", () => {
     await editor().select(1);
     useInspectorStore.getState().setRoot({ ref: { kind: "system", id: 1 }, label: "Alpha" });
     useDetailsStore.setState({ details: new Map([[1, systemDetails({ id: 1 })]]) });
-    mocked.getSystemDetails.mockResolvedValue([]);
-    mocked.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
+    mockedIpc.getSystemDetails.mockResolvedValue([]);
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
 
     await editor().applyOp({ type: "SetInitializer", id: 1, initializer: "guardian_dragon" });
     useDetailsStore.getState().request([1]);
@@ -325,18 +325,18 @@ describe("the systems the core reports stale", () => {
 
 describe("re-classifying after an edit", () => {
   it("re-reads the special systems when the edit says it reclassifies", async () => {
-    mocked.applyOp.mockResolvedValueOnce(editResult({ reclassifies: true }));
-    mocked.getSpecialSystems.mockClear();
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ reclassifies: true }));
+    mockedIpc.getSpecialSystems.mockClear();
 
     await editor().applyOp({ type: "SetInitializer", id: 0, initializer: "guardian_dragon" });
 
-    expect(mocked.getSpecialSystems).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1);
   });
 
   it("re-reads the scripted owners too, so a new initializer redraws its territory", async () => {
-    mocked.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
-    mocked.applyOp.mockResolvedValueOnce(editResult({ reclassifies: true }));
-    mocked.getScenarioOwners.mockClear();
+    mockedIpc.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ reclassifies: true }));
+    mockedIpc.getScenarioOwners.mockClear();
 
     await editor().applyOp({
       type: "SetInitializer",
@@ -344,54 +344,54 @@ describe("re-classifying after an edit", () => {
       initializer: "empire_capital_init",
     });
 
-    expect(mocked.getScenarioOwners).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getScenarioOwners).toHaveBeenCalledTimes(1);
     expect(useGalaxyStore.getState().systems.get(1)?.owner).toBe(TERRITORY.id);
   });
 
   it("leaves them alone after an edit that says it does not", async () => {
-    mocked.applyOp.mockResolvedValueOnce(editResult({}));
-    mocked.getSpecialSystems.mockClear();
-    mocked.getScenarioOwners.mockClear();
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({}));
+    mockedIpc.getSpecialSystems.mockClear();
+    mockedIpc.getScenarioOwners.mockClear();
 
     await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 2 });
 
-    expect(mocked.getSpecialSystems).not.toHaveBeenCalled();
-    expect(mocked.getScenarioOwners).not.toHaveBeenCalled();
+    expect(mockedIpc.getSpecialSystems).not.toHaveBeenCalled();
+    expect(mockedIpc.getScenarioOwners).not.toHaveBeenCalled();
   });
 
   it("leaves them alone when the op is refused", async () => {
-    mocked.applyOp.mockRejectedValueOnce({ kind: "op", message: "no" });
-    mocked.getSpecialSystems.mockClear();
+    mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "no" });
+    mockedIpc.getSpecialSystems.mockClear();
 
     expect(await editor().applyOp({ type: "RemoveSystem", id: 5 })).toBe(false);
 
-    expect(mocked.getSpecialSystems).not.toHaveBeenCalled();
+    expect(mockedIpc.getSpecialSystems).not.toHaveBeenCalled();
   });
 
   it("undoing an initializer edit re-classifies too", async () => {
-    mocked.applyOp.mockResolvedValueOnce(editResult({ reclassifies: true }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ reclassifies: true }));
     await editor().applyOp({ type: "SetInitializer", id: 0, initializer: "guardian_dragon" });
-    mocked.getSpecialSystems.mockClear();
-    mocked.undo.mockResolvedValueOnce(editResult({ reclassifies: true }));
+    mockedIpc.getSpecialSystems.mockClear();
+    mockedIpc.undo.mockResolvedValueOnce(editResult({ reclassifies: true }));
 
     await editor().undo();
 
-    expect(mocked.getSpecialSystems).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1);
   });
 
   it("a run of edits re-classifies once, and the edit behind them does not wait for it", async () => {
-    await vi.waitFor(() => expect(mocked.getSpecialSystems).toHaveBeenCalledTimes(2));
-    mocked.getSpecialSystems.mockClear();
+    await vi.waitFor(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(2));
+    mockedIpc.getSpecialSystems.mockClear();
     let release = (): void => undefined;
     const reading = new Promise<void>((resolve) => {
       release = resolve;
     });
-    mocked.getSpecialSystems.mockImplementationOnce(async () => {
+    mockedIpc.getSpecialSystems.mockImplementationOnce(async () => {
       await reading;
       return { systems: [], counts: [], with_game_data: false };
     });
     const reclassifying = editResult({ reclassifies: true });
-    mocked.applyOp
+    mockedIpc.applyOp
       .mockResolvedValueOnce(reclassifying)
       .mockResolvedValueOnce(reclassifying)
       .mockResolvedValueOnce(reclassifying);
@@ -399,21 +399,21 @@ describe("re-classifying after an edit", () => {
     const run = [0, 1, 2].map((id) =>
       editor().applyOp({ type: "SetInitializer", id, initializer: "guardian_dragon" }),
     );
-    await vi.waitFor(() => expect(mocked.getSpecialSystems).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1));
 
-    mocked.applyOp.mockResolvedValueOnce(editResult({}));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({}));
     expect(await editor().applyOp({ type: "MoveSystem", id: 0, x: 9, y: 9 })).toBe(true);
 
     release();
     await Promise.all(run);
-    expect(mocked.getSpecialSystems).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("following a delete that renumbers", () => {
   /** Removing 6 moves 7 down to 6, as the core reports it. */
   function removeSix(seven: SystemNode) {
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({
         entry: historyEntry(3, "Removed Added 6 (#6); renumbered 7 to 6"),
         delta: {
@@ -476,7 +476,7 @@ describe("following a delete that renumbers", () => {
     });
     editor().setHover(7);
     editor().selectLane({ a: 3, b: 7 });
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({
         delta: {
           systems: [
@@ -532,7 +532,7 @@ describe("following a delete that renumbers", () => {
 describe("history steps that bring an added system back", () => {
   it("an undone delete selects the system again and moves the later one back up", async () => {
     const [six, seven] = withAddedSystems();
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({
         delta: {
           systems: [{ ...seven, id: 6 }],
@@ -545,7 +545,7 @@ describe("history steps that bring an added system back", () => {
       }),
     );
     await editor().applyOp({ type: "RemoveSystem", id: 6 });
-    mocked.undo.mockResolvedValueOnce(
+    mockedIpc.undo.mockResolvedValueOnce(
       editResult({ delta: { systems: [six, seven], renumbered: [[6, 7]] } }),
     );
 
@@ -559,7 +559,7 @@ describe("history steps that bring an added system back", () => {
   it("a redone add selects the system again", async () => {
     withAddedSystems();
     const eight = addedNode(8, 30, -30);
-    mocked.redo.mockResolvedValueOnce(editResult({ delta: { systems: [eight] } }));
+    mockedIpc.redo.mockResolvedValueOnce(editResult({ delta: { systems: [eight] } }));
 
     await editor().redo();
 
@@ -570,7 +570,7 @@ describe("history steps that bring an added system back", () => {
   it("an undone reroll leaves the selection where it was", async () => {
     const [six] = withAddedSystems();
     await editor().select(7);
-    mocked.undo.mockResolvedValueOnce(editResult({ delta: { systems: [six] } }));
+    mockedIpc.undo.mockResolvedValueOnce(editResult({ delta: { systems: [six] } }));
 
     await editor().undo();
 

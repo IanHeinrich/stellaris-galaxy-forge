@@ -109,6 +109,10 @@ and background clouds, are not added. Reroll on the new system's page
 builds the same special system again. Picking a star class there
 generates a regular system around that star.
 
+A system added inside a nebula joins it. To take out a system you added
+this session, select it and press Delete, or right-click it and pick
+"Delete system". Systems the save already had can't be deleted.
+
 ### Stars and empires
 
 - Each star in a system's planet list has an "Edit" mark. Its page sets
@@ -141,11 +145,6 @@ too.
 
 The breadcrumb above the page goes back: "‹" for one step, a name in it
 for that page, or "Galaxy" for the whole map.
-
-### Symmetry
-
-The Symmetry button under the tools, or M, mirrors your edits around the
-centre of the galaxy or repeats them 2 to 8 times around it.
 
 ## Make a scenario
 
@@ -212,6 +211,12 @@ On a map for Paint a Galaxy you can also:
 
 The Scripts tab and the day-one layers are a best guess at what scripts
 will do on day one. Galaxy Forge can't follow every script.
+
+#### Symmetry
+
+In a scenario, the Symmetry button under the tools, or M, mirrors your
+edits around the centre of the galaxy or repeats them 2 to 8 times
+around it. Saves have no symmetry.
 
 ## Play your scenario
 
@@ -325,7 +330,7 @@ I haven't tested Ironman saves.
 | --- | --- |
 | V, C, X | Select, Connect lanes, Cut lanes |
 | B, E | Paint systems, Erase systems |
-| M | Symmetry on or off |
+| M | Symmetry on or off, in a scenario |
 | `[` `]` | Brush size, or nebula radius |
 | Alt | Swap the brush while held |
 | Shift+Arrow | Nudge by 1, or 10 with Ctrl |
@@ -354,7 +359,9 @@ shown as `#123` in the app. `sgf --help` lists every command, and
 - Read a file: `inspect`, `validate`, `details`, `special`,
   `special-layouts`, `gamedata`. `special-layouts` lists the layouts a
   system can be rerolled from, and how many systems in the save already
-  use each.
+  use each. `shape` and `roundtrip` check a save's structure: `shape`
+  lists every key path with its count, and `roundtrip` writes the save
+  out unchanged.
 - Edit the galaxy: `move`, `isolate`, `lane`, `nebula`, `move-nebula`,
   `star`, `planet-size`, `deposit`, `add-system`. `deposit add` and
   `deposit remove` change the deposits on an uncolonised planet.

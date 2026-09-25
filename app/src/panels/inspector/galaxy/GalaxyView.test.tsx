@@ -17,7 +17,7 @@ import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useLGateStore } from "../../../store/lgateStore";
-import { armSession, mocked, resetStores } from "../../../store/storeFixture";
+import { armSession, resetStores } from "../../../store/storeFixture";
 import { drawnBy, drawnButton, drawnField } from "../../../test/drawn";
 import { openWith } from "../../../test/session";
 import { PickerField } from "../../EditField";
@@ -39,6 +39,7 @@ import {
   SHAPES_TITLE,
 } from "./gameSetup";
 import { addHeaderField, DUPLICATE_KEY_TITLE, removeHeaderField, setHeaderField } from "./header";
+import { mockedIpc } from "../../../test/ipc";
 
 /** A header as a scenario writes one: a name, its shapes, and a key the file states twice. */
 const HEADER: HeaderField[] = [
@@ -66,11 +67,11 @@ bindStores();
 beforeEach(() => {
   resetStores();
   armSession();
-  mocked.openAsScenario.mockResolvedValue({
+  mockedIpc.openAsScenario.mockResolvedValue({
     ...SCENARIO_RESULT,
     galaxy: { ...SCENARIO_RESULT.galaxy, header: HEADER },
   });
-  mocked.applyOp.mockResolvedValue(editResult());
+  mockedIpc.applyOp.mockResolvedValue(editResult());
 });
 
 const galaxy = () => renderToStaticMarkup(<GalaxyView />);
@@ -188,14 +189,14 @@ describe("the scenario header", () => {
     await open("scenario");
 
     await useEditorStore.getState().applyOp(setHeaderField("name", ' "Other Galaxy" '));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "SetHeaderField",
       key: "name",
       value: '"Other Galaxy"',
     });
 
     await useEditorStore.getState().applyOp(removeHeaderField("priority"));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "SetHeaderField",
       key: "priority",
       value: null,
@@ -218,7 +219,7 @@ describe("the scenario header", () => {
   });
 
   it("names the size the mod lists the scenario under, and sums up its scripted seats", async () => {
-    mocked.openAsScenario.mockResolvedValueOnce({
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       painted: true,
       galaxy: {
@@ -257,7 +258,7 @@ describe("the game setup grid", () => {
   const count = (label: string, value: string) => cell(label, CLEAR_KEY_TITLE, value);
 
   async function openSetup(): Promise<string> {
-    mocked.openAsScenario.mockResolvedValueOnce({
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       galaxy: { ...SCENARIO_RESULT.galaxy, header: SETUP_HEADER },
     });
@@ -305,7 +306,7 @@ describe("the game setup grid", () => {
     expect(html).toContain(count("Gateways default", ""));
 
     await useEditorStore.getState().applyOp(removeHeaderField("num_empires"));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "SetHeaderField",
       key: "num_empires",
       value: null,
@@ -341,7 +342,7 @@ describe("the shapes row", () => {
   });
 
   it("marks a shape the header lists that the game data lacks", async () => {
-    mocked.openAsScenario.mockResolvedValueOnce({
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       galaxy: {
         ...SCENARIO_RESULT.galaxy,
@@ -369,7 +370,7 @@ describe("the shapes row", () => {
   });
 
   it("warns when no shape is ticked", async () => {
-    mocked.openAsScenario.mockResolvedValueOnce({
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       galaxy: { ...SCENARIO_RESULT.galaxy, header: [HEADER[0]] },
     });
@@ -387,7 +388,7 @@ describe("the shapes row", () => {
     await useEditorStore
       .getState()
       .applyOp({ type: "SetHeaderList", key: "supports_shape", values: ["elliptical"] });
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "SetHeaderList",
       key: "supports_shape",
       values: ["elliptical"],
@@ -428,12 +429,12 @@ describe("the L-Gate outcome", () => {
     useLGateStore.getState().reveal();
     expect(drawnBy(galaxy)).toContain(LGATE_TEMPEST_NOTE);
 
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [], lgate: { outcome: "l_drakes", opened: false } } }),
     );
     drawnField(PickerField, "L-Gate outcome").onPick("l_drakes");
     await vi.waitFor(() =>
-      expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetLGateOutcome",
         outcome: "l_drakes",
       }),

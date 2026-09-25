@@ -15,9 +15,10 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
-import { armSession, mocked, resetStores } from "../../store/storeFixture";
+import { armSession, resetStores } from "../../store/storeFixture";
 import { openWith } from "../../test/session";
 import { Empires } from "./Empires";
+import { mockedIpc } from "../../test/ipc";
 
 bindStores();
 
@@ -25,7 +26,7 @@ beforeEach(() => {
   resetStores();
   armSession();
   useGameDataStore.setState({ status: "ready" });
-  mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
+  mockedIpc.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
 });
 
 /** Opens the scenario and stamps its territories the way `refreshScenarioOwners` does. */
@@ -84,7 +85,7 @@ describe("a scenario's territory rows", () => {
 });
 
 /** One empire of the save's own, which the shared galaxy fixture has none of. */
-const EMPIRE = countryNode({ flag_colors: [] });
+const EMPIRE = countryNode();
 
 describe("a save's empire rows", () => {
   it("carries no territory badge, since a save has no scripted tiers", async () => {

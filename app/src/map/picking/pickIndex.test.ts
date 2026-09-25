@@ -8,7 +8,7 @@ import { PickIndex } from "./pickIndex";
 
 function indexed(...nodes: SystemNode[]): PickIndex {
   const index = new PickIndex();
-  index.build(byId([...nodes]));
+  index.build(byId(...nodes));
   return index;
 }
 
@@ -138,7 +138,7 @@ describe("the pick index against a scan of every lane", () => {
   it("finds the same lane, before and after a delta moves, removes and relanes systems", () => {
     const rand = seeded(7);
     const nodes = galaxy(rand);
-    const systems = byId([...nodes]);
+    const systems = byId(...nodes);
     const index = new PickIndex();
     index.build(systems);
     expectSameAsScan(index, systems, rand);
@@ -169,13 +169,13 @@ describe("a delta", () => {
   it("moves a zone's links with its anchor, and drops them when it stops taking links", () => {
     const index = indexed(ANCHOR, LINKED);
     const moved = { ...ANCHOR, y: 100 };
-    index.apply({ systems: [moved] }, byId([moved, LINKED]));
+    index.apply({ systems: [moved] }, byId(moved, LINKED));
     expect(index.nearestEdge(100, 3, 5, true)).toBeNull();
     expect(index.nearestEdge(-10, 100, 5, true)).toBeNull();
     expect(index.nearestEdge(94, 44, 5, true)).toEqual(LINK);
 
     const closed = { ...moved, fe_link: { ...moved.fe_link, custom: false } };
-    index.apply({ systems: [closed] }, byId([closed, LINKED]));
+    index.apply({ systems: [closed] }, byId(closed, LINKED));
     expect(index.nearestEdge(94, 44, 5, true)).toBeNull();
   });
 
@@ -186,11 +186,11 @@ describe("a delta", () => {
       ...LINKED,
       fe_link: { ...LINKED.fe_link, to: [] },
     });
-    index.apply({ systems: [LINKED, other] }, byId([ANCHOR, one, other, LINKED]));
+    index.apply({ systems: [LINKED, other] }, byId(ANCHOR, one, other, LINKED));
     expect(index.nearestEdge(100, 3, 5, true)).toEqual(LINK);
     expect(index.nearestLane(50, 200, 5)).toEqual({ a: 3, b: 4 });
 
-    index.apply({ systems: [], removed: [1] }, byId([one, other, LINKED]));
+    index.apply({ systems: [], removed: [1] }, byId(one, other, LINKED));
     expect(index.nearestEdge(100, 3, 5, true)).toBeNull();
     expect([...index.anchors()]).toEqual([]);
   });

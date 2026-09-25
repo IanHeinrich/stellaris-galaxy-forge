@@ -23,10 +23,7 @@ pub struct CountryNode {
     pub border_color: Option<String>,
     /// `flag.colors[5]`, the map fill colour; set only under `flag.use_map_color=yes`.
     pub fill_color: Option<String>,
-    /// Every `flag.colors` entry in order, the `"null"` placeholders kept; empty for a
-    /// scenario's territories.
-    pub flag_colors: Vec<String>,
-    /// Whether `flag.use_map_color=yes`: the game paints the map in `flag_colors[4]` and
+    /// Whether `flag.use_map_color=yes`: the game paints the map in `flag.colors[4]` and
     /// `[5]` rather than the first two.
     pub use_map_color: bool,
     /// The colour the map paints the territory's border in: `flag.colors[4]` under

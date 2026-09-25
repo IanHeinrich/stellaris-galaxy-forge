@@ -259,7 +259,6 @@ fn territories(
                     colors: identity.colors.clone(),
                     border_color: None,
                     fill_color: None,
-                    flag_colors: Vec::new(),
                     use_map_color: false,
                     painted_border: identity.colors.first().cloned(),
                     painted_fill: identity.colors.get(1).or(identity.colors.first()).cloned(),

@@ -6,12 +6,13 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import type { AddSystemPicks } from "../generated/AddSystemPicks";
 import type { PickSummary } from "../generated/PickSummary";
-import { mocked, openFixtureSave } from "./editorFixture";
+import { openFixtureSave } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { loadGameData } from "./gameDataFixture";
 import { useGeneratorStore } from "./generatorStore";
+import { mockedIpc } from "../test/ipc";
 
-const getAddSystemPicks = mocked.getAddSystemPicks;
+const getAddSystemPicks = mockedIpc.getAddSystemPicks;
 
 beforeEach(async () => {
   await openFixtureSave();

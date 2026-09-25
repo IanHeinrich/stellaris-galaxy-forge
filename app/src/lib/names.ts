@@ -152,5 +152,3 @@ export function templateName(named: Named): string {
   const state = useGameDataStore.getState();
   return templateNameIn(state.names, state.status === "ready", resolved, named);
 }
-
-export const planetName = templateName;

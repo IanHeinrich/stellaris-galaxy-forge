@@ -18,7 +18,7 @@ function world(nodes: SystemNode[]): {
   grid: SpatialGrid;
   index: PickIndex;
 } {
-  const systems = byId(nodes);
+  const systems = byId(...nodes);
   const grid = new SpatialGrid();
   grid.build(nodes);
   const index = new PickIndex();

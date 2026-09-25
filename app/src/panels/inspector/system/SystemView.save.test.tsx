@@ -19,7 +19,6 @@ import {
   details,
   fleet,
   land,
-  mocked,
   open,
   overview,
   planet,
@@ -27,6 +26,7 @@ import {
   sections,
   SYSTEM,
 } from "../inspectorFixture";
+import { mockedIpc } from "../../../test/ipc";
 
 bindStores();
 
@@ -96,7 +96,7 @@ describe("a save system's overview", () => {
 
   it("names what each kind means on its chip and filters the flags once there are over twenty", async () => {
     const flags = Array.from({ length: 21 }, (_, i) => `story_flag_${i}`);
-    mocked.getSystem.mockImplementation(async (id) => {
+    mockedIpc.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
       return { ...detail, system: { ...detail.system, flags } };
     });
@@ -333,7 +333,7 @@ describe("a save system's planet rows", () => {
 
 describe("a system added this session", () => {
   beforeEach(() => {
-    mocked.getSystem.mockImplementation(async (id) => {
+    mockedIpc.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
       return { ...detail, system: { ...detail.system, star_class: "sc_m", added: true } };
     });
@@ -360,7 +360,7 @@ describe("a system added this session", () => {
   });
 
   it("is plain on a system the file already held", async () => {
-    mocked.getSystem.mockImplementation(async (id) => detailOf(id));
+    mockedIpc.getSystem.mockImplementation(async (id) => detailOf(id));
     await open("save");
     await land(details({ planets: [planet(100, "Tarkin")] }));
 

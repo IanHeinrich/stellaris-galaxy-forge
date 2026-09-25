@@ -11,7 +11,6 @@ import {
   setStarClassOp,
   skippedNote,
   starBodies,
-  starClassChoices,
   starClassNameKeys,
   starClassRows,
   visibleStarClassRows,
@@ -78,21 +77,6 @@ describe("currentStarBodies", () => {
     const plan = planStarClass([stale], CLASSES.get("sc_binary_5") as StarClassView, "B", CLASSES);
     expect(plan.op).toBeNull();
     expect(plan.skipped).toEqual({ same: 0, stars: 0, unread: 1 });
-  });
-});
-
-describe("starClassChoices", () => {
-  it("offers only the classes with as many bodies, leaving out the current one", () => {
-    expect(starClassChoices("sc_g", 1, CLASSES).map((c) => c.key)).toEqual([
-      "sc_m",
-      "sc_black_hole",
-      "sc_neutron_star",
-    ]);
-    expect(starClassChoices("sc_binary_2", 2, CLASSES).map((c) => c.key)).toEqual([
-      "sc_binary_6",
-      "sc_binary_5",
-    ]);
-    expect(starClassChoices("sc_g", 0, CLASSES)).toEqual([]);
   });
 });
 

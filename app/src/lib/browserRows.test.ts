@@ -5,7 +5,7 @@ import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { Issue } from "../generated/Issue";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { SpecialSystem } from "../generated/SpecialSystem";
-import { countryNode, systemNode } from "../test/builders";
+import { appIssue, countryNode, systemNode } from "../test/builders";
 import { composeOwnership } from "./ownership";
 import {
   empireGroups,
@@ -232,13 +232,8 @@ describe("the Points of interest tab", () => {
 });
 
 describe("the Issues tab", () => {
-  const issue = (code: Issue["code"], severity: Issue["severity"], systems: number[]): Issue => ({
-    severity,
-    code,
-    message: `${code} on ${systems.join(",")}`,
-    systems,
-    note: false,
-  });
+  const issue = (code: Issue["code"], severity: Issue["severity"], systems: number[]): Issue =>
+    appIssue({ severity, code, message: `${code} on ${systems.join(",")}`, systems });
 
   it("groups by code, errors first then the biggest group, and names the systems", () => {
     const groups = issueGroups(

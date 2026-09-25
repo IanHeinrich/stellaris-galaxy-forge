@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { elements } from "../../test/elements";
+import { buttonIn, elements } from "../../test/elements";
 import { stubPrefs } from "../../test/prefs";
 
 vi.mock("../../api/ipc");
@@ -84,15 +84,6 @@ const PAINTED = exportReport({
 const id = (system: number) => `system ${system}`;
 
 const row = (label: string, value: string) => `<dt>${label}</dt><dd>${value}</dd>`;
-
-function button(tree: ReactNode, text: string): ReactElement<{ onClick: () => void }> {
-  const found = elements(tree).find(
-    (el): el is ReactElement<{ onClick: () => void }> =>
-      el.type === "button" && renderToStaticMarkup(el).includes(text),
-  );
-  expect(found).toBeDefined();
-  return found!;
-}
 
 function form(tree: ReactNode): ReactElement<{ onSubmit: (e: unknown) => void }> {
   const found = elements(tree).find(
@@ -342,7 +333,7 @@ describe("the dialog", () => {
     expect(renderToStaticMarkup(<ExportForm report={FULL} />)).toContain(
       '<button type="submit">Export</button>',
     );
-    button(<ExportForm report={FULL} />, "Cancel").props.onClick();
+    buttonIn(<ExportForm report={FULL} />, "Cancel")!.props.onClick();
     expect(confirmExport).toHaveBeenLastCalledWith(null);
   });
 });

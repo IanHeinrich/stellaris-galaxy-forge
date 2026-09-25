@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FeLinkFlags } from "../generated/FeLinkFlags";
 import type { SystemNode } from "../generated/SystemNode";
-import { systemNode } from "../test/builders";
+import { byId, systemNode } from "../test/builders";
 import { newFeZone } from "./feZone";
 import {
   isLinked,
@@ -16,10 +16,6 @@ import {
   toRing,
   unlinkRefusal,
 } from "./feLinks";
-
-function systems(...nodes: SystemNode[]): Map<number, SystemNode> {
-  return new Map(nodes.map((s) => [s.id, s]));
-}
 
 const flags = (over: Partial<FeLinkFlags>): FeLinkFlags => ({
   custom: false,
@@ -51,7 +47,7 @@ describe("custom connections", () => {
 
   it("linkedTo lists the systems whose links hold the anchor's id, ascending, never the anchor", () => {
     const a = { ...anchor(1, 4), fe_link: flags({ custom: true, id: 4, to: [4] }) };
-    const all = systems(a, linked(9, 4), linked(3, 4, 7), linked(5, 7));
+    const all = byId(a, linked(9, 4), linked(3, 4, 7), linked(5, 7));
     expect(linkedTo(a, all).map((s) => s.id)).toEqual([3, 9]);
     expect(linkedTo(anchor(1, null), all)).toEqual([]);
   });
@@ -61,7 +57,7 @@ describe("custom connections", () => {
     const second = anchor(2, 7);
     const twin = anchor(3, 7);
     const dangling = { ...anchor(8, 9), fe_zone: null };
-    const all = systems(first, second, twin, dangling, linked(5, 9, 7, 4));
+    const all = byId(first, second, twin, dangling, linked(5, 9, 7, 4));
     expect(linkedAnchors(linked(5, 9, 7, 4), all).map((s) => s.id)).toEqual([2, 3, 1]);
     expect(linkedAnchors(linked(5), all)).toEqual([]);
   });

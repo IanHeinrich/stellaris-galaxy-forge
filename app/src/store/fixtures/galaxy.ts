@@ -5,7 +5,7 @@ import type { SaveResult } from "../../generated/SaveResult";
 import type { SystemNode } from "../../generated/SystemNode";
 import { historyEntry, name, saveMeta, systemNode } from "../../test/builders";
 
-export type LaneSpec = [to: number, length: number, bridge?: boolean, stale?: boolean];
+type LaneSpec = [to: number, length: number, bridge?: boolean, stale?: boolean];
 
 /** A system of the galaxy below: planets and an initializer, unlike a bare `systemNode`. */
 export function node(

@@ -4,9 +4,8 @@ import { useFileSessionStore } from "./fileSessionStore";
 import type { SystemNode } from "../generated/SystemNode";
 import { lanesTo, node, OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 import { useGalaxyStore } from "./galaxyStore";
-import { armSession, mocked, resetStores } from "./storeFixture";
-
-export { mocked };
+import { armSession, resetStores } from "./storeFixture";
+import { mockedIpc } from "../test/ipc";
 
 export const editor = () => useEditorStore.getState();
 export const sessionError = () => useFileSessionStore.getState().error;
@@ -23,7 +22,7 @@ export async function openFixtureSave(): Promise<void> {
 /** `openFixtureSave`, then the same galaxy opened as `scenario`. */
 export async function openFixtureScenario(scenario = SCENARIO_RESULT): Promise<void> {
   await openFixtureSave();
-  mocked.openSave.mockResolvedValueOnce(scenario);
+  mockedIpc.openSave.mockResolvedValueOnce(scenario);
   await useFileSessionStore.getState().openSave(scenario.path);
 }
 

@@ -13,7 +13,6 @@ import {
   deferred,
   joinBoth,
   editor,
-  mocked,
   openFixtureSave,
   sessionError,
   withAddedSystems,
@@ -25,11 +24,12 @@ import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { editResult, historyEntry, saveMeta } from "./fixture";
+import { mockedIpc } from "../test/ipc";
 
-const addRandomSystem = mocked.addRandomSystem;
-const addSpecialSystem = mocked.addSpecialSystem;
-const rerollSystem = mocked.rerollSystem;
-const removeAddedSystems = mocked.removeAddedSystems;
+const addRandomSystem = mockedIpc.addRandomSystem;
+const addSpecialSystem = mockedIpc.addSpecialSystem;
+const rerollSystem = mockedIpc.rerollSystem;
+const removeAddedSystems = mockedIpc.removeAddedSystems;
 
 beforeEach(async () => {
   await openFixtureSave();
@@ -40,7 +40,7 @@ describe("adding a system to a save", () => {
   it("rolls one at the point in one edit and selects it", async () => {
     const system = addedNode(6, -50, -20);
     addRandomSystem.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
-    mocked.getSystem.mockResolvedValueOnce({ system, neighbours: [], nebula: null });
+    mockedIpc.getSystem.mockResolvedValueOnce({ system, neighbours: [], nebula: null });
 
     expect(await editor().addRandomSystemAt(-50, -20, "sc_m")).toBe(true);
 
@@ -62,9 +62,9 @@ describe("adding a system to a save", () => {
   it("undoing the add clears the selection", async () => {
     const system = addedNode(6, -50, -20);
     addRandomSystem.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
-    mocked.getSystem.mockResolvedValueOnce({ system, neighbours: [], nebula: null });
+    mockedIpc.getSystem.mockResolvedValueOnce({ system, neighbours: [], nebula: null });
     await editor().addRandomSystemAt(-50, -20);
-    mocked.undo.mockResolvedValueOnce(
+    mockedIpc.undo.mockResolvedValueOnce(
       editResult({ delta: { systems: [], removed: [6] }, history: { undo: [], redo: [] } }),
     );
 
@@ -88,7 +88,7 @@ describe("placing a special layout", () => {
   it("adds it at the point in one edit, selects it, and undo and redo take it away and back", async () => {
     const system = trappist();
     addSpecialSystem.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
-    mocked.getSystem.mockResolvedValue({ system, neighbours: [], nebula: null });
+    mockedIpc.getSystem.mockResolvedValue({ system, neighbours: [], nebula: null });
 
     expect(await editor().addSpecialSystemAt(-50, -20, "trappist_initializer")).toBe(true);
 
@@ -99,11 +99,11 @@ describe("placing a special layout", () => {
     expect(editor().inspected?.system.id).toBe(6);
     expect(addRandomSystem).not.toHaveBeenCalled();
 
-    mocked.undo.mockResolvedValueOnce(editResult({ delta: { systems: [], removed: [6] } }));
+    mockedIpc.undo.mockResolvedValueOnce(editResult({ delta: { systems: [], removed: [6] } }));
     await editor().undo();
     expect(editor().selection).toEqual([]);
 
-    mocked.redo.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
+    mockedIpc.redo.mockResolvedValueOnce(editResult({ delta: { systems: [system] } }));
     await editor().redo();
     await vi.waitFor(() => expect(editor().selection).toEqual([6]));
   });
@@ -182,16 +182,16 @@ describe("editing a system added this session", () => {
     expect(await editor().rerollSystem(0, null)).toBe(false);
     expect(await editor().renameAddedSystem(0, "Dorellion")).toBe(false);
     expect(rerollSystem).not.toHaveBeenCalled();
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 
   it("renames it with one op", async () => {
     withAddedSystems();
-    mocked.applyOp.mockResolvedValueOnce(editResult());
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult());
 
     expect(await editor().renameAddedSystem(6, "  Dorellion ")).toBe(true);
 
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "RenameSaveSystem",
       system: 6,
       name: "Dorellion",
@@ -200,14 +200,14 @@ describe("editing a system added this session", () => {
 
   it("deletes it once confirmed", async () => {
     withAddedSystems();
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [], removed: [7], renumbered: [[7, null]] } }),
     );
 
     await editor().removeSystems([7]);
 
-    expect(mocked.confirm).toHaveBeenCalled();
-    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 });
+    expect(mockedIpc.confirm).toHaveBeenCalled();
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 });
     expect(useGalaxyStore.getState().systems.has(7)).toBe(false);
   });
 });
@@ -218,7 +218,7 @@ describe("pressing Delete on a save", () => {
   it("deletes the one added system selected", async () => {
     withAddedSystems();
     await editor().setSelection([7], "replace");
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [], removed: [7], renumbered: [[7, null]] } }),
     );
 
@@ -226,7 +226,7 @@ describe("pressing Delete on a save", () => {
     run("deleteSelection", false, effects);
 
     await vi.waitFor(() =>
-      expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 }),
+      expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 }),
     );
   });
 
@@ -248,11 +248,11 @@ describe("pressing Delete on a save", () => {
       run("deleteSelection", false, effects);
 
       await vi.waitFor(() => expect(removeAddedSystems).toHaveBeenCalledWith(deleted));
-      expect(mocked.confirm).toHaveBeenCalledWith(
+      expect(mockedIpc.confirm).toHaveBeenCalledWith(
         `Delete ${deleted.length} added system${deleted.length === 1 ? "" : "s"}?`,
         { title: "Delete added systems", kind: "warning" },
       );
-      expect(mocked.applyOp).not.toHaveBeenCalled();
+      expect(mockedIpc.applyOp).not.toHaveBeenCalled();
     },
   );
 
@@ -295,7 +295,7 @@ describe("deleting several added systems at once", () => {
 
     expect(await editor().removeSystems([0, 6, 8])).toBe(true);
 
-    expect(mocked.confirm).toHaveBeenCalledWith("Delete 2 added systems?", {
+    expect(mockedIpc.confirm).toHaveBeenCalledWith("Delete 2 added systems?", {
       title: "Delete added systems",
       kind: "warning",
     });
@@ -315,9 +315,9 @@ describe("deleting several added systems at once", () => {
   it("sends nothing without an added system among them, or when not confirmed", async () => {
     withThreeAdded();
     expect(await editor().removeSystems([0, 3])).toBe(false);
-    expect(mocked.confirm).not.toHaveBeenCalled();
+    expect(mockedIpc.confirm).not.toHaveBeenCalled();
 
-    mocked.confirm.mockResolvedValueOnce(false);
+    mockedIpc.confirm.mockResolvedValueOnce(false);
     expect(await editor().removeSystems([6, 8])).toBe(false);
     expect(removeAddedSystems).not.toHaveBeenCalled();
   });
@@ -327,7 +327,7 @@ describe("deleting several added systems at once", () => {
     const eight = addedNode(8, 30, -30);
     useGalaxyStore.getState().applyDelta({ systems: [eight] });
     const removal = deferred<EditResult>();
-    mocked.applyOp.mockReturnValueOnce(removal.promise);
+    mockedIpc.applyOp.mockReturnValueOnce(removal.promise);
     removeAddedSystems.mockResolvedValueOnce(editResult());
 
     const removing = editor().applyOp({ type: "RemoveSystem", id: 6 });
@@ -358,7 +358,7 @@ describe("edits queued behind others", () => {
   /** Holds a delete of 6 in the queue; landing it moves 7 down to 6, as the core reports it. */
   function holdRemovalOfSix() {
     const removal = deferred<EditResult>();
-    mocked.applyOp.mockReturnValueOnce(removal.promise).mockResolvedValueOnce(editResult());
+    mockedIpc.applyOp.mockReturnValueOnce(removal.promise).mockResolvedValueOnce(editResult());
     const removing = editor().applyOp({ type: "RemoveSystem", id: 6 });
     const land = () =>
       removal.resolve(
@@ -376,7 +376,7 @@ describe("edits queued behind others", () => {
     return { removing, land };
   }
 
-  const lastSent = () => mocked.applyOp.mock.calls[mocked.applyOp.mock.calls.length - 1][0];
+  const lastSent = () => mockedIpc.applyOp.mock.calls[mockedIpc.applyOp.mock.calls.length - 1][0];
 
   it("send a delete of one system to the id a delete ahead of it moved the system to", async () => {
     withAddedSystems();
@@ -385,7 +385,7 @@ describe("edits queued behind others", () => {
     land();
     await Promise.all([removing, deleting]);
 
-    expect(mocked.applyOp).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(2);
     expect(lastSent()).toEqual({ type: "RemoveSystem", id: 6 });
   });
 
@@ -415,7 +415,7 @@ describe("edits queued behind others", () => {
   it("send a reroll to the id a delete ahead of it moved the system to", async () => {
     const [, seven] = withAddedSystems();
     const removal = deferred<EditResult>();
-    mocked.applyOp.mockReturnValueOnce(removal.promise);
+    mockedIpc.applyOp.mockReturnValueOnce(removal.promise);
     rerollSystem.mockResolvedValueOnce(editResult());
 
     const removing = editor().applyOp({ type: "RemoveSystem", id: 6 });
@@ -440,7 +440,7 @@ describe("edits queued behind others", () => {
 
   it("send nothing for a system a delete ahead of them removed", async () => {
     withAddedSystems();
-    mocked.applyOp
+    mockedIpc.applyOp
       .mockResolvedValueOnce(
         editResult({ delta: { systems: [], removed: [7], renumbered: [[7, null]] } }),
       )
@@ -452,7 +452,7 @@ describe("edits queued behind others", () => {
 
     expect(await Promise.all([removing, rolling, renaming])).toEqual([true, false, false]);
     expect(rerollSystem).not.toHaveBeenCalled();
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
   });
 
   it("roll a reroll around the class a pick ahead of it chose", async () => {

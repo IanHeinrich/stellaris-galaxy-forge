@@ -2,7 +2,7 @@ import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 /** What a test does with a button it found: press it, or ask whether it can be pressed. */
-export type ButtonElement = ReactElement<{ onClick(): void; disabled?: boolean }>;
+type ButtonElement = ReactElement<{ onClick(): void; disabled?: boolean }>;
 
 /**
  * Walks a pure element tree, calling function components to reach their handlers. This is safe
@@ -26,6 +26,18 @@ export function buttonIn(tree: ReactNode, label: string): ButtonElement | undefi
       ((el.props as { "aria-label"?: string })["aria-label"] === label ||
         renderToStaticMarkup(el).includes(`>${label}<`)),
   );
+}
+
+/** The menu's button reading `label`, whose `onClick` a test calls in place of a click. */
+export function menuItem(tree: ReactNode, label: string): ButtonElement {
+  const item = buttonIn(tree, label);
+  if (!item) throw new Error(`no menu item reading "${label}"`);
+  return item;
+}
+
+/** `text` as the markup writes it, where an apostrophe is an entity. */
+export function escaped(text: string): string {
+  return text.replace(/'/g, "&#x27;");
 }
 
 /** The text a reader sees: no markup, no attributes, one space between words. */

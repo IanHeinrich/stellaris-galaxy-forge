@@ -8,16 +8,13 @@ import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
+import { readyAs } from "../test/session";
 import { EMPTY_CONTEXT, renderContext, sameContext, type RenderContext } from "./RenderContext";
 
 /** Opens the fixture galaxy as one kind of document, with the game data's bypasses in hand. */
 function open(result: typeof OPEN_RESULT): void {
   useGalaxyStore.getState().load(result.galaxy);
-  useFileSessionStore.setState({
-    status: "ready",
-    kind: result.kind,
-    capabilities: result.capabilities,
-  });
+  readyAs(result);
 }
 
 function shown(initializers: boolean, dayOne: boolean): void {

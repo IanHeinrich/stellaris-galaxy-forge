@@ -481,7 +481,7 @@ async function openDocument(
  * answered where it has to be asked; null when the user cancelled. A file no listing covers is
  * read from disk for its dialect.
  */
-export async function askScenarioOpen(
+async function askScenarioOpen(
   path: string,
   listings: readonly ScenarioListing[] | null,
   asPaint = false,

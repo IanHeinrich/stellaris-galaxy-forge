@@ -3,12 +3,12 @@ import { byId, feLinkedNode, placedNode as node, zoneAnchor } from "../../test/b
 import { edgeEnds, sameEdge } from "./edges";
 
 describe("edgeEnds", () => {
-  const systems = byId([
+  const systems = byId(
     zoneAnchor(1, 0, 0, 5),
     feLinkedNode(2, 200, 0, 5),
     node(3, 100, 40, [4]),
     node(4, 200, 40),
-  ]);
+  );
 
   it("resolves a lane to its systems and a link to the system and the ring's nearest point", () => {
     expect(edgeEnds(systems, { kind: "lane", lane: { a: 3, b: 4 } })).toMatchObject({

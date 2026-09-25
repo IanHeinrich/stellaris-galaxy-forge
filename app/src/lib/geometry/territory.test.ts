@@ -1,7 +1,7 @@
 import polygonClipping from "polygon-clipping";
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
-import { placedNode } from "../../test/builders";
+import { byId, placedNode } from "../../test/builders";
 import type { Pt } from "./pt";
 import {
   affectedCountries,
@@ -39,10 +39,6 @@ function inRegion(p: Pt, region: Region): boolean {
   return region.some(
     (polygon) => inRing(p, polygon[0]) && polygon.slice(1).every((hole) => !inRing(p, hole)),
   );
-}
-
-function byId(nodes: SystemNode[]): Map<number, SystemNode> {
-  return new Map(nodes.map((s) => [s.id, s]));
 }
 
 function bounds(points: Pt[]): { minX: number; minY: number; maxX: number; maxY: number } {
@@ -419,38 +415,38 @@ describe("affectedCountries", () => {
     const a = system(1, 0, 0, 10);
     const b = system(2, 300, 0, 20);
     const c = system(3, 600, 0, 30);
-    const before = byId([a, b, c, system(4, 40, 0, 10)]);
-    const after = byId([a, b, c, system(4, 260, 0, 10)]);
+    const before = byId(a, b, c, system(4, 40, 0, 10));
+    const after = byId(a, b, c, system(4, 260, 0, 10));
     expect(affectedCountries([after.get(4)!], before, after, PARAMS)).toEqual(new Set([10, 20]));
   });
 
   it("reaches a lane band the system sits beside", () => {
     const p = system(1, 0, 0, 20, [2]);
     const q = system(2, 200, 0, 20, [1]);
-    const before = byId([p, q, system(3, 100, 400, 10)]);
-    const after = byId([p, q, system(3, 100, 20, 10)]);
+    const before = byId(p, q, system(3, 100, 400, 10));
+    const after = byId(p, q, system(3, 100, 20, 10));
     expect(affectedCountries([after.get(3)!], before, after, PARAMS)).toEqual(new Set([10, 20]));
   });
 
   it("finds a neighbour a cell away and leaves the one just out of reach", () => {
     const near = system(2, 2 * PARAMS.radius - 1, 0, 20);
     const far = system(3, 2 * PARAMS.radius + 1, 0, 30);
-    const before = byId([near, far, system(1, 0, -400, 10)]);
-    const after = byId([near, far, system(1, 0, 0, 10)]);
+    const before = byId(near, far, system(1, 0, -400, 10));
+    const after = byId(near, far, system(1, 0, 0, 10));
     expect(affectedCountries([after.get(1)!], before, after, PARAMS)).toEqual(new Set([10, 20]));
   });
 
   it("reaches the middle of a long lane band from well outside either end's disc", () => {
     const p = system(1, 0, 0, 20, [2]);
     const q = system(2, 600, 0, 20, [1]);
-    const before = byId([p, q, system(3, 300, 900, 10)]);
-    const after = byId([p, q, system(3, 300, 100, 10)]);
+    const before = byId(p, q, system(3, 300, 900, 10));
+    const after = byId(p, q, system(3, 300, 100, 10));
     expect(affectedCountries([after.get(3)!], before, after, PARAMS)).toEqual(new Set([10, 20]));
   });
 
   it("is empty for an unowned system moving through empty space", () => {
-    const before = byId([system(1, 0, 0, null)]);
-    const after = byId([system(1, 500, 0, null)]);
+    const before = byId(system(1, 0, 0, null));
+    const after = byId(system(1, 500, 0, null));
     expect(affectedCountries([after.get(1)!], before, after, PARAMS).size).toBe(0);
   });
 });

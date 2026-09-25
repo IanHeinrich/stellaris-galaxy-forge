@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buttonIn } from "../../test/elements";
+import { menuItem } from "../../test/elements";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -8,6 +8,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"))
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useFileSessionStore } from "../../store/fileSessionStore";
+import { readyAs } from "../../test/session";
 import { OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
 import { usePaintModStore } from "../../store/paintModStore";
 import { paintModView } from "../../test/builders";
@@ -18,16 +19,11 @@ let dismiss: ReturnType<typeof vi.fn<() => void>>;
 
 const items = () => renderToStaticMarkup(<FileMenuItems dismiss={dismiss} />);
 
-/** The menu's button reading `label`, whose `onClick` a test calls in place of a click. */
-const item = (label: string) => buttonIn(<FileMenuItems dismiss={dismiss} />, label)!;
+const item = (label: string) => menuItem(<FileMenuItems dismiss={dismiss} />, label);
 
 /** The markup of the one button reading `label`. */
 function html(label: string): string {
   return renderToStaticMarkup(item(label));
-}
-
-function open(result: typeof OPEN_RESULT): void {
-  useFileSessionStore.setState({ status: "ready", kind: result.kind, path: result.path });
 }
 
 beforeEach(() => {
@@ -42,16 +38,16 @@ describe("the scenario export", () => {
     expect(items()).not.toContain("Paint a Galaxy…");
     expect(html("Export as scenario…")).toContain("disabled=");
 
-    open(OPEN_RESULT);
+    readyAs(OPEN_RESULT);
     expect(html("Export as scenario…")).not.toContain("disabled=");
 
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     expect(html("Export as scenario…")).toContain("disabled=");
   });
 
   it("starts the export, which asks for the profile itself", () => {
     const exportScenario = vi.fn();
-    open(OPEN_RESULT);
+    readyAs(OPEN_RESULT);
     useFileSessionStore.setState({ exportScenario });
 
     item("Export as scenario…").props.onClick();
@@ -78,18 +74,18 @@ describe("saving into the Paint a Galaxy mod", () => {
     expect(html(LABEL)).toContain("disabled=");
     expect(html(LABEL)).not.toContain("title=");
 
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     expect(html(LABEL)).toContain("disabled=");
 
     usePaintModStore.setState({ known: true, paintMod: paintModView({ enabled: false }) });
     expect(html(LABEL)).not.toContain("disabled=");
 
-    open(OPEN_RESULT);
+    readyAs(OPEN_RESULT);
     expect(html(LABEL)).toContain("disabled=");
   });
 
   it("says to subscribe first when the mod is not installed", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     usePaintModStore.setState({ known: true, paintMod: null });
     expect(html(LABEL)).toContain("disabled=");
     expect(html(LABEL)).toContain(
@@ -98,7 +94,7 @@ describe("saving into the Paint a Galaxy mod", () => {
   });
 
   it("has nothing to do for a file already inside the mod's folder", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     usePaintModStore.setState({ known: true, paintMod: paintModView({ scenarios_dir: DIR }) });
     useFileSessionStore.setState({ path: `${DIR}/mine.txt` });
     expect(html(LABEL)).toContain("disabled=");
@@ -109,7 +105,7 @@ describe("saving into the Paint a Galaxy mod", () => {
 
   it("saves into the mod and closes the menu", () => {
     const saveIntoPaintMod = vi.fn();
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     usePaintModStore.setState({ known: true, paintMod: paintModView() });
     useFileSessionStore.setState({ saveIntoPaintMod });
 

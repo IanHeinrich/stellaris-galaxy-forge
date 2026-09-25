@@ -2,13 +2,13 @@ import type { Feature } from "../generated/Feature";
 import type { PickSummary } from "../generated/PickSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { SystemNode } from "../generated/SystemNode";
+import { ADDED_SYSTEMS_FROM_MAJOR, SPAWN_BUFFER } from "../generated/constants";
 import { counted } from "./text";
 import type { Span } from "../generated/Span";
 import type { SpecialLayout } from "../generated/SpecialLayout";
 import { versionNumber } from "./version";
 
-/** How near another system the game spawns one: its `SPAWN_SYSTEM_BUFFER_DISTANCE`. */
-export const SPAWN_BUFFER = 10;
+export { SPAWN_BUFFER };
 
 export const NEEDS_GAME_DATA = "Load game data to add a system";
 export const NEEDS_STELLARIS_4 = "Adding systems needs a Stellaris 4 save";
@@ -38,7 +38,7 @@ export type AddRefusal =
 /** Whether the save's version is Stellaris 4 or later, the only saves the core adds a system to. */
 export function isStellaris4(meta: SaveMeta | null): boolean {
   const major = Number(versionNumber(meta?.version ?? "")?.split(".")[0]);
-  return Number.isFinite(major) && major >= 4;
+  return Number.isFinite(major) && major >= ADDED_SYSTEMS_FROM_MAJOR;
 }
 
 /** Why the core would refuse a system at the spot, checked as it checks, or null when it would take one. */
@@ -59,8 +59,6 @@ export function addSystemRefusal(facts: PlaceFacts): AddRefusal | null {
   }
   return null;
 }
-
-export { newSeed } from "./random";
 
 /** The systems among `ids` added this session, in the order given. */
 export function addedAmong(

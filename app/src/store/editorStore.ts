@@ -28,7 +28,6 @@ import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { symmetricOp } from "./symmetricEdits";
 
-export type { MapTooltip, MapTooltipLine, MapTooltipText } from "./mapChromeStore";
 export { nearestSystem } from "./editorEdits";
 export { addSystemRefusalAt, useAddSystemRefusal } from "./editorStore.addSystem";
 export { canDelete, deletableSelection, deletableSystems } from "./editorStore.remove";

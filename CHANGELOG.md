@@ -8,6 +8,66 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- `sgf add-system --generate` takes `--then-reroll <seed>` to roll the
+  new system again before saving. Add `--keep-special` to reroll a
+  special system as the same layout.
+- `--then-remove` can be given more than once.
+- `sgf nebula add` names the nebula from the save's pool when you leave
+  out `--name`.
+- `sgf lane normalise` on a lane that already has the game's length says
+  so, instead of "nothing to change".
+
+### Changed
+
+- A system added inside a nebula joins it, with the nebula's cloud and
+  cloaking.
+- Added systems roll their deposits with the game's own minimums. A
+  habitable world no longer always gets a blocker.
+- Dragon Hoard and the six artifact deposits show their yields on the
+  planet page.
+- A mod's ordinary systems no longer show the Unique badge.
+- The export report names a mod by its name instead of its Workshop
+  number.
+- With auto-reload on, editing a mod's deposits, star or planet classes,
+  scripted triggers, modifiers, defines or name lists reloads the game
+  data.
+- The added-system picker shows each star class by its name in the game.
+- The L-Gate, a nebula's name and radius, and a system's position are
+  edited in the same boxes as every other field.
+- A planet's System link moves the map to the system.
+- An empire's Capital link goes back to the system's page when it is
+  already in the breadcrumb.
+- A scenario initializer name with a space or a brace is refused.
+
+### Fixed
+
+- Del and Edit → Delete remove a system you added to a save this
+  session.
+- Pinned searches past the sixth no longer hide the rings of the first
+  six.
+- Opening a save no longer turns symmetry off the next time you start
+  the app.
+- A scenario's warning that positions are shown untransformed stays
+  after an edit.
+- Without game data, a save's stars show their Edit mark and are listed
+  first.
+- Without game data, the planet page names a body's class, such as
+  "Tropical World", instead of showing its key.
+- Without game data, a body with no name of its own shows the same name
+  in the planet list and on its page.
+- Without game data, the Star class action for several systems says to
+  load game data to change the star class.
+- In a scenario, switching the Empires layer on or off updates the
+  system names on the map straight away.
+- Adding a marauder clan right after a paint stroke no longer fails with
+  "system N already exists".
+- Nudging a selection with the arrow keys no longer loses a press when
+  you press quickly.
+- A system's issue ring shows its worst issue.
+- The Game data menu no longer lists a warning about `random_list`.
+
 ## [0.13.0] - 2026-09-25
 
 ### Added

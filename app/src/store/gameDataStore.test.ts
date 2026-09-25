@@ -19,13 +19,14 @@ import {
   flush,
   GALAXY_KEYS,
   listeners,
-  mocked,
   releaseGameData,
   RIHINAR,
   SPECIAL,
   SUMMARY,
 } from "./gameDataFixture";
 import { OPEN_RESULT, SCENARIO_BYPASSES, SCENARIO_OWNERS, TERRITORY } from "./fixture";
+import { clearTextures } from "../lib/visual/textures";
+import { mockedIpc } from "../test/ipc";
 
 beforeEach(armGameData);
 afterEach(releaseGameData);
@@ -47,7 +48,7 @@ describe("load", () => {
     expect(state.progress).toBeNull();
     expect(state.error).toBeNull();
     expect(listeners.unlisten).toHaveBeenCalledTimes(1);
-    expect(mocked.loadGameData).toHaveBeenCalledWith(undefined);
+    expect(mockedIpc.loadGameData).toHaveBeenCalledWith(undefined);
 
     expect(state.starClasses.get("sc_g")?.texture_key).toBe("star_class:g");
     expect(state.mapColors.get("red")?.map).toBe("#ff0000");
@@ -64,8 +65,8 @@ describe("load", () => {
     expect(state.counts).toEqual(SPECIAL.counts);
     expect(state.specialWithGameData).toBe(true);
 
-    expect(mocked.getNames).toHaveBeenCalledTimes(1);
-    expect(mocked.getNames).toHaveBeenCalledWith(GALAXY_KEYS);
+    expect(mockedIpc.getNames).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS);
     expect(state.displayNameOf("NAME_Sol")).toBe("Sol");
     expect(state.displayNameOf("NAME_Nowhere")).toBeUndefined();
   });
@@ -73,13 +74,13 @@ describe("load", () => {
   it("skips the special systems and names when no save is open", async () => {
     await useGameDataStore.getState().load();
     expect(useGameDataStore.getState().status).toBe("ready");
-    expect(mocked.getSpecialSystems).not.toHaveBeenCalled();
-    expect(mocked.getNames).not.toHaveBeenCalled();
+    expect(mockedIpc.getSpecialSystems).not.toHaveBeenCalled();
+    expect(mockedIpc.getNames).not.toHaveBeenCalled();
     expect(useGameDataStore.getState().special.size).toBe(0);
   });
 
   it("a rejection sets the error state and keeps the message", async () => {
-    mocked.loadGameData.mockRejectedValueOnce({
+    mockedIpc.loadGameData.mockRejectedValueOnce({
       kind: "no_install",
       message: "no Stellaris install found; searched C:/Steam, D:/Steam",
     });
@@ -88,22 +89,22 @@ describe("load", () => {
     expect(state.status).toBe("error");
     expect(state.error).toBe("no Stellaris install found; searched C:/Steam, D:/Steam");
     expect(state.summary).toBeNull();
-    expect(mocked.getStarClasses).not.toHaveBeenCalled();
+    expect(mockedIpc.getStarClasses).not.toHaveBeenCalled();
     expect(listeners.unlisten).toHaveBeenCalledTimes(1);
   });
 
   it("remembers a given install path and reuses it when none is given", async () => {
     await useGameDataStore.getState().load("D:/Games/Stellaris");
-    expect(mocked.loadGameData).toHaveBeenLastCalledWith("D:/Games/Stellaris");
+    expect(mockedIpc.loadGameData).toHaveBeenLastCalledWith("D:/Games/Stellaris");
     expect(listeners.storage.get("sgf.installPath")).toBe("D:/Games/Stellaris");
 
     useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
     await useGameDataStore.getState().load();
-    expect(mocked.loadGameData).toHaveBeenLastCalledWith("D:/Games/Stellaris");
+    expect(mockedIpc.loadGameData).toHaveBeenLastCalledWith("D:/Games/Stellaris");
   });
 
   it("a failed load does not remember the path", async () => {
-    mocked.loadGameData.mockRejectedValueOnce({ kind: "no_install", message: "nope" });
+    mockedIpc.loadGameData.mockRejectedValueOnce({ kind: "no_install", message: "nope" });
     await useGameDataStore.getState().load("D:/Nowhere");
     expect(listeners.storage.has("sgf.installPath")).toBe(false);
   });
@@ -112,45 +113,45 @@ describe("load", () => {
 describe("sync", () => {
   it("adopts game data the backend already holds and loads the registries and names", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
-    mocked.gameDataSummary.mockResolvedValue(SUMMARY);
+    mockedIpc.gameDataSummary.mockResolvedValue(SUMMARY);
     await useGameDataStore.getState().sync();
 
     const state = useGameDataStore.getState();
     expect(state.status).toBe("ready");
     expect(state.summary).toBe(SUMMARY);
-    expect(mocked.loadGameData).not.toHaveBeenCalled();
-    expect(mocked.getStarClasses).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.loadGameData).not.toHaveBeenCalled();
+    expect(mockedIpc.getStarClasses).toHaveBeenCalledTimes(1);
     expect(state.specialWithGameData).toBe(true);
-    expect(mocked.getNames).toHaveBeenCalledWith(GALAXY_KEYS);
-    expect(mocked.clearTextures).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS);
+    expect(vi.mocked(clearTextures)).toHaveBeenCalledTimes(1);
   });
 
   it("stays idle when the backend holds none", async () => {
-    mocked.gameDataSummary.mockResolvedValue(null);
+    mockedIpc.gameDataSummary.mockResolvedValue(null);
     await useGameDataStore.getState().sync();
     expect(useGameDataStore.getState().status).toBe("idle");
-    expect(mocked.getStarClasses).not.toHaveBeenCalled();
+    expect(mockedIpc.getStarClasses).not.toHaveBeenCalled();
   });
 });
 
 describe("fetchNames", () => {
   it("is a no-op without game data", async () => {
     await useGameDataStore.getState().fetchNames(["NAME_Sol"]);
-    expect(mocked.getNames).not.toHaveBeenCalled();
+    expect(mockedIpc.getNames).not.toHaveBeenCalled();
   });
 
   it("dedupes known keys and batches at most 500 per call", async () => {
     await useGameDataStore.getState().load();
     const keys = Array.from({ length: 1200 }, (_, i) => `NAME_${i}`);
     await useGameDataStore.getState().fetchNames(keys);
-    expect(mocked.getNames).toHaveBeenCalledTimes(3);
-    expect(mocked.getNames.mock.calls.map(([k]) => k.length)).toEqual([500, 500, 200]);
+    expect(mockedIpc.getNames).toHaveBeenCalledTimes(3);
+    expect(mockedIpc.getNames.mock.calls.map(([k]) => k.length)).toEqual([500, 500, 200]);
     expect(useGameDataStore.getState().names.size).toBe(1200);
 
-    mocked.getNames.mockClear();
+    mockedIpc.getNames.mockClear();
     await useGameDataStore.getState().fetchNames([...keys.slice(0, 10), "NAME_new", "NAME_new"]);
-    expect(mocked.getNames).toHaveBeenCalledTimes(1);
-    expect(mocked.getNames).toHaveBeenCalledWith(["NAME_new"]);
+    expect(mockedIpc.getNames).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getNames).toHaveBeenCalledWith(["NAME_new"]);
     expect(useGameDataStore.getState().displayNameOf("NAME_new")).toBe("new");
   });
 });
@@ -164,12 +165,12 @@ describe("resolveNames", () => {
 
   it("resolves without game data too, since the backend stands in for a template", async () => {
     await useGameDataStore.getState().resolveNames([country(0)]);
-    expect(mocked.resolveNames).toHaveBeenCalledWith([country(0)]);
+    expect(mockedIpc.resolveNames).toHaveBeenCalledWith([country(0)]);
   });
 
   it("asks again for a batch the backend refused", async () => {
     await useGameDataStore.getState().load();
-    mocked.resolveNames.mockRejectedValueOnce({ kind: "ipc", message: "the bridge is gone" });
+    mockedIpc.resolveNames.mockRejectedValueOnce({ kind: "ipc", message: "the bridge is gone" });
     await useGameDataStore.getState().resolveNames([country(3001)]);
     expect(useGameDataStore.getState().error).toBe("the bridge is gone");
 
@@ -184,23 +185,23 @@ describe("resolveNames", () => {
 
     await useGameDataStore.getState().load("D:/Other/Stellaris");
     expect(useGameDataStore.getState().names.size).toBe(0);
-    mocked.resolveNames.mockClear();
+    mockedIpc.resolveNames.mockClear();
     await useGameDataStore.getState().resolveNames([country(4001)]);
-    expect(mocked.resolveNames).toHaveBeenCalledWith([country(4001)]);
+    expect(mockedIpc.resolveNames).toHaveBeenCalledWith([country(4001)]);
   });
 
   it("caches by template, asks once, and batches at most 500 per call", async () => {
     await useGameDataStore.getState().load();
     const names = Array.from({ length: 1200 }, (_, i) => country(i));
     await useGameDataStore.getState().resolveNames(names);
-    expect(mocked.resolveNames).toHaveBeenCalledTimes(3);
-    expect(mocked.resolveNames.mock.calls.map(([n]) => n.length)).toEqual([500, 500, 200]);
+    expect(mockedIpc.resolveNames).toHaveBeenCalledTimes(3);
+    expect(mockedIpc.resolveNames.mock.calls.map(([n]) => n.length)).toEqual([500, 500, 200]);
     expect(useGameDataStore.getState().names.get(templateKey(country(7)))).toBe("SPEC_7");
 
-    mocked.resolveNames.mockClear();
+    mockedIpc.resolveNames.mockClear();
     await useGameDataStore.getState().resolveNames([country(7), country(1200), country(1200)]);
-    expect(mocked.resolveNames).toHaveBeenCalledTimes(1);
-    expect(mocked.resolveNames).toHaveBeenCalledWith([country(1200)]);
+    expect(mockedIpc.resolveNames).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.resolveNames).toHaveBeenCalledWith([country(1200)]);
   });
 
   it("requestName resolves the names a render asked for together", async () => {
@@ -208,13 +209,13 @@ describe("resolveNames", () => {
     useGameDataStore.getState().requestName(country(2001));
     useGameDataStore.getState().requestName(country(2002));
     useGameDataStore.getState().requestName(country(2001));
-    expect(mocked.resolveNames).not.toHaveBeenCalled();
+    expect(mockedIpc.resolveNames).not.toHaveBeenCalled();
 
     await vi.waitFor(() =>
       expect(useGameDataStore.getState().names.get(templateKey(country(2002)))).toBe("SPEC_2002"),
     );
-    expect(mocked.resolveNames).toHaveBeenCalledTimes(1);
-    expect(mocked.resolveNames).toHaveBeenCalledWith([country(2001), country(2002)]);
+    expect(mockedIpc.resolveNames).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.resolveNames).toHaveBeenCalledWith([country(2001), country(2002)]);
   });
 });
 
@@ -229,8 +230,10 @@ describe("names the game data no longer wants", () => {
     await useGameDataStore.getState().load();
     let finishKeys!: (names: Record<string, string>) => void;
     let finishTemplates!: (names: string[]) => void;
-    mocked.getNames.mockReturnValueOnce(new Promise((resolve) => (finishKeys = resolve)));
-    mocked.resolveNames.mockReturnValueOnce(new Promise((resolve) => (finishTemplates = resolve)));
+    mockedIpc.getNames.mockReturnValueOnce(new Promise((resolve) => (finishKeys = resolve)));
+    mockedIpc.resolveNames.mockReturnValueOnce(
+      new Promise((resolve) => (finishTemplates = resolve)),
+    );
     const fetching = useGameDataStore.getState().fetchNames(["NAME_Sol"]);
     const resolving = useGameDataStore.getState().resolveNames([template(9001)]);
 
@@ -247,7 +250,7 @@ describe("names the game data no longer wants", () => {
   it("a batch the backend refuses after an unload leaves no error behind", async () => {
     await useGameDataStore.getState().load();
     let refuse!: (e: unknown) => void;
-    mocked.getNames.mockReturnValueOnce(new Promise((_resolve, reject) => (refuse = reject)));
+    mockedIpc.getNames.mockReturnValueOnce(new Promise((_resolve, reject) => (refuse = reject)));
     const fetching = useGameDataStore.getState().fetchNames(["NAME_Sol"]);
 
     await useGameDataStore.getState().unload();
@@ -292,22 +295,22 @@ describe("initializers", () => {
 
   it("is a no-op without game data", async () => {
     await useGameDataStore.getState().loadInitializers();
-    expect(mocked.getInitializers).not.toHaveBeenCalled();
+    expect(mockedIpc.getInitializers).not.toHaveBeenCalled();
     expect(useGameDataStore.getState().initializers).toBeNull();
   });
 
   it("reads them once on first use and drops them on unload", async () => {
-    mocked.getInitializers.mockResolvedValue(INITIALIZERS);
+    mockedIpc.getInitializers.mockResolvedValue(INITIALIZERS);
     await useGameDataStore.getState().load();
     expect(useGameDataStore.getState().initializers).toBeNull();
-    expect(mocked.getInitializers).not.toHaveBeenCalled();
+    expect(mockedIpc.getInitializers).not.toHaveBeenCalled();
 
     await Promise.all([
       useGameDataStore.getState().loadInitializers(),
       useGameDataStore.getState().loadInitializers(),
     ]);
     await useGameDataStore.getState().loadInitializers();
-    expect(mocked.getInitializers).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getInitializers).toHaveBeenCalledTimes(1);
     expect(useGameDataStore.getState().initializers).toEqual(INITIALIZERS);
 
     await useGameDataStore.getState().unload();
@@ -315,7 +318,7 @@ describe("initializers", () => {
   });
 
   it("a scenario reads them as it loads, keeping each initializer's star class for the map", async () => {
-    mocked.getInitializers.mockResolvedValue(INITIALIZERS);
+    mockedIpc.getInitializers.mockResolvedValue(INITIALIZERS);
     useFileSessionStore.setState({ kind: "scenario" });
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     await useGameDataStore.getState().load();
@@ -328,14 +331,14 @@ describe("initializers", () => {
   });
 
   it("another install reads them again", async () => {
-    mocked.getInitializers.mockResolvedValue(INITIALIZERS);
+    mockedIpc.getInitializers.mockResolvedValue(INITIALIZERS);
     await useGameDataStore.getState().load();
     await useGameDataStore.getState().loadInitializers();
 
     await useGameDataStore.getState().load("D:/Other/Stellaris");
     expect(useGameDataStore.getState().initializers).toBeNull();
     await useGameDataStore.getState().loadInitializers();
-    expect(mocked.getInitializers).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.getInitializers).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -343,19 +346,19 @@ describe("unload", () => {
   it("resets to idle and re-classifies the open save without game data", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     await useGameDataStore.getState().load();
-    mocked.getSpecialSystems.mockClear();
-    mocked.getSpecialSystems.mockResolvedValueOnce({ ...SPECIAL, with_game_data: false });
+    mockedIpc.getSpecialSystems.mockClear();
+    mockedIpc.getSpecialSystems.mockResolvedValueOnce({ ...SPECIAL, with_game_data: false });
 
     await useGameDataStore.getState().unload();
 
     const state = useGameDataStore.getState();
-    expect(mocked.unloadGameData).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.unloadGameData).toHaveBeenCalledTimes(1);
     expect(state.status).toBe("idle");
     expect(state.summary).toBeNull();
     expect(state.names.size).toBe(0);
     expect(state.starClasses.size).toBe(0);
     expect(state.deposits.size).toBe(0);
-    expect(mocked.getSpecialSystems).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1);
     expect(state.specialWithGameData).toBe(false);
     expect(state.special.size).toBe(1);
   });
@@ -369,7 +372,7 @@ describe("save hooks", () => {
 
     useGameDataStore.getState().onSaveOpened();
     await vi.waitFor(() => expect(useGameDataStore.getState().special.size).toBe(1));
-    await vi.waitFor(() => expect(mocked.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
+    await vi.waitFor(() => expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
     expect(useDetailsStore.getState().version).toBe(1);
   });
 
@@ -378,8 +381,8 @@ describe("save hooks", () => {
     useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, countries: [RIHINAR] });
 
     useGameDataStore.getState().onSaveOpened();
-    await vi.waitFor(() => expect(mocked.resolveNames).toHaveBeenCalledWith([RIHINAR.name]));
-    expect(mocked.getNames).toHaveBeenLastCalledWith(GALAXY_KEYS);
+    await vi.waitFor(() => expect(mockedIpc.resolveNames).toHaveBeenCalledWith([RIHINAR.name]));
+    expect(mockedIpc.getNames).toHaveBeenLastCalledWith(GALAXY_KEYS);
     expect(useGameDataStore.getState().names.get(templateKey(RIHINAR.name))).toBe(
       "SPEC_RihiNar Sovereignty",
     );
@@ -388,15 +391,15 @@ describe("save hooks", () => {
   it("onSaveOpened without game data only classifies by flags", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     useGameDataStore.getState().onSaveOpened();
-    await vi.waitFor(() => expect(mocked.getSpecialSystems).toHaveBeenCalledTimes(1));
-    expect(mocked.getNames).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1));
+    expect(mockedIpc.getNames).not.toHaveBeenCalled();
   });
 
   it("onSaveOpened resolves once the owners pass settles, and settles even when it fails", async () => {
     await useGameDataStore.getState().load();
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     let resolveOwners!: (owners: ScenarioOwners | null) => void;
-    mocked.getScenarioOwners.mockImplementationOnce(
+    mockedIpc.getScenarioOwners.mockImplementationOnce(
       () => new Promise<ScenarioOwners | null>((resolve) => (resolveOwners = resolve)),
     );
 
@@ -412,7 +415,7 @@ describe("save hooks", () => {
     await p;
     expect(settled).toBe(true);
 
-    mocked.getScenarioOwners.mockRejectedValueOnce({ kind: "ipc", message: "boom" });
+    mockedIpc.getScenarioOwners.mockRejectedValueOnce({ kind: "ipc", message: "boom" });
     await expect(useGameDataStore.getState().onSaveOpened()).resolves.toBeUndefined();
   });
 
@@ -433,7 +436,7 @@ describe("save hooks", () => {
 describe("scenario owners", () => {
   it("hands the scripted ownership to the galaxy and takes it back on unload", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
-    mocked.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
+    mockedIpc.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
 
     await useGameDataStore.getState().load();
 
@@ -443,7 +446,7 @@ describe("scenario owners", () => {
     expect(useGalaxyStore.getState().systems.get(2)?.owner).toBe(TERRITORY.id);
     expect(useGalaxyStore.getState().countries.get(TERRITORY.id)).toBe(TERRITORY);
 
-    mocked.getScenarioOwners.mockResolvedValue(null);
+    mockedIpc.getScenarioOwners.mockResolvedValue(null);
     await useGameDataStore.getState().unload();
 
     expect(useGameDataStore.getState().scenarioOwners).toBeNull();
@@ -453,24 +456,24 @@ describe("scenario owners", () => {
 
   it("reads the bypasses with the owners and drops them with the game data", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
-    mocked.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
-    mocked.getScenarioBypasses.mockResolvedValue(SCENARIO_BYPASSES);
+    mockedIpc.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
+    mockedIpc.getScenarioBypasses.mockResolvedValue(SCENARIO_BYPASSES);
 
     await useGameDataStore.getState().load();
 
     expect(useGameDataStore.getState().scenarioBypasses).toBe(SCENARIO_BYPASSES);
 
-    mocked.getScenarioOwners.mockResolvedValue(null);
-    mocked.getScenarioBypasses.mockResolvedValue(null);
+    mockedIpc.getScenarioOwners.mockResolvedValue(null);
+    mockedIpc.getScenarioBypasses.mockResolvedValue(null);
     await useGameDataStore.getState().unload();
 
     expect(useGameDataStore.getState().scenarioBypasses).toBeNull();
   });
 
   it("reads them again when a document opens, and asks for nothing without one", async () => {
-    mocked.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
+    mockedIpc.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
     await useGameDataStore.getState().load();
-    expect(mocked.getScenarioOwners).not.toHaveBeenCalled();
+    expect(mockedIpc.getScenarioOwners).not.toHaveBeenCalled();
 
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     useGameDataStore.getState().onSaveOpened();

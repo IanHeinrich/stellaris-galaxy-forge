@@ -6,7 +6,7 @@ import type { MegastructureSummary } from "../../generated/MegastructureSummary"
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
 import type { SystemDetails } from "../../generated/SystemDetails";
-import type { MapTooltipText } from "../../store/editorStore";
+import type { MapTooltipText } from "../../store/mapChromeStore";
 import { templateKeys, templateName, type Names } from "../names";
 import { canonicalResource } from "../resources";
 import { keyWords, titleCase } from "../text";

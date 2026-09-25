@@ -8,22 +8,15 @@ import type { FeDirection } from "../generated/FeDirection";
 import type { FeKind } from "../generated/FeKind";
 import type { FeZone } from "../generated/FeZone";
 import type { SystemNode } from "../generated/SystemNode";
+import {
+  FE_ZONE_DEFAULT_DISTANCE,
+  FE_ZONE_DISTANCES,
+  FE_ZONE_MAP_EXTENT,
+  FE_ZONE_RADIUS,
+} from "../generated/constants";
 import type { Pt } from "./geometry/pt";
 
-/** How far from its centre a zone reaches, in world units; the mod does not let it be resized. */
-export const FE_ZONE_RADIUS = 30;
-
-/** The distances the mod accepts between the anchor and the zone's centre. */
-export const FE_ZONE_DISTANCES: readonly number[] = Array.from(
-  { length: 18 },
-  (_, i) => 30 + i * 10,
-);
-
-/** Where a new zone is put: the nearest distance whose ring clears the anchor's own star. */
-export const FE_ZONE_DEFAULT_DISTANCE = 40;
-
-/** The mod's canvas ends here on either axis; a ring past it is off the map. */
-export const FE_ZONE_MAP_EXTENT = 470;
+export { FE_ZONE_DEFAULT_DISTANCE, FE_ZONE_DISTANCES, FE_ZONE_MAP_EXTENT, FE_ZONE_RADIUS };
 
 /** The eight compass directions in the mod's order, named as the user sees them on screen. */
 export const FE_DIRECTIONS: ReadonlyArray<{ key: FeDirection; label: string }> = [
@@ -83,7 +76,10 @@ export function feZoneCentre(anchor: Pt, zone: Pick<FeZone, "direction" | "dista
 
 /** The direction and distance whose centre lies nearest a world point, over the 8 × 18 grid. */
 export function snapFeZone(anchor: Pt, point: Pt): { direction: FeDirection; distance: number } {
-  let best = { direction: FE_DIRECTIONS[0].key, distance: FE_ZONE_DISTANCES[0] };
+  let best: { direction: FeDirection; distance: number } = {
+    direction: FE_DIRECTIONS[0].key,
+    distance: FE_ZONE_DISTANCES[0],
+  };
   let bestD2 = Infinity;
   for (const { key: direction } of FE_DIRECTIONS) {
     for (const distance of FE_ZONE_DISTANCES) {

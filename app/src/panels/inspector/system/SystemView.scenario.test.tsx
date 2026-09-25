@@ -42,7 +42,6 @@ import { useScriptsStore } from "../../../store/scriptsStore";
 import {
   details,
   land,
-  mocked,
   open,
   overview,
   planet,
@@ -56,6 +55,7 @@ import { DEFAULT_SPAWN_WEIGHT, spawnPointOp } from "../../spawnPoint";
 import { drawnBy, drawnButton, drawnCheckbox, drawnField } from "../../../test/drawn";
 import { TextField } from "../../EditField";
 import { SystemView } from "./SystemView";
+import { mockedIpc } from "../../../test/ipc";
 
 bindStores();
 
@@ -154,7 +154,7 @@ describe("a scenario system's overview", () => {
 
 /** Answers `getSystem` with the fixture's detail, but `id`'s system stamped with `owner`. */
 function ownerDetail(id: number, owner: number): void {
-  mocked.getSystem.mockImplementation(async (reqId) => {
+  mockedIpc.getSystem.mockImplementation(async (reqId) => {
     const detail = detailOf(reqId);
     return reqId === id ? { ...detail, system: { ...detail.system, owner } } : detail;
   });
@@ -249,7 +249,7 @@ describe("a system's contents", () => {
   it("says why the read failed rather than reading for ever", async () => {
     await open("scenario");
     useInspectorStore.setState({ tab: "contents" });
-    mocked.getSystemDetails.mockRejectedValue({ kind: "no_session", message: "nothing open" });
+    mockedIpc.getSystemDetails.mockRejectedValue({ kind: "no_session", message: "nothing open" });
 
     useDetailsStore.getState().request([SYSTEM]);
     await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
@@ -262,7 +262,10 @@ describe("a system's contents", () => {
   it("reads them again once an edit invalidates the failure", async () => {
     await open("scenario");
     useInspectorStore.setState({ tab: "contents" });
-    mocked.getSystemDetails.mockRejectedValueOnce({ kind: "no_session", message: "nothing open" });
+    mockedIpc.getSystemDetails.mockRejectedValueOnce({
+      kind: "no_session",
+      message: "nothing open",
+    });
     useDetailsStore.getState().request([SYSTEM]);
     await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
 
@@ -311,7 +314,7 @@ describe("a scenario system's source", () => {
 
 /** The system as the projection reports it once its statement carries `spawn_weight`. */
 function withWeight(weight: number | null, initializer = "basic_init_01"): void {
-  mocked.getSystem.mockImplementation(async (id) => {
+  mockedIpc.getSystem.mockImplementation(async (id) => {
     const detail = detailOf(id);
     return { ...detail, system: { ...detail.system, spawn_weight: weight, initializer } };
   });
@@ -357,7 +360,7 @@ describe("a scenario system's spawn weight", () => {
     drawnBy(overview);
     drawnCheckbox().onChange();
     await vi.waitFor(() =>
-      expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetSpawnWeight",
         id: SYSTEM,
         base: DEFAULT_SPAWN_WEIGHT,
@@ -369,7 +372,7 @@ describe("a scenario system's spawn weight", () => {
     drawnBy(overview);
     drawnCheckbox().onChange();
     await vi.waitFor(() =>
-      expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetSpawnWeight",
         id: SYSTEM,
         base: null,
@@ -388,7 +391,7 @@ describe("a scenario system's spawn weight", () => {
 describe("a scenario system's spawn modifiers", () => {
   /** The system as the projection reports its `spawn_weight` block. */
   function withSpawn(extra: Partial<SystemNode>): void {
-    mocked.getSystem.mockImplementation(async (id) => {
+    mockedIpc.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
       return { ...detail, system: { ...detail.system, ...extra } };
     });
@@ -441,7 +444,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     kind: "enabled" | "preferred" | "sol" | { reserved: string },
     player = false,
   ): void {
-    mocked.getSystem.mockImplementation(async (id) => {
+    mockedIpc.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
       return {
         ...detail,
@@ -622,7 +625,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     drawnButton("Use a Paint a Galaxy seat").onClick();
 
     await vi.waitFor(() =>
-      expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetSpawnScript",
         id: SYSTEM,
         script: { paint_a_galaxy: { kind: "enabled", random_value: SYSTEM % 10, player: false } },
@@ -684,7 +687,11 @@ describe("a scenario system's prevented lanes", () => {
     drawnButton("Allow a lane between #1 and #3").onClick();
 
     await vi.waitFor(() =>
-      expect(mocked.applyOp).toHaveBeenLastCalledWith({ type: "UnpreventLane", a: SYSTEM, b: 3 }),
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "UnpreventLane",
+        a: SYSTEM,
+        b: 3,
+      }),
     );
   });
 
@@ -883,7 +890,7 @@ describe("the head of a scenario system", () => {
     name.onCommit("Sea of Ghosts");
 
     await vi.waitFor(() =>
-      expect(mocked.applyOp).toHaveBeenLastCalledWith({
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetSystemName",
         id: SYSTEM,
         name: "Sea of Ghosts",

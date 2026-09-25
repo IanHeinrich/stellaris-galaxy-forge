@@ -50,7 +50,6 @@ fn node(raw: RawCountry) -> Option<CountryNode> {
         colors: raw.colors,
         border_color: raw.border_color,
         fill_color: raw.fill_color,
-        flag_colors: raw.flag_colors,
         use_map_color: raw.use_map_color,
         painted_border: raw.painted.0,
         painted_fill: raw.painted.1,

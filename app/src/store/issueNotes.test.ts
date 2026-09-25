@@ -19,9 +19,11 @@ import {
   systemNode,
 } from "./fixture";
 import { useGalaxyStore } from "./galaxyStore";
+import { loadGameData } from "./gameDataFixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
-import { mocked, resetSession, session, withPaintMod } from "./sessionFixture";
+import { resetSession, session, withPaintMod } from "./sessionFixture";
+import { mockedIpc } from "../test/ipc";
 
 const SCENARIO_PATH = SCENARIO_RESULT.path;
 const PAINT_DIR = "C:/mods/pag/map/setup_scenarios";
@@ -33,14 +35,10 @@ function scenarioOf(count: number): typeof SCENARIO_RESULT {
 }
 
 /** Game data whose largest galaxy size is Huge at 1,000 stars. */
-function loadHuge(): void {
-  useGameDataStore.setState({
-    status: "ready",
-    summary: gameDataSummary({
-      largest_galaxy: { name: "huge", label: "Huge", num_stars: 1000 },
-    }),
-  });
-}
+const loadHuge = () =>
+  loadGameData(
+    gameDataSummary({ largest_galaxy: { name: "huge", label: "Huge", num_stars: 1000 } }),
+  );
 
 const sizeMessages = () =>
   useIssuesStore
@@ -50,16 +48,16 @@ const sizeMessages = () =>
 
 beforeEach(() => {
   resetSession();
-  mocked.getScenarioBypasses.mockResolvedValue(null);
-  mocked.getNames.mockResolvedValue({});
-  mocked.resolveNames.mockResolvedValue([]);
+  mockedIpc.getScenarioBypasses.mockResolvedValue(null);
+  mockedIpc.getNames.mockResolvedValue({});
+  mockedIpc.resolveNames.mockResolvedValue([]);
 });
 
 describe("scenario names the mod's folder already lists", () => {
   it("notes every other file in the mod's folder that lists the same name, on open and again on save", async () => {
     await withPaintMod(paintModView({ scenarios_dir: PAINT_DIR }));
     const mine = `${PAINT_DIR}/my_galaxy.txt`;
-    mocked.openSave.mockResolvedValueOnce({
+    mockedIpc.openSave.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       path: mine,
       galaxy: {
@@ -67,13 +65,13 @@ describe("scenario names the mod's folder already lists", () => {
         header: [{ key: "name", value: '"Elysium"', line: 1 }],
       },
     });
-    mocked.siblingScenarioNames.mockResolvedValueOnce([
+    mockedIpc.siblingScenarioNames.mockResolvedValueOnce([
       ["other.txt", "Elysium"],
       ["third.txt", "Arcadia"],
     ]);
     await session().requestOpen(mine, { listings: null });
     await vi.waitFor(() => expect(useIssuesStore.getState().issues).toHaveLength(2));
-    expect(mocked.siblingScenarioNames).toHaveBeenCalledWith(mine);
+    expect(mockedIpc.siblingScenarioNames).toHaveBeenCalledWith(mine);
     expect(useIssuesStore.getState().issues[1]).toEqual({
       severity: "warning",
       code: "scenario_name_duplicate",
@@ -85,26 +83,26 @@ describe("scenario names the mod's folder already lists", () => {
     });
     expect(useIssuesStore.getState().notes).toEqual([useIssuesStore.getState().issues[1]]);
 
-    mocked.applyOp.mockResolvedValueOnce(editResult({ issues: [] }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ issues: [] }));
     await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
     expect(useIssuesStore.getState().issues.map((issue) => issue.code)).toEqual([
       "scenario_name_duplicate",
     ]);
 
-    mocked.save.mockResolvedValueOnce(saveResult({ path: mine, dirty: false }));
-    mocked.siblingScenarioNames.mockResolvedValueOnce([["other.txt", "Renamed"]]);
+    mockedIpc.save.mockResolvedValueOnce(saveResult({ path: mine, dirty: false }));
+    mockedIpc.siblingScenarioNames.mockResolvedValueOnce([["other.txt", "Renamed"]]);
     await session().save();
     await vi.waitFor(() => expect(useIssuesStore.getState().issues).toEqual([]));
     expect(useIssuesStore.getState().notes).toEqual([]);
   });
   it("notes nothing for a scenario outside the mod's folder, or when the folder cannot be read", async () => {
     await withPaintMod(paintModView({ scenarios_dir: PAINT_DIR }));
-    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_PATH, { listings: null });
-    expect(mocked.siblingScenarioNames).not.toHaveBeenCalled();
+    expect(mockedIpc.siblingScenarioNames).not.toHaveBeenCalled();
 
     const mine = `${PAINT_DIR}/my_galaxy.txt`;
-    mocked.openSave.mockResolvedValueOnce({
+    mockedIpc.openSave.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       path: mine,
       galaxy: {
@@ -112,9 +110,9 @@ describe("scenario names the mod's folder already lists", () => {
         header: [{ key: "name", value: '"Elysium"', line: 1 }],
       },
     });
-    mocked.siblingScenarioNames.mockRejectedValueOnce(new Error("unreadable"));
+    mockedIpc.siblingScenarioNames.mockRejectedValueOnce(new Error("unreadable"));
     await session().requestOpen(mine, { listings: null });
-    await vi.waitFor(() => expect(mocked.siblingScenarioNames).toHaveBeenCalledWith(mine));
+    await vi.waitFor(() => expect(mockedIpc.siblingScenarioNames).toHaveBeenCalledWith(mine));
     expect(useIssuesStore.getState().issues.map((issue) => issue.code)).toEqual([
       "system_isolated",
     ]);
@@ -131,7 +129,7 @@ describe("reserved seats", () => {
     const codes = () => useIssuesStore.getState().issues.map((issue) => issue.code);
     const mod = (reserved_spawns: boolean) =>
       paintModView({ scenarios_dir: PAINT_DIR, reserved_spawns });
-    mocked.openSave.mockResolvedValueOnce({
+    mockedIpc.openSave.mockResolvedValueOnce({
       ...SCENARIO_RESULT,
       painted: true,
       galaxy: {
@@ -161,17 +159,19 @@ describe("reserved seats", () => {
     await withPaintMod(null);
     expect(codes()).toEqual(["system_isolated", "reserved_spawns_missing"]);
 
-    mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [seated("sol")] } }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [seated("sol")] } }));
     await useEditorStore.getState().applyOp({ type: "SetSpawnScript", id: 2, script: null });
     expect(codes()).toEqual(["system_isolated"]);
 
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [seated({ reserved: "b" })] } }),
     );
     await useEditorStore.getState().applyOp({ type: "SetSpawnScript", id: 2, script: null });
     expect(codes()).toEqual(["system_isolated", "reserved_spawns_missing"]);
 
-    mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [seated("enabled")] } }));
+    mockedIpc.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: [seated("enabled")] } }),
+    );
     await useEditorStore.getState().applyOp({ type: "SetSpawnScript", id: 2, script: null });
     expect(codes()).toEqual(["system_isolated"]);
   });
@@ -179,8 +179,8 @@ describe("reserved seats", () => {
 
 describe("the galaxy size note", () => {
   it("warns when a scenario has well over the largest galaxy size's stars, as systems come and go", async () => {
-    loadHuge();
-    mocked.openSave.mockResolvedValue(scenarioOf(1300));
+    await loadHuge();
+    mockedIpc.openSave.mockResolvedValue(scenarioOf(1300));
     await session().openSave(SCENARIO_RESULT.path);
     expect(useIssuesStore.getState().issues).toEqual([
       {
@@ -195,13 +195,15 @@ describe("the galaxy size note", () => {
     ]);
 
     const removed = Array.from({ length: 50 }, (_, i) => 1250 + i);
-    mocked.applyOp.mockResolvedValue(editResult({ issues: [], delta: { systems: [], removed } }));
+    mockedIpc.applyOp.mockResolvedValue(
+      editResult({ issues: [], delta: { systems: [], removed } }),
+    );
     await useEditorStore.getState().applyOp({ type: "RemoveSystem", id: 1250 });
     expect(useGalaxyStore.getState().systems.size).toBe(1250);
     expect(sizeMessages()).toEqual([]);
 
     const added = [systemNode({ id: 1250 })];
-    mocked.applyOp.mockResolvedValue(editResult({ issues: [], delta: { systems: added } }));
+    mockedIpc.applyOp.mockResolvedValue(editResult({ issues: [], delta: { systems: added } }));
     await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 1250, x: 0, y: 0 });
     expect(sizeMessages()).toEqual([
       "1,251 systems is well above Huge, the game's largest galaxy (1,000 stars). " +
@@ -209,25 +211,22 @@ describe("the galaxy size note", () => {
     ]);
   });
   it("says nothing without game data, and stops once it goes away or comes back without sizes", async () => {
-    mocked.openSave.mockResolvedValue(scenarioOf(2000));
+    mockedIpc.openSave.mockResolvedValue(scenarioOf(2000));
     await session().openSave(SCENARIO_RESULT.path);
     expect(sizeMessages()).toEqual([]);
 
-    loadHuge();
+    await loadHuge();
     expect(sizeMessages()).toHaveLength(1);
 
-    useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
+    await useGameDataStore.getState().unload();
     expect(sizeMessages()).toEqual([]);
 
-    useGameDataStore.setState({
-      status: "ready",
-      summary: gameDataSummary({ largest_galaxy: null }),
-    });
+    await loadGameData(gameDataSummary({ largest_galaxy: null }));
     expect(sizeMessages()).toEqual([]);
   });
   it("holds a save to no galaxy size", async () => {
-    loadHuge();
-    mocked.openSave.mockResolvedValue({
+    await loadHuge();
+    mockedIpc.openSave.mockResolvedValue({
       ...scenarioOf(2000),
       kind: "save",
       path: OPEN_RESULT.path,
@@ -246,7 +245,7 @@ describe("the initializer limit note", () => {
       ...[0, 1, 2].map((id) => systemNode({ id, x: id, initializer: "distar_crystal_system" })),
       ...[3, 4, 5, 6].map((id) => systemNode({ id, x: id, initializer: "basic_init_01" })),
     ];
-    mocked.openSave.mockResolvedValue({
+    mockedIpc.openSave.mockResolvedValue({
       ...SCENARIO_RESULT,
       issues: [],
       galaxy: { ...SCENARIO_RESULT.galaxy, systems },
@@ -270,7 +269,7 @@ describe("the initializer limit note", () => {
       },
     ]);
 
-    mocked.applyOp.mockResolvedValue(
+    mockedIpc.applyOp.mockResolvedValue(
       editResult({ issues: [], delta: { systems: [], removed: [2] } }),
     );
     await useEditorStore.getState().applyOp({ type: "RemoveSystem", id: 2 });

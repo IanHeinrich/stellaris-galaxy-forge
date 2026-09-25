@@ -11,6 +11,7 @@ import { useInitializerBrowserStore } from "./initializerBrowserStore";
 import { useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
+import { resetStores } from "./storeFixture";
 
 const SOL: Entry = { ref: { kind: "system", id: 452 }, label: "Sol" };
 const EARTH: Entry = { ref: { kind: "planet", id: 1207 }, label: "Earth" };
@@ -23,13 +24,8 @@ const effects: CommandEffects = {
 const stored = new Map<string, string>();
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  resetStores();
   stubPrefs(stored);
-  useEditorStore.setState({ ...useEditorStore.getInitialState() });
-  useInitializerBrowserStore.setState({ ...useInitializerBrowserStore.getInitialState() });
-  useInspectorStore.setState({ ...useInspectorStore.getInitialState() });
-  useLayoutStore.setState({ ...useLayoutStore.getInitialState() });
-  useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
 });
 
 describe("clearSelection", () => {

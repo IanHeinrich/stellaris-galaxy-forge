@@ -1,9 +1,6 @@
 import { vi } from "vitest";
 import type { StoreApi } from "zustand";
 
-import { confirm, open, save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { onGameDataChanged, onProgress } from "../api/events";
-import * as ipc from "../api/ipc";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
@@ -26,16 +23,7 @@ import { useScriptsStore } from "./scriptsStore";
 import { useToolStore } from "./toolStore";
 import { useUpdateStore } from "./updateStore";
 import { useWatchlistStore } from "./watchlistStore";
-
-/** Every command, event and dialog a store test arms, each as its typed spy. */
-export const mocked = {
-  ...vi.mocked(ipc),
-  onProgress: vi.mocked(onProgress),
-  onGameDataChanged: vi.mocked(onGameDataChanged),
-  confirm: vi.mocked(confirm),
-  open: vi.mocked(open),
-  saveDialog: vi.mocked(saveDialog),
-};
+import { mockedIpc } from "../test/ipc";
 
 const STORES: StoreApi<object>[] = [
   useEditorStore,
@@ -72,17 +60,17 @@ export function resetStores(): void {
  * as the galaxy store holds it, and every question is agreed to.
  */
 export function armSession(): void {
-  mocked.onProgress.mockResolvedValue(() => undefined);
-  mocked.openSave.mockResolvedValue(OPEN_RESULT);
-  mocked.getSystem.mockImplementation(async (id) => {
+  mockedIpc.onProgress.mockResolvedValue(() => undefined);
+  mockedIpc.openSave.mockResolvedValue(OPEN_RESULT);
+  mockedIpc.getSystem.mockImplementation(async (id) => {
     const system = useGalaxyStore.getState().systems.get(id);
     if (!system) throw { kind: "not_found", message: `no system ${id}` };
     if (!SYSTEMS.some((s) => s.id === id)) return { system, neighbours: [], nebula: null };
     return { ...detailOf(id), system };
   });
-  mocked.closeSave.mockResolvedValue();
-  mocked.warmDetails.mockResolvedValue();
-  mocked.confirm.mockResolvedValue(true);
-  mocked.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
-  mocked.getScenarioOwners.mockResolvedValue(null);
+  mockedIpc.closeSave.mockResolvedValue();
+  mockedIpc.warmDetails.mockResolvedValue();
+  mockedIpc.confirm.mockResolvedValue(true);
+  mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
+  mockedIpc.getScenarioOwners.mockResolvedValue(null);
 }

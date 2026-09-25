@@ -11,9 +11,8 @@ import { useFileSessionStore, type SaveIssuesAnswer } from "./fileSessionStore";
 import { useIssuesStore } from "./issuesStore";
 import { usePaintModStore } from "./paintModStore";
 import { editResult } from "./fixture";
-import { armSession, mocked, resetStores } from "./storeFixture";
-
-export { mocked };
+import { armSession, resetStores } from "./storeFixture";
+import { mockedIpc } from "../test/ipc";
 
 export const session = () => useFileSessionStore.getState();
 
@@ -46,13 +45,13 @@ bindStores();
 
 /** One applied edit, so the session is dirty. */
 export async function edit(): Promise<void> {
-  mocked.applyOp.mockResolvedValueOnce(editResult());
+  mockedIpc.applyOp.mockResolvedValueOnce(editResult());
   await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
 }
 
 /** What the launcher says of the Paint a Galaxy mod, taken the way the store asks the shell. */
 export async function withPaintMod(view: PaintModView | null): Promise<void> {
-  mocked.paintMod.mockResolvedValue(view);
+  mockedIpc.paintMod.mockResolvedValue(view);
   await usePaintModStore.getState().refresh();
 }
 
@@ -78,10 +77,10 @@ export function resetSession(): void {
   stubPrefs(stored);
   armSession();
   listen.unlisten = vi.fn<() => void>();
-  mocked.onProgress.mockImplementation(async (h) => {
+  mockedIpc.onProgress.mockImplementation(async (h) => {
     listen.progress = h;
     return listen.unlisten;
   });
-  mocked.isCloudSave.mockResolvedValue(false);
-  mocked.paintMod.mockReset();
+  mockedIpc.isCloudSave.mockResolvedValue(false);
+  mockedIpc.paintMod.mockReset();
 }

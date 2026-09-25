@@ -56,18 +56,6 @@ export function currentStarBodies<P extends Body>(
   return starBodies(read.planets, planetClasses, starClasses);
 }
 
-/** The classes a system with `count` star bodies can become: the same count, not `current`. */
-export function starClassChoices(
-  current: string,
-  count: number,
-  starClasses: ReadonlyMap<string, StarClassView>,
-): StarClassView[] {
-  if (count === 0) return [];
-  return [...starClasses.values()].filter(
-    (c) => c.key !== current && c.planet_keys.length === count,
-  );
-}
-
 /**
  * A single star is `Exotic` when its body is no ordinary `*_star`, else `Stars`; a multiple
  * star is grouped by how many bodies it has. Classes a new galaxy never rolls group apart, so a

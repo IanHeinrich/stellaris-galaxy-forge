@@ -28,12 +28,7 @@ border_color: string | null,
  */
 fill_color: string | null, 
 /**
- * Every `flag.colors` entry in order, the `"null"` placeholders kept; empty for a
- * scenario's territories.
- */
-flag_colors: Array<string>, 
-/**
- * Whether `flag.use_map_color=yes`: the game paints the map in `flag_colors[4]` and
+ * Whether `flag.use_map_color=yes`: the game paints the map in `flag.colors[4]` and
  * `[5]` rather than the first two.
  */
 use_map_color: boolean, 

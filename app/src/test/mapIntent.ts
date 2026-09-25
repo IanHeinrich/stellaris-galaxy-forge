@@ -1,6 +1,6 @@
 import type { MapInput, MapIntent } from "../map/interaction/MapIntent";
 
-export type Call = [keyof MapIntent, ...unknown[]];
+type Call = [keyof MapIntent, ...unknown[]];
 
 /** A `MapIntent` that records every call, for driving a control model without a canvas. */
 export function recorder(): MapIntent & { calls: Call[] } {

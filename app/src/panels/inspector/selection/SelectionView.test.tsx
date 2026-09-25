@@ -21,8 +21,9 @@ import {
   starClassView,
   systemDetails,
 } from "../../../test/builders";
-import { mocked, open, resetStores } from "../inspectorFixture";
+import { open, resetStores } from "../inspectorFixture";
 import { SelectionView } from "./SelectionView";
+import { mockedIpc } from "../../../test/ipc";
 
 bindStores();
 
@@ -102,7 +103,7 @@ describe("the bulk star class", () => {
   }
 
   async function landChain(): Promise<void> {
-    mocked.getSystemDetails.mockResolvedValue(
+    mockedIpc.getSystemDetails.mockResolvedValue(
       CHAIN.map((id) =>
         systemDetails({
           id,
@@ -119,13 +120,13 @@ describe("the bulk star class", () => {
     armStarClasses();
     await open("save");
     await useEditorStore.getState().setSelection(CHAIN, "replace");
-    mocked.getSystemDetails.mockClear();
+    mockedIpc.getSystemDetails.mockClear();
 
     const html = renderToStaticMarkup(<SelectionView />);
     await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
     expect(html).toContain('aria-haspopup="listbox"');
     expect(html).toContain('aria-label="Star class: Star class… (3 systems)"');
-    expect(mocked.getSystemDetails).not.toHaveBeenCalled();
+    expect(mockedIpc.getSystemDetails).not.toHaveBeenCalled();
   });
 
   it("is not offered on a scenario", async () => {

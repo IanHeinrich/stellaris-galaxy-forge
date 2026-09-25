@@ -248,7 +248,10 @@ whether a combination loads.
   in `common/defines/00_defines.txt`.
 - `flags/colors.txt` names the `flag`, `map` and `ship` rgb of each
   empire colour. The map fills a territory with the country's second
-  flag colour and outlines it with the first.
+  flag colour and outlines it with the first. An empire with
+  `flag.use_map_color=yes` (4.5) is painted in its fifth and sixth
+  `colors` entries instead, the map border and fill
+  ([format-notes.md](format-notes.md)).
 
 ## Names
 

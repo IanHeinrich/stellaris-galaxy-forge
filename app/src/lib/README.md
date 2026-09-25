@@ -3,7 +3,7 @@
 `lib/` is what the data means: pure helpers over the generated types, names,
 the game's own vocabulary and the humanisers that turn its keys into English.
 
-- `lib/geometry/`: points, hulls, the mesh and the drawn territory: the maths,
+- `lib/geometry/`: points, the mesh and the drawn territory: the maths,
   which knows no game vocabulary at all. `territories.ts` keeps one galaxy's
   territories between edits, `territories.worker.ts` runs it off the UI thread
   and `territoryClient.ts` is how the map talks to either. `pairs.ts` and
@@ -45,6 +45,11 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `menuAim` keeps a submenu open while the pointer heads for it, `watchlist`
   is the pinned searches' colours, rings and labels, and `renumber` follows
   system ids and lanes through an edit that renumbers them.
+
+A rule the core owns as well, such as the L-Cluster circle, the spawn buffer
+or a fallen empire zone's reach, is read from `generated/constants.ts`, which
+the core's tests write. `guides`, `addSystem` and `feZone` re-export what they
+use of it.
 
 `lib/visual/` is how it looks: colours, fonts, textures, layer ids and badge
 styles, shared by the map and the panels so both draw the same thing.

@@ -1,33 +1,13 @@
 import { useMemo } from "react";
-import type { CountryNode } from "../generated/CountryNode";
-import type { SpecialSystem } from "../generated/SpecialSystem";
 import * as rows from "../lib/browserRows";
-import type { CountryTypes } from "../lib/countryKinds";
 import { templateName } from "../lib/names";
 import { centralOwnedSystems, systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
-import { currentOwnership, useOwnership } from "./ownership";
+import { useOwnership } from "./ownership";
 
-export { issueCopy, type IssueCopy } from "../lib/issueCopy";
-export {
-  EMPIRE_GROUPS,
-  POINT_KINDS,
-  empireGroup,
-  issueGroups,
-  issueTitle,
-  specialSystemOfCountry,
-} from "../lib/browserRows";
-export type {
-  EmpireGroup,
-  EmpireGroupKey,
-  EmpireRow,
-  IssueGroup,
-  IssueRow,
-  PointGroup,
-  PointKind,
-  PointRow,
-  RowLookups,
-} from "../lib/browserRows";
+export { issueCopy } from "../lib/issueCopy";
+export { issueGroups, issueTitle } from "../lib/browserRows";
+export type { EmpireRow, PointGroup, PointRow } from "../lib/browserRows";
 
 /** What the browser rows look up, from a galaxy and a localisation handed in. */
 export function rowLookups(systems: Systems, names: ReadonlyMap<string, string>): rows.RowLookups {
@@ -67,26 +47,6 @@ export function useCountryName(id: number | null): string | null {
 /** What a panel that mirrors the whole galaxy reads: every load and every delta bumps it. */
 export function useGalaxyVersion(): number {
   return useGalaxyStore((s) => s.version);
-}
-
-/** The same lookups, answered from the stores as they stand. */
-function currentLookups(): rows.RowLookups {
-  return rowLookups(useGalaxyStore.getState().systems, useGameDataStore.getState().names);
-}
-
-export function empireGroups(
-  countries: ReadonlyMap<number, CountryNode>,
-  types: CountryTypes,
-): rows.EmpireGroup[] {
-  return rows.empireGroups(countries, types, currentLookups(), currentOwnership());
-}
-
-export function pointGroups(
-  special: ReadonlyMap<number, SpecialSystem>,
-  withGameData: boolean,
-  names: ReadonlyMap<string, string>,
-): rows.PointGroup[] {
-  return rows.pointGroups(special, withGameData, names, currentLookups().systemName);
 }
 
 /** How many empires the Empires tab lists, recomputed only when what it reads changes. */

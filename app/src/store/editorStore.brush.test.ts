@@ -12,16 +12,11 @@ import { stampsAlong } from "../lib/brush/stroke";
 import type { Symmetry } from "../lib/geometry/symmetry";
 import { segmentsCross } from "../lib/geometry/segments";
 import type { Pt } from "../lib/geometry/pt";
-import {
-  editor,
-  mocked,
-  openFixtureSave,
-  openFixtureScenario,
-  sessionError,
-} from "./editorFixture";
+import { editor, openFixtureSave, openFixtureScenario, sessionError } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { SCENARIO_RESULT, SYSTEMS, editResult, placedNode } from "./fixture";
+import { mockedIpc } from "../test/ipc";
 
 const ERASE: BrushSettings = {
   tool: "erase",
@@ -36,7 +31,7 @@ const ERASE: BrushSettings = {
 
 beforeEach(async () => {
   await openFixtureScenario();
-  mocked.applyOp.mockResolvedValue(editResult());
+  mockedIpc.applyOp.mockResolvedValue(editResult());
 });
 
 describe("a paint stroke", () => {
@@ -58,8 +53,8 @@ describe("a paint stroke", () => {
       spawn_weight: null,
       spawn_script: null,
     });
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Painted 2 systems and 2 lanes",
       ops: [
@@ -77,7 +72,7 @@ describe("a paint stroke", () => {
 
   it("names one system and no lanes in the singular", async () => {
     await editor().paintStroke([{ x: 200, y: 200 }], []);
-    expect(mocked.applyOp.mock.calls[0][0]).toMatchObject({
+    expect(mockedIpc.applyOp.mock.calls[0][0]).toMatchObject({
       type: "Batch",
       description: "Painted 1 system",
     });
@@ -87,21 +82,21 @@ describe("a paint stroke", () => {
     expect(await editor().paintStroke([], [])).toBe(false);
     expect(await editor().eraseStroke([])).toBe(false);
     expect(await editor().cutLanes([])).toBe(false);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });
 
 describe("an erase stroke", () => {
   it("removes the systems it swept as one edit", async () => {
     await editor().eraseStroke([0]);
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "Batch",
       description: "Erased 1 system",
       ops: [{ type: "RemoveSystems", ids: [0] }],
     });
 
     await editor().eraseStroke([0, 1]);
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "Batch",
       description: "Erased 2 systems",
       ops: [{ type: "RemoveSystems", ids: [0, 1] }],
@@ -109,7 +104,7 @@ describe("an erase stroke", () => {
   });
 
   it("a refused stroke reports why and leaves the galaxy as it was", async () => {
-    mocked.applyOp.mockRejectedValueOnce({ kind: "op", message: "no such system" });
+    mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "no such system" });
     expect(await editor().eraseStroke([0])).toBe(false);
     expect(sessionError()).toBe("no such system");
     expect(useGalaxyStore.getState().systems.has(0)).toBe(true);
@@ -122,7 +117,7 @@ describe("a connect stroke", () => {
       [0, 2],
       [2, 3],
     ]);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Connected 2 lanes",
       ops: [
@@ -137,9 +132,9 @@ describe("a connect stroke", () => {
     });
 
     await openFixtureSave();
-    mocked.applyOp.mockResolvedValue(editResult());
+    mockedIpc.applyOp.mockResolvedValue(editResult());
     expect(await editor().connectStroke([[2, 3]])).toBe(true);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Connected 1 lane",
       ops: [{ type: "AddLanePairs", lanes: [{ a: 2, b: 3, bridge: false }] }],
@@ -148,16 +143,16 @@ describe("a connect stroke", () => {
 
   it("sends nothing when it found no lane", async () => {
     expect(await editor().connectStroke([])).toBe(false);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });
 
 describe("a cut stroke", () => {
   it("cuts the lanes it passes over as one edit, on a save too", async () => {
     await openFixtureSave();
-    mocked.applyOp.mockResolvedValue(editResult());
+    mockedIpc.applyOp.mockResolvedValue(editResult());
     await editor().cutLanes([[0, 1]]);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Cut 1 lane",
       ops: [{ type: "RemoveLanePairs", lanes: [[0, 1]] }],
@@ -179,7 +174,7 @@ function stroke(settings: Partial<BrushSettings>, path: Pt[]) {
 
 /** What the last paint edit sent: its systems, and its lanes as ordered pairs of real ids. */
 function sentPaint(): { description: string; systems: NewSystem[]; lanes: Pair[] } {
-  const calls = mocked.applyOp.mock.calls;
+  const calls = mockedIpc.applyOp.mock.calls;
   const op = calls[calls.length - 1][0] as Extract<Op, { type: "Batch" }>;
   const [add, link] = op.ops;
   if (add.type !== "AddSystems") throw new Error(add.type);
@@ -358,8 +353,8 @@ describe("a symmetric paint stroke", () => {
 describe("joining islands", () => {
   it("links the isolated Deneb to its nearest neighbour as one edit", async () => {
     expect(await editor().joinIslands()).toBe(true);
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Joined 2 islands",
       ops: [{ type: "AddLanePairs", lanes: [{ a: 0, b: 5, bridge: false }] }],
@@ -369,9 +364,9 @@ describe("joining islands", () => {
 
   it("works on a save", async () => {
     await openFixtureSave();
-    mocked.applyOp.mockResolvedValue(editResult());
+    mockedIpc.applyOp.mockResolvedValue(editResult());
     expect(await editor().joinIslands()).toBe(true);
-    expect(mocked.applyOp.mock.calls[0][0]).toMatchObject({ description: "Joined 2 islands" });
+    expect(mockedIpc.applyOp.mock.calls[0][0]).toMatchObject({ description: "Joined 2 islands" });
   });
 
   it("says as a notice, not an error, how many islands a join leaves walled off", async () => {
@@ -404,6 +399,6 @@ describe("joining islands", () => {
       ],
     });
     expect(await editor().joinIslands()).toBe(false);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });

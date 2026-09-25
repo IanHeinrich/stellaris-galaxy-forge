@@ -1,4 +1,4 @@
-import type { Pt } from "../lib/geometry/pt";
+import { dist2, type Pt } from "../lib/geometry/pt";
 import { SAMPLE_CAP, StrokeSampler } from "../lib/brush/sample";
 import { stampsAlong } from "../lib/brush/stroke";
 import type { Rand } from "../lib/random";
@@ -24,4 +24,10 @@ export function sampleStroke(
 ): Pt[] {
   const sampler = new StrokeSampler({ r, spacing, blockers, rand, cap });
   return sampler.add(stamps).map(({ x, y }) => ({ x, y }));
+}
+
+/** Whether `p` lies in the union of the discs of radius `r` about the stamps, edge included. */
+export function inStroke(p: Pt, stamps: readonly Pt[], r: number): boolean {
+  const r2 = r * r;
+  return stamps.some((s) => dist2(s, p) <= r2);
 }

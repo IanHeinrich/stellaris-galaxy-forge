@@ -1,6 +1,7 @@
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { Guide } from "../generated/Guide";
 import type { SystemNode } from "../generated/SystemNode";
+import { L_CLUSTER, LCLUSTER_PREFIX } from "../generated/constants";
 
 /** Half the side of the square a scenario's coordinates must fall in, in world units. */
 export const SCENARIO_HALF_EXTENT = 500;
@@ -22,8 +23,7 @@ export function mapReach(kind: DocumentKind | null, radius: number): number {
   return extent.shape === "circle" ? extent.radius : extent.half * Math.SQRT2;
 }
 
-/** Where the game builds the L-Cluster for every galaxy size: `sgf_core::guides::L_CLUSTER`. */
-export const L_CLUSTER: Guide = { x: -392.4, y: -392.4, radius: 90 };
+export { L_CLUSTER };
 
 /** Room left around a save's L-Cluster systems, so the circle reads as a region and not a hull. */
 const L_CLUSTER_MARGIN = 15;
@@ -32,7 +32,8 @@ const L_CLUSTER_MIN_RADIUS = 30;
 /** Whether the initializer or a star flag marks a save's system as part of the L-Cluster. */
 export function isLClusterSystem(system: SystemNode): boolean {
   return (
-    system.initializer.startsWith("lcluster") || system.flags.some((f) => f.startsWith("lcluster"))
+    system.initializer.startsWith(LCLUSTER_PREFIX) ||
+    system.flags.some((f) => f.startsWith(LCLUSTER_PREFIX))
   );
 }
 

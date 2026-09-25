@@ -14,7 +14,6 @@ export const COUNTRY: CountryNode = countryNode({
   capital_system: null,
   system_count: 0,
   colors: ["blue", "black"],
-  flag_colors: [],
   painted_border: "blue",
   painted_fill: "black",
   flag_icon: { category: "human", file: "flag_human_9.dds" },

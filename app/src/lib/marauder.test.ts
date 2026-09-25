@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SystemNode } from "../generated/SystemNode";
-import { systemNode } from "../test/builders";
+import { byId, systemNode } from "../test/builders";
 import {
   BASE_CLEARANCE,
   baseInitializer,
@@ -17,10 +16,6 @@ import {
   nextFreeClan,
   placeBases,
 } from "./marauder";
-
-function systems(...nodes: SystemNode[]): Map<number, SystemNode> {
-  return new Map(nodes.map((s) => [s.id, s]));
-}
 
 const lanes = (...to: number[]) =>
   to.map((id) => ({ to: id, length: 10, bridge: false, stale: false }));
@@ -55,13 +50,7 @@ describe("the clan vocabulary", () => {
 
 describe("clanHomes and nextFreeClan", () => {
   it("lists each clan's homes ascending, leaving out clans with none", () => {
-    const placed = systems(
-      home(9, 2),
-      home(4, 2),
-      home(1, 3),
-      base(2, 1, 2),
-      systemNode({ id: 3 }),
-    );
+    const placed = byId(home(9, 2), home(4, 2), home(1, 3), base(2, 1, 2), systemNode({ id: 3 }));
     expect([...clanHomes(placed)]).toEqual([
       [2, [4, 9]],
       [3, [1]],
@@ -69,10 +58,10 @@ describe("clanHomes and nextFreeClan", () => {
   });
 
   it("offers the lowest clan without a home, and none once all three are placed", () => {
-    expect(nextFreeClan(systems())).toBe(1);
-    expect(nextFreeClan(systems(home(1, 1)))).toBe(2);
-    expect(nextFreeClan(systems(home(1, 2)))).toBe(1);
-    expect(nextFreeClan(systems(home(1, 1), home(2, 2), home(3, 3)))).toBeNull();
+    expect(nextFreeClan(byId())).toBe(1);
+    expect(nextFreeClan(byId(home(1, 1)))).toBe(2);
+    expect(nextFreeClan(byId(home(1, 2)))).toBe(1);
+    expect(nextFreeClan(byId(home(1, 1), home(2, 2), home(3, 3)))).toBeNull();
   });
 });
 
@@ -83,7 +72,7 @@ describe("basesBeside, homeBeside and clanSystems", () => {
     const otherClan = base(3, 1, 2, 1);
     const otherHome = home(4, 1, 1);
     const plain = systemNode({ id: 5, lanes: lanes(1) });
-    const all = systems(h, ownBase, otherClan, otherHome, plain);
+    const all = byId(h, ownBase, otherClan, otherHome, plain);
     expect(basesBeside(h, all)).toEqual([ownBase]);
     expect(homeBeside(ownBase, all)).toBe(h);
     expect(homeBeside(otherClan, all)).toBeNull();
@@ -94,7 +83,7 @@ describe("basesBeside, homeBeside and clanSystems", () => {
 
   it("finds nothing for a system that is not a home, or a base with no linked home", () => {
     const b = base(2, 1, 2, 3);
-    const all = systems(b, home(3, 2, 2), systemNode({ id: 1 }));
+    const all = byId(b, home(3, 2, 2), systemNode({ id: 1 }));
     expect(basesBeside(b, all)).toEqual([]);
     expect(basesBeside(systemNode({ id: 1 }), all)).toEqual([]);
     expect(homeBeside(b, all)).toBeNull();
@@ -105,15 +94,15 @@ describe("basesBeside, homeBeside and clanSystems", () => {
 describe("missingBaseSites", () => {
   it("names the sites a home has no base beside it for, by the bases' initializers", () => {
     const h = home(1, 1, 2, 3);
-    expect(missingBaseSites(h, systems(h))).toEqual([2, 3]);
-    expect(missingBaseSites(h, systems(h, base(2, 1, 2, 1)))).toEqual([3]);
-    expect(missingBaseSites(h, systems(h, base(3, 1, 3, 1)))).toEqual([2]);
-    expect(missingBaseSites(h, systems(h, base(2, 1, 2, 1), base(3, 1, 3, 1)))).toEqual([]);
+    expect(missingBaseSites(h, byId(h))).toEqual([2, 3]);
+    expect(missingBaseSites(h, byId(h, base(2, 1, 2, 1)))).toEqual([3]);
+    expect(missingBaseSites(h, byId(h, base(3, 1, 3, 1)))).toEqual([2]);
+    expect(missingBaseSites(h, byId(h, base(2, 1, 2, 1), base(3, 1, 3, 1)))).toEqual([]);
   });
 
   it("counts two bases as complete whatever their sites say", () => {
     const h = home(1, 1, 2, 3);
-    expect(missingBaseSites(h, systems(h, base(2, 1, 2, 1), base(3, 1, 2, 1)))).toEqual([]);
+    expect(missingBaseSites(h, byId(h, base(2, 1, 2, 1), base(3, 1, 2, 1)))).toEqual([]);
   });
 });
 
@@ -149,14 +138,14 @@ describe("placeBases", () => {
 
 describe("middleOf and clanMenuItem", () => {
   /** 1 is linked to 2 and 3, and 4 to 2 alone, so 1-2-3 has a middle and 2-3-4 has none. */
-  const linked = systems(
+  const linked = byId(
     systemNode({ id: 1, lanes: lanes(2, 3) }),
     systemNode({ id: 2, lanes: lanes(1, 4) }),
     systemNode({ id: 3, lanes: lanes(1) }),
     systemNode({ id: 4, lanes: lanes(2) }),
   );
   /** 5, 6 and 7 are each linked to both others. */
-  const triangle = systems(
+  const triangle = byId(
     systemNode({ id: 7, lanes: lanes(5, 6) }),
     systemNode({ id: 5, lanes: lanes(6, 7) }),
     systemNode({ id: 6, lanes: lanes(5, 7) }),

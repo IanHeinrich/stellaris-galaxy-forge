@@ -12,7 +12,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { usePlanetDataStore } from "../../store/planetDataStore";
 import { useScriptsStore } from "../../store/scriptsStore";
-import { armSession, mocked, resetStores as resetEveryStore } from "../../store/storeFixture";
+import { armSession, resetStores as resetEveryStore } from "../../store/storeFixture";
 import {
   detailOf,
   fleetSummary,
@@ -25,12 +25,13 @@ import {
   systemDetails,
 } from "../../store/fixture";
 import { SystemView } from "./system/SystemView";
+import { mockedIpc } from "../../test/ipc";
 
 /** The system every test opens: Alpha Centauri, four lanes and the `basic_init_01` initializer. */
 export const SYSTEM = 1;
 
 /** What the game data says `basic_init_01` spawns, so the initializer list has something to show. */
-export const INITIALIZER: InitializerView = initializerView({
+const INITIALIZER: InitializerView = initializerView({
   name: "basic_init_01",
   source: "01_planet_classes.txt",
   class: "sc_g",
@@ -38,8 +39,6 @@ export const INITIALIZER: InitializerView = initializerView({
   planets: [initPlanetView({ name: "Kepler", class: "pc_continental", size: [16, 16] })],
   planet_count: 1,
 });
-
-export { mocked };
 
 /** A habitable world of the system under test, named by its key. */
 export function planet(id: number, key: string, extra: Partial<PlanetSummary> = {}): PlanetSummary {
@@ -70,10 +69,10 @@ export function resetStores(): void {
   usePlanetDataStore.getState().clear();
   armSession();
   // A test lands the special systems it needs itself, and no answer overwrites them.
-  mocked.getSpecialSystems.mockReset();
+  mockedIpc.getSpecialSystems.mockReset();
   useGameDataStore.setState({ status: "ready", initializers: [INITIALIZER] });
-  mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
-  mocked.getSystem.mockImplementation(async (id) => detailOf(id));
+  mockedIpc.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
+  mockedIpc.getSystem.mockImplementation(async (id) => detailOf(id));
 }
 
 /** Opens a document and selects `SYSTEM`, as the map does when the user clicks it. */
@@ -87,7 +86,7 @@ export async function open(kind: "save" | "scenario"): Promise<void> {
 
 /** Lands one details record, the way an answered `get_system_details` does. */
 export async function land(record: SystemDetails): Promise<void> {
-  mocked.getSystemDetails.mockResolvedValue([record]);
+  mockedIpc.getSystemDetails.mockResolvedValue([record]);
   useDetailsStore.getState().request([record.id]);
   await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
 }

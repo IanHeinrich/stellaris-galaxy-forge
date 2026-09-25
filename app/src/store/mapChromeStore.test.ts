@@ -6,9 +6,7 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { confirm } from "@tauri-apps/plugin-dialog";
-import { onProgress } from "../api/events";
-import * as ipc from "../api/ipc";
+import { mockedIpc } from "../test/ipc";
 import { MESH_BETA } from "../lib/geometry/mesh";
 import { KIND_ORDER } from "../lib/special";
 import { DEFAULT_LAYERS } from "../lib/visual/layerIds";
@@ -21,9 +19,9 @@ import {
   splitsBySource,
   type Source,
 } from "../lib/visual/layerGroups";
-import { bindStores } from "./bindStores";
 import { useFileSessionStore } from "./fileSessionStore";
-import { useGalaxyStore } from "./galaxyStore";
+import { session } from "./sessionFixture";
+import { armSession, resetStores } from "./storeFixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useMapChromeStore } from "./mapChromeStore";
 
@@ -32,30 +30,14 @@ const onLayers = () =>
   Object.entries(chrome().layers)
     .filter(([, on]) => on)
     .map(([id]) => id);
-const session = () => useFileSessionStore.getState();
 
 const stored = new Map<string, string>();
 
-bindStores();
-
 beforeEach(() => {
-  vi.clearAllMocks();
+  resetStores();
   stubPrefs(stored);
-  useGalaxyStore.getState().clear();
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
-  useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
-  useGameDataStore.setState({ counts: [] });
-  vi.mocked(onProgress).mockResolvedValue(() => undefined);
-  vi.mocked(ipc.openSave).mockResolvedValue(OPEN_RESULT);
-  vi.mocked(ipc.getSystem).mockImplementation(async (id) => detailOf(id));
-  vi.mocked(ipc.closeSave).mockResolvedValue();
-  vi.mocked(ipc.warmDetails).mockResolvedValue();
-  vi.mocked(confirm).mockResolvedValue(true);
-  vi.mocked(ipc.getSpecialSystems).mockResolvedValue({
-    systems: [],
-    counts: [],
-    with_game_data: false,
-  });
+  armSession();
+  mockedIpc.getSystem.mockImplementation(async (id) => detailOf(id));
 });
 
 afterEach(() => {
@@ -106,7 +88,7 @@ describe("layers", () => {
   });
 
   it("a scenario opens on the overlays its own scripts fill", async () => {
-    vi.mocked(ipc.openSave).mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_RESULT.path);
     expect(chrome().layers).toEqual(DEFAULT_LAYERS);
   });
@@ -136,7 +118,7 @@ describe("layers", () => {
     await session().openSave(OPEN_RESULT.path);
     chrome().resetLayers();
 
-    vi.mocked(ipc.openSave).mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_RESULT.path);
     expect(chrome().layers).toEqual(DEFAULT_LAYERS);
   });
@@ -350,7 +332,7 @@ describe("group toggles", () => {
   });
 
   it("a save is split by nothing, so it carries no group button at all", async () => {
-    vi.mocked(ipc.openSave).mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().openSave(SCENARIO_RESULT.path);
     expect(splitsBySource(session().kind)).toBe(true);
 
@@ -565,5 +547,20 @@ describe("persisted preferences", () => {
     expect([...state.shownKinds]).toEqual(["leviathan", "enclave"]);
     expect(state.layers).toEqual(DEFAULT_LAYERS);
     expect(state.meshBeta).toBe(MESH_BETA.gabriel);
+  });
+});
+
+describe("the add system preview", () => {
+  it("goes with the menu that drew it, and with any menu opening", () => {
+    const chrome = useMapChromeStore.getState();
+    const preview = { x: 1, y: 2, tooClose: false, edge: null };
+    chrome.openContextMenu({ target: { kind: "space", x: 1, y: 2 }, x: 0, y: 0 });
+    chrome.setAddSystemPreview(preview);
+    chrome.closeContextMenu();
+    expect(useMapChromeStore.getState().addSystemPreview).toBeNull();
+
+    chrome.setAddSystemPreview(preview);
+    chrome.openContextMenu({ target: { kind: "system", id: 6 }, x: 0, y: 0 });
+    expect(useMapChromeStore.getState().addSystemPreview).toBeNull();
   });
 });

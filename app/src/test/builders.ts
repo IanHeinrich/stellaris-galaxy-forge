@@ -4,6 +4,7 @@ import type { FleetSummary } from "../generated/FleetSummary";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { InitPlanetView } from "../generated/InitPlanetView";
+import type { Issue } from "../generated/Issue";
 import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
@@ -120,8 +121,20 @@ export function feLinkedNode(id: number, x: number, y: number, ...ids: number[])
 }
 
 /** Systems keyed by id, as the galaxy store holds them. */
-export function byId(nodes: Iterable<SystemNode>): Map<number, SystemNode> {
-  return new Map([...nodes].map((s) => [s.id, s]));
+export function byId(...nodes: SystemNode[]): Map<number, SystemNode> {
+  return new Map(nodes.map((s) => [s.id, s]));
+}
+
+/** The one `Issue` builder: a warning on no system, a finding the validator would make again. */
+export function appIssue(over: Partial<Issue> = {}): Issue {
+  return {
+    severity: "warning",
+    code: "system_isolated",
+    message: "",
+    systems: [],
+    note: false,
+    ...over,
+  };
 }
 
 /** The report of an export that carried everything over; a test adds what it left out. */
@@ -304,7 +317,7 @@ export function planetClassView(key: string, star = true): PlanetClassView {
   return { key, icon_sprite: null, habitable: !star, star };
 }
 
-/** The one `CountryNode` builder: an empire of a 4.4 save, its four flag colours and no map colours. */
+/** The one `CountryNode` builder: an empire of a 4.4 save, with no map colours. */
 export function countryNode(over: Partial<CountryNode> = {}): CountryNode {
   return {
     id: 7,
@@ -316,7 +329,6 @@ export function countryNode(over: Partial<CountryNode> = {}): CountryNode {
     colors: ["fixture_blue", "fixture_blue"],
     border_color: null,
     fill_color: null,
-    flag_colors: ["red", "purple", "black", "grey"],
     use_map_color: false,
     painted_border: "fixture_blue",
     painted_fill: "fixture_blue",

@@ -11,26 +11,14 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import * as ipc from "../api/ipc";
+import { mockedIpc } from "../test/ipc";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
 import { usePaintModStore } from "./paintModStore";
 import { openSections, type Row, type Section } from "../lib/openRows";
-import { detailsKey, resetOpenScreen, useOpenScreenStore } from "./openScreenStore";
+import { detailsKey, useOpenScreenStore } from "./openScreenStore";
+import { resetStores } from "./storeFixture";
 import { useRecentsStore, type RecentDoc } from "./recentsStore";
-
-const mocked = {
-  listCampaigns: vi.mocked(ipc.listCampaigns),
-  listCampaignSaves: vi.mocked(ipc.listCampaignSaves),
-  listScenarios: vi.mocked(ipc.listScenarios),
-  scenarioPainted: vi.mocked(ipc.scenarioPainted),
-  saveDetails: vi.mocked(ipc.saveDetails),
-  openSave: vi.mocked(ipc.openSave),
-  openAsScenario: vi.mocked(ipc.openAsScenario),
-  closeSave: vi.mocked(ipc.closeSave),
-  warmDetails: vi.mocked(ipc.warmDetails),
-  getSpecialSystems: vi.mocked(ipc.getSpecialSystems),
-};
 
 const screen = () => useOpenScreenStore.getState();
 
@@ -117,17 +105,13 @@ function rowKeys(id: string): string[] {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  resetOpenScreen();
-  useRecentsStore.setState({ recents: [] });
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
-  useLayoutStore.setState({ openDialog: false });
-  mocked.listCampaigns.mockResolvedValue([VOID, TERRAN]);
-  mocked.listCampaignSaves.mockResolvedValue([save()]);
-  mocked.listScenarios.mockResolvedValue(listed([scenario()]));
-  mocked.closeSave.mockResolvedValue();
-  mocked.warmDetails.mockResolvedValue();
-  mocked.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
+  resetStores();
+  mockedIpc.listCampaigns.mockResolvedValue([VOID, TERRAN]);
+  mockedIpc.listCampaignSaves.mockResolvedValue([save()]);
+  mockedIpc.listScenarios.mockResolvedValue(listed([scenario()]));
+  mockedIpc.closeSave.mockResolvedValue();
+  mockedIpc.warmDetails.mockResolvedValue();
+  mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
 });
 
 describe("load", () => {
@@ -135,25 +119,25 @@ describe("load", () => {
     await screen().load(null);
     await screen().load(null);
 
-    expect(mocked.listCampaigns).toHaveBeenCalledTimes(1);
-    expect(mocked.listScenarios).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.listCampaigns).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.listScenarios).toHaveBeenCalledTimes(1);
     expect(screen().campaigns?.map((c) => c.dir)).toEqual([TERRAN.dir, VOID.dir]);
     expect(screen().expanded).toBe(TERRAN.dir);
-    expect(mocked.listCampaignSaves).toHaveBeenCalledExactlyOnceWith(TERRAN.dir);
+    expect(mockedIpc.listCampaignSaves).toHaveBeenCalledExactlyOnceWith(TERRAN.dir);
   });
 
   it("reads again once the session has written a file", async () => {
     await screen().load(null);
     await screen().load("C:/saves/terran/2206.11.16.sav");
 
-    expect(mocked.listCampaigns).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.listCampaigns).toHaveBeenCalledTimes(2);
   });
 
   it("drops a read that lands after the one a newer token started", async () => {
     let landOld: (c: CampaignListing[]) => void = () => undefined;
     let landOldScenarios: (s: ScenarioListings) => void = () => undefined;
-    mocked.listCampaigns.mockReturnValueOnce(new Promise((resolve) => (landOld = resolve)));
-    mocked.listScenarios.mockReturnValueOnce(
+    mockedIpc.listCampaigns.mockReturnValueOnce(new Promise((resolve) => (landOld = resolve)));
+    mockedIpc.listScenarios.mockReturnValueOnce(
       new Promise((resolve) => (landOldScenarios = resolve)),
     );
     const older = screen().load(null);
@@ -172,10 +156,10 @@ describe("load", () => {
   it("drops a campaign's saves listed for a token that has since changed", async () => {
     await screen().load(null);
     let landOld: (files: SaveFile[]) => void = () => undefined;
-    mocked.listCampaignSaves.mockReturnValueOnce(new Promise((resolve) => (landOld = resolve)));
+    mockedIpc.listCampaignSaves.mockReturnValueOnce(new Promise((resolve) => (landOld = resolve)));
     const expanding = screen().expand(VOID.dir);
 
-    mocked.listCampaignSaves.mockResolvedValue([save({ path: "C:/saves/void/new.sav" })]);
+    mockedIpc.listCampaignSaves.mockResolvedValue([save({ path: "C:/saves/void/new.sav" })]);
     await screen().load("C:/saves/terran/2206.11.16.sav");
     landOld([save({ path: "C:/saves/void/old.sav" })]);
     await expanding;
@@ -185,7 +169,7 @@ describe("load", () => {
   });
 
   it("reports a failing list without hiding the other one", async () => {
-    mocked.listCampaigns.mockRejectedValue({ kind: "io", message: "no save folder" });
+    mockedIpc.listCampaigns.mockRejectedValue({ kind: "io", message: "no save folder" });
     await screen().load(null);
 
     expect(section("saves").note).toBe("Could not list saves: no save folder");
@@ -196,10 +180,10 @@ describe("load", () => {
 describe("expand", () => {
   it("reads a campaign's saves when it opens, and keeps them for the next time", async () => {
     await screen().load(null);
-    mocked.listCampaignSaves.mockResolvedValue([save({ path: "C:/saves/void/a.sav" })]);
+    mockedIpc.listCampaignSaves.mockResolvedValue([save({ path: "C:/saves/void/a.sav" })]);
 
     await screen().toggle(VOID.dir);
-    expect(mocked.listCampaignSaves).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.listCampaignSaves).toHaveBeenCalledTimes(2);
     expect(rowKeys("saves")).toEqual([
       `campaign:${TERRAN.dir}`,
       `campaign:${VOID.dir}`,
@@ -209,12 +193,12 @@ describe("expand", () => {
     await screen().toggle(VOID.dir);
     expect(screen().expanded).toBeNull();
     await screen().toggle(VOID.dir);
-    expect(mocked.listCampaignSaves).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.listCampaignSaves).toHaveBeenCalledTimes(2);
   });
 
   it("shows a campaign whose saves could not be read", async () => {
     await screen().load(null);
-    mocked.listCampaignSaves.mockRejectedValue({ kind: "io", message: "folder is gone" });
+    mockedIpc.listCampaignSaves.mockRejectedValue({ kind: "io", message: "folder is gone" });
 
     await screen().toggle(VOID.dir);
     const row = section("saves").rows.find((r) => r.key === `campaign:${VOID.dir}`)!;
@@ -239,7 +223,7 @@ describe("scenarios", () => {
   });
 
   it("groups by source in order, enabled workshop mods first", async () => {
-    mocked.listScenarios.mockResolvedValue(listed([vanilla, off, shadowed, mine]));
+    mockedIpc.listScenarios.mockResolvedValue(listed([vanilla, off, shadowed, mine]));
     await screen().load(null);
 
     const rows = section("scenarios").rows;
@@ -258,7 +242,7 @@ describe("scenarios", () => {
   });
 
   it("disables a scenario that could not be read and keeps what overrides one", async () => {
-    mocked.listScenarios.mockResolvedValue(listed([vanilla, shadowed]));
+    mockedIpc.listScenarios.mockResolvedValue(listed([vanilla, shadowed]));
     await screen().load(null);
 
     const rows = section("scenarios").rows.filter((r): r is Row & { kind: "scenario" } =>
@@ -269,7 +253,7 @@ describe("scenarios", () => {
   });
 
   it("carries a line per mod descriptor the listing could not read, and still lists the files", async () => {
-    mocked.listScenarios.mockResolvedValue(
+    mockedIpc.listScenarios.mockResolvedValue(
       listed([mine], ["C:/user/mod/broken.mod: unexpected } at byte 12"]),
     );
     await screen().load(null);
@@ -282,7 +266,7 @@ describe("scenarios", () => {
   });
 
   it("keeps no notice from a listing that failed outright", async () => {
-    mocked.listScenarios.mockRejectedValue({ kind: "io", message: "the mod folder is gone" });
+    mockedIpc.listScenarios.mockRejectedValue({ kind: "io", message: "the mod folder is gone" });
     await screen().load(null);
 
     const scenarios = section("scenarios");
@@ -297,7 +281,7 @@ describe("open", () => {
   });
 
   it("marks a recent document whose file is gone, and forgets it on request", async () => {
-    mocked.openSave.mockRejectedValue({
+    mockedIpc.openSave.mockRejectedValue({
       kind: "not_found",
       message: "The system cannot find the file specified. (os error 2)",
     });
@@ -315,7 +299,7 @@ describe("open", () => {
   });
 
   it("leaves a readable file that failed for another reason listed as it was", async () => {
-    mocked.openSave.mockRejectedValue({ kind: "format", message: "meta is not a save header" });
+    mockedIpc.openSave.mockRejectedValue({ kind: "format", message: "meta is not a save header" });
 
     await screen().open(RECENT.path, "save");
 
@@ -324,19 +308,19 @@ describe("open", () => {
   });
 
   it("takes a save into a scenario with the standing Paint a Galaxy choice", async () => {
-    mocked.openAsScenario.mockResolvedValue(OPEN_RESULT);
+    mockedIpc.openAsScenario.mockResolvedValue(OPEN_RESULT);
 
     usePaintModStore.setState({ paintChoice: true });
     await screen().open("C:/saves/a.sav", "scenario");
-    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/a.sav", "paint_a_galaxy");
+    expect(mockedIpc.openAsScenario).toHaveBeenLastCalledWith("C:/saves/a.sav", "paint_a_galaxy");
 
     usePaintModStore.setState({ paintChoice: false });
     await screen().open("C:/saves/b.sav", "scenario");
-    expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/b.sav", "plain");
+    expect(mockedIpc.openAsScenario).toHaveBeenLastCalledWith("C:/saves/b.sav", "plain");
   });
 
   it("closes the dialog once the document is open", async () => {
-    mocked.openSave.mockResolvedValue(OPEN_RESULT);
+    mockedIpc.openSave.mockResolvedValue(OPEN_RESULT);
     useLayoutStore.setState({ openDialog: true });
 
     await screen().open(OPEN_RESULT.path, "save");
@@ -347,7 +331,7 @@ describe("open", () => {
 
   it("leaves the dialog standing when another document is still opening", async () => {
     let finish!: (result: typeof OPEN_RESULT) => void;
-    mocked.openSave.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    mockedIpc.openSave.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
     useLayoutStore.setState({ openDialog: true });
     const first = useFileSessionStore.getState().openSave("C:/saves/terran/other.sav");
 
@@ -355,7 +339,7 @@ describe("open", () => {
 
     expect(useLayoutStore.getState().openDialog).toBe(true);
     expect(screen().rowError?.path).toBe(OPEN_RESULT.path);
-    expect(mocked.openSave).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.openSave).toHaveBeenCalledTimes(1);
 
     finish(OPEN_RESULT);
     await first;
@@ -377,15 +361,15 @@ describe("opening a scenario file", () => {
       paintChoice: true,
       warnNotForPaint: true,
     });
-    mocked.listScenarios.mockResolvedValue(listed([PAINTED, PLAIN]));
-    mocked.openSave.mockResolvedValue(SCENARIO_RESULT);
+    mockedIpc.listScenarios.mockResolvedValue(listed([PAINTED, PLAIN]));
+    mockedIpc.openSave.mockResolvedValue(SCENARIO_RESULT);
     await screen().load(null);
   });
 
   it("opens a scenario for Paint a Galaxy at once while the mod is enabled", async () => {
     await screen().open(PAINTED.path, "save");
     expect(prompt()).toBeNull();
-    expect(mocked.openSave).toHaveBeenCalledWith(PAINTED.path);
+    expect(mockedIpc.openSave).toHaveBeenCalledWith(PAINTED.path);
     expect(session().status).toBe("ready");
   });
 
@@ -396,13 +380,13 @@ describe("opening a scenario file", () => {
     );
     session().answerScenarioPrompt(null);
     await cancelled;
-    expect(mocked.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openSave).not.toHaveBeenCalled();
 
     const opening = screen().open(PLAIN.path, "save");
     await vi.waitFor(() => expect(prompt()).not.toBeNull());
     session().answerScenarioPrompt("paint_a_galaxy");
     await opening;
-    expect(mocked.openSave).toHaveBeenCalledWith(PLAIN.path);
+    expect(mockedIpc.openSave).toHaveBeenCalledWith(PLAIN.path);
     expect(session().paintChosen).toBe(true);
   });
 
@@ -417,7 +401,7 @@ describe("opening a scenario file", () => {
     );
     session().answerScenarioPrompt("plain");
     await opening;
-    expect(mocked.openSave).toHaveBeenCalledWith(PAINTED.path);
+    expect(mockedIpc.openSave).toHaveBeenCalledWith(PAINTED.path);
 
     usePaintModStore.setState({ known: false, paintMod: null });
     const asking = screen().open(PAINTED.path, "save");
@@ -445,12 +429,12 @@ describe("opening a scenario file", () => {
     usePaintModStore.setState({ warnNotForPaint: false });
     await screen().open(PLAIN.path, "save");
     expect(prompt()).toBeNull();
-    expect(mocked.openSave).toHaveBeenCalledWith(PLAIN.path);
+    expect(mockedIpc.openSave).toHaveBeenCalledWith(PLAIN.path);
     expect(session().paintChosen).toBe(false);
 
     await screen().open("C:/elsewhere/unlisted.txt", "save");
     expect(prompt()).toBeNull();
-    expect(mocked.openSave).toHaveBeenLastCalledWith("C:/elsewhere/unlisted.txt");
+    expect(mockedIpc.openSave).toHaveBeenLastCalledWith("C:/elsewhere/unlisted.txt");
   });
 
   it("asks the same of a scenario file picked with Browse", async () => {
@@ -458,38 +442,38 @@ describe("opening a scenario file", () => {
     await vi.waitFor(() => expect(prompt()?.kind).toBe("not_for_paint"));
     session().answerScenarioPrompt(null);
     await asking;
-    expect(mocked.openSave).not.toHaveBeenCalled();
+    expect(mockedIpc.openSave).not.toHaveBeenCalled();
 
     await session().requestOpen(PAINTED.path, { listings: screen().scenarios });
-    expect(mocked.openSave).toHaveBeenCalledWith(PAINTED.path);
-    expect(mocked.scenarioPainted).not.toHaveBeenCalled();
+    expect(mockedIpc.openSave).toHaveBeenCalledWith(PAINTED.path);
+    expect(mockedIpc.scenarioPainted).not.toHaveBeenCalled();
   });
 
   it("reads a file Browse found outside every listed folder for whether it is for the mod", async () => {
     const painted = "C:/elsewhere/painted.txt";
-    mocked.scenarioPainted.mockResolvedValueOnce(true);
+    mockedIpc.scenarioPainted.mockResolvedValueOnce(true);
     await session().requestOpen(painted, { listings: screen().scenarios });
-    expect(mocked.scenarioPainted).toHaveBeenCalledWith(painted);
+    expect(mockedIpc.scenarioPainted).toHaveBeenCalledWith(painted);
     expect(prompt()).toBeNull();
-    expect(mocked.openSave).toHaveBeenCalledWith(painted);
+    expect(mockedIpc.openSave).toHaveBeenCalledWith(painted);
 
     const plain = "C:/elsewhere/plain.txt";
-    mocked.scenarioPainted.mockResolvedValueOnce(false);
+    mockedIpc.scenarioPainted.mockResolvedValueOnce(false);
     const asking = session().requestOpen(plain, { listings: screen().scenarios });
     await vi.waitFor(() => expect(prompt()?.kind).toBe("not_for_paint"));
     session().answerScenarioPrompt(null);
     await asking;
-    expect(mocked.openSave).not.toHaveBeenCalledWith(plain);
+    expect(mockedIpc.openSave).not.toHaveBeenCalledWith(plain);
   });
 
   it("asks nothing more of a save once the user chose to edit it as a scenario", async () => {
-    mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
+    mockedIpc.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
     await session().requestOpen("C:/saves/a.sav", { listings: null });
     expect(session().pendingOpen).toBe("C:/saves/a.sav");
     await session().chooseOpenMode("scenario");
     expect(prompt()).toBeNull();
-    expect(mocked.openAsScenario).toHaveBeenCalledWith("C:/saves/a.sav", "paint_a_galaxy");
-    expect(mocked.scenarioPainted).not.toHaveBeenCalled();
+    expect(mockedIpc.openAsScenario).toHaveBeenCalledWith("C:/saves/a.sav", "paint_a_galaxy");
+    expect(mockedIpc.scenarioPainted).not.toHaveBeenCalled();
   });
 });
 
@@ -530,25 +514,25 @@ describe("loadDetails", () => {
   const PATH = save().path;
 
   it("reads a save once however often it is asked, and again once it was written", async () => {
-    mocked.saveDetails.mockResolvedValue(SETTINGS);
+    mockedIpc.saveDetails.mockResolvedValue(SETTINGS);
 
     const first = screen().loadDetails(PATH, 200);
     expect(screen().details[detailsKey(PATH, 200)]).toEqual({ status: "loading" });
     await Promise.all([first, screen().loadDetails(PATH, 200)]);
     await screen().loadDetails(PATH, 200);
 
-    expect(mocked.saveDetails).toHaveBeenCalledExactlyOnceWith(PATH);
+    expect(mockedIpc.saveDetails).toHaveBeenCalledExactlyOnceWith(PATH);
     expect(screen().details[detailsKey(PATH, 200)]).toEqual({
       status: "ready",
       settings: SETTINGS,
     });
 
     await screen().loadDetails(PATH, 300);
-    expect(mocked.saveDetails).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.saveDetails).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the failure for the save it came from", async () => {
-    mocked.saveDetails.mockRejectedValue({ kind: "format", message: "no galaxy block" });
+    mockedIpc.saveDetails.mockRejectedValue({ kind: "format", message: "no galaxy block" });
 
     await screen().loadDetails(PATH, 200);
 

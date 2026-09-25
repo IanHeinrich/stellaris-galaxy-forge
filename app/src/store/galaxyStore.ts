@@ -415,7 +415,7 @@ export function linkedSystems(systems: Systems, ids: number[]): number[] {
 }
 
 /** The system of `ownerId` nearest the centroid of everything it owns. */
-export function centralOwnedSystem(systems: Systems, ownerId: number): number | null {
+function centralOwnedSystem(systems: Systems, ownerId: number): number | null {
   return centralOf([...systems.values()].filter((s) => s.owner === ownerId));
 }
 

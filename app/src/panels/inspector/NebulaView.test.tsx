@@ -10,9 +10,10 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { bindStores } from "../../store/bindStores";
 import { useEditorStore } from "../../store/editorStore";
-import { mocked, open, resetStores } from "./inspectorFixture";
+import { open, resetStores } from "./inspectorFixture";
 import { NEBULA_RADIUS_INPUT_ID } from "../nebula";
 import { NebulaView } from "./NebulaView";
+import { mockedIpc } from "../../test/ipc";
 
 bindStores();
 
@@ -60,7 +61,7 @@ describe("a selected nebula", () => {
 
     await useEditorStore.getState().setNebulaName(0, "Sea of Ghosts");
 
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "SetNebulaName",
       index: 0,
       name: "Sea of Ghosts",
@@ -75,19 +76,19 @@ describe("a selected nebula", () => {
 
   it("names what leaves the cloud before removing it, and sends nothing when declined", async () => {
     await open("save");
-    mocked.confirm.mockResolvedValueOnce(false);
+    mockedIpc.confirm.mockResolvedValueOnce(false);
 
     await useEditorStore.getState().removeNebula(0);
 
-    expect(mocked.confirm).toHaveBeenCalledWith(
+    expect(mockedIpc.confirm).toHaveBeenCalledWith(
       "Delete Cloud? 1 system will leave it.",
       expect.objectContaining({ kind: "warning" }),
     );
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
 
-    mocked.confirm.mockResolvedValueOnce(true);
+    mockedIpc.confirm.mockResolvedValueOnce(true);
     await useEditorStore.getState().removeNebula(0);
 
-    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveNebula", index: 0 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveNebula", index: 0 });
   });
 });

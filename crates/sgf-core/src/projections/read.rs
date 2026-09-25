@@ -155,8 +155,6 @@ pub(crate) struct RawCountry {
     pub border_color: Option<String>,
     /// `flag.colors[5]`, the map fill colour, read only under `flag.use_map_color=yes`.
     pub fill_color: Option<String>,
-    /// Every `flag.colors` entry in order, the `"null"` placeholders kept.
-    pub flag_colors: Vec<String>,
     /// Whether `flag.use_map_color=yes`.
     pub use_map_color: bool,
     /// The border and fill the game paints the territory in; see [`painted`].
@@ -279,7 +277,6 @@ pub(crate) fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
         fill_color: map_color(MAP_FILL_SLOT),
         painted: painted(&entries, use_map_color),
         has_map_colors: entries.len() > MAP_FILL_SLOT,
-        flag_colors: entries.iter().copied().map(str::to_owned).collect(),
         use_map_color,
         flag_icon: layer(keys::ICON),
         flag_background: layer(keys::BACKGROUND),

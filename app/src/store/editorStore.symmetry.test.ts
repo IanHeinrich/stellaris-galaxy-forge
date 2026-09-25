@@ -8,11 +8,12 @@ import type { NewSystem } from "../generated/NewSystem";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { Symmetry } from "../lib/geometry/symmetry";
 import { scriptForKind, weightedScript } from "../lib/paint";
-import { editor, joinBoth, mocked, openFixtureScenario } from "./editorFixture";
+import { editor, joinBoth, openFixtureScenario } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { SCENARIO_RESULT, editResult, node } from "./fixture";
 import { useToolStore } from "./toolStore";
+import { mockedIpc } from "../test/ipc";
 
 const MIRROR_X: Symmetry = { kind: "mirror", axis: "x" };
 const QUARTER: Symmetry = { kind: "rotate", n: 4 };
@@ -41,7 +42,7 @@ function sym(symmetry: Symmetry): void {
   useToolStore.setState({ symmetry });
 }
 
-const sent = () => mocked.applyOp.mock.calls[mocked.applyOp.mock.calls.length - 1][0];
+const sent = () => mockedIpc.applyOp.mock.calls[mockedIpc.applyOp.mock.calls.length - 1][0];
 
 function seat(kind: "enabled" | "preferred" | "sol", random_value: number, player = false) {
   return { paint_a_galaxy: { kind, random_value, player } };
@@ -75,7 +76,7 @@ function added(id: number, x: number, y: number, extra: Partial<NewSystem> = {})
 
 beforeEach(async () => {
   await openFixtureScenario();
-  mocked.applyOp.mockResolvedValue(editResult());
+  mockedIpc.applyOp.mockResolvedValue(editResult());
   useGalaxyStore.getState().applyDelta({ systems: PLACED });
   useToolStore.setState({ symmetry: { kind: "off" } });
 });
@@ -171,7 +172,7 @@ describe("adding a system under symmetry", () => {
   });
 
   it("gives each Paint a Galaxy copy a seat of its own id", async () => {
-    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await useFileSessionStore.getState().openScenario(SCENARIO_RESULT.path, "paint_a_galaxy");
     useGalaxyStore.getState().applyDelta({ systems: PLACED });
     sym(MIRROR_X);
@@ -454,7 +455,7 @@ describe("deleting systems under symmetry", () => {
     sym(QUARTER);
     link([20, 0]);
     await editor().removeSystems([20]);
-    expect(mocked.confirm).toHaveBeenCalledWith("Delete 4 systems and their 1 lane?", {
+    expect(mockedIpc.confirm).toHaveBeenCalledWith("Delete 4 systems and their 1 lane?", {
       title: "Delete systems",
       kind: "warning",
     });
@@ -476,7 +477,7 @@ describe("deleting systems under symmetry", () => {
   it("deletes a system with no counterpart as before", async () => {
     sym(MIRROR_X);
     await editor().removeSystems([13]);
-    expect(mocked.confirm).toHaveBeenCalledWith("Delete Lone?", expect.anything());
+    expect(mockedIpc.confirm).toHaveBeenCalledWith("Delete Lone?", expect.anything());
     expect(sent()).toEqual({ type: "RemoveSystem", id: 13 });
   });
 });

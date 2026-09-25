@@ -8,6 +8,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"))
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useFileSessionStore } from "../../store/fileSessionStore";
+import { readyAs } from "../../test/session";
 import { OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
 import { usePaintModStore } from "../../store/paintModStore";
 import { paintModView } from "../../test/builders";
@@ -20,10 +21,6 @@ const DIR = "C:/mods/pag/map/setup_scenarios";
 
 /** The notice's button reading `label`. */
 const button = (label: string) => buttonIn(<PaintNotice />, label)!;
-
-function open(result: typeof OPEN_RESULT): void {
-  useFileSessionStore.setState({ status: "ready", kind: result.kind, path: result.path });
-}
 
 const stored = new Map<string, string>();
 
@@ -39,10 +36,10 @@ describe("the notice for a scenario outside the mod", () => {
     usePaintModStore.setState({ known: true, paintMod: paintModView({ scenarios_dir: DIR }) });
     expect(notice()).toBe("");
 
-    open(OPEN_RESULT);
+    readyAs(OPEN_RESULT);
     expect(notice()).toBe("");
 
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     useFileSessionStore.setState({ painted: true });
     expect(notice()).toBe("");
 
@@ -51,7 +48,7 @@ describe("the notice for a scenario outside the mod", () => {
   });
 
   it("says the map needs the mod, with the mod's state and the way in", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     usePaintModStore.setState({ known: true, paintMod: paintModView() });
 
     const html = notice();
@@ -72,7 +69,7 @@ describe("the notice for a scenario outside the mod", () => {
   });
 
   it("shows the steps and keeps the save dead while the mod is not installed", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     usePaintModStore.setState({ known: true, paintMod: null });
 
     const html = notice();
@@ -88,7 +85,7 @@ describe("the notice for a scenario outside the mod", () => {
   });
 
   it("goes for good on Not for me", () => {
-    open(SCENARIO_RESULT);
+    readyAs(SCENARIO_RESULT);
     usePaintModStore.setState({ known: true, paintMod: paintModView() });
     expect(notice()).not.toBe("");
 

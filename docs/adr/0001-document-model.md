@@ -19,6 +19,6 @@ it back into the slot at that statement's indentation and carries an inverse, so
 
 ## Consequences
 
-- Open and save with no edits is byte-identical: `pieces_stream_the_original_unchanged` asserts it.
+- Open and save with no edits is byte-identical: `each_sample_is_partitioned_with_no_residue_and_saves_back_byte_for_byte` asserts it.
 - Memory is about the file size plus the index, and save time is deflate time.
 - Projections are caches, rebuilt from the bytes and never written back, so what they omit cannot be edited.

@@ -186,7 +186,11 @@ for planets or deposits.
   reaches its own orbit plus its planet's. `outer_radius` is
   `inner_radius` + 100.
 - Each body is a `planets.planet` entry. Its deposits are `deposit`
-  entries holding `deposit_holder={ type=0 id=<planet> }`.
+  entries holding `deposit_holder={ type=0 id=<planet> }`. Every body
+  the editor adds gets an empty `planet_orbitals={ }` after its orbit and moon keys,
+  as the game writes one on every body.
+- A blocker deposit may carry `swap_type`, the deposit that clearing it
+  reveals. The planet page shows it beside the blocker.
 - The system's name is taken out of `random_name_database.star_names`,
   or out of `black_hole_names` when that pool holds it instead. Body
   names are templates. The star is `STAR_NAME_1_OF_1`, a planet is
@@ -273,7 +277,8 @@ for planets or deposits.
   `name={ key="…" }` and `radius=N`, then one `galactic_object=<id>`
   per member in ascending order. Those lines are the membership. The
   game reads "inside a nebula" (the sensor text, the Nebula Refinery)
-  from them alone.
+  from them alone. A name the user typed rather than a key has
+  `literal=yes` inside its braces.
 - Moving a cloud moves no system. It rewrites the lines to the systems
   the new centre and radius cover.
 - A nebula has no id. It is identified by its index in file order, so
@@ -396,7 +401,8 @@ for planets or deposits.
   with 0-byte files of the same name.
 - The header holds these scalars: `name`, `priority`, `default`,
   `num_empires = { min max }`, `num_empire_default`, `fallen_empire_*`,
-  `marauder_empire_*`, `advanced_empire_default`,
+  `marauder_empire_*`, `nomad_empire_*`, `advanced_empire_default`,
+  `num_nebulas`,
   `colonizable_planet_odds`, `primitive_odds`,
   `num_wormhole_pairs(_default)`, `num_gateways(_default)`,
   `num_hyperlanes_default`, `random_hyperlanes = no`, `core_radius`,
@@ -425,8 +431,10 @@ for planets or deposits.
   } }
   ```
 
-  It can also have `spawn_design`, `effect = { … }`, `z`, and range
-  positions such as `x = { min max }`. Ids are quoted decimal strings.
+  A `spawn_weight` modifier takes `add` or `factor`, beside the
+  triggers that gate it. The statement can also have `spawn_design`,
+  `effect = { … }`, `z`, and range positions such as
+  `x = { min max }`. Ids are quoted decimal strings.
   They are arbitrary and non-contiguous, unlike the save's contiguous
   `galactic_object` ids.
 - Positions are absolute. They are integers in practice, and decimals
@@ -459,7 +467,11 @@ Id-keyed tables cross-reference each other, often in both directions.
 - `colony.districts` points into `districts`, and
   `colony.buildings_cache` into `buildings`.
 - A planet's pop count is `colony.<id>.num_sapient_pops`, the sum of
-  its `pop_groups` sizes.
+  its `pop_groups` sizes. `colony.<id>.species_information` has an
+  entry per species with its `num_pops`, and the species' name is
+  `species_db.<id>.name`.
+- `colony.<id>.final_designation` is the designation the colony has.
+  `designation` is written too only when the player chose one by hand.
 - `galactic_object.planet=<id>` ↔ `planets.planet.<id>.coordinate.origin`.
 - The star type is in two places, `galactic_object.star_class="sc_g"`
   and the star's planet row `planet_class="pc_g_star"`. Binary and
