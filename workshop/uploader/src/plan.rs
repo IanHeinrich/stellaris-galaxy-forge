@@ -1,15 +1,17 @@
 use crate::changelog::Version;
 use crate::state::UploadedState;
 
-/// A description and the state it was uploaded with, either live on Steam or
-/// read from the local files.
+/// A title, description and the state it was uploaded with, either live on
+/// Steam or read from the local files.
 pub struct Page<'a> {
+    pub title: &'a str,
     pub description: &'a str,
     pub state: &'a UploadedState,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Plan {
+    pub title: bool,
     pub description: bool,
     pub preview: bool,
     pub carousel: bool,
@@ -19,7 +21,11 @@ pub struct Plan {
 
 impl Plan {
     pub fn is_empty(&self) -> bool {
-        !self.description && !self.preview && !self.carousel && self.version_moved.is_none()
+        !self.title
+            && !self.description
+            && !self.preview
+            && !self.carousel
+            && self.version_moved.is_none()
     }
 }
 
@@ -33,6 +39,7 @@ pub fn plan(live: &Page, local: &Page, force: bool) -> Result<Plan, String> {
         &live.state.version
     };
     Ok(Plan {
+        title: force || normalise(live.title) != normalise(local.title),
         description: force || normalise(live.description) != normalise(local.description),
         preview: force || live.state.preview != local.state.preview,
         carousel: force || live.state.carousel != local.state.carousel,
@@ -102,7 +109,11 @@ mod tests {
     }
 
     fn page<'a>(description: &'a str, state: &'a UploadedState) -> Page<'a> {
-        Page { description, state }
+        Page {
+            title: "Title",
+            description,
+            state,
+        }
     }
 
     #[test]
@@ -129,8 +140,41 @@ mod tests {
     fn an_edited_description_is_uploaded_alone() {
         let s = state("0.12.0", "p", &["a"]);
         let plan = plan(&page("old", &s), &page("new", &s), false).unwrap();
-        assert!(plan.description && !plan.preview && !plan.carousel);
+        assert!(!plan.title && plan.description && !plan.preview && !plan.carousel);
         assert_eq!(plan.version_moved, None);
+    }
+
+    #[test]
+    fn a_changed_title_is_uploaded_alone() {
+        let s = state("0.12.0", "p", &["a"]);
+        let live = Page {
+            title: "Galaxy Forge [4.5 Compatible]",
+            description: "d",
+            state: &s,
+        };
+        let local = Page {
+            title: "Galaxy Forge [4.x Compatible]",
+            description: "d",
+            state: &s,
+        };
+        let plan = plan(&live, &local, false).unwrap();
+        assert!(plan.title && !plan.description && !plan.preview && !plan.carousel);
+    }
+
+    #[test]
+    fn an_identical_title_modulo_trailing_whitespace_is_not_a_change() {
+        let s = state("0.12.0", "p", &["a"]);
+        let live = Page {
+            title: "Galaxy Forge [4.x Compatible]",
+            description: "d",
+            state: &s,
+        };
+        let local = Page {
+            title: "Galaxy Forge [4.x Compatible]\n",
+            description: "d",
+            state: &s,
+        };
+        assert!(plan(&live, &local, false).unwrap().is_empty());
     }
 
     #[test]
@@ -138,7 +182,7 @@ mod tests {
         let live = state("0.12.0", "old", &["a"]);
         let local = state("0.12.0", "new", &["a"]);
         let plan = plan(&page("d", &live), &page("d", &local), false).unwrap();
-        assert!(!plan.description && plan.preview && !plan.carousel);
+        assert!(!plan.title && !plan.description && plan.preview && !plan.carousel);
         assert_eq!(plan.new_state.preview, "new");
     }
 
@@ -157,7 +201,7 @@ mod tests {
         let local = state("0.12.0", "p", &[]);
         let plan = plan(&page("d", &live), &page("d", &local), false).unwrap();
         assert!(!plan.is_empty());
-        assert!(!plan.description && !plan.preview && !plan.carousel);
+        assert!(!plan.title && !plan.description && !plan.preview && !plan.carousel);
         assert_eq!(
             plan.version_moved,
             Some((
@@ -181,7 +225,7 @@ mod tests {
     fn force_uploads_everything_but_leaves_the_version() {
         let s = state("0.12.0", "p", &["a"]);
         let plan = plan(&page("d", &s), &page("d", &s), true).unwrap();
-        assert!(plan.description && plan.preview && plan.carousel);
+        assert!(plan.title && plan.description && plan.preview && plan.carousel);
         assert_eq!(plan.version_moved, None);
     }
 

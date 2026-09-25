@@ -20,6 +20,7 @@ pub struct Steam {
 }
 
 pub struct LiveItem {
+    pub title: String,
     pub description: String,
     pub preview_url: Option<String>,
     pub metadata: Option<String>,
@@ -34,6 +35,7 @@ pub struct AdditionalPreview {
 
 #[derive(Default)]
 pub struct Update {
+    pub title: Option<String>,
     pub description: Option<String>,
     pub preview: Option<PathBuf>,
     pub remove_previews: Vec<u32>,
@@ -109,6 +111,12 @@ impl Steam {
             return Err("Steam refused to start the item update".into());
         }
         let ugc = self.ugc;
+        if let Some(title) = &update.title {
+            let text = c_string(title)?;
+            check("SetItemTitle", unsafe {
+                sys::SteamAPI_ISteamUGC_SetItemTitle(ugc, handle, text.as_ptr())
+            })?;
+        }
         if let Some(description) = &update.description {
             let text = c_string(description)?;
             check("SetItemDescription", unsafe {
@@ -287,8 +295,10 @@ impl Query {
     }
 
     fn item(&self) -> Result<LiveItem, String> {
+        let (title, description) = self.title_and_description()?;
         Ok(LiveItem {
-            description: self.description()?,
+            title,
+            description,
             preview_url: self.preview_url(),
             metadata: self.metadata(),
             previews: self.additional_previews()?,
@@ -297,7 +307,7 @@ impl Query {
 
     // The details stay a MaybeUninit: they hold enums (result, file type,
     // visibility) that a newer Steam may fill with values the bindings lack.
-    fn description(&self) -> Result<String, String> {
+    fn title_and_description(&self) -> Result<(String, String), String> {
         let mut details = Box::new(MaybeUninit::<sys::SteamUGCDetails_t>::zeroed());
         let ok = unsafe {
             sys::SteamAPI_ISteamUGC_GetQueryUGCResult(
@@ -312,7 +322,12 @@ impl Query {
         if !ok || result != RESULT_OK {
             return Err(format!("Steam could not read the item: EResult {result}"));
         }
-        Ok(from_c(unsafe { &*addr_of!((*details).m_rgchDescription) }))
+        Ok(unsafe {
+            (
+                from_c(&*addr_of!((*details).m_rgchTitle)),
+                from_c(&*addr_of!((*details).m_rgchDescription)),
+            )
+        })
     }
 
     fn preview_url(&self) -> Option<String> {
