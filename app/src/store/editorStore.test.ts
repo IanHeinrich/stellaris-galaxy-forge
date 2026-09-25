@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EditResult } from "../generated/EditResult";
 import type { SearchHit } from "../generated/SearchHit";
 
 vi.mock("../api/ipc");
@@ -127,6 +128,23 @@ describe("nudge", () => {
         { id: 5, x: -39, y: 39 },
       ],
     });
+  });
+
+  it("moves on from where the last nudge left the system when a second press comes before it lands", async () => {
+    await editor().select(2);
+    let land: (result: EditResult) => void = () => undefined;
+    mocked.applyOp.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
+    const first = editor().nudgeSelection(-1, 10);
+    const second = editor().nudgeSelection(-1, 10);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    land(editResult({ delta: { systems: [{ ...SYSTEMS[2], x: 19, y: 20 }] } }));
+    await Promise.all([first, second]);
+
+    expect(mocked.applyOp.mock.calls.map(([op]) => op)).toEqual([
+      { type: "MoveSystem", id: 2, x: 19, y: 20 },
+      { type: "MoveSystem", id: 2, x: 18, y: 30 },
+    ]);
   });
 
   it("does nothing with no selection or a lane selected", async () => {

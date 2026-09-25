@@ -1,7 +1,7 @@
 /**
  * The game's own data, read from the user's install at runtime: definitions, localisation and
  * what they make of the open save. Command names and argument names here match
- * `app/src-tauri/src/commands.rs`.
+ * `app/src-tauri/src/commands/`.
  */
 import { invoke } from "@tauri-apps/api/core";
 import type { BypassView } from "../generated/BypassView";

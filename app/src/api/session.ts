@@ -1,6 +1,6 @@
 /**
  * The save session: opening a file, reading it back and editing it. Command names and argument
- * names here match `app/src-tauri/src/commands.rs`.
+ * names here match `app/src-tauri/src/commands/`.
  */
 import { invoke } from "@tauri-apps/api/core";
 import type { AddSystemPicks } from "../generated/AddSystemPicks";
@@ -29,11 +29,6 @@ import type { SystemDetails } from "../generated/SystemDetails";
 /** The Stellaris save directories that exist on this machine. */
 export function saveDirs(): Promise<string[]> {
   return invoke<string[]>("save_dirs");
-}
-
-/** Every `.sav` under the Stellaris save directories on this machine, newest first. */
-export function listSaves(): Promise<SaveFile[]> {
-  return invoke<SaveFile[]>("list_saves");
 }
 
 /** Every campaign folder under the Stellaris save directories, with the header of its newest save. */

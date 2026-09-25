@@ -4,7 +4,6 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import * as ipc from "../api/ipc";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
 import { DEFAULT_NEBULA_RADIUS, useEditorStore } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -12,12 +11,22 @@ import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { OPEN_RESULT, SYSTEMS, editResult, name } from "./fixture";
 
-const addNebula = vi.mocked(ipc.addNebula);
+const addNebula = mocked.addNebula;
 
 beforeEach(openFixtureSave);
 
 describe("editing nebulae", () => {
   const cloud = OPEN_RESULT.galaxy.nebulae[0];
+
+  it("moveNebula sends MoveNebula for the nebula at its file index and moves the cloud", async () => {
+    const moved = { ...cloud, x: -20, y: 30 };
+    mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [], nebulae: [moved] } }));
+
+    await editor().moveNebula(0, -20, 30);
+
+    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "MoveNebula", index: 0, x: -20, y: 30 });
+    expect(useGalaxyStore.getState().nebulae[0]).toEqual(moved);
+  });
 
   it("addNebulaAt places a named nebula at once, with no prompt, and selects it", async () => {
     const added = { ...cloud, name: name("Yinarim_Nebula"), x: 60, y: -10, systems: [] };

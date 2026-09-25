@@ -4,13 +4,19 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
-import { useEditorStore } from "./editorStore";
-import { useFileSessionStore } from "./fileSessionStore";
+import { run } from "./commands";
+import {
+  editor,
+  mocked,
+  openFixtureSave,
+  openFixtureScenario,
+  sessionError,
+} from "./editorFixture";
+import { canDelete, deletableSelection, useEditorStore } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { SYSTEMS, editResult, node } from "./fixture";
+import { SCENARIO_RESULT, SYSTEMS, editResult, node } from "./fixture";
 
-beforeEach(openFixtureSave);
+beforeEach(() => openFixtureScenario());
 
 describe("adding and removing systems", () => {
   it("addSystemAt sends AddSystem at the point and selects what comes back", async () => {
@@ -78,7 +84,7 @@ describe("adding and removing systems", () => {
   });
 
   it("addSystemAt under the Paint a Galaxy profile writes the seat as script in the one op, keyed to the next id", async () => {
-    useFileSessionStore.setState({ kind: "scenario", painted: true });
+    await openFixtureScenario({ ...SCENARIO_RESULT, painted: true });
     const added = node(6, "", 10, -4, "sc_g");
     mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [added] } }));
     mocked.getSystem.mockResolvedValueOnce({ system: added, neighbours: [], nebula: null });
@@ -154,6 +160,64 @@ describe("adding and removing systems", () => {
   it("removeSystem of an unknown id asks nothing", async () => {
     await editor().removeSystem(99);
 
+    expect(mocked.confirm).not.toHaveBeenCalled();
+    expect(mocked.applyOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleting a selection of systems", () => {
+  const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
+
+  beforeEach(() => {
+    mocked.applyOp.mockResolvedValue(editResult());
+  });
+
+  it("asks, counting each lane touching them once, then removes them all as one edit", async () => {
+    await editor().setSelection([0, 1, 2], "replace");
+    run("deleteSelection", false, effects);
+    await vi.waitFor(() => expect(mocked.applyOp).toHaveBeenCalled());
+    expect(mocked.confirm).toHaveBeenCalledWith(
+      "Delete 3 systems and their 4 lanes?",
+      expect.objectContaining({ kind: "warning" }),
+    );
+    expect(mocked.applyOp).toHaveBeenCalledWith({
+      type: "Batch",
+      description: "Deleted 3 systems",
+      ops: [{ type: "RemoveSystems", ids: [0, 1, 2] }],
+    });
+  });
+
+  it("sends nothing when the question is declined", async () => {
+    mocked.confirm.mockResolvedValueOnce(false);
+    await editor().setSelection([0, 5], "replace");
+    await editor().deleteSelection();
+    expect(mocked.confirm).toHaveBeenCalledWith("Delete 2 systems and their 1 lane?", {
+      title: "Delete systems",
+      kind: "warning",
+    });
+    expect(mocked.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("deletes a single selected system too, asking about it and its lanes", async () => {
+    await editor().select(1);
+    run("deleteSelection", false, effects);
+    await vi.waitFor(() => expect(mocked.applyOp).toHaveBeenCalled());
+    expect(mocked.confirm).toHaveBeenCalledWith(
+      "Delete Alpha Centauri and its 4 lanes?",
+      expect.objectContaining({ kind: "warning" }),
+    );
+    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 1 });
+  });
+
+  it("names the selection as deletable on a scenario, and nothing on a save", async () => {
+    await editor().setSelection([0, 1], "replace");
+    expect(deletableSelection(editor())).toEqual({ kind: "systems", ids: [0, 1] });
+    expect(canDelete(editor())).toBe(true);
+
+    await openFixtureSave();
+    await editor().setSelection([0, 1], "replace");
+    expect(canDelete(editor())).toBe(false);
+    await editor().deleteSelection();
     expect(mocked.confirm).not.toHaveBeenCalled();
     expect(mocked.applyOp).not.toHaveBeenCalled();
   });

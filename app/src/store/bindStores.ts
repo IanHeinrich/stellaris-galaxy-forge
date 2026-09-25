@@ -16,6 +16,7 @@ import {
 } from "./issueNotes";
 import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
+import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
@@ -239,9 +240,16 @@ function followGroups(): void {
   });
 }
 
+// Whatever belonged to the document that was open goes when another starts opening or none is
+// left; the galaxy stays on screen under the loading overlay until the next one lands.
 function followSession(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status === previous.status) return;
+    if (state.status === "loading") useLGateStore.getState().hide();
+    if (state.status === "empty" || state.status === "error") {
+      useGalaxyStore.getState().clear();
+      useGameDataStore.getState().onSaveClosed();
+    }
     if (state.status !== "ready") useLayoutStore.getState().hideOpenDialog();
     useEditorStore.getState().resetSession();
     useMapChromeStore.getState().clearOverlays();

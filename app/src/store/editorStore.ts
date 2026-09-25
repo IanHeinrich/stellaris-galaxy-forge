@@ -1,7 +1,5 @@
-import { confirm } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
-import type { Capabilities } from "../generated/Capabilities";
 import type { FeDirection } from "../generated/FeDirection";
 import type { FeZone } from "../generated/FeZone";
 import type { HistoryEntry } from "../generated/HistoryEntry";
@@ -14,27 +12,26 @@ import type { SearchResult } from "../generated/SearchResult";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
-import { addedAmong } from "../lib/addSystem";
-import { documentCapabilities } from "../lib/capabilities";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
-import { counted } from "../lib/text";
 import { addSystemActions } from "./editorStore.addSystem";
-import { editPipeline, systems } from "./editorEdits";
+import { editPipeline, runAdd, systems, type OpSource } from "./editorEdits";
 import { brushActions } from "./editorStore.brush";
 import { feZoneActions } from "./editorStore.feZones";
 import { laneActions } from "./editorStore.lanes";
 import { marauderActions } from "./editorStore.marauders";
 import { nebulaActions } from "./editorStore.nebulae";
+import { deletableSelection, removeActions } from "./editorStore.remove";
 import { searchActions } from "./editorStore.search";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
-import { symmetricIds, symmetricOp } from "./symmetricEdits";
+import { symmetricOp } from "./symmetricEdits";
 
 export type { MapTooltip, MapTooltipLine, MapTooltipText } from "./mapChromeStore";
 export { nearestSystem } from "./editorEdits";
-export { addSystemRefusalAt } from "./editorStore.addSystem";
+export { addSystemRefusalAt, useAddSystemRefusal } from "./editorStore.addSystem";
+export { canDelete, deletableSelection, deletableSystems } from "./editorStore.remove";
 export { NEEDS_A_SYSTEM, NOTHING_TO_FIT } from "./editorStore.feZones";
 export { CONNECT_ALL_MAX } from "./editorStore.lanes";
 export { DEFAULT_NEBULA_RADIUS } from "./editorStore.nebulae";
@@ -173,10 +170,7 @@ export interface EditorState {
   rerollSystem(id: number, starClass?: string | null): Promise<boolean>;
   /** Renames a system added this session; a blank name sends nothing. */
   renameAddedSystem(id: number, name: string): Promise<boolean>;
-  /**
-   * Deletes the systems among `ids` added this session in one edit, once the user has confirmed;
-   * the file's own among them stay. The ids are followed through the edits queued before it.
-   */
+  /** `removeSystems`, for the systems of `ids` a save added this session. */
   removeAddedSystems(ids: readonly number[]): Promise<boolean>;
   /** Adds the next free marauder clan at a world point: its home there, two raid bases beside it. */
   addMarauderClanAt(point: { x: number; y: number }): Promise<boolean>;
@@ -188,10 +182,15 @@ export interface EditorState {
   addMarauderBases(home: number): Promise<boolean>;
   /** Renumbers the clan `home` heads, its bases with it, in one op; refused when `to` is in use. */
   renumberMarauderClan(home: number, to: number): Promise<boolean>;
-  /** Removes a system and every lane touching it, once the user has confirmed. */
+  /** `removeSystems` of one system. */
   removeSystem(id: number): Promise<void>;
-  /** Removes `ids` and every lane touching them in one edit, once the user has confirmed. */
-  removeSystems(ids: number[]): Promise<boolean>;
+  /**
+   * Removes what `deletableSystems` takes of `ids` and every lane touching them in one edit, once
+   * the user has confirmed: under the global symmetry their counterparts too, and on a save the
+   * ones it added, which the core alone checks when the edit runs. The ids are followed through
+   * the edits queued before it.
+   */
+  removeSystems(ids: readonly number[]): Promise<boolean>;
   /**
    * Adds a paint stroke's systems at `points`, numbered from the next free id, and its lanes in
    * one edit; a pair's negative id -k names `points[k - 1]`.
@@ -264,12 +263,13 @@ export interface EditorState {
   /** Sets every lane touching a selected system to `floor(distance)` where it differs. */
   resetSelectedLaneLengths(): Promise<void>;
   /**
-   * Resolves true when the edit applied; a refused op sets the session error and resolves false.
-   * A reclassification a later edit takes over may still be settling when it resolves.
+   * Resolves true when the edit applied; a refused op sets the session error and resolves false,
+   * and so does a builder that sends nothing. A reclassification a later edit takes over may
+   * still be settling when it resolves.
    */
-  applyOp(op: Op): Promise<boolean>;
+  applyOp(op: OpSource): Promise<boolean>;
   /** Applies `op` and, under the global symmetry, the same edit to every counterpart, as one edit. */
-  applySymmetric(op: Op): Promise<boolean>;
+  applySymmetric(op: OpSource): Promise<boolean>;
   /**
    * Sets the seat `seat` makes of system `id` and, under the global symmetry, the one it makes of
    * each counterpart, as one edit. `seat` leaves a system it returns undefined for as it is, and
@@ -317,6 +317,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     ...brushActions(set, get, edits.runEdit),
     ...searchActions(set, get),
     ...addSystemActions(set, get, edits.runEdit),
+    ...removeActions(set, get, edits.runEdit),
 
     async select(id) {
       await selectSystems(id === null ? [] : [id]);
@@ -387,14 +388,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
           await get().removeNebula(target.index);
           return;
         case "systems":
-          await (target.ids.length === 1
-            ? get().removeSystem(target.ids[0])
-            : get().removeSystems(target.ids));
-          return;
         case "added":
-          await (get().selection.length === 1
-            ? get().removeSystem(target.ids[0])
-            : get().removeAddedSystems(target.ids));
+          await get().removeSystems(get().selection);
           return;
         case "lane": {
           const { a, b } = target.lane;
@@ -404,20 +399,23 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     async nudgeSelection(dx, dy) {
-      const moves = get().selection.flatMap((id) => {
-        const s = systems().get(id);
-        return s ? [{ id, x: s.x + dx, y: s.y + dy }] : [];
+      if (get().selection.length === 0) return;
+      await get().applySymmetric(() => {
+        const moves = get().selection.flatMap((id) => {
+          const s = systems().get(id);
+          return s ? [{ id, x: s.x + dx, y: s.y + dy }] : [];
+        });
+        if (moves.length === 0) return null;
+        return moves.length === 1
+          ? { type: "MoveSystem", ...moves[0] }
+          : { type: "MoveSystems", moves };
       });
-      if (moves.length === 0) return;
-      await get().applySymmetric(
-        moves.length === 1 ? { type: "MoveSystem", ...moves[0] } : { type: "MoveSystems", moves },
-      );
     },
 
     async addSystemAt(x, y, initializer = null, spawnWeight = null) {
       // Under the Paint a Galaxy profile the weight is the site's script, keyed to the id the core will give.
       const paint = getPaintLayer() && spawnWeight !== null;
-      const op: Op = {
+      const op = (): Op => ({
         type: "AddSystem",
         id: null,
         x,
@@ -426,26 +424,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
         initializer,
         spawn_weight: paint ? null : spawnWeight,
         spawn_script: paint ? enabledScriptFor(nextSystemId(systems().values())) : null,
-      };
-      const result = await edits.runEdit(() => ipc.applyOp(symmetricOp(op)));
-      if (result === null) return false;
-      const added = nearestTo(result.delta.systems, x, y);
-      if (added) await get().select(added.id);
+      });
+      const outcome = await runAdd(edits.runEdit, x, y, () => ipc.applyOp(symmetricOp(op())));
+      if (outcome === null) return false;
+      if (outcome.added) await get().select(outcome.added.id);
       return true;
-    },
-
-    async removeSystem(id) {
-      const system = systems().get(id);
-      if (!system) return;
-      if (!system.added && symmetricIds([id]).length > 1) {
-        await get().removeSystems([id]);
-        return;
-      }
-      const name = useGalaxyStore.getState().systemName(id);
-      const lanes = system.lanes.length;
-      const what = lanes === 0 ? name : `${name} and its ${counted(lanes, "lane")}`;
-      if (!(await confirm(`Delete ${what}?`, { title: name, kind: "warning" }))) return;
-      await get().applyOp({ type: "RemoveSystem", id });
     },
 
     async updateEmpireCounts() {
@@ -456,8 +439,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     async linkWormholePair(a, b) {
-      const pair = nextWormholePair(systems().values());
-      const linked = await get().applyOp({ type: "SetWormholePair", a, b, pair });
+      const linked = await get().applyOp(() => ({
+        type: "SetWormholePair",
+        a,
+        b,
+        pair: nextWormholePair(systems().values()),
+      }));
       if (linked) useMapChromeStore.getState().setLayerQuietly("day_one_bypasses", true);
       return linked;
     },
@@ -473,45 +460,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
   };
 });
-
-/**
- * Which of `ids` Delete would remove, or null for none: all of them where the document makes
- * and deletes systems, the ones added this session on a document that adds them.
- */
-export function deletableSystems(
-  ids: readonly number[],
-  capabilities: Capabilities = documentCapabilities(useFileSessionStore.getState()),
-  held: ReadonlyMap<number, SystemNode> = systems(),
-): Deletable | null {
-  if (ids.length === 0) return null;
-  if (capabilities.create_systems) return { kind: "systems", ids: [...ids] };
-  if (!capabilities.added_systems) return null;
-  const added = addedAmong(held, ids);
-  return added.length === 0 ? null : { kind: "added", ids: added };
-}
-
-/**
- * What Delete would remove, or null for nothing: the selected nebula or lane, or what
- * `deletableSystems` takes of the selection. The Edit menu and the key both ask it.
- */
-export function deletableSelection(
-  state: Pick<EditorState, "selection" | "selectedLane" | "selectedNebula">,
-  capabilities?: Capabilities,
-  held?: ReadonlyMap<number, SystemNode>,
-): Deletable | null {
-  const { selection, selectedLane, selectedNebula } = state;
-  if (selectedNebula !== null) return { kind: "nebula", index: selectedNebula };
-  if (selectedLane !== null) return { kind: "lane", lane: selectedLane };
-  return deletableSystems(selection, capabilities, held);
-}
-
-export function canDelete(
-  state: EditorState,
-  capabilities?: Capabilities,
-  held?: ReadonlyMap<number, SystemNode>,
-): boolean {
-  return deletableSelection(state, capabilities, held) !== null;
-}
 
 /** The step Undo takes back; undefined with none. */
 export function nextUndo(state: EditorState): HistoryEntry | undefined {
@@ -552,13 +500,4 @@ async function selectSystems(ids: number[], reveal = true): Promise<void> {
       useFileSessionStore.getState().setError(ipc.errorMessage(e));
     }
   }
-}
-
-/** Of `nodes`, the one nearest (x, y). */
-function nearestTo(nodes: readonly SystemNode[], x: number, y: number): SystemNode | undefined {
-  let best: SystemNode | undefined;
-  for (const n of nodes) {
-    if (!best || Math.hypot(n.x - x, n.y - y) < Math.hypot(best.x - x, best.y - y)) best = n;
-  }
-  return best;
 }

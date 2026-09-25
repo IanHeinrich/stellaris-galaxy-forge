@@ -4,7 +4,6 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import type { Op } from "../generated/Op";
 import type { SystemNode } from "../generated/SystemNode";
@@ -13,7 +12,7 @@ import { useGalaxyStore } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { SYSTEMS, editResult, node } from "./fixture";
 
-const headerEmpireCounts = vi.mocked(ipc.headerEmpireCounts);
+const headerEmpireCounts = mocked.headerEmpireCounts;
 
 /** Puts `pair` on the fixture systems `ids`, as the galaxy the store reads. */
 function paired(pair: number | null, ...ids: number[]): void {
@@ -139,6 +138,9 @@ describe("marauder clans", () => {
       const write = (system: SystemNode) => changed.set(system.id, system);
       const answer = (member: Op) => {
         if (member.type === "AddSystem") {
+          if (changed.has(member.id!) || current().has(member.id!)) {
+            throw { kind: "op", message: `system ${member.id} already exists` };
+          }
           write(
             node(member.id!, "", member.x, member.y, "sc_g", [], {
               initializer: member.initializer ?? "",
@@ -218,6 +220,28 @@ describe("marauder clans", () => {
         },
       ],
     });
+  });
+
+  it("addMarauderClanAt queued behind a paint stroke numbers its systems past the ones the stroke took", async () => {
+    homes(0);
+    answerOps();
+    let land: (result: EditResult) => void = () => undefined;
+    mocked.applyOp.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
+    const painting = editor().paintStroke([{ x: 200, y: 200 }], []);
+    const adding = editor().addMarauderClanAt({ x: -120, y: 45 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    land(editResult({ delta: { systems: [node(6, "", 200, 200, "sc_g", [])] } }));
+    expect(await adding).toBe(true);
+    await painting;
+
+    const [, [clan]] = mocked.applyOp.mock.calls;
+    const ids =
+      clan.type === "Batch" ? clan.ops.flatMap((o) => (o.type === "AddSystem" ? [o.id] : [])) : [];
+    expect(ids).toEqual([7, 8, 9]);
+    expect(galaxy().get(7)!.initializer).toBe("marauder_2_1");
+    expect(sessionError()).toBeNull();
+    expect(editor().selection).toEqual([7]);
   });
 
   it("addMarauderClanAt refuses once all three clans are placed, and says so", async () => {

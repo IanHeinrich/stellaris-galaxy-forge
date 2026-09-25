@@ -20,12 +20,11 @@ import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DepositView } from "../generated/DepositView";
 import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
-import { templateKey } from "../lib/names";
 import { clearTextures } from "../lib/visual/textures";
 import { useDetailsStore } from "./detailsStore";
 import { useScriptsStore } from "./scriptsStore";
-import { NAMES_BATCH } from "./batching";
-import { useGalaxyStore } from "./galaxyStore";
+import { documentActions, NO_DOCUMENT } from "./gameDataStore.document";
+import { countryNames, forgetNames, nameActions, nameKeys } from "./gameDataStore.names";
 import { PREF_KEYS } from "./prefKeys";
 import { prefField } from "./prefs";
 
@@ -131,12 +130,6 @@ export interface GameDataState {
   displayNameOf(key: string): string | undefined;
 }
 
-/** The templates a render asked for, resolved together on the next tick. */
-let queued: NameTemplate[] = [];
-let flushing: ReturnType<typeof setTimeout> | null = null;
-/** Every name already asked for, so a miss is asked for once however often it is shown. */
-const requested = new Set<string>();
-
 const NO_CLASSES: ReadonlyMap<string, string> = new Map<string, string>();
 
 const UNLOADED = {
@@ -179,21 +172,23 @@ function starClassesOf(initializers: readonly InitializerView[]): ReadonlyMap<st
   return classes;
 }
 
-const NO_SAVE = {
-  special: new Map<number, SpecialSystem>(),
-  specialPending: false,
-  counts: [] as KindCount[],
-  specialWithGameData: false,
-  scenarioOwners: null as ScenarioOwners | null,
-  scenarioOwnersPending: false,
-  scenarioBypasses: null as ScenarioBypasses | null,
+/** The lists read on first use, as they stand until then. */
+const FRESH_DATA = {
+  initializers: null,
+  initializerClasses: NO_CLASSES,
+  initializersPending: false,
+  galaxyShapes: null,
+  galaxyShapesPending: false,
 };
 
-/** Drops what was resolved from the game data that is going away, and what was asked for. */
-function forgetNames(): Map<string, string> {
-  requested.clear();
-  queued = [];
-  return new Map();
+/**
+ * The fields game data that has just landed starts from, with the details and scripts read from
+ * what it replaces dropped.
+ */
+function freshData(): typeof FRESH_DATA & { names: Map<string, string> } {
+  useDetailsStore.getState().clear();
+  useScriptsStore.getState().clear();
+  return { ...FRESH_DATA, names: forgetNames() };
 }
 
 function unloaded(): typeof UNLOADED {
@@ -208,7 +203,7 @@ const AUTO_LOAD = prefField<AutoLoad>(PREF_KEYS.autoLoad, "ask", isAutoLoad);
 
 export const useGameDataStore = create<GameDataState>((set, get) => ({
   ...UNLOADED,
-  ...NO_SAVE,
+  ...NO_DOCUMENT,
   autoLoad: "ask",
   startup: "pending",
   startupLoad: false,
@@ -261,12 +256,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
         status: "ready",
         summary,
         progress: null,
-        names: forgetNames(),
-        initializers: null,
-        initializerClasses: NO_CLASSES,
-        initializersPending: false,
-        galaxyShapes: null,
-        galaxyShapesPending: false,
+        ...freshData(),
         version: summary.generation,
         watching: summary.watch.watching,
         autoReloadPaused: summary.watch.paused,
@@ -276,14 +266,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
       });
       watchChanges();
       clearTextures();
-      useDetailsStore.getState().clear();
-      useScriptsStore.getState().clear();
-      const alive = claimTail();
-      await loadRegistries(alive);
-      await get().refreshSpecial(alive);
-      await get().refreshScenarioOwners(alive);
-      await get().fetchNames(nameKeys(), alive);
-      await get().resolveNames(countryNames(), alive);
+      await refetch(claimTail());
     } catch (e) {
       set({ ...unloaded(), status: "error", error: ipc.errorMessage(e) });
     } finally {
@@ -300,6 +283,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
       set({
         status: "ready",
         summary,
+        ...freshData(),
         version: summary.generation,
         watching: summary.watch.watching,
         autoReloadPaused: summary.watch.paused,
@@ -307,13 +291,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
       });
       watchChanges();
       clearTextures();
-      useScriptsStore.getState().clear();
-      const alive = claimTail();
-      await loadRegistries(alive);
-      await get().refreshSpecial(alive);
-      await get().refreshScenarioOwners(alive);
-      await get().fetchNames(nameKeys(), alive);
-      await get().resolveNames(countryNames(), alive);
+      await refetch(claimTail());
     } catch (e) {
       set({ ...unloaded(), status: "error", error: ipc.errorMessage(e) });
     }
@@ -371,125 +349,8 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
     }
   },
 
-  async refreshSpecial(alive) {
-    if (useGalaxyStore.getState().galaxy === null) return;
-    set({ specialPending: true });
-    try {
-      const result = await ipc.getSpecialSystems();
-      if (alive?.() === false) {
-        set({ specialPending: false });
-        return;
-      }
-      set({
-        special: new Map(result.systems.map((s) => [s.id, s])),
-        counts: result.counts,
-        specialWithGameData: result.with_game_data,
-        specialPending: false,
-      });
-    } catch (e) {
-      set({ error: ipc.errorMessage(e), specialPending: false });
-    }
-  },
-
-  async refreshScenarioOwners(alive) {
-    if (useGalaxyStore.getState().galaxy === null) return;
-    set({ scenarioOwnersPending: true });
-    try {
-      const owners = await ipc.getScenarioOwners();
-      if (alive?.() === false) {
-        set({ scenarioOwnersPending: false });
-        return;
-      }
-      set({ scenarioOwners: owners, scenarioOwnersPending: false });
-      const galaxy = useGalaxyStore.getState();
-      // A document with no scripted owners, before or now, leaves the galaxy as it found it.
-      if (owners !== null || galaxy.scriptedOwners.size > 0) {
-        galaxy.setScriptedOwners(ownerMap(owners), owners?.territories.map((t) => t.country) ?? []);
-      }
-      const bypasses = await ipc.getScenarioBypasses();
-      if (alive?.() === false) return;
-      set({ scenarioBypasses: bypasses ?? null });
-    } catch (e) {
-      set({ error: ipc.errorMessage(e), scenarioOwnersPending: false });
-    }
-  },
-
-  async fetchNames(keys, alive) {
-    if (get().status !== "ready") return;
-    const known = get().names;
-    const wanted = [...new Set(keys)].filter((key) => !known.has(key));
-    const still = alive ?? sameGameData();
-    for (let i = 0; i < wanted.length; i += NAMES_BATCH) {
-      try {
-        const resolved = await ipc.getNames(wanted.slice(i, i + NAMES_BATCH));
-        if (!still()) return;
-        const names = new Map(get().names);
-        for (const [key, name] of Object.entries(resolved)) names.set(key, name);
-        set({ names });
-      } catch (e) {
-        if (still()) set({ error: ipc.errorMessage(e) });
-        return;
-      }
-    }
-  },
-
-  async resolveNames(names, alive) {
-    const wanted = names.filter((name) => {
-      const key = templateKey(name);
-      if (get().names.has(key) || requested.has(key)) return false;
-      requested.add(key);
-      return true;
-    });
-    const still = alive ?? sameGameData();
-    for (let i = 0; i < wanted.length; i += NAMES_BATCH) {
-      const batch = wanted.slice(i, i + NAMES_BATCH);
-      try {
-        const resolved = await ipc.resolveNames(batch);
-        if (!still()) return;
-        const names = new Map(get().names);
-        batch.forEach((name, n) => names.set(templateKey(name), resolved[n] ?? ""));
-        set({ names });
-      } catch (e) {
-        for (const name of batch) requested.delete(templateKey(name));
-        if (still()) set({ error: ipc.errorMessage(e) });
-        return;
-      }
-    }
-  },
-
-  requestName(name) {
-    const key = templateKey(name);
-    if (get().names.has(key) || requested.has(key)) return;
-    queued.push(name);
-    flushing ??= setTimeout(() => {
-      flushing = null;
-      const batch = queued;
-      queued = [];
-      void get().resolveNames(batch);
-    });
-  },
-
-  async onSaveOpened() {
-    useDetailsStore.getState().clear();
-    useScriptsStore.getState().clear();
-    void get().refreshSpecial();
-    const owners = get().refreshScenarioOwners();
-    if (get().status === "ready") {
-      void get().fetchNames(nameKeys());
-      void get().resolveNames(countryNames());
-    }
-    await owners.catch(() => undefined);
-  },
-
-  onSaveClosed() {
-    useDetailsStore.getState().clear();
-    useScriptsStore.getState().clear();
-    set({ ...NO_SAVE });
-  },
-
-  displayNameOf(key) {
-    return get().names.get(key);
-  },
+  ...documentActions(set, get),
+  ...nameActions(set, get),
 }));
 
 /** The one subscription to the watcher's events, held while game data is loaded. */
@@ -511,15 +372,6 @@ async function dropChanges(): Promise<void> {
   } catch {
     return;
   }
-}
-
-/** The guard a batch loop takes when its caller holds none: the game data must not change hands. */
-function sameGameData(): () => boolean {
-  const { status, version } = useGameDataStore.getState();
-  return () => {
-    const now = useGameDataStore.getState();
-    return now.status === status && now.version === version;
-  };
 }
 
 /** The refetch that may still write. A newer one, or the game data changing hands, abandons it. */
@@ -551,36 +403,30 @@ async function gameDataChanged(changed: GameDataChanged): Promise<void> {
   });
   if (changed.registries.length === 0 || changed.version <= seen) return;
   const alive = claimTail();
-  const state = () => useGameDataStore.getState();
   if (!alive()) return;
   try {
     const summary = await ipc.gameDataSummary();
     if (!alive()) return;
-    if (summary !== null) {
-      useGameDataStore.setState({
-        summary,
-        names: forgetNames(),
-        initializers: null,
-        initializerClasses: NO_CLASSES,
-        initializersPending: false,
-        galaxyShapes: null,
-        galaxyShapesPending: false,
-      });
-    }
-    useDetailsStore.getState().clear();
-    useScriptsStore.getState().clear();
-    await loadRegistries(alive);
-    if (!alive()) return;
-    await state().refreshSpecial(alive);
-    if (!alive()) return;
-    await state().refreshScenarioOwners(alive);
-    if (!alive()) return;
-    await state().fetchNames(nameKeys(), alive);
-    if (!alive()) return;
-    await state().resolveNames(countryNames(), alive);
+    const fresh = freshData();
+    useGameDataStore.setState(summary === null ? fresh : { summary, ...fresh });
+    await refetch(alive);
   } catch (e) {
     if (alive()) useGameDataStore.setState({ error: ipc.errorMessage(e) });
   }
+}
+
+/** Reads everything the game data answers for the open document again, until `alive` says no. */
+async function refetch(alive: () => boolean): Promise<void> {
+  const state = () => useGameDataStore.getState();
+  await loadRegistries(alive);
+  if (!alive()) return;
+  await state().refreshSpecial(alive);
+  if (!alive()) return;
+  await state().refreshScenarioOwners(alive);
+  if (!alive()) return;
+  await state().fetchNames(nameKeys(), alive);
+  if (!alive()) return;
+  await state().resolveNames(countryNames(), alive);
 }
 
 async function loadRegistries(alive?: () => boolean): Promise<void> {
@@ -621,26 +467,6 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     lgateMods,
   });
   await useDetailsStore.getState().loadResourceIcons();
-}
-
-/** Each scenario system mapped to the territory country that owns it; empty without scripted owners. */
-function ownerMap(owners: ScenarioOwners | null): Map<number, number> {
-  return new Map(owners?.owners.map((o) => [o.system, o.territory]) ?? []);
-}
-
-/** Every localisation key the open galaxy shows: the names of its systems and nebulae. */
-function nameKeys(): string[] {
-  const { galaxy } = useGalaxyStore.getState();
-  if (galaxy === null) return [];
-  return [...galaxy.systems, ...galaxy.nebulae]
-    .map((node) => node.name)
-    .filter((name) => !name.literal)
-    .map((name) => name.key);
-}
-
-/** The name template of every country in the open galaxy. */
-function countryNames(): NameTemplate[] {
-  return useGalaxyStore.getState().galaxy?.countries.map((c) => c.name) ?? [];
 }
 
 function rememberedInstallPath(): string | undefined {

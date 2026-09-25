@@ -5,7 +5,7 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { editor, mocked, openFixtureSave } from "./editorFixture";
+import { editor, joinBoth, mocked, openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { useMapChromeStore } from "./mapChromeStore";
 import { CONNECT_ALL_MAX, type EditorState } from "./editorStore";
 import { MESH_BETA } from "../lib/geometry/mesh";
@@ -148,5 +148,55 @@ describe("bulk lane actions", () => {
       type: "NormaliseLaneLengths",
       systems: [0, 1, 2],
     });
+  });
+});
+
+describe("preventing and allowing lanes", () => {
+  beforeEach(async () => {
+    await openFixtureScenario();
+    mocked.applyOp.mockResolvedValue(editResult());
+  });
+
+  const sent = () => mocked.applyOp.mock.calls[mocked.applyOp.mock.calls.length - 1][0];
+
+  it("cuts a lane and prevents it as one edit, and prevents a pair with no lane alone", async () => {
+    await editor().preventLanes([[0, 1]]);
+    expect(sent()).toEqual({
+      type: "Batch",
+      description: "Cut and prevented lane 0 <-> 1",
+      ops: [
+        { type: "RemoveLane", a: 0, b: 1 },
+        { type: "PreventLane", a: 0, b: 1 },
+      ],
+    });
+
+    await editor().preventLanes([[5, 0]]);
+    expect(sent()).toEqual({ type: "PreventLane", a: 5, b: 0 });
+  });
+
+  it("only cuts a lane the scenario already prevents", async () => {
+    joinBoth("prevented", [0, 1]);
+    await editor().preventLanes([[0, 1]]);
+    expect(sent()).toEqual({ type: "RemoveLane", a: 0, b: 1 });
+  });
+
+  it("prevents lanes to the selected systems not kept from the target yet, and allows the ones that are", async () => {
+    joinBoth("lanes", [0, 5]);
+    joinBoth("prevented", [2, 5]);
+    await editor().setSelection([0, 2, 3], "replace");
+
+    await editor().preventLanesToSelected(5);
+    expect(sent()).toEqual({
+      type: "Batch",
+      description: "Cut 1 lane and prevented 2 lanes",
+      ops: [
+        { type: "RemoveLane", a: 0, b: 5 },
+        { type: "PreventLane", a: 0, b: 5 },
+        { type: "PreventLane", a: 3, b: 5 },
+      ],
+    });
+
+    await editor().allowLanesToSelected(5);
+    expect(sent()).toEqual({ type: "UnpreventLane", a: 2, b: 5 });
   });
 });

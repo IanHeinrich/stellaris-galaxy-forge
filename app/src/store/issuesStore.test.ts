@@ -1,13 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Issue } from "../generated/Issue";
-import {
-  OPEN_RESULT,
-  SCENARIO_RESULT,
-  editResult,
-  gameDataSummary,
-  initializerView,
-  systemNode,
-} from "./fixture";
+import { OPEN_RESULT, editResult } from "./fixture";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
@@ -59,28 +52,6 @@ const SPLIT: Issue = {
   systems: [2],
   note: false,
 };
-
-/** A scenario of `count` systems, ids from 0. */
-function scenarioOf(count: number): typeof SCENARIO_RESULT {
-  const systems = Array.from({ length: count }, (_, id) => systemNode({ id, x: id, y: 0 }));
-  return { ...SCENARIO_RESULT, issues: [], galaxy: { ...SCENARIO_RESULT.galaxy, systems } };
-}
-
-/** Game data whose largest galaxy size is Huge at 1,000 stars. */
-function loadHuge(): void {
-  useGameDataStore.setState({
-    status: "ready",
-    summary: gameDataSummary({
-      largest_galaxy: { name: "huge", label: "Huge", num_stars: 1000 },
-    }),
-  });
-}
-
-const sizeMessages = () =>
-  useIssuesStore
-    .getState()
-    .issues.filter((issue) => issue.code === "galaxy_size_exceeded")
-    .map((issue) => issue.message);
 
 async function open(path = OPEN_RESULT.path): Promise<void> {
   await useFileSessionStore.getState().openSave(path);
@@ -226,106 +197,5 @@ describe("issuesStore", () => {
     const { baseline } = useIssuesStore.getState();
     expect(baseline.size).toBe(2);
     expect(newIssues(useIssuesStore.getState().issues, baseline)).toEqual([]);
-  });
-
-  it("warns when a scenario has well over the largest galaxy size's stars, as systems come and go", async () => {
-    loadHuge();
-    mocked.openSave.mockResolvedValue(scenarioOf(1300));
-    await open(SCENARIO_RESULT.path);
-    expect(useIssuesStore.getState().issues).toEqual([
-      {
-        severity: "warning",
-        code: "galaxy_size_exceeded",
-        message:
-          "1,300 systems is well above Huge, the game's largest galaxy (1,000 stars). " +
-          "Very large galaxies can make the game slow.",
-        systems: [],
-        note: true,
-      },
-    ]);
-
-    const removed = Array.from({ length: 50 }, (_, i) => 1250 + i);
-    mocked.applyOp.mockResolvedValue(editResult({ issues: [], delta: { systems: [], removed } }));
-    await useEditorStore.getState().applyOp({ type: "RemoveSystem", id: 1250 });
-    expect(useGalaxyStore.getState().systems.size).toBe(1250);
-    expect(sizeMessages()).toEqual([]);
-
-    const added = [systemNode({ id: 1250 })];
-    mocked.applyOp.mockResolvedValue(editResult({ issues: [], delta: { systems: added } }));
-    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 1250, x: 0, y: 0 });
-    expect(sizeMessages()).toEqual([
-      "1,251 systems is well above Huge, the game's largest galaxy (1,000 stars). " +
-        "Very large galaxies can make the game slow.",
-    ]);
-  });
-
-  it("says nothing without game data, and stops once it goes away or comes back without sizes", async () => {
-    mocked.openSave.mockResolvedValue(scenarioOf(2000));
-    await open(SCENARIO_RESULT.path);
-    expect(sizeMessages()).toEqual([]);
-
-    loadHuge();
-    expect(sizeMessages()).toHaveLength(1);
-
-    useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
-    expect(sizeMessages()).toEqual([]);
-
-    useGameDataStore.setState({
-      status: "ready",
-      summary: gameDataSummary({ largest_galaxy: null }),
-    });
-    expect(sizeMessages()).toEqual([]);
-  });
-
-  it("holds a save to no galaxy size", async () => {
-    loadHuge();
-    mocked.openSave.mockResolvedValue({
-      ...scenarioOf(2000),
-      kind: "save",
-      path: OPEN_RESULT.path,
-    });
-    await open();
-    expect(sizeMessages()).toEqual([]);
-  });
-});
-
-describe("the initializer limit note", () => {
-  const limited = () =>
-    useIssuesStore.getState().issues.filter((issue) => issue.code === "initializer_over_limit");
-
-  it("names the systems past an initializer's max_instances, and none for unlimited ones", async () => {
-    const systems = [
-      ...[0, 1, 2].map((id) => systemNode({ id, x: id, initializer: "distar_crystal_system" })),
-      ...[3, 4, 5, 6].map((id) => systemNode({ id, x: id, initializer: "basic_init_01" })),
-    ];
-    mocked.openSave.mockResolvedValue({
-      ...SCENARIO_RESULT,
-      issues: [],
-      galaxy: { ...SCENARIO_RESULT.galaxy, systems },
-    });
-    await open(SCENARIO_RESULT.path);
-    expect(limited()).toEqual([]);
-
-    useGameDataStore.setState({
-      initializers: [
-        initializerView({ name: "distar_crystal_system", max_instances: 2 }),
-        initializerView({ name: "basic_init_01" }),
-      ],
-    });
-    expect(limited()).toEqual([
-      {
-        severity: "warning",
-        code: "initializer_over_limit",
-        message: "3 systems use distar_crystal_system, which the game allows 2 times.",
-        systems: [0, 1, 2],
-        note: true,
-      },
-    ]);
-
-    mocked.applyOp.mockResolvedValue(
-      editResult({ issues: [], delta: { systems: [], removed: [2] } }),
-    );
-    await useEditorStore.getState().applyOp({ type: "RemoveSystem", id: 2 });
-    expect(limited()).toEqual([]);
   });
 });

@@ -8,11 +8,10 @@ import type { NewSystem } from "../generated/NewSystem";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { Symmetry } from "../lib/geometry/symmetry";
 import { scriptForKind, weightedScript } from "../lib/paint";
-import { editor, mocked, openFixtureSave } from "./editorFixture";
-import { useEditorStore } from "./editorStore";
+import { editor, joinBoth, mocked, openFixtureScenario } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { SCENARIO_RESULT, editResult, lanesTo, node } from "./fixture";
+import { SCENARIO_RESULT, editResult, node } from "./fixture";
 import { useToolStore } from "./toolStore";
 
 const MIRROR_X: Symmetry = { kind: "mirror", axis: "x" };
@@ -35,21 +34,8 @@ const PLACED = [
 ];
 const FIRST_FREE = 24;
 
-/** Links each pair both ways, over the placed systems as they stand. */
-function link(...pairs: Array<[number, number]>): void {
-  const all = useGalaxyStore.getState().systems;
-  const touched = new Map<number, (typeof PLACED)[number]>();
-  for (const [a, b] of pairs) {
-    for (const [from, to] of [
-      [a, b],
-      [b, a],
-    ]) {
-      const s = touched.get(from) ?? all.get(from)!;
-      touched.set(from, { ...s, lanes: [...s.lanes, ...lanesTo(to)] });
-    }
-  }
-  useGalaxyStore.getState().applyDelta({ systems: [...touched.values()] });
-}
+const link = (...pairs: Array<[number, number]>) => joinBoth("lanes", ...pairs);
+const bar = (...pairs: Array<[number, number]>) => joinBoth("prevented", ...pairs);
 
 function sym(symmetry: Symmetry): void {
   useToolStore.setState({ symmetry });
@@ -88,9 +74,7 @@ function added(id: number, x: number, y: number, extra: Partial<NewSystem> = {})
 }
 
 beforeEach(async () => {
-  await openFixtureSave();
-  mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
-  await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
+  await openFixtureScenario();
   mocked.applyOp.mockResolvedValue(editResult());
   useGalaxyStore.getState().applyDelta({ systems: PLACED });
   useToolStore.setState({ symmetry: { kind: "off" } });
@@ -109,17 +93,13 @@ describe("with symmetry off", () => {
       spawn_weight: null,
       spawn_script: null,
     });
-    useEditorStore.setState({ selection: [10] });
+    await editor().setSelection([10], "replace");
     await editor().nudgeSelection(5, 3);
     expect(sent()).toEqual({ type: "MoveSystem", id: 10, x: 105, y: 53 });
     await editor().applySymmetric({ type: "AddLane", a: 10, b: 12, bridge: false });
     expect(sent()).toEqual({ type: "AddLane", a: 10, b: 12, bridge: false });
     await editor().removeSystems([10]);
-    expect(sent()).toEqual({
-      type: "Batch",
-      description: "Deleted 1 system",
-      ops: [{ type: "RemoveSystems", ids: [10] }],
-    });
+    expect(sent()).toEqual({ type: "RemoveSystem", id: 10 });
   });
 });
 
@@ -191,7 +171,9 @@ describe("adding a system under symmetry", () => {
   });
 
   it("gives each Paint a Galaxy copy a seat of its own id", async () => {
-    useFileSessionStore.setState({ paintChosen: true });
+    mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await useFileSessionStore.getState().openScenario(SCENARIO_RESULT.path, "paint_a_galaxy");
+    useGalaxyStore.getState().applyDelta({ systems: PLACED });
     sym(MIRROR_X);
     await editor().addSystemAt(150, 60, "init_twin", 1);
     const seat = (random_value: number) => ({
@@ -217,7 +199,7 @@ describe("adding a system under symmetry", () => {
 describe("moving systems under symmetry", () => {
   it("moves each counterpart by the image of the move, as one edit", async () => {
     sym(MIRROR_X);
-    useEditorStore.setState({ selection: [10] });
+    await editor().setSelection([10], "replace");
     await editor().nudgeSelection(5, 3);
     expect(sent()).toEqual({
       type: "Batch",
@@ -254,7 +236,7 @@ describe("moving systems under symmetry", () => {
 
   it("moves a counterpart already moving once, and a system on the axis or alone by itself", async () => {
     sym(MIRROR_X);
-    useEditorStore.setState({ selection: [10, 11] });
+    await editor().setSelection([10, 11], "replace");
     await editor().nudgeSelection(5, 0);
     expect(sent()).toEqual({
       type: "MoveSystems",
@@ -263,17 +245,17 @@ describe("moving systems under symmetry", () => {
         { id: 11, x: 105, y: -50 },
       ],
     });
-    useEditorStore.setState({ selection: [12] });
+    await editor().setSelection([12], "replace");
     await editor().nudgeSelection(0, 5);
     expect(sent()).toEqual({ type: "MoveSystem", id: 12, x: 200, y: 5 });
-    useEditorStore.setState({ selection: [13] });
+    await editor().setSelection([13], "replace");
     await editor().nudgeSelection(1, 1);
     expect(sent()).toEqual({ type: "MoveSystem", id: 13, x: 151, y: 81 });
   });
 
   it("moves a selection holding its own quarter turn as one symmetric shape", async () => {
     sym(QUARTER);
-    useEditorStore.setState({ selection: [20, 21] });
+    await editor().setSelection([20, 21], "replace");
     await editor().nudgeSelection(10, 5);
     const moves = [
       { id: 20, x: 310, y: 105 },
@@ -305,19 +287,6 @@ describe("moving systems under symmetry", () => {
       ops: [{ type: "MoveSystems", moves }],
     });
   });
-
-  it("moves a selection straddling the mirror axis as its mirror image", async () => {
-    sym(MIRROR_X);
-    useEditorStore.setState({ selection: [10, 11] });
-    await editor().nudgeSelection(5, 3);
-    expect(sent()).toEqual({
-      type: "MoveSystems",
-      moves: [
-        { id: 10, x: 105, y: 53 },
-        { id: 11, x: 105, y: -53 },
-      ],
-    });
-  });
 });
 
 describe("adding lanes under symmetry", () => {
@@ -339,7 +308,7 @@ describe("adding lanes under symmetry", () => {
     });
 
     sym(QUARTER);
-    useEditorStore.setState({ selection: [20, 0] });
+    await editor().setSelection([20, 0], "replace");
     await editor().connectSelected();
     expect(sent()).toEqual({
       type: "Batch",
@@ -402,66 +371,7 @@ describe("cutting lanes under symmetry", () => {
   });
 });
 
-describe("preventing and allowing lanes", () => {
-  /** Has the scenario keep each pair from a lane, named on both ends. */
-  function bar(...pairs: Array<[number, number]>): void {
-    const all = useGalaxyStore.getState().systems;
-    const touched = new Map<number, (typeof PLACED)[number]>();
-    for (const [a, b] of pairs) {
-      for (const [from, to] of [
-        [a, b],
-        [b, a],
-      ]) {
-        const s = touched.get(from) ?? all.get(from)!;
-        touched.set(from, { ...s, prevented: [...s.prevented, to] });
-      }
-    }
-    useGalaxyStore.getState().applyDelta({ systems: [...touched.values()] });
-  }
-
-  it("cuts a lane and prevents it as one edit, and prevents a pair with no lane alone", async () => {
-    link([10, 12]);
-    await editor().preventLanes([[10, 12]]);
-    expect(sent()).toEqual({
-      type: "Batch",
-      description: "Cut and prevented lane 10 <-> 12",
-      ops: [
-        { type: "RemoveLane", a: 10, b: 12 },
-        { type: "PreventLane", a: 10, b: 12 },
-      ],
-    });
-
-    await editor().preventLanes([[13, 12]]);
-    expect(sent()).toEqual({ type: "PreventLane", a: 13, b: 12 });
-  });
-
-  it("only cuts a lane the scenario already prevents", async () => {
-    link([10, 12]);
-    bar([10, 12]);
-    await editor().preventLanes([[10, 12]]);
-    expect(sent()).toEqual({ type: "RemoveLane", a: 10, b: 12 });
-  });
-
-  it("prevents lanes to the selected systems not kept from the target yet, and allows the ones that are", async () => {
-    link([10, 12]);
-    bar([11, 12]);
-    useEditorStore.setState({ selection: [10, 11, 13] });
-
-    await editor().preventLanesToSelected(12);
-    expect(sent()).toEqual({
-      type: "Batch",
-      description: "Cut 1 lane and prevented 2 lanes",
-      ops: [
-        { type: "RemoveLane", a: 10, b: 12 },
-        { type: "PreventLane", a: 10, b: 12 },
-        { type: "PreventLane", a: 12, b: 13 },
-      ],
-    });
-
-    await editor().allowLanesToSelected(12);
-    expect(sent()).toEqual({ type: "UnpreventLane", a: 11, b: 12 });
-  });
-
+describe("preventing and allowing lanes under symmetry", () => {
   it("does the same to each counterpart pair under symmetry, as one edit", async () => {
     sym(MIRROR_X);
     link([10, 12], [11, 12]);
@@ -522,7 +432,7 @@ describe("isolating systems under symmetry", () => {
   it("isolates the counterparts that have lanes, as one edit", async () => {
     sym(MIRROR_X);
     link([10, 12], [11, 12]);
-    useEditorStore.setState({ selection: [10] });
+    await editor().setSelection([10], "replace");
     await editor().isolateSelected();
     expect(sent()).toEqual({
       type: "Batch",
