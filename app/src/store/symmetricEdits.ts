@@ -412,6 +412,8 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   RemoveSaveDeposit: null,
   ReplaceSaveSystem: null,
   RenameSaveSystem: null,
+  SetNebulaTurbulent: null,
+  SetNebulaFootprints: null,
   Batch: null,
 };
 

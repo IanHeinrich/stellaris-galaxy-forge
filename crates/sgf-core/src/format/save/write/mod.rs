@@ -7,7 +7,8 @@
 //!
 //! One module per feature: [`move_system`] for one system's position, [`lanes`] for the
 //! hyperlane entries between them, [`bulk`] for the ops that take several at once,
-//! [`nebula`] for the clouds over them, [`lgate`] for the L-Cluster outcome the global
+//! [`nebula`] for the clouds over them, [`footprint`] for what a cloud leaves on each
+//! system it covers, [`lgate`] for the L-Cluster outcome the global
 //! flags hold, [`star_class`] for a system's star and its star bodies, [`planet_size`]
 //! for the size of one planet or star body, [`map_colors`] for the colours an empire
 //! paints its territory in, [`add_system`] for a whole new system with its bodies,
@@ -22,6 +23,7 @@ pub(crate) mod add_system;
 pub(crate) mod asteroid_names;
 pub(crate) mod bulk;
 pub(crate) mod deposits;
+pub(crate) mod footprint;
 pub(crate) mod initializer_counter;
 pub(crate) mod lanes;
 pub(crate) mod lgate;

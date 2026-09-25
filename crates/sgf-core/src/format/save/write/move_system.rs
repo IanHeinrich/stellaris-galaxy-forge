@@ -4,7 +4,7 @@
 
 use crate::emit::coord;
 use crate::format::save::write::lanes::length_text;
-use crate::format::save::write::nebula::plan_membership;
+use crate::format::save::write::nebula::{plan_membership, restoring};
 use crate::keys;
 use crate::ops::rules::nebula::describe_membership;
 use crate::ops::rules::systems::decide_move;
@@ -39,15 +39,15 @@ pub(crate) fn plan(
         updated += replace_lengths(plan.edit(&s.doc, id)?, n, text)?;
         updated += replace_lengths(plan.edit(&s.doc, n)?, id, text)?;
     }
-    let membership = plan_membership(plan, s, &[SystemMove { id, x, y }])?;
-
+    let (membership, had) = plan_membership(plan, s, &[SystemMove { id, x, y }])?;
+    let description = format!(
+        "{}; updated {updated} lane lengths{}",
+        moved.describe(),
+        describe_membership(&s.graph, &membership, false)
+    );
     Ok(Planned {
-        description: format!(
-            "{}; updated {updated} lane lengths{}",
-            moved.describe(),
-            describe_membership(&s.graph, &membership, false)
-        ),
-        inverse: moved.inverse(),
+        inverse: restoring(moved.inverse(), had, &description),
+        description,
     })
 }
 

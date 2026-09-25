@@ -143,9 +143,16 @@ impl Format for Save {
         } else {
             Vec::new()
         };
+        // A member's modifiers alone can change how turbulent its nebula reads, and the
+        // map only takes the nebulae again when a subject names one.
+        let turbulence = graph.refresh_turbulence();
         let moved: Vec<u32> = touched.iter().filter_map(|s| s.system()).collect();
         graph.refresh_stale(&moved);
-        Ok(reassigned.into_iter().map(Subject::System).collect())
+        let mut subjects: Vec<Subject> = reassigned.into_iter().map(Subject::System).collect();
+        if !nebulae {
+            subjects.extend(turbulence.into_iter().map(Subject::Nebula));
+        }
+        Ok(subjects)
     }
 
     fn write(&self, plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, OpError> {
@@ -191,6 +198,12 @@ impl Format for Save {
             }
             Op::RenameSaveSystem { system, name } => {
                 rename_system::plan_rename(plan, s, *system, name)
+            }
+            Op::SetNebulaTurbulent { nebula, turbulent } => {
+                nebula::plan_set_turbulent(plan, s, *nebula, *turbulent)
+            }
+            Op::SetNebulaFootprints { footprints } => {
+                nebula::plan_set_footprints(plan, s, footprints)
             }
             // A save's systems come with planets, a starbase and an owner, its names and
             // initializers are the game's to set, and it has neither a scenario header nor

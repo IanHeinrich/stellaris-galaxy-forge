@@ -338,6 +338,16 @@ pub enum NebulaCommand {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Make the nebula at `index` in file order turbulent, or calm with `--calm`.
+    Turbulent {
+        sav: PathBuf,
+        index: usize,
+        /// Calm the nebula instead.
+        #[arg(long)]
+        calm: bool,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Rename the nebula at `index` in file order.
     Name {
         sav: PathBuf,

@@ -91,4 +91,9 @@ owner: number | null,
  * A save system an op added since the file was opened, which can be removed, rolled
  * again and renamed. Always false for a scenario.
  */
-added: boolean, };
+added: boolean, 
+/**
+ * A save system carrying the `turbulent_nebula` modifier, which the game gives a few
+ * nebula members at game start. Always false for a scenario.
+ */
+turbulent?: boolean, };

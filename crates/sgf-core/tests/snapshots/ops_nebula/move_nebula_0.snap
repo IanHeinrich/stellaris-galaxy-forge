@@ -1,10 +1,10 @@
 ---
-source: crates/sgf-core/tests/ops_nebula.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
 Moved Phantom Streak Miasma to (76.15, -126.85); its radius now covers 8 systems (was 8)
 touched: [140, 348, 455, 463, 484, 753]
-inverse: MoveNebula { index: 0, x: 66.15, y: -136.85 }
+inverse: Batch { description: "Undo of \"Moved Phantom Streak Miasma to (76.15, -126.85); its radius now covers 8 systems (was 8)\"", ops: [MoveNebula { index: 0, x: 66.15, y: -136.85 }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 140, cloud: Some(NebulaCloud { id: 1051, kind: "nebula_1" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 348, cloud: Some(NebulaCloud { id: 1042, kind: "turbulent_nebula_2" }), cloaking: true, turbulent: true }, NebulaFootprint { system: 463, cloud: Some(NebulaCloud { id: 1035, kind: "rare_nebula_2" }), cloaking: true, turbulent: false }] }] }
 … and 3 other issues
 
 --- gamestate
@@ -36,4 +36,437 @@ inverse: MoveNebula { index: 0, x: 66.15, y: -136.85 }
 +	galactic_object=753
  }
  nebula=
+ {
+@@ -38803,10 +38803,6 @@
+ 		planet=1981
+ 		planet=1982
+ 		planet=1983
+-		ambient_object=
+-		{
+-			1051 
+-		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -38830,18 +38826,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=17
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	141=
+@@ -52904,10 +52888,6 @@
+ 		planet=4000
+ 		planet=4001
+ 		planet=4002
+-		ambient_object=
+-		{
+-			1042 
+-		}
+ 		star_class="sc_binary_7"
+ 		hyperlane=
+ 		{
+@@ -52941,23 +52921,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=18
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-				{
+-					modifier="turbulent_nebula"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	349=
+@@ -60177,6 +60140,10 @@
+ 		planet=5062
+ 		planet=5063
+ 		planet=5064
++		ambient_object=
++		{
++			1069 
++		}
+ 		star_class="sc_m"
+ 		hyperlane=
+ 		{
+@@ -60224,6 +60191,18 @@
+ 		}
+ 		sector=4294967295
+ 		index=19
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		storm=4294967295
+ 	}
+ 	456=
+@@ -60691,10 +60670,6 @@
+ 		planet=5143
+ 		planet=5144
+ 		planet=5145
+-		ambient_object=
+-		{
+-			1035 
+-		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -60732,18 +60707,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=18
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	464=
+@@ -62093,6 +62056,10 @@
+ 		planet=5351
+ 		planet=5352
+ 		planet=5353
++		ambient_object=
++		{
++			1070 
++		}
+ 		star_class="sc_k"
+ 		hyperlane=
+ 		{
+@@ -62141,6 +62108,18 @@
+ 		}
+ 		sector=4294967295
+ 		index=19
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		storm=4294967295
+ 	}
+ 	485=
+@@ -80107,6 +80086,10 @@
+ 		planet=7969
+ 		planet=7970
+ 		planet=7971
++		ambient_object=
++		{
++			1071 
++		}
+ 		star_class="sc_m"
+ 		hyperlane=
+ 		{
+@@ -80140,6 +80123,18 @@
+ 		}
+ 		sector=4294967295
+ 		index=19
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		storm=4294967295
+ 	}
+ 	754=
+@@ -1543561,41 +1543556,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	1035=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=463
+-		}
+-		data="rare_nebula_2"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=11.96
+-				y=15.96
+-				origin=463
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	1035=none
+ 	1036=
+ 	{
+ 		coordinate=
+@@ -1543787,41 +1543748,6 @@
+ 				x=14.27
+ 				y=18.27
+ 				origin=354
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
+-	1042=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=348
+-		}
+-		data="turbulent_nebula_2"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=16.25
+-				y=20.25
+-				origin=348
+ 			}
+ 			attach=
+ 			{
+@@ -1543841,6 +1543767,7 @@
+ 			appear_state=""
+ 		}
+ 	}
++	1042=none
+ 	1043=
+ 	{
+ 		coordinate=
+@@ -1544121,41 +1544048,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	1051=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=140
+-		}
+-		data="nebula_1"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=12.95
+-				y=16.95
+-				origin=140
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	1051=none
+ 	1052=
+ 	{
+ 		coordinate=
+@@ -1544721,6 +1544614,111 @@
+ 			appear_state=""
+ 		}
+ 	}
++	1069=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=455
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=13.94
++				y=17.94
++				origin=455
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
++	1070=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=484
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=11.96
++				y=15.96
++				origin=484
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
++	1071=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=753
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=11.3
++				y=15.3
++				origin=753
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
+ }
+ orbital_line=
  {

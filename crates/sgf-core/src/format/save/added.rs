@@ -18,6 +18,7 @@ pub(crate) enum Table {
     System,
     Planet,
     Deposit,
+    AmbientObject,
 }
 
 impl Table {
@@ -27,6 +28,7 @@ impl Table {
             keys::GALACTIC_OBJECT => Some(Self::System),
             keys::PLANETS => Some(Self::Planet),
             keys::DEPOSIT => Some(Self::Deposit),
+            keys::AMBIENT_OBJECT => Some(Self::AmbientObject),
             _ => None,
         }
     }

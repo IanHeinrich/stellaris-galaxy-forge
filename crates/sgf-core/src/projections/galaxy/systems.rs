@@ -134,6 +134,10 @@ pub struct SystemNode {
     /// again and renamed. Always false for a scenario.
     #[serde(default)]
     pub added: bool,
+    /// A save system carrying the `turbulent_nebula` modifier, which the game gives a few
+    /// nebula members at game start. Always false for a scenario.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub turbulent: bool,
 }
 
 /// One planet a save system lists: its `planet_class` and `planet_size`.

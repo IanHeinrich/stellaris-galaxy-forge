@@ -11,7 +11,7 @@ use crate::format::save::write::lanes::{
     insert_entries, length_form, length_text, pairs, remove_entries, wayline_note,
 };
 use crate::format::save::write::move_system::splice_coordinate;
-use crate::format::save::write::nebula::plan_membership;
+use crate::format::save::write::nebula::{plan_membership, restoring};
 use crate::ops::rules::each_once;
 use crate::ops::rules::lanes::{
     Touching, check_length, check_new_lane, decide_isolate, decide_remove_pairs, touching_lanes,
@@ -32,15 +32,16 @@ pub(crate) fn plan_move_many(
     moves: &[SystemMove],
 ) -> Result<Planned, OpError> {
     let (origin, updated) = move_systems(plan, s, moves)?;
-    let membership = plan_membership(plan, s, moves)?;
+    let (membership, had) = plan_membership(plan, s, moves)?;
+    let description = format!(
+        "Moved {}; updated {}{}",
+        plural(moves.len(), "system"),
+        plural(updated, "lane length"),
+        describe_membership(&s.graph, &membership, true)
+    );
     Ok(Planned {
-        description: format!(
-            "Moved {}; updated {}{}",
-            plural(moves.len(), "system"),
-            plural(updated, "lane length"),
-            describe_membership(&s.graph, &membership, true)
-        ),
-        inverse: Op::MoveSystems { moves: origin },
+        inverse: restoring(Op::MoveSystems { moves: origin }, had, &description),
+        description,
     })
 }
 

@@ -1,8 +1,10 @@
 //! Placing a nebula, end to end: named from a save's pool of unused nebula names with game
 //! data or without, and "New Nebula", numbered, where no name is left to draw. Undo takes it
-//! away in one step.
+//! away in one step. Making a nebula turbulent crosses as an `apply_op`, as every other
+//! nebula edit does.
 use serde_json::json;
 use sgf_core::ops::free_nebula_names;
+use sgf_core::projections::galaxy::{Nebula, Turbulence};
 use sgf_core::session::Session;
 use sgf_core::views::{EditResult, ErrorKind};
 
@@ -97,5 +99,43 @@ fn with_game_data_a_save_names_the_nebula_from_its_pool() {
     assert_eq!(
         redone.delta.nebulae.map(|n| n.len()),
         Some(opened.galaxy.nebulae.len() + 1)
+    );
+}
+
+#[test]
+fn a_nebula_is_made_turbulent_through_apply_op_and_undo_calms_it_again() {
+    let w = webview();
+    let opened = open(&w, SAMPLE_45);
+    let turbulence = |nebulae: &[Nebula]| nebulae[0].turbulence;
+    assert_eq!(turbulence(&opened.galaxy.nebulae), Some(Turbulence::Some));
+
+    let made: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "SetNebulaTurbulent", "nebula": 0, "turbulent": true } }),
+    )
+    .expect("make Demon's Eye turbulent");
+    let nebulae = made.delta.nebulae.expect("the delta lists nebulae");
+    assert_eq!(turbulence(&nebulae), Some(Turbulence::All));
+    assert!(!made.delta.systems.is_empty());
+    assert!(made.delta.systems.iter().all(|s| s.turbulent));
+
+    let undone: EditResult = invoke::<Option<EditResult>>(&w, "undo", json!({}))
+        .expect("undo")
+        .expect("a step to undo");
+    let nebulae = undone.delta.nebulae.expect("the delta lists nebulae");
+    assert_eq!(turbulence(&nebulae), Some(Turbulence::Some));
+    assert!(undone.delta.systems.iter().all(|s| !s.turbulent));
+    assert!(!undone.dirty);
+
+    open(&w, SCENARIO);
+    assert_eq!(
+        kind(invoke::<EditResult>(
+            &w,
+            "apply_op",
+            json!({ "op": { "type": "SetNebulaTurbulent", "nebula": 0, "turbulent": true } }),
+        )),
+        ErrorKind::Op,
+        "a scenario's nebulae are dressed by the game"
     );
 }

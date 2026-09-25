@@ -1,0 +1,179 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Made Demons Eye Nebula turbulent: 8 systems changed
+touched: [46, 52, 107, 123, 148, 275, 358, 404]
+inverse: SetNebulaFootprints { footprints: [NebulaFootprint { system: 46, cloud: Some(NebulaCloud { id: 348, kind: "rare_nebula_2" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 52, cloud: Some(NebulaCloud { id: 347, kind: "rare_nebula_2" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 107, cloud: Some(NebulaCloud { id: 342, kind: "nebula_1" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 123, cloud: Some(NebulaCloud { id: 341, kind: "nebula_3" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 148, cloud: Some(NebulaCloud { id: 338, kind: "nebula_3" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 275, cloud: Some(NebulaCloud { id: 332, kind: "nebula_1" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 358, cloud: Some(NebulaCloud { id: 327, kind: "nebula_2" }), cloaking: true, turbulent: false }, NebulaFootprint { system: 404, cloud: Some(NebulaCloud { id: 325, kind: "nebula_3" }), cloaking: true, turbulent: false }] }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -32364,6 +32364,11 @@
+ 					days=-1
+ 				}
+  
++				{
++					modifier="turbulent_nebula"
++					days=-1
++				}
++ 
+ 			}
+ 		}
+ 		storm_influence_fields=
+@@ -32831,6 +32836,11 @@
+ 					days=-1
+ 				}
+  
++				{
++					modifier="turbulent_nebula"
++					days=-1
++				}
++ 
+ 			}
+ 		}
+ 		storm_influence_fields=
+@@ -36759,6 +36769,11 @@
+ 					days=-1
+ 				}
+  
++				{
++					modifier="turbulent_nebula"
++					days=-1
++				}
++ 
+ 			}
+ 		}
+ 		storm_influence_fields=
+@@ -37861,6 +37876,11 @@
+ 					days=-1
+ 				}
+  
++				{
++					modifier="turbulent_nebula"
++					days=-1
++				}
++ 
+ 			}
+ 		}
+ 		storm_influence_fields=
+@@ -39579,6 +39599,11 @@
+ 					days=-1
+ 				}
+  
++				{
++					modifier="turbulent_nebula"
++					days=-1
++				}
++ 
+ 			}
+ 		}
+ 		storm_influence_fields=
+@@ -48647,6 +48672,11 @@
+ 					days=-1
+ 				}
+  
++				{
++					modifier="turbulent_nebula"
++					days=-1
++				}
++ 
+ 			}
+ 		}
+ 		storm_influence_fields=
+@@ -54514,6 +54544,11 @@
+ 					days=-1
+ 				}
+  
++				{
++					modifier="turbulent_nebula"
++					days=-1
++				}
++ 
+ 			}
+ 		}
+ 		storm_influence_fields=
+@@ -57600,6 +57635,11 @@
+ 					days=-1
+ 				}
+  
++				{
++					modifier="turbulent_nebula"
++					days=-1
++				}
++ 
+ 			}
+ 		}
+ 		storm_influence_fields=
+@@ -1120222,7 +1120262,7 @@
+ 			y=0
+ 			origin=404
+ 		}
+-		data="nebula_3"
++		data="turbulent_nebula_1"
+ 		properties=
+ 		{
+ 			coordinate=
+@@ -1120292,7 +1120332,7 @@
+ 			y=0
+ 			origin=358
+ 		}
+-		data="nebula_2"
++		data="turbulent_nebula_2"
+ 		properties=
+ 		{
+ 			coordinate=
+@@ -1120467,7 +1120507,7 @@
+ 			y=0
+ 			origin=275
+ 		}
+-		data="nebula_1"
++		data="turbulent_nebula_2"
+ 		properties=
+ 		{
+ 			coordinate=
+@@ -1120677,7 +1120717,7 @@
+ 			y=0
+ 			origin=148
+ 		}
+-		data="nebula_3"
++		data="turbulent_nebula_1"
+ 		properties=
+ 		{
+ 			coordinate=
+@@ -1120782,7 +1120822,7 @@
+ 			y=0
+ 			origin=123
+ 		}
+-		data="nebula_3"
++		data="turbulent_nebula_1"
+ 		properties=
+ 		{
+ 			coordinate=
+@@ -1120817,7 +1120857,7 @@
+ 			y=0
+ 			origin=107
+ 		}
+-		data="nebula_1"
++		data="turbulent_nebula_2"
+ 		properties=
+ 		{
+ 			coordinate=
+@@ -1120992,7 +1121032,7 @@
+ 			y=0
+ 			origin=52
+ 		}
+-		data="rare_nebula_2"
++		data="turbulent_nebula_2"
+ 		properties=
+ 		{
+ 			coordinate=
+@@ -1121027,7 +1121067,7 @@
+ 			y=0
+ 			origin=46
+ 		}
+-		data="rare_nebula_2"
++		data="turbulent_nebula_2"
+ 		properties=
+ 		{
+ 			coordinate=

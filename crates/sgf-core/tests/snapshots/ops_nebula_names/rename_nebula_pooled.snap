@@ -15,7 +15,7 @@ inverse: SetNebulaName { index: 9, name: "Picaress_Drift" }
  	}
  	radius=40
  	galactic_object=113
-@@ -1546034,7 +1546034,7 @@
+@@ -1546187,7 +1546187,7 @@
  	}
  	nebula_names=
  	{

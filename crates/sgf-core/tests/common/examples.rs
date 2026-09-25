@@ -1,7 +1,9 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
 use sgf_core::format::scenario::FeLinkFlags;
-use sgf_core::ops::{InitializerSet, LaneLength, LanePair, MapColorPair, Op, StarBody, SystemMove};
+use sgf_core::ops::{
+    InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint, Op, StarBody, SystemMove,
+};
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 
@@ -383,6 +385,18 @@ pub fn one_of_each() -> Vec<Example> {
             system: 791,
             name: "Sgf_Renamed".to_owned(),
         }),
+        Example::save(Op::SetNebulaTurbulent {
+            nebula: 0,
+            turbulent: true,
+        }),
+        Example::save(Op::SetNebulaFootprints {
+            footprints: vec![NebulaFootprint {
+                system: 108,
+                cloud: None,
+                cloaking: false,
+                turbulent: false,
+            }],
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),
@@ -476,7 +490,9 @@ fn position(op: &Op) -> usize {
         Op::RemoveSaveDeposit { .. } => 47,
         Op::ReplaceSaveSystem { .. } => 48,
         Op::RenameSaveSystem { .. } => 49,
-        Op::Batch { .. } => 50,
+        Op::SetNebulaTurbulent { .. } => 50,
+        Op::SetNebulaFootprints { .. } => 51,
+        Op::Batch { .. } => 52,
     }
 }
 

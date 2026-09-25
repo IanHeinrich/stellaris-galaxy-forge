@@ -1,0 +1,271 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved Nythran Expanse to (-328.98, -56.62); its radius now covers 3 systems (was 4)
+touched: [372, 444, 504]
+inverse: Batch { description: "Undo of \"Moved Nythran Expanse to (-328.98, -56.62); its radius now covers 3 systems (was 4)\"", ops: [MoveNebula { index: 5, x: -338.98, y: -66.62 }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 372, cloud: Some(NebulaCloud { id: 326, kind: "turbulent_nebula_2" }), cloaking: true, turbulent: true }, NebulaFootprint { system: 444, cloud: Some(NebulaCloud { id: 323, kind: "nebula_2" }), cloaking: true, turbulent: false }] }] }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -9643,8 +9643,8 @@
+ {
+ 	coordinate=
+ 	{
+-		x=-338.98
+-		y=-66.62
++		x=-328.98
++		y=-56.62
+ 		origin=4294967295
+ 		randomized=yes
+ 		visual_height=3.65056
+@@ -9655,8 +9655,7 @@
+ 	}
+ 	radius=30
+ 	galactic_object=171
+-	galactic_object=372
+-	galactic_object=444
++	galactic_object=504
+ 	galactic_object=536
+ }
+ nebula=
+@@ -55361,10 +55360,6 @@
+ 		planet=4214
+ 		planet=4215
+ 		planet=4216
+-		ambient_object=
+-		{
+-			326 
+-		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -55404,23 +55399,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=41
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-				{
+-					modifier="turbulent_nebula"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	373=
+@@ -60333,10 +60311,6 @@
+ 		planet=4878
+ 		planet=4879
+ 		planet=4880
+-		ambient_object=
+-		{
+-			323 
+-		}
+ 		star_class="sc_trinary_3"
+ 		hyperlane=
+ 		{
+@@ -60389,18 +60363,6 @@
+ 		}
+ 		sector=4294967295
+ 		index=41
+-		timed_modifier=
+-		{
+-			items=
+-			{
+-				
+-				{
+-					modifier="nebula_cloaking"
+-					days=-1
+-				}
+- 
+-			}
+-		}
+ 		storm=4294967295
+ 	}
+ 	445=
+@@ -64627,6 +64589,10 @@
+ 		planet=5392
+ 		planet=5393
+ 		planet=5394
++		ambient_object=
++		{
++			361 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -64663,6 +64629,18 @@
+ 		}
+ 		sector=4294967295
+ 		index=40
++		timed_modifier=
++		{
++			items=
++			{
++				
++				{
++					modifier="nebula_cloaking"
++					days=-1
++				}
++ 
++			}
++		}
+ 		colonies=
+ 		{
+ 			26 
+@@ -1120144,41 +1120122,7 @@
+ 			appear_state=""
+ 		}
+ 	}
+-	323=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=444
+-		}
+-		data="nebula_2"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=16.25
+-				y=20.25
+-				origin=444
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
++	323=none
+ 	324=
+ 	{
+ 		coordinate=
+@@ -1120230,41 +1120174,6 @@
+ 				x=13.94
+ 				y=17.94
+ 				origin=404
+-			}
+-			attach=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			offset=
+-			{
+-				0 0 0 
+-			}
+-			scale=1
+-			entity_face_object=
+-			{
+-				type=10
+-				id=4294967295
+-			}
+-			appear_state=""
+-		}
+-	}
+-	326=
+-	{
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=372
+-		}
+-		data="turbulent_nebula_2"
+-		properties=
+-		{
+-			coordinate=
+-			{
+-				x=13.28
+-				y=17.28
+-				origin=372
+ 			}
+ 			attach=
+ 			{
+@@ -1120284,6 +1120193,7 @@
+ 			appear_state=""
+ 		}
+ 	}
++	326=none
+ 	327=
+ 	{
+ 		coordinate=
+@@ -1121518,6 +1121428,41 @@
+ 			appear_state=""
+ 		}
+ 	}
++	361=
++	{
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=504
++		}
++		data="nebula_1"
++		properties=
++		{
++			coordinate=
++			{
++				x=12.62
++				y=16.62
++				origin=504
++			}
++			attach=
++			{
++				type=10
++				id=4294967295
++			}
++			offset=
++			{
++				0 0 0 
++			}
++			scale=1
++			entity_face_object=
++			{
++				type=10
++				id=4294967295
++			}
++			appear_state=""
++		}
++	}
+ }
+ orbital_line=
+ {
+@@ -1121544,7 +1121489,7 @@
+ 		}
+ 	}
+ }
+-last_created_ambient_object=360
++last_created_ambient_object=361
+ last_created_cosmic_storm_influence_field=6
+ last_notification_id=1
+ last_event_id=1
