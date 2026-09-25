@@ -263,6 +263,13 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
         ],
         "count = 2 spawns the world and its moon twice"
     );
+    let id = |index: usize| details.planets[index].id;
+    let parents: Vec<Option<u32>> = details.planets.iter().map(|p| p.parent).collect();
+    assert_eq!(
+        parents,
+        [None, None, Some(id(1)), None, Some(id(3))],
+        "each moon orbits the world it was spawned under"
+    );
     assert_eq!(
         resources(&details.resources),
         [("glow", 10.0)],

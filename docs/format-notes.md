@@ -162,7 +162,13 @@ for planets or deposits.
 - A planet's `orbit` is its orbital radius, and its `x`/`y` are the
   current point on that orbit. A moon has `moon_of=<planet>` and an
   `orbit` around its parent, and its coordinates are relative to the
-  system.
+  system. The reliable radius is the distance from the body's point to
+  its parent's, or to the centre without one: `orbit` is usually within
+  0.01 of it, but some bodies sit up to 0.8 off, an astral scar stores
+  `orbit=0` while sitting far out, and one planet in the 4.4 sample
+  stores a negative `orbit`. No angle is stored. A moon keeps its
+  `moon_of` after the game deletes the planet, so the key can name a
+  `none` slot (4.5 sample, system 40).
 - Planets, deposits and construction queues are slot tables. An id is
   `slot | generation<<24`, and the table is sorted by slot. A dead slot
   keeps its old id as `<id>=none`. When the game reuses a dead slot, it

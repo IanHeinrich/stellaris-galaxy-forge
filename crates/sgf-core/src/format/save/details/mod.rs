@@ -22,8 +22,8 @@ pub use extract::{
     ShipSizeCount,
 };
 pub use resolve::{
-    DepositCount, DetailsResolver, FleetPresence, HeuristicResolver, PlanetSummary, ResourceAmount,
-    StarbaseSummary, SystemDetails,
+    BodyLayout, Bounds, DepositCount, DetailsResolver, FleetPresence, HeuristicResolver,
+    PlanetSummary, ResourceAmount, StarbaseSummary, SystemDetails,
 };
 
 #[derive(Debug, Clone)]
@@ -52,11 +52,13 @@ impl DetailsProjection {
         extract::megastructures(index, src, &mut by_system)?;
         extract::sites(doc, &planet_system, &mut by_system)?;
         extract::present(doc, graph, &countries, &ship_sizes, &mut by_system)?;
+        extract::geometry(doc, &mut by_system)?;
         Ok(Self { by_system })
     }
 
-    /// Read again the class and size of each of `planets`, as (planet, system), from the
-    /// bytes now standing for it, leaving everything else as it was projected.
+    /// Read again the class, size, parent, point and orbit of each of `planets`, as
+    /// (planet, system), from the bytes now standing for it, leaving everything else as it
+    /// was projected.
     pub fn refresh_planets(
         &mut self,
         doc: &Document,
@@ -70,9 +72,13 @@ impl DetailsProjection {
             else {
                 continue;
             };
-            if let Some(facts) = extract::planet_facts(doc, id)? {
+            if let Some((facts, placement)) = extract::planet_facts(doc, id)? {
                 planet.class = facts.class;
                 planet.size = facts.size;
+                planet.moon = facts.moon_of.is_some();
+                planet.parent = facts.moon_of;
+                planet.orbit = placement.orbit;
+                planet.at = placement.at;
             }
         }
         Ok(())

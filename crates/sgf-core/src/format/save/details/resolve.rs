@@ -1,13 +1,16 @@
 //! What the UI shows: the raw details with deposits summed per resource and planet
 //! classes judged habitable by a [`DetailsResolver`].
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::as_u32;
 use crate::format::save::details::{
-    ArchaeologySite, FleetSummary, MegastructureSummary, RawSystemDetails,
+    ArchaeologySite, FleetSummary, MegastructureSummary, RawPlanet, RawSystemDetails,
 };
+use crate::format::save::system_spec::BeltSpec;
 use crate::projections::name::NameTemplate;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -80,6 +83,10 @@ pub struct SystemDetails {
     pub megastructures: Vec<MegastructureSummary>,
     pub sites: Vec<ArchaeologySite>,
     pub with_game_data: bool,
+    /// The system's `asteroid_belts`, in order.
+    pub belts: Vec<BeltSpec>,
+    /// A save's `inner_radius`; `None` in a scenario.
+    pub inner_radius: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -115,6 +122,47 @@ pub struct PlanetSummary {
     /// amounts: a feature or a blocker yields no resource but is still on the planet.
     pub deposit_keys: Vec<DepositCount>,
     pub pops: u32,
+    /// The save's `moon_of`, kept even when that body is missing; in a scenario, the
+    /// synthetic id of the body the moon was expanded under. A body with no parent orbits
+    /// the system's centre.
+    pub parent: Option<u32>,
+    pub layout: Option<BodyLayout>,
+}
+
+/// A number an initializer may leave to a draw: `min == max` when it is fixed,
+/// and always in a save.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct Bounds {
+    pub min: f64,
+    pub max: f64,
+}
+
+impl Bounds {
+    /// A number with no range to draw from.
+    pub fn fixed(value: f64) -> Self {
+        Self {
+            min: value,
+            max: value,
+        }
+    }
+}
+
+/// Where the scene draws a body. Not `BodySpec`, which is what the add-system
+/// writer emits.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BodyLayout {
+    /// The drawn radius about the parent, or about the system's centre without
+    /// one. `None` when an initializer gives no distance.
+    pub orbit: Option<Bounds>,
+    /// Degrees about the parent. `None` in a save, which has `at`, and when an
+    /// initializer names no angle.
+    pub angle: Option<Bounds>,
+    /// A save's `coordinate` x/y, system-relative. `None` in a scenario.
+    pub at: Option<(f64, f64)>,
+    /// `planet_size`: fixed in a save, the initializer's `size` in a scenario.
+    pub size: Option<Bounds>,
 }
 
 /// One `deposit` key and how many of it the planet holds.
@@ -156,6 +204,7 @@ pub(super) fn resolve(
 ) -> SystemDetails {
     let mut resources: Vec<ResourceAmount> = Vec::new();
     let mut planets = Vec::with_capacity(raw.planets.len());
+    let points = points(&raw.planets);
     for p in &raw.planets {
         let mut deposits: Vec<ResourceAmount> = Vec::new();
         for (key, count) in &p.deposits {
@@ -192,6 +241,8 @@ pub(super) fn resolve(
                 })
                 .collect(),
             pops: p.pops,
+            parent: p.parent,
+            layout: Some(layout(p, &points)),
         });
     }
     let starbase = raw.starbases.first().map(|s| StarbaseSummary {
@@ -217,8 +268,47 @@ pub(super) fn resolve(
         megastructures: raw.megastructures.clone(),
         sites: raw.sites.clone(),
         with_game_data,
+        belts: raw.belts.clone(),
+        inner_radius: raw.inner_radius,
     }
 }
+
+/// Where each of a system's bodies stands, by id.
+fn points(planets: &[RawPlanet]) -> HashMap<u32, (f64, f64)> {
+    planets.iter().filter_map(|p| Some((p.id, p.at?))).collect()
+}
+
+/// A save body's exact point, its size and the radius it is drawn at.
+fn layout(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> BodyLayout {
+    BodyLayout {
+        orbit: drawn_radius(planet, points).map(Bounds::fixed),
+        angle: None,
+        at: planet.at,
+        size: planet.size.map(|size| Bounds::fixed(f64::from(size))),
+    }
+}
+
+/// The body's distance from its parent's point, or from the centre without a parent:
+/// some bodies store an `orbit` of 0 or less while they sit out from their parent. The
+/// stored `orbit` stands in when the body or its parent has no point.
+fn drawn_radius(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> Option<f64> {
+    let centre = match planet.parent {
+        None => Some((0.0, 0.0)),
+        Some(parent) => points.get(&parent).copied(),
+    };
+    let (Some((x, y)), Some((cx, cy))) = (planet.at, centre) else {
+        return planet.orbit;
+    };
+    let distance = (x - cx).hypot(y - cy);
+    match planet.orbit {
+        Some(stored) if (distance - stored).abs() <= STORED_ORBIT_SLACK => Some(stored),
+        _ => Some(distance),
+    }
+}
+
+/// How far a body's point may stray from its stored `orbit` for the stored value to be
+/// drawn: the rounding of a point written to five decimals, not a body placed elsewhere.
+const STORED_ORBIT_SLACK: f64 = 0.01;
 
 /// Adds `amount` to the row for `resource`, appending one in first-seen order.
 fn add_amount(rows: &mut Vec<ResourceAmount>, resource: String, amount: f64) {

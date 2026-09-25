@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 
 use sgf_core::format::save::details::{
-    ArchaeologySite, DepositCount, DetailsResolver, FleetPresence, FleetSummary, HeuristicResolver,
-    MegastructureSummary, ResourceAmount, SystemDetails,
+    ArchaeologySite, Bounds, DepositCount, DetailsResolver, FleetPresence, FleetSummary,
+    HeuristicResolver, MegastructureSummary, ResourceAmount, SystemDetails,
 };
 use sgf_core::projections::galaxy::FlagRef;
 use sgf_core::projections::name::{NameTemplate, NameVariable};
@@ -678,4 +678,137 @@ fn amounts(rows: &[ResourceAmount]) -> String {
         .map(|r| format!("{} {}", r.resource, r.amount))
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// Sol (belts at 145 and 290), Baxom (a binary about an empty centre), Stenbork,
+/// Carmenekke (a moon of a moon) and Alpha Centauri: each body where the scene draws it.
+#[test]
+fn the_layout_of_the_4_4_samples_bodies_and_belts() {
+    let session = common::warmed();
+    let details = session.details().expect("build details");
+    let mut report = String::new();
+    for id in [217, 33, 18, 53, 278] {
+        let system = details
+            .resolve(id, &HeuristicResolver, false)
+            .expect("system resolved");
+        report.push_str(&layout_report(&system));
+    }
+    common::snapshot("layout_4_4", &report);
+}
+
+/// System 40, whose two moons name a deleted planet, and system 140, with belts at 40
+/// and 90.
+#[test]
+fn the_layout_of_the_4_5_samples_bodies_and_belts() {
+    let session = common::open_4_5();
+    let details = session.details().expect("build details");
+    let mut report = String::new();
+    for id in [40, 140] {
+        let system = details
+            .resolve(id, &HeuristicResolver, false)
+            .expect("system resolved");
+        report.push_str(&layout_report(&system));
+    }
+    common::snapshot("layout_4_5", &report);
+}
+
+/// Sol's rocky belt with its radius taken out: Sol lists no belts, and the details are
+/// still built for it and every other system.
+#[test]
+fn a_belt_with_no_radius_leaves_its_system_without_belts() {
+    let session = common::open_edited(|gamestate| {
+        let systems = gamestate
+            .find(
+                "
+galactic_object=",
+            )
+            .expect("the systems");
+        let sol = systems
+            + gamestate[systems..]
+                .find(
+                    "
+	217=
+	{",
+                )
+                .expect("Sol");
+        let radius = sol
+            + gamestate[sol..]
+                .find(
+                    "				inner_radius=145
+",
+                )
+                .expect("the rocky belt's radius");
+        gamestate.replace_range(
+            radius
+                ..radius
+                    + "				inner_radius=145
+"
+                    .len(),
+            "",
+        );
+    });
+    let details = session.details().expect("build details");
+    let resolve = |id| {
+        details
+            .resolve(id, &HeuristicResolver, false)
+            .expect("system resolved")
+    };
+    let sol = resolve(217);
+    assert!(sol.belts.is_empty(), "{:?}", sol.belts);
+    assert_eq!(sol.inner_radius, Some(320.0));
+    assert_eq!(sol.planets.len(), 24);
+    let radii: Vec<f64> = resolve(17).belts.iter().map(|b| b.inner_radius).collect();
+    assert_eq!(radii, [85.0, 195.0]);
+}
+
+fn layout_report(system: &SystemDetails) -> String {
+    let mut out = format!(
+        "system {} inner_radius={}\n",
+        system.id,
+        optional(system.inner_radius)
+    );
+    for belt in &system.belts {
+        writeln!(out, "  belt {} {}", belt.kind, belt.inner_radius).expect("write");
+    }
+    for p in &system.planets {
+        let layout = p.layout.as_ref().expect("a save body's layout");
+        assert_eq!(layout.angle, None, "a save stores no angle");
+        let at = layout
+            .at
+            .map_or("-".to_owned(), |(x, y)| format!("({x}, {y})"));
+        writeln!(
+            out,
+            "  body {} {} parent={} orbit={} drawn={} at={at} size={}",
+            p.id,
+            p.class,
+            optional(p.parent),
+            optional(p.orbit),
+            bounds(layout.orbit.map(rounded)),
+            bounds(layout.size),
+        )
+        .expect("write");
+    }
+    out
+}
+
+/// A radius the report works out with `hypot`, to the five decimals a save writes, so the
+/// snapshot reads the same on every platform.
+fn rounded(Bounds { min, max }: Bounds) -> Bounds {
+    let round = |v: f64| (v * 1e5).round() / 1e5;
+    Bounds {
+        min: round(min),
+        max: round(max),
+    }
+}
+
+fn optional(value: Option<impl std::fmt::Display>) -> String {
+    value.map_or("-".to_owned(), |v| v.to_string())
+}
+
+fn bounds(value: Option<Bounds>) -> String {
+    match value {
+        None => "-".to_owned(),
+        Some(Bounds { min, max }) if min == max => min.to_string(),
+        Some(Bounds { min, max }) => format!("{min}..{max}"),
+    }
 }

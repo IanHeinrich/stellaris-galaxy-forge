@@ -13,7 +13,9 @@ use crate::document::Document;
 use crate::entity::facts;
 use crate::entity::views::EntityKind;
 use crate::format::save::galaxy::starbases::fleet_owners;
-use crate::format::save::{entity_at, planet_statement, planet_statements};
+use crate::format::save::read_spec;
+use crate::format::save::system_spec::BeltSpec;
+use crate::format::save::{entity_at, planet_statement, planet_statements, system_statement};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::projections::name::NameTemplate;
@@ -32,6 +34,9 @@ pub struct RawSystemDetails {
     pub fleets: Vec<FleetSummary>,
     pub megastructures: Vec<MegastructureSummary>,
     pub sites: Vec<ArchaeologySite>,
+    /// The system's `asteroid_belts`, in order.
+    pub belts: Vec<BeltSpec>,
+    pub inner_radius: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,6 +53,10 @@ pub struct RawPlanet {
     pub size: Option<u32>,
     /// `orbit`: the radius around the star, or around the planet a moon orbits.
     pub orbit: Option<f64>,
+    /// `moon_of`, kept even when the save no longer holds that planet.
+    pub parent: Option<u32>,
+    /// `coordinate` x/y, relative to the system's centre.
+    pub at: Option<(f64, f64)>,
     /// Deposit key → count, in order of first appearance. A colony's deposits are
     /// planetary features and blockers; the resolver decides what each key yields.
     pub deposits: Vec<(String, u32)>,
@@ -260,6 +269,7 @@ pub(super) fn planets(
             continue;
         };
         let planet = facts::planet::read(&node, src);
+        let placement = placement(&node, src);
         let Some((origin, details)) = planet
             .origin
             .and_then(|o| Some((o, by_system.get_mut(&o)?)))
@@ -290,7 +300,9 @@ pub(super) fn planets(
                 .owner
                 .is_some_and(|o| countries.primitives.contains(&o)),
             size: planet.size,
-            orbit: read::scalar(&node, keys::ORBIT, src).and_then(|o| o.parse().ok()),
+            orbit: placement.orbit,
+            parent: planet.moon_of,
+            at: placement.at,
             deposits,
             pops: planet
                 .colony
@@ -301,16 +313,52 @@ pub(super) fn planets(
     Ok(planet_system)
 }
 
-/// What planet `id` now says about itself; `None` when the save holds no such planet.
+/// Where a planet's entry puts it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct Placement {
+    pub orbit: Option<f64>,
+    pub at: Option<(f64, f64)>,
+}
+
+fn placement(node: &Node, src: &[u8]) -> Placement {
+    Placement {
+        orbit: read::scalar_f64(node, keys::ORBIT, src),
+        at: read::coordinate(node, src).ok(),
+    }
+}
+
+/// What planet `id` now says about itself and where it now stands; `None` when the save
+/// holds no such planet.
 pub(super) fn planet_facts(
     doc: &Document,
     id: u32,
-) -> Result<Option<facts::planet::PlanetFacts>, ProjectionError> {
+) -> Result<Option<(facts::planet::PlanetFacts, Placement)>, ProjectionError> {
     let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(None);
     };
     Ok(current_entity(doc, keys::PLANETS, u64::from(id), anchor)?
-        .map(|(node, src)| facts::planet::read(&node, src)))
+        .map(|(node, src)| (facts::planet::read(&node, src), placement(&node, src))))
+}
+
+/// Each system's belts and `inner_radius`, from the entry now standing for it: an added
+/// or rerolled system's belts are only in the bytes the op wrote. A belt list with a
+/// radius that cannot be read leaves the system without belts.
+pub(super) fn geometry(
+    doc: &Document,
+    by_system: &mut HashMap<u32, RawSystemDetails>,
+) -> Result<(), ProjectionError> {
+    for (&id, details) in by_system.iter_mut() {
+        let Some(anchor) = system_statement(doc, id) else {
+            continue;
+        };
+        let Some((node, src)) = current_entity(doc, keys::GALACTIC_OBJECT, u64::from(id), anchor)?
+        else {
+            continue;
+        };
+        details.inner_radius = read::scalar_f64(&node, keys::INNER_RADIUS, src);
+        details.belts = read_spec::belts_in(&node, src).unwrap_or_default();
+    }
+    Ok(())
 }
 
 /// An entity's `<id>=` node parsed from the bytes now standing for it, which an op may

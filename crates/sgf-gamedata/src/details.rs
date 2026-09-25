@@ -11,7 +11,7 @@ use sgf_core::format::save::details::{
 use sgf_core::projections::name::NameTemplate;
 
 use crate::GameData;
-use crate::initializers::{self, BodyClass, InitPlanet, Initializer};
+use crate::initializers::{self, Body, BodyClass, Initializer};
 use crate::scripts::ScenarioOwners;
 
 /// Bodies an initializer gives no id: each collection counts from a base far above any id
@@ -108,6 +108,8 @@ impl GameData {
             megastructures,
             sites,
             with_game_data: true,
+            belts: Vec::new(),
+            inner_radius: None,
         })
     }
 
@@ -119,8 +121,7 @@ impl GameData {
             .filter(|class| self.star_classes.get(class).is_some());
         for body in initializers::expand(&init.planets) {
             let id = PLANET_BASE + index(out.planets.len());
-            out.planets
-                .push(self.summary(body.block, star, body.moon, id));
+            out.planets.push(self.summary(body, star, id));
             for kind in &body.block.sites {
                 out.sites.push(ArchaeologySite {
                     id: SITE_BASE + index(out.sites.len()),
@@ -133,7 +134,8 @@ impl GameData {
     }
 
     /// `star` is the initializer's own star class, which the body written as `star` wears.
-    fn summary(&self, body: &InitPlanet, star: Option<&str>, moon: bool, id: u32) -> PlanetSummary {
+    fn summary(&self, expanded: Body<'_>, star: Option<&str>, id: u32) -> PlanetSummary {
+        let body = expanded.block;
         let name_key = body.name.clone().unwrap_or_default();
         let class = match star {
             Some(star) if body.class == BodyClass::Star => star.to_owned(),
@@ -153,13 +155,15 @@ impl GameData {
             capital: body.home_planet && !body.pre_ftl,
             habitable: self.planet_habitable(body.class.written()),
             owner: None,
-            moon,
+            moon: expanded.moon,
             pre_ftl: body.pre_ftl,
             size: body.size.map(|(min, _)| min),
             orbit: None,
             deposits: self.deposit_rows(&body.deposits),
             deposit_keys: deposit_counts(&body.deposits),
             pops: 0,
+            parent: expanded.parent.map(|parent| PLANET_BASE + index(parent)),
+            layout: None,
         }
     }
 
