@@ -46,8 +46,9 @@ pub(crate) trait Format: Sync {
     /// it.
     fn write(&self, plan: &mut Plan, session: &Session, op: &Op) -> Result<Planned, OpError>;
 
-    /// Plan the second step of an op that needs the slots its first step freed, once that
-    /// step is committed; `None` for an op of one step.
+    /// Plan the second step of an op that needs what its first step committed: the slots
+    /// it freed, or the system it added standing in the graph to join a nebula. `None`
+    /// for an op of one step.
     fn follow_up(
         &self,
         _plan: &mut Plan,
@@ -73,15 +74,15 @@ pub(crate) trait Format: Sync {
 
     /// Whether the document holds the planets, stations and fleets the details
     /// projection is built from.
-    fn has_details(&self) -> bool {
-        self.capabilities().details
+    fn has_details(&self, doc: &Document) -> bool {
+        self.capabilities(doc).details
     }
 
     /// Whether an entity of this format is described by the inspector's curated rows.
     fn curates_entities(&self) -> bool;
 
-    /// The layers, tabs and ops the app may offer for this format.
-    fn capabilities(&self) -> Capabilities;
+    /// The layers, tabs and ops the app may offer for this document.
+    fn capabilities(&self, doc: &Document) -> Capabilities;
 }
 
 pub(crate) fn of(kind: DocumentKind) -> &'static dyn Format {

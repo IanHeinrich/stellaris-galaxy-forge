@@ -11,8 +11,6 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { systemCount } from "../inspector/nebula";
-import { droppedSummary } from "../file/exportReport";
 import { GameDataPanel } from "./GameDataPanel";
 
 const DOCUMENT_KIND: Record<string, string> = {
@@ -36,7 +34,7 @@ function clockTime(at: number): string {
 function exportedTitle({ save, report }: ExportResult): string | undefined {
   const lines: string[] = [];
   if (save.backup_path !== null) lines.push(`Backup: ${save.backup_path}`);
-  const dropped = droppedSummary(report.dropped);
+  const dropped = report.dropped_summary ?? null;
   if (dropped !== null) lines.push(`Not carried over: ${dropped}`);
   if (report.fallen_empire_zones > 0) {
     lines.push(`Fallen empire zones: ${report.fallen_empire_zones} automatic`);
@@ -119,7 +117,7 @@ function Selected() {
     if (!nebula) return null;
     return (
       <span className="accent">
-        {nodeName(nebula.name)} selected · {systemCount(nebula.systems.length)}
+        {nodeName(nebula.name)} selected · {counted(nebula.systems.length, "system")}
       </span>
     );
   }

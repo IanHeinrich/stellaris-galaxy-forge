@@ -1,6 +1,7 @@
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import type { Tab } from "../../lib/openRows";
 import { useOpenScreenStore } from "../../store/openScreenStore";
+import { tabKeyLabel } from "./openKeys";
 
 const PANEL_ID = "open-panel";
 
@@ -43,7 +44,7 @@ export function TabRail({ tabs, onPick }: { tabs: Tab[]; onPick: (tab: Tab["id"]
           aria-controls={PANEL_ID}
           tabIndex={tab.id === chosen ? 0 : -1}
           className="open-rail-item"
-          title={`Ctrl+${i + 1}`}
+          title={tabKeyLabel(i + 1)}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => onPick(tab.id)}
           onKeyDown={(e) => onKeyDown(e, i)}

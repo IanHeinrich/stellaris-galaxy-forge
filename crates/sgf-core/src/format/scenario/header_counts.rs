@@ -211,6 +211,16 @@ fn share(most: u32, part: u32) -> u32 {
     (f64::from(most) / f64::from(part)).round() as u32
 }
 
+/// The seats, fallen empire zones and marauder clan homes `galaxy` holds, as
+/// [`empire_counts`] and [`header_mismatch`] take them.
+pub fn for_graph(galaxy: &Galaxy) -> (SeatCounts, u32, u32) {
+    (
+        seat_counts(galaxy),
+        zone_count(galaxy),
+        crate::format::scenario::marauder::clan_count(galaxy),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

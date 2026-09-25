@@ -64,6 +64,22 @@ pub struct PaintModView {
 }
 
 impl PaintModView {
+    /// Paint a Galaxy as the launcher's files in the user directory list it: the loaded
+    /// game data's user directory, else this machine's. `None` when the launcher lists no
+    /// copy, or there is no user directory.
+    pub fn find(gd: Option<&GameData>) -> Option<Self> {
+        let user_dir = gd
+            .and_then(|gd| gd.layout.user_dir.clone())
+            .or_else(sgf_core::library::paradox_user_dir)?;
+        let mut diagnostics = Vec::new();
+        mods::paint_mod_status(
+            &user_dir,
+            &crate::install::discovery::steam_libraries(),
+            &mut diagnostics,
+        )
+        .map(|status| Self::new(&status, &diagnostics))
+    }
+
     pub fn new(status: &PaintModStatus, diagnostics: &[Diagnostic]) -> Self {
         let m = &status.paint;
         Self {
@@ -190,7 +206,7 @@ impl From<&GameData> for GameDataSummary {
             country_types: count(gd.country_types.len()),
             star_classes: count(gd.star_classes.len()),
             sprites: count(gd.sprites.len()),
-            colors: count(gd.colors.len()),
+            colors: count(gd.colors.entries.len()),
             deposits: count(gd.deposits.len()),
             planet_classes: count(gd.planet_classes.len()),
             starbase_levels: count(gd.starbase_levels.len()),
@@ -327,7 +343,7 @@ impl From<&InitPlanet> for InitPlanetView {
     fn from(p: &InitPlanet) -> Self {
         Self {
             name: p.name.clone(),
-            class: p.class.clone(),
+            class: p.class.written().to_owned(),
             size: p.size,
             orbit_distance: p.orbit(),
             has_ring: p.has_ring == Some(true),

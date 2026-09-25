@@ -50,4 +50,9 @@ modifiers: Array<string>,
 /**
  * Drawn with a ring around it.
  */
-ring: boolean, };
+ring: boolean, 
+/**
+ * Of a class the install makes a star, as a layout's extra black holes are. The
+ * system's own star is written as one whatever this says.
+ */
+star?: boolean, };

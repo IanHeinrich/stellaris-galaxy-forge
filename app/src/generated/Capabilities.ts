@@ -2,7 +2,7 @@
 
 /**
  * What the open document supports, so the app shows only the layers, tabs and ops it
- * can answer for. A `.sav` supports everything.
+ * can answer for. Each format fills it, and the app reads these flags, not the kind.
  */
 export type Capabilities = { 
 /**
@@ -22,7 +22,9 @@ lane_lengths: boolean, nebulae: boolean, bypasses: boolean,
  */
 special: boolean, 
 /**
- * Systems can be added and removed, named and given an initializer.
+ * The scenario's system statements: any system added, removed, named and given an
+ * initializer, so the paint and erase brushes, spawn points, marauder clans and the
+ * day-one layers.
  */
 create_systems: boolean, 
 /**
@@ -32,4 +34,29 @@ lane_bridges: boolean,
 /**
  * Waystations and the waylines the game derives between them.
  */
-waylines: boolean, };
+waylines: boolean, 
+/**
+ * Systems can be added to the save, and the ones added this session rerolled, renamed
+ * and deleted.
+ */
+added_systems: boolean, 
+/**
+ * A body's star class and planet size can be changed.
+ */
+bodies: boolean, 
+/**
+ * A planet's deposits can be added and removed.
+ */
+deposits: boolean, 
+/**
+ * An empire's map colours can be changed.
+ */
+map_colors: boolean, 
+/**
+ * The L-Gate's outcome can be read and set.
+ */
+lgate: boolean, 
+/**
+ * An edit can be mirrored across the galaxy's centre.
+ */
+symmetry: boolean, };

@@ -9,7 +9,7 @@ import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useOpenScreenStore } from "./openScreenStore";
-import { useToolStore } from "./toolStore";
+import { symmetryAllowed, useToolStore } from "./toolStore";
 
 export interface CommandEffects {
   focusSearch(): void;
@@ -188,7 +188,7 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       chrome.toggleGroup(action === "toggleScriptLayers" ? "scripts" : "initializers");
       return true;
     case "toggleSymmetry":
-      if (session.kind === "save") return false;
+      if (!symmetryAllowed()) return false;
       useToolStore.getState().toggleSymmetry();
       return true;
   }

@@ -4,13 +4,14 @@ import type { Severity } from "../../generated/Severity";
 import { issueCopy } from "../../lib/issueCopy";
 import type { AppIssue } from "../../lib/issues";
 import { titleCase } from "../../lib/text";
-import { useMapChromeStore } from "../../store/mapChromeStore";
+import { OwnedTooltip } from "../ownedTooltip";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { destroyChildren } from "./destroyChildren";
 import { markerScale, type MapLayer } from "./MapLayer";
+import { RING_RADIUS } from "../../lib/visual/style";
 
-const RADIUS = 18;
+const RADIUS = RING_RADIUS.issue;
 const WIDTH = 2;
 const ALPHA = 0.85;
 export const SEVERITY_COLOR: Record<Severity, number> = {
@@ -27,23 +28,17 @@ function draw(g: Graphics, severity: Severity): void {
   g.circle(0, 0, RADIUS).stroke({ color: SEVERITY_COLOR[severity], width: WIDTH, alpha: ALPHA });
 }
 
-/** Errors win over warnings for a system named by both. */
-export function worstSeverityBySystem(issues: readonly AppIssue[]): Map<number, Severity> {
-  const worst = new Map<number, Severity>();
-  for (const issue of issues) {
-    for (const id of issue.systems) {
-      if (issue.severity === "error" || !worst.has(id)) worst.set(id, issue.severity);
-    }
-  }
-  return worst;
-}
+const SEVERITY_RANK: Record<Severity, number> = { info: 0, warning: 1, error: 2 };
 
-/** The worst issue naming a system, the same tie-break `worstSeverityBySystem` uses. */
+/** The most severe issue naming each system; the first of equals stays. */
 export function worstIssueBySystem(issues: readonly AppIssue[]): Map<number, AppIssue> {
   const worst = new Map<number, AppIssue>();
   for (const issue of issues) {
     for (const id of issue.systems) {
-      if (issue.severity === "error" || !worst.has(id)) worst.set(id, issue);
+      const held = worst.get(id);
+      if (!held || SEVERITY_RANK[issue.severity] > SEVERITY_RANK[held.severity]) {
+        worst.set(id, issue);
+      }
     }
   }
   return worst;
@@ -59,6 +54,7 @@ export class IssuesLayer implements MapLayer {
   private issues = new Map<number, AppIssue>();
   private readonly scale = { x: 1, y: 1 };
   private hovered: number | null = null;
+  private readonly tip = new OwnedTooltip();
 
   rebuild(ctx: RenderContext): void {
     const loaded = ctx.galaxy !== this.galaxy;
@@ -124,7 +120,7 @@ export class IssuesLayer implements MapLayer {
     if (!issue) return;
     const copy = issueCopy(issue.code);
     this.hovered = id;
-    useMapChromeStore.getState().showTooltip({
+    this.tip.show({
       x: at.x,
       y: at.y,
       title: titleCase([issue.severity]),
@@ -135,7 +131,7 @@ export class IssuesLayer implements MapLayer {
   private unhover(id: number): void {
     if (this.hovered !== id) return;
     this.hovered = null;
-    useMapChromeStore.getState().hideTooltip();
+    this.tip.hide();
   }
 
   private remove(ids: readonly number[]): void {

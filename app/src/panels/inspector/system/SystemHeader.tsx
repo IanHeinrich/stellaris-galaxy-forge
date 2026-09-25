@@ -1,24 +1,26 @@
 import type { SystemDetail } from "../../../generated/SystemDetail";
 import type { SystemNode } from "../../../generated/SystemNode";
+import { capabilityFor } from "../../../lib/entities";
 import { nodeName } from "../../../lib/names";
 import { kindLabel } from "../../../lib/special";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore } from "../../../store/fileSessionStore";
 import { useCountryName } from "../../../store/browserRows";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { useInspectorStore } from "../../../store/inspectorStore";
+import { useOpenEntity } from "../entity/useEntity";
 import { useOwnership } from "../../../store/ownership";
-import { TextField } from "../../EditField";
+import { EditBlock, EditRow, TextField } from "../../EditField";
 import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
-import { Chip, DrillLink, Section, SourceChip, Swatch } from "../parts";
+import { Chip, SourceChip } from "../../parts";
+import { DrillLink, Swatch } from "../parts";
 import { ADDED_CHIP_TITLE, AddedSystemBlock } from "./AddedSystemBlock";
-import { useEditableSystem } from "./editable";
 import { kindHover } from "./sections/kindHover";
 import { StarMismatchNote } from "./StarClassLine";
 import { useStarClassLabel } from "./useStarNames";
 import { renameSystemOp } from "./systemName";
+import { shortcutLabel } from "../../../lib/keys";
 
 /** Why the owner line's day-one chip means what it means, shown on hover. */
 const DAY_ONE_OWNER_TITLE =
@@ -27,40 +29,41 @@ const DAY_ONE_OWNER_TITLE =
 /** Why the owner line's assumed marker means what it means, shown on hover. */
 const ASSUMED_OWNER_TITLE = "A claim whose conditions this editor cannot judge is marked assumed.";
 
-function PositionSection({ system }: { system: SystemNode }) {
+function PositionBlock({ system }: { system: SystemNode }) {
   const applyOp = useApplySymmetricOp();
   const move = (x: number, y: number) => applyOp({ type: "MoveSystem", id: system.id, x, y });
   return (
-    <div className="ins-position">
-      <span className="k">x</span>
-      <TextField
-        kind="number"
-        className="coord"
-        label="x"
-        value={system.x}
-        decimals={2}
-        onCommit={(x) => move(x, system.y)}
-      />
-      <span className="k">y</span>
-      <TextField
-        kind="number"
-        className="coord"
-        label="y"
-        value={system.y}
-        decimals={2}
-        onCommit={(y) => move(system.x, y)}
-      />
-    </div>
+    <EditBlock title="Position">
+      <EditRow label="x">
+        <TextField
+          kind="number"
+          className="coord"
+          label="x"
+          value={system.x}
+          decimals={2}
+          onCommit={(x) => move(x, system.y)}
+        />
+      </EditRow>
+      <EditRow label="y">
+        <TextField
+          kind="number"
+          className="coord"
+          label="y"
+          value={system.y}
+          decimals={2}
+          onCommit={(y) => move(system.x, y)}
+        />
+      </EditRow>
+    </EditBlock>
   );
 }
 
 /** What the head's name says on hover where the document lets it change. */
 const RENAME_TITLE = "Rename this system";
 
-/** What a scenario system with no name shows at the head, and why. */
+/** What a scenario system with no name shows at the head, and why, under it. */
 const RANDOM_NAME = "Random name";
-const RANDOM_NAME_TITLE =
-  "This system has no name, so Stellaris gives it a random one when the game starts.";
+const RANDOM_NAME_NOTE = "No name. Stellaris picks a random one when the game starts.";
 
 /** The head's name text: a scenario system with no name says the game will pick one. */
 function NameText({ system }: { system: SystemNode }) {
@@ -74,11 +77,11 @@ function NameText({ system }: { system: SystemNode }) {
  */
 function HeadName({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
-  const editable = useEditableSystem();
+  const editable = useCanEdit("create_systems");
   const unnamed = system.name.key === "";
   if (!editable) {
     return (
-      <span className="name" title={unnamed ? RANDOM_NAME_TITLE : undefined}>
+      <span className="name">
         <NameText system={system} />
       </span>
     );
@@ -88,7 +91,7 @@ function HeadName({ system }: { system: SystemNode }) {
       kind="text"
       className="ins-name-field"
       label="System name"
-      title={unnamed ? `${RANDOM_NAME_TITLE} Type to name it.` : RENAME_TITLE}
+      title={unnamed ? "Type to name it" : RENAME_TITLE}
       placeholder={RANDOM_NAME}
       value={system.name.key}
       display={unnamed ? undefined : nodeName(system.name)}
@@ -99,14 +102,14 @@ function HeadName({ system }: { system: SystemNode }) {
 
 /** The owner at the head: a link to the empire's page where the document has empires. */
 function OwnerName({ id, label }: { id: number; label: string | null }) {
-  const open = useInspectorStore((s) => s.open);
+  const opener = useOpenEntity();
   const known = useGalaxyStore((s) => s.countries.has(id));
   if (!known || label === null) return <span>{label}</span>;
   return (
     <DrillLink
-      requires="empires"
+      requires={capabilityFor("country")}
       title={`Open ${label}'s page`}
-      onOpen={() => open({ ref: { kind: "country", id }, label })}
+      onOpen={() => opener.open({ kind: "country", id }, label)}
     >
       {label}
     </DrillLink>
@@ -141,15 +144,15 @@ export function Header({ detail }: { detail: SystemDetail }) {
       <div className="ins-head">
         <HeadName key={system.id} system={system} />
         <span className="muted mono">#{system.id}</span>
-        <button className="link ins-close" onClick={() => void select(null)} title="Clear (Esc)">
+        <button
+          className="link ins-close"
+          onClick={() => void select(null)}
+          title={`Clear (${shortcutLabel("clearSelection")})`}
+        >
           ×
         </button>
       </div>
-      {system.name.key === "" && (
-        <div className="ins-sub muted">
-          No name. Stellaris picks a random one when the game starts.
-        </div>
-      )}
+      {system.name.key === "" && <div className="ins-sub muted">{RANDOM_NAME_NOTE}</div>}
       <div className="ins-sub muted">
         {starLabel !== "" && `${starLabel} · `}
         {planets} planets · nebula: {detail.nebula ? nodeName(detail.nebula.name) : "none"}
@@ -206,9 +209,7 @@ export function OverviewHead({ detail }: { detail: SystemDetail }) {
     <>
       <Header detail={detail} />
       {detail.system.added && <AddedSystemBlock key={detail.system.id} system={detail.system} />}
-      <Section id="system.position" title="Position">
-        <PositionSection system={detail.system} />
-      </Section>
+      <PositionBlock system={detail.system} />
     </>
   );
 }

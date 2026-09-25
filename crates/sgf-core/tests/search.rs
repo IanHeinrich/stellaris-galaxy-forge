@@ -7,13 +7,6 @@ use sgf_core::views::{SearchHit, SearchKind};
 use crate::common;
 use common::open;
 
-/// Planets and fleets are searched only once the details projection is built.
-fn warm() -> Session {
-    let mut session = open();
-    session.warm_details().expect("build details");
-    session
-}
-
 fn no_loc(_: &str) -> Option<String> {
     None
 }
@@ -35,49 +28,10 @@ fn of_kind(hits: &[SearchHit], kind: SearchKind) -> Vec<SearchHit> {
     hits.iter().filter(|h| h.kind == kind).cloned().collect()
 }
 
-/// The fields the palette phrases.
-fn fields(h: &SearchHit) -> String {
-    let mut parts = Vec::new();
-    if let Some(owner) = &h.owner {
-        parts.push(format!("owner={}", display_name(&owner.stand_in())));
-    }
-    if let Some(country_type) = &h.country_type {
-        parts.push(format!("type={country_type}"));
-    }
-    if let Some(count) = h.system_count {
-        parts.push(format!("systems={count}"));
-    }
-    if let Some(class) = &h.planet_class {
-        parts.push(format!("class={class}"));
-    }
-    if let Some(matched_on) = &h.matched_on {
-        parts.push(format!("matched={matched_on}"));
-    }
-    if parts.is_empty() {
-        "-".to_owned()
-    } else {
-        parts.join(" ")
-    }
-}
-
+/// Each hit on a line of its own, every field as the app receives it.
 fn report(hits: &[SearchHit]) -> String {
     hits.iter()
-        .map(|h| {
-            let system = h
-                .system_id
-                .map_or_else(|| "-".to_owned(), |id| format!("#{id}"));
-            let at = h
-                .position
-                .map_or_else(|| "nowhere".to_owned(), |[x, y]| format!("({x}, {y})"));
-            format!(
-                "{:?} #{} {} · {} → {} at {at}",
-                h.kind,
-                h.id,
-                shown(h),
-                fields(h),
-                system
-            )
-        })
+        .map(|h| serde_json::to_string(h).expect("a hit as JSON"))
         .collect::<Vec<String>>()
         .join("\n")
 }
@@ -146,7 +100,7 @@ fn matches_the_resolved_name_and_carries_the_template() {
 
 #[test]
 fn respects_the_limit_within_each_kind() {
-    let s = warm();
+    let s = common::warmed();
     let all = of_kind(&find(&s, "a", 1000, &no_loc), SearchKind::System);
     assert!(all.len() > 3, "{}", all.len());
     let three = find(&s, "a", 3, &no_loc);
@@ -158,7 +112,7 @@ fn respects_the_limit_within_each_kind() {
 
 #[test]
 fn hits_come_back_grouped_by_kind() {
-    let s = warm();
+    let s = common::warmed();
     let hits = find(&s, "a", 5, &no_loc);
     let kinds: Vec<SearchKind> = hits.iter().map(|h| h.kind).collect();
     let mut grouped = kinds.clone();
@@ -180,7 +134,7 @@ fn hits_come_back_grouped_by_kind() {
 
 #[test]
 fn finds_a_planet_a_country_a_fleet_and_a_nebula() {
-    let s = warm();
+    let s = common::warmed();
 
     let earth = of_kind(&find(&s, "earth", 5, &no_loc), SearchKind::Planet);
     assert_eq!(shown(&earth[0]), "Earth");
@@ -256,7 +210,7 @@ fn an_empire_without_a_capital_goes_where_its_fleet_is() {
 
 #[test]
 fn a_hit_carries_the_position_of_what_it_locates() {
-    let s = warm();
+    let s = common::warmed();
     let sol = of_kind(&find(&s, "sol", 5, &no_loc), SearchKind::System);
     assert!(sol[0].position.is_some());
 
@@ -267,7 +221,7 @@ fn a_hit_carries_the_position_of_what_it_locates() {
 
 #[test]
 fn finds_systems_by_what_they_hold() {
-    let s = warm();
+    let s = common::warmed();
     let systems = |query: &str| of_kind(&find(&s, query, 20, &no_loc), SearchKind::System);
     let matched = |hits: &[SearchHit]| -> Vec<Option<String>> {
         hits.iter().map(|h| h.matched_on.clone()).collect()
@@ -299,6 +253,12 @@ fn finds_systems_by_what_they_hold() {
             .iter()
             .all(|h| h.matched_on.as_deref() == Some("L-Gate"))
     );
+    assert!(
+        lgates
+            .iter()
+            .all(|h| h.matched_bypass.as_deref() == Some("l_gate"))
+    );
+    assert_eq!(salvager[0].matched_bypass, None);
     let wormholes = systems("wormhole");
     assert!(
         [788, 789]
@@ -348,7 +308,7 @@ fn a_special_kind_matches_only_when_game_data_names_it() {
 
 #[test]
 fn every_located_system_is_returned_beyond_the_limit() {
-    let s = warm();
+    let s = common::warmed();
     let all = s.search("gaia", 100, &no_loc, &no_special);
     let few = s.search("gaia", 2, &no_loc, &no_special);
     assert_eq!(of_kind(&few.hits, SearchKind::System).len(), 2);

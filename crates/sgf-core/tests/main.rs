@@ -2,9 +2,9 @@
 
 mod common;
 
-mod abundance;
 mod archive;
 mod cepheus;
+mod constants;
 mod cst;
 mod cygnus;
 mod details;
@@ -21,7 +21,6 @@ mod header_counts;
 mod header_list;
 mod index;
 mod issues;
-mod lgate;
 mod marauders;
 mod op_kinds;
 mod ops_add_special_system;

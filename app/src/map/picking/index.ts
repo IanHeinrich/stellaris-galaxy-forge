@@ -3,14 +3,14 @@ import type { SystemNode } from "../../generated/SystemNode";
 import type { LaneRef } from "../../store/editorStore";
 import { unlinkedTo } from "../../store/galaxyStore";
 import { distToSegmentSq } from "../../lib/geometry/geometry";
-import { pairOf } from "../../lib/geometry/pairs";
 import { dist2, type Pt } from "../../lib/geometry/pt";
+import type { Segment } from "../../lib/geometry/segments";
 import type { Camera } from "../Camera";
 import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
-import { linkRefusal, type Segment } from "../../lib/feLinks";
+import { linkRefusal } from "../../lib/feLinks";
 import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
 import { edgeEnds, type MapEdge } from "./edges";
-import type { PickIndex } from "./pickIndex";
+import { laneRef, type PickIndex } from "./pickIndex";
 import {
   LANE_PICK_RADIUS_PX,
   MIDPOINT_HIT_PX,
@@ -216,8 +216,7 @@ export function pickPrevented(systems: Systems, cam: Camera, at: Pt): LaneRef | 
       const d2 = distToSegmentSq(at.x, at.y, s.x, s.y, b.x, b.y);
       if (d2 < bestD2) {
         bestD2 = d2;
-        const [lo, hi] = pairOf(s.id, to);
-        best = { a: lo, b: hi };
+        best = laneRef(s.id, to);
       }
     }
   }

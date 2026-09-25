@@ -6,9 +6,7 @@ use std::collections::BTreeMap;
 use super::{Issue, IssueCode, listed};
 use crate::format::scenario::fe_link::LINK_REACH;
 use crate::format::scenario::fe_zone;
-use crate::format::scenario::header_counts::{
-    HeaderMismatch, header_mismatch, is_seat, seat_counts, zone_count,
-};
+use crate::format::scenario::header_counts::{HeaderMismatch, for_graph, header_mismatch, is_seat};
 use crate::format::scenario::marauder;
 use crate::format::scenario::paint::SOL_INITIALIZER;
 use crate::ops::rules::fe_zone::label;
@@ -87,9 +85,7 @@ pub(super) fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         return;
     }
     seated.sort_unstable_by_key(|system| system.id);
-    let seats = seat_counts(g);
-    let zones = zone_count(g);
-    let clans = marauder::clan_count(g);
+    let (seats, zones, clans) = for_graph(g);
     let message = header_mismatch(g, seats, zones, clans).map(|mismatch| match mismatch {
         HeaderMismatch::Empires { allowed } => format!(
             "Header allows {allowed} empires but the file has {} seats. Update the empire counts.",

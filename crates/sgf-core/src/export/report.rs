@@ -26,6 +26,11 @@ pub struct ExportReport {
     /// Homes whose initializer is not one the generator seats any empire on.
     pub home_initializers: Vec<HomeInitializer>,
     pub dropped: DroppedBypasses,
+    /// [`DroppedBypasses::summary`] of `dropped`: `3 wormhole pairs, 1 L-Gate`, or `None`
+    /// when nothing was dropped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub dropped_summary: Option<String>,
     /// Ascending by category; a category with no systems is left out.
     pub by_category: Vec<CategoryCount>,
     /// Sorted by source.
@@ -167,8 +172,10 @@ impl ExportReport {
         issues
     }
 
-    /// Count the statements of `draft`, which the file is rendered from.
-    pub(super) fn count(&mut self, draft: &Draft) {
+    /// Count the statements of `draft`, which the file is rendered from, and word the
+    /// bypasses it could not state.
+    pub(super) fn finish(&mut self, draft: &Draft) {
+        self.dropped_summary = self.dropped.summary();
         self.systems = Some(as_u32(draft.systems.len()));
         self.hyperlanes = Some(as_u32(draft.lanes.len()));
         self.nebulae = Some(as_u32(draft.nebulae.len()));
@@ -281,6 +288,7 @@ pub(super) fn build(
         seats: by_category.get(&Category::Home).copied().unwrap_or(0),
         home_initializers,
         dropped: dropped(graph),
+        dropped_summary: None,
         by_category: by_category
             .into_iter()
             .map(|(category, systems)| CategoryCount { category, systems })

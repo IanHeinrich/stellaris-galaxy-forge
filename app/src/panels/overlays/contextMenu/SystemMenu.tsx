@@ -1,9 +1,10 @@
+import { documentCapabilities } from "../../../lib/capabilities";
 import { linkToZoneLabel } from "../../../lib/feLinks";
 import { addFeZoneRefusal } from "../../../lib/feZone";
 import { clanOf, REMOVE_CLAN_HINT } from "../../../lib/marauder";
 import { useSystemNames } from "../../../store/browserRows";
-import { useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
+import { deletableSystems, useEditorStore } from "../../../store/editorStore";
+import { useCanEdit, useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import {
   linkedTo,
   preventedTo,
@@ -13,20 +14,12 @@ import {
 } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useMapChromeStore, type ContextTarget } from "../../../store/mapChromeStore";
-import { browseInitializers, NEEDS_GAME_DATA } from "../../initializers/entry";
-import {
-  BulkActions,
-  MarauderClanButton,
-  WormholePairButton,
-} from "../../inspector/selection/BulkActions";
-import {
-  NEEDS_INITIALIZER,
-  spawnPointsOp,
-  spawnTargets,
-} from "../../inspector/system/sections/scenario/spawnPoint";
+import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
+import { BulkActions, MarauderClanButton, WormholePairButton } from "../../BulkActions";
+import { NEEDS_INITIALIZER, spawnPointsOp, spawnTargets } from "../../spawnPoint";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
-import { useCanCreate, useSelected, useZoneLink, useZones } from "./menuState";
+import { useSelected, useZoneLink, useZones } from "./menuState";
 
 /** The menu on a system: its lanes to the selection, its scenario roles and its removal. */
 export function SystemMenu({
@@ -43,12 +36,12 @@ export function SystemMenu({
   const preventLanesToSelected = useEditorStore((s) => s.preventLanesToSelected);
   const allowLanesToSelected = useEditorStore((s) => s.allowLanesToSelected);
   const removeMarauderClan = useEditorStore((s) => s.removeMarauderClan);
-  const removeSystem = useEditorStore((s) => s.removeSystem);
+  const removeSystems = useEditorStore((s) => s.removeSystems);
   const addFeZone = useEditorStore((s) => s.addFeZone);
   const systems = useGalaxyStore((s) => s.systems);
   const paint = usePaintLayer();
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
-  const canCreate = useCanCreate();
+  const capabilities = useFileSessionStore(documentCapabilities);
+  const canCreate = useCanEdit("create_systems");
   const zones = useZones();
   const { selection, selected, selectedName } = useSelected();
   const linkItem = useZoneLink();
@@ -74,11 +67,12 @@ export function SystemMenu({
   const clanInBulk = inSelection && selection.length === 3;
   const clanItem = canCreate && role === null && !clanInBulk ? clanMembers : null;
   const link = linkItem(selected, system);
+  const deletable = deletableSystems([target.id], capabilities, systems) !== null;
   return (
     <MenuFrame {...frame} label={name}>
       <div className="context-menu-header">{name}</div>
       {selection.length > 1 && inSelection ? (
-        <BulkActions afterRun={closeContextMenu} itemRole="menuitem" />
+        <BulkActions dismiss={closeContextMenu} itemRole="menuitem" />
       ) : (
         <>
           <MenuItem
@@ -91,7 +85,7 @@ export function SystemMenu({
             <WormholePairButton
               a={selection[0]}
               b={selection[1]}
-              afterRun={closeContextMenu}
+              dismiss={closeContextMenu}
               itemRole="menuitem"
             />
           )}
@@ -103,7 +97,7 @@ export function SystemMenu({
               <MenuItem disabled={cuttable === 0} run={() => cutLanesToSelected(target.id)}>
                 Cut hyperlanes to selected ({cuttable})
               </MenuItem>
-              {scenario && (
+              {canCreate && (
                 <>
                   <MenuItem
                     disabled={preventable === 0}
@@ -123,7 +117,7 @@ export function SystemMenu({
       {canCreate && (
         <MenuItem
           disabled={!gameData}
-          title={gameData ? undefined : NEEDS_GAME_DATA}
+          title={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
           run={() => browseInitializers(initializerTargets)}
         >
           Set initializer…
@@ -156,7 +150,7 @@ export function SystemMenu({
         <MenuItem run={link.run}>{linkToZoneLabel(link.change, selectedName)}</MenuItem>
       )}
       {clanItem !== null && (
-        <MarauderClanButton ids={clanItem} afterRun={closeContextMenu} itemRole="menuitem" />
+        <MarauderClanButton ids={clanItem} dismiss={closeContextMenu} itemRole="menuitem" />
       )}
       {canCreate && role !== null && (
         <MenuItem
@@ -168,8 +162,8 @@ export function SystemMenu({
           <span className="muted">{REMOVE_CLAN_HINT}</span>
         </MenuItem>
       )}
-      {(canCreate || (!scenario && system?.added)) && (
-        <MenuItem className="context-menu-separated" run={() => removeSystem(target.id)}>
+      {deletable && (
+        <MenuItem className="context-menu-separated" run={() => removeSystems([target.id])}>
           Delete system
         </MenuItem>
       )}

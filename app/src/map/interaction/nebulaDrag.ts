@@ -3,6 +3,7 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import type { Camera } from "../Camera";
 import { nebulaPreview, type NebulaGeometry, type NebulaPreview } from "../nebulaPreview";
 import { SettlingPreview } from "./settlingPreview";
+import { counted } from "../../lib/text";
 
 /** Where the nebula previews are drawn. */
 export interface NebulaSink {
@@ -11,8 +12,7 @@ export interface NebulaSink {
 
 /** What the cursor says while a nebula drag is open: its members, and the swing either way. */
 function readout(preview: NebulaPreview): string {
-  const unit = preview.total === 1 ? "system" : "systems";
-  return `${preview.total} ${unit} (+${preview.joining.length} −${preview.leaving.length})`;
+  return `${counted(preview.total, "system")} (+${preview.joining.length} −${preview.leaving.length})`;
 }
 
 function centreOf(index: number): NebulaGeometry {

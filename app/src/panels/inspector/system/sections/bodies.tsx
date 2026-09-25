@@ -1,6 +1,6 @@
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { PLANET_ICON_KEYS, PLANET_SIZE_ICON_KEY, planetTint } from "../../../../lib/details/icons";
-import { isStarClass } from "../../../../lib/details/labels";
+import { isStarBody } from "../../../../lib/details/starBody";
 import {
   type ResourceRow,
   formatAmount,
@@ -9,7 +9,7 @@ import {
 } from "../../../../lib/details/resources";
 import { toCss } from "../../../../lib/visual/ownerColors";
 import { useTextureUrl } from "../../../useTextureUrl";
-import { Icon } from "../../parts";
+import { Icon } from "../../../parts";
 
 export function Pill({ row }: { row: ResourceRow }) {
   const url = useTextureUrl([row.sprite]);
@@ -74,7 +74,7 @@ export function PlanetIcon({
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const own = sprite ? [`sprite:${sprite}`] : [];
-  if (isStarClass(planetClass, planetClasses, starClasses)) {
+  if (isStarBody(planetClass, planetClasses, starClasses)) {
     const texture = starClasses.get(planetClass)?.texture_key;
     return <StarIcon keys={texture ? [...own, texture] : own} />;
   }

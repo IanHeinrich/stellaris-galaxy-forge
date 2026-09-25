@@ -7,7 +7,7 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
-import { formatWhen } from "../file/launchData";
+import { formatWhen } from "../../lib/text";
 import "./chrome.css";
 import { Menu, MenuItem } from "./Menu";
 

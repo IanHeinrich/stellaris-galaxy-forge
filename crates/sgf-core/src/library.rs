@@ -73,27 +73,6 @@ pub fn save_roots() -> Vec<(PathBuf, bool)> {
         .collect()
 }
 
-/// Every `.sav` under this machine's save directories, local and Steam Cloud, newest
-/// first. A campaign folder names the saves under it; an unreadable archive is listed
-/// without its meta.
-pub fn list_saves() -> Vec<SaveFile> {
-    list_saves_in(&save_roots())
-}
-
-/// Every `.sav` directly under each of `roots` and under its campaign folders, newest
-/// first; the flag beside a root marks it as a Steam Cloud directory.
-pub fn list_saves_in(roots: &[(PathBuf, bool)]) -> Vec<SaveFile> {
-    let mut saves = Vec::new();
-    for (dir, cloud) in roots {
-        collect_saves(dir, "", *cloud, &mut saves);
-        for campaign in subdirs(dir) {
-            collect_saves(&campaign, &dir_name(&campaign), *cloud, &mut saves);
-        }
-    }
-    sort_newest_first(&mut saves);
-    saves
-}
-
 /// Every campaign folder under this machine's save directories, newest first.
 pub fn list_campaigns() -> Vec<CampaignListing> {
     list_campaigns_in(&save_roots())

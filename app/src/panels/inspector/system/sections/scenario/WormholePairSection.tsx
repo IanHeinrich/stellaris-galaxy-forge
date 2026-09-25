@@ -2,10 +2,9 @@ import type { SystemNode } from "../../../../../generated/SystemNode";
 import { wormholePartner } from "../../../../../lib/paint";
 import { useSystemName } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
-import { usePaintLayer } from "../../../../../store/fileSessionStore";
+import { useCanEdit, usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { Section } from "../../../parts";
-import { useEditableSystem } from "../../editable";
 
 export const WORMHOLE_PAIR_INTRO =
   "The Paint a Galaxy mod opens a wormhole between the two ends of a pair on day one. Select " +
@@ -22,7 +21,7 @@ export function partnerMissing(pair: number): string {
  * end. Shown only while the system is in one; linking is done from a two-system selection.
  */
 export function WormholePairSection({ system }: { system: SystemNode }) {
-  const editable = useEditableSystem();
+  const editable = useCanEdit("create_systems");
   const paint = usePaintLayer();
   const systems = useGalaxyStore((s) => s.systems);
   const select = useEditorStore((s) => s.select);

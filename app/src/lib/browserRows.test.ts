@@ -5,7 +5,7 @@ import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { Issue } from "../generated/Issue";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { SpecialSystem } from "../generated/SpecialSystem";
-import { systemNode } from "../test/builders";
+import { appIssue, countryNode, systemNode } from "../test/builders";
 import { composeOwnership } from "./ownership";
 import {
   empireGroups,
@@ -58,22 +58,15 @@ const TYPES = new Map(
 );
 
 function country(id: number, key: string, type: string, extra: Partial<CountryNode> = {}) {
-  return {
+  return countryNode({
     id,
     name: name(key),
     name_key: key,
     country_type: type,
     capital_system: 0,
     system_count: 1,
-    colors: [],
-    border_color: null,
-    fill_color: null,
-    flag_colors: [],
-    use_map_color: false,
-    flag_icon: null,
-    flag_background: null,
     ...extra,
-  };
+  });
 }
 
 const COUNTRIES = new Map(
@@ -239,13 +232,8 @@ describe("the Points of interest tab", () => {
 });
 
 describe("the Issues tab", () => {
-  const issue = (code: Issue["code"], severity: Issue["severity"], systems: number[]): Issue => ({
-    severity,
-    code,
-    message: `${code} on ${systems.join(",")}`,
-    systems,
-    note: false,
-  });
+  const issue = (code: Issue["code"], severity: Issue["severity"], systems: number[]): Issue =>
+    appIssue({ severity, code, message: `${code} on ${systems.join(",")}`, systems });
 
   it("groups by code, errors first then the biggest group, and names the systems", () => {
     const groups = issueGroups(

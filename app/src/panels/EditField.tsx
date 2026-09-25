@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
+import { typedNumber } from "../lib/text";
 import { IconPicker, type IconPickerItem } from "./IconPicker";
 import { ENTER, ESCAPE } from "./keys";
 import "./panels.css";
@@ -61,8 +62,8 @@ export function TextField(props: TextFieldProps) {
       props.onCommit(text);
       return;
     }
-    const n = Number(text);
-    if (text.trim() !== "" && Number.isFinite(n)) props.onCommit(n);
+    const n = typedNumber(text);
+    if (n !== null) props.onCommit(n);
   };
   return (
     <span

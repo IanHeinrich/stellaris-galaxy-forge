@@ -206,6 +206,25 @@ attributes: deposit category, `is_for_colonizable` and planet
 `climate`. Tier 2 permits any key. The game is still the oracle for
 whether a combination loads.
 
+## Rolling deposits and weights
+
+- A deposit without `is_for_colonizable` is not for colonisable bodies:
+  the game reads the missing key as `no`
+  (`common/deposits/99_README_DEPOSITS.txt`). A deposit is orbital when
+  its `station` names a station class. `none`, or no `station`, means the
+  colony works it.
+- A habitable world is topped up to `MIN_BLOCKED_DEPOSITS` and
+  `MIN_UNBLOCKED_DEPOSITS` only from deposits with
+  `use_for_min_max_adjustments = yes`, as the same README says. In 4.5 all
+  52 flagged deposits are non-blockers, so vanilla has no blocker top-up.
+  The two sample saves have 7 of 80 and 9 of 79 unowned habitable worlds
+  with no blocker. `DEPOSIT_USED_CATEGORY_WEIGHT` is not part of that rule
+  and is not read.
+- A weight `modifier` that writes both `factor` and `add` multiplies first,
+  then adds. No vanilla modifier writes both. I haven't checked the order
+  in game. `FACTOR_BEFORE_ADD` in `crates/sgf-gamedata/src/weight.rs`
+  holds it.
+
 ## Ownership and borders
 
 - `galactic_object.sector` is often null (`4294967295`). A system with
@@ -229,7 +248,10 @@ whether a combination loads.
   in `common/defines/00_defines.txt`.
 - `flags/colors.txt` names the `flag`, `map` and `ship` rgb of each
   empire colour. The map fills a territory with the country's second
-  flag colour and outlines it with the first.
+  flag colour and outlines it with the first. An empire with
+  `flag.use_map_color=yes` (4.5) is painted in its fifth and sixth
+  `colors` entries instead, the map border and fill
+  ([format-notes.md](format-notes.md)).
 
 ## Names
 
@@ -251,6 +273,25 @@ The save stores a name as a template of the shape
 Each top-level `nebula` block lists its member systems explicitly, as
 `galactic_object=<id>` entries. The game never works membership out
 again from positions. `radius` is typically 30.
+
+## Copies of 4.5 the core keeps
+
+Two things the save ops need are copied from Stellaris 4.5 into
+`sgf-core` instead of being read from the install, all in
+`crates/sgf-core/src/format/save/write/game_tables.rs`. They are a
+check on every game update:
+
+- The nebula dressing of the start event `game_start.50`
+  (`events/game_start.txt`): the calm cloud types each star class
+  weighs, the class A stars an `ocean_paradise_nebula` flag gives
+  `rare_nebula_1`, the turbulent type each calm type pairs with, the
+  cloud's offset beside its star (`0.33 * size` plus 4.7 and 8.7), and
+  that `nebula_cloaking` comes with First Contact. A new star class, or
+  a changed table, gets no cloud or the wrong one until it is copied
+  here.
+- `SPAWN_SYSTEM_BUFFER_DISTANCE = 10` from
+  `common/defines/00_defines.txt`, how close an added system may stand
+  to another.
 
 ## Scenario files
 

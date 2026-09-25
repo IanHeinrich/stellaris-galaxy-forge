@@ -4,7 +4,7 @@ import type { FleetSummary } from "../../generated/FleetSummary";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { ShipSizeView } from "../../generated/ShipSizeView";
 import { FALLBACK_HABITABLE } from "../../lib/details/labels";
-import { titleCase } from "../../lib/text";
+import { keyWords } from "../../lib/text";
 
 export const POP_ICON_KEY = "sprite:GFX_pop";
 
@@ -130,14 +130,11 @@ export function depositTitle(deposits: readonly DepositCount[]): string | undefi
 export function shipRole(f: FleetSummary, names: ReadonlyMap<string, string>): string {
   const key = f.ship_sizes[0]?.key;
   if (!key) return "No ships";
-  return names.get(key) ?? SHIP_ROLES[key] ?? titleCase(key.split("_").filter(Boolean));
+  return names.get(key) ?? SHIP_ROLES[key] ?? keyWords(key);
 }
 
 export function shipSizeChips(f: FleetSummary, names: ReadonlyMap<string, string>): string {
   return f.ship_sizes
-    .map(
-      ({ key, count }) =>
-        `${count} × ${names.get(key) ?? titleCase(key.split("_").filter(Boolean))}`,
-    )
+    .map(({ key, count }) => `${count} × ${names.get(key) ?? keyWords(key)}`)
     .join(" · ");
 }

@@ -8,14 +8,14 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::body_effects;
-use crate::generate::{GenerateError, star_classes};
-use crate::initializers::{InitPlanet, Initializer};
-use crate::install::script::Range;
+use crate::generate::{GenerateError, layouts_for, star_classes};
+use crate::initializers::{BodyClass, InitPlanet, Initializer};
+use crate::install::script::{Range, whole};
 use crate::layouts::{
-    DlcNeed, RANDOM, RANDOM_COLONIZABLE, RANDOM_NON_COLONIZABLE, SaveFacts, SpecialLayout, generic,
-    layout_stars, notable, plain_initializers, readable, required_dlc, special_initializers,
-    special_layouts, star_body,
+    DlcNeed, SaveFacts, layout_stars, notable, plain_initializers, special_initializers, star_body,
 };
+use crate::loc::localisation::Localisation;
+use crate::menu::{SpecialLayout, special_layouts};
 
 /// The smallest and largest number a pick can give.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -118,7 +118,7 @@ pub fn add_system_picks(gd: &GameData, session: &Session) -> AddSystemPicks {
         .into_iter()
         .filter_map(|key| {
             let summary = star_pick_summary(gd, &key, session).ok()?;
-            let name = gd.loc.get(&key).unwrap_or_else(|| key.clone());
+            let name = gd.loc.name_or_readable(&key);
             Some(StarPick { key, name, summary })
         })
         .collect();
@@ -131,7 +131,7 @@ pub fn add_system_picks(gd: &GameData, session: &Session) -> AddSystemPicks {
         })
         .collect();
     AddSystemPicks {
-        random: random_summary(gd, session),
+        random: random_summary(gd),
         star_classes,
         special,
     }
@@ -152,10 +152,7 @@ pub fn layout_summary(
 
 fn special_summary(gd: &GameData, init: &Initializer, save: &SaveFacts) -> PickSummary {
     let mut summary = merge(gd, &[init]);
-    summary.dlc = required_dlc(gd, init).map(|name| DlcNeed {
-        met: save.dlcs.contains(&name),
-        name,
-    });
+    summary.dlc = save.dlc_need(gd, init);
     summary.max_instances = init.max_instances;
     summary.in_galaxy = Some(save.in_galaxy(&init.name));
     summary
@@ -168,15 +165,10 @@ pub fn star_pick_summary(
     class: &str,
     session: &Session,
 ) -> Result<PickSummary, GenerateError> {
-    let makes = |init: &&Initializer| layout_stars(gd, init).iter().any(|s| s.key == class);
-    let mut layouts: Vec<&Initializer> = plain_initializers(gd).into_iter().filter(makes).collect();
-    if layouts.is_empty() {
-        layouts = special_initializers(gd)
-            .into_iter()
-            .filter(|init| generic(init))
-            .filter(makes)
-            .collect();
-    }
+    let layouts: Vec<&Initializer> = layouts_for(gd, Some(class))
+        .into_iter()
+        .map(|(init, _)| init)
+        .collect();
     if layouts.is_empty() {
         return Err(GenerateError::NoLayoutFor(class.to_owned()));
     }
@@ -189,7 +181,7 @@ pub fn star_pick_summary(
 }
 
 /// The card for Random: the plain layouts, merged.
-pub fn random_summary(gd: &GameData, _session: &Session) -> PickSummary {
+pub fn random_summary(gd: &GameData) -> PickSummary {
     merge(gd, &plain_initializers(gd))
 }
 
@@ -252,8 +244,11 @@ fn reach(gd: &GameData, init: &Initializer) -> Reach {
             if let Some(name) = &body.name {
                 push(&mut out.named, name);
             }
-            if gd.planet_classes.get(&body.class).is_some() && notable(gd, &body.class) {
-                push(&mut out.notable, &body.class);
+            if let Some(class) = body.class.named()
+                && gd.planet_classes.get(class).is_some()
+                && notable(gd, class)
+            {
+                push(&mut out.notable, class);
             }
         }
         for body in std::iter::once(block).chain(&block.moons) {
@@ -272,7 +267,6 @@ fn push(list: &mut Vec<String>, item: &str) {
 }
 
 fn span(count: Range) -> Span {
-    let whole = |n: f64| n.round().max(0.0) as u32;
     Span {
         min: whole(count.min),
         max: whole(count.max),
@@ -280,7 +274,10 @@ fn span(count: Range) -> Span {
 }
 
 /// A class, or every class of a list, that is an asteroid.
-fn asteroids_only(gd: &GameData, class: &str) -> bool {
+fn asteroids_only(gd: &GameData, class: &BodyClass) -> bool {
+    let Some(class) = class.named() else {
+        return false;
+    };
     let asteroid = |key: &str| gd.planet_classes.get(key).is_some_and(|c| c.asteroid);
     match gd.planet_lists.get(class) {
         Some(list) => !list.is_empty() && list.iter().all(|key| asteroid(key)),
@@ -298,14 +295,16 @@ fn can_ring(gd: &GameData, block: &InitPlanet) -> bool {
             .get(key)
             .is_some_and(|c| c.chance_of_ring > 0.0)
     };
-    match block.class.as_str() {
-        RANDOM | RANDOM_COLONIZABLE | RANDOM_NON_COLONIZABLE => gd.planet_classes.iter().any(|c| {
-            !c.star && !c.asteroid && c.distance_from_sun.is_some() && c.chance_of_ring > 0.0
-        }),
-        class => match gd.planet_lists.get(class) {
+    match &block.class {
+        BodyClass::Random(colonizable) => gd
+            .planet_classes
+            .drawable(*colonizable)
+            .any(|c| c.chance_of_ring > 0.0),
+        BodyClass::Named(class) => match gd.planet_lists.get(class) {
             Some(list) => list.iter().any(|key| chance(key)),
             None => chance(class),
         },
+        BodyClass::Star => false,
     }
 }
 
@@ -335,7 +334,7 @@ fn merge(gd: &GameData, layouts: &[&Initializer]) -> PickSummary {
         n if n == reaches.len() => Presence::Every,
         _ => Presence::SomeLayouts,
     };
-    let loc = |key: &str| localised(gd, key);
+    let loc = |key: &str| gd.loc.name_or_readable(key);
     let mut stars: Vec<String> = Vec::new();
     for reach in &reaches {
         for star in &reach.stars {
@@ -356,7 +355,7 @@ fn merge(gd: &GameData, layouts: &[&Initializer]) -> PickSummary {
             min: r.belts,
             max: r.belts,
         }),
-        belt_kinds: features(|r| &r.belt_kinds, &|key| readable(key)),
+        belt_kinds: features(|r| &r.belt_kinds, &Localisation::readable),
         asteroids: spanned(|r| r.asteroids),
         named_bodies: features(|r| &r.named, &loc),
         notable_classes: features(|r| &r.notable, &loc),
@@ -368,14 +367,10 @@ fn merge(gd: &GameData, layouts: &[&Initializer]) -> PickSummary {
     }
 }
 
-fn localised(gd: &GameData, key: &str) -> String {
-    gd.loc.get(key).unwrap_or_else(|| readable(key))
-}
-
 fn named(gd: &GameData, key: &str) -> Named {
     Named {
         key: key.to_owned(),
-        name: localised(gd, key),
+        name: gd.loc.name_or_readable(key),
     }
 }
 

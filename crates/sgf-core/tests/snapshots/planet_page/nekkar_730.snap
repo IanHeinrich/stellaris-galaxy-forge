@@ -1,0 +1,44 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+{
+  "id": 730,
+  "name": {
+    "key": "STAR_NAME_1_OF_1",
+    "literal": false,
+    "variables": [
+      {
+        "name": "NAME",
+        "value": {
+          "key": "Nekkar",
+          "literal": false,
+          "variables": []
+        }
+      }
+    ]
+  },
+  "name_key": "STAR_NAME_1_OF_1",
+  "label": "STAR_NAME_1_OF_1",
+  "class": "pc_g_star",
+  "size": 28,
+  "orbit": 0.0,
+  "system": 396,
+  "parent": null,
+  "moons": [],
+  "deposits": [
+    {
+      "id": 1024,
+      "kind": "d_energy_2",
+      "swap_type": null
+    }
+  ],
+  "planet_modifiers": [],
+  "timed_modifiers": [],
+  "surveyed_by": 16,
+  "station": 507,
+  "owner": null,
+  "controller": 16,
+  "colony": null,
+  "flags": 0
+}

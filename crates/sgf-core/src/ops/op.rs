@@ -2,6 +2,7 @@
 //! and the errors an op is refused with.
 
 use serde::{Deserialize, Serialize};
+use strum::IntoStaticStr;
 use ts_rs::TS;
 
 use crate::document;
@@ -9,9 +10,9 @@ use crate::format::save::system_spec::SystemSpec;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::OverlayError;
 use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
-use crate::views::DocumentKind;
+use crate::views::{DocumentKind, ErrorKind};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, IntoStaticStr)]
 #[ts(export)]
 #[serde(tag = "type")]
 pub enum Op {
@@ -74,14 +75,14 @@ pub enum Op {
         lanes: Vec<LaneLength>,
     },
     /// One lane's length rewritten to the `floor(distance)` the generator writes, on both
-    /// ends; refuses with [`OpError::Empty`] when it already stands there. The inverse is
+    /// ends; refuses with [`OpError::AlreadyNormal`] when it already stands there. The inverse is
     /// the [`Op::SetLaneLength`] that puts the old length back.
     NormaliseLaneLength {
         a: u32,
         b: u32,
     },
     /// Every lane touching one of `systems` whose length is not `floor(distance)`,
-    /// rewritten to it as an integer; refuses with [`OpError::Empty`] when none is stale.
+    /// rewritten to it as an integer; refuses with [`OpError::AlreadyNormal`] when none is stale.
     NormaliseLaneLengths {
         systems: Vec<u32>,
     },
@@ -120,8 +121,8 @@ pub enum Op {
         name: String,
     },
     /// A new `system` statement, `id` defaulting to one past the highest held. Scenario
-    /// documents only: a save's systems carry planets, a starbase and an owner no op can
-    /// invent. A weight and a script together are refused (see [`Op::SetSpawnScript`]).
+    /// documents only; a save adds a system through [`Op::AddSaveSystem`]. A weight and a
+    /// script together are refused (see [`Op::SetSpawnScript`]).
     AddSystem {
         id: Option<u32>,
         x: f64,
@@ -142,7 +143,14 @@ pub enum Op {
     /// A reused slot gets its tombstone back, the name returns to the pool of unused star
     /// or black hole names the add took it from, and `last_created_system` goes down. The
     /// systems added after it take the id below their own, so that ids stay dense. The
-    /// inverse adds the system again, read back as a spec, at the end of the list.
+    /// inverse adds the system again, read back as a spec, at the end of the list, which
+    /// joins it to the nebula it stands in; then its bridges, the lane lengths that are not
+    /// `floor(distance)` and its nebula footprint are put back. The bytes come back exactly
+    /// only for the last system added, with nothing written to its neighbours since. A
+    /// lane's entry on the other end comes back last in that system's list. A system taken
+    /// from among the added ones comes back at the next id, its bodies and deposits one
+    /// generation on in the slots they had. A lane whose two ends disagreed comes back with
+    /// one length. Undo through history is byte-exact either way.
     RemoveSystem {
         id: u32,
     },
@@ -305,8 +313,10 @@ pub enum Op {
     /// game writes a system it spawns by script. It takes `last_created_system + 1`, which
     /// must be the number of systems the save holds; planets and deposits take the lowest
     /// dead slot of their tables first. Its name leaves the save's pool of unused star
-    /// names, or failing that of black hole names, when one holds it. The inverse is [`Op::RemoveSystem`]. Stellaris 4.x
-    /// save documents only.
+    /// names, or failing that of black hole names, when one holds it. A system standing
+    /// in a nebula's radius joins that nebula, as a system moved there does. The inverse
+    /// is [`Op::RemoveSystem`]. Stellaris 4.x save documents only, and not an Ironman
+    /// save.
     AddSaveSystem {
         spec: SystemSpec,
     },
@@ -382,61 +392,7 @@ pub enum Op {
 impl Op {
     /// The variant's name, for an error that has to name the op.
     pub fn name(&self) -> &'static str {
-        match self {
-            Self::MoveSystem { .. } => "MoveSystem",
-            Self::AddLane { .. } => "AddLane",
-            Self::AddLanes { .. } => "AddLanes",
-            Self::RemoveLane { .. } => "RemoveLane",
-            Self::RemoveLanes { .. } => "RemoveLanes",
-            Self::SetLaneLength { .. } => "SetLaneLength",
-            Self::IsolateSystem { .. } => "IsolateSystem",
-            Self::MoveSystems { .. } => "MoveSystems",
-            Self::AddLanePairs { .. } => "AddLanePairs",
-            Self::RemoveLanePairs { .. } => "RemoveLanePairs",
-            Self::IsolateSystems { .. } => "IsolateSystems",
-            Self::SetLaneLengths { .. } => "SetLaneLengths",
-            Self::NormaliseLaneLength { .. } => "NormaliseLaneLength",
-            Self::NormaliseLaneLengths { .. } => "NormaliseLaneLengths",
-            Self::MoveNebula { .. } => "MoveNebula",
-            Self::AddNebula { .. } => "AddNebula",
-            Self::RemoveNebula { .. } => "RemoveNebula",
-            Self::SetNebulaRadius { .. } => "SetNebulaRadius",
-            Self::SetNebulaName { .. } => "SetNebulaName",
-            Self::AddSystem { .. } => "AddSystem",
-            Self::RemoveSystem { .. } => "RemoveSystem",
-            Self::AddSystems { .. } => "AddSystems",
-            Self::RemoveSystems { .. } => "RemoveSystems",
-            Self::SetSystemName { .. } => "SetSystemName",
-            Self::SetInitializer { .. } => "SetInitializer",
-            Self::SetInitializers { .. } => "SetInitializers",
-            Self::SetHeaderField { .. } => "SetHeaderField",
-            Self::SetHeaderKeys { .. } => "SetHeaderKeys",
-            Self::SetHeaderList { .. } => "SetHeaderList",
-            Self::SetSpawnWeight { .. } => "SetSpawnWeight",
-            Self::SetSpawnWeights { .. } => "SetSpawnWeights",
-            Self::SetSpawnScript { .. } => "SetSpawnScript",
-            Self::SetSpawnScripts { .. } => "SetSpawnScripts",
-            Self::SetFeZone { .. } => "SetFeZone",
-            Self::SetFeZones { .. } => "SetFeZones",
-            Self::SetWormholePair { .. } => "SetWormholePair",
-            Self::SetWormholeEnds { .. } => "SetWormholeEnds",
-            Self::SetFeLinks { .. } => "SetFeLinks",
-            Self::SetFeLinkFlags { .. } => "SetFeLinkFlags",
-            Self::PreventLane { .. } => "PreventLane",
-            Self::UnpreventLane { .. } => "UnpreventLane",
-            Self::SetLGateOutcome { .. } => "SetLGateOutcome",
-            Self::SetStarClass { .. } => "SetStarClass",
-            Self::SetPlanetSize { .. } => "SetPlanetSize",
-            Self::SetEmpireMapColors { .. } => "SetEmpireMapColors",
-            Self::AddSaveSystem { .. } => "AddSaveSystem",
-            Self::AddSaveDeposit { .. } => "AddSaveDeposit",
-            Self::RemoveSaveDeposit { .. } => "RemoveSaveDeposit",
-            Self::ReplaceSaveSystem { .. } => "ReplaceSaveSystem",
-            Self::RenameSaveSystem { .. } => "RenameSaveSystem",
-            Self::SetNebulaTurbulent { .. } => "SetNebulaTurbulent",
-            Self::SetNebulaFootprints { .. } => "SetNebulaFootprints",
-            Self::Batch { .. } => "Batch",
-        }
+        self.into()
     }
 
     /// Whether this op leaves the details of the systems it touched stale. The
@@ -622,10 +578,12 @@ pub enum OpError {
     SystemExists(u32),
     #[error("{0} is the null id, which no system may take")]
     NullSystemId(u32),
-    #[error("name {0:?} may not hold a quote, a backslash or a line break")]
-    InvalidName(String),
-    #[error("a name may not be empty")]
-    EmptyName,
+    #[error("{what} may not be empty")]
+    EmptyText { what: &'static str },
+    #[error("{text:?} cannot be written as {what}")]
+    InvalidText { what: &'static str, text: String },
+    #[error("planet {planet}: {error}")]
+    OnPlanet { planet: u32, error: Box<OpError> },
     #[error("nebula {0} does not exist")]
     UnknownNebula(usize),
     #[error("system {0} cannot have a lane to itself")]
@@ -634,6 +592,8 @@ pub enum OpError {
     LaneExists(u32, u32),
     #[error("systems {0} and {1} are not linked")]
     NoSuchLane(u32, u32),
+    #[error("lane {0} <-> {1} holds a different length on each end")]
+    LaneEndsDisagree(u32, u32),
     #[error("lane {0} <-> {1} is already prevented")]
     PreventExists(u32, u32),
     #[error("a hyperlane already runs between {0} and {1}: remove it before preventing the pair")]
@@ -680,8 +640,10 @@ pub enum OpError {
     FeLinkIdOutOfRange(u8, u8),
     #[error("random value {0} is beyond the {1} a Paint a Galaxy seat is drawn from")]
     RandomValueOutOfRange(u8, u8),
-    #[error("no lanes given")]
-    Empty,
+    #[error("no entries given")]
+    NoEntries,
+    #[error("every lane already has the length the game writes")]
+    AlreadyNormal,
     #[error("a batch with nothing in it")]
     EmptyBatch,
     #[error("a batch may not hold another batch")]
@@ -722,12 +684,6 @@ pub enum OpError {
     LGateUnchanged(&'static str),
     #[error("planet {0} does not exist")]
     UnknownPlanet(u32),
-    #[error("a star class may not be empty")]
-    EmptyStarClass,
-    #[error("planet {0}'s class may not be empty")]
-    EmptyPlanetClass(u32),
-    #[error("class {0:?} may not hold a quote, a backslash or a line break")]
-    InvalidClass(String),
     #[error("no star bodies given")]
     NoStarBodies,
     #[error("planet {planet} is not a body of system {system}")]
@@ -744,8 +700,6 @@ pub enum OpError {
     UnknownCountry(u32),
     #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
     NoMapColors(u32),
-    #[error("colour name {0:?} may not be empty or hold a space, a quote or a backslash")]
-    InvalidColorName(String),
     #[error("country {0}'s map colours are already set that way")]
     MapColorsUnchanged(u32),
     #[error("save statement: {reason} at byte {offset}")]
@@ -754,6 +708,8 @@ pub enum OpError {
     SaveTooOld(String),
     #[error("the save's version {0:?} names no major version, so it cannot take this edit")]
     UnknownSaveVersion(String),
+    #[error("an Ironman save cannot take this edit")]
+    Ironman,
     #[error("the save has no `{0}`")]
     MissingSaveKey(&'static str),
     #[error(
@@ -764,12 +720,6 @@ pub enum OpError {
     TooClose { id: u32, distance: f64 },
     #[error("({x}, {y}) is outside the galaxy's radius of {radius}")]
     OutsideGalaxy { x: f64, y: f64, radius: f64 },
-    #[error("a body's planet class may not be empty")]
-    EmptyBodyClass,
-    #[error("{0} may not be empty")]
-    EmptyKey(&'static str),
-    #[error("{0:?} may not hold a quote, a backslash or a line break")]
-    InvalidKey(String),
     #[error("{0} cannot have moons")]
     MoonsNotAllowed(&'static str),
     #[error("{0} cannot be an asteroid")]
@@ -796,8 +746,6 @@ pub enum OpError {
     DepositNotOnPlanet(u32),
     #[error("planet {0} is colonised: only an uncolonised planet's deposits can be edited")]
     PlanetColonised(u32),
-    #[error("deposit type {0:?} may hold only letters, digits and underscores")]
-    InvalidDepositType(String),
     #[error("every system of {nebula} is already {state}")]
     TurbulenceUnchanged { nebula: String, state: &'static str },
     #[error("{0:?} is not a nebula cloud type")]
@@ -823,4 +771,96 @@ pub enum OpError {
     Projection(#[from] ProjectionError),
     #[error(transparent)]
     Document(#[from] document::Error),
+}
+
+impl OpError {
+    /// How the refusal crosses to the app: an entity the document does not hold, text it
+    /// could not read, or an edit refused.
+    pub fn kind(&self) -> ErrorKind {
+        match self {
+            Self::UnknownSystem { .. }
+            | Self::UnknownNebula { .. }
+            | Self::UnknownPlanet { .. }
+            | Self::UnknownCountry { .. }
+            | Self::UnknownDeposit { .. } => ErrorKind::NotFound,
+            Self::Parse { .. }
+            | Self::NebulaParse { .. }
+            | Self::HeaderParse { .. }
+            | Self::FlagsParse { .. }
+            | Self::PlanetParse { .. }
+            | Self::RecordParse { .. }
+            | Self::CountryParse { .. }
+            | Self::Overlay { .. }
+            | Self::Projection { .. }
+            | Self::Document { .. } => ErrorKind::Format,
+            Self::SystemExists { .. }
+            | Self::NullSystemId { .. }
+            | Self::EmptyText { .. }
+            | Self::InvalidText { .. }
+            | Self::OnPlanet { .. }
+            | Self::SelfLane { .. }
+            | Self::LaneExists { .. }
+            | Self::NoSuchLane { .. }
+            | Self::LaneEndsDisagree { .. }
+            | Self::PreventExists { .. }
+            | Self::PreventLinked { .. }
+            | Self::NotPrevented { .. }
+            | Self::NoLanes { .. }
+            | Self::NotFinite { .. }
+            | Self::InvalidLength { .. }
+            | Self::InvalidRadius { .. }
+            | Self::InvalidWeight { .. }
+            | Self::ScriptedSpawn { .. }
+            | Self::WeightAndScript { .. }
+            | Self::InvalidSeatLetter { .. }
+            | Self::EnabledSeatPlayer { .. }
+            | Self::FeZoneBlocked { .. }
+            | Self::FeZoneOffMap { .. }
+            | Self::WormholeSelf { .. }
+            | Self::WormholePairInUse { .. }
+            | Self::FeLinkNoZone { .. }
+            | Self::FeLinkSelf { .. }
+            | Self::FeLinkIdsExhausted { .. }
+            | Self::FeLinkIdOutOfRange { .. }
+            | Self::RandomValueOutOfRange { .. }
+            | Self::NoEntries { .. }
+            | Self::AlreadyNormal { .. }
+            | Self::EmptyBatch { .. }
+            | Self::NestedBatch { .. }
+            | Self::DuplicateSystem { .. }
+            | Self::DuplicateLane { .. }
+            | Self::NoFlags { .. }
+            | Self::NoLGate { .. }
+            | Self::LGateOpened { .. }
+            | Self::LGateUnchanged { .. }
+            | Self::NoStarBodies { .. }
+            | Self::NotABody { .. }
+            | Self::DuplicatePlanet { .. }
+            | Self::StarClassUnchanged { .. }
+            | Self::ZeroPlanetSize { .. }
+            | Self::PlanetSizeUnchanged { .. }
+            | Self::NoMapColors { .. }
+            | Self::MapColorsUnchanged { .. }
+            | Self::SaveTooOld { .. }
+            | Self::UnknownSaveVersion { .. }
+            | Self::Ironman { .. }
+            | Self::MissingSaveKey { .. }
+            | Self::SystemIdsNotDense { .. }
+            | Self::TooClose { .. }
+            | Self::OutsideGalaxy { .. }
+            | Self::MoonsNotAllowed { .. }
+            | Self::AsteroidNotAllowed { .. }
+            | Self::FixedNameNotAllowed { .. }
+            | Self::RingNotAllowed { .. }
+            | Self::CappedMismatch { .. }
+            | Self::SystemNotAdded { .. }
+            | Self::DepositNotOnPlanet { .. }
+            | Self::PlanetColonised { .. }
+            | Self::TurbulenceUnchanged { .. }
+            | Self::InvalidCloudType { .. }
+            | Self::AmbientSlotTaken { .. }
+            | Self::NameUnchanged { .. }
+            | Self::Unsupported { .. } => ErrorKind::Op,
+        }
+    }
 }

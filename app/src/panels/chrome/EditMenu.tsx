@@ -1,7 +1,9 @@
+import { documentCapabilities } from "../../lib/capabilities";
 import { shortcutLabel } from "../../lib/keys";
 import { deleteSelected, redo, selectAll, undo } from "../../store/commands";
 import { canDelete, nextRedo, nextUndo, useEditorStore } from "../../store/editorStore";
-import { useCanEdit, useFileSessionStore } from "../../store/fileSessionStore";
+import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useGalaxyStore } from "../../store/galaxyStore";
 import "./chrome.css";
 import { Menu, MenuItem } from "./Menu";
 
@@ -9,8 +11,9 @@ import { Menu, MenuItem } from "./Menu";
 export function EditMenuItems({ dismiss }: { dismiss: () => void }) {
   const undoEntry = useEditorStore(nextUndo);
   const redoEntry = useEditorStore(nextRedo);
-  const systemsDeletable = useCanEdit("create_systems");
-  const deletable = useEditorStore((s) => canDelete(s, systemsDeletable));
+  const capabilities = useFileSessionStore(documentCapabilities);
+  const held = useGalaxyStore((s) => s.systems);
+  const deletable = useEditorStore((s) => canDelete(s, capabilities, held));
 
   return (
     <>

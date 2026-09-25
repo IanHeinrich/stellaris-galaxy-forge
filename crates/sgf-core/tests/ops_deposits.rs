@@ -3,18 +3,14 @@
 //! save's findings, byte-exact undo, a deposit added in the session giving its slot back,
 //! a system added in the session taking the deposits added to it, and what is refused.
 
-use std::collections::BTreeSet;
-
 use sgf_core::entity::get_planet_page;
 use sgf_core::ops::{Op, OpError, SystemSpec};
 use sgf_core::session::Session;
-use sgf_core::validate::IssueCode;
-use sgf_core::views::DocumentKind;
 
 use crate::common;
 use common::diff::{plain_report, report, round_trip, round_trip_step};
 use common::spec::{dorellion, mura};
-use common::{current, open, open_3_4, open_4_5, open_edited, text};
+use common::{current, findings, open, open_3_4, open_4_5, open_edited, text};
 
 const GENERATION: u32 = 1 << 24;
 
@@ -29,14 +25,6 @@ fn remove(deposit: u32) -> Op {
     Op::RemoveSaveDeposit { deposit }
 }
 
-fn findings(session: &Session) -> BTreeSet<(IssueCode, Vec<u32>, String)> {
-    session
-        .validate()
-        .into_iter()
-        .map(|issue| (issue.code, issue.systems, issue.message))
-        .collect()
-}
-
 /// The deposits planet `id`'s page lists, as (id, type).
 fn page(session: &Session, id: u32) -> Vec<(u32, String)> {
     get_planet_page(&session.doc, id)
@@ -49,16 +37,9 @@ fn page(session: &Session, id: u32) -> Vec<(u32, String)> {
 
 /// The deposit keys the details list for `planet` of `system`.
 fn details(session: &Session, system: u32, planet: u32) -> Vec<(String, u32)> {
-    let details = session.details().expect("details");
-    details
-        .raw(system)
-        .expect("the system's details")
-        .planets
-        .iter()
-        .find(|p| p.id == planet)
-        .expect("the planet")
-        .deposits
-        .clone()
+    let planets = common::planets(session, system);
+    let body = planets.into_iter().find(|p| p.id == planet);
+    body.expect("the planet").deposits
 }
 
 /// One edit on a sample: its snapshot's name, the session, the op, the system the planet
@@ -242,8 +223,7 @@ fn a_batch_add_takes_the_slot_its_removal_freed_and_undoes_to_the_original() {
 /// The 4.4 sample with an empty `deposits` list last in planet 2, which the game never
 /// writes and drops on load.
 fn with_empty_list() -> Session {
-    open_edited(|bytes| {
-        let text = String::from_utf8(bytes.clone()).expect("utf-8");
+    open_edited(|text| {
         let end = "			atmosphere_width=1
 		}
 		3=
@@ -256,7 +236,7 @@ fn with_empty_list() -> Session {
 		}
 		3=
 ";
-        *bytes = text.replace(end, empty).into_bytes();
+        *text = text.replace(end, empty);
     })
 }
 
@@ -286,15 +266,14 @@ fn removing_a_deposit_added_in_the_session_gives_back_the_original_bytes() {
 /// The 4.4 sample with every tombstone taken out of its deposit table, so that an add
 /// appends past the last entry.
 fn without_dead_deposits() -> Session {
-    open_edited(|bytes| {
-        let text = String::from_utf8(bytes.clone()).expect("utf-8");
+    open_edited(|text| {
         let start = text.find("\ndeposit=\n{\n").expect("the deposit table") + 1;
         let end = start + text[start..].find("\n}\n").expect("its end");
         let table: String = text[start..end]
             .split_inclusive('\n')
             .filter(|line| !line.ends_with("=none\n"))
             .collect();
-        *bytes = format!("{}{table}{}", &text[..start], &text[end..]).into_bytes();
+        text.replace_range(start..end, &table);
     })
 }
 
@@ -396,6 +375,30 @@ fn a_station_deposit_a_blocker_and_a_moons_deposit_can_be_removed() {
     assert!(page(&session, 135).iter().all(|(id, _)| *id != 262));
 }
 
+/// A deposit type is one key whichever op writes it, and both refuse the same ones.
+#[test]
+fn a_deposit_type_is_checked_the_same_way_by_both_ops() {
+    for kind in ["", "d minerals", "d_{x}", "d=x", "d_\"x", "d_é", "d_\u{7}"] {
+        let on_planet = refused(&mut open_4_5(), add(3, kind));
+        let mut spec = mura();
+        spec.planets[0].deposits = vec![kind.to_owned()];
+        let in_system = refused(&mut open_4_5(), Op::AddSaveSystem { spec });
+        assert_eq!(on_planet.to_string(), in_system.to_string());
+        assert!(
+            matches!(
+                on_planet,
+                OpError::EmptyText {
+                    what: "a deposit type"
+                } | OpError::InvalidText {
+                    what: "a deposit type",
+                    ..
+                }
+            ),
+            "{kind:?}: {on_planet}"
+        );
+    }
+}
+
 fn refused(session: &mut Session, op: Op) -> OpError {
     let error = session.apply(op).expect_err("refused");
     assert!(!session.doc.is_dirty(), "{error}");
@@ -421,11 +424,11 @@ fn what_the_ops_refuse() {
         (add(3, ""), "a deposit type may not be empty"),
         (
             add(3, "d minerals"),
-            "deposit type \"d minerals\" may hold only letters, digits and underscores",
+            "\"d minerals\" cannot be written as a deposit type",
         ),
         (
             add(3, "d_\"x"),
-            "deposit type \"d_\\\"x\" may hold only letters, digits and underscores",
+            "\"d_\\\"x\" cannot be written as a deposit type",
         ),
     ];
     for (op, message) in cases {
@@ -447,14 +450,11 @@ fn what_the_ops_refuse() {
         Err(OpError::UnknownDeposit(257))
     ));
 
-    let mut rift = open_edited(|bytes| {
-        let text = String::from_utf8(bytes.clone()).expect("utf-8");
+    let mut rift = open_edited(|text| {
         let held =
             "\n\t26=\n\t{\n\t\ttype=\"d_minerals_3\"\n\t\tdeposit_holder=\n\t\t{\n\t\t\ttype=0\n";
         assert!(text.contains(held));
-        *bytes = text
-            .replace(held, &held.replace("type=0", "type=1"))
-            .into_bytes();
+        *text = text.replace(held, &held.replace("type=0", "type=1"));
     });
     assert!(matches!(
         refused(&mut rift, remove(26)),
@@ -470,15 +470,4 @@ fn what_the_ops_refuse() {
         refused(&mut old, remove(16)),
         OpError::SaveTooOld(_)
     ));
-
-    let mut scenario = common::examples::scenario();
-    for op in [add(3, "d_minerals_3"), remove(26)] {
-        assert!(matches!(
-            refused(&mut scenario, op),
-            OpError::Unsupported {
-                kind: DocumentKind::Scenario,
-                ..
-            }
-        ));
-    }
 }

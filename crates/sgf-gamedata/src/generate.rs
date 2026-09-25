@@ -3,27 +3,24 @@
 //! spec [`sgf_core::ops::Op::AddSaveSystem`] writes. The same seed, star class or layout,
 //! abundance and install give the same spec.
 
-use std::collections::HashSet;
-
-use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec, free_star_names};
+use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
 use sgf_core::session::Session;
 
 use crate::GameData;
 use crate::body_effects;
 use crate::deposit_roll::{RollBody, roll_deposits};
-use crate::initializers::{InitAsteroidBelt, InitPlanet, Initializer};
+use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::script::Range;
 use crate::layouts::{
-    Eligibility, RANDOM, RANDOM_COLONIZABLE, RANDOM_NON_COLONIZABLE, STAR, SaveFacts, Unsupported,
-    eligibility, generic, layout_stars, odds, special_initializers, star_body,
+    Dlc, Eligibility, SaveFacts, StarSource, USAGE, Unsupported, eligibility, generic,
+    layout_stars, odds, plain_initializers, special_initializers, star_body, star_source,
 };
+use crate::menu::menu_initializers;
+use crate::naming;
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
+use crate::rng::Rng;
 
-pub use crate::layouts::{USAGE, plain_initializers};
-
-/// Separates the name draw from the system draw of the same seed.
-const NAME_STREAM: u64 = 0x6E61_6D65;
 /// Separates the deposit draw from the system draw of the same seed.
 const DEPOSIT_STREAM: u64 = 0x6465_706F;
 /// Separates the ring draw from the system draw of the same seed.
@@ -65,13 +62,9 @@ pub fn star_classes(gd: &GameData) -> Vec<String> {
         .into_iter()
         .chain(generic_specials(gd))
     {
-        let key = init.class.as_deref().unwrap_or_default();
-        let listed = gd
-            .star_lists
-            .get(key)
-            .map_or(&[][..], |list| &list.stars[..]);
-        for class in std::iter::once(key).chain(listed.iter().map(String::as_str)) {
-            if produces(gd, init, class) && !classes.iter().any(|held| held == class) {
+        for star in layout_stars(gd, init) {
+            let class = star.key.as_str();
+            if share(gd, init, class) > 0.0 && !classes.iter().any(|held| held == class) {
                 classes.push(class.to_owned());
             }
         }
@@ -85,7 +78,7 @@ pub fn star_classes(gd: &GameData) -> Vec<String> {
 pub fn star_pick_layouts(gd: &GameData) -> Vec<&Initializer> {
     let mut layouts: Vec<&Initializer> = Vec::new();
     for class in star_classes(gd) {
-        for (init, _) in candidates(gd, Some(&class)) {
+        for (init, _) in layouts_for(gd, Some(&class)) {
             if !layouts.iter().any(|held| held.name == init.name) {
                 layouts.push(init);
             }
@@ -115,47 +108,29 @@ pub fn generate(
     {
         return Err(GenerateError::UnknownStar(class.to_owned()));
     }
-    let mut rng = Rng(seed);
-    let layouts = candidates(gd, star_class);
+    let mut rng = Rng::new(seed);
+    let layouts = layouts_for(gd, star_class);
     let Some(&init) = rng.weighted(&layouts) else {
         return Err(match star_class {
             Some(class) => GenerateError::NoLayoutFor(class.to_owned()),
             None => GenerateError::NoInitializer,
         });
     };
-    build(gd, init, rng, seed, name, at, star_class, abundance, None)
+    let draw = Draw {
+        seed,
+        star_class,
+        abundance,
+        save: None,
+    };
+    build(gd, init, rng, &draw, name, at)
 }
 
-/// A system of the plain or special layout `layout`, rolled as [`generate`] rolls one. An
-/// `if` of its bodies' effects that asks for a DLC takes the DLC as there.
-pub fn generate_layout(
-    gd: &GameData,
-    seed: u64,
-    name: &str,
-    at: (f64, f64),
-    layout: &str,
-    abundance: f64,
-) -> Result<SystemSpec, GenerateError> {
-    layout_for(gd, None, seed, name, at, layout, abundance)
-}
-
-/// A system of `layout` for `save`, whose DLC answers an `if` of its bodies' effects:
-/// Larionessi Refuge's relic world stays one only with Ancient Relics.
+/// A system of the plain or special layout `layout` for `save`, rolled as [`generate`]
+/// rolls one, whose DLC answers an `if` of its bodies' effects: Larionessi Refuge's relic
+/// world stays one only with Ancient Relics.
 pub fn generate_layout_for(
     gd: &GameData,
     save: &SaveFacts,
-    seed: u64,
-    name: &str,
-    at: (f64, f64),
-    layout: &str,
-    abundance: f64,
-) -> Result<SystemSpec, GenerateError> {
-    layout_for(gd, Some(save), seed, name, at, layout, abundance)
-}
-
-fn layout_for(
-    gd: &GameData,
-    save: Option<&SaveFacts>,
     seed: u64,
     name: &str,
     at: (f64, f64),
@@ -169,12 +144,18 @@ fn layout_for(
     if let Eligibility::Unsupported(why) = eligibility(gd, init) {
         return Err(GenerateError::Unsupported(layout.to_owned(), why));
     }
-    build(gd, init, Rng(seed), seed, name, at, None, abundance, save)
+    let draw = Draw {
+        seed,
+        star_class: None,
+        abundance,
+        save: Some(save),
+    };
+    build(gd, init, Rng::new(seed), &draw, name, at)
 }
 
 /// The layouts a draw is made among, each with its weight: the plain ones, or for a star
 /// class, the plain ones that make it, else the generic special ones that do.
-fn candidates<'g>(gd: &'g GameData, star_class: Option<&str>) -> Vec<(&'g Initializer, f64)> {
+pub fn layouts_for<'g>(gd: &'g GameData, star_class: Option<&str>) -> Vec<(&'g Initializer, f64)> {
     let weigh = |layouts: Vec<&'g Initializer>| -> Vec<(&'g Initializer, f64)> {
         layouts
             .into_iter()
@@ -202,19 +183,25 @@ fn generic_specials(gd: &GameData) -> Vec<&Initializer> {
         .collect()
 }
 
-#[allow(clippy::too_many_arguments)]
+/// What a system is rolled from beside its layout: the seed, the star class asked for, the
+/// save's Resource Abundance, and the save whose DLC answers the bodies' `if`s.
+struct Draw<'a> {
+    seed: u64,
+    star_class: Option<&'a str>,
+    abundance: f64,
+    save: Option<&'a SaveFacts>,
+}
+
 fn build(
     gd: &GameData,
     init: &Initializer,
     mut rng: Rng,
-    seed: u64,
+    draw: &Draw<'_>,
     name: &str,
     (x, y): (f64, f64),
-    star_class: Option<&str>,
-    abundance: f64,
-    save: Option<&SaveFacts>,
 ) -> Result<SystemSpec, GenerateError> {
-    let star_class = match star_class.and_then(|class| gd.star_classes.get(class)) {
+    let seed = draw.seed;
+    let star_class = match draw.star_class.and_then(|class| gd.star_classes.get(class)) {
         Some(fixed) => fixed,
         None => roll_star(gd, init, &mut rng)?,
     };
@@ -222,16 +209,16 @@ fn build(
         gd,
         star_class,
         rng,
-        rings: Rng(seed ^ RING_STREAM),
+        rings: Rng::new(seed ^ RING_STREAM),
         blocks: Vec::new(),
         star_named_by_class: false,
     };
     let (mut star, mut planets) = roller.bodies(&init.planets)?;
     Deposits {
         gd,
-        abundance,
-        rng: Rng(seed ^ DEPOSIT_STREAM),
-        save,
+        abundance: draw.abundance,
+        rng: Rng::new(seed ^ DEPOSIT_STREAM),
+        save: draw.save,
     }
     .give(&mut star, &mut planets, &roller.blocks);
     Ok(SystemSpec {
@@ -262,18 +249,12 @@ pub fn settle_name(
     fallback: &str,
     seed: u64,
 ) {
-    let used: HashSet<&str> = session
-        .graph
-        .systems
-        .values()
-        .map(|system| system.name.key.as_str())
-        .collect();
     let fixed = gd
         .initializers
         .get(&spec.initializer)
         .and_then(|init| init.display_name.as_deref());
     if fixed == Some(spec.name.as_str()) {
-        if used.contains(spec.name.as_str()) {
+        if naming::system_names(session).contains(spec.name.as_str()) {
             spec.name = fallback.to_owned();
         }
         return;
@@ -282,57 +263,123 @@ pub fn settle_name(
         .star_classes
         .get(&spec.star_class)
         .is_some_and(|class| class.class == BLACK_HOLE);
-    if !black_hole {
-        return;
-    }
-    let left: Vec<String> = gd
-        .black_hole_names
-        .iter()
-        .filter(|name| !used.contains(name.as_str()))
-        .cloned()
-        .collect();
-    if let Some(name) = pick_name(&left, seed) {
-        spec.name = name.to_owned();
+    if black_hole && let Some(name) = naming::pick_black_hole_name(session, gd, seed) {
+        spec.name = name;
     }
 }
 
-/// A name for a new system in `session`'s save, drawn from `seed`: one left in the save's
-/// pool of unused star names, else one of the install's star names no system of the save
-/// holds. `None` when neither has one left.
-pub fn pick_system_name(session: &Session, gd: &GameData, seed: u64) -> Option<String> {
-    let used: HashSet<&str> = session
-        .graph
-        .systems
-        .values()
-        .map(|system| system.name.key.as_str())
-        .collect();
-    let mut seen = HashSet::new();
-    let pooled: Vec<String> = free_star_names(&session.doc)
+/// What a system added to a save is built from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Pick {
+    /// Rolled from the plain layouts, around the star class when one is given.
+    Random(Option<String>),
+    /// Built from this plain or special layout.
+    Layout(String),
+}
+
+/// Why no system could be built for a save.
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+pub enum ForSaveError {
+    #[error("the save and the install have no unused star names left")]
+    NoNames,
+    #[error("system {0} does not exist")]
+    NoSystem(u32),
+    #[error(transparent)]
+    Generate(#[from] GenerateError),
+}
+
+impl Pick {
+    /// How the added system `system` of `session`'s save is rolled again: from its own
+    /// layout when `keep_special` and the Special menu offers that layout, else at random
+    /// around `star_class`, or any class without one.
+    pub fn of_added(
+        session: &Session,
+        gd: &GameData,
+        system: u32,
+        keep_special: bool,
+        star_class: Option<String>,
+    ) -> Result<Self, ForSaveError> {
+        let node = session
+            .system(system)
+            .ok_or(ForSaveError::NoSystem(system))?;
+        let special = keep_special
+            && menu_initializers(gd)
+                .iter()
+                .any(|init| init.name == node.initializer);
+        Ok(match special {
+            true => Self::Layout(node.initializer.clone()),
+            false => Self::Random(star_class),
+        })
+    }
+
+    /// The system this pick gives for `session`'s save, named `name` at `at`: its deposits
+    /// at the Resource Abundance the save was set up with, and a layout's DLC branches as
+    /// the save was played.
+    pub fn spec(
+        &self,
+        gd: &GameData,
+        session: &Session,
+        seed: u64,
+        name: &str,
+        at: (f64, f64),
+    ) -> Result<SystemSpec, GenerateError> {
+        let abundance = gd.deposit_defines.abundance(session.resource_abundance());
+        match self {
+            Self::Random(class) => generate(gd, seed, name, at, class.as_deref(), abundance),
+            Self::Layout(layout) => generate_layout_for(
+                gd,
+                &SaveFacts::read(session),
+                seed,
+                name,
+                at,
+                layout,
+                abundance,
+            ),
+        }
+    }
+}
+
+/// A system for `session`'s save at `at` from `seed`, as `pick` gives it, named from the
+/// save's pool of unused star names and then as [`settle_name`] settles it.
+pub fn for_save(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    at: (f64, f64),
+    pick: &Pick,
+) -> Result<SystemSpec, ForSaveError> {
+    let name = naming::pick_system_name(session, gd, seed).ok_or(ForSaveError::NoNames)?;
+    let mut spec = pick.spec(gd, session, seed, &name, at)?;
+    settle_name(session, gd, &mut spec, &name, seed);
+    Ok(spec)
+}
+
+/// The system `system` of `session`'s save rolled again from `seed` as `pick`, keeping its
+/// name and position.
+pub fn reroll(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    system: u32,
+    pick: &Pick,
+) -> Result<SystemSpec, ForSaveError> {
+    let node = session
+        .system(system)
+        .ok_or(ForSaveError::NoSystem(system))?;
+    let (name, at) = (node.name.key.clone(), (node.x, node.y));
+    let mut spec = pick.spec(gd, session, seed, &name, at)?;
+    spec.name = name;
+    Ok(spec)
+}
+
+/// The systems among `ids` that were added to `session`'s save since it was opened, which
+/// are the only ones a save can delete, each once and in id order.
+pub fn added_among(session: &Session, ids: impl IntoIterator<Item = u32>) -> Vec<u32> {
+    let added: std::collections::BTreeSet<u32> = ids
         .into_iter()
-        .filter(|name| !used.contains(name.as_str()) && seen.insert(name.clone()))
+        .filter(|&id| session.system(id).is_some_and(|s| s.added))
         .collect();
-    if let Some(name) = pick_name(&pooled, seed) {
-        return Some(name.to_owned());
-    }
-    let left: Vec<String> = gd
-        .star_names
-        .iter()
-        .filter(|name| !used.contains(name.as_str()))
-        .cloned()
-        .collect();
-    pick_name(&left, seed).map(str::to_owned)
-}
-
-/// One of `names`, drawn from `seed`; `None` when there are none.
-pub fn pick_name(names: &[String], seed: u64) -> Option<&str> {
-    let last = i64::try_from(names.len()).ok()?.checked_sub(1)?;
-    let index = Rng(seed ^ NAME_STREAM).int(0, last);
-    names.get(usize::try_from(index).ok()?).map(String::as_str)
-}
-
-/// Whether `init` can give a system of star class `class`.
-fn produces(gd: &GameData, init: &Initializer, class: &str) -> bool {
-    share(gd, init, class) > 0.0
+    added.into_iter().collect()
 }
 
 /// How often `init` gives a system of star class `class`: always for its one class, else
@@ -370,22 +417,18 @@ fn roll_star<'g>(
 ) -> Result<&'g StarClass, GenerateError> {
     let key = init.class.as_deref().unwrap_or_default();
     let stars = layout_stars(gd, init);
-    if gd.star_classes.get(key).is_some() {
-        return stars
-            .first()
-            .copied()
-            .ok_or_else(|| GenerateError::NoStar(key.to_owned()));
-    }
-    if gd.star_lists.get(key).is_none() {
-        return Err(GenerateError::UnknownStar(key.to_owned()));
-    }
-    let weighted: Vec<(&StarClass, f64)> = stars
-        .into_iter()
-        .map(|star| (star, star.spawn_odds))
-        .collect();
-    rng.weighted(&weighted)
-        .copied()
-        .ok_or_else(|| GenerateError::NoStar(key.to_owned()))
+    let drawn = match star_source(gd, init) {
+        StarSource::Fixed(_) => stars.first().copied(),
+        StarSource::List(_) => {
+            let weighted: Vec<(&StarClass, f64)> = stars
+                .into_iter()
+                .map(|star| (star, star.spawn_odds))
+                .collect();
+            rng.weighted(&weighted).copied()
+        }
+        StarSource::Unknown => return Err(GenerateError::UnknownStar(key.to_owned())),
+    };
+    drawn.ok_or_else(|| GenerateError::NoStar(key.to_owned()))
 }
 
 /// Walks an initializer's bodies as the engine does, as far as the script says: each
@@ -458,16 +501,16 @@ impl<'g> Roller<'g> {
         orbit: f64,
         angle: f64,
     ) -> Result<BodySpec, GenerateError> {
-        let key = match block.class == STAR {
-            true => self
+        let key = match &block.class {
+            BodyClass::Named(key) => {
+                self.star_named_by_class = true;
+                key
+            }
+            _ => self
                 .star_class
                 .planet_keys
                 .first()
                 .ok_or_else(|| GenerateError::NoStarBody(self.star_class.key.clone()))?,
-            false => {
-                self.star_named_by_class = true;
-                &block.class
-            }
         };
         let class = self
             .gd
@@ -477,6 +520,7 @@ impl<'g> Roller<'g> {
         let size = self.size(block, class, class.planet_size)?;
         Ok(BodySpec {
             name: None,
+            star: true,
             ..body(class, size, orbit, angle, block)
         })
     }
@@ -513,15 +557,18 @@ impl<'g> Roller<'g> {
 
     fn class(
         &mut self,
-        class: &str,
+        class: &BodyClass,
         orbit: f64,
         moon: bool,
     ) -> Result<&'g PlanetClassDef, GenerateError> {
         let colonizable = match class {
-            RANDOM => None,
-            RANDOM_COLONIZABLE => Some(true),
-            RANDOM_NON_COLONIZABLE => Some(false),
-            _ => return self.fixed_or_listed(class, moon),
+            BodyClass::Random(colonizable) => *colonizable,
+            BodyClass::Named(key) => return self.fixed_or_listed(key, moon),
+            BodyClass::Star => {
+                return Err(GenerateError::UnknownPlanetClass(
+                    class.written().to_owned(),
+                ));
+            }
         };
         let banded = self.drawable(moon, colonizable, Some(orbit));
         let none_banded = banded.iter().all(|(_, weight)| *weight <= 0.0);
@@ -546,18 +593,15 @@ impl<'g> Roller<'g> {
         let star = self.star_class;
         self.gd
             .planet_classes
-            .iter()
+            .drawable(colonizable)
             .filter(|c| {
-                !c.star
-                    && !c.asteroid
-                    && c.distance_from_sun
-                        .is_some_and(|band| orbit.is_none_or(|orbit| band.contains(orbit)))
+                c.distance_from_sun
+                    .is_some_and(|band| orbit.is_none_or(|orbit| band.contains(orbit)))
             })
             .filter(|c| match moon {
                 true => c.moon_size.is_some() && c.can_be_moon,
                 false => c.planet_size.is_some(),
             })
-            .filter(|c| colonizable.is_none_or(|wanted| c.colonizable == wanted))
             .map(|c| (c, c.spawn_odds * star.planet_odds(&c.key)))
             .collect()
     }
@@ -585,11 +629,10 @@ impl<'g> Roller<'g> {
             true => moons,
             false => listed,
         };
-        let last = pool.len() as i64 - 1;
-        if last < 0 {
-            return Err(GenerateError::UnknownPlanetClass(class.to_owned()));
-        }
-        Ok(pool[self.rng.int(0, last) as usize])
+        self.rng
+            .pick(&pool)
+            .copied()
+            .ok_or_else(|| GenerateError::UnknownPlanetClass(class.to_owned()))
     }
 
     /// The block's own `size` when it fixes one, else the class's.
@@ -634,9 +677,9 @@ impl<'g> Roller<'g> {
     }
 }
 
-/// A body of `class` as `block` writes it: its fixed name and model. An
-/// asteroid with no fixed name is named from the save's pool, unless it is a moon, which is
-/// lettered after its planet.
+/// A body of `class` as `block` writes it: its fixed name and model, and whether the
+/// install makes its class a star. An asteroid with no fixed name is named from the save's
+/// pool, unless it is a moon, which is lettered after its planet.
 fn body(class: &PlanetClassDef, size: u32, orbit: f64, angle: f64, block: &InitPlanet) -> BodySpec {
     BodySpec {
         class: class.key.clone(),
@@ -647,6 +690,7 @@ fn body(class: &PlanetClassDef, size: u32, orbit: f64, angle: f64, block: &InitP
         asteroid: class.asteroid && block.name.is_none(),
         name: block.name.clone(),
         entity_name: block.entity.clone(),
+        star: class.star,
         ..Default::default()
     }
 }
@@ -681,65 +725,9 @@ impl Deposits<'_> {
             star,
             moon,
         };
-        let rng = &mut self.rng;
-        body.deposits = roll_deposits(self.gd, &rolled, self.abundance, &mut || rng.unit());
+        body.deposits = roll_deposits(self.gd, &rolled, self.abundance, &mut self.rng);
         if let Some(block) = block {
-            let save = self.save;
-            let has_dlc = |dlc: &str| save.is_none_or(|save| save.dlcs.contains(dlc));
-            body_effects::apply(self.gd, &block.effects, body, &has_dlc);
+            body_effects::apply(self.gd, &block.effects, body, &Dlc::of(self.gd, self.save));
         }
-    }
-}
-
-/// SplitMix64: small, fast and fixed, so a seed means the same system whatever crate
-/// versions build it.
-struct Rng(u64);
-
-impl Rng {
-    fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    /// In `[0, 1)`.
-    fn unit(&mut self) -> f64 {
-        (self.next() >> 11) as f64 / (1u64 << 53) as f64
-    }
-
-    /// In `[min, max]`; `min` when the bounds cross.
-    fn int(&mut self, min: i64, max: i64) -> i64 {
-        if max <= min {
-            return min;
-        }
-        let span = max.abs_diff(min) + 1;
-        min + (self.next() % span) as i64
-    }
-
-    fn between(&mut self, range: Range) -> f64 {
-        range.min + (range.max - range.min) * self.unit()
-    }
-
-    /// One item, each as likely as its weight; `None` when no weight is above zero.
-    fn weighted<'a, T>(&mut self, items: &'a [(T, f64)]) -> Option<&'a T> {
-        let total: f64 = items.iter().map(|(_, w)| w.max(0.0)).sum();
-        if total <= 0.0 {
-            return None;
-        }
-        let mut pick = self.unit() * total;
-        for (item, weight) in items {
-            let weight = weight.max(0.0);
-            if pick < weight {
-                return Some(item);
-            }
-            pick -= weight;
-        }
-        items
-            .iter()
-            .rev()
-            .find(|(_, w)| *w > 0.0)
-            .map(|(item, _)| item)
     }
 }

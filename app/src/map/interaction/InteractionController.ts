@@ -7,19 +7,10 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
-import {
-  movedIds,
-  movePlan,
-  plannedMoveOp,
-  plannedMoves,
-  type MoveOp,
-  type MovePlan,
-} from "../../store/symmetricEdits";
 import { useToolStore } from "../../store/toolStore";
 import type { Camera } from "../Camera";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
-import type { DragState, MapLayer } from "../layers/MapLayer";
-import type { MoveGhost } from "../moveGhosts";
+import type { MapLayer } from "../layers/MapLayer";
 import {
   pickEdge,
   pickFeZone,
@@ -38,9 +29,9 @@ import { FeZoneDrag } from "./feZoneDrag";
 import { GestureModel } from "./GestureModel";
 import { GestureReporter } from "./gesture";
 import type { InputKind, LaneSource, MapInput, MapIntent, MapModel } from "./MapIntent";
+import { MoveDrag } from "./moveDrag";
 import { NebulaDrag } from "./nebulaDrag";
 import { groupOf } from "./press";
-import { SettlingPreview } from "./settlingPreview";
 
 const editor = () => useEditorStore.getState();
 
@@ -51,11 +42,6 @@ const FE_ZONE_SECTION = "system.feZone";
 function expandSection(id: string): void {
   const inspector = useInspectorStore.getState();
   if (inspector.collapsed(id, false)) inspector.toggleSection(id, false);
-}
-
-function dragState(ghosts: MoveGhost[]): DragState | null {
-  if (ghosts.length === 0) return null;
-  return { ghosts, byId: new Map(ghosts.map((g) => [g.id, g])) };
 }
 
 /** One control model per tool, the brushes each reading the erase target at the press. */
@@ -80,7 +66,7 @@ export class InteractionController {
   private readonly brushes: BrushStrokes;
   private readonly nebulae: NebulaDrag;
   private readonly feZones: FeZoneDrag;
-  private readonly moves: SettlingPreview;
+  private readonly moves: MoveDrag;
   private model: MapModel = this.models.select;
   private readonly intent: MapIntent;
   private panFrom: { sx: number; sy: number } | null = null;
@@ -93,8 +79,6 @@ export class InteractionController {
   /** The last move over the canvas, so Alt going down or up can be replayed there. */
   private lastMove: MapInput | null = null;
   private readonly gesture = new GestureReporter();
-  /** The counterparts the drag in progress carries, found once when it starts. */
-  private movePlan: MovePlan | null = null;
   /** The pointer in world units, rewritten per event rather than allocated. */
   private readonly at: Pt = { x: 0, y: 0 };
   private readonly index = new PickIndex();
@@ -104,12 +88,12 @@ export class InteractionController {
     private readonly canvas: HTMLCanvasElement,
     private readonly cam: Camera,
     private readonly highlights: HighlightsLayer,
-    private readonly layers: readonly MapLayer[] = [],
+    layers: readonly MapLayer[] = [],
   ) {
     this.brushes = new BrushStrokes(cam, highlights.brush, highlights.guide);
     this.nebulae = new NebulaDrag(cam, highlights);
     this.feZones = new FeZoneDrag(cam, highlights);
-    this.moves = new SettlingPreview(() => this.showGhosts([]));
+    this.moves = new MoveDrag(layers);
     this.intent = this.buildIntent();
 
     this.model = this.models[useToolStore.getState().tool];
@@ -128,29 +112,9 @@ export class InteractionController {
     );
   }
 
-  private showGhosts(ghosts: MoveGhost[]): void {
-    const drag = dragState(ghosts);
-    for (const layer of this.layers) layer.setDragState?.(drag);
-  }
-
   private buildIntent(): MapIntent {
     const { cam, highlights } = this;
     const systems = () => useGalaxyStore.getState().systems;
-    const plan = (ids: readonly number[]) => (this.movePlan ??= movePlan(ids));
-    const showMoves = (ids: readonly number[], moves: MoveGhost[]) => {
-      this.moves.update();
-      this.showGhosts(plannedMoves(plan(ids), moves));
-    };
-    const commit = (op: MoveOp) => {
-      const planned = plannedMoveOp(plan(movedIds(op)), op);
-      this.movePlan = null;
-      this.moves.settle(editor().applyOp(planned));
-    };
-    const groupGhosts = (ids: number[], dx: number, dy: number): MoveGhost[] =>
-      ids.flatMap((id) => {
-        const s = systems().get(id);
-        return s ? [{ id, x: s.x + dx, y: s.y + dy }] : [];
-      });
     const linkAll = (anchor: number, ids: number[]) => editor().linkToFeZoneAll(anchor, ids);
 
     return {
@@ -183,23 +147,17 @@ export class InteractionController {
         }
         void editor().setSelection(ids, mode);
       },
-      previewMove: (id, x, y) =>
-        showMoves([id], [{ id, x: x + this.grab.dx, y: y + this.grab.dy }]),
-      commitMove: (id, x, y) =>
-        commit({ type: "MoveSystem", id, x: x + this.grab.dx, y: y + this.grab.dy }),
-      previewMoveGroup: (ids, dx, dy) => showMoves(ids, groupGhosts(ids, dx, dy)),
-      commitMoveGroup: (ids, dx, dy) =>
-        commit({ type: "MoveSystems", moves: groupGhosts(ids, dx, dy) }),
-      cancelMove: () => {
-        this.movePlan = null;
-        this.moves.drop();
-      },
+      previewMove: (id, x, y) => this.moves.move(id, x + this.grab.dx, y + this.grab.dy),
+      commitMove: (id, x, y) => this.moves.commitMove(id, x + this.grab.dx, y + this.grab.dy),
+      previewMoveGroup: (ids, dx, dy) => this.moves.moveGroup(ids, dx, dy),
+      commitMoveGroup: (ids, dx, dy) => this.moves.commitGroup(ids, dx, dy),
+      cancelMove: () => this.moves.cancel(),
       previewLane: (from, x, y, target) => {
-        highlights.setRubberLane({ from, x, y, target });
+        highlights.laneDrag.setRubber({ from, x, y, target });
         this.gesture.connect();
       },
       endLane: () => {
-        highlights.setRubberLane(null);
+        highlights.laneDrag.setRubber(null);
         this.gesture.endConnect();
       },
       connect: (from, target) => {
@@ -351,8 +309,8 @@ export class InteractionController {
     if (input) this.addedTip.update(input.system, input.sx, input.sy);
     else this.addedTip.drop();
     this.highlights.setHoverEdge(edge);
-    this.highlights.setHoverFeZone(input?.feZone?.anchor ?? null);
-    this.highlights.setPortHot(input?.zone === "port");
+    this.highlights.laneDrag.setHoverFeZone(input?.feZone?.anchor ?? null);
+    this.highlights.laneDrag.setPortHot(input?.zone === "port");
     this.gesture.hover(edge !== null);
   }
 

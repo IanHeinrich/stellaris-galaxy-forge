@@ -1,4 +1,4 @@
-import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { useCanEdit } from "../../../store/fileSessionStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { EntityView } from "./EntityView";
 import { PlanetPageView } from "./PlanetPage";
@@ -9,8 +9,8 @@ import { PlanetPageView } from "./PlanetPage";
  */
 export function PlanetView({ entry }: { entry: Entry }) {
   const tab = useInspectorStore((s) => s.tab);
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
-  if (tab !== "overview" || scenario || entry.ref.kind !== "planet") {
+  const bodies = useCanEdit("bodies");
+  if (tab !== "overview" || !bodies || entry.ref.kind !== "planet") {
     return <EntityView entry={entry} />;
   }
   return <PlanetPageView entry={entry} id={entry.ref.id} />;

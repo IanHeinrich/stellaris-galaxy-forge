@@ -4,7 +4,6 @@
 
 use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
-use sgf_core::views::DocumentKind;
 
 use crate::common;
 use common::current;
@@ -271,23 +270,4 @@ fn a_key_inserted_and_removed_again_is_byte_identical() {
         .expect("remove the key just inserted");
     assert_eq!(current(&session), fixture);
     assert_eq!(field(&session, "nomad_empire_default"), None);
-}
-
-#[test]
-fn a_save_refuses_the_header_op() {
-    let mut session = common::open();
-    let error = session
-        .apply(set("core_radius", Some("25")))
-        .expect_err("a save has no scenario header");
-    assert!(
-        matches!(
-            error,
-            OpError::Unsupported {
-                kind: DocumentKind::Save,
-                ..
-            }
-        ),
-        "{error:?}"
-    );
-    assert!(!session.doc.is_dirty());
 }

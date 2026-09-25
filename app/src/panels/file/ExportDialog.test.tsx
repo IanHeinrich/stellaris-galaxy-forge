@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { elements } from "../../test/elements";
+import { buttonIn, elements } from "../../test/elements";
 import { stubPrefs } from "../../test/prefs";
 
 vi.mock("../../api/ipc");
@@ -17,7 +17,6 @@ import { ExportDialog, ExportForm, ExportReportRows } from "./ExportDialog";
 import { PaintChoice } from "./PaintChoice";
 import {
   countsSummary,
-  droppedSummary,
   fallenEmpiresSummary,
   homeInitializerLines,
   omittedLines,
@@ -31,6 +30,7 @@ const FULL = exportReport({
     { system: 12, initializer: "void_dwellers_start", replaced: false },
   ],
   dropped: { wormhole_pairs: 6, gateways: 0, lgates: 1 },
+  dropped_summary: "6 wormhole pairs, 1 L-Gate",
   by_category: [
     { category: "home", systems: 17 },
     { category: "fallen_empire", systems: 28 },
@@ -84,15 +84,6 @@ const PAINTED = exportReport({
 const id = (system: number) => `system ${system}`;
 
 const row = (label: string, value: string) => `<dt>${label}</dt><dd>${value}</dd>`;
-
-function button(tree: ReactNode, text: string): ReactElement<{ onClick: () => void }> {
-  const found = elements(tree).find(
-    (el): el is ReactElement<{ onClick: () => void }> =>
-      el.type === "button" && renderToStaticMarkup(el).includes(text),
-  );
-  expect(found).toBeDefined();
-  return found!;
-}
 
 function form(tree: ReactNode): ReactElement<{ onSubmit: (e: unknown) => void }> {
   const found = elements(tree).find(
@@ -286,14 +277,6 @@ describe("the report", () => {
       replaced: ["system 311 had shattered_ring_start, replaced with a generic start."],
     });
   });
-
-  it("words the dropped bypasses as the file's own comment does", () => {
-    expect(droppedSummary({ wormhole_pairs: 0, gateways: 0, lgates: 0 })).toBeNull();
-    expect(droppedSummary({ wormhole_pairs: 1, gateways: 2, lgates: 0 })).toBe(
-      "1 wormhole pair, 2 gateways",
-    );
-    expect(droppedSummary({ wormhole_pairs: 0, gateways: 0, lgates: 1 })).toBe("1 L-Gate");
-  });
 });
 
 describe("the dialog", () => {
@@ -350,7 +333,7 @@ describe("the dialog", () => {
     expect(renderToStaticMarkup(<ExportForm report={FULL} />)).toContain(
       '<button type="submit">Export</button>',
     );
-    button(<ExportForm report={FULL} />, "Cancel").props.onClick();
+    buttonIn(<ExportForm report={FULL} />, "Cancel")!.props.onClick();
     expect(confirmExport).toHaveBeenLastCalledWith(null);
   });
 });

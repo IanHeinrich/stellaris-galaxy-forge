@@ -7,6 +7,7 @@
 //! caller degrades to raw keys.
 
 pub mod body_effects;
+pub mod condition;
 pub mod deposit_roll;
 pub mod details;
 pub mod generate;
@@ -14,25 +15,32 @@ pub mod initializers;
 pub mod install;
 pub mod layouts;
 pub mod loc;
+pub mod menu;
 pub mod naming;
 pub mod planet_views;
 pub mod registries;
 pub mod reload;
 pub(crate) mod resolver;
+pub mod rng;
 pub mod scripts;
 pub mod special;
 pub mod summary;
 pub mod textures;
 pub mod views;
+pub mod weight;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
-use install::script::Variables;
-use install::{discovery, mods};
-use registries::defines::DefineFiles;
+use install::script::{ParsedDir, Variables};
+use install::{discovery, mods, script};
+use layouts::Eligibility;
 use registries::galaxy_sizes::GalaxySizes;
-use registries::{colors, gfx, nebula_names, planet_lists, registry, star_names, starbase_levels};
+use registries::planet_classes::PlanetClassDef;
+use registries::registry::FromDef;
+use registries::star_classes::StarClass;
+use registries::{colors, gfx, planet_lists, registry, star_names, starbase_levels};
 
 pub use initializers::Initializers;
 pub use install::layers::Layout;
@@ -105,6 +113,8 @@ pub struct GameData {
     pub diagnostics: Vec<Diagnostic>,
     /// What finding the mods raised, which a reread through the same layout keeps.
     discovery: Vec<Diagnostic>,
+    /// What the generator makes of each layout, worked out once for these registries.
+    eligibility: Arc<OnceLock<HashMap<String, Eligibility>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -224,6 +234,16 @@ pub fn load(opts: &LoadOptions, progress: &mut dyn FnMut(Phase)) -> Result<GameD
 }
 
 impl GameData {
+    /// What the generator makes of each layout of the install, by key.
+    pub(crate) fn eligibility(&self) -> &HashMap<String, Eligibility> {
+        self.eligibility.get_or_init(|| {
+            self.initializers
+                .iter()
+                .map(|init| (init.name.clone(), layouts::judge(self, init)))
+                .collect()
+        })
+    }
+
     /// Every definition and the localisation, read through `layout`.
     pub(crate) fn read(
         layout: Layout,
@@ -239,14 +259,13 @@ impl GameData {
         let initializers = Initializers::load(&layout, &vars, &mut diagnostics);
         let scripts = ScriptIndex::load(&layout, &initializers, &vars, &mut diagnostics);
         let country_types = registry::load(&layout, &vars, &mut diagnostics);
-        let star_classes = registry::load(&layout, &vars, &mut diagnostics);
-        // The same directory as the star classes, whose load has already reported its files.
-        let star_lists = registry::load(&layout, &vars, &mut Vec::new());
-        let star_names = star_names::load(&layout, &mut diagnostics);
-        // The same files as the star names, whose load has already reported them.
-        let nebula_names = nebula_names::load(&layout, &mut Vec::new());
-        // The same files, which the star names' load has already reported.
-        let black_hole_names = star_names::load_black_holes(&layout, &mut Vec::new());
+        let star_defs = script::parse_dir(&layout, StarClass::DIR, &vars, &mut diagnostics);
+        let star_classes = registry::from_defs(&star_defs);
+        let star_lists = registry::from_defs(&star_defs);
+        let random_names = ParsedDir::load(&layout, star_names::DIR, &mut diagnostics);
+        let star_names = star_names::names(&random_names, star_names::STARS);
+        let nebula_names = star_names::names(&random_names, star_names::NEBULAE);
+        let black_hole_names = star_names::names(&random_names, star_names::BLACK_HOLES);
         let deposits = registry::load(&layout, &vars, &mut diagnostics);
         let deposit_categories = registry::load(&layout, &vars, &mut diagnostics);
         // Vanilla defines a few static modifiers in two files, which is no one's mistake to report.
@@ -260,16 +279,20 @@ impl GameData {
         let planet_modifiers = registry::load(&layout, &vars, &mut diagnostics);
         let colony_types = registry::load(&layout, &vars, &mut diagnostics);
         let bypasses = registry::load(&layout, &vars, &mut diagnostics);
-        let planet_classes = registry::load(&layout, &vars, &mut diagnostics);
-        // The planet classes' files, whose load has already reported them.
-        let planet_lists = planet_lists::load(&layout, &mut Vec::new());
+        let planet_dir = ParsedDir::load(&layout, PlanetClassDef::DIR, &mut diagnostics);
+        let planet_lists = planet_lists::read(&planet_dir);
+        let mut overrides = Vec::new();
+        let planet_classes = registry::from_defs(&planet_dir.into_defs(&vars, &mut overrides));
+        diagnostics.extend(overrides.into_iter().filter(
+            |d| !matches!(d, Diagnostic::Override { key, .. } if key == planet_lists::KEY),
+        ));
         let ship_sizes = registry::load(&layout, &vars, &mut diagnostics);
         let starbase_levels = starbase_levels::load(&layout, &ship_sizes, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
         let sprites = gfx::load(&layout, &mut diagnostics);
         let colors = colors::load(&layout, &mut diagnostics);
-        let define_files = DefineFiles::load(&layout, &mut diagnostics);
+        let define_files = ParsedDir::load(&layout, "common/defines", &mut diagnostics);
         let border = BorderDefines::load(&define_files);
         let deposit_defines = DepositDefines::load(&define_files);
         let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
@@ -310,6 +333,7 @@ impl GameData {
             loc: Arc::new(loc),
             diagnostics,
             discovery,
+            eligibility: Arc::default(),
         }
     }
 }

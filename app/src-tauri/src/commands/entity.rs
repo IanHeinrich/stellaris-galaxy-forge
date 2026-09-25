@@ -1,6 +1,7 @@
 //! Reading the open document: a system, one entity's bytes, and search.
 
-use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::sync::Arc;
 
 use sgf_core::entity::{
     self, EntityAddr, EntityKind, EntitySchema, EntitySource, EntityView, PlanetPage,
@@ -12,7 +13,7 @@ use sgf_gamedata::special::{self, SpecialKind};
 use tauri::State;
 
 use super::lock;
-use crate::state::{AppState, GameDataState};
+use crate::state::{AppState, GameDataState, SpecialLabels};
 
 #[tauri::command(async)]
 pub fn get_system(state: State<'_, AppState>, id: u32) -> Result<SystemDetail, SgfError> {
@@ -69,33 +70,51 @@ pub fn search(
 ) -> Result<SearchResult, SgfError> {
     let guard = lock(&state);
     let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    let gd = game_data.loaded();
-    let resolve = |key: &str| gd.as_ref().and_then(|gd| gd.loc.get(key));
-    let kinds = gd
-        .as_deref()
-        .map(|gd| special_labels(&session.graph, gd))
+    let snapshot = game_data.snapshot();
+    let gd = snapshot.as_ref().map(|(_, gd)| gd);
+    let resolve = |key: &str| gd.and_then(|gd| gd.loc.get(key));
+    let kinds = snapshot
+        .as_ref()
+        .map(|(generation, gd)| special_labels(&session.graph, gd, &game_data, *generation))
         .unwrap_or_default();
     let special = |id: u32| kinds.get(&id).cloned().unwrap_or_default();
     Ok(session.search(&query, limit, &resolve, &special))
 }
 
-/// Each special system's kinds, named as the palette's chips name them (`app/src/lib/special.ts`).
-fn special_labels(graph: &GalaxyGraph, gd: &GameData) -> HashMap<u32, Vec<&'static str>> {
-    special::classify(graph, Some(gd))
+/// Each special system's kinds by their labels, kept until the game data or a system's
+/// initializer or flags change, so a query typed a letter at a time classifies once.
+fn special_labels(
+    graph: &GalaxyGraph,
+    gd: &GameData,
+    state: &GameDataState,
+    generation: u64,
+) -> Arc<SpecialLabels> {
+    let digest = classified_from(graph);
+    if let Some(cached) = state.special_labels(generation, digest) {
+        return cached;
+    }
+    let labels: SpecialLabels = special::classify(graph, Some(gd))
         .systems
         .into_iter()
-        .map(|s| (s.id, s.kinds.into_iter().filter_map(kind_label).collect()))
-        .collect()
+        .map(|s| (s.id, s.kinds.into_iter().filter_map(searchable).collect()))
+        .collect();
+    let labels = Arc::new(labels);
+    state.store_special_labels(generation, digest, Arc::clone(&labels));
+    labels
+}
+
+/// What classifying a system reads of it: its id, initializer and flags.
+fn classified_from(graph: &GalaxyGraph) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    for system in graph.systems.values() {
+        system.id.hash(&mut hasher);
+        system.initializer.hash(&mut hasher);
+        system.flags.hash(&mut hasher);
+    }
+    hasher.finish()
 }
 
 /// `Unique` names every hand-written system, so it is not something to search for.
-fn kind_label(kind: SpecialKind) -> Option<&'static str> {
-    match kind {
-        SpecialKind::Leviathan => Some("Leviathan"),
-        SpecialKind::Enclave => Some("Enclave"),
-        SpecialKind::Marauder => Some("Marauder"),
-        SpecialKind::FallenEmpire => Some("Fallen empire"),
-        SpecialKind::Landmark => Some("Landmark"),
-        SpecialKind::Unique => None,
-    }
+fn searchable(kind: SpecialKind) -> Option<&'static str> {
+    (kind != SpecialKind::Unique).then(|| kind.label())
 }

@@ -2,6 +2,7 @@ import type { FocusEvent, KeyboardEvent, ReactNode } from "react";
 import type { Symmetry } from "../../lib/geometry/symmetry";
 import { shortcutLabel } from "../../lib/keys";
 import { useToolStore } from "../../store/toolStore";
+import { Glyph } from "../Glyph";
 import { outsidePressRef } from "../useOutsidePress";
 import { choiceOf, MIRRORS, ROTATIONS, SYMMETRY_OFF, type SymmetryChoice } from "./symmetryChoices";
 import "./chrome.css";
@@ -99,20 +100,9 @@ export function SymmetryControl() {
           }
         }}
       >
-        <svg
-          className="rail-icon"
-          viewBox="0 0 16 16"
-          width="14"
-          height="14"
-          aria-hidden="true"
-          focusable="false"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-        >
+        <Glyph className="rail-icon" size={14}>
           <path d="M8 1.5v13M1.5 8h13M3.4 3.4l9.2 9.2M12.6 3.4l-9.2 9.2" />
-        </svg>
+        </Glyph>
         {on && <span className="symmetry-badge">{choice.short}</span>}
       </button>
       {open && (

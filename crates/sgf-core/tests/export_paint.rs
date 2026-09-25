@@ -2,18 +2,22 @@
 //! it writes on the capitals and their neighbours, the fallen empires it places and the
 //! wormholes it flags.
 use std::collections::BTreeSet;
+use std::sync::LazyLock;
 
 use sgf_core::VERSION;
-use sgf_core::export::{self, DroppedBypasses, ScenarioProfile};
+use sgf_core::document::Document;
+use sgf_core::export::{self, DroppedBypasses, ExportReport, ScenarioProfile};
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::format::scenario::fe_zone::{self, FeKind};
 use sgf_core::format::scenario::header_counts::{SeatCounts, seat_counts};
+use sgf_core::format::scenario::paint::basic_initializer;
 use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
 
 use crate::common;
+use common::coded;
 use common::export::{
     NAME, SAVE_FILE, at_fixture_version, default_capitals, exported_as, find, no_names, no_sources,
     seated,
@@ -42,7 +46,8 @@ fn within(galaxy: &Galaxy, from: &BTreeSet<u32>, jumps: usize) -> BTreeSet<u32> 
 /// The sample save with system `id`'s initializer blanked, since the save itself
 /// names one on every system.
 fn sample_without_initializer(id: u32) -> Session {
-    common::open_edited(|bytes| {
+    common::open_edited(|gamestate| {
+        let bytes = gamestate.as_bytes();
         let section = find(
             bytes,
             0,
@@ -60,7 +65,7 @@ galactic_object=",
         );
         let start = find(bytes, entity, "initializer=\"") + "initializer=\"".len();
         let end = find(bytes, start, "\"");
-        bytes.drain(start..end);
+        gamestate.replace_range(start..end, "");
     })
 }
 
@@ -87,17 +92,45 @@ fn sample_fallen_empires(save: &Session) -> Vec<(u32, u32, FeKind)> {
     fallen
 }
 
+/// The sample's Paint a Galaxy export, its report, and the export indexed as the mod
+/// reads it, made once per test binary.
+static EXPORT: LazyLock<(String, ExportReport, Document)> = LazyLock::new(|| {
+    let (text, report) = exported_as(&common::open(), NAME, ScenarioProfile::PaintAGalaxy);
+    let text = String::from_utf8(text).expect("utf-8");
+    let reopened = Document::from_scenario_bytes(text.clone().into_bytes()).expect("index it");
+    (text, report, reopened)
+});
+
+/// The sample, its Paint a Galaxy export, and the export opened as the mod reads it.
+struct Painted {
+    save: Session,
+    text: &'static str,
+    report: &'static ExportReport,
+    reopened: Session,
+}
+
+fn painted() -> Painted {
+    let (text, report, reopened) = &*EXPORT;
+    Painted {
+        save: common::open(),
+        text,
+        report,
+        reopened: Session::from_document(None, reopened.clone()).expect("project the export"),
+    }
+}
+
+/// The systems the export adds for the sample's three fallen empires, numbered on from
+/// its highest id, 790.
+const ANCHORS: [u32; 3] = [791, 792, 793];
+
 #[test]
-fn the_paint_a_galaxy_export_of_the_sample_matches_its_fixture_and_holds_together() {
-    let save = common::open();
-    let committed = EXPORTED_PAINT.bytes();
-    let (text, report) = exported_as(&save, NAME, ScenarioProfile::PaintAGalaxy);
+fn the_paint_a_galaxy_export_of_the_sample_matches_its_fixture_and_the_saves_setup() {
+    let Painted { text, report, .. } = painted();
     assert_eq!(
-        at_fixture_version(&text),
-        committed,
+        at_fixture_version(text.as_bytes()),
+        EXPORTED_PAINT.bytes(),
         "the fixture is generated: re-export it with `sgf export-scenario --profile paint-a-galaxy` and write its version as 0.0.0"
     );
-    let text = String::from_utf8(text).expect("utf-8");
     assert!(
         text.starts_with(&format!(
             "#\u{200B} created by Stellaris Galaxy Forge {VERSION} (converted from save 2206.11.16.sav)
@@ -147,20 +180,31 @@ static_galaxy_scenario = {{
     );
     assert!(report.setup_from_save);
     assert_eq!(report.omitted, []);
+}
 
+/// Each fallen empire's systems are left out, and one anchor in the save's order after
+/// the kept systems stands where its capital stood, with a generic start, one lane and
+/// the zone flags of the kind its capital's initializer names.
+#[test]
+fn each_fallen_empire_is_replaced_by_a_zone_anchored_on_its_capital() {
+    let Painted {
+        save,
+        report,
+        reopened,
+        ..
+    } = painted();
+    let galaxy: &Galaxy = &reopened.graph;
     let fallen = sample_fallen_empires(&save);
     assert_eq!(
         fallen.iter().map(|f| f.2).collect::<Vec<_>>(),
         [FeKind::Machine, FeKind::Materialist, FeKind::Spiritualist]
     );
-    let max_id = *save.graph.systems.keys().max().unwrap();
-    assert_eq!(max_id, 790);
-    let anchors: Vec<u32> = (1..=3).map(|i| max_id + i).collect();
+    assert_eq!(save.graph.systems.keys().max(), Some(&790));
     assert_eq!(report.fallen_empires.len(), 3);
     for (i, ((country, capital, kind), fe)) in fallen.iter().zip(&report.fallen_empires).enumerate()
     {
         assert_eq!(fe.kind, *kind, "{country}");
-        assert_eq!(fe.anchor, Some(anchors[i]), "{country}");
+        assert_eq!(fe.anchor, Some(ANCHORS[i]), "{country}");
         assert!(fe.exact, "{country}");
         let named = save.graph.countries.iter().find(|c| c.id == *country);
         assert_eq!(fe.name, named.unwrap().name_key, "{capital}");
@@ -174,10 +218,8 @@ static_galaxy_scenario = {{
         [11, 5, 13]
     );
 
-    let reopened = from_scenario_text(&text);
-    let galaxy: &Galaxy = &reopened.graph;
-    let typed = assert_paint_export_holds_together(&save.graph, &reopened.graph, &report);
-    assert_eq!(typed.keys().copied().collect::<Vec<_>>(), anchors);
+    let typed = assert_paint_export_holds_together(&save.graph, &reopened.graph, report);
+    assert_eq!(typed.keys().copied().collect::<Vec<_>>(), ANCHORS);
     let missing = left_out(&save.graph, galaxy);
     for (country, capital, _) in &fallen {
         assert!(missing.contains(capital), "{country}: {capital} is written");
@@ -194,9 +236,9 @@ static_galaxy_scenario = {{
         .filter(|id| !missing.contains(id))
         .copied()
         .collect();
-    kept_order.extend(&anchors);
+    kept_order.extend(ANCHORS);
     assert_eq!(galaxy.order, kept_order);
-    for (anchor, (_, capital, _)) in anchors.iter().zip(&fallen) {
+    for (anchor, (_, capital, _)) in ANCHORS.iter().zip(&fallen) {
         let system = &galaxy.systems[anchor];
         assert_eq!(system.initializer, "painted_galaxy_rl_basic");
         assert_eq!(system.name.key, "");
@@ -210,7 +252,7 @@ static_galaxy_scenario = {{
         assert!(
             effect.ends_with(&format!(
                 "set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_custom_connections set_star_flag = painted_galaxy_fe_custom_connection_id_{} }}",
-                anchor - anchors[0]
+                anchor - ANCHORS[0]
             )),
             "{anchor}: {effect}"
         );
@@ -221,10 +263,21 @@ static_galaxy_scenario = {{
         let off = (centre.0 - old.x).hypot(centre.1 - old.y);
         assert!(off < 0.01, "{anchor}: {centre:?} is {off} from {capital}");
     }
+}
 
-    // Each zone takes the custom connections of the kept systems that had a lane into
-    // the cluster it replaces and stand within the mod's reach of the ring, under the
-    // ids 0, 1 and 2, and no other system links.
+/// Each zone takes the custom connections of the kept systems that had a lane into the
+/// cluster it replaces and stand within the mod's reach of the ring, under the ids 0, 1
+/// and 2, and no other system links.
+#[test]
+fn each_zone_links_the_systems_that_had_a_lane_into_its_cluster() {
+    let Painted {
+        save,
+        report,
+        reopened,
+        ..
+    } = painted();
+    let galaxy: &Galaxy = &reopened.graph;
+    let missing = left_out(&save.graph, galaxy);
     assert_eq!(
         report
             .fallen_empires
@@ -233,7 +286,7 @@ static_galaxy_scenario = {{
             .collect::<Vec<_>>(),
         [6, 7, 12]
     );
-    for (i, (anchor, fe)) in anchors.iter().zip(&report.fallen_empires).enumerate() {
+    for (i, (anchor, fe)) in ANCHORS.iter().zip(&report.fallen_empires).enumerate() {
         let link = &galaxy.systems[anchor].fe_link;
         assert_eq!(
             *link,
@@ -256,25 +309,41 @@ static_galaxy_scenario = {{
     for system in galaxy.systems.values() {
         assert_eq!(
             system.fe_link.custom,
-            anchors.contains(&system.id),
+            ANCHORS.contains(&system.id),
             "{}",
             system.id
         );
         for n in &system.fe_link.to {
-            assert!(usize::from(*n) < anchors.len(), "{}: {n}", system.id);
+            assert!(usize::from(*n) < ANCHORS.len(), "{}: {n}", system.id);
             let old = &save.graph.systems[&system.id];
             assert!(
                 old.lanes.iter().any(|lane| missing.contains(&lane.to)),
                 "{} links to {n} but had no lane into a cluster",
                 system.id
             );
-            let anchor = &galaxy.systems[&anchors[usize::from(*n)]];
-            let centre = fe_zone::centre((anchor.x, anchor.y), &typed[&anchor.id]);
+            let anchor = &galaxy.systems[&ANCHORS[usize::from(*n)]];
+            let zone = anchor.fe_zone.as_ref().expect("the anchor's zone");
+            let centre = fe_zone::centre((anchor.x, anchor.y), zone);
             let reach = (system.x - centre.0).hypot(system.y - centre.1);
             assert!(reach <= 100.0, "{} links to {n} from {reach}", system.id);
         }
     }
+}
 
+/// The player is the United Nations of Earth, so its capital is the Sol seat, which only
+/// the UNE weighs above zero. The game seated the UNE elsewhere while its seat named the
+/// Sol initializer, the UNE's own, so the seat gets a generic start and the empire brings
+/// its home. The Sol seat is the one reserved seat and the player's, so the player is set
+/// aside once: 16 of the 17 seats are open, and the setup's 13 empires stand.
+#[test]
+fn the_une_player_takes_the_sol_seat_on_a_generic_start() {
+    let Painted {
+        save,
+        text,
+        report,
+        reopened,
+    } = painted();
+    let galaxy: &Galaxy = &reopened.graph;
     let player = save
         .graph
         .countries
@@ -286,8 +355,6 @@ static_galaxy_scenario = {{
     assert_eq!(report.player_seat, Some(player));
     assert_eq!(report.player_seat_kind, Some(PaintSpawnKind::Sol));
     assert_eq!(player, 217);
-    // The player is the United Nations of Earth, so its capital is the Sol seat, which
-    // only the UNE weighs above zero.
     assert!(
         save.graph
             .countries
@@ -306,8 +373,6 @@ static_galaxy_scenario = {{
             player: true,
         })
     );
-    // The game seated the UNE elsewhere while its seat named the Sol initializer, the
-    // UNE's own, so the seat gets a generic start and the empire brings its home.
     assert_eq!(galaxy.systems[&player].initializer, "random_empire_init_02");
     assert!(
         text.contains(
@@ -317,8 +382,7 @@ static_galaxy_scenario = {{
         "{text}"
     );
     assert_eq!(text.matches("modifier = {").count(), 1);
-    // The Sol seat is the one reserved seat and the player's, so the player is set
-    // aside once: 16 of the 17 seats are open, and the setup's 13 empires stand.
+
     let seats = seat_counts(galaxy);
     assert_eq!(
         seats,
@@ -329,58 +393,24 @@ static_galaxy_scenario = {{
         }
     );
     assert_eq!(seats.safe(), 16);
-    let players: Vec<u32> = galaxy
-        .systems
-        .values()
-        .filter(|s| {
-            matches!(
-                s.spawn_script,
-                Some(SpawnScript::PaintAGalaxy {
-                    kind: PaintSpawnKind::Sol,
-                    player: true,
-                    ..
-                })
-            )
-        })
-        .map(|s| s.id)
-        .collect();
-    assert_eq!(players, [player]);
-    let others = galaxy
-        .systems
-        .values()
-        .filter(|s| {
-            matches!(
-                s.spawn_script,
-                Some(SpawnScript::PaintAGalaxy {
-                    kind: PaintSpawnKind::Enabled,
-                    player: false,
-                    ..
-                })
-            )
-        })
-        .count();
-    assert_eq!(others, 16);
-    assert_eq!(report.home_initializers.len(), 4);
-    assert!(report.home_initializers.iter().all(|h| h.replaced));
-    // The export gave every one of them a generic start, so none is left to answer for.
-    let reported = report.issues();
-    let homes: Vec<_> = reported
-        .iter()
-        .filter(|i| i.code == IssueCode::HomeInitializer)
-        .collect();
-    assert_eq!(homes.len(), 4);
-    assert!(
-        homes.iter().all(|i| i.severity == Severity::Info),
-        "{homes:?}"
-    );
-    for home in &report.home_initializers {
-        assert_eq!(
-            galaxy.systems[&home.system].initializer,
-            format!("random_empire_init_0{}", home.system % 6 + 1)
-        );
-    }
-    let issues = sgf_core::validate::validate(&reopened.graph);
+    let seated_as = |kind: PaintSpawnKind, player: bool| -> Vec<u32> {
+        galaxy
+            .systems
+            .values()
+            .filter(|s| {
+                matches!(
+                    &s.spawn_script,
+                    Some(SpawnScript::PaintAGalaxy { kind: k, player: p, .. }) if *k == kind && *p == player
+                )
+            })
+            .map(|s| s.id)
+            .collect()
+    };
+    assert_eq!(seated_as(PaintSpawnKind::Sol, true), [player]);
+    assert_eq!(seated_as(PaintSpawnKind::Enabled, false).len(), 16);
+
     // The Sol seat stands on a generic start, so it is no mismatch.
+    let issues = sgf_core::validate::validate(&reopened.graph);
     assert!(
         !issues.iter().any(|i| matches!(
             i.code,
@@ -388,6 +418,37 @@ static_galaxy_scenario = {{
         )),
         "{issues:?}"
     );
+}
+
+/// The export gives every seat whose initializer was an empire's home a generic start,
+/// so each is reported as information only.
+#[test]
+fn every_home_initializer_on_a_seat_is_replaced_by_a_generic_start() {
+    let Painted {
+        report, reopened, ..
+    } = painted();
+    assert_eq!(report.home_initializers.len(), 4);
+    assert!(report.home_initializers.iter().all(|h| h.replaced));
+    let reported = report.issues();
+    let homes = coded(&reported, IssueCode::HomeInitializer);
+    assert_eq!(homes.len(), 4);
+    assert!(
+        homes.iter().all(|i| i.severity == Severity::Info),
+        "{homes:?}"
+    );
+    for home in &report.home_initializers {
+        assert_eq!(
+            reopened.graph.systems[&home.system].initializer,
+            basic_initializer(home.system)
+        );
+    }
+}
+
+/// Leaving the fallen empires out isolates no system the save had linked.
+#[test]
+fn the_export_isolates_no_system_the_save_linked() {
+    let Painted { save, reopened, .. } = painted();
+    let issues = sgf_core::validate::validate(&reopened.graph);
     let isolated: Vec<u32> = issues
         .iter()
         .filter(|i| i.code == IssueCode::SystemIsolated)
@@ -409,13 +470,10 @@ static_galaxy_scenario = {{
 /// The sample with the player's `human_1` country flag taken out: a player that is not
 /// the United Nations of Earth.
 fn sample_without_une_flag() -> Session {
-    common::open_edited(|bytes| {
-        let flag = b"\t\t\thuman_1=62808000\n";
-        let at = bytes
-            .windows(flag.len())
-            .position(|w| w == flag)
-            .expect("the UNE flag in the sample");
-        bytes.drain(at..at + flag.len());
+    common::open_edited(|gamestate| {
+        let flag = "\t\t\thuman_1=62808000\n";
+        assert!(gamestate.contains(flag), "the UNE flag in the sample");
+        *gamestate = gamestate.replacen(flag, "", 1);
     })
 }
 
@@ -504,6 +562,7 @@ fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flag
     // Every pair's ends are written, so the comment lines above the mod's own say
     // nothing was dropped.
     assert_eq!(report.dropped, DroppedBypasses::default());
+    assert_eq!(report.dropped_summary, None);
     assert!(
         report
             .issues()
@@ -586,7 +645,7 @@ static_galaxy_scenario = {{
         assert!(!system.initializer.is_empty(), "{id}");
         let expected = match save.graph.systems[id].initializer.as_str() {
             own if own.is_empty() || review.contains(id) || player => {
-                format!("random_empire_init_0{}", id % 6 + 1)
+                basic_initializer(*id).to_owned()
             }
             own => own.to_owned(),
         };

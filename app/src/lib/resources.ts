@@ -56,9 +56,14 @@ export function compareResources(a: string, b: string): number {
 }
 
 /**
- * Totals per resource in the game's display order, with the icon key for each: the sprite the
- * game's resource definitions name when `icons` knows it, else the conventional `GFX_resource_*`.
+ * The icon key for a resource: the sprite the game's resource definitions name when `icons`
+ * knows it, else the conventional `GFX_resource_*`.
  */
+export function resourceSprite(resource: string, icons: ReadonlyMap<string, string>): string {
+  return `sprite:${icons.get(resource) ?? `GFX_resource_${resource}`}`;
+}
+
+/** Totals per resource in the game's display order, with the icon key for each. */
 export function resourceRows(
   totals: ReadonlyMap<string, number>,
   icons: ReadonlyMap<string, string> = new Map(),
@@ -66,6 +71,6 @@ export function resourceRows(
   return Array.from(totals, ([resource, amount]) => ({
     resource,
     amount,
-    sprite: `sprite:${icons.get(resource) ?? `GFX_resource_${resource}`}`,
+    sprite: resourceSprite(resource, icons),
   })).sort((a, b) => compareResources(a.resource, b.resource));
 }

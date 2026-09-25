@@ -45,18 +45,3 @@ describe("the tooltip on an added system's star", () => {
     expect(useMapChromeStore.getState().tooltip).toBe(other);
   });
 });
-
-describe("the add system preview", () => {
-  it("goes with the menu that drew it, and with any menu opening", () => {
-    const chrome = useMapChromeStore.getState();
-    const preview = { x: 1, y: 2, tooClose: false, edge: null };
-    chrome.openContextMenu({ target: { kind: "space", x: 1, y: 2 }, x: 0, y: 0 });
-    chrome.setAddSystemPreview(preview);
-    chrome.closeContextMenu();
-    expect(useMapChromeStore.getState().addSystemPreview).toBeNull();
-
-    chrome.setAddSystemPreview(preview);
-    chrome.openContextMenu({ target: { kind: "system", id: 6 }, x: 0, y: 0 });
-    expect(useMapChromeStore.getState().addSystemPreview).toBeNull();
-  });
-});

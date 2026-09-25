@@ -26,9 +26,6 @@ const OPENED_FLAG: &str = "l_cluster_opened";
 pub(crate) const ALL_OUTCOME_FLAGS: [&str; 4] =
     [GRAY_TEMPEST, ACTIVE_GRAY_GOO, L_DRAKES, DESSANU_CONSONANCE];
 
-/// The flag whose value dates day one, which the outcome flags carry too.
-pub(crate) const GAME_STARTED: &str = "game_started";
-
 /// The flags `distar.8000` sets for `outcome`, in the order it sets them.
 pub(crate) fn flags_of(outcome: LGateOutcome) -> &'static [&'static str] {
     match outcome {

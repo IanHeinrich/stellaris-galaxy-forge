@@ -5,6 +5,7 @@ expression: "report(&session, &result)"
 Removed nebula "Far Cloud" (1 system released)
 touched: [9]
 inverse: AddNebula { x: -90.0, y: 90.0, radius: 20.0, name: Some("Far Cloud") }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 1 other issues
 
 --- scenario

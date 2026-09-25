@@ -13,7 +13,6 @@ const command = (name: string) =>
   });
 
 export const saveDirs = command("saveDirs");
-export const listSaves = command("listSaves");
 export const listCampaigns = command("listCampaigns");
 export const listCampaignSaves = command("listCampaignSaves");
 export const listScenarios = command("listScenarios");

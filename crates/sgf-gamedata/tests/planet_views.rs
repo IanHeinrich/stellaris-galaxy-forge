@@ -8,7 +8,7 @@ use std::fs;
 
 use image::GenericImageView;
 use sgf_gamedata::Diagnostic;
-use sgf_gamedata::textures::{TextureKey, Textures};
+use sgf_gamedata::textures::TextureKey;
 
 #[test]
 fn fixture_deposit_values_resolve_global_and_file_variables() {
@@ -99,7 +99,7 @@ fn modifier_amounts_are_signed_and_percentages_follow_the_key() {
 
 #[test]
 fn install_bubbling_swamp_adds_districts_and_a_tech_gated_side_effect() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let swamp = gd
@@ -127,7 +127,7 @@ fn install_bubbling_swamp_adds_districts_and_a_tech_gated_side_effect() {
 
 #[test]
 fn install_massive_glacier_is_a_blocker_with_its_clearing() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let glacier = gd
@@ -148,7 +148,7 @@ fn install_massive_glacier_is_a_blocker_with_its_clearing() {
 
 #[test]
 fn install_orbital_deposits_lead_with_their_yield() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let energy = gd.deposit_type_view("d_energy_2").expect("d_energy_2");
@@ -169,7 +169,7 @@ fn install_orbital_deposits_lead_with_their_yield() {
         .expect("d_trade_value_4");
     assert_eq!(trade.texture_key, "deposit:unused/d_strategic_resources");
     assert_eq!(trade.yields[0].amount, 4.0);
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     let view = gd.texture(&textures, &trade.texture_key);
     assert!(view.error.is_none(), "{view:?}");
     assert_eq!((view.width, view.height), (98, 75));
@@ -177,7 +177,7 @@ fn install_orbital_deposits_lead_with_their_yield() {
 
 #[test]
 fn install_every_deposit_parses() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     assert!(gd.deposits.len() >= 580, "{}", gd.deposits.len());
@@ -209,7 +209,7 @@ fn install_every_deposit_parses() {
 
 #[test]
 fn install_blockers_are_the_ones_the_game_calls_blockers() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     for key in [
@@ -236,7 +236,7 @@ fn install_blockers_are_the_ones_the_game_calls_blockers() {
 
 #[test]
 fn install_side_effects_read_nested_modifiers_and_keep_the_regular_branch() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let gas = gd.deposit_type_view("d_hab_gas_1").expect("d_hab_gas_1");
@@ -275,7 +275,7 @@ fn install_side_effects_read_nested_modifiers_and_keep_the_regular_branch() {
 
 #[test]
 fn install_new_registries_raise_no_diagnostics() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let dirs = [
@@ -285,6 +285,7 @@ fn install_new_registries_raise_no_diagnostics() {
         "planet_modifiers",
         "colony_types",
         "scripted_variables",
+        "planet_classes",
     ];
     let raised: Vec<_> = gd
         .diagnostics
@@ -305,34 +306,21 @@ fn install_new_registries_raise_no_diagnostics() {
 
 #[test]
 fn a_global_variable_resolves_inside_an_initializer() {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let install = dir.path().join("install");
-    for (rel, text) in [
+    let (_dir, gd) = common::hand_written(&[
         ("common/scripted_variables/00_gaps.txt", "@moon_gap = 12\n"),
         (
             "common/solar_system_initializers/00_gap.txt",
             "gap_init = {\n\tclass = sc_g\n\tplanet = {\n\t\tclass = pc_barren\n\t\torbit_distance = @moon_gap\n\t}\n}\n",
         ),
         ("localisation/english/gap_l_english.yml", "l_english:\n"),
-    ] {
-        let file = install.join(rel);
-        fs::create_dir_all(file.parent().unwrap()).unwrap();
-        fs::write(file, text).unwrap();
-    }
-    let opts = sgf_gamedata::LoadOptions {
-        install: Some(install),
-        user_dir: Some(dir.path().join("user")),
-        language: "english".to_owned(),
-        mods: false,
-    };
-    let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("the throwaway install loads");
+    ]);
     let init = gd.initializers.get("gap_init").expect("gap_init");
     assert_eq!(init.planets[0].orbit(), Some(12.0));
 }
 
 #[test]
 fn install_scripted_variables_resolve() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     assert_eq!(gd.variables.get("SR_SMALL"), Some("0.05"));
@@ -345,7 +333,7 @@ fn install_scripted_variables_resolve() {
 
 #[test]
 fn install_planet_modifier_goes_through_its_static_modifier() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let pm = gd
@@ -378,7 +366,7 @@ fn install_planet_modifier_goes_through_its_static_modifier() {
     assert_eq!(timed.effects, pm.effects);
     assert!(gd.modifier_view("pm_nowhere").is_none());
 
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     for key in [pm.icon.unwrap(), pm.icon_frame.unwrap()] {
         let view = gd.texture(&textures, &key);
         assert!(view.error.is_none() && view.width > 0, "{view:?}");
@@ -387,7 +375,7 @@ fn install_planet_modifier_goes_through_its_static_modifier() {
 
 #[test]
 fn install_colony_type_has_a_name_and_an_icon() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     let views = gd.colony_type_views(&["col_fe_colony".to_owned(), "col_nowhere".to_owned()]);
@@ -399,17 +387,17 @@ fn install_colony_type_has_a_name_and_an_icon() {
         fe.icon.as_deref(),
         Some("sprite:GFX_colony_type_normal_colony")
     );
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     let view = gd.texture(&textures, fe.icon.as_deref().unwrap());
     assert!(view.error.is_none() && view.width > 0, "{view:?}");
 }
 
 #[test]
 fn install_deposit_art_decodes_and_the_fallbacks_exist() {
-    let Some(gd) = common::load_real() else {
+    let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let (_dir, textures) = temp_textures();
+    let (_dir, textures) = common::temp_textures();
     for key in [
         "deposit:d_bubbling_swamp",
         "sprite:GFX_deposit_unknown",
@@ -422,10 +410,4 @@ fn install_deposit_art_decodes_and_the_fallbacks_exist() {
         assert_eq!(image.dimensions(), (98, 75), "{key}");
     }
     assert!(fs::read_dir(textures.cache_dir()).unwrap().count() >= 3);
-}
-
-fn temp_textures() -> (tempfile::TempDir, Textures) {
-    let dir = tempfile::tempdir().unwrap();
-    let textures = Textures::new(Some(dir.path().join("cache")));
-    (dir, textures)
 }

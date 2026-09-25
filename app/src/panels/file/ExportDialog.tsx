@@ -4,11 +4,10 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { usePaintModStore } from "../../store/paintModStore";
-import { Dialog } from "../overlays/Dialog";
+import { Dialog } from "../Dialog";
 import {
   CATEGORY_LABELS,
   countsSummary,
-  droppedSummary,
   fallenEmpiresSummary,
   homeInitializerLines,
   omittedLines,
@@ -23,7 +22,7 @@ export function ExportReportRows({ report }: { report: ExportReport }) {
   const names = useGameDataStore((s) => s.names);
   const nameOf = (id: number) =>
     systems.has(id) ? systemNameOf(systems, names, id) : `system ${id}`;
-  const dropped = droppedSummary(report.dropped);
+  const dropped = report.dropped_summary ?? null;
   const fallen = fallenEmpiresSummary(report);
   const omitted = omittedLines(report);
   const counts = countsSummary(report);

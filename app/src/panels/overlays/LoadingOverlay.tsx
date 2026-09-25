@@ -1,6 +1,6 @@
 import type { Progress } from "../../generated/Progress";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { Dialog } from "./Dialog";
+import { Dialog } from "../Dialog";
 import "./loading.css";
 
 const PHASE: Record<string, string> = {

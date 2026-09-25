@@ -1,5 +1,5 @@
 //! Lane ops: `AddLane`, `AddLanes`, `RemoveLane`, `RemoveLanes`, `SetLaneLength`,
-//! `IsolateSystem`.
+//! `NormaliseLaneLength`, `IsolateSystem`.
 //!
 //! Inserted text copies the indentation of the lines it lands next to; removed
 //! entries take their single-space separator line with them, and a `hyperlane`
@@ -9,7 +9,7 @@ use crate::emit::{coord, hyperlane_block, lane_entry};
 use crate::format::save::write::bulk;
 use crate::keys;
 use crate::ops::rules::lanes as rules;
-use crate::ops::{Edit, Op, OpError, Plan, Planned, projected_lane, replace_lengths};
+use crate::ops::{Edit, LaneLength, Op, OpError, Plan, Planned};
 use crate::plural;
 use crate::projections::galaxy::bypass_between;
 use crate::projections::galaxy::{GalaxyGraph, lane_length};
@@ -41,7 +41,7 @@ pub(crate) fn plan_add_many(
     to: &[(u32, bool)],
 ) -> Result<Planned, OpError> {
     if to.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let mut entries = Vec::with_capacity(to.len());
     for (i, &(other, bridge)) in to.iter().enumerate() {
@@ -128,15 +128,7 @@ pub(crate) fn plan_set_length(
     b: u32,
     length: f64,
 ) -> Result<Planned, OpError> {
-    rules::check_length(length)?;
-    let old = projected_lane(&s.graph, a, b)
-        .ok_or(OpError::NoSuchLane(a, b))?
-        .length;
-    let text = length_form(length);
-    let mut updated = replace_lengths(plan.edit(&s.doc, a)?, b, text)?;
-    if b != a {
-        updated += replace_lengths(plan.edit(&s.doc, b)?, a, text)?;
-    }
+    let (old, updated) = set_one_length(plan, s, a, b, length)?;
     Ok(Planned {
         description: format!(
             "Set lane {a} <-> {b} length from {} to {} ({updated} entries)",
@@ -158,17 +150,13 @@ pub(crate) fn plan_normalise_length(
     }
     let sa = s.graph.systems.get(&a).ok_or(OpError::UnknownSystem(a))?;
     let sb = s.graph.systems.get(&b).ok_or(OpError::UnknownSystem(b))?;
-    let old = projected_lane(&s.graph, a, b)
-        .ok_or(OpError::NoSuchLane(a, b))?
-        .length;
-    let length = lane_length(sa, sb);
+    let length = lane_length(sa.position(), sb.position());
+    let old = bulk::agreed_length(s, a, b)?;
     rules::check_length(length)?;
-    if length == old {
-        return Err(OpError::Empty);
+    if old == length {
+        return Err(OpError::AlreadyNormal);
     }
-    let text = length_form(length);
-    let mut updated = replace_lengths(plan.edit(&s.doc, a)?, b, text)?;
-    updated += replace_lengths(plan.edit(&s.doc, b)?, a, text)?;
+    let (old, updated) = set_one_length(plan, s, a, b, length)?;
     Ok(Planned {
         description: format!(
             "Normalised lane {a} <-> {b} length from {} to {} ({updated} entries)",
@@ -177,6 +165,18 @@ pub(crate) fn plan_normalise_length(
         ),
         inverse: Op::SetLaneLength { a, b, length: old },
     })
+}
+
+/// [`bulk::set_lengths`] for one lane: its old length and how many entries it rewrote.
+fn set_one_length(
+    plan: &mut Plan,
+    s: &Session,
+    a: u32,
+    b: u32,
+    length: f64,
+) -> Result<(f64, usize), OpError> {
+    let (restore, updated) = bulk::set_lengths(plan, s, &[LaneLength { a, b, length }])?;
+    Ok((restore[0].length, updated))
 }
 
 pub(crate) fn plan_isolate(plan: &mut Plan, s: &Session, id: u32) -> Result<Planned, OpError> {
@@ -223,19 +223,23 @@ pub(crate) fn pairs(lanes: &[(u32, u32, bool)]) -> Vec<(u32, u32)> {
     lanes.iter().map(|&(a, b, _)| (a, b)).collect()
 }
 
-/// `length` written in the form of the existing text: a decimal entry stays decimal, an
-/// integer one stays integer unless `keep_fraction` and the value has a fraction to keep.
-pub(crate) fn length_text(existing: &str, length: f64, keep_fraction: bool) -> String {
-    if existing.contains('.') || (keep_fraction && length.fract() != 0.0) {
-        coord(length)
-    } else {
-        (length.floor() as u32).to_string()
+/// A length the caller set, written in the form of the entry it replaces: a decimal entry
+/// stays decimal, and an integer one stays integer unless the length has a fraction.
+pub(crate) fn length_form(length: f64) -> impl Fn(&str) -> String + Copy {
+    move |existing: &str| match existing.contains('.') || length.fract() != 0.0 {
+        true => coord(length),
+        false => (length as u32).to_string(),
     }
 }
 
-/// [`length_text`] for a length the caller set, which keeps its fraction.
-pub(crate) fn length_form(length: f64) -> impl Fn(&str) -> String + Copy {
-    move |existing: &str| length_text(existing, length, true)
+/// The length a lane between `a` and `b` takes once one of them moves, in the form of the
+/// entry it replaces: an event's decimal lane carries the exact distance, and the
+/// generator's integer lane [`lane_length`].
+pub(crate) fn moved_length(a: (f64, f64), b: (f64, f64)) -> impl Fn(&str) -> String + Copy {
+    move |existing: &str| match existing.contains('.') {
+        true => coord((a.0 - b.0).hypot(a.1 - b.1)),
+        false => (lane_length(a, b) as u32).to_string(),
+    }
 }
 
 /// Append `(to, length, bridge)` entries to the entity's `hyperlane` block, creating the
@@ -257,10 +261,8 @@ pub(crate) fn insert_entries(edit: &mut Edit, entries: &[(u32, u32, bool)]) -> R
                     false,
                 ),
                 None => {
-                    let close = entity.value_span().end - 1;
-                    let mut indent = edit.indent(close);
-                    indent.push(b'\t');
-                    (edit.line_start(close), indent, false)
+                    let (at, indent) = edit.before_close(entity);
+                    (at, indent, false)
                 }
             }
         }
@@ -274,7 +276,7 @@ pub(crate) fn insert_entries(edit: &mut Edit, entries: &[(u32, u32, bool)]) -> R
     if !in_block {
         text = hyperlane_block(&key_indent, &text);
     }
-    edit.insert_lines(at, text);
+    edit.insert(at, text);
     Ok(())
 }
 

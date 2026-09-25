@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../lib/geometry/geometry";
+import { seeded } from "../lib/random";
 import { Camera } from "./Camera";
-
-function seeded(seed: number): () => number {
-  let s = seed;
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0x100000000;
-  };
-}
 
 describe("Camera", () => {
   it("applies the axis signs once between world and screen and round-trips", () => {

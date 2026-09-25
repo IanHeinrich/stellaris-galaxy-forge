@@ -5,18 +5,19 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { editor, mocked, openFixtureSave } from "./editorFixture";
+import { editor, joinBoth, openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { useMapChromeStore } from "./mapChromeStore";
 import { CONNECT_ALL_MAX, type EditorState } from "./editorStore";
 import { MESH_BETA } from "../lib/geometry/mesh";
 import { linkedPairs, meshLanes, useGalaxyStore } from "./galaxyStore";
 import { editResult, withLaneLength } from "./fixture";
+import { mockedIpc } from "../test/ipc";
 
 beforeEach(openFixtureSave);
 
 describe("bulk lane actions", () => {
   beforeEach(() => {
-    mocked.applyOp.mockResolvedValue(editResult());
+    mockedIpc.applyOp.mockResolvedValue(editResult());
   });
 
   const cases: Array<{ what: string; ids: number[]; run(s: EditorState): Promise<void>; op: Op }> =
@@ -76,7 +77,7 @@ describe("bulk lane actions", () => {
   it.each(cases)("$what", async ({ ids, run, op }) => {
     await editor().setSelection(ids, "replace");
     await run(editor());
-    expect(mocked.applyOp).toHaveBeenCalledWith(op);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith(op);
   });
 
   it("skips the call when the action has nothing to do", async () => {
@@ -84,14 +85,14 @@ describe("bulk lane actions", () => {
     await editor().connectSelected();
     await editor().select(5);
     await editor().isolateSelected();
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 
   it("connectSelected refuses more than CONNECT_ALL_MAX systems", async () => {
     await editor().selectAll();
     expect(editor().selection.length).toBeGreaterThan(CONNECT_ALL_MAX);
     await editor().connectSelected();
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 
   it("connectSelectedMesh sends the skeleton's missing lanes and clears the preview", async () => {
@@ -107,7 +108,7 @@ describe("bulk lane actions", () => {
 
     useMapChromeStore.getState().setLanePreview(expected);
     await editor().connectSelectedMesh();
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "AddLanePairs",
       lanes: expected.map(([a, b]) => ({ a, b, bridge: false })),
     });
@@ -119,10 +120,10 @@ describe("bulk lane actions", () => {
     const counts: number[] = [];
     for (const beta of [MESH_BETA.sparse, MESH_BETA.gabriel, MESH_BETA.dense]) {
       useMapChromeStore.getState().setMeshBeta(beta);
-      mocked.applyOp.mockClear();
+      mockedIpc.applyOp.mockClear();
       await editor().connectSelectedMesh();
-      expect(mocked.applyOp).toHaveBeenCalledTimes(1);
-      const op = mocked.applyOp.mock.calls[0][0];
+      expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+      const op = mockedIpc.applyOp.mock.calls[0][0];
       expect(op.type).toBe("AddLanePairs");
       counts.push(op.type === "AddLanePairs" ? op.lanes.length : 0);
     }
@@ -134,19 +135,69 @@ describe("bulk lane actions", () => {
   it("resetSelectedLaneLengths normalises only when the core marked a lane stale", async () => {
     await editor().setSelection([0, 1, 2], "replace");
     await editor().resetSelectedLaneLengths();
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
 
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: withLaneLength(1, 2, 99) } }),
     );
     await editor().applyOp({ type: "SetLaneLength", a: 1, b: 2, length: 99 });
-    mocked.applyOp.mockClear();
+    mockedIpc.applyOp.mockClear();
 
     await editor().resetSelectedLaneLengths();
-    expect(mocked.applyOp).toHaveBeenCalledTimes(1);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "NormaliseLaneLengths",
       systems: [0, 1, 2],
     });
+  });
+});
+
+describe("preventing and allowing lanes", () => {
+  beforeEach(async () => {
+    await openFixtureScenario();
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+  });
+
+  const sent = () => mockedIpc.applyOp.mock.calls[mockedIpc.applyOp.mock.calls.length - 1][0];
+
+  it("cuts a lane and prevents it as one edit, and prevents a pair with no lane alone", async () => {
+    await editor().preventLanes([[0, 1]]);
+    expect(sent()).toEqual({
+      type: "Batch",
+      description: "Cut and prevented lane 0 <-> 1",
+      ops: [
+        { type: "RemoveLane", a: 0, b: 1 },
+        { type: "PreventLane", a: 0, b: 1 },
+      ],
+    });
+
+    await editor().preventLanes([[5, 0]]);
+    expect(sent()).toEqual({ type: "PreventLane", a: 5, b: 0 });
+  });
+
+  it("only cuts a lane the scenario already prevents", async () => {
+    joinBoth("prevented", [0, 1]);
+    await editor().preventLanes([[0, 1]]);
+    expect(sent()).toEqual({ type: "RemoveLane", a: 0, b: 1 });
+  });
+
+  it("prevents lanes to the selected systems not kept from the target yet, and allows the ones that are", async () => {
+    joinBoth("lanes", [0, 5]);
+    joinBoth("prevented", [2, 5]);
+    await editor().setSelection([0, 2, 3], "replace");
+
+    await editor().preventLanesToSelected(5);
+    expect(sent()).toEqual({
+      type: "Batch",
+      description: "Cut 1 lane and prevented 2 lanes",
+      ops: [
+        { type: "RemoveLane", a: 0, b: 5 },
+        { type: "PreventLane", a: 0, b: 5 },
+        { type: "PreventLane", a: 3, b: 5 },
+      ],
+    });
+
+    await editor().allowLanesToSelected(5);
+    expect(sent()).toEqual({ type: "UnpreventLane", a: 2, b: 5 });
   });
 });

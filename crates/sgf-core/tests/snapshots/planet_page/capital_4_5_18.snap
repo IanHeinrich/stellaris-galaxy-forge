@@ -2,21 +2,111 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-planet 18 SPEC_Nagyari_planet (SPEC_Nagyari_planet)
-class pc_alpine size 21 orbit 95
-system 463 parent 15 owner 1 controller 1 surveyed by - station - flags 1
-deposit 454 d_failing_infrastructure hides d_ore_rich_caverns
-deposit 455 d_fungal_caves
-deposit 456 d_hot_springs
-deposit 457 d_frozen_gas_lake
-deposit 458 d_tempestous_mountain
-deposit 459 d_veiny_cliffs
-deposit 460 d_ore_rich_caverns
-deposit 461 d_rich_mountain
-deposit 462 d_forgiving_tundra
-deposit 463 d_fungal_caves
-deposit 464 d_forgiving_tundra
-deposit 465 d_fungal_forest
-timed modifier prosp_uni_mod days 6756
-colony 1 colonised 2016.05.09 designation col_capital manual col_capital pops 5382
-species 2 SPEC_Nagyari pops 5382
+{
+  "id": 18,
+  "name": {
+    "key": "SPEC_Nagyari_planet",
+    "literal": false,
+    "variables": []
+  },
+  "name_key": "SPEC_Nagyari_planet",
+  "label": "SPEC_Nagyari_planet",
+  "class": "pc_alpine",
+  "size": 21,
+  "orbit": 95.0,
+  "system": 463,
+  "parent": 15,
+  "moons": [],
+  "deposits": [
+    {
+      "id": 454,
+      "kind": "d_failing_infrastructure",
+      "swap_type": "d_ore_rich_caverns"
+    },
+    {
+      "id": 455,
+      "kind": "d_fungal_caves",
+      "swap_type": null
+    },
+    {
+      "id": 456,
+      "kind": "d_hot_springs",
+      "swap_type": null
+    },
+    {
+      "id": 457,
+      "kind": "d_frozen_gas_lake",
+      "swap_type": null
+    },
+    {
+      "id": 458,
+      "kind": "d_tempestous_mountain",
+      "swap_type": null
+    },
+    {
+      "id": 459,
+      "kind": "d_veiny_cliffs",
+      "swap_type": null
+    },
+    {
+      "id": 460,
+      "kind": "d_ore_rich_caverns",
+      "swap_type": null
+    },
+    {
+      "id": 461,
+      "kind": "d_rich_mountain",
+      "swap_type": null
+    },
+    {
+      "id": 462,
+      "kind": "d_forgiving_tundra",
+      "swap_type": null
+    },
+    {
+      "id": 463,
+      "kind": "d_fungal_caves",
+      "swap_type": null
+    },
+    {
+      "id": 464,
+      "kind": "d_forgiving_tundra",
+      "swap_type": null
+    },
+    {
+      "id": 465,
+      "kind": "d_fungal_forest",
+      "swap_type": null
+    }
+  ],
+  "planet_modifiers": [],
+  "timed_modifiers": [
+    {
+      "modifier": "prosp_uni_mod",
+      "days": 6756
+    }
+  ],
+  "surveyed_by": null,
+  "station": null,
+  "owner": 1,
+  "controller": 1,
+  "colony": {
+    "id": 1,
+    "colonised": "2016.05.09",
+    "final_designation": "col_capital",
+    "designation": "col_capital",
+    "pops": 5382,
+    "species": [
+      {
+        "id": 2,
+        "name": {
+          "key": "SPEC_Nagyari",
+          "literal": false,
+          "variables": []
+        },
+        "pops": 5382
+      }
+    ]
+  },
+  "flags": 1
+}

@@ -14,7 +14,7 @@ import { detailOf, SYSTEMS } from "../../../../../store/fixture";
 import { useFileSessionStore } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { useIssuesStore } from "../../../../../store/issuesStore";
-import { mocked, open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
+import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
 import {
   ADD_ZONE_HINT,
   AUTOMATIC_NOTE,
@@ -26,12 +26,13 @@ import {
   NEAREST_NOTE,
   NONE_LINKED,
 } from "./FeZoneSection";
+import { appIssue } from "../../../../../test/builders";
+import { escaped } from "../../../../../test/elements";
+import { mockedIpc } from "../../../../../test/ipc";
 
 bindStores();
 
 /** The text as the static renderer escapes it. */
-const escaped = (text: string) => text.replace(/'/g, "&#x27;");
-
 const NO_LINKS: FeLinkFlags = { custom: false, id: null, to: [] };
 
 /**
@@ -43,7 +44,7 @@ async function openWith(
   fe_link: FeLinkFlags = NO_LINKS,
   linked: number[] = [],
 ): Promise<void> {
-  mocked.getSystem.mockImplementation(async (id) => {
+  mockedIpc.getSystem.mockImplementation(async (id) => {
     const detail = detailOf(id);
     return { ...detail, system: { ...detail.system, fe_zone: zone, fe_link } };
   });
@@ -166,35 +167,31 @@ describe("a scenario system's fallen empire zone", () => {
     await openWith(newFeZone("se", 60));
     useIssuesStore.setState({
       issues: [
-        {
+        appIssue({
           severity: "warning",
           code: "fe_zone_overlap",
           message:
             "Fallen empire zones from Sol and Alpha Centauri overlap: the mod cannot fill both.",
           systems: [0, 1],
-          note: false,
-        },
-        {
+        }),
+        appIssue({
           severity: "warning",
           code: "fe_zone_blocked",
           message: "Fallen empire zone from Sol is blocked by Barnard's Star.",
           systems: [0, 2],
-          note: false,
-        },
-        {
+        }),
+        appIssue({
           severity: "warning",
           code: "fe_link_isolated",
           message: "Alpha Centauri takes custom connections but no system links to it.",
           systems: [1],
-          note: false,
-        },
-        {
+        }),
+        appIssue({
           severity: "info",
           code: "fe_link_far",
           message: "Deneb is 140 from the fallen empire zone it links to.",
           systems: [5, 1],
-          note: false,
-        },
+        }),
       ],
     });
     const html = overview();

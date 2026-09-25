@@ -11,6 +11,7 @@ autotests = false
 dirs = "7.0.0"
 memchr = "2.8.3"
 serde = { version = "1", features = ["derive"] }
+strum = { version = "0.27", features = ["derive"] }
 tempfile = "3.27.0"
 thiserror = "2.0.20"
 time = { version = "0.3.55", features = ["formatting", "local-offset", "macros"] }

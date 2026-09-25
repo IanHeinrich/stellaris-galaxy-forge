@@ -50,11 +50,6 @@ export interface Box {
   height: number;
 }
 
-/** The left edge of the name row: the emblem, when there is one, sits left of a name `half` wide. */
-export function rowLeft(half: number, emblem: boolean): number {
-  return emblem ? -half - NAME_ROW.gap - NAME_ROW.iconPx : -half;
-}
-
 /** Where the plate goes behind the name: a few pixels past the text each side, clear of the emblem and icons. */
 export function plateBox(half: number, rowY: number): Box {
   return {

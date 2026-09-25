@@ -12,7 +12,7 @@ import {
   useVisibleEntries,
 } from "../../store/initializerBrowserStore";
 import { ENTER } from "../keys";
-import { Dialog } from "../overlays/Dialog";
+import { Dialog } from "../Dialog";
 import "./browser.css";
 import { Detail } from "./Detail";
 import { GroupTree } from "./GroupTree";

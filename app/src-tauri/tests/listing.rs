@@ -11,16 +11,6 @@ use crate::common;
 use common::{PAINTED, SAMPLE, SCENARIO, invoke, kind, webview};
 
 #[test]
-fn list_saves_succeeds_on_any_machine() {
-    let w = webview();
-    let saves: Vec<SaveFile> = invoke(&w, "list_saves", json!({})).expect("list");
-    for s in &saves {
-        assert!(s.path.ends_with(&s.file_name), "{s:?}");
-    }
-    assert!(saves.windows(2).all(|p| p[0].modified >= p[1].modified));
-}
-
-#[test]
 fn campaigns_saves_and_scenarios_are_listed_on_a_seeded_root() {
     let w = webview();
     let dir = tempfile::tempdir().expect("tempdir");

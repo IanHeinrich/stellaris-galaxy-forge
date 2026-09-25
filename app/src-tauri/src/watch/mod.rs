@@ -21,7 +21,7 @@ use notify_debouncer_mini::{
 };
 use sgf_gamedata::install::layers::Layer;
 use sgf_gamedata::views::{GameDataChanged, WatchView};
-use sgf_gamedata::{GameData, RegistryKind};
+use sgf_gamedata::{Diagnostic, GameData, RegistryKind};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::time::timeout_at;
@@ -291,7 +291,7 @@ async fn rebuild<R: Runtime>(
                 return;
             }
         };
-    note_rebuild(app, all_kept(&asked, &replaced));
+    note_rebuild(app, kept_reason(&rebuilt.diagnostics, &asked));
     if shutdown.load(Ordering::Relaxed) {
         return;
     }
@@ -301,17 +301,24 @@ async fn rebuild<R: Runtime>(
     }
 }
 
-/// Why a rebuild that replaced none of the registries it reread changed nothing, naming
-/// the ones that kept their old definitions; `None` when any was replaced.
-fn all_kept(asked: &BTreeSet<RegistryKind>, replaced: &BTreeSet<RegistryKind>) -> Option<String> {
-    if !replaced.is_empty() || asked.is_empty() {
-        return None;
-    }
-    let kinds: Vec<&str> = asked.iter().map(|k| k.as_str()).collect();
-    Some(format!(
-        "a reread of {} found nothing; the definitions already loaded stay in use",
-        kinds.join(", ")
-    ))
+/// Why a rebuild kept the old definitions of registries it reread, naming the kinds of
+/// the `RebuildFailed` diagnostics it raised for them.
+fn kept_reason(diagnostics: &[Diagnostic], asked: &BTreeSet<RegistryKind>) -> Option<String> {
+    let kept: Vec<&str> = diagnostics
+        .iter()
+        .filter_map(|d| match d {
+            Diagnostic::RebuildFailed { kind, .. } if asked.iter().any(|k| k.as_str() == kind) => {
+                Some(kind.as_str())
+            }
+            _ => None,
+        })
+        .collect();
+    (!kept.is_empty()).then(|| {
+        format!(
+            "a reread of {} found nothing; the definitions already loaded stay in use",
+            kept.join(", ")
+        )
+    })
 }
 
 fn announce<R: Runtime>(app: &AppHandle<R>, registries: Vec<String>, hot: Option<(PathBuf, u32)>) {
@@ -442,20 +449,32 @@ mod tests {
         );
     }
 
-    /// A rebuild that kept every registry it reread says so; one that replaced any says nothing.
+    /// A rebuild names every registry it reread and kept, even beside one it replaced,
+    /// and ignores a registry it was not asked to reread.
     #[test]
-    fn a_rebuild_that_replaced_nothing_names_what_it_kept() {
+    fn a_rebuild_names_every_registry_it_kept() {
+        let failed = |kind: RegistryKind| Diagnostic::RebuildFailed {
+            kind: kind.as_str().to_owned(),
+            reason: "reread found nothing".to_owned(),
+        };
+        let diagnostics = [
+            failed(RegistryKind::Localisation),
+            failed(RegistryKind::Bypasses),
+        ];
         let asked = BTreeSet::from([RegistryKind::Colors, RegistryKind::Localisation]);
-        let reason = all_kept(&asked, &BTreeSet::new()).expect("a reason");
-        assert!(reason.contains(RegistryKind::Colors.as_str()), "{reason}");
+
+        let reason = kept_reason(&diagnostics, &asked).expect("a reason");
+
         assert!(
             reason.contains(RegistryKind::Localisation.as_str()),
             "{reason}"
         );
-        assert_eq!(
-            all_kept(&asked, &BTreeSet::from([RegistryKind::Colors])),
-            None
+        assert!(!reason.contains(RegistryKind::Colors.as_str()), "{reason}");
+        assert!(
+            !reason.contains(RegistryKind::Bypasses.as_str()),
+            "{reason}"
         );
+        assert_eq!(kept_reason(&[], &asked), None);
     }
 
     /// An error the OS watcher reports reaches the task as a reason, and the reason

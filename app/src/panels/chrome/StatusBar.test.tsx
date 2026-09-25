@@ -49,7 +49,10 @@ describe("the saved state", () => {
   });
 
   it("says when the export landed, with its own backup and what it left out in the tooltip", () => {
-    const dropped = exportReport({ dropped: { wormhole_pairs: 6, gateways: 0, lgates: 1 } });
+    const dropped = exportReport({
+      dropped: { wormhole_pairs: 6, gateways: 0, lgates: 1 },
+      dropped_summary: "6 wormhole pairs, 1 L-Gate",
+    });
     const plain = saveResult({ path: "C:/mods/x.txt", dirty: true });
     const backedUp = saveResult({ path: "C:/mods/x.txt", backup_path: "C:/mods/x.txt.bak" });
     useFileSessionStore.setState({

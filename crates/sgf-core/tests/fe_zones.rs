@@ -1,18 +1,21 @@
-//! What keeps a fallen empire zone's ring empty: the refusals that stop a zone landing
-//! on a system, the issues that say when a move put one there, and Paint a Galaxy's
-//! own rule for the zones it places by itself.
+//! Fallen empire zones: what each reads and writes as, what keeps its ring empty (the
+//! refusals that stop a zone landing on a system and the issues that say when a move
+//! put one there), and Paint a Galaxy's own rule for the zones it places by itself.
 
-use sgf_core::format::scenario::fe_zone::{self, FeDirection, FeKind, FeZone, Site};
+use sgf_core::format::scenario::fe_zone::{
+    self, FE_ZONE_DISTANCES, FeDirection, FeKind, FeZone, Site,
+};
 use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode};
 
 use crate::common;
-use common::diff::{plain_snapshot, round_trip};
-use common::fixture::PAINTED;
-
-const PREFERRED_FLAG: &str = " set_star_flag = painted_galaxy_fe_spawn_preferred";
+use common::Refused;
+use common::coded;
+use common::diff::snapshot_step;
+use common::fixture::{PAINTED, from_scenario_text};
+use common::paint::PREFERRED_FLAG;
 
 /// The fixture with system 9's zone made automatic: its `preferred` flag dropped.
 fn open_with_automatic_9() -> Session {
@@ -57,10 +60,6 @@ fn site(id: u32, x: f64, y: f64) -> Site<'static> {
         zone: None,
         linked: false,
     }
-}
-
-fn coded(issues: &[Issue], code: IssueCode) -> Vec<&Issue> {
-    issues.iter().filter(|issue| issue.code == code).collect()
 }
 
 fn zone_issues(issues: &[Issue]) -> Vec<&Issue> {
@@ -292,14 +291,13 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
     let mut ids: Vec<u32> = entries.iter().map(|(id, _)| *id).collect();
     ids.dedup();
     assert_eq!(ids.len(), entries.len());
-    plain_snapshot(
+    snapshot_step(
+        &mut PAINTED.open(),
         "recompute",
-        PAINTED.open(),
         Op::SetFeZones {
             entries: entries.clone(),
         },
     );
-    round_trip(PAINTED.open(), Op::SetFeZones { entries });
 
     let session = open_with_automatic_9();
     let entries = placement::fit(&placement::sites(&session.graph), usize::MAX);
@@ -385,4 +383,281 @@ fn fitting_a_count_spreads_that_many_candidates_away_from_the_placed_zones() {
             (4, Some(automatic(FeDirection::E)))
         ]
     );
+}
+
+fn rounded((x, y): (f64, f64)) -> (f64, f64) {
+    ((x * 1e5).round() / 1e5, (y * 1e5).round() / 1e5)
+}
+
+#[test]
+fn each_zone_reads_back_with_its_centre() {
+    let session = PAINTED.open();
+    let systems = &session.graph.systems;
+    let old_seat = zone(FeDirection::N, FeKind::Random, 40, true);
+    assert_eq!(systems[&9].fe_zone, Some(old_seat.clone()));
+    let high_seat = FeZone {
+        fallback: true,
+        ..zone(FeDirection::Se, FeKind::Materialist, 60, true)
+    };
+    assert_eq!(systems[&12].fe_zone, Some(high_seat.clone()));
+    for id in (0..=8).chain([10, 11, 13]) {
+        assert_eq!(systems[&id].fe_zone, None, "system {id}");
+    }
+    let anchor = |id: u32| (systems[&id].x, systems[&id].y);
+    assert_eq!(
+        rounded(fe_zone::centre(anchor(9), &old_seat)),
+        (0.0, -220.0)
+    );
+    assert_eq!(
+        rounded(fe_zone::centre(anchor(12), &high_seat)),
+        (77.57359, 192.42641)
+    );
+
+    let save = common::open();
+    assert!(save.graph.systems.values().all(|s| s.fe_zone.is_none()));
+}
+
+#[test]
+fn a_zone_is_written_at_the_end_of_the_effect_and_the_other_flags_stay() {
+    let cases: [(&str, u32, Option<FeZone>, &str); 5] = [
+        (
+            "zone_10_no_effect",
+            10,
+            Some(zone(FeDirection::W, FeKind::Hive, 80, true)),
+            "name = \"Void\" effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_w set_star_flag = painted_galaxy_fe_spawn_hive set_star_flag = painted_galaxy_fe_spawn_distance_80 set_star_flag = painted_galaxy_fe_spawn_preferred } }",
+        ),
+        (
+            "zone_7_beside_wormhole",
+            7,
+            Some(zone(FeDirection::E, FeKind::Random, 30, true)),
+            "effect = { set_star_flag = painted_galaxy_wormhole_1 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_e set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_30 set_star_flag = painted_galaxy_fe_spawn_preferred } }",
+        ),
+        (
+            "zone_12_change",
+            12,
+            Some(FeZone {
+                fallback: true,
+                ..zone(FeDirection::Se, FeKind::Machine, 100, true)
+            }),
+            "effect = { set_star_flag = painted_galaxy_automatic_initializer set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_se set_star_flag = painted_galaxy_fe_spawn_machine set_star_flag = painted_galaxy_fe_spawn_distance_100 set_star_flag = painted_galaxy_fe_spawn_preferred set_star_flag = painted_galaxy_fe_spawn_fallback } }",
+        ),
+        (
+            "zone_12_remove",
+            12,
+            None,
+            "effect = { set_star_flag = painted_galaxy_automatic_initializer set_star_flag = painted_galaxy_wormhole_2 set_star_flag = empire_cluster } }",
+        ),
+        ("zone_9_remove", 9, None, "name = \"Old Seat\" }"),
+    ];
+    for (name, id, zone, written) in cases {
+        let mut session = PAINTED.open();
+        snapshot_step(&mut session, name, set_zone(id, zone.clone()));
+        assert_eq!(session.graph.systems[&id].fe_zone, zone, "{name}");
+        assert!(
+            common::text(&session).contains(written),
+            "{name}: {}",
+            common::text(&session)
+        );
+    }
+
+    let mut session = PAINTED.open();
+    session
+        .apply(set_zone(10, None))
+        .expect("nothing to remove");
+    assert_eq!(common::current(&session), PAINTED.bytes());
+    let error = session
+        .apply(set_zone(99, None))
+        .expect_err("no such system");
+    assert!(matches!(error, OpError::UnknownSystem(99)), "{error}");
+}
+
+#[test]
+fn several_zones_are_one_undo_step() {
+    let entries = vec![
+        (9, None),
+        (
+            11,
+            Some(zone(FeDirection::Nw, FeKind::Spiritualist, 160, true)),
+        ),
+        (
+            12,
+            Some(zone(FeDirection::Ne, FeKind::Xenophobe, 200, false)),
+        ),
+    ];
+    snapshot_step(
+        &mut PAINTED.open(),
+        "zones",
+        Op::SetFeZones {
+            entries: entries.clone(),
+        },
+    );
+
+    let mut session = PAINTED.open();
+    let cases: [Refused<_>; 2] = [
+        (vec![], |e| matches!(e, OpError::NoEntries)),
+        (vec![(9, None), (9, None)], |e| {
+            matches!(e, OpError::DuplicateSystem(9))
+        }),
+    ];
+    for (entries, expected) in cases {
+        let label = format!("{entries:?}");
+        let error = session.apply(Op::SetFeZones { entries }).expect_err(&label);
+        assert!(expected(&error), "{label}: {error:?}");
+    }
+    assert!(!session.is_dirty());
+}
+
+#[test]
+fn every_zone_round_trips_through_its_flags_and_the_defaults_fill_the_rest() {
+    for direction in FeDirection::ALL {
+        for kind in FeKind::ALL {
+            for distance in FE_ZONE_DISTANCES {
+                for (preferred, fallback) in [(false, false), (true, false), (true, true)] {
+                    let zone = FeZone {
+                        direction,
+                        kind,
+                        distance,
+                        preferred,
+                        fallback,
+                    };
+                    let flags = fe_zone::flags(&zone);
+                    assert!(flags.iter().all(|f| fe_zone::is_zone_flag(f)), "{flags:?}");
+                    assert_eq!(
+                        fe_zone::parse(flags.iter().map(String::as_str)),
+                        Some(zone.clone()),
+                        "{flags:?}"
+                    );
+                }
+            }
+        }
+    }
+    assert_eq!(
+        fe_zone::flags(&zone(FeDirection::Sw, FeKind::Xenophile, 70, true)),
+        [
+            "painted_galaxy_fe_spawn",
+            "painted_galaxy_fe_spawn_sw",
+            "painted_galaxy_fe_spawn_xenophile",
+            "painted_galaxy_fe_spawn_distance_70",
+            "painted_galaxy_fe_spawn_preferred",
+        ]
+    );
+
+    let parsed = |flags: &[&str]| fe_zone::parse(flags.iter().copied());
+    assert_eq!(
+        parsed(&["painted_galaxy_fe_spawn"]),
+        Some(FeZone {
+            direction: FeDirection::E,
+            kind: FeKind::Random,
+            distance: 40,
+            preferred: false,
+            fallback: false,
+        })
+    );
+    assert_eq!(
+        parsed(&[
+            "empire_cluster",
+            "painted_galaxy_fe_spawn_distance_1",
+            "painted_galaxy_fe_spawn_north",
+            "painted_galaxy_fe_spawn_s",
+            "painted_galaxy_fe_spawn",
+            "painted_galaxy_fe_custom_connection_id_0",
+        ]),
+        Some(FeZone {
+            direction: FeDirection::S,
+            kind: FeKind::Random,
+            distance: 40,
+            preferred: false,
+            fallback: false,
+        })
+    );
+    assert_eq!(
+        parsed(&[
+            "painted_galaxy_fe_spawn_n",
+            "painted_galaxy_fe_spawn_preferred"
+        ]),
+        None
+    );
+    for flag in [
+        "painted_galaxy_fe_custom_connections",
+        "painted_galaxy_fe_custom_connection_id_0",
+        "painted_galaxy_fe_custom_connection_to_0",
+        "painted_galaxy_wormhole_1",
+        "empire_cluster",
+    ] {
+        assert!(!fe_zone::is_zone_flag(flag), "{flag}");
+    }
+}
+
+#[test]
+fn a_custom_connection_flag_survives_a_removal_on_its_own_line() {
+    let multi_line = "static_galaxy_scenario = {
+	name = \"lines\"
+	system = {
+		id = \"7\"
+		position = { x = 1 y = 2 }
+		effect = {
+			set_star_flag = painted_galaxy_fe_custom_connections
+			set_star_flag = painted_galaxy_fe_spawn
+			set_star_flag = painted_galaxy_fe_spawn_w
+			set_star_flag = painted_galaxy_fe_custom_connection_id_0
+			set_star_flag = painted_galaxy_fe_spawn_distance_50
+		}
+	}
+	system = {
+		id = \"8\"
+		position = { x = 3 y = 4 }
+	}
+}
+";
+    let mut session = from_scenario_text(multi_line);
+    assert_eq!(
+        session.graph.systems[&7].fe_zone,
+        Some(zone(FeDirection::W, FeKind::Random, 50, false))
+    );
+    session.apply(set_zone(7, None)).expect("remove 7");
+    session
+        .apply(set_zone(
+            8,
+            Some(zone(FeDirection::N, FeKind::Hive, 40, true)),
+        ))
+        .expect("add 8");
+    assert_eq!(
+        common::text(&session),
+        "static_galaxy_scenario = {
+	name = \"lines\"
+	system = {
+		id = \"7\"
+		position = { x = 1 y = 2 }
+		effect = {
+			set_star_flag = painted_galaxy_fe_custom_connections
+			set_star_flag = painted_galaxy_fe_custom_connection_id_0
+		}
+	}
+	system = {
+		id = \"8\"
+		position = { x = 3 y = 4 }
+		effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_n set_star_flag = painted_galaxy_fe_spawn_hive set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_preferred }
+	}
+}
+"
+    );
+    session
+        .apply(set_zone(
+            7,
+            Some(zone(FeDirection::S, FeKind::Machine, 40, true)),
+        ))
+        .expect("add 7 back on its own lines");
+    assert!(common::text(&session).contains(
+        "			set_star_flag = painted_galaxy_fe_custom_connection_id_0
+			set_star_flag = painted_galaxy_fe_spawn
+			set_star_flag = painted_galaxy_fe_spawn_s
+			set_star_flag = painted_galaxy_fe_spawn_machine
+			set_star_flag = painted_galaxy_fe_spawn_distance_40
+			set_star_flag = painted_galaxy_fe_spawn_preferred
+		}"
+    ));
+    for _ in 0..3 {
+        session.undo().expect("undo").expect("an op to undo");
+    }
+    assert_eq!(common::text(&session), multi_line);
 }

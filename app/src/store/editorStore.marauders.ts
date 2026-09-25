@@ -31,87 +31,107 @@ type MarauderActions = Pick<
   | "renumberMarauderClan"
 >;
 
+/** The next free clan in the galaxy as it stands, or null having said all three are placed. */
+function freeClan(): number | null {
+  const clan = nextFreeClan(systems());
+  if (clan === null) useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
+  return clan;
+}
+
 export function marauderActions(
   _set: StoreApi<EditorState>["setState"],
   get: StoreApi<EditorState>["getState"],
 ): MarauderActions {
   return {
     async addMarauderClanAt(point) {
-      const clan = nextFreeClan(systems());
-      if (clan === null) {
-        useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
-        return false;
-      }
-      const home = nextSystemId(systems().values());
-      const ops = [
-        addSystem(home, point, homeInitializer(clan)),
-        ...baseOps(home, point, clan, BASE_SITES, home + 1),
-      ];
-      const op: Op = { type: "Batch", description: `Added marauder clan ${clan}`, ops };
-      if (!(await get().applyOp(op))) return false;
+      if (freeClan() === null) return false;
+      let home = -1;
+      const added = await get().applyOp(() => {
+        const clan = freeClan();
+        if (clan === null) return null;
+        home = nextSystemId(systems().values());
+        const ops = [
+          addSystem(home, point, homeInitializer(clan)),
+          ...baseOps(home, point, clan, BASE_SITES, home + 1),
+        ];
+        return { type: "Batch", description: `Added marauder clan ${clan}`, ops };
+      });
+      if (!added) return false;
       useMapChromeStore.getState().setLayerQuietly("marauders", true);
       await get().select(home);
       return true;
     },
 
     async makeMarauderClan(home, bases) {
-      const clan = nextFreeClan(systems());
-      if (clan === null) {
-        useFileSessionStore.getState().setError(ALL_CLANS_PLACED);
-        return false;
-      }
+      if (freeClan() === null) return false;
       const lanes = systems().get(home)?.lanes ?? [];
       const linked = bases.every((base) => lanes.some((lane) => lane.to === base));
-      const applied = await refuseOr(linked ? null : BASES_NEED_LANES, () => {
-        const [second, third] = [...bases].sort((a, b) => a - b);
-        const op: Op = {
-          type: "SetInitializers",
-          entries: [
-            { id: home, initializer: homeInitializer(clan) },
-            { id: second, initializer: baseInitializer(clan, 2) },
-            { id: third, initializer: baseInitializer(clan, 3) },
-          ],
-        };
-        return get().applyOp(op);
-      });
+      const applied = await refuseOr(linked ? null : BASES_NEED_LANES, () =>
+        get().applyOp(() => {
+          const clan = freeClan();
+          if (clan === null) return null;
+          const [second, third] = [...bases].sort((a, b) => a - b);
+          return {
+            type: "SetInitializers",
+            entries: [
+              { id: home, initializer: homeInitializer(clan) },
+              { id: second, initializer: baseInitializer(clan, 2) },
+              { id: third, initializer: baseInitializer(clan, 3) },
+            ],
+          };
+        }),
+      );
       if (applied) useMapChromeStore.getState().setLayerQuietly("marauders", true);
       return applied;
     },
 
     async removeMarauderClan(clan) {
-      const entries = clanSystems(clan, systems()).map((id) => ({ id, initializer: null }));
-      if (entries.length === 0) return false;
-      return get().applyOp({ type: "SetInitializers", entries });
+      if (clanSystems(clan, systems()).length === 0) return false;
+      return get().applyOp(() => {
+        const entries = clanSystems(clan, systems()).map((id) => ({ id, initializer: null }));
+        return entries.length === 0 ? null : { type: "SetInitializers", entries };
+      });
     },
 
     async renumberMarauderClan(home, to) {
       const system = systems().get(home);
       if (!system?.marauder || !("home" in system.marauder)) return false;
       const taken = (clanHomes(systems()).get(to) ?? []).some((id) => id !== home);
-      return refuseOr(taken ? clanInUse(to) : null, () => {
-        const entries = [
-          { id: home, initializer: homeInitializer(to) },
-          ...basesBeside(system, systems()).map((base) => ({
-            id: base.id,
-            initializer: baseInitializer(to, baseSite(base)),
-          })),
-        ];
-        return get().applyOp({ type: "SetInitializers", entries });
-      });
+      return refuseOr(taken ? clanInUse(to) : null, () =>
+        get().applyOp(() => {
+          const now = systems().get(home);
+          if (!now) return null;
+          const entries = [
+            { id: home, initializer: homeInitializer(to) },
+            ...basesBeside(now, systems()).map((base) => ({
+              id: base.id,
+              initializer: baseInitializer(to, baseSite(base)),
+            })),
+          ];
+          return { type: "SetInitializers", entries };
+        }),
+      );
     },
 
     async addMarauderBases(home) {
       const system = systems().get(home);
       if (!system?.marauder || !("home" in system.marauder)) return false;
-      const clan = system.marauder.home;
-      const sites = missingBaseSites(system, systems());
-      if (sites.length === 0) return true;
-      const ops = baseOps(home, system, clan, sites, nextSystemId(systems().values()));
-      return get().applyOp({
-        type: "Batch",
-        description: `Added outposts for marauder clan ${clan}`,
-        ops,
+      if (missingBaseSites(system, systems()).length === 0) return true;
+      let complete = false;
+      const added = await get().applyOp(() => {
+        const now = systems().get(home);
+        if (!now?.marauder || !("home" in now.marauder)) return null;
+        const clan = now.marauder.home;
+        const sites = missingBaseSites(now, systems());
+        complete = sites.length === 0;
+        if (complete) return null;
+        return {
+          type: "Batch",
+          description: `Added outposts for marauder clan ${clan}`,
+          ops: baseOps(home, now, clan, sites, nextSystemId(systems().values())),
+        };
       });
+      return added || complete;
     },
   };
 }

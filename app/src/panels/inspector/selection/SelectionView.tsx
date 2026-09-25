@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { useCanEdit } from "../../../store/fileSessionStore";
 import { useSystemNames } from "../../../store/browserRows";
 import { linkedSystems, selectionLanes, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { counted } from "../../../lib/text";
-import { browseInitializers, NEEDS_GAME_DATA } from "../../initializers/entry";
-import { BulkActions, BulkStarClass } from "./BulkActions";
-import { Chip, FILTER_MIN, FilterField, Section, Swatch } from "../parts";
+import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
+import { BulkActions } from "../../BulkActions";
+import { BulkStarClass } from "./BulkStarClass";
+import { Chip, FILTER_MIN, FilterField } from "../../parts";
+import { Section, Swatch } from "../parts";
+import { shortcutLabel } from "../../../lib/keys";
 
 /** How many chips a long selection shows before asking for a filter. */
 const CHIPS_SHOWN = 60;
@@ -19,9 +21,8 @@ export function SelectionView() {
   const select = useEditorStore((s) => s.select);
   const systems = useGalaxyStore((s) => s.systems);
   const gameData = useGameDataStore((s) => s.status === "ready");
-  const capabilities = useFileSessionStore(documentCapabilities);
-  const canAssign = supports(capabilities, "create_systems");
-  const save = useFileSessionStore((s) => s.kind === "save") && supports(capabilities, "details");
+  const canAssign = useCanEdit("create_systems");
+  const bodies = useCanEdit("bodies");
 
   const owners = new Set(
     selection.map((id) => systems.get(id)?.owner ?? null).filter((o) => o !== null),
@@ -33,7 +34,11 @@ export function SelectionView() {
     <>
       <div className="ins-head">
         <span className="name">{selection.length} systems selected</span>
-        <button className="link ins-close" onClick={() => void select(null)} title="Clear (Esc)">
+        <button
+          className="link ins-close"
+          onClick={() => void select(null)}
+          title={`Clear (${shortcutLabel("clearSelection")})`}
+        >
           Clear ×
         </button>
       </div>
@@ -45,12 +50,12 @@ export function SelectionView() {
       <Section id="selection.actions" title="Actions">
         <div className="ins-bulk">
           <BulkActions />
-          {save && <BulkStarClass ids={selection} />}
+          {bodies && <BulkStarClass ids={selection} />}
           {canAssign && (
             <button
               type="button"
               disabled={!gameData}
-              title={gameData ? undefined : NEEDS_GAME_DATA}
+              title={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
               onClick={() => browseInitializers(selection)}
             >
               Set initializer… ({selection.length} systems)

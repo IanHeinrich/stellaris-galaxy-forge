@@ -40,6 +40,28 @@ pub enum TextureKey {
     },
 }
 
+impl TextureKey {
+    /// Deposit art by its icon name; `None` for a name the key grammar refuses.
+    pub fn deposit(icon: &str) -> Option<Self> {
+        relative_path(icon, 2).map(|icon| Self::Deposit { icon })
+    }
+
+    /// An icon by its `.dds` path under `gfx/interface/icons/`.
+    pub fn icon(path: &str) -> Option<Self> {
+        relative_path(path, usize::MAX)
+            .filter(|p| p.ends_with(".dds"))
+            .map(|path| Self::Icon { path })
+    }
+
+    /// A `GFX_` sprite, or one frame of it, counted from 1.
+    pub fn sprite(name: &str, frame: Option<u32>) -> Option<Self> {
+        if frame == Some(0) {
+            return None;
+        }
+        component(name).map(|name| Self::Sprite { name, frame })
+    }
+}
+
 impl FromStr for TextureKey {
     type Err = TextureError;
 

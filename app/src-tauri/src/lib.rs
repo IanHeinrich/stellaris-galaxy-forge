@@ -19,7 +19,6 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::save_dirs,
-            commands::list_saves,
             commands::list_campaigns,
             commands::list_campaign_saves,
             commands::list_scenarios,

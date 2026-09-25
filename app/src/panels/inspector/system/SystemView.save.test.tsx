@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { detailOf, name } from "../../../store/fixture";
+import { detailOf, name, planetClassView, starClassView } from "../../../store/fixture";
 
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
@@ -19,7 +19,6 @@ import {
   details,
   fleet,
   land,
-  mocked,
   open,
   overview,
   planet,
@@ -27,6 +26,7 @@ import {
   sections,
   SYSTEM,
 } from "../inspectorFixture";
+import { mockedIpc } from "../../../test/ipc";
 
 bindStores();
 
@@ -47,13 +47,13 @@ describe("a save system's overview", () => {
 
     const html = overview();
     expect(sections(html)).toEqual([
-      "Position",
       "Hyperlanes · 4",
       "Bypasses · 0",
       "Planets · 1 · 0 colonies",
       "Flags · 0",
       "Initializer",
     ]);
+    expect(html).toContain('role="group" aria-label="Position"');
     expect(html).toContain("System total");
     expect(html).toContain('class="ins-prow" role="button"');
     expect(html).not.toContain("static");
@@ -96,7 +96,7 @@ describe("a save system's overview", () => {
 
   it("names what each kind means on its chip and filters the flags once there are over twenty", async () => {
     const flags = Array.from({ length: 21 }, (_, i) => `story_flag_${i}`);
-    mocked.getSystem.mockImplementation(async (id) => {
+    mockedIpc.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
       return { ...detail, system: { ...detail.system, flags } };
     });
@@ -137,16 +137,6 @@ describe("a save system's overview", () => {
 
 /** The install's classes for the binary under test, its bodies and a class to change it to. */
 function armStarClasses(): void {
-  const star = (key: string, ...planet_keys: string[]) => ({
-    key,
-    texture_key: `star_class:${key}`,
-    icon_scale: 1,
-    planet_keys,
-    crisis_star_class: null,
-    spawn_odds: 1,
-    localised: true,
-  });
-  const body = (key: string) => ({ key, icon_sprite: null, habitable: false, star: true });
   useGameDataStore.setState({
     names: new Map([
       ["sc_binary_1", "X-ray Binary"],
@@ -154,15 +144,15 @@ function armStarClasses(): void {
     ]),
     starClasses: new Map(
       [
-        star("sc_g", "pc_g_star"),
-        star("sc_binary_1", "pc_a_star", "pc_pulsar"),
-        star("sc_binary_2", "pc_b_star", "pc_neutron_star"),
+        starClassView("sc_g", "pc_g_star"),
+        starClassView("sc_binary_1", "pc_a_star", "pc_pulsar"),
+        starClassView("sc_binary_2", "pc_b_star", "pc_neutron_star"),
       ].map((c) => [c.key, c]),
     ),
     planetClasses: new Map(
       ["pc_a_star", "pc_pulsar", "pc_b_star", "pc_neutron_star", "pc_g_star"].map((k) => [
         k,
-        body(k),
+        planetClassView(k),
       ]),
     ),
   });
@@ -237,6 +227,18 @@ describe("the star class at the head", () => {
     await land(stars());
 
     expect(overview().match(/class="ins-edit-chip"/g)).toHaveLength(2);
+  });
+
+  it("marks a star as editable and lists it first without game data", async () => {
+    useGameDataStore.setState({ status: "idle" });
+    await open("save");
+    await land(
+      details({ planets: [planet(100, "Tarkin"), planet(101, "Alpha", { class: "pc_g_star" })] }),
+    );
+
+    const html = overview();
+    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(1);
+    expect(html.indexOf("Alpha")).toBeLessThan(html.indexOf("Tarkin"));
   });
 
   it("stays plain text on a scenario", async () => {
@@ -331,7 +333,7 @@ describe("a save system's planet rows", () => {
 
 describe("a system added this session", () => {
   beforeEach(() => {
-    mocked.getSystem.mockImplementation(async (id) => {
+    mockedIpc.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
       return { ...detail, system: { ...detail.system, star_class: "sc_m", added: true } };
     });
@@ -358,7 +360,7 @@ describe("a system added this session", () => {
   });
 
   it("is plain on a system the file already held", async () => {
-    mocked.getSystem.mockImplementation(async (id) => detailOf(id));
+    mockedIpc.getSystem.mockImplementation(async (id) => detailOf(id));
     await open("save");
     await land(details({ planets: [planet(100, "Tarkin")] }));
 

@@ -1,6 +1,7 @@
 import type { SpecialLayout } from "../../../generated/SpecialLayout";
 import type { SpecialPick } from "../../../generated/SpecialPick";
 import { specialMarks } from "../../../lib/addSystem";
+import { LockGlyph } from "../../Glyph";
 import { useEditorStore } from "../../../store/editorStore";
 import { PickItem } from "./PickCard";
 import { Submenu } from "./Submenu";
@@ -9,23 +10,6 @@ const SPECIAL_LABEL = "Special";
 const UNIQUE_HEADING = "Unique systems";
 const OTHER_HEADING = "Other special systems";
 const IN_GALAXY = "Already in this galaxy";
-
-function LockIcon({ title }: { title: string }) {
-  return (
-    <svg
-      className="pick-lock"
-      width="9"
-      height="11"
-      viewBox="0 0 9 11"
-      role="img"
-      aria-label={title}
-    >
-      <title>{title}</title>
-      <path d="M2 5V3.5a2.5 2.5 0 0 1 5 0V5" fill="none" stroke="currentColor" strokeWidth="1.3" />
-      <rect x="0.5" y="5" width="8" height="5.5" rx="1" fill="currentColor" />
-    </svg>
-  );
-}
 
 /** A Special row's label with its marks: already in the galaxy, and its DLC had or missing. */
 function SpecialLabel({ layout, cap }: { layout: SpecialLayout; cap: number | null }) {
@@ -45,7 +29,14 @@ function SpecialLabel({ layout, cap }: { layout: SpecialLayout; cap: number | nu
             DLC
           </span>
         )}
-        {marks.dlc === "lock" && <LockIcon title={`Needs ${dlc}, which this save doesn't have`} />}
+        {marks.dlc === "lock" && (
+          <LockGlyph
+            className="pick-lock"
+            width={9}
+            height={11}
+            title={`Needs ${dlc}, which this save doesn't have`}
+          />
+        )}
       </span>
     </>
   );

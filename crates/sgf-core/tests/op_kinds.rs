@@ -88,6 +88,10 @@ fn assert_refused(mut session: Session, op: &Op, kind: DocumentKind) {
         "{}: {error:?}",
         op.name()
     );
+    assert_eq!(
+        error.to_string(),
+        format!("{} is not supported for a {kind} document", op.name())
+    );
     assert!(!session.doc.is_dirty(), "{}", op.name());
 }
 

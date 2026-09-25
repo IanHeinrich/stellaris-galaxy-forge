@@ -23,8 +23,9 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
+vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
-import { enabledScript, scriptForKind, weightedScript } from "../../../lib/paint";
+import { scriptForKind, weightedScript } from "../../../lib/paint";
 import { isSpawnWeight } from "../../../lib/spawn";
 import { kindTitle } from "../../../lib/special";
 import { DETAILS_DEBOUNCE_MS } from "../../../store/batching";
@@ -41,7 +42,6 @@ import { useScriptsStore } from "../../../store/scriptsStore";
 import {
   details,
   land,
-  mocked,
   open,
   overview,
   planet,
@@ -50,11 +50,12 @@ import {
   SYSTEM,
 } from "../inspectorFixture";
 import { PREVENT_HINT } from "./sections/Hyperlanes";
-import { unpreventLaneOp } from "./sections/scenario/prevented";
 import { SCRIPTS_LIMITS, SCRIPTS_TAB_TITLE } from "./sections/scenario/ScriptsTab";
-import { DEFAULT_SPAWN_WEIGHT, spawnPointOp } from "./sections/scenario/spawnPoint";
-import { renameSystemOp } from "./systemName";
+import { DEFAULT_SPAWN_WEIGHT, spawnPointOp } from "../../spawnPoint";
+import { drawnBy, drawnButton, drawnCheckbox, drawnField } from "../../../test/drawn";
+import { TextField } from "../../EditField";
 import { SystemView } from "./SystemView";
+import { mockedIpc } from "../../../test/ipc";
 
 bindStores();
 
@@ -94,7 +95,6 @@ describe("a scenario system's overview", () => {
 
     const html = overview();
     expect(sections(html)).toEqual([
-      "Position",
       "Spawn point",
       "Initializer",
       "Planets · 2 · 0 colonies",
@@ -129,7 +129,6 @@ describe("a scenario system's overview", () => {
 
     const html = overview();
     expect(sections(html)).toEqual([
-      "Position",
       "Spawn point",
       "Initializer",
       "Resources · 2",
@@ -146,13 +145,7 @@ describe("a scenario system's overview", () => {
     await open("scenario");
 
     const html = overview();
-    expect(sections(html)).toEqual([
-      "Position",
-      "Spawn point",
-      "Initializer",
-      "Hyperlanes · 4",
-      "Scripts · …",
-    ]);
+    expect(sections(html)).toEqual(["Spawn point", "Initializer", "Hyperlanes · 4", "Scripts · …"]);
     expect(html).toContain("Kepler");
     expect(html).not.toContain("System total");
     expect(html).not.toContain("Reading the system");
@@ -161,7 +154,7 @@ describe("a scenario system's overview", () => {
 
 /** Answers `getSystem` with the fixture's detail, but `id`'s system stamped with `owner`. */
 function ownerDetail(id: number, owner: number): void {
-  mocked.getSystem.mockImplementation(async (reqId) => {
+  mockedIpc.getSystem.mockImplementation(async (reqId) => {
     const detail = detailOf(reqId);
     return reqId === id ? { ...detail, system: { ...detail.system, owner } } : detail;
   });
@@ -256,7 +249,7 @@ describe("a system's contents", () => {
   it("says why the read failed rather than reading for ever", async () => {
     await open("scenario");
     useInspectorStore.setState({ tab: "contents" });
-    mocked.getSystemDetails.mockRejectedValue({ kind: "no_session", message: "nothing open" });
+    mockedIpc.getSystemDetails.mockRejectedValue({ kind: "no_session", message: "nothing open" });
 
     useDetailsStore.getState().request([SYSTEM]);
     await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
@@ -269,7 +262,10 @@ describe("a system's contents", () => {
   it("reads them again once an edit invalidates the failure", async () => {
     await open("scenario");
     useInspectorStore.setState({ tab: "contents" });
-    mocked.getSystemDetails.mockRejectedValueOnce({ kind: "no_session", message: "nothing open" });
+    mockedIpc.getSystemDetails.mockRejectedValueOnce({
+      kind: "no_session",
+      message: "nothing open",
+    });
     useDetailsStore.getState().request([SYSTEM]);
     await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
 
@@ -318,7 +314,7 @@ describe("a scenario system's source", () => {
 
 /** The system as the projection reports it once its statement carries `spawn_weight`. */
 function withWeight(weight: number | null, initializer = "basic_init_01"): void {
-  mocked.getSystem.mockImplementation(async (id) => {
+  mockedIpc.getSystem.mockImplementation(async (id) => {
     const detail = detailOf(id);
     return { ...detail, system: { ...detail.system, spawn_weight: weight, initializer } };
   });
@@ -361,23 +357,27 @@ describe("a scenario system's spawn weight", () => {
   it("sends the weight the toggle writes, and clears it when it is turned off", async () => {
     withWeight(null);
     await open("scenario");
-    const system = useEditorStore.getState().inspected!.system;
+    drawnBy(overview);
+    drawnCheckbox().onChange();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetSpawnWeight",
+        id: SYSTEM,
+        base: DEFAULT_SPAWN_WEIGHT,
+      }),
+    );
 
-    await useEditorStore.getState().applyOp(spawnPointOp(system, DEFAULT_SPAWN_WEIGHT, false));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
-      type: "SetSpawnWeight",
-      id: SYSTEM,
-      base: 1,
-    });
-
-    await useEditorStore
-      .getState()
-      .applyOp(spawnPointOp({ ...system, spawn_weight: 1 }, null, false));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
-      type: "SetSpawnWeight",
-      id: SYSTEM,
-      base: null,
-    });
+    withWeight(1);
+    await open("scenario");
+    drawnBy(overview);
+    drawnCheckbox().onChange();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetSpawnWeight",
+        id: SYSTEM,
+        base: null,
+      }),
+    );
   });
 
   it("takes only a weight above zero, so nothing writes a system out of the draw", () => {
@@ -391,7 +391,7 @@ describe("a scenario system's spawn weight", () => {
 describe("a scenario system's spawn modifiers", () => {
   /** The system as the projection reports its `spawn_weight` block. */
   function withSpawn(extra: Partial<SystemNode>): void {
-    mocked.getSystem.mockImplementation(async (id) => {
+    mockedIpc.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
       return { ...detail, system: { ...detail.system, ...extra } };
     });
@@ -444,7 +444,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     kind: "enabled" | "preferred" | "sol" | { reserved: string },
     player = false,
   ): void {
-    mocked.getSystem.mockImplementation(async (id) => {
+    mockedIpc.getSystem.mockImplementation(async (id) => {
       const detail = detailOf(id);
       return {
         ...detail,
@@ -621,16 +621,16 @@ describe("a scenario system Paint a Galaxy seats", () => {
     withWeight(3);
     await open("scenario");
     useFileSessionStore.setState({ painted: true });
-    const system = useEditorStore.getState().inspected!.system;
+    drawnBy(overview);
+    drawnButton("Use a Paint a Galaxy seat").onClick();
 
-    await useEditorStore
-      .getState()
-      .applyOp({ type: "SetSpawnScript", id: system.id, script: enabledScript(system) });
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
-      type: "SetSpawnScript",
-      id: SYSTEM,
-      script: { paint_a_galaxy: { kind: "enabled", random_value: SYSTEM % 10, player: false } },
-    });
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetSpawnScript",
+        id: SYSTEM,
+        script: { paint_a_galaxy: { kind: "enabled", random_value: SYSTEM % 10, player: false } },
+      }),
+    );
   });
 });
 
@@ -683,16 +683,25 @@ describe("a scenario system's prevented lanes", () => {
   it("sends the pair Allow clears", async () => {
     await open("scenario");
     preventing([3]);
+    drawnBy(overview);
+    drawnButton("Allow a lane between #1 and #3").onClick();
 
-    await useEditorStore.getState().applySymmetric(unpreventLaneOp(SYSTEM, 3));
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({ type: "UnpreventLane", a: SYSTEM, b: 3 });
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "UnpreventLane",
+        a: SYSTEM,
+        b: 3,
+      }),
+    );
   });
 
   it("offers none of it on a save, whose lanes no scenario statement forbids", async () => {
     await open("save");
     await land(details());
 
-    expect(overview()).not.toContain(PREVENT_HINT);
+    const html = overview();
+    expect(sections(html)).toContain("Hyperlanes · 4");
+    expect(html).not.toContain(PREVENT_HINT);
   });
 });
 
@@ -808,7 +817,10 @@ describe("a scenario system's scripts", () => {
   it("asks for none of it on a save, whose systems carry no scripts", async () => {
     useInspectorStore.setState({ tab: "overview" });
     await open("save");
-    expect(sections(overview())).not.toContain("Scripts · 0");
+    await land(details());
+    const shown = sections(overview());
+    expect(shown).toContain("Hyperlanes · 4");
+    expect(shown.filter((title) => title.startsWith("Scripts"))).toEqual([]);
   });
 });
 
@@ -868,19 +880,22 @@ describe("the head of a scenario system", () => {
     landSpecial();
     await open("scenario");
 
-    const html = overview();
+    const html = drawnBy(overview);
     expect(html).toContain('title="Rename this system"');
     expect(html).toContain('aria-label="System name"');
     expect(html).toContain('class="edit-field edit-text ins-name-field"');
     expect(sections(html)).not.toContain("Name");
 
-    await useEditorStore.getState().applyOp(renameSystemOp(SYSTEM, "Sea of Ghosts"));
+    const name = drawnField(TextField, "System name") as { onCommit(name: string): void };
+    name.onCommit("Sea of Ghosts");
 
-    expect(mocked.applyOp).toHaveBeenLastCalledWith({
-      type: "SetSystemName",
-      id: SYSTEM,
-      name: "Sea of Ghosts",
-    });
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetSystemName",
+        id: SYSTEM,
+        name: "Sea of Ghosts",
+      }),
+    );
   });
 
   it("leaves a save's head as it was: plain name, kind chips, no source chip", async () => {

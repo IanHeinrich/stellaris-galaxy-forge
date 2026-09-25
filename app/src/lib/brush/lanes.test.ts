@@ -32,7 +32,7 @@ function crossings(pairs: readonly Pair[], at: Map<number, MeshPoint>): number {
   let n = 0;
   for (let i = 0; i < pairs.length; i++) {
     const [a, b] = pairs[i].map((id) => at.get(id)!);
-    for (const [c, d] of EXISTING) if (segmentsCross(a, b, c, d)) n++;
+    for (const { a: c, b: d } of EXISTING) if (segmentsCross(a, b, c, d)) n++;
     for (let j = i + 1; j < pairs.length; j++) {
       const [c, d] = pairs[j].map((id) => at.get(id)!);
       if (segmentsCross(a, b, c, d)) n++;
@@ -43,7 +43,7 @@ function crossings(pairs: readonly Pair[], at: Map<number, MeshPoint>): number {
 
 describe("laneSegments", () => {
   it("lists each lane once and skips lanes to absent systems", () => {
-    expect(laneSegments(SYSTEMS).map(([a, b]) => [a.id, b.id])).toEqual([[1, 2]]);
+    expect(laneSegments(SYSTEMS).map(({ a, b }) => [a.id, b.id])).toEqual([[1, 2]]);
     expect(laneSegments(SYSTEMS.slice(1))).toEqual([]);
   });
 });

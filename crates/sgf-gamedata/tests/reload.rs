@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use sgf_gamedata::scripts::ScenarioSystem;
 use sgf_gamedata::views::GameDataSummary;
-use sgf_gamedata::{GameData, LoadOptions, RegistryKind};
+use sgf_gamedata::{GameData, RegistryKind};
 use tempfile::TempDir;
 
 use common::scripts::sys;
@@ -199,13 +199,50 @@ fn a_reread_that_finds_nothing_keeps_the_old_registry_and_is_not_named_replaced(
 }
 
 #[test]
+fn a_reread_that_fails_again_reports_once_what_it_found() {
+    let tree = fixture_copy();
+    let before = load(tree.path());
+    let colors = tree.path().join("install/flags/colors.txt");
+    fs::write(&colors, "colors = {\n").expect("break the colours");
+
+    let (once, _) = before.rebuild(&kinds([RegistryKind::Colors]));
+    let (twice, replaced) = once.rebuild(&kinds([RegistryKind::Colors]));
+
+    assert!(replaced.is_empty(), "{replaced:?}");
+    let kinds: Vec<&str> = twice
+        .diagnostics
+        .iter()
+        .filter(|d| d.kind() == "rebuild_failed" || d.to_string().contains("colors.txt"))
+        .map(|d| d.kind())
+        .collect();
+    assert_eq!(
+        kinds,
+        ["parse_error", "rebuild_failed"],
+        "{:?}",
+        twice.diagnostics
+    );
+}
+
+#[test]
 fn a_changed_path_names_the_registry_that_reads_it() {
     let tree = fixture_copy();
     let gd = load(tree.path());
     let install = tree.path().join("install");
     let one = tree.path().join("userdata/mod/one");
 
-    let table: [(PathBuf, Option<RegistryKind>); 16] = [
+    let table: [(PathBuf, Option<RegistryKind>); 19] = [
+        (
+            install.join("common/deposits/00_fixture.txt"),
+            Some(RegistryKind::Definitions),
+        ),
+        (
+            one.join("common/star_classes/randomizers/zz_lists.txt"),
+            Some(RegistryKind::Definitions),
+        ),
+        (
+            install.join("common/defines/00_defines.txt"),
+            Some(RegistryKind::Definitions),
+        ),
         (
             install.join("common/scripted_variables/00_fixture.txt"),
             Some(RegistryKind::Variables),
@@ -292,13 +329,7 @@ fn kinds<const N: usize>(kinds: [RegistryKind; N]) -> BTreeSet<RegistryKind> {
 }
 
 fn load(tree: &Path) -> GameData {
-    let opts = LoadOptions {
-        install: Some(tree.join("install")),
-        user_dir: Some(tree.join("userdata")),
-        language: "english".to_owned(),
-        mods: true,
-    };
-    sgf_gamedata::load(&opts, &mut |_| {}).expect("the copied fixture loads")
+    common::load_tree(&tree.join("install"), Some(&tree.join("userdata")), true)
 }
 
 fn fixture_copy() -> TempDir {

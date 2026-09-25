@@ -45,6 +45,24 @@ function failed(kind: keyof PlanetDataKeys, keys: readonly string[]): (e: unknow
   };
 }
 
+/** Reads the keys of `kind` not asked for yet and hands their views to `land`, while `alive`. */
+function read<T>(
+  kind: keyof PlanetDataKeys,
+  keys: readonly string[],
+  fetch: (keys: string[]) => Promise<T[]>,
+  alive: () => boolean,
+  land: (views: T[]) => void,
+): void {
+  const wanted = unasked(kind, keys);
+  if (wanted.length === 0) return;
+  fetch(wanted).then(
+    (views) => {
+      if (alive()) land(views);
+    },
+    failed(kind, wanted),
+  );
+}
+
 /** Views by their key, laid over what was already read. */
 function merged<T extends { key: string }>(
   known: Map<string, T>,
@@ -65,33 +83,15 @@ export const usePlanetDataStore = create<PlanetDataState>((set, get) => ({
     if (useGameDataStore.getState().status !== "ready") return;
     const generation = get().generation;
     const alive = () => get().generation === generation;
-    const deposits = unasked("deposits", keys.deposits);
-    const modifiers = unasked("modifiers", keys.modifiers);
-    const colonyTypes = unasked("colonyTypes", keys.colonyTypes);
-    if (deposits.length > 0) {
-      ipc.getDepositTypes(deposits).then(
-        (views) => {
-          if (alive()) set({ depositTypes: merged(get().depositTypes, views) });
-        },
-        failed("deposits", deposits),
-      );
-    }
-    if (modifiers.length > 0) {
-      ipc.getModifiers(modifiers).then(
-        (views) => {
-          if (alive()) set({ modifiers: merged(get().modifiers, views) });
-        },
-        failed("modifiers", modifiers),
-      );
-    }
-    if (colonyTypes.length > 0) {
-      ipc.getColonyTypes(colonyTypes).then(
-        (views) => {
-          if (alive()) set({ colonyTypes: merged(get().colonyTypes, views) });
-        },
-        failed("colonyTypes", colonyTypes),
-      );
-    }
+    read("deposits", keys.deposits, ipc.getDepositTypes, alive, (views) =>
+      set({ depositTypes: merged(get().depositTypes, views) }),
+    );
+    read("modifiers", keys.modifiers, ipc.getModifiers, alive, (views) =>
+      set({ modifiers: merged(get().modifiers, views) }),
+    );
+    read("colonyTypes", keys.colonyTypes, ipc.getColonyTypes, alive, (views) =>
+      set({ colonyTypes: merged(get().colonyTypes, views) }),
+    );
   },
 
   clear() {

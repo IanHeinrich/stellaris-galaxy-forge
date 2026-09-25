@@ -1,17 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { EditResult } from "../generated/EditResult";
 import type { SearchHit } from "../generated/SearchHit";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
+import { editor, openFixtureSave, sessionError } from "./editorFixture";
 import { RECENT_HITS } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { OPEN_RESULT, SYSTEMS, editResult, withLaneLength } from "./fixture";
+import { mockedIpc } from "../test/ipc";
 
 beforeEach(openFixtureSave);
 
@@ -22,7 +24,7 @@ describe("selection and navigation", () => {
     expect(state.selection).toEqual([1]);
     expect(state.inspected?.system.name.key).toBe("NAME_Alpha_Centauri");
     expect(state.inspected?.neighbours.map((n) => n.id)).toEqual([0, 2, 3, 4]);
-    expect(mocked.getSystem).toHaveBeenCalledWith(1);
+    expect(mockedIpc.getSystem).toHaveBeenCalledWith(1);
 
     await editor().select(null);
     state = editor();
@@ -109,18 +111,18 @@ describe("selection and navigation", () => {
 
 describe("nudge", () => {
   beforeEach(() => {
-    mocked.applyOp.mockResolvedValue(editResult());
+    mockedIpc.applyOp.mockResolvedValue(editResult());
   });
 
   it("moves a single selected system with MoveSystem and several with one MoveSystems", async () => {
     await editor().select(2);
     await editor().nudgeSelection(-1, 10);
-    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "MoveSystem", id: 2, x: 19, y: 20 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "MoveSystem", id: 2, x: 19, y: 20 });
 
-    mocked.applyOp.mockClear();
+    mockedIpc.applyOp.mockClear();
     await editor().setSelection([0, 5], "replace");
     await editor().nudgeSelection(1, -1);
-    expect(mocked.applyOp).toHaveBeenCalledWith({
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "MoveSystems",
       moves: [
         { id: 0, x: 1, y: -1 },
@@ -129,11 +131,28 @@ describe("nudge", () => {
     });
   });
 
+  it("moves on from where the last nudge left the system when a second press comes before it lands", async () => {
+    await editor().select(2);
+    let land: (result: EditResult) => void = () => undefined;
+    mockedIpc.applyOp.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
+    const first = editor().nudgeSelection(-1, 10);
+    const second = editor().nudgeSelection(-1, 10);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    land(editResult({ delta: { systems: [{ ...SYSTEMS[2], x: 19, y: 20 }] } }));
+    await Promise.all([first, second]);
+
+    expect(mockedIpc.applyOp.mock.calls.map(([op]) => op)).toEqual([
+      { type: "MoveSystem", id: 2, x: 19, y: 20 },
+      { type: "MoveSystem", id: 2, x: 18, y: 30 },
+    ]);
+  });
+
   it("does nothing with no selection or a lane selected", async () => {
     await editor().nudgeSelection(1, 0);
     editor().selectLane({ a: 0, b: 1 });
     await editor().nudgeSelection(1, 0);
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });
 
@@ -156,17 +175,17 @@ describe("lane selection", () => {
 
   it("deleteSelection sends RemoveLane for the selected lane and clears it on success", async () => {
     editor().selectLane({ a: 0, b: 1 });
-    mocked.applyOp.mockResolvedValueOnce(editResult());
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult());
 
     await editor().deleteSelection();
 
-    expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveLane", a: 0, b: 1 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveLane", a: 0, b: 1 });
     expect(editor().selectedLane).toBeNull();
   });
 
   it("deleteSelection keeps the lane selected when the op is refused", async () => {
     editor().selectLane({ a: 0, b: 1 });
-    mocked.applyOp.mockRejectedValueOnce({ kind: "op", message: "refused" });
+    mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "refused" });
 
     await editor().deleteSelection();
 
@@ -177,7 +196,7 @@ describe("lane selection", () => {
   it("clears the selected lane when an applied delta removes it", async () => {
     editor().selectLane({ a: 0, b: 1 });
     const isolatedSol = { ...SYSTEMS[0], lanes: [] };
-    mocked.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [isolatedSol] } }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [isolatedSol] } }));
 
     await editor().applyOp({ type: "IsolateSystem", id: 0 });
 
@@ -189,14 +208,14 @@ describe("lane selection", () => {
     useInspectorStore
       .getState()
       .setRoot({ ref: { kind: "lane", a: 0, b: 1 }, label: "Sol — Alpha" });
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: withLaneLength(0, 1, 42) } }),
     );
 
     await editor().applyOp({ type: "SetLaneLengths", lanes: [{ a: 0, b: 1, length: 42 }] });
 
     expect(editor().selectedLane).toEqual({ a: 0, b: 1 });
-    expect(mocked.getSystem).not.toHaveBeenCalled();
+    expect(mockedIpc.getSystem).not.toHaveBeenCalled();
   });
 
   it("close resets the selected lane", async () => {
@@ -211,17 +230,17 @@ describe("multi-selection", () => {
     await editor().toggleSelect(1);
     expect(editor().selection).toEqual([1]);
     expect(editor().inspected?.system.id).toBe(1);
-    expect(mocked.getSystem).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getSystem).toHaveBeenCalledTimes(1);
 
     await editor().toggleSelect(3);
     expect(editor().selection).toEqual([1, 3]);
     expect(editor().inspected).toBeNull();
-    expect(mocked.getSystem).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.getSystem).toHaveBeenCalledTimes(1);
 
     await editor().toggleSelect(1);
     expect(editor().selection).toEqual([3]);
     expect(editor().inspected?.system.id).toBe(3);
-    expect(mocked.getSystem).toHaveBeenCalledTimes(2);
+    expect(mockedIpc.getSystem).toHaveBeenCalledTimes(2);
   });
 
   it("setSelection replaces or unions in order without duplicates", async () => {
@@ -261,20 +280,20 @@ describe("multi-selection", () => {
     await editor().deleteSelection();
     await editor().setSelection([0, 1], "replace");
     await editor().deleteSelection();
-    expect(mocked.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 
   it("selection survives a delta and drops ids no longer present", async () => {
     await editor().setSelection([0, 2, 5], "replace");
-    mocked.applyOp.mockResolvedValueOnce(
+    mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: -5, y: 5 }] } }),
     );
     await editor().applyOp({ type: "MoveSystem", id: 0, x: -5, y: 5 });
     expect(editor().selection).toEqual([0, 2, 5]);
-    expect(mocked.getSystem).not.toHaveBeenCalled();
+    expect(mockedIpc.getSystem).not.toHaveBeenCalled();
 
     useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems: SYSTEMS.slice(0, 5) });
-    mocked.applyOp.mockResolvedValueOnce(editResult());
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult());
     await editor().applyOp({ type: "MoveSystem", id: 0, x: 0, y: 0 });
     expect(editor().selection).toEqual([0, 2]);
   });
@@ -297,7 +316,7 @@ describe("the dock follows the selection", () => {
     useLayoutStore.getState().noteEventSource(false);
     await editor().select(0);
     useLayoutStore.getState().setTab("changes");
-    mocked.applyOp.mockResolvedValue(
+    mockedIpc.applyOp.mockResolvedValue(
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 5, y: 5 }] } }),
     );
     await editor().applyOp({ type: "MoveSystem", id: 0, x: 5, y: 5 });

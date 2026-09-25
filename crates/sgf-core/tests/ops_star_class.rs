@@ -4,11 +4,10 @@
 
 use sgf_core::ops::{Op, OpError, StarBody};
 use sgf_core::projections::galaxy::SystemNode;
-use sgf_core::session::Session;
-use sgf_core::views::DocumentKind;
+use sgf_core::session::{OpResult, Session};
 
 use crate::common;
-use common::diff::{plain_report, round_trip};
+use common::diff::snapshot_step;
 use common::examples;
 use common::{current, open, open_4_5, reprojected};
 
@@ -31,38 +30,19 @@ fn star_class(session: &Session, id: u32) -> String {
 }
 
 fn body_class(session: &Session, id: u32, planet: u32) -> String {
-    let details = session.details().expect("details");
-    let raw = details.raw(id).expect("the system's details");
-    raw.planets
-        .iter()
-        .find(|p| p.id == planet)
-        .expect("the body")
-        .class
-        .clone()
+    let planets = common::planets(session, id);
+    let body = planets.into_iter().find(|p| p.id == planet);
+    body.expect("the body").class
 }
 
-/// Apply `op` to system `id`, check the projection, a reload of the bytes, the map delta
-/// and the details all read it, snapshot the diff, then undo and check the original bytes,
-/// class and body classes are back.
-fn change_and_undo(session: &mut Session, op: Op, snapshot: &str) {
+/// Round-trip and snapshot `op` on system `id`, and check the projection, the map delta and
+/// the details read the new class and body classes.
+fn change(session: &mut Session, op: Op, snapshot: &str) -> OpResult {
     let Op::SetStarClass { id, class, bodies } = op.clone() else {
         unreachable!("a star class op")
     };
-    let before_class = star_class(session, id);
-    let before_bodies: Vec<String> = bodies
-        .iter()
-        .map(|b| body_class(session, id, b.planet))
-        .collect();
-
-    let result = session.apply(op).expect("set the star class");
+    let result = snapshot_step(session, snapshot, op);
     assert_eq!(star_class(session, id), class, "{snapshot}");
-    assert_eq!(
-        reprojected(session).systems[&id].star_class,
-        class,
-        "{snapshot}: a reload"
-    );
-    assert_eq!(result.details_stale, [id], "{snapshot}");
-    assert!(!result.reclassifies, "{snapshot}");
     let edit = session.edit_result(result.clone());
     let delta = edit
         .delta
@@ -78,34 +58,18 @@ fn change_and_undo(session: &mut Session, op: Op, snapshot: &str) {
             "{snapshot}: details"
         );
     }
-    common::snapshot(snapshot, &plain_report(session, &result));
-
-    let undone = session.undo().expect("undo").expect("something to undo");
-    assert_eq!(undone.details_stale, [id], "{snapshot}: undo");
-    assert_eq!(current(session), session.doc.original(), "{snapshot}: undo");
-    assert_eq!(star_class(session, id), before_class, "{snapshot}: undo");
-    for (body, class) in bodies.iter().zip(&before_bodies) {
-        assert_eq!(
-            &body_class(session, id, body.planet),
-            class,
-            "{snapshot}: undo"
-        );
-    }
+    result
 }
 
 #[test]
 fn the_4_5_samples_g_star_becomes_a_pulsar_and_back() {
     let mut session = open_4_5();
     assert_eq!(star_class(&session, 1), "sc_g");
-    change_and_undo(
+    let result = change(
         &mut session,
         set(1, "sc_pulsar", &[(584, "pc_pulsar")]),
         "g_to_pulsar_4_5",
     );
-
-    let result = session
-        .apply(set(1, "sc_pulsar", &[(584, "pc_pulsar")]))
-        .unwrap();
     assert_eq!(
         result.entry.description,
         format!(
@@ -123,14 +87,11 @@ fn the_4_5_samples_g_star_becomes_a_pulsar_and_back() {
 fn the_4_4_samples_g_star_becomes_a_pulsar() {
     let mut session = open();
     assert_eq!(star_class(&session, 1), "sc_g");
-    change_and_undo(
+    change(
         &mut session,
         set(1, "sc_pulsar", &[(748, "pc_pulsar")]),
         "g_to_pulsar_4_4",
     );
-    session.redo().expect("redo").expect("something to redo");
-    assert_eq!(star_class(&session, 1), "sc_pulsar");
-    assert_eq!(body_class(&session, 1, 748), "pc_pulsar");
 }
 
 #[test]
@@ -142,8 +103,7 @@ fn a_binary_system_rewrites_both_of_its_stars() {
     );
     let mut session = open();
     assert_eq!(star_class(&session, 35), "sc_binary_2");
-    change_and_undo(&mut session, op.clone(), "binary_2_to_binary_7");
-    round_trip(open(), op);
+    change(&mut session, op, "binary_2_to_binary_7");
 }
 
 #[test]
@@ -160,7 +120,7 @@ fn a_star_class_is_refused_where_it_names_no_body_of_the_system_or_changes_nothi
         ),
         (
             set(1, "sc_\"pulsar", &[(748, "pc_pulsar")]),
-            "class \"sc_\\\"pulsar\" may not hold a quote, a backslash or a line break",
+            "\"sc_\\\"pulsar\" cannot be written as a star class",
         ),
         (set(1, "sc_pulsar", &[]), "no star bodies given"),
         (
@@ -173,7 +133,7 @@ fn a_star_class_is_refused_where_it_names_no_body_of_the_system_or_changes_nothi
         ),
         (
             set(1, "sc_pulsar", &[(748, "")]),
-            "planet 748's class may not be empty",
+            "planet 748: a planet class may not be empty",
         ),
         (
             set(1, "sc_g", &[(748, "pc_g_star")]),
@@ -186,16 +146,6 @@ fn a_star_class_is_refused_where_it_names_no_body_of_the_system_or_changes_nothi
     }
     assert!(!session.doc.is_dirty());
     assert!(session.history().undo.is_empty());
-
-    let mut scenario = examples::scenario();
-    assert!(matches!(
-        scenario.apply(set(10, "sc_pulsar", &[(1, "pc_pulsar")])),
-        Err(OpError::Unsupported {
-            kind: DocumentKind::Scenario,
-            ..
-        })
-    ));
-    assert!(!scenario.doc.is_dirty());
 }
 
 #[test]
@@ -235,7 +185,8 @@ fn a_star_class_change_rereads_its_bodies_and_keeps_the_other_systems_details() 
     kept(&session, "the apply");
     assert_eq!(body_class(&session, 1, 748), "pc_pulsar");
 
-    session.undo().expect("undo").expect("something to undo");
+    let undone = session.undo().expect("undo").expect("something to undo");
+    assert_eq!(undone.details_stale, [1], "the undo re-reads the system");
     kept(&session, "the undo");
     assert_eq!(body_class(&session, 1, 748), "pc_g_star");
 

@@ -5,42 +5,15 @@ import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { Progress } from "../generated/Progress";
 import type { SpecialSystems } from "../generated/SpecialSystems";
 
-import { onGameDataChanged, onProgress } from "../api/events";
-import * as ipc from "../api/ipc";
-import { clearTextures } from "../lib/visual/textures";
 import { bindStores } from "./bindStores";
-import { useDetailsStore } from "./detailsStore";
 import { useFileSessionStore } from "./fileSessionStore";
-import { useGalaxyStore } from "./galaxyStore";
-import { useGameDataStore } from "./gameDataStore";
 import { gameDataSummary, OPEN_RESULT } from "./fixture";
+import { useGameDataStore } from "./gameDataStore";
+import { resetStores } from "./storeFixture";
+import { mockedIpc } from "../test/ipc";
 
 /** Lets every pending answer land before a test asks what was written. */
 export const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-export const mocked = {
-  loadGameData: vi.mocked(ipc.loadGameData),
-  unloadGameData: vi.mocked(ipc.unloadGameData),
-  getSpecialSystems: vi.mocked(ipc.getSpecialSystems),
-  getNames: vi.mocked(ipc.getNames),
-  resolveNames: vi.mocked(ipc.resolveNames),
-  getStarClasses: vi.mocked(ipc.getStarClasses),
-  getMapColors: vi.mocked(ipc.getMapColors),
-  getMapColorSource: vi.mocked(ipc.getMapColorSource),
-  getPlanetClasses: vi.mocked(ipc.getPlanetClasses),
-  getDeposits: vi.mocked(ipc.getDeposits),
-  getBypasses: vi.mocked(ipc.getBypasses),
-  getStarbaseLevels: vi.mocked(ipc.getStarbaseLevels),
-  getShipSizes: vi.mocked(ipc.getShipSizes),
-  getCountryTypes: vi.mocked(ipc.getCountryTypes),
-  getLgateOutcomeMods: vi.mocked(ipc.getLgateOutcomeMods),
-  getInitializers: vi.mocked(ipc.getInitializers),
-  getScenarioOwners: vi.mocked(ipc.getScenarioOwners),
-  getScenarioBypasses: vi.mocked(ipc.getScenarioBypasses),
-  onProgress: vi.mocked(onProgress),
-  onGameDataChanged: vi.mocked(onGameDataChanged),
-  clearTextures: vi.mocked(clearTextures),
-};
 
 export const SUMMARY: GameDataSummary = gameDataSummary();
 
@@ -87,7 +60,6 @@ export const RIHINAR = {
   colors: [],
   border_color: null,
   fill_color: null,
-  flag_colors: [],
   use_map_color: false,
   flag_icon: null,
   flag_background: null,
@@ -106,35 +78,43 @@ bindStores();
 
 /** The state every game data test starts from: cleared stores and every command armed. */
 export function armGameData(): void {
-  vi.clearAllMocks();
-  useGalaxyStore.getState().clear();
-  useDetailsStore.getState().clear();
-  useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
+  resetStores();
   listeners.storage = stubPrefs();
   listeners.unlisten = vi.fn<() => void>();
   listeners.unlistenChanges = vi.fn<() => void>();
   listeners.progress = null;
   listeners.changed = null;
-  mocked.onProgress.mockImplementation(async (h) => {
+  armGameDataCommands();
+}
+
+/** Game data loaded the way the app loads it, over the commands `armGameData` arms. */
+export async function loadGameData(summary: GameDataSummary = SUMMARY): Promise<void> {
+  armGameDataCommands();
+  mockedIpc.loadGameData.mockResolvedValue(summary);
+  await useGameDataStore.getState().load();
+}
+
+function armGameDataCommands(): void {
+  mockedIpc.onProgress.mockImplementation(async (h) => {
     listeners.progress = h;
     return listeners.unlisten;
   });
-  mocked.onGameDataChanged.mockImplementation(async (h) => {
+  mockedIpc.onGameDataChanged.mockImplementation(async (h) => {
     listeners.changed = h;
     return listeners.unlistenChanges;
   });
-  mocked.loadGameData.mockResolvedValue(SUMMARY);
-  mocked.unloadGameData.mockResolvedValue();
-  mocked.getSpecialSystems.mockResolvedValue(SPECIAL);
-  mocked.getScenarioOwners.mockResolvedValue(null);
-  mocked.getScenarioBypasses.mockResolvedValue(null);
-  mocked.getNames.mockImplementation(async (keys) =>
+  mockedIpc.loadGameData.mockResolvedValue(SUMMARY);
+  mockedIpc.unloadGameData.mockResolvedValue();
+  mockedIpc.getSpecialSystems.mockResolvedValue(SPECIAL);
+  mockedIpc.getScenarioOwners.mockResolvedValue(null);
+  mockedIpc.getScenarioBypasses.mockResolvedValue(null);
+  mockedIpc.getNames.mockImplementation(async (keys) =>
     Object.fromEntries(keys.map((k) => [k, k.replace(/^NAME_/, "")])),
   );
-  mocked.resolveNames.mockImplementation(async (names) =>
+  mockedIpc.resolveNames.mockImplementation(async (names) =>
     names.map((name) => name.variables.map((v) => v.value.key).join(" ") || name.key),
   );
-  mocked.getStarClasses.mockResolvedValue([
+  mockedIpc.getStarClasses.mockResolvedValue([
     {
       key: "sc_g",
       texture_key: "star_class:g",
@@ -145,14 +125,14 @@ export function armGameData(): void {
       localised: true,
     },
   ]);
-  mocked.getMapColors.mockResolvedValue([
+  mockedIpc.getMapColors.mockResolvedValue([
     { name: "red", map: "#ff0000", flag: "#ff0000", ship: "#ff0000" },
   ]);
-  mocked.getMapColorSource.mockResolvedValue(null);
-  mocked.getPlanetClasses.mockResolvedValue([
+  mockedIpc.getMapColorSource.mockResolvedValue(null);
+  mockedIpc.getPlanetClasses.mockResolvedValue([
     { key: "pc_continental", icon_sprite: null, habitable: true, star: false },
   ]);
-  mocked.getDeposits.mockResolvedValue([
+  mockedIpc.getDeposits.mockResolvedValue([
     {
       key: "d_minerals_5",
       icon: "GFX_deposit_minerals",
@@ -162,18 +142,18 @@ export function armGameData(): void {
       station: null,
     },
   ]);
-  mocked.getBypasses.mockResolvedValue([
+  mockedIpc.getBypasses.mockResolvedValue([
     { key: "gateway", icon_frame: 25 },
     { key: "relay_bypass", icon_frame: null },
   ]);
-  mocked.getStarbaseLevels.mockResolvedValue([
+  mockedIpc.getStarbaseLevels.mockResolvedValue([
     { key: "starbase_outpost", icon_frame: 1, empire_shield: false },
   ]);
-  mocked.getShipSizes.mockResolvedValue([{ key: "corvette", icon: "ship_size_military_1" }]);
-  vi.mocked(ipc.getResourceIcons).mockResolvedValue([
+  mockedIpc.getShipSizes.mockResolvedValue([{ key: "corvette", icon: "ship_size_military_1" }]);
+  mockedIpc.getResourceIcons.mockResolvedValue([
     { resource: "energy", sprite: "GFX_resource_energy" },
   ]);
-  mocked.getCountryTypes.mockResolvedValue([
+  mockedIpc.getCountryTypes.mockResolvedValue([
     {
       name: "amoeba",
       is_space_critter: true,
@@ -185,7 +165,7 @@ export function armGameData(): void {
       leviathan: false,
     },
   ]);
-  mocked.getLgateOutcomeMods.mockResolvedValue([]);
+  mockedIpc.getLgateOutcomeMods.mockResolvedValue([]);
 }
 
 /** Puts back the real `localStorage` and the document the save hooks watch. */

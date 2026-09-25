@@ -1,6 +1,12 @@
 import { forEachCell } from "../spatialGrid";
 import type { Pt } from "./pt";
 
+/** A straight from `a` to `b`. */
+export interface Segment<P extends Pt = Pt> {
+  readonly a: P;
+  readonly b: P;
+}
+
 /** Side of the cells a `SegmentIndex` buckets by, in world units: about one lane. */
 export const SEGMENT_CELL = 50;
 
@@ -25,11 +31,11 @@ export function forEachSegmentCell(a: Pt, b: Pt, cell: number, fn: (key: number)
   );
 }
 
-/** Segments bucketed by the grid cells their bounding boxes cover, for crossing queries. */
-export class SegmentIndex {
+/** Segments bucketed by the grid cells their bounding boxes cover, for crossing and nearness queries. */
+export class SegmentIndex<P extends Pt = Pt> {
   private readonly cell: number;
   private readonly cells = new Map<number, number[]>();
-  private readonly segments: Array<[Pt, Pt]> = [];
+  private readonly segments: Array<Segment<P>> = [];
   private readonly seen: number[] = [];
   private query = 0;
 
@@ -37,9 +43,9 @@ export class SegmentIndex {
     this.cell = cell;
   }
 
-  add(a: Pt, b: Pt): void {
+  add(a: P, b: P): void {
     const i = this.segments.length;
-    this.segments.push([a, b]);
+    this.segments.push({ a, b });
     this.seen.push(0);
     forEachSegmentCell(a, b, this.cell, (k) => {
       const bucket = this.cells.get(k);
@@ -56,7 +62,7 @@ export class SegmentIndex {
       for (const i of this.cells.get(k) ?? []) {
         if (this.seen[i] === query) continue;
         this.seen[i] = query;
-        const [c, d] = this.segments[i];
+        const { a: c, b: d } = this.segments[i];
         if (segmentsCross(a, b, c, d)) {
           hit = true;
           return;
@@ -64,5 +70,30 @@ export class SegmentIndex {
       }
     });
     return hit;
+  }
+
+  /** The segments whose bounding box comes within `d` of some point, each once. */
+  near(points: readonly Pt[], d: number): Array<Segment<P>> {
+    const query = ++this.query;
+    const found: Array<Segment<P>> = [];
+    for (const p of points) {
+      forEachCell(p.x - d, p.y - d, p.x + d, p.y + d, this.cell, (k) => {
+        for (const i of this.cells.get(k) ?? []) {
+          if (this.seen[i] === query) continue;
+          const { a, b } = this.segments[i];
+          if (
+            Math.max(a.x, b.x) < p.x - d ||
+            Math.min(a.x, b.x) > p.x + d ||
+            Math.max(a.y, b.y) < p.y - d ||
+            Math.min(a.y, b.y) > p.y + d
+          ) {
+            continue;
+          }
+          this.seen[i] = query;
+          found.push(this.segments[i]);
+        }
+      });
+    }
+    return found;
   }
 }

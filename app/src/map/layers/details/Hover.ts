@@ -1,5 +1,6 @@
 import type { BitmapText, FederatedPointerEvent, Graphics, Sprite } from "pixi.js";
-import { useMapChromeStore, type MapTooltipLine } from "../../../store/mapChromeStore";
+import type { MapTooltipLine } from "../../../store/mapChromeStore";
+import { OwnedTooltip } from "../../ownedTooltip";
 
 export type Item = Sprite | BitmapText | Graphics;
 
@@ -12,6 +13,7 @@ export interface Tip {
 export class Hover {
   private readonly tips = new Map<Item, Tip>();
   private target: Item | null = null;
+  private readonly tip = new OwnedTooltip();
 
   bind(item: Item): void {
     item.on("pointerover", (e: FederatedPointerEvent) => this.enter(item, e));
@@ -34,12 +36,12 @@ export class Hover {
     const tip = this.tips.get(item);
     if (!tip) return;
     this.target = item;
-    useMapChromeStore.getState().showTooltip({ x: e.global.x, y: e.global.y, ...tip });
+    this.tip.show({ x: e.global.x, y: e.global.y, ...tip });
   }
 
   private leave(item: Item): void {
     if (this.target !== item) return;
     this.target = null;
-    useMapChromeStore.getState().hideTooltip();
+    this.tip.hide();
   }
 }

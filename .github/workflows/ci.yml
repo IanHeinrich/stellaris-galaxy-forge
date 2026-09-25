@@ -3,6 +3,7 @@ name: CI
 on:
   pull_request:
     # Documentation-only changes do not need the build; ci-docs.yml reports the checks for them.
+    # This list copies the one in scripts/docs-only.sh; release.yml copies it too.
     paths-ignore:
       - "**.md"
       - "docs/**"

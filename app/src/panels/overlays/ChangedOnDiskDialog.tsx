@@ -1,5 +1,5 @@
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { Dialog } from "./Dialog";
+import { Dialog } from "../Dialog";
 import "./overlays.css";
 
 /** A save whose file something else wrote since it was opened, and the three ways on from it. */

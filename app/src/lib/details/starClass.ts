@@ -4,7 +4,7 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import { counted } from "../text";
-import { isStarClass } from "./labels";
+import { isStarBody, starGroup } from "./starBody";
 
 type Body = Pick<PlanetSummary, "id" | "class">;
 
@@ -14,20 +14,9 @@ export interface StarClassRow {
   group: string;
 }
 
-/** The star bodies of the collapsed remnants: none of them is a star as the picker groups them. */
-const EXOTIC_BODIES = new Set(["pc_black_hole", "pc_neutron_star", "pc_pulsar"]);
-
 export const INTERNAL = "Internal";
 
-/** Whether a star body's class is an ordinary `*_star`, not one of the collapsed remnants. */
-export function isOrdinaryStarBody(planetClass: string): boolean {
-  return planetClass.endsWith("_star") && !EXOTIC_BODIES.has(planetClass);
-}
-
-/** Whether a planet class reads as a star body by its key alone, for when no game data says. */
-export function looksLikeStarBody(planetClass: string): boolean {
-  return planetClass.endsWith("_star") || EXOTIC_BODIES.has(planetClass);
-}
+export const STARS_NEED_GAME_DATA = "Load game data to change the star class and type";
 
 /** Every key some class points to as its `crisis_star_class`: the crisis variant of that class. */
 export function crisisVariantKeys(starClasses: Iterable<StarClassView>): Set<string> {
@@ -39,7 +28,7 @@ export function crisisVariantKeys(starClasses: Iterable<StarClassView>): Set<str
 }
 
 /** A class only scripts set that has no name of its own, as mods define by the hundred. */
-export function isInternalStarClass(view: StarClassView): boolean {
+function isInternalStarClass(view: StarClassView): boolean {
   return view.spawn_odds === 0 && !view.localised;
 }
 
@@ -49,7 +38,7 @@ export function starBodies<P extends Body>(
   planetClasses: ReadonlyMap<string, PlanetClassView>,
   starClasses: ReadonlyMap<string, StarClassView>,
 ): P[] {
-  return planets.filter((p) => isStarClass(p.class, planetClasses, starClasses));
+  return planets.filter((p) => isStarBody(p.class, planetClasses, starClasses));
 }
 
 /**
@@ -67,18 +56,6 @@ export function currentStarBodies<P extends Body>(
   return starBodies(read.planets, planetClasses, starClasses);
 }
 
-/** The classes a system with `count` star bodies can become: the same count, not `current`. */
-export function starClassChoices(
-  current: string,
-  count: number,
-  starClasses: ReadonlyMap<string, StarClassView>,
-): StarClassView[] {
-  if (count === 0) return [];
-  return [...starClasses.values()].filter(
-    (c) => c.key !== current && c.planet_keys.length === count,
-  );
-}
-
 /**
  * A single star is `Exotic` when its body is no ordinary `*_star`, else `Stars`; a multiple
  * star is grouped by how many bodies it has. Classes a new galaxy never rolls group apart, so a
@@ -92,7 +69,7 @@ function starClassGroup(view: StarClassView, crisisVariants: ReadonlySet<string>
   if (count === 2) return "Binaries";
   if (count === 3) return "Trinaries";
   if (count !== 1) return `${count} stars`;
-  return view.planet_keys.some(isOrdinaryStarBody) ? "Stars" : "Exotic";
+  return starGroup(view.planet_keys[0]);
 }
 
 /** Where a group ranks, after the star-count groups: special, crisis variants, then internal. */

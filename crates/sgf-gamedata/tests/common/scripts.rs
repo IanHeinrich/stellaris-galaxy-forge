@@ -1,9 +1,9 @@
 //! The fixture scenario and the readers the script test binaries share.
 
+use sgf_gamedata::GameData;
 use sgf_gamedata::scripts::{
     ScenarioOwners, ScenarioSystem, ScriptRow, ScriptRowKind, ScriptSite, SystemScripts,
 };
-use sgf_gamedata::{GameData, LoadOptions};
 
 /// The scenario the fixture describes: a two-system mod empire, a vanilla
 /// fallen empire, a system whose owner is a scope, and a plain one.
@@ -52,12 +52,6 @@ pub fn install_with_mod(files: &[(&str, &str)]) -> (tempfile::TempDir, GameData)
     let root = user_dir.path();
     super::playset(root, &[("many", files)]);
 
-    let opts = LoadOptions {
-        install: Some(super::fixture("install")),
-        user_dir: Some(root.to_path_buf()),
-        language: "english".to_owned(),
-        mods: true,
-    };
-    let gd = sgf_gamedata::load(&opts, &mut |_| {}).expect("loads");
+    let gd = super::load_tree(&super::fixture("install"), Some(root), true);
     (user_dir, gd)
 }

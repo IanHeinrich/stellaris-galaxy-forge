@@ -4,6 +4,7 @@ import type { PaintModView } from "../generated/PaintModView";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { ScenarioSource } from "../generated/ScenarioSource";
+import type { Setting } from "../generated/Setting";
 import type { OpenMode } from "../store/fileSessionStore";
 import type { RecentDoc } from "../store/recentsStore";
 import { displayName } from "./names";
@@ -413,4 +414,28 @@ function baseFooterOpens(
     default:
       return { open: null, asScenario: null };
   }
+}
+
+function plainNumber(n: number): string {
+  return String(Number(n.toFixed(2)));
+}
+
+/** `1.5×`: a multiplier the galaxy settings write, or null when the file leaves it out. */
+export function timesText(n: number | null): string | null {
+  return n === null ? null : `${plainNumber(n)}×`;
+}
+
+/** A count the galaxy settings write, or null when the file leaves it out. */
+export function countText(n: number | null): string | null {
+  return n === null ? null : plainNumber(n);
+}
+
+/** `2–4` for a range, the one number when its bounds agree, else its default; null with none. */
+export function rangeText(setting: Setting | null): string | null {
+  if (!setting) return null;
+  const { min, max } = setting;
+  if (min !== null && max !== null) {
+    return min === max ? plainNumber(min) : `${plainNumber(min)}–${plainNumber(max)}`;
+  }
+  return setting.default === null ? null : plainNumber(setting.default);
 }

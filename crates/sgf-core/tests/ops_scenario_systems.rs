@@ -109,7 +109,10 @@ fn a_name_that_cannot_be_quoted_is_refused() {
                 name: name.into(),
             })
             .expect_err("refused");
-        assert!(matches!(err, OpError::InvalidName(_)), "{name}: {err}");
+        assert!(
+            matches!(err, OpError::InvalidText { what: "a name", .. }),
+            "{name}: {err}"
+        );
         let err = session
             .apply(Op::AddSystem {
                 id: None,
@@ -121,7 +124,10 @@ fn a_name_that_cannot_be_quoted_is_refused() {
                 spawn_script: None,
             })
             .expect_err("refused");
-        assert!(matches!(err, OpError::InvalidName(_)), "{name}: {err}");
+        assert!(
+            matches!(err, OpError::InvalidText { what: "a name", .. }),
+            "{name}: {err}"
+        );
     }
     let err = session
         .apply(Op::AddSystem {
@@ -134,7 +140,10 @@ fn a_name_that_cannot_be_quoted_is_refused() {
             spawn_script: None,
         })
         .expect_err("an empty name is no name");
-    assert!(matches!(err, OpError::EmptyName), "{err}");
+    assert!(
+        matches!(err, OpError::EmptyText { what: "a name" }),
+        "{err}"
+    );
     assert!(!session.is_dirty());
 }
 
@@ -490,9 +499,79 @@ fn bulk_system_ops_refuse_a_repeated_taken_or_unknown_id_and_leave_the_file_alon
     let error = session
         .apply(Op::RemoveSystems { ids: Vec::new() })
         .expect_err("nothing to remove");
-    assert!(matches!(error, OpError::Empty), "{error:?}");
+    assert!(matches!(error, OpError::NoEntries), "{error:?}");
 
     assert!(!session.doc.is_dirty());
     assert_eq!(current(&session), GRAMMAR.bytes());
     assert!(session.history().undo.is_empty());
+}
+
+#[test]
+fn an_initializer_that_is_not_one_bare_key_is_refused_before_any_write() {
+    let bare = |id| NewSystem {
+        id,
+        x: 20.0,
+        y: -30.5,
+        name: None,
+        initializer: Some("misc_system_init_01".to_owned()),
+        spawn_weight: None,
+        spawn_script: None,
+        statement: None,
+    };
+    for text in ["misc system", "misc{", "a = b", "{ }"] {
+        let bad = Some(text.to_owned());
+        let ops = [
+            Op::AddSystem {
+                id: Some(4000),
+                x: 20.0,
+                y: -30.5,
+                name: None,
+                initializer: bad.clone(),
+                spawn_weight: None,
+                spawn_script: None,
+            },
+            Op::AddSystems {
+                systems: vec![
+                    bare(4000),
+                    NewSystem {
+                        initializer: bad.clone(),
+                        ..bare(4001)
+                    },
+                ],
+            },
+            Op::SetInitializer {
+                id: 16,
+                initializer: bad.clone(),
+            },
+            Op::SetInitializers {
+                entries: vec![
+                    InitializerSet {
+                        id: 16,
+                        initializer: Some("misc_system_init_01".to_owned()),
+                    },
+                    InitializerSet {
+                        id: 1,
+                        initializer: bad.clone(),
+                    },
+                ],
+            },
+        ];
+        for op in ops {
+            let mut session = GRAMMAR.open();
+            let name = op.name();
+            let error = session.apply(op).expect_err(name);
+            assert!(
+                matches!(&error, OpError::InvalidText { text: t, .. } if t == text),
+                "{name} with {text:?}: {error}"
+            );
+            assert_eq!(current(&session), GRAMMAR.bytes(), "{name} with {text:?}");
+        }
+    }
+}
+
+#[test]
+fn a_system_with_one_lane_is_removed_with_one_lane() {
+    let mut session = GRAMMAR.open();
+    let removed = session.apply(Op::RemoveSystem { id: 888 }).expect("remove");
+    assert_eq!(removed.entry.description, "Removed system 888 (1 lane)");
 }

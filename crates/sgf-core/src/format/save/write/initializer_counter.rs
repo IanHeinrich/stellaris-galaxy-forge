@@ -5,9 +5,10 @@
 
 use std::collections::BTreeMap;
 
-use crate::cst::{self, Node};
+use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::quoted;
+use crate::format::save::entity_in;
 use crate::keys;
 use crate::ops::{Edit, OpError, Plan};
 use crate::overlay::Anchor;
@@ -75,13 +76,13 @@ pub(crate) fn count(
             .text(span)
             .parse()
             .map_err(|_| edit.parse_error(span.start, "a count is not a number"))?;
+        // A hand-edited count can sit below what the adds put on it; none goes below 0.
         let after = (now + change).max(0);
         if after == 0 && !loaded.iter().any(|(name, _)| name == initializer) {
             edit.remove_statement(counts[at].span());
             edit.remove_statement(names[at].span());
         } else {
-            edit.splices
-                .push((span.range(), after.to_string().into_bytes()));
+            edit.replace_span(span, after.to_string());
         }
     }
     Ok(())
@@ -128,10 +129,7 @@ fn loaded(doc: &Document) -> Vec<(String, u32)> {
 
 /// The counter statement's entries, as (initializer, count) in file order.
 fn entries(bytes: &[u8]) -> Vec<(String, u32)> {
-    let Some(counter) = cst::parse(bytes, 0)
-        .ok()
-        .and_then(|root| root.children().first().cloned())
-    else {
+    let Ok(Some(counter)) = entity_in(bytes) else {
         return Vec::new();
     };
     let list = |key: &str| -> Vec<&Node> {

@@ -79,6 +79,16 @@ pub struct BodySpec {
     /// Drawn with a ring around it.
     #[serde(default)]
     pub ring: bool,
+    /// Of a class the install makes a star, as a layout's extra black holes are. The
+    /// system's own star is written as one whatever this says.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub star: bool,
+}
+
+/// Where `body` stands: its orbit from (x, y), at its angle in degrees.
+pub(crate) fn polar(x: f64, y: f64, body: &BodySpec) -> (f64, f64) {
+    let angle = body.angle.to_radians();
+    (x + body.orbit * angle.cos(), y + body.orbit * angle.sin())
 }
 
 /// An asteroid belt, drawn as a ring around the star.

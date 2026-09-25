@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PlanetClassView } from "../../generated/PlanetClassView";
-import type { StarClassView } from "../../generated/StarClassView";
+import { planetClassView, starClassView } from "../../test/builders";
 import { singleStarClasses } from "../details/starBody";
 import {
   MAX_SIZE_FACTOR,
@@ -11,37 +10,21 @@ import {
   starSizeFactor,
 } from "./starCluster";
 
-function star(key: string, planetKeys: string[], iconScale = 1): StarClassView {
-  return {
-    key,
-    texture_key: `star_class:${key}`,
-    icon_scale: iconScale,
-    planet_keys: planetKeys,
-    crisis_star_class: null,
-    spawn_odds: 1,
-    localised: true,
-  };
-}
-
-function planet(key: string, isStar: boolean): PlanetClassView {
-  return { key, icon_sprite: null, habitable: !isStar, star: isStar };
-}
-
 const STAR_CLASSES = new Map(
   [
-    star("sc_b", ["pc_b_star"]),
-    star("sc_k", ["pc_k_star"]),
-    star("sc_black_hole", ["pc_black_hole"], 2),
-    star("sc_trinary_1", ["pc_b_star", "pc_k_star", "pc_t_star"]),
+    starClassView("sc_b", "pc_b_star"),
+    starClassView("sc_k", "pc_k_star"),
+    { ...starClassView("sc_black_hole", "pc_black_hole"), icon_scale: 2 },
+    starClassView("sc_trinary_1", "pc_b_star", "pc_k_star", "pc_t_star"),
   ].map((c) => [c.key, c]),
 );
 const PLANET_CLASSES = new Map(
   [
-    planet("pc_b_star", true),
-    planet("pc_k_star", true),
-    planet("pc_t_star", true),
-    planet("pc_black_hole", true),
-    planet("pc_barren", false),
+    planetClassView("pc_b_star", true),
+    planetClassView("pc_k_star", true),
+    planetClassView("pc_t_star", true),
+    planetClassView("pc_black_hole", true),
+    planetClassView("pc_barren", false),
   ].map((c) => [c.key, c]),
 );
 const SINGLES = singleStarClasses(STAR_CLASSES);

@@ -5,13 +5,12 @@
 //! back to the pool of unused star or black hole names as [`super::remove_system`]
 //! returns one, and the new one leaves its pool as an add takes one.
 
-use std::ops::Range;
-
+use crate::Span;
 use crate::cst::Node;
-use crate::format::save::added::Table;
+use crate::format::save::read_spec::bodies;
 use crate::format::save::write::add_system::{NAME_VAR, PARENT_VAR};
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
-use crate::format::save::write::remove_system::{bodies, check_added};
+use crate::format::save::write::remove_system::check_added;
 use crate::keys;
 use crate::ops::rules::{check_name, quoted};
 use crate::ops::{Op, OpError, Plan, Planned};
@@ -52,14 +51,8 @@ fn rename_entries(
     old: &str,
     new: &str,
 ) -> Result<(), OpError> {
-    let edit = plan.edit(&s.doc, id)?;
-    let key = edit
-        .entity()?
-        .find(keys::NAME, &edit.buf)
-        .and_then(|name| name.find(keys::KEY, &edit.buf))
-        .and_then(Node::scalar_span)
-        .ok_or_else(|| edit.parse_error(0, "the system's name has no key"))?;
-    edit.splices.push((key.range(), quoted(new).into_bytes()));
+    plan.edit(&s.doc, id)?
+        .set_scalar(&[keys::NAME, keys::KEY], quoted(new))?;
     for (i, planet) in bodies(&s.doc, id)?.into_iter().enumerate() {
         let edit = plan.edit_planet(&s.doc, planet, id)?;
         let mut splices = Vec::new();
@@ -69,15 +62,15 @@ fn rename_entries(
             }
             system_names(name, &edit.buf, old, &mut splices);
         }
-        let text = quoted(new).into_bytes();
-        edit.splices
-            .extend(splices.into_iter().map(|range| (range, text.clone())));
+        for span in splices {
+            edit.replace_span(span, quoted(new));
+        }
     }
     Ok(())
 }
 
 /// The `key` of `name` when it is `old` alone, as a star named by its class holds it.
-fn plain_name(name: &Node, src: &[u8], old: &str) -> Option<Range<usize>> {
+fn plain_name(name: &Node, src: &[u8], old: &str) -> Option<Span> {
     if name.find(keys::LITERAL, src).is_some() || name.find(keys::VARIABLES, src).is_some() {
         return None;
     }
@@ -85,13 +78,13 @@ fn plain_name(name: &Node, src: &[u8], old: &str) -> Option<Range<usize>> {
     if key.scalar_str(src) != Some(old) {
         return None;
     }
-    key.scalar_span().map(|span| span.range())
+    key.scalar_span()
 }
 
 /// The `key` of every name inside `name` that stands for the system as `old`: a plain
 /// name that is the value of a `NAME` or `PARENT` variable, at any depth, as a moon names
 /// its planet and the planet its system.
-fn system_names(name: &Node, src: &[u8], old: &str, out: &mut Vec<Range<usize>>) {
+fn system_names(name: &Node, src: &[u8], old: &str, out: &mut Vec<Span>) {
     let Some(variables) = name.find(keys::VARIABLES, src) else {
         return;
     };
@@ -111,7 +104,7 @@ fn system_names(name: &Node, src: &[u8], old: &str, out: &mut Vec<Range<usize>>)
             && plain
             && key.and_then(|key| key.scalar_str(src)) == Some(old)
         {
-            out.push(span.range());
+            out.push(span);
         }
         system_names(value, src, old, out);
     }
@@ -127,17 +120,6 @@ pub(crate) fn swap_name(
     old: &str,
     new: &str,
 ) -> Result<(), OpError> {
-    let staying = s
-        .doc
-        .added()
-        .entries(Table::System)
-        .filter(|&(other, _)| other != id)
-        .filter(|(other, _)| {
-            s.graph
-                .systems
-                .get(other)
-                .is_some_and(|o| o.name.key == old)
-        })
-        .count();
+    let staying = name_pool::holders(s, old, &[id]);
     name_pool::swap(plan, &s.doc, SYSTEM_POOLS, (old, new), staying)
 }

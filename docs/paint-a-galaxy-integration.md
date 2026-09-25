@@ -13,7 +13,7 @@ picks the dialect. The New scenario dialog's blank route and the Export
 as scenario dialog share that checkbox. It is ticked by default and
 remembered per machine. On the CLI, `export-scenario` and `new-scenario`
 take `--profile paint-a-galaxy`, and the default is `plain`. All of the
-dialect is written in `crates/sgf-core/src/export/paint.rs`, on top of a
+dialect is written in `crates/sgf-core/src/export/paint/`, on top of a
 plain draft. The exact statement shapes below come from that module.
 
 Every scenario Forge writes opens with a `# created by` line, under either
@@ -84,7 +84,7 @@ static_galaxy_scenario = {
 	colonizable_planet_odds = <setup habitability, else 1.0>
 	primitive_odds = <setup primitive, else 1.0>
 	fallen_empire_max = <min(Z, 6)>
-	marauder_empire_max = 3
+	marauder_empire_max = <clan homes>
 	extra_crisis_strength = { 10 25 }
 	num_empires = { min = 0 max = <S-1> }
 	num_empire_default = <min(setup, S-R-1), else min(round((S-1)/2), S-R-1)>
@@ -92,7 +92,7 @@ static_galaxy_scenario = {
 	nomad_empire_default = <min(setup, S-1), else round((S-1)/10)>
 	nomad_empire_max = <S-1>
 	fallen_empire_default = <typed zones, else band>
-	marauder_empire_default = <marauder countries, else band>
+	marauder_empire_default = <clan homes>
 	crisis_strength = <band>
 	core_radius = <Forge's own>
 ```
@@ -101,20 +101,21 @@ static_galaxy_scenario = {
 the save's own shape moved to the front. The plain profile does the same,
 and nothing else in its header changes. The setup's `primitive` and
 `habitability` pass through as set, on the game's own scale, without
-conversion. `marauder_empire_default` is the number of
-`dormant_marauders` countries in the save, up to 3. When the save has
-none, it comes from the band.
+conversion. `marauder_empire_max` and `marauder_empire_default` are both
+the number of marauder clans whose home the map holds. `S-R-1` becomes
+`S-R` when the player's own seat is a reserved or Sol seat, since `R`
+already counts it.
 
 Without a setup (a scenario re-exported, or a new empty scenario),
-three keys come from a band on the system count:
+two keys come from a band on the system count:
 
-| Systems   | `fallen_empire_default` | `marauder_empire_default` | `crisis_strength` |
-|-----------|-------------------------|---------------------------|-------------------|
-| below 400 | 0                       | 1                         | 0.5               |
-| from 400  | 1                       | 1                         | 0.75              |
-| from 600  | 2                       | 2                         | 1.0               |
-| from 800  | 3                       | 2                         | 1.25              |
-| from 1000 | 4                       | 3                         | 1.5               |
+| Systems   | `fallen_empire_default` | `crisis_strength` |
+|-----------|-------------------------|-------------------|
+| below 400 | 0                       | 0.5               |
+| from 400  | 1                       | 0.75              |
+| from 600  | 2                       | 1.0               |
+| from 800  | 3                       | 1.25              |
+| from 1000 | 4                       | 1.5               |
 
 `crisis_strength` always comes from the band. `fallen_empire_max` is `Z`,
 the number of fallen empire zones the export places, typed and automatic
@@ -368,7 +369,7 @@ and scenarios alike. The role goes into `SystemNode.marauder` as
 homes, because only one of them spawns. It also reports a raid base with
 no hyperlane to its clan's home, because nothing spawns there. On a
 painted map it notes a home within 30 of a seat, as information, since
-that empire takes the raids first. "Update empire counts" writes
+that empire takes the raids first. "Update counts" writes
 `marauder_empire_max` and `marauder_empire_default` as the number of
 clans with a home, beside the seven keys above. The header check reports
 a `marauder_empire_max` that is not that number, or a default above it.

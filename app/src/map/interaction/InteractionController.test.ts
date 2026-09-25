@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OPEN_RESULT } from "../../store/fixture";
-import { systemNode } from "../../test/builders";
+import { name, systemNode } from "../../test/builders";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 
 import type { Graphics } from "pixi.js";
+import type { Nebula } from "../../generated/Nebula";
+import type { SystemNode } from "../../generated/SystemNode";
+import { DEFAULT_LAYERS } from "../../lib/visual/layerIds";
 import { ACCENT_COLOR, REFUSED_COLOR } from "../../lib/visual/style";
 import { run, type CommandEffects } from "../../store/commands";
 import { useEditorStore } from "../../store/editorStore";
@@ -76,6 +79,7 @@ beforeEach(() => {
   vi.stubGlobal("cancelAnimationFrame", () => undefined);
   useEditorStore.setState({ ...useEditorStore.getInitialState() });
   useToolStore.setState({ ...useToolStore.getInitialState() });
+  useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
 });
 
 afterEach(() => {
@@ -84,18 +88,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** A galaxy of `systems` and `nebulae` on an 800 by 600 canvas, and a controller over it. */
+function mapOver(systems: SystemNode[], layers: MapLayer[] = [], nebulae: Nebula[] = []) {
+  useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems, nebulae });
+  const cam = new Camera();
+  cam.setViewport(800, 600);
+  const surface = canvas();
+  const highlights = new HighlightsLayer();
+  controller = new InteractionController(surface, cam, highlights, layers);
+  return { cam, surface, highlights };
+}
+
 describe("a box select", () => {
   it("selects what it encloses in the document's order, not where each system lies", () => {
-    const systems = [
+    const { surface } = mapOver([
       systemNode({ id: 5, x: 300 }),
       systemNode({ id: 1, x: -300 }),
       systemNode({ id: 3 }),
-    ];
-    useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems });
-    const cam = new Camera();
-    cam.setViewport(800, 600);
-    const surface = canvas();
-    controller = new InteractionController(surface, cam, new HighlightsLayer());
+    ]);
 
     surface.fire("pointerdown", 1, 1);
     surface.fire("pointermove", 799, 599);
@@ -107,15 +117,9 @@ describe("a box select", () => {
 
 describe("the symmetry guides", () => {
   it("show in every tool while symmetry is on, and keep a held stroke's own until it ends", () => {
-    useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems: [systemNode({ id: 1 })] });
     useToolStore.setState({ tool: "select", symmetry: { kind: "mirror", axis: "x" } });
-    const cam = new Camera();
-    cam.setViewport(800, 600);
-    const surface = canvas();
-    const highlights = new HighlightsLayer();
-    const guide = highlights.guide.graphics;
-    const segments = () => strokes(guide).flatMap((op) => op.segments).length;
-    controller = new InteractionController(surface, cam, highlights);
+    const { surface, highlights } = mapOver([systemNode({ id: 1 })]);
+    const segments = () => strokes(highlights.guide.graphics).flatMap((op) => op.segments).length;
     expect(segments()).toBe(1);
 
     useToolStore.setState({ tool: "cut" });
@@ -136,15 +140,13 @@ describe("the symmetry guides", () => {
 
 describe("a drag under symmetry", () => {
   it("previews each counterpart moving by the image of the drag", () => {
-    const systems = [systemNode({ id: 1, x: 100, y: 50 }), systemNode({ id: 2, x: 100, y: -50 })];
-    useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems });
     useToolStore.setState({ tool: "select", symmetry: { kind: "mirror", axis: "x" } });
-    const cam = new Camera();
-    cam.setViewport(800, 600);
-    const surface = canvas();
     const drags: Array<DragState | null> = [];
     const layer = { setDragState: (d: DragState | null) => drags.push(d) } as unknown as MapLayer;
-    controller = new InteractionController(surface, cam, new HighlightsLayer(), [layer]);
+    const { cam, surface } = mapOver(
+      [systemNode({ id: 1, x: 100, y: 50 }), systemNode({ id: 2, x: 100, y: -50 })],
+      [layer],
+    );
 
     const from = cam.worldToScreen(100, 50);
     const to = cam.worldToScreen(110, 60);
@@ -160,21 +162,15 @@ describe("a drag under symmetry", () => {
 
 /** Two systems 100 apart across the origin with a lane between, and a controller over them. */
 function laned(tool: "select" | "cut") {
-  const systems = [
+  useToolStore.setState({ tool, size: 40, symmetry: { kind: "off" } });
+  const { cam, surface, highlights } = mapOver([
     systemNode({ id: 1, x: -50, lanes: lanesTo(2) }),
     systemNode({ id: 2, x: 50, lanes: lanesTo(1) }),
-  ];
-  useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems });
-  useToolStore.setState({ tool, size: 40, symmetry: { kind: "off" } });
-  const cam = new Camera();
-  cam.setViewport(800, 600);
-  const surface = canvas();
-  const highlights = new HighlightsLayer();
-  controller = new InteractionController(surface, cam, highlights);
+  ]);
   const brush = (label: string) => highlights.brush.container.getChildByLabel(label) as Graphics;
   const mid = cam.worldToScreen(0, 0);
   const star = cam.worldToScreen(-50, 0);
-  return { surface, brush, mid, star };
+  return { surface, highlights, brush, mid, star };
 }
 
 /** An edit that settles only when the test says so. */
@@ -239,6 +235,25 @@ describe("a brush stroke", () => {
   });
 });
 
+describe("a held stroke's preview", () => {
+  it("is drawn at most once per frame, however many moves the frame takes", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (draw: FrameRequestCallback) => frames.push(draw));
+    const { surface, highlights, mid } = laned("cut");
+    const drawn = vi.spyOn(highlights.brush, "setPreview");
+
+    surface.fire("pointerdown", mid.x, mid.y);
+    for (const dx of [2, 4, 6]) surface.fire("pointermove", mid.x + dx, mid.y);
+    expect(frames).toHaveLength(1);
+    expect(drawn).not.toHaveBeenCalled();
+
+    frames.shift()!(0);
+    expect(drawn).toHaveBeenCalledTimes(1);
+    surface.fire("pointermove", mid.x + 8, mid.y);
+    expect(frames).toHaveLength(1);
+  });
+});
+
 describe("the brush circle", () => {
   it("turns to the inverse brush as Alt goes down, and back as it comes up", () => {
     const { surface, brush, mid } = laned("cut");
@@ -253,17 +268,32 @@ describe("the brush circle", () => {
   });
 });
 
+describe("a press on a star in a nebula's ring band", () => {
+  it("selects the system, where the ring alone selects the nebula", async () => {
+    const cloud: Nebula = { name: name("Cloud"), x: 0, y: 0, radius: 40, systems: [] };
+    useMapChromeStore.setState({ layers: { ...DEFAULT_LAYERS, nebulae: true } });
+    const { cam, surface } = mapOver([systemNode({ id: 1, x: 40 })], [], [cloud]);
+    const ring = cam.worldToScreen(0, 40);
+    const star = cam.worldToScreen(40, 0);
+
+    surface.fire("pointerdown", ring.x, ring.y);
+    surface.fire("pointerup", ring.x, ring.y);
+    expect(useEditorStore.getState().selectedNebula).toBe(0);
+
+    surface.fire("pointerdown", star.x, star.y);
+    surface.fire("pointerup", star.x, star.y);
+
+    await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([1]));
+    expect(useEditorStore.getState().selectedNebula).toBeNull();
+  });
+});
+
 describe("a prevented pair's dash", () => {
   it("opens its own menu on a right-click and is passed over by hover and a left click", () => {
-    const systems = [
+    const { cam, surface } = mapOver([
       systemNode({ id: 1, x: -50, prevented: [2] }),
       systemNode({ id: 2, x: 50, prevented: [1] }),
-    ];
-    useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems });
-    const cam = new Camera();
-    cam.setViewport(800, 600);
-    const surface = canvas();
-    controller = new InteractionController(surface, cam, new HighlightsLayer());
+    ]);
     const mid = cam.worldToScreen(0, 0);
 
     surface.fire("pointerdown", mid.x, mid.y, 2);

@@ -5,6 +5,7 @@ expression: "report(&session, &result)"
 Added lane 2 <-> 16
 touched: [2, 16]
 inverse: RemoveLane { a: 2, b: 16 }
+warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 2 other issues
 
 --- scenario

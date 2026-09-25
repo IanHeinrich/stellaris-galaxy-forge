@@ -10,7 +10,7 @@ import { fileName } from "../../lib/paths";
 import { useFileSessionStore, type ScenarioPrompt } from "../../store/fileSessionStore";
 import { standingProfile, usePaintModStore } from "../../store/paintModStore";
 import { PaintModStatus } from "../chrome/PaintModStatus";
-import { Dialog } from "../overlays/Dialog";
+import { Dialog } from "../Dialog";
 import { PaintChoice } from "./PaintChoice";
 import "./open.css";
 

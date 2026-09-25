@@ -1,6 +1,6 @@
 /**
  * The game's art, rendered to PNG by the Rust side. Command names and argument names here match
- * `app/src-tauri/src/commands.rs`.
+ * `app/src-tauri/src/commands/`.
  */
 import { invoke } from "@tauri-apps/api/core";
 import type { TextureView } from "../generated/TextureView";

@@ -2,11 +2,9 @@ import type { DepositView } from "../../generated/DepositView";
 import type { InitPlanetView } from "../../generated/InitPlanetView";
 import type { InitializerView } from "../../generated/InitializerView";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
-import { planetClassLabel } from "../details/labels";
+import { initClassLabel, randomListLabel } from "../details/labels";
+import { STAR_BODY_CLASS } from "../details/starBody";
 import { resourceRows, type ResourceRow } from "../resources";
-
-/** The class an initializer gives the body standing in for the system's own star. */
-const STAR = "star";
 
 /** One body an initializer spawns, ready to render. */
 export interface InitializerRow {
@@ -25,34 +23,6 @@ export interface InitializerRow {
   homePlanet: boolean;
   ring: boolean;
   resources: ResourceRow[];
-}
-
-/** A body block without a class leaves the choice to the game, like `random`. */
-const RANDOM_CLASSES: Record<string, string> = {
-  "": "random planet, any class",
-  none: "no planet",
-  random: "random planet, any class",
-  random_colonizable: "random habitable planet",
-  random_non_colonizable: "random uninhabitable planet",
-  random_asteroid: "random asteroid",
-  random_non_machine: "random planet, no machine world",
-  random_non_ideal: "random planet, not the ideal class",
-  random_ruler: "random habitable planet for a ruler",
-  random_pre_ftl: "random pre-FTL world",
-};
-
-/** `rl_habitable_planets` → `random from habitable planets`. */
-function randomListLabel(key: string): string {
-  return `random from ${key.slice(3).replace(/_/g, " ")}`;
-}
-
-/** What a body's class is called: a planet class, one of the random kinds, or a random list. */
-export function initClassLabel(planetClass: string): string {
-  const random = RANDOM_CLASSES[planetClass];
-  if (random !== undefined) return random;
-  if (planetClass.startsWith("rl_")) return randomListLabel(planetClass);
-  if (planetClass.startsWith("random")) return planetClass.replace(/_/g, " ");
-  return planetClassLabel(planetClass);
 }
 
 /** The star the system is built around: the localised class, the list a random one draws from, or the key. */
@@ -123,7 +93,7 @@ export function initializerRows(
 ): InitializerRow[] {
   const rows: InitializerRow[] = [];
   view.planets.forEach((planet, i) => {
-    if (planet.class === STAR) return;
+    if (planet.class === STAR_BODY_CLASS) return;
     rows.push(bodyRow(planet, String(i), false, classes, deposits, icons));
     planet.moons.forEach((moon, m) =>
       rows.push(bodyRow(moon, `${i}.${m}`, true, classes, deposits, icons)),

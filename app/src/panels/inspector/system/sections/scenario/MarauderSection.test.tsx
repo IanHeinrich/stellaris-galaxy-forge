@@ -11,14 +11,14 @@ import { bindStores } from "../../../../../store/bindStores";
 import { detailOf } from "../../../../../store/fixture";
 import { useFileSessionStore } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
-import { mocked, open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
+import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
 import { ADD_BASES, homeIntro, NO_HOME_BESIDE } from "./MarauderSection";
+import { escaped } from "../../../../../test/elements";
+import { mockedIpc } from "../../../../../test/ipc";
 
 bindStores();
 
 /** The text as the static renderer escapes it. */
-const escaped = (text: string) => text.replace(/'/g, "&#x27;");
-
 /** A role's initializer: a base's names its site, `_2` unless told otherwise. */
 function initializerOf(role: MarauderRole, site: 2 | 3 = 2): string {
   return "home" in role ? `marauder_${role.home}_1` : `marauder_${role.base}_${site}`;
@@ -32,7 +32,7 @@ async function openWith(
   role: MarauderRole | null,
   others: Record<number, [MarauderRole, (2 | 3)?]> = {},
 ): Promise<void> {
-  mocked.getSystem.mockImplementation(async (id) => {
+  mockedIpc.getSystem.mockImplementation(async (id) => {
     const detail = detailOf(id);
     return {
       ...detail,

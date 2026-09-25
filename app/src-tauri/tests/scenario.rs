@@ -182,11 +182,6 @@ fn a_scenario_systems_scripts_and_owners_are_read_from_game_data() {
         "Iridonia's own effect block: {kinds:?}"
     );
     assert!(
-        scripts["owner"].is_null() || !scripts["owner"]["territory"].is_null(),
-        "the owner's territory is joined before it crosses IPC: {}",
-        scripts["owner"]
-    );
-    assert!(
         invoke::<Option<serde_json::Value>>(&w, "get_system_scripts", json!({ "id": 999_999 }))
             .expect("unknown id")
             .is_none()
@@ -208,10 +203,9 @@ fn a_scenario_systems_scripts_and_owners_are_read_from_game_data() {
 }
 
 /// The bodies the scripts colonise name their territory in the system's details, which
-/// takes every system at once: the owners are computed once and kept until the game data
-/// or the scenario changes.
+/// takes every system at once, and asking again answers the same without reloading.
 #[test]
-fn a_scenario_systems_colonies_name_their_territory_and_the_owners_are_kept() {
+fn a_scenario_systems_colonies_name_their_territory_and_asking_again_answers_the_same() {
     if !have_install() {
         return;
     }

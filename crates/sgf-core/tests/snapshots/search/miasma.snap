@@ -1,6 +1,7 @@
 ---
-source: crates/sgf-core/tests/search.rs
-expression: "report(&s.search(\"miasma\", 5, &no_loc))"
+source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 212
+expression: value
 ---
-Nebula #0 Phantom Streak Miasma · systems=8 → - at (66.15, -136.85)
-Nebula #5 Kanthares Miasma · systems=2 → - at (-183.18, 391.8)
+{"kind":"nebula","id":0,"name":{"key":"Phantom_Streak_Miasma","literal":false,"variables":[]},"name_key":"Phantom_Streak_Miasma","system_id":null,"owner":null,"country_type":null,"system_count":8,"planet_class":null,"position":[66.15,-136.85],"matched_on":null}
+{"kind":"nebula","id":5,"name":{"key":"Kanthares_Miasma","literal":false,"variables":[]},"name_key":"Kanthares_Miasma","system_id":null,"owner":null,"country_type":null,"system_count":2,"planet_class":null,"position":[-183.18,391.8],"matched_on":null}

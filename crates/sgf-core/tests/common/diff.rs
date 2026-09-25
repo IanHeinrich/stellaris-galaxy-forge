@@ -1,13 +1,17 @@
 //! The report the op tests snapshot, and the round trips they assert.
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
+use std::ops::Range;
+
+use sgf_core::document::Document;
 
 use sgf_core::ops::{NewSystem, Op};
 use sgf_core::projections::galaxy::{GalaxyGraph, SystemNode};
+use sgf_core::scan::Index;
 use sgf_core::session::{OpResult, Session};
 use sgf_core::validate::IssueCode;
 use sgf_core::views::{DocumentKind, GalaxyView};
-use similar::{Algorithm, TextDiff};
+use similar::{Algorithm, ChangeTag, TextDiff};
 
 use super::fixture::from_scenario_text;
 use super::{current, issues_at_open, reprojected};
@@ -51,6 +55,32 @@ pub fn plain_report(session: &Session, result: &OpResult) -> String {
     out
 }
 
+/// Apply `op` and describe it: its description, its inverse, the renumbering it made if
+/// any, and the unified diff it wrote against the bytes it found.
+pub fn step_report(session: &mut Session, op: Op) -> String {
+    let before = String::from_utf8_lossy(&current(session)).into_owned();
+    let result = session.apply(op).expect("apply");
+    let after = String::from_utf8_lossy(&current(session)).into_owned();
+    let mut out = String::new();
+    writeln!(out, "{}", result.entry.description).unwrap();
+    writeln!(out, "inverse: {:?}", result.inverse).unwrap();
+    if !result.renumbered.is_empty() {
+        writeln!(out, "renumbered: {:?}", result.renumbered).unwrap();
+    }
+    let diff = TextDiff::configure()
+        .algorithm(Algorithm::Myers)
+        .diff_lines(&before, &after);
+    write!(
+        out,
+        "{}",
+        diff.unified_diff()
+            .context_radius(3)
+            .header("before", "after")
+    )
+    .unwrap();
+    out
+}
+
 /// The session's edits as a unified diff against the document as it was opened, cut to
 /// its first `cap` lines and a count of the rest when a cap is given.
 pub fn unified_diff(session: &Session, cap: Option<usize>) -> String {
@@ -91,6 +121,15 @@ pub fn snapshot(name: &str, mut session: Session, op: Op) {
 pub fn plain_snapshot(name: &str, mut session: Session, op: Op) {
     let result = session.apply(op).expect("apply");
     super::snapshot(name, &plain_report(&session, &result));
+}
+
+/// [`round_trip_step`] `op` on `session`, and snapshot its [`plain_report`], which diffs
+/// against the document as opened.
+#[track_caller]
+pub fn snapshot_step(session: &mut Session, name: &str, op: Op) -> OpResult {
+    let result = round_trip_step(session, name, op);
+    super::snapshot(name, &plain_report(session, &result));
+    result
 }
 
 /// Apply `op` to the document as it was opened, undo it, redo it and undo it again: see
@@ -345,4 +384,46 @@ fn systems(session: &Session) -> BTreeMap<u32, SystemNode> {
             (id, system)
         })
         .collect()
+}
+
+/// [`report`], with the diff cut to the hunks that change a top-level `key=` block, for a
+/// test whose claim is that block and not the rest of what the op writes.
+pub fn section_report(session: &Session, result: &OpResult, key: &str) -> String {
+    let full = report(session, result);
+    let head = &full[..full.find("\n--- ").map_or(full.len(), |at| at + 1)];
+    let original = String::from_utf8_lossy(session.doc.original()).into_owned();
+    let edited = String::from_utf8_lossy(&current(session)).into_owned();
+    let reindexed = Document::from_bytes(current(session), session.doc.meta().to_vec())
+        .expect("index the edited bytes");
+    let before = blocks(session.doc.index(), session.doc.original(), key);
+    let after = blocks(reindexed.index(), reindexed.original(), key);
+    let diff = TextDiff::configure()
+        .algorithm(Algorithm::Myers)
+        .diff_lines(&original, &edited);
+    let mut out = format!("{head}--- {key}\n+++ {key}\n");
+    let mut unified = diff.unified_diff();
+    for hunk in unified.context_radius(3).iter_hunks() {
+        let inside = hunk.iter_changes().any(|change| match change.tag() {
+            ChangeTag::Delete => change.old_index().is_some_and(|i| within(&before, i)),
+            ChangeTag::Insert => change.new_index().is_some_and(|i| within(&after, i)),
+            ChangeTag::Equal => false,
+        });
+        if inside {
+            write!(out, "{hunk}").unwrap();
+        }
+    }
+    out
+}
+
+/// The line ranges of every top-level `key` statement the index of `bytes` holds.
+fn blocks(index: &Index, bytes: &[u8], key: &str) -> Vec<Range<usize>> {
+    let line_of = |at: usize| bytes[..at].iter().filter(|&&b| b == b'\n').count();
+    index
+        .sections_named(key)
+        .map(|section| line_of(section.stmt.start)..line_of(section.stmt.end) + 1)
+        .collect()
+}
+
+fn within(ranges: &[Range<usize>], line: usize) -> bool {
+    ranges.iter().any(|range| range.contains(&line))
 }

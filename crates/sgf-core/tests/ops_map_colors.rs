@@ -4,11 +4,9 @@
 
 use sgf_core::ops::{MapColorPair, Op, OpError};
 use sgf_core::projections::galaxy::CountryNode;
-use sgf_core::views::DocumentKind;
 
 use crate::common;
-use common::diff::{plain_report, round_trip};
-use common::examples;
+use common::diff::snapshot_step;
 use common::{current, open, open_4_5, reprojected};
 
 /// The player empire, created with Independent Map Color on.
@@ -39,15 +37,15 @@ fn colours(border: &str, fill: &str) -> (Option<String>, Option<String>) {
     (Some(border.to_owned()), Some(fill.to_owned()))
 }
 
-/// Apply `op` to a fresh 4.5 sample, check the projection, a reload of the bytes and the
-/// app's delta all read `expected`, snapshot the diff, check the inverse, then apply the
-/// inverse and check it writes the original bytes back.
+/// Round-trip and snapshot `op` on a fresh 4.5 sample, check the projection, a reload of
+/// the bytes and the app's delta read `expected`, then apply the inverse and check it
+/// writes the original bytes back.
 fn change(op: Op, expected: (Option<String>, Option<String>), inverse: Op, snapshot: &str) {
     let Op::SetEmpireMapColors { country: id, .. } = op else {
         unreachable!()
     };
     let mut session = open_4_5();
-    let result = session.apply(op.clone()).expect("set the map colours");
+    let result = snapshot_step(&mut session, snapshot, op);
     assert_eq!(
         country(&session.graph.countries, id),
         expected,
@@ -65,16 +63,12 @@ fn change(op: Op, expected: (Option<String>, Option<String>), inverse: Op, snaps
         "{snapshot}: reaches the app"
     );
     assert_eq!(result.inverse, inverse, "{snapshot}");
-    common::snapshot(snapshot, &plain_report(&session, &result));
-
     session.apply(result.inverse).expect("apply the inverse");
     assert_eq!(
         current(&session),
         session.doc.original(),
         "{snapshot}: the inverse"
     );
-
-    round_trip(open_4_5(), op);
 }
 
 #[test]
@@ -137,7 +131,15 @@ fn map_colours_are_refused_without_a_4_5_colours_list_or_where_nothing_would_cha
     ] {
         let error = session.apply(set(AI, pair(border, fill))).unwrap_err();
         assert!(
-            matches!(error, OpError::InvalidColorName(_)),
+            matches!(
+                error,
+                OpError::EmptyText {
+                    what: "a colour name"
+                } | OpError::InvalidText {
+                    what: "a colour name",
+                    ..
+                }
+            ),
             "{border:?} {fill:?}: {error:?}"
         );
     }
@@ -152,15 +154,7 @@ fn map_colours_are_refused_without_a_4_5_colours_list_or_where_nothing_would_cha
         );
     }
 
-    let mut scenario = examples::scenario();
-    assert!(matches!(
-        scenario.apply(set(AI, pair("blue", "dark_blue"))),
-        Err(OpError::Unsupported {
-            kind: DocumentKind::Scenario,
-            ..
-        })
-    ));
-    for session in [&four_four, &session, &scenario] {
+    for session in [&four_four, &session] {
         assert!(!session.doc.is_dirty());
     }
 }

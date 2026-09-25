@@ -33,7 +33,7 @@ pub(super) fn add_lanes(
     to: &[(u32, bool)],
 ) -> Result<Planned, OpError> {
     if to.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     let pairs: Vec<LanePair> = to
         .iter()
@@ -60,7 +60,7 @@ pub(super) fn add_lane_pairs(
     pairs: &[LanePair],
 ) -> Result<Planned, OpError> {
     if pairs.is_empty() {
-        return Err(OpError::Empty);
+        return Err(OpError::NoEntries);
     }
     emit_lanes(plan, s, pairs)?;
     Ok(Planned {

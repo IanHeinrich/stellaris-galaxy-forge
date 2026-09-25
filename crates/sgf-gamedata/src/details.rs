@@ -11,7 +11,7 @@ use sgf_core::format::save::details::{
 use sgf_core::projections::name::NameTemplate;
 
 use crate::GameData;
-use crate::initializers::{self, InitPlanet, Initializer};
+use crate::initializers::{self, BodyClass, InitPlanet, Initializer};
 use crate::scripts::ScenarioOwners;
 
 /// Bodies an initializer gives no id: each collection counts from a base far above any id
@@ -21,9 +21,6 @@ const MEGASTRUCTURE_BASE: u32 = 0x5000_0000;
 /// A scenario starbase's synthetic id: one per system, never a real entity.
 const STARBASE_BASE: u32 = 0x7000_0000;
 const SITE_BASE: u32 = 0x6000_0000;
-
-/// The class an initializer writes for the body standing in for the system's own star.
-const STAR: &str = "star";
 
 /// The planets and moons one initializer spawns, with the dig sites they carry.
 #[derive(Debug, Default)]
@@ -139,8 +136,8 @@ impl GameData {
     fn summary(&self, body: &InitPlanet, star: Option<&str>, moon: bool, id: u32) -> PlanetSummary {
         let name_key = body.name.clone().unwrap_or_default();
         let class = match star {
-            Some(star) if body.class == STAR => star.to_owned(),
-            _ => body.class.clone(),
+            Some(star) if body.class == BodyClass::Star => star.to_owned(),
+            _ => body.class.written().to_owned(),
         };
         PlanetSummary {
             id,
@@ -154,7 +151,7 @@ impl GameData {
             colonised: body.colonised,
             // A pre-FTL world the empire starts beside is never that empire's capital.
             capital: body.home_planet && !body.pre_ftl,
-            habitable: self.planet_habitable(&body.class),
+            habitable: self.planet_habitable(body.class.written()),
             owner: None,
             moon,
             pre_ftl: body.pre_ftl,

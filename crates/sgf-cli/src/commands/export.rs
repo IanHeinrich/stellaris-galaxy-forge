@@ -124,7 +124,7 @@ fn print_report(report: &ExportReport) {
             )
         );
     }
-    if let Some(dropped) = report.dropped.summary() {
+    if let Some(dropped) = &report.dropped_summary {
         println!("not carried over: {dropped}");
     }
     if let Some(needs) = report.needs() {

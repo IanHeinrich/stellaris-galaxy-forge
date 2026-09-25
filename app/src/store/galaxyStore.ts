@@ -9,6 +9,7 @@ import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
 import { componentCount } from "../lib/geometry/joinIslands";
+import { PairSet } from "../lib/geometry/pairs";
 import { isLClusterSystem } from "../lib/guides";
 import { meshPairs, type MeshPoint } from "../lib/geometry/mesh";
 import { nodeName, stripped, templateName } from "../lib/names";
@@ -308,7 +309,8 @@ export function islandCount(systems: Systems): number {
   return componentCount(points, edges);
 }
 
-function linked(systems: Systems, a: number, b: number): boolean {
+/** Whether a lane joins `a` and `b`. */
+export function linked(systems: Systems, a: number, b: number): boolean {
   return systems.get(a)?.lanes.some((l) => l.to === b) ?? false;
 }
 
@@ -413,7 +415,7 @@ export function linkedSystems(systems: Systems, ids: number[]): number[] {
 }
 
 /** The system of `ownerId` nearest the centroid of everything it owns. */
-export function centralOwnedSystem(systems: Systems, ownerId: number): number | null {
+function centralOwnedSystem(systems: Systems, ownerId: number): number | null {
   return centralOf([...systems.values()].filter((s) => s.owner === ownerId));
 }
 
@@ -449,11 +451,10 @@ function centralOf(owned: readonly SystemNode[]): number | null {
 
 /** How many distinct lanes touching one of `ids` the core marked stale. */
 export function staleLaneCount(systems: Systems, ids: number[]): number {
-  const seen = new Set<string>();
+  const seen = new PairSet();
   for (const id of ids) {
     for (const lane of systems.get(id)?.lanes ?? []) {
-      if (!lane.stale) continue;
-      seen.add(`${Math.min(id, lane.to)}-${Math.max(id, lane.to)}`);
+      if (lane.stale) seen.add(id, lane.to);
     }
   }
   return seen.size;

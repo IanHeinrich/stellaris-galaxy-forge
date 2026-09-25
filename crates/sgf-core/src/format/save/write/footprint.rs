@@ -12,20 +12,23 @@
 //! lists is its own: one an initializer or an event placed, flagged or not of the table's
 //! types, is left alone.
 
-use std::collections::{BTreeMap, BTreeSet};
-
 use crate::archive;
-use crate::cst::{self, Node};
+use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::{
     AmbientEntry, ambient_entry, ambient_list, timed_modifier_item, timed_modifiers,
 };
-use crate::emit::{coord, quoted};
+use crate::emit::{coord, inline, quoted};
 use crate::format::save::alloc::{self, Slot, SlotTable};
-use crate::format::save::galaxy::systems::{TURBULENT_NEBULA, timed_modifiers as modifiers_of};
-use crate::format::save::planet_statement;
-use crate::format::save::system_statement;
-use crate::format::save::write::add_system::{check_version, write_slot};
+use crate::format::save::galaxy::systems::{
+    TURBULENT_NEBULA, star_flags, timed_modifiers as modifiers_of,
+};
+use crate::format::save::write::add_system::write_slot;
+use crate::format::save::write::game_tables::{
+    CLASS_A, FIRST_CONTACT, HOME_SYSTEM, OCEAN_PARADISE, TURBULENT_KINDS, beside, calm_kinds,
+    calm_of, is_cloud_kind, turbulent_of,
+};
+use crate::format::save::{entity, entity_at, planet_statement, system_statement};
 use crate::keys;
 use crate::ops::{Edit, Emitted, NebulaCloud, NebulaFootprint, OpError, Plan, Subject};
 use crate::overlay::Anchor;
@@ -34,115 +37,8 @@ use crate::projections::read;
 use crate::span::Span;
 
 const CLOAKING: &str = "nebula_cloaking";
-const FIRST_CONTACT: &str = "First Contact Story Pack";
-/// The star flag that makes `game_start.50` give an A-class star `rare_nebula_1`.
-const OCEAN_PARADISE: &str = "ocean_paradise_nebula";
-/// The star flag of an empire's home system, which the game never makes turbulent.
-const HOME_SYSTEM: &str = "empire_home_system";
-const TURBULENT_KINDS: [&str; 2] = ["turbulent_nebula_1", "turbulent_nebula_2"];
-/// The star classes `game_start.50` gives `rare_nebula_1` when flagged Ocean Paradise.
-const CLASS_A: [&str; 4] = ["sc_a", "sc_binary_1", "sc_binary_9", "sc_binary_10"];
-/// The calm types `game_start.50` weighs for each star class, in its table's order.
-const CALM_KINDS: &[(&[&str], &[&str])] = &[
-    (
-        &[
-            "sc_b",
-            "sc_binary_2",
-            "sc_binary_5",
-            "sc_trinary_2",
-            "sc_trinary_4",
-        ],
-        &["nebula_3", "nebula_4", "rare_nebula_1"],
-    ),
-    (
-        &["sc_a", "sc_binary_1", "sc_binary_9", "sc_binary_10"],
-        &["nebula_3", "nebula_4", "rare_nebula_1", "rare_nebula_2"],
-    ),
-    (&["sc_f"], &["nebula_3", "nebula_4", "rare_nebula_1"]),
-    (
-        &["sc_g", "sc_binary_8", "sc_trinary_1"],
-        &["nebula_1", "rare_nebula_2"],
-    ),
-    (
-        &[
-            "sc_k",
-            "sc_binary_7",
-            "sc_trinary_3",
-            "sc_m",
-            "sc_m_giant",
-            "sc_binary_3",
-            "sc_binary_4",
-            "sc_binary_6",
-        ],
-        &["nebula_1", "nebula_2", "rare_nebula_2"],
-    ),
-    (&["sc_t"], &["nebula_3", "rare_nebula_1"]),
-    (
-        &["sc_black_hole"],
-        &[
-            "nebula_1",
-            "nebula_2",
-            "nebula_3",
-            "nebula_4",
-            "rare_nebula_1",
-            "rare_nebula_2",
-        ],
-    ),
-    (
-        &["sc_neutron_star", "sc_pulsar"],
-        &["nebula_3", "nebula_4", "rare_nebula_1", "rare_nebula_2"],
-    ),
-];
-const EVERY_CALM_KIND: [&str; 6] = [
-    "nebula_1",
-    "nebula_2",
-    "nebula_3",
-    "nebula_4",
-    "rare_nebula_1",
-    "rare_nebula_2",
-];
-
-/// Whether `kind` is one of the cloud types `game_start.50` places.
-pub(crate) fn is_cloud_kind(kind: &str) -> bool {
-    EVERY_CALM_KIND.contains(&kind) || TURBULENT_KINDS.contains(&kind)
-}
-
-fn calm_kinds(class: &str) -> Option<&'static [&'static str]> {
-    CALM_KINDS
-        .iter()
-        .find(|(classes, _)| classes.contains(&class))
-        .map(|&(_, kinds)| kinds)
-}
-
-/// The turbulent type the star classes that roll a calm `kind` roll beside it.
-fn turbulent_of(kind: &str) -> &'static str {
-    match kind {
-        "nebula_1" | "nebula_2" | "rare_nebula_2" => "turbulent_nebula_2",
-        _ => "turbulent_nebula_1",
-    }
-}
-
-/// The first calm type of the star class that turns into the turbulent `kind`, else the
-/// class's first, else the first of any class that does.
-fn calm_of(kind: &str, class: &str) -> &'static str {
-    let kinds = calm_kinds(class).unwrap_or(&EVERY_CALM_KIND);
-    kinds
-        .iter()
-        .chain(EVERY_CALM_KIND.iter())
-        .copied()
-        .find(|&calm| turbulent_of(calm) == kind)
-        .unwrap_or(kinds[0])
-}
-
 /// A star body's position in its system and its size.
 pub(crate) type Star = ((f64, f64), f64);
-
-/// Where `set_location = { distance = 0 angle = random }` puts a cloud beside a star of
-/// `size` at `(x, y)`.
-fn beside((x, y): (f64, f64), size: f64) -> (f64, f64) {
-    let offset = 0.33 * size;
-    (x + offset + 4.7, y + offset + 8.7)
-}
 
 /// One system's footprint as its bytes hold it now, with what writing one needs.
 pub(crate) struct Standing {
@@ -191,16 +87,8 @@ impl Standing {
 
 /// Whether system `id` carries `nebula_cloaking`.
 fn cloaked(doc: &Document, id: u32) -> bool {
-    let Some(src) = system_statement(doc, id).and_then(|at| doc.current(at).ok()) else {
-        return false;
-    };
-    let Some(node) = cst::parse(src, 0)
-        .ok()
-        .and_then(|root| root.children().first().cloned())
-    else {
-        return false;
-    };
-    modifiers_of(&node, src).any(|m| m == CLOAKING)
+    let entity = system_statement(doc, id).and_then(|at| entity_at(doc, at).ok().flatten());
+    entity.is_some_and(|(node, src)| modifiers_of(&node, src).any(|m| m == CLOAKING))
 }
 
 /// Whether a footprint holds anything at all.
@@ -214,21 +102,14 @@ pub(crate) struct Footprints<'d> {
     doc: &'d Document,
     first_contact: bool,
     table: Option<SlotTable>,
-    /// Appended entries the plan frees, which `finish` erases or leaves as tombstones.
-    freed: BTreeMap<Anchor, u32>,
-    /// Appended tombstones the plan writes a cloud into.
-    revived: BTreeSet<Anchor>,
-    /// The ids the plan appends.
-    appended: Vec<u32>,
 }
 
 impl<'d> Footprints<'d> {
-    /// `None` for a save older than Stellaris 4.0, whose ambient objects are written in
-    /// another shape: its nebula ops keep to the member lines.
+    /// For a save [`crate::format::save::check_version`] passes: an older one writes its
+    /// ambient objects in another shape, so its nebula ops keep to the member lines.
     /// Whether the save has First Contact comes from its `required_dlcs`, or, when `meta`
     /// cannot be read, from whether any nebula member carries `nebula_cloaking`.
-    pub fn new(doc: &'d Document, graph: &GalaxyGraph) -> Option<Self> {
-        check_version(doc).ok()?;
+    pub fn new(doc: &'d Document, graph: &GalaxyGraph) -> Self {
         let first_contact = match archive::parse_meta(doc.meta()) {
             Ok(meta) => meta.required_dlcs.iter().any(|dlc| dlc == FIRST_CONTACT),
             Err(_) => graph
@@ -237,14 +118,11 @@ impl<'d> Footprints<'d> {
                 .flat_map(|nebula| &nebula.systems)
                 .any(|&id| cloaked(doc, id)),
         };
-        Some(Self {
+        Self {
             doc,
             first_contact,
             table: None,
-            freed: BTreeMap::new(),
-            revived: BTreeSet::new(),
-            appended: Vec::new(),
-        })
+        }
     }
 
     fn table(&mut self) -> Result<&mut SlotTable, OpError> {
@@ -275,13 +153,8 @@ impl<'d> Footprints<'d> {
     /// System `id`'s footprint as the document now holds it.
     pub fn read(&mut self, id: u32) -> Result<Standing, OpError> {
         let anchor = system_statement(self.doc, id).ok_or(OpError::UnknownSystem(id))?;
-        let src = self.doc.current(anchor)?;
-        let subject = Subject::System(id);
-        let root = cst::parse(src, 0).map_err(|e| subject.parse_error(e.offset, e.reason))?;
-        let node = root
-            .children()
-            .first()
-            .ok_or_else(|| subject.parse_error(0, "empty statement"))?;
+        let (node, src) = entity(self.doc, Subject::System(id), anchor)?;
+        let node = &node;
         let mut cloud = None;
         for listed in read::ids(node, keys::AMBIENT_OBJECT, src).into_iter().rev() {
             if let Some((at, kind)) = self.cloud_entry(listed)? {
@@ -290,16 +163,7 @@ impl<'d> Footprints<'d> {
             }
         }
         let modifiers: Vec<&str> = modifiers_of(node, src).collect();
-        let flags: Vec<&str> = node
-            .find(keys::FLAGS, src)
-            .map(|flags| {
-                flags
-                    .children()
-                    .iter()
-                    .filter_map(|c| c.key_str(src))
-                    .collect()
-            })
-            .unwrap_or_default();
+        let flags: Vec<&str> = star_flags(node, src).collect();
         let star = match node.find(keys::PLANET, src).and_then(|p| p.scalar_str(src)) {
             Some(planet) => planet
                 .parse()
@@ -330,11 +194,7 @@ impl<'d> Footprints<'d> {
         let Some((at, true)) = self.locate(id)? else {
             return Ok(None);
         };
-        let src = self.doc.current(at)?;
-        let Some(node) = cst::parse(src, 0)
-            .ok()
-            .and_then(|root| root.children().first().cloned())
-        else {
+        let Ok(Some((node, src))) = entity_at(self.doc, at) else {
             return Ok(None);
         };
         let kind = read::text(&node, keys::DATA, src);
@@ -347,11 +207,7 @@ impl<'d> Footprints<'d> {
         let Some(anchor) = planet_statement(self.doc, id)? else {
             return Ok(None);
         };
-        let src = self.doc.current(anchor)?;
-        let Some(node) = cst::parse(src, 0)
-            .ok()
-            .and_then(|root| root.children().first().cloned())
-        else {
+        let Ok(Some((node, src))) = entity_at(self.doc, anchor) else {
             return Ok(None);
         };
         let size = read::scalar(&node, keys::PLANET_SIZE, src).and_then(|s| s.parse().ok());
@@ -433,20 +289,8 @@ impl<'d> Footprints<'d> {
     /// Take cloud `id` at `at` out of the table: a tombstone in a slot the file held, the
     /// slot given back in one an op appended.
     pub fn release(&mut self, plan: &mut Plan, id: u32, at: Anchor) -> Result<(), OpError> {
-        match at {
-            Anchor::Inserted { .. } => {
-                self.freed.insert(at, id);
-                Ok(())
-            }
-            Anchor::Original(span) => {
-                let loaded = span.slice(self.doc.original());
-                let bytes = match alloc::tombstone_of(loaded) {
-                    Some(_) => loaded.to_vec(),
-                    None => alloc::tombstone(id).into_bytes(),
-                };
-                plan.replace(self.doc, Subject::Record(at), at, bytes)
-            }
-        }
+        let doc = self.doc;
+        self.table()?.free(plan, doc, Subject::Record(at), id, at)
     }
 
     /// Point cloud `id` at `at` at system `system`, which a removal renumbered to it.
@@ -503,19 +347,8 @@ impl<'d> Footprints<'d> {
     ) -> Result<(), OpError> {
         let slot = match self.locate(cloud.id)? {
             Some((_, true)) => return Err(OpError::AmbientSlotTaken(cloud.id)),
-            Some((tombstone, false)) => {
-                if tombstone.is_inserted() {
-                    self.revived.insert(tombstone);
-                }
-                Slot::Reused {
-                    id: cloud.id,
-                    tombstone,
-                }
-            }
-            None if cloud.id == self.table()?.next_appended() => {
-                self.appended.push(cloud.id);
-                self.table()?.append()
-            }
+            Some((tombstone, false)) => self.table()?.reuse(cloud.id, tombstone),
+            None if cloud.id == self.table()?.next_appended() => self.table()?.append(),
             None => return Err(OpError::AmbientSlotTaken(cloud.id)),
         };
         if let Slot::Reused {
@@ -550,75 +383,20 @@ impl<'d> Footprints<'d> {
     /// left, is deleted from the end back until a live one stands, and every other freed
     /// entry becomes a tombstone; `last_created_ambient_object` then holds the larger of
     /// what the file held and the highest entry an op appended that stays.
-    pub fn finish(mut self, plan: &mut Plan) -> Result<(), OpError> {
-        let Some(table) = &self.table else {
+    pub fn finish(self, plan: &mut Plan) -> Result<(), OpError> {
+        let Some(table) = self.table.filter(SlotTable::touched) else {
             return Ok(());
         };
-        if self.freed.is_empty() && self.revived.is_empty() && self.appended.is_empty() {
-            return Ok(());
-        }
-        let doc = self.doc;
-        let mut live = std::mem::take(&mut self.appended);
-        let mut at_end = live.is_empty();
-        for entry in alloc::appended(doc, table.end.at()).into_iter().rev() {
-            if self.revived.contains(&entry.anchor) {
-                at_end = false;
-                live.push(entry.id);
-                continue;
-            }
-            let leaving = self.freed.contains_key(&entry.anchor);
-            let subject = Subject::Record(entry.anchor);
-            if at_end && (leaving || entry.dead) {
-                plan.erase(doc, subject, entry.anchor)?;
-                continue;
-            }
-            at_end = false;
-            if !leaving {
-                if !entry.dead {
-                    live.push(entry.id);
-                }
-                continue;
-            }
-            let current = doc.current(entry.anchor)?;
-            let span = alloc::statement_span(current)
-                .ok_or_else(|| subject.parse_error(0, "the entry holds no statement"))?;
-            let tombstone = alloc::tombstone(entry.id);
-            let bytes = [
-                &current[..span.start],
-                tombstone.as_bytes(),
-                &current[span.end..],
-            ]
-            .concat();
-            plan.replace(doc, subject, entry.anchor, bytes)?;
-        }
-        let Ok(counter) = alloc::counter(doc, keys::LAST_CREATED_AMBIENT_OBJECT) else {
+        let live = table.settle(plan, self.doc)?;
+        let Ok(counter) = alloc::counter(self.doc, keys::LAST_CREATED_AMBIENT_OBJECT) else {
             return Ok(());
         };
-        let loaded = || {
-            let Anchor::Original(span) = counter.anchor else {
-                return counter.last;
-            };
-            let bytes = span.slice(doc.original());
-            cst::parse(bytes, 0)
-                .ok()
-                .and_then(|root| root.children().first()?.scalar_str(bytes)?.parse().ok())
-                .unwrap_or(counter.last)
-        };
-        let last = live
-            .into_iter()
-            .max()
-            .map_or_else(loaded, |live| live.max(loaded()));
+        let loaded = counter.loaded(self.doc);
+        let last = live.map_or(loaded, |live| live.max(loaded));
         if last == counter.last {
             return Ok(());
         }
-        let edit = plan.edit_record(doc, counter.anchor)?;
-        let span = edit
-            .entity()?
-            .scalar_span()
-            .ok_or_else(|| edit.parse_error(0, "last_created_ambient_object is not a scalar"))?;
-        edit.splices
-            .push((span.range(), last.to_string().into_bytes()));
-        Ok(())
+        counter.set(plan, self.doc, last)
     }
 }
 
@@ -657,11 +435,8 @@ fn set_modifiers(edit: &mut Edit, cloaking: bool, turbulent: bool) -> Result<(),
         return match block {
             Some(block) => {
                 let span = block.span();
-                let mut text = text(&edit.indent(span.start));
-                text.pop();
-                let text =
-                    String::from_utf8_lossy(&text[edit.indent(span.start).len()..]).into_owned();
-                edit.replace_statement(span, &text);
+                let indent = edit.indent(span.start);
+                edit.replace_statement(span, &inline(&indent, &text(&indent)));
                 Ok(())
             }
             None => {
@@ -670,14 +445,9 @@ fn set_modifiers(edit: &mut Edit, cloaking: bool, turbulent: bool) -> Result<(),
                         edit.line_end(index.span().end),
                         edit.indent(index.span().start),
                     ),
-                    None => {
-                        let close = entity.value_span().end - 1;
-                        let mut indent = edit.indent(close);
-                        indent.push(b'\t');
-                        (edit.line_start(close), indent)
-                    }
+                    None => edit.before_close(entity),
                 };
-                edit.insert_lines(at, text(&indent));
+                edit.insert(at, text(&indent));
                 Ok(())
             }
         };
@@ -689,18 +459,16 @@ fn set_modifiers(edit: &mut Edit, cloaking: bool, turbulent: bool) -> Result<(),
         return Ok(());
     }
     let first = listed[0].0.start;
-    let close = items.value_span().end - 1;
-    let mut indent = edit.indent(close);
-    indent.push(b'\t');
+    let (at_close, indent) = edit.before_close(items);
     for span in removing {
         edit.remove_lines(span);
     }
     for modifier in adding {
         let at = match modifier {
             CLOAKING => edit.line_start(first),
-            _ => edit.line_start(close),
+            _ => at_close,
         };
-        edit.insert_lines(at, timed_modifier_item(&indent, modifier));
+        edit.insert(at, timed_modifier_item(&indent, modifier));
     }
     Ok(())
 }
@@ -739,8 +507,7 @@ fn relist(edit: &mut Edit, drop: Option<u32>, add: Option<(u32, bool)>) -> Resul
     match (list, items.first(), items.last()) {
         (Some(list), _, _) if ids.is_empty() => edit.remove_statement(list.span()),
         (Some(_), Some(&(first, _)), Some(&(last, _))) => {
-            edit.splices
-                .push((first.start..last.end, text.join(" ").into_bytes()));
+            edit.replace_span(Span::new(first.start, last.end), text.join(" "));
         }
         (list, _, _) => {
             if ids.is_empty() {
@@ -759,14 +526,10 @@ fn relist(edit: &mut Edit, drop: Option<u32>, add: Option<(u32, bool)>) -> Resul
                     (edit.line_start(class.start), edit.indent(class.start))
                 }
             };
-            let mut block = ambient_list(&indent, &ids);
+            let block = ambient_list(&indent, &ids);
             match list {
-                Some(list) => {
-                    block.pop();
-                    let block = String::from_utf8_lossy(&block[indent.len()..]).into_owned();
-                    edit.replace_statement(list.span(), &block);
-                }
-                None => edit.insert_lines(at, block),
+                Some(list) => edit.replace_statement(list.span(), &inline(&indent, &block)),
+                None => edit.insert(at, block),
             }
         }
     }

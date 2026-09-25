@@ -12,6 +12,12 @@ export function stripped(key: string): string {
     .trim();
 }
 
+/** A key made readable for when no localised text is available: stripped, then capitalised. */
+export function readableKey(key: string): string {
+  const plain = stripped(key);
+  return plain.charAt(0).toUpperCase() + plain.slice(1);
+}
+
 /** Localised text for `key` in `names`, else its stripped form. */
 export function displayNameIn(names: Names, key: string): string {
   return names.get(key) ?? stripped(key);
@@ -20,6 +26,20 @@ export function displayNameIn(names: Names, key: string): string {
 /** A system's or nebula's name in `names`: literal names are shown as written, keys are localised. */
 export function nodeNameIn(names: Names, name: NameTemplate): string {
   return name.literal ? name.key : displayNameIn(names, name.key);
+}
+
+/** A nebula's name in `names`, or its place in the file when there is no nebula there. */
+export function nebulaNameIn(
+  names: Names,
+  nebula: { name: NameTemplate } | undefined,
+  index: number,
+): string {
+  return nebula ? nodeNameIn(names, nebula.name) : `Nebula ${index}`;
+}
+
+/** `Sol — Alpha Centauri`: a lane by the names of its two ends. */
+export function laneLabel(a: string, b: string): string {
+  return `${a} — ${b}`;
 }
 
 /** A token the game would only ever show through localisation, never verbatim. */
@@ -132,5 +152,3 @@ export function templateName(named: Named): string {
   const state = useGameDataStore.getState();
   return templateNameIn(state.names, state.status === "ready", resolved, named);
 }
-
-export const planetName = templateName;

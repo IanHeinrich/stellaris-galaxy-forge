@@ -20,10 +20,11 @@ import {
   saveRow,
   scenarioListing,
   scenarioRow,
-  shown,
 } from "../../test/openRows";
+import { shown } from "../../test/elements";
 import { useTextureUrl } from "../useTextureUrl";
-import { EmpireMark, OpenDetails } from "./OpenDetails";
+import { OpenDetails } from "./OpenDetails";
+import { EmpireMark } from "./OpenRows";
 
 const SETTINGS: GalaxySettings = {
   template: "medium",

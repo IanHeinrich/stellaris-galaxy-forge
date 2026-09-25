@@ -31,11 +31,12 @@ pub const FE_ZONE_RADIUS: f64 = 30.0;
 pub const FE_ZONE_DISTANCES: [u16; 18] = [
     30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
 ];
-pub(crate) const DEFAULT_DISTANCE: u16 = 40;
+/// Where a new zone is put: the nearest distance whose ring clears the anchor's own star.
+pub const DEFAULT_DISTANCE: u16 = 40;
 /// How far apart two centres must stand for both rings to be empty.
 const ZONE_SPACING: f64 = 2.0 * FE_ZONE_RADIUS;
 /// How far from the origin, on either axis, a centre may lie.
-const FE_ZONE_EXTENT: f64 = 470.0;
+pub const FE_ZONE_EXTENT: f64 = 470.0;
 
 /// Which way from the anchor the zone's centre lies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

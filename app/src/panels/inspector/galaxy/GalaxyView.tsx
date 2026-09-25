@@ -1,28 +1,17 @@
 import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
-import type { LGate } from "../../../generated/LGate";
-import type { LGateOutcome } from "../../../generated/LGateOutcome";
-import {
-  LGATE_MOD_WARNING_LIMIT,
-  LGATE_OPENED_TITLE,
-  LGATE_OUTCOME_LABELS,
-  LGATE_OUTCOMES,
-  LGATE_TEMPEST_NOTE,
-  lgateModWarningLine,
-  lgateModWarnings,
-} from "../../../lib/lgate";
 import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
 import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
 import { useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useGalaxyVersion } from "../../../store/browserRows";
 import { galaxyIslandCount, galaxyLaneCount, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useIssuesStore } from "../../../store/issuesStore";
-import { useLGateStore } from "../../../store/lgateStore";
 import { useApplyOp } from "../../useApplyOp";
 import { GameSetupSection } from "./GameSetupSection";
+import { LGateBlock } from "./LGateBlock";
 import { handledKeys } from "./gameSetup";
 import {
   addHeaderField,
@@ -112,62 +101,6 @@ function AddHeaderRow({ header }: { header: readonly HeaderField[] }) {
   );
 }
 
-/** The outcome day one rolled for the L-Cluster, behind Reveal, and editable until a gate opens. */
-function LGateRow({ lgate }: { lgate: LGate }) {
-  const applyOp = useApplyOp();
-  const revealed = useLGateStore((s) => s.revealed);
-  const reveal = useLGateStore((s) => s.reveal);
-  const hide = useLGateStore((s) => s.hide);
-  const lgateMods = useGameDataStore((s) => s.lgateMods);
-  if (!revealed) {
-    return (
-      <PropertyRow label="L-Gate outcome">
-        <button type="button" className="link" onClick={() => reveal()}>
-          Reveal
-        </button>
-      </PropertyRow>
-    );
-  }
-  const modWarnings = lgateModWarnings(lgateMods);
-  const shownWarnings = modWarnings.slice(0, LGATE_MOD_WARNING_LIMIT);
-  const moreWarnings = modWarnings.length - shownWarnings.length;
-  return (
-    <>
-      <PropertyRow label="L-Gate outcome">
-        <select
-          aria-label="L-Gate outcome"
-          value={lgate.outcome}
-          disabled={lgate.opened}
-          title={lgate.opened ? LGATE_OPENED_TITLE : undefined}
-          onChange={(e) =>
-            applyOp({ type: "SetLGateOutcome", outcome: e.currentTarget.value as LGateOutcome })
-          }
-        >
-          {LGATE_OUTCOMES.map((outcome) => (
-            <option key={outcome} value={outcome}>
-              {LGATE_OUTCOME_LABELS[outcome]}
-            </option>
-          ))}
-        </select>{" "}
-        <button type="button" className="link" onClick={() => hide()}>
-          Hide
-        </button>
-      </PropertyRow>
-      {!lgate.opened && lgate.outcome === "gray_tempest" && (
-        <div className="muted ins-hint ins-lgate-note">{LGATE_TEMPEST_NOTE}</div>
-      )}
-      {shownWarnings.map((warning) => (
-        <div key={warning.mod} className="muted ins-hint ins-lgate-note" title={warning.title}>
-          {lgateModWarningLine(warning.mod)}
-        </div>
-      ))}
-      {moreWarnings > 0 && (
-        <div className="muted ins-hint ins-lgate-note">and {moreWarnings} more</div>
-      )}
-    </>
-  );
-}
-
 const LISTED_AS_SIZE =
   "Listed in-game as a galaxy size. Start a new game with the Elliptical shape and this size.";
 
@@ -212,6 +145,7 @@ export function GalaxyView() {
   const meta = useFileSessionStore((s) => s.meta);
   const title = useFileSessionStore((s) => s.title);
   const kind = useFileSessionStore((s) => s.kind);
+  const lgateEditable = useCanEdit("lgate");
   const path = useFileSessionStore((s) => s.path);
   const cloud = useFileSessionStore((s) => s.cloud);
   const countsIssue = useIssuesStore(
@@ -249,6 +183,7 @@ export function GalaxyView() {
             ? "static galaxy scenario"
             : "no save metadata"}
       </div>
+      {lgateEditable && lgate !== null && <LGateBlock lgate={lgate} />}
       <Section id="galaxy.counts" title="Galaxy">
         <Properties>
           <PropertyRow label="Systems">{systems.size}</PropertyRow>
@@ -256,7 +191,6 @@ export function GalaxyView() {
           <PropertyRow label="Empires">{countries.size}</PropertyRow>
           <PropertyRow label="Nebulae">{nebulae.length}</PropertyRow>
           <PropertyRow label="Bypasses">{bypasses}</PropertyRow>
-          {kind === "save" && lgate !== null && <LGateRow lgate={lgate} />}
           <PropertyRow label="Components">
             {components}
             {components > 1 && (

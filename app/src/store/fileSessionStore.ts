@@ -28,7 +28,6 @@ import { SAVE_FILTER, SCENARIO_FILTER, writeActions } from "./fileSessionStore.w
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
-import { useLGateStore } from "./lgateStore";
 import { standingProfile, usePaintModStore } from "./paintModStore";
 import { recentSubtitle, useRecentsStore } from "./recentsStore";
 
@@ -333,8 +332,6 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
     try {
       await ipc.closeSave();
     } finally {
-      useGalaxyStore.getState().clear();
-      useGameDataStore.getState().onSaveClosed();
       set({ ...INITIAL });
     }
   },
@@ -363,7 +360,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
   },
 }));
 
-/** Whether the open document supports `cap`; everything until a document reports what it supports. */
+/** Whether the open document supports `cap`, as `documentCapabilities` reads it. */
 export function canEdit(cap: keyof Capabilities): boolean {
   return supports(documentCapabilities(useFileSessionStore.getState()), cap);
 }
@@ -413,7 +410,6 @@ async function openDocument(
   if (getState().status === "loading") return false;
   const mine = ++opens;
   setState({ ...INITIAL, status: "loading", path, loadingName: name ?? (fileName(path) || null) });
-  useLGateStore.getState().hide();
   let unlisten: (() => void) | null = null;
   try {
     unlisten = await onProgress((progress) => {
@@ -467,8 +463,6 @@ async function openDocument(
   } catch (e) {
     // A failed open leaves the previous session alive on the Rust side.
     await ipc.closeSave().catch(() => undefined);
-    useGalaxyStore.getState().clear();
-    useGameDataStore.getState().onSaveClosed();
     setState({
       ...INITIAL,
       status: "error",
@@ -487,7 +481,7 @@ async function openDocument(
  * answered where it has to be asked; null when the user cancelled. A file no listing covers is
  * read from disk for its dialect.
  */
-export async function askScenarioOpen(
+async function askScenarioOpen(
   path: string,
   listings: readonly ScenarioListing[] | null,
   asPaint = false,

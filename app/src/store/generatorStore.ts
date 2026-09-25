@@ -1,12 +1,19 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { AddSystemPicks } from "../generated/AddSystemPicks";
+import type { PickSummary } from "../generated/PickSummary";
+import type { SpecialLayout } from "../generated/SpecialLayout";
 import { useGameDataStore } from "./gameDataStore";
 
 /** A star class a rolled system can have, named as the game names it. */
 export interface GeneratorStarClass {
   key: string;
   label: string;
+}
+
+/** A star class row of the add and reroll pickers, with its card once the picks are read. */
+export interface StarClassPick extends GeneratorStarClass {
+  summary?: PickSummary;
 }
 
 export interface GeneratorState {
@@ -78,3 +85,23 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
     },
   };
 });
+
+/** The star classes a rolled system can take: the picks' when read, else the plain list. */
+export function starClassPicks(
+  picks: AddSystemPicks | null,
+  starClasses: readonly GeneratorStarClass[] | null,
+): StarClassPick[] {
+  return (
+    picks?.star_classes.map((p) => ({ key: p.key, label: p.name, summary: p.summary })) ??
+    starClasses?.map((c) => ({ key: c.key, label: c.label })) ??
+    []
+  );
+}
+
+/** The Special menu layout a system's initializer names, or null for a regular system. */
+export function specialFor(
+  picks: AddSystemPicks | null,
+  initializer: string,
+): SpecialLayout | null {
+  return picks?.special.find((p) => p.layout.key === initializer)?.layout ?? null;
+}

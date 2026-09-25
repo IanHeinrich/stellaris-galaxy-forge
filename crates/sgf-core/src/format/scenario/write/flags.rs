@@ -106,7 +106,7 @@ fn append(edit: &mut Edit, block: &Block, text: &str) {
             let indent = edit.indent(child.start);
             let line = [&indent[..], text.as_bytes(), b"\n"].concat();
             let at = edit.line_end(child.end);
-            edit.insert_lines(at, line);
+            edit.insert(at, line);
         }
         Some(child) => edit.insert(child.end, format!(" {text}").into_bytes()),
         None => edit.insert(block.value.start + 1, format!(" {text}").into_bytes()),

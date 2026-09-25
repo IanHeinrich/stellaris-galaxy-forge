@@ -1,14 +1,15 @@
 ---
 source: crates/sgf-core/tests/common/mod.rs
+assertion_line: 212
 expression: value
 ---
-System #46 Waledan Black Hole · - → #46 at (27.98, -450.42)
-System #55 Nivogi Black Hole · - → #55 at (219, 58.85)
-System #57 Ter Meku Black Hole · - → #57 at (-154.95, 225.37)
-System #208 Proteemas Black Hole · - → #208 at (-237.2, -96.35)
-System #258 Verrakas Black Hole · - → #258 at (238.06, -208.52)
-System #508 Gindor Black Hole · - → #508 at (352.84, 192.85)
-System #610 Xuukanis Black Hole · - → #610 at (-203.08, -218.36)
-System #6 Gaping Maw · matched=pc_black_hole → #6 at (192.35, -238.8)
-System #11 VOIDWORM SYSTEM 05 · matched=pc_black_hole → #11 at (42.43, -420.36)
-System #12 Quiet Dark · owner=Hathgum Marauders matched=pc_black_hole → #12 at (-146.97, 134.84)
+{"kind":"system","id":46,"name":{"key":"Waledan_Black_Hole","literal":false,"variables":[]},"name_key":"Waledan_Black_Hole","system_id":46,"owner":null,"country_type":null,"system_count":null,"planet_class":null,"position":[27.98,-450.42],"matched_on":null}
+{"kind":"system","id":55,"name":{"key":"Nivogi_Black_Hole","literal":false,"variables":[]},"name_key":"Nivogi_Black_Hole","system_id":55,"owner":null,"country_type":null,"system_count":null,"planet_class":null,"position":[219.0,58.85],"matched_on":null}
+{"kind":"system","id":57,"name":{"key":"Ter_Meku_Black_Hole","literal":false,"variables":[]},"name_key":"Ter_Meku_Black_Hole","system_id":57,"owner":null,"country_type":null,"system_count":null,"planet_class":null,"position":[-154.95,225.37],"matched_on":null}
+{"kind":"system","id":208,"name":{"key":"Proteemas_Black_Hole","literal":false,"variables":[]},"name_key":"Proteemas_Black_Hole","system_id":208,"owner":null,"country_type":null,"system_count":null,"planet_class":null,"position":[-237.2,-96.35],"matched_on":null}
+{"kind":"system","id":258,"name":{"key":"Verrakas_Black_Hole","literal":false,"variables":[]},"name_key":"Verrakas_Black_Hole","system_id":258,"owner":null,"country_type":null,"system_count":null,"planet_class":null,"position":[238.06,-208.52],"matched_on":null}
+{"kind":"system","id":508,"name":{"key":"Gindor_Black_Hole","literal":false,"variables":[]},"name_key":"Gindor_Black_Hole","system_id":508,"owner":null,"country_type":null,"system_count":null,"planet_class":null,"position":[352.84,192.85],"matched_on":null}
+{"kind":"system","id":610,"name":{"key":"Xuukanis_Black_Hole","literal":false,"variables":[]},"name_key":"Xuukanis_Black_Hole","system_id":610,"owner":null,"country_type":null,"system_count":null,"planet_class":null,"position":[-203.08,-218.36],"matched_on":null}
+{"kind":"system","id":6,"name":{"key":"Gaping_Maw","literal":false,"variables":[]},"name_key":"Gaping_Maw","system_id":6,"owner":null,"country_type":null,"system_count":null,"planet_class":null,"position":[192.35,-238.8],"matched_on":"pc_black_hole"}
+{"kind":"system","id":11,"name":{"key":"VOIDWORM_SYSTEM_05","literal":false,"variables":[]},"name_key":"VOIDWORM_SYSTEM_05","system_id":11,"owner":null,"country_type":null,"system_count":null,"planet_class":null,"position":[42.43,-420.36],"matched_on":"pc_black_hole"}
+{"kind":"system","id":12,"name":{"key":"Quiet_Dark","literal":false,"variables":[]},"name_key":"Quiet_Dark","system_id":12,"owner":{"key":"%ADJECTIVE%","literal":false,"variables":[{"name":"adjective","value":{"key":"SPEC_Hathgum","literal":false,"variables":[]}},{"name":"1","value":{"key":"Marauders","literal":false,"variables":[]}}]},"country_type":null,"system_count":null,"planet_class":null,"position":[-146.97,134.84],"matched_on":"pc_black_hole"}
