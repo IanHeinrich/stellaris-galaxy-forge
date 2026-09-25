@@ -8,51 +8,45 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-25
+
 ### Added
 
-- Right-click empty space in a save to add a random star system, or one
-  around a star you pick. The new system opens on its page. There you can
-  roll it again, change its star, rename it or delete it until you reopen
-  the file. A small green plus marks it on the map. Adding systems needs
-  game data and a Stellaris 4 save that isn't Ironman.
-- "Add system here" has a Special entry with the game's unique systems,
-  such as Zevox, and its other special systems, such as Trappist. Hovering
-  any entry shows what the system can have, and whether the galaxy
-  already has one.
-- Right-click a selection in a save to delete every system in it that you
-  added. Systems the save already had stay. One undo brings them all back.
+- You can add star systems to a save. Right-click empty space and pick
+  "Add system here" for a random system, or one around a star you choose.
+  It comes with planets, moons, asteroid belts and deposits, rolled from
+  the game's own rules at the save's resource abundance. Adding systems
+  needs game data and a Stellaris 4.x save that isn't Ironman.
+  - The new system opens on its page. Until you reopen the file you can
+    roll it again, change its star, rename it or delete it. A small green
+    plus marks it on the map.
+  - Right-click a selection to delete every system in it that you added.
+    The save's original systems cannot be deleted.
+  - You can also add the game's unique systems, such as Zevox.
+- Planets, moons, stars and asteroids in a save have their own inspector
+  page. It shows deposits with the game's art and what each one gives,
+  blockers and what clearing them costs, modifiers, moons, and a summary
+  for colonies.
 - A save system's planet list shows how far out each body orbits.
-- Planets, moons, stars and asteroids in a save have their own page in
-  the inspector. It shows their deposits with the game's pictures and
-  what each one gives, blockers with what clearing them costs, planet
-  modifiers, moons, and a colony summary for owned planets.
-- Scenarios exported from a save or made new start with a
-  `# created by` line naming Forge's version. Saving an edited scenario
-  from Forge or Paint a Galaxy adds Forge to that line, so it lists every
-  tool and version that wrote the file. Scenarios neither tool made are
-  saved without one.
 
 ### Changed
 
-- Symmetry is no longer offered when editing a save.
+- "New nebula here" places the nebula straight away, using names from the
+  game's own name-lists. You can rename it on its page. Once the names run out,
+  or in a scenario without game data, it's called New Nebula.
+- Symmetry is disabled for saves.
 - The Connect brush says when the lane density is too low to add any
   lanes.
-- "New nebula here" places the nebula straight away with a name from the
-  game's own list. You can rename it on its page. Once every name is
-  used, or in a scenario without game data, it's called New Nebula.
 
 ### Fixed
 
+- Nebulae added in the editor now show the 'cloud' graphics inside their systems and
+  correctly hide ships, as the game's own nebulae do. A system that joins or leaves
+  a nebula gains or loses both.
 - A planet's orbital station link opens the station, not an unrelated
   ship.
-
-- The update screen shows release notes with their headings and bullets
-  instead of raw Markdown.
-
-- Nebulae you add, move or resize in a save now show their cloud inside
-  each system and hide ships there like the game's own. Systems that leave
-  a nebula lose the cloud and the cloaking. Without First Contact they get
-  the cloud and no cloaking, as in the game.
+- The update screen formats release notes with their headings and
+  bullets.
 
 ## [0.12.0] - 2026-09-24
 
