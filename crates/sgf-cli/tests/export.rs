@@ -42,7 +42,7 @@ fn export_scenario_writes_a_file_that_opens_as_the_saves_galaxy() {
     );
     assert!(
         written.starts_with(&format!(
-            "#\u{200B} created by Stellaris Galaxy Forge {} (converted from save 2206.11.16.sav)\n",
+            "#\u{200B} created by Stellaris Galaxy Forge {} (converted from save 4.4-early.sav)\n",
             env!("CARGO_PKG_VERSION")
         )),
         "{}",
@@ -83,7 +83,7 @@ static_galaxy_scenario = {
         SAMPLE,
         paint_path.to_str().unwrap(),
         "--name",
-        "2206.11.16",
+        "4.4-early",
         "--profile",
         "paint-a-galaxy",
     ]);
@@ -135,7 +135,7 @@ static_galaxy_scenario = {
     );
     assert!(
         paint.starts_with(
-            "#\u{200B} created by Stellaris Galaxy Forge 0.0.0 (converted from save 2206.11.16.sav)\n# Systems: 765 · Empire seats: 17 · Nebulae: 9\n# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod"
+            "#\u{200B} created by Stellaris Galaxy Forge 0.0.0 (converted from save 4.4-early.sav)\n# Systems: 765 · Empire seats: 17 · Nebulae: 9\n# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod"
         ),
         "{}",
         &paint[..300]

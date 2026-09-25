@@ -14,7 +14,7 @@ use sgf_gamedata::naming::{pick_nebula_name, pick_pooled_nebula_name};
 
 const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../testdata/2206.11.16.scenario.txt"
+    "/../../testdata/4.4-early.scenario.txt"
 );
 /// A nebula of the 4.5 sample, and of the scenario, which is the 4.4 sample's galaxy.
 const HELD_4_5: &str = "Demons_Eye_Nebula";

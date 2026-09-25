@@ -6,11 +6,11 @@
 //! made at export, and `fe_zone_no_automatic` cannot share a file with the other zone codes.
 //! `header_empire_count` reports only its first mismatch, so the fixture shows one of them.
 //!
-//! How they were made, so either can be rebuilt. `issues.sav` is `2206.11.16.sav` with
+//! How they were made, so either can be rebuilt. `issues.sav` is `4.4-early.sav` with
 //! system 789 moved beyond the galaxy radius and into a nebula's list, 108 moved out of
 //! one, and then four hand-spliced `hyperlane` entries the editor will not write: a lane
 //! to a system that does not exist, a lane to itself, and a lane written at one end only.
-//! `issues.paint.txt` is `2201.03.25.sav` exported with the Paint a Galaxy profile, with
+//! `issues.paint.txt` is `4.5-day-one.sav` exported with the Paint a Galaxy profile, with
 //! sixteen `system = { ... }` statements replaced to move zones, seats and marauder clans
 //! into the states each check looks for, and a `coordinate_transform` added to the header.
 

@@ -320,7 +320,7 @@ fn each_listed_scenario_carries_its_header_summary() {
     let dir = tmp.path().join("map/setup_scenarios");
     std::fs::create_dir_all(&dir).expect("scenario root");
     let testdata = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata");
-    for file in ["paint_a_galaxy.txt", "2206.11.16.scenario.txt"] {
+    for file in ["paint_a_galaxy.txt", "4.4-early.scenario.txt"] {
         std::fs::copy(format!("{testdata}/{file}"), dir.join(file)).expect("copy a fixture");
     }
     std::fs::write(dir.join("unreadable.txt"), b"static_galaxy_scenario = {\n")
@@ -346,7 +346,7 @@ fn each_listed_scenario_carries_its_header_summary() {
     assert_eq!(
         painted,
         [
-            ("2206.11.16", false),
+            ("4.4-early", false),
             ("Painted Reach", true),
             ("unreadable", false)
         ],

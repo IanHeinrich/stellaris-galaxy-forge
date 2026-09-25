@@ -32,7 +32,7 @@ fn add_system_writes_the_spec_and_the_new_system_reads_back() {
 fn add_system_refuses_a_3_x_save_without_writing() {
     let dir = tempfile::tempdir().unwrap();
     let out_path = dir.path().join("added.sav");
-    let old = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2200.04.11.sav");
+    let old = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
     let out = sgf(&[
         "add-system",
         old,

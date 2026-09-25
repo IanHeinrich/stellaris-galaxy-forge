@@ -58,7 +58,7 @@ fn a_gamestate_without_a_top_level_galaxy_block_reads_as_no_settings() {
 
 #[test]
 fn the_committed_saves_header_reads_every_field() {
-    let meta = archive::read_sav(format!("{TESTDATA}/2206.11.16.sav"))
+    let meta = archive::read_sav(format!("{TESTDATA}/4.4-early.sav"))
         .expect("read the sample save")
         .meta;
     let meta = archive::parse_meta(&meta).expect("parse the header");
@@ -93,7 +93,7 @@ fn a_campaign_folder_lists_its_saves_and_groups_under_its_parent() {
     }
     let save = saves
         .iter()
-        .find(|s| s.file_name == "2206.11.16.sav")
+        .find(|s| s.file_name == "4.4-early.sav")
         .unwrap_or_else(|| panic!("no 4.4 sample in {saves:#?}"));
     let meta = save.meta.as_ref().expect("the sample save has a header");
     assert_eq!(meta.name, "United Nations of Earth 2");
@@ -102,7 +102,7 @@ fn a_campaign_folder_lists_its_saves_and_groups_under_its_parent() {
     assert_eq!((meta.planets, meta.fleets), (Some(1), Some(15)));
     let cygnus = saves
         .iter()
-        .find(|s| s.file_name == "2201.03.25.sav")
+        .find(|s| s.file_name == "4.5-day-one.sav")
         .unwrap_or_else(|| panic!("no 4.5 sample in {saves:#?}"));
     let meta = cygnus.meta.as_ref().expect("the 4.5 sample has a header");
     assert_eq!(meta.name, "Test Empire");

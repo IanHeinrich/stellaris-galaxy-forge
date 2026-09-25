@@ -7,9 +7,9 @@ use sgf_core::projections::galaxy::Galaxy;
 use sgf_core::session::Session;
 
 /// The committed fixtures' name: the sample save's file stem, as the exporter defaults to.
-pub const NAME: &str = "2206.11.16";
+pub const NAME: &str = "4.4-early";
 /// The save the fixtures say they were exported from.
-pub const SAVE_FILE: &str = "2206.11.16.sav";
+pub const SAVE_FILE: &str = "4.4-early.sav";
 
 /// No game data, so every name is written as the save holds it.
 pub fn no_names(_: &str) -> Option<String> {

@@ -48,7 +48,7 @@ fn huge_scenario_text() -> String {
         .find("static_galaxy_scenario")
         .expect("a scenario block");
     let end = sample.find("\n\tsystem = {").expect("a system statement");
-    let header = sample[start..=end].replace("name = \"2206.11.16\"", "name = \"huge_grid\"");
+    let header = sample[start..=end].replace("name = \"4.4-early\"", "name = \"huge_grid\"");
 
     let mut rng = Rng(0x5EED_CAFE_F00D_1234);
     let mut text = String::with_capacity(2_000_000);
