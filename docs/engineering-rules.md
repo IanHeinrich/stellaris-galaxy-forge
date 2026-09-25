@@ -16,7 +16,7 @@ architecture `docs/adr/`, and the in-game checks a change must pass
 - **The save is edited as bytes.** `sgf-core` holds the original
   `gamestate` bytes once and applies patches keyed to original offsets
   (one slot per entity). Untouched bytes are copied verbatim on save.
-  Load → save with no edits is byte-identical, and a test asserts it.
+  Load → save with no edits is byte-identical, and is tested.
   Never re-serialise the file, a section or an entity from a typed model.
 - **Never rely on indentation.** The game writes keys at column 0 at any
   depth. Structure comes from brace counting; emitted text copies the
