@@ -1,6 +1,7 @@
 import { confirm } from "@tauri-apps/plugin-dialog";
 import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
+import type { EditResult } from "../generated/EditResult";
 import { addSystemRefusal, addedAmong, newSeed, type AddRefusal } from "../lib/addSystem";
 import { counted } from "../lib/text";
 import { distinctLanes } from "./editorStore.brush";
@@ -20,7 +21,11 @@ import { useGameDataStore } from "./gameDataStore";
 
 type AddSystemActions = Pick<
   EditorState,
-  "addRandomSystemAt" | "rerollSystem" | "renameAddedSystem" | "removeAddedSystems"
+  | "addRandomSystemAt"
+  | "addSpecialSystemAt"
+  | "rerollSystem"
+  | "renameAddedSystem"
+  | "removeAddedSystems"
 >;
 
 /** Why a rolled system cannot go at a world point of the open save, or null when it can. */
@@ -52,17 +57,26 @@ export function addSystemActions(
   get: StoreApi<EditorState>["getState"],
   runEdit: RunEdit,
 ): AddSystemActions {
+  /** Adds the system `edit` asks the core for at the spot, and selects it, unless the spot is refused. */
+  function addAt(x: number, y: number, edit: () => Promise<EditResult>): Promise<boolean> {
+    return refuseOr(addSystemRefusalAt(x, y)?.reason ?? null, async () => {
+      const result = await runEdit(edit);
+      if (result === null) return false;
+      const added = result.delta.systems
+        .filter((s) => s.added)
+        .sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
+      if (added) await get().select(added.id);
+      return true;
+    });
+  }
+
   return {
     addRandomSystemAt(x, y, starClass = null) {
-      return refuseOr(addSystemRefusalAt(x, y)?.reason ?? null, async () => {
-        const result = await runEdit(() => ipc.addRandomSystem(newSeed(), x, y, starClass));
-        if (result === null) return false;
-        const added = result.delta.systems
-          .filter((s) => s.added)
-          .sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
-        if (added) await get().select(added.id);
-        return true;
-      });
+      return addAt(x, y, () => ipc.addRandomSystem(newSeed(), x, y, starClass));
+    },
+
+    addSpecialSystemAt(x, y, layout) {
+      return addAt(x, y, () => ipc.addSpecialSystem(newSeed(), x, y, layout));
     },
 
     rerollSystem(id, starClass) {
@@ -70,8 +84,9 @@ export function addSystemActions(
         const result = await runEdit(async () => {
           const system = addedNow(tracked);
           if (!system) return null;
-          const star = starClass === undefined ? system.star_class : starClass;
-          return ipc.rerollSystem(system.id, newSeed(), star);
+          const same = starClass === undefined;
+          const star = same ? system.star_class : starClass;
+          return ipc.rerollSystem(system.id, newSeed(), star, same);
         });
         return result !== null;
       });

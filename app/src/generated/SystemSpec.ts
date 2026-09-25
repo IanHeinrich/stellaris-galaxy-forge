@@ -42,6 +42,11 @@ planets: Array<BodySpec>,
  */
 belts: Array<BeltSpec>, 
 /**
+ * The star flags the layout's `flags` block sets (`unique_system`), which the game
+ * writes on the system dated as day one, as it dates the flags of a generated galaxy.
+ */
+flags: Array<string>, 
+/**
  * The systems a hyperlane joins it to.
  */
 lanes: Array<number>, };

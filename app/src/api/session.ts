@@ -3,6 +3,7 @@
  * names here match `app/src-tauri/src/commands.rs`.
  */
 import { invoke } from "@tauri-apps/api/core";
+import type { AddSystemPicks } from "../generated/AddSystemPicks";
 import type { CampaignListing } from "../generated/CampaignListing";
 import type { EditResult } from "../generated/EditResult";
 import type { EntityAddr } from "../generated/EntityAddr";
@@ -162,15 +163,39 @@ export function addNebula(seed: number, x: number, y: number, radius: number): P
 }
 
 /**
- * Roll the added save system `system` again from `seed`, around `starClass` when given, keeping
- * its name, position and lanes, as one edit.
+ * Build a system of the special layout `layout` at (x, y) from `seed` and add it to the open save
+ * as one edit. It takes the layout's fixed name unless the save already has it. A capped layout
+ * the galaxy already holds is placed all the same.
+ */
+export function addSpecialSystem(
+  seed: number,
+  x: number,
+  y: number,
+  layout: string,
+): Promise<EditResult> {
+  return invoke<EditResult>("add_special_system", { seed, x, y, layout });
+}
+
+/**
+ * Roll the added save system `system` again from `seed`, keeping its name, position and lanes, as
+ * one edit. With `keepSpecial`, a system of a Special menu layout is built from that layout again;
+ * otherwise it is rolled around `starClass` when given.
  */
 export function rerollSystem(
   system: number,
   seed: number,
   starClass: string | null,
+  keepSpecial: boolean,
 ): Promise<EditResult> {
-  return invoke<EditResult>("reroll_system", { system, seed, starClass });
+  return invoke<EditResult>("reroll_system", { system, seed, starClass, keepSpecial });
+}
+
+/**
+ * What the Add system menu offers for the open save, each pick with what it can produce. Rejects
+ * without game data or on a scenario.
+ */
+export function getAddSystemPicks(): Promise<AddSystemPicks> {
+  return invoke<AddSystemPicks>("get_add_system_picks");
 }
 
 /**

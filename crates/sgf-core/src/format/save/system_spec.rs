@@ -33,6 +33,10 @@ pub struct SystemSpec {
     /// In the order the initializer lists them.
     #[serde(default)]
     pub belts: Vec<BeltSpec>,
+    /// The star flags the layout's `flags` block sets (`unique_system`), which the game
+    /// writes on the system dated as day one, as it dates the flags of a generated galaxy.
+    #[serde(default)]
+    pub flags: Vec<String>,
     /// The systems a hyperlane joins it to.
     #[serde(default)]
     pub lanes: Vec<u32>,

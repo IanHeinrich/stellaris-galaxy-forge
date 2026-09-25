@@ -132,5 +132,9 @@
       "inner_radius": 50.0
     }
   ],
+  "flags": [
+    "fx_haven",
+    "unique_system"
+  ],
   "lanes": []
 }

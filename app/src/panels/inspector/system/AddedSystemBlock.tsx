@@ -13,10 +13,16 @@ export const ADDED_CHIP_TITLE =
   "Added since you opened this file. You can delete it until the file is reopened.";
 const REPLACES_BODIES =
   "Changing the class or rerolling replaces the bodies. The name, position and lanes stay.";
+const ROLL_BODIES = "Roll new bodies around the same star class";
+
+function rebuildsSpecial(label: string): string {
+  return `Reroll builds ${label} again. Changing the class rolls a regular system around that star. The name, position and lanes stay.`;
+}
 
 /**
  * What only a save system added this session can have changed: its name, its star class and
- * bodies rolled again, and its removal. Each is one edit, applied as the field commits.
+ * bodies rolled again, and its removal. Each is one edit, applied as the field commits. A system
+ * of a Special menu layout rerolls as that layout, and a new class makes it a regular system.
  */
 export function AddedSystemBlock({ system }: { system: SystemNode }) {
   const rerollSystem = useEditorStore((s) => s.rerollSystem);
@@ -27,9 +33,15 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
   const names = useGameDataStore((s) => s.names);
   const starClasses = useGeneratorStore((s) => s.starClasses);
   const request = useGeneratorStore((s) => s.request);
+  const picks = useGeneratorStore((s) => s.picks);
+  const refreshPicks = useGeneratorStore((s) => s.refreshPicks);
   useEffect(() => {
     if (gameData) request();
   }, [gameData, request]);
+  useEffect(() => {
+    if (gameData && picks === null) refreshPicks();
+  }, [gameData, picks, refreshPicks]);
+  const special = picks?.special.find((p) => p.layout.key === system.initializer)?.layout.label;
 
   const icon = (key: string, Icon: typeof StarRowIcon) => {
     const view = views.get(key);
@@ -76,13 +88,13 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
           type="button"
           className="ins-reroll"
           disabled={!gameData}
-          title={reason ?? "Roll new bodies around the same star class"}
+          title={reason ?? (special ? `Build ${special} again with new bodies` : ROLL_BODIES)}
           onClick={() => void rerollSystem(system.id)}
         >
           <span aria-hidden="true">↻</span> Reroll
         </button>
       </EditRow>
-      <EditNote>{REPLACES_BODIES}</EditNote>
+      <EditNote>{special ? rebuildsSpecial(special) : REPLACES_BODIES}</EditNote>
       <div className="ins-added-actions">
         <button type="button" className="ins-danger" onClick={() => void removeSystem(system.id)}>
           Delete system

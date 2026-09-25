@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
+import type { AddSystemPicks } from "../generated/AddSystemPicks";
 import { useGameDataStore } from "./gameDataStore";
 
 /** A star class a rolled system can have, named as the game names it. */
@@ -11,16 +12,28 @@ export interface GeneratorStarClass {
 export interface GeneratorState {
   /** Null until read for the loaded game data. */
   starClasses: GeneratorStarClass[] | null;
+  /** What the Add system menu offers for the open save, each with its card; null until read. */
+  picks: AddSystemPicks | null;
   /** Reads the classes once per loaded game data; a no-op without it. */
   request(): void;
+  /**
+   * Reads the picks for the open save again, since each add changes what the galaxy holds. The
+   * last ones stay until the new ones land; a no-op without game data.
+   */
+  refreshPicks(): void;
+  /** Forgets the picks, which belong to the document that was open. */
+  clearPicks(): void;
   clear(): void;
 }
 
 export const useGeneratorStore = create<GeneratorState>((set, get) => {
   let generation = 0;
   let asked = false;
+  /** The latest picks read asked for; an older answer landing after it is dropped. */
+  let picksAsked = 0;
   return {
     starClasses: null,
+    picks: null,
 
     request() {
       if (asked || useGameDataStore.getState().status !== "ready") return;
@@ -38,10 +51,30 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
       );
     },
 
+    refreshPicks() {
+      if (useGameDataStore.getState().status !== "ready") return;
+      picksAsked += 1;
+      const mine = picksAsked;
+      ipc.getAddSystemPicks().then(
+        (picks) => {
+          if (mine === picksAsked) set({ picks });
+        },
+        (e: unknown) => {
+          if (mine === picksAsked) console.warn("add system picks", ipc.errorMessage(e));
+        },
+      );
+    },
+
+    clearPicks() {
+      picksAsked += 1;
+      if (get().picks !== null) set({ picks: null });
+    },
+
     clear() {
       generation += 1;
       asked = false;
       if (get().starClasses !== null) set({ starClasses: null });
+      get().clearPicks();
     },
   };
 });

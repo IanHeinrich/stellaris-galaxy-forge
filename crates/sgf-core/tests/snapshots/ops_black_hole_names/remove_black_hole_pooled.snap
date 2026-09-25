@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Removed Devils Maw (#601) and 1 lane
-inverse: AddSaveSystem { spec: SystemSpec { name: "Devils_Maw", x: -292.23404, y: -137.62265, star_class: "sc_black_hole", initializer: "special_init_01", capped: false, star_named_by_class: false, star: BodySpec { class: "pc_black_hole", size: 30, orbit: 0.0, angle: 0.0, entity: 0, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, planets: [], belts: [], lanes: [169] } }
+inverse: AddSaveSystem { spec: SystemSpec { name: "Devils_Maw", x: -292.23404, y: -137.62265, star_class: "sc_black_hole", initializer: "special_init_01", capped: false, star_named_by_class: false, star: BodySpec { class: "pc_black_hole", size: 30, orbit: 0.0, angle: 0.0, entity: 0, deposits: [], moons: [], asteroid: false, name: None, entity_name: None, modifiers: [], ring: false }, planets: [], belts: [], flags: [], lanes: [169] } }
 --- before
 +++ after
 @@ -41044,11 +41044,6 @@
