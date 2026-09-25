@@ -1,8 +1,8 @@
 # Stellaris Galaxy Forge user guide
 
-Stellaris Galaxy Forge edits the galaxy map of a Stellaris save, or of a
-static galaxy scenario that a new campaign can start from. It works on
-Stellaris 4.x saves. I have checked the edits in-game on 4.4.6 and 4.5.0.
+Stellaris Galaxy Forge edits the galaxy map of a Stellaris save, or a
+static galaxy scenario that a new campaign starts from. It works with
+Stellaris 4.x saves. I've tested the edits in-game on 4.4.6 and 4.5.0.
 
 ## Quick start
 
@@ -56,15 +56,15 @@ generated names.
 Click a system to select it. Ctrl+click adds or removes one, and dragging
 on empty space draws a selection box. Escape clears the selection.
 
-Drag a star to move it, with the rest of the selection if it is selected.
-Shift+Arrow nudges the selection. For an exact spot, type into the
-Position fields on the Inspector's Overview tab. A moved system keeps its
-lanes, and their lengths are updated. Its planets and fleets move with
-it.
+Drag a star to move it. If it is part of a selection, the whole
+selection moves. Shift+Arrow nudges the selection. For an exact spot,
+type into the Position fields on the Inspector's Overview tab. A moved
+system keeps its hyperlanes and their lengths are updated. Its planets
+and fleets move with it.
 
 To delete several systems you added since opening the save, select them,
-right-click one and pick "Delete N added systems". Systems the save
-already had are left alone.
+right-click one and pick "Delete N added systems". Systems that were
+already present in the save cannot be deleted.
 
 ### Hyperlanes
 
@@ -80,46 +80,45 @@ The Connect lanes (C) and Cut lanes (X) brushes on the tool strip work in
 broad strokes. `[` and `]` resize the brush, and holding Alt swaps the
 two. Each stroke is one undo step.
 
-When the lanes leave the galaxy in separate pieces, a "Join" button
-appears beside Components in the Inspector. It links the pieces with the
-shortest lanes that cross none.
+When the galaxy is in separate pieces, a "Join" button appears beside
+Components in the Inspector. It reconnects the pieces with the shortest
+hyperlanes that don't cross any others.
 
-The game uses a lane's stored length as its travel cost. A lane whose
-length doesn't match its distance is marked "!", and "Reset length" fixes
-it.
+The game uses a hyperlane's stored length as its travel cost. A lane
+whose length doesn't match its distance is marked "!". "Reset length"
+fixes it.
 
 ### Nebulae
 
 Switch on the Nebulae layer first. Drag a nebula's ring to move it.
 Select it and drag a handle on the ring, or press `[` and `]`, to resize
-it. Right-click empty space for "New nebula here". The new nebula
-arrives with a name from the game's own list, and you can rename it on
-its page.
+it. Right-click empty space for "New nebula here". The new nebula uses a
+name from the game's own name list. You can rename it on its page.
 
 ### Add a system
 
 Right-click empty space and pick "Add system here", then Random or a
-star class. Its last entry, Special, lists the game's special systems in
-two groups: the unique systems, such as Zevox, and the other special
-systems, such as Trappist. Hover any entry to see its star, planets,
-belts and notable bodies. A warning mark means the galaxy already has
-that system and the game places only one, though you can still add
-another. A lock means the save doesn't have the DLC the system belongs
-to, so its events won't run. The game's scripted extras for special
-systems, such as anomalies and background clouds, aren't added. Reroll
-on the new system's page builds the same special system again. Picking a
-star class there rolls a regular system around that star.
+star class. The last entry, Special, lists the game's special systems in
+two groups: unique systems such as Zevox, and other special systems such
+as Trappist. Hover an entry to see its star, planets, belts and notable
+bodies. A warning mark means the galaxy already has that system and the
+game normally places only one. You can still add another. A lock means
+the save doesn't have the DLC the system belongs to, so its events won't
+run. The game's scripted extras for special systems, such as anomalies
+and background clouds, are not added. Reroll on the new system's page
+builds the same special system again. Picking a star class there
+generates a regular system around that star.
 
 ### Stars and empires
 
 - Each star in a system's planet list has an "Edit" mark. Its page sets
   the star's type and size.
-- With several systems selected, the Star class action gives them one
-  class.
+- With several systems selected, the Star class action applies one
+  class to all of them.
 - In a Stellaris 4.5 save, an empire's page has Border and Fill colour
   pickers.
 - With nothing selected, the Inspector can reveal which L-Gate outcome
-  the save rolled, and change it until a gate opens.
+  the save rolled. You can change it until a gate opens.
 
 ### Planet, moon, star and asteroid pages
 
@@ -130,54 +129,56 @@ too.
 - A star's page opens with its type and size to edit, as [Stars and
   empires](#stars-and-empires) describes. Any other body's page shows its
   class and size instead.
-- Deposits show the game's own art and the district capacity they add up
-  to, one row per type: what each yields, or what it does while unworked.
-  A blocked deposit carries a blocker mark, the tech and resources that
-  clear it, and how long clearing takes.
-- Modifiers follow, each with what it changes and how many days are left.
-- Moons are listed below that and open their own pages the same way.
-- An owned planet has a Colony section: its owner, designation, when it
-  was colonised, and its pops, split by species.
+- Deposits are shown with the game's own art and the district capacity
+  they add up to, one row per type: what each one yields, or what it does
+  while unworked. A blocked deposit shows a blocker mark, the tech and
+  resources needed to clear it, and how long clearing takes.
+- Modifiers come next, each with what it changes and how many days are
+  left.
+- Moons are listed below and open their own pages the same way.
+- A colonised planet has a Colony section: its owner, designation, when
+  it was colonised, and its pops by species.
 
 The breadcrumb above the page goes back: "‹" for one step, a name in it
 for that page, or "Galaxy" for the whole map.
 
 ### Symmetry
 
-The Symmetry button under the tools, or M, repeats your edits about the
-galaxy centre, as a mirror or a 2 to 8-fold rotation.
+The Symmetry button under the tools, or M, mirrors your edits around the
+centre of the galaxy or repeats them 2 to 8 times around it.
 
 ## Make a scenario
 
-A static galaxy scenario is a `.txt` file the game can start a new
-campaign from instead of a random galaxy. There are three ways to make
-one:
+A static galaxy scenario is a `.txt` file that a new game starts from
+instead of generating a random galaxy. There are three ways to make one:
 
 - "New scenario…" then "Blank canvas" gives you an empty map.
 - "New scenario…" then "A galaxy from the game": start a new game in
   Stellaris, save on day one, and open that save here. You get the game's
-  layout, names and empires to edit.
+  own layout, names and empires to edit.
 - Pick any save and click "Open as scenario", or use File → "Export as
-  scenario…". The save itself is left untouched.
+  scenario…". The original save remains unchanged.
 
-The file starts with a `# created by` line naming Forge's version.
-Saving an edited scenario from Forge or Paint a Galaxy adds Forge to that
-line, so it lists every tool and version that wrote the file.
+The file starts with a `# created by` line naming the Galaxy Forge
+version. Each time Galaxy Forge or Paint a Galaxy saves the file, it adds
+itself to that line, so the line lists every tool and version that wrote
+the file.
 
 ### The Paint a Galaxy checkbox
 
 Each route has a "For the Paint a Galaxy mod" checkbox, ticked by
-default. The game's generator has bugs with custom galaxies that the
+default. Stellaris has some limitations when loading hand-made galaxies,
+and the
 [Paint a Galaxy mod](https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115)
-fixes. Keep the box ticked for any map you will play. Untick it only for
-a mod of your own.
+fixes them. Keep the box ticked for any map you plan to play. Untick it
+only for a mod of your own.
 
-A save converted for the mod makes your capital your seat. Each fallen
-empire becomes a fallen empire zone at its old capital. The L-Cluster is
-left out, because the game adds its own.
+When a save is converted for the mod, your capital becomes your seat and
+each fallen empire becomes a fallen empire zone at its old capital. The
+L-Cluster is left out because the game adds its own.
 
 A scenario for the mod shows a "PaG" badge in the top bar. The badge
-warns when the mod isn't installed or isn't enabled.
+warns you when the mod isn't installed or isn't enabled.
 
 ### What you can edit
 
@@ -191,17 +192,17 @@ Everything from [Edit a save](#edit-a-save), plus:
 - Shift+I opens the initializer browser, which sets what a system
   spawns. It shows what each one places before you assign it.
 - Right-click a system and pick "Set as spawn point".
-- Right-click a lane and pick "Cut and prevent" to stop the game ever
-  drawing it.
+- Right-click a hyperlane and pick "Cut and prevent" so the game never
+  generates it.
 - Right-click empty space and pick "Add marauder clan here".
-- With nothing selected, the Game setup section holds the counts the
-  new-game screen offers, such as AI empires.
+- With nothing selected, the Game setup section sets the counts offered
+  on the new-game screen, such as the number of AI empires.
 
 On a map for Paint a Galaxy you can also:
 
-- Set each seat's kind. Enabled seats take any empire. Preferred seats
-  are favoured. Sol is for the United Nations of Earth. Reserved A to Z
-  seats are for one empire each.
+- Set each seat's kind. Enabled seats accept any empire. Preferred
+  seats are favoured. Sol is for the United Nations of Earth. Reserved
+  seats A to Z are for one specific empire each.
 - Right-click a system and pick "Add fallen empire zone". Drag the ring
   to move it, and drag from a system's ring onto it to choose what the
   fallen empire connects to.
@@ -210,7 +211,7 @@ On a map for Paint a Galaxy you can also:
   the seats and zones.
 
 The Scripts tab and the day-one layers are a best guess at what scripts
-will do on day one. The app can't follow every script.
+will do on day one. Galaxy Forge can't follow every script.
 
 ## Play your scenario
 
@@ -221,18 +222,18 @@ will do on day one. The app can't follow every script.
    on the Steam Workshop.
 2. Use File → "Save into the Paint a Galaxy mod…". It saves into the
    mod's `map/setup_scenarios` folder, where the game looks for it. Steam
-   can replace that folder when the mod updates, so keep a copy of your
-   map somewhere else too.
+   may replace that folder when the mod updates, so keep another copy of
+   your map somewhere safe.
 3. In the Paradox launcher, enable Paint a Galaxy in your playset. If
    your map has reserved seats, enable the
    [Reserved Spawns submod](https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682)
    as well.
-4. In Stellaris, start a new game. Your map is listed as a galaxy size,
-   under the name in the scenario's header. The status bar tells you the
-   name when you save into the mod. The game doesn't ask for a shape
-   once you pick it.
+4. In Stellaris, start a new game. Your map appears as a galaxy size,
+   under the name in the scenario's header. The status bar shows you the
+   name when you save into the mod. Once you pick your map, the game
+   doesn't ask for a galaxy shape.
 5. Keep AI empires at or below the "safe AI empires" number in Game
-   setup. Past that, there are more empires than seats.
+   setup. Above that, there are more empires than seats.
 
 Give each map in the mod's folder its own name. The game shows only one
 galaxy size per name.
@@ -247,8 +248,8 @@ On day one:
   ticked on the seat, that empire is certain to start there.
 - A preferred seat is only the most likely start, even when weighted. An
   AI whose origin needs a special place, such as Fear of the Dark, is
-  seated before you and draws by the same weights. In my test games such
-  an AI took the weighted preferred seat two times in three.
+  seated before you and uses the same weights. In my test games such an
+  AI took the weighted preferred seat two times in three.
 - A save converted for the mod gives your capital a weighted Sol seat if
   you play the United Nations of Earth, and a weighted preferred seat
   otherwise.
@@ -256,29 +257,30 @@ On day one:
   pairs. The game adds its own L-Cluster.
 
 The mod's Workshop page lists its limits. The Advanced Neighbors setting
-has no effect. Every precursor is on. Sol gets no Sol-specific
+has no effect. Every precursor is enabled. Sol gets no Sol-specific
 neighbours, and the Local Cluster mod is the usual fix. Nomads with
 random homes don't start in a nomad system. The game also adds systems
-your map didn't have: guaranteed worlds, marauders, fallen empires and
-some events.
+your map didn't have: guaranteed habitable worlds, marauders, fallen
+empires and some event systems.
 
 ### A plain scenario
 
 A scenario made without the checkbox has to sit in the
 `map/setup_scenarios` folder of a mod enabled in your playset. Without
-Paint a Galaxy, the game gives a custom galaxy wrong homeworlds and no
-marauders or fallen empires. Your own mod has to deal with those.
+Paint a Galaxy, empires can start on the wrong homeworlds, and marauders
+and fallen empires may fail to appear. Your own mod has to deal with
+those.
 
 ## Save and back up
 
 Ctrl+S saves to the file you opened. "Save as…" (Ctrl+Shift+S) saves
-somewhere else. Everything you didn't edit is written out exactly as it
-was.
+somewhere else. Only the parts you changed are rewritten. Everything else
+is copied unchanged.
 
 Each save keeps the previous file beside the new one, as
 `<name>.sav.bak-<date>-<time>`. The earliest backup is the file you
-opened. Each file keeps up to eight: the original, the three newest and a
-spread of the rest.
+originally opened. Up to eight backups are kept per file: the original,
+the three newest and a spread of the rest.
 
 If Stellaris wrote the file after you opened it, Save asks before
 replacing it. When the map has issues, Save offers "Save anyway".
@@ -290,9 +292,9 @@ Move or delete the edited `.sav`, then rename its earliest backup to
 
 ### Steam Cloud saves
 
-With Steam Cloud on, Steam can overwrite an edited save with its cloud
-copy. The app asks before the first save to a "☁" file. Before you play
-an edited cloud save, close Steam or turn off Steam Cloud for Stellaris.
+Steam Cloud can restore the original save over your edited copy. Galaxy
+Forge warns you before the first save to a "☁" file. Before you play an
+edited cloud save, close Steam or disable Steam Cloud for Stellaris.
 
 ## Undo and issues
 
@@ -300,9 +302,9 @@ Ctrl+Z undoes and Ctrl+Y redoes. The Changes tab lists every edit since
 you opened the file. Click one to go back to that point.
 
 The Issues tab lists problems with the map, errors first. Errors are
-things the game can't be expected to cope with, such as a lane listed on
-one end only. Warnings are worth a look, such as a system with no lanes.
-Click an issue to jump to it.
+things the game can't be expected to cope with, such as a hyperlane that
+exists at only one end. Warnings are worth a look, such as a system with
+no hyperlanes. Click an issue to jump to it.
 
 ## Go back to your campaign
 
@@ -312,8 +314,8 @@ with. From what I've checked in-game:
 - A moved system sits at its new position with its lanes.
 - Fleets can use a new lane in both directions.
 - A cut lane is gone and routes go around it.
-- An isolated system has no lanes and the game runs on.
-- You can play on, save in the game and open that save here again.
+- An isolated system has no hyperlanes and the game carries on.
+- You can keep playing, save in the game and open that save here again.
 
 I haven't tested Ironman saves.
 
@@ -342,7 +344,7 @@ the check at start on or off.
 
 ## Command line
 
-The `sgf` tool does the same edits from a terminal. It is on the
+The `sgf` tool makes the same edits from a terminal. It is on the
 [Releases page](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases)
 beside the app. Editing commands save in place with the same backup as
 the app, or write elsewhere with `-o <file>`. System ids are the numbers
