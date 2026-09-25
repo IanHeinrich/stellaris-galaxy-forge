@@ -1,245 +1,288 @@
 # Game data and mod notes
 
-Reference for the Stellaris install, its definition files, its
-localisation and the launcher's mod registration, as of Stellaris 4.5.
-Re-verify on every game version. Sibling of
-[format-notes.md](format-notes.md), which covers the save itself.
+Notes on the Stellaris install, its definition files, its localisation
+and how the launcher registers mods, as of Stellaris 4.5. Check them
+again on each new game version. The save itself is covered in
+[format-notes.md](format-notes.md).
 
 ## What the save references, and where it is defined
 
-Every editable vocabulary is a set of top-level `key = { … }` blocks in
-`common/<dir>/*.txt`, in the same Clausewitz syntax as `gamestate`.
+Each editable vocabulary is a set of top-level `key = { … }` blocks in
+`common/<dir>/*.txt`, written in the same Clausewitz syntax as
+`gamestate`.
 
 | Save field | `common/` dir | Vanilla count | Attributes worth reading |
 |---|---|---|---|
-| `planet.planet_class="pc_…"` | `planet_classes/` (12 files) | 78 | `climate`, `initial`, star and gas-giant flags, which group the dropdown |
-| `galactic_object.star_class="sc_…"` | `star_classes/` (2 files) | 36 | `planet = { key = pc_g_star }`, the `sc_` to `pc_` mapping a star-class change needs; binary and trinary classes carry several `planet=` blocks |
-| `deposit.type="d_…"` | `deposits/` (26 files) | 587 | `is_for_colonizable`, `station`, `resources.category` (into `deposit_categories/`), which separate orbital, planetary and blocker |
-| `planet.planet_modifier="pm_…"` | `planet_modifiers/` (1 file) | 71 | spawn rules only; the display name comes from localisation |
-| `planet.timed_modifier.items[].modifier="…"` | `static_modifiers/` (37 files) | hundreds | effects; some `pm_` keys are also defined here |
+| `planet.planet_class="pc_…"` | `planet_classes/` (12 files) | 78 | `climate`, `initial`, and the star and gas-giant flags. These group the dropdown. |
+| `galactic_object.star_class="sc_…"` | `star_classes/` (2 files) | 36 | `planet = { key = pc_g_star }` maps `sc_` to `pc_`, which a star-class change needs. Binary and trinary classes have several `planet=` blocks. |
+| `deposit.type="d_…"` | `deposits/` (26 files) | 587 | `is_for_colonizable`, `station`, and `resources.category`, which points into `deposit_categories/`. Together they tell orbital, planetary and blocker deposits apart. |
+| `planet.planet_modifier="pm_…"` | `planet_modifiers/` (1 file) | 71 | Spawn rules only. The display name comes from localisation. |
+| `planet.timed_modifier.items[].modifier="…"` | `static_modifiers/` (37 files) | hundreds | Effects. Some `pm_` keys are defined here too. |
 
-Vanilla `common/` is 27 MB and English localisation 16 MB. Mods extend
-every one of these vocabularies, and a large content mod can add hundreds
-of star classes and ship more localisation than vanilla does.
+Vanilla `common/` is 27 MB, and the English localisation is 16 MB. Mods
+extend every one of these vocabularies. A large content mod can add
+hundreds of star classes and ship more localisation than vanilla does.
 
-The mapping from save field to definition dir is not derivable from the
-files. It stays a hand-maintained table of about 30 rows that changes
-only when the save format does.
+The files don't say which definition dir a save field maps to, so that
+mapping is a hand-maintained table of about 30 rows. It only changes
+when the save format does.
 
 ## Syntax the save never uses
 
-`gamestate` has no comments, variables or operators. Definition files add:
+`gamestate` has no comments, variables or operators. Definition files
+add these:
 
-- `#` line comments, everywhere, including a trailing comment on the key
-  line: `sc_binary_1 = { # X-ray Binary …`.
-- `@name = value` at file top and `@name` references, **across files**:
-  `planet_classes/00_planet_classes.txt` uses `@planet_standard_scale`,
-  defined in `scripted_variables/00_scripted_variables.txt`. Enumerating
-  keys does not need the values.
+- `#` line comments, anywhere. A comment can trail the key line, as in
+  `sc_binary_1 = { # X-ray Binary …`.
+- `@name = value` variables at the top of a file, and `@name`
+  references to them. A reference can point into another file. For
+  example, `planet_classes/00_planet_classes.txt` uses
+  `@planet_standard_scale`, which is defined in
+  `scripted_variables/00_scripted_variables.txt`. Listing the keys
+  doesn't need the values.
 - Comparison operators `>`, `<`, `>=`, `<=` inside `potential` and
   `modifier` blocks.
 - Typed literals `hsv { 0.59 0.45 0.95 }` and `rgb { … }`.
-- `inline_script = { … }` template expansion in a few `deposits/` files,
-  in vanilla only inside bodies and never at top level, so top-level key
-  enumeration is unaffected. Re-check per version.
+- `inline_script = { … }` template expansion, in a few `deposits/`
+  files. In vanilla it only appears inside bodies, not at top level, so
+  listing the top-level keys isn't affected. Check this again on each
+  version.
 
-Everything else (duplicate keys, whitespace-separated statements, quoted
-and bare values, nested blocks) is what the save lexer already handles.
+The save lexer already handles everything else: duplicate keys,
+whitespace-separated statements, quoted and bare values, and nested
+blocks.
 
 ## Localisation
 
-`localisation/<lang>/*_l_<lang>.yml`; English has 134 files and 109,625
-keys. It is **not YAML**:
+Localisation lives in `localisation/<lang>/*_l_<lang>.yml`. English has
+134 files and 109,625 keys. Despite the extension, the files are **not
+YAML**.
 
-- UTF-8 with BOM (`EF BB BF`).
-- Lines are ` key:0 "text"`, and the `:0` version number is optional.
-- Strings contain unescaped inner quotes:
+- They are UTF-8 with a BOM (`EF BB BF`).
+- Each line reads ` key:0 "text"`. The `:0` version number is optional.
+- Strings can contain unescaped quotes, for example
   `"… the "§HGhost Signal§!," as it has been dubbed …"`. A YAML library
-  fails; parse line by line with a regex anchored on the first `"` and
-  the last `"`.
-- `$other_key$` is a reference to resolve recursively:
-  `sc_g:1 "$pc_g_star$"`, so star-class names are indirections through
-  their star planet.
-- `£energy£` is icon markup and `§H…§!` colour markup; strip both for
-  display (`d_energy_1:0 "£energy£ +1"`).
-- `localisation/replace/` is a layer that wins over every other file
-  regardless of load order.
-- Mods use the same layout, with per-language subfolders and optional
-  `random_names/` subfolders.
-- The game selects files by their **first line**, the header `l_<lang>:`
-  after an optional BOM, not by the `_l_<lang>.yml` name, so a mod can
-  ship `localisation/english/l_english_pf_misc.yml` and have it loaded.
-  Opening every file to read its header is slow, so a file whose name
-  follows the convention is matched by name and only the others are
-  opened to check.
+  fails on these. Parse line by line instead, with a regex anchored on
+  the first `"` and the last `"`.
+- `$other_key$` is a reference, and it has to be resolved recursively.
+  Star-class names use it to point at their star planet:
+  `sc_g:1 "$pc_g_star$"`.
+- `£energy£` is icon markup, as in `d_energy_1:0 "£energy£ +1"`.
+  `§H…§!` is colour markup. Strip both before display.
+- Files in `localisation/replace/` win over every other file, whatever
+  the load order.
+- Mods use the same layout. They have a subfolder per language, and can
+  have `random_names/` subfolders too.
+- The game picks the files for a language by their first line, the
+  `l_<lang>:` header after an optional BOM. It ignores the
+  `_l_<lang>.yml` part of the name. A mod can ship
+  `localisation/english/l_english_pf_misc.yml` and the game loads it.
+  Opening every file to read its header is slow. So when a file's name
+  follows the convention, the editor matches it by name, and it opens
+  only the other files to check their header.
 
 ## Map art
 
-- Star art sits on opaque black: `gfx/map/star_classes/a_star.dds` has an
-  opaque black edge and an opaque white centre. The game composites star
-  sprites additively rather than by alpha blending, so the map draws them
-  with an additive blend when game data is loaded and falls back to a
-  procedural glow otherwise.
-- Mods can ship fully transparent overrides. An interface mod may replace
-  `gfx/interface/system/map_gui_frame.dds` (`GFX_type_frame`,
-  `interface/icons.gfx`) with an all-alpha-0 texture, and that sprite
-  draws the map icon frame (`quadTextureSprite = "GFX_type_frame"`
-  throughout `interface/mapicons.gui`), so such a mod set needs the frame
-  drawn another way.
-- Resource sprite names are inconsistent: `GFX_resource_energy`,
-  `GFX_resource_physics` (for `physics_research`), `GFX_text_trade_value`
-  (for the resource id `trade`, since deposits produce `trade`, not
-  `trade_value`), `GFX_text_zro`, `GFX_resource_sr_dark_matter_large`
-  (`interface/resources.gfx`, `interface/texticons.gfx`). `nanites` has a
-  texture (`gfx/interface/icons/resources/nanites.dds`) and no sprite of
-  its own, so a lookup probes `GFX_resource_<id>`, `GFX_text_<id>`, the
-  same with the `sr_` prefix and the `_research`/`_value` suffix
-  stripped, then the `_large` variants, in that order.
-- Map icons (`interface/mapicons.gfx`, used from `star_mapicon` in
-  `interface/mapicons.gui`) index sheet frames from 1.
-  `GFX_colonizability` and `_shadow` are 14-frame sheets coloured by the
-  player species' habitability, frame 7 being the neutral blue-grey one
-  the editor uses, having no species. `GFX_fleet_presence_icons` is a
-  16-frame sheet whose frames 10, 11 and 12 are the yellow, blue and red
-  fleet chevrons. `GFX_map_icon_bg` and `_bg_capital` are the owner
-  name-plate textures, faded unstretched for 15 px at each end.
-  `GFX_map_icon_flag_capital_decoration` has 2 frames. Bypass icons are
-  `GFX_ship_class_small` frames named by each bypass's `icon_frame`
-  (`common/bypass/00_bypasses.txt`: gateway, quantum catapult and shroud
-  tunnel 25, wormhole 12, starlit wormhole 59, L-Gate and relay bypass 30).
-- Icon frames the game draws: white segments for an owner-built starbase,
-  dashed green for a bypass (an L-Gate on a dark red disc), solid blue
-  for anything that merely exists in the system (megastructures,
-  archaeology sites, pre-FTL worlds, enclave and marauder stations).
-  Gateways and L-Gates appear in the save both as a `bypasses` entry
-  (`type="gateway"` / `type="lgate"`) and as a `megastructures` entry
-  (`type="gateway_ruined"` / `type="lgate_base"`).
+- Star art sits on opaque black. `gfx/map/star_classes/a_star.dds`, for
+  example, has an opaque black edge and an opaque white centre. The game
+  draws star sprites additively instead of alpha blending them. The
+  editor's map uses an additive blend too when game data is loaded.
+  Without game data it draws a procedural glow.
+- Mods can ship fully transparent overrides. An interface mod may
+  replace `gfx/interface/system/map_gui_frame.dds` with a texture whose
+  alpha is 0 everywhere. That texture is the `GFX_type_frame` sprite in
+  `interface/icons.gfx`, and it draws the map icon frame
+  (`quadTextureSprite = "GFX_type_frame"` throughout
+  `interface/mapicons.gui`). With a mod like that enabled, the frame has
+  to be drawn some other way.
+- Resource sprite names don't follow one pattern. These come from
+  `interface/resources.gfx` and `interface/texticons.gfx`:
+  `GFX_resource_energy`, `GFX_resource_physics` for `physics_research`,
+  `GFX_text_trade_value` for the resource id `trade`, `GFX_text_zro`
+  and `GFX_resource_sr_dark_matter_large`. Deposits produce `trade`,
+  not `trade_value`, so `trade` is the id to look up.
+- `nanites` has a texture (`gfx/interface/icons/resources/nanites.dds`)
+  but no sprite of its own. So a sprite lookup for a resource tries
+  these names in order:
+  1. `GFX_resource_<id>`
+  2. `GFX_text_<id>`
+  3. the same with the `sr_` prefix and the `_research`/`_value` suffix
+     stripped
+  4. the `_large` variants
+- Map icons are defined in `interface/mapicons.gfx` and used from
+  `star_mapicon` in `interface/mapicons.gui`. Their sheet frames are
+  numbered from 1.
+- `GFX_colonizability` and `_shadow` are 14-frame sheets, coloured by
+  the player species' habitability. The editor has no species, so it
+  uses frame 7, the neutral blue-grey one.
+- `GFX_fleet_presence_icons` is a 16-frame sheet. Frames 10, 11 and 12
+  are the yellow, blue and red fleet chevrons.
+- `GFX_map_icon_bg` and `_bg_capital` are the owner name-plate
+  textures. They fade out over 15 px at each end, and those ends are not
+  stretched. `GFX_map_icon_flag_capital_decoration` has 2 frames.
+- Bypass icons are frames of `GFX_ship_class_small`. Each bypass picks
+  its frame with `icon_frame` in `common/bypass/00_bypasses.txt`.
+
+  | Bypass | Frame |
+  |---|---|
+  | gateway, quantum catapult, shroud tunnel | 25 |
+  | wormhole | 12 |
+  | starlit wormhole | 59 |
+  | L-Gate, relay bypass | 30 |
+
+- The game draws white segments around an owner-built starbase's icon.
+  A bypass gets a dashed green frame, and an L-Gate also sits on a dark
+  red disc. Anything that merely exists in the system gets a solid blue
+  frame: megastructures, archaeology sites, pre-FTL worlds, and enclave
+  and marauder stations.
+- Gateways and L-Gates appear in the save twice. Each has a `bypasses`
+  entry (`type="gateway"` or `type="lgate"`) and a `megastructures`
+  entry (`type="gateway_ruined"` or `type="lgate_base"`).
 
 ## Where mods are registered
 
-All under the user data dir (`Documents/Paradox Interactive/Stellaris/`
-on Windows and macOS, `~/.local/share/Paradox Interactive/Stellaris/` on
-Linux):
+These files all sit in the user data dir. That is
+`Documents/Paradox Interactive/Stellaris/` on Windows and macOS, and
+`~/.local/share/Paradox Interactive/Stellaris/` on Linux.
 
 | File | Contents | Trust |
 |---|---|---|
-| `dlc_load.json` | `enabled_mods: ["mod/ugc_….mod", …]` **in load order**, plus `disabled_dlcs`. What the game last launched with; an empty list means vanilla. | Ground truth for what the game will load. |
-| `mod/ugc_<steamId>.mod` | One descriptor per installed mod: `name`, `path`, `supported_version`, `version`, `tags`, optional `dependencies`, optional `replace_path`. | First choice for a mod's directory. |
-| `mods_registry.json` | Launcher registry keyed by uuid: `dirPath`, `displayName`, `gameRegistryId` (the `.mod` file), `steamId`, `requiredVersion`, `status`. | `dirPath` goes stale when mods move between Steam libraries. |
-| `launcher-v2.sqlite` | `playsets(id, name, isActive)` and `playsets_mods(playsetId, modId, enabled, position)`; `mods` mirrors the registry. | Every playset with its order, not just the active one. |
+| `dlc_load.json` | `enabled_mods: ["mod/ugc_….mod", …]` in load order, plus `disabled_dlcs`. It holds what the game last launched with. An empty list means vanilla. | This is what the game will load. |
+| `mod/ugc_<steamId>.mod` | One descriptor per installed mod, with `name`, `path`, `supported_version`, `version` and `tags`. `dependencies` and `replace_path` are optional. | The first place to look for a mod's directory. |
+| `mods_registry.json` | The launcher's registry, keyed by uuid, with `dirPath`, `displayName`, `gameRegistryId` (the `.mod` file), `steamId`, `requiredVersion` and `status`. | `dirPath` goes stale when mods move between Steam libraries. |
+| `launcher-v2.sqlite` | `playsets(id, name, isActive)` and `playsets_mods(playsetId, modId, enabled, position)`. `mods` mirrors the registry. | Has every playset and its order, including the inactive ones. |
 
-Resolution order for a mod's directory: the `.mod` descriptor's `path`,
+To find a mod's directory, try the `.mod` descriptor's `path` first,
 then the registry's `dirPath`, then
-`<steam library>/steamapps/workshop/content/281990/<steamId>`. Verify the
-directory exists before using it. The app loads the active playset, which
-is what the game loads.
+`<steam library>/steamapps/workshop/content/281990/<steamId>`. Check
+that the directory exists before using it. The app loads the active
+playset, which is what the game loads.
 
-Install discovery: Steam's `libraryfolders.vdf` lists every library, and
-the game is app `281990` under `steamapps/common/Stellaris`.
-`launcher-settings.json` in the game root carries
-`"rawVersion": "v4.5.0"`, comparable with the save's
-`meta.version="Cygnus v4.5.0"`. Always allow a manual path as a fallback
-for GOG, the Paradox launcher and unusual layouts.
+Finding the install starts with Steam's `libraryfolders.vdf`, which
+lists every library. The game is app `281990`, under
+`steamapps/common/Stellaris`. `launcher-settings.json` in the game root
+has `"rawVersion": "v4.5.0"`, which can be compared with the save's
+`meta.version="Cygnus v4.5.0"`. Always offer a manual path as a
+fallback, for GOG, the Paradox launcher and unusual layouts.
 
 ## The save records DLCs, not mods
 
-`meta.required_dlcs` lists DLC names only, and neither `meta` nor
-`gamestate` names a mod. Which mods a save was made with can only be
-**inferred**: collect every `pc_`, `sc_`, `d_`, `pm_` and modifier key
-the save uses, subtract vanilla, and match the remainder against each
-installed mod's definitions. That is the basis of the mismatch warning,
-which names a key the save uses and the mod defining it when that mod is
-not in the active playset.
+`meta.required_dlcs` lists DLC names only. Neither `meta` nor
+`gamestate` names a mod. The only way to tell which mods a save was made
+with is to infer it. Collect every `pc_`, `sc_`, `d_`, `pm_` and
+modifier key the save uses, take away the vanilla ones, and match what
+is left against each installed mod's definitions. The mismatch warning
+works this way. When the mod that defines a key the save uses is not in
+the active playset, the warning names the key and the mod.
 
 ## Override semantics
 
-The game loads vanilla, then each enabled mod in `dlc_load.json` order.
-Within a `common/` dir files are processed in filename order:
+The game loads vanilla first, then each enabled mod in `dlc_load.json`
+order. Within a `common/` dir it processes files in filename order.
 
-- A mod file with the **same filename** as an earlier one replaces that
-  file entirely.
-- The **same key** in a differently-named file overrides last-wins in
-  most `common/` dirs. A few dirs are first-wins or treat duplicates as
-  errors, which is irrelevant for the *set* of keys and relevant for
-  attributes.
+- A mod file with the same filename as an earlier one replaces that
+  whole file.
+- When the same key turns up in a file with a different name, the last
+  one loaded wins in most `common/` dirs. A few dirs keep the first one
+  or treat duplicates as errors. That matters for attributes. The set of
+  keys is the same either way.
 - `replace_path = "common/xyz"` in a descriptor discards every earlier
   file in that folder.
-- Localisation: same key, last loaded wins, and `replace/` wins over all.
+- For a localisation key, the last file loaded wins. Files in
+  `replace/` win over all of them.
 
-Implementation: per dir, build `filename → winning path` across layers,
-parse in filename order, and let later keys replace earlier ones. Mod
-content in the planet-class, star-class, deposit and planet-modifier dirs
-is additive in practice, but the layering must still be right for names.
+To apply this, build a `filename → winning path` map for each dir across
+the layers. Then parse the files in filename order and let later keys
+replace earlier ones. In practice, mods only add to the planet-class,
+star-class, deposit and planet-modifier dirs. The layering still has to
+be right there for the names.
 
 ## What definitions cannot give us
 
-Vocabulary, not rules. Whether a deposit may sit on a given planet is a
-`potential = { … }` trigger block, arbitrary script the editor does not
-evaluate. Tier 1 filters on cheap structural attributes (deposit
-category, `is_for_colonizable`, planet `climate`) and Tier 2 permits any
-key. The game remains the oracle for whether a combination loads.
+Definitions tell us which keys exist. They don't give us the rules for
+using them. Whether a deposit may sit on a given planet is decided by a
+`potential = { … }` trigger block. That is arbitrary script, and the
+editor does not evaluate it. Tier 1 filters on cheap structural
+attributes: deposit category, `is_for_colonizable` and planet
+`climate`. Tier 2 permits any key. The game is still the oracle for
+whether a combination loads.
 
 ## Ownership and borders
 
-- `galactic_object.sector` is often null (`4294967295`), and a system
-  with no sector is still owned by whoever runs its first starbase. That
-  is how marauder clans and enclaves hold territory. The chain is
-  `galactic_object.starbases` to `starbase_mgr.starbases.<id>.station`
-  to `ships.<id>.fleet` to the country whose
-  `fleets_manager.owned_fleets` lists that fleet: in the sample save,
-  system 12 "Quiet Dark" has `starbases={ 44 }`, station 683, fleet 143,
-  and country 20, of `type="dormant_marauders"`.
+- `galactic_object.sector` is often null (`4294967295`). A system with
+  no sector is still owned by whoever runs its first starbase. That is
+  how marauder clans and enclaves hold territory.
+- To find that owner, follow `galactic_object.starbases` to
+  `starbase_mgr.starbases.<id>.station`, then to `ships.<id>.fleet`,
+  then to the country whose `fleets_manager.owned_fleets` lists that
+  fleet. In the sample save, system 12 "Quiet Dark" has
+  `starbases={ 44 }`, station 683, fleet 143, and country 20, of
+  `type="dormant_marauders"`.
 - `common/country_types/00_country_types.txt` sets
   `generate_borders = no` for `enclave`, `primitive`,
-  `caravaneer_fleet`, `faction` and `nice_faction`, while
-  `caravaneer_home` has `generate_borders = yes`, so the Caravaneer
-  citadel gets a territory. `is_space_critter = yes` marks fauna
-  (`tiyanki`, `amoeba`, `crystal`, `cloud`, …) and every `guardian*`
-  type. The marauder types are `dormant_marauders`, `awakened_marauders`
-  and `ruined_marauders`.
+  `caravaneer_fleet`, `faction` and `nice_faction`. `caravaneer_home`
+  has `generate_borders = yes`, so the Caravaneer citadel gets a
+  territory.
+- `is_space_critter = yes` marks the fauna types (`tiyanki`, `amoeba`,
+  `crystal`, `cloud`, …) and every `guardian*` type. The marauder types
+  are `dormant_marauders`, `awakened_marauders` and `ruined_marauders`.
 - `BORDER_SYSTEM_RADIUS = 35` and `BORDER_HYPERLANE_THICKNESS = 20` are
-  in `common/defines/00_defines.txt`. `flags/colors.txt` names each
-  empire colour's `flag`, `map` and `ship` rgb; the map fills a territory
-  with the country's second flag colour and outlines it with the first.
+  in `common/defines/00_defines.txt`.
+- `flags/colors.txt` names the `flag`, `map` and `ship` rgb of each
+  empire colour. The map fills a territory with the country's second
+  flag colour and outlines it with the first.
 
 ## Names
 
-`name = { key = "…" literal = yes variables = { … } }` is the save's
-name-template shape. `PLANET_NAME_FORMAT` is `"$PARENT$ $NUMERAL$"` and
-`SUBPLANET_NAME_FORMAT` is `"$PARENT$$NUMERAL$"`
-(`localisation/english/main_1_l_english.yml`); `STAR_NAME_1_OF_2` is
-`"$NAME$ A"` (`localisation/english/distant_stars_l_english.yml`).
-Country names use `AofB`/`AofBpfx` templates, for example
-`"{AofB{<imperial_mil> [This.GetCapitalSystemNameOrRandom]}}"`
-(`common/random_names/00_empire_names.txt`). Species name lists live
-under `localisation/english/name_lists/*.yml`.
+The save stores a name as a template of the shape
+`name = { key = "…" literal = yes variables = { … } }`.
+
+- `PLANET_NAME_FORMAT` is `"$PARENT$ $NUMERAL$"` and
+  `SUBPLANET_NAME_FORMAT` is `"$PARENT$$NUMERAL$"`. Both are in
+  `localisation/english/main_1_l_english.yml`.
+- `STAR_NAME_1_OF_2` is `"$NAME$ A"`, in
+  `localisation/english/distant_stars_l_english.yml`.
+- Country names use `AofB` and `AofBpfx` templates from
+  `common/random_names/00_empire_names.txt`, for example
+  `"{AofB{<imperial_mil> [This.GetCapitalSystemNameOrRandom]}}"`.
+- Species name lists are in `localisation/english/name_lists/*.yml`.
 
 ## Nebulae
 
-Each top-level `nebula` block lists its member `galactic_object=<id>`
-systems explicitly, and the game never re-derives membership from
-positions. `radius` is typically 30.
+Each top-level `nebula` block lists its member systems explicitly, as
+`galactic_object=<id>` entries. The game never works membership out
+again from positions. `radius` is typically 30.
 
 ## Scenario files
 
-`map/setup_scenarios/*.txt` is layered the same as `common/`: vanilla
-ships one grammar-reference file, entirely commented out, and a mod adds
-its own scenario files and can empty a vanilla dynamic scenario with a
-0-byte file of the same name. Grammar and the `setup_scenario` /
-`static_galaxy_scenario` dispatch: [format-notes.md](format-notes.md).
+`map/setup_scenarios/*.txt` is layered the same way as `common/`.
+Vanilla ships one grammar-reference file, and all of it is commented
+out. A mod adds its own scenario files. It can also empty a vanilla
+dynamic scenario with a 0-byte file of the same name. The grammar, and
+the dispatch between `setup_scenario` and `static_galaxy_scenario`, are
+in [format-notes.md](format-notes.md).
 
-A galaxy size defined twice under one name, in two differently named
-files, is kept twice, and the "too many systems" warning uses the higher
-star count. I haven't checked in-game which of the two definitions the
-game takes.
+If two differently named files define a galaxy size under the same
+name, both are kept. The "too many systems" warning uses the higher star
+count of the two. I haven't checked in-game which of the two
+definitions the game takes.
 
-A scenario `system.initializer` names a block under
-`common/solar_system_initializers/**`, resolved like any other vocabulary
-here: install first, then enabled mods in load order. `usage` sorts the
-vanilla set: `misc_system_init` 196, `origin` 14, `custom_empire` 9,
-`nomad_init` 7 (marauders), `fallen_empire_init` 7, `empire_init` 6. An
-initializer's category comes from `usage`, and its defining file and mod
-from where it was read, rather than from a hand-kept list.
+A scenario's `system.initializer` names a block under
+`common/solar_system_initializers/**`. It is resolved like any other
+vocabulary here, from the install first and then from the enabled mods
+in load order. `usage` sorts the vanilla set:
+
+| `usage` | Vanilla count |
+|---|---|
+| `misc_system_init` | 196 |
+| `origin` | 14 |
+| `custom_empire` | 9 |
+| `nomad_init` (marauders) | 7 |
+| `fallen_empire_init` | 7 |
+| `empire_init` | 6 |
+
+An initializer's category comes from its `usage`. Its defining file and
+mod come from where it was read. There is no hand-kept list of them.
 
 ## References (for edge cases, never for bundling)
 
