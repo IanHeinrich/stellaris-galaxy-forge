@@ -4,9 +4,10 @@ import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { isStarClass } from "../../../../lib/details/labels";
 import { resourceRows } from "../../../../lib/details/resources";
 import { initClassLabel } from "../../../../lib/initializer/initializerRows";
+import { capabilityFor } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useDetailsStore } from "../../../../store/detailsStore";
-import { useFileSessionStore } from "../../../../store/fileSessionStore";
+import { useCanEdit } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { useInspectorStore } from "../../../../store/inspectorStore";
 import { Chip, DrillRow, Empty, Icon, MoreButton, Section, Swatch } from "../../parts";
@@ -62,7 +63,7 @@ export function PlanetRow({
   return (
     <DrillRow
       className={`ins-prow${planet.moon ? " moon" : ""}${wide ? " wide" : ""}`}
-      requires="details"
+      requires={capabilityFor("planet")}
       title={editable ? "Open this star's page to change its type and size" : undefined}
       onOpen={() => open({ ref: { kind: "planet", id: planet.id }, label: name })}
     >
@@ -120,7 +121,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const icons = useDetailsStore((s) => s.resourceIcons);
   const classes = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
+  const bodies = useCanEdit("bodies");
   const [all, setAll] = useState(false);
   const isStar = (p: PlanetSummary) => isStarClass(p.class, classes, starClasses);
   const planets = orderedPlanets(details.planets, isStar);
@@ -153,7 +154,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
             </span>
           </div>
           {shown.map((p) => (
-            <PlanetRow key={p.id} planet={p} details={details} editable={!scenario && isStar(p)} />
+            <PlanetRow key={p.id} planet={p} details={details} editable={bodies && isStar(p)} />
           ))}
           {!all && planets.length > LIST_LIMIT && (
             <MoreButton count={planets.length - LIST_LIMIT} onClick={() => setAll(true)} />

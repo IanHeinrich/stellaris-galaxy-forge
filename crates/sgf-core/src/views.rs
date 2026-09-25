@@ -79,7 +79,7 @@ impl From<&GalaxyGraph> for GalaxyView {
 }
 
 /// What the open document supports, so the app shows only the layers, tabs and ops it
-/// can answer for. A `.sav` supports everything.
+/// can answer for. Each format fills it, and the app reads these flags, not the kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct Capabilities {
@@ -93,12 +93,25 @@ pub struct Capabilities {
     pub bypasses: bool,
     /// Points of interest: initializers, flags and the countries standing in a system.
     pub special: bool,
-    /// Systems can be added and removed, named and given an initializer.
+    /// The scenario's system statements: any system added, removed, named and given an
+    /// initializer, so the paint and erase brushes, spawn points, marauder clans and the
+    /// day-one layers.
     pub create_systems: bool,
     /// Lanes carry a `bridge` flag.
     pub lane_bridges: bool,
     /// Waystations and the waylines the game derives between them.
     pub waylines: bool,
+    /// Systems can be added to the save, and the ones added this session rerolled, renamed
+    /// and deleted.
+    pub added_systems: bool,
+    /// A body's star class, planet size and deposits can be changed.
+    pub bodies: bool,
+    /// An empire's map colours can be changed.
+    pub map_colors: bool,
+    /// The L-Gate's outcome can be read and set.
+    pub lgate: bool,
+    /// An edit can be mirrored across the galaxy's centre.
+    pub symmetry: bool,
 }
 
 impl Capabilities {

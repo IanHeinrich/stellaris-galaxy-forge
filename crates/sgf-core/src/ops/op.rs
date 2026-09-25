@@ -120,8 +120,8 @@ pub enum Op {
         name: String,
     },
     /// A new `system` statement, `id` defaulting to one past the highest held. Scenario
-    /// documents only: a save's systems carry planets, a starbase and an owner no op can
-    /// invent. A weight and a script together are refused (see [`Op::SetSpawnScript`]).
+    /// documents only; a save adds a system through [`Op::AddSaveSystem`]. A weight and a
+    /// script together are refused (see [`Op::SetSpawnScript`]).
     AddSystem {
         id: Option<u32>,
         x: f64,

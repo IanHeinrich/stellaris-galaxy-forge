@@ -6,14 +6,9 @@ import { useInitializerBrowserStore } from "../../store/initializerBrowserStore"
 export const NEEDS_GAME_DATA =
   "Load game data to choose from the initializers the install and its mods define.";
 
-/** Whether the open document is one whose systems carry an initializer of their own. */
-export function initializerDocument(): boolean {
-  return canEdit("create_systems");
-}
-
 /** Whether the browser is worth offering: a document that sets initializers, with game data read. */
 export function canBrowseInitializers(): boolean {
-  return initializerDocument() && useGameDataStore.getState().status === "ready";
+  return canEdit("create_systems") && useGameDataStore.getState().status === "ready";
 }
 
 /** Opens the browser over `targets`, unless nothing is selected or the document has no use for it. */

@@ -1,6 +1,7 @@
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
+import type { Capabilities } from "../generated/Capabilities";
 import type { FeDirection } from "../generated/FeDirection";
 import type { FeZone } from "../generated/FeZone";
 import type { HistoryEntry } from "../generated/HistoryEntry";
@@ -13,6 +14,8 @@ import type { SearchResult } from "../generated/SearchResult";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
+import { addedAmong } from "../lib/addSystem";
+import { documentCapabilities } from "../lib/capabilities";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
 import { counted } from "../lib/text";
 import { addSystemActions } from "./editorStore.addSystem";
@@ -23,7 +26,7 @@ import { laneActions } from "./editorStore.lanes";
 import { marauderActions } from "./editorStore.marauders";
 import { nebulaActions } from "./editorStore.nebulae";
 import { searchActions } from "./editorStore.search";
-import { canEdit, getPaintLayer, useFileSessionStore } from "./fileSessionStore";
+import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
@@ -59,11 +62,15 @@ export interface LaneRef {
 
 export type SelectionMode = "replace" | "add";
 
-/** What Delete removes: the selected nebula, the selected lane, or the selected systems. */
+/**
+ * What Delete removes: the selected nebula, the selected lane, the selected systems, or the
+ * systems of the selection a save added this session.
+ */
 export type Deletable =
   | { kind: "nebula"; index: number }
   | { kind: "lane"; lane: LaneRef }
-  | { kind: "systems"; ids: number[] };
+  | { kind: "systems"; ids: number[] }
+  | { kind: "added"; ids: number[] };
 
 export interface EditorState {
   /** Selected system ids in selection order, no duplicates; at most one of a non-empty `selection`, `selectedLane` and `selectedNebula` is set. */
@@ -384,6 +391,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
             ? get().removeSystem(target.ids[0])
             : get().removeSystems(target.ids));
           return;
+        case "added":
+          await (get().selection.length === 1
+            ? get().removeSystem(target.ids[0])
+            : get().removeAddedSystems(target.ids));
+          return;
         case "lane": {
           const { a, b } = target.lane;
           if (await get().applySymmetric({ type: "RemoveLane", a, b })) set({ selectedLane: null });
@@ -463,22 +475,42 @@ export const useEditorStore = create<EditorState>((set, get) => {
 });
 
 /**
- * What Delete would remove, or null for nothing: the selected nebula or lane, or the selected
- * systems while the document makes and deletes them. The Edit menu and the key both ask it.
+ * Which of `ids` Delete would remove, or null for none: all of them where the document makes
+ * and deletes systems, the ones added this session on a document that adds them.
+ */
+export function deletableSystems(
+  ids: readonly number[],
+  capabilities: Capabilities = documentCapabilities(useFileSessionStore.getState()),
+  held: ReadonlyMap<number, SystemNode> = systems(),
+): Deletable | null {
+  if (ids.length === 0) return null;
+  if (capabilities.create_systems) return { kind: "systems", ids: [...ids] };
+  if (!capabilities.added_systems) return null;
+  const added = addedAmong(held, ids);
+  return added.length === 0 ? null : { kind: "added", ids: added };
+}
+
+/**
+ * What Delete would remove, or null for nothing: the selected nebula or lane, or what
+ * `deletableSystems` takes of the selection. The Edit menu and the key both ask it.
  */
 export function deletableSelection(
   state: Pick<EditorState, "selection" | "selectedLane" | "selectedNebula">,
-  systemsDeletable = canEdit("create_systems"),
+  capabilities?: Capabilities,
+  held?: ReadonlyMap<number, SystemNode>,
 ): Deletable | null {
   const { selection, selectedLane, selectedNebula } = state;
   if (selectedNebula !== null) return { kind: "nebula", index: selectedNebula };
   if (selectedLane !== null) return { kind: "lane", lane: selectedLane };
-  if (selection.length > 0 && systemsDeletable) return { kind: "systems", ids: selection };
-  return null;
+  return deletableSystems(selection, capabilities, held);
 }
 
-export function canDelete(state: EditorState, systemsDeletable?: boolean): boolean {
-  return deletableSelection(state, systemsDeletable) !== null;
+export function canDelete(
+  state: EditorState,
+  capabilities?: Capabilities,
+  held?: ReadonlyMap<number, SystemNode>,
+): boolean {
+  return deletableSelection(state, capabilities, held) !== null;
 }
 
 /** The step Undo takes back; undefined with none. */

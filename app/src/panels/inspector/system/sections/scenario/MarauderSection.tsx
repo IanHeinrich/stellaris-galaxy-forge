@@ -10,9 +10,9 @@ import {
 } from "../../../../../lib/marauder";
 import { useSystemNames } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
+import { useCanEdit } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { Section } from "../../../parts";
-import { useEditableSystem } from "../../editable";
 
 /** What a clan home is, in three short lines: three systems, created at game start. */
 export function homeIntro(clan: number): readonly string[] {
@@ -34,7 +34,7 @@ export const ADD_BASES = "Add the missing outposts";
  * names its home.
  */
 export function MarauderSection({ system }: { system: SystemNode }) {
-  const editable = useEditableSystem();
+  const editable = useCanEdit("create_systems");
   if (!editable || system.marauder === null) return null;
   return "home" in system.marauder ? (
     <Home system={system} clan={system.marauder.home} />

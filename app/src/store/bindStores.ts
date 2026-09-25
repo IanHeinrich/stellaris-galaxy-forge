@@ -19,7 +19,7 @@ import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
-import { SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
+import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
 
 /** How long after the last edit the watchlist runs its searches again. */
@@ -116,12 +116,13 @@ function followTool(): void {
   });
 }
 
-// A save cannot take symmetry: opening one turns off any symmetry left on from a scenario.
+// Opening a document that takes no symmetry turns off any symmetry left on from the last one,
+// for this session only: the preference keeps the user's pick for the next launch.
 function followSymmetry(): void {
   useFileSessionStore.subscribe((state, previous) => {
-    if (state.kind === previous.kind) return;
-    if (state.kind === "save" && useToolStore.getState().symmetry.kind !== "off") {
-      useToolStore.getState().setSymmetry(SYMMETRY_OFF);
+    if (state.capabilities === previous.capabilities) return;
+    if (!symmetryAllowed() && useToolStore.getState().symmetry.kind !== "off") {
+      useToolStore.setState({ symmetry: SYMMETRY_OFF });
     }
   });
 }

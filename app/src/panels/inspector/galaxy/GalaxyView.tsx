@@ -15,7 +15,7 @@ import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
 import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
 import { useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useGalaxyVersion } from "../../../store/browserRows";
 import { galaxyIslandCount, galaxyLaneCount, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -212,6 +212,7 @@ export function GalaxyView() {
   const meta = useFileSessionStore((s) => s.meta);
   const title = useFileSessionStore((s) => s.title);
   const kind = useFileSessionStore((s) => s.kind);
+  const lgateEditable = useCanEdit("lgate");
   const path = useFileSessionStore((s) => s.path);
   const cloud = useFileSessionStore((s) => s.cloud);
   const countsIssue = useIssuesStore(
@@ -256,7 +257,7 @@ export function GalaxyView() {
           <PropertyRow label="Empires">{countries.size}</PropertyRow>
           <PropertyRow label="Nebulae">{nebulae.length}</PropertyRow>
           <PropertyRow label="Bypasses">{bypasses}</PropertyRow>
-          {kind === "save" && lgate !== null && <LGateRow lgate={lgate} />}
+          {lgateEditable && lgate !== null && <LGateRow lgate={lgate} />}
           <PropertyRow label="Components">
             {components}
             {components > 1 && (

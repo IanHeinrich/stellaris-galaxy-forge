@@ -242,7 +242,7 @@ function MoonFallbackRow({ moon }: { moon: PlanetPageMoon }) {
   const name = named === "" ? label(moon.class) : named;
   return (
     <DrillRow
-      requires="details"
+      requires={capabilityFor("planet")}
       onOpen={() => open({ ref: { kind: "planet", id: moon.id }, label: name })}
     >
       <PlanetIcon planetClass={moon.class} sprite={classes.get(moon.class)?.icon_sprite} />

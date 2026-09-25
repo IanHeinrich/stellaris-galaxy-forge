@@ -3,6 +3,7 @@
 mod common;
 
 mod add_system;
+mod capabilities;
 mod edit;
 mod gamedata;
 mod listing;

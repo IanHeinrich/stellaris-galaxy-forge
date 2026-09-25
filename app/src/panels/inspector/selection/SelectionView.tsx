@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { useCanEdit } from "../../../store/fileSessionStore";
 import { useSystemNames } from "../../../store/browserRows";
 import { linkedSystems, selectionLanes, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -19,9 +18,8 @@ export function SelectionView() {
   const select = useEditorStore((s) => s.select);
   const systems = useGalaxyStore((s) => s.systems);
   const gameData = useGameDataStore((s) => s.status === "ready");
-  const capabilities = useFileSessionStore(documentCapabilities);
-  const canAssign = supports(capabilities, "create_systems");
-  const save = useFileSessionStore((s) => s.kind === "save") && supports(capabilities, "details");
+  const canAssign = useCanEdit("create_systems");
+  const bodies = useCanEdit("bodies");
 
   const owners = new Set(
     selection.map((id) => systems.get(id)?.owner ?? null).filter((o) => o !== null),
@@ -45,7 +43,7 @@ export function SelectionView() {
       <Section id="selection.actions" title="Actions">
         <div className="ins-bulk">
           <BulkActions />
-          {save && <BulkStarClass ids={selection} />}
+          {bodies && <BulkStarClass ids={selection} />}
           {canAssign && (
             <button
               type="button"

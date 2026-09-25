@@ -4,7 +4,7 @@ import type { CountryNode } from "../../generated/CountryNode";
 import type { MapColor } from "../../generated/MapColor";
 import type { SystemNode } from "../../generated/SystemNode";
 import { countryRegions, regionLabelAnchor } from "../../lib/geometry/territory";
-import { ALL_CAPABILITIES } from "../../lib/capabilities";
+import { SAVE_CAPABILITIES } from "../../lib/capabilities";
 import { MARAUDER_COLORS, ownerColors } from "../../lib/visual/ownerColors";
 import { EMPHASIS_COLOR } from "../../lib/visual/specialStyle";
 import { VANILLA_BORDER, type RenderContext } from "../RenderContext";
@@ -199,10 +199,10 @@ describe("a scenario's territories", () => {
   });
 
   it("is the one layer for the clans: the marauders toggle is menu-only and steers it", () => {
-    const capabilities = { ...ALL_CAPABILITIES, create_systems: true };
+    const capabilities = { ...SAVE_CAPABILITIES, create_systems: true };
     expect(layersFor(capabilities).map((entry) => entry.id)).not.toContain("marauders");
     expect(layerIdsFor(capabilities).has("marauders")).toBe(true);
-    expect(layerIdsFor(ALL_CAPABILITIES).has("marauders")).toBe(false);
+    expect(layerIdsFor(SAVE_CAPABILITIES).has("marauders")).toBe(false);
   });
 
   it("hides the clan with the marauders layer and the empire with its own, each on its own", () => {

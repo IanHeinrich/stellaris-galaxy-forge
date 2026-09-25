@@ -2,13 +2,12 @@ import { useEffect, useMemo } from "react";
 import type { SystemNode } from "../../../../generated/SystemNode";
 import { displayName } from "../../../../lib/names";
 import { kindLabel } from "../../../../lib/special";
-import { useFileSessionStore } from "../../../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { browseInitializers, NEEDS_GAME_DATA } from "../../../initializers/entry";
 import { useApplySymmetricOp } from "../../../useApplyOp";
 import { TextField } from "../../../EditField";
 import { Section, SourceChip } from "../../parts";
-import { useEditableSystem } from "../editable";
 import { kindHover } from "./kindHover";
 import { InitializerSpawn } from "./scenario/Initializer";
 import { ScriptActions } from "./scenario/scriptActions";
@@ -68,7 +67,7 @@ export function InitializerSection({
   const initializers = useGameDataStore((s) => s.initializers);
   // Only a scenario names the file its systems are generated from; a save has none to open.
   const scenario = useFileSessionStore((s) => s.kind === "scenario");
-  const editable = useEditableSystem();
+  const editable = useCanEdit("create_systems");
   const unknown = ready && special?.initializer_known === false;
   const countries = special?.countries ?? [];
   const kinds = special?.kinds ?? [];

@@ -1,5 +1,4 @@
-import { ALL_CAPABILITIES } from "../../lib/capabilities";
-import type { Capabilities } from "../../generated/Capabilities";
+import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import type { EditResult } from "../../generated/EditResult";
 import type { OpenResult } from "../../generated/OpenResult";
 import type { SaveResult } from "../../generated/SaveResult";
@@ -89,20 +88,7 @@ export const OPEN_RESULT: OpenResult & { path: string } = {
       note: false,
     },
   ],
-  capabilities: ALL_CAPABILITIES,
-};
-
-/** What a static galaxy scenario supports: scripted empires, no lengths, systems can be added. */
-export const SCENARIO_CAPABILITIES: Capabilities = {
-  empires: true,
-  details: false,
-  lane_lengths: false,
-  nebulae: true,
-  bypasses: false,
-  special: true,
-  create_systems: true,
-  lane_bridges: false,
-  waylines: false,
+  capabilities: SAVE_CAPABILITIES,
 };
 
 /** The same galaxy as `OPEN_RESULT`, opened from a scenario file: a title and no save header. */

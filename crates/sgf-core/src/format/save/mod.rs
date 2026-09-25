@@ -205,9 +205,10 @@ impl Format for Save {
             Op::SetNebulaFootprints { footprints } => {
                 nebula::plan_set_footprints(plan, s, footprints)
             }
-            // A save's systems come with planets, a starbase and an owner, its names and
-            // initializers are the game's to set, and it has neither a scenario header nor
-            // a generator to prevent a lane from.
+            // A save adds, renames and rerolls a system through the save ops, which write the
+            // bodies and names a scenario statement leaves out. Its initializers, spawns,
+            // fallen empire zones and wormholes are the game's to set, and it has neither a
+            // scenario header nor a generator to prevent a lane from.
             Op::AddSystem { .. }
             | Op::AddSystems { .. }
             | Op::SetSystemName { .. }
@@ -283,6 +284,11 @@ impl Format for Save {
             create_systems: false,
             lane_bridges: true,
             waylines: true,
+            added_systems: true,
+            bodies: true,
+            map_colors: true,
+            lgate: true,
+            symmetry: false,
         }
     }
 }

@@ -1,10 +1,11 @@
 import type { SystemDetail } from "../../../generated/SystemDetail";
 import type { SystemNode } from "../../../generated/SystemNode";
+import { capabilityFor } from "../../../lib/entities";
 import { nodeName } from "../../../lib/names";
 import { kindLabel } from "../../../lib/special";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore } from "../../../store/fileSessionStore";
 import { useCountryName } from "../../../store/browserRows";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -14,7 +15,6 @@ import { TextField } from "../../EditField";
 import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
 import { Chip, DrillLink, Section, SourceChip, Swatch } from "../parts";
 import { ADDED_CHIP_TITLE, AddedSystemBlock } from "./AddedSystemBlock";
-import { useEditableSystem } from "./editable";
 import { kindHover } from "./sections/kindHover";
 import { StarMismatchNote } from "./StarClassLine";
 import { useStarClassLabel } from "./useStarNames";
@@ -74,7 +74,7 @@ function NameText({ system }: { system: SystemNode }) {
  */
 function HeadName({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
-  const editable = useEditableSystem();
+  const editable = useCanEdit("create_systems");
   const unnamed = system.name.key === "";
   if (!editable) {
     return (
@@ -104,7 +104,7 @@ function OwnerName({ id, label }: { id: number; label: string | null }) {
   if (!known || label === null) return <span>{label}</span>;
   return (
     <DrillLink
-      requires="empires"
+      requires={capabilityFor("country")}
       title={`Open ${label}'s page`}
       onOpen={() => open({ ref: { kind: "country", id }, label })}
     >

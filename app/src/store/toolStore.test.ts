@@ -228,6 +228,23 @@ describe("symmetry on a save", () => {
     expect(tools().symmetry).toEqual({ kind: "off" });
   });
 
+  it("is turned off by opening a save without touching the preference, and kept by closing a scenario", async () => {
+    await openScenario();
+    tools().setSymmetry({ kind: "mirror", axis: "x" });
+    const saved = stored.get(PREF_KEYS.symmetry);
+
+    await session().openSave(OPEN_RESULT.path);
+    expect(tools().symmetry).toEqual({ kind: "off" });
+    expect(stored.get(PREF_KEYS.symmetry)).toBe(saved);
+    expect(run("toggleSymmetry", false, effects)).toBe(false);
+    expect(tools().symmetry).toEqual({ kind: "off" });
+
+    await openScenario();
+    tools().setSymmetry({ kind: "rotate", n: 3 });
+    await session().close();
+    expect(tools().symmetry).toEqual({ kind: "rotate", n: 3 });
+  });
+
   it("is left alone on a scenario", async () => {
     await openScenario();
     tools().setSymmetry({ kind: "rotate", n: 6 });

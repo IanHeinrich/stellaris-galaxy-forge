@@ -15,8 +15,9 @@ import {
   NEEDS_GAME_DATA,
   NEEDS_STELLARIS_4,
 } from "../lib/addSystem";
+import { run } from "./commands";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
-import { addSystemRefusalAt } from "./editorStore";
+import { addSystemRefusalAt, canDelete } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -294,6 +295,58 @@ describe("editing a system added this session", () => {
     expect(mocked.confirm).toHaveBeenCalled();
     expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 });
     expect(useGalaxyStore.getState().systems.has(7)).toBe(false);
+  });
+});
+
+describe("pressing Delete on a save", () => {
+  const effects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
+
+  it("deletes the one added system selected", async () => {
+    withAddedSystems();
+    await editor().setSelection([7], "replace");
+    mocked.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], removed: [7], renumbered: [[7, null]] } }),
+    );
+
+    expect(canDelete(editor())).toBe(true);
+    run("deleteSelection", false, effects);
+
+    await vi.waitFor(() =>
+      expect(mocked.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 }),
+    );
+  });
+
+  it.each([
+    [
+      [0, 6, 7],
+      [6, 7],
+    ],
+    [[0, 7], [7]],
+  ])(
+    "deletes the added systems of %j as the Actions button does, leaving the save's own",
+    async (selection, deleted) => {
+      withAddedSystems();
+      await editor().setSelection(selection, "replace");
+      removeAddedSystems.mockResolvedValueOnce(
+        editResult({ delta: { systems: [], removed: deleted } }),
+      );
+
+      run("deleteSelection", false, effects);
+
+      await vi.waitFor(() => expect(removeAddedSystems).toHaveBeenCalledWith(deleted));
+      expect(mocked.confirm).toHaveBeenCalledWith(
+        `Delete ${deleted.length} added system${deleted.length === 1 ? "" : "s"}?`,
+        { title: "Delete added systems", kind: "warning" },
+      );
+      expect(mocked.applyOp).not.toHaveBeenCalled();
+    },
+  );
+
+  it("offers nothing for a selection of the save's own systems", async () => {
+    withAddedSystems();
+    await editor().setSelection([0, 1], "replace");
+
+    expect(canDelete(editor())).toBe(false);
   });
 });
 

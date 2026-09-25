@@ -14,8 +14,8 @@ import {
   weightedScript,
 } from "../../../../../lib/paint";
 import { useEditorStore } from "../../../../../store/editorStore";
+import { useCanEdit } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
-import { useEditableSystem } from "../../editable";
 import { openLocalClusterWorkshop, openReservedSpawnsWorkshop } from "../../../../chrome/paintMod";
 
 /** `k`'s label, marked "in use" when a system other than the one being edited already holds it. */
@@ -41,7 +41,7 @@ function reweighed(system: SystemNode, on: boolean): SpawnScript | undefined {
  */
 export function ScriptedSeat({ system }: { system: SystemNode }) {
   const setSeat = useEditorStore((s) => s.setSeat);
-  const editable = useEditableSystem();
+  const editable = useCanEdit("create_systems");
   const systems = useGalaxyStore((s) => s.systems);
   const script = system.spawn_script;
   if (script === null) return null;

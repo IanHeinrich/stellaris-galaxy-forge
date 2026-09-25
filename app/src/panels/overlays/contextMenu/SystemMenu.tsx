@@ -1,8 +1,9 @@
+import { documentCapabilities, supports } from "../../../lib/capabilities";
 import { linkToZoneLabel } from "../../../lib/feLinks";
 import { addFeZoneRefusal } from "../../../lib/feZone";
 import { clanOf, REMOVE_CLAN_HINT } from "../../../lib/marauder";
 import { useSystemNames } from "../../../store/browserRows";
-import { useEditorStore } from "../../../store/editorStore";
+import { deletableSystems, useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import {
   linkedTo,
@@ -26,7 +27,7 @@ import {
 } from "../../inspector/system/sections/scenario/spawnPoint";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
-import { useCanCreate, useSelected, useZoneLink, useZones } from "./menuState";
+import { useSelected, useZoneLink, useZones } from "./menuState";
 
 /** The menu on a system: its lanes to the selection, its scenario roles and its removal. */
 export function SystemMenu({
@@ -48,7 +49,8 @@ export function SystemMenu({
   const systems = useGalaxyStore((s) => s.systems);
   const paint = usePaintLayer();
   const scenario = useFileSessionStore((s) => s.kind === "scenario");
-  const canCreate = useCanCreate();
+  const capabilities = useFileSessionStore(documentCapabilities);
+  const canCreate = supports(capabilities, "create_systems");
   const zones = useZones();
   const { selection, selected, selectedName } = useSelected();
   const linkItem = useZoneLink();
@@ -74,6 +76,7 @@ export function SystemMenu({
   const clanInBulk = inSelection && selection.length === 3;
   const clanItem = canCreate && role === null && !clanInBulk ? clanMembers : null;
   const link = linkItem(selected, system);
+  const deletable = deletableSystems([target.id], capabilities, systems) !== null;
   return (
     <MenuFrame {...frame} label={name}>
       <div className="context-menu-header">{name}</div>
@@ -168,7 +171,7 @@ export function SystemMenu({
           <span className="muted">{REMOVE_CLAN_HINT}</span>
         </MenuItem>
       )}
-      {(canCreate || (!scenario && system?.added)) && (
+      {deletable && (
         <MenuItem className="context-menu-separated" run={() => removeSystem(target.id)}>
           Delete system
         </MenuItem>

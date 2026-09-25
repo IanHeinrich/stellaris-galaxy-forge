@@ -234,9 +234,10 @@ mod itself is found by `sgf-gamedata` (`install/mods.rs`).
 A save and a scenario share the byte model, the index, the graph, the
 edits and the history. The differences are behind one trait, `Format`:
 which statements hold systems, lanes and nebulae; which edits the format
-supports (a scenario can add and remove systems and set what they spawn,
-a save cannot; a save carries lane lengths, a scenario does not); and how
-each edit's bytes are written. Edits decide on the graph; the format
+supports (a scenario can add and remove any system and set what it
+spawns, and a save carries lane lengths, a scenario does not); and how
+each edit's bytes are written. A save can add systems and remove the
+ones added this session. Edits decide on the graph; the format
 writes the bytes.
 
 ## Layers of the app

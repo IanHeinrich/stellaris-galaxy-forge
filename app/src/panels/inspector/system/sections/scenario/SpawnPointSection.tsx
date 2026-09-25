@@ -3,11 +3,10 @@ import type { SystemNode } from "../../../../../generated/SystemNode";
 import { enabledScript } from "../../../../../lib/paint";
 import { isSpawnWeight } from "../../../../../lib/spawn";
 import { useEditorStore } from "../../../../../store/editorStore";
-import { usePaintLayer } from "../../../../../store/fileSessionStore";
+import { useCanEdit, usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useApplySymmetricOp } from "../../../../useApplyOp";
 import { TextField } from "../../../../EditField";
 import { Chip, Section } from "../../../parts";
-import { useEditableSystem } from "../../editable";
 import { ScriptedSeat } from "./ScriptedSeat";
 import {
   DEFAULT_SPAWN_WEIGHT,
@@ -22,7 +21,7 @@ import {
  * others. The weight is written beside the initializer, so a system without one cannot carry it.
  */
 export function SpawnPointSection({ system }: { system: SystemNode }) {
-  const editable = useEditableSystem();
+  const editable = useCanEdit("create_systems");
   if (!editable) return null;
   return (
     <Section id="system.spawn" title="Spawn point">

@@ -131,6 +131,11 @@ impl Format for Scenario {
             create_systems: true,
             lane_bridges: false,
             waylines: false,
+            added_systems: false,
+            bodies: false,
+            map_colors: false,
+            lgate: false,
+            symmetry: true,
         }
     }
 }

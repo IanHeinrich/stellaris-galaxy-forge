@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { CONNECT_ALL_MAX, useEditorStore } from "../../../store/editorStore";
-import { addedAmong, deleteAddedLabel } from "../../../lib/addSystem";
-import { documentCapabilities, supports } from "../../../lib/capabilities";
+import { CONNECT_ALL_MAX, deletableSystems, useEditorStore } from "../../../store/editorStore";
+import { deleteAddedLabel } from "../../../lib/addSystem";
+import { documentCapabilities } from "../../../lib/capabilities";
 import {
   bulkStarClassChoices,
   currentStarBodies,
@@ -14,7 +14,7 @@ import { clanMenuItem, nextFreeClan } from "../../../lib/marauder";
 import { sharedWormholePair } from "../../../lib/paint";
 import { counted } from "../../../lib/text";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useMapChromeStore } from "../../../store/mapChromeStore";
 import {
@@ -52,10 +52,10 @@ export function BulkActions({
   const removeAddedSystems = useEditorStore((s) => s.removeAddedSystems);
   const systems = useGalaxyStore((s) => s.systems);
   const capabilities = useFileSessionStore(documentCapabilities);
-  const save = useFileSessionStore((s) => s.kind === "save");
+  const laneLengths = useCanEdit("lane_lengths");
+  const canCreate = useCanEdit("create_systems");
   const paint = usePaintLayer();
 
-  const laneLengths = supports(capabilities, "lane_lengths");
   const counts = useMemo(
     () => ({
       lanes: selectionLanes(systems, selection),
@@ -64,10 +64,13 @@ export function BulkActions({
     }),
     [systems, selection, laneLengths],
   );
-  const added = useMemo(() => addedAmong(systems, selection), [systems, selection]);
+  const deletable = useMemo(
+    () => deletableSystems(selection, capabilities, systems),
+    [selection, capabilities, systems],
+  );
   const deleteAdded =
-    save && selection.length > 1
-      ? deleteAddedLabel(added.length, selection.length - added.length)
+    deletable?.kind === "added" && selection.length > 1
+      ? deleteAddedLabel(deletable.ids.length, selection.length - deletable.ids.length)
       : null;
 
   const tooMany = selection.length > CONNECT_ALL_MAX;
@@ -117,10 +120,10 @@ export function BulkActions({
           itemRole={itemRole}
         />
       )}
-      {supports(capabilities, "create_systems") && selection.length === 3 && (
+      {canCreate && selection.length === 3 && (
         <MarauderClanButton ids={selection} afterRun={afterRun} itemRole={itemRole} />
       )}
-      {supports(capabilities, "create_systems") && selection.length > 1 && (
+      {deletable?.kind === "systems" && selection.length > 1 && (
         <button
           type="button"
           role={itemRole}

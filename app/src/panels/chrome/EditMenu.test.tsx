@@ -10,7 +10,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { SCENARIO_CAPABILITIES } from "../../store/fixture";
+import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { EditMenuItems } from "./EditMenu";
 
 let dismiss: ReturnType<typeof vi.fn<() => void>>;

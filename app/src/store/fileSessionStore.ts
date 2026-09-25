@@ -363,7 +363,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
   },
 }));
 
-/** Whether the open document supports `cap`; everything until a document reports what it supports. */
+/** Whether the open document supports `cap`, as `documentCapabilities` reads it. */
 export function canEdit(cap: keyof Capabilities): boolean {
   return supports(documentCapabilities(useFileSessionStore.getState()), cap);
 }
