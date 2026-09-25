@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import type { EntityAddr } from "../generated/EntityAddr";
+import type { DocumentKind } from "../generated/DocumentKind";
 import type { EntityKind } from "../generated/EntityKind";
-import { renumberedId, type Renumbering } from "../lib/renumber";
+import { renumberedId, renumberedLane, type Renumbering } from "../lib/renumber";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useLayoutStore, type DockTab } from "./layoutStore";
 import { PREF_KEYS } from "./prefKeys";
-import { readPref, writePref } from "./prefs";
+import { isBooleanRecord, prefField } from "./prefs";
 
 export const INSPECTOR_TABS = [
   "overview",
@@ -146,12 +147,8 @@ export function renumberedRef(ref: EntityRef, pairs: Renumbering): EntityRef | n
       const next = id(ref.id);
       return next === null ? null : next === ref.id ? ref : { ...ref, id: next };
     }
-    case "lane": {
-      const a = id(ref.a);
-      const b = id(ref.b);
-      if (a === null || b === null) return null;
-      return a === ref.a && b === ref.b ? ref : { ...ref, a: Math.min(a, b), b: Math.max(a, b) };
-    }
+    case "lane":
+      return renumberedLane(pairs, ref);
     case "starbase": {
       const system = id(ref.system);
       return system === null ? null : system === ref.system ? ref : { ...ref, system };
@@ -210,20 +207,23 @@ export interface InspectorState {
   collapsed(key: string, fallback: boolean): boolean;
 }
 
-function isSectionMap(value: unknown): value is Record<string, boolean> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.values(value).every((v) => typeof v === "boolean")
-  );
+const SECTIONS = prefField<Record<string, boolean>>(
+  PREF_KEYS.inspectorSections,
+  {},
+  isBooleanRecord,
+);
+
+/** What a system's strip offers on a document of `kind`: scripts on a scenario with game data, data on a save. */
+export function systemTabsOf(kind: DocumentKind | null, gameDataReady: boolean): SystemTabs {
+  const scenario = kind === "scenario";
+  return { scripts: scenario && gameDataReady, data: !scenario };
 }
 
-/** What the open document lets a system's strip offer right now, the way `Inspector.tsx` derives it. */
 function systemTabsNow(): SystemTabs {
-  const scenario = useFileSessionStore.getState().kind === "scenario";
-  const gameData = useGameDataStore.getState().status === "ready";
-  return { scripts: scenario && gameData, data: !scenario };
+  return systemTabsOf(
+    useFileSessionStore.getState().kind,
+    useGameDataStore.getState().status === "ready",
+  );
 }
 
 /** The tab to show for `ref`: the current one when the entity offers it, else its first. */
@@ -235,7 +235,7 @@ function tabFor(ref: EntityRef, tab: InspectorTab): InspectorTab {
 export const useInspectorStore = create<InspectorState>((set, get) => ({
   stack: [GALAXY_ENTRY],
   tab: "overview",
-  sections: readPref<Record<string, boolean>>(PREF_KEYS.inspectorSections, {}, isSectionMap),
+  sections: SECTIONS.read(),
 
   setRoot(entry) {
     const { stack, tab } = get();
@@ -314,7 +314,7 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
   toggleSection(key, fallback) {
     const sections = { ...get().sections, [key]: !get().collapsed(key, fallback) };
     set({ sections });
-    writePref(PREF_KEYS.inspectorSections, sections);
+    SECTIONS.save(sections);
   },
 
   resetSections(keys) {
@@ -328,7 +328,7 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     }
     if (!dropped) return;
     set({ sections });
-    writePref(PREF_KEYS.inspectorSections, sections);
+    SECTIONS.save(sections);
   },
 
   collapsed(key, fallback) {

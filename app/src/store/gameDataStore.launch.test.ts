@@ -8,7 +8,6 @@ vi.mock("../lib/visual/textures", async (importOriginal) => {
   return { ...actual, clearTextures: vi.fn() };
 });
 
-import * as ipc from "../api/ipc";
 import { useGameDataStore } from "./gameDataStore";
 import { armGameData, listeners, mocked, releaseGameData, SUMMARY } from "./gameDataFixture";
 
@@ -17,7 +16,7 @@ afterEach(releaseGameData);
 
 describe("launch", () => {
   beforeEach(() => {
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue(null);
+    mocked.gameDataSummary.mockResolvedValue(null);
   });
 
   it("stops on the setup card until the preference is answered", async () => {
@@ -29,7 +28,7 @@ describe("launch", () => {
   });
 
   it("adopts game data the backend already holds before showing the setup card", async () => {
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue(SUMMARY);
+    mocked.gameDataSummary.mockResolvedValue(SUMMARY);
     await useGameDataStore.getState().start();
     const state = useGameDataStore.getState();
     expect(state.startup).toBe("setup");
@@ -38,7 +37,7 @@ describe("launch", () => {
   });
 
   it("continuing with data already held loads nothing again", async () => {
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue(SUMMARY);
+    mocked.gameDataSummary.mockResolvedValue(SUMMARY);
     await useGameDataStore.getState().start();
     await useGameDataStore.getState().continueSetup(true);
     expect(listeners.storage.get("sgf.gameData.autoLoad")).toBe('"on"');
@@ -94,7 +93,7 @@ describe("launch", () => {
 
   it("game data the backend already holds is adopted instead of loaded again", async () => {
     listeners.storage.set("sgf.gameData.autoLoad", '"on"');
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue(SUMMARY);
+    mocked.gameDataSummary.mockResolvedValue(SUMMARY);
     await useGameDataStore.getState().start();
     expect(useGameDataStore.getState().status).toBe("ready");
     expect(useGameDataStore.getState().startupLoad).toBe(false);

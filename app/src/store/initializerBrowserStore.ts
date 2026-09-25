@@ -12,12 +12,13 @@ import {
 import { isEmpireSpawn, modRefs } from "../lib/initializer/initializerGroups";
 import { buildIndex, search, type SearchEntry } from "../lib/initializer/initializerSearch";
 import { initializerCounts } from "../lib/initializer/initializerLabels";
+import { withTrackedSystems } from "./editorEdits";
 import { useEditorStore } from "./editorStore";
 import { useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isStringArray, prefField } from "./prefs";
+import { isString, isStringArray, prefField } from "./prefs";
 
 /** The choice that leaves the system to the game, which is no initializer at all. */
 export const RANDOM_KEY = "@random";
@@ -190,13 +191,9 @@ function mapKey(key: string | null): string | null {
   return key === RANDOM_KEY ? "" : key;
 }
 
-function isKey(value: unknown): value is string {
-  return typeof value === "string";
-}
-
 const PINNED = prefField(PREF_KEYS.initializerPins, [], isStringArray);
 const RECENT = prefField(PREF_KEYS.initializerRecent, [], isStringArray);
-const DEFAULT_KEY = prefField<string | null>(PREF_KEYS.initializerDefault, null, isKey);
+const DEFAULT_KEY = prefField<string | null>(PREF_KEYS.initializerDefault, null, isString);
 
 export const useInitializerBrowserStore = create<InitializerBrowserState>((set, get) => ({
   open: false,
@@ -275,7 +272,12 @@ export const useInitializerBrowserStore = create<InitializerBrowserState>((set, 
       applied = await editor.addSystemAt(pending.x, pending.y, initializer, spawn_weight);
     } else {
       if (targets.length === 0) return false;
-      applied = await editor.applySymmetric(assignOp(targets, initializer));
+      applied = await withTrackedSystems(targets, (tracked) =>
+        editor.applySymmetric(() => {
+          const ids = tracked.flatMap((t) => t.id ?? []);
+          return ids.length === 0 ? null : assignOp(ids, initializer);
+        }),
+      );
     }
     if (!applied) return false;
     if (!random) {

@@ -11,6 +11,7 @@ import { useEditorStore } from "./editorStore";
 import { getPaintLayer } from "./fileSessionStore";
 import { OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 import { laneCount, useGalaxyStore } from "./galaxyStore";
+import { loadGameData } from "./gameDataFixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
 import { useLGateStore } from "./lgateStore";
@@ -157,7 +158,7 @@ describe("openSave", () => {
   it("pickAndOpen with mode 'scenario' filters to .sav and skips the mode dialog", async () => {
     mocked.saveDirs.mockResolvedValue(["C:/saves"]);
     mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
-    usePaintModStore.setState({ paintChoice: false });
+    usePaintModStore.getState().setPaintChoice(false);
     mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
 
     await session().pickAndOpen("scenario");
@@ -177,7 +178,7 @@ describe("openSave", () => {
   it("a save taken as a scenario follows the standing Paint a Galaxy choice on every route", async () => {
     mocked.saveDirs.mockResolvedValue(["C:/saves"]);
     mocked.openAsScenario.mockResolvedValue(SCENARIO_RESULT);
-    usePaintModStore.setState({ paintChoice: true });
+    usePaintModStore.getState().setPaintChoice(true);
 
     mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
     await session().pickAndOpen("scenario");
@@ -188,7 +189,7 @@ describe("openSave", () => {
     await session().chooseOpenMode("scenario");
     expect(mocked.openAsScenario).toHaveBeenLastCalledWith("C:/saves/other.sav", "paint_a_galaxy");
 
-    usePaintModStore.setState({ paintChoice: false });
+    usePaintModStore.getState().setPaintChoice(false);
     mocked.open.mockResolvedValueOnce("C:/saves/plain.sav");
     await session().pickAndOpen(undefined, undefined, null);
     await session().chooseOpenMode("scenario");
@@ -217,7 +218,7 @@ describe("openSave", () => {
   it("pickAndOpen with an explicit plain profile opens plain even while the standing choice is on", async () => {
     mocked.saveDirs.mockResolvedValue(["C:/saves"]);
     mocked.openAsScenario.mockResolvedValue({ ...SCENARIO_RESULT, path: null });
-    usePaintModStore.setState({ paintChoice: true });
+    usePaintModStore.getState().setPaintChoice(true);
     mocked.open.mockResolvedValueOnce("C:/saves/picked.sav");
 
     await session().pickAndOpen("scenario", "plain");
@@ -308,7 +309,7 @@ describe("recents", () => {
 
 describe("settling", () => {
   it("a scenario open with game data ready holds settling until the owners pass resolves", async () => {
-    useGameDataStore.setState({ status: "ready" });
+    await loadGameData();
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     let resolveOwners!: (owners: null) => void;
     mocked.getScenarioOwners.mockImplementationOnce(
@@ -327,7 +328,7 @@ describe("settling", () => {
   });
 
   it("a save open never sets settling", async () => {
-    useGameDataStore.setState({ status: "ready" });
+    await loadGameData();
     await session().openSave(OPEN_RESULT.path);
     expect(session().settling).toBe(false);
     expect(session().loadingName).toBeNull();
@@ -340,7 +341,7 @@ describe("settling", () => {
   });
 
   it("a failing owners pass still clears settling", async () => {
-    useGameDataStore.setState({ status: "ready" });
+    await loadGameData();
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     mocked.getScenarioOwners.mockRejectedValueOnce({ kind: "ipc", message: "boom" });
 

@@ -11,9 +11,18 @@ import { type ChangedOnDiskAnswer, type SaveIssuesAnswer } from "./fileSessionSt
 import { OPEN_RESULT, SCENARIO_RESULT, saveResult } from "./fixture";
 import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
-import { usePaintModStore } from "./paintModStore";
 import { PREF_KEYS } from "./prefKeys";
-import { answers, edit, listen, mocked, resetSession, session, stored } from "./sessionFixture";
+import {
+  answers,
+  edit,
+  listen,
+  mocked,
+  resetSession,
+  session,
+  stored,
+  withIssues,
+  withPaintMod,
+} from "./sessionFixture";
 
 beforeEach(resetSession);
 
@@ -118,7 +127,7 @@ describe("Steam Cloud", () => {
     mocked.openSave.mockResolvedValueOnce({ ...OPEN_RESULT, path: CLOUD_PATH, cloud: true });
     await session().openSave(CLOUD_PATH);
     await edit();
-    useIssuesStore.setState({ issues: [] });
+    withIssues([]);
     mocked.confirm.mockClear();
   }
 
@@ -156,7 +165,7 @@ describe("Steam Cloud", () => {
     expect(session().cloud).toBe(true);
 
     await edit();
-    useIssuesStore.setState({ issues: [] });
+    withIssues([]);
     await session().save();
     expect(mocked.confirm).toHaveBeenCalledTimes(1);
     expect(mocked.save).toHaveBeenCalledTimes(2);
@@ -164,7 +173,7 @@ describe("Steam Cloud", () => {
 
   it("saveAs asks the Rust side about the picked path and warns only for a cloud one", async () => {
     await session().openSave(OPEN_RESULT.path);
-    useIssuesStore.setState({ issues: [] });
+    withIssues([]);
     expect(session().cloud).toBe(false);
 
     mocked.saveDialog.mockResolvedValueOnce(CLOUD_PATH);
@@ -190,7 +199,6 @@ describe("issues a save stops on", () => {
 
   beforeEach(async () => {
     answers.saveIssues = null;
-    useLayoutStore.setState({ tab: "inspector", collapsed: false });
     await session().openSave(OPEN_RESULT.path);
     await edit();
   });
@@ -261,9 +269,7 @@ describe("issues a save stops on", () => {
   });
 
   it("info issues and notes never ask", async () => {
-    useIssuesStore.setState({
-      issues: [{ ...ISOLATED, severity: "info" }, duplicateNameNote("Elysium", "other.txt")],
-    });
+    withIssues([{ ...ISOLATED, severity: "info" }, duplicateNameNote("Elysium", "other.txt")]);
     mocked.save.mockResolvedValueOnce(saveResult({ dirty: false }));
     await session().save();
     expect(session().saveIssuesPrompt).toBeNull();
@@ -272,7 +278,7 @@ describe("issues a save stops on", () => {
   });
 
   it("the reserved seats note asks, since the map would not play as designed", async () => {
-    useIssuesStore.setState({ issues: [reservedSpawnsNote([2])] });
+    withIssues([reservedSpawnsNote([2])]);
     await answering("review", () => session().save());
     expect(mocked.save).not.toHaveBeenCalled();
     expect(useLayoutStore.getState().tab).toBe("issues");
@@ -289,7 +295,7 @@ describe("issues a save stops on", () => {
 
     mocked.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
     await session().requestOpen(SCENARIO_RESULT.path, { listings: null });
-    usePaintModStore.setState({ known: true, paintMod: paintModView() });
+    await withPaintMod(paintModView());
     await answering("cancel", () => session().saveIntoPaintMod());
     expect(mocked.saveDialog).toHaveBeenCalledTimes(1);
   });
@@ -312,7 +318,6 @@ describe("issues a save stops on", () => {
 describe("the paused save bar", () => {
   beforeEach(async () => {
     answers.saveIssues = null;
-    useLayoutStore.setState({ tab: "inspector", collapsed: false });
     await session().openSave(OPEN_RESULT.path);
     await edit();
   });
@@ -361,7 +366,7 @@ describe("the paused save bar", () => {
 
   it("a save that lands clears the bar", async () => {
     await pause();
-    useIssuesStore.setState({ issues: [] });
+    withIssues([]);
     mocked.save.mockResolvedValue(saveResult({ dirty: false }));
     await session().save();
 

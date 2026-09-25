@@ -5,42 +5,17 @@ import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { Progress } from "../generated/Progress";
 import type { SpecialSystems } from "../generated/SpecialSystems";
 
-import { onGameDataChanged, onProgress } from "../api/events";
-import * as ipc from "../api/ipc";
 import { clearTextures } from "../lib/visual/textures";
 import { bindStores } from "./bindStores";
-import { useDetailsStore } from "./detailsStore";
 import { useFileSessionStore } from "./fileSessionStore";
-import { useGalaxyStore } from "./galaxyStore";
-import { useGameDataStore } from "./gameDataStore";
 import { gameDataSummary, OPEN_RESULT } from "./fixture";
+import { useGameDataStore } from "./gameDataStore";
+import { mocked as storeMocks, resetStores } from "./storeFixture";
 
 /** Lets every pending answer land before a test asks what was written. */
 export const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-export const mocked = {
-  loadGameData: vi.mocked(ipc.loadGameData),
-  unloadGameData: vi.mocked(ipc.unloadGameData),
-  getSpecialSystems: vi.mocked(ipc.getSpecialSystems),
-  getNames: vi.mocked(ipc.getNames),
-  resolveNames: vi.mocked(ipc.resolveNames),
-  getStarClasses: vi.mocked(ipc.getStarClasses),
-  getMapColors: vi.mocked(ipc.getMapColors),
-  getMapColorSource: vi.mocked(ipc.getMapColorSource),
-  getPlanetClasses: vi.mocked(ipc.getPlanetClasses),
-  getDeposits: vi.mocked(ipc.getDeposits),
-  getBypasses: vi.mocked(ipc.getBypasses),
-  getStarbaseLevels: vi.mocked(ipc.getStarbaseLevels),
-  getShipSizes: vi.mocked(ipc.getShipSizes),
-  getCountryTypes: vi.mocked(ipc.getCountryTypes),
-  getLgateOutcomeMods: vi.mocked(ipc.getLgateOutcomeMods),
-  getInitializers: vi.mocked(ipc.getInitializers),
-  getScenarioOwners: vi.mocked(ipc.getScenarioOwners),
-  getScenarioBypasses: vi.mocked(ipc.getScenarioBypasses),
-  onProgress: vi.mocked(onProgress),
-  onGameDataChanged: vi.mocked(onGameDataChanged),
-  clearTextures: vi.mocked(clearTextures),
-};
+export const mocked = { ...storeMocks, clearTextures: vi.mocked(clearTextures) };
 
 export const SUMMARY: GameDataSummary = gameDataSummary();
 
@@ -106,15 +81,22 @@ bindStores();
 
 /** The state every game data test starts from: cleared stores and every command armed. */
 export function armGameData(): void {
-  vi.clearAllMocks();
-  useGalaxyStore.getState().clear();
-  useDetailsStore.getState().clear();
-  useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
+  resetStores();
   listeners.storage = stubPrefs();
   listeners.unlisten = vi.fn<() => void>();
   listeners.unlistenChanges = vi.fn<() => void>();
   listeners.progress = null;
   listeners.changed = null;
+  armGameDataCommands();
+}
+
+/** Game data loaded the way the app loads it, over the commands `armGameData` arms. */
+export async function loadGameData(): Promise<void> {
+  armGameDataCommands();
+  await useGameDataStore.getState().load();
+}
+
+function armGameDataCommands(): void {
   mocked.onProgress.mockImplementation(async (h) => {
     listeners.progress = h;
     return listeners.unlisten;
@@ -170,7 +152,7 @@ export function armGameData(): void {
     { key: "starbase_outpost", icon_frame: 1, empire_shield: false },
   ]);
   mocked.getShipSizes.mockResolvedValue([{ key: "corvette", icon: "ship_size_military_1" }]);
-  vi.mocked(ipc.getResourceIcons).mockResolvedValue([
+  mocked.getResourceIcons.mockResolvedValue([
     { resource: "energy", sprite: "GFX_resource_energy" },
   ]);
   mocked.getCountryTypes.mockResolvedValue([

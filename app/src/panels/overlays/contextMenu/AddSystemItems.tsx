@@ -1,13 +1,9 @@
 import { useEffect } from "react";
-import { addSystemRefusal } from "../../../lib/addSystem";
-import { useSystemNames } from "../../../store/browserRows";
-import { nearestSystem, useEditorStore } from "../../../store/editorStore";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { useAddSystemRefusal, useEditorStore } from "../../../store/editorStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useGeneratorStore } from "../../../store/generatorStore";
 import { useMapChromeStore } from "../../../store/mapChromeStore";
-import { NO_SYSTEMS } from "./menuState";
 import { PickItem } from "./PickCard";
 import { SpecialItems } from "./SpecialItems";
 import { Submenu } from "./Submenu";
@@ -59,20 +55,12 @@ function Rolls({ x, y }: { x: number; y: number }) {
  * around the spot while the menu is open.
  */
 export function AddSystemItems({ x, y }: { x: number; y: number }) {
-  const systems = useGalaxyStore((s) => s.systems);
   const radius = useGalaxyStore((s) => s.galaxy?.galaxy_radius ?? 0);
-  const meta = useFileSessionStore((s) => s.meta);
   const gameData = useGameDataStore((s) => s.status === "ready");
   const request = useGeneratorStore((s) => s.request);
   const refreshPicks = useGeneratorStore((s) => s.refreshPicks);
   const setPreview = useMapChromeStore((s) => s.setAddSystemPreview);
-  const near = nearestSystem({ x, y }, systems.values());
-  const [nearName] = useSystemNames(near ? [near.id] : NO_SYSTEMS);
-  const nearest = near && {
-    name: nearName ?? `#${near.id}`,
-    distance: Math.hypot(near.x - x, near.y - y),
-  };
-  const refusal = addSystemRefusal({ meta, gameData, radius, x, y, nearest });
+  const refusal = useAddSystemRefusal(x, y);
   const tooClose = refusal?.tooClose ?? false;
   const edge = refusal?.outside ? radius : null;
 

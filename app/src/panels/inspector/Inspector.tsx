@@ -11,6 +11,7 @@ import {
   entityAddr,
   GALAXY_ENTRY,
   INSPECTOR_TAB_LABELS,
+  systemTabsOf,
   tabsFor,
   useInspectorStore,
   type EntityRef,
@@ -123,10 +124,9 @@ export function Inspector() {
   const setTab = useInspectorStore((s) => s.setTab);
   const entry = stack[stack.length - 1];
   const hasContents = useHasContents(entry.ref);
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
+  const kind = useFileSessionStore((s) => s.kind);
   const gameData = useGameDataStore((s) => s.status === "ready");
-  const scripts = scenario && gameData;
-  const data = !scenario;
+  const { scripts, data } = systemTabsOf(kind, gameData);
   const tabs = useMemo(
     () => tabsFor(entry.ref, hasContents, { scripts, data }),
     [entry.ref, hasContents, scripts, data],

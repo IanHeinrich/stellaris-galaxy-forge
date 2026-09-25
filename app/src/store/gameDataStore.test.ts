@@ -9,7 +9,6 @@ vi.mock("../lib/visual/textures", async (importOriginal) => {
   return { ...actual, clearTextures: vi.fn() };
 });
 
-import * as ipc from "../api/ipc";
 import { templateKey } from "../lib/names";
 import { useDetailsStore } from "./detailsStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -113,7 +112,7 @@ describe("load", () => {
 describe("sync", () => {
   it("adopts game data the backend already holds and loads the registries and names", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue(SUMMARY);
+    mocked.gameDataSummary.mockResolvedValue(SUMMARY);
     await useGameDataStore.getState().sync();
 
     const state = useGameDataStore.getState();
@@ -127,7 +126,7 @@ describe("sync", () => {
   });
 
   it("stays idle when the backend holds none", async () => {
-    vi.mocked(ipc.gameDataSummary).mockResolvedValue(null);
+    mocked.gameDataSummary.mockResolvedValue(null);
     await useGameDataStore.getState().sync();
     expect(useGameDataStore.getState().status).toBe("idle");
     expect(mocked.getStarClasses).not.toHaveBeenCalled();

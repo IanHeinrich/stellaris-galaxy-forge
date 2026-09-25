@@ -8,8 +8,7 @@ import type { ExportReport } from "../generated/ExportReport";
 import { paintModView } from "../test/builders";
 import { getPaintLayer } from "./fileSessionStore";
 import { OPEN_RESULT, SCENARIO_RESULT, exportReport, saveResult } from "./fixture";
-import { usePaintModStore } from "./paintModStore";
-import { edit, mocked, resetSession, session } from "./sessionFixture";
+import { edit, mocked, resetSession, session, withPaintMod } from "./sessionFixture";
 
 beforeEach(resetSession);
 
@@ -80,10 +79,7 @@ describe("exporting a save as a scenario", () => {
     expect(mocked.exportScenario).toHaveBeenCalledWith(exported, "paint_a_galaxy");
     expect(getPaintLayer()).toBe(false);
 
-    usePaintModStore.setState({
-      known: true,
-      paintMod: paintModView({ scenarios_dir: PAINT_DIR }),
-    });
+    await withPaintMod(paintModView({ scenarios_dir: PAINT_DIR }));
     await preview();
     mocked.saveDialog.mockResolvedValueOnce(null);
     await session().confirmExport("paint_a_galaxy");

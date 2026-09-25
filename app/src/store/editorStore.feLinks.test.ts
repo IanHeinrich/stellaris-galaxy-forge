@@ -4,14 +4,13 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import * as ipc from "../api/ipc";
 import type { SystemNode } from "../generated/SystemNode";
 import { editor, mocked, openFixtureSave, sessionError } from "./editorFixture";
 import { useGalaxyStore } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { FE_LINK_ANCHOR, FE_LINKED, SYSTEMS, editResult } from "./fixture";
 
-const setFeLinks = vi.mocked(ipc.setFeLinks);
+const setFeLinks = mocked.setFeLinks;
 
 /** Puts `nodes` into the galaxy the store reads, over the fixture's own. */
 function place(...nodes: SystemNode[]): void {

@@ -4,13 +4,12 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import * as ipc from "../api/ipc";
 import type { Op } from "../generated/Op";
 import { editor, mocked, openFixtureSave } from "./editorFixture";
 import { useEntityStore } from "./entityStore";
 import { editResult, planetPage } from "./fixture";
 
-const getPlanetPage = vi.mocked(ipc.getPlanetPage);
+const getPlanetPage = mocked.getPlanetPage;
 const entities = () => useEntityStore.getState();
 
 /** A star of Alpha Centauri and a world of Sol, whose pages the tests read. */

@@ -149,6 +149,41 @@ describe("load", () => {
     expect(mocked.listCampaigns).toHaveBeenCalledTimes(2);
   });
 
+  it("drops a read that lands after the one a newer token started", async () => {
+    let landOld: (c: CampaignListing[]) => void = () => undefined;
+    let landOldScenarios: (s: ScenarioListings) => void = () => undefined;
+    mocked.listCampaigns.mockReturnValueOnce(new Promise((resolve) => (landOld = resolve)));
+    mocked.listScenarios.mockReturnValueOnce(
+      new Promise((resolve) => (landOldScenarios = resolve)),
+    );
+    const older = screen().load(null);
+    const newer = screen().load("C:/saves/terran/2206.11.16.sav");
+    await newer;
+
+    landOld([campaign({ dir: "C:/saves/stale", newest: 999 })]);
+    landOldScenarios(listed([scenario({ path: "C:/stale.txt" })]));
+    await older;
+
+    expect(screen().campaigns?.map((c) => c.dir)).toEqual([TERRAN.dir, VOID.dir]);
+    expect(screen().scenarios?.map((s) => s.path)).toEqual([scenario().path]);
+    expect(screen().expanded).toBe(TERRAN.dir);
+  });
+
+  it("drops a campaign's saves listed for a token that has since changed", async () => {
+    await screen().load(null);
+    let landOld: (files: SaveFile[]) => void = () => undefined;
+    mocked.listCampaignSaves.mockReturnValueOnce(new Promise((resolve) => (landOld = resolve)));
+    const expanding = screen().expand(VOID.dir);
+
+    mocked.listCampaignSaves.mockResolvedValue([save({ path: "C:/saves/void/new.sav" })]);
+    await screen().load("C:/saves/terran/2206.11.16.sav");
+    landOld([save({ path: "C:/saves/void/old.sav" })]);
+    await expanding;
+    await screen().expand(VOID.dir);
+
+    expect(screen().files[VOID.dir]?.map((f) => f.path)).toEqual(["C:/saves/void/new.sav"]);
+  });
+
   it("reports a failing list without hiding the other one", async () => {
     mocked.listCampaigns.mockRejectedValue({ kind: "io", message: "no save folder" });
     await screen().load(null);

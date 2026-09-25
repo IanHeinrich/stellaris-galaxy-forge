@@ -1,6 +1,7 @@
 import type { StoreApi } from "zustand";
+import type { Op } from "../generated/Op";
 import { pairOf } from "../lib/geometry/pairs";
-import { systems } from "./editorEdits";
+import { systems, withTrackedSystem } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 import { canEdit } from "./fileSessionStore";
 import {
@@ -38,70 +39,114 @@ export function laneActions(
   _set: StoreApi<EditorState>["setState"],
   get: StoreApi<EditorState>["getState"],
 ): LaneActions {
+  /**
+   * Applies what `build` makes of the selection and of `target` as both stand once the edits
+   * queued before it have landed, widened under the global symmetry when `symmetric`.
+   */
+  function toTarget(
+    target: number,
+    build: (target: number, selection: number[]) => Op | null,
+    symmetric = true,
+  ): Promise<boolean> {
+    return withTrackedSystem(target, (tracked) => {
+      const op = () => (tracked.id === null ? null : build(tracked.id, get().selection));
+      return symmetric ? get().applySymmetric(op) : get().applyOp(op);
+    });
+  }
+
   return {
     async connectSelected() {
-      const { selection } = get();
-      if (selection.length > CONNECT_ALL_MAX) return;
-      const lanes = unlinkedPairs(systems(), selection).map(([a, b]) => ({ a, b, bridge: false }));
-      if (lanes.length > 0) await get().applySymmetric({ type: "AddLanePairs", lanes });
+      if (get().selection.length > CONNECT_ALL_MAX) return;
+      await get().applySymmetric(() => {
+        const { selection } = get();
+        if (selection.length > CONNECT_ALL_MAX) return null;
+        const lanes = unlinkedPairs(systems(), selection).map(([a, b]) => ({
+          a,
+          b,
+          bridge: false,
+        }));
+        return lanes.length === 0 ? null : { type: "AddLanePairs", lanes };
+      });
     },
 
     async connectSelectedMesh() {
       const chrome = useMapChromeStore.getState();
-      const lanes = meshLanes(systems(), get().selection, chrome.meshBeta).map(([a, b]) => ({
-        a,
-        b,
-        bridge: false,
-      }));
-      if (lanes.length > 0) await get().applySymmetric({ type: "AddLanePairs", lanes });
+      const beta = chrome.meshBeta;
+      await get().applySymmetric(() => {
+        const lanes = meshLanes(systems(), get().selection, beta).map(([a, b]) => ({
+          a,
+          b,
+          bridge: false,
+        }));
+        return lanes.length === 0 ? null : { type: "AddLanePairs", lanes };
+      });
       chrome.setLanePreview(null);
     },
 
     async connectSelectedTo(target) {
-      const to = unlinkedTo(systems(), target, get().selection).map((id): [number, boolean] => [
-        id,
-        false,
-      ]);
-      if (to.length > 0) await get().applySymmetric({ type: "AddLanes", from: target, to });
+      await toTarget(target, (from, selection) => {
+        const to = unlinkedTo(systems(), from, selection).map((id): [number, boolean] => [
+          id,
+          false,
+        ]);
+        return to.length === 0 ? null : { type: "AddLanes", from, to };
+      });
     },
 
     async cutLanesBetweenSelected() {
-      const lanes = linkedPairs(systems(), get().selection);
-      if (lanes.length > 0) await get().applySymmetric({ type: "RemoveLanePairs", lanes });
+      await get().applySymmetric(() => {
+        const lanes = linkedPairs(systems(), get().selection);
+        return lanes.length === 0 ? null : { type: "RemoveLanePairs", lanes };
+      });
     },
 
     async cutLanesToSelected(target) {
-      const to = linkedTo(systems(), target, get().selection);
-      if (to.length > 0) await get().applySymmetric({ type: "RemoveLanes", from: target, to });
+      await toTarget(target, (from, selection) => {
+        const to = linkedTo(systems(), from, selection);
+        return to.length === 0 ? null : { type: "RemoveLanes", from, to };
+      });
     },
 
-    async preventLanes(pairs) {
-      const op = preventOp(pairs, true);
-      return op !== null && get().applyOp(op);
+    preventLanes(pairs) {
+      return get().applyOp(() => preventOp(pairs, true));
     },
 
     async preventLanesToSelected(target) {
-      const to = unpreventedTo(systems(), target, get().selection);
-      await get().preventLanes(to.map((id) => pairOf(target, id)));
+      await toTarget(
+        target,
+        (from, selection) =>
+          preventOp(
+            unpreventedTo(systems(), from, selection).map((id) => pairOf(from, id)),
+            true,
+          ),
+        false,
+      );
     },
 
     async allowLanesToSelected(target) {
-      const to = preventedTo(systems(), target, get().selection);
-      const op = allowOp(to.map((id) => pairOf(target, id)));
-      if (op !== null) await get().applyOp(op);
+      await toTarget(
+        target,
+        (from, selection) =>
+          allowOp(preventedTo(systems(), from, selection).map((id) => pairOf(from, id))),
+        false,
+      );
     },
 
     async isolateSelected() {
-      const ids = linkedSystems(systems(), get().selection);
-      if (ids.length > 0) await get().applySymmetric({ type: "IsolateSystems", ids });
+      await get().applySymmetric(() => {
+        const ids = linkedSystems(systems(), get().selection);
+        return ids.length === 0 ? null : { type: "IsolateSystems", ids };
+      });
     },
 
     async resetSelectedLaneLengths() {
       if (!canEdit("lane_lengths")) return;
-      const ids = get().selection;
-      if (staleLaneCount(systems(), ids) > 0) {
-        await get().applyOp({ type: "NormaliseLaneLengths", systems: ids });
-      }
+      await get().applyOp(() => {
+        const ids = get().selection;
+        return staleLaneCount(systems(), ids) === 0
+          ? null
+          : { type: "NormaliseLaneLengths", systems: ids };
+      });
     },
   };
 }

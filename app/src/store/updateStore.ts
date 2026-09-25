@@ -6,7 +6,7 @@ import type { UpdateProgress } from "../generated/UpdateProgress";
 import type { UpdateView } from "../generated/UpdateView";
 import { useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
-import { isBoolean, prefField } from "./prefs";
+import { isBoolean, isString, prefField } from "./prefs";
 
 export type UpdateStatus = "idle" | "checking" | "current" | "available" | "installing" | "failed";
 
@@ -43,10 +43,6 @@ export interface UpdateState {
 /** True when there is an update to shout about: one was found, and the user has not skipped it. */
 export const updateReady = (s: UpdateState) =>
   s.status === "available" && s.update !== null && s.update.version !== s.skipped;
-
-function isString(value: unknown): value is string {
-  return typeof value === "string";
-}
 
 const SKIPPED = prefField(PREF_KEYS.skippedUpdate, "", isString);
 const NOTICED = prefField(PREF_KEYS.noticedUpdate, "", isString);

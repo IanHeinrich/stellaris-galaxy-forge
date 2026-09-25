@@ -4,7 +4,6 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import type { FeZone } from "../generated/FeZone";
 import { NO_FREE_DIRECTION, newFeZone } from "../lib/feZone";
@@ -14,8 +13,8 @@ import { useGalaxyStore } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { SYSTEMS, editResult } from "./fixture";
 
-const feZoneFit = vi.mocked(ipc.feZoneFit);
-const feZoneCandidateCount = vi.mocked(ipc.feZoneCandidateCount);
+const feZoneFit = mocked.feZoneFit;
+const feZoneCandidateCount = mocked.feZoneCandidateCount;
 
 /** Puts `zone` on the fixture system `id`, as the galaxy the store reads. */
 function anchor(id: number, zone: FeZone | null): void {

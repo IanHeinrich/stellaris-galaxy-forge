@@ -21,3 +21,15 @@ export function renumberedIds(pairs: Renumbering, ids: readonly number[]): numbe
   }
   return moved ? next : (ids as number[]);
 }
+
+/** A lane as the edit left it, its ends kept `a < b`; null when either end is gone. */
+export function renumberedLane<L extends { a: number; b: number }>(
+  pairs: Renumbering,
+  lane: L,
+): L | null {
+  const a = renumberedId(pairs, lane.a);
+  const b = renumberedId(pairs, lane.b);
+  if (a === null || b === null) return null;
+  if (a === lane.a && b === lane.b) return lane;
+  return { ...lane, a: Math.min(a, b), b: Math.max(a, b) };
+}

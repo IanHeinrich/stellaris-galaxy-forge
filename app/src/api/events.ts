@@ -1,4 +1,4 @@
-/** Events the Rust side emits. Names match `app/src-tauri/src/commands.rs`. */
+/** Events the Rust side emits. Names match `app/src-tauri/src/commands/mod.rs`. */
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { GameDataChanged } from "../generated/GameDataChanged";
 import type { Progress } from "../generated/Progress";
