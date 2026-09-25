@@ -4,15 +4,7 @@ import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { RecentDoc } from "../store/recentsStore";
 import { saveMeta } from "../test/builders";
-import {
-  CAMPAIGN,
-  DIR,
-  campaignRow,
-  saveFile,
-  saveRow,
-  scenarioListing,
-  scenarioRow,
-} from "../test/openRows";
+import { CAMPAIGN, saveFile, scenarioListing } from "../test/openRows";
 import {
   footerOpens,
   navigableRows,
@@ -261,28 +253,43 @@ describe("a press on a row", () => {
 });
 
 describe("the footer's targets", () => {
+  const targets = (over: Partial<OpenLists>, key: string) =>
+    footerOpens(rowOf(sections(over), key), lists(over));
+  const saved = save().path;
+  const listed = scenario().path;
+
   it("opens a save as a save or as a scenario, and anything else as it is", () => {
-    const targets = lists({ files: { [DIR]: [saveFile()] } });
-    const path = saveFile().path;
-    expect(footerOpens(saveRow(), targets)).toEqual({
-      open: { path, mode: "save" },
-      asScenario: { path, mode: "scenario" },
+    expect(targets({}, `save:${saved}`)).toEqual({
+      open: { path: saved, mode: "save" },
+      asScenario: { path: saved, mode: "scenario" },
       forPaint: null,
     });
-    expect(footerOpens(scenarioRow(), targets)).toEqual({
-      open: { path: scenarioListing().path, mode: "save" },
+    expect(targets({}, `scenario:${listed}`)).toEqual({
+      open: { path: listed, mode: "save" },
       asScenario: null,
-      forPaint: scenarioListing().path,
+      forPaint: listed,
     });
-    expect(footerOpens(scenarioRow({ disabled: true }), targets).open).toBeNull();
-    const painted = scenarioRow({ listing: scenarioListing({ painted: true }) });
-    expect(footerOpens(painted, targets).forPaint).toBeNull();
-    expect(footerOpens(campaignRow(), targets).open).toEqual({ path, mode: "save" });
-    expect(footerOpens(campaignRow(), { ...targets, files: {} }).open).toBeNull();
-    expect(footerOpens(undefined, targets)).toEqual({
+    expect(targets({}, `recent:${RECENT.path}`)).toEqual({
+      open: { path: RECENT.path, mode: "save" },
+      asScenario: { path: RECENT.path, mode: "scenario" },
+      forPaint: null,
+    });
+    expect(targets({}, `campaign:${TERRAN.dir}`).open).toEqual({ path: saved, mode: "save" });
+    expect(footerOpens(undefined, lists())).toEqual({
       open: null,
       asScenario: null,
       forPaint: null,
     });
+  });
+
+  it("opens nothing for a scenario that failed to read or a campaign whose saves are unread", () => {
+    const broken = { scenarios: [scenario({ error: "bad brace" })] };
+    expect(targets(broken, `scenario:${listed}`).open).toBeNull();
+    expect(targets({ files: {} }, `campaign:${TERRAN.dir}`).open).toBeNull();
+  });
+
+  it("offers Paint a Galaxy only for a scenario not already for the mod", () => {
+    const painted = { scenarios: [scenario({ painted: true })] };
+    expect(targets(painted, `scenario:${listed}`).forPaint).toBeNull();
   });
 });

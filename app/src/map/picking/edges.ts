@@ -1,4 +1,5 @@
-import { isLinked, linkSegment, takesCustomLinks, type Segment } from "../../lib/feLinks";
+import { isLinked, linkSegment, takesCustomLinks } from "../../lib/feLinks";
+import type { Segment } from "../../lib/geometry/segments";
 import type { LaneRef } from "../../store/editorStore";
 import type { Systems } from "../RenderContext";
 

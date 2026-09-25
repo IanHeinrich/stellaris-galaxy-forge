@@ -1,6 +1,6 @@
 import { useEditorStore } from "../../../store/editorStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
-import { focusNebulaRadius, nebulaLabel } from "../../inspector/nebula";
+import { focusNebulaRadius, nebulaLabel } from "../../nebula";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
 

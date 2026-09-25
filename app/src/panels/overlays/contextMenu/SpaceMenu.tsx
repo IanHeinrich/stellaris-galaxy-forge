@@ -11,8 +11,8 @@ import {
   useInitializerBrowserStore,
 } from "../../../store/initializerBrowserStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
-import { createSystemFrom, NEEDS_GAME_DATA } from "../../initializers/entry";
-import { focusNebulaRadius } from "../../inspector/nebula";
+import { createSystemFrom, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
+import { focusNebulaRadius } from "../../nebula";
 import { AddSystemItems } from "./AddSystemItems";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
@@ -61,7 +61,7 @@ export function SpaceMenu({
         <MenuItem
           className="menu-item"
           disabled={!gameData}
-          title={gameData ? undefined : NEEDS_GAME_DATA}
+          title={gameData ? undefined : INITIALIZERS_NEED_GAME_DATA}
           run={() => createSystemFrom(target.x, target.y)}
         >
           New system from…

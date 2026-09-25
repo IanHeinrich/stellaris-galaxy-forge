@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemNode } from "../../../generated/SystemNode";
 import {
@@ -7,7 +6,7 @@ import {
   starTypeChoices,
   starTypeRows,
 } from "../../../lib/details/starBody";
-import { currentStarBodies } from "../../../lib/details/starClass";
+import { currentStarBodies, STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { EditBlock, EditRow, PickerField, TextField } from "../../EditField";
@@ -15,9 +14,9 @@ import type { IconPickerItem } from "../../IconPicker";
 import { useApplyOp } from "../../useApplyOp";
 import { StarRowIcon, StarTriggerIcon } from "../StarIcon";
 import { READING_STARS } from "../system/StarClassLine";
-import { useClassLabel, useSingleStarClasses } from "./useBodyClasses";
+import { useNamed } from "../../useNamed";
+import { useSingleStarClasses } from "./useBodyClasses";
 
-export const NEEDS_GAME_DATA = "Load game data to change the star type";
 const NO_CHOICE = "The game data has no other star type";
 const NO_SIZE = "The save gives this body no size";
 
@@ -27,18 +26,15 @@ const NO_SIZE = "The save gives this body no size";
  */
 function StarTypeField({ planet, system }: { planet: PlanetSummary; system: SystemNode }) {
   const applyOp = useApplyOp();
-  const label = useClassLabel();
   const singles = useSingleStarClasses();
+  const gameData = useGameDataStore((s) => s.status === "ready");
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const stale = useDetailsStore((s) => s.stale.has(system.id));
   const read = useDetailsStore((s) => s.details.get(system.id));
   const fresh = currentStarBodies(read, stale, planetClasses, starClasses);
   const choices = starTypeChoices(planet.class, planetClasses);
-  const keys = [planet.class, ...choices].join("|");
-  useEffect(() => {
-    void useGameDataStore.getState().fetchNames(keys.split("|"));
-  }, [keys]);
+  const label = useNamed([planet.class, ...choices]);
 
   const icon = (key: string, Icon: typeof StarRowIcon) => {
     const view = singles.get(key);
@@ -53,14 +49,13 @@ function StarTypeField({ planet, system }: { planet: PlanetSummary; system: Syst
     label: label(planet.class),
     icon: icon(planet.class, StarTriggerIcon),
   };
-  const reason =
-    planetClasses.size === 0
-      ? NEEDS_GAME_DATA
-      : fresh === null
-        ? READING_STARS
-        : choices.length === 0
-          ? NO_CHOICE
-          : undefined;
+  const reason = !gameData
+    ? STARS_NEED_GAME_DATA
+    : fresh === null
+      ? READING_STARS
+      : choices.length === 0
+        ? NO_CHOICE
+        : undefined;
   return (
     <PickerField
       label="Star type"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { SystemNode } from "../../../../../generated/SystemNode";
-import { node } from "../../../../../store/fixture";
+import type { SystemNode } from "../generated/SystemNode";
+import { node } from "../store/fixture";
 import { spawnPointOp, spawnPointsOp, spawnTargets } from "./spawnPoint";
 
 /** A system the generator can weigh, and one it cannot: a weight needs an initializer beside it. */

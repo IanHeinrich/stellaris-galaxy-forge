@@ -3,7 +3,7 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import { useInitializerBrowserStore } from "../../store/initializerBrowserStore";
 
 /** What an entry point says while the initializers cannot be read. */
-export const NEEDS_GAME_DATA =
+export const INITIALIZERS_NEED_GAME_DATA =
   "Load game data to choose from the initializers the install and its mods define.";
 
 /** Whether the browser is worth offering: a document that sets initializers, with game data read. */

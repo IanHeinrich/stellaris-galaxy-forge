@@ -13,8 +13,8 @@ export interface WatchRings {
 }
 
 /**
- * The colours entries are handed, clear of the selection's yellow, the hover's white, the
- * initializer browser's sky blue, the search palette's pink and the snap target's green.
+ * The colours entries are handed, clear of `ACCENT_COLOR`, the hover's white, `MATCHED_COLOR`,
+ * `SEARCHED_COLOR` and `ALLOWED_COLOR` in `visual/style.ts`.
  */
 export const WATCH_COLOURS: readonly number[] = [
   0xfb923c, 0xa3e635, 0xa78bfa, 0x2dd4bf, 0xd6a77a, 0x94a3b8,
@@ -34,6 +34,16 @@ export function sameQuery(a: string, b: string): boolean {
 /** The entry that pins `query`, if one does. */
 export function pinnedEntry(entries: readonly WatchEntry[], query: string): WatchEntry | undefined {
   return entries.find((entry) => sameQuery(entry.query, query));
+}
+
+/** What the eye beside an entry does when pressed. */
+export function shownLabel(entry: WatchEntry): string {
+  return `${entry.shown ? "Hide" : "Show"} "${entry.query}" on the map`;
+}
+
+/** What the unpin button beside an entry does. */
+export function unpinLabel(query: string): string {
+  return `Unpin "${query}"`;
 }
 
 /** The rings the map draws: one set per shown entry, placed by the entry's slot in the list. */

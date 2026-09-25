@@ -3,6 +3,7 @@ import type { EntityAddr } from "../generated/EntityAddr";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { EntityKind } from "../generated/EntityKind";
 import { renumberedId, renumberedLane, type Renumbering } from "../lib/renumber";
+import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useLayoutStore, type DockTab } from "./layoutStore";
@@ -185,6 +186,11 @@ export interface InspectorState {
    */
   openPage(entry: Entry): void;
   /**
+   * Goes to system `id`'s page, back down the stack when the page is on it, else by selecting
+   * the system, and eases the map to it either way.
+   */
+  openSystem(id: number): void;
+  /**
    * The Galaxy crumb: pops a stack that stands on the galaxy back to it, and says so. A stack
    * rooted on a selection says false, and clearing the selection restarts it instead.
    */
@@ -273,6 +279,17 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     const stack = refKey(root.ref) === refKey(entry.ref) ? [root] : [root, page];
     set({ stack, tab: tabsFor(entry.ref)[0] });
     useLayoutStore.getState().showInspector();
+  },
+
+  openSystem(id) {
+    const key = refKey({ kind: "system", id });
+    const at = get().stack.findIndex((entry) => refKey(entry.ref) === key);
+    if (at < 0) {
+      void useEditorStore.getState().jumpTo(id);
+      return;
+    }
+    get().popTo(at);
+    useEditorStore.getState().focusOn(id);
   },
 
   home() {

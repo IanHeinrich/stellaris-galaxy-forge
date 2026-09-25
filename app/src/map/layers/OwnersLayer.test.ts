@@ -7,6 +7,7 @@ import { countryRegions, regionLabelAnchor } from "../../lib/geometry/territory"
 import { SAVE_CAPABILITIES } from "../../lib/capabilities";
 import { MARAUDER_COLORS, ownerColors } from "../../lib/visual/ownerColors";
 import { EMPHASIS_COLOR } from "../../lib/visual/specialStyle";
+import { countryNode } from "../../test/builders";
 import { VANILLA_BORDER, type RenderContext } from "../RenderContext";
 import { CLAN_GLYPH, OwnersLayer } from "./OwnersLayer";
 import { layerIdsFor, layersFor } from "./registry";
@@ -21,21 +22,17 @@ import {
 
 stubTextMeasurement();
 
-const COUNTRY: CountryNode = {
+/** An empire whose view names no map colours, so the map paints it from its palette slot. */
+const COUNTRY: CountryNode = countryNode({
   id: 1,
   name: { key: "Country", literal: true, variables: [] },
   name_key: "Country",
   country_type: "custom_empire",
   capital_system: null,
   system_count: 1,
-  colors: [],
-  border_color: null,
-  fill_color: null,
-  flag_colors: [],
-  use_map_color: false,
-  flag_icon: null,
-  flag_background: null,
-};
+  painted_border: undefined,
+  painted_fill: undefined,
+});
 
 const OWNED = { ...mapNode(1, 0, "S1"), owner: COUNTRY.id };
 const COUNTRIES = new Map([[COUNTRY.id, COUNTRY]]);
@@ -243,9 +240,9 @@ describe("a scenario's territories", () => {
 });
 
 describe("an owner's territory", () => {
-  it("is painted in the map colours the empire chose, else its first two flag colours", () => {
-    const flagged = { ...COUNTRY, colors: ["grey", "dark_blue", "black", "grey"] };
-    const chosen = { ...flagged, border_color: "intense_red", fill_color: "light_pink" };
+  it("is painted in the border and fill the view says the map paints", () => {
+    const flagged = { ...COUNTRY, painted_border: "grey", painted_fill: "dark_blue" };
+    const chosen = { ...COUNTRY, painted_border: "intense_red", painted_fill: "light_pink" };
     const paint = (country: CountryNode): ReturnType<typeof paintOf> => {
       const layer = new OwnersLayer();
       const countries = new Map([[country.id, country]]);

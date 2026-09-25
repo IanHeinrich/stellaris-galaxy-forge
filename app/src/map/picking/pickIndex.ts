@@ -2,10 +2,11 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
 import { linkSegment, takesCustomLinks } from "../../lib/feLinks";
 import { distToSegmentSq } from "../../lib/geometry/geometry";
-import { pairOf, PairMap } from "../../lib/geometry/pairs";
+import { pairKey, pairOf } from "../../lib/geometry/pairs";
 import type { Pt } from "../../lib/geometry/pt";
 import { cellKey } from "../../lib/spatialGrid";
 import type { LaneRef } from "../../store/editorStore";
+import { LaneTable } from "../laneTable";
 import { addTo, deleteFrom } from "../multiMap";
 import type { Systems } from "../RenderContext";
 import type { MapEdge } from "./edges";
@@ -17,6 +18,7 @@ const STEP = CELL / 2;
 const QUERY_PAD = STEP / 2;
 
 interface Entry {
+  readonly key: string;
   readonly edge: MapEdge;
   readonly a: Pt;
   readonly b: Pt;
@@ -28,13 +30,18 @@ function cellOf(v: number): number {
   return Math.floor(v / CELL);
 }
 
-function laneRef(a: number, b: number): LaneRef {
+/** The lane between `a` and `b`, its lower id first. */
+export function laneRef(a: number, b: number): LaneRef {
   const [lo, hi] = pairOf(a, b);
   return { a: lo, b: hi };
 }
 
+function laneKey(a: number, b: number): string {
+  return `lane:${pairKey(a, b)}`;
+}
+
 function linkKey(anchor: number, system: number): string {
-  return `${anchor}:${system}`;
+  return `link:${anchor}:${system}`;
 }
 
 /**
@@ -44,9 +51,7 @@ function linkKey(anchor: number, system: number): string {
  */
 export class PickIndex {
   private readonly cells = new Map<number, Entry[]>();
-  private readonly lanes = new PairMap<Entry>();
-  private readonly links = new Map<string, Entry>();
-  private readonly byId = new Map<number, Set<Entry>>();
+  private readonly table = new LaneTable<Entry>();
   /** Custom link id → the anchors taking links under it, and each anchor's id. */
   private readonly takers = new Map<number, Set<number>>();
   private readonly takes = new Map<number, number>();
@@ -54,8 +59,6 @@ export class PickIndex {
   private readonly listers = new Map<number, Set<number>>();
   private readonly lists = new Map<number, readonly number[]>();
   private readonly zoneAnchors = new Map<number, SystemNode>();
-  /** Systems a lane names that the document does not hold, and the systems naming them. */
-  private readonly dangling = new Map<number, Set<number>>();
   private systems: Systems = new Map();
   /** The cells anything has been filed under, so a wide query stops at the galaxy's edge. */
   private minCx = Infinity;
@@ -65,15 +68,12 @@ export class PickIndex {
 
   build(systems: Systems): void {
     this.cells.clear();
-    this.lanes.clear();
-    this.links.clear();
-    this.byId.clear();
+    this.table.clear();
     this.takers.clear();
     this.takes.clear();
     this.listers.clear();
     this.lists.clear();
     this.zoneAnchors.clear();
-    this.dangling.clear();
     this.minCx = this.minCy = Infinity;
     this.maxCx = this.maxCy = -Infinity;
     this.systems = systems;
@@ -84,22 +84,13 @@ export class PickIndex {
   /** Re-files what the delta's systems touch; `systems` is the galaxy with the delta applied. */
   apply(delta: GalaxyDelta, systems: Systems): void {
     this.systems = systems;
-    const again = new Set<number>();
-    const touched = [...(delta.removed ?? []), ...delta.systems.map((s) => s.id)];
-    for (const id of touched) {
-      this.unregister(id);
-      for (const entry of [...(this.byId.get(id) ?? [])]) {
-        this.drop(entry);
-        for (const end of entry.ends) again.add(end);
-      }
-    }
+    for (const id of delta.removed ?? []) this.unregister(id);
     for (const { id } of delta.systems) {
+      this.unregister(id);
       const s = systems.get(id);
       if (s) this.register(s);
-      again.add(id);
-      for (const from of this.dangling.get(id) ?? []) again.add(from);
-      this.dangling.delete(id);
     }
+    const again = this.table.release(delta, (entry) => this.unfile(entry));
     for (const id of again) {
       const s = systems.get(id);
       if (s) this.derive(s);
@@ -176,13 +167,14 @@ export class PickIndex {
     for (const lane of s.lanes) {
       const b = this.systems.get(lane.to);
       if (!b) {
-        addTo(this.dangling, lane.to, s.id);
+        this.table.waitFor(lane.to, s.id);
         continue;
       }
-      if (this.lanes.has(s.id, b.id)) continue;
+      const key = laneKey(s.id, b.id);
+      if (this.table.has(key)) continue;
       const ref = laneRef(s.id, b.id);
       const [a, z] = ref.a === s.id ? [s, b] : [b, s];
-      this.file({ edge: { kind: "lane", lane: ref }, a, b: z, ends: [s.id, b.id], cells: [] });
+      this.file({ key, edge: { kind: "lane", lane: ref }, a, b: z, ends: [s.id, b.id], cells: [] });
     }
     for (const linkId of s.fe_link.to) {
       for (const anchor of this.takers.get(linkId) ?? []) this.fileLink(anchor, s.id);
@@ -195,12 +187,14 @@ export class PickIndex {
 
   private fileLink(anchorId: number, systemId: number): void {
     if (anchorId === systemId) return;
-    if (this.links.has(linkKey(anchorId, systemId))) return;
+    const key = linkKey(anchorId, systemId);
+    if (this.table.has(key)) return;
     const anchor = this.systems.get(anchorId);
     const system = this.systems.get(systemId);
     const segment = anchor && system && linkSegment(anchor, system);
     if (!segment) return;
     this.file({
+      key,
       edge: { kind: "feLink", anchor: anchorId, system: systemId },
       a: segment.a,
       b: segment.b,
@@ -210,10 +204,7 @@ export class PickIndex {
   }
 
   private file(entry: Entry): void {
-    const [a0, b0] = entry.ends;
-    if (entry.edge.kind === "lane") this.lanes.set(a0, b0, entry);
-    else this.links.set(linkKey(a0, b0), entry);
-    for (const end of entry.ends) addTo(this.byId, end, entry);
+    this.table.add(entry);
     const { a, b } = entry;
     const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / STEP));
     const seen = new Set<number>();
@@ -238,11 +229,8 @@ export class PickIndex {
     }
   }
 
-  private drop(entry: Entry): void {
-    const [a0, b0] = entry.ends;
-    if (entry.edge.kind === "lane") this.lanes.delete(a0, b0);
-    else this.links.delete(linkKey(a0, b0));
-    for (const end of entry.ends) deleteFrom(this.byId, end, entry);
+  /** Takes a dropped entry out of the cells it was filed under. */
+  private unfile(entry: Entry): void {
     for (const k of entry.cells) {
       const bucket = this.cells.get(k);
       if (!bucket) continue;

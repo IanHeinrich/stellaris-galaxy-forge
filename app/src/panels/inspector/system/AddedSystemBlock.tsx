@@ -1,16 +1,16 @@
-import { useEffect } from "react";
 import type { SystemNode } from "../../../generated/SystemNode";
 import { ADDED_THIS_SESSION, NEEDS_GAME_DATA } from "../../../lib/addSystem";
 import { nodeName } from "../../../lib/names";
 import { useEditorStore } from "../../../store/editorStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { useGeneratorStore } from "../../../store/generatorStore";
+import { specialFor } from "../../../store/generatorStore";
 import { EditBlock, EditNote, EditRow, PickerField, TextField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
+import { useGeneratorData } from "../../useGeneratorData";
 import { StarRowIcon, StarTriggerIcon } from "../StarIcon";
 
-export const ADDED_CHIP_TITLE =
-  "Added since you opened this file. You can delete it until the file is reopened.";
+const DELETABLE_UNTIL_REOPENED = "You can delete it until the file is reopened.";
+export const ADDED_CHIP_TITLE = `Added since you opened this file. ${DELETABLE_UNTIL_REOPENED}`;
 const REPLACES_BODIES =
   "Changing the class or rerolling replaces the bodies. The name, position and lanes stay.";
 const ROLL_BODIES = "Roll new bodies around the same star class";
@@ -27,27 +27,17 @@ function rebuildsSpecial(label: string): string {
 export function AddedSystemBlock({ system }: { system: SystemNode }) {
   const rerollSystem = useEditorStore((s) => s.rerollSystem);
   const renameAddedSystem = useEditorStore((s) => s.renameAddedSystem);
-  const removeSystem = useEditorStore((s) => s.removeSystem);
-  const gameData = useGameDataStore((s) => s.status === "ready");
+  const removeSystems = useEditorStore((s) => s.removeSystems);
   const views = useGameDataStore((s) => s.starClasses);
   const names = useGameDataStore((s) => s.names);
-  const starClasses = useGeneratorStore((s) => s.starClasses);
-  const request = useGeneratorStore((s) => s.request);
-  const picks = useGeneratorStore((s) => s.picks);
-  const refreshPicks = useGeneratorStore((s) => s.refreshPicks);
-  useEffect(() => {
-    if (gameData) request();
-  }, [gameData, request]);
-  useEffect(() => {
-    if (gameData && picks === null) refreshPicks();
-  }, [gameData, picks, refreshPicks]);
-  const special = picks?.special.find((p) => p.layout.key === system.initializer)?.layout.label;
+  const { gameData, picks, stars } = useGeneratorData();
+  const special = specialFor(picks, system.initializer)?.label;
 
   const icon = (key: string, Icon: typeof StarRowIcon) => {
     const view = views.get(key);
     return view && <Icon view={view} />;
   };
-  const items: IconPickerItem[] = (starClasses ?? []).map((c) => ({
+  const items: IconPickerItem[] = stars.map((c) => ({
     key: c.key,
     label: c.label,
     icon: icon(c.key, StarRowIcon),
@@ -55,7 +45,7 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
   const current: IconPickerItem = {
     key: system.star_class,
     label:
-      starClasses?.find((c) => c.key === system.star_class)?.label ??
+      stars.find((c) => c.key === system.star_class)?.label ??
       names.get(system.star_class) ??
       system.star_class,
     icon: icon(system.star_class, StarTriggerIcon),
@@ -96,10 +86,14 @@ export function AddedSystemBlock({ system }: { system: SystemNode }) {
       </EditRow>
       <EditNote>{special ? rebuildsSpecial(special) : REPLACES_BODIES}</EditNote>
       <div className="ins-added-actions">
-        <button type="button" className="ins-danger" onClick={() => void removeSystem(system.id)}>
+        <button
+          type="button"
+          className="ins-danger"
+          onClick={() => void removeSystems([system.id])}
+        >
           Delete system
         </button>
-        <span className="muted">Possible until the file is reopened.</span>
+        <span className="muted">{DELETABLE_UNTIL_REOPENED}</span>
       </div>
     </EditBlock>
   );

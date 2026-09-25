@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
-import { isEditableTarget } from "../../lib/keys";
-import { nodeNameIn } from "../../lib/names";
+import { shortcutLabel } from "../../lib/keys";
+import { laneLabel, nebulaNameIn } from "../../lib/names";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
@@ -37,7 +37,7 @@ function Breadcrumb() {
           type="button"
           className="ins-back"
           aria-label="Back"
-          title="Back (Alt+←)"
+          title={`Back (${shortcutLabel("inspectorBack")})`}
           onClick={() => back()}
         >
           ‹
@@ -118,7 +118,6 @@ export function Inspector() {
   const nebulae = useGalaxyStore((s) => s.nebulae);
   const names = useGameDataStore((s) => s.names);
   const setRoot = useInspectorStore((s) => s.setRoot);
-  const back = useInspectorStore((s) => s.back);
   const stack = useInspectorStore((s) => s.stack);
   const tab = useInspectorStore((s) => s.tab);
   const setTab = useInspectorStore((s) => s.setTab);
@@ -135,15 +134,14 @@ export function Inspector() {
   const root = useMemo<Entry>(() => {
     const name = (id: number) => systemNameOf(systems, names, id);
     if (selectedNebula !== null) {
-      const nebula = nebulae[selectedNebula];
       return {
         ref: { kind: "nebula", index: selectedNebula },
-        label: nebula ? nodeNameIn(names, nebula.name) : `Nebula ${selectedNebula}`,
+        label: nebulaNameIn(names, nebulae[selectedNebula], selectedNebula),
       };
     }
     if (selectedLane) {
       const { a, b } = selectedLane;
-      return { ref: { kind: "lane", a, b }, label: `${name(a)} — ${name(b)}` };
+      return { ref: { kind: "lane", a, b }, label: laneLabel(name(a), name(b)) };
     }
     if (selection.length > 1) {
       return { ref: { kind: "selection" }, label: `${selection.length} systems` };
@@ -155,16 +153,6 @@ export function Inspector() {
   }, [selection, selectedLane, selectedNebula, systems, nebulae, names]);
 
   useEffect(() => setRoot(root), [root, setRoot]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!e.altKey || e.key !== "ArrowLeft" || isEditableTarget(e.target)) return;
-      e.preventDefault();
-      back();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [back]);
 
   // An entity that turns out to list nothing drops its Contents tab from under the reader.
   useEffect(() => {

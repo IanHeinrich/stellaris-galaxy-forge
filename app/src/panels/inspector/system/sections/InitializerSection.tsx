@@ -4,10 +4,11 @@ import { displayName } from "../../../../lib/names";
 import { kindLabel } from "../../../../lib/special";
 import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { browseInitializers, NEEDS_GAME_DATA } from "../../../initializers/entry";
+import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../../initializers/entry";
 import { useApplySymmetricOp } from "../../../useApplyOp";
 import { TextField } from "../../../EditField";
-import { Section, SourceChip } from "../../parts";
+import { SourceChip } from "../../../parts";
+import { Section } from "../../parts";
 import { kindHover } from "./kindHover";
 import { InitializerSpawn } from "./scenario/Initializer";
 import { ScriptActions } from "./scenario/scriptActions";
@@ -38,7 +39,7 @@ function InitializerEditor({ system }: { system: SystemNode }) {
             })
           }
         />
-        <div className="muted ins-hint">{NEEDS_GAME_DATA}</div>
+        <div className="muted ins-hint">{INITIALIZERS_NEED_GAME_DATA}</div>
       </>
     );
   }

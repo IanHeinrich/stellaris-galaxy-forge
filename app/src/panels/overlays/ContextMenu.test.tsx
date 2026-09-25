@@ -6,7 +6,6 @@ vi.mock("../../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
-import { onProgress } from "../../api/events";
 import * as ipc from "../../api/ipc";
 import { bindStores } from "../../store/bindStores";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -20,6 +19,8 @@ import { useEditorStore } from "../../store/editorStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import type { PickSummary } from "../../generated/PickSummary";
 import type { SpecialLayout } from "../../generated/SpecialLayout";
+import { armSession, resetStores } from "../../store/storeFixture";
+import { openWith } from "../../test/session";
 import { ContextMenu } from "./ContextMenu";
 import { PickCardBody } from "./contextMenu/PickCard";
 import { SpecialRows } from "./contextMenu/SpecialItems";
@@ -29,13 +30,9 @@ bindStores();
 const menu = () => renderToStaticMarkup(<ContextMenu />);
 
 beforeEach(async () => {
-  vi.clearAllMocks();
-  useGalaxyStore.getState().clear();
-  useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
-  useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
-  vi.mocked(onProgress).mockResolvedValue(() => undefined);
-  vi.mocked(ipc.openSave).mockResolvedValue(OPEN_RESULT);
-  await useFileSessionStore.getState().openSave(OPEN_RESULT.path);
+  resetStores();
+  armSession();
+  await openWith(OPEN_RESULT);
 });
 
 describe("a lane's context menu", () => {
@@ -65,8 +62,7 @@ describe("a lane's context menu", () => {
 
 describe("a scenario's prevented pairs", () => {
   beforeEach(async () => {
-    vi.mocked(ipc.openSave).mockResolvedValue(SCENARIO_RESULT);
-    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
+    await openWith(SCENARIO_RESULT);
   });
 
   it("are made from a lane's menu and a system's, counting the selected systems each covers", () => {
@@ -101,11 +97,9 @@ describe("a scenario system's spawn point item", () => {
   /** A scenario whose one system names no initializer. */
   async function openEmptySystem(): Promise<void> {
     const empty = node(0, "NAME_Sol", 0, 0, "sc_g", [], { initializer: "" });
-    vi.mocked(ipc.openSave).mockResolvedValue({
-      ...SCENARIO_RESULT,
-      galaxy: { ...SCENARIO_RESULT.galaxy, systems: [empty] },
+    await openWith(SCENARIO_RESULT, {
+      galaxy: { systems: [empty] },
     });
-    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
     useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
   }
 
@@ -133,15 +127,12 @@ describe("the fallen empire zone items", () => {
   /** The fixture galaxy as a Paint a Galaxy scenario, Sol anchoring a zone west at 40. */
   async function openPainted(): Promise<void> {
     const sol = { ...SCENARIO_RESULT.galaxy.systems[0], fe_zone: newFeZone("w") };
-    vi.mocked(ipc.openSave).mockResolvedValue({
-      ...SCENARIO_RESULT,
+    await openWith(SCENARIO_RESULT, {
       painted: true,
       galaxy: {
-        ...SCENARIO_RESULT.galaxy,
         systems: [sol, ...SCENARIO_RESULT.galaxy.systems.slice(1)],
       },
     });
-    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
   }
 
   it("are offered on a system, on empty space and on a ring only under the Paint a Galaxy layer", async () => {
@@ -188,12 +179,10 @@ describe("the fallen empire link items", () => {
         s.id === 5 ? { ...s, fe_link: { custom: false, id: null, to: [1] } } : s,
       ),
     ];
-    vi.mocked(ipc.openSave).mockResolvedValue({
-      ...SCENARIO_RESULT,
+    await openWith(SCENARIO_RESULT, {
       painted: true,
-      galaxy: { ...SCENARIO_RESULT.galaxy, systems },
+      galaxy: { systems },
     });
-    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
     vi.mocked(ipc.getSystem).mockImplementation(async (id) => detailOf(id));
   }
 
@@ -256,11 +245,9 @@ describe("the fallen empire link items", () => {
 describe("the marauder clan items", () => {
   /** The fixture galaxy as a plain scenario, with the given systems in the given clan roles. */
   async function openWithClans(roles: Record<number, MarauderRole>): Promise<void> {
-    vi.mocked(ipc.openSave).mockResolvedValue({
-      ...SCENARIO_RESULT,
+    await openWith(SCENARIO_RESULT, {
       painted: false,
       galaxy: {
-        ...SCENARIO_RESULT.galaxy,
         systems: SCENARIO_RESULT.galaxy.systems.map((s) =>
           s.id in roles
             ? {
@@ -272,7 +259,6 @@ describe("the marauder clan items", () => {
         ),
       },
     });
-    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
   }
 
   const item = (html: string, label: string) =>
@@ -415,8 +401,7 @@ describe("the add system item", () => {
   });
 
   it("is not offered on a scenario", async () => {
-    vi.mocked(ipc.openSave).mockResolvedValue(SCENARIO_RESULT);
-    await useFileSessionStore.getState().openSave(SCENARIO_RESULT.path);
+    await openWith(SCENARIO_RESULT);
     space(-50, -20);
     expect(menu()).not.toContain("Add system here");
   });

@@ -8,7 +8,8 @@ import {
 } from "../../../../../lib/initializer/initializerRows";
 import { useDetailsStore } from "../../../../../store/detailsStore";
 import { useGameDataStore } from "../../../../../store/gameDataStore";
-import { Chip, FILTER_MIN, FilterField, Icon } from "../../../parts";
+import { useNamed } from "../../../../useNamed";
+import { Chip, FILTER_MIN, FilterField, Icon } from "../../../../parts";
 import { INLINE_RESOURCES } from "../../../rows";
 import { PlanetIcon, Pills, PlanetSize } from "../bodies";
 
@@ -83,13 +84,7 @@ export function InitializerSpawn({ name }: { name: string }) {
     () => (entry === null ? [] : initializerRows(entry, classes, deposits, icons)),
     [entry, classes, deposits, icons],
   );
-  const keys = useMemo(
-    () => (entry === null ? "" : initializerNameKeys(entry, rows).join("|")),
-    [entry, rows],
-  );
-  useEffect(() => {
-    if (keys !== "") void useGameDataStore.getState().fetchNames(keys.split("|"));
-  }, [keys]);
+  useNamed(entry === null ? [] : initializerNameKeys(entry, rows));
 
   if (entry === null) return null;
   const needle = query.trim().toLowerCase();

@@ -15,7 +15,8 @@ import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { DrillLink, Icon, Section } from "../parts";
+import { Icon } from "../../parts";
+import { DrillLink, Section } from "../parts";
 import { useEntityView, useOpenEntity } from "./useEntity";
 
 const ROOT: readonly string[] = [];

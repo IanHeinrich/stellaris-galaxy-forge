@@ -1,16 +1,6 @@
-import { useEffect } from "react";
 import type { SystemNode } from "../../../generated/SystemNode";
 import { useGameDataStore } from "../../../store/gameDataStore";
-
-/** Names the keys as they are shown, asking for any not yet fetched. */
-export function useNamed(keys: readonly string[]): (key: string) => string {
-  const names = useGameDataStore((s) => s.names);
-  const list = keys.join("|");
-  useEffect(() => {
-    if (list !== "") void useGameDataStore.getState().fetchNames(list.split("|"));
-  }, [list]);
-  return (key) => names.get(key) ?? key;
-}
+import { useNamed } from "../../useNamed";
 
 /**
  * A save system's star class as plain text. Every binary is called "Binary Stars", so a multiple

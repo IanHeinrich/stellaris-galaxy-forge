@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
+import { PairSet } from "../geometry/pairs";
 import { segmentsCross } from "../geometry/segments";
 import { MESH_BETA } from "../geometry/mesh";
 import type { Pt } from "../geometry/pt";
@@ -8,6 +9,7 @@ import { drag } from "../../test/brush";
 import { lanesTo, placedNode, systemNode } from "../../test/builders";
 import { SYSTEMS as SAMPLE } from "../../store/fixture";
 import type { Symmetry } from "../geometry/symmetry";
+import { provisionalId, provisionalIndex } from "./lanes";
 import { stampsAlong } from "./stroke";
 import { BrushStroke, strokeLabel, type BrushSettings, type StrokeResult } from "./brushStroke";
 
@@ -80,7 +82,7 @@ describe("a paint stroke", () => {
       for (const s of SYSTEMS) expect(Math.hypot(p.x - s.x, p.y - s.y)).toBeGreaterThanOrEqual(10);
     }
     expect(pairs.some(([, b]) => b >= 0)).toBe(true);
-    const at = (id: number): Pt => (id < 0 ? points[-id - 1] : GALAXY.get(id)!);
+    const at = (id: number): Pt => (id < 0 ? points[provisionalIndex(id)] : GALAXY.get(id)!);
     for (const [a, b] of pairs) {
       expect(a).toBeLessThan(b);
       expect(a).toBeGreaterThanOrEqual(-points.length);
@@ -112,10 +114,12 @@ describe("a paint stroke", () => {
     result.points.slice(0, half).forEach((p, i) => {
       expect(result.points[half + i]).toEqual({ x: -p.x, y: p.y });
     });
-    const pairs = new Set(result.pairs.map(([a, b]) => `${a},${b}`));
+    const pairs = new PairSet();
+    for (const [a, b] of result.pairs) pairs.add(a, b);
+    const image = (id: number) => provisionalId(provisionalIndex(id) + half);
     for (const [a, b] of result.pairs) {
-      if (a < -half) continue;
-      expect(pairs.has(`${a - half},${b - half}`)).toBe(true);
+      if (provisionalIndex(a) >= half) continue;
+      expect(pairs.has(image(a), image(b))).toBe(true);
     }
   });
 });

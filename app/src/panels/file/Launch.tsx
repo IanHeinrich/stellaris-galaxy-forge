@@ -1,6 +1,6 @@
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { phaseLabel } from "./launchData";
+import { phaseLabel } from "../../lib/text";
 import { OpenSave } from "./OpenSave";
 import { Setup } from "./Setup";
 import "./open.css";

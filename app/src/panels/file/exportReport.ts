@@ -1,5 +1,4 @@
 import type { Category } from "../../generated/Category";
-import type { DroppedBypasses } from "../../generated/DroppedBypasses";
 import type { ExportReport } from "../../generated/ExportReport";
 import { feKindLabel } from "../../lib/feZone";
 import { counted } from "../../lib/text";
@@ -14,20 +13,6 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   special: "Special",
   generic: "Generic",
 };
-
-const DROPPED_NOUNS: [keyof DroppedBypasses, string][] = [
-  ["wormhole_pairs", "wormhole pair"],
-  ["gateways", "gateway"],
-  ["lgates", "L-Gate"],
-];
-
-/** `6 wormhole pairs, 1 L-Gate`, worded as the Rust side words it; null when nothing was dropped. */
-export function droppedSummary(dropped: DroppedBypasses): string | null {
-  const parts = DROPPED_NOUNS.filter(([kind]) => dropped[kind] > 0).map(([kind, noun]) =>
-    counted(dropped[kind], noun),
-  );
-  return parts.length === 0 ? null : parts.join(", ");
-}
 
 /** A system's name for a sentence; `nameOf` is the galaxy's, falling back to the id. */
 export type NameOf = (system: number) => string;

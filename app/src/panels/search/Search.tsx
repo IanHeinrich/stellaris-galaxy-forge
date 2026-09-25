@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../api/errors";
 import type { SearchHit } from "../../generated/SearchHit";
-import { planetClassLabel } from "../../lib/details/labels";
+import { bypassName, planetClassLabel } from "../../lib/details/labels";
 import { displayName, displayTemplate, templateName } from "../../lib/names";
 import { pinnedEntry, type WatchEntry } from "../../lib/watchlist";
 import { useEditorStore } from "../../store/editorStore";
@@ -15,6 +15,8 @@ import { RowIcon, type RowKind } from "./icons";
 import { PinnedRows, PinToggle } from "./Pins";
 import { GROUP_LABELS, KIND_ORDER, nextPrefix, parseQuery, prefixLabel, type Query } from "./query";
 import "./search.css";
+import { paletteHint, paletteKey } from "../paletteKeys";
+import { counted } from "../../lib/text";
 
 export const SEARCH_INPUT_ID = "system-search";
 const DEBOUNCE_MS = 120;
@@ -52,7 +54,7 @@ function parts(fields: Array<string | null>): string {
 }
 
 function systemCount(n: number | null): string | null {
-  return n === null ? null : `${n} ${n === 1 ? "system" : "systems"}`;
+  return n === null ? null : counted(n, "system");
 }
 
 /** The galaxy and the localisation a row's subline is read through, as the panel has them. */
@@ -81,7 +83,12 @@ function subline(hit: SearchHit, look: Lookups): string {
   const owner = hit.owner === null ? null : displayTemplate(hit.owner);
   switch (hit.kind) {
     case "system":
-      return parts([owner ?? "unclaimed", matchedLabel(look, hit.matched_on)]);
+      return parts([
+        owner ?? "unclaimed",
+        hit.matched_bypass === undefined
+          ? matchedLabel(look, hit.matched_on)
+          : bypassName(hit.matched_bypass),
+      ]);
     case "country":
       return parts([hit.country_type, systemCount(hit.system_count)]);
     case "planet":
@@ -252,12 +259,16 @@ function SearchPanel() {
   const placeholder = kind === null ? "Search…" : PLACEHOLDER[kind];
   const hints =
     text === ""
-      ? [pinAt ? "Enter run" : "Enter go", ...(pins.length > 0 ? ["Del unpin"] : []), "Esc close"]
+      ? [
+          paletteHint("go", pinAt ? "run" : "go"),
+          ...(pins.length > 0 ? [paletteHint("unpin", "unpin")] : []),
+          paletteHint("close", "close"),
+        ]
       : [
-          "Enter go",
-          "Shift+Enter select",
-          pinned ? "Ctrl+Enter unpin" : "Ctrl+Enter pin",
-          "Esc close",
+          paletteHint("go", "go"),
+          paletteHint("select", "select"),
+          paletteHint("pin", pinned ? "unpin" : "pin"),
+          paletteHint("close", "close"),
         ];
   const classes = ["search"];
   if (wide) classes.push("wide");
@@ -294,27 +305,28 @@ function SearchPanel() {
           setOpen(true);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          const key = paletteKey(e);
+          if (key === "pin") {
             e.preventDefault();
             useWatchlistStore.getState().togglePin(text);
-          } else if (e.key === "Enter") {
+          } else if (key === "go" || key === "select") {
             e.preventDefault();
             if (pinAt) run(pinAt);
-            else take(current, e.shiftKey);
-          } else if (pinAt && (e.key === "Delete" || (e.key === "Backspace" && query === ""))) {
+            else take(current, key === "select");
+          } else if (key === "unpin" && pinAt && (e.key === "Delete" || query === "")) {
             e.preventDefault();
             useWatchlistStore.getState().unpin(pinAt.query);
-          } else if (e.key === "ArrowDown") {
+          } else if (key === "down") {
             e.preventDefault();
             setActive(Math.max(Math.min(at + 1, total - 1), 0));
-          } else if (e.key === "ArrowUp") {
+          } else if (key === "up") {
             e.preventDefault();
             setActive(Math.max(at - 1, 0));
-          } else if (e.key === "Tab" && !e.shiftKey && query !== "") {
+          } else if (key === "kind" && query !== "") {
             e.preventDefault();
             setQuery(nextPrefix(query));
             setActive(0);
-          } else if (e.key === "Escape") {
+          } else if (key === "close") {
             close();
           }
         }}

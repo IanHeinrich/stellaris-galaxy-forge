@@ -1,32 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { placedNode as node } from "../../test/builders";
-import type { SystemNode } from "../../generated/SystemNode";
-import { newFeZone } from "../../lib/feZone";
+import { byId, feLinkedNode, placedNode as node, zoneAnchor } from "../../test/builders";
 import { edgeEnds, sameEdge } from "./edges";
 
-/** An anchor whose ring lies east at 40 and takes custom connections under `linkId`. */
-const anchor = (id: number, x: number, y: number, linkId: number): SystemNode => ({
-  ...node(id, x, y),
-  fe_zone: newFeZone("e"),
-  fe_link: { custom: true, id: linkId, to: [] },
-});
-
-const linked = (id: number, x: number, y: number, ...to: number[]): SystemNode => ({
-  ...node(id, x, y),
-  fe_link: { custom: false, id: null, to },
-});
-
-function world(...nodes: SystemNode[]): Map<number, SystemNode> {
-  return new Map(nodes.map((s) => [s.id, s]));
-}
-
 describe("edgeEnds", () => {
-  const systems = world(
-    anchor(1, 0, 0, 5),
-    linked(2, 200, 0, 5),
+  const systems = byId([
+    zoneAnchor(1, 0, 0, 5),
+    feLinkedNode(2, 200, 0, 5),
     node(3, 100, 40, [4]),
     node(4, 200, 40),
-  );
+  ]);
 
   it("resolves a lane to its systems and a link to the system and the ring's nearest point", () => {
     expect(edgeEnds(systems, { kind: "lane", lane: { a: 3, b: 4 } })).toMatchObject({

@@ -108,7 +108,10 @@ export interface EditorState {
   selectLane(lane: LaneRef | null): void;
   /** Selects the nebula at `index` (file order), or clears the nebula selection. */
   selectNebula(index: number | null): void;
+  /** Selects system `id` with the map eased to it. */
   jumpTo(id: number): Promise<void>;
+  /** Eases the map to system `id` without changing the selection. */
+  focusOn(id: number): void;
   /** Eases the map to a world point without changing the selection. */
   panTo(x: number, y: number): void;
   /** Remembers a hit the search palette went to. */
@@ -170,8 +173,6 @@ export interface EditorState {
   rerollSystem(id: number, starClass?: string | null): Promise<boolean>;
   /** Renames a system added this session; a blank name sends nothing. */
   renameAddedSystem(id: number, name: string): Promise<boolean>;
-  /** `removeSystems`, for the systems of `ids` a save added this session. */
-  removeAddedSystems(ids: readonly number[]): Promise<boolean>;
   /** Adds the next free marauder clan at a world point: its home there, two raid bases beside it. */
   addMarauderClanAt(point: { x: number; y: number }): Promise<boolean>;
   /** Makes `home` and the two `bases` hyperlaned to it the next free marauder clan, in one op. */
@@ -182,8 +183,6 @@ export interface EditorState {
   addMarauderBases(home: number): Promise<boolean>;
   /** Renumbers the clan `home` heads, its bases with it, in one op; refused when `to` is in use. */
   renumberMarauderClan(home: number, to: number): Promise<boolean>;
-  /** `removeSystems` of one system. */
-  removeSystem(id: number): Promise<void>;
   /**
    * Removes what `deletableSystems` takes of `ids` and every lane touching them in one edit, once
    * the user has confirmed: under the global symmetry their counterparts too, and on a save the
@@ -345,9 +344,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     async jumpTo(id) {
-      const nonce = (get().focus?.nonce ?? 0) + 1;
-      set({ focus: { id, nonce } });
+      get().focusOn(id);
       await get().select(id);
+    },
+
+    focusOn(id) {
+      set({ focus: { id, nonce: (get().focus?.nonce ?? 0) + 1 } });
     },
 
     panTo(x, y) {

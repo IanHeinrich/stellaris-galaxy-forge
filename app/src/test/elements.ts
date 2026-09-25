@@ -27,3 +27,17 @@ export function buttonIn(tree: ReactNode, label: string): ButtonElement | undefi
         renderToStaticMarkup(el).includes(`>${label}<`)),
   );
 }
+
+/** The text a reader sees: no markup, no attributes, one space between words. */
+export function shown(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&#x27;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** The label of every button, in order. */
+export function buttons(html: string): string[] {
+  return [...html.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((m) => shown(m[1]));
+}

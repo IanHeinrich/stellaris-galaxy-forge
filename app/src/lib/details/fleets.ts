@@ -4,7 +4,7 @@ import type { FleetSummary } from "../../generated/FleetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { type CountryTypes, isFauna } from "../countryKinds";
 import { flagKey } from "../flagKey";
-import { counted } from "../text";
+import { counted, thousands } from "../text";
 
 export interface FleetGroup {
   owner: number | null;
@@ -32,7 +32,7 @@ export function fleetPowerClause(f: FleetSummary): string {
 
 /** `8,019` below a million, `1.01m` from there. */
 export function formatPower(n: number): string {
-  if (n < 1_000_000) return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  if (n < 1_000_000) return thousands(Math.round(n));
   return `${(n / 1_000_000).toFixed(2)}m`;
 }
 

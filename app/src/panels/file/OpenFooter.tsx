@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { footerOpens, type FooterOpen, type OpenLists, type Row } from "../../lib/openRows";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
+import { OPEN_KEYS } from "./openKeys";
 
 /** The open screen's buttons: New scenario and Browse, then the ones that open the selection. */
 export function OpenFooter({
@@ -41,7 +42,7 @@ export function OpenFooter({
         {footer.asScenario && (
           <button
             type="button"
-            title="Take its galaxy into a new scenario (Shift+Enter)"
+            title={`Take its galaxy into a new scenario (${OPEN_KEYS.asScenario.label})`}
             aria-disabled={!idle}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => open(footer.asScenario)}
@@ -67,7 +68,7 @@ export function OpenFooter({
         <button
           type="button"
           className="open-primary"
-          title="Open it as it is (Enter asks first for a save)"
+          title={`Open it as it is (${OPEN_KEYS.open.label} asks first for a save)`}
           aria-disabled={footer.open === null || !idle}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => open(footer.open)}

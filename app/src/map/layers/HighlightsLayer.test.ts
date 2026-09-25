@@ -1,22 +1,13 @@
 import type { Graphics } from "pixi.js";
 import { describe, expect, it, vi } from "vitest";
-import type { SystemNode } from "../../generated/SystemNode";
-import { newFeZone } from "../../lib/feZone";
-import { lanesTo, systemNode } from "../../test/builders";
+import { lanesTo, feLinkedNode, systemNode, zoneAnchor } from "../../test/builders";
 import { HighlightsLayer } from "./HighlightsLayer";
-import { childByLabel, drawOps, mapContext, mapNode, strokes, viewport } from "./fixture";
+import { childByLabel, drawOps, mapContext, strokes, viewport } from "./fixture";
 
 /** An anchor at the origin whose ring lies east at 40, centred on (-40, 0), taking links under 5. */
-const ANCHOR: SystemNode = {
-  ...mapNode(0, 0, "S0"),
-  fe_zone: newFeZone("e"),
-  fe_link: { custom: true, id: 5, to: [] },
-};
+const ANCHOR = zoneAnchor(0, 0, 0, 5);
 /** Linked to the anchor's zone: its link runs from (200, 0) to the ring at (-10, 0). */
-const LINKED: SystemNode = {
-  ...mapNode(1, 200, "S1"),
-  fe_link: { custom: false, id: null, to: [5] },
-};
+const LINKED = feLinkedNode(1, 200, 0, 5);
 const LANE_A = systemNode({
   id: 2,
   x: 100,
@@ -87,16 +78,16 @@ describe("the highlights layer on edges", () => {
 describe("the highlights layer on a pending link", () => {
   it("rubber-lines a drag from systems to the pointer, then to the snapped ring's nearest point, and rings the ring", () => {
     const layer = drawn();
-    layer.setRubberLane({ from: { kind: "systems", ids: [1] }, x: 50, y: 20, target: null });
-    expect(strokedSegments(graphics(layer, "previewLines"))).toEqual([[200, 0, 50, 20]]);
+    layer.laneDrag.setRubber({ from: { kind: "systems", ids: [1] }, x: 50, y: 20, target: null });
+    expect(strokedSegments(graphics(layer, "rubberLines"))).toEqual([[200, 0, 50, 20]]);
     expect(targetRing(layer)).toBeNull();
 
     const valid = { kind: "feZone", anchor: 0, valid: true } as const;
-    layer.setRubberLane({ from: { kind: "systems", ids: [1] }, x: -50, y: 0, target: valid });
-    expect(strokedSegments(graphics(layer, "previewLines"))).toEqual([[200, 0, -10, 0]]);
+    layer.laneDrag.setRubber({ from: { kind: "systems", ids: [1] }, x: -50, y: 0, target: valid });
+    expect(strokedSegments(graphics(layer, "rubberLines"))).toEqual([[200, 0, -10, 0]]);
     expect(targetRing(layer)).toEqual([-40, 0, 44, 0x6ee7b7]);
 
-    layer.setRubberLane({
+    layer.laneDrag.setRubber({
       from: { kind: "systems", ids: [1] },
       x: -50,
       y: 0,
@@ -104,14 +95,14 @@ describe("the highlights layer on a pending link", () => {
     });
     expect(targetRing(layer)).toEqual([-40, 0, 44, 0xf87171]);
 
-    layer.setRubberLane(null);
-    expect(strokedSegments(graphics(layer, "previewLines"))).toEqual([]);
+    layer.laneDrag.setRubber(null);
+    expect(strokedSegments(graphics(layer, "rubberLines"))).toEqual([]);
     expect(targetRing(layer)).toBeNull();
   });
 
   it("keeps the target ring the same width on screen as the map zooms", () => {
     const layer = drawn(2);
-    layer.setRubberLane({
+    layer.laneDrag.setRubber({
       from: { kind: "systems", ids: [1] },
       x: -50,
       y: 0,
@@ -122,23 +113,23 @@ describe("the highlights layer on a pending link", () => {
 
   it("rubber-lines a drag from a zone's port to the pointer, then to the snapped system, ringing it as a star", () => {
     const layer = drawn();
-    layer.setRubberLane({ from: { kind: "feZone", anchor: 0 }, x: 100, y: 0, target: null });
-    expect(strokedSegments(graphics(layer, "previewLines"))).toEqual([[100, 0, -10, 0]]);
+    layer.laneDrag.setRubber({ from: { kind: "feZone", anchor: 0 }, x: 100, y: 0, target: null });
+    expect(strokedSegments(graphics(layer, "rubberLines"))).toEqual([[100, 0, -10, 0]]);
 
-    layer.setRubberLane({
+    layer.laneDrag.setRubber({
       from: { kind: "feZone", anchor: 0 },
       x: 100,
       y: 0,
       target: { kind: "system", id: 1, valid: true },
     });
-    expect(strokedSegments(graphics(layer, "previewLines"))).toEqual([[200, 0, -10, 0]]);
+    expect(strokedSegments(graphics(layer, "rubberLines"))).toEqual([[200, 0, -10, 0]]);
     expect(targetRing(layer)).toEqual([200, 0, 13, 0x6ee7b7]);
   });
 
   it("draws no rubber line from inside the ring", () => {
     const layer = drawn();
-    layer.setRubberLane({ from: { kind: "feZone", anchor: 0 }, x: -40, y: 0, target: null });
-    expect(strokedSegments(graphics(layer, "previewLines"))).toEqual([]);
+    layer.laneDrag.setRubber({ from: { kind: "feZone", anchor: 0 }, x: -40, y: 0, target: null });
+    expect(strokedSegments(graphics(layer, "rubberLines"))).toEqual([]);
   });
 });
 
@@ -151,10 +142,10 @@ describe("the highlights layer's port ring", () => {
     const port = graphics(layer, "port");
     expect(startOf(port)).toBeUndefined();
 
-    layer.setHoverFeZone(0);
+    layer.laneDrag.setHoverFeZone(0);
     expect(startOf(port)).toEqual([-1, 0]);
 
-    layer.setHoverFeZone(null);
+    layer.laneDrag.setHoverFeZone(null);
     expect(startOf(port)).toBeUndefined();
 
     layer.setHover(1);
@@ -164,11 +155,11 @@ describe("the highlights layer's port ring", () => {
   it("brightens on the port band and hides while a lane is being drawn", () => {
     const layer = drawn();
     const port = graphics(layer, "port");
-    layer.setHoverFeZone(0);
+    layer.laneDrag.setHoverFeZone(0);
     expect(port.alpha).toBe(0.45);
-    layer.setPortHot(true);
+    layer.laneDrag.setPortHot(true);
     expect(port.alpha).toBe(1);
-    layer.setRubberLane({ from: { kind: "feZone", anchor: 0 }, x: 100, y: 0, target: null });
+    layer.laneDrag.setRubber({ from: { kind: "feZone", anchor: 0 }, x: 100, y: 0, target: null });
     expect(startOf(port)).toBeUndefined();
   });
 });

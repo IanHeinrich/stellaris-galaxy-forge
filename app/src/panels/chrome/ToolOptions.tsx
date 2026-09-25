@@ -1,6 +1,7 @@
 import { useState, type ComponentType, type CSSProperties, type InputHTMLAttributes } from "react";
 import type { EraseTarget } from "../../lib/brush/brushTools";
 import type { LaneMode } from "../../lib/brush/lanes";
+import { typedNumber } from "../../lib/text";
 import type { Tool } from "../../lib/tools";
 import {
   effectiveSpacing,
@@ -28,9 +29,8 @@ function DraftNumber({
 >) {
   const [draft, setDraft] = useState<string | null>(null);
   const apply = () => {
-    if (draft !== null && Number.isFinite(Number(draft)) && draft.trim() !== "") {
-      onApply(Number(draft));
-    }
+    const n = draft === null ? null : typedNumber(draft);
+    if (n !== null) onApply(n);
     setDraft(null);
   };
   return (

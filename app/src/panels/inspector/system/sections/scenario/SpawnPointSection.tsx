@@ -6,7 +6,8 @@ import { useEditorStore } from "../../../../../store/editorStore";
 import { useCanEdit, usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useApplySymmetricOp } from "../../../../useApplyOp";
 import { TextField } from "../../../../EditField";
-import { Chip, Section } from "../../../parts";
+import { Chip } from "../../../../parts";
+import { Section } from "../../../parts";
 import { ScriptedSeat } from "./ScriptedSeat";
 import {
   DEFAULT_SPAWN_WEIGHT,
@@ -14,7 +15,7 @@ import {
   modifierAmount,
   NEEDS_INITIALIZER,
   spawnPointOp,
-} from "./spawnPoint";
+} from "../../../../spawnPoint";
 
 /**
  * Whether the generator may start an empire here, and how heavily this system weighs against the

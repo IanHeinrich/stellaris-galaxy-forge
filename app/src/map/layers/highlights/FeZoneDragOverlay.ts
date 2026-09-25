@@ -6,12 +6,12 @@ import {
   FE_ZONE_RADIUS,
   feZoneCentre,
 } from "../../../lib/feZone";
-import { REFUSED_COLOR } from "../../../lib/visual/style";
+import { FE_ZONE_COLOR, REFUSED_COLOR } from "../../../lib/visual/style";
 import type { FeZonePreview } from "../../feZonePreview";
-import { dashedCircle } from "./dashedCircle";
+import { dashedCircle } from "../dashes";
 
 /** The dashed ring a zone drag proposes: the zones' own hue, or the refusal's where it cannot go. */
-const RING = { color: 0xf0abfc, alpha: 0.9 };
+const RING = { color: FE_ZONE_COLOR, alpha: 0.9 };
 const RING_BLOCKED = { color: REFUSED_COLOR, alpha: 0.9 };
 const RING_DASHES = 32;
 /** The grid a zone drag chooses from, under the ghost ring: faint rays and one dot per slot. */
@@ -62,7 +62,7 @@ export class FeZoneDragOverlay {
   }
 
   /**
-   * Eight faint rays to distance 200, a faint dot at every clear slot, a faint hollow circle at
+   * Eight faint rays out to the farthest distance, a faint dot at every clear slot, a faint hollow circle at
    * every blocked one, and the snapped slot as a brighter, slightly larger dot.
    */
   private drawGrid(): void {

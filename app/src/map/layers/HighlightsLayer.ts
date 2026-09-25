@@ -4,52 +4,58 @@ import type { LaneRef } from "../../store/editorStore";
 import type { AddSystemPreview } from "../../store/mapChromeStore";
 import { SPAWN_BUFFER } from "../../lib/addSystem";
 import type { Camera } from "../Camera";
-import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
 import { edgeEnds, sameEdge, sameLane, type MapEdge } from "../picking/edges";
-import { MIDPOINT_HIT_PX, PORT_INNER, PORT_OUTER, ringPortOffsetPx } from "../picking/zones";
+import { MIDPOINT_HIT_PX } from "../picking/zones";
 import { portCapable as portsAt } from "../../lib/visual/labels";
 import type { Pt } from "../../lib/geometry/pt";
 import { ghostLaneSegments, type MoveGhost } from "../moveGhosts";
 import type { FeZonePreview } from "../feZonePreview";
 import type { NebulaPreview } from "../nebulaPreview";
-import { toRing, type Segment } from "../../lib/feLinks";
-import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
+import type { Segment } from "../../lib/geometry/segments";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { ACCENT_COLOR, ALLOWED_COLOR, CAUTION_COLOR, REFUSED_COLOR } from "../../lib/visual/style";
-import { SCENARIO_HALF_EXTENT } from "../../lib/guides";
+import {
+  ACCENT_COLOR,
+  ALLOWED_COLOR,
+  CAUTION_COLOR,
+  HANDLE_COLOR,
+  MATCHED_COLOR,
+  NEBULA_COLOR,
+  REFUSED_COLOR,
+  RING_RADIUS,
+  SEARCHED_COLOR,
+} from "../../lib/visual/style";
+import { mapReach } from "../../lib/guides";
 import { AddedMarks } from "./highlights/AddedMarks";
 import { BrushOverlay } from "./highlights/BrushOverlay";
-import { dashedCircle } from "./highlights/dashedCircle";
+import { dashedCircle } from "./dashes";
 import { FeZoneDragOverlay } from "./highlights/FeZoneDragOverlay";
+import { LaneDragOverlay } from "./highlights/LaneDragOverlay";
 import { pointsOf, RingBatch, type RingSpec } from "./highlights/RingBatch";
 import { SymmetryGuide } from "./highlights/SymmetryGuide";
-import { markerScale, type DragState, type MapLayer } from "./MapLayer";
+import { markerScale, sameDragged, type DragState, type MapLayer } from "./MapLayer";
 
-const SELECTION: RingSpec = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
-const HOVER = { color: 0xffffff, radius: 9, width: 1.5, alpha: 0.6 };
-const GHOST = { color: ACCENT_COLOR, radius: 11, width: 2, alpha: 1 };
+const SELECTION: RingSpec = {
+  color: ACCENT_COLOR,
+  radius: RING_RADIUS.selection,
+  width: 2,
+  alpha: 1,
+};
+const HOVER = { color: 0xffffff, radius: RING_RADIUS.hover, width: 1.5, alpha: 0.6 };
+const GHOST = { color: ACCENT_COLOR, radius: RING_RADIUS.selection, width: 2, alpha: 1 };
 /** Systems using the initializer the browser is highlighting: muted, distinct from selection and hover. */
-const MATCHED = { color: 0x7dd3fc, radius: 13, width: 2, alpha: 0.6 };
+const MATCHED = { color: MATCHED_COLOR, radius: RING_RADIUS.target, width: 2, alpha: 0.6 };
 /** Systems the search palette's query locates, while it holds one. */
-const SEARCHED = { color: 0xf472b6, radius: 17, width: 2.5, alpha: 1 };
-const TARGET_VALID = { color: ALLOWED_COLOR, radius: 13, width: 2, alpha: 0.9 };
+const SEARCHED = { color: SEARCHED_COLOR, radius: RING_RADIUS.searched, width: 2.5, alpha: 1 };
 /** Systems a nebula drag would take in, and those it would let go. */
-const JOINING = { color: ALLOWED_COLOR, radius: 15, width: 2, alpha: 0.85 };
-const LEAVING = { color: CAUTION_COLOR, radius: 15, width: 2, alpha: 0.85 };
-const TARGET_INVALID = { color: REFUSED_COLOR, radius: 13, width: 2, alpha: 0.9 };
-/** How far outside a targeted zone's ring its target ring is drawn, in screen pixels. */
-const FE_ZONE_TARGET_MARGIN_PX = 14;
-const PORT_RING = { color: ALLOWED_COLOR, alpha: 0.45, hotAlpha: 1, width: 1.5, dashes: 16 };
-/** A zone's port ring is longer than a star's, so it takes more dashes to read the same. */
-const FE_ZONE_PORT_DASHES = 48;
+const JOINING = { color: ALLOWED_COLOR, radius: RING_RADIUS.joining, width: 2, alpha: 0.85 };
+const LEAVING = { color: CAUTION_COLOR, radius: RING_RADIUS.joining, width: 2, alpha: 0.85 };
 const GHOST_LANE = { color: ACCENT_COLOR, alpha: 0.9 };
-const RUBBER_LANE = { color: ALLOWED_COLOR, alpha: 0.9 };
 const HOVER_LANE = { color: 0xffffff, alpha: 0.5, widthPx: 3 };
 const SELECTED_LANE = { color: ACCENT_COLOR, alpha: 0.9, widthPx: 4 };
-const MIDPOINT = { fill: 0x1c2333, stroke: 0xffffff, arm: 3.5 };
+const MIDPOINT = { fill: HANDLE_COLOR, stroke: 0xffffff, arm: 3.5 };
 const MARQUEE = { color: ACCENT_COLOR, strokeAlpha: 0.9, fillAlpha: 0.08 };
 /** The dashed ring a nebula drag proposes, until the pointer comes up. */
-const GHOST_RING = { color: 0xc4b5fd, alpha: 0.9 };
+const GHOST_RING = { color: NEBULA_COLOR, alpha: 0.9 };
 const GHOST_RING_DASHES = 48;
 const ORIGIN_MARK = { color: 0xffffff, alpha: 0.3, armPx: 7 };
 /** Where a system is being added: the spawn buffer, clear or not, and the galaxy's edge it is past. */
@@ -60,24 +66,12 @@ const ADD_EDGE_DASHES = 160;
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
 
-export interface RubberLane {
-  from: LaneSource;
-  x: number;
-  y: number;
-  target: LaneTarget | null;
-}
-
 /** A world-space rectangle with `x0 <= x1` and `y0 <= y1`. */
 export interface WorldRect {
   x0: number;
   y0: number;
   x1: number;
   y1: number;
-}
-
-/** How far the symmetry guides run: a save's galaxy radius, or out to a scenario's corners. */
-function guideReachOf(ctx: RenderContext): number {
-  return ctx.kind === "save" && ctx.radius > 0 ? ctx.radius : SCENARIO_HALF_EXTENT * Math.SQRT2;
 }
 
 function ring(spec: RingSpec): Graphics {
@@ -125,8 +119,6 @@ export class HighlightsLayer implements MapLayer {
   readonly id = "highlights" as const;
   readonly container = new Container();
   private readonly hover = ring(HOVER);
-  private readonly port = new Graphics({ label: "port", alpha: PORT_RING.alpha });
-  private readonly target = new Graphics({ label: "target" });
   private readonly selectionRings = new RingBatch(SELECTION, "selectionRings");
   private readonly ghostRings = new RingBatch(GHOST, "ghostRings");
   private readonly matchedRings = new RingBatch(MATCHED, "matchedRings");
@@ -145,20 +137,19 @@ export class HighlightsLayer implements MapLayer {
   private readonly added = new AddedMarks();
   /** The brush circle and what a held stroke would do. */
   readonly brush = new BrushOverlay();
+  readonly laneDrag = new LaneDragOverlay();
   /** The axis or spokes of the symmetry edits repeat under. */
-  readonly guide = new SymmetryGuide(guideReachOf(EMPTY_CONTEXT));
+  readonly guide = new SymmetryGuide(mapReach(EMPTY_CONTEXT.kind, EMPTY_CONTEXT.radius));
   private readonly feZoneDrag = new FeZoneDragOverlay();
   private coreRadius = EMPTY_CONTEXT.coreRadius;
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
   private selection: ReadonlySet<number> = new Set();
   private hoverId: number | null = null;
-  private hoverFeZone: number | null = null;
   private matched: ReadonlySet<number> = new Set();
   private searched: ReadonlySet<number> = new Set();
   private ghosts: readonly MoveGhost[] = [];
   private dragged: ReadonlyMap<number, MoveGhost> = new Map();
-  private rubber: RubberLane | null = null;
   private lanePreview: Array<[number, number]> | null = null;
   private addPreview: AddSystemPreview | null = null;
   private marquee: WorldRect | null = null;
@@ -178,13 +169,14 @@ export class HighlightsLayer implements MapLayer {
       this.origin,
       this.laneLines,
       this.previewLines,
+      this.laneDrag.lines,
       this.addPreviewLines,
       this.marqueeBox,
       this.feZoneDrag.container,
       this.ghostRing,
-      this.port,
+      this.laneDrag.port,
       this.hover,
-      this.target,
+      this.laneDrag.target,
       this.brush.container,
     );
     this.container.addChild(
@@ -203,11 +195,12 @@ export class HighlightsLayer implements MapLayer {
     const loaded = ctx.galaxy !== this.galaxy;
     this.galaxy = ctx.galaxy;
     this.systems = ctx.systems;
+    this.laneDrag.setSystems(ctx.systems);
     if (ctx.coreRadius !== this.coreRadius) {
       this.coreRadius = ctx.coreRadius;
       this.drawCoreRing();
     }
-    this.guide.setReach(guideReachOf(ctx));
+    this.guide.setReach(mapReach(ctx.kind, ctx.radius));
     if (!loaded) return;
     this.added.place(this.systems);
     this.drawAddPreview();
@@ -243,6 +236,7 @@ export class HighlightsLayer implements MapLayer {
     if (cam.scale !== this.camScale || portCapable !== this.portCapable) {
       this.camScale = cam.scale;
       this.portCapable = portCapable;
+      this.laneDrag.onScale(cam.scale, this.markerK, portCapable);
       this.placeAll();
       this.drawLanes();
       this.feZoneDrag.onScale(cam.scale);
@@ -269,33 +263,17 @@ export class HighlightsLayer implements MapLayer {
   setHover(id: number | null): void {
     if (id === this.hoverId) return;
     this.hoverId = id;
+    this.laneDrag.setHover(id);
     this.placeHover();
-  }
-
-  /** The zone whose ring or port band the pointer is on, by its anchor; its port ring shows. */
-  setHoverFeZone(anchor: number | null): void {
-    if (anchor === this.hoverFeZone) return;
-    this.hoverFeZone = anchor;
-    this.drawPort();
-  }
-
-  setPortHot(hot: boolean): void {
-    this.port.alpha = hot ? PORT_RING.hotAlpha : PORT_RING.alpha;
   }
 
   setDragState(drag: DragState | null): void {
     const dragged = drag?.byId ?? new Map<number, MoveGhost>();
-    const same =
-      dragged.size === this.dragged.size && [...dragged.keys()].every((id) => this.dragged.has(id));
+    const same = sameDragged(dragged, this.dragged);
     this.ghosts = drag?.ghosts ?? [];
+    this.laneDrag.setMoving(this.ghosts.length > 0);
     this.dragged = dragged;
     if (!same) this.placeSelection();
-    this.placeAll();
-    this.drawPreviews();
-  }
-
-  setRubberLane(rubber: RubberLane | null): void {
-    this.rubber = rubber;
     this.placeAll();
     this.drawPreviews();
   }
@@ -384,13 +362,11 @@ export class HighlightsLayer implements MapLayer {
   private placeHover(): void {
     const hoverId = this.hoverId !== null && this.selection.has(this.hoverId) ? null : this.hoverId;
     this.place(this.hover, hoverId);
-    this.drawPort();
   }
 
   /** Everything but the selection, matched and searched systems: a handful of rings at most. */
   private placeAll(): void {
     this.placeHover();
-    this.drawTarget();
     this.ghostRings.place(this.ghosts);
     this.joiningRings.place(pointsOf(this.systems, this.nebula?.joining ?? []));
     const covered = this.feZoneDrag.preview?.blocked;
@@ -413,52 +389,6 @@ export class HighlightsLayer implements MapLayer {
     g.visible = true;
   }
 
-  /** The centre of the ring `anchor` anchors, or undefined when it anchors none. */
-  private zoneCentre(anchor: number): Pt | undefined {
-    const s = this.systems.get(anchor);
-    return s?.fe_zone ? feZoneCentre(s, s.fe_zone) : undefined;
-  }
-
-  /** A dashed ring in the middle of the port band: a star's in marker units, a zone's outside its ring band. */
-  private drawPort(): void {
-    const g = this.port;
-    g.clear();
-    if (this.rubber || this.ghosts.length > 0) return;
-    const zone = this.hoverFeZone === null ? undefined : this.zoneCentre(this.hoverFeZone);
-    if (zone) {
-      const r = FE_ZONE_RADIUS + ringPortOffsetPx(this.markerK) / this.camScale;
-      dashedCircle(g, zone.x, zone.y, r, FE_ZONE_PORT_DASHES);
-      g.stroke({ color: PORT_RING.color, width: PORT_RING.width / this.camScale });
-      return;
-    }
-    const star =
-      this.portCapable && this.hoverId !== null ? this.systems.get(this.hoverId) : undefined;
-    if (!star) return;
-    const r = (((PORT_INNER + PORT_OUTER) / 2) * this.markerK) / this.camScale;
-    dashedCircle(g, star.x, star.y, r, PORT_RING.dashes);
-    g.stroke({ color: PORT_RING.color, width: (PORT_RING.width * this.markerK) / this.camScale });
-  }
-
-  /** The snap target's ring: around a star at the marker radius, around a zone just outside its ring. */
-  private drawTarget(): void {
-    const g = this.target;
-    g.clear();
-    const t = this.rubber?.target;
-    if (!t) return;
-    const style = t.valid ? TARGET_VALID : TARGET_INVALID;
-    const at = t.kind === "system" ? this.systems.get(t.id) : this.zoneCentre(t.anchor);
-    if (!at) return;
-    const radius =
-      t.kind === "system"
-        ? (style.radius * this.markerK) / this.camScale
-        : FE_ZONE_RADIUS + FE_ZONE_TARGET_MARGIN_PX / this.camScale;
-    g.circle(at.x, at.y, radius).stroke({
-      color: style.color,
-      alpha: style.alpha,
-      width: (style.width * this.markerK) / this.camScale,
-    });
-  }
-
   private drawPreviews(): void {
     const g = this.previewLines;
     g.clear();
@@ -470,35 +400,6 @@ export class HighlightsLayer implements MapLayer {
     }
     for (const [a, b] of segments) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
     if (segments.length > 0) g.stroke({ ...GHOST_LANE, pixelLine: true });
-    const rubber = this.rubberSegments();
-    for (const { a, b } of rubber) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
-    if (rubber.length > 0) g.stroke({ ...RUBBER_LANE, pixelLine: true });
-  }
-
-  /**
-   * The rubber lines of a pending lane or link: from each dragged system, or from the dragged
-   * zone's ring, to the snapped system, the snapped ring's nearest point, or the pointer.
-   */
-  private rubberSegments(): Segment[] {
-    const r = this.rubber;
-    if (!r) return [];
-    const target = r.target;
-    const targetSystem = target?.kind === "system" ? this.systems.get(target.id) : undefined;
-    const targetZone = target?.kind === "feZone" ? this.zoneCentre(target.anchor) : undefined;
-    const end = targetSystem ?? { x: r.x, y: r.y };
-    if (r.from.kind === "feZone") {
-      const centre = this.zoneCentre(r.from.anchor);
-      const segment = centre && toRing(end, centre);
-      return segment ? [segment] : [];
-    }
-    const segments: Segment[] = [];
-    for (const id of r.from.ids) {
-      const from = this.systems.get(id);
-      if (!from) continue;
-      const segment = targetZone ? toRing(from, targetZone) : { a: from, b: end };
-      if (segment) segments.push(segment);
-    }
-    return segments;
   }
 
   private drawAddPreview(): void {

@@ -14,6 +14,14 @@ export interface DragState {
   readonly byId: ReadonlyMap<number, MoveGhost>;
 }
 
+/** Whether two drags move the same systems, wherever each puts them. */
+export function sameDragged(
+  a: ReadonlyMap<number, MoveGhost>,
+  b: ReadonlyMap<number, MoveGhost>,
+): boolean {
+  return a.size === b.size && [...a.keys()].every((id) => b.has(id));
+}
+
 /**
  * One drawn aspect of the map. A layer derives everything it shows from the `RenderContext`
  * it is rebuilt with and from the view state the controller sets on it. The optional

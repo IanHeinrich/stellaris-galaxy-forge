@@ -26,18 +26,14 @@ export interface PlaceFacts {
   nearest: { name: string; distance: number } | null;
 }
 
-/** Why a system cannot be added, and which of the spot's limits the map should draw. */
-export interface AddRefusal {
-  reason: string;
-  /** Another system is inside the spawn buffer around the spot. */
-  tooClose: boolean;
-  /** The spot is past the galaxy's edge. */
-  outside: boolean;
-}
-
-function refusal(reason: string, tooClose = false, outside = false): AddRefusal {
-  return { reason, tooClose, outside };
-}
+/**
+ * Why a system cannot be added, and which of the spot's limits the map should draw: another
+ * system inside the spawn buffer around it, or the edge of the galaxy's `radius`, which it is past.
+ */
+export type AddRefusal =
+  | { reason: string; limit: null }
+  | { reason: string; limit: "tooClose" }
+  | { reason: string; limit: "outside"; radius: number };
 
 /** Whether the save's version is Stellaris 4 or later, the only saves the core adds a system to. */
 export function isStellaris4(meta: SaveMeta | null): boolean {
@@ -47,25 +43,24 @@ export function isStellaris4(meta: SaveMeta | null): boolean {
 
 /** Why the core would refuse a system at the spot, checked as it checks, or null when it would take one. */
 export function addSystemRefusal(facts: PlaceFacts): AddRefusal | null {
-  if (!facts.gameData) return refusal(NEEDS_GAME_DATA);
-  if (!isStellaris4(facts.meta)) return refusal(NEEDS_STELLARIS_4);
-  if (facts.meta?.ironman) return refusal(IRONMAN);
-  if (facts.radius > 0 && Math.hypot(facts.x, facts.y) > facts.radius) {
-    return refusal(`Outside the galaxy's edge (radius ${Math.round(facts.radius)})`, false, true);
+  if (!facts.gameData) return { reason: NEEDS_GAME_DATA, limit: null };
+  if (!isStellaris4(facts.meta)) return { reason: NEEDS_STELLARIS_4, limit: null };
+  if (facts.meta?.ironman) return { reason: IRONMAN, limit: null };
+  const radius = facts.radius;
+  if (radius > 0 && Math.hypot(facts.x, facts.y) > radius) {
+    const reason = `Outside the galaxy's edge (radius ${Math.round(radius)})`;
+    return { reason, limit: "outside", radius };
   }
   const near = facts.nearest;
   if (near && near.distance < SPAWN_BUFFER) {
     const away = Math.max(1, Math.round(near.distance));
-    return refusal(`Too close to ${near.name}: ${away} away, the game needs ${SPAWN_BUFFER}`, true);
+    const reason = `Too close to ${near.name}: ${away} away, the game needs ${SPAWN_BUFFER}`;
+    return { reason, limit: "tooClose" };
   }
   return null;
 }
 
-/** A fresh seed for the generator: a random whole number JSON carries exactly. */
-export function newSeed(): number {
-  const [high, low] = crypto.getRandomValues(new Uint32Array(2));
-  return (high & 0x1fffff) * 0x100000000 + low;
-}
+export { newSeed } from "./random";
 
 /** The systems among `ids` added this session, in the order given. */
 export function addedAmong(

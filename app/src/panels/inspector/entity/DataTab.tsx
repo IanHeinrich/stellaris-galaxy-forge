@@ -12,15 +12,8 @@ import {
   type ValueText,
 } from "../../../lib/entities";
 import { useInspectorStore } from "../../../store/inspectorStore";
-import {
-  ChangedBadge,
-  DrillLink,
-  Empty,
-  FILTER_MIN,
-  FilterField,
-  Properties,
-  PropertyRow,
-} from "../parts";
+import { FILTER_MIN, FilterField } from "../../parts";
+import { ChangedBadge, DrillLink, Empty, Properties, PropertyRow } from "../parts";
 import { useEntitySchema, useEntityView, useOpenEntity } from "./useEntity";
 
 interface DataRow {

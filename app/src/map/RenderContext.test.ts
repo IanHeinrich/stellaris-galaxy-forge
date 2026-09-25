@@ -8,7 +8,7 @@ import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
-import { renderContext } from "./RenderContext";
+import { EMPTY_CONTEXT, renderContext, sameContext, type RenderContext } from "./RenderContext";
 
 /** Opens the fixture galaxy as one kind of document, with the game data's bypasses in hand. */
 function open(result: typeof OPEN_RESULT): void {
@@ -113,5 +113,24 @@ describe("a save's waystations in the render context", () => {
     openWith([], []);
     expect(renderContext().waystations).not.toBe(stations);
     expect(renderContext().waystations.size).toBe(0);
+  });
+});
+
+/** Another value of the same kind as `value`, never equal to it. */
+function changed(value: unknown): unknown {
+  if (typeof value === "boolean") return !value;
+  if (typeof value === "number") return value + 1;
+  return {};
+}
+
+describe("sameContext", () => {
+  it("sees a change to every field a layer draws from", () => {
+    const fields = Object.entries(EMPTY_CONTEXT).filter(([, value]) => typeof value !== "function");
+    const missed = fields
+      .map(([key]) => key as keyof RenderContext)
+      .filter((key) =>
+        sameContext(EMPTY_CONTEXT, { ...EMPTY_CONTEXT, [key]: changed(EMPTY_CONTEXT[key]) }),
+      );
+    expect(missed).toEqual([]);
   });
 });

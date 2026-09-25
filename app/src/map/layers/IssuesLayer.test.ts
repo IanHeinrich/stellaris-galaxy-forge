@@ -2,8 +2,8 @@ import { Graphics } from "pixi.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Issue } from "../../generated/Issue";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { IssuesLayer } from "./IssuesLayer";
-import { mapContext, mapNode, viewport } from "./fixture";
+import { IssuesLayer, SEVERITY_COLOR } from "./IssuesLayer";
+import { mapContext, mapNode, strokes, viewport } from "./fixture";
 
 const SOL = mapNode(0, 0, "Sol");
 
@@ -47,5 +47,16 @@ describe("the issues layer", () => {
 
     ring.emit("pointerout", {} as never);
     expect(useMapChromeStore.getState().tooltip).toBeNull();
+  });
+
+  it("rings a system in the colour of its worst issue, whatever order they come in", () => {
+    const layer = new IssuesLayer();
+    layer.rebuild(mapContext([SOL]));
+    viewport(layer, 1);
+    const duplicate: Issue = { ...ISOLATED, severity: "info", code: "lane_duplicate" };
+    const outside: Issue = { ...ISOLATED, severity: "warning", code: "out_of_bounds" };
+    layer.setIssues([duplicate, outside]);
+
+    expect(strokes(ringAt(layer, SOL.x))[0].color).toBe(SEVERITY_COLOR.warning);
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import type { InitializerView } from "../../generated/InitializerView";
 import { initializerTotals } from "../../lib/initializer/initializerBrowser";
 import {
@@ -7,9 +7,12 @@ import {
   relativeSource,
 } from "../../lib/initializer/initializerGroups";
 import { displayName } from "../../lib/names";
+import { resourceSprite } from "../../lib/resources";
+import { counted } from "../../lib/text";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInitializerBrowserStore } from "../../store/initializerBrowserStore";
+import { useNamed } from "../useNamed";
 import { InitializerSpawn } from "../inspector/system/sections/scenario/Initializer";
 import { Pills } from "../inspector/system/sections/bodies";
 import { entryLabel, nameKeysOf } from "./rows";
@@ -54,10 +57,7 @@ export function Detail({ entry, uses }: { entry: InitializerView | null; uses: n
   const deposits = useGameDataStore((s) => s.deposits);
   const icons = useDetailsStore((s) => s.resourceIcons);
 
-  const keys = useMemo(() => (entry === null ? "" : nameKeysOf(entry).join("|")), [entry]);
-  useEffect(() => {
-    if (keys !== "") void useGameDataStore.getState().fetchNames(keys.split("|"));
-  }, [keys]);
+  useNamed(entry === null ? [] : nameKeysOf(entry));
 
   const totals = useMemo(
     () =>
@@ -66,7 +66,7 @@ export function Detail({ entry, uses }: { entry: InitializerView | null; uses: n
         : initializerTotals(entry, deposits).map(([resource, amount]) => ({
             resource,
             amount,
-            sprite: `sprite:${icons.get(resource) ?? `GFX_resource_${resource}`}`,
+            sprite: resourceSprite(resource, icons),
           })),
     [entry, deposits, icons],
   );
@@ -130,7 +130,7 @@ export function Detail({ entry, uses }: { entry: InitializerView | null; uses: n
         <Row label="In use">
           {uses === 0
             ? "No system in this document uses it"
-            : `${uses} ${uses === 1 ? "system" : "systems"} in this document use it`}
+            : `${counted(uses, "system")} in this document use it`}
         </Row>
       </div>
       {isEmpireSpawn(entry) && <SpawnWeight />}

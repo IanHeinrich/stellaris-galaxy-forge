@@ -144,16 +144,3 @@ export class StrokeSampler {
     return i;
   }
 }
-
-/** The points a whole stroke places at once: the same as feeding its stamps to a `StrokeSampler`. */
-export function sampleStroke(
-  stamps: readonly Pt[],
-  r: number,
-  spacing: number,
-  blockers: readonly Pt[],
-  rand: Rand,
-  cap = SAMPLE_CAP,
-): Pt[] {
-  const sampler = new StrokeSampler({ r, spacing, blockers, rand, cap });
-  return sampler.add(stamps).map(({ x, y }) => ({ x, y }));
-}

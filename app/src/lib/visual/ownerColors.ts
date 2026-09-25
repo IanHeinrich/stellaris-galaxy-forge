@@ -51,15 +51,10 @@ export function ownerColors(
   index: number,
   palette: ReadonlyMap<string, MapColor>,
 ): OwnerColors {
-  const first = mapColor(country?.colors[0], palette);
-  const second = mapColor(country?.colors[1], palette);
-  const border = mapColor(country?.border_color, palette);
-  const fill = mapColor(country?.fill_color, palette);
+  const border = mapColor(country?.painted_border, palette);
+  const fill = mapColor(country?.painted_fill, palette);
   const fallback = paletteColor(index);
-  return {
-    outline: border ?? first ?? second ?? fallback,
-    fill: fill ?? second ?? first ?? darken(fallback, FILL_DARKEN),
-  };
+  return { outline: border ?? fallback, fill: fill ?? darken(fallback, FILL_DARKEN) };
 }
 
 /** The country's outline colour: the one swatch that stands for it in legends and labels. */

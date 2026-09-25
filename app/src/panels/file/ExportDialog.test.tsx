@@ -17,7 +17,6 @@ import { ExportDialog, ExportForm, ExportReportRows } from "./ExportDialog";
 import { PaintChoice } from "./PaintChoice";
 import {
   countsSummary,
-  droppedSummary,
   fallenEmpiresSummary,
   homeInitializerLines,
   omittedLines,
@@ -31,6 +30,7 @@ const FULL = exportReport({
     { system: 12, initializer: "void_dwellers_start", replaced: false },
   ],
   dropped: { wormhole_pairs: 6, gateways: 0, lgates: 1 },
+  dropped_summary: "6 wormhole pairs, 1 L-Gate",
   by_category: [
     { category: "home", systems: 17 },
     { category: "fallen_empire", systems: 28 },
@@ -285,14 +285,6 @@ describe("the report", () => {
       review: "void_dwellers_start (system 12)",
       replaced: ["system 311 had shattered_ring_start, replaced with a generic start."],
     });
-  });
-
-  it("words the dropped bypasses as the file's own comment does", () => {
-    expect(droppedSummary({ wormhole_pairs: 0, gateways: 0, lgates: 0 })).toBeNull();
-    expect(droppedSummary({ wormhole_pairs: 1, gateways: 2, lgates: 0 })).toBe(
-      "1 wormhole pair, 2 gateways",
-    );
-    expect(droppedSummary({ wormhole_pairs: 0, gateways: 0, lgates: 1 })).toBe("1 L-Gate");
   });
 });
 

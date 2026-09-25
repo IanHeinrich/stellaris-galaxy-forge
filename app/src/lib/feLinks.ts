@@ -5,6 +5,7 @@
 
 import type { SystemNode } from "../generated/SystemNode";
 import type { Pt } from "./geometry/pt";
+import type { Segment } from "./geometry/segments";
 import { FE_ZONE_RADIUS, feZoneCentre } from "./feZone";
 
 /** What the ring's menu and the inspector offer to give a zone back to the mod's own rule. */
@@ -16,11 +17,6 @@ export const USE_NEAREST_SHORT_LABEL = "Use nearest instead";
 /** Whether `system` anchors a zone and takes custom connections for it under an id. */
 export function takesCustomLinks(system: SystemNode): boolean {
   return system.fe_link.custom && system.fe_link.id !== null && system.fe_zone !== null;
-}
-
-export interface Segment {
-  a: Pt;
-  b: Pt;
 }
 
 /** The line from `from` to the nearest point of a zone's ring about `centre`; null from inside the ring. */

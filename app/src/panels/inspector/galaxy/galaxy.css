@@ -73,6 +73,8 @@
   gap: 4px;
 }
 
-.ins-kv > .ins-lgate-note {
-  grid-column: 1 / -1;
+.ins-lgate-outcome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

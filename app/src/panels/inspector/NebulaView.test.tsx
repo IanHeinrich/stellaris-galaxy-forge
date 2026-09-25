@@ -11,7 +11,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import { bindStores } from "../../store/bindStores";
 import { useEditorStore } from "../../store/editorStore";
 import { mocked, open, resetStores } from "./inspectorFixture";
-import { NEBULA_RADIUS_INPUT_ID } from "./nebula";
+import { NEBULA_RADIUS_INPUT_ID } from "../nebula";
 import { NebulaView } from "./NebulaView";
 
 bindStores();

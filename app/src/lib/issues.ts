@@ -2,6 +2,7 @@ import type { GalaxySizeView } from "../generated/GalaxySizeView";
 import type { IssueCode } from "../generated/IssueCode";
 import type { Severity } from "../generated/Severity";
 import type { SystemNode } from "../generated/SystemNode";
+import { thousands } from "./text";
 
 /** The codes the app raises on its own, which the validator's list does not carry. */
 export type NoteCode =
@@ -71,13 +72,12 @@ export function exceedsGalaxySize(systems: number, largest: GalaxySizeView): boo
 
 /** The note on a scenario with far more systems than the game's largest galaxy size. */
 export function galaxySizeNote(systems: number, largest: GalaxySizeView): AppIssue {
-  const count = (n: number) => n.toLocaleString("en-US");
   return {
     severity: "warning",
     code: "galaxy_size_exceeded",
     message:
-      `${count(systems)} systems is well above ${largest.label}, the game's largest galaxy ` +
-      `(${count(largest.num_stars)} stars). Very large galaxies can make the game slow.`,
+      `${thousands(systems)} systems is well above ${largest.label}, the game's largest galaxy ` +
+      `(${thousands(largest.num_stars)} stars). Very large galaxies can make the game slow.`,
     systems: [],
     note: true,
   };

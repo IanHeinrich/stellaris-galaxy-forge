@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { LayerId } from "../../lib/visual/layerIds";
-import { Glyph } from "../Glyph";
-
-const STAR = "M8 2.2 9.5 6.5 13.8 8 9.5 9.5 8 13.8 6.5 9.5 2.2 8 6.5 6.5Z";
+import { Glyph, NebulaMark, OwnerMark, StarMark } from "../Glyph";
 
 function LayerGlyph({ children }: { children: ReactNode }) {
   return <Glyph className="layer-icon">{children}</Glyph>;
@@ -40,7 +38,7 @@ function glyphOf(id: LayerId): ReactNode {
     case "systems":
       return (
         <LayerGlyph>
-          <path d={STAR} fill="currentColor" stroke="none" />
+          <StarMark />
         </LayerGlyph>
       );
     case "details":
@@ -59,8 +57,7 @@ function glyphOf(id: LayerId): ReactNode {
     case "owners":
       return (
         <LayerGlyph>
-          <circle cx="8" cy="8" r="5.4" strokeWidth="2.2" />
-          <circle cx="8" cy="8" r="1.9" fill="currentColor" stroke="none" />
+          <OwnerMark />
         </LayerGlyph>
       );
     case "claims":
@@ -99,12 +96,7 @@ function glyphOf(id: LayerId): ReactNode {
       return (
         <LayerGlyph>
           <circle cx="8" cy="8" r="6.2" />
-          <path
-            d={STAR}
-            fill="currentColor"
-            stroke="none"
-            transform="translate(8 8) scale(0.62) translate(-8 -8)"
-          />
+          <StarMark scale={0.62} />
         </LayerGlyph>
       );
     case "initializers":
@@ -159,7 +151,7 @@ function glyphOf(id: LayerId): ReactNode {
     case "nebulae":
       return (
         <LayerGlyph>
-          <path d="M4.4 11.2a2.6 2.6 0 0 1 .5-5.1 3.3 3.3 0 0 1 6.3.6 2.3 2.3 0 0 1-.3 4.5Z" />
+          <NebulaMark />
         </LayerGlyph>
       );
     case "issues":
@@ -222,7 +214,7 @@ function kindGlyph(kind: SpecialKind): ReactNode {
     default:
       return (
         <LayerGlyph>
-          <path d={STAR} fill="currentColor" stroke="none" />
+          <StarMark />
         </LayerGlyph>
       );
   }

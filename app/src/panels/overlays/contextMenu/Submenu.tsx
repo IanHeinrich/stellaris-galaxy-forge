@@ -1,6 +1,7 @@
 import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { placeBeside, SubmenuAim, type Placed } from "../../../lib/menuAim";
 import { MenuSide } from "./menuState";
+import { menuItems } from "../../menuKeys";
 
 /** How far above its entry a submenu's list starts, so its first item lines up with the entry. */
 const LIST_INSET_PX = 7;
@@ -36,8 +37,7 @@ export function Submenu({
   const list = useRef<HTMLDivElement>(null);
   const side = useContext(MenuSide);
   const [place, setPlace] = useState<Placed | null>(null);
-  const focusList = () =>
-    list.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus();
+  const focusList = () => menuItems(list.current)[0]?.focus();
   useEffect(() => {
     if (!open || !focusFirst.current) return;
     focusFirst.current = false;

@@ -4,8 +4,6 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
-import { isStarClass } from "./labels";
-import { isOrdinaryStarBody, looksLikeStarBody } from "./starClass";
 
 export interface FoundPlanet {
   system: number;
@@ -30,14 +28,52 @@ export function findPlanet(
   return null;
 }
 
-/** Whether a body is a star: as the game data says, or by its key while none is loaded. */
+/** The class an initializer writes for the body standing in for the system's own star. */
+export const STAR_BODY_CLASS = "star";
+
+/** The star bodies of the collapsed remnants: none of them is a star as the pickers group them. */
+const EXOTIC_BODIES = new Set(["pc_black_hole", "pc_neutron_star", "pc_pulsar"]);
+
+/** Whether a star body's class is an ordinary `*_star`, not one of the collapsed remnants. */
+function isOrdinaryStarBody(planetClass: string): boolean {
+  return planetClass.endsWith("_star") && !EXOTIC_BODIES.has(planetClass);
+}
+
+/** The group a star body's class sits in on a picker. */
+export function starGroup(planetClass: string): "Stars" | "Exotic" {
+  return isOrdinaryStarBody(planetClass) ? "Stars" : "Exotic";
+}
+
+/**
+ * Whether a body is a star: the bare `star` an initializer writes, a planet class the game flags
+ * `star` or a `star_classes` key, and by its key alone while no game data is loaded.
+ */
 export function isStarBody(
   planetClass: string,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
   starClasses: ReadonlyMap<string, StarClassView>,
 ): boolean {
-  if (planetClasses.size === 0) return looksLikeStarBody(planetClass);
-  return isStarClass(planetClass, planetClasses, starClasses);
+  if (planetClass === STAR_BODY_CLASS) return true;
+  if (planetClasses.size === 0) {
+    return planetClass.endsWith("_star") || EXOTIC_BODIES.has(planetClass);
+  }
+  return planetClasses.get(planetClass)?.star ?? starClasses.has(planetClass);
+}
+
+/** Whether a body's page has star fields to edit: a star, where the document's bodies can change. */
+export function starBodyEditable(
+  planetClass: string,
+  bodies: boolean,
+  planetClasses: ReadonlyMap<string, PlanetClassView>,
+  starClasses: ReadonlyMap<string, StarClassView>,
+): boolean {
+  return bodies && isStarBody(planetClass, planetClasses, starClasses);
+}
+
+/** Whether two lists hold the same classes, in any order. */
+export function sameBodies(a: readonly string[], b: readonly string[]): boolean {
+  const sorted = (keys: readonly string[]) => [...keys].sort().join("|");
+  return sorted(a) === sorted(b);
 }
 
 /** The planet classes a star body can become: every one the game flags `star`, not `current`. */
@@ -55,7 +91,7 @@ export function starTypeRows(
 ): StarTypeRow[] {
   const exotic = (row: StarTypeRow) => (row.group === "Exotic" ? 1 : 0);
   return choices
-    .map((key) => ({ key, label: label(key), group: isOrdinaryStarBody(key) ? "Stars" : "Exotic" }))
+    .map((key) => ({ key, label: label(key), group: starGroup(key) }))
     .sort((a, b) => exotic(a) - exotic(b) || a.label.localeCompare(b.label));
 }
 
@@ -87,9 +123,7 @@ export function classForBodies(
   current: string,
   starClasses: ReadonlyMap<string, StarClassView>,
 ): string | null {
-  const sorted = (keys: readonly string[]) => [...keys].sort().join("|");
-  const want = sorted(bodies);
-  const fits = [...starClasses.values()].filter((c) => sorted(c.planet_keys) === want);
+  const fits = [...starClasses.values()].filter((c) => sameBodies(c.planet_keys, bodies));
   const pick = fits.find((c) => c.key === current) ?? fits.find((c) => c.spawn_odds > 0) ?? fits[0];
   return pick?.key ?? null;
 }
@@ -129,6 +163,5 @@ export function starMismatch(
   starClass: StarClassView | undefined,
 ): string[] | null {
   if (starClass === undefined || bodies.length === 0) return null;
-  const sorted = (keys: readonly string[]) => [...keys].sort().join("|");
-  return sorted(bodies) === sorted(starClass.planet_keys) ? null : [...bodies];
+  return sameBodies(bodies, starClass.planet_keys) ? null : [...bodies];
 }

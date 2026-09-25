@@ -1,7 +1,7 @@
-import type { Op } from "../../../../../generated/Op";
-import type { SpawnModifier } from "../../../../../generated/SpawnModifier";
-import type { SystemNode } from "../../../../../generated/SystemNode";
-import { enabledScript } from "../../../../../lib/paint";
+import type { Op } from "../generated/Op";
+import type { SpawnModifier } from "../generated/SpawnModifier";
+import type { SystemNode } from "../generated/SystemNode";
+import { enabledScript } from "../lib/paint";
 
 /** The weight a system takes the moment it is made a spawn point. */
 export const DEFAULT_SPAWN_WEIGHT = 1;

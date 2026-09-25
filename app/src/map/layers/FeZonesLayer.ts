@@ -10,20 +10,21 @@ import {
   spawnSatellites,
 } from "../../lib/feSpawnGhosts";
 import { FE_ZONE_RADIUS, feKindLabel, feZoneCentre } from "../../lib/feZone";
-import { GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
+import { FE_ZONE_COLOR, GHOST_ALPHA, MAP_FONT } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
-import { useMapChromeStore } from "../../store/mapChromeStore";
+import { OwnedTooltip } from "../ownedTooltip";
 import type { MoveGhost } from "../moveGhosts";
 import { FE_ZONE_RING_HIT_PX } from "../picking/zones";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { type LaneStyle, laneStyleAt, tinted } from "./LanesLayer";
+import { dashedCircle, dashedLine } from "./dashes";
 import type { DragState, MapLayer } from "./MapLayer";
 
 /** The zones' hue: a magenta no other layer uses, so a ring reads as the mod's, not the game's. */
-const RING = { color: 0xf0abfc, alpha: 0.75 };
+const RING = { color: FE_ZONE_COLOR, alpha: 0.75 };
 /** The ring whose anchor is selected: the same hue, filled and fully drawn. */
 const SELECTED_RING = { color: 0xf5d0fe, alpha: 1 };
-const SELECTED_FILL = { color: 0xf0abfc, alpha: 0.12 };
+const SELECTED_FILL = { color: FE_ZONE_COLOR, alpha: 0.12 };
 const DASHES = 32;
 
 /** What the tooltip calls the ring. */
@@ -63,20 +64,6 @@ const TIE = { color: RING.color, alpha: 0.3 };
 /** How far the lanes to a zone's linked systems lean from the lanes' own hue toward the ring's. */
 const LINK_TINT = 0.35;
 
-function dashedRing(g: Graphics): void {
-  const step = (Math.PI * 2) / DASHES;
-  for (let i = 0; i < DASHES; i++) {
-    const start = i * step;
-    g.moveTo(FE_ZONE_RADIUS * Math.cos(start), FE_ZONE_RADIUS * Math.sin(start)).arc(
-      0,
-      0,
-      FE_ZONE_RADIUS,
-      start,
-      start + step * DASH_FRACTION,
-    );
-  }
-}
-
 /**
  * The lanes the mod will lay from each linked system to the ring, in the lanes' own look with a
  * hint of the ring's colour, drawn about the centre. A system inside the ring gets none: the core
@@ -106,29 +93,15 @@ function linkStyleAt(camScale: number): LaneStyle {
 function draw(g: Graphics, anchorDx: number, anchorDy: number, selected: boolean): void {
   g.clear();
   if (selected) g.circle(0, 0, FE_ZONE_RADIUS).fill(SELECTED_FILL);
-  dashedRing(g);
+  dashedCircle(g, 0, 0, FE_ZONE_RADIUS, DASHES, DASH_FRACTION);
   g.stroke({ ...(selected ? SELECTED_RING : RING), pixelLine: true });
   const d = Math.hypot(anchorDx, anchorDy);
   if (d > FE_ZONE_RADIUS) {
     const t = FE_ZONE_RADIUS / d;
-    dashedTie(g, { x: anchorDx, y: anchorDy }, { x: anchorDx * t, y: anchorDy * t });
+    const ink = TIE_DASH_STEP * DASH_FRACTION;
+    const from = { x: anchorDx, y: anchorDy };
+    dashedLine(g, from, { x: anchorDx * t, y: anchorDy * t }, ink, TIE_DASH_STEP - ink, true);
     g.stroke({ ...TIE, pixelLine: true });
-  }
-}
-
-/** A dashed straight from `from` to `to`; the last dash reaches `to`. */
-function dashedTie(
-  g: Graphics,
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-): void {
-  const length = Math.hypot(to.x - from.x, to.y - from.y);
-  const ux = (to.x - from.x) / length;
-  const uy = (to.y - from.y) / length;
-  for (let at = 0; at < length; at += TIE_DASH_STEP) {
-    const last = at + TIE_DASH_STEP >= length;
-    const end = last ? length : at + TIE_DASH_STEP * DASH_FRACTION;
-    g.moveTo(from.x + ux * at, from.y + uy * at).lineTo(from.x + ux * end, from.y + uy * end);
   }
 }
 
@@ -180,6 +153,7 @@ export class FeZonesLayer implements MapLayer {
   private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
   private selection: ReadonlySet<number> = new Set();
   private hovered: number | null = null;
+  private readonly tip = new OwnedTooltip();
   private camScale = 1;
   private linkStyle = linkStyleAt(1);
   private readonly scale = { x: 1, y: 1 };
@@ -423,7 +397,7 @@ export class FeZonesLayer implements MapLayer {
       FE_ZONE_NOTE,
     ];
     if (!s.fe_zone.preferred) parts.push(AUTOMATIC_NOTE);
-    useMapChromeStore.getState().showTooltip({
+    this.tip.show({
       x: at.x,
       y: at.y,
       title: FE_ZONE_TITLE,
@@ -434,7 +408,7 @@ export class FeZonesLayer implements MapLayer {
   private unhover(id: number): void {
     if (this.hovered !== id) return;
     this.hovered = null;
-    useMapChromeStore.getState().hideTooltip();
+    this.tip.hide();
   }
 
   private remove(id: number): void {

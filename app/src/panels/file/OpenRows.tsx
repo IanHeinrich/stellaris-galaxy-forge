@@ -10,8 +10,50 @@ import type {
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { Twisty } from "../Twisty";
-import { EmpireMark, IRONMAN_TITLE, PaintTag } from "./OpenDetails";
-import { formatSize, formatWhen } from "./launchData";
+import type { SaveMeta } from "../../generated/SaveMeta";
+import type { ScenarioListing } from "../../generated/ScenarioListing";
+import { saveFlagKey } from "../../lib/flagKey";
+import { SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
+import { formatSize, formatWhen } from "../../lib/text";
+import { useGameDataStore } from "../../store/gameDataStore";
+import { useTextureUrl } from "../useTextureUrl";
+import { useForPaint } from "./useForPaint";
+
+export const IRONMAN_TITLE = "Ironman save: the game only loads it in ironman mode.";
+
+/** The empire's own colour, when game data knows the key the header names. */
+function EmpireDot({ meta }: { meta: SaveMeta | null }) {
+  const mapColors = useGameDataStore((s) => s.mapColors);
+  const color = meta?.color ? mapColors.get(meta.color)?.flag : undefined;
+  if (!color) return null;
+  return <span className="swatch dot" style={{ background: color }} />;
+}
+
+/** The empire's flag once game data has drawn it, its colour until then. */
+export function EmpireMark({ meta, size }: { meta: SaveMeta | null; size: "row" | "large" }) {
+  const key = saveFlagKey(meta);
+  const url = useTextureUrl(key === null ? [] : [key]);
+  if (url === undefined) return <EmpireDot meta={meta} />;
+  return <img className={`empire-flag ${size}`} src={url} alt="" />;
+}
+
+/** A scenario row's tag: for Paint a Galaxy or plain, when that can be told. */
+function PaintTag({
+  path,
+  listings,
+}: {
+  path: string;
+  listings: readonly ScenarioListing[] | null;
+}) {
+  const forPaint = useForPaint(path, listings);
+  if (forPaint === null) return null;
+  const copy = forPaint ? SCENARIO_FOR_PAINT : SCENARIO_PLAIN;
+  return (
+    <span className="flag" title={copy.line}>
+      {copy.tag}
+    </span>
+  );
+}
 
 function CloudFlag({ cloud }: { cloud: boolean }) {
   if (!cloud) return null;

@@ -1,3 +1,4 @@
+import { laneLabel } from "../../../lib/names";
 import { useSystemNames } from "../../../store/browserRows";
 import { useEditorStore } from "../../../store/editorStore";
 import { isPrevented, useGalaxyStore } from "../../../store/galaxyStore";
@@ -18,7 +19,7 @@ export function PreventedMenu({
   const { a, b } = target;
   const prevented = isPrevented(systems, a, b);
   const named = useSystemNames([a, b]);
-  const label = `${named[0]} — ${named[1]}`;
+  const label = laneLabel(named[0], named[1]);
   return (
     <MenuFrame {...frame} label={label}>
       <div className="context-menu-header">{label}</div>
