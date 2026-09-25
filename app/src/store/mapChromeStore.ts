@@ -32,7 +32,11 @@ import {
   writePref,
 } from "./prefs";
 
-/** What a right-click landed on; `space` carries the world point the pointer was over. */
+/**
+ * What a right-click landed on; `space` carries the world point the pointer was over. `body` and
+ * `systemSpace` are inside the system scene of `system`, where `systemSpace`'s point is in that
+ * scene's own coordinates.
+ */
 export type ContextTarget =
   | { kind: "system"; id: number }
   | { kind: "lane"; lane: LaneRef }
@@ -41,7 +45,9 @@ export type ContextTarget =
   | { kind: "nebula"; index: number }
   /** A fallen empire zone's ring, named by the system that anchors it. */
   | { kind: "feZone"; anchor: number }
-  | { kind: "space"; x: number; y: number };
+  | { kind: "space"; x: number; y: number }
+  | { kind: "body"; system: number; id: number }
+  | { kind: "systemSpace"; system: number; x: number; y: number };
 
 /** A context menu for a system, a lane or empty space, anchored in map-area pixels. */
 export interface ContextMenu {

@@ -6,6 +6,7 @@ import { toolRequires, type Tool } from "../lib/tools";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
+import { sceneSystem } from "./sceneStore";
 
 /** What M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
@@ -125,8 +126,9 @@ function storedNumber(
   return clamp(field.read(), range);
 }
 
-/** Whether the open document can take `tool`. */
+/** Whether the open document can take `tool`; inside a system only Select works. */
 export function toolAllowed(tool: Tool): boolean {
+  if (tool !== "select" && sceneSystem() !== null) return false;
   const requires = toolRequires(tool);
   if (requires === undefined) return true;
   return useFileSessionStore.getState().status === "ready" && canEdit(requires);

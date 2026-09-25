@@ -13,6 +13,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { linked, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore, type EntityRef } from "./inspectorStore";
+import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
 import { symmetricOp, symmetricSeat } from "./symmetricEdits";
 import { useWatchlistStore } from "./watchlistStore";
@@ -100,6 +101,8 @@ export function editPipeline(
    * the pages on its planets. The hover goes too: the pointer is on what the map drew before.
    */
   function followRenumbering(pairs: Renumbering): void {
+    // Before the selection moves, so the scene following the selection sees the new id as its own.
+    useSceneStore.getState().renumber(pairs);
     const { selection, selectedLane, searchRings, recentHits } = get();
     set({
       selection: renumberedIds(pairs, selection),
