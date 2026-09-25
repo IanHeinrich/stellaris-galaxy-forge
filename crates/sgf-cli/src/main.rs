@@ -204,6 +204,21 @@ fn run(cli: Cli) -> commands::Run {
             out.path.as_deref(),
             Op::SetPlanetSize { id: planet, size },
         ),
+        Some(Command::TerraformCandidate {
+            sav,
+            planet,
+            modifier,
+            off,
+            out,
+        }) => commands::mutate::run(
+            &sav,
+            out.path.as_deref(),
+            Op::SetTerraformCandidate {
+                id: planet,
+                modifier,
+                on: !off,
+            },
+        ),
         Some(Command::Deposit { command }) => match command {
             DepositCommand::Add {
                 sav,

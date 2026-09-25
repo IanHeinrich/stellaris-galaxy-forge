@@ -299,6 +299,16 @@ pub enum Op {
         id: u32,
         size: u32,
     },
+    /// A save planet's permanent `modifier` (`days=-1`), added last to its `timed_modifier`
+    /// items when `on` and taken out when not, as the console's `add_modifier` does; the
+    /// game's terraforming candidates are the ones the app offers. The modifier is written
+    /// as given. A system's star is refused, and so is removing an item that runs out. The
+    /// inverse flips `on`. Save documents only.
+    SetTerraformCandidate {
+        id: u32,
+        modifier: String,
+        on: bool,
+    },
     /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
     /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
     /// writes both and turns that on; `None` turns it off and mirrors the first two flag
@@ -467,6 +477,7 @@ impl Op {
             | Self::SetWormholeEnds { .. } => true,
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
+            | Self::SetTerraformCandidate { .. }
             | Self::AddSaveDeposit { .. }
             | Self::RemoveSaveDeposit { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
@@ -696,6 +707,14 @@ pub enum OpError {
     ZeroPlanetSize,
     #[error("planet {0} is already size {1}")]
     PlanetSizeUnchanged(u32, u32),
+    #[error("planet {0} is its system's star, which cannot be a terraforming candidate")]
+    StarCandidate(u32),
+    #[error("planet {0} already has {1}")]
+    ModifierPresent(u32, String),
+    #[error("planet {0} does not have {1}")]
+    ModifierAbsent(u32, String),
+    #[error("planet {0}'s {1} has {2} days left: only a permanent modifier can be removed")]
+    ModifierNotPermanent(u32, String, String),
     #[error("country {0} does not exist")]
     UnknownCountry(u32),
     #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
@@ -839,6 +858,10 @@ impl OpError {
             | Self::StarClassUnchanged { .. }
             | Self::ZeroPlanetSize { .. }
             | Self::PlanetSizeUnchanged { .. }
+            | Self::StarCandidate { .. }
+            | Self::ModifierPresent { .. }
+            | Self::ModifierAbsent { .. }
+            | Self::ModifierNotPermanent { .. }
             | Self::NoMapColors { .. }
             | Self::MapColorsUnchanged { .. }
             | Self::SaveTooOld { .. }

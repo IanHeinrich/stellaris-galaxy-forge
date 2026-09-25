@@ -51,6 +51,7 @@ mod ops_spawn_read;
 mod ops_spawn_refusals;
 mod ops_spawn_weight;
 mod ops_star_class;
+mod ops_terraform_candidate;
 mod overlay;
 mod planet_page;
 mod scenario;

@@ -24,7 +24,7 @@ const MOON_FLAG: u32 = 512;
 /// `deposit_holder.type` of a planet.
 pub(crate) const PLANET_HOLDER: &str = "0";
 /// How long a modifier the layout gives a body lasts: for ever.
-const PERMANENT: &str = "-1";
+pub(crate) const PERMANENT: &str = "-1";
 /// `last_bombardment` as a body that was never bombarded holds it, tabs included.
 const NEVER_BOMBARDED: &str = "\t\t\t\"0.01.01\"";
 

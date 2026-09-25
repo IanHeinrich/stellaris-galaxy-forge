@@ -15,9 +15,7 @@
 use crate::archive;
 use crate::cst::Node;
 use crate::document::Document;
-use crate::emit::system::{
-    AmbientEntry, ambient_entry, ambient_list, timed_modifier_item, timed_modifiers,
-};
+use crate::emit::system::{AmbientEntry, ambient_entry, ambient_list};
 use crate::emit::{coord, inline, quoted};
 use crate::format::save::alloc::{self, Slot, SlotTable};
 use crate::format::save::galaxy::systems::{
@@ -28,6 +26,7 @@ use crate::format::save::write::game_tables::{
     CLASS_A, FIRST_CONTACT, HOME_SYSTEM, OCEAN_PARADISE, TURBULENT_KINDS, beside, calm_kinds,
     calm_of, is_cloud_kind, turbulent_of,
 };
+use crate::format::save::write::timed_modifiers::{self, Place};
 use crate::format::save::{entity, entity_at, planet_statement, system_statement};
 use crate::keys;
 use crate::ops::{Edit, Emitted, NebulaCloud, NebulaFootprint, OpError, Plan, Subject};
@@ -404,72 +403,11 @@ impl<'d> Footprints<'d> {
 /// ask for and no others of the two, in the order the game writes them: the block goes
 /// after `index=` when it is new, and with the last item it held.
 fn set_modifiers(edit: &mut Edit, cloaking: bool, turbulent: bool) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let block = entity.find(keys::TIMED_MODIFIER, &edit.buf);
-    let items = block.and_then(|b| b.find(keys::ITEMS, &edit.buf));
-    let listed: Vec<(Span, String)> = items
-        .map(|items| {
-            items
-                .children()
-                .iter()
-                .map(|item| (item.span(), read::text(item, keys::MODIFIER, &edit.buf)))
-                .collect()
-        })
-        .unwrap_or_default();
-    let has = |m: &str| listed.iter().any(|(_, name)| name == m);
-    let wanted = |m: &str| (m == CLOAKING && cloaking) || (m == TURBULENT_NEBULA && turbulent);
-    let removing: Vec<Span> = listed
-        .iter()
-        .filter(|(_, name)| [CLOAKING, TURBULENT_NEBULA].contains(&name.as_str()) && !wanted(name))
-        .map(|&(span, _)| span)
-        .collect();
-    let adding: Vec<&str> = [CLOAKING, TURBULENT_NEBULA]
-        .into_iter()
-        .filter(|m| wanted(m) && !has(m))
-        .collect();
-    if removing.is_empty() && adding.is_empty() {
-        return Ok(());
-    }
-    let (Some(block), Some(items)) = (block, items.filter(|i| !i.children().is_empty())) else {
-        let text = |indent: &[u8]| timed_modifiers(indent, &adding);
-        return match block {
-            Some(block) => {
-                let span = block.span();
-                let indent = edit.indent(span.start);
-                edit.replace_statement(span, &inline(&indent, &text(&indent)));
-                Ok(())
-            }
-            None => {
-                let (at, indent) = match entity.find(keys::INDEX, &edit.buf) {
-                    Some(index) => (
-                        edit.line_end(index.span().end),
-                        edit.indent(index.span().start),
-                    ),
-                    None => edit.before_close(entity),
-                };
-                edit.insert(at, text(&indent));
-                Ok(())
-            }
-        };
-    };
-    edit.require_block_shape(block)?;
-    edit.require_block_shape(items)?;
-    if listed.len() - removing.len() + adding.len() == 0 {
-        edit.remove_statement(block.span());
-        return Ok(());
-    }
-    let first = listed[0].0.start;
-    let (at_close, indent) = edit.before_close(items);
-    for span in removing {
-        edit.remove_lines(span);
-    }
-    for modifier in adding {
-        let at = match modifier {
-            CLOAKING => edit.line_start(first),
-            _ => at_close,
-        };
-        edit.insert(at, timed_modifier_item(&indent, modifier));
-    }
+    let modifiers = [
+        (CLOAKING, cloaking.then_some(Place::First)),
+        (TURBULENT_NEBULA, turbulent.then_some(Place::Last)),
+    ];
+    timed_modifiers::set(edit, keys::INDEX, &modifiers)?;
     Ok(())
 }
 

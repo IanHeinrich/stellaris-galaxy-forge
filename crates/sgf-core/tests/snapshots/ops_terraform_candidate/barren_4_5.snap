@@ -1,0 +1,28 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Make planet #585 a terraforming candidate
+inverse: SetTerraformCandidate { id: 585, modifier: "terraforming_candidate", on: false }
+
+--- gamestate
++++ gamestate
+@@ -110114,6 +110114,18 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="terraforming_candidate"
++						days=-1
++					}
++ 
++				}
++			}
+ 			entity=2
+ 		}
+ 		586=

@@ -306,6 +306,26 @@ fn vanilla_registries() {
     let g_star = gd.planet_classes.get("pc_g_star").expect("pc_g_star");
     assert!(g_star.star);
 
+    let candidate = |class: &str| gd.terraform_links.candidate(class, &gd.static_modifiers);
+    for class in ["pc_barren", "pc_barren_cold", "pc_gray_goo"] {
+        assert_eq!(
+            candidate(class),
+            Some("terraforming_candidate".to_owned()),
+            "{class}"
+        );
+    }
+    assert_eq!(
+        candidate("pc_frozen"),
+        Some("frozen_terraforming_candidate".to_owned())
+    );
+    assert_eq!(
+        candidate("pc_toxic"),
+        Some("toxic_terraforming_candidate".to_owned())
+    );
+    for class in ["pc_continental", "pc_desert"] {
+        assert_eq!(candidate(class), None, "{class}");
+    }
+
     let energy_3 = gd.deposits.get("d_energy_3").expect("d_energy_3");
     assert_eq!(energy_3.produces, vec![("energy".to_owned(), 3.0)]);
     assert!(!energy_3.is_for_colonizable);

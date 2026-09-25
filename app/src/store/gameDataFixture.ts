@@ -130,7 +130,13 @@ function armGameDataCommands(): void {
   ]);
   mockedIpc.getMapColorSource.mockResolvedValue(null);
   mockedIpc.getPlanetClasses.mockResolvedValue([
-    { key: "pc_continental", icon_sprite: null, habitable: true, star: false },
+    {
+      key: "pc_continental",
+      icon_sprite: null,
+      habitable: true,
+      star: false,
+      terraform_candidate: null,
+    },
   ]);
   mockedIpc.getDeposits.mockResolvedValue([
     {

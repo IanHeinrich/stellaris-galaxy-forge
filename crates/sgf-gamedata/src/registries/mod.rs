@@ -22,3 +22,4 @@ pub mod star_classes;
 pub mod star_names;
 pub mod starbase_levels;
 pub mod static_modifiers;
+pub mod terraform_links;

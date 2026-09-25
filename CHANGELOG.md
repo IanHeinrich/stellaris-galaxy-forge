@@ -10,6 +10,11 @@ a release is made.
 
 ### Added
 
+- Barren, frozen, toxic and grey goo planets have a Terraforming
+  candidate checkbox on their page. It does what the console's
+  `add_modifier` does. The planet can then be terraformed with Climate
+  Restoration, plus Hydrocentric for frozen worlds or Detox for toxic
+  ones.
 - `sgf add-system --generate` takes `--then-reroll <seed>` to roll the
   new system again before saving. Add `--keep-special` to reroll a
   special system as the same layout.

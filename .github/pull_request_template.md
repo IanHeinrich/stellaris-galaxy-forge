@@ -30,6 +30,7 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] With the middle one of three added systems removed, the save loads, the renumbered system keeps its lanes and bodies, and it survives a save and reload
 - [ ] A deposit added to an uncolonised planet shows on its page in game, a removed one is gone, and both hold after a save and reload
 - [ ] A planet given a new size loads drawn at that size and a month passes cleanly
+- [ ] A planet marked as a terraforming candidate shows the modifier in game and offers terraforming once Climate Restoration is researched; an unmarked one no longer does
 - [ ] An added system rolled again loads as the new roll, with its name, position and lanes kept
 - [ ] An added system renamed shows the new name on the galaxy map, its star, planets and moons
 - [ ] A special layout placed in a save loads with its fixed bodies, flags and name

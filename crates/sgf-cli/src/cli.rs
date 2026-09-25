@@ -185,6 +185,20 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Make a save planet a terraforming candidate, or stop it being one.
+    TerraformCandidate {
+        sav: PathBuf,
+        planet: u32,
+        /// The modifier: `terraforming_candidate`, `frozen_terraforming_candidate` or
+        /// `toxic_terraforming_candidate`.
+        #[arg(long, default_value = "terraforming_candidate")]
+        modifier: String,
+        /// Take the modifier away instead.
+        #[arg(long)]
+        off: bool,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Add or remove deposits on uncolonised planets of a Stellaris 4.x save.
     Deposit {
         #[command(subcommand)]

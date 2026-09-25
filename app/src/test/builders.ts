@@ -313,8 +313,18 @@ export function starClassView(key: string, ...planetKeys: string[]): StarClassVi
 }
 
 /** A planet class with no art of its own: a star body when `star`, else a habitable world. */
-export function planetClassView(key: string, star = true): PlanetClassView {
-  return { key, icon_sprite: null, habitable: !star, star };
+export function planetClassView(
+  key: string,
+  star = true,
+  terraformCandidate: string | null = null,
+): PlanetClassView {
+  return {
+    key,
+    icon_sprite: null,
+    habitable: !star,
+    star,
+    terraform_candidate: terraformCandidate,
+  };
 }
 
 /** The one `CountryNode` builder: an empire of a 4.4 save, with no map colours. */

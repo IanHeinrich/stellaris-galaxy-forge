@@ -362,6 +362,11 @@ pub fn one_of_each() -> Vec<Example> {
             }],
         }),
         Example::save(Op::SetPlanetSize { id: 748, size: 30 }),
+        Example::save(Op::SetTerraformCandidate {
+            id: 749,
+            modifier: "terraforming_candidate".to_owned(),
+            on: true,
+        }),
         Example::save_4_5(Op::SetEmpireMapColors {
             country: 1,
             colors: Some(MapColorPair {
@@ -484,15 +489,16 @@ fn position(op: &Op) -> usize {
         Op::SetLGateOutcome { .. } => 41,
         Op::SetStarClass { .. } => 42,
         Op::SetPlanetSize { .. } => 43,
-        Op::SetEmpireMapColors { .. } => 44,
-        Op::AddSaveSystem { .. } => 45,
-        Op::AddSaveDeposit { .. } => 46,
-        Op::RemoveSaveDeposit { .. } => 47,
-        Op::ReplaceSaveSystem { .. } => 48,
-        Op::RenameSaveSystem { .. } => 49,
-        Op::SetNebulaTurbulent { .. } => 50,
-        Op::SetNebulaFootprints { .. } => 51,
-        Op::Batch { .. } => 52,
+        Op::SetTerraformCandidate { .. } => 44,
+        Op::SetEmpireMapColors { .. } => 45,
+        Op::AddSaveSystem { .. } => 46,
+        Op::AddSaveDeposit { .. } => 47,
+        Op::RemoveSaveDeposit { .. } => 48,
+        Op::ReplaceSaveSystem { .. } => 49,
+        Op::RenameSaveSystem { .. } => 50,
+        Op::SetNebulaTurbulent { .. } => 51,
+        Op::SetNebulaFootprints { .. } => 52,
+        Op::Batch { .. } => 53,
     }
 }
 

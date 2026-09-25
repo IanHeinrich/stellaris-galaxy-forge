@@ -258,12 +258,9 @@ pub fn get_map_color_source(game_data: State<'_, GameDataState>) -> Option<Strin
 
 #[tauri::command(async)]
 pub fn get_planet_classes(game_data: State<'_, GameDataState>) -> Vec<PlanetClassView> {
-    game_data.loaded().map_or_else(Vec::new, |gd| {
-        gd.planet_classes
-            .iter()
-            .map(PlanetClassView::from)
-            .collect()
-    })
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.planet_class_views())
 }
 
 #[tauri::command(async)]
