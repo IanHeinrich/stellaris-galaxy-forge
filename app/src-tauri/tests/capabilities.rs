@@ -1,9 +1,8 @@
 //! The capability sets `app/src/lib/capabilities.ts` holds, against what the commands report.
 use serde_json::{Map, Value};
 
-use crate::common::{SCENARIO, open, webview};
+use crate::common::{SAMPLE_45, SCENARIO, open, webview};
 
-const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
 const CAPABILITIES_TS: &str = include_str!("../../src/lib/capabilities.ts");
 
 /// The `export const <name>: Capabilities = { … };` literal in the TS file, as JSON.

@@ -11,6 +11,9 @@ use tauri::webview::InvokeRequest;
 use tauri::{WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2206.11.16.sav");
+/// The Stellaris 4.5 sample, whose galaxy was set up at 2x resource abundance and whose
+/// pool holds 46 unused nebula names.
+pub const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
 pub const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/scenario_grammar.txt"
@@ -52,6 +55,19 @@ pub fn opened(path: impl Serialize) -> WebviewWindow<MockRuntime> {
     let webview = webview();
     open(&webview, path);
     webview
+}
+
+/// A fresh app with the document at `path` open and the install's game data loaded without
+/// mods, which may shadow what a test reads; `None` without an install.
+pub fn with_game_data(path: impl Serialize) -> Option<(WebviewWindow<MockRuntime>, OpenResult)> {
+    if !have_install() {
+        return None;
+    }
+    let webview = webview();
+    let opened = open(&webview, path);
+    invoke::<Value>(&webview, "load_game_data", json!({ "mods": false }))
+        .unwrap_or_else(|e| panic!("load game data: {}", e.message));
+    Some((webview, opened))
 }
 
 /// The command's response as the IPC layer hands it back, from the webview's own

@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     # A documentation-only push needs no build and cannot be a release.
+    # This list copies the one in scripts/docs-only.sh; ci.yml copies it too.
     paths-ignore:
       - "**.md"
       - "docs/**"
@@ -24,6 +25,18 @@ concurrency:
 
 permissions:
   contents: write
+
+# Every release asset is named Stellaris-Galaxy-Forge-<version>-<suffix>; collecting the
+# bundles, the updater manifest and the release notes all read the suffixes from here.
+env:
+  ASSET_NSIS: Windows-Installer.exe
+  ASSET_MSI: Windows-Installer-MSI-for-IT.msi
+  ASSET_PORTABLE: Windows-No-Install.zip
+  ASSET_APPIMAGE: Linux.AppImage
+  ASSET_DEB: Linux-Debian-Ubuntu.deb
+  ASSET_RPM: Linux-Fedora.rpm
+  ASSET_DMG: Mac.dmg
+  ASSET_MAC_UPDATER: Mac-updater-only.tar.gz
 
 # A push runs the checks and, when VERSION names a tag that does not exist yet, builds
 # every platform beside them. The tag and the release are made last, only once every
@@ -192,13 +205,13 @@ jobs:
             sig=""
             case "$name" in *.sig) sig=.sig; name=${name%.sig} ;; esac
             case "$name" in
-              *-setup.exe) kind=Windows-Installer.exe ;;
-              *.msi) kind=Windows-Installer-MSI-for-IT.msi ;;
-              *.AppImage) kind=Linux.AppImage ;;
-              *.deb) kind=Linux-Debian-Ubuntu.deb ;;
-              *.rpm) kind=Linux-Fedora.rpm ;;
-              *.dmg) kind=Mac.dmg ;;
-              *.app.tar.gz) kind=Mac-updater-only.tar.gz ;;
+              *-setup.exe) kind=$ASSET_NSIS ;;
+              *.msi) kind=$ASSET_MSI ;;
+              *.AppImage) kind=$ASSET_APPIMAGE ;;
+              *.deb) kind=$ASSET_DEB ;;
+              *.rpm) kind=$ASSET_RPM ;;
+              *.dmg) kind=$ASSET_DMG ;;
+              *.app.tar.gz) kind=$ASSET_MAC_UPDATER ;;
               *) echo "::error::No release name for the bundle $name."; exit 1 ;;
             esac
             out="dist/Stellaris-Galaxy-Forge-${TAG#v}-$kind$sig"
@@ -257,7 +270,7 @@ jobs:
           MSYS_NO_PATHCONV=1 "$SIGNTOOL" sign /fd sha256 /sha1 "$CERTUM_KEY_ID" \
             /tr http://time.certum.pl /td sha256 /d "Stellaris Galaxy Forge" \
             "$RUNNER_TEMP/portable/$(basename "$exe")"
-          (cd "$RUNNER_TEMP/portable" && 7z a "$GITHUB_WORKSPACE/dist/Stellaris-Galaxy-Forge-${TAG#v}-Windows-No-Install.zip" ./*.exe)
+          (cd "$RUNNER_TEMP/portable" && 7z a "$GITHUB_WORKSPACE/dist/Stellaris-Galaxy-Forge-${TAG#v}-$ASSET_PORTABLE" ./*.exe)
 
       # Tauri skips signing silently when it is given no thumbprint, so the artifacts are
       # checked rather than assumed.
@@ -310,11 +323,17 @@ jobs:
           base="https://github.com/$REPO/releases/download/$TAG"
           notes=$(bash scripts/changelog.sh notes "$v")
 
-          pick() { ls -1 assets | grep -E -- "$1\$" | head -n 1 || true; }
-          nsis=$(pick '-Windows-Installer\.exe')
-          msi=$(pick '-Windows-Installer-MSI-for-IT\.msi')
-          appimage=$(pick '-Linux\.AppImage')
-          macapp=$(pick '-Mac-updater-only\.tar\.gz')
+          pick() {
+            local f
+            for f in assets/*-"$1"; do
+              [ -f "$f" ] && { basename "$f"; return; }
+            done
+            return 0
+          }
+          nsis=$(pick "$ASSET_NSIS")
+          msi=$(pick "$ASSET_MSI")
+          appimage=$(pick "$ASSET_APPIMAGE")
+          macapp=$(pick "$ASSET_MAC_UPDATER")
 
           platforms='{}'
           add() {
@@ -374,11 +393,11 @@ jobs:
           {
             echo "### Which file do I download?"
             echo
-            echo "- **Windows:** [Windows-Installer.exe]($dl-Windows-Installer.exe)."
-            echo "  To run it without installing, [Windows-No-Install.zip]($dl-Windows-No-Install.zip)."
-            echo "- **Mac:** [Mac.dmg]($dl-Mac.dmg). The Mac app is not signed, so see"
+            echo "- **Windows:** [$ASSET_NSIS]($dl-$ASSET_NSIS)."
+            echo "  To run it without installing, [$ASSET_PORTABLE]($dl-$ASSET_PORTABLE)."
+            echo "- **Mac:** [$ASSET_DMG]($dl-$ASSET_DMG). The Mac app is not signed, so see"
             echo "  [Installing](https://github.com/$GITHUB_REPOSITORY#installing) for how to open it."
-            echo "- **Linux:** [Linux.AppImage]($dl-Linux.AppImage), or the \`.deb\` or \`.rpm\` package for your distribution."
+            echo "- **Linux:** [$ASSET_APPIMAGE]($dl-$ASSET_APPIMAGE), or the \`.deb\` or \`.rpm\` package for your distribution."
             echo
             echo "You don't need the other files."
             echo

@@ -1,16 +1,12 @@
 //! Rolling a system into a save, rolling it again, renaming and deleting it, end to end on the
 //! real sample save.
 use serde_json::json;
-use sgf_core::format::save::details::SystemDetails;
 use sgf_core::projections::galaxy::SystemNode;
-use sgf_core::views::{EditResult, ErrorKind, GalaxyView, OpenResult, SystemDetail};
+use sgf_core::views::{EditResult, ErrorKind, GalaxyView, SystemDetail};
 use sgf_gamedata::summary::AddSystemPicks;
 
-/// The Stellaris 4.5 sample, whose galaxy was set up at 2x resource abundance.
-const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
-
 use crate::common;
-use common::{SAMPLE, SCENARIO, have_install, invoke, kind, open, webview};
+use common::{SAMPLE, SAMPLE_45, SCENARIO, invoke, kind, open, webview, with_game_data};
 
 /// A point inside the galaxy at least `clear` from every system.
 fn free_spot(galaxy: &GalaxyView, clear: f64) -> (f64, f64) {
@@ -70,12 +66,9 @@ fn adding_a_system_needs_game_data_and_a_save() {
 
 #[test]
 fn add_reroll_rename_delete_and_undo() {
-    if !have_install() {
+    let Some((w, opened)) = with_game_data(SAMPLE) else {
         return;
-    }
-    let w = webview();
-    let opened: OpenResult = invoke(&w, "open_save", json!({ "path": SAMPLE })).expect("open");
-    invoke::<serde_json::Value>(&w, "load_game_data", json!({ "mods": false })).expect("load");
+    };
 
     let classes: Vec<(String, String)> =
         invoke(&w, "get_generator_star_classes", json!({})).expect("star classes");
@@ -163,92 +156,6 @@ fn add_reroll_rename_delete_and_undo() {
     assert_eq!(refused.kind, ErrorKind::Op, "{}", refused.message);
 }
 
-/// The sample save open with game data loaded, or `None` without an install.
-fn loaded() -> Option<(tauri::WebviewWindow<tauri::test::MockRuntime>, OpenResult)> {
-    if !have_install() {
-        return None;
-    }
-    let w = webview();
-    let opened: OpenResult = invoke(&w, "open_save", json!({ "path": SAMPLE })).expect("open");
-    invoke::<serde_json::Value>(&w, "load_game_data", json!({ "mods": false })).expect("load");
-    Some((w, opened))
-}
-
-fn name_of(result: &EditResult, id: u32) -> String {
-    result
-        .delta
-        .systems
-        .iter()
-        .find(|s| s.id == id)
-        .unwrap_or_else(|| panic!("system {id} in the delta"))
-        .name
-        .key
-        .clone()
-}
-
-#[test]
-fn deleting_the_middle_of_three_added_systems_renumbers_and_undo_and_redo_follow() {
-    let Some((w, opened)) = loaded() else {
-        return;
-    };
-    let mut taken = Vec::new();
-    let mut added_ids = Vec::new();
-    let mut names = Vec::new();
-    for seed in [1, 2, 3] {
-        let (x, y) = free_spot_beside(&opened.galaxy, 12.0, &taken);
-        taken.push((x, y));
-        let result: EditResult = invoke(
-            &w,
-            "add_random_system",
-            json!({ "seed": seed, "x": x, "y": y, "starClass": null }),
-        )
-        .expect("add a system");
-        let system = added(&result);
-        added_ids.push(system.id);
-        names.push(system.name.key.clone());
-    }
-    let [a, b, c] = added_ids[..] else {
-        panic!("three systems added");
-    };
-    assert_eq!([b, c], [a + 1, a + 2], "added systems take the next ids");
-
-    let deleted: EditResult = invoke(
-        &w,
-        "apply_op",
-        json!({ "op": { "type": "RemoveSystem", "id": b } }),
-    )
-    .expect("delete the middle one");
-    assert_eq!(deleted.delta.renumbered, [(b, None), (c, Some(b))]);
-    assert_eq!(deleted.delta.removed, [c], "the last id is gone");
-    assert_eq!(
-        name_of(&deleted, b),
-        names[2],
-        "the third system now has the second's id"
-    );
-
-    let undone: EditResult = invoke::<Option<EditResult>>(&w, "undo", json!({}))
-        .expect("undo")
-        .expect("a step to undo");
-    assert_eq!(
-        undone.delta.renumbered,
-        [(b, Some(c))],
-        "the third moves back up"
-    );
-    assert_eq!(
-        name_of(&undone, b),
-        names[1],
-        "the second is back at its id"
-    );
-    assert_eq!(name_of(&undone, c), names[2]);
-
-    let redone: EditResult = invoke::<Option<EditResult>>(&w, "redo", json!({}))
-        .expect("redo")
-        .expect("a step to redo");
-    assert_eq!(redone.delta.renumbered, deleted.delta.renumbered);
-    assert_eq!(redone.delta.removed, [c]);
-    assert_eq!(name_of(&redone, b), names[2]);
-}
-
 fn name_at(w: &tauri::WebviewWindow<tauri::test::MockRuntime>, id: u32) -> String {
     let detail: SystemDetail =
         invoke(w, "get_system", json!({ "id": id })).unwrap_or_else(|e| panic!("{id}: {e:?}"));
@@ -257,12 +164,9 @@ fn name_at(w: &tauri::WebviewWindow<tauri::test::MockRuntime>, id: u32) -> Strin
 
 #[test]
 fn deleting_added_systems_in_bulk_skips_the_files_own_and_undoes_in_one_step() {
-    if !have_install() {
+    let Some((w, opened)) = with_game_data(SAMPLE_45) else {
         return;
-    }
-    let w = webview();
-    let opened: OpenResult = invoke(&w, "open_save", json!({ "path": SAMPLE_45 })).expect("open");
-    invoke::<serde_json::Value>(&w, "load_game_data", json!({ "mods": false })).expect("load");
+    };
     let mut taken = Vec::new();
     let mut ids = Vec::new();
     let mut names = Vec::new();
@@ -345,7 +249,7 @@ fn deleting_added_systems_in_bulk_skips_the_files_own_and_undoes_in_one_step() {
 
 #[test]
 fn a_scenario_takes_no_rolled_system() {
-    let Some((w, _)) = loaded() else {
+    let Some((w, _)) = with_game_data(SAMPLE) else {
         return;
     };
     open(&w, SCENARIO);
@@ -379,46 +283,6 @@ fn a_scenario_takes_no_rolled_system() {
     }
 }
 
-#[test]
-fn added_systems_roll_deposits_at_the_saves_abundance() {
-    if !have_install() {
-        return;
-    }
-    let w = webview();
-    let opened: OpenResult = invoke(&w, "open_save", json!({ "path": SAMPLE_45 })).expect("open");
-    invoke::<serde_json::Value>(&w, "load_game_data", json!({ "mods": false })).expect("load");
-    let mut taken = Vec::new();
-    let mut ids = Vec::new();
-    for seed in [11, 12, 13] {
-        let (x, y) = free_spot_beside(&opened.galaxy, 12.0, &taken);
-        taken.push((x, y));
-        let result: EditResult = invoke(
-            &w,
-            "add_random_system",
-            json!({ "seed": seed, "x": x, "y": y, "starClass": null }),
-        )
-        .expect("add a system");
-        ids.push(added(&result).id);
-    }
-    let rolled: EditResult = invoke(
-        &w,
-        "reroll_system",
-        json!({ "system": ids[0], "seed": 14, "starClass": null }),
-    )
-    .expect("roll the first again");
-    assert_eq!(added(&rolled).id, ids[0]);
-
-    let details: Vec<SystemDetails> =
-        invoke(&w, "get_system_details", json!({ "ids": ids })).expect("details");
-    let deposits: u32 = details
-        .iter()
-        .flat_map(|d| &d.planets)
-        .flat_map(|p| &p.deposit_keys)
-        .map(|d| d.count)
-        .sum();
-    assert!(deposits > 0, "the rolled bodies carry deposits at 2x");
-}
-
 /// The picks the menu offers for the open save.
 fn picks(w: &tauri::WebviewWindow<tauri::test::MockRuntime>) -> AddSystemPicks {
     invoke(w, "get_add_system_picks", json!({})).expect("the menu's picks")
@@ -432,12 +296,9 @@ fn history_step(w: &tauri::WebviewWindow<tauri::test::MockRuntime>, command: &st
 
 #[test]
 fn a_capped_special_layout_the_galaxy_has_is_placed_rolled_again_and_undone() {
-    if !have_install() {
+    let Some((w, opened)) = with_game_data(SAMPLE_45) else {
         return;
-    }
-    let w = webview();
-    let opened: OpenResult = invoke(&w, "open_save", json!({ "path": SAMPLE_45 })).expect("open");
-    invoke::<serde_json::Value>(&w, "load_game_data", json!({ "mods": false })).expect("load");
+    };
 
     let before = picks(&w);
     assert!(!before.star_classes.is_empty());

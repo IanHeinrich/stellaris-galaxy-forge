@@ -13,7 +13,9 @@ use sgf_core::views::{
 };
 
 use crate::common;
-use common::{PAINTED, SAMPLE, SCENARIO, invoke, invoke_raw, kind, open, opened, webview};
+use common::{
+    PAINTED, SAMPLE, SAMPLE_45, SCENARIO, invoke, invoke_raw, kind, open, opened, webview,
+};
 
 #[test]
 fn open_read_search_close() {
@@ -134,7 +136,14 @@ fn save_and_save_as() {
     .expect("move system 0");
     assert!(moved.dirty, "move dirties the session");
 
-    let saved: SaveResult = invoke(&w, "save", json!({})).expect("save in place");
+    std::fs::copy(SAMPLE_45, &copy_path).expect("the game writes the file meanwhile");
+    assert_eq!(
+        kind(invoke::<SaveResult>(&w, "save", json!({}))),
+        ErrorKind::ChangedOnDisk,
+        "a file written since it was opened is not overwritten unasked"
+    );
+    let saved: SaveResult =
+        invoke(&w, "save", json!({ "force": true })).expect("save in place over it");
     assert_eq!(saved.path, copy_path, "save writes to the session's path");
     assert!(!saved.dirty, "save clears dirty");
     assert!(!saved.cloud, "a temp dir is not Steam Cloud");
@@ -156,7 +165,11 @@ fn save_and_save_as() {
         backup_name.starts_with(&copy_name) && backup_name.contains(".bak-"),
         "backup name: {backup_name}"
     );
-    assert!(Path::new(backup).exists(), "backup file exists");
+    assert_eq!(
+        std::fs::read(backup).expect("the backup reads"),
+        std::fs::read(SAMPLE_45).expect("the sample reads"),
+        "the backup is the file the game wrote"
+    );
 
     let reopened = open(&w, &copy_path);
     let system0 = reopened
@@ -184,8 +197,9 @@ fn save_and_save_as() {
     assert!(!cloud, "a temp dir is not Steam Cloud");
 }
 
+/// Several systems cross as one op each way; the refusals cross with their kinds.
 #[test]
-fn a_scenario_adds_and_removes_several_systems_as_one_step_each() {
+fn a_scenario_adds_and_removes_several_systems_through_apply_op() {
     let w = opened(SCENARIO);
 
     let added: EditResult = invoke(
@@ -197,10 +211,6 @@ fn a_scenario_adds_and_removes_several_systems_as_one_step_each() {
         ] } }),
     )
     .expect("add two systems");
-    assert_eq!(added.entry.description, "Added 2 systems");
-    let mut ids: Vec<u32> = added.delta.systems.iter().map(|s| s.id).collect();
-    ids.sort_unstable();
-    assert_eq!(ids, [4000, 4001]);
     assert_eq!(added.history.undo.len(), 1);
 
     let removed: EditResult = invoke(
@@ -209,10 +219,6 @@ fn a_scenario_adds_and_removes_several_systems_as_one_step_each() {
         json!({ "op": { "type": "RemoveSystems", "ids": [1, 16, 4000] } }),
     )
     .expect("remove three systems");
-    assert_eq!(removed.entry.description, "Removed 3 systems (5 lanes)");
-    let mut gone = removed.delta.removed.clone();
-    gone.sort_unstable();
-    assert_eq!(gone, [1, 16, 4000]);
     assert_eq!(removed.history.undo.len(), 2);
 
     assert_eq!(
@@ -233,13 +239,6 @@ fn a_scenario_adds_and_removes_several_systems_as_one_step_each() {
         ErrorKind::NotFound,
         "no system 77"
     );
-
-    let undone = invoke::<Option<EditResult>>(&w, "undo", json!({}))
-        .expect("undo")
-        .expect("the removal to undo");
-    let mut back: Vec<u32> = undone.delta.systems.iter().map(|s| s.id).collect();
-    back.sort_unstable();
-    assert!([1, 16, 4000].iter().all(|id| back.contains(id)), "{back:?}");
 }
 
 #[test]

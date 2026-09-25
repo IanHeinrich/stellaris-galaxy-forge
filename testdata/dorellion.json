@@ -13,7 +13,8 @@
     "deposits": [
       "d_energy_5"
     ],
-    "moons": []
+    "moons": [],
+    "star": true
   },
   "planets": [
     {

@@ -5,24 +5,22 @@ use std::sync::Arc;
 
 use sgf_core::archive;
 use sgf_core::export::{self, ExportReport, ScenarioProfile};
-use sgf_core::format::scenario::fe_zone::FeZone;
-use sgf_core::format::scenario::header_counts::{empire_counts, seat_counts, zone_count};
 use sgf_core::format::scenario::is_painted;
-use sgf_core::format::scenario::marauder::clan_count;
 use sgf_core::library;
 use sgf_core::ops::Op;
-use sgf_core::ops::rules::fe_zone as placement;
 use sgf_core::session::{Session, SessionError};
 use sgf_core::validate::Issue;
 use sgf_core::views::{
-    Capabilities, DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult,
-    ProgressPhase, SaveResult, SgfError,
+    Capabilities, DocumentKind, EditResult, ExportResult, GalaxyView, OpenResult, ProgressPhase,
+    SaveResult, SgfError,
 };
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::{DONE, START, VALIDATE_AT, io_error, progress, with_session};
+use super::{DONE, START, VALIDATE_AT, io_error, progress, require, with_session};
 use crate::state::GameDataState;
+
+const ONLY_A_SAVE_EXPORTS: &str = "only a save can be exported as a scenario";
 
 /// Open `path`, a save or a scenario script, as the session, replacing any open one.
 /// Emits `sgf://progress`.
@@ -86,33 +84,39 @@ pub async fn export_scenario<R: Runtime>(
 ) -> Result<ExportResult, SgfError> {
     progress(&app, ProgressPhase::Write, START);
     let gd = app.state::<GameDataState>().loaded();
-    let result = with_session(app.clone(), move |guard| {
-        let session = exportable(&guard)?;
-        let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
-        let path = Path::new(&path);
-        let name = path
-            .file_stem()
-            .map(|s| s.to_string_lossy().into_owned())
-            .unwrap_or_else(|| session.title());
-        let (text, report) = export::scenario_text(
-            &session.graph,
-            &export::options_for_session(session, &name),
-            &resolve,
-            &sources,
-            profile.unwrap_or_default(),
-        );
-        let outcome = export::write_scenario(path, &text)?;
-        let save = SaveResult {
-            path: outcome.path.to_string_lossy().into_owned(),
-            cloud: library::is_cloud_save(&outcome.path),
-            backup_path: outcome.backup.map(|p| p.to_string_lossy().into_owned()),
-            dirty: session.is_dirty(),
-        };
-        Ok(ExportResult { save, report })
+    let (text, report, dirty) = with_session(app.clone(), {
+        let path = path.clone();
+        move |guard| {
+            let session = require(guard.as_ref(), DocumentKind::Save, ONLY_A_SAVE_EXPORTS)?;
+            let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
+            let name = Path::new(&path)
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| session.title());
+            let (text, report) = export::scenario_text(
+                &session.graph,
+                &export::options_for_session(session, &name),
+                &resolve,
+                &sources,
+                profile.unwrap_or_default(),
+            );
+            Ok((text, report, session.is_dirty()))
+        }
     })
     .await?;
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        export::write_scenario(Path::new(&path), &text)
+    })
+    .await
+    .map_err(io_error)??;
+    let save = SaveResult {
+        path: outcome.path.to_string_lossy().into_owned(),
+        cloud: library::is_cloud_save(&outcome.path),
+        backup_path: outcome.backup.map(|p| p.to_string_lossy().into_owned()),
+        dirty,
+    };
     progress(&app, ProgressPhase::Done, DONE);
-    Ok(result)
+    Ok(ExportResult { save, report })
 }
 
 /// What exporting the open save would report, without writing anything. The report is
@@ -122,7 +126,7 @@ pub async fn export_scenario<R: Runtime>(
 pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportReport, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |guard| {
-        let session = exportable(&guard)?;
+        let session = require(guard.as_ref(), DocumentKind::Save, ONLY_A_SAVE_EXPORTS)?;
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let (_, report) = export::draft(
             &session.graph,
@@ -133,18 +137,6 @@ pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportRepor
         Ok(report)
     })
     .await
-}
-
-/// The open session when it is a save, the only document an export reads.
-fn exportable(guard: &Option<Session>) -> Result<&Session, SgfError> {
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    if session.kind() != DocumentKind::Save {
-        return Err(SgfError::new(
-            ErrorKind::Op,
-            "only a save can be exported as a scenario",
-        ));
-    }
-    Ok(session)
 }
 
 /// Build a session off the main thread, report it and make it the open one.
@@ -221,83 +213,6 @@ pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResul
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         let result = session.apply(op)?;
         Ok(session.edit_result(result))
-    })
-    .await
-}
-
-/// Link `linked` to the fallen empire zone `anchor` anchors, as one `SetFeLinks` op:
-/// the mod then lays the fallen empire's hyperlanes from those systems and no other.
-/// An empty `linked` gives the zone back to the mod's own rule.
-#[tauri::command]
-pub async fn set_fe_links<R: Runtime>(
-    app: AppHandle<R>,
-    anchor: u32,
-    linked: Vec<u32>,
-) -> Result<EditResult, SgfError> {
-    apply_op(app, Op::SetFeLinks { anchor, linked }).await
-}
-
-/// The entries of one `SetFeZones` op that replace the open scenario's automatic
-/// fallen empire zones with `count` of the ones Paint a Galaxy's own rule would place
-/// now, spread over the map; the zones the map author placed by hand are not among
-/// them. The app applies the op.
-#[tauri::command]
-pub async fn fe_zone_fit<R: Runtime>(
-    app: AppHandle<R>,
-    count: usize,
-) -> Result<Vec<(u32, Option<FeZone>)>, SgfError> {
-    with_session(app, move |guard| {
-        let session = scenario(&guard)?;
-        Ok(placement::fit(&placement::sites(&session.graph), count))
-    })
-    .await
-}
-
-/// How many automatic fallen empire zones Paint a Galaxy's rule can place on the open
-/// scenario: the most `fe_zone_fit` accepts.
-#[tauri::command]
-pub async fn fe_zone_candidate_count<R: Runtime>(app: AppHandle<R>) -> Result<usize, SgfError> {
-    with_session(app, |guard| {
-        let session = scenario(&guard)?;
-        Ok(placement::candidate_count(&placement::sites(
-            &session.graph,
-        )))
-    })
-    .await
-}
-
-fn scenario(guard: &Option<Session>) -> Result<&Session, SgfError> {
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    if session.kind() != DocumentKind::Scenario {
-        return Err(SgfError::new(
-            ErrorKind::Op,
-            "only a scenario has fallen empire zones",
-        ));
-    }
-    Ok(session)
-}
-
-/// The five empire-count header keys and the values Paint a Galaxy's formulas give
-/// the open scenario's seats, for the app to apply as one `SetHeaderKeys`.
-#[tauri::command]
-pub async fn header_empire_counts<R: Runtime>(
-    app: AppHandle<R>,
-) -> Result<Vec<(String, String)>, SgfError> {
-    with_session(app, |guard| {
-        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        if session.kind() != DocumentKind::Scenario {
-            return Err(SgfError::new(
-                ErrorKind::Op,
-                "only a scenario has empire counts",
-            ));
-        }
-        let seats = seat_counts(&session.graph);
-        let zones = zone_count(&session.graph);
-        let clans = clan_count(&session.graph);
-        Ok(empire_counts(seats, zones, clans)
-            .into_iter()
-            .map(|(key, value)| (key.to_owned(), value))
-            .collect())
     })
     .await
 }

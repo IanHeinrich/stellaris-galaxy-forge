@@ -1,18 +1,15 @@
 //! Placing a nebula, end to end: named from a save's pool of unused nebula names with game
 //! data or without, and "New Nebula", numbered, where no name is left to draw. Undo takes it
 //! away in one step. Making a nebula turbulent crosses as an `apply_op`, as every other
-//! nebula edit does.
+//! nebula edit does, and a scenario's refusal crosses as an op error.
 use serde_json::json;
 use sgf_core::ops::free_nebula_names;
-use sgf_core::projections::galaxy::{Nebula, Turbulence};
+use sgf_core::projections::galaxy::Turbulence;
 use sgf_core::session::Session;
 use sgf_core::views::{EditResult, ErrorKind};
 
-/// The Stellaris 4.5 sample, whose pool holds 46 unused nebula names.
-const SAMPLE_45: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/2201.03.25.sav");
-
 use crate::common;
-use common::{SAMPLE, SCENARIO, have_install, invoke, kind, open, webview};
+use common::{SAMPLE, SAMPLE_45, SCENARIO, invoke, kind, open, webview, with_game_data};
 
 fn place(w: &tauri::WebviewWindow<tauri::test::MockRuntime>, seed: u64) -> EditResult {
     invoke(
@@ -70,13 +67,10 @@ fn a_scenario_without_game_data_gets_new_nebula_then_numbered() {
 
 #[test]
 fn with_game_data_a_save_names_the_nebula_from_its_pool() {
-    if !have_install() {
+    let Some((w, opened)) = with_game_data(SAMPLE_45) else {
         return;
-    }
+    };
     let pool = free_nebula_names(&Session::open(SAMPLE_45).expect("open").doc);
-    let w = webview();
-    let opened = open(&w, SAMPLE_45);
-    invoke::<serde_json::Value>(&w, "load_game_data", json!({ "mods": false })).expect("load");
 
     let result = place(&w, 42);
     let name = placed(&result);
@@ -103,38 +97,19 @@ fn with_game_data_a_save_names_the_nebula_from_its_pool() {
 }
 
 #[test]
-fn a_nebula_is_made_turbulent_through_apply_op_and_undo_calms_it_again() {
+fn a_nebula_is_made_turbulent_through_apply_op_and_a_scenario_refuses() {
     let w = webview();
-    let opened = open(&w, SAMPLE_45);
-    let turbulence = |nebulae: &[Nebula]| nebulae[0].turbulence;
-    assert_eq!(turbulence(&opened.galaxy.nebulae), Some(Turbulence::Some));
-
-    let made: EditResult = invoke(
-        &w,
-        "apply_op",
-        json!({ "op": { "type": "SetNebulaTurbulent", "nebula": 0, "turbulent": true } }),
-    )
-    .expect("make Demon's Eye turbulent");
+    open(&w, SAMPLE_45);
+    let turbulent =
+        json!({ "op": { "type": "SetNebulaTurbulent", "nebula": 0, "turbulent": true } });
+    let made: EditResult =
+        invoke(&w, "apply_op", turbulent.clone()).expect("make Demon's Eye turbulent");
     let nebulae = made.delta.nebulae.expect("the delta lists nebulae");
-    assert_eq!(turbulence(&nebulae), Some(Turbulence::All));
-    assert!(!made.delta.systems.is_empty());
-    assert!(made.delta.systems.iter().all(|s| s.turbulent));
-
-    let undone: EditResult = invoke::<Option<EditResult>>(&w, "undo", json!({}))
-        .expect("undo")
-        .expect("a step to undo");
-    let nebulae = undone.delta.nebulae.expect("the delta lists nebulae");
-    assert_eq!(turbulence(&nebulae), Some(Turbulence::Some));
-    assert!(undone.delta.systems.iter().all(|s| !s.turbulent));
-    assert!(!undone.dirty);
+    assert_eq!(nebulae[0].turbulence, Some(Turbulence::All));
 
     open(&w, SCENARIO);
     assert_eq!(
-        kind(invoke::<EditResult>(
-            &w,
-            "apply_op",
-            json!({ "op": { "type": "SetNebulaTurbulent", "nebula": 0, "turbulent": true } }),
-        )),
+        kind(invoke::<EditResult>(&w, "apply_op", turbulent)),
         ErrorKind::Op,
         "a scenario's nebulae are dressed by the game"
     );

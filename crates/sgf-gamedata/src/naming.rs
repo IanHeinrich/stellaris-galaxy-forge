@@ -12,6 +12,8 @@ use crate::rng::Rng;
 
 /// Separates the name draw from the system draw of the same seed.
 const NAME_STREAM: u64 = 0x6E61_6D65;
+/// What a nebula is called when no pool or list has a name left for it.
+const NEBULA_FALLBACK: &str = "New Nebula";
 
 /// One of `pool` no name of `used` holds, each counted once, drawn from `seed`; else one of
 /// `install` no name of `used` holds. `None` when neither has one left.
@@ -70,6 +72,24 @@ pub fn pick_nebula_name(session: &Session, gd: &GameData, seed: u64) -> Option<S
 pub fn pick_pooled_nebula_name(session: &Session, seed: u64) -> Option<String> {
     let pool = free_nebula_names(&session.doc);
     pick_unused(&pool, &[], &nebula_names(session), seed)
+}
+
+/// The name a new nebula in `session`'s document takes, drawn from `seed`: one left in a
+/// save's pool of unused nebula names, else with game data one of the install's nebula names
+/// no nebula holds, else `New Nebula`, numbered `New Nebula 2`, `New Nebula 3`, … when a
+/// nebula already holds it.
+pub fn nebula_name(session: &Session, gd: Option<&GameData>, seed: u64) -> String {
+    let picked = match gd {
+        Some(gd) => pick_nebula_name(session, gd, seed),
+        None => pick_pooled_nebula_name(session, seed),
+    };
+    picked.unwrap_or_else(|| {
+        let held = nebula_names(session);
+        std::iter::once(NEBULA_FALLBACK.to_owned())
+            .chain((2..).map(|n| format!("{NEBULA_FALLBACK} {n}")))
+            .find(|name| !held.contains(name.as_str()))
+            .unwrap_or_default()
+    })
 }
 
 /// The names the systems of `session`'s document hold.

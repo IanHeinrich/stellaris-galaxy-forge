@@ -4,10 +4,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use sgf_core::library;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
-use sgf_gamedata::install::{discovery, mods};
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
@@ -136,21 +134,9 @@ pub fn open_url(url: String) -> Result<(), SgfError> {
 #[tauri::command]
 pub async fn paint_mod<R: Runtime>(app: AppHandle<R>) -> Result<Option<PaintModView>, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
-    tauri::async_runtime::spawn_blocking(move || {
-        let user_dir = gd
-            .as_ref()
-            .and_then(|gd| gd.layout.user_dir.clone())
-            .or_else(library::paradox_user_dir);
-        let Some(user_dir) = user_dir else {
-            return Ok(None);
-        };
-        let mut diagnostics = Vec::new();
-        let status =
-            mods::paint_mod_status(&user_dir, &discovery::steam_libraries(), &mut diagnostics);
-        Ok(status.map(|status| PaintModView::new(&status, &diagnostics)))
-    })
-    .await
-    .map_err(io_error)?
+    tauri::async_runtime::spawn_blocking(move || PaintModView::find(gd.as_deref()))
+        .await
+        .map_err(io_error)
 }
 
 /// The Steam Workshop pages the app links to, which `open_url` opens.
@@ -259,7 +245,7 @@ pub fn get_galaxy_shapes(game_data: State<'_, GameDataState>) -> Vec<GalaxyShape
 #[tauri::command(async)]
 pub fn get_map_colors(game_data: State<'_, GameDataState>) -> Vec<MapColor> {
     game_data.loaded().map_or_else(Vec::new, |gd| {
-        gd.colors.iter().map(MapColor::from).collect()
+        gd.colors.entries.iter().map(MapColor::from).collect()
     })
 }
 

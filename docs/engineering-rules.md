@@ -103,11 +103,14 @@ because the file dialog already asked about overwriting it.
   unset, so run it in release after touching the load path.
 - `SGF_REQUIRE_INSTALL=1` turns the tests that skip without a real
   Stellaris install into failures.
-- `ci.yml` runs all of the above on Windows, Ubuntu and macOS, on every
-  PR, and is also called by `release.yml` on every push to `main`. It also
-  runs `bash scripts/version.sh check`. A change that touches only
-  documentation (`*.md`, `docs/`, `LICENSE`, the PR template) skips the
-  build; `ci-docs.yml` reports the required checks as passed for it.
+- `ci.yml` runs on every PR that changes more than documentation, and is
+  also called by `release.yml` on every push to `main`. It runs `bash scripts/version.sh check` and `cargo test
+  --workspace` on Windows, Ubuntu and macOS, and fmt, clippy, the diff of
+  `app/src/generated/`, lint, Vitest and the app build on Ubuntu only.
+  A change that touches only documentation (`*.md`, `docs/`, `LICENSE`,
+  `.gitattributes` and `.gitignore`, listed in `scripts/docs-only.sh`)
+  skips the build, and `ci-docs.yml` reports the required checks as
+  passed for it; for any other change it reports nothing.
 
 ## When the game updates
 

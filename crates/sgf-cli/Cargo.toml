@@ -5,6 +5,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+autotests = false
 
 [[bin]]
 name = "sgf"
@@ -18,3 +19,7 @@ sgf-gamedata.workspace = true
 
 [dev-dependencies]
 tempfile = "3.27.0"
+
+[[test]]
+name = "integration"
+path = "tests/main.rs"

@@ -248,7 +248,42 @@ fn bold(text: &str) -> String {
 mod tests {
     use super::*;
 
-    const CHANGELOG: &str = include_str!("../../../CHANGELOG.md");
+    const CHANGELOG: &str = "\
+# Changelog
+
+## [Unreleased]
+
+### Added
+
+- Something not released yet.
+
+## [0.3.0] - 2026-03-01
+
+### Added
+
+- A **third** feature.
+- A [fourth](https://example.com/four) one.
+
+### Fixed
+
+- A `bug`.
+
+## [0.2.1] - 2026-02-15
+
+### Changed
+
+- A small change.
+
+## [0.2.0] - 2026-02-01
+
+### Added
+
+- The second feature.
+
+## [0.1.0]
+
+- The first release.
+";
 
     fn v(text: &str) -> Version {
         Version::parse(text).unwrap()
@@ -265,57 +300,51 @@ mod tests {
     }
 
     #[test]
-    fn converts_the_0_12_0_section() {
-        let note = change_note(CHANGELOG, v("0.11.1"), v("0.12.0"), true).unwrap();
+    fn converts_one_section() {
+        let note = change_note(CHANGELOG, v("0.2.1"), v("0.3.0"), true).unwrap();
         let expected = "\
-[h2]0.12.0 (2026-09-24)[/h2]
+[h2]0.3.0 (2026-03-01)[/h2]
 [h3]Added[/h3]
 [list]
-[*]A system's stars can be edited in a save: type and size per star, or one star class for several selected systems at once.
-[*]Binary and trinary systems show each of their stars on the map.
-[*]In a Stellaris 4.5 save, an empire's map colours can be picked from its inspector page.
-[*]The inspector has a Back button, and fields you can edit have an outlined style.
-[/list]
-[h3]Changed[/h3]
-[list]
-[*]The L-Gate outcome is hidden again each time you open a save.
+[*]A [b]third[/b] feature.
+[*]A [url=https://example.com/four]fourth[/url] one.
 [/list]
 [h3]Fixed[/h3]
 [list]
-[*]Hyperlanes can be added and removed in saves from Stellaris 3.4 to 3.9.
-[*]Waystations no longer clutter the whole-galaxy view or get dimmed under empire territories.
+[*]A bug.
 [/list]
 
-[url=https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/tag/v0.12.0]https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/tag/v0.12.0[/url]";
+[url=https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/tag/v0.3.0]https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/tag/v0.3.0[/url]";
         assert_eq!(note, expected);
     }
 
     #[test]
     fn includes_every_version_since_the_last_upload_newest_first() {
-        let note = change_note(CHANGELOG, v("0.10.1"), v("0.12.0"), true).unwrap();
+        let note = change_note(CHANGELOG, v("0.1.0"), v("0.3.0"), true).unwrap();
         let headings: Vec<&str> = note.lines().filter(|l| l.starts_with("[h2]")).collect();
         assert_eq!(
             headings,
             [
-                "[h2]0.12.0 (2026-09-24)[/h2]",
-                "[h2]0.11.1 (2026-09-23)[/h2]",
-                "[h2]0.11.0 (2026-09-23)[/h2]"
+                "[h2]0.3.0 (2026-03-01)[/h2]",
+                "[h2]0.2.1 (2026-02-15)[/h2]",
+                "[h2]0.2.0 (2026-02-01)[/h2]"
             ]
         );
-        assert!(note.ends_with("releases/tag/v0.12.0[/url]"));
+        assert!(note.ends_with("releases/tag/v0.3.0[/url]"));
     }
 
     #[test]
     fn stops_at_the_current_version_and_ignores_unreleased() {
-        let note = change_note(CHANGELOG, v("0.11.0"), v("0.11.1"), true).unwrap();
-        assert!(note.starts_with("[h2]0.11.1 (2026-09-23)[/h2]\n[h3]Changed[/h3]"));
-        assert!(!note.contains("0.12.0"));
-        assert!(!note.contains("raw Markdown"));
+        let note = change_note(CHANGELOG, v("0.2.0"), v("0.2.1"), true).unwrap();
+        assert!(note.starts_with("[h2]0.2.1 (2026-02-15)[/h2]\n[h3]Changed[/h3]"));
+        assert!(!note.contains("0.3.0"));
+        let latest = change_note(CHANGELOG, v("0.2.1"), v("0.3.0"), true).unwrap();
+        assert!(!latest.contains("not released"), "{latest}");
     }
 
     #[test]
     fn a_version_missing_from_the_changelog_is_an_error() {
-        let error = change_note(CHANGELOG, v("0.12.0"), v("99.0.0"), true).unwrap_err();
+        let error = change_note(CHANGELOG, v("0.3.0"), v("99.0.0"), true).unwrap_err();
         assert_eq!(error, "CHANGELOG.md has no section for 99.0.0");
     }
 
@@ -332,7 +361,7 @@ mod tests {
             })
             .collect();
         let note = change_note(&changelog, v("0.0.1"), v("0.5.0"), true).unwrap();
-        assert!(note.len() <= 7999, "{} bytes", note.len());
+        assert!(note.len() <= MAX_CHANGE_NOTE_BYTES, "{} bytes", note.len());
         let headings: Vec<&str> = note.lines().filter(|l| l.starts_with("[h2]")).collect();
         assert_eq!(
             headings,
@@ -345,8 +374,8 @@ mod tests {
 
     #[test]
     fn a_note_that_fits_has_no_changelog_link() {
-        let note = change_note(CHANGELOG, v("0.9.0"), v("0.12.0"), true).unwrap();
-        assert!(note.len() <= 7999);
+        let note = change_note(CHANGELOG, v("0.0.1"), v("0.3.0"), true).unwrap();
+        assert!(note.len() <= MAX_CHANGE_NOTE_BYTES);
         assert!(!note.contains("CHANGELOG.md"));
     }
 
@@ -379,12 +408,12 @@ A [guide](https://example.com/guide) with **bold** and `code`.
     #[test]
     fn backfill_takes_each_version_alone_oldest_first() {
         assert_eq!(
-            versions_between(CHANGELOG, v("0.10.1"), v("0.12.0")),
-            [v("0.10.1"), v("0.11.0"), v("0.11.1"), v("0.12.0")]
+            versions_between(CHANGELOG, v("0.1.0"), v("0.3.0")),
+            [v("0.1.0"), v("0.2.0"), v("0.2.1"), v("0.3.0")]
         );
-        let note = version_note(CHANGELOG, v("0.11.0"), true).unwrap();
+        let note = version_note(CHANGELOG, v("0.2.1"), true).unwrap();
         let headings: Vec<&str> = note.lines().filter(|l| l.starts_with("[h2]")).collect();
-        assert_eq!(headings, ["[h2]0.11.0 (2026-09-23)[/h2]"]);
+        assert_eq!(headings, ["[h2]0.2.1 (2026-02-15)[/h2]"]);
         let undated = version_note(CHANGELOG, v("0.1.0"), false).unwrap();
         assert!(undated.starts_with("[h2]0.1.0[/h2]\n"));
         assert!(!undated.contains("releases/tag"));

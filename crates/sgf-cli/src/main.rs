@@ -74,11 +74,14 @@ fn run(cli: Cli) -> commands::Run {
                 y,
                 radius,
                 name,
+                install,
                 out,
-            } => commands::mutate::run(
+            } => commands::mutate::add_nebula(
                 &sav,
                 out.path.as_deref(),
-                Op::AddNebula { x, y, radius, name },
+                (x, y, radius),
+                name,
+                &install.options(),
             ),
             NebulaCommand::Remove { sav, index, out } => {
                 commands::mutate::run(&sav, out.path.as_deref(), Op::RemoveNebula { index })
@@ -238,47 +241,30 @@ fn run(cli: Cli) -> commands::Run {
             star_class,
             layout,
             print_spec,
+            then_reroll,
+            keep_special,
             install,
             out,
-        }) => match (generate, seed, at) {
-            (true, ..) if print_spec && then_remove.is_some() => {
-                Err("--print-spec writes nothing, so it takes no --then-remove".into())
+        }) => match generate {
+            false => {
+                commands::add_system::from_specs(&sav, out.path.as_deref(), &spec, &then_remove)
             }
-            (true, Some(seed), Some(at)) if spec.is_empty() => commands::generate::run(
+            true => commands::add_system::generated(
                 &sav,
                 out.path.as_deref(),
-                commands::generate::Generate {
-                    seed,
-                    at,
+                commands::add_system::Generate {
+                    seed: seed.expect("clap requires --seed with --generate"),
+                    at: at.expect("clap requires --at with --generate"),
                     lanes,
                     name,
                     star_class,
                     layout,
                     print_spec,
-                    then_remove,
+                    then_reroll,
+                    keep_special,
                 },
+                &then_remove,
                 &install.options(),
-            ),
-            (false, None, None)
-                if !spec.is_empty()
-                    && lanes.is_empty()
-                    && name.is_none()
-                    && star_class.is_none()
-                    && layout.is_none()
-                    && !print_spec =>
-            {
-                let mut ops = Vec::with_capacity(spec.len() + 1);
-                for path in &spec {
-                    ops.push(Op::AddSaveSystem {
-                        spec: commands::mutate::system_spec(path)?,
-                    });
-                }
-                ops.extend(then_remove.map(|id| Op::RemoveSystem { id }));
-                commands::mutate::run_all(&sav, out.path.as_deref(), ops)
-            }
-            _ => Err(
-                "add-system takes --spec, or --generate with --seed and --at and its other options"
-                    .into(),
             ),
         },
         Some(Command::Synth {

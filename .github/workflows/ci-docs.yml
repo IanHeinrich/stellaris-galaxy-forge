@@ -1,27 +1,59 @@
 name: CI (docs only)
 
-# A pull request that changes only documentation skips the build (see the paths-ignore in
-# ci.yml) but the ruleset still requires the three check names; this reports them as passed.
+# The ruleset requires the three Checks names on every pull request, and ci.yml skips one
+# that changes only documentation. This workflow reports the three names as passed on the
+# pull request's head commit when every changed file is on the docs-only list in
+# scripts/docs-only.sh, and reports nothing otherwise, so on any other pull request ci.yml's
+# runs are the only ones of those names.
+#
+# pull_request_target runs this file and the list as the base branch has them, so a pull
+# request cannot change what judges it, and its token can write check runs on a fork's pull
+# request too. That is safe here because the job checks out only the base commit and runs
+# no code from the pull request: it reads the changed file names through the API.
 
 on:
-  pull_request:
-    paths:
-      - "**.md"
-      - "docs/**"
-      - "LICENSE"
-      - ".github/pull_request_template.md"
-      - ".gitattributes"
-      - ".gitignore"
+  pull_request_target:
 
 permissions:
   contents: read
+  checks: write
+  pull-requests: read
 
 jobs:
-  checks:
-    name: Checks (${{ matrix.os }})
+  docs-only:
+    name: Documentation only
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
     steps:
-      - run: echo "Documentation only; nothing to build."
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - name: Report the checks when only documentation changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+        run: |
+          # The files between the commits the event names, so a delayed run judges the
+          # head it reports on.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" \
+            --jq '.files[] | [.filename, (.previous_filename // "")] | @tsv' > "$RUNNER_TEMP/files.tsv"
+          if [ "$(wc -l < "$RUNNER_TEMP/files.tsv")" -ne "$CHANGED_FILES" ]; then
+            echo "The file list is incomplete; ci.yml reports the checks."
+            exit 0
+          fi
+          tr '\t' '\n' < "$RUNNER_TEMP/files.tsv" > "$RUNNER_TEMP/changed.txt"
+          if ! bash scripts/docs-only.sh < "$RUNNER_TEMP/changed.txt"; then
+            echo "Not documentation only; ci.yml reports the checks."
+            exit 0
+          fi
+          for os in windows-latest ubuntu-latest macos-latest; do
+            gh api -X POST "repos/$GITHUB_REPOSITORY/check-runs" \
+              -f name="Checks ($os)" -f head_sha="$HEAD_SHA" \
+              -f status=completed -f conclusion=success \
+              -f "output[title]=Documentation only" \
+              -f "output[summary]=Every changed file is documentation; nothing to build." > /dev/null
+          done
