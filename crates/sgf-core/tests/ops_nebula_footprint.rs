@@ -10,7 +10,7 @@ use sgf_core::ops::{NebulaCloud, NebulaFootprint, Op, OpError, SystemMove};
 use sgf_core::projections::galaxy::Turbulence;
 use sgf_core::session::Session;
 
-mod common;
+use crate::common;
 use common::diff::{report, round_trip_step};
 use common::spec::{body, mura, rerolled};
 use common::{SAMPLE_3_4, SAMPLE_4_5, current};
