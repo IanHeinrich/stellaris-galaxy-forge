@@ -351,7 +351,7 @@ const lastRolled = lastOf<readonly RolledPlanet[]>();
 /** Where everything of the system `src` names is drawn. */
 export function systemContext(src: SystemSources): SystemContext {
   const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
-  const layout = systemLayout(src.details, src.roll, src.planetClasses);
+  const layout = systemLayout(src.details, src.roll, src.planetClasses, src.moonScale);
   const bodies = lastBodies(
     [
       layout,

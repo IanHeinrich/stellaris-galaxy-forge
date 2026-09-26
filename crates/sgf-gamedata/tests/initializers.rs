@@ -1018,7 +1018,7 @@ fn a_defined_initializer_that_places_nothing_answers_with_empty_lists() {
     assert!(details.sites.is_empty());
     assert!(details.megastructures.is_empty());
     assert!(details.starbase.is_none());
-    assert!(!details.unexpanded_scripts);
+    assert!(!gd.rolls_planets("empty_init"));
     for undefined in ["random", "", "no_such_initializer"] {
         assert!(
             gd.initializer_details(4, undefined, None).is_none(),
@@ -1028,7 +1028,7 @@ fn a_defined_initializer_that_places_nothing_answers_with_empty_lists() {
 }
 
 /// The void worms' systems place their bodies through an `inline_script`, which the details do
-/// not expand: the record says so, and lists none of them.
+/// not expand: the game rolls its planets, and the record lists none of them.
 #[test]
 fn an_initializer_placing_its_bodies_through_an_inline_script_is_marked() {
     let Some(gd) = INSTALL.as_ref() else {
@@ -1037,20 +1037,13 @@ fn an_initializer_placing_its_bodies_through_an_inline_script_is_marked() {
     let worms = gd
         .initializer_details(4, "voidworms_spawn_system_tiny", None)
         .expect("a record for a defined initializer");
-    assert!(worms.unexpanded_scripts);
     assert!(worms.planets.is_empty());
     let roll = gd.system_roll(4, "voidworms_spawn_system_tiny", "", 0, 150.0);
     assert!(roll.rolls_planets, "the game rolls what the script places");
     assert!(!roll.placeholders.is_empty());
-    let plain = gd
-        .initializer_details(4, "basic_init_05", None)
-        .expect("basic_init_05");
-    assert!(!plain.unexpanded_scripts);
-    let fallen = gd
-        .initializer_details(4, "fallen_1_2", None)
-        .expect("fallen_1_2");
+    assert!(!gd.rolls_planets("basic_init_05"));
     assert!(
-        !fallen.unexpanded_scripts,
+        !gd.rolls_planets("fallen_1_2"),
         "an inline_script in a body's init_effect places no body"
     );
 }
@@ -1236,20 +1229,6 @@ fn a_scenario_bodys_star_class_draw_moon_and_size_come_from_the_install() {
         "sc_sun over the odds-less sc_a_sun; a body nested in the star block is no moon, \
          but takes a moon's size as the block it is written in gives it"
     );
-}
-
-/// A system or body block that runs an `inline_script` places bodies the details do not list.
-#[test]
-fn an_inline_script_in_a_system_or_body_block_is_marked_unexpanded() {
-    let (_dir, gd) = common::hand_written(&FACT_FILES);
-    for key in ["fx_scripted", "fx_body_scripted"] {
-        let details = gd.initializer_details(1, key, None).expect(key);
-        assert!(details.unexpanded_scripts, "{key}");
-    }
-    let facts = gd
-        .initializer_details(1, "fx_facts", None)
-        .expect("fx_facts");
-    assert!(!facts.unexpanded_scripts);
 }
 
 /// An initializer that places its bodies only through an `inline_script` lists none, so the

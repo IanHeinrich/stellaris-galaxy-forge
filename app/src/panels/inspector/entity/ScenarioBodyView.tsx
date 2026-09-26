@@ -12,7 +12,7 @@ import {
 import { ANY_ANGLE, isStar, systemLayout } from "../../../lib/details/orbits";
 import { resourceRows } from "../../../lib/details/resources";
 import { useDetailsStore, useSystemRoll } from "../../../store/detailsStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
+import { moonScaleOf, useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import { Chip } from "../../parts";
@@ -141,11 +141,12 @@ function Moons({ details, body }: { details: SystemDetails; body: PlanetSummary 
 function BodyOverview({ details, body }: { details: SystemDetails; body: PlanetSummary }) {
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
+  const moonScale = useGameDataStore(moonScaleOf);
   const shown = useSceneStore((s) =>
     s.scene.kind === "system" && s.scene.id === details.id ? s.roll : 0,
   );
   const roll = useSystemRoll(details.id, shown);
-  const placed = systemLayout(details, roll, planetClasses).bodies;
+  const placed = systemLayout(details, roll, planetClasses, moonScale).bodies;
   const layout = body.layout;
   const orbitStep = layout?.orbit_step ?? null;
   // A body at the centre of the walk marks no direction to turn from, so it anchors no turn.

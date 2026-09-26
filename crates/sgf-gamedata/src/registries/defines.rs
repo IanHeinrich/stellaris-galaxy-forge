@@ -1,5 +1,5 @@
 //! `common/defines`: the `NGraphics` constants the map uses to draw territory
-//! borders, and the `NGameplay` ones that set how many deposits a new body rolls.
+//! borders and moons, and the `NGameplay` ones that set how many deposits a new body rolls.
 
 use sgf_core::cst::Node;
 
@@ -9,6 +9,9 @@ use crate::install::script::ParsedDir;
 pub struct BorderDefines {
     pub system_radius: f64,
     pub hyperlane_thickness: f64,
+    /// `NGraphics.MOON_SCALE`: how much smaller the map draws a moon than a planet of the same
+    /// `planet_size`.
+    pub moon_scale: f64,
 }
 
 impl Default for BorderDefines {
@@ -16,6 +19,7 @@ impl Default for BorderDefines {
         Self {
             system_radius: 35.0,
             hyperlane_thickness: 20.0,
+            moon_scale: 0.7,
         }
     }
 }
@@ -31,6 +35,9 @@ impl BorderDefines {
                 }
                 if let Some(thickness) = field(graphics, "BORDER_HYPERLANE_THICKNESS", src) {
                     out.hyperlane_thickness = thickness;
+                }
+                if let Some(scale) = field(graphics, "MOON_SCALE", src) {
+                    out.moon_scale = scale;
                 }
             }
         }

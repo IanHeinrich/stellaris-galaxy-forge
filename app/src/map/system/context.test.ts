@@ -307,7 +307,6 @@ describe("planets the game rolls", () => {
         id: SYSTEM,
         planets: [],
         with_game_data: true,
-        unexpanded_scripts: true,
       }),
     });
     expect(ctx.rolled.length).toBeGreaterThan(0);

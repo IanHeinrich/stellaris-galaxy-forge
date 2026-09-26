@@ -116,7 +116,6 @@ impl GameData {
             with_game_data: true,
             belts: init.asteroid_belts.iter().filter_map(belt).collect(),
             inner_radius: None,
-            unexpanded_scripts: init.inline_script,
         })
     }
 
