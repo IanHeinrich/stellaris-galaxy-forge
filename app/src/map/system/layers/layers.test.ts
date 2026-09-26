@@ -1,18 +1,28 @@
 import { describe, expect, it, vi } from "vitest";
 
-/** The texture fetch, held until a test lets it answer. */
-const fetch = vi.hoisted(() => ({ release: null as (() => void) | null }));
+/** The texture fetch, held until a test lets it answer, failing the keys `fails` names. */
+const fetch = vi.hoisted(() => ({
+  release: null as (() => void) | null,
+  fails: (() => false) as (key: string) => boolean,
+}));
 
 vi.mock("../../../api/textures", () => ({
   getTextures: (keys: string[]) =>
     new Promise((resolve) => {
       fetch.release = () =>
-        resolve(keys.map((key) => ({ key, width: 1, height: 1, png_base64: "", error: null })));
+        resolve(
+          keys.map((key) =>
+            fetch.fails(key)
+              ? { key, width: 0, height: 0, png_base64: null, error: "no map" }
+              : { key, width: 1, height: 1, png_base64: "", error: null },
+          ),
+        );
     }),
 }));
 
 import { BitmapText, Container, Graphics, Sprite, Texture } from "pixi.js";
 import type { BodyLayout } from "../../../generated/BodyLayout";
+import type { PlanetClassView } from "../../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
@@ -25,7 +35,7 @@ import {
   systemDetails,
 } from "../../../test/builders";
 import { NO_SOURCES, systemContext, type SystemContext } from "../context";
-import { drawOps, stubTextMeasurement, viewport } from "../fixture";
+import { drawOps, strokes, stubTextMeasurement, viewport } from "../fixture";
 import { BeltsLayer, MAX_ROCKS } from "./BeltsLayer";
 import { BodiesLayer } from "./BodiesLayer";
 import { ExitsLayer } from "./ExitsLayer";
@@ -39,6 +49,38 @@ const SYSTEM = 5;
 /** Drops the last fetch's answer, so a test waits for its own. */
 function forgetFetch(): void {
   fetch.release = null;
+}
+
+/** Answers every lit-disc request with an error, as for a class with no surface map. */
+function noLitDiscs(): void {
+  fetch.fails = (key) => key.startsWith("planet_disc:");
+}
+
+/** Lets the held fetch answer, once the layer has asked. */
+async function answerFetch(): Promise<void> {
+  await vi.waitFor(() => expect(fetch.release).not.toBeNull());
+  const release = fetch.release;
+  forgetFetch();
+  release?.();
+}
+
+/** One texture per key, so a test can tell which key a sprite shows. */
+function decodeByKey(): (key: string) => Texture {
+  const decoded = new Map<string, Texture>();
+  const textureFor = (key: string) => {
+    let texture = decoded.get(key);
+    if (!texture) decoded.set(key, (texture = new Texture()));
+    return texture;
+  };
+  setTextureDecoder((view) => Promise.resolve(textureFor(view.key)));
+  return textureFor;
+}
+
+function resetTextures(): void {
+  clearTextures();
+  forgetFetch();
+  fetch.fails = () => false;
+  setTextureDecoder(null);
 }
 
 function saveBody(
@@ -76,6 +118,7 @@ function scenarioBody(
     class: planetClass,
     parent,
     layout: { orbit: null, angle: null, at: null, size: fixed(16), ...layout },
+    ring: false,
   });
 }
 
@@ -88,6 +131,8 @@ function blankTextures(): SceneTextures {
     shade: new Texture(),
     gloss: new Texture(),
     rock: new Texture(),
+    ringBack: new Texture(),
+    ringFront: new Texture(),
   };
 }
 
@@ -299,8 +344,18 @@ describe("the system scene's bodies layer", () => {
   };
   const sprites = (holder: Container) =>
     holder.children.filter((c): c is Sprite => c instanceof Sprite);
-  const outline = (holder: Container) =>
-    holder.children.find((c): c is Graphics => c instanceof Graphics);
+  /** The part of a body the layer labelled `label`, if it drew one. */
+  const part = (holder: Container, label: string) => holder.children.find((c) => c.label === label);
+  const sprite = (holder: Container, label: string) => {
+    const found = part(holder, label);
+    if (!(found instanceof Sprite)) throw new Error(`no ${label} sprite`);
+    return found;
+  };
+  const graphics = (holder: Container, label: string) => {
+    const found = part(holder, label);
+    return found instanceof Graphics ? found : undefined;
+  };
+  const outline = (holder: Container) => graphics(holder, "outline");
 
   it("draws a body with no angle as a faded disc with a dashed outline", () => {
     clearTextures();
@@ -323,27 +378,202 @@ describe("the system scene's bodies layer", () => {
   });
 
   it("draws a random class as its tinted disc with a question mark, and no class icon", async () => {
-    clearTextures();
-    forgetFetch();
+    resetTextures();
+    noLitDiscs();
     setTextureDecoder(() => Promise.resolve(new Texture()));
     const known = scenarioBody(2, "pc_arid", { orbit: fixed(60), angle: fixed(0) }, 1);
     const random = scenarioBody(3, "random_colonizable", { orbit: fixed(90), angle: fixed(90) }, 1);
     const layer = new BodiesLayer(blankTextures());
     layer.rebuild(scenarioContext([SCENARIO_STAR, known, random]));
     viewport(layer, 2);
-    const artShown = (holder: Container) => sprites(holder)[1].visible;
+    const artShown = (holder: Container) => sprite(holder, "art").visible;
 
-    await vi.waitFor(() => expect(fetch.release).not.toBeNull());
-    fetch.release?.();
+    await answerFetch();
     await vi.waitFor(() => expect(artShown(holderAt(layer, 60, 0))).toBe(true));
 
     const drawn = holderAt(layer, 0, 90);
     expect(artShown(drawn)).toBe(false);
-    expect(sprites(drawn)[0].visible).toBe(true);
+    expect(sprite(drawn, "disc").visible).toBe(true);
     const glyphs = drawn.children.filter((c): c is BitmapText => c instanceof BitmapText);
     expect(glyphs.map((g) => [g.text, g.visible])).toEqual([["?", true]]);
     expect(holderAt(layer, 60, 0).children.some((c) => c instanceof BitmapText)).toBe(false);
-    setTextureDecoder(null);
+    resetTextures();
+    layer.destroy();
+  });
+
+  const hazy = (key: string): PlanetClassView => ({
+    ...planetClassView(key, false),
+    atmosphere_color: "#3366cc",
+    atmosphere_intensity: 1,
+    atmosphere_width: 0.5,
+  });
+  const iconed = (key: string, large: string | null = null): PlanetClassView => ({
+    ...planetClassView(key, false),
+    icon_sprite: `GFX_${key}`,
+    icon_large_sprite: large,
+  });
+
+  /** A G star with `planets` about it, of the classes `classes` define. */
+  const classedContext = (planets: PlanetSummary[], classes: PlanetClassView[]) =>
+    systemContext({
+      ...NO_SOURCES,
+      id: SYSTEM,
+      systems: byId(placedNode(SYSTEM, 0, 0)),
+      details: systemDetails({ id: SYSTEM, planets: [SUN, ...planets] }),
+      planetClasses: new Map(
+        [planetClassView("pc_g_star"), ...classes].map((view) => [view.key, view]),
+      ),
+    });
+  const EARTH_AT: [number, number] = [90, 0];
+  const MARS_AT: [number, number] = [0, 130];
+
+  it("draws a soft rim in the class's atmosphere colour outside the limb, and none for a class without one", () => {
+    resetTextures();
+    const layer = new BodiesLayer(blankTextures());
+    layer.rebuild(
+      classedContext([EARTH, MARS], [hazy("pc_continental"), planetClassView("pc_arid", false)]),
+    );
+    viewport(layer, 2);
+
+    const earth = holderAt(layer, ...EARTH_AT);
+    const limb = sprite(earth, "disc").width / 2;
+    const rim = strokes(graphics(earth, "rim") ?? new Graphics());
+    expect(rim.length).toBeGreaterThan(1);
+    for (const stroke of rim) {
+      expect(stroke.color).toBe(0x3366cc);
+      const [circle] = stroke.segments;
+      expect(circle[circle.length - 1]).toBeGreaterThan(limb);
+    }
+    const alphas = rim.map((stroke) => stroke.alpha ?? 1);
+    expect(alphas).toEqual([...alphas].sort((a, b) => b - a));
+    expect(alphas[alphas.length - 1]).toBeLessThan(alphas[0]);
+    const at = (label: string) => earth.children.indexOf(part(earth, label) ?? earth);
+    expect(at("rim")).toBeGreaterThan(at("shade"));
+
+    expect(part(holderAt(layer, ...MARS_AT), "rim")).toBeUndefined();
+    layer.destroy();
+  });
+
+  it("fades a ghost's rim with the body", () => {
+    resetTextures();
+    const ghost = scenarioBody(2, "pc_continental", { orbit: fixed(70) }, 1);
+    const layer = new BodiesLayer(blankTextures());
+    layer.rebuild(
+      systemContext({
+        ...NO_SOURCES,
+        id: SYSTEM,
+        systems: byId(placedNode(SYSTEM, 0, 0)),
+        details: systemDetails({ id: SYSTEM, planets: [SCENARIO_STAR, ghost] }),
+        planetClasses: new Map([["pc_continental", hazy("pc_continental")]]),
+      }),
+    );
+    viewport(layer, 2);
+    expect(graphics(holderAt(layer, 70, 0), "rim")?.alpha).toBeLessThan(0.6);
+    layer.destroy();
+  });
+
+  it("draws a ring's far half behind the disc and its near half in front, a ring left to chance faded and dashed, and no ring when there is none", () => {
+    resetTextures();
+    const textures = blankTextures();
+    const bare = saveBody(5, "pc_barren", [-150, 0], 150, 1);
+    const layer = new BodiesLayer(textures);
+    layer.rebuild(
+      classedContext(
+        [
+          { ...EARTH, ring: true },
+          { ...MARS, ring: null },
+          { ...bare, ring: false },
+        ],
+        [planetClassView("pc_continental", false), planetClassView("pc_arid", false)],
+      ),
+    );
+    viewport(layer, 2);
+
+    const ringed = holderAt(layer, ...EARTH_AT);
+    const at = (label: string) => ringed.children.indexOf(sprite(ringed, label));
+    expect(at("ringBack")).toBeLessThan(at("disc"));
+    expect(at("ringFront")).toBeGreaterThan(at("shade"));
+    expect(sprite(ringed, "ringBack").texture).toBe(textures.ringBack);
+    expect(sprite(ringed, "ringFront").texture).toBe(textures.ringFront);
+    const disc = sprite(ringed, "disc").width;
+    for (const half of [sprite(ringed, "ringBack"), sprite(ringed, "ringFront")]) {
+      expect(half.alpha).toBe(1);
+      expect(half.width).toBeGreaterThan(2 * disc);
+      expect(half.height).toBeLessThan(disc);
+      expect(half.rotation).not.toBe(0);
+    }
+    expect(part(ringed, "ringDashes")).toBeUndefined();
+
+    const chance = holderAt(layer, ...MARS_AT);
+    for (const label of ["ringBack", "ringFront"]) {
+      expect(sprite(chance, label).alpha).toBeLessThan(0.6);
+    }
+    const dashes = strokes(graphics(chance, "ringDashes") ?? new Graphics());
+    expect(dashes).toHaveLength(1);
+    expect(dashes[0].segments.length).toBeGreaterThan(1);
+
+    const none = holderAt(layer, -150, 0);
+    for (const label of ["ringBack", "ringFront", "ringDashes"]) {
+      expect(part(none, label)).toBeUndefined();
+    }
+    layer.destroy();
+  });
+
+  it("swaps the tinted disc for the class's lit disc once it lands, turned to face the star under the same shading", async () => {
+    resetTextures();
+    const textureFor = decodeByKey();
+    fetch.fails = (key) => key === "planet_disc:pc_continental";
+    const layer = new BodiesLayer(blankTextures());
+    layer.rebuild(classedContext([EARTH, MARS], [iconed("pc_continental"), iconed("pc_arid")]));
+    viewport(layer, 2);
+    const mars = holderAt(layer, ...MARS_AT);
+    expect(sprite(mars, "disc").visible).toBe(true);
+    expect(sprite(mars, "lit").visible).toBe(false);
+
+    await answerFetch();
+    await vi.waitFor(() => expect(sprite(mars, "lit").visible).toBe(true));
+    const lit = sprite(mars, "lit");
+    const shade = sprite(mars, "shade");
+    expect(lit.texture).toBe(textureFor("planet_disc:pc_arid"));
+    expect(sprite(mars, "disc").visible).toBe(false);
+    expect(sprite(mars, "art").visible).toBe(false);
+    expect(shade.visible).toBe(true);
+    expect(mars.children.indexOf(shade)).toBeGreaterThan(mars.children.indexOf(lit));
+    expect(shade.rotation).toBeCloseTo(-Math.PI / 2);
+    expect(lit.rotation).toBe(shade.rotation);
+    // Mirrored, so the left-lit bake's light lies along +x, where the mask's does.
+    expect(lit.scale.x).toBeLessThan(0);
+    expect(lit.width).toBeCloseTo(sprite(mars, "disc").width);
+
+    const earth = holderAt(layer, ...EARTH_AT);
+    expect(sprite(earth, "disc").visible).toBe(true);
+    expect(sprite(earth, "lit").visible).toBe(false);
+    expect(sprite(earth, "art").visible).toBe(true);
+    expect(sprite(earth, "art").texture).toBe(textureFor("sprite:GFX_pc_continental"));
+    resetTextures();
+    layer.destroy();
+  });
+
+  it("shows the class's large icon while the disc is large on screen, and its small one otherwise", async () => {
+    resetTextures();
+    noLitDiscs();
+    const textureFor = decodeByKey();
+    const layer = new BodiesLayer(blankTextures());
+    layer.rebuild(classedContext([MARS], [iconed("pc_arid", "GFX_pc_arid_big")]));
+    viewport(layer, 1);
+    const art = () => sprite(holderAt(layer, ...MARS_AT), "art");
+
+    await answerFetch();
+    await vi.waitFor(() => expect(art().texture).toBe(textureFor("sprite:GFX_pc_arid")));
+
+    viewport(layer, 12);
+    await answerFetch();
+    await vi.waitFor(() => expect(art().texture).toBe(textureFor("sprite:GFX_pc_arid_big")));
+    expect(art().visible).toBe(true);
+
+    viewport(layer, 1);
+    expect(art().texture).toBe(textureFor("sprite:GFX_pc_arid"));
+    resetTextures();
     layer.destroy();
   });
 });

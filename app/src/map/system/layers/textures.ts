@@ -1,4 +1,4 @@
-import { Graphics, type Renderer, type Texture } from "pixi.js";
+import { Graphics, Rectangle, type Renderer, type Texture } from "pixi.js";
 import { acquireGlow, releaseGlow } from "../../layers/SystemsLayer";
 
 /** The textures the scene draws its bodies and belts with, baked once per scene. */
@@ -13,6 +13,12 @@ export interface SceneTextures {
   gloss: Texture;
   /** One small rock, tinted per belt. */
   rock: Texture;
+  /**
+   * A planet's ring seen face on, as its far (upper) and near (lower) halves, each in the frame
+   * of the whole ring so the two line up; squashed into an ellipse and tinted per body.
+   */
+  ringBack: Texture;
+  ringFront: Texture;
 }
 
 const DISC_R = 32;
@@ -26,16 +32,23 @@ const LIT_OFFSET = 0.32;
 /** Half the angle the lighter limb spans on the lit edge, in radians. */
 const LIMB_SPAN = 1.2;
 const ROCK_R = 4;
+const RING_R = 64;
+/** The ring's inner edge, as a share of its outer one. */
+const RING_INNER = 0.56;
+const RING_BANDS = 16;
+/** Where across the band, from inner to outer, the dark gap lies, and its half width. */
+const RING_GAP = 0.64;
+const RING_GAP_HALF = 0.05;
 
 function grey(v: number): number {
   const c = Math.round(Math.min(255, Math.max(0, v)));
   return (c << 16) | (c << 8) | c;
 }
 
-function bake(renderer: Renderer, draw: (g: Graphics) => void): Texture {
+function bake(renderer: Renderer, draw: (g: Graphics) => void, frame?: Rectangle): Texture {
   const g = new Graphics();
   draw(g);
-  const texture = renderer.generateTexture({ target: g, resolution: 2 });
+  const texture = renderer.generateTexture({ target: g, resolution: 2, frame });
   g.destroy();
   return texture;
 }
@@ -91,20 +104,43 @@ function drawRock(g: Graphics): void {
   g.poly([R, R, points[0], points[1], points[2], points[3]]).fill({ color: 0xffffff });
 }
 
+/**
+ * Half the ring, the far half above the centre and the near half below it: concentric bands
+ * from the inner edge out, brightest mid-band, with a dark gap and a soft fade at both edges.
+ */
+function drawRingHalf(g: Graphics, far: boolean): void {
+  const R = RING_R;
+  const [from, to] = far ? [Math.PI, 2 * Math.PI] : [0, Math.PI];
+  const inner = R * RING_INNER;
+  const step = (R - inner) / RING_BANDS;
+  for (let i = 0; i < RING_BANDS; i++) {
+    const t = (i + 0.5) / RING_BANDS;
+    const r = inner + (i + 0.5) * step;
+    const gap = Math.abs(t - RING_GAP) < RING_GAP_HALF ? 0.2 : 1;
+    const alpha = (0.3 + 0.55 * Math.sin(Math.PI * t)) * gap;
+    const v = 0xb4 + 0x4b * (0.5 + 0.5 * Math.cos(t * 11));
+    g.moveTo(R + r * Math.cos(from), R + r * Math.sin(from))
+      .arc(R, R, r, from, to)
+      .stroke({ color: grey(v), width: step, alpha });
+  }
+}
+
 export function bakeSceneTextures(renderer: Renderer): SceneTextures {
+  const ringFrame = () => new Rectangle(0, 0, 2 * RING_R, 2 * RING_R);
   return {
     disc: bake(renderer, (g) => g.circle(DISC_R, DISC_R, DISC_R).fill({ color: 0xffffff })),
     glow: acquireGlow(renderer),
     shade: bake(renderer, (g) => drawShade(g, false)),
     gloss: bake(renderer, (g) => drawShade(g, true)),
     rock: bake(renderer, drawRock),
+    ringBack: bake(renderer, (g) => drawRingHalf(g, true), ringFrame()),
+    ringFront: bake(renderer, (g) => drawRingHalf(g, false), ringFrame()),
   };
 }
 
 /** Destroys the textures `bakeSceneTextures` made and lets go of the shared glow. */
 export function releaseSceneTextures(renderer: Renderer, textures: SceneTextures): void {
-  for (const texture of [textures.disc, textures.shade, textures.gloss, textures.rock]) {
-    texture.destroy(true);
-  }
+  const { disc, shade, gloss, rock, ringBack, ringFront } = textures;
+  for (const texture of [disc, shade, gloss, rock, ringBack, ringFront]) texture.destroy(true);
   releaseGlow(renderer);
 }

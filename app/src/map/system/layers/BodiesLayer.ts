@@ -7,7 +7,12 @@ import { getTexture, onTextures, requestTextures } from "../../../lib/visual/tex
 import type { Camera } from "../../Camera";
 import { dashedCircle } from "../../layers/dashes";
 import { STAR_ART_BLEND } from "../../layers/StarClusters";
-import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
+import {
+  EMPTY_SYSTEM_CONTEXT,
+  type Atmosphere,
+  type SceneBody,
+  type SystemContext,
+} from "../context";
 import { drawnDisc } from "../geometry";
 import type { SystemLayer } from "./SystemLayer";
 import type { SceneTextures } from "./textures";
@@ -17,10 +22,30 @@ const GLOW_SCALE = 3.2;
 const STAR_ART_SCALE = 2.2;
 /** A planet's class icon, in disc diameters. */
 const PLANET_ART_SCALE = 1;
+/** The on-screen disc diameter, in pixels, past which a planet shows its class's large icon. */
+const LARGE_ICON_PX = 48;
 const GLOW_ALPHA = 0.9;
 /** A ghost's sprites, and the dashes of its outline. */
 const GHOST_ALPHA = 0.4;
 const GHOST_DASHES = 16;
+/**
+ * The atmosphere rim: its width in disc radii per unit of the class's `atmosphere_width`, never
+ * under a pixel and a half, its innermost alpha per unit of `atmosphere_intensity`, and the
+ * strokes it fades out over.
+ */
+const RIM_WIDTH = 0.24;
+const RIM_MIN_PX = 1.5;
+const RIM_ALPHA = 0.6;
+const RIM_STEPS = 4;
+/** A ring's outer semi-axes in disc radii, and its tilt on screen. */
+const RING_MAJOR = 2.4;
+const RING_MINOR = RING_MAJOR / 3;
+const RING_TILT = -0.3;
+/** The ring's warm neutral, and how far it leans towards the body's own tint. */
+const RING_COLOUR = 0xd8c6a0;
+const RING_TINT_SHARE = 0.3;
+const RING_DASHES = 32;
+const RING_DASH_INK = 0.6;
 /** The question mark over a random class, its height in disc diameters. */
 const GLYPH_FONT_PX = 24;
 const GLYPH_SCALE = 0.75;
@@ -59,6 +84,15 @@ function bodyTint(body: SceneBody): number {
   return planetTint(body.planetClass);
 }
 
+function mixed(a: number, b: number, share: number): number {
+  const channel = (shift: number) => {
+    const from = (a >> shift) & 0xff;
+    const to = (b >> shift) & 0xff;
+    return Math.round(from + (to - from) * share) << shift;
+  };
+  return channel(16) | channel(8) | channel(0);
+}
+
 /** A class the initializer leaves to chance, as the scenario body page reads it. */
 function randomClass(planetClass: string): boolean {
   return planetClass === "" || planetClass === "random" || planetClass.startsWith("random_");
@@ -69,19 +103,38 @@ function takesGloss(planetClass: string): boolean {
   return !/gas_giant|asteroid/.test(planetClass);
 }
 
+/** The texture key of the class's surface baked as a lit disc; none for a star, an asteroid or a random class. */
+function litKey(body: SceneBody): string | null {
+  const { planetClass } = body;
+  if (body.placement.star || randomClass(planetClass) || /asteroid/.test(planetClass)) return null;
+  return `planet_disc:${planetClass}`;
+}
+
 /** Stars under planets under moons, so a moon is never hidden behind its planet. */
 function drawOrder(body: SceneBody): number {
   return body.placement.star ? 0 : body.moon ? 2 : 1;
 }
 
+interface Ring {
+  back: Sprite;
+  front: Sprite;
+  /** The outline of a ring left to chance. */
+  dashes: Graphics | null;
+}
+
 interface Drawn {
   body: SceneBody;
   glow: Sprite | null;
+  ring: Ring | null;
   disc: Sprite;
+  lit: Sprite | null;
   art: Sprite;
   shade: Sprite | null;
+  rim: Graphics | null;
   glyph: BitmapText | null;
   outline: Graphics | null;
+  /** Whether the disc was last dressed as large on screen. */
+  large: boolean;
 }
 
 function sized(sprite: Sprite, diameter: number): void {
@@ -89,10 +142,35 @@ function sized(sprite: Sprite, diameter: number): void {
   sprite.scale.set(diameter / Math.max(width, height, 1));
 }
 
+/** The dashes of a ring's outer edge, leaving out those the disc hides on the far side. */
+function traceRingDashes(g: Graphics, radius: number): void {
+  const a = radius * RING_MAJOR;
+  const b = radius * RING_MINOR;
+  const cos = Math.cos(RING_TILT);
+  const sin = Math.sin(RING_TILT);
+  const at = (t: number): [number, number] => {
+    const x = a * Math.cos(t);
+    const y = b * Math.sin(t);
+    return [x * cos - y * sin, x * sin + y * cos];
+  };
+  const step = (2 * Math.PI) / RING_DASHES;
+  for (let i = 0; i < RING_DASHES; i++) {
+    const start = i * step;
+    const end = start + step * RING_DASH_INK;
+    const mid = (start + end) / 2;
+    if (Math.sin(mid) < 0 && Math.hypot(...at(mid)) < radius) continue;
+    g.moveTo(...at(start));
+    for (let k = 1; k <= 4; k++) g.lineTo(...at(start + ((end - start) * k) / 4));
+  }
+}
+
 /**
  * A tinted disc per body with its class icon on top, a glow under each star and the sphere
- * shading over each other body, turned so its lit side faces the star it orbits. A random class
- * shows a question mark in place of the icon, and a ghost is faded inside a dashed outline.
+ * shading over each other body, turned so its lit side faces the star it orbits. A class whose
+ * surface the install bakes into a lit disc shows that in place of the tint and the icon. A class
+ * with an atmosphere shows a haze outside the limb, and a ringed body its ring, the far half
+ * behind the disc. A random class shows a question mark in place of the icon, a ghost is faded
+ * inside a dashed outline, and a ring left to chance is faded and dashed.
  */
 export class BodiesLayer implements SystemLayer {
   readonly id = "bodies" as const;
@@ -122,29 +200,61 @@ export class BodiesLayer implements SystemLayer {
     holder.position.set(placement.x, placement.y);
     holder.scale.set(SAVE_X_SIGN, SAVE_Y_SIGN);
     const tint = bodyTint(body);
-    const sprite = (texture: Texture) => {
+    const sprite = (label: string, texture: Texture) => {
       const s = new Sprite(texture);
+      s.label = label;
       s.anchor.set(0.5);
       holder.addChild(s);
       return s;
     };
+    const graphics = (label: string) => {
+      const g = new Graphics();
+      g.label = label;
+      holder.addChild(g);
+      return g;
+    };
     let glow: Sprite | null = null;
     if (placement.star) {
-      glow = sprite(this.textures.glow);
+      glow = sprite("glow", this.textures.glow);
       glow.tint = tint;
       glow.alpha = GLOW_ALPHA;
     }
-    const disc = sprite(this.textures.disc);
+    const ringed = !placement.star && body.ring !== false;
+    const ringTint = mixed(RING_COLOUR, tint, RING_TINT_SHARE);
+    const ringHalf = (label: string, texture: Texture) => {
+      const half = sprite(label, texture);
+      half.tint = ringTint;
+      half.rotation = RING_TILT;
+      if (body.ring === null) half.alpha = GHOST_ALPHA;
+      return half;
+    };
+    const back = ringed ? ringHalf("ringBack", this.textures.ringBack) : null;
+    const disc = sprite("disc", this.textures.disc);
     disc.tint = tint;
-    const art = sprite(Texture.EMPTY);
+    let lit: Sprite | null = null;
+    if (litKey(body) !== null) {
+      lit = sprite("lit", Texture.EMPTY);
+      lit.visible = false;
+      lit.rotation = placement.light ?? 0;
+    }
+    const art = sprite("art", Texture.EMPTY);
     art.visible = false;
     // As on the galaxy map: the art's black ground adds nothing, so only its light shows.
     if (placement.star) art.blendMode = STAR_ART_BLEND;
     let shade: Sprite | null = null;
     if (!placement.star) {
-      shade = sprite(takesGloss(body.planetClass) ? this.textures.gloss : this.textures.shade);
+      shade = sprite(
+        "shade",
+        takesGloss(body.planetClass) ? this.textures.gloss : this.textures.shade,
+      );
       shade.blendMode = "multiply";
       shade.rotation = placement.light ?? 0;
+    }
+    const rim = !placement.star && body.atmosphere ? graphics("rim") : null;
+    let ring: Ring | null = null;
+    if (back) {
+      const front = ringHalf("ringFront", this.textures.ringFront);
+      ring = { back, front, dashes: body.ring === null ? graphics("ringDashes") : null };
     }
     let glyph: BitmapText | null = null;
     if (randomClass(body.planetClass)) {
@@ -153,28 +263,42 @@ export class BodiesLayer implements SystemLayer {
     }
     let outline: Graphics | null = null;
     if (placement.ghost) {
-      for (const faded of [glow, disc, art, shade, glyph]) if (faded) faded.alpha *= GHOST_ALPHA;
-      outline = new Graphics();
-      holder.addChild(outline);
+      const faded = [glow, ring?.back, ring?.front, disc, lit, art, shade, rim, glyph];
+      for (const part of faded) if (part) part.alpha *= GHOST_ALPHA;
+      outline = graphics("outline");
     }
     this.container.addChild(holder);
-    const drawn = { body, glow, disc, art, shade, glyph, outline };
+    const drawn = { body, glow, ring, disc, lit, art, shade, rim, glyph, outline, large: false };
+    drawn.large = this.isLarge(drawn);
     this.dress(drawn);
     return drawn;
   }
 
+  private isLarge({ body }: Drawn): boolean {
+    if (this.scale <= 0 || body.placement.star) return false;
+    return 2 * drawnDisc(body.placement.disc, this.scale) * this.scale > LARGE_ICON_PX;
+  }
+
   /**
-   * Shows the icon's texture once it has landed, and the disc and glow alone until then; asks
-   * for it again after the cache was cleared, as when game data reloads.
+   * Shows the lit disc and the icon once their textures have landed, and the tinted disc and
+   * glow alone until then; asks for them again after the cache was cleared, as when game data
+   * reloads. The lit disc stands in for the icon, which only marked the surface.
    */
   private dress(drawn: Drawn): void {
-    const keys = randomClass(drawn.body.planetClass) ? [] : drawn.body.iconKeys;
+    const { body, art, glow, disc, lit } = drawn;
+    const key = litKey(body);
+    const surface = key === null ? null : this.resolve([key]);
+    if (lit) {
+      lit.texture = surface ?? Texture.EMPTY;
+      lit.visible = surface !== null;
+    }
+    const iconKeys = drawn.large ? body.largeIconKeys : body.iconKeys;
+    const keys = randomClass(body.planetClass) || surface !== null ? [] : iconKeys;
     const texture = this.resolve(keys);
-    const { art, glow, disc } = drawn;
     art.texture = texture ?? Texture.EMPTY;
     art.visible = texture !== null;
     if (glow) glow.visible = texture === null;
-    if (drawn.body.placement.star) disc.visible = texture === null;
+    disc.visible = body.placement.star ? texture === null : surface === null;
   }
 
   /** The first of `keys` that has landed, or null while none has. */
@@ -203,18 +327,60 @@ export class BodiesLayer implements SystemLayer {
 
   private resize(): void {
     if (this.scale <= 0) return;
-    for (const { body, glow, disc, art, shade, glyph, outline } of this.drawn) {
+    for (const drawn of this.drawn) {
+      const large = this.isLarge(drawn);
+      if (large !== drawn.large) {
+        drawn.large = large;
+        this.dress(drawn);
+      }
+      const { body, glow, ring, disc, lit, art, shade, rim, glyph, outline } = drawn;
       const d = 2 * drawnDisc(body.placement.disc, this.scale);
       if (glow) sized(glow, d * GLOW_SCALE);
       sized(disc, d);
+      if (lit) {
+        sized(lit, d);
+        // The bake is lit from its left; mirrored, its light lies along +x as the mask's does.
+        lit.scale.x = -lit.scale.x;
+      }
       sized(art, d * (body.placement.star ? STAR_ART_SCALE : PLANET_ART_SCALE));
       if (shade) sized(shade, d);
+      if (rim && body.atmosphere) this.drawRim(rim, body.atmosphere, d / 2);
+      if (ring) this.sizeRing(ring, body, d / 2);
       if (glyph) glyph.scale.set((d * GLYPH_SCALE) / GLYPH_FONT_PX);
       if (outline) {
         outline.clear();
         dashedCircle(outline, 0, 0, d / 2, GHOST_DASHES);
         outline.stroke({ color: bodyTint(body), pixelLine: true });
       }
+    }
+  }
+
+  /** Concentric strokes out from the limb, each fainter than the one inside it. */
+  private drawRim(rim: Graphics, atmosphere: Atmosphere, radius: number): void {
+    rim.clear();
+    const width = Math.max(RIM_WIDTH * atmosphere.width * radius, RIM_MIN_PX / this.scale);
+    const step = width / RIM_STEPS;
+    const alpha = Math.min(1, RIM_ALPHA * atmosphere.intensity);
+    for (let i = 0; i < RIM_STEPS; i++) {
+      const fade = ((RIM_STEPS - i) / RIM_STEPS) ** 2;
+      rim
+        .circle(0, 0, radius + (i + 0.5) * step)
+        .stroke({ color: atmosphere.color, width: step, alpha: alpha * fade });
+    }
+  }
+
+  private sizeRing(ring: Ring, body: SceneBody, radius: number): void {
+    for (const half of [ring.back, ring.front]) {
+      const { width, height } = half.texture;
+      half.scale.set(
+        (2 * RING_MAJOR * radius) / Math.max(width, 1),
+        (2 * RING_MINOR * radius) / Math.max(height, 1),
+      );
+    }
+    if (ring.dashes) {
+      ring.dashes.clear();
+      traceRingDashes(ring.dashes, radius);
+      ring.dashes.stroke({ color: bodyTint(body), pixelLine: true });
     }
   }
 

@@ -31,7 +31,20 @@ export interface SceneBody {
   readonly starClass: string | null;
   /** Texture keys for the icon over the disc, the first that renders drawn; none for the disc alone. */
   readonly iconKeys: readonly string[];
+  /** The same while the disc is large on screen: the class's large icon, then its small one. */
+  readonly largeIconKeys: readonly string[];
+  /** The haze the class draws outside the limb; null for a class with none, and for a star. */
+  readonly atmosphere: Atmosphere | null;
+  /** Whether the body has a ring; null when a scenario leaves it to the class's chance. */
+  readonly ring: boolean | null;
   readonly moon: boolean;
+}
+
+/** A planet class's atmosphere, as its definition gives it. */
+export interface Atmosphere {
+  readonly color: number;
+  readonly intensity: number;
+  readonly width: number;
 }
 
 /** A hyperlane leaving the system, drawn as an arrow on the inner radius towards the neighbour. */
@@ -130,24 +143,40 @@ function singlesOf(starClasses: ReadonlyMap<string, StarClassView>) {
   return singles;
 }
 
+type BodyArt = Pick<SceneBody, "starClass" | "iconKeys" | "largeIconKeys" | "atmosphere">;
+
 /** A star's art: the single-star class of its body's class, else the system's own class. */
 function starArt(
   planetClass: string,
   node: SystemNode | null,
   starClasses: ReadonlyMap<string, StarClassView>,
-): { starClass: string; iconKeys: string[] } {
+): BodyArt {
   const own = singlesOf(starClasses).get(planetClass);
   const starClass = own?.key ?? node?.star_class ?? "";
   const texture = starClasses.get(starClass)?.texture_key;
-  return { starClass, iconKeys: texture ? [texture] : [] };
+  const iconKeys = texture ? [texture] : [];
+  return { starClass, iconKeys, largeIconKeys: iconKeys, atmosphere: null };
 }
 
-function planetIcon(
+function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
+  const {
+    atmosphere_color: hex,
+    atmosphere_intensity: intensity,
+    atmosphere_width: width,
+  } = view ?? {};
+  if (!hex || intensity == null || width == null) return null;
+  const color = Number.parseInt(hex.slice(1), 16);
+  return Number.isNaN(color) ? null : { color, intensity, width };
+}
+
+function planetArt(
   planetClass: string,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
-): string[] {
-  const sprite = planetClasses.get(planetClass)?.icon_sprite;
-  return sprite ? [`sprite:${sprite}`] : [];
+): BodyArt {
+  const view = planetClasses.get(planetClass);
+  const small = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
+  const large = view?.icon_large_sprite ? [`sprite:${view.icon_large_sprite}`, ...small] : small;
+  return { starClass: null, iconKeys: small, largeIconKeys: large, atmosphere: atmosphereOf(view) };
 }
 
 /** How far apart the stars of a system still loading stand, in discs of the largest. */
@@ -183,6 +212,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       planet: null,
       name: "",
       moon: false,
+      ring: false,
       ...starArt(star.class, node, src.starClasses),
     };
   });
@@ -202,7 +232,7 @@ function sceneBodies(
     const parent = placement.parent === null ? undefined : placed.get(placement.parent);
     const art = placement.star
       ? starArt(planet.class, node, src.starClasses)
-      : { starClass: null, iconKeys: planetIcon(planet.class, src.planetClasses) };
+      : planetArt(planet.class, src.planetClasses);
     return [
       {
         placement,
@@ -210,6 +240,7 @@ function sceneBodies(
         planet,
         name: src.templateName(planet),
         moon: parent !== undefined && !parent.star,
+        ring: placement.star ? false : planet.ring,
         ...art,
       },
     ];
