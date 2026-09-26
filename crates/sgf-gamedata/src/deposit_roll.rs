@@ -131,6 +131,27 @@ pub fn roll_deposits(
     abundance: f64,
     rng: &mut Rng,
 ) -> Vec<String> {
+    roll(gd, body, abundance, rng, true)
+}
+
+/// As [`roll_deposits`], for a body its layout writes `deposit_blockers = none`: no
+/// blocker is drawn, and the minimum blockers are not topped up.
+pub(crate) fn roll_deposits_without_blockers(
+    gd: &GameData,
+    body: &RollBody<'_>,
+    abundance: f64,
+    rng: &mut Rng,
+) -> Vec<String> {
+    roll(gd, body, abundance, rng, false)
+}
+
+fn roll(
+    gd: &GameData,
+    body: &RollBody<'_>,
+    abundance: f64,
+    rng: &mut Rng,
+    blockers: bool,
+) -> Vec<String> {
     if abundance <= 0.0 {
         return Vec::new();
     }
@@ -148,6 +169,7 @@ pub fn roll_deposits(
         } else {
             abundance
         },
+        blockers,
         have: Vec::new(),
         rng,
     };
@@ -184,6 +206,8 @@ struct Roll<'a> {
     class_def: Option<&'a PlanetClassDef>,
     colonizable: bool,
     factor: f64,
+    /// Blockers may be drawn.
+    blockers: bool,
     have: Vec<String>,
     rng: &'a mut Rng,
 }
@@ -215,6 +239,7 @@ impl<'a> Roll<'a> {
                 true => null,
                 false => d.is_for_colonizable == self.colonizable,
             })
+            .filter(|d| self.blockers || !self.gd.is_blocker(&d.key))
             .filter(|d| match part {
                 Part::Any => true,
                 Part::Blockers => {

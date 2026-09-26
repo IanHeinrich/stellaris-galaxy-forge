@@ -99,15 +99,18 @@ name from the game's own name list. You can rename it on its page.
 
 Right-click empty space and pick "Add system here", then Random or a
 star class. The last entry, Special, lists the game's special systems in
-two groups: unique systems such as Zevox, and other special systems such
-as Trappist. Hover an entry to see its star, planets, belts and notable
-bodies. A warning mark means the galaxy already has that system and the
-game normally places only one. You can still add another. A lock means
-the save doesn't have the DLC the system belongs to, so its events won't
-run. The game's scripted extras for special systems, such as anomalies
-and background clouds, are not added. Reroll on the new system's page
-builds the same special system again. Picking a star class there
-generates a regular system around that star.
+two groups: unique systems such as Zevox and Sol, and other special
+systems such as Trappist. Hover an entry to see its star, planets, belts
+and notable bodies. A warning mark means the galaxy already has that
+system and the game normally places only one. You can still add another.
+A lock means the save doesn't have the DLC the system belongs to, so its
+events won't run. The game's scripted extras for special systems, such
+as anomalies and background clouds, are not added. Sol comes without an
+empire, so Earth is an uncolonised continental world. Other named
+systems, such as New Bratulla and Vultaumar, come without their empires,
+pre-FTL civilisations, guardians and fleets. Reroll on the new
+system's page builds the same special system again. Picking a star class
+there generates a regular system around that star.
 
 A system added inside a nebula joins it. To take out a system you added
 this session, select it and press Delete, or right-click it and pick

@@ -8,11 +8,11 @@ use sgf_core::session::Session;
 
 use crate::GameData;
 use crate::body_effects;
-use crate::deposit_roll::{RollBody, roll_deposits};
+use crate::deposit_roll::{RollBody, roll_deposits, roll_deposits_without_blockers};
 use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::script::Range;
 use crate::layouts::{
-    Dlc, Eligibility, SaveFacts, StarSource, USAGE, Unsupported, eligibility, generic,
+    Dlc, Eligibility, SaveFacts, StarSource, USAGE, Unsupported, converted, eligibility, generic,
     layout_stars, odds, plain_initializers, special_initializers, star_body, star_source,
 };
 use crate::menu::menu_initializers;
@@ -233,7 +233,12 @@ fn build(
         star,
         planets,
         belts: init.asteroid_belts.iter().filter_map(belt).collect(),
-        flags: init.flags.clone(),
+        flags: init
+            .flags
+            .iter()
+            .filter(|flag| converted(init).is_none_or(|layout| layout.keeps(flag)))
+            .cloned()
+            .collect(),
         lanes: Vec::new(),
     })
 }
@@ -435,11 +440,12 @@ fn roll_star<'g>(
 /// Rolls an initializer's bodies along [`orbit_walk::walk`], drawing each range. The first
 /// star block gives the star, once however many it counts; one written as a class
 /// (`class = pc_m_star`) keeps that class and is named after the system. Approximated
-/// where the engine's code decides: the first body's angle is drawn at random, a moon's
-/// angle is absolute around its planet, a drawn class is any with odds whose
-/// `min/max_distance_from_sun` holds the orbit (a moon's, its planet's orbit, with classes
-/// marked `can_be_moon = no` left out), weighted by `spawn_odds` times the star's factor
-/// for it, and a planet list draws each of its classes alike.
+/// where the engine's code decides: the first body's angle is drawn at random, as is the
+/// turn of a body whose block gives no angle; a moon's angle is absolute around its planet;
+/// a drawn class is any with odds whose `min/max_distance_from_sun` holds the orbit (a
+/// moon's, its planet's orbit, with classes marked `can_be_moon = no` left out), weighted
+/// by `spawn_odds` times the star's factor for it; and a planet list draws each of its
+/// classes alike.
 struct Roller<'g> {
     gd: &'g GameData,
     star_class: &'g StarClass,
@@ -456,10 +462,7 @@ impl<'g> Roller<'g> {
         &mut self,
         blocks: &'g [InitPlanet],
     ) -> Result<(BodySpec, Vec<BodySpec>), GenerateError> {
-        let start = self.rng.between(Range {
-            min: 0.0,
-            max: 360.0,
-        });
+        let start = self.any_angle();
         let mut walk = Planets {
             roller: self,
             star: None,
@@ -640,6 +643,13 @@ impl<'g> Roller<'g> {
     fn angle(&mut self, angle: Range) -> f64 {
         self.rng.between(angle)
     }
+
+    fn any_angle(&mut self) -> f64 {
+        self.rng.between(Range {
+            min: 0.0,
+            max: 360.0,
+        })
+    }
 }
 
 /// The system's own bodies as the roller walks them. The first star block gives the star,
@@ -673,6 +683,10 @@ impl<'g> Walk<'g> for Planets<'_, 'g> {
 
     fn angle(&mut self, angle: Range) -> f64 {
         self.roller.angle(angle)
+    }
+
+    fn no_angle(&mut self) -> f64 {
+        self.roller.any_angle()
     }
 
     fn body(&mut self, block: &'g InitPlanet, placed: Placed<f64>) -> Result<(), GenerateError> {
@@ -718,6 +732,10 @@ impl<'g> Walk<'g> for Moons<'_, 'g> {
 
     fn angle(&mut self, angle: Range) -> f64 {
         self.roller.angle(angle)
+    }
+
+    fn no_angle(&mut self) -> f64 {
+        self.roller.any_angle()
     }
 
     fn body(&mut self, block: &'g InitPlanet, placed: Placed<f64>) -> Result<(), GenerateError> {
@@ -781,7 +799,11 @@ impl Deposits<'_> {
             star,
             moon,
         };
-        body.deposits = roll_deposits(self.gd, &rolled, self.abundance, &mut self.rng);
+        let roll = match block.is_none_or(|block| block.blockers) {
+            true => roll_deposits,
+            false => roll_deposits_without_blockers,
+        };
+        body.deposits = roll(self.gd, &rolled, self.abundance, &mut self.rng);
         if let Some(block) = block {
             body_effects::apply(self.gd, &block.effects, body, &Dlc::of(self.gd, self.save));
         }

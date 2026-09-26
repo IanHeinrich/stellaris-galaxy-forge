@@ -62,6 +62,10 @@ pub(crate) trait Walk<'p> {
     fn count(&mut self, block: &'p InitPlanet) -> u32;
     fn distance(&mut self, distance: Range) -> Self::Number;
     fn angle(&mut self, angle: Range) -> Self::Number;
+    /// The turn of an instance whose block gives no `orbit_angle`.
+    fn no_angle(&mut self) -> Self::Number {
+        Self::Number::fixed(0.0)
+    }
     /// One instance of `block`, where the walk has placed it.
     fn body(
         &mut self,
@@ -70,7 +74,8 @@ pub(crate) trait Walk<'p> {
     ) -> Result<(), Self::Error>;
 }
 
-/// Walks `blocks` in file order. A block with no distance or no angle steps by 0.
+/// Walks `blocks` in file order. A block with no distance steps by 0, one with no angle by
+/// [`Walk::no_angle`].
 pub(crate) fn walk<'p, W: Walk<'p>>(
     blocks: &'p [InitPlanet],
     turn: Turn<W::Number>,
@@ -86,7 +91,10 @@ pub(crate) fn walk<'p, W: Walk<'p>>(
         orbit = orbit.plus(W::Number::fixed(block.change_orbit));
         for _ in 0..walker.count(block) {
             orbit = orbit.plus(block.orbit_distance.map_or(zero, |d| walker.distance(d)));
-            let step = block.orbit_angle.map_or(zero, |a| walker.angle(a));
+            let step = match block.orbit_angle {
+                Some(a) => walker.angle(a),
+                None => walker.no_angle(),
+            };
             angle = match turn {
                 Turn::FromPrevious(_) => angle.plus(step),
                 Turn::FromZero => step,

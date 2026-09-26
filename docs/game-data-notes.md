@@ -409,6 +409,9 @@ that names an undefined `@variable` is laid out the same way.
 The add-system roller walks the same way, but it places each moon at
 its own `orbit_angle`, not on from the moon before. It also puts a body
 with no `orbit_distance` on the running orbit, not 10 to 20 past it.
+It draws a random angle for a block with no `orbit_angle`, as the game
+does. Barnard's Star (`sol_neighbor_t1`) gives its planets none, and in
+the 4.4 sample (system 614) they sit at scattered angles about the star.
 
 ## References (for edge cases, never for bundling)
 

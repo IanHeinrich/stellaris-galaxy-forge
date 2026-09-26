@@ -33,6 +33,12 @@ a release is made.
     distance the initializer leaves to chance shows as a band. An angle
     left to chance shows as an arc. A planet with no angle shows as a
     ghost on its whole orbit.
+- Add system lists Sol and more of the game's named systems, such as
+  Barnard's Star, New Bratulla, the Great Wound, Vultaumar and Tiyana
+  Vek. They come without their empires, pre-FTL civilisations, guardians
+  and fleets. Sol has the Solar System's planets and moons, with their
+  names and models. Earth is an uncolonised continental world and no one
+  lives there.
 
 ### Changed
 
@@ -42,6 +48,10 @@ a release is made.
 
 - The Inspector shows a system's inner and outer radius when the save
   writes them with decimals.
+- An added Big Rip system's desert world no longer rolls blockers. The
+  game leaves them off that world.
+- Planets of an added system no longer line up in a row when the game
+  leaves their positions to chance.
 
 ## [0.14.1] - 2026-09-25
 
