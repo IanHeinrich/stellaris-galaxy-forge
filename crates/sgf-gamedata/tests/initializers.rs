@@ -1039,6 +1039,9 @@ fn an_initializer_placing_its_bodies_through_an_inline_script_is_marked() {
         .expect("a record for a defined initializer");
     assert!(worms.unexpanded_scripts);
     assert!(worms.planets.is_empty());
+    let roll = gd.system_roll(4, "voidworms_spawn_system_tiny", "", 0, 150.0);
+    assert!(roll.rolls_planets, "the game rolls what the script places");
+    assert!(!roll.placeholders.is_empty());
     let plain = gd
         .initializer_details(4, "basic_init_05", None)
         .expect("basic_init_05");
@@ -1184,7 +1187,8 @@ const FACT_FILES: [(&str, &str); 4] = [
          fx_scripted = {\n\tclass = sc_sun\n\tplanet = { class = star orbit_distance = 0 }\n\
          \tinline_script = { script = fx_bodies }\n}\n\
          fx_body_scripted = {\n\tclass = sc_sun\n\
-         \tplanet = { class = star orbit_distance = 0 inline_script = { script = fx_moons } }\n}\n",
+         \tplanet = { class = star orbit_distance = 0 inline_script = { script = fx_moons } }\n}\n\
+         fx_worms = {\n\tclass = sc_sun\n\tinline_script = { script = fx_bodies }\n}\n",
     ),
     ("localisation/english/fx_l_english.yml", "l_english:\n"),
 ];
@@ -1246,6 +1250,19 @@ fn an_inline_script_in_a_system_or_body_block_is_marked_unexpanded() {
         .initializer_details(1, "fx_facts", None)
         .expect("fx_facts");
     assert!(!facts.unexpanded_scripts);
+}
+
+/// An initializer that places its bodies only through an `inline_script` lists none, so the
+/// game's roll stands in for them. One that lists bodies beside a script is drawn as it lists them.
+#[test]
+fn an_initializer_placing_its_bodies_only_through_an_inline_script_rolls_its_planets() {
+    let (_dir, gd) = common::hand_written(&FACT_FILES);
+    let worms = gd.system_roll(1, "fx_worms", "sc_sun", 0, 150.0);
+    assert!(worms.rolls_planets && worms.bodies.is_empty());
+    for key in ["fx_scripted", "fx_body_scripted", "fx_facts"] {
+        let roll = gd.system_roll(1, key, "sc_sun", 0, 150.0);
+        assert!(!roll.rolls_planets && roll.placeholders.is_empty(), "{key}");
+    }
 }
 
 /// A save's star bodies are drawn as the star class whose only star they are, and a body

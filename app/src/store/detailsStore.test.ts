@@ -13,13 +13,16 @@ vi.mock("./gameDataStore", () => ({
 
 import * as ipc from "../api/ipc";
 import { bindStores } from "./bindStores";
-import { useDetailsStore } from "./detailsStore";
+import type { SystemRoll } from "../generated/SystemRoll";
+import { systemRoll } from "../test/rolls";
+import { shownRoll, useDetailsStore } from "./detailsStore";
 import { planetSummary, systemDetails } from "./fixture";
 
 bindStores();
 
 const getSystemDetails = vi.mocked(ipc.getSystemDetails);
 const getResourceIcons = vi.mocked(ipc.getResourceIcons);
+const getSystemRoll = vi.mocked(ipc.getSystemRoll);
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -284,5 +287,62 @@ describe("loadResourceIcons", () => {
     const state = useDetailsStore.getState();
     expect([...state.resourceIcons]).toEqual([["energy", "GFX_energy"]]);
     expect(state.resourceIconsError).toBeNull();
+  });
+});
+
+describe("requestRoll", () => {
+  /** Answers each roll asked for when the test says, in the order asked. */
+  function heldRolls(): Array<(roll: SystemRoll) => void> {
+    const held: Array<(roll: SystemRoll) => void> = [];
+    getSystemRoll.mockImplementation(() => new Promise((resolve) => held.push(resolve)));
+    return held;
+  }
+  const shown = (system: number) => shownRoll(useDetailsStore.getState().rolls, system);
+
+  it("draws the last roll of the system that landed until the one asked for lands", async () => {
+    const held = heldRolls();
+    const first = systemRoll({ system: 5, roll: 0 });
+    const second = systemRoll({ system: 5, roll: 1 });
+    useDetailsStore.getState().requestRoll(5, 0);
+    expect(shown(5)).toBeNull();
+    held[0](first);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(shown(5)).toBe(first);
+
+    useDetailsStore.getState().requestRoll(5, 1);
+    expect(shown(5)).toBe(first);
+    held[1](second);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(shown(5)).toBe(second);
+    expect(shown(6)).toBeNull();
+  });
+
+  it("keeps a system's roll through an edit until the fresh one lands", async () => {
+    const held = heldRolls();
+    const before = systemRoll({ system: 5, roll: 0 });
+    const after = systemRoll({ system: 5, roll: 0 });
+    useDetailsStore.getState().requestRoll(5, 0);
+    held[0](before);
+    await vi.advanceTimersByTimeAsync(0);
+
+    useDetailsStore.getState().invalidate([5]);
+    expect(shown(5)).toBe(before);
+    useDetailsStore.getState().requestRoll(5, 0);
+    expect(getSystemRoll).toHaveBeenCalledTimes(2);
+    expect(shown(5)).toBe(before);
+    held[1](after);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(shown(5)).toBe(after);
+  });
+
+  it("keeps only the roll a system shows, not every roll asked for before it", async () => {
+    getSystemRoll.mockImplementation(async (system, roll) => systemRoll({ system, roll }));
+    for (const roll of [0, 1, 2]) {
+      useDetailsStore.getState().requestRoll(5, roll);
+      await vi.advanceTimersByTimeAsync(0);
+    }
+    expect(shown(5)?.roll).toBe(2);
+    useDetailsStore.getState().requestRoll(5, 0);
+    expect(getSystemRoll).toHaveBeenCalledTimes(4);
   });
 });

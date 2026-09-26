@@ -112,7 +112,7 @@ export function readSystemSources(id: number | null): SystemSources {
     gameDataReady: ready,
     resourceIcons: details.resourceIcons,
     sceneLayers: useMapChromeStore.getState().sceneLayers,
-    roll: shownRoll(details.rolls, id, roll),
+    roll: shownRoll(details.rolls, id),
     ownership: currentOwnership(),
     nodeName: (name: NameTemplate) => nodeNameIn(names, name),
     templateName: (named: { name: NameTemplate; name_key: string }) =>

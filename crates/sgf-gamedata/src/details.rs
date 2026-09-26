@@ -217,10 +217,13 @@ impl GameData {
         }
     }
 
-    /// Whether the game rolls the planets of a scenario system with `initializer`: it is
-    /// `random`, empty or not defined by the install.
+    /// Whether the game places planets the details of a scenario system with `initializer`
+    /// cannot list: it is `random`, empty or not defined by the install, or it places its
+    /// bodies only through an `inline_script`, which the details do not expand.
     pub fn rolls_planets(&self, initializer: &str) -> bool {
-        self.initializers.get(initializer).is_none()
+        self.initializers
+            .get(initializer)
+            .is_none_or(|init| init.inline_script && init.planets.is_empty())
     }
 
     /// The planets [`generate`] rolls for `star_class`, or for any class when none of the

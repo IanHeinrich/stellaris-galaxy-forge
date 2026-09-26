@@ -12,6 +12,8 @@ a release is made.
 
 - The Terraforming checkbox's hint names the techs and ascension perks
   your empire needs, read from the game and your mods.
+- The faint planets in a scenario system whose planets the game rolls
+  follow the game's own rules for the system's star.
 
 ### Fixed
 
@@ -19,11 +21,6 @@ a release is made.
   star in the system view, as Add system gives it. It used to show two.
 - The status bar's orbit and angle for a scenario body match where the
   system view draws it.
-
-### Changed
-
-- The faint planets in a scenario system whose planets the game rolls
-  follow the game's own rules for the system's star.
 
 ## [0.15.0] - 2026-09-26
 

@@ -7,6 +7,7 @@
  * sprite drawn upright.
  */
 import type { BodyLayout } from "../../generated/BodyLayout";
+import { MIN_INNER_RADIUS } from "../../generated/constants";
 import type { Bounds } from "../../generated/Bounds";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
@@ -20,8 +21,6 @@ import { isStarBody } from "./starBody";
 
 /** Width of an asteroid belt's band, centred on the belt's radius. */
 export const BELT_BAND_WIDTH = 20;
-/** `inner_radius` when a system gives none: the floor `docs/format-notes.md` gives. */
-export const FALLBACK_INNER_RADIUS = 150;
 /** Room past the furthest drawn thing for the hyperlane exits and their labels. */
 export const FIT_MARGIN = 40;
 
@@ -300,7 +299,7 @@ function layOut(
   }
   for (const belt of belts) outermost = Math.max(outermost, belt.outer);
 
-  const innerRadius = details?.inner_radius ?? Math.max(FALLBACK_INNER_RADIUS, outermost);
+  const innerRadius = details?.inner_radius ?? Math.max(MIN_INNER_RADIUS, outermost);
   const largestDisc = bodies.reduce((m, b) => Math.max(m, b.disc), 0);
   return {
     bodies,

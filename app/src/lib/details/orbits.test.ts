@@ -7,10 +7,10 @@ import type { SystemRoll } from "../../generated/SystemRoll";
 import { bodyLayout, planetClassView, planetSummary, systemDetails } from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
+import { MIN_INNER_RADIUS } from "../../generated/constants";
 import { discRadius } from "./discs";
 import {
   BELT_BAND_WIDTH,
-  FALLBACK_INNER_RADIUS,
   FIT_MARGIN,
   exitBearing,
   placeholderPlanets,
@@ -312,7 +312,7 @@ describe("belts and fit", () => {
       systemDetails({ belts: [{ kind: "rocky_asteroid_belt", inner_radius: 290 }] }),
     );
     expect(noInner.fitRadius).toBe(
-      Math.max(FALLBACK_INNER_RADIUS, 290 + BELT_BAND_WIDTH / 2) + FIT_MARGIN,
+      Math.max(MIN_INNER_RADIUS, 290 + BELT_BAND_WIDTH / 2) + FIT_MARGIN,
     );
     const far = laid(
       systemDetails({
@@ -324,7 +324,7 @@ describe("belts and fit", () => {
       }),
     );
     expect(far.fitRadius).toBe(230 + 30 + FIT_MARGIN);
-    expect(laid(null).fitRadius).toBe(FALLBACK_INNER_RADIUS + FIT_MARGIN);
+    expect(laid(null).fitRadius).toBe(MIN_INNER_RADIUS + FIT_MARGIN);
   });
 });
 

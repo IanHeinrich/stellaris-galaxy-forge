@@ -14,7 +14,8 @@ export type SystemRoll = { system: number, roll: number,
 bodies: Array<RolledBody>, 
 /**
  * The game rolls the system's planets when it generates the galaxy: its initializer is
- * `random`, empty or one the install does not define.
+ * `random`, empty or one the install does not define, or it places its bodies only
+ * through an `inline_script`.
  */
 rolls_planets: boolean, 
 /**

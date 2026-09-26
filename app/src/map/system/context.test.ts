@@ -7,7 +7,6 @@ import type { BodyLayout } from "../../generated/BodyLayout";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemRoll } from "../../generated/SystemRoll";
-import { shownRoll } from "../../store/detailsStore";
 import {
   bodyLayout,
   byId,
@@ -310,19 +309,6 @@ describe("orbit radius readouts", () => {
   });
 });
 
-describe("the roll drawn", () => {
-  it("keeps drawing the last roll of the system that came in until the one asked for lands", () => {
-    const first = systemRoll({ system: SYSTEM, roll: 0 });
-    const second = systemRoll({ system: SYSTEM, roll: 1 });
-    const rolls = new Map([[SYSTEM, new Map([[0, first]])]]);
-    expect(shownRoll(rolls, SYSTEM, 0)).toBe(first);
-    expect(shownRoll(rolls, SYSTEM, 1)).toBe(first);
-    rolls.get(SYSTEM)?.set(1, second);
-    expect(shownRoll(rolls, SYSTEM, 1)).toBe(second);
-    expect(shownRoll(rolls, SYSTEM + 1, 0)).toBeNull();
-  });
-});
-
 describe("planets the game rolls", () => {
   const rolling = systemRoll({
     system: SYSTEM,
@@ -340,8 +326,22 @@ describe("planets the game rolls", () => {
     expect(ctx.bodies[0].placement.star).toBe(true);
   });
 
-  it("draws none where the roll says the game places the system's planets from its record", () => {
-    const ctx = scenario([scenarioSun], systemRoll({ ...rolling, rolls_planets: false }));
+  it("draws the galaxy's star and the roll's planets for an initializer placing its bodies through an inline_script", () => {
+    const ctx = scenario([], rolling, {
+      details: systemDetails({
+        id: SYSTEM,
+        planets: [],
+        with_game_data: true,
+        unexpanded_scripts: true,
+      }),
+    });
+    expect(ctx.rolled.length).toBeGreaterThan(0);
+    expect(ctx.bodies).toHaveLength(1);
+    expect(ctx.bodies[0].placement.star).toBe(true);
+  });
+
+  it("draws none where the game places the system's planets from its record, or before a roll is in", () => {
+    const ctx = scenario([scenarioSun], systemRoll({ system: SYSTEM }));
     expect(ctx.rolled).toEqual([]);
     expect(scenario(null, null).rolled).toEqual([]);
   });
