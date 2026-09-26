@@ -10,7 +10,7 @@ use std::sync::Arc;
 use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec, free_star_names};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
-use sgf_gamedata::body_effects::BodyEffect;
+use sgf_gamedata::body_effects::{BodyEffect, Dropping};
 use sgf_gamedata::condition::Condition;
 use sgf_gamedata::generate::{GenerateError, generate, generate_layout_for, star_classes};
 use sgf_gamedata::install::script::Range;
@@ -771,7 +771,7 @@ fn a_layouts_body_effects_are_read_in_order_with_what_cannot_be_written() {
         "the `if` kept with its check"
     );
     assert_eq!(
-        init.planets[1].unwritten.as_deref(),
+        init.planets[1].unwritten.get(Dropping::Script).as_deref(),
         Some("add_deposit"),
         "a random blocker is no deposit key"
     );
@@ -824,6 +824,118 @@ fn a_layouts_deposit_effects_run_after_the_roll() {
                 keys(&["d_fx_bright"]),
             ],
             "seed {seed}: at 0 nothing is rolled and the effects still run"
+        );
+    }
+}
+
+/// A layout with two colonisable worlds, one of them writing `deposit_blockers = none`,
+/// against the one blocker deposit the install can give either.
+const BLOCKERS: [(&str, &str); 7] = [
+    (
+        "common/defines/00_defines.txt",
+        "NGameplay = {\n\tMIN_BLOCKED_DEPOSITS = 1\n\tMIN_UNBLOCKED_DEPOSITS = 0\n\
+         \tCOLONY_DEPOSITS_FIXED_BASE = 0\n\tCOLONY_DEPOSITS_RANDOM_BASE = 0\n\
+         \tCOLONY_DEPOSITS_FIXED_FROM_SIZE = 0\n\tCOLONY_DEPOSITS_RANDOM_FROM_SIZE = 0\n}\n",
+    ),
+    (
+        "common/star_classes/00_stars.txt",
+        "sc_fx = {\n\tclass = fx_star\n\tplanet = { key = pc_fx_star }\n\tspawn_odds = 1\n}\n",
+    ),
+    (
+        "common/planet_classes/00_fx.txt",
+        "pc_fx_star = {\n\tstar = yes\n\tplanet_size = 20\n}\n\
+         pc_fx_meadow = {\n\tcolonizable = yes\n\tplanet_size = 15\n}\n",
+    ),
+    (
+        "common/deposit_categories/00_fx.txt",
+        "deposit_cat_blockers = {\n\tblocker = yes\n}\n",
+    ),
+    (
+        "common/deposits/00_fx.txt",
+        "d_fx_rubble = {\n\tcategory = deposit_cat_blockers\n\tis_for_colonizable = yes\n\
+         \tuse_for_min_max_adjustments = yes\n\tdrop_weight = { weight = 100 }\n}\n",
+    ),
+    (
+        "common/solar_system_initializers/00_fx.txt",
+        "fx_blockers = {\n\tclass = sc_fx\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\
+         \tplanet = { count = 1 class = pc_fx_meadow orbit_distance = 20 }\n\
+         \tplanet = { count = 1 class = pc_fx_meadow orbit_distance = 20 deposit_blockers = none }\n}\n",
+    ),
+    ("localisation/english/fx_l_english.yml", "l_english:\n"),
+];
+
+#[test]
+fn deposit_blockers_none_draws_no_blocker_and_skips_its_minimum() {
+    let (_dir, gd) = common::hand_written(&BLOCKERS);
+    let save = SaveFacts::default();
+    for seed in 0..5 {
+        let spec = generate_layout_for(&gd, &save, seed, "Fx", (0.0, 0.0), "fx_blockers", 2.0)
+            .expect("fx_blockers");
+        assert_eq!(
+            spec.planets[0].deposits,
+            ["d_fx_rubble"],
+            "seed {seed}: the one blocker tops up the minimum"
+        );
+        assert!(
+            spec.planets[1].deposits.is_empty(),
+            "seed {seed}: deposit_blockers = none draws no blocker and skips the top-up: {:?}",
+            spec.planets[1].deposits
+        );
+    }
+}
+
+/// A layout with one random-class planet, drawn evenly between a class with a
+/// `chance_of_ring` and one without.
+const RING_ODDS: [(&str, &str); 4] = [
+    (
+        "common/star_classes/00_stars.txt",
+        "sc_fx = {\n\tclass = fx_star\n\tplanet = { key = pc_fx_star }\n\tspawn_odds = 1\n}\n",
+    ),
+    (
+        "common/planet_classes/00_fx.txt",
+        "pc_fx_star = {\n\tstar = yes\n\tplanet_size = 20\n}\n\
+         pc_fx_ringed = {\n\tmin_distance_from_sun = 0\n\tmax_distance_from_sun = 1000\n\
+         \tspawn_odds = 1\n\tchance_of_ring = 0.6\n\tplanet_size = 15\n}\n\
+         pc_fx_bare = {\n\tmin_distance_from_sun = 0\n\tmax_distance_from_sun = 1000\n\
+         \tspawn_odds = 1\n\tplanet_size = 15\n}\n",
+    ),
+    (
+        "common/solar_system_initializers/00_fx.txt",
+        "fx_ringodds = {\n\tclass = sc_fx\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\
+         \tplanet = { count = 1 orbit_distance = 20 }\n}\n",
+    ),
+    ("localisation/english/fx_l_english.yml", "l_english:\n"),
+];
+
+#[test]
+fn ring_odds_follow_each_classs_chance_of_ring() {
+    let (_dir, gd) = common::hand_written(&RING_ODDS);
+    let save = SaveFacts::default();
+    let mut tally: BTreeMap<String, (f64, f64)> = BTreeMap::new();
+    for seed in 0..4000 {
+        let spec =
+            generate_layout_for(&gd, &save, seed, "Fx", (0.0, 0.0), "fx_ringodds", ABUNDANCE)
+                .expect("fx_ringodds");
+        assert!(!spec.star.ring, "a star never has a ring");
+        let planet = &spec.planets[0];
+        let seen = tally.entry(planet.class.clone()).or_default();
+        seen.0 += 1.0;
+        seen.1 += f64::from(u8::from(planet.ring));
+    }
+    assert_eq!(
+        tally.keys().collect::<Vec<_>>(),
+        ["pc_fx_bare", "pc_fx_ringed"],
+        "both classes are drawn"
+    );
+    let chances = [("pc_fx_bare", 0.0), ("pc_fx_ringed", 0.6)];
+    for (class, chance) in chances {
+        let (count, rings) = tally[class];
+        let share = rings / count;
+        assert!(
+            (share - chance).abs() < 0.06,
+            "{class}: {share:.3} ringed of {count}, chance {chance}"
         );
     }
 }

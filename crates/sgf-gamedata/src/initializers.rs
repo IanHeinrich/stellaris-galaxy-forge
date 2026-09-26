@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
 use ts_rs::TS;
 
-use crate::body_effects::{self, BodyEffect, Dropping, HOME_EFFECTS};
+use crate::body_effects::{self, BodyEffect, HOME_EFFECTS, Unwritten};
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def, Range, Variables, whole};
 use crate::registries::planet_classes::PlanetClassDef;
@@ -74,11 +74,8 @@ pub struct InitPlanet {
     /// What this block's `init_effect` runs that a generated body is given, in order.
     pub effects: Vec<BodyEffect>,
     /// The first statement of this block's `init_effect` that is neither given to a
-    /// generated body nor dropped with the script.
-    pub unwritten: Option<String>,
-    /// [`Self::unwritten`] for a converted layout, which drops what makes or runs its
-    /// empire, colonies and pre-FTL civilisation too.
-    pub unwritten_converted: Option<String>,
+    /// generated body nor dropped with the script, plain and for a converted layout.
+    pub unwritten: Unwritten,
     /// Its `moon` blocks, and the `planet` blocks written inside it, which the game spawns
     /// around it the same way, in file order.
     pub moons: Vec<InitPlanet>,
@@ -486,8 +483,7 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
     let home_planet = scalar(node, "home_planet", src) == Some("yes")
         || scalar(node, "starting_planet", src) == Some("yes");
     let colony_owner = colony_owner(node, src);
-    let (effects, unwritten) = body_effects::read(node, def, Dropping::Script);
-    let (_, unwritten_converted) = body_effects::read(node, def, Dropping::Converted);
+    let (effects, unwritten) = body_effects::read(node, def);
     InitPlanet {
         name: scalar(node, "name", src).map(str::to_owned),
         class: BodyClass::of(scalar(node, "class", src).unwrap_or(RANDOM)),
@@ -515,7 +511,6 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
         blockers: scalar(node, "deposit_blockers", src) != Some("none"),
         effects,
         unwritten,
-        unwritten_converted,
         moons: bodies(node, &["moon", "planet"], def),
     }
 }

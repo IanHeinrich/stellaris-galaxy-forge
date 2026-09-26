@@ -5,6 +5,7 @@ use crate::common;
 use sgf_core::format::save::details::{Bounds, ResourceAmount};
 use sgf_core::ops::BeltSpec;
 use sgf_core::session::Session;
+use sgf_gamedata::body_effects::Dropping;
 use sgf_gamedata::initializers::{Initializer, PartnerRef};
 use sgf_gamedata::special::classify_session;
 use sgf_gamedata::views::InitializerView;
@@ -394,6 +395,59 @@ pc_rock = {
         "a stated has_ring wins; a moon and the star never have one; an unstated body is left \
          to a draw only when its class has a chance_of_ring"
     );
+}
+
+#[test]
+fn a_converted_layout_drops_what_a_plain_one_cannot_write() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/solar_system_initializers/00_owned.txt",
+            "owned_init = {
+	planet = { class = star }
+	planet = {
+		class = pc_rock
+		init_effect = {
+			create_colony = yes
+		}
+	}
+	planet = {
+		class = pc_rock
+		init_effect = {
+			every_owned_pop = { some_effect = yes }
+		}
+	}
+	planet = {
+		class = pc_rock
+		init_effect = {
+			solar_system = { create_species = yes }
+		}
+	}
+}
+",
+        ),
+        ("localisation/english/fx_l_english.yml", "l_english:\n"),
+    ]);
+    let init = gd.initializers.get("owned_init").expect("owned_init");
+    let cases = [
+        ("create_colony", "an owned statement written plainly"),
+        ("some_effect", "an owned scope, every_owned_pop"),
+        (
+            "create_species",
+            "an owned statement inside a scope that is not itself owned",
+        ),
+    ];
+    for (planet, (key, why)) in init.planets[1..].iter().zip(cases) {
+        assert_eq!(
+            planet.unwritten.get(Dropping::Script).as_deref(),
+            Some(key),
+            "a plain layout cannot write {why}"
+        );
+        assert_eq!(
+            planet.unwritten.get(Dropping::Converted),
+            &None,
+            "a converted layout drops {why} instead"
+        );
+    }
 }
 
 /// Two spawns elsewhere, each linking back to the system the initializer
