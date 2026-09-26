@@ -567,8 +567,11 @@ describe("the system scene's bodies layer", () => {
     await vi.waitFor(() => expect(art().texture).toBe(textureFor("sprite:GFX_pc_arid")));
 
     viewport(layer, 12);
+    expect(art().texture).toBe(textureFor("sprite:GFX_pc_arid"));
+    expect(art().visible).toBe(true);
     await answerFetch();
     await vi.waitFor(() => expect(art().texture).toBe(textureFor("sprite:GFX_pc_arid_big")));
+
     expect(art().visible).toBe(true);
 
     viewport(layer, 1);

@@ -110,7 +110,17 @@ function litKey(body: SceneBody): string | null {
   return `planet_disc:${planetClass}`;
 }
 
+/** The first of `keys` already in the cache, without asking for any. */
+function landed(keys: readonly string[]): Texture | null {
+  for (const key of keys) {
+    const texture = getTexture(key);
+    if (texture) return texture;
+  }
+  return null;
+}
+
 /** Stars under planets under moons, so a moon is never hidden behind its planet. */
+
 function drawOrder(body: SceneBody): number {
   return body.placement.star ? 0 : body.moon ? 2 : 1;
 }
@@ -292,9 +302,12 @@ export class BodiesLayer implements SystemLayer {
       lit.texture = surface ?? Texture.EMPTY;
       lit.visible = surface !== null;
     }
-    const iconKeys = drawn.large ? body.largeIconKeys : body.iconKeys;
-    const keys = randomClass(body.planetClass) || surface !== null ? [] : iconKeys;
-    const texture = this.resolve(keys);
+    const [wanted, other] = drawn.large
+      ? [body.largeIconKeys, body.iconKeys]
+      : [body.iconKeys, body.largeIconKeys];
+    const iconless = randomClass(body.planetClass) || surface !== null;
+    // Across the large-icon threshold, the icon already in hand stands in until the other lands.
+    const texture = iconless ? null : (this.resolve(wanted) ?? landed(other));
     art.texture = texture ?? Texture.EMPTY;
     art.visible = texture !== null;
     if (glow) glow.visible = texture === null;

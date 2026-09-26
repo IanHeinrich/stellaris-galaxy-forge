@@ -384,6 +384,36 @@ describe("a body clicked in the system view", () => {
     expect(refs()).toEqual([ALPHA.ref]);
   });
 
+  it("keeps a scenario body's page on its system's new id through a renumber, and a SetInitializer there closes it", async () => {
+    await openFixtureScenario();
+    const [, seven] = withAddedSystems();
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: 7 }, label: "Added" });
+    click(7, 100, "Tarkin");
+
+    mockedIpc.applyOp.mockResolvedValueOnce(
+      editResult({
+        delta: {
+          systems: [{ ...seven, id: 6 }],
+          removed: [7],
+          renumbered: [
+            [6, null],
+            [7, 6],
+          ],
+        },
+        details_stale: [6, 7],
+      }),
+    );
+    await editor().applyOp({ type: "RemoveSystem", id: 6 });
+    expect(refs()).toEqual([
+      { kind: "system", id: 6 },
+      { kind: "body", system: 6, id: 100 },
+    ]);
+
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [6] }));
+    await editor().applyOp({ type: "SetInitializer", id: 6, initializer: "basic_init_01" });
+    expect(refs()).toEqual([{ kind: "system", id: 6 }]);
+  });
+
   it("closes a scenario body's page when the game data reloads, and keeps a save's planet page", async () => {
     await openFixtureScenario();
     useInspectorStore.getState().setRoot(ALPHA);

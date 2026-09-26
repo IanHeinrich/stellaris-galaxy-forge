@@ -79,7 +79,7 @@ export function editPipeline(
       (kept.length === 1 && (touched.has(kept[0]) || showsTouched(touched, result.details_stale)));
     if (result.details_stale.length > 0) {
       useDetailsStore.getState().invalidate(result.details_stale);
-      useInspectorStore.getState().dropBodies(result.details_stale);
+      useInspectorStore.getState().dropBodies(restaled(result.details_stale, pairs));
       const mine = session;
       // The details projection, and the planet and fleet search index over it, are rebuilt lazily.
       void ipc.warmDetails().catch((e: unknown) => {
@@ -248,6 +248,17 @@ function renumbering(delta: GalaxyDelta): Renumbering {
   const pairs = delta.renumbered ?? [];
   if (pairs.length > 0) return pairs;
   return (delta.removed ?? []).map((id) => [id, null] as const);
+}
+
+/**
+ * The stale systems whose own record changed: the core stales both ids of every system an edit
+ * renumbered, which moves its pages rather than changing them.
+ */
+function restaled(stale: readonly number[], pairs: Renumbering): number[] {
+  const moved = new Set(
+    pairs.flatMap(([before, after]) => (after === null ? [] : [before, after])),
+  );
+  return stale.filter((id) => !moved.has(id));
 }
 
 function removedBy(pairs: Renumbering): number[] {
