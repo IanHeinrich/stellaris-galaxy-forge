@@ -7,6 +7,7 @@ import { CountryView } from "./CountryView";
 import { EntityView } from "./EntityView";
 import { LaneEntry, NebulaEntry, SystemEntry } from "./entries";
 import { PlanetView } from "./PlanetView";
+import { ScenarioBodyView } from "./ScenarioBodyView";
 import { GalaxyView } from "../galaxy/GalaxyView";
 import { SelectionView } from "../selection/SelectionView";
 
@@ -43,5 +44,6 @@ export const INSPECTOR_VIEWS: Record<EntityRef["kind"], InspectorView> = {
   pop_group: entity("pop_group", "Pop group"),
   sector: entity("sector", "Sector"),
   deposit: entity("deposit", "Deposit"),
+  body: { label: "Body", component: ScenarioBodyView },
   nodelist: { label: "List", component: EntityView },
 };

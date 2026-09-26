@@ -165,7 +165,7 @@ describe("brush settings", () => {
 });
 
 describe("the symmetry toggle", () => {
-  it("M turns on four-fold rotation before any symmetry has been picked, then off again", () => {
+  it("Shift+M turns on four-fold rotation before any symmetry has been picked, then off again", () => {
     expect(run("toggleSymmetry", false, effects)).toBe(true);
     expect(tools().symmetry).toEqual({ kind: "rotate", n: 4 });
     run("toggleSymmetry", false, effects);

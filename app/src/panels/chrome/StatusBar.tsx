@@ -1,16 +1,23 @@
 import type { ExportResult } from "../../generated/ExportResult";
+import type { SystemDetails } from "../../generated/SystemDetails";
+import { bodyName } from "../../lib/details/labels";
+import { systemLayout } from "../../lib/details/orbits";
+import { isStarBody } from "../../lib/details/starBody";
 import { shortcutLabel } from "../../lib/keys";
-import { nodeName } from "../../lib/names";
+import { nodeName, type Names } from "../../lib/names";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
 import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyVersion, useSystemNames } from "../../store/browserRows";
+import { useDetailsStore } from "../../store/detailsStore";
 import { galaxyLaneCount, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useSceneStore } from "../../store/sceneStore";
 import { GameDataPanel } from "./GameDataPanel";
 
 const DOCUMENT_KIND: Record<string, string> = {
@@ -23,6 +30,8 @@ const IDLE_HINT =
   `${shortcutLabel("fitSelection")} fits the selection · ${shortcutLabel("focusSearch")} to search`;
 
 const DELETE_KEY = shortcutLabel("deleteSelection");
+
+const LEAVE_HINT = `${shortcutLabel("clearSelection")} back to galaxy`;
 
 /** `14:02`: when the save landed, by the clock the user reads. */
 function clockTime(at: number): string {
@@ -104,7 +113,21 @@ function AutoReloadBadge() {
   );
 }
 
+/** The system shown, with its bodies and belts once its details are in. */
+function SceneSelected({ system }: { system: number }) {
+  const [name] = useSystemNames([system]);
+  const details = useDetailsStore((s) => s.details.get(system));
+  if (!details) return <span className="accent">{name}</span>;
+  return (
+    <span className="accent">
+      {name} · {counted(details.planets.length, "body", "bodies")} ·{" "}
+      {counted(details.belts.length, "belt")}
+    </span>
+  );
+}
+
 function Selected() {
+  const shown = useSceneStore((s) => (s.scene.kind === "system" ? s.scene.id : null));
   const selection = useEditorStore((s) => s.selection);
   const selectedLane = useEditorStore((s) => s.selectedLane);
   const selectedNebula = useEditorStore((s) => s.selectedNebula);
@@ -112,6 +135,7 @@ function Selected() {
   const named = useSystemNames(
     selectedLane ? [selectedLane.a, selectedLane.b] : selection.slice(0, 1),
   );
+  if (shown !== null) return <SceneSelected system={shown} />;
   if (selectedNebula !== null) {
     const nebula = nebulae[selectedNebula];
     if (!nebula) return null;
@@ -136,7 +160,52 @@ function Selected() {
   );
 }
 
+/** `Sol III · orbit 45 · angle 212°` for body `id`, or null when the details do not place it. */
+function bodyReadout(
+  details: SystemDetails,
+  id: number,
+  names: Names,
+  isStar: (planetClass: string) => boolean,
+): string | null {
+  const planet = details.planets.find((p) => p.id === id);
+  const placed = systemLayout(details, isStar).bodies.find((b) => b.id === id);
+  if (!planet || !placed) return null;
+  const name = bodyName(planet, names);
+  if (placed.ring === null) return name;
+  const orbit = Math.round(placed.ring.radius);
+  return `${name} · orbit ${orbit} · angle ${Math.round(placed.angle) % 360}°`;
+}
+
+/** The body the page `ref` opens in `system`: a planet by id, or a scenario body of that system. */
+function bodyOn(ref: EntityRef, system: number): number | null {
+  if (ref.kind === "planet") return ref.id;
+  return ref.kind === "body" && ref.system === system ? ref.id : null;
+}
+
+/**
+ * The system view's hint: what the scene says (a clicked lane), else the page's body where it is
+ * one of the system's, else the way out.
+ */
+function SceneHint({ system }: { system: number }) {
+  const details = useDetailsStore((s) => s.details.get(system));
+  const reading = useDetailsStore(
+    (s) => !s.details.has(system) && !s.missing.has(system) && !s.failed.has(system),
+  );
+  const top = useInspectorStore((s) => s.stack[s.stack.length - 1]);
+  const names = useGameDataStore((s) => s.names);
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
+  const starClasses = useGameDataStore((s) => s.starClasses);
+  const sceneHint = useMapChromeStore((s) => s.sceneHint);
+  if (reading) return <span className="muted">Reading the system…</span>;
+  if (sceneHint !== null) return <span className="muted">{sceneHint}</span>;
+  const isStar = (c: string) => isStarBody(c, planetClasses, starClasses);
+  const id = top === undefined ? null : bodyOn(top.ref, system);
+  const body = details && id !== null ? bodyReadout(details, id, names, isStar) : null;
+  return <span className="muted">{body ?? LEAVE_HINT}</span>;
+}
+
 function Hint() {
+  const shown = useSceneStore((s) => (s.scene.kind === "system" ? s.scene.id : null));
   const hover = useEditorStore((s) => s.hover);
   const selectedLane = useEditorStore((s) => s.selectedLane);
   const selectedNebula = useEditorStore((s) => s.selectedNebula);
@@ -144,6 +213,7 @@ function Hint() {
   if (gesture === "connecting") {
     return <span className="muted">release on a system to connect</span>;
   }
+  if (shown !== null && gesture === null) return <SceneHint system={shown} />;
   if (hover !== null) {
     return <span className="muted">drag to move · drag ring to connect · Shift+click to add</span>;
   }

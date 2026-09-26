@@ -30,6 +30,8 @@ function details(s: SystemNode): SystemDetails {
     megastructures: [],
     sites: [],
     with_game_data: false,
+    belts: [],
+    inner_radius: null,
   };
 }
 

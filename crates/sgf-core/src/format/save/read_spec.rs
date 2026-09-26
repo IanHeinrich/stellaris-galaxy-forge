@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 
+use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::coord;
 use crate::emit::system::{RING_FLAG, STAR_CARRIER_FLAGS};
@@ -171,6 +172,12 @@ pub(crate) fn belts(doc: &Document, id: u32) -> Result<Vec<BeltSpec>, OpError> {
     let anchor = system_statement(doc, id).ok_or(OpError::UnknownSystem(id))?;
     let subject = Subject::System(id);
     let (node, src) = entity(doc, subject, anchor)?;
+    belts_in(&node, src).map_err(|reason| subject.parse_error(0, reason))
+}
+
+/// The belts a parsed system entry lists, in order; the reason when a belt's radius
+/// cannot be read.
+pub(crate) fn belts_in(node: &Node, src: &[u8]) -> Result<Vec<BeltSpec>, String> {
     let Some(block) = node.find(keys::ASTEROID_BELTS, src) else {
         return Ok(Vec::new());
     };
@@ -181,8 +188,7 @@ pub(crate) fn belts(doc: &Document, id: u32) -> Result<Vec<BeltSpec>, OpError> {
         .map(|belt| {
             Ok(BeltSpec {
                 kind: read::text(belt, keys::TYPE, src),
-                inner_radius: read::required(belt, keys::INNER_RADIUS, src)
-                    .map_err(|reason| subject.parse_error(0, reason))?,
+                inner_radius: read::required(belt, keys::INNER_RADIUS, src)?,
             })
         })
         .collect()

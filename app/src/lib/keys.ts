@@ -26,6 +26,8 @@ export type KeyAction =
   | "toggleScriptLayers"
   | "toggleInitializerLayers"
   | "toggleSymmetry"
+  | "enterSystem"
+  | "toggleSystemView"
   | ToolAction;
 
 /** A world offset that moves the selection one step across the screen. */
@@ -64,7 +66,7 @@ interface Binding {
   inInput?: boolean;
   /** Fires whatever modifiers are held. */
   anyModifiers?: boolean;
-  /** Fires only while the inspector has a crumb to go back to. */
+  /** Fires only while there is somewhere to go back to: a crumb, or out of a system. */
   whileBack?: boolean;
 }
 
@@ -90,13 +92,15 @@ const BINDINGS: readonly Binding[] = [
   { key: "/", action: "focusSearch" },
   { key: "ArrowLeft", alt: true, action: "inspectorBack", whileBack: true },
   { key: "Backspace", action: "inspectorBack", whileBack: true },
+  { key: "Enter", action: "enterSystem" },
   { key: "Delete", action: "deleteSelection" },
   { key: "Backspace", action: "deleteSelection" },
   { key: "Tab", shift: false, action: "toggleDock" },
   { key: "i", shift: false, action: "issuesTab" },
   { key: "i", shift: true, action: "browseInitializers" },
   ...TOOLS.map((t): Binding => ({ key: t.key, shift: false, action: toolAction(t.id) })),
-  { key: "m", shift: false, action: "toggleSymmetry" },
+  { key: "m", shift: false, action: "toggleSystemView" },
+  { key: "m", shift: true, action: "toggleSymmetry" },
 ];
 
 /** The action that picks `tool`. */
@@ -137,7 +141,8 @@ function matches(b: Binding, e: KeyLike, key: string, inInput: boolean, canGoBac
 
 /**
  * The action bound to a key press, or null. `inInput` suppresses bare keys while typing, and
- * `canGoBack` gives Backspace and Alt+← to the inspector while it has a crumb to go back to.
+ * `canGoBack` gives Backspace and Alt+← to going back while the inspector has a crumb to pop or
+ * a system is shown.
  */
 export function keyAction(e: KeyLike, inInput: boolean, canGoBack = false): KeyAction | null {
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;

@@ -11,6 +11,8 @@ export interface DetailsState {
   failed: Map<number, string>;
   /** Cached ids an edit staled: still shown, and asked for again, until the fresh answer replaces them. */
   stale: ReadonlySet<number>;
+  /** Ids a batch was asked for and did not answer: there is nothing to show until an edit stales them. */
+  missing: Set<number>;
   /** Bumped whenever an answer lands or the cache is cleared. */
   version: number;
   /** Resource key → `GFX_` sprite name from the game's resource definitions. */
@@ -32,8 +34,6 @@ let generation = 0;
 let issued = 0;
 /** Id → the last batch an edit staled; an answer no newer than it is dropped. */
 const staled = new Map<number, number>();
-/** Ids a batch was asked for and did not answer: there is nothing to show until an edit stales them. */
-const absent = new Set<number>();
 let iconsInFlight: Promise<void> | null = null;
 
 export const useDetailsStore = create<DetailsState>((set, get) => ({
@@ -41,19 +41,20 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   pending: new Set(),
   failed: new Map(),
   stale: new Set(),
+  missing: new Set(),
   version: 0,
   resourceIcons: new Map(),
   resourceIconsError: null,
 
   request(ids) {
-    const { details, pending, failed, stale } = get();
+    const { details, pending, failed, stale, missing } = get();
     const asked = new Set(pending);
     for (const id of ids) {
       // A failure is not retried on its own: its own version bump would ask again forever.
       if (
         (details.has(id) && !stale.has(id)) ||
         asked.has(id) ||
-        absent.has(id) ||
+        missing.has(id) ||
         failed.has(id)
       ) {
         continue;
@@ -77,9 +78,11 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
     const pending = new Set(get().pending);
     const failed = new Map(get().failed);
     const stale = new Set(get().stale);
+    const missing = new Set(get().missing);
     let dropped = false;
+    let found = false;
     for (const id of ids) {
-      absent.delete(id);
+      if (missing.delete(id)) found = true;
       if (details.has(id)) {
         stale.add(id);
         dropped = true;
@@ -90,13 +93,13 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
         dropped = true;
       }
     }
-    if (dropped) set({ pending, failed, stale, version: version + 1 });
+    if (dropped) set({ pending, failed, stale, version: version + 1, ...(found && { missing }) });
+    else if (found) set({ missing });
   },
 
   clear() {
     generation++;
     staled.clear();
-    absent.clear();
     if (timer !== null) clearTimeout(timer);
     timer = null;
     queue = [];
@@ -105,6 +108,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
       pending: new Set(),
       failed: new Map(),
       stale: new Set(),
+      missing: new Set(),
       version: get().version + 1,
     });
   },
@@ -145,15 +149,16 @@ async function fetchBatch(ids: number[], gen: number, serial: number): Promise<v
   }
   if (gen !== generation) return;
   const answered = new Set(results.map((d) => d.id));
-  for (const id of ids) {
-    if (!answered.has(id) && (staled.get(id) ?? -1) < serial) absent.add(id);
-  }
+  const unanswered = ids.filter((id) => !answered.has(id) && (staled.get(id) ?? -1) < serial);
   const fresh = results.filter((d) => (staled.get(d.id) ?? -1) < serial);
-  settle(ids, { fresh });
+  settle(ids, { fresh, unanswered });
 }
 
 /** Takes `ids` out of `pending` and records what the batch came back with. */
-function settle(ids: number[], outcome: { fresh?: SystemDetails[]; failed?: string }): void {
+function settle(
+  ids: number[],
+  outcome: { fresh?: SystemDetails[]; unanswered?: number[]; failed?: string },
+): void {
   const state = useDetailsStore.getState();
   const pending = new Set(state.pending);
   for (const id of ids) pending.delete(id);
@@ -166,5 +171,15 @@ function settle(ids: number[], outcome: { fresh?: SystemDetails[]; failed?: stri
     stale.delete(d.id);
   }
   if (outcome.failed !== undefined) for (const id of ids) failed.set(id, outcome.failed);
-  useDetailsStore.setState({ details, pending, failed, stale, version: state.version + 1 });
+  const unanswered = outcome.unanswered ?? [];
+  const missing =
+    unanswered.length > 0 ? new Set([...state.missing, ...unanswered]) : state.missing;
+  useDetailsStore.setState({
+    details,
+    pending,
+    failed,
+    stale,
+    missing,
+    version: state.version + 1,
+  });
 }

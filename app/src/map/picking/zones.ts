@@ -1,5 +1,5 @@
 /** Pick radius for a system's star, in screen pixels. */
-const PICK_RADIUS_PX = 12;
+export const PICK_RADIUS_PX = 12;
 /** Pick radius for a lane, in screen pixels; only tried when no system is under the pointer. */
 export const LANE_PICK_RADIUS_PX = 6;
 /** The port ring around a hovered star, in marker units (scaled like the other rings). */

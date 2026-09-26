@@ -57,7 +57,8 @@ fn read_color(name: String, node: &Node, src: &[u8]) -> Option<ColorDef> {
     })
 }
 
-fn read_rgb(node: &Node, key: &str, src: &[u8]) -> Option<[u8; 3]> {
+/// `key = rgb { r g b }` in 0 to 255, or `key = hsv { h s v }` in 0 to 1.
+pub(crate) fn read_rgb(node: &Node, key: &str, src: &[u8]) -> Option<[u8; 3]> {
     let channel = node.find(key, src)?;
     let rgb = script::list_items(channel, "rgb", src);
     if let Some(triple) = to_triple(&rgb) {
@@ -78,8 +79,24 @@ fn clamp_u8(x: f64) -> u8 {
 }
 
 fn hsv_to_rgb(h: f64, s: f64, v: f64) -> [u8; 3] {
+    hsv_to_unit(h, s, v).map(|c| clamp_u8(c * 255.0))
+}
+
+/// `key = hsv { h s v }` or `key = rgb { r g b }` as channels in 0 to 1, left unclamped
+/// above 1: the graphics settings write values past it.
+pub(crate) fn read_unit_rgb(node: &Node, key: &str, src: &[u8]) -> Option<[f64; 3]> {
+    let channel = node.find_all(key, src).last()?;
+    let rgb = script::list_items(channel, "rgb", src);
+    if let Some(triple) = to_triple(&rgb) {
+        return Some(triple.map(|c| c / 255.0));
+    }
+    let [h, s, v] = to_triple(&script::list_items(channel, "hsv", src))?;
+    Some(hsv_to_unit(h, s, v))
+}
+
+fn hsv_to_unit(h: f64, s: f64, v: f64) -> [f64; 3] {
     if s <= 0.0 {
-        return [clamp_u8(v * 255.0); 3];
+        return [v; 3];
     }
     let h = h * 6.0;
     let i = h.floor();
@@ -87,17 +104,12 @@ fn hsv_to_rgb(h: f64, s: f64, v: f64) -> [u8; 3] {
     let p = v * (1.0 - s);
     let q = v * (1.0 - s * f);
     let t = v * (1.0 - s * (1.0 - f));
-    let (r, g, b) = match (i as i64).rem_euclid(6) {
-        0 => (v, t, p),
-        1 => (q, v, p),
-        2 => (p, v, t),
-        3 => (p, q, v),
-        4 => (t, p, v),
-        _ => (v, p, q),
-    };
-    [
-        clamp_u8(r * 255.0),
-        clamp_u8(g * 255.0),
-        clamp_u8(b * 255.0),
-    ]
+    match (i as i64).rem_euclid(6) {
+        0 => [v, t, p],
+        1 => [q, v, p],
+        2 => [p, v, t],
+        3 => [p, q, v],
+        4 => [t, p, v],
+        _ => [v, p, q],
+    }
 }

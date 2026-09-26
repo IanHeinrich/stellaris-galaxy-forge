@@ -137,6 +137,60 @@ YAML**.
 - Gateways and L-Gates appear in the save twice. Each has a `bypasses`
   entry (`type="gateway"` or `type="lgate"`) and a `megastructures`
   entry (`type="gateway_ruined"` or `type="lgate_base"`).
+- A planet class's surface map takes three steps to find. The class
+  names a model family, `entity = "continental_planet"`, and the models
+  are the `entity = { … }` blocks named `continental_planet_01_entity`,
+  `_02_entity` and so on in `gfx/models/planets/**/*.asset`. The editor
+  draws `_01_` for the whole family, then tries `<entity>_entity` and
+  the bare name. Each block has several `meshsettings`, and the surface
+  is the one named `planet_geosphereShape`. The others are the poles,
+  the clouds and the clouds' shadow. Its `texture_diffuse` is a bare
+  file name. The file sits beside the `.asset` file, or in
+  `gfx/models/planets/` when it isn't there. Some entities name no
+  surface map, and those planets keep a plain tinted disc. The vanilla
+  maps are 2048x1024 DXT1 with 12 mip levels, and the disc is baked
+  from level 3, 256x128. A class's `atmosphere_color` is written as
+  `hsv { h s v }` with each value from 0 to 1.
+- A gas giant's ring is `gfx/models/planets/ring_tiling_diffuse.dds`, a
+  32x1024 radial strip wrapped round a flat ring mesh. Row 0 (v = 0) is
+  the outer edge and the last row the inner one. The ring spans 1.39 to
+  2.12 planet radii.
+- A star's sphere has no surface map of its own. The lettered stars,
+  the neutron star and the pulsar all use `base_star.mesh`,
+  `neutron_star.mesh` or `pulsar.mesh`, whose material is the
+  `PdxMeshStar` shader with `nospec.dds` in every slot. That shader
+  (`PixelPdxMeshStar` in `gfx/FX/pdxmesh.shader`) draws veins of lava
+  over stone from three maps and three colours, then turns towards the
+  planet class's `atmosphere_color` at the limb and brightens the limb.
+- The maps and colours live in `gfx/worldgfx/*.txt`, one `gfx_settings`
+  block per lighting class. Its `world` is the star class's `class`
+  (`world = k_star` in `star_k_class.txt`). It names
+  `tex_lava_noise`, `tex_lava_diffuse` and `tex_stone_diffuse`, and
+  gives `lava_bright_color`, `lava_hot_stone_color` and
+  `lava_cold_stone_color`, each with an `_intensity` that multiplies
+  it. The colours are `hsv { … }`, and the intensities run up to 10.
+  The noise map (`gfx/worldgfx/lava_noise.dds`) is a DXT1 cube map,
+  six 1024x1024 faces with no mips. The brown dwarf's world uses its
+  own maps, and the black hole's and `system_view.txt` give no lava colours.
+  `default.txt` is `world = default`, the settings a class without its
+  own falls back on.
+- A body in a binary or trinary is lit by the `class` inside its own
+  `planet = { key = … class = … }` block. `sc_binary_1`, class
+  `a_star`, has a pulsar lit as `pulsar`.
+- The brown dwarf is drawn as a planet is. Its entity,
+  `t_star_class_star_entity`, is in
+  `gfx/models/planets/distant_stars_planets/_distant_stars_star_entities.asset`
+  beside the M giant's. It uses `planet_clouded_mesh` with a
+  `planet_geosphereShape` override of `brown_dwarf_01_diffuse.dds` and
+  the `PdxMeshPlanetEmissive` shader. The neutron star's and pulsar's
+  entities and their polar outbursts are only in `_star_entities.asset`.
+- The rest of a star's look in the system view comes from particles
+  (`gfx/particles/stars_and_planets/<class>_class_star.asset`, named
+  from the entity's `particle`) and, for the neutron star and pulsar,
+  the attached outburst meshes, additive and UV-animated over
+  `neutron_core_outburst.dds` and `pulsar_core_outburst.dds`. The editor
+  bakes the sphere from the shader and draws the glow, beams, jets and
+  wisps itself.
 
 ## Where mods are registered
 
@@ -323,6 +377,21 @@ in load order. `usage` sorts the vanilla set:
 
 An initializer's category comes from its `usage`. Its defining file and
 mod come from where it was read. There is no hand-kept list of them.
+
+A scenario stores no positions, so a scenario system's bodies are laid
+out from its initializer. Each block adds its `change_orbit` to a
+running orbit, then each instance adds its `orbit_distance`. Each
+instance turns its `orbit_angle` on from the body before. A planet's
+moons do the same about the planet, starting from 0. System 217 of the
+4.4 sample is Sol, and it matches this within a unit of radius and a
+tenth of a degree once the whole system is turned by 180°, moons
+included. I haven't checked whether that turn is drawn or fixed. A
+ranged distance or angle shows as a range, and so does every body after
+it. A ranged `count` is laid out as its rounded midpoint. A body with no
+`orbit_angle` can be anywhere on its orbit, and the bodies after it turn
+on from it by 0. A distance that names an undefined `@variable` puts the
+body on its parent. The add-system roller walks the same way, but it
+places each moon at its own `orbit_angle`, not on from the moon before.
 
 ## References (for edge cases, never for bundling)
 

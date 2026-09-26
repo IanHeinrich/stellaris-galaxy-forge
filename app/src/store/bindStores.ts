@@ -20,6 +20,7 @@ import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
+import { GALAXY_SCENE, sceneSystem, useSceneStore } from "./sceneStore";
 import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
 
@@ -51,6 +52,7 @@ export function bindStores(): void {
   followGalaxySize();
   followNotes();
   followTool();
+  followScene();
   followSymmetry();
   followWatchlist();
 }
@@ -107,13 +109,33 @@ function followGalaxySize(): void {
   });
 }
 
-// A tool the document in hand cannot take, or any tool once the document goes, falls back to Select.
+// A tool the document in hand or the scene on show cannot take, or any tool once the document
+// goes, falls back to Select.
 function followTool(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status === previous.status && state.capabilities === previous.capabilities) return;
     const { tool } = useToolStore.getState();
     if (tool === "select") return;
     if (state.status !== "ready" || !toolAllowed(tool)) useToolStore.setState({ tool: "select" });
+  });
+  useSceneStore.subscribe((state, previous) => {
+    if (state.scene === previous.scene) return;
+    const { tool } = useToolStore.getState();
+    if (tool !== "select" && !toolAllowed(tool)) useToolStore.setState({ tool: "select" });
+  });
+}
+
+// A system scene stays up only while its system is the one selection. A focus on another system
+// leaves it too, since the camera heads there; a pan keeps it.
+function followScene(): void {
+  useEditorStore.subscribe((state, previous) => {
+    const shown = sceneSystem();
+    if (shown === null) return;
+    const { selection, focus } = state;
+    const deselected =
+      selection !== previous.selection && (selection.length !== 1 || selection[0] !== shown);
+    const focusedAway = focus !== previous.focus && focus !== null && focus.id !== shown;
+    if (deselected || focusedAway) useSceneStore.setState({ scene: GALAXY_SCENE });
   });
 }
 
@@ -245,6 +267,7 @@ function followGroups(): void {
 function followSession(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status === previous.status) return;
+    if (sceneSystem() !== null) useSceneStore.setState({ scene: GALAXY_SCENE });
     if (state.status === "loading") useLGateStore.getState().hide();
     if (state.status === "empty" || state.status === "error") {
       useGalaxyStore.getState().clear();

@@ -19,6 +19,7 @@ import { resetOpenScreen } from "./openScreenStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
 import { useRecentsStore } from "./recentsStore";
+import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
 import { useToolStore } from "./toolStore";
 import { useUpdateStore } from "./updateStore";
@@ -40,6 +41,7 @@ const STORES: StoreApi<object>[] = [
   usePaintModStore,
   usePlanetDataStore,
   useRecentsStore,
+  useSceneStore,
   useScriptsStore,
   useToolStore,
   useUpdateStore,

@@ -8,8 +8,12 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"))
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useEditorStore } from "../../store/editorStore";
+import { OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useSceneStore } from "../../store/sceneStore";
+import { armSession, resetStores } from "../../store/storeFixture";
+import { openWith } from "../../test/session";
 import { ViewMenuItems } from "./ViewMenu";
 
 let dismiss: ReturnType<typeof vi.fn<() => void>>;
@@ -53,6 +57,31 @@ describe("the View menu", () => {
     useLayoutStore.setState({ collapsed: true });
     expect(items()).toContain("Show dock");
     expect(items()).not.toContain("Hide dock");
+  });
+
+  it("opens the one selected system's view on a save or a scenario, and goes back to the galaxy from it", async () => {
+    resetStores();
+    armSession();
+    await openWith(OPEN_RESULT);
+    expect(html("Open system view")).toContain("<kbd>M</kbd>");
+    expect(html("Open system view")).toContain("disabled=");
+
+    await useEditorStore.getState().select(0);
+    expect(html("Open system view")).not.toContain("disabled=");
+    item("Open system view").props.onClick();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: 0 });
+    expect(dismiss).toHaveBeenCalledTimes(1);
+
+    expect(items()).not.toContain("Open system view");
+    expect(html("Back to galaxy")).toContain("<kbd>Esc</kbd>");
+    item("Back to galaxy").props.onClick();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "galaxy" });
+
+    await openWith(SCENARIO_RESULT);
+    await useEditorStore.getState().select(0);
+    expect(html("Open system view")).not.toContain("disabled=");
+    item("Open system view").props.onClick();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: 0 });
   });
 
   it("carries the layers reset, the Layers menu's one command that is not a toggle", () => {

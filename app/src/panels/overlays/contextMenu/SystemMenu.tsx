@@ -14,6 +14,7 @@ import {
 } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useMapChromeStore, type ContextTarget } from "../../../store/mapChromeStore";
+import { canEnterSystem, useSceneStore } from "../../../store/sceneStore";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
 import { BulkActions, MarauderClanButton, WormholePairButton } from "../../BulkActions";
 import { NEEDS_INITIALIZER, spawnPointsOp, spawnTargets } from "../../spawnPoint";
@@ -47,6 +48,8 @@ export function SystemMenu({
   const linkItem = useZoneLink();
   const [name] = useSystemNames([target.id]);
   const gameData = useGameDataStore((s) => s.status === "ready");
+  const enterable = useFileSessionStore(canEnterSystem);
+  const enterSystem = useSceneStore((s) => s.enterSystem);
 
   const system = systems.get(target.id);
   const inSelection = selection.includes(target.id);
@@ -71,6 +74,7 @@ export function SystemMenu({
   return (
     <MenuFrame {...frame} label={name}>
       <div className="context-menu-header">{name}</div>
+      {enterable && <MenuItem run={() => enterSystem(target.id)}>Open system view</MenuItem>}
       {selection.length > 1 && inSelection ? (
         <BulkActions dismiss={closeContextMenu} itemRole="menuitem" />
       ) : (

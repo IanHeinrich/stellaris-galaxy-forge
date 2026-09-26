@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buttonIn } from "../../test/elements";
 
 vi.mock("../../api/ipc");
@@ -8,12 +8,26 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"))
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 vi.mock("./GameDataPanel", () => ({ GameDataPanel: () => "[game data]" }));
 
+import { DETAILS_DEBOUNCE_MS } from "../../store/batching";
+import { useDetailsStore } from "../../store/detailsStore";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { OPEN_RESULT, exportReport, saveResult } from "../../store/fixture";
+import { useSceneStore } from "../../store/sceneStore";
+import { armSession, resetStores } from "../../store/storeFixture";
+import {
+  OPEN_RESULT,
+  exportReport,
+  name,
+  planetSummary,
+  saveResult,
+  systemDetails,
+} from "../../store/fixture";
+import { mockedIpc } from "../../test/ipc";
+import { openWith } from "../../test/session";
 import { StatusBar } from "./StatusBar";
 
 const bar = () => renderToStaticMarkup(<StatusBar />);
@@ -218,5 +232,77 @@ describe("the auto-reload notice without a document", () => {
     expect(html).toContain("No save open");
     expect(html).toContain("Auto-reload paused");
     expect(button("Resume")).toBeDefined();
+  });
+});
+
+describe("the system view", () => {
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    resetStores();
+    armSession();
+    await openWith(OPEN_RESULT);
+    useSceneStore.getState().enterSystem(0);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("counts the system's bodies and belts, and reads the planet or body on the inspector's page", async () => {
+    let html = bar();
+    expect(html).toContain('<span class="accent">Sol</span>');
+    expect(html).toContain("Reading the system…");
+
+    const sun = planetSummary({
+      id: 10,
+      class: "pc_g_star",
+      name: name("Sol"),
+      name_key: "Sol",
+      layout: { orbit: null, angle: null, at: [0, 0], size: { min: 30, max: 30 } },
+    });
+    const earth = planetSummary({
+      id: 12,
+      name: name("Earth"),
+      name_key: "Earth",
+      layout: { orbit: { min: 45, max: 45 }, angle: null, at: [0, -45], size: null },
+    });
+    const belts = [
+      { kind: "rocky_asteroid_belt", inner_radius: 80 },
+      { kind: "icy_asteroid_belt", inner_radius: 120 },
+    ];
+    mockedIpc.getSystemDetails.mockResolvedValue([
+      systemDetails({ id: 0, planets: [sun, earth], belts }),
+    ]);
+    useDetailsStore.getState().request([0]);
+    await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
+
+    html = bar();
+    expect(html).toContain("Sol · 2 bodies · 2 belts");
+    expect(html).not.toContain("selected");
+    expect(html).toContain("Esc back to galaxy");
+
+    useInspectorStore.getState().open({ ref: { kind: "planet", id: 12 }, label: "Earth" });
+    expect(bar()).toContain("Earth · orbit 45 · angle 270°");
+
+    useMapChromeStore.getState().setSceneHint("Sol — Alpha Centauri · length 43");
+    html = bar();
+    expect(html).toContain("Sol — Alpha Centauri · length 43");
+    expect(html).not.toContain("Earth · orbit 45");
+    useMapChromeStore.getState().setSceneHint(null);
+    expect(bar()).toContain("Earth · orbit 45 · angle 270°");
+
+    const inspector = useInspectorStore.getState();
+    inspector.popTo(0);
+    inspector.open({ ref: { kind: "body", system: 0, id: 12 }, label: "Earth" });
+    expect(bar()).toContain("Earth · orbit 45 · angle 270°");
+    inspector.popTo(0);
+    inspector.open({ ref: { kind: "body", system: 1, id: 12 }, label: "Earth" });
+    expect(bar()).not.toContain("Earth · orbit 45");
+
+    useMapChromeStore.setState({ gesture: "lane" });
+    expect(bar()).toContain("click to inspect");
+
+    useSceneStore.getState().leaveSystem();
+    expect(bar()).toContain("Sol selected");
   });
 });

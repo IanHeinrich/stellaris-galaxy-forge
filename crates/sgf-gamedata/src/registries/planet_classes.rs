@@ -3,6 +3,7 @@
 //! can be colonised, and where and how large a random draw spawns it.
 
 use crate::install::script::{Def, Range};
+use crate::registries::colors;
 use crate::registries::registry::{FromDef, Registry};
 
 pub type PlanetClasses = Registry<PlanetClassDef>;
@@ -11,6 +12,14 @@ pub type PlanetClasses = Registry<PlanetClassDef>;
 pub struct PlanetClassDef {
     pub key: String,
     pub icon: Option<String>,
+    /// The 76×76 `GFX_` sprite, beside `icon`'s 38×38 one.
+    pub icon_large: Option<String>,
+    /// The model name in `gfx/models/planets/*.asset`, without its `_01_entity` suffix.
+    pub entity: Option<String>,
+    /// `atmosphere_color`, written as `hsv { … }` or `rgb { … }`.
+    pub atmosphere_color: Option<[u8; 3]>,
+    pub atmosphere_intensity: Option<f64>,
+    pub atmosphere_width: Option<f64>,
     pub colonizable: bool,
     pub star: bool,
     /// `asteroid = yes`: named outside the planet numbering and never given moons.
@@ -56,6 +65,11 @@ impl FromDef for PlanetClassDef {
         let distance = |key: &str| def.number(key);
         Self {
             icon: def.scalar("icon").map(str::to_owned),
+            icon_large: def.scalar("icon_large").map(str::to_owned),
+            entity: def.scalar("entity").map(str::to_owned),
+            atmosphere_color: colors::read_rgb(&def.node, "atmosphere_color", &def.src),
+            atmosphere_intensity: def.number("atmosphere_intensity"),
+            atmosphere_width: def.number("atmosphere_width"),
             colonizable: def.flag("colonizable"),
             star: def.flag("star"),
             asteroid: def.flag("asteroid"),

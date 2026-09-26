@@ -150,6 +150,46 @@ too.
 The breadcrumb above the page goes back: "‹" for one step, a name in it
 for that page, or "Galaxy" for the whole map.
 
+### System view
+
+Open one system to see its star, planets, moons and asteroid belts laid
+out the way the game draws them. There are four ways in:
+
+- Double-click the system on the map.
+- Select the system and press Enter or M.
+- Right-click the system and choose Open system view.
+- Click Open system view in the Planets header of the system's page, or
+  use View → Open system view.
+
+Each body sits on its orbit around the star, or around its planet for a
+moon. Hyperlanes show as arrows at the edge, pointing to the
+neighbouring systems. Click an arrow to see the lane's length. Double-click it to open that neighbour's view. Wheel zooms and
+middle-drag pans, as on the galaxy map. A large save can take a moment
+to read a system, and the status bar says "Reading the system…" until
+the bodies appear.
+
+Systems in a scenario open the same way and show what their initializer
+sets. Where it leaves an orbit or an angle to chance, the view draws the
+range as a band or an arc. A body with no angle set is drawn faded, and
+a random planet class shows a question mark.
+
+The status bar counts the system's bodies and belts. With a body's page
+open in the Inspector, it shows that body's orbit and angle.
+
+Each body's name sits on a plate under it. A colonised planet's plate
+has a bar in its owner's colour. Names, System details and Nebulae
+still work while a system is open, with their own settings, so you can
+have them on in the galaxy and off in a system. With System details on,
+each body's resources show under its name. A system inside a nebula
+shows faint clouds behind it while Nebulae is on. The other layer buttons and
+the tool rail are for the galaxy, so they are hidden or greyed out. Undo and redo still work
+from the Edit menu and their keys.
+
+To get back to the galaxy, press Esc or M, click "Galaxy" in the crumb at the
+map's top left, right-click and choose Back to galaxy, or use View → Back
+to galaxy. Backspace goes back too once the Inspector has no page left
+to step back from. The galaxy map is where you left it.
+
 ## Make a scenario
 
 A static galaxy scenario is a `.txt` file that a new game starts from
@@ -218,7 +258,7 @@ will do on day one. Galaxy Forge can't follow every script.
 
 #### Symmetry
 
-In a scenario, the Symmetry button under the tools, or M, mirrors your
+In a scenario, the Symmetry button under the tools, or Shift+M, mirrors your
 edits around the centre of the galaxy or repeats them 2 to 8 times
 around it. Saves have no symmetry.
 
@@ -334,11 +374,14 @@ I haven't tested Ironman saves.
 | --- | --- |
 | V, C, X | Select, Connect lanes, Cut lanes |
 | B, E | Paint systems, Erase systems |
-| M | Symmetry on or off, in a scenario |
+| Shift+M | Symmetry on or off, in a scenario |
 | `[` `]` | Brush size, or nebula radius |
 | Alt | Swap the brush while held |
 | Shift+Arrow | Nudge by 1, or 10 with Ctrl |
 | Shift+F | Frame the selection |
+| Enter | Open the selected system's view |
+| M | Open the selected system's view, or back to the galaxy |
+| Esc, Backspace | Back to the galaxy from a system view |
 | Tab | Hide or show the dock |
 | I, Shift+I | Issues tab, initializer browser |
 | Delete | Delete or cut what is selected |

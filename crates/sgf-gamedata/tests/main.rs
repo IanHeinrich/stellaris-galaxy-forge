@@ -11,6 +11,7 @@ mod install;
 mod layering;
 mod localisation;
 mod naming;
+mod planet_discs;
 mod planet_views;
 mod registries;
 mod reload;
@@ -21,6 +22,7 @@ mod scripts_owners;
 mod scripts_rows;
 mod special;
 mod special_layouts;
+mod star_discs;
 mod textures;
 
 #[test]

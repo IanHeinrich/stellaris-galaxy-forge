@@ -74,14 +74,14 @@ describe("the tool rail", () => {
     useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
     const off = button("Symmetry");
     expect(off).toContain('aria-pressed="false"');
-    expect(off).toContain('title="Symmetry off (M turns on 4-fold rotation)"');
+    expect(off).toContain('title="Symmetry off (Shift+M turns on 4-fold rotation)"');
     expect(off).not.toContain("symmetry-badge");
     expect(rail()).toMatch(/aria-label="Symmetry">.*aria-label="History"/);
 
     useToolStore.setState({ symmetry: { kind: "mirror", axis: "y" } });
     const mirror = button("Symmetry");
     expect(mirror).toContain('aria-pressed="true"');
-    expect(mirror).toContain('title="Symmetry: Mirror left–right (M turns it off)"');
+    expect(mirror).toContain('title="Symmetry: Mirror left–right (Shift+M turns it off)"');
     expect(mirror).toContain('<span class="symmetry-badge">↔</span>');
     useToolStore.setState({ symmetry: { kind: "rotate", n: 6 } });
     expect(button("Symmetry")).toContain('<span class="symmetry-badge">6</span>');

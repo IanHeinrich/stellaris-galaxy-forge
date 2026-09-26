@@ -32,6 +32,23 @@ function glowTexture(renderer: Renderer): Texture {
   return tex;
 }
 
+const glows = new WeakMap<Renderer, { texture: Texture; users: number }>();
+
+/** A soft white glow, tinted per star: baked once per renderer and shared until its last user lets go. */
+export function acquireGlow(renderer: Renderer): Texture {
+  const held = glows.get(renderer) ?? { texture: glowTexture(renderer), users: 0 };
+  held.users++;
+  glows.set(renderer, held);
+  return held.texture;
+}
+
+export function releaseGlow(renderer: Renderer): void {
+  const held = glows.get(renderer);
+  if (!held || --held.users > 0) return;
+  glows.delete(renderer);
+  held.texture.destroy(true);
+}
+
 function ringTexture(renderer: Renderer): Texture {
   const g = new Graphics();
   g.circle(TEX_RADIUS, TEX_RADIUS, TEX_RADIUS * 0.85).stroke({
@@ -78,8 +95,8 @@ export class SystemsLayer implements MapLayer {
   private ctx: RenderContext = EMPTY_CONTEXT;
   private readonly unsubTextures: () => void;
 
-  constructor(renderer: Renderer) {
-    this.glow = glowTexture(renderer);
+  constructor(private readonly renderer: Renderer) {
+    this.glow = acquireGlow(renderer);
     this.ring = ringTexture(renderer);
     this.clusters = new StarClusters(this.container, this.glow);
     this.unsubTextures = onTextures(() => this.replaceAll());
@@ -212,7 +229,7 @@ export class SystemsLayer implements MapLayer {
   destroy(): void {
     this.unsubTextures();
     this.container.destroy({ children: true });
-    this.glow.destroy(true);
+    releaseGlow(this.renderer);
     this.ring.destroy(true);
   }
 

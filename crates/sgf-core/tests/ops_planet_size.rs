@@ -1,6 +1,7 @@
 //! The planet size op on both sample saves: the diff each change produces is
 //! snapshotted, the details read the new size, and undo puts the original bytes back.
 
+use sgf_core::format::save::details::{Bounds, HeuristicResolver};
 use sgf_core::ops::Op;
 use sgf_core::session::{OpResult, Session};
 
@@ -131,6 +132,36 @@ fn a_size_change_rereads_its_planet_and_keeps_the_details_built() {
     session.redo().expect("redo").expect("something to redo");
     kept(&session, "the redo");
     assert_eq!(planet_size(&session, 1, 748), Some(30));
+}
+
+/// Sol's moon 4 orbits planet 3 at a stored 12, which its point is 12.0008 from.
+#[test]
+fn a_resized_moon_keeps_its_parent_point_and_drawn_radius() {
+    let mut session = open();
+    session.warm_details().expect("build details");
+    let moon = |session: &Session| {
+        let details = session.built_details().expect("the details kept");
+        let sol = details
+            .resolve(217, &HeuristicResolver, false)
+            .expect("Sol's details");
+        sol.planets
+            .into_iter()
+            .find(|p| p.id == 4)
+            .expect("the moon")
+    };
+    let before = moon(&session);
+    let layout = before.layout.clone().expect("the moon's layout");
+    assert_eq!(before.parent, Some(3));
+    assert_eq!(layout.orbit, Some(Bounds::fixed(12.0)));
+    assert_eq!(layout.size, Some(Bounds::fixed(5.0)));
+
+    session.apply(set(4, 8)).expect("set the size");
+    let after = moon(&session);
+    let resized = after.layout.expect("the moon's layout");
+    assert_eq!(after.parent, before.parent);
+    assert_eq!(resized.at, layout.at);
+    assert_eq!(resized.orbit, layout.orbit);
+    assert_eq!(resized.size, Some(Bounds::fixed(8.0)));
 }
 
 #[test]

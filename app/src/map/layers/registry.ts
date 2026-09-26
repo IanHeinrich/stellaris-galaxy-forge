@@ -35,7 +35,7 @@ export interface DrawnLayerEntry extends LayerEntry {
 
 /**
  * Every layer the capabilities decide, in the order they are drawn. The highlights layer is
- * not here: the controller creates it once and keeps it above these, whatever the document is.
+ * not here: the galaxy scene creates it once and keeps it above these, whatever the document is.
  */
 export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "mapBorder", create: () => new MapBorderLayer() },

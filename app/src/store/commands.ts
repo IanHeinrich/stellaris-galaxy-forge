@@ -1,5 +1,6 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
 import { isToolAction, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
+import { isSceneLayer, LAYER_KEYS } from "../lib/visual/layerIds";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -9,6 +10,7 @@ import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useOpenScreenStore } from "./openScreenStore";
+import { canEnterSystem, sceneSystem, useSceneStore } from "./sceneStore";
 import { symmetryAllowed, useToolStore } from "./toolStore";
 
 export interface CommandEffects {
@@ -16,8 +18,41 @@ export interface CommandEffects {
   browseInitializers(targets: readonly number[]): void;
 }
 
-export function canGoBack(): boolean {
+function hasCrumb(): boolean {
   return useInspectorStore.getState().stack.length > 1;
+}
+
+/** Whether Backspace and Alt+← have somewhere to go back to: a crumb, or out of a system. */
+export function canGoBack(): boolean {
+  return hasCrumb() || sceneSystem() !== null;
+}
+
+/** Pops a crumb, or with none to pop leaves the system shown. */
+function goBack(): void {
+  if (hasCrumb()) useInspectorStore.getState().back();
+  else useSceneStore.getState().leaveSystem();
+}
+
+/** Enter: shows the one selected system, with nothing but the map focused. True when it did. */
+export function enterSelectedSystem(): boolean {
+  const { selection } = useEditorStore.getState();
+  if (selection.length !== 1 || sceneSystem() !== null || !canEnterSystem() || !mapHasFocus()) {
+    return false;
+  }
+  useSceneStore.getState().enterSystem(selection[0]);
+  return sceneSystem() === selection[0];
+}
+
+/** M: shows the one selected system, or leaves the system shown. True when it did either. */
+export function toggleSystemView(): boolean {
+  if (sceneSystem() !== null) {
+    useSceneStore.getState().leaveSystem();
+    return true;
+  }
+  const { selection } = useEditorStore.getState();
+  if (selection.length !== 1 || !canEnterSystem()) return false;
+  useSceneStore.getState().enterSystem(selection[0]);
+  return sceneSystem() === selection[0];
 }
 
 /** `[` / `]` shrink or grow the active brush. True when a brush took the press. */
@@ -39,6 +74,7 @@ export function resizeNebula(step: number): boolean {
 }
 
 export function nudgeSelected({ dx, dy }: Nudge): void {
+  if (sceneSystem() !== null) return;
   const editor = useEditorStore.getState();
   const index = editor.selectedNebula;
   if (index === null) {
@@ -49,16 +85,25 @@ export function nudgeSelected({ dx, dy }: Nudge): void {
   if (nebula) void editor.moveNebula(index, nebula.x + dx, nebula.y + dy);
 }
 
+/** A number key: the galaxy's layer, or while a system is up, the scene's own switch for it. */
 export function toggleLayerKey(index: number): void {
-  useMapChromeStore.getState().toggleLayerKey(index);
+  const chrome = useMapChromeStore.getState();
+  if (sceneSystem() === null) {
+    chrome.toggleLayerKey(index);
+    return;
+  }
+  const layer = LAYER_KEYS[index];
+  if (layer && isSceneLayer(layer)) chrome.toggleSceneLayer(layer);
 }
 
 /** Removes whatever Delete names for the selection, asking first where the store does. */
 export function deleteSelected(): void {
+  if (sceneSystem() !== null) return;
   void useEditorStore.getState().deleteSelection();
 }
 
 export function selectAll(): void {
+  if (sceneSystem() !== null) return;
   void useEditorStore.getState().selectAll();
 }
 
@@ -109,7 +154,11 @@ function escape(inInput: boolean): void {
     chrome.closeContextMenu();
   } else if (useToolStore.getState().tool !== "select") {
     useToolStore.getState().setTool("select");
-  } else if (!useInspectorStore.getState().escape()) {
+  } else if (useInspectorStore.getState().escape()) {
+    return;
+  } else if (sceneSystem() !== null) {
+    useSceneStore.getState().leaveSystem();
+  } else {
     void useEditorStore.getState().clearSelection();
   }
 }
@@ -117,6 +166,13 @@ function escape(inInput: boolean): void {
 function focusOnMap(): boolean {
   const active = document.activeElement;
   return !(active instanceof Element) || active === document.body || !!active.closest(".map-area");
+}
+
+// Menus and dialogs render inside `.map-area` too, and Enter on one of them is its own.
+function mapHasFocus(): boolean {
+  const active = document.activeElement;
+  if (active === null || active === document.body) return true;
+  return active instanceof HTMLCanvasElement && active.closest(".map-host") !== null;
 }
 
 /** Runs one command, and says whether the key press was the app's to keep. */
@@ -163,8 +219,12 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       layout.setTab("issues");
       return true;
     case "inspectorBack":
-      useInspectorStore.getState().back();
+      goBack();
       return true;
+    case "enterSystem":
+      return enterSelectedSystem();
+    case "toggleSystemView":
+      return toggleSystemView();
     case "undo":
       undo();
       return true;
@@ -178,17 +238,22 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       saveAs();
       return true;
     case "browseInitializers":
+      if (sceneSystem() !== null) return false;
       effects.browseInitializers(useEditorStore.getState().selection);
       return true;
     case "toggleScriptLayers":
     case "toggleInitializerLayers":
-      if (session.kind !== "scenario" || useGameDataStore.getState().status !== "ready") {
+      if (
+        sceneSystem() !== null ||
+        session.kind !== "scenario" ||
+        useGameDataStore.getState().status !== "ready"
+      ) {
         return false;
       }
       chrome.toggleGroup(action === "toggleScriptLayers" ? "scripts" : "initializers");
       return true;
     case "toggleSymmetry":
-      if (!symmetryAllowed()) return false;
+      if (!symmetryAllowed() || sceneSystem() !== null) return false;
       useToolStore.getState().toggleSymmetry();
       return true;
   }
