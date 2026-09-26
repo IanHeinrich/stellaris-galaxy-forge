@@ -18,7 +18,7 @@ const GATEWAY = { color: 0x38bdf8, icon: "gateway", label: "Gateway", ruined: "R
 const LGATE = { color: 0x22d3ee, icon: "lgate", label: "L-Gate" };
 const OTHER = { color: 0xa3e635, size: 3.5, width: 1.5, alpha: 0.85 };
 /** Late game nearly every system has a relay, so its marker stays in the background. */
-const RELAY = { ...OTHER, width: 1, alpha: 0.2 };
+const RELAY = { ...OTHER, kind: "relay_bypass", width: 1, alpha: 0.2 };
 /** Marker centre relative to the star, in marker units, so it clears the star and its rings. */
 const OFFSET = { x: 12, y: -12 };
 /** The marker's own hit area, around its offset centre, clear of the star's own hover and drag. */
@@ -52,7 +52,7 @@ function badgeStyle(link: Badged, kinds: BypassKinds): BadgeStyle {
 
 function drawMarker(g: Graphics, kind: string): void {
   const { x, y } = OFFSET;
-  const style = kind === "relay_bypass" ? RELAY : OTHER;
+  const style = kind === RELAY.kind ? RELAY : OTHER;
   const s = style.size;
   g.clear()
     .rect(x - s, y - s, s * 2, s * 2)

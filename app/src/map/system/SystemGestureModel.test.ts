@@ -1,47 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { ContextTarget } from "../../store/mapChromeStore";
-import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
+import {
+  SCENE_SYSTEM as SYSTEM,
+  sceneAt as at,
+  sceneRecorder as recorder,
+} from "../../test/mapIntent";
+import { SystemGestureModel, type SystemIntent } from "./SystemGestureModel";
 
-const SYSTEM = 5;
 const NEIGHBOUR = 9;
 
-type Call = [keyof SystemIntent, ...unknown[]];
-
-function recorder(): SystemIntent & { calls: Call[] } {
-  const calls: Call[] = [];
-  return {
-    calls,
-    hover: (...args) => void calls.push(["hover", ...args]),
-    selectLane: (...args) => void calls.push(["selectLane", ...args]),
-    enterSystem: (...args) => void calls.push(["enterSystem", ...args]),
-    contextMenu: (...args) => void calls.push(["contextMenu", ...args]),
-    openBody: (...args) => void calls.push(["openBody", ...args]),
-    showSystem: (...args) => void calls.push(["showSystem", ...args]),
-  };
-}
-
-function at(
-  kind: SystemInput["kind"],
-  sx: number,
-  sy: number,
-  extra: Partial<SystemInput> = {},
-): SystemInput {
-  return {
-    kind,
-    sx,
-    sy,
-    wx: sx,
-    wy: sy,
-    button: kind === "move" ? -1 : 0,
-    shift: false,
-    ctrl: false,
-    time: 0,
-    system: SYSTEM,
-    body: null,
-    exit: null,
-    ...extra,
-  };
-}
+type Call = ReturnType<typeof recorder>["calls"][number];
 
 function tap(model: SystemGestureModel, intent: SystemIntent, time: number, extra = {}): void {
   model.handle(at("down", 10, 10, { time, ...extra }), intent);
