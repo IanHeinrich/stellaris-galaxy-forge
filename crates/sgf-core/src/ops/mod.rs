@@ -20,6 +20,7 @@ use crate::projections::galaxy::{GalaxyGraph, Lane};
 use crate::session::Session;
 
 pub use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
+pub use crate::format::save::write::add_system::MIN_INNER_RADIUS;
 pub use crate::format::save::write::game_tables::SPAWN_BUFFER;
 pub use crate::format::save::write::initializer_counter::initializer_counts;
 pub use crate::format::save::write::name_pool::{free_nebula_names, free_star_names};
