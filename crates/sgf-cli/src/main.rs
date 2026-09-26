@@ -217,6 +217,7 @@ fn run(cli: Cli) -> commands::Run {
                 id: planet,
                 modifier,
                 on: !off,
+                copies: None,
             },
         ),
         Some(Command::Deposit { command }) => match command {

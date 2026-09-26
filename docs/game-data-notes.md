@@ -260,6 +260,11 @@ attributes: deposit category, `is_for_colonizable` and planet
 `climate`. Tier 2 permits any key. The game is still the oracle for
 whether a combination loads.
 
+A terraforming candidate's required techs and ascension perks are the
+set most of its `common/terraform` links ask for in `condition`, and
+the first set seen wins a tie. This is a rule of thumb: in vanilla, a
+few links behind a perk or an origin ask for less.
+
 ## Rolling deposits and weights
 
 - A deposit without `is_for_colonizable` is not for colonisable bodies:

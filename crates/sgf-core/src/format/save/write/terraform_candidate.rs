@@ -3,14 +3,13 @@
 //! writes it. The block goes after `bombardment_damage` when it is new.
 
 use crate::cst::Node;
-use crate::emit::system::PERMANENT;
 use crate::format::save::read_spec::bodies;
 use crate::format::save::write::timed_modifiers::{self, Place};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Op, OpError, Plan, Planned};
-use crate::projections::read;
+use crate::projections::read::{self, PERMANENT};
 use crate::session::Session;
 
 pub(crate) fn plan_set(
@@ -19,6 +18,7 @@ pub(crate) fn plan_set(
     id: u32,
     modifier: &str,
     on: bool,
+    copies: Option<u32>,
 ) -> Result<Planned, OpError> {
     let (node, src) = planet_entity(&s.doc, id)?;
     let system = planet_system(&node, src, id)?;
@@ -26,20 +26,26 @@ pub(crate) fn plan_set(
     if bodies(&s.doc, system)?.first() == Some(&id) {
         return Err(OpError::StarCandidate(id));
     }
-    if !on && let Some(days) = timed_days(&node, src, modifier).find(|d| d != PERMANENT) {
-        return Err(OpError::ModifierNotPermanent(id, modifier.to_owned(), days));
+    let days: Vec<String> = timed_days(&node, src, modifier).collect();
+    if !on && let Some(days) = days.iter().find(|d| *d != PERMANENT) {
+        return Err(OpError::ModifierNotPermanent(
+            id,
+            modifier.to_owned(),
+            days.clone(),
+        ));
     }
     let edit = plan.edit_planet(&s.doc, id, system)?;
-    let place = on.then_some(Place::Last);
-    if !timed_modifiers::set(edit, keys::BOMBARDMENT_DAMAGE, &[(modifier, place)])? {
+    let count = if on { copies.unwrap_or(1).max(1) } else { 1 };
+    let entries = vec![(modifier, on.then_some(Place::Last)); count as usize];
+    if !timed_modifiers::set(edit, keys::BOMBARDMENT_DAMAGE, &entries)? {
         return Err(match on {
             true => OpError::ModifierPresent(id, modifier.to_owned()),
             false => OpError::ModifierAbsent(id, modifier.to_owned()),
         });
     }
     let description = match on {
-        true => format!("Make planet #{id} a terraforming candidate"),
-        false => format!("Stop planet #{id} being a terraforming candidate"),
+        true => format!("Make planet #{id} a terraforming candidate ({modifier})"),
+        false => format!("Stop planet #{id} being a terraforming candidate ({modifier})"),
     };
     Ok(Planned {
         description,
@@ -47,6 +53,7 @@ pub(crate) fn plan_set(
             id,
             modifier: modifier.to_owned(),
             on: !on,
+            copies: (!on && days.len() > 1).then_some(days.len() as u32),
         },
     })
 }

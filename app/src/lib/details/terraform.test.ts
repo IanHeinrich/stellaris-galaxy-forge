@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetPage } from "../../generated/PlanetPage";
+import type { TerraformCandidateView } from "../../generated/TerraformCandidateView";
 import { name, planetClassView } from "../../test/builders";
 import { setTerraformCandidateOp, terraformCandidate, terraformCandidateTitle } from "./terraform";
 
@@ -39,44 +40,57 @@ const CLASSES = new Map<string, PlanetClassView>(
   ].map((c) => [c.key, c]),
 );
 
+const CANDIDATES = new Map<string, TerraformCandidateView>(
+  [
+    { modifier: "terraforming_candidate", requires: ["Climate Restoration"] },
+    {
+      modifier: "frozen_terraforming_candidate",
+      requires: ["Climate Restoration", "Hydrocentric"],
+    },
+    { modifier: "ash_terraforming_candidate", requires: [] },
+  ].map((c) => [c.modifier, c]),
+);
+
 describe("terraformCandidate", () => {
   it("is the class's modifier, unchecked, for an eligible planet without it", () => {
-    expect(terraformCandidate(page("pc_barren"), CLASSES)).toEqual({
+    expect(terraformCandidate(page("pc_barren"), CLASSES, CANDIDATES)).toEqual({
       modifier: "terraforming_candidate",
       checked: false,
     });
   });
 
   it("is checked once the planet carries the class's modifier", () => {
-    expect(terraformCandidate(page("pc_barren", ["terraforming_candidate"]), CLASSES)).toEqual({
+    expect(
+      terraformCandidate(page("pc_barren", ["terraforming_candidate"]), CLASSES, CANDIDATES),
+    ).toEqual({
       modifier: "terraforming_candidate",
       checked: true,
     });
   });
 
   it("maps a frozen class to the frozen modifier", () => {
-    expect(terraformCandidate(page("pc_frozen"), CLASSES)?.modifier).toBe(
+    expect(terraformCandidate(page("pc_frozen"), CLASSES, CANDIDATES)?.modifier).toBe(
       "frozen_terraforming_candidate",
     );
   });
 
   it("is nothing for a class with no terraform link and no modifier carried", () => {
-    expect(terraformCandidate(page("pc_continental"), CLASSES)).toBeNull();
+    expect(terraformCandidate(page("pc_continental"), CLASSES, CANDIDATES)).toBeNull();
   });
 
   it("is nothing for a star class, which the game never gives a terraform link", () => {
-    expect(terraformCandidate(page("pc_g_star"), CLASSES)).toBeNull();
+    expect(terraformCandidate(page("pc_g_star"), CLASSES, CANDIDATES)).toBeNull();
   });
 
   it("falls back to a stale modifier the planet still carries after its class changed", () => {
-    expect(terraformCandidate(page("pc_continental", ["terraforming_candidate"]), CLASSES)).toEqual(
-      { modifier: "terraforming_candidate", checked: true },
-    );
+    expect(
+      terraformCandidate(page("pc_continental", ["terraforming_candidate"]), CLASSES, CANDIDATES),
+    ).toEqual({ modifier: "terraforming_candidate", checked: true });
   });
 
   it("offers a stale modifier of another class first, so it can be cleared", () => {
     expect(
-      terraformCandidate(page("pc_barren", ["frozen_terraforming_candidate"]), CLASSES),
+      terraformCandidate(page("pc_barren", ["frozen_terraforming_candidate"]), CLASSES, CANDIDATES),
     ).toEqual({ modifier: "frozen_terraforming_candidate", checked: true });
   });
 
@@ -84,38 +98,41 @@ describe("terraformCandidate", () => {
     const modded = new Map(CLASSES);
     modded.set("pc_ash", planetClassView("pc_ash", false, "ash_terraforming_candidate"));
     expect(
-      terraformCandidate(page("pc_continental", ["ash_terraforming_candidate"]), modded),
+      terraformCandidate(
+        page("pc_continental", ["ash_terraforming_candidate"]),
+        modded,
+        CANDIDATES,
+      ),
     ).toEqual({ modifier: "ash_terraforming_candidate", checked: true });
   });
 
-  it("is nothing without game data unless the planet already carries a candidate modifier", () => {
-    expect(terraformCandidate(page("pc_barren"), new Map())).toBeNull();
-    expect(terraformCandidate(page("pc_barren", ["terraforming_candidate"]), new Map())).toEqual({
-      modifier: "terraforming_candidate",
-      checked: true,
-    });
+  it("is nothing without game data, even for a planet with a candidate modifier", () => {
+    expect(terraformCandidate(page("pc_barren"), new Map(), new Map())).toBeNull();
+    expect(
+      terraformCandidate(page("pc_barren", ["terraforming_candidate"]), new Map(), new Map()),
+    ).toBeNull();
   });
 });
 
 describe("terraformCandidateTitle", () => {
-  it("names Climate Restoration alone for the plain candidate", () => {
-    expect(terraformCandidateTitle("terraforming_candidate")).toBe(
+  it("names the one thing a candidate needs", () => {
+    expect(terraformCandidateTitle("terraforming_candidate", CANDIDATES)).toBe(
       "Needs Climate Restoration to terraform",
     );
   });
 
-  it("names the extra tech the frozen and toxic candidates also need", () => {
-    expect(terraformCandidateTitle("frozen_terraforming_candidate")).toBe(
+  it("joins everything a candidate needs", () => {
+    expect(terraformCandidateTitle("frozen_terraforming_candidate", CANDIDATES)).toBe(
       "Needs Climate Restoration and Hydrocentric to terraform",
     );
-    expect(terraformCandidateTitle("toxic_terraforming_candidate")).toBe(
-      "Needs Climate Restoration and Detox to terraform",
-    );
   });
 
-  it("falls back to Climate Restoration alone for any other modifier", () => {
-    expect(terraformCandidateTitle("some_modded_candidate")).toBe(
-      "Needs Climate Restoration to terraform",
+  it("names nothing for a candidate that needs nothing, or one the install does not list", () => {
+    expect(terraformCandidateTitle("ash_terraforming_candidate", CANDIDATES)).toBe(
+      "Lets this planet be terraformed",
+    );
+    expect(terraformCandidateTitle("some_modded_candidate", CANDIDATES)).toBe(
+      "Lets this planet be terraformed",
     );
   });
 });

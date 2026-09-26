@@ -74,6 +74,7 @@ export const getGalaxyShapes = command("getGalaxyShapes");
 export const getMapColors = command("getMapColors");
 export const getMapColorSource = command("getMapColorSource");
 export const getPlanetClasses = command("getPlanetClasses");
+export const getTerraformCandidates = command("getTerraformCandidates");
 export const getStarbaseLevels = command("getStarbaseLevels");
 export const getShipSizes = command("getShipSizes");
 export const getCountryTypes = command("getCountryTypes");

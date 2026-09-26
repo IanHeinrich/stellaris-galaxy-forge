@@ -18,7 +18,6 @@ use crate::registries::defines::BorderDefines as BorderDefinesData;
 use crate::registries::deposits::DepositDef;
 use crate::registries::galaxy_shapes::GalaxyShape;
 use crate::registries::galaxy_sizes::GalaxySize;
-use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::starbase_levels::StarbaseLevelDef;
@@ -445,20 +444,15 @@ pub struct PlanetClassView {
     pub terraform_candidate: Option<String>,
 }
 
-impl From<&PlanetClassDef> for PlanetClassView {
-    fn from(pc: &PlanetClassDef) -> Self {
-        Self {
-            key: pc.key.clone(),
-            icon_sprite: pc.icon.clone(),
-            icon_large_sprite: pc.icon_large.clone(),
-            atmosphere_color: pc.atmosphere_color.map(hex),
-            atmosphere_intensity: pc.atmosphere_intensity,
-            atmosphere_width: pc.atmosphere_width,
-            habitable: pc.colonizable,
-            star: pc.star,
-            terraform_candidate: None,
-        }
-    }
+/// A modifier that makes a planet a terraforming candidate, from the install's
+/// `is_terraforming_candidate` rule.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TerraformCandidateView {
+    pub modifier: String,
+    /// The techs, then the ascension perks, that every terraform link checking the
+    /// modifier asks for, by name.
+    pub requires: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -612,10 +606,31 @@ impl GameData {
         self.planet_classes
             .iter()
             .map(|pc| PlanetClassView {
+                key: pc.key.clone(),
+                icon_sprite: pc.icon.clone(),
+                icon_large_sprite: pc.icon_large.clone(),
+                atmosphere_color: pc.atmosphere_color.map(hex),
+                atmosphere_intensity: pc.atmosphere_intensity,
+                atmosphere_width: pc.atmosphere_width,
+                habitable: pc.colonizable,
+                star: pc.star,
                 terraform_candidate: self
                     .terraform_links
                     .candidate(&pc.key, &self.static_modifiers),
-                ..PlanetClassView::from(pc)
+            })
+            .collect()
+    }
+
+    /// Every terraforming candidate modifier, in the install's rule order.
+    pub fn terraform_candidate_views(&self) -> Vec<TerraformCandidateView> {
+        self.terraform_links
+            .candidates(&self.static_modifiers)
+            .map(|(modifier, requires)| TerraformCandidateView {
+                modifier: modifier.to_owned(),
+                requires: requires
+                    .iter()
+                    .map(|key| self.loc.name_or_readable(key))
+                    .collect(),
             })
             .collect()
     }

@@ -142,6 +142,7 @@ function armGameDataCommands(): void {
       atmosphere_width: null,
     },
   ]);
+  mockedIpc.getTerraformCandidates.mockResolvedValue([]);
   mockedIpc.getDeposits.mockResolvedValue([
     {
       key: "d_minerals_5",

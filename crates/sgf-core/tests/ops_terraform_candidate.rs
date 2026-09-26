@@ -8,7 +8,7 @@ use sgf_core::session::{OpResult, Session};
 
 use crate::common;
 use common::diff::{round_trip, round_trip_step, snapshot_step};
-use common::{current, open_4_5};
+use common::{SAMPLE_4_5, current, open_4_5, open_edited_sample};
 
 const CANDIDATE: &str = "terraforming_candidate";
 const FROZEN: &str = "frozen_terraforming_candidate";
@@ -18,6 +18,7 @@ fn set(id: u32, modifier: &str, on: bool) -> Op {
         id,
         modifier: modifier.to_owned(),
         on,
+        copies: None,
     }
 }
 
@@ -48,7 +49,7 @@ fn a_barren_planet_without_timed_modifiers_becomes_a_candidate_and_back() {
     let result = mark(&mut session, 585, CANDIDATE, "barren_4_5");
     assert_eq!(
         result.entry.description,
-        "Make planet #585 a terraforming candidate"
+        "Make planet #585 a terraforming candidate (terraforming_candidate)"
     );
     assert_eq!(result.inverse, set(585, CANDIDATE, false));
     assert!(result.details_stale.is_empty());
@@ -57,7 +58,7 @@ fn a_barren_planet_without_timed_modifiers_becomes_a_candidate_and_back() {
     let removed = session.apply(result.inverse).expect("remove the candidate");
     assert_eq!(
         removed.entry.description,
-        "Stop planet #585 being a terraforming candidate"
+        "Stop planet #585 being a terraforming candidate (terraforming_candidate)"
     );
     assert_eq!(removed.inverse, set(585, CANDIDATE, true));
     assert_eq!(current(&session), session.doc.original(), "the block goes");
@@ -115,4 +116,49 @@ fn a_candidate_is_refused_for_a_star_an_unknown_planet_or_no_change() {
     }
     assert!(!session.doc.is_dirty());
     assert!(session.history().undo.is_empty());
+}
+
+#[test]
+fn removing_two_permanent_copies_has_an_inverse_that_puts_both_back() {
+    let mut session = open_edited_sample(SAMPLE_4_5, |gamestate, _| {
+        let planet = gamestate
+            .find(
+                "
+		585=
+		{",
+            )
+            .expect("planet 585");
+        let anchor = "			bombardment_damage=0
+";
+        let at = planet
+            + gamestate[planet..]
+                .find(anchor)
+                .expect("its bombardment_damage");
+        let item = "					{
+						modifier=\"terraforming_candidate\"
+						days=-1
+					}
+";
+        let block = format!(
+            "			timed_modifier=
+			{{
+				items=
+				{{
+{item}{item}				}}
+			}}
+"
+        );
+        gamestate.insert_str(at + anchor.len(), &block);
+    });
+    let two = vec![(CANDIDATE.to_owned(), -1), (CANDIDATE.to_owned(), -1)];
+    assert_eq!(page(&session, 585), two);
+
+    let removed = session
+        .apply(set(585, CANDIDATE, false))
+        .expect("remove both copies");
+    assert!(page(&session, 585).is_empty());
+    session
+        .apply(removed.inverse)
+        .expect("apply the removal's inverse");
+    assert_eq!(page(&session, 585), two);
 }

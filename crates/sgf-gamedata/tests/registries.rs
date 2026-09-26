@@ -4,7 +4,7 @@
 use crate::common;
 
 use sgf_core::format::save::details::DetailsResolver;
-use sgf_gamedata::views::{BypassView, ShipSizeView};
+use sgf_gamedata::views::{BypassView, ShipSizeView, TerraformCandidateView};
 
 #[test]
 fn sprites_resolve() {
@@ -284,6 +284,76 @@ fn resolver_distinguishes_orbital_from_colonizable_and_unknown() {
     assert_eq!(DetailsResolver::planet_habitable(gd, "pc_unknown"), None);
 }
 
+/// An install whose terraform links exercise the parser: `NOT`/`NOR` and checks outside
+/// `from` are skipped, a later `game_rules` file's rule wins, a candidate the static
+/// modifiers do not define is dropped, and a candidate needs what most of its links ask for.
+const TERRAFORM_FILES: [(&str, &str); 6] = [
+    (
+        "common/planet_classes/00_fx.txt",
+        "pc_fx_rock = {}\npc_fx_ice = {}\npc_fx_old = {}\npc_fx_plain = {}\n",
+    ),
+    (
+        "common/static_modifiers/00_fx.txt",
+        "fx_candidate = { icon = x }\nfx_cold_candidate = { icon = x }\nfx_old_candidate = { icon = x }\n",
+    ),
+    (
+        "common/game_rules/00_fx.txt",
+        "is_terraforming_candidate = {\n\tOR = { has_modifier = fx_old_candidate }\n}\n",
+    ),
+    (
+        "common/game_rules/01_fx.txt",
+        "is_terraforming_candidate = {\n\tOR = {\n\t\thas_modifier = fx_candidate\n\t\thas_modifier = fx_undefined_candidate\n\t\thas_modifier = fx_cold_candidate\n\t}\n}\n",
+    ),
+    (
+        "common/terraform/00_fx.txt",
+        "terraform_link = {\n\tfrom = pc_fx_rock\n\tpotential = {\n\t\thas_modifier = fx_cold_candidate\n\t\tfrom = {\n\t\t\tNOT = { has_modifier = fx_cold_candidate }\n\t\t\tNOR = { has_modifier = fx_cold_candidate }\n\t\t\tAND = { has_modifier = fx_candidate }\n\t\t}\n\t}\n\tcondition = {\n\t\thas_ascension_perk = ap_fx_shaper\n\t\thas_technology = tech_fx_restore\n\t\tNOT = { has_technology = tech_fx_never }\n\t}\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_ice\n\tpotential = { from = { has_modifier = fx_undefined_candidate } }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_ice\n\tpotential = { OR = { from = { has_modifier = fx_cold_candidate } } }\n\tcondition = { has_technology = tech_fx_restore OR = { has_ascension_perk = ap_fx_cold } }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_plain\n\tpotential = { from = { has_modifier = fx_cold_candidate } }\n\tcondition = { has_ascension_perk = ap_fx_cold has_technology = tech_fx_restore }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_plain\n\tpotential = { has_ascension_perk = ap_fx_other from = { has_modifier = fx_cold_candidate } }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_old\n\tpotential = { from = { has_modifier = fx_old_candidate } }\n}\n",
+    ),
+    (
+        "localisation/english/fx_l_english.yml",
+        "l_english:\n tech_fx_restore:0 \"Fx Restoration\"\n ap_fx_cold:0 \"Cold Hands\"\n",
+    ),
+];
+
+#[test]
+fn terraform_links_read_the_candidate_rule_and_the_links_that_check_it() {
+    let (_dir, gd) = common::hand_written(&TERRAFORM_FILES);
+    let candidate = |class: &str| gd.terraform_links.candidate(class, &gd.static_modifiers);
+    assert_eq!(candidate("pc_fx_rock"), Some("fx_candidate".to_owned()));
+    assert_eq!(candidate("pc_fx_ice"), Some("fx_cold_candidate".to_owned()));
+    assert_eq!(
+        candidate("pc_fx_old"),
+        None,
+        "an earlier rule file's candidate"
+    );
+
+    let views: Vec<(String, Option<String>)> = gd
+        .planet_class_views()
+        .into_iter()
+        .map(|v| (v.key, v.terraform_candidate))
+        .collect();
+    assert!(
+        views.contains(&("pc_fx_rock".to_owned(), Some("fx_candidate".to_owned()))),
+        "{views:?}"
+    );
+
+    let requires = |modifier: &str, names: &[&str]| TerraformCandidateView {
+        modifier: modifier.to_owned(),
+        requires: names.iter().map(|&n| n.to_owned()).collect(),
+    };
+    assert_eq!(
+        gd.terraform_candidate_views(),
+        [
+            requires("fx_candidate", &["Fx Restoration", "Ap Fx Shaper"]),
+            requires("fx_cold_candidate", &["Fx Restoration", "Cold Hands"]),
+        ]
+    );
+}
+
 #[test]
 fn vanilla_registries() {
     let Some(gd) = common::INSTALL.as_ref() else {
@@ -325,6 +395,24 @@ fn vanilla_registries() {
     for class in ["pc_continental", "pc_desert"] {
         assert_eq!(candidate(class), None, "{class}");
     }
+    let requires = |modifier: &str, names: &[&str]| TerraformCandidateView {
+        modifier: modifier.to_owned(),
+        requires: names.iter().map(|&n| n.to_owned()).collect(),
+    };
+    assert_eq!(
+        gd.terraform_candidate_views(),
+        [
+            requires("terraforming_candidate", &["Climate Restoration"]),
+            requires(
+                "frozen_terraforming_candidate",
+                &["Climate Restoration", "Hydrocentric"]
+            ),
+            requires(
+                "toxic_terraforming_candidate",
+                &["Climate Restoration", "Detox"]
+            ),
+        ]
+    );
 
     let energy_3 = gd.deposits.get("d_energy_3").expect("d_energy_3");
     assert_eq!(energy_3.produces, vec![("energy".to_owned(), 3.0)]);
