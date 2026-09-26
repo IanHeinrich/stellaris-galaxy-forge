@@ -155,6 +155,42 @@ YAML**.
   32x1024 radial strip wrapped round a flat ring mesh. Row 0 (v = 0) is
   the outer edge and the last row the inner one. The ring spans 1.39 to
   2.12 planet radii.
+- A star's sphere has no surface map of its own. The lettered stars,
+  the neutron star and the pulsar all use `base_star.mesh`,
+  `neutron_star.mesh` or `pulsar.mesh`, whose material is the
+  `PdxMeshStar` shader with `nospec.dds` in every slot. That shader
+  (`PixelPdxMeshStar` in `gfx/FX/pdxmesh.shader`) draws veins of lava
+  over stone from three maps and three colours, then turns towards the
+  planet class's `atmosphere_color` at the limb and brightens the limb.
+- The maps and colours live in `gfx/worldgfx/*.txt`, one `gfx_settings`
+  block per lighting class. Its `world` is the star class's `class`
+  (`world = k_star` in `star_k_class.txt`). It names
+  `tex_lava_noise`, `tex_lava_diffuse` and `tex_stone_diffuse`, and
+  gives `lava_bright_color`, `lava_hot_stone_color` and
+  `lava_cold_stone_color`, each with an `_intensity` that multiplies
+  it. The colours are `hsv { … }`, and the intensities run up to 10.
+  The noise map (`gfx/worldgfx/lava_noise.dds`) is a DXT1 cube map,
+  six 1024x1024 faces with no mips. The brown dwarf's world uses its
+  own maps, and the black hole's and `system_view.txt` give no lava colours.
+  `default.txt` is `world = default`, the settings a class without its
+  own falls back on.
+- A body in a binary or trinary is lit by the `class` inside its own
+  `planet = { key = … class = … }` block. `sc_binary_1`, class
+  `a_star`, has a pulsar lit as `pulsar`.
+- The brown dwarf is drawn as a planet is. Its entity,
+  `t_star_class_star_entity`, is in
+  `gfx/models/planets/distant_stars_planets/_distant_stars_star_entities.asset`
+  beside the M giant's. It uses `planet_clouded_mesh` with a
+  `planet_geosphereShape` override of `brown_dwarf_01_diffuse.dds` and
+  the `PdxMeshPlanetEmissive` shader. The neutron star's and pulsar's
+  entities and their polar outbursts are only in `_star_entities.asset`.
+- The rest of a star's look in the system view comes from particles
+  (`gfx/particles/stars_and_planets/<class>_class_star.asset`, named
+  from the entity's `particle`) and, for the neutron star and pulsar,
+  the attached outburst meshes, additive and UV-animated over
+  `neutron_core_outburst.dds` and `pulsar_core_outburst.dds`. The editor
+  bakes the sphere from the shader and draws the glow, beams, jets and
+  wisps itself.
 
 ## Where mods are registered
 

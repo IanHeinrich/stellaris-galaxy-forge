@@ -25,6 +25,7 @@ import type { BodyLayout } from "../../../generated/BodyLayout";
 import type { PlanetClassView } from "../../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
+import { starGlyph } from "../../../lib/visual/starGlyphs";
 import { ACCENT_COLOR } from "../../../lib/visual/style";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
 import {
@@ -133,6 +134,12 @@ function blankTextures(): SceneTextures {
     disc: new Texture(),
     nebula: new Texture(),
     glow: new Texture(),
+    corona: new Texture(),
+    beam: new Texture(),
+    plume: new Texture(),
+    halo: new Texture(),
+    swirl: new Texture(),
+    wisps: new Texture(),
     shade: new Texture(),
     gloss: new Texture(),
     rock: new Texture(),
@@ -315,40 +322,179 @@ describe("the system scene's exits layer", () => {
 });
 
 describe("the system scene's bodies layer", () => {
-  it("draws a star as a disc in its class's colour with a glow, its art added over them once landed", async () => {
-    clearTextures();
-    const art = new Texture();
-    setTextureDecoder(() => Promise.resolve(art));
-    const textures = blankTextures();
-    const ctx = systemContext({
+  /** A system of the one star `planetClass`, of the star class `starClass`. */
+  const starContext = (planetClass: string, starClass: string) =>
+    systemContext({
       ...NO_SOURCES,
       id: SYSTEM,
       systems: byId(placedNode(SYSTEM, 0, 0)),
-      details: systemDetails({ id: SYSTEM, planets: [SUN] }),
-      starClasses: new Map([["sc_g", starClassView("sc_g", "pc_g_star")]]),
+      details: systemDetails({ id: SYSTEM, planets: [saveBody(1, planetClass, [0, 0], 0)] }),
+      starClasses: new Map([[starClass, starClassView(starClass, planetClass)]]),
     });
-    const layer = new BodiesLayer(textures);
+
+  it("draws a scenario's bare star as the class its initializer gives the system, surface and beams alike", () => {
+    const ctx = systemContext({
+      ...NO_SOURCES,
+      kind: "scenario",
+      id: SYSTEM,
+      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: "pulsar_init" }),
+      details: systemDetails({
+        id: SYSTEM,
+        planets: [scenarioBody(1, "star", { orbit: fixed(0), angle: fixed(0) })],
+      }),
+      starClasses: new Map([["sc_pulsar", starClassView("sc_pulsar", "pc_pulsar")]]),
+      initializerClasses: new Map([["pulsar_init", "sc_pulsar"]]),
+    });
+    const [star] = ctx.bodies;
+    expect(star.starClass).toBe("sc_pulsar");
+    expect(star.surfaceClass).toBe("pc_pulsar");
+    const layer = new BodiesLayer(blankTextures());
     layer.rebuild(ctx);
     viewport(layer, 2);
-    const star = layer.container.children[0] as Container;
-    const shown = () => star.children.filter((c): c is Sprite => c instanceof Sprite && c.visible);
-
-    const sphere = [textures.glow, textures.disc];
-    expect(shown().map((s) => s.texture)).toEqual(sphere);
-    expect(shown().some((s) => s.blendMode === "add")).toBe(false);
-
-    await vi.waitFor(() => expect(fetch.release).not.toBeNull());
-    fetch.release?.();
-    await vi.waitFor(() => expect(shown().map((s) => s.texture)).toEqual([...sphere, art]));
-    expect(shown()[2].blendMode).toBe("add");
-
-    clearTextures();
-    expect(shown().map((s) => s.texture)).toEqual(sphere);
-    setTextureDecoder(null);
+    const drawn = layer.container.children[0] as Container;
+    expect(drawn.children.map((c) => c.label)).toContain("beams");
     layer.destroy();
   });
 
-  it("draws a black hole black, its swirl behind the disc and a white horizon round it", () => {
+  it("draws a star as its tinted disc in a soft added glow, then its surface in place of the disc once it lands, its art faint behind and a mild bloom on its limb", async () => {
+    resetTextures();
+    const textureFor = decodeByKey();
+    const textures = blankTextures();
+    const layer = new BodiesLayer(textures);
+    layer.rebuild(starContext("pc_g_star", "sc_g"));
+    viewport(layer, 2);
+    const star = layer.container.children[0] as Container;
+    const shown = () => star.children.filter((c): c is Sprite => c instanceof Sprite && c.visible);
+    const labelled = (label: string) => star.children.find((c) => c.label === label) as Sprite;
+
+    const placeholder = [textures.corona, textures.disc, textures.halo];
+    expect(shown().map((s) => s.texture)).toEqual(placeholder);
+    expect(labelled("glow").blendMode).toBe("add");
+    const halo = labelled("halo");
+    expect(halo.blendMode).toBe("add");
+    expect(halo.tint).toBe(starGlyph("sc_g").tint);
+    expect(halo.alpha).toBeLessThan(0.5);
+    expect(halo.width).toBeGreaterThan(labelled("disc").width);
+    expect(halo.width).toBeLessThan(1.5 * labelled("disc").width);
+    expect(labelled("glow").width).toBeGreaterThan(2 * labelled("disc").width);
+    expect(labelled("disc").tint).toBe(starGlyph("sc_g").tint);
+
+    await answerFetch();
+    await vi.waitFor(() => expect(labelled("lit").visible).toBe(true));
+    const lit = labelled("lit");
+    const art = labelled("art");
+    expect(lit.texture).toBe(textureFor("star_disc:pc_g_star"));
+    expect(shown().map((s) => s.label)).toEqual(["glow", "art", "lit", "halo"]);
+    expect(art.texture).toBe(textureFor("star_class:sc_g"));
+    expect(art.blendMode).toBe(STAR_ART_BLEND);
+    expect(art.alpha).toBeLessThan(0.5);
+    expect(lit.scale.x).toBeGreaterThan(0);
+    expect(lit.width).toBeCloseTo(labelled("disc").width);
+    for (const flare of ["beams", "jets", "wisps", "wash", "haze", "aura", "bloom"]) {
+      expect(labelled(flare)).toBeUndefined();
+    }
+
+    clearTextures();
+    expect(shown().map((s) => s.texture)).toEqual(placeholder);
+    resetTextures();
+    layer.destroy();
+  });
+
+  it("keeps a star's tinted disc when the install bakes no surface for it", async () => {
+    resetTextures();
+    fetch.fails = (key) => key.startsWith("star_disc:");
+    const textureFor = decodeByKey();
+    const layer = new BodiesLayer(blankTextures());
+    layer.rebuild(starContext("pc_modded_star", "sc_modded"));
+    viewport(layer, 2);
+    const star = layer.container.children[0] as Container;
+    const labelled = (label: string) => star.children.find((c) => c.label === label) as Sprite;
+
+    await answerFetch();
+    await vi.waitFor(() => expect(labelled("art").visible).toBe(true));
+    expect(labelled("art").texture).toBe(textureFor("star_class:sc_modded"));
+    expect(labelled("disc").visible).toBe(true);
+    expect(labelled("lit").visible).toBe(false);
+    resetTextures();
+    layer.destroy();
+  });
+
+  /** The one star `planetClass` of `starClass`, drawn: its parts by label, and the disc's width. */
+  const drawnStar = (planetClass: string, starClass: string) => {
+    const layer = new BodiesLayer(blankTextures());
+    layer.rebuild(starContext(planetClass, starClass));
+    viewport(layer, 2);
+    const star = layer.container.children[0] as Container;
+    const labels = star.children.map((c) => c.label);
+    const labelled = (label: string) => star.children.find((c) => c.label === label) as Sprite;
+    const all = (label: string) =>
+      star.children.filter((c): c is Sprite => c instanceof Sprite && c.label === label);
+    return { layer, labels, labelled, all, disc: labelled("disc").width };
+  };
+
+  /**
+   * A pale wash and a strong near-white bloom round the limb over the surface, and a bloom on each
+   * end of the star's lights, over the limb and above them all.
+   */
+  const expectBloomsOnTheLimb = (star: ReturnType<typeof drawnStar>, rotation: number) => {
+    const lit = star.labels.indexOf("lit");
+    expect(star.labels.indexOf("wash")).toBeGreaterThan(lit);
+    expect(star.labels.indexOf("halo")).toBeGreaterThan(star.labels.indexOf("wash"));
+    expect(star.labelled("wash").blendMode).toBe("add");
+    const lettered = drawnStar("pc_g_star", "sc_g");
+    expect(star.labelled("halo").alpha).toBeGreaterThan(lettered.labelled("halo").alpha);
+    lettered.layer.destroy();
+    const blooms = star.all("bloom");
+    expect(blooms).toHaveLength(2);
+    for (const bloom of blooms) {
+      expect(star.labels.indexOf("bloom")).toBeGreaterThan(star.labels.indexOf("halo"));
+      expect(bloom.blendMode).toBe("add");
+      expect(Math.hypot(bloom.x, bloom.y)).toBeCloseTo(star.disc / 2);
+      const along = Math.atan2(bloom.y, bloom.x);
+      expect(Math.abs(Math.sin(along - rotation))).toBeCloseTo(0);
+    }
+  };
+
+  it("passes a pulsar's two thin beams behind it on a slant, blooming where they leave the limb, in a large swirl of haze", () => {
+    const star = drawnStar("pc_pulsar", "sc_pulsar");
+    const beams = star.labelled("beams");
+    expect(star.labels.indexOf("beams")).toBeLessThan(star.labels.indexOf("disc"));
+    expect(beams.blendMode).toBe("add");
+    expect(beams.width).toBeGreaterThan(3 * star.disc);
+    expect(beams.height).toBeLessThan(star.disc);
+    expect(beams.rotation % (Math.PI / 2)).not.toBeCloseTo(0);
+    expectBloomsOnTheLimb(star, beams.rotation);
+    const haze = star.labelled("haze");
+    expect(star.labels.indexOf("haze")).toBeLessThan(star.labels.indexOf("disc"));
+    expect(haze.blendMode).toBe("add");
+    expect(haze.alpha).toBeGreaterThan(0.2);
+    expect(haze.width).toBeGreaterThan(2.5 * star.disc);
+    expect(star.labelled("jets")).toBeUndefined();
+    star.layer.destroy();
+  });
+
+  it("sends a neutron star's broad jets up and down behind it, blazing over both poles, in a wide blue glow with faint wisps flung far out", () => {
+    const star = drawnStar("pc_neutron_star", "sc_neutron_star");
+    const jets = star.labelled("jets");
+    expect(star.labels.indexOf("jets")).toBeLessThan(star.labels.indexOf("disc"));
+    expect(jets.rotation).toBeCloseTo(Math.PI / 2);
+    expect(jets.width).toBeGreaterThan(2 * star.disc);
+    expect(jets.height).toBeGreaterThan(star.disc);
+    expect(jets.height).toBeGreaterThan(star.labelled("beams")?.height ?? 0);
+    expectBloomsOnTheLimb(star, jets.rotation);
+    const wisps = star.labelled("wisps");
+    expect(star.labels.indexOf("wisps")).toBeLessThan(star.labels.indexOf("disc"));
+    expect(wisps.blendMode).toBe("add");
+    expect(wisps.width).toBeGreaterThan(3 * star.disc);
+    expect(wisps.alpha).toBeLessThan(0.5);
+    const aura = star.labelled("aura");
+    expect(star.labels.indexOf("aura")).toBeLessThan(star.labels.indexOf("disc"));
+    expect(aura.width).toBeGreaterThan(wisps.width);
+    expect(star.labelled("beams")).toBeUndefined();
+    star.layer.destroy();
+  });
+
+  it("draws a black hole black, its swirl behind the disc and no ring or glow round it", () => {
     const ctx = systemContext({
       ...NO_SOURCES,
       id: SYSTEM,
@@ -365,9 +511,8 @@ describe("the system scene's bodies layer", () => {
     expect(labels.indexOf("art")).toBeLessThan(labels.indexOf("disc"));
     const disc = hole.children.find((c) => c.label === "disc") as Sprite;
     expect(disc.tint).toBe(0x000000);
-    const horizon = hole.children.find((c) => c.label === "horizon");
-    if (!(horizon instanceof Graphics)) throw new Error("no horizon");
-    expect(drawOps(horizon).find((op) => op.action === "stroke")?.color).toBe(0xffffff);
+    expect(labels).not.toContain("horizon");
+    expect(labels).not.toContain("halo");
     layer.destroy();
   });
 

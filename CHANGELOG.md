@@ -16,6 +16,10 @@ a release is made.
   to the galaxy map.
   - Planets show their surface, atmosphere and rings, lit from their
     star.
+  - Stars show their surface in their class's colours, taken from your
+    game files. Pulsars have their beams and swirl of haze. Neutron
+    stars have their jets and wisps. Black holes are black with their
+    swirl round them.
   - Each body's name sits under it. A colonised planet's name has a bar
     in its owner's colour. With System details on, the body's resources
     show under its name.

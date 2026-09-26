@@ -22,6 +22,7 @@ mod scripts_owners;
 mod scripts_rows;
 mod special;
 mod special_layouts;
+mod star_discs;
 mod textures;
 
 #[test]

@@ -16,6 +16,9 @@ pub struct StarClass {
     /// Each `planet = { key = pc_… }` in order: the planet class of each star body, two
     /// or three of them for a binary or trinary system.
     pub planet_keys: Vec<String>,
+    /// The `class` each of those star bodies is lit as, which names its `gfx/worldgfx`
+    /// settings; a `planet` entry without one takes the system's own `class`.
+    pub planet_lighting: Vec<String>,
     /// The class the game swaps this one for during a crisis, when it has one.
     pub crisis_star_class: Option<String>,
     /// The weight a fresh galaxy draws this class with; `0` when the definition omits it, as
@@ -52,12 +55,20 @@ impl FromDef for StarClass {
     }
 
     fn read(key: String, def: &Def) -> Self {
-        let planet_keys = def
+        let class = def.scalar("class").unwrap_or_default().to_owned();
+        let (planet_keys, planet_lighting) = def
             .node
             .find_all("planet", &def.src)
-            .filter_map(|p| p.find("key", &def.src)?.scalar_str(&def.src))
-            .map(str::to_owned)
-            .collect();
+            .filter_map(|p| {
+                let key = p.find("key", &def.src)?.scalar_str(&def.src)?.to_owned();
+                let lit = p
+                    .find("class", &def.src)
+                    .and_then(|c| c.scalar_str(&def.src))
+                    .unwrap_or(&class)
+                    .to_owned();
+                Some((key, lit))
+            })
+            .unzip();
         let planet_odds = def
             .node
             .children()
@@ -70,10 +81,11 @@ impl FromDef for StarClass {
             .collect();
         Self {
             key,
-            class: def.scalar("class").unwrap_or_default().to_owned(),
+            class,
             icon: def.scalar("icon").map(str::to_owned),
             icon_scale: def.number("icon_scale").unwrap_or(1.0),
             planet_keys,
+            planet_lighting,
             crisis_star_class: def.scalar("crisis_star_class").map(str::to_owned),
             spawn_odds: def.number("spawn_odds").unwrap_or(0.0),
             num_planets: def.range("num_planets"),

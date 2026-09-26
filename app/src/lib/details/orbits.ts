@@ -130,6 +130,11 @@ export const ASTEROID_SCALE = 2;
  */
 export const STAR_SCALE = 1.8;
 
+/** The game draws a brown dwarf with a planet's model, so at a planet's size. */
+function brownDwarf(planetClass: string): boolean {
+  return planetClass === "pc_t_star";
+}
+
 /** A body's disc radius in world units from its `planet_size`. */
 export function discRadius(
   size: number | null,
@@ -137,7 +142,12 @@ export function discRadius(
   planetClass = "",
   star = false,
 ): number {
-  const kind = star ? STAR_SCALE : planetClass.includes("asteroid") ? ASTEROID_SCALE : 1;
+  const kind =
+    star && !brownDwarf(planetClass)
+      ? STAR_SCALE
+      : planetClass.includes("asteroid")
+        ? ASTEROID_SCALE
+        : 1;
   const r = (size ?? FALLBACK_SIZE) * DISC_PER_SIZE * (moon ? MOON_SCALE : 1) * kind;
   return Math.max(r, MIN_DISC_RADIUS);
 }

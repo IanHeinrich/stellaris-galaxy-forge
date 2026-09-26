@@ -11,7 +11,7 @@ import {
 import { planetTint } from "../../../lib/details/icons";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import { MAP_FONT } from "../../../lib/visual/style";
-import { starGlyph } from "../../../lib/visual/starGlyphs";
+import { starFlare, starGlyph, type StarFlare } from "../../../lib/visual/starGlyphs";
 import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
 import { dashedCircle } from "../../layers/dashes";
@@ -25,20 +25,72 @@ import {
 import { drawnDisc } from "../geometry";
 import { ICY_TINT } from "./BeltsLayer";
 import type { SystemLayer } from "./SystemLayer";
+import { BEAM_LENGTH, HALO_SCALE, PLUME_LENGTH, SWIRL_SCALE } from "./starLight";
 import type { SceneTextures } from "./textures";
 
-/** The glow under a star, and a star's art, in disc diameters. */
-const GLOW_SCALE = 1.5;
-const STAR_ART_SCALE = 1.4;
-/** A black hole's swirl, in disc diameters, and its event horizon's edge in screen pixels. */
+/** The glow added round a star, in disc diameters, and how strongly. */
+const GLOW_SCALE = 2.4;
+const GLOW_ALPHA = 0.55;
+/**
+ * A star's galaxy art behind its surface, in disc diameters, and how strongly it shows: faint,
+ * so its spikes barely show past the limb. A neutron star's shell sits close about the body.
+ */
+const STAR_ART: Record<StarFlare | "star", { scale: number; alpha: number }> = {
+  star: { scale: 2.6, alpha: 0.18 },
+  pulsar: { scale: 2.8, alpha: 0.35 },
+  neutron: { scale: 1.5, alpha: 0.15 },
+};
+/**
+ * The game's bloom bleeds a star's light past its limb. A bloom hugging the limb stands in for
+ * it: mild and in the class's colour round an ordinary star, strong and near white round a
+ * pulsar or a neutron star, where it joins the beams to the body.
+ */
+const HALO: FlareShape = { length: HALO_SCALE, thickness: HALO_SCALE, rotation: 0 };
+const STAR_HALO_ALPHA = 0.35;
+const EXOTIC_HALO_TINT = 0xe6f1ff;
+const EXOTIC_HALO_ALPHA = 0.45;
+/**
+ * The game glazes a pulsar's and a neutron star's surface with thousands of pale blue particles;
+ * a wash of pale blue added over the disc stands in for them.
+ */
+const WASH: FlareShape = { length: 1, thickness: 1, rotation: 0 };
+const WASH_TINT = 0xb4d0ff;
+const WASH_ALPHA = 0.35;
+/**
+ * The light a pulsar or a neutron star throws off its poles: its length and thickness in disc
+ * diameters, and its turn on screen. The beams and jets pass behind the star, so none of them
+ * crosses its surface, and a bloom sits over the limb where each leaves it. A pulsar's beams are
+ * thin and lie along the beams of its galaxy art; a neutron star's jets are broad soft plumes,
+ * straight up and down, with wisps curling round the body.
+ */
+const PULSAR_TURN = 1.07;
+const PULSAR_BEAMS: FlareShape = { length: BEAM_LENGTH, thickness: 0.5, rotation: PULSAR_TURN };
+const PULSAR_BLOOM = 0.75;
+/** The pale haze swirling round a pulsar, reaching well past the limb. */
+const PULSAR_SWIRL: FlareShape = { length: SWIRL_SCALE, thickness: SWIRL_SCALE, rotation: 0 };
+const SWIRL_TINT = 0xcfe2ff;
+const SWIRL_ALPHA = 0.35;
+const NEUTRON_TURN = Math.PI / 2;
+const NEUTRON_JETS: FlareShape = { length: PLUME_LENGTH, thickness: 1.4, rotation: NEUTRON_TURN };
+const NEUTRON_BLOOM = 0.9;
+/** Faint thin strands of pale blue, flung out one and a half to three disc radii. */
+const NEUTRON_WISPS: FlareShape = { length: 3.4, thickness: 3.4, rotation: 0 };
+const WISPS_TINT = 0x9ec4ff;
+/** A wide soft blue glow round a neutron star, through which the wisps and orbits show. */
+const NEUTRON_AURA: FlareShape = { length: 6, thickness: 6, rotation: 0 };
+const AURA_TINT = 0x7fa8ff;
+const AURA_ALPHA = 0.25;
+const FLARE_TINT = 0xcfe4ff;
+const FLARE_ALPHA = 0.75;
+const BLOOM_TINT = 0xeef6ff;
+const BLOOM_ALPHA = 0.6;
+const WISPS_ALPHA = 0.2;
+/** A black hole's swirl, in disc diameters. */
 const HOLE_ART_SCALE = 2.6;
-const HORIZON_PX = 1.5;
-const HORIZON_ALPHA = 0.85;
 /** A planet's class icon, in disc diameters. */
 const PLANET_ART_SCALE = 1;
 /** The on-screen disc diameter, in pixels, past which a planet shows its class's large icon. */
 const LARGE_ICON_PX = 48;
-const GLOW_ALPHA = 0.9;
 /** A ghost's sprites, and the dashes of its outline. */
 const GHOST_ALPHA = 0.4;
 const GHOST_DASHES = 16;
@@ -104,9 +156,13 @@ function blackHole(body: SceneBody): boolean {
   return body.placement.star && body.starClass !== null && starGlyph(body.starClass).ring;
 }
 
+function flareOf(body: SceneBody): StarFlare | null {
+  return body.placement.star && body.starClass !== null ? starFlare(body.starClass) : null;
+}
+
 function artScale(body: SceneBody): number {
   if (blackHole(body)) return HOLE_ART_SCALE;
-  return body.placement.star ? STAR_ART_SCALE : PLANET_ART_SCALE;
+  return body.placement.star ? STAR_ART[flareOf(body) ?? "star"].scale : PLANET_ART_SCALE;
 }
 
 /**
@@ -160,11 +216,14 @@ function takesGloss(planetClass: string): boolean {
   return !/gas_giant/.test(planetClass);
 }
 
-/** The texture key of the class's surface baked as a lit disc; none for a star, a random class or an irregular one. */
+/**
+ * The texture key of the class's surface baked as a disc: a star's lit from within, a planet's
+ * lit from one side. None for a black hole, a random class or an irregular one.
+ */
 function litKey(body: SceneBody): string | null {
-  const { planetClass } = body;
-  if (body.placement.star || randomClass(planetClass) || irregular(planetClass)) return null;
-  return `planet_disc:${planetClass}`;
+  const { planetClass, surfaceClass } = body;
+  if (blackHole(body) || randomClass(planetClass) || irregular(planetClass)) return null;
+  return body.placement.star ? `star_disc:${surfaceClass}` : `planet_disc:${surfaceClass}`;
 }
 
 /** The first of `keys` already in the cache, without asking for any. */
@@ -228,10 +287,31 @@ interface Ring {
   dashes: Graphics | null;
 }
 
+/**
+ * A beam, a jet, a bloom or the wisps: its length and thickness in disc diameters, its turn, and
+ * how far from the star's centre it sits along that turn, in disc diameters.
+ */
+interface FlareShape {
+  length: number;
+  thickness: number;
+  rotation: number;
+  offset?: number;
+}
+
+/** The blooms over the limb at both ends of lights turned `rotation`, `size` discs across. */
+function blooms(rotation: number, size: number): FlareShape[] {
+  return [0.5, -0.5].map((offset) => ({ length: size, thickness: size, rotation, offset }));
+}
+
+interface Flare {
+  sprite: Sprite;
+  shape: FlareShape;
+}
+
 interface Drawn {
   body: SceneBody;
   glow: Sprite | null;
-  horizon: Graphics | null;
+  flares: Flare[];
   glaze: Sprite | null;
   ring: Ring | null;
   disc: Sprite;
@@ -325,9 +405,10 @@ export class BodiesLayer implements SystemLayer {
     const shines = placement.star && !hole;
     let glow: Sprite | null = null;
     if (shines) {
-      glow = sprite("glow", this.textures.glow);
+      glow = sprite("glow", this.textures.corona);
       glow.tint = tint;
       glow.alpha = GLOW_ALPHA;
+      glow.blendMode = "add";
     }
     const ringed = !placement.star && body.ring !== false;
     const ringTint = mixed(RING_COLOUR, tint, RING_TINT_SHARE);
@@ -361,9 +442,46 @@ export class BodiesLayer implements SystemLayer {
     art.visible = false;
     // As on the galaxy map: the art's black ground adds nothing, so only its light shows.
     if (placement.star || luminous(body.planetClass)) art.blendMode = STAR_ART_BLEND;
-    // A black hole's swirl is its accretion disc, seen round the black of the hole.
-    if (hole) holder.setChildIndex(art, holder.getChildIndex(disc));
-    const horizon = hole ? graphics("horizon") : null;
+    // A black hole's swirl is its accretion disc, seen round the black of the hole; a star's
+    // art is the light about it, with its bright core behind the surface.
+    if (placement.star) holder.setChildIndex(art, holder.getChildIndex(disc));
+    const flare = flareOf(body);
+    if (shines) art.alpha = STAR_ART[flare ?? "star"].alpha;
+    const flares: Flare[] = [];
+    const addFlare = (label: string, texture: Texture, shape: FlareShape, alpha: number) => {
+      const s = sprite(label, texture);
+      s.tint = FLARE_TINT;
+      s.alpha = alpha;
+      s.blendMode = "add";
+      s.rotation = shape.rotation;
+      flares.push({ sprite: s, shape });
+      return s;
+    };
+    const behind = (label: string, texture: Texture, shape: FlareShape, alpha: number) => {
+      const s = addFlare(label, texture, shape, alpha);
+      holder.setChildIndex(s, holder.getChildIndex(disc));
+      return s;
+    };
+    if (flare === "pulsar") {
+      behind("haze", this.textures.swirl, PULSAR_SWIRL, SWIRL_ALPHA).tint = SWIRL_TINT;
+      behind("beams", this.textures.beam, PULSAR_BEAMS, FLARE_ALPHA);
+    }
+    if (flare === "neutron") {
+      behind("jets", this.textures.plume, NEUTRON_JETS, FLARE_ALPHA);
+      behind("aura", this.textures.corona, NEUTRON_AURA, AURA_ALPHA).tint = AURA_TINT;
+      behind("wisps", this.textures.wisps, NEUTRON_WISPS, WISPS_ALPHA).tint = WISPS_TINT;
+    }
+    if (flare) addFlare("wash", this.textures.disc, WASH, WASH_ALPHA).tint = WASH_TINT;
+    if (shines) {
+      const halo = addFlare("halo", this.textures.halo, HALO, STAR_HALO_ALPHA);
+      halo.tint = flare ? EXOTIC_HALO_TINT : tint;
+      if (flare) halo.alpha = EXOTIC_HALO_ALPHA;
+    }
+    const poles = flare === "pulsar" ? blooms(PULSAR_TURN, PULSAR_BLOOM) : [];
+    if (flare === "neutron") poles.push(...blooms(NEUTRON_TURN, NEUTRON_BLOOM));
+    for (const shape of poles) {
+      addFlare("bloom", this.textures.corona, shape, BLOOM_ALPHA).tint = BLOOM_TINT;
+    }
     const glazed = glazeTint(body.planetClass);
     let glaze: Sprite | null = null;
     if (glazed !== null) {
@@ -400,6 +518,7 @@ export class BodiesLayer implements SystemLayer {
     if (placement.ghost) {
       const faded = [
         glow,
+        ...flares.map((f) => f.sprite),
         ring?.back,
         ring?.front,
         ring?.backStrip,
@@ -407,7 +526,6 @@ export class BodiesLayer implements SystemLayer {
         disc,
         lit,
         art,
-        horizon,
         glaze,
         shade,
         rim,
@@ -420,7 +538,7 @@ export class BodiesLayer implements SystemLayer {
     const drawn = {
       body,
       glow,
-      horizon,
+      flares,
       glaze,
       ring,
       disc,
@@ -445,9 +563,9 @@ export class BodiesLayer implements SystemLayer {
   /**
    * Shows the lit disc and the icon once their textures have landed, and the tinted disc alone
    * until then; asks for them again after the cache was cleared, as when game data reloads. The
-   * lit disc stands in for the icon, which only marked the surface. A star keeps its disc and
-   * glow under its art. A ring shows the game's texture once it lands, and its baked halves until
-   * then.
+   * lit disc stands in for the icon, which only marked the surface. A star keeps its art, the
+   * light about it, and shows its surface in place of the tinted disc once that lands. A ring
+   * shows the game's texture once it lands, and its baked halves until then.
    */
   private dress(drawn: Drawn): void {
     const { body, art, disc, lit } = drawn;
@@ -461,7 +579,8 @@ export class BodiesLayer implements SystemLayer {
     const [wanted, other] = drawn.large
       ? [body.largeIconKeys, body.iconKeys]
       : [body.iconKeys, body.largeIconKeys];
-    const iconless = randomClass(body.planetClass) || surface !== null;
+    const star = body.placement.star;
+    const iconless = randomClass(body.planetClass) || (surface !== null && !star);
     // Across the large-icon threshold, the icon already in hand stands in until the other lands.
     const texture = iconless ? null : (this.resolve(wanted) ?? landed(other));
     art.texture = texture ?? Texture.EMPTY;
@@ -470,10 +589,9 @@ export class BodiesLayer implements SystemLayer {
       drawn.glaze.texture = art.texture;
       drawn.glaze.visible = art.visible;
     }
-    if (body.placement.star) return;
     // The tinted disc only holds the place until the surface or the icon lands; an icon's own
-    // outline and margin would show it as a band.
-    disc.visible = texture === null && surface === null;
+    // outline and margin would show it as a band. A star's art is not its surface.
+    disc.visible = surface === null && (star || texture === null);
   }
 
   private dressRing(ring: Ring): void {
@@ -518,28 +636,27 @@ export class BodiesLayer implements SystemLayer {
         drawn.large = large;
         this.dress(drawn);
       }
-      const { body, glow, horizon, glaze, ring, disc, lit, art, shade, rim, glyph, outline } =
-        drawn;
+      const { body, glow, flares, glaze, ring, disc, lit, art, shade, rim, glyph } = drawn;
+      const { outline } = drawn;
       const d = 2 * drawnDisc(body.placement.disc, this.scale);
       if (glow) sized(glow, d * GLOW_SCALE);
       sized(disc, d);
       if (lit) {
         sized(lit, d);
-        // The bake is lit from its left; mirrored, its light lies along +x as the mask's does.
-        lit.scale.x = -lit.scale.x;
+        // A planet's bake is lit from its left; mirrored, its light lies along +x as the mask's does.
+        if (!body.placement.star) lit.scale.x = -lit.scale.x;
+      }
+      for (const { sprite, shape } of flares) {
+        const { width, height } = sprite.texture;
+        sprite.scale.set(
+          (d * shape.length) / Math.max(width, 1),
+          (d * shape.thickness) / Math.max(height, 1),
+        );
+        const along = d * (shape.offset ?? 0);
+        sprite.position.set(along * Math.cos(shape.rotation), along * Math.sin(shape.rotation));
       }
       sized(art, d * artScale(body));
       if (glaze) sized(glaze, d * artScale(body));
-      if (horizon) {
-        horizon
-          .clear()
-          .circle(0, 0, d / 2)
-          .stroke({
-            color: 0xffffff,
-            alpha: HORIZON_ALPHA,
-            width: HORIZON_PX / this.scale,
-          });
-      }
       if (shade) sized(shade, d);
       if (rim && body.atmosphere) this.drawRim(rim, body.atmosphere, d / 2);
       if (ring) this.sizeRing(ring, body, d / 2);
