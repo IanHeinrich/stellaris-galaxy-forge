@@ -94,7 +94,11 @@ export function parseReleaseNotes(notes: string): NoteBlock[] {
 export function releaseHeadline(notes: string): string {
   for (const block of parseReleaseNotes(notes)) {
     const first =
-      block.kind === "list" ? block.items[0]?.spans : block.kind === "paragraph" ? block.spans : null;
+      block.kind === "list"
+        ? block.items[0]?.spans
+        : block.kind === "paragraph"
+          ? block.spans
+          : null;
     if (first) return first.map((s) => s.text).join("");
   }
   return "";
