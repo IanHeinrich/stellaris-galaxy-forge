@@ -319,7 +319,7 @@ pub(super) fn planets(
 
 /// Where a planet's entry puts it, and whether it has a ring.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) struct Placement {
+struct Placement {
     pub orbit: Option<f64>,
     pub at: Option<(f64, f64)>,
     pub ring: bool,
@@ -334,38 +334,16 @@ fn placement(node: &Node, src: &[u8]) -> Placement {
     }
 }
 
-/// What planet `id` now says about itself and where it now stands; `None` when the save
-/// holds no such planet.
+/// What planet `id` now says about itself; `None` when the save holds no such planet.
 pub(super) fn planet_facts(
     doc: &Document,
     id: u32,
-) -> Result<Option<(facts::planet::PlanetFacts, Placement)>, ProjectionError> {
+) -> Result<Option<facts::planet::PlanetFacts>, ProjectionError> {
     let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(None);
     };
     Ok(current_entity(doc, keys::PLANETS, u64::from(id), anchor)?
-        .map(|(node, src)| (facts::planet::read(&node, src), placement(&node, src))))
-}
-
-/// Each system's belts and `inner_radius`, from the entry now standing for it: an added
-/// or rerolled system's belts are only in the bytes the op wrote. A belt list with a
-/// radius that cannot be read leaves the system without belts.
-pub(super) fn geometry(
-    doc: &Document,
-    by_system: &mut HashMap<u32, RawSystemDetails>,
-) -> Result<(), ProjectionError> {
-    for (&id, details) in by_system.iter_mut() {
-        let Some(anchor) = system_statement(doc, id) else {
-            continue;
-        };
-        let Some((node, src)) = current_entity(doc, keys::GALACTIC_OBJECT, u64::from(id), anchor)?
-        else {
-            continue;
-        };
-        details.inner_radius = read::scalar_f64(&node, keys::INNER_RADIUS, src);
-        details.belts = read_spec::belts_in(&node, src).unwrap_or_default();
-    }
-    Ok(())
+        .map(|(node, src)| facts::planet::read(&node, src)))
 }
 
 /// An entity's `<id>=` node parsed from the bytes now standing for it, which an op may
@@ -514,8 +492,11 @@ fn carries_planet_killer(index: &Index, src: &[u8], ship: u32) -> bool {
         .is_some_and(|text| memchr::memmem::find(text, b"PLANET_KILLER").is_some())
 }
 
-/// The starbases and fleets each `galactic_object` lists, read through the
-/// `starbase_mgr`, `ships` and `fleet` tables.
+/// Each system's starbases, fleets, belts and `inner_radius`, in one pass over the bytes
+/// now standing for its `galactic_object` entry: an added or rerolled system's facts are
+/// only in the bytes the op wrote. Starbases and fleets are read through the
+/// `starbase_mgr`, `ships` and `fleet` tables. A belt list with a radius that cannot be
+/// read leaves the system without belts.
 pub(super) fn present(
     doc: &Document,
     graph: &GalaxyGraph,
@@ -523,20 +504,23 @@ pub(super) fn present(
     ship_sizes: &HashMap<u32, String>,
     by_system: &mut HashMap<u32, RawSystemDetails>,
 ) -> Result<(), ProjectionError> {
+    // No op writes the `starbase_mgr`, `ships` or `fleet` tables, so they are read from the
+    // original bytes even when a system's own entry has moved to the overlay.
     let src = doc.original();
     let index = doc.index();
     let stations = read::stations(doc)?;
-    for entity in index.entities(keys::GALACTIC_OBJECT) {
-        let Some(node) = read::entity_node(entity, src, keys::GALACTIC_OBJECT)? else {
+    for (&id, details) in by_system.iter_mut() {
+        let Some(anchor) = system_statement(doc, id) else {
             continue;
         };
-        let Ok(id) = u32::try_from(entity.id) else {
+        let Some((node, entity_src)) =
+            current_entity(doc, keys::GALACTIC_OBJECT, u64::from(id), anchor)?
+        else {
             continue;
         };
-        let Some(details) = by_system.get_mut(&id) else {
-            continue;
-        };
-        let system = facts::system::read(&node, src);
+        let system = facts::system::read(&node, entity_src);
+        details.inner_radius = system.inner_radius;
+        details.belts = read_spec::belts_in(&node, entity_src).unwrap_or_default();
         let system_owner = graph.systems.get(&id).and_then(|s| s.owner);
         for starbase in system.starbases {
             let Some(station) = stations.get(&starbase) else {

@@ -1,10 +1,15 @@
 import { shortcutLabel } from "../../lib/keys";
-import { fitAll, fitSelected, rollAgain } from "../../store/commands";
+import { backToGalaxy, fitAll, fitSelected, rollAgain } from "../../store/commands";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
+import {
+  canEnterSystem,
+  useCanRollAgain,
+  useSceneStore,
+  useSceneSystem,
+} from "../../store/sceneStore";
 import "./chrome.css";
 import { Menu, MenuItem } from "./Menu";
 import { ROLL_AGAIN_TITLE } from "./SceneCrumb";
@@ -19,10 +24,9 @@ export function ViewMenuItems({ dismiss }: { dismiss: () => void }) {
   const resetLayers = useMapChromeStore((s) => s.resetLayers);
   const enterable = useFileSessionStore(canEnterSystem);
   const selection = useEditorStore((s) => s.selection);
-  const inSystem = useSceneStore((s) => s.scene.kind === "system");
+  const inSystem = useSceneSystem() !== null;
   const enterSystem = useSceneStore((s) => s.enterSystem);
-  const leaveSystem = useSceneStore((s) => s.leaveSystem);
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
+  const rollable = useCanRollAgain();
 
   return (
     <>
@@ -45,9 +49,9 @@ export function ViewMenuItems({ dismiss }: { dismiss: () => void }) {
             label="Back to galaxy"
             shortcut={shortcutLabel("clearSelection")}
             dismiss={dismiss}
-            onClick={leaveSystem}
+            onClick={backToGalaxy}
           />
-          {scenario && (
+          {rollable && (
             <MenuItem
               label="Roll again"
               title={ROLL_AGAIN_TITLE}

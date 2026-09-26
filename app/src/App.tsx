@@ -50,7 +50,7 @@ import { useFileSessionStore } from "./store/fileSessionStore";
 import { useGameDataStore } from "./store/gameDataStore";
 import { useLayoutStore } from "./store/layoutStore";
 import { usePaintModStore } from "./store/paintModStore";
-import { useBarMode, useSceneStore } from "./store/sceneStore";
+import { useBarMode, useSceneSystem } from "./store/sceneStore";
 import { useUpdateStore } from "./store/updateStore";
 
 function FileState() {
@@ -116,7 +116,7 @@ const EFFECTS: CommandEffects = {
 
 function App() {
   const status = useFileSessionStore((s) => s.status);
-  const shown = useSceneStore((s) => (s.scene.kind === "system" ? s.scene.id : null));
+  const shown = useSceneSystem();
   const tools = barShows(useBarMode(), "tools");
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);

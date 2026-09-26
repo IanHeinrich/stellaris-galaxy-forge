@@ -14,6 +14,9 @@ use crate::projections::galaxy::{FlagRef, ProjectionError};
 use crate::projections::name::NameTemplate;
 use crate::scan::{Entity, Index, Section, Value};
 
+/// The `days` of a `timed_modifier` item that never runs out.
+pub(crate) const PERMANENT: &str = "-1";
+
 /// The scalar value of `node.<key>`.
 pub(crate) fn scalar<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<&'a str> {
     node.find(key, src)?.scalar_str(src)

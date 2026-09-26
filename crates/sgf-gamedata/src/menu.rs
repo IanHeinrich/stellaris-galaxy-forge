@@ -135,21 +135,18 @@ fn label_parts(gd: &GameData, init: &Initializer) -> LabelParts {
             belts.push(name);
         }
     }
-    if let Some(key) = converted(init).and_then(|layout| layout.label) {
-        let main = gd
-            .loc
-            .name(key)
-            .unwrap_or_else(|| Localisation::readable(key.trim_start_matches("NAME_")));
-        return LabelParts {
-            main: vec![main],
-            belts,
-        };
-    }
-    if let Some(name) = &init.display_name {
-        let main = gd
-            .loc
-            .name(name)
-            .unwrap_or_else(|| Localisation::readable(&init.name));
+    // The layout's fixed name, whether written for the Special menu or as `name = …`, with
+    // the readable fallback each takes when the install has no localisation for it.
+    let fixed = converted(init)
+        .and_then(|layout| layout.label)
+        .map(|key| (key, Localisation::readable(key.trim_start_matches("NAME_"))))
+        .or_else(|| {
+            init.display_name
+                .as_deref()
+                .map(|name| (name, Localisation::readable(&init.name)))
+        });
+    if let Some((key, fallback)) = fixed {
+        let main = gd.loc.name(key).unwrap_or(fallback);
         return LabelParts {
             main: vec![main],
             belts,

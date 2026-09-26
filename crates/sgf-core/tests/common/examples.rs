@@ -366,6 +366,7 @@ pub fn one_of_each() -> Vec<Example> {
             id: 749,
             modifier: "terraforming_candidate".to_owned(),
             on: true,
+            copies: None,
         }),
         Example::save_4_5(Op::SetEmpireMapColors {
             country: 1,

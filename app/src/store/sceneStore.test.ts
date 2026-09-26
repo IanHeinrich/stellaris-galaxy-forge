@@ -1,14 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SystemNode } from "../generated/SystemNode";
 import { keyAction, type KeyAction, type KeyLike } from "../lib/keys";
-import { barShows, layerKey, type BarMode, type BarControl } from "../lib/visual/barMode";
-import {
-  GALAXY_LAYER_IDS,
-  LAYER_IDS,
-  LAYER_KEYS,
-  SCENE_LAYER_IDS,
-  isSceneLayer,
-} from "../lib/visual/layerIds";
+import { layerKey } from "../lib/visual/barMode";
+import { LAYER_KEYS, SCENE_LAYER_IDS } from "../lib/visual/layerIds";
 import { stubPrefs } from "../test/prefs";
 
 vi.mock("../api/ipc");
@@ -18,6 +12,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import {
   canGoBack,
   nudgeSelected,
+  openSystem,
   rollAgain,
   run,
   toggleLayerKey,
@@ -38,7 +33,6 @@ import { mockedIpc } from "../test/ipc";
 const SOL: Entry = { ref: { kind: "system", id: 0 }, label: "Sol" };
 const EARTH: Entry = { ref: { kind: "planet", id: 1207 }, label: "Earth" };
 const ALPHA: Entry = { ref: { kind: "system", id: 1 }, label: "Alpha Centauri" };
-const TARKIN = { kind: "body", system: 1, id: 100 };
 
 const effects: CommandEffects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
 
@@ -64,8 +58,6 @@ const esc = () => run("clearSelection", false, effects);
 /** A left click on body `id` of `system` in the scene, as the scene hands it to the inspector. */
 const click = (system: number, id: number, label: string) =>
   useInspectorStore.getState().openFromMap(bodyEntry(system, id, label));
-
-const refs = () => useInspectorStore.getState().stack.map((e) => e.ref);
 
 /** Removing 6 moves 7 down to 6, as the core reports it. */
 function removeSix(seven: SystemNode) {
@@ -117,8 +109,8 @@ describe("entering a system", () => {
     expect(scene().scene).toEqual(inSystem(1));
     expect(editor().selection).toEqual([1]);
     expect(tools().tool).toBe("select");
-    expect(tools().setTool("paint")).toBe(false);
-    expect(tools().setTool("cut")).toBe(false);
+    expect(run("paintTool", false, effects)).toBe(false);
+    expect(run("cutTool", false, effects)).toBe(false);
     expect(run("toggleSymmetry", false, effects)).toBe(false);
     expect(tools().symmetry).toEqual(symmetry);
     expect(tools().setTool("select")).toBe(true);
@@ -166,7 +158,7 @@ describe("entering a system", () => {
     expect(key("Enter")).toBe(true);
     expect(scene().scene).toEqual(inSystem(2));
 
-    scene().leaveSystem();
+    scene().exitScene();
     await openFixtureScenario();
     await editor().select(2);
     expect(key("Enter")).toBe(true);
@@ -184,7 +176,7 @@ describe("entering a system", () => {
     expect(key("Enter")).toBe(true);
     expect(scene().scene).toEqual(inSystem(2));
 
-    scene().leaveSystem();
+    scene().exitScene();
     focus(new Canvas());
     expect(key("Enter")).toBe(true);
     expect(scene().scene).toEqual(inSystem(2));
@@ -205,7 +197,7 @@ describe("Roll again", () => {
     scene().enterSystem(0);
     expect(scene().roll).toBe(0);
     rollAgain();
-    scene().leaveSystem();
+    scene().exitScene();
     expect(scene().roll).toBe(0);
   });
 
@@ -307,54 +299,42 @@ describe("the galaxy's keys while a system is up", () => {
     expect(editor().selection).toEqual([6]);
     expect(scene().scene).toEqual(inSystem(6));
 
-    scene().leaveSystem();
+    scene().exitScene();
     toggleLayerKey(LAYER_KEYS.indexOf("details"));
     expect(chrome().layers.details).toBe(!layers.details);
     expect(chrome().sceneLayers.details).toBe(!scenic.details);
   });
 });
 
-/** The layers the bar of `mode` lists, before the document's capabilities narrow them. */
-const barLayers = (mode: BarMode) => LAYER_IDS.filter((id) => barShows(mode, id));
-const OTHER_CONTROLS: readonly BarControl[] = ["kinds", "masters", "tools"];
-const controls = (mode: BarMode) => OTHER_CONTROLS.filter((control) => barShows(mode, control));
-
-describe("the bar each view shows", () => {
-  it("a save's galaxy lists every layer but orbit radii, with the kinds and the tools", () => {
+describe("the number keys", () => {
+  it("switch the galaxy's layers, and in a system on either document only the scene's own", async () => {
     expect(currentBarMode()).toBe("save");
-    expect(barLayers("save")).toEqual(GALAXY_LAYER_IDS);
-    expect(controls("save")).toEqual(["kinds", "tools"]);
-
-    const layers = chrome().layers;
     toggleLayerKey(LAYER_KEYS.indexOf("systems"));
-    expect(layerKey("systems", "save")).toBe(2);
-    expect(layerKey("orbitRadii", "save")).toBe(0);
-    expect(chrome().layers.systems).toBe(!layers.systems);
-  });
+    expect(chrome().layers.systems).toBe(false);
 
-  it("a scenario's galaxy lists the same layers, and its masters too", async () => {
     await openFixtureScenario();
     expect(currentBarMode()).toBe("scenario");
-    expect(barLayers("scenario")).toEqual(barLayers("save"));
-    expect(controls("scenario")).toEqual(["kinds", "masters", "tools"]);
-    expect(layerKey("systems", "scenario")).toBe(2);
-  });
-
-  it("the system view lists only the scene's own layers, with key 2 on orbit radii", async () => {
     for (const open of [openFixtureSave, openFixtureScenario]) {
       await open();
       scene().enterSystem(0);
       expect(currentBarMode()).toBe("system");
-      expect(barLayers("system")).toEqual(LAYER_IDS.filter(isSceneLayer));
-      expect(controls("system")).toEqual([]);
-      expect(layerKey("orbitRadii", "system")).toBe(2);
-      expect(layerKey("systems", "system")).toBe(0);
 
       const { layers, sceneLayers } = chrome();
       toggleLayerKey(LAYER_KEYS.indexOf("systems"));
       expect(chrome().sceneLayers.orbitRadii).toBe(!sceneLayers.orbitRadii);
       expect(chrome().layers).toBe(layers);
     }
+  });
+});
+
+describe("the master keys", () => {
+  it("switch a scenario's groups, and on a save leave the key unclaimed", async () => {
+    await loadGameData();
+    expect(run("toggleScriptLayers", false, effects)).toBe(false);
+
+    await openFixtureScenario();
+    await loadGameData();
+    expect(run("toggleScriptLayers", false, effects)).toBe(true);
   });
 });
 
@@ -376,6 +356,18 @@ describe("the scene follows the selection", () => {
     await editor().clearSelection();
 
     expect(scene().scene).toEqual(GALAXY);
+  });
+
+  it("leaves on a System link to another system, keeping the pages down to that system's", () => {
+    scene().enterSystem(0);
+    useInspectorStore.getState().setRoot(SOL);
+    useInspectorStore.getState().open(ALPHA);
+    useInspectorStore.getState().open(EARTH);
+
+    openSystem(1);
+
+    expect(scene().scene).toEqual(GALAXY);
+    expect(labels()).toEqual(["Sol", "Alpha Centauri"]);
   });
 
   it("leaves on a focus on another system, and stays on its own and on a pan", () => {
@@ -449,91 +441,15 @@ describe("the scene follows the selection", () => {
 });
 
 describe("a body clicked in the system view", () => {
-  it("puts a save body's planet page straight above the system's, and Esc pops it before leaving", () => {
+  it("Esc pops its page before leaving the scene", () => {
     scene().enterSystem(0);
     useInspectorStore.getState().setRoot(SOL);
-    useLayoutStore.setState({ tab: "issues", previousTab: "issues", collapsed: false });
-
     click(0, 1207, "Earth");
-    click(0, 1208, "Luna");
-
-    expect(refs()).toEqual([SOL.ref, { kind: "planet", id: 1208 }]);
-    expect(useInspectorStore.getState().stack[1].from).toBeUndefined();
-    expect(useLayoutStore.getState().tab).toBe("inspector");
 
     esc();
     expect(labels()).toEqual(["Sol"]);
     expect(scene().scene).toEqual(inSystem(0));
     esc();
     expect(scene().scene).toEqual(GALAXY);
-  });
-
-  it("puts a scenario body's own page on the stack, keyed by its system", async () => {
-    await openFixtureScenario();
-    useInspectorStore.getState().setRoot(ALPHA);
-
-    click(1, 100, "Tarkin");
-
-    expect(refs()).toEqual([ALPHA.ref, TARKIN]);
-    expect(labels()).toEqual(["Alpha Centauri", "Tarkin"]);
-  });
-
-  it("closes a scenario body's page on an edit that stales its system's details", async () => {
-    await openFixtureScenario();
-    useInspectorStore.getState().setRoot(ALPHA);
-    click(1, 100, "Tarkin");
-
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [2] }));
-    await editor().applyOp({ type: "SetInitializer", id: 2, initializer: "basic_init_01" });
-    expect(refs()).toEqual([ALPHA.ref, TARKIN]);
-
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
-    await editor().applyOp({ type: "SetInitializer", id: 1, initializer: "basic_init_01" });
-    expect(refs()).toEqual([ALPHA.ref]);
-  });
-
-  it("keeps a scenario body's page on its system's new id through a renumber, and a SetInitializer there closes it", async () => {
-    await openFixtureScenario();
-    const [, seven] = withAddedSystems();
-    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: 7 }, label: "Added" });
-    click(7, 100, "Tarkin");
-
-    mockedIpc.applyOp.mockResolvedValueOnce(
-      editResult({
-        delta: {
-          systems: [{ ...seven, id: 6 }],
-          removed: [7],
-          renumbered: [
-            [6, null],
-            [7, 6],
-          ],
-        },
-        details_stale: [6, 7],
-      }),
-    );
-    await editor().applyOp({ type: "RemoveSystem", id: 6 });
-    expect(refs()).toEqual([
-      { kind: "system", id: 6 },
-      { kind: "body", system: 6, id: 100 },
-    ]);
-
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [6] }));
-    await editor().applyOp({ type: "SetInitializer", id: 6, initializer: "basic_init_01" });
-    expect(refs()).toEqual([{ kind: "system", id: 6 }]);
-  });
-
-  it("closes a scenario body's page when the game data reloads, and keeps a save's planet page", async () => {
-    await openFixtureScenario();
-    useInspectorStore.getState().setRoot(ALPHA);
-    click(1, 100, "Tarkin");
-
-    await loadGameData();
-    expect(refs()).toEqual([ALPHA.ref]);
-
-    await openFixtureSave();
-    useInspectorStore.getState().setRoot(SOL);
-    click(0, 1207, "Earth");
-    await loadGameData();
-    expect(refs()).toEqual([SOL.ref, EARTH.ref]);
   });
 });

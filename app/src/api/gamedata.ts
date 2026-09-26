@@ -25,6 +25,7 @@ import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { SpecialSystems } from "../generated/SpecialSystems";
 import type { StarClassView } from "../generated/StarClassView";
 import type { SystemScripts } from "../generated/SystemScripts";
+import type { TerraformCandidateView } from "../generated/TerraformCandidateView";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import type { WorkshopLinks } from "../generated/WorkshopLinks";
 
@@ -165,6 +166,11 @@ export function getMapColorSource(): Promise<string | null> {
 /** Every planet class of the loaded game data; empty without it. */
 export function getPlanetClasses(): Promise<PlanetClassView[]> {
   return invoke<PlanetClassView[]>("get_planet_classes");
+}
+
+/** Every terraforming candidate modifier of the loaded game data; empty without it. */
+export function getTerraformCandidates(): Promise<TerraformCandidateView[]> {
+  return invoke<TerraformCandidateView[]>("get_terraform_candidates");
 }
 
 /** Every starbase level of the loaded game data; empty without it. */

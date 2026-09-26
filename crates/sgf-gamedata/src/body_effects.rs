@@ -111,7 +111,7 @@ pub(crate) const HOME_EFFECTS: [&str; 2] = [
 
 /// Which statements a body's `init_effect` is built without.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Dropping {
+pub enum Dropping {
     /// Those of [`DROPPED`], and flags.
     Script,
     /// Those, and in a converted layout what makes a home, a colony or a pre-FTL
@@ -178,19 +178,47 @@ pub(crate) fn undropped(block: &Node, def: &Def, dropping: Dropping) -> Option<S
     None
 }
 
-/// A body's `init_effect` blocks read in order: what they run that the generator writes,
-/// and the first statement it can neither write nor drop the way `dropping` says.
-pub(crate) fn read(
-    body: &Node,
-    def: &Def,
-    dropping: Dropping,
-) -> (Vec<BodyEffect>, Option<String>) {
-    let mut effects = Vec::new();
-    let mut unwritten = None;
-    for block in body.find_all("init_effect", &def.src) {
-        read_block(block, def, dropping, &mut effects, &mut unwritten);
+/// A body's `init_effect`'s first statement the generator can neither write nor drop.
+/// [`Self::plain`] is that for a plain or special layout; [`Self::converted`] is the same
+/// for a converted one, which also drops what makes or runs an empire, a colony or a pre-FTL
+/// civilisation.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct Unwritten {
+    pub plain: Option<String>,
+    pub converted: Option<String>,
+}
+
+impl Unwritten {
+    /// [`Self::plain`] or [`Self::converted`], as `dropping` names.
+    pub fn get(&self, dropping: Dropping) -> &Option<String> {
+        match dropping {
+            Dropping::Script => &self.plain,
+            Dropping::Converted => &self.converted,
+        }
     }
-    (effects, unwritten)
+}
+
+/// A body's `init_effect` blocks read in order, twice: what they run that the generator
+/// writes (the same either way, since a statement `read_block` would keep is never one
+/// dropping alone drops), and the first statement it can neither write nor drop, plain and
+/// for a converted layout.
+pub(crate) fn read(body: &Node, def: &Def) -> (Vec<BodyEffect>, Unwritten) {
+    let mut effects = Vec::new();
+    let mut plain = None;
+    for block in body.find_all("init_effect", &def.src) {
+        read_block(block, def, Dropping::Script, &mut effects, &mut plain);
+    }
+    let mut converted = None;
+    for block in body.find_all("init_effect", &def.src) {
+        read_block(
+            block,
+            def,
+            Dropping::Converted,
+            &mut Vec::new(),
+            &mut converted,
+        );
+    }
+    (effects, Unwritten { plain, converted })
 }
 
 fn read_block(

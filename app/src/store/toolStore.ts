@@ -3,11 +3,10 @@ import type { EraseTarget } from "../lib/brush/brushTools";
 import type { LaneMode } from "../lib/brush/lanes";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
 import { toolRequires, type Tool } from "../lib/tools";
-import { barShows } from "../lib/visual/barMode";
+import { barShows, type BarMode } from "../lib/visual/barMode";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
-import { currentBarMode } from "./sceneStore";
 
 /** What Shift+M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
@@ -80,7 +79,10 @@ export interface ToolState {
   lastSymmetry: ActiveSymmetry;
   /** Whether the rail's symmetry flyout is open. */
   symmetryMenu: boolean;
-  /** Switches tool, refusing one the open document cannot take; true when `tool` is now current. */
+  /**
+   * Switches tool, refusing one the open document cannot take; true when `tool` is now current.
+   * Callers check `toolAllowed` first: this does not know which bar is shown.
+   */
   setTool(tool: Tool): boolean;
   setSize(size: number): void;
   /** `[` shrinks the brush and `]` grows it, by a constant ratio. */
@@ -127,9 +129,14 @@ function storedNumber(
   return clamp(field.read(), range);
 }
 
-/** Whether the open document can take `tool`; where the bar hides the tools only Select works. */
-export function toolAllowed(tool: Tool): boolean {
-  if (tool !== "select" && !barShows(currentBarMode(), "tools")) return false;
+/** Whether `tool` can be picked on the bar `mode`; where the bar hides the tools only Select works. */
+export function toolAllowed(tool: Tool, mode: BarMode): boolean {
+  if (tool !== "select" && !barShows(mode, "tools")) return false;
+  return documentTakes(tool);
+}
+
+/** Whether the open document can take `tool`. */
+function documentTakes(tool: Tool): boolean {
   const requires = toolRequires(tool);
   if (requires === undefined) return true;
   return useFileSessionStore.getState().status === "ready" && canEdit(requires);
@@ -152,7 +159,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   symmetryMenu: false,
 
   setTool(tool) {
-    if (!toolAllowed(tool)) return false;
+    if (!documentTakes(tool)) return false;
     if (get().tool !== tool) set({ tool });
     return true;
   },

@@ -12,7 +12,7 @@ use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
     BypassView, CountryTypeView, DepositView, GalaxyShapeView, GameDataSummary, InitializerView,
     MapColor, PaintModView, PlanetClassView, ResourceIcon, ShipSizeView, StarClassView,
-    StarbaseLevelView, WorkshopLinks,
+    StarbaseLevelView, TerraformCandidateView, WorkshopLinks,
 };
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -261,6 +261,16 @@ pub fn get_planet_classes(game_data: State<'_, GameDataState>) -> Vec<PlanetClas
     game_data
         .loaded()
         .map_or_else(Vec::new, |gd| gd.planet_class_views())
+}
+
+/// Every terraforming candidate modifier, with what terraforming a planet that has it needs.
+#[tauri::command(async)]
+pub fn get_terraform_candidates(
+    game_data: State<'_, GameDataState>,
+) -> Vec<TerraformCandidateView> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.terraform_candidate_views())
 }
 
 #[tauri::command(async)]

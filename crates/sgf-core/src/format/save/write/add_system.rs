@@ -38,7 +38,7 @@ use crate::session::Session;
 
 /// The smallest `inner_radius` a system has, and how far past its outermost body the
 /// inner radius lies and the outer one past that.
-const MIN_INNER_RADIUS: f64 = 150.0;
+pub const MIN_INNER_RADIUS: f64 = 150.0;
 const INNER_MARGIN: f64 = 30.0;
 const OUTER_MARGIN: f64 = 100.0;
 

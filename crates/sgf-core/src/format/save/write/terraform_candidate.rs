@@ -3,15 +3,19 @@
 //! writes it. The block goes after `bombardment_damage` when it is new.
 
 use crate::cst::Node;
-use crate::emit::system::PERMANENT;
 use crate::format::save::read_spec::bodies;
 use crate::format::save::write::timed_modifiers::{self, Place};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Op, OpError, Plan, Planned};
-use crate::projections::read;
+use crate::projections::read::{self, PERMANENT};
 use crate::session::Session;
+
+/// The most copies of one modifier `SetTerraformCandidate` adds, or removes with an
+/// inverse that restores them. The console adds one per `add_modifier`, so a save holds one or
+/// two; the bound keeps a hand-typed op from writing thousands.
+pub(crate) const MAX_MODIFIER_COPIES: u32 = 16;
 
 pub(crate) fn plan_set(
     plan: &mut Plan,
@@ -19,6 +23,7 @@ pub(crate) fn plan_set(
     id: u32,
     modifier: &str,
     on: bool,
+    copies: Option<u32>,
 ) -> Result<Planned, OpError> {
     let (node, src) = planet_entity(&s.doc, id)?;
     let system = planet_system(&node, src, id)?;
@@ -26,20 +31,33 @@ pub(crate) fn plan_set(
     if bodies(&s.doc, system)?.first() == Some(&id) {
         return Err(OpError::StarCandidate(id));
     }
-    if !on && let Some(days) = timed_days(&node, src, modifier).find(|d| d != PERMANENT) {
-        return Err(OpError::ModifierNotPermanent(id, modifier.to_owned(), days));
+    let days: Vec<String> = timed_days(&node, src, modifier).collect();
+    if !on && let Some(days) = days.iter().find(|d| *d != PERMANENT) {
+        return Err(OpError::ModifierNotPermanent(
+            id,
+            modifier.to_owned(),
+            days.clone(),
+        ));
+    }
+    let held = u32::try_from(days.len()).unwrap_or(u32::MAX);
+    let count = if on { copies.unwrap_or(1) } else { 1 };
+    if on && !(1..=MAX_MODIFIER_COPIES).contains(&count) {
+        return Err(OpError::ModifierCopies(count));
+    }
+    if !on && held > MAX_MODIFIER_COPIES {
+        return Err(OpError::ModifierCopies(held));
     }
     let edit = plan.edit_planet(&s.doc, id, system)?;
-    let place = on.then_some(Place::Last);
-    if !timed_modifiers::set(edit, keys::BOMBARDMENT_DAMAGE, &[(modifier, place)])? {
+    let entries = vec![(modifier, on.then_some(Place::Last)); count as usize];
+    if !timed_modifiers::set(edit, keys::BOMBARDMENT_DAMAGE, &entries)? {
         return Err(match on {
             true => OpError::ModifierPresent(id, modifier.to_owned()),
             false => OpError::ModifierAbsent(id, modifier.to_owned()),
         });
     }
     let description = match on {
-        true => format!("Make planet #{id} a terraforming candidate"),
-        false => format!("Stop planet #{id} being a terraforming candidate"),
+        true => format!("Make planet #{id} a terraforming candidate ({modifier})"),
+        false => format!("Stop planet #{id} being a terraforming candidate ({modifier})"),
     };
     Ok(Planned {
         description,
@@ -47,6 +65,7 @@ pub(crate) fn plan_set(
             id,
             modifier: modifier.to_owned(),
             on: !on,
+            copies: (!on && held > 1).then_some(held),
         },
     })
 }
