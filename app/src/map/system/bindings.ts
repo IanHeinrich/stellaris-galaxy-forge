@@ -12,6 +12,8 @@ export interface SceneView {
   refresh(): void;
   /** Rings the body the page on top of the inspector's stack opens, where it is one of the system's. */
   selectBody(top: EntityRef): void;
+  /** Brightens what marks the body a panel's link names while the pointer is on the link. */
+  linkBody(id: number | null): void;
 }
 
 interface Store<S> {
@@ -71,6 +73,12 @@ const BINDINGS: Binding[] = [
   follows(useMapChromeStore, [(s) => s.sceneLayers], (view) => view.refresh()),
   follows(useFileSessionStore, [(s) => s.kind], (view) => view.refresh()),
   follows(useSceneStore, [(s) => s.roll], (view) => view.refresh()),
+  follows(
+    useSceneStore,
+    [(s) => s.linkedBody],
+    (view) => view.linkBody(useSceneStore.getState().linkedBody),
+    true,
+  ),
   follows(useInspectorStore, [(s) => s.stack], (view) => view.selectBody(topRef()), true),
 ];
 

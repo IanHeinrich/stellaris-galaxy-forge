@@ -26,9 +26,10 @@ import type { PlanetClassView } from "../../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { starGlyph } from "../../../lib/visual/starGlyphs";
-import { ACCENT_COLOR } from "../../../lib/visual/style";
+import { ACCENT_COLOR, MATCHED_COLOR } from "../../../lib/visual/style";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
 import {
+  bodyLayout,
   byId,
   placedNode,
   planetClassView,
@@ -98,12 +99,11 @@ function saveBody(
   orbit: number,
   parent: number | null = null,
 ): PlanetSummary {
-  const layout: BodyLayout = {
+  const layout = bodyLayout({
     orbit: { min: orbit, max: orbit },
-    angle: null,
     at,
     size: { min: 16, max: 16 },
-  };
+  });
   return planetSummary({ id, class: planetClass, parent, moon: parent !== null, orbit, layout });
 }
 
@@ -125,7 +125,7 @@ function scenarioBody(
     id,
     class: planetClass,
     parent,
-    layout: { orbit: null, angle: null, at: null, size: fixed(16), ...layout },
+    layout: bodyLayout({ size: fixed(16), ...layout }),
     ring: false,
   });
 }
@@ -1121,9 +1121,28 @@ describe("the system scene's turn wedge", () => {
 
   const walk = [
     SCENARIO_STAR,
-    scenarioBody(2, "pc_arid", { orbit: fixed(60), angle: { min: 90, max: 270 } }),
-    scenarioBody(3, "pc_arid", { orbit: fixed(100) }),
-    scenarioBody(4, "pc_arid", { orbit: fixed(140), angle: { min: 90, max: 630 } }),
+    scenarioBody(2, "pc_arid", {
+      orbit: fixed(60),
+      angle: { min: 90, max: 270 },
+      orbit_step: fixed(60),
+      orbit_base: fixed(0),
+      angle_step: { min: 90, max: 270 },
+      turns_from: 1,
+    }),
+    scenarioBody(3, "pc_arid", {
+      orbit: fixed(100),
+      orbit_step: fixed(40),
+      orbit_base: fixed(60),
+      turns_from: 2,
+    }),
+    scenarioBody(4, "pc_arid", {
+      orbit: fixed(140),
+      angle: { min: 90, max: 630 },
+      orbit_step: fixed(40),
+      orbit_base: fixed(100),
+      angle_step: { min: 0, max: 360 },
+      turns_from: 3,
+    }),
   ];
   const wedged = (kind: "save" | "scenario", selected: number | null) => {
     const layer = new HighlightLayer();
@@ -1146,5 +1165,57 @@ describe("the system scene's turn wedge", () => {
     expect(wedged("scenario", 3)).toEqual(none);
     expect(wedged("scenario", null)).toEqual(none);
     expect(wedged("save", 2)).toEqual(none);
+  });
+
+  const measured = (
+    kind: "save" | "scenario",
+    selected: number | null,
+    linked = null as number | null,
+  ) => {
+    const layer = new HighlightLayer();
+    layer.rebuild(systemContext({ ...context({ planets: walk }), kind }));
+    viewport(layer, 2);
+    layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: selected, linkedBody: linked });
+    const texts = layer.container.children
+      .filter((holder) => holder.visible)
+      .flatMap((holder) => holder.children)
+      .flatMap((c) => (c instanceof BitmapText && c.label === "step" ? [c.text] : []));
+    const outline = strokes(layer.anchorRing);
+    const drawn = {
+      anchor: outline.length,
+      anchorColor: outline[0]?.color,
+      anchorAlpha: outline[0]?.alpha,
+      ray: strokes(layer.anchorRay).length,
+      base: strokes(layer.baseCircle).length,
+      step: strokes(layer.stepLine).length,
+      steps: texts,
+    };
+    layer.destroy();
+    return drawn;
+  };
+
+  it("marks what a selected scenario body is measured from in cyan: the body it turns from, the orbit it steps out from and the step", () => {
+    expect(measured("scenario", 4)).toEqual({
+      anchor: 1,
+      anchorColor: MATCHED_COLOR,
+      anchorAlpha: 0.8,
+      ray: 1,
+      base: 1,
+      step: 1,
+      steps: ["+40"],
+    });
+    expect(measured("scenario", 4, 3).anchorAlpha).toBe(1);
+    expect(measured("scenario", 2)).toMatchObject({ anchor: 1, ray: 1, base: 0, step: 0 });
+    const none = {
+      anchor: 0,
+      anchorColor: undefined,
+      anchorAlpha: undefined,
+      ray: 0,
+      base: 0,
+      step: 0,
+      steps: [],
+    };
+    expect(measured("scenario", null)).toEqual(none);
+    expect(measured("save", 4)).toEqual(none);
   });
 });

@@ -8,6 +8,7 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import {
+  bodyLayout,
   byId,
   placedNode,
   planetClassView,
@@ -75,13 +76,13 @@ function pointOf(body: Placed, bodies: readonly Placed[]): [number, number] {
   return [cx + body.orbit * Math.cos(a), cy + body.orbit * Math.sin(a)];
 }
 
-function summary(body: Placed, planetClass: string, layout: BodyLayout): PlanetSummary {
+function summary(body: Placed, planetClass: string, layout: Partial<BodyLayout>): PlanetSummary {
   return planetSummary({
     id: body.id,
     class: planetClass,
     parent: body.parent ?? null,
     moon: body.parent !== undefined,
-    layout,
+    layout: bodyLayout(layout),
     ring: body.ring ?? false,
     deposits: body.deposits ?? [],
   });
@@ -341,7 +342,7 @@ describe("what a scenario leaves to chance", () => {
     planetSummary({
       id,
       class: planetClass,
-      layout: { orbit: null, angle: null, at: null, size: fixed(12), ...layout },
+      layout: bodyLayout({ size: fixed(12), ...layout }),
       ring: false,
     });
   const sun = body(1, "sc_g", { orbit: fixed(0), angle: fixed(0) });
@@ -449,7 +450,7 @@ describe("orbit radius readouts", () => {
         id,
         class: id === 1 ? "sc_g" : "pc_barren",
         parent,
-        layout: { orbit, angle: fixed(0), at: null, size: fixed(10) },
+        layout: bodyLayout({ orbit, angle: fixed(0), size: fixed(10) }),
         ring: false,
       });
     const ctx = systemContext({
@@ -483,15 +484,12 @@ describe("orbit radius readouts", () => {
 });
 
 describe("a scenario system drawn as one roll of its initializer", () => {
-  const turning = (
-    id: number,
-    orbit: { min: number; max: number },
-    angle: { min: number; max: number },
-  ) =>
+  /** A body of the walk, with the steps the core's walk gives it. */
+  const turning = (id: number, layout: Partial<BodyLayout>) =>
     planetSummary({
       id,
       class: id === 1 ? "sc_g" : "pc_barren",
-      layout: { orbit, angle, at: null, size: fixed(10) },
+      layout: bodyLayout({ size: fixed(10), ...layout }),
       ring: false,
     });
   const rolled = (roll: number) =>
@@ -504,9 +502,29 @@ describe("a scenario system drawn as one roll of its initializer", () => {
         id: SYSTEM,
         with_game_data: true,
         planets: [
-          turning(1, fixed(0), fixed(0)),
-          turning(2, { min: 40, max: 60 }, { min: 90, max: 270 }),
-          turning(3, { min: 70, max: 100 }, { min: 180, max: 540 }),
+          turning(1, {
+            orbit: fixed(0),
+            angle: fixed(0),
+            orbit_step: fixed(0),
+            orbit_base: fixed(0),
+            angle_step: fixed(0),
+          }),
+          turning(2, {
+            orbit: { min: 40, max: 60 },
+            angle: { min: 90, max: 270 },
+            orbit_step: { min: 40, max: 60 },
+            orbit_base: fixed(0),
+            angle_step: { min: 90, max: 270 },
+            turns_from: 1,
+          }),
+          turning(3, {
+            orbit: { min: 70, max: 100 },
+            angle: { min: 180, max: 540 },
+            orbit_step: { min: 30, max: 40 },
+            orbit_base: { min: 40, max: 60 },
+            angle_step: { min: 90, max: 270 },
+            turns_from: 2,
+          }),
         ],
       }),
       initializerClasses: new Map([[INITIALIZER, "sc_g"]]),
@@ -563,6 +581,15 @@ describe("planets the game rolls", () => {
       }),
     });
     expect(known.rolled).toEqual([]);
+  });
+
+  it("draws none for an initializer the install defines that places nothing, and some for one it does not define", () => {
+    const empty = rolling({
+      missing: false,
+      details: systemDetails({ id: SYSTEM, with_game_data: true, planets: [] }),
+    });
+    expect(empty.rolled).toEqual([]);
+    expect(rolling().rolled.length).toBeGreaterThan(0);
   });
 
   it("never counts them among the bodies, which picking and the labels read", () => {

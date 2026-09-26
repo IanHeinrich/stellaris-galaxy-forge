@@ -26,6 +26,7 @@ import {
   saveResult,
   systemDetails,
 } from "../../store/fixture";
+import { bodyLayout } from "../../test/builders";
 import { mockedIpc } from "../../test/ipc";
 import { openWith } from "../../test/session";
 import { StatusBar } from "./StatusBar";
@@ -258,13 +259,13 @@ describe("the system view", () => {
       class: "pc_g_star",
       name: name("Sol"),
       name_key: "Sol",
-      layout: { orbit: null, angle: null, at: [0, 0], size: { min: 30, max: 30 } },
+      layout: bodyLayout({ at: [0, 0], size: { min: 30, max: 30 } }),
     });
     const earth = planetSummary({
       id: 12,
       name: name("Earth"),
       name_key: "Earth",
-      layout: { orbit: { min: 45, max: 45 }, angle: null, at: [0, -45], size: null },
+      layout: bodyLayout({ orbit: { min: 45, max: 45 }, at: [0, -45] }),
     });
     const belts = [
       { kind: "rocky_asteroid_belt", inner_radius: 80 },

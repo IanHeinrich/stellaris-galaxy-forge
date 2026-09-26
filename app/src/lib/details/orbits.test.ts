@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BodyLayout } from "../../generated/BodyLayout";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
-import { planetSummary, systemDetails } from "../../test/builders";
+import { bodyLayout, planetSummary, systemDetails } from "../../test/builders";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
 import {
   BELT_BAND_WIDTH,
@@ -14,7 +14,7 @@ import {
   exitBearing,
   fitScale,
   polar,
-  bodySteps,
+  rolledRadii,
   systemLayout,
   zoomLimits,
   type BodyPlacement,
@@ -30,12 +30,11 @@ function saveBody(
   size: number,
   parent: number | null = null,
 ): PlanetSummary {
-  const layout: BodyLayout = {
+  const layout = bodyLayout({
     orbit: { min: orbit, max: orbit },
-    angle: null,
     at,
     size: { min: size, max: size },
-  };
+  });
   return planetSummary({ id, class: planetClass, parent, moon: parent !== null, orbit, layout });
 }
 
@@ -186,12 +185,7 @@ describe("scenario bodies", () => {
     id: number,
     layout: Partial<BodyLayout>,
     parent: number | null = null,
-  ): PlanetSummary =>
-    planetSummary({
-      id,
-      parent,
-      layout: { orbit: null, angle: null, at: null, size: null, ...layout },
-    });
+  ): PlanetSummary => planetSummary({ id, parent, layout: bodyLayout(layout) });
 
   it("places a body at its orbit and angle about its parent, with bands and ghosts", () => {
     const layout = systemLayout(
@@ -243,16 +237,53 @@ describe("scenario bodies", () => {
     });
   });
 
+  const fixed = (value: number) => ({ min: value, max: value });
   /**
-   * A walk as the core's details give it, each range added up end to end: a star, a planet with
-   * a moon, a planet turning on from it, and a planet with no angle.
+   * A walk as the core's details give it, each range added up end to end with the steps it was
+   * added up from: a star, a planet with a moon, a planet turning on from it, and a planet with
+   * no angle.
    */
   const walk = [
-    scenario(1, { orbit: { min: 0, max: 0 }, angle: { min: 0, max: 0 } }),
-    scenario(2, { orbit: { min: 40, max: 60 }, angle: { min: 90, max: 270 } }),
-    scenario(3, { orbit: { min: 5, max: 5 }, angle: { min: 30, max: 60 } }, 2),
-    scenario(4, { orbit: { min: 70, max: 100 }, angle: { min: 180, max: 540 } }),
-    scenario(5, { orbit: { min: 110, max: 150 } }),
+    scenario(1, {
+      orbit: fixed(0),
+      angle: fixed(0),
+      orbit_step: fixed(0),
+      orbit_base: fixed(0),
+      angle_step: fixed(0),
+    }),
+    scenario(2, {
+      orbit: { min: 40, max: 60 },
+      angle: { min: 90, max: 270 },
+      orbit_step: { min: 40, max: 60 },
+      orbit_base: fixed(0),
+      angle_step: { min: 90, max: 270 },
+      turns_from: 1,
+    }),
+    scenario(
+      3,
+      {
+        orbit: fixed(5),
+        angle: { min: 30, max: 60 },
+        orbit_step: fixed(5),
+        orbit_base: fixed(0),
+        angle_step: { min: 30, max: 60 },
+      },
+      2,
+    ),
+    scenario(4, {
+      orbit: { min: 70, max: 100 },
+      angle: { min: 180, max: 540 },
+      orbit_step: { min: 30, max: 40 },
+      orbit_base: { min: 40, max: 60 },
+      angle_step: { min: 90, max: 270 },
+      turns_from: 2,
+    }),
+    scenario(5, {
+      orbit: { min: 110, max: 150 },
+      orbit_step: { min: 40, max: 50 },
+      orbit_base: { min: 70, max: 100 },
+      turns_from: 4,
+    }),
   ];
   const rolled = (seed: number) =>
     systemLayout(systemDetails({ planets: walk }), { scenario: true, seed });
@@ -271,15 +302,19 @@ describe("scenario bodies", () => {
     for (let seed = 0; seed < 20; seed++) {
       const layout = rolled(seed);
       const [two, moon, four, five] = [2, 3, 4, 5].map((id) => body(layout, id));
-      expect(two.turn).toEqual({ from: 0, step: { min: 90, max: 270 } });
+      expect(two.turn).toEqual({ from: 0, step: { min: 90, max: 270 }, anchor: 1 });
       within(two.angle, { min: 90, max: 270 });
       expect(four.turn?.from).toBeCloseTo(two.angle);
+      expect(four.turn?.anchor).toBe(2);
       within(turnedFrom(four.angle, two.angle), { min: 90, max: 270 });
-      expect(moon.turn).toEqual({ from: 0, step: { min: 30, max: 60 } });
+      expect(moon.turn).toEqual({ from: 0, step: { min: 30, max: 60 }, anchor: null });
       within(moon.angle, { min: 30, max: 60 });
       within(two.ring?.radius ?? 0, { min: 40, max: 60 });
       within(four.ring?.radius ?? 0, { min: 70, max: 100 });
       within(five.ring?.radius ?? 0, { min: 110, max: 150 });
+      expect(four.radius?.base).toBeCloseTo(two.ring?.radius ?? NaN);
+      within((four.ring?.radius ?? 0) - (four.radius?.base ?? 0), { min: 30, max: 40 });
+      expect(five.radius?.base).toBeCloseTo(four.ring?.radius ?? NaN);
       expect(five.turn).toBeNull();
       expect(five.ghost).toBe(true);
     }
@@ -315,7 +350,7 @@ describe("scenario bodies", () => {
       planetSummary({
         id,
         orbit: 50,
-        layout: { orbit: { min: 50, max: 50 }, angle: null, at: null, size: null },
+        layout: bodyLayout({ orbit: { min: 50, max: 50 } }),
       });
     const layout = systemLayout(systemDetails({ planets: [pointless(1), pointless(2)] }));
     for (const id of [1, 2]) {
@@ -341,74 +376,68 @@ describe("scenario bodies", () => {
 });
 
 describe("orbit radii and steps", () => {
-  const scenario = (
+  const fixed = (value: number) => ({ min: value, max: value });
+  /** A body at `orbit`, stepped `step` out from `base` as the core's walk gives it. */
+  const stepped = (
     id: number,
     orbit: { min: number; max: number },
+    step: { min: number; max: number },
+    base: { min: number; max: number },
+    turnsFrom: number | null,
     parent: number | null = null,
   ): PlanetSummary =>
     planetSummary({
       id,
       parent,
-      layout: { orbit, angle: { min: 0, max: 0 }, at: null, size: null },
+      layout: bodyLayout({
+        orbit,
+        angle: fixed(0),
+        orbit_step: step,
+        orbit_base: base,
+        angle_step: fixed(0),
+        turns_from: turnsFrom,
+      }),
     });
-  const fixed = (value: number) => ({ min: value, max: value });
-
-  it("turns a body's angle on from the last body in its walk that names one, whole turns taken out", () => {
-    const turning = (id: number, orbit: number, angle: { min: number; max: number } | null) =>
-      planetSummary({
-        id,
-        parent: null,
-        layout: { orbit: fixed(orbit), angle, at: null, size: null },
-      });
-    const planets = [
-      turning(1, 0, null),
-      turning(2, 40, { min: 90, max: 270 }),
-      turning(3, 60, null),
-      turning(4, 80, { min: 180, max: 540 }),
-      turning(5, 90, { min: 20, max: 380 }),
-    ];
-    const steps = bodySteps(planets);
-    expect(steps.get(2)).toEqual({ orbit: fixed(40), angle: { min: 90, max: 270 }, after: null });
-    expect(steps.get(3)?.angle).toBeNull();
-    expect(steps.get(4)).toEqual({ orbit: fixed(20), angle: { min: 90, max: 270 }, after: 2 });
-    expect(steps.get(5)?.angle).toEqual({ min: 200, max: 200 });
-    expect(steps.get(5)?.after).toBe(4);
-    expect(bodySteps(planets)).toBe(steps);
-  });
 
   it("gives a save body its radius from what it orbits with no step, and a star at the centre none", () => {
     const layout = sol();
     expect(body(layout, 1).radius).toBeNull();
-    expect(body(layout, 3).radius).toEqual({ min: 90, max: 90, step: null });
-    expect(body(layout, 4).radius).toEqual({ min: 12, max: 12, step: null });
+    expect(body(layout, 3).radius).toEqual({ min: 90, max: 90, step: null, base: null });
+    expect(body(layout, 4).radius).toEqual({ min: 12, max: 12, step: null, base: null });
   });
 
-  it("steps a scenario body out from the previous orbit about its parent, each end of a range apart, and a first body out from its parent", () => {
-    const layout = systemLayout(
-      systemDetails({
-        planets: [
-          scenario(1, fixed(0)),
-          scenario(2, { min: 65, max: 80 }),
-          scenario(3, fixed(10), 2),
-          scenario(4, fixed(18), 2),
-          scenario(5, { min: 85, max: 105 }),
-        ],
-      }),
-      { scenario: true },
-    );
+  it("steps a scenario body out from the running orbit the core gives, across a change of orbit", () => {
+    // basic_init_05: the last ice asteroid at 240, then change_orbit = -210 and a planet 30 out.
+    const planets = [
+      stepped(1, fixed(0), fixed(0), fixed(0), null),
+      stepped(2, fixed(240), fixed(0), fixed(240), 1),
+      stepped(3, fixed(60), fixed(30), fixed(30), 2),
+      stepped(4, fixed(15), fixed(5), fixed(10), null, 3),
+    ];
+    const layout = systemLayout(systemDetails({ planets }), { scenario: true });
     expect(body(layout, 1).radius).toBeNull();
-    expect(body(layout, 2).radius).toEqual({
-      min: 65,
-      max: 80,
-      step: { min: 65, max: 80 },
-    });
-    expect(body(layout, 3).radius).toEqual({ min: 10, max: 10, step: { min: 10, max: 10 } });
-    expect(body(layout, 4).radius).toEqual({ min: 18, max: 18, step: { min: 8, max: 8 } });
-    expect(body(layout, 5).radius).toEqual({
-      min: 85,
-      max: 105,
-      step: { min: 20, max: 25 },
-    });
+    expect(body(layout, 3).radius).toEqual({ min: 60, max: 60, step: fixed(30), base: 30 });
+    expect(body(layout, 3).turn?.anchor).toBe(2);
+    expect(body(layout, 4).radius).toEqual({ min: 15, max: 15, step: fixed(5), base: 10 });
+    expect(body(layout, 4).turn?.anchor).toBeNull();
+  });
+
+  it("rolls each ranged step on from where the body before it was rolled, the same for the same seed", () => {
+    const planets = [
+      stepped(1, fixed(0), fixed(0), fixed(0), null),
+      stepped(2, { min: 65, max: 80 }, { min: 65, max: 80 }, fixed(0), 1),
+      stepped(3, { min: 75, max: 100 }, { min: 10, max: 20 }, { min: 65, max: 80 }, 2),
+    ];
+    for (let seed = 0; seed < 20; seed++) {
+      const radii = rolledRadii(planets, seed);
+      const two = radii.get(2)?.radius ?? NaN;
+      const three = radii.get(3);
+      expect(three?.base).toBeCloseTo(two);
+      expect((three?.radius ?? 0) - two).toBeGreaterThanOrEqual(10 - 1e-9);
+      expect((three?.radius ?? 0) - two).toBeLessThanOrEqual(20 + 1e-9);
+      const layout = systemLayout(systemDetails({ planets }), { scenario: true, seed });
+      expect(body(layout, 3).ring?.radius).toBe(three?.radius);
+    }
   });
 });
 

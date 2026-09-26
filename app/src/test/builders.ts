@@ -1,3 +1,4 @@
+import type { BodyLayout } from "../generated/BodyLayout";
 import type { CountryNode } from "../generated/CountryNode";
 import type { ExportReport } from "../generated/ExportReport";
 import type { FleetSummary } from "../generated/FleetSummary";
@@ -207,6 +208,21 @@ export function planetSummary(over: Partial<PlanetSummary> = {}): PlanetSummary 
     parent: null,
     layout: null,
     ring: null,
+    ...over,
+  };
+}
+
+/** The one `BodyLayout` builder: nothing placed, sized or stepped. */
+export function bodyLayout(over: Partial<BodyLayout> = {}): BodyLayout {
+  return {
+    orbit: null,
+    angle: null,
+    at: null,
+    size: null,
+    orbit_step: null,
+    orbit_base: null,
+    angle_step: null,
+    turns_from: null,
     ...over,
   };
 }

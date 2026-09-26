@@ -813,3 +813,88 @@ fn a_body_with_no_distance_lies_in_a_band_past_the_running_orbit_and_moves_the_r
         }
     }
 }
+
+/// Each scenario body carries its steps as its initializer writes them: `basic_init_05` moves
+/// the running orbit in by 210 after its icy belt, so its first planet steps 30 out from 30.
+#[test]
+fn a_scenario_body_steps_out_from_the_running_orbit_and_turns_from_the_body_before_it() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let details = gd
+        .initializer_details(9, "basic_init_05", None)
+        .expect("basic_init_05");
+    let layout = |index: usize| {
+        details.planets[index]
+            .layout
+            .clone()
+            .expect("every scenario body is laid out")
+    };
+    let last_ice = details
+        .planets
+        .iter()
+        .rposition(|p| p.class == "pc_ice_asteroid")
+        .expect("the icy belt's asteroids");
+    let ice = &details.planets[last_ice];
+    let first_planet = last_ice + 1;
+    let planet = layout(first_planet);
+    assert_eq!(planet.orbit, Some(fixed(60.0)));
+    assert_eq!(planet.orbit_step, Some(fixed(30.0)));
+    assert_eq!(planet.orbit_base, Some(fixed(30.0)));
+    assert_eq!(planet.angle_step, Some(range(90.0, 270.0)));
+    assert_eq!(planet.turns_from, Some(ice.id));
+
+    let star = layout(0);
+    assert_eq!(star.turns_from, None, "the first body turns from 0");
+    assert_eq!(star.orbit_step, Some(fixed(0.0)));
+
+    let moon = details
+        .planets
+        .iter()
+        .position(|p| p.parent == Some(details.planets[first_planet].id))
+        .expect("the planet's moon");
+    let moon = layout(moon);
+    assert_eq!(moon.turns_from, None, "a moon's walk starts afresh");
+    assert_eq!(moon.orbit_step, Some(fixed(5.0)));
+    assert_eq!(moon.orbit_base, Some(fixed(10.0)));
+
+    let broken = gd
+        .initializer_details(55, "special_init_01", None)
+        .expect("special_init_01")
+        .planets[1]
+        .layout
+        .clone()
+        .expect("a layout");
+    assert_eq!(
+        broken.orbit_step,
+        Some(range(10.0, 20.0)),
+        "no orbit_distance"
+    );
+    assert_eq!(broken.orbit_base, Some(fixed(60.0)));
+    assert_eq!(broken.angle_step, None, "no orbit_angle");
+}
+
+/// An initializer the install defines answers even when it places nothing, so a system using it
+/// is told apart from one whose initializer is `random`, empty or undefined, whose planets the
+/// game rolls. `voidworms_spawn_system_tiny` places its bodies through an `inline_script`, which
+/// the details do not read.
+#[test]
+fn a_defined_initializer_that_places_nothing_answers_with_empty_lists() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let details = gd
+        .initializer_details(4, "voidworms_spawn_system_tiny", None)
+        .expect("a record for a defined initializer");
+    assert_eq!(details.id, 4);
+    assert!(details.planets.is_empty());
+    assert!(details.sites.is_empty());
+    assert!(details.megastructures.is_empty());
+    assert!(details.starbase.is_none());
+    for undefined in ["random", "", "no_such_initializer"] {
+        assert!(
+            gd.initializer_details(4, undefined, None).is_none(),
+            "{undefined:?}"
+        );
+    }
+}

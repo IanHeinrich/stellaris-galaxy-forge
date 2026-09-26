@@ -36,8 +36,8 @@ struct Bodies {
 }
 
 impl GameData {
-    /// System `id`'s details as the initializer `key` defines them; `None` when the
-    /// initializer is unknown or defines nothing the UI draws.
+    /// System `id`'s details as the initializer `key` defines them, every list empty when it
+    /// places nothing; `None` when the install does not define it, as for `random` or none.
     ///
     /// `owners` names the bodies the scripts colonise and the territory each joins, which
     /// only a pass over every system can tell.
@@ -100,10 +100,6 @@ impl GameData {
             shipyard: s.modules.iter().any(|m| m == "shipyard"),
         });
         let resources = system_resources(&planets);
-        if planets.is_empty() && sites.is_empty() && megastructures.is_empty() && starbase.is_none()
-        {
-            return None;
-        }
         Some(SystemDetails {
             id,
             resources,
@@ -127,7 +123,7 @@ impl GameData {
             .filter(|class| self.star_classes.get(class).is_some());
         let layouts = Layouts::of(&init.planets);
         for (body, layout) in initializers::expand(&init.planets).zip(layouts) {
-            let id = PLANET_BASE + index(out.planets.len());
+            let id = planet_id(out.planets.len());
             out.planets.push(self.summary(body, star, id, layout));
             for kind in &body.block.sites {
                 out.sites.push(ArchaeologySite {
@@ -175,7 +171,7 @@ impl GameData {
             deposits: self.deposit_rows(&body.deposits),
             deposit_keys: deposit_counts(&body.deposits),
             pops: 0,
-            parent: expanded.parent.map(|parent| PLANET_BASE + index(parent)),
+            parent: expanded.parent.map(planet_id),
             layout: Some(layout),
             ring: self.ring(body, expanded.moon),
         }
@@ -224,17 +220,24 @@ impl GameData {
 /// Each body's layout in the order [`initializers::expand`] gives the bodies, each range
 /// kept as the bounds a draw could give. The angles start at 0, so they are right relative
 /// to each other and the game may turn the whole system.
-struct Layouts(Vec<BodyLayout>);
+struct Layouts {
+    bodies: Vec<BodyLayout>,
+    /// The id of the body last placed at this level, which the next one turns from.
+    previous: Option<u32>,
+}
 
 impl Layouts {
     fn of(planets: &[InitPlanet]) -> Vec<BodyLayout> {
-        let mut layouts = Self(Vec::new());
+        let mut layouts = Self {
+            bodies: Vec::new(),
+            previous: None,
+        };
         let Ok(()) = orbit_walk::walk(
             planets,
             Turn::FromPrevious(Bounds::fixed(0.0)),
             &mut layouts,
         );
-        layouts.0
+        layouts.bodies
     }
 }
 
@@ -257,16 +260,36 @@ impl<'p> Walk<'p> for Layouts {
 
     /// A body with no angle may be anywhere on its orbit.
     fn body(&mut self, block: &'p InitPlanet, placed: Placed<Bounds>) -> Result<(), Infallible> {
-        self.0.push(BodyLayout {
-            orbit: Some(placed.orbit),
+        let orbit = placed.orbit;
+        let step = block.orbit_distance.map_or(
+            Bounds {
+                min: 10.0,
+                max: 20.0,
+            },
+            bounds,
+        );
+        let id = planet_id(self.bodies.len());
+        let turns_from = self.previous.replace(id);
+        self.bodies.push(BodyLayout {
+            orbit: Some(orbit),
             angle: block.orbit_angle.map(|_| within_one_turn(placed.angle)),
             at: None,
             size: block.size.map(|(min, max)| Bounds {
                 min: f64::from(min),
                 max: f64::from(max),
             }),
+            orbit_step: Some(step),
+            orbit_base: Some(Bounds {
+                min: orbit.min - step.min,
+                max: orbit.max - step.max,
+            }),
+            angle_step: block.orbit_angle.map(bounds),
+            turns_from,
         });
-        orbit_walk::walk(&block.moons, Turn::FromPrevious(Bounds::fixed(0.0)), self)
+        let before = self.previous.take();
+        let moons = orbit_walk::walk(&block.moons, Turn::FromPrevious(Bounds::fixed(0.0)), self);
+        self.previous = before;
+        moons
     }
 }
 
@@ -317,6 +340,11 @@ fn deposit_counts(keys: &[String]) -> Vec<DepositCount> {
         }
     }
     counts
+}
+
+/// The synthetic id of the `n`th body [`initializers::expand`] gives.
+fn planet_id(n: usize) -> u32 {
+    PLANET_BASE + index(n)
 }
 
 /// Never [`u32::MAX`]: the format's null id.

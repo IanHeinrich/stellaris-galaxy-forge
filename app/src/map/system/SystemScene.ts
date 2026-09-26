@@ -140,6 +140,10 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     this.setHighlight({ hoverBody: body, hoverExit: exit });
   }
 
+  linkBody(id: number | null): void {
+    this.setHighlight({ linkedBody: id });
+  }
+
   selectLane(neighbour: number | null): void {
     this.setHighlight({ lane: neighbour });
     this.showLane();

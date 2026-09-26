@@ -19,6 +19,9 @@ export interface SceneState {
   roll: number;
   /** Draws the scenario system shown as another roll of its initializer. */
   rollAgain(): void;
+  /** The body a panel's link names while the pointer is on the link; the system view brightens it. */
+  linkedBody: number | null;
+  setLinkedBody(id: number | null): void;
   /**
    * Shows system `id`, selecting it when it is not already the one selection. The galaxy's tool
    * goes back to Select and its menu, tooltip, hover and overlays go.
@@ -61,16 +64,21 @@ export function canEnterSystem(): boolean {
 export const useSceneStore = create<SceneState>((set, get) => ({
   scene: GALAXY_SCENE,
   roll: 0,
+  linkedBody: null,
 
   rollAgain() {
     if (!canRollAgain()) return;
     set({ roll: get().roll + 1 });
   },
 
+  setLinkedBody(id) {
+    if (get().linkedBody !== id) set({ linkedBody: id });
+  },
+
   enterSystem(id) {
     if (!useGalaxyStore.getState().systems.has(id)) return;
     // The scene goes first, so the selection following it already sees the system as shown.
-    set({ scene: { kind: "system", id }, roll: 0 });
+    set({ scene: { kind: "system", id }, roll: 0, linkedBody: null });
     const editor = useEditorStore.getState();
     const { selection } = editor;
     if (selection.length !== 1 || selection[0] !== id) void editor.select(id);
@@ -88,7 +96,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   leaveSystem() {
     if (get().scene.kind === "galaxy") return;
     useInspectorStore.getState().popTo(0);
-    set({ scene: GALAXY_SCENE, roll: 0 });
+    set({ scene: GALAXY_SCENE, roll: 0, linkedBody: null });
   },
 
   renumber(pairs) {

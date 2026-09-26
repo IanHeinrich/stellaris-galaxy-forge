@@ -8,7 +8,7 @@ import type { PlanetSummary } from "../../generated/PlanetSummary";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
-import { byId, placedNode, planetSummary, systemDetails } from "../../test/builders";
+import { bodyLayout, byId, placedNode, planetSummary, systemDetails } from "../../test/builders";
 import { stubTextMeasurement } from "./fixture";
 import { pickBody } from "./picking";
 import { SystemScene } from "./SystemScene";
@@ -19,7 +19,7 @@ const SYSTEM = 5;
 
 function body(id: number, planetClass: string, at: [number, number], orbit: number): PlanetSummary {
   const size = { min: 16, max: 16 };
-  const layout = { orbit: { min: orbit, max: orbit }, angle: null, at, size };
+  const layout = bodyLayout({ orbit: { min: orbit, max: orbit }, at, size });
   return planetSummary({ id, class: planetClass, parent: id === 1 ? null : 1, orbit, layout });
 }
 

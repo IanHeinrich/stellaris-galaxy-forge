@@ -416,8 +416,9 @@ function sceneExits(src: SystemSources, node: SystemNode | null, radius: number)
 
 /**
  * Whether the game rolls the system's planets when it generates the galaxy: a scenario system
- * whose initializer, read with the install, gives no record, as when it names none or one the
- * install does not define.
+ * whose initializer, read with the install, gives no record, as when it names none, `random` or
+ * one the install does not define. One the install defines has a record, empty if it places
+ * nothing.
  */
 function rollsPlanets(src: SystemSources): boolean {
   return src.kind === "scenario" && src.gameDataReady && src.missing && src.details === null;
