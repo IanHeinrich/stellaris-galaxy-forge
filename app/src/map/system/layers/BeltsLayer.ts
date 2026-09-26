@@ -15,7 +15,7 @@ const ROCK_MIN = 0.4;
 const ROCK_MAX = 1.8;
 const ROCK_FLOOR_PX = 1;
 
-const ICY_TINT = 0xbfd9ee;
+export const ICY_TINT = 0xbfd9ee;
 const ROCKY_TINT = 0x9a8773;
 const DEBRIS_TINT = 0x514a45;
 

@@ -38,7 +38,7 @@ import {
 import { NO_SOURCES, systemContext, type SystemContext } from "../context";
 import { drawOps, strokes, stubTextMeasurement, viewport } from "../fixture";
 import { STAR_ART_BLEND } from "../../layers/StarClusters";
-import { BeltsLayer, MAX_ROCKS } from "./BeltsLayer";
+import { BeltsLayer, ICY_TINT, MAX_ROCKS } from "./BeltsLayer";
 import { BodiesLayer } from "./BodiesLayer";
 import { ExitsLayer } from "./ExitsLayer";
 import { LabelsLayer } from "./LabelsLayer";
@@ -635,6 +635,21 @@ describe("the system scene's bodies layer", () => {
     expect(sprite(drawn, "disc").visible).toBe(false);
     resetTextures();
     layer.destroy();
+  });
+
+  it("tints the icon the game shares between asteroid kinds: icy for ice, and violet for crystal", () => {
+    const tintOf = (planetClass: string) => {
+      const layer = new BodiesLayer(blankTextures());
+      layer.rebuild(classedContext([{ ...EARTH, class: planetClass }], [iconed(planetClass)]));
+      viewport(layer, 2);
+      const tint = sprite(holderAt(layer, ...EARTH_AT), "art").tint;
+      layer.destroy();
+      return tint;
+    };
+    expect(tintOf("pc_asteroid")).toBe(0xffffff);
+    expect(tintOf("pc_ice_asteroid")).toBe(ICY_TINT);
+    const crystal = tintOf("pc_rare_crystal_asteroid");
+    expect([0xffffff, ICY_TINT]).not.toContain(crystal);
   });
 
   it("draws an astral scar's glow added over the dark, with no surface bake, disc or shading", async () => {

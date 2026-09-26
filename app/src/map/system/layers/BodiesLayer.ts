@@ -14,6 +14,7 @@ import {
   type SystemContext,
 } from "../context";
 import { drawnDisc } from "../geometry";
+import { ICY_TINT } from "./BeltsLayer";
 import type { SystemLayer } from "./SystemLayer";
 import type { SceneTextures } from "./textures";
 
@@ -90,6 +91,16 @@ function blackHole(body: SceneBody): boolean {
 function artScale(body: SceneBody): number {
   if (blackHole(body)) return HOLE_ART_SCALE;
   return body.placement.star ? STAR_ART_SCALE : PLANET_ART_SCALE;
+}
+
+/** The game's asteroid kinds share one icon and differ only in their models; a tint tells them apart. */
+const ASTEROID_TINTS: Array<[RegExp, number]> = [
+  [/ice_asteroid/, ICY_TINT],
+  [/crystal_asteroid/, 0xd9b3ff],
+];
+
+function artTint(planetClass: string): number {
+  return ASTEROID_TINTS.find(([pattern]) => pattern.test(planetClass))?.[1] ?? 0xffffff;
 }
 
 function bodyTint(body: SceneBody): number {
@@ -278,6 +289,7 @@ export class BodiesLayer implements SystemLayer {
     }
     const art = sprite("art", Texture.EMPTY);
     art.visible = false;
+    art.tint = artTint(body.planetClass);
     // As on the galaxy map: the art's black ground adds nothing, so only its light shows.
     if (placement.star || luminous(body.planetClass)) art.blendMode = STAR_ART_BLEND;
     // A black hole's swirl is its accretion disc, seen round the black of the hole.
