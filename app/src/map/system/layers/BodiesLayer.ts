@@ -17,11 +17,13 @@ import { drawnDisc } from "../geometry";
 import type { SystemLayer } from "./SystemLayer";
 import type { SceneTextures } from "./textures";
 
-/** The glow under a star, its white-hot core and its art, in disc diameters. */
+/** The glow under a star, and a star's art, in disc diameters. */
 const GLOW_SCALE = 1.5;
-const CORE_SCALE = 1;
 const STAR_ART_SCALE = 1.4;
-const CORE_ALPHA = 0.8;
+/** A black hole's swirl, in disc diameters, and its event horizon's edge in screen pixels. */
+const HOLE_ART_SCALE = 2.6;
+const HORIZON_PX = 1.5;
+const HORIZON_ALPHA = 0.85;
 /** A planet's class icon, in disc diameters. */
 const PLANET_ART_SCALE = 1;
 /** The on-screen disc diameter, in pixels, past which a planet shows its class's large icon. */
@@ -79,6 +81,16 @@ const FAMILY_TINTS: Array<[pattern: RegExp, tint: number]> = [
   [/alpine/, 0xd8e4ea],
   [/arctic/, 0xe6f0f7],
 ];
+
+/** A black hole, drawn black with its swirl behind it, where every other star shines. */
+function blackHole(body: SceneBody): boolean {
+  return body.placement.star && body.starClass !== null && starGlyph(body.starClass).ring;
+}
+
+function artScale(body: SceneBody): number {
+  if (blackHole(body)) return HOLE_ART_SCALE;
+  return body.placement.star ? STAR_ART_SCALE : PLANET_ART_SCALE;
+}
 
 function bodyTint(body: SceneBody): number {
   if (body.starClass !== null) return starGlyph(body.starClass).tint;
@@ -149,7 +161,7 @@ interface Ring {
 interface Drawn {
   body: SceneBody;
   glow: Sprite | null;
-  core: Sprite | null;
+  horizon: Graphics | null;
   ring: Ring | null;
   disc: Sprite;
   lit: Sprite | null;
@@ -190,7 +202,7 @@ function traceRingDashes(g: Graphics, radius: number): void {
 }
 
 /**
- * A tinted disc per body with its class icon on top, a core and a glow on each star and the sphere
+ * A tinted disc per body with its class icon on top, a glow under each star and the sphere
  * shading over each other body, turned so its lit side faces the star it orbits. A class whose
  * surface the install bakes into a lit disc shows that in place of the tint and the icon. A class
  * with an atmosphere shows a haze outside the limb, and a ringed body its ring, the far half
@@ -238,8 +250,10 @@ export class BodiesLayer implements SystemLayer {
       holder.addChild(g);
       return g;
     };
+    const hole = blackHole(body);
+    const shines = placement.star && !hole;
     let glow: Sprite | null = null;
-    if (placement.star) {
+    if (shines) {
       glow = sprite("glow", this.textures.glow);
       glow.tint = tint;
       glow.alpha = GLOW_ALPHA;
@@ -255,23 +269,20 @@ export class BodiesLayer implements SystemLayer {
     };
     const back = ringed ? ringHalf("ringBack", this.textures.ringBack) : null;
     const disc = sprite("disc", this.textures.disc);
-    disc.tint = tint;
+    disc.tint = hole ? 0x000000 : tint;
     let lit: Sprite | null = null;
     if (litKey(body) !== null) {
       lit = sprite("lit", Texture.EMPTY);
       lit.visible = false;
       lit.rotation = placement.light ?? 0;
     }
-    let core: Sprite | null = null;
-    if (placement.star) {
-      core = sprite("core", this.textures.glow);
-      core.blendMode = "add";
-      core.alpha = CORE_ALPHA;
-    }
     const art = sprite("art", Texture.EMPTY);
     art.visible = false;
     // As on the galaxy map: the art's black ground adds nothing, so only its light shows.
     if (placement.star || luminous(body.planetClass)) art.blendMode = STAR_ART_BLEND;
+    // A black hole's swirl is its accretion disc, seen round the black of the hole.
+    if (hole) holder.setChildIndex(art, holder.getChildIndex(disc));
+    const horizon = hole ? graphics("horizon") : null;
     let shade: Sprite | null = null;
     if (!placement.star && !irregular(body.planetClass)) {
       shade = sprite(
@@ -295,7 +306,7 @@ export class BodiesLayer implements SystemLayer {
     }
     let outline: Graphics | null = null;
     if (placement.ghost) {
-      const faded = [glow, ring?.back, ring?.front, disc, lit, core, art, shade, rim, glyph];
+      const faded = [glow, ring?.back, ring?.front, disc, lit, art, horizon, shade, rim, glyph];
       for (const part of faded) if (part) part.alpha *= GHOST_ALPHA;
       outline = graphics("outline");
     }
@@ -303,7 +314,7 @@ export class BodiesLayer implements SystemLayer {
     const drawn = {
       body,
       glow,
-      core,
+      horizon,
       ring,
       disc,
       lit,
@@ -327,8 +338,8 @@ export class BodiesLayer implements SystemLayer {
   /**
    * Shows the lit disc and the icon once their textures have landed, and the tinted disc alone
    * until then; asks for them again after the cache was cleared, as when game data reloads. The
-   * lit disc stands in for the icon, which only marked the surface. A star keeps its disc, core
-   * and glow under its art.
+   * lit disc stands in for the icon, which only marked the surface. A star keeps its disc and
+   * glow under its art.
    */
   private dress(drawn: Drawn): void {
     const { body, art, disc, lit } = drawn;
@@ -384,17 +395,26 @@ export class BodiesLayer implements SystemLayer {
         drawn.large = large;
         this.dress(drawn);
       }
-      const { body, glow, core, ring, disc, lit, art, shade, rim, glyph, outline } = drawn;
+      const { body, glow, horizon, ring, disc, lit, art, shade, rim, glyph, outline } = drawn;
       const d = 2 * drawnDisc(body.placement.disc, this.scale);
       if (glow) sized(glow, d * GLOW_SCALE);
-      if (core) sized(core, d * CORE_SCALE);
       sized(disc, d);
       if (lit) {
         sized(lit, d);
         // The bake is lit from its left; mirrored, its light lies along +x as the mask's does.
         lit.scale.x = -lit.scale.x;
       }
-      sized(art, d * (body.placement.star ? STAR_ART_SCALE : PLANET_ART_SCALE));
+      sized(art, d * artScale(body));
+      if (horizon) {
+        horizon
+          .clear()
+          .circle(0, 0, d / 2)
+          .stroke({
+            color: 0xffffff,
+            alpha: HORIZON_ALPHA,
+            width: HORIZON_PX / this.scale,
+          });
+      }
       if (shade) sized(shade, d);
       if (rim && body.atmosphere) this.drawRim(rim, body.atmosphere, d / 2);
       if (ring) this.sizeRing(ring, body, d / 2);

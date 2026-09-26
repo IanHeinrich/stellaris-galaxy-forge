@@ -313,7 +313,7 @@ describe("the system scene's exits layer", () => {
 });
 
 describe("the system scene's bodies layer", () => {
-  it("draws a star as a tinted sphere with a hot core and a glow, its art added over them once landed", async () => {
+  it("draws a star as a disc in its class's colour with a glow, its art added over them once landed", async () => {
     clearTextures();
     const art = new Texture();
     setTextureDecoder(() => Promise.resolve(art));
@@ -331,18 +331,41 @@ describe("the system scene's bodies layer", () => {
     const star = layer.container.children[0] as Container;
     const shown = () => star.children.filter((c): c is Sprite => c instanceof Sprite && c.visible);
 
-    const sphere = [textures.glow, textures.disc, textures.glow];
+    const sphere = [textures.glow, textures.disc];
     expect(shown().map((s) => s.texture)).toEqual(sphere);
-    expect(shown().map((s) => s.blendMode === "add")).toEqual([false, false, true]);
+    expect(shown().some((s) => s.blendMode === "add")).toBe(false);
 
     await vi.waitFor(() => expect(fetch.release).not.toBeNull());
     fetch.release?.();
     await vi.waitFor(() => expect(shown().map((s) => s.texture)).toEqual([...sphere, art]));
-    expect(shown()[3].blendMode).toBe("add");
+    expect(shown()[2].blendMode).toBe("add");
 
     clearTextures();
     expect(shown().map((s) => s.texture)).toEqual(sphere);
     setTextureDecoder(null);
+    layer.destroy();
+  });
+
+  it("draws a black hole black, its swirl behind the disc and a white horizon round it", () => {
+    const ctx = systemContext({
+      ...NO_SOURCES,
+      id: SYSTEM,
+      systems: byId(placedNode(SYSTEM, 0, 0)),
+      details: systemDetails({ id: SYSTEM, planets: [saveBody(1, "pc_black_hole", [0, 0], 0)] }),
+      starClasses: new Map([["sc_black_hole", starClassView("sc_black_hole", "pc_black_hole")]]),
+    });
+    const layer = new BodiesLayer(blankTextures());
+    layer.rebuild(ctx);
+    viewport(layer, 2);
+    const hole = layer.container.children[0] as Container;
+    const labels = hole.children.map((c) => c.label);
+    expect(labels).not.toContain("glow");
+    expect(labels.indexOf("art")).toBeLessThan(labels.indexOf("disc"));
+    const disc = hole.children.find((c) => c.label === "disc") as Sprite;
+    expect(disc.tint).toBe(0x000000);
+    const horizon = hole.children.find((c) => c.label === "horizon");
+    if (!(horizon instanceof Graphics)) throw new Error("no horizon");
+    expect(drawOps(horizon).find((op) => op.action === "stroke")?.color).toBe(0xffffff);
     layer.destroy();
   });
 
