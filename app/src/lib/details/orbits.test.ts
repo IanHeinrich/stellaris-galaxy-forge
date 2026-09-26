@@ -288,10 +288,12 @@ describe("belts, fit and zoom", () => {
     expect(sol().largestDisc).toBe(discRadius(30, false, "pc_g_star", true));
   });
 
-  it("draws a star STAR_SCALE times a planet of its size", () => {
+  it("draws a star STAR_SCALE times a planet of its size, and a brown dwarf as a planet", () => {
     expect(discRadius(20, false, "pc_m_star", true)).toBeCloseTo(
       discRadius(20, false) * STAR_SCALE,
     );
+    // The game draws a brown dwarf with a planet's model, at a planet's size.
+    expect(discRadius(20, false, "pc_t_star", true)).toBeCloseTo(discRadius(20, false));
   });
 
   it("scales a moon's disc by MOON_SCALE", () => {
