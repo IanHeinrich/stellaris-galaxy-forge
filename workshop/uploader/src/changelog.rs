@@ -173,15 +173,9 @@ impl Item {
             .map(|item| format!("[*]{}", inline(item)))
             .collect();
         format!(
-            "[*]{}
-[list]
-{}
-[/list]",
+            "[*]{}\n[list]\n{}\n[/list]",
             inline(&self.text),
-            nested.join(
-                "
-"
-            )
+            nested.join("\n")
         )
     }
 }
@@ -201,6 +195,8 @@ fn to_bbcode(body: &[&str]) -> String {
         .join("\n")
 }
 
+/// The subset of Markdown the changelog is written in, as `docs/engineering-rules.md` states
+/// it. A line outside it is paragraph text.
 fn blocks(body: &[&str]) -> Vec<Block> {
     let mut blocks = Vec::new();
     let mut open: Option<Block> = None;
@@ -208,7 +204,7 @@ fn blocks(body: &[&str]) -> Vec<Block> {
         let trimmed = line.trim();
         if trimmed.is_empty() {
             blocks.extend(open.take());
-        } else if let Some(heading) = trimmed.strip_prefix("### ") {
+        } else if let Some(heading) = line.strip_prefix("### ") {
             blocks.extend(open.take());
             blocks.push(Block::Heading(heading.trim().to_string()));
         } else if let Some(item) = line.strip_prefix("- ") {
@@ -220,7 +216,7 @@ fn blocks(body: &[&str]) -> Vec<Block> {
                 }
             }
         } else if let (Some(nested), Some(Block::List(items))) =
-            (trimmed.strip_prefix("- "), open.as_mut())
+            (line.strip_prefix("  - "), open.as_mut())
         {
             let item = items.last_mut().expect("a list has an item");
             item.items.push(nested.trim().to_string());
@@ -497,5 +493,52 @@ A [guide](https://example.com/guide) with **bold** and `code`.
     #[test]
     fn unpaired_markup_is_left_alone() {
         assert_eq!(inline("a ** b [c] (d) [e]"), "a ** b [c] (d) [e]");
+    }
+
+    #[test]
+    fn lines_outside_the_subset_are_paragraph_text() {
+        let changelog = "## [1.0.0] - 2026-01-01
+
+#### Added
+* A star bullet.
+
+- A bullet.
+wrapped at the margin.
+
+  - An indented bullet with no list.
+";
+        let note = change_note(changelog, v("0.9.0"), v("1.0.0"), false).unwrap();
+        let body: Vec<&str> = note.lines().skip(1).collect();
+        assert_eq!(
+            body,
+            [
+                "#### Added * A star bullet.",
+                "[list]",
+                "[*]A bullet.",
+                "[/list]",
+                "wrapped at the margin.",
+                "- An indented bullet with no list.",
+            ]
+        );
+    }
+
+    #[test]
+    fn every_released_section_of_the_changelog_converts() {
+        let changelog = include_str!("../../../CHANGELOG.md");
+        let released = sections(changelog);
+        assert!(released.len() > 10, "{} sections", released.len());
+        for section in &released {
+            let note = version_note(changelog, section.version, false).unwrap();
+            let bullets = section
+                .body
+                .iter()
+                .filter(|line| line.starts_with("- ") || line.starts_with("  - "))
+                .count();
+            assert_eq!(note.matches("[*]").count(), bullets, "{}", section.version);
+            let stray = note
+                .lines()
+                .find(|line| !line.starts_with('[') && !line.starts_with("Earlier versions"));
+            assert_eq!(stray, None, "{} has text outside a list", section.version);
+        }
     }
 }

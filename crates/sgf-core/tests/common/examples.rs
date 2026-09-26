@@ -433,74 +433,13 @@ pub fn one_of_each() -> Vec<Example> {
             assert_eq!(op.name(), example.name(), "one variant per example");
         }
     }
-    let positions: Vec<usize> = examples.iter().map(|e| position(e.op())).collect();
-    let every: Vec<usize> = (0..variant_names().len()).collect();
+    let names: Vec<&str> = examples.iter().map(Example::name).collect();
     assert_eq!(
-        positions, every,
+        names,
+        variant_names(),
         "one example of each variant, in declaration order"
     );
     examples
-}
-
-/// Where `op`'s variant stands in `Op`. Exhaustive: a new variant stops this compiling
-/// until it is numbered here, and [`one_of_each`] then fails until it has an example.
-fn position(op: &Op) -> usize {
-    match op {
-        Op::MoveSystem { .. } => 0,
-        Op::AddLane { .. } => 1,
-        Op::AddLanes { .. } => 2,
-        Op::RemoveLane { .. } => 3,
-        Op::RemoveLanes { .. } => 4,
-        Op::SetLaneLength { .. } => 5,
-        Op::IsolateSystem { .. } => 6,
-        Op::MoveSystems { .. } => 7,
-        Op::AddLanePairs { .. } => 8,
-        Op::RemoveLanePairs { .. } => 9,
-        Op::IsolateSystems { .. } => 10,
-        Op::SetLaneLengths { .. } => 11,
-        Op::NormaliseLaneLength { .. } => 12,
-        Op::NormaliseLaneLengths { .. } => 13,
-        Op::MoveNebula { .. } => 14,
-        Op::AddNebula { .. } => 15,
-        Op::RemoveNebula { .. } => 16,
-        Op::SetNebulaRadius { .. } => 17,
-        Op::SetNebulaName { .. } => 18,
-        Op::AddSystem { .. } => 19,
-        Op::RemoveSystem { .. } => 20,
-        Op::AddSystems { .. } => 21,
-        Op::RemoveSystems { .. } => 22,
-        Op::SetSystemName { .. } => 23,
-        Op::SetInitializer { .. } => 24,
-        Op::SetInitializers { .. } => 25,
-        Op::SetHeaderField { .. } => 26,
-        Op::SetHeaderKeys { .. } => 27,
-        Op::SetHeaderList { .. } => 28,
-        Op::SetSpawnWeight { .. } => 29,
-        Op::SetSpawnWeights { .. } => 30,
-        Op::SetSpawnScript { .. } => 31,
-        Op::SetSpawnScripts { .. } => 32,
-        Op::SetFeZone { .. } => 33,
-        Op::SetFeZones { .. } => 34,
-        Op::SetWormholePair { .. } => 35,
-        Op::SetWormholeEnds { .. } => 36,
-        Op::SetFeLinks { .. } => 37,
-        Op::SetFeLinkFlags { .. } => 38,
-        Op::PreventLane { .. } => 39,
-        Op::UnpreventLane { .. } => 40,
-        Op::SetLGateOutcome { .. } => 41,
-        Op::SetStarClass { .. } => 42,
-        Op::SetPlanetSize { .. } => 43,
-        Op::SetTerraformCandidate { .. } => 44,
-        Op::SetEmpireMapColors { .. } => 45,
-        Op::AddSaveSystem { .. } => 46,
-        Op::AddSaveDeposit { .. } => 47,
-        Op::RemoveSaveDeposit { .. } => 48,
-        Op::ReplaceSaveSystem { .. } => 49,
-        Op::RenameSaveSystem { .. } => 50,
-        Op::SetNebulaTurbulent { .. } => 51,
-        Op::SetNebulaFootprints { .. } => 52,
-        Op::Batch { .. } => 53,
-    }
 }
 
 /// Every variant `Op` declares, as its derived deserialiser lists them when refusing an

@@ -38,7 +38,7 @@ function layerModes(id: LayerId): readonly BarMode[] {
  * The modes each control shows in. The document's capabilities narrow the layers further, and
  * its layer groups say which have a master.
  */
-export const BAR_MODES: Readonly<Record<BarControl, readonly BarMode[]>> = {
+const BAR_MODES: Readonly<Record<BarControl, readonly BarMode[]>> = {
   ...(Object.fromEntries(LAYER_IDS.map((id) => [id, layerModes(id)])) as Record<
     LayerId,
     readonly BarMode[]

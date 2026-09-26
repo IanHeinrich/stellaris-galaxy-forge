@@ -1,7 +1,7 @@
 import { Container, Sprite, type Texture } from "pixi.js";
 import { seeded } from "../../../lib/random";
 import type { Camera } from "../../Camera";
-import type { SceneBelt, SystemContext } from "../context";
+import { EMPTY_SYSTEM_CONTEXT, type SceneBelt, type SystemContext } from "../context";
 import type { SystemLayer } from "./SystemLayer";
 
 /** World units of belt circumference per rock, up to the most rocks one belt draws. */
@@ -13,6 +13,9 @@ const RESIZE_STEP = 0.02;
 const ROCK_MIN = 0.4;
 const ROCK_MAX = 1.8;
 const ROCK_FLOOR_PX = 1;
+/** A rock's alpha, drawn between the least and the least plus the span. */
+const ROCK_ALPHA_MIN = 0.55;
+const ROCK_ALPHA_SPAN = 0.45;
 
 /** The same seed for the same radius, so a belt's rocks hold still until the belt moves. */
 function radiusSeed(radius: number): number {
@@ -26,22 +29,14 @@ interface Rock {
   size: number;
 }
 
-function sameBelts(a: readonly SceneBelt[], b: readonly SceneBelt[]): boolean {
-  return (
-    a.length === b.length &&
-    a.every((belt, i) => belt.tint === b[i].tint && belt.radius === b[i].radius)
-  );
-}
-
 /**
  * Each asteroid belt as a band of small rocks about its radius, densest at the radius and
  * thinning towards both edges, tinted by the belt's kind.
  */
 export class BeltsLayer implements SystemLayer {
-  readonly id = "belts" as const;
   readonly container = new Container();
   readonly rocks = new Container();
-  private belts: readonly SceneBelt[] = [];
+  private belts: readonly SceneBelt[] = EMPTY_SYSTEM_CONTEXT.belts;
   private placed: Rock[] = [];
   private drawnScale = -1;
 
@@ -51,7 +46,7 @@ export class BeltsLayer implements SystemLayer {
 
   rebuild(ctx: SystemContext): void {
     const belts = ctx.belts;
-    if (sameBelts(belts, this.belts)) return;
+    if (belts === this.belts) return;
     this.belts = belts;
     for (const child of this.rocks.removeChildren()) child.destroy();
     this.placed = belts.flatMap((belt) => this.scatter(belt));
@@ -72,7 +67,7 @@ export class BeltsLayer implements SystemLayer {
       sprite.position.set(r * Math.cos(angle), r * Math.sin(angle));
       sprite.rotation = rand() * 2 * Math.PI;
       sprite.tint = belt.tint;
-      sprite.alpha = 0.55 + rand() * 0.45;
+      sprite.alpha = ROCK_ALPHA_MIN + rand() * ROCK_ALPHA_SPAN;
       this.rocks.addChild(sprite);
       rocks.push({ sprite, size: ROCK_MIN + rand() ** 2 * (ROCK_MAX - ROCK_MIN) });
     }
@@ -88,8 +83,6 @@ export class BeltsLayer implements SystemLayer {
       sprite.scale.set(k);
     }
   }
-
-  setHighlighted(): void {}
 
   destroy(): void {
     this.container.destroy({ children: true });

@@ -11,7 +11,7 @@ import {
 } from "../geometry";
 import type { SystemLayer } from "./SystemLayer";
 
-export const EXIT_COLOR = 0x4fd66b;
+const EXIT_COLOR = 0x4fd66b;
 const EXIT_ALPHA = 0.9;
 
 /** One shared instance: PixiJS keys a stroked dynamic bitmap font by the style object. */
@@ -25,7 +25,6 @@ const EXIT_STYLE = new TextStyle({
 
 /** One green arrow per hyperlane just outside the inner radius, labelled with the neighbour's name. */
 export class ExitsLayer implements SystemLayer {
-  readonly id = "exits" as const;
   readonly container = new Container();
   readonly arrows = new Graphics();
   private readonly labels = new Container();
@@ -63,8 +62,6 @@ export class ExitsLayer implements SystemLayer {
       text.scale.set(scale.x, scale.y);
     });
   }
-
-  setHighlighted(): void {}
 
   destroy(): void {
     this.container.destroy({ children: true });

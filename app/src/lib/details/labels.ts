@@ -10,6 +10,7 @@ import type { SystemDetails } from "../../generated/SystemDetails";
 import type { MapTooltipText } from "../../store/mapChromeStore";
 import { templateKeys, templateName, type Names } from "../names";
 import { canonicalResource } from "../resources";
+import { wholeTurn } from "./orbits";
 import { keyWords, titleCase } from "../text";
 import {
   ARCHAEOLOGY_ICON_KEYS,
@@ -87,7 +88,7 @@ export function stepText(step: Bounds): string {
 
 /** A turn as a label reads it: "+90–270°", or "any angle" for a turn or more. */
 export function turnText(step: Bounds): string {
-  return step.max - step.min >= 360 ? "any angle" : `${stepText(step)}°`;
+  return wholeTurn(step) ? "any angle" : `${stepText(step)}°`;
 }
 
 /** `Alpha Centauri III` → `Continental World · size 16 · capital · colonised by Earth`. */

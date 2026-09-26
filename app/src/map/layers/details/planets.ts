@@ -43,9 +43,15 @@ export function planetDots(
   planetOverflow(row, planets, planetsTip(ctx, tex, planets));
 }
 
+/** What a planet's tooltip lines read, which the galaxy's and the system scene's contexts both hold. */
+export type PlanetLineContext = Pick<
+  RenderContext,
+  "planetClasses" | "names" | "templateName" | "countryName"
+>;
+
 /** One tooltip line per planet: its name, class, size and owner. */
 export function planetLines(
-  ctx: RenderContext,
+  ctx: PlanetLineContext,
   tex: Textures,
   planets: readonly PlanetSummary[],
 ): MapTooltipLine[] {

@@ -64,7 +64,7 @@ function rollsSystems(session: CapabilitySource): boolean {
 }
 
 /** Whether Roll again has anything to do: a rolled system is shown. */
-export function canRollAgain(): boolean {
+function canRollAgain(): boolean {
   return sceneSystem() !== null && rollsSystems(useFileSessionStore.getState());
 }
 

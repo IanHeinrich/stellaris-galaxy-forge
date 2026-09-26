@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { templateName } from "../lib/names";
 import {
   composeOwnership,
@@ -52,13 +53,28 @@ export function currentOwnership(): Ownership {
   return composed;
 }
 
+/** Calls `listener` whenever anything `currentOwnership` is composed from changes. */
+export function subscribeOwnership(listener: () => void): () => void {
+  const offs = [
+    useFileSessionStore.subscribe((s, prev) => {
+      if (s.kind !== prev.kind) listener();
+    }),
+    useGalaxyStore.subscribe((s, prev) => {
+      if (s.systems !== prev.systems || s.countries !== prev.countries) listener();
+    }),
+    useGameDataStore.subscribe((s, prev) => {
+      const { countryTypes, mapColors, names } = prev;
+      if (s.countryTypes !== countryTypes || s.mapColors !== mapColors || s.names !== names) {
+        listener();
+      }
+    }),
+  ];
+  return () => {
+    for (const off of offs) off();
+  };
+}
+
 /** The same, re-rendered when anything it is composed from changes. */
 export function useOwnership(): Ownership {
-  useFileSessionStore((s) => s.kind);
-  useGalaxyStore((s) => s.systems);
-  useGalaxyStore((s) => s.countries);
-  useGameDataStore((s) => s.countryTypes);
-  useGameDataStore((s) => s.mapColors);
-  useGameDataStore((s) => s.names);
-  return currentOwnership();
+  return useSyncExternalStore(subscribeOwnership, currentOwnership, currentOwnership);
 }

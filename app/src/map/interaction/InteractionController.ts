@@ -32,6 +32,7 @@ import { GestureReporter } from "./gesture";
 import type { InputKind, LaneSource, MapInput, MapIntent, MapModel } from "./MapIntent";
 import { MoveDrag } from "./moveDrag";
 import { NebulaDrag } from "./nebulaDrag";
+import { PointerBridge } from "./pointerBridge";
 import { groupOf } from "./press";
 
 const editor = () => useEditorStore.getState();
@@ -70,7 +71,7 @@ export class InteractionController {
   private readonly moves: MoveDrag;
   private model: MapModel = this.models.select;
   private readonly intent: MapIntent;
-  private panFrom: { sx: number; sy: number } | null = null;
+  private readonly pointer: PointerBridge<MapInput>;
   private readonly addedTip = new AddedTooltip();
   /** What a lane drag would start from once the button is down; the snap skips it. */
   private laneFrom: LaneSource | null = null;
@@ -84,8 +85,8 @@ export class InteractionController {
   private readonly at: Pt = { x: 0, y: 0 };
   private readonly index = new PickIndex();
   private readonly cleanups: Array<() => void> = [];
-  /** The pointer and key listeners, which only the active scene's controller holds. */
-  private readonly listeners: Array<() => void> = [];
+  /** The key listeners, which only the active scene's controller holds, as it holds the pointer. */
+  private readonly keyListeners: Array<() => void> = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -98,6 +99,27 @@ export class InteractionController {
     this.feZones = new FeZoneDrag(cam, highlights);
     this.moves = new MoveDrag(layers);
     this.intent = this.buildIntent();
+    this.pointer = new PointerBridge(
+      canvas,
+      cam,
+      (kind, e) => this.input(kind, e),
+      {
+        handle: (input) => this.model.handle(input, this.intent),
+        cursor: () => this.model.cursor(),
+      },
+      {
+        pressed: (input) => this.pressed(input),
+        moved: (input, panned) => this.moved(input, panned),
+        released: () => {
+          this.laneFrom = null;
+        },
+        left: () => {
+          this.lastMove = null;
+          this.hover(null);
+          if (!this.model.busy()) this.brushes.end();
+        },
+      },
+    );
 
     this.model = this.models[useToolStore.getState().tool];
     this.activate();
@@ -226,14 +248,14 @@ export class InteractionController {
   }
 
   private dropDrag(): void {
-    this.panFrom = null;
+    this.pointer.drop();
     this.laneFrom = null;
     this.model.reset(this.intent);
   }
 
   activate(): void {
-    if (this.listeners.length > 0) return;
-    this.bindPointer();
+    if (this.pointer.bound) return;
+    this.pointer.bind();
     this.bindKeyboard();
   }
 
@@ -246,7 +268,8 @@ export class InteractionController {
   }
 
   private unbind(): void {
-    for (const off of this.listeners.splice(0)) off();
+    this.pointer.unbind();
+    for (const off of this.keyListeners.splice(0)) off();
   }
 
   dispose(): void {
@@ -320,12 +343,6 @@ export class InteractionController {
     };
   }
 
-  private handle(input: MapInput): "consumed" | "pan" {
-    const result = this.model.handle(input, this.intent);
-    this.canvas.style.cursor = this.model.cursor();
-    return result;
-  }
-
   /** What the pointer rests on, or nothing while it pans or drags. */
   private hover(input: MapInput | null): void {
     const edge = input?.edge ?? null;
@@ -339,67 +356,30 @@ export class InteractionController {
     this.gesture.hover(edge !== null);
   }
 
-  private bindPointer(): void {
-    const canvas = this.canvas;
-    const on = <K extends keyof HTMLElementEventMap>(
-      type: K,
-      handler: (e: HTMLElementEventMap[K]) => void,
-    ) => {
-      canvas.addEventListener(type, handler);
-      this.listeners.push(() => canvas.removeEventListener(type, handler));
-    };
+  /** What a lane drag would start from, and where on the system or nebula the press grabbed it. */
+  private pressed(input: MapInput): void {
+    const pressed =
+      input.system === null ? null : useGalaxyStore.getState().systems.get(input.system);
+    this.laneFrom = pressed
+      ? { kind: "systems", ids: groupOf(input.selection, pressed.id) ?? [pressed.id] }
+      : input.feZone
+        ? { kind: "feZone", anchor: input.feZone.anchor }
+        : null;
+    const grabbed =
+      pressed ??
+      (input.nebula?.part === "ring"
+        ? useGalaxyStore.getState().nebulae[input.nebula.index]
+        : undefined);
+    this.grab = grabbed ? { dx: grabbed.x - input.wx, dy: grabbed.y - input.wy } : { dx: 0, dy: 0 };
+  }
 
-    on("pointerdown", (e) => {
-      useMapChromeStore.getState().closeContextMenu();
-      const input = this.input("down", e);
-      const pressed =
-        input.system === null ? null : useGalaxyStore.getState().systems.get(input.system);
-      this.laneFrom = pressed
-        ? { kind: "systems", ids: groupOf(input.selection, pressed.id) ?? [pressed.id] }
-        : input.feZone
-          ? { kind: "feZone", anchor: input.feZone.anchor }
-          : null;
-      const grabbed =
-        pressed ??
-        (input.nebula?.part === "ring"
-          ? useGalaxyStore.getState().nebulae[input.nebula.index]
-          : undefined);
-      this.grab = grabbed
-        ? { dx: grabbed.x - input.wx, dy: grabbed.y - input.wy }
-        : { dx: 0, dy: 0 };
-      this.panFrom = { sx: input.sx, sy: input.sy };
-      canvas.setPointerCapture(e.pointerId);
-      this.handle(input);
-    });
-    on("pointermove", (e) => {
-      const input = this.input("move", e);
-      this.lastMove = input;
-      if (this.handle(input) === "pan" && this.panFrom) {
-        this.cam.panBy(input.sx - this.panFrom.sx, input.sy - this.panFrom.sy);
-        this.panFrom = { sx: input.sx, sy: input.sy };
-        this.hover(null);
-      } else if (this.model.busy() || this.model !== this.models.select) {
-        this.hover(null);
-      } else {
-        this.hover(input);
-      }
-    });
-    on("pointerup", (e) => {
-      this.panFrom = null;
-      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      this.handle(this.input("up", e));
-      this.laneFrom = null;
-    });
-    on("pointercancel", (e) => {
-      this.panFrom = null;
-      this.handle(this.input("cancel", e));
-      this.laneFrom = null;
-    });
-    on("pointerleave", () => {
-      this.lastMove = null;
+  private moved(input: MapInput, panned: boolean): void {
+    this.lastMove = input;
+    if (panned || this.model.busy() || this.model !== this.models.select) {
       this.hover(null);
-      if (!this.model.busy()) this.brushes.end();
-    });
+    } else {
+      this.hover(input);
+    }
   }
 
   private bindKeyboard(): void {
@@ -415,7 +395,7 @@ export class InteractionController {
     };
     window.addEventListener("keydown", down, { capture: true });
     window.addEventListener("keyup", up, { capture: true });
-    this.listeners.push(() => {
+    this.keyListeners.push(() => {
       window.removeEventListener("keydown", down, { capture: true });
       window.removeEventListener("keyup", up, { capture: true });
     });
@@ -426,6 +406,6 @@ export class InteractionController {
     const last = this.lastMove;
     if (!last || last.alt === alt || this.model.busy()) return;
     this.lastMove = { ...last, alt };
-    this.handle(this.lastMove);
+    this.pointer.handle(this.lastMove);
   }
 }
