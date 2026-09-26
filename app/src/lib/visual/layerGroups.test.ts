@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import { KIND_ORDER } from "../special";
-import { LAYER_IDS, defaultLayers, type LayerId } from "./layerIds";
+import {
+  LAYER_IDS,
+  defaultLayers,
+  isGalaxyLayer,
+  type GalaxyLayerId,
+  type LayerId,
+} from "./layerIds";
 import {
   NO_GAME_DATA_KEYS_TITLE,
   NO_GAME_DATA_TITLE,
@@ -86,7 +92,11 @@ describe("layer groups", () => {
 
 describe("how much of a group is drawn", () => {
   /** The layers a scenario opens with, with `off` turned off and `kinds` the only ones shown. */
-  function visible(off: LayerId[], kinds: SpecialKind[], on: LayerId[] = []): LayerVisibility {
+  function visible(
+    off: GalaxyLayerId[],
+    kinds: SpecialKind[],
+    on: GalaxyLayerId[] = [],
+  ): LayerVisibility {
     const layers = defaultLayers("scenario");
     for (const id of on) layers[id] = true;
     for (const id of off) layers[id] = false;
@@ -94,12 +104,12 @@ describe("how much of a group is drawn", () => {
   }
 
   const initializers = groupsFor("scenario").find((group) => group.source === "initializers");
-  const state = (off: LayerId[], kinds: SpecialKind[] = KIND_ORDER) =>
+  const state = (off: GalaxyLayerId[], kinds: SpecialKind[] = KIND_ORDER) =>
     groupState(visible(off, kinds), "scenario", "initializers");
 
   it("is on where every layer of the group is on, and off where none is", () => {
     expect(state([])).toBe("on");
-    expect(state([...(initializers?.layers ?? [])])).toBe("off");
+    expect(state((initializers?.layers ?? []).filter(isGalaxyLayer))).toBe("off");
     // The scripts' overlays start off; the group reads on once both are shown.
     expect(groupState(visible([], KIND_ORDER), "scenario", "scripts")).toBe("off");
     expect(

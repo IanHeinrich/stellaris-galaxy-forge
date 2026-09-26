@@ -185,7 +185,7 @@ still work while a system is open, with their own settings, so you can
 have them on in the galaxy and off in a system. With System details on,
 each body's resources show under its name. A system inside a nebula
 shows faint clouds behind it while Nebulae is on. The other layer buttons and
-the tool rail are for the galaxy, so they are hidden or greyed out. Undo and redo still work
+the tool rail are for the galaxy, so they are hidden while a system is open. Undo and redo still work
 from the Edit menu and their keys.
 
 To get back to the galaxy, press Esc or M, click "Galaxy" in the crumb at the

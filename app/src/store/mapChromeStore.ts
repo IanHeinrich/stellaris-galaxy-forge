@@ -6,11 +6,12 @@ import { KIND_ORDER, kindOrder } from "../lib/special";
 import {
   DEFAULT_LAYERS,
   DEFAULT_SCENE_LAYERS,
-  LAYER_IDS,
+  GALAXY_LAYER_IDS,
   LAYER_KEYS,
   SCENE_LAYER_IDS,
   defaultLayers,
-  type LayerId,
+  type GalaxyLayerId,
+  type GalaxyLayers,
   type SceneLayerId,
 } from "../lib/visual/layerIds";
 import {
@@ -97,7 +98,7 @@ export interface MapTooltip {
 }
 
 export interface MapChromeState {
-  layers: Record<LayerId, boolean>;
+  layers: GalaxyLayers;
   /** What the system scene draws of the layers it shares with the galaxy, switched apart from it. */
   sceneLayers: Record<SceneLayerId, boolean>;
   /** The point-of-interest kinds the map draws; each kind is its own layer. */
@@ -117,7 +118,7 @@ export interface MapChromeState {
   gesture: MapGesture | null;
   /** What the system scene says in the status bar while it shows, such as a clicked lane's length. */
   sceneHint: string | null;
-  toggleLayer(id: LayerId): void;
+  toggleLayer(id: GalaxyLayerId): void;
   toggleSceneLayer(id: SceneLayerId): void;
   /** Shows or hides one point-of-interest kind. */
   toggleKind(kind: SpecialKind): void;
@@ -147,7 +148,7 @@ export interface MapChromeState {
    * Sets a layer without persisting it: for state the app borrows rather than the user sets, or
    * an edit the user must be able to see.
    */
-  setLayerQuietly(id: LayerId, on: boolean): void;
+  setLayerQuietly(id: GalaxyLayerId, on: boolean): void;
   setLanePreview(pairs: Array<[number, number]> | null): void;
   setAddSystemPreview(preview: AddSystemPreview | null): void;
   setHighlightInitializer(key: string | null): void;
@@ -178,7 +179,7 @@ const MESH_BETA_PREF = prefField(PREF_KEYS.meshBeta, MESH_BETA.gabriel, isFinite
  * `changed` with the layers it drags along: the day-one claims draw only inside the empire
  * borders, so they come on with them and go with them; the borders themselves are drawn either way.
  */
-function coupled(changed: Partial<Record<LayerId, boolean>>): Partial<Record<LayerId, boolean>> {
+function coupled(changed: Partial<GalaxyLayers>): Partial<GalaxyLayers> {
   const out = { ...changed };
   if (changed.claims === true) out.owners = true;
   if (changed.owners === false) out.claims = false;
@@ -197,11 +198,11 @@ function storedShownKinds(): SpecialKind[] {
 }
 
 /** A stored layer state over `base`, keeping only this build's layers and defaulting the rest. */
-function storedLayers(base: Record<LayerId, boolean>): Record<LayerId, boolean> {
+function storedLayers(base: GalaxyLayers): GalaxyLayers {
   const stored = readPref<Record<string, boolean> | null>(PREF_KEYS.layers, null, isBooleanRecord);
   const layers = { ...base };
   if (stored === null) return layers;
-  for (const id of LAYER_IDS) if (stored[id] !== undefined) layers[id] = stored[id];
+  for (const id of GALAXY_LAYER_IDS) if (stored[id] !== undefined) layers[id] = stored[id];
   return layers;
 }
 
@@ -225,7 +226,7 @@ function rememberKinds(kinds: Set<SpecialKind>): void {
 }
 
 /** Writes the keys the user's press decided over the record the profile already holds. */
-function rememberLayers(changed: Partial<Record<LayerId, boolean>>): void {
+function rememberLayers(changed: Partial<GalaxyLayers>): void {
   const stored = readPref<Record<string, boolean> | null>(PREF_KEYS.layers, null, isBooleanRecord);
   writePref(PREF_KEYS.layers, { ...stored, ...changed });
 }

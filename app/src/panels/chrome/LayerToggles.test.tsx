@@ -27,6 +27,16 @@ const bar = () => renderToStaticMarkup(<LayerToggles />);
 const menu = () => renderToStaticMarkup(<LayersMenu />);
 const menuBody = () => renderToStaticMarkup(<LayersMenuBody />);
 
+/** The label of every button in `html`. */
+const buttonLabels = (html: string) =>
+  [...html.matchAll(/<button[^>]*aria-label="([^"]+)"/g)].map((match) => match[1]);
+
+/** The name of every layer row in the menu's `html`, the reset left out. */
+const rowNames = (html: string) =>
+  [...html.matchAll(/<button[^>]*>[\s\S]*?<\/button>/g)]
+    .map((row) => /<span>([^<]*)<\/span>/.exec(row[0])?.[1])
+    .filter((name): name is string => name !== undefined);
+
 /** A group's name as the markup carries it, where `&` is an entity. */
 const label = (source: Source) => SOURCE_LABELS[source].replace("&", "&amp;");
 
@@ -160,29 +170,24 @@ describe("the split layer bar", () => {
     expect(html.indexOf('aria-label="Leviathans"')).toBeGreaterThan(nebulae);
   });
 
-  it("disables every toggle but Names, Details, Nebulae and Orbit radii while a system is shown, saying the layers are the galaxy's", async () => {
+  it("shows only Names, System details, Nebulae and Orbit radii while a system is shown, none greyed", async () => {
     resetStores();
     armSession();
     await openWith(OPEN_RESULT);
+    const scene = ["Names", "Nebulae", "Orbit radii", "System details"];
     expect(bar()).not.toContain("disabled");
-    expect(bar()).not.toContain('aria-label="Orbit radii"');
+    expect(buttonLabels(bar())).toEqual(expect.arrayContaining(["Hyperlanes", "Leviathans"]));
+    expect(buttonLabels(bar())).not.toContain("Orbit radii");
+    expect(rowNames(menuBody())).toEqual(expect.arrayContaining(["Systems", "Hyperlanes"]));
+    expect(rowNames(menuBody())).not.toContain("Orbit radii");
+    expect(menuBody()).toContain("<span>Systems</span><kbd>2</kbd>");
 
     useSceneStore.getState().enterSystem(0);
-    const html = bar();
-    const buttons = html.match(/<button[^>]*>/g) ?? [];
-    expect(buttons.length).toBeGreaterThan(1);
-    const live = ["System details", "Names", "Nebulae", "Orbit radii"];
-    for (const button of buttons) {
-      if (live.some((label) => button.includes(`aria-label="${label}"`))) {
-        expect(button).not.toContain("disabled");
-        continue;
-      }
-      expect(button).toContain("disabled");
-      expect(button).toContain('title="Layers apply to the galaxy view"');
-    }
-    expect(html).toContain('aria-label="System details"');
-    expect(html).toContain('aria-label="Names"');
-    expect(html).toContain('aria-label="Nebulae"');
+    expect(buttonLabels(bar()).sort()).toEqual(scene);
+    expect(bar()).not.toContain("disabled");
+    expect(rowNames(menuBody()).sort()).toEqual(scene);
+    expect(menuBody()).not.toContain("disabled");
+    expect(menuBody()).toContain("<span>Orbit radii</span><kbd>2</kbd>");
 
     useMapChromeStore.setState((s) => ({
       layers: { ...s.layers, details: true },
@@ -190,16 +195,31 @@ describe("the split layer bar", () => {
     }));
     expect(bar()).toMatch(/aria-label="System details" aria-pressed="false"/);
 
-    const rows = menuBody().match(/<button[^>]*>[\s\S]*?<\/button>/g) ?? [];
-    const switchable = rows.filter((row) => !/<button[^>]*disabled/.test(row));
-    const named = (row: string) => live.find((label) => row.includes(`<span>${label}</span>`));
-    expect(switchable.map(named).filter(Boolean).sort()).toEqual([...live].sort());
-    for (const row of switchable) {
-      expect(named(row) !== undefined || row.includes("Reset to defaults")).toBe(true);
-    }
-
     useSceneStore.getState().leaveSystem();
     expect(bar()).toMatch(/aria-label="System details" aria-pressed="true"/);
+    expect(buttonLabels(bar())).toContain("Hyperlanes");
+  });
+
+  it("drops a scenario's masters while a system is shown, and keeps its frames' own reasons", async () => {
+    resetStores();
+    armSession();
+    await openWith(SCENARIO_RESULT);
+    expect(buttonLabels(bar())).toEqual(expect.arrayContaining(["Initializers", "Scripts"]));
+    expect(menuBody()).toContain("master-pill init");
+
+    useSceneStore.getState().enterSystem(0);
+    const html = bar();
+    expect(buttonLabels(html).sort()).toEqual([
+      "Names",
+      "Nebulae",
+      "Orbit radii",
+      "System details",
+    ]);
+    expect(html).not.toContain(`aria-label="${label("scripts")}"`);
+    expect(menuBody()).not.toContain("master-pill");
+    expect(html).toMatch(
+      new RegExp(`aria-label="System details"[^>]*disabled[^>]*title="${NO_GAME_DATA_KEYS_TITLE}"`),
+    );
   });
 
   it("carries nothing to toggle until a document is open", () => {

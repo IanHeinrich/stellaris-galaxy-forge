@@ -3,10 +3,11 @@ import type { EraseTarget } from "../lib/brush/brushTools";
 import type { LaneMode } from "../lib/brush/lanes";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
 import { toolRequires, type Tool } from "../lib/tools";
+import { barShows } from "../lib/visual/barMode";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
-import { sceneSystem } from "./sceneStore";
+import { currentBarMode } from "./sceneStore";
 
 /** What Shift+M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
@@ -126,9 +127,9 @@ function storedNumber(
   return clamp(field.read(), range);
 }
 
-/** Whether the open document can take `tool`; inside a system only Select works. */
+/** Whether the open document can take `tool`; where the bar hides the tools only Select works. */
 export function toolAllowed(tool: Tool): boolean {
-  if (tool !== "select" && sceneSystem() !== null) return false;
+  if (tool !== "select" && !barShows(currentBarMode(), "tools")) return false;
   const requires = toolRequires(tool);
   if (requires === undefined) return true;
   return useFileSessionStore.getState().status === "ready" && canEdit(requires);
