@@ -157,6 +157,13 @@ because the file dialog already asked about overwriting it.
   who use the editor, so an entry describes what they can now see or do.
   Tooling, tests, refactors and anything else that leaves the app
   unchanged take the label instead.
+- The changelog is written in a small subset of Markdown, because the
+  update dialog and the Workshop change note each parse it: `###`
+  headings, `- ` bullets at the start of a line, one nested level of
+  `- ` bullets at two spaces, and wrapped lines indented under their
+  bullet. Inline, only `code`, `**bold**` and `[links](url)`. Anything
+  else shows as plain text. Both parsers' tests read the real
+  `CHANGELOG.md`.
 - To release: `bash scripts/version.sh bump minor` (or
   `patch`/`major`), then `bash scripts/changelog.sh release
   $(cat VERSION)`, which renames Unreleased to `## [x.y.z] - YYYY-MM-DD`

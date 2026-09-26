@@ -1,9 +1,9 @@
 import { BitmapText, Container, Graphics, Sprite, type Texture } from "pixi.js";
 import { MAP_FONT } from "../../../lib/visual/style";
 import type { Hover, Item, Tip } from "./Hover";
+import { ICON_SHADOW_ALPHA, ICON_SHADOW_OFFSET_PX } from "./resources";
 
 const TEXT_STYLE = { fontFamily: MAP_FONT, fontSize: 11, fill: 0xd6dde8 };
-const SHADOW_ALPHA = 0.6;
 
 interface Style {
   fontFamily: string;
@@ -91,13 +91,13 @@ export class Row {
     if (!s) {
       s = new Sprite();
       s.tint = 0x000000;
-      s.alpha = SHADOW_ALPHA;
+      s.alpha = ICON_SHADOW_ALPHA;
       s.eventMode = "none";
       this.shadows.push(s);
       this.shadowLayer.addChild(s);
     }
     this.usedShadows++;
-    fit(s, texture, x + 1, y + 1, size);
+    fit(s, texture, x + ICON_SHADOW_OFFSET_PX, y + ICON_SHADOW_OFFSET_PX, size);
   }
 
   text(str: string, x: number, y: number, tip: Tip | null = null, style = TEXT_STYLE): number {

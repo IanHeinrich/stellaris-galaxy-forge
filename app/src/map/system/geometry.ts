@@ -13,7 +13,7 @@ export const SELECTED_WIDTH_PX = 2;
 export const EXIT_GAP_PX = 6;
 /** A hyperlane arrow's length from base to tip, and its base's width, in screen pixels. */
 export const EXIT_LENGTH_PX = 14;
-export const EXIT_WIDTH_PX = 12;
+const EXIT_WIDTH_PX = 12;
 /** Past the tip, where the arrow's label starts, in screen pixels. */
 export const EXIT_LABEL_GAP_PX = 4;
 /** How far past the inner radius an arrow and its label reach, which the fit keeps in view. */

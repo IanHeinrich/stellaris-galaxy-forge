@@ -3,7 +3,13 @@ import { formatAmount, resourceAbbrev, type ResourceRow } from "../../../lib/det
 import { MAP_FONT } from "../../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
-import { RESOURCE_AMOUNT_PX, RESOURCE_ICON_PX, resourceCell } from "../../layers/details/resources";
+import {
+  ICON_SHADOW_ALPHA,
+  ICON_SHADOW_OFFSET_PX,
+  RESOURCE_AMOUNT_PX,
+  RESOURCE_ICON_PX,
+  resourceCell,
+} from "../../layers/details/resources";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
 import { bodyTier, drawnDisc } from "../geometry";
 import type { PlatePick } from "../picking";
@@ -11,9 +17,7 @@ import { placeLabels, plateScaleAt, type LabelItem } from "./labelSlots";
 import { colonyBarReach, drawPlate, PLATE_PAD_X, PLATE_PAD_Y, type Plate } from "./plate";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
 
-/** A resource icon's drop shadow, and the gap between the plate and the row of icons. */
-const ICON_SHADOW_ALPHA = 0.6;
-const ICON_SHADOW_OFFSET_PX = 1;
+/** The gap between the plate and the row of icons. */
 const RESOURCE_GAP_PX = 2;
 
 /** One shared instance each: PixiJS keys a stroked dynamic bitmap font by the style object. */

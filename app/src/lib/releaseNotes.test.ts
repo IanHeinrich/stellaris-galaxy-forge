@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import changelog from "../../../CHANGELOG.md?raw";
 import { parseReleaseNotes, releaseHeadline } from "./releaseNotes";
 
 describe("the headline of a release's notes", () => {
@@ -18,8 +19,6 @@ describe("the headline of a release's notes", () => {
 describe("a release's notes as blocks", () => {
   it("reads headings, lists and paragraphs, with code, bold and link spans", () => {
     const notes = [
-      "## [0.13.0] - 2026-09-25",
-      "",
       "### Fixed",
       "- **Nebulae** keep their `radius`",
       "  on save.",
@@ -28,7 +27,6 @@ describe("a release's notes as blocks", () => {
       "Thanks for the reports.",
     ].join("\n");
     expect(parseReleaseNotes(notes)).toEqual([
-      { kind: "heading", spans: [{ kind: "text", text: "[0.13.0] - 2026-09-25" }] },
       { kind: "heading", spans: [{ kind: "text", text: "Fixed" }] },
       {
         kind: "list",
@@ -84,5 +82,36 @@ describe("a release's notes as blocks", () => {
         ],
       },
     ]);
+  });
+
+  it("reads a line outside the subset as paragraph text", () => {
+    const notes = [
+      "#### Added",
+      "* A star bullet.",
+      "",
+      "- A bullet.",
+      "wrapped at the margin.",
+      "",
+      "  - An indented bullet with no list.",
+    ].join("\n");
+    const text = (t: string) => [{ kind: "text", text: t }];
+    expect(parseReleaseNotes(notes)).toEqual([
+      { kind: "paragraph", spans: text("#### Added * A star bullet.") },
+      { kind: "list", items: [{ spans: text("A bullet."), items: [] }] },
+      { kind: "paragraph", spans: text("wrapped at the margin.") },
+      { kind: "paragraph", spans: text("- An indented bullet with no list.") },
+    ]);
+  });
+
+  it("reads every section of the changelog as headings and lists alone", () => {
+    const sections = changelog.split(/^## .*$/m).slice(1);
+    expect(sections.length).toBeGreaterThan(10);
+    for (const body of sections) {
+      const blocks = parseReleaseNotes(body);
+      expect(blocks.filter((b) => b.kind === "paragraph")).toEqual([]);
+      const bullets = body.split(/\r?\n/).filter((l) => /^ {0,2}- /.test(l)).length;
+      const items = blocks.flatMap((b) => (b.kind === "list" ? b.items : []));
+      expect(items.length + items.flatMap((i) => i.items).length).toBe(bullets);
+    }
   });
 });

@@ -22,8 +22,13 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   it draws with (`icons`), and its fleets and resources. `planetPage` is one
   body's page: its deposits grouped by type, the district caps they add up to,
   and its planet and timed modifiers as rows. `starBody` says whether a body
-  is a star and what a star body's type and size can change to; `starClass` is the star class pickers and the bulk plan
-  that sets one class on many systems.
+  is a star and what a star body's type and size can change to, and
+  `starClass` is the star class pickers and the bulk plan that sets one
+  class on many systems. `terraform` says whether a body is a terraforming
+  candidate and builds the op that sets it. The system view's layout is
+  `orbits`: where each body, orbit, belt and hyperlane exit sits, from the
+  roll and the details gamedata sends. It walks no initializer itself.
+  `discs` sizes each body's disc.
 - `lib/spatialGrid.ts`: the uniform grid behind nearest-system and range
   queries: hit-testing maths, so it lives here and not in `map/`.
 - The game's concepts, one module each and named for it: `feZone`, `feLinks`,
@@ -53,6 +58,10 @@ use of it.
 
 `lib/visual/` is how it looks: colours, fonts, textures, layer ids and badge
 styles, shared by the map and the panels so both draw the same thing.
+`color` mixes two colours. `barMode` is which bar the chrome shows (a
+save's, a scenario's or a system's) and which layer buttons, controls and
+number keys each offers. It stays beside `layerIds` because most of what it
+gates is layer buttons.
 
 Nothing in `lib/` may import from `store/`, `map/` or `panels/`; `store/` may
 not import `map/` or `panels/`; `map/` may not import `panels/`.

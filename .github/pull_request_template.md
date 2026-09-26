@@ -41,4 +41,4 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] The app's Sol from `testdata/4.4-early.sav` matches the game's Sol view: each planet on the same side of the star, the belts at the same radii, each moon about its planet
 - [ ] Baxom (system 33) shows two stars either side of an empty centre with its planets circling the centre, and Alpha Centauri (system 278) shows the far companion's planets circling that star with their moons about them, as the game draws them
 - [ ] In Sol, the system view's arrow to Alpha Centauri points where the game's own lane arrow does
-- [ ] A scenario system with a `random` or unknown initializer opens in the system view with only its star, and the game rolls its planets at generation
+- [ ] A scenario system with a `random` or unknown initializer opens in the system view with faint placeholder planets, which cannot be selected, rolled by the game's rules for its star, and the game rolls its own planets at generation

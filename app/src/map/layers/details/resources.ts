@@ -15,6 +15,9 @@ import type { Row } from "./Row";
 /** A resource's icon, and its amount's text under it, in screen pixels. */
 export const RESOURCE_ICON_PX = 15;
 export const RESOURCE_AMOUNT_PX = 11;
+/** A resource icon's drop shadow: the icon in black, this far down and right, at this alpha. */
+export const ICON_SHADOW_OFFSET_PX = 1;
+export const ICON_SHADOW_ALPHA = 0.6;
 /** How far below the icon's top the abbreviation that stands in for a missing icon starts. */
 const ABBREV_TOP_PX = 3;
 const AMOUNT_STYLE = { fontFamily: MAP_FONT, fontSize: RESOURCE_AMOUNT_PX, fill: 0xffffff };

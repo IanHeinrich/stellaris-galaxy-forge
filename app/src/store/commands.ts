@@ -65,7 +65,7 @@ export function openSystem(id: number): void {
 }
 
 /** Enter: shows the one selected system, with nothing but the map focused. True when it did. */
-export function enterSelectedSystem(): boolean {
+function enterSelectedSystem(): boolean {
   const { selection } = useEditorStore.getState();
   if (selection.length !== 1 || sceneSystem() !== null || !canEnterSystem() || !mapHasFocus()) {
     return false;

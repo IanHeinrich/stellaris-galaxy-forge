@@ -177,6 +177,9 @@ YAML**.
 - A body in a binary or trinary is lit by the `class` inside its own
   `planet = { key = … class = … }` block. `sc_binary_1`, class
   `a_star`, has a pulsar lit as `pulsar`.
+- A star class whose planet class says `star_gfx = no` is not drawn
+  with the star shader. In vanilla that is `pc_t_star` (the brown
+  dwarf), `pc_rift_star` and `pc_protostar`.
 - The brown dwarf is drawn as a planet is. Its entity,
   `t_star_class_star_entity`, is in
   `gfx/models/planets/distant_stars_planets/_distant_stars_star_entities.asset`
@@ -434,6 +437,20 @@ bodies after it move out with it. It draws a random angle for a block
 with no `orbit_angle`, as the game does. Barnard's Star
 (`sol_neighbor_t1`) gives its planets none, and in the 4.4 sample
 (system 614) they sit at scattered angles about the star.
+
+The system view draws a scenario system from one example roll of that
+walk. Gamedata draws each range with a generator seeded by the system's
+id and a roll number, so the same system and roll always land the same
+way. The details keep the ranges, and the roll gives the one orbit and
+angle each body is drawn at.
+
+Some scenario systems have planets that only the game can place: an
+initializer that is `random`, empty or not in the install, or one that
+places its bodies only through an `inline_script`. For those the roll
+holds placeholder planets instead. The add-system generator rolls them
+for the system's star class, or for any class when no layout makes that
+one. They are then drawn in about the star until the outermost fits
+inside 150, the smallest inner radius a system has.
 
 ## References (for edge cases, never for bundling)
 

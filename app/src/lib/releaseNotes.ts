@@ -15,8 +15,9 @@ export type NoteBlock =
   | { kind: "list"; items: NoteItem[] }
   | { kind: "paragraph"; spans: NoteSpan[] };
 
-const HEADING = /^#{1,6}\s+(.*)$/;
-const BULLET = /^(\s*)[-*]\s+(.*)$/;
+const HEADING = /^### (.*)$/;
+const BULLET = /^- (.*)$/;
+const NESTED = /^ {2}- (.*)$/;
 const INLINE = /`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\([^)]*\)/g;
 
 function spans(text: string): NoteSpan[] {
@@ -50,29 +51,29 @@ function continueItem(item: DraftItem, line: string) {
 }
 
 /**
- * The changelog's Markdown as blocks: headings, bullet lists and paragraphs. An indented bullet
- * nests under the bullet before it, one level deep. A line wrapped inside an entry joins the
- * entry with a space.
+ * The changelog's Markdown as blocks, in the subset `docs/engineering-rules.md` states: `### `
+ * headings, `- ` bullets, a bullet nested at two spaces under the one before it, and indented
+ * lines that continue an entry. A line outside the subset is paragraph text.
  */
 export function parseReleaseNotes(notes: string): NoteBlock[] {
   const drafts: Draft[] = [];
   let open: Draft | null = null;
-  for (const raw of notes.split("\n")) {
+  for (const raw of notes.split(/\r?\n/)) {
     const line = raw.trim();
-    const heading = HEADING.exec(line);
+    const heading = HEADING.exec(raw);
     const bullet = BULLET.exec(raw);
+    const nested = NESTED.exec(raw);
     if (line === "") {
       open = null;
     } else if (heading) {
-      drafts.push({ kind: "heading", text: heading[1] });
+      drafts.push({ kind: "heading", text: heading[1].trim() });
       open = null;
     } else if (bullet) {
-      const nested = bullet[1].length > 0 && open?.kind === "list";
       if (open?.kind !== "list") drafts.push((open = { kind: "list", items: [] }));
-      const text = bullet[2].trim();
-      if (nested) open.items[open.items.length - 1].items.push(text);
-      else open.items.push({ text, items: [] });
-    } else if (open?.kind === "list") {
+      open.items.push({ text: bullet[1].trim(), items: [] });
+    } else if (nested && open?.kind === "list") {
+      open.items[open.items.length - 1].items.push(nested[1].trim());
+    } else if (open?.kind === "list" && raw !== raw.trimStart()) {
       continueItem(open.items[open.items.length - 1], line);
     } else if (open?.kind === "paragraph") {
       open.text += ` ${line}`;

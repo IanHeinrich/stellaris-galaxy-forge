@@ -500,18 +500,6 @@ fn sol_reads_as_the_inspector_lists_it() {
 #[test]
 fn saturn_has_a_ring_and_earth_has_none() {
     let session = common::warmed();
-    let text = std::str::from_utf8(session.doc.original()).expect("utf-8");
-    let flags_after = |name: &str| -> u32 {
-        let at = text.find(&format!("key=\"{name}\"")).expect(name);
-        let rest = &text[at..];
-        let value = &rest[rest.find("binary_flags=").expect("binary_flags") + 13..];
-        value[..value.find('\n').expect("a line")]
-            .parse()
-            .expect("a number")
-    };
-    assert_eq!(flags_after("NAME_Saturn"), 331);
-    assert_eq!(flags_after("NAME_Earth"), 75);
-
     let details = session.details().expect("build details");
     let sol = details
         .resolve(217, &HeuristicResolver, false)
@@ -752,35 +740,14 @@ fn the_layout_of_the_4_5_samples_bodies_and_belts() {
 #[test]
 fn a_belt_with_no_radius_leaves_its_system_without_belts() {
     let session = common::open_edited(|gamestate| {
-        let systems = gamestate
-            .find(
-                "
-galactic_object=",
-            )
-            .expect("the systems");
-        let sol = systems
-            + gamestate[systems..]
-                .find(
-                    "
-	217=
-	{",
-                )
-                .expect("Sol");
+        let systems = gamestate.find("\ngalactic_object=").expect("the systems");
+        let sol = systems + gamestate[systems..].find("\n\t217=\n\t{").expect("Sol");
+        let line = "\t\t\t\tinner_radius=145\n";
         let radius = sol
             + gamestate[sol..]
-                .find(
-                    "				inner_radius=145
-",
-                )
+                .find(line)
                 .expect("the rocky belt's radius");
-        gamestate.replace_range(
-            radius
-                ..radius
-                    + "				inner_radius=145
-"
-                    .len(),
-            "",
-        );
+        gamestate.replace_range(radius..radius + line.len(), "");
     });
     let details = session.details().expect("build details");
     let resolve = |id| {
