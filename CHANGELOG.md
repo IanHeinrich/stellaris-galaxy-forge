@@ -8,6 +8,8 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-26
+
 ### Added
 
 - Double-click a system, or select it and press M, to open the system
@@ -25,25 +27,25 @@ a release is made.
     show under its name.
   - A system inside a nebula shows faint clouds behind it.
   - Names, System details and Nebulae have their own settings in the
-    system view.
+    system view. The other layer buttons and the galaxy's tools are
+    hidden there.
+  - Orbit radii, on key 2 in the system view, labels each orbit with
+    its radius. A selected body shows a line out to it with its radius.
   - Click a body to open its page in the Inspector. Green arrows at the
     edge point along each hyperlane. Double-click one to go to the next
     system.
-  - Orbit radii, on key 2 in the system view, labels each orbit with
-    its radius. A selected body shows a line out to it with its radius.
-  - The layer buttons and tools that only work on the galaxy are hidden
-    in the system view.
-  - Scenario systems open too. They show one example roll of what the
-    initializer sets, with each body placed within its ranges. Roll
-    again, next to the system's name, rolls another.
-  - Select a scenario body to see its distance range as a band and its
-    angle range as a wedge. What the distance and angle are measured
-    from is outlined in blue.
-  - A scenario body's page lists its orbit step, its angle step and
-    whether it has a ring. The angle step names the body it turns from.
-    Click the name to go to that body.
-  - A scenario system with no initializer shows faint placeholder
-    planets. The game rolls its planets when the game starts.
+- Scenario systems open in the system view too.
+  - Each shows one example roll of what its initializer sets, with each
+    body placed within its ranges. Roll again, next to the system's
+    name, rolls another.
+  - Select a body to see its distance range as a band and its angle
+    range as a wedge. What the distance and angle are measured from is
+    outlined in blue.
+  - A body's page lists its orbit step, its angle step and whether it
+    has a ring. The angle step names the body it turns from. Click the
+    name to go to that body.
+  - A system with no initializer shows faint placeholder planets. The
+    game rolls its planets when the game starts.
 - Add system lists Sol and more of the game's named systems, such as
   Barnard's Star, New Bratulla, the Great Wound, Vultaumar and Tiyana
   Vek. They come without their empires, pre-FTL civilisations, guardians
@@ -57,18 +59,18 @@ a release is made.
 
 ### Fixed
 
-- The Inspector shows a system's inner and outer radius when the save
-  writes them with decimals.
-- An added Big Rip system's desert world no longer rolls blockers. The
-  game leaves them off that world.
+- Planets and moons of an added system are placed round their star and
+  planet as the game places them. An added Sol has each planet and moon
+  on the same side as in a new game.
 - Planets of an added system no longer line up in a row when the game
   leaves their positions to chance.
 - Added black hole systems, and other layouts that leave a planet's
-  distance to chance, space their planets as the game does. Before, such
-  a planet could land on the orbit of the one before it or on its star.
-- Planets and moons of an added system are spread round their star and
-  planet as the game spreads them. An added Sol has each planet and moon
-  on the same side as in a new game.
+  distance to chance, no longer put a planet on the orbit of the one
+  before it or on its star.
+- An added Big Rip system's desert world no longer rolls blockers. The
+  game leaves them off that world.
+- The Inspector shows a system's inner and outer radius when the save
+  writes them with decimals.
 
 ## [0.14.1] - 2026-09-25
 
