@@ -13,6 +13,8 @@ use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{
     GenerateError, generate, generate_layout_for, settle_name, star_classes,
 };
+use sgf_gamedata::initializers::InitPlanet;
+use sgf_gamedata::install::script::Range;
 use sgf_gamedata::layouts::{
     CONVERTED_LAYOUTS, DlcNeed, Eligibility, SaveFacts, Unsupported, eligibility, odds,
     special_initializers,
@@ -1168,6 +1170,66 @@ fn a_body_with_no_orbit_distance_is_rolled_10_to_20_past_the_running_orbit() {
                 spec.initializer
             );
         }
+    }
+}
+
+/// In the 4.4 and 4.5 samples and the 16 saves of a later game, each moon lies its
+/// `orbit_angle` on from the moon before it, and the first moon its `orbit_angle` on from
+/// 180°. Sol's Jupiter has four moons with fixed angles, and `basic_init_03`'s gas giants
+/// one to four at 90° to 270°.
+#[test]
+fn each_moon_turns_on_from_the_moon_before() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let turned = |from: f64, to: f64, range: Range| {
+        let turn = (to - from - range.min).rem_euclid(360.0);
+        turn <= range.max - range.min + 0.01 || turn >= 359.99
+    };
+    let mut checked = 0;
+    for layout in ["sol_system_initializer", "basic_init_03"] {
+        let init = gd.initializers.get(layout).unwrap();
+        for seed in 0..20 {
+            let spec = by_name(gd, seed, "Gen", SPOT, layout).unwrap();
+            for planet in spec.planets.iter().filter(|p| !p.moons.is_empty()) {
+                let block = init
+                    .planets
+                    .iter()
+                    .find(|b| match &planet.name {
+                        Some(name) => b.name.as_ref() == Some(name),
+                        None => b.class.written() == planet.class,
+                    })
+                    .unwrap_or_else(|| panic!("{layout}: no block for {}", planet.class));
+                let ranges = moon_angles(block, planet.moons.len());
+                let mut from = 180.0;
+                for (n, (moon, range)) in planet.moons.iter().zip(ranges).enumerate() {
+                    assert!(
+                        turned(from, moon.angle, range),
+                        "{layout} seed {seed}: moon {n} of {} at {}°, {range:?} on from {from}°",
+                        planet.class,
+                        moon.angle
+                    );
+                    from = moon.angle;
+                    checked += 1;
+                }
+            }
+        }
+    }
+    assert!(checked > 100, "{checked} moons");
+}
+
+/// The `orbit_angle` of each of `moons` moons `block` spawns.
+fn moon_angles(block: &InitPlanet, moons: usize) -> Vec<Range> {
+    let angle = |moon: &InitPlanet| moon.orbit_angle.expect("a moon with an angle");
+    match block.moons.as_slice() {
+        [only] => vec![angle(only); moons],
+        several => several
+            .iter()
+            .map(|moon| {
+                assert_eq!(moon.count, Range::fixed(1.0));
+                angle(moon)
+            })
+            .collect(),
     }
 }
 

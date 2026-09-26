@@ -28,6 +28,8 @@ const DEPOSIT_STREAM: u64 = 0x6465_706F;
 const RING_STREAM: u64 = 0x7269_6E67;
 /// The `class` of the star classes the game names from its black hole names.
 const BLACK_HOLE: &str = "black_hole";
+/// The angle a planet's first moon turns its `orbit_angle` on from, in the game's saves.
+const MOON_START: f64 = 180.0;
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum GenerateError {
@@ -439,13 +441,13 @@ fn roll_star<'g>(
 
 /// Rolls an initializer's bodies along [`orbit_walk::walk`], drawing each range. The first
 /// star block gives the star, once however many it counts; one written as a class
-/// (`class = pc_m_star`) keeps that class and is named after the system. Approximated
-/// where the engine's code decides: the first body's angle is drawn at random, as is the
-/// turn of a body whose block gives no angle; a moon's angle is absolute around its planet;
-/// a drawn class is any with odds whose `min/max_distance_from_sun` holds the orbit (a
-/// moon's, its planet's orbit, with classes marked `can_be_moon = no` left out), weighted
-/// by `spawn_odds` times the star's factor for it; and a planet list draws each of its
-/// classes alike.
+/// (`class = pc_m_star`) keeps that class and is named after the system. A planet's moons
+/// walk as the planets do, the first turning from [`MOON_START`]. Approximated where the
+/// engine's code decides: the first body's angle is drawn at random, as is the turn of a
+/// body whose block gives no angle; a drawn class is any with odds whose
+/// `min/max_distance_from_sun` holds the orbit (a moon's, its planet's orbit, with classes
+/// marked `can_be_moon = no` left out), weighted by `spawn_odds` times the star's factor for
+/// it; and a planet list draws each of its classes alike.
 struct Roller<'g> {
     gd: &'g GameData,
     star_class: &'g StarClass,
@@ -514,7 +516,7 @@ impl<'g> Roller<'g> {
             planet_orbit,
             moons: Vec::new(),
         };
-        orbit_walk::walk(blocks, Turn::FromZero, &mut walk)?;
+        orbit_walk::walk(blocks, Turn::FromPrevious(MOON_START), &mut walk)?;
         Ok(walk.moons)
     }
 

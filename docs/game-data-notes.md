@@ -385,7 +385,9 @@ instance turns its `orbit_angle` on from the body before. A planet's
 moons do the same about the planet, starting from 0. System 217 of the
 4.4 sample is Sol, and it matches this within a unit of radius and a
 tenth of a degree once the whole system is turned by 180°, moons
-included. I haven't checked whether that turn is drawn or fixed. A
+included. The turn is fixed. In the two sample saves and the saves of
+one longer game, 242 systems have a first planet with a fixed count and
+angle, and every one of them is turned by 180°. A
 ranged distance or angle shows as a range, and so does every body after
 it. A ranged `count` is laid out as its rounded midpoint. A body with no
 `orbit_angle` can be anywhere on its orbit, and the bodies after it turn
@@ -406,8 +408,16 @@ another orbit. The layout draws such a body as a band 10 to 20 past the
 running orbit, and the bands add up like ranged distances. A distance
 that names an undefined `@variable` is laid out the same way.
 
-The add-system roller walks the same way, but it places each moon at
-its own `orbit_angle`, not on from the moon before. It draws a body
+The add-system roller walks the same way. Each moon turns on from the
+moon before, and a planet's first moon turns from 180°. The two sample
+saves and the saves of one longer game have 537 planets with two or
+more moons that state an `orbit_angle`. In all 970 pairs of
+neighbouring moons, the second lies within its `orbit_angle` of the
+first. Measured instead from one direction for the whole planet (0°,
+180°, the planet's own angle or its first moon), at most 672 of the 970
+fit. Every first
+moon lies within its `orbit_angle` of 180°. The roller still draws the
+planets' starting angle at random. It draws a body
 with no `orbit_distance` 10 to 20 past the running orbit, and the
 bodies after it move out with it. It draws a random angle for a block
 with no `orbit_angle`, as the game does. Barnard's Star

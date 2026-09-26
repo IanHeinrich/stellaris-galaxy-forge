@@ -55,6 +55,8 @@ a release is made.
 - Added black hole systems, and other layouts that leave a planet's
   distance to chance, space their planets as the game does. Before, such
   a planet could land on the orbit of the one before it or on its star.
+- Moons of an added system are spread round their planet as the game
+  spreads them.
 
 ## [0.14.1] - 2026-09-25
 

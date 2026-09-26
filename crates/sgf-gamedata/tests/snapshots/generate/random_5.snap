@@ -9,8 +9,8 @@ pc_m_star 24 orbit 0 angle 84.78 deposits ["d_energy_4"] star
   pc_gas_giant 24 orbit 70 angle 50.05
   pc_asteroid 5 orbit 95 angle 297.41 deposits ["d_minerals_3"] asteroid
   pc_gas_giant 20 orbit 120 angle 199.25 deposits ["d_society_2"]
-    pc_barren_cold 10 orbit 15 angle 118.32
+    pc_barren_cold 10 orbit 15 angle 298.32
   pc_barren 21 orbit 145 angle 107 ring
-    pc_frozen 7 orbit 15 angle 218.27
+    pc_frozen 7 orbit 15 angle 38.27
   pc_gas_giant 24 orbit 170 angle 279.54 deposits ["d_society_2"] ring
-    pc_barren_cold 9 orbit 15 angle 265.94
+    pc_barren_cold 9 orbit 15 angle 85.94
