@@ -20,7 +20,7 @@ use crate::format::save::{entity_at, planet_statement, planet_statements, system
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::projections::name::NameTemplate;
-use crate::projections::read::{self, RawCountry};
+use crate::projections::read::{self, PERMANENT, RawCountry};
 use crate::scan::Index;
 use crate::{as_u32, keys};
 
@@ -65,6 +65,10 @@ pub struct RawPlanet {
     pub deposits: Vec<(String, u32)>,
     /// `colony.<id>.num_sapient_pops`, zero on an uncolonised planet.
     pub pops: u32,
+    /// The modifier names of the planet's permanent `timed_modifier` items (`days = -1`):
+    /// the shape a terraforming candidate modifier is written in, whatever the planet's
+    /// class now says.
+    pub permanent_modifiers: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -312,9 +316,32 @@ pub(super) fn planets(
                 .colony
                 .and_then(|c| colony_pops.get(&c).copied())
                 .unwrap_or(0),
+            permanent_modifiers: permanent_modifiers(&node, src),
         });
     }
     Ok(planet_system)
+}
+
+/// The modifier names of `node`'s permanent `timed_modifier.items` (`days = -1`).
+fn permanent_modifiers(node: &Node, src: &[u8]) -> Vec<String> {
+    let Some(items) = node
+        .find(keys::TIMED_MODIFIER, src)
+        .and_then(|block| block.find(keys::ITEMS, src))
+    else {
+        return Vec::new();
+    };
+    items
+        .children()
+        .iter()
+        .filter(|item| read::text(item, keys::DAYS, src) == PERMANENT)
+        .filter_map(|item| {
+            Some(
+                read::scalar(item, keys::MODIFIER, src)?
+                    .trim_matches('"')
+                    .to_owned(),
+            )
+        })
+        .collect()
 }
 
 /// Where a planet's entry puts it, and whether it has a ring.
@@ -334,16 +361,23 @@ fn placement(node: &Node, src: &[u8]) -> Placement {
     }
 }
 
-/// What planet `id` now says about itself; `None` when the save holds no such planet.
+/// What planet `id` now says about itself, with its permanent `timed_modifier` names;
+/// `None` when the save holds no such planet.
 pub(super) fn planet_facts(
     doc: &Document,
     id: u32,
-) -> Result<Option<facts::planet::PlanetFacts>, ProjectionError> {
+) -> Result<Option<(facts::planet::PlanetFacts, Vec<String>)>, ProjectionError> {
     let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(None);
     };
-    Ok(current_entity(doc, keys::PLANETS, u64::from(id), anchor)?
-        .map(|(node, src)| facts::planet::read(&node, src)))
+    Ok(
+        current_entity(doc, keys::PLANETS, u64::from(id), anchor)?.map(|(node, src)| {
+            (
+                facts::planet::read(&node, src),
+                permanent_modifiers(&node, src),
+            )
+        }),
+    )
 }
 
 /// An entity's `<id>=` node parsed from the bytes now standing for it, which an op may

@@ -80,7 +80,7 @@ fn replace_path_discards_the_vanilla_folder_and_same_filename_replaces() {
     let g = gd.star_classes.get("sc_sun").expect("sc_sun");
     assert_eq!(g.texture_icon(), "g_star_modded");
     assert_eq!(g.icon_scale, 1.5);
-    assert_eq!(g.planet_keys, ["pc_sun_star"]);
+    assert_eq!(g.planet_keys().collect::<Vec<_>>(), ["pc_sun_star"]);
     assert!(gd.star_classes.get("sc_two").is_some());
     assert_eq!(gd.star_classes.len(), 2);
     assert!(
@@ -99,9 +99,12 @@ fn star_classes_read_hsv_colour_icon_scale_default_and_every_star_body() {
     assert_eq!(k.icon_scale, 1.0);
     let hole = gd.star_classes.get("sc_pit").expect("sc_pit");
     assert_eq!(hole.icon_scale, 2.0);
-    assert_eq!(hole.planet_keys, ["pc_pit"]);
+    assert_eq!(hole.planet_keys().collect::<Vec<_>>(), ["pc_pit"]);
     let pair = gd.star_classes.get("sc_pair").expect("sc_pair");
-    assert_eq!(pair.planet_keys, ["pc_sun_star", "pc_ember_star"]);
+    assert_eq!(
+        pair.planet_keys().collect::<Vec<_>>(),
+        ["pc_sun_star", "pc_ember_star"]
+    );
 }
 
 #[test]
@@ -127,7 +130,7 @@ fn randomizer_lists_are_not_star_classes_but_a_placeholder_without_bodies_is() {
         .star_classes
         .get("sc_placeholder")
         .expect("sc_placeholder");
-    assert!(placeholder.planet_keys.is_empty());
+    assert!(placeholder.planet_keys().next().is_none());
 }
 
 #[test]

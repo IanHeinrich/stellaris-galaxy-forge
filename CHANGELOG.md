@@ -26,6 +26,8 @@ a release is made.
 - An undo in the system view keeps the view where it was.
 - A body's tooltip in the system view shows its name as soon as the name
   loads, without moving the pointer.
+- A planet that keeps a terraforming candidate from an earlier class
+  shows the Edit mark in the system's planet list.
 
 ## [0.15.0] - 2026-09-26
 

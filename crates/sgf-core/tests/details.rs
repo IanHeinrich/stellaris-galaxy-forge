@@ -2,10 +2,12 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
 
+use sgf_core::entity::get_planet_page;
 use sgf_core::format::save::details::{
     ArchaeologySite, Bounds, DepositCount, DetailsResolver, FleetPresence, FleetSummary,
     HeuristicResolver, MegastructureSummary, ResourceAmount, SystemDetails,
 };
+use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::FlagRef;
 use sgf_core::projections::name::{NameTemplate, NameVariable};
 
@@ -761,6 +763,99 @@ fn a_belt_with_no_radius_leaves_its_system_without_belts() {
     assert_eq!(sol.planets.len(), 24);
     let radii: Vec<f64> = resolve(17).belts.iter().map(|b| b.inner_radius).collect();
     assert_eq!(radii, [85.0, 195.0]);
+}
+
+/// Barren planet 585 carries no modifiers until `SetTerraformCandidate` adds one; the
+/// resolved details pick it up without a full projection rebuild (only its planet is stale).
+#[test]
+fn a_terraform_candidate_modifier_reaches_the_resolved_planet() {
+    let mut session = common::open_4_5();
+    let system = get_planet_page(&session.doc, 585)
+        .expect("planet 585")
+        .system
+        .expect("planet 585 orbits a system");
+    let modifiers_of = |session: &sgf_core::session::Session| {
+        session
+            .details()
+            .expect("build details")
+            .resolve(system, &HeuristicResolver, false)
+            .expect("system resolved")
+            .planets
+            .iter()
+            .find(|p| p.id == 585)
+            .expect("planet 585")
+            .permanent_modifiers
+            .clone()
+    };
+    assert_eq!(modifiers_of(&session), Some(Vec::new()));
+
+    let result = session
+        .apply(Op::SetTerraformCandidate {
+            id: 585,
+            modifier: "terraforming_candidate".to_owned(),
+            on: true,
+            copies: None,
+        })
+        .expect("add the candidate");
+    assert_eq!(result.details_stale, vec![system]);
+    assert_eq!(
+        modifiers_of(&session),
+        Some(vec!["terraforming_candidate".to_owned()])
+    );
+}
+
+/// A fresh build (not the refresh path) keeps a planet's permanent modifiers and drops a
+/// temporary one, which the terraform op could never remove and which the game data's
+/// candidate list never carries a checkbox for.
+#[test]
+fn the_build_path_keeps_only_permanent_modifiers() {
+    let session = common::open_edited_sample(common::SAMPLE_4_5, |gamestate, _| {
+        let planet = gamestate
+            .find(
+                "
+\t\t585=
+\t\t{",
+            )
+            .expect("planet 585");
+        let anchor = "\t\t\tbombardment_damage=0
+";
+        let at = planet
+            + gamestate[planet..]
+                .find(anchor)
+                .expect("its bombardment_damage");
+        let block = "\t\t\ttimed_modifier=
+\t\t\t{
+\t\t\t\titems=
+\t\t\t\t{
+\t\t\t\t\t{
+\t\t\t\t\t\tmodifier=\"terraforming_candidate\"
+\t\t\t\t\t\tdays=-1
+\t\t\t\t\t}
+\t\t\t\t\t{
+\t\t\t\t\t\tmodifier=\"frozen_terraforming_candidate\"
+\t\t\t\t\t\tdays=120
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t}
+";
+        gamestate.insert_str(at + anchor.len(), block);
+    });
+    let system = get_planet_page(&session.doc, 585)
+        .expect("planet 585")
+        .system
+        .expect("planet 585 orbits a system");
+    let modifiers = session
+        .details()
+        .expect("build details")
+        .resolve(system, &HeuristicResolver, false)
+        .expect("system resolved")
+        .planets
+        .iter()
+        .find(|p| p.id == 585)
+        .expect("planet 585")
+        .permanent_modifiers
+        .clone();
+    assert_eq!(modifiers, Some(vec!["terraforming_candidate".to_owned()]));
 }
 
 fn layout_report(system: &SystemDetails) -> String {

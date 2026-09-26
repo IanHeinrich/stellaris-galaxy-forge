@@ -292,7 +292,7 @@ impl StarClassView {
             }
             .to_string(),
             icon_scale: sc.icon_scale,
-            planet_keys: sc.planet_keys.clone(),
+            planet_keys: sc.planet_keys().map(str::to_owned).collect(),
             crisis_star_class: sc.crisis_star_class.clone(),
             spawn_odds: sc.spawn_odds,
             localised: loc.raw(&sc.key).is_some(),

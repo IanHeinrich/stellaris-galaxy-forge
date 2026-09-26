@@ -351,7 +351,7 @@ fn single_star_list(gd: &GameData, init: &Initializer) -> bool {
     list.stars.iter().all(|key| {
         gd.star_classes
             .get(key)
-            .is_some_and(|class| class.planet_keys.len() == 1)
+            .is_some_and(|class| class.planets.len() == 1)
     })
 }
 
@@ -461,7 +461,7 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     };
     let mut counts = stars
         .iter()
-        .map(|star| gd.star_classes.get(star).map(|c| c.planet_keys.len()));
+        .map(|star| gd.star_classes.get(star).map(|c| c.planets.len()));
     if counts.clone().any(|count| count.is_none_or(|n| n == 0)) {
         return Some(Unsupported::NoStar);
     }
@@ -507,7 +507,7 @@ pub(crate) fn layout_stars<'g>(gd: &'g GameData, init: &Initializer) -> Vec<&'g 
     let Some(class) = written else {
         return stars;
     };
-    let is = |star: &&StarClass| star.planet_keys == [class];
+    let is = |star: &&StarClass| star.planet_keys().eq([class]);
     let agreeing: Vec<&StarClass> = stars.into_iter().filter(is).collect();
     match agreeing.is_empty() {
         true => gd.star_classes.iter().filter(is).collect(),

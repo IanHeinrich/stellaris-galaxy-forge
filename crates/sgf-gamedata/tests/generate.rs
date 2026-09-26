@@ -300,7 +300,11 @@ fn every_rolled_body_is_a_real_class_of_a_size_and_orbit_it_allows() {
     for (seed, spec) in specs(gd).iter().enumerate() {
         let init = gd.initializers.get(&spec.initializer).unwrap();
         let star_class = gd.star_classes.get(&spec.star_class).unwrap();
-        assert_eq!(spec.star.class, star_class.planet_keys[0], "seed {seed}");
+        assert_eq!(
+            spec.star.class,
+            star_class.planet_keys().next().unwrap(),
+            "seed {seed}"
+        );
         assert!(gd.planet_classes.get(&spec.star.class).unwrap().star);
         assert_eq!(spec.star.orbit, 0.0);
         assert!(within(
@@ -591,7 +595,11 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
         for seed in 0..40 {
             let spec = generate(gd, seed, "Gen", SPOT, Some(class), ABUNDANCE).expect("a system");
             assert_eq!(spec.star_class, *class, "seed {seed}");
-            assert_eq!(spec.star.class, star.planet_keys[0], "seed {seed}");
+            assert_eq!(
+                spec.star.class,
+                star.planet_keys().next().unwrap(),
+                "seed {seed}"
+            );
             let plain_layout = plain_initializers(gd)
                 .iter()
                 .any(|i| i.name == spec.initializer);

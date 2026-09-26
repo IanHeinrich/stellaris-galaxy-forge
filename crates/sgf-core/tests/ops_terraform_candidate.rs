@@ -52,7 +52,11 @@ fn a_barren_planet_without_timed_modifiers_becomes_a_candidate_and_back() {
         "Make planet #585 a terraforming candidate (terraforming_candidate)"
     );
     assert_eq!(result.inverse, set(585, CANDIDATE, false));
-    assert!(result.details_stale.is_empty());
+    let system = get_planet_page(&session.doc, 585)
+        .expect("planet 585")
+        .system
+        .expect("planet 585 orbits a system");
+    assert_eq!(result.details_stale, vec![system]);
     assert!(!result.reclassifies);
 
     let removed = session.apply(result.inverse).expect("remove the candidate");

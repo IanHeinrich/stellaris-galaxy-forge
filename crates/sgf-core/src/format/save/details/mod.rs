@@ -55,9 +55,9 @@ impl DetailsProjection {
         Ok(Self { by_system })
     }
 
-    /// Read again the class, size and parent of each of `planets`, as (planet, system),
-    /// from the bytes now standing for it, leaving where it stands as it was projected:
-    /// the ops that take this path never move a body.
+    /// Read again the class, size, parent and modifiers of each of `planets`, as (planet,
+    /// system), from the bytes now standing for it, leaving where it stands as it was
+    /// projected: the ops that take this path never move a body.
     pub fn refresh_planets(
         &mut self,
         doc: &Document,
@@ -71,11 +71,12 @@ impl DetailsProjection {
             else {
                 continue;
             };
-            if let Some(facts) = extract::planet_facts(doc, id)? {
+            if let Some((facts, modifiers)) = extract::planet_facts(doc, id)? {
                 planet.class = facts.class;
                 planet.size = facts.size;
                 planet.moon = facts.moon_of.is_some();
                 planet.parent = facts.moon_of;
+                planet.permanent_modifiers = modifiers;
             }
         }
         Ok(())
