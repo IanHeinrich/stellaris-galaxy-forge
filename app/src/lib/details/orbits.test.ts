@@ -253,6 +253,7 @@ describe("scenario bodies", () => {
           scenario(5, { orbit: { min: 60, max: 60 } }),
         ],
       }),
+      { scenario: true },
     );
     const at = (id: number) => [body(layout, id).x, body(layout, id).y];
     const near = (a: number[], b: { x: number; y: number }) => {
@@ -274,11 +275,40 @@ describe("scenario bodies", () => {
           scenario(2, { orbit: { min: 95, max: 95 }, angle: { min: 91, max: 991 } }),
         ],
       }),
+      { scenario: true },
     );
     const [a, b] = [body(layout, 1), body(layout, 2)];
     expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeCloseTo(190);
     expect(a.ghost).toBe(false);
     expect(a.arc).toEqual({ from: 271, to: 811 });
+  });
+
+  it("puts a ghost in the widest gap the placed bodies on its ring leave, never on one of them", () => {
+    const layout = systemLayout(
+      systemDetails({
+        planets: [
+          scenario(1, { orbit: { min: 40, max: 40 }, angle: { min: 0, max: 0 } }),
+          scenario(2, { orbit: { min: 40, max: 40 }, angle: { min: 240, max: 240 } }),
+          scenario(3, { orbit: { min: 40, max: 40 } }),
+        ],
+      }),
+      { scenario: true },
+    );
+    expect(body(layout, 3).angle).toBeCloseTo(120);
+  });
+
+  it("leaves a save's bodies with no point where they were drawn before, at angle 0 on their orbit", () => {
+    const pointless = (id: number) =>
+      planetSummary({
+        id,
+        orbit: 50,
+        layout: { orbit: { min: 50, max: 50 }, angle: null, at: null, size: null },
+      });
+    const layout = systemLayout(systemDetails({ planets: [pointless(1), pointless(2)] }));
+    for (const id of [1, 2]) {
+      expect(body(layout, id).x).toBeCloseTo(50);
+      expect(body(layout, id).y).toBeCloseTo(0);
+    }
   });
 
   it("draws a ranged size at the middle of its range", () => {

@@ -31,11 +31,12 @@ const fixed = (value: number) => ({ min: value, max: value });
 const STAR_CLASSES: ReadonlyMap<string, StarClassView> = new Map(
   [
     starClassView("sc_g", "pc_g_star"),
+    starClassView("sc_a", "pc_a_star"),
     starClassView("sc_b", "pc_b_star"),
     starClassView("sc_pulsar", "pc_pulsar"),
     starClassView("sc_black_hole", "pc_black_hole"),
     starClassView("sc_t", "pc_t_star"),
-    starClassView("sc_binary_5", "pc_b_star", "pc_b_star"),
+    starClassView("sc_binary_ab", "pc_a_star", "pc_b_star"),
   ].map((view) => [view.key, view]),
 );
 
@@ -46,8 +47,8 @@ const iconed = (key: string): PlanetClassView => ({
 
 const PLANET_CLASSES: ReadonlyMap<string, PlanetClassView> = new Map(
   [
-    ...["pc_g_star", "pc_b_star", "pc_pulsar", "pc_black_hole", "pc_t_star"].map((key) =>
-      planetClassView(key),
+    ...["pc_g_star", "pc_a_star", "pc_b_star", "pc_pulsar", "pc_black_hole", "pc_t_star"].map(
+      (key) => planetClassView(key),
     ),
     ...["pc_continental", "pc_barren", "pc_broken", "pc_asteroid"].map(iconed),
   ].map((view) => [view.key, view]),
@@ -294,9 +295,26 @@ describe("a system drawn from a save and from a scenario", () => {
   });
 
   it("resolves and draws a binary alike, each star as the class's planet in turn", () => {
-    expectParity("sc_binary_5", [
-      { ...star("pc_b_star", "sc_binary_5", 30), orbit: 25 },
-      { ...star("pc_b_star", "sc_binary_5", 20), id: 2, orbit: 25, angle: 180 },
+    const binary = [
+      { ...star("pc_a_star", "sc_binary_ab", 30), orbit: 25 },
+      { ...star("pc_b_star", "sc_binary_ab", 20), id: 2, orbit: 25, angle: 180 },
+    ];
+    expectParity("sc_binary_ab", binary);
+    const stars = asScenario("sc_binary_ab", binary).bodies;
+    expect(stars.map((b) => [b.surfaceClass, b.starClass])).toEqual([
+      ["pc_a_star", "sc_a"],
+      ["pc_b_star", "sc_b"],
+    ]);
+  });
+
+  it("leaves a save body with no class a planet, not a star", () => {
+    const ctx = asSave("sc_g", [
+      star("pc_g_star", "sc_g"),
+      { id: 2, saveClass: "", scenarioClass: "", orbit: 50, angle: 0, size: 10 },
+    ]);
+    expect(ctx.bodies.map((b) => [b.placement.star, b.starClass])).toEqual([
+      [true, "sc_g"],
+      [false, null],
     ]);
   });
 

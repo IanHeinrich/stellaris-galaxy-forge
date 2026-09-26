@@ -4,7 +4,7 @@ import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { bodyClassName, bodyName } from "../../../lib/details/labels";
 import { resourceRows } from "../../../lib/details/resources";
-import { isStarBody } from "../../../lib/details/starBody";
+import type { ResolvedClass } from "../../../lib/details/bodyClass";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
@@ -13,7 +13,7 @@ import { DrillLink, Empty, Properties, PropertyRow, Section } from "../parts";
 import { StarRowIcon } from "../StarIcon";
 import { PlanetIcon, PlanetSize, Pills } from "../system/sections/bodies";
 import { PlanetRow } from "../system/sections/Planets";
-import { useSingleStarClasses } from "./useBodyClasses";
+import { useResolvedClass } from "./useBodyClasses";
 import "./entity.css";
 
 /** `16`, or `10–20` for a value the game rolls between two bounds; `random` for none given. */
@@ -28,13 +28,18 @@ function randomClass(planetClass: string): boolean {
   return planetClass === "" || planetClass === "random" || planetClass.startsWith("random_");
 }
 
-function Head({ name, body }: { name: string; body: PlanetSummary | null }) {
+interface HeadProps {
+  name: string;
+  body: PlanetSummary | null;
+  /** The body's class as the system view draws it. */
+  resolved?: ResolvedClass;
+}
+
+function Head({ name, body, resolved }: HeadProps) {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
-  const key = body?.class ?? "";
-  // A scenario's star comes as its system's star class, a save's as its planet class.
-  const own = useSingleStarClasses().get(key) ?? starClasses.get(key);
-  const star = body !== null && isStarBody(body.class, planetClasses, starClasses);
+  const own = resolved?.starClass ? starClasses.get(resolved.starClass) : undefined;
+  const star = body !== null && resolved?.star === true;
   return (
     <div className={`ins-head${star ? " ins-star-head" : " pl-head"}`}>
       {body !== null &&
@@ -106,11 +111,12 @@ function Moons({ details, body }: { details: SystemDetails; body: PlanetSummary 
 
 function BodyOverview({ details, body }: { details: SystemDetails; body: PlanetSummary }) {
   const names = useGameDataStore((s) => s.names);
+  const resolved = useResolvedClass(details, body.id);
   const layout = body.layout;
   const size = layout?.size ?? (body.size === null ? null : { min: body.size, max: body.size });
   return (
     <>
-      <Head name={bodyName(body, names)} body={body} />
+      <Head name={bodyName(body, names)} body={body} resolved={resolved} />
       <Properties>
         <PropertyRow label="Class">
           {randomClass(body.class) ? "random" : bodyClassName(body.class, names)}

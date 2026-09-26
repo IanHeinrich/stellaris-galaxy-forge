@@ -11,15 +11,14 @@ import {
   systemLayout,
   type BeltBand,
   type BodyPlacement,
-  type LaidClass,
   type SystemLayout,
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
-import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
+import { resolveBodyClasses, type ResolvedClass } from "../../lib/details/bodyClass";
+import { isStarBody, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import { clusterOffsets } from "../../lib/visual/starCluster";
-import { effectiveStarClass } from "../../lib/visual/starGlyphs";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -213,73 +212,6 @@ export function sameSources(a: SystemSources, b: SystemSources): boolean {
   return SOURCES.every((key) => a[key] === b[key]);
 }
 
-let singlesFrom: ReadonlyMap<string, StarClassView> | null = null;
-let singles: ReadonlyMap<string, StarClassView> = new Map();
-
-function singlesOf(starClasses: ReadonlyMap<string, StarClassView>) {
-  if (starClasses !== singlesFrom) {
-    singlesFrom = starClasses;
-    singles = singleStarClasses(starClasses);
-  }
-  return singles;
-}
-
-/** A body's class as the scene resolves it from what its source writes. */
-interface ResolvedClass extends LaidClass {
-  /** The star class a star is drawn as; null for a planet. */
-  starClass: string | null;
-  /** The class is a draw. */
-  drawn: boolean;
-}
-
-/** The class a system's star is drawn as when its source gives it none. */
-function systemStarClass(node: SystemNode | null, src: SystemSources): string {
-  if (!node) return "";
-  return effectiveStarClass(node, src.initializerClasses.get(node.initializer), src.kind);
-}
-
-/** A class written in place of a planet class: a random draw, or a list the install does not define. */
-function drawnClass(planetClass: string, src: SystemSources): boolean {
-  if (planetClass === "random" || planetClass.startsWith("random_")) return true;
-  const defined = src.planetClasses.size === 0 || src.planetClasses.has(planetClass);
-  return src.kind === "scenario" && !defined;
-}
-
-/**
- * Each body's class, in the order the source lists them. A scenario writes a star as the bare
- * `star`, or as the system's star class, and each such star takes the class's next planet. A
- * star is drawn as the single-star class of its planet, as a save's is.
- */
-function resolveClasses(
-  written: readonly { id: number; class: string }[],
-  node: SystemNode | null,
-  src: SystemSources,
-): Map<number, ResolvedClass> {
-  const system = systemStarClass(node, src);
-  const singles = singlesOf(src.starClasses);
-  const resolved = new Map<number, ResolvedClass>();
-  let nth = 0;
-  for (const { id, class: planetClass } of written) {
-    const bare = planetClass === STAR_BODY_CLASS || planetClass === "";
-    const named = src.starClasses.has(planetClass) && !src.planetClasses.has(planetClass);
-    const asStarClass = bare ? system : named ? planetClass : null;
-    let surface = planetClass;
-    if (asStarClass !== null) {
-      const keys = src.starClasses.get(asStarClass)?.planet_keys ?? [];
-      surface = keys[nth] ?? keys[0] ?? planetClass;
-      nth++;
-    }
-    const star = asStarClass !== null || isStarBody(surface, src.planetClasses, src.starClasses);
-    resolved.set(id, {
-      planetClass: surface,
-      star,
-      starClass: star ? (singles.get(surface)?.key ?? asStarClass ?? system) : null,
-      drawn: !star && drawnClass(planetClass, src),
-    });
-  }
-  return resolved;
-}
-
 type BodyArt = Pick<
   SceneBody,
   "surfaceClass" | "starClass" | "look" | "iconKeys" | "largeIconKeys" | "atmosphere"
@@ -333,7 +265,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
   const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
   const listed = (node?.bodies ?? []).filter((b) => isStar(b.class));
   const stars = listed.length > 0 ? listed : [{ class: STAR_BODY_CLASS, size: null }];
-  const classes = resolveClasses(
+  const classes = resolveBodyClasses(
     stars.map((star, i) => ({ id: i, class: star.class })),
     node,
     src,
@@ -441,8 +373,11 @@ function sceneExits(src: SystemSources, node: SystemNode | null, radius: number)
 /** Where everything of the system `src` names is drawn. */
 export function systemContext(src: SystemSources): SystemContext {
   const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
-  const classes = resolveClasses(src.details?.planets ?? [], node, src);
-  const layout = systemLayout(src.details, (planet) => classes.get(planet.id));
+  const classes = resolveBodyClasses(src.details?.planets ?? [], node, src);
+  const layout = systemLayout(src.details, {
+    classOf: (planet) => classes.get(planet.id),
+    scenario: src.kind === "scenario",
+  });
   return Object.freeze({
     ...src,
     node,

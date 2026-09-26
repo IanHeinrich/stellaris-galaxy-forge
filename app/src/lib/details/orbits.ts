@@ -174,11 +174,37 @@ function ringKey(planet: PlanetSummary): string | null {
 }
 
 /**
- * The angle each body free to stand anywhere on its ring is drawn at: a ghost, or one whose angle
- * ranges over a turn or more. They share the ring out evenly with the bodies an angle places
- * there, so no two stand on one point. The share starts from the first body placed on the ring,
- * else from the middle of the first free body's range, which keeps free bodies on different
- * rings from lining up.
+ * The angles `count` bodies free to stand anywhere on a ring are drawn at, so none stands on
+ * another or on a body an angle places there at `placed`. Each goes into the widest gap left,
+ * the bodies in one gap spaced evenly across it. With nothing placed they share the ring evenly
+ * from `start`.
+ */
+function spread(placed: readonly number[], count: number, start: number): number[] {
+  if (placed.length === 0) {
+    return Array.from({ length: count }, (_, i) => start + (i * 360) / count);
+  }
+  const at = placed.map((a) => ((a % 360) + 360) % 360).sort((a, b) => a - b);
+  const gaps = at.map((from, i) => ({
+    from,
+    width: (i + 1 < at.length ? at[i + 1] : at[0] + 360) - from,
+    bodies: 0,
+  }));
+  for (let n = 0; n < count; n++) {
+    const widest = gaps.reduce((a, b) =>
+      b.width / (b.bodies + 1) > a.width / (a.bodies + 1) ? b : a,
+    );
+    widest.bodies++;
+  }
+  return gaps.flatMap(({ from, width, bodies }) =>
+    Array.from({ length: bodies }, (_, i) => from + ((i + 1) * width) / (bodies + 1)),
+  );
+}
+
+/**
+ * The angle each body free to stand anywhere on its ring is drawn at, in a scenario: a ghost, or
+ * one whose angle ranges over a turn or more. Where the ring has no placed body, the share starts
+ * from the middle of the first free body's range, which keeps free bodies on different rings
+ * from lining up.
  */
 function freeAngles(planets: readonly PlanetSummary[]): Map<number, number> {
   const rings = new Map<string, { placed: number[]; free: number[]; start: number | null }>();
@@ -197,11 +223,8 @@ function freeAngles(planets: readonly PlanetSummary[]): Map<number, number> {
   }
   const angles = new Map<number, number>();
   for (const { placed, free, start } of rings.values()) {
-    const slots = placed.length + free.length;
-    const from = placed[0] ?? start ?? 0;
-    free.forEach((id, i) => {
-      angles.set(id, from + ((placed.length + i) * 360) / slots);
-    });
+    const at = spread(placed, free.length, start ?? 0);
+    free.forEach((id, i) => angles.set(id, at[i]));
   }
   return angles;
 }
@@ -212,14 +235,24 @@ interface Placed {
   parent: Placed | null;
 }
 
+export interface LayoutOptions {
+  /** The class each body is drawn and sized as; the class its source writes by default. */
+  classOf?: (planet: PlanetSummary) => LaidClass | undefined;
+  /**
+   * The bodies are a scenario's, whose angles may be left to chance: bodies free to stand
+   * anywhere on a ring share it out rather than all standing at angle 0.
+   */
+  scenario?: boolean;
+}
+
 /** Every body's point, circle and angles, the belts, and the radius the camera fits. */
 export function systemLayout(
   details: SystemDetails | null,
-  classOf: (planet: PlanetSummary) => LaidClass | undefined = writtenClass,
+  { classOf = writtenClass, scenario = false }: LayoutOptions = {},
 ): SystemLayout {
   const planets = details?.planets ?? [];
   const byId = new Map(planets.map((p) => [p.id, p]));
-  const free = freeAngles(planets);
+  const free = scenario ? freeAngles(planets) : new Map<number, number>();
   const placed = new Map<number, Placed>();
   const inProgress = new Set<number>();
 

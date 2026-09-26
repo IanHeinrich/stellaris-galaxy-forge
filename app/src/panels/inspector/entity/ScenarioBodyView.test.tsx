@@ -151,6 +151,31 @@ describe("a scenario body's page", () => {
     expect(lastDrawn((el) => el.type === StarRowIcon, "the star's icon").view).toBe(pulsar);
   });
 
+  it("heads each star of a binary with its own class's icon, as the system view draws it", async () => {
+    const binary = starClassView("sc_binary_ab", "pc_a_star", "pc_b_star");
+    const a = starClassView("sc_a", "pc_a_star");
+    const b = starClassView("sc_b", "pc_b_star");
+    await open("scenario");
+    useGameDataStore.setState({
+      starClasses: new Map([binary, a, b].map((view) => [view.key, view])),
+      planetClasses: new Map(["pc_a_star", "pc_b_star"].map((key) => [key, planetClassView(key)])),
+    });
+    const first = planet(98, "Primary", {
+      class: "sc_binary_ab",
+      layout: layout({ orbit: fixed(25), angle: fixed(0) }),
+    });
+    const second = planet(99, "Companion", {
+      class: "sc_binary_ab",
+      layout: layout({ orbit: fixed(25), angle: fixed(180) }),
+    });
+    await land(details({ planets: [first, second] }));
+
+    drawnBy(() => page(99, "Companion"));
+    expect(lastDrawn((el) => el.type === StarRowIcon, "the star's icon").view).toBe(b);
+    drawnBy(() => page(98, "Primary"));
+    expect(lastDrawn((el) => el.type === StarRowIcon, "the star's icon").view).toBe(a);
+  });
+
   it("waits for the system's record, and says so when the record does not list the body", async () => {
     await open("scenario");
     expect(page(100, "Tarkin")).toContain("Reading the system…");

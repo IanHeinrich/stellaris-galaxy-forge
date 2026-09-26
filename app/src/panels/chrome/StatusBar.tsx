@@ -167,10 +167,11 @@ function bodyReadout(
   id: number,
   names: Names,
   isStar: (planetClass: string) => boolean,
+  scenario: boolean,
 ): string | null {
   const planet = details.planets.find((p) => p.id === id);
   const classOf = (p: PlanetSummary) => ({ planetClass: p.class, star: isStar(p.class) });
-  const placed = systemLayout(details, classOf).bodies.find((b) => b.id === id);
+  const placed = systemLayout(details, { classOf, scenario }).bodies.find((b) => b.id === id);
   if (!planet || !placed) return null;
   const name = bodyName(planet, names);
   if (placed.ring === null) return name;
@@ -198,11 +199,12 @@ function SceneHint({ system }: { system: number }) {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const sceneHint = useMapChromeStore((s) => s.sceneHint);
+  const scenario = useFileSessionStore((s) => s.kind === "scenario");
   if (reading) return <span className="muted">Reading the system…</span>;
   if (sceneHint !== null) return <span className="muted">{sceneHint}</span>;
   const isStar = (c: string) => isStarBody(c, planetClasses, starClasses);
   const id = top === undefined ? null : bodyOn(top.ref, system);
-  const body = details && id !== null ? bodyReadout(details, id, names, isStar) : null;
+  const body = details && id !== null ? bodyReadout(details, id, names, isStar, scenario) : null;
   return <span className="muted">{body ?? LEAVE_HINT}</span>;
 }
 
