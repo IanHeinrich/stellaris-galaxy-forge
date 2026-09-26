@@ -93,14 +93,18 @@ function artScale(body: SceneBody): number {
   return body.placement.star ? STAR_ART_SCALE : PLANET_ART_SCALE;
 }
 
-/** The game's asteroid kinds share one icon and differ only in their models; a tint tells them apart. */
-const ASTEROID_TINTS: Array<[RegExp, number]> = [
+/**
+ * The game's asteroid kinds share one icon and differ only in their models; a glaze of the icon
+ * added over itself in the kind's colour tells them apart.
+ */
+const ASTEROID_GLAZES: Array<[RegExp, number]> = [
   [/ice_asteroid/, ICY_TINT],
   [/crystal_asteroid/, 0xd9b3ff],
 ];
+const GLAZE_ALPHA = 0.6;
 
-function artTint(planetClass: string): number {
-  return ASTEROID_TINTS.find(([pattern]) => pattern.test(planetClass))?.[1] ?? 0xffffff;
+function glazeTint(planetClass: string): number | null {
+  return ASTEROID_GLAZES.find(([pattern]) => pattern.test(planetClass))?.[1] ?? null;
 }
 
 function bodyTint(body: SceneBody): number {
@@ -173,6 +177,7 @@ interface Drawn {
   body: SceneBody;
   glow: Sprite | null;
   horizon: Graphics | null;
+  glaze: Sprite | null;
   ring: Ring | null;
   disc: Sprite;
   lit: Sprite | null;
@@ -289,12 +294,20 @@ export class BodiesLayer implements SystemLayer {
     }
     const art = sprite("art", Texture.EMPTY);
     art.visible = false;
-    art.tint = artTint(body.planetClass);
     // As on the galaxy map: the art's black ground adds nothing, so only its light shows.
     if (placement.star || luminous(body.planetClass)) art.blendMode = STAR_ART_BLEND;
     // A black hole's swirl is its accretion disc, seen round the black of the hole.
     if (hole) holder.setChildIndex(art, holder.getChildIndex(disc));
     const horizon = hole ? graphics("horizon") : null;
+    const glazed = glazeTint(body.planetClass);
+    let glaze: Sprite | null = null;
+    if (glazed !== null) {
+      glaze = sprite("glaze", Texture.EMPTY);
+      glaze.visible = false;
+      glaze.tint = glazed;
+      glaze.blendMode = "add";
+      glaze.alpha = GLAZE_ALPHA;
+    }
     let shade: Sprite | null = null;
     if (!placement.star && !irregular(body.planetClass)) {
       shade = sprite(
@@ -318,7 +331,19 @@ export class BodiesLayer implements SystemLayer {
     }
     let outline: Graphics | null = null;
     if (placement.ghost) {
-      const faded = [glow, ring?.back, ring?.front, disc, lit, art, horizon, shade, rim, glyph];
+      const faded = [
+        glow,
+        ring?.back,
+        ring?.front,
+        disc,
+        lit,
+        art,
+        horizon,
+        glaze,
+        shade,
+        rim,
+        glyph,
+      ];
       for (const part of faded) if (part) part.alpha *= GHOST_ALPHA;
       outline = graphics("outline");
     }
@@ -327,6 +352,7 @@ export class BodiesLayer implements SystemLayer {
       body,
       glow,
       horizon,
+      glaze,
       ring,
       disc,
       lit,
@@ -369,6 +395,10 @@ export class BodiesLayer implements SystemLayer {
     const texture = iconless ? null : (this.resolve(wanted) ?? landed(other));
     art.texture = texture ?? Texture.EMPTY;
     art.visible = texture !== null;
+    if (drawn.glaze) {
+      drawn.glaze.texture = art.texture;
+      drawn.glaze.visible = art.visible;
+    }
     if (body.placement.star) return;
     // The tinted disc only holds the place until the surface or the icon lands; an icon's own
     // outline and margin would show it as a band.
@@ -407,7 +437,8 @@ export class BodiesLayer implements SystemLayer {
         drawn.large = large;
         this.dress(drawn);
       }
-      const { body, glow, horizon, ring, disc, lit, art, shade, rim, glyph, outline } = drawn;
+      const { body, glow, horizon, glaze, ring, disc, lit, art, shade, rim, glyph, outline } =
+        drawn;
       const d = 2 * drawnDisc(body.placement.disc, this.scale);
       if (glow) sized(glow, d * GLOW_SCALE);
       sized(disc, d);
@@ -417,6 +448,7 @@ export class BodiesLayer implements SystemLayer {
         lit.scale.x = -lit.scale.x;
       }
       sized(art, d * artScale(body));
+      if (glaze) sized(glaze, d * artScale(body));
       if (horizon) {
         horizon
           .clear()

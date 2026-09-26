@@ -637,19 +637,35 @@ describe("the system scene's bodies layer", () => {
     layer.destroy();
   });
 
-  it("tints the icon the game shares between asteroid kinds: icy for ice, and violet for crystal", () => {
-    const tintOf = (planetClass: string) => {
+  it("glazes the icon the game shares between asteroid kinds: icy for ice, and violet for crystal", async () => {
+    resetTextures();
+    const textureFor = decodeByKey();
+    const glazeOf = async (planetClass: string) => {
       const layer = new BodiesLayer(blankTextures());
       layer.rebuild(classedContext([{ ...EARTH, class: planetClass }], [iconed(planetClass)]));
       viewport(layer, 2);
-      const tint = sprite(holderAt(layer, ...EARTH_AT), "art").tint;
+      const drawn = holderAt(layer, ...EARTH_AT);
+      await answerFetch();
+      await vi.waitFor(() => expect(sprite(drawn, "art").visible).toBe(true));
+      const glaze = part(drawn, "glaze");
+      const found =
+        glaze instanceof Sprite
+          ? { tint: glaze.tint, add: glaze.blendMode === "add", texture: glaze.texture }
+          : null;
       layer.destroy();
-      return tint;
+      return found;
     };
-    expect(tintOf("pc_asteroid")).toBe(0xffffff);
-    expect(tintOf("pc_ice_asteroid")).toBe(ICY_TINT);
-    const crystal = tintOf("pc_rare_crystal_asteroid");
-    expect([0xffffff, ICY_TINT]).not.toContain(crystal);
+    expect(await glazeOf("pc_asteroid")).toBeNull();
+    const ice = await glazeOf("pc_ice_asteroid");
+    expect(ice).toEqual({
+      tint: ICY_TINT,
+      add: true,
+      texture: textureFor("sprite:GFX_pc_ice_asteroid"),
+    });
+    const crystal = await glazeOf("pc_rare_crystal_asteroid");
+    expect(crystal?.add).toBe(true);
+    expect([0xffffff, ICY_TINT]).not.toContain(crystal?.tint);
+    resetTextures();
   });
 
   it("draws an astral scar's glow added over the dark, with no surface bake, disc or shading", async () => {
