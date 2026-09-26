@@ -1,7 +1,7 @@
 import type { LaneSource, MapInput } from "./MapIntent";
 
 /** Pointer travel before a press becomes a drag rather than a click. */
-export const DRAG_THRESHOLD_PX = 4;
+const DRAG_THRESHOLD_PX = 4;
 /** The longest gap between two presses that still makes a double-click. */
 const DOUBLE_CLICK_MS = 400;
 /** How far apart two presses of a double-click may land. */
@@ -14,7 +14,7 @@ export function pressFrom(input: MapInput): Press {
   return { ...input };
 }
 
-export function pastThreshold(press: Press, input: MapInput): boolean {
+export function pastThreshold(press: Tap, input: { sx: number; sy: number }): boolean {
   return Math.hypot(input.sx - press.sx, input.sy - press.sy) >= DRAG_THRESHOLD_PX;
 }
 

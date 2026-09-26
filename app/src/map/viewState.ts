@@ -13,6 +13,7 @@ import { useLGateStore } from "../store/lgateStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
 import { useWatchlistStore } from "../store/watchlistStore";
+import { follows, type Binding, type Store } from "./follows";
 import type { HighlightsLayer } from "./layers/HighlightsLayer";
 import type { MapLayer } from "./layers/MapLayer";
 import { layerShown } from "./layerVisibility";
@@ -37,22 +38,11 @@ export interface MapView {
   invalidate(): void;
 }
 
-/** When a binding applies besides the moment one of the fields it follows changes. */
-type Applied = "change" | "bind" | "layers";
-
-interface Binding {
-  when: Applied;
-  apply?: (view: MapView) => void;
-  subscribe: (view: MapView) => () => void;
-}
-
-interface Store<S> {
-  getState(): S;
-  subscribe(listener: (state: S, prev: S) => void): () => void;
-}
+/** When a binding applies besides a change: as the map binds, or as a new set of layers is made. */
+type Applied = "bind" | "layers";
 
 /** The store fields the map follows, and what each moves when it changes. */
-const BINDINGS: Binding[] = [
+const BINDINGS: Array<Binding<MapView, Applied>> = [
   watches(useGalaxyStore, (state, prev, view) => {
     if (state.galaxy !== prev.galaxy) {
       view.rebuild();
@@ -189,24 +179,11 @@ export function dressLayers(view: MapView): void {
   }
 }
 
-function follows<S>(
-  store: Store<S>,
-  fields: ReadonlyArray<(state: S) => unknown>,
-  apply: (state: S, view: MapView) => void,
-  when: Applied = "change",
-): Binding {
-  return {
-    when,
-    apply: (view) => apply(store.getState(), view),
-    subscribe: (view) =>
-      store.subscribe((state, prev) => {
-        if (fields.some((field) => field(state) !== field(prev))) apply(state, view);
-      }),
-  };
-}
-
 /** For a store whose fields are read together, such as the three shapes a galaxy change takes. */
-function watches<S>(store: Store<S>, listen: (state: S, prev: S, view: MapView) => void): Binding {
+function watches<S>(
+  store: Store<S>,
+  listen: (state: S, prev: S, view: MapView) => void,
+): Binding<MapView, Applied> {
   return {
     when: "change",
     subscribe: (view) => store.subscribe((state, prev) => listen(state, prev, view)),

@@ -21,6 +21,9 @@ a release is made.
   star in the system view, as Add system gives it. It used to show two.
 - The status bar's orbit and angle for a scenario body match where the
   system view draws it.
+- An undo in the system view keeps the view where it was.
+- A body's tooltip in the system view shows its name as soon as the name
+  loads, without moving the pointer.
 
 ## [0.15.0] - 2026-09-26
 
