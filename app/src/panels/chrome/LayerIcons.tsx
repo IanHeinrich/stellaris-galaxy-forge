@@ -47,6 +47,14 @@ function glyphOf(id: LayerId): ReactNode {
           <path d="M3 4.8h10M3 8h6.5M3 11.2h8.5" />
         </LayerGlyph>
       );
+    case "orbitRadii":
+      return (
+        <LayerGlyph>
+          <circle cx="8" cy="8" r="5.8" />
+          <path d="M8 8 12.1 3.9" />
+          <circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none" />
+        </LayerGlyph>
+      );
     case "colonies":
       return (
         <LayerGlyph>

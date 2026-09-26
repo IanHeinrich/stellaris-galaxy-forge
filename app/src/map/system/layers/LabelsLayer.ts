@@ -16,22 +16,22 @@ import { placeLabels, plateScale, type LabelItem } from "./labelSlots";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
 
 /** The plate behind a name: a dark wash with a faint edge, raised a little while hovered. */
-const PLATE_FILL = 0x000000;
-const PLATE_FILL_ALPHA = 0.4;
+export const PLATE_FILL = 0x000000;
+export const PLATE_FILL_ALPHA = 0.4;
 const PLATE_HOVER_FILL_ALPHA = 0.55;
-const PLATE_EDGE = 0xd0d6de;
-const PLATE_EDGE_ALPHA = 0.2;
+export const PLATE_EDGE = 0xd0d6de;
+export const PLATE_EDGE_ALPHA = 0.2;
 const PLATE_HOVER_EDGE_ALPHA = 0.35;
 /** The selected body's plate is edged in the selection ring's colour, at full strength. */
 const PLATE_SELECTED_EDGE_PX = 1.5;
-const PLATE_RADIUS_PX = 3;
+export const PLATE_RADIUS_PX = 3;
 /** The plate past the name on each side, and above and below it, in screen pixels. */
-const PLATE_PAD_X = 4;
+export const PLATE_PAD_X = 4;
 /** A colonised body's mark: a short bar in its owner's colour down the plate's left edge. */
 const COLONY_BAR_PX = 2;
 const COLONY_BAR_INSET_PX = 2;
 const COLONY_BAR_ALPHA = 0.9;
-const PLATE_PAD_Y = 1;
+export const PLATE_PAD_Y = 1;
 /** A resource's icon and its drop shadow, and the gap between the plate and the row of icons. */
 const RESOURCE_ICON_PX = 14;
 const ICON_SHADOW_ALPHA = 0.6;

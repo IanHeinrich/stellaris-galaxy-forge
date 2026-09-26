@@ -15,8 +15,10 @@ import {
   starClassView,
   systemDetails,
 } from "../../test/builders";
+import { Camera } from "../Camera";
 import { NO_SOURCES, systemContext, type SceneBody, type SystemContext } from "./context";
 import { stubTextMeasurement, viewport } from "./fixture";
+import { pickBody } from "./picking";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
 import type { SceneTextures } from "./layers/textures";
@@ -146,9 +148,18 @@ function rounded(value: unknown): unknown {
   return value;
 }
 
-/** A body as the scene resolved it, without the source record it was resolved from. */
+/**
+ * A body as the scene resolved it, without the source record it was resolved from, or the step
+ * out from the previous orbit that only a scenario's readout gives.
+ */
 function resolved(body: SceneBody): unknown {
-  return rounded({ ...body, planet: null });
+  const { placement, readout } = body;
+  return rounded({
+    ...body,
+    planet: null,
+    placement: { ...placement, radius: placement.radius && { ...placement.radius, step: null } },
+    readout: readout && { ...readout, line: readout.ring },
+  });
 }
 
 function blankTextures(): SceneTextures {
@@ -419,5 +430,116 @@ describe("what a scenario leaves to chance", () => {
     expect(holder.children.some((c) => c instanceof BitmapText)).toBe(false);
     expect(holder.children.map((c) => c.label)).toContain("beams");
     layer.destroy();
+  });
+});
+
+describe("orbit radius readouts", () => {
+  it("reads a save body's radius rounded, with no step", () => {
+    const ctx = asSave("sc_g", [
+      star("pc_g_star", "sc_g"),
+      {
+        id: 2,
+        saveClass: "pc_barren",
+        scenarioClass: "pc_barren",
+        orbit: 120.43,
+        angle: 0,
+        size: 10,
+      },
+    ]);
+    expect(ctx.bodies.map((b) => b.readout && [b.readout.ring, b.readout.line])).toEqual([
+      null,
+      ["120", "120"],
+    ]);
+  });
+
+  it("reads a scenario body's radius with its step out from the previous orbit about its parent, a range's two ends, and a moon's from its planet", () => {
+    const body = (id: number, orbit: { min: number; max: number }, parent: number | null = null) =>
+      planetSummary({
+        id,
+        class: id === 1 ? "sc_g" : "pc_barren",
+        parent,
+        layout: { orbit, angle: fixed(0), at: null, size: fixed(10) },
+        ring: false,
+      });
+    const ctx = systemContext({
+      ...sources,
+      kind: "scenario",
+      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: INITIALIZER }),
+      details: systemDetails({
+        id: SYSTEM,
+        with_game_data: true,
+        planets: [
+          body(1, fixed(0)),
+          body(2, { min: 65, max: 80 }),
+          body(3, fixed(10), 2),
+          body(4, fixed(18), 2),
+          body(5, { min: 85, max: 105 }),
+        ],
+      }),
+      initializerClasses: new Map([[INITIALIZER, "sc_g"]]),
+    });
+    expect(ctx.bodies.map((b) => b.readout && [b.readout.ring, b.readout.line])).toEqual([
+      null,
+      ["65–80", "65–80 (+65–80)"],
+      ["10", "10 (+10)"],
+      ["18", "18 (+8)"],
+      ["85–105", "85–105 (+20–25)"],
+    ]);
+    const [sun, planet, moon] = ctx.bodies;
+    expect(planet.readout?.hub).toBe(sun.placement.disc);
+    expect(moon.readout?.hub).toBe(planet.placement.disc);
+  });
+});
+
+describe("planets the game rolls", () => {
+  const rolling = (over: Partial<typeof sources & { initializer: string }> = {}) => {
+    const { initializer = "", ...rest } = over;
+    return systemContext({
+      ...sources,
+      kind: "scenario",
+      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "sc_g", initializer }),
+      details: null,
+      missing: true,
+      ...rest,
+    });
+  };
+
+  it("draws three to six on rings inside the inner radius for a scenario system with no initializer or one the install does not define, the same each time", () => {
+    for (const initializer of ["", "random", "no_such_initializer"]) {
+      const { rolled, layout } = rolling({ initializer });
+      expect(rolled.length).toBeGreaterThanOrEqual(3);
+      expect(rolled.length).toBeLessThanOrEqual(6);
+      for (const planet of rolled) {
+        expect(Math.hypot(planet.x, planet.y)).toBeCloseTo(planet.ring.radius);
+        expect(planet.ring.radius + planet.disc).toBeLessThan(layout.innerRadius);
+      }
+    }
+    expect(rolling().rolled).toEqual(rolling().rolled);
+    expect(rolling({ id: SYSTEM + 1 }).rolled).not.toEqual(rolling().rolled);
+  });
+
+  it("draws none for a save, for an initializer the install defines, or before game data is read", () => {
+    expect(rolling({ kind: "save" }).rolled).toEqual([]);
+    expect(rolling({ gameDataReady: false }).rolled).toEqual([]);
+    const known = rolling({
+      initializer: INITIALIZER,
+      missing: false,
+      details: systemDetails({
+        id: SYSTEM,
+        with_game_data: true,
+        planets: [planetSummary({ id: 1, class: "sc_g", layout: null })],
+      }),
+    });
+    expect(known.rolled).toEqual([]);
+  });
+
+  it("never counts them among the bodies, and a pick on one finds nothing", () => {
+    const ctx = rolling();
+    expect(ctx.bodies).toHaveLength(1);
+    expect(ctx.bodies[0].placement.star).toBe(true);
+    const cam = new Camera();
+    cam.setViewport(800, 600);
+    cam.scale = 2;
+    for (const planet of ctx.rolled) expect(pickBody(ctx.bodies, cam, planet)).toBeNull();
   });
 });

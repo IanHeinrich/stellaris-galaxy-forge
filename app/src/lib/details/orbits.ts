@@ -9,6 +9,7 @@
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
+import { seeded } from "../random";
 import { isStarBody } from "./starBody";
 
 /** The game's moon to planet scale (`MOON_SCALE` in `00_defines.txt`). */
@@ -44,6 +45,24 @@ export interface Band {
   outer: number;
 }
 
+/** A stretch of radii, one value when its ends are the same. */
+export interface Span {
+  min: number;
+  max: number;
+}
+
+/** How far a body stands from what it orbits, as the radius readouts give it. */
+export interface OrbitRadius {
+  /** The radius, or a scenario band's two ends. */
+  min: number;
+  max: number;
+  /**
+   * How far out it steps from the previous body with an orbit about the same parent, in source
+   * order, each end apart as an initializer's ranges add up; null in a save.
+   */
+  step: Span | null;
+}
+
 /** A scenario body's angle left to a draw, in degrees about its parent. */
 export interface Arc {
   from: number;
@@ -70,6 +89,8 @@ export interface BodyPlacement {
   arc: Arc | null;
   /** A scenario body with no angle out on an orbit: drawn on its whole ring. */
   ghost: boolean;
+  /** Its distance from what it orbits; null where it has no ring. */
+  radius: OrbitRadius | null;
 }
 
 export interface BeltBand {
@@ -229,6 +250,25 @@ function freeAngles(planets: readonly PlanetSummary[]): Map<number, number> {
   return angles;
 }
 
+/**
+ * Each scenario body's step out from the previous body with an orbit about the same parent, in
+ * source order, as an initializer's `orbit_distance` adds up; the first about a parent steps
+ * out from it.
+ */
+function orbitSteps(planets: readonly PlanetSummary[]): Map<number, Span> {
+  const last = new Map<number | null, Span>();
+  const steps = new Map<number, Span>();
+  for (const planet of planets) {
+    const orbit = planet.layout?.orbit;
+    if (!orbit) continue;
+    const parent = planet.parent === planet.id ? null : planet.parent;
+    const prev = last.get(parent) ?? { min: 0, max: 0 };
+    steps.set(planet.id, { min: orbit.min - prev.min, max: orbit.max - prev.max });
+    last.set(parent, orbit);
+  }
+  return steps;
+}
+
 interface Placed {
   point: Point;
   placement: BodyPlacement;
@@ -253,6 +293,7 @@ export function systemLayout(
   const planets = details?.planets ?? [];
   const byId = new Map(planets.map((p) => [p.id, p]));
   const free = scenario ? freeAngles(planets) : new Map<number, number>();
+  const steps = scenario ? orbitSteps(planets) : new Map<number, Span>();
   const placed = new Map<number, Placed>();
   const inProgress = new Set<number>();
 
@@ -297,6 +338,7 @@ export function systemLayout(
       point = polar(centre.x, centre.y, radius, angle);
     }
 
+    const ring = !missing && radius > 0 ? { cx: centre.x, cy: centre.y, radius } : null;
     const placement: BodyPlacement = {
       id: planet.id,
       x: point.x,
@@ -304,12 +346,17 @@ export function systemLayout(
       disc: discRadius(layout?.size ? mid(layout.size) : null, moon, planetClass, star),
       star,
       parent: parent ? parent.placement.id : null,
-      ring: !missing && radius > 0 ? { cx: centre.x, cy: centre.y, radius } : null,
+      ring,
       angle,
       light: null,
       band,
       arc,
       ghost,
+      radius: ring && {
+        min: band?.inner ?? radius,
+        max: band?.outer ?? radius,
+        step: steps.get(planet.id) ?? null,
+      },
     };
     const result = { point, placement, parent };
     placed.set(planet.id, result);
@@ -357,6 +404,51 @@ export function systemLayout(
     fitRadius: Math.max(outermost, innerRadius) + FIT_MARGIN,
     largestDisc: largestDisc || discRadius(null, false),
   };
+}
+
+/**
+ * A planet drawn only to show that the game rolls the system's planets when it generates the
+ * galaxy: no body of the source, and nothing to pick.
+ */
+export interface RolledPlanet {
+  x: number;
+  y: number;
+  disc: number;
+  ring: Ring;
+}
+
+/** How many rolled planets a system shows, and where the first orbit and each step out fall. */
+const ROLLED_COUNT = { min: 3, max: 6 };
+const ROLLED_FIRST = { min: 40, max: 60 };
+const ROLLED_STEP = { min: 20, max: 40 };
+/** How far inside the inner radius the outermost stays. */
+const ROLLED_MARGIN = 20;
+/** `planet_size` ranges: most are rocky, and past the first two orbits some are gas giants. */
+const ROCKY_SIZE = { min: 8, max: 18 };
+const GAS_GIANT_SIZE = { min: 20, max: 25 };
+const GAS_GIANT_CHANCE = 0.3;
+
+function between(rand: () => number, { min, max }: Span): number {
+  return min + rand() * (max - min);
+}
+
+/**
+ * A few planets on plausible orbits for a system whose planets the game rolls, the same for
+ * the same `seed`, all inside `within`.
+ */
+export function rolledPlanets(seed: number, within: number): RolledPlanet[] {
+  const rand = seeded(Math.imul(seed + 1, 0x9e3779b1));
+  const count = Math.floor(between(rand, { min: ROLLED_COUNT.min, max: ROLLED_COUNT.max + 1 }));
+  const radii = [between(rand, ROLLED_FIRST)];
+  while (radii.length < count) radii.push(radii[radii.length - 1] + between(rand, ROLLED_STEP));
+  const fit = Math.min(1, (within - ROLLED_MARGIN) / radii[radii.length - 1]);
+  return radii.map((r, i) => {
+    const giant = i >= 2 && rand() < GAS_GIANT_CHANCE;
+    const size = Math.round(between(rand, giant ? GAS_GIANT_SIZE : ROCKY_SIZE));
+    const radius = r * fit;
+    const { x, y } = polar(0, 0, radius, rand() * 360);
+    return { x, y, disc: discRadius(size, false), ring: { cx: 0, cy: 0, radius } };
+  });
 }
 
 /** Pixels per world unit at which `fitRadius` reaches the edge of the view's short side. */

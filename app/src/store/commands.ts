@@ -1,6 +1,6 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
 import { isToolAction, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
-import { isSceneLayer, LAYER_KEYS } from "../lib/visual/layerIds";
+import { sceneLayerAt } from "../lib/visual/layerIds";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -92,8 +92,8 @@ export function toggleLayerKey(index: number): void {
     chrome.toggleLayerKey(index);
     return;
   }
-  const layer = LAYER_KEYS[index];
-  if (layer && isSceneLayer(layer)) chrome.toggleSceneLayer(layer);
+  const layer = sceneLayerAt(index);
+  if (layer) chrome.toggleSceneLayer(layer);
 }
 
 /** Removes whatever Delete names for the selection, asking first where the store does. */

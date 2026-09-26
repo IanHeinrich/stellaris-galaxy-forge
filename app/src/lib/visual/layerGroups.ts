@@ -75,6 +75,7 @@ const SCENARIO_GROUPS: readonly Group[] = [
       "systems",
       "labels",
       "nebulae",
+      "orbitRadii",
       "initializers",
       "spawns",
       "feZones",

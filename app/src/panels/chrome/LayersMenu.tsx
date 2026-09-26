@@ -45,8 +45,8 @@ function useKindsPressed(): Pressed {
 }
 
 function LayerRow({ id, source, dead }: { id: LayerId; source?: Source; dead?: string }) {
-  const { on, toggle, galaxyOnly } = useLayerSwitch(id);
-  dead = galaxyOnly ?? dead;
+  const { on, toggle, elsewhere } = useLayerSwitch(id);
+  dead = elsewhere ?? dead;
   const key = layerKey(id);
   return (
     <EyeRow

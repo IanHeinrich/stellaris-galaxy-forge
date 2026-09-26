@@ -81,7 +81,7 @@ function discBox(item: LabelItem): LabelBox {
   return { id, x: x - off, y: y - off, w: 2 * off, h: 2 * off };
 }
 
-function overlaps(a: LabelBox, b: LabelBox): boolean {
+export function overlaps(a: LabelBox, b: LabelBox): boolean {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 }
 

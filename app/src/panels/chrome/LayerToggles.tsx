@@ -5,6 +5,7 @@ import {
   LAYER_LABELS,
   PRIMARY_KINDS,
   PRIMARY_LAYERS,
+  isSceneOnly,
   layerKey,
   type LayerId,
 } from "../../lib/visual/layerIds";
@@ -58,9 +59,9 @@ function KindToggle({ kind, source, dead }: { kind: SpecialKind; source?: Source
 }
 
 function LayerToggle({ id, split, dead }: { id: LayerId; split?: boolean; dead?: string }) {
-  const { on, toggle, galaxyOnly } = useLayerSwitch(id);
+  const { on, toggle, elsewhere } = useLayerSwitch(id);
   const kind = useKind();
-  dead = galaxyOnly ?? dead;
+  dead = elsewhere ?? dead;
   return (
     <button
       type="button"
@@ -111,15 +112,18 @@ function LayerGroup({ group, children }: { group: Group; children: ReactNode }) 
  * The primary layers as icon toggles, keyed 1–6, with the two point-of-interest kinds after
  * them. A scenario frames them by source, each group that has a master headed by it. A group
  * whose master would stand over a single icon carries the master alone; the menu keeps the rest.
+ * A layer only the system scene draws has its icon only while a system is shown.
  */
 export function LayerToggles() {
   const document = useDocument();
-  const registered = useRegisteredLayers();
+  const inSystem = useInSystem();
+  const all = useRegisteredLayers();
+  const registered = inSystem ? all : new Set([...all].filter((id) => !isSceneOnly(id)));
   const kind = useKind();
   const split = useSplit();
   const ready = useScriptsReady();
   const dead = split && !ready;
-  const away = useInSystem() ? GALAXY_ONLY : undefined;
+  const away = inSystem ? GALAXY_ONLY : undefined;
   if (!document) return null;
   const kinds = (source?: Source, dead?: string) =>
     PRIMARY_KINDS.map((k) => <KindToggle key={k} kind={k} source={source} dead={away ?? dead} />);

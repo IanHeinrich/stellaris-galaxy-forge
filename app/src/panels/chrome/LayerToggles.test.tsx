@@ -160,17 +160,18 @@ describe("the split layer bar", () => {
     expect(html.indexOf('aria-label="Leviathans"')).toBeGreaterThan(nebulae);
   });
 
-  it("disables every toggle but Names, Details and Nebulae while a system is shown, saying the layers are the galaxy's", async () => {
+  it("disables every toggle but Names, Details, Nebulae and Orbit radii while a system is shown, saying the layers are the galaxy's", async () => {
     resetStores();
     armSession();
     await openWith(OPEN_RESULT);
     expect(bar()).not.toContain("disabled");
+    expect(bar()).not.toContain('aria-label="Orbit radii"');
 
     useSceneStore.getState().enterSystem(0);
     const html = bar();
     const buttons = html.match(/<button[^>]*>/g) ?? [];
     expect(buttons.length).toBeGreaterThan(1);
-    const live = ["System details", "Names", "Nebulae"];
+    const live = ["System details", "Names", "Nebulae", "Orbit radii"];
     for (const button of buttons) {
       if (live.some((label) => button.includes(`aria-label="${label}"`))) {
         expect(button).not.toContain("disabled");
