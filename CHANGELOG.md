@@ -71,8 +71,6 @@ a release is made.
   game leaves them off that world.
 - The Inspector shows a system's inner and outer radius when the save
   writes them with decimals.
-- Scenarios from an older Paint a Galaxy, made before it wrote the
-  `# created by` line, now get Galaxy Forge's line when you save an edit.
 
 ## [0.14.1] - 2026-09-25
 
