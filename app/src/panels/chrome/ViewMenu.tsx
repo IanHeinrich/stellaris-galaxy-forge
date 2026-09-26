@@ -4,6 +4,7 @@ import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import "./chrome.css";
 import { Menu, MenuItem } from "./Menu";
 
@@ -15,6 +16,11 @@ export function ViewMenuItems({ dismiss }: { dismiss: () => void }) {
   const collapsed = useLayoutStore((s) => s.collapsed);
   const toggleDock = useLayoutStore((s) => s.toggleDock);
   const resetLayers = useMapChromeStore((s) => s.resetLayers);
+  const enterable = useFileSessionStore(canEnterSystem);
+  const selection = useEditorStore((s) => s.selection);
+  const inSystem = useSceneStore((s) => s.scene.kind === "system");
+  const enterSystem = useSceneStore((s) => s.enterSystem);
+  const leaveSystem = useSceneStore((s) => s.leaveSystem);
 
   return (
     <>
@@ -31,6 +37,24 @@ export function ViewMenuItems({ dismiss }: { dismiss: () => void }) {
         dismiss={dismiss}
         onClick={fitSelected}
       />
+      {inSystem ? (
+        <MenuItem
+          label="Back to galaxy"
+          shortcut={shortcutLabel("clearSelection")}
+          dismiss={dismiss}
+          onClick={leaveSystem}
+        />
+      ) : (
+        enterable && (
+          <MenuItem
+            label="Open system view"
+            shortcut={shortcutLabel("enterSystem")}
+            disabled={selection.length !== 1}
+            dismiss={dismiss}
+            onClick={() => enterSystem(selection[0])}
+          />
+        )
+      )}
       <div className="menu-rule" />
       <MenuItem
         label={collapsed ? "Show dock" : "Hide dock"}

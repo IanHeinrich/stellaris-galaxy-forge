@@ -31,6 +31,8 @@ export interface MapInput {
   /** Ctrl, or Cmd on a Mac. */
   ctrl: boolean;
   alt: boolean;
+  /** The event's `timeStamp` in milliseconds, which double-clicks are counted from. */
+  time: number;
   /** The store's selection, so a drag from a selected star can act on the whole group. */
   selection: number[];
   system: number | null;
@@ -59,6 +61,8 @@ export interface MapIntent {
   toggleSelect(id: number): void;
   selectLane(lane: LaneRef): void;
   clearSelection(): void;
+  /** Shows system `id` on its own, where the open document offers that. */
+  enterSystem(id: number): void;
   /** The marquee's corners in screen pixels, in press order. */
   previewMarquee(sx0: number, sy0: number, sx1: number, sy1: number): void;
   /** Drops the marquee rectangle, whether or not it selected anything. */

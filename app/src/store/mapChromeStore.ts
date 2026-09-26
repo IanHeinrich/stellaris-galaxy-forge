@@ -110,6 +110,8 @@ export interface MapChromeState {
   highlightInitializer: string | null;
   /** A lane under the pointer, or a lane being dragged out of a system's ring; null otherwise. */
   gesture: MapGesture | null;
+  /** What the system scene says in the status bar while it shows, such as a clicked lane's length. */
+  sceneHint: string | null;
   toggleLayer(id: LayerId): void;
   /** Shows or hides one point-of-interest kind. */
   toggleKind(kind: SpecialKind): void;
@@ -144,6 +146,7 @@ export interface MapChromeState {
   setAddSystemPreview(preview: AddSystemPreview | null): void;
   setHighlightInitializer(key: string | null): void;
   setGesture(gesture: MapGesture | null): void;
+  setSceneHint(text: string | null): void;
   /** Drops what only makes sense over the save that was open: menu, tooltip, ghosts and filter. */
   clearOverlays(): void;
 }
@@ -158,6 +161,7 @@ const NO_OVERLAYS = {
   addSystemPreview: null,
   highlightInitializer: null,
   gesture: null,
+  sceneHint: null,
   // The keys belong to the document that was open, so the filter goes with it.
   hiddenInitializers: new Set<string>(),
 } satisfies Partial<MapChromeState>;
@@ -361,6 +365,10 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
 
   setGesture(gesture) {
     if (get().gesture !== gesture) set({ gesture });
+  },
+
+  setSceneHint(text) {
+    if (get().sceneHint !== text) set({ sceneHint: text });
   },
 
   clearOverlays() {

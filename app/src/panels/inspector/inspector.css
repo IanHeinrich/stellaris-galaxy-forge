@@ -159,6 +159,20 @@ button.chip.jump:hover {
   color: var(--fg);
 }
 
+/* A section header with an action beside it: the header keeps its row, the action sits at the right. */
+.ins-sec-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.ins-sec-row .ins-sec {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
 /* A section header that opens a tab of its own: no chevron, so its title takes the tri's room. */
 .ins-sec.ins-sec-link {
   padding-left: 15px;

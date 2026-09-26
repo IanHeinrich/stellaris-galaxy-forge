@@ -8,8 +8,9 @@ import { bodyEditHint } from "../../../../lib/details/terraform";
 import { capabilityFor } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useDetailsStore } from "../../../../store/detailsStore";
-import { useCanEdit } from "../../../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
+import { canEnterSystem, useSceneStore } from "../../../../store/sceneStore";
 import { useOpenEntity } from "../../entity/useEntity";
 import { Chip, Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
@@ -122,6 +123,9 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const classes = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const bodies = useCanEdit("bodies");
+  const enterable = useFileSessionStore(canEnterSystem);
+  const inView = useSceneStore((s) => s.scene.kind === "system" && s.scene.id === details.id);
+  const enterSystem = useSceneStore((s) => s.enterSystem);
   const [all, setAll] = useState(false);
   const isStar = (p: PlanetSummary) => isStarBody(p.class, classes, starClasses);
   const planets = orderedPlanets(details.planets, isStar);
@@ -133,8 +137,20 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   ]
     .filter(Boolean)
     .join(" · ");
+  const openView =
+    enterable && !inView ? (
+      <button type="button" className="link" onClick={() => enterSystem(details.id)}>
+        Open system view
+      </button>
+    ) : undefined;
   return (
-    <Section id="system.planets" title="Planets" count={totals.planets} summary={summary}>
+    <Section
+      id="system.planets"
+      title="Planets"
+      count={totals.planets}
+      summary={summary}
+      action={openView}
+    >
       {planets.length === 0 ? (
         <Empty>No planets in this system.</Empty>
       ) : (

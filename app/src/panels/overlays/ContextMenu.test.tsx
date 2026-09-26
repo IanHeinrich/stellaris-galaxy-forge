@@ -21,7 +21,10 @@ import type { PickSummary } from "../../generated/PickSummary";
 import type { SpecialLayout } from "../../generated/SpecialLayout";
 import { armSession, resetStores } from "../../store/storeFixture";
 import { openWith } from "../../test/session";
+import { useSceneStore } from "../../store/sceneStore";
+import { menuItem } from "../../test/elements";
 import { ContextMenu } from "./ContextMenu";
+import { SceneSpaceMenu } from "./contextMenu/SceneSpaceMenu";
 import { PickCardBody } from "./contextMenu/PickCard";
 import { SpecialRows } from "./contextMenu/SpecialItems";
 
@@ -517,5 +520,34 @@ describe("the Special menu and the cards", () => {
     expect(html).toContain(
       "This save doesn&#x27;t have Cosmic Storms, so its events won&#x27;t run.",
     );
+  });
+});
+
+describe("the system view's menus", () => {
+  it("opens a save's system from its menu, and leaves from a body's menu and the space around it", async () => {
+    const chrome = useMapChromeStore.getState();
+    chrome.openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
+    expect(menu()).toContain(">Open system view</button>");
+
+    useSceneStore.getState().enterSystem(0);
+    chrome.openContextMenu({ target: { kind: "body", system: 0, id: 12 }, x: 0, y: 0 });
+    let html = menu();
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Inspect<\/button>/);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Remove<\/button>/);
+    expect(html).toContain('class="context-menu-separated">Back to galaxy</button>');
+
+    const target = { kind: "systemSpace", system: 0, x: 5, y: 5 } as const;
+    chrome.openContextMenu({ target, x: 0, y: 0 });
+    html = menu();
+    expect(html).toContain('<div class="context-menu-header">Sol</div>');
+    expect(html).toContain(">Back to galaxy</button>");
+
+    menuItem(<SceneSpaceMenu target={target} frame={{}} />, "Back to galaxy").props.onClick();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "galaxy" });
+    expect(useMapChromeStore.getState().contextMenu).toBeNull();
+
+    await openWith(SCENARIO_RESULT);
+    chrome.openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
+    expect(menu()).not.toContain("Open system view");
   });
 });

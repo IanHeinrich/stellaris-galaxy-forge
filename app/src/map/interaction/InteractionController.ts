@@ -4,6 +4,7 @@ import { isEditableTarget } from "../../lib/keys";
 import type { Tool } from "../../lib/tools";
 import { useEditorStore } from "../../store/editorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
@@ -129,6 +130,9 @@ export class InteractionController {
       clearSelection: () => {
         void editor().select(null);
         editor().selectLane(null);
+      },
+      enterSystem: (id) => {
+        if (canEnterSystem()) useSceneStore.getState().enterSystem(id);
       },
       previewMarquee: (sx0, sy0, sx1, sy1) => {
         const a = cam.screenToWorld(sx0, sy0);
@@ -266,6 +270,7 @@ export class InteractionController {
       shift: e.shiftKey,
       ctrl: e.ctrlKey || e.metaKey,
       alt: e.altKey,
+      time: e.timeStamp,
       selection: editor().selection,
       system: null,
       zone: null,

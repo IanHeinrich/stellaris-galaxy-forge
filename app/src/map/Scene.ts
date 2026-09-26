@@ -11,6 +11,9 @@ export interface Scene {
   activate(): void;
   /** Lets go of the pointer and keys while another scene is shown. */
   deactivate(): void;
+  /** Frames the whole scene, as `Home` does. */
   fit(): void;
+  /** Frames what is selected in it, as `Shift+F` does. */
+  fitSelection(): void;
   dispose(): void;
 }

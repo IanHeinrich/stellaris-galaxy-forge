@@ -17,6 +17,7 @@ import {
   type Source,
 } from "../../lib/visual/layerGroups";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useSceneStore } from "../../store/sceneStore";
 import "./chrome.css";
 import { KindIcon, LayerIcon } from "./LayerIcons";
 import {
@@ -31,6 +32,8 @@ import {
   useScriptsReady,
   useSplit,
 } from "./layerState";
+
+const GALAXY_ONLY = "Layers apply to the galaxy view";
 
 function withKey(label: string, key: number): string {
   return key > 0 ? `${label} (${key})` : label;
@@ -74,18 +77,19 @@ function LayerToggle({ id, split, dead }: { id: LayerId; split?: boolean; dead?:
 }
 
 /** The one switch for everything a source decides; it heads the group it switches. */
-function MasterToggle({ group }: { group: Group }) {
+function MasterToggle({ group, dead }: { group: Group; dead?: string }) {
   const pressed = useGroupPressed(group);
   const toggleGroup = useMapChromeStore((s) => s.toggleGroup);
   const ready = useScriptsReady();
+  const why = dead ?? (ready ? undefined : group.deadTitle);
   return (
     <button
       type="button"
       className={sourced("master", group.source)}
       aria-label={group.label}
       aria-pressed={pressed}
-      disabled={!ready}
-      title={ready ? `${group.label} (${MASTER_KEYS[group.source]})` : group.deadTitle}
+      disabled={why !== undefined}
+      title={why ?? `${group.label} (${MASTER_KEYS[group.source]})`}
       onClick={() => toggleGroup(group.source)}
     >
       {MASTER_PILL}
@@ -115,14 +119,15 @@ export function LayerToggles() {
   const split = useSplit();
   const ready = useScriptsReady();
   const dead = split && !ready;
+  const away = useSceneStore((s) => (s.scene.kind === "system" ? GALAXY_ONLY : undefined));
   if (!document) return null;
   const kinds = (source?: Source, dead?: string) =>
-    PRIMARY_KINDS.map((k) => <KindToggle key={k} kind={k} source={source} dead={dead} />);
+    PRIMARY_KINDS.map((k) => <KindToggle key={k} kind={k} source={source} dead={away ?? dead} />);
   if (!split) {
     return (
       <div className="layer-toggles">
         {PRIMARY_LAYERS.filter((id) => registered.has(id)).map((id) => (
-          <LayerToggle key={id} id={id} />
+          <LayerToggle key={id} id={id} dead={away} />
         ))}
         {kinds()}
       </div>
@@ -136,12 +141,12 @@ export function LayerToggles() {
         const icons = lead.length + trail.length + (withKinds ? PRIMARY_KINDS.length : 0);
         if (icons === 0 && !group.master) return null;
         const masterOnly = group.master && icons === 1;
-        const off = dead && group.needsGameData ? group.deadTitle : undefined;
+        const off = away ?? (dead && group.needsGameData ? group.deadTitle : undefined);
         const toggles = (ids: LayerId[]) =>
           ids.map((id) => <LayerToggle key={id} id={id} split dead={off} />);
         return (
           <LayerGroup key={group.source} group={group}>
-            {group.master && <MasterToggle group={group} />}
+            {group.master && <MasterToggle group={group} dead={away} />}
             {!masterOnly && toggles(lead)}
             {!masterOnly && withKinds && kinds(group.source, off)}
             {!masterOnly && toggles(trail)}

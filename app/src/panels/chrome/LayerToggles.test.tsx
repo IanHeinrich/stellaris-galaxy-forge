@@ -17,6 +17,9 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { readyAs } from "../../test/session";
 import { OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useSceneStore } from "../../store/sceneStore";
+import { armSession, resetStores } from "../../store/storeFixture";
+import { openWith } from "../../test/session";
 import { LayersMenu } from "./LayersMenu";
 import { LayerToggles } from "./LayerToggles";
 
@@ -154,6 +157,22 @@ describe("the split layer bar", () => {
     expect(html.indexOf('aria-label="Bypasses"')).toBeLessThan(nebulae);
     expect(html.indexOf('aria-label="Empires"')).toBeLessThan(nebulae);
     expect(html.indexOf('aria-label="Leviathans"')).toBeGreaterThan(nebulae);
+  });
+
+  it("disables every toggle while a system is shown, saying the layers are the galaxy's", async () => {
+    resetStores();
+    armSession();
+    await openWith(OPEN_RESULT);
+    expect(bar()).not.toContain("disabled");
+
+    useSceneStore.getState().enterSystem(0);
+    const html = bar();
+    const buttons = html.match(/<button[^>]*>/g) ?? [];
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect(button).toContain("disabled");
+      expect(button).toContain('title="Layers apply to the galaxy view"');
+    }
   });
 
   it("carries nothing to toggle until a document is open", () => {

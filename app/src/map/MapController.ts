@@ -1,7 +1,10 @@
 import type { Application } from "pixi.js";
 import { isEditableTarget } from "../lib/keys";
+import { useEditorStore } from "../store/editorStore";
+import { useSceneStore, type Scene as Shown } from "../store/sceneStore";
 import { GalaxyScene } from "./GalaxyScene";
 import type { Scene } from "./Scene";
+import { SystemScene } from "./system/SystemScene";
 
 const ZOOM_PER_100PX = 1.1;
 const KEY_PAN_PX_PER_S = 700;
@@ -23,6 +26,7 @@ const PAN_KEYS: Record<string, [dx: number, dy: number]> = {
  */
 export class MapController {
   private readonly galaxy: GalaxyScene;
+  private readonly system: SystemScene;
   private scene: Scene;
   private readonly transform = { x: 0, y: 0, scaleX: 1, scaleY: 1 };
   private readonly heldKeys = new Set<string>();
@@ -34,10 +38,21 @@ export class MapController {
     host: HTMLElement,
   ) {
     this.galaxy = new GalaxyScene(app.renderer, app.canvas);
+    this.system = new SystemScene(app.renderer, app.canvas);
     this.scene = this.galaxy;
     this.enter(this.scene);
+    this.follow(useSceneStore.getState().scene);
     this.bindWheel(app.canvas);
     this.bindKeyboard();
+    this.cleanups.push(
+      useSceneStore.subscribe((state, previous) => {
+        if (state.scene !== previous.scene) this.follow(state.scene);
+      }),
+      useEditorStore.subscribe((state, previous) => {
+        if (state.fitNonce !== previous.fitNonce) this.scene.fit();
+        if (state.fitSelectionNonce !== previous.fitSelectionNonce) this.scene.fitSelection();
+      }),
+    );
 
     const observer = new ResizeObserver(() => app.resize());
     observer.observe(host);
@@ -50,7 +65,18 @@ export class MapController {
 
   dispose(): void {
     for (const c of this.cleanups.splice(0)) c();
+    this.system.dispose();
     this.galaxy.dispose();
+  }
+
+  /** Shows what the scene store says the map shows. */
+  private follow(shown: Shown): void {
+    if (shown.kind === "system") {
+      this.system.show(shown.id);
+      this.show(this.system);
+    } else {
+      this.show(this.galaxy);
+    }
   }
 
   /** Swaps `next` in for the scene shown now, which keeps its state while hidden. */
@@ -88,8 +114,9 @@ export class MapController {
       cam.panBy(dx * step, dy * step);
     }
     cam.update(dtMs);
-    this.place(this.scene);
+    // The scene may fit its camera in its tick, which the transform then shows in the same frame.
     this.scene.tick(dtMs);
+    this.place(this.scene);
   }
 
   private place(scene: Scene): void {

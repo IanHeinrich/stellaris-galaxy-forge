@@ -150,6 +150,37 @@ too.
 The breadcrumb above the page goes back: "‹" for one step, a name in it
 for that page, or "Galaxy" for the whole map.
 
+### System view
+
+Open one system to see its star, planets, moons and asteroid belts laid
+out the way the game draws them. There are four ways in:
+
+- Double-click the system on the map.
+- Select the system and press Enter.
+- Right-click the system and choose Open system view.
+- Click Open system view in the Planets header of the system's page, or
+  use View → Open system view.
+
+Each body sits on its orbit around the star, or around its planet for a
+moon, with its name beside it. Hyperlanes show as arrows at the edge,
+pointing to the neighbouring systems. Click an arrow to see the lane's
+length. Double-click it to open that neighbour's view. Wheel zooms and
+middle-drag pans, as on the galaxy map. A large save can take a moment
+to read a system, and the status bar says "Reading the system…" until
+the bodies appear.
+
+The status bar counts the system's bodies and belts. With a body's page
+open in the Inspector, it shows that body's orbit and angle.
+
+The tool rail and the layer buttons are for the galaxy, so they are
+hidden or greyed out while a system is open. Undo and redo still work
+from the Edit menu and their keys.
+
+To get back to the galaxy, press Esc, click "Galaxy" in the crumb at the
+map's top left, right-click and choose Back to galaxy, or use View → Back
+to galaxy. Backspace goes back too once the Inspector has no page left
+to step back from. The galaxy map is where you left it.
+
 ## Make a scenario
 
 A static galaxy scenario is a `.txt` file that a new game starts from
@@ -339,6 +370,8 @@ I haven't tested Ironman saves.
 | Alt | Swap the brush while held |
 | Shift+Arrow | Nudge by 1, or 10 with Ctrl |
 | Shift+F | Frame the selection |
+| Enter | Open the selected system's view |
+| Esc, Backspace | Back to the galaxy from a system view |
 | Tab | Hide or show the dock |
 | I, Shift+I | Issues tab, initializer browser |
 | Delete | Delete or cut what is selected |

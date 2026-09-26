@@ -16,6 +16,7 @@ export function recorder(): MapIntent & { calls: Call[] } {
     toggleSelect: rec("toggleSelect"),
     selectLane: rec("selectLane"),
     clearSelection: rec("clearSelection"),
+    enterSystem: rec("enterSystem"),
     previewMarquee: rec("previewMarquee"),
     endMarquee: rec("endMarquee"),
     selectInRect: rec("selectInRect"),
@@ -48,7 +49,14 @@ export function recorder(): MapIntent & { calls: Call[] } {
   };
 }
 
-/** One input at screen (sx, sy), which is also its world point; a system or ring under it sets its zone. */
+/** The gap between the default times of two inputs: wide enough that no two double a click. */
+const DEFAULT_TIME_STEP_MS = 1000;
+let clock = 0;
+
+/**
+ * One input at screen (sx, sy), which is also its world point; a system or ring under it sets its
+ * zone. Its time runs on from the last input's unless `extra` states one.
+ */
 export function at(
   kind: MapInput["kind"],
   sx: number,
@@ -65,6 +73,7 @@ export function at(
     shift: false,
     ctrl: false,
     alt: false,
+    time: (clock += DEFAULT_TIME_STEP_MS),
     selection: [],
     system: null,
     zone:

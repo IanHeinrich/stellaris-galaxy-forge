@@ -111,8 +111,6 @@ const BINDINGS: Binding[] = [
   follows(useEditorStore, [(s) => s.pan], (s, view) => {
     if (s.pan) view.panTo(s.pan.x, s.pan.y);
   }),
-  follows(useEditorStore, [(s) => s.fitNonce], (_s, view) => view.fit()),
-  follows(useEditorStore, [(s) => s.fitSelectionNonce], (_s, view) => view.fitSelection()),
 
   follows(
     useMapChromeStore,
