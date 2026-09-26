@@ -1,14 +1,13 @@
 import { Container, Graphics } from "pixi.js";
 import { stepText, turnText } from "../../../lib/details/labels";
-import { polar } from "../../../lib/details/orbits";
+import { polar, wholeTurn } from "../../../lib/details/orbits";
 import { ACCENT_COLOR, MATCHED_COLOR } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
 import { dashedCircle, dashedLine } from "../../layers/dashes";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
-import { fitScale } from "../camera";
 import { drawnDisc, exitTriangle, SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
-import { plateScale } from "./labelSlots";
-import { radiusTag, standTag, tagBox, type RadiusTag } from "./radiusTag";
+import { plateScaleAt } from "./labelSlots";
+import { standTag, TagCache, tagBox, type RadiusTag } from "./plate";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
 
 const HOVER_COLOR = 0xffffff;
@@ -56,6 +55,12 @@ function radians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
 
+/** How far from its ring's centre a body's radius line and rays start: clear of the disc there. */
+function hubReach(body: SceneBody, cam: Camera): number {
+  const hub = body.readout?.hub ?? 0;
+  return hub > 0 ? drawnDisc(hub, cam.scale) + RADIUS_HUB_GAP_PX / cam.scale : 0;
+}
+
 /**
  * The hover ring, the selection ring and the highlighted lane's arrow, and a line from what the
  * selected body orbits out to it, labelled with its radius. A scenario body's turn from the body
@@ -65,7 +70,6 @@ function radians(degrees: number): number {
  * stretch of the radius line labelled. Its ranged orbit shows as a faint band between its radii.
  */
 export class HighlightLayer implements SystemLayer {
-  readonly id = "highlight" as const;
   readonly container = new Container();
   private readonly g = new Graphics();
   readonly radiusLine = new Graphics();
@@ -77,7 +81,7 @@ export class HighlightLayer implements SystemLayer {
   readonly baseCircle = new Graphics();
   readonly stepLine = new Graphics();
   readonly band = new Graphics();
-  private readonly tags = new Map<TagSlot, { text: string; tag: RadiusTag }>();
+  private readonly tags = new TagCache<TagSlot>(this.container);
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
   private ref: SceneHighlight = NO_HIGHLIGHT;
   private cam: Camera | null = null;
@@ -129,14 +133,14 @@ export class HighlightLayer implements SystemLayer {
     if (!cam) return;
     this.drawnRev = cam.rev;
     const id = this.ref.selectedBody;
-    const selected = id === null ? undefined : this.ctx.bodies.find((b) => b.placement.id === id);
+    const selected = id === null ? undefined : this.ctx.bodyById.get(id);
     this.drawRadius(cam, selected);
     this.drawTurn(cam, selected);
     this.drawAnchor(cam, selected);
     this.drawBand(selected);
     const px = 1 / cam.scale;
     const ring = (id: number | null, gap: number, width: number, color: number, alpha: number) => {
-      const body = id === null ? undefined : this.ctx.bodies.find((b) => b.placement.id === id);
+      const body = id === null ? undefined : this.ctx.bodyById.get(id);
       if (!body) return;
       const { x, y, disc } = body.placement;
       g.circle(x, y, drawnDisc(disc, cam.scale) + gap * px).stroke({
@@ -178,10 +182,9 @@ export class HighlightLayer implements SystemLayer {
     const stepTag = this.tagFor("step", ring && step && base > 0 ? stepText(step) : null);
     if (!body?.readout || !ring || !tag) return;
     const { x, y, disc } = body.placement;
-    const length = Math.hypot(x - ring.cx, y - ring.cy);
+    const length = ring.radius;
     const px = 1 / cam.scale;
-    const hub = body.readout.hub;
-    const from = hub > 0 ? drawnDisc(hub, cam.scale) + RADIUS_HUB_GAP_PX * px : 0;
+    const from = hubReach(body, cam);
     const to = length - drawnDisc(disc, cam.scale) - SELECTED_GAP_PX * px;
     if (to <= from) return;
     const ux = (x - ring.cx) / length;
@@ -231,15 +234,14 @@ export class HighlightLayer implements SystemLayer {
     const { cx, cy, radius } = ring;
     const from = turn.from + turn.step.min;
     const to = turn.from + turn.step.max;
-    if (to - from >= 360) {
+    if (wholeTurn(turn.step)) {
       arc.circle(cx, cy, radius);
     } else {
       const start = radians(from);
       arc
         .moveTo(cx + radius * Math.cos(start), cy + radius * Math.sin(start))
         .arc(cx, cy, radius, start, radians(to));
-      const hub = body.readout?.hub ?? 0;
-      const near = hub > 0 ? drawnDisc(hub, cam.scale) + RADIUS_HUB_GAP_PX * px : 0;
+      const near = hubReach(body, cam);
       const far = radius + TURN_RAY_REACH_PX * px;
       [from, to].forEach((degrees, i) => {
         const a = polar(cx, cy, near, degrees);
@@ -268,7 +270,7 @@ export class HighlightLayer implements SystemLayer {
     const turn = body?.placement.turn;
     const ring = body?.placement.ring;
     if (!body || !turn || !ring || turn.anchor === null) return;
-    const anchor = this.ctx.bodies.find((b) => b.placement.id === turn.anchor);
+    const anchor = this.ctx.bodyById.get(turn.anchor);
     if (!anchor) return;
     const px = 1 / cam.scale;
     const { x, y, disc } = anchor.placement;
@@ -281,8 +283,7 @@ export class HighlightLayer implements SystemLayer {
       width: (linked ? LINKED_ANCHOR_WIDTH_PX : ANCHOR_WIDTH_PX) * px,
     });
     const reach = Math.max(ring.radius, Math.hypot(x - ring.cx, y - ring.cy) + r);
-    const hub = body.readout?.hub ?? 0;
-    const near = hub > 0 ? drawnDisc(hub, cam.scale) + RADIUS_HUB_GAP_PX * px : 0;
+    const near = hubReach(body, cam);
     const far = reach + TURN_RAY_REACH_PX * px;
     dashedLine(
       ray,
@@ -305,28 +306,13 @@ export class HighlightLayer implements SystemLayer {
   }
 
   private stand(tag: RadiusTag, cam: Camera, id: number, sx: number, sy: number): void {
-    const k = plateScale(cam.scale / fitScale(this.ctx.layout.fitRadius, cam.width, cam.height));
+    const k = plateScaleAt(cam, this.ctx.layout.fitRadius);
     standTag(tag, cam, tagBox(id, tag, sx, sy, k), k);
   }
 
-  /**
-   * The plate in `slot` reading `text`, hidden until it is stood; made again only when the text
-   * moves.
-   */
+  /** The plate in `slot` reading `text`, hidden until it is stood. */
   private tagFor(slot: TagSlot, text: string | null): RadiusTag | null {
-    const held = this.tags.get(slot);
-    if (held?.text !== text) {
-      held?.tag.holder.destroy({ children: true });
-      this.tags.delete(slot);
-      if (text !== null) {
-        const tag = radiusTag(text, slot);
-        this.container.addChild(tag.holder);
-        this.tags.set(slot, { text, tag });
-      }
-    }
-    const tag = this.tags.get(slot)?.tag ?? null;
-    if (tag) tag.holder.visible = false;
-    return tag;
+    return this.tags.get(slot, text, slot);
   }
 
   destroy(): void {

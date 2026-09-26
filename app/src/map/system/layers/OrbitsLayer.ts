@@ -1,21 +1,21 @@
 import { Container, Graphics } from "pixi.js";
-import type { Ring } from "../../../lib/details/orbits";
 import type { Camera } from "../../Camera";
 import { dashedCircle } from "../../layers/dashes";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
-import { ringDashes, sameRing } from "../geometry";
+import { ringDashes, ringGroups } from "../geometry";
 import type { SystemLayer } from "./SystemLayer";
 
 const ORBIT_COLOR = 0x7f8fa6;
 const ORBIT_ALPHA = 0.14;
 const INNER_ALPHA = 0.3;
+/** The share of the inner radius's dashed circle that is inked. */
+const INNER_INK = 0.4;
 
 /**
  * Each body's orbit as a faint circle about its parent, a scenario body's at its rolled radius,
  * and the system's border at the inner radius dashed. No ring is stroked twice.
  */
 export class OrbitsLayer implements SystemLayer {
-  readonly id = "orbits" as const;
   readonly container = new Container();
   readonly rings = new Graphics();
   readonly inner = new Graphics();
@@ -37,30 +37,16 @@ export class OrbitsLayer implements SystemLayer {
     this.drawnScale = cam.scale;
     const { layout } = this.ctx;
     this.rings.clear();
-    const rings = this.distinctRings(1 / cam.scale);
-    for (const { cx, cy, radius } of rings) this.rings.circle(cx, cy, radius);
+    const rings = ringGroups(layout.bodies, 1 / cam.scale);
+    for (const { ring } of rings) this.rings.circle(ring.cx, ring.cy, ring.radius);
     if (rings.length > 0) {
       this.rings.stroke({ color: ORBIT_COLOR, alpha: ORBIT_ALPHA, pixelLine: true });
     }
     this.inner.clear();
     const r = layout.innerRadius;
-    dashedCircle(this.inner, 0, 0, r, ringDashes(r, cam.scale), 0.4);
+    dashedCircle(this.inner, 0, 0, r, ringDashes(r, cam.scale), INNER_INK);
     this.inner.stroke({ color: ORBIT_COLOR, alpha: INNER_ALPHA, pixelLine: true });
   }
-
-  /**
-   * Each ring once. The save's orbits on one ring differ by a fraction of a unit, so rings within
-   * `px` are one.
-   */
-  private distinctRings(px: number): Ring[] {
-    const rings: Ring[] = [];
-    for (const { ring } of this.ctx.layout.bodies) {
-      if (ring && !rings.some((other) => sameRing(ring, other, px))) rings.push(ring);
-    }
-    return rings;
-  }
-
-  setHighlighted(): void {}
 
   destroy(): void {
     this.container.destroy({ children: true });

@@ -35,14 +35,14 @@ function glowTexture(renderer: Renderer): Texture {
 const glows = new WeakMap<Renderer, { texture: Texture; users: number }>();
 
 /** A soft white glow, tinted per star: baked once per renderer and shared until its last user lets go. */
-export function acquireGlow(renderer: Renderer): Texture {
+function acquireGlow(renderer: Renderer): Texture {
   const held = glows.get(renderer) ?? { texture: glowTexture(renderer), users: 0 };
   held.users++;
   glows.set(renderer, held);
   return held.texture;
 }
 
-export function releaseGlow(renderer: Renderer): void {
+function releaseGlow(renderer: Renderer): void {
   const held = glows.get(renderer);
   if (!held || --held.users > 0) return;
   glows.delete(renderer);

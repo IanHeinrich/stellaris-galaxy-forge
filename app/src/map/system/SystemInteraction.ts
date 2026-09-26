@@ -46,7 +46,7 @@ function tipFor(
   exit: number | null,
 ): Omit<MapTooltip, "x" | "y"> | null {
   if (body !== null) {
-    const planet = ctx.bodies.find((b) => b.placement.id === body)?.planet;
+    const planet = ctx.bodyById.get(body)?.planet;
     if (!planet) return null;
     return {
       title: ctx.templateName(planet),
@@ -136,7 +136,7 @@ export class SystemInteraction {
 
   private openBody(system: number, id: number): void {
     const ctx = this.scene.context();
-    const planet = ctx.bodies.find((b) => b.placement.id === id)?.planet;
+    const planet = ctx.bodyById.get(id)?.planet;
     if (!planet) return;
     const inspector = useInspectorStore.getState();
     inspector.openFromMap(bodyEntry(system, id, bodyName(planet, ctx.names)));

@@ -51,10 +51,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   private sizedFor = { width: 0, height: 0 };
   private readonly unbind: () => void;
 
-  constructor(
-    private readonly renderer: Renderer,
-    canvas: HTMLCanvasElement,
-  ) {
+  constructor(renderer: Renderer, canvas: HTMLCanvasElement) {
     const textures = bakeSceneTextures(renderer);
     this.textures = textures;
     this.layers = [
@@ -112,7 +109,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     this.unbind();
     for (const layer of this.layers.splice(0)) layer.destroy();
     this.root.destroy({ children: true });
-    releaseSceneTextures(this.renderer, this.textures);
+    releaseSceneTextures(this.textures);
   }
 
   context(): SystemContext {
@@ -166,7 +163,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   }
 
   private drawHighlight(): void {
-    for (const layer of this.layers) layer.setHighlighted(this.highlight);
+    for (const layer of this.layers) layer.setHighlighted?.(this.highlight);
   }
 
   /** The highlighted lane's two ends and its length in the status bar, while it is highlighted. */
@@ -229,6 +226,6 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     }
     if (this.cam.rev === this.appliedRev) return;
     this.appliedRev = this.cam.rev;
-    for (const layer of this.layers) layer.onViewport(this.cam);
+    for (const layer of this.layers) layer.onViewport?.(this.cam);
   }
 }

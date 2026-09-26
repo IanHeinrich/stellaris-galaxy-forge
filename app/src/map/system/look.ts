@@ -16,7 +16,10 @@ export function beltTint(kind: string): number {
   return DEBRIS_TINT;
 }
 
-/** The class families `planetTint` leaves to its neutral grey, by the colour the scene gives each. */
+/**
+ * A tint for each class family `planetTint` leaves to its neutral grey; every other class takes
+ * the tint `planetTint` gives it on the galaxy map.
+ */
 const FAMILY_TINTS: Array<[pattern: RegExp, tint: number]> = [
   [/gas_giant/, 0xc9a26b],
   [/asteroid/, 0x8a8178],
@@ -24,15 +27,6 @@ const FAMILY_TINTS: Array<[pattern: RegExp, tint: number]> = [
   [/frozen/, 0xcfe3f0],
   [/toxic/, 0x9bc34a],
   [/molten/, 0xd9623b],
-  [/ocean/, 0x3a7fd0],
-  [/continental/, 0x4f9d5a],
-  [/tropical/, 0x3fae6b],
-  [/arid/, 0xd09a4e],
-  [/desert/, 0xe0bf7a],
-  [/savannah/, 0xb9b25a],
-  [/tundra/, 0xa7b9a0],
-  [/alpine/, 0xd8e4ea],
-  [/arctic/, 0xe6f0f7],
 ];
 
 /**

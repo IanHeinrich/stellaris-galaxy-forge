@@ -1,7 +1,8 @@
-import type { Ring } from "../../lib/details/orbits";
+import type { Bounds } from "../../generated/Bounds";
+import type { BodyPlacement, Ring } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
 import { markerScale } from "../layers/MapLayer";
-import type { Exit } from "./context";
+import type { Exit, SceneBody } from "./context";
 
 /** The smallest a body's disc radius is drawn, in screen pixels, before the marker factor. */
 const BODY_FLOOR_PX = 3;
@@ -36,6 +37,40 @@ export function sameRing(a: Ring, b: Ring, within: number): boolean {
     Math.abs(a.cy - b.cy) < within &&
     Math.abs(a.radius - b.radius) < within
   );
+}
+
+/** One ring as it is drawn: the first body on it, and the radii of every body on it joined. */
+export interface RingGroup {
+  readonly id: number;
+  readonly ring: Ring;
+  readonly span: Bounds;
+}
+
+/**
+ * Each ring of `placements` once, in their order. The save's orbits on one ring differ by a
+ * fraction of a unit, so rings within `px` world units are one.
+ */
+export function ringGroups(placements: readonly BodyPlacement[], px: number): RingGroup[] {
+  const groups: RingGroup[] = [];
+  for (const { id, ring, radius } of placements) {
+    if (!ring || !radius) continue;
+    const at = groups.findIndex((other) => sameRing(ring, other.ring, px));
+    if (at < 0) groups.push({ id, ring, span: radius });
+    else groups[at] = { ...groups[at], span: joined(groups[at].span, radius) };
+  }
+  return groups;
+}
+
+function joined(a: Bounds, b: Bounds): Bounds {
+  return { min: Math.min(a.min, b.min), max: Math.max(a.max, b.max) };
+}
+
+/**
+ * Stars, then planets, then moons: the order bodies are drawn in, so a moon is never hidden
+ * behind its planet, and the order their labels are placed in.
+ */
+export function bodyTier(body: SceneBody): number {
+  return body.placement.star ? 0 : body.moon ? 2 : 1;
 }
 
 /** A body's drawn disc radius in world units at `scale`: its own, or the screen-pixel floor. */

@@ -4,24 +4,29 @@
  * beams and the haze swirling round it, a neutron star's jets and a few curling wisps.
  */
 
-export const GLOW_SIZE = 128;
-export const BEAM_WIDTH = 256;
-export const BEAM_HEIGHT = 64;
-export const PLUME_WIDTH = 256;
-export const PLUME_HEIGHT = 128;
-export const WISPS_SIZE = 256;
-export const HALO_SIZE = 256;
-export const SWIRL_SIZE = 256;
+import type { StarFlare } from "../../../lib/visual/starGlyphs";
+import { smoothstep } from "./ease";
+import { field, once } from "./texels";
+import type { SceneTextures } from "./textures";
+
+const GLOW_SIZE = 128;
+const BEAM_WIDTH = 256;
+const BEAM_HEIGHT = 64;
+const PLUME_WIDTH = 256;
+const PLUME_HEIGHT = 128;
+const WISPS_SIZE = 256;
+const HALO_SIZE = 256;
+const SWIRL_SIZE = 256;
 
 /**
  * How long the beams and the jets are from end to end, in disc diameters. Each is drawn centred
  * on its star, so the part inside the limb is hidden behind the surface.
  */
-export const BEAM_LENGTH = 4;
-export const PLUME_LENGTH = 6;
+const BEAM_LENGTH = 4;
+const PLUME_LENGTH = 6;
 /** How wide the limb bloom and the pulsar's haze are drawn, in disc diameters. */
-export const HALO_SCALE = 1.4;
-export const SWIRL_SCALE = 3.2;
+const HALO_SCALE = 1.4;
+const SWIRL_SCALE = 3.2;
 
 /** How fast the glow falls away from its centre, as the exponent at its edge. */
 const GLOW_FALLOFF = 3.4;
@@ -65,25 +70,6 @@ const WISPS: ReadonlyArray<readonly [number, number, number, number, number]> = 
   [4.4, 1.1, 0.72, 0.16, 0.01],
 ];
 
-function smoothstep(from: number, to: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - from) / (to - from)));
-  return t * t * (3 - 2 * t);
-}
-
-/** `alpha(x, y)` for each texel of a `width` by `height` field, `x` and `y` from -1 to 1. */
-function field(width: number, height: number, alpha: (x: number, y: number) => number): Uint8Array {
-  const texels = new Uint8Array(width * height * 4);
-  for (let row = 0; row < height; row++) {
-    for (let col = 0; col < width; col++) {
-      const x = ((col + 0.5) / width) * 2 - 1;
-      const y = ((row + 0.5) / height) * 2 - 1;
-      const a = Math.round(255 * Math.min(1, Math.max(0, alpha(x, y))));
-      texels.set([a, a, a, a], (row * width + col) * 4);
-    }
-  }
-  return texels;
-}
-
 /**
  * How far out along a light `length` disc diameters long the point `x` lies: 0 at the limb and
  * inside it, 1 at the far end.
@@ -99,32 +85,32 @@ function across(y: number, half: number): number {
 }
 
 /** Brightest at the centre, falling away smoothly to nothing at the edge. */
-export function glowTexels(): Uint8Array {
+export const glowTexels = once(() => {
   const edge = Math.exp(-GLOW_FALLOFF);
   return field(GLOW_SIZE, GLOW_SIZE, (x, y) => {
     const r = Math.hypot(x, y);
     return r >= 1 ? 0 : (Math.exp(-GLOW_FALLOFF * r) - edge) / (1 - edge);
   });
-}
+});
 
 /**
  * A pulsar's two beams along x, one each way from the middle: widest where they leave the limb,
  * tapering to a point at the ends and fading as they go.
  */
-export function beamTexels(): Uint8Array {
-  return field(BEAM_WIDTH, BEAM_HEIGHT, (x, y) => {
+export const beamTexels = once(() =>
+  field(BEAM_WIDTH, BEAM_HEIGHT, (x, y) => {
     const s = outward(x, BEAM_LENGTH);
     const half = BEAM_SPREAD * (1 - s) ** 0.8;
     return (1 - s) ** 1.3 * across(y, half);
-  });
-}
+  }),
+);
 
 /**
  * A neutron star's two jets along x: broad and soft at the poles, narrowing and fading outwards,
  * with a few thinner bright filaments running through them.
  */
-export function plumeTexels(): Uint8Array {
-  return field(PLUME_WIDTH, PLUME_HEIGHT, (x, y) => {
+export const plumeTexels = once(() =>
+  field(PLUME_WIDTH, PLUME_HEIGHT, (x, y) => {
     const s = outward(x, PLUME_LENGTH);
     const half = PLUME_SPREAD * (1 - (1 - PLUME_TIP) * s);
     let filaments = 0;
@@ -137,24 +123,24 @@ export function plumeTexels(): Uint8Array {
     const body = PLUME_BODY * across(y, half);
     const fade = (1 - s) ** PLUME_FADE * (1 - smoothstep(0.7, 1, s));
     return fade * (body + (1 - PLUME_BODY) * filaments * across(y, 1.3 * half));
-  });
-}
+  }),
+);
 
 /**
  * Light bleeding past a disc's limb, as the game's bloom spreads it: brightest on the limb, a
  * little way in over the edge, and falling away fast outside.
  */
-export function haloTexels(): Uint8Array {
+export const haloTexels = once(() => {
   const limb = 1 / HALO_SCALE;
   return field(HALO_SIZE, HALO_SIZE, (x, y) => {
     const r = Math.hypot(x, y);
     if (r < limb) return Math.exp(-(((limb - r) / HALO_INSIDE) ** 2));
     return Math.exp(-(r - limb) / HALO_OUTSIDE) * (1 - smoothstep(0.8, 1, r));
   });
-}
+});
 
 /** Two soft spiral arms of haze, rising from the limb and fading out well beyond it. */
-export function swirlTexels(): Uint8Array {
+export const swirlTexels = once(() => {
   const limb = 1 / SWIRL_SCALE;
   return field(SWIRL_SIZE, SWIRL_SIZE, (x, y) => {
     const r = Math.hypot(x, y);
@@ -164,11 +150,11 @@ export function swirlTexels(): Uint8Array {
     const fall = 1 - smoothstep(0.45, 1, r);
     return rise * fall * (SWIRL_FLOOR + (1 - SWIRL_FLOOR) * arms);
   });
-}
+});
 
 /** Faint curling strands round an empty middle, each fading in and out along its length. */
-export function wispTexels(): Uint8Array {
-  return field(WISPS_SIZE, WISPS_SIZE, (x, y) => {
+export const wispTexels = once(() =>
+  field(WISPS_SIZE, WISPS_SIZE, (x, y) => {
     const r = Math.hypot(x, y);
     const angle = Math.atan2(y, x);
     let sum = 0;
@@ -181,5 +167,174 @@ export function wispTexels(): Uint8Array {
       sum += along * Math.exp(-((off / thickness) ** 2));
     }
     return sum * (1 - smoothstep(0.85, 1, r));
-  });
+  }),
+);
+
+/**
+ * A beam, a jet, a bloom or the wisps: its length and thickness in disc diameters, its turn, and
+ * how far from the star's centre it sits along that turn, in disc diameters.
+ */
+export interface FlareShape {
+  readonly length: number;
+  readonly thickness: number;
+  readonly rotation: number;
+  readonly offset?: number;
+}
+
+/**
+ * One light the scene adds round a star: the texture it draws, its shape, alpha and tint (null for
+ * the star's own), and whether it passes behind the disc.
+ */
+export interface FlarePart {
+  readonly label: string;
+  readonly texture: keyof SceneTextures;
+  readonly shape: FlareShape;
+  readonly alpha: number;
+  readonly tint: number | null;
+  readonly behind: boolean;
+}
+
+/**
+ * A star's galaxy art behind its surface, in disc diameters, and how strongly it shows: faint,
+ * so its spikes barely show past the limb. A neutron star's shell sits close about the body.
+ */
+export const STAR_ART: Record<StarFlare | "star", { scale: number; alpha: number }> = {
+  star: { scale: 2.6, alpha: 0.18 },
+  pulsar: { scale: 2.8, alpha: 0.35 },
+  neutron: { scale: 1.5, alpha: 0.15 },
+};
+
+/**
+ * The game's bloom bleeds a star's light past its limb. A bloom hugging the limb stands in for
+ * it: mild and in the class's colour round an ordinary star, strong and near white round a
+ * pulsar or a neutron star, where it joins the beams to the body.
+ */
+const HALO: FlareShape = { length: HALO_SCALE, thickness: HALO_SCALE, rotation: 0 };
+const STAR_HALO_ALPHA = 0.35;
+const EXOTIC_HALO_TINT = 0xe6f1ff;
+const EXOTIC_HALO_ALPHA = 0.45;
+/**
+ * The game glazes a pulsar's and a neutron star's surface with thousands of pale blue particles;
+ * a wash of pale blue added over the disc stands in for them.
+ */
+const WASH: FlareShape = { length: 1, thickness: 1, rotation: 0 };
+const WASH_TINT = 0xb4d0ff;
+const WASH_ALPHA = 0.35;
+/**
+ * The light a pulsar or a neutron star throws off its poles: its length and thickness in disc
+ * diameters, and its turn on screen. The beams and jets pass behind the star, so none of them
+ * crosses its surface, and a bloom sits over the limb where each leaves it. A pulsar's beams are
+ * thin and lie along the beams of its galaxy art; a neutron star's jets are broad soft plumes,
+ * straight up and down, with wisps curling round the body.
+ */
+const PULSAR_TURN = 1.07;
+const PULSAR_BEAMS: FlareShape = { length: BEAM_LENGTH, thickness: 0.5, rotation: PULSAR_TURN };
+const PULSAR_BLOOM = 0.75;
+/** The pale haze swirling round a pulsar, reaching well past the limb. */
+const PULSAR_SWIRL: FlareShape = { length: SWIRL_SCALE, thickness: SWIRL_SCALE, rotation: 0 };
+const SWIRL_TINT = 0xcfe2ff;
+const SWIRL_ALPHA = 0.35;
+const NEUTRON_TURN = Math.PI / 2;
+const NEUTRON_JETS: FlareShape = { length: PLUME_LENGTH, thickness: 1.4, rotation: NEUTRON_TURN };
+const NEUTRON_BLOOM = 0.9;
+/** Faint thin strands of pale blue, flung out one and a half to three disc radii. */
+const NEUTRON_WISPS: FlareShape = { length: 3.4, thickness: 3.4, rotation: 0 };
+const WISPS_TINT = 0x9ec4ff;
+const WISPS_ALPHA = 0.2;
+/** A wide soft blue glow round a neutron star, through which the wisps and orbits show. */
+const NEUTRON_AURA: FlareShape = { length: 6, thickness: 6, rotation: 0 };
+const AURA_TINT = 0x7fa8ff;
+const AURA_ALPHA = 0.25;
+const FLARE_TINT = 0xcfe4ff;
+const FLARE_ALPHA = 0.75;
+const BLOOM_TINT = 0xeef6ff;
+const BLOOM_ALPHA = 0.6;
+
+/** The blooms over the limb at both ends of lights turned `rotation`, `size` discs across. */
+function blooms(rotation: number, size: number): FlarePart[] {
+  return [0.5, -0.5].map((offset) => ({
+    label: "bloom",
+    texture: "corona",
+    shape: { length: size, thickness: size, rotation, offset },
+    alpha: BLOOM_ALPHA,
+    tint: BLOOM_TINT,
+    behind: false,
+  }));
+}
+
+const WASHED: FlarePart = {
+  label: "wash",
+  texture: "disc",
+  shape: WASH,
+  alpha: WASH_ALPHA,
+  tint: WASH_TINT,
+  behind: false,
+};
+const EXOTIC_HALO: FlarePart = {
+  label: "halo",
+  texture: "halo",
+  shape: HALO,
+  alpha: EXOTIC_HALO_ALPHA,
+  tint: EXOTIC_HALO_TINT,
+  behind: false,
+};
+const STAR_HALO: FlarePart = { ...EXOTIC_HALO, alpha: STAR_HALO_ALPHA, tint: null };
+
+/** The lights round each kind of flaring star, in the order they are drawn. */
+const STAR_FLARES: Record<StarFlare, readonly FlarePart[]> = {
+  pulsar: [
+    {
+      label: "haze",
+      texture: "swirl",
+      shape: PULSAR_SWIRL,
+      alpha: SWIRL_ALPHA,
+      tint: SWIRL_TINT,
+      behind: true,
+    },
+    {
+      label: "beams",
+      texture: "beam",
+      shape: PULSAR_BEAMS,
+      alpha: FLARE_ALPHA,
+      tint: FLARE_TINT,
+      behind: true,
+    },
+    WASHED,
+    EXOTIC_HALO,
+    ...blooms(PULSAR_TURN, PULSAR_BLOOM),
+  ],
+  neutron: [
+    {
+      label: "jets",
+      texture: "plume",
+      shape: NEUTRON_JETS,
+      alpha: FLARE_ALPHA,
+      tint: FLARE_TINT,
+      behind: true,
+    },
+    {
+      label: "aura",
+      texture: "corona",
+      shape: NEUTRON_AURA,
+      alpha: AURA_ALPHA,
+      tint: AURA_TINT,
+      behind: true,
+    },
+    {
+      label: "wisps",
+      texture: "wisps",
+      shape: NEUTRON_WISPS,
+      alpha: WISPS_ALPHA,
+      tint: WISPS_TINT,
+      behind: true,
+    },
+    WASHED,
+    EXOTIC_HALO,
+    ...blooms(NEUTRON_TURN, NEUTRON_BLOOM),
+  ],
+};
+
+/** The lights round a shining star of `flare`: a bloom on its limb alone for an ordinary star. */
+export function flareParts(flare: StarFlare | null): readonly FlarePart[] {
+  return flare ? STAR_FLARES[flare] : [STAR_HALO];
 }

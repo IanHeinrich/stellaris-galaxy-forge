@@ -139,6 +139,11 @@ export interface RolledPlanet {
 /** The turn of a body that names no angle: the game may place it anywhere on its orbit. */
 export const ANY_ANGLE: Bounds = { min: 0, max: 360 };
 
+/** Whether a turn of `step` lets a body stand anywhere on its orbit: a whole turn or more. */
+export function wholeTurn(step: Bounds): boolean {
+  return step.max - step.min >= 360;
+}
+
 /** Where a body `orbit` out at `angle` degrees from (x, y) stands, as the add-system writer places it. */
 export function polar(x: number, y: number, orbit: number, angle: number): Point {
   const a = (angle * Math.PI) / 180;

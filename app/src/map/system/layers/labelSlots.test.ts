@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
-import { GAP_PX, placeLabels, plateScale, type LabelItem, type LabelBox } from "./labelSlots";
+import {
+  GAP_PX,
+  overlaps,
+  placeLabels,
+  plateScale,
+  type LabelItem,
+  type LabelBox,
+} from "./labelSlots";
 
 /** Bodies by world point, in the order the layer ranks them: the star, then planets by size. */
 const BODIES = [
@@ -30,10 +37,6 @@ function at(scale: number): LabelItem[] {
 /** A screen box's position and size, with or without the id a placed label carries too. */
 type Rect = { x: number; y: number; w: number; h: number };
 
-function overlaps(a: Rect, b: Rect): boolean {
-  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-}
-
 function pairwiseClear(boxes: readonly LabelBox[]): boolean {
   return boxes.every((a, i) => boxes.slice(i + 1).every((b) => !overlaps(a, b)));
 }
@@ -54,10 +57,11 @@ function headSlots(x: number, y: number, r: number, w = 64, h = 16) {
   };
 }
 
-/** The box about a body's disc and its selected ring, as `discBox` computes it. */
-function discBox(x: number, y: number, r: number): Rect {
-  const off = r + SELECTED_GAP_PX + SELECTED_WIDTH_PX;
-  return { x: x - off, y: y - off, w: 2 * off, h: 2 * off };
+/** How far `box` stands from the point (x, y): 0 when it covers it. */
+function distance(box: Rect, x: number, y: number): number {
+  const nearestX = Math.min(Math.max(x, box.x), box.x + box.w);
+  const nearestY = Math.min(Math.max(y, box.y), box.y + box.h);
+  return Math.hypot(nearestX - x, nearestY - y);
 }
 
 describe("the system scene's label slots", () => {
@@ -160,7 +164,7 @@ describe("the system scene's label slots", () => {
       ...MEASURED,
     }));
     const heads = headSlots(planet.x, planet.y, planet.r);
-    const disc = discBox(planet.x, planet.y, planet.r);
+    const ring = planet.r + SELECTED_GAP_PX + SELECTED_WIDTH_PX;
     const blockedBefore = {
       below: [],
       above: [heads.below],
@@ -173,7 +177,9 @@ describe("the system scene's label slots", () => {
       expect(pairwiseClear(placed)).toBe(true);
       const own = placed.filter((box) => box.id >= 30 && box.id <= 34);
       expect(own.length).toBe(5);
-      for (const box of own) expect(overlaps(box, disc)).toBe(false);
+      for (const box of own) {
+        expect(distance(box, planet.x, planet.y)).toBeGreaterThanOrEqual(ring);
+      }
     }
   });
 
@@ -182,9 +188,7 @@ describe("the system scene's label slots", () => {
     for (const box of placeLabels(items)) {
       const body = items.find((item) => item.id === box.id);
       if (!body) throw new Error("placed a label for no body");
-      const nearestX = Math.min(Math.max(body.x, box.x), box.x + box.w);
-      const nearestY = Math.min(Math.max(body.y, box.y), box.y + box.h);
-      expect(Math.hypot(nearestX - body.x, nearestY - body.y)).toBeGreaterThanOrEqual(body.r);
+      expect(distance(box, body.x, body.y)).toBeGreaterThanOrEqual(body.r);
     }
   });
 });
