@@ -4,10 +4,10 @@ expression: out
 ---
 NAME_Wenkwort at -292.23404 -137.62265 sc_b wenkwort_initializer capped flags ["wenkwort_system", "natural_spectacle_system"]
 belt rocky_asteroid_belt 135
-pc_b_star 35 orbit 0 angle 112.78 deposits ["d_physics_2"] star
-  pc_gaia 19 orbit 65 angle 157.78 deposits ["d_teeming_reef", "d_active_volcano", "d_crystalline_caverns", "d_ore_rich_caverns", "d_fuming_bog", "d_crystalline_caverns", "d_searing_desert", "d_prosperous_mesa", "d_ore_rich_caverns"] ring name NAME_wenkwort_prime modifiers ["pm_wenkwort_gardens"]
-    pc_barren_cold 10 orbit 19 angle 229.04 deposits ["d_minerals_2"] name NAME_wenkwort_moon
-  pc_barren 20 orbit 110 angle 292.78 name NAME_wenkwort_2 modifiers ["terraforming_candidate"]
-  pc_asteroid 2 orbit 138 angle 272.78 deposits ["d_minerals_3"] name NAME_wenkwort_asteroid
-  pc_toxic 19 orbit 168 angle 307.78 deposits ["d_trade_value_2"] name NAME_wenkwort_3
-  pc_gas_giant 47 orbit 198 angle 2.78 name NAME_wenkwort_4
+pc_b_star 21 orbit 0 angle 72.11 deposits ["d_physics_2"] star
+  pc_gaia 19 orbit 65 angle 117.11 deposits ["d_teeming_reef", "d_active_volcano", "d_crystalline_caverns", "d_ore_rich_caverns", "d_fuming_bog", "d_crystalline_caverns", "d_searing_desert", "d_prosperous_mesa", "d_ore_rich_caverns"] ring name NAME_wenkwort_prime modifiers ["pm_wenkwort_gardens"]
+    pc_barren_cold 8 orbit 19 angle 257.92 deposits ["d_minerals_2"] name NAME_wenkwort_moon
+  pc_barren 24 orbit 110 angle 252.11 name NAME_wenkwort_2 modifiers ["terraforming_candidate"]
+  pc_asteroid 2 orbit 138 angle 232.11 deposits ["d_minerals_3"] name NAME_wenkwort_asteroid
+  pc_toxic 30 orbit 168 angle 267.11 deposits ["d_trade_value_2"] name NAME_wenkwort_3
+  pc_gas_giant 28 orbit 198 angle 322.11 name NAME_wenkwort_4

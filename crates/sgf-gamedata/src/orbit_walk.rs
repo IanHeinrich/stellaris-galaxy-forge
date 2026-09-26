@@ -55,8 +55,6 @@ pub(crate) struct Placed<N> {
 pub(crate) enum Turn<N> {
     /// The body before it, the first body from this angle: the engine's rule.
     FromPrevious(N),
-    /// Nothing: each instance sits at its own `orbit_angle`, as the roller places moons.
-    FromZero,
 }
 
 /// How the walk turns each range into a number, and what it does with each body.
@@ -87,12 +85,8 @@ pub(crate) fn walk<'p, W: Walk<'p>>(
     turn: Turn<W::Number>,
     walker: &mut W,
 ) -> Result<(), W::Error> {
-    let zero = W::Number::fixed(0.0);
-    let mut orbit = zero;
-    let mut angle = match turn {
-        Turn::FromPrevious(start) => start,
-        Turn::FromZero => zero,
-    };
+    let mut orbit = W::Number::fixed(0.0);
+    let Turn::FromPrevious(mut angle) = turn;
     for block in blocks {
         orbit = orbit.plus(W::Number::fixed(block.change_orbit));
         for _ in 0..walker.count(block) {
@@ -102,10 +96,7 @@ pub(crate) fn walk<'p, W: Walk<'p>>(
                 Some(a) => walker.angle(a),
                 None => walker.no_angle(),
             };
-            angle = match turn {
-                Turn::FromPrevious(_) => angle.plus(step),
-                Turn::FromZero => step,
-            };
+            angle = angle.plus(step);
             walker.body(block, Placed { orbit, angle })?;
         }
     }

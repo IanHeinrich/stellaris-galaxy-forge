@@ -3,9 +3,12 @@ source: crates/sgf-gamedata/tests/special_layouts.rs
 expression: out
 ---
 Gen at -292.23404 -137.62265 sc_pulsar special_init_09
-pc_pulsar 31 orbit 0 angle 258.04 deposits ["d_engineering_3"] star
-  pc_toxic 15 orbit 65 angle 125.36
-  pc_barren_cold 16 orbit 85 angle 358.28
-  pc_barren_cold 25 orbit 105 angle 183.7
-    pc_toxic 8 orbit 15 angle 236.76 deposits ["d_trade_value_2"]
-  pc_barren 15 orbit 125 angle 285.57
+pc_pulsar 34 orbit 0 angle 88.48 deposits ["d_engineering_3"] star
+  pc_toxic 19 orbit 65 angle 258.45
+    pc_toxic 8 orbit 15 angle 321.39
+  pc_barren_cold 12 orbit 85 angle 97.42
+  pc_gas_giant 21 orbit 105 angle 217.49 deposits ["d_society_3"]
+  pc_barren 15 orbit 125 angle 106.67
+    pc_barren 10 orbit 15 angle 292.16 deposits ["d_minerals_4"]
+  pc_frozen 17 orbit 145 angle 289.46
+  pc_frozen 23 orbit 165 angle 127.08
