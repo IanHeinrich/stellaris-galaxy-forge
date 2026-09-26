@@ -1,7 +1,15 @@
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import { KIND_ORDER } from "../special";
-import { LAYER_IDS, PRIMARY_KINDS, PRIMARY_LAYERS, type LayerId } from "./layerIds";
+import {
+  LAYER_IDS,
+  PRIMARY_KINDS,
+  PRIMARY_LAYERS,
+  isGalaxyLayer,
+  type GalaxyLayerId,
+  type GalaxyLayers,
+  type LayerId,
+} from "./layerIds";
 
 /** Where what the app draws comes from: the document's own statements, the key resolved through
  * game data, or the scripts that run on top of it. */
@@ -43,9 +51,9 @@ export function frameIcons(
 
 /** The layers one group's "all" button stands over: the icons the bar carries for that group,
  * with the point-of-interest layer the kinds stand in for. The menu's own layers answer to it. */
-export function barLayers(group: Group): LayerId[] {
+export function barLayers(group: Group): GalaxyLayerId[] {
   const { lead, trail } = frameIcons(group, new Set(group.layers));
-  return [...lead, ...trail];
+  return [...lead, ...trail].filter(isGalaxyLayer);
 }
 
 /** The point-of-interest kinds the bar carries buttons for, when the group holds that layer. */
@@ -128,7 +136,7 @@ export type GroupState = "on" | "off" | "mixed";
 
 /** The switches the map draws by, as much of them as a group's state is read from. */
 export interface LayerVisibility {
-  layers: Readonly<Record<LayerId, boolean>>;
+  layers: Readonly<GalaxyLayers>;
   shownKinds: ReadonlySet<SpecialKind>;
 }
 
@@ -143,7 +151,7 @@ export function allKindsVisible(state: LayerVisibility): boolean {
 }
 
 /** The layer's own switch; which point-of-interest kinds are shown is the layer's business. */
-function layerState(state: LayerVisibility, id: LayerId): GroupState {
+function layerState(state: LayerVisibility, id: GalaxyLayerId): GroupState {
   return state.layers[id] ? "on" : "off";
 }
 

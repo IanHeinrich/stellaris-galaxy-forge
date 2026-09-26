@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import { KIND_ORDER, kindOrder, kindTitle } from "../../lib/special";
-import { LAYER_GROUPS, LAYER_LABELS, layerKey, type LayerId } from "../../lib/visual/layerIds";
+import { barShows, layerKey } from "../../lib/visual/barMode";
+import { LAYER_GROUPS, LAYER_LABELS, type LayerId } from "../../lib/visual/layerIds";
 import { initializerCounts, type InitializerCount } from "../../lib/initializer/initializerLabels";
 import {
   groupsFor,
@@ -16,22 +17,21 @@ import { KIND_STYLE } from "../../lib/visual/specialStyle";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useBarMode } from "../../store/sceneStore";
 import "./chrome.css";
 import { InitializerLegend, LEGEND_LABEL } from "./InitializerLegend";
 import { LayerIcon } from "./LayerIcons";
 import {
-  GALAXY_ONLY,
   MASTER_KEYS,
   MASTER_PILL,
   kindsLabel,
   sourced,
   useDocument,
   useGroupPressed,
-  useInSystem,
   useKind,
   useLayerSwitch,
-  useRegisteredLayers,
   useScriptsReady,
+  useShownLayers,
   useSplit,
   type Pressed,
 } from "./layerState";
@@ -45,9 +45,8 @@ function useKindsPressed(): Pressed {
 }
 
 function LayerRow({ id, source, dead }: { id: LayerId; source?: Source; dead?: string }) {
-  const { on, toggle, elsewhere } = useLayerSwitch(id);
-  dead = elsewhere ?? dead;
-  const key = layerKey(id);
+  const { on, toggle } = useLayerSwitch(id);
+  const key = layerKey(id, useBarMode());
   return (
     <EyeRow
       className={sourced("menu-item", source ?? null)}
@@ -67,7 +66,7 @@ function LayerRow({ id, source, dead }: { id: LayerId; source?: Source; dead?: s
 function AllKindsRow({ source, dead }: { source?: Source; dead?: string }) {
   const toggleAllKinds = useMapChromeStore((s) => s.toggleAllKinds);
   const pressed = useKindsPressed();
-  const key = layerKey("special");
+  const key = layerKey("special", useBarMode());
   return (
     <EyeRow
       className={sourced("menu-item", source ?? null)}
@@ -206,7 +205,8 @@ function menuGroups(registered: ReadonlySet<LayerId>, kind: DocumentKind | null)
 export function LayersMenuBody() {
   const resetLayers = useMapChromeStore((s) => s.resetLayers);
   const keysOn = useMapChromeStore((s) => s.layers.initializers);
-  const registered = useRegisteredLayers();
+  const registered = useShownLayers();
+  const mode = useBarMode();
   const kind = useKind();
   const split = useSplit();
   const ready = useScriptsReady();
@@ -218,7 +218,6 @@ export function LayersMenuBody() {
     if (keysOn) void useGameDataStore.getState().loadInitializers();
   }, [keysOn]);
 
-  const away = useInSystem() ? GALAXY_ONLY : undefined;
   const dead = split && !ready;
   const groups = menuGroups(registered, kind);
   const legend = keysOn && counts.length > 0;
@@ -227,23 +226,23 @@ export function LayersMenuBody() {
       <div className="menu-body">
         {groups.map((group) => {
           const off = dead && group.group?.needsGameData ? group.group.deadTitle : undefined;
-          // Only the layers the system scene draws switch while a system is up; LayerRow knows which.
-          const galaxy = away ?? off;
           const source = group.group?.source;
           return (
             <div key={group.label}>
               <div className={sourced("menu-section", source ?? null)}>
                 {group.label}
-                {group.group?.master && <MasterPill group={group.group} dead={galaxy} />}
+                {group.group?.master && barShows(mode, "masters") && (
+                  <MasterPill group={group.group} dead={off} />
+                )}
               </div>
               {group.layers.map((id) => (
                 <div key={id}>
                   {id === "special" ? (
-                    <AllKindsRow source={source} dead={galaxy} />
+                    <AllKindsRow source={source} dead={off} />
                   ) : id === "initializers" ? (
                     <InitializerKeysRow
                       source={source}
-                      dead={galaxy}
+                      dead={off}
                       anchor={anchor}
                       legend={legend}
                       open={open}
@@ -252,7 +251,7 @@ export function LayersMenuBody() {
                   ) : (
                     <LayerRow id={id} source={source} dead={off} />
                   )}
-                  {id === "special" && <KindRows source={source} dead={galaxy} />}
+                  {id === "special" && <KindRows source={source} dead={off} />}
                 </div>
               ))}
             </div>

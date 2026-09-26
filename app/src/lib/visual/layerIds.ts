@@ -28,6 +28,16 @@ export const LAYER_IDS = [
 ] as const;
 export type LayerId = (typeof LAYER_IDS)[number];
 
+/** The layers the galaxy map switches: every layer but the ones only the system scene draws. */
+export type GalaxyLayerId = Exclude<LayerId, "orbitRadii">;
+export type GalaxyLayers = Record<GalaxyLayerId, boolean>;
+
+export function isGalaxyLayer(id: LayerId): id is GalaxyLayerId {
+  return id !== "orbitRadii";
+}
+
+export const GALAXY_LAYER_IDS: readonly GalaxyLayerId[] = LAYER_IDS.filter(isGalaxyLayer);
+
 /** The layers with their own icon toggle in the top bar. */
 export const PRIMARY_LAYERS: readonly LayerId[] = [
   "lanes",
@@ -45,7 +55,7 @@ export const PRIMARY_LAYERS: readonly LayerId[] = [
 export const PRIMARY_KINDS: readonly SpecialKind[] = ["leviathan", "enclave"];
 
 /** What the number keys 1–9 toggle, in order; the spawn points have none left to take. */
-export const LAYER_KEYS: readonly LayerId[] = [
+export const LAYER_KEYS: readonly GalaxyLayerId[] = [
   "lanes",
   "systems",
   "labels",
@@ -84,11 +94,6 @@ export const LAYER_GROUPS: ReadonlyArray<{ label: string; layers: readonly Layer
   },
   { label: "Editing", layers: ["issues"] },
 ];
-
-/** The number key that toggles a layer, or 0 for the layers without one. */
-export function layerKey(id: LayerId): number {
-  return LAYER_KEYS.indexOf(SCENE_ONLY_KEYS[id] ?? id) + 1;
-}
 
 /** What the layers panel calls each layer, in the game's own words. */
 export const LAYER_LABELS: Record<LayerId, string> = {
@@ -134,22 +139,10 @@ export function isSceneLayer(id: LayerId): id is SceneLayerId {
 }
 
 /**
- * The layers only the system scene draws, each on the number key of a galaxy layer the scene
- * has no switch for.
+ * The layers without a number key of their own, each on the key of a layer that is not shown
+ * where it is.
  */
-const SCENE_ONLY_KEYS: Readonly<Partial<Record<LayerId, LayerId>>> = { orbitRadii: "systems" };
-
-export function isSceneOnly(id: LayerId): boolean {
-  return SCENE_ONLY_KEYS[id] !== undefined;
-}
-
-/** The scene's layer number key `index` switches while a system is shown; null for none. */
-export function sceneLayerAt(index: number): SceneLayerId | null {
-  const layer = LAYER_KEYS[index];
-  if (layer === undefined) return null;
-  const only = SCENE_LAYER_IDS.find((id) => SCENE_ONLY_KEYS[id] === layer);
-  return only ?? (isSceneLayer(layer) ? layer : null);
-}
+export const BORROWED_KEYS: Readonly<Partial<Record<LayerId, LayerId>>> = { orbitRadii: "systems" };
 
 /** What the system scene starts with: names, resources and nebula clouds drawn, radii not. */
 export const DEFAULT_SCENE_LAYERS: Record<SceneLayerId, boolean> = {
@@ -163,7 +156,7 @@ export const DEFAULT_SCENE_LAYERS: Record<SceneLayerId, boolean> = {
  * shows it, with the scripts' day-one overlays left off until asked for, and the two guides on
  * because a scenario is drawn to fit them. `special` is always on because the shown
  * point-of-interest kinds decide what that layer draws. */
-export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
+export const DEFAULT_LAYERS: GalaxyLayers = {
   nebulae: false,
   lanes: true,
   owners: true,
@@ -181,7 +174,6 @@ export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   issues: false,
   labels: true,
   details: true,
-  orbitRadii: false,
   colonies: true,
   claims: false,
   day_one_bypasses: false,
@@ -190,7 +182,7 @@ export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
 };
 
 /** What a save opens with: the galaxy map the game itself draws, with star classes and colonies. */
-const SAVE_LAYERS: Record<LayerId, boolean> = {
+const SAVE_LAYERS: GalaxyLayers = {
   nebulae: true,
   lanes: true,
   owners: true,
@@ -208,7 +200,6 @@ const SAVE_LAYERS: Record<LayerId, boolean> = {
   issues: false,
   labels: true,
   details: true,
-  orbitRadii: false,
   colonies: true,
   claims: false,
   day_one_bypasses: false,
@@ -217,6 +208,6 @@ const SAVE_LAYERS: Record<LayerId, boolean> = {
 };
 
 /** What a document of `kind` opens with, under whatever the user has since set by hand. */
-export function defaultLayers(kind: DocumentKind): Record<LayerId, boolean> {
+export function defaultLayers(kind: DocumentKind): GalaxyLayers {
   return { ...(kind === "save" ? SAVE_LAYERS : DEFAULT_LAYERS) };
 }
