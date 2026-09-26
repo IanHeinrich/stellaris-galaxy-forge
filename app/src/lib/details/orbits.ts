@@ -152,12 +152,81 @@ export function discRadius(
   return Math.max(r, MIN_DISC_RADIUS);
 }
 
-function defaultIsStar(planetClass: string): boolean {
-  return isStarBody(planetClass, new Map(), new Map());
+/** The class a body is drawn and sized as, which the scene resolves from its source. */
+export interface LaidClass {
+  planetClass: string;
+  star: boolean;
+}
+
+function writtenClass(planet: PlanetSummary): LaidClass {
+  return { planetClass: planet.class, star: isStarBody(planet.class, new Map(), new Map()) };
 }
 
 function mid(b: { min: number; max: number }): number {
   return (b.min + b.max) / 2;
+}
+
+/** The ring a scenario body stands on, as a key: its parent and its drawn radius. */
+function ringKey(planet: PlanetSummary): string | null {
+  const orbit = planet.layout?.orbit;
+  if (!orbit || planet.layout?.at) return null;
+  return `${planet.parent ?? ""}:${Math.round(mid(orbit) * 1e6)}`;
+}
+
+/**
+ * The angles `count` bodies free to stand anywhere on a ring are drawn at, so none stands on
+ * another or on a body an angle places there at `placed`. Each goes into the widest gap left,
+ * the bodies in one gap spaced evenly across it. With nothing placed they share the ring evenly
+ * from `start`.
+ */
+function spread(placed: readonly number[], count: number, start: number): number[] {
+  if (placed.length === 0) {
+    return Array.from({ length: count }, (_, i) => start + (i * 360) / count);
+  }
+  const at = placed.map((a) => ((a % 360) + 360) % 360).sort((a, b) => a - b);
+  const gaps = at.map((from, i) => ({
+    from,
+    width: (i + 1 < at.length ? at[i + 1] : at[0] + 360) - from,
+    bodies: 0,
+  }));
+  for (let n = 0; n < count; n++) {
+    const widest = gaps.reduce((a, b) =>
+      b.width / (b.bodies + 1) > a.width / (a.bodies + 1) ? b : a,
+    );
+    widest.bodies++;
+  }
+  return gaps.flatMap(({ from, width, bodies }) =>
+    Array.from({ length: bodies }, (_, i) => from + ((i + 1) * width) / (bodies + 1)),
+  );
+}
+
+/**
+ * The angle each body free to stand anywhere on its ring is drawn at, in a scenario: a ghost, or
+ * one whose angle ranges over a turn or more. Where the ring has no placed body, the share starts
+ * from the middle of the first free body's range, which keeps free bodies on different rings
+ * from lining up.
+ */
+function freeAngles(planets: readonly PlanetSummary[]): Map<number, number> {
+  const rings = new Map<string, { placed: number[]; free: number[]; start: number | null }>();
+  for (const planet of planets) {
+    const key = ringKey(planet);
+    if (key === null || mid(planet.layout?.orbit ?? { min: 0, max: 0 }) <= 0) continue;
+    let ring = rings.get(key);
+    if (!ring) rings.set(key, (ring = { placed: [], free: [], start: null }));
+    const angle = planet.layout?.angle;
+    if (angle && angle.max - angle.min < 360) {
+      ring.placed.push(mid(angle));
+      continue;
+    }
+    ring.free.push(planet.id);
+    if (angle && ring.start === null) ring.start = mid(angle);
+  }
+  const angles = new Map<number, number>();
+  for (const { placed, free, start } of rings.values()) {
+    const at = spread(placed, free.length, start ?? 0);
+    free.forEach((id, i) => angles.set(id, at[i]));
+  }
+  return angles;
 }
 
 interface Placed {
@@ -166,13 +235,24 @@ interface Placed {
   parent: Placed | null;
 }
 
+export interface LayoutOptions {
+  /** The class each body is drawn and sized as; the class its source writes by default. */
+  classOf?: (planet: PlanetSummary) => LaidClass | undefined;
+  /**
+   * The bodies are a scenario's, whose angles may be left to chance: bodies free to stand
+   * anywhere on a ring share it out rather than all standing at angle 0.
+   */
+  scenario?: boolean;
+}
+
 /** Every body's point, circle and angles, the belts, and the radius the camera fits. */
 export function systemLayout(
   details: SystemDetails | null,
-  isStar: (planetClass: string) => boolean = defaultIsStar,
+  { classOf = writtenClass, scenario = false }: LayoutOptions = {},
 ): SystemLayout {
   const planets = details?.planets ?? [];
   const byId = new Map(planets.map((p) => [p.id, p]));
+  const free = scenario ? freeAngles(planets) : new Map<number, number>();
   const placed = new Map<number, Placed>();
   const inProgress = new Set<number>();
 
@@ -190,7 +270,7 @@ export function systemLayout(
       else missing = true;
     }
     const centre = parent?.point ?? { x: 0, y: 0 };
-    const star = isStar(planet.class);
+    const { planetClass, star } = classOf(planet) ?? writtenClass(planet);
     const moon = parent ? !parent.placement.star : planet.parent !== null && missing;
     const layout = planet.layout;
 
@@ -213,7 +293,7 @@ export function systemLayout(
         arc = { from: angleRange.min, to: angleRange.max };
       }
       ghost = angleRange === null && radius > 0;
-      angle = angleRange ? mid(angleRange) : 0;
+      angle = free.get(planet.id) ?? (angleRange ? mid(angleRange) : 0);
       point = polar(centre.x, centre.y, radius, angle);
     }
 
@@ -221,7 +301,7 @@ export function systemLayout(
       id: planet.id,
       x: point.x,
       y: point.y,
-      disc: discRadius(layout?.size?.min ?? null, moon, planet.class, star),
+      disc: discRadius(layout?.size ? mid(layout.size) : null, moon, planetClass, star),
       star,
       parent: parent ? parent.placement.id : null,
       ring: !missing && radius > 0 ? { cx: centre.x, cy: centre.y, radius } : null,

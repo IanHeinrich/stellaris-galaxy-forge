@@ -2,7 +2,6 @@ import { BitmapText, Container, Graphics, Sprite, TextStyle, Texture } from "pix
 import { fitScale } from "../../../lib/details/orbits";
 import {
   formatAmount,
-  planetResourceRows,
   resourceAbbrev,
   resourceStride,
   type ResourceRow,
@@ -242,8 +241,7 @@ export class LabelsLayer implements SystemLayer {
     this.labels = ctx.bodies
       .flatMap((body) => {
         const named = ctx.labelsShown && body.name !== "";
-        const mined = ctx.detailsShown && body.planet;
-        const rows = mined ? planetResourceRows(body.planet, ctx.resourceIcons) : [];
+        const rows = ctx.detailsShown ? body.resources : [];
         if (!named && rows.length === 0) return [];
         const label = makeLabel(body, named, rows);
         this.container.addChild(label.holder);

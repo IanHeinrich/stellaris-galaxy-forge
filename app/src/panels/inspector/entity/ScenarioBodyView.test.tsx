@@ -11,10 +11,13 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bindStores } from "../../../store/bindStores";
+import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { drawnBy, lastDrawn, type DrawnProps } from "../../../test/drawn";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { DrillLink, DrillRow } from "../parts";
+import { StarRowIcon } from "../StarIcon";
+import { planetClassView, starClassView } from "../../../test/builders";
 import { ScenarioBodyView } from "./ScenarioBodyView";
 import { INSPECTOR_VIEWS } from "./views";
 
@@ -29,6 +32,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   resetStores();
 });
+
+const fixed = (value: number) => ({ min: value, max: value });
 
 function layout(extra: Partial<BodyLayout>): BodyLayout {
   return { orbit: null, angle: null, at: null, size: null, ...extra };
@@ -130,6 +135,45 @@ describe("a scenario body's page", () => {
     press((el) => el.type === DrillLink, "the parent's link");
 
     expect(top()).toEqual(entry(100, "Tarkin"));
+  });
+
+  it("heads a star the initializer writes as its system's star class with that class's icon", async () => {
+    const pulsar = starClassView("sc_pulsar", "pc_pulsar");
+    await open("scenario");
+    useGameDataStore.setState({
+      starClasses: new Map([[pulsar.key, pulsar]]),
+      planetClasses: new Map([["pc_pulsar", planetClassView("pc_pulsar")]]),
+    });
+    const star = planet(99, "Din", { class: "sc_pulsar", layout: layout({ orbit: fixed(0) }) });
+    await land(details({ planets: [star] }));
+
+    drawnBy(() => page(99, "Din"));
+    expect(lastDrawn((el) => el.type === StarRowIcon, "the star's icon").view).toBe(pulsar);
+  });
+
+  it("heads each star of a binary with its own class's icon, as the system view draws it", async () => {
+    const binary = starClassView("sc_binary_ab", "pc_a_star", "pc_b_star");
+    const a = starClassView("sc_a", "pc_a_star");
+    const b = starClassView("sc_b", "pc_b_star");
+    await open("scenario");
+    useGameDataStore.setState({
+      starClasses: new Map([binary, a, b].map((view) => [view.key, view])),
+      planetClasses: new Map(["pc_a_star", "pc_b_star"].map((key) => [key, planetClassView(key)])),
+    });
+    const first = planet(98, "Primary", {
+      class: "sc_binary_ab",
+      layout: layout({ orbit: fixed(25), angle: fixed(0) }),
+    });
+    const second = planet(99, "Companion", {
+      class: "sc_binary_ab",
+      layout: layout({ orbit: fixed(25), angle: fixed(180) }),
+    });
+    await land(details({ planets: [first, second] }));
+
+    drawnBy(() => page(99, "Companion"));
+    expect(lastDrawn((el) => el.type === StarRowIcon, "the star's icon").view).toBe(b);
+    drawnBy(() => page(98, "Primary"));
+    expect(lastDrawn((el) => el.type === StarRowIcon, "the star's icon").view).toBe(a);
   });
 
   it("waits for the system's record, and says so when the record does not list the body", async () => {

@@ -9,14 +9,16 @@ import {
   discRadius,
   exitBearing,
   systemLayout,
+  type BeltBand,
   type BodyPlacement,
   type SystemLayout,
 } from "../../lib/details/orbits";
-import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
+import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
+import { resolveBodyClasses, type ResolvedClass } from "../../lib/details/bodyClass";
+import { isStarBody, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import { clusterOffsets } from "../../lib/visual/starCluster";
-import { effectiveStarClass } from "../../lib/visual/starGlyphs";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -25,29 +27,71 @@ import type { EntityRef } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { currentOwnership } from "../../store/ownership";
 import type { Systems } from "../RenderContext";
+import { beltTint, bodyLook, type BodyLook } from "./look";
 
-/** One body the scene draws, placed, named and classed. */
+/**
+ * One body the scene draws, resolved from its source: a save and a scenario that say the same
+ * about a body give the same scene body, apart from what the scenario leaves to chance. The
+ * layers draw from these fields alone.
+ */
 export interface SceneBody {
   readonly placement: BodyPlacement;
-  readonly planetClass: string;
-  /** The class its surface is baked from: a star written as the bare `star` takes its star class's. */
+  /**
+   * The planet class it is drawn, sized and baked as: a star a scenario writes as the bare
+   * `star`, or as its system's star class, takes that class's planet in turn.
+   */
   readonly surfaceClass: string;
-  /** Null for a star drawn from the galaxy's record while the system's own is not in. */
+  /**
+   * The record it was resolved from, for the Inspector; null for a star drawn from the galaxy's
+   * record while the system's own is not in.
+   */
   readonly planet: PlanetSummary | null;
   readonly name: string;
   /** The star class a star is drawn as, for its art and glow; null for a planet. */
   readonly starClass: string | null;
+  readonly look: BodyLook;
+  /** What the source leaves to chance, each drawn as a marker. */
+  readonly chance: Chance;
   /** Texture keys for the icon over the disc, the first that renders drawn; none for the disc alone. */
   readonly iconKeys: readonly string[];
   /** The same while the disc is large on screen: the class's large icon, then its small one. */
   readonly largeIconKeys: readonly string[];
   /** The haze the class draws outside the limb; null for a class with none, and for a star. */
   readonly atmosphere: Atmosphere | null;
-  /** Whether the body has a ring; null when a scenario leaves it to the class's chance. */
-  readonly ring: boolean | null;
+  /** Whether it is drawn with a ring: one it has, or one a known class leaves to chance. */
+  readonly ring: boolean;
   readonly moon: boolean;
   /** The owner's map colour on a colonised body, which its plate shows; null for any other. */
   readonly colony: number | null;
+  /** What its deposits yield, per resource, as the Details layer shows them. */
+  readonly resources: readonly ResourceRow[];
+}
+
+/** What a scenario leaves to chance about a body; a save leaves nothing. */
+export interface Chance {
+  /** Its orbit is a draw between two radii. */
+  readonly orbit: boolean;
+  /** Its angle is a draw between two angles. */
+  readonly angle: boolean;
+  /** It names no angle: it may stand anywhere on its orbit. */
+  readonly anyAngle: boolean;
+  /** Its class is a draw: a random class, a planet list or the empire's ideal class. */
+  readonly planetClass: boolean;
+  /** Whether it has a ring is left to its class's chance. */
+  readonly ring: boolean;
+}
+
+const NO_CHANCE: Chance = Object.freeze({
+  orbit: false,
+  angle: false,
+  anyAngle: false,
+  planetClass: false,
+  ring: false,
+});
+
+/** An asteroid belt as the scene draws it. */
+export interface SceneBelt extends BeltBand {
+  readonly tint: number;
 }
 
 /** A planet class's atmosphere, as its definition gives it. */
@@ -108,7 +152,10 @@ export interface SystemContext extends SystemSources {
   readonly node: SystemNode | null;
   readonly layout: SystemLayout;
   readonly bodies: readonly SceneBody[];
+  readonly belts: readonly SceneBelt[];
   readonly exits: readonly Exit[];
+  /** The system lies in a nebula. */
+  readonly inNebula: boolean;
 }
 
 const NOTHING: never[] = [];
@@ -165,36 +212,10 @@ export function sameSources(a: SystemSources, b: SystemSources): boolean {
   return SOURCES.every((key) => a[key] === b[key]);
 }
 
-let singlesFrom: ReadonlyMap<string, StarClassView> | null = null;
-let singles: ReadonlyMap<string, StarClassView> = new Map();
-
-function singlesOf(starClasses: ReadonlyMap<string, StarClassView>) {
-  if (starClasses !== singlesFrom) {
-    singlesFrom = starClasses;
-    singles = singleStarClasses(starClasses);
-  }
-  return singles;
-}
-
 type BodyArt = Pick<
   SceneBody,
-  "surfaceClass" | "starClass" | "iconKeys" | "largeIconKeys" | "atmosphere"
+  "surfaceClass" | "starClass" | "look" | "iconKeys" | "largeIconKeys" | "atmosphere"
 >;
-
-/**
- * A star's art: the single-star class of its body's class, else the system's own class, else the
- * one a scenario system's initializer gives it.
- */
-function starArt(planetClass: string, node: SystemNode | null, src: SystemSources): BodyArt {
-  const own = singlesOf(src.starClasses).get(planetClass);
-  const initializer = node ? src.initializerClasses.get(node.initializer) : undefined;
-  const starClass = own?.key ?? (node ? effectiveStarClass(node, initializer, src.kind) : "");
-  const view = src.starClasses.get(starClass);
-  const iconKeys = view?.texture_key ? [view.texture_key] : [];
-  const surfaceClass =
-    planetClass === STAR_BODY_CLASS ? (view?.planet_keys[0] ?? planetClass) : planetClass;
-  return { surfaceClass, starClass, iconKeys, largeIconKeys: iconKeys, atmosphere: null };
-}
 
 function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
   const {
@@ -207,16 +228,29 @@ function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
   return Number.isNaN(color) ? null : { color, intensity, width };
 }
 
-function planetArt(
-  planetClass: string,
-  planetClasses: ReadonlyMap<string, PlanetClassView>,
-): BodyArt {
-  const view = planetClasses.get(planetClass);
+/** A star's art is its star class's; a planet's is its class's icons and haze, none for a draw. */
+function artOf(resolved: ResolvedClass, src: SystemSources): BodyArt {
+  const { planetClass, starClass, drawn } = resolved;
+  const look = bodyLook(planetClass, starClass, drawn);
+  if (starClass !== null) {
+    const view = src.starClasses.get(starClass);
+    const iconKeys = view?.texture_key ? [view.texture_key] : [];
+    return {
+      surfaceClass: planetClass,
+      starClass,
+      look,
+      iconKeys,
+      largeIconKeys: iconKeys,
+      atmosphere: null,
+    };
+  }
+  const view = drawn ? undefined : src.planetClasses.get(planetClass);
   const small = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
   const large = view?.icon_large_sprite ? [`sprite:${view.icon_large_sprite}`, ...small] : small;
   return {
     surfaceClass: planetClass,
     starClass: null,
+    look,
     iconKeys: small,
     largeIconKeys: large,
     atmosphere: atmosphereOf(view),
@@ -230,11 +264,17 @@ const CLUSTER_SPREAD = 4;
 function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
   const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
   const listed = (node?.bodies ?? []).filter((b) => isStar(b.class));
-  const stars = listed.length > 0 ? listed : [{ class: "", size: null }];
-  const discs = stars.map((s) => discRadius(s.size, false, s.class, true));
+  const stars = listed.length > 0 ? listed : [{ class: STAR_BODY_CLASS, size: null }];
+  const classes = resolveBodyClasses(
+    stars.map((star, i) => ({ id: i, class: star.class })),
+    node,
+    src,
+  );
+  const resolved = stars.map((_, i) => classes.get(i) as ResolvedClass);
+  const discs = stars.map((s, i) => discRadius(s.size, false, resolved[i].planetClass, true));
   const spread = CLUSTER_SPREAD * Math.max(...discs);
   const places = clusterOffsets(stars.length);
-  return stars.map((star, i) => {
+  return stars.map((_, i) => {
     const place = places[i];
     const placement: BodyPlacement = {
       id: -1 - i,
@@ -252,13 +292,14 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
     };
     return {
       placement,
-      planetClass: star.class,
       planet: null,
       name: "",
       moon: false,
       colony: null,
       ring: false,
-      ...starArt(star.class, node, src),
+      chance: NO_CHANCE,
+      resources: NOTHING,
+      ...artOf(resolved[i], src),
     };
   });
 }
@@ -268,31 +309,42 @@ function colonyColor(planet: PlanetSummary, ownership: Ownership): number | null
   return ownership.table.get(planet.owner)?.colors.outline ?? null;
 }
 
+function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolean): Chance {
+  return {
+    orbit: placement.band !== null,
+    angle: placement.arc !== null,
+    anyAngle: placement.ghost,
+    planetClass: drawn,
+    ring: !placement.star && !drawn && planet.ring === null,
+  };
+}
+
 function sceneBodies(
   src: SystemSources,
   node: SystemNode | null,
   layout: SystemLayout,
+  classes: ReadonlyMap<number, ResolvedClass>,
 ): SceneBody[] {
   if (src.details === null) return galaxyStars(src, node);
   const planets = new Map(src.details.planets.map((p) => [p.id, p]));
   const placed = new Map(layout.bodies.map((b) => [b.id, b]));
   return layout.bodies.flatMap((placement) => {
     const planet = planets.get(placement.id);
-    if (!planet) return [];
+    const resolved = classes.get(placement.id);
+    if (!planet || !resolved) return [];
     const parent = placement.parent === null ? undefined : placed.get(placement.parent);
-    const art = placement.star
-      ? starArt(planet.class, node, src)
-      : planetArt(planet.class, src.planetClasses);
     return [
       {
         placement,
-        planetClass: planet.class,
         planet,
         name: src.templateName(planet),
         moon: parent !== undefined && !parent.star,
         colony: colonyColor(planet, src.ownership),
-        ring: placement.star ? false : planet.ring,
-        ...art,
+        ring:
+          !placement.star && (planet.ring === true || (planet.ring === null && !resolved.drawn)),
+        chance: chanceOf(placement, planet, resolved.drawn),
+        resources: planetResourceRows(planet, src.resourceIcons),
+        ...artOf(resolved, src),
       },
     ];
   });
@@ -321,14 +373,19 @@ function sceneExits(src: SystemSources, node: SystemNode | null, radius: number)
 /** Where everything of the system `src` names is drawn. */
 export function systemContext(src: SystemSources): SystemContext {
   const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
-  const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
-  const layout = systemLayout(src.details, isStar);
+  const classes = resolveBodyClasses(src.details?.planets ?? [], node, src);
+  const layout = systemLayout(src.details, {
+    classOf: (planet) => classes.get(planet.id),
+    scenario: src.kind === "scenario",
+  });
   return Object.freeze({
     ...src,
     node,
     layout,
-    bodies: sceneBodies(src, node, layout),
+    bodies: sceneBodies(src, node, layout, classes),
+    belts: layout.belts.map((belt) => ({ ...belt, tint: beltTint(belt.kind) })),
     exits: sceneExits(src, node, layout.innerRadius),
+    inNebula: node?.nebula != null,
   });
 }
 

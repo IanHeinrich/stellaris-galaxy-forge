@@ -56,7 +56,7 @@ export class NebulaLayer implements SystemLayer {
   }
 
   rebuild(ctx: SystemContext): void {
-    const id = ctx.nebulaShown && ctx.node?.nebula != null ? ctx.id : null;
+    const id = ctx.nebulaShown && ctx.inNebula ? ctx.id : null;
     const inner = ctx.layout.innerRadius;
     const key = id === null ? "" : `${id}:${inner}`;
     if (key === this.drawn) return;

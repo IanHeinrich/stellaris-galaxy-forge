@@ -389,9 +389,26 @@ included. I haven't checked whether that turn is drawn or fixed. A
 ranged distance or angle shows as a range, and so does every body after
 it. A ranged `count` is laid out as its rounded midpoint. A body with no
 `orbit_angle` can be anywhere on its orbit, and the bodies after it turn
-on from it by 0. A distance that names an undefined `@variable` puts the
-body on its parent. The add-system roller walks the same way, but it
-places each moon at its own `orbit_angle`, not on from the moon before.
+on from it by 0.
+
+A body with no `orbit_distance` lies 10 to 20 past the running orbit,
+and the running orbit moves out to it. Every body after it moves out by
+the same amount, as if the block had said
+`orbit_distance = { min = 10 max = 20 }`. A moon with no
+`orbit_distance` lies 10 to 20 past its planet's running orbit in the
+same way. Only one planet in the saves has two such moons, and the
+second lies 10 to 20 past the first. The two sample saves and the saves
+of one longer game have 285 such bodies, 17 of them moons, and each
+lies between 10.08 and 19.98 past the running orbit. The next body with
+a distance lies exactly that distance past it, in all 55 cases. An
+astral scar is the exception. It takes the place of a body and sits at
+another orbit. The layout draws such a body as a band 10 to 20 past the
+running orbit, and the bands add up like ranged distances. A distance
+that names an undefined `@variable` is laid out the same way.
+
+The add-system roller walks the same way, but it places each moon at
+its own `orbit_angle`, not on from the moon before. It also puts a body
+with no `orbit_distance` on the running orbit, not 10 to 20 past it.
 It draws a random angle for a block with no `orbit_angle`, as the game
 does. Barnard's Star (`sol_neighbor_t1`) gives its planets none, and in
 the 4.4 sample (system 614) they sit at scattered angles about the star.
