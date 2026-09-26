@@ -1,0 +1,33 @@
+---
+source: crates/sgf-core/tests/details.rs
+expression: report
+---
+system 40 inner_radius=180
+  belt rocky_asteroid_belt 90
+  body 52 pc_a_star parent=- orbit=0 drawn=0 at=(0, 0) size=35 ring=false
+  body 53 pc_molten parent=- orbit=60 drawn=60 at=(-41.6772, -43.1676) size=10 ring=false
+  body 54 pc_asteroid parent=- orbit=90 drawn=90.0488 at=(82.9107, -35.1369) size=7 ring=false
+  body 55 pc_asteroid parent=- orbit=90 drawn=90.07384 at=(-85.1499, -29.3733) size=6 ring=false
+  body 56 pc_asteroid parent=- orbit=90 drawn=90.19183 at=(-14.2074, 89.0658) size=4 ring=false
+  body 58 pc_desert parent=57 orbit=12 drawn=12 at=(64.37916, -115.27404) size=16 ring=false
+  body 59 pc_continental parent=57 orbit=12 drawn=12 at=(52.36932, -94.48848) size=16 ring=false
+  body 60 pc_broken parent=- orbit=150 drawn=150.0463 at=(132.6315, -70.1625) size=20 ring=true
+system 140 inner_radius=190
+  belt rocky_asteroid_belt 40
+  belt icy_asteroid_belt 90
+  body 86 pc_t_star parent=- orbit=0 drawn=0 at=(0, 0) size=30 ring=true
+  body 87 pc_asteroid parent=- orbit=40 drawn=40.04458 at=(38.492, 11.0424) size=3 ring=false
+  body 88 pc_asteroid parent=- orbit=40 drawn=40.17519 at=(-0.3088, -40.174) size=3 ring=false
+  body 89 pc_asteroid parent=- orbit=40 drawn=40 at=(-21.7184, 33.5984) size=2 ring=false
+  body 90 pc_asteroid parent=- orbit=40 drawn=40.03742 at=(-12.2268, -38.1248) size=4 ring=false
+  body 91 pc_asteroid parent=- orbit=40 drawn=40.07608 at=(39.418, 7.2328) size=3 ring=false
+  body 92 pc_molten parent=- orbit=55 drawn=55 at=(-42.40335, 35.0339) size=10 ring=false
+  body 93 pc_molten parent=- orbit=70 drawn=70.13269 at=(-68.9759, -12.6854) size=8 ring=false
+  body 94 pc_ice_asteroid parent=- orbit=90 drawn=90.03242 at=(-39.9852, 80.6661) size=1 ring=false
+  body 95 pc_ice_asteroid parent=- orbit=90 drawn=90.25096 at=(9.378, 89.7624) size=2 ring=false
+  body 96 pc_barren_cold parent=- orbit=100 drawn=100.27967 at=(-10.38, -99.741) size=12 ring=false
+  body 97 pc_frozen parent=- orbit=120 drawn=120.209 at=(117.8676, -23.61) size=16 ring=true
+  body 98 pc_ice_asteroid parent=97 orbit=5 drawn=5 at=(121.3455, -20.0174) size=1 ring=false
+  body 99 pc_gas_giant parent=- orbit=145 drawn=145.06795 at=(59.52395, 132.29365) size=27 ring=true
+  body 100 pc_barren parent=99 orbit=10 drawn=10.02847 at=(69.50245, 131.29375) size=5 ring=false
+  body 101 pc_toxic parent=99 orbit=15 drawn=15.02108 at=(44.92505, 135.8299) size=5 ring=false

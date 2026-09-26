@@ -10,9 +10,36 @@ a release is made.
 
 ### Added
 
+- Double-click a system, or select it and press M, to open the system
+  view. It shows the star, the planets on their orbits, their moons and
+  the asteroid belts. Esc, M or the Galaxy link at the top left returns
+  to the galaxy map.
+  - Planets show their surface, atmosphere and rings, lit from their
+    star.
+  - Stars show their surface in their class's colours, taken from your
+    game files. Pulsars have their beams and swirl of haze. Neutron
+    stars have their jets and wisps. Black holes are black with their
+    swirl round them.
+  - Each body's name sits under it. A colonised planet's name has a bar
+    in its owner's colour. With System details on, the body's resources
+    show under its name.
+  - A system inside a nebula shows faint clouds behind it.
+  - Names, System details and Nebulae have their own settings in the
+    system view.
+  - Click a body to open its page in the Inspector. Green arrows at the
+    edge point along each hyperlane. Double-click one to go to the next
+    system.
+  - Scenario systems open too, laid out from their initializer. A
+    distance the initializer leaves to chance shows as a band. An angle
+    left to chance shows as an arc. A planet with no angle shows as a
+    ghost on its whole orbit.
 - Add system lists Sol among the unique systems. It has the Solar
   System's planets and moons, with their names and models. Earth is an
   uncolonised continental world and no one lives there.
+
+### Changed
+
+- Symmetry is on Shift+M. M now opens and leaves the system view.
 
 ### Fixed
 

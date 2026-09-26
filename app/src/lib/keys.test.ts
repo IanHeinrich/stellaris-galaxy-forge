@@ -69,12 +69,14 @@ describe("keys", () => {
     expect(keyAction(press("x", { altKey: true }), false)).toBeNull();
   });
 
-  it("M toggles symmetry, except while typing, with Shift or with a modifier", () => {
-    expect(keyAction(press("m"), false)).toBe("toggleSymmetry");
+  it("M opens or leaves the system view and Shift+M toggles symmetry, except while typing or with a modifier", () => {
+    expect(keyAction(press("m"), false)).toBe("toggleSystemView");
+    expect(keyAction(press("M", { shiftKey: true }), false)).toBe("toggleSymmetry");
     expect(keyAction(press("m"), true)).toBeNull();
-    expect(keyAction(press("M", { shiftKey: true }), false)).toBeNull();
+    expect(keyAction(press("M", { shiftKey: true }), true)).toBeNull();
     expect(keyAction(press("m", { ctrlKey: true }), false)).toBeNull();
     expect(keyAction(press("m", { altKey: true }), false)).toBeNull();
+    expect(shortcutLabel("toggleSymmetry")).toBe("Shift+M");
   });
 
   it("Tab collapses the dock, except while typing or with Shift", () => {

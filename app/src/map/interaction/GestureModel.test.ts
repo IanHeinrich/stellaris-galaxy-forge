@@ -610,3 +610,83 @@ describe("GestureModel on a fallen empire zone", () => {
     ]);
   });
 });
+
+describe("GestureModel's double-click on a system", () => {
+  /** A press and release in place on the system, the press at `time`. */
+  function tap(model: MapModel, intent: MapIntent, time: number, extra: Partial<MapInput> = {}) {
+    const system = extra.system ?? 7;
+    model.handle(at("down", 10, 10, { system, time, ...extra }), intent);
+    model.handle(at("up", 10, 10, { system, time: time + 60, ...extra }), intent);
+  }
+
+  it("enters the system on a second click inside the window", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    tap(model, intent, 1000);
+    tap(model, intent, 1300);
+    expect(intent.calls).toEqual([
+      ["select", 7],
+      ["enterSystem", 7],
+    ]);
+  });
+
+  it("selects again, and enters nothing, when the second click comes after the window", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    tap(model, intent, 1000);
+    tap(model, intent, 1600);
+    expect(intent.calls).toEqual([
+      ["select", 7],
+      ["select", 7],
+    ]);
+  });
+
+  it("enters nothing when a drag comes between the two clicks", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    tap(model, intent, 1000);
+    model.handle(at("down", 10, 10, { system: 7, time: 1100 }), intent);
+    model.handle(at("move", 40, 40, { time: 1150 }), intent);
+    model.handle(at("up", 40, 40, { time: 1200 }), intent);
+    tap(model, intent, 1250);
+    expect(intent.calls.filter(([name]) => name === "enterSystem")).toEqual([]);
+  });
+
+  it("enters nothing when the second click lands on a different system", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    tap(model, intent, 1000);
+    tap(model, intent, 1200, { system: 8 });
+    expect(intent.calls).toEqual([
+      ["select", 7],
+      ["select", 8],
+    ]);
+  });
+
+  it("enters nothing when the second click holds a modifier", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    tap(model, intent, 1000);
+    tap(model, intent, 1200, { ctrl: true });
+    tap(model, intent, 2000);
+    tap(model, intent, 2200, { shift: true });
+    expect(intent.calls).toEqual([
+      ["select", 7],
+      ["toggleSelect", 7],
+      ["select", 7],
+      ["toggleSelect", 7],
+    ]);
+  });
+
+  it("enters nothing when the second click is more than a few pixels from the first", () => {
+    const model = new GestureModel();
+    const intent = recorder();
+    tap(model, intent, 1000);
+    model.handle(at("down", 30, 10, { system: 7, time: 1200 }), intent);
+    model.handle(at("up", 30, 10, { system: 7, time: 1250 }), intent);
+    expect(intent.calls).toEqual([
+      ["select", 7],
+      ["select", 7],
+    ]);
+  });
+});

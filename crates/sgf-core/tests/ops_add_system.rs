@@ -8,6 +8,7 @@
 use std::collections::BTreeSet;
 
 use sgf_core::entity::{EntityAddr, EntityKind, get_entity};
+use sgf_core::format::save::details::{Bounds, HeuristicResolver};
 use sgf_core::ops::{BeltSpec, Op, OpError, StarBody, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::views::Capabilities;
@@ -130,6 +131,39 @@ fn a_belted_system_is_written_as_the_game_spawns_one() {
         let name = spec.name.to_lowercase();
         let result = session.apply(add(belted(spec))).expect("add the system");
         common::snapshot(&format!("add_{name}_belted"), &report(&session, &result));
+    }
+}
+
+/// The belts live only in the added entry's bytes, which the details read.
+#[test]
+fn an_added_systems_details_report_its_belts_and_where_its_bodies_stand() {
+    let mut session = open_4_5();
+    session.apply(add(belted(mura()))).expect("add the system");
+    let details = session
+        .details()
+        .expect("details")
+        .resolve(SAMPLE_4_5.id, &HeuristicResolver, false)
+        .expect("the added system's details");
+    let belts: Vec<(&str, f64)> = details
+        .belts
+        .iter()
+        .map(|b| (b.kind.as_str(), b.inner_radius))
+        .collect();
+    assert_eq!(
+        belts,
+        [("rocky_asteroid_belt", 95.0), ("icy_asteroid_belt", 240.0)]
+    );
+    assert_eq!(details.inner_radius, Some(270.0));
+    assert_eq!(details.planets.len(), 13);
+    for planet in &details.planets {
+        let layout = planet.layout.as_ref().expect("a save body's layout");
+        assert!(layout.at.is_some(), "planet {}", planet.id);
+        assert_eq!(
+            layout.orbit,
+            planet.orbit.map(Bounds::fixed),
+            "planet {} stands on its stored orbit",
+            planet.id
+        );
     }
 }
 

@@ -25,8 +25,9 @@ export function Swatch({ owner }: { owner: number | null }) {
 }
 
 /**
- * A collapsible section; `count` and `summary` stay visible when it is closed. A section follows
- * the source that fills it, so a group with nothing left drawing folds its sections away too.
+ * A collapsible section; `count`, `summary` and `action` stay visible when it is closed. A
+ * section follows the source that fills it, so a group with nothing left drawing folds its
+ * sections away too.
  */
 export function Section({
   id,
@@ -34,6 +35,7 @@ export function Section({
   count,
   summary,
   startClosed = false,
+  action,
   children,
 }: {
   id: string;
@@ -41,6 +43,8 @@ export function Section({
   count?: number;
   summary?: string;
   startClosed?: boolean;
+  /** A control at the header's right, outside its toggle button. */
+  action?: ReactNode;
   children: ReactNode;
 }) {
   const kind = useFileSessionStore((s) => s.kind);
@@ -52,22 +56,32 @@ export function Section({
   const fallback = startClosed || folded;
   const collapsed = useInspectorStore((s) => s.sections[id] ?? fallback);
   const toggleSection = useInspectorStore((s) => s.toggleSection);
+  const header = (
+    <button
+      type="button"
+      className="ins-sec"
+      aria-expanded={!collapsed}
+      onClick={() => toggleSection(id, fallback)}
+    >
+      <Twisty open={!collapsed} />
+      <span className="ins-sec-title">
+        {title}
+        {count !== undefined && ` · ${count}`}
+        {summary && ` · ${summary}`}
+      </span>
+      {source !== undefined && <SourceChip source={source} />}
+    </button>
+  );
   return (
     <>
-      <button
-        type="button"
-        className="ins-sec"
-        aria-expanded={!collapsed}
-        onClick={() => toggleSection(id, fallback)}
-      >
-        <Twisty open={!collapsed} />
-        <span className="ins-sec-title">
-          {title}
-          {count !== undefined && ` · ${count}`}
-          {summary && ` · ${summary}`}
-        </span>
-        {source !== undefined && <SourceChip source={source} />}
-      </button>
+      {action === undefined ? (
+        header
+      ) : (
+        <div className="ins-sec-row">
+          {header}
+          {action}
+        </div>
+      )}
       {!collapsed && children}
     </>
   );

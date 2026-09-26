@@ -10,7 +10,9 @@ use std::time::Instant;
 
 use image::{DynamicImage, GenericImageView, Rgba};
 use sgf_gamedata::install::layers::Layout;
-use sgf_gamedata::textures::{SpriteSource, TextureError, TextureKey, Textures};
+use sgf_gamedata::textures::{
+    SpriteSource, TextureError, TextureKey, Textures, no_planet_entity, no_star_body,
+};
 
 fn no_colour(_: &str) -> Option<[u8; 3]> {
     None
@@ -23,7 +25,14 @@ fn decode(
     key: &str,
 ) -> DynamicImage {
     let png = textures
-        .png(layout, sprites, &no_colour, key)
+        .png(
+            layout,
+            sprites,
+            &no_colour,
+            &no_planet_entity,
+            &no_star_body,
+            key,
+        )
         .unwrap_or_else(|e| panic!("{key}: {e}"));
     image::load_from_memory(&png).expect("valid PNG")
 }
@@ -41,6 +50,8 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
         "sprite:GFX_planet_type",
         "sprite:GFX_planet_type#4",
         "empire_flag:00_solid.dds:human/flag_human_9.dds:blue,black,null,null",
+        "planet_disc:pc_continental",
+        "planet_ring",
     ] {
         let parsed: TextureKey = key.parse().unwrap_or_else(|e| panic!("{key}: {e}"));
         assert_eq!(parsed.to_string(), key);
@@ -75,6 +86,11 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
         "sprite:GFX_x#four",
         "empire_flag:bg.dds:human/x.dds:blue,black",
         "planet:pc_desert",
+        "planet_disc:",
+        "planet_disc:pc/x",
+        "planet_disc:..",
+        "planet_ring:",
+        "planet_ring:x",
     ] {
         assert!(
             matches!(bad.parse::<TextureKey>(), Err(TextureError::BadKey(_))),
@@ -137,7 +153,14 @@ fn a_frame_crops_its_slice_of_the_strip() {
             .pixels()
             .all(|(_, _, p)| p == Rgba([200, 40, 20, 255]))
     );
-    let third = textures.png(layout, sprites, &no_colour, "sprite:GFX_fixture_strip#3");
+    let third = textures.png(
+        layout,
+        sprites,
+        &no_colour,
+        &no_planet_entity,
+        &no_star_body,
+        "sprite:GFX_fixture_strip#3",
+    );
     assert!(
         matches!(
             third,
@@ -156,7 +179,14 @@ fn failures_are_errors_in_the_view_never_panics() {
     let gd = common::cached_fixture();
     let (_dir, textures) = common::temp_textures();
     let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
-    let cut = textures.load(layout, sprites, &no_colour, "sprite:GFX_fixture_cut");
+    let cut = textures.load(
+        layout,
+        sprites,
+        &no_colour,
+        &no_planet_entity,
+        &no_star_body,
+        "sprite:GFX_fixture_cut",
+    );
     assert!(cut.png_base64.is_none());
     assert_eq!((cut.width, cut.height), (0, 0));
     assert!(
@@ -166,10 +196,24 @@ fn failures_are_errors_in_the_view_never_panics() {
         "{cut:?}"
     );
 
-    let bad = textures.load(layout, sprites, &no_colour, "nonsense");
+    let bad = textures.load(
+        layout,
+        sprites,
+        &no_colour,
+        &no_planet_entity,
+        &no_star_body,
+        "nonsense",
+    );
     assert_eq!(bad.error.as_deref(), Some("bad texture key `nonsense`"));
 
-    let missing = textures.load(layout, sprites, &no_colour, "star_class:nowhere");
+    let missing = textures.load(
+        layout,
+        sprites,
+        &no_colour,
+        &no_planet_entity,
+        &no_star_body,
+        "star_class:nowhere",
+    );
     assert!(
         missing
             .error
@@ -178,7 +222,14 @@ fn failures_are_errors_in_the_view_never_panics() {
         "{missing:?}"
     );
 
-    let unknown = textures.load(layout, sprites, &no_colour, "sprite:GFX_unregistered");
+    let unknown = textures.load(
+        layout,
+        sprites,
+        &no_colour,
+        &no_planet_entity,
+        &no_star_body,
+        "sprite:GFX_unregistered",
+    );
     assert!(
         unknown
             .error
@@ -189,7 +240,14 @@ fn failures_are_errors_in_the_view_never_panics() {
 
     // Vanilla ships an icon that is empty and one that is only a byte-order mark.
     for key in ["sprite:GFX_fixture_empty", "sprite:GFX_fixture_bom"] {
-        let view = textures.load(layout, sprites, &no_colour, key);
+        let view = textures.load(
+            layout,
+            sprites,
+            &no_colour,
+            &no_planet_entity,
+            &no_star_body,
+            key,
+        );
         assert_eq!(
             view.error.as_deref().map(|e| e.ends_with("not a DDS file")),
             Some(true),
@@ -204,7 +262,14 @@ fn second_call_is_served_from_the_cache_file() {
     let (_dir, textures) = common::temp_textures();
     let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
     let first = textures
-        .png(layout, sprites, &no_colour, "sprite:GFX_fixture_bgra")
+        .png(
+            layout,
+            sprites,
+            &no_colour,
+            &no_planet_entity,
+            &no_star_body,
+            "sprite:GFX_fixture_bgra",
+        )
         .unwrap();
     let cached: Vec<PathBuf> = fs::read_dir(textures.cache_dir())
         .unwrap()
@@ -217,15 +282,36 @@ fn second_call_is_served_from_the_cache_file() {
     let mutated = b"not a png at all".to_vec();
     fs::write(&cached[0], &mutated).unwrap();
     let second = textures
-        .png(layout, sprites, &no_colour, "sprite:GFX_fixture_bgra")
+        .png(
+            layout,
+            sprites,
+            &no_colour,
+            &no_planet_entity,
+            &no_star_body,
+            "sprite:GFX_fixture_bgra",
+        )
         .unwrap();
     assert_eq!(second, mutated);
-    let view = textures.load(layout, sprites, &no_colour, "sprite:GFX_fixture_bgra");
+    let view = textures.load(
+        layout,
+        sprites,
+        &no_colour,
+        &no_planet_entity,
+        &no_star_body,
+        "sprite:GFX_fixture_bgra",
+    );
     assert!(view.error.is_none());
     assert_eq!((view.width, view.height), (0, 0));
 
     let other = textures
-        .png(layout, sprites, &no_colour, "sprite:GFX_fixture_strip#2")
+        .png(
+            layout,
+            sprites,
+            &no_colour,
+            &no_planet_entity,
+            &no_star_body,
+            "sprite:GFX_fixture_strip#2",
+        )
         .unwrap();
     assert_ne!(other, mutated);
     assert_eq!(fs::read_dir(textures.cache_dir()).unwrap().count(), 2);
@@ -251,6 +337,7 @@ fn install_star_classes_flags_and_sprites_decode() {
         ("sprite:GFX_additional_content_thumbnail_fallback", 105, 105),
         ("sprite:GFX_council_room_democratic", 1264, 631),
         ("sprite:GFX_vertical_arrow", 72, 20),
+        ("planet_ring", 32, 1024),
     ] {
         let started = Instant::now();
         let image = decode(&textures, layout, sprites, key);
@@ -293,11 +380,29 @@ fn install_second_call_hits_the_cache() {
     let (_dir, textures) = common::temp_textures();
     let key = "star_class:black_hole";
     let started = Instant::now();
-    let first = textures.png(layout, sprites, &no_colour, key).unwrap();
+    let first = textures
+        .png(
+            layout,
+            sprites,
+            &no_colour,
+            &no_planet_entity,
+            &no_star_body,
+            key,
+        )
+        .unwrap();
     let cold = started.elapsed();
     assert_eq!(fs::read_dir(textures.cache_dir()).unwrap().count(), 1);
     let started = Instant::now();
-    let second = textures.png(layout, sprites, &no_colour, key).unwrap();
+    let second = textures
+        .png(
+            layout,
+            sprites,
+            &no_colour,
+            &no_planet_entity,
+            &no_star_body,
+            key,
+        )
+        .unwrap();
     let warm = started.elapsed();
     eprintln!("{key}: decode {cold:.2?}, cache hit {warm:.2?}");
     assert_eq!(first, second);
@@ -318,7 +423,14 @@ fn install_empire_flag_composes() {
     };
     let key = "empire_flag:00_solid.dds:human/flag_human_9.dds:blue,black,null,null";
     let png = textures
-        .png(layout, sprites, &colour, key)
+        .png(
+            layout,
+            sprites,
+            &colour,
+            &no_planet_entity,
+            &no_star_body,
+            key,
+        )
         .unwrap_or_else(|e| panic!("{key}: {e}"));
     let image = image::load_from_memory(&png).unwrap();
     assert_eq!(image.dimensions(), (70, 70));
@@ -340,6 +452,8 @@ fn install_empire_flag_composes() {
         layout,
         sprites,
         &colour,
+        &no_planet_entity,
+        &no_star_body,
         "empire_flag:00_solid.dds:human/flag_human_9.dds:mauve,black,null,null",
     );
     assert!(unknown.error.is_none(), "{unknown:?}");
@@ -351,6 +465,8 @@ fn install_empire_flag_composes() {
         layout,
         sprites,
         &no_colour,
+        &no_planet_entity,
+        &no_star_body,
         "empire_flag:diagonal.dds:human/flag_human_9.dds:#ff0000,#00ff00,null,null",
     );
     assert!(hex.error.is_none(), "{hex:?}");

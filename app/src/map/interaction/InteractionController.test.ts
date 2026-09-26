@@ -323,3 +323,38 @@ describe("switching tools by key", () => {
     expect(useEditorStore.getState().hover).toBeNull();
   });
 });
+
+describe("a deactivated controller", () => {
+  it("leaves the selection and hover as they were when a system is pressed", () => {
+    const { surface, star } = laned("select");
+    controller!.deactivate();
+
+    surface.fire("pointermove", star.x, star.y);
+    surface.fire("pointerdown", star.x, star.y);
+    surface.fire("pointerup", star.x, star.y);
+    expect(useEditorStore.getState().selection).toEqual([]);
+    expect(useEditorStore.getState().hover).toBeNull();
+  });
+
+  it("takes the brush circle away and replays nothing when Alt goes down", () => {
+    const { surface, brush, mid } = laned("cut");
+    const colour = () => strokes(brush("brushCircle"))[0]?.color;
+    surface.fire("pointermove", mid.x, mid.y);
+    expect(colour()).toBe(REFUSED_COLOR);
+    controller!.deactivate();
+    expect(colour()).toBeUndefined();
+
+    key("keydown", "Alt");
+    expect(colour()).toBeUndefined();
+  });
+
+  it("selects a pressed system again once activated", () => {
+    const { surface, star } = laned("select");
+    controller!.deactivate();
+    controller!.activate();
+
+    surface.fire("pointerdown", star.x, star.y);
+    surface.fire("pointerup", star.x, star.y);
+    expect(useEditorStore.getState().selection).toEqual([1]);
+  });
+});

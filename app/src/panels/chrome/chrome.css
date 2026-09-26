@@ -564,6 +564,19 @@ button.master.init[aria-pressed="true"] {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
+.scene-crumb {
+  gap: 6px;
+  font-size: 12px;
+}
+
+.scene-crumb .sep {
+  color: var(--fg-muted);
+}
+
+.scene-crumb .here {
+  color: var(--fg);
+}
+
 .tool-option {
   display: flex;
   align-items: center;

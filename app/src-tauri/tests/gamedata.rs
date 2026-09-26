@@ -196,6 +196,15 @@ fn game_data_commands_degrade_without_an_install() {
     assert_eq!(resource(sol, "energy"), Some(13.0));
     assert_eq!(resource(sol, "minerals"), Some(13.0));
     assert_eq!(resource(sol, "engineering"), Some(5.0));
+    let luna = sol.planets.iter().find(|p| p.id == 4).expect("Luna");
+    assert_eq!(luna.parent, Some(3));
+    let layout = luna.layout.as_ref().expect("a save body's layout");
+    assert_eq!(
+        layout.orbit.as_ref().map(|b| (b.min, b.max)),
+        Some((12.0, 12.0))
+    );
+    assert_eq!(sol.inner_radius, Some(320.0));
+    assert_eq!(sol.belts.len(), 2);
 
     let hits = invoke::<SearchResult>(&w, "search", json!({ "query": "sol", "limit": 5 }))
         .expect("search")

@@ -4,6 +4,7 @@ import { isEditableTarget } from "../../lib/keys";
 import type { Tool } from "../../lib/tools";
 import { useEditorStore } from "../../store/editorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
@@ -83,6 +84,8 @@ export class InteractionController {
   private readonly at: Pt = { x: 0, y: 0 };
   private readonly index = new PickIndex();
   private readonly cleanups: Array<() => void> = [];
+  /** The pointer and key listeners, which only the active scene's controller holds. */
+  private readonly listeners: Array<() => void> = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -97,8 +100,7 @@ export class InteractionController {
     this.intent = this.buildIntent();
 
     this.model = this.models[useToolStore.getState().tool];
-    this.bindPointer();
-    this.bindKeyboard();
+    this.activate();
     this.brushes.drawGuide();
     this.cleanups.push(
       trackGalaxy(this.index),
@@ -128,6 +130,9 @@ export class InteractionController {
       clearSelection: () => {
         void editor().select(null);
         editor().selectLane(null);
+      },
+      enterSystem: (id) => {
+        if (canEnterSystem()) useSceneStore.getState().enterSystem(id);
       },
       previewMarquee: (sx0, sy0, sx1, sy1) => {
         const a = cam.screenToWorld(sx0, sy0);
@@ -226,7 +231,26 @@ export class InteractionController {
     this.model.reset(this.intent);
   }
 
+  activate(): void {
+    if (this.listeners.length > 0) return;
+    this.bindPointer();
+    this.bindKeyboard();
+  }
+
+  deactivate(): void {
+    this.unbind();
+    this.dropDrag();
+    this.brushes.cancel();
+    this.hover(null);
+    this.lastMove = null;
+  }
+
+  private unbind(): void {
+    for (const off of this.listeners.splice(0)) off();
+  }
+
   dispose(): void {
+    this.unbind();
     for (const c of this.cleanups.splice(0)) c();
     this.canvas.style.cursor = "";
     this.hoverEdge = null;
@@ -246,6 +270,7 @@ export class InteractionController {
       shift: e.shiftKey,
       ctrl: e.ctrlKey || e.metaKey,
       alt: e.altKey,
+      time: e.timeStamp,
       selection: editor().selection,
       system: null,
       zone: null,
@@ -321,7 +346,7 @@ export class InteractionController {
       handler: (e: HTMLElementEventMap[K]) => void,
     ) => {
       canvas.addEventListener(type, handler);
-      this.cleanups.push(() => canvas.removeEventListener(type, handler));
+      this.listeners.push(() => canvas.removeEventListener(type, handler));
     };
 
     on("pointerdown", (e) => {
@@ -390,7 +415,7 @@ export class InteractionController {
     };
     window.addEventListener("keydown", down, { capture: true });
     window.addEventListener("keyup", up, { capture: true });
-    this.cleanups.push(() => {
+    this.listeners.push(() => {
       window.removeEventListener("keydown", down, { capture: true });
       window.removeEventListener("keyup", up, { capture: true });
     });

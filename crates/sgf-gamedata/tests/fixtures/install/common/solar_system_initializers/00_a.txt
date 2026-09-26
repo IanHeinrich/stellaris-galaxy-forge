@@ -91,3 +91,40 @@ details_init = {
 		}
 	}
 }
+
+# Every orbit statement the system view lays out, for the layout test.
+layout_init = {
+	class = sc_sun
+	asteroid_belt = { type = rocky_asteroid_belt radius = 50 }
+	asteroid_belt = { type = icy_asteroid_belt radius = 90 }
+	planet = {
+		class = star
+		orbit_distance = 0
+	}
+	change_orbit = 20
+	planet = {
+		class = pc_meadow
+		size = 16
+		orbit_distance = { min = 10 max = 15 }
+		orbit_angle = 90
+		change_orbit = 3
+		moon = { class = pc_meadow orbit_distance = 5 orbit_angle = 30 }
+		moon = { class = pc_meadow orbit_distance = 2 orbit_angle = { min = 10 max = 50 } }
+	}
+	change_orbit = 10
+	planet = {
+		count = { min = 1 max = 3 }
+		class = pc_meadow
+		orbit_distance = 20
+		orbit_angle = { min = -30 max = 30 }
+	}
+	planet = {
+		class = pc_meadow
+		orbit_distance = @no_such_distance
+		orbit_angle = 45
+	}
+	planet = {
+		class = pc_meadow
+		orbit_distance = 25
+	}
+}

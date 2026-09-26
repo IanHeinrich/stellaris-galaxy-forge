@@ -1,6 +1,14 @@
 import type { NebulaPick } from "../picking";
 import type { LaneSource, LaneTarget, MapInput, MapIntent, MapModel } from "./MapIntent";
-import { groupOf, laneSourceOf, pastThreshold, pressFrom, type Press } from "./press";
+import {
+  doubles,
+  groupOf,
+  laneSourceOf,
+  pastThreshold,
+  pressFrom,
+  type Press,
+  type Tap,
+} from "./press";
 
 type Drag =
   | { kind: "pan" }
@@ -37,6 +45,8 @@ export class GestureModel implements MapModel {
   private press: Press | null = null;
   private drag: Drag | null = null;
   private idle = "";
+  /** The last plain click on a system, which a second one soon after on the same system doubles. */
+  private lastClick: (Tap & { system: number }) | null = null;
 
   handle(input: MapInput, intent: MapIntent): "consumed" | "pan" {
     this.idle = idleCursor(input);
@@ -98,6 +108,7 @@ export class GestureModel implements MapModel {
     }
     this.press = null;
     this.drag = null;
+    this.lastClick = null;
   }
 
   private down(input: MapInput, intent: MapIntent): void {
@@ -173,6 +184,7 @@ export class GestureModel implements MapModel {
       this.click(press, intent);
       return;
     }
+    this.lastClick = null;
     switch (drag.kind) {
       case "marquee":
         intent.selectInRect(
@@ -207,9 +219,16 @@ export class GestureModel implements MapModel {
   }
 
   private click(press: Press, intent: MapIntent): void {
+    const last = this.lastClick;
+    this.lastClick = null;
     if (press.system !== null) {
       if (press.ctrl || press.shift) intent.toggleSelect(press.system);
-      else intent.select(press.system);
+      else if (last?.system === press.system && doubles(last, press)) {
+        intent.enterSystem(press.system);
+      } else {
+        intent.select(press.system);
+        this.lastClick = { system: press.system, sx: press.sx, sy: press.sy, time: press.time };
+      }
     } else if (press.edge && (press.shift || press.midpointHit)) {
       intent.cut(press.edge);
     } else if (press.edge?.kind === "lane") {

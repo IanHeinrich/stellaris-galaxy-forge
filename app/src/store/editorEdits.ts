@@ -13,6 +13,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { linked, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore, type EntityRef } from "./inspectorStore";
+import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
 import { symmetricOp, symmetricSeat } from "./symmetricEdits";
 import { useWatchlistStore } from "./watchlistStore";
@@ -78,6 +79,7 @@ export function editPipeline(
       (kept.length === 1 && (touched.has(kept[0]) || showsTouched(touched, result.details_stale)));
     if (result.details_stale.length > 0) {
       useDetailsStore.getState().invalidate(result.details_stale);
+      useInspectorStore.getState().dropBodies(restaled(result.details_stale, pairs));
       const mine = session;
       // The details projection, and the planet and fleet search index over it, are rebuilt lazily.
       void ipc.warmDetails().catch((e: unknown) => {
@@ -100,6 +102,8 @@ export function editPipeline(
    * the pages on its planets. The hover goes too: the pointer is on what the map drew before.
    */
   function followRenumbering(pairs: Renumbering): void {
+    // Before the selection moves, so the scene following the selection sees the new id as its own.
+    useSceneStore.getState().renumber(pairs);
     const { selection, selectedLane, searchRings, recentHits } = get();
     set({
       selection: renumberedIds(pairs, selection),
@@ -246,6 +250,17 @@ function renumbering(delta: GalaxyDelta): Renumbering {
   return (delta.removed ?? []).map((id) => [id, null] as const);
 }
 
+/**
+ * The stale systems whose own record changed: the core stales both ids of every system an edit
+ * renumbered, which moves its pages rather than changing them.
+ */
+function restaled(stale: readonly number[], pairs: Renumbering): number[] {
+  const moved = new Set(
+    pairs.flatMap(([before, after]) => (after === null ? [] : [before, after])),
+  );
+  return stale.filter((id) => !moved.has(id));
+}
+
 function removedBy(pairs: Renumbering): number[] {
   return pairs.flatMap(([before, after]) => (after === null ? [before] : []));
 }
@@ -384,6 +399,7 @@ function showsTouched(touched: Set<number>, detailsStale: number[]): boolean {
     case "system":
       return touched.has(ref.id);
     case "starbase":
+    case "body":
       return touched.has(ref.system);
     case "lane":
       return touched.has(ref.a) || touched.has(ref.b);

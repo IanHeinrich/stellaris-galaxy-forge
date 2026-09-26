@@ -15,6 +15,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useGeneratorStore } from "../../../store/generatorStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
+import { useSceneStore } from "../../../store/sceneStore";
 import {
   details,
   fleet,
@@ -389,5 +390,21 @@ describe("a system added this session", () => {
     expect(html).not.toContain("Added this session");
     expect(html).not.toContain("added this session");
     expect(html).not.toContain("Delete system");
+  });
+});
+
+describe("the Planets header's system view button", () => {
+  it("offers the view on a save or a scenario until it shows this system", async () => {
+    await open("save");
+    await land(details({ planets: [planet(100, "Tarkin")] }));
+    expect(overview()).toContain('<button type="button" class="link">Open system view</button>');
+
+    useSceneStore.getState().enterSystem(SYSTEM);
+    expect(overview()).not.toContain("Open system view");
+
+    useSceneStore.getState().leaveSystem();
+    await open("scenario");
+    await land(details({ planets: [planet(100, "Tarkin")] }));
+    expect(overview()).toContain('<button type="button" class="link">Open system view</button>');
   });
 });

@@ -2,7 +2,8 @@
 
 use crate::common;
 
-use sgf_core::format::save::details::ResourceAmount;
+use sgf_core::format::save::details::{Bounds, ResourceAmount};
+use sgf_core::ops::BeltSpec;
 use sgf_core::session::Session;
 use sgf_gamedata::initializers::{Initializer, PartnerRef};
 use sgf_gamedata::special::classify_session;
@@ -263,6 +264,13 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
         ],
         "count = 2 spawns the world and its moon twice"
     );
+    let id = |index: usize| details.planets[index].id;
+    let parents: Vec<Option<u32>> = details.planets.iter().map(|p| p.parent).collect();
+    assert_eq!(
+        parents,
+        [None, None, Some(id(1)), None, Some(id(3))],
+        "each moon orbits the world it was spawned under"
+    );
     assert_eq!(
         resources(&details.resources),
         [("glow", 10.0)],
@@ -274,6 +282,11 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
     assert_eq!(star.size, Some(20), "the minimum of a size range");
     assert_eq!(star.habitable, Some(false));
     assert!(!star.capital && !star.colonised);
+
+    assert!(
+        details.planets.iter().all(|p| p.ring == Some(false)),
+        "no body states has_ring, and no fixture class has a chance_of_ring"
+    );
 
     let world = &details.planets[1];
     assert!(world.capital && world.colonised, "starting_planet = yes");
@@ -323,6 +336,64 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
     );
     assert!(plain.resources.is_empty() && plain.starbase.is_none());
     assert!(plain.sites.is_empty() && plain.megastructures.is_empty());
+}
+
+#[test]
+fn a_scenario_body_has_a_ring_as_the_generator_would_give_it() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/planet_classes/00_rings.txt",
+            "pc_gas_giant = {
+	chance_of_ring = 0.3
+}
+pc_rock = {
+}
+",
+        ),
+        (
+            "common/solar_system_initializers/00_rings.txt",
+            "ring_init = {
+	class = sc_sun
+	planet = { class = star }
+	planet = { class = pc_gas_giant has_ring = yes }
+	planet = { class = pc_gas_giant has_ring = no }
+	planet = {
+		class = pc_gas_giant
+		moon = { class = pc_gas_giant has_ring = yes }
+	}
+	planet = { class = pc_rock }
+	planet = { class = pc_rock has_ring = yes }
+}
+",
+        ),
+        (
+            "localisation/english/fx_l_english.yml",
+            "l_english:
+",
+        ),
+    ]);
+    let details = gd
+        .initializer_details(9, "ring_init", None)
+        .expect("the ring fixture");
+    let rings: Vec<(&str, bool, Option<bool>)> = details
+        .planets
+        .iter()
+        .map(|p| (p.class.as_str(), p.moon, p.ring))
+        .collect();
+    assert_eq!(
+        rings,
+        [
+            ("star", false, Some(false)),
+            ("pc_gas_giant", false, Some(true)),
+            ("pc_gas_giant", false, Some(false)),
+            ("pc_gas_giant", false, None),
+            ("pc_gas_giant", true, Some(false)),
+            ("pc_rock", false, Some(false)),
+            ("pc_rock", false, Some(true)),
+        ],
+        "a stated has_ring wins; a moon and the star never have one; an unstated body is left \
+         to a draw only when its class has a chance_of_ring"
+    );
 }
 
 /// Two spawns elsewhere, each linking back to the system the initializer
@@ -561,4 +632,136 @@ fn an_initializer_is_sourced_to_the_mod_that_defines_it_and_vanilla_to_nothing()
     );
     assert_eq!(gd.initializer_source("home_init"), None);
     assert_eq!(gd.initializer_source("no_such_init"), None);
+}
+
+/// Angles accumulate from the body before, at each level; a count is its midpoint.
+#[test]
+fn a_fixture_systems_layout_is_what_its_initializer_defines() {
+    let gd = common::cached_fixture();
+    let details = gd
+        .initializer_details(6, "layout_init", None)
+        .expect("the layout fixture");
+    let id = |index: usize| details.planets[index].id;
+    let layouts: Vec<_> = details
+        .planets
+        .iter()
+        .map(|p| {
+            let layout = p.layout.as_ref().expect("every scenario body is laid out");
+            assert_eq!(layout.at, None, "a scenario stores no point");
+            assert_eq!(p.orbit, None, "a scenario stores no orbit");
+            (p.parent, layout.orbit, layout.angle, layout.size)
+        })
+        .collect();
+    assert_eq!(
+        layouts,
+        [
+            (None, Some(fixed(0.0)), None, None),
+            (
+                None,
+                Some(range(30.0, 35.0)),
+                Some(fixed(90.0)),
+                Some(fixed(16.0))
+            ),
+            (Some(id(1)), Some(fixed(8.0)), Some(fixed(30.0)), None),
+            (
+                Some(id(1)),
+                Some(fixed(10.0)),
+                Some(range(40.0, 80.0)),
+                None
+            ),
+            (
+                None,
+                Some(range(60.0, 65.0)),
+                Some(range(60.0, 120.0)),
+                None
+            ),
+            (
+                None,
+                Some(range(80.0, 85.0)),
+                Some(range(30.0, 150.0)),
+                None
+            ),
+            (None, None, Some(range(75.0, 195.0)), None),
+            (None, Some(range(105.0, 110.0)), None, None),
+        ],
+        "the star names no angle; change_orbit moves the moons out, and the siblings \
+         after it; a count of one to three spawns two; an undeclared distance steps 0"
+    );
+    assert_eq!(
+        details.belts,
+        [
+            BeltSpec {
+                kind: "rocky_asteroid_belt".to_owned(),
+                inner_radius: 50.0,
+            },
+            BeltSpec {
+                kind: "icy_asteroid_belt".to_owned(),
+                inner_radius: 90.0,
+            },
+        ]
+    );
+    assert_eq!(details.inner_radius, None);
+}
+
+fn fixed(n: f64) -> Bounds {
+    Bounds::fixed(n)
+}
+
+fn range(min: f64, max: f64) -> Bounds {
+    Bounds { min, max }
+}
+
+/// The game wrote system 217 of the sample from Sol's initializer, turned by one angle.
+#[test]
+fn sol_is_laid_out_where_the_game_put_it() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let sol = gd
+        .initializer_details(217, "sol_system_initializer", None)
+        .expect("Sol");
+    let session = common::open_4_4();
+    let projection = session.details().expect("the sample's details");
+    let saved = projection.raw(217).expect("system 217");
+    assert_eq!(sol.planets.len(), saved.planets.len());
+
+    let point = |id: u32| {
+        saved
+            .planets
+            .iter()
+            .find(|p| p.id == id)
+            .and_then(|p| p.at)
+            .expect("a point")
+    };
+    let mut turn = None;
+    for (laid, body) in sol.planets.iter().zip(&saved.planets) {
+        assert_eq!(laid.name_key, body.name_key);
+        let (x, y) = body.at.expect("a point");
+        let (cx, cy) = body.parent.map_or((0.0, 0.0), point);
+        let (dx, dy) = (x - cx, y - cy);
+        let layout = laid.layout.as_ref().expect("a layout");
+        let orbit = layout.orbit.expect("Sol gives every body a distance");
+        assert_eq!(orbit.min, orbit.max, "{}", body.name_key);
+        assert!(
+            (dx.hypot(dy) - orbit.min).abs() < 1.0,
+            "{}: saved at {}, laid out at {}",
+            body.name_key,
+            dx.hypot(dy),
+            orbit.min
+        );
+        if orbit.min == 0.0 {
+            continue;
+        }
+        let angle = layout.angle.expect("Sol gives every body an angle");
+        assert_eq!(angle.min, angle.max, "{}", body.name_key);
+        let saved_angle = dy.atan2(dx).to_degrees();
+        let turn = *turn.get_or_insert(saved_angle - angle.min);
+        let off = (angle.min + turn - saved_angle).rem_euclid(360.0);
+        assert!(
+            off.min(360.0 - off) < 0.1,
+            "{}: saved at {saved_angle}°, laid out at {}° turned by {turn}°",
+            body.name_key,
+            angle.min
+        );
+    }
 }

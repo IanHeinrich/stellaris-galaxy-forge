@@ -180,6 +180,8 @@ export function systemDetails(over: Partial<SystemDetails> = {}): SystemDetails 
     megastructures: [],
     sites: [],
     with_game_data: false,
+    belts: [],
+    inner_radius: null,
     ...over,
   };
 }
@@ -202,6 +204,9 @@ export function planetSummary(over: Partial<PlanetSummary> = {}): PlanetSummary 
     habitable: null,
     owner: null,
     moon: false,
+    parent: null,
+    layout: null,
+    ring: null,
     ...over,
   };
 }
@@ -324,6 +329,10 @@ export function planetClassView(
     habitable: !star,
     star,
     terraform_candidate: terraformCandidate,
+    icon_large_sprite: null,
+    atmosphere_color: null,
+    atmosphere_intensity: null,
+    atmosphere_width: null,
   };
 }
 

@@ -11,6 +11,7 @@ import { useInitializerBrowserStore } from "./initializerBrowserStore";
 import { useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
+import { useSceneStore } from "./sceneStore";
 import { resetStores } from "./storeFixture";
 
 const SOL: Entry = { ref: { kind: "system", id: 452 }, label: "Sol" };
@@ -31,8 +32,9 @@ beforeEach(() => {
 describe("clearSelection", () => {
   const esc = (inInput = false) => run("clearSelection", inInput, effects);
 
-  it("gives Esc to the browser, then the dialog, the menu, the drill and the selection", async () => {
+  it("gives Esc to the browser, then the dialog, the menu, the drill, the system and the selection", async () => {
     useEditorStore.setState({ selection: [1] });
+    useSceneStore.setState({ scene: { kind: "system", id: 1 } });
     useInitializerBrowserStore.setState({ open: true });
     useLayoutStore.setState({ openDialog: true, tab: "inspector", collapsed: false });
     useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 1 }, x: 1, y: 1 });
@@ -53,6 +55,11 @@ describe("clearSelection", () => {
 
     esc();
     expect(useInspectorStore.getState().stack.map((e) => e.label)).toEqual(["Sol"]);
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: 1 });
+
+    esc();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "galaxy" });
+    expect(useEditorStore.getState().selection).toEqual([1]);
 
     esc();
     await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([]));

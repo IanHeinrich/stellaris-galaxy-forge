@@ -38,6 +38,16 @@ pub enum TextureKey {
         icon_file: String,
         colours: [String; 4],
     },
+    /// A planet class's surface map baked into a lit disc.
+    PlanetDisc {
+        class: String,
+    },
+    /// The texture of the game's gas giant ring mesh.
+    PlanetRing,
+    /// A star planet class's sphere baked as the system view shows it.
+    StarDisc {
+        class: String,
+    },
 }
 
 impl TextureKey {
@@ -67,6 +77,9 @@ impl FromStr for TextureKey {
 
     fn from_str(s: &str) -> Result<Self, TextureError> {
         let bad = || TextureError::BadKey(s.to_owned());
+        if s == "planet_ring" {
+            return Ok(Self::PlanetRing);
+        }
         let (kind, rest) = s.split_once(':').ok_or_else(bad)?;
         let key = match kind {
             "star_class" => Self::StarClass {
@@ -116,6 +129,12 @@ impl FromStr for TextureKey {
                     colours: colours.try_into().map_err(|_| bad())?,
                 }
             }
+            "planet_disc" => Self::PlanetDisc {
+                class: component(rest).ok_or_else(bad)?,
+            },
+            "star_disc" => Self::StarDisc {
+                class: component(rest).ok_or_else(bad)?,
+            },
             _ => return Err(bad()),
         };
         Ok(key)
@@ -145,6 +164,9 @@ impl fmt::Display for TextureKey {
                 "empire_flag:{background}:{icon_category}/{icon_file}:{}",
                 colours.join(",")
             ),
+            Self::PlanetDisc { class } => write!(f, "planet_disc:{class}"),
+            Self::PlanetRing => f.write_str("planet_ring"),
+            Self::StarDisc { class } => write!(f, "star_disc:{class}"),
         }
     }
 }

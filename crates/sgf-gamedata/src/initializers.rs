@@ -161,6 +161,8 @@ impl PartialEq<&str> for BodyClass {
 pub struct Body<'p> {
     pub block: &'p InitPlanet,
     pub moon: bool,
+    /// The planet index of the body this one was expanded under.
+    pub parent: Option<usize>,
 }
 
 /// Every body `planets` expand to, in the order a system's planet list
@@ -168,15 +170,20 @@ pub struct Body<'p> {
 /// body's position in this sequence is its planet index.
 pub fn expand(planets: &[InitPlanet]) -> impl Iterator<Item = Body<'_>> {
     let mut out = Vec::new();
-    push_bodies(planets, false, &mut out);
+    push_bodies(planets, None, &mut out);
     out.into_iter()
 }
 
-fn push_bodies<'p>(blocks: &'p [InitPlanet], moon: bool, out: &mut Vec<Body<'p>>) {
+fn push_bodies<'p>(blocks: &'p [InitPlanet], parent: Option<usize>, out: &mut Vec<Body<'p>>) {
     for block in blocks {
         for _ in 0..block.instances() {
-            out.push(Body { block, moon });
-            push_bodies(&block.moons, true, out);
+            let index = out.len();
+            out.push(Body {
+                block,
+                moon: parent.is_some(),
+                parent,
+            });
+            push_bodies(&block.moons, Some(index), out);
         }
     }
 }

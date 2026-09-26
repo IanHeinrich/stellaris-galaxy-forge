@@ -2,7 +2,7 @@ import type { SpecialKind } from "../../generated/SpecialKind";
 import { documentCapabilities } from "../../lib/capabilities";
 import { shortcutLabel } from "../../lib/keys";
 import { kindLabel } from "../../lib/special";
-import type { LayerId } from "../../lib/visual/layerIds";
+import { isSceneLayer, type LayerId } from "../../lib/visual/layerIds";
 import {
   groupState,
   splitsBySource,
@@ -14,8 +14,40 @@ import { layerIdsFor } from "../../map/layers/registry";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useSceneStore } from "../../store/sceneStore";
 
 export type Pressed = "true" | "false" | "mixed";
+
+/** Why a galaxy layer cannot be switched while a system is shown. */
+export const GALAXY_ONLY = "Layers apply to the galaxy view";
+
+/** Whether the map shows a system rather than the galaxy. */
+export function useInSystem(): boolean {
+  return useSceneStore((s) => s.scene.kind === "system");
+}
+
+/**
+ * A layer's switch as the map shown answers it: while a system is up, the scene's own switch
+ * for a layer it draws, and `galaxyOnly` set for one it does not.
+ */
+export function useLayerSwitch(id: LayerId): {
+  on: boolean;
+  toggle: () => void;
+  galaxyOnly: string | undefined;
+} {
+  const inSystem = useInSystem();
+  const scene = inSystem && isSceneLayer(id);
+  const on = useMapChromeStore((s) =>
+    isSceneLayer(id) && scene ? s.sceneLayers[id] : s.layers[id],
+  );
+  const toggleLayer = useMapChromeStore((s) => s.toggleLayer);
+  const toggleSceneLayer = useMapChromeStore((s) => s.toggleSceneLayer);
+  return {
+    on,
+    toggle: () => (isSceneLayer(id) && scene ? toggleSceneLayer(id) : toggleLayer(id)),
+    galaxyOnly: inSystem && !scene ? GALAXY_ONLY : undefined,
+  };
+}
 
 export function kindsLabel(kind: SpecialKind): string {
   return `${kindLabel(kind)}s`;

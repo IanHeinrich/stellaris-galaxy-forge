@@ -13,6 +13,7 @@ import { EditMenu } from "./panels/chrome/EditMenu";
 import { FileMenu } from "./panels/chrome/FileMenu";
 import { PaintBadge } from "./panels/chrome/PaintBadge";
 import { PaintNotice } from "./panels/chrome/PaintNotice";
+import { SceneCrumb } from "./panels/chrome/SceneCrumb";
 import { HelpMenu } from "./panels/chrome/HelpMenu";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
 import { LayerToggles } from "./panels/chrome/LayerToggles";
@@ -48,6 +49,7 @@ import { useFileSessionStore } from "./store/fileSessionStore";
 import { useGameDataStore } from "./store/gameDataStore";
 import { useLayoutStore } from "./store/layoutStore";
 import { usePaintModStore } from "./store/paintModStore";
+import { useSceneStore } from "./store/sceneStore";
 import { useUpdateStore } from "./store/updateStore";
 
 function FileState() {
@@ -113,6 +115,7 @@ const EFFECTS: CommandEffects = {
 
 function App() {
   const status = useFileSessionStore((s) => s.status);
+  const shown = useSceneStore((s) => (s.scene.kind === "system" ? s.scene.id : null));
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
   const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
@@ -201,10 +204,10 @@ function App() {
       <TopBar />
       <PaintNotice />
       <div className="main">
-        {status === "ready" && <ToolRail />}
+        {status === "ready" && shown === null && <ToolRail />}
         <div className="map-area">
           <MapCanvas />
-          {status === "ready" && <ToolOptions />}
+          {status === "ready" && (shown === null ? <ToolOptions /> : <SceneCrumb system={shown} />)}
           <ContextMenu />
           <MapTooltip />
           {status !== "ready" && <Launch />}
