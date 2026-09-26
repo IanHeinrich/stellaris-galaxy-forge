@@ -7,6 +7,8 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import { run, type CommandEffects } from "./commands";
 import { useEditorStore } from "./editorStore";
+import { OPEN_RESULT } from "./fixture";
+import { useGalaxyStore } from "./galaxyStore";
 import { useInitializerBrowserStore } from "./initializerBrowserStore";
 import { useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
@@ -34,7 +36,8 @@ describe("clearSelection", () => {
 
   it("gives Esc to the browser, then the dialog, the menu, the drill, the system and the selection", async () => {
     useEditorStore.setState({ selection: [1] });
-    useSceneStore.setState({ scene: { kind: "system", id: 1 } });
+    useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
+    useSceneStore.getState().enterSystem(1);
     useInitializerBrowserStore.setState({ open: true });
     useLayoutStore.setState({ openDialog: true, tab: "inspector", collapsed: false });
     useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 1 }, x: 1, y: 1 });

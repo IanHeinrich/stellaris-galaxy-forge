@@ -71,6 +71,21 @@ fn colors_read_rgb_and_hsv() {
     assert_eq!(teal.ship, [71, 179, 179]);
 }
 
+/// The first `flag` (or any other duplicated colour key) wins, as `Def::scalar` reads every
+/// other field of the same definition.
+#[test]
+fn a_duplicate_colour_key_reads_the_first_one() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "flags/colors.txt",
+            "colors = {\n\tduped = { flag = rgb { 1 2 3 } flag = rgb { 9 9 9 } map = rgb { 0 0 0 } ship = rgb { 0 0 0 } }\n}\n",
+        ),
+        ("common/.keep", ""),
+    ]);
+    let duped = gd.colors.entries.get("duped").expect("duped");
+    assert_eq!(duped.flag, [1, 2, 3]);
+}
+
 #[test]
 fn a_mod_shipping_its_own_colors_txt_supplies_the_palette_and_is_named_as_its_source() {
     let dir = tempfile::tempdir().expect("temp dir");
@@ -286,7 +301,8 @@ fn resolver_distinguishes_orbital_from_colonizable_and_unknown() {
 
 /// An install whose terraform links exercise the parser: `NOT`/`NOR` and checks outside
 /// `from` are skipped, a later `game_rules` file's rule wins, a candidate the static
-/// modifiers do not define is dropped, and a candidate needs what most of its links ask for.
+/// modifiers do not define is dropped, a candidate needs what most of its links ask for, and
+/// an `OR` in a condition is one requirement, its alternatives in any order.
 const TERRAFORM_FILES: [(&str, &str); 6] = [
     (
         "common/planet_classes/00_fx.txt",
@@ -308,8 +324,8 @@ const TERRAFORM_FILES: [(&str, &str); 6] = [
         "common/terraform/00_fx.txt",
         "terraform_link = {\n\tfrom = pc_fx_rock\n\tpotential = {\n\t\thas_modifier = fx_cold_candidate\n\t\tfrom = {\n\t\t\tNOT = { has_modifier = fx_cold_candidate }\n\t\t\tNOR = { has_modifier = fx_cold_candidate }\n\t\t\tAND = { has_modifier = fx_candidate }\n\t\t}\n\t}\n\tcondition = {\n\t\thas_ascension_perk = ap_fx_shaper\n\t\thas_technology = tech_fx_restore\n\t\tNOT = { has_technology = tech_fx_never }\n\t}\n}\n\
          terraform_link = {\n\tfrom = pc_fx_ice\n\tpotential = { from = { has_modifier = fx_undefined_candidate } }\n}\n\
-         terraform_link = {\n\tfrom = pc_fx_ice\n\tpotential = { OR = { from = { has_modifier = fx_cold_candidate } } }\n\tcondition = { has_technology = tech_fx_restore OR = { has_ascension_perk = ap_fx_cold } }\n}\n\
-         terraform_link = {\n\tfrom = pc_fx_plain\n\tpotential = { from = { has_modifier = fx_cold_candidate } }\n\tcondition = { has_ascension_perk = ap_fx_cold has_technology = tech_fx_restore }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_ice\n\tpotential = { OR = { from = { has_modifier = fx_cold_candidate } } }\n\tcondition = { has_technology = tech_fx_restore has_ascension_perk = ap_fx_cold OR = { has_technology = tech_fx_alt has_ascension_perk = ap_fx_alt has_country_flag = fx_flag } NOT = { OR = { has_technology = tech_fx_never } } }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_plain\n\tpotential = { from = { has_modifier = fx_cold_candidate } }\n\tcondition = { has_ascension_perk = ap_fx_cold has_technology = tech_fx_restore AND = { OR = { has_country_flag = fx_flag has_ascension_perk = ap_fx_alt has_technology = tech_fx_alt } } }\n}\n\
          terraform_link = {\n\tfrom = pc_fx_plain\n\tpotential = { has_ascension_perk = ap_fx_other from = { has_modifier = fx_cold_candidate } }\n}\n\
          terraform_link = {\n\tfrom = pc_fx_old\n\tpotential = { from = { has_modifier = fx_old_candidate } }\n}\n",
     ),
@@ -349,8 +365,50 @@ fn terraform_links_read_the_candidate_rule_and_the_links_that_check_it() {
         gd.terraform_candidate_views(),
         [
             requires("fx_candidate", &["Fx Restoration", "Ap Fx Shaper"]),
-            requires("fx_cold_candidate", &["Fx Restoration", "Cold Hands"]),
+            requires(
+                "fx_cold_candidate",
+                &[
+                    "Fx Restoration",
+                    "Cold Hands",
+                    "Tech Fx Alt or Ap Fx Alt or another condition"
+                ],
+            ),
         ]
+    );
+}
+
+/// Two links that check one candidate and ask for different techs, the second checking it
+/// twice.
+const TIED_FILES: [(&str, &str); 5] = [
+    (
+        "common/planet_classes/00_fx.txt",
+        "pc_fx_a = {}\npc_fx_b = {}\n",
+    ),
+    (
+        "common/static_modifiers/00_fx.txt",
+        "fx_candidate = { icon = x }\n",
+    ),
+    (
+        "common/game_rules/00_fx.txt",
+        "is_terraforming_candidate = { OR = { has_modifier = fx_candidate } }\n",
+    ),
+    (
+        "common/terraform/00_fx.txt",
+        "terraform_link = {\n\tfrom = pc_fx_a\n\tpotential = { from = { has_modifier = fx_candidate } }\n\tcondition = { has_technology = tech_fx_first }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_b\n\tpotential = {\n\t\tfrom = { has_modifier = fx_candidate }\n\t\tOR = { from = { has_modifier = fx_candidate } }\n\t}\n\tcondition = { has_technology = tech_fx_second }\n}\n",
+    ),
+    ("localisation/english/fx_l_english.yml", "l_english:\n"),
+];
+
+#[test]
+fn a_tie_between_requirement_sets_goes_to_the_first_seen_and_a_link_votes_once() {
+    let (_dir, gd) = common::hand_written(&TIED_FILES);
+    assert_eq!(
+        gd.terraform_candidate_views(),
+        [TerraformCandidateView {
+            modifier: "fx_candidate".to_owned(),
+            requires: vec!["Tech Fx First".to_owned()],
+        }]
     );
 }
 
@@ -409,7 +467,7 @@ fn vanilla_registries() {
             ),
             requires(
                 "toxic_terraforming_candidate",
-                &["Climate Restoration", "Detox"]
+                &["Climate Restoration", "Detox or another condition"],
             ),
         ]
     );

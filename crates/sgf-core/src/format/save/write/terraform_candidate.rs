@@ -12,6 +12,11 @@ use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::read::{self, PERMANENT};
 use crate::session::Session;
 
+/// The most copies of one modifier `SetTerraformCandidate` adds, or removes with an
+/// inverse that restores them. The console adds one per `add_modifier`, so a save holds one or
+/// two; the bound keeps a hand-typed op from writing thousands.
+pub(crate) const MAX_MODIFIER_COPIES: u32 = 16;
+
 pub(crate) fn plan_set(
     plan: &mut Plan,
     s: &Session,
@@ -34,8 +39,15 @@ pub(crate) fn plan_set(
             days.clone(),
         ));
     }
+    let held = u32::try_from(days.len()).unwrap_or(u32::MAX);
+    let count = if on { copies.unwrap_or(1) } else { 1 };
+    if on && !(1..=MAX_MODIFIER_COPIES).contains(&count) {
+        return Err(OpError::ModifierCopies(count));
+    }
+    if !on && held > MAX_MODIFIER_COPIES {
+        return Err(OpError::ModifierCopies(held));
+    }
     let edit = plan.edit_planet(&s.doc, id, system)?;
-    let count = if on { copies.unwrap_or(1).max(1) } else { 1 };
     let entries = vec![(modifier, on.then_some(Place::Last)); count as usize];
     if !timed_modifiers::set(edit, keys::BOMBARDMENT_DAMAGE, &entries)? {
         return Err(match on {
@@ -53,7 +65,7 @@ pub(crate) fn plan_set(
             id,
             modifier: modifier.to_owned(),
             on: !on,
-            copies: (!on && days.len() > 1).then_some(days.len() as u32),
+            copies: (!on && held > 1).then_some(held),
         },
     })
 }

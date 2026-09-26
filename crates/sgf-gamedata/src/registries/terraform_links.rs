@@ -23,8 +23,39 @@ const HAS_MODIFIER: &str = "has_modifier";
 /// What a link's `condition` asks of the country, techs before perks.
 const REQUIREMENTS: [&str; 2] = ["has_technology", "has_ascension_perk"];
 
-/// Keys by the class or modifier they belong to.
+/// Keys by the class they belong to.
 type ByKey = BTreeMap<String, Vec<String>>;
+/// Requirements by the modifier they belong to.
+type ByModifier = BTreeMap<String, Vec<Requirement>>;
+
+/// One thing a terraform link's `condition` needs: a tech or an ascension perk, or an `OR`
+/// of them, any one of which will do.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Requirement {
+    /// The tech and ascension perk keys, one of which is needed.
+    pub any_of: Vec<String>,
+    /// The `OR` also has an alternative that is neither, such as a country flag.
+    pub or_else: bool,
+}
+
+impl Requirement {
+    fn one(key: String) -> Self {
+        Self {
+            any_of: vec![key],
+            or_else: false,
+        }
+    }
+
+    /// The same requirement whatever order its alternatives are listed in.
+    fn sorted(&self) -> Self {
+        let mut any_of = self.any_of.clone();
+        any_of.sort();
+        Self {
+            any_of,
+            or_else: self.or_else,
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct TerraformLinks {
@@ -34,10 +65,10 @@ pub struct TerraformLinks {
     /// `common/game_rules`' `is_terraforming_candidate` rule's `has_modifier` values, in
     /// file order; empty without that rule (a total-conversion mod).
     candidates: Vec<String>,
-    /// The tech and ascension perk keys most links that check a modifier ask for in their
-    /// `condition`, by that modifier: the ordinary way, where a perk or an origin opens a
-    /// rarer one with other terms.
-    requires: ByKey,
+    /// What most links that check a modifier ask for in their `condition`, by that
+    /// modifier: the ordinary way, where a perk or an origin opens a rarer one with other
+    /// terms.
+    requires: ByModifier,
 }
 
 impl TerraformLinks {
@@ -62,12 +93,12 @@ impl TerraformLinks {
     }
 
     /// Every modifier the `is_terraforming_candidate` rule lists and the static modifiers
-    /// registry defines, in the rule's order, with the tech and ascension perk keys most
-    /// terraform links that check it ask for: none when no link checks it.
+    /// registry defines, in the rule's order, with what most terraform links that check it
+    /// ask for: nothing when no link checks it.
     pub fn candidates<'a>(
         &'a self,
         static_modifiers: &'a StaticModifiers,
-    ) -> impl Iterator<Item = (&'a str, &'a [String])> {
+    ) -> impl Iterator<Item = (&'a str, &'a [Requirement])> {
         self.candidates
             .iter()
             .filter(|modifier| self.is_candidate(modifier, static_modifiers))
@@ -84,9 +115,9 @@ impl TerraformLinks {
 
 /// Every `has_modifier` each class's terraform links check inside `potential`'s `from = { }`,
 /// and for each such modifier the requirements most of the links checking it ask for.
-fn load_links(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> (ByKey, ByKey) {
+fn load_links(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> (ByKey, ByModifier) {
     let mut checked = ByKey::new();
-    let mut tallies: BTreeMap<String, Vec<(Vec<String>, usize)>> = BTreeMap::new();
+    let mut tallies: BTreeMap<String, Vec<(Vec<Requirement>, usize)>> = BTreeMap::new();
     for file in layout.files_in(TERRAFORM_DIR) {
         let Some((root, src)) = script::parse_file(&file, diagnostics) else {
             continue;
@@ -110,9 +141,13 @@ fn load_links(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> (ByKey, ByK
                 .find("condition", &src)
                 .map(|condition| requirements(condition, &src))
                 .unwrap_or_default();
-            for modifier in &modifiers {
+            let voting: BTreeSet<&String> = modifiers.iter().collect();
+            for modifier in voting {
                 let tally = tallies.entry(modifier.clone()).or_default();
-                match tally.iter_mut().find(|(keys, _)| *keys == link_requires) {
+                match tally
+                    .iter_mut()
+                    .find(|(keys, _)| same_keys(keys, &link_requires))
+                {
                     Some((_, links)) => *links += 1,
                     None => tally.push((link_requires.clone(), 1)),
                 }
@@ -131,7 +166,7 @@ fn load_links(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> (ByKey, ByK
 }
 
 /// The requirements the most links share, the first seen of a tie.
-fn most_common(tally: Vec<(Vec<String>, usize)>) -> Vec<String> {
+fn most_common(tally: Vec<(Vec<Requirement>, usize)>) -> Vec<Requirement> {
     let most = tally.iter().map(|&(_, links)| links).max().unwrap_or(0);
     tally
         .into_iter()
@@ -140,15 +175,63 @@ fn most_common(tally: Vec<(Vec<String>, usize)>) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// The tech and ascension perk keys `condition` checks, techs first, each once.
-fn requirements(condition: &Node, src: &[u8]) -> Vec<String> {
+/// Whether two requirement lists hold the same requirements, in any order.
+fn same_keys(a: &[Requirement], b: &[Requirement]) -> bool {
+    let set = |r: &[Requirement]| r.iter().map(Requirement::sorted).collect::<BTreeSet<_>>();
+    set(a) == set(b)
+}
+
+/// What `condition` requires: its tech and ascension perk checks, techs first, then each
+/// `OR` that offers one as a single requirement, each once. `NOT` and `NOR` never count.
+fn requirements(condition: &Node, src: &[u8]) -> Vec<Requirement> {
     let mut keys = Vec::new();
     for key in REQUIREMENTS {
-        collect(condition, src, key, Scope::Anywhere, &mut keys);
+        collect(condition, src, key, Scope::Required, &mut keys);
     }
+    let mut out: Vec<Requirement> = keys.into_iter().map(Requirement::one).collect();
+    let mut ors = Vec::new();
+    required_ors(condition, src, &mut ors);
+    out.extend(ors.into_iter().filter_map(|or| alternatives(or, src)));
     let mut seen = BTreeSet::new();
-    keys.retain(|key| seen.insert(key.clone()));
-    keys
+    out.retain(|requirement| seen.insert(requirement.sorted()));
+    out
+}
+
+/// Every `OR` under `node` that must hold: not inside another `OR`, a `NOT` or a `NOR`.
+fn required_ors<'a>(node: &'a Node, src: &[u8], out: &mut Vec<&'a Node>) {
+    for child in node.children() {
+        let Some(key) = child.key_str(src) else {
+            continue;
+        };
+        if child.scalar_span().is_some()
+            || key.eq_ignore_ascii_case("NOT")
+            || key.eq_ignore_ascii_case("NOR")
+        {
+            continue;
+        }
+        if key.eq_ignore_ascii_case("OR") {
+            out.push(child);
+        } else {
+            required_ors(child, src, out);
+        }
+    }
+}
+
+/// An `OR`'s tech and ascension perk alternatives as one requirement; `None` when it has
+/// neither.
+fn alternatives(or: &Node, src: &[u8]) -> Option<Requirement> {
+    let mut any_of = Vec::new();
+    let mut or_else = false;
+    for child in or.children() {
+        let key = child.key_str(src);
+        match child.scalar_str(src) {
+            Some(value) if key.is_some_and(|k| REQUIREMENTS.contains(&k)) => {
+                any_of.push(value.to_owned());
+            }
+            _ => or_else = true,
+        }
+    }
+    (!any_of.is_empty()).then_some(Requirement { any_of, or_else })
 }
 
 /// `common/game_rules`' `is_terraforming_candidate` rule's `has_modifier` values, last file
@@ -178,6 +261,8 @@ enum Scope {
     Anywhere,
     /// Only inside a `from = { }` scope, at any depth below it.
     InFrom,
+    /// At any depth outside an `OR`.
+    Required,
 }
 
 /// Walks `node` for the values of `key` that count in `scope`. A negated check (`NOT`,
@@ -187,7 +272,7 @@ fn collect(node: &Node, src: &[u8], key: &str, scope: Scope, out: &mut Vec<Strin
         let Some(child_key) = child.key_str(src) else {
             continue;
         };
-        if child_key == key && matches!(scope, Scope::Anywhere) {
+        if child_key == key && !matches!(scope, Scope::InFrom) {
             if let Some(value) = child.scalar_str(src) {
                 out.push(value.to_owned());
             }
@@ -196,12 +281,13 @@ fn collect(node: &Node, src: &[u8], key: &str, scope: Scope, out: &mut Vec<Strin
         if child.scalar_span().is_some()
             || child_key.eq_ignore_ascii_case("NOT")
             || child_key.eq_ignore_ascii_case("NOR")
+            || (matches!(scope, Scope::Required) && child_key.eq_ignore_ascii_case("OR"))
         {
             continue;
         }
-        let inner = match child_key.eq_ignore_ascii_case("from") {
-            true => Scope::Anywhere,
-            false => scope,
+        let inner = match scope {
+            Scope::InFrom if child_key.eq_ignore_ascii_case("from") => Scope::Anywhere,
+            _ => scope,
         };
         collect(child, src, key, inner, out);
     }

@@ -262,8 +262,12 @@ whether a combination loads.
 
 A terraforming candidate's required techs and ascension perks are the
 set most of its `common/terraform` links ask for in `condition`, and
-the first set seen wins a tie. This is a rule of thumb: in vanilla, a
-few links behind a perk or an origin ask for less.
+the first set seen wins a tie. An `OR` of techs and perks is one
+requirement, shown as its alternatives joined with "or", and "another
+condition" stands for an alternative that is neither, such as a
+country flag. Checks under `NOT` or `NOR` don't count. This is a rule
+of thumb: in vanilla, a few links behind a perk or an origin ask for
+less.
 
 ## Rolling deposits and weights
 

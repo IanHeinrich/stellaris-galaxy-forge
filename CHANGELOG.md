@@ -8,6 +8,11 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- The Terraforming checkbox's hint names the techs and ascension perks
+  your empire needs, read from the game and your mods.
+
 ### Fixed
 
 - A scenario system with the Previously Terraformed layout shows one

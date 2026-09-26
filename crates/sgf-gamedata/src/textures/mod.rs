@@ -27,10 +27,16 @@ use crate::registries::gfx::Sprites;
 mod dds;
 mod key;
 mod planet_disc;
+mod sphere;
 mod star_disc;
 
 pub use key::TextureKey;
 pub use star_disc::StarAtmosphere;
+
+/// Part of every rendered job's cache name, so a change to how any texture is baked (a sphere
+/// disc, a composed flag, a cropped frame) is baked afresh rather than served stale from a
+/// user's disk cache.
+const BAKE: u32 = 2;
 
 /// Where a `GFX_` sprite's texture lives; the `.gfx` registry implements it.
 pub trait SpriteSource {
@@ -38,19 +44,6 @@ pub trait SpriteSource {
     /// 1-based frame to crop, if any.
     fn resolve(&self, name: &str, frame: Option<u32>) -> Option<(String, Option<u32>)>;
     fn frame_count(&self, name: &str) -> Option<u32>;
-}
-
-/// A registry that knows no sprites: every `sprite:` key fails.
-pub struct NoSprites;
-
-impl SpriteSource for NoSprites {
-    fn resolve(&self, _name: &str, _frame: Option<u32>) -> Option<(String, Option<u32>)> {
-        None
-    }
-
-    fn frame_count(&self, _name: &str) -> Option<u32> {
-        None
-    }
 }
 
 impl SpriteSource for Sprites {
@@ -69,11 +62,6 @@ pub type ColourLookup<'a> = &'a dyn Fn(&str) -> Option<[u8; 3]>;
 /// The `entity` of a planet class that is drawn as a disc: neither a star nor an asteroid.
 pub type EntityLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
 
-/// No planet class has a disc: every `planet_disc:` key fails.
-pub fn no_planet_entity(_class: &str) -> Option<String> {
-    None
-}
-
 /// What a star planet class's disc is baked from.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StarBody {
@@ -86,41 +74,67 @@ pub struct StarBody {
 /// The star planet classes by key.
 pub type StarLookup<'a> = &'a dyn Fn(&str) -> Option<StarBody>;
 
-/// No planet class is a star: every `star_disc:` key fails.
-pub fn no_star_body(_class: &str) -> Option<StarBody> {
-    None
+/// How a key's names are looked up in the install: an install's own, or [`Lookups::none`]'s
+/// stand-ins for a caller that only cares about one of them.
+pub struct Lookups<'a> {
+    pub sprites: &'a dyn SpriteSource,
+    pub colour: ColourLookup<'a>,
+    pub planet_entity: EntityLookup<'a>,
+    pub star_body: StarLookup<'a>,
+}
+
+impl<'a> Lookups<'a> {
+    /// No flag colour, disc entity or star body: every one of those keys fails, and only
+    /// `sprites` resolves.
+    pub fn none(sprites: &'a dyn SpriteSource) -> Self {
+        fn no_colour(_: &str) -> Option<[u8; 3]> {
+            None
+        }
+        fn no_entity(_: &str) -> Option<String> {
+            None
+        }
+        fn no_star(_: &str) -> Option<StarBody> {
+            None
+        }
+        Self {
+            sprites,
+            colour: &no_colour,
+            planet_entity: &no_entity,
+            star_body: &no_star,
+        }
+    }
 }
 
 impl GameData {
     /// `key` decoded through this install's sprites, flag colours and planet classes.
     pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
-        let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
-        let entity = |class: &str| self.disc_entity(class);
-        let star = |class: &str| self.star_body(class);
-        textures.load(&self.layout, &*self.sprites, &colour, &entity, &star, key)
+        self.with_lookups(|lookups| textures.load(&self.layout, lookups, key))
     }
 
     pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {
+        self.with_lookups(|lookups| textures.png(&self.layout, lookups, key))
+    }
+
+    /// This install's own lookups, built once and handed to `use_lookups`.
+    fn with_lookups<T>(&self, use_lookups: impl FnOnce(&Lookups<'_>) -> T) -> T {
         let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
         let entity = |class: &str| self.disc_entity(class);
         let star = |class: &str| self.star_body(class);
-        textures.png(&self.layout, &*self.sprites, &colour, &entity, &star, key)
+        use_lookups(&Lookups {
+            sprites: &*self.sprites,
+            colour: &colour,
+            planet_entity: &entity,
+            star_body: &star,
+        })
     }
 
     fn star_body(&self, class: &str) -> Option<StarBody> {
         let def = self.planet_classes.get(class).filter(|c| c.star)?;
-        let atmosphere = match (
-            def.atmosphere_color,
-            def.atmosphere_intensity,
-            def.atmosphere_width,
-        ) {
-            (Some(colour), Some(intensity), Some(width)) => Some(StarAtmosphere {
-                colour,
-                intensity,
-                width,
-            }),
-            _ => None,
-        };
+        let atmosphere = def.atmosphere.map(|a| StarAtmosphere {
+            colour: a.colour,
+            intensity: a.intensity,
+            width: a.width,
+        });
         Some(StarBody {
             entity: def.entity.clone(),
             lighting: self.star_lighting(class),
@@ -132,11 +146,10 @@ impl GameData {
     /// else as a member of the first system that names it.
     fn star_lighting(&self, class: &str) -> Option<String> {
         let lit_as = |sc: &crate::StarClass| {
-            sc.planet_keys
+            sc.planets
                 .iter()
-                .zip(&sc.planet_lighting)
-                .find(|(key, _)| *key == class)
-                .map(|(_, lighting)| lighting.clone())
+                .find(|p| p.key == class)
+                .map(|p| p.lighting.clone())
         };
         let classes = || self.star_classes.iter();
         classes()
@@ -265,16 +278,8 @@ impl Textures {
         &self.cache_dir
     }
 
-    pub fn load(
-        &self,
-        layout: &Layout,
-        sprites: &dyn SpriteSource,
-        colour: ColourLookup<'_>,
-        planet_entity: EntityLookup<'_>,
-        star_body: StarLookup<'_>,
-        key: &str,
-    ) -> TextureView {
-        match self.png(layout, sprites, colour, planet_entity, star_body, key) {
+    pub fn load(&self, layout: &Layout, lookups: &Lookups<'_>, key: &str) -> TextureView {
+        match self.png(layout, lookups, key) {
             Ok(png) => {
                 let (width, height) = png_size(&png);
                 TextureView {
@@ -300,20 +305,11 @@ impl Textures {
     pub fn png(
         &self,
         layout: &Layout,
-        sprites: &dyn SpriteSource,
-        colour: ColourLookup<'_>,
-        planet_entity: EntityLookup<'_>,
-        star_body: StarLookup<'_>,
+        lookups: &Lookups<'_>,
         key: &str,
     ) -> Result<Vec<u8>, TextureError> {
         let key: TextureKey = key.parse()?;
-        let lookups = Lookups {
-            sprites,
-            colour,
-            planet_entity,
-            star_body,
-        };
-        let job = Job::plan(&key, layout, &lookups, self)?;
+        let job = Job::plan(&key, layout, lookups, self)?;
         let cache_file = self.cache_dir.join(job.cache_name(&key));
         if let Ok(png) = fs::read(&cache_file) {
             return Ok(png);
@@ -407,14 +403,6 @@ enum Job {
         lava: star_disc::Lava,
         atmosphere: Option<StarAtmosphere>,
     },
-}
-
-/// How a key's names are looked up in the install.
-struct Lookups<'a> {
-    sprites: &'a dyn SpriteSource,
-    colour: ColourLookup<'a>,
-    planet_entity: EntityLookup<'a>,
-    star_body: StarLookup<'a>,
 }
 
 pub(crate) const ICONS: &str = "gfx/interface/icons";
@@ -514,12 +502,16 @@ impl Job {
     }
 
     fn cache_name(&self, key: &TextureKey) -> String {
+        self.cache_name_at_bake(key, BAKE)
+    }
+
+    /// [`Self::cache_name`], taking the bake version as an argument so a test can see two
+    /// versions disagree without recompiling.
+    fn cache_name_at_bake(&self, key: &TextureKey, bake: u32) -> String {
         let mut hasher = DefaultHasher::new();
         key.to_string().hash(&mut hasher);
         self.hash(&mut hasher);
-        if matches!(self, Self::StarSurface(_) | Self::StarLava { .. }) {
-            star_disc::BAKE.hash(&mut hasher);
-        }
+        bake.hash(&mut hasher);
         format!("{:016x}.png", hasher.finish())
     }
 
@@ -584,11 +576,17 @@ impl Job {
                         .map(|face| {
                             let side = star_disc::NOISE_WIDTH.min(face.width());
                             let face = imageops::resize(face, side, side, FilterType::Triangle);
-                            star_disc::Plane::new(&face)
+                            sphere::Plane::new(&face, sphere::Wrap::Clamp)
                         })
                         .collect(),
-                    lava: star_disc::Plane::new(&lava_map.decode_near(star_disc::LAVA_WIDTH)?),
-                    stone: star_disc::Plane::new(&stone_map.decode_near(star_disc::STONE_WIDTH)?),
+                    lava: sphere::Plane::new(
+                        &lava_map.decode_near(star_disc::LAVA_WIDTH)?,
+                        sphere::Wrap::Tile,
+                    ),
+                    stone: sphere::Plane::new(
+                        &stone_map.decode_near(star_disc::STONE_WIDTH)?,
+                        sphere::Wrap::Tile,
+                    ),
                 };
                 Ok(star_disc::bake_lava(&maps, *lava, *atmosphere))
             }
@@ -739,5 +737,59 @@ fn write_atomically(path: &Path, bytes: &[u8]) {
     ));
     if fs::write(&tmp, bytes).is_ok() && fs::rename(&tmp, path).is_err() {
         let _ = fs::remove_file(&tmp);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn input() -> Input {
+        Input {
+            path: PathBuf::from("x"),
+            len: 0,
+            mtime_nanos: 0,
+        }
+    }
+
+    /// Every rendered kind of [`Job`] gets a different cache name when the bake version
+    /// differs, not only the star kinds (bug 7).
+    #[test]
+    fn every_rendered_kind_changes_cache_name_when_bake_differs() {
+        let key = TextureKey::PlanetRing;
+        let jobs = [
+            Job::Whole(input()),
+            Job::White(input()),
+            Job::Frame {
+                input: input(),
+                frame: 1,
+                count: 2,
+            },
+            Job::EmpireFlag {
+                background: input(),
+                icon: input(),
+                mask: input(),
+                frame: input(),
+                colours: [None, None, None, None],
+            },
+            Job::PlanetDisc(input()),
+            Job::StarSurface(input()),
+            Job::StarLava {
+                noise: input(),
+                lava_map: input(),
+                stone_map: input(),
+                lava: star_disc::Lava {
+                    bright: [0.0; 3],
+                    hot_stone: [0.0; 3],
+                    cold_stone: [0.0; 3],
+                },
+                atmosphere: None,
+            },
+        ];
+        for job in jobs {
+            let a = job.cache_name_at_bake(&key, 1);
+            let b = job.cache_name_at_bake(&key, 2);
+            assert_ne!(a, b, "{job:?}");
+        }
     }
 }

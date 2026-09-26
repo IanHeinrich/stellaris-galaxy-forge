@@ -9,7 +9,7 @@ use sgf_core::format::scenario::fe_zone::{
     DEFAULT_DISTANCE, FE_ZONE_DISTANCES, FE_ZONE_EXTENT, FE_ZONE_RADIUS,
 };
 use sgf_core::guides::L_CLUSTER;
-use sgf_core::ops::SPAWN_BUFFER;
+use sgf_core::ops::{MIN_INNER_RADIUS, SPAWN_BUFFER};
 
 fn export_dir() -> PathBuf {
     std::env::var_os("TS_RS_EXPORT_DIR").map_or_else(
@@ -67,6 +67,11 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "How far from the origin, on either axis, a zone's centre may lie.",
         "FE_ZONE_MAP_EXTENT",
         FE_ZONE_EXTENT.to_string(),
+    );
+    constant(
+        "The smallest inner radius a system has.",
+        "MIN_INNER_RADIUS",
+        MIN_INNER_RADIUS.to_string(),
     );
     let out = out.trim_end().to_owned() + "\n";
 

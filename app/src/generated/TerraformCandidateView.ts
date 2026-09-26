@@ -6,7 +6,8 @@
  */
 export type TerraformCandidateView = { modifier: string, 
 /**
- * The techs, then the ascension perks, that every terraform link checking the
- * modifier asks for, by name.
+ * What most terraform links checking the modifier ask for, by name: techs, then
+ * ascension perks, then each `OR` of them as one entry joined with "or", ending in
+ * "another condition" when the `OR` also allows something else.
  */
 requires: Array<string>, };

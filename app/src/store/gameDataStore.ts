@@ -23,7 +23,6 @@ import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import { clearTextures } from "../lib/visual/textures";
 import { useDetailsStore } from "./detailsStore";
-import { useInspectorStore } from "./inspectorStore";
 import { useScriptsStore } from "./scriptsStore";
 import { documentActions, NO_DOCUMENT } from "./gameDataStore.document";
 import { countryNames, forgetNames, nameActions, nameKeys } from "./gameDataStore.names";
@@ -183,12 +182,11 @@ const FRESH_DATA = {
 };
 
 /**
- * The fields game data that has just landed starts from, with the details, scripts and scenario
- * body pages read from what it replaces dropped.
+ * The fields game data that has just landed starts from, with the details and scripts read from
+ * what it replaces dropped.
  */
 function freshData(): typeof FRESH_DATA & { names: Map<string, string> } {
   useDetailsStore.getState().clear();
-  useInspectorStore.getState().dropBodies();
   useScriptsStore.getState().clear();
   return { ...FRESH_DATA, names: forgetNames() };
 }
@@ -310,7 +308,6 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
     }
     clearTextures();
     useDetailsStore.getState().clear();
-    useInspectorStore.getState().dropBodies();
     useScriptsStore.getState().clear();
     await get().refreshSpecial();
     await get().refreshScenarioOwners();

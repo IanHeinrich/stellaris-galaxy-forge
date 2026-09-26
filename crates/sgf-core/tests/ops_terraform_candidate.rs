@@ -138,12 +138,14 @@ fn removing_two_permanent_copies_has_an_inverse_that_puts_both_back() {
 						modifier=\"terraforming_candidate\"
 						days=-1
 					}
+ 
 ";
         let block = format!(
             "			timed_modifier=
 			{{
 				items=
 				{{
+					
 {item}{item}				}}
 			}}
 "
@@ -161,4 +163,27 @@ fn removing_two_permanent_copies_has_an_inverse_that_puts_both_back() {
         .apply(removed.inverse)
         .expect("apply the removal's inverse");
     assert_eq!(page(&session, 585), two);
+    assert!(
+        current(&session) == session.doc.original(),
+        "the inverse writes the two copies back as the file held them"
+    );
+}
+
+#[test]
+fn copies_outside_one_to_sixteen_are_refused() {
+    let mut session = open_4_5();
+    for copies in [0, 17] {
+        let op = Op::SetTerraformCandidate {
+            id: 585,
+            modifier: CANDIDATE.to_owned(),
+            on: true,
+            copies: Some(copies),
+        };
+        let error = session.apply(op).expect_err("out of bounds");
+        assert_eq!(
+            error.to_string(),
+            format!("{copies} copies of a modifier: an op adds or restores 1 to 16")
+        );
+    }
+    assert!(!session.doc.is_dirty());
 }
