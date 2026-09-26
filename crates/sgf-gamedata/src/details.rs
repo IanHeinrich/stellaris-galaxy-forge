@@ -118,16 +118,61 @@ impl GameData {
         })
     }
 
+    /// The star class a scenario system with `initializer` is drawn as: the initializer's
+    /// own class, else [`RANDOM_STAR_CLASS`] when it draws from a random list, names none or
+    /// is not in the install, since the game picks that star only when it generates the
+    /// galaxy.
+    pub fn scenario_star_class(&self, initializer: &str) -> &str {
+        star_class_of(self.initializers.get(initializer))
+    }
+
+    /// Each body's planet class, in source order, in a system of star class `system`. A body
+    /// written as the bare `star`, or as a star class, takes that class's planet key for the
+    /// nth such body, as the game spawns a binary's two stars, and its first once they run
+    /// out. Any other body, and a star whose class the install does not define, keeps the
+    /// class it is written as.
+    pub fn star_body_classes<'a>(
+        &self,
+        system: &str,
+        written: impl IntoIterator<Item = &'a str>,
+    ) -> Vec<String> {
+        let mut nth = 0;
+        written
+            .into_iter()
+            .map(|class| {
+                let star = if BodyClass::of(class) == BodyClass::Star {
+                    system
+                } else if self.star_classes.get(class).is_some()
+                    && self.planet_classes.get(class).is_none()
+                {
+                    class
+                } else {
+                    return class.to_owned();
+                };
+                let keys = self
+                    .star_classes
+                    .get(star)
+                    .map_or(&[][..], |c| c.planet_keys.as_slice());
+                let key = keys.get(nth).or_else(|| keys.first());
+                nth += 1;
+                key.map_or(class, String::as_str).to_owned()
+            })
+            .collect()
+    }
+
     fn bodies(&self, init: &Initializer) -> Bodies {
         let mut out = Bodies::default();
-        let star = init
-            .class
-            .as_deref()
-            .filter(|class| self.star_classes.get(class).is_some());
+        let classes = self.star_body_classes(
+            star_class_of(Some(init)),
+            initializers::expand(&init.planets).map(|body| body.block.class.written()),
+        );
         let layouts = Layouts::of(&init.planets);
-        for (body, layout) in initializers::expand(&init.planets).zip(layouts) {
+        for ((body, layout), class) in initializers::expand(&init.planets)
+            .zip(layouts)
+            .zip(classes)
+        {
             let id = planet_id(out.planets.len());
-            out.planets.push(self.summary(body, star, id, layout));
+            out.planets.push(self.summary(body, class, id, layout));
             for kind in &body.block.sites {
                 out.sites.push(ArchaeologySite {
                     id: SITE_BASE + index(out.sites.len()),
@@ -139,20 +184,17 @@ impl GameData {
         out
     }
 
-    /// `star` is the initializer's own star class, which the body written as `star` wears.
+    /// `class` is the body's planet class, a star's resolved by [`Self::star_body_classes`].
     fn summary(
         &self,
         expanded: Body<'_>,
-        star: Option<&str>,
+        class: String,
         id: u32,
         layout: BodyLayout,
     ) -> PlanetSummary {
         let body = expanded.block;
         let name_key = body.name.clone().unwrap_or_default();
-        let class = match star {
-            Some(star) if body.class == BodyClass::Star => star.to_owned(),
-            _ => body.class.written().to_owned(),
-        };
+        let habitable = self.planet_habitable(&class);
         PlanetSummary {
             id,
             class,
@@ -165,7 +207,7 @@ impl GameData {
             colonised: body.colonised,
             // A pre-FTL world the empire starts beside is never that empire's capital.
             capital: body.home_planet && !body.pre_ftl,
-            habitable: self.planet_habitable(body.class.written()),
+            habitable,
             owner: None,
             moon: expanded.moon,
             pre_ftl: body.pre_ftl,
@@ -352,6 +394,15 @@ fn deposit_counts(keys: &[String]) -> Vec<DepositCount> {
 /// The synthetic id of the `n`th body [`initializers::expand`] gives.
 fn planet_id(n: usize) -> u32 {
     PLANET_BASE + index(n)
+}
+
+/// What a scenario draws a system's star as while the game has yet to pick it.
+pub const RANDOM_STAR_CLASS: &str = "sc_g";
+
+pub(crate) fn star_class_of(init: Option<&Initializer>) -> &str {
+    init.and_then(|init| init.class.as_deref())
+        .filter(|class| class.starts_with("sc_"))
+        .unwrap_or(RANDOM_STAR_CLASS)
 }
 
 /// Never [`u32::MAX`]: the format's null id.

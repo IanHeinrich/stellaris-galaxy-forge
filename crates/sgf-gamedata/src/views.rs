@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::details;
 use crate::initializers::{InitPlanet, Initializer, SpawnedCountry};
 use crate::install::mods::{
     self, LOCAL_CLUSTER_WORKSHOP_ID, ModInfo, PAINT_MOD_WORKSHOP_ID, PaintModStatus,
@@ -364,6 +365,10 @@ pub struct InitializerView {
     /// A localisation key the app resolves; most initializers name none.
     pub display_name: Option<String>,
     pub class: Option<String>,
+    /// The star class a scenario system with this initializer is drawn as: `class`, or a
+    /// G star when that is a random list or missing, since the game draws that star only
+    /// when it generates the galaxy.
+    pub star_class: String,
     pub usage: Option<String>,
     /// Its `usage` is one a country starts in, so it needs a `spawn_weight`.
     pub empire_spawn: bool,
@@ -384,6 +389,7 @@ impl From<&Initializer> for InitializerView {
             source: i.source.display().to_string(),
             display_name: i.display_name.clone(),
             class: i.class.clone(),
+            star_class: details::star_class_of(Some(i)).to_owned(),
             usage: i.usage.clone(),
             empire_spawn: identity::is_empire_spawn(i.usage.as_deref()),
             max_instances: i.max_instances,

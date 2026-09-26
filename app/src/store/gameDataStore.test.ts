@@ -267,7 +267,8 @@ describe("initializers", () => {
       name: "sol_system",
       source: "C:/Stellaris/common/solar_system_initializers/sol_initializers.txt",
       display_name: null,
-      class: null,
+      class: "rl_starting_stars",
+      star_class: "sc_g",
       usage: "misc_system_init",
       empire_spawn: false,
       max_instances: null,
@@ -282,6 +283,7 @@ describe("initializers", () => {
       source: "C:/Stellaris/common/solar_system_initializers/distant_stars_initializers.txt",
       display_name: null,
       class: "sc_black_hole",
+      star_class: "sc_black_hole",
       usage: "misc_system_init",
       empire_spawn: false,
       max_instances: null,
@@ -317,14 +319,17 @@ describe("initializers", () => {
     expect(useGameDataStore.getState().initializers).toBeNull();
   });
 
-  it("a scenario reads them as it loads, keeping each initializer's star class for the map", async () => {
+  it("a scenario reads them as it loads, keeping the star class the core draws each one as", async () => {
     mockedIpc.getInitializers.mockResolvedValue(INITIALIZERS);
     useFileSessionStore.setState({ kind: "scenario" });
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     await useGameDataStore.getState().load();
     await vi.waitFor(() => expect(useGameDataStore.getState().initializers).toEqual(INITIALIZERS));
     const classes = useGameDataStore.getState().initializerClasses;
-    expect([...classes]).toEqual([["hole_init", "sc_black_hole"]]);
+    expect([...classes]).toEqual([
+      ["sol_system", "sc_g"],
+      ["hole_init", "sc_black_hole"],
+    ]);
 
     await useGameDataStore.getState().unload();
     expect(useGameDataStore.getState().initializerClasses.size).toBe(0);
