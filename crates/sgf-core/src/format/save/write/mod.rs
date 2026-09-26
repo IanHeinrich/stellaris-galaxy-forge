@@ -9,6 +9,8 @@
 
 pub(crate) mod add_system;
 pub(crate) mod asteroid_names;
+pub(crate) mod belts;
+pub(crate) mod bodies;
 pub(crate) mod bulk;
 pub(crate) mod deposits;
 pub(crate) mod footprint;

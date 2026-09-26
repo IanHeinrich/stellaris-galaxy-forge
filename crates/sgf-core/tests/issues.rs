@@ -1,9 +1,10 @@
 //! The two fixtures built to raise as many findings as one document can, so every kind the
 //! Issues tab shows has something real behind it. `issues.sav` carries the faults a save can
 //! hold, including the three no op can write; `issues.paint.txt` carries the Paint a Galaxy
-//! ones. Between them they cover every code but the four that no single stored file can raise:
-//! `disconnected` needs an edit in the session, `export_dropped` and `home_initializer` are
-//! made at export, and `fe_zone_no_automatic` cannot share a file with the other zone codes.
+//! ones. Between them they cover every code but the five that a plain open of one stored file
+//! cannot raise: `disconnected` needs an edit in the session, `export_dropped` and
+//! `home_initializer` are made at export, `fe_zone_no_automatic` cannot share a file with the
+//! other zone codes, and `bodies_overlap` reads the system details, which an open does not build.
 //! `header_empire_count` reports only its first mismatch, so the fixture shows one of them.
 //!
 //! How they were made, so either can be rebuilt. `issues.sav` is `4.4-early.sav` with
@@ -137,12 +138,13 @@ fn each_code_names_itself_as_serde_does() {
     }
 }
 
-/// The codes no single stored file can raise, as the module doc explains.
-const RAISED_ELSEWHERE: [&str; 4] = [
+/// The codes a plain open of one stored file cannot raise, as the module doc explains.
+const RAISED_ELSEWHERE: [&str; 5] = [
     "disconnected",
     "export_dropped",
     "home_initializer",
     "fe_zone_no_automatic",
+    "bodies_overlap",
 ];
 
 #[test]

@@ -18,8 +18,8 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
-    add_system, bulk, deposits, lanes, lgate, map_colors, move_system, nebula, planet_size,
-    remove_system, rename_system, replace_system, star_class, terraform_candidate,
+    add_system, belts, bodies, bulk, deposits, lanes, lgate, map_colors, move_system, nebula,
+    planet_size, remove_system, rename_system, replace_system, star_class, terraform_candidate,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -194,6 +194,38 @@ impl Format for Save {
             Op::SetNebulaFootprints { footprints } => {
                 nebula::plan_set_footprints(plan, s, footprints)
             }
+            Op::MoveSaveBody {
+                system,
+                body,
+                radius,
+                angle,
+            } => bodies::plan_move(plan, s, *system, *body, *radius, *angle),
+            Op::SetSaveBodyParent {
+                system,
+                body,
+                parent,
+                radius,
+                angle,
+            } => bodies::plan_parent(plan, s, *system, *body, *parent, *radius, *angle),
+            Op::AddSaveBelt {
+                system,
+                kind,
+                radius,
+            } => belts::plan_add(plan, s, *system, kind, *radius),
+            Op::RemoveSaveBelt { system, index } => belts::plan_remove(plan, s, *system, *index),
+            Op::SetSaveBeltRadius {
+                system,
+                index,
+                radius,
+            } => belts::plan_set_radius(plan, s, *system, *index, *radius),
+            Op::SetSaveBeltKind {
+                system,
+                index,
+                kind,
+            } => belts::plan_set_kind(plan, s, *system, *index, kind),
+            Op::SetSaveInnerRadius { system, radius } => {
+                belts::plan_inner_radius(plan, s, *system, *radius)
+            }
             // A save adds, renames and rerolls a system through the save ops, which write the
             // bodies and names a scenario statement leaves out. Its initializers, spawns,
             // fallen empire zones and wormholes are the game's to set, and it has neither a
@@ -277,6 +309,7 @@ impl Format for Save {
             added_systems: check_adds_system(doc).is_ok(),
             bodies: true,
             deposits: check_version(doc).is_ok(),
+            geometry: check_version(doc).is_ok(),
             map_colors: true,
             lgate: true,
             symmetry: false,

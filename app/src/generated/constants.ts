@@ -26,3 +26,18 @@ export const FE_ZONE_MAP_EXTENT = 470;
 
 /** The smallest inner radius a system has. */
 export const MIN_INNER_RADIUS = 150;
+
+/** How far past its outermost body a system's inner radius lies. */
+export const INNER_MARGIN = 30;
+
+/** The orbit of a planet's first moon. */
+export const MOON_RING_FIRST = 15;
+
+/** How much further out each moon ring after the first lies. */
+export const MOON_RING_STEP = 5;
+
+/** How near, in units and in degrees, two bodies about one parent stand before they overlap. */
+export const OVERLAP_TOLERANCE = 0.5;
+
+/** How far from its belt's radius an asteroid of that belt may lie. */
+export const BELT_SCATTER = 10;

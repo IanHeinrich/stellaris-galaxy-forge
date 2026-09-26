@@ -398,6 +398,69 @@ pub enum Op {
     SetNebulaFootprints {
         footprints: Vec<NebulaFootprint>,
     },
+    /// A save body put at `radius` and `angle` about its parent's point: the system centre
+    /// for a planet, its `moon_of` body for a moon. Angles are degrees, written normalised
+    /// to [0, 360). Its `orbit` becomes the radius, and every moon under it moves by the
+    /// same step with its own `orbit` kept. `system` must be the body's own. The system's
+    /// primary body is refused. When the body now reaches further than the system did, the
+    /// system's `inner_radius` grows to that reach plus its margin, and the inverse is a
+    /// [`Op::Batch`] that also puts it back. Stellaris 4.x save documents only.
+    MoveSaveBody {
+        system: u32,
+        body: u32,
+        radius: f64,
+        angle: f64,
+    },
+    /// A save body made a moon of `parent`, or a planet when `None`, then put at `radius`
+    /// and `angle` about its new parent as [`Op::MoveSaveBody`] puts it. `moon_of`, both
+    /// parents' `moons` and the moon bit of `binary_flags` are written. A parent outside
+    /// the system, a moon, the body itself or one of its moons, and the primary body are
+    /// refused, and so is a body with moons made a moon. The inverse puts the old parent
+    /// back. Stellaris 4.x save documents only.
+    SetSaveBodyParent {
+        system: u32,
+        body: u32,
+        parent: Option<u32>,
+        radius: f64,
+        angle: f64,
+    },
+    /// A new asteroid belt of type `kind` at `radius`, last in the system's
+    /// `asteroid_belts`, which the system gains when it has none. The system's
+    /// `inner_radius` is left alone. The inverse is [`Op::RemoveSaveBelt`] at the new last
+    /// index. Stellaris 4.x save documents only.
+    AddSaveBelt {
+        system: u32,
+        kind: String,
+        radius: f64,
+    },
+    /// The `index`th belt of the system's `asteroid_belts`, counted from 0; the block goes
+    /// with its last belt. The inverse adds it back, last. Stellaris 4.x save documents only.
+    RemoveSaveBelt {
+        system: u32,
+        index: usize,
+    },
+    /// The `index`th belt's `inner_radius`. Its asteroids stay where they are; the app
+    /// moves them in the same [`Op::Batch`]. Its own inverse. Stellaris 4.x save documents
+    /// only.
+    SetSaveBeltRadius {
+        system: u32,
+        index: usize,
+        radius: f64,
+    },
+    /// The `index`th belt's `type`, written as given: only one that is not an identifier
+    /// is refused. Its own inverse. Stellaris 4.x save documents only.
+    SetSaveBeltKind {
+        system: u32,
+        index: usize,
+        kind: String,
+    },
+    /// A save system's `inner_radius`, with `outer_radius` 100 past it. A radius inside the
+    /// system's outermost body plus its margin is refused, unless it is no smaller than the
+    /// value the system already holds. Its own inverse. Stellaris 4.x save documents only.
+    SetSaveInnerRadius {
+        system: u32,
+        radius: f64,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -438,7 +501,14 @@ impl Op {
             | Self::SetInitializer { .. }
             | Self::SetInitializers { .. }
             | Self::SetSpawnScript { .. }
-            | Self::SetSpawnScripts { .. } => true,
+            | Self::SetSpawnScripts { .. }
+            | Self::MoveSaveBody { .. }
+            | Self::SetSaveBodyParent { .. }
+            | Self::AddSaveBelt { .. }
+            | Self::RemoveSaveBelt { .. }
+            | Self::SetSaveBeltRadius { .. }
+            | Self::SetSaveBeltKind { .. }
+            | Self::SetSaveInnerRadius { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -490,7 +560,14 @@ impl Op {
             | Self::SetPlanetSize { .. }
             | Self::SetTerraformCandidate { .. }
             | Self::AddSaveDeposit { .. }
-            | Self::RemoveSaveDeposit { .. } => false,
+            | Self::RemoveSaveDeposit { .. }
+            | Self::MoveSaveBody { .. }
+            | Self::SetSaveBodyParent { .. }
+            | Self::AddSaveBelt { .. }
+            | Self::RemoveSaveBelt { .. }
+            | Self::SetSaveBeltRadius { .. }
+            | Self::SetSaveBeltKind { .. }
+            | Self::SetSaveInnerRadius { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
