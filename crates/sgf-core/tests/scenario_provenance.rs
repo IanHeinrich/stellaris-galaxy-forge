@@ -10,7 +10,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::export::{NAME, SAVE_FILE, exported_as, no_names, no_sources};
-use common::fixture::PAINTED;
+use common::fixture::{EXPORTED, GRAMMAR, PAINTED};
 
 const PAINT_LINE: &str = "#\u{200B} created by Paint a Galaxy 1.4.2 (imported from generic txt)";
 
@@ -19,8 +19,12 @@ fn forge() -> String {
 }
 
 fn nudge() -> Op {
+    move_system(0)
+}
+
+fn move_system(id: u32) -> Op {
     Op::MoveSystem {
-        id: 0,
+        id,
         x: 12.5,
         y: -40.0,
     }
@@ -34,10 +38,15 @@ fn written(dir: &Path, name: &str, bytes: &[u8]) -> std::path::PathBuf {
 
 /// `bytes` opened from a file, nudged once and saved in place: what the file then holds.
 fn saved_after_a_nudge(bytes: &[u8]) -> Vec<u8> {
+    saved_after(bytes, nudge())
+}
+
+/// `bytes` opened from a file, edited by `op` and saved in place.
+fn saved_after(bytes: &[u8], op: Op) -> Vec<u8> {
     let dir = tempfile::tempdir().unwrap();
     let path = written(dir.path(), "scenario.txt", bytes);
     let mut session = Session::open(&path).expect("open the scenario");
-    session.apply(nudge()).expect("move a system");
+    session.apply(op).expect("move a system");
     session.save_to(None).expect("save in place");
     std::fs::read(&path).unwrap()
 }
@@ -46,6 +55,12 @@ fn saved_after_a_nudge(bytes: &[u8]) -> Vec<u8> {
 fn first_line(bytes: &[u8]) -> String {
     let text = String::from_utf8_lossy(bytes);
     text.lines().next().expect("a first line").to_owned()
+}
+
+/// `bytes` without their first line and its line end.
+fn without_first_line(bytes: &[u8]) -> &[u8] {
+    let end = bytes.iter().position(|&b| b == b'\n').expect("a line end");
+    &bytes[end + 1..]
 }
 
 fn with_first_line(line: &str, rest: &[u8]) -> Vec<u8> {
@@ -57,7 +72,8 @@ fn with_first_line(line: &str, rest: &[u8]) -> Vec<u8> {
 #[test]
 fn saving_an_edited_scenario_wraps_the_line_of_whoever_wrote_it_last() {
     let plain = PAINTED.bytes();
-    let unstamped = saved_after_a_nudge(&plain);
+    let saved = saved_after_a_nudge(&plain);
+    let unstamped = without_first_line(&saved);
     assert!(unstamped.starts_with(b"static_galaxy_scenario = {"));
 
     for (line, wrapped) in [
@@ -78,7 +94,7 @@ fn saving_an_edited_scenario_wraps_the_line_of_whoever_wrote_it_last() {
         let expected = format!("{} (imported from txt created by {wrapped})", forge());
         assert_eq!(
             String::from_utf8(saved).unwrap(),
-            String::from_utf8(with_first_line(&expected, &unstamped)).unwrap(),
+            String::from_utf8(with_first_line(&expected, unstamped)).unwrap(),
             "{line}"
         );
     }
@@ -174,13 +190,26 @@ fn a_long_line_keeps_the_newest_writers_and_the_original_one() {
 
 #[test]
 fn a_scenario_neither_tool_made_gains_no_line_and_an_undone_edit_changes_nothing() {
-    let saved = String::from_utf8(saved_after_a_nudge(&PAINTED.bytes())).unwrap();
-    assert!(!saved.contains("#\u{200B} created by"), "{}", &saved[..200]);
-
-    let typed = with_first_line("# created by hand", &PAINTED.bytes());
-    let saved = String::from_utf8(saved_after_a_nudge(&typed)).unwrap();
+    let saved = String::from_utf8(saved_after(&GRAMMAR.bytes(), move_system(1))).unwrap();
     assert!(
-        saved.starts_with("# created by hand\n") && !saved.contains('\u{200B}'),
+        saved.starts_with("#########################\n# Grammar fixture")
+            && !saved.contains('\u{200B}'),
+        "{}",
+        &saved[..200]
+    );
+
+    let typed = with_first_line("# created by hand", &GRAMMAR.bytes());
+    let saved = String::from_utf8(saved_after(&typed, move_system(1))).unwrap();
+    assert!(
+        saved.starts_with("# created by hand\n#####") && !saved.contains('\u{200B}'),
+        "{}",
+        &saved[..200]
+    );
+
+    let exported = EXPORTED.bytes();
+    let saved = String::from_utf8(saved_after_a_nudge(without_first_line(&exported))).unwrap();
+    assert!(
+        saved.starts_with("# Systems: ") && !saved.contains('\u{200B}'),
         "{}",
         &saved[..200]
     );
@@ -199,7 +228,8 @@ fn a_scenario_neither_tool_made_gains_no_line_and_an_undone_edit_changes_nothing
 #[test]
 fn a_scenario_forge_wrote_before_the_line_gains_one_above_its_old_comments() {
     let plain = PAINTED.bytes();
-    let unstamped = saved_after_a_nudge(&plain);
+    let saved = saved_after_a_nudge(&plain);
+    let unstamped = without_first_line(&saved);
     for old in [
         "# Exported by Stellaris Galaxy Forge from x.sav",
         "# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.",
@@ -210,13 +240,38 @@ fn a_scenario_forge_wrote_before_the_line_gains_one_above_its_old_comments() {
                 "{} (imported from txt created by an earlier Stellaris Galaxy Forge)\n{old}",
                 forge()
             ),
-            &unstamped,
+            unstamped,
         );
         assert_eq!(
             String::from_utf8(saved).unwrap(),
             String::from_utf8(expected).unwrap()
         );
     }
+}
+
+#[test]
+fn a_scenario_paint_a_galaxy_wrote_before_the_line_gains_one_on_top() {
+    let line = format!("{} (imported from txt created by Paint a Galaxy)", forge());
+    let plain = PAINTED.bytes();
+    let saved = saved_after_a_nudge(&plain);
+    assert_eq!(first_line(&saved), line);
+    let body = without_first_line(&saved);
+    assert!(body.starts_with(b"static_galaxy_scenario = {\n"));
+
+    let typed = with_first_line("# made by hand", &plain);
+    let expected = with_first_line(&line, &with_first_line("# made by hand", body));
+    assert_eq!(
+        String::from_utf8(saved_after_a_nudge(&typed)).unwrap(),
+        String::from_utf8(expected).unwrap()
+    );
+
+    let crlf = PAINTED.text().replace('\n', "\r\n");
+    let saved = String::from_utf8(saved_after_a_nudge(crlf.as_bytes())).unwrap();
+    assert!(
+        saved.starts_with(&format!("{line}\r\nstatic_galaxy_scenario = {{\r\n")),
+        "{:?}",
+        &saved[..200]
+    );
 }
 
 #[test]
@@ -253,7 +308,7 @@ fn the_line_keeps_a_byte_order_mark_and_crlf_line_endings() {
             "{} (imported from txt created by Paint a Galaxy 1.4.2 (imported from generic txt))",
             forge()
         ),
-        &saved_after_a_nudge(&PAINTED.bytes()),
+        without_first_line(&saved_after_a_nudge(&PAINTED.bytes())),
     ));
     assert_eq!(saved, expected);
 
@@ -267,7 +322,7 @@ fn the_line_keeps_a_byte_order_mark_and_crlf_line_endings() {
             "{} (imported from txt created by an earlier Stellaris Galaxy Forge)\n{legacy}",
             forge()
         ),
-        &saved_after_a_nudge(&PAINTED.bytes()),
+        without_first_line(&saved_after_a_nudge(&PAINTED.bytes())),
     ));
     assert_eq!(saved, expected);
 }
