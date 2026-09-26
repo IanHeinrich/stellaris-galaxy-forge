@@ -5,7 +5,7 @@ use serde_json::json;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::views::EditResult;
 use sgf_gamedata::scripts::{BypassSource, ScenarioBypasses, ScenarioOwners};
-use sgf_gamedata::views::GameDataSummary;
+use sgf_gamedata::views::{GameDataSummary, SystemRoll};
 
 use crate::common;
 use common::{PAINTED, SAMPLE, SCENARIO, have_install, invoke, open, opened, webview};
@@ -277,4 +277,38 @@ fn a_scenario_systems_colonies_name_their_territory_and_asking_again_answers_the
         loaded.generation,
         "reading the owners never reloads the game data"
     );
+}
+
+/// A save's bodies stand where the save puts them, so its roll is empty; a scenario system
+/// with no initializer shows the generator's planets inside the radius asked for.
+#[test]
+fn a_systems_example_roll_is_empty_on_a_save_and_shows_placeholders_where_the_game_rolls() {
+    let saved = opened(SAMPLE);
+    let roll: SystemRoll = invoke(
+        &saved,
+        "get_system_roll",
+        json!({ "id": 1, "roll": 0, "within": 150.0 }),
+    )
+    .expect("a save's roll");
+    assert_eq!(roll, SystemRoll::none(1, 0));
+
+    let Some((w, _)) = common::with_game_data(SCENARIO) else {
+        return;
+    };
+    let roll: SystemRoll = invoke(
+        &w,
+        "get_system_roll",
+        json!({ "id": 111, "roll": 2, "within": 150.0 }),
+    )
+    .expect("system 111's roll");
+    assert!(roll.rolls_planets, "111 has no initializer");
+    assert!(roll.bodies.is_empty() && !roll.placeholders.is_empty());
+    assert!(roll.placeholders.iter().all(|p| p.orbit <= 130.0));
+    let again: SystemRoll = invoke(
+        &w,
+        "get_system_roll",
+        json!({ "id": 111, "roll": 2, "within": 150.0 }),
+    )
+    .expect("the same roll again");
+    assert_eq!(again, roll);
 }

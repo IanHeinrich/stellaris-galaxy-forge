@@ -8,6 +8,11 @@ a release is made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A scenario system with the Previously Terraformed layout shows one
+  star in the system view, as Add system gives it. It used to show two.
+
 ## [0.15.0] - 2026-09-26
 
 ### Added

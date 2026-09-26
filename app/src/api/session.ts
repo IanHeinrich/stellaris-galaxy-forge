@@ -25,6 +25,7 @@ import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import type { SearchResult } from "../generated/SearchResult";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemDetails } from "../generated/SystemDetails";
+import type { SystemRoll } from "../generated/SystemRoll";
 
 /** The Stellaris save directories that exist on this machine. */
 export function saveDirs(): Promise<string[]> {
@@ -107,6 +108,14 @@ export function warmDetails(): Promise<void> {
 /** Planets, deposits, starbase and fleets of the given systems; unknown ids are skipped. */
 export function getSystemDetails(ids: number[]): Promise<SystemDetails[]> {
   return invoke<SystemDetails[]>("get_system_details", { ids });
+}
+
+/**
+ * Roll `roll` of a scenario system: where each body its details list lands, or placeholder planets
+ * inside `within` when the game rolls its planets. Empty on a save.
+ */
+export function getSystemRoll(id: number, roll: number, within: number): Promise<SystemRoll> {
+  return invoke<SystemRoll>("get_system_roll", { id, roll, within });
 }
 
 /** One level of an entity: the children at `path`, each flagged when an op changed it. */

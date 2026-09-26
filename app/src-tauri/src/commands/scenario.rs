@@ -10,6 +10,7 @@ use sgf_gamedata::scripts::{
     ScenarioBypasses, ScenarioOwners, ScenarioSystem, SystemScripts, bypasses::add_flagged_pairs,
 };
 use sgf_gamedata::special::{self, SpecialSystems};
+use sgf_gamedata::views::SystemRoll;
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::{with_scenario, with_session};
@@ -125,12 +126,52 @@ pub async fn get_system_details<R: Runtime>(
         }
         let gd = gd_state.loaded();
         let details = session.details().map_err(SessionError::from)?;
+        let stars: Vec<(u32, String)> = ids
+            .iter()
+            .filter_map(|&id| Some((id, session.system(id)?.star_class.clone())))
+            .collect();
         drop(guard);
         let resolver = sgf_gamedata::resolver(gd.as_deref());
-        Ok(ids
+        Ok(stars
             .iter()
-            .filter_map(|&id| details.resolve(id, resolver, gd.is_some()))
+            .filter_map(|(id, star)| {
+                let mut resolved = details.resolve(*id, resolver, gd.is_some())?;
+                if let Some(gd) = gd.as_deref() {
+                    gd.resolve_save_bodies(&mut resolved, star);
+                }
+                Some(resolved)
+            })
             .collect())
+    })
+    .await
+}
+
+/// Roll `roll` of scenario system `id`: where each body its details list lands, or, when the
+/// game rolls its planets, placeholder planets inside `within`. The same system and roll give
+/// the same answer. Empty on a save, whose bodies stand where the save puts them, and without
+/// game data.
+#[tauri::command]
+pub async fn get_system_roll<R: Runtime>(
+    app: AppHandle<R>,
+    id: u32,
+    roll: u32,
+    within: f64,
+) -> Result<SystemRoll, SgfError> {
+    with_session(app.clone(), move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        let none = SystemRoll::none(id, roll);
+        if session.kind() != DocumentKind::Scenario {
+            return Ok(none);
+        }
+        let Some(gd) = app.state::<GameDataState>().loaded() else {
+            return Ok(none);
+        };
+        let Some(system) = session.system(id) else {
+            return Ok(none);
+        };
+        let (initializer, star_class) = (system.initializer.clone(), system.star_class.clone());
+        drop(guard);
+        Ok(gd.system_roll(id, &initializer, &star_class, roll, within))
     })
     .await
 }

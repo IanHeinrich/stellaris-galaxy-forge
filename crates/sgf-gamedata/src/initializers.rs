@@ -11,6 +11,7 @@ use ts_rs::TS;
 use crate::body_effects::{self, BodyEffect, Dropping, HOME_EFFECTS};
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def, Range, Variables, whole};
+use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::registry::{FromDef, Registry};
 use crate::scripts::init_bypasses::bypasses;
 use crate::weight::Weight;
@@ -84,9 +85,27 @@ pub struct InitPlanet {
 }
 
 impl InitPlanet {
-    /// The representative number of instances: the midpoint of `count`, rounded.
+    /// How many instances the block spawns, as a range to draw from. A block written
+    /// `class = star` spawns one whatever its `count` says: Previously Terraformed writes one
+    /// to two, and the game's saves show one star (unverified in game beyond that one system).
+    pub fn count(&self) -> Range {
+        match self.class {
+            BodyClass::Star => Range::fixed(1.0),
+            _ => self.count,
+        }
+    }
+
+    /// The representative number of instances: the midpoint of [`Self::count`], rounded.
     pub fn instances(&self) -> u32 {
-        whole(self.count.midpoint())
+        whole(self.count().midpoint())
+    }
+
+    /// The block's own `size`, when it fixes one.
+    pub fn size_range(&self) -> Option<Range> {
+        self.size.map(|(min, max)| Range {
+            min: f64::from(min),
+            max: f64::from(max),
+        })
     }
 
     /// The representative orbit distance: the midpoint of `orbit_distance`.
@@ -99,6 +118,28 @@ impl InitPlanet {
         let moons: u32 = self.moons.iter().map(Self::total).sum();
         self.instances().saturating_mul(1 + moons)
     }
+}
+
+impl PlanetClassDef {
+    /// The size range the generator draws a body of this class from, a moon's or a planet's.
+    pub fn size(&self, moon: bool) -> Option<Range> {
+        if moon {
+            self.moon_size
+        } else {
+            self.planet_size
+        }
+    }
+}
+
+/// The size a body of `block` is drawn from: the block's own `size`, else its class's.
+pub(crate) fn body_size(
+    block: &InitPlanet,
+    class: Option<&PlanetClassDef>,
+    moon: bool,
+) -> Option<Range> {
+    block
+        .size_range()
+        .or_else(|| class.and_then(|c| c.size(moon)))
 }
 
 /// The body written as `class = star`, which takes the star class's own planet class.

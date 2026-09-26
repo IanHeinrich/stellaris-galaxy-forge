@@ -110,6 +110,8 @@ pub struct PlanetSummary {
     pub capital: bool,
     pub habitable: Option<bool>,
     pub owner: Option<u32>,
+    /// Orbits a planet: its parent is a body other than a star, or one the system does not
+    /// list. Without game data a save's is any body with a `moon_of`.
     pub moon: bool,
     /// Owned by a `primitive` country.
     pub pre_ftl: bool,
@@ -133,6 +135,16 @@ pub struct PlanetSummary {
     /// A save's ring bit in `binary_flags`; a scenario's `has_ring`, `None` when the
     /// initializer leaves it to the class's `chance_of_ring`.
     pub ring: Option<bool>,
+    /// The star class a star body is drawn as: the one whose only star is its class, else
+    /// its system's. `None` for any other body, and without game data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub star_class: Option<String>,
+    /// The game draws the body's class: a random class, a planet list, or another key the
+    /// install defines no planet class for, such as `ideal_planet_class`. `false` in a save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub drawn: Option<bool>,
 }
 
 /// A number an initializer may leave to a draw: `min == max` when it is fixed,
@@ -179,7 +191,7 @@ pub struct BodyLayout {
     /// when an initializer names no angle.
     pub angle_step: Option<Bounds>,
     /// The body before it in its initializer's walk, whose angle it turns on from. `None`
-    /// for the first of a walk, which turns from 0, and in a save.
+    /// for the first of a walk, which turns from the walk's start of 180°, and in a save.
     pub turns_from: Option<u32>,
 }
 
@@ -262,6 +274,8 @@ pub(super) fn resolve(
             parent: p.parent,
             layout: Some(layout(p, &points)),
             ring: Some(p.ring),
+            star_class: None,
+            drawn: Some(false),
         });
     }
     let starbase = raw.starbases.first().map(|s| StarbaseSummary {

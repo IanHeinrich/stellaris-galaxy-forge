@@ -381,16 +381,20 @@ mod come from where it was read. There is no hand-kept list of them.
 A scenario stores no positions, so a scenario system's bodies are laid
 out from its initializer. Each block adds its `change_orbit` to a
 running orbit, then each instance adds its `orbit_distance`. Each
-instance turns its `orbit_angle` on from the body before. A planet's
-moons do the same about the planet, starting from 0. System 217 of the
-4.4 sample is Sol, and it matches this within a unit of radius and a
-tenth of a degree once the whole system is turned by 180°, moons
-included. The turn is fixed. In the two sample saves and the saves of
-one longer game, 242 systems have a first planet with a fixed count and
-angle, and every one of them is turned by 180°. A ranged distance or
-angle shows as a range, and so does every body after it. A ranged `count` is laid out as its rounded midpoint. A body with no
-`orbit_angle` can be anywhere on its orbit, and the bodies after it turn
-on from it by 0.
+instance turns its `orbit_angle` on from the body before, and the
+first from 180°. A planet's moons do the same about the planet,
+starting from a running orbit of 0 and an angle of 180°. System 217
+of the 4.4 sample is Sol, and it matches this within a unit of radius
+and a tenth of a degree, moons included. The 180° start is fixed. In
+the two sample saves and the saves of one longer game, 242 systems have
+a first planet with a fixed count and angle, and every one of them
+starts from 180°. A ranged distance or angle shows as a range, and so
+does every body after it. A ranged `count` is laid out as its rounded
+midpoint. A star block's `count` is read as 1, in the layout and in
+the roller. Previously Terraformed writes one to two, and Eliathion in
+the 4.5 sample has one star. I haven't checked this in game beyond that
+one system. A body with no `orbit_angle` can be anywhere on its orbit,
+and the bodies after it turn on from it by 0.
 
 A body with no `orbit_distance` lies 10 to 20 past the running orbit,
 and the running orbit moves out to it. Every body after it moves out by
