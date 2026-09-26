@@ -47,6 +47,8 @@ export type EntityRef =
   | { kind: "pop_group"; id: number }
   | { kind: "sector"; id: number }
   | { kind: "deposit"; id: number }
+  /** A scenario's body: its id is the details' own, so it is keyed by the system that lists it. */
+  | { kind: "body"; system: number; id: number }
   /** A list or block inside an entity: a Data row drills into it rather than nesting. */
   | { kind: "nodelist"; parent: EntityAddr; path: string[]; of: EntityKind | null };
 
@@ -69,6 +71,8 @@ export function refKey(ref: EntityRef): string {
       return `lane:${ref.a}-${ref.b}`;
     case "nebula":
       return `nebula:${ref.index}`;
+    case "body":
+      return `body:${ref.system}:${ref.id}`;
     case "nodelist":
       return `nodelist:${ref.parent.kind}:${ref.parent.id}/${ref.path.join("/")}`;
     default:
@@ -83,6 +87,7 @@ export function entityAddr(ref: EntityRef): EntityAddr | null {
     case "selection":
     case "lane":
     case "nebula":
+    case "body":
       return null;
     case "nodelist":
       return ref.parent;
@@ -98,6 +103,12 @@ export function entityAddr(ref: EntityRef): EntityAddr | null {
 export function refFor(addr: EntityAddr, system: number | null): EntityRef | null {
   if (addr.kind !== "starbase") return { kind: addr.kind, id: addr.id };
   return system === null ? null : { kind: "starbase", system, id: addr.id };
+}
+
+/** The page a body in the system view opens: a save's planet, or a scenario's body. */
+export function bodyEntry(system: number, id: number, label: string): Entry {
+  const scenario = useFileSessionStore.getState().kind === "scenario";
+  return { ref: scenario ? { kind: "body", system, id } : { kind: "planet", id }, label };
 }
 
 /** What the open document lets a system's strip offer beyond the tabs every system has. */
@@ -130,6 +141,7 @@ export function tabsFor(
     case "selection":
     case "lane":
     case "nebula":
+    case "body":
       return ["overview"];
     case "nodelist":
       return ["data"];
@@ -150,7 +162,8 @@ export function renumberedRef(ref: EntityRef, pairs: Renumbering): EntityRef | n
     }
     case "lane":
       return renumberedLane(pairs, ref);
-    case "starbase": {
+    case "starbase":
+    case "body": {
       const system = id(ref.system);
       return system === null ? null : system === ref.system ? ref : { ...ref, system };
     }
@@ -185,6 +198,13 @@ export interface InspectorState {
    * root, with the dock turned to the inspector.
    */
   openPage(entry: Entry): void;
+  /**
+   * Opens a page clicked in the system view: straight above the map's root, so clicks never pile
+   * up crumbs, with the dock turned to the inspector as a selection turns it.
+   */
+  openFromMap(entry: Entry): void;
+  /** Closes every page on a scenario body, or on one in `systems`, with everything opened from it. */
+  dropBodies(systems?: readonly number[]): void;
   /**
    * Goes to system `id`'s page, back down the stack when the page is on it, else by selecting
    * the system, and eases the map to it either way.
@@ -279,6 +299,24 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     const stack = refKey(root.ref) === refKey(entry.ref) ? [root] : [root, page];
     set({ stack, tab: tabsFor(entry.ref)[0] });
     useLayoutStore.getState().showInspector();
+  },
+
+  openFromMap(entry) {
+    const { stack, tab } = get();
+    const root = stack[0];
+    const next = refKey(root.ref) === refKey(entry.ref) ? [root] : [root, entry];
+    set({ stack: next, tab: tabFor(entry.ref, tab) });
+    useLayoutStore.getState().revealInspector();
+  },
+
+  dropBodies(systems) {
+    const { stack, tab } = get();
+    const at = stack.findIndex(
+      ({ ref }) => ref.kind === "body" && (systems === undefined || systems.includes(ref.system)),
+    );
+    if (at < 0) return;
+    const next = at === 0 ? [GALAXY_ENTRY] : stack.slice(0, at);
+    set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
   },
 
   openSystem(id) {

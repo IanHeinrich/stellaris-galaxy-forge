@@ -31,11 +31,15 @@ export interface SystemIntent {
   selectLane(neighbour: number | null): void;
   enterSystem(id: number): void;
   contextMenu(target: ContextTarget, sx: number, sy: number): void;
+  /** Opens body `id`'s page, straight above the system's. */
+  openBody(system: number, id: number): void;
+  /** Takes the inspector back to the system's page. */
+  showSystem(): void;
 }
 
-type Press = Tap & { body: number | null; exit: number | null };
+type Press = Tap & { system: number; body: number | null; exit: number | null };
 
-/** The system scene's pointer gestures: pans, hover, and the hyperlane arrows' clicks. */
+/** The system scene's pointer gestures: pans, hover, body clicks and the hyperlane arrows' clicks. */
 export class SystemGestureModel {
   private press: Press | null = null;
   private panning = false;
@@ -85,6 +89,7 @@ export class SystemGestureModel {
         sx: input.sx,
         sy: input.sy,
         time: input.time,
+        system: input.system,
         body: input.body,
         exit: input.exit,
       };
@@ -128,8 +133,11 @@ export class SystemGestureModel {
       }
       intent.selectLane(press.exit);
       this.lastExit = { exit: press.exit, sx: press.sx, sy: press.sy, time: press.time };
-    } else if (press.body === null) {
+    } else if (press.body !== null) {
+      intent.openBody(press.system, press.body);
+    } else {
       intent.selectLane(null);
+      intent.showSystem();
     }
   }
 }

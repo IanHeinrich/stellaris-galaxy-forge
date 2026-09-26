@@ -6,9 +6,11 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import {
+  bodyEntry,
   entityAddr,
   refFor,
   refKey,
+  renumberedRef,
   tabsFor,
   useInspectorStore,
   type Entry,
@@ -25,6 +27,8 @@ const ALPHARD: Entry = { ref: { kind: "system", id: 12 }, label: "Alphard" };
 const EARTH: Entry = { ref: { kind: "planet", id: 1207 }, label: "Earth" };
 const LUNA: Entry = { ref: { kind: "planet", id: 1208 }, label: "Luna" };
 const COLONY: Entry = { ref: { kind: "colony", id: 1207 }, label: "Earth colony" };
+const TARKIN: Entry = { ref: { kind: "body", system: 1, id: 100 }, label: "Tarkin" };
+const YAVIN: Entry = { ref: { kind: "body", system: 1, id: 101 }, label: "Yavin" };
 const SHIPS: Entry = {
   ref: { kind: "nodelist", parent: { kind: "fleet", id: 88 }, path: ["ships"], of: "ship" },
   label: "Ships",
@@ -287,5 +291,79 @@ describe("opening a system's page", () => {
     inspector().openSystem(12);
     expect(useEditorStore.getState().focus?.id).toBe(12);
     await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([12]));
+  });
+});
+
+describe("a body opened from the system view", () => {
+  it("stands straight above the system's page, however many bodies are clicked", () => {
+    inspector().setRoot(SOL);
+    inspector().open(EARTH);
+    inspector().open(COLONY);
+
+    inspector().openFromMap(LUNA);
+    expect(labels()).toEqual(["Sol", "Luna"]);
+    inspector().openFromMap(EARTH);
+    inspector().openFromMap(EARTH);
+    expect(labels()).toEqual(["Sol", "Earth"]);
+    expect(inspector().stack[1].from).toBeUndefined();
+  });
+
+  it("turns the dock to the inspector as a selection does, and Back stays there", () => {
+    useLayoutStore.setState({ tab: "issues", previousTab: "issues", fromDock: false });
+    inspector().setRoot(SOL);
+
+    inspector().openFromMap(EARTH);
+
+    expect(useLayoutStore.getState().tab).toBe("inspector");
+    expect(inspector().backTo()).toBe("inspector");
+    inspector().back();
+    expect(labels()).toEqual(["Sol"]);
+    expect(useLayoutStore.getState().tab).toBe("inspector");
+  });
+
+  it("opens a save's planet, and a scenario's body keyed by its system", () => {
+    useFileSessionStore.setState({ kind: "save" });
+    expect(bodyEntry(452, 1207, "Earth")).toEqual(EARTH);
+    useFileSessionStore.setState({ kind: "scenario" });
+    expect(bodyEntry(1, 100, "Tarkin")).toEqual(TARKIN);
+  });
+});
+
+describe("a scenario body's page", () => {
+  it("is keyed by its system and id, reads no entity and offers the Overview alone", () => {
+    expect(refKey(TARKIN.ref)).toBe("body:1:100");
+    expect(refKey({ kind: "body", system: 2, id: 100 })).not.toBe(refKey(TARKIN.ref));
+    expect(entityAddr(TARKIN.ref)).toBeNull();
+    expect(tabsFor(TARKIN.ref)).toEqual(["overview"]);
+  });
+
+  it("follows its system through a renumber, and goes with it", () => {
+    expect(renumberedRef(TARKIN.ref, [[2, 1]])).toBe(TARKIN.ref);
+    expect(
+      renumberedRef(TARKIN.ref, [
+        [1, 0],
+        [0, null],
+      ]),
+    ).toEqual({ kind: "body", system: 0, id: 100 });
+    expect(renumberedRef(TARKIN.ref, [[1, null]])).toBeNull();
+  });
+
+  it("closes with everything opened from it when its system's bodies are dropped", () => {
+    const alphard: Entry = { ref: { kind: "system", id: 1 }, label: "Alpha Centauri" };
+    inspector().setRoot(alphard);
+    inspector().setTab("lanes");
+    inspector().openFromMap(TARKIN);
+    expect(inspector().tab).toBe("overview");
+    inspector().open(YAVIN);
+
+    inspector().dropBodies([2]);
+    expect(labels()).toEqual(["Alpha Centauri", "Tarkin", "Yavin"]);
+
+    inspector().dropBodies([1]);
+    expect(labels()).toEqual(["Alpha Centauri"]);
+
+    inspector().openFromMap(TARKIN);
+    inspector().dropBodies();
+    expect(labels()).toEqual(["Alpha Centauri"]);
   });
 });

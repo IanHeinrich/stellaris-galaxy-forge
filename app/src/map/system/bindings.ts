@@ -1,14 +1,14 @@
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { useInspectorStore } from "../../store/inspectorStore";
+import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 
 /** What a store change moves in the system scene. */
 export interface SceneView {
   /** Re-reads the stores and rebuilds the layers, unless nothing they draw moved. */
   refresh(): void;
-  /** The planet on top of the inspector's stack, or null when its top is no planet. */
-  selectBody(id: number | null): void;
+  /** Rings the body the page on top of the inspector's stack opens, where it is one of the system's. */
+  selectBody(top: EntityRef): void;
 }
 
 interface Store<S> {
@@ -39,10 +39,9 @@ function follows<S>(
   };
 }
 
-function topPlanet(): number | null {
+function topRef(): EntityRef {
   const { stack } = useInspectorStore.getState();
-  const top = stack[stack.length - 1].ref;
-  return top.kind === "planet" ? top.id : null;
+  return stack[stack.length - 1].ref;
 }
 
 /** The store fields the system scene follows while it is shown. */
@@ -58,7 +57,7 @@ const BINDINGS: Binding[] = [
     [(s) => s.names, (s) => s.planetClasses, (s) => s.starClasses, (s) => s.status],
     (view) => view.refresh(),
   ),
-  follows(useInspectorStore, [(s) => s.stack], (view) => view.selectBody(topPlanet()), true),
+  follows(useInspectorStore, [(s) => s.stack], (view) => view.selectBody(topRef()), true),
 ];
 
 /** Subscribes the scene to every field it follows and applies the ones that stand now. */

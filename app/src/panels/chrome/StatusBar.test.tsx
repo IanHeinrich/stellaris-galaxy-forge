@@ -248,7 +248,7 @@ describe("the system view", () => {
     vi.useRealTimers();
   });
 
-  it("counts the system's bodies and belts, and reads the body on the inspector's page", async () => {
+  it("counts the system's bodies and belts, and reads the planet or body on the inspector's page", async () => {
     let html = bar();
     expect(html).toContain('<span class="accent">Sol</span>');
     expect(html).toContain("Reading the system…");
@@ -290,6 +290,14 @@ describe("the system view", () => {
     expect(html).not.toContain("Earth · orbit 45");
     useMapChromeStore.getState().setSceneHint(null);
     expect(bar()).toContain("Earth · orbit 45 · angle 270°");
+
+    const inspector = useInspectorStore.getState();
+    inspector.popTo(0);
+    inspector.open({ ref: { kind: "body", system: 0, id: 12 }, label: "Earth" });
+    expect(bar()).toContain("Earth · orbit 45 · angle 270°");
+    inspector.popTo(0);
+    inspector.open({ ref: { kind: "body", system: 1, id: 12 }, label: "Earth" });
+    expect(bar()).not.toContain("Earth · orbit 45");
 
     useMapChromeStore.setState({ gesture: "lane" });
     expect(bar()).toContain("click to inspect");

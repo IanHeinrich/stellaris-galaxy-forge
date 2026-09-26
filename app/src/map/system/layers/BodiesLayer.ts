@@ -1,4 +1,4 @@
-import { Container, Sprite, type Texture } from "pixi.js";
+import { Container, Sprite, Texture } from "pixi.js";
 import { planetTint } from "../../../lib/details/icons";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import { starGlyph } from "../../../lib/visual/starGlyphs";
@@ -113,7 +113,7 @@ export class BodiesLayer implements SystemLayer {
     }
     const disc = sprite(this.textures.disc);
     disc.tint = tint;
-    const art = sprite(this.textures.disc);
+    const art = sprite(Texture.EMPTY);
     art.visible = false;
     // As on the galaxy map: the art's black ground adds nothing, so only its light shows.
     if (placement.star) art.blendMode = STAR_ART_BLEND;
@@ -129,26 +129,34 @@ export class BodiesLayer implements SystemLayer {
     return drawn;
   }
 
-  /** Puts the icon's texture on once it has landed; the disc stands alone until then. */
+  /**
+   * Shows the icon's texture once it has landed, and the disc and glow alone until then; asks
+   * for it again after the cache was cleared, as when game data reloads.
+   */
   private dress(drawn: Drawn): void {
-    for (const key of drawn.body.iconKeys) {
+    const texture = this.resolve(drawn.body.iconKeys);
+    const { art, glow, disc } = drawn;
+    art.texture = texture ?? Texture.EMPTY;
+    art.visible = texture !== null;
+    if (glow) glow.visible = texture === null;
+    if (drawn.body.placement.star) disc.visible = texture === null;
+  }
+
+  /** The first of `keys` that has landed, or null while none has. */
+  private resolve(keys: readonly string[]): Texture | null {
+    for (const key of keys) {
       const texture = getTexture(key);
       if (texture === undefined) {
         requestTextures([key]);
-        return;
+        return null;
       }
-      if (texture) {
-        drawn.art.texture = texture;
-        drawn.art.visible = true;
-        if (drawn.glow) drawn.glow.visible = false;
-        if (drawn.body.placement.star) drawn.disc.visible = false;
-        return;
-      }
+      if (texture) return texture;
     }
+    return null;
   }
 
   private redress(): void {
-    for (const drawn of this.drawn) if (!drawn.art.visible) this.dress(drawn);
+    for (const drawn of this.drawn) this.dress(drawn);
     this.resize();
   }
 

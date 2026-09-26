@@ -1,17 +1,35 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../api/textures", () => ({ getTextures: () => Promise.resolve([]) }));
+/** The texture fetch, held until a test lets it answer. */
+const fetch = vi.hoisted(() => ({ release: null as (() => void) | null }));
 
-import { Texture, type Graphics } from "pixi.js";
+vi.mock("../../../api/textures", () => ({
+  getTextures: (keys: string[]) =>
+    new Promise((resolve) => {
+      fetch.release = () =>
+        resolve(keys.map((key) => ({ key, width: 1, height: 1, png_base64: "", error: null })));
+    }),
+}));
+
+import { Container, Sprite, Texture, type Graphics } from "pixi.js";
 import type { BodyLayout } from "../../../generated/BodyLayout";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
-import { byId, placedNode, planetSummary, systemDetails } from "../../../test/builders";
+import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
+import {
+  byId,
+  placedNode,
+  planetSummary,
+  starClassView,
+  systemDetails,
+} from "../../../test/builders";
 import { NO_SOURCES, systemContext, type SystemContext } from "../context";
 import { drawOps, stubTextMeasurement, viewport } from "../fixture";
 import { BeltsLayer, MAX_ROCKS } from "./BeltsLayer";
+import { BodiesLayer } from "./BodiesLayer";
 import { ExitsLayer } from "./ExitsLayer";
 import { OrbitsLayer } from "./OrbitsLayer";
+import type { SceneTextures } from "./textures";
 
 stubTextMeasurement();
 
@@ -127,5 +145,45 @@ describe("the system scene's exits layer", () => {
     expect(east?.dx).toBeCloseTo(1);
     expect(east?.dy).toBeCloseTo(0);
     expect(east?.radius).toBe(160);
+  });
+});
+
+describe("the system scene's bodies layer", () => {
+  it("draws a star's art only once it has landed, added over the dark, with no disc or glow", async () => {
+    clearTextures();
+    const art = new Texture();
+    setTextureDecoder(() => Promise.resolve(art));
+    const textures: SceneTextures = {
+      disc: new Texture(),
+      glow: new Texture(),
+      shade: new Texture(),
+      gloss: new Texture(),
+      rock: new Texture(),
+    };
+    const ctx = systemContext({
+      ...NO_SOURCES,
+      id: SYSTEM,
+      systems: byId(placedNode(SYSTEM, 0, 0)),
+      details: systemDetails({ id: SYSTEM, planets: [SUN] }),
+      starClasses: new Map([["sc_g", starClassView("sc_g", "pc_g_star")]]),
+    });
+    const layer = new BodiesLayer(textures);
+    layer.rebuild(ctx);
+    viewport(layer, 2);
+    const star = layer.container.children[0] as Container;
+    const shown = () => star.children.filter((c): c is Sprite => c instanceof Sprite && c.visible);
+
+    expect(shown().map((s) => s.texture)).toEqual([textures.glow, textures.disc]);
+    expect(shown().some((s) => s.blendMode === "add")).toBe(false);
+
+    await vi.waitFor(() => expect(fetch.release).not.toBeNull());
+    fetch.release?.();
+    await vi.waitFor(() => expect(shown().map((s) => s.texture)).toEqual([art]));
+    expect(shown()[0].blendMode).toBe("add");
+
+    clearTextures();
+    expect(shown().map((s) => s.texture)).toEqual([textures.glow, textures.disc]);
+    setTextureDecoder(null);
+    layer.destroy();
   });
 });

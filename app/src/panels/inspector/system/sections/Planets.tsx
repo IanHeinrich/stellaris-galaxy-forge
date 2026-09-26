@@ -10,6 +10,7 @@ import { templateName } from "../../../../lib/names";
 import { useDetailsStore } from "../../../../store/detailsStore";
 import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
+import { useInspectorStore } from "../../../../store/inspectorStore";
 import { canEnterSystem, useSceneStore } from "../../../../store/sceneStore";
 import { useOpenEntity } from "../../entity/useEntity";
 import { Chip, Icon } from "../../../parts";
@@ -54,6 +55,8 @@ export function PlanetRow({
   const classes = useGameDataStore((s) => s.planetClasses);
   const names = useGameDataStore((s) => s.names);
   const opener = useOpenEntity();
+  const open = useInspectorStore((s) => s.open);
+  const scenario = useFileSessionStore((s) => s.kind === "scenario");
   const sprite = classes.get(planet.class)?.icon_sprite;
   const rows = resourceRows({ ...details, resources: planet.deposits }, icons);
   const wide = rows.length > INLINE_RESOURCES;
@@ -64,9 +67,13 @@ export function PlanetRow({
   return (
     <DrillRow
       className={`ins-prow${planet.moon ? " moon" : ""}${wide ? " wide" : ""}`}
-      requires={capabilityFor("planet")}
+      requires={scenario ? undefined : capabilityFor("planet")}
       title={editHint ?? undefined}
-      onOpen={() => opener.open({ kind: "planet", id: planet.id }, name)}
+      onOpen={() =>
+        scenario
+          ? open({ ref: { kind: "body", system: details.id, id: planet.id }, label: name })
+          : opener.open({ kind: "planet", id: planet.id }, name)
+      }
     >
       <PlanetIcon planetClass={planet.class} sprite={sprite} />
       <span>

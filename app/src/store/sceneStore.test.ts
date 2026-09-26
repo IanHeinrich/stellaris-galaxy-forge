@@ -11,8 +11,9 @@ import { canGoBack, nudgeSelected, run, toggleLayerKey, type CommandEffects } fr
 import { editor, openFixtureSave, openFixtureScenario, withAddedSystems } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { OPEN_RESULT, editResult } from "./fixture";
+import { loadGameData } from "./gameDataFixture";
 import { useGalaxyStore } from "./galaxyStore";
-import { useInspectorStore, type Entry } from "./inspectorStore";
+import { bodyEntry, useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useSceneStore } from "./sceneStore";
@@ -21,6 +22,8 @@ import { mockedIpc } from "../test/ipc";
 
 const SOL: Entry = { ref: { kind: "system", id: 0 }, label: "Sol" };
 const EARTH: Entry = { ref: { kind: "planet", id: 1207 }, label: "Earth" };
+const ALPHA: Entry = { ref: { kind: "system", id: 1 }, label: "Alpha Centauri" };
+const TARKIN = { kind: "body", system: 1, id: 100 };
 
 const effects: CommandEffects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
 
@@ -42,6 +45,12 @@ function key(name: string): boolean {
 }
 
 const esc = () => run("clearSelection", false, effects);
+
+/** A left click on body `id` of `system` in the scene, as the scene hands it to the inspector. */
+const click = (system: number, id: number, label: string) =>
+  useInspectorStore.getState().openFromMap(bodyEntry(system, id, label));
+
+const refs = () => useInspectorStore.getState().stack.map((e) => e.ref);
 
 /** Removing 6 moves 7 down to 6, as the core reports it. */
 function removeSix(seven: SystemNode) {
@@ -327,5 +336,65 @@ describe("the scene follows the selection", () => {
 
     expect(seen[0]).toEqual([GALAXY, [0]]);
     expect(scene().scene).toEqual(GALAXY);
+  });
+});
+
+describe("a body clicked in the system view", () => {
+  it("puts a save body's planet page straight above the system's, and Esc pops it before leaving", () => {
+    scene().enterSystem(0);
+    useInspectorStore.getState().setRoot(SOL);
+    useLayoutStore.setState({ tab: "issues", previousTab: "issues", collapsed: false });
+
+    click(0, 1207, "Earth");
+    click(0, 1208, "Luna");
+
+    expect(refs()).toEqual([SOL.ref, { kind: "planet", id: 1208 }]);
+    expect(useInspectorStore.getState().stack[1].from).toBeUndefined();
+    expect(useLayoutStore.getState().tab).toBe("inspector");
+
+    esc();
+    expect(labels()).toEqual(["Sol"]);
+    expect(scene().scene).toEqual(inSystem(0));
+    esc();
+    expect(scene().scene).toEqual(GALAXY);
+  });
+
+  it("puts a scenario body's own page on the stack, keyed by its system", async () => {
+    await openFixtureScenario();
+    useInspectorStore.getState().setRoot(ALPHA);
+
+    click(1, 100, "Tarkin");
+
+    expect(refs()).toEqual([ALPHA.ref, TARKIN]);
+    expect(labels()).toEqual(["Alpha Centauri", "Tarkin"]);
+  });
+
+  it("closes a scenario body's page on an edit that stales its system's details", async () => {
+    await openFixtureScenario();
+    useInspectorStore.getState().setRoot(ALPHA);
+    click(1, 100, "Tarkin");
+
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [2] }));
+    await editor().applyOp({ type: "SetInitializer", id: 2, initializer: "basic_init_01" });
+    expect(refs()).toEqual([ALPHA.ref, TARKIN]);
+
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
+    await editor().applyOp({ type: "SetInitializer", id: 1, initializer: "basic_init_01" });
+    expect(refs()).toEqual([ALPHA.ref]);
+  });
+
+  it("closes a scenario body's page when the game data reloads, and keeps a save's planet page", async () => {
+    await openFixtureScenario();
+    useInspectorStore.getState().setRoot(ALPHA);
+    click(1, 100, "Tarkin");
+
+    await loadGameData();
+    expect(refs()).toEqual([ALPHA.ref]);
+
+    await openFixtureSave();
+    useInspectorStore.getState().setRoot(SOL);
+    click(0, 1207, "Earth");
+    await loadGameData();
+    expect(refs()).toEqual([SOL.ref, EARTH.ref]);
   });
 });

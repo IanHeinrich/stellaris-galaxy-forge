@@ -1,5 +1,7 @@
+import { bodyName } from "../../lib/details/labels";
 import type { Pt } from "../../lib/geometry/pt";
 import { getTexture, requestTextures } from "../../lib/visual/textures";
+import { bodyEntry, useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import type { Camera } from "../Camera";
@@ -87,6 +89,8 @@ export class SystemInteraction {
         this.hover(null, null, x, y);
         useMapChromeStore.getState().openContextMenu({ target, x, y });
       },
+      openBody: (system, id) => this.openBody(system, id),
+      showSystem: () => useInspectorStore.getState().popTo(0),
     };
   }
 
@@ -101,6 +105,14 @@ export class SystemInteraction {
     this.panFrom = null;
     this.hover(null, null, 0, 0);
     this.canvas.style.cursor = "";
+  }
+
+  private openBody(system: number, id: number): void {
+    const ctx = this.scene.context();
+    const planet = ctx.bodies.find((b) => b.placement.id === id)?.planet;
+    if (!planet) return;
+    const inspector = useInspectorStore.getState();
+    inspector.openFromMap(bodyEntry(system, id, bodyName(planet, ctx.names)));
   }
 
   private hover(body: number | null, exit: number | null, sx: number, sy: number): void {

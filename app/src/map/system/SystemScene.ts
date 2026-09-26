@@ -3,6 +3,7 @@ import { fitScale, zoomLimits } from "../../lib/details/orbits";
 import { laneLabel } from "../../lib/names";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
+import type { EntityRef } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { Camera } from "../Camera";
 import type { Scene } from "../Scene";
@@ -11,6 +12,7 @@ import {
   EMPTY_SYSTEM_CONTEXT,
   readSystemSources,
   sameSources,
+  selectedBody,
   systemContext,
   type SystemContext,
 } from "./context";
@@ -38,8 +40,8 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
   private highlight: SceneHighlight = NO_HIGHLIGHT;
   private id: number | null = null;
-  /** The planet on top of the inspector's stack, ringed when it is one of this system's bodies. */
-  private inspected: number | null = null;
+  /** The page on top of the inspector's stack, whose body is ringed when it is one of this system's. */
+  private inspected: EntityRef | null = null;
   private appliedRev = -1;
   private fitPending = false;
   /** Where the last fit left the camera: still there means nobody has panned or zoomed since. */
@@ -117,10 +119,9 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     this.showLane();
   }
 
-  selectBody(id: number | null): void {
-    this.inspected = id;
-    const ours = id !== null && this.ctx.bodies.some((b) => b.planet?.id === id);
-    this.setHighlight({ selectedBody: ours ? id : null });
+  selectBody(top: EntityRef | null): void {
+    this.inspected = top;
+    this.setHighlight({ selectedBody: selectedBody(this.ctx, top) });
   }
 
   hover(body: number | null, exit: number | null): void {

@@ -79,6 +79,7 @@ export function editPipeline(
       (kept.length === 1 && (touched.has(kept[0]) || showsTouched(touched, result.details_stale)));
     if (result.details_stale.length > 0) {
       useDetailsStore.getState().invalidate(result.details_stale);
+      useInspectorStore.getState().dropBodies(result.details_stale);
       const mine = session;
       // The details projection, and the planet and fleet search index over it, are rebuilt lazily.
       void ipc.warmDetails().catch((e: unknown) => {
@@ -387,6 +388,7 @@ function showsTouched(touched: Set<number>, detailsStale: number[]): boolean {
     case "system":
       return touched.has(ref.id);
     case "starbase":
+    case "body":
       return touched.has(ref.system);
     case "lane":
       return touched.has(ref.a) || touched.has(ref.b);

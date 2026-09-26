@@ -17,6 +17,7 @@ import { clusterOffsets } from "../../lib/visual/starCluster";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
+import type { EntityRef } from "../../store/inspectorStore";
 import type { Systems } from "../RenderContext";
 
 /** One body the scene draws, placed, named and classed. */
@@ -250,6 +251,16 @@ export function systemContext(src: SystemSources): SystemContext {
 }
 
 export const EMPTY_SYSTEM_CONTEXT: SystemContext = systemContext(NO_SOURCES);
+
+/**
+ * The body of `ctx` that `ref` opens, or null: a planet listed among its bodies, or a scenario body
+ * of this system.
+ */
+export function selectedBody(ctx: SystemContext, ref: EntityRef | null): number | null {
+  const ours = ref?.kind === "planet" || (ref?.kind === "body" && ref.system === ctx.id);
+  if (!ours) return null;
+  return ctx.bodies.some((b) => b.planet?.id === ref.id) ? ref.id : null;
+}
 
 /** The stores' state for system `id`, as the scene reads it. */
 export function readSystemSources(id: number | null): SystemSources {

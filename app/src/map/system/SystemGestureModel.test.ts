@@ -15,6 +15,8 @@ function recorder(): SystemIntent & { calls: Call[] } {
     selectLane: (...args) => void calls.push(["selectLane", ...args]),
     enterSystem: (...args) => void calls.push(["enterSystem", ...args]),
     contextMenu: (...args) => void calls.push(["contextMenu", ...args]),
+    openBody: (...args) => void calls.push(["openBody", ...args]),
+    showSystem: (...args) => void calls.push(["showSystem", ...args]),
   };
 }
 
@@ -78,7 +80,7 @@ describe("SystemGestureModel", () => {
     ]);
   });
 
-  it("drops the lane on a click on empty space", () => {
+  it("drops the lane and goes back to the system's page on a click on empty space", () => {
     const model = new SystemGestureModel();
     const intent = recorder();
     tap(model, intent, 1000, { exit: NEIGHBOUR });
@@ -86,6 +88,7 @@ describe("SystemGestureModel", () => {
     expect(without(intent.calls, "hover")).toEqual([
       ["selectLane", NEIGHBOUR],
       ["selectLane", null],
+      ["showSystem"],
     ]);
   });
 
@@ -129,11 +132,26 @@ describe("SystemGestureModel", () => {
     ]);
   });
 
-  it("does nothing on a left click on a body in this stage", () => {
+  it("opens a body's page on a left click, each click alike", () => {
     const model = new SystemGestureModel();
     const intent = recorder();
     tap(model, intent, 1000, { body: 3 });
     tap(model, intent, 1100, { body: 3 });
+    tap(model, intent, 3000, { body: 4 });
+    expect(without(intent.calls, "hover")).toEqual([
+      ["openBody", SYSTEM, 3],
+      ["openBody", SYSTEM, 3],
+      ["openBody", SYSTEM, 4],
+    ]);
+  });
+
+  it("opens nothing on a drag that starts on a body, or a middle click on one", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder();
+    model.handle(at("down", 10, 10, { body: 3 }), intent);
+    expect(model.handle(at("move", 40, 40, { body: 3 }), intent)).toBe("pan");
+    model.handle(at("up", 40, 40, { body: 3 }), intent);
+    tap(model, intent, 2000, { body: 3, button: 1 });
     expect(without(intent.calls, "hover")).toEqual([]);
   });
 });

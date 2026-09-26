@@ -13,7 +13,7 @@ import { useGalaxyVersion, useSystemNames } from "../../store/browserRows";
 import { useDetailsStore } from "../../store/detailsStore";
 import { galaxyLaneCount, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { useInspectorStore } from "../../store/inspectorStore";
+import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
@@ -176,6 +176,12 @@ function bodyReadout(
   return `${name} · orbit ${orbit} · angle ${Math.round(placed.angle) % 360}°`;
 }
 
+/** The body the page `ref` opens in `system`: a planet by id, or a scenario body of that system. */
+function bodyOn(ref: EntityRef, system: number): number | null {
+  if (ref.kind === "planet") return ref.id;
+  return ref.kind === "body" && ref.system === system ? ref.id : null;
+}
+
 /**
  * The system view's hint: what the scene says (a clicked lane), else the page's body where it is
  * one of the system's, else the way out.
@@ -193,8 +199,8 @@ function SceneHint({ system }: { system: number }) {
   if (reading) return <span className="muted">Reading the system…</span>;
   if (sceneHint !== null) return <span className="muted">{sceneHint}</span>;
   const isStar = (c: string) => isStarBody(c, planetClasses, starClasses);
-  const body =
-    details && top?.ref.kind === "planet" ? bodyReadout(details, top.ref.id, names, isStar) : null;
+  const id = top === undefined ? null : bodyOn(top.ref, system);
+  const body = details && id !== null ? bodyReadout(details, id, names, isStar) : null;
   return <span className="muted">{body ?? LEAVE_HINT}</span>;
 }
 

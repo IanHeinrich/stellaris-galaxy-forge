@@ -11,7 +11,15 @@ import { bindStores } from "../../store/bindStores";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { OPEN_RESULT, SCENARIO_RESULT, detailOf, node } from "../../store/fixture";
+import {
+  OPEN_RESULT,
+  SCENARIO_RESULT,
+  detailOf,
+  name,
+  node,
+  planetSummary,
+  systemDetails,
+} from "../../store/fixture";
 import type { MarauderRole } from "../../generated/MarauderRole";
 import { newFeZone } from "../../lib/feZone";
 import { clanOf } from "../../lib/marauder";
@@ -22,8 +30,12 @@ import type { SpecialLayout } from "../../generated/SpecialLayout";
 import { armSession, resetStores } from "../../store/storeFixture";
 import { openWith } from "../../test/session";
 import { useSceneStore } from "../../store/sceneStore";
+import { useDetailsStore } from "../../store/detailsStore";
+import { useInspectorStore } from "../../store/inspectorStore";
+import { useLayoutStore } from "../../store/layoutStore";
 import { menuItem } from "../../test/elements";
 import { ContextMenu } from "./ContextMenu";
+import { BodyMenu } from "./contextMenu/BodyMenu";
 import { SceneSpaceMenu } from "./contextMenu/SceneSpaceMenu";
 import { PickCardBody } from "./contextMenu/PickCard";
 import { SpecialRows } from "./contextMenu/SpecialItems";
@@ -524,17 +536,31 @@ describe("the Special menu and the cards", () => {
 });
 
 describe("the system view's menus", () => {
-  it("opens a save's system from its menu, and leaves from a body's menu and the space around it", async () => {
+  it("opens a save's system from its menu, inspects a body from its own, and leaves from either", async () => {
     const chrome = useMapChromeStore.getState();
     chrome.openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
     expect(menu()).toContain(">Open system view</button>");
 
     useSceneStore.getState().enterSystem(0);
-    chrome.openContextMenu({ target: { kind: "body", system: 0, id: 12 }, x: 0, y: 0 });
+    const earth = planetSummary({ id: 12, name: name("Earth"), name_key: "Earth" });
+    useDetailsStore.setState({
+      details: new Map([[0, systemDetails({ id: 0, planets: [earth] })]]),
+    });
+    const body = { kind: "body", system: 0, id: 12 } as const;
+    chrome.openContextMenu({ target: body, x: 0, y: 0 });
     let html = menu();
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Inspect<\/button>/);
+    expect(html).toContain('<div class="context-menu-header">Earth</div>');
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Inspect<\/button>/);
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Remove<\/button>/);
     expect(html).toContain('class="context-menu-separated">Back to galaxy</button>');
+
+    useLayoutStore.setState({ tab: "issues" });
+    menuItem(<BodyMenu target={body} frame={{}} />, "Inspect").props.onClick();
+    const { stack } = useInspectorStore.getState();
+    expect(stack.map((e) => e.ref)).toEqual([stack[0].ref, { kind: "planet", id: 12 }]);
+    expect(stack[1].label).toBe("Earth");
+    expect(useLayoutStore.getState().tab).toBe("inspector");
+    expect(useMapChromeStore.getState().contextMenu).toBeNull();
 
     const target = { kind: "systemSpace", system: 0, x: 5, y: 5 } as const;
     chrome.openContextMenu({ target, x: 0, y: 0 });

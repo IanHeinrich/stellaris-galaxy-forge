@@ -111,9 +111,9 @@ describe("a scenario system's overview", () => {
     expect(html).toContain("Ring World");
     // The initializer places these very bodies: its own list would say them twice.
     expect(html).not.toContain("Kepler");
-    // Nothing to drill into: a scenario holds no planet, station or megastructure entities.
+    // A scenario's bodies open their own page; its station and megastructures have none.
+    expect(html).toContain('class="ins-prow" role="button"');
     expect(html).toContain('class="ins-prow static"');
-    expect(html).not.toContain('class="ins-prow" role="button"');
   });
 
   it("shows the resource total and the initializer's list when the record carries resources alone", async () => {
