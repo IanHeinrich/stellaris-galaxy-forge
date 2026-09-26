@@ -43,8 +43,10 @@ import { BeltsLayer, MAX_ROCKS } from "./BeltsLayer";
 import { ICY_TINT } from "../look";
 import { BodiesLayer } from "./BodiesLayer";
 import { ExitsLayer } from "./ExitsLayer";
+import { HighlightLayer } from "./HighlightLayer";
 import { LabelsLayer } from "./LabelsLayer";
 import { OrbitsLayer } from "./OrbitsLayer";
+import { RadiiLayer } from "./RadiiLayer";
 import { NO_HIGHLIGHT } from "./SystemLayer";
 import type { SceneTextures } from "./textures";
 
@@ -1087,5 +1089,51 @@ describe("the system scene's labels layer", () => {
     expect(top.y).toBeGreaterThan(earthAt.y);
     resetTextures();
     layer.destroy();
+  });
+});
+
+describe("the system scene's radius readouts", () => {
+  /** The radii the shown plates read. */
+  const readouts = (container: Container) =>
+    container.children
+      .filter((holder) => holder.visible)
+      .flatMap((holder) => holder.children)
+      .flatMap((c) => (c instanceof BitmapText && c.label === "radius" ? [c.text] : []));
+
+  it("draws a line out to the selected body with its radius on a plate, and nothing without a selection", () => {
+    const layer = new HighlightLayer();
+    layer.rebuild(context({ planets: [SUN, EARTH, LUNA, MARS] }));
+    viewport(layer, 2);
+    expect(strokes(layer.radiusLine)).toEqual([]);
+    expect(readouts(layer.container)).toEqual([]);
+
+    layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: EARTH.id });
+    expect(strokes(layer.radiusLine)).toHaveLength(1);
+    expect(readouts(layer.container)).toEqual(["90"]);
+
+    layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: SUN.id });
+    expect(strokes(layer.radiusLine)).toEqual([]);
+    expect(readouts(layer.container)).toEqual([]);
+    layer.destroy();
+  });
+
+  it("labels each ring with its radius only while Orbit radii is on, a moon's once its ring is large on screen", () => {
+    const layer = new RadiiLayer();
+    const planets = [SUN, EARTH, LUNA, MARS];
+    layer.rebuild(context({ planets }));
+    viewport(layer, 2);
+    expect(readouts(layer.container)).toEqual([]);
+
+    const shown = systemContext({ ...context({ planets }), radiiShown: true });
+    layer.rebuild(shown);
+    viewport(layer, 2);
+    expect(readouts(layer.container)).toEqual(["90", "130"]);
+    layer.destroy();
+
+    const closer = new RadiiLayer();
+    closer.rebuild(shown);
+    viewport(closer, 4);
+    expect(readouts(closer.container).sort()).toEqual(["12", "130", "90"]);
+    closer.destroy();
   });
 });

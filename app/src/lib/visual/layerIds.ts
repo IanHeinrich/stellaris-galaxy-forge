@@ -17,6 +17,7 @@ export const LAYER_IDS = [
   "mapBorder",
   "lCluster",
   "details",
+  "orbitRadii",
   "colonies",
   "claims",
   "day_one_bypasses",
@@ -37,6 +38,7 @@ export const PRIMARY_LAYERS: readonly LayerId[] = [
   "owners",
   "bypasses",
   "nebulae",
+  "orbitRadii",
 ];
 
 /** The point-of-interest kinds with their own icon toggle in the top bar. */
@@ -57,7 +59,10 @@ export const LAYER_KEYS: readonly LayerId[] = [
 
 /** The Layers menu, in its groups. */
 export const LAYER_GROUPS: ReadonlyArray<{ label: string; layers: readonly LayerId[] }> = [
-  { label: "Map", layers: ["lanes", "systems", "classes", "labels", "details", "colonies"] },
+  {
+    label: "Map",
+    layers: ["lanes", "systems", "classes", "labels", "details", "orbitRadii", "colonies"],
+  },
   {
     label: "Overlays",
     layers: [
@@ -82,7 +87,7 @@ export const LAYER_GROUPS: ReadonlyArray<{ label: string; layers: readonly Layer
 
 /** The number key that toggles a layer, or 0 for the layers without one. */
 export function layerKey(id: LayerId): number {
-  return LAYER_KEYS.indexOf(id) + 1;
+  return LAYER_KEYS.indexOf(SCENE_ONLY_KEYS[id] ?? id) + 1;
 }
 
 /** What the layers panel calls each layer, in the game's own words. */
@@ -104,6 +109,7 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   issues: "Issue highlights",
   labels: "Names",
   details: "System details",
+  orbitRadii: "Orbit radii",
   colonies: "Colonies",
   claims: "Day-one claims",
   day_one_bypasses: "Day-one bypasses",
@@ -111,19 +117,46 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   highlights: "Highlights",
 };
 
-/** The galaxy's layers the system scene draws too, each switched there apart from the galaxy. */
-export type SceneLayerId = Extract<LayerId, "labels" | "details" | "nebulae">;
-export const SCENE_LAYER_IDS: readonly SceneLayerId[] = ["labels", "details", "nebulae"];
+/**
+ * The layers the system scene draws, each switched there apart from the galaxy: the galaxy's
+ * own that it draws too, and the ones only it draws.
+ */
+export type SceneLayerId = Extract<LayerId, "labels" | "details" | "nebulae" | "orbitRadii">;
+export const SCENE_LAYER_IDS: readonly SceneLayerId[] = [
+  "labels",
+  "details",
+  "nebulae",
+  "orbitRadii",
+];
 
 export function isSceneLayer(id: LayerId): id is SceneLayerId {
   return (SCENE_LAYER_IDS as readonly LayerId[]).includes(id);
 }
 
-/** What the system scene starts with: names, resources and nebula clouds all drawn. */
+/**
+ * The layers only the system scene draws, each on the number key of a galaxy layer the scene
+ * has no switch for.
+ */
+const SCENE_ONLY_KEYS: Readonly<Partial<Record<LayerId, LayerId>>> = { orbitRadii: "systems" };
+
+export function isSceneOnly(id: LayerId): boolean {
+  return SCENE_ONLY_KEYS[id] !== undefined;
+}
+
+/** The scene's layer number key `index` switches while a system is shown; null for none. */
+export function sceneLayerAt(index: number): SceneLayerId | null {
+  const layer = LAYER_KEYS[index];
+  if (layer === undefined) return null;
+  const only = SCENE_LAYER_IDS.find((id) => SCENE_ONLY_KEYS[id] === layer);
+  return only ?? (isSceneLayer(layer) ? layer : null);
+}
+
+/** What the system scene starts with: names, resources and nebula clouds drawn, radii not. */
 export const DEFAULT_SCENE_LAYERS: Record<SceneLayerId, boolean> = {
   labels: true,
   details: true,
   nebulae: true,
+  orbitRadii: false,
 };
 
 /** What is on when the app starts, and what a scenario opens with: the map as the game first
@@ -148,6 +181,7 @@ export const DEFAULT_LAYERS: Record<LayerId, boolean> = {
   issues: false,
   labels: true,
   details: true,
+  orbitRadii: false,
   colonies: true,
   claims: false,
   day_one_bypasses: false,
@@ -174,6 +208,7 @@ const SAVE_LAYERS: Record<LayerId, boolean> = {
   issues: false,
   labels: true,
   details: true,
+  orbitRadii: false,
   colonies: true,
   claims: false,
   day_one_bypasses: false,

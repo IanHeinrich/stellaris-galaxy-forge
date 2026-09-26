@@ -4,7 +4,7 @@ import type { SystemContext } from "../context";
 
 /** The system scene's own layers, kept apart from the galaxy's `LayerId`, which the Layers menu lists. */
 export type SystemLayerId =
-  "nebula" | "orbits" | "belts" | "bodies" | "labels" | "exits" | "highlight";
+  "nebula" | "orbits" | "rolled" | "belts" | "radii" | "bodies" | "labels" | "exits" | "highlight";
 
 /** What the scene marks: the body and arrow under the pointer, the body selected, the lane clicked. */
 export interface SceneHighlight {

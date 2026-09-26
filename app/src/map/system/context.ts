@@ -8,9 +8,12 @@ import type { SystemNode } from "../../generated/SystemNode";
 import {
   discRadius,
   exitBearing,
+  rolledPlanets,
   systemLayout,
   type BeltBand,
   type BodyPlacement,
+  type RolledPlanet,
+  type Span,
   type SystemLayout,
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
@@ -65,6 +68,18 @@ export interface SceneBody {
   readonly colony: number | null;
   /** What its deposits yield, per resource, as the Details layer shows them. */
   readonly resources: readonly ResourceRow[];
+  /** Its orbit's radius as the readouts show it; null for a body with no ring. */
+  readonly readout: RadiusReadout | null;
+}
+
+/** A body's orbit radius, as its ring's label and its radius line read it. */
+export interface RadiusReadout {
+  /** The disc standing where its ring is centred, which its radius line starts clear of; 0 for none. */
+  readonly hub: number;
+  /** What its ring's label reads: the radius, or a band's two ends. */
+  readonly ring: string;
+  /** What its radius line reads: the same, and its step out from the previous orbit where it has one. */
+  readonly line: string;
 }
 
 /** What a scenario leaves to chance about a body; a save leaves nothing. */
@@ -138,6 +153,8 @@ export interface SystemSources {
   readonly labelsShown: boolean;
   /** The scene's Nebulae switch is on: a system in a nebula shows clouds behind it. */
   readonly nebulaShown: boolean;
+  /** The scene's Orbit radii switch is on: each ring shows its radius. */
+  readonly radiiShown: boolean;
   /** Who owns what, for the colour a colonised body's plate shows. */
   readonly ownership: Ownership;
   readonly nodeName: (name: NameTemplate) => string;
@@ -156,6 +173,8 @@ export interface SystemContext extends SystemSources {
   readonly exits: readonly Exit[];
   /** The system lies in a nebula. */
   readonly inNebula: boolean;
+  /** The planets drawn to show that the game rolls this system's; none where the source has any. */
+  readonly rolled: readonly RolledPlanet[];
 }
 
 const NOTHING: never[] = [];
@@ -176,6 +195,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   detailsShown: false,
   labelsShown: true,
   nebulaShown: false,
+  radiiShown: false,
   ownership: NO_OWNERSHIP,
   nodeName: (name: NameTemplate) => (name.literal ? name.key : stripped(name.key)),
   templateName: (named: { name_key: string }) => stripped(named.name_key),
@@ -202,6 +222,7 @@ const DATA_FIELDS: Record<DataField, true> = {
   detailsShown: true,
   labelsShown: true,
   nebulaShown: true,
+  radiiShown: true,
   ownership: true,
 };
 
@@ -289,6 +310,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       band: null,
       arc: null,
       ghost: false,
+      radius: null,
     };
     return {
       placement,
@@ -299,6 +321,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       ring: false,
       chance: NO_CHANCE,
       resources: NOTHING,
+      readout: null,
       ...artOf(resolved[i], src),
     };
   });
@@ -317,6 +340,37 @@ function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolea
     planetClass: drawn,
     ring: !placement.star && !drawn && planet.ring === null,
   };
+}
+
+/** A span as a label reads it, rounded: one number, or its two ends. */
+function spanText(span: Span): string {
+  const min = Math.round(span.min);
+  const max = Math.round(span.max);
+  return min === max ? `${min}` : `${min}–${max}`;
+}
+
+/** A step out as a label reads it, with a plus where it steps outwards. */
+function stepText(step: Span): string {
+  const text = spanText(step);
+  return Math.round(step.min) >= 0 ? `+${text}` : text;
+}
+
+function readoutOf(
+  placement: BodyPlacement,
+  placements: readonly BodyPlacement[],
+): RadiusReadout | null {
+  const { ring, radius } = placement;
+  if (!ring || !radius) return null;
+  const hub = placements.reduce(
+    (disc, other) =>
+      other !== placement && other.x === ring.cx && other.y === ring.cy
+        ? Math.max(disc, other.disc)
+        : disc,
+    0,
+  );
+  const text = spanText(radius);
+  const line = radius.step ? `${text} (${stepText(radius.step)})` : text;
+  return { hub, ring: text, line };
 }
 
 function sceneBodies(
@@ -344,6 +398,7 @@ function sceneBodies(
           !placement.star && (planet.ring === true || (planet.ring === null && !resolved.drawn)),
         chance: chanceOf(placement, planet, resolved.drawn),
         resources: planetResourceRows(planet, src.resourceIcons),
+        readout: readoutOf(placement, layout.bodies),
         ...artOf(resolved, src),
       },
     ];
@@ -370,6 +425,15 @@ function sceneExits(src: SystemSources, node: SystemNode | null, radius: number)
   });
 }
 
+/**
+ * Whether the game rolls the system's planets when it generates the galaxy: a scenario system
+ * whose initializer, read with the install, gives no record, as when it names none or one the
+ * install does not define.
+ */
+function rollsPlanets(src: SystemSources): boolean {
+  return src.kind === "scenario" && src.gameDataReady && src.missing && src.details === null;
+}
+
 /** Where everything of the system `src` names is drawn. */
 export function systemContext(src: SystemSources): SystemContext {
   const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
@@ -386,6 +450,8 @@ export function systemContext(src: SystemSources): SystemContext {
     belts: layout.belts.map((belt) => ({ ...belt, tint: beltTint(belt.kind) })),
     exits: sceneExits(src, node, layout.innerRadius),
     inNebula: node?.nebula != null,
+    rolled:
+      src.id !== null && rollsPlanets(src) ? rolledPlanets(src.id, layout.innerRadius) : NOTHING,
   });
 }
 
@@ -430,6 +496,7 @@ export function readSystemSources(id: number | null): SystemSources {
     detailsShown: chrome.sceneLayers.details,
     labelsShown: chrome.sceneLayers.labels,
     nebulaShown: chrome.sceneLayers.nebulae,
+    radiiShown: chrome.sceneLayers.orbitRadii,
     ownership: currentOwnership(),
     nodeName: (name: NameTemplate) => nodeNameIn(names, name),
     templateName: (named: { name: NameTemplate; name_key: string }) =>

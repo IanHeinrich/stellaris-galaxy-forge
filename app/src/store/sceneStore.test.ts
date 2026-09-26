@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SystemNode } from "../generated/SystemNode";
 import { keyAction, type KeyAction, type KeyLike } from "../lib/keys";
-import { LAYER_KEYS, SCENE_LAYER_IDS } from "../lib/visual/layerIds";
+import { LAYER_KEYS, SCENE_LAYER_IDS, layerKey } from "../lib/visual/layerIds";
 import { stubPrefs } from "../test/prefs";
 
 vi.mock("../api/ipc");
@@ -258,7 +258,7 @@ describe("the galaxy's keys while a system is up", () => {
     await Promise.resolve();
 
     const scenic = chrome().sceneLayers;
-    for (const id of SCENE_LAYER_IDS) toggleLayerKey(LAYER_KEYS.indexOf(id));
+    for (const id of SCENE_LAYER_IDS) toggleLayerKey(layerKey(id) - 1);
     expect(chrome().layers).toBe(layers);
     for (const id of SCENE_LAYER_IDS) expect(chrome().sceneLayers[id]).toBe(!scenic[id]);
 

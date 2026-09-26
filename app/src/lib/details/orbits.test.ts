@@ -327,6 +327,55 @@ describe("scenario bodies", () => {
   });
 });
 
+describe("orbit radii", () => {
+  const scenario = (
+    id: number,
+    orbit: { min: number; max: number },
+    parent: number | null = null,
+  ): PlanetSummary =>
+    planetSummary({
+      id,
+      parent,
+      layout: { orbit, angle: { min: 0, max: 0 }, at: null, size: null },
+    });
+  const fixed = (value: number) => ({ min: value, max: value });
+
+  it("gives a save body its radius from what it orbits with no step, and a star at the centre none", () => {
+    const layout = sol();
+    expect(body(layout, 1).radius).toBeNull();
+    expect(body(layout, 3).radius).toEqual({ min: 90, max: 90, step: null });
+    expect(body(layout, 4).radius).toEqual({ min: 12, max: 12, step: null });
+  });
+
+  it("steps a scenario body out from the previous orbit about its parent, each end of a range apart, and a first body out from its parent", () => {
+    const layout = systemLayout(
+      systemDetails({
+        planets: [
+          scenario(1, fixed(0)),
+          scenario(2, { min: 65, max: 80 }),
+          scenario(3, fixed(10), 2),
+          scenario(4, fixed(18), 2),
+          scenario(5, { min: 85, max: 105 }),
+        ],
+      }),
+      { scenario: true },
+    );
+    expect(body(layout, 1).radius).toBeNull();
+    expect(body(layout, 2).radius).toEqual({
+      min: 65,
+      max: 80,
+      step: { min: 65, max: 80 },
+    });
+    expect(body(layout, 3).radius).toEqual({ min: 10, max: 10, step: { min: 10, max: 10 } });
+    expect(body(layout, 4).radius).toEqual({ min: 18, max: 18, step: { min: 8, max: 8 } });
+    expect(body(layout, 5).radius).toEqual({
+      min: 85,
+      max: 105,
+      step: { min: 20, max: 25 },
+    });
+  });
+});
+
 describe("belts, fit and zoom", () => {
   it("centres each belt's band on its radius", () => {
     expect(sol().belts).toEqual([

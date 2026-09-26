@@ -25,6 +25,8 @@ import { HighlightLayer } from "./layers/HighlightLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
 import { NebulaLayer } from "./layers/NebulaLayer";
 import { OrbitsLayer } from "./layers/OrbitsLayer";
+import { RadiiLayer } from "./layers/RadiiLayer";
+import { RolledLayer } from "./layers/RolledLayer";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./layers/SystemLayer";
 import { bakeSceneTextures, releaseSceneTextures, type SceneTextures } from "./layers/textures";
 import { SystemInteraction, type SceneTarget } from "./SystemInteraction";
@@ -61,8 +63,10 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     this.layers = [
       new NebulaLayer(textures.nebula),
       new OrbitsLayer(),
+      new RolledLayer(),
       new BeltsLayer(textures.rock),
       new ExitsLayer(),
+      new RadiiLayer(),
       new BodiesLayer(textures),
       this.labels,
       new HighlightLayer(),

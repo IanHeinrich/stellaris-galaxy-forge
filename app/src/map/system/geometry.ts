@@ -1,3 +1,4 @@
+import type { Ring } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
 import { markerScale } from "../layers/MapLayer";
 import type { Exit } from "./context";
@@ -16,6 +17,26 @@ export const EXIT_WIDTH_PX = 12;
 export const EXIT_LABEL_GAP_PX = 4;
 /** How far past the inner radius an arrow and its label reach, which the fit keeps in view. */
 export const EXIT_REACH_PX = 40;
+
+/** Screen pixels per dash step along a dashed ring, and the fewest and most dashes it takes. */
+const DASH_STEP_PX = 10;
+const MIN_DASHES = 24;
+const MAX_DASHES = 720;
+
+/** How many dashes a ring of `radius` is traced in at `scale`, about one per step on screen. */
+export function ringDashes(radius: number, scale: number): number {
+  const steps = Math.round((2 * Math.PI * radius * scale) / DASH_STEP_PX);
+  return Math.min(MAX_DASHES, Math.max(MIN_DASHES, steps));
+}
+
+/** Whether two rings are drawn as one: centres and radii all within `within` world units. */
+export function sameRing(a: Ring, b: Ring, within: number): boolean {
+  return (
+    Math.abs(a.cx - b.cx) < within &&
+    Math.abs(a.cy - b.cy) < within &&
+    Math.abs(a.radius - b.radius) < within
+  );
+}
 
 /** A body's drawn disc radius in world units at `scale`: its own, or the screen-pixel floor. */
 export function drawnDisc(disc: number, scale: number): number {

@@ -3,6 +3,7 @@ import type { Arc, BodyPlacement, Ring } from "../../../lib/details/orbits";
 import type { Camera } from "../../Camera";
 import { dashedCircle } from "../../layers/dashes";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
+import { ringDashes, sameRing } from "../geometry";
 import type { SystemLayer } from "./SystemLayer";
 
 const ORBIT_COLOR = 0x7f8fa6;
@@ -16,15 +17,6 @@ const BAND_ALPHA = 0.05;
 const ARC_ALPHA = ORBIT_ALPHA;
 const ARC_WIDTH_PX = 2;
 const WHOLE_TURN: Arc = { from: 0, to: 360 };
-/** Screen pixels per dash step along the border, and the fewest and most dashes it takes. */
-const DASH_STEP_PX = 10;
-const MIN_DASHES = 24;
-const MAX_DASHES = 720;
-
-function dashes(radius: number, scale: number): number {
-  const steps = Math.round((2 * Math.PI * radius * scale) / DASH_STEP_PX);
-  return Math.min(MAX_DASHES, Math.max(MIN_DASHES, steps));
-}
 
 /** The angles a body may stand at on its ring: its arc, or the whole ring for a ghost. */
 function arcOf(body: BodyPlacement): Arc | null {
@@ -84,14 +76,6 @@ function traceArc(g: Graphics, ring: Ring, arc: Arc): void {
     ring.radius,
     from,
     radians(arc.to),
-  );
-}
-
-function sameRing(a: Ring, b: Ring, within: number): boolean {
-  return (
-    Math.abs(a.cx - b.cx) < within &&
-    Math.abs(a.cy - b.cy) < within &&
-    Math.abs(a.radius - b.radius) < within
   );
 }
 
@@ -155,7 +139,7 @@ export class OrbitsLayer implements SystemLayer {
     }
     this.inner.clear();
     const r = layout.innerRadius;
-    dashedCircle(this.inner, 0, 0, r, dashes(r, cam.scale), 0.4);
+    dashedCircle(this.inner, 0, 0, r, ringDashes(r, cam.scale), 0.4);
     this.inner.stroke({ color: ORBIT_COLOR, alpha: INNER_ALPHA, pixelLine: true });
   }
 

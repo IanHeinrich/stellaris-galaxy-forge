@@ -2,7 +2,7 @@ import type { SpecialKind } from "../../generated/SpecialKind";
 import { documentCapabilities } from "../../lib/capabilities";
 import { shortcutLabel } from "../../lib/keys";
 import { kindLabel } from "../../lib/special";
-import { isSceneLayer, type LayerId } from "../../lib/visual/layerIds";
+import { isSceneLayer, isSceneOnly, type LayerId } from "../../lib/visual/layerIds";
 import {
   groupState,
   splitsBySource,
@@ -21,6 +21,9 @@ export type Pressed = "true" | "false" | "mixed";
 /** Why a galaxy layer cannot be switched while a system is shown. */
 export const GALAXY_ONLY = "Layers apply to the galaxy view";
 
+/** Why a layer only the system scene draws cannot be switched from the galaxy. */
+export const SYSTEM_ONLY = "Applies to the system view";
+
 /** Whether the map shows a system rather than the galaxy. */
 export function useInSystem(): boolean {
   return useSceneStore((s) => s.scene.kind === "system");
@@ -28,24 +31,27 @@ export function useInSystem(): boolean {
 
 /**
  * A layer's switch as the map shown answers it: while a system is up, the scene's own switch
- * for a layer it draws, and `galaxyOnly` set for one it does not.
+ * for a layer it draws. `elsewhere` says why it cannot be switched in this view: a galaxy layer
+ * while a system is up, or one only the system scene draws while the galaxy is.
  */
 export function useLayerSwitch(id: LayerId): {
   on: boolean;
   toggle: () => void;
-  galaxyOnly: string | undefined;
+  elsewhere: string | undefined;
 } {
   const inSystem = useInSystem();
-  const scene = inSystem && isSceneLayer(id);
+  const sceneOnly = isSceneOnly(id);
+  const scene = (inSystem || sceneOnly) && isSceneLayer(id);
   const on = useMapChromeStore((s) =>
     isSceneLayer(id) && scene ? s.sceneLayers[id] : s.layers[id],
   );
   const toggleLayer = useMapChromeStore((s) => s.toggleLayer);
   const toggleSceneLayer = useMapChromeStore((s) => s.toggleSceneLayer);
+  const galaxyOnly = inSystem && !scene ? GALAXY_ONLY : undefined;
   return {
     on,
     toggle: () => (isSceneLayer(id) && scene ? toggleSceneLayer(id) : toggleLayer(id)),
-    galaxyOnly: inSystem && !scene ? GALAXY_ONLY : undefined,
+    elsewhere: !inSystem && sceneOnly ? SYSTEM_ONLY : galaxyOnly,
   };
 }
 
