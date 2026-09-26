@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initializerView, initPlanetView } from "../../test/builders";
+import { initializerView, initPlanetView, planetClassView } from "../../test/builders";
 import type { DepositView } from "../../generated/DepositView";
 import type { InitializerView } from "../../generated/InitializerView";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
@@ -9,30 +9,14 @@ import { initializerRows, starClassLabel } from "./initializerRows";
 const CLASSES = new Map<string, PlanetClassView>([
   [
     "pc_continental",
-    {
-      key: "pc_continental",
-      icon_sprite: "GFX_planet_type_continental",
-      habitable: true,
-      star: false,
-      terraform_candidate: null,
-      icon_large_sprite: null,
-      atmosphere_color: null,
-      atmosphere_intensity: null,
-      atmosphere_width: null,
-    },
+    { ...planetClassView("pc_continental", false), icon_sprite: "GFX_planet_type_continental" },
   ],
   [
     "pc_barren",
     {
-      key: "pc_barren",
-      icon_sprite: "GFX_planet_type_barren",
+      ...planetClassView("pc_barren", false, "terraforming_candidate"),
       habitable: false,
-      star: false,
-      terraform_candidate: "terraforming_candidate",
-      icon_large_sprite: null,
-      atmosphere_color: null,
-      atmosphere_intensity: null,
-      atmosphere_width: null,
+      icon_sprite: "GFX_planet_type_barren",
     },
   ],
 ]);

@@ -9,6 +9,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 vi.mock("./GameDataPanel", () => ({ GameDataPanel: () => "[game data]" }));
 
 import { DETAILS_DEBOUNCE_MS } from "../../store/batching";
+import { bindStores } from "../../store/bindStores";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -241,6 +242,7 @@ describe("the system view", () => {
     vi.useFakeTimers();
     resetStores();
     armSession();
+    bindStores();
     await openWith(OPEN_RESULT);
     useSceneStore.getState().enterSystem(0);
   });
@@ -303,7 +305,7 @@ describe("the system view", () => {
     useMapChromeStore.setState({ gesture: "lane" });
     expect(bar()).toContain("click to inspect");
 
-    useSceneStore.getState().leaveSystem();
+    useSceneStore.getState().exitScene();
     expect(bar()).toContain("Sol selected");
   });
 });

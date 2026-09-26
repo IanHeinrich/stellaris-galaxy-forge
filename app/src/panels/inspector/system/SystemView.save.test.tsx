@@ -402,7 +402,7 @@ describe("the Planets header's system view button", () => {
     useSceneStore.getState().enterSystem(SYSTEM);
     expect(overview()).not.toContain("Open system view");
 
-    useSceneStore.getState().leaveSystem();
+    useSceneStore.getState().exitScene();
     await open("scenario");
     await land(details({ planets: [planet(100, "Tarkin")] }));
     expect(overview()).toContain('<button type="button" class="link">Open system view</button>');

@@ -10,6 +10,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { gameDataSummary, OPEN_RESULT } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { resetStores } from "./storeFixture";
+import { planetClassView } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 
 /** Lets every pending answer land before a test asks what was written. */
@@ -129,19 +130,7 @@ function armGameDataCommands(): void {
     { name: "red", map: "#ff0000", flag: "#ff0000", ship: "#ff0000" },
   ]);
   mockedIpc.getMapColorSource.mockResolvedValue(null);
-  mockedIpc.getPlanetClasses.mockResolvedValue([
-    {
-      key: "pc_continental",
-      icon_sprite: null,
-      habitable: true,
-      star: false,
-      terraform_candidate: null,
-      icon_large_sprite: null,
-      atmosphere_color: null,
-      atmosphere_intensity: null,
-      atmosphere_width: null,
-    },
-  ]);
+  mockedIpc.getPlanetClasses.mockResolvedValue([planetClassView("pc_continental", false)]);
   mockedIpc.getDeposits.mockResolvedValue([
     {
       key: "d_minerals_5",

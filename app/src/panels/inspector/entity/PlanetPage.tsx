@@ -23,7 +23,8 @@ import { useDetailsStore } from "../../../store/detailsStore";
 import { useCanEdit } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
+import { openSystem } from "../../../store/commands";
+import type { Entry } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { EditBlock, EditKey, ToggleField } from "../../EditField";
 import { useApplyOp } from "../../useApplyOp";
@@ -219,7 +220,6 @@ function Orbits({ parent, orbit }: { parent: number; orbit: number | null }) {
 }
 
 function About({ page }: { page: PlanetPage }) {
-  const openSystem = useInspectorStore((s) => s.openSystem);
   const systemName = useGalaxyStore((s) => s.systemName);
   const system = page.system;
   const occupied = page.controller !== null && page.controller !== page.owner;
