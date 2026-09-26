@@ -2,16 +2,14 @@ import { Container, Graphics } from "pixi.js";
 import { ACCENT_COLOR } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
-import { drawnDisc, exitTriangle } from "../geometry";
+import { drawnDisc, exitTriangle, SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
 
 const HOVER_COLOR = 0xffffff;
 const HOVER_ALPHA = 0.75;
 /** Past the drawn disc, and the stroke width, in screen pixels. */
 const HOVER_GAP_PX = 4;
-const SELECTED_GAP_PX = 7;
 const RING_WIDTH_PX = 1.5;
-const SELECTED_WIDTH_PX = 2;
 /** How much bigger the highlighted lane's arrow is drawn, in screen pixels. */
 const LANE_GROW_PX = 3;
 

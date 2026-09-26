@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { planetSummary } from "../../test/builders";
 import { details } from "./fixture";
 import {
   formatAmount,
+  planetResourceRows,
   resourceChips,
   resourceLabel,
   resourceRows,
@@ -54,6 +56,33 @@ describe("resourceRows", () => {
       ],
     });
     expect(resourceChips(d)).toBe("E 13 · M 13 · Eng 5");
+  });
+});
+
+describe("planetResourceRows", () => {
+  it("sums one body's deposits per game resource, in the order a system's row shows them", () => {
+    const planet = planetSummary({
+      deposits: [
+        { resource: "physics", amount: 2 },
+        { resource: "minerals", amount: 3 },
+        { resource: "physics_research", amount: 4 },
+        { resource: "energy", amount: 1.5 },
+      ],
+    });
+    const rows = planetResourceRows(planet, new Map([["energy", "GFX_energy"]]));
+    expect(rows).toEqual([
+      { resource: "energy", amount: 1.5, sprite: "sprite:GFX_energy" },
+      { resource: "minerals", amount: 3, sprite: "sprite:GFX_resource_minerals" },
+      {
+        resource: "physics_research",
+        amount: 6,
+        sprite: "sprite:GFX_resource_physics_research",
+      },
+    ]);
+  });
+
+  it("has no rows for a body without deposits", () => {
+    expect(planetResourceRows(planetSummary())).toEqual([]);
   });
 });
 

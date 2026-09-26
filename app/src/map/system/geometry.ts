@@ -4,6 +4,9 @@ import type { Exit } from "./context";
 
 /** The smallest a body's disc radius is drawn, in screen pixels, before the marker factor. */
 const BODY_FLOOR_PX = 3;
+/** The selected body's ring: how far past the drawn disc it stands, and its width, in screen pixels. */
+export const SELECTED_GAP_PX = 7;
+export const SELECTED_WIDTH_PX = 2;
 /** Between the inner-radius circle and the base of a hyperlane arrow, in screen pixels. */
 export const EXIT_GAP_PX = 6;
 /** A hyperlane arrow's length from base to tip, and its base's width, in screen pixels. */

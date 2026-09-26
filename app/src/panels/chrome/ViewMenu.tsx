@@ -48,7 +48,7 @@ export function ViewMenuItems({ dismiss }: { dismiss: () => void }) {
         enterable && (
           <MenuItem
             label="Open system view"
-            shortcut={shortcutLabel("enterSystem")}
+            shortcut={shortcutLabel("toggleSystemView")}
             disabled={selection.length !== 1}
             dismiss={dismiss}
             onClick={() => enterSystem(selection[0])}

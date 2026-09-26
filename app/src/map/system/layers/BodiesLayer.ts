@@ -17,9 +17,11 @@ import { drawnDisc } from "../geometry";
 import type { SystemLayer } from "./SystemLayer";
 import type { SceneTextures } from "./textures";
 
-/** The glow under a star, and a star's art, in disc diameters. */
-const GLOW_SCALE = 3.2;
-const STAR_ART_SCALE = 2.2;
+/** The glow under a star, its white-hot core and its art, in disc diameters. */
+const GLOW_SCALE = 1.9;
+const CORE_SCALE = 1;
+const STAR_ART_SCALE = 1.4;
+const CORE_ALPHA = 0.8;
 /** A planet's class icon, in disc diameters. */
 const PLANET_ART_SCALE = 1;
 /** The on-screen disc diameter, in pixels, past which a planet shows its class's large icon. */
@@ -29,14 +31,16 @@ const GLOW_ALPHA = 0.9;
 const GHOST_ALPHA = 0.4;
 const GHOST_DASHES = 16;
 /**
- * The atmosphere rim: its width in disc radii per unit of the class's `atmosphere_width`, never
- * under a pixel and a half, its innermost alpha per unit of `atmosphere_intensity`, and the
- * strokes it fades out over.
+ * The atmosphere haze: its reach past the limb in disc radii per unit of the class's
+ * `atmosphere_width`, never under two pixels, its alpha at the limb per unit of
+ * `atmosphere_intensity`, the strokes it fades out over, and how far it starts inside the limb
+ * as a share of that reach, so the limb has no edge.
  */
-const RIM_WIDTH = 0.24;
-const RIM_MIN_PX = 1.5;
-const RIM_ALPHA = 0.6;
-const RIM_STEPS = 4;
+const RIM_WIDTH = 0.3;
+const RIM_MIN_PX = 2;
+const RIM_ALPHA = 0.45;
+const RIM_STEPS = 12;
+const RIM_INSET = 0.25;
 /** A ring's outer semi-axes in disc radii, and its tilt on screen. */
 const RING_MAJOR = 2.4;
 const RING_MINOR = RING_MAJOR / 3;
@@ -98,15 +102,25 @@ function randomClass(planetClass: string): boolean {
   return planetClass === "" || planetClass === "random" || planetClass.startsWith("random_");
 }
 
-/** Gas giants and asteroids have no hard surface to catch a highlight. */
-function takesGloss(planetClass: string): boolean {
-  return !/gas_giant|asteroid/.test(planetClass);
+/** An astral scar is light on a black ground, drawn as the stars' art is; it has no surface. */
+function luminous(planetClass: string): boolean {
+  return /astral_scar/.test(planetClass);
 }
 
-/** The texture key of the class's surface baked as a lit disc; none for a star, an asteroid or a random class. */
+/** Its icon is its own outline, an asteroid's rock or an astral scar's glow, so no round shading goes over it. */
+function irregular(planetClass: string): boolean {
+  return /asteroid/.test(planetClass) || luminous(planetClass);
+}
+
+/** Gas giants have no hard surface to catch a highlight. */
+function takesGloss(planetClass: string): boolean {
+  return !/gas_giant/.test(planetClass);
+}
+
+/** The texture key of the class's surface baked as a lit disc; none for a star, a random class or an irregular one. */
 function litKey(body: SceneBody): string | null {
   const { planetClass } = body;
-  if (body.placement.star || randomClass(planetClass) || /asteroid/.test(planetClass)) return null;
+  if (body.placement.star || randomClass(planetClass) || irregular(planetClass)) return null;
   return `planet_disc:${planetClass}`;
 }
 
@@ -135,6 +149,7 @@ interface Ring {
 interface Drawn {
   body: SceneBody;
   glow: Sprite | null;
+  core: Sprite | null;
   ring: Ring | null;
   disc: Sprite;
   lit: Sprite | null;
@@ -175,7 +190,7 @@ function traceRingDashes(g: Graphics, radius: number): void {
 }
 
 /**
- * A tinted disc per body with its class icon on top, a glow under each star and the sphere
+ * A tinted disc per body with its class icon on top, a core and a glow on each star and the sphere
  * shading over each other body, turned so its lit side faces the star it orbits. A class whose
  * surface the install bakes into a lit disc shows that in place of the tint and the icon. A class
  * with an atmosphere shows a haze outside the limb, and a ringed body its ring, the far half
@@ -247,12 +262,18 @@ export class BodiesLayer implements SystemLayer {
       lit.visible = false;
       lit.rotation = placement.light ?? 0;
     }
+    let core: Sprite | null = null;
+    if (placement.star) {
+      core = sprite("core", this.textures.glow);
+      core.blendMode = "add";
+      core.alpha = CORE_ALPHA;
+    }
     const art = sprite("art", Texture.EMPTY);
     art.visible = false;
     // As on the galaxy map: the art's black ground adds nothing, so only its light shows.
-    if (placement.star) art.blendMode = STAR_ART_BLEND;
+    if (placement.star || luminous(body.planetClass)) art.blendMode = STAR_ART_BLEND;
     let shade: Sprite | null = null;
-    if (!placement.star) {
+    if (!placement.star && !irregular(body.planetClass)) {
       shade = sprite(
         "shade",
         takesGloss(body.planetClass) ? this.textures.gloss : this.textures.shade,
@@ -261,6 +282,7 @@ export class BodiesLayer implements SystemLayer {
       shade.rotation = placement.light ?? 0;
     }
     const rim = !placement.star && body.atmosphere ? graphics("rim") : null;
+    if (rim) rim.blendMode = "add";
     let ring: Ring | null = null;
     if (back) {
       const front = ringHalf("ringFront", this.textures.ringFront);
@@ -273,12 +295,25 @@ export class BodiesLayer implements SystemLayer {
     }
     let outline: Graphics | null = null;
     if (placement.ghost) {
-      const faded = [glow, ring?.back, ring?.front, disc, lit, art, shade, rim, glyph];
+      const faded = [glow, ring?.back, ring?.front, disc, lit, core, art, shade, rim, glyph];
       for (const part of faded) if (part) part.alpha *= GHOST_ALPHA;
       outline = graphics("outline");
     }
     this.container.addChild(holder);
-    const drawn = { body, glow, ring, disc, lit, art, shade, rim, glyph, outline, large: false };
+    const drawn = {
+      body,
+      glow,
+      core,
+      ring,
+      disc,
+      lit,
+      art,
+      shade,
+      rim,
+      glyph,
+      outline,
+      large: false,
+    };
     drawn.large = this.isLarge(drawn);
     this.dress(drawn);
     return drawn;
@@ -290,12 +325,13 @@ export class BodiesLayer implements SystemLayer {
   }
 
   /**
-   * Shows the lit disc and the icon once their textures have landed, and the tinted disc and
-   * glow alone until then; asks for them again after the cache was cleared, as when game data
-   * reloads. The lit disc stands in for the icon, which only marked the surface.
+   * Shows the lit disc and the icon once their textures have landed, and the tinted disc alone
+   * until then; asks for them again after the cache was cleared, as when game data reloads. The
+   * lit disc stands in for the icon, which only marked the surface. A star keeps its disc, core
+   * and glow under its art.
    */
   private dress(drawn: Drawn): void {
-    const { body, art, glow, disc, lit } = drawn;
+    const { body, art, disc, lit } = drawn;
     const key = litKey(body);
     const surface = key === null ? null : this.resolve([key]);
     if (lit) {
@@ -310,8 +346,10 @@ export class BodiesLayer implements SystemLayer {
     const texture = iconless ? null : (this.resolve(wanted) ?? landed(other));
     art.texture = texture ?? Texture.EMPTY;
     art.visible = texture !== null;
-    if (glow) glow.visible = texture === null;
-    disc.visible = body.placement.star ? texture === null : surface === null;
+    if (body.placement.star) return;
+    // The tinted disc only holds the place until the surface or the icon lands; an icon's own
+    // outline and margin would show it as a band.
+    disc.visible = texture === null && surface === null;
   }
 
   /** The first of `keys` that has landed, or null while none has. */
@@ -346,9 +384,10 @@ export class BodiesLayer implements SystemLayer {
         drawn.large = large;
         this.dress(drawn);
       }
-      const { body, glow, ring, disc, lit, art, shade, rim, glyph, outline } = drawn;
+      const { body, glow, core, ring, disc, lit, art, shade, rim, glyph, outline } = drawn;
       const d = 2 * drawnDisc(body.placement.disc, this.scale);
       if (glow) sized(glow, d * GLOW_SCALE);
+      if (core) sized(core, d * CORE_SCALE);
       sized(disc, d);
       if (lit) {
         sized(lit, d);
@@ -368,17 +407,22 @@ export class BodiesLayer implements SystemLayer {
     }
   }
 
-  /** Concentric strokes out from the limb, each fainter than the one inside it. */
+  /**
+   * Concentric strokes added over the limb, brightest on it and fading both ways, so the haze
+   * glows out of the disc's edge instead of outlining it.
+   */
   private drawRim(rim: Graphics, atmosphere: Atmosphere, radius: number): void {
     rim.clear();
     const width = Math.max(RIM_WIDTH * atmosphere.width * radius, RIM_MIN_PX / this.scale);
     const step = width / RIM_STEPS;
-    const alpha = Math.min(1, RIM_ALPHA * atmosphere.intensity);
-    for (let i = 0; i < RIM_STEPS; i++) {
-      const fade = ((RIM_STEPS - i) / RIM_STEPS) ** 2;
+    const inset = Math.round(RIM_STEPS * RIM_INSET);
+    const peak = Math.min(1, RIM_ALPHA * atmosphere.intensity);
+    for (let i = -inset; i < RIM_STEPS; i++) {
+      const out = i < 0 ? -i / (inset + 1) : (i + 0.5) / RIM_STEPS;
+      const fade = (1 - out) ** 2;
       rim
         .circle(0, 0, radius + (i + 0.5) * step)
-        .stroke({ color: atmosphere.color, width: step, alpha: alpha * fade });
+        .stroke({ color: atmosphere.color, width: step, alpha: peak * fade });
     }
   }
 

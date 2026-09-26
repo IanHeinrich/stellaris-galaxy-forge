@@ -5,10 +5,13 @@ import { MESH_BETA } from "../lib/geometry/mesh";
 import { KIND_ORDER, kindOrder } from "../lib/special";
 import {
   DEFAULT_LAYERS,
+  DEFAULT_SCENE_LAYERS,
   LAYER_IDS,
   LAYER_KEYS,
+  SCENE_LAYER_IDS,
   defaultLayers,
   type LayerId,
+  type SceneLayerId,
 } from "../lib/visual/layerIds";
 import {
   allKindsVisible,
@@ -95,6 +98,8 @@ export interface MapTooltip {
 
 export interface MapChromeState {
   layers: Record<LayerId, boolean>;
+  /** What the system scene draws of the layers it shares with the galaxy, switched apart from it. */
+  sceneLayers: Record<SceneLayerId, boolean>;
   /** The point-of-interest kinds the map draws; each kind is its own layer. */
   shownKinds: Set<SpecialKind>;
   /** Initializer keys the legend has filtered out; their systems are dimmed and unlabelled. */
@@ -113,6 +118,7 @@ export interface MapChromeState {
   /** What the system scene says in the status bar while it shows, such as a clicked lane's length. */
   sceneHint: string | null;
   toggleLayer(id: LayerId): void;
+  toggleSceneLayer(id: SceneLayerId): void;
   /** Shows or hides one point-of-interest kind. */
   toggleKind(kind: SpecialKind): void;
   /** Shows every point-of-interest kind, or hides them all when they are all shown. */
@@ -199,6 +205,16 @@ function storedLayers(base: Record<LayerId, boolean>): Record<LayerId, boolean> 
   return layers;
 }
 
+/** The system scene's stored switches over its defaults. */
+function storedSceneLayers(): Record<SceneLayerId, boolean> {
+  const key = PREF_KEYS.sceneLayers;
+  const stored = readPref<Record<string, boolean> | null>(key, null, isBooleanRecord);
+  const layers = { ...DEFAULT_SCENE_LAYERS };
+  if (stored === null) return layers;
+  for (const id of SCENE_LAYER_IDS) if (stored[id] !== undefined) layers[id] = stored[id];
+  return layers;
+}
+
 /** Every kind there is, in the order the open document counts them in. */
 function allKinds(): SpecialKind[] {
   return kindOrder(useGameDataStore.getState().counts);
@@ -223,6 +239,7 @@ function switchableGroup(source: Source) {
 export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   ...NO_OVERLAYS,
   layers: storedLayers(DEFAULT_LAYERS),
+  sceneLayers: storedSceneLayers(),
   shownKinds: new Set<SpecialKind>(storedShownKinds()),
   meshBeta: MESH_BETA_PREF.read(),
 
@@ -230,6 +247,12 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
     const changed = coupled({ [id]: !get().layers[id] });
     set({ layers: { ...get().layers, ...changed } });
     rememberLayers(changed);
+  },
+
+  toggleSceneLayer(id) {
+    const sceneLayers = { ...get().sceneLayers, [id]: !get().sceneLayers[id] };
+    set({ sceneLayers });
+    writePref(PREF_KEYS.sceneLayers, sceneLayers);
   },
 
   toggleKind(kind) {
@@ -294,11 +317,13 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
     const shownKinds = new Set<SpecialKind>(DEFAULT_SHOWN_KINDS);
     set({
       layers,
+      sceneLayers: { ...DEFAULT_SCENE_LAYERS },
       shownKinds,
       hiddenInitializers: new Set<string>(),
     });
     rememberKinds(shownKinds);
     writePref(PREF_KEYS.layers, {});
+    writePref(PREF_KEYS.sceneLayers, {});
   },
 
   toggleGroup(source) {

@@ -1,5 +1,6 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
 import { isToolAction, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
+import { isSceneLayer, LAYER_KEYS } from "../lib/visual/layerIds";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -42,6 +43,18 @@ export function enterSelectedSystem(): boolean {
   return sceneSystem() === selection[0];
 }
 
+/** M: shows the one selected system, or leaves the system shown. True when it did either. */
+export function toggleSystemView(): boolean {
+  if (sceneSystem() !== null) {
+    useSceneStore.getState().leaveSystem();
+    return true;
+  }
+  const { selection } = useEditorStore.getState();
+  if (selection.length !== 1 || !canEnterSystem()) return false;
+  useSceneStore.getState().enterSystem(selection[0]);
+  return sceneSystem() === selection[0];
+}
+
 /** `[` / `]` shrink or grow the active brush. True when a brush took the press. */
 export function resizeBrush(step: number): boolean {
   const tools = useToolStore.getState();
@@ -72,9 +85,15 @@ export function nudgeSelected({ dx, dy }: Nudge): void {
   if (nebula) void editor.moveNebula(index, nebula.x + dx, nebula.y + dy);
 }
 
+/** A number key: the galaxy's layer, or while a system is up, the scene's own switch for it. */
 export function toggleLayerKey(index: number): void {
-  if (sceneSystem() !== null) return;
-  useMapChromeStore.getState().toggleLayerKey(index);
+  const chrome = useMapChromeStore.getState();
+  if (sceneSystem() === null) {
+    chrome.toggleLayerKey(index);
+    return;
+  }
+  const layer = LAYER_KEYS[index];
+  if (layer && isSceneLayer(layer)) chrome.toggleSceneLayer(layer);
 }
 
 /** Removes whatever Delete names for the selection, asking first where the store does. */
@@ -204,6 +223,8 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       return true;
     case "enterSystem":
       return enterSelectedSystem();
+    case "toggleSystemView":
+      return toggleSystemView();
     case "undo":
       undo();
       return true;

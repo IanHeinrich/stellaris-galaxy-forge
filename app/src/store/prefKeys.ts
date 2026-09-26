@@ -9,6 +9,7 @@
 export const PREF_KEYS = {
   shownKinds: "sgf.layers.shownKinds",
   layers: "sgf.layers.visible",
+  sceneLayers: "sgf.scene.layers",
   installPath: "sgf.installPath",
   autoLoad: "sgf.gameData.autoLoad",
   inspectorSections: "sgf.inspector.sections",

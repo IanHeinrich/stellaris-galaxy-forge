@@ -63,7 +63,7 @@ describe("the View menu", () => {
     resetStores();
     armSession();
     await openWith(OPEN_RESULT);
-    expect(html("Open system view")).toContain("<kbd>Enter</kbd>");
+    expect(html("Open system view")).toContain("<kbd>M</kbd>");
     expect(html("Open system view")).toContain("disabled=");
 
     await useEditorStore.getState().select(0);

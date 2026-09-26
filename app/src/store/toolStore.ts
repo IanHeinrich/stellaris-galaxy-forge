@@ -8,7 +8,7 @@ import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
 import { sceneSystem } from "./sceneStore";
 
-/** What M turns on before any symmetry has been picked. */
+/** What Shift+M turns on before any symmetry has been picked. */
 export const DEFAULT_SYMMETRY: ActiveSymmetry = { kind: "rotate", n: 4 };
 
 /** Brush diameter, in world units. */
@@ -75,7 +75,7 @@ export interface ToolState {
   eraseSpecials: boolean;
   /** The global symmetry: each edit and brush stroke repeated about the galaxy's centre. */
   symmetry: Symmetry;
-  /** The symmetry M turns back on: the last one picked. */
+  /** The symmetry Shift+M turns back on: the last one picked. */
   lastSymmetry: ActiveSymmetry;
   /** Whether the rail's symmetry flyout is open. */
   symmetryMenu: boolean;
@@ -89,7 +89,7 @@ export interface ToolState {
   setEraseTarget(target: EraseTarget): void;
   setEraseSpecials(on: boolean): void;
   setSymmetry(symmetry: Symmetry): void;
-  /** M: turns symmetry off, or back on as it last was. */
+  /** Shift+M: turns symmetry off, or back on as it last was. */
   toggleSymmetry(): void;
   setSymmetryMenu(open: boolean): void;
 }

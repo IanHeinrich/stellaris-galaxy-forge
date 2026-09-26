@@ -10,10 +10,10 @@ const ROCK_SPACING = 1.2;
 export const MAX_ROCKS = 400;
 /** How far the zoom moves before the rocks are sized again, as a share of the scale. */
 const RESIZE_STEP = 0.02;
-/** A rock's world size is drawn between these, before the screen-pixel floor. */
-const ROCK_MIN = 0.8;
-const ROCK_MAX = 2.2;
-const ROCK_FLOOR_PX = 1.5;
+/** A rock's world size is drawn between these, most near the small end, before the screen-pixel floor. */
+const ROCK_MIN = 0.4;
+const ROCK_MAX = 1.8;
+const ROCK_FLOOR_PX = 1;
 
 const ICY_TINT = 0xbfd9ee;
 const ROCKY_TINT = 0x9a8773;
@@ -86,7 +86,7 @@ export class BeltsLayer implements SystemLayer {
       sprite.tint = tint;
       sprite.alpha = 0.55 + rand() * 0.45;
       this.rocks.addChild(sprite);
-      rocks.push({ sprite, size: ROCK_MIN + rand() * (ROCK_MAX - ROCK_MIN) });
+      rocks.push({ sprite, size: ROCK_MIN + rand() ** 2 * (ROCK_MAX - ROCK_MIN) });
     }
     return rocks;
   }

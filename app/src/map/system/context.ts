@@ -13,11 +13,14 @@ import {
 } from "../../lib/details/orbits";
 import { isStarBody, singleStarClasses } from "../../lib/details/starBody";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
+import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import { clusterOffsets } from "../../lib/visual/starCluster";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import type { EntityRef } from "../../store/inspectorStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
+import { currentOwnership } from "../../store/ownership";
 import type { Systems } from "../RenderContext";
 
 /** One body the scene draws, placed, named and classed. */
@@ -38,6 +41,8 @@ export interface SceneBody {
   /** Whether the body has a ring; null when a scenario leaves it to the class's chance. */
   readonly ring: boolean | null;
   readonly moon: boolean;
+  /** The owner's map colour on a colonised body, which its plate shows; null for any other. */
+  readonly colony: number | null;
 }
 
 /** A planet class's atmosphere, as its definition gives it. */
@@ -75,6 +80,14 @@ export interface SystemSources {
   readonly starClasses: ReadonlyMap<string, StarClassView>;
   readonly gameDataReady: boolean;
   readonly resourceIcons: ReadonlyMap<string, string>;
+  /** The scene's Details switch is on: each body's resources show under its name. */
+  readonly detailsShown: boolean;
+  /** The scene's Names switch is on: each body's name shows on a plate. */
+  readonly labelsShown: boolean;
+  /** The scene's Nebulae switch is on: a system in a nebula shows clouds behind it. */
+  readonly nebulaShown: boolean;
+  /** Who owns what, for the colour a colonised body's plate shows. */
+  readonly ownership: Ownership;
   readonly nodeName: (name: NameTemplate) => string;
   readonly templateName: (named: { name: NameTemplate; name_key: string }) => string;
 }
@@ -103,6 +116,10 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   starClasses: new Map<string, StarClassView>(),
   gameDataReady: false,
   resourceIcons: new Map<string, string>(),
+  detailsShown: false,
+  labelsShown: true,
+  nebulaShown: false,
+  ownership: NO_OWNERSHIP,
   nodeName: (name: NameTemplate) => (name.literal ? name.key : stripped(name.key)),
   templateName: (named: { name_key: string }) => stripped(named.name_key),
 });
@@ -123,6 +140,10 @@ const DATA_FIELDS: Record<DataField, true> = {
   starClasses: true,
   gameDataReady: true,
   resourceIcons: true,
+  detailsShown: true,
+  labelsShown: true,
+  nebulaShown: true,
+  ownership: true,
 };
 
 const SOURCES = Object.keys(DATA_FIELDS) as DataField[];
@@ -187,7 +208,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
   const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
   const listed = (node?.bodies ?? []).filter((b) => isStar(b.class));
   const stars = listed.length > 0 ? listed : [{ class: "", size: null }];
-  const discs = stars.map((s) => discRadius(s.size, false));
+  const discs = stars.map((s) => discRadius(s.size, false, s.class, true));
   const spread = CLUSTER_SPREAD * Math.max(...discs);
   const places = clusterOffsets(stars.length);
   return stars.map((star, i) => {
@@ -212,10 +233,16 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       planet: null,
       name: "",
       moon: false,
+      colony: null,
       ring: false,
       ...starArt(star.class, node, src.starClasses),
     };
   });
+}
+
+function colonyColor(planet: PlanetSummary, ownership: Ownership): number | null {
+  if (!planet.colonised || planet.owner === null) return null;
+  return ownership.table.get(planet.owner)?.colors.outline ?? null;
 }
 
 function sceneBodies(
@@ -240,6 +267,7 @@ function sceneBodies(
         planet,
         name: src.templateName(planet),
         moon: parent !== undefined && !parent.star,
+        colony: colonyColor(planet, src.ownership),
         ring: placement.star ? false : planet.ring,
         ...art,
       },
@@ -298,6 +326,7 @@ export function readSystemSources(id: number | null): SystemSources {
   const galaxy = useGalaxyStore.getState();
   const data = useGameDataStore.getState();
   const details = useDetailsStore.getState();
+  const chrome = useMapChromeStore.getState();
   const names = data.names;
   const ready = data.status === "ready";
   const resolve = (t: NameTemplate): string | undefined => {
@@ -316,6 +345,10 @@ export function readSystemSources(id: number | null): SystemSources {
     starClasses: data.starClasses,
     gameDataReady: ready,
     resourceIcons: details.resourceIcons,
+    detailsShown: chrome.sceneLayers.details,
+    labelsShown: chrome.sceneLayers.labels,
+    nebulaShown: chrome.sceneLayers.nebulae,
+    ownership: currentOwnership(),
     nodeName: (name: NameTemplate) => nodeNameIn(names, name),
     templateName: (named: { name: NameTemplate; name_key: string }) =>
       templateNameIn(names, ready, resolve, named),

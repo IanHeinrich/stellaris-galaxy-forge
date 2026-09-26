@@ -17,6 +17,8 @@ import { SystemGestureModel, type SystemInput, type SystemIntent } from "./Syste
 /** What the scene's pointer controller reads from the scene and asks of it. */
 export interface SceneTarget {
   context(): SystemContext;
+  /** The body whose shown name plate covers the screen point, or null. */
+  plateAt(sx: number, sy: number): number | null;
   hover(body: number | null, exit: number | null): void;
   selectLane(neighbour: number | null): void;
 }
@@ -129,7 +131,8 @@ export class SystemInteraction {
   private input(kind: InputKind, e: PointerEvent): SystemInput {
     const ctx = this.scene.context();
     const w = this.cam.screenToWorld(e.offsetX, e.offsetY, this.at);
-    const body = pickBody(ctx.bodies, this.cam, w);
+    // A disc wins over a plate drawn across it, so a body under another's plate stays pickable.
+    const body = pickBody(ctx.bodies, this.cam, w) ?? this.scene.plateAt(e.offsetX, e.offsetY);
     return {
       kind,
       sx: e.offsetX,

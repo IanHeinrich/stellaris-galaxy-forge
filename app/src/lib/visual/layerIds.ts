@@ -111,6 +111,21 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   highlights: "Highlights",
 };
 
+/** The galaxy's layers the system scene draws too, each switched there apart from the galaxy. */
+export type SceneLayerId = Extract<LayerId, "labels" | "details" | "nebulae">;
+export const SCENE_LAYER_IDS: readonly SceneLayerId[] = ["labels", "details", "nebulae"];
+
+export function isSceneLayer(id: LayerId): id is SceneLayerId {
+  return (SCENE_LAYER_IDS as readonly LayerId[]).includes(id);
+}
+
+/** What the system scene starts with: names, resources and nebula clouds all drawn. */
+export const DEFAULT_SCENE_LAYERS: Record<SceneLayerId, boolean> = {
+  labels: true,
+  details: true,
+  nebulae: true,
+};
+
 /** What is on when the app starts, and what a scenario opens with: the map as the game first
  * shows it, with the scripts' day-one overlays left off until asked for, and the two guides on
  * because a scenario is drawn to fit them. `special` is always on because the shown

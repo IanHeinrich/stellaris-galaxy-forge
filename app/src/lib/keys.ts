@@ -27,6 +27,7 @@ export type KeyAction =
   | "toggleInitializerLayers"
   | "toggleSymmetry"
   | "enterSystem"
+  | "toggleSystemView"
   | ToolAction;
 
 /** A world offset that moves the selection one step across the screen. */
@@ -98,7 +99,8 @@ const BINDINGS: readonly Binding[] = [
   { key: "i", shift: false, action: "issuesTab" },
   { key: "i", shift: true, action: "browseInitializers" },
   ...TOOLS.map((t): Binding => ({ key: t.key, shift: false, action: toolAction(t.id) })),
-  { key: "m", shift: false, action: "toggleSymmetry" },
+  { key: "m", shift: false, action: "toggleSystemView" },
+  { key: "m", shift: true, action: "toggleSymmetry" },
 ];
 
 /** The action that picks `tool`. */

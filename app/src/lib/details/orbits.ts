@@ -13,8 +13,8 @@ import { isStarBody } from "./starBody";
 
 /** The game's moon to planet scale (`MOON_SCALE` in `00_defines.txt`). */
 export const MOON_SCALE = 0.7;
-/** World units of disc radius per `planet_size`: a size-30 star is 9, Earth (16) 4.8 at 90 out. */
-export const DISC_PER_SIZE = 0.3;
+/** World units of disc radius per `planet_size`: Earth (16) is 5.8 at 90 out. */
+export const DISC_PER_SIZE = 0.36;
 /** The size a body is drawn at when its layout gives none. */
 export const FALLBACK_SIZE = 10;
 /** The smallest disc radius, so a size-0 body still has one to pick and zoom to. */
@@ -118,9 +118,26 @@ function screenRotation(dx: number, dy: number): number {
   return Math.atan2(SAVE_Y_SIGN * dy, SAVE_X_SIGN * dx);
 }
 
+/**
+ * How much larger an asteroid is drawn than its `planet_size` gives: the game's asteroid model
+ * stands out from the belt around it, where a size-5 disc would be lost.
+ */
+export const ASTEROID_SCALE = 2;
+/**
+ * How much larger a star is drawn than a planet of the same `planet_size`: the game's star mesh
+ * is 1.65 times the planet mesh, and its corona adds as much again.
+ */
+export const STAR_SCALE = 3.4;
+
 /** A body's disc radius in world units from its `planet_size`. */
-export function discRadius(size: number | null, moon: boolean): number {
-  const r = (size ?? FALLBACK_SIZE) * DISC_PER_SIZE * (moon ? MOON_SCALE : 1);
+export function discRadius(
+  size: number | null,
+  moon: boolean,
+  planetClass = "",
+  star = false,
+): number {
+  const kind = star ? STAR_SCALE : planetClass.includes("asteroid") ? ASTEROID_SCALE : 1;
+  const r = (size ?? FALLBACK_SIZE) * DISC_PER_SIZE * (moon ? MOON_SCALE : 1) * kind;
   return Math.max(r, MIN_DISC_RADIUS);
 }
 
@@ -193,7 +210,7 @@ export function systemLayout(
       id: planet.id,
       x: point.x,
       y: point.y,
-      disc: discRadius(layout?.size?.min ?? null, moon),
+      disc: discRadius(layout?.size?.min ?? null, moon, planet.class, star),
       star,
       parent: parent ? parent.placement.id : null,
       ring: !missing && radius > 0 ? { cx: centre.x, cy: centre.y, radius } : null,
@@ -256,7 +273,7 @@ export function fitScale(fitRadius: number, width: number, height: number): numb
   return Math.min(width, height) / (2 * Math.max(fitRadius, 1));
 }
 
-/** Out to a quarter of the fit scale; in until the largest disc's diameter fills the short side. */
+/** Out to half the fit scale; in until the largest disc's diameter fills the short side. */
 export function zoomLimits(
   fitRadius: number,
   width: number,
@@ -264,7 +281,7 @@ export function zoomLimits(
   largestDisc: number,
 ): { minScale: number; maxScale: number } {
   return {
-    minScale: fitScale(fitRadius, width, height) / 4,
+    minScale: fitScale(fitRadius, width, height) / 2,
     maxScale: Math.min(width, height) / (2 * Math.max(largestDisc, MIN_DISC_RADIUS)),
   };
 }

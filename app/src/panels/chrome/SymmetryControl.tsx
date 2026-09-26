@@ -64,7 +64,7 @@ function Row({ label, children }: { label?: string; children: ReactNode }) {
   );
 }
 
-/** The global symmetry: the button opens the flyout that picks it, and M turns it off and back on. */
+/** The global symmetry: the button opens the flyout that picks it, and Shift+M turns it off and back on. */
 export function SymmetryControl() {
   const symmetry = useToolStore((s) => s.symmetry);
   const last = useToolStore((s) => s.lastSymmetry);

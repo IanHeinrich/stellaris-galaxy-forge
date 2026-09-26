@@ -2,6 +2,7 @@ import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 
 /** What a store change moves in the system scene. */
 export interface SceneView {
@@ -51,12 +52,20 @@ const BINDINGS: Binding[] = [
     [(s) => s.details, (s) => s.version, (s) => s.pending, (s) => s.missing],
     (view) => view.refresh(),
   ),
-  follows(useGalaxyStore, [(s) => s.systems], (view) => view.refresh()),
+  follows(useGalaxyStore, [(s) => s.systems, (s) => s.countries], (view) => view.refresh()),
   follows(
     useGameDataStore,
-    [(s) => s.names, (s) => s.planetClasses, (s) => s.starClasses, (s) => s.status],
+    [
+      (s) => s.names,
+      (s) => s.planetClasses,
+      (s) => s.starClasses,
+      (s) => s.status,
+      (s) => s.mapColors,
+      (s) => s.countryTypes,
+    ],
     (view) => view.refresh(),
   ),
+  follows(useMapChromeStore, [(s) => s.sceneLayers], (view) => view.refresh()),
   follows(useInspectorStore, [(s) => s.stack], (view) => view.selectBody(topRef()), true),
 ];
 

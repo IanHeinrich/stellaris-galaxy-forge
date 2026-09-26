@@ -1,5 +1,6 @@
-import { Graphics, Rectangle, type Renderer, type Texture } from "pixi.js";
+import { BufferImageSource, Graphics, Rectangle, Texture, type Renderer } from "pixi.js";
 import { acquireGlow, releaseGlow } from "../../layers/SystemsLayer";
+import { FIELD_SIZE, nebulaField } from "./nebulaField";
 
 /** The textures the scene draws its bodies and belts with, baked once per scene. */
 export interface SceneTextures {
@@ -19,6 +20,11 @@ export interface SceneTextures {
    */
   ringBack: Texture;
   ringFront: Texture;
+  /**
+   * The nebula field: white wisps swirling about the centre, clear in the middle and fading to
+   * nothing at the edge, tinted and turned per system.
+   */
+  nebula: Texture;
 }
 
 const DISC_R = 32;
@@ -39,6 +45,10 @@ const RING_BANDS = 16;
 /** Where across the band, from inner to outer, the dark gap lies, and its half width. */
 const RING_GAP = 0.64;
 const RING_GAP_HALF = 0.05;
+/** Every system's nebula draws the same field, turned and mirrored per system. */
+const NEBULA_SEED = 0x5ca1ab1e;
+/** The field's texels, made once and shared by every scene's texture. */
+let nebulaTexels: Uint8Array | null = null;
 
 function grey(v: number): number {
   const c = Math.round(Math.min(255, Math.max(0, v)));
@@ -125,6 +135,18 @@ function drawRingHalf(g: Graphics, far: boolean): void {
   }
 }
 
+/** The nebula field, made on the CPU: it needs no renderer. */
+function nebulaTexture(): Texture {
+  const source = new BufferImageSource({
+    resource: (nebulaTexels ??= nebulaField(NEBULA_SEED)),
+    width: FIELD_SIZE,
+    height: FIELD_SIZE,
+    format: "rgba8unorm",
+    alphaMode: "premultiplied-alpha",
+  });
+  return new Texture({ source });
+}
+
 export function bakeSceneTextures(renderer: Renderer): SceneTextures {
   const ringFrame = () => new Rectangle(0, 0, 2 * RING_R, 2 * RING_R);
   return {
@@ -135,12 +157,15 @@ export function bakeSceneTextures(renderer: Renderer): SceneTextures {
     rock: bake(renderer, drawRock),
     ringBack: bake(renderer, (g) => drawRingHalf(g, true), ringFrame()),
     ringFront: bake(renderer, (g) => drawRingHalf(g, false), ringFrame()),
+    nebula: nebulaTexture(),
   };
 }
 
 /** Destroys the textures `bakeSceneTextures` made and lets go of the shared glow. */
 export function releaseSceneTextures(renderer: Renderer, textures: SceneTextures): void {
-  const { disc, shade, gloss, rock, ringBack, ringFront } = textures;
-  for (const texture of [disc, shade, gloss, rock, ringBack, ringFront]) texture.destroy(true);
+  const { disc, shade, gloss, rock, ringBack, ringFront, nebula } = textures;
+  for (const texture of [disc, shade, gloss, rock, ringBack, ringFront, nebula]) {
+    texture.destroy(true);
+  }
   releaseGlow(renderer);
 }

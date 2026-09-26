@@ -25,6 +25,7 @@ import type { BodyLayout } from "../../../generated/BodyLayout";
 import type { PlanetClassView } from "../../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
+import { ACCENT_COLOR } from "../../../lib/visual/style";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
 import {
   byId,
@@ -36,10 +37,13 @@ import {
 } from "../../../test/builders";
 import { NO_SOURCES, systemContext, type SystemContext } from "../context";
 import { drawOps, strokes, stubTextMeasurement, viewport } from "../fixture";
+import { STAR_ART_BLEND } from "../../layers/StarClusters";
 import { BeltsLayer, MAX_ROCKS } from "./BeltsLayer";
 import { BodiesLayer } from "./BodiesLayer";
 import { ExitsLayer } from "./ExitsLayer";
+import { LabelsLayer } from "./LabelsLayer";
 import { OrbitsLayer } from "./OrbitsLayer";
+import { NO_HIGHLIGHT } from "./SystemLayer";
 import type { SceneTextures } from "./textures";
 
 stubTextMeasurement();
@@ -127,6 +131,7 @@ const SCENARIO_STAR = scenarioBody(1, "pc_g_star", { orbit: fixed(0), angle: fix
 function blankTextures(): SceneTextures {
   return {
     disc: new Texture(),
+    nebula: new Texture(),
     glow: new Texture(),
     shade: new Texture(),
     gloss: new Texture(),
@@ -162,7 +167,7 @@ function holeRadii(g: Graphics): number[] {
   });
 }
 
-/** The radius of every arc the graphics has stroked, rounded, once each. */
+/** The radii of the dashed arcs `g` strokes. */
 function arcRadii(g: Graphics): number[] {
   const radii = new Set<number>();
   for (const op of drawOps(g)) {
@@ -174,15 +179,37 @@ function arcRadii(g: Graphics): number[] {
   return [...radii].sort((a, b) => a - b);
 }
 
+/** The radii of the whole circles `g` strokes, each laid down as `[x, y, r]`. */
+function circleRadii(g: Graphics): number[] {
+  const radii: number[] = [];
+  for (const op of drawOps(g)) {
+    if (op.action !== "stroke" || !op.steps.every((step) => step === "circle")) continue;
+    const numbers = op.segments.flat();
+    for (let i = 2; i < numbers.length; i += 3) radii.push(Math.round(numbers[i]));
+  }
+  return radii.sort((a, b) => a - b);
+}
+
 describe("the system scene's orbits layer", () => {
-  it("strokes each orbit about its parent, and the inner radius on its own", () => {
+  it("strokes each orbit whole and faint about its parent, and the inner radius dashed on its own", () => {
     const layer = new OrbitsLayer();
     layer.rebuild(context({ planets: [SUN, EARTH, LUNA, MARS] }));
     viewport(layer, 2);
-    expect(arcRadii(layer.rings)).toEqual([12, 90, 130]);
+    expect(circleRadii(layer.rings)).toEqual([12, 90, 130]);
+    const [rings] = drawOps(layer.rings).filter((op) => op.action === "stroke");
+    expect(rings.alpha).toBeLessThan(0.2);
+    expect(circleRadii(layer.inner)).toEqual([]);
     expect(arcRadii(layer.inner)).toEqual([160]);
     expect(drawOps(layer.bands)).toEqual([]);
     expect(drawOps(layer.arcs)).toEqual([]);
+  });
+
+  it("strokes an orbit two bodies share once, so it shows no brighter than the rest", () => {
+    const layer = new OrbitsLayer();
+    const twin = saveBody(5, "pc_barren", [0, -130], 130, 1);
+    layer.rebuild(context({ planets: [SUN, EARTH, MARS, twin] }));
+    viewport(layer, 2);
+    expect(circleRadii(layer.rings)).toEqual([90, 130]);
   });
 
   it("fills a ranged orbit's band between its two radii, and strokes a ranged angle's arc along its ring", () => {
@@ -215,7 +242,7 @@ describe("the system scene's orbits layer", () => {
     expect(from).toBeCloseTo(0);
     expect(to).toBeCloseTo(Math.PI / 2);
     expect(arcs[0].alpha).toBeGreaterThan(0.45);
-    expect(arcRadii(layer.rings)).toEqual([80, 130]);
+    expect(circleRadii(layer.rings)).toEqual([80, 130]);
   });
 
   it("strokes a ghost's whole ring as its arc", () => {
@@ -286,7 +313,7 @@ describe("the system scene's exits layer", () => {
 });
 
 describe("the system scene's bodies layer", () => {
-  it("draws a star's art only once it has landed, added over the dark, with no disc or glow", async () => {
+  it("draws a star as a tinted sphere with a hot core and a glow, its art added over them once landed", async () => {
     clearTextures();
     const art = new Texture();
     setTextureDecoder(() => Promise.resolve(art));
@@ -304,16 +331,17 @@ describe("the system scene's bodies layer", () => {
     const star = layer.container.children[0] as Container;
     const shown = () => star.children.filter((c): c is Sprite => c instanceof Sprite && c.visible);
 
-    expect(shown().map((s) => s.texture)).toEqual([textures.glow, textures.disc]);
-    expect(shown().some((s) => s.blendMode === "add")).toBe(false);
+    const sphere = [textures.glow, textures.disc, textures.glow];
+    expect(shown().map((s) => s.texture)).toEqual(sphere);
+    expect(shown().map((s) => s.blendMode === "add")).toEqual([false, false, true]);
 
     await vi.waitFor(() => expect(fetch.release).not.toBeNull());
     fetch.release?.();
-    await vi.waitFor(() => expect(shown().map((s) => s.texture)).toEqual([art]));
-    expect(shown()[0].blendMode).toBe("add");
+    await vi.waitFor(() => expect(shown().map((s) => s.texture)).toEqual([...sphere, art]));
+    expect(shown()[3].blendMode).toBe("add");
 
     clearTextures();
-    expect(shown().map((s) => s.texture)).toEqual([textures.glow, textures.disc]);
+    expect(shown().map((s) => s.texture)).toEqual(sphere);
     setTextureDecoder(null);
     layer.destroy();
   });
@@ -427,7 +455,7 @@ describe("the system scene's bodies layer", () => {
   const EARTH_AT: [number, number] = [90, 0];
   const MARS_AT: [number, number] = [0, 130];
 
-  it("draws a soft rim in the class's atmosphere colour outside the limb, and none for a class without one", () => {
+  it("adds a haze in the class's atmosphere colour, brightest on the limb and fading both ways, and none for a class without one", () => {
     resetTextures();
     const layer = new BodiesLayer(blankTextures());
     layer.rebuild(
@@ -437,16 +465,26 @@ describe("the system scene's bodies layer", () => {
 
     const earth = holderAt(layer, ...EARTH_AT);
     const limb = sprite(earth, "disc").width / 2;
-    const rim = strokes(graphics(earth, "rim") ?? new Graphics());
+    const haze = graphics(earth, "rim") ?? new Graphics();
+    expect(haze.blendMode).toBe("add");
+    const rim = strokes(haze).map((stroke) => ({
+      color: stroke.color,
+      alpha: stroke.alpha ?? 1,
+      radius: stroke.segments[0][stroke.segments[0].length - 1],
+    }));
     expect(rim.length).toBeGreaterThan(1);
-    for (const stroke of rim) {
-      expect(stroke.color).toBe(0x3366cc);
-      const [circle] = stroke.segments;
-      expect(circle[circle.length - 1]).toBeGreaterThan(limb);
-    }
-    const alphas = rim.map((stroke) => stroke.alpha ?? 1);
-    expect(alphas).toEqual([...alphas].sort((a, b) => b - a));
-    expect(alphas[alphas.length - 1]).toBeLessThan(alphas[0]);
+    for (const stroke of rim) expect(stroke.color).toBe(0x3366cc);
+    const radii = rim.map((stroke) => stroke.radius);
+    expect(Math.min(...radii)).toBeLessThan(limb);
+    expect(Math.max(...radii)).toBeGreaterThan(limb);
+    const brightest = rim.reduce((a, b) => (b.alpha > a.alpha ? b : a));
+    const step = (Math.max(...radii) - Math.min(...radii)) / (rim.length - 1);
+    expect(Math.abs(brightest.radius - limb)).toBeLessThanOrEqual(step);
+    const outward = rim.filter((stroke) => stroke.radius > limb).map((stroke) => stroke.alpha);
+    expect(outward).toEqual([...outward].sort((a, b) => b - a));
+    expect(outward[outward.length - 1]).toBeLessThan(brightest.alpha);
+    const inward = rim.filter((stroke) => stroke.radius < limb).map((stroke) => stroke.alpha);
+    expect(inward).toEqual([...inward].sort((a, b) => a - b));
     const at = (label: string) => earth.children.indexOf(part(earth, label) ?? earth);
     expect(at("rim")).toBeGreaterThan(at("shade"));
 
@@ -519,7 +557,7 @@ describe("the system scene's bodies layer", () => {
     layer.destroy();
   });
 
-  it("swaps the tinted disc for the class's lit disc once it lands, turned to face the star under the same shading", async () => {
+  it("swaps the tinted disc for the class's lit disc once it lands, turned to face the star under the same shading, or for its icon when it has none", async () => {
     resetTextures();
     const textureFor = decodeByKey();
     fetch.fails = (key) => key === "planet_disc:pc_continental";
@@ -546,10 +584,50 @@ describe("the system scene's bodies layer", () => {
     expect(lit.width).toBeCloseTo(sprite(mars, "disc").width);
 
     const earth = holderAt(layer, ...EARTH_AT);
-    expect(sprite(earth, "disc").visible).toBe(true);
+    expect(sprite(earth, "disc").visible).toBe(false);
     expect(sprite(earth, "lit").visible).toBe(false);
     expect(sprite(earth, "art").visible).toBe(true);
     expect(sprite(earth, "art").texture).toBe(textureFor("sprite:GFX_pc_continental"));
+    resetTextures();
+    layer.destroy();
+  });
+
+  it("draws an asteroid as its icon alone once it lands, with no round disc or shading under it", async () => {
+    resetTextures();
+    const textureFor = decodeByKey();
+    const layer = new BodiesLayer(blankTextures());
+    const rock = { ...EARTH, class: "pc_asteroid" };
+    layer.rebuild(classedContext([rock], [iconed("pc_asteroid")]));
+    viewport(layer, 2);
+    const drawn = holderAt(layer, ...EARTH_AT);
+    expect(sprite(drawn, "disc").visible).toBe(true);
+    expect(part(drawn, "shade")).toBeUndefined();
+    expect(part(drawn, "lit")).toBeUndefined();
+
+    await answerFetch();
+    await vi.waitFor(() => expect(sprite(drawn, "art").visible).toBe(true));
+    expect(sprite(drawn, "art").texture).toBe(textureFor("sprite:GFX_pc_asteroid"));
+    expect(sprite(drawn, "disc").visible).toBe(false);
+    resetTextures();
+    layer.destroy();
+  });
+
+  it("draws an astral scar's glow added over the dark, with no surface bake, disc or shading", async () => {
+    resetTextures();
+    const textureFor = decodeByKey();
+    const layer = new BodiesLayer(blankTextures());
+    const scar = { ...EARTH, class: "pc_astral_scar" };
+    layer.rebuild(classedContext([scar], [iconed("pc_astral_scar")]));
+    viewport(layer, 2);
+    const drawn = holderAt(layer, ...EARTH_AT);
+    expect(part(drawn, "shade")).toBeUndefined();
+    expect(part(drawn, "lit")).toBeUndefined();
+
+    await answerFetch();
+    await vi.waitFor(() => expect(sprite(drawn, "art").visible).toBe(true));
+    expect(sprite(drawn, "art").texture).toBe(textureFor("sprite:GFX_pc_astral_scar"));
+    expect(sprite(drawn, "art").blendMode).toBe(STAR_ART_BLEND);
+    expect(sprite(drawn, "disc").visible).toBe(false);
     resetTextures();
     layer.destroy();
   });
@@ -576,6 +654,164 @@ describe("the system scene's bodies layer", () => {
 
     viewport(layer, 1);
     expect(art().texture).toBe(textureFor("sprite:GFX_pc_arid"));
+    resetTextures();
+    layer.destroy();
+  });
+});
+
+describe("the system scene's labels layer", () => {
+  const MINED = {
+    ...EARTH,
+    deposits: [
+      { resource: "engineering", amount: 5 },
+      { resource: "energy", amount: 13 },
+    ],
+  };
+
+  const labelled = (layers: { labels: boolean; details: boolean }) =>
+    systemContext({
+      ...context({ planets: [SUN, MINED] }),
+      labelsShown: layers.labels,
+      detailsShown: layers.details,
+    });
+
+  const shown = (layer: LabelsLayer) => layer.container.children.filter((h) => h.visible);
+
+  /** What the shown holders draw, by the label each part was given. */
+  const parts = (layer: LabelsLayer, label: string) =>
+    shown(layer)
+      .flatMap((holder) => holder.children)
+      .filter((c) => c.label === label);
+
+  const amounts = (layer: LabelsLayer) =>
+    parts(layer, "amount").map((c) => (c instanceof BitmapText ? c.text : ""));
+
+  it("centres each name's plate under its body, a dark translucent wash", () => {
+    resetTextures();
+    const layer = new LabelsLayer();
+    layer.rebuild(labelled({ labels: true, details: false }));
+    const cam = viewport(layer, 2);
+    const [x, y] = MINED.layout?.at ?? [0, 0];
+    const earthAt = cam.worldToScreen(x, y);
+    const plate = layer.plates().find((p) => p.id === MINED.id);
+    if (!plate) throw new Error("no plate for the planet");
+    const top = cam.worldToScreen(plate.x, plate.y);
+    expect(top.x + plate.w / 2).toBeCloseTo(earthAt.x);
+    expect(top.y).toBeGreaterThan(earthAt.y);
+    const fills = parts(layer, "plate").flatMap((g) =>
+      g instanceof Graphics ? drawOps(g).filter((op) => op.action === "fill") : [],
+    );
+    expect(fills).toHaveLength(2);
+    for (const fill of fills) {
+      expect(fill.color).toBe(0x000000);
+      expect(fill.alpha).toBeLessThan(0.5);
+    }
+    resetTextures();
+    layer.destroy();
+  });
+
+  it("marks a colonised body's plate in its owner's colour, and no other plate", () => {
+    resetTextures();
+    const owner = 7;
+    const colour = 0x3366cc;
+    const colony = { ...MINED, colonised: true, owner };
+    const layer = new LabelsLayer();
+    layer.rebuild(
+      systemContext({
+        ...context({ planets: [SUN, colony] }),
+        labelsShown: true,
+        ownership: {
+          owners: new Map(),
+          table: new Map([
+            [
+              owner,
+              { id: owner, label: "", kind: "country", colors: { outline: colour, fill: 0 } },
+            ],
+          ]),
+        },
+      }),
+    );
+    viewport(layer, 2);
+    const fills = parts(layer, "plate").flatMap((g) =>
+      g instanceof Graphics ? drawOps(g).filter((op) => op.action === "fill") : [],
+    );
+    expect(fills.filter((fill) => fill.color === colour)).toHaveLength(1);
+    resetTextures();
+    layer.destroy();
+  });
+
+  it("shows plates alone, plates with resources, resources alone, or nothing, as Labels and Details are set", () => {
+    resetTextures();
+    const layer = new LabelsLayer();
+    viewport(layer, 2);
+    const drawn = (labels: boolean, details: boolean) => {
+      layer.rebuild(labelled({ labels, details }));
+      return {
+        plates: parts(layer, "plate").length,
+        names: parts(layer, "name").length,
+        amounts: amounts(layer),
+        picks: layer.plates().map((p) => p.id),
+      };
+    };
+
+    expect(drawn(true, false)).toEqual({
+      plates: 2,
+      names: 2,
+      amounts: [],
+      picks: [SUN.id, MINED.id],
+    });
+    expect(drawn(true, true)).toEqual({
+      plates: 2,
+      names: 2,
+      amounts: ["13", "5"],
+      picks: [SUN.id, MINED.id],
+    });
+    expect(drawn(false, true)).toEqual({
+      plates: 0,
+      names: 0,
+      amounts: ["13", "5"],
+      picks: [MINED.id],
+    });
+    expect(drawn(false, false)).toEqual({ plates: 0, names: 0, amounts: [], picks: [] });
+    resetTextures();
+    layer.destroy();
+  });
+
+  it("borders the selected body's plate in the selection colour, and no other", () => {
+    resetTextures();
+    const layer = new LabelsLayer();
+    layer.rebuild(labelled({ labels: true, details: false }));
+    viewport(layer, 2);
+    const edgeOf = (id: number) => {
+      const plate = layer.plates().find((p) => p.id === id);
+      const holder = shown(layer).find(
+        (h) => h.position.x === plate?.x && h.position.y === plate?.y,
+      );
+      const g = holder?.children.find((c) => c.label === "plate");
+      if (!(g instanceof Graphics)) throw new Error(`no plate for ${id}`);
+      return strokes(g)[0]?.color;
+    };
+    layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: MINED.id });
+    expect(edgeOf(MINED.id)).toBe(ACCENT_COLOR);
+    expect(edgeOf(SUN.id)).not.toBe(ACCENT_COLOR);
+
+    layer.setHighlighted(NO_HIGHLIGHT);
+    expect(edgeOf(MINED.id)).not.toBe(ACCENT_COLOR);
+    resetTextures();
+    layer.destroy();
+  });
+
+  it("draws the resource row under the body, where the plate would be, while Labels is off", () => {
+    resetTextures();
+    const layer = new LabelsLayer();
+    layer.rebuild(labelled({ labels: false, details: true }));
+    const cam = viewport(layer, 2);
+    const [x, y] = MINED.layout?.at ?? [0, 0];
+    const earthAt = cam.worldToScreen(x, y);
+    const [row] = layer.plates();
+    const top = cam.worldToScreen(row.x, row.y);
+    expect(top.x + row.w / 2).toBeCloseTo(earthAt.x);
+    expect(top.y).toBeGreaterThan(earthAt.y);
     resetTextures();
     layer.destroy();
   });

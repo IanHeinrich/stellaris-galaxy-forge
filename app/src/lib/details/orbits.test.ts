@@ -8,6 +8,8 @@ import {
   FALLBACK_INNER_RADIUS,
   FIT_MARGIN,
   MOON_SCALE,
+  ASTEROID_SCALE,
+  STAR_SCALE,
   discRadius,
   exitBearing,
   fitScale,
@@ -270,7 +272,7 @@ describe("belts, fit and zoom", () => {
     const far = systemLayout(
       systemDetails({
         planets: [
-          saveBody(1, "pc_k_star", [230, 0], 230, 25),
+          saveBody(1, "pc_k_star", [230, 0], 230, 20),
           saveBody(2, "pc_arid", [230, 30], 30, 18, 1),
         ],
         inner_radius: 200,
@@ -280,14 +282,28 @@ describe("belts, fit and zoom", () => {
     expect(systemLayout(null).fitRadius).toBe(FALLBACK_INNER_RADIUS + FIT_MARGIN);
   });
 
-  it("zooms out to a quarter of the fit and in until the largest disc fills the short side", () => {
+  it("zooms out to half the fit and in until the largest disc fills the short side", () => {
     expect(fitScale(200, 800, 600)).toBe(1.5);
-    expect(zoomLimits(200, 800, 600, 9)).toEqual({ minScale: 0.375, maxScale: 600 / 18 });
-    expect(sol().largestDisc).toBe(discRadius(30, false));
+    expect(zoomLimits(200, 800, 600, 9)).toEqual({ minScale: 0.75, maxScale: 600 / 18 });
+    expect(sol().largestDisc).toBe(discRadius(30, false, "pc_g_star", true));
+  });
+
+  it("draws a star STAR_SCALE times a planet of its size", () => {
+    expect(discRadius(20, false, "pc_m_star", true)).toBeCloseTo(
+      discRadius(20, false) * STAR_SCALE,
+    );
   });
 
   it("scales a moon's disc by MOON_SCALE", () => {
     expect(discRadius(10, true)).toBeCloseTo(discRadius(10, false) * MOON_SCALE);
+  });
+
+  it("draws an asteroid larger than its size gives, whatever its asteroid class", () => {
+    expect(discRadius(5, false, "pc_asteroid")).toBeCloseTo(discRadius(5, false) * ASTEROID_SCALE);
+    expect(discRadius(5, false, "pc_ice_asteroid")).toBeCloseTo(
+      discRadius(5, false) * ASTEROID_SCALE,
+    );
+    expect(discRadius(5, false, "pc_barren")).toBe(discRadius(5, false));
   });
 });
 

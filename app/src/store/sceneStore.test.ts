@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SystemNode } from "../generated/SystemNode";
 import { keyAction, type KeyAction, type KeyLike } from "../lib/keys";
+import { LAYER_KEYS, SCENE_LAYER_IDS } from "../lib/visual/layerIds";
 import { stubPrefs } from "../test/prefs";
 
 vi.mock("../api/ipc");
@@ -16,7 +17,7 @@ import { useGalaxyStore } from "./galaxyStore";
 import { bodyEntry, useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
-import { useSceneStore } from "./sceneStore";
+import { GALAXY_SCENE, useSceneStore } from "./sceneStore";
 import { useToolStore } from "./toolStore";
 import { mockedIpc } from "../test/ipc";
 
@@ -92,7 +93,7 @@ beforeEach(async () => {
 });
 
 describe("entering a system", () => {
-  it("selects the system, sets Select and refuses a brush and M", async () => {
+  it("selects the system, sets Select and refuses a brush and Shift+M", async () => {
     await openFixtureScenario();
     expect(tools().setTool("paint")).toBe(true);
     const symmetry = tools().symmetry;
@@ -227,8 +228,24 @@ describe("leaving a system", () => {
   });
 });
 
+describe("M", () => {
+  it("opens the one selected system and goes back to the galaxy, wherever focus is", async () => {
+    withAddedSystems();
+    await editor().setSelection([6], "replace");
+
+    expect(run("toggleSystemView", false, effects)).toBe(true);
+    expect(scene().scene).toEqual(inSystem(6));
+    expect(run("toggleSystemView", false, effects)).toBe(true);
+    expect(scene().scene).toEqual(GALAXY_SCENE);
+
+    await editor().setSelection([], "replace");
+    expect(run("toggleSystemView", false, effects)).toBe(false);
+    expect(scene().scene).toEqual(GALAXY_SCENE);
+  });
+});
+
 describe("the galaxy's keys while a system is up", () => {
-  it("Delete, Ctrl+A, Shift+I, the number keys and the nudge do nothing", async () => {
+  it("Delete, Ctrl+A, Shift+I and the nudge do nothing, and the number keys switch only the scene's own layers", async () => {
     withAddedSystems();
     scene().enterSystem(6);
     const layers = chrome().layers;
@@ -240,13 +257,21 @@ describe("the galaxy's keys while a system is up", () => {
     toggleLayerKey(0);
     await Promise.resolve();
 
+    const scenic = chrome().sceneLayers;
+    for (const id of SCENE_LAYER_IDS) toggleLayerKey(LAYER_KEYS.indexOf(id));
     expect(chrome().layers).toBe(layers);
+    for (const id of SCENE_LAYER_IDS) expect(chrome().sceneLayers[id]).toBe(!scenic[id]);
 
     expect(mockedIpc.confirm).not.toHaveBeenCalled();
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
     expect(effects.browseInitializers).not.toHaveBeenCalled();
     expect(editor().selection).toEqual([6]);
     expect(scene().scene).toEqual(inSystem(6));
+
+    scene().leaveSystem();
+    toggleLayerKey(LAYER_KEYS.indexOf("details"));
+    expect(chrome().layers.details).toBe(!layers.details);
+    expect(chrome().sceneLayers.details).toBe(!scenic.details);
   });
 });
 

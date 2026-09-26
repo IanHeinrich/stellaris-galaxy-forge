@@ -6,14 +6,14 @@ import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
 import type { SystemLayer } from "./SystemLayer";
 
 const ORBIT_COLOR = 0x7f8fa6;
-const ORBIT_ALPHA = 0.45;
-const INNER_ALPHA = 0.2;
-/** A ranged orbit's band, and a ranged angle's arc, which stands out from the dashed ring under it. */
+const ORBIT_ALPHA = 0.14;
+const INNER_ALPHA = 0.3;
+/** A ranged orbit's band, and a ranged angle's arc, which stands out from the ring under it. */
 const BAND_ALPHA = 0.12;
 const ARC_ALPHA = 0.85;
 const ARC_WIDTH_PX = 2;
 const WHOLE_TURN: Arc = { from: 0, to: 360 };
-/** Screen pixels per dash step along a circle, and the fewest and most dashes a circle takes. */
+/** Screen pixels per dash step along the border, and the fewest and most dashes it takes. */
 const DASH_STEP_PX = 10;
 const MIN_DASHES = 24;
 const MAX_DASHES = 720;
@@ -33,7 +33,8 @@ function radians(degrees: number): number {
 }
 
 /**
- * Each body's orbit as a dashed circle about its parent, and the inner radius fainter at the edge.
+ * Each body's orbit as a faint circle about its parent, and the system's border at the inner
+ * radius dashed.
  * A scenario body's ranged orbit is a band between its two radii, and its ranged angle an arc.
  */
 export class OrbitsLayer implements SystemLayer {
@@ -69,14 +70,18 @@ export class OrbitsLayer implements SystemLayer {
     this.drawnScale = cam.scale;
     const { layout } = this.ctx;
     this.rings.clear();
-    let any = false;
-    for (const body of layout.bodies) {
-      const ring = body.ring;
+    // Bodies sharing an orbit share one circle; stroked twice, it would show brighter.
+    const drawn = new Set<string>();
+    for (const { ring } of layout.bodies) {
       if (!ring) continue;
-      dashedCircle(this.rings, ring.cx, ring.cy, ring.radius, dashes(ring.radius, cam.scale));
-      any = true;
+      const key = `${ring.cx.toFixed(2)},${ring.cy.toFixed(2)},${ring.radius.toFixed(2)}`;
+      if (drawn.has(key)) continue;
+      drawn.add(key);
+      this.rings.circle(ring.cx, ring.cy, ring.radius);
     }
-    if (any) this.rings.stroke({ color: ORBIT_COLOR, alpha: ORBIT_ALPHA, pixelLine: true });
+    if (drawn.size > 0) {
+      this.rings.stroke({ color: ORBIT_COLOR, alpha: ORBIT_ALPHA, pixelLine: true });
+    }
     this.drawArcs(cam.scale);
     this.inner.clear();
     const r = layout.innerRadius;

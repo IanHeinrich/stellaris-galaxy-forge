@@ -1,4 +1,6 @@
 /** What a system's deposits yield, as the details row, its chips and the inspector show it. */
+import type { PlanetSummary } from "../../generated/PlanetSummary";
+import type { ResourceAmount } from "../../generated/ResourceAmount";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { canonicalResource, resourceRows as rowsInOrder, type ResourceRow } from "../resources";
 import { titleCase } from "../text";
@@ -11,17 +13,32 @@ const ABBREVIATIONS: Record<string, string> = {
 
 export type { ResourceRow };
 
+function summed(
+  amounts: readonly ResourceAmount[],
+  icons: ReadonlyMap<string, string>,
+): ResourceRow[] {
+  const totals = new Map<string, number>();
+  for (const { resource, amount } of amounts) {
+    const key = canonicalResource(resource);
+    totals.set(key, (totals.get(key) ?? 0) + amount);
+  }
+  return rowsInOrder(totals, icons);
+}
+
 /** What the system's deposits yield per resource, the save's names mapped onto the game's. */
 export function resourceRows(
   d: SystemDetails,
   icons: ReadonlyMap<string, string> = new Map(),
 ): ResourceRow[] {
-  const totals = new Map<string, number>();
-  for (const { resource, amount } of d.resources) {
-    const key = canonicalResource(resource);
-    totals.set(key, (totals.get(key) ?? 0) + amount);
-  }
-  return rowsInOrder(totals, icons);
+  return summed(d.resources, icons);
+}
+
+/** What one body's deposits yield per resource, in the same order as a system's. */
+export function planetResourceRows(
+  planet: PlanetSummary,
+  icons: ReadonlyMap<string, string> = new Map(),
+): ResourceRow[] {
+  return summed(planet.deposits, icons);
 }
 
 /** Width of one resource cell for `count` resources: the game's row stays dense, to slight overlap. */

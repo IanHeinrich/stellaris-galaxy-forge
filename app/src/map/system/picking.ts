@@ -40,3 +40,23 @@ export function pickExit(exits: readonly Exit[], cam: Camera, at: Pt): number | 
   }
   return best;
 }
+
+/** A shown name plate: its top-left in world units and its size in screen pixels. */
+export interface PlatePick {
+  id: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** The body whose name plate, resource row included, covers the screen point `s`. */
+export function pickPlate(plates: readonly PlatePick[], cam: Camera, s: Pt): number | null {
+  const top: Pt = { x: 0, y: 0 };
+  for (const plate of plates) {
+    cam.worldToScreen(plate.x, plate.y, top);
+    const inX = s.x >= top.x && s.x < top.x + plate.w;
+    if (inX && s.y >= top.y && s.y < top.y + plate.h) return plate.id;
+  }
+  return null;
+}

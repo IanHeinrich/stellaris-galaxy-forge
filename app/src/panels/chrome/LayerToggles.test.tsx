@@ -20,11 +20,12 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore } from "../../store/sceneStore";
 import { armSession, resetStores } from "../../store/storeFixture";
 import { openWith } from "../../test/session";
-import { LayersMenu } from "./LayersMenu";
+import { LayersMenu, LayersMenuBody } from "./LayersMenu";
 import { LayerToggles } from "./LayerToggles";
 
 const bar = () => renderToStaticMarkup(<LayerToggles />);
 const menu = () => renderToStaticMarkup(<LayersMenu />);
+const menuBody = () => renderToStaticMarkup(<LayersMenuBody />);
 
 /** A group's name as the markup carries it, where `&` is an entity. */
 const label = (source: Source) => SOURCE_LABELS[source].replace("&", "&amp;");
@@ -159,7 +160,7 @@ describe("the split layer bar", () => {
     expect(html.indexOf('aria-label="Leviathans"')).toBeGreaterThan(nebulae);
   });
 
-  it("disables every toggle while a system is shown, saying the layers are the galaxy's", async () => {
+  it("disables every toggle but Names, Details and Nebulae while a system is shown, saying the layers are the galaxy's", async () => {
     resetStores();
     armSession();
     await openWith(OPEN_RESULT);
@@ -168,11 +169,36 @@ describe("the split layer bar", () => {
     useSceneStore.getState().enterSystem(0);
     const html = bar();
     const buttons = html.match(/<button[^>]*>/g) ?? [];
-    expect(buttons.length).toBeGreaterThan(0);
+    expect(buttons.length).toBeGreaterThan(1);
+    const live = ["System details", "Names", "Nebulae"];
     for (const button of buttons) {
+      if (live.some((label) => button.includes(`aria-label="${label}"`))) {
+        expect(button).not.toContain("disabled");
+        continue;
+      }
       expect(button).toContain("disabled");
       expect(button).toContain('title="Layers apply to the galaxy view"');
     }
+    expect(html).toContain('aria-label="System details"');
+    expect(html).toContain('aria-label="Names"');
+    expect(html).toContain('aria-label="Nebulae"');
+
+    useMapChromeStore.setState((s) => ({
+      layers: { ...s.layers, details: true },
+      sceneLayers: { ...s.sceneLayers, details: false },
+    }));
+    expect(bar()).toMatch(/aria-label="System details" aria-pressed="false"/);
+
+    const rows = menuBody().match(/<button[^>]*>[\s\S]*?<\/button>/g) ?? [];
+    const switchable = rows.filter((row) => !/<button[^>]*disabled/.test(row));
+    const named = (row: string) => live.find((label) => row.includes(`<span>${label}</span>`));
+    expect(switchable.map(named).filter(Boolean).sort()).toEqual([...live].sort());
+    for (const row of switchable) {
+      expect(named(row) !== undefined || row.includes("Reset to defaults")).toBe(true);
+    }
+
+    useSceneStore.getState().leaveSystem();
+    expect(bar()).toMatch(/aria-label="System details" aria-pressed="true"/);
   });
 
   it("carries nothing to toggle until a document is open", () => {

@@ -17,11 +17,13 @@ import {
   type SystemContext,
 } from "./context";
 import { EXIT_REACH_PX } from "./geometry";
+import { pickPlate } from "./picking";
 import { BeltsLayer } from "./layers/BeltsLayer";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { ExitsLayer } from "./layers/ExitsLayer";
 import { HighlightLayer } from "./layers/HighlightLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
+import { NebulaLayer } from "./layers/NebulaLayer";
 import { OrbitsLayer } from "./layers/OrbitsLayer";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./layers/SystemLayer";
 import { bakeSceneTextures, releaseSceneTextures, type SceneTextures } from "./layers/textures";
@@ -35,6 +37,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   readonly cam = new Camera();
   readonly root = new Container();
   private readonly layers: SystemLayer[];
+  private readonly labels = new LabelsLayer();
   private readonly interaction: SystemInteraction;
   private readonly textures: SceneTextures;
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
@@ -56,11 +59,12 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     const textures = bakeSceneTextures(renderer);
     this.textures = textures;
     this.layers = [
+      new NebulaLayer(textures.nebula),
       new OrbitsLayer(),
       new BeltsLayer(textures.rock),
       new ExitsLayer(),
       new BodiesLayer(textures),
-      new LabelsLayer(),
+      this.labels,
       new HighlightLayer(),
     ];
     for (const layer of this.layers) this.root.addChild(layer.container);
@@ -102,6 +106,10 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
 
   context(): SystemContext {
     return this.ctx;
+  }
+
+  plateAt(sx: number, sy: number): number | null {
+    return pickPlate(this.labels.plates(), this.cam, { x: sx, y: sy });
   }
 
   refresh(): void {
@@ -160,12 +168,12 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     return Math.min(fitScale(fitRadius, width, height), exitsInView);
   }
 
-  /** Out to a quarter of the fit, in until the largest body fills the view's short side. */
+  /** Out to half the fit, in until the largest body fills the view's short side. */
   private limit(scale: number): void {
     const { width, height } = this.cam;
     const { fitRadius, largestDisc } = this.ctx.layout;
     const limits = zoomLimits(fitRadius, width, height, largestDisc);
-    this.cam.minScale = Math.min(limits.minScale, scale / 4);
+    this.cam.minScale = Math.min(limits.minScale, scale / 2);
     this.cam.maxScale = Math.max(limits.maxScale, scale);
   }
 
