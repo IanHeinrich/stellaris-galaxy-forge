@@ -8,6 +8,12 @@ use sgf_core::format::save::details::Bounds;
 use crate::initializers::InitPlanet;
 use crate::install::script::Range;
 
+/// How far past the running orbit the game places a body with no `orbit_distance` it can read.
+const NO_DISTANCE: Range = Range {
+    min: 10.0,
+    max: 20.0,
+};
+
 /// A number the walk sums: a drawn one, or the bounds of every draw.
 pub(crate) trait Step: Copy {
     fn fixed(n: f64) -> Self;
@@ -74,8 +80,8 @@ pub(crate) trait Walk<'p> {
     ) -> Result<(), Self::Error>;
 }
 
-/// Walks `blocks` in file order. A block with no distance steps by 0, one with no angle by
-/// [`Walk::no_angle`].
+/// Walks `blocks` in file order. A block with no distance steps by [`NO_DISTANCE`], one with
+/// no angle by [`Walk::no_angle`].
 pub(crate) fn walk<'p, W: Walk<'p>>(
     blocks: &'p [InitPlanet],
     turn: Turn<W::Number>,
@@ -90,7 +96,8 @@ pub(crate) fn walk<'p, W: Walk<'p>>(
     for block in blocks {
         orbit = orbit.plus(W::Number::fixed(block.change_orbit));
         for _ in 0..walker.count(block) {
-            orbit = orbit.plus(block.orbit_distance.map_or(zero, |d| walker.distance(d)));
+            let distance = block.orbit_distance.unwrap_or(NO_DISTANCE);
+            orbit = orbit.plus(walker.distance(distance));
             let step = match block.orbit_angle {
                 Some(a) => walker.angle(a),
                 None => walker.no_angle(),
