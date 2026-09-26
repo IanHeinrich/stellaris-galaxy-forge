@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
 use ts_rs::TS;
 
-use crate::body_effects::{self, BodyEffect};
+use crate::body_effects::{self, BodyEffect, Dropping, HOME_EFFECTS};
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def, Range, Variables, whole};
 use crate::registries::registry::{FromDef, Registry};
@@ -75,6 +75,9 @@ pub struct InitPlanet {
     /// The first statement of this block's `init_effect` that is neither given to a
     /// generated body nor dropped with the script.
     pub unwritten: Option<String>,
+    /// [`Self::unwritten`] for a converted layout, which drops what makes or runs its
+    /// empire, colonies and pre-FTL civilisation too.
+    pub unwritten_converted: Option<String>,
     /// Its `moon` blocks, and the `planet` blocks written inside it, which the game spawns
     /// around it the same way, in file order.
     pub moons: Vec<InitPlanet>,
@@ -427,7 +430,8 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
     let home_planet = scalar(node, "home_planet", src) == Some("yes")
         || scalar(node, "starting_planet", src) == Some("yes");
     let colony_owner = colony_owner(node, src);
-    let (effects, unwritten) = body_effects::read(node, def);
+    let (effects, unwritten) = body_effects::read(node, def, Dropping::Script);
+    let (_, unwritten_converted) = body_effects::read(node, def, Dropping::Converted);
     InitPlanet {
         name: scalar(node, "name", src).map(str::to_owned),
         class: BodyClass::of(scalar(node, "class", src).unwrap_or(RANDOM)),
@@ -447,21 +451,15 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
         home_planet,
         colonised: home_planet
             || colony_owner.is_some()
-            || has_effect(node, src, |key| {
-                matches!(
-                    key,
-                    "generate_home_system_resources" | "generate_empire_home_planet"
-                )
-            }),
+            || has_effect(node, src, |key| HOME_EFFECTS.contains(&key)),
         colony_owner,
-        pre_ftl: has_effect(node, src, |key| {
-            key.starts_with("generate_") && key.contains("pre_ftl") && key.ends_with("_on_planet")
-        }),
+        pre_ftl: has_effect(node, src, body_effects::pre_ftl),
         sites: sites(node, src),
         deposits: deposits(node, src),
         blockers: scalar(node, "deposit_blockers", src) != Some("none"),
         effects,
         unwritten,
+        unwritten_converted,
         moons: bodies(node, &["moon", "planet"], def),
     }
 }

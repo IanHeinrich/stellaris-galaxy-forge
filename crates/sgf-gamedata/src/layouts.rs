@@ -12,7 +12,7 @@ use sgf_core::session::Session;
 use ts_rs::TS;
 
 use crate::GameData;
-use crate::body_effects;
+use crate::body_effects::{self, Dropping};
 use crate::condition::{Condition, Subject};
 use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::script::Range;
@@ -24,15 +24,73 @@ pub const USAGE: &str = "misc_system_init";
 /// The star flag of the game's unique systems, which its timeline reads when an empire
 /// takes control of one.
 pub const UNIQUE_SYSTEM: &str = "unique_system";
-/// The star flag of an empire's home system, which a homeworld layout is built without.
-pub const HOME_SYSTEM: &str = "empire_home_system";
-/// The empire homeworld layouts the Special menu offers without their empire: the start
-/// planet uncolonised, and none of the layout's own script, neighbour systems or odds.
-pub const HOMEWORLDS: [&str; 1] = ["sol_system_initializer"];
 
-/// `init` is one of the [`HOMEWORLDS`].
-pub fn homeworld(init: &Initializer) -> bool {
-    HOMEWORLDS.contains(&init.name.as_str())
+/// A layout the Special menu offers converted to a system no one owns: built without its
+/// usage, odds, neighbour systems and system script, its home and colonised planets left
+/// uncolonised, and what its bodies' script does to an empire, a colony or a pre-FTL
+/// civilisation dropped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Converted {
+    /// The initializer's key.
+    pub key: &'static str,
+    /// The star flags the system keeps beside [`UNIQUE_SYSTEM`]. Events find the systems
+    /// they placed by flag, so an added copy drops the rest.
+    pub flags: &'static [&'static str],
+    /// Listed with the unique systems, though the game does not flag it [`UNIQUE_SYSTEM`].
+    pub unique: bool,
+    /// A localisation key the menu shows in place of the label it builds, for a layout
+    /// with no fixed name.
+    pub label: Option<&'static str>,
+}
+
+impl Converted {
+    /// A layout the menu lists with the other special systems, keeping no flag of its own.
+    const fn special(key: &'static str) -> Self {
+        Self {
+            key,
+            flags: &[],
+            unique: false,
+            label: None,
+        }
+    }
+
+    /// The system keeps `flag`.
+    pub fn keeps(&self, flag: &str) -> bool {
+        flag == UNIQUE_SYSTEM || self.flags.contains(&flag)
+    }
+}
+
+/// The layouts the generator builds by converting them, in the order they were added.
+pub const CONVERTED_LAYOUTS: [Converted; 14] = [
+    Converted {
+        key: "sol_system_initializer",
+        flags: &["sol_system", "sol", "galactic_landmark_system"],
+        unique: true,
+        label: None,
+    },
+    Converted::special("new_bratulla_initializer"),
+    Converted {
+        label: Some("NAME_Zanaam"),
+        ..Converted::special("special_init_06")
+    },
+    Converted::special("great_wound_system"),
+    Converted::special("breachsealer_system"),
+    Converted::special("vultaumar_system"),
+    Converted::special("fen_habbanis_system"),
+    Converted::special("irass_system"),
+    Converted::special("last_baol_system"),
+    Converted::special("sol_neighbor_t1"),
+    Converted::special("hostile_init_16"),
+    Converted::special("hostile_init_21"),
+    Converted::special("holibrae_initializer"),
+    Converted::special("the_chosen_escapee_initializer"),
+];
+
+/// The entry of [`CONVERTED_LAYOUTS`] for `init`, when it has one.
+pub fn converted(init: &Initializer) -> Option<&'static Converted> {
+    CONVERTED_LAYOUTS
+        .iter()
+        .find(|layout| layout.key == init.name)
 }
 
 /// What the generator makes of a layout.
@@ -321,11 +379,11 @@ pub(crate) fn star_body(gd: &GameData, class: &BodyClass) -> bool {
 }
 
 fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
-    let home = homeworld(init);
-    if !home && init.usage.as_deref() != Some(USAGE) {
+    let converted = converted(init).is_some();
+    if !converted && init.usage.as_deref() != Some(USAGE) {
         return Some(Unsupported::Usage);
     }
-    if !home && odds(gd, init, None) <= 0.0 {
+    if !converted && odds(gd, init, None) <= 0.0 {
         return Some(Unsupported::EventOnly);
     }
     if let Some(why) = star_unsupported(gd, init) {
@@ -334,7 +392,7 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if init.flags.iter().any(|flag| flag == "guardian") {
         return Some(Unsupported::Guardian);
     }
-    if !home && !init.spawns.is_empty() {
+    if !converted && !init.spawns.is_empty() {
         return Some(Unsupported::Linked);
     }
     if !init.megastructures.is_empty() {
@@ -356,30 +414,41 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if let Some(why) = init
         .planets
         .iter()
-        .find_map(|planet| body_unsupported(gd, planet, false))
+        .find_map(|planet| body_unsupported(gd, planet, false, converted))
     {
         return Some(why);
     }
-    if let Some(key) = init.planets.iter().find_map(|planet| unwritten(gd, planet)) {
+    if let Some(key) = init
+        .planets
+        .iter()
+        .find_map(|planet| unwritten(gd, planet, converted))
+    {
         return Some(Unsupported::Effect(key));
     }
-    if home {
+    if converted {
         return None;
     }
     let def = gd.initializers.def(&init.name)?;
     def.node
         .find_all("init_effect", &def.src)
-        .find_map(|block| body_effects::undropped(block, def))
+        .find_map(|block| body_effects::undropped(block, def, Dropping::Script))
         .map(Unsupported::Effect)
 }
 
 /// The first effect of `body` or its moons the generator can neither write nor drop, or
 /// an `if` it cannot decide from the DLC.
-fn unwritten(gd: &GameData, body: &InitPlanet) -> Option<String> {
-    body.unwritten
-        .clone()
+fn unwritten(gd: &GameData, body: &InitPlanet, converted: bool) -> Option<String> {
+    let own = match converted {
+        true => &body.unwritten_converted,
+        false => &body.unwritten,
+    };
+    own.clone()
         .or_else(|| body_effects::undecided(&body.effects, &Dlc::of(gd, None)))
-        .or_else(|| body.moons.iter().find_map(|moon| unwritten(gd, moon)))
+        .or_else(|| {
+            body.moons
+                .iter()
+                .find_map(|moon| unwritten(gd, moon, converted))
+        })
 }
 
 fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
@@ -465,12 +534,18 @@ pub(crate) fn star_source<'g>(gd: &'g GameData, init: &Initializer) -> StarSourc
 }
 
 /// `home_planet = yes` alone makes no colony of a body in an unowned system; the effects
-/// that would are caught with the rest of the script.
-fn body_unsupported(gd: &GameData, body: &InitPlanet, moon: bool) -> Option<Unsupported> {
-    if body.colony_owner.is_some() || (body.colonised && !body.home_planet) {
+/// that would are caught with the rest of the script. A converted layout's colonies and
+/// pre-FTL civilisations are left out.
+fn body_unsupported(
+    gd: &GameData,
+    body: &InitPlanet,
+    moon: bool,
+    converted: bool,
+) -> Option<Unsupported> {
+    if !converted && (body.colony_owner.is_some() || (body.colonised && !body.home_planet)) {
         return Some(Unsupported::Colonised);
     }
-    if body.pre_ftl {
+    if !converted && body.pre_ftl {
         return Some(Unsupported::PreFtl);
     }
     if !drawable(gd, &body.class) {
@@ -481,7 +556,7 @@ fn body_unsupported(gd: &GameData, body: &InitPlanet, moon: bool) -> Option<Unsu
     }
     body.moons
         .iter()
-        .find_map(|moon| body_unsupported(gd, moon, true))
+        .find_map(|moon| body_unsupported(gd, moon, true, converted))
 }
 
 /// A class the generator can give a body: the star, a class of the install, one of the

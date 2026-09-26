@@ -408,11 +408,11 @@ fn add_system_generates_the_special_layout_asked_for() {
         "a system already holds the fixed name"
     );
 
-    let refused = run("great_wound_system", &["--print-spec"]);
+    let refused = run("fumongus_init_01", &["--print-spec"]);
     assert_ne!(refused.status.code(), Some(0));
     let err = String::from_utf8_lossy(&refused.stderr);
     assert!(
-        err.contains("great_wound_system cannot be generated"),
+        err.contains("fumongus_init_01 cannot be generated"),
         "{err}"
     );
 }

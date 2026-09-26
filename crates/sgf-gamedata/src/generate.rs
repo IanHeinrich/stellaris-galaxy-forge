@@ -12,9 +12,8 @@ use crate::deposit_roll::{RollBody, roll_deposits, roll_deposits_without_blocker
 use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::script::Range;
 use crate::layouts::{
-    Dlc, Eligibility, HOME_SYSTEM, SaveFacts, StarSource, USAGE, Unsupported, eligibility, generic,
-    homeworld, layout_stars, odds, plain_initializers, special_initializers, star_body,
-    star_source,
+    Dlc, Eligibility, SaveFacts, StarSource, USAGE, Unsupported, converted, eligibility, generic,
+    layout_stars, odds, plain_initializers, special_initializers, star_body, star_source,
 };
 use crate::menu::menu_initializers;
 use crate::naming;
@@ -237,7 +236,7 @@ fn build(
         flags: init
             .flags
             .iter()
-            .filter(|flag| !homeworld(init) || *flag != HOME_SYSTEM)
+            .filter(|flag| converted(init).is_none_or(|layout| layout.keeps(flag)))
             .cloned()
             .collect(),
         lanes: Vec::new(),

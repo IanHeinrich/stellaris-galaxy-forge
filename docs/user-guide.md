@@ -106,7 +106,9 @@ system and the game normally places only one. You can still add another.
 A lock means the save doesn't have the DLC the system belongs to, so its
 events won't run. The game's scripted extras for special systems, such
 as anomalies and background clouds, are not added. Sol comes without an
-empire, so Earth is an uncolonised continental world. Reroll on the new
+empire, so Earth is an uncolonised continental world. Other named
+systems, such as New Bratulla and Vultaumar, come without their empires,
+pre-FTL civilisations, guardians and fleets. Reroll on the new
 system's page builds the same special system again. Picking a star class
 there generates a regular system around that star.
 

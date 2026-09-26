@@ -14,7 +14,8 @@ use sgf_gamedata::generate::{
     GenerateError, generate, generate_layout_for, settle_name, star_classes,
 };
 use sgf_gamedata::layouts::{
-    DlcNeed, Eligibility, SaveFacts, Unsupported, eligibility, odds, special_initializers,
+    CONVERTED_LAYOUTS, DlcNeed, Eligibility, SaveFacts, Unsupported, eligibility, odds,
+    special_initializers,
 };
 use sgf_gamedata::menu::special_layouts;
 use sgf_gamedata::special::classify_session;
@@ -551,25 +552,25 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         "wenkwort_initializer",
         "wooden_planet_system_initializer",
     ];
-    let homeworlds = ["sol_system_initializer"];
+    let converted: Vec<&str> = CONVERTED.iter().map(|(key, ..)| *key).collect();
     assert_eq!(
         special,
         group_a
             .iter()
             .chain(&group_b)
-            .chain(&homeworlds)
+            .chain(&converted)
             .copied()
             .collect(),
         "A and B with odds, less the layouts whose point is their spawn, time loop's shield \
-         and relic_system_4's scripted deposits, and Sol without its empire"
+         and relic_system_4's scripted deposits, and the converted layouts"
     );
     let why = |layout: &str| match of(gd, layout) {
         Eligibility::Unsupported(why) => why,
         other => panic!("{layout} is {other:?}"),
     };
     assert_eq!(
-        why("great_wound_system"),
-        Unsupported::Effect("create_cloud_country".to_owned())
+        why("fumongus_init_01"),
+        Unsupported::Effect("create_tiyanki_country".to_owned())
     );
     assert_eq!(why("binary_init_01"), Unsupported::MultiStar);
     assert_eq!(
@@ -692,13 +693,77 @@ fn the_real_install_lists_its_special_stars_and_labels_its_menu() {
     );
 }
 
+/// The point nearest [`SPOT`], on a grid, that stands 10 from every system of `session`.
+fn free_ground(session: &Session) -> (f64, f64) {
+    let clear = |(x, y): (f64, f64)| {
+        session
+            .graph
+            .systems
+            .values()
+            .all(|s| (s.x - x).hypot(s.y - y) >= 10.0)
+    };
+    let mut grid: Vec<(f64, f64)> = (-8..=8)
+        .flat_map(|i| (-8..=8).map(move |j| (f64::from(i) * 11.0, f64::from(j) * 11.0)))
+        .collect();
+    grid.sort_by(|a, b| a.0.hypot(a.1).total_cmp(&b.0.hypot(b.1)));
+    grid.into_iter()
+        .map(|(dx, dy)| (SPOT.0 + dx, SPOT.1 + dy))
+        .find(|&at| clear(at))
+        .expect("free ground near the spot")
+}
+
+/// The layouts the Special menu offers converted to an unowned system, each with its label,
+/// whether the menu lists it with the unique systems, and the star flags it keeps.
+const CONVERTED: [(&str, &str, bool, &[&str]); 14] = [
+    (
+        "sol_system_initializer",
+        "Sol",
+        true,
+        &["sol_system", "sol", "galactic_landmark_system"],
+    ),
+    ("new_bratulla_initializer", "New Bratulla", false, &[]),
+    ("special_init_06", "Zanaam", false, &[]),
+    ("great_wound_system", "Great Wound", false, &[]),
+    ("breachsealer_system", "Seddom", false, &[]),
+    ("vultaumar_system", "Vultaumar", false, &[]),
+    ("fen_habbanis_system", "Fen Habbanis", false, &[]),
+    ("irass_system", "Irass", false, &[]),
+    ("last_baol_system", "Grunur", false, &[]),
+    ("sol_neighbor_t1", "Barnard's Star", false, &[]),
+    ("hostile_init_16", "Tiyana Vek", false, &[]),
+    ("hostile_init_21", "Tiyun Ort", false, &[]),
+    ("holibrae_initializer", "Holibrae", false, &[]),
+    ("the_chosen_escapee_initializer", "Ophala", false, &[]),
+];
+
 #[test]
-fn sol_is_offered_as_a_unique_system_without_its_empire() {
+fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() {
     let Some(gd) = install() else {
         return;
     };
-    assert_eq!(of(gd, "sol_system_initializer"), Eligibility::Special);
-    for other in ["pre_ftl_init_sol", "com_sol_system", "special_init_04"] {
+    let keys: BTreeSet<&str> = CONVERTED.iter().map(|(key, ..)| *key).collect();
+    assert_eq!(
+        keys,
+        CONVERTED_LAYOUTS.iter().map(|layout| layout.key).collect(),
+        "the whitelist"
+    );
+    for key in &keys {
+        assert_eq!(of(gd, key), Eligibility::Special, "{key}");
+    }
+    for other in [
+        "sanctuary_system",
+        "cybrex_beta",
+        "unique_system_initializer_01",
+        "pre_ftl_init_sol",
+        "com_sol_system",
+        "special_init_04",
+        "neighbor_t2",
+        "ai_system_01",
+        "the_chosen_home_initializer",
+        "Zrocursor_system",
+        "legendary_leader_last_site",
+        "chrysanthemum_tomb_system",
+    ] {
         assert!(
             matches!(of(gd, other), Eligibility::Unsupported(_)),
             "{other} is {:?}",
@@ -708,20 +773,53 @@ fn sol_is_offered_as_a_unique_system_without_its_empire() {
 
     let mut session = common::open_4_5();
     let entries = special_layouts(gd, &session);
-    let sol = entries
+    let menu: Vec<(&str, &str, bool)> = entries
         .iter()
-        .find(|e| e.key == "sol_system_initializer")
-        .expect("Sol is in the Special menu");
-    assert_eq!(sol.label, "Sol");
-    assert!(sol.unique, "listed with the unique systems");
-
-    let mut spec = by_name(gd, 1, "Gen", SPOT, "sol_system_initializer").unwrap();
-    assert_eq!(spec.name, "NAME_Sol");
+        .filter(|e| keys.contains(e.key.as_str()))
+        .map(|e| (e.key.as_str(), e.label.as_str(), e.unique))
+        .collect();
+    let mut expected: Vec<(&str, &str, bool)> = CONVERTED
+        .iter()
+        .map(|&(key, label, unique, _)| (key, label, unique))
+        .collect();
+    expected.sort_by_key(|&(key, label, _)| (label, key));
     assert_eq!(
-        spec.flags,
-        ["sol_system", "sol", "galactic_landmark_system"],
-        "no empire_home_system"
+        menu, expected,
+        "by label, Sol alone with the unique systems"
     );
+
+    let findings = |session: &Session| -> BTreeSet<(String, Vec<u32>, String)> {
+        session
+            .validate()
+            .into_iter()
+            .map(|issue| (issue.code.to_string(), issue.systems, issue.message))
+            .collect()
+    };
+    let before = findings(&session);
+    let known: BTreeSet<u32> = session.graph.systems.keys().copied().collect();
+    for &(key, _, _, flags) in &CONVERTED {
+        let mut spec = by_name(gd, 1, "Gen", free_ground(&session), key).unwrap();
+        let unique = gd
+            .initializers
+            .get(key)
+            .unwrap()
+            .flags
+            .iter()
+            .any(|f| f == "unique_system");
+        let kept: Vec<&str> = flags
+            .iter()
+            .copied()
+            .chain(unique.then_some("unique_system"))
+            .collect();
+        assert_eq!(spec.flags, kept, "{key}: no story flags");
+        spec.lanes = vec![169];
+        session
+            .apply(Op::AddSaveSystem { spec })
+            .unwrap_or_else(|e| panic!("{key}: {e}"));
+    }
+
+    let spec = by_name(gd, 1, "Gen", SPOT, "sol_system_initializer").unwrap();
+    assert_eq!(spec.name, "NAME_Sol");
     let earth = spec
         .planets
         .iter()
@@ -752,25 +850,37 @@ fn sol_is_offered_as_a_unique_system_without_its_empire() {
         );
     }
 
-    let findings = |session: &Session| -> BTreeSet<(String, Vec<u32>, String)> {
-        session
-            .validate()
-            .into_iter()
-            .map(|issue| (issue.code.to_string(), issue.systems, issue.message))
-            .collect()
-    };
-    let before = findings(&session);
-    spec.lanes = vec![169];
-    session
-        .apply(Op::AddSaveSystem { spec: spec.clone() })
-        .expect("add Sol");
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("sol.sav");
+    let path = dir.path().join("converted.sav");
     session.save_as(&path).expect("save");
     let reopened = Session::open(&path).expect("reopen");
-    let system = reopened.system(601).expect("Sol");
-    assert_eq!(system.initializer, "sol_system_initializer");
     assert_eq!(findings(&reopened), before);
+    let details = reopened.details().expect("details");
+    let added: Vec<u32> = reopened
+        .graph
+        .systems
+        .keys()
+        .copied()
+        .filter(|id| !known.contains(id))
+        .collect();
+    let layouts: BTreeSet<&str> = added
+        .iter()
+        .map(|&id| reopened.system(id).unwrap().initializer.as_str())
+        .collect();
+    assert_eq!(layouts, keys);
+    for id in added {
+        let initializer = &reopened.system(id).unwrap().initializer;
+        let system = details.raw(id).expect("details");
+        assert!(system.starbases.is_empty(), "{initializer}: a starbase");
+        assert!(system.fleets.is_empty(), "{initializer}: a fleet");
+        for planet in &system.planets {
+            assert!(
+                !planet.colonised && !planet.pre_ftl && planet.owner.is_none() && planet.pops == 0,
+                "{initializer}: {} is owned or lived on",
+                planet.name_key
+            );
+        }
+    }
 }
 
 #[test]

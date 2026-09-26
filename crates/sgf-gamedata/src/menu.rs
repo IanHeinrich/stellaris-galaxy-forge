@@ -12,7 +12,7 @@ use crate::body_effects;
 use crate::generate;
 use crate::initializers::{Initializer, expand};
 use crate::layouts::{
-    DlcNeed, SaveFacts, UNIQUE_SYSTEM, homeworld, notable, special_initializers, star_body,
+    DlcNeed, SaveFacts, UNIQUE_SYSTEM, converted, notable, special_initializers, star_body,
 };
 use crate::loc::localisation::Localisation;
 
@@ -26,9 +26,9 @@ pub struct SpecialLayout {
     /// `Arboreal World`. A layout with none of them, and labels that would repeat once they
     /// take their belts, have the key made readable: `Star Lifting System`.
     pub label: String,
-    /// Its `flags` set [`UNIQUE_SYSTEM`], or it is one of the
-    /// [`crate::layouts::HOMEWORLDS`]: one of the game's unique systems, which the menu
-    /// lists apart from its other special systems.
+    /// Its `flags` set [`UNIQUE_SYSTEM`], or its [`crate::layouts::Converted`] entry says
+    /// so: one of the game's unique systems, which the menu lists apart from its other
+    /// special systems.
     pub unique: bool,
     /// It has `max_instances`, which an add counts in `system_initializer_counter`.
     pub capped: bool,
@@ -62,7 +62,8 @@ pub fn special_layouts(gd: &GameData, session: &Session) -> Vec<SpecialLayout> {
         .map(|(init, label)| SpecialLayout {
             key: init.name.clone(),
             label,
-            unique: homeworld(init) || init.flags.iter().any(|flag| flag == UNIQUE_SYSTEM),
+            unique: converted(init).is_some_and(|layout| layout.unique)
+                || init.flags.iter().any(|flag| flag == UNIQUE_SYSTEM),
             capped: init.max_instances.is_some(),
             in_galaxy: save.in_galaxy(&init.name),
             dlc: save.dlc_need(gd, init),
@@ -133,6 +134,16 @@ fn label_parts(gd: &GameData, init: &Initializer) -> LabelParts {
         if !belts.contains(&name) {
             belts.push(name);
         }
+    }
+    if let Some(key) = converted(init).and_then(|layout| layout.label) {
+        let main = gd
+            .loc
+            .name(key)
+            .unwrap_or_else(|| Localisation::readable(key.trim_start_matches("NAME_")));
+        return LabelParts {
+            main: vec![main],
+            belts,
+        };
     }
     if let Some(name) = &init.display_name {
         let main = gd

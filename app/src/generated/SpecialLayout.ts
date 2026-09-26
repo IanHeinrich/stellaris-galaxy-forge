@@ -16,9 +16,9 @@ key: string,
  */
 label: string, 
 /**
- * Its `flags` set [`UNIQUE_SYSTEM`], or it is one of the
- * [`crate::layouts::HOMEWORLDS`]: one of the game's unique systems, which the menu
- * lists apart from its other special systems.
+ * Its `flags` set [`UNIQUE_SYSTEM`], or its [`crate::layouts::Converted`] entry says
+ * so: one of the game's unique systems, which the menu lists apart from its other
+ * special systems.
  */
 unique: boolean, 
 /**

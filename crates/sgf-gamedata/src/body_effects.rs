@@ -1,7 +1,9 @@
 //! What a layout's body runs in its `init_effect` that the generator writes: deposit,
 //! blocker, class, model and modifier changes, repeated by a `while` with a count or
 //! chosen by an `if` on the DLC. Anomalies, flags, event targets and ambient objects are
-//! dropped with the script; anything else makes the layout one the generator cannot build.
+//! dropped with the script, and so, in a converted layout, is what makes or runs an empire,
+//! a colony or a pre-FTL civilisation; anything else makes the layout one the generator
+//! cannot build.
 
 use sgf_core::cst::Node;
 use sgf_core::ops::BodySpec;
@@ -80,11 +82,59 @@ const SCOPES: [&str; 11] = [
     "this",
 ];
 
+/// The words of an effect or scope that makes or acts on a country, species, pop, colony,
+/// owner, building, district, leader or fleet.
+const OWNED: [&str; 17] = [
+    "country",
+    "countries",
+    "species",
+    "pop",
+    "pops",
+    "colony",
+    "colonies",
+    "owner",
+    "owned",
+    "building",
+    "buildings",
+    "district",
+    "districts",
+    "leader",
+    "leaders",
+    "fleet",
+    "fleets",
+];
+/// Effects that make a body an empire's home.
+pub(crate) const HOME_EFFECTS: [&str; 2] = [
+    "generate_home_system_resources",
+    "generate_empire_home_planet",
+];
+
+/// Which statements a body's `init_effect` is built without.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Dropping {
+    /// Those of [`DROPPED`], and flags.
+    Script,
+    /// Those, and in a converted layout what makes a home, a colony or a pre-FTL
+    /// civilisation, or makes or acts on a country, species, pop, owner, building,
+    /// district, leader or fleet.
+    Converted,
+}
+
+/// A `generate_…pre_ftl…_on_planet` effect.
+pub(crate) fn pre_ftl(key: &str) -> bool {
+    key.starts_with("generate_") && key.contains("pre_ftl") && key.ends_with("_on_planet")
+}
+
 /// Flags on any scope but a country's, which only a spawned country would have.
-fn dropped(key: &str) -> bool {
+fn dropped(key: &str, dropping: Dropping) -> bool {
     DROPPED.contains(&key)
         || (key.starts_with("set_") && key.ends_with("_flag") && key != "set_country_flag")
         || key == "remove_global_flag"
+        || (dropping == Dropping::Converted && owned(key))
+}
+
+fn owned(key: &str) -> bool {
+    HOME_EFFECTS.contains(&key) || pre_ftl(key) || key.split('_').any(|word| OWNED.contains(&word))
 }
 
 fn scope(key: &str) -> bool {
@@ -108,17 +158,17 @@ fn nested(node: &Node, def: &Def) -> bool {
 
 /// The first statement below `block` that is not dropped with the script, when there is
 /// one: what a layout's own `init_effect`, or a scope or chance a body's changes to, runs.
-pub(crate) fn undropped(block: &Node, def: &Def) -> Option<String> {
+pub(crate) fn undropped(block: &Node, def: &Def, dropping: Dropping) -> Option<String> {
     for child in block.children() {
         let Some(key) = child.key_str(&def.src) else {
             continue;
         };
-        if condition_key(key) || dropped(key) {
+        if condition_key(key) || dropped(key, dropping) {
             continue;
         }
         let walkable = keeps_scope(key) || CHANCE.contains(&key) || scope(key);
         if nested(child, def) && walkable {
-            match undropped(child, def) {
+            match undropped(child, def, dropping) {
                 Some(found) => return Some(found),
                 None => continue,
             }
@@ -129,17 +179,27 @@ pub(crate) fn undropped(block: &Node, def: &Def) -> Option<String> {
 }
 
 /// A body's `init_effect` blocks read in order: what they run that the generator writes,
-/// and the first statement it can neither write nor drop.
-pub(crate) fn read(body: &Node, def: &Def) -> (Vec<BodyEffect>, Option<String>) {
+/// and the first statement it can neither write nor drop the way `dropping` says.
+pub(crate) fn read(
+    body: &Node,
+    def: &Def,
+    dropping: Dropping,
+) -> (Vec<BodyEffect>, Option<String>) {
     let mut effects = Vec::new();
     let mut unwritten = None;
     for block in body.find_all("init_effect", &def.src) {
-        read_block(block, def, &mut effects, &mut unwritten);
+        read_block(block, def, dropping, &mut effects, &mut unwritten);
     }
     (effects, unwritten)
 }
 
-fn read_block(block: &Node, def: &Def, out: &mut Vec<BodyEffect>, unwritten: &mut Option<String>) {
+fn read_block(
+    block: &Node,
+    def: &Def,
+    dropping: Dropping,
+    out: &mut Vec<BodyEffect>,
+    unwritten: &mut Option<String>,
+) {
     let src = &def.src;
     let children = block.children();
     let mut i = 0;
@@ -149,7 +209,7 @@ fn read_block(block: &Node, def: &Def, out: &mut Vec<BodyEffect>, unwritten: &mu
         let Some(key) = child.key_str(src) else {
             continue;
         };
-        if condition_key(key) || dropped(key) {
+        if condition_key(key) || dropped(key, dropping) {
             continue;
         }
         let scalar = child.scalar_str(src);
@@ -170,13 +230,13 @@ fn read_block(block: &Node, def: &Def, out: &mut Vec<BodyEffect>, unwritten: &mu
             },
             "set_planet_entity" => field("entity").map(|e| BodyEffect::Entity(e.to_owned())),
             "add_modifier" => field("modifier").map(|m| BodyEffect::Modifier(m.to_owned())),
-            "while" => repeat(child, def, unwritten),
+            "while" => repeat(child, def, dropping, unwritten),
             "if" => {
-                let mut arms = vec![arm(child, def, true, unwritten)];
+                let mut arms = vec![arm(child, def, dropping, true, unwritten)];
                 while let Some(next) = children.get(i) {
                     match next.key_str(src) {
-                        Some("else_if") => arms.push(arm(next, def, true, unwritten)),
-                        Some("else") => arms.push(arm(next, def, false, unwritten)),
+                        Some("else_if") => arms.push(arm(next, def, dropping, true, unwritten)),
+                        Some("else") => arms.push(arm(next, def, dropping, false, unwritten)),
                         _ => break,
                     }
                     i += 1;
@@ -187,11 +247,11 @@ fn read_block(block: &Node, def: &Def, out: &mut Vec<BodyEffect>, unwritten: &mu
                 Some(BodyEffect::Branch(arms))
             }
             _ if SAME_SCOPE.contains(&key) && nested(child, def) => {
-                read_block(child, def, out, unwritten);
+                read_block(child, def, dropping, out, unwritten);
                 continue;
             }
             _ if nested(child, def) && (CHANCE.contains(&key) || scope(key)) => {
-                if let Some(found) = undropped(child, def) {
+                if let Some(found) = undropped(child, def, dropping) {
                     unwritten.get_or_insert(found);
                 }
                 continue;
@@ -207,7 +267,12 @@ fn read_block(block: &Node, def: &Def, out: &mut Vec<BodyEffect>, unwritten: &mu
     }
 }
 
-fn repeat(node: &Node, def: &Def, unwritten: &mut Option<String>) -> Option<BodyEffect> {
+fn repeat(
+    node: &Node,
+    def: &Def,
+    dropping: Dropping,
+    unwritten: &mut Option<String>,
+) -> Option<BodyEffect> {
     if node.find("limit", &def.src).is_some() {
         return None;
     }
@@ -216,13 +281,14 @@ fn repeat(node: &Node, def: &Def, unwritten: &mut Option<String>) -> Option<Body
         .and_then(|c| c.scalar_str(&def.src))
         .and_then(|text| def.number_of(text))?;
     let mut inner = Vec::new();
-    read_block(node, def, &mut inner, unwritten);
+    read_block(node, def, dropping, &mut inner, unwritten);
     Some(BodyEffect::Repeat(count.max(0.0).round() as u32, inner))
 }
 
 fn arm(
     node: &Node,
     def: &Def,
+    dropping: Dropping,
     checked: bool,
     unwritten: &mut Option<String>,
 ) -> (Option<Condition>, Vec<BodyEffect>) {
@@ -231,7 +297,7 @@ fn arm(
         None => Condition::All(Vec::new()),
     });
     let mut effects = Vec::new();
-    read_block(node, def, &mut effects, unwritten);
+    read_block(node, def, dropping, &mut effects, unwritten);
     (check, effects)
 }
 
