@@ -286,3 +286,14 @@ pub fn list_items(node: &Node, key: &str, src: &[u8]) -> Vec<String> {
         .map(str::to_owned)
         .collect()
 }
+
+/// The unquoted scalar value of the last direct child of `node` named `key`; empty counts as
+/// none. Unlike [`Def::scalar`] (the first, for a definition's own fields), a later duplicate
+/// overrides an earlier one: `.asset` entity lookups and `gfx/worldgfx` settings blocks rely
+/// on this.
+pub fn last_scalar<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<&'a str> {
+    node.find_all(key, src)
+        .last()?
+        .scalar_str(src)
+        .filter(|s| !s.is_empty())
+}

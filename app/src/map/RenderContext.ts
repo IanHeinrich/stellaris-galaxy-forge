@@ -20,6 +20,7 @@ import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
 import type { CountryTypes } from "../lib/countryKinds";
+import { VANILLA_MOON_SCALE } from "../lib/details/discs";
 import { clanSystemsOf, NO_OWNERSHIP, type OwnerEntry, type Ownership } from "../lib/ownership";
 import { bypassLinks } from "../lib/scenarioBypasses";
 import {
@@ -37,11 +38,16 @@ import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { currentOwnership } from "../store/ownership";
 import { SpatialGrid } from "../lib/spatialGrid";
+import { sameFields } from "./follows";
 
 export type Systems = ReadonlyMap<number, SystemNode>;
 
 /** What the game writes for a vanilla install, used until its `defines` are read. */
-export const VANILLA_BORDER: BorderDefines = { system_radius: 35, hyperlane_thickness: 20 };
+export const VANILLA_BORDER: BorderDefines = {
+  system_radius: 35,
+  hyperlane_thickness: 20,
+  moon_scale: VANILLA_MOON_SCALE,
+};
 
 /**
  * Everything the layers draw, as one frozen snapshot: the open save, the game data read from
@@ -120,13 +126,8 @@ export interface RenderContext {
   readonly requestResourceIcons: () => void;
 }
 
-/** The fields a layer may compare between two contexts: every one that is not a function. */
-type DataField = {
-  [K in keyof RenderContext]: RenderContext[K] extends (...args: never[]) => unknown ? never : K;
-}[keyof RenderContext];
-
-/** Listed as a record so that a field added to the context fails to compile until it is here. */
-const DATA_FIELDS: Record<DataField, true> = {
+/** Whether two contexts draw the same map, so the layers can be left alone. */
+export const sameContext = sameFields<RenderContext>({
   galaxy: true,
   lgate: true,
   kind: true,
@@ -164,14 +165,7 @@ const DATA_FIELDS: Record<DataField, true> = {
   details: true,
   detailsVersion: true,
   resourceIcons: true,
-};
-
-const SOURCES = Object.keys(DATA_FIELDS) as DataField[];
-
-/** Whether two contexts draw the same map, so the layers can be left alone. */
-export function sameContext(a: RenderContext, b: RenderContext): boolean {
-  return SOURCES.every((key) => a[key] === b[key]);
-}
+});
 
 const EMPTY_GRID = new SpatialGrid();
 const NOTHING: never[] = [];

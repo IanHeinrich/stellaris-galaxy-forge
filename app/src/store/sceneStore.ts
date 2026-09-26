@@ -1,12 +1,9 @@
 import { create } from "zustand";
+import { documentCapabilities, type CapabilitySource } from "../lib/capabilities";
 import { renumberedId, type Renumbering } from "../lib/renumber";
 import { barModeOf, type BarMode } from "../lib/visual/barMode";
-import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { useInspectorStore } from "./inspectorStore";
-import { useMapChromeStore } from "./mapChromeStore";
-import { useToolStore } from "./toolStore";
 
 /** What the map shows: the whole galaxy, or one system's bodies. */
 export type Scene = { kind: "galaxy" } | { kind: "system"; id: number };
@@ -15,6 +12,11 @@ export const GALAXY_SCENE: Scene = { kind: "galaxy" };
 
 export interface SceneState {
   scene: Scene;
+  /**
+   * Counts the systems entered, so a follower can tell entering a system from an edit
+   * renumbering the one shown.
+   */
+  visit: number;
   /** Which roll of a scenario system's initializer the system view draws; 0 on entering one. */
   roll: number;
   /** Draws the scenario system shown as another roll of its initializer. */
@@ -22,21 +24,26 @@ export interface SceneState {
   /** The body a panel's link names while the pointer is on the link; the system view brightens it. */
   linkedBody: number | null;
   setLinkedBody(id: number | null): void;
-  /**
-   * Shows system `id`, selecting it when it is not already the one selection. The galaxy's tool
-   * goes back to Select and its menu, tooltip, hover and overlays go.
-   */
+  /** Shows system `id`; `bindStores` selects it and clears the galaxy's tool, menu and overlays. */
   enterSystem(id: number): void;
-  /** Back to the galaxy, with the inspector on the system's page and the system still selected. */
-  leaveSystem(): void;
+  /** Back to the galaxy, leaving the inspector as it is; `backToGalaxy` is the user's way out. */
+  exitScene(): void;
   /** Follows an edit that renumbered the system shown; one it removed leaves the scene. */
   renumber(pairs: Renumbering): void;
 }
 
 /** The system the map shows, or null while it shows the galaxy. */
 export function sceneSystem(): number | null {
-  const { scene } = useSceneStore.getState();
+  return shownSystem(useSceneStore.getState());
+}
+
+function shownSystem({ scene }: Pick<SceneState, "scene">): number | null {
   return scene.kind === "system" ? scene.id : null;
+}
+
+/** The system the map shows, as a component reads it. */
+export function useSceneSystem(): number | null {
+  return useSceneStore(shownSystem);
 }
 
 /** The bar the chrome shows now, for the commands that run outside React. */
@@ -47,13 +54,25 @@ export function currentBarMode(): BarMode {
 /** The bar the chrome shows, as a component reads it. */
 export function useBarMode(): BarMode {
   const kind = useFileSessionStore((s) => s.kind);
-  const inSystem = useSceneStore((s) => s.scene.kind === "system");
+  const inSystem = useSceneSystem() !== null;
   return barModeOf(kind, inSystem);
 }
 
-/** Whether Roll again has anything to do: a scenario system is shown. */
-export function canRollAgain(): boolean {
-  return sceneSystem() !== null && useFileSessionStore.getState().kind === "scenario";
+/** Whether the document draws its systems as rolls of their initializers: it has no bodies of its own. */
+function rollsSystems(session: CapabilitySource): boolean {
+  return !documentCapabilities(session).details;
+}
+
+/** Whether Roll again has anything to do: a rolled system is shown. */
+function canRollAgain(): boolean {
+  return sceneSystem() !== null && rollsSystems(useFileSessionStore.getState());
+}
+
+/** Whether Roll again has anything to do, as a component reads it. */
+export function useCanRollAgain(): boolean {
+  const inSystem = useSceneSystem() !== null;
+  const rolled = useFileSessionStore(rollsSystems);
+  return inSystem && rolled;
 }
 
 /** Whether the enter routes offer a system scene: on any open document, save or scenario. */
@@ -63,6 +82,7 @@ export function canEnterSystem(): boolean {
 
 export const useSceneStore = create<SceneState>((set, get) => ({
   scene: GALAXY_SCENE,
+  visit: 0,
   roll: 0,
   linkedBody: null,
 
@@ -77,25 +97,11 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   enterSystem(id) {
     if (!useGalaxyStore.getState().systems.has(id)) return;
-    // The scene goes first, so the selection following it already sees the system as shown.
-    set({ scene: { kind: "system", id }, roll: 0, linkedBody: null });
-    const editor = useEditorStore.getState();
-    const { selection } = editor;
-    if (selection.length !== 1 || selection[0] !== id) void editor.select(id);
-    useToolStore.getState().setTool("select");
-    const chrome = useMapChromeStore.getState();
-    chrome.closeContextMenu();
-    chrome.hideTooltip();
-    editor.setHover(null);
-    // Not `clearOverlays`: the hidden initializers belong to the document.
-    chrome.setLanePreview(null);
-    chrome.setHighlightInitializer(null);
-    chrome.setGesture(null);
+    set({ scene: { kind: "system", id }, visit: get().visit + 1, roll: 0, linkedBody: null });
   },
 
-  leaveSystem() {
+  exitScene() {
     if (get().scene.kind === "galaxy") return;
-    useInspectorStore.getState().popTo(0);
     set({ scene: GALAXY_SCENE, roll: 0, linkedBody: null });
   },
 
@@ -104,6 +110,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     if (scene.kind !== "system") return;
     const id = renumberedId(pairs, scene.id);
     if (id === scene.id) return;
-    set({ scene: id === null ? GALAXY_SCENE : { kind: "system", id } });
+    if (id === null) get().exitScene();
+    else set({ scene: { kind: "system", id } });
   },
 }));

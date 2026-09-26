@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/textures", () => ({ getTextures: () => new Promise(() => {}) }));
 
-import { BitmapText, Container, Graphics, Sprite, Texture } from "pixi.js";
-import type { BodyLayout } from "../../generated/BodyLayout";
+import { BitmapText, Container, Graphics, Sprite } from "pixi.js";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
@@ -16,11 +15,12 @@ import {
   starClassView,
   systemDetails,
 } from "../../test/builders";
-import { NO_SOURCES, systemContext, type SceneBody, type SystemContext } from "./context";
-import { stubTextMeasurement, viewport } from "./fixture";
+import { rolledBody, systemRoll } from "../../test/rolls";
+import { systemContext, type SceneBody, type SystemContext } from "./context";
+import { blankSceneTextures, stubTextMeasurement, viewport } from "./fixture";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
-import type { SceneTextures } from "./layers/textures";
+import { NO_SOURCES } from "./sources";
 
 stubTextMeasurement();
 
@@ -48,44 +48,43 @@ const iconed = (key: string): PlanetClassView => ({
 
 const PLANET_CLASSES: ReadonlyMap<string, PlanetClassView> = new Map(
   [
-    ...["pc_g_star", "pc_a_star", "pc_b_star", "pc_pulsar", "pc_black_hole", "pc_t_star"].map(
-      (key) => planetClassView(key),
+    ...["pc_g_star", "pc_a_star", "pc_b_star", "pc_pulsar", "pc_black_hole"].map((key) =>
+      planetClassView(key),
     ),
-    ...["pc_continental", "pc_barren", "pc_broken", "pc_asteroid"].map(iconed),
+    { ...planetClassView("pc_t_star"), draws_as_planet: true },
+    ...["pc_continental", "pc_barren", "pc_broken"].map(iconed),
+    { ...iconed("pc_asteroid"), asteroid: true },
   ].map((view) => [view.key, view]),
 );
 
 /**
- * A body as a save writes it: its own class, its point and its orbit. A scenario's details give
- * the same class, its stars resolved by the core.
+ * A body as the core resolves it from either source: its class, the star class a star draws as,
+ * and where it stands, both as the orbit and angle a scenario's roll gives and as the point a save
+ * holds, written out by hand.
  */
 interface Placed {
   id: number;
   planetClass: string;
+  starClass?: string;
   orbit: number;
   angle: number;
+  at: [number, number];
   size: number;
   parent?: number;
   ring?: boolean;
   deposits?: PlanetSummary["deposits"];
 }
 
-function pointOf(body: Placed, bodies: readonly Placed[]): [number, number] {
-  const parent = bodies.find((b) => b.id === body.parent);
-  const [cx, cy] = parent ? pointOf(parent, bodies) : [0, 0];
-  const a = (body.angle * Math.PI) / 180;
-  return [cx + body.orbit * Math.cos(a), cy + body.orbit * Math.sin(a)];
-}
-
-function summary(body: Placed, planetClass: string, layout: Partial<BodyLayout>): PlanetSummary {
+function summary(body: Placed, over: Partial<PlanetSummary>): PlanetSummary {
   return planetSummary({
     id: body.id,
-    class: planetClass,
+    class: body.planetClass,
+    star_class: body.starClass,
     parent: body.parent ?? null,
     moon: body.parent !== undefined,
-    layout: bodyLayout(layout),
     ring: body.ring ?? false,
     deposits: body.deposits ?? [],
+    ...over,
   });
 }
 
@@ -95,17 +94,14 @@ const sources = {
   starClasses: STAR_CLASSES,
   planetClasses: PLANET_CLASSES,
   gameDataReady: true,
-  detailsShown: true,
+  sceneLayers: { ...NO_SOURCES.sceneLayers, details: true },
 };
 
 /** The system as a save holds it: the star class on the system and every body at its point. */
 function asSave(starClass: string, bodies: readonly Placed[]): SystemContext {
   const planets = bodies.map((b) =>
-    summary(b, b.planetClass, {
-      orbit: fixed(b.orbit),
-      angle: null,
-      at: pointOf(b, bodies),
-      size: fixed(b.size),
+    summary(b, {
+      layout: bodyLayout({ orbit: fixed(b.orbit), at: b.at, size: fixed(b.size) }),
     }),
   );
   return systemContext({
@@ -117,24 +113,31 @@ function asSave(starClass: string, bodies: readonly Placed[]): SystemContext {
 }
 
 /**
- * The same system as a scenario holds it: no star class of its own, the initializer's, and
- * every body at a fixed orbit and angle about its parent.
+ * The same system as a scenario holds it: no star class of its own, the initializer's, every body
+ * on a fixed orbit naming its angle, and a roll landing each where the save has it.
  */
 function asScenario(starClass: string, bodies: readonly Placed[]): SystemContext {
   const planets = bodies.map((b) =>
-    summary(b, b.planetClass, {
-      orbit: fixed(b.orbit),
-      angle: fixed(b.angle),
-      at: null,
-      size: fixed(b.size),
+    summary(b, {
+      layout: bodyLayout({
+        orbit: fixed(b.orbit),
+        size: fixed(b.size),
+        orbit_step: fixed(b.orbit),
+        angle_step: fixed(b.angle),
+      }),
     }),
   );
+  const roll = systemRoll({
+    system: SYSTEM,
+    bodies: bodies.map((b) => rolledBody({ id: b.id, orbit: b.orbit, angle: b.angle })),
+  });
   return systemContext({
     ...sources,
     kind: "scenario",
     systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: INITIALIZER }),
     details: systemDetails({ id: SYSTEM, planets, with_game_data: true }),
     initializerClasses: new Map([[INITIALIZER, starClass]]),
+    roll,
   });
 }
 
@@ -150,37 +153,17 @@ function rounded(value: unknown): unknown {
 
 /**
  * A body as the scene resolved it, without the source record it was resolved from, or the steps
- * from the body before it that only a scenario gives.
+ * and turn from the body before it that only a scenario gives.
  */
 function resolved(body: SceneBody): unknown {
   const { placement } = body;
-  const radius = placement.radius && { ...placement.radius, step: null };
+  const radius = placement.radius && { ...placement.radius, step: null, base: null };
   return rounded({ ...body, planet: null, placement: { ...placement, radius, turn: null } });
-}
-
-function blankTextures(): SceneTextures {
-  const t = () => new Texture();
-  return {
-    disc: t(),
-    nebula: t(),
-    glow: t(),
-    corona: t(),
-    beam: t(),
-    plume: t(),
-    halo: t(),
-    swirl: t(),
-    wisps: t(),
-    shade: t(),
-    gloss: t(),
-    rock: t(),
-    ringBack: t(),
-    ringFront: t(),
-  };
 }
 
 /** What the bodies layer draws for each body: where, and each part's look. */
 function drawn(ctx: SystemContext): unknown {
-  const layer = new BodiesLayer(blankTextures());
+  const layer = new BodiesLayer(blankSceneTextures());
   layer.rebuild(ctx);
   viewport(layer, 2);
   const parts = layer.container.children.map((holder) => ({
@@ -222,23 +205,26 @@ function expectParity(starClass: string, bodies: readonly Placed[]): void {
   expect(plates(scenario)).toEqual(plates(save));
 }
 
-const star = (planetClass: string, size = 20): Placed => ({
+const star = (planetClass: string, starClass: string, size = 20): Placed => ({
   id: 1,
   planetClass,
+  starClass,
   orbit: 0,
   angle: 0,
+  at: [0, 0],
   size,
 });
 
-describe("a system drawn from a save and from a scenario", () => {
-  it("resolves and draws a G star, a ringed planet with its moon and an asteroid alike", () => {
+describe("a scenario body on a fixed orbit and angle is drawn as a save body at the matching point", () => {
+  it("for a G star, a ringed planet with its moon and an asteroid", () => {
     expectParity("sc_g", [
-      star("pc_g_star"),
+      star("pc_g_star", "sc_g"),
       {
         id: 2,
         planetClass: "pc_continental",
         orbit: 90,
         angle: 0,
+        at: [90, 0],
         size: 16,
         ring: true,
         deposits: [{ resource: "food", amount: 3 }],
@@ -247,7 +233,8 @@ describe("a system drawn from a save and from a scenario", () => {
         id: 3,
         planetClass: "pc_barren",
         orbit: 12,
-        angle: 0,
+        angle: 180,
+        at: [78, 0],
         size: 5,
         parent: 2,
       },
@@ -256,35 +243,40 @@ describe("a system drawn from a save and from a scenario", () => {
         planetClass: "pc_asteroid",
         orbit: 130,
         angle: 90,
+        at: [0, 130],
         size: 5,
       },
     ]);
   });
 
-  it("resolves and draws a pulsar alike, surface bake and beams included", () => {
+  it("for a pulsar, surface bake and beams included", () => {
     const planet: Placed = {
       id: 2,
       planetClass: "pc_barren",
       orbit: 70,
-      angle: 45,
+      angle: 270,
+      at: [0, -70],
       size: 12,
     };
-    expectParity("sc_pulsar", [star("pc_pulsar"), planet]);
-    const [pulsar] = asScenario("sc_pulsar", [star("pc_pulsar"), planet]).bodies;
+    const bodies = [star("pc_pulsar", "sc_pulsar"), planet];
+    expectParity("sc_pulsar", bodies);
+    const [pulsar] = asScenario("sc_pulsar", bodies).bodies;
     expect(pulsar.look.surfaceKey).toBe("star_disc:pc_pulsar");
     expect(pulsar.look.flare).toBe("pulsar");
   });
 
-  it("resolves and draws a black hole alike, black with its planet out on its orbit", () => {
+  it("for a black hole, black with its planet out on its orbit", () => {
     const broken: Placed = {
       id: 2,
       planetClass: "pc_broken",
       orbit: 60,
       angle: 0,
+      at: [60, 0],
       size: 10,
     };
-    expectParity("sc_black_hole", [star("pc_black_hole", 30), broken]);
-    const [hole, planet] = asScenario("sc_black_hole", [star("pc_black_hole", 30), broken]).bodies;
+    const bodies = [star("pc_black_hole", "sc_black_hole", 30), broken];
+    expectParity("sc_black_hole", bodies);
+    const [hole, planet] = asScenario("sc_black_hole", bodies).bodies;
     expect(hole.look.blackHole).toBe(true);
     expect(hole.look.surfaceKey).toBeNull();
     expect(Math.hypot(planet.placement.x, planet.placement.y)).toBeGreaterThan(
@@ -292,10 +284,10 @@ describe("a system drawn from a save and from a scenario", () => {
     );
   });
 
-  it("resolves and draws a binary alike, each star as its own class", () => {
-    const binary = [
-      { ...star("pc_a_star", 30), orbit: 25 },
-      { ...star("pc_b_star", 20), id: 2, orbit: 25, angle: 180 },
+  it("for a binary, each star as its own class", () => {
+    const binary: Placed[] = [
+      { ...star("pc_a_star", "sc_a", 30), orbit: 25, at: [25, 0] },
+      { ...star("pc_b_star", "sc_b"), id: 2, orbit: 25, angle: 180, at: [-25, 0] },
     ];
     expectParity("sc_binary_ab", binary);
     const stars = asScenario("sc_binary_ab", binary).bodies;
@@ -305,304 +297,7 @@ describe("a system drawn from a save and from a scenario", () => {
     ]);
   });
 
-  it("leaves a save body with no class a planet, not a star", () => {
-    const ctx = asSave("sc_g", [
-      star("pc_g_star"),
-      { id: 2, planetClass: "", orbit: 50, angle: 0, size: 10 },
-    ]);
-    expect(ctx.bodies.map((b) => [b.placement.star, b.starClass])).toEqual([
-      [true, "sc_g"],
-      [false, null],
-    ]);
-  });
-
-  it("resolves and draws a brown dwarf alike, sized as a planet", () => {
-    expectParity("sc_t", [star("pc_t_star", 16)]);
-  });
-});
-
-describe("what a scenario leaves to chance", () => {
-  const scenario = (planets: PlanetSummary[], starClass = "sc_g") =>
-    systemContext({
-      ...sources,
-      kind: "scenario",
-      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: INITIALIZER }),
-      details: systemDetails({ id: SYSTEM, planets, with_game_data: true }),
-      initializerClasses: new Map([[INITIALIZER, starClass]]),
-    });
-  const body = (id: number, planetClass: string, layout: Partial<BodyLayout>) =>
-    planetSummary({
-      id,
-      class: planetClass,
-      layout: bodyLayout({ size: fixed(12), ...layout }),
-      ring: false,
-    });
-  const sun = body(1, "pc_g_star", { orbit: fixed(0), angle: fixed(0) });
-
-  it("stands the bodies a count spawns with no angle apart, each with one plate showing its deposits once", () => {
-    const twin = (id: number) => ({
-      ...body(id, "pc_barren", { orbit: fixed(45) }),
-      deposits: [
-        { resource: "food", amount: 3 },
-        { resource: "energy", amount: 1 },
-      ],
-    });
-    const ctx = scenario([sun, twin(2), twin(3)]);
-    const [, a, b] = ctx.bodies;
-    expect(
-      Math.hypot(a.placement.x - b.placement.x, a.placement.y - b.placement.y),
-    ).toBeGreaterThan(a.placement.disc + b.placement.disc);
-    const layer = new LabelsLayer();
-    layer.rebuild(ctx);
-    viewport(layer, 2);
-    const labelled = (holder: Container, label: string) =>
-      holder.children.filter((c) => c.label === label).length;
-    const holders = layer.container.children as Container[];
-    expect(holders.map((h) => [labelled(h, "plate"), labelled(h, "resource")])).toEqual([
-      [1, 0],
-      [1, 2],
-      [1, 2],
-    ]);
-    expect(new Set(layer.plates().map((p) => `${Math.round(p.x)},${Math.round(p.y)}`)).size).toBe(
-      layer.plates().length,
-    );
-    layer.destroy();
-  });
-
-  it("marks a class the install does not define, a planet list or the empire's ideal class, as a draw", () => {
-    const ctx = scenario([
-      sun,
-      body(2, "rl_unhabitable_planets", { orbit: fixed(60), angle: fixed(0) }),
-      body(3, "ideal_planet_class", { orbit: fixed(90), angle: fixed(0) }),
-      body(4, "pc_barren", { orbit: fixed(120), angle: fixed(0) }),
-    ]);
-    expect(ctx.bodies.map((b) => b.chance.planetClass)).toEqual([false, true, true, false]);
-    const layer = new BodiesLayer(blankTextures());
-    layer.rebuild(ctx);
-    viewport(layer, 2);
-    const glyphs = (layer.container.children as Container[]).map(
-      (h) => h.children.filter((c) => c instanceof BitmapText).length,
-    );
-    expect(glyphs.sort()).toEqual([0, 0, 1, 1]);
-    layer.destroy();
-  });
-
-  it("leaves a drawn class's ring to its question mark, and dashes a known class's ring left to chance", () => {
-    const unset = (id: number, planetClass: string) => ({
-      ...body(id, planetClass, { orbit: fixed(40 * id), angle: fixed(0) }),
-      ring: null,
-    });
-    const ctx = scenario([sun, unset(2, "random"), unset(3, "pc_barren")]);
-    const [, drawnClass, known] = ctx.bodies;
-    expect([drawnClass.ring, drawnClass.chance.ring]).toEqual([false, false]);
-    expect([known.ring, known.chance.ring]).toEqual([true, true]);
-  });
-
-  it("draws a scenario system still loading as its initializer's star, with no question mark", () => {
-    const ctx = systemContext({
-      ...sources,
-      kind: "scenario",
-      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: INITIALIZER }),
-      details: null,
-      loading: true,
-      initializerClasses: new Map([[INITIALIZER, "sc_pulsar"]]),
-    });
-    const [pulsar] = ctx.bodies;
-    expect(pulsar.surfaceClass).toBe("pc_pulsar");
-    expect(pulsar.chance.planetClass).toBe(false);
-    const layer = new BodiesLayer(blankTextures());
-    layer.rebuild(ctx);
-    viewport(layer, 2);
-    const holder = layer.container.children[0] as Container;
-    expect(holder.children.some((c) => c instanceof BitmapText)).toBe(false);
-    expect(holder.children.map((c) => c.label)).toContain("beams");
-    layer.destroy();
-  });
-});
-
-describe("orbit radius readouts", () => {
-  it("reads a save body's radius rounded", () => {
-    const ctx = asSave("sc_g", [
-      star("pc_g_star"),
-      {
-        id: 2,
-        planetClass: "pc_barren",
-        orbit: 120.43,
-        angle: 0,
-        size: 10,
-      },
-    ]);
-    expect(ctx.bodies.map((b) => b.readout?.text ?? null)).toEqual([null, "120"]);
-  });
-
-  it("reads a scenario body's radius alone, a range's two ends, and a moon's from its planet", () => {
-    const body = (id: number, orbit: { min: number; max: number }, parent: number | null = null) =>
-      planetSummary({
-        id,
-        class: id === 1 ? "pc_g_star" : "pc_barren",
-        parent,
-        layout: bodyLayout({ orbit, angle: fixed(0), size: fixed(10) }),
-        ring: false,
-      });
-    const ctx = systemContext({
-      ...sources,
-      kind: "scenario",
-      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: INITIALIZER }),
-      details: systemDetails({
-        id: SYSTEM,
-        with_game_data: true,
-        planets: [
-          body(1, fixed(0)),
-          body(2, { min: 65, max: 80 }),
-          body(3, fixed(10), 2),
-          body(4, fixed(18), 2),
-          body(5, { min: 85, max: 105 }),
-        ],
-      }),
-      initializerClasses: new Map([[INITIALIZER, "sc_g"]]),
-    });
-    expect(ctx.bodies.map((b) => b.readout?.text ?? null)).toEqual([
-      null,
-      "65–80",
-      "10",
-      "18",
-      "85–105",
-    ]);
-    const [sun, planet, moon] = ctx.bodies;
-    expect(planet.readout?.hub).toBe(sun.placement.disc);
-    expect(moon.readout?.hub).toBe(planet.placement.disc);
-  });
-});
-
-describe("a scenario system drawn as one roll of its initializer", () => {
-  /** A body of the walk, with the steps the core's walk gives it. */
-  const turning = (id: number, layout: Partial<BodyLayout>) =>
-    planetSummary({
-      id,
-      class: id === 1 ? "pc_g_star" : "pc_barren",
-      layout: bodyLayout({ size: fixed(10), ...layout }),
-      ring: false,
-    });
-  const rolled = (roll: number) =>
-    systemContext({
-      ...sources,
-      kind: "scenario",
-      roll,
-      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: INITIALIZER }),
-      details: systemDetails({
-        id: SYSTEM,
-        with_game_data: true,
-        planets: [
-          turning(1, {
-            orbit: fixed(0),
-            angle: fixed(0),
-            orbit_step: fixed(0),
-            orbit_base: fixed(0),
-            angle_step: fixed(0),
-          }),
-          turning(2, {
-            orbit: { min: 40, max: 60 },
-            angle: { min: 90, max: 270 },
-            orbit_step: { min: 40, max: 60 },
-            orbit_base: fixed(0),
-            angle_step: { min: 90, max: 270 },
-            turns_from: 1,
-          }),
-          turning(3, {
-            orbit: { min: 70, max: 100 },
-            angle: { min: 180, max: 540 },
-            orbit_step: { min: 30, max: 40 },
-            orbit_base: { min: 40, max: 60 },
-            angle_step: { min: 90, max: 270 },
-            turns_from: 2,
-          }),
-        ],
-      }),
-      initializerClasses: new Map([[INITIALIZER, "sc_g"]]),
-    });
-  const points = (ctx: SystemContext) => ctx.bodies.map((b) => [b.placement.x, b.placement.y]);
-
-  it("draws the same roll for the same counter, and another once Roll again moves it", () => {
-    expect(points(rolled(0))).toEqual(points(rolled(0)));
-    expect(points(rolled(1))).not.toEqual(points(rolled(0)));
-  });
-});
-
-describe("planets the game rolls", () => {
-  /** A scenario system whose initializer, read with the install, gave no record. */
-  const rolling = (over: Partial<typeof sources> = {}) =>
-    systemContext({
-      ...sources,
-      kind: "scenario",
-      systems: byId(
-        ...[SYSTEM, SYSTEM + 1, SYSTEM + 2].map((id) => ({
-          ...placedNode(id, 0, 0),
-          star_class: "sc_g",
-          initializer: "",
-        })),
-      ),
-      details: null,
-      missing: true,
-      ...over,
-    });
-
-  it("draws three to six on rings inside the inner radius for a scenario system whose initializer gives no record, the same for the same system", () => {
-    for (const id of [SYSTEM, SYSTEM + 1, SYSTEM + 2]) {
-      const { rolled, layout } = rolling({ id });
-      expect(rolled.length).toBeGreaterThanOrEqual(3);
-      expect(rolled.length).toBeLessThanOrEqual(6);
-      for (const planet of rolled) {
-        expect(Math.hypot(planet.x, planet.y)).toBeCloseTo(planet.ring.radius);
-        expect(planet.ring.radius + planet.disc).toBeLessThan(layout.innerRadius);
-      }
-    }
-    expect(rolling().rolled).toEqual(rolling().rolled);
-    expect(rolling({ id: SYSTEM + 1 }).rolled).not.toEqual(rolling().rolled);
-  });
-
-  it("draws none for a save, for an initializer the install defines, or before game data is read", () => {
-    expect(rolling({ kind: "save" }).rolled).toEqual([]);
-    expect(rolling({ gameDataReady: false }).rolled).toEqual([]);
-    const known = rolling({
-      missing: false,
-      details: systemDetails({
-        id: SYSTEM,
-        with_game_data: true,
-        planets: [planetSummary({ id: 1, class: "sc_g", layout: null })],
-      }),
-    });
-    expect(known.rolled).toEqual([]);
-  });
-
-  it("draws the galaxy's star and none for an initializer the install defines that places nothing", () => {
-    const empty = rolling({
-      missing: false,
-      details: systemDetails({ id: SYSTEM, with_game_data: true, planets: [] }),
-    });
-    expect(empty.rolled).toEqual([]);
-    expect(empty.bodies).toHaveLength(1);
-    expect(empty.bodies[0].placement.star).toBe(true);
-  });
-
-  it("draws the galaxy's star and some for an initializer placing its bodies through an inline_script", () => {
-    const scripted = rolling({
-      missing: false,
-      details: systemDetails({
-        id: SYSTEM,
-        with_game_data: true,
-        planets: [],
-        unexpanded_scripts: true,
-      }),
-    });
-    expect(scripted.rolled.length).toBeGreaterThan(0);
-    expect(scripted.bodies).toHaveLength(1);
-    expect(scripted.bodies[0].placement.star).toBe(true);
-  });
-
-  it("never counts them among the bodies, which picking and the labels read", () => {
-    const ctx = rolling();
-    expect(ctx.rolled.length).toBeGreaterThan(0);
-    expect(ctx.bodies).toHaveLength(1);
-    expect(ctx.bodies[0].placement.star).toBe(true);
+  it("for a brown dwarf, sized as a planet", () => {
+    expectParity("sc_t", [star("pc_t_star", "sc_t", 16)]);
   });
 });

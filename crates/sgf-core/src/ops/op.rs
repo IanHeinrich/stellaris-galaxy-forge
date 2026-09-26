@@ -7,6 +7,7 @@ use ts_rs::TS;
 
 use crate::document;
 use crate::format::save::system_spec::SystemSpec;
+use crate::format::save::write::terraform_candidate::MAX_MODIFIER_COPIES;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::OverlayError;
 use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
@@ -300,14 +301,20 @@ pub enum Op {
         size: u32,
     },
     /// A save planet's permanent `modifier` (`days=-1`), added last to its `timed_modifier`
-    /// items when `on` and taken out when not, as the console's `add_modifier` does; the
-    /// game's terraforming candidates are the ones the app offers. The modifier is written
-    /// as given. A system's star is refused, and so is removing an item that runs out. The
-    /// inverse flips `on`. Save documents only.
+    /// items when `on` and taken out when not, as the console's `add_modifier` does. The app
+    /// offers the candidate modifiers the install's `is_terraforming_candidate` rule lists;
+    /// the modifier is written as given. A system's star is refused, and so is removing an
+    /// item that runs out. Removal takes out every copy, and its inverse adds them all back.
+    /// The inverse flips `on`. Save documents only.
     SetTerraformCandidate {
         id: u32,
         modifier: String,
         on: bool,
+        /// How many items `on` adds: one unless given, and at most `MAX_MODIFIER_COPIES`.
+        /// Removal ignores it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        copies: Option<u32>,
     },
     /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
     /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
@@ -412,11 +419,13 @@ impl Op {
     /// because it may bring an initializer with it. A save's details list a star's
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
-    /// a save system an op adds brings its bodies with it.
+    /// a save system an op adds brings its bodies with it, and [`Op::SetTerraformCandidate`]
+    /// stales the one planet whose modifiers it wrote.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
+            | Self::SetTerraformCandidate { .. }
             | Self::AddSaveDeposit { .. }
             | Self::RemoveSaveDeposit { .. }
             | Self::AddSaveSystem { .. }
@@ -435,11 +444,13 @@ impl Op {
         }
     }
 
-    /// Whether the details this op stales come up to date by rereading the class and size
-    /// of the planets it rewrote, without building the projection again.
+    /// Whether the details this op stales come up to date by rereading the class, size and
+    /// modifiers of the planets it rewrote, without building the projection again.
     pub fn stales_only_planets(&self) -> bool {
         match self {
-            Self::SetStarClass { .. } | Self::SetPlanetSize { .. } => true,
+            Self::SetStarClass { .. }
+            | Self::SetPlanetSize { .. }
+            | Self::SetTerraformCandidate { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.stales_only_planets() || !op.stales_details()),
@@ -715,6 +726,8 @@ pub enum OpError {
     ModifierAbsent(u32, String),
     #[error("planet {0}'s {1} has {2} days left: only a permanent modifier can be removed")]
     ModifierNotPermanent(u32, String, String),
+    #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
+    ModifierCopies(u32),
     #[error("country {0} does not exist")]
     UnknownCountry(u32),
     #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
@@ -862,6 +875,7 @@ impl OpError {
             | Self::ModifierPresent { .. }
             | Self::ModifierAbsent { .. }
             | Self::ModifierNotPermanent { .. }
+            | Self::ModifierCopies { .. }
             | Self::NoMapColors { .. }
             | Self::MapColorsUnchanged { .. }
             | Self::SaveTooOld { .. }

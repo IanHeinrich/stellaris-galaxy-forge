@@ -177,6 +177,9 @@ YAML**.
 - A body in a binary or trinary is lit by the `class` inside its own
   `planet = { key = … class = … }` block. `sc_binary_1`, class
   `a_star`, has a pulsar lit as `pulsar`.
+- A star class whose planet class says `star_gfx = no` is not drawn
+  with the star shader. In vanilla that is `pc_t_star` (the brown
+  dwarf), `pc_rift_star` and `pc_protostar`.
 - The brown dwarf is drawn as a planet is. Its entity,
   `t_star_class_star_entity`, is in
   `gfx/models/planets/distant_stars_planets/_distant_stars_star_entities.asset`
@@ -259,6 +262,15 @@ editor does not evaluate it. Tier 1 filters on cheap structural
 attributes: deposit category, `is_for_colonizable` and planet
 `climate`. Tier 2 permits any key. The game is still the oracle for
 whether a combination loads.
+
+A terraforming candidate's required techs and ascension perks are the
+set most of its `common/terraform` links ask for in `condition`, and
+the first set seen wins a tie. An `OR` of techs and perks is one
+requirement, shown as its alternatives joined with "or", and "another
+condition" stands for an alternative that is neither, such as a
+country flag. Checks under `NOT` or `NOR` don't count. This is a rule
+of thumb: in vanilla, a few links behind a perk or an origin ask for
+less.
 
 ## Rolling deposits and weights
 
@@ -381,16 +393,20 @@ mod come from where it was read. There is no hand-kept list of them.
 A scenario stores no positions, so a scenario system's bodies are laid
 out from its initializer. Each block adds its `change_orbit` to a
 running orbit, then each instance adds its `orbit_distance`. Each
-instance turns its `orbit_angle` on from the body before. A planet's
-moons do the same about the planet, starting from 0. System 217 of the
-4.4 sample is Sol, and it matches this within a unit of radius and a
-tenth of a degree once the whole system is turned by 180°, moons
-included. The turn is fixed. In the two sample saves and the saves of
-one longer game, 242 systems have a first planet with a fixed count and
-angle, and every one of them is turned by 180°. A ranged distance or
-angle shows as a range, and so does every body after it. A ranged `count` is laid out as its rounded midpoint. A body with no
-`orbit_angle` can be anywhere on its orbit, and the bodies after it turn
-on from it by 0.
+instance turns its `orbit_angle` on from the body before, and the
+first from 180°. A planet's moons do the same about the planet,
+starting from a running orbit of 0 and an angle of 180°. System 217
+of the 4.4 sample is Sol, and it matches this within a unit of radius
+and a tenth of a degree, moons included. The 180° start is fixed. In
+the two sample saves and the saves of one longer game, 242 systems have
+a first planet with a fixed count and angle, and every one of them
+starts from 180°. A ranged distance or angle shows as a range, and so
+does every body after it. A ranged `count` is laid out as its rounded
+midpoint. A star block's `count` is read as 1, in the layout and in
+the roller. Previously Terraformed writes one to two, and Eliathion in
+the 4.5 sample has one star. I haven't checked this in game beyond that
+one system. A body with no `orbit_angle` can be anywhere on its orbit,
+and the bodies after it turn on from it by 0.
 
 A body with no `orbit_distance` lies 10 to 20 past the running orbit,
 and the running orbit moves out to it. Every body after it moves out by
@@ -421,6 +437,20 @@ bodies after it move out with it. It draws a random angle for a block
 with no `orbit_angle`, as the game does. Barnard's Star
 (`sol_neighbor_t1`) gives its planets none, and in the 4.4 sample
 (system 614) they sit at scattered angles about the star.
+
+The system view draws a scenario system from one example roll of that
+walk. Gamedata draws each range with a generator seeded by the system's
+id and a roll number, so the same system and roll always land the same
+way. The details keep the ranges, and the roll gives the one orbit and
+angle each body is drawn at.
+
+Some scenario systems have planets that only the game can place: an
+initializer that is `random`, empty or not in the install, or one that
+places its bodies only through an `inline_script`. For those the roll
+holds placeholder planets instead. The add-system generator rolls them
+for the system's star class, or for any class when no layout makes that
+one. They are then drawn in about the star until the outermost fits
+inside 150, the smallest inner radius a system has.
 
 ## References (for edge cases, never for bundling)
 

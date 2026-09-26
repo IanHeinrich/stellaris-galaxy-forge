@@ -60,7 +60,7 @@ impl Converted {
     }
 }
 
-/// The layouts the generator builds by converting them, in the order they were added.
+/// The layouts the generator builds by converting them.
 pub const CONVERTED_LAYOUTS: [Converted; 14] = [
     Converted {
         key: "sol_system_initializer",
@@ -351,7 +351,7 @@ fn single_star_list(gd: &GameData, init: &Initializer) -> bool {
     list.stars.iter().all(|key| {
         gd.star_classes
             .get(key)
-            .is_some_and(|class| class.planet_keys.len() == 1)
+            .is_some_and(|class| class.planets.len() == 1)
     })
 }
 
@@ -411,17 +411,21 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if !init.asteroid_belts.iter().all(belt_measured) {
         return Some(Unsupported::Belt);
     }
+    let dropping = match converted {
+        true => Dropping::Converted,
+        false => Dropping::Script,
+    };
     if let Some(why) = init
         .planets
         .iter()
-        .find_map(|planet| body_unsupported(gd, planet, false, converted))
+        .find_map(|planet| body_unsupported(gd, planet, false, dropping))
     {
         return Some(why);
     }
     if let Some(key) = init
         .planets
         .iter()
-        .find_map(|planet| unwritten(gd, planet, converted))
+        .find_map(|planet| unwritten(gd, planet, dropping))
     {
         return Some(Unsupported::Effect(key));
     }
@@ -437,17 +441,15 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
 
 /// The first effect of `body` or its moons the generator can neither write nor drop, or
 /// an `if` it cannot decide from the DLC.
-fn unwritten(gd: &GameData, body: &InitPlanet, converted: bool) -> Option<String> {
-    let own = match converted {
-        true => &body.unwritten_converted,
-        false => &body.unwritten,
-    };
-    own.clone()
+fn unwritten(gd: &GameData, body: &InitPlanet, dropping: Dropping) -> Option<String> {
+    body.unwritten
+        .get(dropping)
+        .clone()
         .or_else(|| body_effects::undecided(&body.effects, &Dlc::of(gd, None)))
         .or_else(|| {
             body.moons
                 .iter()
-                .find_map(|moon| unwritten(gd, moon, converted))
+                .find_map(|moon| unwritten(gd, moon, dropping))
         })
 }
 
@@ -459,7 +461,7 @@ fn star_unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     };
     let mut counts = stars
         .iter()
-        .map(|star| gd.star_classes.get(star).map(|c| c.planet_keys.len()));
+        .map(|star| gd.star_classes.get(star).map(|c| c.planets.len()));
     if counts.clone().any(|count| count.is_none_or(|n| n == 0)) {
         return Some(Unsupported::NoStar);
     }
@@ -505,7 +507,7 @@ pub(crate) fn layout_stars<'g>(gd: &'g GameData, init: &Initializer) -> Vec<&'g 
     let Some(class) = written else {
         return stars;
     };
-    let is = |star: &&StarClass| star.planet_keys == [class];
+    let is = |star: &&StarClass| star.planet_keys().eq([class]);
     let agreeing: Vec<&StarClass> = stars.into_iter().filter(is).collect();
     match agreeing.is_empty() {
         true => gd.star_classes.iter().filter(is).collect(),
@@ -540,8 +542,9 @@ fn body_unsupported(
     gd: &GameData,
     body: &InitPlanet,
     moon: bool,
-    converted: bool,
+    dropping: Dropping,
 ) -> Option<Unsupported> {
+    let converted = dropping == Dropping::Converted;
     if !converted && (body.colony_owner.is_some() || (body.colonised && !body.home_planet)) {
         return Some(Unsupported::Colonised);
     }
@@ -556,7 +559,7 @@ fn body_unsupported(
     }
     body.moons
         .iter()
-        .find_map(|moon| body_unsupported(gd, moon, true, converted))
+        .find_map(|moon| body_unsupported(gd, moon, true, dropping))
 }
 
 /// A class the generator can give a body: the star, a class of the install, one of the

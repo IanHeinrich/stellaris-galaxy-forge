@@ -1,16 +1,11 @@
-import type { DocumentKind } from "../../generated/DocumentKind";
-import type { NameTemplate } from "../../generated/NameTemplate";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
-import type { StarClassView } from "../../generated/StarClassView";
-import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemNode } from "../../generated/SystemNode";
+import { discRadius } from "../../lib/details/discs";
+import { boundsText, isColony } from "../../lib/details/labels";
 import {
-  discRadius,
   exitBearing,
-  rolledPlanets,
-  rollSeed,
-  spanText,
+  placeholderPlanets,
   systemLayout,
   type BeltBand,
   type BodyPlacement,
@@ -18,22 +13,13 @@ import {
   type SystemLayout,
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
-import { resolveBodyClasses, type ResolvedClass } from "../../lib/details/bodyClass";
-import { isStarBody, STAR_BODY_CLASS } from "../../lib/details/starBody";
-import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
-import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
+import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
+import type { Ownership } from "../../lib/ownership";
 import { clusterOffsets } from "../../lib/visual/starCluster";
 import { effectiveStarClass } from "../../lib/visual/starGlyphs";
-import { useDetailsStore } from "../../store/detailsStore";
-import { useFileSessionStore } from "../../store/fileSessionStore";
-import { useGalaxyStore } from "../../store/galaxyStore";
-import { useGameDataStore } from "../../store/gameDataStore";
 import type { EntityRef } from "../../store/inspectorStore";
-import { useMapChromeStore } from "../../store/mapChromeStore";
-import { currentOwnership } from "../../store/ownership";
-import { useSceneStore } from "../../store/sceneStore";
-import type { Systems } from "../RenderContext";
 import { beltTint, bodyLook, type BodyLook } from "./look";
+import { NO_SOURCES, type SystemSources } from "./sources";
 
 /**
  * One body the scene draws, resolved from its source: a save and a scenario that say the same
@@ -64,7 +50,7 @@ export interface SceneBody {
   /** Whether it is drawn with a ring: one it has, or one a known class leaves to chance. */
   readonly ring: boolean;
   readonly moon: boolean;
-  /** The owner's map colour on a colonised body, which its plate shows; null for any other. */
+  /** The owner's map colour on a colony, which its plate shows; null for any other body. */
   readonly colony: number | null;
   /** What its deposits yield, per resource, as the Details layer shows them. */
   readonly resources: readonly ResourceRow[];
@@ -125,47 +111,17 @@ export interface Exit {
   readonly radius: number;
 }
 
-/** What the scene reads from the stores for the one system it shows. */
-export interface SystemSources {
-  readonly id: number | null;
-  readonly systems: Systems;
-  readonly details: SystemDetails | null;
-  /** The system's record has been asked for and has not come back. */
-  readonly loading: boolean;
-  /** The system has no record to come: its star is all the scene draws. */
-  readonly missing: boolean;
-  readonly names: ReadonlyMap<string, string>;
-  readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
-  readonly starClasses: ReadonlyMap<string, StarClassView>;
-  /** The star class each initializer gives its system, for a scenario system with none of its own. */
-  readonly initializerClasses: ReadonlyMap<string, string>;
-  readonly kind: DocumentKind | null;
-  readonly gameDataReady: boolean;
-  readonly resourceIcons: ReadonlyMap<string, string>;
-  /** The scene's Details switch is on: each body's resources show under its name. */
-  readonly detailsShown: boolean;
-  /** The scene's Names switch is on: each body's name shows on a plate. */
-  readonly labelsShown: boolean;
-  /** The scene's Nebulae switch is on: a system in a nebula shows clouds behind it. */
-  readonly nebulaShown: boolean;
-  /** The scene's Orbit radii switch is on: each ring shows its radius. */
-  readonly radiiShown: boolean;
-  /** Which roll of a scenario system's initializer is drawn. */
-  readonly roll: number;
-  /** Who owns what, for the colour a colonised body's plate shows. */
-  readonly ownership: Ownership;
-  readonly nodeName: (name: NameTemplate) => string;
-  readonly templateName: (named: { name: NameTemplate; name_key: string }) => string;
-}
-
 /**
- * A frozen snapshot of the system the scene shows, with where everything in it is drawn. The
- * scene rebuilds its layers from a new one only when a source changed.
+ * A frozen snapshot of the system the scene shows, with where everything in it is drawn. Each of
+ * `layout`, `bodies`, `belts`, `exits` and `rolled` is the same object as the last snapshot's while
+ * nothing it is drawn from changed.
  */
 export interface SystemContext extends SystemSources {
   readonly node: SystemNode | null;
   readonly layout: SystemLayout;
   readonly bodies: readonly SceneBody[];
+  /** Each body by its placement's id. */
+  readonly bodyById: ReadonlyMap<number, SceneBody>;
   readonly belts: readonly SceneBelt[];
   readonly exits: readonly Exit[];
   /** The system lies in a nebula. */
@@ -176,60 +132,12 @@ export interface SystemContext extends SystemSources {
 
 const NOTHING: never[] = [];
 
-export const NO_SOURCES: SystemSources = Object.freeze({
-  id: null,
-  systems: new Map<number, SystemNode>(),
-  details: null,
-  loading: false,
-  missing: false,
-  names: new Map<string, string>(),
-  planetClasses: new Map<string, PlanetClassView>(),
-  starClasses: new Map<string, StarClassView>(),
-  initializerClasses: new Map<string, string>(),
-  kind: null,
-  gameDataReady: false,
-  resourceIcons: new Map<string, string>(),
-  detailsShown: false,
-  labelsShown: true,
-  nebulaShown: false,
-  radiiShown: false,
-  roll: 0,
-  ownership: NO_OWNERSHIP,
-  nodeName: (name: NameTemplate) => (name.literal ? name.key : stripped(name.key)),
-  templateName: (named: { name_key: string }) => stripped(named.name_key),
-});
-
-type DataField = {
-  [K in keyof SystemSources]: SystemSources[K] extends (...args: never[]) => unknown ? never : K;
-}[keyof SystemSources];
-
-/** Listed as a record so that a source added to the snapshot fails to compile until it is here. */
-const DATA_FIELDS: Record<DataField, true> = {
-  id: true,
-  systems: true,
-  details: true,
-  loading: true,
-  missing: true,
-  names: true,
-  planetClasses: true,
-  starClasses: true,
-  initializerClasses: true,
-  kind: true,
-  gameDataReady: true,
-  resourceIcons: true,
-  detailsShown: true,
-  labelsShown: true,
-  nebulaShown: true,
-  radiiShown: true,
-  roll: true,
-  ownership: true,
-};
-
-const SOURCES = Object.keys(DATA_FIELDS) as DataField[];
-
-/** Whether two snapshots were read from the same state, so the layers can be left alone. */
-export function sameSources(a: SystemSources, b: SystemSources): boolean {
-  return SOURCES.every((key) => a[key] === b[key]);
+/** The class a body is drawn as, and whether it is left to a draw. */
+interface DrawnClass {
+  planetClass: string;
+  /** The star class a star is drawn as; null for a planet. */
+  starClass: string | null;
+  drawn: boolean;
 }
 
 type BodyArt = Pick<
@@ -249,8 +157,7 @@ function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
 }
 
 /** A star's art is its star class's; a planet's is its class's icons and haze, none for a draw. */
-function artOf(resolved: ResolvedClass, src: SystemSources): BodyArt {
-  const { planetClass, starClass, drawn } = resolved;
+function artOf({ planetClass, starClass, drawn }: DrawnClass, src: SystemSources): BodyArt {
   const look = bodyLook(planetClass, starClass, drawn);
   if (starClass !== null) {
     const view = src.starClasses.get(starClass);
@@ -288,24 +195,24 @@ function systemStar(src: SystemSources, node: SystemNode | null): string {
 
 /**
  * The stars the galaxy lists for a system, drawn about the centre until its own record lands:
- * with none listed, its star class's first star.
+ * with none listed, every star of its star class.
  */
 function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
   const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
   const listed = (node?.bodies ?? []).filter((b) => isStar(b.class));
   const system = systemStar(src, node);
-  const first = src.starClasses.get(system)?.planet_keys[0] ?? STAR_BODY_CLASS;
-  const stars = listed.length > 0 ? listed : [{ class: first, size: null }];
-  const classes = resolveBodyClasses(
-    stars.map((star, i) => ({ id: i, class: star.class })),
-    system,
-    src,
+  const keys = src.starClasses.get(system)?.planet_keys ?? [];
+  const stars =
+    listed.length > 0
+      ? listed
+      : (keys.length > 0 ? keys : [STAR_BODY_CLASS]).map((c) => ({ class: c, size: null }));
+  const singles = singleStarClasses(src.starClasses);
+  const discs = stars.map((s) =>
+    discRadius(s.size, { star: true, view: src.planetClasses.get(s.class) }),
   );
-  const resolved = stars.map((_, i) => classes.get(i) as ResolvedClass);
-  const discs = stars.map((s, i) => discRadius(s.size, false, resolved[i].planetClass, true));
   const spread = CLUSTER_SPREAD * Math.max(...discs);
   const places = clusterOffsets(stars.length);
-  return stars.map((_, i) => {
+  return stars.map((star, i) => {
     const place = places[i];
     const placement: BodyPlacement = {
       id: -1 - i,
@@ -313,6 +220,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       y: place.dy * spread,
       disc: discs[i],
       star: true,
+      moon: false,
       parent: null,
       ring: null,
       angle: 0,
@@ -321,6 +229,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       turn: null,
       radius: null,
     };
+    const starClass = singles.get(star.class)?.key ?? system;
     return {
       placement,
       planet: null,
@@ -331,13 +240,13 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       chance: NO_CHANCE,
       resources: NOTHING,
       readout: null,
-      ...artOf(resolved[i], src),
+      ...artOf({ planetClass: star.class, starClass, drawn: false }, src),
     };
   });
 }
 
 function colonyColor(planet: PlanetSummary, ownership: Ownership): number | null {
-  if (!planet.colonised || planet.owner === null) return null;
+  if (!isColony(planet) || planet.owner === null) return null;
   return ownership.table.get(planet.owner)?.colors.outline ?? null;
 }
 
@@ -363,37 +272,35 @@ function readoutOf(
         : disc,
     0,
   );
-  return { hub, text: spanText(radius) };
+  return { hub, text: boundsText(radius) };
 }
 
 function sceneBodies(
   src: SystemSources,
   node: SystemNode | null,
   layout: SystemLayout,
-  classes: ReadonlyMap<number, ResolvedClass>,
 ): SceneBody[] {
   const noBodies = src.kind === "scenario" && src.details?.planets.length === 0;
   if (src.details === null || noBodies) return galaxyStars(src, node);
   const planets = new Map(src.details.planets.map((p) => [p.id, p]));
-  const placed = new Map(layout.bodies.map((b) => [b.id, b]));
+  const system = systemStar(src, node);
   return layout.bodies.flatMap((placement) => {
     const planet = planets.get(placement.id);
-    const resolved = classes.get(placement.id);
-    if (!planet || !resolved) return [];
-    const parent = placement.parent === null ? undefined : placed.get(placement.parent);
+    if (!planet) return [];
+    const drawn = !placement.star && planet.drawn === true;
+    const starClass = placement.star ? (planet.star_class ?? system) : null;
     return [
       {
         placement,
         planet,
         name: src.templateName(planet),
-        moon: parent !== undefined && !parent.star,
+        moon: placement.moon,
         colony: colonyColor(planet, src.ownership),
-        ring:
-          !placement.star && (planet.ring === true || (planet.ring === null && !resolved.drawn)),
-        chance: chanceOf(placement, planet, resolved.drawn),
+        ring: !placement.star && (planet.ring === true || (planet.ring === null && !drawn)),
+        chance: chanceOf(placement, planet, drawn),
         resources: planetResourceRows(planet, src.resourceIcons),
         readout: readoutOf(placement, layout.bodies),
-        ...artOf(resolved, src),
+        ...artOf({ planetClass: planet.class, starClass, drawn }, src),
       },
     ];
   });
@@ -419,36 +326,64 @@ function sceneExits(src: SystemSources, node: SystemNode | null, radius: number)
   });
 }
 
-/**
- * Whether the game places planets the source does not list: a scenario system whose initializer,
- * read with the install, gives no record, as when it names none, `random` or one the install does
- * not define, and so the game rolls them; or one whose record says its initializer places bodies
- * through an `inline_script`. One the install defines has a record, empty if it places nothing.
- */
-function rollsPlanets(src: SystemSources): boolean {
-  if (src.kind !== "scenario" || !src.gameDataReady) return false;
-  return src.details === null ? src.missing : src.details.unexpanded_scripts;
+/** Gives the last answer again while every input is the one it was computed from. */
+function lastOf<R>(): (inputs: readonly unknown[], compute: () => R) => R {
+  let last: { inputs: readonly unknown[]; result: R } | null = null;
+  return (inputs, compute) => {
+    if (
+      last &&
+      last.inputs.length === inputs.length &&
+      inputs.every((v, i) => v === last?.inputs[i])
+    ) {
+      return last.result;
+    }
+    last = { inputs, result: compute() };
+    return last.result;
+  };
 }
+
+const lastBodies = lastOf<readonly SceneBody[]>();
+const lastById = lastOf<ReadonlyMap<number, SceneBody>>();
+const lastBelts = lastOf<readonly SceneBelt[]>();
+const lastExits = lastOf<readonly Exit[]>();
+const lastRolled = lastOf<readonly RolledPlanet[]>();
 
 /** Where everything of the system `src` names is drawn. */
 export function systemContext(src: SystemSources): SystemContext {
   const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
-  const classes = resolveBodyClasses(src.details?.planets ?? [], systemStar(src, node), src);
-  const seed = rollSeed(src.id ?? 0, src.roll);
-  const layout = systemLayout(src.details, {
-    classOf: (planet) => classes.get(planet.id),
-    scenario: src.kind === "scenario",
-    seed,
-  });
+  const layout = systemLayout(src.details, src.roll, src.planetClasses, src.moonScale);
+  const bodies = lastBodies(
+    [
+      layout,
+      node,
+      src.details,
+      src.kind,
+      src.planetClasses,
+      src.starClasses,
+      src.initializerClasses,
+      src.names,
+      src.gameDataReady,
+      src.ownership,
+      src.resourceIcons,
+    ],
+    () => sceneBodies(src, node, layout),
+  );
   return Object.freeze({
     ...src,
     node,
     layout,
-    bodies: sceneBodies(src, node, layout, classes),
-    belts: layout.belts.map((belt) => ({ ...belt, tint: beltTint(belt.kind) })),
-    exits: sceneExits(src, node, layout.innerRadius),
+    bodies,
+    bodyById: lastById([bodies], () => new Map(bodies.map((b) => [b.placement.id, b]))),
+    belts: lastBelts([layout.belts], () =>
+      layout.belts.map((belt) => ({ ...belt, tint: beltTint(belt.kind) })),
+    ),
+    exits: lastExits([node, src.systems, src.names, layout.innerRadius], () =>
+      sceneExits(src, node, layout.innerRadius),
+    ),
     inNebula: node?.nebula != null,
-    rolled: rollsPlanets(src) ? rolledPlanets(seed, layout.innerRadius) : NOTHING,
+    rolled: lastRolled([src.roll, src.planetClasses], () =>
+      src.roll?.rolls_planets ? placeholderPlanets(src.roll, src.planetClasses) : NOTHING,
+    ),
   });
 }
 
@@ -461,43 +396,5 @@ export const EMPTY_SYSTEM_CONTEXT: SystemContext = systemContext(NO_SOURCES);
 export function selectedBody(ctx: SystemContext, ref: EntityRef | null): number | null {
   const ours = ref?.kind === "planet" || (ref?.kind === "body" && ref.system === ctx.id);
   if (!ours) return null;
-  return ctx.bodies.some((b) => b.planet?.id === ref.id) ? ref.id : null;
-}
-
-/** The stores' state for system `id`, as the scene reads it. */
-export function readSystemSources(id: number | null): SystemSources {
-  const galaxy = useGalaxyStore.getState();
-  const data = useGameDataStore.getState();
-  const details = useDetailsStore.getState();
-  const chrome = useMapChromeStore.getState();
-  const names = data.names;
-  const ready = data.status === "ready";
-  const resolve = (t: NameTemplate): string | undefined => {
-    const text = names.get(templateKey(t));
-    if (text === undefined) data.requestName(t);
-    return text;
-  };
-  return Object.freeze({
-    id,
-    systems: galaxy.systems,
-    details: id === null ? null : (details.details.get(id) ?? null),
-    loading: id !== null && !details.details.has(id) && details.pending.has(id),
-    missing: id !== null && details.missing.has(id),
-    names,
-    planetClasses: data.planetClasses,
-    starClasses: data.starClasses,
-    initializerClasses: data.initializerClasses,
-    kind: useFileSessionStore.getState().kind,
-    gameDataReady: ready,
-    resourceIcons: details.resourceIcons,
-    detailsShown: chrome.sceneLayers.details,
-    labelsShown: chrome.sceneLayers.labels,
-    nebulaShown: chrome.sceneLayers.nebulae,
-    radiiShown: chrome.sceneLayers.orbitRadii,
-    roll: useSceneStore.getState().roll,
-    ownership: currentOwnership(),
-    nodeName: (name: NameTemplate) => nodeNameIn(names, name),
-    templateName: (named: { name: NameTemplate; name_key: string }) =>
-      templateNameIn(names, ready, resolve, named),
-  });
+  return ctx.bodyById.get(ref.id)?.planet ? ref.id : null;
 }

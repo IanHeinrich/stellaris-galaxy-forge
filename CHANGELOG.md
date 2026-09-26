@@ -8,6 +8,29 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- The Terraforming checkbox's hint names the techs and ascension perks
+  your empire needs, read from the game and your mods.
+- The faint planets in a scenario system whose planets the game rolls
+  follow the game's own rules for the system's star.
+
+### Fixed
+
+- A scenario system with the Previously Terraformed layout shows one
+  star in the system view, as Add system gives it. It used to show two.
+- The status bar's orbit and angle for a scenario body match where the
+  system view draws it.
+- In the system view, an orbit radius label no longer covers the
+  selected body's ring.
+- An undo in the system view keeps the view where it was.
+- A body's tooltip in the system view shows its name as soon as the name
+  loads, without moving the pointer.
+- A random planet's tooltip in the system view names what the
+  initializer draws there. It used to be empty.
+- A planet that keeps a terraforming candidate from an earlier class
+  shows the Edit mark in the system's planet list.
+
 ## [0.15.0] - 2026-09-26
 
 ### Added

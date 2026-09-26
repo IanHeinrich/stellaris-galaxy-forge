@@ -189,8 +189,7 @@ pub enum Command {
     TerraformCandidate {
         sav: PathBuf,
         planet: u32,
-        /// The modifier: `terraforming_candidate`, `frozen_terraforming_candidate` or
-        /// `toxic_terraforming_candidate`.
+        /// A terraforming candidate modifier.
         #[arg(long, default_value = "terraforming_candidate")]
         modifier: String,
         /// Take the modifier away instead.

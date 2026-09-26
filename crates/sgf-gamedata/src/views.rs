@@ -18,7 +18,6 @@ use crate::registries::defines::BorderDefines as BorderDefinesData;
 use crate::registries::deposits::DepositDef;
 use crate::registries::galaxy_shapes::GalaxyShape;
 use crate::registries::galaxy_sizes::GalaxySize;
-use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::starbase_levels::StarbaseLevelDef;
@@ -293,7 +292,7 @@ impl StarClassView {
             }
             .to_string(),
             icon_scale: sc.icon_scale,
-            planet_keys: sc.planet_keys.clone(),
+            planet_keys: sc.planet_keys().map(str::to_owned).collect(),
             crisis_star_class: sc.crisis_star_class.clone(),
             spawn_odds: sc.spawn_odds,
             localised: loc.raw(&sc.key).is_some(),
@@ -443,22 +442,32 @@ pub struct PlanetClassView {
     /// The modifier whose presence lets a planet of this class be terraformed, from the
     /// install's terraform links.
     pub terraform_candidate: Option<String>,
+    /// `Some(true)` for an asteroid, drawn larger against its belt; `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub asteroid: Option<bool>,
+    /// `Some(true)` for a star class not drawn with the star shader (`star_gfx = no`; vanilla:
+    /// `pc_t_star`, `pc_rift_star`, `pc_protostar`); `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub draws_as_planet: Option<bool>,
 }
 
-impl From<&PlanetClassDef> for PlanetClassView {
-    fn from(pc: &PlanetClassDef) -> Self {
-        Self {
-            key: pc.key.clone(),
-            icon_sprite: pc.icon.clone(),
-            icon_large_sprite: pc.icon_large.clone(),
-            atmosphere_color: pc.atmosphere_color.map(hex),
-            atmosphere_intensity: pc.atmosphere_intensity,
-            atmosphere_width: pc.atmosphere_width,
-            habitable: pc.colonizable,
-            star: pc.star,
-            terraform_candidate: None,
-        }
-    }
+/// A modifier that makes a planet a terraforming candidate, from the install's
+/// `is_terraforming_candidate` rule.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TerraformCandidateView {
+    pub modifier: String,
+    /// What most terraform links checking the modifier ask for, by name: techs, then
+    /// ascension perks, then each `OR` of them as one entry joined with "or", ending in
+    /// "another condition" when the `OR` also allows something else.
+    pub requires: Vec<String>,
+}
+
+/// `true` as `Some(true)`, the shape of a flag this view sends only when it matters.
+fn marker(flag: bool) -> Option<bool> {
+    flag.then_some(true)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -564,6 +573,7 @@ pub struct ResourceIcon {
 pub struct BorderDefines {
     pub system_radius: f64,
     pub hyperlane_thickness: f64,
+    pub moon_scale: f64,
 }
 
 impl From<&BorderDefinesData> for BorderDefines {
@@ -571,6 +581,7 @@ impl From<&BorderDefinesData> for BorderDefines {
         Self {
             system_radius: b.system_radius,
             hyperlane_thickness: b.hyperlane_thickness,
+            moon_scale: b.moon_scale,
         }
     }
 }
@@ -612,11 +623,105 @@ impl GameData {
         self.planet_classes
             .iter()
             .map(|pc| PlanetClassView {
+                key: pc.key.clone(),
+                icon_sprite: pc.icon.clone(),
+                icon_large_sprite: pc.icon_large.clone(),
+                atmosphere_color: pc.atmosphere.map(|a| hex(a.colour)),
+                atmosphere_intensity: pc.atmosphere.map(|a| a.intensity),
+                atmosphere_width: pc.atmosphere.map(|a| a.width),
+                habitable: pc.colonizable,
+                star: pc.star,
                 terraform_candidate: self
                     .terraform_links
                     .candidate(&pc.key, &self.static_modifiers),
-                ..PlanetClassView::from(pc)
+                asteroid: marker(pc.asteroid),
+                draws_as_planet: marker(pc.star && !pc.star_gfx),
             })
             .collect()
     }
+
+    /// Every terraforming candidate modifier, in the install's rule order.
+    pub fn terraform_candidate_views(&self) -> Vec<TerraformCandidateView> {
+        self.terraform_links
+            .candidates(&self.static_modifiers)
+            .map(|(modifier, requires)| TerraformCandidateView {
+                modifier: modifier.to_owned(),
+                requires: requires
+                    .iter()
+                    .map(|requirement| {
+                        let mut names: Vec<String> = requirement
+                            .any_of
+                            .iter()
+                            .map(|key| self.loc.name_or_readable(key))
+                            .collect();
+                        if requirement.or_else {
+                            names.push("another condition".to_owned());
+                        }
+                        names.join(" or ")
+                    })
+                    .collect(),
+            })
+            .collect()
+    }
+}
+
+/// One example roll of a system: where each body its details list lands, and the planets
+/// that stand for the game's own roll when it rolls the system's planets. A save's bodies
+/// stand where the save puts them, so a save system's roll is empty.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SystemRoll {
+    pub system: u32,
+    pub roll: u32,
+    /// Each body of the system's details, by the same id, in the same order.
+    pub bodies: Vec<RolledBody>,
+    /// The game rolls the system's planets when it generates the galaxy: its initializer is
+    /// `random`, empty or one the install does not define, or it places its bodies only
+    /// through an `inline_script`.
+    pub rolls_planets: bool,
+    /// Planets rolled for the system's star class to show the game's roll: no body of the
+    /// system, each about the centre and inside the radius asked for. Empty unless
+    /// `rolls_planets`.
+    pub placeholders: Vec<PlaceholderBody>,
+}
+
+impl SystemRoll {
+    /// A roll that places nothing.
+    pub fn none(system: u32, roll: u32) -> Self {
+        Self {
+            system,
+            roll,
+            bodies: Vec::new(),
+            rolls_planets: false,
+            placeholders: Vec::new(),
+        }
+    }
+}
+
+/// Where one roll puts a scenario body, about its details' `parent`, or about the centre
+/// without one: the frame its layout's bounds use.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RolledBody {
+    pub id: u32,
+    pub orbit: f64,
+    /// Degrees in `[0, 360)`.
+    pub angle: f64,
+    /// The running orbit it stepped out from.
+    pub base: f64,
+    /// The angle it turned on from: its layout's `turns_from` body's, or the walk's start.
+    /// Degrees in `[0, 360)`.
+    pub from: f64,
+}
+
+/// A planet drawn only to show that the game rolls the system's planets.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlaceholderBody {
+    pub class: String,
+    pub size: u32,
+    /// About the system's centre.
+    pub orbit: f64,
+    /// Degrees in `[0, 360)`.
+    pub angle: f64,
 }

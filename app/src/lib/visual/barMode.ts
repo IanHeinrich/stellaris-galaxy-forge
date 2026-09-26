@@ -1,8 +1,10 @@
 import type { DocumentKind } from "../../generated/DocumentKind";
+import type { KeyAction } from "../keys";
 import {
   BORROWED_KEYS,
   LAYER_IDS,
   LAYER_KEYS,
+  isGalaxyLayer,
   isSceneLayer,
   type LayerId,
   type SceneLayerId,
@@ -26,35 +28,41 @@ const GALAXY: readonly BarMode[] = ["save", "scenario"];
 const EVERYWHERE: readonly BarMode[] = ["save", "scenario", "system"];
 const SYSTEM: readonly BarMode[] = ["system"];
 
-/** The modes each control shows in. The document's capabilities narrow the layers further. */
-export const BAR_MODES: Readonly<Record<BarControl, readonly BarMode[]>> = {
-  nebulae: EVERYWHERE,
-  lanes: GALAXY,
-  owners: GALAXY,
-  bypasses: GALAXY,
-  systems: GALAXY,
-  classes: GALAXY,
-  issues: GALAXY,
-  labels: EVERYWHERE,
-  initializers: GALAXY,
-  spawns: GALAXY,
-  feZones: GALAXY,
-  marauders: GALAXY,
-  mapBorder: GALAXY,
-  lCluster: GALAXY,
-  details: EVERYWHERE,
-  orbitRadii: SYSTEM,
-  colonies: GALAXY,
-  claims: GALAXY,
-  day_one_bypasses: GALAXY,
-  special: GALAXY,
-  waylines: GALAXY,
-  watchlist: GALAXY,
-  highlights: GALAXY,
+/** A layer shows on the galaxy's bars, the system's, or both, as the scene's layer list says. */
+function layerModes(id: LayerId): readonly BarMode[] {
+  if (!isSceneLayer(id)) return GALAXY;
+  return isGalaxyLayer(id) ? EVERYWHERE : SYSTEM;
+}
+
+/**
+ * The modes each control shows in. The document's capabilities narrow the layers further, and
+ * its layer groups say which have a master.
+ */
+const BAR_MODES: Readonly<Record<BarControl, readonly BarMode[]>> = {
+  ...(Object.fromEntries(LAYER_IDS.map((id) => [id, layerModes(id)])) as Record<
+    LayerId,
+    readonly BarMode[]
+  >),
   kinds: GALAXY,
-  masters: ["scenario"],
+  masters: GALAXY,
   tools: GALAXY,
 };
+
+/** The commands only some bars take; any other runs on every bar. */
+const COMMAND_MODES: Readonly<Partial<Record<BarCommand, readonly BarMode[]>>> = {
+  deleteSelection: GALAXY,
+  selectAll: GALAXY,
+  browseInitializers: GALAXY,
+  nudge: GALAXY,
+};
+
+/** A key action, or a nudge of the selection by the arrow keys. */
+export type BarCommand = KeyAction | "nudge";
+
+/** Whether the bar `mode` takes `command`: the galaxy's edits wait while a system is shown. */
+export function barTakes(mode: BarMode, command: BarCommand): boolean {
+  return COMMAND_MODES[command]?.includes(mode) ?? true;
+}
 
 export function barShows(mode: BarMode, control: BarControl): boolean {
   return BAR_MODES[control].includes(mode);

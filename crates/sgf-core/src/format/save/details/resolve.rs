@@ -87,9 +87,6 @@ pub struct SystemDetails {
     pub belts: Vec<BeltSpec>,
     /// A save's `inner_radius`; `None` in a scenario.
     pub inner_radius: Option<f64>,
-    /// A scenario's initializer runs an `inline_script` where it places bodies, which is not
-    /// expanded, so the game spawns bodies `planets` does not list. `false` in a save.
-    pub unexpanded_scripts: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -110,6 +107,8 @@ pub struct PlanetSummary {
     pub capital: bool,
     pub habitable: Option<bool>,
     pub owner: Option<u32>,
+    /// Orbits a planet: its parent is a body other than a star, or one the system does not
+    /// list. Without game data a save's is any body with a `moon_of`.
     pub moon: bool,
     /// Owned by a `primitive` country.
     pub pre_ftl: bool,
@@ -133,6 +132,23 @@ pub struct PlanetSummary {
     /// A save's ring bit in `binary_flags`; a scenario's `has_ring`, `None` when the
     /// initializer leaves it to the class's `chance_of_ring`.
     pub ring: Option<bool>,
+    /// The star class a star body is drawn as: the one whose only star is its class, else
+    /// its system's. `None` for any other body, and without game data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub star_class: Option<String>,
+    /// The game draws the body's class: a random class, a planet list, or another key the
+    /// install defines no planet class for, such as `ideal_planet_class`. `false` in a save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub drawn: Option<bool>,
+    /// The modifier names of the planet's permanent `timed_modifier` items (`days = -1`):
+    /// the shape a terraforming candidate modifier is written in, whatever the planet's
+    /// class now says. `None` for a scenario's bodies, which carry no save-persisted
+    /// modifiers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub permanent_modifiers: Option<Vec<String>>,
 }
 
 /// A number an initializer may leave to a draw: `min == max` when it is fixed,
@@ -163,23 +179,18 @@ pub struct BodyLayout {
     /// one. `None` for a save body with neither an orbit nor a point. A scenario
     /// body with no distance lies 10 to 20 past the running orbit.
     pub orbit: Option<Bounds>,
-    /// Degrees about the parent. `None` in a save, which has `at`, and when an
-    /// initializer names no angle.
-    pub angle: Option<Bounds>,
     /// A save's `coordinate` x/y, system-relative. `None` in a scenario.
     pub at: Option<(f64, f64)>,
     /// `planet_size`: fixed in a save, the initializer's `size` in a scenario.
     pub size: Option<Bounds>,
-    /// How far out from `orbit_base` an initializer steps it: its `orbit_distance`, or 10
-    /// to 20 without one. `None` in a save.
+    /// How far out from the running orbit an initializer steps it: its `orbit_distance`, or
+    /// 10 to 20 without one. `None` in a save.
     pub orbit_step: Option<Bounds>,
-    /// The running orbit it steps out from, `orbit` less `orbit_step` end by end. `None` in a save.
-    pub orbit_base: Option<Bounds>,
     /// Its `orbit_angle`, the turn on from the angle of `turns_from`. `None` in a save, and
     /// when an initializer names no angle.
     pub angle_step: Option<Bounds>,
     /// The body before it in its initializer's walk, whose angle it turns on from. `None`
-    /// for the first of a walk, which turns from 0, and in a save.
+    /// for the first of a walk, which turns from the walk's start of 180°, and in a save.
     pub turns_from: Option<u32>,
 }
 
@@ -262,6 +273,9 @@ pub(super) fn resolve(
             parent: p.parent,
             layout: Some(layout(p, &points)),
             ring: Some(p.ring),
+            star_class: None,
+            drawn: Some(false),
+            permanent_modifiers: Some(p.permanent_modifiers.clone()),
         });
     }
     let starbase = raw.starbases.first().map(|s| StarbaseSummary {
@@ -289,7 +303,6 @@ pub(super) fn resolve(
         with_game_data,
         belts: raw.belts.clone(),
         inner_radius: raw.inner_radius,
-        unexpanded_scripts: false,
     }
 }
 
@@ -302,11 +315,9 @@ fn points(planets: &[RawPlanet]) -> HashMap<u32, (f64, f64)> {
 fn layout(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> BodyLayout {
     BodyLayout {
         orbit: drawn_radius(planet, points).map(Bounds::fixed),
-        angle: None,
         at: planet.at,
         size: planet.size.map(|size| Bounds::fixed(f64::from(size))),
         orbit_step: None,
-        orbit_base: None,
         angle_step: None,
         turns_from: None,
     }

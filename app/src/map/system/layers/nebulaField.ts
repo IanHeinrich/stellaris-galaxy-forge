@@ -1,7 +1,11 @@
 import { seeded } from "../../../lib/random";
+import { smoothstep } from "./ease";
+import { once } from "./texels";
 
 /** The field's side in texels: it is soft, so the scene stretches it well past this. */
-export const FIELD_SIZE = 320;
+const FIELD_SIZE = 320;
+/** Every system's nebula draws the same field, turned and mirrored per system. */
+const NEBULA_SEED = 0x5ca1ab1e;
 
 /** Lattice cells once round the circle at the coarsest octave, and across the radius. */
 const TURN_CELLS = 6;
@@ -24,11 +28,6 @@ const FADE_FROM = 0.78;
 const SOFTEN = 1.6;
 
 const TABLE = 256;
-
-function smoothstep(from: number, to: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - from) / (to - from)));
-  return t * t * (3 - 2 * t);
-}
 
 /**
  * Gradient noise in about [-1, 1], repeating every `period` cells along x so a ring of it has no
@@ -154,3 +153,10 @@ export function nebulaField(seed: number, size = FIELD_SIZE): Uint8Array {
   }
   return out;
 }
+
+/** The field every scene's nebula draws. */
+export const nebulaTexels = once(() => ({
+  texels: nebulaField(NEBULA_SEED),
+  width: FIELD_SIZE,
+  height: FIELD_SIZE,
+}));

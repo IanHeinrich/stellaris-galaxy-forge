@@ -6,10 +6,10 @@ import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import type { Camera } from "../Camera";
 import type { InputKind } from "../interaction/MapIntent";
+import { PointerBridge } from "../interaction/pointerBridge";
 import type { Textures } from "../layers/details/cell";
 import { planetLines } from "../layers/details/planets";
 import { OwnedTooltip } from "../ownedTooltip";
-import { renderContext } from "../RenderContext";
 import type { SystemContext } from "./context";
 import { pickBody, pickExit } from "./picking";
 import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
@@ -46,11 +46,11 @@ function tipFor(
   exit: number | null,
 ): Omit<MapTooltip, "x" | "y"> | null {
   if (body !== null) {
-    const planet = ctx.bodies.find((b) => b.placement.id === body)?.planet;
+    const planet = ctx.bodyById.get(body)?.planet;
     if (!planet) return null;
     return {
-      title: ctx.templateName(planet),
-      lines: planetLines(renderContext(), TEXTURES, [planet]),
+      title: bodyName(planet, ctx.names),
+      lines: planetLines(ctx, TEXTURES, [planet]),
     };
   }
   const lane = exit === null ? undefined : ctx.exits.find((e) => e.neighbour === exit);
@@ -66,14 +66,16 @@ export class SystemInteraction {
   private readonly model = new SystemGestureModel();
   private readonly intent: SystemIntent;
   private readonly tip = new OwnedTooltip();
-  private readonly listeners: Array<() => void> = [];
-  private panFrom: { sx: number; sy: number } | null = null;
-  /** The tooltip of the body or arrow last hovered, kept while the pointer stays on it. */
+  private readonly pointer: PointerBridge<SystemInput>;
+  /** The last hover and its tooltip, kept while the pointer stays on it and the context stands. */
   private hovered: {
     body: number | null;
     exit: number | null;
+    ctx: SystemContext | null;
     tip: Omit<MapTooltip, "x" | "y"> | null;
-  } = { body: null, exit: null, tip: null };
+    sx: number;
+    sy: number;
+  } = { body: null, exit: null, ctx: null, tip: null, sx: 0, sy: 0 };
   private readonly at: Pt = { x: 0, y: 0 };
 
   constructor(
@@ -94,24 +96,47 @@ export class SystemInteraction {
       openBody: (system, id) => this.openBody(system, id),
       showSystem: () => useInspectorStore.getState().popTo(0),
     };
+    this.pointer = new PointerBridge(
+      canvas,
+      cam,
+      (kind, e) => this.input(kind, e),
+      {
+        handle: (input) => this.model.handle(input, this.intent),
+        cursor: () => this.model.cursor(),
+      },
+      {
+        left: () => {
+          if (!this.model.busy()) this.hover(null, null, 0, 0);
+        },
+      },
+    );
   }
 
   activate(): void {
-    if (this.listeners.length > 0) return;
-    this.bindPointer();
+    this.pointer.bind();
   }
 
   deactivate(): void {
-    for (const off of this.listeners.splice(0)) off();
+    this.pointer.unbind();
     this.model.reset();
-    this.panFrom = null;
     this.hover(null, null, 0, 0);
     this.canvas.style.cursor = "";
   }
 
+  /** Forgets the arrow the pointer rests on, whose neighbour an edit has renumbered. */
+  dropExit(): void {
+    if (this.hovered.exit !== null) this.hover(null, null, 0, 0);
+  }
+
+  /** Builds the tooltip shown again from the scene's new context, where the pointer rests. */
+  contextChanged(): void {
+    const { body, exit, sx, sy } = this.hovered;
+    if (body !== null || exit !== null) this.hover(body, exit, sx, sy);
+  }
+
   private openBody(system: number, id: number): void {
     const ctx = this.scene.context();
-    const planet = ctx.bodies.find((b) => b.placement.id === id)?.planet;
+    const planet = ctx.bodyById.get(id)?.planet;
     if (!planet) return;
     const inspector = useInspectorStore.getState();
     inspector.openFromMap(bodyEntry(system, id, bodyName(planet, ctx.names)));
@@ -119,11 +144,11 @@ export class SystemInteraction {
 
   private hover(body: number | null, exit: number | null, sx: number, sy: number): void {
     const last = this.hovered;
-    if (body !== last.body || exit !== last.exit) {
-      this.hovered = { body, exit, tip: tipFor(this.scene.context(), body, exit) };
-      this.scene.hover(body, exit);
-    }
-    const tip = this.hovered.tip;
+    const ctx = this.scene.context();
+    const moved = body !== last.body || exit !== last.exit;
+    if (moved) this.scene.hover(body, exit);
+    const tip = moved || ctx !== last.ctx ? tipFor(ctx, body, exit) : last.tip;
+    this.hovered = { body, exit, ctx, tip, sx, sy };
     if (tip) this.tip.show({ ...tip, x: sx, y: sy });
     else this.tip.hide();
   }
@@ -140,56 +165,10 @@ export class SystemInteraction {
       wx: w.x,
       wy: w.y,
       button: e.button,
-      shift: e.shiftKey,
-      ctrl: e.ctrlKey || e.metaKey,
       time: e.timeStamp,
       system: ctx.id ?? -1,
       body,
       exit: body === null ? pickExit(ctx.exits, this.cam, w) : null,
     };
-  }
-
-  private handle(input: SystemInput): "consumed" | "pan" {
-    const result = this.model.handle(input, this.intent);
-    this.canvas.style.cursor = this.model.cursor();
-    return result;
-  }
-
-  private bindPointer(): void {
-    const canvas = this.canvas;
-    const on = <K extends keyof HTMLElementEventMap>(
-      type: K,
-      handler: (e: HTMLElementEventMap[K]) => void,
-    ) => {
-      canvas.addEventListener(type, handler);
-      this.listeners.push(() => canvas.removeEventListener(type, handler));
-    };
-
-    on("pointerdown", (e) => {
-      useMapChromeStore.getState().closeContextMenu();
-      const input = this.input("down", e);
-      this.panFrom = { sx: input.sx, sy: input.sy };
-      canvas.setPointerCapture(e.pointerId);
-      this.handle(input);
-    });
-    on("pointermove", (e) => {
-      const input = this.input("move", e);
-      if (this.handle(input) === "pan" && this.panFrom) {
-        this.cam.panBy(input.sx - this.panFrom.sx, input.sy - this.panFrom.sy);
-        this.panFrom = { sx: input.sx, sy: input.sy };
-      }
-    });
-    on("pointerup", (e) => {
-      this.panFrom = null;
-      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      this.handle(this.input("up", e));
-    });
-    on("pointercancel", (e) => {
-      this.panFrom = null;
-      this.handle(this.input("cancel", e));
-    });
-    on("pointerleave", () => {
-      if (!this.model.busy()) this.hover(null, null, 0, 0);
-    });
   }
 }

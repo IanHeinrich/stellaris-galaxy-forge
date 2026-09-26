@@ -2,13 +2,17 @@ import { useEffect } from "react";
 import type { Bounds } from "../../../generated/Bounds";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
-import { bodyClassName, bodyName } from "../../../lib/details/labels";
-import { ANY_ANGLE, rolledRadii, rollSeed, stepText, turnText } from "../../../lib/details/orbits";
+import {
+  bodyClassName,
+  bodyName,
+  boundsText,
+  stepText,
+  turnText,
+} from "../../../lib/details/labels";
+import { ANY_ANGLE, isStar, systemLayout } from "../../../lib/details/orbits";
 import { resourceRows } from "../../../lib/details/resources";
-import type { ResolvedClass } from "../../../lib/details/bodyClass";
-import { useDetailsStore } from "../../../store/detailsStore";
-import { useFileSessionStore } from "../../../store/fileSessionStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
+import { useDetailsStore, useSystemRoll } from "../../../store/detailsStore";
+import { moonScaleOf, useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import { Chip } from "../../parts";
@@ -16,33 +20,18 @@ import { DrillLink, Empty, Properties, PropertyRow, Section } from "../parts";
 import { StarRowIcon } from "../StarIcon";
 import { PlanetIcon, PlanetSize, Pills } from "../system/sections/bodies";
 import { PlanetRow } from "../system/sections/Planets";
-import { useResolvedClass } from "./useBodyClasses";
 import "./entity.css";
 
 /** `16`, or `10–20` for a value the game rolls between two bounds; `random` for none given. */
-function boundsText(bounds: Bounds | null): string {
-  if (bounds === null) return "random";
-  const { min, max } = bounds;
-  return min === max ? `${min}` : `${min}–${max}`;
+function rangeText(bounds: Bounds | null): string {
+  return bounds === null ? "random" : boundsText(bounds);
 }
 
-/** Whether the initializer leaves the body's class to the game. */
-function randomClass(planetClass: string): boolean {
-  return planetClass === "" || planetClass === "random" || planetClass.startsWith("random_");
-}
-
-interface HeadProps {
-  name: string;
-  body: PlanetSummary | null;
-  /** The body's class as the system view draws it. */
-  resolved?: ResolvedClass;
-}
-
-function Head({ name, body, resolved }: HeadProps) {
+function Head({ name, body }: { name: string; body: PlanetSummary | null }) {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
-  const own = resolved?.starClass ? starClasses.get(resolved.starClass) : undefined;
-  const star = body !== null && resolved?.star === true;
+  const own = body?.star_class === undefined ? undefined : starClasses.get(body.star_class);
+  const star = body !== null && isStar(body, planetClasses);
   return (
     <div className={`ins-head${star ? " ins-star-head" : " pl-head"}`}>
       {body !== null &&
@@ -78,13 +67,6 @@ function Orbits({ details, parent }: { details: SystemDetails; parent: number })
       </DrillLink>
     </PropertyRow>
   );
-}
-
-/** Where `anchor` stands in roll `roll` of its system, as the system view draws it. */
-function rolledRadius(details: SystemDetails, anchor: PlanetSummary, roll: number): number {
-  const rolled = rolledRadii(details.planets, rollSeed(details.id, roll)).get(anchor.id);
-  const orbit = anchor.layout?.orbit;
-  return rolled?.radius ?? (orbit ? (orbit.min + orbit.max) / 2 : 0);
 }
 
 /** A scenario body's `has_ring`: stated, or left to its class's chance. */
@@ -158,39 +140,42 @@ function Moons({ details, body }: { details: SystemDetails; body: PlanetSummary 
 
 function BodyOverview({ details, body }: { details: SystemDetails; body: PlanetSummary }) {
   const names = useGameDataStore((s) => s.names);
-  const resolved = useResolvedClass(details, body.id);
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
-  const layout = body.layout;
-  const orbitStep = scenario ? (layout?.orbit_step ?? null) : null;
-  const angleStep = scenario ? (layout?.angle_step ?? null) : null;
-  const roll = useSceneStore((s) =>
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
+  const moonScale = useGameDataStore(moonScaleOf);
+  const shown = useSceneStore((s) =>
     s.scene.kind === "system" && s.scene.id === details.id ? s.roll : 0,
   );
-  const turnsFrom = layout?.turns_from ?? null;
-  const anchor = turnsFrom === null ? undefined : details.planets.find((p) => p.id === turnsFrom);
-  // A body at the centre of the walk marks no direction to turn from.
-  const anchorRadius = anchor ? rolledRadius(details, anchor, roll) : 0;
+  const roll = useSystemRoll(details.id, shown);
+  const placed = systemLayout(details, roll, planetClasses, moonScale).bodies;
+  const layout = body.layout;
+  const orbitStep = layout?.orbit_step ?? null;
+  // A body at the centre of the walk marks no direction to turn from, so it anchors no turn.
+  const anchorId = placed.find((p) => p.id === body.id)?.turn?.anchor ?? null;
+  const anchor = details.planets.find((p) => p.id === anchorId);
+  const anchorRadius = placed.find((p) => p.id === anchorId)?.ring?.radius ?? 0;
   const size = layout?.size ?? (body.size === null ? null : { min: body.size, max: body.size });
   return (
     <>
-      <Head name={bodyName(body, names)} body={body} resolved={resolved} />
+      <Head name={bodyName(body, names)} body={body} />
       <Properties>
         <PropertyRow label="Class">
-          {randomClass(body.class) ? "random" : bodyClassName(body.class, names)}
+          {body.drawn ? "random" : bodyClassName(body.class, names)}
         </PropertyRow>
         {size !== null && (
           <PropertyRow label="Size">
-            <PlanetSize size={boundsText(size)} />
+            <PlanetSize size={rangeText(size)} />
           </PropertyRow>
         )}
-        {resolved?.star !== true && <PropertyRow label="Ring">{ringText(body.ring)}</PropertyRow>}
+        {!isStar(body, planetClasses) && (
+          <PropertyRow label="Ring">{ringText(body.ring)}</PropertyRow>
+        )}
         {body.parent !== null && <Orbits details={details} parent={body.parent} />}
-        <PropertyRow label="Orbit radius">{boundsText(layout?.orbit ?? null)}</PropertyRow>
+        <PropertyRow label="Orbit radius">{rangeText(layout?.orbit ?? null)}</PropertyRow>
         {orbitStep && <PropertyRow label="Orbit step">{stepText(orbitStep)}</PropertyRow>}
-        {scenario && (
+        {orbitStep && (
           <PropertyRow label="Angle step">
-            {turnText(angleStep ?? ANY_ANGLE)}
-            {angleStep && anchor && anchorRadius > 0 && (
+            {turnText(layout?.angle_step ?? ANY_ANGLE)}
+            {anchor && anchorRadius > 0 && (
               <>
                 {" from "}
                 <Anchor details={details} anchor={anchor} radius={anchorRadius} />

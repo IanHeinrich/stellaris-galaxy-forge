@@ -80,6 +80,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_map_colors,
             commands::get_map_color_source,
             commands::get_planet_classes,
+            commands::get_terraform_candidates,
             commands::get_starbase_levels,
             commands::get_ship_sizes,
             commands::get_country_types,
@@ -87,6 +88,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_lgate_outcome_mods,
             commands::get_textures,
             commands::get_system_details,
+            commands::get_system_roll,
             commands::check_for_update,
             commands::install_update,
         ])

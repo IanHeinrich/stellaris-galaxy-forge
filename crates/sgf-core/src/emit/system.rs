@@ -6,6 +6,7 @@
 use super::{Lines, coord, hyperlane_block, lane_entry, quoted};
 use crate::keys;
 use crate::projections::name::NameTemplate;
+use crate::projections::read::PERMANENT;
 
 /// What a spawned system's coordinate carries besides its position; a new entry copies
 /// the value from a spawned system the game accepted rather than inventing one.
@@ -23,8 +24,6 @@ pub(crate) const RING_FLAG: u32 = 256;
 const MOON_FLAG: u32 = 512;
 /// `deposit_holder.type` of a planet.
 pub(crate) const PLANET_HOLDER: &str = "0";
-/// How long a modifier the layout gives a body lasts: for ever.
-pub(crate) const PERMANENT: &str = "-1";
 /// `last_bombardment` as a body that was never bombarded holds it, tabs included.
 const NEVER_BOMBARDED: &str = "\t\t\t\"0.01.01\"";
 

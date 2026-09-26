@@ -251,6 +251,24 @@ describe("the star class at the head", () => {
     expect(html).toContain("Open this planet&#x27;s page to make it a terraforming candidate");
   });
 
+  it("marks a planet that still carries a candidate modifier left from an earlier class", async () => {
+    useGameDataStore.setState({
+      terraformCandidates: new Map([
+        ["terraforming_candidate", { modifier: "terraforming_candidate", requires: [] }],
+      ]),
+    });
+    await open("save");
+    await land(
+      details({
+        planets: [planet(100, "Tarkin", { permanent_modifiers: ["terraforming_candidate"] })],
+      }),
+    );
+
+    const html = overview();
+    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(1);
+    expect(html).toContain("Open this planet&#x27;s page to clear its terraforming candidate");
+  });
+
   it("marks a star as editable and lists it first without game data", async () => {
     useGameDataStore.setState({ status: "idle" });
     await open("save");
@@ -402,7 +420,7 @@ describe("the Planets header's system view button", () => {
     useSceneStore.getState().enterSystem(SYSTEM);
     expect(overview()).not.toContain("Open system view");
 
-    useSceneStore.getState().leaveSystem();
+    useSceneStore.getState().exitScene();
     await open("scenario");
     await land(details({ planets: [planet(100, "Tarkin")] }));
     expect(overview()).toContain('<button type="button" class="link">Open system view</button>');

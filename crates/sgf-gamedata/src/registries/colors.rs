@@ -57,16 +57,11 @@ fn read_color(name: String, node: &Node, src: &[u8]) -> Option<ColorDef> {
     })
 }
 
-/// `key = rgb { r g b }` in 0 to 255, or `key = hsv { h s v }` in 0 to 1.
+/// `key = rgb { r g b }` in 0 to 255, or `key = hsv { h s v }` in 0 to 1, clamped to a byte. A
+/// duplicate `key` reads its first one, as [`read_unit_rgb`] does and `Def::scalar` does for
+/// every other field of the same definition.
 pub(crate) fn read_rgb(node: &Node, key: &str, src: &[u8]) -> Option<[u8; 3]> {
-    let channel = node.find(key, src)?;
-    let rgb = script::list_items(channel, "rgb", src);
-    if let Some(triple) = to_triple(&rgb) {
-        return Some(triple.map(clamp_u8));
-    }
-    let hsv = script::list_items(channel, "hsv", src);
-    let [h, s, v] = to_triple(&hsv)?;
-    Some(hsv_to_rgb(h, s, v))
+    Some(read_unit_rgb(node, key, src)?.map(|c| clamp_u8(c * 255.0)))
 }
 
 fn to_triple(items: &[String]) -> Option<[f64; 3]> {
@@ -78,14 +73,11 @@ fn clamp_u8(x: f64) -> u8 {
     x.round().clamp(0.0, 255.0) as u8
 }
 
-fn hsv_to_rgb(h: f64, s: f64, v: f64) -> [u8; 3] {
-    hsv_to_unit(h, s, v).map(|c| clamp_u8(c * 255.0))
-}
-
 /// `key = hsv { h s v }` or `key = rgb { r g b }` as channels in 0 to 1, left unclamped
-/// above 1: the graphics settings write values past it.
+/// above 1: the graphics settings write values past it. The first `key` wins, as
+/// `Def::scalar` reads every other field of a definition.
 pub(crate) fn read_unit_rgb(node: &Node, key: &str, src: &[u8]) -> Option<[f64; 3]> {
-    let channel = node.find_all(key, src).last()?;
+    let channel = node.find(key, src)?;
     let rgb = script::list_items(channel, "rgb", src);
     if let Some(triple) = to_triple(&rgb) {
         return Some(triple.map(|c| c / 255.0));

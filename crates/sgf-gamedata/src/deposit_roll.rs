@@ -134,18 +134,10 @@ pub fn roll_deposits(
     roll(gd, body, abundance, rng, true)
 }
 
-/// As [`roll_deposits`], for a body its layout writes `deposit_blockers = none`: no
-/// blocker is drawn, and the minimum blockers are not topped up.
-pub(crate) fn roll_deposits_without_blockers(
-    gd: &GameData,
-    body: &RollBody<'_>,
-    abundance: f64,
-    rng: &mut Rng,
-) -> Vec<String> {
-    roll(gd, body, abundance, rng, false)
-}
-
-fn roll(
+/// As [`roll_deposits`], with `blockers` false for a body its layout writes
+/// `deposit_blockers = none`: no blocker is drawn, and the minimum blockers are not topped
+/// up.
+pub(crate) fn roll(
     gd: &GameData,
     body: &RollBody<'_>,
     abundance: f64,

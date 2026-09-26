@@ -28,13 +28,42 @@ export const LAYER_IDS = [
 ] as const;
 export type LayerId = (typeof LAYER_IDS)[number];
 
+/**
+ * The layers the system scene draws, each switched there apart from the galaxy, with what the
+ * scene starts with. `sceneOnly` marks one the galaxy map does not draw.
+ */
+const SCENE_LAYERS = [
+  { id: "labels", on: true },
+  { id: "details", on: true },
+  { id: "nebulae", on: true },
+  { id: "orbitRadii", on: false, sceneOnly: true },
+] as const satisfies readonly { id: LayerId; on: boolean; sceneOnly?: true }[];
+
+type SceneLayer = (typeof SCENE_LAYERS)[number];
+export type SceneLayerId = SceneLayer["id"];
+export const SCENE_LAYER_IDS: readonly SceneLayerId[] = SCENE_LAYERS.map((layer) => layer.id);
+
+export function isSceneLayer(id: LayerId): id is SceneLayerId {
+  return (SCENE_LAYER_IDS as readonly LayerId[]).includes(id);
+}
+
+/** The layers only the system scene draws; the galaxy's menus list them as switches of their own. */
+export const SCENE_ONLY_IDS: readonly LayerId[] = SCENE_LAYERS.filter(
+  (layer) => "sceneOnly" in layer,
+).map((layer) => layer.id);
+
 /** The layers the galaxy map switches: every layer but the ones only the system scene draws. */
-export type GalaxyLayerId = Exclude<LayerId, "orbitRadii">;
+export type GalaxyLayerId = Exclude<LayerId, Extract<SceneLayer, { sceneOnly: true }>["id"]>;
 export type GalaxyLayers = Record<GalaxyLayerId, boolean>;
 
 export function isGalaxyLayer(id: LayerId): id is GalaxyLayerId {
-  return id !== "orbitRadii";
+  return !SCENE_ONLY_IDS.includes(id);
 }
+
+/** What the system scene starts with: names, resources and nebula clouds drawn, radii not. */
+export const DEFAULT_SCENE_LAYERS = Object.fromEntries(
+  SCENE_LAYERS.map((layer) => [layer.id, layer.on]),
+) as Record<SceneLayerId, boolean>;
 
 export const GALAXY_LAYER_IDS: readonly GalaxyLayerId[] = LAYER_IDS.filter(isGalaxyLayer);
 
@@ -123,34 +152,10 @@ export const LAYER_LABELS: Record<LayerId, string> = {
 };
 
 /**
- * The layers the system scene draws, each switched there apart from the galaxy: the galaxy's
- * own that it draws too, and the ones only it draws.
- */
-export type SceneLayerId = Extract<LayerId, "labels" | "details" | "nebulae" | "orbitRadii">;
-export const SCENE_LAYER_IDS: readonly SceneLayerId[] = [
-  "labels",
-  "details",
-  "nebulae",
-  "orbitRadii",
-];
-
-export function isSceneLayer(id: LayerId): id is SceneLayerId {
-  return (SCENE_LAYER_IDS as readonly LayerId[]).includes(id);
-}
-
-/**
  * The layers without a number key of their own, each on the key of a layer that is not shown
  * where it is.
  */
 export const BORROWED_KEYS: Readonly<Partial<Record<LayerId, LayerId>>> = { orbitRadii: "systems" };
-
-/** What the system scene starts with: names, resources and nebula clouds drawn, radii not. */
-export const DEFAULT_SCENE_LAYERS: Record<SceneLayerId, boolean> = {
-  labels: true,
-  details: true,
-  nebulae: true,
-  orbitRadii: false,
-};
 
 /** What is on when the app starts, and what a scenario opens with: the map as the game first
  * shows it, with the scripts' day-one overlays left off until asked for, and the two guides on

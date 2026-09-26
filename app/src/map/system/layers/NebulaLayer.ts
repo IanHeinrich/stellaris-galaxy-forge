@@ -1,10 +1,10 @@
 import { Container, Graphics, Sprite, type Texture } from "pixi.js";
 import { seeded, type Rand } from "../../../lib/random";
+import { mixColor } from "../../../lib/visual/color";
+import { NEBULA_EDGE_COLOR, NEBULA_FILL_COLOR } from "../../../lib/visual/style";
 import type { SystemContext } from "../context";
 import type { SystemLayer } from "./SystemLayer";
 
-/** The galaxy map's nebula purples; each copy of the field takes a mix of the two. */
-const FIELD_TINTS = [0x7c5cbf, 0x9d7ce0] as const;
 /**
  * Half the field's side, in inner radii: its clearing ends about where the planets do, and it
  * covers the view zoomed out to its limit.
@@ -30,22 +30,12 @@ function between(rand: Rand, min: number, max: number): number {
   return min + rand() * (max - min);
 }
 
-function mix(a: number, b: number, t: number): number {
-  const channel = (shift: number) => {
-    const from = (a >> shift) & 0xff;
-    const to = (b >> shift) & 0xff;
-    return Math.round(from + (to - from) * t) << shift;
-  };
-  return channel(16) | channel(8) | channel(0);
-}
-
 /**
  * The nebula field swirling about a system that lies in a nebula, turned and mirrored per system,
  * with a few faint stars, behind everything else while the scene's Nebulae switch is on. Nothing
  * for a system outside one.
  */
 export class NebulaLayer implements SystemLayer {
-  readonly id = "nebula" as const;
   readonly container = new Container();
   readonly field = new Container();
   readonly stars = new Graphics();
@@ -56,7 +46,7 @@ export class NebulaLayer implements SystemLayer {
   }
 
   rebuild(ctx: SystemContext): void {
-    const id = ctx.nebulaShown && ctx.inNebula ? ctx.id : null;
+    const id = ctx.sceneLayers.nebulae && ctx.inNebula ? ctx.id : null;
     const inner = ctx.layout.innerRadius;
     const key = id === null ? "" : `${id}:${inner}`;
     if (key === this.drawn) return;
@@ -93,14 +83,11 @@ export class NebulaLayer implements SystemLayer {
     const scale = (2 * reach) / this.texture.width;
     sprite.scale.set(mirror * scale, scale);
     sprite.rotation = rotation;
-    sprite.tint = mix(FIELD_TINTS[0], FIELD_TINTS[1], rand());
+    // Each copy takes its own mix of the galaxy map's two nebula purples.
+    sprite.tint = mixColor(NEBULA_FILL_COLOR, NEBULA_EDGE_COLOR, rand());
     sprite.alpha = alpha;
     this.field.addChild(sprite);
   }
-
-  onViewport(): void {}
-
-  setHighlighted(): void {}
 
   destroy(): void {
     this.container.destroy({ children: true });

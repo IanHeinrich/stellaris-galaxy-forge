@@ -3,7 +3,7 @@ import type { DepositCount } from "../../generated/DepositCount";
 import type { FleetSummary } from "../../generated/FleetSummary";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { ShipSizeView } from "../../generated/ShipSizeView";
-import { FALLBACK_HABITABLE } from "../../lib/details/labels";
+import { FALLBACK_HABITABLE, isColony } from "../../lib/details/labels";
 import { keyWords } from "../../lib/text";
 
 export const POP_ICON_KEY = "sprite:GFX_pop";
@@ -66,7 +66,7 @@ export interface PlanetTotals {
 export function planetTotals(planets: readonly PlanetSummary[]): PlanetTotals {
   return {
     planets: planets.length,
-    colonies: planets.filter((p) => p.colonised && !p.pre_ftl).length,
+    colonies: planets.filter(isColony).length,
     preFtl: planets.filter((p) => p.pre_ftl).length,
     pops: planets.reduce((total, p) => total + p.pops, 0),
   };

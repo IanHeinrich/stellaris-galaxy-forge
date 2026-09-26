@@ -4,11 +4,17 @@ import type { Nebula } from "../../generated/Nebula";
 import type { Camera } from "../Camera";
 import { nebulaHandles } from "../picking";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
-import { HANDLE_COLOR, MAP_FONT, NEBULA_COLOR } from "../../lib/visual/style";
+import {
+  HANDLE_COLOR,
+  MAP_FONT,
+  NEBULA_COLOR,
+  NEBULA_EDGE_COLOR,
+  NEBULA_FILL_COLOR,
+} from "../../lib/visual/style";
 import type { MapLayer } from "./MapLayer";
 
-const FILL = { color: 0x7c5cbf, alpha: 0.12 };
-const EDGE = { color: 0x9d7ce0, alpha: 0.25 };
+const FILL = { color: NEBULA_FILL_COLOR, alpha: 0.12 };
+const EDGE = { color: NEBULA_EDGE_COLOR, alpha: 0.25 };
 /** The selected nebula: the same ring, bright enough to grab, with a handle on each cardinal. */
 const SELECTED_EDGE = { color: NEBULA_COLOR, alpha: 0.9 };
 const HANDLE_FILL = { color: HANDLE_COLOR, alpha: 0.9 };

@@ -20,7 +20,7 @@ import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
-import { GALAXY_SCENE, sceneSystem, useSceneStore } from "./sceneStore";
+import { currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
 import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
 
@@ -116,12 +116,16 @@ function followTool(): void {
     if (state.status === previous.status && state.capabilities === previous.capabilities) return;
     const { tool } = useToolStore.getState();
     if (tool === "select") return;
-    if (state.status !== "ready" || !toolAllowed(tool)) useToolStore.setState({ tool: "select" });
+    if (state.status !== "ready" || !toolAllowed(tool, currentBarMode())) {
+      useToolStore.setState({ tool: "select" });
+    }
   });
   useSceneStore.subscribe((state, previous) => {
     if (state.scene === previous.scene) return;
     const { tool } = useToolStore.getState();
-    if (tool !== "select" && !toolAllowed(tool)) useToolStore.setState({ tool: "select" });
+    if (tool !== "select" && !toolAllowed(tool, currentBarMode())) {
+      useToolStore.setState({ tool: "select" });
+    }
   });
 }
 
@@ -135,8 +139,35 @@ function followScene(): void {
     const deselected =
       selection !== previous.selection && (selection.length !== 1 || selection[0] !== shown);
     const focusedAway = focus !== previous.focus && focus !== null && focus.id !== shown;
-    if (deselected || focusedAway) useSceneStore.setState({ scene: GALAXY_SCENE });
+    if (deselected || focusedAway) useSceneStore.getState().exitScene();
   });
+  useSceneStore.subscribe((state, previous) => {
+    if (state.visit !== previous.visit) enteredSystem();
+    else if (state.scene.kind === "galaxy" && previous.scene.kind === "system") exitedSystem();
+  });
+}
+
+// Entering a system selects it, with the galaxy's menu, tooltip, hover and overlays gone; the
+// tool is `followTool`'s to put back. The scene is already up, so the selection following it sees the system as shown.
+function enteredSystem(): void {
+  const shown = sceneSystem();
+  if (shown === null) return;
+  const editor = useEditorStore.getState();
+  const { selection } = editor;
+  if (selection.length !== 1 || selection[0] !== shown) void editor.select(shown);
+  const chrome = useMapChromeStore.getState();
+  chrome.closeContextMenu();
+  chrome.hideTooltip();
+  editor.setHover(null);
+  // Not `clearOverlays`: the hidden initializers belong to the document.
+  chrome.setLanePreview(null);
+  chrome.setHighlightInitializer(null);
+  chrome.setGesture(null);
+}
+
+// Leaving a system, however it goes, drops what the scene said in the status bar.
+function exitedSystem(): void {
+  useMapChromeStore.getState().setSceneHint(null);
 }
 
 // Opening a document that takes no symmetry turns off any symmetry left on from the last one,
@@ -209,13 +240,14 @@ function followAddSystemPicks(): void {
   });
 }
 
-// A planet page's deposits, modifiers and designations, and the star classes a rolled system can
-// have, are the loaded game data's to say.
+// A planet page's deposits, modifiers and designations, the star classes a rolled system can
+// have, and a scenario body's page, are the loaded game data's to say.
 function followPlanetData(): void {
   useGameDataStore.subscribe((state, previous) => {
     if (state.status !== previous.status || state.version !== previous.version) {
       usePlanetDataStore.getState().clear();
       useGeneratorStore.getState().clear();
+      useInspectorStore.getState().dropBodies();
     }
   });
 }
@@ -267,7 +299,7 @@ function followGroups(): void {
 function followSession(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status === previous.status) return;
-    if (sceneSystem() !== null) useSceneStore.setState({ scene: GALAXY_SCENE });
+    useSceneStore.getState().exitScene();
     if (state.status === "loading") useLGateStore.getState().hide();
     if (state.status === "empty" || state.status === "error") {
       useGalaxyStore.getState().clear();

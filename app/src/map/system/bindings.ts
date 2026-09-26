@@ -1,10 +1,10 @@
 import { useDetailsStore } from "../../store/detailsStore";
-import { useFileSessionStore } from "../../store/fileSessionStore";
-import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { subscribeOwnership } from "../../store/ownership";
 import { useSceneStore } from "../../store/sceneStore";
+import { follows, type Binding } from "../follows";
 
 /** What a store change moves in the system scene. */
 export interface SceneView {
@@ -16,76 +16,33 @@ export interface SceneView {
   linkBody(id: number | null): void;
 }
 
-interface Store<S> {
-  getState(): S;
-  subscribe(listener: (state: S, prev: S) => void): () => void;
-}
+const refresh = (_state: unknown, view: SceneView) => view.refresh();
 
-interface Binding {
-  /** Applied once as the scene binds, besides whenever a field it follows changes. */
-  now: boolean;
-  apply: (view: SceneView) => void;
-  subscribe: (view: SceneView) => () => void;
-}
-
-function follows<S>(
-  store: Store<S>,
-  fields: ReadonlyArray<(state: S) => unknown>,
-  apply: (view: SceneView) => void,
-  now = false,
-): Binding {
-  return {
-    now,
-    apply,
-    subscribe: (view) =>
-      store.subscribe((state, prev) => {
-        if (fields.some((field) => field(state) !== field(prev))) apply(view);
-      }),
-  };
-}
-
-function topRef(): EntityRef {
-  const { stack } = useInspectorStore.getState();
-  return stack[stack.length - 1].ref;
-}
-
-/** The store fields the system scene follows while it is shown. */
-const BINDINGS: Binding[] = [
-  follows(
-    useDetailsStore,
-    [(s) => s.details, (s) => s.version, (s) => s.pending, (s) => s.missing],
-    (view) => view.refresh(),
-  ),
-  follows(useGalaxyStore, [(s) => s.systems, (s) => s.countries], (view) => view.refresh()),
+/** The store fields the system scene follows, and the ones applied as it binds besides. */
+const BINDINGS: Array<Binding<SceneView, "bind">> = [
+  follows(useDetailsStore, [(s) => s.details, (s) => s.version, (s) => s.rolls], refresh),
   follows(
     useGameDataStore,
-    [
-      (s) => s.names,
-      (s) => s.planetClasses,
-      (s) => s.starClasses,
-      (s) => s.status,
-      (s) => s.mapColors,
-      (s) => s.countryTypes,
-      (s) => s.initializerClasses,
-    ],
-    (view) => view.refresh(),
+    [(s) => s.planetClasses, (s) => s.starClasses, (s) => s.status, (s) => s.initializerClasses],
+    refresh,
   ),
-  follows(useMapChromeStore, [(s) => s.sceneLayers], (view) => view.refresh()),
-  follows(useFileSessionStore, [(s) => s.kind], (view) => view.refresh()),
-  follows(useSceneStore, [(s) => s.roll], (view) => view.refresh()),
+  // Ownership's inputs include the systems, the names and the document kind the scene reads too.
+  { when: "change", subscribe: (view) => subscribeOwnership(() => view.refresh()) },
+  follows(useMapChromeStore, [(s) => s.sceneLayers], refresh),
+  follows(useSceneStore, [(s) => s.roll], refresh),
+  follows(useSceneStore, [(s) => s.linkedBody], (s, view) => view.linkBody(s.linkedBody), "bind"),
   follows(
-    useSceneStore,
-    [(s) => s.linkedBody],
-    (view) => view.linkBody(useSceneStore.getState().linkedBody),
-    true,
+    useInspectorStore,
+    [(s) => s.stack],
+    (s, view) => view.selectBody(s.stack[s.stack.length - 1].ref),
+    "bind",
   ),
-  follows(useInspectorStore, [(s) => s.stack], (view) => view.selectBody(topRef()), true),
 ];
 
 /** Subscribes the scene to every field it follows and applies the ones that stand now. */
 export function bindSystemScene(view: SceneView): () => void {
   const offs = BINDINGS.map((binding) => {
-    if (binding.now) binding.apply(view);
+    if (binding.when === "bind") binding.apply?.(view);
     return binding.subscribe(view);
   });
   return () => {

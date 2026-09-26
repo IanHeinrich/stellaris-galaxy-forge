@@ -2,7 +2,7 @@ import type { Renderer } from "pixi.js";
 import type { Capabilities } from "../../generated/Capabilities";
 import { supports } from "../../lib/capabilities";
 import { WorkerTerritoryClient } from "../../lib/geometry/territoryClient";
-import type { LayerId } from "../../lib/visual/layerIds";
+import { SCENE_ONLY_IDS, type LayerId } from "../../lib/visual/layerIds";
 import { BypassesLayer } from "./BypassesLayer";
 import { DetailsLayer } from "./DetailsLayer";
 import { FeZonesLayer } from "./FeZonesLayer";
@@ -61,7 +61,7 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "initializers", requires: "create_systems" },
   { id: "spawns", requires: "create_systems", create: () => new SpawnsLayer() },
   { id: "details", create: () => new DetailsLayer() },
-  { id: "orbitRadii" },
+  ...SCENE_ONLY_IDS.map((id) => ({ id })),
   { id: "colonies" },
   { id: "special", requires: "special", create: () => new SpecialLayer() },
 ];

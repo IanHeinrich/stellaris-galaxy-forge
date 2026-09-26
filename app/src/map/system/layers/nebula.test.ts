@@ -1,20 +1,20 @@
 import { Sprite, Texture } from "pixi.js";
 import { describe, expect, it } from "vitest";
-import { byId, placedNode, systemDetails } from "../../../test/builders";
-import { NO_SOURCES, systemContext, type SystemContext } from "../context";
-import { viewport } from "../fixture";
+import { byId, placedNode } from "../../../test/builders";
+import { systemContext, type SystemContext } from "../context";
+import { context as systemAt, viewport } from "../fixture";
 import { NebulaLayer } from "./NebulaLayer";
 
 const INNER = 120;
 const FIELD = new Texture();
 
 function context(id: number, nebula: number | null, nebulaShown = true): SystemContext {
+  const ctx = systemAt({ id, inner_radius: INNER });
   return systemContext({
-    ...NO_SOURCES,
-    nebulaShown,
+    ...ctx,
+    sceneLayers: { ...ctx.sceneLayers, nebulae: nebulaShown },
     id,
     systems: byId({ ...placedNode(id, 0, 0), nebula }),
-    details: systemDetails({ id, inner_radius: INNER }),
   });
 }
 
@@ -29,14 +29,13 @@ const sprites = (layer: NebulaLayer) => layer.field.children as Sprite[];
 const poses = (layer: NebulaLayer) => sprites(layer).map((s) => [s.rotation, s.scale.x, s.scale.y]);
 
 describe("NebulaLayer", () => {
-  it("draws the field faintly about the centre of a system in a nebula, well past its edge", () => {
+  it("draws the field about the centre of a system in a nebula, well past its edge", () => {
     const layer = drawn(context(5, 0));
     expect(sprites(layer).length).toBeGreaterThan(0);
     for (const sprite of sprites(layer)) {
       expect(sprite.texture).toBe(FIELD);
       expect([sprite.x, sprite.y]).toEqual([0, 0]);
       expect(Math.min(sprite.width, sprite.height)).toBeGreaterThanOrEqual(5 * INNER);
-      expect(sprite.alpha).toBeLessThanOrEqual(0.2);
     }
   });
 

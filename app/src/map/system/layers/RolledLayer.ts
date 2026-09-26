@@ -18,7 +18,6 @@ const EDGE_ALPHA = 0.35;
  * dotted ring, with no surface, icon or name.
  */
 export class RolledLayer implements SystemLayer {
-  readonly id = "rolled" as const;
   readonly container = new Container();
   readonly rings = new Graphics();
   readonly discs = new Graphics();
@@ -57,8 +56,6 @@ export class RolledLayer implements SystemLayer {
       .fill({ color: ROLLED_COLOR, alpha: FILL_ALPHA })
       .stroke({ color: ROLLED_COLOR, alpha: EDGE_ALPHA, pixelLine: true });
   }
-
-  setHighlighted(): void {}
 
   destroy(): void {
     this.container.destroy({ children: true });

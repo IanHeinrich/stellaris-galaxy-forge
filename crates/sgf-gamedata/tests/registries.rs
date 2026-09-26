@@ -4,7 +4,7 @@
 use crate::common;
 
 use sgf_core::format::save::details::DetailsResolver;
-use sgf_gamedata::views::{BypassView, ShipSizeView};
+use sgf_gamedata::views::{BypassView, ShipSizeView, TerraformCandidateView};
 
 #[test]
 fn sprites_resolve() {
@@ -69,6 +69,21 @@ fn colors_read_rgb_and_hsv() {
     assert_eq!(teal.flag, [71, 179, 179]);
     assert_eq!(teal.map, [71, 179, 179]);
     assert_eq!(teal.ship, [71, 179, 179]);
+}
+
+/// The first `flag` (or any other duplicated colour key) wins, as `Def::scalar` reads every
+/// other field of the same definition.
+#[test]
+fn a_duplicate_colour_key_reads_the_first_one() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "flags/colors.txt",
+            "colors = {\n\tduped = { flag = rgb { 1 2 3 } flag = rgb { 9 9 9 } map = rgb { 0 0 0 } ship = rgb { 0 0 0 } }\n}\n",
+        ),
+        ("common/.keep", ""),
+    ]);
+    let duped = gd.colors.entries.get("duped").expect("duped");
+    assert_eq!(duped.flag, [1, 2, 3]);
 }
 
 #[test]
@@ -245,6 +260,7 @@ fn defines_survive_trailing_comments() {
     let gd = common::cached_fixture();
     assert_eq!(gd.border.system_radius, 40.0);
     assert_eq!(gd.border.hyperlane_thickness, 15.0);
+    assert_eq!(gd.border.moon_scale, 0.65);
 }
 
 #[test]
@@ -282,6 +298,119 @@ fn resolver_distinguishes_orbital_from_colonizable_and_unknown() {
         Some(false)
     );
     assert_eq!(DetailsResolver::planet_habitable(gd, "pc_unknown"), None);
+}
+
+/// An install whose terraform links exercise the parser: `NOT`/`NOR` and checks outside
+/// `from` are skipped, a later `game_rules` file's rule wins, a candidate the static
+/// modifiers do not define is dropped, a candidate needs what most of its links ask for, and
+/// an `OR` in a condition is one requirement, its alternatives in any order.
+const TERRAFORM_FILES: [(&str, &str); 6] = [
+    (
+        "common/planet_classes/00_fx.txt",
+        "pc_fx_rock = {}\npc_fx_ice = {}\npc_fx_old = {}\npc_fx_plain = {}\n",
+    ),
+    (
+        "common/static_modifiers/00_fx.txt",
+        "fx_candidate = { icon = x }\nfx_cold_candidate = { icon = x }\nfx_old_candidate = { icon = x }\n",
+    ),
+    (
+        "common/game_rules/00_fx.txt",
+        "is_terraforming_candidate = {\n\tOR = { has_modifier = fx_old_candidate }\n}\n",
+    ),
+    (
+        "common/game_rules/01_fx.txt",
+        "is_terraforming_candidate = {\n\tOR = {\n\t\thas_modifier = fx_candidate\n\t\thas_modifier = fx_undefined_candidate\n\t\thas_modifier = fx_cold_candidate\n\t}\n}\n",
+    ),
+    (
+        "common/terraform/00_fx.txt",
+        "terraform_link = {\n\tfrom = pc_fx_rock\n\tpotential = {\n\t\thas_modifier = fx_cold_candidate\n\t\tfrom = {\n\t\t\tNOT = { has_modifier = fx_cold_candidate }\n\t\t\tNOR = { has_modifier = fx_cold_candidate }\n\t\t\tAND = { has_modifier = fx_candidate }\n\t\t}\n\t}\n\tcondition = {\n\t\thas_ascension_perk = ap_fx_shaper\n\t\thas_technology = tech_fx_restore\n\t\tNOT = { has_technology = tech_fx_never }\n\t}\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_ice\n\tpotential = { from = { has_modifier = fx_undefined_candidate } }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_ice\n\tpotential = { OR = { from = { has_modifier = fx_cold_candidate } } }\n\tcondition = { has_technology = tech_fx_restore has_ascension_perk = ap_fx_cold OR = { has_technology = tech_fx_alt has_ascension_perk = ap_fx_alt has_country_flag = fx_flag } NOT = { OR = { has_technology = tech_fx_never } } }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_plain\n\tpotential = { from = { has_modifier = fx_cold_candidate } }\n\tcondition = { has_ascension_perk = ap_fx_cold has_technology = tech_fx_restore AND = { OR = { has_country_flag = fx_flag has_ascension_perk = ap_fx_alt has_technology = tech_fx_alt } } }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_plain\n\tpotential = { has_ascension_perk = ap_fx_other from = { has_modifier = fx_cold_candidate } }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_old\n\tpotential = { from = { has_modifier = fx_old_candidate } }\n}\n",
+    ),
+    (
+        "localisation/english/fx_l_english.yml",
+        "l_english:\n tech_fx_restore:0 \"Fx Restoration\"\n ap_fx_cold:0 \"Cold Hands\"\n",
+    ),
+];
+
+#[test]
+fn terraform_links_read_the_candidate_rule_and_the_links_that_check_it() {
+    let (_dir, gd) = common::hand_written(&TERRAFORM_FILES);
+    let candidate = |class: &str| gd.terraform_links.candidate(class, &gd.static_modifiers);
+    assert_eq!(candidate("pc_fx_rock"), Some("fx_candidate".to_owned()));
+    assert_eq!(candidate("pc_fx_ice"), Some("fx_cold_candidate".to_owned()));
+    assert_eq!(
+        candidate("pc_fx_old"),
+        None,
+        "an earlier rule file's candidate"
+    );
+
+    let views: Vec<(String, Option<String>)> = gd
+        .planet_class_views()
+        .into_iter()
+        .map(|v| (v.key, v.terraform_candidate))
+        .collect();
+    assert!(
+        views.contains(&("pc_fx_rock".to_owned(), Some("fx_candidate".to_owned()))),
+        "{views:?}"
+    );
+
+    let requires = |modifier: &str, names: &[&str]| TerraformCandidateView {
+        modifier: modifier.to_owned(),
+        requires: names.iter().map(|&n| n.to_owned()).collect(),
+    };
+    assert_eq!(
+        gd.terraform_candidate_views(),
+        [
+            requires("fx_candidate", &["Fx Restoration", "Ap Fx Shaper"]),
+            requires(
+                "fx_cold_candidate",
+                &[
+                    "Fx Restoration",
+                    "Cold Hands",
+                    "Tech Fx Alt or Ap Fx Alt or another condition"
+                ],
+            ),
+        ]
+    );
+}
+
+/// Two links that check one candidate and ask for different techs, the second checking it
+/// twice.
+const TIED_FILES: [(&str, &str); 5] = [
+    (
+        "common/planet_classes/00_fx.txt",
+        "pc_fx_a = {}\npc_fx_b = {}\n",
+    ),
+    (
+        "common/static_modifiers/00_fx.txt",
+        "fx_candidate = { icon = x }\n",
+    ),
+    (
+        "common/game_rules/00_fx.txt",
+        "is_terraforming_candidate = { OR = { has_modifier = fx_candidate } }\n",
+    ),
+    (
+        "common/terraform/00_fx.txt",
+        "terraform_link = {\n\tfrom = pc_fx_a\n\tpotential = { from = { has_modifier = fx_candidate } }\n\tcondition = { has_technology = tech_fx_first }\n}\n\
+         terraform_link = {\n\tfrom = pc_fx_b\n\tpotential = {\n\t\tfrom = { has_modifier = fx_candidate }\n\t\tOR = { from = { has_modifier = fx_candidate } }\n\t}\n\tcondition = { has_technology = tech_fx_second }\n}\n",
+    ),
+    ("localisation/english/fx_l_english.yml", "l_english:\n"),
+];
+
+#[test]
+fn a_tie_between_requirement_sets_goes_to_the_first_seen_and_a_link_votes_once() {
+    let (_dir, gd) = common::hand_written(&TIED_FILES);
+    assert_eq!(
+        gd.terraform_candidate_views(),
+        [TerraformCandidateView {
+            modifier: "fx_candidate".to_owned(),
+            requires: vec!["Tech Fx First".to_owned()],
+        }]
+    );
 }
 
 #[test]
@@ -325,6 +454,24 @@ fn vanilla_registries() {
     for class in ["pc_continental", "pc_desert"] {
         assert_eq!(candidate(class), None, "{class}");
     }
+    let requires = |modifier: &str, names: &[&str]| TerraformCandidateView {
+        modifier: modifier.to_owned(),
+        requires: names.iter().map(|&n| n.to_owned()).collect(),
+    };
+    assert_eq!(
+        gd.terraform_candidate_views(),
+        [
+            requires("terraforming_candidate", &["Climate Restoration"]),
+            requires(
+                "frozen_terraforming_candidate",
+                &["Climate Restoration", "Hydrocentric"]
+            ),
+            requires(
+                "toxic_terraforming_candidate",
+                &["Climate Restoration", "Detox or another condition"],
+            ),
+        ]
+    );
 
     let energy_3 = gd.deposits.get("d_energy_3").expect("d_energy_3");
     assert_eq!(energy_3.produces, vec![("energy".to_owned(), 3.0)]);
@@ -359,6 +506,7 @@ fn vanilla_registries() {
 
     assert_eq!(gd.border.system_radius, 35.0);
     assert_eq!(gd.border.hyperlane_thickness, 20.0);
+    assert_eq!(gd.border.moon_scale, 0.7);
 
     assert_eq!(
         gd.sprites.resolve("GFX_planet_type_continental", None),

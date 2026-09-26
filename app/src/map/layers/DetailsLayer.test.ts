@@ -32,7 +32,6 @@ function details(s: SystemNode): SystemDetails {
     with_game_data: false,
     belts: [],
     inner_radius: null,
-    unexpanded_scripts: false,
   };
 }
 

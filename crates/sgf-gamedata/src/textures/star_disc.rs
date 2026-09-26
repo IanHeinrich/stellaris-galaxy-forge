@@ -6,15 +6,15 @@
 //! the planet class's atmosphere colour at the limb.
 
 use std::collections::BTreeMap;
-use std::f64::consts::{PI, TAU};
 use std::fs;
 use std::hash::{Hash, Hasher};
 
-use image::imageops::{self, FilterType};
-use image::{Rgba, RgbaImage};
+use image::RgbaImage;
 use sgf_core::cst::{self, Node};
 
+use super::sphere::{self, Plane, Wrap};
 use crate::install::layers::Layout;
+use crate::install::script::last_scalar;
 use crate::registries::colors;
 
 const WORLDGFX: &str = "gfx/worldgfx";
@@ -29,8 +29,6 @@ pub(super) const NOISE_WIDTH: u32 = 256;
 pub(super) const LAVA_WIDTH: u32 = 128;
 pub(super) const STONE_WIDTH: u32 = 64;
 pub(super) const SURFACE_WIDTH: u32 = 512;
-/// Part of every cache name, so a change to how discs are baked is baked afresh.
-pub(super) const BAKE: u32 = 1;
 
 /// The shader's constants: its animation speed, how many veins the noise makes, and how many
 /// times the lava and stone maps repeat round the sphere.
@@ -83,9 +81,9 @@ impl World {
 /// `_intensity`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct Lava {
-    bright: [f64; 3],
-    hot_stone: [f64; 3],
-    cold_stone: [f64; 3],
+    pub(super) bright: [f64; 3],
+    pub(super) hot_stone: [f64; 3],
+    pub(super) cold_stone: [f64; 3],
 }
 
 impl Hash for Lava {
@@ -157,26 +155,19 @@ fn read_world(node: &Node, src: &[u8]) -> Option<(String, World)> {
     })();
     let world = World {
         lava,
-        noise: scalar(node, "tex_lava_noise", src)?.to_owned(),
-        lava_map: scalar(node, "tex_lava_diffuse", src)?.to_owned(),
-        stone_map: scalar(node, "tex_stone_diffuse", src)?.to_owned(),
+        noise: last_scalar(node, "tex_lava_noise", src)?.to_owned(),
+        lava_map: last_scalar(node, "tex_lava_diffuse", src)?.to_owned(),
+        stone_map: last_scalar(node, "tex_stone_diffuse", src)?.to_owned(),
     };
-    Some((scalar(node, "world", src)?.to_owned(), world))
+    Some((last_scalar(node, "world", src)?.to_owned(), world))
 }
 
 fn lava_colour(node: &Node, name: &str, src: &[u8]) -> Option<[f64; 3]> {
     let colour = colors::read_unit_rgb(node, &format!("lava_{name}_color"), src)?;
-    let intensity = scalar(node, &format!("lava_{name}_intensity"), src)
+    let intensity = last_scalar(node, &format!("lava_{name}_intensity"), src)
         .and_then(|s| s.parse::<f64>().ok())
         .unwrap_or(1.0);
     Some(colour.map(|c| c * intensity))
-}
-
-fn scalar<'a>(node: &Node, key: &str, src: &'a [u8]) -> Option<&'a str> {
-    node.find_all(key, src)
-        .last()?
-        .scalar_str(src)
-        .filter(|s| !s.is_empty())
 }
 
 /// The settings `lighting` draws with and their colours: its own, else the fallback's maps in
@@ -210,65 +201,6 @@ pub(super) struct Maps {
     pub(super) stone: Plane,
 }
 
-/// An image's channels as `f64` in 0 to 1, row by row.
-pub(super) struct Plane {
-    width: usize,
-    height: usize,
-    texels: Vec<[f64; 3]>,
-}
-
-impl Plane {
-    pub(super) fn new(image: &RgbaImage) -> Self {
-        let texels = image
-            .pixels()
-            .map(|p| [p.0[0], p.0[1], p.0[2]].map(|c| f64::from(c) / 255.0))
-            .collect();
-        Self {
-            width: image.width() as usize,
-            height: image.height() as usize,
-            texels,
-        }
-    }
-
-    fn at(&self, x: usize, y: usize) -> [f64; 3] {
-        self.texels[y * self.width + x]
-    }
-
-    /// Bilinear at (`u`, `v`) in texels, wrapping both ways.
-    fn wrapped(&self, u: f64, v: f64) -> [f64; 3] {
-        let (w, h) = (self.width as f64, self.height as f64);
-        let x = (u * w - 0.5).rem_euclid(w);
-        let y = (v * h - 0.5).rem_euclid(h);
-        self.bilinear(x, y, true)
-    }
-
-    /// Bilinear at the texel position (`x`, `y`), clamped at the edges unless `wrap`.
-    fn bilinear(&self, x: f64, y: f64, wrap: bool) -> [f64; 3] {
-        let (x0, y0) = (x.floor(), y.floor());
-        let (fx, fy) = (x - x0, y - y0);
-        let index = |i: f64, n: usize| {
-            if wrap {
-                (i as i64).rem_euclid(n as i64) as usize
-            } else {
-                (i.max(0.0) as usize).min(n - 1)
-            }
-        };
-        let (xa, xb) = (index(x0, self.width), index(x0 + 1.0, self.width));
-        let (ya, yb) = (index(y0, self.height), index(y0 + 1.0, self.height));
-        let (a, b, c, d) = (
-            self.at(xa, ya),
-            self.at(xb, ya),
-            self.at(xa, yb),
-            self.at(xb, yb),
-        );
-        std::array::from_fn(|i| {
-            let top = a[i] * (1.0 - fx) + b[i] * fx;
-            let bottom = c[i] * (1.0 - fx) + d[i] * fx;
-            top * (1.0 - fy) + bottom * fy
-        })
-    }
-}
-
 /// The noise cube's red channel in direction `n`, faces in Direct3D's order and orientation.
 fn cube(faces: &[Plane], [x, y, z]: [f64; 3]) -> f64 {
     let (ax, ay, az) = (x.abs(), y.abs(), z.abs());
@@ -291,15 +223,15 @@ fn cube(faces: &[Plane], [x, y, z]: [f64; 3]) -> f64 {
     };
     let plane = &faces[face];
     let major = major.max(1e-9);
-    let u = (s / major + 1.0) / 2.0 * plane.width as f64 - 0.5;
-    let v = (t / major + 1.0) / 2.0 * plane.height as f64 - 0.5;
-    plane.bilinear(u, v, false)[0]
+    let u = (s / major + 1.0) / 2.0 * plane.width() as f64 - 0.5;
+    let v = (t / major + 1.0) / 2.0 * plane.height() as f64 - 0.5;
+    plane.bilinear(u, v)[0]
 }
 
 /// The star shader for one frame, over a sphere seen from far away.
 pub(super) fn bake_lava(maps: &Maps, lava: Lava, atmosphere: Option<StarAtmosphere>) -> RgbaImage {
     let air = atmosphere.map(|a| (a.unit(), a.intensity, a.width));
-    render(|x, y, z| {
+    sphere::render(DISC, SUPERSAMPLE, FEATHER_PX, |x, y, z| {
         let (sin, cos) = TILT.sin_cos();
         let (ny, nz) = (y * cos + z * sin, z * cos - y * sin);
         let noise = 3.0 * (cube(&maps.noise, [x, ny, nz]) - 0.5);
@@ -307,10 +239,9 @@ pub(super) fn bake_lava(maps: &Maps, lava: Lava, atmosphere: Option<StarAtmosphe
         let heat = (1.0 - veins) * 0.5;
         let lava_mask = (-veins).clamp(0.0, 1.0).powi(2).powf(0.7);
         let stone_share = 1.0 - veins.clamp(0.0, 1.0);
-        let u = 0.5 + x.atan2(nz) / TAU;
-        let v = ny.clamp(-1.0, 1.0).acos() / PI;
-        let lava_texel = maps.lava.wrapped(u * LAVA_TILE, v * LAVA_TILE);
-        let stone = maps.stone.wrapped(u * STONE_TILE, v * STONE_TILE);
+        let (u, v) = sphere::equirect(x, ny, nz);
+        let lava_texel = maps.lava.sample(u * LAVA_TILE, v * LAVA_TILE);
+        let stone = maps.stone.sample(u * STONE_TILE, v * STONE_TILE);
         let limb = smoothstep(0.5, 1.0, 1.0 - z);
         let colour: [f64; 3] = std::array::from_fn(|i| {
             let hot = stone[i] * lava.hot_stone[i] * (heat + LAVA_STONE_HOTNESS);
@@ -332,34 +263,13 @@ pub(super) fn bake_lava(maps: &Maps, lava: Lava, atmosphere: Option<StarAtmosphe
 
 /// `map`, an equirectangular projection, wrapped round a sphere that shines by its own light.
 pub(super) fn bake_surface(map: &RgbaImage) -> RgbaImage {
-    let map = Plane::new(map);
-    render(|x, y, z| {
-        let u = 0.5 + x.atan2(z) / TAU;
-        let v = 0.5 - y.clamp(-1.0, 1.0).asin() / PI;
-        let texel = map.wrapped(u, v);
+    let map = Plane::new(map, Wrap::Tile);
+    sphere::render(DISC, SUPERSAMPLE, FEATHER_PX, |x, y, z| {
+        let (u, v) = sphere::equirect(x, y, z);
+        let texel = map.sample(u, v);
         let light = SURFACE_GAIN * (1.0 - SURFACE_LIMB * (1.0 - z));
         texel.map(|c| tone(c * light))
     })
-}
-
-/// A disc of `shade(x, y, z)` for each point of the sphere's visible face, `x` right and `y`
-/// up, averaged down from a finer grid, with its edge faded out.
-fn render(shade: impl Fn(f64, f64, f64) -> [f64; 3]) -> RgbaImage {
-    let size = DISC * SUPERSAMPLE;
-    let radius = f64::from(size) / 2.0;
-    let feather = FEATHER_PX * f64::from(SUPERSAMPLE);
-    let fine = RgbaImage::from_fn(size, size, |px, py| {
-        let x = (f64::from(px) + 0.5 - radius) / radius;
-        let y = (radius - f64::from(py) - 0.5) / radius;
-        let r = x.hypot(y);
-        let coverage = (radius * (1.0 - r) / feather + 0.5).clamp(0.0, 1.0);
-        // Coloured out to the corners, so averaging down leaves no dark fringe on the edge.
-        let (x, y) = if r > 1.0 { (x / r, y / r) } else { (x, y) };
-        let z = (1.0 - x * x - y * y).max(0.0).sqrt();
-        let [red, green, blue] = shade(x, y, z).map(byte);
-        Rgba([red, green, blue, byte(coverage)])
-    });
-    imageops::resize(&fine, DISC, DISC, FilterType::Triangle)
 }
 
 fn tone(c: f64) -> f64 {
@@ -370,8 +280,4 @@ fn tone(c: f64) -> f64 {
 fn smoothstep(from: f64, to: f64, x: f64) -> f64 {
     let t = ((x - from) / (to - from)).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
-}
-
-fn byte(unit: f64) -> u8 {
-    (unit * 255.0).round().clamp(0.0, 255.0) as u8
 }

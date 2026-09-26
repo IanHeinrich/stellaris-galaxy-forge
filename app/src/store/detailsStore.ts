@@ -1,6 +1,9 @@
+import { useEffect } from "react";
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { SystemDetails } from "../generated/SystemDetails";
+import type { SystemRoll } from "../generated/SystemRoll";
+import { MIN_INNER_RADIUS } from "../generated/constants";
 import { DETAILS_BATCH, DETAILS_DEBOUNCE_MS } from "./batching";
 
 export interface DetailsState {
@@ -15,12 +18,19 @@ export interface DetailsState {
   missing: Set<number>;
   /** Bumped whenever an answer lands or the cache is cleared. */
   version: number;
+  /**
+   * Each system's last roll to land: where its bodies stand, or the planets the game rolls. It is
+   * kept through an edit and a Roll again until the roll asked for replaces it.
+   */
+  rolls: ReadonlyMap<number, SystemRoll>;
   /** Resource key → `GFX_` sprite name from the game's resource definitions. */
   resourceIcons: Map<string, string>;
   /** Why the sprite names could not be read, `null` while they still can be. */
   resourceIconsError: string | null;
   /** Queues the ids not yet known; the queue goes out in batches after a short quiet period. */
   request(ids: Iterable<number>): void;
+  /** Fetches roll `roll` of `system` unless it is in or asked for already. */
+  requestRoll(system: number, roll: number): void;
   /** Fetches the resource sprite names once game data is loaded; a failure is recorded and asking again retries. */
   loadResourceIcons(): Promise<void>;
   /** Marks `ids` stale so the next request fetches them again; the cached details stay until it answers. */
@@ -35,6 +45,10 @@ let issued = 0;
 /** Id → the last batch an edit staled; an answer no newer than it is dropped. */
 const staled = new Map<number, number>();
 let iconsInFlight: Promise<void> | null = null;
+/** System → the roll last asked for; an answer lands only while its ask is still the one here. */
+const rollsAsked = new Map<number, { roll: number }>();
+/** Systems an edit staled: their roll is still shown, and asked for again. */
+const staleRolls = new Set<number>();
 
 export const useDetailsStore = create<DetailsState>((set, get) => ({
   details: new Map(),
@@ -43,6 +57,7 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
   stale: new Set(),
   missing: new Set(),
   version: 0,
+  rolls: new Map(),
   resourceIcons: new Map(),
   resourceIconsError: null,
 
@@ -66,6 +81,14 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
     set({ pending: asked });
     if (timer !== null) clearTimeout(timer);
     timer = setTimeout(flushQueue, DETAILS_DEBOUNCE_MS);
+  },
+
+  requestRoll(system, roll) {
+    const fresh = get().rolls.get(system)?.roll === roll && !staleRolls.has(system);
+    if (fresh || rollsAsked.get(system)?.roll === roll) return;
+    const ask = { roll };
+    rollsAsked.set(system, ask);
+    void fetchRoll(system, ask);
   },
 
   async loadResourceIcons() {
@@ -95,6 +118,10 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
     }
     if (dropped) set({ pending, failed, stale, version: version + 1, ...(found && { missing }) });
     else if (found) set({ missing });
+    for (const id of ids) {
+      rollsAsked.delete(id);
+      if (get().rolls.has(id)) staleRolls.add(id);
+    }
   },
 
   clear() {
@@ -103,8 +130,11 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
     if (timer !== null) clearTimeout(timer);
     timer = null;
     queue = [];
+    rollsAsked.clear();
+    staleRolls.clear();
     set({
       details: new Map(),
+      rolls: new Map(),
       pending: new Set(),
       failed: new Map(),
       stale: new Set(),
@@ -113,6 +143,38 @@ export const useDetailsStore = create<DetailsState>((set, get) => ({
     });
   },
 }));
+
+/** The roll the scene draws for `system`: the last to land, until the one asked for replaces it. */
+export function shownRoll(rolls: DetailsState["rolls"], system: number | null): SystemRoll | null {
+  return (system === null ? undefined : rolls.get(system)) ?? null;
+}
+
+/** Roll `roll` of `system` as the scene draws it, asked for while it is not in. */
+export function useSystemRoll(system: number | null, roll: number): SystemRoll | null {
+  const requestRoll = useDetailsStore((s) => s.requestRoll);
+  const rolls = useDetailsStore((s) => s.rolls);
+  const version = useDetailsStore((s) => s.version);
+  useEffect(() => {
+    if (system !== null) requestRoll(system, roll);
+  }, [system, roll, rolls, version, requestRoll]);
+  return shownRoll(rolls, system);
+}
+
+async function fetchRoll(system: number, ask: { roll: number }): Promise<void> {
+  let answer: SystemRoll | null = null;
+  try {
+    answer = await ipc.getSystemRoll(system, ask.roll, MIN_INNER_RADIUS);
+  } catch {
+    // With no roll the bodies stand where their details alone put them.
+  }
+  if (rollsAsked.get(system) !== ask) return;
+  rollsAsked.delete(system);
+  if (answer === null) return;
+  staleRolls.delete(system);
+  useDetailsStore.setState({
+    rolls: new Map(useDetailsStore.getState().rolls).set(system, answer),
+  });
+}
 
 async function fetchResourceIcons(): Promise<void> {
   try {

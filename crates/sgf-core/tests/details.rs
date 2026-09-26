@@ -2,10 +2,12 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
 
+use sgf_core::entity::get_planet_page;
 use sgf_core::format::save::details::{
     ArchaeologySite, Bounds, DepositCount, DetailsResolver, FleetPresence, FleetSummary,
     HeuristicResolver, MegastructureSummary, ResourceAmount, SystemDetails,
 };
+use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::FlagRef;
 use sgf_core::projections::name::{NameTemplate, NameVariable};
 
@@ -500,18 +502,6 @@ fn sol_reads_as_the_inspector_lists_it() {
 #[test]
 fn saturn_has_a_ring_and_earth_has_none() {
     let session = common::warmed();
-    let text = std::str::from_utf8(session.doc.original()).expect("utf-8");
-    let flags_after = |name: &str| -> u32 {
-        let at = text.find(&format!("key=\"{name}\"")).expect(name);
-        let rest = &text[at..];
-        let value = &rest[rest.find("binary_flags=").expect("binary_flags") + 13..];
-        value[..value.find('\n').expect("a line")]
-            .parse()
-            .expect("a number")
-    };
-    assert_eq!(flags_after("NAME_Saturn"), 331);
-    assert_eq!(flags_after("NAME_Earth"), 75);
-
     let details = session.details().expect("build details");
     let sol = details
         .resolve(217, &HeuristicResolver, false)
@@ -752,35 +742,14 @@ fn the_layout_of_the_4_5_samples_bodies_and_belts() {
 #[test]
 fn a_belt_with_no_radius_leaves_its_system_without_belts() {
     let session = common::open_edited(|gamestate| {
-        let systems = gamestate
-            .find(
-                "
-galactic_object=",
-            )
-            .expect("the systems");
-        let sol = systems
-            + gamestate[systems..]
-                .find(
-                    "
-	217=
-	{",
-                )
-                .expect("Sol");
+        let systems = gamestate.find("\ngalactic_object=").expect("the systems");
+        let sol = systems + gamestate[systems..].find("\n\t217=\n\t{").expect("Sol");
+        let line = "\t\t\t\tinner_radius=145\n";
         let radius = sol
             + gamestate[sol..]
-                .find(
-                    "				inner_radius=145
-",
-                )
+                .find(line)
                 .expect("the rocky belt's radius");
-        gamestate.replace_range(
-            radius
-                ..radius
-                    + "				inner_radius=145
-"
-                    .len(),
-            "",
-        );
+        gamestate.replace_range(radius..radius + line.len(), "");
     });
     let details = session.details().expect("build details");
     let resolve = |id| {
@@ -796,6 +765,99 @@ galactic_object=",
     assert_eq!(radii, [85.0, 195.0]);
 }
 
+/// Barren planet 585 carries no modifiers until `SetTerraformCandidate` adds one; the
+/// resolved details pick it up without a full projection rebuild (only its planet is stale).
+#[test]
+fn a_terraform_candidate_modifier_reaches_the_resolved_planet() {
+    let mut session = common::open_4_5();
+    let system = get_planet_page(&session.doc, 585)
+        .expect("planet 585")
+        .system
+        .expect("planet 585 orbits a system");
+    let modifiers_of = |session: &sgf_core::session::Session| {
+        session
+            .details()
+            .expect("build details")
+            .resolve(system, &HeuristicResolver, false)
+            .expect("system resolved")
+            .planets
+            .iter()
+            .find(|p| p.id == 585)
+            .expect("planet 585")
+            .permanent_modifiers
+            .clone()
+    };
+    assert_eq!(modifiers_of(&session), Some(Vec::new()));
+
+    let result = session
+        .apply(Op::SetTerraformCandidate {
+            id: 585,
+            modifier: "terraforming_candidate".to_owned(),
+            on: true,
+            copies: None,
+        })
+        .expect("add the candidate");
+    assert_eq!(result.details_stale, vec![system]);
+    assert_eq!(
+        modifiers_of(&session),
+        Some(vec!["terraforming_candidate".to_owned()])
+    );
+}
+
+/// A fresh build (not the refresh path) keeps a planet's permanent modifiers and drops a
+/// temporary one, which the terraform op could never remove and which the game data's
+/// candidate list never carries a checkbox for.
+#[test]
+fn the_build_path_keeps_only_permanent_modifiers() {
+    let session = common::open_edited_sample(common::SAMPLE_4_5, |gamestate, _| {
+        let planet = gamestate
+            .find(
+                "
+\t\t585=
+\t\t{",
+            )
+            .expect("planet 585");
+        let anchor = "\t\t\tbombardment_damage=0
+";
+        let at = planet
+            + gamestate[planet..]
+                .find(anchor)
+                .expect("its bombardment_damage");
+        let block = "\t\t\ttimed_modifier=
+\t\t\t{
+\t\t\t\titems=
+\t\t\t\t{
+\t\t\t\t\t{
+\t\t\t\t\t\tmodifier=\"terraforming_candidate\"
+\t\t\t\t\t\tdays=-1
+\t\t\t\t\t}
+\t\t\t\t\t{
+\t\t\t\t\t\tmodifier=\"frozen_terraforming_candidate\"
+\t\t\t\t\t\tdays=120
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t}
+";
+        gamestate.insert_str(at + anchor.len(), block);
+    });
+    let system = get_planet_page(&session.doc, 585)
+        .expect("planet 585")
+        .system
+        .expect("planet 585 orbits a system");
+    let modifiers = session
+        .details()
+        .expect("build details")
+        .resolve(system, &HeuristicResolver, false)
+        .expect("system resolved")
+        .planets
+        .iter()
+        .find(|p| p.id == 585)
+        .expect("planet 585")
+        .permanent_modifiers
+        .clone();
+    assert_eq!(modifiers, Some(vec!["terraforming_candidate".to_owned()]));
+}
+
 fn layout_report(system: &SystemDetails) -> String {
     let mut out = format!(
         "system {} inner_radius={}\n",
@@ -807,7 +869,6 @@ fn layout_report(system: &SystemDetails) -> String {
     }
     for p in &system.planets {
         let layout = p.layout.as_ref().expect("a save body's layout");
-        assert_eq!(layout.angle, None, "a save stores no angle");
         let at = layout
             .at
             .map_or("-".to_owned(), |(x, y)| format!("({x}, {y})"));

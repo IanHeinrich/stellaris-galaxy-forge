@@ -199,21 +199,25 @@ function storedShownKinds(): SpecialKind[] {
 
 /** A stored layer state over `base`, keeping only this build's layers and defaulting the rest. */
 function storedLayers(base: GalaxyLayers): GalaxyLayers {
-  const stored = readPref<Record<string, boolean> | null>(PREF_KEYS.layers, null, isBooleanRecord);
-  const layers = { ...base };
-  if (stored === null) return layers;
-  for (const id of GALAXY_LAYER_IDS) if (stored[id] !== undefined) layers[id] = stored[id];
-  return layers;
+  return storedSwitches(PREF_KEYS.layers, base, GALAXY_LAYER_IDS);
 }
 
 /** The system scene's stored switches over its defaults. */
 function storedSceneLayers(): Record<SceneLayerId, boolean> {
-  const key = PREF_KEYS.sceneLayers;
+  return storedSwitches(PREF_KEYS.sceneLayers, DEFAULT_SCENE_LAYERS, SCENE_LAYER_IDS);
+}
+
+/** The switches stored under `key` over `base`, keeping only `ids` and defaulting the rest. */
+function storedSwitches<Id extends string>(
+  key: PrefKey,
+  base: Readonly<Record<Id, boolean>>,
+  ids: readonly Id[],
+): Record<Id, boolean> {
   const stored = readPref<Record<string, boolean> | null>(key, null, isBooleanRecord);
-  const layers = { ...DEFAULT_SCENE_LAYERS };
-  if (stored === null) return layers;
-  for (const id of SCENE_LAYER_IDS) if (stored[id] !== undefined) layers[id] = stored[id];
-  return layers;
+  const switches: Record<Id, boolean> = { ...base };
+  if (stored === null) return switches;
+  for (const id of ids) if (stored[id] !== undefined) switches[id] = stored[id];
+  return switches;
 }
 
 /** Every kind there is, in the order the open document counts them in. */

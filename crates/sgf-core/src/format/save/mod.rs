@@ -165,9 +165,12 @@ impl Format for Save {
                 star_class::plan_set(plan, s, *id, class, bodies)
             }
             Op::SetPlanetSize { id, size } => planet_size::plan_set(plan, s, *id, *size),
-            Op::SetTerraformCandidate { id, modifier, on } => {
-                terraform_candidate::plan_set(plan, s, *id, modifier, *on)
-            }
+            Op::SetTerraformCandidate {
+                id,
+                modifier,
+                on,
+                copies,
+            } => terraform_candidate::plan_set(plan, s, *id, modifier, *on, *copies),
             Op::SetEmpireMapColors { country, colors } => {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }

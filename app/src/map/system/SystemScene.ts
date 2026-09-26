@@ -1,5 +1,4 @@
 import { Container, type Renderer } from "pixi.js";
-import { fitScale, zoomLimits } from "../../lib/details/orbits";
 import { laneLabel } from "../../lib/names";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -8,14 +7,9 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import { Camera } from "../Camera";
 import type { Scene } from "../Scene";
 import { bindSystemScene, type SceneView } from "./bindings";
-import {
-  EMPTY_SYSTEM_CONTEXT,
-  readSystemSources,
-  sameSources,
-  selectedBody,
-  systemContext,
-  type SystemContext,
-} from "./context";
+import { fitScale, zoomLimits } from "./camera";
+import { EMPTY_SYSTEM_CONTEXT, selectedBody, systemContext, type SystemContext } from "./context";
+import { readSystemSources, sameSources } from "./sources";
 import { EXIT_REACH_PX } from "./geometry";
 import { pickPlate } from "./picking";
 import { BeltsLayer } from "./layers/BeltsLayer";
@@ -45,6 +39,9 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
   private highlight: SceneHighlight = NO_HIGHLIGHT;
   private id: number | null = null;
+  /** The scene store's count of systems entered, as it stood when this system was shown. */
+  private visit: number | null = null;
+  private shown = false;
   /** The page on top of the inspector's stack, whose body is ringed when it is one of this system's. */
   private inspected: EntityRef | null = null;
   private appliedRev = -1;
@@ -52,12 +49,9 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   /** Where the last fit left the camera: still there means nobody has panned or zoomed since. */
   private fitted = { x: NaN, y: NaN, scale: NaN };
   private sizedFor = { width: 0, height: 0 };
-  private unbind: (() => void) | null = null;
+  private readonly unbind: () => void;
 
-  constructor(
-    private readonly renderer: Renderer,
-    canvas: HTMLCanvasElement,
-  ) {
+  constructor(renderer: Renderer, canvas: HTMLCanvasElement) {
     const textures = bakeSceneTextures(renderer);
     this.textures = textures;
     this.layers = [
@@ -73,39 +67,49 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     ];
     for (const layer of this.layers) this.root.addChild(layer.container);
     this.interaction = new SystemInteraction(canvas, this.cam, this);
+    this.unbind = bindSystemScene(this);
   }
 
-  /** Shows system `id`, fitting the camera to it when it is not the one shown already. */
-  show(id: number): void {
-    if (id !== this.id) {
-      this.id = id;
+  /**
+   * Shows system `id`, fitting the camera to it on a new `visit`. An edit that renumbers the system
+   * shown keeps the visit, and the camera where it is, but drops the lane and arrow marked: the
+   * neighbours' ids have moved too.
+   */
+  show(id: number, visit: number): void {
+    if (visit !== this.visit) {
+      this.visit = visit;
       this.highlight = NO_HIGHLIGHT;
       this.fitPending = true;
+    } else if (id !== this.id) {
+      this.interaction.dropExit();
+      this.setHighlight({ lane: null, hoverExit: null });
     }
-    if (this.unbind) this.refresh();
+    this.id = id;
+    this.refresh();
   }
 
   activate(): void {
+    this.shown = true;
     this.fitPending = true;
     this.ctx = EMPTY_SYSTEM_CONTEXT;
     this.refresh();
-    this.unbind ??= bindSystemScene(this);
+    this.drawHighlight();
     this.interaction.activate();
   }
 
   deactivate(): void {
+    this.shown = false;
     this.interaction.deactivate();
-    this.unbind?.();
-    this.unbind = null;
     this.setHighlight({ hoverBody: null, hoverExit: null, lane: null });
     useMapChromeStore.getState().setSceneHint(null);
   }
 
   dispose(): void {
     this.deactivate();
+    this.unbind();
     for (const layer of this.layers.splice(0)) layer.destroy();
     this.root.destroy({ children: true });
-    releaseSceneTextures(this.renderer, this.textures);
+    releaseSceneTextures(this.textures);
   }
 
   context(): SystemContext {
@@ -116,7 +120,9 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     return pickPlate(this.labels.plates(), this.cam, { x: sx, y: sy });
   }
 
+  /** Does nothing while the scene is hidden: showing it reads the stores again. */
   refresh(): void {
+    if (!this.shown) return;
     if (this.id !== null) useDetailsStore.getState().request([this.id]);
     const sources = readSystemSources(this.id);
     if (sameSources(sources, this.ctx)) return;
@@ -129,6 +135,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     }
     this.appliedRev = -1;
     this.showLane();
+    this.interaction.contextChanged();
   }
 
   selectBody(top: EntityRef | null): void {
@@ -149,9 +156,14 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     this.showLane();
   }
 
+  /** Kept while the scene is hidden, and drawn once it is shown. */
   private setHighlight(change: Partial<SceneHighlight>): void {
     this.highlight = { ...this.highlight, ...change };
-    for (const layer of this.layers) layer.setHighlighted(this.highlight);
+    if (this.shown) this.drawHighlight();
+  }
+
+  private drawHighlight(): void {
+    for (const layer of this.layers) layer.setHighlighted?.(this.highlight);
   }
 
   /** The highlighted lane's two ends and its length in the status bar, while it is highlighted. */
@@ -214,6 +226,6 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     }
     if (this.cam.rev === this.appliedRev) return;
     this.appliedRev = this.cam.rev;
-    for (const layer of this.layers) layer.onViewport(this.cam);
+    for (const layer of this.layers) layer.onViewport?.(this.cam);
   }
 }
