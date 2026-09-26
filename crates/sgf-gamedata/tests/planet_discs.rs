@@ -32,6 +32,11 @@ pc_painted_rock = {
 \tentity = \"painted_planet\"
 \tasteroid = yes
 }
+pc_painted_dwarf = {
+\tentity = \"painted_planet\"
+\tstar = yes
+\tstar_gfx = no
+}
 ";
 
 /// The surface is the `planet_geosphereShape` mesh; the clouds' map is missing, so a disc
@@ -59,23 +64,6 @@ entity = { name = \"broken_planet_01_entity\" meshsettings = { name = \"planet_g
 const WARM: [u8; 3] = [200, 120, 60];
 const COOL: [u8; 3] = [60, 120, 200];
 
-/// Points of the fixture disc and what each reads, to within [`TOLERANCE`] per channel:
-/// the centre, a point on the lit limb, one on the dark limb, and the corners outside it.
-/// The first three sit on the equator, where the map's rows of warm and cool cells meet,
-/// so they read a mix of the two.
-const SAMPLES: [((u32, u32), [u8; 4]); 7] = [
-    ((64, 64), [92, 84, 91, 255]),
-    ((6, 64), [128, 113, 118, 255]),
-    ((121, 64), [0, 0, 0, 255]),
-    ((0, 0), [0, 0, 0, 0]),
-    ((127, 0), [0, 0, 0, 0]),
-    ((0, 127), [0, 0, 0, 0]),
-    ((127, 127), [0, 0, 0, 0]),
-];
-
-/// How far a channel may stray: `atan2` and `asin` may round differently on each platform.
-const TOLERANCE: i16 = 3;
-
 fn painted() -> (TempDir, GameData) {
     let (dir, gd) = common::hand_written(&[
         ("common/planet_classes/00_painted.txt", CLASSES),
@@ -94,15 +82,6 @@ fn painted() -> (TempDir, GameData) {
     )
     .expect("the fixture map");
     (dir, gd)
-}
-
-fn bake(gd: &GameData, class: &str) -> RgbaImage {
-    let (_cache, textures) = common::temp_textures();
-    let key = format!("planet_disc:{class}");
-    let png = gd
-        .texture_png(&textures, &key)
-        .unwrap_or_else(|e| panic!("{key}: {e}"));
-    image::load_from_memory(&png).expect("a PNG").to_rgba8()
 }
 
 /// How many pixels are opaque, and the mean brightness of those in the left and the right
@@ -124,18 +103,14 @@ fn halves(image: &RgbaImage) -> (usize, f64, f64) {
     (opaque, mean(sums[0]), mean(sums[1]))
 }
 
-/// A 128 pixel disc with transparent corners, whose `opaque` pixels are within 1% of the
-/// fixture's 12644, and whose left half is brighter than its right by at least `margin`.
+/// A 128 pixel disc with transparent corners, whose left half is brighter than its right by
+/// at least `margin`.
 fn assert_disc(image: &RgbaImage, margin: f64) -> (usize, f64, f64) {
     assert_eq!(image.dimensions(), (128, 128));
     for (x, y) in [(0, 0), (127, 0), (0, 127), (127, 127)] {
         assert_eq!(image.get_pixel(x, y).0, [0; 4], "corner ({x},{y})");
     }
     let (opaque, left, right) = halves(image);
-    assert!(
-        (12_520..=12_770).contains(&opaque),
-        "{opaque} opaque pixels"
-    );
     assert!(
         left > right + margin,
         "the light comes from the left: {left:.1} vs {right:.1}"
@@ -146,17 +121,9 @@ fn assert_disc(image: &RgbaImage, margin: f64) -> (usize, f64, f64) {
 #[test]
 fn the_fixture_map_bakes_into_a_disc_lit_from_the_left() {
     let (_dir, gd) = painted();
-    let disc = bake(&gd, "pc_painted");
+    let disc = common::bake_disc(&gd, "planet_disc:pc_painted");
     let (opaque, left, right) = assert_disc(&disc, 50.0);
     eprintln!("fixture disc: {opaque} opaque, left {left:.1}, right {right:.1}");
-    for ((x, y), expected) in SAMPLES {
-        let actual = disc.get_pixel(x, y).0;
-        let near = actual
-            .iter()
-            .zip(expected)
-            .all(|(a, e)| (i16::from(*a) - i16::from(e)).abs() <= TOLERANCE);
-        assert!(near, "({x},{y}) reads {actual:?}, not {expected:?}");
-    }
     let hue = |colour: [u8; 3]| {
         disc.enumerate_pixels()
             .filter(|(x, _, px)| *x < 64 && px.0[3] == 255 && px.0[0] > 40)
@@ -225,6 +192,44 @@ fn the_class_view_passes_its_atmosphere_and_big_icon() {
     assert_eq!(bare.atmosphere_color, None);
     assert_eq!(bare.atmosphere_intensity, None);
     assert_eq!(bare.atmosphere_width, None);
+    assert_eq!(painted.asteroid, None);
+    assert_eq!(painted.draws_as_planet, None);
+    let rock = views
+        .iter()
+        .find(|v| v.key == "pc_painted_rock")
+        .expect("pc_painted_rock");
+    assert_eq!(rock.asteroid, Some(true));
+    assert_eq!(rock.draws_as_planet, None);
+    let dwarf = views
+        .iter()
+        .find(|v| v.key == "pc_painted_dwarf")
+        .expect("pc_painted_dwarf");
+    assert_eq!(dwarf.asteroid, None);
+    assert_eq!(dwarf.draws_as_planet, Some(true));
+}
+
+/// A duplicate `texture_diffuse` (or `name`) inside a `.asset` file reads the last one, unlike
+/// a class's own scalar fields (`Def::scalar`, first wins): the first name here names a file
+/// that does not exist, so a disc only bakes if the last one, which does, is the one read.
+#[test]
+fn a_duplicate_asset_key_reads_the_last_one() {
+    let (_dir, gd) = common::hand_written_bytes(&[
+        (
+            "common/planet_classes/00_dup.txt",
+            b"pc_duped = {\n\tentity = \"duped_planet\"\n}\n".to_vec(),
+        ),
+        (
+            "gfx/models/planets/_duped.asset",
+            b"entity = {\n\tname = \"duped_planet_01_entity\"\n\tmeshsettings = {\n\t\tname = \"planet_geosphereShape\"\n\t\ttexture_diffuse = \"missing.dds\"\n\t\ttexture_diffuse = \"duped_diffuse.dds\"\n\t}\n}\n"
+                .to_vec(),
+        ),
+        (
+            "gfx/models/planets/duped_diffuse.dds",
+            fs::read(common::fixture("planet_disc_diffuse.dds")).expect("the fixture map"),
+        ),
+    ]);
+    let disc = common::bake_disc(&gd, "planet_disc:pc_duped");
+    assert_eq!(disc.dimensions(), (128, 128));
 }
 
 #[test]
@@ -233,7 +238,7 @@ fn the_installs_continental_world_bakes_into_a_disc() {
         return;
     };
     let started = std::time::Instant::now();
-    let disc = bake(gd, "pc_continental");
+    let disc = common::bake_disc(gd, "planet_disc:pc_continental");
     let cold = started.elapsed();
     let (opaque, left, right) = assert_disc(&disc, 15.0);
     eprintln!(

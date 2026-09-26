@@ -16,14 +16,16 @@ pub struct PlanetClassDef {
     pub icon_large: Option<String>,
     /// The model name in `gfx/models/planets/*.asset`, without its `_01_entity` suffix.
     pub entity: Option<String>,
-    /// `atmosphere_color`, written as `hsv { … }` or `rgb { … }`.
-    pub atmosphere_color: Option<[u8; 3]>,
-    pub atmosphere_intensity: Option<f64>,
-    pub atmosphere_width: Option<f64>,
+    /// `atmosphere_color`, `atmosphere_intensity` and `atmosphere_width`, written together or
+    /// not at all.
+    pub atmosphere: Option<Atmosphere>,
     pub colonizable: bool,
     pub star: bool,
     /// `asteroid = yes`: named outside the planet numbering and never given moons.
     pub asteroid: bool,
+    /// `star_gfx = no`: this class is not drawn with the star shader (vanilla: `pc_t_star`,
+    /// `pc_rift_star`, `pc_protostar`). Meaningless off a star class.
+    pub star_gfx: bool,
     /// Whether a random draw may make it a moon; `can_be_moon = no` says it may not.
     pub can_be_moon: bool,
     pub climate: Option<String>,
@@ -38,6 +40,14 @@ pub struct PlanetClassDef {
     pub chance_of_ring: f64,
     pub extra_orbit_size: f64,
     pub extra_planet_count: f64,
+}
+
+/// `atmosphere_color`, `atmosphere_intensity` and `atmosphere_width`, written as a set.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Atmosphere {
+    pub colour: [u8; 3],
+    pub intensity: f64,
+    pub width: f64,
 }
 
 impl PlanetClasses {
@@ -63,16 +73,23 @@ impl FromDef for PlanetClassDef {
 
     fn read(key: String, def: &Def) -> Self {
         let distance = |key: &str| def.number(key);
+        let atmosphere = colors::read_rgb(&def.node, "atmosphere_color", &def.src)
+            .zip(def.number("atmosphere_intensity"))
+            .zip(def.number("atmosphere_width"))
+            .map(|((colour, intensity), width)| Atmosphere {
+                colour,
+                intensity,
+                width,
+            });
         Self {
             icon: def.scalar("icon").map(str::to_owned),
             icon_large: def.scalar("icon_large").map(str::to_owned),
             entity: def.scalar("entity").map(str::to_owned),
-            atmosphere_color: colors::read_rgb(&def.node, "atmosphere_color", &def.src),
-            atmosphere_intensity: def.number("atmosphere_intensity"),
-            atmosphere_width: def.number("atmosphere_width"),
+            atmosphere,
             colonizable: def.flag("colonizable"),
             star: def.flag("star"),
             asteroid: def.flag("asteroid"),
+            star_gfx: def.scalar("star_gfx") != Some("no"),
             can_be_moon: def.scalar("can_be_moon") != Some("no"),
             climate: def.scalar("climate").map(str::to_owned),
             spawn_odds: def.number("spawn_odds").unwrap_or(0.0),

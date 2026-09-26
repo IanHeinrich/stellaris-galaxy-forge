@@ -13,12 +13,13 @@ pub struct StarClass {
     pub class: String,
     pub icon: Option<String>,
     pub icon_scale: f64,
-    /// Each `planet = { key = pc_… }` in order: the planet class of each star body, two
-    /// or three of them for a binary or trinary system.
+    /// Each `planet = { key = pc_… }` in order, from [`Self::planets`]: the planet class of
+    /// each star body, two or three of them for a binary or trinary system.
     pub planet_keys: Vec<String>,
-    /// The `class` each of those star bodies is lit as, which names its `gfx/worldgfx`
-    /// settings; a `planet` entry without one takes the system's own `class`.
-    pub planet_lighting: Vec<String>,
+    /// Each `planet = { key = pc_… class = … }`: the planet class of each star body, with the
+    /// `class` it is lit as, which names its `gfx/worldgfx` settings; an entry without one
+    /// takes the system's own `class`.
+    pub planets: Vec<StarPlanet>,
     /// The class the game swaps this one for during a crisis, when it has one.
     pub crisis_star_class: Option<String>,
     /// The weight a fresh galaxy draws this class with; `0` when the definition omits it, as
@@ -29,6 +30,13 @@ pub struct StarClass {
     /// `pc_… = { spawn_odds = n }`: what a random draw multiplies that planet class's own
     /// odds by around this star.
     pub planet_odds: Vec<(String, f64)>,
+}
+
+/// One `planet = { key = pc_… class = … }` of a [`StarClass`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StarPlanet {
+    pub key: String,
+    pub lighting: String,
 }
 
 impl StarClass {
@@ -56,19 +64,20 @@ impl FromDef for StarClass {
 
     fn read(key: String, def: &Def) -> Self {
         let class = def.scalar("class").unwrap_or_default().to_owned();
-        let (planet_keys, planet_lighting) = def
+        let planets: Vec<StarPlanet> = def
             .node
             .find_all("planet", &def.src)
             .filter_map(|p| {
                 let key = p.find("key", &def.src)?.scalar_str(&def.src)?.to_owned();
-                let lit = p
+                let lighting = p
                     .find("class", &def.src)
                     .and_then(|c| c.scalar_str(&def.src))
                     .unwrap_or(&class)
                     .to_owned();
-                Some((key, lit))
+                Some(StarPlanet { key, lighting })
             })
-            .unzip();
+            .collect();
+        let planet_keys = planets.iter().map(|p| p.key.clone()).collect();
         let planet_odds = def
             .node
             .children()
@@ -85,7 +94,7 @@ impl FromDef for StarClass {
             icon: def.scalar("icon").map(str::to_owned),
             icon_scale: def.number("icon_scale").unwrap_or(1.0),
             planet_keys,
-            planet_lighting,
+            planets,
             crisis_star_class: def.scalar("crisis_star_class").map(str::to_owned),
             spawn_odds: def.number("spawn_odds").unwrap_or(0.0),
             num_planets: def.range("num_planets"),

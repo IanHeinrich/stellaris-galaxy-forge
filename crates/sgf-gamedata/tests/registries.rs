@@ -71,6 +71,21 @@ fn colors_read_rgb_and_hsv() {
     assert_eq!(teal.ship, [71, 179, 179]);
 }
 
+/// The first `flag` (or any other duplicated colour key) wins, as `Def::scalar` reads every
+/// other field of the same definition.
+#[test]
+fn a_duplicate_colour_key_reads_the_first_one() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "flags/colors.txt",
+            "colors = {\n\tduped = { flag = rgb { 1 2 3 } flag = rgb { 9 9 9 } map = rgb { 0 0 0 } ship = rgb { 0 0 0 } }\n}\n",
+        ),
+        ("common/.keep", ""),
+    ]);
+    let duped = gd.colors.entries.get("duped").expect("duped");
+    assert_eq!(duped.flag, [1, 2, 3]);
+}
+
 #[test]
 fn a_mod_shipping_its_own_colors_txt_supplies_the_palette_and_is_named_as_its_source() {
     let dir = tempfile::tempdir().expect("temp dir");

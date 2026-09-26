@@ -13,4 +13,13 @@ atmosphere_color: string | null, atmosphere_intensity: number | null, atmosphere
  * The modifier whose presence lets a planet of this class be terraformed, from the
  * install's terraform links.
  */
-terraform_candidate: string | null, };
+terraform_candidate: string | null, 
+/**
+ * `Some(true)` for an asteroid, drawn larger against its belt; `None` otherwise.
+ */
+asteroid?: boolean, 
+/**
+ * `Some(true)` for a star class not drawn with the star shader (`star_gfx = no`; vanilla:
+ * `pc_t_star`, `pc_rift_star`, `pc_protostar`); `None` otherwise.
+ */
+draws_as_planet?: boolean, };
