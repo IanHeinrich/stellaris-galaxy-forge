@@ -551,11 +551,17 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         "wenkwort_initializer",
         "wooden_planet_system_initializer",
     ];
+    let homeworlds = ["sol_system_initializer"];
     assert_eq!(
         special,
-        group_a.iter().chain(&group_b).copied().collect(),
+        group_a
+            .iter()
+            .chain(&group_b)
+            .chain(&homeworlds)
+            .copied()
+            .collect(),
         "A and B with odds, less the layouts whose point is their spawn, time loop's shield \
-         and relic_system_4's scripted deposits"
+         and relic_system_4's scripted deposits, and Sol without its empire"
     );
     let why = |layout: &str| match of(gd, layout) {
         Eligibility::Unsupported(why) => why,
@@ -684,6 +690,87 @@ fn the_real_install_lists_its_special_stars_and_labels_its_menu() {
             met: true
         })
     );
+}
+
+#[test]
+fn sol_is_offered_as_a_unique_system_without_its_empire() {
+    let Some(gd) = install() else {
+        return;
+    };
+    assert_eq!(of(gd, "sol_system_initializer"), Eligibility::Special);
+    for other in ["pre_ftl_init_sol", "com_sol_system", "special_init_04"] {
+        assert!(
+            matches!(of(gd, other), Eligibility::Unsupported(_)),
+            "{other} is {:?}",
+            of(gd, other)
+        );
+    }
+
+    let mut session = common::open_4_5();
+    let entries = special_layouts(gd, &session);
+    let sol = entries
+        .iter()
+        .find(|e| e.key == "sol_system_initializer")
+        .expect("Sol is in the Special menu");
+    assert_eq!(sol.label, "Sol");
+    assert!(sol.unique, "listed with the unique systems");
+
+    let mut spec = by_name(gd, 1, "Gen", SPOT, "sol_system_initializer").unwrap();
+    assert_eq!(spec.name, "NAME_Sol");
+    assert_eq!(
+        spec.flags,
+        ["sol_system", "sol", "galactic_landmark_system"],
+        "no empire_home_system"
+    );
+    let earth = spec
+        .planets
+        .iter()
+        .find(|p| p.name.as_deref() == Some("NAME_Earth"))
+        .expect("Earth");
+    assert_eq!(earth.class, "pc_continental");
+    assert_eq!(
+        earth.entity_name.as_deref(),
+        Some("continental_planet_earth_entity")
+    );
+    let moons: Vec<Option<&str>> = earth.moons.iter().map(|m| m.name.as_deref()).collect();
+    assert_eq!(moons, [Some("NAME_Luna")]);
+    for seed in 0..20 {
+        let spec = by_name(gd, seed, "Gen", SPOT, "sol_system_initializer").unwrap();
+        let earth = spec
+            .planets
+            .iter()
+            .find(|p| p.name.as_deref() == Some("NAME_Earth"))
+            .expect("Earth");
+        assert!(
+            !earth.deposits.is_empty(),
+            "seed {seed}: Earth rolls deposits"
+        );
+        assert!(
+            earth.deposits.iter().all(|d| !gd.is_blocker(d)),
+            "seed {seed}: deposit_blockers = none: {:?}",
+            earth.deposits
+        );
+    }
+
+    let findings = |session: &Session| -> BTreeSet<(String, Vec<u32>, String)> {
+        session
+            .validate()
+            .into_iter()
+            .map(|issue| (issue.code.to_string(), issue.systems, issue.message))
+            .collect()
+    };
+    let before = findings(&session);
+    spec.lanes = vec![169];
+    session
+        .apply(Op::AddSaveSystem { spec: spec.clone() })
+        .expect("add Sol");
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("sol.sav");
+    session.save_as(&path).expect("save");
+    let reopened = Session::open(&path).expect("reopen");
+    let system = reopened.system(601).expect("Sol");
+    assert_eq!(system.initializer, "sol_system_initializer");
+    assert_eq!(findings(&reopened), before);
 }
 
 #[test]

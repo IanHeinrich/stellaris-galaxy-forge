@@ -8,12 +8,13 @@ use sgf_core::session::Session;
 
 use crate::GameData;
 use crate::body_effects;
-use crate::deposit_roll::{RollBody, roll_deposits};
+use crate::deposit_roll::{RollBody, roll_deposits, roll_deposits_without_blockers};
 use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
 use crate::install::script::Range;
 use crate::layouts::{
-    Dlc, Eligibility, SaveFacts, StarSource, USAGE, Unsupported, eligibility, generic,
-    layout_stars, odds, plain_initializers, special_initializers, star_body, star_source,
+    Dlc, Eligibility, HOME_SYSTEM, SaveFacts, StarSource, USAGE, Unsupported, eligibility, generic,
+    homeworld, layout_stars, odds, plain_initializers, special_initializers, star_body,
+    star_source,
 };
 use crate::menu::menu_initializers;
 use crate::naming;
@@ -232,7 +233,12 @@ fn build(
         star,
         planets,
         belts: init.asteroid_belts.iter().filter_map(belt).collect(),
-        flags: init.flags.clone(),
+        flags: init
+            .flags
+            .iter()
+            .filter(|flag| !homeworld(init) || *flag != HOME_SYSTEM)
+            .cloned()
+            .collect(),
         lanes: Vec::new(),
     })
 }
@@ -725,7 +731,11 @@ impl Deposits<'_> {
             star,
             moon,
         };
-        body.deposits = roll_deposits(self.gd, &rolled, self.abundance, &mut self.rng);
+        let roll = match block.is_none_or(|block| block.blockers) {
+            true => roll_deposits,
+            false => roll_deposits_without_blockers,
+        };
+        body.deposits = roll(self.gd, &rolled, self.abundance, &mut self.rng);
         if let Some(block) = block {
             body_effects::apply(self.gd, &block.effects, body, &Dlc::of(self.gd, self.save));
         }

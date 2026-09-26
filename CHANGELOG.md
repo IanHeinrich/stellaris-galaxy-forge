@@ -8,10 +8,18 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Add system lists Sol among the unique systems. It has the Solar
+  System's planets and moons, with their names and models. Earth is an
+  uncolonised continental world and no one lives there.
+
 ### Fixed
 
 - The Inspector shows a system's inner and outer radius when the save
   writes them with decimals.
+- An added Big Rip system's desert world no longer rolls blockers. The
+  game leaves them off that world.
 
 ## [0.14.1] - 2026-09-25
 

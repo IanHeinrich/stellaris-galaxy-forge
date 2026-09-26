@@ -68,6 +68,8 @@ pub struct InitPlanet {
     pub sites: Vec<String>,
     /// Every `add_deposit = d_…` in this block's effects, its moons aside.
     pub deposits: Vec<String>,
+    /// `false` for `deposit_blockers = none`: the body rolls no blockers.
+    pub blockers: bool,
     /// What this block's `init_effect` runs that a generated body is given, in order.
     pub effects: Vec<BodyEffect>,
     /// The first statement of this block's `init_effect` that is neither given to a
@@ -450,6 +452,7 @@ fn body(node: &Node, change_orbit: f64, def: &Def) -> InitPlanet {
         }),
         sites: sites(node, src),
         deposits: deposits(node, src),
+        blockers: scalar(node, "deposit_blockers", src) != Some("none"),
         effects,
         unwritten,
         moons: bodies(node, &["moon", "planet"], def),

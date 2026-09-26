@@ -24,6 +24,16 @@ pub const USAGE: &str = "misc_system_init";
 /// The star flag of the game's unique systems, which its timeline reads when an empire
 /// takes control of one.
 pub const UNIQUE_SYSTEM: &str = "unique_system";
+/// The star flag of an empire's home system, which a homeworld layout is built without.
+pub const HOME_SYSTEM: &str = "empire_home_system";
+/// The empire homeworld layouts the Special menu offers without their empire: the start
+/// planet uncolonised, and none of the layout's own script, neighbour systems or odds.
+pub const HOMEWORLDS: [&str; 1] = ["sol_system_initializer"];
+
+/// `init` is one of the [`HOMEWORLDS`].
+pub fn homeworld(init: &Initializer) -> bool {
+    HOMEWORLDS.contains(&init.name.as_str())
+}
 
 /// What the generator makes of a layout.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -311,10 +321,11 @@ pub(crate) fn star_body(gd: &GameData, class: &BodyClass) -> bool {
 }
 
 fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
-    if init.usage.as_deref() != Some(USAGE) {
+    let home = homeworld(init);
+    if !home && init.usage.as_deref() != Some(USAGE) {
         return Some(Unsupported::Usage);
     }
-    if odds(gd, init, None) <= 0.0 {
+    if !home && odds(gd, init, None) <= 0.0 {
         return Some(Unsupported::EventOnly);
     }
     if let Some(why) = star_unsupported(gd, init) {
@@ -323,7 +334,7 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if init.flags.iter().any(|flag| flag == "guardian") {
         return Some(Unsupported::Guardian);
     }
-    if !init.spawns.is_empty() {
+    if !home && !init.spawns.is_empty() {
         return Some(Unsupported::Linked);
     }
     if !init.megastructures.is_empty() {
@@ -351,6 +362,9 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     }
     if let Some(key) = init.planets.iter().find_map(|planet| unwritten(gd, planet)) {
         return Some(Unsupported::Effect(key));
+    }
+    if home {
+        return None;
     }
     let def = gd.initializers.def(&init.name)?;
     def.node
