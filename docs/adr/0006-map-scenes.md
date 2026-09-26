@@ -58,3 +58,16 @@ Until the scenario view exists, the ways in are offered on a save only.
   scene change.
 - Fit and `Home` act on whichever scene is shown.
 - The system scene's gestures are tested without a canvas, as the galaxy's are.
+
+## Amendment (2026-09-26): scenario systems open too
+
+The scenario view came in 0.15, so the ways in are offered on any open document, a scenario as well as a save.
+`M` with one system selected enters as `Enter` does, and leaves again from inside.
+
+A scenario stores no positions, so the scene draws a scenario system from one example roll. Gamedata makes it:
+`system_roll` walks the initializer as the game does, seeded by the system and a roll number, and sends each
+body's orbit and angle. The same system and roll always give the same layout, and Roll again asks for the next
+roll. Where the game rolls the planets itself (a `random`, empty or unknown initializer, or one that places its
+planets only through an inline script), the roll holds placeholder planets instead, rolled by the add-system
+generator for the system's star class. The scene draws them faint and they cannot be picked. The app draws what
+the roll gives and does not walk the initializer itself.

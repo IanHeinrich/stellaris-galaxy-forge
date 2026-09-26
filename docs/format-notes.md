@@ -190,7 +190,9 @@ for planets or deposits.
   `storm=4294967295`. It has no `arm`.
 - `inner_radius` is max(150, outermost reach + 30), where a moon
   reaches its own orbit plus its planet's. `outer_radius` is
-  `inner_radius` + 100.
+  `inner_radius` + 100. The game writes some radii with decimals:
+  Baxom (system 33 of the 4.4 sample) has `inner_radius=299.11` and
+  `outer_radius=399.11`.
 - Each body is a `planets.planet` entry. Its deposits are `deposit`
   entries holding `deposit_holder={ type=0 id=<planet> }`. Every body
   the editor adds gets an empty `planet_orbitals={ }` after its orbit and moon keys,

@@ -61,14 +61,19 @@ stellaris-galaxy-forge/
 │   │   │   │                  order, override semantics
 │   │   │   ├── registries/    star and planet classes, colours, deposits, resources, ship sizes,
 │   │   │   │                  starbase levels, country types, bypasses, galaxy sizes and shapes,
-│   │   │   │                  defines, gfx
+│   │   │   │                  defines, gfx, and terraform_links.rs: which modifier makes a
+│   │   │   │                  planet class a terraforming candidate, and what the empire needs
 │   │   │   ├── loc/           localisation files, language-keyed names
-│   │   │   ├── textures/      DDS decoding and the sprite cache
+│   │   │   ├── textures/      DDS decoding and the sprite cache, and the planet and star discs
+│   │   │   │                  the system view draws, baked by one sphere renderer (sphere.rs)
 │   │   │   ├── initializers.rs solar_system_initializers: what a system will spawn
 │   │   │   ├── condition.rs   a trigger block compiled once to the conditions the crate can judge
 │   │   │   ├── weight.rs      a weight block: a base, its factors and its modifiers
 │   │   │   ├── generate.rs    rolls a system to add to a save from the install's rules, with
 │   │   │   │                  rng.rs for its random numbers
+│   │   │   ├── orbit_walk.rs  the walk over an initializer's planet and moon blocks that
+│   │   │   │                  places each body as the engine does, shared by the roller, the
+│   │   │   │                  example roll and the scenario details
 │   │   │   ├── layouts.rs     the misc_system_init layouts the generator can build
 │   │   │   ├── menu.rs        the Special menu of Add system
 │   │   │   ├── naming.rs      names for the systems and nebulae the editor places
@@ -78,7 +83,10 @@ stellaris-galaxy-forge/
 │   │   │   ├── planet_views.rs what the planet page draws from the install
 │   │   │   ├── scripts/       events, effects, on_actions: who claims what on day one
 │   │   │   ├── special.rs     leviathans, enclaves, marauders, fallen empires, landmarks
-│   │   │   ├── details.rs     planet, fleet and starbase readers for the inspector
+│   │   │   ├── details.rs     a scenario system's details from its initializer, the example
+│   │   │   │                  roll the system view draws it at (placeholder planets where the
+│   │   │   │                  game rolls them), and each save body's drawn star class and
+│   │   │   │                  whether it is a moon
 │   │   │   ├── resolver.rs    gives details and exports the install's definitions when game data
 │   │   │   │                  is loaded, and the save's own keys otherwise
 │   │   │   ├── reload.rs      rereads only the registry that a changed file under a layer root
@@ -103,8 +111,16 @@ stellaris-galaxy-forge/
 │       ├── map/               the PixiJS renderer: Camera, MapController (the host: ticker, resize,
 │       │                      wheel and pan keys for the scene it shows), GalaxyScene (the galaxy's
 │       │                      camera, layers and bindings), interaction/ (the Select and brush
-│       │                      models), layers/ with highlights/ (the brush, drag and symmetry
-│       │                      overlays), picking/ (what lies under the pointer)
+│       │                      models, and pointerBridge.ts, which feeds both scenes their
+│       │                      input), layers/ with highlights/ (the brush, drag and symmetry
+│       │                      overlays), picking/ (what lies under the pointer), follows.ts
+│       │                      (how either scene follows a store)
+│       │   └── system/        the system view's scene: sources.ts reads the stores, context.ts
+│       │                      resolves them into what the layers draw, camera.ts fits the
+│       │                      view, and beside them its gesture model, picking and layers/
+│       │                      (bodies, orbits, belts, labels, radii, exits, nebula, highlight
+│       │                      and the rolled placeholders, with the textures they make on the
+│       │                      CPU)
 │       ├── store/             Zustand stores, one per concern: session, editor, galaxy, game data, ...
 │       │                      editorStore.*.ts split the editor's actions by subject (nebulae,
 │       │                      lanes, brush, ...). editorEdits.ts runs all edits through a single
@@ -113,7 +129,8 @@ stellaris-galaxy-forge/
 │       │                      fileSessionStore.writes.ts writes the files. issueNotes.ts raises
 │       │                      the app's own notes. storeFixture.ts resets every store for a
 │       │                      test, and fixtures/ holds the documents the tests open
-│       ├── lib/               pure helpers: geometry/, initializer/, details/, visual/, brush/, keys.ts
+│       ├── lib/               pure helpers: geometry/, initializer/, details/, visual/, brush/, keys.ts;
+│       │                      lib/README.md says what each holds
 │       ├── api/               one function per Tauri command
 │       └── generated/         ts-rs output and constants.ts; rewritten by cargo test --workspace,
 │                              never edited

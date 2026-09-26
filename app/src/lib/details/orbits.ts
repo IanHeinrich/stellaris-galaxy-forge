@@ -20,7 +20,7 @@ import { discRadius } from "./discs";
 import { isStarBody } from "./starBody";
 
 /** Width of an asteroid belt's band, centred on the belt's radius. */
-export const BELT_BAND_WIDTH = 20;
+const BELT_BAND_WIDTH = 20;
 /** Room past the furthest drawn thing for the hyperlane exits and their labels. */
 export const FIT_MARGIN = 40;
 

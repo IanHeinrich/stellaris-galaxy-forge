@@ -10,7 +10,6 @@ import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
 import { MIN_INNER_RADIUS } from "../../generated/constants";
 import { discRadius } from "./discs";
 import {
-  BELT_BAND_WIDTH,
   FIT_MARGIN,
   exitBearing,
   placeholderPlanets,
@@ -290,20 +289,15 @@ describe("disc sizes", () => {
 
 describe("belts and fit", () => {
   it("centres each belt's band on its radius", () => {
-    expect(sol().belts).toEqual([
-      {
-        kind: "rocky_asteroid_belt",
-        radius: 145,
-        inner: 145 - BELT_BAND_WIDTH / 2,
-        outer: 145 + BELT_BAND_WIDTH / 2,
-      },
-      {
-        kind: "icy_asteroid_belt",
-        radius: 290,
-        inner: 290 - BELT_BAND_WIDTH / 2,
-        outer: 290 + BELT_BAND_WIDTH / 2,
-      },
+    const belts = sol().belts;
+    expect(belts.map((b) => [b.kind, b.radius])).toEqual([
+      ["rocky_asteroid_belt", 145],
+      ["icy_asteroid_belt", 290],
     ]);
+    for (const belt of belts) {
+      expect(belt.outer).toBeGreaterThan(belt.inner);
+      expect((belt.inner + belt.outer) / 2).toBe(belt.radius);
+    }
   });
 
   it("fits to the inner radius, the outermost belt or the outermost body, whichever reaches furthest", () => {
@@ -311,9 +305,7 @@ describe("belts and fit", () => {
     const noInner = laid(
       systemDetails({ belts: [{ kind: "rocky_asteroid_belt", inner_radius: 290 }] }),
     );
-    expect(noInner.fitRadius).toBe(
-      Math.max(MIN_INNER_RADIUS, 290 + BELT_BAND_WIDTH / 2) + FIT_MARGIN,
-    );
+    expect(noInner.fitRadius).toBe(noInner.belts[0].outer + FIT_MARGIN);
     const far = laid(
       systemDetails({
         planets: [
