@@ -25,6 +25,7 @@ import {
 import { drawnDisc } from "../geometry";
 import { ICY_TINT } from "./BeltsLayer";
 import type { SystemLayer } from "./SystemLayer";
+import { BEAM_LENGTH, PLUME_LENGTH } from "./starLight";
 import type { SceneTextures } from "./textures";
 
 /** The glow added round a star, in disc diameters, and how strongly. */
@@ -41,16 +42,22 @@ const STAR_ART: Record<StarFlare | "star", { scale: number; alpha: number }> = {
   neutron: { scale: 1.5, alpha: 0.35 },
 };
 /**
- * The light a pulsar or a neutron star throws off its poles, added over its surface: its length
- * and thickness in disc diameters and its turn on screen. A pulsar's two beams are long and thin
- * and lie along the beams of its galaxy art; a neutron star's jets are shorter and thicker, and
- * run straight up and down, with wisps curling round the body.
+ * The light a pulsar or a neutron star throws off its poles: its length and thickness in disc
+ * diameters, and its turn on screen. The beams and jets pass behind the star, so none of them
+ * crosses its surface, and a bloom sits over the limb where each leaves it. A pulsar's beams are
+ * thin and lie along the beams of its galaxy art; a neutron star's jets are broad soft plumes,
+ * straight up and down, with wisps curling round the body.
  */
-const PULSAR_BEAMS: FlareShape = { length: 4, thickness: 0.14, rotation: 1.07 };
-const NEUTRON_JETS: FlareShape = { length: 2.8, thickness: 0.42, rotation: Math.PI / 2 };
+const PULSAR_TURN = 1.07;
+const PULSAR_BEAMS: FlareShape = { length: BEAM_LENGTH, thickness: 0.5, rotation: PULSAR_TURN };
+const PULSAR_BLOOM = 0.5;
+const NEUTRON_TURN = Math.PI / 2;
+const NEUTRON_JETS: FlareShape = { length: PLUME_LENGTH, thickness: 1.4, rotation: NEUTRON_TURN };
+const NEUTRON_BLOOM = 0.85;
 const NEUTRON_WISPS: FlareShape = { length: 2.2, thickness: 2.2, rotation: 0 };
 const FLARE_TINT = 0xcfe4ff;
 const FLARE_ALPHA = 0.9;
+const BLOOM_TINT = 0xeef6ff;
 const WISPS_ALPHA = 0.55;
 /** A black hole's swirl, in disc diameters, and its event horizon's edge in screen pixels. */
 const HOLE_ART_SCALE = 2.6;
@@ -256,11 +263,20 @@ interface Ring {
   dashes: Graphics | null;
 }
 
-/** A streak or the wisps: its length and thickness in disc diameters, and its turn. */
+/**
+ * A beam, a jet, a bloom or the wisps: its length and thickness in disc diameters, its turn, and
+ * how far from the star's centre it sits along that turn, in disc diameters.
+ */
 interface FlareShape {
   length: number;
   thickness: number;
   rotation: number;
+  offset?: number;
+}
+
+/** The blooms over the limb at both ends of lights turned `rotation`, `size` discs across. */
+function blooms(rotation: number, size: number): FlareShape[] {
+  return [0.5, -0.5].map((offset) => ({ length: size, thickness: size, rotation, offset }));
 }
 
 interface Flare {
@@ -416,11 +432,22 @@ export class BodiesLayer implements SystemLayer {
       s.blendMode = "add";
       s.rotation = shape.rotation;
       flares.push({ sprite: s, shape });
+      return s;
     };
-    if (flare === "pulsar") addFlare("beams", this.textures.streak, PULSAR_BEAMS, FLARE_ALPHA);
+    const behind = (label: string, texture: Texture, shape: FlareShape, alpha: number) =>
+      holder.setChildIndex(addFlare(label, texture, shape, alpha), holder.getChildIndex(disc));
+    const bloom = (shapes: FlareShape[]) => {
+      for (const shape of shapes)
+        addFlare("bloom", this.textures.corona, shape, 1).tint = BLOOM_TINT;
+    };
+    if (flare === "pulsar") {
+      behind("beams", this.textures.beam, PULSAR_BEAMS, FLARE_ALPHA);
+      bloom(blooms(PULSAR_TURN, PULSAR_BLOOM));
+    }
     if (flare === "neutron") {
-      addFlare("jets", this.textures.streak, NEUTRON_JETS, FLARE_ALPHA);
-      addFlare("wisps", this.textures.wisps, NEUTRON_WISPS, WISPS_ALPHA);
+      behind("jets", this.textures.plume, NEUTRON_JETS, FLARE_ALPHA);
+      behind("wisps", this.textures.wisps, NEUTRON_WISPS, WISPS_ALPHA);
+      bloom(blooms(NEUTRON_TURN, NEUTRON_BLOOM));
     }
     const horizon = hole ? graphics("horizon") : null;
     const glazed = glazeTint(body.planetClass);
@@ -595,6 +622,8 @@ export class BodiesLayer implements SystemLayer {
           (d * shape.length) / Math.max(width, 1),
           (d * shape.thickness) / Math.max(height, 1),
         );
+        const along = d * (shape.offset ?? 0);
+        sprite.position.set(along * Math.cos(shape.rotation), along * Math.sin(shape.rotation));
       }
       sized(art, d * artScale(body));
       if (glaze) sized(glaze, d * artScale(body));

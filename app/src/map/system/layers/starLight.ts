@@ -1,21 +1,37 @@
 /**
  * The light the scene draws round its stars, made on the CPU as white texels with premultiplied
- * alpha, to be tinted and added over the dark: a soft glow, a streak and a few curling wisps.
+ * alpha, to be tinted and added over the dark: a soft glow, a pulsar's beams, a neutron star's
+ * jets and a few curling wisps.
  */
 
 export const GLOW_SIZE = 128;
-export const STREAK_WIDTH = 256;
-export const STREAK_HEIGHT = 32;
+export const BEAM_WIDTH = 256;
+export const BEAM_HEIGHT = 64;
+export const PLUME_WIDTH = 256;
+export const PLUME_HEIGHT = 128;
 export const WISPS_SIZE = 256;
+
+/**
+ * How long the beams and the jets are from end to end, in disc diameters. Each is drawn centred
+ * on its star, so the part inside the limb is hidden behind the surface.
+ */
+export const BEAM_LENGTH = 4;
+export const PLUME_LENGTH = 4.4;
 
 /** How fast the glow falls away from its centre, as the exponent at its edge. */
 const GLOW_FALLOFF = 3.4;
-/** A streak's bright thread and the haze round it, as shares of its half height. */
-const THREAD = 0.14;
-const HAZE = 0.5;
-const THREAD_SHARE = 0.7;
-/** How much wider the haze grows towards the streak's ends. */
-const FLARE_OUT = 0.8;
+/** A beam's half width where it leaves the star, as a share of the texture's half height. */
+const BEAM_SPREAD = 0.62;
+/**
+ * A jet's half width at the pole and how much of it is left at the far end, as shares of the
+ * texture's half height, and how bright its body is beside its filaments.
+ */
+const PLUME_SPREAD = 0.62;
+const PLUME_TIP = 0.35;
+const PLUME_BODY = 0.7;
+/** The filaments inside a jet: where each sits across it, as a share of its half width. */
+const FILAMENTS = [-0.5, -0.18, 0.08, 0.34, 0.58];
+const FILAMENT_WIDTH = 0.06;
 
 /**
  * Each wisp is a stretch of spiral about the centre: where it starts and how far round it runs,
@@ -50,6 +66,20 @@ function field(width: number, height: number, alpha: (x: number, y: number) => n
   return texels;
 }
 
+/**
+ * How far out along a light `length` disc diameters long the point `x` lies: 0 at the limb and
+ * inside it, 1 at the far end.
+ */
+function outward(x: number, length: number): number {
+  const limb = 1 / length;
+  return Math.max(0, (Math.abs(x) - limb) / (1 - limb));
+}
+
+/** Soft on both sides of a line whose half width is `half`: a Gaussian, near nothing at `half`. */
+function across(y: number, half: number): number {
+  return Math.exp(-3 * (y / Math.max(half, 1e-3)) ** 2);
+}
+
 /** Brightest at the centre, falling away smoothly to nothing at the edge. */
 export function glowTexels(): Uint8Array {
   const edge = Math.exp(-GLOW_FALLOFF);
@@ -60,16 +90,35 @@ export function glowTexels(): Uint8Array {
 }
 
 /**
- * A thin bright thread along x in a haze that widens towards the ends, fading from the middle
- * out both ways: laid through a star, it is two streaks leaving it on opposite sides.
+ * A pulsar's two beams along x, one each way from the middle: widest where they leave the limb,
+ * tapering to a point at the ends and fading as they go.
  */
-export function streakTexels(): Uint8Array {
-  return field(STREAK_WIDTH, STREAK_HEIGHT, (x, y) => {
-    const out = Math.abs(x);
-    const along = (1 - out) ** 1.5;
-    const thread = Math.exp(-((y / THREAD) ** 2));
-    const haze = Math.exp(-((y / (HAZE * (1 + FLARE_OUT * out))) ** 2));
-    return along * (THREAD_SHARE * thread + (1 - THREAD_SHARE) * haze);
+export function beamTexels(): Uint8Array {
+  return field(BEAM_WIDTH, BEAM_HEIGHT, (x, y) => {
+    const s = outward(x, BEAM_LENGTH);
+    const half = BEAM_SPREAD * (1 - s) ** 0.8;
+    return (1 - s) ** 1.3 * across(y, half);
+  });
+}
+
+/**
+ * A neutron star's two jets along x: broad and soft at the poles, narrowing and fading outwards,
+ * with a few thinner bright filaments running through them.
+ */
+export function plumeTexels(): Uint8Array {
+  return field(PLUME_WIDTH, PLUME_HEIGHT, (x, y) => {
+    const s = outward(x, PLUME_LENGTH);
+    const half = PLUME_SPREAD * (1 - (1 - PLUME_TIP) * s);
+    let filaments = 0;
+    for (const [i, share] of FILAMENTS.entries()) {
+      const drift = 0.05 * Math.sin(7 * s + 2.3 * i);
+      const centre = (share + drift) * half;
+      const flicker = 0.65 + 0.35 * Math.sin(11 * s + 1.7 * i);
+      filaments += flicker * across(y - centre, FILAMENT_WIDTH * (1 - 0.5 * s));
+    }
+    const body = PLUME_BODY * across(y, half);
+    const fade = (1 - s) ** 1.6 * (1 - smoothstep(0.85, 1, s));
+    return fade * (body + (1 - PLUME_BODY) * filaments * across(y, 1.3 * half));
   });
 }
 

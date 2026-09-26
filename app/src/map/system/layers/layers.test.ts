@@ -135,7 +135,8 @@ function blankTextures(): SceneTextures {
     nebula: new Texture(),
     glow: new Texture(),
     corona: new Texture(),
-    streak: new Texture(),
+    beam: new Texture(),
+    plume: new Texture(),
     wisps: new Texture(),
     shade: new Texture(),
     gloss: new Texture(),
@@ -384,41 +385,61 @@ describe("the system scene's bodies layer", () => {
     layer.destroy();
   });
 
-  it("lays a pulsar's two long thin beams across it on a slant, over its surface, its art strong about it", () => {
+  /** The one star `planetClass` of `starClass`, drawn: its parts by label, and the disc's width. */
+  const drawnStar = (planetClass: string, starClass: string) => {
     const layer = new BodiesLayer(blankTextures());
-    layer.rebuild(starContext("pc_pulsar", "sc_pulsar"));
+    layer.rebuild(starContext(planetClass, starClass));
     viewport(layer, 2);
     const star = layer.container.children[0] as Container;
     const labels = star.children.map((c) => c.label);
     const labelled = (label: string) => star.children.find((c) => c.label === label) as Sprite;
-    const beams = labelled("beams");
-    const disc = labelled("disc");
-    expect(labels.indexOf("beams")).toBeGreaterThan(labels.indexOf("lit"));
+    const all = (label: string) =>
+      star.children.filter((c): c is Sprite => c instanceof Sprite && c.label === label);
+    return { layer, labels, labelled, all, disc: labelled("disc").width };
+  };
+
+  /** A bloom on each end of the star's lights, over the limb and drawn above the surface. */
+  const expectBloomsOnTheLimb = (star: ReturnType<typeof drawnStar>, rotation: number) => {
+    const blooms = star.all("bloom");
+    expect(blooms).toHaveLength(2);
+    for (const bloom of blooms) {
+      expect(star.labels.indexOf("bloom")).toBeGreaterThan(star.labels.indexOf("lit"));
+      expect(bloom.blendMode).toBe("add");
+      expect(Math.hypot(bloom.x, bloom.y)).toBeCloseTo(star.disc / 2);
+      const along = Math.atan2(bloom.y, bloom.x);
+      expect(Math.abs(Math.sin(along - rotation))).toBeCloseTo(0);
+    }
+  };
+
+  it("passes a pulsar's two thin beams behind it on a slant, blooming where they leave the limb, its art strong about it", () => {
+    const star = drawnStar("pc_pulsar", "sc_pulsar");
+    const beams = star.labelled("beams");
+    expect(star.labels.indexOf("beams")).toBeLessThan(star.labels.indexOf("disc"));
     expect(beams.blendMode).toBe("add");
-    expect(beams.width).toBeGreaterThan(3 * disc.width);
-    expect(beams.height).toBeLessThan(disc.width / 4);
+    expect(beams.width).toBeGreaterThan(3 * star.disc);
+    expect(beams.height).toBeLessThan(star.disc);
     expect(beams.rotation % (Math.PI / 2)).not.toBeCloseTo(0);
-    expect(labelled("art").alpha).toBeGreaterThan(0.5);
-    expect(labelled("jets")).toBeUndefined();
-    layer.destroy();
+    expectBloomsOnTheLimb(star, beams.rotation);
+    expect(star.labelled("art").alpha).toBeGreaterThan(0.5);
+    expect(star.labelled("jets")).toBeUndefined();
+    star.layer.destroy();
   });
 
-  it("shoots a neutron star's thicker jets straight up and down, with wisps curling round it", () => {
-    const layer = new BodiesLayer(blankTextures());
-    layer.rebuild(starContext("pc_neutron_star", "sc_neutron_star"));
-    viewport(layer, 2);
-    const star = layer.container.children[0] as Container;
-    const labelled = (label: string) => star.children.find((c) => c.label === label) as Sprite;
-    const jets = labelled("jets");
-    const disc = labelled("disc");
+  it("sends a neutron star's broad jets up and down behind it, blooming over both poles, with wisps curling round it", () => {
+    const star = drawnStar("pc_neutron_star", "sc_neutron_star");
+    const jets = star.labelled("jets");
+    expect(star.labels.indexOf("jets")).toBeLessThan(star.labels.indexOf("disc"));
     expect(jets.rotation).toBeCloseTo(Math.PI / 2);
-    expect(jets.width).toBeGreaterThan(2 * disc.width);
-    expect(jets.height).toBeGreaterThan(disc.width / 4);
-    const wisps = labelled("wisps");
+    expect(jets.width).toBeGreaterThan(3 * star.disc);
+    expect(jets.height).toBeGreaterThan(star.disc);
+    expect(jets.height).toBeGreaterThan(star.labelled("beams")?.height ?? 0);
+    expectBloomsOnTheLimb(star, jets.rotation);
+    const wisps = star.labelled("wisps");
+    expect(star.labels.indexOf("wisps")).toBeLessThan(star.labels.indexOf("disc"));
     expect(wisps.blendMode).toBe("add");
-    expect(wisps.width).toBeGreaterThan(disc.width);
-    expect(labelled("beams")).toBeUndefined();
-    layer.destroy();
+    expect(wisps.width).toBeGreaterThan(star.disc);
+    expect(star.labelled("beams")).toBeUndefined();
+    star.layer.destroy();
   });
 
   it("draws a black hole black, its swirl behind the disc and a white horizon round it", () => {

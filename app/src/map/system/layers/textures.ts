@@ -3,11 +3,14 @@ import { acquireGlow, releaseGlow } from "../../layers/SystemsLayer";
 import { FIELD_SIZE, nebulaField } from "./nebulaField";
 import {
   GLOW_SIZE,
-  STREAK_HEIGHT,
-  STREAK_WIDTH,
+  BEAM_HEIGHT,
+  BEAM_WIDTH,
+  PLUME_HEIGHT,
+  PLUME_WIDTH,
   WISPS_SIZE,
   glowTexels,
-  streakTexels,
+  beamTexels,
+  plumeTexels,
   wispTexels,
 } from "./starLight";
 
@@ -19,8 +22,10 @@ export interface SceneTextures {
   glow: Texture;
   /** A soft glow with no core, tinted and added round a star in the system view. */
   corona: Texture;
-  /** A thread of light along x, fading out both ways: a pulsar's beams, a neutron star's jets. */
-  streak: Texture;
+  /** A pulsar's two thin beams along x, each fading and narrowing away from the star. */
+  beam: Texture;
+  /** A neutron star's two broad jets along x, soft and threaded with filaments. */
+  plume: Texture;
   /** Faint curling strands round an empty middle, about a neutron star. */
   wisps: Texture;
   /** The sphere shading, lit from +x, multiplied over a disc. */
@@ -68,7 +73,8 @@ const NEBULA_SEED = 0x5ca1ab1e;
 /** The texels made on the CPU, made once and shared by every scene's textures. */
 let nebulaTexels: Uint8Array | null = null;
 let coronaTexels: Uint8Array | null = null;
-let streakField: Uint8Array | null = null;
+let beamField: Uint8Array | null = null;
+let plumeField: Uint8Array | null = null;
 let wispField: Uint8Array | null = null;
 
 function grey(v: number): number {
@@ -176,7 +182,8 @@ export function bakeSceneTextures(renderer: Renderer): SceneTextures {
     disc: bake(renderer, (g) => g.circle(DISC_R, DISC_R, DISC_R).fill({ color: 0xffffff })),
     glow: acquireGlow(renderer),
     corona: texelTexture((coronaTexels ??= glowTexels()), GLOW_SIZE, GLOW_SIZE),
-    streak: texelTexture((streakField ??= streakTexels()), STREAK_WIDTH, STREAK_HEIGHT),
+    beam: texelTexture((beamField ??= beamTexels()), BEAM_WIDTH, BEAM_HEIGHT),
+    plume: texelTexture((plumeField ??= plumeTexels()), PLUME_WIDTH, PLUME_HEIGHT),
     wisps: texelTexture((wispField ??= wispTexels()), WISPS_SIZE, WISPS_SIZE),
     shade: bake(renderer, (g) => drawShade(g, false)),
     gloss: bake(renderer, (g) => drawShade(g, true)),
@@ -189,11 +196,13 @@ export function bakeSceneTextures(renderer: Renderer): SceneTextures {
 
 /** Destroys the textures `bakeSceneTextures` made and lets go of the shared glow. */
 export function releaseSceneTextures(renderer: Renderer, textures: SceneTextures): void {
-  const { disc, corona, streak, wisps, shade, gloss, rock, ringBack, ringFront, nebula } = textures;
+  const { disc, corona, beam, plume, wisps, shade, gloss, rock, ringBack, ringFront, nebula } =
+    textures;
   for (const texture of [
     disc,
     corona,
-    streak,
+    beam,
+    plume,
     wisps,
     shade,
     gloss,
