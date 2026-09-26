@@ -166,11 +166,7 @@ const UNLOADED = {
 };
 
 function starClassesOf(initializers: readonly InitializerView[]): ReadonlyMap<string, string> {
-  const classes = new Map<string, string>();
-  for (const init of initializers) {
-    if (init.class !== null) classes.set(init.name, init.class);
-  }
-  return classes;
+  return new Map(initializers.map((init) => [init.name, init.star_class]));
 }
 
 /** The lists read on first use, as they stand until then. */

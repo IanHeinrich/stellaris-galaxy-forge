@@ -231,6 +231,37 @@ fn game_data_commands_degrade_without_an_install() {
     assert_eq!(summary, None, "a failed load leaves nothing loaded");
 }
 
+/// The class a scenario system is drawn as until the game generates the galaxy: its
+/// initializer's star class, and a G star for one that draws from a random list.
+#[test]
+fn an_initializer_lists_the_star_class_a_scenario_system_is_drawn_as() {
+    if !have_install() {
+        return;
+    }
+    let w = webview();
+    // Vanilla only: a mod in the playset may shadow the files that define these.
+    invoke::<GameDataSummary>(&w, "load_game_data", json!({ "mods": false }))
+        .expect("load game data");
+    let initializers: Vec<InitializerView> =
+        invoke(&w, "get_initializers", json!({})).expect("initializers");
+    let drawn_as = |name: &str| {
+        let view = initializers
+            .iter()
+            .find(|i| i.name == name)
+            .unwrap_or_else(|| panic!("{name} is not in the install"));
+        (view.class.as_deref(), view.star_class.as_str())
+    };
+    assert_eq!(
+        drawn_as("star_lifting_system"),
+        (Some("sc_pulsar"), "sc_pulsar")
+    );
+    assert_eq!(
+        drawn_as("relic_system_1"),
+        (Some("rl_binary_stars"), "sc_g"),
+        "the raw class stays for the initializer browser"
+    );
+}
+
 #[test]
 fn game_data_commands_with_the_install() {
     if !have_install() {

@@ -106,6 +106,10 @@ fn a_scenario_systems_details_come_from_its_initializer() {
         ]
     );
     assert_eq!(rich.planets.len(), 7);
+    assert_eq!(
+        rich.planets[0].class, "pc_neutron_star",
+        "the star as the planet class a save writes"
+    );
     assert_eq!(rich.sites.len(), 1, "the Larion dig site");
     assert!(rich.fleets_present.is_empty() && rich.starbase.is_none());
 

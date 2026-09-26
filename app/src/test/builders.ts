@@ -236,6 +236,7 @@ export function initializerView(over: Partial<InitializerView> = {}): Initialize
     source: "C:/Stellaris/common/solar_system_initializers/00_initializers.txt",
     display_name: null,
     class: null,
+    star_class: "sc_g",
     usage: null,
     empire_spawn: false,
     max_instances: null,

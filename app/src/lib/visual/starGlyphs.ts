@@ -66,8 +66,8 @@ export function starTextureKey(
 export const RANDOM_STAR_CLASS = "sc_g";
 
 /**
- * The class a system's art is chosen by: its own, else the one its initializer gives it, else
- * the stand-in a scenario draws until the game generates the galaxy.
+ * The class a system's art is chosen by: its own, else the one the core resolved for its
+ * initializer, else the stand-in a scenario draws for an initializer the install lacks.
  */
 export function effectiveStarClass(
   node: { star_class: string },
@@ -75,6 +75,5 @@ export function effectiveStarClass(
   kind: DocumentKind | null,
 ): string {
   if (node.star_class !== "") return node.star_class;
-  if (initializerClass?.startsWith("sc_")) return initializerClass;
-  return kind === "scenario" ? RANDOM_STAR_CLASS : "";
+  return initializerClass ?? (kind === "scenario" ? RANDOM_STAR_CLASS : "");
 }

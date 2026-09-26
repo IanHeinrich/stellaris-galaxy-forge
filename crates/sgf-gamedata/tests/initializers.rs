@@ -331,8 +331,8 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
         .expect("one bare star");
     assert_eq!(plain.planets.len(), 1);
     assert_eq!(
-        plain.planets[0].class, "sc_sun",
-        "the body written as `star` wears the initializer's star class"
+        plain.planets[0].class, "pc_sun_star",
+        "the body written as `star` is its initializer's star class's planet"
     );
     assert!(plain.resources.is_empty() && plain.starbase.is_none());
     assert!(plain.sites.is_empty() && plain.megastructures.is_empty());
@@ -543,7 +543,7 @@ fn a_systems_details_are_what_its_initializer_defines() {
     assert_eq!(
         classes,
         [
-            "sc_neutron_star",
+            "pc_neutron_star",
             "pc_barren",
             "pc_asteroid",
             "pc_asteroid",
@@ -558,7 +558,11 @@ fn a_systems_details_are_what_its_initializer_defines() {
         2,
         "the relic world's moons"
     );
-    assert_eq!(details.planets[0].habitable, None, "star is not a class");
+    assert_eq!(
+        details.planets[0].habitable,
+        Some(false),
+        "a star is not colonisable"
+    );
     assert_eq!(details.planets[1].size, Some(18));
     assert_eq!(
         details.planets[2].deposits.len(),
@@ -575,6 +579,77 @@ fn a_systems_details_are_what_its_initializer_defines() {
         details.planets.iter().all(|p| p.id != site.id),
         "a synthetic site id never collides with a body's"
     );
+}
+
+/// A save writes each star body as a planet class, so a scenario's details do too: the bare
+/// `star` takes the system's star class's planet key for the nth star in source order.
+#[test]
+fn a_scenario_star_body_is_the_planet_class_its_star_class_spawns() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let stars = |initializer: &str, n: usize| -> Vec<String> {
+        gd.initializer_details(1, initializer, None)
+            .unwrap_or_else(|| panic!("{initializer}'s details"))
+            .planets
+            .iter()
+            .take(n)
+            .map(|p| p.class.clone())
+            .collect()
+    };
+    assert_eq!(stars("star_lifting_system", 1), ["pc_pulsar"], "sc_pulsar");
+    assert_eq!(
+        stars("living_planet_system", 2),
+        ["pc_m_giant_star", "pc_b_star"],
+        "sc_binary_3's two stars, in order"
+    );
+    assert_eq!(
+        stars("hostile_init_void_cloud", 1),
+        ["pc_black_hole"],
+        "sc_black_hole"
+    );
+    assert_eq!(
+        stars("relic_system_1", 2),
+        ["pc_g_star", "pc_g_star"],
+        "a random star list stands in as a G star until the game draws one"
+    );
+    let pulsar = gd
+        .initializer_details(1, "star_lifting_system", None)
+        .expect("the pulsar's details");
+    assert_eq!(pulsar.planets[0].habitable, Some(false));
+}
+
+/// No vanilla initializer writes a brown dwarf's star as the bare `star`, and none writes a
+/// star class as a body's class, so both are asked of the resolution directly.
+#[test]
+fn a_star_body_takes_the_planet_key_of_the_class_it_names_or_its_systems() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    assert_eq!(gd.star_body_classes("sc_t", ["star"]), ["pc_t_star"]);
+    assert_eq!(
+        gd.star_body_classes("sc_g", ["sc_t", "pc_barren", "star"]),
+        ["pc_t_star", "pc_barren", "pc_g_star"],
+        "a named star class is the brown dwarf's; the bare star is the second star of sc_g"
+    );
+    assert_eq!(
+        gd.star_body_classes("sc_binary_3", ["star", "pc_barren", "star", "star"]),
+        [
+            "pc_m_giant_star",
+            "pc_barren",
+            "pc_b_star",
+            "pc_m_giant_star"
+        ],
+        "a star past the class's planets takes its first"
+    );
+    assert_eq!(
+        gd.star_body_classes("sc_no_such_class", ["star"]),
+        ["star"],
+        "a class the install does not define leaves the star as written"
+    );
+    assert_eq!(gd.scenario_star_class("star_lifting_system"), "sc_pulsar");
+    assert_eq!(gd.scenario_star_class("relic_system_1"), "sc_g");
+    assert_eq!(gd.scenario_star_class("no_such_initializer"), "sc_g");
 }
 
 #[test]
