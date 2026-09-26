@@ -276,6 +276,10 @@
   margin-top: 3px;
 }
 
+.update-notes li > ul {
+  margin-top: 3px;
+}
+
 .update-notes p + p {
   margin-top: 6px;
 }
