@@ -44,10 +44,10 @@ const RIM_MIN_PX = 2;
 const RIM_ALPHA = 0.45;
 const RIM_STEPS = 12;
 const RIM_INSET = 0.25;
-/** A ring's outer semi-axes in disc radii, and its tilt on screen. */
-const RING_MAJOR = 2.4;
-const RING_MINOR = RING_MAJOR / 3;
-const RING_TILT = -0.3;
+/** A ring's outer semi-axes in disc radii, and its tilt on screen: seen from well above, as the game shows it. */
+const RING_MAJOR = 2.1;
+const RING_MINOR = RING_MAJOR * 0.75;
+const RING_TILT = -0.08;
 /** The ring's warm neutral, and how far it leans towards the body's own tint. */
 const RING_COLOUR = 0xd8c6a0;
 const RING_TINT_SHARE = 0.3;

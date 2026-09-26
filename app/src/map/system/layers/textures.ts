@@ -40,8 +40,11 @@ const LIMB_SPAN = 1.2;
 const ROCK_R = 4;
 const RING_R = 64;
 /** The ring's inner edge, as a share of its outer one. */
-const RING_INNER = 0.56;
-const RING_BANDS = 16;
+const RING_INNER = 0.6;
+/** Fine grooves, faint and uneven, as the game's rings are. */
+const RING_BANDS = 44;
+const RING_ALPHA_MIN = 0.05;
+const RING_ALPHA_SPAN = 0.22;
 /** Where across the band, from inner to outer, the dark gap lies, and its half width. */
 const RING_GAP = 0.64;
 const RING_GAP_HALF = 0.05;
@@ -116,7 +119,8 @@ function drawRock(g: Graphics): void {
 
 /**
  * Half the ring, the far half above the centre and the near half below it: concentric bands
- * from the inner edge out, brightest mid-band, with a dark gap and a soft fade at both edges.
+ * from the inner edge out, faint and grooved, brightest mid-band, with a dark gap and a soft fade
+ * at both edges.
  */
 function drawRingHalf(g: Graphics, far: boolean): void {
   const R = RING_R;
@@ -127,8 +131,9 @@ function drawRingHalf(g: Graphics, far: boolean): void {
     const t = (i + 0.5) / RING_BANDS;
     const r = inner + (i + 0.5) * step;
     const gap = Math.abs(t - RING_GAP) < RING_GAP_HALF ? 0.2 : 1;
-    const alpha = (0.3 + 0.55 * Math.sin(Math.PI * t)) * gap;
-    const v = 0xb4 + 0x4b * (0.5 + 0.5 * Math.cos(t * 11));
+    const groove = 0.55 + 0.45 * Math.cos(t * 37) * Math.cos(t * 13);
+    const alpha = (RING_ALPHA_MIN + RING_ALPHA_SPAN * Math.sin(Math.PI * t) * groove) * gap;
+    const v = 0xa0 + 0x50 * (0.5 + 0.5 * Math.cos(t * 23));
     g.moveTo(R + r * Math.cos(from), R + r * Math.sin(from))
       .arc(R, R, r, from, to)
       .stroke({ color: grey(v), width: step, alpha });

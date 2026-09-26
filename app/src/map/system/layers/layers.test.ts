@@ -562,7 +562,7 @@ describe("the system scene's bodies layer", () => {
     for (const half of [sprite(ringed, "ringBack"), sprite(ringed, "ringFront")]) {
       expect(half.alpha).toBe(1);
       expect(half.width).toBeGreaterThan(2 * disc);
-      expect(half.height).toBeLessThan(disc);
+      expect(half.height).toBeLessThan(half.width);
       expect(half.rotation).not.toBe(0);
     }
     expect(part(ringed, "ringDashes")).toBeUndefined();
