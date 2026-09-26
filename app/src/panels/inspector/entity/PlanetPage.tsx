@@ -83,11 +83,12 @@ function Head({ page }: { page: PlanetPage }) {
 /** The planet's terraforming candidate modifier as a checkbox: `id` and its resolved `candidate`. */
 function TerraformBlock({ id, candidate }: { id: number; candidate: TerraformCandidate }) {
   const applyOp = useApplyOp();
+  const candidates = useGameDataStore((s) => s.terraformCandidates);
   return (
     <EditBlock title="Terraforming">
       <ToggleField
         label="Terraforming candidate"
-        title={terraformCandidateTitle(candidate.modifier)}
+        title={terraformCandidateTitle(candidate.modifier, candidates)}
         checked={candidate.checked}
         onChange={(on) => applyOp(setTerraformCandidateOp(id, candidate.modifier, on))}
       />
@@ -304,6 +305,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
+  const candidates = useGameDataStore((s) => s.terraformCandidates);
   const bodies = useCanEdit("bodies");
   const found = useFoundPlanet(page.id);
   const system = useGalaxyStore((s) => (found === null ? undefined : s.systems.get(found.system)));
@@ -312,7 +314,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const candidate =
     !bodies || isStarBody(page.class, planetClasses, starClasses)
       ? null
-      : terraformCandidate(page, planetClasses);
+      : terraformCandidate(page, planetClasses, candidates);
   const requestDetails = useDetailsStore((s) => s.request);
   const detailsVersion = useDetailsStore((s) => s.version);
   const waiting = useDetailsStore((s) => page.system !== null && !s.failed.has(page.system));

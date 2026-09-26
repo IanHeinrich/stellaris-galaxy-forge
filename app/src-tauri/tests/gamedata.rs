@@ -14,7 +14,7 @@ use sgf_gamedata::special::{SpecialKind, SpecialSystem, SpecialSystems};
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
     CountryTypeView, DepositView, GameDataSummary, InitializerView, MapColor, PaintModView,
-    ResourceIcon, StarClassView,
+    ResourceIcon, StarClassView, TerraformCandidateView,
 };
 use tauri::Manager;
 
@@ -391,6 +391,17 @@ fn game_data_commands_with_the_install() {
         !invoke::<Vec<Value>>(&w, "get_planet_classes", json!({}))
             .expect("planet classes")
             .is_empty()
+    );
+    let candidates: Vec<TerraformCandidateView> =
+        invoke(&w, "get_terraform_candidates", json!({})).expect("terraform candidates");
+    assert_eq!(
+        candidates
+            .first()
+            .map(|c| (c.modifier.as_str(), c.requires.as_slice())),
+        Some((
+            "terraforming_candidate",
+            &["Climate Restoration".to_owned()][..]
+        ))
     );
     assert!(
         !invoke::<Vec<Value>>(&w, "get_starbase_levels", json!({}))

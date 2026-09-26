@@ -365,3 +365,46 @@ fn deposit_refusals_write_nothing() {
         assert!(!out_path.exists());
     }
 }
+
+#[test]
+fn terraform_candidate_writes_the_modifier_a_later_run_takes_away() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("candidate.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&[
+        "terraform-candidate",
+        SAMPLE_4_5,
+        "585",
+        "--modifier",
+        "frozen_terraforming_candidate",
+        "-o",
+        out_str,
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Make planet #585 a terraforming candidate (frozen_terraforming_candidate)"),
+        "{text}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let off = sgf(&[
+        "terraform-candidate",
+        out_str,
+        "585",
+        "--modifier",
+        "frozen_terraforming_candidate",
+        "--off",
+        "-o",
+        dir.path().join("cleared.sav").to_str().unwrap(),
+    ]);
+    ok(&off);
+    assert!(
+        stdout(&off).contains(
+            "Stop planet #585 being a terraforming candidate (frozen_terraforming_candidate)"
+        ),
+        "{}",
+        stdout(&off)
+    );
+}

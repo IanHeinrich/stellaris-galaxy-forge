@@ -3,34 +3,13 @@ import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetPage } from "../../generated/PlanetPage";
 import type { StarClassView } from "../../generated/StarClassView";
+import type { TerraformCandidateView } from "../../generated/TerraformCandidateView";
 import { isStarBody } from "./starBody";
-
-/** The game's own candidate modifiers, for a page shown before game data has loaded. */
-const VANILLA_CANDIDATES: readonly string[] = [
-  "terraforming_candidate",
-  "frozen_terraforming_candidate",
-  "toxic_terraforming_candidate",
-];
-
-/** What Climate Restoration needs besides itself, by the candidate modifier it unlocks. */
-const EXTRA_TECH: Readonly<Record<string, string>> = {
-  frozen_terraforming_candidate: "and Hydrocentric",
-  toxic_terraforming_candidate: "and Detox",
-};
 
 /** The modifier a terraforming checkbox controls, and whether the planet carries it now. */
 export interface TerraformCandidate {
   modifier: string;
   checked: boolean;
-}
-
-/** Every modifier some planet class can be a candidate by. */
-function candidateModifiers(planetClasses: ReadonlyMap<string, PlanetClassView>): string[] {
-  const found = new Set<string>();
-  for (const pc of planetClasses.values()) {
-    if (pc.terraform_candidate !== null) found.add(pc.terraform_candidate);
-  }
-  return found.size === 0 ? [...VANILLA_CANDIDATES] : [...found];
 }
 
 /**
@@ -41,20 +20,24 @@ function candidateModifiers(planetClasses: ReadonlyMap<string, PlanetClassView>)
 export function terraformCandidate(
   page: PlanetPage,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
+  candidates: ReadonlyMap<string, TerraformCandidateView>,
 ): TerraformCandidate | null {
-  const carries = (modifier: string) => page.timed_modifiers.some((m) => m.modifier === modifier);
-  const carried = candidateModifiers(planetClasses).find(carries);
+  const carried = page.timed_modifiers.find((m) => candidates.has(m.modifier))?.modifier;
   if (carried !== undefined) return { modifier: carried, checked: true };
   const own = planetClasses.get(page.class)?.terraform_candidate ?? null;
   return own === null ? null : { modifier: own, checked: false };
 }
 
-/** What Climate Restoration needs to terraform a planet that carries `modifier`. */
-export function terraformCandidateTitle(modifier: string): string {
-  const extra = EXTRA_TECH[modifier];
-  return extra === undefined
-    ? "Needs Climate Restoration to terraform"
-    : `Needs Climate Restoration ${extra} to terraform`;
+/** What terraforming a planet that has `modifier` needs, by the names the install gives them. */
+export function terraformCandidateTitle(
+  modifier: string,
+  candidates: ReadonlyMap<string, TerraformCandidateView>,
+): string {
+  const requires = candidates.get(modifier)?.requires ?? [];
+  if (requires.length === 0) return "Lets this planet be terraformed";
+  const last = requires[requires.length - 1];
+  const names = requires.length === 1 ? last : `${requires.slice(0, -1).join(", ")} and ${last}`;
+  return `Needs ${names} to terraform`;
 }
 
 /**

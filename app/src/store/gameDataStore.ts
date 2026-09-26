@@ -15,6 +15,7 @@ import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import type { StarClassView } from "../generated/StarClassView";
+import type { TerraformCandidateView } from "../generated/TerraformCandidateView";
 import type { BypassView } from "../generated/BypassView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DepositView } from "../generated/DepositView";
@@ -60,6 +61,8 @@ export interface GameDataState {
   /** The mod whose `flags/colors.txt` `mapColors` comes from; null for the game's own. */
   mapColorSource: string | null;
   planetClasses: Map<string, PlanetClassView>;
+  /** Modifier → what terraforming a planet that has it needs. */
+  terraformCandidates: Map<string, TerraformCandidateView>;
   deposits: Map<string, DepositView>;
   /** Bypass kind → its map icon frame, for the badge a bypass wears. */
   bypasses: Map<string, BypassView>;
@@ -142,6 +145,7 @@ const UNLOADED = {
   mapColors: new Map<string, MapColor>(),
   mapColorSource: null as string | null,
   planetClasses: new Map<string, PlanetClassView>(),
+  terraformCandidates: new Map<string, TerraformCandidateView>(),
   deposits: new Map<string, DepositView>(),
   bypasses: new Map<string, BypassView>(),
   starbaseLevels: new Map<string, StarbaseLevelView>(),
@@ -431,6 +435,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     mapColors,
     mapColorSource,
     planetClasses,
+    terraformCandidates,
     deposits,
     bypasses,
     starbaseLevels,
@@ -442,6 +447,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     ipc.getMapColors(),
     ipc.getMapColorSource(),
     ipc.getPlanetClasses(),
+    ipc.getTerraformCandidates(),
     ipc.getDeposits(),
     ipc.getBypasses(),
     ipc.getStarbaseLevels(),
@@ -455,6 +461,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     mapColors: new Map(mapColors.map((c) => [c.name, c])),
     mapColorSource,
     planetClasses: new Map(planetClasses.map((c) => [c.key, c])),
+    terraformCandidates: new Map(terraformCandidates.map((c) => [c.modifier, c])),
     deposits: new Map(deposits.map((d) => [d.key, d])),
     bypasses: new Map(bypasses.map((b) => [b.key, b])),
     starbaseLevels: new Map(starbaseLevels.map((l) => [l.key, l])),

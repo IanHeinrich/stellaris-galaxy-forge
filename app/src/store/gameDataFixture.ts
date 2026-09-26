@@ -131,6 +131,7 @@ function armGameDataCommands(): void {
   ]);
   mockedIpc.getMapColorSource.mockResolvedValue(null);
   mockedIpc.getPlanetClasses.mockResolvedValue([planetClassView("pc_continental", false)]);
+  mockedIpc.getTerraformCandidates.mockResolvedValue([]);
   mockedIpc.getDeposits.mockResolvedValue([
     {
       key: "d_minerals_5",

@@ -7,6 +7,7 @@ use ts_rs::TS;
 
 use crate::document;
 use crate::format::save::system_spec::SystemSpec;
+use crate::format::save::write::terraform_candidate::MAX_MODIFIER_COPIES;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::OverlayError;
 use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
@@ -300,14 +301,20 @@ pub enum Op {
         size: u32,
     },
     /// A save planet's permanent `modifier` (`days=-1`), added last to its `timed_modifier`
-    /// items when `on` and taken out when not, as the console's `add_modifier` does; the
-    /// game's terraforming candidates are the ones the app offers. The modifier is written
-    /// as given. A system's star is refused, and so is removing an item that runs out. The
-    /// inverse flips `on`. Save documents only.
+    /// items when `on` and taken out when not, as the console's `add_modifier` does. The app
+    /// offers the candidate modifiers the install's `is_terraforming_candidate` rule lists;
+    /// the modifier is written as given. A system's star is refused, and so is removing an
+    /// item that runs out. Removal takes out every copy, and its inverse adds them all back.
+    /// The inverse flips `on`. Save documents only.
     SetTerraformCandidate {
         id: u32,
         modifier: String,
         on: bool,
+        /// How many items `on` adds: one unless given, and at most `MAX_MODIFIER_COPIES`.
+        /// Removal ignores it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        copies: Option<u32>,
     },
     /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
     /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
@@ -715,6 +722,8 @@ pub enum OpError {
     ModifierAbsent(u32, String),
     #[error("planet {0}'s {1} has {2} days left: only a permanent modifier can be removed")]
     ModifierNotPermanent(u32, String, String),
+    #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
+    ModifierCopies(u32),
     #[error("country {0} does not exist")]
     UnknownCountry(u32),
     #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
@@ -862,6 +871,7 @@ impl OpError {
             | Self::ModifierPresent { .. }
             | Self::ModifierAbsent { .. }
             | Self::ModifierNotPermanent { .. }
+            | Self::ModifierCopies { .. }
             | Self::NoMapColors { .. }
             | Self::MapColorsUnchanged { .. }
             | Self::SaveTooOld { .. }
