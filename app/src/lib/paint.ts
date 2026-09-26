@@ -108,8 +108,9 @@ export const SEAT_KINDS: Record<SeatKind, SeatKindInfo> = {
     tag: () => "Sol",
     description: () =>
       'Only the United Nations of Earth, or an empire with the "Reserved Spawn Sol" trait, starts ' +
-      "here. Give it a generic initializer. The United Nations of Earth brings Sol with it, and " +
-      "the game will not seat it on a seat that already names Sol's initializer.",
+      "here. Give it Sol's initializer. When no one plays the United Nations of Earth, Paint a " +
+      "Galaxy puts it on this Sol as the parent of a human Lost Colony, such as the Commonwealth " +
+      "of Man.",
     weightable: true,
     weighted: () =>
       "Weighted so the United Nations of Earth is certain to start here. No other empire can.",

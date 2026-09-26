@@ -8,7 +8,6 @@ use crate::format::scenario::fe_link::LINK_REACH;
 use crate::format::scenario::fe_zone;
 use crate::format::scenario::header_counts::{HeaderMismatch, for_graph, header_mismatch, is_seat};
 use crate::format::scenario::marauder;
-use crate::format::scenario::paint::SOL_INITIALIZER;
 use crate::ops::rules::fe_zone::label;
 use crate::projections::galaxy::{GalaxyGraph, PaintSpawnKind, SpawnScript, SystemNode};
 
@@ -120,16 +119,6 @@ pub(super) fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
         }
         if *player {
             players.push(system.id);
-        }
-        if matches!(kind, PaintSpawnKind::Sol) && system.initializer == SOL_INITIALIZER {
-            issues.push(Issue::new(
-                IssueCode::SolSeatMismatch,
-                format!(
-                    "{} has a Sol seat and the Sol initializer: the game will not seat the United Nations of Earth on a seat naming its own initializer. Give it a generic start.",
-                    label(system)
-                ),
-                vec![system.id],
-            ));
         }
     }
     for (letter, systems) in holders {

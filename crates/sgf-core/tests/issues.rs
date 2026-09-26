@@ -75,7 +75,6 @@ fn the_scenario_fixture_raises_every_paint_a_galaxy_fault() {
             (Warning, HeaderEmpireCount),
             (Warning, SeatLetterDuplicate),
             (Warning, PlayerSeatDuplicate),
-            (Warning, SolSeatMismatch),
             (Warning, LClusterSystem),
             (Warning, MarauderHomeDuplicate),
             (Warning, MarauderBaseOrphan),

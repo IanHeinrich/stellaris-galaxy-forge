@@ -84,9 +84,6 @@ pub enum IssueCode {
     /// Two or more seats carry the player's marker, which the first empire placed draws
     /// once.
     PlayerSeatDuplicate,
-    /// A Sol seat stands on a system naming the game's Sol initializer, and the game
-    /// never seats an empire on a seat naming that empire's own initializer.
-    SolSeatMismatch,
     /// A system stands where the game builds the L-Cluster at galaxy generation.
     LClusterSystem,
     /// Two or more systems carry the same marauder clan's home initializer, and the
@@ -125,7 +122,6 @@ impl IssueCode {
             | Self::HeaderEmpireCount
             | Self::SeatLetterDuplicate
             | Self::PlayerSeatDuplicate
-            | Self::SolSeatMismatch
             | Self::LClusterSystem
             | Self::MarauderHomeDuplicate
             | Self::MarauderBaseOrphan
@@ -168,7 +164,6 @@ impl IssueCode {
             Self::HeaderEmpireCount => "header_empire_count",
             Self::SeatLetterDuplicate => "seat_letter_duplicate",
             Self::PlayerSeatDuplicate => "player_seat_duplicate",
-            Self::SolSeatMismatch => "sol_seat_mismatch",
             Self::LClusterSystem => "l_cluster_system",
             Self::MarauderHomeDuplicate => "marauder_home_duplicate",
             Self::MarauderBaseOrphan => "marauder_base_orphan",
