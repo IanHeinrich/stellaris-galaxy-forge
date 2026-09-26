@@ -8,10 +8,9 @@ import {
   TextStyle,
   Texture,
 } from "pixi.js";
-import { planetTint } from "../../../lib/details/icons";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import { MAP_FONT } from "../../../lib/visual/style";
-import { starFlare, starGlyph, type StarFlare } from "../../../lib/visual/starGlyphs";
+import type { StarFlare } from "../../../lib/visual/starGlyphs";
 import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
 import { dashedCircle } from "../../layers/dashes";
@@ -23,7 +22,6 @@ import {
   type SystemContext,
 } from "../context";
 import { drawnDisc } from "../geometry";
-import { ICY_TINT } from "./BeltsLayer";
 import type { SystemLayer } from "./SystemLayer";
 import { BEAM_LENGTH, HALO_SCALE, PLUME_LENGTH, SWIRL_SCALE } from "./starLight";
 import type { SceneTextures } from "./textures";
@@ -85,6 +83,8 @@ const FLARE_ALPHA = 0.75;
 const BLOOM_TINT = 0xeef6ff;
 const BLOOM_ALPHA = 0.6;
 const WISPS_ALPHA = 0.2;
+/** How strongly an asteroid's icon shows glazed over itself in its kind's colour. */
+const GLAZE_ALPHA = 0.6;
 /** A black hole's swirl, in disc diameters. */
 const HOLE_ART_SCALE = 2.6;
 /** A planet's class icon, in disc diameters. */
@@ -132,59 +132,9 @@ const GLYPH_STYLE = new TextStyle({
   stroke: { color: 0x000000, width: 3 },
 });
 
-/** The class families `planetTint` leaves to its neutral grey, by the colour the scene gives each. */
-const FAMILY_TINTS: Array<[pattern: RegExp, tint: number]> = [
-  [/gas_giant/, 0xc9a26b],
-  [/asteroid/, 0x8a8178],
-  [/barren/, 0x8c8279],
-  [/frozen/, 0xcfe3f0],
-  [/toxic/, 0x9bc34a],
-  [/molten/, 0xd9623b],
-  [/ocean/, 0x3a7fd0],
-  [/continental/, 0x4f9d5a],
-  [/tropical/, 0x3fae6b],
-  [/arid/, 0xd09a4e],
-  [/desert/, 0xe0bf7a],
-  [/savannah/, 0xb9b25a],
-  [/tundra/, 0xa7b9a0],
-  [/alpine/, 0xd8e4ea],
-  [/arctic/, 0xe6f0f7],
-];
-
-/** A black hole, drawn black with its swirl behind it, where every other star shines. */
-function blackHole(body: SceneBody): boolean {
-  return body.placement.star && body.starClass !== null && starGlyph(body.starClass).ring;
-}
-
-function flareOf(body: SceneBody): StarFlare | null {
-  return body.placement.star && body.starClass !== null ? starFlare(body.starClass) : null;
-}
-
 function artScale(body: SceneBody): number {
-  if (blackHole(body)) return HOLE_ART_SCALE;
-  return body.placement.star ? STAR_ART[flareOf(body) ?? "star"].scale : PLANET_ART_SCALE;
-}
-
-/**
- * The game's asteroid kinds share one icon and differ only in their models; a glaze of the icon
- * added over itself in the kind's colour tells them apart.
- */
-const ASTEROID_GLAZES: Array<[RegExp, number]> = [
-  [/ice_asteroid/, ICY_TINT],
-  [/crystal_asteroid/, 0xd9b3ff],
-];
-const GLAZE_ALPHA = 0.6;
-
-function glazeTint(planetClass: string): number | null {
-  return ASTEROID_GLAZES.find(([pattern]) => pattern.test(planetClass))?.[1] ?? null;
-}
-
-function bodyTint(body: SceneBody): number {
-  if (body.starClass !== null) return starGlyph(body.starClass).tint;
-  for (const [pattern, tint] of FAMILY_TINTS) {
-    if (pattern.test(body.planetClass)) return tint;
-  }
-  return planetTint(body.planetClass);
+  if (body.look.blackHole) return HOLE_ART_SCALE;
+  return body.placement.star ? STAR_ART[body.look.flare ?? "star"].scale : PLANET_ART_SCALE;
 }
 
 function mixed(a: number, b: number, share: number): number {
@@ -194,36 +144,6 @@ function mixed(a: number, b: number, share: number): number {
     return Math.round(from + (to - from) * share) << shift;
   };
   return channel(16) | channel(8) | channel(0);
-}
-
-/** A class the initializer leaves to chance, as the scenario body page reads it. */
-function randomClass(planetClass: string): boolean {
-  return planetClass === "" || planetClass === "random" || planetClass.startsWith("random_");
-}
-
-/** An astral scar is light on a black ground, drawn as the stars' art is; it has no surface. */
-function luminous(planetClass: string): boolean {
-  return /astral_scar/.test(planetClass);
-}
-
-/** Its icon is its own outline, an asteroid's rock or an astral scar's glow, so no round shading goes over it. */
-function irregular(planetClass: string): boolean {
-  return /asteroid/.test(planetClass) || luminous(planetClass);
-}
-
-/** Gas giants have no hard surface to catch a highlight. */
-function takesGloss(planetClass: string): boolean {
-  return !/gas_giant/.test(planetClass);
-}
-
-/**
- * The texture key of the class's surface baked as a disc: a star's lit from within, a planet's
- * lit from one side. None for a black hole, a random class or an irregular one.
- */
-function litKey(body: SceneBody): string | null {
-  const { planetClass, surfaceClass } = body;
-  if (blackHole(body) || randomClass(planetClass) || irregular(planetClass)) return null;
-  return body.placement.star ? `star_disc:${surfaceClass}` : `planet_disc:${surfaceClass}`;
 }
 
 /** The first of `keys` already in the cache, without asking for any. */
@@ -387,7 +307,8 @@ export class BodiesLayer implements SystemLayer {
     const holder = new Container();
     holder.position.set(placement.x, placement.y);
     holder.scale.set(SAVE_X_SIGN, SAVE_Y_SIGN);
-    const tint = bodyTint(body);
+    const { look, chance } = body;
+    const tint = look.tint;
     const sprite = (label: string, texture: Texture) => {
       const s = new Sprite(texture);
       s.label = label;
@@ -401,7 +322,7 @@ export class BodiesLayer implements SystemLayer {
       holder.addChild(g);
       return g;
     };
-    const hole = blackHole(body);
+    const hole = look.blackHole;
     const shines = placement.star && !hole;
     let glow: Sprite | null = null;
     if (shines) {
@@ -410,13 +331,13 @@ export class BodiesLayer implements SystemLayer {
       glow.alpha = GLOW_ALPHA;
       glow.blendMode = "add";
     }
-    const ringed = !placement.star && body.ring !== false;
+    const ringed = body.ring;
     const ringTint = mixed(RING_COLOUR, tint, RING_TINT_SHARE);
     const ringHalf = (label: string, texture: Texture) => {
       const half = sprite(label, texture);
       half.tint = ringTint;
       half.rotation = RING_TILT;
-      if (body.ring === null) half.alpha = GHOST_ALPHA;
+      if (chance.ring) half.alpha = GHOST_ALPHA;
       return half;
     };
     const ringStripHalf = (label: string, far: boolean) => {
@@ -424,7 +345,7 @@ export class BodiesLayer implements SystemLayer {
       half.label = label;
       half.visible = false;
       half.rotation = RING_TILT;
-      if (body.ring === null) half.alpha = GHOST_ALPHA;
+      if (chance.ring) half.alpha = GHOST_ALPHA;
       holder.addChild(half);
       return half;
     };
@@ -433,7 +354,7 @@ export class BodiesLayer implements SystemLayer {
     const disc = sprite("disc", this.textures.disc);
     disc.tint = hole ? 0x000000 : tint;
     let lit: Sprite | null = null;
-    if (litKey(body) !== null) {
+    if (look.surfaceKey !== null) {
       lit = sprite("lit", Texture.EMPTY);
       lit.visible = false;
       lit.rotation = placement.light ?? 0;
@@ -441,11 +362,11 @@ export class BodiesLayer implements SystemLayer {
     const art = sprite("art", Texture.EMPTY);
     art.visible = false;
     // As on the galaxy map: the art's black ground adds nothing, so only its light shows.
-    if (placement.star || luminous(body.planetClass)) art.blendMode = STAR_ART_BLEND;
+    if (placement.star || look.luminous) art.blendMode = STAR_ART_BLEND;
     // A black hole's swirl is its accretion disc, seen round the black of the hole; a star's
     // art is the light about it, with its bright core behind the surface.
     if (placement.star) holder.setChildIndex(art, holder.getChildIndex(disc));
-    const flare = flareOf(body);
+    const flare = look.flare;
     if (shines) art.alpha = STAR_ART[flare ?? "star"].alpha;
     const flares: Flare[] = [];
     const addFlare = (label: string, texture: Texture, shape: FlareShape, alpha: number) => {
@@ -482,7 +403,7 @@ export class BodiesLayer implements SystemLayer {
     for (const shape of poles) {
       addFlare("bloom", this.textures.corona, shape, BLOOM_ALPHA).tint = BLOOM_TINT;
     }
-    const glazed = glazeTint(body.planetClass);
+    const glazed = look.glaze;
     let glaze: Sprite | null = null;
     if (glazed !== null) {
       glaze = sprite("glaze", Texture.EMPTY);
@@ -492,11 +413,8 @@ export class BodiesLayer implements SystemLayer {
       glaze.alpha = GLAZE_ALPHA;
     }
     let shade: Sprite | null = null;
-    if (!placement.star && !irregular(body.planetClass)) {
-      shade = sprite(
-        "shade",
-        takesGloss(body.planetClass) ? this.textures.gloss : this.textures.shade,
-      );
+    if (!placement.star && !look.irregular) {
+      shade = sprite("shade", look.gloss ? this.textures.gloss : this.textures.shade);
       shade.blendMode = "multiply";
       shade.rotation = placement.light ?? 0;
     }
@@ -506,16 +424,16 @@ export class BodiesLayer implements SystemLayer {
     if (back && backStrip) {
       const front = ringHalf("ringFront", this.textures.ringFront);
       const frontStrip = ringStripHalf("ringFrontStrip", false);
-      const dashes = body.ring === null ? graphics("ringDashes") : null;
+      const dashes = chance.ring ? graphics("ringDashes") : null;
       ring = { back, front, backStrip, frontStrip, dashes };
     }
     let glyph: BitmapText | null = null;
-    if (randomClass(body.planetClass)) {
+    if (chance.planetClass) {
       glyph = new BitmapText({ text: "?", style: GLYPH_STYLE, anchor: 0.5 });
       holder.addChild(glyph);
     }
     let outline: Graphics | null = null;
-    if (placement.ghost) {
+    if (chance.anyAngle) {
       const faded = [
         glow,
         ...flares.map((f) => f.sprite),
@@ -570,7 +488,7 @@ export class BodiesLayer implements SystemLayer {
   private dress(drawn: Drawn): void {
     const { body, art, disc, lit } = drawn;
     if (drawn.ring) this.dressRing(drawn.ring);
-    const key = litKey(body);
+    const key = body.look.surfaceKey;
     const surface = key === null ? null : this.resolve([key]);
     if (lit) {
       lit.texture = surface ?? Texture.EMPTY;
@@ -580,7 +498,7 @@ export class BodiesLayer implements SystemLayer {
       ? [body.largeIconKeys, body.iconKeys]
       : [body.iconKeys, body.largeIconKeys];
     const star = body.placement.star;
-    const iconless = randomClass(body.planetClass) || (surface !== null && !star);
+    const iconless = body.chance.planetClass || (surface !== null && !star);
     // Across the large-icon threshold, the icon already in hand stands in until the other lands.
     const texture = iconless ? null : (this.resolve(wanted) ?? landed(other));
     art.texture = texture ?? Texture.EMPTY;
@@ -664,7 +582,7 @@ export class BodiesLayer implements SystemLayer {
       if (outline) {
         outline.clear();
         dashedCircle(outline, 0, 0, d / 2, GHOST_DASHES);
-        outline.stroke({ color: bodyTint(body), pixelLine: true });
+        outline.stroke({ color: body.look.tint, pixelLine: true });
       }
     }
   }
@@ -702,7 +620,7 @@ export class BodiesLayer implements SystemLayer {
     if (ring.dashes) {
       ring.dashes.clear();
       traceRingDashes(ring.dashes, radius);
-      ring.dashes.stroke({ color: bodyTint(body), pixelLine: true });
+      ring.dashes.stroke({ color: body.look.tint, pixelLine: true });
     }
   }
 

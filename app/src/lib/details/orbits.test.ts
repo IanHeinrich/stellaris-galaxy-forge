@@ -241,6 +241,60 @@ describe("scenario bodies", () => {
       ghost: true,
     });
   });
+
+  it("draws a ghost opposite the body placed on its ring, and ghosts sharing a ring evenly round it", () => {
+    const layout = systemLayout(
+      systemDetails({
+        planets: [
+          scenario(1, { orbit: { min: 25, max: 25 }, angle: { min: 0, max: 0 } }),
+          scenario(2, { orbit: { min: 25, max: 25 } }),
+          scenario(3, { orbit: { min: 60, max: 60 } }),
+          scenario(4, { orbit: { min: 60, max: 60 } }),
+          scenario(5, { orbit: { min: 60, max: 60 } }),
+        ],
+      }),
+    );
+    const at = (id: number) => [body(layout, id).x, body(layout, id).y];
+    const near = (a: number[], b: { x: number; y: number }) => {
+      expect(a[0]).toBeCloseTo(b.x);
+      expect(a[1]).toBeCloseTo(b.y);
+    };
+    near(at(2), polar(0, 0, 25, 180));
+    near(at(3), polar(0, 0, 60, 0));
+    near(at(4), polar(0, 0, 60, 120));
+    near(at(5), polar(0, 0, 60, 240));
+    expect(body(layout, 4).angle).toBeCloseTo(120);
+  });
+
+  it("shares a ring out between bodies whose angle ranges over a turn or more, as between ghosts", () => {
+    const layout = systemLayout(
+      systemDetails({
+        planets: [
+          scenario(1, { orbit: { min: 95, max: 95 }, angle: { min: 271, max: 811 } }),
+          scenario(2, { orbit: { min: 95, max: 95 }, angle: { min: 91, max: 991 } }),
+        ],
+      }),
+    );
+    const [a, b] = [body(layout, 1), body(layout, 2)];
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeCloseTo(190);
+    expect(a.ghost).toBe(false);
+    expect(a.arc).toEqual({ from: 271, to: 811 });
+  });
+
+  it("draws a ranged size at the middle of its range", () => {
+    const layout = systemLayout(
+      systemDetails({
+        planets: [
+          scenario(1, {
+            orbit: { min: 50, max: 50 },
+            angle: { min: 0, max: 0 },
+            size: { min: 10, max: 20 },
+          }),
+        ],
+      }),
+    );
+    expect(body(layout, 1).disc).toBeCloseTo(discRadius(15, false));
+  });
 });
 
 describe("belts, fit and zoom", () => {

@@ -8,7 +8,8 @@ import type { Bounds } from "./Bounds";
 export type BodyLayout = { 
 /**
  * The drawn radius about the parent, or about the system's centre without
- * one. `None` when an initializer gives no distance.
+ * one. `None` for a save body with neither an orbit nor a point. A scenario
+ * body with no distance stands on the running orbit.
  */
 orbit: Bounds | null, 
 /**

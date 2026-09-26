@@ -255,11 +255,11 @@ impl<'p> Walk<'p> for Layouts {
         bounds(angle)
     }
 
-    /// A body with no distance sits on its parent; one with no angle may be anywhere on
-    /// its orbit.
+    /// A body with no distance stands on the running orbit, as the walk steps it; one with no
+    /// angle may be anywhere on its orbit.
     fn body(&mut self, block: &'p InitPlanet, placed: Placed<Bounds>) -> Result<(), Infallible> {
         self.0.push(BodyLayout {
-            orbit: block.orbit_distance.map(|_| placed.orbit),
+            orbit: Some(placed.orbit),
             angle: block.orbit_angle.map(|_| within_one_turn(placed.angle)),
             at: None,
             size: block.size.map(|(min, max)| Bounds {

@@ -681,11 +681,17 @@ fn a_fixture_systems_layout_is_what_its_initializer_defines() {
                 Some(range(30.0, 150.0)),
                 None
             ),
-            (None, None, Some(range(75.0, 195.0)), None),
+            (
+                None,
+                Some(range(80.0, 85.0)),
+                Some(range(75.0, 195.0)),
+                None
+            ),
             (None, Some(range(105.0, 110.0)), None, None),
         ],
         "the star names no angle; change_orbit moves the moons out, and the siblings \
-         after it; a count of one to three spawns two; an undeclared distance steps 0"
+         after it; a count of one to three spawns two; an undeclared distance steps 0 \
+         and stands on the running orbit"
     );
     assert_eq!(
         details.belts,
@@ -762,6 +768,49 @@ fn sol_is_laid_out_where_the_game_put_it() {
             "{}: saved at {saved_angle}°, laid out at {}° turned by {turn}°",
             body.name_key,
             angle.min
+        );
+    }
+}
+
+/// A body with no `orbit_distance` stands on the running orbit. The game draws it 10 to 20
+/// past that, and a ranged count before it moves it by one step either way: the 4.4 sample's
+/// systems 5, 33 and 55 were rolled from these initializers, and each of these bodies is the
+/// only one of its class in its system.
+#[test]
+fn a_body_with_no_distance_is_laid_out_on_the_running_orbit_not_on_the_star() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let session = common::open_4_4();
+    let projection = session.details().expect("the sample's details");
+    for (system, initializer, class) in [
+        (5, "ai_system_03", "pc_gas_giant"),
+        (33, "distar_phaseshift_system", "pc_shrouded"),
+        (55, "special_init_01", "pc_broken"),
+    ] {
+        let saved = projection.raw(system).expect("a saved system");
+        let saved_orbit = saved
+            .planets
+            .iter()
+            .find(|p| p.class == class)
+            .and_then(|p| p.orbit)
+            .expect("the saved body's orbit");
+        let laid = gd
+            .initializer_details(system, initializer, None)
+            .expect("the initializer's details");
+        let body = laid
+            .planets
+            .iter()
+            .find(|p| p.class == class)
+            .expect("the laid out body");
+        let orbit = body
+            .layout
+            .as_ref()
+            .and_then(|l| l.orbit)
+            .unwrap_or_else(|| panic!("{initializer}: {class} has no orbit"));
+        assert!(
+            (saved_orbit - orbit.min).abs() < 20.0,
+            "{initializer}: {class} laid out at {orbit:?}, saved at {saved_orbit}"
         );
     }
 }

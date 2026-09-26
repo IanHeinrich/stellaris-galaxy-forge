@@ -31,7 +31,9 @@ function randomClass(planetClass: string): boolean {
 function Head({ name, body }: { name: string; body: PlanetSummary | null }) {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
-  const own = useSingleStarClasses().get(body?.class ?? "");
+  const key = body?.class ?? "";
+  // A scenario's star comes as its system's star class, a save's as its planet class.
+  const own = useSingleStarClasses().get(key) ?? starClasses.get(key);
   const star = body !== null && isStarBody(body.class, planetClasses, starClasses);
   return (
     <div className={`ins-head${star ? " ins-star-head" : " pl-head"}`}>

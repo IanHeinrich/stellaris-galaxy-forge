@@ -1,4 +1,5 @@
 import type { ExportResult } from "../../generated/ExportResult";
+import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { bodyName } from "../../lib/details/labels";
 import { systemLayout } from "../../lib/details/orbits";
@@ -168,7 +169,8 @@ function bodyReadout(
   isStar: (planetClass: string) => boolean,
 ): string | null {
   const planet = details.planets.find((p) => p.id === id);
-  const placed = systemLayout(details, isStar).bodies.find((b) => b.id === id);
+  const classOf = (p: PlanetSummary) => ({ planetClass: p.class, star: isStar(p.class) });
+  const placed = systemLayout(details, classOf).bodies.find((b) => b.id === id);
   if (!planet || !placed) return null;
   const name = bodyName(planet, names);
   if (placed.ring === null) return name;

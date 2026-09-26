@@ -39,7 +39,8 @@ import {
 import { NO_SOURCES, systemContext, type SystemContext } from "../context";
 import { drawOps, strokes, stubTextMeasurement, viewport } from "../fixture";
 import { STAR_ART_BLEND } from "../../layers/StarClusters";
-import { BeltsLayer, ICY_TINT, MAX_ROCKS } from "./BeltsLayer";
+import { BeltsLayer, MAX_ROCKS } from "./BeltsLayer";
+import { ICY_TINT } from "../look";
 import { BodiesLayer } from "./BodiesLayer";
 import { ExitsLayer } from "./ExitsLayer";
 import { LabelsLayer } from "./LabelsLayer";
@@ -197,6 +198,25 @@ function circleRadii(g: Graphics): number[] {
   return radii.sort((a, b) => a - b);
 }
 
+/** The turns each radius is stroked over, by rounded radius: a circle whole, an arc its span. */
+function coverage(g: Graphics): Record<number, number> {
+  const out: Record<number, number> = {};
+  for (const instruction of g.context.instructions) {
+    if (instruction.action !== "stroke") continue;
+    const { path } = instruction.data as unknown as {
+      path?: { instructions: { action: string; data: number[] }[] };
+    };
+    for (const { action, data } of path?.instructions ?? []) {
+      const span = action === "circle" ? 2 * Math.PI : action === "arc" ? data[4] - data[3] : 0;
+      if (span === 0) continue;
+      const r = Math.round(data[2]);
+      out[r] = (out[r] ?? 0) + span / (2 * Math.PI);
+    }
+  }
+  for (const r of Object.keys(out)) out[+r] = Math.round(out[+r] * 1e6) / 1e6;
+  return out;
+}
+
 describe("the system scene's orbits layer", () => {
   it("strokes each orbit whole and faint about its parent, and the inner radius dashed on its own", () => {
     const layer = new OrbitsLayer();
@@ -221,7 +241,7 @@ describe("the system scene's orbits layer", () => {
     expect(circleRadii(layer.rings)).toEqual([90, 130]);
   });
 
-  it("fills a ranged orbit's band between its two radii, and strokes a ranged angle's arc along its ring", () => {
+  it("fills a ranged orbit's band faintly, and strokes a ranged angle's arc along its ring no brighter than an orbit, over no second stroke", () => {
     const layer = new OrbitsLayer();
     const banded = scenarioBody(
       2,
@@ -238,20 +258,36 @@ describe("the system scene's orbits layer", () => {
     layer.rebuild(context({ planets: [SCENARIO_STAR, banded, arced] }));
     viewport(layer, 2);
 
+    const [ring] = drawOps(layer.rings).filter((op) => op.action === "stroke");
     const fills = drawOps(layer.bands).filter((op) => op.action === "fill");
     expect(fills.map((op) => op.segments)).toEqual([[[0, 0, 100]]]);
-    expect(fills[0].alpha).toBeLessThan(0.5);
+    expect(fills[0].alpha).toBeLessThan(ring.alpha ?? 1);
     expect(holeRadii(layer.bands)).toEqual([60]);
 
     const arcs = drawOps(layer.arcs).filter((op) => op.action === "stroke");
     expect(arcs).toHaveLength(1);
-    expect(arcs[0].segments).toHaveLength(1);
-    const [, , cx, cy, radius, from, to] = arcs[0].segments[0];
-    expect([cx, cy, radius]).toEqual([0, 0, 130]);
-    expect(from).toBeCloseTo(0);
-    expect(to).toBeCloseTo(Math.PI / 2);
-    expect(arcs[0].alpha).toBeGreaterThan(0.45);
-    expect(circleRadii(layer.rings)).toEqual([80, 130]);
+    expect(arcs[0].alpha).toBeLessThanOrEqual(ring.alpha ?? 1);
+    expect(coverage(layer.arcs)).toEqual({ 130: 0.25 });
+    expect(coverage(layer.rings)).toEqual({ 80: 1, 130: 0.75 });
+  });
+
+  it("strokes an angle ranging over a turn or more once, as the whole ring", () => {
+    const layer = new OrbitsLayer();
+    const wide = scenarioBody(2, "pc_arid", { orbit: fixed(70), angle: { min: 270, max: 810 } }, 1);
+    layer.rebuild(context({ planets: [SCENARIO_STAR, wide] }));
+    viewport(layer, 2);
+    expect(coverage(layer.arcs)).toEqual({ 70: 1 });
+    expect(coverage(layer.rings)).toEqual({});
+  });
+
+  it("joins the arcs of bodies sharing a ring, across the zero angle, and strokes the rest of it as an orbit", () => {
+    const layer = new OrbitsLayer();
+    const late = scenarioBody(2, "pc_arid", { orbit: fixed(70), angle: { min: 300, max: 390 } }, 1);
+    const early = scenarioBody(3, "pc_arid", { orbit: fixed(70), angle: { min: 20, max: 60 } }, 1);
+    layer.rebuild(context({ planets: [SCENARIO_STAR, late, early] }));
+    viewport(layer, 2);
+    expect(coverage(layer.arcs)).toEqual({ 70: 0.333333 });
+    expect(coverage(layer.rings)).toEqual({ 70: 0.666667 });
   });
 
   it("strokes a ghost's whole ring as its arc", () => {
@@ -259,10 +295,8 @@ describe("the system scene's orbits layer", () => {
     const ghost = scenarioBody(2, "pc_arid", { orbit: fixed(70) }, 1);
     layer.rebuild(context({ planets: [SCENARIO_STAR, ghost] }));
     viewport(layer, 2);
-    const [arc] = drawOps(layer.arcs).filter((op) => op.action === "stroke");
-    const [, , , , radius, from, to] = arc.segments[0];
-    expect(radius).toBe(70);
-    expect(to - from).toBeCloseTo(2 * Math.PI);
+    expect(coverage(layer.arcs)).toEqual({ 70: 1 });
+    expect(coverage(layer.rings)).toEqual({});
   });
 });
 

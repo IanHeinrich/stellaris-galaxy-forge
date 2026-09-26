@@ -389,8 +389,10 @@ included. I haven't checked whether that turn is drawn or fixed. A
 ranged distance or angle shows as a range, and so does every body after
 it. A ranged `count` is laid out as its rounded midpoint. A body with no
 `orbit_angle` can be anywhere on its orbit, and the bodies after it turn
-on from it by 0. A distance that names an undefined `@variable` puts the
-body on its parent. The add-system roller walks the same way, but it
+on from it by 0. A body with no `orbit_distance`, or one that names an
+undefined `@variable`, stands on the running orbit. The game draws such
+a body 10 to 20 further out, so the scene draws it a little short of
+where the game puts it. The add-system roller walks the same way, but it
 places each moon at its own `orbit_angle`, not on from the moon before.
 
 ## References (for edge cases, never for bundling)

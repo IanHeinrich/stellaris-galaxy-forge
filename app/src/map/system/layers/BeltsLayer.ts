@@ -1,8 +1,7 @@
 import { Container, Sprite, type Texture } from "pixi.js";
-import type { BeltBand } from "../../../lib/details/orbits";
 import { seeded } from "../../../lib/random";
 import type { Camera } from "../../Camera";
-import type { SystemContext } from "../context";
+import type { SceneBelt, SystemContext } from "../context";
 import type { SystemLayer } from "./SystemLayer";
 
 /** World units of belt circumference per rock, up to the most rocks one belt draws. */
@@ -14,16 +13,6 @@ const RESIZE_STEP = 0.02;
 const ROCK_MIN = 0.4;
 const ROCK_MAX = 1.8;
 const ROCK_FLOOR_PX = 1;
-
-export const ICY_TINT = 0xbfd9ee;
-const ROCKY_TINT = 0x9a8773;
-const DEBRIS_TINT = 0x514a45;
-
-function beltTint(kind: string): number {
-  if (kind.includes("icy")) return ICY_TINT;
-  if (kind.includes("rocky")) return ROCKY_TINT;
-  return DEBRIS_TINT;
-}
 
 /** The same seed for the same radius, so a belt's rocks hold still until the belt moves. */
 function radiusSeed(radius: number): number {
@@ -37,10 +26,10 @@ interface Rock {
   size: number;
 }
 
-function sameBelts(a: readonly BeltBand[], b: readonly BeltBand[]): boolean {
+function sameBelts(a: readonly SceneBelt[], b: readonly SceneBelt[]): boolean {
   return (
     a.length === b.length &&
-    a.every((belt, i) => belt.kind === b[i].kind && belt.radius === b[i].radius)
+    a.every((belt, i) => belt.tint === b[i].tint && belt.radius === b[i].radius)
   );
 }
 
@@ -52,7 +41,7 @@ export class BeltsLayer implements SystemLayer {
   readonly id = "belts" as const;
   readonly container = new Container();
   readonly rocks = new Container();
-  private belts: readonly BeltBand[] = [];
+  private belts: readonly SceneBelt[] = [];
   private placed: Rock[] = [];
   private drawnScale = -1;
 
@@ -61,7 +50,7 @@ export class BeltsLayer implements SystemLayer {
   }
 
   rebuild(ctx: SystemContext): void {
-    const belts = ctx.layout.belts;
+    const belts = ctx.belts;
     if (sameBelts(belts, this.belts)) return;
     this.belts = belts;
     for (const child of this.rocks.removeChildren()) child.destroy();
@@ -69,11 +58,10 @@ export class BeltsLayer implements SystemLayer {
     this.drawnScale = -1;
   }
 
-  private scatter(belt: BeltBand): Rock[] {
+  private scatter(belt: SceneBelt): Rock[] {
     const rand = seeded(radiusSeed(belt.radius));
     const count = Math.min(MAX_ROCKS, Math.round((2 * Math.PI * belt.radius) / ROCK_SPACING));
     const half = (belt.outer - belt.inner) / 2;
-    const tint = beltTint(belt.kind);
     const rocks: Rock[] = [];
     for (let i = 0; i < count; i++) {
       const angle = rand() * 2 * Math.PI;
@@ -83,7 +71,7 @@ export class BeltsLayer implements SystemLayer {
       sprite.anchor.set(0.5);
       sprite.position.set(r * Math.cos(angle), r * Math.sin(angle));
       sprite.rotation = rand() * 2 * Math.PI;
-      sprite.tint = tint;
+      sprite.tint = belt.tint;
       sprite.alpha = 0.55 + rand() * 0.45;
       this.rocks.addChild(sprite);
       rocks.push({ sprite, size: ROCK_MIN + rand() ** 2 * (ROCK_MAX - ROCK_MIN) });

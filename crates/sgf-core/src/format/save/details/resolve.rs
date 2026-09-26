@@ -157,7 +157,8 @@ impl Bounds {
 #[ts(export)]
 pub struct BodyLayout {
     /// The drawn radius about the parent, or about the system's centre without
-    /// one. `None` when an initializer gives no distance.
+    /// one. `None` for a save body with neither an orbit nor a point. A scenario
+    /// body with no distance stands on the running orbit.
     pub orbit: Option<Bounds>,
     /// Degrees about the parent. `None` in a save, which has `at`, and when an
     /// initializer names no angle.

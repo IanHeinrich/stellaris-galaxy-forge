@@ -152,12 +152,58 @@ export function discRadius(
   return Math.max(r, MIN_DISC_RADIUS);
 }
 
-function defaultIsStar(planetClass: string): boolean {
-  return isStarBody(planetClass, new Map(), new Map());
+/** The class a body is drawn and sized as, which the scene resolves from its source. */
+export interface LaidClass {
+  planetClass: string;
+  star: boolean;
+}
+
+function writtenClass(planet: PlanetSummary): LaidClass {
+  return { planetClass: planet.class, star: isStarBody(planet.class, new Map(), new Map()) };
 }
 
 function mid(b: { min: number; max: number }): number {
   return (b.min + b.max) / 2;
+}
+
+/** The ring a scenario body stands on, as a key: its parent and its drawn radius. */
+function ringKey(planet: PlanetSummary): string | null {
+  const orbit = planet.layout?.orbit;
+  if (!orbit || planet.layout?.at) return null;
+  return `${planet.parent ?? ""}:${Math.round(mid(orbit) * 1e6)}`;
+}
+
+/**
+ * The angle each body free to stand anywhere on its ring is drawn at: a ghost, or one whose angle
+ * ranges over a turn or more. They share the ring out evenly with the bodies an angle places
+ * there, so no two stand on one point. The share starts from the first body placed on the ring,
+ * else from the middle of the first free body's range, which keeps free bodies on different
+ * rings from lining up.
+ */
+function freeAngles(planets: readonly PlanetSummary[]): Map<number, number> {
+  const rings = new Map<string, { placed: number[]; free: number[]; start: number | null }>();
+  for (const planet of planets) {
+    const key = ringKey(planet);
+    if (key === null || mid(planet.layout?.orbit ?? { min: 0, max: 0 }) <= 0) continue;
+    let ring = rings.get(key);
+    if (!ring) rings.set(key, (ring = { placed: [], free: [], start: null }));
+    const angle = planet.layout?.angle;
+    if (angle && angle.max - angle.min < 360) {
+      ring.placed.push(mid(angle));
+      continue;
+    }
+    ring.free.push(planet.id);
+    if (angle && ring.start === null) ring.start = mid(angle);
+  }
+  const angles = new Map<number, number>();
+  for (const { placed, free, start } of rings.values()) {
+    const slots = placed.length + free.length;
+    const from = placed[0] ?? start ?? 0;
+    free.forEach((id, i) => {
+      angles.set(id, from + ((placed.length + i) * 360) / slots);
+    });
+  }
+  return angles;
 }
 
 interface Placed {
@@ -169,10 +215,11 @@ interface Placed {
 /** Every body's point, circle and angles, the belts, and the radius the camera fits. */
 export function systemLayout(
   details: SystemDetails | null,
-  isStar: (planetClass: string) => boolean = defaultIsStar,
+  classOf: (planet: PlanetSummary) => LaidClass | undefined = writtenClass,
 ): SystemLayout {
   const planets = details?.planets ?? [];
   const byId = new Map(planets.map((p) => [p.id, p]));
+  const free = freeAngles(planets);
   const placed = new Map<number, Placed>();
   const inProgress = new Set<number>();
 
@@ -190,7 +237,7 @@ export function systemLayout(
       else missing = true;
     }
     const centre = parent?.point ?? { x: 0, y: 0 };
-    const star = isStar(planet.class);
+    const { planetClass, star } = classOf(planet) ?? writtenClass(planet);
     const moon = parent ? !parent.placement.star : planet.parent !== null && missing;
     const layout = planet.layout;
 
@@ -213,7 +260,7 @@ export function systemLayout(
         arc = { from: angleRange.min, to: angleRange.max };
       }
       ghost = angleRange === null && radius > 0;
-      angle = angleRange ? mid(angleRange) : 0;
+      angle = free.get(planet.id) ?? (angleRange ? mid(angleRange) : 0);
       point = polar(centre.x, centre.y, radius, angle);
     }
 
@@ -221,7 +268,7 @@ export function systemLayout(
       id: planet.id,
       x: point.x,
       y: point.y,
-      disc: discRadius(layout?.size?.min ?? null, moon, planet.class, star),
+      disc: discRadius(layout?.size ? mid(layout.size) : null, moon, planetClass, star),
       star,
       parent: parent ? parent.placement.id : null,
       ring: !missing && radius > 0 ? { cx: centre.x, cy: centre.y, radius } : null,
