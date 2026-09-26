@@ -10,7 +10,7 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { byId, name, placedNode, systemDetails } from "../../test/builders";
-import { EARTH, SUN, SYSTEM, stubTextMeasurement } from "./fixture";
+import { EARTH, SUN, SYSTEM, saveBody, stubTextMeasurement } from "./fixture";
 import { pickBody } from "./picking";
 import { SystemScene } from "./SystemScene";
 
@@ -212,5 +212,21 @@ describe("the system scene's tooltip", () => {
 
     expect(before).not.toBe("Gaia");
     expect(useMapChromeStore.getState().tooltip?.title).toBe("Gaia");
+  });
+
+  it("names an unnamed body by what the initializer draws for it", () => {
+    const drawn = {
+      ...saveBody(2, "random", [90, 0], 90, 1),
+      name: name(""),
+      name_key: "",
+      drawn: true,
+    };
+    const details = systemDetails({ id: SYSTEM, inner_radius: 400, planets: [SUN, drawn] });
+    useDetailsStore.setState({ details: new Map([[SYSTEM, details]]) });
+    const { canvas, fire } = recordingCanvas();
+    const at = zoomedOnEarth(entered(canvas));
+    fire("pointermove", at.x, at.y);
+
+    expect(useMapChromeStore.getState().tooltip?.title).toBe("Random planet, any class");
   });
 });

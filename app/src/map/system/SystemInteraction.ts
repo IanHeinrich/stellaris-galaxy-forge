@@ -49,7 +49,7 @@ function tipFor(
     const planet = ctx.bodyById.get(body)?.planet;
     if (!planet) return null;
     return {
-      title: ctx.templateName(planet),
+      title: bodyName(planet, ctx.names),
       lines: planetLines(ctx, TEXTURES, [planet]),
     };
   }
