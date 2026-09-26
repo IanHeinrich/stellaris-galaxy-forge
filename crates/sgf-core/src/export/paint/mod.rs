@@ -160,8 +160,7 @@ fn mark_spawns(
                 }
             });
         system.spawn = SpawnDraft::Script(script);
-        // The game seats no empire on a seat naming that empire's own initializer,
-        // so the player's seat, whose empire brings its home, gets a generic one.
+        // The player's empire brings its own home, so its seat gets a generic start.
         let players = player.as_ref().is_some_and(|(id, _)| *id == system.id);
         if system.initializer.is_none() || review.contains(&system.id) || players {
             system.initializer = Some(basic_initializer(system.id).to_owned());

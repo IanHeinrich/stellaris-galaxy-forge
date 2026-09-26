@@ -538,8 +538,8 @@ describe("a scenario system Paint a Galaxy seats", () => {
     withScript("sol");
     await open("scenario");
     const html = overview();
-    expect(html).toContain("trait, starts here. Give it a generic initializer.");
-    expect(html).toContain("will not seat it on a seat that already names Sol&#x27;s initializer.");
+    expect(html).toContain("trait, starts here. Give it Sol&#x27;s initializer.");
+    expect(html).toContain("as the parent of a human Lost Colony, such as the Commonwealth");
     expect(html).not.toContain("The trait comes from the");
     expect(html).toContain("For Alpha Centauri and the other neighbours beside it, the");
     expect(html).toContain(">Local Cluster mod</button>");

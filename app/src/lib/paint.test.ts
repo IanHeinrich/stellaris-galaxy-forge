@@ -69,8 +69,9 @@ describe("a painted galaxy", () => {
     );
     expect(paintKindDescription(script("sol"))).toBe(
       'Only the United Nations of Earth, or an empire with the "Reserved Spawn Sol" trait, starts ' +
-        "here. Give it a generic initializer. The United Nations of Earth brings Sol with it, and " +
-        "the game will not seat it on a seat that already names Sol's initializer.",
+        "here. Give it Sol's initializer. When no one plays the United Nations of Earth, Paint a " +
+        "Galaxy puts it on this Sol as the parent of a human Lost Colony, such as the Commonwealth " +
+        "of Man.",
     );
     expect(paintKindDescription(script({ reserved: "c" }))).toBe(
       'Only an empire whose species has the "Reserved Spawn C" trait starts here.',

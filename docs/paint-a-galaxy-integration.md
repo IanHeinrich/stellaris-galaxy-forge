@@ -181,9 +181,15 @@ likeliest start and no more.
 The report names the seat as `player_seat` and its kind as
 `player_seat_kind`. The player's seat always gets a generic
 `random_empire_init_0N` start, whatever the save's capital had, because
-the game will not seat an empire on a seat that names that empire's own
-fixed initializer. A Sol seat naming `sol_system_initializer` never gets
-the UNE, and the validator warns about one.
+the player's empire brings its own home.
+
+A Sol seat naming `sol_system_initializer`, as Paint a Galaxy writes it,
+works in game (checked on 4.5). The UNE starts on it. When no one plays
+the UNE, the seat stays empty and the game still builds Sol there. The
+mod's `painted_galaxy_une.1` event then puts the UNE on that Sol as the
+parent of a human Lost Colony, such as the Commonwealth of Man. The event
+needs Sol's initializer on the seat. With a generic start, no Sol is
+built.
 
 A system that already carries a preferred, reserved or Sol script keeps
 that script's kind and random value rather than being reset to plain

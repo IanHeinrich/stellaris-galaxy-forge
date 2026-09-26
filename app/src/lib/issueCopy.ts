@@ -151,12 +151,6 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
     fix: "Clear Weighted for its empire on the seats that are not yours.",
     detail: false,
   },
-  sol_seat_mismatch: {
-    title: "Sol seat that is already Sol",
-    why: "This seat is reserved for the United Nations of Earth and is built as Sol already. The game never seats an empire on a system naming that empire's own start, so the seat stays empty.",
-    fix: "Use Choose… in the inspector's Initializer section to give it a generic start.",
-    detail: false,
-  },
   l_cluster_system: {
     title: "System in the L-Cluster's space",
     why: "When it generates the galaxy the game keeps a patch of space for the L-Cluster, and this system stands in it. The map draws that patch as a circle.",

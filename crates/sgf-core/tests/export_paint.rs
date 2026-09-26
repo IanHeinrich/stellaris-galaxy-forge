@@ -409,13 +409,11 @@ fn the_une_player_takes_the_sol_seat_on_a_generic_start() {
     assert_eq!(seated_as(PaintSpawnKind::Sol, true), [player]);
     assert_eq!(seated_as(PaintSpawnKind::Enabled, false).len(), 16);
 
-    // The Sol seat stands on a generic start, so it is no mismatch.
     let issues = sgf_core::validate::validate(&reopened.graph);
     assert!(
-        !issues.iter().any(|i| matches!(
-            i.code,
-            IssueCode::SolSeatMismatch | IssueCode::PlayerSeatDuplicate
-        )),
+        !issues
+            .iter()
+            .any(|i| i.code == IssueCode::PlayerSeatDuplicate),
         "{issues:?}"
     );
 }
@@ -535,10 +533,9 @@ fn a_player_that_is_not_the_une_gets_a_preferred_seat() {
     assert_eq!(seats.safe(), 16);
     let issues = sgf_core::validate::validate(&reopened.graph);
     assert!(
-        !issues.iter().any(|i| matches!(
-            i.code,
-            IssueCode::SolSeatMismatch | IssueCode::PlayerSeatDuplicate
-        )),
+        !issues
+            .iter()
+            .any(|i| i.code == IssueCode::PlayerSeatDuplicate),
         "{issues:?}"
     );
 }
