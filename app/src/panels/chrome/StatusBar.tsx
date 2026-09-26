@@ -16,7 +16,7 @@ import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { useSceneSystem } from "../../store/sceneStore";
+import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
 import { GameDataPanel } from "./GameDataPanel";
 
 const DOCUMENT_KIND: Record<string, string> = {
