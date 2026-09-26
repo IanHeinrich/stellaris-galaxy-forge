@@ -42,6 +42,8 @@ pub enum TextureKey {
     PlanetDisc {
         class: String,
     },
+    /// The texture of the game's gas giant ring mesh.
+    PlanetRing,
 }
 
 impl TextureKey {
@@ -71,6 +73,9 @@ impl FromStr for TextureKey {
 
     fn from_str(s: &str) -> Result<Self, TextureError> {
         let bad = || TextureError::BadKey(s.to_owned());
+        if s == "planet_ring" {
+            return Ok(Self::PlanetRing);
+        }
         let (kind, rest) = s.split_once(':').ok_or_else(bad)?;
         let key = match kind {
             "star_class" => Self::StarClass {
@@ -153,6 +158,7 @@ impl fmt::Display for TextureKey {
                 colours.join(",")
             ),
             Self::PlanetDisc { class } => write!(f, "planet_disc:{class}"),
+            Self::PlanetRing => f.write_str("planet_ring"),
         }
     }
 }

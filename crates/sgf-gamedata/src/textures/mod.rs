@@ -4,7 +4,8 @@
 //! Keys, never paths, cross the IPC boundary:
 //! `star_class:<icon>`, `deposit:<icon>`, `icon:<path under gfx/interface/icons>`,
 //! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
-//! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>` and `planet_disc:<class>`.
+//! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>`, `planet_disc:<class>` and
+//! `planet_ring`.
 
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -106,6 +107,7 @@ impl TextureKey {
             Self::StarClass { icon } => Ok(format!("gfx/map/star_classes/{icon}.dds")),
             Self::Deposit { icon } => Ok(format!("{DEPOSIT_ICONS}/{icon}.dds")),
             Self::Icon { path } => Ok(format!("{ICONS}/{path}")),
+            Self::PlanetRing => Ok(PLANET_RING.to_owned()),
             Self::Flag { category, file } | Self::Symbol { category, file } => {
                 Ok(format!("flags/{category}/{file}"))
             }
@@ -313,6 +315,7 @@ enum Job {
 
 pub(crate) const ICONS: &str = "gfx/interface/icons";
 const DEPOSIT_ICONS: &str = "gfx/interface/icons/deposits";
+const PLANET_RING: &str = "gfx/models/planets/ring_tiling_diffuse.dds";
 const EMPIRE_FLAG_MASK: &str = "gfx/interface/flags/empire_flag_64_mask.dds";
 const EMPIRE_FLAG_FRAME: &str = "gfx/interface/flags/empire_flag_64_frame.dds";
 

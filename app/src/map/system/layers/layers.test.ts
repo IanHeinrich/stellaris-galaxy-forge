@@ -20,7 +20,7 @@ vi.mock("../../../api/textures", () => ({
     }),
 }));
 
-import { BitmapText, Container, Graphics, Sprite, Texture } from "pixi.js";
+import { BitmapText, Container, Graphics, Mesh, Sprite, Texture } from "pixi.js";
 import type { BodyLayout } from "../../../generated/BodyLayout";
 import type { PlanetClassView } from "../../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
@@ -404,6 +404,11 @@ describe("the system scene's bodies layer", () => {
     if (!(found instanceof Sprite)) throw new Error(`no ${label} sprite`);
     return found;
   };
+  const mesh = (holder: Container, label: string) => {
+    const found = part(holder, label);
+    if (!(found instanceof Mesh)) throw new Error(`no ${label} mesh`);
+    return found;
+  };
   const graphics = (holder: Container, label: string) => {
     const found = part(holder, label);
     return found instanceof Graphics ? found : undefined;
@@ -535,8 +540,9 @@ describe("the system scene's bodies layer", () => {
     layer.destroy();
   });
 
-  it("draws a ring's far half behind the disc and its near half in front, a ring left to chance faded and dashed, and no ring when there is none", () => {
+  it("draws a ring's far half behind the disc and its near half in front in the game's ring texture once it lands, baked halves until then, a ring left to chance faded and dashed, and no ring when there is none", async () => {
     resetTextures();
+    const textureFor = decodeByKey();
     const textures = blankTextures();
     const bare = saveBody(5, "pc_barren", [-150, 0], 150, 1);
     const layer = new BodiesLayer(textures);
@@ -553,32 +559,64 @@ describe("the system scene's bodies layer", () => {
     viewport(layer, 2);
 
     const ringed = holderAt(layer, ...EARTH_AT);
-    const at = (label: string) => ringed.children.indexOf(sprite(ringed, label));
+    const at = (label: string) => ringed.children.indexOf(part(ringed, label) ?? ringed);
+    const disc = sprite(ringed, "disc").width;
     expect(at("ringBack")).toBeLessThan(at("disc"));
     expect(at("ringFront")).toBeGreaterThan(at("shade"));
     expect(sprite(ringed, "ringBack").texture).toBe(textures.ringBack);
     expect(sprite(ringed, "ringFront").texture).toBe(textures.ringFront);
-    const disc = sprite(ringed, "disc").width;
     for (const half of [sprite(ringed, "ringBack"), sprite(ringed, "ringFront")]) {
+      expect(half.visible).toBe(true);
       expect(half.alpha).toBe(1);
       expect(half.width).toBeGreaterThan(2 * disc);
       expect(half.height).toBeLessThan(half.width);
       expect(half.rotation).not.toBe(0);
     }
+    for (const label of ["ringBackStrip", "ringFrontStrip"]) {
+      expect(mesh(ringed, label).visible).toBe(false);
+    }
     expect(part(ringed, "ringDashes")).toBeUndefined();
+
+    await answerFetch();
+    await vi.waitFor(() => expect(mesh(ringed, "ringBackStrip").visible).toBe(true));
+    expect(at("ringBackStrip")).toBeLessThan(at("disc"));
+    expect(at("ringFrontStrip")).toBeGreaterThan(at("shade"));
+    for (const label of ["ringBack", "ringFront"]) {
+      expect(sprite(ringed, label).visible).toBe(false);
+    }
+    for (const half of [mesh(ringed, "ringBackStrip"), mesh(ringed, "ringFrontStrip")]) {
+      expect(half.visible).toBe(true);
+      expect(half.texture).toBe(textureFor("planet_ring"));
+      expect(half.tint).toBe(0xffffff);
+      expect(half.alpha).toBe(1);
+      expect(half.width / 2 / (disc / 2)).toBeCloseTo(2.12, 2);
+      expect(half.scale.y).toBeLessThan(half.scale.x);
+      expect(half.rotation).not.toBe(0);
+    }
 
     const chance = holderAt(layer, ...MARS_AT);
     for (const label of ["ringBack", "ringFront"]) {
       expect(sprite(chance, label).alpha).toBeLessThan(0.6);
+    }
+    for (const label of ["ringBackStrip", "ringFrontStrip"]) {
+      expect(mesh(chance, label).visible).toBe(true);
+      expect(mesh(chance, label).alpha).toBeLessThan(0.6);
     }
     const dashes = strokes(graphics(chance, "ringDashes") ?? new Graphics());
     expect(dashes).toHaveLength(1);
     expect(dashes[0].segments.length).toBeGreaterThan(1);
 
     const none = holderAt(layer, -150, 0);
-    for (const label of ["ringBack", "ringFront", "ringDashes"]) {
+    for (const label of [
+      "ringBack",
+      "ringFront",
+      "ringBackStrip",
+      "ringFrontStrip",
+      "ringDashes",
+    ]) {
       expect(part(none, label)).toBeUndefined();
     }
+    resetTextures();
     layer.destroy();
   });
 

@@ -40,7 +40,7 @@ const LIMB_SPAN = 1.2;
 const ROCK_R = 4;
 const RING_R = 64;
 /** The ring's inner edge, as a share of its outer one. */
-const RING_INNER = 0.6;
+const RING_INNER = 1.39 / 2.12;
 /** Fine grooves, faint and uneven, as the game's rings are. */
 const RING_BANDS = 44;
 const RING_ALPHA_MIN = 0.05;

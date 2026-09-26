@@ -1,4 +1,13 @@
-import { BitmapText, Container, Graphics, Sprite, TextStyle, Texture } from "pixi.js";
+import {
+  BitmapText,
+  Container,
+  Graphics,
+  Mesh,
+  MeshGeometry,
+  Sprite,
+  TextStyle,
+  Texture,
+} from "pixi.js";
 import { planetTint } from "../../../lib/details/icons";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import { MAP_FONT } from "../../../lib/visual/style";
@@ -44,11 +53,18 @@ const RIM_MIN_PX = 2;
 const RIM_ALPHA = 0.45;
 const RIM_STEPS = 12;
 const RIM_INSET = 0.25;
-/** A ring's outer semi-axes in disc radii, and its tilt on screen: seen from well above, as the game shows it. */
-const RING_MAJOR = 2.1;
+/**
+ * A ring's outer semi-axes in disc radii, and its tilt on screen: seen from well above, as the
+ * game shows it. The game's ring mesh spans 1.39 to 2.12 planet radii.
+ */
+const RING_MAJOR = 2.12;
 const RING_MINOR = RING_MAJOR * 0.75;
 const RING_TILT = -0.08;
-/** The ring's warm neutral, and how far it leans towards the body's own tint. */
+const RING_INNER = 1.39 / 2.12;
+/** The game's ring texture, a radial strip wrapped round the ring, and the steps round each half. */
+const RING_KEY = "planet_ring";
+const RING_SEGMENTS = 32;
+/** The baked ring's warm neutral, and how far it leans towards the body's own tint. */
 const RING_COLOUR = 0xd8c6a0;
 const RING_TINT_SHARE = 0.3;
 const RING_DASHES = 32;
@@ -160,6 +176,41 @@ function landed(keys: readonly string[]): Texture | null {
   return null;
 }
 
+/**
+ * Half the unit ring, the far half on -y as the baked halves have it, with u running round the
+ * whole ring and v from 0 at the outer edge to 1 at the inner, as the game's mesh maps its strip.
+ */
+function ringStripGeometry(far: boolean): MeshGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const from = far ? Math.PI : 0;
+  for (let i = 0; i <= RING_SEGMENTS; i++) {
+    const t = from + (Math.PI * i) / RING_SEGMENTS;
+    const u = t / (2 * Math.PI);
+    positions.push(Math.cos(t), Math.sin(t), RING_INNER * Math.cos(t), RING_INNER * Math.sin(t));
+    uvs.push(u, 0, u, 1);
+    if (i > 0) {
+      const k = 2 * i;
+      indices.push(k - 2, k - 1, k, k - 1, k + 1, k);
+    }
+  }
+  return new MeshGeometry({
+    positions: new Float32Array(positions),
+    uvs: new Float32Array(uvs),
+    indices: new Uint32Array(indices),
+  });
+}
+
+/** The two halves' geometry, made once and shared by every ring. */
+const ringStrips = new Map<boolean, MeshGeometry>();
+
+function ringStrip(far: boolean): MeshGeometry {
+  let geometry = ringStrips.get(far);
+  if (!geometry) ringStrips.set(far, (geometry = ringStripGeometry(far)));
+  return geometry;
+}
+
 /** Stars under planets under moons, so a moon is never hidden behind its planet. */
 
 function drawOrder(body: SceneBody): number {
@@ -167,8 +218,12 @@ function drawOrder(body: SceneBody): number {
 }
 
 interface Ring {
+  /** The baked halves, shown until the game's ring texture lands, or when it cannot. */
   back: Sprite;
   front: Sprite;
+  /** The game's ring texture on each half. */
+  backStrip: Mesh;
+  frontStrip: Mesh;
   /** The outline of a ring left to chance. */
   dashes: Graphics | null;
 }
@@ -283,7 +338,17 @@ export class BodiesLayer implements SystemLayer {
       if (body.ring === null) half.alpha = GHOST_ALPHA;
       return half;
     };
+    const ringStripHalf = (label: string, far: boolean) => {
+      const half = new Mesh({ geometry: ringStrip(far), texture: Texture.EMPTY });
+      half.label = label;
+      half.visible = false;
+      half.rotation = RING_TILT;
+      if (body.ring === null) half.alpha = GHOST_ALPHA;
+      holder.addChild(half);
+      return half;
+    };
     const back = ringed ? ringHalf("ringBack", this.textures.ringBack) : null;
+    const backStrip = ringed ? ringStripHalf("ringBackStrip", true) : null;
     const disc = sprite("disc", this.textures.disc);
     disc.tint = hole ? 0x000000 : tint;
     let lit: Sprite | null = null;
@@ -320,9 +385,11 @@ export class BodiesLayer implements SystemLayer {
     const rim = !placement.star && body.atmosphere ? graphics("rim") : null;
     if (rim) rim.blendMode = "add";
     let ring: Ring | null = null;
-    if (back) {
+    if (back && backStrip) {
       const front = ringHalf("ringFront", this.textures.ringFront);
-      ring = { back, front, dashes: body.ring === null ? graphics("ringDashes") : null };
+      const frontStrip = ringStripHalf("ringFrontStrip", false);
+      const dashes = body.ring === null ? graphics("ringDashes") : null;
+      ring = { back, front, backStrip, frontStrip, dashes };
     }
     let glyph: BitmapText | null = null;
     if (randomClass(body.planetClass)) {
@@ -335,6 +402,8 @@ export class BodiesLayer implements SystemLayer {
         glow,
         ring?.back,
         ring?.front,
+        ring?.backStrip,
+        ring?.frontStrip,
         disc,
         lit,
         art,
@@ -377,10 +446,12 @@ export class BodiesLayer implements SystemLayer {
    * Shows the lit disc and the icon once their textures have landed, and the tinted disc alone
    * until then; asks for them again after the cache was cleared, as when game data reloads. The
    * lit disc stands in for the icon, which only marked the surface. A star keeps its disc and
-   * glow under its art.
+   * glow under its art. A ring shows the game's texture once it lands, and its baked halves until
+   * then.
    */
   private dress(drawn: Drawn): void {
     const { body, art, disc, lit } = drawn;
+    if (drawn.ring) this.dressRing(drawn.ring);
     const key = litKey(body);
     const surface = key === null ? null : this.resolve([key]);
     if (lit) {
@@ -403,6 +474,16 @@ export class BodiesLayer implements SystemLayer {
     // The tinted disc only holds the place until the surface or the icon lands; an icon's own
     // outline and margin would show it as a band.
     disc.visible = texture === null && surface === null;
+  }
+
+  private dressRing(ring: Ring): void {
+    const strip = this.resolve([RING_KEY]);
+    for (const half of [ring.backStrip, ring.frontStrip]) {
+      half.texture = strip ?? Texture.EMPTY;
+      half.visible = strip !== null;
+    }
+    ring.back.visible = strip === null;
+    ring.front.visible = strip === null;
   }
 
   /** The first of `keys` that has landed, or null while none has. */
@@ -497,6 +578,9 @@ export class BodiesLayer implements SystemLayer {
         (2 * RING_MAJOR * radius) / Math.max(width, 1),
         (2 * RING_MINOR * radius) / Math.max(height, 1),
       );
+    }
+    for (const half of [ring.backStrip, ring.frontStrip]) {
+      half.scale.set(RING_MAJOR * radius, RING_MINOR * radius);
     }
     if (ring.dashes) {
       ring.dashes.clear();

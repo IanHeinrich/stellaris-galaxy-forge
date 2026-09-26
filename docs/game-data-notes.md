@@ -151,6 +151,10 @@ YAML**.
   maps are 2048x1024 DXT1 with 12 mip levels, and the disc is baked
   from level 3, 256x128. A class's `atmosphere_color` is written as
   `hsv { h s v }` with each value from 0 to 1.
+- A gas giant's ring is `gfx/models/planets/ring_tiling_diffuse.dds`, a
+  32x1024 radial strip wrapped round a flat ring mesh. Row 0 (v = 0) is
+  the outer edge and the last row the inner one. The ring spans 1.39 to
+  2.12 planet radii.
 
 ## Where mods are registered
 

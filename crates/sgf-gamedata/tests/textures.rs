@@ -42,6 +42,7 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
         "sprite:GFX_planet_type#4",
         "empire_flag:00_solid.dds:human/flag_human_9.dds:blue,black,null,null",
         "planet_disc:pc_continental",
+        "planet_ring",
     ] {
         let parsed: TextureKey = key.parse().unwrap_or_else(|e| panic!("{key}: {e}"));
         assert_eq!(parsed.to_string(), key);
@@ -79,6 +80,8 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
         "planet_disc:",
         "planet_disc:pc/x",
         "planet_disc:..",
+        "planet_ring:",
+        "planet_ring:x",
     ] {
         assert!(
             matches!(bad.parse::<TextureKey>(), Err(TextureError::BadKey(_))),
@@ -303,6 +306,7 @@ fn install_star_classes_flags_and_sprites_decode() {
         ("sprite:GFX_additional_content_thumbnail_fallback", 105, 105),
         ("sprite:GFX_council_room_democratic", 1264, 631),
         ("sprite:GFX_vertical_arrow", 72, 20),
+        ("planet_ring", 32, 1024),
     ] {
         let started = Instant::now();
         let image = decode(&textures, layout, sprites, key);
