@@ -14,6 +14,7 @@ import {
   exitBearing,
   fitScale,
   polar,
+  bodySteps,
   systemLayout,
   zoomLimits,
   type BodyPlacement,
@@ -192,7 +193,7 @@ describe("scenario bodies", () => {
       layout: { orbit: null, angle: null, at: null, size: null, ...layout },
     });
 
-  it("places a body at its orbit and angle about its parent, with bands, arcs and ghosts", () => {
+  it("places a body at its orbit and angle about its parent, with bands and ghosts", () => {
     const layout = systemLayout(
       systemDetails({
         planets: [
@@ -214,8 +215,8 @@ describe("scenario bodies", () => {
     expect(three.ring?.radius).toBe(10);
     expect(body(layout, 4)).toMatchObject({
       band: { inner: 80, outer: 120 },
-      arc: { from: 90, to: 270 },
       ring: { cx: 0, cy: 0, radius: 100 },
+      turn: null,
     });
     expect(body(layout, 5)).toMatchObject({ ghost: true, ring: { radius: 150 } });
   });
@@ -242,59 +243,71 @@ describe("scenario bodies", () => {
     });
   });
 
-  it("draws a ghost opposite the body placed on its ring, and ghosts sharing a ring evenly round it", () => {
-    const layout = systemLayout(
-      systemDetails({
-        planets: [
-          scenario(1, { orbit: { min: 25, max: 25 }, angle: { min: 0, max: 0 } }),
-          scenario(2, { orbit: { min: 25, max: 25 } }),
-          scenario(3, { orbit: { min: 60, max: 60 } }),
-          scenario(4, { orbit: { min: 60, max: 60 } }),
-          scenario(5, { orbit: { min: 60, max: 60 } }),
-        ],
-      }),
-      { scenario: true },
-    );
-    const at = (id: number) => [body(layout, id).x, body(layout, id).y];
-    const near = (a: number[], b: { x: number; y: number }) => {
-      expect(a[0]).toBeCloseTo(b.x);
-      expect(a[1]).toBeCloseTo(b.y);
-    };
-    near(at(2), polar(0, 0, 25, 180));
-    near(at(3), polar(0, 0, 60, 0));
-    near(at(4), polar(0, 0, 60, 120));
-    near(at(5), polar(0, 0, 60, 240));
-    expect(body(layout, 4).angle).toBeCloseTo(120);
+  /**
+   * A walk as the core's details give it, each range added up end to end: a star, a planet with
+   * a moon, a planet turning on from it, and a planet with no angle.
+   */
+  const walk = [
+    scenario(1, { orbit: { min: 0, max: 0 }, angle: { min: 0, max: 0 } }),
+    scenario(2, { orbit: { min: 40, max: 60 }, angle: { min: 90, max: 270 } }),
+    scenario(3, { orbit: { min: 5, max: 5 }, angle: { min: 30, max: 60 } }, 2),
+    scenario(4, { orbit: { min: 70, max: 100 }, angle: { min: 180, max: 540 } }),
+    scenario(5, { orbit: { min: 110, max: 150 } }),
+  ];
+  const rolled = (seed: number) =>
+    systemLayout(systemDetails({ planets: walk }), { scenario: true, seed });
+  const within = (value: number, { min, max }: { min: number; max: number }) => {
+    expect(value).toBeGreaterThanOrEqual(min - 1e-9);
+    expect(value).toBeLessThanOrEqual(max + 1e-9);
+  };
+  const turnedFrom = (to: number, from: number) => (((to - from) % 360) + 360) % 360;
+
+  it("draws the same roll for the same seed, and another for another", () => {
+    expect(rolled(7).bodies).toEqual(rolled(7).bodies);
+    expect(rolled(8).bodies).not.toEqual(rolled(7).bodies);
   });
 
-  it("shares a ring out between bodies whose angle ranges over a turn or more, as between ghosts", () => {
-    const layout = systemLayout(
-      systemDetails({
-        planets: [
-          scenario(1, { orbit: { min: 95, max: 95 }, angle: { min: 271, max: 811 } }),
-          scenario(2, { orbit: { min: 95, max: 95 }, angle: { min: 91, max: 991 } }),
-        ],
-      }),
-      { scenario: true },
-    );
-    const [a, b] = [body(layout, 1), body(layout, 2)];
-    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeCloseTo(190);
-    expect(a.ghost).toBe(false);
-    expect(a.arc).toEqual({ from: 271, to: 811 });
+  it("turns each body on from the rolled angle of the body before it in its walk, and draws each distance within its range", () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const layout = rolled(seed);
+      const [two, moon, four, five] = [2, 3, 4, 5].map((id) => body(layout, id));
+      expect(two.turn).toEqual({ from: 0, step: { min: 90, max: 270 } });
+      within(two.angle, { min: 90, max: 270 });
+      expect(four.turn?.from).toBeCloseTo(two.angle);
+      within(turnedFrom(four.angle, two.angle), { min: 90, max: 270 });
+      expect(moon.turn).toEqual({ from: 0, step: { min: 30, max: 60 } });
+      within(moon.angle, { min: 30, max: 60 });
+      within(two.ring?.radius ?? 0, { min: 40, max: 60 });
+      within(four.ring?.radius ?? 0, { min: 70, max: 100 });
+      within(five.ring?.radius ?? 0, { min: 110, max: 150 });
+      expect(five.turn).toBeNull();
+      expect(five.ghost).toBe(true);
+    }
   });
 
-  it("puts a ghost in the widest gap the placed bodies on its ring leave, never on one of them", () => {
-    const layout = systemLayout(
-      systemDetails({
-        planets: [
-          scenario(1, { orbit: { min: 40, max: 40 }, angle: { min: 0, max: 0 } }),
-          scenario(2, { orbit: { min: 40, max: 40 }, angle: { min: 240, max: 240 } }),
-          scenario(3, { orbit: { min: 40, max: 40 } }),
-        ],
+  it("keeps a body with no angle clear of every other body about the same parent", () => {
+    const crowded = [
+      scenario(1, {
+        orbit: { min: 40, max: 40 },
+        angle: { min: 0, max: 0 },
+        size: { min: 12, max: 12 },
       }),
-      { scenario: true },
-    );
-    expect(body(layout, 3).angle).toBeCloseTo(120);
+      ...[2, 3, 4, 5].map((id) =>
+        scenario(id, { orbit: { min: 40, max: 40 }, size: { min: 12, max: 12 } }),
+      ),
+    ];
+    for (let seed = 0; seed < 20; seed++) {
+      const { bodies } = systemLayout(systemDetails({ planets: crowded }), {
+        scenario: true,
+        seed,
+      });
+      for (const a of bodies) {
+        for (const b of bodies) {
+          if (a === b) continue;
+          expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(a.disc + b.disc);
+        }
+      }
+    }
   });
 
   it("leaves a save's bodies with no point where they were drawn before, at angle 0 on their orbit", () => {
@@ -327,7 +340,7 @@ describe("scenario bodies", () => {
   });
 });
 
-describe("orbit radii", () => {
+describe("orbit radii and steps", () => {
   const scenario = (
     id: number,
     orbit: { min: number; max: number },
@@ -339,6 +352,29 @@ describe("orbit radii", () => {
       layout: { orbit, angle: { min: 0, max: 0 }, at: null, size: null },
     });
   const fixed = (value: number) => ({ min: value, max: value });
+
+  it("turns a body's angle on from the last body in its walk that names one, whole turns taken out", () => {
+    const turning = (id: number, orbit: number, angle: { min: number; max: number } | null) =>
+      planetSummary({
+        id,
+        parent: null,
+        layout: { orbit: fixed(orbit), angle, at: null, size: null },
+      });
+    const planets = [
+      turning(1, 0, null),
+      turning(2, 40, { min: 90, max: 270 }),
+      turning(3, 60, null),
+      turning(4, 80, { min: 180, max: 540 }),
+      turning(5, 90, { min: 20, max: 380 }),
+    ];
+    const steps = bodySteps(planets);
+    expect(steps.get(2)).toEqual({ orbit: fixed(40), angle: { min: 90, max: 270 }, after: null });
+    expect(steps.get(3)?.angle).toBeNull();
+    expect(steps.get(4)).toEqual({ orbit: fixed(20), angle: { min: 90, max: 270 }, after: 2 });
+    expect(steps.get(5)?.angle).toEqual({ min: 200, max: 200 });
+    expect(steps.get(5)?.after).toBe(4);
+    expect(bodySteps(planets)).toBe(steps);
+  });
 
   it("gives a save body its radius from what it orbits with no step, and a star at the centre none", () => {
     const layout = sol();

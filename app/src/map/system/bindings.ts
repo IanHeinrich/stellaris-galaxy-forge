@@ -4,6 +4,7 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useSceneStore } from "../../store/sceneStore";
 
 /** What a store change moves in the system scene. */
 export interface SceneView {
@@ -69,6 +70,7 @@ const BINDINGS: Binding[] = [
   ),
   follows(useMapChromeStore, [(s) => s.sceneLayers], (view) => view.refresh()),
   follows(useFileSessionStore, [(s) => s.kind], (view) => view.refresh()),
+  follows(useSceneStore, [(s) => s.roll], (view) => view.refresh()),
   follows(useInspectorStore, [(s) => s.stack], (view) => view.selectBody(topRef()), true),
 ];
 

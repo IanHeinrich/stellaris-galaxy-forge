@@ -20,27 +20,28 @@ const RADIUS_STYLE = new TextStyle({
   stroke: { color: 0x000000, width: 2 },
 });
 
-/** A radius on a plate as the name plates have it, measured in unscaled screen pixels. */
+/** A readout on a plate as the name plates have it, measured in unscaled screen pixels. */
 export interface RadiusTag {
   readonly holder: Container;
   readonly w: number;
   readonly h: number;
 }
 
-export function radiusTag(text: string): RadiusTag {
+/** A plate reading `text`, its text labelled `label` for what it reads. */
+export function radiusTag(text: string, label = "radius"): RadiusTag {
   const holder = new Container();
   const plate = new Graphics();
   plate.label = "plate";
-  const label = new BitmapText({ text, style: RADIUS_STYLE });
-  label.label = "radius";
-  label.position.set(PLATE_PAD_X, PLATE_PAD_Y);
-  const w = label.width + 2 * PLATE_PAD_X;
-  const h = label.height + 2 * PLATE_PAD_Y;
+  const reading = new BitmapText({ text, style: RADIUS_STYLE });
+  reading.label = label;
+  reading.position.set(PLATE_PAD_X, PLATE_PAD_Y);
+  const w = reading.width + 2 * PLATE_PAD_X;
+  const h = reading.height + 2 * PLATE_PAD_Y;
   plate
     .roundRect(0, 0, w, h, PLATE_RADIUS_PX)
     .fill({ color: PLATE_FILL, alpha: PLATE_FILL_ALPHA })
     .stroke({ color: PLATE_EDGE, alpha: PLATE_EDGE_ALPHA, pixelLine: true });
-  holder.addChild(plate, label);
+  holder.addChild(plate, reading);
   return { holder, w, h };
 }
 

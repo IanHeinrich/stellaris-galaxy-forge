@@ -9,11 +9,12 @@ import {
   discRadius,
   exitBearing,
   rolledPlanets,
+  rollSeed,
+  spanText,
   systemLayout,
   type BeltBand,
   type BodyPlacement,
   type RolledPlanet,
-  type Span,
   type SystemLayout,
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
@@ -29,6 +30,7 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import type { EntityRef } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { currentOwnership } from "../../store/ownership";
+import { useSceneStore } from "../../store/sceneStore";
 import type { Systems } from "../RenderContext";
 import { beltTint, bodyLook, type BodyLook } from "./look";
 
@@ -72,21 +74,19 @@ export interface SceneBody {
   readonly readout: RadiusReadout | null;
 }
 
-/** A body's orbit radius, as its ring's label and its radius line read it. */
+/** A body's orbit radius, as its radius line reads it. */
 export interface RadiusReadout {
   /** The disc standing where its ring is centred, which its radius line starts clear of; 0 for none. */
   readonly hub: number;
-  /** What its ring's label reads: the radius, or a band's two ends. */
-  readonly ring: string;
-  /** What its radius line reads: the same, and its step out from the previous orbit where it has one. */
-  readonly line: string;
+  /** The radius, or a band's two ends. */
+  readonly text: string;
 }
 
 /** What a scenario leaves to chance about a body; a save leaves nothing. */
 export interface Chance {
   /** Its orbit is a draw between two radii. */
   readonly orbit: boolean;
-  /** Its angle is a draw between two angles. */
+  /** Its angle turns on from the body before it by a draw between two angles. */
   readonly angle: boolean;
   /** It names no angle: it may stand anywhere on its orbit. */
   readonly anyAngle: boolean;
@@ -155,6 +155,8 @@ export interface SystemSources {
   readonly nebulaShown: boolean;
   /** The scene's Orbit radii switch is on: each ring shows its radius. */
   readonly radiiShown: boolean;
+  /** Which roll of a scenario system's initializer is drawn. */
+  readonly roll: number;
   /** Who owns what, for the colour a colonised body's plate shows. */
   readonly ownership: Ownership;
   readonly nodeName: (name: NameTemplate) => string;
@@ -196,6 +198,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   labelsShown: true,
   nebulaShown: false,
   radiiShown: false,
+  roll: 0,
   ownership: NO_OWNERSHIP,
   nodeName: (name: NameTemplate) => (name.literal ? name.key : stripped(name.key)),
   templateName: (named: { name_key: string }) => stripped(named.name_key),
@@ -223,6 +226,7 @@ const DATA_FIELDS: Record<DataField, true> = {
   labelsShown: true,
   nebulaShown: true,
   radiiShown: true,
+  roll: true,
   ownership: true,
 };
 
@@ -308,7 +312,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       angle: 0,
       light: null,
       band: null,
-      arc: null,
+      turn: null,
       ghost: false,
       radius: null,
     };
@@ -335,24 +339,11 @@ function colonyColor(planet: PlanetSummary, ownership: Ownership): number | null
 function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolean): Chance {
   return {
     orbit: placement.band !== null,
-    angle: placement.arc !== null,
+    angle: placement.turn !== null && placement.turn.step.min !== placement.turn.step.max,
     anyAngle: placement.ghost,
     planetClass: drawn,
     ring: !placement.star && !drawn && planet.ring === null,
   };
-}
-
-/** A span as a label reads it, rounded: one number, or its two ends. */
-function spanText(span: Span): string {
-  const min = Math.round(span.min);
-  const max = Math.round(span.max);
-  return min === max ? `${min}` : `${min}–${max}`;
-}
-
-/** A step out as a label reads it, with a plus where it steps outwards. */
-function stepText(step: Span): string {
-  const text = spanText(step);
-  return Math.round(step.min) >= 0 ? `+${text}` : text;
 }
 
 function readoutOf(
@@ -368,9 +359,7 @@ function readoutOf(
         : disc,
     0,
   );
-  const text = spanText(radius);
-  const line = radius.step ? `${text} (${stepText(radius.step)})` : text;
-  return { hub, ring: text, line };
+  return { hub, text: spanText(radius) };
 }
 
 function sceneBodies(
@@ -438,9 +427,11 @@ function rollsPlanets(src: SystemSources): boolean {
 export function systemContext(src: SystemSources): SystemContext {
   const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
   const classes = resolveBodyClasses(src.details?.planets ?? [], node, src);
+  const seed = rollSeed(src.id ?? 0, src.roll);
   const layout = systemLayout(src.details, {
     classOf: (planet) => classes.get(planet.id),
     scenario: src.kind === "scenario",
+    seed,
   });
   return Object.freeze({
     ...src,
@@ -450,8 +441,7 @@ export function systemContext(src: SystemSources): SystemContext {
     belts: layout.belts.map((belt) => ({ ...belt, tint: beltTint(belt.kind) })),
     exits: sceneExits(src, node, layout.innerRadius),
     inNebula: node?.nebula != null,
-    rolled:
-      src.id !== null && rollsPlanets(src) ? rolledPlanets(src.id, layout.innerRadius) : NOTHING,
+    rolled: rollsPlanets(src) ? rolledPlanets(seed, layout.innerRadius) : NOTHING,
   });
 }
 
@@ -497,6 +487,7 @@ export function readSystemSources(id: number | null): SystemSources {
     labelsShown: chrome.sceneLayers.labels,
     nebulaShown: chrome.sceneLayers.nebulae,
     radiiShown: chrome.sceneLayers.orbitRadii,
+    roll: useSceneStore.getState().roll,
     ownership: currentOwnership(),
     nodeName: (name: NameTemplate) => nodeNameIn(names, name),
     templateName: (named: { name: NameTemplate; name_key: string }) =>

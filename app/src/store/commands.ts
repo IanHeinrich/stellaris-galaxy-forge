@@ -1,6 +1,6 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
 import { isToolAction, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
-import { sceneLayerAt } from "../lib/visual/layerIds";
+import { barShows, layerAtKey, onSceneSwitch } from "../lib/visual/barMode";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -10,7 +10,7 @@ import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useOpenScreenStore } from "./openScreenStore";
-import { canEnterSystem, sceneSystem, useSceneStore } from "./sceneStore";
+import { canEnterSystem, currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
 import { symmetryAllowed, useToolStore } from "./toolStore";
 
 export interface CommandEffects {
@@ -85,15 +85,14 @@ export function nudgeSelected({ dx, dy }: Nudge): void {
   if (nebula) void editor.moveNebula(index, nebula.x + dx, nebula.y + dy);
 }
 
-/** A number key: the galaxy's layer, or while a system is up, the scene's own switch for it. */
+/** A number key: the layer it switches in the bar shown, on the switch that bar's map reads. */
 export function toggleLayerKey(index: number): void {
+  const mode = currentBarMode();
+  const layer = layerAtKey(index, mode);
+  if (layer === null) return;
   const chrome = useMapChromeStore.getState();
-  if (sceneSystem() === null) {
-    chrome.toggleLayerKey(index);
-    return;
-  }
-  const layer = sceneLayerAt(index);
-  if (layer) chrome.toggleSceneLayer(layer);
+  if (onSceneSwitch(mode, layer)) chrome.toggleSceneLayer(layer);
+  else chrome.toggleLayerKey(index);
 }
 
 /** Removes whatever Delete names for the selection, asking first where the store does. */
@@ -105,6 +104,11 @@ export function deleteSelected(): void {
 export function selectAll(): void {
   if (sceneSystem() !== null) return;
   void useEditorStore.getState().selectAll();
+}
+
+/** Draws the scenario system shown as another roll of its initializer. */
+export function rollAgain(): void {
+  useSceneStore.getState().rollAgain();
 }
 
 export function fitAll(): void {
@@ -244,8 +248,7 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
     case "toggleScriptLayers":
     case "toggleInitializerLayers":
       if (
-        sceneSystem() !== null ||
-        session.kind !== "scenario" ||
+        !barShows(currentBarMode(), "masters") ||
         useGameDataStore.getState().status !== "ready"
       ) {
         return false;
@@ -253,7 +256,7 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       chrome.toggleGroup(action === "toggleScriptLayers" ? "scripts" : "initializers");
       return true;
     case "toggleSymmetry":
-      if (!symmetryAllowed() || sceneSystem() !== null) return false;
+      if (!symmetryAllowed() || !barShows(currentBarMode(), "tools")) return false;
       useToolStore.getState().toggleSymmetry();
       return true;
   }

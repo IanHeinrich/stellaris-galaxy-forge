@@ -112,6 +112,54 @@ describe("a scenario body's page", () => {
     expect(html).not.toContain("Modifiers");
   });
 
+  it("shows each body's step out from the previous orbit about its parent, both ends of a range", async () => {
+    const naboo = planet(102, "Naboo", {
+      class: "pc_continental",
+      layout: layout({ orbit: { min: 60, max: 85 }, angle: fixed(90) }),
+    });
+    await open("scenario");
+    await land(details({ planets: [TARKIN, YAVIN, naboo] }));
+
+    expect(page(100, "Tarkin")).toContain('<span class="k">Orbit step</span><span>+40–60</span>');
+    expect(page(101, "Yavin")).toContain('<span class="k">Orbit step</span><span>+5</span>');
+    expect(page(102, "Naboo")).toContain('<span class="k">Orbit step</span><span>+20–25</span>');
+  });
+
+  it("shows each body's turn from the body before it that names an angle, and none for a body naming none", async () => {
+    const first = planet(102, "Naboo", {
+      class: "pc_continental",
+      layout: layout({ orbit: fixed(60), angle: { min: 90, max: 270 } }),
+    });
+    const second = planet(103, "Hoth", {
+      class: "pc_frozen",
+      layout: layout({ orbit: fixed(90), angle: { min: 180, max: 540 } }),
+    });
+    const anywhere = planet(104, "Dagobah", {
+      class: "pc_tropical",
+      layout: layout({ orbit: fixed(120), angle: { min: 180, max: 900 } }),
+    });
+    await open("scenario");
+    await land(details({ planets: [TARKIN, first, second, anywhere] }));
+
+    expect(page(102, "Naboo")).toContain('<span class="k">Angle step</span><span>+90–270°</span>');
+    expect(page(103, "Hoth")).toContain(
+      '<span class="k">Angle step</span><span>+90–270° from Naboo</span>',
+    );
+    expect(page(104, "Dagobah")).toContain(
+      '<span class="k">Angle step</span><span>any angle from Hoth</span>',
+    );
+    expect(page(100, "Tarkin")).not.toContain("Angle step");
+  });
+
+  it("gives no orbit step to a save's body", async () => {
+    await open("save");
+    await land(details({ planets: [TARKIN, YAVIN] }));
+
+    const html = page(100, "Tarkin");
+    expect(html).toContain('<span class="k">Orbit radius</span>');
+    expect(html).not.toContain("Orbit step");
+  });
+
   it("lists a planet's moons, each opening its own page", async () => {
     await openTarkin();
 
