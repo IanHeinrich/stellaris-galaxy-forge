@@ -18,5 +18,5 @@ fn special_layouts_lists_the_menus_layouts_with_what_the_save_holds() {
         wenkwort.contains("in galaxy 1"),
         "the sample has one: {wenkwort}"
     );
-    assert!(!text.contains("great_wound_system"), "{text}");
+    assert!(!text.contains("fumongus_init_01"), "{text}");
 }

@@ -392,6 +392,9 @@ it. A ranged `count` is laid out as its rounded midpoint. A body with no
 on from it by 0. A distance that names an undefined `@variable` puts the
 body on its parent. The add-system roller walks the same way, but it
 places each moon at its own `orbit_angle`, not on from the moon before.
+It draws a random angle for a block with no `orbit_angle`, as the game
+does. Barnard's Star (`sol_neighbor_t1`) gives its planets none, and in
+the 4.4 sample (system 614) they sit at scattered angles about the star.
 
 ## References (for edge cases, never for bundling)
 
