@@ -23,3 +23,6 @@ export const FE_ZONE_DEFAULT_DISTANCE = 40;
 
 /** How far from the origin, on either axis, a zone's centre may lie. */
 export const FE_ZONE_MAP_EXTENT = 470;
+
+/** The smallest inner radius a system has. */
+export const MIN_INNER_RADIUS = 150;

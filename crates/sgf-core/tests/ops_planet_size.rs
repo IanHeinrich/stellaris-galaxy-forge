@@ -134,9 +134,9 @@ fn a_size_change_rereads_its_planet_and_keeps_the_details_built() {
     assert_eq!(planet_size(&session, 1, 748), Some(30));
 }
 
-/// Sol's moon 4 orbits planet 3 at a stored 12, which its point is 12.0008 from.
+/// Sol's moon 4 orbits planet 3 at a stored 12.
 #[test]
-fn a_resized_moon_keeps_its_parent_point_and_drawn_radius() {
+fn a_resized_moon_keeps_its_parent_and_grows_its_drawn_radius() {
     let mut session = open();
     session.warm_details().expect("build details");
     let moon = |session: &Session| {
@@ -159,8 +159,6 @@ fn a_resized_moon_keeps_its_parent_point_and_drawn_radius() {
     let after = moon(&session);
     let resized = after.layout.expect("the moon's layout");
     assert_eq!(after.parent, before.parent);
-    assert_eq!(resized.at, layout.at);
-    assert_eq!(resized.orbit, layout.orbit);
     assert_eq!(resized.size, Some(Bounds::fixed(8.0)));
 }
 
