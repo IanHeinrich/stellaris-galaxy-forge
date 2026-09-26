@@ -1,6 +1,7 @@
 /** The English a system's planet, starbase, megastructure, bypass and site keys read as. */
 import type { BypassKind } from "../../generated/BypassKind";
 import type { BypassLink } from "../../generated/BypassLink";
+import type { Bounds } from "../../generated/Bounds";
 import type { CountryNode } from "../../generated/CountryNode";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
@@ -66,6 +67,29 @@ export interface MegastructureParts {
   warn: boolean;
 }
 
+/** Whether a planet is a colony: settled by an owner that is not a pre-FTL civilisation. */
+export function isColony(p: Pick<PlanetSummary, "colonised" | "pre_ftl">): boolean {
+  return p.colonised && !p.pre_ftl;
+}
+
+/** A range as a label reads it, rounded: one number, or its two ends. */
+export function boundsText(bounds: Bounds): string {
+  const min = Math.round(bounds.min);
+  const max = Math.round(bounds.max);
+  return min === max ? `${min}` : `${min}–${max}`;
+}
+
+/** A step out as a label reads it, with a plus where it steps outwards. */
+export function stepText(step: Bounds): string {
+  const text = boundsText(step);
+  return Math.round(step.min) >= 0 ? `+${text}` : text;
+}
+
+/** A turn as a label reads it: "+90–270°", or "any angle" for a turn or more. */
+export function turnText(step: Bounds): string {
+  return step.max - step.min >= 360 ? "any angle" : `${stepText(step)}°`;
+}
+
 /** `Alpha Centauri III` → `Continental World · size 16 · capital · colonised by Earth`. */
 export function planetLine(
   p: PlanetSummary,
@@ -82,7 +106,7 @@ export function planetLine(
   }
   if (p.pre_ftl) pieces.push(" · pre-FTL");
   else if (p.capital) pieces.push(" · capital");
-  if (p.colonised && !p.pre_ftl && p.owner !== null) {
+  if (isColony(p) && p.owner !== null) {
     pieces.push(` · colonised by ${ownerName(p.owner)}`);
   }
   const value = pieces.every((piece) => typeof piece === "string") ? pieces.join("") : pieces;

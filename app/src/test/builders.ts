@@ -218,11 +218,9 @@ export function planetSummary(over: Partial<PlanetSummary> = {}): PlanetSummary 
 export function bodyLayout(over: Partial<BodyLayout> = {}): BodyLayout {
   return {
     orbit: null,
-    angle: null,
     at: null,
     size: null,
     orbit_step: null,
-    orbit_base: null,
     angle_step: null,
     turns_from: null,
     ...over,

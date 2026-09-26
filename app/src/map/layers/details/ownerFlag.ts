@@ -2,6 +2,7 @@ import type { Graphics } from "pixi.js";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import type { SystemNode } from "../../../generated/SystemNode";
 import { empireFlagKey } from "../../../lib/details/fleets";
+import { isColony } from "../../../lib/details/labels";
 import { emblemOwner } from "../../../lib/details/layout";
 import type { RenderContext } from "../../RenderContext";
 import { DISC_PX, ICON_PX, type RowY, type Textures } from "./cell";
@@ -34,11 +35,7 @@ export function ownerFlag(
   const texture = key ? tex.texture(key) : null;
   if (!texture) return;
   const capital = d.planets.some((p) => p.capital && p.owner === owner);
-  const lines = planetLines(
-    ctx,
-    tex,
-    d.planets.filter((p) => p.colonised && !p.pre_ftl),
-  );
+  const lines = planetLines(ctx, tex, d.planets.filter(isColony));
   // The flag is drawn oversized (EMBLEM_PX) but centred on the same cell as a row icon
   // (ICON_PX wide, at `right`), so plateBox keeps using the cell's own width.
   const cx = right - ICON_PX / 2;

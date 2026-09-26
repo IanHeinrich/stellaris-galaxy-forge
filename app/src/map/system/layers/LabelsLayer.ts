@@ -1,5 +1,5 @@
 import { BitmapText, Container, Graphics, Sprite, TextStyle, Texture } from "pixi.js";
-import { fitScale } from "../../../lib/details/orbits";
+import { fitScale } from "../camera";
 import {
   formatAmount,
   resourceAbbrev,
@@ -206,8 +206,8 @@ export class LabelsLayer implements SystemLayer {
   readonly id = "labels" as const;
   readonly container = new Container();
   private bodies: readonly SceneBody[] = EMPTY_SYSTEM_CONTEXT.bodies;
-  private detailsShown = EMPTY_SYSTEM_CONTEXT.detailsShown;
-  private labelsShown = EMPTY_SYSTEM_CONTEXT.labelsShown;
+  private detailsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.details;
+  private labelsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.labels;
   private fitRadius = EMPTY_SYSTEM_CONTEXT.layout.fitRadius;
   private labels: Label[] = [];
   private shown: PlatePick[] = [];
@@ -230,18 +230,18 @@ export class LabelsLayer implements SystemLayer {
   rebuild(ctx: SystemContext): void {
     const same =
       ctx.bodies === this.bodies &&
-      ctx.detailsShown === this.detailsShown &&
-      ctx.labelsShown === this.labelsShown;
+      ctx.sceneLayers.details === this.detailsShown &&
+      ctx.sceneLayers.labels === this.labelsShown;
     if (same) return;
     this.bodies = ctx.bodies;
-    this.detailsShown = ctx.detailsShown;
-    this.labelsShown = ctx.labelsShown;
+    this.detailsShown = ctx.sceneLayers.details;
+    this.labelsShown = ctx.sceneLayers.labels;
     this.fitRadius = ctx.layout.fitRadius;
     for (const child of this.container.removeChildren()) child.destroy({ children: true });
     this.labels = ctx.bodies
       .flatMap((body) => {
-        const named = ctx.labelsShown && body.name !== "";
-        const rows = ctx.detailsShown ? body.resources : [];
+        const named = ctx.sceneLayers.labels && body.name !== "";
+        const rows = ctx.sceneLayers.details ? body.resources : [];
         if (!named && rows.length === 0) return [];
         const label = makeLabel(body, named, rows);
         this.container.addChild(label.holder);

@@ -13,11 +13,6 @@ export type BodyLayout = {
  */
 orbit: Bounds | null, 
 /**
- * Degrees about the parent. `None` in a save, which has `at`, and when an
- * initializer names no angle.
- */
-angle: Bounds | null, 
-/**
  * A save's `coordinate` x/y, system-relative. `None` in a scenario.
  */
 at: [number, number] | null, 
@@ -26,14 +21,10 @@ at: [number, number] | null,
  */
 size: Bounds | null, 
 /**
- * How far out from `orbit_base` an initializer steps it: its `orbit_distance`, or 10
- * to 20 without one. `None` in a save.
+ * How far out from the running orbit an initializer steps it: its `orbit_distance`, or
+ * 10 to 20 without one. `None` in a save.
  */
 orbit_step: Bounds | null, 
-/**
- * The running orbit it steps out from, `orbit` less `orbit_step` end by end. `None` in a save.
- */
-orbit_base: Bounds | null, 
 /**
  * Its `orbit_angle`, the turn on from the angle of `turns_from`. `None` in a save, and
  * when an initializer names no angle.

@@ -51,10 +51,8 @@ function topRef(): EntityRef {
 
 /** The store fields the system scene follows while it is shown. */
 const BINDINGS: Binding[] = [
-  follows(
-    useDetailsStore,
-    [(s) => s.details, (s) => s.version, (s) => s.pending, (s) => s.missing],
-    (view) => view.refresh(),
+  follows(useDetailsStore, [(s) => s.details, (s) => s.version, (s) => s.rolls], (view) =>
+    view.refresh(),
   ),
   follows(useGalaxyStore, [(s) => s.systems, (s) => s.countries], (view) => view.refresh()),
   follows(
