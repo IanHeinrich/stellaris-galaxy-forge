@@ -421,11 +421,17 @@ fn hex(rgb: [u8; 3]) -> String {
     format!("#{:02x}{:02x}{:02x}", rgb[0], rgb[1], rgb[2])
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct PlanetClassView {
     pub key: String,
     pub icon_sprite: Option<String>,
+    /// The 76×76 sprite for a body drawn large.
+    pub icon_large_sprite: Option<String>,
+    /// `"#rrggbb"`; `None` for a class that draws no atmosphere rim.
+    pub atmosphere_color: Option<String>,
+    pub atmosphere_intensity: Option<f64>,
+    pub atmosphere_width: Option<f64>,
     pub habitable: bool,
     pub star: bool,
     /// The modifier whose presence lets a planet of this class be terraformed, from the
@@ -438,6 +444,10 @@ impl From<&PlanetClassDef> for PlanetClassView {
         Self {
             key: pc.key.clone(),
             icon_sprite: pc.icon.clone(),
+            icon_large_sprite: pc.icon_large.clone(),
+            atmosphere_color: pc.atmosphere_color.map(hex),
+            atmosphere_intensity: pc.atmosphere_intensity,
+            atmosphere_width: pc.atmosphere_width,
             habitable: pc.colonizable,
             star: pc.star,
             terraform_candidate: None,

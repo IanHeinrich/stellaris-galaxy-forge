@@ -283,6 +283,11 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
     assert_eq!(star.habitable, Some(false));
     assert!(!star.capital && !star.colonised);
 
+    assert!(
+        details.planets.iter().all(|p| p.ring.is_none()),
+        "no body states has_ring, so each is left to its class's chance_of_ring"
+    );
+
     let world = &details.planets[1];
     assert!(world.capital && world.colonised, "starting_planet = yes");
     assert_eq!(world.habitable, Some(true));
@@ -331,6 +336,32 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
     );
     assert!(plain.resources.is_empty() && plain.starbase.is_none());
     assert!(plain.sites.is_empty() && plain.megastructures.is_empty());
+}
+
+#[test]
+fn a_scenario_body_has_a_ring_only_when_its_initializer_says_so() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/solar_system_initializers/00_rings.txt",
+            "ring_init = {
+	class = sc_sun
+	planet = { class = pc_gas_giant has_ring = yes }
+	planet = { class = pc_gas_giant has_ring = no }
+	planet = { class = pc_gas_giant }
+}
+",
+        ),
+        (
+            "localisation/english/fx_l_english.yml",
+            "l_english:
+",
+        ),
+    ]);
+    let details = gd
+        .initializer_details(9, "ring_init", None)
+        .expect("the ring fixture");
+    let rings: Vec<Option<bool>> = details.planets.iter().map(|p| p.ring).collect();
+    assert_eq!(rings, [Some(true), Some(false), None]);
 }
 
 /// Two spawns elsewhere, each linking back to the system the initializer

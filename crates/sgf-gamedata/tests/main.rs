@@ -11,6 +11,7 @@ mod install;
 mod layering;
 mod localisation;
 mod naming;
+mod planet_discs;
 mod planet_views;
 mod registries;
 mod reload;

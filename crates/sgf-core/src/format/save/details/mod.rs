@@ -56,7 +56,7 @@ impl DetailsProjection {
         Ok(Self { by_system })
     }
 
-    /// Read again the class, size, parent, point and orbit of each of `planets`, as
+    /// Read again the class, size, parent, point, orbit and ring of each of `planets`, as
     /// (planet, system), from the bytes now standing for it, leaving everything else as it
     /// was projected.
     pub fn refresh_planets(
@@ -79,6 +79,7 @@ impl DetailsProjection {
                 planet.parent = facts.moon_of;
                 planet.orbit = placement.orbit;
                 planet.at = placement.at;
+                planet.ring = placement.ring;
             }
         }
         Ok(())

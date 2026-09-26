@@ -5,86 +5,86 @@ expression: report
 system 217 inner_radius=320
   belt rocky_asteroid_belt 145
   belt icy_asteroid_belt 290
-  body 0 pc_g_star parent=- orbit=0 drawn=0 at=(0, 0) size=30
-  body 1 pc_molten parent=- orbit=40 drawn=40.04479 at=(-38.4968, -11.0264) size=10
-  body 2 pc_toxic parent=- orbit=65 drawn=65 at=(50.5336, -40.89085) size=17
-  body 3 pc_continental parent=- orbit=90 drawn=90.19388 at=(14.0274, 89.0964) size=18
-  body 4 pc_barren_cold parent=3 orbit=12 drawn=12 at=(4.83456, 81.38196) size=5
-  body 5 pc_barren parent=- orbit=115 drawn=115 at=(-89.43435, 72.3097) size=13
-  body 6 pc_asteroid parent=- orbit=145 drawn=145.09728 at=(51.997, -135.46045) size=5
-  body 7 pc_asteroid parent=- orbit=145 drawn=145.16236 at=(-139.5509, -39.9707) size=5
-  body 8 pc_asteroid parent=- orbit=145 drawn=145.03014 at=(-74.7649, 124.2737) size=5
-  body 9 pc_asteroid parent=- orbit=145 drawn=145 at=(109.3967, 95.18525) size=5
-  body 10 pc_gas_giant parent=- orbit=185 drawn=185.05009 at=(-89.6695, -161.87315) size=35
-  body 11 pc_molten parent=10 orbit=16 drawn=16.0121 at=(-84.19334, -176.91971) size=6
-  body 12 pc_frozen parent=10 orbit=18.5 drawn=18.5 at=(-98.93041, -145.85289) size=6
-  body 13 pc_frozen parent=10 orbit=21 drawn=21.01556 at=(-109.41349, -169.07237) size=9
-  body 14 pc_frozen parent=10 orbit=23.5 drawn=23.5 at=(-73.05994, -145.2469) size=7
-  body 15 pc_gas_giant parent=- orbit=210 drawn=210.01601 at=(132.0753, 163.2876) size=30
-  body 16 pc_frozen parent=15 orbit=19 drawn=19 at=(117.51028, 175.49054) size=8
-  body 17 pc_gas_giant parent=- orbit=235 drawn=235.7763 at=(-235.21855, 16.20795) size=20
-  body 18 pc_gas_giant parent=- orbit=260 drawn=260.216 at=(246.0926, -84.5624) size=20
-  body 19 pc_frozen parent=18 orbit=11 drawn=11 at=(250.74406, -94.53588) size=6
-  body 20 pc_asteroid parent=- orbit=290 drawn=290.01951 at=(-190.24, 218.9065) size=5
-  body 21 pc_ice_asteroid parent=- orbit=290 drawn=290.03165 at=(234.7057, 170.3866) size=5
-  body 22 pc_ice_asteroid parent=- orbit=290 drawn=290.02424 at=(225.4576, -182.4361) size=5
-  body 23 pc_ice_asteroid parent=- orbit=290 drawn=290.07852 at=(-140.563, -253.7471) size=5
+  body 0 pc_g_star parent=- orbit=0 drawn=0 at=(0, 0) size=30 ring=false
+  body 1 pc_molten parent=- orbit=40 drawn=40.04479 at=(-38.4968, -11.0264) size=10 ring=false
+  body 2 pc_toxic parent=- orbit=65 drawn=65 at=(50.5336, -40.89085) size=17 ring=false
+  body 3 pc_continental parent=- orbit=90 drawn=90.19388 at=(14.0274, 89.0964) size=18 ring=false
+  body 4 pc_barren_cold parent=3 orbit=12 drawn=12 at=(4.83456, 81.38196) size=5 ring=false
+  body 5 pc_barren parent=- orbit=115 drawn=115 at=(-89.43435, 72.3097) size=13 ring=false
+  body 6 pc_asteroid parent=- orbit=145 drawn=145.09728 at=(51.997, -135.46045) size=5 ring=false
+  body 7 pc_asteroid parent=- orbit=145 drawn=145.16236 at=(-139.5509, -39.9707) size=5 ring=false
+  body 8 pc_asteroid parent=- orbit=145 drawn=145.03014 at=(-74.7649, 124.2737) size=5 ring=false
+  body 9 pc_asteroid parent=- orbit=145 drawn=145 at=(109.3967, 95.18525) size=5 ring=false
+  body 10 pc_gas_giant parent=- orbit=185 drawn=185.05009 at=(-89.6695, -161.87315) size=35 ring=false
+  body 11 pc_molten parent=10 orbit=16 drawn=16.0121 at=(-84.19334, -176.91971) size=6 ring=false
+  body 12 pc_frozen parent=10 orbit=18.5 drawn=18.5 at=(-98.93041, -145.85289) size=6 ring=false
+  body 13 pc_frozen parent=10 orbit=21 drawn=21.01556 at=(-109.41349, -169.07237) size=9 ring=false
+  body 14 pc_frozen parent=10 orbit=23.5 drawn=23.5 at=(-73.05994, -145.2469) size=7 ring=false
+  body 15 pc_gas_giant parent=- orbit=210 drawn=210.01601 at=(132.0753, 163.2876) size=30 ring=true
+  body 16 pc_frozen parent=15 orbit=19 drawn=19 at=(117.51028, 175.49054) size=8 ring=false
+  body 17 pc_gas_giant parent=- orbit=235 drawn=235.7763 at=(-235.21855, 16.20795) size=20 ring=false
+  body 18 pc_gas_giant parent=- orbit=260 drawn=260.216 at=(246.0926, -84.5624) size=20 ring=false
+  body 19 pc_frozen parent=18 orbit=11 drawn=11 at=(250.74406, -94.53588) size=6 ring=false
+  body 20 pc_asteroid parent=- orbit=290 drawn=290.01951 at=(-190.24, 218.9065) size=5 ring=false
+  body 21 pc_ice_asteroid parent=- orbit=290 drawn=290.03165 at=(234.7057, 170.3866) size=5 ring=false
+  body 22 pc_ice_asteroid parent=- orbit=290 drawn=290.02424 at=(225.4576, -182.4361) size=5 ring=false
+  body 23 pc_ice_asteroid parent=- orbit=290 drawn=290.07852 at=(-140.563, -253.7471) size=5 ring=false
 system 33 inner_radius=299.11
-  body 1048 pc_b_star parent=- orbit=25 drawn=25.11325 at=(-25.11325, 0) size=30
-  body 1049 pc_b_star parent=- orbit=25 drawn=25.01882 at=(23.51525, -8.5425) size=20
-  body 1050 pc_molten parent=- orbit=100 drawn=100.31157 at=(-8.186, 99.977) size=17
-  body 1051 pc_toxic parent=- orbit=120 drawn=120 at=(-75.858, -92.994) size=14
-  body 1052 pc_toxic parent=- orbit=140 drawn=140.01012 at=(91.1568, 106.2698) size=22
-  body 1053 pc_toxic parent=1052 orbit=15 drawn=15.06711 at=(106.22385, 106.22855) size=10
-  body 1054 pc_shrouded parent=- orbit=193.33 drawn=193.40231 at=(-173.58327, -85.28366) size=14
-  body 1055 pc_frozen parent=- orbit=239.91 drawn=240.68583 at=(17.62618, 240.03955) size=21
-  body 1056 pc_gas_giant parent=- orbit=254.28 drawn=254.29713 at=(-173.67069, -185.75662) size=22
-  body 1057 pc_frozen parent=- orbit=269.11 drawn=269.24326 at=(246.36751, -108.60472) size=21
-  body 8357 pc_astral_scar parent=- orbit=0 drawn=299.93922 at=(125.49879, 272.42171) size=20
+  body 1048 pc_b_star parent=- orbit=25 drawn=25.11325 at=(-25.11325, 0) size=30 ring=false
+  body 1049 pc_b_star parent=- orbit=25 drawn=25.01882 at=(23.51525, -8.5425) size=20 ring=false
+  body 1050 pc_molten parent=- orbit=100 drawn=100.31157 at=(-8.186, 99.977) size=17 ring=false
+  body 1051 pc_toxic parent=- orbit=120 drawn=120 at=(-75.858, -92.994) size=14 ring=false
+  body 1052 pc_toxic parent=- orbit=140 drawn=140.01012 at=(91.1568, 106.2698) size=22 ring=false
+  body 1053 pc_toxic parent=1052 orbit=15 drawn=15.06711 at=(106.22385, 106.22855) size=10 ring=false
+  body 1054 pc_shrouded parent=- orbit=193.33 drawn=193.40231 at=(-173.58327, -85.28366) size=14 ring=false
+  body 1055 pc_frozen parent=- orbit=239.91 drawn=240.68583 at=(17.62618, 240.03955) size=21 ring=false
+  body 1056 pc_gas_giant parent=- orbit=254.28 drawn=254.29713 at=(-173.67069, -185.75662) size=22 ring=false
+  body 1057 pc_frozen parent=- orbit=269.11 drawn=269.24326 at=(246.36751, -108.60472) size=21 ring=false
+  body 8357 pc_astral_scar parent=- orbit=0 drawn=299.93922 at=(125.49879, 272.42171) size=20 ring=false
 system 18 inner_radius=264.76
-  body 946 pc_b_star parent=- orbit=25 drawn=25.11325 at=(-25.11325, 0) size=25
-  body 947 pc_a_star parent=- orbit=35.04 drawn=35.04 at=(17.52805, -30.35059) size=30
-  body 948 pc_f_star parent=- orbit=49.76 drawn=49.77178 at=(24.85661, 43.12052) size=30
-  body 949 pc_barren_cold parent=- orbit=114.76 drawn=114.77727 at=(63.81229, -95.40343) size=19
-  body 950 pc_barren_cold parent=- orbit=134.76 drawn=134.94529 at=(32.37474, 131.00423) size=27
-  body 951 pc_barren parent=950 orbit=15 drawn=15.05029 at=(33.36699, 115.98668) size=10
-  body 952 pc_toxic parent=- orbit=154.76 drawn=154.80632 at=(-136.85426, -72.35958) size=25
-  body 953 pc_barren_cold parent=- orbit=174.76 drawn=175.47791 at=(3.82025, 175.43632) size=13
-  body 954 pc_frozen parent=- orbit=194.76 drawn=194.88273 at=(-71.60935, -181.24949) size=25
-  body 955 pc_barren parent=954 orbit=15 drawn=15 at=(-58.72225, -173.56709) size=10
-  body 956 pc_frozen parent=- orbit=214.76 drawn=214.98636 at=(61.67262, 205.95054) size=13
-  body 957 pc_barren parent=- orbit=234.76 drawn=234.9158 at=(219.1062, -84.72253) size=25
+  body 946 pc_b_star parent=- orbit=25 drawn=25.11325 at=(-25.11325, 0) size=25 ring=false
+  body 947 pc_a_star parent=- orbit=35.04 drawn=35.04 at=(17.52805, -30.35059) size=30 ring=false
+  body 948 pc_f_star parent=- orbit=49.76 drawn=49.77178 at=(24.85661, 43.12052) size=30 ring=false
+  body 949 pc_barren_cold parent=- orbit=114.76 drawn=114.77727 at=(63.81229, -95.40343) size=19 ring=true
+  body 950 pc_barren_cold parent=- orbit=134.76 drawn=134.94529 at=(32.37474, 131.00423) size=27 ring=false
+  body 951 pc_barren parent=950 orbit=15 drawn=15.05029 at=(33.36699, 115.98668) size=10 ring=false
+  body 952 pc_toxic parent=- orbit=154.76 drawn=154.80632 at=(-136.85426, -72.35958) size=25 ring=false
+  body 953 pc_barren_cold parent=- orbit=174.76 drawn=175.47791 at=(3.82025, 175.43632) size=13 ring=false
+  body 954 pc_frozen parent=- orbit=194.76 drawn=194.88273 at=(-71.60935, -181.24949) size=25 ring=false
+  body 955 pc_barren parent=954 orbit=15 drawn=15 at=(-58.72225, -173.56709) size=10 ring=false
+  body 956 pc_frozen parent=- orbit=214.76 drawn=214.98636 at=(61.67262, 205.95054) size=13 ring=false
+  body 957 pc_barren parent=- orbit=234.76 drawn=234.9158 at=(219.1062, -84.72253) size=25 ring=false
 system 53 inner_radius=380
-  body 1199 pc_k_star parent=- orbit=0 drawn=0 at=(0, 0) size=31
-  body 1200 pc_f_star parent=- orbit=220 drawn=220.01788 at=(139.7528, -169.9324) size=24
-  body 1201 pc_molten parent=1200 orbit=55 drawn=55 at=(179.38415, -208.07325) size=22
-  body 1202 pc_gas_giant parent=1200 orbit=80 drawn=80 at=(74.5464, -123.5684) size=23
-  body 1203 pc_toxic parent=1200 orbit=105 drawn=105.18983 at=(119.85425, -273.223) size=16
-  body 1204 pc_toxic parent=1200 orbit=130 drawn=130.02258 at=(69.2434, -60.6882) size=18
-  body 1205 pc_g_star parent=- orbit=220 drawn=220.018 at=(-136.5936, 172.4822) size=23
-  body 1206 pc_molten parent=1205 orbit=50 drawn=50.16316 at=(-86.5591, 168.8917) size=24
-  body 1207 pc_molten parent=1206 orbit=13 drawn=13 at=(-76.75021, 160.35889) size=10
-  body 1208 pc_molten parent=1205 orbit=75 drawn=75 at=(-193.20285, 221.68745) size=22
-  body 1209 pc_barren_cold parent=1208 orbit=13 drawn=13.01265 at=(-180.7872, 217.79122) size=7
-  body 1210 pc_barren parent=1205 orbit=100 drawn=100.07557 at=(-170.3766, 78.2812) size=26
-  body 1211 pc_molten parent=- orbit=35 drawn=35.04431 at=(33.90135, -8.87705) size=18
-  body 1212 pc_molten parent=1211 orbit=13 drawn=13 at=(45.63684, -14.482) size=12
-  body 1213 pc_molten parent=- orbit=50 drawn=50.1248 at=(6.3535, 49.7205) size=25
-  body 1214 pc_gas_giant parent=- orbit=65 drawn=65.20339 at=(5.2195, -64.99415) size=23
-  body 1215 pc_toxic parent=- orbit=80 drawn=80.05165 at=(-28.9168, 74.6464) size=24
-  body 1216 pc_molten parent=1215 orbit=13 drawn=13 at=(-20.05197, 84.15603) size=8
+  body 1199 pc_k_star parent=- orbit=0 drawn=0 at=(0, 0) size=31 ring=false
+  body 1200 pc_f_star parent=- orbit=220 drawn=220.01788 at=(139.7528, -169.9324) size=24 ring=false
+  body 1201 pc_molten parent=1200 orbit=55 drawn=55 at=(179.38415, -208.07325) size=22 ring=false
+  body 1202 pc_gas_giant parent=1200 orbit=80 drawn=80 at=(74.5464, -123.5684) size=23 ring=false
+  body 1203 pc_toxic parent=1200 orbit=105 drawn=105.18983 at=(119.85425, -273.223) size=16 ring=true
+  body 1204 pc_toxic parent=1200 orbit=130 drawn=130.02258 at=(69.2434, -60.6882) size=18 ring=true
+  body 1205 pc_g_star parent=- orbit=220 drawn=220.018 at=(-136.5936, 172.4822) size=23 ring=false
+  body 1206 pc_molten parent=1205 orbit=50 drawn=50.16316 at=(-86.5591, 168.8917) size=24 ring=false
+  body 1207 pc_molten parent=1206 orbit=13 drawn=13 at=(-76.75021, 160.35889) size=10 ring=false
+  body 1208 pc_molten parent=1205 orbit=75 drawn=75 at=(-193.20285, 221.68745) size=22 ring=false
+  body 1209 pc_barren_cold parent=1208 orbit=13 drawn=13.01265 at=(-180.7872, 217.79122) size=7 ring=false
+  body 1210 pc_barren parent=1205 orbit=100 drawn=100.07557 at=(-170.3766, 78.2812) size=26 ring=false
+  body 1211 pc_molten parent=- orbit=35 drawn=35.04431 at=(33.90135, -8.87705) size=18 ring=false
+  body 1212 pc_molten parent=1211 orbit=13 drawn=13 at=(45.63684, -14.482) size=12 ring=false
+  body 1213 pc_molten parent=- orbit=50 drawn=50.1248 at=(6.3535, 49.7205) size=25 ring=false
+  body 1214 pc_gas_giant parent=- orbit=65 drawn=65.20339 at=(5.2195, -64.99415) size=23 ring=true
+  body 1215 pc_toxic parent=- orbit=80 drawn=80.05165 at=(-28.9168, 74.6464) size=24 ring=false
+  body 1216 pc_molten parent=1215 orbit=13 drawn=13 at=(-20.05197, 84.15603) size=8 ring=false
 system 278 inner_radius=330
-  body 325 pc_g_star parent=- orbit=15 drawn=15.02965 at=(-14.80425, 2.5932) size=32
-  body 326 pc_k_star parent=- orbit=-20 drawn=20.09021 at=(20.0902, 0.0162) size=27
-  body 327 pc_m_star parent=- orbit=240 drawn=240.01992 at=(154.4784, -183.7008) size=15
-  body 328 pc_barren_cold parent=327 orbit=35 drawn=35.05641 at=(161.8788, -149.4344) size=20
-  body 329 pc_gas_giant parent=327 orbit=60 drawn=60.02682 at=(208.986, -208.8432) size=18
-  body 330 pc_molten parent=- orbit=45 drawn=45.19695 at=(0.32895, 45.19575) size=19
-  body 331 pc_molten parent=330 orbit=15 drawn=15 at=(6.50535, 31.5186) size=11
-  body 332 pc_molten parent=- orbit=70 drawn=70.04366 at=(25.9357, -65.065) size=19
-  body 333 pc_molten parent=332 orbit=15 drawn=15.01068 at=(40.00945, -59.84485) size=8
-  body 334 pc_continental parent=- orbit=100 drawn=100.21894 at=(-15.314, 99.042) size=16
-  body 335 pc_toxic parent=- orbit=125 drawn=125.02183 at=(-105.3525, -67.315) size=19
-  body 336 pc_barren parent=335 orbit=15 drawn=15.05428 at=(-104.60775, -52.27915) size=8
-  body 337 pc_barren parent=- orbit=150 drawn=150.04724 at=(132.6405, -70.1475) size=25
-  body 338 pc_barren parent=337 orbit=15 drawn=15.01412 at=(146.9373, -74.73285) size=9
+  body 325 pc_g_star parent=- orbit=15 drawn=15.02965 at=(-14.80425, 2.5932) size=32 ring=false
+  body 326 pc_k_star parent=- orbit=-20 drawn=20.09021 at=(20.0902, 0.0162) size=27 ring=false
+  body 327 pc_m_star parent=- orbit=240 drawn=240.01992 at=(154.4784, -183.7008) size=15 ring=false
+  body 328 pc_barren_cold parent=327 orbit=35 drawn=35.05641 at=(161.8788, -149.4344) size=20 ring=false
+  body 329 pc_gas_giant parent=327 orbit=60 drawn=60.02682 at=(208.986, -208.8432) size=18 ring=true
+  body 330 pc_molten parent=- orbit=45 drawn=45.19695 at=(0.32895, 45.19575) size=19 ring=false
+  body 331 pc_molten parent=330 orbit=15 drawn=15 at=(6.50535, 31.5186) size=11 ring=false
+  body 332 pc_molten parent=- orbit=70 drawn=70.04366 at=(25.9357, -65.065) size=19 ring=false
+  body 333 pc_molten parent=332 orbit=15 drawn=15.01068 at=(40.00945, -59.84485) size=8 ring=false
+  body 334 pc_continental parent=- orbit=100 drawn=100.21894 at=(-15.314, 99.042) size=16 ring=false
+  body 335 pc_toxic parent=- orbit=125 drawn=125.02183 at=(-105.3525, -67.315) size=19 ring=false
+  body 336 pc_barren parent=335 orbit=15 drawn=15.05428 at=(-104.60775, -52.27915) size=8 ring=false
+  body 337 pc_barren parent=- orbit=150 drawn=150.04724 at=(132.6405, -70.1475) size=25 ring=false
+  body 338 pc_barren parent=337 orbit=15 drawn=15.01412 at=(146.9373, -74.73285) size=9 ring=false

@@ -33,4 +33,9 @@ deposit_keys: Array<DepositCount>, pops: number,
  * synthetic id of the body the moon was expanded under. A body with no parent orbits
  * the system's centre.
  */
-parent: number | null, layout: BodyLayout | null, };
+parent: number | null, layout: BodyLayout | null, 
+/**
+ * A save's ring bit in `binary_flags`; a scenario's `has_ring`, `None` when the
+ * initializer leaves it to the class's `chance_of_ring`.
+ */
+ring: boolean | null, };

@@ -127,6 +127,9 @@ pub struct PlanetSummary {
     /// the system's centre.
     pub parent: Option<u32>,
     pub layout: Option<BodyLayout>,
+    /// A save's ring bit in `binary_flags`; a scenario's `has_ring`, `None` when the
+    /// initializer leaves it to the class's `chance_of_ring`.
+    pub ring: Option<bool>,
 }
 
 /// A number an initializer may leave to a draw: `min == max` when it is fixed,
@@ -243,6 +246,7 @@ pub(super) fn resolve(
             pops: p.pops,
             parent: p.parent,
             layout: Some(layout(p, &points)),
+            ring: Some(p.ring),
         });
     }
     let starbase = raw.starbases.first().map(|s| StarbaseSummary {

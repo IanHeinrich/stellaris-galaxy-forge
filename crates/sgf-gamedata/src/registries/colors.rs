@@ -57,7 +57,8 @@ fn read_color(name: String, node: &Node, src: &[u8]) -> Option<ColorDef> {
     })
 }
 
-fn read_rgb(node: &Node, key: &str, src: &[u8]) -> Option<[u8; 3]> {
+/// `key = rgb { r g b }` in 0 to 255, or `key = hsv { h s v }` in 0 to 1.
+pub(crate) fn read_rgb(node: &Node, key: &str, src: &[u8]) -> Option<[u8; 3]> {
     let channel = node.find(key, src)?;
     let rgb = script::list_items(channel, "rgb", src);
     if let Some(triple) = to_triple(&rgb) {

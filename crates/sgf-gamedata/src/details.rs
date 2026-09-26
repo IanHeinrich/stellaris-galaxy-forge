@@ -176,6 +176,7 @@ impl GameData {
             pops: 0,
             parent: expanded.parent.map(|parent| PLANET_BASE + index(parent)),
             layout: Some(layout),
+            ring: body.has_ring,
         }
     }
 

@@ -137,6 +137,20 @@ YAML**.
 - Gateways and L-Gates appear in the save twice. Each has a `bypasses`
   entry (`type="gateway"` or `type="lgate"`) and a `megastructures`
   entry (`type="gateway_ruined"` or `type="lgate_base"`).
+- A planet class's surface map takes three steps to find. The class
+  names a model family, `entity = "continental_planet"`, and the models
+  are the `entity = { … }` blocks named `continental_planet_01_entity`,
+  `_02_entity` and so on in `gfx/models/planets/**/*.asset`. The editor
+  draws `_01_` for the whole family, then tries `<entity>_entity` and
+  the bare name. Each block has several `meshsettings`, and the surface
+  is the one named `planet_geosphereShape`. The others are the poles,
+  the clouds and the clouds' shadow. Its `texture_diffuse` is a bare
+  file name. The file sits beside the `.asset` file, or in
+  `gfx/models/planets/` when it isn't there. Some entities name no
+  surface map, and those planets keep a plain tinted disc. The vanilla
+  maps are 2048x1024 DXT1 with 12 mip levels, and the disc is baked
+  from level 3, 256x128. A class's `atmosphere_color` is written as
+  `hsv { h s v }` with each value from 0 to 1.
 
 ## Where mods are registered
 

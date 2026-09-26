@@ -3,8 +3,8 @@
 //!
 //! Keys, never paths, cross the IPC boundary:
 //! `star_class:<icon>`, `deposit:<icon>`, `icon:<path under gfx/interface/icons>`,
-//! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`
-//! and `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>`.
+//! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
+//! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>` and `planet_disc:<class>`.
 
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -24,6 +24,7 @@ use crate::registries::gfx::Sprites;
 
 mod dds;
 mod key;
+mod planet_disc;
 
 pub use key::TextureKey;
 
@@ -61,16 +62,33 @@ impl SpriteSource for Sprites {
 /// A flag colour by its `flags/colors.txt` name.
 pub type ColourLookup<'a> = &'a dyn Fn(&str) -> Option<[u8; 3]>;
 
+/// The `entity` of a planet class that is drawn as a disc: neither a star nor an asteroid.
+pub type EntityLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
+
+/// No planet class has a disc: every `planet_disc:` key fails.
+pub fn no_planet_entity(_class: &str) -> Option<String> {
+    None
+}
+
 impl GameData {
-    /// `key` decoded through this install's sprites and flag colours.
+    /// `key` decoded through this install's sprites, flag colours and planet classes.
     pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
         let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
-        textures.load(&self.layout, &*self.sprites, &colour, key)
+        let entity = |class: &str| self.disc_entity(class);
+        textures.load(&self.layout, &*self.sprites, &colour, &entity, key)
     }
 
     pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {
         let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
-        textures.png(&self.layout, &*self.sprites, &colour, key)
+        let entity = |class: &str| self.disc_entity(class);
+        textures.png(&self.layout, &*self.sprites, &colour, &entity, key)
+    }
+
+    fn disc_entity(&self, class: &str) -> Option<String> {
+        self.planet_classes
+            .get(class)
+            .filter(|c| !c.star && !c.asteroid)
+            .and_then(|c| c.entity.clone())
     }
 }
 
@@ -90,7 +108,7 @@ impl TextureKey {
             Self::Flag { category, file } | Self::Symbol { category, file } => {
                 Ok(format!("flags/{category}/{file}"))
             }
-            Self::Sprite { .. } | Self::EmpireFlag { .. } => {
+            Self::Sprite { .. } | Self::EmpireFlag { .. } | Self::PlanetDisc { .. } => {
                 Err(TextureError::BadKey(self.to_string()))
             }
         }
@@ -113,6 +131,8 @@ pub enum TextureError {
     },
     #[error("unknown flag colour `{0}`")]
     UnknownColour(String),
+    #[error("planet class `{0}` has no surface map to draw as a disc")]
+    NoDisc(String),
     #[error("{}: {reason}", path.display())]
     Decode { path: PathBuf, reason: String },
     #[error("png encoding failed: {0}")]
@@ -155,9 +175,10 @@ impl Textures {
         layout: &Layout,
         sprites: &dyn SpriteSource,
         colour: ColourLookup<'_>,
+        planet_entity: EntityLookup<'_>,
         key: &str,
     ) -> TextureView {
-        match self.png(layout, sprites, colour, key) {
+        match self.png(layout, sprites, colour, planet_entity, key) {
             Ok(png) => {
                 let (width, height) = png_size(&png);
                 TextureView {
@@ -185,10 +206,11 @@ impl Textures {
         layout: &Layout,
         sprites: &dyn SpriteSource,
         colour: ColourLookup<'_>,
+        planet_entity: EntityLookup<'_>,
         key: &str,
     ) -> Result<Vec<u8>, TextureError> {
         let key: TextureKey = key.parse()?;
-        let job = Job::plan(&key, layout, sprites, colour)?;
+        let job = Job::plan(&key, layout, sprites, colour, planet_entity)?;
         let cache_file = self.cache_dir.join(job.cache_name(&key));
         if let Ok(png) = fs::read(&cache_file) {
             return Ok(png);
@@ -226,8 +248,13 @@ impl Input {
     }
 
     fn decode(&self) -> Result<RgbaImage, TextureError> {
+        self.decode_near(u32::MAX)
+    }
+
+    /// The smallest mip level at least `width` wide, or mip 0 when that is narrower.
+    fn decode_near(&self, width: u32) -> Result<RgbaImage, TextureError> {
         let bytes = fs::read(&self.path).map_err(|e| decode_error(&self.path, e))?;
-        dds::decode(&bytes).map_err(|reason| TextureError::Decode {
+        dds::decode_near(&bytes, width).map_err(|reason| TextureError::Decode {
             path: self.path.clone(),
             reason,
         })
@@ -258,6 +285,7 @@ enum Job {
         frame: Input,
         colours: [Option<[u8; 3]>; 4],
     },
+    PlanetDisc(Input),
 }
 
 pub(crate) const ICONS: &str = "gfx/interface/icons";
@@ -271,8 +299,15 @@ impl Job {
         layout: &Layout,
         sprites: &dyn SpriteSource,
         colour: ColourLookup<'_>,
+        planet_entity: EntityLookup<'_>,
     ) -> Result<Self, TextureError> {
         match key {
+            TextureKey::PlanetDisc { class } => {
+                let no_disc = || TextureError::NoDisc(class.clone());
+                let entity = planet_entity(class).ok_or_else(no_disc)?;
+                let rel = planet_disc::diffuse(layout, &entity).ok_or_else(no_disc)?;
+                Ok(Self::PlanetDisc(Input::resolve(layout, &rel)?))
+            }
             TextureKey::Sprite { name, frame } => {
                 let (rel, frame) = sprites
                     .resolve(name, *frame)
@@ -361,6 +396,9 @@ impl Job {
                 &mask.decode()?,
                 &frame.decode()?,
                 colours,
+            )),
+            Self::PlanetDisc(input) => Ok(planet_disc::bake(
+                &input.decode_near(planet_disc::SOURCE_WIDTH)?,
             )),
         }
     }

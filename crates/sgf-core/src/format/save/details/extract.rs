@@ -10,6 +10,7 @@ use ts_rs::TS;
 
 use crate::cst::Node;
 use crate::document::Document;
+use crate::emit::system::RING_FLAG;
 use crate::entity::facts;
 use crate::entity::views::EntityKind;
 use crate::format::save::galaxy::starbases::fleet_owners;
@@ -57,6 +58,8 @@ pub struct RawPlanet {
     pub parent: Option<u32>,
     /// `coordinate` x/y, relative to the system's centre.
     pub at: Option<(f64, f64)>,
+    /// The ring bit of `binary_flags`.
+    pub ring: bool,
     /// Deposit key → count, in order of first appearance. A colony's deposits are
     /// planetary features and blockers; the resolver decides what each key yields.
     pub deposits: Vec<(String, u32)>,
@@ -303,6 +306,7 @@ pub(super) fn planets(
             orbit: placement.orbit,
             parent: planet.moon_of,
             at: placement.at,
+            ring: placement.ring,
             deposits,
             pops: planet
                 .colony
@@ -313,17 +317,20 @@ pub(super) fn planets(
     Ok(planet_system)
 }
 
-/// Where a planet's entry puts it.
+/// Where a planet's entry puts it, and whether it has a ring.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct Placement {
     pub orbit: Option<f64>,
     pub at: Option<(f64, f64)>,
+    pub ring: bool,
 }
 
 fn placement(node: &Node, src: &[u8]) -> Placement {
+    let flags = read::scalar_u32(node, keys::BINARY_FLAGS, src).unwrap_or(0);
     Placement {
         orbit: read::scalar_f64(node, keys::ORBIT, src),
         at: read::coordinate(node, src).ok(),
+        ring: flags & RING_FLAG != 0,
     }
 }
 

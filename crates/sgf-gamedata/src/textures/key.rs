@@ -38,6 +38,10 @@ pub enum TextureKey {
         icon_file: String,
         colours: [String; 4],
     },
+    /// A planet class's surface map baked into a lit disc.
+    PlanetDisc {
+        class: String,
+    },
 }
 
 impl TextureKey {
@@ -116,6 +120,9 @@ impl FromStr for TextureKey {
                     colours: colours.try_into().map_err(|_| bad())?,
                 }
             }
+            "planet_disc" => Self::PlanetDisc {
+                class: component(rest).ok_or_else(bad)?,
+            },
             _ => return Err(bad()),
         };
         Ok(key)
@@ -145,6 +152,7 @@ impl fmt::Display for TextureKey {
                 "empire_flag:{background}:{icon_category}/{icon_file}:{}",
                 colours.join(",")
             ),
+            Self::PlanetDisc { class } => write!(f, "planet_disc:{class}"),
         }
     }
 }

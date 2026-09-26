@@ -496,6 +496,41 @@ fn sol_reads_as_the_inspector_lists_it() {
     assert_eq!(sol_deposits, 18);
 }
 
+/// Saturn's `binary_flags` has the ring bit, 256, and Earth's does not.
+#[test]
+fn saturn_has_a_ring_and_earth_has_none() {
+    let session = common::warmed();
+    let text = std::str::from_utf8(session.doc.original()).expect("utf-8");
+    let flags_after = |name: &str| -> u32 {
+        let at = text.find(&format!("key=\"{name}\"")).expect(name);
+        let rest = &text[at..];
+        let value = &rest[rest.find("binary_flags=").expect("binary_flags") + 13..];
+        value[..value.find('\n').expect("a line")]
+            .parse()
+            .expect("a number")
+    };
+    assert_eq!(flags_after("NAME_Saturn"), 331);
+    assert_eq!(flags_after("NAME_Earth"), 75);
+
+    let details = session.details().expect("build details");
+    let sol = details
+        .resolve(217, &HeuristicResolver, false)
+        .expect("Sol resolved");
+    let ring = |id: u32| {
+        sol.planets
+            .iter()
+            .find(|p| p.id == id)
+            .expect("a body")
+            .ring
+    };
+    assert_eq!(ring(15), Some(true), "Saturn");
+    assert_eq!(ring(3), Some(false), "Earth");
+    assert!(
+        sol.planets.iter().all(|p| p.ring.is_some()),
+        "a save states every body's ring"
+    );
+}
+
 #[test]
 fn heuristic_resolver_reads_the_amount_from_the_key() {
     let produces = |key: &str| HeuristicResolver.deposit_produces(key).unwrap();
@@ -778,13 +813,14 @@ fn layout_report(system: &SystemDetails) -> String {
             .map_or("-".to_owned(), |(x, y)| format!("({x}, {y})"));
         writeln!(
             out,
-            "  body {} {} parent={} orbit={} drawn={} at={at} size={}",
+            "  body {} {} parent={} orbit={} drawn={} at={at} size={} ring={}",
             p.id,
             p.class,
             optional(p.parent),
             optional(p.orbit),
             bounds(layout.orbit.map(rounded)),
             bounds(layout.size),
+            optional(p.ring),
         )
         .expect("write");
     }
