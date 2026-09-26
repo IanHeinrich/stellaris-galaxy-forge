@@ -4,16 +4,12 @@ expression: out
 ---
 Gen at -292.23404 -137.62265 sc_m debris_belt_initializer capped star_named_by_class
 belt debris_asteroid_belt 158
-pc_m_star 30 orbit 0 angle 41.84 deposits ["d_energy_4"] star
-  pc_molten 16 orbit 76 angle 56.84 deposits ["d_trade_value_2"] ring
-  pc_asteroid 1 orbit 162 angle 185.8 name NAME_The_Cabin
-  pc_gas_giant 25 orbit 232 angle 300.13 deposits ["d_energy_3"] ring
-    pc_frozen 17 orbit 16 angle 69.94
-    pc_frozen 17 orbit 22 angle 246.36
-    pc_frozen 10 orbit 28 angle 120.17
-  pc_gas_giant 25 orbit 292 angle 61.27 deposits ["d_energy_3"] ring
-    pc_frozen 8 orbit 16 angle 78.43
-    pc_frozen 13 orbit 22 angle 280.46
-    pc_frozen 11 orbit 28 angle 32.23
-  pc_gas_giant 36 orbit 352 angle 276.4
-    pc_frozen 18 orbit 16 angle 71.79
+pc_m_star 30 orbit 0 angle 181 deposits ["d_energy_4"] star
+  pc_molten 16 orbit 79 angle 196 deposits ["d_trade_value_2"] ring
+  pc_asteroid 1 orbit 165 angle 299.12 name NAME_The_Cabin
+  pc_gas_giant 22 orbit 235 angle 143.64 deposits ["d_energy_3"] ring
+    pc_frozen 8 orbit 16 angle 358.39
+    pc_frozen 11 orbit 22 angle 216.53
+  pc_gas_giant 35 orbit 295 angle 2.77 ring
+    pc_frozen 8 orbit 16 angle 288.7
+    pc_frozen 14 orbit 22 angle 166.2

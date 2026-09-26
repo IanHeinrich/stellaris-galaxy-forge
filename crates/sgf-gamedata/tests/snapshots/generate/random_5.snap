@@ -4,13 +4,17 @@ expression: out
 ---
 Gen at -292.23404 -137.62265 sc_m basic_init_02
 belt rocky_asteroid_belt 95
-pc_m_star 24 orbit 0 angle 84.78 deposits ["d_energy_4"] star
-  pc_molten 24 orbit 50 angle 243.28
-  pc_gas_giant 24 orbit 70 angle 50.05
-  pc_asteroid 5 orbit 95 angle 297.41 deposits ["d_minerals_3"] asteroid
-  pc_gas_giant 20 orbit 120 angle 199.25 deposits ["d_society_2"]
-    pc_barren_cold 10 orbit 15 angle 298.32
-  pc_barren 21 orbit 145 angle 107 ring
-    pc_frozen 7 orbit 15 angle 38.27
-  pc_gas_giant 24 orbit 170 angle 279.54 deposits ["d_society_2"] ring
-    pc_barren_cold 9 orbit 15 angle 85.94
+pc_m_star 20 orbit 0 angle 181 deposits ["d_energy_4"] star
+  pc_barren_cold 23 orbit 50 angle 304.83
+  pc_barren_cold 27 orbit 70 angle 126.83
+  pc_asteroid 5 orbit 95 angle 241.44 deposits ["d_minerals_3"] asteroid
+  pc_asteroid 5 orbit 95 angle 128.8 deposits ["d_trade_value_2"] asteroid
+  pc_asteroid 5 orbit 95 angle 300.29 deposits ["d_trade_value_2"] asteroid
+  pc_asteroid 5 orbit 95 angle 202.13 deposits ["d_trade_value_2"] asteroid
+  pc_barren_cold 22 orbit 120 angle 81.73
+  pc_gas_giant 25 orbit 145 angle 192.41 deposits ["d_society_2"]
+    pc_frozen 8 orbit 15 angle 298.09
+  pc_barren_cold 16 orbit 170 angle 304.37 ring
+    pc_frozen 6 orbit 15 angle 305
+  pc_frozen 24 orbit 195 angle 209.11
+    pc_barren 7 orbit 15 angle 292.1

@@ -3,5 +3,5 @@ source: crates/sgf-gamedata/tests/special_layouts.rs
 expression: out
 ---
 Fx at 1 2 sc_hole fx_hole
-pc_hole 36 orbit 0 angle 112.78 star
-  pc_husk 11 orbit 60 angle 190.69
+pc_hole 36 orbit 0 angle 72.11 star
+  pc_husk 10 orbit 60 angle 98.34

@@ -1182,10 +1182,6 @@ fn each_moon_turns_on_from_the_moon_before() {
     let Some(gd) = install() else {
         return;
     };
-    let turned = |from: f64, to: f64, range: Range| {
-        let turn = (to - from - range.min).rem_euclid(360.0);
-        turn <= range.max - range.min + 0.01 || turn >= 359.99
-    };
     let mut checked = 0;
     for layout in ["sol_system_initializer", "basic_init_03"] {
         let init = gd.initializers.get(layout).unwrap();
@@ -1216,6 +1212,39 @@ fn each_moon_turns_on_from_the_moon_before() {
         }
     }
     assert!(checked > 100, "{checked} moons");
+}
+
+/// In the same saves, each of the 242 systems whose first planet has a fixed count and
+/// angle has that planet at 180° plus the star's `orbit_angle` and its own. Sol fixes
+/// every body's angle.
+#[test]
+fn the_planets_turn_on_from_180_degrees() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let sol = gd.initializers.get("sol_system_initializer").unwrap();
+    for seed in 0..5 {
+        let spec = by_name(gd, seed, "Gen", SPOT, "sol_system_initializer").unwrap();
+        let bodies = std::iter::once(&spec.star).chain(&spec.planets);
+        assert_eq!(sol.planets.len(), 1 + spec.planets.len());
+        let mut from = 180.0;
+        for (body, block) in bodies.zip(&sol.planets) {
+            let range = block.orbit_angle.expect("Sol gives every body an angle");
+            assert!(
+                turned(from, body.angle, range),
+                "seed {seed}: {:?} at {}°, {range:?} on from {from}°",
+                body.name,
+                body.angle
+            );
+            from = body.angle;
+        }
+    }
+}
+
+/// Whether `to` lies `range` on from `from`, in degrees.
+fn turned(from: f64, to: f64, range: Range) -> bool {
+    let turn = (to - from - range.min).rem_euclid(360.0);
+    turn <= range.max - range.min + 0.01 || turn >= 359.99
 }
 
 /// The `orbit_angle` of each of `moons` moons `block` spawns.

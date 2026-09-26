@@ -3,6 +3,6 @@ source: crates/sgf-gamedata/tests/special_layouts.rs
 expression: out
 ---
 Fx at 1 2 sc_sun fx_plain
-pc_sun_star 30 orbit 0 angle 129.98 star
-  pc_rock 20 orbit 80 angle 254.76
-  pc_rock 11 orbit 100 angle 344.88
+pc_sun_star 29 orbit 0 angle 34.43 star
+  pc_rock 17 orbit 80 angle 146.6
+  pc_rock 14 orbit 100 angle 52.67
