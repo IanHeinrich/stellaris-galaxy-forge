@@ -9,7 +9,7 @@ use sgf_core::session::Session;
 use crate::GameData;
 use crate::body_effects;
 use crate::deposit_roll::{RollBody, roll_deposits, roll_deposits_without_blockers};
-use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
+use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer, body_size};
 use crate::install::script::Range;
 use crate::layouts::{
     Dlc, Eligibility, SaveFacts, StarSource, USAGE, Unsupported, converted, eligibility, generic,
@@ -17,7 +17,7 @@ use crate::layouts::{
 };
 use crate::menu::menu_initializers;
 use crate::naming;
-use crate::orbit_walk::{self, Placed, Turn, WALK_START, Walk};
+use crate::orbit_walk::{self, Placed, Walk, draw};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
 use crate::rng::Rng;
@@ -437,15 +437,15 @@ fn roll_star<'g>(
     drawn.ok_or_else(|| GenerateError::NoStar(key.to_owned()))
 }
 
-/// Rolls an initializer's bodies along [`orbit_walk::walk`], drawing each range. The first
-/// star block gives the star, once however many it counts; one written as a class
-/// (`class = pc_m_star`) keeps that class and is named after the system. A planet's moons
-/// walk as the planets do, and both walks start from [`WALK_START`]. Approximated where
-/// the engine's code decides: the turn of a body whose block gives no angle is drawn at
-/// random; a drawn class is any with odds whose `min/max_distance_from_sun` holds the
-/// orbit (a moon's, its planet's orbit, with classes marked `can_be_moon = no` left out),
-/// weighted by `spawn_odds` times the star's factor for it; and a planet list draws each of
-/// its classes alike.
+/// Rolls an initializer's bodies along [`orbit_walk::walk`], drawing each range and each
+/// count as [`InitPlanet::count`] gives it, so `class = star` spawns once. The first block
+/// whose class is a star's gives the star; one written as a class (`class = pc_m_star`)
+/// keeps that class and is named after the system. A planet's moons walk as the planets
+/// do. Approximated where the engine's code decides: the turn of a body whose block gives
+/// no angle is drawn at random; a drawn class is any with odds whose
+/// `min/max_distance_from_sun` holds the orbit (a moon's, its planet's orbit, with classes
+/// marked `can_be_moon = no` left out), weighted by `spawn_odds` times the star's factor
+/// for it; and a planet list draws each of its classes alike.
 struct Roller<'g> {
     gd: &'g GameData,
     star_class: &'g StarClass,
@@ -467,7 +467,7 @@ impl<'g> Roller<'g> {
             star: None,
             planets: Vec::new(),
         };
-        orbit_walk::walk(blocks, Turn::FromPrevious(WALK_START), &mut walk)?;
+        orbit_walk::walk(blocks, &mut walk)?;
         let Planets { star, planets, .. } = walk;
         let star = star.ok_or_else(|| GenerateError::NoStarBody(self.star_class.key.clone()))?;
         Ok((star, planets))
@@ -495,7 +495,7 @@ impl<'g> Roller<'g> {
             .planet_classes
             .get(key)
             .ok_or_else(|| GenerateError::UnknownPlanetClass(key.clone()))?;
-        let size = self.size(block, class, class.planet_size)?;
+        let size = self.size(block, class, false)?;
         Ok(BodySpec {
             name: None,
             star: true,
@@ -513,7 +513,7 @@ impl<'g> Roller<'g> {
             planet_orbit,
             moons: Vec::new(),
         };
-        orbit_walk::walk(blocks, Turn::FromPrevious(WALK_START), &mut walk)?;
+        orbit_walk::walk(blocks, &mut walk)?;
         Ok(walk.moons)
     }
 
@@ -603,20 +603,14 @@ impl<'g> Roller<'g> {
             .ok_or_else(|| GenerateError::UnknownPlanetClass(class.to_owned()))
     }
 
-    /// The block's own `size` when it fixes one, else the class's.
+    /// Drawn from [`body_size`].
     fn size(
         &mut self,
         block: &InitPlanet,
         class: &PlanetClassDef,
-        own: Option<Range>,
+        moon: bool,
     ) -> Result<u32, GenerateError> {
-        let range = block
-            .size
-            .map(|(min, max)| Range {
-                min: f64::from(min),
-                max: f64::from(max),
-            })
-            .or(own)
+        let range = body_size(block, Some(class), moon)
             .ok_or_else(|| GenerateError::NoSize(class.key.clone()))?;
         let size = self
             .rng
@@ -624,35 +618,18 @@ impl<'g> Roller<'g> {
         Ok(u32::try_from(size).unwrap_or(0))
     }
 
-    fn count(&mut self, count: Range) -> u32 {
+    /// Drawn from the block's [`InitPlanet::count`].
+    fn count(&mut self, block: &InitPlanet) -> u32 {
+        let count = block.count();
         let drawn = self
             .rng
             .int(count.min.round() as i64, count.max.round() as i64);
         u32::try_from(drawn).unwrap_or(0)
     }
-
-    /// A whole number between whole bounds, as the game writes orbits.
-    fn distance(&mut self, range: Range) -> f64 {
-        if range.min.fract() == 0.0 && range.max.fract() == 0.0 {
-            return self.rng.int(range.min as i64, range.max as i64) as f64;
-        }
-        self.rng.between(range)
-    }
-
-    fn angle(&mut self, angle: Range) -> f64 {
-        self.rng.between(angle)
-    }
-
-    fn any_angle(&mut self) -> f64 {
-        self.rng.between(Range {
-            min: 0.0,
-            max: 360.0,
-        })
-    }
 }
 
-/// The system's own bodies as the roller walks them. The first star block gives the star,
-/// once however many it counts.
+/// The system's own bodies as the roller walks them. The first block whose class is a star's
+/// gives the star.
 struct Planets<'r, 'g> {
     roller: &'r mut Roller<'g>,
     star: Option<BodySpec>,
@@ -670,26 +647,23 @@ impl<'g> Walk<'g> for Planets<'_, 'g> {
     type Error = GenerateError;
 
     fn count(&mut self, block: &'g InitPlanet) -> u32 {
-        match self.star_block(block) {
-            true => 1,
-            false => self.roller.count(block.count),
-        }
+        self.roller.count(block)
     }
 
     fn distance(&mut self, distance: Range) -> f64 {
-        self.roller.distance(distance)
+        draw::distance(&mut self.roller.rng, distance)
     }
 
     fn angle(&mut self, angle: Range) -> f64 {
-        self.roller.angle(angle)
+        draw::angle(&mut self.roller.rng, angle)
     }
 
     fn no_angle(&mut self) -> f64 {
-        self.roller.any_angle()
+        draw::any_angle(&mut self.roller.rng)
     }
 
     fn body(&mut self, block: &'g InitPlanet, placed: Placed<f64>) -> Result<(), GenerateError> {
-        let Placed { orbit, angle } = placed;
+        let Placed { orbit, angle, .. } = placed;
         if self.star_block(block) {
             self.star = Some(self.roller.star(block, orbit, angle)?);
             self.roller.blocks.insert(0, block);
@@ -697,7 +671,7 @@ impl<'g> Walk<'g> for Planets<'_, 'g> {
         }
         let roller = &mut *self.roller;
         let class = roller.class(&block.class, orbit, false)?;
-        let size = roller.size(block, class, class.planet_size)?;
+        let size = roller.size(block, class, false)?;
         roller.blocks.push(block);
         let moons = roller.moons(&block.moons, orbit)?;
         let ring = roller.ring(block, class);
@@ -722,25 +696,25 @@ impl<'g> Walk<'g> for Moons<'_, 'g> {
     type Error = GenerateError;
 
     fn count(&mut self, block: &'g InitPlanet) -> u32 {
-        self.roller.count(block.count)
+        self.roller.count(block)
     }
 
     fn distance(&mut self, distance: Range) -> f64 {
-        self.roller.distance(distance)
+        draw::distance(&mut self.roller.rng, distance)
     }
 
     fn angle(&mut self, angle: Range) -> f64 {
-        self.roller.angle(angle)
+        draw::angle(&mut self.roller.rng, angle)
     }
 
     fn no_angle(&mut self) -> f64 {
-        self.roller.any_angle()
+        draw::any_angle(&mut self.roller.rng)
     }
 
     fn body(&mut self, block: &'g InitPlanet, placed: Placed<f64>) -> Result<(), GenerateError> {
         let roller = &mut *self.roller;
         let class = roller.class(&block.class, self.planet_orbit, true)?;
-        let size = roller.size(block, class, class.moon_size)?;
+        let size = roller.size(block, class, true)?;
         roller.blocks.push(block);
         self.moons.push(BodySpec {
             asteroid: false,

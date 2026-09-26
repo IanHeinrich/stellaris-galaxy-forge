@@ -4,7 +4,12 @@ import type { DepositCount } from "./DepositCount";
 import type { NameTemplate } from "./NameTemplate";
 import type { ResourceAmount } from "./ResourceAmount";
 
-export type PlanetSummary = { id: number, class: string, name: NameTemplate, name_key: string, colonised: boolean, capital: boolean, habitable: boolean | null, owner: number | null, moon: boolean, 
+export type PlanetSummary = { id: number, class: string, name: NameTemplate, name_key: string, colonised: boolean, capital: boolean, habitable: boolean | null, owner: number | null, 
+/**
+ * Orbits a planet: its parent is a body other than a star, or one the system does not
+ * list. Without game data a save's is any body with a `moon_of`.
+ */
+moon: boolean, 
 /**
  * Owned by a `primitive` country.
  */
@@ -38,4 +43,14 @@ parent: number | null, layout: BodyLayout | null,
  * A save's ring bit in `binary_flags`; a scenario's `has_ring`, `None` when the
  * initializer leaves it to the class's `chance_of_ring`.
  */
-ring: boolean | null, };
+ring: boolean | null, 
+/**
+ * The star class a star body is drawn as: the one whose only star is its class, else
+ * its system's. `None` for any other body, and without game data.
+ */
+star_class?: string, 
+/**
+ * The game draws the body's class: a random class, a planet list, or another key the
+ * install defines no planet class for, such as `ideal_planet_class`. `false` in a save.
+ */
+drawn?: boolean, };

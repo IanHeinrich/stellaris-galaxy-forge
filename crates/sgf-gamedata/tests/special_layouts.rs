@@ -319,6 +319,69 @@ fn an_off_centre_star_stands_at_its_orbit_once_and_the_planets_count_from_the_ce
     }
 }
 
+/// A star block's count is read as 1, as the generator reads it, so a scenario system of the
+/// same layout shows one star and the planet at the same orbit.
+#[test]
+fn a_ranged_star_block_is_one_star_in_a_scenario_as_in_a_generated_system() {
+    let (_dir, gd) = hand_written();
+    let details = gd
+        .initializer_details(1, "fx_offcentre", None)
+        .expect("fx_offcentre");
+    let orbits: Vec<(&str, Option<f64>)> = details
+        .planets
+        .iter()
+        .map(|p| {
+            let orbit = p.layout.as_ref().and_then(|l| l.orbit).map(|o| o.min);
+            (p.class.as_str(), orbit)
+        })
+        .collect();
+    assert_eq!(
+        orbits,
+        [("pc_sun_star", Some(40.0)), ("pc_rock", Some(160.0))]
+    );
+}
+
+/// The example roll of a ranged star block places one star, as the details list one.
+#[test]
+fn a_ranged_star_blocks_example_roll_places_one_star() {
+    let (_dir, gd) = hand_written();
+    let roll = gd.system_roll(1, "fx_offcentre", "", 3, 150.0);
+    let orbits: Vec<f64> = roll.bodies.iter().map(|b| b.orbit).collect();
+    assert_eq!(orbits, [40.0, 160.0]);
+}
+
+/// When the game rolls a system's planets, the roll shows the planets the generator rolls
+/// for its star class, drawn in until the outermost lies 20 inside the radius asked for.
+#[test]
+fn a_system_whose_planets_the_game_rolls_shows_the_generators_planets_as_placeholders() {
+    let (_dir, gd) = hand_written();
+    for initializer in ["random", "", "fx_nowhere"] {
+        assert!(gd.rolls_planets(initializer), "{initializer:?}");
+        let roll = gd.system_roll(1, initializer, "sc_sun", 0, 150.0);
+        assert!(roll.rolls_planets && roll.bodies.is_empty());
+        let orbits: Vec<f64> = roll.placeholders.iter().map(|p| p.orbit).collect();
+        assert_eq!(orbits, [80.0, 100.0], "fx_plain's two planets, which fit");
+        for planet in &roll.placeholders {
+            assert!(["pc_rock", "pc_meadow"].contains(&planet.class.as_str()));
+            assert!((10..=20).contains(&planet.size), "{planet:?}");
+            assert!((0.0..360.0).contains(&planet.angle));
+        }
+        assert_eq!(gd.system_roll(1, initializer, "sc_sun", 0, 150.0), roll);
+    }
+    let tight = gd.system_roll(1, "random", "sc_sun", 0, 70.0);
+    let orbits: Vec<f64> = tight.placeholders.iter().map(|p| p.orbit).collect();
+    assert_eq!(orbits, [40.0, 50.0], "drawn in to 50, 20 inside 70");
+    let unknown = gd.system_roll(1, "random", "sc_nowhere", 0, 150.0);
+    assert_eq!(
+        unknown.placeholders.len(),
+        2,
+        "any class when the install lacks it"
+    );
+    let defined = gd.system_roll(1, "fx_offcentre", "sc_sun", 0, 150.0);
+    assert!(!gd.rolls_planets("fx_offcentre"));
+    assert!(!defined.rolls_planets && defined.placeholders.is_empty());
+}
+
 #[test]
 fn a_star_only_generic_special_layouts_make_is_listed_and_drawn_from_them() {
     let (_dir, gd) = hand_written();

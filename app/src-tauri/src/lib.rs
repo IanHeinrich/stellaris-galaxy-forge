@@ -87,6 +87,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_lgate_outcome_mods,
             commands::get_textures,
             commands::get_system_details,
+            commands::get_system_roll,
             commands::check_for_update,
             commands::install_update,
         ])

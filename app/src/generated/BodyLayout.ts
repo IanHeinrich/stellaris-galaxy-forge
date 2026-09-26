@@ -41,6 +41,6 @@ orbit_base: Bounds | null,
 angle_step: Bounds | null, 
 /**
  * The body before it in its initializer's walk, whose angle it turns on from. `None`
- * for the first of a walk, which turns from 0, and in a save.
+ * for the first of a walk, which turns from the walk's start of 180°, and in a save.
  */
 turns_from: number | null, };

@@ -13,12 +13,16 @@ use sgf_core::format::save::details::{
 use sgf_core::projections::name::NameTemplate;
 
 use crate::GameData;
-use crate::generate::belt;
-use crate::initializers::{self, Body, BodyClass, InitPlanet, Initializer};
+use crate::generate::{belt, generate};
+use crate::initializers::{self, Body, BodyClass, InitPlanet, Initializer, body_size};
 use crate::install::script::Range;
-use crate::orbit_walk::{self, Placed, Turn, WALK_START, Walk};
+use crate::layouts::star_body;
+use crate::orbit_walk::{self, Placed, Walk, draw};
 use crate::registries::planet_classes::PlanetClassDef;
+use crate::registries::star_classes::StarClass;
+use crate::rng::Rng;
 use crate::scripts::ScenarioOwners;
+use crate::views::{PlaceholderBody, RolledBody, SystemRoll};
 
 /// Bodies an initializer gives no id: each collection counts from a base far above any id
 /// a save or a scenario writes, so a synthetic id never collides with a real one.
@@ -158,19 +162,107 @@ impl GameData {
             .collect()
     }
 
+    /// Save system details with what the install says of each body: the star class each star
+    /// is drawn as, in a system of star class `system`, and which bodies orbit a planet.
+    pub fn resolve_save_bodies(&self, details: &mut SystemDetails, system: &str) {
+        let stars: Vec<(u32, bool)> = details
+            .planets
+            .iter()
+            .map(|p| (p.id, self.is_star_body(&p.class)))
+            .collect();
+        for planet in &mut details.planets {
+            planet.star_class = self.drawn_star_class(&planet.class, system);
+            planet.moon = planet
+                .parent
+                .is_some_and(|parent| !stars.iter().any(|&(id, star)| id == parent && star));
+        }
+    }
+
+    /// One example roll, `roll`, of scenario system `id` of `initializer`: where each body
+    /// its details list lands, the same for the same system and roll. When the game rolls the
+    /// system's planets, placeholder planets the generator rolls for star class `star_class`
+    /// (or [`RANDOM_STAR_CLASS`] without one), their orbits drawn in to fit inside `within`.
+    pub fn system_roll(
+        &self,
+        id: u32,
+        initializer: &str,
+        star_class: &str,
+        roll: u32,
+        within: f64,
+    ) -> SystemRoll {
+        let seed = roll_seed(id, roll);
+        if self.rolls_planets(initializer) {
+            let star_class = match star_class {
+                "" => RANDOM_STAR_CLASS,
+                class => class,
+            };
+            return SystemRoll {
+                rolls_planets: true,
+                placeholders: self.placeholders(seed, star_class, within),
+                ..SystemRoll::none(id, roll)
+            };
+        }
+        let planets = self
+            .initializers
+            .get(initializer)
+            .map_or(&[][..], |init| init.planets.as_slice());
+        let mut example = Example {
+            rng: Rng::new(seed),
+            bodies: Vec::new(),
+        };
+        let Ok(()) = orbit_walk::walk(planets, &mut example);
+        SystemRoll {
+            bodies: example.bodies,
+            ..SystemRoll::none(id, roll)
+        }
+    }
+
+    /// Whether the game rolls the planets of a scenario system with `initializer`: it is
+    /// `random`, empty or not defined by the install.
+    pub fn rolls_planets(&self, initializer: &str) -> bool {
+        self.initializers.get(initializer).is_none()
+    }
+
+    /// The planets [`generate`] rolls for `star_class`, or for any class when none of the
+    /// install's layouts makes it, drawn in about the centre until the outermost lies
+    /// [`PLACEHOLDER_MARGIN`] inside `within`.
+    fn placeholders(&self, seed: u64, star_class: &str, within: f64) -> Vec<PlaceholderBody> {
+        let roll = |class| generate(self, seed, "", (0.0, 0.0), class, 1.0);
+        let Ok(spec) = roll(Some(star_class)).or_else(|_| roll(None)) else {
+            return Vec::new();
+        };
+        let outermost = spec.planets.iter().map(|p| p.orbit).fold(0.0, f64::max);
+        let fit = match outermost > 0.0 {
+            true => ((within - PLACEHOLDER_MARGIN) / outermost).clamp(0.0, 1.0),
+            false => 1.0,
+        };
+        spec.planets
+            .iter()
+            .map(|p| PlaceholderBody {
+                class: p.class.clone(),
+                size: p.size,
+                orbit: p.orbit * fit,
+                angle: p.angle.rem_euclid(360.0),
+            })
+            .collect()
+    }
+
     fn bodies(&self, init: &Initializer) -> Bodies {
         let mut out = Bodies::default();
-        let classes = self.star_body_classes(
-            star_class_of(Some(init)),
-            initializers::expand(&init.planets).map(|body| body.block.class.written()),
-        );
+        let system = star_class_of(Some(init));
+        let expanded: Vec<Body<'_>> = initializers::expand(&init.planets).collect();
+        let classes =
+            self.star_body_classes(system, expanded.iter().map(|b| b.block.class.written()));
+        let moons: Vec<bool> = expanded
+            .iter()
+            .map(|b| b.parent.is_some_and(|i| !self.is_star_body(&classes[i])))
+            .collect();
         let layouts = Layouts::of(&init.planets);
-        for ((body, layout), class) in initializers::expand(&init.planets)
-            .zip(layouts)
-            .zip(classes)
-        {
+        let bodies = expanded.into_iter().zip(layouts).zip(classes).zip(moons);
+        for (((body, layout), class), moon) in bodies {
             let id = planet_id(out.planets.len());
-            out.planets.push(self.summary(body, class, id, layout));
+            out.planets
+                .push(self.summary(body, class, id, layout, moon, system));
             for kind in &body.block.sites {
                 out.sites.push(ArchaeologySite {
                     id: SITE_BASE + index(out.sites.len()),
@@ -182,24 +274,24 @@ impl GameData {
         out
     }
 
-    /// `class` is the body's planet class, a star's resolved by [`Self::star_body_classes`].
-    /// A body whose block gives no `size` takes its class's.
+    /// `class` is the body's planet class, a star's resolved by [`Self::star_body_classes`];
+    /// `moon` whether it orbits a planet, as the body is shown; its size and ring follow the
+    /// block it is written in, as the generator draws them. `system` is the system's star class.
     fn summary(
         &self,
         expanded: Body<'_>,
         class: String,
         id: u32,
         mut layout: BodyLayout,
+        moon: bool,
+        system: &str,
     ) -> PlanetSummary {
         let body = expanded.block;
-        if layout.size.is_none() {
-            layout.size = self.class_size(&class, expanded.moon).map(bounds);
-        }
+        layout.size = body_size(body, self.planet_classes.get(&class), expanded.moon).map(bounds);
         let name_key = body.name.clone().unwrap_or_default();
         let habitable = self.planet_habitable(&class);
         PlanetSummary {
             id,
-            class,
             name: if name_key.is_empty() {
                 NameTemplate::default()
             } else {
@@ -211,7 +303,7 @@ impl GameData {
             capital: body.home_planet && !body.pre_ftl,
             habitable,
             owner: None,
-            moon: expanded.moon,
+            moon,
             pre_ftl: body.pre_ftl,
             size: layout.size.map(|size| size.min.round() as u32),
             orbit: None,
@@ -221,6 +313,48 @@ impl GameData {
             parent: expanded.parent.map(planet_id),
             layout: Some(layout),
             ring: self.ring(body, expanded.moon),
+            star_class: self.drawn_star_class(&class, system),
+            drawn: Some(self.drawn(&class)),
+            class,
+        }
+    }
+
+    /// A star's body: the bare `star`, or a planet class the install makes a star.
+    fn is_star_body(&self, class: &str) -> bool {
+        star_body(self, &BodyClass::of(class))
+    }
+
+    /// The star class a star body of `class` is drawn as, in a system of star class
+    /// `system`: the class whose only star it is, preferring one a new galaxy rolls, else the
+    /// system's.
+    fn drawn_star_class(&self, class: &str, system: &str) -> Option<String> {
+        if !self.is_star_body(class) {
+            return None;
+        }
+        let mut single: Option<&StarClass> = None;
+        for star in self
+            .star_classes
+            .iter()
+            .filter(|s| s.planet_keys == [class])
+        {
+            if single.is_none_or(|held| held.spawn_odds == 0.0 && star.spawn_odds > 0.0) {
+                single = Some(star);
+            }
+        }
+        match single {
+            Some(star) => Some(star.key.clone()),
+            None => (!system.is_empty()).then(|| system.to_owned()),
+        }
+    }
+
+    /// Whether the game draws a body written as `class`, as [`PlanetSummary::drawn`] says.
+    fn drawn(&self, class: &str) -> bool {
+        match BodyClass::of(class) {
+            BodyClass::Star => false,
+            BodyClass::Random(_) => true,
+            BodyClass::Named(key) => {
+                self.planet_classes.get(&key).is_none() && self.star_classes.get(&key).is_none()
+            }
         }
     }
 
@@ -253,12 +387,6 @@ impl GameData {
         }
     }
 
-    /// The size range the generator draws a body of `class` from, a moon's or a planet's.
-    fn class_size(&self, class: &str, moon: bool) -> Option<Range> {
-        let def = self.planet_classes.get(class)?;
-        if moon { def.moon_size } else { def.planet_size }
-    }
-
     fn deposit_rows(&self, keys: &[String]) -> Vec<ResourceAmount> {
         let mut rows = Vec::new();
         for produced in keys.iter().filter_map(|k| self.deposit_produces(k)) {
@@ -271,8 +399,7 @@ impl GameData {
 }
 
 /// Each body's layout in the order [`initializers::expand`] gives the bodies, each range
-/// kept as the bounds a draw could give. Each walk's angles start at [`WALK_START`], as the
-/// game's do.
+/// kept as the bounds a draw could give.
 struct Layouts {
     bodies: Vec<BodyLayout>,
     /// The id of the body last placed at this level, which the next one turns from.
@@ -285,11 +412,7 @@ impl Layouts {
             bodies: Vec::new(),
             previous: None,
         };
-        let Ok(()) = orbit_walk::walk(
-            planets,
-            Turn::FromPrevious(Bounds::fixed(WALK_START)),
-            &mut layouts,
-        );
+        let Ok(()) = orbit_walk::walk(planets, &mut layouts);
         layouts.bodies
     }
 }
@@ -313,41 +436,71 @@ impl<'p> Walk<'p> for Layouts {
 
     /// A body with no angle may be anywhere on its orbit.
     fn body(&mut self, block: &'p InitPlanet, placed: Placed<Bounds>) -> Result<(), Infallible> {
-        let orbit = placed.orbit;
-        let step = block.orbit_distance.map_or(
-            Bounds {
-                min: 10.0,
-                max: 20.0,
-            },
-            bounds,
-        );
         let id = planet_id(self.bodies.len());
         let turns_from = self.previous.replace(id);
         self.bodies.push(BodyLayout {
-            orbit: Some(orbit),
+            orbit: Some(placed.orbit),
             angle: block.orbit_angle.map(|_| within_one_turn(placed.angle)),
             at: None,
-            size: block.size.map(|(min, max)| Bounds {
-                min: f64::from(min),
-                max: f64::from(max),
-            }),
-            orbit_step: Some(step),
-            orbit_base: Some(Bounds {
-                min: orbit.min - step.min,
-                max: orbit.max - step.max,
-            }),
+            size: None,
+            orbit_step: Some(placed.step),
+            orbit_base: Some(placed.base),
             angle_step: block.orbit_angle.map(bounds),
             turns_from,
         });
         let before = self.previous.take();
-        let moons = orbit_walk::walk(
-            &block.moons,
-            Turn::FromPrevious(Bounds::fixed(WALK_START)),
-            self,
-        );
+        let moons = orbit_walk::walk(&block.moons, self);
         self.previous = before;
         moons
     }
+}
+
+/// One roll of an initializer's walk, each distance and angle drawn as the add-system roller
+/// draws it. A block's count is not drawn: every roll spawns its rounded midpoint, as
+/// [`initializers::expand`] does, so each body meets its details by id.
+struct Example {
+    rng: Rng,
+    bodies: Vec<RolledBody>,
+}
+
+impl<'p> Walk<'p> for Example {
+    type Number = f64;
+    type Error = Infallible;
+
+    fn count(&mut self, block: &'p InitPlanet) -> u32 {
+        block.instances()
+    }
+
+    fn distance(&mut self, distance: Range) -> f64 {
+        draw::distance(&mut self.rng, distance)
+    }
+
+    fn angle(&mut self, angle: Range) -> f64 {
+        draw::angle(&mut self.rng, angle)
+    }
+
+    fn no_angle(&mut self) -> f64 {
+        draw::any_angle(&mut self.rng)
+    }
+
+    fn body(&mut self, block: &'p InitPlanet, placed: Placed<f64>) -> Result<(), Infallible> {
+        self.bodies.push(RolledBody {
+            id: planet_id(self.bodies.len()),
+            orbit: placed.orbit,
+            angle: placed.angle.rem_euclid(360.0),
+            base: placed.base,
+            from: placed.from.rem_euclid(360.0),
+        });
+        orbit_walk::walk(&block.moons, self)
+    }
+}
+
+/// How far inside the radius they must fit the outermost placeholder planet stays.
+const PLACEHOLDER_MARGIN: f64 = 20.0;
+
+/// The seed of roll `roll` of system `id`.
+fn roll_seed(id: u32, roll: u32) -> u64 {
+    (u64::from(id) << 32) | u64::from(roll)
 }
 
 fn bounds(range: Range) -> Bounds {
