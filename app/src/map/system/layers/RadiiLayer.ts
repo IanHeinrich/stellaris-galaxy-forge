@@ -99,7 +99,7 @@ export class RadiiLayer implements SystemLayer {
   /** The rings the orbits layer draws at `px` world units to the pixel, in the order they are labelled. */
   private groups(px: number): Labelled[] {
     return ringGroups(this.ringed, px)
-      .flatMap(({ id, ring, span }) => (span ? [{ id, ring, span, moon: this.moons.has(id) }] : []))
+      .map((group) => ({ ...group, moon: this.moons.has(group.id) }))
       .sort(rank);
   }
 
@@ -130,8 +130,6 @@ export class RadiiLayer implements SystemLayer {
       standTag(tag, cam, box, k);
     }
   }
-
-  setHighlighted(): void {}
 
   destroy(): void {
     this.container.destroy({ children: true });

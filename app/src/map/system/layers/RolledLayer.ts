@@ -57,8 +57,6 @@ export class RolledLayer implements SystemLayer {
       .stroke({ color: ROLLED_COLOR, alpha: EDGE_ALPHA, pixelLine: true });
   }
 
-  setHighlighted(): void {}
-
   destroy(): void {
     this.container.destroy({ children: true });
   }

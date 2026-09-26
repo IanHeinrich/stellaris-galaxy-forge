@@ -16,11 +16,14 @@ import {
   starClassView,
   systemDetails,
 } from "../../test/builders";
-import { rolledBody, systemRoll } from "../../test/rolls";
+import { systemRoll } from "../../test/rolls";
 import { systemContext } from "./context";
 import {
   blankSceneTextures,
   context as fixtureContext,
+  fixed,
+  rollOf,
+  SYSTEM,
   stubTextMeasurement,
   viewport,
 } from "./fixture";
@@ -30,10 +33,7 @@ import { NO_SOURCES, type SystemSources } from "./sources";
 
 stubTextMeasurement();
 
-const SYSTEM = 5;
 const INITIALIZER = "context_init";
-
-const fixed = (value: number) => ({ min: value, max: value });
 
 const STAR_CLASSES: ReadonlyMap<string, StarClassView> = new Map(
   [
@@ -92,16 +92,6 @@ const body = (id: number, planetClass: string, layout: Partial<BodyLayout>, over
     ring: false,
     ...over,
   });
-
-/** The roll the core gives bodies each at the low end of its orbit, at `angles` (0 by default). */
-function rollOf(planets: PlanetSummary[], angles: Record<number, number> = {}): SystemRoll {
-  return systemRoll({
-    system: SYSTEM,
-    bodies: planets.map((p) =>
-      rolledBody({ id: p.id, orbit: p.layout?.orbit?.min ?? 0, angle: angles[p.id] ?? 0 }),
-    ),
-  });
-}
 
 const sun = planetSummary({
   id: 1,

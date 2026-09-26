@@ -89,10 +89,6 @@ export class NebulaLayer implements SystemLayer {
     this.field.addChild(sprite);
   }
 
-  onViewport(): void {}
-
-  setHighlighted(): void {}
-
   destroy(): void {
     this.container.destroy({ children: true });
   }

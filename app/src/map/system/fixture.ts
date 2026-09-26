@@ -22,7 +22,7 @@ export function viewport(layer: SystemLayer, scale: number, at = { x: 0, y: 0 })
   cam.x = at.x;
   cam.y = at.y;
   cam.rev++;
-  layer.onViewport(cam);
+  layer.onViewport?.(cam);
   return cam;
 }
 
@@ -103,12 +103,15 @@ export function scenarioBody(
 
 /**
  * The roll the core gives the scenario bodies of `planets`: each mid-orbit, a step out from where
- * the walk stood, at the angle it names.
+ * the walk stood, at the angle `angles` gives it by id, or else the one it names.
  */
-export function rollOf(planets: readonly PlanetSummary[]): SystemRoll | null {
+export function rollOf(
+  planets: readonly PlanetSummary[],
+  angles: Readonly<Record<number, number>> = {},
+): SystemRoll | null {
   const rolled = planets.filter((p) => p.layout !== null && p.layout.at === null);
   if (rolled.length === 0) return null;
-  const angles = new Map(rolled.map((p) => [p.id, ANGLES.get(p) ?? 0]));
+  const angleOf = new Map(rolled.map((p) => [p.id, angles[p.id] ?? ANGLES.get(p) ?? 0]));
   return systemRoll({
     system: SYSTEM,
     bodies: rolled.map((p) => {
@@ -119,8 +122,8 @@ export function rollOf(planets: readonly PlanetSummary[]): SystemRoll | null {
         id: p.id,
         orbit,
         base: orbit - mid(p.layout?.orbit_step),
-        angle: angles.get(p.id),
-        from: before == null ? 180 : (angles.get(before) ?? 180),
+        angle: angleOf.get(p.id),
+        from: before == null ? 180 : (angleOf.get(before) ?? 180),
       });
     }),
   });

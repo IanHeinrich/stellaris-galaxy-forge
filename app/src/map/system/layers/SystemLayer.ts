@@ -28,7 +28,7 @@ export const NO_HIGHLIGHT: SceneHighlight = Object.freeze({
 export interface SystemLayer {
   readonly container: Container;
   rebuild(ctx: SystemContext): void;
-  onViewport(cam: Camera): void;
-  setHighlighted(ref: SceneHighlight): void;
+  onViewport?(cam: Camera): void;
+  setHighlighted?(ref: SceneHighlight): void;
   destroy(): void;
 }

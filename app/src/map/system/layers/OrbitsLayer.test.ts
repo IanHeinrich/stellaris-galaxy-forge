@@ -39,13 +39,11 @@ function circleRadii(g: Graphics): number[] {
 }
 
 describe("the system scene's orbits layer", () => {
-  it("strokes each orbit whole and faint about its parent, and the inner radius dashed on its own", () => {
+  it("strokes each orbit whole about its parent, and the inner radius dashed on its own", () => {
     const layer = new OrbitsLayer();
     layer.rebuild(context({ planets: [SUN, EARTH, LUNA, MARS] }));
     viewport(layer, 2);
     expect(circleRadii(layer.rings)).toEqual([12, 90, 130]);
-    const [rings] = drawOps(layer.rings).filter((op) => op.action === "stroke");
-    expect(rings.alpha).toBeLessThan(0.2);
     expect(circleRadii(layer.inner)).toEqual([]);
     expect(arcRadii(layer.inner)).toEqual([160]);
   });

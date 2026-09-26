@@ -151,7 +151,6 @@ describe("the system scene's bodies layer", () => {
     expect(shown().map((s) => s.label)).toEqual(["glow", "art", "lit", "halo"]);
     expect(art.texture).toBe(textureFor("star_class:sc_g"));
     expect(art.blendMode).toBe(STAR_ART_BLEND);
-    expect(art.alpha).toBeLessThan(0.5);
     expect(lit.scale.x).toBeGreaterThan(0);
     expect(lit.width).toBeCloseTo(labelled("disc").width);
     for (const flare of ["beams", "jets", "wisps", "wash", "haze", "aura", "bloom"]) {

@@ -48,8 +48,6 @@ export class OrbitsLayer implements SystemLayer {
     this.inner.stroke({ color: ORBIT_COLOR, alpha: INNER_ALPHA, pixelLine: true });
   }
 
-  setHighlighted(): void {}
-
   destroy(): void {
     this.container.destroy({ children: true });
   }

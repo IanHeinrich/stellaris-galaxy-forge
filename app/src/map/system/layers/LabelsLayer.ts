@@ -3,15 +3,10 @@ import { formatAmount, resourceAbbrev, type ResourceRow } from "../../../lib/det
 import { MAP_FONT } from "../../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
-import {
-  RESOURCE_AMOUNT_PX,
-  RESOURCE_ICON_PX,
-  resourceCellX,
-} from "../../layers/details/resources";
+import { RESOURCE_AMOUNT_PX, RESOURCE_ICON_PX, resourceCell } from "../../layers/details/resources";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
-import { drawnDisc } from "../geometry";
+import { bodyTier, drawnDisc } from "../geometry";
 import type { PlatePick } from "../picking";
-import { bodyTier } from "./BodiesLayer";
 import { placeLabels, plateScaleAt, type LabelItem } from "./labelSlots";
 import { colonyBarReach, drawPlate, PLATE_PAD_X, PLATE_PAD_Y, type Plate } from "./plate";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
@@ -108,7 +103,7 @@ function makeLabel(body: SceneBody, named: boolean, rows: readonly ResourceRow[]
   let rowHalf = 0;
   let amountH = 0;
   const laid = rows.map((row, i) => {
-    const dx = resourceCellX(i, rows.length);
+    const dx = resourceCell(i, rows.length, 0).x;
     const shadow = new Sprite(Texture.EMPTY);
     shadow.tint = 0x000000;
     shadow.alpha = ICON_SHADOW_ALPHA;
@@ -117,7 +112,7 @@ function makeLabel(body: SceneBody, named: boolean, rows: readonly ResourceRow[]
     icon.label = "resource";
     icon.anchor.set(0.5, 0);
     const abbrev = new BitmapText({ text: resourceAbbrev(row.resource), style: ABBREV_STYLE });
-    abbrev.anchor.set(0.5, 0.5);
+    abbrev.anchor.set(0.5, 0);
     const amount = new BitmapText({ text: formatAmount(row.amount), style: AMOUNT_STYLE });
     amount.label = "amount";
     amount.anchor.set(0.5, 0);
@@ -125,7 +120,7 @@ function makeLabel(body: SceneBody, named: boolean, rows: readonly ResourceRow[]
     const reach = Math.max(RESOURCE_ICON_PX, abbrev.width, amount.width) / 2;
     rowHalf = Math.max(rowHalf, Math.abs(dx) + reach);
     amountH = Math.max(amountH, amount.height);
-    return { cell: { key: row.sprite, icon, shadow, abbrev }, amount, dx };
+    return { cell: { key: row.sprite, icon, shadow, abbrev }, amount };
   });
 
   const w = Math.max(plate?.w ?? 0, 2 * rowHalf);
@@ -134,11 +129,13 @@ function makeLabel(body: SceneBody, named: boolean, rows: readonly ResourceRow[]
     name.position.set(w / 2 + colonyBarReach(plate.colony) / 2, PLATE_PAD_Y);
   }
   const rowY = plate ? plate.h + RESOURCE_GAP_PX : 0;
-  for (const { cell, amount, dx } of laid) {
-    cell.icon.position.set(w / 2 + dx, rowY);
-    cell.shadow.position.set(w / 2 + dx + ICON_SHADOW_OFFSET_PX, rowY + ICON_SHADOW_OFFSET_PX);
-    cell.abbrev.position.set(w / 2 + dx, rowY + RESOURCE_ICON_PX / 2);
-    amount.position.set(w / 2 + dx, rowY + RESOURCE_ICON_PX);
+  for (const [i, { cell, amount }] of laid.entries()) {
+    const at = resourceCell(i, laid.length, rowY);
+    const x = w / 2 + at.x;
+    cell.icon.position.set(x, at.iconY);
+    cell.shadow.position.set(x + ICON_SHADOW_OFFSET_PX, at.iconY + ICON_SHADOW_OFFSET_PX);
+    cell.abbrev.position.set(x, at.abbrevY);
+    amount.position.set(x, at.amountY);
   }
   const h = laid.length > 0 ? rowY + RESOURCE_ICON_PX + amountH : (plate?.h ?? 0);
   return { body, holder, plate, cells: laid.map((l) => l.cell), w, h };

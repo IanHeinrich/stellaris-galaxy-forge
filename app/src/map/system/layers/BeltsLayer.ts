@@ -84,8 +84,6 @@ export class BeltsLayer implements SystemLayer {
     }
   }
 
-  setHighlighted(): void {}
-
   destroy(): void {
     this.container.destroy({ children: true });
   }

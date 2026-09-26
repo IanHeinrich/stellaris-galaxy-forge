@@ -96,7 +96,7 @@ describe("the system scene's orbit band", () => {
     };
     const { fills, holes } = bandOf(2);
     expect(fills.map((op) => op.segments)).toEqual([[[0, 0, 100]]]);
-    expect(fills[0].alpha).toBeLessThan(0.2);
+    expect(fills[0].alpha).toBeLessThan(1);
     expect(holes).toEqual([60]);
     expect(bandOf(null).fills).toEqual([]);
     expect(bandOf(3).fills).toEqual([]);

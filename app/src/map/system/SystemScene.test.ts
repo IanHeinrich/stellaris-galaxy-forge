@@ -4,40 +4,24 @@ vi.mock("../../api/ipc");
 vi.mock("../../api/textures", () => ({ getTextures: () => Promise.resolve([]) }));
 
 import { Texture, type Renderer } from "pixi.js";
-import type { PlanetSummary } from "../../generated/PlanetSummary";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import {
-  bodyLayout,
-  byId,
-  name,
-  placedNode,
-  planetSummary,
-  systemDetails,
-} from "../../test/builders";
-import { stubTextMeasurement } from "./fixture";
+import { byId, name, placedNode, systemDetails } from "../../test/builders";
+import { EARTH, SUN, SYSTEM, stubTextMeasurement } from "./fixture";
 import { pickBody } from "./picking";
 import { SystemScene } from "./SystemScene";
 
 stubTextMeasurement();
 
-const SYSTEM = 5;
 /** The id an edit gives `SYSTEM` when it renumbers the systems. */
 const RENUMBERED = 4;
 const OTHER = 6;
 
-function body(id: number, planetClass: string, at: [number, number], orbit: number): PlanetSummary {
-  const size = { min: 16, max: 16 };
-  const layout = bodyLayout({ orbit: { min: orbit, max: orbit }, at, size });
-  return planetSummary({ id, class: planetClass, parent: id === 1 ? null : 1, orbit, layout });
-}
-
-const SUN = body(1, "pc_g_star", [0, 0], 0);
-const EARTH = {
-  ...body(2, "pc_continental", [90, 0], 90),
+const NAMED_EARTH = {
+  ...EARTH,
   name: name("NAME_Earth"),
   name_key: "NAME_Earth",
 };
@@ -99,7 +83,7 @@ function zoomedOnEarth(shown: SystemScene): { x: number; y: number } {
 
 function detailsLand(...ids: number[]): void {
   const records = ids.map((id) => {
-    const details = systemDetails({ id, inner_radius: 400, planets: [SUN, EARTH] });
+    const details = systemDetails({ id, inner_radius: 400, planets: [SUN, NAMED_EARTH] });
     return [id, details] as const;
   });
   useDetailsStore.setState({ details: new Map(records) });

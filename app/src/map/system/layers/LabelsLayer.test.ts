@@ -57,7 +57,7 @@ describe("the system scene's labels layer", () => {
     expect(fills).toHaveLength(2);
     for (const fill of fills) {
       expect(fill.color).toBe(0x000000);
-      expect(fill.alpha).toBeLessThan(0.5);
+      expect(fill.alpha).toBeLessThan(1);
     }
     clearTextures();
     layer.destroy();

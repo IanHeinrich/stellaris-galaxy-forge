@@ -11,7 +11,7 @@ import {
   type SceneBody,
   type SystemContext,
 } from "../context";
-import { drawnDisc } from "../geometry";
+import { bodyTier, drawnDisc } from "../geometry";
 import { RING_TILT, ringStrip, sizeRing, type RingParts } from "./ring";
 import { flareParts, STAR_ART, type FlareShape } from "./starLight";
 import type { SystemLayer } from "./SystemLayer";
@@ -60,14 +60,6 @@ const GLYPH_STYLE = new TextStyle({
 function artScale(body: SceneBody): number {
   if (body.look.blackHole) return HOLE_ART_SCALE;
   return body.placement.star ? STAR_ART[body.look.flare ?? "star"].scale : PLANET_ART_SCALE;
-}
-
-/**
- * Stars, then planets, then moons: the order bodies are drawn in, so a moon is never hidden
- * behind its planet, and the order their labels are placed in.
- */
-export function bodyTier(body: SceneBody): number {
-  return body.placement.star ? 0 : body.moon ? 2 : 1;
 }
 
 /**
@@ -378,8 +370,6 @@ export class BodiesLayer implements SystemLayer {
         .stroke({ color: atmosphere.color, width: step, alpha: peak * fade });
     }
   }
-
-  setHighlighted(): void {}
 
   destroy(): void {
     this.unsubTextures();

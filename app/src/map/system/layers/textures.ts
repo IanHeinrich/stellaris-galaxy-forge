@@ -189,6 +189,6 @@ export function bakeSceneTextures(renderer: Renderer): SceneTextures {
 }
 
 /** Destroys the textures `bakeSceneTextures` made. */
-export function releaseSceneTextures(_renderer: Renderer, textures: SceneTextures): void {
+export function releaseSceneTextures(textures: SceneTextures): void {
   for (const texture of Object.values(textures)) texture.destroy(true);
 }
