@@ -1,52 +1,69 @@
 import type { MapInput, MapIntent } from "../map/interaction/MapIntent";
+import type { SystemInput, SystemIntent } from "../map/system/SystemGestureModel";
 
-type Call = [keyof MapIntent, ...unknown[]];
+type Call<T> = [keyof T, ...unknown[]];
+type Recorder<T> = T & { calls: Array<Call<T>> };
+
+/** An intent whose every method, each listed in `methods`, records its calls. */
+function recording<T>(methods: Record<keyof T, true>): Recorder<T> {
+  const calls: Array<Call<T>> = [];
+  const names = Object.keys(methods) as Array<keyof T>;
+  const intent = Object.fromEntries(
+    names.map((name) => [name, (...args: unknown[]) => void calls.push([name, ...args])]),
+  );
+  return { ...intent, calls } as Recorder<T>;
+}
 
 /** A `MapIntent` that records every call, for driving a control model without a canvas. */
-export function recorder(): MapIntent & { calls: Call[] } {
-  const calls: Call[] = [];
-  const rec =
-    (name: keyof MapIntent) =>
-    (...args: unknown[]) => {
-      calls.push([name, ...args]);
-    };
-  return {
-    calls,
-    select: rec("select"),
-    toggleSelect: rec("toggleSelect"),
-    selectLane: rec("selectLane"),
-    clearSelection: rec("clearSelection"),
-    enterSystem: rec("enterSystem"),
-    previewMarquee: rec("previewMarquee"),
-    endMarquee: rec("endMarquee"),
-    selectInRect: rec("selectInRect"),
-    previewMove: rec("previewMove"),
-    commitMove: rec("commitMove"),
-    previewMoveGroup: rec("previewMoveGroup"),
-    commitMoveGroup: rec("commitMoveGroup"),
-    cancelMove: rec("cancelMove"),
-    previewLane: rec("previewLane"),
-    endLane: rec("endLane"),
-    connect: rec("connect"),
-    cut: rec("cut"),
-    selectNebula: rec("selectNebula"),
-    previewNebula: rec("previewNebula"),
-    commitNebula: rec("commitNebula"),
-    previewNebulaRadius: rec("previewNebulaRadius"),
-    commitNebulaRadius: rec("commitNebulaRadius"),
-    endNebula: rec("endNebula"),
-    selectFeZone: rec("selectFeZone"),
-    previewFeZone: rec("previewFeZone"),
-    commitFeZone: rec("commitFeZone"),
-    endFeZone: rec("endFeZone"),
-    contextMenu: rec("contextMenu"),
-    hoverBrush: rec("hoverBrush"),
-    beginStroke: rec("beginStroke"),
-    extendStroke: rec("extendStroke"),
-    commitStroke: rec("commitStroke"),
-    cancelStroke: rec("cancelStroke"),
-    endBrush: rec("endBrush"),
-  };
+export function recorder(): Recorder<MapIntent> {
+  return recording<MapIntent>({
+    select: true,
+    toggleSelect: true,
+    selectLane: true,
+    clearSelection: true,
+    enterSystem: true,
+    previewMarquee: true,
+    endMarquee: true,
+    selectInRect: true,
+    previewMove: true,
+    commitMove: true,
+    previewMoveGroup: true,
+    commitMoveGroup: true,
+    cancelMove: true,
+    previewLane: true,
+    endLane: true,
+    connect: true,
+    cut: true,
+    selectNebula: true,
+    previewNebula: true,
+    commitNebula: true,
+    previewNebulaRadius: true,
+    commitNebulaRadius: true,
+    endNebula: true,
+    selectFeZone: true,
+    previewFeZone: true,
+    commitFeZone: true,
+    endFeZone: true,
+    contextMenu: true,
+    hoverBrush: true,
+    beginStroke: true,
+    extendStroke: true,
+    commitStroke: true,
+    cancelStroke: true,
+    endBrush: true,
+  });
+}
+
+/** A `SystemIntent` that records every call, for driving the system scene's model without a canvas. */
+export function sceneRecorder(): Recorder<SystemIntent> {
+  return recording<SystemIntent>({
+    hover: true,
+    selectLane: true,
+    enterSystem: true,
+    contextMenu: true,
+    openBody: true,
+    showSystem: true,
+  });
 }
 
 /** The gap between the default times of two inputs: wide enough that no two double a click. */
@@ -84,6 +101,31 @@ export function at(
     feZone: null,
     nebula: null,
     prevented: null,
+    ...extra,
+  };
+}
+
+/** The system `sceneAt`'s inputs are in, unless `extra` states another. */
+export const SCENE_SYSTEM = 5;
+
+/** One input in the system scene at screen (sx, sy), which is also its scene point, over nothing. */
+export function sceneAt(
+  kind: SystemInput["kind"],
+  sx: number,
+  sy: number,
+  extra: Partial<SystemInput> = {},
+): SystemInput {
+  return {
+    kind,
+    sx,
+    sy,
+    wx: sx,
+    wy: sy,
+    button: kind === "move" ? -1 : 0,
+    time: (clock += DEFAULT_TIME_STEP_MS),
+    system: SCENE_SYSTEM,
+    body: null,
+    exit: null,
     ...extra,
   };
 }

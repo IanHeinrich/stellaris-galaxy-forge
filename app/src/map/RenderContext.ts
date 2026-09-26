@@ -37,6 +37,7 @@ import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { currentOwnership } from "../store/ownership";
 import { SpatialGrid } from "../lib/spatialGrid";
+import { sameFields } from "./follows";
 
 export type Systems = ReadonlyMap<number, SystemNode>;
 
@@ -120,13 +121,8 @@ export interface RenderContext {
   readonly requestResourceIcons: () => void;
 }
 
-/** The fields a layer may compare between two contexts: every one that is not a function. */
-type DataField = {
-  [K in keyof RenderContext]: RenderContext[K] extends (...args: never[]) => unknown ? never : K;
-}[keyof RenderContext];
-
-/** Listed as a record so that a field added to the context fails to compile until it is here. */
-const DATA_FIELDS: Record<DataField, true> = {
+/** Whether two contexts draw the same map, so the layers can be left alone. */
+export const sameContext = sameFields<RenderContext>({
   galaxy: true,
   lgate: true,
   kind: true,
@@ -164,14 +160,7 @@ const DATA_FIELDS: Record<DataField, true> = {
   details: true,
   detailsVersion: true,
   resourceIcons: true,
-};
-
-const SOURCES = Object.keys(DATA_FIELDS) as DataField[];
-
-/** Whether two contexts draw the same map, so the layers can be left alone. */
-export function sameContext(a: RenderContext, b: RenderContext): boolean {
-  return SOURCES.every((key) => a[key] === b[key]);
-}
+});
 
 const EMPTY_GRID = new SpatialGrid();
 const NOTHING: never[] = [];

@@ -1,7 +1,7 @@
 import type { Application } from "pixi.js";
 import { isEditableTarget } from "../lib/keys";
 import { useEditorStore } from "../store/editorStore";
-import { useSceneStore, type Scene as Shown } from "../store/sceneStore";
+import { useSceneStore, type SceneState } from "../store/sceneStore";
 import { GalaxyScene } from "./GalaxyScene";
 import type { Scene } from "./Scene";
 import { SystemScene } from "./system/SystemScene";
@@ -41,12 +41,12 @@ export class MapController {
     this.system = new SystemScene(app.renderer, app.canvas);
     this.scene = this.galaxy;
     this.enter(this.scene);
-    this.follow(useSceneStore.getState().scene);
+    this.follow(useSceneStore.getState());
     this.bindWheel(app.canvas);
     this.bindKeyboard();
     this.cleanups.push(
       useSceneStore.subscribe((state, previous) => {
-        if (state.scene !== previous.scene) this.follow(state.scene);
+        if (state.scene !== previous.scene) this.follow(state);
       }),
       useEditorStore.subscribe((state, previous) => {
         if (state.fitNonce !== previous.fitNonce) this.scene.fit();
@@ -70,9 +70,9 @@ export class MapController {
   }
 
   /** Shows what the scene store says the map shows. */
-  private follow(shown: Shown): void {
-    if (shown.kind === "system") {
-      this.system.show(shown.id);
+  private follow({ scene, visit }: SceneState): void {
+    if (scene.kind === "system") {
+      this.system.show(scene.id, visit);
       this.show(this.system);
     } else {
       this.show(this.galaxy);
@@ -80,7 +80,7 @@ export class MapController {
   }
 
   /** Swaps `next` in for the scene shown now, which keeps its state while hidden. */
-  show(next: Scene): void {
+  private show(next: Scene): void {
     if (next === this.scene) return;
     this.scene.deactivate();
     this.app.stage.removeChild(this.scene.root);
@@ -115,7 +115,7 @@ export class MapController {
     }
     cam.update(dtMs);
     // The scene may fit its camera in its tick, which the transform then shows in the same frame.
-    this.scene.tick(dtMs);
+    this.scene.tick();
     this.place(this.scene);
   }
 

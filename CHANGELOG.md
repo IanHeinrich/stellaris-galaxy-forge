@@ -23,6 +23,9 @@ a release is made.
   system view draws it.
 - In the system view, an orbit radius label no longer covers the
   selected body's ring.
+- An undo in the system view keeps the view where it was.
+- A body's tooltip in the system view shows its name as soon as the name
+  loads, without moving the pointer.
 
 ## [0.15.0] - 2026-09-26
 

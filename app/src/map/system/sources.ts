@@ -15,6 +15,7 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { currentOwnership } from "../../store/ownership";
 import { useSceneStore } from "../../store/sceneStore";
+import { sameFields } from "../follows";
 import type { Systems } from "../RenderContext";
 
 /** What the scene reads from the stores for the one system it shows. */
@@ -38,6 +39,7 @@ export interface SystemSources {
   readonly ownership: Ownership;
   readonly nodeName: (name: NameTemplate) => string;
   readonly templateName: (named: { name: NameTemplate; name_key: string }) => string;
+  readonly countryName: (id: number) => string;
 }
 
 export const NO_SOURCES: SystemSources = Object.freeze({
@@ -56,14 +58,11 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   ownership: NO_OWNERSHIP,
   nodeName: (name: NameTemplate) => (name.literal ? name.key : stripped(name.key)),
   templateName: (named: { name_key: string }) => stripped(named.name_key),
+  countryName: (id: number) => `#${id}`,
 });
 
-type DataField = {
-  [K in keyof SystemSources]: SystemSources[K] extends (...args: never[]) => unknown ? never : K;
-}[keyof SystemSources];
-
-/** Listed as a record so that a source added to the snapshot fails to compile until it is here. */
-const DATA_FIELDS: Record<DataField, true> = {
+/** Whether two snapshots were read from the same state, so the layers can be left alone. */
+export const sameSources = sameFields<SystemSources>({
   id: true,
   systems: true,
   details: true,
@@ -77,14 +76,7 @@ const DATA_FIELDS: Record<DataField, true> = {
   sceneLayers: true,
   roll: true,
   ownership: true,
-};
-
-const SOURCES = Object.keys(DATA_FIELDS) as DataField[];
-
-/** Whether two snapshots were read from the same state, so the layers can be left alone. */
-export function sameSources(a: SystemSources, b: SystemSources): boolean {
-  return SOURCES.every((key) => a[key] === b[key]);
-}
+});
 
 /** The stores' state for system `id`, as the scene reads it, asking for the roll it draws. */
 export function readSystemSources(id: number | null): SystemSources {
@@ -117,5 +109,6 @@ export function readSystemSources(id: number | null): SystemSources {
     nodeName: (name: NameTemplate) => nodeNameIn(names, name),
     templateName: (named: { name: NameTemplate; name_key: string }) =>
       templateNameIn(names, ready, resolve, named),
+    countryName: galaxy.countryName,
   });
 }

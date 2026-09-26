@@ -1,6 +1,6 @@
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { InputKind } from "../interaction/MapIntent";
-import { DRAG_THRESHOLD_PX, doubles, type Tap } from "../interaction/press";
+import { doubles, pastThreshold, type Tap } from "../interaction/press";
 
 /** One pointer event in the system scene, with the body or hyperlane arrow under it. */
 export interface SystemInput {
@@ -12,8 +12,6 @@ export interface SystemInput {
   wy: number;
   /** 0 left, 1 middle, 2 right; -1 on a move. */
   button: number;
-  shift: boolean;
-  ctrl: boolean;
   /** The event's `timeStamp` in milliseconds. */
   time: number;
   /** The system the scene shows. */
@@ -104,9 +102,7 @@ export class SystemGestureModel {
       return "consumed";
     }
     if (!this.panning) {
-      if (Math.hypot(input.sx - press.sx, input.sy - press.sy) < DRAG_THRESHOLD_PX) {
-        return "consumed";
-      }
+      if (!pastThreshold(press, input)) return "consumed";
       this.panning = true;
       this.lastExit = null;
     }
