@@ -18,7 +18,7 @@ import type { SystemLayer } from "./SystemLayer";
 import type { SceneTextures } from "./textures";
 
 /** The glow under a star, its white-hot core and its art, in disc diameters. */
-const GLOW_SCALE = 1.9;
+const GLOW_SCALE = 1.5;
 const CORE_SCALE = 1;
 const STAR_ART_SCALE = 1.4;
 const CORE_ALPHA = 0.8;

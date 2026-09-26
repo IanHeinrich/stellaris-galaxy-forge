@@ -13,8 +13,8 @@ import { isStarBody } from "./starBody";
 
 /** The game's moon to planet scale (`MOON_SCALE` in `00_defines.txt`). */
 export const MOON_SCALE = 0.7;
-/** World units of disc radius per `planet_size`: Earth (16) is 5.8 at 90 out. */
-export const DISC_PER_SIZE = 0.36;
+/** World units of disc radius per `planet_size`: Earth (16) is 5.1 at 90 out. */
+export const DISC_PER_SIZE = 0.32;
 /** The size a body is drawn at when its layout gives none. */
 export const FALLBACK_SIZE = 10;
 /** The smallest disc radius, so a size-0 body still has one to pick and zoom to. */
@@ -125,9 +125,10 @@ function screenRotation(dx: number, dy: number): number {
 export const ASTEROID_SCALE = 2;
 /**
  * How much larger a star is drawn than a planet of the same `planet_size`: the game's star mesh
- * is 1.65 times the planet mesh, and its corona adds as much again.
+ * is 1.65 times its planet mesh, and its corona adds more. Bodies here are already larger against
+ * their orbits than the game draws them, so a star is kept short of its full in-game share.
  */
-export const STAR_SCALE = 3.4;
+export const STAR_SCALE = 2.4;
 
 /** A body's disc radius in world units from its `planet_size`. */
 export function discRadius(
