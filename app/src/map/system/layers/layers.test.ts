@@ -470,7 +470,7 @@ describe("the system scene's bodies layer", () => {
     star.layer.destroy();
   });
 
-  it("draws a black hole black, its swirl behind the disc and a white horizon round it", () => {
+  it("draws a black hole black, its swirl behind the disc and no ring or glow round it", () => {
     const ctx = systemContext({
       ...NO_SOURCES,
       id: SYSTEM,
@@ -487,9 +487,8 @@ describe("the system scene's bodies layer", () => {
     expect(labels.indexOf("art")).toBeLessThan(labels.indexOf("disc"));
     const disc = hole.children.find((c) => c.label === "disc") as Sprite;
     expect(disc.tint).toBe(0x000000);
-    const horizon = hole.children.find((c) => c.label === "horizon");
-    if (!(horizon instanceof Graphics)) throw new Error("no horizon");
-    expect(drawOps(horizon).find((op) => op.action === "stroke")?.color).toBe(0xffffff);
+    expect(labels).not.toContain("horizon");
+    expect(labels).not.toContain("halo");
     layer.destroy();
   });
 

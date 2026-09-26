@@ -85,10 +85,8 @@ const FLARE_ALPHA = 0.75;
 const BLOOM_TINT = 0xeef6ff;
 const BLOOM_ALPHA = 0.6;
 const WISPS_ALPHA = 0.2;
-/** A black hole's swirl, in disc diameters, and its event horizon's edge in screen pixels. */
+/** A black hole's swirl, in disc diameters. */
 const HOLE_ART_SCALE = 2.6;
-const HORIZON_PX = 1.5;
-const HORIZON_ALPHA = 0.85;
 /** A planet's class icon, in disc diameters. */
 const PLANET_ART_SCALE = 1;
 /** The on-screen disc diameter, in pixels, past which a planet shows its class's large icon. */
@@ -314,7 +312,6 @@ interface Drawn {
   body: SceneBody;
   glow: Sprite | null;
   flares: Flare[];
-  horizon: Graphics | null;
   glaze: Sprite | null;
   ring: Ring | null;
   disc: Sprite;
@@ -485,7 +482,6 @@ export class BodiesLayer implements SystemLayer {
     for (const shape of poles) {
       addFlare("bloom", this.textures.corona, shape, BLOOM_ALPHA).tint = BLOOM_TINT;
     }
-    const horizon = hole ? graphics("horizon") : null;
     const glazed = glazeTint(body.planetClass);
     let glaze: Sprite | null = null;
     if (glazed !== null) {
@@ -530,7 +526,6 @@ export class BodiesLayer implements SystemLayer {
         disc,
         lit,
         art,
-        horizon,
         glaze,
         shade,
         rim,
@@ -544,7 +539,6 @@ export class BodiesLayer implements SystemLayer {
       body,
       glow,
       flares,
-      horizon,
       glaze,
       ring,
       disc,
@@ -642,7 +636,7 @@ export class BodiesLayer implements SystemLayer {
         drawn.large = large;
         this.dress(drawn);
       }
-      const { body, glow, flares, horizon, glaze, ring, disc, lit, art, shade, rim, glyph } = drawn;
+      const { body, glow, flares, glaze, ring, disc, lit, art, shade, rim, glyph } = drawn;
       const { outline } = drawn;
       const d = 2 * drawnDisc(body.placement.disc, this.scale);
       if (glow) sized(glow, d * GLOW_SCALE);
@@ -663,16 +657,6 @@ export class BodiesLayer implements SystemLayer {
       }
       sized(art, d * artScale(body));
       if (glaze) sized(glaze, d * artScale(body));
-      if (horizon) {
-        horizon
-          .clear()
-          .circle(0, 0, d / 2)
-          .stroke({
-            color: 0xffffff,
-            alpha: HORIZON_ALPHA,
-            width: HORIZON_PX / this.scale,
-          });
-      }
       if (shade) sized(shade, d);
       if (rim && body.atmosphere) this.drawRim(rim, body.atmosphere, d / 2);
       if (ring) this.sizeRing(ring, body, d / 2);
