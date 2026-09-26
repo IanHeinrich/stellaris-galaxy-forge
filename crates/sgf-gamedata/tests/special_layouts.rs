@@ -1116,6 +1116,61 @@ fn planets_with_no_orbit_angle_do_not_line_up() {
     assert!(checked > 0);
 }
 
+/// The black hole layout gives its broken world and its cold barren world no
+/// `orbit_distance`, and the debris belt its molten world. Each lies 10 to 20 past the
+/// running orbit, as the game places them, and the bodies after it move out with it.
+#[test]
+fn a_body_with_no_orbit_distance_is_rolled_10_to_20_past_the_running_orbit() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let band = |orbit: f64, running: f64| (running + 10.0..=running + 20.0).contains(&orbit);
+    for seed in 0..20 {
+        let hole = by_name(gd, seed, "Gen", SPOT, "special_init_01").unwrap();
+        let mut running = 60.0;
+        for planet in &hole.planets {
+            if planet.class == "pc_barren_cold" {
+                running += 30.0;
+            }
+            assert!(
+                band(planet.orbit, running),
+                "seed {seed}: {} at {}, running orbit {running}",
+                planet.class,
+                planet.orbit
+            );
+            running = planet.orbit;
+        }
+
+        let debris = by_name(gd, seed, "Gen", SPOT, "debris_belt_initializer").unwrap();
+        let (molten, cabin) = (&debris.planets[0], &debris.planets[1]);
+        assert_eq!(molten.class, "pc_molten");
+        assert!(
+            band(molten.orbit, 60.0),
+            "seed {seed}: molten world at {}",
+            molten.orbit
+        );
+        assert_eq!(
+            cabin.orbit,
+            molten.orbit + 86.0,
+            "seed {seed}: The Cabin lies its change_orbit and distance past the molten world"
+        );
+
+        for spec in [&hole, &debris] {
+            let orbits: Vec<f64> = spec.planets.iter().map(|p| p.orbit).collect();
+            assert!(
+                orbits.first().is_none_or(|&first| first > 0.0),
+                "seed {seed}: {} has a planet on the star: {orbits:?}",
+                spec.initializer
+            );
+            assert!(
+                orbits.windows(2).all(|pair| pair[1] > pair[0]),
+                "seed {seed}: {} has a planet on the orbit before it: {orbits:?}",
+                spec.initializer
+            );
+        }
+    }
+}
+
 #[test]
 fn a_special_star_pick_gives_only_a_generic_layout() {
     let Some(gd) = install() else {

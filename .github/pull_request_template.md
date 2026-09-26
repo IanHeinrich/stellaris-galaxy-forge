@@ -34,6 +34,7 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] An added system rolled again loads as the new roll, with its name, position and lanes kept
 - [ ] An added system renamed shows the new name on the galaxy map, its star, planets and moons
 - [ ] A special layout placed in a save loads with its fixed bodies, flags and name
+- [ ] A system added with a layout whose bodies have no orbit distance (a black hole system) loads with its planets where the app placed them, none on the star or on the orbit of the body before it, and a month passes cleanly
 - [ ] A nebula made turbulent or calm shows the change on its members in game
 - [ ] A nebula added in a save draws its cloud over its members, and a system inside it is cloaked as the game's own members are
 - [ ] The app's Sol from `testdata/4.4-early.sav` matches the game's Sol view: each planet on the same side of the star, the belts at the same radii, each moon about its planet

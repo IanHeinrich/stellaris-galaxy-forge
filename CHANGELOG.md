@@ -52,6 +52,9 @@ a release is made.
   game leaves them off that world.
 - Planets of an added system no longer line up in a row when the game
   leaves their positions to chance.
+- Added black hole systems, and other layouts that leave a planet's
+  distance to chance, space their planets as the game does. Before, such
+  a planet could land on the orbit of the one before it or on its star.
 
 ## [0.14.1] - 2026-09-25
 
