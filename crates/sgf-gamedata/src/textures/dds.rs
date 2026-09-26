@@ -12,6 +12,8 @@ const PF_FOURCC: u32 = 0x4;
 const PF_RGB: u32 = 0x40;
 const PF_LUMINANCE: u32 = 0x20000;
 const DDSD_MIPMAPCOUNT: u32 = 0x20000;
+const DDSCAPS2_CUBEMAP: u32 = 0x200;
+const CUBE_FACES: usize = 6;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Block {
@@ -49,6 +51,7 @@ struct Header {
     format: Format,
     data_offset: usize,
     levels: u32,
+    cube: bool,
 }
 
 impl Format {
@@ -64,33 +67,55 @@ impl Format {
 /// The smallest mip level still at least `width` wide, or mip 0 when it is narrower.
 pub(super) fn decode_near(bytes: &[u8], width: u32) -> Result<RgbaImage, String> {
     let header = parse_header(bytes)?;
-    let size = |level: u32| {
-        (
-            (header.width >> level).max(1),
-            (header.height >> level).max(1),
-        )
-    };
-    let level = (1..header.levels)
-        .take_while(|&level| size(level).0 >= width)
-        .last()
-        .unwrap_or(0);
-    let offset: usize = (0..level)
-        .map(|l| {
-            let (w, h) = size(l);
-            header.format.level_len(w, h)
-        })
-        .sum();
-    let data = bytes
-        .get(header.data_offset + offset..)
-        .ok_or_else(|| format!("truncated: mip {level} starts past the end"))?;
-    let (width, height) = size(level);
-    match header.format {
-        Format::Blocks(block) => decode_blocks(block, data, width, height),
-        Format::Packed {
-            bits,
-            masks,
-            luminance,
-        } => decode_packed(data, width, height, bits, masks, luminance),
+    header.decode(bytes, header.data_offset, header.level_near(width))
+}
+
+/// A cube map's six faces in the file's order (+x, -x, +y, -y, +z, -z), each at the
+/// smallest mip level still at least `width` wide.
+pub(super) fn decode_cube_near(bytes: &[u8], width: u32) -> Result<Vec<RgbaImage>, String> {
+    let header = parse_header(bytes)?;
+    if !header.cube {
+        return Err("not a cube map".to_owned());
+    }
+    let face_len: usize = (0..header.levels).map(|l| header.level_len(l)).sum();
+    let level = header.level_near(width);
+    (0..CUBE_FACES)
+        .map(|face| header.decode(bytes, header.data_offset + face * face_len, level))
+        .collect()
+}
+
+impl Header {
+    fn size(&self, level: u32) -> (u32, u32) {
+        ((self.width >> level).max(1), (self.height >> level).max(1))
+    }
+
+    fn level_len(&self, level: u32) -> usize {
+        let (w, h) = self.size(level);
+        self.format.level_len(w, h)
+    }
+
+    fn level_near(&self, width: u32) -> u32 {
+        (1..self.levels)
+            .take_while(|&level| self.size(level).0 >= width)
+            .last()
+            .unwrap_or(0)
+    }
+
+    /// Mip `level` of the image whose mip 0 starts at `start`.
+    fn decode(&self, bytes: &[u8], start: usize, level: u32) -> Result<RgbaImage, String> {
+        let offset: usize = (0..level).map(|l| self.level_len(l)).sum();
+        let data = bytes
+            .get(start + offset..)
+            .ok_or_else(|| format!("truncated: mip {level} starts past the end"))?;
+        let (width, height) = self.size(level);
+        match self.format {
+            Format::Blocks(block) => decode_blocks(block, data, width, height),
+            Format::Packed {
+                bits,
+                masks,
+                luminance,
+            } => decode_packed(data, width, height, bits, masks, luminance),
+        }
     }
 }
 
@@ -135,6 +160,7 @@ fn parse_header(bytes: &[u8]) -> Result<Header, String> {
         format,
         data_offset,
         levels,
+        cube: u32_at(112) & DDSCAPS2_CUBEMAP != 0,
     })
 }
 

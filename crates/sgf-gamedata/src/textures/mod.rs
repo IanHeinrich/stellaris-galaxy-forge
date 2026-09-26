@@ -4,8 +4,8 @@
 //! Keys, never paths, cross the IPC boundary:
 //! `star_class:<icon>`, `deposit:<icon>`, `icon:<path under gfx/interface/icons>`,
 //! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
-//! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>`, `planet_disc:<class>` and
-//! `planet_ring`.
+//! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>`, `planet_disc:<class>`,
+//! `star_disc:<class>` and `planet_ring`.
 
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -27,8 +27,10 @@ use crate::registries::gfx::Sprites;
 mod dds;
 mod key;
 mod planet_disc;
+mod star_disc;
 
 pub use key::TextureKey;
+pub use star_disc::StarAtmosphere;
 
 /// Where a `GFX_` sprite's texture lives; the `.gfx` registry implements it.
 pub trait SpriteSource {
@@ -72,18 +74,75 @@ pub fn no_planet_entity(_class: &str) -> Option<String> {
     None
 }
 
+/// What a star planet class's disc is baked from.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StarBody {
+    pub entity: Option<String>,
+    /// The `class` its star class lights it as, which names its `gfx/worldgfx` settings.
+    pub lighting: Option<String>,
+    pub atmosphere: Option<StarAtmosphere>,
+}
+
+/// The star planet classes by key.
+pub type StarLookup<'a> = &'a dyn Fn(&str) -> Option<StarBody>;
+
+/// No planet class is a star: every `star_disc:` key fails.
+pub fn no_star_body(_class: &str) -> Option<StarBody> {
+    None
+}
+
 impl GameData {
     /// `key` decoded through this install's sprites, flag colours and planet classes.
     pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
         let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
         let entity = |class: &str| self.disc_entity(class);
-        textures.load(&self.layout, &*self.sprites, &colour, &entity, key)
+        let star = |class: &str| self.star_body(class);
+        textures.load(&self.layout, &*self.sprites, &colour, &entity, &star, key)
     }
 
     pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {
         let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
         let entity = |class: &str| self.disc_entity(class);
-        textures.png(&self.layout, &*self.sprites, &colour, &entity, key)
+        let star = |class: &str| self.star_body(class);
+        textures.png(&self.layout, &*self.sprites, &colour, &entity, &star, key)
+    }
+
+    fn star_body(&self, class: &str) -> Option<StarBody> {
+        let def = self.planet_classes.get(class).filter(|c| c.star)?;
+        let atmosphere = match (
+            def.atmosphere_color,
+            def.atmosphere_intensity,
+            def.atmosphere_width,
+        ) {
+            (Some(colour), Some(intensity), Some(width)) => Some(StarAtmosphere {
+                colour,
+                intensity,
+                width,
+            }),
+            _ => None,
+        };
+        Some(StarBody {
+            entity: def.entity.clone(),
+            lighting: self.star_lighting(class),
+            atmosphere,
+        })
+    }
+
+    /// The class a star body of `class` is lit as: as the single star of its own star class,
+    /// else as a member of the first system that names it.
+    fn star_lighting(&self, class: &str) -> Option<String> {
+        let lit_as = |sc: &crate::StarClass| {
+            sc.planet_keys
+                .iter()
+                .zip(&sc.planet_lighting)
+                .find(|(key, _)| *key == class)
+                .map(|(_, lighting)| lighting.clone())
+        };
+        let classes = || self.star_classes.iter();
+        classes()
+            .filter(|sc| sc.planet_keys.len() == 1)
+            .find_map(lit_as)
+            .or_else(|| classes().find_map(lit_as))
     }
 
     fn disc_entity(&self, class: &str) -> Option<String> {
@@ -111,9 +170,10 @@ impl TextureKey {
             Self::Flag { category, file } | Self::Symbol { category, file } => {
                 Ok(format!("flags/{category}/{file}"))
             }
-            Self::Sprite { .. } | Self::EmpireFlag { .. } | Self::PlanetDisc { .. } => {
-                Err(TextureError::BadKey(self.to_string()))
-            }
+            Self::Sprite { .. }
+            | Self::EmpireFlag { .. }
+            | Self::PlanetDisc { .. }
+            | Self::StarDisc { .. } => Err(TextureError::BadKey(self.to_string())),
         }
     }
 }
@@ -155,8 +215,26 @@ pub struct TextureView {
 #[derive(Debug)]
 pub struct Textures {
     cache_dir: PathBuf,
-    /// The surface maps of the last layout a `planet_disc:` key was asked of, read once.
-    surface_maps: Mutex<Option<(Layout, Arc<planet_disc::SurfaceMaps>)>>,
+    /// The surface maps of the last layout a disc key was asked of, read once.
+    surface_maps: Memo<planet_disc::SurfaceMaps>,
+    /// The graphics settings of the last layout a `star_disc:` key was asked of, read once.
+    worlds: Memo<star_disc::Worlds>,
+}
+
+type Memo<T> = Mutex<Option<(Layout, Arc<T>)>>;
+
+/// What `slot` holds for `layout`, read by `read` the first time and again only when the
+/// layout changes.
+fn memo<T>(slot: &Memo<T>, layout: &Layout, read: impl FnOnce(&Layout) -> T) -> Arc<T> {
+    let mut held = slot.lock().unwrap_or_else(PoisonError::into_inner);
+    match &*held {
+        Some((read_from, value)) if read_from == layout => Arc::clone(value),
+        _ => {
+            let value = Arc::new(read(layout));
+            *held = Some((layout.clone(), Arc::clone(&value)));
+            value
+        }
+    }
 }
 
 impl Textures {
@@ -171,24 +249,16 @@ impl Textures {
         Self {
             cache_dir,
             surface_maps: Mutex::default(),
+            worlds: Mutex::default(),
         }
     }
 
-    /// Every entity's surface map in `layout`, read on the first `planet_disc:` key asked
-    /// of it and again only when the layout changes.
     fn surface_maps(&self, layout: &Layout) -> Arc<planet_disc::SurfaceMaps> {
-        let mut memo = self
-            .surface_maps
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        match &*memo {
-            Some((read, maps)) if read == layout => Arc::clone(maps),
-            _ => {
-                let maps = Arc::new(planet_disc::surface_maps(layout));
-                *memo = Some((layout.clone(), Arc::clone(&maps)));
-                maps
-            }
-        }
+        memo(&self.surface_maps, layout, planet_disc::surface_maps)
+    }
+
+    fn worlds(&self, layout: &Layout) -> Arc<star_disc::Worlds> {
+        memo(&self.worlds, layout, star_disc::worlds)
     }
 
     pub fn cache_dir(&self) -> &Path {
@@ -201,9 +271,10 @@ impl Textures {
         sprites: &dyn SpriteSource,
         colour: ColourLookup<'_>,
         planet_entity: EntityLookup<'_>,
+        star_body: StarLookup<'_>,
         key: &str,
     ) -> TextureView {
-        match self.png(layout, sprites, colour, planet_entity, key) {
+        match self.png(layout, sprites, colour, planet_entity, star_body, key) {
             Ok(png) => {
                 let (width, height) = png_size(&png);
                 TextureView {
@@ -232,10 +303,17 @@ impl Textures {
         sprites: &dyn SpriteSource,
         colour: ColourLookup<'_>,
         planet_entity: EntityLookup<'_>,
+        star_body: StarLookup<'_>,
         key: &str,
     ) -> Result<Vec<u8>, TextureError> {
         let key: TextureKey = key.parse()?;
-        let job = Job::plan(&key, layout, sprites, colour, planet_entity, self)?;
+        let lookups = Lookups {
+            sprites,
+            colour,
+            planet_entity,
+            star_body,
+        };
+        let job = Job::plan(&key, layout, &lookups, self)?;
         let cache_file = self.cache_dir.join(job.cache_name(&key));
         if let Ok(png) = fs::read(&cache_file) {
             return Ok(png);
@@ -279,10 +357,20 @@ impl Input {
     /// The smallest mip level at least `width` wide, or mip 0 when that is narrower.
     fn decode_near(&self, width: u32) -> Result<RgbaImage, TextureError> {
         let bytes = fs::read(&self.path).map_err(|e| decode_error(&self.path, e))?;
-        dds::decode_near(&bytes, width).map_err(|reason| TextureError::Decode {
+        dds::decode_near(&bytes, width).map_err(|reason| self.decode_failed(reason))
+    }
+
+    /// A cube map's six faces, each read as [`Self::decode_near`] reads an image.
+    fn decode_cube_near(&self, width: u32) -> Result<Vec<RgbaImage>, TextureError> {
+        let bytes = fs::read(&self.path).map_err(|e| decode_error(&self.path, e))?;
+        dds::decode_cube_near(&bytes, width).map_err(|reason| self.decode_failed(reason))
+    }
+
+    fn decode_failed(&self, reason: String) -> TextureError {
+        TextureError::Decode {
             path: self.path.clone(),
             reason,
-        })
+        }
     }
 }
 
@@ -311,6 +399,22 @@ enum Job {
         colours: [Option<[u8; 3]>; 4],
     },
     PlanetDisc(Input),
+    StarSurface(Input),
+    StarLava {
+        noise: Input,
+        lava_map: Input,
+        stone_map: Input,
+        lava: star_disc::Lava,
+        atmosphere: Option<StarAtmosphere>,
+    },
+}
+
+/// How a key's names are looked up in the install.
+struct Lookups<'a> {
+    sprites: &'a dyn SpriteSource,
+    colour: ColourLookup<'a>,
+    planet_entity: EntityLookup<'a>,
+    star_body: StarLookup<'a>,
 }
 
 pub(crate) const ICONS: &str = "gfx/interface/icons";
@@ -323,15 +427,17 @@ impl Job {
     fn plan(
         key: &TextureKey,
         layout: &Layout,
-        sprites: &dyn SpriteSource,
-        colour: ColourLookup<'_>,
-        planet_entity: EntityLookup<'_>,
+        lookups: &Lookups<'_>,
         textures: &Textures,
     ) -> Result<Self, TextureError> {
+        let Lookups {
+            sprites, colour, ..
+        } = *lookups;
         match key {
+            TextureKey::StarDisc { class } => Self::plan_star(class, layout, lookups, textures),
             TextureKey::PlanetDisc { class } => {
                 let no_disc = || TextureError::NoDisc(class.clone());
-                let entity = planet_entity(class).ok_or_else(no_disc)?;
+                let entity = (lookups.planet_entity)(class).ok_or_else(no_disc)?;
                 let maps = textures.surface_maps(layout);
                 let rel = planet_disc::diffuse(layout, &maps, &entity).ok_or_else(no_disc)?;
                 Ok(Self::PlanetDisc(Input::resolve(layout, &rel)?))
@@ -377,10 +483,43 @@ impl Job {
         }
     }
 
+    /// A star's own surface map when its entity names one, else the star shader in its
+    /// lighting class's colours.
+    fn plan_star(
+        class: &str,
+        layout: &Layout,
+        lookups: &Lookups<'_>,
+        textures: &Textures,
+    ) -> Result<Self, TextureError> {
+        let no_disc = || TextureError::NoDisc(class.to_owned());
+        let body = (lookups.star_body)(class).ok_or_else(no_disc)?;
+        if let Some(entity) = &body.entity {
+            let maps = textures.surface_maps(layout);
+            if let Some(rel) = planet_disc::diffuse(layout, &maps, entity) {
+                return Ok(Self::StarSurface(Input::resolve(layout, &rel)?));
+            }
+        }
+        let worlds = textures.worlds(layout);
+        let (world, lava) =
+            star_disc::world_for(&worlds, body.lighting.as_deref(), body.atmosphere)
+                .ok_or_else(no_disc)?;
+        let [noise, lava_map, stone_map] = world.maps();
+        Ok(Self::StarLava {
+            noise: Input::resolve(layout, noise)?,
+            lava_map: Input::resolve(layout, lava_map)?,
+            stone_map: Input::resolve(layout, stone_map)?,
+            lava,
+            atmosphere: body.atmosphere,
+        })
+    }
+
     fn cache_name(&self, key: &TextureKey) -> String {
         let mut hasher = DefaultHasher::new();
         key.to_string().hash(&mut hasher);
         self.hash(&mut hasher);
+        if matches!(self, Self::StarSurface(_) | Self::StarLava { .. }) {
+            star_disc::BAKE.hash(&mut hasher);
+        }
         format!("{:016x}.png", hasher.finish())
     }
 
@@ -428,6 +567,31 @@ impl Job {
             Self::PlanetDisc(input) => Ok(planet_disc::bake(
                 &input.decode_near(planet_disc::SOURCE_WIDTH)?,
             )),
+            Self::StarSurface(input) => Ok(star_disc::bake_surface(
+                &input.decode_near(star_disc::SURFACE_WIDTH)?,
+            )),
+            Self::StarLava {
+                noise,
+                lava_map,
+                stone_map,
+                lava,
+                atmosphere,
+            } => {
+                let maps = star_disc::Maps {
+                    noise: noise
+                        .decode_cube_near(star_disc::NOISE_WIDTH)?
+                        .iter()
+                        .map(|face| {
+                            let side = star_disc::NOISE_WIDTH.min(face.width());
+                            let face = imageops::resize(face, side, side, FilterType::Triangle);
+                            star_disc::Plane::new(&face)
+                        })
+                        .collect(),
+                    lava: star_disc::Plane::new(&lava_map.decode_near(star_disc::LAVA_WIDTH)?),
+                    stone: star_disc::Plane::new(&stone_map.decode_near(star_disc::STONE_WIDTH)?),
+                };
+                Ok(star_disc::bake_lava(&maps, *lava, *atmosphere))
+            }
         }
     }
 }

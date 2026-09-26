@@ -44,6 +44,10 @@ pub enum TextureKey {
     },
     /// The texture of the game's gas giant ring mesh.
     PlanetRing,
+    /// A star planet class's sphere baked as the system view shows it.
+    StarDisc {
+        class: String,
+    },
 }
 
 impl TextureKey {
@@ -128,6 +132,9 @@ impl FromStr for TextureKey {
             "planet_disc" => Self::PlanetDisc {
                 class: component(rest).ok_or_else(bad)?,
             },
+            "star_disc" => Self::StarDisc {
+                class: component(rest).ok_or_else(bad)?,
+            },
             _ => return Err(bad()),
         };
         Ok(key)
@@ -159,6 +166,7 @@ impl fmt::Display for TextureKey {
             ),
             Self::PlanetDisc { class } => write!(f, "planet_disc:{class}"),
             Self::PlanetRing => f.write_str("planet_ring"),
+            Self::StarDisc { class } => write!(f, "star_disc:{class}"),
         }
     }
 }

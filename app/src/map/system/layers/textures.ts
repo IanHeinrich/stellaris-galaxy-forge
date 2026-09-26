@@ -1,6 +1,15 @@
 import { BufferImageSource, Graphics, Rectangle, Texture, type Renderer } from "pixi.js";
 import { acquireGlow, releaseGlow } from "../../layers/SystemsLayer";
 import { FIELD_SIZE, nebulaField } from "./nebulaField";
+import {
+  GLOW_SIZE,
+  STREAK_HEIGHT,
+  STREAK_WIDTH,
+  WISPS_SIZE,
+  glowTexels,
+  streakTexels,
+  wispTexels,
+} from "./starLight";
 
 /** The textures the scene draws its bodies and belts with, baked once per scene. */
 export interface SceneTextures {
@@ -8,6 +17,12 @@ export interface SceneTextures {
   disc: Texture;
   /** The star glow the galaxy's stars use, shared with them. */
   glow: Texture;
+  /** A soft glow with no core, tinted and added round a star in the system view. */
+  corona: Texture;
+  /** A thread of light along x, fading out both ways: a pulsar's beams, a neutron star's jets. */
+  streak: Texture;
+  /** Faint curling strands round an empty middle, about a neutron star. */
+  wisps: Texture;
   /** The sphere shading, lit from +x, multiplied over a disc. */
   shade: Texture;
   /** The same shading with a specular dot near the lit edge. */
@@ -50,8 +65,11 @@ const RING_GAP = 0.64;
 const RING_GAP_HALF = 0.05;
 /** Every system's nebula draws the same field, turned and mirrored per system. */
 const NEBULA_SEED = 0x5ca1ab1e;
-/** The field's texels, made once and shared by every scene's texture. */
+/** The texels made on the CPU, made once and shared by every scene's textures. */
 let nebulaTexels: Uint8Array | null = null;
+let coronaTexels: Uint8Array | null = null;
+let streakField: Uint8Array | null = null;
+let wispField: Uint8Array | null = null;
 
 function grey(v: number): number {
   const c = Math.round(Math.min(255, Math.max(0, v)));
@@ -140,12 +158,12 @@ function drawRingHalf(g: Graphics, far: boolean): void {
   }
 }
 
-/** The nebula field, made on the CPU: it needs no renderer. */
-function nebulaTexture(): Texture {
+/** White texels with premultiplied alpha, made on the CPU: they need no renderer. */
+function texelTexture(resource: Uint8Array, width: number, height: number): Texture {
   const source = new BufferImageSource({
-    resource: (nebulaTexels ??= nebulaField(NEBULA_SEED)),
-    width: FIELD_SIZE,
-    height: FIELD_SIZE,
+    resource,
+    width,
+    height,
     format: "rgba8unorm",
     alphaMode: "premultiplied-alpha",
   });
@@ -157,19 +175,33 @@ export function bakeSceneTextures(renderer: Renderer): SceneTextures {
   return {
     disc: bake(renderer, (g) => g.circle(DISC_R, DISC_R, DISC_R).fill({ color: 0xffffff })),
     glow: acquireGlow(renderer),
+    corona: texelTexture((coronaTexels ??= glowTexels()), GLOW_SIZE, GLOW_SIZE),
+    streak: texelTexture((streakField ??= streakTexels()), STREAK_WIDTH, STREAK_HEIGHT),
+    wisps: texelTexture((wispField ??= wispTexels()), WISPS_SIZE, WISPS_SIZE),
     shade: bake(renderer, (g) => drawShade(g, false)),
     gloss: bake(renderer, (g) => drawShade(g, true)),
     rock: bake(renderer, drawRock),
     ringBack: bake(renderer, (g) => drawRingHalf(g, true), ringFrame()),
     ringFront: bake(renderer, (g) => drawRingHalf(g, false), ringFrame()),
-    nebula: nebulaTexture(),
+    nebula: texelTexture((nebulaTexels ??= nebulaField(NEBULA_SEED)), FIELD_SIZE, FIELD_SIZE),
   };
 }
 
 /** Destroys the textures `bakeSceneTextures` made and lets go of the shared glow. */
 export function releaseSceneTextures(renderer: Renderer, textures: SceneTextures): void {
-  const { disc, shade, gloss, rock, ringBack, ringFront, nebula } = textures;
-  for (const texture of [disc, shade, gloss, rock, ringBack, ringFront, nebula]) {
+  const { disc, corona, streak, wisps, shade, gloss, rock, ringBack, ringFront, nebula } = textures;
+  for (const texture of [
+    disc,
+    corona,
+    streak,
+    wisps,
+    shade,
+    gloss,
+    rock,
+    ringBack,
+    ringFront,
+    nebula,
+  ]) {
     texture.destroy(true);
   }
   releaseGlow(renderer);

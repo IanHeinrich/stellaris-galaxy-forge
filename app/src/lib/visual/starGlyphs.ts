@@ -21,6 +21,9 @@ const CLASSES: Array<[prefix: string, glyph: StarGlyph]> = [
   ["sc_g", { tint: 0xffe066, size: BASE, ring: false }],
   ["sc_k", { tint: 0xffa64d, size: BASE * 0.9, ring: false }],
   ["sc_m", { tint: 0xff5c4d, size: BASE * 0.8, ring: false }],
+  // Before the brown dwarf's `sc_t`, which would otherwise take it.
+  ["sc_toxoid", { tint: 0x9aa3ad, size: BASE * 0.9, ring: false }],
+  ["sc_t", { tint: 0xc0664e, size: BASE * 0.8, ring: false }],
 ];
 
 const MULTI: StarGlyph = { tint: 0xfff0c8, size: BASE * 1.3, ring: false };
@@ -34,6 +37,20 @@ export function starGlyph(starClass: string): StarGlyph {
     if (sc.startsWith(prefix)) return glyph;
   }
   return OTHER;
+}
+
+/** The light a neutron star or a pulsar throws off its poles, which other stars lack. */
+export type StarFlare = "pulsar" | "neutron";
+
+const FLARES: Array<[prefix: string, flare: StarFlare]> = [
+  ["sc_pulsar", "pulsar"],
+  ["sc_neutron_star", "neutron"],
+];
+
+/** The flare `starClass` draws in the system view, matched by prefix as its colour is. */
+export function starFlare(starClass: string): StarFlare | null {
+  const sc = starClass.toLowerCase();
+  return FLARES.find(([prefix]) => sc.startsWith(prefix))?.[1] ?? null;
 }
 
 /** The game's own texture for `starClass`, keyed by an exact match in `classes`. */
