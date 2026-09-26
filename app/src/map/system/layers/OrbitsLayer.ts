@@ -1,5 +1,5 @@
 import { Container, Graphics } from "pixi.js";
-import type { Arc, BodyPlacement } from "../../../lib/details/orbits";
+import type { Arc, BodyPlacement, Ring } from "../../../lib/details/orbits";
 import type { Camera } from "../../Camera";
 import { dashedCircle } from "../../layers/dashes";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
@@ -26,6 +26,14 @@ function dashes(radius: number, scale: number): number {
 /** The angles a body may stand at on its ring: its arc, or the whole ring for a ghost. */
 function arcOf(body: BodyPlacement): Arc | null {
   return body.arc ?? (body.ghost ? WHOLE_TURN : null);
+}
+
+function sameRing(a: Ring, b: Ring, within: number): boolean {
+  return (
+    Math.abs(a.cx - b.cx) < within &&
+    Math.abs(a.cy - b.cy) < within &&
+    Math.abs(a.radius - b.radius) < within
+  );
 }
 
 function radians(degrees: number): number {
@@ -70,16 +78,16 @@ export class OrbitsLayer implements SystemLayer {
     this.drawnScale = cam.scale;
     const { layout } = this.ctx;
     this.rings.clear();
-    // Bodies sharing an orbit share one circle; stroked twice, it would show brighter.
-    const drawn = new Set<string>();
+    // Bodies sharing an orbit share one circle; stroked twice, it would show brighter. The save's
+    // orbits on one ring differ by a fraction of a unit, so rings within a pixel are one.
+    const px = 1 / cam.scale;
+    const drawn: Ring[] = [];
     for (const { ring } of layout.bodies) {
-      if (!ring) continue;
-      const key = `${ring.cx.toFixed(2)},${ring.cy.toFixed(2)},${ring.radius.toFixed(2)}`;
-      if (drawn.has(key)) continue;
-      drawn.add(key);
+      if (!ring || drawn.some((other) => sameRing(ring, other, px))) continue;
+      drawn.push(ring);
       this.rings.circle(ring.cx, ring.cy, ring.radius);
     }
-    if (drawn.size > 0) {
+    if (drawn.length > 0) {
       this.rings.stroke({ color: ORBIT_COLOR, alpha: ORBIT_ALPHA, pixelLine: true });
     }
     this.drawArcs(cam.scale);
