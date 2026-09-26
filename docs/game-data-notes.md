@@ -324,6 +324,21 @@ in load order. `usage` sorts the vanilla set:
 An initializer's category comes from its `usage`. Its defining file and
 mod come from where it was read. There is no hand-kept list of them.
 
+A scenario stores no positions, so a scenario system's bodies are laid
+out from its initializer. Each block adds its `change_orbit` to a
+running orbit, then each instance adds its `orbit_distance`. Each
+instance turns its `orbit_angle` on from the body before. A planet's
+moons do the same about the planet, starting from 0. System 217 of the
+4.4 sample is Sol, and it matches this within a unit of radius and a
+tenth of a degree once the whole system is turned by 180°, moons
+included. I haven't checked whether that turn is drawn or fixed. A
+ranged distance or angle shows as a range, and so does every body after
+it. A ranged `count` is laid out as its rounded midpoint. A body with no
+`orbit_angle` can be anywhere on its orbit, and the bodies after it turn
+on from it by 0. A distance that names an undefined `@variable` puts the
+body on its parent. The add-system roller walks the same way, but it
+places each moon at its own `orbit_angle`, not on from the moon before.
+
 ## References (for edge cases, never for bundling)
 
 - `jomini` (Rust) parses this dialect including comments and operators.

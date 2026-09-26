@@ -17,6 +17,7 @@ pub mod layouts;
 pub mod loc;
 pub mod menu;
 pub mod naming;
+pub(crate) mod orbit_walk;
 pub mod planet_views;
 pub mod registries;
 pub mod reload;

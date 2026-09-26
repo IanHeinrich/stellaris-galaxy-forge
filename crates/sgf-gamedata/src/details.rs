@@ -4,14 +4,19 @@
 //! Effects a scripted effect hides (`spawn_dreadnought = yes`) are not resolved, so a
 //! system shows what its initializer file writes out and nothing more.
 
+use std::convert::Infallible;
+
 use sgf_core::format::save::details::{
-    ArchaeologySite, DepositCount, DetailsResolver, FleetPresence, MegastructureSummary,
-    PlanetSummary, ResourceAmount, StarbaseSummary, SystemDetails,
+    ArchaeologySite, BodyLayout, Bounds, DepositCount, DetailsResolver, FleetPresence,
+    MegastructureSummary, PlanetSummary, ResourceAmount, StarbaseSummary, SystemDetails,
 };
 use sgf_core::projections::name::NameTemplate;
 
 use crate::GameData;
-use crate::initializers::{self, Body, BodyClass, Initializer};
+use crate::generate::belt;
+use crate::initializers::{self, Body, BodyClass, InitPlanet, Initializer};
+use crate::install::script::Range;
+use crate::orbit_walk::{self, Placed, Turn, Walk};
 use crate::scripts::ScenarioOwners;
 
 /// Bodies an initializer gives no id: each collection counts from a base far above any id
@@ -108,7 +113,7 @@ impl GameData {
             megastructures,
             sites,
             with_game_data: true,
-            belts: Vec::new(),
+            belts: init.asteroid_belts.iter().filter_map(belt).collect(),
             inner_radius: None,
         })
     }
@@ -119,9 +124,10 @@ impl GameData {
             .class
             .as_deref()
             .filter(|class| self.star_classes.get(class).is_some());
-        for body in initializers::expand(&init.planets) {
+        let layouts = Layouts::of(&init.planets);
+        for (body, layout) in initializers::expand(&init.planets).zip(layouts) {
             let id = PLANET_BASE + index(out.planets.len());
-            out.planets.push(self.summary(body, star, id));
+            out.planets.push(self.summary(body, star, id, layout));
             for kind in &body.block.sites {
                 out.sites.push(ArchaeologySite {
                     id: SITE_BASE + index(out.sites.len()),
@@ -134,7 +140,13 @@ impl GameData {
     }
 
     /// `star` is the initializer's own star class, which the body written as `star` wears.
-    fn summary(&self, expanded: Body<'_>, star: Option<&str>, id: u32) -> PlanetSummary {
+    fn summary(
+        &self,
+        expanded: Body<'_>,
+        star: Option<&str>,
+        id: u32,
+        layout: BodyLayout,
+    ) -> PlanetSummary {
         let body = expanded.block;
         let name_key = body.name.clone().unwrap_or_default();
         let class = match star {
@@ -163,7 +175,7 @@ impl GameData {
             deposit_keys: deposit_counts(&body.deposits),
             pops: 0,
             parent: expanded.parent.map(|parent| PLANET_BASE + index(parent)),
-            layout: None,
+            layout: Some(layout),
         }
     }
 
@@ -175,6 +187,72 @@ impl GameData {
             }
         }
         rows
+    }
+}
+
+/// Each body's layout in the order [`initializers::expand`] gives the bodies, each range
+/// kept as the bounds a draw could give. The angles start at 0, so they are right relative
+/// to each other and the game may turn the whole system.
+struct Layouts(Vec<BodyLayout>);
+
+impl Layouts {
+    fn of(planets: &[InitPlanet]) -> Vec<BodyLayout> {
+        let mut layouts = Self(Vec::new());
+        let Ok(()) = orbit_walk::walk(
+            planets,
+            Turn::FromPrevious(Bounds::fixed(0.0)),
+            &mut layouts,
+        );
+        layouts.0
+    }
+}
+
+impl<'p> Walk<'p> for Layouts {
+    type Number = Bounds;
+    type Error = Infallible;
+
+    /// The same count [`initializers::expand`] gives, so each layout meets its body.
+    fn count(&mut self, block: &'p InitPlanet) -> u32 {
+        block.instances()
+    }
+
+    fn distance(&mut self, distance: Range) -> Bounds {
+        bounds(distance)
+    }
+
+    fn angle(&mut self, angle: Range) -> Bounds {
+        bounds(angle)
+    }
+
+    /// A body with no distance sits on its parent; one with no angle may be anywhere on
+    /// its orbit.
+    fn body(&mut self, block: &'p InitPlanet, placed: Placed<Bounds>) -> Result<(), Infallible> {
+        self.0.push(BodyLayout {
+            orbit: block.orbit_distance.map(|_| placed.orbit),
+            angle: block.orbit_angle.map(|_| within_one_turn(placed.angle)),
+            at: None,
+            size: block.size.map(|(min, max)| Bounds {
+                min: f64::from(min),
+                max: f64::from(max),
+            }),
+        });
+        orbit_walk::walk(&block.moons, Turn::FromPrevious(Bounds::fixed(0.0)), self)
+    }
+}
+
+fn bounds(range: Range) -> Bounds {
+    Bounds {
+        min: range.min,
+        max: range.max,
+    }
+}
+
+/// `angle` shifted by whole turns until its `min` lies in `[0, 360)`.
+fn within_one_turn(angle: Bounds) -> Bounds {
+    let shift = angle.min.rem_euclid(360.0) - angle.min;
+    Bounds {
+        min: angle.min + shift,
+        max: angle.max + shift,
     }
 }
 
