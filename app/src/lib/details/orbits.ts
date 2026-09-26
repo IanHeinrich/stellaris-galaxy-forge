@@ -63,10 +63,12 @@ export interface OrbitRadius {
   step: Span | null;
 }
 
-/** A scenario body's angle left to a draw, in degrees about its parent. */
-export interface Arc {
+/** How a scenario body's angle turns on from the body before it in its initializer's walk. */
+export interface Turn {
+  /** Degrees it turns on from: the rolled angle of the body before it, or 0 for the first. */
   from: number;
-  to: number;
+  /** How far on it may turn, in degrees; a turn or more lets it stand anywhere. */
+  step: Span;
 }
 
 export interface BodyPlacement {
@@ -86,8 +88,9 @@ export interface BodyPlacement {
   /** Screen radians from the body towards the star it orbits, or the centre; null for a star. */
   light: number | null;
   band: Band | null;
-  arc: Arc | null;
-  /** A scenario body with no angle out on an orbit: drawn on its whole ring. */
+  /** A scenario body's turn from the body before it; null where it names no angle, and in a save. */
+  turn: Turn | null;
+  /** A scenario body with no angle out on an orbit: it may stand anywhere on its ring. */
   ghost: boolean;
   /** Its distance from what it orbits; null where it has no ring. */
   radius: OrbitRadius | null;
@@ -187,86 +190,180 @@ function mid(b: { min: number; max: number }): number {
   return (b.min + b.max) / 2;
 }
 
-/** The ring a scenario body stands on, as a key: its parent and its drawn radius. */
-function ringKey(planet: PlanetSummary): string | null {
-  const orbit = planet.layout?.orbit;
-  if (!orbit || planet.layout?.at) return null;
-  return `${planet.parent ?? ""}:${Math.round(mid(orbit) * 1e6)}`;
+/** A span as a label reads it, rounded: one number, or its two ends. */
+export function spanText(span: Span): string {
+  const min = Math.round(span.min);
+  const max = Math.round(span.max);
+  return min === max ? `${min}` : `${min}–${max}`;
+}
+
+/** A step out as a label reads it, with a plus where it steps outwards. */
+export function stepText(step: Span): string {
+  const text = spanText(step);
+  return Math.round(step.min) >= 0 ? `+${text}` : text;
+}
+
+/** An angle in [0, 360). */
+function turned(degrees: number): number {
+  return ((degrees % 360) + 360) % 360;
+}
+
+/** A turn as a label reads it: "+90–270°", or "any angle" for a turn or more. */
+export function turnText(step: Span): string {
+  return step.max - step.min >= 360 ? "any angle" : `${stepText(step)}°`;
+}
+
+/** A scenario body's steps in its initializer's walk. */
+export interface BodySteps {
+  /** Out from the previous body's orbit, each end apart; null for a body with none. */
+  orbit: Span | null;
+  /** On from the angle of the body before it that names one, in degrees; null where it names none. */
+  angle: Span | null;
+  /** That body, which it turns from; null for the first, which turns from 0. */
+  after: number | null;
+}
+
+const ZERO: Span = { min: 0, max: 0 };
+
+/** The walk a body is placed in: its parent's moons, or the system's own bodies. */
+function walkOf(planet: PlanetSummary): number | null {
+  return planet.parent === planet.id ? null : planet.parent;
 }
 
 /**
- * The angles `count` bodies free to stand anywhere on a ring are drawn at, so none stands on
- * another or on a body an angle places there at `placed`. Each goes into the widest gap left,
- * the bodies in one gap spaced evenly across it. With nothing placed they share the ring evenly
- * from `start`.
+ * The turn from the running angle `from` to `to`, both as the core keeps them: bounds that add up
+ * each end apart, each shifted by whole turns until its `min` lies in [0, 360).
  */
-function spread(placed: readonly number[], count: number, start: number): number[] {
-  if (placed.length === 0) {
-    return Array.from({ length: count }, (_, i) => start + (i * 360) / count);
-  }
-  const at = placed.map((a) => ((a % 360) + 360) % 360).sort((a, b) => a - b);
-  const gaps = at.map((from, i) => ({
-    from,
-    width: (i + 1 < at.length ? at[i + 1] : at[0] + 360) - from,
-    bodies: 0,
-  }));
-  for (let n = 0; n < count; n++) {
-    const widest = gaps.reduce((a, b) =>
-      b.width / (b.bodies + 1) > a.width / (a.bodies + 1) ? b : a,
-    );
-    widest.bodies++;
-  }
-  return gaps.flatMap(({ from, width, bodies }) =>
-    Array.from({ length: bodies }, (_, i) => from + ((i + 1) * width) / (bodies + 1)),
-  );
+function turnBetween(from: Span, to: Span): Span {
+  const min = turned(to.min - from.min);
+  return { min, max: min + Math.max(0, to.max - to.min - (from.max - from.min)) };
 }
 
+const stepsOf = new WeakMap<readonly PlanetSummary[], ReadonlyMap<number, BodySteps>>();
+
 /**
- * The angle each body free to stand anywhere on its ring is drawn at, in a scenario: a ghost, or
- * one whose angle ranges over a turn or more. Where the ring has no placed body, the share starts
- * from the middle of the first free body's range, which keeps free bodies on different rings
- * from lining up.
+ * Each scenario body's steps as the core's orbit walk adds them up: the system's bodies are one
+ * walk and each planet's moons another, in source order. A body's distance steps out from the
+ * previous body's orbit, and its angle turns on from the last body that names one; the first
+ * steps out and turns from 0. Worked out once per list, for the system view and the Inspector.
  */
-function freeAngles(planets: readonly PlanetSummary[]): Map<number, number> {
-  const rings = new Map<string, { placed: number[]; free: number[]; start: number | null }>();
+export function bodySteps(planets: readonly PlanetSummary[]): ReadonlyMap<number, BodySteps> {
+  const known = stepsOf.get(planets);
+  if (known) return known;
+  const orbits = new Map<number | null, Span>();
+  const angles = new Map<number | null, { id: number; angle: Span }>();
+  const steps = new Map<number, BodySteps>();
   for (const planet of planets) {
-    const key = ringKey(planet);
-    if (key === null || mid(planet.layout?.orbit ?? { min: 0, max: 0 }) <= 0) continue;
-    let ring = rings.get(key);
-    if (!ring) rings.set(key, (ring = { placed: [], free: [], start: null }));
-    const angle = planet.layout?.angle;
-    if (angle && angle.max - angle.min < 360) {
-      ring.placed.push(mid(angle));
+    const walk = walkOf(planet);
+    const orbit = planet.layout?.orbit ?? null;
+    const angle = planet.layout?.angle ?? null;
+    const before = orbits.get(walk) ?? ZERO;
+    const turnsFrom = angles.get(walk);
+    steps.set(planet.id, {
+      orbit: orbit && { min: orbit.min - before.min, max: orbit.max - before.max },
+      angle: angle && turnBetween(turnsFrom?.angle ?? ZERO, angle),
+      after: angle ? (turnsFrom?.id ?? null) : null,
+    });
+    if (orbit) orbits.set(walk, orbit);
+    if (angle) angles.set(walk, { id: planet.id, angle });
+  }
+  stepsOf.set(planets, steps);
+  return steps;
+}
+
+/** Where a scenario body stands about its parent in one roll of its initializer. */
+interface Rolled {
+  radius: number;
+  /** Degrees; null for a body that names no angle until it is given a free spot. */
+  angle: number | null;
+  turn: Turn | null;
+}
+
+/** One roll of each walk: every step drawn within its range and added to the one before. */
+function rollWalks(
+  planets: readonly PlanetSummary[],
+  steps: ReadonlyMap<number, BodySteps>,
+  rand: () => number,
+): Map<number, Rolled> {
+  const radii = new Map<number | null, number>();
+  const angles = new Map<number | null, number>();
+  const rolled = new Map<number, Rolled>();
+  for (const planet of planets) {
+    const walk = walkOf(planet);
+    const step = steps.get(planet.id);
+    const orbit = planet.layout?.orbit;
+    let radius = 0;
+    if (step?.orbit && orbit) {
+      const drawn = (radii.get(walk) ?? 0) + between(rand, step.orbit);
+      radius = Math.min(orbit.max, Math.max(orbit.min, drawn));
+      radii.set(walk, radius);
+    }
+    let angle: number | null = null;
+    let turn: Turn | null = null;
+    if (step?.angle) {
+      const from = angles.get(walk) ?? 0;
+      angle = from + between(rand, step.angle);
+      angles.set(walk, angle);
+      turn = { from: turned(from), step: step.angle };
+    }
+    rolled.set(planet.id, { radius, angle, turn });
+  }
+  return rolled;
+}
+
+/** Past the two discs, how far apart a free body keeps from another about the same parent. */
+const FREE_GAP = 4;
+const FREE_TRIES = 32;
+
+/**
+ * A spot for each body that names no angle, drawn at random on its ring and drawn again while it
+ * comes within a disc and a gap of another body about the same parent; after the last try, the
+ * spot that came nearest to clearing.
+ */
+function placeFree(
+  planets: readonly PlanetSummary[],
+  rolled: Map<number, Rolled>,
+  discOf: (planet: PlanetSummary) => number,
+  rand: () => number,
+): void {
+  const taken = new Map<number | null, { at: Point; disc: number }[]>();
+  const takenIn = (walk: number | null) => {
+    let list = taken.get(walk);
+    if (!list) taken.set(walk, (list = []));
+    return list;
+  };
+  const free: PlanetSummary[] = [];
+  for (const planet of planets) {
+    const roll = rolled.get(planet.id);
+    if (!roll) continue;
+    if (roll.angle === null && roll.radius > 0) {
+      free.push(planet);
       continue;
     }
-    ring.free.push(planet.id);
-    if (angle && ring.start === null) ring.start = mid(angle);
+    takenIn(walkOf(planet)).push({
+      at: polar(0, 0, roll.radius, roll.angle ?? 0),
+      disc: discOf(planet),
+    });
   }
-  const angles = new Map<number, number>();
-  for (const { placed, free, start } of rings.values()) {
-    const at = spread(placed, free.length, start ?? 0);
-    free.forEach((id, i) => angles.set(id, at[i]));
+  for (const planet of free) {
+    const roll = rolled.get(planet.id) as Rolled;
+    const others = takenIn(walkOf(planet));
+    const disc = discOf(planet);
+    const clearance = (at: Point) =>
+      others.reduce(
+        (least, o) =>
+          Math.min(least, Math.hypot(at.x - o.at.x, at.y - o.at.y) - disc - o.disc - FREE_GAP),
+        Infinity,
+      );
+    let best = { angle: 0, clear: -Infinity };
+    for (let i = 0; i < FREE_TRIES && best.clear < 0; i++) {
+      const angle = rand() * 360;
+      const clear = clearance(polar(0, 0, roll.radius, angle));
+      if (clear > best.clear) best = { angle, clear };
+    }
+    roll.angle = best.angle;
+    others.push({ at: polar(0, 0, roll.radius, best.angle), disc });
   }
-  return angles;
-}
-
-/**
- * Each scenario body's step out from the previous body with an orbit about the same parent, in
- * source order, as an initializer's `orbit_distance` adds up; the first about a parent steps
- * out from it.
- */
-function orbitSteps(planets: readonly PlanetSummary[]): Map<number, Span> {
-  const last = new Map<number | null, Span>();
-  const steps = new Map<number, Span>();
-  for (const planet of planets) {
-    const orbit = planet.layout?.orbit;
-    if (!orbit) continue;
-    const parent = planet.parent === planet.id ? null : planet.parent;
-    const prev = last.get(parent) ?? { min: 0, max: 0 };
-    steps.set(planet.id, { min: orbit.min - prev.min, max: orbit.max - prev.max });
-    last.set(parent, orbit);
-  }
-  return steps;
 }
 
 interface Placed {
@@ -279,21 +376,35 @@ export interface LayoutOptions {
   /** The class each body is drawn and sized as; the class its source writes by default. */
   classOf?: (planet: PlanetSummary) => LaidClass | undefined;
   /**
-   * The bodies are a scenario's, whose angles may be left to chance: bodies free to stand
-   * anywhere on a ring share it out rather than all standing at angle 0.
+   * The bodies are a scenario's, whose distances and angles are ranges its initializer's walk
+   * adds up: they are drawn as one roll of it.
    */
   scenario?: boolean;
+  /** Which roll: the same seed draws the same system. */
+  seed?: number;
+}
+
+/** The seed for roll `roll` of system `system`. */
+export function rollSeed(system: number, roll: number): number {
+  return Math.imul(system + 1, 0x9e3779b1) ^ Math.imul(roll + 1, 0x85ebca6b);
 }
 
 /** Every body's point, circle and angles, the belts, and the radius the camera fits. */
 export function systemLayout(
   details: SystemDetails | null,
-  { classOf = writtenClass, scenario = false }: LayoutOptions = {},
+  { classOf = writtenClass, scenario = false, seed = 0 }: LayoutOptions = {},
 ): SystemLayout {
   const planets = details?.planets ?? [];
   const byId = new Map(planets.map((p) => [p.id, p]));
-  const free = scenario ? freeAngles(planets) : new Map<number, number>();
-  const steps = scenario ? orbitSteps(planets) : new Map<number, Span>();
+  const steps: ReadonlyMap<number, BodySteps> = scenario ? bodySteps(planets) : new Map();
+  const rand = seeded(seed);
+  const rolled = rollWalks(scenario ? planets : [], steps, rand);
+  const discOf = (planet: PlanetSummary) => {
+    const { planetClass, star } = classOf(planet) ?? writtenClass(planet);
+    const size = planet.layout?.size;
+    return discRadius(size ? mid(size) : null, walkOf(planet) !== null, planetClass, star);
+  };
+  placeFree(scenario ? planets : [], rolled, discOf, rand);
   const placed = new Map<number, Placed>();
   const inProgress = new Set<number>();
 
@@ -319,8 +430,9 @@ export function systemLayout(
     let radius: number;
     let angle: number;
     let band: Band | null = null;
-    let arc: Arc | null = null;
+    let turn: Turn | null = null;
     let ghost = false;
+    const roll = rolled.get(planet.id);
     if (layout?.at) {
       point = { x: layout.at[0], y: layout.at[1] };
       radius = layout.orbit?.min ?? Math.hypot(point.x - centre.x, point.y - centre.y);
@@ -328,13 +440,16 @@ export function systemLayout(
     } else {
       const orbit = layout?.orbit ?? null;
       const angleRange = layout?.angle ?? null;
-      radius = orbit ? mid(orbit) : 0;
       if (orbit && orbit.min !== orbit.max) band = { inner: orbit.min, outer: orbit.max };
-      if (angleRange && angleRange.min !== angleRange.max) {
-        arc = { from: angleRange.min, to: angleRange.max };
+      if (roll) {
+        radius = roll.radius;
+        angle = turned(roll.angle ?? 0);
+        turn = roll.turn;
+      } else {
+        radius = orbit ? mid(orbit) : 0;
+        angle = angleRange ? mid(angleRange) : 0;
       }
       ghost = angleRange === null && radius > 0;
-      angle = free.get(planet.id) ?? (angleRange ? mid(angleRange) : 0);
       point = polar(centre.x, centre.y, radius, angle);
     }
 
@@ -350,12 +465,12 @@ export function systemLayout(
       angle,
       light: null,
       band,
-      arc,
+      turn,
       ghost,
       radius: ring && {
         min: band?.inner ?? radius,
         max: band?.outer ?? radius,
-        step: steps.get(planet.id) ?? null,
+        step: steps.get(planet.id)?.orbit ?? null,
       },
     };
     const result = { point, placement, parent };
@@ -437,7 +552,7 @@ function between(rand: () => number, { min, max }: Span): number {
  * the same `seed`, all inside `within`.
  */
 export function rolledPlanets(seed: number, within: number): RolledPlanet[] {
-  const rand = seeded(Math.imul(seed + 1, 0x9e3779b1));
+  const rand = seeded(seed);
   const count = Math.floor(between(rand, { min: ROLLED_COUNT.min, max: ROLLED_COUNT.max + 1 }));
   const radii = [between(rand, ROLLED_FIRST)];
   while (radii.length < count) radii.push(radii[radii.length - 1] + between(rand, ROLLED_STEP));

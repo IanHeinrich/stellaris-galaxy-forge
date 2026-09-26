@@ -3,9 +3,11 @@ import type { Bounds } from "../../../generated/Bounds";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { bodyClassName, bodyName } from "../../../lib/details/labels";
+import { bodySteps, stepText, turnText } from "../../../lib/details/orbits";
 import { resourceRows } from "../../../lib/details/resources";
 import type { ResolvedClass } from "../../../lib/details/bodyClass";
 import { useDetailsStore } from "../../../store/detailsStore";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { Chip } from "../../parts";
@@ -112,6 +114,10 @@ function Moons({ details, body }: { details: SystemDetails; body: PlanetSummary 
 function BodyOverview({ details, body }: { details: SystemDetails; body: PlanetSummary }) {
   const names = useGameDataStore((s) => s.names);
   const resolved = useResolvedClass(details, body.id);
+  const scenario = useFileSessionStore((s) => s.kind === "scenario");
+  const steps = scenario ? bodySteps(details.planets).get(body.id) : undefined;
+  const after =
+    steps?.after == null ? undefined : details.planets.find((p) => p.id === steps.after);
   const layout = body.layout;
   const size = layout?.size ?? (body.size === null ? null : { min: body.size, max: body.size });
   return (
@@ -128,7 +134,14 @@ function BodyOverview({ details, body }: { details: SystemDetails; body: PlanetS
         )}
         {body.parent !== null && <Orbits details={details} parent={body.parent} />}
         <PropertyRow label="Orbit radius">{boundsText(layout?.orbit ?? null)}</PropertyRow>
+        {steps?.orbit && <PropertyRow label="Orbit step">{stepText(steps.orbit)}</PropertyRow>}
         <PropertyRow label="Angle">{boundsText(layout?.angle ?? null, "°")}</PropertyRow>
+        {steps?.angle && (
+          <PropertyRow label="Angle step">
+            {turnText(steps.angle)}
+            {after && ` from ${bodyName(after, names)}`}
+          </PropertyRow>
+        )}
       </Properties>
       <Deposits details={details} body={body} />
       <Moons details={details} body={body} />

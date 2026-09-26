@@ -1,14 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SystemNode } from "../generated/SystemNode";
 import { keyAction, type KeyAction, type KeyLike } from "../lib/keys";
-import { LAYER_KEYS, SCENE_LAYER_IDS, layerKey } from "../lib/visual/layerIds";
+import { barShows, layerKey, type BarMode, type BarControl } from "../lib/visual/barMode";
+import {
+  GALAXY_LAYER_IDS,
+  LAYER_IDS,
+  LAYER_KEYS,
+  SCENE_LAYER_IDS,
+  isSceneLayer,
+} from "../lib/visual/layerIds";
 import { stubPrefs } from "../test/prefs";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { canGoBack, nudgeSelected, run, toggleLayerKey, type CommandEffects } from "./commands";
+import {
+  canGoBack,
+  nudgeSelected,
+  rollAgain,
+  run,
+  toggleLayerKey,
+  type CommandEffects,
+} from "./commands";
 import { editor, openFixtureSave, openFixtureScenario, withAddedSystems } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { OPEN_RESULT, editResult } from "./fixture";
@@ -17,7 +31,7 @@ import { useGalaxyStore } from "./galaxyStore";
 import { bodyEntry, useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
-import { GALAXY_SCENE, useSceneStore } from "./sceneStore";
+import { GALAXY_SCENE, currentBarMode, useSceneStore } from "./sceneStore";
 import { useToolStore } from "./toolStore";
 import { mockedIpc } from "../test/ipc";
 
@@ -177,6 +191,31 @@ describe("entering a system", () => {
   });
 });
 
+describe("Roll again", () => {
+  it("draws another roll of a scenario system, and starts again from the first on leaving or entering one", async () => {
+    await openFixtureScenario();
+    rollAgain();
+    expect(scene().roll).toBe(0);
+
+    scene().enterSystem(1);
+    rollAgain();
+    rollAgain();
+    expect(scene().roll).toBe(2);
+
+    scene().enterSystem(0);
+    expect(scene().roll).toBe(0);
+    rollAgain();
+    scene().leaveSystem();
+    expect(scene().roll).toBe(0);
+  });
+
+  it("does nothing in a save's system", () => {
+    scene().enterSystem(0);
+    rollAgain();
+    expect(scene().roll).toBe(0);
+  });
+});
+
 describe("leaving a system", () => {
   it("Esc pops a page, then leaves the scene, then clears the selection, with the dock shown", async () => {
     useLayoutStore.setState({ tab: "inspector", collapsed: false });
@@ -258,7 +297,7 @@ describe("the galaxy's keys while a system is up", () => {
     await Promise.resolve();
 
     const scenic = chrome().sceneLayers;
-    for (const id of SCENE_LAYER_IDS) toggleLayerKey(layerKey(id) - 1);
+    for (const id of SCENE_LAYER_IDS) toggleLayerKey(layerKey(id, "system") - 1);
     expect(chrome().layers).toBe(layers);
     for (const id of SCENE_LAYER_IDS) expect(chrome().sceneLayers[id]).toBe(!scenic[id]);
 
@@ -272,6 +311,50 @@ describe("the galaxy's keys while a system is up", () => {
     toggleLayerKey(LAYER_KEYS.indexOf("details"));
     expect(chrome().layers.details).toBe(!layers.details);
     expect(chrome().sceneLayers.details).toBe(!scenic.details);
+  });
+});
+
+/** The layers the bar of `mode` lists, before the document's capabilities narrow them. */
+const barLayers = (mode: BarMode) => LAYER_IDS.filter((id) => barShows(mode, id));
+const OTHER_CONTROLS: readonly BarControl[] = ["kinds", "masters", "tools"];
+const controls = (mode: BarMode) => OTHER_CONTROLS.filter((control) => barShows(mode, control));
+
+describe("the bar each view shows", () => {
+  it("a save's galaxy lists every layer but orbit radii, with the kinds and the tools", () => {
+    expect(currentBarMode()).toBe("save");
+    expect(barLayers("save")).toEqual(GALAXY_LAYER_IDS);
+    expect(controls("save")).toEqual(["kinds", "tools"]);
+
+    const layers = chrome().layers;
+    toggleLayerKey(LAYER_KEYS.indexOf("systems"));
+    expect(layerKey("systems", "save")).toBe(2);
+    expect(layerKey("orbitRadii", "save")).toBe(0);
+    expect(chrome().layers.systems).toBe(!layers.systems);
+  });
+
+  it("a scenario's galaxy lists the same layers, and its masters too", async () => {
+    await openFixtureScenario();
+    expect(currentBarMode()).toBe("scenario");
+    expect(barLayers("scenario")).toEqual(barLayers("save"));
+    expect(controls("scenario")).toEqual(["kinds", "masters", "tools"]);
+    expect(layerKey("systems", "scenario")).toBe(2);
+  });
+
+  it("the system view lists only the scene's own layers, with key 2 on orbit radii", async () => {
+    for (const open of [openFixtureSave, openFixtureScenario]) {
+      await open();
+      scene().enterSystem(0);
+      expect(currentBarMode()).toBe("system");
+      expect(barLayers("system")).toEqual(LAYER_IDS.filter(isSceneLayer));
+      expect(controls("system")).toEqual([]);
+      expect(layerKey("orbitRadii", "system")).toBe(2);
+      expect(layerKey("systems", "system")).toBe(0);
+
+      const { layers, sceneLayers } = chrome();
+      toggleLayerKey(LAYER_KEYS.indexOf("systems"));
+      expect(chrome().sceneLayers.orbitRadii).toBe(!sceneLayers.orbitRadii);
+      expect(chrome().layers).toBe(layers);
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 import { shortcutLabel } from "../../lib/keys";
-import { fitAll, fitSelected } from "../../store/commands";
+import { fitAll, fitSelected, rollAgain } from "../../store/commands";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
@@ -7,6 +7,7 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import "./chrome.css";
 import { Menu, MenuItem } from "./Menu";
+import { ROLL_AGAIN_TITLE } from "./SceneCrumb";
 
 /** Every view command, for the open menu: `dismiss` closes it once a command is taken. */
 export function ViewMenuItems({ dismiss }: { dismiss: () => void }) {
@@ -21,6 +22,7 @@ export function ViewMenuItems({ dismiss }: { dismiss: () => void }) {
   const inSystem = useSceneStore((s) => s.scene.kind === "system");
   const enterSystem = useSceneStore((s) => s.enterSystem);
   const leaveSystem = useSceneStore((s) => s.leaveSystem);
+  const scenario = useFileSessionStore((s) => s.kind === "scenario");
 
   return (
     <>
@@ -38,12 +40,22 @@ export function ViewMenuItems({ dismiss }: { dismiss: () => void }) {
         onClick={fitSelected}
       />
       {inSystem ? (
-        <MenuItem
-          label="Back to galaxy"
-          shortcut={shortcutLabel("clearSelection")}
-          dismiss={dismiss}
-          onClick={leaveSystem}
-        />
+        <>
+          <MenuItem
+            label="Back to galaxy"
+            shortcut={shortcutLabel("clearSelection")}
+            dismiss={dismiss}
+            onClick={leaveSystem}
+          />
+          {scenario && (
+            <MenuItem
+              label="Roll again"
+              title={ROLL_AGAIN_TITLE}
+              dismiss={dismiss}
+              onClick={rollAgain}
+            />
+          )}
+        </>
       ) : (
         enterable && (
           <MenuItem

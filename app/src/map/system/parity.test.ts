@@ -15,10 +15,8 @@ import {
   starClassView,
   systemDetails,
 } from "../../test/builders";
-import { Camera } from "../Camera";
 import { NO_SOURCES, systemContext, type SceneBody, type SystemContext } from "./context";
 import { stubTextMeasurement, viewport } from "./fixture";
-import { pickBody } from "./picking";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
 import type { SceneTextures } from "./layers/textures";
@@ -149,17 +147,13 @@ function rounded(value: unknown): unknown {
 }
 
 /**
- * A body as the scene resolved it, without the source record it was resolved from, or the step
- * out from the previous orbit that only a scenario's readout gives.
+ * A body as the scene resolved it, without the source record it was resolved from, or the steps
+ * from the body before it that only a scenario gives.
  */
 function resolved(body: SceneBody): unknown {
-  const { placement, readout } = body;
-  return rounded({
-    ...body,
-    planet: null,
-    placement: { ...placement, radius: placement.radius && { ...placement.radius, step: null } },
-    readout: readout && { ...readout, line: readout.ring },
-  });
+  const { placement } = body;
+  const radius = placement.radius && { ...placement.radius, step: null };
+  return rounded({ ...body, planet: null, placement: { ...placement, radius, turn: null } });
 }
 
 function blankTextures(): SceneTextures {
@@ -434,7 +428,7 @@ describe("what a scenario leaves to chance", () => {
 });
 
 describe("orbit radius readouts", () => {
-  it("reads a save body's radius rounded, with no step", () => {
+  it("reads a save body's radius rounded", () => {
     const ctx = asSave("sc_g", [
       star("pc_g_star", "sc_g"),
       {
@@ -446,13 +440,10 @@ describe("orbit radius readouts", () => {
         size: 10,
       },
     ]);
-    expect(ctx.bodies.map((b) => b.readout && [b.readout.ring, b.readout.line])).toEqual([
-      null,
-      ["120", "120"],
-    ]);
+    expect(ctx.bodies.map((b) => b.readout?.text ?? null)).toEqual([null, "120"]);
   });
 
-  it("reads a scenario body's radius with its step out from the previous orbit about its parent, a range's two ends, and a moon's from its planet", () => {
+  it("reads a scenario body's radius alone, a range's two ends, and a moon's from its planet", () => {
     const body = (id: number, orbit: { min: number; max: number }, parent: number | null = null) =>
       planetSummary({
         id,
@@ -478,12 +469,12 @@ describe("orbit radius readouts", () => {
       }),
       initializerClasses: new Map([[INITIALIZER, "sc_g"]]),
     });
-    expect(ctx.bodies.map((b) => b.readout && [b.readout.ring, b.readout.line])).toEqual([
+    expect(ctx.bodies.map((b) => b.readout?.text ?? null)).toEqual([
       null,
-      ["65–80", "65–80 (+65–80)"],
-      ["10", "10 (+10)"],
-      ["18", "18 (+8)"],
-      ["85–105", "85–105 (+20–25)"],
+      "65–80",
+      "10",
+      "18",
+      "85–105",
     ]);
     const [sun, planet, moon] = ctx.bodies;
     expect(planet.readout?.hub).toBe(sun.placement.disc);
@@ -491,22 +482,64 @@ describe("orbit radius readouts", () => {
   });
 });
 
-describe("planets the game rolls", () => {
-  const rolling = (over: Partial<typeof sources & { initializer: string }> = {}) => {
-    const { initializer = "", ...rest } = over;
-    return systemContext({
+describe("a scenario system drawn as one roll of its initializer", () => {
+  const turning = (
+    id: number,
+    orbit: { min: number; max: number },
+    angle: { min: number; max: number },
+  ) =>
+    planetSummary({
+      id,
+      class: id === 1 ? "sc_g" : "pc_barren",
+      layout: { orbit, angle, at: null, size: fixed(10) },
+      ring: false,
+    });
+  const rolled = (roll: number) =>
+    systemContext({
       ...sources,
       kind: "scenario",
-      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "sc_g", initializer }),
+      roll,
+      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: INITIALIZER }),
+      details: systemDetails({
+        id: SYSTEM,
+        with_game_data: true,
+        planets: [
+          turning(1, fixed(0), fixed(0)),
+          turning(2, { min: 40, max: 60 }, { min: 90, max: 270 }),
+          turning(3, { min: 70, max: 100 }, { min: 180, max: 540 }),
+        ],
+      }),
+      initializerClasses: new Map([[INITIALIZER, "sc_g"]]),
+    });
+  const points = (ctx: SystemContext) => ctx.bodies.map((b) => [b.placement.x, b.placement.y]);
+
+  it("draws the same roll for the same counter, and another once Roll again moves it", () => {
+    expect(points(rolled(0))).toEqual(points(rolled(0)));
+    expect(points(rolled(1))).not.toEqual(points(rolled(0)));
+  });
+});
+
+describe("planets the game rolls", () => {
+  /** A scenario system whose initializer, read with the install, gave no record. */
+  const rolling = (over: Partial<typeof sources> = {}) =>
+    systemContext({
+      ...sources,
+      kind: "scenario",
+      systems: byId(
+        ...[SYSTEM, SYSTEM + 1, SYSTEM + 2].map((id) => ({
+          ...placedNode(id, 0, 0),
+          star_class: "sc_g",
+          initializer: "",
+        })),
+      ),
       details: null,
       missing: true,
-      ...rest,
+      ...over,
     });
-  };
 
-  it("draws three to six on rings inside the inner radius for a scenario system with no initializer or one the install does not define, the same each time", () => {
-    for (const initializer of ["", "random", "no_such_initializer"]) {
-      const { rolled, layout } = rolling({ initializer });
+  it("draws three to six on rings inside the inner radius for a scenario system whose initializer gives no record, the same for the same system", () => {
+    for (const id of [SYSTEM, SYSTEM + 1, SYSTEM + 2]) {
+      const { rolled, layout } = rolling({ id });
       expect(rolled.length).toBeGreaterThanOrEqual(3);
       expect(rolled.length).toBeLessThanOrEqual(6);
       for (const planet of rolled) {
@@ -522,7 +555,6 @@ describe("planets the game rolls", () => {
     expect(rolling({ kind: "save" }).rolled).toEqual([]);
     expect(rolling({ gameDataReady: false }).rolled).toEqual([]);
     const known = rolling({
-      initializer: INITIALIZER,
       missing: false,
       details: systemDetails({
         id: SYSTEM,
@@ -533,13 +565,10 @@ describe("planets the game rolls", () => {
     expect(known.rolled).toEqual([]);
   });
 
-  it("never counts them among the bodies, and a pick on one finds nothing", () => {
+  it("never counts them among the bodies, which picking and the labels read", () => {
     const ctx = rolling();
+    expect(ctx.rolled.length).toBeGreaterThan(0);
     expect(ctx.bodies).toHaveLength(1);
     expect(ctx.bodies[0].placement.star).toBe(true);
-    const cam = new Camera();
-    cam.setViewport(800, 600);
-    cam.scale = 2;
-    for (const planet of ctx.rolled) expect(pickBody(ctx.bodies, cam, planet)).toBeNull();
   });
 });
