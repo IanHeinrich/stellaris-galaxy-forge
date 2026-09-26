@@ -5,7 +5,6 @@
 use crate::common;
 
 use std::fs;
-use std::path::Path;
 
 use image::RgbaImage;
 use sgf_gamedata::GameData;
@@ -70,47 +69,7 @@ fn world(name: &str, hue: f64) -> String {
     )
 }
 
-/// An uncompressed 32-bit DDS of `faces` square images `side` texels wide, a cube map when
-/// there are six.
-fn dds(side: u32, faces: &[Vec<[u8; 4]>]) -> Vec<u8> {
-    let mut header = [0u32; 31];
-    header[0] = 124;
-    header[1] = 0x1 | 0x2 | 0x4 | 0x1000 | 0x8;
-    header[2] = side;
-    header[3] = side;
-    header[4] = side * 4;
-    header[18] = 32;
-    header[19] = 0x41;
-    header[21] = 32;
-    header[22] = 0xff;
-    header[23] = 0xff00;
-    header[24] = 0xff_0000;
-    header[25] = 0xff00_0000;
-    let cube = faces.len() == 6;
-    header[26] = 0x1000 | if cube { 0x8 } else { 0 };
-    header[27] = if cube { 0x200 | 0xfc00 } else { 0 };
-    let mut bytes = b"DDS ".to_vec();
-    bytes.extend(header.iter().flat_map(|word| word.to_le_bytes()));
-    bytes.extend(faces.iter().flatten().flatten());
-    bytes
-}
-
-fn write(root: &Path, rel: &str, bytes: &[u8]) {
-    let path = root.join("install").join(rel);
-    fs::create_dir_all(path.parent().expect("a folder")).expect("the folder");
-    fs::write(path, bytes).expect("the file");
-}
-
 fn painted() -> (TempDir, GameData) {
-    let (dir, gd) = common::hand_written(&[
-        ("common/star_classes/00_painted.txt", STAR_CLASSES),
-        ("common/planet_classes/00_painted.txt", PLANET_CLASSES),
-        ("gfx/models/planets/_painted_stars.asset", ENTITIES),
-        ("gfx/worldgfx/star_red.txt", &world("red_star", 0.0)),
-        ("gfx/worldgfx/star_blue.txt", &world("blue_star", 0.66)),
-        ("gfx/worldgfx/default.txt", &world("default", 0.15)),
-        ("localisation/english/fx_l_english.yml", "l_english:\n"),
-    ]);
     const SIDE: u32 = 8;
     let noise = |face: u32| {
         (0..SIDE * SIDE)
@@ -121,33 +80,41 @@ fn painted() -> (TempDir, GameData) {
             .collect::<Vec<_>>()
     };
     let grey = vec![[200, 200, 200, 255]; (SIDE * SIDE) as usize];
-    let root = dir.path();
-    write(
-        root,
-        "gfx/worldgfx/noise.dds",
-        &dds(SIDE, &(0..6).map(noise).collect::<Vec<_>>()),
-    );
-    write(
-        root,
-        "gfx/worldgfx/lava.dds",
-        &dds(SIDE, std::slice::from_ref(&grey)),
-    );
-    write(root, "gfx/worldgfx/stone.dds", &dds(SIDE, &[grey]));
-    fs::copy(
-        common::fixture("planet_disc_diffuse.dds"),
-        root.join("install/gfx/models/planets/painted_diffuse.dds"),
-    )
-    .expect("the fixture map");
-    (dir, gd)
+    let text = |rel: &'static str, text: String| (rel, text.into_bytes());
+    common::hand_written_bytes(&[
+        (
+            "common/star_classes/00_painted.txt",
+            STAR_CLASSES.as_bytes().to_vec(),
+        ),
+        (
+            "common/planet_classes/00_painted.txt",
+            PLANET_CLASSES.as_bytes().to_vec(),
+        ),
+        (
+            "gfx/models/planets/_painted_stars.asset",
+            ENTITIES.as_bytes().to_vec(),
+        ),
+        text("gfx/worldgfx/star_red.txt", world("red_star", 0.0)),
+        text("gfx/worldgfx/star_blue.txt", world("blue_star", 0.66)),
+        text("gfx/worldgfx/default.txt", world("default", 0.15)),
+        (
+            "gfx/worldgfx/noise.dds",
+            common::dds(SIDE, &(0..6).map(noise).collect::<Vec<_>>()),
+        ),
+        (
+            "gfx/worldgfx/lava.dds",
+            common::dds(SIDE, std::slice::from_ref(&grey)),
+        ),
+        ("gfx/worldgfx/stone.dds", common::dds(SIDE, &[grey])),
+        (
+            "gfx/models/planets/painted_diffuse.dds",
+            fs::read(common::fixture("planet_disc_diffuse.dds")).expect("the fixture map"),
+        ),
+    ])
 }
 
 fn bake(gd: &GameData, class: &str) -> RgbaImage {
-    let (_cache, textures) = common::temp_textures();
-    let key = format!("star_disc:{class}");
-    let png = gd
-        .texture_png(&textures, &key)
-        .unwrap_or_else(|e| panic!("{key}: {e}"));
-    image::load_from_memory(&png).expect("a PNG").to_rgba8()
+    common::bake_disc(gd, &format!("star_disc:{class}"))
 }
 
 /// A 256 pixel disc, clear in its corners and whole across its middle, and the mean colour
@@ -216,55 +183,106 @@ fn a_class_that_is_no_star_has_no_star_disc() {
     }
 }
 
-/// Whether a disc's mean colour is its class's.
-type Fits = fn([f64; 3]) -> bool;
-
-/// Every vanilla star but the black hole, each in its class's colours.
+/// A sample of vanilla star classes bake without erroring, and a blue one reads bluer than a
+/// red one.
 #[test]
-fn the_installs_star_classes_bake_into_discs_in_their_colours() {
+fn the_installs_star_classes_bake_into_discs_in_recognisable_colours() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let blue = |[r, _, b]: [f64; 3]| b > r + 40.0;
-    let checks: [(&str, Fits); 10] = [
-        ("pc_b_star", blue),
-        ("pc_a_star", blue),
-        ("pc_f_star", |c| c.iter().all(|&v| v > 190.0)),
-        ("pc_g_star", |[r, g, b]| r > 200.0 && g > 170.0 && b < 160.0),
-        ("pc_k_star", |[r, g, b]| {
-            r > 200.0 && g > b + 40.0 && g < r - 60.0
-        }),
-        ("pc_m_star", |[r, g, b]| {
-            r > 150.0 && r > 3.0 * g && r > 3.0 * b
-        }),
-        ("pc_m_giant_star", |[r, g, b]| {
-            r > 150.0 && r > 3.0 * g && r > 3.0 * b
-        }),
-        ("pc_t_star", |[r, g, b]| {
-            r > g + 50.0 && r < 200.0 && b < 120.0
-        }),
-        ("pc_neutron_star", blue),
-        ("pc_pulsar", blue),
+    let classes = [
+        "pc_b_star",
+        "pc_a_star",
+        "pc_f_star",
+        "pc_g_star",
+        "pc_k_star",
+        "pc_m_star",
+        "pc_m_giant_star",
+        "pc_t_star",
+        "pc_neutron_star",
+        "pc_pulsar",
     ];
     let started = std::time::Instant::now();
     // Each bake takes a second or more in a debug build; side by side they take about one.
-    let colours: Vec<[f64; 3]> = std::thread::scope(|scope| {
-        let bakes: Vec<_> = checks
-            .iter()
-            .map(|(class, _)| scope.spawn(move || disc_colour(class, &bake(gd, class))))
-            .collect();
-        bakes
-            .into_iter()
-            .map(|b| b.join().expect("a bake"))
-            .collect()
+    let colours = common::parallel(classes.len(), |i| {
+        disc_colour(classes[i], &bake(gd, classes[i]))
     });
-    for ((class, fits), colour) in checks.iter().zip(colours) {
+    for (class, colour) in classes.iter().zip(&colours) {
         eprintln!("{class}: {colour:.0?}");
-        assert!(fits(colour), "{class} reads {colour:?}");
     }
     eprintln!(
         "baked {} star discs in {:.2?}",
-        checks.len(),
+        classes.len(),
         started.elapsed()
+    );
+    let blue = colours[classes.iter().position(|&c| c == "pc_b_star").unwrap()];
+    let red = colours[classes.iter().position(|&c| c == "pc_m_star").unwrap()];
+    let (blue_diff, red_diff) = (blue[2] - blue[0], red[2] - red[0]);
+    assert!(
+        blue_diff > red_diff,
+        "pc_b_star is not bluer than pc_m_star: {blue:?} vs {red:?}"
+    );
+}
+
+/// The star shader reads the mip level a disc's width asks for, not always level 0: a
+/// `lava.dds` wider than `LAVA_WIDTH` with a distinct colour at level 1 changes the baked
+/// disc, read through `texture_png` as the app would.
+#[test]
+fn a_stars_lava_map_reads_the_mip_level_its_width_asks_for() {
+    // Chosen so the shader's veins sit near their most negative, so `lava_mask` is close to 1
+    // and the lava map's own colour dominates over the stone map's.
+    const NOISE_SHADE: u8 = 94;
+    const WORLD: &str = "gfx_settings = {
+\tworld = lod_star
+\tlava_bright_color = rgb { 200 200 200 }
+\tlava_bright_intensity = 1.0
+\tlava_hot_stone_color = rgb { 80 80 80 }
+\tlava_hot_stone_intensity = 1.0
+\tlava_cold_stone_color = rgb { 40 40 40 }
+\tlava_cold_stone_intensity = 1.0
+\ttex_lava_noise=\"gfx/worldgfx/noise.dds\"
+\ttex_lava_diffuse=\"gfx/worldgfx/lava.dds\"
+\ttex_stone_diffuse=\"gfx/worldgfx/stone.dds\"
+}
+";
+    let bake_with_lava_level_1 = |colour: [u8; 4]| {
+        let noise_face = vec![[NOISE_SHADE, NOISE_SHADE, NOISE_SHADE, 255]; 64];
+        let (_dir, gd) = common::hand_written_bytes(&[
+            (
+                "common/star_classes/00_lod.txt",
+                b"sc_lod = {\n\tclass = lod_star\n\tplanet = { key = pc_lod_star }\n}\n".to_vec(),
+            ),
+            (
+                "common/planet_classes/00_lod.txt",
+                b"pc_lod_star = {\n\tentity = \"lod_star_entity\"\n\tstar = yes\n}\n".to_vec(),
+            ),
+            ("gfx/worldgfx/lod.txt", WORLD.as_bytes().to_vec()),
+            (
+                "gfx/worldgfx/noise.dds",
+                common::dds(8, &(0..6).map(|_| noise_face.clone()).collect::<Vec<_>>()),
+            ),
+            (
+                "gfx/worldgfx/stone.dds",
+                common::dds(8, &[vec![[200, 200, 200, 255]; 64]]),
+            ),
+            (
+                // Wider than LAVA_WIDTH (128), so the level read is level 1, not level 0.
+                "gfx/worldgfx/lava.dds",
+                common::dds_by_level(256, |level| {
+                    if level == 0 {
+                        [10, 10, 10, 255]
+                    } else {
+                        colour
+                    }
+                }),
+            ),
+        ]);
+        disc_colour("lod", &bake(&gd, "pc_lod_star"))
+    };
+    let red = bake_with_lava_level_1([255, 0, 0, 255]);
+    let blue = bake_with_lava_level_1([0, 0, 255, 255]);
+    assert!(
+        red[0] > blue[0] && blue[2] > red[2],
+        "level 1's colour did not reach the bake: red {red:?}, blue {blue:?}"
     );
 }

@@ -6,6 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
+use image::RgbaImage;
 use tempfile::TempDir;
 
 use sgf_core::document::Document;
@@ -85,17 +86,116 @@ pub fn cached_fixture_with_mods() -> &'static GameData {
 }
 
 /// `files`, each a path under the install and its text, written into a temporary install
-/// and loaded vanilla. The install lasts as long as the returned directory.
+/// and loaded vanilla. The install lasts as long as the returned directory. A file that
+/// supplies no localisation gets the stub `localisation/english/fx_l_english.yml` needs; a
+/// caller writing its own leaves this one alone.
 pub fn hand_written(files: &[(&str, &str)]) -> (TempDir, GameData) {
+    let files: Vec<(&str, Vec<u8>)> = files
+        .iter()
+        .map(|&(rel, text)| (rel, text.as_bytes().to_vec()))
+        .collect();
+    hand_written_bytes(&files)
+}
+
+/// [`hand_written`], for install files that are not text: a `.dds`, generated with [`dds`] or
+/// copied from a fixture.
+pub fn hand_written_bytes(files: &[(&str, Vec<u8>)]) -> (TempDir, GameData) {
     let dir = tempfile::tempdir().expect("temp dir");
     let install = dir.path().join("install");
-    for &(rel, text) in files {
+    for (rel, content) in files {
         let file = install.join(rel);
         fs::create_dir_all(file.parent().expect("a directory")).expect("the install tree");
-        fs::write(file, text).expect("an install file");
+        fs::write(file, content).expect("an install file");
+    }
+    let stub = install.join("localisation/english/fx_l_english.yml");
+    if !stub.exists() {
+        fs::create_dir_all(stub.parent().expect("a directory")).expect("the install tree");
+        fs::write(stub, "l_english:\n").expect("the localisation stub");
     }
     let gd = load_tree(&install, Some(&dir.path().join("user")), false);
     (dir, gd)
+}
+
+/// An uncompressed 32-bit DDS of `faces` square images `side` texels wide, a cube map when
+/// there are six, with a full mip chain down to 1×1 (each level a 2×2 box average of the one
+/// before).
+pub fn dds(side: u32, faces: &[Vec<[u8; 4]>]) -> Vec<u8> {
+    let levels = side.ilog2() + 1;
+    let mut bytes = dds_header(side, levels, faces.len() == 6);
+    for face in faces {
+        let mut level = face.clone();
+        let mut level_side = side;
+        for _ in 0..levels {
+            bytes.extend(level.iter().flatten());
+            if level_side == 1 {
+                break;
+            }
+            level = box_downsample(&level, level_side);
+            level_side /= 2;
+        }
+    }
+    bytes
+}
+
+/// A one-face uncompressed 32-bit DDS `side` texels wide, its mip chain down to 1×1 each a
+/// solid colour from `level_colour(level)`: for pinning which level a caller's `width` reads.
+pub fn dds_by_level(side: u32, level_colour: impl Fn(u32) -> [u8; 4]) -> Vec<u8> {
+    let levels = side.ilog2() + 1;
+    let mut bytes = dds_header(side, levels, false);
+    let mut level_side = side;
+    for level in 0..levels {
+        let colour = level_colour(level);
+        bytes.extend((0..level_side * level_side).flat_map(|_| colour));
+        level_side = (level_side / 2).max(1);
+    }
+    bytes
+}
+
+fn dds_header(side: u32, levels: u32, cube: bool) -> Vec<u8> {
+    let mut header = [0u32; 31];
+    header[0] = 124;
+    header[1] = 0x1 | 0x2 | 0x4 | 0x1000 | 0x8 | 0x2_0000;
+    header[2] = side;
+    header[3] = side;
+    header[4] = side * 4;
+    header[6] = levels;
+    header[18] = 32;
+    header[19] = 0x41;
+    header[21] = 32;
+    header[22] = 0xff;
+    header[23] = 0xff00;
+    header[24] = 0xff_0000;
+    header[25] = 0xff00_0000;
+    header[26] = 0x1000 | 0x40_0000 | if cube { 0x8 } else { 0 };
+    header[27] = if cube { 0x200 | 0xfc00 } else { 0 };
+    let mut bytes = b"DDS ".to_vec();
+    bytes.extend(header.iter().flat_map(|word| word.to_le_bytes()));
+    bytes
+}
+
+/// `pixels`, `side` square, averaged 2×2 down to `side / 2` square.
+fn box_downsample(pixels: &[[u8; 4]], side: u32) -> Vec<[u8; 4]> {
+    let half = side / 2;
+    (0..half)
+        .flat_map(|y| (0..half).map(move |x| (x, y)))
+        .map(|(x, y)| {
+            let at = |dx: u32, dy: u32| pixels[((2 * y + dy) * side + 2 * x + dx) as usize];
+            let corners = [at(0, 0), at(1, 0), at(0, 1), at(1, 1)];
+            std::array::from_fn(|c| {
+                (corners.iter().map(|p| u16::from(p[c])).sum::<u16>() / 4) as u8
+            })
+        })
+        .collect()
+}
+
+/// The disc `key` (`planet_disc:<class>` or `star_disc:<class>`) bakes to, through the
+/// texture cache.
+pub fn bake_disc(gd: &GameData, key: &str) -> RgbaImage {
+    let (_cache, textures) = temp_textures();
+    let png = gd
+        .texture_png(&textures, key)
+        .unwrap_or_else(|e| panic!("{key}: {e}"));
+    image::load_from_memory(&png).expect("a PNG").to_rgba8()
 }
 
 /// The install at `install` in English, with `user_dir` for its playset, whose mods load
