@@ -206,6 +206,7 @@ export function planetSummary(over: Partial<PlanetSummary> = {}): PlanetSummary 
     moon: false,
     parent: null,
     layout: null,
+    ring: null,
     ...over,
   };
 }
@@ -328,6 +329,10 @@ export function planetClassView(
     habitable: !star,
     star,
     terraform_candidate: terraformCandidate,
+    icon_large_sprite: null,
+    atmosphere_color: null,
+    atmosphere_intensity: null,
+    atmosphere_width: null,
   };
 }
 

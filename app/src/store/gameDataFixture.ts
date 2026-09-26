@@ -136,6 +136,10 @@ function armGameDataCommands(): void {
       habitable: true,
       star: false,
       terraform_candidate: null,
+      icon_large_sprite: null,
+      atmosphere_color: null,
+      atmosphere_intensity: null,
+      atmosphere_width: null,
     },
   ]);
   mockedIpc.getDeposits.mockResolvedValue([

@@ -15,6 +15,10 @@ const CLASSES = new Map<string, PlanetClassView>([
       habitable: true,
       star: false,
       terraform_candidate: null,
+      icon_large_sprite: null,
+      atmosphere_color: null,
+      atmosphere_intensity: null,
+      atmosphere_width: null,
     },
   ],
   [
@@ -25,6 +29,10 @@ const CLASSES = new Map<string, PlanetClassView>([
       habitable: false,
       star: false,
       terraform_candidate: "terraforming_candidate",
+      icon_large_sprite: null,
+      atmosphere_color: null,
+      atmosphere_intensity: null,
+      atmosphere_width: null,
     },
   ],
 ]);
