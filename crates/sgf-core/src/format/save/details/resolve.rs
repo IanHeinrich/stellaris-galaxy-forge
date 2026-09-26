@@ -145,6 +145,13 @@ pub struct PlanetSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub drawn: Option<bool>,
+    /// The modifier names of the planet's permanent `timed_modifier` items (`days = -1`):
+    /// the shape a terraforming candidate modifier is written in, whatever the planet's
+    /// class now says. `None` for a scenario's bodies, which carry no save-persisted
+    /// modifiers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub permanent_modifiers: Option<Vec<String>>,
 }
 
 /// A number an initializer may leave to a draw: `min == max` when it is fixed,
@@ -271,6 +278,7 @@ pub(super) fn resolve(
             ring: Some(p.ring),
             star_class: None,
             drawn: Some(false),
+            permanent_modifiers: Some(p.permanent_modifiers.clone()),
         });
     }
     let starbase = raw.starbases.first().map(|s| StarbaseSummary {

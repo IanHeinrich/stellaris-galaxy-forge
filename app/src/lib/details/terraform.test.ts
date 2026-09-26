@@ -3,7 +3,12 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetPage } from "../../generated/PlanetPage";
 import type { TerraformCandidateView } from "../../generated/TerraformCandidateView";
 import { name, planetClassView } from "../../test/builders";
-import { setTerraformCandidateOp, terraformCandidate, terraformCandidateTitle } from "./terraform";
+import {
+  hasTerraformCheckbox,
+  setTerraformCandidateOp,
+  terraformCandidate,
+  terraformCandidateTitle,
+} from "./terraform";
 
 /** A minimal save body page for class `planetClass`, carrying `modifiers` as permanent ones. */
 function page(planetClass: string, modifiers: string[] = []): PlanetPage {
@@ -50,6 +55,24 @@ const CANDIDATES = new Map<string, TerraformCandidateView>(
     { modifier: "ash_terraforming_candidate", requires: [] },
   ].map((c) => [c.modifier, c]),
 );
+
+describe("hasTerraformCheckbox", () => {
+  it("is true for a class with its own candidate, whatever the planet carries", () => {
+    expect(hasTerraformCheckbox("pc_barren", [], CLASSES, CANDIDATES)).toBe(true);
+  });
+
+  it("is true for a planet carrying a candidate modifier left from another class", () => {
+    expect(
+      hasTerraformCheckbox("pc_continental", ["terraforming_candidate"], CLASSES, CANDIDATES),
+    ).toBe(true);
+  });
+
+  it("is false for a class with no link and no carried candidate modifier", () => {
+    expect(hasTerraformCheckbox("pc_continental", [], CLASSES, CANDIDATES)).toBe(false);
+    expect(hasTerraformCheckbox("pc_continental", null, CLASSES, CANDIDATES)).toBe(false);
+    expect(hasTerraformCheckbox("pc_continental", undefined, CLASSES, CANDIDATES)).toBe(false);
+  });
+});
 
 describe("terraformCandidate", () => {
   it("is the class's modifier, unchecked, for an eligible planet without it", () => {
@@ -111,6 +134,14 @@ describe("terraformCandidate", () => {
     expect(
       terraformCandidate(page("pc_barren", ["terraforming_candidate"]), new Map(), new Map()),
     ).toBeNull();
+  });
+
+  it("is nothing for a temporary candidate modifier, which the op refuses to clear", () => {
+    const temporary: PlanetPage = {
+      ...page("pc_continental"),
+      timed_modifiers: [{ modifier: "terraforming_candidate", days: 120 }],
+    };
+    expect(terraformCandidate(temporary, CLASSES, CANDIDATES)).toBeNull();
   });
 });
 

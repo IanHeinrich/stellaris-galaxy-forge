@@ -21,6 +21,8 @@ a release is made.
   star in the system view, as Add system gives it. It used to show two.
 - The status bar's orbit and angle for a scenario body match where the
   system view draws it.
+- A planet that keeps a terraforming candidate from an earlier class
+  shows the Edit mark in the system's planet list.
 
 ## [0.15.0] - 2026-09-26
 

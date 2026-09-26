@@ -274,6 +274,7 @@ function Moons({ page }: { page: PlanetPage }) {
   );
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
+  const candidates = useGameDataStore((s) => s.terraformCandidates);
   const bodies = useCanEdit("bodies");
   if (page.moons.length === 0) return null;
   return (
@@ -288,7 +289,14 @@ function Moons({ page }: { page: PlanetPage }) {
             key={moon.id}
             planet={{ ...summary, moon: false }}
             details={read}
-            editHint={bodyEditHint(summary.class, bodies, planetClasses, starClasses)}
+            editHint={bodyEditHint(
+              summary.class,
+              bodies,
+              summary.permanent_modifiers,
+              planetClasses,
+              starClasses,
+              candidates,
+            )}
           />
         );
       })}

@@ -119,7 +119,7 @@ impl GameData {
     fn with_lookups<T>(&self, use_lookups: impl FnOnce(&Lookups<'_>) -> T) -> T {
         let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
         let entity = |class: &str| self.disc_entity(class);
-        let star = |class: &str| self.star_body(class);
+        let star = |class: &str| self.star_disc_inputs(class);
         use_lookups(&Lookups {
             sprites: &*self.sprites,
             colour: &colour,
@@ -128,7 +128,7 @@ impl GameData {
         })
     }
 
-    fn star_body(&self, class: &str) -> Option<StarBody> {
+    fn star_disc_inputs(&self, class: &str) -> Option<StarBody> {
         let def = self.planet_classes.get(class).filter(|c| c.star)?;
         let atmosphere = def.atmosphere.map(|a| StarAtmosphere {
             colour: a.colour,
@@ -153,7 +153,7 @@ impl GameData {
         };
         let classes = || self.star_classes.iter();
         classes()
-            .filter(|sc| sc.planet_keys.len() == 1)
+            .filter(|sc| sc.planets.len() == 1)
             .find_map(lit_as)
             .or_else(|| classes().find_map(lit_as))
     }

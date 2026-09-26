@@ -493,19 +493,19 @@ impl<'g> Roller<'g> {
         let key = match &block.class {
             BodyClass::Named(key) => {
                 self.star_named_by_class = true;
-                key
+                key.as_str()
             }
             _ => self
                 .star_class
-                .planet_keys
-                .first()
+                .planet_keys()
+                .next()
                 .ok_or_else(|| GenerateError::NoStarBody(self.star_class.key.clone()))?,
         };
         let class = self
             .gd
             .planet_classes
             .get(key)
-            .ok_or_else(|| GenerateError::UnknownPlanetClass(key.clone()))?;
+            .ok_or_else(|| GenerateError::UnknownPlanetClass(key.to_owned()))?;
         let size = self.size(block, class, false)?;
         Ok(BodySpec {
             name: None,

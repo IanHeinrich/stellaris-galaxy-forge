@@ -419,11 +419,13 @@ impl Op {
     /// because it may bring an initializer with it. A save's details list a star's
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
-    /// a save system an op adds brings its bodies with it.
+    /// a save system an op adds brings its bodies with it, and [`Op::SetTerraformCandidate`]
+    /// stales the one planet whose modifiers it wrote.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
+            | Self::SetTerraformCandidate { .. }
             | Self::AddSaveDeposit { .. }
             | Self::RemoveSaveDeposit { .. }
             | Self::AddSaveSystem { .. }
@@ -442,11 +444,13 @@ impl Op {
         }
     }
 
-    /// Whether the details this op stales come up to date by rereading the class and size
-    /// of the planets it rewrote, without building the projection again.
+    /// Whether the details this op stales come up to date by rereading the class, size and
+    /// modifiers of the planets it rewrote, without building the projection again.
     pub fn stales_only_planets(&self) -> bool {
         match self {
-            Self::SetStarClass { .. } | Self::SetPlanetSize { .. } => true,
+            Self::SetStarClass { .. }
+            | Self::SetPlanetSize { .. }
+            | Self::SetTerraformCandidate { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.stales_only_planets() || !op.stales_details()),

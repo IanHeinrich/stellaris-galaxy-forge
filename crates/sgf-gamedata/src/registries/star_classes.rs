@@ -13,9 +13,6 @@ pub struct StarClass {
     pub class: String,
     pub icon: Option<String>,
     pub icon_scale: f64,
-    /// Each `planet = { key = pc_… }` in order, from [`Self::planets`]: the planet class of
-    /// each star body, two or three of them for a binary or trinary system.
-    pub planet_keys: Vec<String>,
     /// Each `planet = { key = pc_… class = … }`: the planet class of each star body, with the
     /// `class` it is lit as, which names its `gfx/worldgfx` settings; an entry without one
     /// takes the system's own `class`.
@@ -42,6 +39,12 @@ pub struct StarPlanet {
 impl StarClass {
     pub fn texture_icon(&self) -> &str {
         self.icon.as_deref().unwrap_or(&self.class)
+    }
+
+    /// Each `planet = { key = pc_… }` in order: the planet class of each star body, two or
+    /// three of them for a binary or trinary system.
+    pub fn planet_keys(&self) -> impl Iterator<Item = &str> {
+        self.planets.iter().map(|p| p.key.as_str())
     }
 
     /// The factor this star puts on `planet_class`'s odds; `1` unless it names the class.
@@ -77,7 +80,6 @@ impl FromDef for StarClass {
                 Some(StarPlanet { key, lighting })
             })
             .collect();
-        let planet_keys = planets.iter().map(|p| p.key.clone()).collect();
         let planet_odds = def
             .node
             .children()
@@ -93,7 +95,6 @@ impl FromDef for StarClass {
             class,
             icon: def.scalar("icon").map(str::to_owned),
             icon_scale: def.number("icon_scale").unwrap_or(1.0),
-            planet_keys,
             planets,
             crisis_star_class: def.scalar("crisis_star_class").map(str::to_owned),
             spawn_odds: def.number("spawn_odds").unwrap_or(0.0),

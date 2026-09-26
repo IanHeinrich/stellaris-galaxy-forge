@@ -151,13 +151,12 @@ impl GameData {
                 } else {
                     return class.to_owned();
                 };
-                let keys = self
-                    .star_classes
-                    .get(star)
-                    .map_or(&[][..], |c| c.planet_keys.as_slice());
-                let key = keys.get(nth).or_else(|| keys.first());
+                let star = self.star_classes.get(star);
+                let key = star
+                    .and_then(|c| c.planet_keys().nth(nth))
+                    .or_else(|| star.and_then(|c| c.planet_keys().next()));
                 nth += 1;
-                key.map_or(class, String::as_str).to_owned()
+                key.unwrap_or(class).to_owned()
             })
             .collect()
     }
@@ -318,6 +317,7 @@ impl GameData {
             ring: self.ring(body, expanded.moon),
             star_class: self.drawn_star_class(&class, system),
             drawn: Some(self.drawn(&class)),
+            permanent_modifiers: None,
             class,
         }
     }
@@ -338,7 +338,7 @@ impl GameData {
         for star in self
             .star_classes
             .iter()
-            .filter(|s| s.planet_keys == [class])
+            .filter(|s| s.planet_keys().eq([class]))
         {
             if single.is_none_or(|held| held.spawn_odds == 0.0 && star.spawn_odds > 0.0) {
                 single = Some(star);
