@@ -158,7 +158,7 @@ impl Bounds {
 pub struct BodyLayout {
     /// The drawn radius about the parent, or about the system's centre without
     /// one. `None` for a save body with neither an orbit nor a point. A scenario
-    /// body with no distance stands on the running orbit.
+    /// body with no distance lies 10 to 20 past the running orbit.
     pub orbit: Option<Bounds>,
     /// Degrees about the parent. `None` in a save, which has `at`, and when an
     /// initializer names no angle.

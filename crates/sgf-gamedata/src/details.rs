@@ -16,7 +16,7 @@ use crate::GameData;
 use crate::generate::belt;
 use crate::initializers::{self, Body, BodyClass, InitPlanet, Initializer};
 use crate::install::script::Range;
-use crate::orbit_walk::{self, Placed, Turn, Walk};
+use crate::orbit_walk::{self, Placed, Step, Turn, Walk};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::scripts::ScenarioOwners;
 
@@ -27,6 +27,11 @@ const MEGASTRUCTURE_BASE: u32 = 0x5000_0000;
 /// A scenario starbase's synthetic id: one per system, never a real entity.
 const STARBASE_BASE: u32 = 0x7000_0000;
 const SITE_BASE: u32 = 0x6000_0000;
+/// How far past the running orbit every sample save has a body with no `orbit_distance`.
+const UNSTATED_DISTANCE: Bounds = Bounds {
+    min: 10.0,
+    max: 20.0,
+};
 
 /// The planets and moons one initializer spawns, with the dig sites they carry.
 #[derive(Debug, Default)]
@@ -224,17 +229,24 @@ impl GameData {
 /// Each body's layout in the order [`initializers::expand`] gives the bodies, each range
 /// kept as the bounds a draw could give. The angles start at 0, so they are right relative
 /// to each other and the game may turn the whole system.
-struct Layouts(Vec<BodyLayout>);
+struct Layouts {
+    bodies: Vec<BodyLayout>,
+    /// What the bodies with no distance have added to the running orbit at this level.
+    unstated: Bounds,
+}
 
 impl Layouts {
     fn of(planets: &[InitPlanet]) -> Vec<BodyLayout> {
-        let mut layouts = Self(Vec::new());
+        let mut layouts = Self {
+            bodies: Vec::new(),
+            unstated: Bounds::fixed(0.0),
+        };
         let Ok(()) = orbit_walk::walk(
             planets,
             Turn::FromPrevious(Bounds::fixed(0.0)),
             &mut layouts,
         );
-        layouts.0
+        layouts.bodies
     }
 }
 
@@ -255,11 +267,14 @@ impl<'p> Walk<'p> for Layouts {
         bounds(angle)
     }
 
-    /// A body with no distance stands on the running orbit, as the walk steps it; one with no
-    /// angle may be anywhere on its orbit.
+    /// A body with no distance lies [`UNSTATED_DISTANCE`] past the running orbit and moves every
+    /// later sibling out with it; one with no angle may be anywhere on its orbit.
     fn body(&mut self, block: &'p InitPlanet, placed: Placed<Bounds>) -> Result<(), Infallible> {
-        self.0.push(BodyLayout {
-            orbit: Some(placed.orbit),
+        if block.orbit_distance.is_none() {
+            self.unstated = self.unstated.plus(UNSTATED_DISTANCE);
+        }
+        self.bodies.push(BodyLayout {
+            orbit: Some(placed.orbit.plus(self.unstated)),
             angle: block.orbit_angle.map(|_| within_one_turn(placed.angle)),
             at: None,
             size: block.size.map(|(min, max)| Bounds {
@@ -267,7 +282,10 @@ impl<'p> Walk<'p> for Layouts {
                 max: f64::from(max),
             }),
         });
-        orbit_walk::walk(&block.moons, Turn::FromPrevious(Bounds::fixed(0.0)), self)
+        let siblings = std::mem::replace(&mut self.unstated, Bounds::fixed(0.0));
+        let moons = orbit_walk::walk(&block.moons, Turn::FromPrevious(Bounds::fixed(0.0)), self);
+        self.unstated = siblings;
+        moons
     }
 }
 

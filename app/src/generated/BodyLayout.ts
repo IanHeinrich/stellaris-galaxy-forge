@@ -9,7 +9,7 @@ export type BodyLayout = {
 /**
  * The drawn radius about the parent, or about the system's centre without
  * one. `None` for a save body with neither an orbit nor a point. A scenario
- * body with no distance stands on the running orbit.
+ * body with no distance lies 10 to 20 past the running orbit.
  */
 orbit: Bounds | null, 
 /**

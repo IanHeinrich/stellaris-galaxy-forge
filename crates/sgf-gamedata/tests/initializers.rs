@@ -683,15 +683,15 @@ fn a_fixture_systems_layout_is_what_its_initializer_defines() {
             ),
             (
                 None,
-                Some(range(80.0, 85.0)),
+                Some(range(90.0, 105.0)),
                 Some(range(75.0, 195.0)),
                 None
             ),
-            (None, Some(range(105.0, 110.0)), None, None),
+            (None, Some(range(115.0, 130.0)), None, None),
         ],
         "the star names no angle; change_orbit moves the moons out, and the siblings \
-         after it; a count of one to three spawns two; an undeclared distance steps 0 \
-         and stands on the running orbit"
+         after it; a count of one to three spawns two; an undeclared distance lies 10 to \
+         20 past the running orbit and moves the bodies after it out as far"
     );
     assert_eq!(
         details.belts,
@@ -772,45 +772,44 @@ fn sol_is_laid_out_where_the_game_put_it() {
     }
 }
 
-/// A body with no `orbit_distance` stands on the running orbit. The game draws it 10 to 20
-/// past that, and a ranged count before it moves it by one step either way: the 4.4 sample's
-/// systems 5, 33 and 55 were rolled from these initializers, and each of these bodies is the
-/// only one of its class in its system.
+/// A body with no `orbit_distance` lies 10 to 20 past the running orbit, and the bodies after
+/// it lie that much further out too: the 4.4 sample's systems 52, 55 and 57 were rolled from
+/// these initializers, whose counts are fixed or, in 55, spawn the star and the broken world.
 #[test]
-fn a_body_with_no_distance_is_laid_out_on_the_running_orbit_not_on_the_star() {
+fn a_body_with_no_distance_lies_in_a_band_past_the_running_orbit_and_moves_the_rest_out() {
     let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let session = common::open_4_4();
     let projection = session.details().expect("the sample's details");
-    for (system, initializer, class) in [
-        (5, "ai_system_03", "pc_gas_giant"),
-        (33, "distar_phaseshift_system", "pc_shrouded"),
-        (55, "special_init_01", "pc_broken"),
+    for (system, initializer, bodies) in [
+        (52, "hostile_init_20", 15),
+        (55, "special_init_01", 2),
+        (57, "salvager_enclave_init_03", 7),
     ] {
         let saved = projection.raw(system).expect("a saved system");
-        let saved_orbit = saved
-            .planets
-            .iter()
-            .find(|p| p.class == class)
-            .and_then(|p| p.orbit)
-            .expect("the saved body's orbit");
         let laid = gd
             .initializer_details(system, initializer, None)
             .expect("the initializer's details");
-        let body = laid
-            .planets
-            .iter()
-            .find(|p| p.class == class)
-            .expect("the laid out body");
-        let orbit = body
-            .layout
-            .as_ref()
-            .and_then(|l| l.orbit)
-            .unwrap_or_else(|| panic!("{initializer}: {class} has no orbit"));
-        assert!(
-            (saved_orbit - orbit.min).abs() < 20.0,
-            "{initializer}: {class} laid out at {orbit:?}, saved at {saved_orbit}"
-        );
+        assert_eq!(saved.planets.len(), bodies, "{initializer}");
+        for (index, (laid, saved)) in laid.planets.iter().zip(&saved.planets).enumerate() {
+            let saved_orbit = saved.orbit.expect("the saved body's orbit");
+            let orbit = laid
+                .layout
+                .as_ref()
+                .and_then(|l| l.orbit)
+                .unwrap_or_else(|| panic!("{initializer}: body {index} has no orbit"));
+            if index > 0 {
+                assert_eq!(laid.class, saved.class, "{initializer}: body {index}");
+                assert!(
+                    orbit.min > 0.0,
+                    "{initializer}: body {index} is on the star"
+                );
+            }
+            assert!(
+                orbit.min <= saved_orbit && saved_orbit <= orbit.max,
+                "{initializer}: body {index} laid out at {orbit:?}, saved at {saved_orbit}"
+            );
+        }
     }
 }
