@@ -4,13 +4,19 @@ export interface NoteSpan {
   text: string;
 }
 
+/** A bullet, with the bullets indented under it. */
+export interface NoteItem {
+  spans: NoteSpan[];
+  items: NoteSpan[][];
+}
+
 export type NoteBlock =
   | { kind: "heading"; spans: NoteSpan[] }
-  | { kind: "list"; items: NoteSpan[][] }
+  | { kind: "list"; items: NoteItem[] }
   | { kind: "paragraph"; spans: NoteSpan[] };
 
 const HEADING = /^#{1,6}\s+(.*)$/;
-const BULLET = /^[-*]\s+(.*)$/;
+const BULLET = /^(\s*)[-*]\s+(.*)$/;
 const INLINE = /`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\([^)]*\)/g;
 
 function spans(text: string): NoteSpan[] {
@@ -27,14 +33,26 @@ function spans(text: string): NoteSpan[] {
   return out;
 }
 
+interface DraftItem {
+  text: string;
+  items: string[];
+}
+
 type Draft =
   | { kind: "heading"; text: string }
-  | { kind: "list"; items: string[] }
+  | { kind: "list"; items: DraftItem[] }
   | { kind: "paragraph"; text: string };
 
+/** The text a wrapped line continues: the last nested bullet if there is one, else the item. */
+function continueItem(item: DraftItem, line: string) {
+  if (item.items.length > 0) item.items[item.items.length - 1] += ` ${line}`;
+  else item.text += ` ${line}`;
+}
+
 /**
- * The changelog's Markdown as blocks: headings, bullet lists and paragraphs. A line wrapped
- * inside an entry joins the entry with a space.
+ * The changelog's Markdown as blocks: headings, bullet lists and paragraphs. An indented bullet
+ * nests under the bullet before it, one level deep. A line wrapped inside an entry joins the
+ * entry with a space.
  */
 export function parseReleaseNotes(notes: string): NoteBlock[] {
   const drafts: Draft[] = [];
@@ -42,17 +60,20 @@ export function parseReleaseNotes(notes: string): NoteBlock[] {
   for (const raw of notes.split("\n")) {
     const line = raw.trim();
     const heading = HEADING.exec(line);
-    const bullet = BULLET.exec(line);
+    const bullet = BULLET.exec(raw);
     if (line === "") {
       open = null;
     } else if (heading) {
       drafts.push({ kind: "heading", text: heading[1] });
       open = null;
     } else if (bullet) {
+      const nested = bullet[1].length > 0 && open?.kind === "list";
       if (open?.kind !== "list") drafts.push((open = { kind: "list", items: [] }));
-      open.items.push(bullet[1]);
+      const text = bullet[2].trim();
+      if (nested) open.items[open.items.length - 1].items.push(text);
+      else open.items.push({ text, items: [] });
     } else if (open?.kind === "list") {
-      open.items[open.items.length - 1] += ` ${line}`;
+      continueItem(open.items[open.items.length - 1], line);
     } else if (open?.kind === "paragraph") {
       open.text += ` ${line}`;
     } else {
@@ -61,7 +82,10 @@ export function parseReleaseNotes(notes: string): NoteBlock[] {
   }
   return drafts.map((d) =>
     d.kind === "list"
-      ? { kind: "list", items: d.items.map(spans) }
+      ? {
+          kind: "list",
+          items: d.items.map((item) => ({ spans: spans(item.text), items: item.items.map(spans) })),
+        }
       : { kind: d.kind, spans: spans(d.text) },
   );
 }
@@ -70,7 +94,7 @@ export function parseReleaseNotes(notes: string): NoteBlock[] {
 export function releaseHeadline(notes: string): string {
   for (const block of parseReleaseNotes(notes)) {
     const first =
-      block.kind === "list" ? block.items[0] : block.kind === "paragraph" ? block.spans : null;
+      block.kind === "list" ? block.items[0]?.spans : block.kind === "paragraph" ? block.spans : null;
     if (first) return first.map((s) => s.text).join("");
   }
   return "";

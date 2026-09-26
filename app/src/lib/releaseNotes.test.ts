@@ -33,20 +33,56 @@ describe("a release's notes as blocks", () => {
       {
         kind: "list",
         items: [
-          [
-            { kind: "strong", text: "Nebulae" },
-            { kind: "text", text: " keep their " },
-            { kind: "code", text: "radius" },
-            { kind: "text", text: " on save." },
-          ],
-          [
-            { kind: "text", text: "See " },
-            { kind: "text", text: "the guide" },
-            { kind: "text", text: "." },
-          ],
+          {
+            spans: [
+              { kind: "strong", text: "Nebulae" },
+              { kind: "text", text: " keep their " },
+              { kind: "code", text: "radius" },
+              { kind: "text", text: " on save." },
+            ],
+            items: [],
+          },
+          {
+            spans: [
+              { kind: "text", text: "See " },
+              { kind: "text", text: "the guide" },
+              { kind: "text", text: "." },
+            ],
+            items: [],
+          },
         ],
       },
       { kind: "paragraph", spans: [{ kind: "text", text: "Thanks for the reports." }] },
+    ]);
+  });
+
+  it("nests an indented bullet under the one before it, with its wrapped lines", () => {
+    const notes = [
+      "- Open the system view.",
+      "  - Planets show their surface,",
+      "    lit from their star.",
+      "  - Stars show their `class`.",
+      "- Add system lists Sol.",
+    ].join("\n");
+    const text = (t: string) => [{ kind: "text", text: t }];
+    expect(parseReleaseNotes(notes)).toEqual([
+      {
+        kind: "list",
+        items: [
+          {
+            spans: text("Open the system view."),
+            items: [
+              text("Planets show their surface, lit from their star."),
+              [
+                { kind: "text", text: "Stars show their " },
+                { kind: "code", text: "class" },
+                { kind: "text", text: "." },
+              ],
+            ],
+          },
+          { spans: text("Add system lists Sol."), items: [] },
+        ],
+      },
     ]);
   });
 });
