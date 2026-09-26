@@ -617,7 +617,7 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         "wenkwort_initializer",
         "wooden_planet_system_initializer",
     ];
-    let converted: Vec<&str> = CONVERTED.iter().map(|(key, ..)| *key).collect();
+    let converted: Vec<&str> = CONVERTED_LAYOUTS.iter().map(|layout| layout.key).collect();
     assert_eq!(
         special,
         group_a
@@ -777,41 +777,39 @@ fn free_ground(session: &Session) -> (f64, f64) {
         .expect("free ground near the spot")
 }
 
-/// The layouts the Special menu offers converted to an unowned system, each with its label,
-/// whether the menu lists it with the unique systems, and the star flags it keeps.
-const CONVERTED: [(&str, &str, bool, &[&str]); 14] = [
-    (
-        "sol_system_initializer",
-        "Sol",
-        true,
-        &["sol_system", "sol", "galactic_landmark_system"],
-    ),
-    ("new_bratulla_initializer", "New Bratulla", false, &[]),
-    ("special_init_06", "Zanaam", false, &[]),
-    ("great_wound_system", "Great Wound", false, &[]),
-    ("breachsealer_system", "Seddom", false, &[]),
-    ("vultaumar_system", "Vultaumar", false, &[]),
-    ("fen_habbanis_system", "Fen Habbanis", false, &[]),
-    ("irass_system", "Irass", false, &[]),
-    ("last_baol_system", "Grunur", false, &[]),
-    ("sol_neighbor_t1", "Barnard's Star", false, &[]),
-    ("hostile_init_16", "Tiyana Vek", false, &[]),
-    ("hostile_init_21", "Tiyun Ort", false, &[]),
-    ("holibrae_initializer", "Holibrae", false, &[]),
-    ("the_chosen_escapee_initializer", "Ophala", false, &[]),
+/// The label the install's own localisation gives each of [`CONVERTED_LAYOUTS`], which only
+/// the real install can settle.
+const LABELS: [(&str, &str); 14] = [
+    ("sol_system_initializer", "Sol"),
+    ("new_bratulla_initializer", "New Bratulla"),
+    ("special_init_06", "Zanaam"),
+    ("great_wound_system", "Great Wound"),
+    ("breachsealer_system", "Seddom"),
+    ("vultaumar_system", "Vultaumar"),
+    ("fen_habbanis_system", "Fen Habbanis"),
+    ("irass_system", "Irass"),
+    ("last_baol_system", "Grunur"),
+    ("sol_neighbor_t1", "Barnard's Star"),
+    ("hostile_init_16", "Tiyana Vek"),
+    ("hostile_init_21", "Tiyun Ort"),
+    ("holibrae_initializer", "Holibrae"),
+    ("the_chosen_escapee_initializer", "Ophala"),
 ];
+
+fn label_of(key: &str) -> &'static str {
+    LABELS
+        .iter()
+        .find(|(k, _)| *k == key)
+        .map(|(_, label)| *label)
+        .unwrap_or_else(|| panic!("no label recorded for {key}"))
+}
 
 #[test]
 fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() {
     let Some(gd) = install() else {
         return;
     };
-    let keys: BTreeSet<&str> = CONVERTED.iter().map(|(key, ..)| *key).collect();
-    assert_eq!(
-        keys,
-        CONVERTED_LAYOUTS.iter().map(|layout| layout.key).collect(),
-        "the whitelist"
-    );
+    let keys: BTreeSet<&str> = CONVERTED_LAYOUTS.iter().map(|layout| layout.key).collect();
     for key in &keys {
         assert_eq!(of(gd, key), Eligibility::Special, "{key}");
     }
@@ -843,9 +841,9 @@ fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() 
         .filter(|e| keys.contains(e.key.as_str()))
         .map(|e| (e.key.as_str(), e.label.as_str(), e.unique))
         .collect();
-    let mut expected: Vec<(&str, &str, bool)> = CONVERTED
+    let mut expected: Vec<(&str, &str, bool)> = CONVERTED_LAYOUTS
         .iter()
-        .map(|&(key, label, unique, _)| (key, label, unique))
+        .map(|layout| (layout.key, label_of(layout.key), layout.unique))
         .collect();
     expected.sort_by_key(|&(key, label, _)| (label, key));
     assert_eq!(
@@ -862,7 +860,8 @@ fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() 
     };
     let before = findings(&session);
     let known: BTreeSet<u32> = session.graph.systems.keys().copied().collect();
-    for &(key, _, _, flags) in &CONVERTED {
+    for layout in &CONVERTED_LAYOUTS {
+        let key = layout.key;
         let mut spec = by_name(gd, 1, "Gen", free_ground(&session), key).unwrap();
         let unique = gd
             .initializers
@@ -871,7 +870,8 @@ fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() 
             .flags
             .iter()
             .any(|f| f == "unique_system");
-        let kept: Vec<&str> = flags
+        let kept: Vec<&str> = layout
+            .flags
             .iter()
             .copied()
             .chain(unique.then_some("unique_system"))
@@ -1236,10 +1236,9 @@ fn a_body_with_no_orbit_distance_is_rolled_10_to_20_past_the_running_orbit() {
     }
 }
 
-/// In the 4.4 and 4.5 samples and the 16 saves of a later game, each moon lies its
-/// `orbit_angle` on from the moon before it, and the first moon its `orbit_angle` on from
-/// 180°. Sol's Jupiter has four moons with fixed angles, and `basic_init_03`'s gas giants
-/// one to four at 90° to 270°.
+/// Each moon lies its `orbit_angle` on from the moon before it, and the first moon its
+/// `orbit_angle` on from 180°. Sol's Jupiter has four moons with fixed angles, and
+/// `basic_init_03`'s gas giants one to four at 90° to 270°.
 #[test]
 fn each_moon_turns_on_from_the_moon_before() {
     let Some(gd) = install() else {
@@ -1277,9 +1276,8 @@ fn each_moon_turns_on_from_the_moon_before() {
     assert!(checked > 100, "{checked} moons");
 }
 
-/// In the same saves, each of the 242 systems whose first planet has a fixed count and
-/// angle has that planet at 180° plus the star's `orbit_angle` and its own. Sol fixes
-/// every body's angle.
+/// A system whose first planet has a fixed count and angle has that planet at 180° plus the
+/// star's `orbit_angle` and its own. Sol fixes every body's angle.
 #[test]
 fn the_planets_turn_on_from_180_degrees() {
     let Some(gd) = install() else {
