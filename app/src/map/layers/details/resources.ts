@@ -12,8 +12,15 @@ import type { RenderContext } from "../../RenderContext";
 import type { Textures } from "./cell";
 import type { Row } from "./Row";
 
-const AMOUNT_STYLE = { fontFamily: MAP_FONT, fontSize: 11, fill: 0xffffff };
-const RESOURCE_ICON_PX = 15;
+/** A resource's cell in a row: its icon, and its amount's text under it, in screen pixels. */
+export const RESOURCE_ICON_PX = 15;
+export const RESOURCE_AMOUNT_PX = 11;
+const AMOUNT_STYLE = { fontFamily: MAP_FONT, fontSize: RESOURCE_AMOUNT_PX, fill: 0xffffff };
+
+/** The centre of cell `i` of a row of `count`, across from the row's middle. */
+export function resourceCellX(i: number, count: number): number {
+  return (i - (count - 1) / 2) * resourceStride(count);
+}
 
 export function resourceIcons(
   row: Row,
@@ -24,9 +31,8 @@ export function resourceIcons(
 ): void {
   const { resourceIcons, names } = ctx;
   const rows = resourceRows(d, resourceIcons);
-  const stride = resourceStride(rows.length);
-  let cx = (-rows.length * stride + stride) / 2;
-  for (const r of rows) {
+  for (const [i, r] of rows.entries()) {
+    const cx = resourceCellX(i, rows.length);
     const texture = tex.texture(r.sprite);
     const title = names.get(r.resource) ?? resourceLabel(r.resource);
     const amount = formatAmount(r.amount);
@@ -41,7 +47,6 @@ export function resourceIcons(
     }
     const w = row.text(amount, cx, resourceY + RESOURCE_ICON_PX, tip, AMOUNT_STYLE);
     row.nudgeLastText(-w / 2);
-    cx += stride;
   }
 }
 

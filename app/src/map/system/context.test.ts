@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/textures", () => ({ getTextures: () => new Promise(() => {}) }));
 
-import { BitmapText, Container, Texture } from "pixi.js";
+import { BitmapText, Container } from "pixi.js";
 import type { BodyLayout } from "../../generated/BodyLayout";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
@@ -18,10 +18,14 @@ import {
 } from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { systemContext } from "./context";
-import { stubTextMeasurement, viewport } from "./fixture";
+import {
+  blankSceneTextures,
+  context as fixtureContext,
+  stubTextMeasurement,
+  viewport,
+} from "./fixture";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
-import type { SceneTextures } from "./layers/textures";
 import { NO_SOURCES, type SystemSources } from "./sources";
 
 stubTextMeasurement();
@@ -108,26 +112,6 @@ const sun = planetSummary({
 
 const scenarioSun = body(1, "pc_g_star", { orbit: fixed(0) }, { star_class: "sc_g" });
 
-function blankTextures(): SceneTextures {
-  const t = () => new Texture();
-  return {
-    disc: t(),
-    nebula: t(),
-    glow: t(),
-    corona: t(),
-    beam: t(),
-    plume: t(),
-    halo: t(),
-    swirl: t(),
-    wisps: t(),
-    shade: t(),
-    gloss: t(),
-    rock: t(),
-    ringBack: t(),
-    ringFront: t(),
-  };
-}
-
 describe("the bodies of a system", () => {
   it("draws a planet a pre-FTL civilisation owns with no colony bar, and a colony with its owner's colour", () => {
     const owned = (id: number, preFtl: boolean) =>
@@ -192,9 +176,10 @@ describe("the bodies of a system", () => {
       initializerClasses: new Map([[INITIALIZER, "sc_pulsar"]]),
     });
     const [pulsar] = ctx.bodies;
+    expect(pulsar.starClass).toBe("sc_pulsar");
     expect(pulsar.surfaceClass).toBe("pc_pulsar");
     expect(pulsar.chance.planetClass).toBe(false);
-    const layer = new BodiesLayer(blankTextures());
+    const layer = new BodiesLayer(blankSceneTextures());
     layer.rebuild(ctx);
     viewport(layer, 2);
     const holder = layer.container.children[0] as Container;
@@ -255,7 +240,7 @@ describe("what a scenario leaves to chance", () => {
     ];
     const ctx = scenario(planets, rollOf(planets));
     expect(ctx.bodies.map((b) => b.chance.planetClass)).toEqual([false, true, true, false]);
-    const layer = new BodiesLayer(blankTextures());
+    const layer = new BodiesLayer(blankSceneTextures());
     layer.rebuild(ctx);
     viewport(layer, 2);
     const glyphs = (layer.container.children as Container[]).map(
@@ -344,5 +329,19 @@ describe("planets the game rolls", () => {
     const ctx = scenario([scenarioSun], systemRoll({ system: SYSTEM }));
     expect(ctx.rolled).toEqual([]);
     expect(scenario(null, null).rolled).toEqual([]);
+  });
+});
+
+describe("the lanes out of a system", () => {
+  it("gives one exit per hyperlane, named for the neighbour, along the galaxy bearing to it on the inner radius, and none for a bypass", () => {
+    const ctx = fixtureContext({});
+    expect(ctx.exits.map((exit) => [exit.neighbour, exit.name])).toEqual([
+      [6, "S6"],
+      [7, "S7"],
+    ]);
+    const east = ctx.exits.find((exit) => exit.neighbour === 6);
+    expect(east?.dx).toBeCloseTo(1);
+    expect(east?.dy).toBeCloseTo(0);
+    expect(east?.radius).toBe(160);
   });
 });

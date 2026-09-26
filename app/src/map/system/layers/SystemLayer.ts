@@ -2,10 +2,6 @@ import type { Container } from "pixi.js";
 import type { Camera } from "../../Camera";
 import type { SystemContext } from "../context";
 
-/** The system scene's own layers, kept apart from the galaxy's `LayerId`, which the Layers menu lists. */
-export type SystemLayerId =
-  "nebula" | "orbits" | "rolled" | "belts" | "radii" | "bodies" | "labels" | "exits" | "highlight";
-
 /**
  * What the scene marks: the body and arrow under the pointer, the body selected, the lane clicked,
  * and the body a panel's link names while the pointer is on the link.
@@ -30,7 +26,6 @@ export const NO_HIGHLIGHT: SceneHighlight = Object.freeze({
 
 /** One drawn aspect of the system scene, derived from the `SystemContext` it is rebuilt with. */
 export interface SystemLayer {
-  readonly id: SystemLayerId;
   readonly container: Container;
   rebuild(ctx: SystemContext): void;
   onViewport(cam: Camera): void;

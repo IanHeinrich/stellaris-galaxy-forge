@@ -21,6 +21,8 @@ a release is made.
   star in the system view, as Add system gives it. It used to show two.
 - The status bar's orbit and angle for a scenario body match where the
   system view draws it.
+- In the system view, an orbit radius label no longer covers the
+  selected body's ring.
 
 ## [0.15.0] - 2026-09-26
 

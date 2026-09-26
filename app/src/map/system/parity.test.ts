@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/textures", () => ({ getTextures: () => new Promise(() => {}) }));
 
-import { BitmapText, Container, Graphics, Sprite, Texture } from "pixi.js";
+import { BitmapText, Container, Graphics, Sprite } from "pixi.js";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
@@ -17,10 +17,9 @@ import {
 } from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { systemContext, type SceneBody, type SystemContext } from "./context";
-import { stubTextMeasurement, viewport } from "./fixture";
+import { blankSceneTextures, stubTextMeasurement, viewport } from "./fixture";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
-import type { SceneTextures } from "./layers/textures";
 import { NO_SOURCES } from "./sources";
 
 stubTextMeasurement();
@@ -162,29 +161,9 @@ function resolved(body: SceneBody): unknown {
   return rounded({ ...body, planet: null, placement: { ...placement, radius, turn: null } });
 }
 
-function blankTextures(): SceneTextures {
-  const t = () => new Texture();
-  return {
-    disc: t(),
-    nebula: t(),
-    glow: t(),
-    corona: t(),
-    beam: t(),
-    plume: t(),
-    halo: t(),
-    swirl: t(),
-    wisps: t(),
-    shade: t(),
-    gloss: t(),
-    rock: t(),
-    ringBack: t(),
-    ringFront: t(),
-  };
-}
-
 /** What the bodies layer draws for each body: where, and each part's look. */
 function drawn(ctx: SystemContext): unknown {
-  const layer = new BodiesLayer(blankTextures());
+  const layer = new BodiesLayer(blankSceneTextures());
   layer.rebuild(ctx);
   viewport(layer, 2);
   const parts = layer.container.children.map((holder) => ({

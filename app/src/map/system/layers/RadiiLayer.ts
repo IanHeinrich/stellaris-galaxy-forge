@@ -3,11 +3,10 @@ import type { Bounds } from "../../../generated/Bounds";
 import { boundsText } from "../../../lib/details/labels";
 import type { BodyPlacement, Ring } from "../../../lib/details/orbits";
 import type { Camera } from "../../Camera";
-import { fitScale } from "../camera";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
-import { drawnDisc, sameRing } from "../geometry";
-import { overlaps, plateScale, type LabelBox } from "./labelSlots";
-import { radiusTag, standTag, tagBox, type RadiusTag } from "./radiusTag";
+import { drawnDisc, ringGroups } from "../geometry";
+import { overlaps, plateScaleAt, ringReach, type LabelBox } from "./labelSlots";
+import { standTag, TagCache, tagBox } from "./plate";
 import type { SystemLayer } from "./SystemLayer";
 
 /** Where on its ring each label stands: 60° above the horizontal, to the right. */
@@ -18,15 +17,15 @@ const SLIDE_STEP = Math.PI / 36;
 /** The on-screen radius under which a moon's ring is too small for a label to read against. */
 const MOON_RING_MIN_PX = 40;
 
-/** One drawn ring: the first body on it, and the radii of every body on it. */
-interface RingGroup {
+/** One drawn ring with a label: the first body on it, and the radii of every body on it. */
+interface Labelled {
   readonly id: number;
   readonly ring: Ring;
   readonly moon: boolean;
-  span: Bounds;
+  readonly span: Bounds;
 }
 
-/** A body's disc on screen. */
+/** A body's disc on screen, out to the ring a selection draws round it. */
 interface Disc {
   x: number;
   y: number;
@@ -48,7 +47,7 @@ function slides(): number[] {
 const SLIDES = slides();
 
 /** Planets' rings from the innermost out, then moons' from the largest. */
-function rank(a: RingGroup, b: RingGroup): number {
+function rank(a: Labelled, b: Labelled): number {
   if (a.moon !== b.moon) return a.moon ? 1 : -1;
   return a.moon ? b.ring.radius - a.ring.radius : a.ring.radius - b.ring.radius;
 }
@@ -57,22 +56,21 @@ function rank(a: RingGroup, b: RingGroup): number {
  * Each drawn ring's radius on a small plate, all at one screen angle, while the Orbit radii
  * layer is on. Rings the orbits layer draws as one take one label, reading every radius on them;
  * a moon's takes one only once it is large enough on screen. A label that would cover a body's
- * disc or one already placed slides round its ring to the nearest clear spot, and is left out
- * when none is near.
+ * disc or its selection ring, or one already placed, slides round its ring to the nearest clear
+ * spot, and is left out when none is near.
  */
 export class RadiiLayer implements SystemLayer {
-  readonly id = "radii" as const;
   readonly container = new Container();
   private bodies = EMPTY_SYSTEM_CONTEXT.bodies;
   private shown = EMPTY_SYSTEM_CONTEXT.sceneLayers.orbitRadii;
   private fitRadius = EMPTY_SYSTEM_CONTEXT.layout.fitRadius;
-  /** The bodies with a ring, in the order the orbits layer merges them. */
+  /** The bodies with a readout, in layout order. */
   private ringed: BodyPlacement[] = [];
   /** Every body, whose disc a label keeps off. */
   private placements: BodyPlacement[] = [];
   private moons = new Set<number>();
-  /** Each shown ring's plate, by the ring's first body, with the text it reads. */
-  private tags = new Map<number, { text: string; tag: RadiusTag }>();
+  /** Each shown ring's plate, by the ring's first body. */
+  private readonly tags = new TagCache<number>(this.container);
   private cam: Camera | null = null;
   private drawnRev = -1;
 
@@ -81,7 +79,6 @@ export class RadiiLayer implements SystemLayer {
     this.bodies = ctx.bodies;
     this.shown = ctx.sceneLayers.orbitRadii;
     this.fitRadius = ctx.layout.fitRadius;
-    for (const child of this.container.removeChildren()) child.destroy({ children: true });
     this.tags.clear();
     const drawn = new Set(ctx.bodies.flatMap((b) => (b.readout ? [b.placement.id] : [])));
     this.ringed = ctx.sceneLayers.orbitRadii
@@ -99,53 +96,31 @@ export class RadiiLayer implements SystemLayer {
     this.place();
   }
 
-  /** The rings the orbits layer draws at `px` world units to the pixel, with their radii joined. */
-  private groups(px: number): RingGroup[] {
-    const groups: RingGroup[] = [];
-    for (const { id, ring, radius } of this.ringed) {
-      if (!ring || !radius) continue;
-      const group = groups.find((other) => sameRing(ring, other.ring, px));
-      if (group) {
-        group.span = {
-          min: Math.min(group.span.min, radius.min),
-          max: Math.max(group.span.max, radius.max),
-        };
-      } else {
-        groups.push({ id, ring, moon: this.moons.has(id), span: radius });
-      }
-    }
-    return groups.sort(rank);
-  }
-
-  /** The plate for the ring of body `id` reading `text`, made again only when the text moves. */
-  private tagFor(id: number, text: string): RadiusTag {
-    const known = this.tags.get(id);
-    if (known?.text === text) return known.tag;
-    known?.tag.holder.destroy({ children: true });
-    const tag = radiusTag(text);
-    tag.holder.visible = false;
-    this.container.addChild(tag.holder);
-    this.tags.set(id, { text, tag });
-    return tag;
+  /** The rings the orbits layer draws at `px` world units to the pixel, in the order they are labelled. */
+  private groups(px: number): Labelled[] {
+    return ringGroups(this.ringed, px)
+      .flatMap(({ id, ring, span }) => (span ? [{ id, ring, span, moon: this.moons.has(id) }] : []))
+      .sort(rank);
   }
 
   private place(): void {
     const cam = this.cam;
     if (!cam) return;
     this.drawnRev = cam.rev;
-    for (const { tag } of this.tags.values()) tag.holder.visible = false;
-    const k = plateScale(cam.scale / fitScale(this.fitRadius, cam.width, cam.height));
+    this.tags.hideAll();
+    const k = plateScaleAt(cam, this.fitRadius);
     const placed: LabelBox[] = [];
     const discs: Disc[] = this.placements.map(({ x, y, disc }) => {
       const at = cam.worldToScreen(x, y);
-      return { x: at.x, y: at.y, r: drawnDisc(disc, cam.scale) * cam.scale };
+      return { x: at.x, y: at.y, r: ringReach(drawnDisc(disc, cam.scale) * cam.scale) };
     });
     const clear = (box: LabelBox) =>
       !placed.some((other) => overlaps(box, other)) && !discs.some((disc) => covers(box, disc));
     for (const { id, ring, moon, span } of this.groups(1 / cam.scale)) {
       const r = ring.radius * cam.scale;
       if (moon && r < MOON_RING_MIN_PX) continue;
-      const tag = this.tagFor(id, boundsText(span));
+      const tag = this.tags.get(id, boundsText(span), "radius");
+      if (!tag) continue;
       const centre = cam.worldToScreen(ring.cx, ring.cy);
       const at = (a: number) =>
         tagBox(id, tag, centre.x + r * Math.cos(a), centre.y + r * Math.sin(a), k);

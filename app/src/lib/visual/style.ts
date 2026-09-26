@@ -34,6 +34,10 @@ export const FE_ZONE_COLOR = 0xf0abfc;
 /** A nebula's selected edge, its handles and label, and the ring a nebula drag proposes. */
 export const NEBULA_COLOR = 0xc4b5fd;
 
+/** A nebula's two purples: its fill on the galaxy map, and its edge. */
+export const NEBULA_FILL_COLOR = 0x7c5cbf;
+export const NEBULA_EDGE_COLOR = 0x9d7ce0;
+
 /** The dark plate a badge, an icon or an added system's mark sits on. */
 export const PLATE_COLOR = 0x0b0f14;
 

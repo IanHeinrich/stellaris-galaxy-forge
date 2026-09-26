@@ -1,29 +1,20 @@
 import { BufferImageSource, Graphics, Rectangle, Texture, type Renderer } from "pixi.js";
-import { acquireGlow, releaseGlow } from "../../layers/SystemsLayer";
-import { FIELD_SIZE, nebulaField } from "./nebulaField";
+import { nebulaTexels } from "./nebulaField";
+import { RING_INNER } from "./ring";
 import {
-  GLOW_SIZE,
-  BEAM_HEIGHT,
-  BEAM_WIDTH,
-  HALO_SIZE,
-  PLUME_HEIGHT,
-  PLUME_WIDTH,
-  SWIRL_SIZE,
-  WISPS_SIZE,
-  glowTexels,
   beamTexels,
+  glowTexels,
   haloTexels,
   plumeTexels,
   swirlTexels,
   wispTexels,
 } from "./starLight";
+import type { Texels } from "./texels";
 
 /** The textures the scene draws its bodies and belts with, baked once per scene. */
 export interface SceneTextures {
   /** A white disc, tinted per body. */
   disc: Texture;
-  /** The star glow the galaxy's stars use, shared with them. */
-  glow: Texture;
   /** A soft glow with no core, tinted and added round a star in the system view. */
   corona: Texture;
   /** A pulsar's two thin beams along x, each fading and narrowing away from the star. */
@@ -67,8 +58,6 @@ const LIT_OFFSET = 0.32;
 const LIMB_SPAN = 1.2;
 const ROCK_R = 4;
 const RING_R = 64;
-/** The ring's inner edge, as a share of its outer one. */
-const RING_INNER = 1.39 / 2.12;
 /** Fine grooves, faint and uneven, as the game's rings are. */
 const RING_BANDS = 44;
 const RING_ALPHA_MIN = 0.05;
@@ -76,16 +65,10 @@ const RING_ALPHA_SPAN = 0.22;
 /** Where across the band, from inner to outer, the dark gap lies, and its half width. */
 const RING_GAP = 0.64;
 const RING_GAP_HALF = 0.05;
-/** Every system's nebula draws the same field, turned and mirrored per system. */
-const NEBULA_SEED = 0x5ca1ab1e;
-/** The texels made on the CPU, made once and shared by every scene's textures. */
-let nebulaTexels: Uint8Array | null = null;
-let coronaTexels: Uint8Array | null = null;
-let beamField: Uint8Array | null = null;
-let plumeField: Uint8Array | null = null;
-let haloField: Uint8Array | null = null;
-let swirlField: Uint8Array | null = null;
-let wispField: Uint8Array | null = null;
+/** The points round a circle of the shading, the limb's grey, and a rock's shadowed faces' grey. */
+const CIRCLE_POINTS = 64;
+const LIMB_GREY = 0xd8;
+const ROCK_GREY = 0xc8;
 
 function grey(v: number): number {
   const c = Math.round(Math.min(255, Math.max(0, v)));
@@ -104,8 +87,8 @@ function bake(renderer: Renderer, draw: (g: Graphics) => void, frame?: Rectangle
 function clippedCircle(cx: number, cy: number, r: number): number[] {
   const points: number[] = [];
   const limit = SHADE_R * 0.999;
-  for (let i = 0; i < 64; i++) {
-    const a = (i / 64) * 2 * Math.PI;
+  for (let i = 0; i < CIRCLE_POINTS; i++) {
+    const a = (i / CIRCLE_POINTS) * 2 * Math.PI;
     let x = cx + r * Math.cos(a) - SHADE_R;
     let y = cy + r * Math.sin(a) - SHADE_R;
     const d = Math.hypot(x, y);
@@ -135,7 +118,7 @@ function drawShade(g: Graphics, gloss: boolean): void {
   const limb = R * 0.94;
   g.moveTo(R + limb * Math.cos(-LIMB_SPAN), R + limb * Math.sin(-LIMB_SPAN))
     .arc(R, R, limb, -LIMB_SPAN, LIMB_SPAN)
-    .stroke({ color: grey(0xd8), width: R * 0.07, alpha: 0.8 });
+    .stroke({ color: grey(LIMB_GREY), width: R * 0.07, alpha: 0.8 });
   if (gloss) g.circle(R + R * 0.48, R - R * 0.28, R * 0.1).fill({ color: 0xffffff });
 }
 
@@ -147,7 +130,7 @@ function drawRock(g: Graphics): void {
     const a = (i / corners.length) * 2 * Math.PI;
     return [R + R * k * Math.cos(a), R + R * k * Math.sin(a)];
   });
-  g.poly(points).fill({ color: 0xc8c8c8 });
+  g.poly(points).fill({ color: grey(ROCK_GREY) });
   g.poly([R, R, points[0], points[1], points[2], points[3]]).fill({ color: 0xffffff });
 }
 
@@ -174,8 +157,8 @@ function drawRingHalf(g: Graphics, far: boolean): void {
   }
 }
 
-/** White texels with premultiplied alpha, made on the CPU: they need no renderer. */
-function texelTexture(resource: Uint8Array, width: number, height: number): Texture {
+/** Texels made on the CPU: they need no renderer. */
+function texelTexture({ texels: resource, width, height }: Texels): Texture {
   const source = new BufferImageSource({
     resource,
     width,
@@ -190,42 +173,22 @@ export function bakeSceneTextures(renderer: Renderer): SceneTextures {
   const ringFrame = () => new Rectangle(0, 0, 2 * RING_R, 2 * RING_R);
   return {
     disc: bake(renderer, (g) => g.circle(DISC_R, DISC_R, DISC_R).fill({ color: 0xffffff })),
-    glow: acquireGlow(renderer),
-    corona: texelTexture((coronaTexels ??= glowTexels()), GLOW_SIZE, GLOW_SIZE),
-    beam: texelTexture((beamField ??= beamTexels()), BEAM_WIDTH, BEAM_HEIGHT),
-    plume: texelTexture((plumeField ??= plumeTexels()), PLUME_WIDTH, PLUME_HEIGHT),
-    wisps: texelTexture((wispField ??= wispTexels()), WISPS_SIZE, WISPS_SIZE),
-    halo: texelTexture((haloField ??= haloTexels()), HALO_SIZE, HALO_SIZE),
-    swirl: texelTexture((swirlField ??= swirlTexels()), SWIRL_SIZE, SWIRL_SIZE),
+    corona: texelTexture(glowTexels()),
+    beam: texelTexture(beamTexels()),
+    plume: texelTexture(plumeTexels()),
+    wisps: texelTexture(wispTexels()),
+    halo: texelTexture(haloTexels()),
+    swirl: texelTexture(swirlTexels()),
     shade: bake(renderer, (g) => drawShade(g, false)),
     gloss: bake(renderer, (g) => drawShade(g, true)),
     rock: bake(renderer, drawRock),
     ringBack: bake(renderer, (g) => drawRingHalf(g, true), ringFrame()),
     ringFront: bake(renderer, (g) => drawRingHalf(g, false), ringFrame()),
-    nebula: texelTexture((nebulaTexels ??= nebulaField(NEBULA_SEED)), FIELD_SIZE, FIELD_SIZE),
+    nebula: texelTexture(nebulaTexels()),
   };
 }
 
-/** Destroys the textures `bakeSceneTextures` made and lets go of the shared glow. */
-export function releaseSceneTextures(renderer: Renderer, textures: SceneTextures): void {
-  const { disc, corona, beam, plume, wisps, halo, swirl, shade, gloss, rock } = textures;
-  const { ringBack, ringFront, nebula } = textures;
-  for (const texture of [
-    disc,
-    corona,
-    beam,
-    plume,
-    wisps,
-    halo,
-    swirl,
-    shade,
-    gloss,
-    rock,
-    ringBack,
-    ringFront,
-    nebula,
-  ]) {
-    texture.destroy(true);
-  }
-  releaseGlow(renderer);
+/** Destroys the textures `bakeSceneTextures` made. */
+export function releaseSceneTextures(_renderer: Renderer, textures: SceneTextures): void {
+  for (const texture of Object.values(textures)) texture.destroy(true);
 }

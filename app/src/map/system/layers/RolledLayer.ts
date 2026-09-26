@@ -18,7 +18,6 @@ const EDGE_ALPHA = 0.35;
  * dotted ring, with no surface, icon or name.
  */
 export class RolledLayer implements SystemLayer {
-  readonly id = "rolled" as const;
   readonly container = new Container();
   readonly rings = new Graphics();
   readonly discs = new Graphics();

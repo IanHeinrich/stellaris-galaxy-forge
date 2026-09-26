@@ -1,4 +1,7 @@
+import type { Camera } from "../../Camera";
+import { fitScale } from "../camera";
 import { SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
+import { smoothstep } from "./ease";
 
 /** A body to label: its point and disc radius on screen, and its measured plate. */
 export interface LabelItem {
@@ -37,9 +40,20 @@ const SMALLEST_SCALE = 0.75;
  */
 export function plateScale(zoom: number): number {
   const t = Math.log(zoom / SMALLEST_ZOOM) / Math.log(FULL_SIZE_ZOOM / SMALLEST_ZOOM);
-  const clamped = Math.min(1, Math.max(0, t));
-  const eased = clamped * clamped * (3 - 2 * clamped);
-  return SMALLEST_SCALE + (1 - SMALLEST_SCALE) * eased;
+  return SMALLEST_SCALE + (1 - SMALLEST_SCALE) * smoothstep(0, 1, t);
+}
+
+/** How large a plate is drawn through `cam`, in a system whose fit reaches `fitRadius`. */
+export function plateScaleAt(cam: Camera, fitRadius: number): number {
+  return plateScale(cam.scale / fitScale(fitRadius, cam.width, cam.height));
+}
+
+/**
+ * How far a body's selection ring reaches past its centre on screen, for a disc of screen radius
+ * `r`. Every body's plates keep clear of it, so a plate stays put when its body is selected.
+ */
+export function ringReach(r: number): number {
+  return r + SELECTED_GAP_PX + SELECTED_WIDTH_PX;
 }
 
 /** Between a body's disc and its plate, in screen pixels: clear of the selected ring, so a plate
@@ -57,7 +71,7 @@ function below(item: LabelItem): LabelBox {
 interface Slot {
   box: LabelBox;
   /** "down" and "up" push the column away from the body, past the plate. "beside" stacks it up
-   * from the plate as before, for the right and left slots. */
+   * from the plate, for the right and left slots. */
   direction: "down" | "up" | "beside";
 }
 
@@ -77,7 +91,7 @@ function slots(item: LabelItem): Slot[] {
 function discBox(item: LabelItem): LabelBox {
   const { id, x, y, r } = item;
   // The ring's outer edge, short of GAP_PX, so a plate in a slot never grazes it by rounding.
-  const off = r + SELECTED_GAP_PX + SELECTED_WIDTH_PX;
+  const off = ringReach(r);
   return { id, x: x - off, y: y - off, w: 2 * off, h: 2 * off };
 }
 
