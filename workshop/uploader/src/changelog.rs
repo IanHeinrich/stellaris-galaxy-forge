@@ -140,8 +140,50 @@ fn heading_version(line: &str) -> Option<(Version, Option<&str>)> {
 
 enum Block {
     Heading(String),
-    List(Vec<String>),
+    List(Vec<Item>),
     Paragraph(String),
+}
+
+/// A bullet, with the bullets indented under it.
+struct Item {
+    text: String,
+    items: Vec<String>,
+}
+
+impl Item {
+    fn new(text: &str) -> Self {
+        Self {
+            text: text.trim().to_string(),
+            items: Vec::new(),
+        }
+    }
+
+    /// Joins a wrapped line to the last nested bullet if there is one, else to the item.
+    fn continue_with(&mut self, line: &str) {
+        append(self.items.last_mut().unwrap_or(&mut self.text), line);
+    }
+
+    fn to_bbcode(&self) -> String {
+        if self.items.is_empty() {
+            return format!("[*]{}", inline(&self.text));
+        }
+        let nested: Vec<String> = self
+            .items
+            .iter()
+            .map(|item| format!("[*]{}", inline(item)))
+            .collect();
+        format!(
+            "[*]{}
+[list]
+{}
+[/list]",
+            inline(&self.text),
+            nested.join(
+                "
+"
+            )
+        )
+    }
 }
 
 fn to_bbcode(body: &[&str]) -> String {
@@ -150,10 +192,7 @@ fn to_bbcode(body: &[&str]) -> String {
         .map(|block| match block {
             Block::Heading(text) => format!("[h3]{}[/h3]", inline(text)),
             Block::List(items) => {
-                let items: Vec<String> = items
-                    .iter()
-                    .map(|item| format!("[*]{}", inline(item)))
-                    .collect();
+                let items: Vec<String> = items.iter().map(Item::to_bbcode).collect();
                 format!("[list]\n{}\n[/list]", items.join("\n"))
             }
             Block::Paragraph(text) => inline(text),
@@ -174,17 +213,23 @@ fn blocks(body: &[&str]) -> Vec<Block> {
             blocks.push(Block::Heading(heading.trim().to_string()));
         } else if let Some(item) = line.strip_prefix("- ") {
             match open.as_mut() {
-                Some(Block::List(items)) => items.push(item.trim().to_string()),
+                Some(Block::List(items)) => items.push(Item::new(item)),
                 _ => {
                     blocks.extend(open.take());
-                    open = Some(Block::List(vec![item.trim().to_string()]));
+                    open = Some(Block::List(vec![Item::new(item)]));
                 }
             }
+        } else if let (Some(nested), Some(Block::List(items))) =
+            (trimmed.strip_prefix("- "), open.as_mut())
+        {
+            let item = items.last_mut().expect("a list has an item");
+            item.items.push(nested.trim().to_string());
         } else {
             match open.as_mut() {
-                Some(Block::List(items)) if line.starts_with(char::is_whitespace) => {
-                    append(items.last_mut().expect("a list has an item"), trimmed)
-                }
+                Some(Block::List(items)) if line.starts_with(char::is_whitespace) => items
+                    .last_mut()
+                    .expect("a list has an item")
+                    .continue_with(trimmed),
                 Some(Block::Paragraph(text)) => append(text, trimmed),
                 _ => {
                     blocks.extend(open.take());
@@ -400,6 +445,36 @@ A [guide](https://example.com/guide) with **bold** and `code`.
                 "[h3]Added[/h3]",
                 "[list]",
                 "[*]sgf export names a [url=https://example.com/s]scenario[/url] after the output file, [b]always[/b].",
+                "[/list]",
+            ]
+        );
+    }
+
+    #[test]
+    fn nests_an_indented_bullet_under_the_one_before_it() {
+        let changelog = "## [1.0.0] - 2026-01-01
+
+### Added
+
+- Open the system view.
+  - Planets show their surface,
+    lit from their star.
+  - Stars show their `class`.
+- Add system lists Sol.
+";
+        let note = change_note(changelog, v("0.9.0"), v("1.0.0"), true).unwrap();
+        let body: Vec<&str> = note.lines().skip(1).take(9).collect();
+        assert_eq!(
+            body,
+            [
+                "[h3]Added[/h3]",
+                "[list]",
+                "[*]Open the system view.",
+                "[list]",
+                "[*]Planets show their surface, lit from their star.",
+                "[*]Stars show their class.",
+                "[/list]",
+                "[*]Add system lists Sol.",
                 "[/list]",
             ]
         );

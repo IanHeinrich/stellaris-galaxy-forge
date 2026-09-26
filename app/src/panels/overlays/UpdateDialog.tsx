@@ -58,7 +58,16 @@ function ReleaseNotes({ notes }: { notes: string }) {
           <ul key={i}>
             {block.items.map((item, j) => (
               <li key={j}>
-                <Spans spans={item} />
+                <Spans spans={item.spans} />
+                {item.items.length > 0 && (
+                  <ul>
+                    {item.items.map((nested, k) => (
+                      <li key={k}>
+                        <Spans spans={nested} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
