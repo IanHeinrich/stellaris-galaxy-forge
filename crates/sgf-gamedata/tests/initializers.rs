@@ -581,6 +581,25 @@ fn a_systems_details_are_what_its_initializer_defines() {
     );
 }
 
+/// Larionessi Refuge's two asteroids write no `size`, so each takes `pc_asteroid`'s
+/// `planet_size = 5`.
+#[test]
+fn a_body_with_no_size_takes_its_classs_planet_size() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let details = gd
+        .initializer_details(7, "unique_system_initializer_02", None)
+        .expect("Larionessi Refuge");
+    let asteroids: Vec<_> = details
+        .planets
+        .iter()
+        .filter(|p| p.class == "pc_asteroid")
+        .map(|p| (p.size, p.layout.as_ref().and_then(|l| l.size)))
+        .collect();
+    assert_eq!(asteroids, [(Some(5), Some(fixed(5.0))); 2]);
+}
+
 /// A save writes each star body as a planet class, so a scenario's details do too: the bare
 /// `star` takes the system's star class's planet key for the nth star in source order.
 #[test]
@@ -709,8 +728,8 @@ fn an_initializer_is_sourced_to_the_mod_that_defines_it_and_vanilla_to_nothing()
     assert_eq!(gd.initializer_source("no_such_init"), None);
 }
 
-/// Angles accumulate from the body before, at each level, a planet's moons from 180 degrees; a
-/// count is its midpoint.
+/// Angles accumulate from the body before, at each level, the first from 180 degrees; a count is
+/// its midpoint.
 #[test]
 fn a_fixture_systems_layout_is_what_its_initializer_defines() {
     let gd = common::cached_fixture();
@@ -735,7 +754,7 @@ fn a_fixture_systems_layout_is_what_its_initializer_defines() {
             (
                 None,
                 Some(range(30.0, 35.0)),
-                Some(fixed(90.0)),
+                Some(fixed(270.0)),
                 Some(fixed(16.0))
             ),
             (Some(id(1)), Some(fixed(8.0)), Some(fixed(210.0)), None),
@@ -748,19 +767,19 @@ fn a_fixture_systems_layout_is_what_its_initializer_defines() {
             (
                 None,
                 Some(range(60.0, 65.0)),
-                Some(range(60.0, 120.0)),
+                Some(range(240.0, 300.0)),
                 None
             ),
             (
                 None,
                 Some(range(80.0, 85.0)),
-                Some(range(30.0, 150.0)),
+                Some(range(210.0, 330.0)),
                 None
             ),
             (
                 None,
                 Some(range(90.0, 105.0)),
-                Some(range(75.0, 195.0)),
+                Some(range(255.0, 375.0)),
                 None
             ),
             (None, Some(range(115.0, 130.0)), None, None),

@@ -3,7 +3,7 @@ import type { Bounds } from "../../../generated/Bounds";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { bodyClassName, bodyName } from "../../../lib/details/labels";
-import { rolledRadii, rollSeed, stepText, turnText } from "../../../lib/details/orbits";
+import { ANY_ANGLE, rolledRadii, rollSeed, stepText, turnText } from "../../../lib/details/orbits";
 import { resourceRows } from "../../../lib/details/resources";
 import type { ResolvedClass } from "../../../lib/details/bodyClass";
 import { useDetailsStore } from "../../../store/detailsStore";
@@ -187,10 +187,10 @@ function BodyOverview({ details, body }: { details: SystemDetails; body: PlanetS
         {body.parent !== null && <Orbits details={details} parent={body.parent} />}
         <PropertyRow label="Orbit radius">{boundsText(layout?.orbit ?? null)}</PropertyRow>
         {orbitStep && <PropertyRow label="Orbit step">{stepText(orbitStep)}</PropertyRow>}
-        {angleStep && (
+        {scenario && (
           <PropertyRow label="Angle step">
-            {turnText(angleStep)}
-            {anchor && anchorRadius > 0 && (
+            {turnText(angleStep ?? ANY_ANGLE)}
+            {angleStep && anchor && anchorRadius > 0 && (
               <>
                 {" from "}
                 <Anchor details={details} anchor={anchor} radius={anchorRadius} />

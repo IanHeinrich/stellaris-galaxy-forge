@@ -8,6 +8,10 @@ use sgf_core::format::save::details::Bounds;
 use crate::initializers::InitPlanet;
 use crate::install::script::Range;
 
+/// The angle the game's saves start each walk from: the star's and planets' about the
+/// centre, and each planet's moons' about it.
+pub(crate) const WALK_START: f64 = 180.0;
+
 /// How far past the running orbit the game places a body with no `orbit_distance` it can read.
 const NO_DISTANCE: Range = Range {
     min: 10.0,

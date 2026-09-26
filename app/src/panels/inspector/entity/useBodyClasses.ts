@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { resolveBodyClasses, type ResolvedClass } from "../../../lib/details/bodyClass";
 import { singleStarClasses } from "../../../lib/details/starBody";
+import { effectiveStarClass } from "../../../lib/visual/starGlyphs";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -20,7 +21,10 @@ export function useResolvedClass(details: SystemDetails, id: number): ResolvedCl
   const kind = useFileSessionStore((s) => s.kind);
   const node = useGalaxyStore((s) => s.systems.get(details.id)) ?? null;
   return useMemo(() => {
-    const src = { planetClasses, starClasses, initializerClasses, kind };
-    return resolveBodyClasses(details.planets, node, src).get(id);
+    const system = node
+      ? effectiveStarClass(node, initializerClasses.get(node.initializer), kind)
+      : "";
+    const src = { planetClasses, starClasses, kind };
+    return resolveBodyClasses(details.planets, system, src).get(id);
   }, [details, id, node, planetClasses, starClasses, initializerClasses, kind]);
 }

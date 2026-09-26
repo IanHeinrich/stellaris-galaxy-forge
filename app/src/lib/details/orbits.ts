@@ -16,7 +16,7 @@ import { isStarBody } from "./starBody";
 export const MOON_SCALE = 0.7;
 /** World units of disc radius per `planet_size`: Earth (16) is 4.2 at 90 out. */
 export const DISC_PER_SIZE = 0.26;
-/** The size a body is drawn at when its layout gives none. */
+/** The size a body is drawn at when its layout gives none, as for a class the install lacks. */
 export const FALLBACK_SIZE = 10;
 /** The smallest disc radius, so a size-0 body still has one to pick and zoom to. */
 export const MIN_DISC_RADIUS = 0.5;
@@ -65,8 +65,8 @@ export interface OrbitRadius {
 /** How a scenario body's angle turns on from the body before it in its initializer's walk. */
 export interface Turn {
   /**
-   * Degrees it turns on from: the rolled angle of the body before it in its walk, or for the first
-   * of a walk 0, and `FIRST_MOON_ANGLE` for a planet's first moon.
+   * Degrees it turns on from: the rolled angle of the body before it in its walk, or
+   * `WALK_START` for the first of a walk and one after a body at its centre.
    */
   from: number;
   /** How far on it may turn, in degrees; a turn or more lets it stand anywhere. */
@@ -232,8 +232,8 @@ export interface RolledRadius {
   base: number;
 }
 
-/** The angle the game turns a planet's first moon on from, in the save's frame. */
-export const FIRST_MOON_ANGLE = 180;
+/** The angle the game starts each walk from, the planets' and each planet's moons', in the save's frame. */
+export const WALK_START = 180;
 
 /** Draws the radii apart from the angles, so a roll's radii need no discs to be read again. */
 const ANGLE_STREAM = 0x5bd1e995;
@@ -274,7 +274,7 @@ interface Rolled {
 }
 
 /** The turn of a body that names no angle: the game may place it anywhere on its orbit. */
-const ANY_ANGLE: Span = { min: 0, max: 360 };
+export const ANY_ANGLE: Span = { min: 0, max: 360 };
 
 /** Past the two discs, how far apart a free body keeps from another about the same parent. */
 const FREE_GAP = 4;
@@ -309,8 +309,7 @@ function rollWalks(
     let turn: Turn | null = null;
     if (step) {
       const before = anchor === null ? undefined : rolled.get(anchor);
-      const first = walk === null ? 0 : FIRST_MOON_ANGLE;
-      const from = anchor === null ? first : (before?.angle ?? 0);
+      const from = anchor === null ? WALK_START : (before?.angle ?? WALK_START);
       angle = from + between(rand, step);
       const marks = before !== undefined && before.radius > 0;
       turn = { from: turned(from), step, anchor: marks ? anchor : null };

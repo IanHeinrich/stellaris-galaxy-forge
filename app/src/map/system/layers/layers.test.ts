@@ -39,6 +39,7 @@ import {
 } from "../../../test/builders";
 import { NO_SOURCES, systemContext, type SystemContext } from "../context";
 import { drawOps, strokes, stubTextMeasurement, viewport } from "../fixture";
+import { drawnDisc } from "../geometry";
 import { STAR_ART_BLEND } from "../../layers/StarClusters";
 import { BeltsLayer, MAX_ROCKS } from "./BeltsLayer";
 import { ICY_TINT } from "../look";
@@ -332,7 +333,7 @@ describe("the system scene's bodies layer", () => {
       starClasses: new Map([[starClass, starClassView(starClass, planetClass)]]),
     });
 
-  it("draws a scenario's bare star as the class its initializer gives the system, surface and beams alike", () => {
+  it("draws a scenario's star as the planet class its details give it, surface and beams alike", () => {
     const ctx = systemContext({
       ...NO_SOURCES,
       kind: "scenario",
@@ -340,7 +341,7 @@ describe("the system scene's bodies layer", () => {
       systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: "pulsar_init" }),
       details: systemDetails({
         id: SYSTEM,
-        planets: [scenarioBody(1, "star", { orbit: fixed(0), angle: fixed(0) })],
+        planets: [scenarioBody(1, "pc_pulsar", { orbit: fixed(0), angle: fixed(0) })],
       }),
       starClasses: new Map([["sc_pulsar", starClassView("sc_pulsar", "pc_pulsar")]]),
       initializerClasses: new Map([["pulsar_init", "sc_pulsar"]]),
@@ -1093,37 +1094,53 @@ describe("the system scene's radius readouts", () => {
     expect(readouts(line.container)).toEqual(["80–120"]);
     line.destroy();
   });
-  it("slides a ring's label round the ring off a body's disc", () => {
-    const planets = [SUN, EARTH, MARS];
-    const labelled = (bodies: PlanetSummary[]) => {
+  it("slides a ring's label round the ring off a body standing where the label would go", () => {
+    const labelOn = (bodies: PlanetSummary[]) => {
+      const ctx = systemContext({ ...context({ planets: bodies }), radiiShown: true });
       const layer = new RadiiLayer();
-      layer.rebuild(systemContext({ ...context({ planets: bodies }), radiiShown: true }));
+      layer.rebuild(ctx);
       const cam = viewport(layer, 2);
-      const plates = layer.container.children
-        .filter((holder) => holder.visible)
-        .map((holder) => ({
-          text: holder.children.flatMap((c) => (c instanceof BitmapText ? [c.text] : [])),
-          at: cam.worldToScreen(holder.position.x, holder.position.y),
-        }));
+      const holder = layer.container.children.find(
+        (h) => h.visible && h.children.some((c) => c instanceof BitmapText && c.text === "90"),
+      );
+      const box = holder && {
+        ...cam.worldToScreen(holder.position.x, holder.position.y),
+        w: holder.getLocalBounds().width * Math.abs(holder.scale.x) * cam.scale,
+        h: holder.getLocalBounds().height * Math.abs(holder.scale.y) * cam.scale,
+      };
       layer.destroy();
-      return { plates, cam };
+      return { ctx, cam, box };
     };
-    const clear = labelled(planets);
-    const earthLabel = clear.plates.find((p) => p.text[0] === "90");
-    if (!earthLabel) throw new Error("no label on Earth's ring");
-    const spot = clear.cam.screenToWorld(earthLabel.at.x + 8, earthLabel.at.y + 6);
-    const moon = saveBody(9, "pc_barren", [spot.x, spot.y], Math.hypot(spot.x, spot.y), 1);
+    const alone = labelOn([SUN, EARTH]);
+    if (!alone.box) throw new Error("no label on Earth's ring");
+    const middle = { x: alone.box.x + alone.box.w / 2, y: alone.box.y + alone.box.h / 2 };
+    const toward = alone.cam.screenToWorld(middle.x, middle.y);
+    const angle = Math.atan2(toward.y, toward.x);
+    const spot = { x: 90 * Math.cos(angle), y: 90 * Math.sin(angle) };
+    const blocker = saveBody(9, "pc_barren", [spot.x, spot.y], 90, 1);
 
-    const moved = labelled([...planets, moon]).plates.find((p) => p.text[0] === "90");
-    expect(moved).toBeDefined();
-    const at = clear.cam.worldToScreen(spot.x, spot.y);
-    const shift = Math.hypot(
-      (moved?.at.x ?? 0) - earthLabel.at.x,
-      (moved?.at.y ?? 0) - earthLabel.at.y,
-    );
-    expect(shift).toBeGreaterThan(0);
-    const corner = moved?.at ?? { x: 0, y: 0 };
-    expect(Math.hypot(corner.x + 8 - at.x, corner.y + 6 - at.y)).toBeGreaterThan(8);
+    const { ctx, cam, box } = labelOn([SUN, EARTH, blocker]);
+    if (!box) throw new Error("the label is left out");
+    const disc = ctx.layout.bodies.find((b) => b.id === blocker.id)?.disc ?? 0;
+    const r = drawnDisc(disc, cam.scale) * cam.scale;
+    const at = cam.worldToScreen(spot.x, spot.y);
+    const nearest = {
+      x: Math.max(box.x, Math.min(at.x, box.x + box.w)),
+      y: Math.max(box.y, Math.min(at.y, box.y + box.h)),
+    };
+    expect(Math.hypot(at.x - nearest.x, at.y - nearest.y)).toBeGreaterThanOrEqual(r);
+  });
+
+  it("leaves out a ring's label with no clear spot near, drawing no plate at all", () => {
+    const crowd = Array.from({ length: 72 }, (_, i) => {
+      const a = (i * 5 * Math.PI) / 180;
+      return saveBody(10 + i, "pc_barren", [90 * Math.cos(a), 90 * Math.sin(a)], 90, 1);
+    });
+    const layer = new RadiiLayer();
+    layer.rebuild(systemContext({ ...context({ planets: [SUN, ...crowd] }), radiiShown: true }));
+    viewport(layer, 2);
+    expect(readouts(layer.container)).toEqual([]);
+    layer.destroy();
   });
 });
 

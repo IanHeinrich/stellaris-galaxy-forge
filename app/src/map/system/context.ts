@@ -23,6 +23,7 @@ import { isStarBody, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import { clusterOffsets } from "../../lib/visual/starCluster";
+import { effectiveStarClass } from "../../lib/visual/starGlyphs";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -41,10 +42,7 @@ import { beltTint, bodyLook, type BodyLook } from "./look";
  */
 export interface SceneBody {
   readonly placement: BodyPlacement;
-  /**
-   * The planet class it is drawn, sized and baked as: a star a scenario writes as the bare
-   * `star`, or as its system's star class, takes that class's planet in turn.
-   */
+  /** The planet class it is drawn, sized and baked as. */
   readonly surfaceClass: string;
   /**
    * The record it was resolved from, for the Inspector; null for a star drawn from the galaxy's
@@ -282,14 +280,25 @@ function artOf(resolved: ResolvedClass, src: SystemSources): BodyArt {
 /** How far apart the stars of a system still loading stand, in discs of the largest. */
 const CLUSTER_SPREAD = 4;
 
-/** The stars the galaxy lists for a system, drawn about the centre until its own record lands. */
+/** The star class a system is drawn as when its source gives it none. */
+function systemStar(src: SystemSources, node: SystemNode | null): string {
+  if (!node) return "";
+  return effectiveStarClass(node, src.initializerClasses.get(node.initializer), src.kind);
+}
+
+/**
+ * The stars the galaxy lists for a system, drawn about the centre until its own record lands:
+ * with none listed, its star class's first star.
+ */
 function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
   const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
   const listed = (node?.bodies ?? []).filter((b) => isStar(b.class));
-  const stars = listed.length > 0 ? listed : [{ class: STAR_BODY_CLASS, size: null }];
+  const system = systemStar(src, node);
+  const first = src.starClasses.get(system)?.planet_keys[0] ?? STAR_BODY_CLASS;
+  const stars = listed.length > 0 ? listed : [{ class: first, size: null }];
   const classes = resolveBodyClasses(
     stars.map((star, i) => ({ id: i, class: star.class })),
-    node,
+    system,
     src,
   );
   const resolved = stars.map((_, i) => classes.get(i) as ResolvedClass);
@@ -424,7 +433,7 @@ function rollsPlanets(src: SystemSources): boolean {
 /** Where everything of the system `src` names is drawn. */
 export function systemContext(src: SystemSources): SystemContext {
   const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
-  const classes = resolveBodyClasses(src.details?.planets ?? [], node, src);
+  const classes = resolveBodyClasses(src.details?.planets ?? [], systemStar(src, node), src);
   const seed = rollSeed(src.id ?? 0, src.roll);
   const layout = systemLayout(src.details, {
     classOf: (planet) => classes.get(planet.id),

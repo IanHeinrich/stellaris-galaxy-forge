@@ -140,7 +140,7 @@ describe("a scenario body's page", () => {
     expect(page(104, "Hoth")).toContain('<span class="k">Orbit step</span><span>+10–20</span>');
   });
 
-  it("shows each body's turn from the body before it, linked by name and radius, and none for a body naming none", async () => {
+  it("shows each body's turn from the body before it, linked by name and radius, and any angle for a body naming none", async () => {
     const ice = planet(102, "Ice Asteroid", {
       class: "pc_ice_asteroid",
       layout: layout({ orbit: fixed(240), angle: fixed(70), angle_step: fixed(70) }),
@@ -181,7 +181,9 @@ describe("a scenario body's page", () => {
     expect(useSceneStore.getState().linkedBody).toBeNull();
 
     expect(page(104, "Dagobah")).toContain("any angle from ");
-    expect(page(100, "Tarkin")).not.toContain("Angle step");
+    expect(page(100, "Tarkin")).toContain(
+      '<span class="k">Angle step</span><span>any angle</span>',
+    );
     expect(page(103, "Naboo")).not.toContain('<span class="k">Angle</span>');
   });
 
@@ -220,13 +222,14 @@ describe("a scenario body's page", () => {
     );
   });
 
-  it("gives no orbit step to a save's body", async () => {
+  it("gives no orbit or angle step to a save's body", async () => {
     await open("save");
     await land(details({ planets: [TARKIN, YAVIN] }));
 
     const html = page(100, "Tarkin");
     expect(html).toContain('<span class="k">Orbit radius</span>');
     expect(html).not.toContain("Orbit step");
+    expect(html).not.toContain("Angle step");
   });
 
   it("lists a planet's moons, each opening its own page", async () => {
@@ -253,14 +256,14 @@ describe("a scenario body's page", () => {
     expect(top()).toEqual(entry(100, "Tarkin"));
   });
 
-  it("heads a star the initializer writes as its system's star class with that class's icon", async () => {
+  it("heads a scenario star with its star class's icon", async () => {
     const pulsar = starClassView("sc_pulsar", "pc_pulsar");
     await open("scenario");
     useGameDataStore.setState({
       starClasses: new Map([[pulsar.key, pulsar]]),
       planetClasses: new Map([["pc_pulsar", planetClassView("pc_pulsar")]]),
     });
-    const star = planet(99, "Din", { class: "sc_pulsar", layout: layout({ orbit: fixed(0) }) });
+    const star = planet(99, "Din", { class: "pc_pulsar", layout: layout({ orbit: fixed(0) }) });
     await land(details({ planets: [star] }));
 
     drawnBy(() => page(99, "Din"));
@@ -277,11 +280,11 @@ describe("a scenario body's page", () => {
       planetClasses: new Map(["pc_a_star", "pc_b_star"].map((key) => [key, planetClassView(key)])),
     });
     const first = planet(98, "Primary", {
-      class: "sc_binary_ab",
+      class: "pc_a_star",
       layout: layout({ orbit: fixed(25), angle: fixed(0) }),
     });
     const second = planet(99, "Companion", {
-      class: "sc_binary_ab",
+      class: "pc_b_star",
       layout: layout({ orbit: fixed(25), angle: fixed(180) }),
     });
     await land(details({ planets: [first, second] }));

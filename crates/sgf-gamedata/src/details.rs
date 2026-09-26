@@ -16,7 +16,7 @@ use crate::GameData;
 use crate::generate::belt;
 use crate::initializers::{self, Body, BodyClass, InitPlanet, Initializer};
 use crate::install::script::Range;
-use crate::orbit_walk::{self, Placed, Turn, Walk};
+use crate::orbit_walk::{self, Placed, Turn, WALK_START, Walk};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::scripts::ScenarioOwners;
 
@@ -24,8 +24,6 @@ use crate::scripts::ScenarioOwners;
 /// a save or a scenario writes, so a synthetic id never collides with a real one.
 const PLANET_BASE: u32 = 0x4000_0000;
 const MEGASTRUCTURE_BASE: u32 = 0x5000_0000;
-/// The angle the game turns a planet's first moon on from, in the save's frame.
-const FIRST_MOON_ANGLE: f64 = 180.0;
 /// A scenario starbase's synthetic id: one per system, never a real entity.
 const STARBASE_BASE: u32 = 0x7000_0000;
 const SITE_BASE: u32 = 0x6000_0000;
@@ -185,14 +183,18 @@ impl GameData {
     }
 
     /// `class` is the body's planet class, a star's resolved by [`Self::star_body_classes`].
+    /// A body whose block gives no `size` takes its class's.
     fn summary(
         &self,
         expanded: Body<'_>,
         class: String,
         id: u32,
-        layout: BodyLayout,
+        mut layout: BodyLayout,
     ) -> PlanetSummary {
         let body = expanded.block;
+        if layout.size.is_none() {
+            layout.size = self.class_size(&class, expanded.moon).map(bounds);
+        }
         let name_key = body.name.clone().unwrap_or_default();
         let habitable = self.planet_habitable(&class);
         PlanetSummary {
@@ -211,7 +213,7 @@ impl GameData {
             owner: None,
             moon: expanded.moon,
             pre_ftl: body.pre_ftl,
-            size: body.size.map(|(min, _)| min),
+            size: layout.size.map(|size| size.min.round() as u32),
             orbit: None,
             deposits: self.deposit_rows(&body.deposits),
             deposit_keys: deposit_counts(&body.deposits),
@@ -251,6 +253,12 @@ impl GameData {
         }
     }
 
+    /// The size range the generator draws a body of `class` from, a moon's or a planet's.
+    fn class_size(&self, class: &str, moon: bool) -> Option<Range> {
+        let def = self.planet_classes.get(class)?;
+        if moon { def.moon_size } else { def.planet_size }
+    }
+
     fn deposit_rows(&self, keys: &[String]) -> Vec<ResourceAmount> {
         let mut rows = Vec::new();
         for produced in keys.iter().filter_map(|k| self.deposit_produces(k)) {
@@ -263,8 +271,8 @@ impl GameData {
 }
 
 /// Each body's layout in the order [`initializers::expand`] gives the bodies, each range
-/// kept as the bounds a draw could give. The angles start at 0, so they are right relative
-/// to each other and the game may turn the whole system.
+/// kept as the bounds a draw could give. Each walk's angles start at [`WALK_START`], as the
+/// game's do.
 struct Layouts {
     bodies: Vec<BodyLayout>,
     /// The id of the body last placed at this level, which the next one turns from.
@@ -279,7 +287,7 @@ impl Layouts {
         };
         let Ok(()) = orbit_walk::walk(
             planets,
-            Turn::FromPrevious(Bounds::fixed(0.0)),
+            Turn::FromPrevious(Bounds::fixed(WALK_START)),
             &mut layouts,
         );
         layouts.bodies
@@ -334,7 +342,7 @@ impl<'p> Walk<'p> for Layouts {
         let before = self.previous.take();
         let moons = orbit_walk::walk(
             &block.moons,
-            Turn::FromPrevious(Bounds::fixed(FIRST_MOON_ANGLE)),
+            Turn::FromPrevious(Bounds::fixed(WALK_START)),
             self,
         );
         self.previous = before;

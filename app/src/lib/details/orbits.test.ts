@@ -243,16 +243,10 @@ describe("scenario bodies", () => {
    * no angle.
    */
   const walk = [
-    scenario(1, {
-      orbit: fixed(0),
-      angle: fixed(0),
-      orbit_step: fixed(0),
-      orbit_base: fixed(0),
-      angle_step: fixed(0),
-    }),
+    scenario(1, { orbit: fixed(0), orbit_step: fixed(0), orbit_base: fixed(0) }),
     scenario(2, {
       orbit: { min: 40, max: 60 },
-      angle: { min: 90, max: 270 },
+      angle: { min: 270, max: 450 },
       orbit_step: { min: 40, max: 60 },
       orbit_base: fixed(0),
       angle_step: { min: 90, max: 270 },
@@ -271,7 +265,7 @@ describe("scenario bodies", () => {
     ),
     scenario(4, {
       orbit: { min: 70, max: 100 },
-      angle: { min: 180, max: 540 },
+      angle: { min: 360, max: 720 },
       orbit_step: { min: 30, max: 40 },
       orbit_base: { min: 40, max: 60 },
       angle_step: { min: 90, max: 270 },
@@ -297,12 +291,12 @@ describe("scenario bodies", () => {
     expect(rolled(8).bodies).not.toEqual(rolled(7).bodies);
   });
 
-  it("turns each body on from the rolled angle of the body before it in its walk, a first moon from 180, and draws each distance within its range", () => {
+  it("turns each body on from the rolled angle of the body before it in its walk, the first of each walk from 180, and draws each distance within its range", () => {
     for (let seed = 0; seed < 20; seed++) {
       const layout = rolled(seed);
       const [two, moon, four, five] = [2, 3, 4, 5].map((id) => body(layout, id));
-      expect(two.turn).toEqual({ from: 0, step: { min: 90, max: 270 }, anchor: null });
-      within(two.angle, { min: 90, max: 270 });
+      expect(two.turn).toEqual({ from: 180, step: { min: 90, max: 270 }, anchor: null });
+      within(turnedFrom(two.angle, 180), { min: 90, max: 270 });
       expect(four.turn?.from).toBeCloseTo(two.angle);
       expect(four.turn?.anchor).toBe(2);
       within(turnedFrom(four.angle, two.angle), { min: 90, max: 270 });

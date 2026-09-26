@@ -17,7 +17,7 @@ use crate::layouts::{
 };
 use crate::menu::menu_initializers;
 use crate::naming;
-use crate::orbit_walk::{self, Placed, Turn, Walk};
+use crate::orbit_walk::{self, Placed, Turn, WALK_START, Walk};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
 use crate::rng::Rng;
@@ -28,9 +28,6 @@ const DEPOSIT_STREAM: u64 = 0x6465_706F;
 const RING_STREAM: u64 = 0x7269_6E67;
 /// The `class` of the star classes the game names from its black hole names.
 const BLACK_HOLE: &str = "black_hole";
-/// The angle the game's saves start each walk from: the star's and planets' about the
-/// centre, and each planet's moons' about it.
-const WALK_START: f64 = 180.0;
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum GenerateError {

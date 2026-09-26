@@ -124,6 +124,7 @@ export class RadiiLayer implements SystemLayer {
     if (known?.text === text) return known.tag;
     known?.tag.holder.destroy({ children: true });
     const tag = radiusTag(text);
+    tag.holder.visible = false;
     this.container.addChild(tag.holder);
     this.tags.set(id, { text, tag });
     return tag;
