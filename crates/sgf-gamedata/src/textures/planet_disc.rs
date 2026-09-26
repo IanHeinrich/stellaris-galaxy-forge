@@ -23,10 +23,13 @@ const DISC: u32 = 128;
 /// scaled down to it.
 pub(super) const SOURCE_WIDTH: u32 = 256;
 
-/// The surface map of `entity`, relative to a layer root. The game numbers a class's
-/// models `<entity>_01_entity`, `<entity>_02_entity` …; the first one stands for them all.
-pub(super) fn diffuse(layout: &Layout, entity: &str) -> Option<String> {
-    let maps = surface_maps(layout);
+/// Entity name → the folder of its `.asset` file and its surface map's file name.
+pub(super) type SurfaceMaps = BTreeMap<String, (String, String)>;
+
+/// The surface map of `entity` in `maps`, relative to a layer root. The game numbers a
+/// class's models `<entity>_01_entity`, `<entity>_02_entity` …; the first one stands for
+/// them all.
+pub(super) fn diffuse(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Option<String> {
     [
         format!("{entity}_01_entity"),
         format!("{entity}_entity"),
@@ -44,10 +47,9 @@ pub(super) fn diffuse(layout: &Layout, entity: &str) -> Option<String> {
     })
 }
 
-/// Entity name → the folder of its `.asset` file and its surface map's file name. A later
-/// layer's file of the same path replaces the earlier one, and a later entity of the same
-/// name wins.
-fn surface_maps(layout: &Layout) -> BTreeMap<String, (String, String)> {
+/// Every entity's surface map in the `.asset` files of `layout`. A later layer's file of
+/// the same path replaces the earlier one, and a later entity of the same name wins.
+pub(super) fn surface_maps(layout: &Layout) -> SurfaceMaps {
     let mut files: BTreeMap<String, (usize, PathBuf)> = BTreeMap::new();
     for (index, layer) in layout.layers.iter().enumerate() {
         let root = ASSETS.split('/').fold(layer.root.clone(), |p, s| p.join(s));

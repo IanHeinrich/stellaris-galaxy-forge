@@ -17,6 +17,7 @@ use crate::generate::belt;
 use crate::initializers::{self, Body, BodyClass, InitPlanet, Initializer};
 use crate::install::script::Range;
 use crate::orbit_walk::{self, Placed, Turn, Walk};
+use crate::registries::planet_classes::PlanetClassDef;
 use crate::scripts::ScenarioOwners;
 
 /// Bodies an initializer gives no id: each collection counts from a base far above any id
@@ -176,7 +177,36 @@ impl GameData {
             pops: 0,
             parent: expanded.parent.map(|parent| PLANET_BASE + index(parent)),
             layout: Some(layout),
-            ring: body.has_ring,
+            ring: self.ring(body, expanded.moon),
+        }
+    }
+
+    /// As the generator decides it: a moon and the star never have a ring, a written
+    /// `has_ring` wins, and otherwise the body is left to a draw (`None`) only when its class,
+    /// or one its list or draw could give, has a `chance_of_ring`.
+    fn ring(&self, body: &InitPlanet, moon: bool) -> Option<bool> {
+        if moon || body.class == BodyClass::Star {
+            return Some(false);
+        }
+        match body.has_ring {
+            Some(stated) => Some(stated),
+            None if self.could_ring(&body.class) => None,
+            None => Some(false),
+        }
+    }
+
+    fn could_ring(&self, class: &BodyClass) -> bool {
+        let rolls = |c: &PlanetClassDef| !c.star && c.chance_of_ring > 0.0;
+        match class {
+            BodyClass::Star => false,
+            BodyClass::Random(colonizable) => self.planet_classes.drawable(*colonizable).any(rolls),
+            BodyClass::Named(key) => match self.planet_lists.get(key) {
+                Some(list) => list
+                    .iter()
+                    .filter_map(|k| self.planet_classes.get(k))
+                    .any(rolls),
+                None => self.planet_classes.get(key).is_some_and(rolls),
+            },
         }
     }
 

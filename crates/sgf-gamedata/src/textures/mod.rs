@@ -10,6 +10,7 @@ use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::UNIX_EPOCH;
 
 use base64::prelude::*;
@@ -152,6 +153,8 @@ pub struct TextureView {
 #[derive(Debug)]
 pub struct Textures {
     cache_dir: PathBuf,
+    /// The surface maps of the last layout a `planet_disc:` key was asked of, read once.
+    surface_maps: Mutex<Option<(Layout, Arc<planet_disc::SurfaceMaps>)>>,
 }
 
 impl Textures {
@@ -163,7 +166,27 @@ impl Textures {
                 .join("stellaris-galaxy-forge")
                 .join("textures")
         });
-        Self { cache_dir }
+        Self {
+            cache_dir,
+            surface_maps: Mutex::default(),
+        }
+    }
+
+    /// Every entity's surface map in `layout`, read on the first `planet_disc:` key asked
+    /// of it and again only when the layout changes.
+    fn surface_maps(&self, layout: &Layout) -> Arc<planet_disc::SurfaceMaps> {
+        let mut memo = self
+            .surface_maps
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        match &*memo {
+            Some((read, maps)) if read == layout => Arc::clone(maps),
+            _ => {
+                let maps = Arc::new(planet_disc::surface_maps(layout));
+                *memo = Some((layout.clone(), Arc::clone(&maps)));
+                maps
+            }
+        }
     }
 
     pub fn cache_dir(&self) -> &Path {
@@ -210,7 +233,7 @@ impl Textures {
         key: &str,
     ) -> Result<Vec<u8>, TextureError> {
         let key: TextureKey = key.parse()?;
-        let job = Job::plan(&key, layout, sprites, colour, planet_entity)?;
+        let job = Job::plan(&key, layout, sprites, colour, planet_entity, self)?;
         let cache_file = self.cache_dir.join(job.cache_name(&key));
         if let Ok(png) = fs::read(&cache_file) {
             return Ok(png);
@@ -300,12 +323,14 @@ impl Job {
         sprites: &dyn SpriteSource,
         colour: ColourLookup<'_>,
         planet_entity: EntityLookup<'_>,
+        textures: &Textures,
     ) -> Result<Self, TextureError> {
         match key {
             TextureKey::PlanetDisc { class } => {
                 let no_disc = || TextureError::NoDisc(class.clone());
                 let entity = planet_entity(class).ok_or_else(no_disc)?;
-                let rel = planet_disc::diffuse(layout, &entity).ok_or_else(no_disc)?;
+                let maps = textures.surface_maps(layout);
+                let rel = planet_disc::diffuse(layout, &maps, &entity).ok_or_else(no_disc)?;
                 Ok(Self::PlanetDisc(Input::resolve(layout, &rel)?))
             }
             TextureKey::Sprite { name, frame } => {

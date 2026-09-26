@@ -284,8 +284,8 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
     assert!(!star.capital && !star.colonised);
 
     assert!(
-        details.planets.iter().all(|p| p.ring.is_none()),
-        "no body states has_ring, so each is left to its class's chance_of_ring"
+        details.planets.iter().all(|p| p.ring == Some(false)),
+        "no body states has_ring, and no fixture class has a chance_of_ring"
     );
 
     let world = &details.planets[1];
@@ -339,15 +339,30 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
 }
 
 #[test]
-fn a_scenario_body_has_a_ring_only_when_its_initializer_says_so() {
+fn a_scenario_body_has_a_ring_as_the_generator_would_give_it() {
     let (_dir, gd) = common::hand_written(&[
+        (
+            "common/planet_classes/00_rings.txt",
+            "pc_gas_giant = {
+	chance_of_ring = 0.3
+}
+pc_rock = {
+}
+",
+        ),
         (
             "common/solar_system_initializers/00_rings.txt",
             "ring_init = {
 	class = sc_sun
+	planet = { class = star }
 	planet = { class = pc_gas_giant has_ring = yes }
 	planet = { class = pc_gas_giant has_ring = no }
-	planet = { class = pc_gas_giant }
+	planet = {
+		class = pc_gas_giant
+		moon = { class = pc_gas_giant has_ring = yes }
+	}
+	planet = { class = pc_rock }
+	planet = { class = pc_rock has_ring = yes }
 }
 ",
         ),
@@ -360,8 +375,25 @@ fn a_scenario_body_has_a_ring_only_when_its_initializer_says_so() {
     let details = gd
         .initializer_details(9, "ring_init", None)
         .expect("the ring fixture");
-    let rings: Vec<Option<bool>> = details.planets.iter().map(|p| p.ring).collect();
-    assert_eq!(rings, [Some(true), Some(false), None]);
+    let rings: Vec<(&str, bool, Option<bool>)> = details
+        .planets
+        .iter()
+        .map(|p| (p.class.as_str(), p.moon, p.ring))
+        .collect();
+    assert_eq!(
+        rings,
+        [
+            ("star", false, Some(false)),
+            ("pc_gas_giant", false, Some(true)),
+            ("pc_gas_giant", false, Some(false)),
+            ("pc_gas_giant", false, None),
+            ("pc_gas_giant", true, Some(false)),
+            ("pc_rock", false, Some(false)),
+            ("pc_rock", false, Some(true)),
+        ],
+        "a stated has_ring wins; a moon and the star never have one; an unstated body is left \
+         to a draw only when its class has a chance_of_ring"
+    );
 }
 
 /// Two spawns elsewhere, each linking back to the system the initializer
