@@ -15,6 +15,11 @@ import {
   useInspectorStore,
   type Entry,
 } from "./inspectorStore";
+import { openSystem } from "./commands";
+import { editor, openFixtureSave, openFixtureScenario, withAddedSystems } from "./editorFixture";
+import { editResult } from "./fixture";
+import { listeners, loadGameData, SUMMARY } from "./gameDataFixture";
+import { mockedIpc } from "../test/ipc";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -24,6 +29,7 @@ const inspector = () => useInspectorStore.getState();
 
 const SOL: Entry = { ref: { kind: "system", id: 452 }, label: "Sol" };
 const ALPHARD: Entry = { ref: { kind: "system", id: 12 }, label: "Alphard" };
+const ALPHA: Entry = { ref: { kind: "system", id: 1 }, label: "Alpha Centauri" };
 const EARTH: Entry = { ref: { kind: "planet", id: 1207 }, label: "Earth" };
 const LUNA: Entry = { ref: { kind: "planet", id: 1208 }, label: "Luna" };
 const COLONY: Entry = { ref: { kind: "colony", id: 1207 }, label: "Earth colony" };
@@ -49,6 +55,7 @@ afterEach(() => {
 });
 
 const labels = () => inspector().stack.map((e) => e.label);
+const refs = () => inspector().stack.map((e) => e.ref);
 
 describe("the entity stack", () => {
   it("restarts on a new selection and leaves a drill-down alone when the same one arrives again", () => {
@@ -284,11 +291,11 @@ describe("opening a system's page", () => {
   it("goes back down the stack to a page on it, else selects the system, easing the map both ways", async () => {
     inspector().setRoot(SOL);
     inspector().open(EARTH);
-    inspector().openSystem(452);
+    openSystem(452);
     expect(labels()).toEqual(["Sol"]);
     expect(useEditorStore.getState().focus?.id).toBe(452);
 
-    inspector().openSystem(12);
+    openSystem(12);
     expect(useEditorStore.getState().focus?.id).toBe(12);
     await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([12]));
   });
@@ -321,11 +328,88 @@ describe("a body opened from the system view", () => {
     expect(useLayoutStore.getState().tab).toBe("inspector");
   });
 
-  it("opens a save's planet, and a scenario's body keyed by its system", () => {
-    useFileSessionStore.setState({ kind: "save" });
+  it("opens a save's planet, and a scenario's body keyed by its system", async () => {
+    await openFixtureSave();
     expect(bodyEntry(452, 1207, "Earth")).toEqual(EARTH);
-    useFileSessionStore.setState({ kind: "scenario" });
+    await openFixtureScenario();
     expect(bodyEntry(1, 100, "Tarkin")).toEqual(TARKIN);
+  });
+
+  it("keeps a scenario body's page through an edit to another system, and closes it on one that stales its own", async () => {
+    await openFixtureScenario();
+    inspector().setRoot(ALPHA);
+    inspector().openFromMap(bodyEntry(1, 100, "Tarkin"));
+
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [2] }));
+    await editor().applyOp({ type: "SetInitializer", id: 2, initializer: "basic_init_01" });
+    expect(refs()).toEqual([ALPHA.ref, TARKIN.ref]);
+
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
+    await editor().applyOp({ type: "SetInitializer", id: 1, initializer: "basic_init_01" });
+    expect(refs()).toEqual([ALPHA.ref]);
+  });
+
+  it("keeps a scenario body's page on its system's new id through a renumber, and a SetInitializer there closes it", async () => {
+    await openFixtureScenario();
+    const [, seven] = withAddedSystems();
+    inspector().setRoot({ ref: { kind: "system", id: 7 }, label: "Added" });
+    inspector().openFromMap(bodyEntry(7, 100, "Tarkin"));
+
+    mockedIpc.applyOp.mockResolvedValueOnce(
+      editResult({
+        delta: {
+          systems: [{ ...seven, id: 6 }],
+          removed: [7],
+          renumbered: [
+            [6, null],
+            [7, 6],
+          ],
+        },
+        details_stale: [6, 7],
+      }),
+    );
+    await editor().applyOp({ type: "RemoveSystem", id: 6 });
+    expect(refs()).toEqual([
+      { kind: "system", id: 6 },
+      { kind: "body", system: 6, id: 100 },
+    ]);
+
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [6] }));
+    await editor().applyOp({ type: "SetInitializer", id: 6, initializer: "basic_init_01" });
+    expect(refs()).toEqual([{ kind: "system", id: 6 }]);
+  });
+
+  it("closes a scenario body's page when the game data reloads, and keeps a save's planet page", async () => {
+    await openFixtureScenario();
+    inspector().setRoot(ALPHA);
+    inspector().openFromMap(bodyEntry(1, 100, "Tarkin"));
+    await loadGameData();
+    expect(refs()).toEqual([ALPHA.ref]);
+
+    await openFixtureSave();
+    inspector().setRoot(SOL);
+    inspector().openFromMap(bodyEntry(452, 1207, "Earth"));
+    await loadGameData();
+    expect(refs()).toEqual([SOL.ref, EARTH.ref]);
+  });
+
+  it("closes a scenario body's page when a rebuilt registry finds the game data gone", async () => {
+    await openFixtureScenario();
+    await loadGameData();
+    await vi.waitFor(() => expect(listeners.changed).not.toBeNull());
+    inspector().setRoot(ALPHA);
+    inspector().openFromMap(bodyEntry(1, 100, "Tarkin"));
+
+    mockedIpc.gameDataSummary.mockResolvedValue(null);
+    listeners.changed!({
+      registries: ["localisation"],
+      version: SUMMARY.generation + 1,
+      watch: { watching: 1, paused: false, reason: null },
+      hot_file: null,
+      hot_count: 0,
+    });
+
+    await vi.waitFor(() => expect(refs()).toEqual([ALPHA.ref]));
   });
 });
 

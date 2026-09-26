@@ -1,17 +1,25 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
+import type { DocumentKind } from "../generated/DocumentKind";
 import { isToolAction, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
-import { barShows, layerAtKey, onSceneSwitch } from "../lib/visual/barMode";
+import { groupsFor, type Source } from "../lib/visual/layerGroups";
+import {
+  barShows,
+  barTakes,
+  layerAtKey,
+  onSceneSwitch,
+  type BarCommand,
+} from "../lib/visual/barMode";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInitializerBrowserStore } from "./initializerBrowserStore";
-import { useInspectorStore } from "./inspectorStore";
+import { refKey, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useOpenScreenStore } from "./openScreenStore";
 import { canEnterSystem, currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
-import { symmetryAllowed, useToolStore } from "./toolStore";
+import { symmetryAllowed, toolAllowed, useToolStore } from "./toolStore";
 
 export interface CommandEffects {
   focusSearch(): void;
@@ -30,7 +38,30 @@ export function canGoBack(): boolean {
 /** Pops a crumb, or with none to pop leaves the system shown. */
 function goBack(): void {
   if (hasCrumb()) useInspectorStore.getState().back();
-  else useSceneStore.getState().leaveSystem();
+  else backToGalaxy();
+}
+
+/** Back to galaxy, as Esc, the crumb and the menus ask for it: the inspector goes back to its root. */
+export function backToGalaxy(): void {
+  if (sceneSystem() === null) return;
+  useInspectorStore.getState().popTo(0);
+  useSceneStore.getState().exitScene();
+}
+
+/**
+ * Goes to system `id`'s page, back down the stack when the page is on it, else by selecting
+ * the system, and eases the map to it either way.
+ */
+export function openSystem(id: number): void {
+  const inspector = useInspectorStore.getState();
+  const key = refKey({ kind: "system", id });
+  const at = inspector.stack.findIndex((entry) => refKey(entry.ref) === key);
+  if (at < 0) {
+    void useEditorStore.getState().jumpTo(id);
+    return;
+  }
+  inspector.popTo(at);
+  useEditorStore.getState().focusOn(id);
 }
 
 /** Enter: shows the one selected system, with nothing but the map focused. True when it did. */
@@ -46,7 +77,7 @@ export function enterSelectedSystem(): boolean {
 /** M: shows the one selected system, or leaves the system shown. True when it did either. */
 export function toggleSystemView(): boolean {
   if (sceneSystem() !== null) {
-    useSceneStore.getState().leaveSystem();
+    backToGalaxy();
     return true;
   }
   const { selection } = useEditorStore.getState();
@@ -74,7 +105,7 @@ export function resizeNebula(step: number): boolean {
 }
 
 export function nudgeSelected({ dx, dy }: Nudge): void {
-  if (sceneSystem() !== null) return;
+  if (!barTakesNow("nudge")) return;
   const editor = useEditorStore.getState();
   const index = editor.selectedNebula;
   if (index === null) {
@@ -97,13 +128,16 @@ export function toggleLayerKey(index: number): void {
 
 /** Removes whatever Delete names for the selection, asking first where the store does. */
 export function deleteSelected(): void {
-  if (sceneSystem() !== null) return;
-  void useEditorStore.getState().deleteSelection();
+  if (barTakesNow("deleteSelection")) void useEditorStore.getState().deleteSelection();
 }
 
 export function selectAll(): void {
-  if (sceneSystem() !== null) return;
-  void useEditorStore.getState().selectAll();
+  if (barTakesNow("selectAll")) void useEditorStore.getState().selectAll();
+}
+
+/** Whether the bar shown takes `command`; the menus and arrow keys reach these past `run`. */
+function barTakesNow(command: BarCommand): boolean {
+  return barTakes(currentBarMode(), command);
 }
 
 /** Draws the scenario system shown as another roll of its initializer. */
@@ -161,7 +195,7 @@ function escape(inInput: boolean): void {
   } else if (useInspectorStore.getState().escape()) {
     return;
   } else if (sceneSystem() !== null) {
-    useSceneStore.getState().leaveSystem();
+    backToGalaxy();
   } else {
     void useEditorStore.getState().clearSelection();
   }
@@ -179,9 +213,18 @@ function mapHasFocus(): boolean {
   return active instanceof HTMLCanvasElement && active.closest(".map-host") !== null;
 }
 
+/** Whether a document of `kind` has a master over `source`'s group for its key to switch. */
+function hasMaster(kind: DocumentKind | null, source: Source): boolean {
+  return groupsFor(kind).some((group) => group.master && group.source === source);
+}
+
 /** Runs one command, and says whether the key press was the app's to keep. */
 export function run(action: KeyAction, inInput: boolean, effects: CommandEffects): boolean {
-  if (isToolAction(action)) return useToolStore.getState().setTool(toolOfAction(action));
+  if (!barTakesNow(action)) return true;
+  if (isToolAction(action)) {
+    const tool = toolOfAction(action);
+    return toolAllowed(tool, currentBarMode()) && useToolStore.getState().setTool(tool);
+  }
   const chrome = useMapChromeStore.getState();
   const session = useFileSessionStore.getState();
   const layout = useLayoutStore.getState();
@@ -201,10 +244,10 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       escape(inInput);
       return false;
     case "deleteSelection":
-      deleteSelected();
+      void useEditorStore.getState().deleteSelection();
       return true;
     case "selectAll":
-      selectAll();
+      void useEditorStore.getState().selectAll();
       return true;
     case "fit":
       fitAll();
@@ -242,19 +285,21 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       saveAs();
       return true;
     case "browseInitializers":
-      if (sceneSystem() !== null) return false;
       effects.browseInitializers(useEditorStore.getState().selection);
       return true;
     case "toggleScriptLayers":
-    case "toggleInitializerLayers":
+    case "toggleInitializerLayers": {
+      const source = action === "toggleScriptLayers" ? "scripts" : "initializers";
       if (
         !barShows(currentBarMode(), "masters") ||
+        !hasMaster(session.kind, source) ||
         useGameDataStore.getState().status !== "ready"
       ) {
         return false;
       }
-      chrome.toggleGroup(action === "toggleScriptLayers" ? "scripts" : "initializers");
+      chrome.toggleGroup(source);
       return true;
+    }
     case "toggleSymmetry":
       if (!symmetryAllowed() || !barShows(currentBarMode(), "tools")) return false;
       useToolStore.getState().toggleSymmetry();

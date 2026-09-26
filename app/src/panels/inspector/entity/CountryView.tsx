@@ -8,6 +8,7 @@ import { stripped, templateName } from "../../../lib/names";
 import { counted } from "../../../lib/text";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { openSystem } from "../../../store/commands";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import {
   EditBlock,
@@ -142,7 +143,6 @@ function Government({ id }: { id: number }) {
 }
 
 function About({ country }: { country: CountryNode }) {
-  const openSystem = useInspectorStore((s) => s.openSystem);
   const systemName = useGalaxyStore((s) => s.systemName);
   const capital = country.capital_system;
   return (

@@ -10,6 +10,7 @@ import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetClassView } from "../generated/PlanetClassView";
+import type { PlanetPage } from "../generated/PlanetPage";
 import type { PlanetSummary } from "../generated/PlanetSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { ScenarioSummary } from "../generated/ScenarioSummary";
@@ -372,6 +373,32 @@ export function countryNode(over: Partial<CountryNode> = {}): CountryNode {
     has_map_colors: false,
     flag_icon: null,
     flag_background: null,
+    ...over,
+  };
+}
+
+/** The one `PlanetPage` builder: an unowned, unsurveyed world with nothing on or around it. */
+export function planetPage(over: Partial<PlanetPage> = {}): PlanetPage {
+  return {
+    id: 1207,
+    name: name("NAME_Planet"),
+    name_key: "NAME_Planet",
+    label: "NAME_Planet",
+    class: "pc_continental",
+    size: 16,
+    orbit: null,
+    system: 1,
+    parent: null,
+    moons: [],
+    deposits: [],
+    planet_modifiers: [],
+    timed_modifiers: [],
+    surveyed_by: null,
+    station: null,
+    owner: null,
+    controller: null,
+    colony: null,
+    flags: 0,
     ...over,
   };
 }

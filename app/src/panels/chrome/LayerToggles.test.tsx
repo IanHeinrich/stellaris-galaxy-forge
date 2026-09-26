@@ -189,13 +189,11 @@ describe("the split layer bar", () => {
     expect(menuBody()).not.toContain("disabled");
     expect(menuBody()).toContain("<span>Orbit radii</span><kbd>2</kbd>");
 
-    useMapChromeStore.setState((s) => ({
-      layers: { ...s.layers, details: true },
-      sceneLayers: { ...s.sceneLayers, details: false },
-    }));
+    useMapChromeStore.getState().toggleSceneLayer("details");
+    expect(useMapChromeStore.getState().layers.details).toBe(true);
     expect(bar()).toMatch(/aria-label="System details" aria-pressed="false"/);
 
-    useSceneStore.getState().leaveSystem();
+    useSceneStore.getState().exitScene();
     expect(bar()).toMatch(/aria-label="System details" aria-pressed="true"/);
     expect(buttonLabels(bar())).toContain("Hyperlanes");
   });

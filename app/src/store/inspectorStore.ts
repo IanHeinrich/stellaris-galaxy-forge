@@ -2,8 +2,8 @@ import { create } from "zustand";
 import type { EntityAddr } from "../generated/EntityAddr";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { EntityKind } from "../generated/EntityKind";
+import { documentCapabilities } from "../lib/capabilities";
 import { renumberedId, renumberedLane, type Renumbering } from "../lib/renumber";
-import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useLayoutStore, type DockTab } from "./layoutStore";
@@ -105,10 +105,22 @@ export function refFor(addr: EntityAddr, system: number | null): EntityRef | nul
   return system === null ? null : { kind: "starbase", system, id: addr.id };
 }
 
-/** The page a body in the system view opens: a save's planet, or a scenario's body. */
+/**
+ * The page a body in the system view opens: its planet where the document has planets of its
+ * own, else the body its initializer rolls.
+ */
 export function bodyEntry(system: number, id: number, label: string): Entry {
-  const scenario = useFileSessionStore.getState().kind === "scenario";
-  return { ref: scenario ? { kind: "body", system, id } : { kind: "planet", id }, label };
+  return bodyEntryOf(
+    documentCapabilities(useFileSessionStore.getState()).details,
+    system,
+    id,
+    label,
+  );
+}
+
+/** The same, where `planets` says whether the document has planets of its own. */
+export function bodyEntryOf(planets: boolean, system: number, id: number, label: string): Entry {
+  return { ref: planets ? { kind: "planet", id } : { kind: "body", system, id }, label };
 }
 
 /** What the open document lets a system's strip offer beyond the tabs every system has. */
@@ -205,11 +217,6 @@ export interface InspectorState {
   openFromMap(entry: Entry): void;
   /** Closes every page on a scenario body, or on one in `systems`, with everything opened from it. */
   dropBodies(systems?: readonly number[]): void;
-  /**
-   * Goes to system `id`'s page, back down the stack when the page is on it, else by selecting
-   * the system, and eases the map to it either way.
-   */
-  openSystem(id: number): void;
   /**
    * The Galaxy crumb: pops a stack that stands on the galaxy back to it, and says so. A stack
    * rooted on a selection says false, and clearing the selection restarts it instead.
@@ -317,17 +324,6 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     if (at < 0) return;
     const next = at === 0 ? [GALAXY_ENTRY] : stack.slice(0, at);
     set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
-  },
-
-  openSystem(id) {
-    const key = refKey({ kind: "system", id });
-    const at = get().stack.findIndex((entry) => refKey(entry.ref) === key);
-    if (at < 0) {
-      void useEditorStore.getState().jumpTo(id);
-      return;
-    }
-    get().popTo(at);
-    useEditorStore.getState().focusOn(id);
   },
 
   home() {

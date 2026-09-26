@@ -18,7 +18,7 @@ import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { useSceneStore } from "../../store/sceneStore";
+import { useSceneSystem } from "../../store/sceneStore";
 import { GameDataPanel } from "./GameDataPanel";
 
 const DOCUMENT_KIND: Record<string, string> = {
@@ -128,7 +128,7 @@ function SceneSelected({ system }: { system: number }) {
 }
 
 function Selected() {
-  const shown = useSceneStore((s) => (s.scene.kind === "system" ? s.scene.id : null));
+  const shown = useSceneSystem();
   const selection = useEditorStore((s) => s.selection);
   const selectedLane = useEditorStore((s) => s.selectedLane);
   const selectedNebula = useEditorStore((s) => s.selectedNebula);
@@ -209,7 +209,7 @@ function SceneHint({ system }: { system: number }) {
 }
 
 function Hint() {
-  const shown = useSceneStore((s) => (s.scene.kind === "system" ? s.scene.id : null));
+  const shown = useSceneSystem();
   const hover = useEditorStore((s) => s.hover);
   const selectedLane = useEditorStore((s) => s.selectedLane);
   const selectedNebula = useEditorStore((s) => s.selectedNebula);
