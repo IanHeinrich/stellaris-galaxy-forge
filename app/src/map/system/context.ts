@@ -88,8 +88,6 @@ export interface Chance {
   readonly orbit: boolean;
   /** Its angle turns on from the body before it by a draw between two angles. */
   readonly angle: boolean;
-  /** It names no angle: it may stand anywhere on its orbit. */
-  readonly anyAngle: boolean;
   /** Its class is a draw: a random class, a planet list or the empire's ideal class. */
   readonly planetClass: boolean;
   /** Whether it has a ring is left to its class's chance. */
@@ -99,7 +97,6 @@ export interface Chance {
 const NO_CHANCE: Chance = Object.freeze({
   orbit: false,
   angle: false,
-  anyAngle: false,
   planetClass: false,
   ring: false,
 });
@@ -313,7 +310,6 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       light: null,
       band: null,
       turn: null,
-      ghost: false,
       radius: null,
     };
     return {
@@ -340,7 +336,6 @@ function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolea
   return {
     orbit: placement.band !== null,
     angle: placement.turn !== null && placement.turn.step.min !== placement.turn.step.max,
-    anyAngle: placement.ghost,
     planetClass: drawn,
     ring: !placement.star && !drawn && planet.ring === null,
   };
@@ -368,7 +363,8 @@ function sceneBodies(
   layout: SystemLayout,
   classes: ReadonlyMap<number, ResolvedClass>,
 ): SceneBody[] {
-  if (src.details === null) return galaxyStars(src, node);
+  const noBodies = src.kind === "scenario" && src.details?.planets.length === 0;
+  if (src.details === null || noBodies) return galaxyStars(src, node);
   const planets = new Map(src.details.planets.map((p) => [p.id, p]));
   const placed = new Map(layout.bodies.map((b) => [b.id, b]));
   return layout.bodies.flatMap((placement) => {
@@ -415,13 +411,14 @@ function sceneExits(src: SystemSources, node: SystemNode | null, radius: number)
 }
 
 /**
- * Whether the game rolls the system's planets when it generates the galaxy: a scenario system
- * whose initializer, read with the install, gives no record, as when it names none, `random` or
- * one the install does not define. One the install defines has a record, empty if it places
- * nothing.
+ * Whether the game places planets the source does not list: a scenario system whose initializer,
+ * read with the install, gives no record, as when it names none, `random` or one the install does
+ * not define, and so the game rolls them; or one whose record says its initializer places bodies
+ * through an `inline_script`. One the install defines has a record, empty if it places nothing.
  */
 function rollsPlanets(src: SystemSources): boolean {
-  return src.kind === "scenario" && src.gameDataReady && src.missing && src.details === null;
+  if (src.kind !== "scenario" || !src.gameDataReady) return false;
+  return src.details === null ? src.missing : src.details.unexpanded_scripts;
 }
 
 /** Where everything of the system `src` names is drawn. */

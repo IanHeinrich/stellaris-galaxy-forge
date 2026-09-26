@@ -185,6 +185,41 @@ describe("a scenario body's page", () => {
     expect(page(103, "Naboo")).not.toContain('<span class="k">Angle</span>');
   });
 
+  it("names no body to turn from when the one before stands at the centre", async () => {
+    const star = planet(102, "Star", {
+      class: "pc_g_star",
+      layout: layout({ orbit: fixed(0), orbit_step: fixed(0), orbit_base: fixed(0) }),
+    });
+    const naboo = planet(103, "Naboo", {
+      class: "pc_continental",
+      layout: layout({
+        orbit: fixed(60),
+        orbit_step: fixed(60),
+        orbit_base: fixed(0),
+        angle_step: { min: 90, max: 270 },
+        turns_from: 102,
+      }),
+    });
+    await open("scenario");
+    await land(details({ planets: [star, naboo] }));
+
+    expect(page(103, "Naboo")).toContain('<span class="k">Angle step</span><span>+90–270°</span>');
+  });
+
+  it("says whether a body has a ring, or that the game rolls it", async () => {
+    const ringed = planet(102, "Ringed", { class: "pc_gas_giant", ring: true });
+    const bare = planet(103, "Bare", { class: "pc_barren", ring: false });
+    const rolled = planet(104, "Rolled", { class: "pc_gas_giant", ring: null });
+    await open("scenario");
+    await land(details({ planets: [ringed, bare, rolled] }));
+
+    expect(page(102, "Ringed")).toContain('<span class="k">Ring</span><span>Yes</span>');
+    expect(page(103, "Bare")).toContain('<span class="k">Ring</span><span>No</span>');
+    expect(page(104, "Rolled")).toContain(
+      '<span class="k">Ring</span><span>Rolled by the game</span>',
+    );
+  });
+
   it("gives no orbit step to a save's body", async () => {
     await open("save");
     await land(details({ planets: [TARKIN, YAVIN] }));

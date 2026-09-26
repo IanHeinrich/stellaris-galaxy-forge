@@ -128,3 +128,9 @@ layout_init = {
 		orbit_distance = 25
 	}
 }
+
+# A system with a star class and nothing placed in it, for the empty details test.
+empty_init = {
+	class = sc_sun
+	usage = misc_system_init
+}

@@ -28,6 +28,8 @@ const TURN_RAY_REACH_PX = 12;
 const TURN_ARC_ALPHA = 0.5;
 const TURN_ARC_WIDTH_PX = 2;
 const TURN_LABEL_OUT_PX = 16;
+/** The stretch of radii a selected scenario body's orbit may be rolled within, faint. */
+const BAND_ALPHA = 0.08;
 /** What a selected scenario body's orbit and angle are measured from, apart from the selection. */
 const BASE_COLOR = MATCHED_COLOR;
 /**
@@ -58,7 +60,7 @@ function radians(degrees: number): number {
  * before it shows as two rays from its ring's centre with the stretch of ring between them lit.
  * What a scenario body is measured from is marked in a colour of its own: the body it turns from,
  * with a ray through it where the turn starts, and the orbit it steps out from, with the step's
- * stretch of the radius line labelled.
+ * stretch of the radius line labelled. Its ranged orbit shows as a faint band between its radii.
  */
 export class HighlightLayer implements SystemLayer {
   readonly id = "highlight" as const;
@@ -72,6 +74,7 @@ export class HighlightLayer implements SystemLayer {
   readonly anchorRay = new Graphics();
   readonly baseCircle = new Graphics();
   readonly stepLine = new Graphics();
+  readonly band = new Graphics();
   private readonly tags = new Map<TagSlot, { text: string; tag: RadiusTag }>();
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
   private ref: SceneHighlight = NO_HIGHLIGHT;
@@ -87,7 +90,9 @@ export class HighlightLayer implements SystemLayer {
     this.anchorRay.label = "anchor-ray";
     this.baseCircle.label = "base-circle";
     this.stepLine.label = "step-line";
+    this.band.label = "orbit-band";
     this.container.addChild(
+      this.band,
       this.baseCircle,
       this.anchorRay,
       this.turnArc,
@@ -126,6 +131,7 @@ export class HighlightLayer implements SystemLayer {
     this.drawRadius(cam, selected);
     this.drawTurn(cam, selected);
     this.drawAnchor(cam, selected);
+    this.drawBand(selected);
     const px = 1 / cam.scale;
     const ring = (id: number | null, gap: number, width: number, color: number, alpha: number) => {
       const body = id === null ? undefined : this.ctx.bodies.find((b) => b.placement.id === id);
@@ -251,32 +257,28 @@ export class HighlightLayer implements SystemLayer {
   /**
    * The selected scenario body's anchor: a dashed outline round the body before it in its walk,
    * which it turns from, and a faint dashed ray from its ring's centre through that body, where
-   * the turn starts. The first body of a walk turns from 0 and has the ray alone.
+   * the turn starts. A body with no anchor, the first of its walk or one after a body at the
+   * centre, has neither.
    */
   private drawAnchor(cam: Camera, body: SceneBody | undefined): void {
     const outline = this.anchorRing.clear();
     const ray = this.anchorRay.clear();
     const turn = body?.placement.turn;
     const ring = body?.placement.ring;
-    if (!body || !turn || !ring) return;
+    if (!body || !turn || !ring || turn.anchor === null) return;
+    const anchor = this.ctx.bodies.find((b) => b.placement.id === turn.anchor);
+    if (!anchor) return;
     const px = 1 / cam.scale;
-    let reach = ring.radius;
-    const anchor =
-      turn.anchor === null
-        ? undefined
-        : this.ctx.bodies.find((b) => b.placement.id === turn.anchor);
-    if (anchor) {
-      const { x, y, disc } = anchor.placement;
-      const r = drawnDisc(disc, cam.scale) + SELECTED_GAP_PX * px;
-      const linked = this.ref.linkedBody === turn.anchor;
-      dashedCircle(outline, x, y, r, ANCHOR_DASHES);
-      outline.stroke({
-        color: BASE_COLOR,
-        alpha: linked ? 1 : ANCHOR_ALPHA,
-        width: (linked ? LINKED_ANCHOR_WIDTH_PX : ANCHOR_WIDTH_PX) * px,
-      });
-      reach = Math.max(reach, Math.hypot(x - ring.cx, y - ring.cy) + r);
-    }
+    const { x, y, disc } = anchor.placement;
+    const r = drawnDisc(disc, cam.scale) + SELECTED_GAP_PX * px;
+    const linked = this.ref.linkedBody === turn.anchor;
+    dashedCircle(outline, x, y, r, ANCHOR_DASHES);
+    outline.stroke({
+      color: BASE_COLOR,
+      alpha: linked ? 1 : ANCHOR_ALPHA,
+      width: (linked ? LINKED_ANCHOR_WIDTH_PX : ANCHOR_WIDTH_PX) * px,
+    });
+    const reach = Math.max(ring.radius, Math.hypot(x - ring.cx, y - ring.cy) + r);
     const hub = body.readout?.hub ?? 0;
     const near = hub > 0 ? drawnDisc(hub, cam.scale) + RADIUS_HUB_GAP_PX * px : 0;
     const far = reach + TURN_RAY_REACH_PX * px;
@@ -288,6 +290,16 @@ export class HighlightLayer implements SystemLayer {
       BASE_GAP_PX * px,
     );
     ray.stroke({ color: BASE_COLOR, alpha: BASE_ALPHA, pixelLine: true });
+  }
+
+  /** The stretch of radii the selected scenario body's orbit may be rolled within. */
+  private drawBand(body: SceneBody | undefined): void {
+    const band = this.band.clear();
+    const ring = body?.placement.ring;
+    const range = body?.placement.band;
+    if (!ring || !range) return;
+    band.circle(ring.cx, ring.cy, range.outer).fill({ color: ACCENT_COLOR, alpha: BAND_ALPHA });
+    if (range.inner > 0) band.circle(ring.cx, ring.cy, range.inner).cut();
   }
 
   private stand(tag: RadiusTag, cam: Camera, id: number, sx: number, sy: number): void {

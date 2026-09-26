@@ -210,7 +210,6 @@ describe("the system scene's orbits layer", () => {
     expect(rings.alpha).toBeLessThan(0.2);
     expect(circleRadii(layer.inner)).toEqual([]);
     expect(arcRadii(layer.inner)).toEqual([160]);
-    expect(drawOps(layer.bands)).toEqual([]);
   });
 
   it("strokes an orbit bodies share once, within a pixel, so it shows no brighter than the rest", () => {
@@ -223,7 +222,7 @@ describe("the system scene's orbits layer", () => {
     expect(circleRadii(layer.rings)).toEqual([90, 130]);
   });
 
-  it("fills a ranged orbit's band faintly, and strokes each ring whole whatever angle its bodies may take", () => {
+  it("strokes each ring whole at the radius drawn, whatever its bodies' ranges, with no bands; the selected body's band shows faintly", () => {
     const layer = new OrbitsLayer();
     const banded = scenarioBody(
       2,
@@ -241,12 +240,29 @@ describe("the system scene's orbits layer", () => {
     layer.rebuild(context({ planets: [SCENARIO_STAR, banded, turning, ghost] }));
     viewport(layer, 2);
 
-    const [ring] = drawOps(layer.rings).filter((op) => op.action === "stroke");
-    const fills = drawOps(layer.bands).filter((op) => op.action === "fill");
-    expect(fills.map((op) => op.segments)).toEqual([[[0, 0, 100]]]);
-    expect(fills[0].alpha).toBeLessThan(ring.alpha ?? 1);
-    expect(holeRadii(layer.bands)).toEqual([60]);
     expect(circleRadii(layer.rings)).toEqual([80, 130, 170]);
+    expect(
+      layer.container.children.every((g) =>
+        drawOps(g as Graphics).every((op) => op.action !== "fill"),
+      ),
+    ).toBe(true);
+
+    const bandOf = (selected: number | null) => {
+      const highlight = new HighlightLayer();
+      highlight.rebuild(context({ planets: [SCENARIO_STAR, banded, turning, ghost] }));
+      viewport(highlight, 2);
+      highlight.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: selected });
+      const band = drawOps(highlight.band);
+      const holes = holeRadii(highlight.band);
+      highlight.destroy();
+      return { fills: band.filter((op) => op.action === "fill"), holes };
+    };
+    const { fills, holes } = bandOf(2);
+    expect(fills.map((op) => op.segments)).toEqual([[[0, 0, 100]]]);
+    expect(fills[0].alpha).toBeLessThan(0.2);
+    expect(holes).toEqual([60]);
+    expect(bandOf(null).fills).toEqual([]);
+    expect(bandOf(3).fills).toEqual([]);
   });
 });
 
@@ -542,25 +558,18 @@ describe("the system scene's bodies layer", () => {
     const found = part(holder, label);
     return found instanceof Graphics ? found : undefined;
   };
-  const outline = (holder: Container) => graphics(holder, "outline");
-
-  it("draws a body with no angle as a faded disc with a dashed outline", () => {
+  it("draws a body with no angle as fully as any other, with no outline", () => {
     clearTextures();
-    const ghost = scenarioBody(2, "pc_arid", { orbit: fixed(70) }, 1);
+    const free = scenarioBody(2, "pc_arid", { orbit: fixed(70) }, 1);
     const placed = scenarioBody(3, "pc_arid", { orbit: fixed(90), angle: fixed(90) }, 1);
     const layer = new BodiesLayer(blankTextures());
-    layer.rebuild(scenarioContext([SCENARIO_STAR, ghost, placed]));
+    layer.rebuild(scenarioContext([SCENARIO_STAR, free, placed]));
     viewport(layer, 2);
 
-    const faded = holderAt(layer, 70, 0);
-    for (const sprite of sprites(faded)) expect(sprite.alpha).toBeLessThan(0.6);
-    const dashes = drawOps(outline(faded) ?? new Graphics()).filter((op) => op.action === "stroke");
-    expect(dashes).toHaveLength(1);
-    expect(dashes[0].segments.length).toBeGreaterThan(1);
-
-    const solid = holderAt(layer, 0, 90);
-    for (const sprite of sprites(solid)) expect(sprite.alpha).toBe(1);
-    expect(outline(solid)).toBeUndefined();
+    const [, freeHolder, placedHolder] = layer.container.children as Container[];
+    const alphas = (holder: Container) => sprites(holder).map((drawn) => drawn.alpha);
+    expect(alphas(freeHolder)).toEqual(alphas(placedHolder));
+    expect(part(freeHolder, "outline")).toBeUndefined();
     layer.destroy();
   });
 
@@ -651,25 +660,7 @@ describe("the system scene's bodies layer", () => {
     layer.destroy();
   });
 
-  it("fades a ghost's rim with the body", () => {
-    resetTextures();
-    const ghost = scenarioBody(2, "pc_continental", { orbit: fixed(70) }, 1);
-    const layer = new BodiesLayer(blankTextures());
-    layer.rebuild(
-      systemContext({
-        ...NO_SOURCES,
-        id: SYSTEM,
-        systems: byId(placedNode(SYSTEM, 0, 0)),
-        details: systemDetails({ id: SYSTEM, planets: [SCENARIO_STAR, ghost] }),
-        planetClasses: new Map([["pc_continental", hazy("pc_continental")]]),
-      }),
-    );
-    viewport(layer, 2);
-    expect(graphics(holderAt(layer, 70, 0), "rim")?.alpha).toBeLessThan(0.6);
-    layer.destroy();
-  });
-
-  it("draws a ring's far half behind the disc and its near half in front in the game's ring texture once it lands, baked halves until then, a ring left to chance faded and dashed, and no ring when there is none", async () => {
+  it("draws a ring's far half behind the disc and its near half in front in the game's ring texture once it lands, baked halves until then, a ring left to chance faded, and no ring when there is none", async () => {
     resetTextures();
     const textureFor = decodeByKey();
     const textures = blankTextures();
@@ -731,18 +722,10 @@ describe("the system scene's bodies layer", () => {
       expect(mesh(chance, label).visible).toBe(true);
       expect(mesh(chance, label).alpha).toBeLessThan(0.6);
     }
-    const dashes = strokes(graphics(chance, "ringDashes") ?? new Graphics());
-    expect(dashes).toHaveLength(1);
-    expect(dashes[0].segments.length).toBeGreaterThan(1);
+    expect(part(chance, "ringDashes")).toBeUndefined();
 
     const none = holderAt(layer, -150, 0);
-    for (const label of [
-      "ringBack",
-      "ringFront",
-      "ringBackStrip",
-      "ringFrontStrip",
-      "ringDashes",
-    ]) {
+    for (const label of ["ringBack", "ringFront", "ringBackStrip", "ringFrontStrip"]) {
       expect(part(none, label)).toBeUndefined();
     }
     resetTextures();
@@ -1110,6 +1093,38 @@ describe("the system scene's radius readouts", () => {
     expect(readouts(line.container)).toEqual(["80–120"]);
     line.destroy();
   });
+  it("slides a ring's label round the ring off a body's disc", () => {
+    const planets = [SUN, EARTH, MARS];
+    const labelled = (bodies: PlanetSummary[]) => {
+      const layer = new RadiiLayer();
+      layer.rebuild(systemContext({ ...context({ planets: bodies }), radiiShown: true }));
+      const cam = viewport(layer, 2);
+      const plates = layer.container.children
+        .filter((holder) => holder.visible)
+        .map((holder) => ({
+          text: holder.children.flatMap((c) => (c instanceof BitmapText ? [c.text] : [])),
+          at: cam.worldToScreen(holder.position.x, holder.position.y),
+        }));
+      layer.destroy();
+      return { plates, cam };
+    };
+    const clear = labelled(planets);
+    const earthLabel = clear.plates.find((p) => p.text[0] === "90");
+    if (!earthLabel) throw new Error("no label on Earth's ring");
+    const spot = clear.cam.screenToWorld(earthLabel.at.x + 8, earthLabel.at.y + 6);
+    const moon = saveBody(9, "pc_barren", [spot.x, spot.y], Math.hypot(spot.x, spot.y), 1);
+
+    const moved = labelled([...planets, moon]).plates.find((p) => p.text[0] === "90");
+    expect(moved).toBeDefined();
+    const at = clear.cam.worldToScreen(spot.x, spot.y);
+    const shift = Math.hypot(
+      (moved?.at.x ?? 0) - earthLabel.at.x,
+      (moved?.at.y ?? 0) - earthLabel.at.y,
+    );
+    expect(shift).toBeGreaterThan(0);
+    const corner = moved?.at ?? { x: 0, y: 0 };
+    expect(Math.hypot(corner.x + 8 - at.x, corner.y + 6 - at.y)).toBeGreaterThan(8);
+  });
 });
 
 describe("the system scene's turn wedge", () => {
@@ -1143,6 +1158,18 @@ describe("the system scene's turn wedge", () => {
       angle_step: { min: 0, max: 360 },
       turns_from: 3,
     }),
+    scenarioBody(
+      5,
+      "pc_barren",
+      {
+        orbit: fixed(10),
+        angle: { min: 270, max: 450 },
+        orbit_step: fixed(10),
+        orbit_base: fixed(0),
+        angle_step: { min: 90, max: 270 },
+      },
+      2,
+    ),
   ];
   const wedged = (kind: "save" | "scenario", selected: number | null) => {
     const layer = new HighlightLayer();
@@ -1158,11 +1185,11 @@ describe("the system scene's turn wedge", () => {
     return drawn;
   };
 
-  it("shows two rays, the lit stretch of ring and the turn for a selected scenario body with a step, and nothing without one", () => {
+  it("shows two rays, the lit stretch of ring and the turn for a selected scenario body, the whole ring for one naming no angle, and nothing without a selection", () => {
     expect(wedged("scenario", 2)).toEqual({ rays: [1, 1], arc: 1, labels: ["+90–270°"] });
     expect(wedged("scenario", 4)).toEqual({ rays: [0, 0], arc: 1, labels: ["any angle"] });
+    expect(wedged("scenario", 3)).toEqual({ rays: [0, 0], arc: 1, labels: ["any angle"] });
     const none = { rays: [0, 0], arc: 0, labels: [] };
-    expect(wedged("scenario", 3)).toEqual(none);
     expect(wedged("scenario", null)).toEqual(none);
     expect(wedged("save", 2)).toEqual(none);
   });
@@ -1205,7 +1232,6 @@ describe("the system scene's turn wedge", () => {
       steps: ["+40"],
     });
     expect(measured("scenario", 4, 3).anchorAlpha).toBe(1);
-    expect(measured("scenario", 2)).toMatchObject({ anchor: 1, ray: 1, base: 0, step: 0 });
     const none = {
       anchor: 0,
       anchorColor: undefined,
@@ -1217,5 +1243,12 @@ describe("the system scene's turn wedge", () => {
     };
     expect(measured("scenario", null)).toEqual(none);
     expect(measured("save", 4)).toEqual(none);
+  });
+
+  it("marks no anchor for the first planet after the star or a planet's first moon, and keeps their wedge", () => {
+    for (const id of [2, 5]) {
+      expect(measured("scenario", id)).toMatchObject({ anchor: 0, ray: 0, base: 0, step: 0 });
+      expect(wedged("scenario", id)).toEqual({ rays: [1, 1], arc: 1, labels: ["+90–270°"] });
+    }
   });
 });

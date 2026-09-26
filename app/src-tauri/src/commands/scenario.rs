@@ -97,8 +97,9 @@ pub async fn get_system_scripts<R: Runtime>(
 /// install's definitions when game data is loaded, else by guessing from the keys.
 ///
 /// A scenario holds no details sections: a system's planets, resources, megastructures,
-/// dig sites and starbase are what its initializer defines, so only a system whose
-/// initializer the install knows and that defines any of them gets a record.
+/// dig sites and starbase are what its initializer defines. A system gets a record when the
+/// install defines its initializer, with empty lists if the initializer places nothing. A
+/// system whose initializer is `random`, empty or not defined gets none.
 #[tauri::command]
 pub async fn get_system_details<R: Runtime>(
     app: AppHandle<R>,

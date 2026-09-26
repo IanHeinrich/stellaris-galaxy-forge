@@ -9,39 +9,27 @@ import type { SystemLayer } from "./SystemLayer";
 const ORBIT_COLOR = 0x7f8fa6;
 const ORBIT_ALPHA = 0.14;
 const INNER_ALPHA = 0.3;
-/** A ranged orbit's band, fainter than an orbit. */
-const BAND_ALPHA = 0.05;
 
 /**
- * Each body's orbit as a faint circle about its parent, and the system's border at the inner
- * radius dashed. A scenario body's ranged orbit is a faint band between its two radii. No ring
- * is stroked twice.
+ * Each body's orbit as a faint circle about its parent, a scenario body's at its rolled radius,
+ * and the system's border at the inner radius dashed. No ring is stroked twice.
  */
 export class OrbitsLayer implements SystemLayer {
   readonly id = "orbits" as const;
   readonly container = new Container();
   readonly rings = new Graphics();
   readonly inner = new Graphics();
-  readonly bands = new Graphics();
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
   private drawnScale = -1;
 
   constructor() {
-    this.container.addChild(this.bands, this.inner, this.rings);
+    this.container.addChild(this.inner, this.rings);
   }
 
   rebuild(ctx: SystemContext): void {
     if (ctx.layout === this.ctx.layout) return;
     this.ctx = ctx;
     this.drawnScale = -1;
-    this.bands.clear();
-    for (const { ring, band } of ctx.layout.bodies) {
-      if (!ring || !band) continue;
-      this.bands
-        .circle(ring.cx, ring.cy, band.outer)
-        .fill({ color: ORBIT_COLOR, alpha: BAND_ALPHA });
-      if (band.inner > 0) this.bands.circle(ring.cx, ring.cy, band.inner).cut();
-    }
   }
 
   onViewport(cam: Camera): void {

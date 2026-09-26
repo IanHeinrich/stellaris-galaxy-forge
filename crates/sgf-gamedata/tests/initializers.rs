@@ -634,7 +634,8 @@ fn an_initializer_is_sourced_to_the_mod_that_defines_it_and_vanilla_to_nothing()
     assert_eq!(gd.initializer_source("no_such_init"), None);
 }
 
-/// Angles accumulate from the body before, at each level; a count is its midpoint.
+/// Angles accumulate from the body before, at each level, a planet's moons from 180 degrees; a
+/// count is its midpoint.
 #[test]
 fn a_fixture_systems_layout_is_what_its_initializer_defines() {
     let gd = common::cached_fixture();
@@ -662,11 +663,11 @@ fn a_fixture_systems_layout_is_what_its_initializer_defines() {
                 Some(fixed(90.0)),
                 Some(fixed(16.0))
             ),
-            (Some(id(1)), Some(fixed(8.0)), Some(fixed(30.0)), None),
+            (Some(id(1)), Some(fixed(8.0)), Some(fixed(210.0)), None),
             (
                 Some(id(1)),
                 Some(fixed(10.0)),
-                Some(range(40.0, 80.0)),
+                Some(range(220.0, 260.0)),
                 None
             ),
             (
@@ -717,7 +718,8 @@ fn range(min: f64, max: f64) -> Bounds {
     Bounds { min, max }
 }
 
-/// The game wrote system 217 of the sample from Sol's initializer, turned by one angle.
+/// The game wrote system 217 of the sample from Sol's initializer, its planets turned by one
+/// angle; each planet's moons start from 180 degrees in the save's frame, whatever that turn.
 #[test]
 fn sol_is_laid_out_where_the_game_put_it() {
     let Some(gd) = INSTALL.as_ref() else {
@@ -761,7 +763,11 @@ fn sol_is_laid_out_where_the_game_put_it() {
         let angle = layout.angle.expect("Sol gives every body an angle");
         assert_eq!(angle.min, angle.max, "{}", body.name_key);
         let saved_angle = dy.atan2(dx).to_degrees();
-        let turn = *turn.get_or_insert(saved_angle - angle.min);
+        let turn = if body.parent.is_some() {
+            0.0
+        } else {
+            *turn.get_or_insert(saved_angle - angle.min)
+        };
         let off = (angle.min + turn - saved_angle).rem_euclid(360.0);
         assert!(
             off.min(360.0 - off) < 0.1,
@@ -855,6 +861,11 @@ fn a_scenario_body_steps_out_from_the_running_orbit_and_turns_from_the_body_befo
         .expect("the planet's moon");
     let moon = layout(moon);
     assert_eq!(moon.turns_from, None, "a moon's walk starts afresh");
+    assert_eq!(
+        moon.angle,
+        Some(range(270.0, 450.0)),
+        "the game turns a planet's first moon on from 180°"
+    );
     assert_eq!(moon.orbit_step, Some(fixed(5.0)));
     assert_eq!(moon.orbit_base, Some(fixed(10.0)));
 
@@ -874,27 +885,51 @@ fn a_scenario_body_steps_out_from_the_running_orbit_and_turns_from_the_body_befo
     assert_eq!(broken.angle_step, None, "no orbit_angle");
 }
 
-/// An initializer the install defines answers even when it places nothing, so a system using it
-/// is told apart from one whose initializer is `random`, empty or undefined, whose planets the
-/// game rolls. `voidworms_spawn_system_tiny` places its bodies through an `inline_script`, which
-/// the details do not read.
+/// An initializer the install defines answers even when it places nothing, with every list
+/// empty and nothing left unread, so a system using it is told apart from one whose initializer
+/// is `random`, empty or undefined, whose planets the game rolls. No vanilla initializer places
+/// nothing without an `inline_script`, so this one is the fixture's.
 #[test]
 fn a_defined_initializer_that_places_nothing_answers_with_empty_lists() {
-    let Some(gd) = INSTALL.as_ref() else {
-        return;
-    };
+    let gd = common::cached_fixture();
     let details = gd
-        .initializer_details(4, "voidworms_spawn_system_tiny", None)
+        .initializer_details(4, "empty_init", None)
         .expect("a record for a defined initializer");
     assert_eq!(details.id, 4);
     assert!(details.planets.is_empty());
     assert!(details.sites.is_empty());
     assert!(details.megastructures.is_empty());
     assert!(details.starbase.is_none());
+    assert!(!details.unexpanded_scripts);
     for undefined in ["random", "", "no_such_initializer"] {
         assert!(
             gd.initializer_details(4, undefined, None).is_none(),
             "{undefined:?}"
         );
     }
+}
+
+/// The void worms' systems place their bodies through an `inline_script`, which the details do
+/// not expand: the record says so, and lists none of them.
+#[test]
+fn an_initializer_placing_its_bodies_through_an_inline_script_is_marked() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let worms = gd
+        .initializer_details(4, "voidworms_spawn_system_tiny", None)
+        .expect("a record for a defined initializer");
+    assert!(worms.unexpanded_scripts);
+    assert!(worms.planets.is_empty());
+    let plain = gd
+        .initializer_details(4, "basic_init_05", None)
+        .expect("basic_init_05");
+    assert!(!plain.unexpanded_scripts);
+    let fallen = gd
+        .initializer_details(4, "fallen_1_2", None)
+        .expect("fallen_1_2");
+    assert!(
+        !fallen.unexpanded_scripts,
+        "an inline_script in a body's init_effect places no body"
+    );
 }

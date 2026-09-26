@@ -80,20 +80,35 @@ function Orbits({ details, parent }: { details: SystemDetails; parent: number })
   );
 }
 
+/** Where `anchor` stands in roll `roll` of its system, as the system view draws it. */
+function rolledRadius(details: SystemDetails, anchor: PlanetSummary, roll: number): number {
+  const rolled = rolledRadii(details.planets, rollSeed(details.id, roll)).get(anchor.id);
+  const orbit = anchor.layout?.orbit;
+  return rolled?.radius ?? (orbit ? (orbit.min + orbit.max) / 2 : 0);
+}
+
+/** A scenario body's `has_ring`: stated, or left to its class's chance. */
+function ringText(ring: boolean | null): string {
+  if (ring === null) return "Rolled by the game";
+  return ring ? "Yes" : "No";
+}
+
 /**
  * The body a scenario body's angle turns from, named with its radius in the roll the system view
  * draws, since siblings share a name: opening its page, and brightening it in the view on hover.
  */
-function Anchor({ details, anchor }: { details: SystemDetails; anchor: PlanetSummary }) {
+function Anchor({
+  details,
+  anchor,
+  radius,
+}: {
+  details: SystemDetails;
+  anchor: PlanetSummary;
+  radius: number;
+}) {
   const names = useGameDataStore((s) => s.names);
   const open = useInspectorStore((s) => s.open);
   const setLinkedBody = useSceneStore((s) => s.setLinkedBody);
-  const roll = useSceneStore((s) =>
-    s.scene.kind === "system" && s.scene.id === details.id ? s.roll : 0,
-  );
-  const rolled = rolledRadii(details.planets, rollSeed(details.id, roll)).get(anchor.id);
-  const orbit = anchor.layout?.orbit;
-  const radius = rolled?.radius ?? (orbit ? (orbit.min + orbit.max) / 2 : 0);
   const name = bodyName(anchor, names);
   return (
     <DrillLink
@@ -148,8 +163,13 @@ function BodyOverview({ details, body }: { details: SystemDetails; body: PlanetS
   const layout = body.layout;
   const orbitStep = scenario ? (layout?.orbit_step ?? null) : null;
   const angleStep = scenario ? (layout?.angle_step ?? null) : null;
+  const roll = useSceneStore((s) =>
+    s.scene.kind === "system" && s.scene.id === details.id ? s.roll : 0,
+  );
   const turnsFrom = layout?.turns_from ?? null;
   const anchor = turnsFrom === null ? undefined : details.planets.find((p) => p.id === turnsFrom);
+  // A body at the centre of the walk marks no direction to turn from.
+  const anchorRadius = anchor ? rolledRadius(details, anchor, roll) : 0;
   const size = layout?.size ?? (body.size === null ? null : { min: body.size, max: body.size });
   return (
     <>
@@ -163,16 +183,17 @@ function BodyOverview({ details, body }: { details: SystemDetails; body: PlanetS
             <PlanetSize size={boundsText(size)} />
           </PropertyRow>
         )}
+        {resolved?.star !== true && <PropertyRow label="Ring">{ringText(body.ring)}</PropertyRow>}
         {body.parent !== null && <Orbits details={details} parent={body.parent} />}
         <PropertyRow label="Orbit radius">{boundsText(layout?.orbit ?? null)}</PropertyRow>
         {orbitStep && <PropertyRow label="Orbit step">{stepText(orbitStep)}</PropertyRow>}
         {angleStep && (
           <PropertyRow label="Angle step">
             {turnText(angleStep)}
-            {anchor && (
+            {anchor && anchorRadius > 0 && (
               <>
                 {" from "}
-                <Anchor details={details} anchor={anchor} />
+                <Anchor details={details} anchor={anchor} radius={anchorRadius} />
               </>
             )}
           </PropertyRow>

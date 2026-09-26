@@ -187,7 +187,7 @@ describe("scenario bodies", () => {
     parent: number | null = null,
   ): PlanetSummary => planetSummary({ id, parent, layout: bodyLayout(layout) });
 
-  it("places a body at its orbit and angle about its parent, with bands and ghosts", () => {
+  it("places a body at its orbit and angle about its parent, with bands", () => {
     const layout = systemLayout(
       systemDetails({
         planets: [
@@ -199,7 +199,7 @@ describe("scenario bodies", () => {
         ],
       }),
     );
-    expect(body(layout, 1)).toMatchObject({ x: 0, y: 0, ring: null, ghost: false });
+    expect(body(layout, 1)).toMatchObject({ x: 0, y: 0, ring: null });
     const two = body(layout, 2);
     expect(two.x).toBeCloseTo(0);
     expect(two.y).toBeCloseTo(50);
@@ -212,10 +212,10 @@ describe("scenario bodies", () => {
       ring: { cx: 0, cy: 0, radius: 100 },
       turn: null,
     });
-    expect(body(layout, 5)).toMatchObject({ ghost: true, ring: { radius: 150 } });
+    expect(body(layout, 5)).toMatchObject({ ring: { radius: 150 } });
   });
 
-  it("sits a body with no distance, or a distance of 0, on its parent's point, with no ring and no ghost", () => {
+  it("sits a body with no distance, or a distance of 0, on its parent's point, with no ring", () => {
     const layout = systemLayout(
       systemDetails({
         planets: [
@@ -227,13 +227,12 @@ describe("scenario bodies", () => {
         ],
       }),
     );
-    expect(body(layout, 1)).toMatchObject({ x: 0, y: 0, ring: null, ghost: false });
-    expect(body(layout, 2)).toMatchObject({ x: 0, y: 0, ring: null, ghost: false });
-    expect(body(layout, 4)).toMatchObject({ x: 40, y: 0, ring: null, ghost: false });
+    expect(body(layout, 1)).toMatchObject({ x: 0, y: 0, ring: null });
+    expect(body(layout, 2)).toMatchObject({ x: 0, y: 0, ring: null });
+    expect(body(layout, 4)).toMatchObject({ x: 40, y: 0, ring: null });
     expect(body(layout, 5)).toMatchObject({
       band: { inner: 0, outer: 20 },
       ring: { cx: 40, cy: 0, radius: 10 },
-      ghost: true,
     });
   });
 
@@ -298,25 +297,24 @@ describe("scenario bodies", () => {
     expect(rolled(8).bodies).not.toEqual(rolled(7).bodies);
   });
 
-  it("turns each body on from the rolled angle of the body before it in its walk, and draws each distance within its range", () => {
+  it("turns each body on from the rolled angle of the body before it in its walk, a first moon from 180, and draws each distance within its range", () => {
     for (let seed = 0; seed < 20; seed++) {
       const layout = rolled(seed);
       const [two, moon, four, five] = [2, 3, 4, 5].map((id) => body(layout, id));
-      expect(two.turn).toEqual({ from: 0, step: { min: 90, max: 270 }, anchor: 1 });
+      expect(two.turn).toEqual({ from: 0, step: { min: 90, max: 270 }, anchor: null });
       within(two.angle, { min: 90, max: 270 });
       expect(four.turn?.from).toBeCloseTo(two.angle);
       expect(four.turn?.anchor).toBe(2);
       within(turnedFrom(four.angle, two.angle), { min: 90, max: 270 });
-      expect(moon.turn).toEqual({ from: 0, step: { min: 30, max: 60 }, anchor: null });
-      within(moon.angle, { min: 30, max: 60 });
+      expect(moon.turn).toEqual({ from: 180, step: { min: 30, max: 60 }, anchor: null });
+      within(moon.angle, { min: 210, max: 240 });
       within(two.ring?.radius ?? 0, { min: 40, max: 60 });
       within(four.ring?.radius ?? 0, { min: 70, max: 100 });
       within(five.ring?.radius ?? 0, { min: 110, max: 150 });
       expect(four.radius?.base).toBeCloseTo(two.ring?.radius ?? NaN);
       within((four.ring?.radius ?? 0) - (four.radius?.base ?? 0), { min: 30, max: 40 });
       expect(five.radius?.base).toBeCloseTo(four.ring?.radius ?? NaN);
-      expect(five.turn).toBeNull();
-      expect(five.ghost).toBe(true);
+      expect(five.turn).toEqual({ from: 0, step: { min: 0, max: 360 }, anchor: null });
     }
   });
 

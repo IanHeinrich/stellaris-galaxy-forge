@@ -24,6 +24,8 @@ use crate::scripts::ScenarioOwners;
 /// a save or a scenario writes, so a synthetic id never collides with a real one.
 const PLANET_BASE: u32 = 0x4000_0000;
 const MEGASTRUCTURE_BASE: u32 = 0x5000_0000;
+/// The angle the game turns a planet's first moon on from, in the save's frame.
+const FIRST_MOON_ANGLE: f64 = 180.0;
 /// A scenario starbase's synthetic id: one per system, never a real entity.
 const STARBASE_BASE: u32 = 0x7000_0000;
 const SITE_BASE: u32 = 0x6000_0000;
@@ -112,6 +114,7 @@ impl GameData {
             with_game_data: true,
             belts: init.asteroid_belts.iter().filter_map(belt).collect(),
             inner_radius: None,
+            unexpanded_scripts: init.inline_script,
         })
     }
 
@@ -287,7 +290,11 @@ impl<'p> Walk<'p> for Layouts {
             turns_from,
         });
         let before = self.previous.take();
-        let moons = orbit_walk::walk(&block.moons, Turn::FromPrevious(Bounds::fixed(0.0)), self);
+        let moons = orbit_walk::walk(
+            &block.moons,
+            Turn::FromPrevious(Bounds::fixed(FIRST_MOON_ANGLE)),
+            self,
+        );
         self.previous = before;
         moons
     }

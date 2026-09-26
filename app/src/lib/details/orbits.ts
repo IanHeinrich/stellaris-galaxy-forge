@@ -64,11 +64,17 @@ export interface OrbitRadius {
 
 /** How a scenario body's angle turns on from the body before it in its initializer's walk. */
 export interface Turn {
-  /** Degrees it turns on from: the rolled angle of `anchor`, or 0 for the first body of a walk. */
+  /**
+   * Degrees it turns on from: the rolled angle of the body before it in its walk, or for the first
+   * of a walk 0, and `FIRST_MOON_ANGLE` for a planet's first moon.
+   */
   from: number;
   /** How far on it may turn, in degrees; a turn or more lets it stand anywhere. */
   step: Span;
-  /** The body before it in its walk, which it turns from; null for the first, which turns from 0. */
+  /**
+   * The body before it in its walk, which it turns from; null for the first of a walk, and for one
+   * standing at the centre of the walk, which marks no direction.
+   */
   anchor: number | null;
 }
 
@@ -89,10 +95,11 @@ export interface BodyPlacement {
   /** Screen radians from the body towards the star it orbits, or the centre; null for a star. */
   light: number | null;
   band: Band | null;
-  /** A scenario body's turn from the body before it; null where it names no angle, and in a save. */
+  /**
+   * A scenario body's turn from the body before it, a whole turn for one out on an orbit that names
+   * no angle; null in a save.
+   */
   turn: Turn | null;
-  /** A scenario body with no angle out on an orbit: it may stand anywhere on its ring. */
-  ghost: boolean;
   /** Its distance from what it orbits; null where it has no ring. */
   radius: OrbitRadius | null;
 }
@@ -225,6 +232,9 @@ export interface RolledRadius {
   base: number;
 }
 
+/** The angle the game turns a planet's first moon on from, in the save's frame. */
+export const FIRST_MOON_ANGLE = 180;
+
 /** Draws the radii apart from the angles, so a roll's radii need no discs to be read again. */
 const ANGLE_STREAM = 0x5bd1e995;
 
@@ -263,6 +273,9 @@ interface Rolled {
   turn: Turn | null;
 }
 
+/** The turn of a body that names no angle: the game may place it anywhere on its orbit. */
+const ANY_ANGLE: Span = { min: 0, max: 360 };
+
 /** Past the two discs, how far apart a free body keeps from another about the same parent. */
 const FREE_GAP = 4;
 const FREE_TRIES = 32;
@@ -295,9 +308,12 @@ function rollWalks(
     let angle: number | null = null;
     let turn: Turn | null = null;
     if (step) {
-      const from = anchor === null ? 0 : (rolled.get(anchor)?.angle ?? 0);
+      const before = anchor === null ? undefined : rolled.get(anchor);
+      const first = walk === null ? 0 : FIRST_MOON_ANGLE;
+      const from = anchor === null ? first : (before?.angle ?? 0);
       angle = from + between(rand, step);
-      turn = { from: turned(from), step, anchor };
+      const marks = before !== undefined && before.radius > 0;
+      turn = { from: turned(from), step, anchor: marks ? anchor : null };
     } else if (layout?.angle) {
       angle = mid(layout.angle);
     } else if (radius > 0) {
@@ -314,6 +330,7 @@ function rollWalks(
         if (clear > best.clear) best = { angle: tried, clear };
       }
       angle = best.angle;
+      turn = { from: 0, step: ANY_ANGLE, anchor: null };
     }
     others.push({ at: polar(0, 0, radius, angle ?? 0), disc });
     rolled.set(planet.id, { radius, base: drawn?.base ?? null, angle, turn });
@@ -383,7 +400,6 @@ export function systemLayout(
     let angle: number;
     let band: Band | null = null;
     let turn: Turn | null = null;
-    let ghost = false;
     const roll = rolled.get(planet.id);
     if (layout?.at) {
       point = { x: layout.at[0], y: layout.at[1] };
@@ -401,7 +417,6 @@ export function systemLayout(
         radius = orbit ? mid(orbit) : 0;
         angle = angleRange ? mid(angleRange) : 0;
       }
-      ghost = angleRange === null && radius > 0;
       point = polar(centre.x, centre.y, radius, angle);
     }
 
@@ -418,7 +433,6 @@ export function systemLayout(
       light: null,
       band,
       turn,
-      ghost,
       radius: ring && {
         min: band?.inner ?? radius,
         max: band?.outer ?? radius,

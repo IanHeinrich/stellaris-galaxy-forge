@@ -583,13 +583,29 @@ describe("planets the game rolls", () => {
     expect(known.rolled).toEqual([]);
   });
 
-  it("draws none for an initializer the install defines that places nothing, and some for one it does not define", () => {
+  it("draws the galaxy's star and none for an initializer the install defines that places nothing", () => {
     const empty = rolling({
       missing: false,
       details: systemDetails({ id: SYSTEM, with_game_data: true, planets: [] }),
     });
     expect(empty.rolled).toEqual([]);
-    expect(rolling().rolled.length).toBeGreaterThan(0);
+    expect(empty.bodies).toHaveLength(1);
+    expect(empty.bodies[0].placement.star).toBe(true);
+  });
+
+  it("draws the galaxy's star and some for an initializer placing its bodies through an inline_script", () => {
+    const scripted = rolling({
+      missing: false,
+      details: systemDetails({
+        id: SYSTEM,
+        with_game_data: true,
+        planets: [],
+        unexpanded_scripts: true,
+      }),
+    });
+    expect(scripted.rolled.length).toBeGreaterThan(0);
+    expect(scripted.bodies).toHaveLength(1);
+    expect(scripted.bodies[0].placement.star).toBe(true);
   });
 
   it("never counts them among the bodies, which picking and the labels read", () => {
