@@ -115,8 +115,17 @@ pub fn wormhole_pairs(galaxy: &Galaxy) -> Vec<BypassLink> {
 
 /// Whether `bytes` carry the mod's dialect anywhere, or Forge's header for the mod.
 pub fn is_painted(bytes: &[u8]) -> bool {
+    has_dialect(bytes) || has_header_note(bytes)
+}
+
+/// Whether `bytes` carry the mod's dialect anywhere.
+pub(crate) fn has_dialect(bytes: &[u8]) -> bool {
     memmem::find(bytes, PREFIX.as_bytes()).is_some()
-        || memmem::find(bytes, HEADER_NOTE.as_bytes()).is_some()
+}
+
+/// Whether `bytes` carry the header comment Forge writes on a profile export.
+pub(crate) fn has_header_note(bytes: &[u8]) -> bool {
+    memmem::find(bytes, HEADER_NOTE.as_bytes()).is_some()
 }
 
 /// What the `spawn_weight` block says, when its `add` is the Paint a Galaxy value. The

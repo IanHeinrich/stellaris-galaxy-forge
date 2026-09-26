@@ -6,6 +6,7 @@
 
 use memchr::memchr;
 
+use super::paint;
 use crate::VERSION;
 use crate::document::Document;
 
@@ -19,6 +20,8 @@ const EARLIER: [&str; 2] = [
     "# Written by Stellaris Galaxy Forge",
 ];
 const EARLIER_WRITER: &str = "an earlier Stellaris Galaxy Forge";
+/// Who wrote a file in the mod's dialect with no line: a Paint a Galaxy from before the line.
+const PAINT_WRITER: &str = "Paint a Galaxy";
 const IMPORTED: &str = "imported from txt created by ";
 /// What joins one writer to the one before it.
 const LEVEL: &str = " (imported from txt created by ";
@@ -52,8 +55,9 @@ pub(crate) fn stamp(doc: &Document) -> (usize, Vec<u8>) {
 
 /// The first line of `original` rewritten to name this version of Forge as its latest
 /// writer, as the bytes to drop and the bytes to write in their place; `None` when the
-/// line already names it or neither tool wrote the file. The line is replaced only when
-/// its first `untouched` bytes hold it whole; otherwise the new line goes above it.
+/// line already names it or neither tool wrote the file. A file in Paint a Galaxy's
+/// dialect with no line was written by the mod before it wrote one. The line is replaced
+/// only when its first `untouched` bytes hold it whole; otherwise the new line goes above.
 pub(crate) fn restamp(original: &[u8], untouched: usize) -> Option<(usize, Vec<u8>)> {
     let bom = if original.starts_with(BOM) {
         BOM.len()
@@ -72,6 +76,7 @@ pub(crate) fn restamp(original: &[u8], untouched: usize) -> Option<(usize, Vec<u
         Some(writer) if names_this_version(writer) => return None,
         Some(writer) => writer,
         None if EARLIER.iter().any(|earlier| line.starts_with(earlier)) => EARLIER_WRITER,
+        None if paint::has_dialect(original) && !paint::has_header_note(original) => PAINT_WRITER,
         None => return None,
     };
     let mut head = original[..bom].to_vec();
