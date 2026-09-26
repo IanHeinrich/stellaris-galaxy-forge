@@ -6,8 +6,8 @@ import type { SystemContext } from "../context";
 import type { SystemLayer } from "./SystemLayer";
 
 /** World units of belt circumference per rock, up to the most rocks one belt draws. */
-const ROCK_SPACING = 1.2;
-export const MAX_ROCKS = 400;
+const ROCK_SPACING = 0.6;
+export const MAX_ROCKS = 900;
 /** How far the zoom moves before the rocks are sized again, as a share of the scale. */
 const RESIZE_STEP = 0.02;
 /** A rock's world size is drawn between these, most near the small end, before the screen-pixel floor. */
