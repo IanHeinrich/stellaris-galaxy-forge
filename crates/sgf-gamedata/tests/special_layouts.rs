@@ -1085,6 +1085,37 @@ fn the_real_install_rolls_the_same_bodies_for_a_seed_as_before() {
     }
 }
 
+/// Barnard's Star gives its planets no `orbit_angle`. The game's own, system 614 of the 4.4
+/// sample, has them at angles scattered about the star, so each one is drawn.
+#[test]
+fn planets_with_no_orbit_angle_do_not_line_up() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let mut checked = 0;
+    for seed in 0..20 {
+        let spec = by_name(gd, seed, "Gen", SPOT, "sol_neighbor_t1").unwrap();
+        let lines: Vec<f64> = spec
+            .planets
+            .iter()
+            .map(|p| p.angle.rem_euclid(180.0))
+            .collect();
+        if lines.len() < 3 {
+            continue;
+        }
+        checked += 1;
+        let first = lines[0];
+        assert!(
+            lines.iter().any(|a| {
+                let apart = (a - first).abs();
+                apart.min(180.0 - apart) > 1.0
+            }),
+            "seed {seed}: every planet on one line through the star: {lines:?}"
+        );
+    }
+    assert!(checked > 0);
+}
+
 #[test]
 fn a_special_star_pick_gives_only_a_generic_layout() {
     let Some(gd) = install() else {

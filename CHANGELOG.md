@@ -50,6 +50,8 @@ a release is made.
   writes them with decimals.
 - An added Big Rip system's desert world no longer rolls blockers. The
   game leaves them off that world.
+- Planets of an added system no longer line up in a row when the game
+  leaves their positions to chance.
 
 ## [0.14.1] - 2026-09-25
 

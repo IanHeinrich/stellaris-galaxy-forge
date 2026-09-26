@@ -4,11 +4,11 @@ expression: out
 ---
 NAME_Fx_Haven at 1 2 sc_sun fx_haven capped star_named_by_class flags ["fx_haven", "unique_system"]
 belt rocky_asteroid_belt 50
-pc_sun_star 25 orbit 0 angle 203.96 star
-  pc_husk 11 orbit 70 angle 203.96 deposits ["d_fx_gem"] ring name NAME_Husk entity_name husk_entity modifiers ["fx_mod"]
-    pc_husk 4 orbit 5 angle 0 name NAME_Husk_Moon
-  pc_meadow 15 orbit 80 angle 203.96
-  pc_meadow 12 orbit 90 angle 203.96
-  pc_rock 10 orbit 190 angle 203.96
-    pc_rock 6 orbit 5 angle 0
-  pc_hole 35 orbit 210 angle 203.96 star
+pc_sun_star 25 orbit 0 angle 112.44 star
+  pc_husk 12 orbit 70 angle 102 deposits ["d_fx_gem"] ring name NAME_Husk entity_name husk_entity modifiers ["fx_mod"]
+    pc_husk 6 orbit 5 angle 159.94 name NAME_Husk_Moon
+  pc_meadow 12 orbit 80 angle 57.85
+  pc_meadow 19 orbit 90 angle 343.69
+  pc_rock 20 orbit 190 angle 147.47
+    pc_rock 6 orbit 5 angle 60.13
+  pc_hole 32 orbit 210 angle 32.88 star

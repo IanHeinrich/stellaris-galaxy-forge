@@ -440,11 +440,12 @@ fn roll_star<'g>(
 /// Rolls an initializer's bodies along [`orbit_walk::walk`], drawing each range. The first
 /// star block gives the star, once however many it counts; one written as a class
 /// (`class = pc_m_star`) keeps that class and is named after the system. Approximated
-/// where the engine's code decides: the first body's angle is drawn at random, a moon's
-/// angle is absolute around its planet, a drawn class is any with odds whose
-/// `min/max_distance_from_sun` holds the orbit (a moon's, its planet's orbit, with classes
-/// marked `can_be_moon = no` left out), weighted by `spawn_odds` times the star's factor
-/// for it, and a planet list draws each of its classes alike.
+/// where the engine's code decides: the first body's angle is drawn at random, as is the
+/// turn of a body whose block gives no angle; a moon's angle is absolute around its planet;
+/// a drawn class is any with odds whose `min/max_distance_from_sun` holds the orbit (a
+/// moon's, its planet's orbit, with classes marked `can_be_moon = no` left out), weighted
+/// by `spawn_odds` times the star's factor for it; and a planet list draws each of its
+/// classes alike.
 struct Roller<'g> {
     gd: &'g GameData,
     star_class: &'g StarClass,
@@ -461,10 +462,7 @@ impl<'g> Roller<'g> {
         &mut self,
         blocks: &'g [InitPlanet],
     ) -> Result<(BodySpec, Vec<BodySpec>), GenerateError> {
-        let start = self.rng.between(Range {
-            min: 0.0,
-            max: 360.0,
-        });
+        let start = self.any_angle();
         let mut walk = Planets {
             roller: self,
             star: None,
@@ -645,6 +643,13 @@ impl<'g> Roller<'g> {
     fn angle(&mut self, angle: Range) -> f64 {
         self.rng.between(angle)
     }
+
+    fn any_angle(&mut self) -> f64 {
+        self.rng.between(Range {
+            min: 0.0,
+            max: 360.0,
+        })
+    }
 }
 
 /// The system's own bodies as the roller walks them. The first star block gives the star,
@@ -678,6 +683,10 @@ impl<'g> Walk<'g> for Planets<'_, 'g> {
 
     fn angle(&mut self, angle: Range) -> f64 {
         self.roller.angle(angle)
+    }
+
+    fn no_angle(&mut self) -> f64 {
+        self.roller.any_angle()
     }
 
     fn body(&mut self, block: &'g InitPlanet, placed: Placed<f64>) -> Result<(), GenerateError> {
@@ -723,6 +732,10 @@ impl<'g> Walk<'g> for Moons<'_, 'g> {
 
     fn angle(&mut self, angle: Range) -> f64 {
         self.roller.angle(angle)
+    }
+
+    fn no_angle(&mut self) -> f64 {
+        self.roller.any_angle()
     }
 
     fn body(&mut self, block: &'g InitPlanet, placed: Placed<f64>) -> Result<(), GenerateError> {
