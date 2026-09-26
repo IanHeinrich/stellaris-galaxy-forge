@@ -1,9 +1,7 @@
 import type { ExportResult } from "../../generated/ExportResult";
-import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { bodyName } from "../../lib/details/labels";
-import { systemLayout } from "../../lib/details/orbits";
-import { isStarBody } from "../../lib/details/starBody";
+import { systemLayout, type SystemLayout } from "../../lib/details/orbits";
 import { shortcutLabel } from "../../lib/keys";
 import { nodeName, type Names } from "../../lib/names";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
@@ -11,7 +9,7 @@ import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyVersion, useSystemNames } from "../../store/browserRows";
-import { useDetailsStore } from "../../store/detailsStore";
+import { useDetailsStore, useSystemRoll } from "../../store/detailsStore";
 import { galaxyLaneCount, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
@@ -161,17 +159,15 @@ function Selected() {
   );
 }
 
-/** `Sol III · orbit 45 · angle 212°` for body `id`, or null when the details do not place it. */
+/** `Sol III · orbit 45 · angle 212°` for body `id` where `layout` draws it, or null when it does not place it. */
 function bodyReadout(
   details: SystemDetails,
+  layout: SystemLayout,
   id: number,
   names: Names,
-  isStar: (planetClass: string) => boolean,
-  scenario: boolean,
 ): string | null {
   const planet = details.planets.find((p) => p.id === id);
-  const classOf = (p: PlanetSummary) => ({ planetClass: p.class, star: isStar(p.class) });
-  const placed = systemLayout(details, { classOf, scenario }).bodies.find((b) => b.id === id);
+  const placed = layout.bodies.find((b) => b.id === id);
   if (!planet || !placed) return null;
   const name = bodyName(planet, names);
   if (placed.ring === null) return name;
@@ -197,14 +193,14 @@ function SceneHint({ system }: { system: number }) {
   const top = useInspectorStore((s) => s.stack[s.stack.length - 1]);
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
-  const starClasses = useGameDataStore((s) => s.starClasses);
+  const drawn = useSceneStore((s) => s.roll);
+  const roll = useSystemRoll(system, drawn);
   const sceneHint = useMapChromeStore((s) => s.sceneHint);
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
   if (reading) return <span className="muted">Reading the system…</span>;
   if (sceneHint !== null) return <span className="muted">{sceneHint}</span>;
-  const isStar = (c: string) => isStarBody(c, planetClasses, starClasses);
   const id = top === undefined ? null : bodyOn(top.ref, system);
-  const body = details && id !== null ? bodyReadout(details, id, names, isStar, scenario) : null;
+  const layout = details && systemLayout(details, roll, planetClasses);
+  const body = details && layout && id !== null ? bodyReadout(details, layout, id, names) : null;
   return <span className="muted">{body ?? LEAVE_HINT}</span>;
 }
 

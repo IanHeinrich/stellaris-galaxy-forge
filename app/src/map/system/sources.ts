@@ -1,0 +1,121 @@
+import type { DocumentKind } from "../../generated/DocumentKind";
+import type { NameTemplate } from "../../generated/NameTemplate";
+import type { PlanetClassView } from "../../generated/PlanetClassView";
+import type { StarClassView } from "../../generated/StarClassView";
+import type { SystemDetails } from "../../generated/SystemDetails";
+import type { SystemNode } from "../../generated/SystemNode";
+import type { SystemRoll } from "../../generated/SystemRoll";
+import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
+import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
+import type { SceneLayerId } from "../../lib/visual/layerIds";
+import { shownRoll, useDetailsStore } from "../../store/detailsStore";
+import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useGalaxyStore } from "../../store/galaxyStore";
+import { useGameDataStore } from "../../store/gameDataStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
+import { currentOwnership } from "../../store/ownership";
+import { useSceneStore } from "../../store/sceneStore";
+import type { Systems } from "../RenderContext";
+
+/** What the scene reads from the stores for the one system it shows. */
+export interface SystemSources {
+  readonly id: number | null;
+  readonly systems: Systems;
+  readonly details: SystemDetails | null;
+  readonly names: ReadonlyMap<string, string>;
+  readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
+  readonly starClasses: ReadonlyMap<string, StarClassView>;
+  /** The star class each initializer gives its system, for a scenario system with none of its own. */
+  readonly initializerClasses: ReadonlyMap<string, string>;
+  readonly kind: DocumentKind | null;
+  readonly gameDataReady: boolean;
+  readonly resourceIcons: ReadonlyMap<string, string>;
+  /** Which of the scene's switches are on: names, resources, nebula clouds and orbit radii. */
+  readonly sceneLayers: Readonly<Record<SceneLayerId, boolean>>;
+  /** Where the roll drawn lands the system's bodies, or the planets the game rolls; null until one is in. */
+  readonly roll: SystemRoll | null;
+  /** Who owns what, for the colour a colonised body's plate shows. */
+  readonly ownership: Ownership;
+  readonly nodeName: (name: NameTemplate) => string;
+  readonly templateName: (named: { name: NameTemplate; name_key: string }) => string;
+}
+
+export const NO_SOURCES: SystemSources = Object.freeze({
+  id: null,
+  systems: new Map<number, SystemNode>(),
+  details: null,
+  names: new Map<string, string>(),
+  planetClasses: new Map<string, PlanetClassView>(),
+  starClasses: new Map<string, StarClassView>(),
+  initializerClasses: new Map<string, string>(),
+  kind: null,
+  gameDataReady: false,
+  resourceIcons: new Map<string, string>(),
+  sceneLayers: Object.freeze({ labels: true, details: false, nebulae: false, orbitRadii: false }),
+  roll: null,
+  ownership: NO_OWNERSHIP,
+  nodeName: (name: NameTemplate) => (name.literal ? name.key : stripped(name.key)),
+  templateName: (named: { name_key: string }) => stripped(named.name_key),
+});
+
+type DataField = {
+  [K in keyof SystemSources]: SystemSources[K] extends (...args: never[]) => unknown ? never : K;
+}[keyof SystemSources];
+
+/** Listed as a record so that a source added to the snapshot fails to compile until it is here. */
+const DATA_FIELDS: Record<DataField, true> = {
+  id: true,
+  systems: true,
+  details: true,
+  names: true,
+  planetClasses: true,
+  starClasses: true,
+  initializerClasses: true,
+  kind: true,
+  gameDataReady: true,
+  resourceIcons: true,
+  sceneLayers: true,
+  roll: true,
+  ownership: true,
+};
+
+const SOURCES = Object.keys(DATA_FIELDS) as DataField[];
+
+/** Whether two snapshots were read from the same state, so the layers can be left alone. */
+export function sameSources(a: SystemSources, b: SystemSources): boolean {
+  return SOURCES.every((key) => a[key] === b[key]);
+}
+
+/** The stores' state for system `id`, as the scene reads it, asking for the roll it draws. */
+export function readSystemSources(id: number | null): SystemSources {
+  const galaxy = useGalaxyStore.getState();
+  const data = useGameDataStore.getState();
+  const details = useDetailsStore.getState();
+  const roll = useSceneStore.getState().roll;
+  if (id !== null) details.requestRoll(id, roll);
+  const names = data.names;
+  const ready = data.status === "ready";
+  const resolve = (t: NameTemplate): string | undefined => {
+    const text = names.get(templateKey(t));
+    if (text === undefined) data.requestName(t);
+    return text;
+  };
+  return Object.freeze({
+    id,
+    systems: galaxy.systems,
+    details: id === null ? null : (details.details.get(id) ?? null),
+    names,
+    planetClasses: data.planetClasses,
+    starClasses: data.starClasses,
+    initializerClasses: data.initializerClasses,
+    kind: useFileSessionStore.getState().kind,
+    gameDataReady: ready,
+    resourceIcons: details.resourceIcons,
+    sceneLayers: useMapChromeStore.getState().sceneLayers,
+    roll: shownRoll(details.rolls, id, roll),
+    ownership: currentOwnership(),
+    nodeName: (name: NameTemplate) => nodeNameIn(names, name),
+    templateName: (named: { name: NameTemplate; name_key: string }) =>
+      templateNameIn(names, ready, resolve, named),
+  });
+}

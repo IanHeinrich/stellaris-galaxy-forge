@@ -1,7 +1,8 @@
 import { Sprite, Texture } from "pixi.js";
 import { describe, expect, it } from "vitest";
 import { byId, placedNode, systemDetails } from "../../../test/builders";
-import { NO_SOURCES, systemContext, type SystemContext } from "../context";
+import { systemContext, type SystemContext } from "../context";
+import { NO_SOURCES } from "../sources";
 import { viewport } from "../fixture";
 import { NebulaLayer } from "./NebulaLayer";
 
@@ -11,7 +12,7 @@ const FIELD = new Texture();
 function context(id: number, nebula: number | null, nebulaShown = true): SystemContext {
   return systemContext({
     ...NO_SOURCES,
-    nebulaShown,
+    sceneLayers: { ...NO_SOURCES.sceneLayers, nebulae: nebulaShown },
     id,
     systems: byId({ ...placedNode(id, 0, 0), nebula }),
     details: systemDetails({ id, inner_radius: INNER }),

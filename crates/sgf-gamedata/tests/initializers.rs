@@ -728,8 +728,7 @@ fn an_initializer_is_sourced_to_the_mod_that_defines_it_and_vanilla_to_nothing()
     assert_eq!(gd.initializer_source("no_such_init"), None);
 }
 
-/// Angles accumulate from the body before, at each level, the first from 180 degrees; a count is
-/// its midpoint.
+/// Distances add up from the running orbit, at each level; a count is its midpoint.
 #[test]
 fn a_fixture_systems_layout_is_what_its_initializer_defines() {
     let gd = common::cached_fixture();
@@ -744,47 +743,22 @@ fn a_fixture_systems_layout_is_what_its_initializer_defines() {
             let layout = p.layout.as_ref().expect("every scenario body is laid out");
             assert_eq!(layout.at, None, "a scenario stores no point");
             assert_eq!(p.orbit, None, "a scenario stores no orbit");
-            (p.parent, layout.orbit, layout.angle, layout.size)
+            (p.parent, layout.orbit, layout.size)
         })
         .collect();
     assert_eq!(
         layouts,
         [
-            (None, Some(fixed(0.0)), None, None),
-            (
-                None,
-                Some(range(30.0, 35.0)),
-                Some(fixed(270.0)),
-                Some(fixed(16.0))
-            ),
-            (Some(id(1)), Some(fixed(8.0)), Some(fixed(210.0)), None),
-            (
-                Some(id(1)),
-                Some(fixed(10.0)),
-                Some(range(220.0, 260.0)),
-                None
-            ),
-            (
-                None,
-                Some(range(60.0, 65.0)),
-                Some(range(240.0, 300.0)),
-                None
-            ),
-            (
-                None,
-                Some(range(80.0, 85.0)),
-                Some(range(210.0, 330.0)),
-                None
-            ),
-            (
-                None,
-                Some(range(90.0, 105.0)),
-                Some(range(255.0, 375.0)),
-                None
-            ),
-            (None, Some(range(115.0, 130.0)), None, None),
+            (None, Some(fixed(0.0)), None),
+            (None, Some(range(30.0, 35.0)), Some(fixed(16.0))),
+            (Some(id(1)), Some(fixed(8.0)), None),
+            (Some(id(1)), Some(fixed(10.0)), None),
+            (None, Some(range(60.0, 65.0)), None),
+            (None, Some(range(80.0, 85.0)), None),
+            (None, Some(range(90.0, 105.0)), None),
+            (None, Some(range(115.0, 130.0)), None),
         ],
-        "the star names no angle; change_orbit moves the moons out, and the siblings \
+        "change_orbit moves the moons out, and the siblings \
          after it; a count of one to three spawns two; an undeclared distance lies 10 to \
          20 past the running orbit and moves the bodies after it out as far"
     );
@@ -835,8 +809,9 @@ fn sol_is_laid_out_where_the_game_put_it() {
             .and_then(|p| p.at)
             .expect("a point")
     };
+    let roll = gd.system_roll(217, "sol_system_initializer", "", 0, 1000.0);
     let mut turn = None;
-    for (laid, body) in sol.planets.iter().zip(&saved.planets) {
+    for ((laid, body), rolled) in sol.planets.iter().zip(&saved.planets).zip(&roll.bodies) {
         assert_eq!(laid.name_key, body.name_key);
         let (x, y) = body.at.expect("a point");
         let (cx, cy) = body.parent.map_or((0.0, 0.0), point);
@@ -854,20 +829,18 @@ fn sol_is_laid_out_where_the_game_put_it() {
         if orbit.min == 0.0 {
             continue;
         }
-        let angle = layout.angle.expect("Sol gives every body an angle");
-        assert_eq!(angle.min, angle.max, "{}", body.name_key);
+        let angle = rolled.angle;
         let saved_angle = dy.atan2(dx).to_degrees();
         let turn = if body.parent.is_some() {
             0.0
         } else {
-            *turn.get_or_insert(saved_angle - angle.min)
+            *turn.get_or_insert(saved_angle - angle)
         };
-        let off = (angle.min + turn - saved_angle).rem_euclid(360.0);
+        let off = (angle + turn - saved_angle).rem_euclid(360.0);
         assert!(
             off.min(360.0 - off) < 0.1,
-            "{}: saved at {saved_angle}°, laid out at {}° turned by {turn}°",
+            "{}: saved at {saved_angle}°, rolled at {angle}° turned by {turn}°",
             body.name_key,
-            angle.min
         );
     }
 }
@@ -940,7 +913,6 @@ fn a_scenario_body_steps_out_from_the_running_orbit_and_turns_from_the_body_befo
     let planet = layout(first_planet);
     assert_eq!(planet.orbit, Some(fixed(60.0)));
     assert_eq!(planet.orbit_step, Some(fixed(30.0)));
-    assert_eq!(planet.orbit_base, Some(fixed(30.0)));
     assert_eq!(planet.angle_step, Some(range(90.0, 270.0)));
     assert_eq!(planet.turns_from, Some(ice.id));
 
@@ -948,20 +920,19 @@ fn a_scenario_body_steps_out_from_the_running_orbit_and_turns_from_the_body_befo
     assert_eq!(star.turns_from, None, "the first body turns from 180°");
     assert_eq!(star.orbit_step, Some(fixed(0.0)));
 
-    let moon = details
+    let moon_index = details
         .planets
         .iter()
         .position(|p| p.parent == Some(details.planets[first_planet].id))
         .expect("the planet's moon");
-    let moon = layout(moon);
+    let moon = layout(moon_index);
     assert_eq!(moon.turns_from, None, "a moon's walk starts afresh");
+    let moon_roll = gd.system_roll(9, "basic_init_05", "", 0, 1000.0).bodies[moon_index];
     assert_eq!(
-        moon.angle,
-        Some(range(270.0, 450.0)),
+        moon_roll.from, 180.0,
         "the game turns a planet's first moon on from 180°"
     );
     assert_eq!(moon.orbit_step, Some(fixed(5.0)));
-    assert_eq!(moon.orbit_base, Some(fixed(10.0)));
 
     let broken = gd
         .initializer_details(55, "special_init_01", None)
@@ -975,7 +946,6 @@ fn a_scenario_body_steps_out_from_the_running_orbit_and_turns_from_the_body_befo
         Some(range(10.0, 20.0)),
         "no orbit_distance"
     );
-    assert_eq!(broken.orbit_base, Some(fixed(60.0)));
     assert_eq!(broken.angle_step, None, "no orbit_angle");
 }
 
@@ -1028,8 +998,8 @@ fn an_initializer_placing_its_bodies_through_an_inline_script_is_marked() {
     );
 }
 
-/// Each fixture body's steps as the walk drew them: the running orbit it steps out from, how
-/// far, its turn and the body it turns from, each walk starting afresh.
+/// Each fixture body's steps as the walk drew them: how far it steps out, its turn and the body
+/// it turns from, each walk starting afresh.
 #[test]
 fn a_fixture_systems_bodies_step_and_turn_as_the_walk_drew_them() {
     let gd = common::cached_fixture();
@@ -1042,55 +1012,20 @@ fn a_fixture_systems_bodies_step_and_turn_as_the_walk_drew_them() {
         .iter()
         .map(|p| {
             let layout = p.layout.as_ref().expect("every scenario body is laid out");
-            (
-                layout.orbit_base,
-                layout.orbit_step,
-                layout.angle_step,
-                layout.turns_from,
-            )
+            (layout.orbit_step, layout.angle_step, layout.turns_from)
         })
         .collect();
     assert_eq!(
         steps,
         [
-            (Some(fixed(0.0)), Some(fixed(0.0)), None, None),
-            (
-                Some(fixed(20.0)),
-                Some(range(10.0, 15.0)),
-                Some(fixed(90.0)),
-                Some(id(0))
-            ),
-            (Some(fixed(3.0)), Some(fixed(5.0)), Some(fixed(30.0)), None),
-            (
-                Some(fixed(8.0)),
-                Some(fixed(2.0)),
-                Some(range(10.0, 50.0)),
-                Some(id(2))
-            ),
-            (
-                Some(range(40.0, 45.0)),
-                Some(fixed(20.0)),
-                Some(range(-30.0, 30.0)),
-                Some(id(1))
-            ),
-            (
-                Some(range(60.0, 65.0)),
-                Some(fixed(20.0)),
-                Some(range(-30.0, 30.0)),
-                Some(id(4))
-            ),
-            (
-                Some(range(80.0, 85.0)),
-                Some(range(10.0, 20.0)),
-                Some(fixed(45.0)),
-                Some(id(5))
-            ),
-            (
-                Some(range(90.0, 105.0)),
-                Some(fixed(25.0)),
-                None,
-                Some(id(6))
-            ),
+            (Some(fixed(0.0)), None, None),
+            (Some(range(10.0, 15.0)), Some(fixed(90.0)), Some(id(0))),
+            (Some(fixed(5.0)), Some(fixed(30.0)), None),
+            (Some(fixed(2.0)), Some(range(10.0, 50.0)), Some(id(2))),
+            (Some(fixed(20.0)), Some(range(-30.0, 30.0)), Some(id(1))),
+            (Some(fixed(20.0)), Some(range(-30.0, 30.0)), Some(id(4))),
+            (Some(range(10.0, 20.0)), Some(fixed(45.0)), Some(id(5))),
+            (Some(fixed(25.0)), None, Some(id(6))),
         ],
         "a moon's walk starts afresh; an undeclared distance steps 10 to 20"
     );

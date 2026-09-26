@@ -1,12 +1,9 @@
 import { Container } from "pixi.js";
-import {
-  fitScale,
-  spanText,
-  type BodyPlacement,
-  type Ring,
-  type Span,
-} from "../../../lib/details/orbits";
+import type { Bounds } from "../../../generated/Bounds";
+import { boundsText } from "../../../lib/details/labels";
+import type { BodyPlacement, Ring } from "../../../lib/details/orbits";
 import type { Camera } from "../../Camera";
+import { fitScale } from "../camera";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
 import { drawnDisc, sameRing } from "../geometry";
 import { overlaps, plateScale, type LabelBox } from "./labelSlots";
@@ -26,7 +23,7 @@ interface RingGroup {
   readonly id: number;
   readonly ring: Ring;
   readonly moon: boolean;
-  span: Span;
+  span: Bounds;
 }
 
 /** A body's disc on screen. */
@@ -67,7 +64,7 @@ export class RadiiLayer implements SystemLayer {
   readonly id = "radii" as const;
   readonly container = new Container();
   private bodies = EMPTY_SYSTEM_CONTEXT.bodies;
-  private shown = EMPTY_SYSTEM_CONTEXT.radiiShown;
+  private shown = EMPTY_SYSTEM_CONTEXT.sceneLayers.orbitRadii;
   private fitRadius = EMPTY_SYSTEM_CONTEXT.layout.fitRadius;
   /** The bodies with a ring, in the order the orbits layer merges them. */
   private ringed: BodyPlacement[] = [];
@@ -80,14 +77,16 @@ export class RadiiLayer implements SystemLayer {
   private drawnRev = -1;
 
   rebuild(ctx: SystemContext): void {
-    if (ctx.bodies === this.bodies && ctx.radiiShown === this.shown) return;
+    if (ctx.bodies === this.bodies && ctx.sceneLayers.orbitRadii === this.shown) return;
     this.bodies = ctx.bodies;
-    this.shown = ctx.radiiShown;
+    this.shown = ctx.sceneLayers.orbitRadii;
     this.fitRadius = ctx.layout.fitRadius;
     for (const child of this.container.removeChildren()) child.destroy({ children: true });
     this.tags.clear();
     const drawn = new Set(ctx.bodies.flatMap((b) => (b.readout ? [b.placement.id] : [])));
-    this.ringed = ctx.radiiShown ? ctx.layout.bodies.filter((b) => drawn.has(b.id)) : [];
+    this.ringed = ctx.sceneLayers.orbitRadii
+      ? ctx.layout.bodies.filter((b) => drawn.has(b.id))
+      : [];
     this.moons = new Set(ctx.bodies.flatMap((b) => (b.moon ? [b.placement.id] : [])));
     this.placements = ctx.bodies.map((b) => b.placement);
     this.drawnRev = -1;
@@ -146,7 +145,7 @@ export class RadiiLayer implements SystemLayer {
     for (const { id, ring, moon, span } of this.groups(1 / cam.scale)) {
       const r = ring.radius * cam.scale;
       if (moon && r < MOON_RING_MIN_PX) continue;
-      const tag = this.tagFor(id, spanText(span));
+      const tag = this.tagFor(id, boundsText(span));
       const centre = cam.worldToScreen(ring.cx, ring.cy);
       const at = (a: number) =>
         tagBox(id, tag, centre.x + r * Math.cos(a), centre.y + r * Math.sin(a), k);

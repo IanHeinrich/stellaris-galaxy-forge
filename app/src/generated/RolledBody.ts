@@ -10,7 +10,7 @@ export type RolledBody = { id: number, orbit: number,
  */
 angle: number, 
 /**
- * The running orbit it stepped out from, within its layout's `orbit_base`.
+ * The running orbit it stepped out from.
  */
 base: number, 
 /**

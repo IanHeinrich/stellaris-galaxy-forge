@@ -20,6 +20,7 @@ import { useSceneStore } from "../../store/sceneStore";
 import { armSession, resetStores } from "../../store/storeFixture";
 import {
   OPEN_RESULT,
+  SCENARIO_RESULT,
   exportReport,
   name,
   planetSummary,
@@ -28,6 +29,7 @@ import {
 } from "../../store/fixture";
 import { bodyLayout } from "../../test/builders";
 import { mockedIpc } from "../../test/ipc";
+import { rolledBody, systemRoll } from "../../test/rolls";
 import { openWith } from "../../test/session";
 import { StatusBar } from "./StatusBar";
 
@@ -305,5 +307,53 @@ describe("the system view", () => {
 
     useSceneStore.getState().leaveSystem();
     expect(bar()).toContain("Sol selected");
+  });
+});
+
+describe("the system view of a scenario", () => {
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    resetStores();
+    armSession();
+    await openWith(SCENARIO_RESULT);
+    useSceneStore.getState().enterSystem(0);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reads a body's orbit and angle in the roll the scene draws", async () => {
+    const earth = planetSummary({
+      id: 12,
+      name: name("Earth"),
+      name_key: "Earth",
+      layout: bodyLayout({
+        orbit: { min: 40, max: 60 },
+        orbit_step: { min: 40, max: 60 },
+        size: { min: 16, max: 16 },
+      }),
+    });
+    mockedIpc.getSystemDetails.mockResolvedValue([
+      systemDetails({ id: 0, planets: [earth], with_game_data: true }),
+    ]);
+    mockedIpc.getSystemRoll.mockImplementation(async (system: number, roll: number) =>
+      systemRoll({
+        system,
+        roll,
+        bodies: [rolledBody({ id: 12, orbit: 52 + roll, angle: 30 + roll })],
+      }),
+    );
+    useDetailsStore.getState().request([0]);
+    useDetailsStore.getState().requestRoll(0, 0);
+    await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
+
+    useInspectorStore.getState().open({ ref: { kind: "body", system: 0, id: 12 }, label: "Earth" });
+    expect(bar()).toContain("Earth · orbit 52 · angle 30°");
+
+    useSceneStore.getState().rollAgain();
+    useDetailsStore.getState().requestRoll(0, 1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(bar()).toContain("Earth · orbit 53 · angle 31°");
   });
 });

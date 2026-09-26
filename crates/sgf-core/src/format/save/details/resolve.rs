@@ -175,18 +175,13 @@ pub struct BodyLayout {
     /// one. `None` for a save body with neither an orbit nor a point. A scenario
     /// body with no distance lies 10 to 20 past the running orbit.
     pub orbit: Option<Bounds>,
-    /// Degrees about the parent. `None` in a save, which has `at`, and when an
-    /// initializer names no angle.
-    pub angle: Option<Bounds>,
     /// A save's `coordinate` x/y, system-relative. `None` in a scenario.
     pub at: Option<(f64, f64)>,
     /// `planet_size`: fixed in a save, the initializer's `size` in a scenario.
     pub size: Option<Bounds>,
-    /// How far out from `orbit_base` an initializer steps it: its `orbit_distance`, or 10
-    /// to 20 without one. `None` in a save.
+    /// How far out from the running orbit an initializer steps it: its `orbit_distance`, or
+    /// 10 to 20 without one. `None` in a save.
     pub orbit_step: Option<Bounds>,
-    /// The running orbit it steps out from, `orbit` less `orbit_step` end by end. `None` in a save.
-    pub orbit_base: Option<Bounds>,
     /// Its `orbit_angle`, the turn on from the angle of `turns_from`. `None` in a save, and
     /// when an initializer names no angle.
     pub angle_step: Option<Bounds>,
@@ -316,11 +311,9 @@ fn points(planets: &[RawPlanet]) -> HashMap<u32, (f64, f64)> {
 fn layout(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> BodyLayout {
     BodyLayout {
         orbit: drawn_radius(planet, points).map(Bounds::fixed),
-        angle: None,
         at: planet.at,
         size: planet.size.map(|size| Bounds::fixed(f64::from(size))),
         orbit_step: None,
-        orbit_base: None,
         angle_step: None,
         turns_from: None,
     }

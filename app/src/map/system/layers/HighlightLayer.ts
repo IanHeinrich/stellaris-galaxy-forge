@@ -1,9 +1,11 @@
 import { Container, Graphics } from "pixi.js";
-import { fitScale, polar, stepText, turnText } from "../../../lib/details/orbits";
+import { stepText, turnText } from "../../../lib/details/labels";
+import { polar } from "../../../lib/details/orbits";
 import { ACCENT_COLOR, MATCHED_COLOR } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
 import { dashedCircle, dashedLine } from "../../layers/dashes";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
+import { fitScale } from "../camera";
 import { drawnDisc, exitTriangle, SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
 import { plateScale } from "./labelSlots";
 import { radiusTag, standTag, tagBox, type RadiusTag } from "./radiusTag";

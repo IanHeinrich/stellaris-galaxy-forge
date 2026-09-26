@@ -22,9 +22,11 @@ vi.mock("../../../api/textures", () => ({
 
 import { BitmapText, Container, Graphics, Mesh, Sprite, Texture } from "pixi.js";
 import type { BodyLayout } from "../../../generated/BodyLayout";
+import type { Bounds } from "../../../generated/Bounds";
 import type { PlanetClassView } from "../../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
+import type { SystemRoll } from "../../../generated/SystemRoll";
 import { starGlyph } from "../../../lib/visual/starGlyphs";
 import { ACCENT_COLOR, MATCHED_COLOR } from "../../../lib/visual/style";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
@@ -37,7 +39,9 @@ import {
   starClassView,
   systemDetails,
 } from "../../../test/builders";
-import { NO_SOURCES, systemContext, type SystemContext } from "../context";
+import { systemContext, type SystemContext } from "../context";
+import { NO_SOURCES } from "../sources";
+import { rolledBody, systemRoll } from "../../../test/rolls";
 import { drawOps, strokes, stubTextMeasurement, viewport } from "../fixture";
 import { drawnDisc } from "../geometry";
 import { STAR_ART_BLEND } from "../../layers/StarClusters";
@@ -93,6 +97,7 @@ function resetTextures(): void {
   setTextureDecoder(null);
 }
 
+/** A save body at `at`, a moon where it orbits a body other than the star, body 1. */
 function saveBody(
   id: number,
   planetClass: string,
@@ -105,7 +110,8 @@ function saveBody(
     at,
     size: { min: 16, max: 16 },
   });
-  return planetSummary({ id, class: planetClass, parent, moon: parent !== null, orbit, layout });
+  const moon = parent !== null && parent !== 1;
+  return planetSummary({ id, class: planetClass, parent, moon, orbit, layout });
 }
 
 const SUN = saveBody(1, "pc_g_star", [0, 0], 0);
@@ -115,19 +121,53 @@ const MARS = saveBody(4, "pc_arid", [0, 130], 130, 1);
 
 const fixed = (value: number) => ({ min: value, max: value });
 
+const RADII_SHOWN = { ...NO_SOURCES.sceneLayers, orbitRadii: true };
+
+/** The angle each scenario body names, where the roll `rollOf` gives lands it. */
+const ANGLES = new WeakMap<PlanetSummary, number>();
+
 /** A scenario body: placed by `orbit` and `angle` about its parent, with no point of its own. */
 function scenarioBody(
   id: number,
   planetClass: string,
-  layout: Partial<BodyLayout>,
+  { angle, ...layout }: Omit<Partial<BodyLayout>, "angle"> & { angle?: Bounds },
   parent: number | null = null,
+  over: Partial<PlanetSummary> = {},
 ): PlanetSummary {
-  return planetSummary({
+  const body = planetSummary({
     id,
     class: planetClass,
     parent,
     layout: bodyLayout({ size: fixed(16), ...layout }),
     ring: false,
+    ...over,
+  });
+  if (angle) ANGLES.set(body, angle.min);
+  return body;
+}
+
+/**
+ * The roll the core gives the scenario bodies of `planets`: each mid-orbit, a step out from where
+ * the walk stood, at the angle it names.
+ */
+function rollOf(planets: readonly PlanetSummary[]): SystemRoll | null {
+  const rolled = planets.filter((p) => p.layout !== null && p.layout.at === null);
+  if (rolled.length === 0) return null;
+  const angles = new Map(rolled.map((p) => [p.id, ANGLES.get(p) ?? 0]));
+  return systemRoll({
+    system: SYSTEM,
+    bodies: rolled.map((p) => {
+      const before = p.layout?.turns_from;
+      const mid = (b: Bounds | null | undefined) => (b ? (b.min + b.max) / 2 : 0);
+      const orbit = mid(p.layout?.orbit);
+      return rolledBody({
+        id: p.id,
+        orbit,
+        base: orbit - mid(p.layout?.orbit_step),
+        angle: angles.get(p.id),
+        from: before == null ? 180 : (angles.get(before) ?? 180),
+      });
+    }),
   });
 }
 
@@ -164,6 +204,7 @@ function context(details: Partial<SystemDetails>): SystemContext {
       placedNode(8, -100, 0),
     ),
     details: systemDetails({ id: SYSTEM, inner_radius: 160, ...details }),
+    roll: rollOf(details.planets ?? []),
   });
 }
 
@@ -329,7 +370,10 @@ describe("the system scene's bodies layer", () => {
       ...NO_SOURCES,
       id: SYSTEM,
       systems: byId(placedNode(SYSTEM, 0, 0)),
-      details: systemDetails({ id: SYSTEM, planets: [saveBody(1, planetClass, [0, 0], 0)] }),
+      details: systemDetails({
+        id: SYSTEM,
+        planets: [{ ...saveBody(1, planetClass, [0, 0], 0), star_class: starClass }],
+      }),
       starClasses: new Map([[starClass, starClassView(starClass, planetClass)]]),
     });
 
@@ -500,7 +544,10 @@ describe("the system scene's bodies layer", () => {
       ...NO_SOURCES,
       id: SYSTEM,
       systems: byId(placedNode(SYSTEM, 0, 0)),
-      details: systemDetails({ id: SYSTEM, planets: [saveBody(1, "pc_black_hole", [0, 0], 0)] }),
+      details: systemDetails({
+        id: SYSTEM,
+        planets: [{ ...saveBody(1, "pc_black_hole", [0, 0], 0), star_class: "sc_black_hole" }],
+      }),
       starClasses: new Map([["sc_black_hole", starClassView("sc_black_hole", "pc_black_hole")]]),
     });
     const layer = new BodiesLayer(blankTextures());
@@ -523,6 +570,7 @@ describe("the system scene's bodies layer", () => {
       id: SYSTEM,
       systems: byId(placedNode(SYSTEM, 0, 0)),
       details: systemDetails({ id: SYSTEM, planets }),
+      roll: rollOf(planets),
       planetClasses: new Map([
         ["pc_g_star", planetClassView("pc_g_star")],
         ["pc_arid", { ...planetClassView("pc_arid", false), icon_sprite: "GFX_arid" }],
@@ -579,7 +627,13 @@ describe("the system scene's bodies layer", () => {
     noLitDiscs();
     setTextureDecoder(() => Promise.resolve(new Texture()));
     const known = scenarioBody(2, "pc_arid", { orbit: fixed(60), angle: fixed(0) }, 1);
-    const random = scenarioBody(3, "random_colonizable", { orbit: fixed(90), angle: fixed(90) }, 1);
+    const random = scenarioBody(
+      3,
+      "random_colonizable",
+      { orbit: fixed(90), angle: fixed(90) },
+      1,
+      { drawn: true },
+    );
     const layer = new BodiesLayer(blankTextures());
     layer.rebuild(scenarioContext([SCENARIO_STAR, known, random]));
     viewport(layer, 2);
@@ -878,8 +932,7 @@ describe("the system scene's labels layer", () => {
   const labelled = (layers: { labels: boolean; details: boolean }) =>
     systemContext({
       ...context({ planets: [SUN, MINED] }),
-      labelsShown: layers.labels,
-      detailsShown: layers.details,
+      sceneLayers: { ...NO_SOURCES.sceneLayers, labels: layers.labels, details: layers.details },
     });
 
   const shown = (layer: LabelsLayer) => layer.container.children.filter((h) => h.visible);
@@ -926,7 +979,7 @@ describe("the system scene's labels layer", () => {
     layer.rebuild(
       systemContext({
         ...context({ planets: [SUN, colony] }),
-        labelsShown: true,
+        sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true },
         ownership: {
           owners: new Map(),
           table: new Map([
@@ -1056,7 +1109,7 @@ describe("the system scene's radius readouts", () => {
     viewport(layer, 2);
     expect(readouts(layer.container)).toEqual([]);
 
-    const shown = systemContext({ ...context({ planets }), radiiShown: true });
+    const shown = systemContext({ ...context({ planets }), sceneLayers: RADII_SHOWN });
     layer.rebuild(shown);
     viewport(layer, 2);
     expect(readouts(layer.container)).toEqual(["90", "130"]);
@@ -1079,7 +1132,7 @@ describe("the system scene's radius readouts", () => {
     );
     const ctx = systemContext({
       ...context({ planets: [SCENARIO_STAR, fixedOn, banded] }),
-      radiiShown: true,
+      sceneLayers: RADII_SHOWN,
     });
     const rings = new RadiiLayer();
     rings.rebuild(ctx);
@@ -1096,7 +1149,7 @@ describe("the system scene's radius readouts", () => {
   });
   it("slides a ring's label round the ring off a body standing where the label would go", () => {
     const labelOn = (bodies: PlanetSummary[]) => {
-      const ctx = systemContext({ ...context({ planets: bodies }), radiiShown: true });
+      const ctx = systemContext({ ...context({ planets: bodies }), sceneLayers: RADII_SHOWN });
       const layer = new RadiiLayer();
       layer.rebuild(ctx);
       const cam = viewport(layer, 2);
@@ -1137,7 +1190,9 @@ describe("the system scene's radius readouts", () => {
       return saveBody(10 + i, "pc_barren", [90 * Math.cos(a), 90 * Math.sin(a)], 90, 1);
     });
     const layer = new RadiiLayer();
-    layer.rebuild(systemContext({ ...context({ planets: [SUN, ...crowd] }), radiiShown: true }));
+    layer.rebuild(
+      systemContext({ ...context({ planets: [SUN, ...crowd] }), sceneLayers: RADII_SHOWN }),
+    );
     viewport(layer, 2);
     expect(readouts(layer.container)).toEqual([]);
     layer.destroy();
@@ -1157,21 +1212,18 @@ describe("the system scene's turn wedge", () => {
       orbit: fixed(60),
       angle: { min: 90, max: 270 },
       orbit_step: fixed(60),
-      orbit_base: fixed(0),
       angle_step: { min: 90, max: 270 },
       turns_from: 1,
     }),
     scenarioBody(3, "pc_arid", {
       orbit: fixed(100),
       orbit_step: fixed(40),
-      orbit_base: fixed(60),
       turns_from: 2,
     }),
     scenarioBody(4, "pc_arid", {
       orbit: fixed(140),
       angle: { min: 90, max: 630 },
       orbit_step: fixed(40),
-      orbit_base: fixed(100),
       angle_step: { min: 0, max: 360 },
       turns_from: 3,
     }),
@@ -1182,7 +1234,6 @@ describe("the system scene's turn wedge", () => {
         orbit: fixed(10),
         angle: { min: 270, max: 450 },
         orbit_step: fixed(10),
-        orbit_base: fixed(0),
         angle_step: { min: 90, max: 270 },
       },
       2,
@@ -1190,7 +1241,8 @@ describe("the system scene's turn wedge", () => {
   ];
   const wedged = (kind: "save" | "scenario", selected: number | null) => {
     const layer = new HighlightLayer();
-    layer.rebuild(systemContext({ ...context({ planets: walk }), kind }));
+    const ctx = context({ planets: walk });
+    layer.rebuild(systemContext({ ...ctx, kind, roll: kind === "save" ? null : ctx.roll }));
     viewport(layer, 2);
     layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: selected });
     const drawn = {
@@ -1217,7 +1269,8 @@ describe("the system scene's turn wedge", () => {
     linked = null as number | null,
   ) => {
     const layer = new HighlightLayer();
-    layer.rebuild(systemContext({ ...context({ planets: walk }), kind }));
+    const ctx = context({ planets: walk });
+    layer.rebuild(systemContext({ ...ctx, kind, roll: kind === "save" ? null : ctx.roll }));
     viewport(layer, 2);
     layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: selected, linkedBody: linked });
     const texts = layer.container.children

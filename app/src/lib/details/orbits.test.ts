@@ -1,27 +1,31 @@
 import { describe, expect, it } from "vitest";
 import type { BodyLayout } from "../../generated/BodyLayout";
+import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
-import { bodyLayout, planetSummary, systemDetails } from "../../test/builders";
+import type { SystemDetails } from "../../generated/SystemDetails";
+import type { SystemRoll } from "../../generated/SystemRoll";
+import { bodyLayout, planetClassView, planetSummary, systemDetails } from "../../test/builders";
+import { rolledBody, systemRoll } from "../../test/rolls";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
+import { discRadius } from "./discs";
 import {
   BELT_BAND_WIDTH,
   FALLBACK_INNER_RADIUS,
   FIT_MARGIN,
-  MOON_SCALE,
-  ASTEROID_SCALE,
-  STAR_SCALE,
-  discRadius,
   exitBearing,
-  fitScale,
+  placeholderPlanets,
   polar,
-  rolledRadii,
   systemLayout,
-  zoomLimits,
   type BodyPlacement,
   type SystemLayout,
 } from "./orbits";
 
-/** A save body: at `at`, `orbit` from its parent, of `size`. */
+const NO_CLASSES: ReadonlyMap<string, PlanetClassView> = new Map();
+
+const laid = (details: SystemDetails | null, roll: SystemRoll | null = null) =>
+  systemLayout(details, roll, NO_CLASSES);
+
+/** A save body: at `at`, `orbit` from its parent, of `size`, a moon wherever it has a parent. */
 function saveBody(
   id: number,
   planetClass: string,
@@ -54,7 +58,7 @@ const LUNA_AT = polar(EARTH_AT.x, EARTH_AT.y, 12, 200);
 
 /** Sol (217) of the 4.4 sample: the Sun, Earth (3) at 90 and Luna (4) at 12 about Earth. */
 function sol(): SystemLayout {
-  return systemLayout(
+  return laid(
     systemDetails({
       id: 217,
       planets: [
@@ -85,14 +89,14 @@ describe("systemLayout on a save", () => {
     const luna = body(layout, 4);
     expect([luna.x, luna.y]).toEqual([LUNA_AT.x, LUNA_AT.y]);
     expect(luna.parent).toBe(3);
+    expect(luna.moon).toBe(true);
     expect(luna.ring).toEqual({ cx: EARTH_AT.x, cy: EARTH_AT.y, radius: 12 });
-    expect(luna.disc).toBeCloseTo(discRadius(5, true));
     expect(luna.disc).toBeLessThan(earth.disc);
     expect(earth.disc + luna.disc).toBeLessThan(12);
   });
 
   it("puts Baxom's two stars on one ring of 25 either side of an empty centre", () => {
-    const layout = systemLayout(
+    const layout = laid(
       systemDetails({
         id: 33,
         planets: [
@@ -109,13 +113,13 @@ describe("systemLayout on a save", () => {
   });
 
   it("follows Carmenekke's three levels: a companion star, its planet and the planet's moon", () => {
-    const layout = systemLayout(
+    const layout = laid(
       systemDetails({
         id: 53,
         planets: [
           saveBody(1, "pc_m_star", [0, 0], 0, 30),
           saveBody(4, "pc_barren", [8 + 230, 30], 8, 5, 3),
-          saveBody(3, "pc_arid", [230, 30], 30, 18, 2),
+          { ...saveBody(3, "pc_arid", [230, 30], 30, 18, 2), moon: false },
           saveBody(2, "pc_k_star", [230, 0], 230, 25),
         ],
       }),
@@ -123,12 +127,12 @@ describe("systemLayout on a save", () => {
     expect(body(layout, 2).ring).toEqual({ cx: 0, cy: 0, radius: 230 });
     expect(body(layout, 3).ring).toEqual({ cx: 230, cy: 0, radius: 30 });
     expect(body(layout, 4).ring).toEqual({ cx: 230, cy: 30, radius: 8 });
-    expect(body(layout, 3).disc).toBeCloseTo(discRadius(18, false));
-    expect(body(layout, 4).disc).toBeCloseTo(discRadius(5, true));
+    expect(body(layout, 3).disc).toBeCloseTo(discRadius(18));
+    expect(body(layout, 4).disc).toBeCloseTo(discRadius(5, { moon: true }));
   });
 
   it("keeps the point of a body whose parent is gone and draws no circle for it", () => {
-    const layout = systemLayout(
+    const layout = laid(
       systemDetails({ planets: [saveBody(58, "pc_barren", [100, 20], 10, 6, 57)] }),
     );
     const orphan = body(layout, 58);
@@ -138,10 +142,15 @@ describe("systemLayout on a save", () => {
   });
 
   it("falls back to the centre for a self-parent", () => {
-    const layout = systemLayout(
-      systemDetails({ planets: [saveBody(7, "pc_barren", [0, 40], 40, 6, 7)] }),
-    );
+    const layout = laid(systemDetails({ planets: [saveBody(7, "pc_barren", [0, 40], 40, 6, 7)] }));
     expect(body(layout, 7).ring).toEqual({ cx: 0, cy: 0, radius: 40 });
+  });
+
+  it("gives a save body its radius from what it orbits with no step, and a star at the centre none", () => {
+    const layout = sol();
+    expect(body(layout, 1).radius).toBeNull();
+    expect(body(layout, 3).radius).toEqual({ min: 90, max: 90, step: null, base: null });
+    expect(body(layout, 4).radius).toEqual({ min: 12, max: 12, step: null, base: null });
   });
 });
 
@@ -149,9 +158,7 @@ describe("angles", () => {
   it("measures a body's angle about its parent as polar places it", () => {
     const at = polar(0, 0, 90, 0);
     expect(at).toEqual({ x: 90, y: 0 });
-    const layout = systemLayout(
-      systemDetails({ planets: [saveBody(1, "pc_arid", [at.x, at.y], 90, 10)] }),
-    );
+    const layout = laid(systemDetails({ planets: [saveBody(1, "pc_arid", [at.x, at.y], 90, 10)] }));
     expect(body(layout, 1).angle).toBe(0);
     expect(body(sol(), 3).angle).toBeCloseTo(30);
     expect(body(sol(), 4).angle).toBeCloseTo(200);
@@ -165,7 +172,7 @@ describe("angles", () => {
   });
 
   it("turns a companion star's planet and its moon to the companion", () => {
-    const layout = systemLayout(
+    const layout = laid(
       systemDetails({
         planets: [
           saveBody(1, "pc_m_star", [0, 0], 0, 30),
@@ -181,259 +188,107 @@ describe("angles", () => {
 });
 
 describe("scenario bodies", () => {
+  const fixed = (value: number) => ({ min: value, max: value });
   const scenario = (
     id: number,
     layout: Partial<BodyLayout>,
     parent: number | null = null,
   ): PlanetSummary => planetSummary({ id, parent, layout: bodyLayout(layout) });
 
-  it("places a body at its orbit and angle about its parent, with bands", () => {
-    const layout = systemLayout(
-      systemDetails({
-        planets: [
-          scenario(1, { orbit: null, angle: { min: 0, max: 0 } }),
-          scenario(2, { orbit: { min: 50, max: 50 }, angle: { min: 90, max: 90 } }),
-          scenario(3, { orbit: { min: 10, max: 10 }, angle: { min: 0, max: 0 } }, 2),
-          scenario(4, { orbit: { min: 80, max: 120 }, angle: { min: 90, max: 270 } }),
-          scenario(5, { orbit: { min: 150, max: 150 } }),
-        ],
+  /** A star, a planet with a moon, a planet turning on from it, and a planet naming no angle. */
+  const walk = systemDetails({
+    planets: [
+      scenario(1, { orbit: fixed(0), orbit_step: fixed(0) }),
+      scenario(2, {
+        orbit: { min: 40, max: 60 },
+        orbit_step: { min: 40, max: 60 },
+        angle_step: { min: 90, max: 270 },
+        turns_from: 1,
       }),
-    );
-    expect(body(layout, 1)).toMatchObject({ x: 0, y: 0, ring: null });
+      scenario(3, { orbit: fixed(5), orbit_step: fixed(5), angle_step: { min: 30, max: 60 } }, 2),
+      scenario(4, {
+        orbit: { min: 70, max: 100 },
+        orbit_step: { min: 30, max: 40 },
+        angle_step: { min: 90, max: 270 },
+        turns_from: 2,
+      }),
+      scenario(5, { orbit: { min: 110, max: 150 }, orbit_step: { min: 40, max: 50 } }),
+    ],
+  });
+  /** A roll of the walk as the core answers it. */
+  const roll = systemRoll({
+    bodies: [
+      rolledBody({ id: 1 }),
+      rolledBody({ id: 2, orbit: 50, angle: 90, base: 0, from: 180 }),
+      rolledBody({ id: 3, orbit: 5, angle: 220, base: 0, from: 180 }),
+      rolledBody({ id: 4, orbit: 85, angle: 270, base: 50, from: 90 }),
+      rolledBody({ id: 5, orbit: 130, angle: 10, base: 85, from: 180 }),
+    ],
+  });
+
+  it("places each body where the roll lands it about its parent, with its orbit's band", () => {
+    const layout = laid(walk, roll);
+    expect(body(layout, 1)).toMatchObject({ x: 0, y: 0, ring: null, radius: null });
     const two = body(layout, 2);
-    expect(two.x).toBeCloseTo(0);
-    expect(two.y).toBeCloseTo(50);
-    const three = body(layout, 3);
-    expect(three.x).toBeCloseTo(10);
-    expect(three.y).toBeCloseTo(50);
-    expect(three.ring?.radius).toBe(10);
-    expect(body(layout, 4)).toMatchObject({
-      band: { inner: 80, outer: 120 },
-      ring: { cx: 0, cy: 0, radius: 100 },
-      turn: null,
+    expect([two.x, two.y].map(Math.round)).toEqual([0, 50]);
+    expect(two).toMatchObject({ band: { inner: 40, outer: 60 }, ring: { cx: 0, cy: 0 } });
+    const moon = body(layout, 3);
+    expect(moon.ring).toEqual({ cx: two.x, cy: two.y, radius: 5 });
+    expect(moon.angle).toBe(220);
+    expect(body(layout, 4).ring?.radius).toBe(85);
+  });
+
+  it("turns each body on from the angle the roll turned it from, marking the body before it only where that one stands out from the centre", () => {
+    const layout = laid(walk, roll);
+    expect(body(layout, 2).turn).toEqual({ from: 180, step: { min: 90, max: 270 }, anchor: null });
+    expect(body(layout, 3).turn).toEqual({ from: 180, step: { min: 30, max: 60 }, anchor: null });
+    expect(body(layout, 4).turn).toEqual({ from: 90, step: { min: 90, max: 270 }, anchor: 2 });
+    expect(body(layout, 5).turn).toEqual({ from: 0, step: { min: 0, max: 360 }, anchor: null });
+  });
+
+  it("reads each body's step out and the running orbit the roll stepped it out from", () => {
+    const layout = laid(walk, roll);
+    expect(body(layout, 4).radius).toEqual({
+      min: 70,
+      max: 100,
+      step: { min: 30, max: 40 },
+      base: 50,
     });
-    expect(body(layout, 5)).toMatchObject({ ring: { radius: 150 } });
+    expect(body(layout, 5).radius?.base).toBe(85);
   });
 
-  it("sits a body with no distance, or a distance of 0, on its parent's point, with no ring", () => {
-    const layout = systemLayout(
-      systemDetails({
-        planets: [
-          scenario(1, {}),
-          scenario(2, { orbit: { min: 0, max: 0 } }),
-          scenario(3, { orbit: { min: 40, max: 40 }, angle: { min: 0, max: 0 } }),
-          scenario(4, {}, 3),
-          scenario(5, { orbit: { min: 0, max: 20 } }, 3),
-        ],
-      }),
-    );
-    expect(body(layout, 1)).toMatchObject({ x: 0, y: 0, ring: null });
-    expect(body(layout, 2)).toMatchObject({ x: 0, y: 0, ring: null });
-    expect(body(layout, 4)).toMatchObject({ x: 40, y: 0, ring: null });
-    expect(body(layout, 5)).toMatchObject({
-      band: { inner: 0, outer: 20 },
-      ring: { cx: 40, cy: 0, radius: 10 },
-    });
+  it("stands each body at the middle of its orbit, at angle 0, until its roll is in", () => {
+    const layout = laid(walk);
+    expect(body(layout, 2)).toMatchObject({ x: 50, y: 0, turn: null });
+    expect(body(layout, 2).radius?.step).toBeNull();
   });
 
-  const fixed = (value: number) => ({ min: value, max: value });
-  /**
-   * A walk as the core's details give it, each range added up end to end with the steps it was
-   * added up from: a star, a planet with a moon, a planet turning on from it, and a planet with
-   * no angle.
-   */
-  const walk = [
-    scenario(1, { orbit: fixed(0), orbit_step: fixed(0), orbit_base: fixed(0) }),
-    scenario(2, {
-      orbit: { min: 40, max: 60 },
-      angle: { min: 270, max: 450 },
-      orbit_step: { min: 40, max: 60 },
-      orbit_base: fixed(0),
-      angle_step: { min: 90, max: 270 },
-      turns_from: 1,
-    }),
-    scenario(
-      3,
-      {
-        orbit: fixed(5),
-        angle: { min: 30, max: 60 },
-        orbit_step: fixed(5),
-        orbit_base: fixed(0),
-        angle_step: { min: 30, max: 60 },
-      },
-      2,
-    ),
-    scenario(4, {
-      orbit: { min: 70, max: 100 },
-      angle: { min: 360, max: 720 },
-      orbit_step: { min: 30, max: 40 },
-      orbit_base: { min: 40, max: 60 },
-      angle_step: { min: 90, max: 270 },
-      turns_from: 2,
-    }),
-    scenario(5, {
-      orbit: { min: 110, max: 150 },
-      orbit_step: { min: 40, max: 50 },
-      orbit_base: { min: 70, max: 100 },
-      turns_from: 4,
-    }),
-  ];
-  const rolled = (seed: number) =>
-    systemLayout(systemDetails({ planets: walk }), { scenario: true, seed });
-  const within = (value: number, { min, max }: { min: number; max: number }) => {
-    expect(value).toBeGreaterThanOrEqual(min - 1e-9);
-    expect(value).toBeLessThanOrEqual(max + 1e-9);
-  };
-  const turnedFrom = (to: number, from: number) => (((to - from) % 360) + 360) % 360;
-
-  it("draws the same roll for the same seed, and another for another", () => {
-    expect(rolled(7).bodies).toEqual(rolled(7).bodies);
-    expect(rolled(8).bodies).not.toEqual(rolled(7).bodies);
-  });
-
-  it("turns each body on from the rolled angle of the body before it in its walk, the first of each walk from 180, and draws each distance within its range", () => {
-    for (let seed = 0; seed < 20; seed++) {
-      const layout = rolled(seed);
-      const [two, moon, four, five] = [2, 3, 4, 5].map((id) => body(layout, id));
-      expect(two.turn).toEqual({ from: 180, step: { min: 90, max: 270 }, anchor: null });
-      within(turnedFrom(two.angle, 180), { min: 90, max: 270 });
-      expect(four.turn?.from).toBeCloseTo(two.angle);
-      expect(four.turn?.anchor).toBe(2);
-      within(turnedFrom(four.angle, two.angle), { min: 90, max: 270 });
-      expect(moon.turn).toEqual({ from: 180, step: { min: 30, max: 60 }, anchor: null });
-      within(moon.angle, { min: 210, max: 240 });
-      within(two.ring?.radius ?? 0, { min: 40, max: 60 });
-      within(four.ring?.radius ?? 0, { min: 70, max: 100 });
-      within(five.ring?.radius ?? 0, { min: 110, max: 150 });
-      expect(four.radius?.base).toBeCloseTo(two.ring?.radius ?? NaN);
-      within((four.ring?.radius ?? 0) - (four.radius?.base ?? 0), { min: 30, max: 40 });
-      expect(five.radius?.base).toBeCloseTo(four.ring?.radius ?? NaN);
-      expect(five.turn).toEqual({ from: 0, step: { min: 0, max: 360 }, anchor: null });
-    }
-  });
-
-  it("keeps a body with no angle clear of every other body about the same parent", () => {
-    const crowded = [
-      scenario(1, {
-        orbit: { min: 40, max: 40 },
-        angle: { min: 0, max: 0 },
-        size: { min: 12, max: 12 },
-      }),
-      ...[2, 3, 4, 5].map((id) =>
-        scenario(id, { orbit: { min: 40, max: 40 }, size: { min: 12, max: 12 } }),
-      ),
-    ];
-    for (let seed = 0; seed < 20; seed++) {
-      const { bodies } = systemLayout(systemDetails({ planets: crowded }), {
-        scenario: true,
-        seed,
-      });
-      for (const a of bodies) {
-        for (const b of bodies) {
-          if (a === b) continue;
-          expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(a.disc + b.disc);
-        }
-      }
-    }
-  });
-
-  it("leaves a save's bodies with no point where they were drawn before, at angle 0 on their orbit", () => {
-    const pointless = (id: number) =>
-      planetSummary({
-        id,
-        orbit: 50,
-        layout: bodyLayout({ orbit: { min: 50, max: 50 } }),
-      });
-    const layout = systemLayout(systemDetails({ planets: [pointless(1), pointless(2)] }));
-    for (const id of [1, 2]) {
-      expect(body(layout, id).x).toBeCloseTo(50);
-      expect(body(layout, id).y).toBeCloseTo(0);
-    }
+  it("lays out the same details, roll and classes once, and again for another roll", () => {
+    expect(laid(walk, roll)).toBe(laid(walk, roll));
+    expect(laid(walk, systemRoll({ ...roll, roll: 1 }))).not.toBe(laid(walk, roll));
   });
 
   it("draws a ranged size at the middle of its range", () => {
-    const layout = systemLayout(
-      systemDetails({
-        planets: [
-          scenario(1, {
-            orbit: { min: 50, max: 50 },
-            angle: { min: 0, max: 0 },
-            size: { min: 10, max: 20 },
-          }),
-        ],
-      }),
+    const layout = laid(
+      systemDetails({ planets: [scenario(1, { orbit: fixed(50), size: { min: 10, max: 20 } })] }),
     );
-    expect(body(layout, 1).disc).toBeCloseTo(discRadius(15, false));
+    expect(body(layout, 1).disc).toBeCloseTo(discRadius(15));
   });
 });
 
-describe("orbit radii and steps", () => {
-  const fixed = (value: number) => ({ min: value, max: value });
-  /** A body at `orbit`, stepped `step` out from `base` as the core's walk gives it. */
-  const stepped = (
-    id: number,
-    orbit: { min: number; max: number },
-    step: { min: number; max: number },
-    base: { min: number; max: number },
-    turnsFrom: number | null,
-    parent: number | null = null,
-  ): PlanetSummary =>
-    planetSummary({
-      id,
-      parent,
-      layout: bodyLayout({
-        orbit,
-        angle: fixed(0),
-        orbit_step: step,
-        orbit_base: base,
-        angle_step: fixed(0),
-        turns_from: turnsFrom,
-      }),
-    });
-
-  it("gives a save body its radius from what it orbits with no step, and a star at the centre none", () => {
-    const layout = sol();
-    expect(body(layout, 1).radius).toBeNull();
-    expect(body(layout, 3).radius).toEqual({ min: 90, max: 90, step: null, base: null });
-    expect(body(layout, 4).radius).toEqual({ min: 12, max: 12, step: null, base: null });
-  });
-
-  it("steps a scenario body out from the running orbit the core gives, across a change of orbit", () => {
-    // basic_init_05: the last ice asteroid at 240, then change_orbit = -210 and a planet 30 out.
-    const planets = [
-      stepped(1, fixed(0), fixed(0), fixed(0), null),
-      stepped(2, fixed(240), fixed(0), fixed(240), 1),
-      stepped(3, fixed(60), fixed(30), fixed(30), 2),
-      stepped(4, fixed(15), fixed(5), fixed(10), null, 3),
-    ];
-    const layout = systemLayout(systemDetails({ planets }), { scenario: true });
-    expect(body(layout, 1).radius).toBeNull();
-    expect(body(layout, 3).radius).toEqual({ min: 60, max: 60, step: fixed(30), base: 30 });
-    expect(body(layout, 3).turn?.anchor).toBe(2);
-    expect(body(layout, 4).radius).toEqual({ min: 15, max: 15, step: fixed(5), base: 10 });
-    expect(body(layout, 4).turn?.anchor).toBeNull();
-  });
-
-  it("rolls each ranged step on from where the body before it was rolled, the same for the same seed", () => {
-    const planets = [
-      stepped(1, fixed(0), fixed(0), fixed(0), null),
-      stepped(2, { min: 65, max: 80 }, { min: 65, max: 80 }, fixed(0), 1),
-      stepped(3, { min: 75, max: 100 }, { min: 10, max: 20 }, { min: 65, max: 80 }, 2),
-    ];
-    for (let seed = 0; seed < 20; seed++) {
-      const radii = rolledRadii(planets, seed);
-      const two = radii.get(2)?.radius ?? NaN;
-      const three = radii.get(3);
-      expect(three?.base).toBeCloseTo(two);
-      expect((three?.radius ?? 0) - two).toBeGreaterThanOrEqual(10 - 1e-9);
-      expect((three?.radius ?? 0) - two).toBeLessThanOrEqual(20 + 1e-9);
-      const layout = systemLayout(systemDetails({ planets }), { scenario: true, seed });
-      expect(body(layout, 3).ring?.radius).toBe(three?.radius);
-    }
+describe("disc sizes", () => {
+  it("draws a moon smaller than its planet and a star larger, by class a star drawn as a planet at a planet's size and an asteroid larger", () => {
+    const planet = discRadius(20);
+    expect(discRadius(20, { moon: true })).toBeLessThan(planet);
+    expect(discRadius(20, { star: true })).toBeGreaterThan(planet);
+    const brownDwarf = { ...planetClassView("pc_t_star"), draws_as_planet: true };
+    expect(discRadius(20, { star: true, view: brownDwarf })).toBe(planet);
+    const rock = { ...planetClassView("pc_cutholoid", false), asteroid: true };
+    expect(discRadius(20, { view: rock })).toBeGreaterThan(planet);
   });
 });
 
-describe("belts, fit and zoom", () => {
+describe("belts and fit", () => {
   it("centres each belt's band on its radius", () => {
     expect(sol().belts).toEqual([
       {
@@ -453,13 +308,13 @@ describe("belts, fit and zoom", () => {
 
   it("fits to the inner radius, the outermost belt or the outermost body, whichever reaches furthest", () => {
     expect(sol().fitRadius).toBe(350 + FIT_MARGIN);
-    const noInner = systemLayout(
+    const noInner = laid(
       systemDetails({ belts: [{ kind: "rocky_asteroid_belt", inner_radius: 290 }] }),
     );
     expect(noInner.fitRadius).toBe(
       Math.max(FALLBACK_INNER_RADIUS, 290 + BELT_BAND_WIDTH / 2) + FIT_MARGIN,
     );
-    const far = systemLayout(
+    const far = laid(
       systemDetails({
         planets: [
           saveBody(1, "pc_k_star", [230, 0], 230, 20),
@@ -469,33 +324,21 @@ describe("belts, fit and zoom", () => {
       }),
     );
     expect(far.fitRadius).toBe(230 + 30 + FIT_MARGIN);
-    expect(systemLayout(null).fitRadius).toBe(FALLBACK_INNER_RADIUS + FIT_MARGIN);
+    expect(laid(null).fitRadius).toBe(FALLBACK_INNER_RADIUS + FIT_MARGIN);
   });
+});
 
-  it("zooms out to half the fit and in until the largest disc fills the short side", () => {
-    expect(fitScale(200, 800, 600)).toBe(1.5);
-    expect(zoomLimits(200, 800, 600, 9)).toEqual({ minScale: 0.75, maxScale: 600 / 18 });
-    expect(sol().largestDisc).toBe(discRadius(30, false, "pc_g_star", true));
-  });
-
-  it("draws a star STAR_SCALE times a planet of its size, and a brown dwarf as a planet", () => {
-    expect(discRadius(20, false, "pc_m_star", true)).toBeCloseTo(
-      discRadius(20, false) * STAR_SCALE,
-    );
-    // The game draws a brown dwarf with a planet's model, at a planet's size.
-    expect(discRadius(20, false, "pc_t_star", true)).toBeCloseTo(discRadius(20, false));
-  });
-
-  it("scales a moon's disc by MOON_SCALE", () => {
-    expect(discRadius(10, true)).toBeCloseTo(discRadius(10, false) * MOON_SCALE);
-  });
-
-  it("draws an asteroid larger than its size gives, whatever its asteroid class", () => {
-    expect(discRadius(5, false, "pc_asteroid")).toBeCloseTo(discRadius(5, false) * ASTEROID_SCALE);
-    expect(discRadius(5, false, "pc_ice_asteroid")).toBeCloseTo(
-      discRadius(5, false) * ASTEROID_SCALE,
-    );
-    expect(discRadius(5, false, "pc_barren")).toBe(discRadius(5, false));
+describe("placeholderPlanets", () => {
+  it("draws the planets a roll stands in for the game's on rings about the centre, none without them", () => {
+    const roll = systemRoll({
+      rolls_planets: true,
+      placeholders: [{ class: "pc_barren", size: 10, orbit: 60, angle: 90 }],
+    });
+    const [planet] = placeholderPlanets(roll, NO_CLASSES);
+    expect([Math.round(planet.x), Math.round(planet.y)]).toEqual([0, 60]);
+    expect(planet.ring).toEqual({ cx: 0, cy: 0, radius: 60 });
+    expect(planet.disc).toBe(discRadius(10));
+    expect(placeholderPlanets(null, NO_CLASSES)).toEqual([]);
   });
 });
 

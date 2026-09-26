@@ -807,7 +807,6 @@ fn layout_report(system: &SystemDetails) -> String {
     }
     for p in &system.planets {
         let layout = p.layout.as_ref().expect("a save body's layout");
-        assert_eq!(layout.angle, None, "a save stores no angle");
         let at = layout
             .at
             .map_or("-".to_owned(), |(x, y)| format!("({x}, {y})"));

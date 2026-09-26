@@ -1,5 +1,4 @@
 import { Container, type Renderer } from "pixi.js";
-import { fitScale, zoomLimits } from "../../lib/details/orbits";
 import { laneLabel } from "../../lib/names";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -8,14 +7,9 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import { Camera } from "../Camera";
 import type { Scene } from "../Scene";
 import { bindSystemScene, type SceneView } from "./bindings";
-import {
-  EMPTY_SYSTEM_CONTEXT,
-  readSystemSources,
-  sameSources,
-  selectedBody,
-  systemContext,
-  type SystemContext,
-} from "./context";
+import { fitScale, zoomLimits } from "./camera";
+import { EMPTY_SYSTEM_CONTEXT, selectedBody, systemContext, type SystemContext } from "./context";
+import { readSystemSources, sameSources } from "./sources";
 import { EXIT_REACH_PX } from "./geometry";
 import { pickPlate } from "./picking";
 import { BeltsLayer } from "./layers/BeltsLayer";

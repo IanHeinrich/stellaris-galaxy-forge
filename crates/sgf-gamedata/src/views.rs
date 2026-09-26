@@ -678,7 +678,7 @@ pub struct RolledBody {
     pub orbit: f64,
     /// Degrees in `[0, 360)`.
     pub angle: f64,
-    /// The running orbit it stepped out from, within its layout's `orbit_base`.
+    /// The running orbit it stepped out from.
     pub base: f64,
     /// The angle it turned on from: its layout's `turns_from` body's, or the walk's start.
     /// Degrees in `[0, 360)`.
