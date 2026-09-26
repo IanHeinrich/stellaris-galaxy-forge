@@ -536,7 +536,7 @@ describe("the Special menu and the cards", () => {
 });
 
 describe("the system view's menus", () => {
-  it("opens a save's system from its menu, inspects a body from its own, and leaves from either", async () => {
+  it("opens a save's or a scenario's system from its menu, inspects a body from its own, and leaves from either", async () => {
     const chrome = useMapChromeStore.getState();
     chrome.openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
     expect(menu()).toContain(">Open system view</button>");
@@ -574,6 +574,6 @@ describe("the system view's menus", () => {
 
     await openWith(SCENARIO_RESULT);
     chrome.openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
-    expect(menu()).not.toContain("Open system view");
+    expect(menu()).toContain(">Open system view</button>");
   });
 });

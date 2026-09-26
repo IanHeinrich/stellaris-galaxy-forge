@@ -179,17 +179,18 @@ describe("angles", () => {
 });
 
 describe("scenario bodies", () => {
+  const scenario = (
+    id: number,
+    layout: Partial<BodyLayout>,
+    parent: number | null = null,
+  ): PlanetSummary =>
+    planetSummary({
+      id,
+      parent,
+      layout: { orbit: null, angle: null, at: null, size: null, ...layout },
+    });
+
   it("places a body at its orbit and angle about its parent, with bands, arcs and ghosts", () => {
-    const scenario = (
-      id: number,
-      layout: Partial<BodyLayout>,
-      parent: number | null = null,
-    ): PlanetSummary =>
-      planetSummary({
-        id,
-        parent,
-        layout: { orbit: null, angle: null, at: null, size: null, ...layout },
-      });
     const layout = systemLayout(
       systemDetails({
         planets: [
@@ -215,6 +216,28 @@ describe("scenario bodies", () => {
       ring: { cx: 0, cy: 0, radius: 100 },
     });
     expect(body(layout, 5)).toMatchObject({ ghost: true, ring: { radius: 150 } });
+  });
+
+  it("sits a body with no distance, or a distance of 0, on its parent's point, with no ring and no ghost", () => {
+    const layout = systemLayout(
+      systemDetails({
+        planets: [
+          scenario(1, {}),
+          scenario(2, { orbit: { min: 0, max: 0 } }),
+          scenario(3, { orbit: { min: 40, max: 40 }, angle: { min: 0, max: 0 } }),
+          scenario(4, {}, 3),
+          scenario(5, { orbit: { min: 0, max: 20 } }, 3),
+        ],
+      }),
+    );
+    expect(body(layout, 1)).toMatchObject({ x: 0, y: 0, ring: null, ghost: false });
+    expect(body(layout, 2)).toMatchObject({ x: 0, y: 0, ring: null, ghost: false });
+    expect(body(layout, 4)).toMatchObject({ x: 40, y: 0, ring: null, ghost: false });
+    expect(body(layout, 5)).toMatchObject({
+      band: { inner: 0, outer: 20 },
+      ring: { cx: 40, cy: 0, radius: 10 },
+      ghost: true,
+    });
   });
 });
 

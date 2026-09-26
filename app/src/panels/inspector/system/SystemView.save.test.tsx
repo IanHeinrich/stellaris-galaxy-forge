@@ -394,7 +394,7 @@ describe("a system added this session", () => {
 });
 
 describe("the Planets header's system view button", () => {
-  it("offers the view on a save until it shows this system, and never on a scenario", async () => {
+  it("offers the view on a save or a scenario until it shows this system", async () => {
     await open("save");
     await land(details({ planets: [planet(100, "Tarkin")] }));
     expect(overview()).toContain('<button type="button" class="link">Open system view</button>');
@@ -405,6 +405,6 @@ describe("the Planets header's system view button", () => {
     useSceneStore.getState().leaveSystem();
     await open("scenario");
     await land(details({ planets: [planet(100, "Tarkin")] }));
-    expect(overview()).not.toContain("Open system view");
+    expect(overview()).toContain('<button type="button" class="link">Open system view</button>');
   });
 });

@@ -169,6 +169,11 @@ middle-drag pans, as on the galaxy map. A large save can take a moment
 to read a system, and the status bar says "Reading the system…" until
 the bodies appear.
 
+Systems in a scenario open the same way and show what their initializer
+sets. Where it leaves an orbit or an angle to chance, the view draws the
+range as a band or an arc. A body with no angle set is drawn faded, and
+a random planet class shows a question mark.
+
 The status bar counts the system's bodies and belts. With a body's page
 open in the Inspector, it shows that body's orbit and angle.
 

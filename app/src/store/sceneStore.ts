@@ -31,10 +31,9 @@ export function sceneSystem(): number | null {
   return scene.kind === "system" ? scene.id : null;
 }
 
-/** Whether the enter routes offer a system scene: on an open save only, until scenarios draw one. */
+/** Whether the enter routes offer a system scene: on any open document, save or scenario. */
 export function canEnterSystem(): boolean {
-  const { status, kind } = useFileSessionStore.getState();
-  return status === "ready" && kind === "save";
+  return useFileSessionStore.getState().status === "ready";
 }
 
 export const useSceneStore = create<SceneState>((set, get) => ({

@@ -142,7 +142,7 @@ describe("entering a system", () => {
     expect(editor().selection).toEqual([1]);
   });
 
-  it("Enter with one system selected enters it, and does nothing on two or on a scenario", async () => {
+  it("Enter with one system selected enters it, on a save or a scenario, and does nothing on two", async () => {
     await editor().setSelection([0, 1], "replace");
     expect(key("Enter")).toBe(false);
     expect(scene().scene).toEqual(GALAXY);
@@ -151,10 +151,11 @@ describe("entering a system", () => {
     expect(key("Enter")).toBe(true);
     expect(scene().scene).toEqual(inSystem(2));
 
+    scene().leaveSystem();
     await openFixtureScenario();
     await editor().select(2);
-    expect(key("Enter")).toBe(false);
-    expect(scene().scene).toEqual(GALAXY);
+    expect(key("Enter")).toBe(true);
+    expect(scene().scene).toEqual(inSystem(2));
   });
 
   it("Enter enters with the canvas or the page focused, and leaves a focused button its own", async () => {

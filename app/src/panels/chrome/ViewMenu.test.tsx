@@ -59,7 +59,7 @@ describe("the View menu", () => {
     expect(items()).not.toContain("Hide dock");
   });
 
-  it("opens the one selected system's view on a save, and goes back to the galaxy from it", async () => {
+  it("opens the one selected system's view on a save or a scenario, and goes back to the galaxy from it", async () => {
     resetStores();
     armSession();
     await openWith(OPEN_RESULT);
@@ -79,7 +79,9 @@ describe("the View menu", () => {
 
     await openWith(SCENARIO_RESULT);
     await useEditorStore.getState().select(0);
-    expect(items()).not.toContain("Open system view");
+    expect(html("Open system view")).not.toContain("disabled=");
+    item("Open system view").props.onClick();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: 0 });
   });
 
   it("carries the layers reset, the Layers menu's one command that is not a toggle", () => {

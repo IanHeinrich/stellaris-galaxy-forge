@@ -68,7 +68,7 @@ export interface BodyPlacement {
   light: number | null;
   band: Band | null;
   arc: Arc | null;
-  /** A scenario body with no angle: drawn on its whole ring. */
+  /** A scenario body with no angle out on an orbit: drawn on its whole ring. */
   ghost: boolean;
 }
 
@@ -184,7 +184,7 @@ export function systemLayout(
       if (angleRange && angleRange.min !== angleRange.max) {
         arc = { from: angleRange.min, to: angleRange.max };
       }
-      ghost = angleRange === null;
+      ghost = angleRange === null && radius > 0;
       angle = angleRange ? mid(angleRange) : 0;
       point = polar(centre.x, centre.y, radius, angle);
     }
