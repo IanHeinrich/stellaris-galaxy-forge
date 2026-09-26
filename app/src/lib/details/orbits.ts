@@ -201,6 +201,7 @@ function layOut(
   details: SystemDetails | null,
   roll: SystemRoll | null,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
+  moonScale: number,
 ): SystemLayout {
   const planets = details?.planets ?? [];
   const byId = new Map(planets.map((p) => [p.id, p]));
@@ -251,7 +252,7 @@ function layOut(
       id: planet.id,
       x: point.x,
       y: point.y,
-      disc: discRadius(size, { moon: planet.moon, star, view }),
+      disc: discRadius(size, { moon: planet.moon, star, view, moonScale }),
       star,
       moon: planet.moon,
       parent: parent ? parent.placement.id : null,
@@ -318,6 +319,7 @@ function layOut(
 interface Laid {
   roll: SystemRoll | null;
   planetClasses: ReadonlyMap<string, PlanetClassView>;
+  moonScale: number;
   layout: SystemLayout;
 }
 
@@ -326,19 +328,27 @@ const laid = new WeakMap<object, Laid>();
 
 /**
  * Every body's point, circle and angles, the belts, and the radius the camera fits: a save's bodies
- * where it puts them, a scenario's where `roll` lands them. The same details, roll and classes give
- * the same layout, so the scene and every readout of it read one.
+ * where it puts them, a scenario's where `roll` lands them. The same details, roll, classes and moon
+ * scale give the same layout, so the scene and every readout of it read one.
  */
 export function systemLayout(
   details: SystemDetails | null,
   roll: SystemRoll | null,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
+  moonScale: number,
 ): SystemLayout {
   const key = details ?? NO_DETAILS;
   const known = laid.get(key);
-  if (known && known.roll === roll && known.planetClasses === planetClasses) return known.layout;
-  const layout = layOut(details, roll, planetClasses);
-  laid.set(key, { roll, planetClasses, layout });
+  if (
+    known &&
+    known.roll === roll &&
+    known.planetClasses === planetClasses &&
+    known.moonScale === moonScale
+  ) {
+    return known.layout;
+  }
+  const layout = layOut(details, roll, planetClasses, moonScale);
+  laid.set(key, { roll, planetClasses, moonScale, layout });
   return layout;
 }
 

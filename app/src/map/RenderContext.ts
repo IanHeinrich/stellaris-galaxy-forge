@@ -20,6 +20,7 @@ import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
 import type { CountryTypes } from "../lib/countryKinds";
+import { VANILLA_MOON_SCALE } from "../lib/details/discs";
 import { clanSystemsOf, NO_OWNERSHIP, type OwnerEntry, type Ownership } from "../lib/ownership";
 import { bypassLinks } from "../lib/scenarioBypasses";
 import {
@@ -42,7 +43,11 @@ import { sameFields } from "./follows";
 export type Systems = ReadonlyMap<number, SystemNode>;
 
 /** What the game writes for a vanilla install, used until its `defines` are read. */
-export const VANILLA_BORDER: BorderDefines = { system_radius: 35, hyperlane_thickness: 20 };
+export const VANILLA_BORDER: BorderDefines = {
+  system_radius: 35,
+  hyperlane_thickness: 20,
+  moon_scale: VANILLA_MOON_SCALE,
+};
 
 /**
  * Everything the layers draw, as one frozen snapshot: the open save, the game data read from

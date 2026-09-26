@@ -11,7 +11,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyVersion, useSystemNames } from "../../store/browserRows";
 import { useDetailsStore, useSystemRoll } from "../../store/detailsStore";
 import { galaxyLaneCount, useGalaxyStore } from "../../store/galaxyStore";
-import { useGameDataStore } from "../../store/gameDataStore";
+import { moonScaleOf, useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
@@ -193,13 +193,14 @@ function SceneHint({ system }: { system: number }) {
   const top = useInspectorStore((s) => s.stack[s.stack.length - 1]);
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
+  const moonScale = useGameDataStore(moonScaleOf);
   const drawn = useSceneStore((s) => s.roll);
   const roll = useSystemRoll(system, drawn);
   const sceneHint = useMapChromeStore((s) => s.sceneHint);
   if (reading) return <span className="muted">Reading the system…</span>;
   if (sceneHint !== null) return <span className="muted">{sceneHint}</span>;
   const id = top === undefined ? null : bodyOn(top.ref, system);
-  const layout = details && systemLayout(details, roll, planetClasses);
+  const layout = details && systemLayout(details, roll, planetClasses, moonScale);
   const body = details && layout && id !== null ? bodyReadout(details, layout, id, names) : null;
   return <span className="muted">{body ?? LEAVE_HINT}</span>;
 }

@@ -1,8 +1,8 @@
 /** How large the system view draws each body's disc, in world units. */
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 
-/** The game's moon to planet scale (`MOON_SCALE` in `00_defines.txt`). */
-const MOON_SCALE = 0.7;
+/** The vanilla `NGraphics.MOON_SCALE`, used before game data gives its own. */
+export const VANILLA_MOON_SCALE = 0.7;
 /** World units of disc radius per `planet_size`: Earth (16) is 4.2 at 90 out. */
 const DISC_PER_SIZE = 0.26;
 /** The size a body is drawn at when its layout gives none, as for a class the install lacks. */
@@ -27,11 +27,17 @@ export interface DiscKind {
   star?: boolean;
   /** The body's planet class, which says whether it is an asteroid or a star drawn as a planet. */
   view?: PlanetClassView;
+  /** The install's `NGraphics.MOON_SCALE`; `VANILLA_MOON_SCALE` before game data gives one. */
+  moonScale?: number;
 }
 
 /** A body's disc radius in world units from its `planet_size`. */
-export function discRadius(size: number | null, { moon, star, view }: DiscKind = {}): number {
+export function discRadius(
+  size: number | null,
+  { moon, star, view, moonScale }: DiscKind = {},
+): number {
   const kind = star && !view?.draws_as_planet ? STAR_SCALE : view?.asteroid ? ASTEROID_SCALE : 1;
-  const r = (size ?? FALLBACK_SIZE) * DISC_PER_SIZE * (moon ? MOON_SCALE : 1) * kind;
+  const r =
+    (size ?? FALLBACK_SIZE) * DISC_PER_SIZE * (moon ? (moonScale ?? VANILLA_MOON_SCALE) : 1) * kind;
   return Math.max(r, MIN_DISC_RADIUS);
 }

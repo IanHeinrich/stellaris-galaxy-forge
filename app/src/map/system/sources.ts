@@ -5,13 +5,14 @@ import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { SystemRoll } from "../../generated/SystemRoll";
+import { VANILLA_MOON_SCALE } from "../../lib/details/discs";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import type { SceneLayerId } from "../../lib/visual/layerIds";
 import { shownRoll, useDetailsStore } from "../../store/detailsStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { useGameDataStore } from "../../store/gameDataStore";
+import { moonScaleOf, useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { currentOwnership } from "../../store/ownership";
 import { useSceneStore } from "../../store/sceneStore";
@@ -25,6 +26,8 @@ export interface SystemSources {
   readonly details: SystemDetails | null;
   readonly names: ReadonlyMap<string, string>;
   readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
+  /** The install's `NGraphics.MOON_SCALE`; `VANILLA_MOON_SCALE` before game data gives one. */
+  readonly moonScale: number;
   readonly starClasses: ReadonlyMap<string, StarClassView>;
   /** The star class each initializer gives its system, for a scenario system with none of its own. */
   readonly initializerClasses: ReadonlyMap<string, string>;
@@ -48,6 +51,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   details: null,
   names: new Map<string, string>(),
   planetClasses: new Map<string, PlanetClassView>(),
+  moonScale: VANILLA_MOON_SCALE,
   starClasses: new Map<string, StarClassView>(),
   initializerClasses: new Map<string, string>(),
   kind: null,
@@ -68,6 +72,7 @@ export const sameSources = sameFields<SystemSources>({
   details: true,
   names: true,
   planetClasses: true,
+  moonScale: true,
   starClasses: true,
   initializerClasses: true,
   kind: true,
@@ -98,6 +103,7 @@ export function readSystemSources(id: number | null): SystemSources {
     details: id === null ? null : (details.details.get(id) ?? null),
     names,
     planetClasses: data.planetClasses,
+    moonScale: moonScaleOf(data),
     starClasses: data.starClasses,
     initializerClasses: data.initializerClasses,
     kind: useFileSessionStore.getState().kind,

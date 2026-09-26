@@ -8,7 +8,7 @@ import { bodyLayout, planetClassView, planetSummary, systemDetails } from "../..
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
 import { MIN_INNER_RADIUS } from "../../generated/constants";
-import { discRadius } from "./discs";
+import { discRadius, VANILLA_MOON_SCALE } from "./discs";
 import {
   FIT_MARGIN,
   exitBearing,
@@ -22,7 +22,7 @@ import {
 const NO_CLASSES: ReadonlyMap<string, PlanetClassView> = new Map();
 
 const laid = (details: SystemDetails | null, roll: SystemRoll | null = null) =>
-  systemLayout(details, roll, NO_CLASSES);
+  systemLayout(details, roll, NO_CLASSES, VANILLA_MOON_SCALE);
 
 /** A save body: at `at`, `orbit` from its parent, of `size`, a moon wherever it has a parent. */
 function saveBody(

@@ -260,6 +260,7 @@ fn defines_survive_trailing_comments() {
     let gd = common::cached_fixture();
     assert_eq!(gd.border.system_radius, 40.0);
     assert_eq!(gd.border.hyperlane_thickness, 15.0);
+    assert_eq!(gd.border.moon_scale, 0.65);
 }
 
 #[test]
@@ -505,6 +506,7 @@ fn vanilla_registries() {
 
     assert_eq!(gd.border.system_radius, 35.0);
     assert_eq!(gd.border.hyperlane_thickness, 20.0);
+    assert_eq!(gd.border.moon_scale, 0.7);
 
     assert_eq!(
         gd.sprites.resolve("GFX_planet_type_continental", None),

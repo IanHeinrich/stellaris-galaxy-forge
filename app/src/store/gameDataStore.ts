@@ -21,6 +21,7 @@ import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DepositView } from "../generated/DepositView";
 import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
+import { VANILLA_MOON_SCALE } from "../lib/details/discs";
 import { clearTextures } from "../lib/visual/textures";
 import { useDetailsStore } from "./detailsStore";
 import { useScriptsStore } from "./scriptsStore";
@@ -486,4 +487,9 @@ function rememberInstallPath(path: string): void {
   } catch {
     return;
   }
+}
+
+/** The install's moon scale, or the vanilla one before game data loads. */
+export function moonScaleOf(s: { summary: GameDataSummary | null }): number {
+  return s.summary?.border.moon_scale ?? VANILLA_MOON_SCALE;
 }

@@ -20,9 +20,4 @@ belts: Array<BeltSpec>,
 /**
  * A save's `inner_radius`; `None` in a scenario.
  */
-inner_radius: number | null, 
-/**
- * A scenario's initializer runs an `inline_script` where it places bodies, which is not
- * expanded, so the game spawns bodies `planets` does not list. `false` in a save.
- */
-unexpanded_scripts: boolean, };
+inner_radius: number | null, };

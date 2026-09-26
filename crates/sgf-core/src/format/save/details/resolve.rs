@@ -87,9 +87,6 @@ pub struct SystemDetails {
     pub belts: Vec<BeltSpec>,
     /// A save's `inner_radius`; `None` in a scenario.
     pub inner_radius: Option<f64>,
-    /// A scenario's initializer runs an `inline_script` where it places bodies, which is not
-    /// expanded, so the game spawns bodies `planets` does not list. `false` in a save.
-    pub unexpanded_scripts: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -306,7 +303,6 @@ pub(super) fn resolve(
         with_game_data,
         belts: raw.belts.clone(),
         inner_radius: raw.inner_radius,
-        unexpanded_scripts: false,
     }
 }
 
