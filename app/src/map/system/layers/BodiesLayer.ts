@@ -221,9 +221,9 @@ function takesGloss(planetClass: string): boolean {
  * lit from one side. None for a black hole, a random class or an irregular one.
  */
 function litKey(body: SceneBody): string | null {
-  const { planetClass } = body;
+  const { planetClass, surfaceClass } = body;
   if (blackHole(body) || randomClass(planetClass) || irregular(planetClass)) return null;
-  return body.placement.star ? `star_disc:${planetClass}` : `planet_disc:${planetClass}`;
+  return body.placement.star ? `star_disc:${surfaceClass}` : `planet_disc:${surfaceClass}`;
 }
 
 /** The first of `keys` already in the cache, without asking for any. */

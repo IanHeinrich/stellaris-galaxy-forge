@@ -332,6 +332,30 @@ describe("the system scene's bodies layer", () => {
       starClasses: new Map([[starClass, starClassView(starClass, planetClass)]]),
     });
 
+  it("draws a scenario's bare star as the class its initializer gives the system, surface and beams alike", () => {
+    const ctx = systemContext({
+      ...NO_SOURCES,
+      kind: "scenario",
+      id: SYSTEM,
+      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: "pulsar_init" }),
+      details: systemDetails({
+        id: SYSTEM,
+        planets: [scenarioBody(1, "star", { orbit: fixed(0), angle: fixed(0) })],
+      }),
+      starClasses: new Map([["sc_pulsar", starClassView("sc_pulsar", "pc_pulsar")]]),
+      initializerClasses: new Map([["pulsar_init", "sc_pulsar"]]),
+    });
+    const [star] = ctx.bodies;
+    expect(star.starClass).toBe("sc_pulsar");
+    expect(star.surfaceClass).toBe("pc_pulsar");
+    const layer = new BodiesLayer(blankTextures());
+    layer.rebuild(ctx);
+    viewport(layer, 2);
+    const drawn = layer.container.children[0] as Container;
+    expect(drawn.children.map((c) => c.label)).toContain("beams");
+    layer.destroy();
+  });
+
   it("draws a star as its tinted disc in a soft added glow, then its surface in place of the disc once it lands, its art faint behind and a mild bloom on its limb", async () => {
     resetTextures();
     const textureFor = decodeByKey();

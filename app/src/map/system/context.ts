@@ -1,3 +1,4 @@
+import type { DocumentKind } from "../../generated/DocumentKind";
 import type { NameTemplate } from "../../generated/NameTemplate";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
@@ -11,11 +12,13 @@ import {
   type BodyPlacement,
   type SystemLayout,
 } from "../../lib/details/orbits";
-import { isStarBody, singleStarClasses } from "../../lib/details/starBody";
+import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import { clusterOffsets } from "../../lib/visual/starCluster";
+import { effectiveStarClass } from "../../lib/visual/starGlyphs";
 import { useDetailsStore } from "../../store/detailsStore";
+import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import type { EntityRef } from "../../store/inspectorStore";
@@ -27,6 +30,8 @@ import type { Systems } from "../RenderContext";
 export interface SceneBody {
   readonly placement: BodyPlacement;
   readonly planetClass: string;
+  /** The class its surface is baked from: a star written as the bare `star` takes its star class's. */
+  readonly surfaceClass: string;
   /** Null for a star drawn from the galaxy's record while the system's own is not in. */
   readonly planet: PlanetSummary | null;
   readonly name: string;
@@ -78,6 +83,9 @@ export interface SystemSources {
   readonly names: ReadonlyMap<string, string>;
   readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
   readonly starClasses: ReadonlyMap<string, StarClassView>;
+  /** The star class each initializer gives its system, for a scenario system with none of its own. */
+  readonly initializerClasses: ReadonlyMap<string, string>;
+  readonly kind: DocumentKind | null;
   readonly gameDataReady: boolean;
   readonly resourceIcons: ReadonlyMap<string, string>;
   /** The scene's Details switch is on: each body's resources show under its name. */
@@ -114,6 +122,8 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   names: new Map<string, string>(),
   planetClasses: new Map<string, PlanetClassView>(),
   starClasses: new Map<string, StarClassView>(),
+  initializerClasses: new Map<string, string>(),
+  kind: null,
   gameDataReady: false,
   resourceIcons: new Map<string, string>(),
   detailsShown: false,
@@ -138,6 +148,8 @@ const DATA_FIELDS: Record<DataField, true> = {
   names: true,
   planetClasses: true,
   starClasses: true,
+  initializerClasses: true,
+  kind: true,
   gameDataReady: true,
   resourceIcons: true,
   detailsShown: true,
@@ -164,19 +176,24 @@ function singlesOf(starClasses: ReadonlyMap<string, StarClassView>) {
   return singles;
 }
 
-type BodyArt = Pick<SceneBody, "starClass" | "iconKeys" | "largeIconKeys" | "atmosphere">;
+type BodyArt = Pick<
+  SceneBody,
+  "surfaceClass" | "starClass" | "iconKeys" | "largeIconKeys" | "atmosphere"
+>;
 
-/** A star's art: the single-star class of its body's class, else the system's own class. */
-function starArt(
-  planetClass: string,
-  node: SystemNode | null,
-  starClasses: ReadonlyMap<string, StarClassView>,
-): BodyArt {
-  const own = singlesOf(starClasses).get(planetClass);
-  const starClass = own?.key ?? node?.star_class ?? "";
-  const texture = starClasses.get(starClass)?.texture_key;
-  const iconKeys = texture ? [texture] : [];
-  return { starClass, iconKeys, largeIconKeys: iconKeys, atmosphere: null };
+/**
+ * A star's art: the single-star class of its body's class, else the system's own class, else the
+ * one a scenario system's initializer gives it.
+ */
+function starArt(planetClass: string, node: SystemNode | null, src: SystemSources): BodyArt {
+  const own = singlesOf(src.starClasses).get(planetClass);
+  const initializer = node ? src.initializerClasses.get(node.initializer) : undefined;
+  const starClass = own?.key ?? (node ? effectiveStarClass(node, initializer, src.kind) : "");
+  const view = src.starClasses.get(starClass);
+  const iconKeys = view?.texture_key ? [view.texture_key] : [];
+  const surfaceClass =
+    planetClass === STAR_BODY_CLASS ? (view?.planet_keys[0] ?? planetClass) : planetClass;
+  return { surfaceClass, starClass, iconKeys, largeIconKeys: iconKeys, atmosphere: null };
 }
 
 function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
@@ -197,7 +214,13 @@ function planetArt(
   const view = planetClasses.get(planetClass);
   const small = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
   const large = view?.icon_large_sprite ? [`sprite:${view.icon_large_sprite}`, ...small] : small;
-  return { starClass: null, iconKeys: small, largeIconKeys: large, atmosphere: atmosphereOf(view) };
+  return {
+    surfaceClass: planetClass,
+    starClass: null,
+    iconKeys: small,
+    largeIconKeys: large,
+    atmosphere: atmosphereOf(view),
+  };
 }
 
 /** How far apart the stars of a system still loading stand, in discs of the largest. */
@@ -235,7 +258,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       moon: false,
       colony: null,
       ring: false,
-      ...starArt(star.class, node, src.starClasses),
+      ...starArt(star.class, node, src),
     };
   });
 }
@@ -258,7 +281,7 @@ function sceneBodies(
     if (!planet) return [];
     const parent = placement.parent === null ? undefined : placed.get(placement.parent);
     const art = placement.star
-      ? starArt(planet.class, node, src.starClasses)
+      ? starArt(planet.class, node, src)
       : planetArt(planet.class, src.planetClasses);
     return [
       {
@@ -343,6 +366,8 @@ export function readSystemSources(id: number | null): SystemSources {
     names,
     planetClasses: data.planetClasses,
     starClasses: data.starClasses,
+    initializerClasses: data.initializerClasses,
+    kind: useFileSessionStore.getState().kind,
     gameDataReady: ready,
     resourceIcons: details.resourceIcons,
     detailsShown: chrome.sceneLayers.details,
