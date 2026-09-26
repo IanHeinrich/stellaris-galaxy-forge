@@ -1,7 +1,7 @@
 /**
  * The light the scene draws round its stars, made on the CPU as white texels with premultiplied
- * alpha, to be tinted and added over the dark: a soft glow, a pulsar's beams, a neutron star's
- * jets and a few curling wisps.
+ * alpha, to be tinted and added over the dark: a soft glow, a bloom round the limb, a pulsar's
+ * beams and the haze swirling round it, a neutron star's jets and a few curling wisps.
  */
 
 export const GLOW_SIZE = 128;
@@ -10,13 +10,18 @@ export const BEAM_HEIGHT = 64;
 export const PLUME_WIDTH = 256;
 export const PLUME_HEIGHT = 128;
 export const WISPS_SIZE = 256;
+export const HALO_SIZE = 256;
+export const SWIRL_SIZE = 256;
 
 /**
  * How long the beams and the jets are from end to end, in disc diameters. Each is drawn centred
  * on its star, so the part inside the limb is hidden behind the surface.
  */
 export const BEAM_LENGTH = 4;
-export const PLUME_LENGTH = 4.4;
+export const PLUME_LENGTH = 3;
+/** How wide the limb bloom and the pulsar's haze are drawn, in disc diameters. */
+export const HALO_SCALE = 1.4;
+export const SWIRL_SCALE = 3.2;
 
 /** How fast the glow falls away from its centre, as the exponent at its edge. */
 const GLOW_FALLOFF = 3.4;
@@ -28,10 +33,23 @@ const BEAM_SPREAD = 0.62;
  */
 const PLUME_SPREAD = 0.62;
 const PLUME_TIP = 0.35;
-const PLUME_BODY = 0.7;
+const PLUME_BODY = 0.85;
+/** How steeply a jet fades from the pole out: most of its light is in the blaze at the pole. */
+const PLUME_FADE = 2.6;
 /** The filaments inside a jet: where each sits across it, as a share of its half width. */
 const FILAMENTS = [-0.5, -0.18, 0.08, 0.34, 0.58];
 const FILAMENT_WIDTH = 0.06;
+/**
+ * The limb bloom: how far it reaches inside the limb, lifting the edge towards white, and how
+ * fast it falls away outside, both as shares of the texture's half side.
+ */
+const HALO_INSIDE = 0.05;
+const HALO_OUTSIDE = 0.075;
+/** How far the haze's two arms turn from the limb out, in radians per half side, and how sharp. */
+const SWIRL_TWIST = 4.2;
+const SWIRL_SHARPNESS = 2.5;
+/** How much of the haze lies between its arms. */
+const SWIRL_FLOOR = 0.3;
 
 /**
  * Each wisp is a stretch of spiral about the centre: where it starts and how far round it runs,
@@ -39,12 +57,12 @@ const FILAMENT_WIDTH = 0.06;
  * texture's half side, and its thickness.
  */
 const WISPS: ReadonlyArray<readonly [number, number, number, number, number]> = [
-  [0.2, 1.9, 0.52, 0.22, 0.035],
-  [2.3, 1.5, 0.48, 0.3, 0.03],
-  [3.6, 2.1, 0.55, 0.2, 0.04],
-  [5.3, 1.2, 0.5, 0.26, 0.025],
-  [1.2, 1.0, 0.7, 0.18, 0.02],
-  [4.4, 1.1, 0.72, 0.16, 0.02],
+  [0.2, 1.9, 0.52, 0.22, 0.016],
+  [2.3, 1.5, 0.48, 0.3, 0.014],
+  [3.6, 2.1, 0.55, 0.2, 0.018],
+  [5.3, 1.2, 0.5, 0.26, 0.012],
+  [1.2, 1.0, 0.7, 0.18, 0.01],
+  [4.4, 1.1, 0.72, 0.16, 0.01],
 ];
 
 function smoothstep(from: number, to: number, x: number): number {
@@ -117,8 +135,34 @@ export function plumeTexels(): Uint8Array {
       filaments += flicker * across(y - centre, FILAMENT_WIDTH * (1 - 0.5 * s));
     }
     const body = PLUME_BODY * across(y, half);
-    const fade = (1 - s) ** 1.6 * (1 - smoothstep(0.85, 1, s));
+    const fade = (1 - s) ** PLUME_FADE * (1 - smoothstep(0.85, 1, s));
     return fade * (body + (1 - PLUME_BODY) * filaments * across(y, 1.3 * half));
+  });
+}
+
+/**
+ * Light bleeding past a disc's limb, as the game's bloom spreads it: brightest on the limb, a
+ * little way in over the edge, and falling away fast outside.
+ */
+export function haloTexels(): Uint8Array {
+  const limb = 1 / HALO_SCALE;
+  return field(HALO_SIZE, HALO_SIZE, (x, y) => {
+    const r = Math.hypot(x, y);
+    if (r < limb) return Math.exp(-(((limb - r) / HALO_INSIDE) ** 2));
+    return Math.exp(-(r - limb) / HALO_OUTSIDE) * (1 - smoothstep(0.8, 1, r));
+  });
+}
+
+/** Two soft spiral arms of haze, rising from the limb and fading out well beyond it. */
+export function swirlTexels(): Uint8Array {
+  const limb = 1 / SWIRL_SCALE;
+  return field(SWIRL_SIZE, SWIRL_SIZE, (x, y) => {
+    const r = Math.hypot(x, y);
+    const turn = Math.atan2(y, x) - SWIRL_TWIST * r;
+    const arms = (0.5 + 0.5 * Math.cos(2 * turn)) ** SWIRL_SHARPNESS;
+    const rise = smoothstep(limb * 0.8, limb + 0.12, r);
+    const fall = 1 - smoothstep(0.45, 1, r);
+    return rise * fall * (SWIRL_FLOOR + (1 - SWIRL_FLOOR) * arms);
   });
 }
 

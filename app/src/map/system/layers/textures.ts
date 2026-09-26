@@ -5,12 +5,16 @@ import {
   GLOW_SIZE,
   BEAM_HEIGHT,
   BEAM_WIDTH,
+  HALO_SIZE,
   PLUME_HEIGHT,
   PLUME_WIDTH,
+  SWIRL_SIZE,
   WISPS_SIZE,
   glowTexels,
   beamTexels,
+  haloTexels,
   plumeTexels,
+  swirlTexels,
   wispTexels,
 } from "./starLight";
 
@@ -28,6 +32,10 @@ export interface SceneTextures {
   plume: Texture;
   /** Faint curling strands round an empty middle, about a neutron star. */
   wisps: Texture;
+  /** Light bleeding past a star's limb, brightest on it. */
+  halo: Texture;
+  /** Two soft spiral arms of haze round a pulsar. */
+  swirl: Texture;
   /** The sphere shading, lit from +x, multiplied over a disc. */
   shade: Texture;
   /** The same shading with a specular dot near the lit edge. */
@@ -75,6 +83,8 @@ let nebulaTexels: Uint8Array | null = null;
 let coronaTexels: Uint8Array | null = null;
 let beamField: Uint8Array | null = null;
 let plumeField: Uint8Array | null = null;
+let haloField: Uint8Array | null = null;
+let swirlField: Uint8Array | null = null;
 let wispField: Uint8Array | null = null;
 
 function grey(v: number): number {
@@ -185,6 +195,8 @@ export function bakeSceneTextures(renderer: Renderer): SceneTextures {
     beam: texelTexture((beamField ??= beamTexels()), BEAM_WIDTH, BEAM_HEIGHT),
     plume: texelTexture((plumeField ??= plumeTexels()), PLUME_WIDTH, PLUME_HEIGHT),
     wisps: texelTexture((wispField ??= wispTexels()), WISPS_SIZE, WISPS_SIZE),
+    halo: texelTexture((haloField ??= haloTexels()), HALO_SIZE, HALO_SIZE),
+    swirl: texelTexture((swirlField ??= swirlTexels()), SWIRL_SIZE, SWIRL_SIZE),
     shade: bake(renderer, (g) => drawShade(g, false)),
     gloss: bake(renderer, (g) => drawShade(g, true)),
     rock: bake(renderer, drawRock),
@@ -196,14 +208,16 @@ export function bakeSceneTextures(renderer: Renderer): SceneTextures {
 
 /** Destroys the textures `bakeSceneTextures` made and lets go of the shared glow. */
 export function releaseSceneTextures(renderer: Renderer, textures: SceneTextures): void {
-  const { disc, corona, beam, plume, wisps, shade, gloss, rock, ringBack, ringFront, nebula } =
-    textures;
+  const { disc, corona, beam, plume, wisps, halo, swirl, shade, gloss, rock } = textures;
+  const { ringBack, ringFront, nebula } = textures;
   for (const texture of [
     disc,
     corona,
     beam,
     plume,
     wisps,
+    halo,
+    swirl,
     shade,
     gloss,
     rock,

@@ -25,7 +25,7 @@ import {
 import { drawnDisc } from "../geometry";
 import { ICY_TINT } from "./BeltsLayer";
 import type { SystemLayer } from "./SystemLayer";
-import { BEAM_LENGTH, PLUME_LENGTH } from "./starLight";
+import { BEAM_LENGTH, HALO_SCALE, PLUME_LENGTH, SWIRL_SCALE } from "./starLight";
 import type { SceneTextures } from "./textures";
 
 /** The glow added round a star, in disc diameters, and how strongly. */
@@ -33,14 +33,29 @@ const GLOW_SCALE = 2.4;
 const GLOW_ALPHA = 0.55;
 /**
  * A star's galaxy art behind its surface, in disc diameters, and how strongly it shows: faint,
- * so its spikes barely show past the limb. A pulsar's shows strongly, as the swirl of haze and
- * the beams about it, and a neutron star's shell sits close about the body.
+ * so its spikes barely show past the limb. A neutron star's shell sits close about the body.
  */
 const STAR_ART: Record<StarFlare | "star", { scale: number; alpha: number }> = {
   star: { scale: 2.6, alpha: 0.18 },
-  pulsar: { scale: 2.8, alpha: 0.9 },
-  neutron: { scale: 1.5, alpha: 0.35 },
+  pulsar: { scale: 2.8, alpha: 0.35 },
+  neutron: { scale: 1.5, alpha: 0.15 },
 };
+/**
+ * The game's bloom bleeds a star's light past its limb. A bloom hugging the limb stands in for
+ * it: mild and in the class's colour round an ordinary star, strong and near white round a
+ * pulsar or a neutron star, where it joins the beams to the body.
+ */
+const HALO: FlareShape = { length: HALO_SCALE, thickness: HALO_SCALE, rotation: 0 };
+const STAR_HALO_ALPHA = 0.35;
+const EXOTIC_HALO_TINT = 0xe6f1ff;
+const EXOTIC_HALO_ALPHA = 0.8;
+/**
+ * The game glazes a pulsar's and a neutron star's surface with thousands of pale blue particles;
+ * a wash of pale blue added over the disc stands in for them.
+ */
+const WASH: FlareShape = { length: 1, thickness: 1, rotation: 0 };
+const WASH_TINT = 0xb4d0ff;
+const WASH_ALPHA = 0.55;
 /**
  * The light a pulsar or a neutron star throws off its poles: its length and thickness in disc
  * diameters, and its turn on screen. The beams and jets pass behind the star, so none of them
@@ -50,15 +65,26 @@ const STAR_ART: Record<StarFlare | "star", { scale: number; alpha: number }> = {
  */
 const PULSAR_TURN = 1.07;
 const PULSAR_BEAMS: FlareShape = { length: BEAM_LENGTH, thickness: 0.5, rotation: PULSAR_TURN };
-const PULSAR_BLOOM = 0.5;
+const PULSAR_BLOOM = 0.95;
+/** The pale haze swirling round a pulsar, reaching well past the limb. */
+const PULSAR_SWIRL: FlareShape = { length: SWIRL_SCALE, thickness: SWIRL_SCALE, rotation: 0 };
+const SWIRL_TINT = 0xcfe2ff;
+const SWIRL_ALPHA = 0.65;
 const NEUTRON_TURN = Math.PI / 2;
 const NEUTRON_JETS: FlareShape = { length: PLUME_LENGTH, thickness: 1.4, rotation: NEUTRON_TURN };
-const NEUTRON_BLOOM = 0.85;
-const NEUTRON_WISPS: FlareShape = { length: 2.2, thickness: 2.2, rotation: 0 };
+const NEUTRON_BLOOM = 1.25;
+/** Faint thin strands of pale blue, flung out one and a half to three disc radii. */
+const NEUTRON_WISPS: FlareShape = { length: 3.4, thickness: 3.4, rotation: 0 };
+const WISPS_TINT = 0x9ec4ff;
+/** A wide soft blue glow round a neutron star, through which the wisps and orbits show. */
+const NEUTRON_AURA: FlareShape = { length: 6, thickness: 6, rotation: 0 };
+const AURA_TINT = 0x7fa8ff;
+const AURA_ALPHA = 0.4;
 const FLARE_TINT = 0xcfe4ff;
 const FLARE_ALPHA = 0.9;
 const BLOOM_TINT = 0xeef6ff;
-const WISPS_ALPHA = 0.55;
+const BLOOM_ALPHA = 0.85;
+const WISPS_ALPHA = 0.3;
 /** A black hole's swirl, in disc diameters, and its event horizon's edge in screen pixels. */
 const HOLE_ART_SCALE = 2.6;
 const HORIZON_PX = 1.5;
@@ -434,20 +460,30 @@ export class BodiesLayer implements SystemLayer {
       flares.push({ sprite: s, shape });
       return s;
     };
-    const behind = (label: string, texture: Texture, shape: FlareShape, alpha: number) =>
-      holder.setChildIndex(addFlare(label, texture, shape, alpha), holder.getChildIndex(disc));
-    const bloom = (shapes: FlareShape[]) => {
-      for (const shape of shapes)
-        addFlare("bloom", this.textures.corona, shape, 1).tint = BLOOM_TINT;
+    const behind = (label: string, texture: Texture, shape: FlareShape, alpha: number) => {
+      const s = addFlare(label, texture, shape, alpha);
+      holder.setChildIndex(s, holder.getChildIndex(disc));
+      return s;
     };
     if (flare === "pulsar") {
+      behind("haze", this.textures.swirl, PULSAR_SWIRL, SWIRL_ALPHA).tint = SWIRL_TINT;
       behind("beams", this.textures.beam, PULSAR_BEAMS, FLARE_ALPHA);
-      bloom(blooms(PULSAR_TURN, PULSAR_BLOOM));
     }
     if (flare === "neutron") {
       behind("jets", this.textures.plume, NEUTRON_JETS, FLARE_ALPHA);
-      behind("wisps", this.textures.wisps, NEUTRON_WISPS, WISPS_ALPHA);
-      bloom(blooms(NEUTRON_TURN, NEUTRON_BLOOM));
+      behind("aura", this.textures.corona, NEUTRON_AURA, AURA_ALPHA).tint = AURA_TINT;
+      behind("wisps", this.textures.wisps, NEUTRON_WISPS, WISPS_ALPHA).tint = WISPS_TINT;
+    }
+    if (flare) addFlare("wash", this.textures.disc, WASH, WASH_ALPHA).tint = WASH_TINT;
+    if (shines) {
+      const halo = addFlare("halo", this.textures.halo, HALO, STAR_HALO_ALPHA);
+      halo.tint = flare ? EXOTIC_HALO_TINT : tint;
+      if (flare) halo.alpha = EXOTIC_HALO_ALPHA;
+    }
+    const poles = flare === "pulsar" ? blooms(PULSAR_TURN, PULSAR_BLOOM) : [];
+    if (flare === "neutron") poles.push(...blooms(NEUTRON_TURN, NEUTRON_BLOOM));
+    for (const shape of poles) {
+      addFlare("bloom", this.textures.corona, shape, BLOOM_ALPHA).tint = BLOOM_TINT;
     }
     const horizon = hole ? graphics("horizon") : null;
     const glazed = glazeTint(body.planetClass);

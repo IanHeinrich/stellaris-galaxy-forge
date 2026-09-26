@@ -137,6 +137,8 @@ function blankTextures(): SceneTextures {
     corona: new Texture(),
     beam: new Texture(),
     plume: new Texture(),
+    halo: new Texture(),
+    swirl: new Texture(),
     wisps: new Texture(),
     shade: new Texture(),
     gloss: new Texture(),
@@ -330,7 +332,7 @@ describe("the system scene's bodies layer", () => {
       starClasses: new Map([[starClass, starClassView(starClass, planetClass)]]),
     });
 
-  it("draws a star as its tinted disc in a soft added glow, then its surface in place of the disc once it lands, its art faint behind", async () => {
+  it("draws a star as its tinted disc in a soft added glow, then its surface in place of the disc once it lands, its art faint behind and a mild bloom on its limb", async () => {
     resetTextures();
     const textureFor = decodeByKey();
     const textures = blankTextures();
@@ -341,9 +343,15 @@ describe("the system scene's bodies layer", () => {
     const shown = () => star.children.filter((c): c is Sprite => c instanceof Sprite && c.visible);
     const labelled = (label: string) => star.children.find((c) => c.label === label) as Sprite;
 
-    const placeholder = [textures.corona, textures.disc];
+    const placeholder = [textures.corona, textures.disc, textures.halo];
     expect(shown().map((s) => s.texture)).toEqual(placeholder);
     expect(labelled("glow").blendMode).toBe("add");
+    const halo = labelled("halo");
+    expect(halo.blendMode).toBe("add");
+    expect(halo.tint).toBe(starGlyph("sc_g").tint);
+    expect(halo.alpha).toBeLessThan(0.5);
+    expect(halo.width).toBeGreaterThan(labelled("disc").width);
+    expect(halo.width).toBeLessThan(1.5 * labelled("disc").width);
     expect(labelled("glow").width).toBeGreaterThan(2 * labelled("disc").width);
     expect(labelled("disc").tint).toBe(starGlyph("sc_g").tint);
 
@@ -352,13 +360,15 @@ describe("the system scene's bodies layer", () => {
     const lit = labelled("lit");
     const art = labelled("art");
     expect(lit.texture).toBe(textureFor("star_disc:pc_g_star"));
-    expect(shown().map((s) => s.label)).toEqual(["glow", "art", "lit"]);
+    expect(shown().map((s) => s.label)).toEqual(["glow", "art", "lit", "halo"]);
     expect(art.texture).toBe(textureFor("star_class:sc_g"));
     expect(art.blendMode).toBe(STAR_ART_BLEND);
     expect(art.alpha).toBeLessThan(0.5);
     expect(lit.scale.x).toBeGreaterThan(0);
     expect(lit.width).toBeCloseTo(labelled("disc").width);
-    for (const flare of ["beams", "jets", "wisps"]) expect(labelled(flare)).toBeUndefined();
+    for (const flare of ["beams", "jets", "wisps", "wash", "haze", "aura", "bloom"]) {
+      expect(labelled(flare)).toBeUndefined();
+    }
 
     clearTextures();
     expect(shown().map((s) => s.texture)).toEqual(placeholder);
@@ -398,12 +408,20 @@ describe("the system scene's bodies layer", () => {
     return { layer, labels, labelled, all, disc: labelled("disc").width };
   };
 
-  /** A bloom on each end of the star's lights, over the limb and drawn above the surface. */
+  /**
+   * A pale wash and a strong near-white bloom round the limb over the surface, and a bloom on each
+   * end of the star's lights, over the limb and above them all.
+   */
   const expectBloomsOnTheLimb = (star: ReturnType<typeof drawnStar>, rotation: number) => {
+    const lit = star.labels.indexOf("lit");
+    expect(star.labels.indexOf("wash")).toBeGreaterThan(lit);
+    expect(star.labels.indexOf("halo")).toBeGreaterThan(star.labels.indexOf("wash"));
+    expect(star.labelled("wash").blendMode).toBe("add");
+    expect(star.labelled("halo").alpha).toBeGreaterThan(0.5);
     const blooms = star.all("bloom");
     expect(blooms).toHaveLength(2);
     for (const bloom of blooms) {
-      expect(star.labels.indexOf("bloom")).toBeGreaterThan(star.labels.indexOf("lit"));
+      expect(star.labels.indexOf("bloom")).toBeGreaterThan(star.labels.indexOf("halo"));
       expect(bloom.blendMode).toBe("add");
       expect(Math.hypot(bloom.x, bloom.y)).toBeCloseTo(star.disc / 2);
       const along = Math.atan2(bloom.y, bloom.x);
@@ -411,7 +429,7 @@ describe("the system scene's bodies layer", () => {
     }
   };
 
-  it("passes a pulsar's two thin beams behind it on a slant, blooming where they leave the limb, its art strong about it", () => {
+  it("passes a pulsar's two thin beams behind it on a slant, blooming where they leave the limb, in a large swirl of haze", () => {
     const star = drawnStar("pc_pulsar", "sc_pulsar");
     const beams = star.labelled("beams");
     expect(star.labels.indexOf("beams")).toBeLessThan(star.labels.indexOf("disc"));
@@ -420,24 +438,32 @@ describe("the system scene's bodies layer", () => {
     expect(beams.height).toBeLessThan(star.disc);
     expect(beams.rotation % (Math.PI / 2)).not.toBeCloseTo(0);
     expectBloomsOnTheLimb(star, beams.rotation);
-    expect(star.labelled("art").alpha).toBeGreaterThan(0.5);
+    const haze = star.labelled("haze");
+    expect(star.labels.indexOf("haze")).toBeLessThan(star.labels.indexOf("disc"));
+    expect(haze.blendMode).toBe("add");
+    expect(haze.alpha).toBeGreaterThan(0.5);
+    expect(haze.width).toBeGreaterThan(2.5 * star.disc);
     expect(star.labelled("jets")).toBeUndefined();
     star.layer.destroy();
   });
 
-  it("sends a neutron star's broad jets up and down behind it, blooming over both poles, with wisps curling round it", () => {
+  it("sends a neutron star's broad jets up and down behind it, blazing over both poles, in a wide blue glow with faint wisps flung far out", () => {
     const star = drawnStar("pc_neutron_star", "sc_neutron_star");
     const jets = star.labelled("jets");
     expect(star.labels.indexOf("jets")).toBeLessThan(star.labels.indexOf("disc"));
     expect(jets.rotation).toBeCloseTo(Math.PI / 2);
-    expect(jets.width).toBeGreaterThan(3 * star.disc);
+    expect(jets.width).toBeGreaterThan(2 * star.disc);
     expect(jets.height).toBeGreaterThan(star.disc);
     expect(jets.height).toBeGreaterThan(star.labelled("beams")?.height ?? 0);
     expectBloomsOnTheLimb(star, jets.rotation);
     const wisps = star.labelled("wisps");
     expect(star.labels.indexOf("wisps")).toBeLessThan(star.labels.indexOf("disc"));
     expect(wisps.blendMode).toBe("add");
-    expect(wisps.width).toBeGreaterThan(star.disc);
+    expect(wisps.width).toBeGreaterThan(3 * star.disc);
+    expect(wisps.alpha).toBeLessThan(0.5);
+    const aura = star.labelled("aura");
+    expect(star.labels.indexOf("aura")).toBeLessThan(star.labels.indexOf("disc"));
+    expect(aura.width).toBeGreaterThan(wisps.width);
     expect(star.labelled("beams")).toBeUndefined();
     star.layer.destroy();
   });
