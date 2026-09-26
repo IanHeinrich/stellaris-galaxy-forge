@@ -59,7 +59,7 @@ export interface SceneBody {
   readonly largeIconKeys: readonly string[];
   /** The haze the class draws outside the limb; null for a class with none, and for a star. */
   readonly atmosphere: Atmosphere | null;
-  /** Whether it is drawn with a ring: one it has, or one left to chance. */
+  /** Whether it is drawn with a ring: one it has, or one a known class leaves to chance. */
   readonly ring: boolean;
   readonly moon: boolean;
   /** The owner's map colour on a colonised body, which its plate shows; null for any other. */
@@ -383,7 +383,7 @@ function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolea
     angle: placement.arc !== null,
     anyAngle: placement.ghost,
     planetClass: drawn,
-    ring: !placement.star && planet.ring === null,
+    ring: !placement.star && !drawn && planet.ring === null,
   };
 }
 
@@ -408,7 +408,8 @@ function sceneBodies(
         name: src.templateName(planet),
         moon: parent !== undefined && !parent.star,
         colony: colonyColor(planet, src.ownership),
-        ring: !placement.star && planet.ring !== false,
+        ring:
+          !placement.star && (planet.ring === true || (planet.ring === null && !resolved.drawn)),
         chance: chanceOf(placement, planet, resolved.drawn),
         resources: planetResourceRows(planet, src.resourceIcons),
         ...artOf(resolved, src),

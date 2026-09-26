@@ -371,6 +371,17 @@ describe("what a scenario leaves to chance", () => {
     layer.destroy();
   });
 
+  it("leaves a drawn class's ring to its question mark, and dashes a known class's ring left to chance", () => {
+    const unset = (id: number, planetClass: string) => ({
+      ...body(id, planetClass, { orbit: fixed(40 * id), angle: fixed(0) }),
+      ring: null,
+    });
+    const ctx = scenario([sun, unset(2, "random"), unset(3, "pc_barren")]);
+    const [, drawnClass, known] = ctx.bodies;
+    expect([drawnClass.ring, drawnClass.chance.ring]).toEqual([false, false]);
+    expect([known.ring, known.chance.ring]).toEqual([true, true]);
+  });
+
   it("draws a scenario system still loading as its initializer's star, with no question mark", () => {
     const ctx = systemContext({
       ...sources,
