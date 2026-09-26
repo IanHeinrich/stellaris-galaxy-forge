@@ -1,6 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { BodyLayout } from "../../../generated/BodyLayout";
 
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
@@ -13,11 +12,12 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 import { bindStores } from "../../../store/bindStores";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
+import { useSceneStore } from "../../../store/sceneStore";
 import { drawnBy, lastDrawn, type DrawnProps } from "../../../test/drawn";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { DrillLink, DrillRow } from "../parts";
 import { StarRowIcon } from "../StarIcon";
-import { planetClassView, starClassView } from "../../../test/builders";
+import { bodyLayout, planetClassView, starClassView } from "../../../test/builders";
 import { ScenarioBodyView } from "./ScenarioBodyView";
 import { INSPECTOR_VIEWS } from "./views";
 
@@ -35,9 +35,7 @@ beforeEach(() => {
 
 const fixed = (value: number) => ({ min: value, max: value });
 
-function layout(extra: Partial<BodyLayout>): BodyLayout {
-  return { orbit: null, angle: null, at: null, size: null, ...extra };
-}
+const layout = bodyLayout;
 
 const TARKIN = planet(100, "Tarkin", {
   class: "random_colonizable",
@@ -101,7 +99,6 @@ describe("a scenario body's page", () => {
     expect(html).toContain('<span class="k">Class</span><span>random</span>');
     expect(html).toMatch(/<span class="k">Size<\/span><span><span class="sz">.*10–20<\/span>/);
     expect(html).toContain('<span class="k">Orbit radius</span><span>40–60</span>');
-    expect(html).toContain('<span class="k">Angle</span><span>random</span>');
     const head = html.slice(0, html.indexOf("</div>"));
     expect(head).toContain(">colonised</span>");
     expect(head).toContain(">capital</span>");
@@ -110,6 +107,129 @@ describe("a scenario body's page", () => {
     expect(html).not.toContain("Orbits");
     expect(html).not.toContain("Terraforming");
     expect(html).not.toContain("Modifiers");
+  });
+
+  it("shows each body's step out from the running orbit as the core gives it", async () => {
+    // basic_init_05: the last ice asteroid at 240, then change_orbit = -210 and a planet 30 out.
+    const ice = planet(102, "Ice Asteroid", {
+      class: "pc_ice_asteroid",
+      layout: layout({ orbit: fixed(240), orbit_step: fixed(0), orbit_base: fixed(240) }),
+    });
+    const naboo = planet(103, "Naboo", {
+      class: "pc_continental",
+      layout: layout({
+        orbit: fixed(60),
+        orbit_step: fixed(30),
+        orbit_base: fixed(30),
+        turns_from: 102,
+      }),
+    });
+    const hoth = planet(104, "Hoth", {
+      class: "pc_frozen",
+      layout: layout({
+        orbit: { min: 70, max: 80 },
+        orbit_step: { min: 10, max: 20 },
+        orbit_base: fixed(60),
+        turns_from: 103,
+      }),
+    });
+    await open("scenario");
+    await land(details({ planets: [ice, naboo, hoth] }));
+
+    expect(page(103, "Naboo")).toContain('<span class="k">Orbit step</span><span>+30</span>');
+    expect(page(104, "Hoth")).toContain('<span class="k">Orbit step</span><span>+10–20</span>');
+  });
+
+  it("shows each body's turn from the body before it, linked by name and radius, and any angle for a body naming none", async () => {
+    const ice = planet(102, "Ice Asteroid", {
+      class: "pc_ice_asteroid",
+      layout: layout({ orbit: fixed(240), angle: fixed(70), angle_step: fixed(70) }),
+    });
+    const naboo = planet(103, "Naboo", {
+      class: "pc_continental",
+      layout: layout({
+        orbit: fixed(60),
+        angle: { min: 160, max: 340 },
+        angle_step: { min: 90, max: 270 },
+        turns_from: 102,
+      }),
+    });
+    const anywhere = planet(104, "Dagobah", {
+      class: "pc_tropical",
+      layout: layout({ orbit: fixed(120), angle_step: { min: 0, max: 360 }, turns_from: 103 }),
+    });
+    await open("scenario");
+    await land(details({ planets: [TARKIN, ice, naboo, anywhere] }));
+
+    expect(page(102, "Ice Asteroid")).toContain(
+      '<span class="k">Angle step</span><span>+70°</span>',
+    );
+    const html = drawnBy(() => page(103, "Naboo"));
+    expect(html).toContain('<span class="k">Angle step</span><span>+90–270° from <button');
+    expect(html).toContain("Ice Asteroid at 240 ›</button>");
+    const link = lastDrawn((el) => el.type === DrillLink, "the anchor's link") as {
+      onHover(on: boolean): void;
+      onOpen(): void;
+    };
+    link.onHover(true);
+    expect(useSceneStore.getState().linkedBody).toBe(102);
+    link.onHover(false);
+    expect(useSceneStore.getState().linkedBody).toBeNull();
+    link.onHover(true);
+    link.onOpen();
+    expect(top()).toEqual(entry(102, "Ice Asteroid"));
+    expect(useSceneStore.getState().linkedBody).toBeNull();
+
+    expect(page(104, "Dagobah")).toContain("any angle from ");
+    expect(page(100, "Tarkin")).toContain(
+      '<span class="k">Angle step</span><span>any angle</span>',
+    );
+    expect(page(103, "Naboo")).not.toContain('<span class="k">Angle</span>');
+  });
+
+  it("names no body to turn from when the one before stands at the centre", async () => {
+    const star = planet(102, "Star", {
+      class: "pc_g_star",
+      layout: layout({ orbit: fixed(0), orbit_step: fixed(0), orbit_base: fixed(0) }),
+    });
+    const naboo = planet(103, "Naboo", {
+      class: "pc_continental",
+      layout: layout({
+        orbit: fixed(60),
+        orbit_step: fixed(60),
+        orbit_base: fixed(0),
+        angle_step: { min: 90, max: 270 },
+        turns_from: 102,
+      }),
+    });
+    await open("scenario");
+    await land(details({ planets: [star, naboo] }));
+
+    expect(page(103, "Naboo")).toContain('<span class="k">Angle step</span><span>+90–270°</span>');
+  });
+
+  it("says whether a body has a ring, or that the game rolls it", async () => {
+    const ringed = planet(102, "Ringed", { class: "pc_gas_giant", ring: true });
+    const bare = planet(103, "Bare", { class: "pc_barren", ring: false });
+    const rolled = planet(104, "Rolled", { class: "pc_gas_giant", ring: null });
+    await open("scenario");
+    await land(details({ planets: [ringed, bare, rolled] }));
+
+    expect(page(102, "Ringed")).toContain('<span class="k">Ring</span><span>Yes</span>');
+    expect(page(103, "Bare")).toContain('<span class="k">Ring</span><span>No</span>');
+    expect(page(104, "Rolled")).toContain(
+      '<span class="k">Ring</span><span>Rolled by the game</span>',
+    );
+  });
+
+  it("gives no orbit or angle step to a save's body", async () => {
+    await open("save");
+    await land(details({ planets: [TARKIN, YAVIN] }));
+
+    const html = page(100, "Tarkin");
+    expect(html).toContain('<span class="k">Orbit radius</span>');
+    expect(html).not.toContain("Orbit step");
+    expect(html).not.toContain("Angle step");
   });
 
   it("lists a planet's moons, each opening its own page", async () => {
@@ -123,12 +243,11 @@ describe("a scenario body's page", () => {
     expect(top()).toEqual(entry(101, "Yavin"));
   });
 
-  it("links a moon to the body it orbits, with its fixed orbit and angle", async () => {
+  it("links a moon to the body it orbits, with its fixed orbit", async () => {
     await openTarkin();
 
     const html = drawnBy(() => page(101, "Yavin"));
     expect(html).toContain('<span class="k">Orbit radius</span><span>5</span>');
-    expect(html).toContain('<span class="k">Angle</span><span>30°</span>');
     expect(html).toMatch(/<span class="k">Size<\/span><span><span class="sz">.*8<\/span>/);
     expect(html).toContain(">pre-FTL</span>");
     expect(html).toContain("Orbits");
@@ -137,14 +256,14 @@ describe("a scenario body's page", () => {
     expect(top()).toEqual(entry(100, "Tarkin"));
   });
 
-  it("heads a star the initializer writes as its system's star class with that class's icon", async () => {
+  it("heads a scenario star with its star class's icon", async () => {
     const pulsar = starClassView("sc_pulsar", "pc_pulsar");
     await open("scenario");
     useGameDataStore.setState({
       starClasses: new Map([[pulsar.key, pulsar]]),
       planetClasses: new Map([["pc_pulsar", planetClassView("pc_pulsar")]]),
     });
-    const star = planet(99, "Din", { class: "sc_pulsar", layout: layout({ orbit: fixed(0) }) });
+    const star = planet(99, "Din", { class: "pc_pulsar", layout: layout({ orbit: fixed(0) }) });
     await land(details({ planets: [star] }));
 
     drawnBy(() => page(99, "Din"));
@@ -161,11 +280,11 @@ describe("a scenario body's page", () => {
       planetClasses: new Map(["pc_a_star", "pc_b_star"].map((key) => [key, planetClassView(key)])),
     });
     const first = planet(98, "Primary", {
-      class: "sc_binary_ab",
+      class: "pc_a_star",
       layout: layout({ orbit: fixed(25), angle: fixed(0) }),
     });
     const second = planet(99, "Companion", {
-      class: "sc_binary_ab",
+      class: "pc_b_star",
       layout: layout({ orbit: fixed(25), angle: fixed(180) }),
     });
     await land(details({ planets: [first, second] }));

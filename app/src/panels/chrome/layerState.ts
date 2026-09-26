@@ -2,7 +2,8 @@ import type { SpecialKind } from "../../generated/SpecialKind";
 import { documentCapabilities } from "../../lib/capabilities";
 import { shortcutLabel } from "../../lib/keys";
 import { kindLabel } from "../../lib/special";
-import { isSceneLayer, type LayerId } from "../../lib/visual/layerIds";
+import { barShows, onSceneSwitch } from "../../lib/visual/barMode";
+import { isGalaxyLayer, type LayerId } from "../../lib/visual/layerIds";
 import {
   groupState,
   splitsBySource,
@@ -14,39 +15,27 @@ import { layerIdsFor } from "../../map/layers/registry";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { useSceneStore } from "../../store/sceneStore";
+import { useBarMode } from "../../store/sceneStore";
 
 export type Pressed = "true" | "false" | "mixed";
 
-/** Why a galaxy layer cannot be switched while a system is shown. */
-export const GALAXY_ONLY = "Layers apply to the galaxy view";
-
-/** Whether the map shows a system rather than the galaxy. */
-export function useInSystem(): boolean {
-  return useSceneStore((s) => s.scene.kind === "system");
-}
-
 /**
  * A layer's switch as the map shown answers it: while a system is up, the scene's own switch
- * for a layer it draws, and `galaxyOnly` set for one it does not.
+ * for a layer it draws.
  */
-export function useLayerSwitch(id: LayerId): {
-  on: boolean;
-  toggle: () => void;
-  galaxyOnly: string | undefined;
-} {
-  const inSystem = useInSystem();
-  const scene = inSystem && isSceneLayer(id);
-  const on = useMapChromeStore((s) =>
-    isSceneLayer(id) && scene ? s.sceneLayers[id] : s.layers[id],
-  );
+export function useLayerSwitch(id: LayerId): { on: boolean; toggle: () => void } {
+  const mode = useBarMode();
+  const on = useMapChromeStore((s) => {
+    if (onSceneSwitch(mode, id)) return s.sceneLayers[id];
+    return isGalaxyLayer(id) && s.layers[id];
+  });
   const toggleLayer = useMapChromeStore((s) => s.toggleLayer);
   const toggleSceneLayer = useMapChromeStore((s) => s.toggleSceneLayer);
-  return {
-    on,
-    toggle: () => (isSceneLayer(id) && scene ? toggleSceneLayer(id) : toggleLayer(id)),
-    galaxyOnly: inSystem && !scene ? GALAXY_ONLY : undefined,
+  const toggle = () => {
+    if (onSceneSwitch(mode, id)) toggleSceneLayer(id);
+    else if (isGalaxyLayer(id)) toggleLayer(id);
   };
+  return { on, toggle };
 }
 
 export function kindsLabel(kind: SpecialKind): string {
@@ -98,9 +87,11 @@ export function useGroupPressed(group: Group): Pressed {
   return GROUP_PRESSED[useMapChromeStore((s) => groupState(s, kind, group.source))];
 }
 
-/** The layers the open document can answer for. */
-export function useRegisteredLayers(): ReadonlySet<LayerId> {
-  return layerIdsFor(useFileSessionStore(documentCapabilities));
+/** The layers the open document can answer for that the bar shown lists. */
+export function useShownLayers(): ReadonlySet<LayerId> {
+  const mode = useBarMode();
+  const registered = layerIdsFor(useFileSessionStore(documentCapabilities));
+  return new Set([...registered].filter((id) => barShows(mode, id)));
 }
 
 /** Whether there is a document to draw at all: with none, the bar carries nothing to toggle. */

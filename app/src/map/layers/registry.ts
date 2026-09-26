@@ -61,6 +61,7 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "initializers", requires: "create_systems" },
   { id: "spawns", requires: "create_systems", create: () => new SpawnsLayer() },
   { id: "details", create: () => new DetailsLayer() },
+  { id: "orbitRadii" },
   { id: "colonies" },
   { id: "special", requires: "special", create: () => new SpecialLayer() },
 ];

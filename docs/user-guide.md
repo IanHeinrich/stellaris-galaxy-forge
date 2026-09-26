@@ -172,9 +172,25 @@ to read a system, and the status bar says "Reading the system…" until
 the bodies appear.
 
 Systems in a scenario open the same way and show what their initializer
-sets. Where it leaves an orbit or an angle to chance, the view draws the
-range as a band or an arc. A body with no angle set is drawn faded, and
-a random planet class shows a question mark.
+sets. Where it leaves an orbit or an angle to chance, the view shows one
+example roll, the way the game might place the bodies. Click Roll again
+next to the system's name, or use View → Roll again, to see another. A
+random planet class shows a question mark.
+
+Select a scenario body to see its ranges. The band is the range its
+distance can fall in, and the wedge is the range of its angle. The body
+or orbit that the distance and angle are measured from is outlined in
+blue. The body's page lists its orbit step, its angle step and whether
+it has a ring. Click the name in the angle step to go to the body it
+turns from.
+
+A scenario system with no initializer gets its planets rolled when the
+game starts, so the view shows faint placeholder planets. You can't
+select them.
+
+Press 2 in a system view to turn on Orbit radii. Each orbit shows its
+radius. The selected body always shows a line out to it with its
+radius.
 
 The status bar counts the system's bodies and belts. With a body's page
 open in the Inspector, it shows that body's orbit and angle.
@@ -185,7 +201,7 @@ still work while a system is open, with their own settings, so you can
 have them on in the galaxy and off in a system. With System details on,
 each body's resources show under its name. A system inside a nebula
 shows faint clouds behind it while Nebulae is on. The other layer buttons and
-the tool rail are for the galaxy, so they are hidden or greyed out. Undo and redo still work
+the tool rail are for the galaxy, so they are hidden while a system is open. Undo and redo still work
 from the Edit menu and their keys.
 
 To get back to the galaxy, press Esc or M, click "Galaxy" in the crumb at the

@@ -223,6 +223,9 @@ pub struct Initializer {
     /// Every `create_archaeological_site` in the system's own effects, no planet's.
     pub sites: Vec<String>,
     pub starbase: Option<InitStarbase>,
+    /// The system's block, or a `planet` or `moon` block in it, runs an `inline_script`, which
+    /// is not expanded: the bodies it places are not in [`Self::planets`].
+    pub inline_script: bool,
 }
 
 impl GameData {
@@ -280,8 +283,20 @@ impl FromDef for Initializer {
             bypasses: bypasses(node, src),
             sites: sites(node, src),
             starbase: starbase(node, src),
+            inline_script: places_by_script(node, src),
         }
     }
+}
+
+/// Whether `node`, or a `planet` or `moon` block below it, runs an `inline_script` itself.
+fn places_by_script(node: &Node, src: &[u8]) -> bool {
+    node.children()
+        .iter()
+        .any(|child| match child.key_str(src) {
+            Some("inline_script") => true,
+            Some("planet" | "moon") => places_by_script(child, src),
+            _ => false,
+        })
 }
 
 /// The registry plus the reverse of every initializer's `spawns`, and the

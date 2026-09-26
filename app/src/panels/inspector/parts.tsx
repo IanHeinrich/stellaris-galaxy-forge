@@ -190,17 +190,27 @@ export function DrillLink({
   requires,
   title,
   onOpen,
+  onHover,
   children,
 }: {
   requires?: keyof Capabilities;
   title?: string;
   onOpen: () => void;
+  /** Told when the pointer comes onto the link and when it leaves. */
+  onHover?: (on: boolean) => void;
   children: ReactNode;
 }) {
   const capabilities = useFileSessionStore(documentCapabilities);
   if (!supports(capabilities, requires)) return <span title={title}>{children}</span>;
   return (
-    <button type="button" className="link ins-drill" title={title} onClick={onOpen}>
+    <button
+      type="button"
+      className="link ins-drill"
+      title={title}
+      onClick={onOpen}
+      onMouseEnter={onHover && (() => onHover(true))}
+      onMouseLeave={onHover && (() => onHover(false))}
+    >
       {children} ›
     </button>
   );

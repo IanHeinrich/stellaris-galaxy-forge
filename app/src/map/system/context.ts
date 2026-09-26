@@ -8,9 +8,13 @@ import type { SystemNode } from "../../generated/SystemNode";
 import {
   discRadius,
   exitBearing,
+  rolledPlanets,
+  rollSeed,
+  spanText,
   systemLayout,
   type BeltBand,
   type BodyPlacement,
+  type RolledPlanet,
   type SystemLayout,
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
@@ -19,6 +23,7 @@ import { isStarBody, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import { clusterOffsets } from "../../lib/visual/starCluster";
+import { effectiveStarClass } from "../../lib/visual/starGlyphs";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
@@ -26,6 +31,7 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import type { EntityRef } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { currentOwnership } from "../../store/ownership";
+import { useSceneStore } from "../../store/sceneStore";
 import type { Systems } from "../RenderContext";
 import { beltTint, bodyLook, type BodyLook } from "./look";
 
@@ -36,10 +42,7 @@ import { beltTint, bodyLook, type BodyLook } from "./look";
  */
 export interface SceneBody {
   readonly placement: BodyPlacement;
-  /**
-   * The planet class it is drawn, sized and baked as: a star a scenario writes as the bare
-   * `star`, or as its system's star class, takes that class's planet in turn.
-   */
+  /** The planet class it is drawn, sized and baked as. */
   readonly surfaceClass: string;
   /**
    * The record it was resolved from, for the Inspector; null for a star drawn from the galaxy's
@@ -65,16 +68,24 @@ export interface SceneBody {
   readonly colony: number | null;
   /** What its deposits yield, per resource, as the Details layer shows them. */
   readonly resources: readonly ResourceRow[];
+  /** Its orbit's radius as the readouts show it; null for a body with no ring. */
+  readonly readout: RadiusReadout | null;
+}
+
+/** A body's orbit radius, as its radius line reads it. */
+export interface RadiusReadout {
+  /** The disc standing where its ring is centred, which its radius line starts clear of; 0 for none. */
+  readonly hub: number;
+  /** The radius, or a band's two ends. */
+  readonly text: string;
 }
 
 /** What a scenario leaves to chance about a body; a save leaves nothing. */
 export interface Chance {
   /** Its orbit is a draw between two radii. */
   readonly orbit: boolean;
-  /** Its angle is a draw between two angles. */
+  /** Its angle turns on from the body before it by a draw between two angles. */
   readonly angle: boolean;
-  /** It names no angle: it may stand anywhere on its orbit. */
-  readonly anyAngle: boolean;
   /** Its class is a draw: a random class, a planet list or the empire's ideal class. */
   readonly planetClass: boolean;
   /** Whether it has a ring is left to its class's chance. */
@@ -84,7 +95,6 @@ export interface Chance {
 const NO_CHANCE: Chance = Object.freeze({
   orbit: false,
   angle: false,
-  anyAngle: false,
   planetClass: false,
   ring: false,
 });
@@ -138,6 +148,10 @@ export interface SystemSources {
   readonly labelsShown: boolean;
   /** The scene's Nebulae switch is on: a system in a nebula shows clouds behind it. */
   readonly nebulaShown: boolean;
+  /** The scene's Orbit radii switch is on: each ring shows its radius. */
+  readonly radiiShown: boolean;
+  /** Which roll of a scenario system's initializer is drawn. */
+  readonly roll: number;
   /** Who owns what, for the colour a colonised body's plate shows. */
   readonly ownership: Ownership;
   readonly nodeName: (name: NameTemplate) => string;
@@ -156,6 +170,8 @@ export interface SystemContext extends SystemSources {
   readonly exits: readonly Exit[];
   /** The system lies in a nebula. */
   readonly inNebula: boolean;
+  /** The planets drawn to show that the game rolls this system's; none where the source has any. */
+  readonly rolled: readonly RolledPlanet[];
 }
 
 const NOTHING: never[] = [];
@@ -176,6 +192,8 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   detailsShown: false,
   labelsShown: true,
   nebulaShown: false,
+  radiiShown: false,
+  roll: 0,
   ownership: NO_OWNERSHIP,
   nodeName: (name: NameTemplate) => (name.literal ? name.key : stripped(name.key)),
   templateName: (named: { name_key: string }) => stripped(named.name_key),
@@ -202,6 +220,8 @@ const DATA_FIELDS: Record<DataField, true> = {
   detailsShown: true,
   labelsShown: true,
   nebulaShown: true,
+  radiiShown: true,
+  roll: true,
   ownership: true,
 };
 
@@ -260,14 +280,25 @@ function artOf(resolved: ResolvedClass, src: SystemSources): BodyArt {
 /** How far apart the stars of a system still loading stand, in discs of the largest. */
 const CLUSTER_SPREAD = 4;
 
-/** The stars the galaxy lists for a system, drawn about the centre until its own record lands. */
+/** The star class a system is drawn as when its source gives it none. */
+function systemStar(src: SystemSources, node: SystemNode | null): string {
+  if (!node) return "";
+  return effectiveStarClass(node, src.initializerClasses.get(node.initializer), src.kind);
+}
+
+/**
+ * The stars the galaxy lists for a system, drawn about the centre until its own record lands:
+ * with none listed, its star class's first star.
+ */
 function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
   const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
   const listed = (node?.bodies ?? []).filter((b) => isStar(b.class));
-  const stars = listed.length > 0 ? listed : [{ class: STAR_BODY_CLASS, size: null }];
+  const system = systemStar(src, node);
+  const first = src.starClasses.get(system)?.planet_keys[0] ?? STAR_BODY_CLASS;
+  const stars = listed.length > 0 ? listed : [{ class: first, size: null }];
   const classes = resolveBodyClasses(
     stars.map((star, i) => ({ id: i, class: star.class })),
-    node,
+    system,
     src,
   );
   const resolved = stars.map((_, i) => classes.get(i) as ResolvedClass);
@@ -287,8 +318,8 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       angle: 0,
       light: null,
       band: null,
-      arc: null,
-      ghost: false,
+      turn: null,
+      radius: null,
     };
     return {
       placement,
@@ -299,6 +330,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       ring: false,
       chance: NO_CHANCE,
       resources: NOTHING,
+      readout: null,
       ...artOf(resolved[i], src),
     };
   });
@@ -312,11 +344,26 @@ function colonyColor(planet: PlanetSummary, ownership: Ownership): number | null
 function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolean): Chance {
   return {
     orbit: placement.band !== null,
-    angle: placement.arc !== null,
-    anyAngle: placement.ghost,
+    angle: placement.turn !== null && placement.turn.step.min !== placement.turn.step.max,
     planetClass: drawn,
     ring: !placement.star && !drawn && planet.ring === null,
   };
+}
+
+function readoutOf(
+  placement: BodyPlacement,
+  placements: readonly BodyPlacement[],
+): RadiusReadout | null {
+  const { ring, radius } = placement;
+  if (!ring || !radius) return null;
+  const hub = placements.reduce(
+    (disc, other) =>
+      other !== placement && other.x === ring.cx && other.y === ring.cy
+        ? Math.max(disc, other.disc)
+        : disc,
+    0,
+  );
+  return { hub, text: spanText(radius) };
 }
 
 function sceneBodies(
@@ -325,7 +372,8 @@ function sceneBodies(
   layout: SystemLayout,
   classes: ReadonlyMap<number, ResolvedClass>,
 ): SceneBody[] {
-  if (src.details === null) return galaxyStars(src, node);
+  const noBodies = src.kind === "scenario" && src.details?.planets.length === 0;
+  if (src.details === null || noBodies) return galaxyStars(src, node);
   const planets = new Map(src.details.planets.map((p) => [p.id, p]));
   const placed = new Map(layout.bodies.map((b) => [b.id, b]));
   return layout.bodies.flatMap((placement) => {
@@ -344,6 +392,7 @@ function sceneBodies(
           !placement.star && (planet.ring === true || (planet.ring === null && !resolved.drawn)),
         chance: chanceOf(placement, planet, resolved.drawn),
         resources: planetResourceRows(planet, src.resourceIcons),
+        readout: readoutOf(placement, layout.bodies),
         ...artOf(resolved, src),
       },
     ];
@@ -370,13 +419,26 @@ function sceneExits(src: SystemSources, node: SystemNode | null, radius: number)
   });
 }
 
+/**
+ * Whether the game places planets the source does not list: a scenario system whose initializer,
+ * read with the install, gives no record, as when it names none, `random` or one the install does
+ * not define, and so the game rolls them; or one whose record says its initializer places bodies
+ * through an `inline_script`. One the install defines has a record, empty if it places nothing.
+ */
+function rollsPlanets(src: SystemSources): boolean {
+  if (src.kind !== "scenario" || !src.gameDataReady) return false;
+  return src.details === null ? src.missing : src.details.unexpanded_scripts;
+}
+
 /** Where everything of the system `src` names is drawn. */
 export function systemContext(src: SystemSources): SystemContext {
   const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
-  const classes = resolveBodyClasses(src.details?.planets ?? [], node, src);
+  const classes = resolveBodyClasses(src.details?.planets ?? [], systemStar(src, node), src);
+  const seed = rollSeed(src.id ?? 0, src.roll);
   const layout = systemLayout(src.details, {
     classOf: (planet) => classes.get(planet.id),
     scenario: src.kind === "scenario",
+    seed,
   });
   return Object.freeze({
     ...src,
@@ -386,6 +448,7 @@ export function systemContext(src: SystemSources): SystemContext {
     belts: layout.belts.map((belt) => ({ ...belt, tint: beltTint(belt.kind) })),
     exits: sceneExits(src, node, layout.innerRadius),
     inNebula: node?.nebula != null,
+    rolled: rollsPlanets(src) ? rolledPlanets(seed, layout.innerRadius) : NOTHING,
   });
 }
 
@@ -430,6 +493,8 @@ export function readSystemSources(id: number | null): SystemSources {
     detailsShown: chrome.sceneLayers.details,
     labelsShown: chrome.sceneLayers.labels,
     nebulaShown: chrome.sceneLayers.nebulae,
+    radiiShown: chrome.sceneLayers.orbitRadii,
+    roll: useSceneStore.getState().roll,
     ownership: currentOwnership(),
     nodeName: (name: NameTemplate) => nodeNameIn(names, name),
     templateName: (named: { name: NameTemplate; name_key: string }) =>

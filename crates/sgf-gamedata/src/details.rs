@@ -16,7 +16,7 @@ use crate::GameData;
 use crate::generate::belt;
 use crate::initializers::{self, Body, BodyClass, InitPlanet, Initializer};
 use crate::install::script::Range;
-use crate::orbit_walk::{self, Placed, Turn, Walk};
+use crate::orbit_walk::{self, Placed, Turn, WALK_START, Walk};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::scripts::ScenarioOwners;
 
@@ -36,8 +36,8 @@ struct Bodies {
 }
 
 impl GameData {
-    /// System `id`'s details as the initializer `key` defines them; `None` when the
-    /// initializer is unknown or defines nothing the UI draws.
+    /// System `id`'s details as the initializer `key` defines them, every list empty when it
+    /// places nothing; `None` when the install does not define it, as for `random` or none.
     ///
     /// `owners` names the bodies the scripts colonise and the territory each joins, which
     /// only a pass over every system can tell.
@@ -100,10 +100,6 @@ impl GameData {
             shipyard: s.modules.iter().any(|m| m == "shipyard"),
         });
         let resources = system_resources(&planets);
-        if planets.is_empty() && sites.is_empty() && megastructures.is_empty() && starbase.is_none()
-        {
-            return None;
-        }
         Some(SystemDetails {
             id,
             resources,
@@ -116,19 +112,65 @@ impl GameData {
             with_game_data: true,
             belts: init.asteroid_belts.iter().filter_map(belt).collect(),
             inner_radius: None,
+            unexpanded_scripts: init.inline_script,
         })
+    }
+
+    /// The star class a scenario system with `initializer` is drawn as: the initializer's
+    /// own class, else [`RANDOM_STAR_CLASS`] when it draws from a random list, names none or
+    /// is not in the install, since the game picks that star only when it generates the
+    /// galaxy.
+    pub fn scenario_star_class(&self, initializer: &str) -> &str {
+        star_class_of(self.initializers.get(initializer))
+    }
+
+    /// Each body's planet class, in source order, in a system of star class `system`. A body
+    /// written as the bare `star`, or as a star class, takes that class's planet key for the
+    /// nth such body, as the game spawns a binary's two stars, and its first once they run
+    /// out. Any other body, and a star whose class the install does not define, keeps the
+    /// class it is written as.
+    pub fn star_body_classes<'a>(
+        &self,
+        system: &str,
+        written: impl IntoIterator<Item = &'a str>,
+    ) -> Vec<String> {
+        let mut nth = 0;
+        written
+            .into_iter()
+            .map(|class| {
+                let star = if BodyClass::of(class) == BodyClass::Star {
+                    system
+                } else if self.star_classes.get(class).is_some()
+                    && self.planet_classes.get(class).is_none()
+                {
+                    class
+                } else {
+                    return class.to_owned();
+                };
+                let keys = self
+                    .star_classes
+                    .get(star)
+                    .map_or(&[][..], |c| c.planet_keys.as_slice());
+                let key = keys.get(nth).or_else(|| keys.first());
+                nth += 1;
+                key.map_or(class, String::as_str).to_owned()
+            })
+            .collect()
     }
 
     fn bodies(&self, init: &Initializer) -> Bodies {
         let mut out = Bodies::default();
-        let star = init
-            .class
-            .as_deref()
-            .filter(|class| self.star_classes.get(class).is_some());
+        let classes = self.star_body_classes(
+            star_class_of(Some(init)),
+            initializers::expand(&init.planets).map(|body| body.block.class.written()),
+        );
         let layouts = Layouts::of(&init.planets);
-        for (body, layout) in initializers::expand(&init.planets).zip(layouts) {
-            let id = PLANET_BASE + index(out.planets.len());
-            out.planets.push(self.summary(body, star, id, layout));
+        for ((body, layout), class) in initializers::expand(&init.planets)
+            .zip(layouts)
+            .zip(classes)
+        {
+            let id = planet_id(out.planets.len());
+            out.planets.push(self.summary(body, class, id, layout));
             for kind in &body.block.sites {
                 out.sites.push(ArchaeologySite {
                     id: SITE_BASE + index(out.sites.len()),
@@ -140,20 +182,21 @@ impl GameData {
         out
     }
 
-    /// `star` is the initializer's own star class, which the body written as `star` wears.
+    /// `class` is the body's planet class, a star's resolved by [`Self::star_body_classes`].
+    /// A body whose block gives no `size` takes its class's.
     fn summary(
         &self,
         expanded: Body<'_>,
-        star: Option<&str>,
+        class: String,
         id: u32,
-        layout: BodyLayout,
+        mut layout: BodyLayout,
     ) -> PlanetSummary {
         let body = expanded.block;
+        if layout.size.is_none() {
+            layout.size = self.class_size(&class, expanded.moon).map(bounds);
+        }
         let name_key = body.name.clone().unwrap_or_default();
-        let class = match star {
-            Some(star) if body.class == BodyClass::Star => star.to_owned(),
-            _ => body.class.written().to_owned(),
-        };
+        let habitable = self.planet_habitable(&class);
         PlanetSummary {
             id,
             class,
@@ -166,16 +209,16 @@ impl GameData {
             colonised: body.colonised,
             // A pre-FTL world the empire starts beside is never that empire's capital.
             capital: body.home_planet && !body.pre_ftl,
-            habitable: self.planet_habitable(body.class.written()),
+            habitable,
             owner: None,
             moon: expanded.moon,
             pre_ftl: body.pre_ftl,
-            size: body.size.map(|(min, _)| min),
+            size: layout.size.map(|size| size.min.round() as u32),
             orbit: None,
             deposits: self.deposit_rows(&body.deposits),
             deposit_keys: deposit_counts(&body.deposits),
             pops: 0,
-            parent: expanded.parent.map(|parent| PLANET_BASE + index(parent)),
+            parent: expanded.parent.map(planet_id),
             layout: Some(layout),
             ring: self.ring(body, expanded.moon),
         }
@@ -210,6 +253,12 @@ impl GameData {
         }
     }
 
+    /// The size range the generator draws a body of `class` from, a moon's or a planet's.
+    fn class_size(&self, class: &str, moon: bool) -> Option<Range> {
+        let def = self.planet_classes.get(class)?;
+        if moon { def.moon_size } else { def.planet_size }
+    }
+
     fn deposit_rows(&self, keys: &[String]) -> Vec<ResourceAmount> {
         let mut rows = Vec::new();
         for produced in keys.iter().filter_map(|k| self.deposit_produces(k)) {
@@ -222,19 +271,26 @@ impl GameData {
 }
 
 /// Each body's layout in the order [`initializers::expand`] gives the bodies, each range
-/// kept as the bounds a draw could give. The angles start at 0, so they are right relative
-/// to each other and the game may turn the whole system.
-struct Layouts(Vec<BodyLayout>);
+/// kept as the bounds a draw could give. Each walk's angles start at [`WALK_START`], as the
+/// game's do.
+struct Layouts {
+    bodies: Vec<BodyLayout>,
+    /// The id of the body last placed at this level, which the next one turns from.
+    previous: Option<u32>,
+}
 
 impl Layouts {
     fn of(planets: &[InitPlanet]) -> Vec<BodyLayout> {
-        let mut layouts = Self(Vec::new());
+        let mut layouts = Self {
+            bodies: Vec::new(),
+            previous: None,
+        };
         let Ok(()) = orbit_walk::walk(
             planets,
-            Turn::FromPrevious(Bounds::fixed(0.0)),
+            Turn::FromPrevious(Bounds::fixed(WALK_START)),
             &mut layouts,
         );
-        layouts.0
+        layouts.bodies
     }
 }
 
@@ -257,16 +313,40 @@ impl<'p> Walk<'p> for Layouts {
 
     /// A body with no angle may be anywhere on its orbit.
     fn body(&mut self, block: &'p InitPlanet, placed: Placed<Bounds>) -> Result<(), Infallible> {
-        self.0.push(BodyLayout {
-            orbit: Some(placed.orbit),
+        let orbit = placed.orbit;
+        let step = block.orbit_distance.map_or(
+            Bounds {
+                min: 10.0,
+                max: 20.0,
+            },
+            bounds,
+        );
+        let id = planet_id(self.bodies.len());
+        let turns_from = self.previous.replace(id);
+        self.bodies.push(BodyLayout {
+            orbit: Some(orbit),
             angle: block.orbit_angle.map(|_| within_one_turn(placed.angle)),
             at: None,
             size: block.size.map(|(min, max)| Bounds {
                 min: f64::from(min),
                 max: f64::from(max),
             }),
+            orbit_step: Some(step),
+            orbit_base: Some(Bounds {
+                min: orbit.min - step.min,
+                max: orbit.max - step.max,
+            }),
+            angle_step: block.orbit_angle.map(bounds),
+            turns_from,
         });
-        orbit_walk::walk(&block.moons, Turn::FromPrevious(Bounds::fixed(0.0)), self)
+        let before = self.previous.take();
+        let moons = orbit_walk::walk(
+            &block.moons,
+            Turn::FromPrevious(Bounds::fixed(WALK_START)),
+            self,
+        );
+        self.previous = before;
+        moons
     }
 }
 
@@ -317,6 +397,20 @@ fn deposit_counts(keys: &[String]) -> Vec<DepositCount> {
         }
     }
     counts
+}
+
+/// The synthetic id of the `n`th body [`initializers::expand`] gives.
+fn planet_id(n: usize) -> u32 {
+    PLANET_BASE + index(n)
+}
+
+/// What a scenario draws a system's star as while the game has yet to pick it.
+pub const RANDOM_STAR_CLASS: &str = "sc_g";
+
+pub(crate) fn star_class_of(init: Option<&Initializer>) -> &str {
+    init.and_then(|init| init.class.as_deref())
+        .filter(|class| class.starts_with("sc_"))
+        .unwrap_or(RANDOM_STAR_CLASS)
 }
 
 /// Never [`u32::MAX`]: the format's null id.

@@ -1,3 +1,4 @@
+import type { BodyLayout } from "../generated/BodyLayout";
 import type { CountryNode } from "../generated/CountryNode";
 import type { ExportReport } from "../generated/ExportReport";
 import type { FleetSummary } from "../generated/FleetSummary";
@@ -182,6 +183,7 @@ export function systemDetails(over: Partial<SystemDetails> = {}): SystemDetails 
     with_game_data: false,
     belts: [],
     inner_radius: null,
+    unexpanded_scripts: false,
     ...over,
   };
 }
@@ -211,6 +213,21 @@ export function planetSummary(over: Partial<PlanetSummary> = {}): PlanetSummary 
   };
 }
 
+/** The one `BodyLayout` builder: nothing placed, sized or stepped. */
+export function bodyLayout(over: Partial<BodyLayout> = {}): BodyLayout {
+  return {
+    orbit: null,
+    angle: null,
+    at: null,
+    size: null,
+    orbit_step: null,
+    orbit_base: null,
+    angle_step: null,
+    turns_from: null,
+    ...over,
+  };
+}
+
 /** The one `FleetSummary` builder: one ownerless military ship with no power. */
 export function fleetSummary(over: Partial<FleetSummary> = {}): FleetSummary {
   return {
@@ -236,6 +253,7 @@ export function initializerView(over: Partial<InitializerView> = {}): Initialize
     source: "C:/Stellaris/common/solar_system_initializers/00_initializers.txt",
     display_name: null,
     class: null,
+    star_class: "sc_g",
     usage: null,
     empire_spawn: false,
     max_instances: null,

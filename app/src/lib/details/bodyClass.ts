@@ -5,8 +5,7 @@
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarClassView } from "../../generated/StarClassView";
-import { effectiveStarClass } from "../visual/starGlyphs";
-import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "./starBody";
+import { isStarBody, singleStarClasses } from "./starBody";
 
 /** A body's class as it is drawn. */
 export interface ResolvedClass {
@@ -23,7 +22,6 @@ export interface ResolvedClass {
 export interface ClassSources {
   readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
   readonly starClasses: ReadonlyMap<string, StarClassView>;
-  readonly initializerClasses: ReadonlyMap<string, string>;
   readonly kind: DocumentKind | null;
 }
 
@@ -38,15 +36,6 @@ function singlesOf(starClasses: ReadonlyMap<string, StarClassView>) {
   return singles;
 }
 
-/** The class a system's star is drawn as when its source gives it none. */
-function systemStarClass(
-  node: { star_class: string; initializer: string } | null,
-  src: ClassSources,
-): string {
-  if (!node) return "";
-  return effectiveStarClass(node, src.initializerClasses.get(node.initializer), src.kind);
-}
-
 /** A class written in place of a planet class: a random draw, or a list the install does not define. */
 function drawnClass(planetClass: string, src: ClassSources): boolean {
   if (planetClass === "random" || planetClass.startsWith("random_")) return true;
@@ -55,33 +44,22 @@ function drawnClass(planetClass: string, src: ClassSources): boolean {
 }
 
 /**
- * Each body's class, in the order the source lists them. A scenario writes a star as the bare
- * `star`, or as the system's star class, and each such star takes the class's next planet. A
- * star is drawn as the single-star class of its planet, as a save's is.
+ * Each body's class, in the order the source lists them. A star is drawn as the single-star class
+ * of its planet, as a save's is, else as `systemStar`, its system's star class.
  */
 export function resolveBodyClasses(
   written: readonly { id: number; class: string }[],
-  node: { star_class: string; initializer: string } | null,
+  systemStar: string,
   src: ClassSources,
 ): Map<number, ResolvedClass> {
-  const system = systemStarClass(node, src);
   const singles = singlesOf(src.starClasses);
   const resolved = new Map<number, ResolvedClass>();
-  let nth = 0;
   for (const { id, class: planetClass } of written) {
-    const named = src.starClasses.has(planetClass) && !src.planetClasses.has(planetClass);
-    const asStarClass = planetClass === STAR_BODY_CLASS ? system : named ? planetClass : null;
-    let surface = planetClass;
-    if (asStarClass !== null) {
-      const keys = src.starClasses.get(asStarClass)?.planet_keys ?? [];
-      surface = keys[nth] ?? keys[0] ?? planetClass;
-      nth++;
-    }
-    const star = asStarClass !== null || isStarBody(surface, src.planetClasses, src.starClasses);
+    const star = isStarBody(planetClass, src.planetClasses, src.starClasses);
     resolved.set(id, {
-      planetClass: surface,
+      planetClass,
       star,
-      starClass: star ? (singles.get(surface)?.key ?? asStarClass ?? system) : null,
+      starClass: star ? (singles.get(planetClass)?.key ?? systemStar) : null,
       drawn: !star && drawnClass(planetClass, src),
     });
   }

@@ -1,7 +1,7 @@
 import type { GalaxyDelta } from "../generated/GalaxyDelta";
 import type { SpecialKind } from "../generated/SpecialKind";
 import type { AppIssue } from "../lib/issues";
-import type { LayerId } from "../lib/visual/layerIds";
+import type { GalaxyLayers } from "../lib/visual/layerIds";
 import { watchRings, type WatchRings } from "../lib/watchlist";
 import { useDetailsStore } from "../store/detailsStore";
 import { useEditorStore } from "../store/editorStore";
@@ -258,7 +258,7 @@ function setMatched(view: MapView, key: string | null): void {
   view.highlights.setMatched(ids);
 }
 
-function applyLayerVisibility(view: MapView, layers: Record<LayerId, boolean>): void {
+function applyLayerVisibility(view: MapView, layers: GalaxyLayers): void {
   const kind = useFileSessionStore.getState().kind;
   for (const layer of view.layers) {
     layer.setVisible(layerShown(layer.id, layers, kind));

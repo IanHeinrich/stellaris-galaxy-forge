@@ -87,6 +87,9 @@ pub struct SystemDetails {
     pub belts: Vec<BeltSpec>,
     /// A save's `inner_radius`; `None` in a scenario.
     pub inner_radius: Option<f64>,
+    /// A scenario's initializer runs an `inline_script` where it places bodies, which is not
+    /// expanded, so the game spawns bodies `planets` does not list. `false` in a save.
+    pub unexpanded_scripts: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -167,6 +170,17 @@ pub struct BodyLayout {
     pub at: Option<(f64, f64)>,
     /// `planet_size`: fixed in a save, the initializer's `size` in a scenario.
     pub size: Option<Bounds>,
+    /// How far out from `orbit_base` an initializer steps it: its `orbit_distance`, or 10
+    /// to 20 without one. `None` in a save.
+    pub orbit_step: Option<Bounds>,
+    /// The running orbit it steps out from, `orbit` less `orbit_step` end by end. `None` in a save.
+    pub orbit_base: Option<Bounds>,
+    /// Its `orbit_angle`, the turn on from the angle of `turns_from`. `None` in a save, and
+    /// when an initializer names no angle.
+    pub angle_step: Option<Bounds>,
+    /// The body before it in its initializer's walk, whose angle it turns on from. `None`
+    /// for the first of a walk, which turns from 0, and in a save.
+    pub turns_from: Option<u32>,
 }
 
 /// One `deposit` key and how many of it the planet holds.
@@ -275,6 +289,7 @@ pub(super) fn resolve(
         with_game_data,
         belts: raw.belts.clone(),
         inner_radius: raw.inner_radius,
+        unexpanded_scripts: false,
     }
 }
 
@@ -290,6 +305,10 @@ fn layout(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> BodyLayout {
         angle: None,
         at: planet.at,
         size: planet.size.map(|size| Bounds::fixed(f64::from(size))),
+        orbit_step: None,
+        orbit_base: None,
+        angle_step: None,
+        turns_from: None,
     }
 }
 

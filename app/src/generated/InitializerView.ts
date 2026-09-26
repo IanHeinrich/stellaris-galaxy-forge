@@ -10,7 +10,13 @@ source: string,
 /**
  * A localisation key the app resolves; most initializers name none.
  */
-display_name: string | null, class: string | null, usage: string | null, 
+display_name: string | null, class: string | null, 
+/**
+ * The star class a scenario system with this initializer is drawn as: `class`, or a
+ * G star when that is a random list or missing, since the game draws that star only
+ * when it generates the galaxy.
+ */
+star_class: string, usage: string | null, 
 /**
  * Its `usage` is one a country starts in, so it needs a `spawn_weight`.
  */

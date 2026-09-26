@@ -40,7 +40,10 @@ export const PLATE_COLOR = 0x0b0f14;
 /** The fill of a handle or a lane's midpoint mark: a step lighter than a plate. */
 export const HANDLE_COLOR = 0x1c2333;
 
-/** The rings round the systems using the initializer the browser is highlighting. */
+/**
+ * The rings round the systems using the initializer the browser is highlighting; in the system
+ * view, what the selected body's orbit and angle are measured from.
+ */
 export const MATCHED_COLOR = 0x7dd3fc;
 
 /** The rings round the systems the search palette's query finds. */

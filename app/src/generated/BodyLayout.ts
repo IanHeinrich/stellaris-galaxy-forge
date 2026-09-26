@@ -24,4 +24,23 @@ at: [number, number] | null,
 /**
  * `planet_size`: fixed in a save, the initializer's `size` in a scenario.
  */
-size: Bounds | null, };
+size: Bounds | null, 
+/**
+ * How far out from `orbit_base` an initializer steps it: its `orbit_distance`, or 10
+ * to 20 without one. `None` in a save.
+ */
+orbit_step: Bounds | null, 
+/**
+ * The running orbit it steps out from, `orbit` less `orbit_step` end by end. `None` in a save.
+ */
+orbit_base: Bounds | null, 
+/**
+ * Its `orbit_angle`, the turn on from the angle of `turns_from`. `None` in a save, and
+ * when an initializer names no angle.
+ */
+angle_step: Bounds | null, 
+/**
+ * The body before it in its initializer's walk, whose angle it turns on from. `None`
+ * for the first of a walk, which turns from 0, and in a save.
+ */
+turns_from: number | null, };

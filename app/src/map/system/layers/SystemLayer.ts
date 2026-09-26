@@ -4,9 +4,12 @@ import type { SystemContext } from "../context";
 
 /** The system scene's own layers, kept apart from the galaxy's `LayerId`, which the Layers menu lists. */
 export type SystemLayerId =
-  "nebula" | "orbits" | "belts" | "bodies" | "labels" | "exits" | "highlight";
+  "nebula" | "orbits" | "rolled" | "belts" | "radii" | "bodies" | "labels" | "exits" | "highlight";
 
-/** What the scene marks: the body and arrow under the pointer, the body selected, the lane clicked. */
+/**
+ * What the scene marks: the body and arrow under the pointer, the body selected, the lane clicked,
+ * and the body a panel's link names while the pointer is on the link.
+ */
 export interface SceneHighlight {
   readonly hoverBody: number | null;
   /** The neighbour whose arrow is under the pointer. */
@@ -14,6 +17,7 @@ export interface SceneHighlight {
   readonly selectedBody: number | null;
   /** The neighbour whose lane was clicked. */
   readonly lane: number | null;
+  readonly linkedBody: number | null;
 }
 
 export const NO_HIGHLIGHT: SceneHighlight = Object.freeze({
@@ -21,6 +25,7 @@ export const NO_HIGHLIGHT: SceneHighlight = Object.freeze({
   hoverExit: null,
   selectedBody: null,
   lane: null,
+  linkedBody: null,
 });
 
 /** One drawn aspect of the system scene, derived from the `SystemContext` it is rebuilt with. */

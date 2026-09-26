@@ -29,10 +29,21 @@ a release is made.
   - Click a body to open its page in the Inspector. Green arrows at the
     edge point along each hyperlane. Double-click one to go to the next
     system.
-  - Scenario systems open too, laid out from their initializer. A
-    distance the initializer leaves to chance shows as a band. An angle
-    left to chance shows as an arc. A planet with no angle shows as a
-    ghost on its whole orbit.
+  - Orbit radii, on key 2 in the system view, labels each orbit with
+    its radius. A selected body shows a line out to it with its radius.
+  - The layer buttons and tools that only work on the galaxy are hidden
+    in the system view.
+  - Scenario systems open too. They show one example roll of what the
+    initializer sets, with each body placed within its ranges. Roll
+    again, next to the system's name, rolls another.
+  - Select a scenario body to see its distance range as a band and its
+    angle range as a wedge. What the distance and angle are measured
+    from is outlined in blue.
+  - A scenario body's page lists its orbit step, its angle step and
+    whether it has a ring. The angle step names the body it turns from.
+    Click the name to go to that body.
+  - A scenario system with no initializer shows faint placeholder
+    planets. The game rolls its planets when the game starts.
 - Add system lists Sol and more of the game's named systems, such as
   Barnard's Star, New Bratulla, the Great Wound, Vultaumar and Tiyana
   Vek. They come without their empires, pre-FTL civilisations, guardians

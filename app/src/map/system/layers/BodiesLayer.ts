@@ -13,7 +13,6 @@ import { MAP_FONT } from "../../../lib/visual/style";
 import type { StarFlare } from "../../../lib/visual/starGlyphs";
 import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
-import { dashedCircle } from "../../layers/dashes";
 import { STAR_ART_BLEND } from "../../layers/StarClusters";
 import {
   EMPTY_SYSTEM_CONTEXT,
@@ -91,9 +90,8 @@ const HOLE_ART_SCALE = 2.6;
 const PLANET_ART_SCALE = 1;
 /** The on-screen disc diameter, in pixels, past which a planet shows its class's large icon. */
 const LARGE_ICON_PX = 48;
-/** A ghost's sprites, and the dashes of its outline. */
+/** A ring left to chance. */
 const GHOST_ALPHA = 0.4;
-const GHOST_DASHES = 16;
 /**
  * The atmosphere haze: its reach past the limb in disc radii per unit of the class's
  * `atmosphere_width`, never under two pixels, its alpha at the limb per unit of
@@ -119,8 +117,6 @@ const RING_SEGMENTS = 32;
 /** The baked ring's warm neutral, and how far it leans towards the body's own tint. */
 const RING_COLOUR = 0xd8c6a0;
 const RING_TINT_SHARE = 0.3;
-const RING_DASHES = 32;
-const RING_DASH_INK = 0.6;
 /** The question mark over a random class, its height in disc diameters. */
 const GLYPH_FONT_PX = 24;
 const GLYPH_SCALE = 0.75;
@@ -203,8 +199,6 @@ interface Ring {
   /** The game's ring texture on each half. */
   backStrip: Mesh;
   frontStrip: Mesh;
-  /** The outline of a ring left to chance. */
-  dashes: Graphics | null;
 }
 
 /**
@@ -240,7 +234,6 @@ interface Drawn {
   shade: Sprite | null;
   rim: Graphics | null;
   glyph: BitmapText | null;
-  outline: Graphics | null;
   /** Whether the disc was last dressed as large on screen. */
   large: boolean;
 }
@@ -250,35 +243,13 @@ function sized(sprite: Sprite, diameter: number): void {
   sprite.scale.set(diameter / Math.max(width, height, 1));
 }
 
-/** The dashes of a ring's outer edge, leaving out those the disc hides on the far side. */
-function traceRingDashes(g: Graphics, radius: number): void {
-  const a = radius * RING_MAJOR;
-  const b = radius * RING_MINOR;
-  const cos = Math.cos(RING_TILT);
-  const sin = Math.sin(RING_TILT);
-  const at = (t: number): [number, number] => {
-    const x = a * Math.cos(t);
-    const y = b * Math.sin(t);
-    return [x * cos - y * sin, x * sin + y * cos];
-  };
-  const step = (2 * Math.PI) / RING_DASHES;
-  for (let i = 0; i < RING_DASHES; i++) {
-    const start = i * step;
-    const end = start + step * RING_DASH_INK;
-    const mid = (start + end) / 2;
-    if (Math.sin(mid) < 0 && Math.hypot(...at(mid)) < radius) continue;
-    g.moveTo(...at(start));
-    for (let k = 1; k <= 4; k++) g.lineTo(...at(start + ((end - start) * k) / 4));
-  }
-}
-
 /**
  * A tinted disc per body with its class icon on top, a glow under each star and the sphere
  * shading over each other body, turned so its lit side faces the star it orbits. A class whose
  * surface the install bakes into a lit disc shows that in place of the tint and the icon. A class
  * with an atmosphere shows a haze outside the limb, and a ringed body its ring, the far half
- * behind the disc. A random class shows a question mark in place of the icon, a ghost is faded
- * inside a dashed outline, and a ring left to chance is faded and dashed.
+ * behind the disc. A random class shows a question mark in place of the icon, and a ring left to
+ * chance is faded.
  */
 export class BodiesLayer implements SystemLayer {
   readonly id = "bodies" as const;
@@ -424,33 +395,12 @@ export class BodiesLayer implements SystemLayer {
     if (back && backStrip) {
       const front = ringHalf("ringFront", this.textures.ringFront);
       const frontStrip = ringStripHalf("ringFrontStrip", false);
-      const dashes = chance.ring ? graphics("ringDashes") : null;
-      ring = { back, front, backStrip, frontStrip, dashes };
+      ring = { back, front, backStrip, frontStrip };
     }
     let glyph: BitmapText | null = null;
     if (chance.planetClass) {
       glyph = new BitmapText({ text: "?", style: GLYPH_STYLE, anchor: 0.5 });
       holder.addChild(glyph);
-    }
-    let outline: Graphics | null = null;
-    if (chance.anyAngle) {
-      const faded = [
-        glow,
-        ...flares.map((f) => f.sprite),
-        ring?.back,
-        ring?.front,
-        ring?.backStrip,
-        ring?.frontStrip,
-        disc,
-        lit,
-        art,
-        glaze,
-        shade,
-        rim,
-        glyph,
-      ];
-      for (const part of faded) if (part) part.alpha *= GHOST_ALPHA;
-      outline = graphics("outline");
     }
     this.container.addChild(holder);
     const drawn = {
@@ -465,7 +415,6 @@ export class BodiesLayer implements SystemLayer {
       shade,
       rim,
       glyph,
-      outline,
       large: false,
     };
     drawn.large = this.isLarge(drawn);
@@ -555,7 +504,6 @@ export class BodiesLayer implements SystemLayer {
         this.dress(drawn);
       }
       const { body, glow, flares, glaze, ring, disc, lit, art, shade, rim, glyph } = drawn;
-      const { outline } = drawn;
       const d = 2 * drawnDisc(body.placement.disc, this.scale);
       if (glow) sized(glow, d * GLOW_SCALE);
       sized(disc, d);
@@ -577,13 +525,8 @@ export class BodiesLayer implements SystemLayer {
       if (glaze) sized(glaze, d * artScale(body));
       if (shade) sized(shade, d);
       if (rim && body.atmosphere) this.drawRim(rim, body.atmosphere, d / 2);
-      if (ring) this.sizeRing(ring, body, d / 2);
+      if (ring) this.sizeRing(ring, d / 2);
       if (glyph) glyph.scale.set((d * GLYPH_SCALE) / GLYPH_FONT_PX);
-      if (outline) {
-        outline.clear();
-        dashedCircle(outline, 0, 0, d / 2, GHOST_DASHES);
-        outline.stroke({ color: body.look.tint, pixelLine: true });
-      }
     }
   }
 
@@ -606,7 +549,7 @@ export class BodiesLayer implements SystemLayer {
     }
   }
 
-  private sizeRing(ring: Ring, body: SceneBody, radius: number): void {
+  private sizeRing(ring: Ring, radius: number): void {
     for (const half of [ring.back, ring.front]) {
       const { width, height } = half.texture;
       half.scale.set(
@@ -616,11 +559,6 @@ export class BodiesLayer implements SystemLayer {
     }
     for (const half of [ring.backStrip, ring.frontStrip]) {
       half.scale.set(RING_MAJOR * radius, RING_MINOR * radius);
-    }
-    if (ring.dashes) {
-      ring.dashes.clear();
-      traceRingDashes(ring.dashes, radius);
-      ring.dashes.stroke({ color: body.look.tint, pixelLine: true });
     }
   }
 

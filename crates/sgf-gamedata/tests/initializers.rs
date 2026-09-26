@@ -331,8 +331,8 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
         .expect("one bare star");
     assert_eq!(plain.planets.len(), 1);
     assert_eq!(
-        plain.planets[0].class, "sc_sun",
-        "the body written as `star` wears the initializer's star class"
+        plain.planets[0].class, "pc_sun_star",
+        "the body written as `star` is its initializer's star class's planet"
     );
     assert!(plain.resources.is_empty() && plain.starbase.is_none());
     assert!(plain.sites.is_empty() && plain.megastructures.is_empty());
@@ -543,7 +543,7 @@ fn a_systems_details_are_what_its_initializer_defines() {
     assert_eq!(
         classes,
         [
-            "sc_neutron_star",
+            "pc_neutron_star",
             "pc_barren",
             "pc_asteroid",
             "pc_asteroid",
@@ -558,7 +558,11 @@ fn a_systems_details_are_what_its_initializer_defines() {
         2,
         "the relic world's moons"
     );
-    assert_eq!(details.planets[0].habitable, None, "star is not a class");
+    assert_eq!(
+        details.planets[0].habitable,
+        Some(false),
+        "a star is not colonisable"
+    );
     assert_eq!(details.planets[1].size, Some(18));
     assert_eq!(
         details.planets[2].deposits.len(),
@@ -575,6 +579,96 @@ fn a_systems_details_are_what_its_initializer_defines() {
         details.planets.iter().all(|p| p.id != site.id),
         "a synthetic site id never collides with a body's"
     );
+}
+
+/// Larionessi Refuge's two asteroids write no `size`, so each takes `pc_asteroid`'s
+/// `planet_size = 5`.
+#[test]
+fn a_body_with_no_size_takes_its_classs_planet_size() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let details = gd
+        .initializer_details(7, "unique_system_initializer_02", None)
+        .expect("Larionessi Refuge");
+    let asteroids: Vec<_> = details
+        .planets
+        .iter()
+        .filter(|p| p.class == "pc_asteroid")
+        .map(|p| (p.size, p.layout.as_ref().and_then(|l| l.size)))
+        .collect();
+    assert_eq!(asteroids, [(Some(5), Some(fixed(5.0))); 2]);
+}
+
+/// A save writes each star body as a planet class, so a scenario's details do too: the bare
+/// `star` takes the system's star class's planet key for the nth star in source order.
+#[test]
+fn a_scenario_star_body_is_the_planet_class_its_star_class_spawns() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let stars = |initializer: &str, n: usize| -> Vec<String> {
+        gd.initializer_details(1, initializer, None)
+            .unwrap_or_else(|| panic!("{initializer}'s details"))
+            .planets
+            .iter()
+            .take(n)
+            .map(|p| p.class.clone())
+            .collect()
+    };
+    assert_eq!(stars("star_lifting_system", 1), ["pc_pulsar"], "sc_pulsar");
+    assert_eq!(
+        stars("living_planet_system", 2),
+        ["pc_m_giant_star", "pc_b_star"],
+        "sc_binary_3's two stars, in order"
+    );
+    assert_eq!(
+        stars("hostile_init_void_cloud", 1),
+        ["pc_black_hole"],
+        "sc_black_hole"
+    );
+    assert_eq!(
+        stars("relic_system_1", 2),
+        ["pc_g_star", "pc_g_star"],
+        "a random star list stands in as a G star until the game draws one"
+    );
+    let pulsar = gd
+        .initializer_details(1, "star_lifting_system", None)
+        .expect("the pulsar's details");
+    assert_eq!(pulsar.planets[0].habitable, Some(false));
+}
+
+/// No vanilla initializer writes a brown dwarf's star as the bare `star`, and none writes a
+/// star class as a body's class, so both are asked of the resolution directly.
+#[test]
+fn a_star_body_takes_the_planet_key_of_the_class_it_names_or_its_systems() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    assert_eq!(gd.star_body_classes("sc_t", ["star"]), ["pc_t_star"]);
+    assert_eq!(
+        gd.star_body_classes("sc_g", ["sc_t", "pc_barren", "star"]),
+        ["pc_t_star", "pc_barren", "pc_g_star"],
+        "a named star class is the brown dwarf's; the bare star is the second star of sc_g"
+    );
+    assert_eq!(
+        gd.star_body_classes("sc_binary_3", ["star", "pc_barren", "star", "star"]),
+        [
+            "pc_m_giant_star",
+            "pc_barren",
+            "pc_b_star",
+            "pc_m_giant_star"
+        ],
+        "a star past the class's planets takes its first"
+    );
+    assert_eq!(
+        gd.star_body_classes("sc_no_such_class", ["star"]),
+        ["star"],
+        "a class the install does not define leaves the star as written"
+    );
+    assert_eq!(gd.scenario_star_class("star_lifting_system"), "sc_pulsar");
+    assert_eq!(gd.scenario_star_class("relic_system_1"), "sc_g");
+    assert_eq!(gd.scenario_star_class("no_such_initializer"), "sc_g");
 }
 
 #[test]
@@ -634,7 +728,8 @@ fn an_initializer_is_sourced_to_the_mod_that_defines_it_and_vanilla_to_nothing()
     assert_eq!(gd.initializer_source("no_such_init"), None);
 }
 
-/// Angles accumulate from the body before, at each level; a count is its midpoint.
+/// Angles accumulate from the body before, at each level, the first from 180 degrees; a count is
+/// its midpoint.
 #[test]
 fn a_fixture_systems_layout_is_what_its_initializer_defines() {
     let gd = common::cached_fixture();
@@ -659,32 +754,32 @@ fn a_fixture_systems_layout_is_what_its_initializer_defines() {
             (
                 None,
                 Some(range(30.0, 35.0)),
-                Some(fixed(90.0)),
+                Some(fixed(270.0)),
                 Some(fixed(16.0))
             ),
-            (Some(id(1)), Some(fixed(8.0)), Some(fixed(30.0)), None),
+            (Some(id(1)), Some(fixed(8.0)), Some(fixed(210.0)), None),
             (
                 Some(id(1)),
                 Some(fixed(10.0)),
-                Some(range(40.0, 80.0)),
+                Some(range(220.0, 260.0)),
                 None
             ),
             (
                 None,
                 Some(range(60.0, 65.0)),
-                Some(range(60.0, 120.0)),
+                Some(range(240.0, 300.0)),
                 None
             ),
             (
                 None,
                 Some(range(80.0, 85.0)),
-                Some(range(30.0, 150.0)),
+                Some(range(210.0, 330.0)),
                 None
             ),
             (
                 None,
                 Some(range(90.0, 105.0)),
-                Some(range(75.0, 195.0)),
+                Some(range(255.0, 375.0)),
                 None
             ),
             (None, Some(range(115.0, 130.0)), None, None),
@@ -717,7 +812,8 @@ fn range(min: f64, max: f64) -> Bounds {
     Bounds { min, max }
 }
 
-/// The game wrote system 217 of the sample from Sol's initializer, turned by one angle.
+/// The game wrote system 217 of the sample from Sol's initializer, its planets turned by one
+/// angle; each planet's moons start from 180 degrees in the save's frame, whatever that turn.
 #[test]
 fn sol_is_laid_out_where_the_game_put_it() {
     let Some(gd) = INSTALL.as_ref() else {
@@ -761,7 +857,11 @@ fn sol_is_laid_out_where_the_game_put_it() {
         let angle = layout.angle.expect("Sol gives every body an angle");
         assert_eq!(angle.min, angle.max, "{}", body.name_key);
         let saved_angle = dy.atan2(dx).to_degrees();
-        let turn = *turn.get_or_insert(saved_angle - angle.min);
+        let turn = if body.parent.is_some() {
+            0.0
+        } else {
+            *turn.get_or_insert(saved_angle - angle.min)
+        };
         let off = (angle.min + turn - saved_angle).rem_euclid(360.0);
         assert!(
             off.min(360.0 - off) < 0.1,
@@ -812,4 +912,118 @@ fn a_body_with_no_distance_lies_in_a_band_past_the_running_orbit_and_moves_the_r
             );
         }
     }
+}
+
+/// Each scenario body carries its steps as its initializer writes them: `basic_init_05` moves
+/// the running orbit in by 210 after its icy belt, so its first planet steps 30 out from 30.
+#[test]
+fn a_scenario_body_steps_out_from_the_running_orbit_and_turns_from_the_body_before_it() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let details = gd
+        .initializer_details(9, "basic_init_05", None)
+        .expect("basic_init_05");
+    let layout = |index: usize| {
+        details.planets[index]
+            .layout
+            .clone()
+            .expect("every scenario body is laid out")
+    };
+    let last_ice = details
+        .planets
+        .iter()
+        .rposition(|p| p.class == "pc_ice_asteroid")
+        .expect("the icy belt's asteroids");
+    let ice = &details.planets[last_ice];
+    let first_planet = last_ice + 1;
+    let planet = layout(first_planet);
+    assert_eq!(planet.orbit, Some(fixed(60.0)));
+    assert_eq!(planet.orbit_step, Some(fixed(30.0)));
+    assert_eq!(planet.orbit_base, Some(fixed(30.0)));
+    assert_eq!(planet.angle_step, Some(range(90.0, 270.0)));
+    assert_eq!(planet.turns_from, Some(ice.id));
+
+    let star = layout(0);
+    assert_eq!(star.turns_from, None, "the first body turns from 0");
+    assert_eq!(star.orbit_step, Some(fixed(0.0)));
+
+    let moon = details
+        .planets
+        .iter()
+        .position(|p| p.parent == Some(details.planets[first_planet].id))
+        .expect("the planet's moon");
+    let moon = layout(moon);
+    assert_eq!(moon.turns_from, None, "a moon's walk starts afresh");
+    assert_eq!(
+        moon.angle,
+        Some(range(270.0, 450.0)),
+        "the game turns a planet's first moon on from 180°"
+    );
+    assert_eq!(moon.orbit_step, Some(fixed(5.0)));
+    assert_eq!(moon.orbit_base, Some(fixed(10.0)));
+
+    let broken = gd
+        .initializer_details(55, "special_init_01", None)
+        .expect("special_init_01")
+        .planets[1]
+        .layout
+        .clone()
+        .expect("a layout");
+    assert_eq!(
+        broken.orbit_step,
+        Some(range(10.0, 20.0)),
+        "no orbit_distance"
+    );
+    assert_eq!(broken.orbit_base, Some(fixed(60.0)));
+    assert_eq!(broken.angle_step, None, "no orbit_angle");
+}
+
+/// An initializer the install defines answers even when it places nothing, with every list
+/// empty and nothing left unread, so a system using it is told apart from one whose initializer
+/// is `random`, empty or undefined, whose planets the game rolls. No vanilla initializer places
+/// nothing without an `inline_script`, so this one is the fixture's.
+#[test]
+fn a_defined_initializer_that_places_nothing_answers_with_empty_lists() {
+    let gd = common::cached_fixture();
+    let details = gd
+        .initializer_details(4, "empty_init", None)
+        .expect("a record for a defined initializer");
+    assert_eq!(details.id, 4);
+    assert!(details.planets.is_empty());
+    assert!(details.sites.is_empty());
+    assert!(details.megastructures.is_empty());
+    assert!(details.starbase.is_none());
+    assert!(!details.unexpanded_scripts);
+    for undefined in ["random", "", "no_such_initializer"] {
+        assert!(
+            gd.initializer_details(4, undefined, None).is_none(),
+            "{undefined:?}"
+        );
+    }
+}
+
+/// The void worms' systems place their bodies through an `inline_script`, which the details do
+/// not expand: the record says so, and lists none of them.
+#[test]
+fn an_initializer_placing_its_bodies_through_an_inline_script_is_marked() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let worms = gd
+        .initializer_details(4, "voidworms_spawn_system_tiny", None)
+        .expect("a record for a defined initializer");
+    assert!(worms.unexpanded_scripts);
+    assert!(worms.planets.is_empty());
+    let plain = gd
+        .initializer_details(4, "basic_init_05", None)
+        .expect("basic_init_05");
+    assert!(!plain.unexpanded_scripts);
+    let fallen = gd
+        .initializer_details(4, "fallen_1_2", None)
+        .expect("fallen_1_2");
+    assert!(
+        !fallen.unexpanded_scripts,
+        "an inline_script in a body's init_effect places no body"
+    );
 }

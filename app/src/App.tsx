@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import "./App.css";
 import { isEditableTarget, keyAction, layerKeyOf, nudgeOf, radiusStepOf } from "./lib/keys";
 import { fileName } from "./lib/paths";
+import { barShows } from "./lib/visual/barMode";
 import { MapCanvas } from "./map/MapCanvas";
 import { ContextMenu } from "./panels/overlays/ContextMenu";
 import { LoadingOverlay } from "./panels/overlays/LoadingOverlay";
@@ -49,7 +50,7 @@ import { useFileSessionStore } from "./store/fileSessionStore";
 import { useGameDataStore } from "./store/gameDataStore";
 import { useLayoutStore } from "./store/layoutStore";
 import { usePaintModStore } from "./store/paintModStore";
-import { useSceneStore } from "./store/sceneStore";
+import { useBarMode, useSceneStore } from "./store/sceneStore";
 import { useUpdateStore } from "./store/updateStore";
 
 function FileState() {
@@ -116,6 +117,7 @@ const EFFECTS: CommandEffects = {
 function App() {
   const status = useFileSessionStore((s) => s.status);
   const shown = useSceneStore((s) => (s.scene.kind === "system" ? s.scene.id : null));
+  const tools = barShows(useBarMode(), "tools");
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
   const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
@@ -204,10 +206,11 @@ function App() {
       <TopBar />
       <PaintNotice />
       <div className="main">
-        {status === "ready" && shown === null && <ToolRail />}
+        {status === "ready" && tools && <ToolRail />}
         <div className="map-area">
           <MapCanvas />
-          {status === "ready" && (shown === null ? <ToolOptions /> : <SceneCrumb system={shown} />)}
+          {status === "ready" && tools && <ToolOptions />}
+          {status === "ready" && shown !== null && <SceneCrumb system={shown} />}
           <ContextMenu />
           <MapTooltip />
           {status !== "ready" && <Launch />}

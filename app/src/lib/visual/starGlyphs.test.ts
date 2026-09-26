@@ -40,17 +40,13 @@ describe("effectiveStarClass", () => {
     );
   });
 
-  it("falls back to the stand-in for a random list, an unknown initializer or none at all", () => {
-    expect(effectiveStarClass({ star_class: "" }, "rl_starting_stars", "scenario")).toBe(
-      RANDOM_STAR_CLASS,
-    );
-    expect(effectiveStarClass({ star_class: "" }, undefined, "scenario")).toBe(RANDOM_STAR_CLASS);
+  it("takes the class the core resolved for a random list, and the stand-in for an unknown initializer", () => {
+    expect(effectiveStarClass({ star_class: "" }, "sc_g", "scenario")).toBe("sc_g");
     expect(effectiveStarClass({ star_class: "" }, undefined, "scenario")).toBe(RANDOM_STAR_CLASS);
   });
 
   it("leaves a save's classless system classless", () => {
     expect(effectiveStarClass({ star_class: "" }, undefined, "save")).toBe("");
-    expect(effectiveStarClass({ star_class: "" }, "rl_starting_stars", "save")).toBe("");
     expect(effectiveStarClass({ star_class: "" }, "sc_g", "save")).toBe("sc_g");
   });
 });
