@@ -18,7 +18,7 @@ export const SWIRL_SIZE = 256;
  * on its star, so the part inside the limb is hidden behind the surface.
  */
 export const BEAM_LENGTH = 4;
-export const PLUME_LENGTH = 3;
+export const PLUME_LENGTH = 6;
 /** How wide the limb bloom and the pulsar's haze are drawn, in disc diameters. */
 export const HALO_SCALE = 1.4;
 export const SWIRL_SCALE = 3.2;
@@ -32,10 +32,10 @@ const BEAM_SPREAD = 0.62;
  * texture's half height, and how bright its body is beside its filaments.
  */
 const PLUME_SPREAD = 0.62;
-const PLUME_TIP = 0.35;
+const PLUME_TIP = 0.2;
 const PLUME_BODY = 0.85;
-/** How steeply a jet fades from the pole out: most of its light is in the blaze at the pole. */
-const PLUME_FADE = 2.6;
+/** How steeply a jet fades from the pole out: bright at the pole, thinning out to its very end. */
+const PLUME_FADE = 1.3;
 /** The filaments inside a jet: where each sits across it, as a share of its half width. */
 const FILAMENTS = [-0.5, -0.18, 0.08, 0.34, 0.58];
 const FILAMENT_WIDTH = 0.06;
@@ -135,7 +135,7 @@ export function plumeTexels(): Uint8Array {
       filaments += flicker * across(y - centre, FILAMENT_WIDTH * (1 - 0.5 * s));
     }
     const body = PLUME_BODY * across(y, half);
-    const fade = (1 - s) ** PLUME_FADE * (1 - smoothstep(0.85, 1, s));
+    const fade = (1 - s) ** PLUME_FADE * (1 - smoothstep(0.7, 1, s));
     return fade * (body + (1 - PLUME_BODY) * filaments * across(y, 1.3 * half));
   });
 }

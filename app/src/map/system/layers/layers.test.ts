@@ -417,7 +417,9 @@ describe("the system scene's bodies layer", () => {
     expect(star.labels.indexOf("wash")).toBeGreaterThan(lit);
     expect(star.labels.indexOf("halo")).toBeGreaterThan(star.labels.indexOf("wash"));
     expect(star.labelled("wash").blendMode).toBe("add");
-    expect(star.labelled("halo").alpha).toBeGreaterThan(0.5);
+    const lettered = drawnStar("pc_g_star", "sc_g");
+    expect(star.labelled("halo").alpha).toBeGreaterThan(lettered.labelled("halo").alpha);
+    lettered.layer.destroy();
     const blooms = star.all("bloom");
     expect(blooms).toHaveLength(2);
     for (const bloom of blooms) {
@@ -441,7 +443,7 @@ describe("the system scene's bodies layer", () => {
     const haze = star.labelled("haze");
     expect(star.labels.indexOf("haze")).toBeLessThan(star.labels.indexOf("disc"));
     expect(haze.blendMode).toBe("add");
-    expect(haze.alpha).toBeGreaterThan(0.5);
+    expect(haze.alpha).toBeGreaterThan(0.2);
     expect(haze.width).toBeGreaterThan(2.5 * star.disc);
     expect(star.labelled("jets")).toBeUndefined();
     star.layer.destroy();

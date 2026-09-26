@@ -48,14 +48,14 @@ const STAR_ART: Record<StarFlare | "star", { scale: number; alpha: number }> = {
 const HALO: FlareShape = { length: HALO_SCALE, thickness: HALO_SCALE, rotation: 0 };
 const STAR_HALO_ALPHA = 0.35;
 const EXOTIC_HALO_TINT = 0xe6f1ff;
-const EXOTIC_HALO_ALPHA = 0.8;
+const EXOTIC_HALO_ALPHA = 0.45;
 /**
  * The game glazes a pulsar's and a neutron star's surface with thousands of pale blue particles;
  * a wash of pale blue added over the disc stands in for them.
  */
 const WASH: FlareShape = { length: 1, thickness: 1, rotation: 0 };
 const WASH_TINT = 0xb4d0ff;
-const WASH_ALPHA = 0.55;
+const WASH_ALPHA = 0.35;
 /**
  * The light a pulsar or a neutron star throws off its poles: its length and thickness in disc
  * diameters, and its turn on screen. The beams and jets pass behind the star, so none of them
@@ -65,26 +65,26 @@ const WASH_ALPHA = 0.55;
  */
 const PULSAR_TURN = 1.07;
 const PULSAR_BEAMS: FlareShape = { length: BEAM_LENGTH, thickness: 0.5, rotation: PULSAR_TURN };
-const PULSAR_BLOOM = 0.95;
+const PULSAR_BLOOM = 0.75;
 /** The pale haze swirling round a pulsar, reaching well past the limb. */
 const PULSAR_SWIRL: FlareShape = { length: SWIRL_SCALE, thickness: SWIRL_SCALE, rotation: 0 };
 const SWIRL_TINT = 0xcfe2ff;
-const SWIRL_ALPHA = 0.65;
+const SWIRL_ALPHA = 0.35;
 const NEUTRON_TURN = Math.PI / 2;
 const NEUTRON_JETS: FlareShape = { length: PLUME_LENGTH, thickness: 1.4, rotation: NEUTRON_TURN };
-const NEUTRON_BLOOM = 1.25;
+const NEUTRON_BLOOM = 0.9;
 /** Faint thin strands of pale blue, flung out one and a half to three disc radii. */
 const NEUTRON_WISPS: FlareShape = { length: 3.4, thickness: 3.4, rotation: 0 };
 const WISPS_TINT = 0x9ec4ff;
 /** A wide soft blue glow round a neutron star, through which the wisps and orbits show. */
 const NEUTRON_AURA: FlareShape = { length: 6, thickness: 6, rotation: 0 };
 const AURA_TINT = 0x7fa8ff;
-const AURA_ALPHA = 0.4;
+const AURA_ALPHA = 0.25;
 const FLARE_TINT = 0xcfe4ff;
-const FLARE_ALPHA = 0.9;
+const FLARE_ALPHA = 0.75;
 const BLOOM_TINT = 0xeef6ff;
-const BLOOM_ALPHA = 0.85;
-const WISPS_ALPHA = 0.3;
+const BLOOM_ALPHA = 0.6;
+const WISPS_ALPHA = 0.2;
 /** A black hole's swirl, in disc diameters, and its event horizon's edge in screen pixels. */
 const HOLE_ART_SCALE = 2.6;
 const HORIZON_PX = 1.5;
