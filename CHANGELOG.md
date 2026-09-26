@@ -58,6 +58,8 @@ a release is made.
 - Planets and moons of an added system are spread round their star and
   planet as the game spreads them. An added Sol has each planet and moon
   on the same side as in a new game.
+- Scenarios from an older Paint a Galaxy, made before it wrote the
+  `# created by` line, now get Galaxy Forge's line when you save an edit.
 
 ## [0.14.1] - 2026-09-25
 

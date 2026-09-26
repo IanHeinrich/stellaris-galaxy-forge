@@ -46,7 +46,11 @@ parse is wrapped whole.
 Some files open with the `# Exported by` or `# Written by` comment that an
 earlier Forge wrote. Forge puts `# created by Stellaris Galaxy Forge
 <version> (imported from txt created by an earlier Stellaris Galaxy
-Forge)` above that comment. A file neither tool made gets no line. A file
+Forge)` above that comment. A file with Paint a Galaxy's scripts or flags
+but no line was made by a Paint a Galaxy from before the line. Forge puts
+`# created by Stellaris Galaxy Forge <version> (imported from txt created
+by Paint a Galaxy)` above its first line. A file neither tool made gets
+no line. A file
 saved without edits is written unchanged. A byte order mark stays in
 front, and the line uses the file's own line ending.
 
