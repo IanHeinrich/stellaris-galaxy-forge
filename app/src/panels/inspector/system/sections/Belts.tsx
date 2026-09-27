@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { Named } from "../../../../generated/Named";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { useGameDataStore } from "../../../../store/gameDataStore";
@@ -88,14 +88,23 @@ export function BeltSection({ details }: { details: SystemDetails }) {
   const system = details.id;
   const { layout, editing } = useSystemGeometry(system);
   const kinds = useGameDataStore((s) => s.summary?.belt_kinds ?? NO_KINDS);
-  const [refusal, setRefusal] = useState<string | null>(null);
+  // Where a refusal shows: under the inner radius, or under the belt whose edit it refused.
+  const [refusal, setRefusal] = useState<{ at: "inner" | number; text: string } | null>(null);
   const belts = layout.belts;
   const inner = details.inner_radius;
   if (inner === null && belts.length === 0) return null;
-  const send: Send = (intent) => {
-    setRefusal(null);
-    void applyGeometry(intent, setRefusal);
-  };
+  const sender =
+    (at: "inner" | number): Send =>
+    (intent) => {
+      setRefusal(null);
+      void applyGeometry(intent, (text) => setRefusal({ at, text }));
+    };
+  const note = (at: "inner" | number) =>
+    refusal?.at === at && (
+      <EditNote>
+        <span className="warn">{refusal.text}</span>
+      </EditNote>
+    );
   return (
     <Section id="system.belts" title="Belts" count={belts.length}>
       <div className="edit-grid">
@@ -107,34 +116,32 @@ export function BeltSection({ details }: { details: SystemDetails }) {
                 label="Inner radius"
                 title={`The system view draws the hyperlane exits on this circle. It can't go below ${Math.ceil(editing.innerFloor)}.`}
                 value={rounded(layout.innerRadius)}
-                onCommit={(radius) => send({ kind: "innerRadius", system, radius })}
+                onCommit={(radius) => sender("inner")({ kind: "innerRadius", system, radius })}
               />
             ) : (
               rounded(inner)
             )}
           </EditRow>
         )}
+        {note("inner")}
         {belts.map((belt, index) =>
           editing.belts ? (
-            <BeltRows
-              key={index}
-              system={system}
-              index={index}
-              kind={belt.kind}
-              radius={belt.radius}
-              kinds={kinds}
-              send={send}
-            />
+            <Fragment key={index}>
+              <BeltRows
+                system={system}
+                index={index}
+                kind={belt.kind}
+                radius={belt.radius}
+                kinds={kinds}
+                send={sender(index)}
+              />
+              {note(index)}
+            </Fragment>
           ) : (
             <EditRow key={index} label={kindName(belt.kind, kinds)}>
               radius {rounded(belt.radius)}
             </EditRow>
           ),
-        )}
-        {refusal !== null && (
-          <EditNote>
-            <span className="warn">{refusal}</span>
-          </EditNote>
         )}
       </div>
     </Section>
