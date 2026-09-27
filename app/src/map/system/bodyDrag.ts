@@ -21,6 +21,10 @@ const SHARED_SNAP_PX = 6;
 const CAPTURE_PAST_PX = 10;
 /** The least reach, in screen pixels, at which a body takes a dragged one as its moon. */
 const CAPTURE_MIN_PX = 18;
+/** How far past the ring a dragged body would land on, in screen pixels, a host takes it. */
+const CAPTURE_RING_PX = 8;
+/** A host keeps a body it has taken until the pointer is this many times its reach away. */
+const CAPTURE_HOLD = 1.5;
 /** The angle steps Shift snaps to, in degrees. */
 const SHIFT_STEP_DEG = 15;
 /**
@@ -202,6 +206,9 @@ export class BodyDrag implements Drag {
     private readonly outerMoonRing: number | null,
   ) {}
 
+  /** The host that took the body on the last move, which keeps it while the pointer stays near. */
+  private holder: number | null = null;
+
   /**
    * The drag of body `id`, pressed at `from` and now at `to`, or null when it may not move. The
    * travel so far picks the axis Ctrl holds it to: out from its ring's centre, or round it.
@@ -274,21 +281,35 @@ export class BodyDrag implements Drag {
     return this.frame.bodyById.get(id)?.name ?? `#${id}`;
   }
 
-  /** The body the pointer is within capture reach of, nearest first, other than those passed. */
+  /**
+   * The body the pointer is within capture reach of, nearest first, other than those passed. The
+   * host that took it last keeps it until the pointer is well clear, so it does not flicker away.
+   */
   private captured(pointer: DragPointer): BodyPlacement | null {
+    const px = (b: BodyPlacement) => Math.hypot(b.x - pointer.wx, b.y - pointer.wy) * pointer.scale;
+    const holder =
+      this.holder === null ? undefined : this.frame.bodyById.get(this.holder)?.placement;
+    if (holder && px(holder) <= this.reach(holder, pointer.scale) * CAPTURE_HOLD) return holder;
     let best: BodyPlacement | null = null;
     let bestPx = Infinity;
     for (const b of this.frame.layout.bodies) {
       if (this.passed.has(b.id)) continue;
-      const px = Math.hypot(b.x - pointer.wx, b.y - pointer.wy) * pointer.scale;
-      const disc = drawnDisc(b.disc, pointer.scale) * pointer.scale;
-      const reach = Math.max(CAPTURE_MIN_PX, disc + CAPTURE_PAST_PX);
-      if (px <= reach && px < bestPx) {
+      const d = px(b);
+      if (d <= this.reach(b, pointer.scale) && d < bestPx) {
         best = b;
-        bestPx = px;
+        bestPx = d;
       }
     }
+    this.holder = best?.id ?? null;
     return best;
+  }
+
+  /** How near, in screen pixels, the pointer must come for `b` to take the dragged body. */
+  private reach(b: BodyPlacement, scale: number): number {
+    const disc = drawnDisc(b.disc, scale) * scale;
+    const ring = this.frame.editing.bodies.get(b.id)?.moonRing;
+    const landing = ring === undefined ? 0 : ring * scale + CAPTURE_RING_PX;
+    return Math.max(CAPTURE_MIN_PX, disc + CAPTURE_PAST_PX, landing);
   }
 
   private detaches(pointer: DragPointer): boolean {

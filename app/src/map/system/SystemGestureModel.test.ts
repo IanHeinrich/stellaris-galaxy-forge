@@ -340,16 +340,20 @@ describe("a body dragged in the system scene", () => {
     expect(lastStep(intent)?.intent).toMatchObject({ kind: "move", radius: 100, angle: 150 });
   });
 
-  it("takes it as a moon within 10 px past the planet's drawn disc or 18 px, whichever is further", () => {
+  it("takes it as a moon within the ring it would land on, and holds it until half as far again", () => {
     const model = new SystemGestureModel();
     const intent = recorder(orbitFrame());
     grab(model, intent, LONE, around(120));
     const planet = intent.frame().layout.bodies.find((b) => b.id === PLANET)!;
-    const reach = Math.max(18, drawnDisc(planet.disc, 1) + 10);
+    const reach = Math.max(18, drawnDisc(planet.disc, 1) + 10, 25 + 8);
     const away = (px: number) => polarAt(px, 300, planet);
+    model.handle(on("move", away(reach + 0.5)), intent);
+    expect(lastStep(intent)?.marks.host).toBeNull();
     model.handle(on("move", away(reach - 0.5)), intent);
     expect(lastStep(intent)?.marks.host).toBe(PLANET);
-    model.handle(on("move", away(reach + 0.5)), intent);
+    model.handle(on("move", away(reach * 1.4)), intent);
+    expect(lastStep(intent)?.marks.host).toBe(PLANET);
+    model.handle(on("move", away(reach * 1.6)), intent);
     expect(lastStep(intent)?.marks.host).toBeNull();
     expect(lastStep(intent)?.intent.kind).toBe("move");
   });
