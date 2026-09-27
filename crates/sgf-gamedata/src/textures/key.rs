@@ -34,8 +34,8 @@ pub enum TextureKey {
     },
     EmpireFlag {
         background: String,
-        icon_category: String,
-        icon_file: String,
+        /// The emblem's category and file; `None` draws the background alone.
+        icon: Option<(String, String)>,
         colours: [String; 4],
     },
     /// A planet class's surface map baked into a lit disc.
@@ -114,8 +114,10 @@ impl FromStr for TextureKey {
             "empire_flag" => {
                 let mut parts = rest.splitn(3, ':');
                 let background = parts.next().and_then(component).ok_or_else(bad)?;
-                let (icon_category, icon_file) =
-                    parts.next().and_then(split_file).ok_or_else(bad)?;
+                let icon = match parts.next().ok_or_else(bad)? {
+                    "" => None,
+                    icon => Some(split_file(icon).ok_or_else(bad)?),
+                };
                 let colours: Vec<String> = parts
                     .next()
                     .ok_or_else(bad)?
@@ -124,8 +126,7 @@ impl FromStr for TextureKey {
                     .collect::<Result<_, _>>()?;
                 Self::EmpireFlag {
                     background,
-                    icon_category,
-                    icon_file,
+                    icon,
                     colours: colours.try_into().map_err(|_| bad())?,
                 }
             }
@@ -156,14 +157,14 @@ impl fmt::Display for TextureKey {
             } => write!(f, "sprite:{name}#{frame}"),
             Self::EmpireFlag {
                 background,
-                icon_category,
-                icon_file,
+                icon,
                 colours,
-            } => write!(
-                f,
-                "empire_flag:{background}:{icon_category}/{icon_file}:{}",
-                colours.join(",")
-            ),
+            } => {
+                let icon = icon.as_ref().map_or(String::new(), |(category, file)| {
+                    format!("{category}/{file}")
+                });
+                write!(f, "empire_flag:{background}:{icon}:{}", colours.join(","))
+            }
             Self::PlanetDisc { class } => write!(f, "planet_disc:{class}"),
             Self::PlanetRing => f.write_str("planet_ring"),
             Self::StarDisc { class } => write!(f, "star_disc:{class}"),

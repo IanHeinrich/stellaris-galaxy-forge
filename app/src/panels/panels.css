@@ -360,15 +360,9 @@
   border-radius: 4px;
 }
 
-.tile-panel-select {
+.tile-panel-dropdown {
   align-self: flex-start;
   max-width: 100%;
-}
-
-.tile-panel-select option,
-.tile-panel-select optgroup {
-  color: var(--fg);
-  background: var(--bg-elevated);
 }
 
 .tile-panel-grid {

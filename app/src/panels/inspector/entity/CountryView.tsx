@@ -93,8 +93,9 @@ function emblemGroups(parts: FlagParts): TileGroup[] {
     const modded = mods.every((mod) => mod !== null);
     return {
       key: category.name,
-      label: modded ? `${name} · ${mods.join(", ")}` : name,
+      label: name,
       section: modded ? "From mods" : undefined,
+      note: modded ? (mods.length === 1 ? mods[0] : `${mods.length} mods`) : undefined,
       items: category.files.map((f) => emblemItem(category.name, f.file)),
     };
   });
@@ -104,17 +105,12 @@ function emblemGroups(parts: FlagParts): TileGroup[] {
   return [...game.sort(byLabel), ...mods.sort(byLabel)];
 }
 
-/** A background as the whole flag it makes with the empire's emblem and colours. */
-function backgroundItem(
-  file: string,
-  icon: FlagRef,
-  background: FlagRef,
-  colors: readonly string[],
-): TileItem {
+/** A background in the empire's colours, without the emblem. */
+function backgroundItem(file: string, background: FlagRef, colors: readonly string[]): TileItem {
   return {
     key: file,
     label: fileLabel(file),
-    textures: [flagKey({ ...background, file }, icon, colors)],
+    textures: [flagKey({ ...background, file }, null, colors)],
   };
 }
 
@@ -200,7 +196,7 @@ function FlagFields({ country }: { country: CountryNode }) {
     {
       key: "backgrounds",
       label: "Backgrounds",
-      items: parts.backgrounds.map((f) => backgroundItem(f.file, icon, background, country.colors)),
+      items: parts.backgrounds.map((f) => backgroundItem(f.file, background, country.colors)),
     },
   ];
   const swatches = [...palette.keys()].map((name) => flagSwatch(name, palette));
@@ -221,7 +217,7 @@ function FlagFields({ country }: { country: CountryNode }) {
       <TilePicker
         label="Background"
         title="The pattern behind the emblem"
-        current={backgroundItem(flag.background, icon, background, country.colors)}
+        current={backgroundItem(flag.background, background, country.colors)}
         groups={backgrounds}
         open={panel === "background"}
         onOpenChange={openPanel("background")}

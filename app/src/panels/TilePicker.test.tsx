@@ -12,7 +12,8 @@ const GROUPS: TileGroup[] = [
   { key: "pointy", label: "pointy 2", items: [tile("pointy/a"), tile("pointy/b")] },
   {
     key: "stars",
-    label: "stars 2 · Star Pack",
+    label: "stars 2",
+    note: "Star Pack",
     section: "From mods",
     items: [tile("stars/c"), tile("stars/d")],
   },
@@ -39,12 +40,12 @@ describe("a tile picker", () => {
     expect(html).not.toContain('role="listbox"');
   });
 
-  it("opens on the current item's group, with the mods' groups under their heading", () => {
+  it("opens on the current item's group", () => {
     const html = picker(true);
     expect(html).toContain('aria-expanded="true"');
     expect(html).toContain("▴");
-    expect(html).toMatch(/<optgroup label="From mods"><option value="stars" selected="">/);
-    expect(html).toContain('aria-label="Emblem: stars 2 · Star Pack"');
+    expect(html).toContain('aria-label="Emblem group: stars 2"');
+    expect(html).toContain('aria-label="Emblem: stars 2"');
     expect(html).toMatch(/aria-selected="true" aria-label="stars\/d"/);
     expect(html).toContain('aria-label="stars/c"');
     expect(html).not.toContain('aria-label="pointy/a"');
@@ -61,7 +62,7 @@ describe("a tile picker", () => {
         onPick={() => undefined}
       />,
     );
-    expect(html).not.toContain("<select");
+    expect(html).not.toContain("Background group");
     expect(html).toContain('aria-label="stripes"');
   });
 });

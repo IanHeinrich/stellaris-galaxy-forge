@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { EditRow } from "./EditField";
-import { gridPlace, gridStep } from "./gridKeys";
+import { gridPlace, gridStep, groupItems } from "./gridKeys";
+import { IconPicker } from "./IconPicker";
 import { ENTER, ESCAPE, SPACE } from "./keys";
 import { useTextureUrl } from "./useTextureUrl";
 import "./panels.css";
@@ -18,6 +19,8 @@ export interface TileGroup {
   label: string;
   /** The dropdown heading the group sits under; groups without one come first. */
   section?: string;
+  /** A short muted line beside the label in the dropdown, such as the mod the group comes from. */
+  note?: string;
   items: readonly TileItem[];
 }
 
@@ -37,26 +40,6 @@ function reveal(grid: HTMLElement, tile: HTMLElement | null) {
   const bottom = tile.offsetTop + tile.offsetHeight;
   if (tile.offsetTop < grid.scrollTop) grid.scrollTop = tile.offsetTop;
   else if (bottom > grid.scrollTop + grid.clientHeight) grid.scrollTop = bottom - grid.clientHeight;
-}
-
-/** The groups as dropdown entries: those without a section first, then each section's. */
-function GroupOptions({ groups }: { groups: readonly TileGroup[] }) {
-  const sections = [...new Set(groups.map((g) => g.section))].filter((s) => s !== undefined);
-  const option = (g: TileGroup) => (
-    <option key={g.key} value={g.key}>
-      {g.label}
-    </option>
-  );
-  return (
-    <>
-      {groups.filter((g) => g.section === undefined).map(option)}
-      {sections.map((section) => (
-        <optgroup key={section} label={section}>
-          {groups.filter((g) => g.section === section).map(option)}
-        </optgroup>
-      ))}
-    </>
-  );
 }
 
 /** The open panel: a dropdown of the groups when there is more than one, and the open group's tiles. */
@@ -80,7 +63,7 @@ function TilePanel({
   const [active, setActive] = useState(start.index);
   const panel = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLUListElement>(null);
-  const select = useRef<HTMLSelectElement>(null);
+  const dropdown = useRef<HTMLDivElement>(null);
   const tileId = (i: number) => `${id}-tile-${i}`;
   const items = groups[group]?.items ?? [];
 
@@ -113,9 +96,6 @@ function TilePanel({
     e.stopPropagation();
     onClose();
   };
-  const onSelectKey = (e: KeyboardEvent) => {
-    if (e.key.startsWith("Arrow") || e.key === "Home" || e.key === "End") e.stopPropagation();
-  };
   const onGridKey = (e: KeyboardEvent) => {
     if (items.length === 0) return;
     if (e.key === ENTER || e.key === SPACE) onPick(items[active].key);
@@ -123,7 +103,7 @@ function TilePanel({
       const to = grid.current && gridStep(active, e.key, items.length, columnsOf(grid.current));
       if (to === null) return;
       if (to !== "above") setActive(to);
-      else select.current?.focus();
+      else dropdown.current?.querySelector("button")?.focus();
     }
     e.preventDefault();
     e.stopPropagation();
@@ -132,16 +112,15 @@ function TilePanel({
   return (
     <div className="tile-panel" id={id} ref={panel} onKeyDown={onPanelKey}>
       {groups.length > 1 && (
-        <select
-          className="edit-field tile-panel-select"
-          aria-label={`${label} group`}
-          value={groups[group]?.key}
-          ref={select}
-          onChange={(e) => showGroup(e.currentTarget.value)}
-          onKeyDown={onSelectKey}
-        >
-          <GroupOptions groups={groups} />
-        </select>
+        <div className="tile-panel-dropdown" ref={dropdown}>
+          <IconPicker
+            label={`${label} group`}
+            current={{ key: groups[group]?.key ?? "", label: groups[group]?.label ?? "" }}
+            items={groupItems(groups)}
+            triggerClassName="edit-field"
+            onPick={showGroup}
+          />
+        </div>
       )}
       <ul
         className="tile-panel-grid"
@@ -178,8 +157,8 @@ function TilePanel({
 /**
  * An edit row whose field shows `current`'s thumbnail and label and opens a panel of tiles under
  * the row, across the whole block, pushing the rows below down. The caller holds whether it is
- * open, so a page can keep one panel open at a time. A pick applies and leaves the panel open;
- * the field or Esc closes it. Only the open group's tiles are drawn.
+ * open, so a page can keep one panel open at a time. A pick applies and closes the panel, as
+ * do the field and Esc. Only the open group's tiles are drawn.
  */
 export function TilePicker({
   label,
@@ -242,7 +221,10 @@ export function TilePicker({
           label={label}
           current={current}
           groups={groups}
-          onPick={onPick}
+          onPick={(key) => {
+            onPick(key);
+            close();
+          }}
           onClose={close}
         />
       )}

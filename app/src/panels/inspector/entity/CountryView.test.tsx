@@ -222,15 +222,15 @@ describe("an empire's flag fields", () => {
 
     const emblem = drawnField(TilePicker, "Emblem");
     expect(emblem.current.textures).toEqual(["flag:pointy/flag_pointy_2.dds"]);
-    expect(emblem.groups.map((g) => [g.label, g.section])).toEqual([
-      ["blocky 1", undefined],
-      ["pointy 2", undefined],
-      ["extra shapes 1 · More Flags", "From mods"],
+    expect(emblem.groups.map((g) => [g.label, g.section, g.note])).toEqual([
+      ["blocky 1", undefined, undefined],
+      ["pointy 2", undefined, undefined],
+      ["extra shapes 1", "From mods", "More Flags"],
     ]);
     const background = drawnField(TilePicker, "Background");
     expect(background.groups).toHaveLength(1);
     expect(background.groups[0].items[1].textures).toEqual([
-      "empire_flag:flag_bg_stripes.dds:pointy/flag_pointy_2.dds:intense_red,light_pink,intense_red,light_pink",
+      "empire_flag:flag_bg_stripes.dds::intense_red,light_pink,intense_red,light_pink",
     ]);
   });
 

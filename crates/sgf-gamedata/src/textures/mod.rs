@@ -4,7 +4,7 @@
 //! Keys, never paths, cross the IPC boundary:
 //! `star_class:<icon>`, `deposit:<icon>`, `icon:<path under gfx/interface/icons>`,
 //! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
-//! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>`, `planet_disc:<class>`,
+//! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>` (an empty emblem draws the background alone), `planet_disc:<class>`,
 //! `star_disc:<class>` and `planet_ring`.
 
 use std::fs;
@@ -389,7 +389,7 @@ enum Job {
     },
     EmpireFlag {
         background: Input,
-        icon: Input,
+        icon: Option<Input>,
         mask: Input,
         frame: Input,
         colours: [Option<[u8; 3]>; 4],
@@ -456,12 +456,16 @@ impl Job {
             }
             TextureKey::EmpireFlag {
                 background,
-                icon_category,
-                icon_file,
+                icon,
                 colours,
             } => Ok(Self::EmpireFlag {
                 background: Input::resolve(layout, &format!("flags/backgrounds/{background}"))?,
-                icon: Input::resolve(layout, &format!("flags/{icon_category}/{icon_file}"))?,
+                icon: icon
+                    .as_ref()
+                    .map(|(category, file)| {
+                        Input::resolve(layout, &format!("flags/{category}/{file}"))
+                    })
+                    .transpose()?,
                 mask: Input::resolve(layout, EMPIRE_FLAG_MASK)?,
                 frame: Input::resolve(layout, EMPIRE_FLAG_FRAME)?,
                 colours: resolve_colours(colours, colour)?,
@@ -551,7 +555,7 @@ impl Job {
                 colours,
             } => Ok(compose_empire_flag(
                 &background.decode()?,
-                &icon.decode()?,
+                icon.as_ref().map(Input::decode).transpose()?.as_ref(),
                 &mask.decode()?,
                 &frame.decode()?,
                 colours,
@@ -635,14 +639,15 @@ const SYMBOL_SIZE: u32 = 46;
 /// mask's alpha cuts the shape; the frame is lerped on top by its alpha.
 fn compose_empire_flag(
     background: &RgbaImage,
-    icon: &RgbaImage,
+    icon: Option<&RgbaImage>,
     mask: &RgbaImage,
     frame: &RgbaImage,
     colours: &[Option<[u8; 3]>; 4],
 ) -> RgbaImage {
     let (width, height) = frame.dimensions();
     let background = imageops::resize(background, BG_SIZE, BG_SIZE, FilterType::Triangle);
-    let icon = imageops::resize(icon, SYMBOL_SIZE, SYMBOL_SIZE, FilterType::Triangle);
+    let icon =
+        icon.map(|icon| imageops::resize(icon, SYMBOL_SIZE, SYMBOL_SIZE, FilterType::Triangle));
     let mask = imageops::resize(mask, width, height, FilterType::Triangle);
     let tint: Vec<[f32; 3]> = colours
         .iter()
@@ -661,7 +666,8 @@ fn compose_empire_flag(
                 *out = (*out + c * unit(*weight)).min(1.0);
             }
         }
-        if let (Some(sx), Some(sy)) = (
+        if let (Some(icon), Some(sx), Some(sy)) = (
+            &icon,
             x.checked_sub(SYMBOL_ORIGIN).filter(|s| *s < SYMBOL_SIZE),
             y.checked_sub(SYMBOL_ORIGIN).filter(|s| *s < SYMBOL_SIZE),
         ) {
@@ -767,7 +773,7 @@ mod tests {
             },
             Job::EmpireFlag {
                 background: input(),
-                icon: input(),
+                icon: Some(input()),
                 mask: input(),
                 frame: input(),
                 colours: [None, None, None, None],
