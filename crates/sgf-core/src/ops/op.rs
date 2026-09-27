@@ -514,16 +514,24 @@ impl Op {
         }
     }
 
-    /// Whether the details this op stales come up to date by rereading the class, size and
-    /// modifiers of the planets it rewrote, without building the projection again.
-    pub fn stales_only_planets(&self) -> bool {
+    /// Whether the details this op stales come up to date by rereading, in place, the
+    /// planets it rewrote and the belts and inner radius of the systems it rewrote, without
+    /// building the projection again.
+    pub fn refreshes_details_in_place(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
-            | Self::SetTerraformCandidate { .. } => true,
+            | Self::SetTerraformCandidate { .. }
+            | Self::MoveSaveBody { .. }
+            | Self::SetSaveBodyParent { .. }
+            | Self::AddSaveBelt { .. }
+            | Self::RemoveSaveBelt { .. }
+            | Self::SetSaveBeltRadius { .. }
+            | Self::SetSaveBeltKind { .. }
+            | Self::SetSaveInnerRadius { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
-                .all(|op| op.stales_only_planets() || !op.stales_details()),
+                .all(|op| op.refreshes_details_in_place() || !op.stales_details()),
             _ => false,
         }
     }
@@ -863,6 +871,20 @@ pub enum OpError {
     AmbientSlotTaken(u32),
     #[error("system {0} is already named {1}")]
     NameUnchanged(u32, String),
+    #[error("planet {0} is its system's primary body, which stays where it is")]
+    PrimaryBody(u32),
+    #[error(
+        "planet {body} is a moon of planet {parent}, which the save does not hold: make it a planet first"
+    )]
+    ParentMissing { body: u32, parent: u32 },
+    #[error("planet {0} already stands there")]
+    BodyUnchanged(u32),
+    #[error("{reason}")]
+    InvalidParent { reason: String },
+    #[error("planet {0} has moons, so it cannot become a moon")]
+    HasMoons(u32),
+    #[error("planet {0} already has that parent")]
+    ParentUnchanged(u32),
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,
@@ -974,6 +996,12 @@ impl OpError {
             | Self::InvalidCloudType { .. }
             | Self::AmbientSlotTaken { .. }
             | Self::NameUnchanged { .. }
+            | Self::PrimaryBody { .. }
+            | Self::ParentMissing { .. }
+            | Self::BodyUnchanged { .. }
+            | Self::InvalidParent { .. }
+            | Self::HasMoons { .. }
+            | Self::ParentUnchanged { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,
         }
     }

@@ -1,0 +1,38 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Made planet #588 a moon of planet #589
+inverse: SetSaveBodyParent { system: 1, body: 588, parent: None, radius: 116.94929414820295, angle: 189.53385347682587 }
+
+--- gamestate
++++ gamestate
+@@ -110265,14 +110265,16 @@
+  
+ 				}
+ 			}
++			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=-115.33398
+-				y=-19.37035
++				x=80.62198
++				y=130.42613
+ 				origin=1
+ 			}
+-			orbit=116.71
++			orbit=20
+ 			last_bombardment=			"0.01.01"
++			moon_of=589
+ 			planet_orbitals=
+ 			{
+ 			}
+@@ -110321,7 +110323,7 @@
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+-				590 
++				588 590 
+ 			}
+ 			planet_orbitals=
+ 			{

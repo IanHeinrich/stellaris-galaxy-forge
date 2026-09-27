@@ -19,9 +19,9 @@ const BODY_CARRIER_FLAGS: u32 = 1;
 /// `binary_flags` when none is set.
 const FIXED_NAME_FLAG: u32 = 1;
 const ENTITY_NAME_FLAG: u32 = 2;
-const ANY_FLAG: u32 = 64;
+pub(crate) const ANY_FLAG: u32 = 64;
 pub(crate) const RING_FLAG: u32 = 256;
-const MOON_FLAG: u32 = 512;
+pub(crate) const MOON_FLAG: u32 = 512;
 /// `deposit_holder.type` of a planet.
 pub(crate) const PLANET_HOLDER: &str = "0";
 /// `last_bombardment` as a body that was never bombarded holds it, tabs included.

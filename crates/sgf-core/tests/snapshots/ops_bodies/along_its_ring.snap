@@ -1,0 +1,31 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet #585 from orbit 65.02 at 28.2° to orbit 65.02 at 100°, with its moon #586
+inverse: MoveSaveBody { system: 1, body: 585, radius: 65.01919725511843, angle: 28.198028825828526 }
+
+--- gamestate
++++ gamestate
+@@ -110100,8 +110100,8 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=57.3027
+-				y=30.7229
++				x=-11.29047
++				y=64.03141
+ 				origin=1
+ 			}
+ 			orbit=65
+@@ -110171,8 +110171,8 @@
+ 			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=68.7357
+-				y=40.43465
++				x=0.14253
++				y=73.74316
+ 				origin=1
+ 			}
+ 			orbit=15

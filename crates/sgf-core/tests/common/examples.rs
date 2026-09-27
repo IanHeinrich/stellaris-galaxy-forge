@@ -483,8 +483,6 @@ pub fn one_of_each() -> Vec<Example> {
 
 /// The variants whose writer has not landed yet, which refuse every document.
 const PENDING: &[&str] = &[
-    "MoveSaveBody",
-    "SetSaveBodyParent",
     "AddSaveBelt",
     "RemoveSaveBelt",
     "SetSaveBeltRadius",

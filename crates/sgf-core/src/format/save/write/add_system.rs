@@ -40,7 +40,7 @@ use crate::session::Session;
 /// inner radius lies and the outer one past that.
 pub const MIN_INNER_RADIUS: f64 = 150.0;
 pub const INNER_MARGIN: f64 = 30.0;
-const OUTER_MARGIN: f64 = 100.0;
+pub const OUTER_MARGIN: f64 = 100.0;
 
 const STAR_NAME: &str = "STAR_NAME_1_OF_1";
 const PLANET_NAME: &str = "PLANET_NAME_FORMAT";

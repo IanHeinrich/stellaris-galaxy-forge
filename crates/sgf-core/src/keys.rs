@@ -63,6 +63,7 @@ save_keys! {
     ENTITY = "entity",
     ENTITY_FACE_OBJECT = "entity_face_object",
     ENTITY_NAME = "entity_name",
+    ENTITY_PLANET_CLASS = "entity_planet_class",
     FILE = "file",
     FINAL_DESIGNATION = "final_designation",
     FLAG = "flag",

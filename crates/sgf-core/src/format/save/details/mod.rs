@@ -55,9 +55,8 @@ impl DetailsProjection {
         Ok(Self { by_system })
     }
 
-    /// Read again the class, size, parent and modifiers of each of `planets`, as (planet,
-    /// system), from the bytes now standing for it, leaving where it stands as it was
-    /// projected: the ops that take this path never move a body.
+    /// Read again the class, size, parent, modifiers and placement of each of `planets`, as
+    /// (planet, system), from the bytes now standing for it.
     pub fn refresh_planets(
         &mut self,
         doc: &Document,
@@ -71,12 +70,30 @@ impl DetailsProjection {
             else {
                 continue;
             };
-            if let Some((facts, modifiers)) = extract::planet_facts(doc, id)? {
+            if let Some((facts, modifiers, placement)) = extract::planet_facts(doc, id)? {
                 planet.class = facts.class;
                 planet.size = facts.size;
                 planet.moon = facts.moon_of.is_some();
                 planet.parent = facts.moon_of;
                 planet.permanent_modifiers = modifiers;
+                planet.orbit = placement.orbit;
+                planet.at = placement.at;
+                planet.ring = placement.ring;
+            }
+        }
+        Ok(())
+    }
+
+    /// Read again the belts and `inner_radius` of each of the systems `ids` from the bytes
+    /// now standing for its entry.
+    pub fn refresh_systems(
+        &mut self,
+        doc: &Document,
+        ids: impl IntoIterator<Item = u32>,
+    ) -> Result<(), ProjectionError> {
+        for id in ids {
+            if let Some(details) = self.by_system.get_mut(&id) {
+                extract::refresh_geometry(doc, id, details)?;
             }
         }
         Ok(())

@@ -15,6 +15,7 @@ use crate::format::save::write::asteroid_names;
 use crate::format::save::write::initializer_counter::counted;
 use crate::format::save::{entity, planet_statement, system_statement};
 use crate::keys;
+use crate::ops::rules::bodies::{angle_about, normalised, point};
 use crate::ops::{OpError, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
@@ -85,21 +86,13 @@ struct ReadBody {
 
 impl ReadBody {
     /// The body as it orbits `centre`, where the add placed that, and where the add places
-    /// the body from it. The angle measured from the written coordinates can miss them in
-    /// the last decimal, so the nearest hundredth of a degree, which the generator writes,
-    /// is taken instead whenever it gives the same coordinates.
+    /// the body from it.
     fn spec(&self, (cx, cy): (f64, f64)) -> (BodySpec, (f64, f64)) {
-        let measured = (self.y - cy)
-            .atan2(self.x - cx)
-            .to_degrees()
-            .rem_euclid(360.0)
-            + 0.0;
-        let hundredth = (measured * 100.0).round() / 100.0;
-        let mut spec = BodySpec {
+        let spec = BodySpec {
             class: self.class.clone(),
             size: self.size,
             orbit: self.orbit,
-            angle: measured,
+            angle: written_angle((cx, cy), (self.x, self.y), self.orbit),
             entity: self.entity,
             deposits: self.deposits.clone(),
             moons: Vec::new(),
@@ -110,18 +103,26 @@ impl ReadBody {
             ring: self.ring,
             star: self.star,
         };
-        let written = (coord(self.x), coord(self.y));
-        let candidates = [hundredth, hundredth.rem_euclid(360.0) + 0.0, measured];
-        for angle in candidates {
-            spec.angle = angle;
-            let (x, y) = polar(cx, cy, &spec);
-            if (coord(x), coord(y)) == written {
-                break;
-            }
-        }
         let placed = polar(cx, cy, &spec);
         (spec, placed)
     }
+}
+
+/// The angle, in degrees, at which a body written at `at` stands `radius` from `centre`.
+/// The angle measured from the written coordinates can miss them in the last decimal, so
+/// the nearest hundredth of a degree, which the generator writes, is taken instead
+/// whenever it gives the same coordinates.
+pub(crate) fn written_angle(centre: (f64, f64), at: (f64, f64), radius: f64) -> f64 {
+    let measured = angle_about(centre, at);
+    let hundredth = (measured * 100.0).round() / 100.0;
+    let written = (coord(at.0), coord(at.1));
+    [hundredth, normalised(hundredth)]
+        .into_iter()
+        .find(|&angle| {
+            let (x, y) = point(centre, radius, angle);
+            (coord(x), coord(y)) == written
+        })
+        .unwrap_or(measured)
 }
 
 fn read_body(

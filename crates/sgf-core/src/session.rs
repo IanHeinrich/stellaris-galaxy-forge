@@ -4,8 +4,8 @@
 //! undo and validates the projection. Undo and redo replay recorded bytes.
 //!
 //! The details projection is built on first use and dropped by an op that stales it
-//! (`Op::stales_details`), unless all the op staled is the class and size of the planets it
-//! rewrote, which are read again in place. A scenario has no details sections at all:
+//! (`Op::stales_details`), unless all the op staled can be read again in place: the planets
+//! it rewrote, and the belts and inner radius of the systems it rewrote. A scenario has no details sections at all:
 //! its systems' planets and resources come from the initializer, which the app resolves
 //! through game data.
 
@@ -130,9 +130,9 @@ impl Session {
         if self.saved_at.is_some_and(|at| at > self.history.undo_len()) {
             self.saved_at = None;
         }
-        let classes_only = applied.op.stales_only_planets();
+        let in_place = applied.op.refreshes_details_in_place();
         self.history.push(applied);
-        self.update_details(classes_only, &result);
+        self.update_details(in_place, &result);
         Ok(result)
     }
 
@@ -145,8 +145,8 @@ impl Session {
         };
         let issues = validate_document(&self.doc, &self.graph);
         let result = result(&self.graph, seq, applied, &waylines, true, issues);
-        let classes_only = applied.op.stales_only_planets();
-        self.update_details(classes_only, &result);
+        let in_place = applied.op.refreshes_details_in_place();
+        self.update_details(in_place, &result);
         Ok(Some(result))
     }
 
@@ -159,8 +159,8 @@ impl Session {
         };
         let issues = validate_document(&self.doc, &self.graph);
         let result = result(&self.graph, seq, applied, &waylines, false, issues);
-        let classes_only = applied.op.stales_only_planets();
-        self.update_details(classes_only, &result);
+        let in_place = applied.op.refreshes_details_in_place();
+        self.update_details(in_place, &result);
         Ok(Some(result))
     }
 
@@ -237,13 +237,13 @@ impl Session {
         delta
     }
 
-    /// Bring a built details projection up to date with `result`: reread the classes of the
-    /// planets it rewrote when that is all it staled, else drop the projection.
-    fn update_details(&mut self, classes_only: bool, result: &OpResult) {
+    /// Bring a built details projection up to date with `result`: reread the planets and
+    /// systems it rewrote when `in_place` says that is enough, else drop the projection.
+    fn update_details(&mut self, in_place: bool, result: &OpResult) {
         if result.details_stale.is_empty() {
             return;
         }
-        let Some(details) = self.details.get_mut().filter(|_| classes_only) else {
+        let Some(details) = self.details.get_mut().filter(|_| in_place) else {
             self.details.take();
             return;
         };
@@ -251,10 +251,12 @@ impl Session {
             Subject::Planet { id, system } => Some((id, system)),
             _ => None,
         });
-        if Arc::make_mut(details)
+        let systems = result.subjects.iter().filter_map(|s| s.system());
+        let details = Arc::make_mut(details);
+        let refreshed = details
             .refresh_planets(&self.doc, planets)
-            .is_err()
-        {
+            .and_then(|()| details.refresh_systems(&self.doc, systems));
+        if refreshed.is_err() {
             self.details.take();
         }
     }
