@@ -130,6 +130,15 @@ function armGameDataCommands(): void {
     { name: "red", map: "#ff0000", flag: "#ff0000", ship: "#ff0000" },
   ]);
   mockedIpc.getMapColorSource.mockResolvedValue(null);
+  mockedIpc.getFlagParts.mockResolvedValue({
+    emblems: [
+      {
+        name: "pointy",
+        files: [{ file: "flag_pointy_2.dds", source: null }],
+      },
+    ],
+    backgrounds: [{ file: "flag_bg_plain.dds", source: null }],
+  });
   mockedIpc.getPlanetClasses.mockResolvedValue([planetClassView("pc_continental", false)]);
   mockedIpc.getTerraformCandidates.mockResolvedValue([]);
   mockedIpc.getDeposits.mockResolvedValue([

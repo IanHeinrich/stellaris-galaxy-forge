@@ -79,6 +79,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_galaxy_shapes,
             commands::get_map_colors,
             commands::get_map_color_source,
+            commands::get_flag_parts,
             commands::get_planet_classes,
             commands::get_terraform_candidates,
             commands::get_starbase_levels,

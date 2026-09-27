@@ -1,7 +1,7 @@
 //! Vanilla plus the loaded mods, in load order, and the file-level
 //! override rules (`docs/game-data-notes.md`, "Override semantics").
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -107,6 +107,57 @@ impl Layout {
         winners.into_values().collect()
     }
 
+    /// The winning file of extension `ext` per filename directly under
+    /// `rel_dir` (`flags/aquatic`; subfolders not walked, so a category's
+    /// own `small/` and `map/` size variants are left out), with the layer
+    /// it came from (`None` for vanilla's). Same override rules as
+    /// [`Layout::files_in`].
+    pub fn files_with_ext_in(&self, rel_dir: &str, ext: &str) -> Vec<(PathBuf, Option<String>)> {
+        let rel_dir = normalize(rel_dir);
+        let mut winners: BTreeMap<String, (PathBuf, Option<String>)> = BTreeMap::new();
+        for layer in &self.layers {
+            if layer.replace_paths.contains(&rel_dir) {
+                winners.clear();
+            }
+            let dir = rel_dir
+                .split('/')
+                .fold(layer.root.clone(), |p, part| p.join(part));
+            let source = (layer.name != VANILLA).then(|| layer.name.clone());
+            for path in direct_files(&dir, ext) {
+                if let Some(name) = path.file_name() {
+                    winners.insert(name.to_string_lossy().into_owned(), (path, source.clone()));
+                }
+            }
+        }
+        winners.into_values().collect()
+    }
+
+    /// The subdirectory names directly under `rel_dir` (`flags`), across
+    /// every layer. Same override rules as [`Layout::files_in`]: a layer
+    /// whose `replace_path` names `rel_dir` discards the subdirectories
+    /// seen before it.
+    pub fn subdirs_in(&self, rel_dir: &str) -> Vec<String> {
+        let rel_dir = normalize(rel_dir);
+        let mut names: BTreeSet<String> = BTreeSet::new();
+        for layer in &self.layers {
+            if layer.replace_paths.contains(&rel_dir) {
+                names.clear();
+            }
+            let dir = rel_dir
+                .split('/')
+                .fold(layer.root.clone(), |p, part| p.join(part));
+            let Ok(entries) = fs::read_dir(&dir) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                if entry.file_type().is_ok_and(|t| t.is_dir()) {
+                    names.insert(entry.file_name().to_string_lossy().into_owned());
+                }
+            }
+        }
+        names.into_iter().collect()
+    }
+
     /// The winning file called `name` directly under `rel_dir`
     /// (`common/defines/00_defines.txt`).
     pub fn file_in(&self, rel_dir: &str, name: &str) -> Option<PathBuf> {
@@ -163,6 +214,20 @@ fn txt_files(dir: &Path) -> Vec<PathBuf> {
         .map(|e| e.into_path())
         .filter(|p| p.is_file() && p.extension().is_some_and(|e| e == "txt"))
         .collect()
+}
+
+/// Every file directly under `dir` (subfolders not walked) with extension `ext`.
+fn direct_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut files: Vec<PathBuf> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file() && p.extension().is_some_and(|e| e == ext))
+        .collect();
+    files.sort();
+    files
 }
 
 fn yml_files(base: &Path, header: &str) -> Vec<PathBuf> {

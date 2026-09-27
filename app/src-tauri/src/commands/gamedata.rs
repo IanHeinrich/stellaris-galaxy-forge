@@ -10,9 +10,9 @@ use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
-    BypassView, CountryTypeView, DepositView, GalaxyShapeView, GameDataSummary, InitializerView,
-    MapColor, PaintModView, PlanetClassView, ResourceIcon, ShipSizeView, StarClassView,
-    StarbaseLevelView, TerraformCandidateView, WorkshopLinks,
+    BypassView, CountryTypeView, DepositView, FlagParts, GalaxyShapeView, GameDataSummary,
+    InitializerView, MapColor, PaintModView, PlanetClassView, ResourceIcon, ShipSizeView,
+    StarClassView, StarbaseLevelView, TerraformCandidateView, WorkshopLinks,
 };
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -259,6 +259,14 @@ pub fn get_map_colors(game_data: State<'_, GameDataState>) -> Vec<MapColor> {
 #[tauri::command(async)]
 pub fn get_map_color_source(game_data: State<'_, GameDataState>) -> Option<String> {
     game_data.loaded().and_then(|gd| gd.colors.source.clone())
+}
+
+/// Every emblem category and background of the loaded game data's `flags/`; empty without it.
+#[tauri::command(async)]
+pub fn get_flag_parts(game_data: State<'_, GameDataState>) -> FlagParts {
+    game_data
+        .loaded()
+        .map_or_else(FlagParts::default, |gd| FlagParts::from(&*gd.flags))
 }
 
 #[tauri::command(async)]

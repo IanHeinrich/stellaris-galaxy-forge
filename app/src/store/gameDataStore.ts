@@ -21,6 +21,7 @@ import type { TerraformCandidateView } from "../generated/TerraformCandidateView
 import type { BypassView } from "../generated/BypassView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DepositView } from "../generated/DepositView";
+import type { FlagParts } from "../generated/FlagParts";
 import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import { VANILLA_MOON_SCALE } from "../lib/details/discs";
@@ -63,6 +64,8 @@ export interface GameDataState {
   mapColors: Map<string, MapColor>;
   /** The mod whose `flags/colors.txt` `mapColors` comes from; null for the game's own. */
   mapColorSource: string | null;
+  /** Every emblem category and background a flag can use. */
+  flagParts: FlagParts;
   planetClasses: Map<string, PlanetClassView>;
   /** Modifier → what terraforming a planet that has it needs. */
   terraformCandidates: Map<string, TerraformCandidateView>;
@@ -147,6 +150,7 @@ const UNLOADED = {
   starClasses: new Map<string, StarClassView>(),
   mapColors: new Map<string, MapColor>(),
   mapColorSource: null as string | null,
+  flagParts: { emblems: [], backgrounds: [] } as FlagParts,
   planetClasses: new Map<string, PlanetClassView>(),
   terraformCandidates: new Map<string, TerraformCandidateView>(),
   deposits: new Map<string, DepositView>(),
@@ -437,6 +441,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     starClasses,
     mapColors,
     mapColorSource,
+    flagParts,
     planetClasses,
     terraformCandidates,
     deposits,
@@ -449,6 +454,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     ipc.getStarClasses(),
     ipc.getMapColors(),
     ipc.getMapColorSource(),
+    ipc.getFlagParts(),
     ipc.getPlanetClasses(),
     ipc.getTerraformCandidates(),
     ipc.getDeposits(),
@@ -463,6 +469,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     starClasses: new Map(starClasses.map((c) => [c.key, c])),
     mapColors: new Map(mapColors.map((c) => [c.name, c])),
     mapColorSource,
+    flagParts,
     planetClasses: new Map(planetClasses.map((c) => [c.key, c])),
     terraformCandidates: new Map(terraformCandidates.map((c) => [c.modifier, c])),
     deposits: new Map(deposits.map((d) => [d.key, d])),
