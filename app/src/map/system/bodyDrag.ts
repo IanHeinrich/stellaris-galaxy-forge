@@ -23,8 +23,14 @@ const CAPTURE_PAST_PX = 10;
 const CAPTURE_MIN_PX = 18;
 /** How far past the ring a dragged body would land on, in screen pixels, a host takes it. */
 const CAPTURE_RING_PX = 8;
+/** How near, in world units, the pointer must come for a star off the centre to take a body. */
+const STAR_CAPTURE_UNITS = 40;
 /** A host keeps a body it has taken until the pointer is this many times its reach away. */
 const CAPTURE_HOLD = 1.5;
+/** A body dropped on a star off the centre orbits at least this many world units past its disc. */
+const STAR_ORBIT_PAST = 5;
+/** The least orbit, in world units, a body dropped on a star off the centre takes. */
+const STAR_ORBIT_LEAST = 10;
 /** The angle steps Shift snaps to, in degrees. */
 const SHIFT_STEP_DEG = 15;
 /**
@@ -284,16 +290,21 @@ export class BodyDrag implements Drag {
   /**
    * The body the pointer is within capture reach of, nearest first, other than those passed. The
    * host that took it last keeps it until the pointer is well clear, so it does not flicker away.
+   * No star takes it while it is still near what it orbits.
    */
   private captured(pointer: DragPointer): BodyPlacement | null {
     const px = (b: BodyPlacement) => Math.hypot(b.x - pointer.wx, b.y - pointer.wy) * pointer.scale;
+    const stars = !this.nearParent(pointer);
+    const takes = (b: BodyPlacement) => stars || !b.star;
     const holder =
       this.holder === null ? undefined : this.frame.bodyById.get(this.holder)?.placement;
-    if (holder && px(holder) <= this.reach(holder, pointer.scale) * CAPTURE_HOLD) return holder;
+    if (holder && takes(holder) && px(holder) <= this.reach(holder, pointer.scale) * CAPTURE_HOLD) {
+      return holder;
+    }
     let best: BodyPlacement | null = null;
     let bestPx = Infinity;
     for (const b of this.frame.layout.bodies) {
-      if (this.passed.has(b.id)) continue;
+      if (this.passed.has(b.id) || !takes(b)) continue;
       const d = px(b);
       if (d <= this.reach(b, pointer.scale) && d < bestPx) {
         best = b;
@@ -306,10 +317,10 @@ export class BodyDrag implements Drag {
 
   /** How near, in screen pixels, the pointer must come for `b` to take the dragged body. */
   private reach(b: BodyPlacement, scale: number): number {
-    const disc = drawnDisc(b.disc, scale) * scale;
+    const least = Math.max(CAPTURE_MIN_PX, drawnDisc(b.disc, scale) * scale + CAPTURE_PAST_PX);
+    if (b.star) return isCentreStar(b) ? least : Math.max(least, STAR_CAPTURE_UNITS * scale);
     const ring = this.frame.editing.bodies.get(b.id)?.moonRing;
-    const landing = ring === undefined ? 0 : ring * scale + CAPTURE_RING_PX;
-    return Math.max(CAPTURE_MIN_PX, disc + CAPTURE_PAST_PX, landing);
+    return ring === undefined ? least : Math.max(least, ring * scale + CAPTURE_RING_PX);
   }
 
   private detaches(pointer: DragPointer): boolean {
@@ -317,6 +328,11 @@ export class BodyDrag implements Drag {
     const planet = this.pointOf(this.body.parent);
     const away = Math.hypot(pointer.wx - planet.x, pointer.wy - planet.y);
     return away >= DETACH_RING_FACTOR * this.outerMoonRing + DETACH_PAST_PX / pointer.scale;
+  }
+
+  /** Whether it may come away from what it orbits, and the pointer is not yet far enough to. */
+  private nearParent(pointer: DragPointer): boolean {
+    return this.outerMoonRing !== null && this.body.parent !== null && !this.detaches(pointer);
   }
 
   private pointOf(id: number | null): Pt {
@@ -454,11 +470,22 @@ export class BodyDrag implements Drag {
     return this.step(landing, { host: host.id }, { text }, toMoonHint(name));
   }
 
-  /** Dropped on a star off the centre, it would orbit it on its next orbit at the pointer's angle. */
+  /**
+   * Dropped on a star off the centre, it would orbit it where the pointer is, clear of its disc,
+   * or on one of its orbits within reach.
+   */
   private aboutStar(star: BodyPlacement, pointer: DragPointer): DragStep {
-    const angle = snapAngle(angleAbout(star, { x: pointer.wx, y: pointer.wy }), pointer.shift);
-    const radius = this.frame.editing.bodies.get(star.id)?.moonRing ?? MOON_RING_FIRST;
-    const landing = { parent: star.id, radius, angle, shared: null };
+    const at = { x: pointer.wx, y: pointer.wy };
+    const angle = snapAngle(angleAbout(star, at), pointer.shift);
+    const disc = drawnDisc(star.disc, pointer.scale);
+    const floor = Math.max(STAR_ORBIT_LEAST, Math.ceil(disc + STAR_ORBIT_PAST));
+    const { radius, shared } = this.radiusAt(star.id, star, at, pointer.scale);
+    const landing = {
+      parent: star.id,
+      radius: shared === null ? Math.max(floor, radius) : radius,
+      angle,
+      shared,
+    };
     const name = this.name(star.id);
     return this.marked(landing, toStarHint(name), `orbits ${name} · `, { host: star.id });
   }
