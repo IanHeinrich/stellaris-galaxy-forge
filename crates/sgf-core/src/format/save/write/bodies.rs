@@ -88,7 +88,7 @@ pub(crate) fn plan_parent(
 
     let edit = plan.edit_planet(&s.doc, body, system)?;
     set_moon_of(edit, parent)?;
-    set_moon_flag(edit, parent.is_some() && !star)?;
+    set_flag(edit, MOON_FLAG, parent.is_some() && !star)?;
     if let Some(old_parent) = old.parent.filter(|&p| before.iter().any(|b| b.id == p)) {
         unlist_moon(plan.edit_planet(&s.doc, old_parent, system)?, body)?;
     }
@@ -319,17 +319,18 @@ fn set_moon_of(edit: &mut Edit, parent: Option<u32>) -> Result<(), OpError> {
     Ok(())
 }
 
-/// Set or clear the moon bit of `binary_flags`, writing the statement before `coordinate`
-/// when the body has none and taking it out when only the bit set beside any other is left.
-fn set_moon_flag(edit: &mut Edit, moon: bool) -> Result<(), OpError> {
+/// Set or clear `flag` in the body's `binary_flags`, writing the statement before
+/// `coordinate` when the body has none and taking it out when only the bit set beside any
+/// other is left.
+pub(crate) fn set_flag(edit: &mut Edit, flag: u32, on: bool) -> Result<(), OpError> {
     let entity = edit.entity()?;
     let old = read::scalar_u32(entity, keys::BINARY_FLAGS, &edit.buf);
-    let new = if moon {
-        old.unwrap_or(0) | MOON_FLAG | ANY_FLAG
+    let new = if on {
+        old.unwrap_or(0) | flag | ANY_FLAG
     } else {
-        old.unwrap_or(0) & !MOON_FLAG
+        old.unwrap_or(0) & !flag
     };
-    if old == Some(new) || (old.is_none() && !moon) {
+    if old == Some(new) || (old.is_none() && !on) {
         return Ok(());
     }
     match child(edit, &[keys::BINARY_FLAGS])? {

@@ -36,6 +36,8 @@ a release is made.
 - A planet moved near or past the system's inner radius moves the inner
   radius out with it.
 - The Issues tab lists bodies that stand in the same place.
+- The planet page has a Ring checkbox to give a planet or moon a ring,
+  or take its ring away.
 
 ### Changed
 

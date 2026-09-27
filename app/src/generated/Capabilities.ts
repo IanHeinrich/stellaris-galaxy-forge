@@ -49,8 +49,8 @@ bodies: boolean,
  */
 deposits: boolean, 
 /**
- * A body's orbit and what it orbits, a system's belts and its inner radius can be
- * changed.
+ * A body's orbit, what it orbits and its ring, a system's belts and its inner radius can
+ * be changed.
  */
 geometry: boolean, 
 /**

@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Gave planet #585 a ring
+inverse: SetPlanetRing { planet: 585, ring: false }
+
+--- gamestate
++++ gamestate
+@@ -110098,6 +110098,7 @@
+  
+ 				}
+ 			}
++			binary_flags=320
+ 			coordinate=
+ 			{
+ 				x=57.3027

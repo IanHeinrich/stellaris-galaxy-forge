@@ -16,6 +16,7 @@ import {
   terraformCandidateTitle,
   type TerraformCandidate,
 } from "../../../lib/details/terraform";
+import { hasRingCheckbox, setPlanetRingOp } from "../../../lib/details/ring";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
@@ -83,18 +84,39 @@ function Head({ page }: { page: PlanetPage }) {
   );
 }
 
-/** The planet's terraforming candidate modifier as a checkbox: `id` and its resolved `candidate`. */
-function TerraformBlock({ id, candidate }: { id: number; candidate: TerraformCandidate }) {
+/**
+ * Planet `id`'s checkboxes: its resolved terraforming `candidate` and whether it has a `ring`, each
+ * `null` where the page does not offer it.
+ */
+function PlanetBlock({
+  id,
+  candidate,
+  ring,
+}: {
+  id: number;
+  candidate: TerraformCandidate | null;
+  ring: boolean | null;
+}) {
   const applyOp = useApplyOp();
   const candidates = useGameDataStore((s) => s.terraformCandidates);
   return (
-    <EditBlock title="Terraforming">
-      <ToggleField
-        label="Terraforming candidate"
-        title={terraformCandidateTitle(candidate.modifier, candidates)}
-        checked={candidate.checked}
-        onChange={(on) => applyOp(setTerraformCandidateOp(id, candidate.modifier, on))}
-      />
+    <EditBlock title="Planet">
+      {candidate !== null && (
+        <ToggleField
+          label="Terraforming candidate"
+          title={terraformCandidateTitle(candidate.modifier, candidates)}
+          checked={candidate.checked}
+          onChange={(on) => applyOp(setTerraformCandidateOp(id, candidate.modifier, on))}
+        />
+      )}
+      {ring !== null && (
+        <ToggleField
+          label="Ring"
+          title="Draws a ring around this body"
+          checked={ring}
+          onChange={(on) => applyOp(setPlanetRingOp(id, on))}
+        />
+      )}
     </EditBlock>
   );
 }
@@ -319,6 +341,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const starClasses = useGameDataStore((s) => s.starClasses);
   const candidates = useGameDataStore((s) => s.terraformCandidates);
   const bodies = useCanEdit("bodies");
+  const geometry = useCanEdit("geometry");
   const found = useFoundPlanet(page.id);
   const system = useGalaxyStore((s) => (found === null ? undefined : s.systems.get(found.system)));
   const star = starBodyEditable(page.class, bodies, planetClasses, starClasses);
@@ -326,6 +349,10 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const starBody = isStarBody(page.class, planetClasses, starClasses);
   const candidate =
     !bodies || starBody ? null : terraformCandidate(page, planetClasses, candidates);
+  const ring =
+    geometry && found !== null && hasRingCheckbox(page.class, planetClasses, starClasses)
+      ? found.planet.ring === true
+      : null;
   const requestDetails = useDetailsStore((s) => s.request);
   const detailsVersion = useDetailsStore((s) => s.version);
   const waiting = useDetailsStore((s) => page.system !== null && !s.failed.has(page.system));
@@ -341,7 +368,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   return (
     <>
       <Head page={page} />
-      {candidate !== null && <TerraformBlock id={page.id} candidate={candidate} />}
+      {(candidate !== null || ring !== null) && (
+        <PlanetBlock id={page.id} candidate={candidate} ring={ring} />
+      )}
       {starBlock && <StarBlock planet={found.planet} system={system} />}
       {!starBlock && star && waiting && <Empty>{READING_STARS}</Empty>}
       {page.system !== null && <OrbitBlock system={page.system} body={page.id} />}
@@ -356,7 +385,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       <Colony page={page} />
       <About page={page} radius={radius} />
       <Moons page={page} />
-      {(starBlock || candidate !== null || movable) && <EditKey />}
+      {(starBlock || candidate !== null || ring !== null || movable) && <EditKey />}
     </>
   );
 }

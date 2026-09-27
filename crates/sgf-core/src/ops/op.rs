@@ -430,6 +430,15 @@ pub enum Op {
         radius: f64,
         angle: f64,
     },
+    /// The ring bit of a save body's `binary_flags`, set when `ring` and cleared when not:
+    /// the statement is written before `entity_planet_class` or `coordinate` when the body
+    /// has none, and goes when only the bit set beside any other is left. The body's class
+    /// is not checked. No change is refused; the inverse flips `ring`. Stellaris 4.x save
+    /// documents only.
+    SetPlanetRing {
+        planet: u32,
+        ring: bool,
+    },
     /// A new asteroid belt of type `kind` at `radius`, last in the system's
     /// `asteroid_belts`, which the system gains when it has none. The system's
     /// `inner_radius` is left alone. The inverse is [`Op::RemoveSaveBelt`] at the new last
@@ -489,7 +498,7 @@ impl Op {
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::SetTerraformCandidate`]
-    /// stales the one planet whose modifiers it wrote.
+    /// and [`Op::SetPlanetRing`] stale the one planet they wrote.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
@@ -510,6 +519,7 @@ impl Op {
             | Self::SetSpawnScripts { .. }
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
+            | Self::SetPlanetRing { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -530,6 +540,7 @@ impl Op {
             | Self::SetTerraformCandidate { .. }
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
+            | Self::SetPlanetRing { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -577,6 +588,7 @@ impl Op {
             | Self::RemoveSaveDeposit { .. }
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
+            | Self::SetPlanetRing { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -891,6 +903,8 @@ pub enum OpError {
     HasMoons(u32),
     #[error("planet {0} already has that parent")]
     ParentUnchanged(u32),
+    #[error("planet {planet} {state}")]
+    RingUnchanged { planet: u32, state: &'static str },
     #[error("system {system} has no belt {index}")]
     UnknownBelt { system: u32, index: usize },
     #[error("belt {index} of system {system} is already that way")]
@@ -1017,6 +1031,7 @@ impl OpError {
             | Self::InvalidParent { .. }
             | Self::HasMoons { .. }
             | Self::ParentUnchanged { .. }
+            | Self::RingUnchanged { .. }
             | Self::BeltUnchanged { .. }
             | Self::InnerRadiusTooSmall { .. }
             | Self::InnerRadiusUnchanged { .. }

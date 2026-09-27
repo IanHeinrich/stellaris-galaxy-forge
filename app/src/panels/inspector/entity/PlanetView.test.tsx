@@ -38,7 +38,7 @@ import { PlanetView } from "./PlanetView";
 import { orbitClasses, orbitSystem, saveBody } from "../../../test/builders";
 import { drawnBy, drawnField } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
-import { PickerField } from "../../EditField";
+import { PickerField, ToggleField } from "../../EditField";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 import { GEOMETRY_REASONS } from "../../../lib/details/orbitEdits";
 
@@ -753,5 +753,67 @@ describe("a body's orbit", () => {
     const html = render(LONE);
     expect(html).not.toContain("Orbit radius");
     expect(html).not.toContain("Reading the system…");
+  });
+});
+
+describe("a body's ring", () => {
+  const STAR_BODY = 1;
+  const PLANET = 2;
+  const MOON = 3;
+  const ASTEROID = 6;
+  const RING = /<input type="checkbox"( checked="")?\/>Ring<\/label>/;
+
+  /** The orbit fixture's system as system `SYSTEM`, its planet with a ring. */
+  async function landRinged(): Promise<void> {
+    const read = orbitSystem({ id: SYSTEM, with_game_data: true });
+    read.planets = read.planets.map((p) => (p.id === PLANET ? { ...p, ring: true } : p));
+    useGameDataStore.setState({ planetClasses: orbitClasses() });
+    await land(read);
+  }
+
+  const bodyPage = (id: number, over: Partial<PlanetPage> = {}) =>
+    landPage(planetPage({ id, class: "pc_arid", ...over }));
+
+  it("shows a planet's ring checked and a moon's unchecked, and a tick sends the ring", async () => {
+    await open("save");
+    await landRinged();
+    await bodyPage(MOON, { class: "pc_barren", parent: PLANET });
+    await bodyPage(PLANET, { class: "pc_continental" });
+
+    expect(render(MOON).match(RING)?.[1]).toBeUndefined();
+    const html = drawnBy(() => render(PLANET));
+    expect(html).toContain('aria-label="Planet"');
+    expect(html.match(RING)?.[1]).toBe(' checked=""');
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnField(ToggleField, "Ring").onChange(false);
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetPlanetRing",
+        planet: PLANET,
+        ring: false,
+      }),
+    );
+  });
+
+  it("offers no ring to a star or an asteroid", async () => {
+    await open("save");
+    await landRinged();
+    await bodyPage(STAR_BODY, { class: "pc_g_star" });
+    await bodyPage(ASTEROID, { class: "pc_asteroid" });
+
+    for (const id of [STAR_BODY, ASTEROID]) {
+      const html = render(id);
+      expect(html).toContain("About");
+      expect(html).not.toMatch(RING);
+    }
+  });
+
+  it("offers no ring on a scenario", async () => {
+    await open("scenario");
+    await landRinged();
+    await bodyPage(PLANET, { class: "pc_continental" });
+
+    expect(render(PLANET)).not.toMatch(RING);
   });
 });

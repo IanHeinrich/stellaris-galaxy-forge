@@ -417,6 +417,10 @@ pub fn one_of_each() -> Vec<Example> {
             radius: 20.0,
             angle: 90.0,
         }),
+        Example::save_4_5(Op::SetPlanetRing {
+            planet: 585,
+            ring: true,
+        }),
         Example::save_4_5(Op::AddSaveBelt {
             system: 140,
             kind: "rocky_asteroid_belt".to_owned(),

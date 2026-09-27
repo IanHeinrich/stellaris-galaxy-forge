@@ -412,6 +412,7 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   SetNebulaFootprints: null,
   MoveSaveBody: null,
   SetSaveBodyParent: null,
+  SetPlanetRing: null,
   AddSaveBelt: null,
   RemoveSaveBelt: null,
   SetSaveBeltRadius: null,

@@ -140,6 +140,8 @@ too.
   candidate checkbox. It does what the console's `add_modifier` does. The planet
   can be terraformed once the empire has Climate Restoration. Frozen
   worlds also need Hydrocentric, and toxic worlds need Detox.
+- In a Stellaris 4.x save, a planet or moon has a Ring checkbox to give
+  it a ring or take its ring away.
 - Deposits are shown with the game's own art and the district capacity
   they add up to, one row per type: what each one yields, or what it does
   while unworked. A blocked deposit shows a blocker mark, the tech and

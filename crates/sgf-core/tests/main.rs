@@ -38,6 +38,7 @@ mod ops_map_colors;
 mod ops_nebula;
 mod ops_nebula_footprint;
 mod ops_nebula_names;
+mod ops_planet_ring;
 mod ops_planet_size;
 mod ops_prevent;
 mod ops_remove_added_system;
