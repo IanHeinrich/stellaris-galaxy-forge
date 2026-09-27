@@ -12,56 +12,31 @@ a release is made.
 
 ### Added
 
-- In a save, you can edit a system's layout in the system view.
-  Scenarios can't be edited this way yet.
-  - Drag a planet or moon to move it. Its distance and angle follow the
-    pointer, and its moons move with it. Hold Ctrl to change only one of
-    them.
-  - Drop a planet on another planet to make it a moon. Drag a moon away
-    from its planet to make it a planet again.
-  - In a binary or trinary system, drag a star to move it with its
-    planets. The star at the centre stays where it is.
-  - Drop a planet on another star to make it orbit that star. Its moons
-    come with it.
-  - Right-click a planet or moon and choose Lock to keep it on what it
-    orbits while you drag it. A locked body shows a small lock.
-  - Shift+Arrow moves the selected body one degree or one unit.
-    Ctrl+Shift+Arrow moves it ten.
-  - Ring world segments stay where they are.
-- Add, move and remove asteroid belts, and change their kind. Drag a
-  belt's handles in the system view, or right-click empty space to add a
-  belt there. The system page lists each belt's kind and radius.
+- Edit a system's layout in a save from the system view. Scenarios
+  can't be edited this way yet.
+  - Drag planets, moons and companion stars to new orbits.
+  - Drop a planet on another planet or star to make it orbit that body.
+  - Add, move and remove asteroid belts, and change their kind.
+  - Give a planet a ring or take it away.
+  - Lock a body to what it orbits so a drag can't move it elsewhere.
 - Each kind of asteroid belt looks different in the system view.
-- The planet page has fields for what a body orbits, its orbit radius
-  and its angle. It also has a Ring checkbox to give a planet or moon a
-  ring or take it away.
-- The system's inner radius has a field on the system page and handles
-  in the system view. A planet or belt moved past it moves it out, by
-  the margin your install and mods set.
 - The Issues tab lists bodies that stand in the same place.
 
 ### Changed
 
 - The Terraforming checkbox's hint names the techs and ascension perks
-  your empire needs, read from the game and your mods.
-- The faint planets in a scenario system whose planets the game rolls
-  follow the game's own rules for the system's star.
+  your empire needs.
+- Faint planets in a rolled scenario system follow the game's rules for
+  its star.
 
 ### Fixed
 
 - A scenario system with the Previously Terraformed layout shows one
-  star in the system view, as Add system gives it. It used to show two.
-- The status bar's orbit and angle for a scenario body match where the
-  system view draws it.
-- In the system view, an orbit radius label no longer covers the
-  selected body's ring.
-- An undo in the system view keeps the view where it was.
-- A body's tooltip in the system view shows its name as soon as the name
-  loads, without moving the pointer.
-- A random planet's tooltip in the system view names what the
-  initializer draws there. It used to be empty.
+  star, not two.
+- Small fixes to the system view's tooltips, labels, status bar and
+  undo.
 - A planet that keeps a terraforming candidate from an earlier class
-  shows the Edit mark in the system's planet list.
+  shows the Edit mark.
 
 ## [0.15.0] - 2026-09-26
 
