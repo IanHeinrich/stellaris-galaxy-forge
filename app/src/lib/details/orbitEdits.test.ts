@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MIN_INNER_RADIUS } from "../../generated/constants";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { ORBIT_SYSTEM_AT, orbitClasses, orbitSystem, saveBody } from "../../test/builders";
 import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../capabilities";
@@ -93,10 +94,13 @@ describe("what a save lets the system view edit", () => {
     });
   });
 
-  it("edits belts and the inner radius, down to the rule's floor or the system's own below it", () => {
-    expect(editing).toMatchObject({ belts: true, innerRadius: true, innerFloor: 124 + 30 });
+  it("edits belts and the inner radius, down to the system's reach or its own value below it", () => {
+    expect(editing).toMatchObject({ belts: true, innerRadius: true, innerFloor: MIN_INNER_RADIUS });
     const low = SAVE_GEOMETRY.editing(frameOf(orbitSystem({ inner_radius: 140 })));
     expect(low.innerFloor).toBe(140);
+    const planets = [...orbitSystem().planets, saveBody(7, "pc_arid", [0, 180], 180, 12)];
+    const wide = SAVE_GEOMETRY.editing(frameOf(orbitSystem({ planets, inner_radius: 260 })));
+    expect(wide.innerFloor).toBeCloseTo(180);
   });
 
   it("edits nothing before the system's details are in", () => {
@@ -227,7 +231,7 @@ describe("the op each intent makes", () => {
     expect(op(reparent(LONE, LONE))).toEqual({ refused: GEOMETRY_REASONS.itself });
     expect(op(reparent(LONE, 99))).toEqual({ refused: GEOMETRY_REASONS.elsewhere });
     expect(op({ kind: "innerRadius", system: SYSTEM, radius: 100 })).toEqual({
-      refused: innerTooSmall(154),
+      refused: innerTooSmall(150),
     });
     expect(innerTooSmall(154)).toBe("The inner radius can't go below 154");
   });

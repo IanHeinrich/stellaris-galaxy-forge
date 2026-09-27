@@ -303,10 +303,10 @@ export function grownInner(layout: SystemLayout, override: LayoutOverride): numb
   return grows ? Math.max(MIN_INNER_RADIUS, after + INNER_MARGIN) : current;
 }
 
-/** The least the inner radius may be set to: the rule's, or the system's own when that is lower. */
+/** The least the inner radius may be set to: the system's reach, or its own value when that is lower. */
 function innerFloorOf(layout: SystemLayout): number {
-  const rule = Math.max(MIN_INNER_RADIUS, reachOf(layout, NOTHING_MOVED) + INNER_MARGIN);
-  return Math.min(layout.innerRadius, rule);
+  const least = Math.max(MIN_INNER_RADIUS, reachOf(layout, NOTHING_MOVED));
+  return Math.min(layout.innerRadius, least);
 }
 
 function roundedText(value: number): string {
