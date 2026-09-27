@@ -8,42 +8,40 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-09-27
+
 ### Added
 
-- In the system view of a save, drag a planet or moon to move it. Its
-  distance and angle follow the pointer. Hold Ctrl to change only one of
-  them. Its moons move with it. Ring world segments stay where they are.
-- The stars of a binary or trinary system can be moved too, and their
-  planets move with them. A star at the system's centre stays where it
-  is.
-- Drop a planet on another planet to make it a moon. Drag a moon away
-  from its planet to make it a planet again.
-- In a binary or trinary system, drop a planet on another star to make it
-  orbit that star. Its moons come with it. Drop it on the star at the
-  centre to move it back.
-- Right-click a planet or moon and choose Lock to keep it on what it
-  orbits while you drag it. A locked body shows a small lock.
-- Shift+Arrow moves the selected body one degree or one unit.
-  Ctrl+Shift+Arrow moves it ten.
-- The planet page has fields for what a body orbits, its orbit radius
-  and its angle.
-- The system page lists its asteroid belts. You can change each belt's
-  kind and radius, remove a belt, and set the system's inner radius.
-- Belts and the inner radius have six handles you can drag in the system
-  view. They show when you point at the belt or the circle. Right-click
-  empty space to add a belt there. Right-click a belt's handle to remove
-  it.
+- In a save, you can edit a system's layout in the system view.
+  Scenarios can't be edited this way yet.
+  - Drag a planet or moon to move it. Its distance and angle follow the
+    pointer, and its moons move with it. Hold Ctrl to change only one of
+    them.
+  - Drop a planet on another planet to make it a moon. Drag a moon away
+    from its planet to make it a planet again.
+  - In a binary or trinary system, drag a star to move it with its
+    planets. The star at the centre stays where it is.
+  - Drop a planet on another star to make it orbit that star. Its moons
+    come with it.
+  - Right-click a planet or moon and choose Lock to keep it on what it
+    orbits while you drag it. A locked body shows a small lock.
+  - Shift+Arrow moves the selected body one degree or one unit.
+    Ctrl+Shift+Arrow moves it ten.
+  - Ring world segments stay where they are.
+- Add, move and remove asteroid belts, and change their kind. Drag a
+  belt's handles in the system view, or right-click empty space to add a
+  belt there. The system page lists each belt's kind and radius.
 - Each kind of asteroid belt looks different in the system view.
-- A planet or belt moved near or past the system's inner radius moves
-  the inner radius out with it.
+- The planet page has fields for what a body orbits, its orbit radius
+  and its angle. It also has a Ring checkbox to give a planet or moon a
+  ring or take it away.
+- The system's inner radius has a field on the system page and handles
+  in the system view. A planet or belt moved past it moves it out, by
+  the margin your install and mods set.
 - The Issues tab lists bodies that stand in the same place.
-- The planet page has a Ring checkbox to give a planet or moon a ring,
-  or take its ring away.
 
 ### Changed
 
-- The system's inner radius follows the defines in your install and
-  mods.
 - The Terraforming checkbox's hint names the techs and ascension perks
   your empire needs, read from the game and your mods.
 - The faint planets in a scenario system whose planets the game rolls
