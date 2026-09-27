@@ -344,7 +344,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       {candidate !== null && <TerraformBlock id={page.id} candidate={candidate} />}
       {starBlock && <StarBlock planet={found.planet} system={system} />}
       {!starBlock && star && waiting && <Empty>{READING_STARS}</Empty>}
-      {!starBody && page.system !== null && <OrbitBlock system={page.system} body={page.id} />}
+      {page.system !== null && <OrbitBlock system={page.system} body={page.id} />}
       {!starBlock && !(star && waiting) && (
         <Properties>
           <PropertyRow label="Class">{bodyClassName(page.class, names)}</PropertyRow>

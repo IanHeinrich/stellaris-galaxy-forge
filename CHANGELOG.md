@@ -10,9 +10,12 @@ a release is made.
 
 ### Added
 
-- In the system view of a save, drag a planet or moon to move it. Drag
-  along its orbit to change its angle, or across orbits to change its
-  distance. Its moons move with it.
+- In the system view of a save, drag a planet or moon to move it. Its
+  distance and angle follow the pointer. Hold Ctrl to change only one of
+  them. Its moons move with it. Ring world segments stay where they are.
+- The stars of a binary or trinary system can be moved too, and their
+  planets move with them. A star at the system's centre stays where it
+  is.
 - Drop a planet on another planet to make it a moon. Drag a moon away
   from its planet to make it a planet again.
 - Shift+Arrow moves the selected body one degree or one unit.
@@ -22,7 +25,8 @@ a release is made.
 - The system page lists its asteroid belts. You can change each belt's
   kind and radius, remove a belt, and set the system's inner radius.
 - Belts and the inner radius have handles you can drag in the system
-  view. Right-click empty space to add a belt there.
+  view. Right-click empty space to add a belt there. Right-click a belt's
+  handle to remove it.
 - A planet moved near or past the system's inner radius moves the inner
   radius out with it.
 - The Issues tab lists bodies that stand in the same place.

@@ -19,6 +19,10 @@ terraform_candidate: string | null,
  */
 asteroid?: boolean, 
 /**
+ * `Some(true)` for a ring world segment (`ringworld = yes`); `None` otherwise.
+ */
+ringworld?: boolean, 
+/**
  * `Some(true)` for a star class not drawn with the star shader (`star_gfx = no`; vanilla:
  * `pc_t_star`, `pc_rift_star`, `pc_protostar`); `None` otherwise.
  */

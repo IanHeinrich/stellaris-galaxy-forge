@@ -456,6 +456,10 @@ pub struct PlanetClassView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub asteroid: Option<bool>,
+    /// `Some(true)` for a ring world segment (`ringworld = yes`); `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub ringworld: Option<bool>,
     /// `Some(true)` for a star class not drawn with the star shader (`star_gfx = no`; vanilla:
     /// `pc_t_star`, `pc_rift_star`, `pc_protostar`); `None` otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -645,6 +649,7 @@ impl GameData {
                     .terraform_links
                     .candidate(&pc.key, &self.static_modifiers),
                 asteroid: marker(pc.asteroid),
+                ringworld: marker(pc.ringworld),
                 draws_as_planet: marker(pc.star && !pc.star_gfx),
             })
             .collect()

@@ -10,7 +10,10 @@ const HANDLE_STROKE_PX = 1.5;
 const HANDLE_STROKE_COLOR = 0xffffff;
 const HANDLE_STROKE_ALPHA = 0.7;
 
-/** A small ring at the top of each belt's circle and of the inner radius, where they may be edited. */
+/**
+ * Four small rings on each belt's circle and on the inner radius's, at the top, right, bottom and
+ * left, where they may be edited.
+ */
 export class HandlesLayer implements SystemLayer {
   readonly container = new Container();
   private readonly g = new Graphics();

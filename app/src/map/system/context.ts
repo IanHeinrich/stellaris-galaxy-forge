@@ -20,7 +20,7 @@ import {
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
 import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import type { Ownership } from "../../lib/ownership";
-import { SAVE_Y_SIGN } from "../../lib/geometry/geometry";
+import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import { clusterOffsets } from "../../lib/visual/starCluster";
 import { effectiveStarClass } from "../../lib/visual/starGlyphs";
 import type { EntityRef } from "../../store/inspectorStore";
@@ -118,7 +118,10 @@ export interface Exit {
   readonly radius: number;
 }
 
-/** A handle drawn at the top of a belt's circle or the inner radius's, which a drag moves. */
+/**
+ * One of the four handles drawn at the top, right, bottom and left of a belt's circle or the inner
+ * radius's, any of which a drag moves.
+ */
 export interface SceneHandle {
   readonly ref: HandleRef;
   readonly radius: number;
@@ -438,17 +441,27 @@ const lastRolled = lastOf<readonly RolledPlanet[]>();
 const lastEditing = lastOf<SceneEditing>();
 const lastHandles = lastOf<readonly SceneHandle[]>();
 
-/** A handle at the top of the circle of `radius` about the centre, as the camera draws it. */
-function handleAt(ref: HandleRef, radius: number, beltKind: string | null): SceneHandle {
-  return { ref, radius, beltKind, x: 0, y: -SAVE_Y_SIGN * radius };
+/** The screen top, right, bottom and left of a circle about the centre, as unit steps in world units. */
+const HANDLE_SPOTS: readonly (readonly [number, number])[] = [
+  [0, -SAVE_Y_SIGN],
+  [SAVE_X_SIGN, 0],
+  [0, SAVE_Y_SIGN],
+  [-SAVE_X_SIGN, 0],
+];
+
+/** The four handles on the circle of `radius` about the centre, as the camera draws them. */
+function handlesAt(ref: HandleRef, radius: number, beltKind: string | null): SceneHandle[] {
+  return HANDLE_SPOTS.map(([x, y]) => ({ ref, radius, beltKind, x: x * radius, y: y * radius }));
 }
 
 function sceneHandles(layout: SystemLayout, editing: SceneEditing): SceneHandle[] {
   const belts = editing.belts
-    ? layout.belts.map((belt, index) => handleAt({ kind: "belt", index }, belt.radius, belt.kind))
+    ? layout.belts.flatMap((belt, index) =>
+        handlesAt({ kind: "belt", index }, belt.radius, belt.kind),
+      )
     : [];
   if (!editing.innerRadius) return belts;
-  return [...belts, handleAt({ kind: "innerRadius" }, layout.innerRadius, null)];
+  return [...belts, ...handlesAt({ kind: "innerRadius" }, layout.innerRadius, null)];
 }
 
 /**

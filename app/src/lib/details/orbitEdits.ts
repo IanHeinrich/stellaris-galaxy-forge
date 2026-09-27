@@ -103,11 +103,13 @@ export interface GeometryAdapter {
 
 /** Why a body may not do what is asked of it, as the status bar and the pages say it. */
 export const GEOMETRY_REASONS = {
-  star: "A star stays where it is",
+  star: "The star at the system's centre stays where it is",
   starHost: "A star can't have moons",
+  starMoon: "A star can't become a moon",
   hasMoons: "A planet with moons can't become a moon",
   moonHost: "A moon can't have moons of its own",
   asteroidHost: "An asteroid can't have moons",
+  ringworld: "A ring world segment stays where it is",
   noOrbit: "Its planet is missing, so it has no orbit to move along",
   itself: "A body can't orbit itself",
   elsewhere: "That body is not in this system",
@@ -122,6 +124,7 @@ export function innerTooSmall(least: number): string {
 
 /** What the status bar says while something is dragged. */
 export const DRAG_HINTS = {
+  free: "drag to move · Ctrl holds the orbit or the angle · Shift snaps to 15° · Esc cancels",
   along: "along its orbit · Shift snaps to 15° · Esc cancels",
   across: "across orbits · Esc cancels",
   toPlanet: "release to make it a planet",
@@ -373,6 +376,18 @@ function isAsteroid(planetClass: string | undefined, classes: GeometryFrame["pla
   return planetClass !== undefined && classes.get(planetClass)?.asteroid === true;
 }
 
+/** Whether the install's classes make `planetClass` a ring world segment. */
+function isRingSegment(planetClass: string | undefined, classes: GeometryFrame["planetClasses"]) {
+  return planetClass !== undefined && classes.get(planetClass)?.ringworld === true;
+}
+
+const FIXED_RING_SEGMENT: BodyEditing = {
+  move: false,
+  host: false,
+  reparent: false,
+  reason: GEOMETRY_REASONS.ringworld,
+};
+
 function saveBodyEditing(
   body: BodyPlacement,
   frame: GeometryFrame,
@@ -381,8 +396,10 @@ function saveBodyEditing(
   parents: ReadonlySet<number>,
 ): BodyEditing {
   if (body.star) {
-    return { move: false, host: false, reparent: false, reason: GEOMETRY_REASONS.star };
+    const reason = atCentre(body) ? GEOMETRY_REASONS.star : GEOMETRY_REASONS.starHost;
+    return { move: !atCentre(body), host: false, reparent: false, reason };
   }
+  if (isRingSegment(classOf.get(body.id), frame.planetClasses)) return { ...FIXED_RING_SEGMENT };
   const asteroid = isAsteroid(classOf.get(body.id), frame.planetClasses);
   const hasMoons = parents.has(body.id);
   const editing: BodyEditing = {
@@ -401,6 +418,11 @@ function saveBodyEditing(
   const reason = hostRefusal(body, asteroid) ?? (hasMoons ? GEOMETRY_REASONS.hasMoons : undefined);
   if (reason !== undefined) editing.reason = reason;
   return editing;
+}
+
+/** Whether `body` stands where it orbits, as a star at the system's centre does, with no orbit to move along. */
+function atCentre(body: BodyPlacement): boolean {
+  return body.ring === null || body.ring.radius <= STORED_ORBIT_SLACK;
 }
 
 /** A moon whose planet is missing, drawn about the centre though its parent is still that planet. */
@@ -536,7 +558,11 @@ function reparentOp(
   const { layout } = frame;
   const body = layout.bodies.find((b) => b.id === intent.body);
   if (!body) return { refused: GEOMETRY_REASONS.elsewhere };
-  if (body.star) return { refused: GEOMETRY_REASONS.star };
+  if (body.star && atCentre(body)) return { refused: GEOMETRY_REASONS.star };
+  if (body.star && parent !== body.parent) return { refused: GEOMETRY_REASONS.starMoon };
+  if (isRingSegment(classOfBody(frame, body.id), frame.planetClasses)) {
+    return { refused: GEOMETRY_REASONS.ringworld };
+  }
   if (!isOrphan(body) && parent === body.parent) return moveOp(system, body, radius, angle);
   const editing = saveEditing(frame).bodies;
   const own = editing.get(body.id);
@@ -545,9 +571,12 @@ function reparentOp(
     if (under(layout, parent, body.id)) return { refused: GEOMETRY_REASONS.itself };
     const host = layout.bodies.find((b) => b.id === parent);
     if (!host) return { refused: GEOMETRY_REASONS.elsewhere };
-    if (!editing.get(parent)?.host && parent !== own.detachTo) {
+    const hostEditing = editing.get(parent);
+    if (!hostEditing?.host && parent !== own.detachTo) {
       const asteroid = isAsteroid(classOfBody(frame, parent), frame.planetClasses);
-      return { refused: hostRefusal(host, asteroid) ?? GEOMETRY_REASONS.starHost };
+      return {
+        refused: hostRefusal(host, asteroid) ?? hostEditing?.reason ?? GEOMETRY_REASONS.starHost,
+      };
     }
   }
   return {
@@ -604,7 +633,10 @@ function saveOp(intent: GeometryIntent, frame: GeometryFrame): GeometryOp {
     case "move": {
       const body = layout.bodies.find((b) => b.id === intent.body);
       if (!body) return { refused: GEOMETRY_REASONS.elsewhere };
-      if (body.star) return { refused: GEOMETRY_REASONS.star };
+      if (body.star && atCentre(body)) return { refused: GEOMETRY_REASONS.star };
+      if (isRingSegment(classOfBody(frame, body.id), frame.planetClasses)) {
+        return { refused: GEOMETRY_REASONS.ringworld };
+      }
       return moveOp(intent.system, body, intent.radius, intent.angle);
     }
     case "reparent":

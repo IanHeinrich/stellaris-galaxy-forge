@@ -23,6 +23,8 @@ pub struct PlanetClassDef {
     pub star: bool,
     /// `asteroid = yes`: named outside the planet numbering and never given moons.
     pub asteroid: bool,
+    /// `ringworld = yes`: a ring world segment.
+    pub ringworld: bool,
     /// `star_gfx = no`: this class is not drawn with the star shader (vanilla: `pc_t_star`,
     /// `pc_rift_star`, `pc_protostar`). Meaningless off a star class.
     pub star_gfx: bool,
@@ -89,6 +91,7 @@ impl FromDef for PlanetClassDef {
             colonizable: def.flag("colonizable"),
             star: def.flag("star"),
             asteroid: def.flag("asteroid"),
+            ringworld: def.flag("ringworld"),
             star_gfx: def.scalar("star_gfx") != Some("no"),
             can_be_moon: def.scalar("can_be_moon") != Some("no"),
             climate: def.scalar("climate").map(str::to_owned),

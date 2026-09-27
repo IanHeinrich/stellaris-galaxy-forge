@@ -35,6 +35,7 @@ import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { menuItem } from "../../test/elements";
 import { ContextMenu } from "./ContextMenu";
+import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
 import { SceneSpaceMenu } from "./contextMenu/SceneSpaceMenu";
 import { PickCardBody } from "./contextMenu/PickCard";
@@ -575,6 +576,40 @@ describe("the system view's menus", () => {
     await openWith(SCENARIO_RESULT);
     chrome.openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
     expect(menu()).toContain(">Open system view</button>");
+  });
+});
+
+describe("a belt's handle in the system view", () => {
+  const target = { kind: "belt", system: 0, index: 0 } as const;
+
+  function inSol(): void {
+    useSceneStore.getState().enterSystem(0);
+    const belts = [{ kind: "icy_asteroid_belt", inner_radius: 80 }];
+    useDetailsStore.setState({ details: new Map([[0, systemDetails({ id: 0, belts })]]) });
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+  }
+
+  it("removes the belt once on a save", async () => {
+    inSol();
+    const html = menu();
+    expect(html).toContain(">Remove belt</button>");
+    expect(html.indexOf("Remove belt")).toBeLessThan(html.indexOf("Back to galaxy"));
+    menuItem(<BeltMenu target={target} frame={{}} />, "Remove belt").props.onClick();
+    await vi.waitFor(() =>
+      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "RemoveSaveBelt", system: 0, index: 0 }),
+    );
+    const removes = vi
+      .mocked(ipc.applyOp)
+      .mock.calls.filter(([op]) => op.type === "RemoveSaveBelt");
+    expect(removes).toHaveLength(1);
+  });
+
+  it("offers no removal on a scenario", async () => {
+    await openWith(SCENARIO_RESULT);
+    inSol();
+    const html = menu();
+    expect(html).not.toContain("Remove belt");
+    expect(html).toContain(">Back to galaxy</button>");
   });
 });
 

@@ -51,6 +51,8 @@ export type ContextTarget =
   | { kind: "feZone"; anchor: number }
   | { kind: "space"; x: number; y: number }
   | { kind: "body"; system: number; id: number }
+  /** A belt of the system view, right-clicked on one of its handles. */
+  | { kind: "belt"; system: number; index: number }
   | { kind: "systemSpace"; system: number; x: number; y: number };
 
 /** A context menu for a system, a lane or empty space, anchored in map-area pixels. */

@@ -297,6 +297,61 @@ describe("an asteroid with a moon of its own", () => {
   });
 });
 
+describe("the stars of a binary system", () => {
+  const COMPANION = 8;
+  const details = orbitSystem();
+  details.planets[0] = saveBody(STAR, "pc_g_star", [15, 0], 15, 30);
+  details.planets.push(saveBody(COMPANION, "pc_g_star", [-240, 0], 240, 20));
+  details.planets.push(saveBody(9, "pc_arid", [-200, 0], 40, 10, COMPANION));
+  const frame = frameOf(details);
+  const editing = SAVE_GEOMETRY.editing(frame).bodies;
+
+  it("move, but take no moons and keep their parent", () => {
+    const star = { move: true, host: false, reparent: false, reason: GEOMETRY_REASONS.starHost };
+    expect(editing.get(STAR)).toEqual(star);
+    expect(editing.get(COMPANION)).toEqual(star);
+  });
+
+  it("are moved by the save's move, and refused a parent or a moon", () => {
+    expect(op(move(COMPANION, 250, 90), frame)).toEqual({
+      op: { type: "MoveSaveBody", system: SYSTEM, body: COMPANION, radius: 250, angle: 90 },
+    });
+    expect(op(reparent(STAR, null, 20, 10), frame)).toMatchObject({
+      op: { type: "MoveSaveBody", body: STAR, radius: 20 },
+    });
+    expect(op(reparent(COMPANION, LONE), frame)).toEqual({ refused: GEOMETRY_REASONS.starMoon });
+    expect(op(reparent(LONE, COMPANION), frame)).toEqual({ refused: GEOMETRY_REASONS.starHost });
+  });
+});
+
+describe("a ring world segment", () => {
+  const SEGMENT = 7;
+  const details = orbitSystem();
+  details.planets.push(saveBody(SEGMENT, "pc_ringworld_seam", [0, 180], 180, 10));
+  const planetClasses = new Map(orbitClasses());
+  const seam = planetClasses.get("pc_arid")!;
+  planetClasses.set("pc_ringworld_seam", { ...seam, key: "pc_ringworld_seam", ringworld: true });
+  const layout = systemLayout(details, null, planetClasses, VANILLA_MOON_SCALE);
+  const frame: GeometryFrame = { layout, details, planetClasses };
+
+  it("stays where it is, takes no moons and keeps its parent", () => {
+    expect(SAVE_GEOMETRY.editing(frame).bodies.get(SEGMENT)).toEqual({
+      move: false,
+      host: false,
+      reparent: false,
+      reason: GEOMETRY_REASONS.ringworld,
+    });
+  });
+
+  it("refuses a move, a new parent and a moon, saying why", () => {
+    const refused = { refused: GEOMETRY_REASONS.ringworld };
+    expect(op(move(SEGMENT, 190, 90), frame)).toEqual(refused);
+    expect(op(reparent(SEGMENT, LONE), frame)).toEqual(refused);
+    expect(op(reparent(SEGMENT, null, 190, 90), frame)).toEqual(refused);
+    expect(op(reparent(LONE, SEGMENT), frame)).toEqual(refused);
+  });
+});
+
 describe("refusals before any op", () => {
   it("refuses a radius or angle that is not a number", () => {
     const refused = { refused: GEOMETRY_REASONS.notANumber };

@@ -139,6 +139,7 @@ export function sceneAt(
     wy: sy,
     button: kind === "move" ? -1 : 0,
     shift: false,
+    ctrl: false,
     scale: 1,
     time: (clock += DEFAULT_TIME_STEP_MS),
     system: SCENE_SYSTEM,

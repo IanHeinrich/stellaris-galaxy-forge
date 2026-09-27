@@ -9,14 +9,15 @@ import {
 } from "../../lib/details/orbitEdits";
 import { wrapDegrees, type BodyPlacement } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
-import { PICK_RADIUS_PX } from "../picking/zones";
 import type { SystemContext } from "./context";
 import { drawnDisc } from "./geometry";
 
 /** Within this many screen pixels of another ring about the same centre, a drag takes its radius. */
 const SHARED_SNAP_PX = 6;
+/** How far past its drawn disc, in screen pixels, a body takes a dragged one as its moon. */
+const CAPTURE_PAST_PX = 10;
 /** The least reach, in screen pixels, at which a body takes a dragged one as its moon. */
-const CAPTURE_MIN_PX = 6;
+const CAPTURE_MIN_PX = 18;
 /** The angle steps Shift snaps to, in degrees. */
 const SHIFT_STEP_DEG = 15;
 /**
@@ -69,17 +70,19 @@ export interface DragStep {
   readonly readout: DragReadout;
   /** What the status bar says. */
   readonly hint: string;
-  /** Why releasing here changes nothing; the body stays at its axis value meanwhile. */
+  /** Why releasing here changes nothing; the body stays about its own parent meanwhile. */
   readonly refused?: string;
   /** Whether releasing here would change anything. */
   readonly changed: boolean;
 }
 
-/** The pointer as a drag reads it: its scene point, Shift, and screen pixels per world unit. */
+/** The pointer as a drag reads it: its scene point, Shift, Ctrl, and screen pixels per world unit. */
 export interface DragPointer {
   readonly wx: number;
   readonly wy: number;
   readonly shift: boolean;
+  /** Holds a body's drag to the axis its first few pixels picked. */
+  readonly ctrl: boolean;
   readonly scale: number;
 }
 
@@ -157,6 +160,9 @@ function subtree(bodies: readonly BodyPlacement[], id: number): Set<number> {
 function hostRefusal(target: BodyPlacement, editing: BodyEditing | undefined) {
   if (target.star) return { reason: GEOMETRY_REASONS.starHost, what: "a star" };
   if (target.moon) return { reason: GEOMETRY_REASONS.moonHost, what: "a moon" };
+  if (editing?.reason === GEOMETRY_REASONS.ringworld) {
+    return { reason: GEOMETRY_REASONS.ringworld, what: "a ring world segment" };
+  }
   return { reason: editing?.reason ?? GEOMETRY_REASONS.asteroidHost, what: "an asteroid" };
 }
 
@@ -171,9 +177,9 @@ interface Landing {
 }
 
 /**
- * A planet or moon dragged: along its orbit or across orbits, as the first few pixels of the drag
- * chose; onto another body to become its moon; or, for a moon, far enough from its planet to
- * become a planet.
+ * A planet, moon or star off the centre dragged: freely, its orbit and angle both following the pointer; with Ctrl, along
+ * its orbit or across orbits, as the first few pixels of the drag chose; onto another body to become
+ * its moon; or, for a moon, far enough from its planet to become a planet.
  */
 export class BodyDrag implements Drag {
   private constructor(
@@ -192,7 +198,7 @@ export class BodyDrag implements Drag {
 
   /**
    * The drag of body `id`, pressed at `from` and now at `to`, or null when it may not move. The
-   * travel so far picks the axis: out from its ring's centre, or round it.
+   * travel so far picks the axis Ctrl holds it to: out from its ring's centre, or round it.
    */
   static start(frame: DragFrame, id: number, from: Pt, to: Pt): BodyDrag | null {
     const body = frame.layout.bodies.find((b) => b.id === id);
@@ -236,8 +242,9 @@ export class BodyDrag implements Drag {
       if (editing?.host) return this.hosted(target, pointer);
       return this.refused(target, editing, pointer);
     }
-    if (this.axis === "across" && this.detaches(pointer)) return this.detached(pointer);
-    return this.onAxis(pointer);
+    const free = !pointer.ctrl || this.axis === "across";
+    if (free && this.detaches(pointer)) return this.detached(pointer);
+    return this.onOrbit(pointer);
   }
 
   /**
@@ -245,9 +252,11 @@ export class BodyDrag implements Drag {
    * on top of that body is said instead.
    */
   private unmoored(pointer: DragPointer): DragStep {
-    const step = this.onAxis(pointer);
+    const step = this.onOrbit(pointer);
     if (step.marks.tone === "overlap") return step;
-    const text = this.own.reason ?? GEOMETRY_REASONS.hasMoons;
+    const text = this.body.star
+      ? GEOMETRY_REASONS.starMoon
+      : (this.own.reason ?? GEOMETRY_REASONS.hasMoons);
     return { ...step, readout: { text, tone: "warn" } };
   }
 
@@ -262,10 +271,8 @@ export class BodyDrag implements Drag {
     for (const b of this.frame.layout.bodies) {
       if (this.passed.has(b.id)) continue;
       const px = Math.hypot(b.x - pointer.wx, b.y - pointer.wy) * pointer.scale;
-      const reach = Math.min(
-        PICK_RADIUS_PX,
-        Math.max(CAPTURE_MIN_PX, drawnDisc(b.disc, pointer.scale) * pointer.scale),
-      );
+      const disc = drawnDisc(b.disc, pointer.scale) * pointer.scale;
+      const reach = Math.max(CAPTURE_MIN_PX, disc + CAPTURE_PAST_PX);
       if (px <= reach && px < bestPx) {
         best = b;
         bestPx = px;
@@ -309,9 +316,14 @@ export class BodyDrag implements Drag {
     return { radius: Math.max(1, Math.round(distance)), shared: null };
   }
 
-  private axisLanding(pointer: DragPointer): Landing {
+  /** Where the pointer puts it about its own parent: freely, or on Ctrl's axis. */
+  private landing(pointer: DragPointer): Landing {
     const { parent, ring, angle } = this.body;
     const centre = { x: ring.cx, y: ring.cy };
+    if (!pointer.ctrl) {
+      const turned = snapAngle(angleAbout(centre, this.held(pointer)), pointer.shift);
+      return { parent, angle: turned, ...this.radiusAbout(parent, centre, pointer) };
+    }
     if (this.axis === "along") {
       const turned = snapAngle(angleAbout(centre, this.held(pointer)), pointer.shift);
       return { parent, radius: ring.radius, angle: turned, shared: null };
@@ -354,11 +366,14 @@ export class BodyDrag implements Drag {
     return refused === undefined ? step : { ...step, refused };
   }
 
-  /** On its axis: its own ring, one shared with another body, or on top of one. */
-  private onAxis(pointer: DragPointer): DragStep {
-    const landing = this.axisLanding(pointer);
-    const hint = this.axis === "along" ? DRAG_HINTS.along : DRAG_HINTS.across;
-    return this.marked(landing, hint);
+  /** About its own parent: its own ring, one shared with another body, or on top of one. */
+  private onOrbit(pointer: DragPointer): DragStep {
+    return this.marked(this.landing(pointer), this.hint(pointer));
+  }
+
+  private hint(pointer: DragPointer): string {
+    if (!pointer.ctrl) return DRAG_HINTS.free;
+    return this.axis === "along" ? DRAG_HINTS.along : DRAG_HINTS.across;
   }
 
   /** `landing` marked as overlapping another body before sharing its ring. */
@@ -393,7 +408,7 @@ export class BodyDrag implements Drag {
     return this.step(landing, { host: host.id }, { text }, toMoonHint(name));
   }
 
-  /** Over a body that cannot take it: held on its axis, and releasing does nothing. */
+  /** Over a body that cannot take it: held about its own parent, and releasing does nothing. */
   private refused(
     target: BodyPlacement,
     editing: BodyEditing | undefined,
@@ -402,7 +417,7 @@ export class BodyDrag implements Drag {
     const { reason, what } = hostRefusal(target, editing);
     const text = `${this.name(target.id)} is ${what}`;
     const marks = { tone: "refused" as const, other: target.id };
-    return this.step(this.axisLanding(pointer), marks, { text, tone: "warn" }, reason, reason);
+    return this.step(this.landing(pointer), marks, { text, tone: "warn" }, reason, reason);
   }
 
   /** Far enough from its planet, a moon becomes a planet about what its planet orbits. */

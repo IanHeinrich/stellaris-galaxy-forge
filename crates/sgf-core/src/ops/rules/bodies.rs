@@ -150,11 +150,13 @@ pub fn system_reach(bodies: &[Body]) -> f64 {
         .fold(0.0, f64::max)
 }
 
-/// Body `id`, refused when the frame does not list it or lists it first, as its primary.
+/// Body `id`, refused when the frame does not list it or it stands at the system's centre,
+/// with no orbit about its parent to move along.
 pub fn movable(bodies: &[Body], system: u32, id: u32) -> Result<&Body, OpError> {
     let body = find(bodies, id).ok_or(OpError::NotABody { planet: id, system })?;
-    if bodies.first().is_some_and(|primary| primary.id == id) {
-        return Err(OpError::PrimaryBody(id));
+    let about = centre(bodies, body).unwrap_or((0.0, 0.0));
+    if drawn_radius(body.at, about, Some(body.orbit)) <= STORED_ORBIT_SLACK {
+        return Err(OpError::AtCentre(id));
     }
     Ok(body)
 }
@@ -169,6 +171,11 @@ pub fn check_parent(
     parent: Option<u32>,
 ) -> Result<(), OpError> {
     let body = movable(bodies, system, id)?;
+    if bodies.first().is_some_and(|primary| primary.id == id) {
+        return Err(OpError::InvalidParent {
+            reason: format!("planet {id} is the system's primary body, which orbits no other body"),
+        });
+    }
     if let Some(parent) = parent {
         let host = find(bodies, parent).ok_or(OpError::NotABody {
             planet: parent,

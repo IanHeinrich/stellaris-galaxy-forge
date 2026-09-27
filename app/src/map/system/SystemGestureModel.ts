@@ -23,6 +23,7 @@ export interface SystemInput {
   /** 0 left, 1 middle, 2 right; -1 on a move. */
   button: number;
   shift: boolean;
+  ctrl: boolean;
   /** Screen pixels per world unit. */
   scale: number;
   /** The event's `timeStamp` in milliseconds. */
@@ -85,7 +86,8 @@ type State =
 const IDLE: State = { kind: "idle" };
 
 function pointerOf(input: SystemInput): DragPointer {
-  return { wx: input.wx, wy: input.wy, shift: input.shift, scale: input.scale };
+  const { wx, wy, shift, ctrl, scale } = input;
+  return { wx, wy, shift, ctrl, scale };
 }
 
 /**
@@ -141,10 +143,13 @@ export class SystemGestureModel {
   private down(input: SystemInput, intent: SystemIntent): void {
     if (this.state.kind !== "idle") return;
     if (input.button === 2) {
+      const { system, body, handle } = input;
       const target: ContextTarget =
-        input.body !== null
-          ? { kind: "body", system: input.system, id: input.body }
-          : { kind: "systemSpace", system: input.system, x: input.wx, y: input.wy };
+        body !== null
+          ? { kind: "body", system, id: body }
+          : handle?.kind === "belt"
+            ? { kind: "belt", system, index: handle.index }
+            : { kind: "systemSpace", system, x: input.wx, y: input.wy };
       intent.contextMenu(target, input.sx, input.sy);
     } else if (input.button === 1) {
       this.state = { kind: "panning" };

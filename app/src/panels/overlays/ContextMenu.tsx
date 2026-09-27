@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useOutsidePress } from "../useOutsidePress";
 import { menuItems, menuKeyDown } from "../menuKeys";
+import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
 import { FeZoneMenu } from "./contextMenu/FeZoneMenu";
 import { LaneMenu } from "./contextMenu/LaneMenu";
@@ -46,6 +47,8 @@ export function ContextMenu() {
       return <PreventedMenu target={target} frame={frame} />;
     case "body":
       return <BodyMenu target={target} frame={frame} />;
+    case "belt":
+      return <BeltMenu target={target} frame={frame} />;
     case "systemSpace":
       return <SceneSpaceMenu target={target} frame={frame} />;
   }

@@ -364,11 +364,11 @@ fn body_edits_are_refused() {
     let refusals = [
         (
             move_body(1, 584, 10.0, 0.0),
-            "planet 584 is its system's primary body, which stays where it is",
+            "planet 584 stands at the system's centre",
         ),
         (
             set_parent(1, 584, None, 10.0, 0.0),
-            "planet 584 is its system's primary body, which stays where it is",
+            "planet 584 stands at the system's centre",
         ),
         (
             move_body(2, 585, 70.0, 40.0),
@@ -429,6 +429,50 @@ fn body_edits_are_refused() {
     }
     assert!(!session.doc.is_dirty());
     assert!(session.history().undo.is_empty());
+}
+
+/// Alpha Centauri, system 278 of the 4.4 sample: 327 is the far companion star, at orbit
+/// 240, and planets 328 and 329 are `moon_of=327`.
+#[test]
+fn a_companion_star_moved_takes_its_planets_with_it() {
+    let mut session = open();
+    let planets = [328, 329].map(|id| offset(&session, 278, id, 327));
+    let result = snapshot_step(
+        &mut session,
+        "companion_star",
+        move_body(278, 327, 260.0, 100.0),
+    );
+    assert!(
+        result.entry.description.starts_with("Moved planet #327 "),
+        "{}",
+        result.entry.description
+    );
+    for (id, was) in [328, 329].into_iter().zip(planets) {
+        assert_near(offset(&session, 278, id, 327), was, "a companion's planet");
+    }
+    assert_eq!(planet(&session, 278, 327).orbit, Some(260.0));
+}
+
+/// 325 is Alpha Centauri's primary, off the centre at orbit 15, and 326 stores orbit -20
+/// while it stands 20.09 out.
+#[test]
+fn the_stars_of_a_binary_system_move() {
+    let mut session = open();
+    session
+        .apply(move_body(278, 325, 18.0, 45.0))
+        .expect("the primary moves");
+    assert_eq!(planet(&session, 278, 325).orbit, Some(18.0));
+    session
+        .apply(move_body(278, 326, 30.0, 200.0))
+        .expect("the second star moves");
+    assert_eq!(planet(&session, 278, 326).orbit, Some(30.0));
+    let error = session
+        .apply(set_parent(278, 325, Some(327), 20.0, 0.0))
+        .expect_err("the primary stays a planet of the centre");
+    assert_eq!(
+        error.to_string(),
+        "planet 325 is the system's primary body, which orbits no other body"
+    );
 }
 
 #[test]

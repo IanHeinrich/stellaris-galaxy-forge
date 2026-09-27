@@ -401,8 +401,8 @@ pub enum Op {
     /// A save body put at `radius` and `angle` about its parent's point: the system centre
     /// for a planet, its `moon_of` body for a moon. Angles are degrees, written normalised
     /// to [0, 360). Its `orbit` becomes the radius, and every moon under it moves by the
-    /// same step with its own `orbit` kept. `system` must be the body's own. The system's
-    /// primary body is refused. When the body now reaches further than the system did, the
+    /// same step with its own `orbit` kept. `system` must be the body's own. A body at the
+    /// system's centre is refused. When the body now reaches further than the system did, the
     /// system's `inner_radius` grows to that reach plus its margin, and the inverse is a
     /// [`Op::Batch`] that also puts it back. Stellaris 4.x save documents only.
     MoveSaveBody {
@@ -871,8 +871,8 @@ pub enum OpError {
     AmbientSlotTaken(u32),
     #[error("system {0} is already named {1}")]
     NameUnchanged(u32, String),
-    #[error("planet {0} is its system's primary body, which stays where it is")]
-    PrimaryBody(u32),
+    #[error("planet {0} stands at the system's centre")]
+    AtCentre(u32),
     #[error(
         "planet {body} is a moon of planet {parent}, which the save does not hold: make it a planet first"
     )]
@@ -1005,7 +1005,7 @@ impl OpError {
             | Self::InvalidCloudType { .. }
             | Self::AmbientSlotTaken { .. }
             | Self::NameUnchanged { .. }
-            | Self::PrimaryBody { .. }
+            | Self::AtCentre { .. }
             | Self::ParentMissing { .. }
             | Self::BodyUnchanged { .. }
             | Self::InvalidParent { .. }

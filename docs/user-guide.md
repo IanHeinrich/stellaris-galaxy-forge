@@ -200,12 +200,17 @@ open in the Inspector, it shows that body's orbit and angle.
 
 #### Move planets and moons
 
-In a save, you can move planets, moons and asteroids. The star stays
-where it is.
+In a save, you can move planets, moons and asteroids. In a binary or
+trinary system you can move the stars too, and their planets move with
+them. A star at the system's centre stays where it is. Ring world
+segments stay where they are too, and can't have moons.
 
-Drag a body along its orbit to change its angle. Hold Shift to snap to
-15° steps. Drag it across orbits to change its distance from the star.
-Its moons move with it. Press Esc during a drag to put it back.
+Drag a body to move it. Its distance and its angle both follow the
+pointer, in whole units and whole degrees. Near another orbit, it lands
+on that orbit. Hold Shift to snap the angle to 15° steps. Hold Ctrl to
+change only one of them: drag along the orbit to change the angle, or
+across orbits to change the distance. Its moons move with it. Press Esc
+during a drag to put it back.
 
 Drop a planet on another planet to make it a moon of that planet. Drag
 a moon away from its planet to make it a planet again. A planet that
@@ -237,9 +242,12 @@ leaves its asteroids where they are. Changing a belt's radius moves its
 asteroids with it. The kinds come from your install, so you need the
 game data loaded to change one.
 
-In the system view, each belt and the inner radius has a small ring
-handle. Drag it to change the radius. Right-click empty space and choose
-Add belt here to add a belt at that distance from the star.
+In the system view, each belt and the inner radius has four small ring
+handles, at the top, right, bottom and left of its circle. Drag any of
+them to change the radius. Right-click a belt's handle and choose Remove
+belt to remove it. Its asteroids stay where they are. Right-click empty
+space and choose Add belt here to add a belt at that distance from the
+star.
 
 Each body's name sits on a plate under it. A colonised planet's plate
 has a bar in its owner's colour. Names, System details and Nebulae

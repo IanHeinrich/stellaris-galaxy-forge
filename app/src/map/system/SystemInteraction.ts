@@ -17,6 +17,8 @@ import type { SystemContext } from "./context";
 import { pickBody, pickExit, pickHandle } from "./picking";
 import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
+const CTRL_KEYS: ReadonlySet<string> = new Set(["Control", "Meta"]);
+
 /** What the scene's pointer controller reads from the scene and asks of it. */
 export interface SceneTarget {
   /** What the scene shows, a preview included. */
@@ -102,7 +104,7 @@ export class SystemInteraction {
     sy: number;
   } = { body: null, exit: null, handle: null, ctx: null, tip: null, sx: 0, sy: 0 };
   private readonly at: Pt = { x: 0, y: 0 };
-  /** The last move the pointer made, which a change of Shift feeds to the model again. */
+  /** The last move the pointer made, which a change of Shift or Ctrl feeds to the model again. */
   private lastMove: SystemInput | null = null;
   /** Why the last drag was refused, said in the status bar until the pointer rests elsewhere. */
   private refusal: string | null = null;
@@ -181,17 +183,17 @@ export class SystemInteraction {
     if (body !== null || exit !== null || handle !== null) this.hover(body, exit, handle, sx, sy);
   }
 
-  /** Esc drops a gesture and goes no further; Shift going down or up moves a drag again. */
+  /** Esc drops a gesture and goes no further; Shift or Ctrl going down or up moves a drag again. */
   private bindKeys(): void {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "Shift") this.shiftChanged(true);
+      this.modifierChanged(e.key, true);
       if (e.key !== "Escape" || isEditableTarget(e.target) || !this.model.busy()) return;
       e.stopImmediatePropagation();
       this.model.cancel(this.intent);
       this.canvas.style.cursor = this.model.cursor();
     };
     const up = (e: KeyboardEvent) => {
-      if (e.key === "Shift") this.shiftChanged(false);
+      this.modifierChanged(e.key, false);
     };
     // The pointer's release may never reach a window that lost focus mid-drag.
     const blur = () => this.cancelDrag();
@@ -205,12 +207,15 @@ export class SystemInteraction {
     });
   }
 
-  /** Shift went down or up with the pointer still: a drag sees its last move again under it. */
-  private shiftChanged(shift: boolean): void {
+  /** Shift or Ctrl went down or up with the pointer still: a drag sees its last move again under it. */
+  private modifierChanged(key: string, held: boolean): void {
     const last = this.lastMove;
-    if (!last || last.shift === shift || !this.model.dragging()) return;
+    if (!last || !this.model.dragging()) return;
+    const shift = key === "Shift" ? held : last.shift;
+    const ctrl = CTRL_KEYS.has(key) ? held : last.ctrl;
+    if (shift === last.shift && ctrl === last.ctrl) return;
     const w = this.cam.screenToWorld(last.sx, last.sy, this.at);
-    this.lastMove = { ...last, shift, wx: w.x, wy: w.y, scale: this.cam.scale };
+    this.lastMove = { ...last, shift, ctrl, wx: w.x, wy: w.y, scale: this.cam.scale };
     this.pointer.handle(this.lastMove);
   }
 
@@ -282,6 +287,7 @@ export class SystemInteraction {
       wy: w.y,
       button: e.button,
       shift: e.shiftKey === true,
+      ctrl: e.ctrlKey === true || e.metaKey === true,
       scale: this.cam.scale,
       time: e.timeStamp,
       system: ctx.id ?? -1,

@@ -32,6 +32,10 @@ pc_painted_rock = {
 \tentity = \"painted_planet\"
 \tasteroid = yes
 }
+pc_painted_ring = {
+	entity = \"painted_planet\"
+	ringworld = yes
+}
 pc_painted_dwarf = {
 \tentity = \"painted_planet\"
 \tstar = yes
@@ -200,6 +204,13 @@ fn the_class_view_passes_its_atmosphere_and_big_icon() {
         .expect("pc_painted_rock");
     assert_eq!(rock.asteroid, Some(true));
     assert_eq!(rock.draws_as_planet, None);
+    assert_eq!(rock.ringworld, None);
+    let ring = views
+        .iter()
+        .find(|v| v.key == "pc_painted_ring")
+        .expect("pc_painted_ring");
+    assert_eq!(ring.ringworld, Some(true));
+    assert_eq!(ring.asteroid, None);
     let dwarf = views
         .iter()
         .find(|v| v.key == "pc_painted_dwarf")
@@ -257,4 +268,28 @@ fn the_installs_continental_world_bakes_into_a_disc() {
     );
     assert!(continental.atmosphere_color.is_some());
     assert!(continental.atmosphere_width.is_some());
+}
+
+#[test]
+fn the_installs_ring_world_segments_are_marked() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let views = gd.planet_class_views();
+    let continental = views
+        .iter()
+        .find(|v| v.key == "pc_continental")
+        .expect("pc_continental");
+    assert_eq!(continental.ringworld, None);
+    for key in [
+        "pc_ringworld_habitable",
+        "pc_ringworld_habitable_damaged",
+        "pc_ringworld_seam",
+        "pc_ringworld_tech",
+        "pc_shattered_ring_habitable",
+        "pc_ringworld_shielded",
+    ] {
+        let class = views.iter().find(|v| v.key == key).expect(key);
+        assert_eq!(class.ringworld, Some(true), "{key}");
+    }
 }

@@ -20,7 +20,9 @@ import {
   systemDetails,
 } from "../../test/builders";
 import { systemRoll } from "../../test/rolls";
+import { Camera } from "../Camera";
 import { systemContext } from "./context";
+import { pickHandle } from "./picking";
 import {
   blankSceneTextures,
   context as fixtureContext,
@@ -362,19 +364,48 @@ describe("a system shown under a preview", () => {
     expect(base.layout.bodies.find((b) => b.id === 2)?.ring?.radius).toBe(60);
   });
 
-  it("puts a handle at the top of each belt and of the inner radius, where the save lets them move", () => {
+  it("puts four handles on each belt and on the inner radius, where the save lets them move", () => {
     const { base, shown } = previewed({
       kind: "setBeltRadius",
       system: 140,
       index: 1,
       radius: 180,
     });
-    expect(base.handles.map((h) => [h.ref, h.x, h.y])).toEqual([
-      [{ kind: "belt", index: 0 }, 0, -120],
-      [{ kind: "belt", index: 1 }, 0, -170],
-      [{ kind: "innerRadius" }, 0, -200],
+    const first = { kind: "belt", index: 0 };
+    expect(base.handles.slice(0, 4).map((h) => [h.ref, h.x + 0, h.y + 0])).toEqual([
+      [first, 0, -120],
+      [first, -120, 0],
+      [first, 0, 120],
+      [first, 120, 0],
     ]);
-    expect(shown.handles.map((h) => h.radius)).toEqual([120, 180, 200]);
+    expect(base.handles.map((h) => h.ref)).toEqual([
+      ...Array(4).fill(first),
+      ...Array(4).fill({ kind: "belt", index: 1 }),
+      ...Array(4).fill({ kind: "innerRadius" }),
+    ]);
+    expect(shown.handles.map((h) => h.radius)).toEqual([
+      ...Array(4).fill(120),
+      ...Array(4).fill(180),
+      ...Array(4).fill(200),
+    ]);
+  });
+
+  it("picks a belt from any of its four handles, at the top, right, bottom and left on screen", () => {
+    const { base } = previewed({ kind: "setBeltRadius", system: 140, index: 1, radius: 180 });
+    const cam = new Camera();
+    cam.setViewport(800, 800);
+    const spots = [
+      [400, 400 - 120],
+      [400 + 120, 400],
+      [400, 400 + 120],
+      [400 - 120, 400],
+    ];
+    for (const [sx, sy] of spots) {
+      const at = cam.screenToWorld(sx + 2, sy - 1);
+      expect(pickHandle(base.handles, cam, at), `${sx},${sy}`).toEqual({ kind: "belt", index: 0 });
+    }
+    const between = cam.screenToWorld(400 + 85, 400 - 85);
+    expect(pickHandle(base.handles, cam, between)).toBeNull();
   });
 
   it("lets nothing of a scenario system be edited, with no handles", () => {

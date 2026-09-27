@@ -368,8 +368,8 @@ export class HighlightLayer implements SystemLayer {
     if (drag?.tone === "refused") around(drag.other, REFUSED_COLOR, 1);
     around(drag?.host ?? null, ACCENT_COLOR, 1);
     const held = drag?.handle ?? this.hoveredHandle;
-    const handle = held && this.ctx.handles.find((h) => sameHandle(h.ref, held));
-    if (handle) {
+    const handles = held ? this.ctx.handles.filter((h) => sameHandle(h.ref, held)) : [];
+    for (const handle of handles) {
       g.circle(handle.x, handle.y, (HANDLE_RADIUS_PX + HANDLE_GROW_PX) * px)
         .fill({ color: ACCENT_COLOR, alpha: SOFT_ALPHA })
         .stroke({ color: ACCENT_COLOR, width: TARGET_WIDTH_PX * px });
