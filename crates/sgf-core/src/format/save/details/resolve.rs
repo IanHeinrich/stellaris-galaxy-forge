@@ -11,6 +11,7 @@ use crate::format::save::details::{
     ArchaeologySite, FleetSummary, MegastructureSummary, RawPlanet, RawSystemDetails,
 };
 use crate::format::save::system_spec::BeltSpec;
+use crate::ops::rules::bodies;
 use crate::projections::name::NameTemplate;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -323,27 +324,19 @@ fn layout(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> BodyLayout {
     }
 }
 
-/// The body's distance from its parent's point, or from the centre without a parent:
-/// some bodies store an `orbit` of 0 or less while they sit out from their parent. The
-/// stored `orbit` stands in when the body or its parent has no point.
+/// The radius the body is drawn at about its parent's point, or about the centre without
+/// a parent (see [`bodies::drawn_radius`]). The stored `orbit` stands in when the body or
+/// its parent has no point.
 fn drawn_radius(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> Option<f64> {
     let centre = match planet.parent {
         None => Some((0.0, 0.0)),
         Some(parent) => points.get(&parent).copied(),
     };
-    let (Some((x, y)), Some((cx, cy))) = (planet.at, centre) else {
+    let (Some(at), Some(centre)) = (planet.at, centre) else {
         return planet.orbit;
     };
-    let distance = (x - cx).hypot(y - cy);
-    match planet.orbit {
-        Some(stored) if (distance - stored).abs() <= STORED_ORBIT_SLACK => Some(stored),
-        _ => Some(distance),
-    }
+    Some(bodies::drawn_radius(at, centre, planet.orbit))
 }
-
-/// How far a body's point may stray from its stored `orbit` for the stored value to be
-/// drawn: the rounding of a point written to five decimals, not a body placed elsewhere.
-const STORED_ORBIT_SLACK: f64 = 0.01;
 
 /// Adds `amount` to the row for `resource`, appending one in first-seen order.
 fn add_amount(rows: &mut Vec<ResourceAmount>, resource: String, amount: f64) {

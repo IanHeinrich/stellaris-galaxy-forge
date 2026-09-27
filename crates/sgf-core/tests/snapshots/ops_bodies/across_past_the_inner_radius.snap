@@ -1,0 +1,46 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet #585 from orbit 65.02 at 28.2° to orbit 180 at 40°, with its moon #586; set the inner radius of system #1 from 186.71 to 225
+inverse: Batch { description: "Undo of \"Moved planet #585 from orbit 65.02 at 28.2° to orbit 180 at 40°, with its moon #586; set the inner radius of system #1 from 186.71 to 225\"", ops: [MoveSaveBody { system: 1, body: 585, radius: 65.01919725511843, angle: 28.198028825828526 }, SetSaveInnerRadius { system: 1, radius: 186.71 }] }
+
+--- gamestate
++++ gamestate
+@@ -28976,8 +28976,8 @@
+ 			resource_region_exotic_gases_rich=62808000
+ 		}
+ 		initializer="ai_system_03"
+-		inner_radius=186.71
+-		outer_radius=286.71
++		inner_radius=225
++		outer_radius=325
+ 		starbases=
+ 		{
+ 			4294967295 
+@@ -110100,11 +110100,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=57.3027
+-				y=30.7229
++				x=137.888
++				y=115.70177
+ 				origin=1
+ 			}
+-			orbit=65
++			orbit=180
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+@@ -110171,8 +110171,8 @@
+ 			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=68.7357
+-				y=40.43465
++				x=149.321
++				y=125.41352
+ 				origin=1
+ 			}
+ 			orbit=15
