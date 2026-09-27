@@ -8,6 +8,17 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Change an empire's flag on its page: the emblem, the background, and
+  the primary and secondary colours. Emblems and backgrounds from your
+  mods are listed too.
+
+### Changed
+
+- An empire's map colours follow the game's Independent Map Color
+  checkbox. With it off, the page shows the flag colours the map uses.
+
 ## [0.16.0] - 2026-09-27
 
 ### Added
