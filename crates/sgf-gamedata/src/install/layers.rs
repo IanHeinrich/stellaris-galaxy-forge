@@ -1,7 +1,7 @@
 //! Vanilla plus the loaded mods, in load order, and the file-level
 //! override rules (`docs/game-data-notes.md`, "Override semantics").
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -107,23 +107,29 @@ impl Layout {
         winners.into_values().collect()
     }
 
-    /// The winning file of extension `ext` per filename directly under
-    /// `rel_dir` (`flags/aquatic`; subfolders not walked, so a category's
-    /// own `small/` and `map/` size variants are left out), with the layer
-    /// it came from (`None` for vanilla's). Same override rules as
-    /// [`Layout::files_in`].
+    /// The winning file of extension `ext` (matched case-insensitively, so
+    /// `.DDS` is found too) per filename directly under `rel_dir`
+    /// (`flags/aquatic`; subfolders not walked, so a category's own
+    /// `small/` and `map/` size variants are left out), with the layer it
+    /// came from (`None` for vanilla's). Same override rules as
+    /// [`Layout::files_in`], except a layer's `replace_path` also discards
+    /// what came before it when `rel_dir` is a subfolder of the named path,
+    /// not only when it names `rel_dir` exactly: a mod whose `replace_path`
+    /// is `flags` replaces every category folder under it, not just a
+    /// folder literally called `flags`.
     pub fn files_with_ext_in(&self, rel_dir: &str, ext: &str) -> Vec<(PathBuf, Option<String>)> {
         let rel_dir = normalize(rel_dir);
+        let ext = ext.to_ascii_lowercase();
         let mut winners: BTreeMap<String, (PathBuf, Option<String>)> = BTreeMap::new();
         for layer in &self.layers {
-            if layer.replace_paths.contains(&rel_dir) {
+            if replaces(&layer.replace_paths, &rel_dir) {
                 winners.clear();
             }
             let dir = rel_dir
                 .split('/')
                 .fold(layer.root.clone(), |p, part| p.join(part));
             let source = (layer.name != VANILLA).then(|| layer.name.clone());
-            for path in direct_files(&dir, ext) {
+            for path in direct_files(&dir, &ext) {
                 if let Some(name) = path.file_name() {
                     winners.insert(name.to_string_lossy().into_owned(), (path, source.clone()));
                 }
@@ -133,14 +139,16 @@ impl Layout {
     }
 
     /// The subdirectory names directly under `rel_dir` (`flags`), across
-    /// every layer. Same override rules as [`Layout::files_in`]: a layer
-    /// whose `replace_path` names `rel_dir` discards the subdirectories
-    /// seen before it.
+    /// every layer, merged case-insensitively: a mod's `flags/Pointy`
+    /// beside vanilla's `flags/pointy` is one category, kept under
+    /// whichever layer's spelling was seen first. Same override rules as
+    /// [`Layout::files_in`]: a layer whose `replace_path` names `rel_dir`
+    /// discards the subdirectories seen before it.
     pub fn subdirs_in(&self, rel_dir: &str) -> Vec<String> {
         let rel_dir = normalize(rel_dir);
-        let mut names: BTreeSet<String> = BTreeSet::new();
+        let mut names: BTreeMap<String, String> = BTreeMap::new();
         for layer in &self.layers {
-            if layer.replace_paths.contains(&rel_dir) {
+            if replaces(&layer.replace_paths, &rel_dir) {
                 names.clear();
             }
             let dir = rel_dir
@@ -151,11 +159,12 @@ impl Layout {
             };
             for entry in entries.flatten() {
                 if entry.file_type().is_ok_and(|t| t.is_dir()) {
-                    names.insert(entry.file_name().to_string_lossy().into_owned());
+                    let name = entry.file_name().to_string_lossy().into_owned();
+                    names.entry(name.to_ascii_lowercase()).or_insert(name);
                 }
             }
         }
-        names.into_iter().collect()
+        names.into_values().collect()
     }
 
     /// The winning file called `name` directly under `rel_dir`
@@ -205,6 +214,19 @@ fn normalize(rel: &str) -> String {
     rel.replace('\\', "/").trim_matches('/').to_owned()
 }
 
+/// Whether `rel_dir` (already normalized) is discarded by one of `replace_paths`: named
+/// there exactly, or a subfolder of a path named there (a mod whose `replace_path` is
+/// `flags` replaces every category folder under it, not only a folder literally called
+/// `flags`).
+fn replaces(replace_paths: &[String], rel_dir: &str) -> bool {
+    replace_paths.iter().any(|p| {
+        rel_dir == p
+            || rel_dir
+                .strip_prefix(p.as_str())
+                .is_some_and(|rest| rest.starts_with('/'))
+    })
+}
+
 /// Every `.txt` below `dir`, subfolders included: the game reads a definition folder as a tree.
 fn txt_files(dir: &Path) -> Vec<PathBuf> {
     WalkDir::new(dir)
@@ -216,7 +238,8 @@ fn txt_files(dir: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Every file directly under `dir` (subfolders not walked) with extension `ext`.
+/// Every file directly under `dir` (subfolders not walked) with extension `ext`
+/// (already lowercase), matched case-insensitively.
 fn direct_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
     let Ok(entries) = fs::read_dir(dir) else {
         return Vec::new();
@@ -224,7 +247,11 @@ fn direct_files(dir: &Path, ext: &str) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = entries
         .flatten()
         .map(|e| e.path())
-        .filter(|p| p.is_file() && p.extension().is_some_and(|e| e == ext))
+        .filter(|p| {
+            p.is_file()
+                && p.extension()
+                    .is_some_and(|e| e.to_string_lossy().to_ascii_lowercase() == ext)
+        })
         .collect();
     files.sort();
     files
@@ -278,4 +305,102 @@ fn under_replace(base: &Path, path: &Path) -> bool {
     path.strip_prefix(base)
         .map(|rel| rel.components().any(|c| c.as_os_str() == "replace"))
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn write(dir: &Path, rel: &str, content: &[u8]) {
+        let file = dir.join(rel);
+        fs::create_dir_all(file.parent().expect("a directory")).expect("the tree");
+        fs::write(file, content).expect("a file");
+    }
+
+    /// A vanilla layer and one mod layer over a temp directory tree, the mod's
+    /// `replace_paths` as given.
+    fn two_layers(replace_paths: &[&str]) -> (tempfile::TempDir, Layout) {
+        let dir = tempfile::tempdir().expect("a temp dir");
+        let vanilla_root = dir.path().join("vanilla");
+        let mod_root = dir.path().join("mod");
+        let layout = Layout {
+            install: vanilla_root.clone(),
+            user_dir: None,
+            layers: vec![
+                Layer {
+                    name: VANILLA.to_owned(),
+                    root: vanilla_root,
+                    replace_paths: Vec::new(),
+                },
+                Layer {
+                    name: "a mod".to_owned(),
+                    root: mod_root,
+                    replace_paths: replace_paths.iter().map(|p| normalize(p)).collect(),
+                },
+            ],
+        };
+        (dir, layout)
+    }
+
+    #[test]
+    fn files_with_ext_in_matches_the_extension_case_insensitively() {
+        let (dir, layout) = two_layers(&[]);
+        write(
+            dir.path(),
+            "vanilla/flags/pointy/flag_pointy_1.DDS",
+            b"vanilla",
+        );
+        let files = layout.files_with_ext_in("flags/pointy", "dds");
+        assert_eq!(files.len(), 1, "{files:?}");
+        assert_eq!(
+            files[0].0.file_name().unwrap().to_str().unwrap(),
+            "flag_pointy_1.DDS"
+        );
+    }
+
+    #[test]
+    fn files_with_ext_in_is_cleared_by_a_replace_path_that_is_an_ancestor_of_rel_dir() {
+        let (dir, layout) = two_layers(&["flags"]);
+        write(
+            dir.path(),
+            "vanilla/flags/pointy/flag_pointy_1.dds",
+            b"vanilla",
+        );
+        write(dir.path(), "mod/flags/pointy/flag_pointy_2.dds", b"mod");
+        let files = layout.files_with_ext_in("flags/pointy", "dds");
+        // The mod's `replace_path = "flags"` discards vanilla's whole `flags/` tree,
+        // `flags/pointy` included, even though it never names `flags/pointy` itself.
+        assert_eq!(files.len(), 1, "{files:?}");
+        assert_eq!(files[0].1.as_deref(), Some("a mod"));
+        assert_eq!(
+            files[0].0.file_name().unwrap().to_str().unwrap(),
+            "flag_pointy_2.dds"
+        );
+    }
+
+    #[test]
+    fn files_with_ext_in_keeps_an_unrelated_replace_path() {
+        let (dir, layout) = two_layers(&["flags_backgrounds"]);
+        write(
+            dir.path(),
+            "vanilla/flags/pointy/flag_pointy_1.dds",
+            b"vanilla",
+        );
+        let files = layout.files_with_ext_in("flags/pointy", "dds");
+        assert_eq!(
+            files.len(),
+            1,
+            "a replace_path naming a sibling folder must not clear this one: {files:?}"
+        );
+    }
+
+    #[test]
+    fn subdirs_in_merges_categories_of_different_case_into_one() {
+        let (dir, layout) = two_layers(&[]);
+        write(dir.path(), "vanilla/flags/pointy/flag_pointy_1.dds", b"v");
+        write(dir.path(), "mod/flags/Pointy/flag_pointy_2.dds", b"m");
+        let mut names = layout.subdirs_in("flags");
+        names.sort();
+        assert_eq!(names, vec!["pointy".to_owned()], "{names:?}");
+    }
 }

@@ -2,7 +2,8 @@
 //! `country.<id>.flag.colors`, and the same values in the save's `meta`, which holds a
 //! copy of the player's flag for the load screen.
 //!
-//! Only the quoted values are rewritten, so the inverse puts the bytes back exactly.
+//! Only the quoted values are rewritten; undo is still byte-exact, because history
+//! restores the bytes each write displaced rather than re-deriving them.
 
 use crate::Span;
 use crate::cst::{self, Node};

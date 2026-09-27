@@ -85,7 +85,10 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
             (None, Some(_)) => Ordering::Less,
             (Some(_), None) => Ordering::Greater,
             (Some(ca), Some(cb)) if ca.is_ascii_digit() && cb.is_ascii_digit() => {
-                match take_number(&mut a).cmp(&take_number(&mut b)) {
+                let na = take_number(&mut a);
+                let nb = take_number(&mut b);
+                let (na, nb) = (na.trim_start_matches('0'), nb.trim_start_matches('0'));
+                match na.len().cmp(&nb.len()).then_with(|| na.cmp(nb)) {
                     Ordering::Equal => continue,
                     other => other,
                 }
@@ -102,11 +105,14 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     }
 }
 
-fn take_number(chars: &mut std::iter::Peekable<std::str::Chars>) -> u64 {
-    let mut n: u64 = 0;
-    while let Some(c) = chars.peek().filter(|c| c.is_ascii_digit()) {
-        n = n * 10 + c.to_digit(10).expect("ascii digit") as u64;
+/// The digits at the front of `chars`, as written: parsing them into a number would
+/// overflow on a long enough run, and comparing them by length then lexically (once
+/// leading zeros are stripped) reads the same as a numeric comparison would.
+fn take_number(chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
+    let mut digits = String::new();
+    while let Some(&c) = chars.peek().filter(|c| c.is_ascii_digit()) {
+        digits.push(c);
         chars.next();
     }
-    n
+    digits
 }

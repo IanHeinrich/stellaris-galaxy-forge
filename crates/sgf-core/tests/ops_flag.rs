@@ -242,6 +242,63 @@ fn a_saved_flag_reads_back_from_the_file() {
 }
 
 #[test]
+fn a_batch_of_two_flag_changes_applies_as_one_and_undoes_to_the_original_meta() {
+    let mut session = open_4_5();
+    let start = flag(&session.graph.countries, PLAYER);
+    let first = EmpireFlag {
+        icon_category: "blocky".to_owned(),
+        icon_file: "flag_blocky_18.dds".to_owned(),
+        ..start.clone()
+    };
+    let second = EmpireFlag {
+        primary: "green".to_owned(),
+        secondary: "dark_green".to_owned(),
+        ..first.clone()
+    };
+    let batch = Op::Batch {
+        description: "Change the player's flag twice".to_owned(),
+        ops: vec![set(PLAYER, first), set(PLAYER, second.clone())],
+    };
+    session.apply(batch).expect("apply");
+    assert_eq!(flag(&session.graph.countries, PLAYER), second);
+    let meta = meta_flag(session.doc.meta());
+    assert_eq!(meta.colors[0], "green");
+    assert_eq!(meta.colors[1], "dark_green");
+
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(session.doc.meta(), session.doc.original_meta());
+    assert!(!session.is_dirty());
+    assert_eq!(flag(&session.graph.countries, PLAYER), start);
+}
+
+#[test]
+fn a_batch_is_refused_whole_when_a_later_member_fails() {
+    let mut session = open_4_5();
+    let player_before = flag(&session.graph.countries, PLAYER);
+    let new = EmpireFlag {
+        icon_category: "blocky".to_owned(),
+        icon_file: "flag_blocky_18.dds".to_owned(),
+        ..player_before.clone()
+    };
+    let unchanged_ai = flag(&session.graph.countries, AI);
+    let batch = Op::Batch {
+        description: "Change the player, then fail".to_owned(),
+        ops: vec![set(PLAYER, new), set(AI, unchanged_ai)],
+    };
+    let error = session.apply(batch).unwrap_err();
+    assert!(matches!(error, OpError::FlagUnchanged(AI)), "{error:?}");
+    assert_eq!(flag(&session.graph.countries, PLAYER), player_before);
+    assert_eq!(session.doc.meta(), session.doc.original_meta());
+    assert!(!session.is_dirty());
+}
+
+// The rollback in `apply_one` at ops/mod.rs (around line 103) only runs for an op with
+// a `follow_up` second step: `Op::AddSaveSystem` and `Op::ReplaceSaveSystem`.
+// `Op::SetEmpireFlag` has no follow-up, so no batch built from flag ops alone can reach
+// it; reaching it for real needs an add/replace-system follow-up that itself fails,
+// which is unrelated to flag coverage and is not attempted here.
+
+#[test]
 fn a_flag_is_refused_where_nothing_would_change_or_a_name_cannot_be_written() {
     let mut session = open_4_5();
     let unchanged = flag(&session.graph.countries, AI);
