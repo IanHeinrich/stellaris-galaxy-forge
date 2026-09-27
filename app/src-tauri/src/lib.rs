@@ -77,6 +77,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_bypasses,
             commands::get_initializers,
             commands::get_galaxy_shapes,
+            commands::get_precursors,
             commands::get_map_colors,
             commands::get_map_color_source,
             commands::get_planet_classes,

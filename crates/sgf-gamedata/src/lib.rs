@@ -60,6 +60,7 @@ pub use registries::gfx::Sprites;
 pub use registries::planet_classes::PlanetClasses;
 pub use registries::planet_lists::PlanetLists;
 pub use registries::planet_modifiers::PlanetModifiers;
+pub use registries::precursors::PrecursorCivilizations;
 pub use registries::registry::Registry;
 pub use registries::scripted_triggers::ScriptedTriggers;
 pub use registries::ship_sizes::ShipSizes;
@@ -111,6 +112,8 @@ pub struct GameData {
     pub ship_sizes: Arc<ShipSizes>,
     pub galaxy_shapes: Arc<GalaxyShapes>,
     pub galaxy_sizes: Arc<GalaxySizes>,
+    /// `common/precursor_civilizations`: the star flags that mark each precursor's region.
+    pub precursors: Arc<PrecursorCivilizations>,
     pub border: Arc<BorderDefines>,
     /// `NGameplay`'s deposit counts and Resource Abundance range.
     pub deposit_defines: Arc<DepositDefines>,
@@ -301,6 +304,7 @@ impl GameData {
         let starbase_levels = starbase_levels::load(&layout, &ship_sizes, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
+        let precursors = PrecursorCivilizations::load(&layout, &mut diagnostics);
         let sprites = gfx::load(&layout, &mut diagnostics);
         let colors = colors::load(&layout, &mut diagnostics);
         let define_files = ParsedDir::load(&layout, "common/defines", &mut diagnostics);
@@ -341,6 +345,7 @@ impl GameData {
             ship_sizes: Arc::new(ship_sizes),
             galaxy_shapes: Arc::new(galaxy_shapes),
             galaxy_sizes: Arc::new(galaxy_sizes),
+            precursors: Arc::new(precursors),
             border: Arc::new(border),
             deposit_defines: Arc::new(deposit_defines),
             system_radii,

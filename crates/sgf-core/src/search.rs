@@ -4,8 +4,8 @@
 //! Names are compared the way the UI displays them: case-insensitive, without the
 //! `NAME_` / `STAR_NAME_` / `SPEC_` prefix, underscores read as spaces. A localised
 //! name, when the resolver knows one, is matched as well; a name built from a template
-//! matches on any key in it. Hits come back grouped by kind, systems first, at most
-//! `limit` of each.
+//! matches on any key in it. A system's flags and planet classes match on their localised
+//! names too. Hits come back grouped by kind, systems first, at most `limit` of each.
 
 use std::collections::{BTreeSet, HashMap};
 
@@ -51,8 +51,9 @@ const MIN_CONTENT_NEEDLE: usize = 3;
 /// prefix, then a match at a word start, then any substring, on the better of the
 /// display key and the resolved name; ties go to the lower id. A system whose name does
 /// not match is matched on what it holds (initializer, flags, special kinds, bypasses,
-/// planet classes), exact, prefix or word start only, below every name match. Planets,
-/// fleets and planet classes are only searched when `details` is built.
+/// planet classes), exact, prefix or word start only, below every name match; a flag or
+/// planet class matches on its key or its resolved name. Planets, fleets and planet
+/// classes are only searched when `details` is built.
 pub fn search(
     g: &GalaxyGraph,
     details: Option<&DetailsProjection>,
@@ -229,7 +230,12 @@ impl Content<'_> {
             });
         }
         for flag in &s.flags {
-            offer(self.rank_key(flag), &|| text(flag.clone()));
+            let resolved = (self.resolve)(flag);
+            let by_name = resolved.as_deref().and_then(|name| self.rank_text(name));
+            let rank = self.rank_key(flag).into_iter().chain(by_name).min();
+            offer(rank, &|| {
+                text(resolved.clone().unwrap_or_else(|| flag.clone()))
+            });
         }
         for label in (self.special)(s.id) {
             offer(self.rank_text(label), &|| text(label.to_owned()));
