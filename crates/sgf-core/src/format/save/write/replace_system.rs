@@ -160,7 +160,7 @@ fn respec(
 
 /// Write the block `text` gives where `block` stands, else before the statement at
 /// `before`, when `wanted`; take `block` out either way.
-fn rewrite_block(
+pub(crate) fn rewrite_block(
     edit: &mut Edit,
     block: Option<Span>,
     before: Span,

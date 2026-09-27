@@ -1,0 +1,21 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed the belt at radius 90 from system #140
+inverse: AddSaveBelt { system: 140, kind: "icy_asteroid_belt", radius: 90.0 }
+
+--- gamestate
++++ gamestate
+@@ -38947,11 +38947,6 @@
+ 				inner_radius=40
+ 			}
+  
+-			{
+-				type="icy_asteroid_belt"
+-				inner_radius=90
+-			}
+- 
+ 		}
+ 		arm=0
+ 		flags=

@@ -138,6 +138,19 @@ pub fn belts_block(indent: &[u8], belts: &[(&str, f64)]) -> Vec<u8> {
     w.into_bytes()
 }
 
+/// One belt entry `{ type=".." inner_radius=N }` followed by the single-space line that
+/// separates entries of an `asteroid_belts` block. `indent` is the entry's own indentation,
+/// one tab deeper than `asteroid_belts`'s.
+pub fn belt_entry(indent: &[u8], kind: &str, radius: f64) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.line(0, "{");
+    w.pair(1, keys::TYPE, &quoted(kind));
+    w.pair(1, keys::INNER_RADIUS, &coord(radius));
+    w.line(0, "}");
+    w.separator();
+    w.into_bytes()
+}
+
 /// A system's `flags` block, each flag dated `date`.
 pub fn flags_block(indent: &[u8], flags: &[String], date: &str) -> Vec<u8> {
     let mut w = Lines::new(indent);

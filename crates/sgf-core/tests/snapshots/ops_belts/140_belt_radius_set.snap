@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved the belt at radius 40 in system #140 to 55
+inverse: SetSaveBeltRadius { system: 140, index: 0, radius: 40.0 }
+
+--- gamestate
++++ gamestate
+@@ -38944,7 +38944,7 @@
+ 			
+ 			{
+ 				type="rocky_asteroid_belt"
+-				inner_radius=40
++				inner_radius=55
+ 			}
+  
+ 			{

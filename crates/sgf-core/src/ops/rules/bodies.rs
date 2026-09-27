@@ -129,9 +129,25 @@ pub fn reach(bodies: &[Body], body: &Body) -> f64 {
     }
 }
 
-/// How far the furthest body of the frame reaches.
+/// Whether `body` counts toward the system's reach: the primary always does, and so does
+/// any other body whose stored `orbit` reads above zero. An event-placed body (a
+/// `pc_astral_scar`, say) can carry `orbit=0` while it stands far from its point at event
+/// time; that is not a place a player put it, and not what the generator's rule cares
+/// about. A body with no `orbit` at all still counts, since a caller can only reach this
+/// with one it read from the bytes.
+fn reaches_for_the_rule(bodies: &[Body], body: &Body) -> bool {
+    bodies.first().is_some_and(|primary| primary.id == body.id) || body.orbit > 0.0
+}
+
+/// How far the furthest body of the frame reaches, an event-placed body at `orbit` zero or
+/// less set aside (see [`reaches_for_the_rule`]). A caller measuring a body its own op is
+/// moving calls [`reach`] on it directly instead, which this exclusion does not touch.
 pub fn system_reach(bodies: &[Body]) -> f64 {
-    bodies.iter().map(|b| reach(bodies, b)).fold(0.0, f64::max)
+    bodies
+        .iter()
+        .filter(|b| reaches_for_the_rule(bodies, b))
+        .map(|b| reach(bodies, b))
+        .fold(0.0, f64::max)
 }
 
 /// The least `inner_radius` the frame's bodies allow, the one the game's generator writes.

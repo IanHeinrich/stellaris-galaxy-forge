@@ -17,8 +17,8 @@ use crate::ops::{Edit, OUTER_MARGIN, Op, OpError, Plan, Planned};
 use crate::projections::read;
 use crate::session::Session;
 /// A body of the system as its entry stands, with the text a move would rewrite.
-struct Stored {
-    body: Body,
+pub(crate) struct Stored {
+    pub(crate) body: Body,
     orbit: String,
     x: String,
     y: String,
@@ -136,6 +136,12 @@ fn frame_of(
             system,
         });
     }
+    frame(s, system)
+}
+
+/// The system's bodies as their entries stand, for a caller with no one body of its own to
+/// check, such as [`crate::format::save::write::belts::plan_inner_radius`].
+pub(crate) fn frame(s: &Session, system: u32) -> Result<Vec<Stored>, OpError> {
     let mut frame = Vec::new();
     for id in listed(&s.doc, system)? {
         match planet_entity(&s.doc, id) {
