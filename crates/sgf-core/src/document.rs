@@ -1,5 +1,6 @@
-//! The loaded document: original bytes held once, `meta` verbatim, the index, and the
-//! patch overlay. `pieces` yields original gaps and slot contents in offset order.
+//! The loaded document: original bytes held once, `meta` and the edit an op made to it,
+//! the index, and the patch overlay. `pieces` yields original gaps and slot contents in
+//! offset order.
 //!
 //! A document is a `.sav` or a static galaxy scenario script; the kind is sniffed from
 //! the bytes and everything that differs between the two lives behind `format::Format`.
@@ -111,6 +112,8 @@ static NOTHING_ADDED: Added = Added::new();
 pub struct Document {
     original: Arc<Vec<u8>>,
     meta: Vec<u8>,
+    /// The `meta` bytes as an op rewrote them; `None` while they stand as loaded.
+    edited_meta: Option<Vec<u8>>,
     index: Index,
     overlay: Overlay,
     body: Body,
@@ -179,6 +182,7 @@ impl Document {
         Ok(Self {
             original: Arc::new(gamestate),
             meta,
+            edited_meta: None,
             index,
             overlay,
             body: Body::Save {
@@ -195,6 +199,7 @@ impl Document {
         Ok(Self {
             original: Arc::new(text),
             meta: Vec::new(),
+            edited_meta: None,
             index,
             overlay: Overlay::new(),
             body: Body::Scenario(Box::new(scenario)),
@@ -269,9 +274,32 @@ impl Document {
         &self.original
     }
 
-    /// The `meta` bytes as loaded; empty for a scenario.
+    /// The `meta` bytes as they now stand; empty for a scenario.
     pub fn meta(&self) -> &[u8] {
+        self.edited_meta.as_deref().unwrap_or(&self.meta)
+    }
+
+    /// The `meta` bytes as loaded.
+    pub fn original_meta(&self) -> &[u8] {
         &self.meta
+    }
+
+    /// The `meta` bytes an op rewrote; `None` while they stand as loaded.
+    pub(crate) fn edited_meta(&self) -> Option<&[u8]> {
+        self.edited_meta.as_deref()
+    }
+
+    /// Make `bytes` the `meta`; returns the edit it displaced, as [`Self::edited_meta`]
+    /// held it.
+    pub(crate) fn replace_meta(&mut self, bytes: Vec<u8>) -> Option<Vec<u8>> {
+        let edited = (bytes != self.meta).then_some(bytes);
+        self.restore_meta(edited)
+    }
+
+    /// Undo helper: put back an edit [`Self::replace_meta`] returned, `None` being the
+    /// bytes as loaded; returns the edit it displaced.
+    pub(crate) fn restore_meta(&mut self, edited: Option<Vec<u8>>) -> Option<Vec<u8>> {
+        std::mem::replace(&mut self.edited_meta, edited)
     }
 
     pub fn index(&self) -> &Index {
@@ -297,9 +325,10 @@ impl Document {
         &self.overlay
     }
 
-    /// Whether any slot exists, i.e. saving would not reproduce the original.
+    /// Whether any slot exists or `meta` was rewritten, i.e. saving would not reproduce
+    /// the original.
     pub fn is_dirty(&self) -> bool {
-        !self.overlay.is_empty()
+        !self.overlay.is_empty() || self.edited_meta.is_some()
     }
 
     /// Bytes currently standing for `anchor`: its slot's content, or the original bytes

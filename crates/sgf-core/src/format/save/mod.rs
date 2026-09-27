@@ -18,7 +18,7 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
-    add_system, belts, bodies, bulk, deposits, lanes, lgate, map_colors, move_system, nebula,
+    add_system, belts, bodies, bulk, deposits, flag, lanes, lgate, map_colors, move_system, nebula,
     planet_ring, planet_size, remove_system, rename_system, replace_system, star_class,
     terraform_candidate,
 };
@@ -175,6 +175,7 @@ impl Format for Save {
             Op::SetEmpireMapColors { country, colors } => {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
+            Op::SetEmpireFlag { country, flag } => flag::plan_set(plan, s, *country, flag),
             Op::AddSaveSystem { spec } => {
                 check_adds_system(&s.doc)?;
                 add_system::plan_add(plan, s, spec)

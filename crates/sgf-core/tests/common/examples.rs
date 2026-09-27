@@ -2,7 +2,8 @@
 //! the tests of a property of the whole enum run over.
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::ops::{
-    InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint, Op, StarBody, SystemMove,
+    EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint, Op, StarBody,
+    SystemMove,
 };
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -374,6 +375,16 @@ pub fn one_of_each() -> Vec<Example> {
                 border: "blue".to_owned(),
                 fill: "dark_blue".to_owned(),
             }),
+        }),
+        Example::save_4_5(Op::SetEmpireFlag {
+            country: 0,
+            flag: EmpireFlag {
+                icon_category: "blocky".to_owned(),
+                icon_file: "flag_blocky_18.dds".to_owned(),
+                background: "flag_BG_12.dds".to_owned(),
+                primary: "blue".to_owned(),
+                secondary: "dark_blue".to_owned(),
+            },
         }),
         Example::save(Op::AddSaveSystem {
             spec: super::spec::dorellion(),

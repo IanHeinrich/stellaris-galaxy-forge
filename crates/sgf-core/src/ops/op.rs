@@ -326,6 +326,15 @@ pub enum Op {
         country: u32,
         colors: Option<MapColorPair>,
     },
+    /// An empire's flag: its emblem, its background file and the first two entries of
+    /// `flag.colors`, each written as given. Without `flag.use_map_color=yes`, a fifth or
+    /// sixth entry that matched the first or second follows it, as the game keeps them.
+    /// The player's empire has its flag in the save's `meta` rewritten the same way, which
+    /// the load screen draws. The inverse carries the flag displaced. Save documents only.
+    SetEmpireFlag {
+        country: u32,
+        flag: EmpireFlag,
+    },
     /// A new save system with its bodies, their deposits and its lanes, written as the
     /// game writes a system it spawns by script. It takes `last_created_system + 1`, which
     /// must be the number of systems the save holds; planets and deposits take the lowest
@@ -650,6 +659,19 @@ pub struct MapColorPair {
     pub fill: String,
 }
 
+/// An empire's flag in [`Op::SetEmpireFlag`]: the emblem's category and file under the
+/// install's `flags/`, the background file under `flags/backgrounds`, and the primary and
+/// secondary colours, each a colour name from `flags/colors.txt`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct EmpireFlag {
+    pub icon_category: String,
+    pub icon_file: String,
+    pub background: String,
+    pub primary: String,
+    pub secondary: String,
+}
+
 /// What a nebula leaves on one member system besides its member line, in
 /// [`Op::SetNebulaFootprints`]: the cloud that draws it in the system view, and the two
 /// permanent modifiers, which give only its numbers.
@@ -842,6 +864,10 @@ pub enum OpError {
     NoMapColors(u32),
     #[error("country {0}'s map colours are already set that way")]
     MapColorsUnchanged(u32),
+    #[error("country {0}'s flag is already set that way")]
+    FlagUnchanged(u32),
+    #[error("save meta: {reason} at byte {offset}")]
+    MetaParse { offset: usize, reason: String },
     #[error("save statement: {reason} at byte {offset}")]
     RecordParse { offset: usize, reason: String },
     #[error("this edit needs a save from Stellaris 4.0 or later, not {0}")]
@@ -957,6 +983,7 @@ impl OpError {
             | Self::PlanetParse { .. }
             | Self::RecordParse { .. }
             | Self::CountryParse { .. }
+            | Self::MetaParse { .. }
             | Self::Overlay { .. }
             | Self::Projection { .. }
             | Self::Document { .. } => ErrorKind::Format,
@@ -1013,6 +1040,7 @@ impl OpError {
             | Self::ModifierCopies { .. }
             | Self::NoMapColors { .. }
             | Self::MapColorsUnchanged { .. }
+            | Self::FlagUnchanged { .. }
             | Self::SaveTooOld { .. }
             | Self::UnknownSaveVersion { .. }
             | Self::Ironman { .. }

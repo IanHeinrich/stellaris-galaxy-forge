@@ -26,8 +26,8 @@ pub use crate::format::save::write::name_pool::{free_nebula_names, free_star_nam
 pub use edit::Subject;
 pub(crate) use edit::{Edit, blank_slot, replace_lengths};
 pub use op::{
-    InitializerSet, LaneLength, LanePair, MapColorPair, NebulaCloud, NebulaFootprint, NewSystem,
-    Op, OpError, StarBody, SystemMove,
+    EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaCloud, NebulaFootprint,
+    NewSystem, Op, OpError, StarBody, SystemMove,
 };
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 pub use rules::bodies::{
@@ -54,6 +54,28 @@ pub struct Applied {
     /// for one it removed; read together, not in turn. Only a save's removal of a system
     /// added in the session renumbers the systems added after it, so that ids stay dense.
     pub renumbered: Vec<(u32, Option<u32>)>,
+    /// The save's `meta` before and after, when the op rewrote it.
+    pub meta: Option<MetaEdit>,
+}
+
+/// The `meta` bytes an op displaced and wrote, each `None` for the bytes as loaded.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetaEdit {
+    pub before: Option<Vec<u8>>,
+    pub after: Option<Vec<u8>>,
+}
+
+impl MetaEdit {
+    /// `first`'s edit followed by `second`'s, as one.
+    fn then(first: Option<Self>, second: Option<Self>) -> Option<Self> {
+        match (first, second) {
+            (Some(first), Some(second)) => Some(Self {
+                before: first.before,
+                after: second.after,
+            }),
+            (first, second) => first.or(second),
+        }
+    }
 }
 
 /// Apply `op` to the session's document and projection.
@@ -78,6 +100,7 @@ fn apply_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
         Ok(second) => Ok(joined(first, second)),
         Err(e) => {
             rollback(session, &first.before, &first.touched);
+            restore_meta(session, &first);
             Err(e)
         }
     }
@@ -92,6 +115,7 @@ fn joined(first: Applied, second: Applied) -> Applied {
     touched.dedup();
     Applied {
         renumbered: then(&first.renumbered, &second.renumbered),
+        meta: MetaEdit::then(first.meta, second.meta),
         before: [first.before, second.before].concat(),
         after: [first.after, second.after].concat(),
         touched,
@@ -122,6 +146,9 @@ fn apply_batch(
                 let before: Vec<_> = members.iter().flat_map(|m| m.before.clone()).collect();
                 let touched: Vec<_> = members.iter().flat_map(|m| m.touched.clone()).collect();
                 rollback(session, &before, &touched);
+                for member in members.iter().rev() {
+                    restore_meta(session, member);
+                }
                 return Err(e);
             }
         }
@@ -131,6 +158,7 @@ fn apply_batch(
     let mut after = Vec::new();
     let mut touched = Vec::new();
     let mut renumbered = Vec::new();
+    let mut meta = None;
     for member in members {
         match member.inverse {
             Op::Batch { ops, .. } => inverses.extend(ops.into_iter().rev()),
@@ -140,6 +168,7 @@ fn apply_batch(
         after.extend(member.after);
         touched.extend(member.touched);
         renumbered = then(&renumbered, &member.renumbered);
+        meta = MetaEdit::then(meta, member.meta);
     }
     inverses.reverse();
     touched.sort_unstable();
@@ -155,6 +184,7 @@ fn apply_batch(
         after,
         touched,
         renumbered,
+        meta,
     })
 }
 
@@ -200,6 +230,13 @@ fn rollback(session: &mut Session, before: &[(Anchor, Option<Vec<u8>>)], touched
         touched,
         &slots(before),
     );
+}
+
+/// Put back the `meta` bytes `applied` displaced, if it rewrote them.
+fn restore_meta(session: &mut Session, applied: &Applied) {
+    if let Some(meta) = &applied.meta {
+        session.doc.restore_meta(meta.before.clone());
+    }
 }
 
 /// Re-extract each touched entity from its current bytes, as the document's format

@@ -1,0 +1,46 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set empire 0's flag
+inverse: SetEmpireFlag { country: 0, flag: EmpireFlag { icon_category: "pointy", icon_file: "flag_pointy_9.dds", background: "double_hemispheres.dds", primary: "grey", secondary: "dark_blue" } }
+
+--- gamestate
++++ gamestate
+@@ -412319,13 +412319,13 @@
+ 		{
+ 			icon=
+ 			{
+-				category="pointy"
+-				file="flag_pointy_9.dds"
++				category="blocky"
++				file="flag_blocky_18.dds"
+ 			}
+ 			background=
+ 			{
+ 				category="backgrounds"
+-				file="double_hemispheres.dds"
++				file="flag_BG_12.dds"
+ 			}
+ 			colors=
+ 			{
+
+--- meta
++++ meta
+@@ -37,13 +37,13 @@
+ {
+ 	icon=
+ 	{
+-		category="pointy"
+-		file="flag_pointy_9.dds"
++		category="blocky"
++		file="flag_blocky_18.dds"
+ 	}
+ 	background=
+ 	{
+ 		category="backgrounds"
+-		file="double_hemispheres.dds"
++		file="flag_BG_12.dds"
+ 	}
+ 	colors=
+ 	{

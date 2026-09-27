@@ -100,6 +100,9 @@ fn restore_before(doc: &mut Document, applied: &Applied) {
     for (anchor, prev) in applied.before.iter().rev() {
         doc.restore(*anchor, prev.clone());
     }
+    if let Some(meta) = &applied.meta {
+        doc.restore_meta(meta.before.clone());
+    }
 }
 
 fn replay_after(doc: &mut Document, applied: &Applied) -> Result<(), OpError> {
@@ -110,6 +113,9 @@ fn replay_after(doc: &mut Document, applied: &Applied) -> Result<(), OpError> {
             }
             None => doc.restore(*anchor, None),
         }
+    }
+    if let Some(meta) = &applied.meta {
+        doc.restore_meta(meta.after.clone());
     }
     Ok(())
 }
