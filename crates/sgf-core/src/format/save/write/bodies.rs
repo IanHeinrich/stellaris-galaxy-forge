@@ -53,12 +53,12 @@ pub(crate) fn plan_move(
     }
     write_points(plan, s, system, &stored, &after, body)?;
     let (from, inverse) = where_it_was(&before, &old);
-    let kind = kind_of(&stored, body);
+    let label = label_of(&stored, body);
     let description = format!(
-        "Moved {kind} #{body} from {from} to orbit {} at {}°{}",
+        "Moved {label} #{body} from {from} to orbit {} at {}°{}",
         number(radius),
         number(normalised(angle)),
-        with_moons(&before, body),
+        carrying(&before, body, label),
     );
     let inverse = Op::MoveSaveBody {
         system,
@@ -106,7 +106,11 @@ pub(crate) fn plan_parent(
         None if kind == "moon" => "a planet".to_owned(),
         None => "a planet of the system's centre".to_owned(),
     };
-    let description = format!("Made {kind} #{body} {becomes}{}", with_moons(&before, body));
+    let label = label_of(&stored, body);
+    let description = format!(
+        "Made {label} #{body} {becomes}{}",
+        carrying(&before, body, label)
+    );
     let (_, (radius, angle)) = where_it_was(&before, &old);
     // A moon of a missing planet, or a planet of the star at the centre, gets that body back
     // as its parent: undo replays bytes, and this inverse is not one to apply.
@@ -194,6 +198,18 @@ fn kind_of(stored: &[Stored], id: u32) -> &'static str {
     }
 }
 
+/// How a description names body `id`: "moon" for a body holding the moon bit, "star" for one
+/// that bodies without the bit orbit, else "planet".
+fn label_of(stored: &[Stored], id: u32) -> &'static str {
+    if stored.iter().any(|b| b.body.id == id && b.moon) {
+        "moon"
+    } else if stored.iter().any(|b| b.body.parent == Some(id) && !b.moon) {
+        "star"
+    } else {
+        "planet"
+    }
+}
+
 fn find(bodies: &[Body], id: u32) -> &Body {
     bodies
         .iter()
@@ -241,22 +257,28 @@ fn where_it_was(bodies: &[Body], body: &Body) -> (String, (f64, f64)) {
     (text, (radius, angle))
 }
 
-/// ", with its moon #586", naming every body under `id`, or nothing when there is none.
-fn with_moons(bodies: &[Body], id: u32) -> String {
+/// ", with its moon #586", or for a star ", with #328 and #329", naming every body under
+/// `id` labelled `label`, or nothing when there is none.
+fn carrying(bodies: &[Body], id: u32, label: &str) -> String {
     let under: Vec<String> = descendants(bodies, id)
         .into_iter()
         .map(|m| format!("#{m}"))
         .collect();
+    let with = match (label, under.len()) {
+        ("star", _) => ", with",
+        (_, 1) => ", with its moon",
+        _ => ", with its moons",
+    };
     match under.as_slice() {
         [] => String::new(),
-        [one] => format!(", with its moon {one}"),
-        [rest @ .., last] => format!(", with its moons {} and {last}", rest.join(", ")),
+        [one] => format!("{with} {one}"),
+        [rest @ .., last] => format!("{with} {} and {last}", rest.join(", ")),
     }
 }
 
 /// Grow the system's `inner_radius` when something the op puts `reach` from the centre lies
-/// further out than any of the system's bodies, `before` as the op found them, or belts, and
-/// return the description and inverse the op ends with.
+/// outside it, or further out than any of the system's bodies, `before` as the op found them,
+/// or belts, and return the description and inverse the op ends with.
 pub(crate) fn grow(
     plan: &mut Plan,
     s: &Session,
@@ -324,8 +346,8 @@ fn set_moon_of(edit: &mut Edit, parent: Option<u32>) -> Result<(), OpError> {
 }
 
 /// Set or clear `flag` in the body's `binary_flags`, writing the statement before
-/// `coordinate` when the body has none and taking it out when only the bit set beside any
-/// other is left.
+/// `entity_planet_class`, else `coordinate`, when the body has none and taking it out when
+/// only the bit set beside any other is left.
 pub(crate) fn set_flag(edit: &mut Edit, flag: u32, on: bool) -> Result<(), OpError> {
     let entity = edit.entity()?;
     let old = read::scalar_u32(entity, keys::BINARY_FLAGS, &edit.buf);

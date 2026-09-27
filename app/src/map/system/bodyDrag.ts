@@ -96,7 +96,7 @@ export interface DragPointer {
   readonly wx: number;
   readonly wy: number;
   readonly shift: boolean;
-  /** Holds a body's drag to the axis its first few pixels picked. */
+  /** Keeps a body about what it orbits, on the axis its travel picked as Ctrl went down. */
   readonly ctrl: boolean;
   readonly scale: number;
 }
@@ -188,6 +188,13 @@ function hostRefusal(target: BodyPlacement, editing: BodyEditing | undefined) {
 
 type Axis = "along" | "across";
 
+/** Where Ctrl holds a body: the axis it moves on, and the radius and angle it had as Ctrl went down. */
+interface Hold {
+  axis: Axis;
+  radius: number;
+  angle: number;
+}
+
 /** Where a drag would put the body, before what it is marked with. */
 interface Landing {
   parent: number | null;
@@ -198,10 +205,11 @@ interface Landing {
 
 /**
  * A planet, moon or star off the centre dragged: freely, its orbit and angle both following the pointer; with Ctrl, along
- * its orbit or across orbits, as the first few pixels of the drag chose; onto another body to become
- * its moon, or onto a star to orbit it; or, for a moon or a planet of a star off the centre, far
- * enough from what it orbits, or onto the star at the centre, to orbit what that orbits. A locked
- * body does neither: it moves only about what it orbits.
+ * its orbit or across orbits from where it stood as Ctrl went down, as the travel so far chose;
+ * onto another body to become its moon, or onto a star to orbit it; or, for a moon or a planet of a
+ * star off the centre, far enough from what it orbits, or onto the star at the centre, to orbit
+ * what that orbits. A locked body, or one held with Ctrl, does neither: it moves only about what it
+ * orbits.
  */
 export class BodyDrag implements Drag {
   private constructor(
@@ -209,7 +217,6 @@ export class BodyDrag implements Drag {
     private readonly system: number,
     private readonly body: BodyPlacement & { ring: NonNullable<BodyPlacement["ring"]> },
     private readonly own: BodyEditing,
-    private readonly axis: Axis,
     /** From the pointer to the body's centre, as it was grabbed. */
     private readonly grab: Pt,
     /** Bodies it can never be dropped on: itself, its moons and what it orbits now. */
@@ -218,16 +225,20 @@ export class BodyDrag implements Drag {
     private readonly outerMoonRing: number | null,
     /** What it is locked to, as the readout names it; null while it is not locked. */
     private readonly lockedTo: string | null,
-  ) {}
+  ) {
+    const centre = { x: body.ring.cx, y: body.ring.cy };
+    this.last = { radius: body.ring.radius, angle: angleAbout(centre, body) };
+  }
 
   /** The host that took the body on the last move, which keeps it while the pointer stays near. */
   private holder: number | null = null;
+  /** Where the last move put the body about what it orbits. */
+  private last: Pick<Landing, "radius" | "angle">;
+  /** Ctrl's hold, while Ctrl is down. */
+  private hold: Hold | null = null;
 
-  /**
-   * The drag of body `id`, pressed at `from` and now at `to`, or null when it may not move. The
-   * travel so far picks the axis Ctrl holds it to: out from its ring's centre, or round it.
-   */
-  static start(frame: DragFrame, id: number, from: Pt, to: Pt): BodyDrag | null {
+  /** The drag of body `id`, pressed at `from`, or null when it may not move. */
+  static start(frame: DragFrame, id: number, from: Pt): BodyDrag | null {
     const body = frame.layout.bodies.find((b) => b.id === id);
     const own = frame.editing.bodies.get(id);
     if (frame.id === null || !body || !own) return null;
@@ -238,13 +249,6 @@ export class BodyDrag implements Drag {
         ? { cx: 0, cy: 0, radius: Math.hypot(body.x, body.y) }
         : null;
     if (!ring) return null;
-    const out = Math.hypot(body.x - ring.cx, body.y - ring.cy) || 1;
-    const ux = (body.x - ring.cx) / out;
-    const uy = (body.y - ring.cy) / out;
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const radial = Math.abs(dx * ux + dy * uy);
-    const round = Math.abs(dx * uy - dy * ux);
     const passed = subtree(frame.layout.bodies, id);
     if (body.parent !== null) passed.add(body.parent);
     const siblings = frame.layout.bodies.filter((b) => b.parent === body.parent && b.ring);
@@ -256,7 +260,6 @@ export class BodyDrag implements Drag {
       frame.id,
       { ...body, ring },
       own,
-      radial > round ? "across" : "along",
       { x: body.x - from.x, y: body.y - from.y },
       passed,
       outer ? Math.max(...siblings.map((b) => b.ring!.radius)) : null,
@@ -265,9 +268,14 @@ export class BodyDrag implements Drag {
   }
 
   move(pointer: DragPointer): DragStep {
+    this.hold = pointer.ctrl ? (this.hold ?? this.holdAt(pointer)) : null;
     if (this.lockedTo !== null) {
       const lead = `${lockedHint(this.lockedTo)} · `;
-      return this.marked(this.landing(pointer), lead + this.hint(pointer), lead);
+      return this.marked(this.landing(pointer), lead + this.hint(), lead);
+    }
+    if (this.hold !== null) {
+      this.holder = null;
+      return this.onOrbit(pointer);
     }
     const target = this.captured(pointer);
     if (target && !this.own.reparent) return this.unmoored(pointer);
@@ -280,9 +288,24 @@ export class BodyDrag implements Drag {
       if (!this.own.asMoon) return this.unmoored(pointer, GEOMETRY_REASONS.hasMoons);
       return this.hosted(target, pointer);
     }
-    const free = !pointer.ctrl || this.axis === "across";
-    if (free && this.detaches(pointer)) return this.detached(pointer);
+    if (this.detaches(pointer)) return this.detached(pointer);
     return this.onOrbit(pointer);
+  }
+
+  /**
+   * Ctrl's hold from where the last move put the body: across orbits when the travel so far runs
+   * more out from its ring's centre than round it, else along its orbit.
+   */
+  private holdAt(pointer: DragPointer): Hold {
+    const { radius, angle } = this.last;
+    const ux = Math.cos((angle * Math.PI) / 180);
+    const uy = Math.sin((angle * Math.PI) / 180);
+    const at = this.held(pointer);
+    const dx = at.x - this.body.x;
+    const dy = at.y - this.body.y;
+    const radial = Math.abs(dx * ux + dy * uy);
+    const round = Math.abs(dx * uy - dy * ux);
+    return { axis: radial > round ? "across" : "along", radius, angle };
   }
 
   /**
@@ -389,17 +412,18 @@ export class BodyDrag implements Drag {
 
   /** Where the pointer puts it about its own parent: freely, or on Ctrl's axis. */
   private landing(pointer: DragPointer): Landing {
-    const { parent, ring, angle } = this.body;
+    const { parent, ring } = this.body;
     const centre = { x: ring.cx, y: ring.cy };
-    if (!pointer.ctrl) {
-      const turned = snapAngle(angleAbout(centre, this.held(pointer)), pointer.shift);
-      return { parent, angle: turned, ...this.radiusAbout(parent, centre, pointer) };
-    }
-    if (this.axis === "along") {
-      const turned = snapAngle(angleAbout(centre, this.held(pointer)), pointer.shift);
-      return { parent, radius: ring.radius, angle: turned, shared: null };
-    }
-    return { parent, angle, ...this.radiusAbout(parent, centre, pointer) };
+    const hold = this.hold;
+    const turned = () => snapAngle(angleAbout(centre, this.held(pointer)), pointer.shift);
+    const landing: Landing =
+      hold === null
+        ? { parent, angle: turned(), ...this.radiusAbout(parent, centre, pointer) }
+        : hold.axis === "along"
+          ? { parent, radius: hold.radius, angle: turned(), shared: null }
+          : { parent, angle: hold.angle, ...this.radiusAbout(parent, centre, pointer) };
+    this.last = landing;
+    return landing;
   }
 
   private step(
@@ -439,12 +463,12 @@ export class BodyDrag implements Drag {
 
   /** About its own parent: its own ring, one shared with another body, or on top of one. */
   private onOrbit(pointer: DragPointer): DragStep {
-    return this.marked(this.landing(pointer), this.hint(pointer));
+    return this.marked(this.landing(pointer), this.hint());
   }
 
-  private hint(pointer: DragPointer): string {
-    if (!pointer.ctrl) return DRAG_HINTS.free;
-    return this.axis === "along" ? DRAG_HINTS.along : DRAG_HINTS.across;
+  private hint(): string {
+    if (this.hold === null) return DRAG_HINTS.free;
+    return this.hold.axis === "along" ? DRAG_HINTS.along : DRAG_HINTS.across;
   }
 
   /** `landing` marked as overlapping another body before sharing its ring. */

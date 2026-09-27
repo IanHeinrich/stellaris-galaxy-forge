@@ -50,7 +50,7 @@ pub(crate) fn plan_add(
         }
     }
     let description = format!(
-        "Added a {kind} belt at radius {} to system #{system}",
+        "Added a belt ({kind}) at radius {} to system #{system}",
         number(radius)
     );
     let inverse = Op::RemoveSaveBelt { system, index };

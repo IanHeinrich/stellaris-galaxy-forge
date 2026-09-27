@@ -523,6 +523,29 @@ describe("grownInner", () => {
     expect(grow(60)).toBe(100);
   });
 
+  it("grows past what is put outside it but inside a belt the game wrote past it, as the core does", () => {
+    const beltPast = frameOf(
+      orbitSystem({
+        planets: [
+          saveBody(STAR, "pc_g_star", [0, 0], 0, 30),
+          saveBody(LONE, "pc_arid", [110, 0], 110, 12),
+        ],
+        belts: [{ kind: "rocky_asteroid_belt", inner_radius: 230 }],
+        inner_radius: 150,
+      }),
+    );
+    const grow = (radius: number) =>
+      grownInner(beltPast, { bodies: new Map([[LONE, { parent: null, radius, angle: 0 }]]) });
+    expect(grow(200)).toBe(230);
+    expect(grow(120)).toBe(150);
+    const belt = (radius: number) =>
+      grownInner(beltPast, {
+        belts: [...beltPast.layout.belts, { kind: "rocky_asteroid_belt", radius }],
+      });
+    expect(belt(200)).toBe(230);
+    expect(belt(140)).toBe(150);
+  });
+
   it("never shrinks it", () => {
     expect(moved(ASTEROID, null, 20, 0)).toBe(200);
   });

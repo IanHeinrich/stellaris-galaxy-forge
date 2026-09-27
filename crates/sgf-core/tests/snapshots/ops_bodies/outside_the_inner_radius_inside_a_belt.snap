@@ -1,0 +1,35 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet #713 from orbit 110.26 at 82.23° to orbit 200 at 0°; set the inner radius of system #14 from 150 to 230
+inverse: Batch { description: "Undo of \"Moved planet #713 from orbit 110.26 at 82.23° to orbit 200 at 0°; set the inner radius of system #14 from 150 to 230\"", ops: [MoveSaveBody { system: 14, body: 713, radius: 110.26389136616756, angle: 82.2317963118681 }, SetSaveInnerRadius { system: 14, radius: 150.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -29918,8 +29918,8 @@
+ 		{
+ 			128 
+ 		}
+-		inner_radius=150
+-		outer_radius=250
++		inner_radius=230
++		outer_radius=330
+ 		starbases=
+ 		{
+ 			4294967295 
+@@ -116611,11 +116611,11 @@
+ 			binary_flags=72
+ 			coordinate=
+ 			{
+-				x=14.9039
+-				y=109.252
++				x=200
++				y=0
+ 				origin=14
+ 			}
+-			orbit=110
++			orbit=200
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{

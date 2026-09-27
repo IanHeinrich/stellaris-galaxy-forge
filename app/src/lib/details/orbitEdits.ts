@@ -380,38 +380,70 @@ function reachOf(
   const reaching = reachingBodies(details);
   let reach = 0;
   for (const body of layout.bodies) {
-    const carried = [...moved.keys()].some((id) => under(layout, body.id, id));
-    if (!reaching.has(body.id) && !carried) continue;
-    const to = moved.get(body.id);
-    const parent = to ? to.parent : body.parent;
-    const radius = to ? to.radius : body.ring?.radius;
-    const centre = parent === null ? ORIGIN : pointOf(parent);
-    const out =
-      radius === undefined
-        ? Math.hypot(pointOf(body.id).x, pointOf(body.id).y)
-        : Math.hypot(centre.x, centre.y) + radius;
-    reach = Math.max(reach, out);
+    if (!reaching.has(body.id) && !carried(layout, moved, body.id)) continue;
+    reach = Math.max(reach, bodyReach(pointOf, moved, body));
   }
   for (const belt of belts) reach = Math.max(reach, belt.radius);
   return reach;
+}
+
+/**
+ * How far out the moved bodies, their moons and `belts` new or moved from the layout's reach, as
+ * the core measures what its op puts in place.
+ */
+function ownReach(
+  { layout }: ReachFrame,
+  moved: ReadonlyMap<number, BodyOrbit>,
+  belts: readonly Belt[],
+): number {
+  const pointOf = pointsAfter(layout, moved);
+  let reach = 0;
+  for (const body of layout.bodies) {
+    if (carried(layout, moved, body.id)) reach = Math.max(reach, bodyReach(pointOf, moved, body));
+  }
+  belts.forEach((belt, i) => {
+    if (layout.belts[i]?.radius !== belt.radius) reach = Math.max(reach, belt.radius);
+  });
+  return reach;
+}
+
+/** Whether `id` is one of the `moved` bodies or orbits one. */
+function carried(layout: SystemLayout, moved: ReadonlyMap<number, BodyOrbit>, id: number): boolean {
+  return [...moved.keys()].some((body) => under(layout, id, body));
+}
+
+/** How far from the centre `body` reaches once `moved` is applied: its radius plus its parent's distance. */
+function bodyReach(
+  pointOf: (id: number) => Point,
+  moved: ReadonlyMap<number, BodyOrbit>,
+  body: BodyPlacement,
+): number {
+  const to = moved.get(body.id);
+  const parent = to ? to.parent : body.parent;
+  const radius = to ? to.radius : body.ring?.radius;
+  if (radius === undefined) return Math.hypot(pointOf(body.id).x, pointOf(body.id).y);
+  const centre = parent === null ? ORIGIN : pointOf(parent);
+  return Math.hypot(centre.x, centre.y) + radius;
 }
 
 const NOTHING_MOVED: ReadonlyMap<number, BodyOrbit> = new Map();
 
 /**
  * The inner radius once `override` is applied: the one it names, or the system's grown to reach
- * past the moved bodies and belts when they reach further than the system did. It never shrinks on
- * its own.
+ * past the moved bodies and belts when they lie outside it or reach further than the system did.
+ * It never shrinks on its own.
  */
 export function grownInner(frame: ReachFrame, override: LayoutOverride): number {
   const current = override.innerRadius ?? frame.layout.innerRadius;
   const moved = override.bodies ?? NOTHING_MOVED;
   if (moved.size === 0 && override.belts === undefined) return current;
+  const belts = override.belts ?? frame.layout.belts;
   const before = reachOf(frame, NOTHING_MOVED, frame.layout.belts);
-  const after = reachOf(frame, moved, override.belts ?? frame.layout.belts);
+  const after = reachOf(frame, moved, belts);
+  const own = ownReach(frame, moved, belts);
   const { min_inner, inner_offset } = frame.radii;
-  const grows = after > before + STORED_ORBIT_SLACK && after + inner_offset > current;
-  return grows ? Math.max(min_inner, after + inner_offset) : current;
+  const further = after > before + STORED_ORBIT_SLACK && after + inner_offset > current;
+  return further || own > current ? Math.max(min_inner, own + inner_offset) : current;
 }
 
 /**

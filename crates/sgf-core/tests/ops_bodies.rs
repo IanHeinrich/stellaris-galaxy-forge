@@ -157,6 +157,55 @@ fn a_planet_moved_past_the_inner_radius_grows_it() {
     assert_eq!(details.raw(1).expect("system 1").inner_radius, Some(225.0));
 }
 
+/// System 14 of the 4.5 sample has its inner radius at 150 and a belt at 230, out past it.
+/// Planet 713 moved to 200 is inside the belt but outside the inner radius, so the inner
+/// radius grows to 230, and so it does for a belt added at 200.
+#[test]
+fn a_body_moved_outside_the_inner_radius_inside_a_belt_past_it_grows_it() {
+    let mut session = open_4_5();
+    let details = session.details().expect("details");
+    let raw = details.raw(14).expect("system 14");
+    assert_eq!(raw.inner_radius, Some(150.0));
+    let belts: Vec<f64> = raw.belts.iter().map(|b| b.inner_radius).collect();
+    assert_eq!(belts, [230.0]);
+
+    let result = snapshot_step(
+        &mut session,
+        "outside_the_inner_radius_inside_a_belt",
+        move_body(14, 713, 200.0, 0.0),
+    );
+    assert!(
+        result
+            .entry
+            .description
+            .ends_with("; set the inner radius of system #14 from 150 to 230"),
+        "{}",
+        result.entry.description
+    );
+    let details = session.details().expect("details");
+    assert_eq!(
+        details.raw(14).expect("system 14").inner_radius,
+        Some(230.0)
+    );
+
+    let mut session = open_4_5();
+    let result = session
+        .apply(Op::AddSaveBelt {
+            system: 14,
+            kind: "rocky_asteroid_belt".to_owned(),
+            radius: 200.0,
+        })
+        .expect("the belt");
+    assert!(
+        result
+            .entry
+            .description
+            .ends_with("; set the inner radius of system #14 from 150 to 230"),
+        "{}",
+        result.entry.description
+    );
+}
+
 /// Systems of the 4.5 sample below the rule whose outermost reach is a moon: system 2's
 /// moon 604 of planet 603, drawn 200.06 out, and the like. Dragging the planet round its
 /// ring takes the moon no further, so the inner radius stays at every whole degree.
@@ -318,10 +367,10 @@ fn a_moon_of_a_missing_planet_is_made_a_planet() {
     assert!(freed.contains("\t\t\tbinary_flags=65\n"), "{freed}");
 }
 
-/// Carmenekke (system 53 of the 4.4 sample): planet 1205's moon 1206 has a moon of its
-/// own, 1207, and all of them move with 1205.
+/// Carmenekke (system 53 of the 4.4 sample): companion star 1205's planet 1206 has a moon
+/// of its own, 1207, and all of them move with 1205.
 #[test]
-fn a_moon_of_a_moon_moves_with_its_planet() {
+fn a_moon_of_a_stars_planet_moves_with_the_star() {
     let mut session = open();
     let moons = [1206, 1207, 1208, 1209, 1210];
     let before = moons.map(|id| offset(&session, 53, id, 1205));
@@ -334,8 +383,8 @@ fn a_moon_of_a_moon_moves_with_its_planet() {
     );
     assert_eq!(
         result.entry.description,
-        "Moved planet #1205 from orbit 220.02 at 128.38° to orbit 220.02 at 100°, with its \
-         moons #1206, #1207, #1208, #1209 and #1210"
+        "Moved star #1205 from orbit 220.02 at 128.38° to orbit 220.02 at 100°, with #1206, \
+         #1207, #1208, #1209 and #1210"
     );
     for (i, id) in moons.into_iter().enumerate() {
         assert_near(
@@ -459,7 +508,8 @@ fn a_companion_star_moved_takes_its_planets_with_it() {
         move_body(278, 327, 260.0, 100.0),
     );
     assert!(
-        result.entry.description.starts_with("Moved planet #327 "),
+        result.entry.description.starts_with("Moved star #327 ")
+            && result.entry.description.contains(", with #328 and #329;"),
         "{}",
         result.entry.description
     );

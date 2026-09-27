@@ -41,13 +41,15 @@ impl SystemRadii {
     }
 
     /// The `inner_radius` something now reaching `reach` grows the system's `current` one to,
-    /// when that is past both the current radius less its offset and the `reached` the system
-    /// reached before. `None` when the radius stays; it never shrinks. A reach within the
-    /// stored-orbit slack of the old one is no further: a body moved round its ring lands
-    /// where its drawn radius says, which can sit that far from the point the game wrote.
+    /// when that is past the current radius, or past both the current radius less its offset
+    /// and the `reached` the system reached before. `None` when the radius stays; it never
+    /// shrinks. A reach within the stored-orbit slack of the old one is no further: a body
+    /// moved round its ring lands where its drawn radius says, which can sit that far from the
+    /// point the game wrote. Some game-written belts lie past the inner radius, so something
+    /// put outside the radius but inside such a belt grows it too.
     pub fn grown(self, reach: f64, reached: f64, current: f64) -> Option<f64> {
-        let grows = reach > reached + STORED_ORBIT_SLACK && reach + self.inner_offset > current;
-        grows.then(|| self.inner_about(reach))
+        let further = reach > reached + STORED_ORBIT_SLACK && reach + self.inner_offset > current;
+        (further || reach > current).then(|| self.inner_about(reach))
     }
 }
 

@@ -47,6 +47,7 @@ export function bindStores(): void {
   followAddSystemPicks();
   followPlanetData();
   followDetails();
+  followLocks();
   followScenarioInitializers();
   followPaintMod();
   followGalaxySize();
@@ -268,6 +269,24 @@ function followDetails(): void {
     const fresh = [...state.details.values()].filter((d) => previous.details.get(d.id) !== d);
     if (fresh.length === 0) return;
     void useGameDataStore.getState().fetchNames(fresh.flatMap(detailNameKeys));
+  });
+}
+
+// A lock names a body by id, and an edit that renumbers no system can still take the body away and
+// free its id for a new one, so a lock goes once the details that held its body refresh without it.
+function followLocks(): void {
+  useDetailsStore.subscribe((state, previous) => {
+    if (state.details === previous.details) return;
+    const scene = useSceneStore.getState();
+    if (scene.lockedBodies.size === 0) return;
+    for (const [id, before] of previous.details) {
+      const after = state.details.get(id);
+      if (after === before) continue;
+      const kept = new Set(after?.planets.map((p) => p.id));
+      for (const { id: body } of before.planets) {
+        if (!kept.has(body)) scene.unlockBody(body);
+      }
+    }
   });
 }
 

@@ -402,9 +402,10 @@ pub enum Op {
     /// for a planet, its `moon_of` body for a moon. Angles are degrees, written normalised
     /// to [0, 360). Its `orbit` becomes the radius, and every moon under it moves by the
     /// same step with its own `orbit` kept. `system` must be the body's own. A body at the
-    /// system's centre is refused. When the body now reaches further than the system did, the
-    /// system's `inner_radius` grows to that reach plus its margin, and the inverse is a
-    /// [`Op::Batch`] that also puts it back. Stellaris 4.x save documents only.
+    /// system's centre is refused. When the body now reaches further than the system did, or
+    /// outside its `inner_radius`, that radius grows to the body's reach plus its margin, and
+    /// the inverse is a [`Op::Batch`] that also puts it back. Stellaris 4.x save documents
+    /// only.
     MoveSaveBody {
         system: u32,
         body: u32,
@@ -433,17 +434,18 @@ pub enum Op {
     /// The ring bit of a save body's `binary_flags`, set when `ring` and cleared when not:
     /// the statement is written before `entity_planet_class` or `coordinate` when the body
     /// has none, and goes when only the bit set beside any other is left. The body's class
-    /// is not checked. No change is refused; the inverse flips `ring`. Stellaris 4.x save
-    /// documents only.
+    /// is not checked. A ring bit already as asked is refused with
+    /// [`OpError::RingUnchanged`]; the inverse flips `ring`. Stellaris 4.x save documents
+    /// only.
     SetPlanetRing {
         planet: u32,
         ring: bool,
     },
     /// A new asteroid belt of type `kind` at `radius`, last in the system's
     /// `asteroid_belts`, which the system gains when it has none. A belt reaching past the
-    /// system's bodies and belts grows its `inner_radius` as a moved body does. The inverse
-    /// is [`Op::RemoveSaveBelt`] at the new last index, batched with the old inner radius
-    /// when it grew. Stellaris 4.x save documents only.
+    /// system's bodies and belts, or outside its `inner_radius`, grows that radius as a moved
+    /// body does. The inverse is [`Op::RemoveSaveBelt`] at the new last index, batched with
+    /// the old inner radius when it grew. Stellaris 4.x save documents only.
     AddSaveBelt {
         system: u32,
         kind: String,

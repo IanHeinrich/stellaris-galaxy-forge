@@ -190,11 +190,17 @@ function on(
   return at(kind, x, y, { system: ORBITS, ...extra });
 }
 
-/** Presses body `id` where it stands and moves it by `nudge`, past the threshold. */
-function grab(model: SystemGestureModel, intent: SystemIntent, id: number, nudge: Pt): void {
+/** Presses body `id` where it stands and moves it by `nudge`, past the threshold, with `extra`. */
+function grab(
+  model: SystemGestureModel,
+  intent: SystemIntent,
+  id: number,
+  nudge: Pt,
+  extra: Partial<SystemInput> = {},
+): void {
   const from = pointOf(intent.frame(), id);
   model.handle(on("down", from, { body: id, draggable: true }), intent);
-  model.handle(on("move", { x: from.x + nudge.x, y: from.y + nudge.y }), intent);
+  model.handle(on("move", { x: from.x + nudge.x, y: from.y + nudge.y }, extra), intent);
 }
 
 /** Four pixels out from the centre at `angle`, and four round it. */
@@ -276,7 +282,7 @@ describe("a body dragged in the system scene", () => {
     expect(step?.hint).toBe(DRAG_HINTS.across);
   });
 
-  it("holds the axis only while Ctrl is down, pressed or released mid-drag", () => {
+  it("holds it where it is when Ctrl goes down mid-drag, and frees it when Ctrl is released", () => {
     const model = new SystemGestureModel();
     const intent = recorder(orbitFrame());
     grab(model, intent, LONE, outward(120));
@@ -286,12 +292,44 @@ describe("a body dragged in the system scene", () => {
     expect(lastStep(intent)?.intent).toMatchObject({ radius: 107, angle: 131 });
     model.handle(on("move", there, { ctrl: true }), intent);
     const held = lastStep(intent);
-    expect(held?.intent).toMatchObject({ radius: 107 });
-    expect(held?.intent.kind === "move" && held.intent.angle).toBeCloseTo(120);
-    expect(held?.hint).toBe(DRAG_HINTS.across);
-    model.handle(on("move", there), intent);
-    expect(lastStep(intent)?.intent).toMatchObject({ radius: 107, angle: 131 });
+    expect(held?.intent).toMatchObject({ radius: 107, angle: 131 });
+    expect(held?.hint).toBe(DRAG_HINTS.along);
+    model.handle(on("move", polarAt(97, 140), { ctrl: true }), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ radius: 107, angle: 140 });
+    model.handle(on("move", polarAt(97, 140)), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ radius: 97, angle: 140 });
     expect(lastStep(intent)?.hint).toBe(DRAG_HINTS.free);
+  });
+
+  it("with Ctrl pressed mid-drag, takes the axis from the travel so far and holds the angle it has reached", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, around(120));
+    const there = polarAt(145.4, 123);
+    model.handle(on("move", there), intent);
+    model.handle(on("move", there, { ctrl: true }), intent);
+    const held = lastStep(intent);
+    expect(held?.intent).toMatchObject({ radius: 145, angle: 123 });
+    expect(held?.hint).toBe(DRAG_HINTS.across);
+    model.handle(on("move", polarAt(160.4, 110), { ctrl: true }), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ radius: 160, angle: 123 });
+  });
+
+  it("with Ctrl, stays about the star over another planet and over one that refuses it", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, around(120), { ctrl: true });
+    const planet = pointOf(intent.frame(), PLANET);
+    model.handle(on("move", { x: planet.x + 3, y: planet.y }, { ctrl: true }), intent);
+    const over = lastStep(intent);
+    expect(over?.intent).toMatchObject({ kind: "move", body: LONE, radius: 100 });
+    expect(over?.marks.host).toBeNull();
+    expect(over?.hint).toBe(DRAG_HINTS.along);
+    model.handle(on("move", pointOf(intent.frame(), MOON), { ctrl: true }), intent);
+    const refusing = lastStep(intent);
+    expect(refusing?.intent).toMatchObject({ kind: "move", body: LONE, radius: 100 });
+    expect(refusing?.refused).toBeUndefined();
+    expect(refusing?.marks.tone).not.toBe("refused");
   });
 
   it("takes another ring's radius exactly within a few pixels of it, at the pointer's angle", () => {
@@ -374,9 +412,6 @@ describe("a body dragged in the system scene", () => {
       expect(step?.refused).toBe(reason);
       expect(step?.readout).toEqual({ text, tone: "warn" });
       expect(step?.intent).toMatchObject({ kind: "move" });
-      model.handle(on("move", over, { ctrl: true }), intent);
-      expect(lastStep(intent)?.refused).toBe(reason);
-      expect(lastStep(intent)?.intent).toMatchObject({ kind: "move", radius: 100 });
       const before = intent.calls.length;
       model.handle(on("up", over), intent);
       const after = intent.calls.slice(before);
@@ -439,7 +474,7 @@ describe("a body dragged in the system scene", () => {
     const step = lastStep(intent);
     expect(step?.readout).toEqual({ text: "overlaps P5", tone: "warn" });
     expect(step?.marks.host).toBeNull();
-    model.handle(on("move", pointOf(intent.frame(), LONE), { ctrl: true }), intent);
+    model.handle(on("move", polarAt(100, 125)), intent);
     expect(lastStep(intent)?.readout).toEqual({ text: GEOMETRY_REASONS.starMoon, tone: "warn" });
   });
 
@@ -531,14 +566,14 @@ describe("a body dragged in the system scene", () => {
     const model = new SystemGestureModel();
     const intent = recorder(orbitFrame());
     grab(model, intent, PLANET, around(30));
-    const over = pointOf(intent.frame(), LONE);
-    model.handle(on("move", over, { ctrl: true }), intent);
+    const over = polarAt(100, 125);
+    model.handle(on("move", over), intent);
     const step = lastStep(intent);
     expect(step?.readout).toEqual({ text: GEOMETRY_REASONS.hasMoons, tone: "warn" });
     expect(step?.marks.host).toBeNull();
     expect(step?.refused).toBeUndefined();
-    expect(step?.intent).toMatchObject({ kind: "move", body: PLANET, radius: 60 });
-    model.handle(on("up", over, { ctrl: true }), intent);
+    expect(step?.intent).toMatchObject({ kind: "move", body: PLANET, radius: 100, angle: 125 });
+    model.handle(on("up", over), intent);
     expect(named(intent.calls, "commit")).toEqual([["commit", step?.intent]]);
     expect(named(intent.calls, "refuse")).toEqual([]);
   });
@@ -719,6 +754,25 @@ describe("a body dragged onto a companion star", () => {
     });
     expect(step?.marks.host).toBe(NEXT_PLANET);
     expect(step?.readout.text).toBe("moon of P11 · orbit 15 · 90°");
+  });
+
+  it("with Ctrl, keeps a moon about its planet over a neighbouring planet and over the star, and a planet off the star", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(binaryFrame(true));
+    grab(model, intent, ITS_MOON, outward(90));
+    model.handle(on("move", { x: -240, y: -12 }, { ctrl: true }), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ kind: "move", body: ITS_MOON });
+    expect(lastStep(intent)?.marks.host).toBeNull();
+    model.handle(on("move", polarAt(38, 180, star), { ctrl: true }), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ kind: "move", body: ITS_MOON, angle: 90 });
+    expect(lastStep(intent)?.marks.host).toBeNull();
+    model.handle(on("up", polarAt(38, 180, star), { ctrl: true }), intent);
+    expect(named(intent.calls, "commit")[0]?.[1]).toMatchObject({ kind: "move", body: ITS_MOON });
+
+    grab(model, intent, LONE, around(120), { ctrl: true });
+    model.handle(on("move", polarAt(39.5, 180, star), { ctrl: true }), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ kind: "move", body: LONE, radius: 100 });
+    expect(lastStep(intent)?.marks.host).toBeNull();
   });
 
   it("keeps a locked moon about its planet over another planet, over the star and past its detach distance", () => {

@@ -189,14 +189,13 @@ export class SystemGestureModel {
   /** Starts the drag the press asks for, if the scene lets it; a body's page opens first. */
   private startDrag(press: Press, input: SystemInput, intent: SystemIntent): boolean {
     const frame = intent.frame();
-    const to = { x: input.wx, y: input.wy };
     const from = { x: press.wx, y: press.wy };
     let state: State | null = null;
     if (press.handle !== null) {
       const drag = HandleDrag.start(frame, press.handle, from);
       if (drag) state = { kind: "handleDrag", drag, step: drag.move(pointerOf(input)) };
     } else if (press.body !== null) {
-      const drag = BodyDrag.start(frame, press.body, from, to);
+      const drag = BodyDrag.start(frame, press.body, from);
       if (drag) {
         intent.openBody(press.system, press.body);
         state = { kind: "bodyDrag", drag, step: drag.move(pointerOf(input)) };

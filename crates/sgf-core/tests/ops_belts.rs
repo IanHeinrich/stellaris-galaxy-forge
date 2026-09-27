@@ -67,7 +67,7 @@ fn a_belt_added_to_a_system_without_one() {
     );
     assert_eq!(
         result.entry.description,
-        "Added a rocky_asteroid_belt belt at radius 120 to system #1"
+        "Added a belt (rocky_asteroid_belt) at radius 120 to system #1"
     );
     assert_eq!(result.inverse, remove_belt(1, 0));
 }
@@ -369,7 +369,7 @@ fn a_belt_added_past_the_inner_radius_grows_it() {
     );
     assert_eq!(
         result.entry.description,
-        "Added a rocky_asteroid_belt belt at radius 200 to system #1; \
+        "Added a belt (rocky_asteroid_belt) at radius 200 to system #1; \
          set the inner radius of system #1 from 186.71 to 230"
     );
     let Op::Batch { ops, .. } = &result.inverse else {

@@ -211,8 +211,9 @@ Drag a body to move it. Its distance and its angle both follow the
 pointer, in whole units and whole degrees. Near another orbit, it lands
 on that orbit. Hold Shift to snap the angle to 15° steps. Hold Ctrl to
 change only one of them: drag along the orbit to change the angle, or
-across orbits to change the distance. Its moons move with it. Press Esc
-during a drag to put it back.
+across orbits to change the distance. While Ctrl is held, the body
+stays with what it orbits. Its moons move with it. Press Esc during a
+drag to put it back.
 
 Drop a planet on another planet to make it a moon of that planet. Drag
 a moon away from its planet to make it a planet again. A planet that
@@ -220,10 +221,10 @@ has moons of its own can't become a moon. A moon keeps its name after
 it moves to another planet, so Sol IIIa can end up orbiting Sol IV.
 
 In a binary or trinary system, drop a planet on another star to make it
-orbit that star. Its moons come with it. It lands just past that star's
-outermost planet, and you can drag it in or out from there. To bring it
-back, drop it on the star at the centre or drag it well away from its
-star.
+orbit that star. Its moons come with it. It lands where you drop it,
+clear of the star, and on one of the star's orbits when it's near one.
+To bring it back, drop it on the star at the centre or drag it well away
+from its star.
 
 To move a body without it becoming a moon or leaving what it orbits,
 right-click it and choose Lock to, followed by what it orbits. A locked

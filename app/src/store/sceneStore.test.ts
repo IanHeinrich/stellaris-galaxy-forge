@@ -18,9 +18,10 @@ import {
   toggleLayerKey,
   type CommandEffects,
 } from "./commands";
+import { useDetailsStore } from "./detailsStore";
 import { editor, openFixtureSave, openFixtureScenario, withAddedSystems } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
-import { OPEN_RESULT, editResult } from "./fixture";
+import { OPEN_RESULT, editResult, planetSummary, systemDetails } from "./fixture";
 import { loadGameData } from "./gameDataFixture";
 import { useGalaxyStore } from "./galaxyStore";
 import { bodyEntry, useInspectorStore, type Entry } from "./inspectorStore";
@@ -478,5 +479,32 @@ describe("a body's lock", () => {
 
     await removeSix(seven);
     expect(scene().lockedBodies.size).toBe(0);
+  });
+
+  it("goes once the details that held its body refresh without it, though the edit renumbered nothing", async () => {
+    const [six] = withAddedSystems();
+    const bodies = (...ids: number[]) => ids.map((id) => planetSummary({ id }));
+    useDetailsStore.setState({
+      details: new Map([
+        [0, systemDetails({ id: 0, planets: bodies(1207) })],
+        [6, systemDetails({ id: 6, planets: bodies(1300, 1301) })],
+      ]),
+    });
+    scene().lockBody(1207);
+    scene().lockBody(1300);
+    scene().lockBody(1301);
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({ delta: { systems: [six] }, details_stale: [6] }),
+    );
+    await editor().undo();
+    expect(scene().lockedBodies.has(1300)).toBe(true);
+
+    mockedIpc.getSystemDetails.mockResolvedValueOnce([
+      systemDetails({ id: 6, planets: bodies(1301) }),
+    ]);
+    useDetailsStore.getState().request([6]);
+
+    await vi.waitFor(() => expect(scene().lockedBodies.has(1300)).toBe(false));
+    expect([...scene().lockedBodies].sort()).toEqual([1207, 1301]);
   });
 });

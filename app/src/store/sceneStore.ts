@@ -26,7 +26,8 @@ export interface SceneState {
   setLinkedBody(id: number | null): void;
   /**
    * The bodies a drag keeps about what they orbit, by id: a view setting of the open document,
-   * never an edit. Opening or closing a document, or an edit that renumbers systems, drops them.
+   * never an edit. Opening or closing a document, or an edit that renumbers systems, drops them,
+   * and `bindStores` drops one once the details that held its body refresh without it.
    */
   lockedBodies: ReadonlySet<number>;
   lockBody(id: number): void;

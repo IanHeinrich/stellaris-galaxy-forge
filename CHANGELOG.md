@@ -33,8 +33,7 @@ a release is made.
   view. They show when you point at the belt or the circle. Right-click
   empty space to add a belt there. Right-click a belt's handle to remove
   it.
-- Asteroid belts in the system view look like their kind. Rocky, icy,
-  crystal, debris, empty and space fauna belts each draw differently.
+- Each kind of asteroid belt looks different in the system view.
 - A planet or belt moved near or past the system's inner radius moves
   the inner radius out with it.
 - The Issues tab lists bodies that stand in the same place.
