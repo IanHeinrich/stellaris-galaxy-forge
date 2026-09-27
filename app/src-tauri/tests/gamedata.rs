@@ -118,7 +118,7 @@ fn game_data_commands_degrade_without_an_install() {
     assert_eq!(shroudwalkers.countries[0].country_type, "enclave");
     assert_eq!(shroudwalkers.label, "Covenant of the Shroud");
 
-    invoke::<()>(&w, "warm_details", json!({})).expect("warm details");
+    invoke::<Vec<sgf_core::validate::Issue>>(&w, "warm_details", json!({})).expect("warm details");
     let special: SpecialSystems =
         invoke(&w, "get_special_systems", json!({})).expect("special systems");
     assert_sample_special_counts(&special);

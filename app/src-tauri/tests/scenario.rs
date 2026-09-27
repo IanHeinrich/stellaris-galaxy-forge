@@ -55,7 +55,8 @@ fn a_scenario_systems_details_come_from_its_initializer() {
     invoke::<GameDataSummary>(&w, "load_game_data", json!({ "mods": false }))
         .expect("load game data");
     open(&w, SCENARIO);
-    invoke::<()>(&w, "warm_details", json!({})).expect("warming a scenario does nothing");
+    invoke::<Vec<sgf_core::validate::Issue>>(&w, "warm_details", json!({}))
+        .expect("warming a scenario builds nothing");
 
     let set: EditResult = invoke(
         &w,
