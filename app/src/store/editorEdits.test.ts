@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Issue } from "../generated/Issue";
 import type { CountryNode } from "../generated/CountryNode";
 import type { EditResult } from "../generated/EditResult";
 import type { SearchHit } from "../generated/SearchHit";
@@ -201,7 +202,7 @@ describe("editing", () => {
 
   it("a projection rebuild that fails once the document is gone says nothing", async () => {
     let fail: (e: unknown) => void = () => undefined;
-    const warm = new Promise<void>((_warmed, rejected) => {
+    const warm = new Promise<Issue[]>((_warmed, rejected) => {
       fail = rejected;
     });
     mockedIpc.warmDetails.mockReturnValueOnce(warm);

@@ -163,6 +163,7 @@ function enteredSystem(): void {
   chrome.setLanePreview(null);
   chrome.setHighlightInitializer(null);
   chrome.setGesture(null);
+  chrome.setSceneHint(null);
 }
 
 // Leaving a system, however it goes, drops what the scene said in the status bar.

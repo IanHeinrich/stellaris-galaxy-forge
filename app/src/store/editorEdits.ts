@@ -13,6 +13,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { linked, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore, type EntityRef } from "./inspectorStore";
+import { useIssuesStore } from "./issuesStore";
 import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
 import { symmetricOp, symmetricSeat } from "./symmetricEdits";
@@ -82,9 +83,14 @@ export function editPipeline(
       useInspectorStore.getState().dropBodies(restaled(result.details_stale, pairs));
       const mine = session;
       // The details projection, and the planet and fleet search index over it, are rebuilt lazily.
-      void ipc.warmDetails().catch((e: unknown) => {
-        if (mine === session) useFileSessionStore.getState().setError(ipc.errorMessage(e));
-      });
+      void ipc
+        .warmDetails()
+        .then((findings) => {
+          if (mine === session) useIssuesStore.getState().setFindings(findings);
+        })
+        .catch((e: unknown) => {
+          if (mine === session) useFileSessionStore.getState().setError(ipc.errorMessage(e));
+        });
     }
     if (stale) void reselect(kept);
     if (selectedLane && !linked(systems(), selectedLane.a, selectedLane.b))

@@ -98,6 +98,9 @@ describe("what a save lets the system view edit", () => {
     expect(editing).toMatchObject({ belts: true, innerRadius: true, innerFloor: MIN_INNER_RADIUS });
     const low = SAVE_GEOMETRY.editing(frameOf(orbitSystem({ inner_radius: 140 })));
     expect(low.innerFloor).toBe(140);
+    const scar = saveBody(8, "pc_arid", [400, 0], 0, 12);
+    const scarred = orbitSystem({ planets: [...orbitSystem().planets, scar] });
+    expect(SAVE_GEOMETRY.editing(frameOf(scarred)).innerFloor).toBe(MIN_INNER_RADIUS);
     const planets = [...orbitSystem().planets, saveBody(7, "pc_arid", [0, 180], 180, 12)];
     const wide = SAVE_GEOMETRY.editing(frameOf(orbitSystem({ planets, inner_radius: 260 })));
     expect(wide.innerFloor).toBeCloseTo(180);

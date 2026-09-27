@@ -328,10 +328,9 @@ impl Session {
     /// Build the details projection if it is not built yet, so that later calls are cheap,
     /// and return the issues now that a finding reading the details (an overlap) can show.
     pub fn warm_details(&mut self) -> Result<Vec<Issue>, ProjectionError> {
-        if !self.format().has_details(&self.doc) {
-            return Ok(Vec::new());
+        if self.format().has_details(&self.doc) {
+            self.details()?;
         }
-        self.details()?;
         Ok(self.validate())
     }
 

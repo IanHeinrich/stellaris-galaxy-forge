@@ -278,6 +278,7 @@ function reachOf(layout: SystemLayout, moved: ReadonlyMap<number, BodyOrbit>): n
   const pointOf = pointsAfter(layout, moved);
   let reach = 0;
   for (const body of layout.bodies) {
+    if (!body.reaches && !moved.has(body.id)) continue;
     const parent = moved.has(body.id) ? moved.get(body.id)!.parent : body.parent;
     const centre = parent === null ? ORIGIN : pointOf(parent);
     const point = pointOf(body.id);

@@ -30,6 +30,9 @@ export interface IssuesState {
   clear(): void;
   /** An edit's fresh findings; the standing notes are kept after them. */
   setFindings(findings: Issue[]): void;
+  /** The findings once the details are read, the first time after opening: what only they
+   * show is added, and joins the baseline, since the save arrived with it. */
+  warmed(findings: Issue[]): void;
   /** Swaps the app's notes of one `code` for `notes`, touching nothing when they already stand. */
   setNotes(code: NoteCode, notes: AppIssue[]): void;
   /** Flashes the list; it settles on its own shortly after. */
@@ -96,6 +99,17 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
   setFindings(findings) {
     const { notes } = get();
     set({ issues: notes.length === 0 ? findings : [...findings, ...notes] });
+  },
+
+  warmed(findings) {
+    const { issues, baseline } = get();
+    const shown = new Set(issues.map(issueKey));
+    const added = findings.filter((finding) => !shown.has(issueKey(finding)));
+    if (added.length === 0) return;
+    set({
+      issues: [...added, ...issues],
+      baseline: new Set([...baseline, ...added.map(issueKey)]),
+    });
   },
 
   setNotes(code, notes) {

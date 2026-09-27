@@ -83,6 +83,11 @@ export interface BodyPlacement {
   parent: number | null;
   /** Its orbit circle, about the parent's point; null on a missing parent or at radius 0. */
   ring: Ring | null;
+  /**
+   * It counts towards how far the system reaches. A save body the game placed by event with no
+   * orbit (an astral scar far out) does not, as the game's own inner radius leaves it out.
+   */
+  reaches: boolean;
   /** Degrees about the parent's point (or the centre), in the save frame of `polar`. */
   angle: number;
   /** Screen radians from the body towards the star it orbits, or the centre; null for a star. */
@@ -294,6 +299,8 @@ function layOut(
       moon: moved ? moved.parent !== null && !(parent?.placement.star ?? false) : planet.moon,
       parent: parent ? parent.placement.id : null,
       ring,
+      reaches:
+        star || moved !== undefined || !layout?.at || planet.orbit === null || planet.orbit > 0,
       angle,
       light: null,
       band,

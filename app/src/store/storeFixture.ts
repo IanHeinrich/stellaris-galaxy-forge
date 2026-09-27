@@ -71,7 +71,7 @@ export function armSession(): void {
     return { ...detailOf(id), system };
   });
   mockedIpc.closeSave.mockResolvedValue();
-  mockedIpc.warmDetails.mockResolvedValue();
+  mockedIpc.warmDetails.mockResolvedValue([]);
   mockedIpc.confirm.mockResolvedValue(true);
   mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
   mockedIpc.getScenarioOwners.mockResolvedValue(null);

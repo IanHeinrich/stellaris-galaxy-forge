@@ -196,13 +196,13 @@ fn opened(session: &Session) -> Result<OpenResult, SgfError> {
     })
 }
 
-/// Builds the details projection so search also finds planets and fleets; idempotent.
+/// Builds the details projection so search also finds planets and fleets, and returns the
+/// issues with the findings that read the details; idempotent.
 #[tauri::command]
-pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
+pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, SgfError> {
     with_session(app, |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
-        session.warm_details().map_err(SessionError::from)?;
-        Ok(())
+        Ok(session.warm_details().map_err(SessionError::from)?)
     })
     .await
 }

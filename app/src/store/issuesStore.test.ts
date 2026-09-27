@@ -37,6 +37,13 @@ const SPLIT: Issue = appIssue({
   systems: [2],
 });
 
+const OVERLAP: Issue = appIssue({
+  severity: "warning",
+  code: "bodies_overlap",
+  message: "Planets #587 and #588 of system #1 stand in the same place, orbit 96.78 at 289.8°",
+  systems: [1],
+});
+
 async function open(path = OPEN_RESULT.path): Promise<void> {
   await useFileSessionStore.getState().openSave(path);
 }
@@ -82,6 +89,23 @@ describe("issuesStore", () => {
     await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 0, b: 1 });
     const { baseline } = useIssuesStore.getState();
     expect(newIssues(useIssuesStore.getState().issues, baseline)).toEqual([]);
+  });
+
+  it("takes what the details show at open into the baseline, and an edit's later overlap as new", async () => {
+    mockedIpc.warmDetails.mockResolvedValueOnce([AT_LOAD, OVERLAP]);
+    await open();
+    await vi.waitFor(() => expect(useIssuesStore.getState().issues).toContainEqual(OVERLAP));
+    expect(newIssues(useIssuesStore.getState().issues, useIssuesStore.getState().baseline)).toEqual(
+      [],
+    );
+
+    const moved = { ...OVERLAP, systems: [2] };
+    mockedIpc.applyOp.mockResolvedValue(editResult({ issues: [AT_LOAD], details_stale: [2] }));
+    mockedIpc.warmDetails.mockResolvedValueOnce([AT_LOAD, OVERLAP, moved]);
+    await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
+    await vi.waitFor(() => expect(useIssuesStore.getState().issues).toContainEqual(moved));
+    const { issues, baseline } = useIssuesStore.getState();
+    expect(newIssues(issues, baseline)).toEqual([moved]);
   });
 
   it("clears the baseline and the filters when the save closes", async () => {

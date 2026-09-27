@@ -302,6 +302,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       moon: false,
       parent: null,
       ring: null,
+      reaches: true,
       angle: 0,
       light: null,
       band: null,

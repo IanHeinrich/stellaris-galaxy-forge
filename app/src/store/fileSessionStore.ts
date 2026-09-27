@@ -27,7 +27,7 @@ import { saveGateActions } from "./fileSessionStore.saveGate";
 import { SAVE_FILTER, SCENARIO_FILTER, writeActions } from "./fileSessionStore.writes";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
-import { useIssuesStore } from "./issuesStore";
+import { issuesDocument, useIssuesStore } from "./issuesStore";
 import { standingProfile, usePaintModStore } from "./paintModStore";
 import { recentSubtitle, useRecentsStore } from "./recentsStore";
 
@@ -451,9 +451,13 @@ async function openDocument(
       setState({ loadingName: null });
     }
     // Only once details are warm can the classifier name an event-spawned country.
+    const opened = issuesDocument();
     void ipc
       .warmDetails()
-      .then(() => useGameDataStore.getState().refreshSpecial())
+      .then((findings) => {
+        if (opened === issuesDocument()) useIssuesStore.getState().warmed(findings);
+        return useGameDataStore.getState().refreshSpecial();
+      })
       .catch((e: unknown) => {
         if (mine === opens && getState().status === "ready") {
           getState().setError(ipc.errorMessage(e));

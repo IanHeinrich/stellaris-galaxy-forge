@@ -1,5 +1,7 @@
 //! Edit / undo / redo IPC commands end to end, through the mock runtime, on the real sample save.
 use serde_json::json;
+use sgf_core::format::save::details::SystemDetails;
+use sgf_core::validate::Issue;
 use sgf_core::views::{EditResult, ErrorKind, OpenResult, SystemDetail};
 
 use crate::common;
@@ -199,5 +201,54 @@ fn edit_undo_redo() {
         isolated.issues.iter().any(|i| i.systems.contains(&0)),
         "isolating system 0 should raise an issue naming it: {:?}",
         isolated.issues
+    );
+}
+
+#[test]
+fn a_body_moved_onto_another_raises_an_overlap_and_undo_names_the_move() {
+    let w = common::opened(common::SAMPLE_45);
+    let before: Vec<Issue> = invoke(&w, "warm_details", json!({})).expect("warm");
+    assert!(
+        before.iter().all(|i| i.code.as_str() != "bodies_overlap"),
+        "the sample opens with no overlap"
+    );
+
+    let details: Vec<SystemDetails> =
+        invoke(&w, "get_system_details", json!({ "ids": [1] })).expect("system 1");
+    let details = &details[0];
+    let spot = |id: u32| {
+        let p = details.planets.iter().find(|p| p.id == id).expect("planet");
+        let (x, y) = p.layout.as_ref().and_then(|l| l.at).expect("a point");
+        (x.hypot(y), y.atan2(x).to_degrees())
+    };
+    let (radius, angle) = spot(587);
+    let moved: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "MoveSaveBody", "system": 1, "body": 588, "radius": radius, "angle": angle } }),
+    )
+    .expect("move 588 onto 587");
+    assert!(
+        moved.entry.description.starts_with("Moved planet #588"),
+        "{}",
+        moved.entry.description
+    );
+    assert!(
+        moved
+            .issues
+            .iter()
+            .any(|i| i.code.as_str() == "bodies_overlap"),
+        "the move reports the overlap"
+    );
+
+    let undone = invoke::<Option<EditResult>>(&w, "undo", json!({}))
+        .expect("undo")
+        .expect("something to undo");
+    assert_eq!(undone.entry.description, moved.entry.description);
+    assert!(
+        undone
+            .issues
+            .iter()
+            .all(|i| i.code.as_str() != "bodies_overlap")
     );
 }
