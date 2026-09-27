@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Moved star #1205 from orbit 220.02 at 128.38° to orbit 220.02 at 100°, with #1206, #1207, #1208, #1209 and #1210
-inverse: MoveSaveBody { system: 53, body: 1205, radius: 220.0180012585334, angle: 128.37671246354185 }
+inverse: MoveSaveBody { system: 53, body: 1205, radius: 220.018001259, angle: 128.376712464 }
 
 --- gamestate
 +++ gamestate

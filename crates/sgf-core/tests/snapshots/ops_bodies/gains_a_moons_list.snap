@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Made planet #587 a moon of planet #588
-inverse: SetSaveBodyParent { system: 1, body: 587, parent: None, star: false, radius: 96.78447692758999, angle: 289.76539045099656 }
+inverse: SetSaveBodyParent { system: 1, body: 587, parent: None, star: false, radius: 96.784476928, angle: 289.765390451 }
 
 --- gamestate
 +++ gamestate

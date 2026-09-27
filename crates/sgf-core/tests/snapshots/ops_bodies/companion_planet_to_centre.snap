@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Made planet #328 a planet of the system's centre
-inverse: SetSaveBodyParent { system: 278, body: 328, parent: Some(327), star: true, radius: 35.056412952839295, angle: 77.81319183378028 }
+inverse: SetSaveBodyParent { system: 278, body: 328, parent: Some(327), star: true, radius: 35.056412953, angle: 77.813191834 }
 
 --- gamestate
 +++ gamestate

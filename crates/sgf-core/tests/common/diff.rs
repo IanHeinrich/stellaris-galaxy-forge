@@ -28,7 +28,7 @@ pub fn report(session: &Session, result: &OpResult) -> String {
     let mut out = String::new();
     writeln!(out, "{}", result.entry.description).unwrap();
     writeln!(out, "touched: {:?}", result.touched).unwrap();
-    writeln!(out, "inverse: {:?}", result.inverse).unwrap();
+    writeln!(out, "inverse: {}", steady(&format!("{:?}", result.inverse))).unwrap();
     let mut others = 0;
     for issue in &result.issues {
         let about_the_galaxy = issue.systems.is_empty();
@@ -50,7 +50,7 @@ pub fn report(session: &Session, result: &OpResult) -> String {
 pub fn plain_report(session: &Session, result: &OpResult) -> String {
     let mut out = String::new();
     writeln!(out, "{}", result.entry.description).unwrap();
-    writeln!(out, "inverse: {:?}", result.inverse).unwrap();
+    writeln!(out, "inverse: {}", steady(&format!("{:?}", result.inverse))).unwrap();
     write!(out, "{}", unified_diff(session, None)).unwrap();
     out
 }
@@ -63,7 +63,7 @@ pub fn step_report(session: &mut Session, op: Op) -> String {
     let after = String::from_utf8_lossy(&current(session)).into_owned();
     let mut out = String::new();
     writeln!(out, "{}", result.entry.description).unwrap();
-    writeln!(out, "inverse: {:?}", result.inverse).unwrap();
+    writeln!(out, "inverse: {}", steady(&format!("{:?}", result.inverse))).unwrap();
     if !result.renumbered.is_empty() {
         writeln!(out, "renumbered: {:?}", result.renumbered).unwrap();
     }
@@ -426,4 +426,32 @@ fn blocks(index: &Index, bytes: &[u8], key: &str) -> Vec<Range<usize>> {
 
 fn within(ranges: &[Range<usize>], line: usize) -> bool {
     ranges.iter().any(|range| range.contains(&line))
+}
+
+/// `debug` with every number of more than nine decimals rounded to nine: a radius computed with
+/// `hypot` can differ in its last bit between platforms' maths libraries.
+fn steady(debug: &str) -> String {
+    let mut out = String::with_capacity(debug.len());
+    let mut rest = debug;
+    while let Some(start) = rest.find(|c: char| c.is_ascii_digit()) {
+        out.push_str(&rest[..start]);
+        rest = &rest[start..];
+        let end = rest
+            .find(|c: char| !c.is_ascii_digit() && c != '.')
+            .unwrap_or(rest.len());
+        let number = &rest[..end];
+        let long = number
+            .split_once('.')
+            .is_some_and(|(_, fraction)| fraction.len() > 9);
+        match number.parse::<f64>() {
+            Ok(value) if long => {
+                let text = format!("{value:.9}");
+                out.push_str(text.trim_end_matches('0').trim_end_matches('.'));
+            }
+            _ => out.push_str(number),
+        }
+        rest = &rest[end..];
+    }
+    out.push_str(rest);
+    out
 }
