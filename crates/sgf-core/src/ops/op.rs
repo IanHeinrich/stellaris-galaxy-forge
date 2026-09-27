@@ -455,7 +455,7 @@ pub enum Op {
         kind: String,
     },
     /// A save system's `inner_radius`, with `outer_radius` 100 past it. A radius inside the
-    /// system's outermost body plus its margin is refused, unless it is no smaller than the
+    /// system's outermost body, or below 150, is refused unless it is no smaller than the
     /// value the system already holds. Its own inverse. Stellaris 4.x save documents only.
     SetSaveInnerRadius {
         system: u32,

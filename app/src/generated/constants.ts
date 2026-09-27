@@ -41,3 +41,6 @@ export const OVERLAP_TOLERANCE = 0.5;
 
 /** How far from its belt's radius an asteroid of that belt may lie. */
 export const BELT_SCATTER = 10;
+
+/** How far a body's point may stray from its stored orbit for the stored value to be drawn. */
+export const STORED_ORBIT_SLACK = 0.01;

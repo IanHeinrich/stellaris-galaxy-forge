@@ -255,6 +255,40 @@ fn belt_asteroids_within_tolerance_do_not_overlap() {
     assert_eq!(on_system_8, 0);
 }
 
+/// Two moons stacked about planet 589 at radius 20 overlap though a belt lies at 20 from
+/// the centre: only bodies about the centre scatter with a belt.
+#[test]
+fn moons_stacked_near_a_belts_radius_overlap() {
+    let mut session = common::open_4_5();
+    session.warm_details().expect("build details");
+    for op in [
+        Op::AddSaveBelt {
+            system: 1,
+            kind: "rocky_asteroid_belt".to_owned(),
+            radius: 20.0,
+        },
+        Op::SetSaveBodyParent {
+            system: 1,
+            body: 588,
+            parent: Some(589),
+            radius: 20.0,
+            angle: 90.0,
+        },
+        Op::MoveSaveBody {
+            system: 1,
+            body: 590,
+            radius: 20.0,
+            angle: 90.0,
+        },
+    ] {
+        session.apply(op).expect("apply");
+    }
+    let issues = session.validate();
+    let overlap = common::coded(&issues, IssueCode::BodiesOverlap);
+    assert_eq!(overlap.len(), 1, "{overlap:?}");
+    assert!(overlap[0].message.contains("#588 and #590"), "{overlap:?}");
+}
+
 /// `warm_details` returns the issues once it has built the projection, the overlap a
 /// preceding move made among them.
 #[test]

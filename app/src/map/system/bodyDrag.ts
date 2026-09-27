@@ -1,7 +1,7 @@
+import { MOON_RING_FIRST } from "../../generated/constants";
 import {
   DRAG_HINTS,
   GEOMETRY_REASONS,
-  nextMoonRing,
   overlapOf,
   toMoonHint,
   type BodyEditing,
@@ -197,8 +197,14 @@ export class BodyDrag implements Drag {
   static start(frame: DragFrame, id: number, from: Pt, to: Pt): BodyDrag | null {
     const body = frame.layout.bodies.find((b) => b.id === id);
     const own = frame.editing.bodies.get(id);
-    if (frame.id === null || !body?.ring || !own?.move) return null;
-    const ring = body.ring;
+    if (frame.id === null || !body || !own) return null;
+    // One with no orbit of its own is dragged about the centre, where it is drawn.
+    const ring = own.move
+      ? body.ring
+      : own.detachOnly
+        ? { cx: 0, cy: 0, radius: Math.hypot(body.x, body.y) }
+        : null;
+    if (!ring) return null;
     const out = Math.hypot(body.x - ring.cx, body.y - ring.cy) || 1;
     const ux = (body.x - ring.cx) / out;
     const uy = (body.y - ring.cy) / out;
@@ -323,7 +329,7 @@ export class BodyDrag implements Drag {
     const { parent, radius, angle } = landing;
     const system = this.system;
     const body = this.body.id;
-    const reparents = parent !== this.body.parent;
+    const reparents = parent !== this.body.parent || this.own.detachOnly === true;
     const intent: GeometryIntent = reparents
       ? { kind: "reparent", system, body, parent, radius, angle }
       : { kind: "move", system, body, radius, angle };
@@ -379,7 +385,7 @@ export class BodyDrag implements Drag {
 
   /** Dropped on `host`, it would orbit it on its next moon ring at the pointer's angle about it. */
   private hosted(host: BodyPlacement, pointer: DragPointer): DragStep {
-    const radius = nextMoonRing(this.frame.layout, host.id);
+    const radius = this.frame.editing.bodies.get(host.id)?.moonRing ?? MOON_RING_FIRST;
     const angle = snapAngle(angleAbout(host, { x: pointer.wx, y: pointer.wy }), pointer.shift);
     const landing = { parent: host.id, radius, angle, shared: null };
     const name = this.name(host.id);

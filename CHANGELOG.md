@@ -23,8 +23,8 @@ a release is made.
   kind and radius, remove a belt, and set the system's inner radius.
 - Belts and the inner radius have handles you can drag in the system
   view. Right-click empty space to add a belt there.
-- A planet moved past the system's inner radius moves the inner radius
-  out with it.
+- A planet moved near or past the system's inner radius moves the inner
+  radius out with it.
 - The Issues tab lists bodies that stand in the same place.
 
 ### Changed

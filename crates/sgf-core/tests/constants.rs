@@ -11,7 +11,7 @@ use sgf_core::format::scenario::fe_zone::{
 use sgf_core::guides::L_CLUSTER;
 use sgf_core::ops::{
     BELT_SCATTER, INNER_MARGIN, MIN_INNER_RADIUS, MOON_RING_FIRST, MOON_RING_STEP,
-    OVERLAP_TOLERANCE, SPAWN_BUFFER,
+    OVERLAP_TOLERANCE, SPAWN_BUFFER, STORED_ORBIT_SLACK,
 };
 
 fn export_dir() -> PathBuf {
@@ -100,6 +100,11 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "How far from its belt's radius an asteroid of that belt may lie.",
         "BELT_SCATTER",
         BELT_SCATTER.to_string(),
+    );
+    constant(
+        "How far a body's point may stray from its stored orbit for the stored value to be drawn.",
+        "STORED_ORBIT_SLACK",
+        STORED_ORBIT_SLACK.to_string(),
     );
     let out = out.trim_end().to_owned() + "\n";
 

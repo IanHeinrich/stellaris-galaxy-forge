@@ -35,11 +35,12 @@ import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
-import { orbitClasses, orbitSystem } from "../../../test/builders";
+import { orbitClasses, orbitSystem, saveBody } from "../../../test/builders";
 import { drawnBy, drawnField } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { PickerField } from "../../EditField";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
+import { GEOMETRY_REASONS } from "../../../lib/details/orbitEdits";
 
 bindStores();
 
@@ -681,6 +682,35 @@ describe("a body's orbit", () => {
     const planet = render(PLANET);
     expect(planet).toMatch(/aria-label="Orbit radius"[^>]*value="60"/);
     expect(planet).not.toContain('aria-label="Orbits:');
+  });
+
+  it("offers a moon whose planet is missing only the star, detaching it where it stands", async () => {
+    await open("save");
+    const read = orbitSystem({ id: SYSTEM, with_game_data: true });
+    read.planets.push(saveBody(58, "pc_barren", [100, 20], 10, 6, 57));
+    useGameDataStore.setState({ planetClasses: orbitClasses() });
+    await land(read);
+    await bodyPage(58, { parent: 57 });
+
+    const html = drawnBy(() => render(58));
+    expect(html).toContain('aria-label="Orbits: #57"');
+    expect(html).not.toContain("Orbit radius");
+    expect(html).toContain(GEOMETRY_REASONS.noOrbit);
+    const orbits = drawnField(PickerField, "Orbits");
+    expect(orbits.items.map((item) => item.label)).toEqual(["The star"]);
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    orbits.onPick("star");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "SetSaveBodyParent",
+          body: 58,
+          parent: null,
+          radius: expect.closeTo(Math.hypot(100, 20), 6),
+          angle: expect.closeTo((Math.atan2(20, 100) * 180) / Math.PI, 6),
+        }),
+      ),
+    );
   });
 
   it("reads the system first, and shows no orbit fields on a scenario", async () => {

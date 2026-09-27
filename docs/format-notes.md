@@ -206,10 +206,11 @@ for planets or deposits.
   `SUBPLANET_NAME_FORMAT` with the parent's whole name and a letter.
 - A system with belts writes
   `asteroid_belts={ { type="icy_asteroid_belt" inner_radius=120 } }`
-  after `hyperlane`, or after `star_class` when it has no lanes. It
-  holds one block per initializer `asteroid_belt`, in script order,
-  laid out like the `hyperlane` entries. `inner_radius` is the script's
-  `radius` as written. A belt does not move the system's
+  after `hyperlane`, or after `star_class` when it has no lanes, and
+  before whichever of `discovery`, `arm`, `flags` and `initializer`
+  comes first. It holds one block per initializer `asteroid_belt`, in
+  script order, laid out like the `hyperlane` entries. `inner_radius` is
+  the script's `radius` as written. A belt does not move the system's
   `inner_radius`, only the bodies do.
 
   An asteroid is a body whose class has `asteroid = yes`. Its entry

@@ -9,7 +9,7 @@ use crate::ops::rules::bodies::{self, BELT_SCATTER, Body, OVERLAP_TOLERANCE};
 use super::{Issue, IssueCode};
 
 /// The overlap findings among `details`' bodies, one [`Issue`] per pair that stands too
-/// close, unless both sit within [`BELT_SCATTER`] of the same belt's radius.
+/// close, unless both orbit the centre within [`BELT_SCATTER`] of the same belt's radius.
 pub(crate) fn overlaps(system: u32, details: &RawSystemDetails) -> Vec<Issue> {
     let frame: Vec<Body> = details
         .planets
@@ -42,10 +42,10 @@ pub(crate) fn overlaps(system: u32, details: &RawSystemDetails) -> Vec<Issue> {
             if angle_delta(angle_a, angle_b) > OVERLAP_TOLERANCE {
                 continue;
             }
-            if details
-                .belts
-                .iter()
-                .any(|belt| scattered(ra, belt.inner_radius) && scattered(rb, belt.inner_radius))
+            if a.parent.is_none()
+                && details.belts.iter().any(|belt| {
+                    scattered(ra, belt.inner_radius) && scattered(rb, belt.inner_radius)
+                })
             {
                 continue;
             }

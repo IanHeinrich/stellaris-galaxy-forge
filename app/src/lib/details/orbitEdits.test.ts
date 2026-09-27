@@ -63,8 +63,8 @@ describe("what a save lets the system view edit", () => {
   const editing = SAVE_GEOMETRY.editing(frameOf());
   const flags = (id: number) => editing.bodies.get(id);
 
-  it("moves a planet, which can host moons and become one", () => {
-    expect(flags(LONE)).toEqual({ move: true, host: true, reparent: true });
+  it("moves a planet, which can host moons on its first moon ring and become one", () => {
+    expect(flags(LONE)).toEqual({ move: true, host: true, reparent: true, moonRing: 15 });
   });
 
   it("moves a moon, which detaches to its planet's parent and cannot host", () => {
@@ -96,6 +96,7 @@ describe("what a save lets the system view edit", () => {
       move: true,
       host: true,
       reparent: false,
+      moonRing: 25,
       reason: GEOMETRY_REASONS.hasMoons,
     });
   });
@@ -110,6 +111,32 @@ describe("what a save lets the system view edit", () => {
     const planets = [...orbitSystem().planets, saveBody(7, "pc_arid", [0, 180], 180, 12)];
     const wide = SAVE_GEOMETRY.editing(frameOf(orbitSystem({ planets, inner_radius: 260 })));
     expect(wide.innerFloor).toBeCloseTo(180);
+  });
+
+  it("measures reach as the core does: from the stored orbit, the primary and orbits above 0", () => {
+    const planets = [
+      ...orbitSystem().planets,
+      saveBody(7, "pc_arid", [179.996, 0], 180, 12),
+      saveBody(8, "pc_g_star", [250, 0], 0, 20),
+    ];
+    const frame = frameOf(orbitSystem({ planets, inner_radius: 205 }));
+    expect(SAVE_GEOMETRY.editing(frame).innerFloor).toBe(180);
+    expect(SAVE_GEOMETRY.preview(move(7, 180, 90), frame)).toEqual({
+      bodies: new Map([[7, { parent: null, radius: 180, angle: 90 }]]),
+    });
+  });
+
+  it("lets a moon whose planet is missing only become a planet of the star", () => {
+    const planets = [...orbitSystem().planets, saveBody(58, "pc_barren", [100, 20], 10, 6, 57)];
+    const orphan = SAVE_GEOMETRY.editing(frameOf(orbitSystem({ planets }))).bodies.get(58);
+    expect(orphan).toEqual({
+      move: false,
+      host: false,
+      reparent: true,
+      detachTo: null,
+      detachOnly: true,
+      reason: GEOMETRY_REASONS.noOrbit,
+    });
   });
 
   it("edits nothing before the system's details are in", () => {
@@ -328,9 +355,9 @@ describe("the preview of an intent", () => {
 });
 
 describe("grownInner", () => {
-  const { layout } = frameOf();
+  const frame = frameOf();
   const moved = (id: number, parent: number | null, radius: number, angle: number) =>
-    grownInner(layout, { bodies: new Map([[id, { parent, radius, angle }]]) });
+    grownInner(frame, { bodies: new Map([[id, { parent, radius, angle }]]) });
 
   it("grows the inner radius to reach 30 past a body moved beyond the system's reach", () => {
     expect(moved(LONE, null, 190, 0)).toBe(220);
@@ -351,7 +378,7 @@ describe("grownInner", () => {
       }),
     );
     const grow = (radius: number) =>
-      grownInner(small.layout, { bodies: new Map([[LONE, { parent: null, radius, angle: 0 }]]) });
+      grownInner(small, { bodies: new Map([[LONE, { parent: null, radius, angle: 0 }]]) });
     expect(grow(90)).toBe(150);
     expect(grow(60)).toBe(100);
   });
@@ -399,31 +426,50 @@ describe("helpers", () => {
   const { layout } = frameOf();
 
   it("puts a new moon on the first moon ring, or one step past the outermost", () => {
-    expect(nextMoonRing(layout, LONE)).toBe(15);
-    expect(nextMoonRing(layout, PLANET)).toBe(25);
+    expect(nextMoonRing(frameOf(), LONE)).toBe(15);
+    expect(nextMoonRing(frameOf(), PLANET)).toBe(25);
   });
 
-  it("puts a new moon on a whole orbit when the moon before it is drawn a hair off its own", () => {
+  it("puts a new moon one step past the orbit the moon before it stores, not where it is drawn", () => {
     const [x, y] = ORBIT_SYSTEM_AT.lonePlanet;
     const planets = [
       ...orbitSystem().planets,
       drawnOff(saveBody(7, "pc_barren", [x + 15.06, y], 15, 5, LONE), 15.06),
     ];
-    expect(nextMoonRing(frameOf(orbitSystem({ planets })).layout, LONE)).toBe(20);
+    expect(nextMoonRing(frameOf(orbitSystem({ planets })), LONE)).toBe(20);
   });
 
-  it("carries a belt's asteroid onto a whole orbit when it is drawn a hair off its own", () => {
+  it("puts a new moon one step past a moon stored off any whole orbit", () => {
+    const [x, y] = ORBIT_SYSTEM_AT.lonePlanet;
+    const planets = [
+      ...orbitSystem().planets,
+      saveBody(7, "pc_barren", [x + 15.3, y], 15.3, 5, LONE),
+    ];
+    expect(nextMoonRing(frameOf(orbitSystem({ planets })), LONE)).toBeCloseTo(20.3);
+  });
+
+  /** The asteroid move a belt moved to `radius` makes, with the asteroid stored at `stored` and drawn at `drawn`. */
+  function carried(stored: number, drawn: number, radius: number) {
     const [x, y] = ORBIT_SYSTEM_AT.asteroid;
-    const off = 124.3 / 124;
+    const off = drawn / 124;
     const planets = orbitSystem().planets.map((p) =>
-      p.id === 6 ? drawnOff(saveBody(6, "pc_asteroid", [x * off, y * off], 124, 3), 124.3) : p,
+      p.id === 6 ? drawnOff(saveBody(6, "pc_asteroid", [x * off, y * off], stored, 3), drawn) : p,
     );
     const made = op(
-      { kind: "setBeltRadius", system: SYSTEM, index: 0, radius: 130 },
+      { kind: "setBeltRadius", system: SYSTEM, index: 0, radius },
       frameOf(orbitSystem({ planets })),
     );
-    const moved = made && "op" in made && made.op.type === "Batch" ? made.op.ops[1] : null;
-    expect(moved).toMatchObject({ type: "MoveSaveBody", body: 6, radius: 134 });
+    return made && "op" in made && made.op.type === "Batch" ? made.op.ops[1] : null;
+  }
+
+  it("carries a belt's asteroid on from the orbit it stores, not where it is drawn", () => {
+    expect(carried(124, 124.3, 130)).toMatchObject({ type: "MoveSaveBody", body: 6, radius: 134 });
+  });
+
+  it("carries an asteroid stored off any whole orbit by the belt's own step", () => {
+    const moved = carried(124.3, 124.3, 120.3);
+    expect(moved).toMatchObject({ type: "MoveSaveBody", body: 6 });
+    expect(moved?.type === "MoveSaveBody" && moved.radius).toBeCloseTo(124.6);
   });
 
   it("reads a body's orbit about its parent, and none for a star", () => {

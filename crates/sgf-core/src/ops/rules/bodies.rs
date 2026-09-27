@@ -22,7 +22,7 @@ pub const BELT_SCATTER: f64 = 10.0;
 
 /// How far a body's point may stray from its stored `orbit` for the stored value to be
 /// drawn: the rounding of a point written to five decimals, not a body placed elsewhere.
-const STORED_ORBIT_SLACK: f64 = 0.01;
+pub const STORED_ORBIT_SLACK: f64 = 0.01;
 
 /// One body of a system, in the order the system lists them: the first is its primary.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -148,11 +148,6 @@ pub fn system_reach(bodies: &[Body]) -> f64 {
         .filter(|b| reaches_for_the_rule(bodies, b))
         .map(|b| reach(bodies, b))
         .fold(0.0, f64::max)
-}
-
-/// The least `inner_radius` the frame's bodies allow, the one the game's generator writes.
-pub fn least_inner_radius(bodies: &[Body]) -> f64 {
-    MIN_INNER_RADIUS.max(system_reach(bodies) + INNER_MARGIN)
 }
 
 /// Body `id`, refused when the frame does not list it or lists it first, as its primary.

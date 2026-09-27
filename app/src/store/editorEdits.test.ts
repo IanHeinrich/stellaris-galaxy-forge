@@ -33,7 +33,7 @@ import {
   planetSummary,
   systemDetails,
 } from "./fixture";
-import { name } from "../test/builders";
+import { appIssue, name } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 
 beforeEach(openFixtureSave);
@@ -198,6 +198,26 @@ describe("editing", () => {
 
     await vi.waitFor(() => expect(sessionError()).toBe("no projection"));
     expect(useFileSessionStore.getState().dirty).toBe(true);
+  });
+
+  it("drops a projection rebuild's findings once a later edit has landed", async () => {
+    let warmed: (issues: Issue[]) => void = () => undefined;
+    const warm = new Promise<Issue[]>((resolve) => {
+      warmed = resolve;
+    });
+    mockedIpc.warmDetails.mockReturnValueOnce(warm);
+    const overlap = appIssue({ code: "bodies_overlap", message: "overlap", systems: [1] });
+    const lane = appIssue({ code: "system_isolated", message: "isolated", systems: [2] });
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ issues: [lane] }));
+
+    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    await editor().applyOp({ type: "RemoveLane", a: 0, b: 1 });
+    warmed([overlap]);
+    await warm;
+    await Promise.resolve();
+
+    expect(useIssuesStore.getState().issues).toEqual([lane]);
   });
 
   it("a projection rebuild that fails once the document is gone says nothing", async () => {

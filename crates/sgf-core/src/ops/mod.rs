@@ -31,7 +31,9 @@ pub use op::{
     Op, OpError, StarBody, SystemMove,
 };
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
-pub use rules::bodies::{BELT_SCATTER, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE};
+pub use rules::bodies::{
+    BELT_SCATTER, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, STORED_ORBIT_SLACK,
+};
 
 /// The record of one committed op: what changed, how to describe it, and the bytes
 /// needed to undo and redo it without re-running the op.

@@ -272,7 +272,8 @@ export class SystemInteraction {
     // A disc wins over a plate drawn across it, so a body under another's plate stays pickable.
     const body = pickBody(ctx.bodies, this.cam, w) ?? this.scene.plateAt(e.offsetX, e.offsetY);
     const handle = body === null ? pickHandle(ctx.handles, this.cam, w) : null;
-    const movable = body !== null && ctx.editing.bodies.get(body)?.move === true;
+    const own = body === null ? undefined : ctx.editing.bodies.get(body);
+    const movable = own?.move === true || own?.detachOnly === true;
     const input: SystemInput = {
       kind,
       sx: e.offsetX,

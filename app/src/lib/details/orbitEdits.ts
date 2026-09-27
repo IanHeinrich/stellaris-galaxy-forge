@@ -17,6 +17,7 @@ import {
   MOON_RING_FIRST,
   MOON_RING_STEP,
   OVERLAP_TOLERANCE,
+  STORED_ORBIT_SLACK,
 } from "../../generated/constants";
 import type { EntityRef } from "../../store/inspectorStore";
 import { counted } from "../text";
@@ -62,6 +63,13 @@ export interface BodyEditing {
   reparent: boolean;
   /** For a moon, the parent it gets when dragged away from its planet: null for the centre. */
   detachTo?: number | null;
+  /**
+   * It has no orbit to move along, as a moon whose planet is missing: a drag or its Orbits field
+   * makes it a planet of the star where it ends up.
+   */
+  detachOnly?: boolean;
+  /** For a body that may host, the orbit a new moon of it takes. */
+  moonRing?: number;
   /** Why it may not move, host or be given another parent, where one of those is false. */
   reason?: string;
 }
@@ -177,11 +185,23 @@ export function fieldIntent(
   return typed > 0 ? { ...orbit, radius: typed } : null;
 }
 
+/**
+ * The orbit the save stores for `body`, or its drawn radius when it stores none. The drawn radius
+ * can sit a hair off what the game wrote, so an edit that steps from it starts from the stored one.
+ */
+function storedRadius(frame: Pick<GeometryFrame, "details">, body: BodyPlacement): number {
+  const stored = frame.details?.planets.find((p) => p.id === body.id)?.orbit ?? null;
+  return stored !== null && stored > 0 ? stored : (body.ring?.radius ?? 0);
+}
+
 /** The orbit a new moon of `host` takes: the first moon ring, or one step past its outermost moon. */
-export function nextMoonRing(layout: SystemLayout, host: number): number {
-  const rings = layout.bodies.flatMap((b) => (b.parent === host && b.ring ? [b.ring.radius] : []));
-  // The drawn ring sits a hair off the stored orbit; the game writes moon orbits whole.
-  return rings.length === 0 ? MOON_RING_FIRST : Math.round(Math.max(...rings)) + MOON_RING_STEP;
+export function nextMoonRing(
+  frame: Pick<GeometryFrame, "layout" | "details">,
+  host: number,
+): number {
+  const moons = frame.layout.bodies.filter((b) => b.parent === host && b.ring);
+  if (moons.length === 0) return MOON_RING_FIRST;
+  return Math.max(...moons.map((b) => storedRadius(frame, b))) + MOON_RING_STEP;
 }
 
 /** How far apart two angles are, in degrees, the short way round. */
@@ -271,19 +291,38 @@ function pointsAfter(
   return pointOf;
 }
 
+/** What the reach of a system is measured from. */
+type ReachFrame = Pick<GeometryFrame, "layout" | "details">;
+
 /**
- * How far out the system's bodies reach, as its inner radius measures them: a body its distance
- * from its parent plus its parent's from the centre.
+ * The bodies the core counts towards the system's reach: the primary, the first body listed, and
+ * any whose stored orbit is above 0. An event-placed body at orbit 0 far out does not count.
  */
-function reachOf(layout: SystemLayout, moved: ReadonlyMap<number, BodyOrbit>): number {
+function reachingBodies(details: SystemDetails | null): ReadonlySet<number> {
+  const planets = details?.planets ?? [];
+  const counted = planets.filter((p, i) => i === 0 || p.orbit === null || p.orbit > 0);
+  return new Set(counted.map((p) => p.id));
+}
+
+/**
+ * How far out the system's bodies reach, as the core's inner radius measures them: a body's drawn
+ * radius plus its parent's distance from the centre. A moved body and its moons always count.
+ */
+function reachOf({ layout, details }: ReachFrame, moved: ReadonlyMap<number, BodyOrbit>): number {
   const pointOf = pointsAfter(layout, moved);
+  const reaching = reachingBodies(details);
   let reach = 0;
   for (const body of layout.bodies) {
-    if (!body.reaches && !moved.has(body.id)) continue;
-    const parent = moved.has(body.id) ? moved.get(body.id)!.parent : body.parent;
+    const carried = [...moved.keys()].some((id) => under(layout, body.id, id));
+    if (!reaching.has(body.id) && !carried) continue;
+    const to = moved.get(body.id);
+    const parent = to ? to.parent : body.parent;
+    const radius = to ? to.radius : body.ring?.radius;
     const centre = parent === null ? ORIGIN : pointOf(parent);
-    const point = pointOf(body.id);
-    const out = Math.hypot(centre.x, centre.y) + Math.hypot(point.x - centre.x, point.y - centre.y);
+    const out =
+      radius === undefined
+        ? Math.hypot(pointOf(body.id).x, pointOf(body.id).y)
+        : Math.hypot(centre.x, centre.y) + radius;
     reach = Math.max(reach, out);
   }
   return reach;
@@ -295,20 +334,20 @@ const NOTHING_MOVED: ReadonlyMap<number, BodyOrbit> = new Map();
  * The inner radius once `override` is applied: the one it names, or the system's grown to reach
  * past the moved bodies when they reach further than the system did. It never shrinks on its own.
  */
-export function grownInner(layout: SystemLayout, override: LayoutOverride): number {
-  const current = override.innerRadius ?? layout.innerRadius;
+export function grownInner(frame: ReachFrame, override: LayoutOverride): number {
+  const current = override.innerRadius ?? frame.layout.innerRadius;
   const moved = override.bodies;
   if (!moved || moved.size === 0) return current;
-  const before = reachOf(layout, NOTHING_MOVED);
-  const after = reachOf(layout, moved);
-  const grows = after > before && after + INNER_MARGIN > current;
+  const before = reachOf(frame, NOTHING_MOVED);
+  const after = reachOf(frame, moved);
+  const grows = after > before + STORED_ORBIT_SLACK && after + INNER_MARGIN > current;
   return grows ? Math.max(MIN_INNER_RADIUS, after + INNER_MARGIN) : current;
 }
 
 /** The least the inner radius may be set to: the system's reach, or its own value when that is lower. */
-function innerFloorOf(layout: SystemLayout): number {
-  const least = Math.max(MIN_INNER_RADIUS, reachOf(layout, NOTHING_MOVED));
-  return Math.min(layout.innerRadius, least);
+function innerFloorOf(frame: ReachFrame): number {
+  const least = Math.max(MIN_INNER_RADIUS, reachOf(frame, NOTHING_MOVED));
+  return Math.min(frame.layout.innerRadius, least);
 }
 
 function roundedText(value: number): string {
@@ -351,11 +390,22 @@ function saveBodyEditing(
     host: !body.moon && !asteroid,
     reparent: !hasMoons,
   };
+  if (editing.host) editing.moonRing = nextMoonRing(frame, body.id);
   if (body.moon)
     editing.detachTo = body.parent === null ? null : (byId.get(body.parent)?.parent ?? null);
+  if (isOrphan(body)) {
+    editing.detachOnly = true;
+    editing.reason = GEOMETRY_REASONS.noOrbit;
+    return editing;
+  }
   const reason = hostRefusal(body, asteroid) ?? (hasMoons ? GEOMETRY_REASONS.hasMoons : undefined);
   if (reason !== undefined) editing.reason = reason;
   return editing;
+}
+
+/** A moon whose planet is missing, drawn about the centre though its parent is still that planet. */
+function isOrphan(body: BodyPlacement): boolean {
+  return body.moon && body.parent === null;
 }
 
 /** Why `body` cannot have moons, or undefined when it can. */
@@ -379,7 +429,7 @@ function saveEditing(frame: GeometryFrame): SceneEditing {
     bodies,
     belts: true,
     innerRadius: details.inner_radius !== null,
-    innerFloor: innerFloorOf(layout),
+    innerFloor: innerFloorOf(frame),
   };
 }
 
@@ -406,15 +456,15 @@ function carriedAsteroids(frame: GeometryFrame, from: number, to: number): Map<n
   return new Map(
     beltAsteroids(frame, from).map((b) => [
       b.id,
-      { parent: null, radius: Math.round(b.ring!.radius) + to - from, angle: b.angle },
+      { parent: null, radius: storedRadius(frame, b) + to - from, angle: b.angle },
     ]),
   );
 }
 
 /** `bodies` put elsewhere, with the inner radius they grow. */
-function movedBodies(layout: SystemLayout, bodies: Map<number, BodyOrbit>): LayoutOverride {
-  const grown = grownInner(layout, { bodies });
-  return grown === layout.innerRadius ? { bodies } : { bodies, innerRadius: grown };
+function movedBodies(frame: GeometryFrame, bodies: Map<number, BodyOrbit>): LayoutOverride {
+  const grown = grownInner(frame, { bodies });
+  return grown === frame.layout.innerRadius ? { bodies } : { bodies, innerRadius: grown };
 }
 
 function savePreview(intent: GeometryIntent, frame: GeometryFrame): LayoutOverride {
@@ -425,11 +475,11 @@ function savePreview(intent: GeometryIntent, frame: GeometryFrame): LayoutOverri
       const body = layout.bodies.find((b) => b.id === intent.body);
       if (!body) return {};
       const to = { parent: body.parent, radius: intent.radius, angle: intent.angle };
-      return movedBodies(layout, new Map([[intent.body, to]]));
+      return movedBodies(frame, new Map([[intent.body, to]]));
     }
     case "reparent": {
       const { parent, radius, angle } = intent;
-      return movedBodies(layout, new Map([[intent.body, { parent, radius, angle }]]));
+      return movedBodies(frame, new Map([[intent.body, { parent, radius, angle }]]));
     }
     case "addBelt":
       return { belts: [...belts, { kind: intent.beltKind, radius: intent.radius }] };
@@ -438,7 +488,7 @@ function savePreview(intent: GeometryIntent, frame: GeometryFrame): LayoutOverri
       if (!belt) return {};
       belts[intent.index] = { ...belt, radius: intent.radius };
       const carried = carriedAsteroids(frame, belt.radius, intent.radius);
-      return carried.size === 0 ? { belts } : { belts, ...movedBodies(layout, carried) };
+      return carried.size === 0 ? { belts } : { belts, ...movedBodies(frame, carried) };
     }
     case "setBeltKind": {
       const belt = belts[intent.index];
@@ -487,9 +537,7 @@ function reparentOp(
   const body = layout.bodies.find((b) => b.id === intent.body);
   if (!body) return { refused: GEOMETRY_REASONS.elsewhere };
   if (body.star) return { refused: GEOMETRY_REASONS.star };
-  // A moon whose planet is missing is drawn about the centre, but its parent is still that planet.
-  const orphan = body.moon && body.parent === null;
-  if (!orphan && parent === body.parent) return moveOp(system, body, radius, angle);
+  if (!isOrphan(body) && parent === body.parent) return moveOp(system, body, radius, angle);
   const editing = saveEditing(frame).bodies;
   const own = editing.get(body.id);
   if (!own?.reparent) return { refused: GEOMETRY_REASONS.hasMoons };
@@ -584,7 +632,7 @@ function saveOp(intent: GeometryIntent, frame: GeometryFrame): GeometryOp {
     }
     case "innerRadius": {
       if (same(layout.innerRadius, intent.radius)) return null;
-      const least = innerFloorOf(layout);
+      const least = innerFloorOf(frame);
       if (intent.radius < least) return { refused: innerTooSmall(least) };
       return { op: { type: "SetSaveInnerRadius", system: intent.system, radius: intent.radius } };
     }

@@ -342,6 +342,32 @@ describe("a body dragged in the system scene", () => {
     expect(step?.readout.text).toMatch(/^planet · orbit \d+ · \d+°$/);
   });
 
+  it("makes a moon whose planet is missing a planet of the star where it is dropped", () => {
+    const model = new SystemGestureModel();
+    const details = orbitSystem();
+    const orphan = saveBody(58, "pc_barren", [100, 20], 10, 6, 57);
+    const planets = [...details.planets, orphan].map((p) => ({ ...p, name_key: `NAME_P${p.id}` }));
+    const intent = recorder(
+      systemContext({
+        ...NO_SOURCES,
+        id: ORBITS,
+        kind: "save",
+        details: { ...details, planets },
+        planetClasses: orbitClasses(),
+        geometry: SAVE_GEOMETRY,
+      }),
+    );
+    const from = Math.hypot(100, 20);
+    grab(model, intent, 58, around((Math.atan2(20, 100) * 180) / Math.PI));
+    model.handle(on("move", polarAt(from, 40)), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toMatchObject({ kind: "reparent", body: 58, parent: null, angle: 40 });
+    expect(step?.intent.kind === "reparent" && step.intent.radius).toBeCloseTo(from);
+    expect(step?.changed).toBe(true);
+    model.handle(on("up", polarAt(from, 40)), intent);
+    expect(named(intent.calls, "commit")).toHaveLength(1);
+  });
+
   it("ends the drag with no commit when the last button up is not the left", () => {
     const model = new SystemGestureModel();
     const intent = recorder(orbitFrame());
