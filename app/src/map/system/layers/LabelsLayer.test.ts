@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/textures", () => ({ getTextures: () => new Promise(() => {}) }));
 
-import { BitmapText, Graphics } from "pixi.js";
+import { BitmapText, Container, Graphics } from "pixi.js";
 import { ACCENT_COLOR } from "../../../lib/visual/style";
 import { clearTextures } from "../../../lib/visual/textures";
 import { systemContext } from "../context";
@@ -38,6 +38,22 @@ describe("the system scene's labels layer", () => {
 
   const amounts = (layer: LabelsLayer) =>
     parts(layer, "amount").map((c) => (c instanceof BitmapText ? c.text : ""));
+
+  it("moves the plates a preview moves with their bodies, keeping every display object", () => {
+    const layer = new LabelsLayer();
+    const base = labelled({ labels: true, details: true });
+    layer.rebuild(base);
+    viewport(layer, 2);
+    const before = layer.container.children.map((h) => [h, ...(h as Container).children]);
+    const override = { bodies: new Map([[MINED.id, { parent: SUN.id, radius: 90, angle: 90 }]]) };
+    layer.rebuild(systemContext(base, { override, marks: null }));
+    const after = layer.container.children.map((h) => [h, ...(h as Container).children]);
+    expect(after).toHaveLength(before.length);
+    after.forEach((objects, i) => objects.forEach((o, j) => expect(o).toBe(before[i][j])));
+    const plate = layer.plates().find((p) => p.id === MINED.id);
+    expect(plate?.y).toBeGreaterThan(45);
+    layer.destroy();
+  });
 
   it("centres each name's plate under its body, a dark translucent wash", () => {
     clearTextures();

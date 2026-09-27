@@ -1,7 +1,8 @@
 import type { Pt } from "../../lib/geometry/pt";
 import type { Camera } from "../Camera";
 import { PICK_RADIUS_PX } from "../picking/zones";
-import type { Exit, SceneBody } from "./context";
+import type { HandleRef } from "./bodyDrag";
+import type { Exit, SceneBody, SceneHandle } from "./context";
 import { drawnDisc, exitCentre } from "./geometry";
 
 const centre: Pt = { x: 0, y: 0 };
@@ -35,6 +36,20 @@ export function pickExit(exits: readonly Exit[], cam: Camera, at: Pt): number | 
     const px = Math.hypot(c.x - at.x, c.y - at.y) * cam.scale;
     if (px <= bestPx) {
       best = exit.neighbour;
+      bestPx = px;
+    }
+  }
+  return best;
+}
+
+/** The belt or inner-radius handle nearest the world point `at`, within the pick radius. */
+export function pickHandle(handles: readonly SceneHandle[], cam: Camera, at: Pt): HandleRef | null {
+  let best: HandleRef | null = null;
+  let bestPx = PICK_RADIUS_PX;
+  for (const handle of handles) {
+    const px = Math.hypot(handle.x - at.x, handle.y - at.y) * cam.scale;
+    if (px <= bestPx) {
+      best = handle.ref;
       bestPx = px;
     }
   }

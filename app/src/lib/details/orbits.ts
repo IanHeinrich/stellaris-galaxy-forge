@@ -384,7 +384,12 @@ export function systemLayout(
     override?.bodies !== undefined ||
     override?.belts !== undefined ||
     override?.innerRadius !== undefined;
-  if (overridden) return layOut(details, roll, planetClasses, moonScale, override);
+  if (overridden) {
+    const shown = layOut(details, roll, planetClasses, moonScale, override);
+    if (override.belts !== undefined) return shown;
+    // The same belts object as the plain layout's, so the belts drawn from it are left alone.
+    return { ...shown, belts: systemLayout(details, roll, planetClasses, moonScale).belts };
+  }
   const key = details ?? NO_DETAILS;
   const known = laid.get(key);
   if (

@@ -249,6 +249,40 @@ describe("the system scene's bodies layer", () => {
     star.layer.destroy();
   });
 
+  it("moves the drawn bodies a preview moves, keeping every display object, and turns their light", () => {
+    const src = {
+      ...NO_SOURCES,
+      id: SYSTEM,
+      kind: "save" as const,
+      systems: byId(placedNode(SYSTEM, 0, 0)),
+      details: systemDetails({ id: SYSTEM, planets: [SUN, EARTH, MARS] }),
+      planetClasses: new Map([
+        ["pc_g_star", planetClassView("pc_g_star")],
+        ["pc_continental", planetClassView("pc_continental", false)],
+        ["pc_arid", planetClassView("pc_arid", false)],
+      ]),
+    };
+    const layer = new BodiesLayer(blankSceneTextures());
+    layer.rebuild(systemContext(src));
+    viewport(layer, 2);
+    const before = layer.container.children.map((h) => [h, ...(h as Container).children]);
+    const override = { bodies: new Map([[EARTH.id, { parent: SUN.id, radius: 90, angle: 90 }]]) };
+    const moved = systemContext(src, { override, marks: null });
+    layer.rebuild(moved);
+    const after = layer.container.children.map((h) => [h, ...(h as Container).children]);
+    expect(after).toHaveLength(before.length);
+    after.forEach((objects, i) => objects.forEach((o, j) => expect(o).toBe(before[i][j])));
+    const earth = moved.bodyById.get(EARTH.id)!.placement;
+    const holder = layer.container.children.find(
+      (h) => h.position.x === earth.x && h.position.y === earth.y,
+    ) as Container;
+    expect(earth.y).toBeCloseTo(90);
+    expect(holder).toBeDefined();
+    const shade = holder.children.find((c) => c.label === "shade");
+    expect(shade?.rotation).toBe(earth.light);
+    layer.destroy();
+  });
+
   it("draws a black hole black, its swirl behind the disc and no ring or glow round it", () => {
     const ctx = systemContext({
       ...NO_SOURCES,
