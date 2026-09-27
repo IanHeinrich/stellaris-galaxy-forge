@@ -401,6 +401,11 @@ for planets or deposits.
   `enclave`, `marauder_system`, `lgate`, `empire_home_system`,
   `galactic_landmark_system` and `hostile_system`. Every system names
   an `initializer`.
+- Galaxy generation gives every system in a precursor's region that
+  precursor's flag, such as `precursor_1=62808000`. The flags are in a
+  day-one save, a system can have several, and the game never removes
+  them. In the 4.5 sample, 11 of 601 systems have none. `precursor_system`
+  is unrelated: a Cosmic Storms anomaly sets it.
 - `clusters` list their systems with an absolute `position`. `sectors`
   cover only part of the galaxy.
 - Waystations (4.4) are starbases. Each is a `starbase_mgr` entry with
