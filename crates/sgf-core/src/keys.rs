@@ -194,6 +194,8 @@ pub(crate) const OPTIONAL: &[&str] = &[
     USE_MAP_COLOR,
     // Written once a waystation network has a station; the 4.4 sample's table is empty.
     WAYSTATIONS,
+    // Written on a few 4.5 bodies only; the 4.4 sample has none.
+    ENTITY_PLANET_CLASS,
 ];
 
 /// The keys only the `meta` member writes, which the save-key test does not look for.
