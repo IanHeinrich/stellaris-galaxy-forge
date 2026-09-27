@@ -250,6 +250,29 @@ for planets or deposits.
   alongside any of them. A body with none of them writes no
   `binary_flags`. A plain moon is therefore 576, a fixed-name planet 65
   and a ringed planet 320.
+- A moved planet gets a new `orbit` and `coordinate` x/y. Each of its
+  moons' points moves by the same step, since moon points are
+  system-relative, and their own `orbit` stays. A body moved along its
+  ring keeps its stored `orbit` and only its point changes.
+- A planet made a moon gets `moon_of=<planet>` before `moons` or
+  `planet_orbitals`, its id in the parent's `moons={ 588 590 }` in
+  ascending order before `planet_orbitals`, and `binary_flags` with 512
+  and 64 set, written before `coordinate` when the body had none. A moon
+  made a planet loses `moon_of` and its id from the old parent's
+  `moons`, which goes with its last id. Its `binary_flags` loses 512 and
+  goes when only 64 is left. The system's `planet=` list keeps its
+  order, so a moon can come before its planet, which the game itself
+  never writes.
+- The game writes a planet's first moon at `orbit=15` and each further
+  moon 5 further out. 966 of the 4.5 sample's 1,593 moons sit at 15.
+- A few bodies the game places by event, such as an astral scar, have
+  `orbit=0` but stand far out. The system's `inner_radius` leaves them
+  out, and so does the editor when it works out how far a system
+  reaches.
+- The game scatters a belt's asteroids up to about 7 units either side
+  of the belt's radius. A few pairs stand within half a unit and half a
+  degree of each other. The overlapping-bodies finding leaves those
+  alone.
 - A layout's `entity = "…"` is written as `entity_name="…"` after
   `entity=`, and `entity=` is still written.
 - A layout's `add_modifier = { modifier = X days = -1 }` becomes an

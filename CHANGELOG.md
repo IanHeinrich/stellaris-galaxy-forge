@@ -8,6 +8,25 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- In the system view of a save, drag a planet or moon to move it. Drag
+  along its orbit to change its angle, or across orbits to change its
+  distance. Its moons move with it.
+- Drop a planet on another planet to make it a moon. Drag a moon away
+  from its planet to make it a planet again.
+- Shift+Arrow moves the selected body one degree or one unit.
+  Ctrl+Shift+Arrow moves it ten.
+- The planet page has fields for what a body orbits, its orbit radius
+  and its angle.
+- The system page lists its asteroid belts. You can change each belt's
+  kind and radius, remove a belt, and set the system's inner radius.
+- Belts and the inner radius have handles you can drag in the system
+  view. Right-click empty space to add a belt there.
+- A planet moved past the system's inner radius moves the inner radius
+  out with it.
+- The Issues tab lists bodies that stand in the same place.
+
 ### Changed
 
 - The Terraforming checkbox's hint names the techs and ascension perks
