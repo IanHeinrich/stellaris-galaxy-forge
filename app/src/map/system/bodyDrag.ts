@@ -3,6 +3,8 @@ import {
   DRAG_HINTS,
   GEOMETRY_REASONS,
   isCentreStar,
+  lockedHint,
+  lockedToName,
   orbitParent,
   overlapOf,
   toMoonHint,
@@ -100,7 +102,10 @@ export interface DragPointer {
 }
 
 /** What a drag reads of the scene as it starts. */
-export type DragFrame = Pick<SystemContext, "id" | "layout" | "editing" | "bodyById">;
+export type DragFrame = Pick<
+  SystemContext,
+  "id" | "layout" | "editing" | "bodyById" | "lockedBodies"
+>;
 
 /** Anything a gesture drags. */
 export interface Drag {
@@ -195,7 +200,8 @@ interface Landing {
  * A planet, moon or star off the centre dragged: freely, its orbit and angle both following the pointer; with Ctrl, along
  * its orbit or across orbits, as the first few pixels of the drag chose; onto another body to become
  * its moon, or onto a star to orbit it; or, for a moon or a planet of a star off the centre, far
- * enough from what it orbits, or onto the star at the centre, to orbit what that orbits.
+ * enough from what it orbits, or onto the star at the centre, to orbit what that orbits. A locked
+ * body does neither: it moves only about what it orbits.
  */
 export class BodyDrag implements Drag {
   private constructor(
@@ -210,6 +216,8 @@ export class BodyDrag implements Drag {
     private readonly passed: ReadonlySet<number>,
     /** Its planet's outermost moon ring, for a moon that may come away; null otherwise. */
     private readonly outerMoonRing: number | null,
+    /** What it is locked to, as the readout names it; null while it is not locked. */
+    private readonly lockedTo: string | null,
   ) {}
 
   /** The host that took the body on the last move, which keeps it while the pointer stays near. */
@@ -241,6 +249,8 @@ export class BodyDrag implements Drag {
     if (body.parent !== null) passed.add(body.parent);
     const siblings = frame.layout.bodies.filter((b) => b.parent === body.parent && b.ring);
     const outer = own.detachTo !== undefined && body.parent !== null;
+    const locked = own.move && frame.lockedBodies.has(id);
+    const nameOf = (parent: number) => frame.bodyById.get(parent)?.name;
     return new BodyDrag(
       frame,
       frame.id,
@@ -250,10 +260,15 @@ export class BodyDrag implements Drag {
       { x: body.x - from.x, y: body.y - from.y },
       passed,
       outer ? Math.max(...siblings.map((b) => b.ring!.radius)) : null,
+      locked ? lockedToName(orbitParent(frame.layout, body), nameOf) : null,
     );
   }
 
   move(pointer: DragPointer): DragStep {
+    if (this.lockedTo !== null) {
+      const lead = `${lockedHint(this.lockedTo)} · `;
+      return this.marked(this.landing(pointer), lead + this.hint(pointer), lead);
+    }
     const target = this.captured(pointer);
     if (target && !this.own.reparent) return this.unmoored(pointer);
     if (target) {

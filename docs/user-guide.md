@@ -225,6 +225,13 @@ outermost planet, and you can drag it in or out from there. To bring it
 back, drop it on the star at the centre or drag it well away from its
 star.
 
+To move a body without it becoming a moon or leaving what it orbits,
+right-click it and choose Lock to, followed by what it orbits. A locked
+body shows a small lock. You can still drag it along its orbit and out
+or in, but it stays with its planet or star. Choose Unlock on the same
+menu to let it go. The lock only lasts while the save is open and isn't
+saved in the file.
+
 Shift+Arrow moves the body whose page is open. Left and Right move it
 along its orbit, and Up and Down move it out and in. Each press moves it
 1° or 1 unit. Ctrl+Shift+Arrow moves it 10. The arrows on their own

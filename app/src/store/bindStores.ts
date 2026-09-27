@@ -309,6 +309,7 @@ function followSession(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status === previous.status) return;
     useSceneStore.getState().exitScene();
+    useSceneStore.getState().clearLocks();
     if (state.status === "loading") useLGateStore.getState().hide();
     if (state.status === "empty" || state.status === "error") {
       useGalaxyStore.getState().clear();

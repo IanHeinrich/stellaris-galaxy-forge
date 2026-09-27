@@ -21,6 +21,8 @@ a release is made.
 - In a binary or trinary system, drop a planet on another star to make it
   orbit that star. Its moons come with it. Drop it on the star at the
   centre to move it back.
+- Right-click a planet or moon and choose Lock to keep it on what it
+  orbits while you drag it. A locked body shows a small lock.
 - Shift+Arrow moves the selected body one degree or one unit.
   Ctrl+Shift+Arrow moves it ten.
 - The planet page has fields for what a body orbits, its orbit radius

@@ -453,3 +453,30 @@ describe("a body clicked in the system view", () => {
     expect(scene().scene).toEqual(GALAXY);
   });
 });
+
+describe("a body's lock", () => {
+  it("is set and taken off by id, and every lock goes when a document opens or closes", async () => {
+    scene().lockBody(1207);
+    scene().lockBody(1208);
+    scene().unlockBody(1208);
+    expect([...scene().lockedBodies]).toEqual([1207]);
+
+    await useFileSessionStore.getState().openSave(OPEN_RESULT.path);
+    expect(scene().lockedBodies.size).toBe(0);
+
+    scene().lockBody(1207);
+    await useFileSessionStore.getState().close();
+    expect(scene().lockedBodies.size).toBe(0);
+  });
+
+  it("goes when an edit renumbers the systems, and stays through one that does not", async () => {
+    const [, seven] = withAddedSystems();
+    scene().lockBody(1207);
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult());
+    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    expect(scene().lockedBodies.has(1207)).toBe(true);
+
+    await removeSix(seven);
+    expect(scene().lockedBodies.size).toBe(0);
+  });
+});

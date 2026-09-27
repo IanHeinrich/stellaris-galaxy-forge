@@ -35,7 +35,8 @@ import {
 } from "./fixture";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
-import { NO_SOURCES, type SystemSources } from "./sources";
+import { useSceneStore } from "../../store/sceneStore";
+import { NO_SOURCES, readSystemSources, sameSources, type SystemSources } from "./sources";
 
 stubTextMeasurement();
 
@@ -498,5 +499,17 @@ describe("the lanes out of a system", () => {
     expect(east?.dx).toBeCloseTo(1);
     expect(east?.dy).toBeCloseTo(0);
     expect(east?.radius).toBe(160);
+  });
+});
+
+describe("the bodies locked to what they orbit", () => {
+  it("are read from the scene store into the context, and a lock changes what the scene reads", () => {
+    const before = readSystemSources(null);
+    useSceneStore.getState().lockBody(3);
+    const after = readSystemSources(null);
+    expect(sameSources(before, after)).toBe(false);
+    expect(systemContext(after).lockedBodies.has(3)).toBe(true);
+    useSceneStore.getState().unlockBody(3);
+    expect(systemContext(readSystemSources(null)).lockedBodies.has(3)).toBe(false);
   });
 });

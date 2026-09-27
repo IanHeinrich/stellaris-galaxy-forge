@@ -151,6 +151,18 @@ export function toStarHint(star: string): string {
   return `release to make it orbit ${star}`;
 }
 
+/** What a lock keeps a body on: `parent`'s name, or the star for the centre (null) or a body with none. */
+export function lockedToName(
+  parent: number | null,
+  nameOf: (id: number) => string | undefined,
+): string {
+  return (parent === null ? undefined : nameOf(parent)) || "the star";
+}
+
+export function lockedHint(parent: string): string {
+  return `locked to ${parent}`;
+}
+
 /** The belt kind a new belt gets: the system's first belt's, else rocky. */
 export function defaultBeltKind(details: SystemDetails | null): string {
   return details?.belts[0]?.kind ?? "rocky_asteroid_belt";

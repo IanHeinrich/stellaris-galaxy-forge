@@ -58,6 +58,8 @@ export interface SystemSources {
   readonly countryName: (id: number) => string;
   /** How the system's bodies, belts and inner radius are edited, and whether they may be. */
   readonly geometry: GeometryAdapter;
+  /** The bodies a drag keeps about what they orbit. */
+  readonly lockedBodies: ReadonlySet<number>;
 }
 
 export const NO_SOURCES: SystemSources = Object.freeze({
@@ -81,6 +83,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   templateName: (named: { name_key: string }) => stripped(named.name_key),
   countryName: (id: number) => `#${id}`,
   geometry: NO_GEOMETRY,
+  lockedBodies: new Set<number>(),
 });
 
 /** Whether two snapshots were read from the same state, so the layers can be left alone. */
@@ -102,6 +105,7 @@ export const sameSources = sameFields<SystemSources>({
   roll: true,
   ownership: true,
   geometry: true,
+  lockedBodies: true,
 });
 
 const NO_BELT_KINDS: readonly BeltKindView[] = [];
@@ -122,7 +126,7 @@ export function readSystemSources(id: number | null): SystemSources {
   const galaxy = useGalaxyStore.getState();
   const data = useGameDataStore.getState();
   const details = useDetailsStore.getState();
-  const roll = useSceneStore.getState().roll;
+  const { roll, lockedBodies } = useSceneStore.getState();
   const session = useFileSessionStore.getState();
   if (id !== null) details.requestRoll(id, roll);
   const names = data.names;
@@ -154,5 +158,6 @@ export function readSystemSources(id: number | null): SystemSources {
       templateNameIn(names, ready, resolve, named),
     countryName: galaxy.countryName,
     geometry: geometryAdapterFor(documentCapabilities(session), id),
+    lockedBodies,
   });
 }

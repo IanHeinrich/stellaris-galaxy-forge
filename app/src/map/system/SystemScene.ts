@@ -21,6 +21,7 @@ import { ExitsLayer } from "./layers/ExitsLayer";
 import { HandlesLayer } from "./layers/HandlesLayer";
 import { HighlightLayer } from "./layers/HighlightLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
+import { LocksLayer } from "./layers/LocksLayer";
 import { NebulaLayer } from "./layers/NebulaLayer";
 import { OrbitsLayer } from "./layers/OrbitsLayer";
 import { RadiiLayer } from "./layers/RadiiLayer";
@@ -77,6 +78,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       new ExitsLayer(),
       new RadiiLayer(),
       new BodiesLayer(textures),
+      new LocksLayer(),
       this.handles,
       this.labels,
       this.highlights,

@@ -29,7 +29,7 @@ const BINDINGS: Array<Binding<SceneView, "bind">> = [
   // Ownership's inputs include the systems, the names and the document kind the scene reads too.
   { when: "change", subscribe: (view) => subscribeOwnership(() => view.refresh()) },
   follows(useMapChromeStore, [(s) => s.sceneLayers], refresh),
-  follows(useSceneStore, [(s) => s.roll], refresh),
+  follows(useSceneStore, [(s) => s.roll, (s) => s.lockedBodies], refresh),
   follows(useSceneStore, [(s) => s.linkedBody], (s, view) => view.linkBody(s.linkedBody), "bind"),
   follows(
     useInspectorStore,

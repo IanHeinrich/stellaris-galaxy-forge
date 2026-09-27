@@ -33,7 +33,8 @@ import { useSceneStore } from "../../store/sceneStore";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
-import { menuItem } from "../../test/elements";
+import { buttons, menuItem } from "../../test/elements";
+import { orbitClasses, orbitSystem, saveBody } from "../../test/builders";
 import { ContextMenu } from "./ContextMenu";
 import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
@@ -576,6 +577,53 @@ describe("the system view's menus", () => {
     await openWith(SCENARIO_RESULT);
     chrome.openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
     expect(menu()).toContain(">Open system view</button>");
+  });
+});
+
+describe("a body's lock in the system view", () => {
+  const [PLANET, MOON, COMPANION, ITS_PLANET] = [2, 3, 8, 9];
+  const target = (id: number) => ({ kind: "body", system: 0, id }) as const;
+
+  function inBinary(): void {
+    useSceneStore.getState().enterSystem(0);
+    const details = orbitSystem({ id: 0 });
+    const planets = [
+      ...details.planets,
+      saveBody(COMPANION, "pc_g_star", [-240, 0], 240, 20),
+      saveBody(ITS_PLANET, "pc_arid", [-224, 0], 16, 10, COMPANION),
+    ].map((p) => ({ ...p, name: name(`P${p.id}`), name_key: `P${p.id}` }));
+    useDetailsStore.setState({ details: new Map([[0, { ...details, planets }]]) });
+    useGameDataStore.setState({ planetClasses: orbitClasses() });
+  }
+
+  const menuOn = (id: number) => {
+    useMapChromeStore.getState().openContextMenu({ target: target(id), x: 0, y: 0 });
+    return buttons(menu());
+  };
+
+  it("names what the body orbits: the star at the centre, its planet, or the companion star, and offers no lock on the centre's star", () => {
+    inBinary();
+    expect(menuOn(PLANET)).toContain("Lock to the star");
+    expect(menuOn(MOON)).toContain("Lock to P2");
+    expect(menuOn(ITS_PLANET)).toContain("Lock to P8");
+    expect(menuOn(1).some((b) => b.startsWith("Lock"))).toBe(false);
+  });
+
+  it("locks the body, then unlocks it, as a view setting with no edit", () => {
+    inBinary();
+    menuItem(<BodyMenu target={target(MOON)} frame={{}} />, "Lock to P2").props.onClick();
+    expect(useSceneStore.getState().lockedBodies.has(MOON)).toBe(true);
+    expect(menuOn(MOON)).toContain("Unlock");
+
+    menuItem(<BodyMenu target={target(MOON)} frame={{}} />, "Unlock").props.onClick();
+    expect(useSceneStore.getState().lockedBodies.has(MOON)).toBe(false);
+    expect(ipc.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("offers no lock on a scenario", async () => {
+    await openWith(SCENARIO_RESULT);
+    inBinary();
+    expect(menuOn(PLANET).some((b) => b.startsWith("Lock"))).toBe(false);
   });
 });
 

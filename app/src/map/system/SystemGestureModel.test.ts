@@ -515,6 +515,18 @@ describe("a body dragged in the system scene", () => {
     expect(without(intent.calls, "hover")).toEqual([]);
   });
 
+  it("keeps a locked planet about the star over another planet, and says what it is locked to", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder({ ...orbitFrame(), lockedBodies: new Set([LONE]) });
+    grab(model, intent, LONE, around(120));
+    const planet = pointOf(intent.frame(), PLANET);
+    model.handle(on("move", { x: planet.x + 3, y: planet.y }), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toMatchObject({ kind: "move", body: LONE });
+    expect(step?.marks.host).toBeNull();
+    expect(step?.readout.text).toMatch(/^locked to the star · orbit 60 · shared with P\d$/);
+  });
+
   it("says why a planet with moons cannot become a moon when held over a planet, and moves it on release", () => {
     const model = new SystemGestureModel();
     const intent = recorder(orbitFrame());
@@ -707,6 +719,39 @@ describe("a body dragged onto a companion star", () => {
     });
     expect(step?.marks.host).toBe(NEXT_PLANET);
     expect(step?.readout.text).toBe("moon of P11 · orbit 15 · 90°");
+  });
+
+  it("keeps a locked moon about its planet over another planet, over the star and past its detach distance", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder({ ...binaryFrame(true), lockedBodies: new Set([ITS_MOON]) });
+    grab(model, intent, ITS_MOON, around(90));
+    const aboutItsPlanet = (step: DragStep | null) => {
+      expect(step?.intent).toMatchObject({ kind: "move", body: ITS_MOON });
+      expect(step?.marks.host).toBeNull();
+      expect(step?.readout.text).toMatch(/^locked to P9 · /);
+      expect(step?.hint).toBe(`locked to P9 · ${DRAG_HINTS.free}`);
+    };
+    model.handle(on("move", { x: -240, y: -12 }), intent);
+    aboutItsPlanet(lastStep(intent));
+    expect(lastStep(intent)?.intent).toMatchObject({ radius: 20 });
+    model.handle(on("move", polarAt(38, 180, star)), intent);
+    aboutItsPlanet(lastStep(intent));
+    model.handle(on("move", { x: 0, y: 3 }), intent);
+    aboutItsPlanet(lastStep(intent));
+    expect(lastStep(intent)?.intent).toMatchObject({ radius: 224 });
+    model.handle(on("up", { x: 0, y: 3 }), intent);
+    expect(named(intent.calls, "commit")[0]?.[1]).toMatchObject({ kind: "move", body: ITS_MOON });
+  });
+
+  it("keeps a locked planet about the companion star when dropped on the centre's star", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder({ ...binaryFrame(), lockedBodies: new Set([ITS_PLANET]) });
+    grab(model, intent, ITS_PLANET, outward(0));
+    model.handle(on("move", { x: 0, y: 3 }), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toMatchObject({ kind: "move", body: ITS_PLANET, radius: 240 });
+    expect(step?.marks.host).toBeNull();
+    expect(step?.readout.text).toMatch(/^locked to P8 · orbit 16 → 240 · \d+°$/);
   });
 
   it("makes its planet a planet of the centre past twice its outermost orbit", () => {
