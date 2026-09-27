@@ -116,16 +116,18 @@ impl Session {
     }
 
     /// Apply `op`, record it for undo and validate. The document is unchanged on error.
+    /// The details are brought up to date before validating, so a finding that reads them
+    /// (an overlap) is current.
     pub fn apply(&mut self, op: Op) -> Result<OpResult, OpError> {
         let waylines = self.graph.waylines.clone();
         let applied = ops::apply(self, op)?;
-        let result = result(
+        let mut result = result(
             &self.graph,
             self.history.undo_len() + 1,
             &applied,
             &waylines,
             false,
-            self.validate(),
+            Vec::new(),
         );
         if self.saved_at.is_some_and(|at| at > self.history.undo_len()) {
             self.saved_at = None;
@@ -133,34 +135,37 @@ impl Session {
         let in_place = applied.op.refreshes_details_in_place();
         self.history.push(applied);
         self.update_details(in_place, &result);
+        result.issues = self.validate();
         Ok(result)
     }
 
-    /// Undo the last op; `None` when there is nothing to undo.
+    /// Undo the last op; `None` when there is nothing to undo. The details are brought up
+    /// to date before validating, as [`Self::apply`] does.
     pub fn undo(&mut self) -> Result<Option<OpResult>, OpError> {
         let seq = self.history.undo_len();
         let waylines = self.graph.waylines.clone();
         let Some(applied) = self.history.undo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let issues = validate_document(&self.doc, &self.graph);
-        let result = result(&self.graph, seq, applied, &waylines, true, issues);
+        let mut result = result(&self.graph, seq, applied, &waylines, true, Vec::new());
         let in_place = applied.op.refreshes_details_in_place();
         self.update_details(in_place, &result);
+        result.issues = self.validate();
         Ok(Some(result))
     }
 
-    /// Redo the last undone op; `None` when there is nothing to redo.
+    /// Redo the last undone op; `None` when there is nothing to redo. The details are
+    /// brought up to date before validating, as [`Self::apply`] does.
     pub fn redo(&mut self) -> Result<Option<OpResult>, OpError> {
         let seq = self.history.undo_len() + 1;
         let waylines = self.graph.waylines.clone();
         let Some(applied) = self.history.redo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let issues = validate_document(&self.doc, &self.graph);
-        let result = result(&self.graph, seq, applied, &waylines, false, issues);
+        let mut result = result(&self.graph, seq, applied, &waylines, false, Vec::new());
         let in_place = applied.op.refreshes_details_in_place();
         self.update_details(in_place, &result);
+        result.issues = self.validate();
         Ok(Some(result))
     }
 
@@ -276,8 +281,15 @@ impl Session {
     }
 
     /// The projection's issues and the document's own, as open and every edit report them.
+    /// Once the details are built, their cached overlap findings are appended too: a plain
+    /// open validates before anything has read the details, so it never shows one.
     pub fn validate(&self) -> Vec<Issue> {
-        validate_document(&self.doc, &self.graph)
+        let mut issues = validate_document(&self.doc, &self.graph);
+        if let Some(details) = self.details.get() {
+            issues.extend(details.overlap_issues());
+            validate::sort(&mut issues);
+        }
+        issues
     }
 
     pub fn history(&self) -> HistoryView {
@@ -313,12 +325,14 @@ impl Session {
         self.details.get().map(Arc::clone)
     }
 
-    /// Build the details projection if it is not built yet, so that later calls are cheap.
-    pub fn warm_details(&mut self) -> Result<(), ProjectionError> {
+    /// Build the details projection if it is not built yet, so that later calls are cheap,
+    /// and return the issues now that a finding reading the details (an overlap) can show.
+    pub fn warm_details(&mut self) -> Result<Vec<Issue>, ProjectionError> {
         if !self.format().has_details(&self.doc) {
-            return Ok(());
+            return Ok(Vec::new());
         }
-        self.details().map(|_| ())
+        self.details()?;
+        Ok(self.validate())
     }
 
     /// Systems, countries, planets, fleets and nebulae matching `query` by id, key or
