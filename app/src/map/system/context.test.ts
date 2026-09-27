@@ -7,9 +7,12 @@ import type { BodyLayout } from "../../generated/BodyLayout";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemRoll } from "../../generated/SystemRoll";
+import { SAVE_GEOMETRY, type GeometryIntent } from "../../lib/details/orbitEdits";
 import {
   bodyLayout,
   byId,
+  orbitClasses,
+  orbitSystem,
   placedNode,
   planetClassView,
   planetSummary,
@@ -318,6 +321,68 @@ describe("planets the game rolls", () => {
     const ctx = scenario([scenarioSun], systemRoll({ system: SYSTEM }));
     expect(ctx.rolled).toEqual([]);
     expect(scenario(null, null).rolled).toEqual([]);
+  });
+});
+
+describe("a system shown under a preview", () => {
+  const src: SystemSources = {
+    ...sources,
+    id: 140,
+    kind: "save",
+    details: orbitSystem(),
+    planetClasses: orbitClasses(),
+    geometry: SAVE_GEOMETRY,
+  };
+
+  function previewed(intent: GeometryIntent) {
+    const base = systemContext(src);
+    const frame = { layout: base.layout, details: src.details, planetClasses: src.planetClasses };
+    const override = SAVE_GEOMETRY.preview(intent, frame);
+    return { base, shown: systemContext(src, { override, marks: null }) };
+  }
+
+  it("draws the moved layout, each moved body keeping its art and the system what may be edited", () => {
+    const { base, shown } = previewed({
+      kind: "move",
+      system: 140,
+      body: 2,
+      radius: 80,
+      angle: 30,
+    });
+    const [was, now] = [base.bodyById.get(2)!, shown.bodyById.get(2)!];
+    expect(now.placement.ring?.radius).toBe(80);
+    expect(shown.bodyById.get(3)?.placement.ring?.cx).toBeCloseTo(now.placement.x);
+    expect(now.readout?.text).toBe("80");
+    expect(now).not.toBe(was);
+    expect(now.look).toBe(was.look);
+    expect(now.iconKeys).toBe(was.iconKeys);
+    expect(now.largeIconKeys).toBe(was.largeIconKeys);
+    expect(shown.editing).toBe(base.editing);
+    expect(shown.belts).toBe(base.belts);
+    expect(base.layout.bodies.find((b) => b.id === 2)?.ring?.radius).toBe(60);
+  });
+
+  it("puts a handle at the top of each belt and of the inner radius, where the save lets them move", () => {
+    const { base, shown } = previewed({
+      kind: "setBeltRadius",
+      system: 140,
+      index: 1,
+      radius: 180,
+    });
+    expect(base.handles.map((h) => [h.ref, h.x, h.y])).toEqual([
+      [{ kind: "belt", index: 0 }, 0, -120],
+      [{ kind: "belt", index: 1 }, 0, -170],
+      [{ kind: "innerRadius" }, 0, -200],
+    ]);
+    expect(shown.handles.map((h) => h.radius)).toEqual([120, 180, 200]);
+  });
+
+  it("lets nothing of a scenario system be edited, with no handles", () => {
+    const planets = [scenarioSun, body(2, "pc_barren", { orbit: fixed(60) })];
+    const ctx = scenario(planets, rollOf(planets));
+    expect(ctx.editing.bodies.size).toBe(0);
+    expect([ctx.editing.belts, ctx.editing.innerRadius]).toEqual([false, false]);
+    expect(ctx.handles).toEqual([]);
   });
 });
 

@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
+import {
+  DRAG_HINTS,
+  GEOMETRY_REASONS,
+  NO_GEOMETRY,
+  SAVE_GEOMETRY,
+  toMoonHint,
+} from "../../lib/details/orbitEdits";
+import { polar } from "../../lib/details/orbits";
+import type { Pt } from "../../lib/geometry/pt";
 import type { ContextTarget } from "../../store/mapChromeStore";
+import { orbitClasses, orbitSystem, saveBody } from "../../test/builders";
 import {
   SCENE_SYSTEM as SYSTEM,
   sceneAt as at,
   sceneRecorder as recorder,
 } from "../../test/mapIntent";
-import { SystemGestureModel, type SystemIntent } from "./SystemGestureModel";
+import type { DragStep } from "./bodyDrag";
+import { systemContext, type SystemContext } from "./context";
+import { NO_SOURCES } from "./sources";
+import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
 const NEIGHBOUR = 9;
 
@@ -17,6 +30,7 @@ function tap(model: SystemGestureModel, intent: SystemIntent, time: number, extr
 }
 
 const without = (calls: Call[], name: keyof SystemIntent) => calls.filter(([n]) => n !== name);
+const named = (calls: Call[], name: keyof SystemIntent) => calls.filter(([n]) => n === name);
 
 describe("SystemGestureModel", () => {
   it("highlights the lane on a click on its arrow", () => {
@@ -81,9 +95,9 @@ describe("SystemGestureModel", () => {
     model.handle(at("down", 30, 30), intent);
     model.handle(at("move", 60, 60, { body: 3 }), intent);
     expect(intent.calls).toEqual([
-      ["hover", 3, null, 10, 10],
-      ["hover", null, NEIGHBOUR, 20, 10],
-      ["hover", null, null, 60, 60],
+      ["hover", 3, null, null, 10, 10],
+      ["hover", null, NEIGHBOUR, null, 20, 10],
+      ["hover", null, null, null, 60, 60],
     ]);
   });
 
@@ -113,7 +127,7 @@ describe("SystemGestureModel", () => {
     ]);
   });
 
-  it("opens nothing on a drag that starts on a body, or a middle click on one", () => {
+  it("opens nothing on a drag that starts on a body that cannot move, or a middle click on one", () => {
     const model = new SystemGestureModel();
     const intent = recorder();
     model.handle(at("down", 10, 10, { body: 3 }), intent);
@@ -121,5 +135,326 @@ describe("SystemGestureModel", () => {
     model.handle(at("up", 40, 40, { body: 3 }), intent);
     tap(model, intent, 2000, { body: 3, button: 1 });
     expect(without(intent.calls, "hover")).toEqual([]);
+  });
+});
+
+const ORBITS = 140;
+const [STAR, PLANET, MOON, LONE, ASTEROID, BESIDE] = [1, 2, 3, 5, 6, 7];
+
+const cosd = (deg: number) => Math.cos((deg * Math.PI) / 180);
+const sind = (deg: number) => Math.sin((deg * Math.PI) / 180);
+
+function polarAt(radius: number, angle: number, about: Pt = { x: 0, y: 0 }): [number, number] {
+  const p = polar(about.x, about.y, radius, angle);
+  return [p.x, p.y];
+}
+
+/** `orbitSystem` with each body named `P<id>`, and planet 7 at 60 and 90°, beside planet 2. */
+function orbitFrame(): SystemContext {
+  const details = orbitSystem();
+  const beside = saveBody(BESIDE, "pc_arid", polarAt(60, 90), 60, 12);
+  const planets = [...details.planets, beside].map((p) => ({ ...p, name_key: `NAME_P${p.id}` }));
+  return systemContext({
+    ...NO_SOURCES,
+    id: ORBITS,
+    kind: "save",
+    details: { ...details, planets },
+    planetClasses: orbitClasses(),
+    geometry: SAVE_GEOMETRY,
+  });
+}
+
+function pointOf(frame: SystemContext, id: number): Pt {
+  const body = frame.layout.bodies.find((b) => b.id === id);
+  if (!body) throw new Error(`no body ${id}`);
+  return { x: body.x, y: body.y };
+}
+
+/** An input at the scene point `p`, in the orbit system. */
+function on(
+  kind: SystemInput["kind"],
+  p: Pt | [number, number],
+  extra: Partial<SystemInput> = {},
+): SystemInput {
+  const [x, y] = Array.isArray(p) ? p : [p.x, p.y];
+  return at(kind, x, y, { system: ORBITS, ...extra });
+}
+
+/** Presses body `id` where it stands and moves it by `nudge`, past the threshold. */
+function grab(model: SystemGestureModel, intent: SystemIntent, id: number, nudge: Pt): void {
+  const from = pointOf(intent.frame(), id);
+  model.handle(on("down", from, { body: id, draggable: true }), intent);
+  model.handle(on("move", { x: from.x + nudge.x, y: from.y + nudge.y }), intent);
+}
+
+/** Four pixels out from the centre at `angle`, and four round it. */
+const outward = (angle: number): Pt => ({ x: 4 * cosd(angle), y: 4 * sind(angle) });
+const around = (angle: number): Pt => ({ x: -4 * sind(angle), y: 4 * cosd(angle) });
+
+function lastStep(intent: ReturnType<typeof recorder>): DragStep | null {
+  const previews = named(intent.calls, "preview");
+  return (previews[previews.length - 1]?.[1] as DragStep | null | undefined) ?? null;
+}
+
+describe("a body dragged in the system scene", () => {
+  it("does nothing under the threshold", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    const from = pointOf(intent.frame(), LONE);
+    model.handle(on("down", from, { body: LONE, draggable: true }), intent);
+    model.handle(on("move", { x: from.x + 2, y: from.y + 1 }), intent);
+    expect(intent.calls).toEqual([]);
+  });
+
+  it("opens the body's page, then moves it along its orbit at its radius in whole degrees", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, around(120));
+    model.handle(on("move", polarAt(97, 133.4)), intent);
+    expect(named(intent.calls, "openBody")).toEqual([["openBody", ORBITS, LONE]]);
+    const step = lastStep(intent);
+    expect(step?.intent).toEqual({
+      kind: "move",
+      system: ORBITS,
+      body: LONE,
+      radius: 100,
+      angle: 133,
+    });
+    expect(step?.readout.text).toBe("orbit 100 · 133°");
+    expect(step?.hint).toBe(DRAG_HINTS.along);
+  });
+
+  it("snaps to 15° with Shift, also when Shift changes with the pointer still", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, around(120));
+    const there = polarAt(100, 128);
+    model.handle(on("move", there), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ angle: 128 });
+    model.handle(on("move", there, { shift: true }), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ radius: 100, angle: 135 });
+    model.handle(on("move", there), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ angle: 128 });
+  });
+
+  it("moves it across orbits in whole units, its angle held", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, outward(120));
+    model.handle(on("move", polarAt(107.4, 121)), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toMatchObject({ kind: "move", body: LONE, radius: 107 });
+    expect(step?.intent.kind === "move" && step.intent.angle).toBeCloseTo(120);
+    expect(step?.readout.text).toBe("orbit 100 → 107 · 120°");
+    expect(step?.hint).toBe(DRAG_HINTS.across);
+  });
+
+  it("takes another ring's radius exactly within a few pixels of it", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, outward(120));
+    model.handle(on("move", polarAt(119, 120)), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toMatchObject({ radius: 124 });
+    expect(step?.marks).toMatchObject({ tone: "shared", other: ASTEROID });
+    expect(step?.readout.text).toBe("orbit 124 · shared with P6");
+  });
+
+  it("marks a body it would stand on top of, and still commits the move", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, PLANET, around(30));
+    model.handle(on("move", polarAt(60, 90.3)), intent);
+    const step = lastStep(intent);
+    expect(step?.marks).toMatchObject({ tone: "overlap", other: BESIDE });
+    expect(step?.readout).toEqual({ text: "overlaps P7", tone: "warn" });
+    expect(step?.refused).toBeUndefined();
+    model.handle(on("up", polarAt(60, 90.3)), intent);
+    expect(named(intent.calls, "commit")).toHaveLength(1);
+  });
+
+  it("makes it a moon of a planet it is held over, and a plain move again once it leaves", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, around(120));
+    const planet = pointOf(intent.frame(), PLANET);
+    model.handle(on("move", { x: planet.x + 3, y: planet.y }), intent);
+    const hosted = lastStep(intent);
+    expect(hosted?.intent).toEqual({
+      kind: "reparent",
+      system: ORBITS,
+      body: LONE,
+      parent: PLANET,
+      radius: 25,
+      angle: 0,
+    });
+    expect(hosted?.marks.host).toBe(PLANET);
+    expect(hosted?.readout.text).toBe("moon of P2 · orbit 25 · 0°");
+    expect(hosted?.hint).toBe(toMoonHint("P2"));
+    model.handle(on("move", polarAt(100, 150)), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ kind: "move", radius: 100, angle: 150 });
+  });
+
+  it.each([
+    ["a moon", MOON, GEOMETRY_REASONS.moonHost, "P3 is a moon"],
+    ["an asteroid", ASTEROID, GEOMETRY_REASONS.asteroidHost, "P6 is an asteroid"],
+    ["a star", STAR, GEOMETRY_REASONS.starHost, "P1 is a star"],
+  ])(
+    "refuses %s as a parent, held on its orbit, and says why on release",
+    (_, id, reason, text) => {
+      const model = new SystemGestureModel();
+      const intent = recorder(orbitFrame());
+      grab(model, intent, LONE, around(120));
+      const over = pointOf(intent.frame(), id);
+      model.handle(on("move", over), intent);
+      const step = lastStep(intent);
+      expect(step?.refused).toBe(reason);
+      expect(step?.readout).toEqual({ text, tone: "warn" });
+      expect(step?.intent).toMatchObject({ kind: "move", radius: 100 });
+      const before = intent.calls.length;
+      model.handle(on("up", over), intent);
+      const after = intent.calls.slice(before);
+      expect(after.map(([n]) => n)).toEqual(["preview", "hover", "refuse"]);
+      expect(after[0]).toEqual(["preview", null]);
+      expect(after[2]).toEqual(["refuse", reason]);
+    },
+  );
+
+  it("makes a moon a planet once it is dragged far from its planet", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    const planet = pointOf(intent.frame(), PLANET);
+    grab(model, intent, MOON, outward(90));
+    model.handle(on("move", { x: planet.x, y: planet.y + 30 }), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ kind: "move", radius: 30 });
+    const away = { x: planet.x, y: planet.y + 75 };
+    model.handle(on("move", away), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toEqual({
+      kind: "reparent",
+      system: ORBITS,
+      body: MOON,
+      parent: null,
+      radius: Math.round(Math.hypot(away.x, away.y)),
+      angle: Math.round((Math.atan2(away.y, away.x) * 180) / Math.PI),
+    });
+    expect(step?.hint).toBe(DRAG_HINTS.toPlanet);
+    expect(step?.readout.text).toMatch(/^planet · orbit \d+ · \d+°$/);
+  });
+
+  it("ends the drag with no commit when the last button up is not the left", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, around(120));
+    model.handle(on("move", polarAt(100, 140)), intent);
+    model.handle(on("up", polarAt(100, 140), { button: 2 }), intent);
+    expect(intent.calls[intent.calls.length - 1]).toEqual(["preview", null]);
+    expect(named(intent.calls, "commit")).toEqual([]);
+    expect(model.busy()).toBe(false);
+  });
+
+  it("ends a press or a pan on any button's release, clicking only on the left", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder();
+    model.handle(at("down", 10, 10, { body: 3 }), intent);
+    model.handle(at("up", 10, 10, { button: 2 }), intent);
+    expect(model.busy()).toBe(false);
+    model.handle(at("down", 10, 10), intent);
+    model.handle(at("move", 40, 40), intent);
+    model.handle(at("up", 40, 40, { button: 2 }), intent);
+    expect(model.busy()).toBe(false);
+    expect(without(intent.calls, "hover")).toEqual([]);
+  });
+
+  it("says why a planet with moons cannot become a moon when held over a planet, and moves it on release", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, PLANET, around(30));
+    const over = pointOf(intent.frame(), LONE);
+    model.handle(on("move", over), intent);
+    const step = lastStep(intent);
+    expect(step?.readout).toEqual({ text: GEOMETRY_REASONS.hasMoons, tone: "warn" });
+    expect(step?.marks.host).toBeNull();
+    expect(step?.refused).toBeUndefined();
+    expect(step?.intent).toMatchObject({ kind: "move", body: PLANET, radius: 60 });
+    model.handle(on("up", over), intent);
+    expect(named(intent.calls, "commit")).toEqual([["commit", step?.intent]]);
+    expect(named(intent.calls, "refuse")).toEqual([]);
+  });
+
+  it("puts it back with no commit on Esc mid-drag", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, around(120));
+    model.handle(on("move", polarAt(100, 140)), intent);
+    model.cancel(intent);
+    model.handle(on("up", polarAt(100, 140)), intent);
+    expect(intent.calls[intent.calls.length - 1]).toEqual(["preview", null]);
+    expect(named(intent.calls, "commit")).toEqual([]);
+    expect(model.busy()).toBe(false);
+  });
+
+  it("commits once, on release, what it last showed", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    grab(model, intent, LONE, around(120));
+    for (const angle of [125, 130, 140]) model.handle(on("move", polarAt(100, angle)), intent);
+    model.handle(on("up", polarAt(100, 140)), intent);
+    expect(named(intent.calls, "commit")).toEqual([
+      ["commit", { kind: "move", system: ORBITS, body: LONE, radius: 100, angle: 140 }],
+    ]);
+  });
+
+  it("pans when the frame lets nothing move, as a scenario's does", () => {
+    const model = new SystemGestureModel();
+    const frame = orbitFrame();
+    const intent = recorder({ ...frame, editing: NO_GEOMETRY.editing(frame) });
+    const from = pointOf(frame, LONE);
+    model.handle(on("down", from, { body: LONE, draggable: true }), intent);
+    expect(model.handle(on("move", { x: from.x + 10, y: from.y }), intent)).toBe("pan");
+    model.handle(on("up", { x: from.x + 10, y: from.y }), intent);
+    expect(without(intent.calls, "hover")).toEqual([]);
+  });
+
+  it("pans on a middle drag from a body that can move", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    const from = pointOf(intent.frame(), LONE);
+    model.handle(on("down", from, { body: LONE, draggable: true, button: 1 }), intent);
+    expect(model.handle(on("move", { x: from.x + 10, y: from.y }), intent)).toBe("pan");
+    model.handle(on("up", { x: from.x + 10, y: from.y }, { button: 1 }), intent);
+    expect(without(intent.calls, "hover")).toEqual([]);
+  });
+});
+
+describe("a handle dragged in the system scene", () => {
+  it("moves a belt in whole units, snapping onto a body's ring", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    const belt = { kind: "belt" as const, index: 0 };
+    model.handle(on("down", [0, -120], { handle: belt, draggable: true }), intent);
+    model.handle(on("move", [0, -135.3]), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toEqual({ kind: "setBeltRadius", system: ORBITS, index: 0, radius: 135 });
+    expect(step?.readout.text).toBe("Belt · rocky · r 120 → 135");
+    expect(step?.hint).toBe(DRAG_HINTS.belt);
+    model.handle(on("move", [0, -121]), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ radius: 124 });
+    expect(named(intent.calls, "openBody")).toEqual([]);
+  });
+
+  it("moves the inner radius no lower than its floor", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(orbitFrame());
+    const inner = { kind: "innerRadius" as const };
+    model.handle(on("down", [0, -200], { handle: inner, draggable: true }), intent);
+    model.handle(on("move", [0, -240]), intent);
+    expect(lastStep(intent)?.readout.text).toBe("Inner radius 200 → 240");
+    model.handle(on("move", [0, -40]), intent);
+    const floor = intent.frame().editing.innerFloor;
+    const clamped = { kind: "innerRadius", system: ORBITS, radius: floor };
+    expect(lastStep(intent)?.intent).toEqual(clamped);
+    model.handle(on("up", [0, -40]), intent);
+    expect(named(intent.calls, "commit")).toEqual([["commit", clamped]]);
   });
 });

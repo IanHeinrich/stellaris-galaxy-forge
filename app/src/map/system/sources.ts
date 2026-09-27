@@ -5,7 +5,13 @@ import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { SystemRoll } from "../../generated/SystemRoll";
+import { documentCapabilities } from "../../lib/capabilities";
 import { VANILLA_MOON_SCALE } from "../../lib/details/discs";
+import {
+  geometryAdapterFor,
+  NO_GEOMETRY,
+  type GeometryAdapter,
+} from "../../lib/details/orbitEdits";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import type { SceneLayerId } from "../../lib/visual/layerIds";
@@ -43,6 +49,8 @@ export interface SystemSources {
   readonly nodeName: (name: NameTemplate) => string;
   readonly templateName: (named: { name: NameTemplate; name_key: string }) => string;
   readonly countryName: (id: number) => string;
+  /** How the system's bodies, belts and inner radius are edited, and whether they may be. */
+  readonly geometry: GeometryAdapter;
 }
 
 export const NO_SOURCES: SystemSources = Object.freeze({
@@ -63,6 +71,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   nodeName: (name: NameTemplate) => (name.literal ? name.key : stripped(name.key)),
   templateName: (named: { name_key: string }) => stripped(named.name_key),
   countryName: (id: number) => `#${id}`,
+  geometry: NO_GEOMETRY,
 });
 
 /** Whether two snapshots were read from the same state, so the layers can be left alone. */
@@ -81,6 +90,7 @@ export const sameSources = sameFields<SystemSources>({
   sceneLayers: true,
   roll: true,
   ownership: true,
+  geometry: true,
 });
 
 /** The stores' state for system `id`, as the scene reads it, asking for the roll it draws. */
@@ -89,6 +99,7 @@ export function readSystemSources(id: number | null): SystemSources {
   const data = useGameDataStore.getState();
   const details = useDetailsStore.getState();
   const roll = useSceneStore.getState().roll;
+  const session = useFileSessionStore.getState();
   if (id !== null) details.requestRoll(id, roll);
   const names = data.names;
   const ready = data.status === "ready";
@@ -106,7 +117,7 @@ export function readSystemSources(id: number | null): SystemSources {
     moonScale: moonScaleOf(data),
     starClasses: data.starClasses,
     initializerClasses: data.initializerClasses,
-    kind: useFileSessionStore.getState().kind,
+    kind: session.kind,
     gameDataReady: ready,
     resourceIcons: details.resourceIcons,
     sceneLayers: useMapChromeStore.getState().sceneLayers,
@@ -116,5 +127,6 @@ export function readSystemSources(id: number | null): SystemSources {
     templateName: (named: { name: NameTemplate; name_key: string }) =>
       templateNameIn(names, ready, resolve, named),
     countryName: galaxy.countryName,
+    geometry: geometryAdapterFor(documentCapabilities(session), id),
   });
 }

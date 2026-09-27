@@ -85,6 +85,7 @@ interface Flare {
 
 interface Drawn {
   body: SceneBody;
+  holder: Container;
   glow: Sprite | null;
   flares: Flare[];
   glaze: Sprite | null;
@@ -97,6 +98,23 @@ interface Drawn {
   glyph: BitmapText | null;
   /** Whether the disc was last dressed as large on screen. */
   large: boolean;
+}
+
+/** Whether `b` is drawn as `a` is, wherever each stands: the same art objects, disc and ring. */
+function drawnAlike(a: SceneBody, b: SceneBody): boolean {
+  return (
+    a.placement.id === b.placement.id &&
+    a.placement.disc === b.placement.disc &&
+    a.placement.star === b.placement.star &&
+    a.look === b.look &&
+    a.iconKeys === b.iconKeys &&
+    a.largeIconKeys === b.largeIconKeys &&
+    a.atmosphere === b.atmosphere &&
+    a.ring === b.ring &&
+    a.moon === b.moon &&
+    a.chance.ring === b.chance.ring &&
+    a.chance.planetClass === b.chance.planetClass
+  );
 }
 
 function sized(sprite: Sprite, diameter: number): void {
@@ -126,10 +144,31 @@ export class BodiesLayer implements SystemLayer {
   rebuild(ctx: SystemContext): void {
     if (ctx.bodies === this.bodies) return;
     this.bodies = ctx.bodies;
+    if (this.move(ctx.bodies)) return;
     for (const child of this.container.removeChildren()) child.destroy({ children: true });
     const ordered = [...ctx.bodies].sort((a, b) => bodyTier(a) - bodyTier(b));
     this.drawn = ordered.map((body) => this.place(body));
     this.resize();
+  }
+
+  /**
+   * Moves each drawn body to where `bodies` put it and turns its light, when nothing else about
+   * any of them changed; false, with nothing moved, otherwise.
+   */
+  private move(bodies: readonly SceneBody[]): boolean {
+    if (bodies.length !== this.drawn.length) return false;
+    const byId = new Map(bodies.map((b) => [b.placement.id, b]));
+    const next = this.drawn.map((drawn) => byId.get(drawn.body.placement.id));
+    if (!next.every((body, i) => body && drawnAlike(this.drawn[i].body, body))) return false;
+    this.drawn.forEach((drawn, i) => {
+      const body = next[i]!;
+      const { x, y, light } = body.placement;
+      drawn.body = body;
+      drawn.holder.position.set(x, y);
+      if (drawn.lit) drawn.lit.rotation = light ?? 0;
+      if (drawn.shade) drawn.shade.rotation = light ?? 0;
+    });
+    return true;
   }
 
   private place(body: SceneBody): Drawn {
@@ -240,6 +279,7 @@ export class BodiesLayer implements SystemLayer {
     this.container.addChild(holder);
     const drawn = {
       body,
+      holder,
       glow,
       flares,
       glaze,

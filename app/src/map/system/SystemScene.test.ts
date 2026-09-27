@@ -1,7 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/textures", () => ({ getTextures: () => Promise.resolve([]) }));
+vi.mock("../../store/systemGeometry", async (original) => ({
+  ...(await original<typeof import("../../store/systemGeometry")>()),
+  applyGeometry: vi.fn(() => Promise.resolve(true)),
+}));
 
 import { Texture, type Renderer } from "pixi.js";
 import { useDetailsStore } from "../../store/detailsStore";
@@ -9,6 +13,7 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { applyGeometry } from "../../store/systemGeometry";
 import { byId, name, placedNode, systemDetails } from "../../test/builders";
 import { EARTH, SUN, SYSTEM, saveBody, stubTextMeasurement } from "./fixture";
 import { pickBody } from "./picking";
@@ -28,10 +33,30 @@ const NAMED_EARTH = {
 
 type Listener = (e: Partial<PointerEvent>) => void;
 
+/** The window's key listeners, by event type, as the scene registered them. */
+const keyListeners = new Map<string, (e: Partial<KeyboardEvent>) => void>();
+
+beforeEach(() => {
+  keyListeners.clear();
+  vi.stubGlobal("window", {
+    addEventListener: (type: string, fn: (e: Partial<KeyboardEvent>) => void) =>
+      keyListeners.set(type, fn),
+    removeEventListener: (type: string) => keyListeners.delete(type),
+  });
+  vi.stubGlobal("HTMLElement", class {});
+});
+
+/** A key going down on the window; the returned spy says whether the press was kept from the app. */
+function keyDown(name: string): () => boolean {
+  const stop = vi.fn();
+  keyListeners.get("keydown")?.({ key: name, target: null, stopImmediatePropagation: stop });
+  return () => stop.mock.calls.length > 0;
+}
+
 /** A canvas that keeps its listeners, so a test can move and press on it. */
 function recordingCanvas(): {
   canvas: HTMLCanvasElement;
-  fire: (type: string, x: number, y: number) => void;
+  fire: (type: string, x: number, y: number, extra?: Partial<PointerEvent>) => void;
 } {
   const listeners = new Map<string, Listener>();
   const canvas = {
@@ -43,13 +68,14 @@ function recordingCanvas(): {
     releasePointerCapture: () => undefined,
   } as unknown as HTMLCanvasElement;
   let time = 1000;
-  const fire = (type: string, x: number, y: number) =>
+  const fire = (type: string, x: number, y: number, extra: Partial<PointerEvent> = {}) =>
     listeners.get(type)?.({
       offsetX: x,
       offsetY: y,
       button: type === "pointermove" ? -1 : 0,
       pointerId: 1,
       timeStamp: (time += 50),
+      ...extra,
     });
   return { canvas, fire };
 }
@@ -96,6 +122,8 @@ function camera(shown: SystemScene): { x: number; y: number; scale: number } {
 afterEach(() => {
   scene?.dispose();
   scene = null;
+  vi.unstubAllGlobals();
+  vi.mocked(applyGeometry).mockClear();
   useDetailsStore.getState().clear();
   useGameDataStore.setState(useGameDataStore.getInitialState());
   useMapChromeStore.setState(useMapChromeStore.getInitialState());
@@ -228,5 +256,204 @@ describe("the system scene's tooltip", () => {
     fire("pointermove", at.x, at.y);
 
     expect(useMapChromeStore.getState().tooltip?.title).toBe("Random planet, any class");
+  });
+});
+
+describe("a body dragged in the system scene", () => {
+  /** Earth's angle about the centre as the scene draws it. */
+  const earthAngle = (shown: SystemScene) =>
+    shown.context().bodyById.get(EARTH.id)?.placement.angle ?? NaN;
+
+  /** Presses Earth where it is drawn and drags it round its orbit to `angle` degrees. */
+  function dragEarthTo(
+    shown: SystemScene,
+    fire: (t: string, x: number, y: number) => void,
+    angle: number,
+  ) {
+    const from = shown.cam.worldToScreen(90, 0);
+    const a = (angle * Math.PI) / 180;
+    const to = shown.cam.worldToScreen(90 * Math.cos(a), 90 * Math.sin(a));
+    fire("pointerdown", from.x, from.y);
+    fire("pointermove", from.x, from.y + 6);
+    fire("pointermove", to.x, to.y);
+    return to;
+  }
+
+  it("shows the preview once a frame applies it", () => {
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    dragEarthTo(shown, fire, 10);
+    expect(earthAngle(shown)).toBe(0);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(10);
+    expect(useMapChromeStore.getState().tooltip?.title).toBe("orbit 90 · 10°");
+  });
+
+  it("holds the preview after a release through the edit's stale mark, until fresh details land", async () => {
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    const to = dragEarthTo(shown, fire, 10);
+    fire("pointerup", to.x, to.y);
+    await Promise.resolve();
+    expect(applyGeometry).toHaveBeenCalledWith({
+      kind: "move",
+      system: SYSTEM,
+      body: EARTH.id,
+      radius: 90,
+      angle: 10,
+    });
+    useDetailsStore.getState().invalidate([SYSTEM]);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(10);
+    detailsLand(SYSTEM);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(0);
+  });
+
+  it("drops the preview when the edit is refused", async () => {
+    vi.mocked(applyGeometry).mockResolvedValueOnce(false);
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    const to = dragEarthTo(shown, fire, 10);
+    fire("pointerup", to.x, to.y);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(10);
+    await Promise.resolve();
+    await Promise.resolve();
+    shown.tick();
+    expect(earthAngle(shown)).toBe(0);
+  });
+
+  it("cancels a drag whose system's details change under it, and sends nothing", () => {
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    const to = dragEarthTo(shown, fire, 10);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(10);
+    detailsLand(SYSTEM);
+    fire("pointermove", to.x + 5, to.y + 5);
+    fire("pointerup", to.x + 5, to.y + 5);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(0);
+    expect(applyGeometry).not.toHaveBeenCalled();
+  });
+
+  it("puts the body back on Esc, keeping the key from the app, and sends nothing", () => {
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    const to = dragEarthTo(shown, fire, 10);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(10);
+    const kept = keyDown("Escape");
+    fire("pointerup", to.x, to.y);
+    shown.tick();
+    expect(kept()).toBe(true);
+    expect(earthAngle(shown)).toBe(0);
+    expect(applyGeometry).not.toHaveBeenCalled();
+    expect(useMapChromeStore.getState().sceneHint).toBeNull();
+  });
+
+  it("drops a drag when the window loses focus, or a move comes with no button held", () => {
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    dragEarthTo(shown, fire, 10);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(10);
+    keyListeners.get("blur")?.({});
+    shown.tick();
+    expect(earthAngle(shown)).toBe(0);
+
+    const to = dragEarthTo(shown, fire, 20);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(20);
+    fire("pointermove", to.x + 5, to.y, { buttons: 0 });
+    fire("pointerup", to.x + 5, to.y);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(0);
+    expect(applyGeometry).not.toHaveBeenCalled();
+  });
+
+  it("pans on a drag while a released edit is still held, sending nothing more", () => {
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    const to = dragEarthTo(shown, fire, 10);
+    fire("pointerup", to.x, to.y);
+    shown.tick();
+    const before = camera(shown);
+    fire("pointerdown", to.x, to.y);
+    fire("pointermove", to.x + 20, to.y);
+    fire("pointermove", to.x + 40, to.y);
+    fire("pointerup", to.x + 40, to.y);
+    shown.tick();
+    expect(camera(shown).x).not.toBe(before.x);
+    expect(earthAngle(shown)).toBe(10);
+    expect(applyGeometry).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a held edit's preview when the system's details fail to come back", () => {
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    const to = dragEarthTo(shown, fire, 10);
+    fire("pointerup", to.x, to.y);
+    useDetailsStore.getState().invalidate([SYSTEM]);
+    shown.tick();
+    expect(earthAngle(shown)).toBe(10);
+    const state = useDetailsStore.getState();
+    useDetailsStore.setState({
+      failed: new Map([[SYSTEM, "no answer"]]),
+      version: state.version + 1,
+    });
+    shown.tick();
+    expect(earthAngle(shown)).toBe(0);
+  });
+
+  it("measures the pointer again under the camera as it stands when Shift changes", () => {
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    dragEarthTo(shown, fire, 10);
+    shown.tick();
+    const was = { x: 90 * Math.cos(Math.PI / 18), y: 90 * Math.sin(Math.PI / 18) };
+    const now = { x: 90 * Math.cos((50 * Math.PI) / 180), y: 90 * Math.sin((50 * Math.PI) / 180) };
+    shown.cam.x += now.x - was.x;
+    shown.cam.y += now.y - was.y;
+    shown.cam.rev++;
+    keyDown("Shift");
+    shown.tick();
+    expect(earthAngle(shown)).toBe(45);
+  });
+
+  it("leaves the camera where it is while a preview reaches past the system", () => {
+    detailsLand(SYSTEM);
+    const { canvas, fire } = recordingCanvas();
+    const shown = entered(canvas);
+    const fitted = camera(shown);
+    const from = shown.cam.worldToScreen(90, 0);
+    const far = shown.cam.worldToScreen(700, 0);
+    fire("pointerdown", from.x, from.y);
+    fire("pointermove", from.x - 6, from.y);
+    fire("pointermove", far.x, far.y);
+    shown.tick();
+    expect(shown.context().layout.fitRadius).toBeGreaterThan(700);
+    useGameDataStore.setState({ status: "ready", names: new Map([["NAME_Earth{}", "Gaia"]]) });
+    shown.tick();
+    expect(camera(shown)).toEqual(fitted);
   });
 });
