@@ -34,17 +34,18 @@ describe("the bar each view shows", () => {
 
 describe("the commands each view takes", () => {
   it("the galaxy's edits wait while a system is shown, and the rest run everywhere", () => {
-    for (const command of [
-      "deleteSelection",
-      "selectAll",
-      "browseInitializers",
-      "nudge",
-    ] as const) {
+    for (const command of ["deleteSelection", "selectAll", "browseInitializers"] as const) {
       expect(barTakes("save", command)).toBe(true);
       expect(barTakes("scenario", command)).toBe(true);
       expect(barTakes("system", command)).toBe(false);
     }
     expect(barTakes("system", "undo")).toBe(true);
     expect(barTakes("system", "clearSelection")).toBe(true);
+  });
+
+  it("nudges on every bar: the selection on the galaxy's, the inspected body on the system's", () => {
+    for (const mode of ["save", "scenario", "system"] as const) {
+      expect(barTakes(mode, "nudge")).toBe(true);
+    }
   });
 });

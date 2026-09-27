@@ -4,6 +4,7 @@ import {
   keyAction,
   layerKeyOf,
   nudgeOf,
+  orbitNudge,
   radiusStepOf,
   shortcutLabel,
   toolAction,
@@ -137,6 +138,31 @@ describe("keys", () => {
     expect(nudgeOf(press("ArrowUp"), false)).toBeNull();
     expect(nudgeOf(press("ArrowUp", { ...shift, altKey: true }), false)).toBeNull();
     expect(nudgeOf(press("ArrowUp", shift), true)).toBeNull();
+  });
+
+  it("turns a body clockwise as drawn on screen right and steps it out on screen up", () => {
+    const orbit = (key: string, ctrlKey = false) => {
+      const nudge = nudgeOf(press(key, { shiftKey: true, ctrlKey }), false);
+      if (nudge === null) throw new Error(`${key} does not nudge`);
+      return orbitNudge(nudge);
+    };
+    // Where a body at `angle` degrees about the centre is drawn: right and down are positive.
+    const drawn = (angle: number) => {
+      const a = (angle * Math.PI) / 180;
+      return { x: SAVE_X_SIGN * Math.cos(a), y: SAVE_Y_SIGN * Math.sin(a) };
+    };
+    const top = 270;
+    expect(drawn(top).y).toBeCloseTo(-1);
+    const right = orbit("ArrowRight");
+    const left = orbit("ArrowLeft");
+    expect(Math.abs(right.turn)).toBe(1);
+    expect(right.out).toBe(0);
+    expect(drawn(top + right.turn).x).toBeGreaterThan(0);
+    expect(drawn(top + left.turn).x).toBeLessThan(0);
+    expect(orbit("ArrowUp")).toEqual({ turn: 0, out: 1 });
+    expect(orbit("ArrowDown")).toEqual({ turn: 0, out: -1 });
+    expect(orbit("ArrowRight", true)).toEqual({ turn: 10 * right.turn, out: 0 });
+    expect(orbit("ArrowUp", true)).toEqual({ turn: 0, out: 10 });
   });
 
   it("[ and ] step the selected nebula's radius, by five with Shift", () => {

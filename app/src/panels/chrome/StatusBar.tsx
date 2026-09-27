@@ -1,6 +1,7 @@
 import type { ExportResult } from "../../generated/ExportResult";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { bodyName } from "../../lib/details/labels";
+import { DRAG_HINTS, inspectedBody } from "../../lib/details/orbitEdits";
 import { systemLayout, type SystemLayout } from "../../lib/details/orbits";
 import { shortcutLabel } from "../../lib/keys";
 import { nodeName, type Names } from "../../lib/names";
@@ -12,11 +13,12 @@ import { useGalaxyVersion, useSystemNames } from "../../store/browserRows";
 import { useDetailsStore, useSystemRoll } from "../../store/detailsStore";
 import { galaxyLaneCount, useGalaxyStore } from "../../store/galaxyStore";
 import { moonScaleOf, useGameDataStore } from "../../store/gameDataStore";
-import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
+import { useInspectorStore } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
+import { useSystemGeometry } from "../../store/systemGeometry";
 import { GameDataPanel } from "./GameDataPanel";
 
 const DOCUMENT_KIND: Record<string, string> = {
@@ -175,15 +177,9 @@ function bodyReadout(
   return `${name} · orbit ${orbit} · angle ${Math.round(placed.angle) % 360}°`;
 }
 
-/** The body the page `ref` opens in `system`: a planet by id, or a scenario body of that system. */
-function bodyOn(ref: EntityRef, system: number): number | null {
-  if (ref.kind === "planet") return ref.id;
-  return ref.kind === "body" && ref.system === system ? ref.id : null;
-}
-
 /**
- * The system view's hint: what the scene says (a clicked lane), else the page's body where it is
- * one of the system's, else the way out.
+ * The system view's hint: what the scene says (a clicked lane, a drag), else the page's body where
+ * it is one of the system's, with how to move it where it can move, else the way out.
  */
 function SceneHint({ system }: { system: number }) {
   const details = useDetailsStore((s) => s.details.get(system));
@@ -197,12 +193,15 @@ function SceneHint({ system }: { system: number }) {
   const drawn = useSceneStore((s) => s.roll);
   const roll = useSystemRoll(system, drawn);
   const sceneHint = useMapChromeStore((s) => s.sceneHint);
+  const { editing } = useSystemGeometry(system);
   if (reading) return <span className="muted">Reading the system…</span>;
   if (sceneHint !== null) return <span className="muted">{sceneHint}</span>;
-  const id = top === undefined ? null : bodyOn(top.ref, system);
   const layout = details && systemLayout(details, roll, planetClasses, moonScale);
+  const id = layout ? inspectedBody(layout, system, top?.ref ?? null) : null;
   const body = details && layout && id !== null ? bodyReadout(details, layout, id, names) : null;
-  return <span className="muted">{body ?? LEAVE_HINT}</span>;
+  if (body === null) return <span className="muted">{LEAVE_HINT}</span>;
+  const movable = id !== null && editing.bodies.get(id)?.move === true;
+  return <span className="muted">{movable ? `${body} · ${DRAG_HINTS.movable}` : body}</span>;
 }
 
 function Hint() {

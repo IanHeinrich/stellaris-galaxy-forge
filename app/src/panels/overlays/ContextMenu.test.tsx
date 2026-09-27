@@ -577,3 +577,42 @@ describe("the system view's menus", () => {
     expect(menu()).toContain(">Open system view</button>");
   });
 });
+
+describe("the system view's empty space", () => {
+  const target = { kind: "systemSpace", system: 0, x: 90, y: -120 } as const;
+
+  function inSol(): void {
+    useSceneStore.getState().enterSystem(0);
+    const belts = [{ kind: "icy_asteroid_belt", inner_radius: 80 }];
+    useDetailsStore.setState({ details: new Map([[0, systemDetails({ id: 0, belts })]]) });
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+  }
+
+  it("adds a belt of the system's first kind where it was pressed on a save", async () => {
+    inSol();
+    const html = menu();
+    expect(html).toContain(">Add belt here (r 150)</button>");
+    expect(html.indexOf("Add belt here")).toBeLessThan(html.indexOf("Back to galaxy"));
+
+    menuItem(
+      <SceneSpaceMenu target={target} frame={{}} />,
+      "Add belt here (r 150)",
+    ).props.onClick();
+    await vi.waitFor(() =>
+      expect(ipc.applyOp).toHaveBeenCalledWith({
+        type: "AddSaveBelt",
+        system: 0,
+        kind: "icy_asteroid_belt",
+        radius: 150,
+      }),
+    );
+  });
+
+  it("offers no belt on a scenario", async () => {
+    await openWith(SCENARIO_RESULT);
+    inSol();
+    const html = menu();
+    expect(html).not.toContain("Add belt here");
+    expect(html).toContain(">Back to galaxy</button>");
+  });
+});

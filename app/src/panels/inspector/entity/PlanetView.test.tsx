@@ -7,6 +7,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog
 // The star icons and deposit art come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
+vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import * as ipc from "../../../api/ipc";
 import type { PlanetPage } from "../../../generated/PlanetPage";
@@ -22,6 +23,7 @@ import {
   modifierView,
   name,
   planetClassView,
+  editResult,
   planetPage,
   resourceAmount,
   starClassView,
@@ -33,6 +35,10 @@ import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
+import { orbitClasses, orbitSystem } from "../../../test/builders";
+import { drawnBy, drawnField } from "../../../test/drawn";
+import { mockedIpc } from "../../../test/ipc";
+import { PickerField } from "../../EditField";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 
 bindStores();
@@ -231,7 +237,8 @@ describe("a colony's page", () => {
     for (const left of ["Stability", "Housing", "Amenities", "Habitab", "Ring"]) {
       expect(html).not.toContain(left);
     }
-    expect(html).toContain("radius 60");
+    expect(html).toContain("Reading the system…");
+    expect(html).not.toContain("radius 60");
     expect(html).not.toContain("Controller");
     expect(html.indexOf("Deposits")).toBeLessThan(html.indexOf("Colonised"));
     expect(html.indexOf("Colonised")).toBeLessThan(html.indexOf("About"));
@@ -607,5 +614,84 @@ describe("a planet with no page of its own", () => {
     const html = render(WORLD);
     expect(html).not.toContain("Deposits");
     expect(html).toContain(GENERIC_HEAD);
+  });
+});
+
+describe("a body's orbit", () => {
+  const PLANET = 2;
+  const MOON = 3;
+  const LONE = 5;
+
+  /** The orbit fixture's system as system `SYSTEM`, its ringed planet named Sol III. */
+  async function landOrbits(): Promise<void> {
+    const read = orbitSystem({ id: SYSTEM, with_game_data: true });
+    read.planets = read.planets.map((p) =>
+      p.id === PLANET ? { ...p, name: name("Sol_III"), name_key: "Sol_III" } : p,
+    );
+    useGameDataStore.setState({ planetClasses: orbitClasses() });
+    await land(read);
+  }
+
+  const bodyPage = (id: number, over: Partial<PlanetPage> = {}) =>
+    landPage(planetPage({ id, class: "pc_arid", ...over }));
+
+  it("opens with what the body orbits, its radius and its angle to edit, read from the layout", async () => {
+    await open("save");
+    await landOrbits();
+    await bodyPage(LONE, { orbit: 999 });
+
+    const html = drawnBy(() => render(LONE));
+    expect(html).toContain('aria-label="Orbit"');
+    expect(html).toContain('aria-label="Orbits: The star"');
+    expect(html).toMatch(/<input type="number"[^>]*aria-label="Orbit radius"[^>]*value="100"/);
+    expect(html).toMatch(/<input type="number"[^>]*aria-label="Angle"[^>]*value="120"/);
+    expect(html).not.toContain("999");
+    expect(html).not.toContain("Measured from");
+    expect(html).toContain("editable · plain text is information");
+    expect(html.indexOf("Orbit radius")).toBeLessThan(html.indexOf("About"));
+
+    const orbits = drawnField(PickerField, "Orbits");
+    expect(orbits.items.map((item) => item.label)).toEqual(["The star", "Sol III"]);
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    orbits.onPick(String(PLANET));
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "SetSaveBodyParent",
+          body: LONE,
+          parent: PLANET,
+          radius: 25,
+        }),
+      ),
+    );
+  });
+
+  it("says a moon's orbit is measured from its planet, and offers no picker to a planet with moons", async () => {
+    await open("save");
+    await landOrbits();
+    await bodyPage(MOON, { parent: PLANET });
+    await bodyPage(PLANET);
+
+    const moon = render(MOON);
+    expect(moon).toContain("Measured from Sol III");
+    expect(moon).toContain('aria-label="Orbits: Sol III"');
+    expect(moon).toMatch(/aria-label="Orbit radius"[^>]*value="15"/);
+    expect(moon).toMatch(/Orbits<\/span>.*?Sol III/);
+
+    const planet = render(PLANET);
+    expect(planet).toMatch(/aria-label="Orbit radius"[^>]*value="60"/);
+    expect(planet).not.toContain('aria-label="Orbits:');
+  });
+
+  it("reads the system first, and shows no orbit fields on a scenario", async () => {
+    await open("save");
+    await bodyPage(LONE);
+    expect(render(LONE)).toContain("Reading the system…");
+
+    await open("scenario");
+    await landOrbits();
+    const html = render(LONE);
+    expect(html).not.toContain("Orbit radius");
+    expect(html).not.toContain("Reading the system…");
   });
 });

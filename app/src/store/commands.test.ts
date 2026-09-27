@@ -5,12 +5,17 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { run, type CommandEffects } from "./commands";
+import { SAVE_Y_SIGN } from "../lib/geometry/geometry";
+import { mockedIpc } from "../test/ipc";
+import { nudgeSelected, run, type CommandEffects } from "./commands";
+import { useDetailsStore } from "./detailsStore";
+import { openFixtureSave } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
-import { OPEN_RESULT } from "./fixture";
+import { editResult, OPEN_RESULT, orbitClasses, orbitSystem } from "./fixture";
+import { useGameDataStore } from "./gameDataStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useInitializerBrowserStore } from "./initializerBrowserStore";
-import { useInspectorStore, type Entry } from "./inspectorStore";
+import { bodyEntryOf, useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useSceneStore } from "./sceneStore";
@@ -101,5 +106,40 @@ describe("fitSelection", () => {
     run("fitSelection", false, effects);
     expect(useEditorStore.getState().fitSelectionNonce).toBe(framed + 1);
     expect(useEditorStore.getState().fitNonce).toBe(fitted);
+  });
+});
+
+describe("Shift+Arrow", () => {
+  const SYSTEM = 0;
+  const LONE = 5;
+
+  beforeEach(async () => {
+    await openFixtureSave();
+    useDetailsStore.setState({ details: new Map([[SYSTEM, orbitSystem({ id: SYSTEM })]]) });
+    useGameDataStore.setState({ planetClasses: orbitClasses() });
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+  });
+
+  it("in a system view, steps the inspected body one unit out and leaves the selected systems alone", async () => {
+    useEditorStore.setState({ selection: [SYSTEM] });
+    useSceneStore.getState().enterSystem(SYSTEM);
+    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SYSTEM, LONE, "Body"));
+
+    nudgeSelected({ dx: 0, dy: -SAVE_Y_SIGN });
+    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledOnce());
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "MoveSaveBody",
+      system: SYSTEM,
+      body: LONE,
+      radius: 101,
+      angle: expect.closeTo(120, 9),
+    });
+  });
+
+  it("on the galaxy, moves the selected systems", async () => {
+    useEditorStore.setState({ selection: [SYSTEM] });
+    nudgeSelected({ dx: 1, dy: 0 });
+    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledOnce());
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith(expect.objectContaining({ type: "MoveSystem" }));
   });
 });

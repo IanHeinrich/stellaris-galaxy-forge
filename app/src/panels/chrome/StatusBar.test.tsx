@@ -287,12 +287,13 @@ describe("the system view", () => {
     expect(html).toContain("Esc back to galaxy");
 
     useInspectorStore.getState().open({ ref: { kind: "planet", id: 12 }, label: "Earth" });
-    expect(bar()).toContain("Earth · orbit 45 · angle 270°");
+    expect(bar()).toContain("Earth · orbit 45 · angle 270° · drag to move · Shift+arrows nudge");
 
     useMapChromeStore.getState().setSceneHint("Sol — Alpha Centauri · length 43");
     html = bar();
     expect(html).toContain("Sol — Alpha Centauri · length 43");
     expect(html).not.toContain("Earth · orbit 45");
+    expect(html).not.toContain("drag to move");
     useMapChromeStore.getState().setSceneHint(null);
     expect(bar()).toContain("Earth · orbit 45 · angle 270°");
 
@@ -352,6 +353,7 @@ describe("the system view of a scenario", () => {
 
     useInspectorStore.getState().open({ ref: { kind: "body", system: 0, id: 12 }, label: "Earth" });
     expect(bar()).toContain("Earth · orbit 52 · angle 30°");
+    expect(bar()).not.toContain("drag to move");
 
     useSceneStore.getState().rollAgain();
     useDetailsStore.getState().requestRoll(0, 1);

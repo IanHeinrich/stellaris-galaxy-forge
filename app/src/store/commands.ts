@@ -1,6 +1,6 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
 import type { DocumentKind } from "../generated/DocumentKind";
-import { isToolAction, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
+import { isToolAction, orbitNudge, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
 import { groupsFor, type Source } from "../lib/visual/layerGroups";
 import {
   barShows,
@@ -19,6 +19,7 @@ import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useOpenScreenStore } from "./openScreenStore";
 import { canEnterSystem, currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
+import { nudgeBody } from "./systemGeometry";
 import { symmetryAllowed, toolAllowed, useToolStore } from "./toolStore";
 
 export interface CommandEffects {
@@ -104,8 +105,14 @@ export function resizeNebula(step: number): boolean {
   return true;
 }
 
-export function nudgeSelected({ dx, dy }: Nudge): void {
+/** Shift+Arrow: moves the body the inspector shows in a system view, else the galaxy's selection. */
+export function nudgeSelected(nudge: Nudge): void {
   if (!barTakesNow("nudge")) return;
+  if (currentBarMode() === "system") {
+    void nudgeBody(orbitNudge(nudge));
+    return;
+  }
+  const { dx, dy } = nudge;
   const editor = useEditorStore.getState();
   const index = editor.selectedNebula;
   if (index === null) {
