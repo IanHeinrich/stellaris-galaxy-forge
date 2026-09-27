@@ -4,7 +4,8 @@
 use crate::common;
 
 use sgf_core::format::save::details::DetailsResolver;
-use sgf_gamedata::views::{BypassView, ShipSizeView, TerraformCandidateView};
+use sgf_gamedata::summary::Named;
+use sgf_gamedata::views::{BypassView, GameDataSummary, ShipSizeView, TerraformCandidateView};
 
 #[test]
 fn sprites_resolve() {
@@ -414,12 +415,73 @@ fn a_tie_between_requirement_sets_goes_to_the_first_seen_and_a_link_votes_once()
 }
 
 #[test]
+fn asteroid_belt_kinds_read_and_localised_or_readable() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/asteroid_belts/00_test.txt",
+            "fx_named_belt = {\n\tmesh = \"x\"\n}\nfx_unnamed_belt = {\n\tmesh = \"y\"\n}\n",
+        ),
+        (
+            "localisation/english/fx_l_english.yml",
+            "l_english:\n fx_named_belt:0 \"Named Belt\"\n",
+        ),
+    ]);
+    let keys: Vec<&str> = gd.asteroid_belts.iter().map(|b| b.key.as_str()).collect();
+    assert_eq!(keys, ["fx_named_belt", "fx_unnamed_belt"]);
+    assert_eq!(gd.loc.name_or_readable("fx_named_belt"), "Named Belt");
+    assert_eq!(
+        gd.loc.name_or_readable("fx_unnamed_belt"),
+        "Fx Unnamed Belt",
+        "a kind with no localisation is made readable from its key"
+    );
+}
+
+#[test]
+fn summary_lists_belt_kinds_with_readable_names() {
+    let (_dir, gd) = common::hand_written(&[(
+        "common/asteroid_belts/00_test.txt",
+        "fx_a_belt = {\n\tmesh = \"x\"\n}\nfx_b_belt = {\n\tmesh = \"y\"\n}\n",
+    )]);
+    let summary = GameDataSummary::from(&gd);
+    assert_eq!(
+        summary.belt_kinds,
+        vec![
+            Named {
+                key: "fx_a_belt".to_owned(),
+                name: "Fx A Belt".to_owned(),
+            },
+            Named {
+                key: "fx_b_belt".to_owned(),
+                name: "Fx B Belt".to_owned(),
+            },
+        ]
+    );
+}
+
+#[test]
 fn vanilla_registries() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
     assert!(gd.sprites.len() >= 76, "{}", gd.sprites.len());
     assert!(gd.deposits.len() >= 580, "{}", gd.deposits.len());
+
+    assert!(
+        gd.asteroid_belts.get("rocky_asteroid_belt").is_some(),
+        "{:?}",
+        gd.asteroid_belts.iter().map(|b| &b.key).collect::<Vec<_>>()
+    );
+    for init in gd.initializers.iter() {
+        for belt in &init.asteroid_belts {
+            assert!(
+                gd.asteroid_belts.get(&belt.kind).is_some(),
+                "{} names undeclared belt kind {}",
+                init.name,
+                belt.kind
+            );
+        }
+    }
+
     assert_eq!(gd.planet_classes.len(), 69, "{}", gd.planet_classes.len());
     assert!(gd.planet_classes.iter().all(|c| c.key.starts_with("pc_")));
     assert_eq!(gd.colors.entries.len(), 72, "{}", gd.colors.entries.len());
