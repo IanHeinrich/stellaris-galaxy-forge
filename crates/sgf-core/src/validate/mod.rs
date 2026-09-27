@@ -1,5 +1,6 @@
 //! Validation rules over the galaxy projection. Cheap enough to run after every op.
 
+pub(crate) mod bodies;
 mod paint;
 mod scenario;
 
