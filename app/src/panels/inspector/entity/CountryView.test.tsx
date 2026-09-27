@@ -24,6 +24,7 @@ import {
   CountryView,
   FLAG_NEEDS_GAME_DATA,
   FLAG_UNREADABLE,
+  INDEPENDENT_MAP_COLOUR,
   MAP_COLORS_NEED_4_5,
 } from "./CountryView";
 import { mockedIpc } from "../../../test/ipc";
@@ -122,7 +123,7 @@ describe("an empire's Overview", () => {
     expect(html).toContain('aria-label="Map colours"');
     expect(html).toContain('class="icon-picker-trigger edit-field"');
     expect(html).toContain('aria-label="Border: intense_red"');
-    expect(html).toContain("Use flag colours instead");
+    expect(html).toContain(INDEPENDENT_MAP_COLOUR);
     expect(html.indexOf("Map colours")).toBeLessThan(html.indexOf("About"));
     expect(html).toContain('title="Select the capital system"');
     expect(html).toContain("2 systems");
@@ -136,7 +137,7 @@ describe("an empire's Overview", () => {
     const html = page("overview");
     expect(html).toContain(MAP_COLORS_NEED_4_5);
     expect(html).toContain(`title="${MAP_COLORS_NEED_4_5}" disabled=""`);
-    expect(html).not.toContain("Use flag colours instead");
+    expect(html).not.toContain(INDEPENDENT_MAP_COLOUR);
   });
 
   it("keeps the generic view on the Data tab", async () => {
@@ -157,17 +158,20 @@ describe("an empire's map colour fields", () => {
     expect(html).toContain('aria-label="Fill: light_pink"');
     expect(html).toContain("background:#e02020");
     expect(html).toContain("background:#f0b0c0");
-    expect(html).not.toMatch(/<input[^>]*checked/);
+    expect(html).toMatch(/<input[^>]*checked/);
     expect(html).toContain("Palette: Stellaris");
     expect(html).not.toContain(MAP_COLORS_NEED_4_5);
   });
 
-  it("ticks the flag colours box when map colours are off, and names a colour it cannot find", async () => {
+  it("shows the flag colours as plain text when independent map colour is off", async () => {
     await openSaveWith({ ...CHOSEN, use_map_color: false, painted_border: "red" });
 
     const html = page("overview");
-    expect(html).toMatch(/<input[^>]*checked/);
-    expect(html).toContain('aria-label="Border: unknown: red"');
+    expect(html).not.toMatch(/<input[^>]*checked/);
+    expect(html).not.toContain('aria-label="Border:');
+    expect(html).toContain("unknown: red");
+    expect(html).toContain("flag primary");
+    expect(html).toContain("The map uses the flag&#x27;s primary and secondary colours.");
   });
 
   it("sends the pair a pick makes, and the flag colours the box asks for", async () => {
@@ -183,7 +187,7 @@ describe("an empire's map colour fields", () => {
       }),
     );
 
-    drawnField(ToggleField, "Use flag colours instead").onChange(true);
+    drawnField(ToggleField, INDEPENDENT_MAP_COLOUR).onChange(false);
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetEmpireMapColors",

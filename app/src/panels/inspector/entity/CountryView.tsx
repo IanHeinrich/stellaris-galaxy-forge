@@ -34,6 +34,7 @@ import "./entity.css";
 import { useEntityView } from "./useEntity";
 
 export const MAP_COLORS_NEED_4_5 = "Map colours need a Stellaris 4.5 save";
+export const INDEPENDENT_MAP_COLOUR = "Independent map colour";
 export const FLAG_NEEDS_GAME_DATA = "Load game data to change the flag";
 export const FLAG_UNREADABLE = "The save has no complete flag for this empire";
 
@@ -293,38 +294,66 @@ function MapColorFields({ country }: { country: CountryNode }) {
   const set = (colors: MapColorPair | null) =>
     applyOp({ type: "SetEmpireMapColors", country: country.id, colors });
   const pick = (pair: MapColorPair) => {
-    if (!on || pair.border !== border || pair.fill !== fill) set(pair);
+    if (pair.border !== border || pair.fill !== fill) set(pair);
   };
   const swatches = [...palette.keys()].map((name) => colorSwatch(name, palette));
   return (
     <EditBlock title="Map colours">
-      <EditRow label="Border">
-        <SwatchField
-          label="Border"
-          title="The colour of the empire's border on the map"
-          current={colorSwatch(border, palette)}
-          swatches={swatches}
-          onPick={(name) => pick({ border: name, fill })}
-        />
-      </EditRow>
-      <EditRow label="Fill">
-        <SwatchField
-          label="Fill"
-          title="The colour the empire's territory is filled with on the map"
-          current={colorSwatch(fill, palette)}
-          swatches={swatches}
-          onPick={(name) => pick({ border, fill: name })}
-        />
-      </EditRow>
       <ToggleField
-        label="Use flag colours instead"
-        checked={!on}
-        onChange={(flag) => set(flag ? null : { border, fill })}
+        label={INDEPENDENT_MAP_COLOUR}
+        title="On: the border and fill use the colours below. Off: they come from the flag's primary and secondary colours."
+        checked={on}
+        onChange={(independent) => set(independent ? { border, fill } : null)}
       />
+      {on ? (
+        <>
+          <EditRow label="Border">
+            <SwatchField
+              label="Border"
+              title="The colour of the empire's border on the map"
+              current={colorSwatch(border, palette)}
+              swatches={swatches}
+              onPick={(name) => pick({ border: name, fill })}
+            />
+          </EditRow>
+          <EditRow label="Fill">
+            <SwatchField
+              label="Fill"
+              title="The colour the empire's territory is filled with on the map"
+              current={colorSwatch(fill, palette)}
+              swatches={swatches}
+              onPick={(name) => pick({ border, fill: name })}
+            />
+          </EditRow>
+        </>
+      ) : (
+        <>
+          <EditRow label="Border">
+            <FlagColourText swatch={colorSwatch(border, palette)} source="flag primary" />
+          </EditRow>
+          <EditRow label="Fill">
+            <FlagColourText swatch={colorSwatch(fill, palette)} source="flag secondary" />
+          </EditRow>
+          <EditNote>The map uses the flag&apos;s primary and secondary colours.</EditNote>
+        </>
+      )}
       {paletteLines(palette, source).map((line) => (
         <EditNote key={line}>{line}</EditNote>
       ))}
     </EditBlock>
+  );
+}
+
+/** A map colour the flag decides, as plain text: its swatch, its name and where it comes from. */
+function FlagColourText({ swatch, source }: { swatch: Swatch; source: string }) {
+  return (
+    <span className="edit-derived">
+      {swatch.color !== undefined && (
+        <span className="swatch" style={{ background: swatch.color }} />
+      )}
+      {swatch.label}
+      <span className="muted"> · {source}</span>
+    </span>
   );
 }
 

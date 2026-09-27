@@ -196,6 +196,13 @@
   margin: 0;
 }
 
+.edit-derived {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+}
+
 .edit-block {
   margin: 6px 0 8px;
   padding: 6px 8px;
