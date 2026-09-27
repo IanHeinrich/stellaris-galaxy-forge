@@ -1,12 +1,15 @@
 import { Container, type Renderer } from "pixi.js";
+import type { GeometryIntent } from "../../lib/details/orbitEdits";
 import { laneLabel } from "../../lib/names";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import type { EntityRef } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { applyGeometry } from "../../store/systemGeometry";
 import { Camera } from "../Camera";
 import type { Scene } from "../Scene";
 import { bindSystemScene, type SceneView } from "./bindings";
+import type { DragStep, HandleRef } from "./bodyDrag";
 import { fitScale, zoomLimits } from "./camera";
 import { EMPTY_SYSTEM_CONTEXT, selectedBody, systemContext, type SystemContext } from "./context";
 import { readSystemSources, sameSources } from "./sources";
@@ -15,8 +18,10 @@ import { pickPlate } from "./picking";
 import { BeltsLayer } from "./layers/BeltsLayer";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { ExitsLayer } from "./layers/ExitsLayer";
+import { HandlesLayer } from "./layers/HandlesLayer";
 import { HighlightLayer } from "./layers/HighlightLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
+import { LocksLayer } from "./layers/LocksLayer";
 import { NebulaLayer } from "./layers/NebulaLayer";
 import { OrbitsLayer } from "./layers/OrbitsLayer";
 import { RadiiLayer } from "./layers/RadiiLayer";
@@ -34,9 +39,20 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   readonly root = new Container();
   private readonly layers: SystemLayer[];
   private readonly labels = new LabelsLayer();
+  private readonly highlights = new HighlightLayer();
+  private readonly handles = new HandlesLayer();
   private readonly interaction: SystemInteraction;
   private readonly textures: SceneTextures;
+  /** What the stores give, with no preview: what a drag starts from. */
+  private base: SystemContext = EMPTY_SYSTEM_CONTEXT;
+  /** What is drawn: `base`, or `base` with the step's preview once a frame has applied it. */
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
+  /** A drag's last step, shown in place of `base` until it is dropped or the edit lands. */
+  private step: DragStep | null = null;
+  /** The step was released and sent; it stays until the system's details are replaced. */
+  private held = false;
+  /** The step changed since a frame last applied it. */
+  private stepPending = false;
   private highlight: SceneHighlight = NO_HIGHLIGHT;
   private id: number | null = null;
   /** The scene store's count of systems entered, as it stood when this system was shown. */
@@ -58,12 +74,14 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       new NebulaLayer(textures.nebula),
       new OrbitsLayer(),
       new RolledLayer(),
-      new BeltsLayer(textures.rock),
+      new BeltsLayer(textures.belt),
       new ExitsLayer(),
       new RadiiLayer(),
       new BodiesLayer(textures),
+      new LocksLayer(),
+      this.handles,
       this.labels,
-      new HighlightLayer(),
+      this.highlights,
     ];
     for (const layer of this.layers) this.root.addChild(layer.container);
     this.interaction = new SystemInteraction(canvas, this.cam, this);
@@ -91,7 +109,9 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   activate(): void {
     this.shown = true;
     this.fitPending = true;
+    this.base = EMPTY_SYSTEM_CONTEXT;
     this.ctx = EMPTY_SYSTEM_CONTEXT;
+    this.setStep(null);
     this.refresh();
     this.drawHighlight();
     this.interaction.activate();
@@ -116,6 +136,43 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     return this.ctx;
   }
 
+  frame(): SystemContext {
+    return this.base;
+  }
+
+  preview(step: DragStep | null): void {
+    this.setStep(step);
+    if (step) useMapChromeStore.getState().setSceneHint(step.hint);
+    else this.showLane();
+  }
+
+  /**
+   * Sends `intent` and keeps the preview up: the edit only stales the details, so dropping it now
+   * would show the old place until the fresh details land. An edit refused drops it.
+   */
+  commit(intent: GeometryIntent): void {
+    this.held = true;
+    const step = this.step;
+    this.showLane();
+    const drop = () => {
+      if (this.held && this.step === step) this.setStep(null);
+    };
+    applyGeometry(intent).then((applied) => {
+      if (!applied) drop();
+    }, drop);
+  }
+
+  holding(): boolean {
+    return this.held && this.step !== null;
+  }
+
+  private setStep(step: DragStep | null): void {
+    if (step === null && this.step === null) return;
+    this.step = step;
+    this.held = false;
+    this.stepPending = true;
+  }
+
   plateAt(sx: number, sy: number): number | null {
     return pickPlate(this.labels.plates(), this.cam, { x: sx, y: sy });
   }
@@ -123,18 +180,48 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   /** Does nothing while the scene is hidden: showing it reads the stores again. */
   refresh(): void {
     if (!this.shown) return;
-    if (this.id !== null) useDetailsStore.getState().request([this.id]);
+    const details = useDetailsStore.getState();
+    if (this.id !== null) details.request([this.id]);
+    // No fresh details will come to end the hold.
+    if (this.holding() && this.id !== null && details.failed.has(this.id)) this.setStep(null);
     const sources = readSystemSources(this.id);
-    if (sameSources(sources, this.ctx)) return;
+    if (sameSources(sources, this.base)) return;
+    // Another system, or its details answered afresh after an edit, undo or reload: a drag's
+    // preview was measured on what went.
+    const rebased = sources.id !== this.base.id || sources.details !== this.base.details;
     const before = this.ctx.layout.fitRadius;
-    this.ctx = systemContext(sources);
-    for (const layer of this.layers) layer.rebuild(this.ctx);
-    this.selectBody(this.inspected);
-    if (this.ctx.layout.fitRadius !== before && this.untouched()) {
+    this.base = systemContext(sources);
+    if (rebased && this.step) {
+      this.interaction.cancelDrag();
+      this.setStep(null);
+    }
+    this.apply();
+    if (!this.step && this.ctx.layout.fitRadius !== before && this.untouched()) {
       this.fitPending = true;
     }
+    if (!this.step || this.held) this.showLane();
+  }
+
+  /** Draws `base`, or the step's preview over it. */
+  private apply(): void {
+    this.stepPending = false;
+    const step = this.step;
+    const base = this.base;
+    if (step) {
+      const frame = {
+        layout: base.layout,
+        details: base.details,
+        planetClasses: base.planetClasses,
+        radii: base.radii,
+      };
+      const override = base.geometry.preview(step.intent, frame);
+      this.ctx = systemContext(base, { override, marks: step.marks });
+    } else {
+      this.ctx = base;
+    }
+    for (const layer of this.layers) layer.rebuild(this.ctx);
+    this.selectBody(this.inspected);
     this.appliedRev = -1;
-    this.showLane();
     this.interaction.contextChanged();
   }
 
@@ -143,8 +230,13 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     this.setHighlight({ selectedBody: selectedBody(this.ctx, top) });
   }
 
-  hover(body: number | null, exit: number | null): void {
+  hover(body: number | null, exit: number | null, handle: HandleRef | null): void {
     this.setHighlight({ hoverBody: body, hoverExit: exit });
+    this.highlights.hoverHandle(handle);
+  }
+
+  revealHandles(owner: HandleRef | null): void {
+    this.handles.reveal(owner);
   }
 
   linkBody(id: number | null): void {
@@ -216,6 +308,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   }
 
   tick(): void {
+    if (this.stepPending) this.apply();
     const { width, height } = this.cam;
     if (this.fitPending) {
       this.fitPending = false;

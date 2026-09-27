@@ -205,6 +205,12 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
     fix: "Nothing needs doing. Move the home away from the seat if you would rather the raids were spread.",
     detail: true,
   },
+  bodies_overlap: {
+    title: "Two bodies in the same place",
+    why: "Two planets or moons share an orbit and an angle, so the game draws one on top of the other.",
+    fix: "Open the system view and drag one along its orbit, or type a new angle on its planet page.",
+    detail: true,
+  },
 };
 
 /** Everything the panel and the map tooltip say about one kind of finding. */

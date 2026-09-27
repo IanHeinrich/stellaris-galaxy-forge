@@ -24,6 +24,7 @@ pub use update::*;
 use std::ops::Deref;
 use std::sync::MutexGuard;
 
+use sgf_core::ops::SystemRadii;
 use sgf_core::session::Session;
 use sgf_core::views::{DocumentKind, ErrorKind, Progress, ProgressPhase, SgfError};
 use sgf_gamedata::{GameData, LoadError};
@@ -42,6 +43,22 @@ const VALIDATE_AT: f64 = 0.9;
 const DISCOVER_AT: f64 = 0.1;
 const DEFINITIONS_AT: f64 = 0.4;
 const LOCALISATION_AT: f64 = 0.7;
+
+/// Size `session`'s systems by the loaded game data's defines, or vanilla's without any.
+pub(crate) fn size_systems<R: Runtime>(app: &AppHandle<R>, session: &mut Session) {
+    let radii = app
+        .state::<GameDataState>()
+        .loaded()
+        .map_or(SystemRadii::VANILLA, |gd| gd.system_radii);
+    session.set_radii(radii);
+}
+
+/// [`size_systems`] for the open session, once game data has loaded, unloaded or reloaded.
+pub(crate) fn resize_open_session<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(session) = lock(&app.state::<AppState>()).as_mut() {
+        size_systems(app, session);
+    }
+}
 
 /// Run `f` over the open scenario and the loaded game data, off the caller's thread.
 /// `None` on a save, without game data, or when `f` finds nothing; fails when nothing is open.

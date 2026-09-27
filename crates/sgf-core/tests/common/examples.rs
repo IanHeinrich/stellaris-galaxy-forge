@@ -403,6 +403,47 @@ pub fn one_of_each() -> Vec<Example> {
                 turbulent: false,
             }],
         }),
+        Example::save_4_5(Op::MoveSaveBody {
+            system: 1,
+            body: 585,
+            radius: 70.0,
+            angle: 40.0,
+        }),
+        Example::save_4_5(Op::SetSaveBodyParent {
+            system: 1,
+            body: 588,
+            parent: Some(589),
+            star: false,
+            radius: 20.0,
+            angle: 90.0,
+        }),
+        Example::save_4_5(Op::SetPlanetRing {
+            planet: 585,
+            ring: true,
+        }),
+        Example::save_4_5(Op::AddSaveBelt {
+            system: 140,
+            kind: "rocky_asteroid_belt".to_owned(),
+            radius: 120.0,
+        }),
+        Example::save_4_5(Op::RemoveSaveBelt {
+            system: 140,
+            index: 1,
+        }),
+        Example::save_4_5(Op::SetSaveBeltRadius {
+            system: 140,
+            index: 0,
+            radius: 55.0,
+        }),
+        Example::save_4_5(Op::SetSaveBeltKind {
+            system: 140,
+            index: 0,
+            kind: "icy_asteroid_belt".to_owned(),
+        }),
+        Example::save_4_5(Op::SetSaveInnerRadius {
+            system: 1,
+            radius: 200.0,
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),

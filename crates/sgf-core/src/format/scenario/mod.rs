@@ -135,6 +135,7 @@ impl Format for Scenario {
             added_systems: false,
             bodies: false,
             deposits: false,
+            geometry: false,
             map_colors: false,
             lgate: false,
             symmetry: true,

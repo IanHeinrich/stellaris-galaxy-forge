@@ -42,10 +42,12 @@ use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
 use registries::star_classes::StarClass;
 use registries::{colors, gfx, planet_lists, registry, star_names, starbase_levels};
+use sgf_core::ops::SystemRadii;
 
 pub use initializers::Initializers;
 pub use install::layers::Layout;
 pub use loc::localisation::Localisation;
+pub use registries::asteroid_belts::AsteroidBelts;
 pub use registries::bypasses::Bypasses;
 pub use registries::colony_types::ColonyTypes;
 pub use registries::colors::Colors;
@@ -98,6 +100,7 @@ pub struct GameData {
     pub static_modifiers: Arc<StaticModifiers>,
     pub planet_modifiers: Arc<PlanetModifiers>,
     pub colony_types: Arc<ColonyTypes>,
+    pub asteroid_belts: Arc<AsteroidBelts>,
     pub bypasses: Arc<Bypasses>,
     pub planet_classes: Arc<PlanetClasses>,
     /// `common/planet_classes`' `rl_` lists an initializer's body draws its class from.
@@ -111,6 +114,8 @@ pub struct GameData {
     pub border: Arc<BorderDefines>,
     /// `NGameplay`'s deposit counts and Resource Abundance range.
     pub deposit_defines: Arc<DepositDefines>,
+    /// `NGameplay`'s rules for how far out a system's inner and outer radii lie.
+    pub system_radii: SystemRadii,
     /// `common/scripted_triggers`, which a deposit's `potential` and `drop_weight` call.
     pub scripted_triggers: Arc<ScriptedTriggers>,
     pub loc: Arc<Localisation>,
@@ -282,6 +287,7 @@ impl GameData {
         );
         let planet_modifiers = registry::load(&layout, &vars, &mut diagnostics);
         let colony_types = registry::load(&layout, &vars, &mut diagnostics);
+        let asteroid_belts = registry::load(&layout, &vars, &mut diagnostics);
         let bypasses = registry::load(&layout, &vars, &mut diagnostics);
         let planet_dir = ParsedDir::load(&layout, PlanetClassDef::DIR, &mut diagnostics);
         let planet_lists = planet_lists::read(&planet_dir);
@@ -300,6 +306,7 @@ impl GameData {
         let define_files = ParsedDir::load(&layout, "common/defines", &mut diagnostics);
         let border = BorderDefines::load(&define_files);
         let deposit_defines = DepositDefines::load(&define_files);
+        let system_radii = registries::defines::system_radii(&define_files);
         let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
 
         progress(Phase::Localisation);
@@ -325,6 +332,7 @@ impl GameData {
             static_modifiers: Arc::new(static_modifiers),
             planet_modifiers: Arc::new(planet_modifiers),
             colony_types: Arc::new(colony_types),
+            asteroid_belts: Arc::new(asteroid_belts),
             bypasses: Arc::new(bypasses),
             planet_classes: Arc::new(planet_classes),
             planet_lists: Arc::new(planet_lists),
@@ -335,6 +343,7 @@ impl GameData {
             galaxy_sizes: Arc::new(galaxy_sizes),
             border: Arc::new(border),
             deposit_defines: Arc::new(deposit_defines),
+            system_radii,
             scripted_triggers: Arc::new(scripted_triggers),
             loc: Arc::new(loc),
             diagnostics,

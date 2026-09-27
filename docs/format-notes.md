@@ -169,6 +169,13 @@ for planets or deposits.
   stores a negative `orbit`. No angle is stored. A moon keeps its
   `moon_of` after the game deletes the planet, so the key can name a
   `none` slot (4.5 sample, system 40).
+- A planet orbiting a star is written like a moon of it: `moon_of=<star>`
+  and its id in the star's `moons`, but with no 512 in `binary_flags`.
+  In Alpha Centauri (4.4 sample, system 278) the companion star 327 has
+  `moons={ 328 329 }`, with `binary_flags=73` and `321`. None of the 200
+  bodies of the 4.4 sample whose `moon_of` is a star has 512. A few name
+  the star at the centre (4.5 sample, system 76's asteroids name 1270);
+  they orbit the centre.
 - Planets, deposits and construction queues are slot tables. An id is
   `slot | generation<<24`, and the table is sorted by slot. A dead slot
   keeps its old id as `<id>=none`. When the game reuses a dead slot, it
@@ -190,7 +197,10 @@ for planets or deposits.
   `storm=4294967295`. It has no `arm`.
 - `inner_radius` is max(150, outermost reach + 30), where a moon
   reaches its own orbit plus its planet's. `outer_radius` is
-  `inner_radius` + 100. The game writes some radii with decimals:
+  `inner_radius` + 100. The three numbers are `NGameplay`'s
+  `SYSTEM_MIN_INNER_RADIUS`, `SYSTEM_INNER_RADIUS_OFFSET` and
+  `SYSTEM_OUTER_RADIUS_OFFSET` in the install's defines, which mods can
+  change. The editor uses the loaded install's values. The game writes some radii with decimals:
   Baxom (system 33 of the 4.4 sample) has `inner_radius=299.11` and
   `outer_radius=399.11`.
 - Each body is a `planets.planet` entry. Its deposits are `deposit`
@@ -206,11 +216,15 @@ for planets or deposits.
   `SUBPLANET_NAME_FORMAT` with the parent's whole name and a letter.
 - A system with belts writes
   `asteroid_belts={ { type="icy_asteroid_belt" inner_radius=120 } }`
-  after `hyperlane`, or after `star_class` when it has no lanes. It
-  holds one block per initializer `asteroid_belt`, in script order,
-  laid out like the `hyperlane` entries. `inner_radius` is the script's
-  `radius` as written. A belt does not move the system's
-  `inner_radius`, only the bodies do.
+  after `hyperlane`, or after `star_class` when it has no lanes, and
+  before whichever of `discovery`, `arm`, `flags` and `initializer`
+  comes first. It holds one block per initializer `asteroid_belt`, in
+  script order, laid out like the `hyperlane` entries. `inner_radius` is
+  the script's `radius` as written. The game sizes a new system's
+  `inner_radius` by its bodies alone. In the samples, 2 of the 254 4.5
+  systems with belts have one past it, and none of the 359 in 4.4. When
+  the editor adds or moves a belt, the belt counts toward the reach, so a
+  belt put past the inner radius grows it as a body does.
 
   An asteroid is a body whose class has `asteroid = yes`. Its entry
   looks like a planet's, at the belt's `orbit`, with `planet_size=5`,
@@ -250,6 +264,29 @@ for planets or deposits.
   alongside any of them. A body with none of them writes no
   `binary_flags`. A plain moon is therefore 576, a fixed-name planet 65
   and a ringed planet 320.
+- A moved planet gets a new `orbit` and `coordinate` x/y. Each of its
+  moons' points moves by the same step, since moon points are
+  system-relative, and their own `orbit` stays. A body moved along its
+  ring keeps its stored `orbit` and only its point changes.
+- A planet made a moon gets `moon_of=<planet>` before `moons` or
+  `planet_orbitals`, its id in the parent's `moons={ 588 590 }` in
+  ascending order before `planet_orbitals`, and `binary_flags` with 512
+  and 64 set, written before `coordinate` when the body had none. A moon
+  made a planet loses `moon_of` and its id from the old parent's
+  `moons`, which goes with its last id. Its `binary_flags` loses 512 and
+  goes when only 64 is left. The system's `planet=` list keeps its
+  order, so a moon can come before its planet, which the game itself
+  never writes.
+- The game writes a planet's first moon at `orbit=15` and each further
+  moon 5 further out. 966 of the 4.5 sample's 1,593 moons sit at 15.
+- A few bodies the game places by event, such as an astral scar, have
+  `orbit=0` but stand far out. The system's `inner_radius` leaves them
+  out, and so does the editor when it works out how far a system
+  reaches.
+- The game scatters a belt's asteroids up to about 7 units either side
+  of the belt's radius. A few pairs stand within half a unit and half a
+  degree of each other. The overlapping-bodies finding leaves those
+  alone.
 - A layout's `entity = "…"` is written as `entity_name="…"` after
   `entity=`, and `entity=` is still written.
 - A layout's `add_modifier = { modifier = X days = -1 }` becomes an

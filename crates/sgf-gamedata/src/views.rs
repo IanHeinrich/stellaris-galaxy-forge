@@ -2,6 +2,7 @@
 //! TypeScript declarations to `app/src/generated/`.
 
 use serde::{Deserialize, Serialize};
+use sgf_core::ops::SystemRadii;
 use ts_rs::TS;
 
 use crate::details;
@@ -11,6 +12,7 @@ use crate::install::mods::{
     RESERVED_SPAWNS_WORKSHOP_ID,
 };
 use crate::install::scenarios::scenarios_dir;
+use crate::registries::asteroid_belts::{AsteroidBeltDef, BeltLook};
 use crate::registries::bypasses::BypassDef;
 use crate::registries::colors::ColorDef;
 use crate::registries::country_types::CountryType;
@@ -166,6 +168,9 @@ pub struct GameDataSummary {
     pub planet_classes: u32,
     pub starbase_levels: u32,
     pub border: BorderDefines,
+    /// How far out a system's inner and outer radii lie, from `NGameplay`.
+    pub system_radii: SystemRadii,
+    pub belt_kinds: Vec<BeltKindView>,
     pub localisation_keys: u32,
     pub diagnostics: Vec<DiagnosticView>,
     /// The galaxy size with the most stars across the install and the enabled mods;
@@ -176,6 +181,32 @@ pub struct GameDataSummary {
     #[ts(type = "number")]
     pub generation: u64,
     pub watch: WatchView,
+}
+
+/// An asteroid belt kind the install defines, with its localised name and how it looks.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BeltKindView {
+    pub key: String,
+    pub name: String,
+    pub look: BeltLook,
+    pub emissive: bool,
+    /// The band's width and how many pieces it has, against a plain belt's.
+    pub width: f64,
+    pub density: f64,
+}
+
+impl BeltKindView {
+    fn new(belt: &AsteroidBeltDef, gd: &GameData) -> Self {
+        Self {
+            key: belt.key.clone(),
+            name: gd.loc.name_or_readable(&belt.key),
+            look: belt.look,
+            emissive: belt.emissive,
+            width: belt.width,
+            density: belt.density,
+        }
+    }
 }
 
 /// A registry was reread, or the watcher paused or resumed.
@@ -211,6 +242,12 @@ impl From<&GameData> for GameDataSummary {
             planet_classes: count(gd.planet_classes.len()),
             starbase_levels: count(gd.starbase_levels.len()),
             border: BorderDefines::from(&*gd.border),
+            system_radii: gd.system_radii,
+            belt_kinds: gd
+                .asteroid_belts
+                .iter()
+                .map(|belt| BeltKindView::new(belt, gd))
+                .collect(),
             localisation_keys: count(gd.loc.len()),
             largest_galaxy: gd
                 .galaxy_sizes
@@ -446,6 +483,10 @@ pub struct PlanetClassView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub asteroid: Option<bool>,
+    /// `Some(true)` for a ring world segment (`ringworld = yes`); `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub ringworld: Option<bool>,
     /// `Some(true)` for a star class not drawn with the star shader (`star_gfx = no`; vanilla:
     /// `pc_t_star`, `pc_rift_star`, `pc_protostar`); `None` otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -635,6 +676,7 @@ impl GameData {
                     .terraform_links
                     .candidate(&pc.key, &self.static_modifiers),
                 asteroid: marker(pc.asteroid),
+                ringworld: marker(pc.ringworld),
                 draws_as_planet: marker(pc.star && !pc.star_gfx),
             })
             .collect()

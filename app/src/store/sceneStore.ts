@@ -24,6 +24,15 @@ export interface SceneState {
   /** The body a panel's link names while the pointer is on the link; the system view brightens it. */
   linkedBody: number | null;
   setLinkedBody(id: number | null): void;
+  /**
+   * The bodies a drag keeps about what they orbit, by id: a view setting of the open document,
+   * never an edit. Opening or closing a document, or an edit that renumbers systems, drops them,
+   * and `bindStores` drops one once the details that held its body refresh without it.
+   */
+  lockedBodies: ReadonlySet<number>;
+  lockBody(id: number): void;
+  unlockBody(id: number): void;
+  clearLocks(): void;
   /** Shows system `id`; `bindStores` selects it and clears the galaxy's tool, menu and overlays. */
   enterSystem(id: number): void;
   /** Back to the galaxy, leaving the inspector as it is; `backToGalaxy` is the user's way out. */
@@ -80,11 +89,14 @@ export function canEnterSystem(): boolean {
   return useFileSessionStore.getState().status === "ready";
 }
 
+const NO_LOCKS: ReadonlySet<number> = new Set();
+
 export const useSceneStore = create<SceneState>((set, get) => ({
   scene: GALAXY_SCENE,
   visit: 0,
   roll: 0,
   linkedBody: null,
+  lockedBodies: NO_LOCKS,
 
   rollAgain() {
     if (!canRollAgain()) return;
@@ -93,6 +105,23 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   setLinkedBody(id) {
     if (get().linkedBody !== id) set({ linkedBody: id });
+  },
+
+  lockBody(id) {
+    const { lockedBodies } = get();
+    if (!lockedBodies.has(id)) set({ lockedBodies: new Set([...lockedBodies, id]) });
+  },
+
+  unlockBody(id) {
+    const { lockedBodies } = get();
+    if (!lockedBodies.has(id)) return;
+    const next = new Set(lockedBodies);
+    next.delete(id);
+    set({ lockedBodies: next });
+  },
+
+  clearLocks() {
+    if (get().lockedBodies.size > 0) set({ lockedBodies: NO_LOCKS });
   },
 
   enterSystem(id) {
@@ -106,6 +135,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   },
 
   renumber(pairs) {
+    if (pairs.length > 0) get().clearLocks();
     const { scene } = get();
     if (scene.kind !== "system") return;
     const id = renumberedId(pairs, scene.id);

@@ -36,12 +36,6 @@ use crate::projections::name::{NameTemplate, NameVariable};
 use crate::scan::Value;
 use crate::session::Session;
 
-/// The smallest `inner_radius` a system has, and how far past its outermost body the
-/// inner radius lies and the outer one past that.
-pub const MIN_INNER_RADIUS: f64 = 150.0;
-const INNER_MARGIN: f64 = 30.0;
-const OUTER_MARGIN: f64 = 100.0;
-
 const STAR_NAME: &str = "STAR_NAME_1_OF_1";
 const PLANET_NAME: &str = "PLANET_NAME_FORMAT";
 const MOON_NAME: &str = "SUBPLANET_NAME_FORMAT";
@@ -111,16 +105,11 @@ pub(crate) fn plan_join(
 }
 
 /// What [`write_bodies`] wrote: the planets the system lists, star first, and how far
-/// from its star its inner radius lies.
+/// from its star its inner and outer radii lie.
 pub(crate) struct Written {
     pub ids: Vec<u32>,
     pub inner_radius: f64,
-}
-
-impl Written {
-    pub fn outer_radius(&self) -> f64 {
-        self.inner_radius + OUTER_MARGIN
-    }
+    pub outer_radius: f64,
 }
 
 /// Write the spec's bodies and their deposits as bodies of system `id`, each in the slot
@@ -171,9 +160,12 @@ pub(crate) fn write_bodies(
         plan.erase(&s.doc, Subject::Record(entry), entry)?;
     }
     let extent = layout.iter().map(|b| b.extent).fold(0.0, f64::max);
+    let radii = s.radii();
+    let inner_radius = radii.inner_about(extent);
     Ok(Written {
         ids,
-        inner_radius: MIN_INNER_RADIUS.max(extent + INNER_MARGIN),
+        inner_radius,
+        outer_radius: radii.outer(inner_radius),
     })
 }
 
@@ -205,7 +197,7 @@ pub(crate) fn system_text(
             flag_date: &flag_date,
             initializer: &spec.initializer,
             inner_radius: written.inner_radius,
-            outer_radius: written.outer_radius(),
+            outer_radius: written.outer_radius,
         },
     ))
 }

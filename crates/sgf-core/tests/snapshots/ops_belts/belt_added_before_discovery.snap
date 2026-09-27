@@ -1,0 +1,36 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added a belt (rocky_asteroid_belt) at radius 500 to system #15; set the inner radius of system #15 from 157 to 530
+inverse: Batch { description: "Undo of \"Added a belt (rocky_asteroid_belt) at radius 500 to system #15; set the inner radius of system #15 from 157 to 530\"", ops: [RemoveSaveBelt { system: 15, index: 0 }, SetSaveInnerRadius { system: 15, radius: 157.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -29994,6 +29994,15 @@
+ 			}
+  
+ 		}
++		asteroid_belts=
++		{
++			
++			{
++				type="rocky_asteroid_belt"
++				inner_radius=500
++			}
++ 
++		}
+ 		discovery=
+ 		{
+ 			16777218 
+@@ -30011,8 +30020,8 @@
+ 		{
+ 			326 
+ 		}
+-		inner_radius=157
+-		outer_radius=257
++		inner_radius=530
++		outer_radius=630
+ 		starbases=
+ 		{
+ 			4294967295

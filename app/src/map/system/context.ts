@@ -1,8 +1,15 @@
+import type { BeltKindView } from "../../generated/BeltKindView";
+import type { BeltLook } from "../../generated/BeltLook";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemNode } from "../../generated/SystemNode";
 import { discRadius } from "../../lib/details/discs";
 import { boundsText, isColony } from "../../lib/details/labels";
+import {
+  inspectedBody,
+  type LayoutOverride,
+  type SceneEditing,
+} from "../../lib/details/orbitEdits";
 import {
   exitBearing,
   placeholderPlanets,
@@ -15,10 +22,12 @@ import {
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
 import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import type { Ownership } from "../../lib/ownership";
+import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import { clusterOffsets } from "../../lib/visual/starCluster";
 import { effectiveStarClass } from "../../lib/visual/starGlyphs";
 import type { EntityRef } from "../../store/inspectorStore";
-import { beltTint, bodyLook, type BodyLook } from "./look";
+import type { DragMarks, HandleRef } from "./bodyDrag";
+import { bodyLook, type BodyLook } from "./look";
 import { NO_SOURCES, type SystemSources } from "./sources";
 
 /**
@@ -85,9 +94,41 @@ const NO_CHANCE: Chance = Object.freeze({
   ring: false,
 });
 
-/** An asteroid belt as the scene draws it. */
+/**
+ * An asteroid belt as the scene draws it: its band widened by its kind's width, and how its
+ * pieces look.
+ */
 export interface SceneBelt extends BeltBand {
-  readonly tint: number;
+  readonly look: BeltLook;
+  /** Its pieces glow. */
+  readonly emissive: boolean;
+  /** How many pieces it has against a plain belt of the same radius, its wider band included. */
+  readonly density: number;
+}
+
+/** The widest a kind's band is drawn, against a plain belt's, so a wide kind leaves its planets clear. */
+const MAX_BELT_WIDTH = 3;
+
+/** How a belt of a kind the game data has not given looks. */
+const PLAIN_BELT: Pick<BeltKindView, "look" | "emissive" | "width" | "density"> = Object.freeze({
+  look: "rocky",
+  emissive: false,
+  width: 1,
+  density: 1,
+});
+
+function sceneBelt(belt: BeltBand, kinds: SystemSources["beltKinds"]): SceneBelt {
+  const { look, emissive, width, density } = kinds.get(belt.kind) ?? PLAIN_BELT;
+  const widening = Math.min(Math.max(width, 0), MAX_BELT_WIDTH);
+  const half = ((belt.outer - belt.inner) / 2) * widening;
+  return {
+    ...belt,
+    inner: belt.radius - half,
+    outer: belt.radius + half,
+    look,
+    emissive,
+    density: Math.max(density, 0) * widening,
+  };
 }
 
 /** A planet class's atmosphere, as its definition gives it. */
@@ -112,6 +153,26 @@ export interface Exit {
 }
 
 /**
+ * One of the handles spaced evenly round a belt's circle or the inner radius's, from the top on
+ * screen, any of which a drag moves. They show while the pointer is over the band they move.
+ */
+export interface SceneHandle {
+  readonly ref: HandleRef;
+  readonly radius: number;
+  /** The belt's kind; null for the inner radius. */
+  readonly beltKind: string | null;
+  /** Where it is drawn, in world units. */
+  readonly x: number;
+  readonly y: number;
+}
+
+/** What the scene draws in place of the source while a drag or an edit it sent is shown. */
+export interface ScenePreview {
+  readonly override: LayoutOverride;
+  readonly marks: DragMarks | null;
+}
+
+/**
  * A frozen snapshot of the system the scene shows, with where everything in it is drawn. Each of
  * `layout`, `bodies`, `belts`, `exits` and `rolled` is the same object as the last snapshot's while
  * nothing it is drawn from changed.
@@ -128,6 +189,12 @@ export interface SystemContext extends SystemSources {
   readonly inNebula: boolean;
   /** The planets drawn to show that the game rolls this system's; none where the source has any. */
   readonly rolled: readonly RolledPlanet[];
+  /** What of the system's geometry may be edited, as its source's adapter says. */
+  readonly editing: SceneEditing;
+  /** The handles on its belts and inner radius, where they may be edited. */
+  readonly handles: readonly SceneHandle[];
+  /** What a drag marks; null while nothing is dragged. */
+  readonly drag: DragMarks | null;
 }
 
 const NOTHING: never[] = [];
@@ -145,6 +212,55 @@ type BodyArt = Pick<
   "surfaceClass" | "starClass" | "look" | "iconKeys" | "largeIconKeys" | "atmosphere"
 >;
 
+interface KeptArt {
+  drawn: DrawnClass;
+  planetClasses: SystemSources["planetClasses"];
+  starClasses: SystemSources["starClasses"];
+  art: BodyArt;
+}
+
+/** Each record's art as last worked out, so a body that only moved keeps its art objects. */
+const keptArt = new WeakMap<PlanetSummary, KeptArt>();
+
+/** `freshArt`, the same objects again while the record, its class and the classes stand. */
+function artOf(drawn: DrawnClass, src: SystemSources, planet: PlanetSummary | null): BodyArt {
+  const kept = planet === null ? undefined : keptArt.get(planet);
+  if (
+    kept &&
+    kept.drawn.planetClass === drawn.planetClass &&
+    kept.drawn.starClass === drawn.starClass &&
+    kept.drawn.drawn === drawn.drawn &&
+    kept.planetClasses === src.planetClasses &&
+    kept.starClasses === src.starClasses
+  ) {
+    return kept.art;
+  }
+  const art = freshArt(drawn, src);
+  if (planet !== null) {
+    keptArt.set(planet, {
+      drawn,
+      planetClasses: src.planetClasses,
+      starClasses: src.starClasses,
+      art,
+    });
+  }
+  return art;
+}
+
+/** Each record's resource rows as last worked out, so a body that only moved keeps its rows. */
+const keptRows = new WeakMap<
+  PlanetSummary,
+  { icons: SystemSources["resourceIcons"]; rows: readonly ResourceRow[] }
+>();
+
+function rowsOf(planet: PlanetSummary, icons: SystemSources["resourceIcons"]) {
+  const kept = keptRows.get(planet);
+  if (kept?.icons === icons) return kept.rows;
+  const rows = planetResourceRows(planet, icons);
+  keptRows.set(planet, { icons, rows });
+  return rows;
+}
+
 function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
   const {
     atmosphere_color: hex,
@@ -157,7 +273,7 @@ function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
 }
 
 /** A star's art is its star class's; a planet's is its class's icons and haze, none for a draw. */
-function artOf({ planetClass, starClass, drawn }: DrawnClass, src: SystemSources): BodyArt {
+function freshArt({ planetClass, starClass, drawn }: DrawnClass, src: SystemSources): BodyArt {
   const look = bodyLook(planetClass, starClass, drawn);
   if (starClass !== null) {
     const view = src.starClasses.get(starClass);
@@ -240,7 +356,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       chance: NO_CHANCE,
       resources: NOTHING,
       readout: null,
-      ...artOf({ planetClass: star.class, starClass, drawn: false }, src),
+      ...artOf({ planetClass: star.class, starClass, drawn: false }, src, null),
     };
   });
 }
@@ -259,20 +375,28 @@ function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolea
   };
 }
 
+/** The largest disc standing at each point, keyed by `pointKey`. */
+function discsByPoint(placements: readonly BodyPlacement[]): Map<string, number> {
+  const discs = new Map<string, number>();
+  for (const { x, y, disc } of placements) {
+    const key = pointKey(x, y);
+    discs.set(key, Math.max(discs.get(key) ?? 0, disc));
+  }
+  return discs;
+}
+
+function pointKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+/** A body's radius readout; its ring's centre is never its own point, since its radius is above 0. */
 function readoutOf(
   placement: BodyPlacement,
-  placements: readonly BodyPlacement[],
+  discs: ReadonlyMap<string, number>,
 ): RadiusReadout | null {
   const { ring, radius } = placement;
   if (!ring || !radius) return null;
-  const hub = placements.reduce(
-    (disc, other) =>
-      other !== placement && other.x === ring.cx && other.y === ring.cy
-        ? Math.max(disc, other.disc)
-        : disc,
-    0,
-  );
-  return { hub, text: boundsText(radius) };
+  return { hub: discs.get(pointKey(ring.cx, ring.cy)) ?? 0, text: boundsText(radius) };
 }
 
 function sceneBodies(
@@ -284,6 +408,7 @@ function sceneBodies(
   if (src.details === null || noBodies) return galaxyStars(src, node);
   const planets = new Map(src.details.planets.map((p) => [p.id, p]));
   const system = systemStar(src, node);
+  const discs = discsByPoint(layout.bodies);
   return layout.bodies.flatMap((placement) => {
     const planet = planets.get(placement.id);
     if (!planet) return [];
@@ -298,9 +423,9 @@ function sceneBodies(
         colony: colonyColor(planet, src.ownership),
         ring: !placement.star && (planet.ring === true || (planet.ring === null && !drawn)),
         chance: chanceOf(placement, planet, drawn),
-        resources: planetResourceRows(planet, src.resourceIcons),
-        readout: readoutOf(placement, layout.bodies),
-        ...artOf({ planetClass: planet.class, starClass, drawn }, src),
+        resources: rowsOf(planet, src.resourceIcons),
+        readout: readoutOf(placement, discs),
+        ...artOf({ planetClass: planet.class, starClass, drawn }, src, planet),
       },
     ];
   });
@@ -347,11 +472,57 @@ const lastById = lastOf<ReadonlyMap<number, SceneBody>>();
 const lastBelts = lastOf<readonly SceneBelt[]>();
 const lastExits = lastOf<readonly Exit[]>();
 const lastRolled = lastOf<readonly RolledPlanet[]>();
+const lastEditing = lastOf<SceneEditing>();
+const lastHandles = lastOf<readonly SceneHandle[]>();
 
-/** Where everything of the system `src` names is drawn. */
-export function systemContext(src: SystemSources): SystemContext {
+/** How many handles stand on a circle, evenly spaced clockwise on screen from its top. */
+export const HANDLES_PER_CIRCLE = 6;
+
+/** Where each handle stands on a circle about the centre, as unit steps in world units. */
+const HANDLE_SPOTS: readonly (readonly [number, number])[] = Array.from(
+  { length: HANDLES_PER_CIRCLE },
+  (_, i) => {
+    const turn = (i / HANDLES_PER_CIRCLE) * 2 * Math.PI;
+    return [SAVE_X_SIGN * Math.sin(turn), -SAVE_Y_SIGN * Math.cos(turn)];
+  },
+);
+
+/** The handles on the circle of `radius` about the centre, as the camera draws them. */
+function handlesAt(ref: HandleRef, radius: number, beltKind: string | null): SceneHandle[] {
+  return HANDLE_SPOTS.map(([x, y]) => ({ ref, radius, beltKind, x: x * radius, y: y * radius }));
+}
+
+function sceneHandles(layout: SystemLayout, editing: SceneEditing): SceneHandle[] {
+  const belts = editing.belts
+    ? layout.belts.flatMap((belt, index) =>
+        handlesAt({ kind: "belt", index }, belt.radius, belt.kind),
+      )
+    : [];
+  if (!editing.innerRadius) return belts;
+  return [...belts, ...handlesAt({ kind: "innerRadius" }, layout.innerRadius, null)];
+}
+
+/**
+ * Where everything of the system `src` names is drawn, with `preview`'s override and marks in
+ * place of the source's own where one is shown. What may be edited is read from the source alone.
+ */
+export function systemContext(
+  src: SystemSources,
+  preview: ScenePreview | null = null,
+): SystemContext {
   const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
-  const layout = systemLayout(src.details, src.roll, src.planetClasses, src.moonScale);
+  const base = systemLayout(src.details, src.roll, src.planetClasses, src.moonScale);
+  const layout = preview
+    ? systemLayout(src.details, src.roll, src.planetClasses, src.moonScale, preview.override)
+    : base;
+  const editing = lastEditing([src.geometry, base, src.details, src.planetClasses, src.radii], () =>
+    src.geometry.editing({
+      layout: base,
+      details: src.details,
+      planetClasses: src.planetClasses,
+      radii: src.radii,
+    }),
+  );
   const bodies = lastBodies(
     [
       layout,
@@ -374,8 +545,8 @@ export function systemContext(src: SystemSources): SystemContext {
     layout,
     bodies,
     bodyById: lastById([bodies], () => new Map(bodies.map((b) => [b.placement.id, b]))),
-    belts: lastBelts([layout.belts], () =>
-      layout.belts.map((belt) => ({ ...belt, tint: beltTint(belt.kind) })),
+    belts: lastBelts([layout.belts, src.beltKinds], () =>
+      layout.belts.map((belt) => sceneBelt(belt, src.beltKinds)),
     ),
     exits: lastExits([node, src.systems, src.names, layout.innerRadius], () =>
       sceneExits(src, node, layout.innerRadius),
@@ -384,17 +555,17 @@ export function systemContext(src: SystemSources): SystemContext {
     rolled: lastRolled([src.roll, src.planetClasses], () =>
       src.roll?.rolls_planets ? placeholderPlanets(src.roll, src.planetClasses) : NOTHING,
     ),
+    editing,
+    handles: lastHandles([layout.belts, layout.innerRadius, editing], () =>
+      sceneHandles(layout, editing),
+    ),
+    drag: preview?.marks ?? null,
   });
 }
 
 export const EMPTY_SYSTEM_CONTEXT: SystemContext = systemContext(NO_SOURCES);
 
-/**
- * The body of `ctx` that `ref` opens, or null: a planet listed among its bodies, or a scenario body
- * of this system.
- */
+/** The body of `ctx` that `ref` opens, or null, as the nudge finds it. */
 export function selectedBody(ctx: SystemContext, ref: EntityRef | null): number | null {
-  const ours = ref?.kind === "planet" || (ref?.kind === "body" && ref.system === ctx.id);
-  if (!ours) return null;
-  return ctx.bodyById.get(ref.id)?.planet ? ref.id : null;
+  return inspectedBody(ctx.layout, ctx.id, ref);
 }

@@ -9,7 +9,10 @@ use sgf_core::format::scenario::fe_zone::{
     DEFAULT_DISTANCE, FE_ZONE_DISTANCES, FE_ZONE_EXTENT, FE_ZONE_RADIUS,
 };
 use sgf_core::guides::L_CLUSTER;
-use sgf_core::ops::{MIN_INNER_RADIUS, SPAWN_BUFFER};
+use sgf_core::ops::{
+    BELT_SCATTER, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, SPAWN_BUFFER,
+    STORED_ORBIT_SLACK, SystemRadii,
+};
 
 fn export_dir() -> PathBuf {
     std::env::var_os("TS_RS_EXPORT_DIR").map_or_else(
@@ -68,10 +71,42 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "FE_ZONE_MAP_EXTENT",
         FE_ZONE_EXTENT.to_string(),
     );
+    let SystemRadii {
+        min_inner,
+        inner_offset,
+        outer_offset,
+    } = SystemRadii::VANILLA;
     constant(
-        "The smallest inner radius a system has.",
-        "MIN_INNER_RADIUS",
-        MIN_INNER_RADIUS.to_string(),
+        "How vanilla sizes a system, for when no game data gives the install's defines.",
+        "VANILLA_SYSTEM_RADII",
+        format!(
+            "{{ min_inner: {min_inner}, inner_offset: {inner_offset}, outer_offset: {outer_offset} }} as const"
+        ),
+    );
+    constant(
+        "The orbit of a planet's first moon.",
+        "MOON_RING_FIRST",
+        MOON_RING_FIRST.to_string(),
+    );
+    constant(
+        "How much further out each moon ring after the first lies.",
+        "MOON_RING_STEP",
+        MOON_RING_STEP.to_string(),
+    );
+    constant(
+        "How near, in units and in degrees, two bodies about one parent stand before they overlap.",
+        "OVERLAP_TOLERANCE",
+        OVERLAP_TOLERANCE.to_string(),
+    );
+    constant(
+        "How far from its belt's radius an asteroid of that belt may lie.",
+        "BELT_SCATTER",
+        BELT_SCATTER.to_string(),
+    );
+    constant(
+        "How far a body's point may stray from its stored orbit for the stored value to be drawn.",
+        "STORED_ORBIT_SLACK",
+        STORED_ORBIT_SLACK.to_string(),
     );
     let out = out.trim_end().to_owned() + "\n";
 

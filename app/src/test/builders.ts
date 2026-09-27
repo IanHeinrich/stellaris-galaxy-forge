@@ -1,3 +1,4 @@
+import type { BeltKindView } from "../generated/BeltKindView";
 import type { BodyLayout } from "../generated/BodyLayout";
 import type { CountryNode } from "../generated/CountryNode";
 import type { ExportReport } from "../generated/ExportReport";
@@ -226,6 +227,77 @@ export function bodyLayout(over: Partial<BodyLayout> = {}): BodyLayout {
   };
 }
 
+/** A save body: at `at`, `orbit` from its parent, of `size`, a moon wherever it has a parent. */
+export function saveBody(
+  id: number,
+  planetClass: string,
+  at: [number, number],
+  orbit: number,
+  size: number,
+  parent: number | null = null,
+): PlanetSummary {
+  const layout = bodyLayout({
+    orbit: { min: orbit, max: orbit },
+    at,
+    size: { min: size, max: size },
+  });
+  return planetSummary({ id, class: planetClass, parent, moon: parent !== null, orbit, layout });
+}
+
+/** Where a body `orbit` out at `angle` degrees from `from` stands, as the save writes its point. */
+function about(from: [number, number], orbit: number, angle: number): [number, number] {
+  const a = (angle * Math.PI) / 180;
+  return [from[0] + orbit * Math.cos(a), from[1] + orbit * Math.sin(a)];
+}
+
+/** Where the bodies of `orbitSystem` stand, in save units about its centre. */
+export const ORBIT_SYSTEM_AT = (() => {
+  const planet = about([0, 0], 60, 30);
+  return {
+    planet,
+    firstMoon: about(planet, 15, 90),
+    secondMoon: about(planet, 20, 200),
+    lonePlanet: about([0, 0], 100, 120),
+    asteroid: about([0, 0], 124, 300),
+  };
+})();
+
+/**
+ * A save system with moons and belts: star 1 at the centre; planet 2 at 60 and 30° with moons 3
+ * (15 at 90°) and 4 (20 at 200°); planet 5 at 100 and 120°; asteroid 6 at 124 and 300°, on the
+ * rocky belt at 120; an icy belt at 170; inner radius 200. `orbitClasses` gives their classes.
+ */
+export function orbitSystem(over: Partial<SystemDetails> = {}): SystemDetails {
+  const at = ORBIT_SYSTEM_AT;
+  return systemDetails({
+    id: 140,
+    planets: [
+      saveBody(1, "pc_g_star", [0, 0], 0, 30),
+      saveBody(2, "pc_continental", at.planet, 60, 16),
+      saveBody(3, "pc_barren", at.firstMoon, 15, 5, 2),
+      saveBody(4, "pc_barren_cold", at.secondMoon, 20, 6, 2),
+      saveBody(5, "pc_arid", at.lonePlanet, 100, 12),
+      saveBody(6, "pc_asteroid", at.asteroid, 124, 3),
+    ],
+    belts: [
+      { kind: "rocky_asteroid_belt", inner_radius: 120 },
+      { kind: "icy_asteroid_belt", inner_radius: 170 },
+    ],
+    inner_radius: 200,
+    ...over,
+  });
+}
+
+/** The planet classes of `orbitSystem`'s bodies: a star, four worlds and an asteroid. */
+export function orbitClasses(): Map<string, PlanetClassView> {
+  const worlds = ["pc_continental", "pc_barren", "pc_barren_cold", "pc_arid"];
+  return new Map([
+    ["pc_g_star", planetClassView("pc_g_star")],
+    ...worlds.map((key): [string, PlanetClassView] => [key, planetClassView(key, false)]),
+    ["pc_asteroid", { ...planetClassView("pc_asteroid", false), asteroid: true }],
+  ]);
+}
+
 /** The one `FleetSummary` builder: one ownerless military ship with no power. */
 export function fleetSummary(over: Partial<FleetSummary> = {}): FleetSummary {
   return {
@@ -279,6 +351,15 @@ export function initPlanetView(over: Partial<InitPlanetView> & { class: string }
   };
 }
 
+/** A belt kind as the game data lists it: a plain rocky belt unless `over` says otherwise. */
+export function beltKind(
+  key: string,
+  name: string,
+  over: Partial<BeltKindView> = {},
+): BeltKindView {
+  return { key, name, look: "rocky", emissive: false, width: 1, density: 1, ...over };
+}
+
 /** What a finished load reports: one install, one mod, and a registry count for every kind. */
 export function gameDataSummary(over: Partial<GameDataSummary> = {}): GameDataSummary {
   return {
@@ -296,6 +377,8 @@ export function gameDataSummary(over: Partial<GameDataSummary> = {}): GameDataSu
     planet_classes: 7,
     starbase_levels: 5,
     border: { system_radius: 5, hyperlane_thickness: 1, moon_scale: 0.7 },
+    system_radii: { min_inner: 150, inner_offset: 30, outer_offset: 100 },
+    belt_kinds: [],
     localisation_keys: 1000,
     diagnostics: [],
     largest_galaxy: { name: "huge", label: "Huge", num_stars: 1000 },

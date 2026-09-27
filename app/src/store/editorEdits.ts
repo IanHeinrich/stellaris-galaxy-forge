@@ -13,6 +13,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { linked, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore, type EntityRef } from "./inspectorStore";
+import { useIssuesStore } from "./issuesStore";
 import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
 import { symmetricOp, symmetricSeat } from "./symmetricEdits";
@@ -59,8 +60,11 @@ export function editPipeline(
 ): EditPipeline {
   /** The session a late answer still belongs to; a document closing or opening leaves it to nobody. */
   let session = 0;
+  /** How many edits have landed, so a projection's findings older than the last edit's are dropped. */
+  let landed = 0;
 
   function applyEdit(result: EditResult): void {
+    landed += 1;
     useGalaxyStore.getState().applyDelta(result.delta);
     useFileSessionStore.getState().noteEdit({ issues: result.issues, dirty: result.dirty });
     set({ history: result.history });
@@ -81,10 +85,16 @@ export function editPipeline(
       useDetailsStore.getState().invalidate(result.details_stale);
       useInspectorStore.getState().dropBodies(restaled(result.details_stale, pairs));
       const mine = session;
+      const sent = landed;
       // The details projection, and the planet and fleet search index over it, are rebuilt lazily.
-      void ipc.warmDetails().catch((e: unknown) => {
-        if (mine === session) useFileSessionStore.getState().setError(ipc.errorMessage(e));
-      });
+      void ipc
+        .warmDetails()
+        .then((findings) => {
+          if (mine === session && sent === landed) useIssuesStore.getState().setFindings(findings);
+        })
+        .catch((e: unknown) => {
+          if (mine === session) useFileSessionStore.getState().setError(ipc.errorMessage(e));
+        });
     }
     if (stale) void reselect(kept);
     if (selectedLane && !linked(systems(), selectedLane.a, selectedLane.b))

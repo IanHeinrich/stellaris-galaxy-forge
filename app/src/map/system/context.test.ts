@@ -7,9 +7,13 @@ import type { BodyLayout } from "../../generated/BodyLayout";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemRoll } from "../../generated/SystemRoll";
+import { SAVE_GEOMETRY, type GeometryIntent } from "../../lib/details/orbitEdits";
 import {
+  beltKind,
   bodyLayout,
   byId,
+  orbitClasses,
+  orbitSystem,
   placedNode,
   planetClassView,
   planetSummary,
@@ -17,7 +21,9 @@ import {
   systemDetails,
 } from "../../test/builders";
 import { systemRoll } from "../../test/rolls";
+import { Camera } from "../Camera";
 import { systemContext } from "./context";
+import { handleOwnerAt, pickHandle } from "./picking";
 import {
   blankSceneTextures,
   context as fixtureContext,
@@ -29,7 +35,8 @@ import {
 } from "./fixture";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
-import { NO_SOURCES, type SystemSources } from "./sources";
+import { useSceneStore } from "../../store/sceneStore";
+import { NO_SOURCES, readSystemSources, sameSources, type SystemSources } from "./sources";
 
 stubTextMeasurement();
 
@@ -321,6 +328,166 @@ describe("planets the game rolls", () => {
   });
 });
 
+describe("a system shown under a preview", () => {
+  const src: SystemSources = {
+    ...sources,
+    id: 140,
+    kind: "save",
+    details: orbitSystem(),
+    planetClasses: orbitClasses(),
+    geometry: SAVE_GEOMETRY,
+  };
+
+  function previewed(intent: GeometryIntent) {
+    const base = systemContext(src);
+    const frame = {
+      layout: base.layout,
+      details: src.details,
+      planetClasses: src.planetClasses,
+      radii: base.radii,
+    };
+    const override = SAVE_GEOMETRY.preview(intent, frame);
+    return { base, shown: systemContext(src, { override, marks: null }) };
+  }
+
+  it("draws the moved layout, each moved body keeping its art and the system what may be edited", () => {
+    const { base, shown } = previewed({
+      kind: "move",
+      system: 140,
+      body: 2,
+      radius: 80,
+      angle: 30,
+    });
+    const [was, now] = [base.bodyById.get(2)!, shown.bodyById.get(2)!];
+    expect(now.placement.ring?.radius).toBe(80);
+    expect(shown.bodyById.get(3)?.placement.ring?.cx).toBeCloseTo(now.placement.x);
+    expect(now.readout?.text).toBe("80");
+    expect(now).not.toBe(was);
+    expect(now.look).toBe(was.look);
+    expect(now.iconKeys).toBe(was.iconKeys);
+    expect(now.largeIconKeys).toBe(was.largeIconKeys);
+    expect(shown.editing).toBe(base.editing);
+    expect(shown.belts).toBe(base.belts);
+    expect(base.layout.bodies.find((b) => b.id === 2)?.ring?.radius).toBe(60);
+  });
+
+  it("puts six handles on each belt and on the inner radius, where the save lets them move", () => {
+    const { base, shown } = previewed({
+      kind: "setBeltRadius",
+      system: 140,
+      index: 1,
+      radius: 180,
+    });
+    const first = { kind: "belt", index: 0 };
+    const [c, s] = [120 * Math.cos(Math.PI / 3), 120 * Math.sin(Math.PI / 3)];
+    const spots = base.handles.slice(0, 6).map((h) => [h.x, h.y]);
+    const expected = [
+      [0, -120],
+      [-s, -c],
+      [-s, c],
+      [0, 120],
+      [s, c],
+      [s, -c],
+    ];
+    spots.forEach(([x, y], i) => {
+      expect(x).toBeCloseTo(expected[i][0]);
+      expect(y).toBeCloseTo(expected[i][1]);
+    });
+    expect(base.handles.map((h) => h.ref)).toEqual([
+      ...Array(6).fill(first),
+      ...Array(6).fill({ kind: "belt", index: 1 }),
+      ...Array(6).fill({ kind: "innerRadius" }),
+    ]);
+    expect(shown.handles.map((h) => h.radius)).toEqual([
+      ...Array(6).fill(120),
+      ...Array(6).fill(180),
+      ...Array(6).fill(210),
+    ]);
+  });
+
+  describe("the handles shown", () => {
+    const { base } = previewed({ kind: "setBeltRadius", system: 140, index: 1, radius: 180 });
+    const cam = new Camera();
+    cam.setViewport(800, 800);
+    const first = { kind: "belt", index: 0 } as const;
+    /** The world point `px` screen pixels out from the centre, straight up the screen. */
+    const up = (px: number) => cam.screenToWorld(400, 400 - px);
+
+    it("are the band's the pointer is over, or the inner radius's it is near, and none elsewhere", () => {
+      const half = (base.belts[0].outer - base.belts[0].inner) / 2;
+      expect(handleOwnerAt(base, cam, up(120))).toEqual(first);
+      expect(handleOwnerAt(base, cam, up(120 + half + 4))).toEqual(first);
+      expect(handleOwnerAt(base, cam, up(170 - half))).toEqual({ kind: "belt", index: 1 });
+      expect(handleOwnerAt(base, cam, up(203))).toEqual({ kind: "innerRadius" });
+      expect(handleOwnerAt(base, cam, up(60))).toBeNull();
+      expect(handleOwnerAt(base, cam, up(260))).toBeNull();
+    });
+
+    it("pick a belt from any of its six handles, and a hidden handle never", () => {
+      for (const { x, y } of base.handles.slice(0, 6)) {
+        const s = cam.worldToScreen(x, y);
+        const at = cam.screenToWorld(s.x + 2, s.y - 1);
+        expect(pickHandle(base.handles, cam, at, first), `${x},${y}`).toEqual(first);
+        expect(pickHandle(base.handles, cam, at, null)).toBeNull();
+        expect(pickHandle(base.handles, cam, at, { kind: "innerRadius" })).toBeNull();
+      }
+      const between = cam.screenToWorld(400 + 120, 400);
+      expect(pickHandle(base.handles, cam, between, first)).toBeNull();
+    });
+  });
+
+  it("lets nothing of a scenario system be edited, with no handles", () => {
+    const planets = [scenarioSun, body(2, "pc_barren", { orbit: fixed(60) })];
+    const ctx = scenario(planets, rollOf(planets));
+    expect(ctx.editing.bodies.size).toBe(0);
+    expect([ctx.editing.belts, ctx.editing.innerRadius]).toEqual([false, false]);
+    expect(ctx.handles).toEqual([]);
+  });
+});
+
+describe("the belts of a system", () => {
+  const belted = (beltKinds: SystemSources["beltKinds"]) =>
+    systemContext({
+      ...fixtureContext({
+        belts: [
+          { kind: "icy_asteroid_belt", inner_radius: 60 },
+          { kind: "space_fauna_belt", inner_radius: 120 },
+          { kind: "fx_unknown_belt", inner_radius: 180 },
+        ],
+      }),
+      beltKinds,
+    });
+
+  it("draws each belt with its kind's look, widened and thinned as the kind says", () => {
+    const kinds = new Map(
+      [
+        beltKind("icy_asteroid_belt", "Icy", { look: "icy", emissive: true }),
+        beltKind("space_fauna_belt", "Fauna", { look: "fauna", width: 2, density: 0.2 }),
+      ].map((k) => [k.key, k]),
+    );
+    const [icy, fauna, unknown] = belted(kinds).belts;
+    expect([icy.look, icy.emissive, fauna.look, unknown.look]).toEqual([
+      "icy",
+      true,
+      "fauna",
+      "rocky",
+    ]);
+    const width = (b: typeof icy) => b.outer - b.inner;
+    expect(width(fauna)).toBeCloseTo(2 * width(icy));
+    expect(fauna.density).toBeCloseTo(0.4);
+    expect(icy.radius - icy.inner).toBeCloseTo(icy.outer - icy.radius);
+  });
+
+  it("draws every belt as a plain rocky belt before the game data is in", () => {
+    const belts = belted(new Map()).belts;
+    expect(belts.map((b) => [b.look, b.emissive, b.density])).toEqual([
+      ["rocky", false, 1],
+      ["rocky", false, 1],
+      ["rocky", false, 1],
+    ]);
+  });
+});
+
 describe("the lanes out of a system", () => {
   it("gives one exit per hyperlane, named for the neighbour, along the galaxy bearing to it on the inner radius, and none for a bypass", () => {
     const ctx = fixtureContext({});
@@ -332,5 +499,17 @@ describe("the lanes out of a system", () => {
     expect(east?.dx).toBeCloseTo(1);
     expect(east?.dy).toBeCloseTo(0);
     expect(east?.radius).toBe(160);
+  });
+});
+
+describe("the bodies locked to what they orbit", () => {
+  it("are read from the scene store into the context, and a lock changes what the scene reads", () => {
+    const before = readSystemSources(null);
+    useSceneStore.getState().lockBody(3);
+    const after = readSystemSources(null);
+    expect(sameSources(before, after)).toBe(false);
+    expect(systemContext(after).lockedBodies.has(3)).toBe(true);
+    useSceneStore.getState().unlockBody(3);
+    expect(systemContext(readSystemSources(null)).lockedBodies.has(3)).toBe(false);
   });
 });

@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the belt at radius 40 in system #140 from rocky_asteroid_belt to icy_asteroid_belt
+inverse: SetSaveBeltKind { system: 140, index: 0, kind: "rocky_asteroid_belt" }
+
+--- gamestate
++++ gamestate
+@@ -38943,7 +38943,7 @@
+ 		{
+ 			
+ 			{
+-				type="rocky_asteroid_belt"
++				type="icy_asteroid_belt"
+ 				inner_radius=40
+ 			}

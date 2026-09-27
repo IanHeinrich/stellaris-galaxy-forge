@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Took the ring off planet #589
+inverse: SetPlanetRing { planet: 589, ring: true }
+
+--- gamestate
++++ gamestate
+@@ -110310,7 +110310,6 @@
+  
+ 				}
+ 			}
+-			binary_flags=320
+ 			coordinate=
+ 			{
+ 				x=80.62198

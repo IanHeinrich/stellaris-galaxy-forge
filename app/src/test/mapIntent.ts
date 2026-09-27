@@ -1,4 +1,5 @@
 import type { MapInput, MapIntent } from "../map/interaction/MapIntent";
+import type { SystemContext } from "../map/system/context";
 import type { SystemInput, SystemIntent } from "../map/system/SystemGestureModel";
 
 type Call<T> = [keyof T, ...unknown[]];
@@ -54,16 +55,28 @@ export function recorder(): Recorder<MapIntent> {
   });
 }
 
-/** A `SystemIntent` that records every call, for driving the system scene's model without a canvas. */
-export function sceneRecorder(): Recorder<SystemIntent> {
-  return recording<SystemIntent>({
+/**
+ * A `SystemIntent` that records every call but `frame`, which gives `frame`, for driving the system
+ * scene's model without a canvas. Without one, a drag that asks for it fails the test.
+ */
+export function sceneRecorder(frame?: SystemContext): Recorder<SystemIntent> {
+  const intent = recording<SystemIntent>({
     hover: true,
     selectLane: true,
     enterSystem: true,
     contextMenu: true,
     openBody: true,
     showSystem: true,
+    frame: true,
+    preview: true,
+    commit: true,
+    refuse: true,
   });
+  const given = () => {
+    if (!frame) throw new Error("the model asked for the scene's frame, and the test gave none");
+    return frame;
+  };
+  return { ...intent, frame: given };
 }
 
 /** The gap between the default times of two inputs: wide enough that no two double a click. */
@@ -108,7 +121,10 @@ export function at(
 /** The system `sceneAt`'s inputs are in, unless `extra` states another. */
 export const SCENE_SYSTEM = 5;
 
-/** One input in the system scene at screen (sx, sy), which is also its scene point, over nothing. */
+/**
+ * One input in the system scene at screen (sx, sy), which is also its scene point at one pixel a
+ * unit, over nothing.
+ */
 export function sceneAt(
   kind: SystemInput["kind"],
   sx: number,
@@ -122,10 +138,15 @@ export function sceneAt(
     wx: sx,
     wy: sy,
     button: kind === "move" ? -1 : 0,
+    shift: false,
+    ctrl: false,
+    scale: 1,
     time: (clock += DEFAULT_TIME_STEP_MS),
     system: SCENE_SYSTEM,
     body: null,
+    handle: null,
     exit: null,
+    draggable: false,
     ...extra,
   };
 }

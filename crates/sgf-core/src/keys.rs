@@ -19,6 +19,8 @@ save_keys! {
     AMBIENT_OBJECT = "ambient_object",
     APPEAR_STATE = "appear_state",
     ARCHAEOLOGICAL_SITES = "archaeological_sites",
+    /// 4.5 writes it on every system; the 4.4 sample has none.
+    ARM = "arm",
     ASTEROID_BELTS = "asteroid_belts",
     ASTEROID_POSTFIX = "asteroid_postfix",
     ASTEROID_PREFIX = "asteroid_prefix",
@@ -57,12 +59,14 @@ save_keys! {
     DESIGN = "design",
     DESIGNATION = "designation",
     DIFFICULTY = "difficulty",
+    DISCOVERY = "discovery",
     DISMANTLE_FINISH_DATE = "dismantle_finish_date",
     DISMANTLE_PROGRESS = "dismantle_progress",
     END_GAME_START = "end_game_start",
     ENTITY = "entity",
     ENTITY_FACE_OBJECT = "entity_face_object",
     ENTITY_NAME = "entity_name",
+    ENTITY_PLANET_CLASS = "entity_planet_class",
     FILE = "file",
     FINAL_DESIGNATION = "final_designation",
     FLAG = "flag",
@@ -193,6 +197,10 @@ pub(crate) const OPTIONAL: &[&str] = &[
     USE_MAP_COLOR,
     // Written once a waystation network has a station; the 4.4 sample's table is empty.
     WAYSTATIONS,
+    // Written on a few 4.5 bodies only; the 4.4 sample has none.
+    ENTITY_PLANET_CLASS,
+    // Written on every 4.5 system; the 4.4 sample has none.
+    ARM,
 ];
 
 /// The keys only the `meta` member writes, which the save-key test does not look for.

@@ -17,7 +17,10 @@ use sgf_gamedata::views::{
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 use tauri::{AppHandle, Manager, Runtime, State};
 
-use super::{DEFINITIONS_AT, DISCOVER_AT, DONE, LOCALISATION_AT, io_error, load_error, progress};
+use super::{
+    DEFINITIONS_AT, DISCOVER_AT, DONE, LOCALISATION_AT, io_error, load_error, progress,
+    resize_open_session,
+};
 use crate::state::{GameDataState, TextureState};
 use crate::watch;
 
@@ -52,6 +55,7 @@ pub async fn load_game_data<R: Runtime>(
     .map_err(io_error)??;
     let gd = Arc::new(gd);
     app.state::<GameDataState>().store(Some(Arc::clone(&gd)));
+    resize_open_session(&app);
     watch::start(&app, &gd);
     let summary = summary(&app, &gd);
     progress(&app, ProgressPhase::Done, DONE);
@@ -68,6 +72,7 @@ pub fn game_data_summary<R: Runtime>(app: AppHandle<R>) -> Option<GameDataSummar
 pub fn unload_game_data<R: Runtime>(app: AppHandle<R>) {
     watch::stop(&app);
     app.state::<GameDataState>().store(None);
+    resize_open_session(&app);
 }
 
 /// Rebuild again after the auto-reload breaker paused the watcher; nothing

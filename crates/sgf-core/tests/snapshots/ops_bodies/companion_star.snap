@@ -1,0 +1,57 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved star #327 from orbit 240.02 at 310.06° to orbit 260 at 100°, with #328 and #329; set the inner radius of system #278 from 330 to 350.03
+inverse: Batch { description: "Undo of \"Moved star #327 from orbit 240.02 at 310.06° to orbit 260 at 100°, with #328 and #329; set the inner radius of system #278 from 330 to 350.03\"", ops: [MoveSaveBody { system: 278, body: 327, radius: 240.019915814, angle: 310.061282735 }, SetSaveInnerRadius { system: 278, radius: 330.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -48387,8 +48387,8 @@
+ 		}
+ 		initializer="sol_neighbor_t1_first_colony"
+ 		init_parent=217
+-		inner_radius=330
+-		outer_radius=430
++		inner_radius=350.02682
++		outer_radius=450.02682
+ 		starbases=
+ 		{
+ 			4294967295 
+@@ -107960,11 +107960,11 @@
+ 			binary_flags=65
+ 			coordinate=
+ 			{
+-				x=154.4784
+-				y=-183.7008
++				x=-45.14853
++				y=256.05002
+ 				origin=278
+ 			}
+-			orbit=240
++			orbit=260
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+@@ -107993,8 +107993,8 @@
+ 			binary_flags=73
+ 			coordinate=
+ 			{
+-				x=161.8788
+-				y=-149.4344
++				x=-37.74813
++				y=290.31642
+ 				origin=278
+ 			}
+ 			orbit=35
+@@ -108032,8 +108032,8 @@
+ 			binary_flags=321
+ 			coordinate=
+ 			{
+-				x=208.986
+-				y=-208.8432
++				x=9.35907
++				y=230.90762
+ 				origin=278
+ 			}
+ 			orbit=60

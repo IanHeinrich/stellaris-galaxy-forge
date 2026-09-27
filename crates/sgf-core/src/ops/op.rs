@@ -398,6 +398,89 @@ pub enum Op {
     SetNebulaFootprints {
         footprints: Vec<NebulaFootprint>,
     },
+    /// A save body put at `radius` and `angle` about its parent's point: the system centre
+    /// for a planet, its `moon_of` body for a moon. Angles are degrees, written normalised
+    /// to [0, 360). Its `orbit` becomes the radius, and every moon under it moves by the
+    /// same step with its own `orbit` kept. `system` must be the body's own. A body at the
+    /// system's centre is refused. When the body now reaches further than the system did, or
+    /// outside its `inner_radius`, that radius grows to the body's reach plus its margin, and
+    /// the inverse is a [`Op::Batch`] that also puts it back. Stellaris 4.x save documents
+    /// only.
+    MoveSaveBody {
+        system: u32,
+        body: u32,
+        radius: f64,
+        angle: f64,
+    },
+    /// A save body made a moon of `parent`, a planet of it when `star`, or a planet of the
+    /// system's centre when `None`, then put at `radius` and `angle` about its new parent as
+    /// [`Op::MoveSaveBody`] puts it. `moon_of` and both parents' `moons` are written, and
+    /// the moon bit of `binary_flags` is set for a moon and cleared otherwise. A parent
+    /// outside the system, a moon, the body itself or one of its moons, and a parent at the
+    /// system's centre are refused, and so are the primary body and a body with moons made
+    /// a moon of a planet. The inverse puts the old parent back. Stellaris 4.x save
+    /// documents only.
+    SetSaveBodyParent {
+        system: u32,
+        body: u32,
+        parent: Option<u32>,
+        /// `parent` is a star: the body orbits it as a planet, with its moons, and takes no
+        /// moon bit. The core cannot tell a star from the bytes, so the caller says. Ignored
+        /// with no parent.
+        star: bool,
+        radius: f64,
+        angle: f64,
+    },
+    /// The ring bit of a save body's `binary_flags`, set when `ring` and cleared when not:
+    /// the statement is written before `entity_planet_class` or `coordinate` when the body
+    /// has none, and goes when only the bit set beside any other is left. The body's class
+    /// is not checked. A ring bit already as asked is refused with
+    /// [`OpError::RingUnchanged`]; the inverse flips `ring`. Stellaris 4.x save documents
+    /// only.
+    SetPlanetRing {
+        planet: u32,
+        ring: bool,
+    },
+    /// A new asteroid belt of type `kind` at `radius`, last in the system's
+    /// `asteroid_belts`, which the system gains when it has none. A belt reaching past the
+    /// system's bodies and belts, or outside its `inner_radius`, grows that radius as a moved
+    /// body does. The inverse is [`Op::RemoveSaveBelt`] at the new last index, batched with
+    /// the old inner radius when it grew. Stellaris 4.x save documents only.
+    AddSaveBelt {
+        system: u32,
+        kind: String,
+        radius: f64,
+    },
+    /// The `index`th belt of the system's `asteroid_belts`, counted from 0; the block goes
+    /// with its last belt. The inverse adds it back, last. Stellaris 4.x save documents only.
+    RemoveSaveBelt {
+        system: u32,
+        index: usize,
+    },
+    /// The `index`th belt's `inner_radius`. Its asteroids stay where they are; the app
+    /// moves them in the same [`Op::Batch`]. A belt moved past the system's reach grows its
+    /// `inner_radius` as [`Op::AddSaveBelt`] does. Its own inverse, batched with the old
+    /// inner radius when it grew. Stellaris 4.x save documents only.
+    SetSaveBeltRadius {
+        system: u32,
+        index: usize,
+        radius: f64,
+    },
+    /// The `index`th belt's `type`, written as given: only one that is not an identifier
+    /// is refused. Its own inverse. Stellaris 4.x save documents only.
+    SetSaveBeltKind {
+        system: u32,
+        index: usize,
+        kind: String,
+    },
+    /// A save system's `inner_radius`, with `outer_radius` the session's outer offset past
+    /// it. A radius inside the system's outermost body or belt, or below the session's
+    /// smallest inner radius, is refused unless it is no smaller than the value the system
+    /// already holds. Its own inverse. Stellaris 4.x save documents only.
+    SetSaveInnerRadius {
+        system: u32,
+        radius: f64,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -420,7 +503,7 @@ impl Op {
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::SetTerraformCandidate`]
-    /// stales the one planet whose modifiers it wrote.
+    /// and [`Op::SetPlanetRing`] stale the one planet they wrote.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
@@ -438,22 +521,39 @@ impl Op {
             | Self::SetInitializer { .. }
             | Self::SetInitializers { .. }
             | Self::SetSpawnScript { .. }
-            | Self::SetSpawnScripts { .. } => true,
+            | Self::SetSpawnScripts { .. }
+            | Self::MoveSaveBody { .. }
+            | Self::SetSaveBodyParent { .. }
+            | Self::SetPlanetRing { .. }
+            | Self::AddSaveBelt { .. }
+            | Self::RemoveSaveBelt { .. }
+            | Self::SetSaveBeltRadius { .. }
+            | Self::SetSaveBeltKind { .. }
+            | Self::SetSaveInnerRadius { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
     }
 
-    /// Whether the details this op stales come up to date by rereading the class, size and
-    /// modifiers of the planets it rewrote, without building the projection again.
-    pub fn stales_only_planets(&self) -> bool {
+    /// Whether the details this op stales come up to date by rereading, in place, the
+    /// planets it rewrote and the belts and inner radius of the systems it rewrote, without
+    /// building the projection again.
+    pub fn refreshes_details_in_place(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
-            | Self::SetTerraformCandidate { .. } => true,
+            | Self::SetTerraformCandidate { .. }
+            | Self::MoveSaveBody { .. }
+            | Self::SetSaveBodyParent { .. }
+            | Self::SetPlanetRing { .. }
+            | Self::AddSaveBelt { .. }
+            | Self::RemoveSaveBelt { .. }
+            | Self::SetSaveBeltRadius { .. }
+            | Self::SetSaveBeltKind { .. }
+            | Self::SetSaveInnerRadius { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
-                .all(|op| op.stales_only_planets() || !op.stales_details()),
+                .all(|op| op.refreshes_details_in_place() || !op.stales_details()),
             _ => false,
         }
     }
@@ -490,7 +590,15 @@ impl Op {
             | Self::SetPlanetSize { .. }
             | Self::SetTerraformCandidate { .. }
             | Self::AddSaveDeposit { .. }
-            | Self::RemoveSaveDeposit { .. } => false,
+            | Self::RemoveSaveDeposit { .. }
+            | Self::MoveSaveBody { .. }
+            | Self::SetSaveBodyParent { .. }
+            | Self::SetPlanetRing { .. }
+            | Self::AddSaveBelt { .. }
+            | Self::RemoveSaveBelt { .. }
+            | Self::SetSaveBeltRadius { .. }
+            | Self::SetSaveBeltKind { .. }
+            | Self::SetSaveInnerRadius { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -786,6 +894,32 @@ pub enum OpError {
     AmbientSlotTaken(u32),
     #[error("system {0} is already named {1}")]
     NameUnchanged(u32, String),
+    #[error("planet {0} stands at the system's centre")]
+    AtCentre(u32),
+    #[error(
+        "planet {body} is a moon of planet {parent}, which the save does not hold: make it a planet first"
+    )]
+    ParentMissing { body: u32, parent: u32 },
+    #[error("planet {0} already stands there")]
+    BodyUnchanged(u32),
+    #[error("{reason}")]
+    InvalidParent { reason: String },
+    #[error("planet {0} has moons, so it cannot become a moon")]
+    HasMoons(u32),
+    #[error("planet {0} already has that parent")]
+    ParentUnchanged(u32),
+    #[error("planet {planet} {state}")]
+    RingUnchanged { planet: u32, state: &'static str },
+    #[error("system {system} has no belt {index}")]
+    UnknownBelt { system: u32, index: usize },
+    #[error("belt {index} of system {system} is already that way")]
+    BeltUnchanged { system: u32, index: usize },
+    #[error(
+        "the inner radius cannot go below {least:.2}, which the system's bodies and belts reach"
+    )]
+    InnerRadiusTooSmall { least: f64 },
+    #[error("system {0} already has that inner radius")]
+    InnerRadiusUnchanged(u32),
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,
@@ -814,7 +948,8 @@ impl OpError {
             | Self::UnknownNebula { .. }
             | Self::UnknownPlanet { .. }
             | Self::UnknownCountry { .. }
-            | Self::UnknownDeposit { .. } => ErrorKind::NotFound,
+            | Self::UnknownDeposit { .. }
+            | Self::UnknownBelt { .. } => ErrorKind::NotFound,
             Self::Parse { .. }
             | Self::NebulaParse { .. }
             | Self::HeaderParse { .. }
@@ -897,6 +1032,16 @@ impl OpError {
             | Self::InvalidCloudType { .. }
             | Self::AmbientSlotTaken { .. }
             | Self::NameUnchanged { .. }
+            | Self::AtCentre { .. }
+            | Self::ParentMissing { .. }
+            | Self::BodyUnchanged { .. }
+            | Self::InvalidParent { .. }
+            | Self::HasMoons { .. }
+            | Self::ParentUnchanged { .. }
+            | Self::RingUnchanged { .. }
+            | Self::BeltUnchanged { .. }
+            | Self::InnerRadiusTooSmall { .. }
+            | Self::InnerRadiusUnchanged { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,
         }
     }

@@ -24,5 +24,20 @@ export const FE_ZONE_DEFAULT_DISTANCE = 40;
 /** How far from the origin, on either axis, a zone's centre may lie. */
 export const FE_ZONE_MAP_EXTENT = 470;
 
-/** The smallest inner radius a system has. */
-export const MIN_INNER_RADIUS = 150;
+/** How vanilla sizes a system, for when no game data gives the install's defines. */
+export const VANILLA_SYSTEM_RADII = { min_inner: 150, inner_offset: 30, outer_offset: 100 } as const;
+
+/** The orbit of a planet's first moon. */
+export const MOON_RING_FIRST = 15;
+
+/** How much further out each moon ring after the first lies. */
+export const MOON_RING_STEP = 5;
+
+/** How near, in units and in degrees, two bodies about one parent stand before they overlap. */
+export const OVERLAP_TOLERANCE = 0.5;
+
+/** How far from its belt's radius an asteroid of that belt may lie. */
+export const BELT_SCATTER = 10;
+
+/** How far a body's point may stray from its stored orbit for the stored value to be drawn. */
+export const STORED_ORBIT_SLACK = 0.01;

@@ -133,6 +133,18 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),
+        // A scenario's bodies and belts come from its initializers, which the game data holds.
+        Op::MoveSaveBody { .. }
+        | Op::SetSaveBodyParent { .. }
+        | Op::SetPlanetRing { .. }
+        | Op::AddSaveBelt { .. }
+        | Op::RemoveSaveBelt { .. }
+        | Op::SetSaveBeltRadius { .. }
+        | Op::SetSaveBeltKind { .. }
+        | Op::SetSaveInnerRadius { .. } => Err(OpError::Unsupported {
+            op: op.name(),
+            kind: DocumentKind::Scenario,
+        }),
         // The game dresses a scenario's nebula members when it starts.
         Op::SetNebulaTurbulent { .. } | Op::SetNebulaFootprints { .. } => {
             Err(OpError::Unsupported {

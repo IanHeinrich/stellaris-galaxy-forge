@@ -4,10 +4,19 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemRoll } from "../../generated/SystemRoll";
-import { bodyLayout, planetClassView, planetSummary, systemDetails } from "../../test/builders";
+import {
+  bodyLayout,
+  ORBIT_SYSTEM_AT,
+  orbitClasses,
+  orbitSystem,
+  planetClassView,
+  planetSummary,
+  saveBody,
+  systemDetails,
+} from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
-import { MIN_INNER_RADIUS } from "../../generated/constants";
+import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import { discRadius, VANILLA_MOON_SCALE } from "./discs";
 import {
   FIT_MARGIN,
@@ -16,6 +25,7 @@ import {
   polar,
   systemLayout,
   type BodyPlacement,
+  type LayoutOverride,
   type SystemLayout,
 } from "./orbits";
 
@@ -23,23 +33,6 @@ const NO_CLASSES: ReadonlyMap<string, PlanetClassView> = new Map();
 
 const laid = (details: SystemDetails | null, roll: SystemRoll | null = null) =>
   systemLayout(details, roll, NO_CLASSES, VANILLA_MOON_SCALE);
-
-/** A save body: at `at`, `orbit` from its parent, of `size`, a moon wherever it has a parent. */
-function saveBody(
-  id: number,
-  planetClass: string,
-  at: [number, number],
-  orbit: number,
-  size: number,
-  parent: number | null = null,
-): PlanetSummary {
-  const layout = bodyLayout({
-    orbit: { min: orbit, max: orbit },
-    at,
-    size: { min: size, max: size },
-  });
-  return planetSummary({ id, class: planetClass, parent, moon: parent !== null, orbit, layout });
-}
 
 function body(layout: SystemLayout, id: number): BodyPlacement {
   const found = layout.bodies.find((b) => b.id === id);
@@ -316,7 +309,109 @@ describe("belts and fit", () => {
       }),
     );
     expect(far.fitRadius).toBe(230 + 30 + FIT_MARGIN);
-    expect(laid(null).fitRadius).toBe(MIN_INNER_RADIUS + FIT_MARGIN);
+    expect(laid(null).fitRadius).toBe(VANILLA_SYSTEM_RADII.min_inner + FIT_MARGIN);
+  });
+});
+
+describe("an override", () => {
+  const classes = orbitClasses();
+  const system = orbitSystem();
+  const drawn = (override?: LayoutOverride) =>
+    systemLayout(system, null, classes, VANILLA_MOON_SCALE, override);
+  const moved = (id: number, parent: number | null, radius: number, angle: number) => ({
+    bodies: new Map([[id, { parent, radius, angle }]]),
+  });
+
+  it("puts an overridden body at its radius and angle about its parent, its disc kept", () => {
+    const layout = drawn(moved(5, null, 110, 90));
+    const lone = body(layout, 5);
+    expect(lone.x).toBeCloseTo(0);
+    expect(lone.y).toBeCloseTo(110);
+    expect(lone).toMatchObject({ angle: 90, parent: null, moon: false });
+    expect(lone.ring).toEqual({ cx: 0, cy: 0, radius: 110 });
+    expect(lone.disc).toBe(body(drawn(), 5).disc);
+  });
+
+  it("carries a moved planet's save moons with it, each keeping its radius and angle about it", () => {
+    const layout = drawn(moved(2, null, 80, 45));
+    const planet = body(layout, 2);
+    for (const [id, radius, angle] of [
+      [3, 15, 90],
+      [4, 20, 200],
+    ]) {
+      const moon = body(layout, id);
+      expect(moon.ring).toEqual({ cx: planet.x, cy: planet.y, radius });
+      expect(moon.angle).toBeCloseTo(angle);
+      expect(Math.hypot(moon.x - planet.x, moon.y - planet.y)).toBeCloseTo(radius);
+    }
+  });
+
+  it("carries a rolled planet's moons with it", () => {
+    const fixed = (value: number) => ({ min: value, max: value });
+    const walk = systemDetails({
+      planets: [
+        planetSummary({ id: 2, layout: bodyLayout({ orbit: fixed(50) }) }),
+        planetSummary({ id: 3, parent: 2, moon: true, layout: bodyLayout({ orbit: fixed(5) }) }),
+      ],
+    });
+    const roll = systemRoll({
+      bodies: [
+        rolledBody({ id: 2, orbit: 50, angle: 0 }),
+        rolledBody({ id: 3, orbit: 5, angle: 90 }),
+      ],
+    });
+    const layout = systemLayout(
+      walk,
+      roll,
+      NO_CLASSES,
+      VANILLA_MOON_SCALE,
+      moved(2, null, 70, 180),
+    );
+    const planet = body(layout, 2);
+    expect(planet.x).toBeCloseTo(-70);
+    const moon = body(layout, 3);
+    expect(moon.ring).toEqual({ cx: planet.x, cy: planet.y, radius: 5 });
+    expect(moon.angle).toBe(90);
+  });
+
+  it("draws a planet given a parent as a moon about its host", () => {
+    const layout = drawn(moved(5, 2, 25, 0));
+    const host = body(layout, 2);
+    const moon = body(layout, 5);
+    expect(moon).toMatchObject({ parent: 2, moon: true, angle: 0 });
+    expect(moon.ring).toEqual({ cx: host.x, cy: host.y, radius: 25 });
+    expect(moon.x).toBeCloseTo(host.x + 25);
+    expect(moon.y).toBeCloseTo(host.y);
+  });
+
+  it("draws a moon given the centre as a planet about it", () => {
+    const layout = drawn(moved(3, null, 140, 10));
+    expect(body(layout, 3)).toMatchObject({ parent: null, moon: false });
+    expect(body(layout, 3).ring).toEqual({ cx: 0, cy: 0, radius: 140 });
+  });
+
+  it("draws the belts and the inner radius it names in place of the system's", () => {
+    const layout = drawn({ belts: [{ kind: "icy_asteroid_belt", radius: 90 }], innerRadius: 260 });
+    expect(layout.belts).toEqual([
+      { kind: "icy_asteroid_belt", radius: 90, inner: 80, outer: 100 },
+    ]);
+    expect(layout.innerRadius).toBe(260);
+    expect(body(layout, 2)).toEqual(body(drawn(), 2));
+  });
+
+  it("that names nothing returns the kept layout", () => {
+    expect(drawn({})).toBe(drawn());
+    expect(drawn({ bodies: new Map() })).not.toBe(drawn());
+  });
+
+  it("is laid out afresh each time, while the layout without one stays the kept one", () => {
+    const base = drawn();
+    expect(drawn()).toBe(base);
+    const once = drawn(moved(5, null, 110, 90));
+    expect(drawn(moved(5, null, 110, 90))).not.toBe(once);
+    expect(drawn()).toBe(base);
+    expect(body(base, 5).ring?.radius).toBe(100);
+    expect([body(base, 2).x, body(base, 2).y]).toEqual(ORBIT_SYSTEM_AT.planet);
   });
 });
 

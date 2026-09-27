@@ -1,0 +1,75 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved star #1205 from orbit 220.02 at 128.38° to orbit 220.02 at 100°, with #1206, #1207, #1208, #1209 and #1210
+inverse: MoveSaveBody { system: 53, body: 1205, radius: 220.018001259, angle: 128.376712464 }
+
+--- gamestate
++++ gamestate
+@@ -153833,8 +153833,8 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-136.5936
+-				y=172.4822
++				x=-38.20572
++				y=216.67543
+ 				origin=53
+ 			}
+ 			orbit=220
+@@ -153898,8 +153898,8 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-86.5591
+-				y=168.8917
++				x=11.82878
++				y=213.08493
+ 				origin=53
+ 			}
+ 			orbit=50
+@@ -153986,8 +153986,8 @@
+ 			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=-76.75021
+-				y=160.35889
++				x=21.63767
++				y=204.55212
+ 				origin=53
+ 			}
+ 			orbit=13
+@@ -154044,8 +154044,8 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-193.20285
+-				y=221.68745
++				x=-94.81497
++				y=265.88068
+ 				origin=53
+ 			}
+ 			orbit=75
+@@ -154128,8 +154128,8 @@
+ 			binary_flags=576
+ 			coordinate=
+ 			{
+-				x=-180.7872
+-				y=217.79122
++				x=-82.39932
++				y=261.98445
+ 				origin=53
+ 			}
+ 			orbit=13
+@@ -154186,8 +154186,8 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-170.3766
+-				y=78.2812
++				x=-71.98872
++				y=122.47443
+ 				origin=53
+ 			}
+ 			orbit=100

@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the inner radius of system #1 from 186.71 to 160
+inverse: SetSaveInnerRadius { system: 1, radius: 186.71 }
+
+--- gamestate
++++ gamestate
+@@ -28976,8 +28976,8 @@
+ 			resource_region_exotic_gases_rich=62808000
+ 		}
+ 		initializer="ai_system_03"
+-		inner_radius=186.71
+-		outer_radius=286.71
++		inner_radius=160
++		outer_radius=260
+ 		starbases=
+ 		{
+ 			4294967295

@@ -53,7 +53,6 @@ const COMMAND_MODES: Readonly<Partial<Record<BarCommand, readonly BarMode[]>>> =
   deleteSelection: GALAXY,
   selectAll: GALAXY,
   browseInitializers: GALAXY,
-  nudge: GALAXY,
 };
 
 /** A key action, or a nudge of the selection by the arrow keys. */

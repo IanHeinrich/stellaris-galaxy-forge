@@ -165,6 +165,16 @@ export function nudgeOf(e: KeyLike, inInput: boolean): Nudge | null {
 }
 
 /**
+ * A nudge as a system view body takes it, in degrees and units: screen right turns it clockwise
+ * as drawn and screen up steps it out.
+ */
+export function orbitNudge({ dx, dy }: Nudge): { turn: number; out: number } {
+  const right = dx * SAVE_X_SIGN;
+  const up = -dy * SAVE_Y_SIGN;
+  return { turn: right * SAVE_X_SIGN * SAVE_Y_SIGN + 0, out: up + 0 };
+}
+
+/**
  * Which way `[` and `]` step, and how far a nebula's radius moves: one, or five with Shift.
  * A brush takes only the sign.
  */

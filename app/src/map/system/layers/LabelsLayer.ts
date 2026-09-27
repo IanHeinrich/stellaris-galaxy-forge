@@ -80,6 +80,18 @@ function styleOf(body: SceneBody): TextStyle {
   return body.moon ? MOON_STYLE : PLANET_STYLE;
 }
 
+/** Whether `b`'s label reads and ranks as `a`'s does, wherever each stands. */
+function labelledAlike(a: SceneBody, b: SceneBody): boolean {
+  return (
+    a.name === b.name &&
+    a.moon === b.moon &&
+    a.colony === b.colony &&
+    a.resources === b.resources &&
+    a.placement.star === b.placement.star &&
+    a.placement.disc === b.placement.disc
+  );
+}
+
 /** Stars first, then planets from the largest, then moons from the largest. */
 function rank(a: Label, b: Label): number {
   return bodyTier(a.body) - bodyTier(b.body) || b.body.placement.disc - a.body.placement.disc;
@@ -182,6 +194,12 @@ export class LabelsLayer implements SystemLayer {
       ctx.sceneLayers.details === this.detailsShown &&
       ctx.sceneLayers.labels === this.labelsShown;
     if (same) return;
+    if (
+      ctx.sceneLayers.details === this.detailsShown &&
+      ctx.sceneLayers.labels === this.labelsShown
+    ) {
+      if (this.move(ctx)) return;
+    }
     this.bodies = ctx.bodies;
     this.detailsShown = ctx.sceneLayers.details;
     this.labelsShown = ctx.sceneLayers.labels;
@@ -202,6 +220,26 @@ export class LabelsLayer implements SystemLayer {
     this.redress();
     this.drawnRev = -1;
     this.place();
+  }
+
+  /**
+   * Stands each label by its body where `ctx` puts it, when nothing a label shows changed; false,
+   * with nothing moved, otherwise.
+   */
+  private move(ctx: SystemContext): boolean {
+    if (ctx.bodies.length !== this.bodies.length) return false;
+    const byId = new Map(ctx.bodies.map((b) => [b.placement.id, b]));
+    const alike = (was: SceneBody) => {
+      const now = byId.get(was.placement.id);
+      return now !== undefined && labelledAlike(was, now);
+    };
+    if (!this.bodies.every(alike)) return false;
+    this.bodies = ctx.bodies;
+    this.fitRadius = ctx.layout.fitRadius;
+    for (const label of this.labels) label.body = byId.get(label.body.placement.id)!;
+    this.drawnRev = -1;
+    this.place();
+    return true;
   }
 
   /**

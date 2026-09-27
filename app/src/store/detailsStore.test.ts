@@ -15,7 +15,7 @@ import * as ipc from "../api/ipc";
 import { bindStores } from "./bindStores";
 import type { SystemRoll } from "../generated/SystemRoll";
 import { systemRoll } from "../test/rolls";
-import { shownRoll, useDetailsStore } from "./detailsStore";
+import { setRollWithin, shownRoll, useDetailsStore } from "./detailsStore";
 import { planetSummary, systemDetails } from "./fixture";
 
 bindStores();
@@ -336,6 +336,7 @@ describe("requestRoll", () => {
   });
 
   it("keeps only the roll a system shows, not every roll asked for before it", async () => {
+    setRollWithin(175);
     getSystemRoll.mockImplementation(async (system, roll) => systemRoll({ system, roll }));
     for (const roll of [0, 1, 2]) {
       useDetailsStore.getState().requestRoll(5, roll);
@@ -344,5 +345,6 @@ describe("requestRoll", () => {
     expect(shown(5)?.roll).toBe(2);
     useDetailsStore.getState().requestRoll(5, 0);
     expect(getSystemRoll).toHaveBeenCalledTimes(4);
+    expect(getSystemRoll.mock.calls.map((call) => call[2])).toEqual([175, 175, 175, 175]);
   });
 });

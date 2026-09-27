@@ -1,0 +1,21 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added a belt (rocky_asteroid_belt) at radius 150 to system #140
+inverse: RemoveSaveBelt { system: 140, index: 2 }
+
+--- gamestate
++++ gamestate
+@@ -38952,6 +38952,11 @@
+ 				inner_radius=90
+ 			}
+  
++			{
++				type="rocky_asteroid_belt"
++				inner_radius=150
++			}
++ 
+ 		}
+ 		arm=0
+ 		flags=

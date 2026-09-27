@@ -7,7 +7,7 @@
  * sprite drawn upright.
  */
 import type { BodyLayout } from "../../generated/BodyLayout";
-import { MIN_INNER_RADIUS } from "../../generated/constants";
+import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import type { Bounds } from "../../generated/Bounds";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
@@ -115,6 +115,24 @@ export interface SystemLayout {
   largestDisc: number;
 }
 
+/** Where a body stands about what it orbits: `radius` and `angle` about the parent's point, in `polar`'s degrees. */
+export interface BodyOrbit {
+  /** The body it orbits; null for the system's centre. */
+  parent: number | null;
+  radius: number;
+  angle: number;
+}
+
+/**
+ * What a layout draws in place of the details: bodies put elsewhere, other belts, another inner
+ * radius. A body's moons go with it.
+ */
+export interface LayoutOverride {
+  bodies?: ReadonlyMap<number, BodyOrbit>;
+  belts?: readonly { kind: string; radius: number }[];
+  innerRadius?: number;
+}
+
 export interface Bearing {
   /** Unit direction in the save frame. */
   dx: number;
@@ -150,10 +168,14 @@ export function polar(x: number, y: number, orbit: number, angle: number): Point
   return { x: x + orbit * Math.cos(a), y: y + orbit * Math.sin(a) };
 }
 
+/** `deg` turned into [0, 360). */
+export function wrapDegrees(deg: number): number {
+  return (((deg % 360) + 360) % 360) + 0;
+}
+
 /** Degrees from (fromX, fromY) to (toX, toY) in the save frame, in [0, 360). */
 function saveAngle(fromX: number, fromY: number, toX: number, toY: number): number {
-  const deg = (Math.atan2(toY - fromY, toX - fromX) * 180) / Math.PI;
-  return (((deg % 360) + 360) % 360) + 0;
+  return wrapDegrees((Math.atan2(toY - fromY, toX - fromX) * 180) / Math.PI);
 }
 
 /** Screen radians of the save-frame direction (dx, dy). */
@@ -195,13 +217,18 @@ interface Placed {
   point: Point;
   placement: BodyPlacement;
   parent: Placed | null;
+  /** How far the override moved it from the point the save gives it, which its save moons follow. */
+  shift: Point;
 }
+
+const NO_SHIFT: Point = { x: 0, y: 0 };
 
 function layOut(
   details: SystemDetails | null,
   roll: SystemRoll | null,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
   moonScale: number,
+  override?: LayoutOverride,
 ): SystemLayout {
   const planets = details?.planets ?? [];
   const byId = new Map(planets.map((p) => [p.id, p]));
@@ -215,10 +242,12 @@ function layOut(
     if (inProgress.has(planet.id)) return null;
     inProgress.add(planet.id);
 
+    const moved = override?.bodies?.get(planet.id);
+    const parentId = moved ? moved.parent : planet.parent;
     let parent: Placed | null = null;
     let missing = false;
-    if (planet.parent !== null && planet.parent !== planet.id) {
-      const parentPlanet = byId.get(planet.parent);
+    if (parentId !== null && parentId !== planet.id) {
+      const parentPlanet = byId.get(parentId);
       if (parentPlanet) parent = place(parentPlanet);
       else missing = true;
     }
@@ -232,8 +261,10 @@ function layOut(
     let angle: number;
     let band: Band | null = null;
     let turn: Turn | null = null;
+    let shift = NO_SHIFT;
     if (layout?.at) {
-      point = { x: layout.at[0], y: layout.at[1] };
+      const carried = parent?.shift ?? NO_SHIFT;
+      point = { x: layout.at[0] + carried.x, y: layout.at[1] + carried.y };
       radius = layout.orbit?.min ?? 0;
       angle = saveAngle(centre.x, centre.y, point.x, point.y);
     } else {
@@ -244,17 +275,25 @@ function layOut(
       turn = rolled ? turnOf(layout, rolled, rolls) : null;
       point = polar(centre.x, centre.y, radius, angle);
     }
+    if (moved) {
+      radius = moved.radius;
+      angle = wrapDegrees(moved.angle);
+      point = polar(centre.x, centre.y, radius, angle);
+    }
+    if (layout?.at) shift = { x: point.x - layout.at[0], y: point.y - layout.at[1] };
 
     const ring = !missing && radius > 0 ? { cx: centre.x, cy: centre.y, radius } : null;
     const size = layout?.size ? mid(layout.size) : null;
     const view = planetClasses.get(planet.class);
+    // A planet orbiting a star names it as its parent, as a moon names its planet.
+    const aboutStar = parent?.placement.star ?? false;
     const placement: BodyPlacement = {
       id: planet.id,
       x: point.x,
       y: point.y,
-      disc: discRadius(size, { moon: planet.moon, star, view, moonScale }),
+      disc: discRadius(size, { moon: planet.moon && !aboutStar, star, view, moonScale }),
       star,
-      moon: planet.moon,
+      moon: moved ? moved.parent !== null && !aboutStar : planet.moon && !aboutStar,
       parent: parent ? parent.placement.id : null,
       ring,
       angle,
@@ -268,7 +307,7 @@ function layOut(
         base: rolled?.base ?? null,
       },
     };
-    const result = { point, placement, parent };
+    const result = { point, placement, parent, shift };
     placed.set(planet.id, result);
     inProgress.delete(planet.id);
     return result;
@@ -288,11 +327,14 @@ function layOut(
   }
   const bodies = all.map((b) => b.placement);
 
-  const belts = (details?.belts ?? []).map((belt) => ({
-    kind: belt.kind,
-    radius: belt.inner_radius,
-    inner: belt.inner_radius - BELT_BAND_WIDTH / 2,
-    outer: belt.inner_radius + BELT_BAND_WIDTH / 2,
+  const shownBelts =
+    override?.belts ??
+    (details?.belts ?? []).map((belt) => ({ kind: belt.kind, radius: belt.inner_radius }));
+  const belts = shownBelts.map(({ kind, radius }) => ({
+    kind,
+    radius,
+    inner: radius - BELT_BAND_WIDTH / 2,
+    outer: radius + BELT_BAND_WIDTH / 2,
   }));
 
   let outermost = 0;
@@ -305,7 +347,10 @@ function layOut(
   }
   for (const belt of belts) outermost = Math.max(outermost, belt.outer);
 
-  const innerRadius = details?.inner_radius ?? Math.max(MIN_INNER_RADIUS, outermost);
+  const innerRadius =
+    override?.innerRadius ??
+    details?.inner_radius ??
+    Math.max(VANILLA_SYSTEM_RADII.min_inner, outermost);
   const largestDisc = bodies.reduce((m, b) => Math.max(m, b.disc), 0);
   return {
     bodies,
@@ -328,15 +373,27 @@ const laid = new WeakMap<object, Laid>();
 
 /**
  * Every body's point, circle and angles, the belts, and the radius the camera fits: a save's bodies
- * where it puts them, a scenario's where `roll` lands them. The same details, roll, classes and moon
- * scale give the same layout, so the scene and every readout of it read one.
+ * where it puts them, a scenario's where `roll` lands them, and whatever `override` puts elsewhere.
+ * The same details, roll, classes and moon scale give the same layout, so the scene and every
+ * readout of it read one; a layout under an override is never kept.
  */
 export function systemLayout(
   details: SystemDetails | null,
   roll: SystemRoll | null,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
   moonScale: number,
+  override?: LayoutOverride,
 ): SystemLayout {
+  const overridden =
+    override?.bodies !== undefined ||
+    override?.belts !== undefined ||
+    override?.innerRadius !== undefined;
+  if (overridden) {
+    const shown = layOut(details, roll, planetClasses, moonScale, override);
+    if (override.belts !== undefined) return shown;
+    // The same belts object as the plain layout's, so the belts drawn from it are left alone.
+    return { ...shown, belts: systemLayout(details, roll, planetClasses, moonScale).belts };
+  }
   const key = details ?? NO_DETAILS;
   const known = laid.get(key);
   if (

@@ -6,15 +6,6 @@ import { planetTint } from "../../lib/details/icons";
 import { starFlare, starGlyph, type StarFlare } from "../../lib/visual/starGlyphs";
 
 export const ICY_TINT = 0xbfd9ee;
-const ROCKY_TINT = 0x9a8773;
-const DEBRIS_TINT = 0x514a45;
-
-/** The tint of a belt's rocks, by its kind. */
-export function beltTint(kind: string): number {
-  if (kind.includes("icy")) return ICY_TINT;
-  if (kind.includes("rocky")) return ROCKY_TINT;
-  return DEBRIS_TINT;
-}
 
 /**
  * A tint for each class family `planetTint` leaves to its neutral grey; every other class takes

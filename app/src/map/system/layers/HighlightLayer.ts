@@ -1,11 +1,25 @@
 import { Container, Graphics } from "pixi.js";
 import { stepText, turnText } from "../../../lib/details/labels";
 import { polar, wholeTurn } from "../../../lib/details/orbits";
-import { ACCENT_COLOR, MATCHED_COLOR } from "../../../lib/visual/style";
+import {
+  ACCENT_COLOR,
+  CAUTION_COLOR,
+  GHOST_ALPHA,
+  MATCHED_COLOR,
+  REFUSED_COLOR,
+} from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
 import { dashedCircle, dashedLine } from "../../layers/dashes";
+import { sameHandle, type DragMarks, type HandleRef } from "../bodyDrag";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
-import { drawnDisc, exitTriangle, SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
+import {
+  drawnDisc,
+  exitTriangle,
+  ringDashes,
+  SELECTED_GAP_PX,
+  SELECTED_WIDTH_PX,
+} from "../geometry";
+import { HANDLE_RADIUS_PX } from "./HandlesLayer";
 import { plateScaleAt } from "./labelSlots";
 import { standTag, TagCache, tagBox, type RadiusTag } from "./plate";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
@@ -48,6 +62,15 @@ const BASE_GAP_PX = 4;
 const BASE_MAX_DASHES = 360;
 /** The stretch of the radius line its step covers, in screen pixels. */
 const STEP_WIDTH_PX = 2;
+/**
+ * A drag's marks: the ring the body lands on, dashed on its own ring and solid on one it shares or
+ * overlaps; the soft ring round the body it shares with; the ring round a host or a body that
+ * refuses it; and a hovered or dragged handle, grown past the drawn one. Widths in screen pixels.
+ */
+const TARGET_WIDTH_PX = 1.5;
+const OWN_RING_ALPHA = 0.8;
+const SOFT_ALPHA = 0.5;
+const HANDLE_GROW_PX = 2;
 
 type TagSlot = "radius" | "turn" | "step";
 
@@ -81,9 +104,11 @@ export class HighlightLayer implements SystemLayer {
   readonly baseCircle = new Graphics();
   readonly stepLine = new Graphics();
   readonly band = new Graphics();
+  readonly dragMarks = new Graphics();
   private readonly tags = new TagCache<TagSlot>(this.container);
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
   private ref: SceneHighlight = NO_HIGHLIGHT;
+  private hoveredHandle: HandleRef | null = null;
   private cam: Camera | null = null;
   private drawnRev = -1;
 
@@ -97,7 +122,9 @@ export class HighlightLayer implements SystemLayer {
     this.baseCircle.label = "base-circle";
     this.stepLine.label = "step-line";
     this.band.label = "orbit-band";
+    this.dragMarks.label = "drag";
     this.container.addChild(
+      this.dragMarks,
       this.band,
       this.baseCircle,
       this.anchorRay,
@@ -121,6 +148,13 @@ export class HighlightLayer implements SystemLayer {
     this.redraw();
   }
 
+  /** Marks the handle under the pointer, or none. */
+  hoverHandle(handle: HandleRef | null): void {
+    if (sameHandle(handle, this.hoveredHandle)) return;
+    this.hoveredHandle = handle;
+    this.redraw();
+  }
+
   onViewport(cam: Camera): void {
     this.cam = cam;
     if (cam.rev === this.drawnRev) return;
@@ -138,6 +172,7 @@ export class HighlightLayer implements SystemLayer {
     this.drawTurn(cam, selected);
     this.drawAnchor(cam, selected);
     this.drawBand(selected);
+    this.drawDrag(cam, this.ctx.drag);
     const px = 1 / cam.scale;
     const ring = (id: number | null, gap: number, width: number, color: number, alpha: number) => {
       const body = id === null ? undefined : this.ctx.bodyById.get(id);
@@ -293,6 +328,52 @@ export class HighlightLayer implements SystemLayer {
       BASE_GAP_PX * px,
     );
     ray.stroke({ color: BASE_COLOR, alpha: BASE_ALPHA, pixelLine: true });
+  }
+
+  /**
+   * What a drag marks: a faint disc where the body stood, the ring it lands on, the body it shares
+   * that ring with or stands on, a host or a refusing body ringed, and the handle held or hovered.
+   */
+  private drawDrag(cam: Camera, drag: DragMarks | null): void {
+    const g = this.dragMarks.clear();
+    const px = 1 / cam.scale;
+    const placed = (id: number | null) =>
+      id === null ? undefined : this.ctx.bodyById.get(id)?.placement;
+    const around = (id: number | null, color: number, alpha: number) => {
+      const body = placed(id);
+      if (!body) return;
+      const r = drawnDisc(body.disc, cam.scale) + SELECTED_GAP_PX * px;
+      g.circle(body.x, body.y, r).stroke({ color, alpha, width: TARGET_WIDTH_PX * px });
+    };
+    if (drag?.ghost) {
+      const { x, y, disc } = drag.ghost;
+      g.circle(x, y, drawnDisc(disc, cam.scale)).fill({
+        color: HOVER_COLOR,
+        alpha: GHOST_ALPHA / 2,
+      });
+    }
+    const ring = placed(drag?.body ?? null)?.ring;
+    if (drag && ring) {
+      const width = TARGET_WIDTH_PX * px;
+      if (drag.tone === "shared" || drag.tone === "overlap") {
+        const color = drag.tone === "overlap" ? CAUTION_COLOR : ACCENT_COLOR;
+        g.circle(ring.cx, ring.cy, ring.radius).stroke({ color, width });
+      } else {
+        dashedCircle(g, ring.cx, ring.cy, ring.radius, ringDashes(ring.radius, cam.scale));
+        g.stroke({ color: ACCENT_COLOR, alpha: OWN_RING_ALPHA, width });
+      }
+    }
+    if (drag?.tone === "shared") around(drag.other, ACCENT_COLOR, SOFT_ALPHA);
+    if (drag?.tone === "overlap") around(drag.other, CAUTION_COLOR, 1);
+    if (drag?.tone === "refused") around(drag.other, REFUSED_COLOR, 1);
+    around(drag?.host ?? null, ACCENT_COLOR, 1);
+    const held = drag?.handle ?? this.hoveredHandle;
+    const handles = held ? this.ctx.handles.filter((h) => sameHandle(h.ref, held)) : [];
+    for (const handle of handles) {
+      g.circle(handle.x, handle.y, (HANDLE_RADIUS_PX + HANDLE_GROW_PX) * px)
+        .fill({ color: ACCENT_COLOR, alpha: SOFT_ALPHA })
+        .stroke({ color: ACCENT_COLOR, width: TARGET_WIDTH_PX * px });
+    }
   }
 
   /** The stretch of radii the selected scenario body's orbit may be rolled within. */

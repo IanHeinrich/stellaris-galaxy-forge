@@ -432,3 +432,9 @@ button.ins-danger:hover:not(:disabled) {
   border-color: var(--sev-error);
   color: var(--sev-error);
 }
+
+.sys-belt-radius {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

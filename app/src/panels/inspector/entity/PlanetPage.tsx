@@ -16,9 +16,11 @@ import {
   terraformCandidateTitle,
   type TerraformCandidate,
 } from "../../../lib/details/terraform";
+import { hasRingCheckbox, setPlanetRingOp } from "../../../lib/details/ring";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
+import { bodyOrbit } from "../../../lib/details/orbitEdits";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useCanEdit } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
@@ -26,6 +28,7 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { openSystem } from "../../../store/commands";
 import type { Entry } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
+import { useSystemGeometry } from "../../../store/systemGeometry";
 import { EditBlock, EditKey, ToggleField } from "../../EditField";
 import { useApplyOp } from "../../useApplyOp";
 import { useNamed } from "../../useNamed";
@@ -45,6 +48,7 @@ import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { PlanetRow } from "../system/sections/Planets";
 import { EntityView } from "./EntityView";
+import { OrbitBlock } from "./OrbitBlock";
 import { PlanetDeposits } from "./PlanetDeposits";
 import { StarBlock } from "./StarBlock";
 import { useSingleStarClasses } from "./useBodyClasses";
@@ -80,18 +84,39 @@ function Head({ page }: { page: PlanetPage }) {
   );
 }
 
-/** The planet's terraforming candidate modifier as a checkbox: `id` and its resolved `candidate`. */
-function TerraformBlock({ id, candidate }: { id: number; candidate: TerraformCandidate }) {
+/**
+ * Planet `id`'s checkboxes: its resolved terraforming `candidate` and whether it has a `ring`, each
+ * `null` where the page does not offer it.
+ */
+function PlanetBlock({
+  id,
+  candidate,
+  ring,
+}: {
+  id: number;
+  candidate: TerraformCandidate | null;
+  ring: boolean | null;
+}) {
   const applyOp = useApplyOp();
   const candidates = useGameDataStore((s) => s.terraformCandidates);
   return (
-    <EditBlock title="Terraforming">
-      <ToggleField
-        label="Terraforming candidate"
-        title={terraformCandidateTitle(candidate.modifier, candidates)}
-        checked={candidate.checked}
-        onChange={(on) => applyOp(setTerraformCandidateOp(id, candidate.modifier, on))}
-      />
+    <EditBlock title="Planet">
+      {candidate !== null && (
+        <ToggleField
+          label="Terraforming candidate"
+          title={terraformCandidateTitle(candidate.modifier, candidates)}
+          checked={candidate.checked}
+          onChange={(on) => applyOp(setTerraformCandidateOp(id, candidate.modifier, on))}
+        />
+      )}
+      {ring !== null && (
+        <ToggleField
+          label="Ring"
+          title="Draws a ring around this body"
+          checked={ring}
+          onChange={(on) => applyOp(setPlanetRingOp(id, on))}
+        />
+      )}
     </EditBlock>
   );
 }
@@ -203,7 +228,7 @@ function useBodyName(id: number): string {
   return found === null ? `#${id}` : bodyName(found.planet, names);
 }
 
-function Orbits({ parent, orbit }: { parent: number; orbit: number | null }) {
+function Orbits({ parent, radius }: { parent: number; radius: number | null }) {
   const opener = useOpenEntity();
   const name = useBodyName(parent);
   return (
@@ -215,12 +240,13 @@ function Orbits({ parent, orbit }: { parent: number; orbit: number | null }) {
       >
         {name}
       </DrillLink>
-      {orbit !== null && <span className="muted"> radius {orbit}</span>}
+      {radius !== null && <span className="muted"> radius {radius}</span>}
     </PropertyRow>
   );
 }
 
-function About({ page }: { page: PlanetPage }) {
+/** What the page only shows; `radius` is the body's orbit where no Orbit block edits it. */
+function About({ page, radius }: { page: PlanetPage; radius: number | null }) {
   const systemName = useGalaxyStore((s) => s.systemName);
   const system = page.system;
   const occupied = page.controller !== null && page.controller !== page.owner;
@@ -233,7 +259,7 @@ function About({ page }: { page: PlanetPage }) {
             {systemName(system)}
           </LinkRow>
         )}
-        {page.parent !== null && <Orbits parent={page.parent} orbit={page.orbit} />}
+        {page.parent !== null && <Orbits parent={page.parent} radius={radius} />}
         {page.surveyed_by !== null && <CountryRow label="Surveyed by" id={page.surveyed_by} />}
         {occupied && page.controller !== null && (
           <CountryRow label="Controller" id={page.controller} />
@@ -315,30 +341,40 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const starClasses = useGameDataStore((s) => s.starClasses);
   const candidates = useGameDataStore((s) => s.terraformCandidates);
   const bodies = useCanEdit("bodies");
+  const geometry = useCanEdit("geometry");
   const found = useFoundPlanet(page.id);
   const system = useGalaxyStore((s) => (found === null ? undefined : s.systems.get(found.system)));
   const star = starBodyEditable(page.class, bodies, planetClasses, starClasses);
   const starBlock = star && found !== null && system !== undefined;
+  const starBody = isStarBody(page.class, planetClasses, starClasses);
   const candidate =
-    !bodies || isStarBody(page.class, planetClasses, starClasses)
-      ? null
-      : terraformCandidate(page, planetClasses, candidates);
+    !bodies || starBody ? null : terraformCandidate(page, planetClasses, candidates);
+  const ring =
+    geometry && found !== null && hasRingCheckbox(page.class, planetClasses, starClasses)
+      ? found.planet.ring === true
+      : null;
   const requestDetails = useDetailsStore((s) => s.request);
   const detailsVersion = useDetailsStore((s) => s.version);
   const waiting = useDetailsStore((s) => page.system !== null && !s.failed.has(page.system));
-  // A star's fields need its system's details, which a page reached from search may not have read.
+  const { layout, editing } = useSystemGeometry(page.system);
+  const orbit = bodyOrbit(layout, page.id);
+  const movable = orbit !== null && editing.bodies.get(page.id)?.move === true;
+  const radius = movable || orbit === null ? null : Math.round(orbit.radius);
+  // The star's and the orbit's fields need the system's details, which a page reached from search
+  // may not have read.
   useEffect(() => {
-    if (star && page.system !== null) requestDetails([page.system]);
-  }, [star, page.system, requestDetails, detailsVersion]);
+    if (page.system !== null) requestDetails([page.system]);
+  }, [page.system, requestDetails, detailsVersion]);
   return (
     <>
       <Head page={page} />
-      {candidate !== null && <TerraformBlock id={page.id} candidate={candidate} />}
-      {starBlock ? (
-        <StarBlock planet={found.planet} system={system} />
-      ) : star && waiting ? (
-        <Empty>{READING_STARS}</Empty>
-      ) : (
+      {(candidate !== null || ring !== null) && (
+        <PlanetBlock id={page.id} candidate={candidate} ring={ring} />
+      )}
+      {starBlock && <StarBlock planet={found.planet} system={system} />}
+      {!starBlock && star && waiting && <Empty>{READING_STARS}</Empty>}
+      {page.system !== null && <OrbitBlock system={page.system} body={page.id} />}
+      {!starBlock && !(star && waiting) && (
         <Properties>
           <PropertyRow label="Class">{bodyClassName(page.class, names)}</PropertyRow>
           {page.size !== null && <PropertyRow label="Size">{page.size}</PropertyRow>}
@@ -347,9 +383,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       <PlanetDeposits page={page} />
       <PlanetModifiers page={page} />
       <Colony page={page} />
-      <About page={page} />
+      <About page={page} radius={radius} />
       <Moons page={page} />
-      {(starBlock || candidate !== null) && <EditKey />}
+      {(starBlock || candidate !== null || ring !== null || movable) && <EditKey />}
     </>
   );
 }

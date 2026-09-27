@@ -155,12 +155,12 @@ fn respec(
     rewrite_block(edit, flags, initializer, !spec.flags.is_empty(), flags_text);
     edit.set_scalar(&[keys::INITIALIZER], quoted(&spec.initializer))?;
     edit.set_scalar(&[keys::INNER_RADIUS], coord(written.inner_radius))?;
-    edit.set_scalar(&[keys::OUTER_RADIUS], coord(written.outer_radius()))
+    edit.set_scalar(&[keys::OUTER_RADIUS], coord(written.outer_radius))
 }
 
 /// Write the block `text` gives where `block` stands, else before the statement at
 /// `before`, when `wanted`; take `block` out either way.
-fn rewrite_block(
+pub(crate) fn rewrite_block(
     edit: &mut Edit,
     block: Option<Span>,
     before: Span,

@@ -12,6 +12,7 @@ import type { EntitySchema } from "../generated/EntitySchema";
 import type { EntitySource } from "../generated/EntitySource";
 import type { EntityView } from "../generated/EntityView";
 import type { ExportReport } from "../generated/ExportReport";
+import type { Issue } from "../generated/Issue";
 import type { ExportResult } from "../generated/ExportResult";
 import type { FeZone } from "../generated/FeZone";
 import type { GalaxySettings } from "../generated/GalaxySettings";
@@ -101,8 +102,8 @@ export function search(query: string, limit = 20): Promise<SearchResult> {
 }
 
 /** Build the details projection so search also finds planets and fleets. */
-export function warmDetails(): Promise<void> {
-  return invoke<void>("warm_details");
+export function warmDetails(): Promise<Issue[]> {
+  return invoke<Issue[]>("warm_details");
 }
 
 /** Planets, deposits, starbase and fleets of the given systems; unknown ids are skipped. */

@@ -108,6 +108,9 @@ pub struct Capabilities {
     pub bodies: bool,
     /// A planet's deposits can be added and removed.
     pub deposits: bool,
+    /// A body's orbit, what it orbits and its ring, a system's belts and its inner radius can
+    /// be changed.
+    pub geometry: bool,
     /// An empire's map colours can be changed.
     pub map_colors: bool,
     /// The L-Gate's outcome can be read and set.

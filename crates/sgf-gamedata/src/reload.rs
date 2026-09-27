@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crate::initializers::Initializer;
 use crate::install::layers::Layout;
 use crate::loc::localisation::Localisation;
+use crate::registries::asteroid_belts::AsteroidBeltDef;
 use crate::registries::bypasses::BypassDef;
 use crate::registries::colony_types::ColonyTypeDef;
 use crate::registries::country_types::CountryType;
@@ -56,7 +57,7 @@ const ALL: [RegistryKind; 8] = [
 ];
 
 /// The `.txt` directories each registry's loader reads, by path below a layer root.
-const DIRS: [(&str, RegistryKind); 20] = [
+const DIRS: [(&str, RegistryKind); 21] = [
     (Initializer::DIR, RegistryKind::Initializers),
     ("common/scripted_effects", RegistryKind::Scripts),
     ("events", RegistryKind::Scripts),
@@ -73,6 +74,7 @@ const DIRS: [(&str, RegistryKind); 20] = [
     (StaticModifierDef::DIR, RegistryKind::Definitions),
     (PlanetModifierDef::DIR, RegistryKind::Definitions),
     (ColonyTypeDef::DIR, RegistryKind::Definitions),
+    (AsteroidBeltDef::DIR, RegistryKind::Definitions),
     (ShipSizeDef::DIR, RegistryKind::Definitions),
     ("common/starbase_levels", RegistryKind::Definitions),
     ("common/defines", RegistryKind::Definitions),

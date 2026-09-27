@@ -110,7 +110,7 @@ beforeEach(() => {
   mockedIpc.listCampaignSaves.mockResolvedValue([save()]);
   mockedIpc.listScenarios.mockResolvedValue(listed([scenario()]));
   mockedIpc.closeSave.mockResolvedValue();
-  mockedIpc.warmDetails.mockResolvedValue();
+  mockedIpc.warmDetails.mockResolvedValue([]);
   mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
 });
 

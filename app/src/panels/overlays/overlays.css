@@ -20,6 +20,15 @@
   margin-bottom: 3px;
 }
 
+.map-tooltip.warn {
+  border-color: var(--warn);
+}
+
+.map-tooltip.warn .map-tooltip-title,
+.map-tooltip.warn .map-tooltip-line {
+  color: var(--warn);
+}
+
 .map-tooltip-line {
   white-space: pre-line;
 }

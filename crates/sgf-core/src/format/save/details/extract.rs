@@ -346,7 +346,7 @@ fn permanent_modifiers(node: &Node, src: &[u8]) -> Vec<String> {
 
 /// Where a planet's entry puts it, and whether it has a ring.
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct Placement {
+pub(super) struct Placement {
     pub orbit: Option<f64>,
     pub at: Option<(f64, f64)>,
     pub ring: bool,
@@ -361,12 +361,12 @@ fn placement(node: &Node, src: &[u8]) -> Placement {
     }
 }
 
-/// What planet `id` now says about itself, with its permanent `timed_modifier` names;
-/// `None` when the save holds no such planet.
+/// What planet `id` now says about itself, with its permanent `timed_modifier` names and
+/// where it stands; `None` when the save holds no such planet.
 pub(super) fn planet_facts(
     doc: &Document,
     id: u32,
-) -> Result<Option<(facts::planet::PlanetFacts, Vec<String>)>, ProjectionError> {
+) -> Result<Option<(facts::planet::PlanetFacts, Vec<String>, Placement)>, ProjectionError> {
     let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(None);
     };
@@ -375,6 +375,7 @@ pub(super) fn planet_facts(
             (
                 facts::planet::read(&node, src),
                 permanent_modifiers(&node, src),
+                placement(&node, src),
             )
         }),
     )
@@ -529,8 +530,7 @@ fn carries_planet_killer(index: &Index, src: &[u8], ship: u32) -> bool {
 /// Each system's starbases, fleets, belts and `inner_radius`, in one pass over the bytes
 /// now standing for its `galactic_object` entry: an added or rerolled system's facts are
 /// only in the bytes the op wrote. Starbases and fleets are read through the
-/// `starbase_mgr`, `ships` and `fleet` tables. A belt list with a radius that cannot be
-/// read leaves the system without belts.
+/// `starbase_mgr`, `ships` and `fleet` tables.
 pub(super) fn present(
     doc: &Document,
     graph: &GalaxyGraph,
@@ -553,8 +553,7 @@ pub(super) fn present(
             continue;
         };
         let system = facts::system::read(&node, entity_src);
-        details.inner_radius = system.inner_radius;
-        details.belts = read_spec::belts_in(&node, entity_src).unwrap_or_default();
+        read_geometry(details, &node, entity_src);
         let system_owner = graph.systems.get(&id).and_then(|s| s.owner);
         for starbase in system.starbases {
             let Some(station) = stations.get(&starbase) else {
@@ -602,4 +601,27 @@ pub(super) fn present(
         }
     }
     Ok(())
+}
+
+/// Read again system `id`'s belts and `inner_radius` from the bytes now standing for its
+/// entry.
+pub(super) fn refresh_geometry(
+    doc: &Document,
+    id: u32,
+    details: &mut RawSystemDetails,
+) -> Result<(), ProjectionError> {
+    let Some(anchor) = system_statement(doc, id) else {
+        return Ok(());
+    };
+    if let Some((node, src)) = current_entity(doc, keys::GALACTIC_OBJECT, u64::from(id), anchor)? {
+        read_geometry(details, &node, src);
+    }
+    Ok(())
+}
+
+/// The belts and `inner_radius` the system's entry `node` lists. A belt list with a radius
+/// that cannot be read leaves the system without belts.
+fn read_geometry(details: &mut RawSystemDetails, node: &Node, src: &[u8]) {
+    details.inner_radius = read::scalar_f64(node, keys::INNER_RADIUS, src);
+    details.belts = read_spec::belts_in(node, src).unwrap_or_default();
 }

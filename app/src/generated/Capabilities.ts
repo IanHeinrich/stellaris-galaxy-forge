@@ -49,6 +49,11 @@ bodies: boolean,
  */
 deposits: boolean, 
 /**
+ * A body's orbit, what it orbits and its ring, a system's belts and its inner radius can
+ * be changed.
+ */
+geometry: boolean, 
+/**
  * An empire's map colours can be changed.
  */
 map_colors: boolean, 

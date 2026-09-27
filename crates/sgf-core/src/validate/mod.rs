@@ -1,5 +1,6 @@
 //! Validation rules over the galaxy projection. Cheap enough to run after every op.
 
+pub(crate) mod bodies;
 mod paint;
 mod scenario;
 
@@ -98,6 +99,9 @@ pub enum IssueCode {
     /// A marauder clan's home stands within [`marauder::SEAT_CLEARANCE`] of a seat, so
     /// the raids hit that empire first.
     MarauderNearSeat,
+    /// Two bodies about one parent stand at the same radius and angle, so the game draws
+    /// one over the other. Read from the system details, which a plain open does not build.
+    BodiesOverlap,
 }
 
 impl IssueCode {
@@ -125,7 +129,8 @@ impl IssueCode {
             | Self::LClusterSystem
             | Self::MarauderHomeDuplicate
             | Self::MarauderBaseOrphan
-            | Self::MarauderBasesMissing => Severity::Warning,
+            | Self::MarauderBasesMissing
+            | Self::BodiesOverlap => Severity::Warning,
             // The game itself writes duplicate lane entries (708<->154, 401<->521 in the
             // sample), so a duplicate is worth a note, not a fault.
             Self::LaneDuplicate | Self::MarauderNearSeat | Self::FeLinkFar => Severity::Info,
@@ -169,6 +174,7 @@ impl IssueCode {
             Self::MarauderBaseOrphan => "marauder_base_orphan",
             Self::MarauderBasesMissing => "marauder_bases_missing",
             Self::MarauderNearSeat => "marauder_near_seat",
+            Self::BodiesOverlap => "bodies_overlap",
         }
     }
 }

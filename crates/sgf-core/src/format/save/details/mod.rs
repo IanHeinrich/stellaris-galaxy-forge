@@ -11,11 +11,12 @@
 mod extract;
 mod resolve;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::document::Document;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::projections::read;
+use crate::validate::{self, Issue};
 
 pub use extract::{
     ArchaeologySite, FleetSummary, MegastructureSummary, RawPlanet, RawStarbase, RawSystemDetails,
@@ -29,6 +30,10 @@ pub use resolve::{
 #[derive(Debug, Clone)]
 pub struct DetailsProjection {
     by_system: HashMap<u32, RawSystemDetails>,
+    /// [`validate::bodies::overlaps`] of each system, cached so `validate` never resolves
+    /// every system again on an edit; kept up to date by [`Self::refresh_planets`] and
+    /// [`Self::refresh_systems`].
+    overlaps: HashMap<u32, Vec<Issue>>,
 }
 
 impl DetailsProjection {
@@ -52,18 +57,27 @@ impl DetailsProjection {
         extract::megastructures(index, src, &mut by_system)?;
         extract::sites(doc, &planet_system, &mut by_system)?;
         extract::present(doc, graph, &countries, &ship_sizes, &mut by_system)?;
-        Ok(Self { by_system })
+        let overlaps = by_system
+            .iter()
+            .map(|(&id, raw)| (id, validate::bodies::overlaps(id, raw)))
+            .collect();
+        Ok(Self {
+            by_system,
+            overlaps,
+        })
     }
 
-    /// Read again the class, size, parent and modifiers of each of `planets`, as (planet,
-    /// system), from the bytes now standing for it, leaving where it stands as it was
-    /// projected: the ops that take this path never move a body.
+    /// Read again the class, size, parent, modifiers and placement of each of `planets`, as
+    /// (planet, system), from the bytes now standing for it, then the overlap findings of
+    /// every system touched.
     pub fn refresh_planets(
         &mut self,
         doc: &Document,
         planets: impl IntoIterator<Item = (u32, u32)>,
     ) -> Result<(), ProjectionError> {
+        let mut touched = HashSet::new();
         for (id, system) in planets {
+            touched.insert(system);
             let Some(planet) = self
                 .by_system
                 .get_mut(&system)
@@ -71,15 +85,51 @@ impl DetailsProjection {
             else {
                 continue;
             };
-            if let Some((facts, modifiers)) = extract::planet_facts(doc, id)? {
+            if let Some((facts, modifiers, placement)) = extract::planet_facts(doc, id)? {
                 planet.class = facts.class;
                 planet.size = facts.size;
                 planet.moon = facts.moon_of.is_some();
                 planet.parent = facts.moon_of;
                 planet.permanent_modifiers = modifiers;
+                planet.orbit = placement.orbit;
+                planet.at = placement.at;
+                planet.ring = placement.ring;
             }
         }
+        for system in touched {
+            self.refresh_overlaps(system);
+        }
         Ok(())
+    }
+
+    /// Read again the belts and `inner_radius` of each of the systems `ids` from the bytes
+    /// now standing for its entry, then its overlap findings.
+    pub fn refresh_systems(
+        &mut self,
+        doc: &Document,
+        ids: impl IntoIterator<Item = u32>,
+    ) -> Result<(), ProjectionError> {
+        for id in ids {
+            if let Some(details) = self.by_system.get_mut(&id) {
+                extract::refresh_geometry(doc, id, details)?;
+            }
+            self.refresh_overlaps(id);
+        }
+        Ok(())
+    }
+
+    /// Recompute `system`'s cached overlap findings from its details as they now stand.
+    fn refresh_overlaps(&mut self, system: u32) {
+        if let Some(raw) = self.by_system.get(&system) {
+            let issues = validate::bodies::overlaps(system, raw);
+            self.overlaps.insert(system, issues);
+        }
+    }
+
+    /// Every cached overlap finding, of every system: [`crate::session::Session::validate`]
+    /// appends these once the details are built.
+    pub fn overlap_issues(&self) -> Vec<Issue> {
+        self.overlaps.values().flatten().cloned().collect()
     }
 
     /// The system's details with each planet's deposits summed into resources by

@@ -15,6 +15,7 @@ import { FlagsSection } from "./sections/Flags";
 import { BypassSection, HyperlaneSection } from "./sections/Hyperlanes";
 import { InitializerSection } from "./sections/InitializerSection";
 import { MegastructureSection } from "./sections/Megastructures";
+import { BeltSection } from "./sections/Belts";
 import { PlanetSection } from "./sections/Planets";
 import { ResourceSection } from "./sections/Resources";
 import { FeLinksSection } from "./sections/scenario/FeLinksSection";
@@ -133,6 +134,7 @@ export function Overview({
       <HyperlaneSection detail={detail} limit={OVERVIEW_LANES} />
       <BypassSection system={system.id} />
       <PlanetSection details={details} />
+      <BeltSection details={details} />
       {details.starbase && <StationSection starbase={details.starbase} system={system.id} />}
       <MegastructureSection megastructures={details.megastructures} system={system.id} />
       <FleetSection

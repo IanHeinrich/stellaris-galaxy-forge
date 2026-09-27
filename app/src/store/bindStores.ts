@@ -1,11 +1,11 @@
 import { detailNameKeys } from "../lib/details/labels";
 import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual/layerGroups";
-import { useDetailsStore } from "./detailsStore";
+import { setRollWithin, useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { useGameDataStore } from "./gameDataStore";
+import { systemRadiiOf, useGameDataStore } from "./gameDataStore";
 import { useGeneratorStore } from "./generatorStore";
 import { useInspectorStore } from "./inspectorStore";
 import {
@@ -47,9 +47,11 @@ export function bindStores(): void {
   followAddSystemPicks();
   followPlanetData();
   followDetails();
+  followLocks();
   followScenarioInitializers();
   followPaintMod();
   followGalaxySize();
+  followRollWithin();
   followNotes();
   followTool();
   followScene();
@@ -109,6 +111,13 @@ function followGalaxySize(): void {
   });
 }
 
+// A scenario system's example roll fits its planets within the loaded game data's least inner radius.
+function followRollWithin(): void {
+  useGameDataStore.subscribe((state, previous) => {
+    if (state.summary !== previous.summary) setRollWithin(systemRadiiOf(state).min_inner);
+  });
+}
+
 // A tool the document in hand or the scene on show cannot take, or any tool once the document
 // goes, falls back to Select.
 function followTool(): void {
@@ -163,6 +172,7 @@ function enteredSystem(): void {
   chrome.setLanePreview(null);
   chrome.setHighlightInitializer(null);
   chrome.setGesture(null);
+  chrome.setSceneHint(null);
 }
 
 // Leaving a system, however it goes, drops what the scene said in the status bar.
@@ -262,6 +272,24 @@ function followDetails(): void {
   });
 }
 
+// A lock names a body by id, and an edit that renumbers no system can still take the body away and
+// free its id for a new one, so a lock goes once the details that held its body refresh without it.
+function followLocks(): void {
+  useDetailsStore.subscribe((state, previous) => {
+    if (state.details === previous.details) return;
+    const scene = useSceneStore.getState();
+    if (scene.lockedBodies.size === 0) return;
+    for (const [id, before] of previous.details) {
+      const after = state.details.get(id);
+      if (after === before) continue;
+      const kept = new Set(after?.planets.map((p) => p.id));
+      for (const { id: body } of before.planets) {
+        if (!kept.has(body)) scene.unlockBody(body);
+      }
+    }
+  });
+}
+
 // The map draws each scenario system by its initializer's star class, so a scenario reads the list.
 function followScenarioInitializers(): void {
   const read = (): void => {
@@ -300,6 +328,7 @@ function followSession(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status === previous.status) return;
     useSceneStore.getState().exitScene();
+    useSceneStore.getState().clearLocks();
     if (state.status === "loading") useLGateStore.getState().hide();
     if (state.status === "empty" || state.status === "error") {
       useGalaxyStore.getState().clear();

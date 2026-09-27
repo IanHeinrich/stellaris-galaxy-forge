@@ -19,9 +19,9 @@ const BODY_CARRIER_FLAGS: u32 = 1;
 /// `binary_flags` when none is set.
 const FIXED_NAME_FLAG: u32 = 1;
 const ENTITY_NAME_FLAG: u32 = 2;
-const ANY_FLAG: u32 = 64;
+pub(crate) const ANY_FLAG: u32 = 64;
 pub(crate) const RING_FLAG: u32 = 256;
-const MOON_FLAG: u32 = 512;
+pub(crate) const MOON_FLAG: u32 = 512;
 /// `deposit_holder.type` of a planet.
 pub(crate) const PLANET_HOLDER: &str = "0";
 /// `last_bombardment` as a body that was never bombarded holds it, tabs included.
@@ -135,6 +135,19 @@ pub fn planet_lines(indent: &[u8], planets: &[u32]) -> Vec<u8> {
 pub fn belts_block(indent: &[u8], belts: &[(&str, f64)]) -> Vec<u8> {
     let mut w = Lines::new(indent);
     w.belts(0, belts);
+    w.into_bytes()
+}
+
+/// One belt entry `{ type=".." inner_radius=N }` followed by the single-space line that
+/// separates entries of an `asteroid_belts` block. `indent` is the entry's own indentation,
+/// one tab deeper than `asteroid_belts`'s.
+pub fn belt_entry(indent: &[u8], kind: &str, radius: f64) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.line(0, "{");
+    w.pair(1, keys::TYPE, &quoted(kind));
+    w.pair(1, keys::INNER_RADIUS, &coord(radius));
+    w.line(0, "}");
+    w.separator();
     w.into_bytes()
 }
 

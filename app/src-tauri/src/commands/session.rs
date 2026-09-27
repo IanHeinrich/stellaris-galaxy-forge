@@ -17,7 +17,7 @@ use sgf_core::views::{
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::{DONE, START, VALIDATE_AT, io_error, progress, require, with_session};
+use super::{DONE, START, VALIDATE_AT, io_error, progress, require, size_systems, with_session};
 use crate::state::GameDataState;
 
 const ONLY_A_SAVE_EXPORTS: &str = "only a save can be exported as a scenario";
@@ -166,7 +166,10 @@ async fn install_reporting<R: Runtime>(
     })
     .await
     .map_err(io_error)??;
+    let sizing = app.clone();
     with_session(app.clone(), move |mut guard| {
+        let mut session = session;
+        size_systems(&sizing, &mut session);
         *guard = Some(session);
         Ok(())
     })
@@ -196,13 +199,13 @@ fn opened(session: &Session) -> Result<OpenResult, SgfError> {
     })
 }
 
-/// Builds the details projection so search also finds planets and fleets; idempotent.
+/// Builds the details projection so search also finds planets and fleets, and returns the
+/// issues with the findings that read the details; idempotent.
 #[tauri::command]
-pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
+pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, SgfError> {
     with_session(app, |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
-        session.warm_details().map_err(SessionError::from)?;
-        Ok(())
+        Ok(session.warm_details().map_err(SessionError::from)?)
     })
     .await
 }

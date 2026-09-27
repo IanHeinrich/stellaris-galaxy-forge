@@ -4,8 +4,8 @@
 //! undo and validates the projection. Undo and redo replay recorded bytes.
 //!
 //! The details projection is built on first use and dropped by an op that stales it
-//! (`Op::stales_details`), unless all the op staled is the class and size of the planets it
-//! rewrote, which are read again in place. A scenario has no details sections at all:
+//! (`Op::stales_details`), unless all the op staled can be read again in place: the planets
+//! it rewrote, and the belts and inner radius of the systems it rewrote. A scenario has no details sections at all:
 //! its systems' planets and resources come from the initializer, which the app resolves
 //! through game data.
 
@@ -23,7 +23,7 @@ use crate::format::scenario::effect;
 use crate::format::{self, Format};
 use crate::library;
 use crate::ops::history::History;
-use crate::ops::{self, Applied, Op, OpError, Subject};
+use crate::ops::{self, Applied, Op, OpError, Subject, SystemRadii};
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError, SystemNode, Wayline};
 use crate::search;
 use crate::validate::{self, Issue, validate};
@@ -84,6 +84,9 @@ pub struct Session {
     /// Undo-stack length when the document was last opened or saved; `None` once that
     /// state has been discarded by a new op after an undo.
     saved_at: Option<usize>,
+    /// How the geometry ops size a system; the vanilla values until the shell sets the
+    /// install's.
+    radii: SystemRadii,
 }
 
 impl Session {
@@ -112,55 +115,71 @@ impl Session {
             details: OnceCell::new(),
             history: History::new(),
             saved_at,
+            radii: SystemRadii::VANILLA,
         })
     }
 
+    /// How the geometry ops size a system.
+    pub fn radii(&self) -> SystemRadii {
+        self.radii
+    }
+
+    /// Size systems by `radii` from the next op on, as the loaded install's defines give them.
+    pub fn set_radii(&mut self, radii: SystemRadii) {
+        self.radii = radii;
+    }
+
     /// Apply `op`, record it for undo and validate. The document is unchanged on error.
+    /// The details are brought up to date before validating, so a finding that reads them
+    /// (an overlap) is current.
     pub fn apply(&mut self, op: Op) -> Result<OpResult, OpError> {
         let waylines = self.graph.waylines.clone();
         let applied = ops::apply(self, op)?;
-        let result = result(
+        let mut result = result(
             &self.graph,
             self.history.undo_len() + 1,
             &applied,
             &waylines,
             false,
-            self.validate(),
+            Vec::new(),
         );
         if self.saved_at.is_some_and(|at| at > self.history.undo_len()) {
             self.saved_at = None;
         }
-        let classes_only = applied.op.stales_only_planets();
+        let in_place = applied.op.refreshes_details_in_place();
         self.history.push(applied);
-        self.update_details(classes_only, &result);
+        self.update_details(in_place, &result);
+        result.issues = self.validate();
         Ok(result)
     }
 
-    /// Undo the last op; `None` when there is nothing to undo.
+    /// Undo the last op; `None` when there is nothing to undo. The details are brought up
+    /// to date before validating, as [`Self::apply`] does.
     pub fn undo(&mut self) -> Result<Option<OpResult>, OpError> {
         let seq = self.history.undo_len();
         let waylines = self.graph.waylines.clone();
         let Some(applied) = self.history.undo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let issues = validate_document(&self.doc, &self.graph);
-        let result = result(&self.graph, seq, applied, &waylines, true, issues);
-        let classes_only = applied.op.stales_only_planets();
-        self.update_details(classes_only, &result);
+        let mut result = result(&self.graph, seq, applied, &waylines, true, Vec::new());
+        let in_place = applied.op.refreshes_details_in_place();
+        self.update_details(in_place, &result);
+        result.issues = self.validate();
         Ok(Some(result))
     }
 
-    /// Redo the last undone op; `None` when there is nothing to redo.
+    /// Redo the last undone op; `None` when there is nothing to redo. The details are
+    /// brought up to date before validating, as [`Self::apply`] does.
     pub fn redo(&mut self) -> Result<Option<OpResult>, OpError> {
         let seq = self.history.undo_len() + 1;
         let waylines = self.graph.waylines.clone();
         let Some(applied) = self.history.redo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let issues = validate_document(&self.doc, &self.graph);
-        let result = result(&self.graph, seq, applied, &waylines, false, issues);
-        let classes_only = applied.op.stales_only_planets();
-        self.update_details(classes_only, &result);
+        let mut result = result(&self.graph, seq, applied, &waylines, false, Vec::new());
+        let in_place = applied.op.refreshes_details_in_place();
+        self.update_details(in_place, &result);
+        result.issues = self.validate();
         Ok(Some(result))
     }
 
@@ -237,13 +256,13 @@ impl Session {
         delta
     }
 
-    /// Bring a built details projection up to date with `result`: reread the classes of the
-    /// planets it rewrote when that is all it staled, else drop the projection.
-    fn update_details(&mut self, classes_only: bool, result: &OpResult) {
+    /// Bring a built details projection up to date with `result`: reread the planets and
+    /// systems it rewrote when `in_place` says that is enough, else drop the projection.
+    fn update_details(&mut self, in_place: bool, result: &OpResult) {
         if result.details_stale.is_empty() {
             return;
         }
-        let Some(details) = self.details.get_mut().filter(|_| classes_only) else {
+        let Some(details) = self.details.get_mut().filter(|_| in_place) else {
             self.details.take();
             return;
         };
@@ -251,10 +270,12 @@ impl Session {
             Subject::Planet { id, system } => Some((id, system)),
             _ => None,
         });
-        if Arc::make_mut(details)
+        let systems = result.subjects.iter().filter_map(|s| s.system());
+        let details = Arc::make_mut(details);
+        let refreshed = details
             .refresh_planets(&self.doc, planets)
-            .is_err()
-        {
+            .and_then(|()| details.refresh_systems(&self.doc, systems));
+        if refreshed.is_err() {
             self.details.take();
         }
     }
@@ -274,8 +295,15 @@ impl Session {
     }
 
     /// The projection's issues and the document's own, as open and every edit report them.
+    /// Once the details are built, their cached overlap findings are appended too: a plain
+    /// open validates before anything has read the details, so it never shows one.
     pub fn validate(&self) -> Vec<Issue> {
-        validate_document(&self.doc, &self.graph)
+        let mut issues = validate_document(&self.doc, &self.graph);
+        if let Some(details) = self.details.get() {
+            issues.extend(details.overlap_issues());
+            validate::sort(&mut issues);
+        }
+        issues
     }
 
     pub fn history(&self) -> HistoryView {
@@ -311,12 +339,13 @@ impl Session {
         self.details.get().map(Arc::clone)
     }
 
-    /// Build the details projection if it is not built yet, so that later calls are cheap.
-    pub fn warm_details(&mut self) -> Result<(), ProjectionError> {
-        if !self.format().has_details(&self.doc) {
-            return Ok(());
+    /// Build the details projection if it is not built yet, so that later calls are cheap,
+    /// and return the issues now that a finding reading the details (an overlap) can show.
+    pub fn warm_details(&mut self) -> Result<Vec<Issue>, ProjectionError> {
+        if self.format().has_details(&self.doc) {
+            self.details()?;
         }
-        self.details().map(|_| ())
+        Ok(self.validate())
     }
 
     /// Systems, countries, planets, fleets and nebulae matching `query` by id, key or

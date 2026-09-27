@@ -118,7 +118,7 @@ fn game_data_commands_degrade_without_an_install() {
     assert_eq!(shroudwalkers.countries[0].country_type, "enclave");
     assert_eq!(shroudwalkers.label, "Covenant of the Shroud");
 
-    invoke::<()>(&w, "warm_details", json!({})).expect("warm details");
+    invoke::<Vec<sgf_core::validate::Issue>>(&w, "warm_details", json!({})).expect("warm details");
     let special: SpecialSystems =
         invoke(&w, "get_special_systems", json!({})).expect("special systems");
     assert_sample_special_counts(&special);
@@ -592,4 +592,46 @@ fn a_root_that_cannot_be_watched_is_named_in_the_summary() {
     assert_eq!(watched.watching, 1, "the install is watched as before");
     let reason = watched.reason.expect("the root that could not be watched");
     assert!(reason.contains("no-such-mod"), "{reason}");
+}
+
+/// An install whose defines put a system's inner radius 50 past its outermost belt: a belt
+/// added far out grows the inner radius by that offset, whether the game data loaded after
+/// the save opened or before.
+#[test]
+fn an_op_sizes_the_system_by_the_loaded_installs_defines() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let install = dir.path().join("install");
+    for (rel, text) in [
+        (
+            "common/defines/00_defines.txt",
+            "NGameplay = {\n\tSYSTEM_INNER_RADIUS_OFFSET = 50\n}\n",
+        ),
+        ("localisation/english/fx_l_english.yml", "l_english:\n"),
+    ] {
+        let file = install.join(rel);
+        std::fs::create_dir_all(file.parent().expect("a directory")).expect("the install tree");
+        std::fs::write(file, text).expect("an install file");
+    }
+    let far_belt = json!({ "op": {
+        "type": "AddSaveBelt", "system": 1, "kind": "rocky_asteroid_belt", "radius": 1000.0
+    } });
+    let grown = |w: &_| {
+        let result: sgf_core::views::EditResult =
+            invoke(w, "apply_op", far_belt.clone()).expect("the belt");
+        result.entry.description
+    };
+
+    let w = common::opened(common::SAMPLE_45);
+    invoke::<Value>(
+        &w,
+        "load_game_data",
+        json!({ "installPath": install, "mods": false }),
+    )
+    .unwrap_or_else(|e| panic!("load game data: {}", e.message));
+    let description = grown(&w);
+    assert!(description.ends_with(" to 1050"), "{description}");
+
+    common::open(&w, common::SAMPLE_45);
+    let description = grown(&w);
+    assert!(description.ends_with(" to 1050"), "{description}");
 }
