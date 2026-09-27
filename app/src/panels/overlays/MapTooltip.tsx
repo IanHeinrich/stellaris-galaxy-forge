@@ -49,7 +49,7 @@ export function MapTooltip() {
 
   if (!tip) return null;
   return (
-    <div ref={ref} className="map-tooltip" style={pos}>
+    <div ref={ref} className={`map-tooltip${tip.tone === "warn" ? " warn" : ""}`} style={pos}>
       <div className="map-tooltip-title">{tip.title}</div>
       {tip.lines.map((line, i) =>
         typeof line === "string" ? (

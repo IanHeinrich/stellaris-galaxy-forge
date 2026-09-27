@@ -84,34 +84,118 @@ export function useSystemGeometry(system: number | null): SystemGeometry {
   return geometryOf({ system, details, roll, planetClasses, moonScale, capabilities });
 }
 
+/** How long an edit waits for its system's fresh details before the next one builds anyway. */
+const REFRESH_WAIT_MS = 3000;
+
+/** Says why an intent was refused. */
+export type RefusalSink = (reason: string) => void;
+
+const inSceneHint: RefusalSink = (reason) => useMapChromeStore.getState().setSceneHint(reason);
+
+/** The geometry edits in the order they were asked for, each after the last has settled. */
+let queue: Promise<unknown> = Promise.resolve();
+
+function serialised(run: () => Promise<boolean>): Promise<boolean> {
+  const next = queue.then(run);
+  queue = next.catch(() => false);
+  return next;
+}
+
 /**
- * Sends the op `intent` makes. Resolves true when it applied; a refusal is said in the status bar,
- * and it, an intent that changes nothing and an op the editor refuses all resolve false.
+ * Resolves once system `system`'s details are no longer `read`, or once none are on their way.
+ * It gives up after `REFRESH_WAIT_MS`, so a lost answer holds nothing up for long.
  */
-export async function applyGeometry(intent: GeometryIntent): Promise<boolean> {
-  const { adapter, frame } = systemGeometry(intent.system);
-  const made = adapter.op(intent, frame);
+function detailsAfter(system: number, read: SystemDetails | null): Promise<void> {
+  return new Promise((resolve) => {
+    const settled = () => {
+      const s = useDetailsStore.getState();
+      return s.details.get(system) !== read || !s.pending.has(system);
+    };
+    let unsubscribe = () => {};
+    const done = () => {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    };
+    const timer = setTimeout(done, REFRESH_WAIT_MS);
+    useDetailsStore.getState().request([system]);
+    if (settled()) {
+      done();
+      return;
+    }
+    unsubscribe = useDetailsStore.subscribe(() => {
+      if (settled()) done();
+    });
+  });
+}
+
+/**
+ * Builds the intent from system `system`'s geometry as it stands when the edits before it have
+ * landed, and sends the op it makes. After an applied op it waits for the system's fresh details,
+ * so the next edit builds on what this one did.
+ */
+async function applyBuilt(
+  system: number,
+  build: (geometry: SystemGeometry) => GeometryIntent | null,
+  onRefused: RefusalSink,
+): Promise<boolean> {
+  const geometry = systemGeometry(system);
+  const intent = build(geometry);
+  if (intent === null) return false;
+  const made = geometry.adapter.op(intent, geometry.frame);
   if (made === null) return false;
   if ("refused" in made) {
-    useMapChromeStore.getState().setSceneHint(made.refused);
+    onRefused(made.refused);
     return false;
   }
-  return useEditorStore.getState().applyOp(made.op);
+  const applied = await useEditorStore.getState().applyOp(made.op);
+  if (applied) await detailsAfter(system, geometry.frame.details);
+  return applied;
+}
+
+/**
+ * Sends the op `build` makes of system `system`'s geometry, read once the geometry edits asked for
+ * before it have landed. Resolves as `applyGeometry` does.
+ */
+export function applyGeometryFrom(
+  system: number,
+  build: (geometry: SystemGeometry) => GeometryIntent | null,
+  onRefused: RefusalSink = inSceneHint,
+): Promise<boolean> {
+  return serialised(() => applyBuilt(system, build, onRefused));
+}
+
+/**
+ * Sends the op `intent` makes, after the geometry edits asked for before it. Resolves true when it
+ * applied; a refusal goes to `onRefused` (the status bar unless a caller says it itself), and it,
+ * an intent that changes nothing and an op the editor refuses all resolve false.
+ */
+export function applyGeometry(
+  intent: GeometryIntent,
+  onRefused: RefusalSink = inSceneHint,
+): Promise<boolean> {
+  return applyGeometryFrom(intent.system, () => intent, onRefused);
 }
 
 /**
  * Turns the body the inspector shows in the system on screen `turn` degrees and steps it `out`
- * units, one op per press. Resolves false when there is no such body or it cannot move.
+ * units, one op per press, each from where the press before left it. Resolves false when there is
+ * no such body or it cannot move.
  */
 export async function nudgeBody(step: { turn: number; out: number }): Promise<boolean> {
   const system = sceneSystem();
   if (system === null) return false;
-  const { layout, editing } = systemGeometry(system);
   const stack = useInspectorStore.getState().stack;
-  const body = inspectedBody(layout, system, stack[stack.length - 1].ref);
-  if (body === null || !editing.bodies.get(body)?.move) return false;
-  const orbit = bodyOrbit(layout, body);
-  if (orbit === null) return false;
-  const { radius, angle } = nudged(orbit, step);
-  return applyGeometry({ kind: "move", system, body, radius, angle });
+  const ref = stack[stack.length - 1].ref;
+  let moved = false;
+  const applied = await applyGeometryFrom(system, ({ layout, editing }) => {
+    const body = inspectedBody(layout, system, ref);
+    if (body === null || !editing.bodies.get(body)?.move) return null;
+    const orbit = bodyOrbit(layout, body);
+    if (orbit === null) return null;
+    moved = true;
+    const { radius, angle } = nudged(orbit, step);
+    return { kind: "move", system, body, radius, angle };
+  });
+  return applied && moved;
 }

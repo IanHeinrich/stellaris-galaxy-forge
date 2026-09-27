@@ -198,6 +198,49 @@ radius.
 The status bar counts the system's bodies and belts. With a body's page
 open in the Inspector, it shows that body's orbit and angle.
 
+#### Move planets and moons
+
+In a save, you can move planets, moons and asteroids. The star stays
+where it is.
+
+Drag a body along its orbit to change its angle. Hold Shift to snap to
+15° steps. Drag it across orbits to change its distance from the star.
+Its moons move with it. Press Esc during a drag to put it back.
+
+Drop a planet on another planet to make it a moon of that planet. Drag
+a moon away from its planet to make it a planet again. A planet that
+has moons of its own can't become a moon. A moon keeps its name after
+it moves to another planet, so Sol IIIa can end up orbiting Sol IV.
+
+Shift+Arrow moves the body whose page is open. Left and Right move it
+along its orbit, and Up and Down move it out and in. Each press moves it
+1° or 1 unit. Ctrl+Shift+Arrow moves it 10. The arrows on their own
+still pan the view.
+
+You can make the same edits in the Orbit block on the body's page.
+
+- Orbits picks the star or a planet. A new moon goes on the next free
+  moon orbit of its planet. A moon made a planet stays where it is.
+- Orbit radius is its distance from what it orbits.
+- Angle is where it stands on that orbit, in degrees. A moon's radius
+  and angle are measured from its planet.
+
+If you move a planet past the system's inner radius, the inner radius
+moves out with it. The system view draws the hyperlane exits on the
+inner radius circle.
+
+#### Asteroid belts and the inner radius
+
+The system's page has a Belts section. You can change the inner radius
+and each belt's kind and radius there, or remove a belt. Removing a belt
+leaves its asteroids where they are. Changing a belt's radius moves its
+asteroids with it. The kinds come from your install, so you need the
+game data loaded to change one.
+
+In the system view, each belt and the inner radius has a small ring
+handle. Drag it to change the radius. Right-click empty space and choose
+Add belt here to add a belt at that distance from the star.
+
 Each body's name sits on a plate under it. A colonised planet's plate
 has a bar in its owner's colour. Names, System details and Nebulae
 still work while a system is open, with their own settings, so you can
@@ -401,6 +444,7 @@ I haven't tested Ironman saves.
 | `[` `]` | Brush size, or nebula radius |
 | Alt | Swap the brush while held |
 | Shift+Arrow | Nudge by 1, or 10 with Ctrl |
+| Shift+Arrow in a system view | Move the open body 1° along its orbit or 1 unit out or in, or 10 with Ctrl |
 | Shift+F | Frame the selection |
 | Enter | Open the selected system's view |
 | M | Open the selected system's view, or back to the galaxy |

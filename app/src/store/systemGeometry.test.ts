@@ -7,6 +7,8 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import { GEOMETRY_REASONS } from "../lib/details/orbitEdits";
 import { useDetailsStore } from "./detailsStore";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
+import { polar } from "../lib/details/orbits";
+import { saveBody } from "../test/builders";
 import { editResult, orbitClasses, orbitSystem } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { bodyEntryOf, useInspectorStore } from "./inspectorStore";
@@ -114,5 +116,47 @@ describe("nudgeBody", () => {
     useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, LONE, "Body"));
     expect(await nudgeBody({ turn: 1, out: 0 })).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("quick edits in a row", () => {
+  /** Sol as the save writes it once an edit lands: `over` in place of the fixture's. */
+  function answerWith(over: Parameters<typeof orbitSystem>[0]): void {
+    mockedIpc.applyOp.mockResolvedValue(editResult({ details_stale: [SOL] }));
+    mockedIpc.getSystemDetails.mockResolvedValue([orbitSystem({ id: SOL, ...over })]);
+  }
+
+  it("builds each edit on the details the one before it left", async () => {
+    answerWith({ belts: [{ kind: "rocky_asteroid_belt", inner_radius: 120 }] });
+    const remove = { kind: "removeBelt", system: SOL, index: 1 } as const;
+    const [first, second] = await Promise.all([applyGeometry(remove), applyGeometry(remove)]);
+    expect([first, second]).toEqual([true, false]);
+    expect(mockedIpc.applyOp).toHaveBeenCalledOnce();
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "RemoveSaveBelt",
+      system: SOL,
+      index: 1,
+    });
+  });
+
+  it("nudges twice from where each press left the body", async () => {
+    inspect(LONE);
+    const turned = polar(0, 0, 100, 121);
+    const planets = orbitSystem().planets.map((p) =>
+      p.id === LONE ? saveBody(LONE, "pc_arid", [turned.x, turned.y], 100, 12) : p,
+    );
+    answerWith({ planets });
+    await Promise.all([nudgeBody({ turn: 1, out: 0 }), nudgeBody({ turn: 1, out: 0 })]);
+    expect(mockedIpc.applyOp.mock.calls.map(([op]) => (op as { angle: number }).angle)).toEqual([
+      121, 122,
+    ]);
+  });
+
+  it("says a refusal where the caller asks, and in the status bar by default", async () => {
+    const said: string[] = [];
+    const intent = { kind: "move", system: SOL, body: STAR, radius: 10, angle: 0 } as const;
+    expect(await applyGeometry(intent, (reason) => said.push(reason))).toBe(false);
+    expect(said).toEqual([GEOMETRY_REASONS.star]);
+    expect(useMapChromeStore.getState().sceneHint).toBeNull();
   });
 });
