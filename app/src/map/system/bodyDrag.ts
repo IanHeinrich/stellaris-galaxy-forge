@@ -433,18 +433,11 @@ export class BodyDrag implements Drag {
     return this.step(landing, { host: host.id }, { text }, toMoonHint(name));
   }
 
-  /**
-   * Dropped on a star off the centre, it would orbit it at the pointer's distance and angle from it,
-   * or on another of its planets' orbits within reach.
-   */
+  /** Dropped on a star off the centre, it would orbit it on its next orbit at the pointer's angle. */
   private aboutStar(star: BodyPlacement, pointer: DragPointer): DragStep {
-    const point = { x: pointer.wx, y: pointer.wy };
-    const angle = snapAngle(angleAbout(star, point), pointer.shift);
-    const landing = {
-      parent: star.id,
-      angle,
-      ...this.radiusAt(star.id, star, point, pointer.scale),
-    };
+    const angle = snapAngle(angleAbout(star, { x: pointer.wx, y: pointer.wy }), pointer.shift);
+    const radius = this.frame.editing.bodies.get(star.id)?.moonRing ?? MOON_RING_FIRST;
+    const landing = { parent: star.id, radius, angle, shared: null };
     const name = this.name(star.id);
     return this.marked(landing, toStarHint(name), `orbits ${name} · `, { host: star.id });
   }

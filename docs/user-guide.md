@@ -218,10 +218,10 @@ has moons of its own can't become a moon. A moon keeps its name after
 it moves to another planet, so Sol IIIa can end up orbiting Sol IV.
 
 In a binary or trinary system, drop a planet on another star to make it
-orbit that star. Its moons come with it. It lands at the distance you
-dropped it from the star, or on another of that star's orbits when you
-drop it close to one. To bring it back, drop it on the star at the
-centre or drag it well away from its star.
+orbit that star. Its moons come with it. It lands just past that star's
+outermost planet, and you can drag it in or out from there. To bring it
+back, drop it on the star at the centre or drag it well away from its
+star.
 
 Shift+Arrow moves the body whose page is open. Left and Right move it
 along its orbit, and Up and Down move it out and in. Each press moves it

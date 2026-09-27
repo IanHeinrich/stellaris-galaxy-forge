@@ -596,31 +596,26 @@ describe("a body dragged onto a companion star", () => {
     });
   }
 
-  it("makes a planet with moons orbit it at the pointer's distance, or on another of its orbits", () => {
+  it("makes a planet with moons orbit it on its next orbit, never on the star itself", () => {
     const model = new SystemGestureModel();
     const intent = recorder(binaryFrame());
     grab(model, intent, PLANET, around(30));
-    model.handle(on("move", polarAt(8, 90, star)), intent);
+    model.handle(on("move", polarAt(2, 90, star)), intent);
     const step = lastStep(intent);
     expect(step?.intent).toEqual({
       kind: "reparent",
       system: ORBITS,
       body: PLANET,
       parent: COMPANION,
-      radius: 8,
+      radius: 16 + 25,
       angle: 90,
     });
     expect(step?.marks.host).toBe(COMPANION);
-    expect(step?.readout).toEqual({ text: "orbits P8 · orbit 8 · 90°" });
+    expect(step?.readout).toEqual({ text: "orbits P8 · orbit 41 · 90°" });
     expect(step?.hint).toBe(toStarHint("P8"));
     expect(step?.refused).toBeUndefined();
-    model.handle(on("move", polarAt(13, 180, star)), intent);
-    const shared = lastStep(intent);
-    expect(shared?.intent).toMatchObject({ parent: COMPANION, radius: 16, angle: 180 });
-    expect(shared?.marks).toMatchObject({ tone: "shared", other: ITS_PLANET, host: COMPANION });
-    expect(shared?.readout.text).toBe("orbits P8 · orbit 16 · shared with P9");
-    model.handle(on("up", polarAt(13, 180, star)), intent);
-    expect(named(intent.calls, "commit")).toEqual([["commit", shared?.intent]]);
+    model.handle(on("up", polarAt(2, 90, star)), intent);
+    expect(named(intent.calls, "commit")).toEqual([["commit", step?.intent]]);
   });
 
   it("makes its planet a planet of the centre past twice its outermost orbit", () => {
