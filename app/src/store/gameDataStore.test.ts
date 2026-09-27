@@ -52,6 +52,8 @@ describe("load", () => {
 
     expect(state.starClasses.get("sc_g")?.texture_key).toBe("star_class:g");
     expect(state.mapColors.get("red")?.map).toBe("#ff0000");
+    expect(state.flagParts.emblems[0]?.name).toBe("pointy");
+    expect(state.flagParts.backgrounds[0]?.file).toBe("flag_bg_plain.dds");
     expect(state.planetClasses.get("pc_continental")?.habitable).toBe(true);
     expect(state.deposits.get("d_minerals_5")?.produces).toEqual([["minerals", 5]]);
     expect(state.bypasses.get("gateway")?.icon_frame).toBe(25);

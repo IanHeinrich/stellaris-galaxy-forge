@@ -18,6 +18,7 @@ use crate::registries::colors::ColorDef;
 use crate::registries::country_types::CountryType;
 use crate::registries::defines::BorderDefines as BorderDefinesData;
 use crate::registries::deposits::DepositDef;
+use crate::registries::flags::{EmblemCategory, FlagFile, Flags};
 use crate::registries::galaxy_shapes::GalaxyShape;
 use crate::registries::galaxy_sizes::GalaxySize;
 use crate::registries::ship_sizes::ShipSizeDef;
@@ -461,6 +462,56 @@ impl From<&ColorDef> for MapColor {
 
 fn hex(rgb: [u8; 3]) -> String {
     format!("#{:02x}{:02x}{:02x}", rgb[0], rgb[1], rgb[2])
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct FlagFileView {
+    pub file: String,
+    /// The mod this file is from; `null` for vanilla's.
+    pub source: Option<String>,
+}
+
+impl From<&FlagFile> for FlagFileView {
+    fn from(f: &FlagFile) -> Self {
+        Self {
+            file: f.file.clone(),
+            source: f.source.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct EmblemCategoryView {
+    pub name: String,
+    pub files: Vec<FlagFileView>,
+}
+
+impl From<&EmblemCategory> for EmblemCategoryView {
+    fn from(c: &EmblemCategory) -> Self {
+        Self {
+            name: c.name.clone(),
+            files: c.files.iter().map(FlagFileView::from).collect(),
+        }
+    }
+}
+
+/// Every emblem category and every background of the loaded game data's `flags/`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct FlagParts {
+    pub emblems: Vec<EmblemCategoryView>,
+    pub backgrounds: Vec<FlagFileView>,
+}
+
+impl From<&Flags> for FlagParts {
+    fn from(f: &Flags) -> Self {
+        Self {
+            emblems: f.emblems.iter().map(EmblemCategoryView::from).collect(),
+            backgrounds: f.backgrounds.iter().map(FlagFileView::from).collect(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

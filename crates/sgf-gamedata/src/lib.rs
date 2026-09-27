@@ -41,7 +41,7 @@ use registries::galaxy_sizes::GalaxySizes;
 use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
 use registries::star_classes::StarClass;
-use registries::{colors, gfx, planet_lists, registry, star_names, starbase_levels};
+use registries::{colors, flags, gfx, planet_lists, registry, star_names, starbase_levels};
 use sgf_core::ops::SystemRadii;
 
 pub use initializers::Initializers;
@@ -55,6 +55,7 @@ pub use registries::country_types::CountryTypes;
 pub use registries::defines::{BorderDefines, DepositDefines};
 pub use registries::deposit_categories::DepositCategories;
 pub use registries::deposits::Deposits;
+pub use registries::flags::Flags;
 pub use registries::galaxy_shapes::GalaxyShapes;
 pub use registries::gfx::Sprites;
 pub use registries::planet_classes::PlanetClasses;
@@ -95,6 +96,8 @@ pub struct GameData {
     pub black_hole_names: Arc<Vec<String>>,
     pub sprites: Arc<Sprites>,
     pub colors: Arc<Colors>,
+    /// `flags/`: the emblem and background `.dds` files a flag can use.
+    pub flags: Arc<Flags>,
     pub deposits: Arc<Deposits>,
     pub deposit_categories: Arc<DepositCategories>,
     pub static_modifiers: Arc<StaticModifiers>,
@@ -303,6 +306,7 @@ impl GameData {
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
         let sprites = gfx::load(&layout, &mut diagnostics);
         let colors = colors::load(&layout, &mut diagnostics);
+        let flags = flags::Flags::load(&layout);
         let define_files = ParsedDir::load(&layout, "common/defines", &mut diagnostics);
         let border = BorderDefines::load(&define_files);
         let deposit_defines = DepositDefines::load(&define_files);
@@ -327,6 +331,7 @@ impl GameData {
             black_hole_names: Arc::new(black_hole_names),
             sprites: Arc::new(sprites),
             colors: Arc::new(colors),
+            flags: Arc::new(flags),
             deposits: Arc::new(deposits),
             deposit_categories: Arc::new(deposit_categories),
             static_modifiers: Arc::new(static_modifiers),

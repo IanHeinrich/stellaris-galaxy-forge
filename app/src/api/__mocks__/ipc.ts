@@ -73,6 +73,7 @@ export const getInitializers = command("getInitializers");
 export const getGalaxyShapes = command("getGalaxyShapes");
 export const getMapColors = command("getMapColors");
 export const getMapColorSource = command("getMapColorSource");
+export const getFlagParts = command("getFlagParts");
 export const getPlanetClasses = command("getPlanetClasses");
 export const getTerraformCandidates = command("getTerraformCandidates");
 export const getStarbaseLevels = command("getStarbaseLevels");
