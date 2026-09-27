@@ -319,6 +319,15 @@ less.
   `colors` entries instead, the map border and fill
   ([format-notes.md](format-notes.md)).
 
+## System radii
+
+`NGameplay` in `common/defines` sets how far out a system's inner and
+outer radii lie: `SYSTEM_MIN_INNER_RADIUS` (150),
+`SYSTEM_INNER_RADIUS_OFFSET` (30) and `SYSTEM_OUTER_RADIUS_OFFSET` (100).
+A mod can change any of them, and the last file to set one wins. The
+editor reads them from the install and the enabled mods. Until game data
+loads it uses vanilla's values.
+
 ## Names
 
 The save stores a name as a template of the shape
@@ -450,7 +459,8 @@ places its bodies only through an `inline_script`. For those the roll
 holds placeholder planets instead. The add-system generator rolls them
 for the system's star class, or for any class when no layout makes that
 one. They are then drawn in about the star until the outermost fits
-inside 150, the smallest inner radius a system has.
+inside the smallest inner radius a system has, `NGameplay`'s
+`SYSTEM_MIN_INNER_RADIUS` (150 in vanilla).
 
 ## References (for edge cases, never for bundling)
 

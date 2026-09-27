@@ -1,11 +1,11 @@
 import { detailNameKeys } from "../lib/details/labels";
 import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual/layerGroups";
-import { useDetailsStore } from "./detailsStore";
+import { setRollWithin, useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { useGameDataStore } from "./gameDataStore";
+import { systemRadiiOf, useGameDataStore } from "./gameDataStore";
 import { useGeneratorStore } from "./generatorStore";
 import { useInspectorStore } from "./inspectorStore";
 import {
@@ -50,6 +50,7 @@ export function bindStores(): void {
   followScenarioInitializers();
   followPaintMod();
   followGalaxySize();
+  followRollWithin();
   followNotes();
   followTool();
   followScene();
@@ -106,6 +107,13 @@ function followWatchlist(): void {
 function followGalaxySize(): void {
   useGameDataStore.subscribe((state, previous) => {
     if (state.summary !== previous.summary || state.status !== previous.status) noteGalaxySize();
+  });
+}
+
+// A scenario system's example roll fits its planets within the loaded game data's least inner radius.
+function followRollWithin(): void {
+  useGameDataStore.subscribe((state, previous) => {
+    if (state.summary !== previous.summary) setRollWithin(systemRadiiOf(state).min_inner);
   });
 }
 

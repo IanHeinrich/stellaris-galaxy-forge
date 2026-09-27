@@ -377,6 +377,7 @@ export function gameDataSummary(over: Partial<GameDataSummary> = {}): GameDataSu
     planet_classes: 7,
     starbase_levels: 5,
     border: { system_radius: 5, hyperlane_thickness: 1, moon_scale: 0.7 },
+    system_radii: { min_inner: 150, inner_offset: 30, outer_offset: 100 },
     belt_kinds: [],
     localisation_keys: 1000,
     diagnostics: [],

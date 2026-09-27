@@ -240,8 +240,9 @@ You can make the same edits in the Orbit block on the body's page.
 - Angle is where it stands on that orbit, in degrees. A moon's radius
   and angle are measured from its planet.
 
-If you move a planet near or past the system's inner radius, the inner
-radius moves out with it. The system view draws the hyperlane exits on the
+If you move a planet or a belt near or past the system's inner radius,
+the inner radius moves out with it. How far out follows the defines in
+your install and mods. The system view draws the hyperlane exits on the
 inner radius circle.
 
 #### Asteroid belts and the inner radius

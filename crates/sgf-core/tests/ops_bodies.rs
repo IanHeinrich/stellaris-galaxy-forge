@@ -4,7 +4,7 @@
 
 use sgf_core::format::save::details::{Bounds, HeuristicResolver, RawPlanet};
 use sgf_core::ops::rules::bodies::{Body, system_reach};
-use sgf_core::ops::{INNER_MARGIN, MIN_INNER_RADIUS, Op, Subject};
+use sgf_core::ops::{Op, OpError, Subject, SystemRadii};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -536,7 +536,7 @@ fn the_4_5_samples_systems_below_the_inner_radius_rule() {
                 })
                 .collect();
             raw.inner_radius.is_some_and(|radius| {
-                radius < MIN_INNER_RADIUS.max(system_reach(&bodies) + INNER_MARGIN)
+                radius < SystemRadii::VANILLA.inner_about(system_reach(&bodies, &[]))
             })
         })
         .count();
@@ -699,4 +699,38 @@ fn what_a_star_parent_refuses() {
         let error = session.apply(op).expect_err(message);
         assert_eq!(error.to_string(), message);
     }
+}
+
+/// A session given other radii, as an install's defines can set them, grows system 1 by
+/// their offsets and floors its inner radius by their minimum: 585's moon reaching 195
+/// grows it to 245, and the outer radius to 445.
+#[test]
+fn a_session_with_other_radii_sizes_systems_by_them() {
+    let radii = SystemRadii {
+        min_inner: 170.0,
+        inner_offset: 50.0,
+        outer_offset: 200.0,
+    };
+    let mut session = open_4_5();
+    session.set_radii(radii);
+    session
+        .apply(move_body(1, 585, 180.0, 40.0))
+        .expect("the move");
+    assert!(
+        text(&session).contains("\t\tinner_radius=245\n\t\touter_radius=445\n"),
+        "system 1 grown by the session's radii"
+    );
+
+    let mut session = open_4_5();
+    session.set_radii(radii);
+    let error = session
+        .apply(Op::SetSaveInnerRadius {
+            system: 1,
+            radius: 165.0,
+        })
+        .expect_err("below the session's minimum");
+    assert!(
+        matches!(error, OpError::InnerRadiusTooSmall { least } if least == 170.0),
+        "{error}"
+    );
 }

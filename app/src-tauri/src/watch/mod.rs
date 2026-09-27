@@ -26,7 +26,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::time::timeout_at;
 
-use crate::commands::GAME_DATA_CHANGED_EVENT;
+use crate::commands::{GAME_DATA_CHANGED_EVENT, resize_open_session};
 use crate::state::GameDataState;
 use guard::{Action, Guard};
 
@@ -296,6 +296,7 @@ async fn rebuild<R: Runtime>(
         return;
     }
     if state.swap(from, Arc::new(rebuilt)).is_some() {
+        resize_open_session(app);
         let registries = replaced.iter().map(|k| k.as_str().to_owned()).collect();
         announce(app, registries, None);
     }

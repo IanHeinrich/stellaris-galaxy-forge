@@ -440,9 +440,10 @@ pub enum Op {
         ring: bool,
     },
     /// A new asteroid belt of type `kind` at `radius`, last in the system's
-    /// `asteroid_belts`, which the system gains when it has none. The system's
-    /// `inner_radius` is left alone. The inverse is [`Op::RemoveSaveBelt`] at the new last
-    /// index. Stellaris 4.x save documents only.
+    /// `asteroid_belts`, which the system gains when it has none. A belt reaching past the
+    /// system's bodies and belts grows its `inner_radius` as a moved body does. The inverse
+    /// is [`Op::RemoveSaveBelt`] at the new last index, batched with the old inner radius
+    /// when it grew. Stellaris 4.x save documents only.
     AddSaveBelt {
         system: u32,
         kind: String,
@@ -455,8 +456,9 @@ pub enum Op {
         index: usize,
     },
     /// The `index`th belt's `inner_radius`. Its asteroids stay where they are; the app
-    /// moves them in the same [`Op::Batch`]. Its own inverse. Stellaris 4.x save documents
-    /// only.
+    /// moves them in the same [`Op::Batch`]. A belt moved past the system's reach grows its
+    /// `inner_radius` as [`Op::AddSaveBelt`] does. Its own inverse, batched with the old
+    /// inner radius when it grew. Stellaris 4.x save documents only.
     SetSaveBeltRadius {
         system: u32,
         index: usize,
@@ -469,9 +471,10 @@ pub enum Op {
         index: usize,
         kind: String,
     },
-    /// A save system's `inner_radius`, with `outer_radius` 100 past it. A radius inside the
-    /// system's outermost body, or below 150, is refused unless it is no smaller than the
-    /// value the system already holds. Its own inverse. Stellaris 4.x save documents only.
+    /// A save system's `inner_radius`, with `outer_radius` the session's outer offset past
+    /// it. A radius inside the system's outermost body or belt, or below the session's
+    /// smallest inner radius, is refused unless it is no smaller than the value the system
+    /// already holds. Its own inverse. Stellaris 4.x save documents only.
     SetSaveInnerRadius {
         system: u32,
         radius: f64,
@@ -909,7 +912,9 @@ pub enum OpError {
     UnknownBelt { system: u32, index: usize },
     #[error("belt {index} of system {system} is already that way")]
     BeltUnchanged { system: u32, index: usize },
-    #[error("the inner radius cannot go below {least:.2}, which the system's bodies reach")]
+    #[error(
+        "the inner radius cannot go below {least:.2}, which the system's bodies and belts reach"
+    )]
     InnerRadiusTooSmall { least: f64 },
     #[error("system {0} already has that inner radius")]
     InnerRadiusUnchanged(u32),

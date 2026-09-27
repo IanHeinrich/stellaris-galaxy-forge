@@ -10,14 +10,14 @@ import type { Capabilities } from "../../generated/Capabilities";
 import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
+import type { SystemRadii } from "../../generated/SystemRadii";
 import {
   BELT_SCATTER,
-  INNER_MARGIN,
-  MIN_INNER_RADIUS,
   MOON_RING_FIRST,
   MOON_RING_STEP,
   OVERLAP_TOLERANCE,
   STORED_ORBIT_SLACK,
+  VANILLA_SYSTEM_RADII,
 } from "../../generated/constants";
 import type { EntityRef } from "../../store/inspectorStore";
 import { counted } from "../text";
@@ -93,6 +93,8 @@ export interface GeometryFrame {
   layout: SystemLayout;
   details: SystemDetails | null;
   planetClasses: ReadonlyMap<string, PlanetClassView>;
+  /** How the install sizes a system; `VANILLA_SYSTEM_RADII` before game data gives them. */
+  radii: SystemRadii;
 }
 
 /** The op an intent makes, or why it is refused; null when it changes nothing. */
@@ -338,7 +340,9 @@ function pointsAfter(
 }
 
 /** What the reach of a system is measured from. */
-type ReachFrame = Pick<GeometryFrame, "layout" | "details">;
+type ReachFrame = Pick<GeometryFrame, "layout" | "details" | "radii">;
+
+type Belt = { kind: string; radius: number };
 
 /**
  * The bodies the core counts towards the system's reach: the primary, the first body listed, and
@@ -351,10 +355,15 @@ function reachingBodies(details: SystemDetails | null): ReadonlySet<number> {
 }
 
 /**
- * How far out the system's bodies reach, as the core's inner radius measures them: a body's drawn
- * radius plus its parent's distance from the centre. A moved body and its moons always count.
+ * How far out the system's bodies and `belts` reach, as the core's inner radius measures them: a
+ * body's drawn radius plus its parent's distance from the centre, a belt its radius. A moved body
+ * and its moons always count.
  */
-function reachOf({ layout, details }: ReachFrame, moved: ReadonlyMap<number, BodyOrbit>): number {
+function reachOf(
+  { layout, details }: ReachFrame,
+  moved: ReadonlyMap<number, BodyOrbit>,
+  belts: readonly Belt[],
+): number {
   const pointOf = pointsAfter(layout, moved);
   const reaching = reachingBodies(details);
   let reach = 0;
@@ -371,6 +380,7 @@ function reachOf({ layout, details }: ReachFrame, moved: ReadonlyMap<number, Bod
         : Math.hypot(centre.x, centre.y) + radius;
     reach = Math.max(reach, out);
   }
+  for (const belt of belts) reach = Math.max(reach, belt.radius);
   return reach;
 }
 
@@ -378,22 +388,27 @@ const NOTHING_MOVED: ReadonlyMap<number, BodyOrbit> = new Map();
 
 /**
  * The inner radius once `override` is applied: the one it names, or the system's grown to reach
- * past the moved bodies when they reach further than the system did. It never shrinks on its own.
+ * past the moved bodies and belts when they reach further than the system did. It never shrinks on
+ * its own.
  */
 export function grownInner(frame: ReachFrame, override: LayoutOverride): number {
   const current = override.innerRadius ?? frame.layout.innerRadius;
-  const moved = override.bodies;
-  if (!moved || moved.size === 0) return current;
-  const before = reachOf(frame, NOTHING_MOVED);
-  const after = reachOf(frame, moved);
-  const grows = after > before + STORED_ORBIT_SLACK && after + INNER_MARGIN > current;
-  return grows ? Math.max(MIN_INNER_RADIUS, after + INNER_MARGIN) : current;
+  const moved = override.bodies ?? NOTHING_MOVED;
+  if (moved.size === 0 && override.belts === undefined) return current;
+  const before = reachOf(frame, NOTHING_MOVED, frame.layout.belts);
+  const after = reachOf(frame, moved, override.belts ?? frame.layout.belts);
+  const { min_inner, inner_offset } = frame.radii;
+  const grows = after > before + STORED_ORBIT_SLACK && after + inner_offset > current;
+  return grows ? Math.max(min_inner, after + inner_offset) : current;
 }
 
-/** The least the inner radius may be set to: the system's reach, or its own value when that is lower. */
+/**
+ * The least the inner radius may be set to: how far the system's bodies and belts reach, or its own
+ * value when that is lower.
+ */
 function innerFloorOf(frame: ReachFrame): number {
-  const least = Math.max(MIN_INNER_RADIUS, reachOf(frame, NOTHING_MOVED));
-  return Math.min(frame.layout.innerRadius, least);
+  const reach = reachOf(frame, NOTHING_MOVED, frame.layout.belts);
+  return Math.min(frame.layout.innerRadius, Math.max(frame.radii.min_inner, reach));
 }
 
 function roundedText(value: number): string {
@@ -404,7 +419,7 @@ const NOTHING_EDITABLE: SceneEditing = {
   bodies: new Map(),
   belts: false,
   innerRadius: false,
-  innerFloor: MIN_INNER_RADIUS,
+  innerFloor: VANILLA_SYSTEM_RADII.min_inner,
 };
 
 /** Nothing about the system's geometry may be edited. */
@@ -520,8 +535,6 @@ function beltAsteroids(frame: GeometryFrame, radius: number): BodyPlacement[] {
   );
 }
 
-type Belt = { kind: string; radius: number };
-
 function shownBelts(layout: SystemLayout): Belt[] {
   return layout.belts.map(({ kind, radius }) => ({ kind, radius }));
 }
@@ -536,10 +549,10 @@ function carriedAsteroids(frame: GeometryFrame, from: number, to: number): Map<n
   );
 }
 
-/** `bodies` put elsewhere, with the inner radius they grow. */
-function movedBodies(frame: GeometryFrame, bodies: Map<number, BodyOrbit>): LayoutOverride {
-  const grown = grownInner(frame, { bodies });
-  return grown === frame.layout.innerRadius ? { bodies } : { bodies, innerRadius: grown };
+/** `override`, with the inner radius the bodies and belts it moves grow. */
+function grown(frame: GeometryFrame, override: LayoutOverride): LayoutOverride {
+  const inner = grownInner(frame, override);
+  return inner === frame.layout.innerRadius ? override : { ...override, innerRadius: inner };
 }
 
 function savePreview(intent: GeometryIntent, frame: GeometryFrame): LayoutOverride {
@@ -550,20 +563,20 @@ function savePreview(intent: GeometryIntent, frame: GeometryFrame): LayoutOverri
       const body = layout.bodies.find((b) => b.id === intent.body);
       if (!body) return {};
       const to = { parent: body.parent, radius: intent.radius, angle: intent.angle };
-      return movedBodies(frame, new Map([[intent.body, to]]));
+      return grown(frame, { bodies: new Map([[intent.body, to]]) });
     }
     case "reparent": {
       const { parent, radius, angle } = intent;
-      return movedBodies(frame, new Map([[intent.body, { parent, radius, angle }]]));
+      return grown(frame, { bodies: new Map([[intent.body, { parent, radius, angle }]]) });
     }
     case "addBelt":
-      return { belts: [...belts, { kind: intent.beltKind, radius: intent.radius }] };
+      return grown(frame, { belts: [...belts, { kind: intent.beltKind, radius: intent.radius }] });
     case "setBeltRadius": {
       const belt = belts[intent.index];
       if (!belt) return {};
       belts[intent.index] = { ...belt, radius: intent.radius };
       const carried = carriedAsteroids(frame, belt.radius, intent.radius);
-      return carried.size === 0 ? { belts } : { belts, ...movedBodies(frame, carried) };
+      return grown(frame, carried.size === 0 ? { belts } : { belts, bodies: carried });
     }
     case "setBeltKind": {
       const belt = belts[intent.index];

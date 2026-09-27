@@ -7,7 +7,7 @@
  * sprite drawn upright.
  */
 import type { BodyLayout } from "../../generated/BodyLayout";
-import { MIN_INNER_RADIUS } from "../../generated/constants";
+import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import type { Bounds } from "../../generated/Bounds";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
@@ -348,7 +348,9 @@ function layOut(
   for (const belt of belts) outermost = Math.max(outermost, belt.outer);
 
   const innerRadius =
-    override?.innerRadius ?? details?.inner_radius ?? Math.max(MIN_INNER_RADIUS, outermost);
+    override?.innerRadius ??
+    details?.inner_radius ??
+    Math.max(VANILLA_SYSTEM_RADII.min_inner, outermost);
   const largestDisc = bodies.reduce((m, b) => Math.max(m, b.disc), 0);
   return {
     bodies,

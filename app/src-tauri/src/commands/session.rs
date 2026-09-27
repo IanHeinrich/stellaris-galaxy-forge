@@ -17,7 +17,7 @@ use sgf_core::views::{
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::{DONE, START, VALIDATE_AT, io_error, progress, require, with_session};
+use super::{DONE, START, VALIDATE_AT, io_error, progress, require, size_systems, with_session};
 use crate::state::GameDataState;
 
 const ONLY_A_SAVE_EXPORTS: &str = "only a save can be exported as a scenario";
@@ -166,7 +166,10 @@ async fn install_reporting<R: Runtime>(
     })
     .await
     .map_err(io_error)??;
+    let sizing = app.clone();
     with_session(app.clone(), move |mut guard| {
+        let mut session = session;
+        size_systems(&sizing, &mut session);
         *guard = Some(session);
         Ok(())
     })

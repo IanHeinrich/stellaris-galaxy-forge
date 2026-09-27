@@ -20,7 +20,6 @@ use crate::projections::galaxy::{GalaxyGraph, Lane};
 use crate::session::Session;
 
 pub use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
-pub use crate::format::save::write::add_system::{INNER_MARGIN, MIN_INNER_RADIUS, OUTER_MARGIN};
 pub use crate::format::save::write::game_tables::SPAWN_BUFFER;
 pub use crate::format::save::write::initializer_counter::initializer_counts;
 pub use crate::format::save::write::name_pool::{free_nebula_names, free_star_names};
@@ -33,6 +32,7 @@ pub use op::{
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 pub use rules::bodies::{
     BELT_SCATTER, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, STORED_ORBIT_SLACK,
+    SystemRadii,
 };
 
 /// The record of one committed op: what changed, how to describe it, and the bytes

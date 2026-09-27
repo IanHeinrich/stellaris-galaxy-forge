@@ -5,6 +5,7 @@
 import type { Capabilities } from "../generated/Capabilities";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { SystemDetails } from "../generated/SystemDetails";
+import type { SystemRadii } from "../generated/SystemRadii";
 import type { SystemRoll } from "../generated/SystemRoll";
 import { documentCapabilities } from "../lib/capabilities";
 import {
@@ -21,7 +22,7 @@ import { systemLayout, type SystemLayout } from "../lib/details/orbits";
 import { shownRoll, useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
-import { moonScaleOf, useGameDataStore } from "./gameDataStore";
+import { moonScaleOf, systemRadiiOf, useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { sceneSystem } from "./sceneStore";
@@ -40,21 +41,27 @@ interface Inputs {
   roll: SystemRoll | null;
   planetClasses: ReadonlyMap<string, PlanetClassView>;
   moonScale: number;
+  radii: SystemRadii;
   capabilities: Capabilities;
 }
 
-/** Each layout's editing, per adapter: the same layout and adapter give the same object. */
-const edited = new WeakMap<SystemLayout, Map<GeometryAdapter, SceneEditing>>();
+/**
+ * Each layout's editing, per adapter and radii: the same layout, adapter and radii give the same
+ * object.
+ */
+const edited = new WeakMap<SystemLayout, Map<GeometryAdapter, Map<SystemRadii, SceneEditing>>>();
 
 function geometryOf(inputs: Inputs): SystemGeometry {
-  const { system, details, roll, planetClasses, moonScale, capabilities } = inputs;
+  const { system, details, roll, planetClasses, moonScale, radii, capabilities } = inputs;
   const layout = systemLayout(details, roll, planetClasses, moonScale);
   const adapter = geometryAdapterFor(capabilities, system);
-  const frame = { layout, details, planetClasses };
+  const frame = { layout, details, planetClasses, radii };
   let byAdapter = edited.get(layout);
   if (!byAdapter) edited.set(layout, (byAdapter = new Map()));
-  let editing = byAdapter.get(adapter);
-  if (!editing) byAdapter.set(adapter, (editing = adapter.editing(frame)));
+  let byRadii = byAdapter.get(adapter);
+  if (!byRadii) byAdapter.set(adapter, (byRadii = new Map()));
+  let editing = byRadii.get(radii);
+  if (!editing) byRadii.set(radii, (editing = adapter.editing(frame)));
   return { layout, editing, adapter, frame };
 }
 
@@ -68,6 +75,7 @@ export function systemGeometry(system: number | null): SystemGeometry {
     roll: shownRoll(details.rolls, system),
     planetClasses: data.planetClasses,
     moonScale: moonScaleOf(data),
+    radii: systemRadiiOf(data),
     capabilities: documentCapabilities(useFileSessionStore.getState()),
   });
 }
@@ -80,8 +88,9 @@ export function useSystemGeometry(system: number | null): SystemGeometry {
   const roll = useDetailsStore((s) => shownRoll(s.rolls, system));
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const moonScale = useGameDataStore(moonScaleOf);
+  const radii = useGameDataStore(systemRadiiOf);
   const capabilities = useFileSessionStore(documentCapabilities);
-  return geometryOf({ system, details, roll, planetClasses, moonScale, capabilities });
+  return geometryOf({ system, details, roll, planetClasses, moonScale, radii, capabilities });
 }
 
 /** How long an edit waits for its system's fresh details before the next one builds anyway. */

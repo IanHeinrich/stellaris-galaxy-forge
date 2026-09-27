@@ -339,7 +339,12 @@ describe("a system shown under a preview", () => {
 
   function previewed(intent: GeometryIntent) {
     const base = systemContext(src);
-    const frame = { layout: base.layout, details: src.details, planetClasses: src.planetClasses };
+    const frame = {
+      layout: base.layout,
+      details: src.details,
+      planetClasses: src.planetClasses,
+      radii: base.radii,
+    };
     const override = SAVE_GEOMETRY.preview(intent, frame);
     return { base, shown: systemContext(src, { override, marks: null }) };
   }
@@ -395,7 +400,7 @@ describe("a system shown under a preview", () => {
     expect(shown.handles.map((h) => h.radius)).toEqual([
       ...Array(6).fill(120),
       ...Array(6).fill(180),
-      ...Array(6).fill(200),
+      ...Array(6).fill(210),
     ]);
   });
 

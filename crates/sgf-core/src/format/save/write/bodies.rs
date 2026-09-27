@@ -6,14 +6,15 @@ use crate::cst::Node;
 use crate::emit::system::{ANY_FLAG, MOON_FLAG};
 use crate::emit::{Lines, coord, inline};
 use crate::format::save::read_spec::{bodies as listed, written_angle};
+use crate::format::save::write::belts;
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::{check_version, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::{
-    Body, centre, check_parent, check_placement, descendants, drawn_radius, grown_inner_radius,
-    movable, normalised, placed,
+    Body, centre, check_parent, check_placement, descendants, drawn_radius, movable, moved_reach,
+    normalised, placed, system_reach,
 };
-use crate::ops::{Edit, OUTER_MARGIN, Op, OpError, Plan, Planned};
+use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::projections::read;
 use crate::session::Session;
 /// A body of the system as its entry stands, with the text a move would rewrite.
@@ -65,7 +66,8 @@ pub(crate) fn plan_move(
         radius: inverse.0,
         angle: inverse.1,
     };
-    grow(plan, s, system, &before, &after, body, description, inverse)
+    let reach = moved_reach(&after, body);
+    grow(plan, s, system, &before, reach, description, inverse)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -116,7 +118,8 @@ pub(crate) fn plan_parent(
         radius,
         angle,
     };
-    grow(plan, s, system, &before, &after, body, description, inverse)
+    let reach = moved_reach(&after, body);
+    grow(plan, s, system, &before, reach, description, inverse)
 }
 
 /// The system's bodies, once the version, the placement and the body's own system are
@@ -251,19 +254,19 @@ fn with_moons(bodies: &[Body], id: u32) -> String {
     }
 }
 
-/// Grow the system's `inner_radius` when the move takes body `id` further than the system
-/// reached, and return the description and inverse the op ends with.
-#[allow(clippy::too_many_arguments)]
-fn grow(
+/// Grow the system's `inner_radius` when something the op puts `reach` from the centre lies
+/// further out than any of the system's bodies, `before` as the op found them, or belts, and
+/// return the description and inverse the op ends with.
+pub(crate) fn grow(
     plan: &mut Plan,
     s: &Session,
     system: u32,
     before: &[Body],
-    after: &[Body],
-    id: u32,
+    reach: f64,
     description: String,
     inverse: Op,
 ) -> Result<Planned, OpError> {
+    let radii = s.radii();
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let Some(current) = read::scalar_f64(entity, keys::INNER_RADIUS, &edit.buf) else {
@@ -272,7 +275,8 @@ fn grow(
             inverse,
         });
     };
-    let Some(grown) = grown_inner_radius(before, after, id, current) else {
+    let reached = system_reach(before, &belts::belt_radii(edit, entity));
+    let Some(grown) = radii.grown(reach, reached, current) else {
         return Ok(Planned {
             description,
             inverse,
@@ -281,7 +285,7 @@ fn grow(
     let outer = entity.find(keys::OUTER_RADIUS, &edit.buf).is_some();
     edit.set_scalar(&[keys::INNER_RADIUS], coord(grown))?;
     if outer {
-        edit.set_scalar(&[keys::OUTER_RADIUS], coord(grown + OUTER_MARGIN))?;
+        edit.set_scalar(&[keys::OUTER_RADIUS], coord(radii.outer(grown)))?;
     }
     let description = format!(
         "{description}; set the inner radius of system #{system} from {} to {}",

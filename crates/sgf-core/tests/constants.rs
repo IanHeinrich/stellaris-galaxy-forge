@@ -10,8 +10,8 @@ use sgf_core::format::scenario::fe_zone::{
 };
 use sgf_core::guides::L_CLUSTER;
 use sgf_core::ops::{
-    BELT_SCATTER, INNER_MARGIN, MIN_INNER_RADIUS, MOON_RING_FIRST, MOON_RING_STEP,
-    OVERLAP_TOLERANCE, SPAWN_BUFFER, STORED_ORBIT_SLACK,
+    BELT_SCATTER, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, SPAWN_BUFFER,
+    STORED_ORBIT_SLACK, SystemRadii,
 };
 
 fn export_dir() -> PathBuf {
@@ -71,15 +71,17 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "FE_ZONE_MAP_EXTENT",
         FE_ZONE_EXTENT.to_string(),
     );
+    let SystemRadii {
+        min_inner,
+        inner_offset,
+        outer_offset,
+    } = SystemRadii::VANILLA;
     constant(
-        "The smallest inner radius a system has.",
-        "MIN_INNER_RADIUS",
-        MIN_INNER_RADIUS.to_string(),
-    );
-    constant(
-        "How far past its outermost body a system's inner radius lies.",
-        "INNER_MARGIN",
-        INNER_MARGIN.to_string(),
+        "How vanilla sizes a system, for when no game data gives the install's defines.",
+        "VANILLA_SYSTEM_RADII",
+        format!(
+            "{{ min_inner: {min_inner}, inner_offset: {inner_offset}, outer_offset: {outer_offset} }} as const"
+        ),
     );
     constant(
         "The orbit of a planet's first moon.",

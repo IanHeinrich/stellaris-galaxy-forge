@@ -197,7 +197,10 @@ for planets or deposits.
   `storm=4294967295`. It has no `arm`.
 - `inner_radius` is max(150, outermost reach + 30), where a moon
   reaches its own orbit plus its planet's. `outer_radius` is
-  `inner_radius` + 100. The game writes some radii with decimals:
+  `inner_radius` + 100. The three numbers are `NGameplay`'s
+  `SYSTEM_MIN_INNER_RADIUS`, `SYSTEM_INNER_RADIUS_OFFSET` and
+  `SYSTEM_OUTER_RADIUS_OFFSET` in the install's defines, which mods can
+  change. The editor uses the loaded install's values. The game writes some radii with decimals:
   Baxom (system 33 of the 4.4 sample) has `inner_radius=299.11` and
   `outer_radius=399.11`.
 - Each body is a `planets.planet` entry. Its deposits are `deposit`
@@ -217,8 +220,11 @@ for planets or deposits.
   before whichever of `discovery`, `arm`, `flags` and `initializer`
   comes first. It holds one block per initializer `asteroid_belt`, in
   script order, laid out like the `hyperlane` entries. `inner_radius` is
-  the script's `radius` as written. A belt does not move the system's
-  `inner_radius`, only the bodies do.
+  the script's `radius` as written. The game sizes a new system's
+  `inner_radius` by its bodies alone. In the samples, 2 of the 254 4.5
+  systems with belts have one past it, and none of the 359 in 4.4. When
+  the editor adds or moves a belt, the belt counts toward the reach, so a
+  belt put past the inner radius grows it as a body does.
 
   An asteroid is a body whose class has `asteroid = yes`. Its entry
   looks like a planet's, at the belt's `orbit`, with `planet_size=5`,

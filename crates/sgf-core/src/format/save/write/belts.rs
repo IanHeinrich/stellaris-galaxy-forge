@@ -1,5 +1,7 @@
 //! `AddSaveBelt`, `RemoveSaveBelt`, `SetSaveBeltRadius`, `SetSaveBeltKind` and
-//! `SetSaveInnerRadius`: a save system's `asteroid_belts` and its `inner_radius`.
+//! `SetSaveInnerRadius`: a save system's `asteroid_belts` and its `inner_radius`. A belt
+//! reaches its radius, so one added or moved past the system's reach grows the inner radius
+//! as a body does.
 
 use crate::Span;
 use crate::cst::Node;
@@ -8,9 +10,10 @@ use crate::emit::{coord, quoted};
 use crate::format::save::check_version;
 use crate::format::save::write::bodies;
 use crate::keys;
+use crate::ops::rules::bodies::Body;
 use crate::ops::rules::bodies::{check_radius, system_reach};
 use crate::ops::rules::{Form, check_text};
-use crate::ops::{Edit, MIN_INNER_RADIUS, OUTER_MARGIN, Op, OpError, Plan, Planned};
+use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::projections::read;
 use crate::session::Session;
 
@@ -24,6 +27,7 @@ pub(crate) fn plan_add(
     check_version(&s.doc)?;
     check_radius(radius, "a belt's inner radius")?;
     check_text("a belt type", kind, Form::Bare)?;
+    let before = body_frame(s, system)?;
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let block = entity.find(keys::ASTEROID_BELTS, &edit.buf);
@@ -45,13 +49,12 @@ pub(crate) fn plan_add(
             edit.insert(at, belts_block(&indent, &[(kind, radius)]));
         }
     }
-    Ok(Planned {
-        description: format!(
-            "Added a {kind} belt at radius {} to system #{system}",
-            number(radius)
-        ),
-        inverse: Op::RemoveSaveBelt { system, index },
-    })
+    let description = format!(
+        "Added a {kind} belt at radius {} to system #{system}",
+        number(radius)
+    );
+    let inverse = Op::RemoveSaveBelt { system, index };
+    bodies::grow(plan, s, system, &before, radius, description, inverse)
 }
 
 pub(crate) fn plan_remove(
@@ -103,6 +106,7 @@ pub(crate) fn plan_set_radius(
 ) -> Result<Planned, OpError> {
     check_version(&s.doc)?;
     check_radius(radius, "a belt's inner radius")?;
+    let before = body_frame(s, system)?;
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let block = entity
@@ -124,18 +128,17 @@ pub(crate) fn plan_set_radius(
         return Err(OpError::BeltUnchanged { system, index });
     }
     edit.replace_span(span, new_text);
-    Ok(Planned {
-        description: format!(
-            "Moved the belt at radius {} in system #{system} to {}",
-            number(old),
-            number(radius)
-        ),
-        inverse: Op::SetSaveBeltRadius {
-            system,
-            index,
-            radius: old,
-        },
-    })
+    let description = format!(
+        "Moved the belt at radius {} in system #{system} to {}",
+        number(old),
+        number(radius)
+    );
+    let inverse = Op::SetSaveBeltRadius {
+        system,
+        index,
+        radius: old,
+    };
+    bodies::grow(plan, s, system, &before, radius, description, inverse)
 }
 
 pub(crate) fn plan_set_kind(
@@ -189,10 +192,8 @@ pub(crate) fn plan_inner_radius(
 ) -> Result<Planned, OpError> {
     check_version(&s.doc)?;
     check_radius(radius, "a system's inner radius")?;
-    let frame: Vec<_> = bodies::frame(s, system)?
-        .into_iter()
-        .map(|b| b.body)
-        .collect();
+    let radii = s.radii();
+    let frame = body_frame(s, system)?;
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let span = entity
@@ -207,14 +208,18 @@ pub(crate) fn plan_inner_radius(
     if new_text == old_text {
         return Err(OpError::InnerRadiusUnchanged(system));
     }
-    let least = current.min(MIN_INNER_RADIUS.max(system_reach(&frame)));
+    let least = current.min(
+        radii
+            .min_inner
+            .max(system_reach(&frame, &belt_radii(edit, entity))),
+    );
     if radius < least {
         return Err(OpError::InnerRadiusTooSmall { least });
     }
     let outer = entity.find(keys::OUTER_RADIUS, &edit.buf).is_some();
     edit.replace_span(span, new_text);
     if outer {
-        edit.set_scalar(&[keys::OUTER_RADIUS], coord(radius + OUTER_MARGIN))?;
+        edit.set_scalar(&[keys::OUTER_RADIUS], coord(radii.outer(radius)))?;
     }
     Ok(Planned {
         description: format!(
@@ -227,6 +232,25 @@ pub(crate) fn plan_inner_radius(
             radius: current,
         },
     })
+}
+
+/// The system's bodies as their entries stand.
+fn body_frame(s: &Session, system: u32) -> Result<Vec<Body>, OpError> {
+    Ok(bodies::frame(s, system)?
+        .into_iter()
+        .map(|b| b.body)
+        .collect())
+}
+
+/// The radius of each of the system's belts that has one, in order.
+pub(crate) fn belt_radii(edit: &Edit, entity: &Node) -> Vec<f64> {
+    entity
+        .find(keys::ASTEROID_BELTS, &edit.buf)
+        .map(entries)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|entry| read::scalar_f64(entry, keys::INNER_RADIUS, &edit.buf))
+        .collect()
 }
 
 /// The belt entries of the system's `asteroid_belts` block, in order.

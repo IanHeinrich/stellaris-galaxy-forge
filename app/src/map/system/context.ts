@@ -515,8 +515,13 @@ export function systemContext(
   const layout = preview
     ? systemLayout(src.details, src.roll, src.planetClasses, src.moonScale, preview.override)
     : base;
-  const editing = lastEditing([src.geometry, base, src.details, src.planetClasses], () =>
-    src.geometry.editing({ layout: base, details: src.details, planetClasses: src.planetClasses }),
+  const editing = lastEditing([src.geometry, base, src.details, src.planetClasses, src.radii], () =>
+    src.geometry.editing({
+      layout: base,
+      details: src.details,
+      planetClasses: src.planetClasses,
+      radii: src.radii,
+    }),
   );
   const bodies = lastBodies(
     [

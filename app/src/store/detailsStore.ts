@@ -3,8 +3,8 @@ import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemRoll } from "../generated/SystemRoll";
-import { MIN_INNER_RADIUS } from "../generated/constants";
 import { DETAILS_BATCH, DETAILS_DEBOUNCE_MS } from "./batching";
+import { VANILLA_SYSTEM_RADII } from "../generated/constants";
 
 export interface DetailsState {
   details: Map<number, SystemDetails>;
@@ -160,10 +160,18 @@ export function useSystemRoll(system: number | null, roll: number): SystemRoll |
   return shownRoll(rolls, system);
 }
 
+/** The least inner radius a roll fits a system's planets within: the loaded game data's. */
+let rollWithin: number = VANILLA_SYSTEM_RADII.min_inner;
+
+/** Follows the loaded game data's least inner radius; `bindStores` calls it. */
+export function setRollWithin(within: number): void {
+  rollWithin = within;
+}
+
 async function fetchRoll(system: number, ask: { roll: number }): Promise<void> {
   let answer: SystemRoll | null = null;
   try {
-    answer = await ipc.getSystemRoll(system, ask.roll, MIN_INNER_RADIUS);
+    answer = await ipc.getSystemRoll(system, ask.roll, rollWithin);
   } catch {
     // With no roll the bodies stand where their details alone put them.
   }

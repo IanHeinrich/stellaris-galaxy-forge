@@ -42,6 +42,7 @@ use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
 use registries::star_classes::StarClass;
 use registries::{colors, gfx, planet_lists, registry, star_names, starbase_levels};
+use sgf_core::ops::SystemRadii;
 
 pub use initializers::Initializers;
 pub use install::layers::Layout;
@@ -113,6 +114,8 @@ pub struct GameData {
     pub border: Arc<BorderDefines>,
     /// `NGameplay`'s deposit counts and Resource Abundance range.
     pub deposit_defines: Arc<DepositDefines>,
+    /// `NGameplay`'s rules for how far out a system's inner and outer radii lie.
+    pub system_radii: SystemRadii,
     /// `common/scripted_triggers`, which a deposit's `potential` and `drop_weight` call.
     pub scripted_triggers: Arc<ScriptedTriggers>,
     pub loc: Arc<Localisation>,
@@ -303,6 +306,7 @@ impl GameData {
         let define_files = ParsedDir::load(&layout, "common/defines", &mut diagnostics);
         let border = BorderDefines::load(&define_files);
         let deposit_defines = DepositDefines::load(&define_files);
+        let system_radii = registries::defines::system_radii(&define_files);
         let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
 
         progress(Phase::Localisation);
@@ -339,6 +343,7 @@ impl GameData {
             galaxy_sizes: Arc::new(galaxy_sizes),
             border: Arc::new(border),
             deposit_defines: Arc::new(deposit_defines),
+            system_radii,
             scripted_triggers: Arc::new(scripted_triggers),
             loc: Arc::new(loc),
             diagnostics,

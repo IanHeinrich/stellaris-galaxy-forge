@@ -4,9 +4,14 @@ import type { BorderDefines } from "./BorderDefines";
 import type { DiagnosticView } from "./DiagnosticView";
 import type { GalaxySizeView } from "./GalaxySizeView";
 import type { ModView } from "./ModView";
+import type { SystemRadii } from "./SystemRadii";
 import type { WatchView } from "./WatchView";
 
-export type GameDataSummary = { install: string, version: string | null, language: string, language_fell_back: boolean, mods: Array<ModView>, initializers: number, country_types: number, star_classes: number, sprites: number, colors: number, deposits: number, planet_classes: number, starbase_levels: number, border: BorderDefines, belt_kinds: Array<BeltKindView>, localisation_keys: number, diagnostics: Array<DiagnosticView>, 
+export type GameDataSummary = { install: string, version: string | null, language: string, language_fell_back: boolean, mods: Array<ModView>, initializers: number, country_types: number, star_classes: number, sprites: number, colors: number, deposits: number, planet_classes: number, starbase_levels: number, border: BorderDefines, 
+/**
+ * How far out a system's inner and outer radii lie, from `NGameplay`.
+ */
+system_radii: SystemRadii, belt_kinds: Array<BeltKindView>, localisation_keys: number, diagnostics: Array<DiagnosticView>, 
 /**
  * The galaxy size with the most stars across the install and the enabled mods;
  * `None` when no `setup_scenario` gives a `num_stars`.

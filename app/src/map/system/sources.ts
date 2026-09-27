@@ -5,6 +5,8 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemNode } from "../../generated/SystemNode";
+import type { SystemRadii } from "../../generated/SystemRadii";
+import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { documentCapabilities } from "../../lib/capabilities";
 import { VANILLA_MOON_SCALE } from "../../lib/details/discs";
@@ -19,7 +21,7 @@ import type { SceneLayerId } from "../../lib/visual/layerIds";
 import { shownRoll, useDetailsStore } from "../../store/detailsStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
-import { moonScaleOf, useGameDataStore } from "../../store/gameDataStore";
+import { moonScaleOf, systemRadiiOf, useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { currentOwnership } from "../../store/ownership";
 import { useSceneStore } from "../../store/sceneStore";
@@ -35,6 +37,8 @@ export interface SystemSources {
   readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
   /** The install's `NGraphics.MOON_SCALE`; `VANILLA_MOON_SCALE` before game data gives one. */
   readonly moonScale: number;
+  /** How the install sizes a system; `VANILLA_SYSTEM_RADII` before game data gives them. */
+  readonly radii: SystemRadii;
   readonly starClasses: ReadonlyMap<string, StarClassView>;
   /** Each asteroid belt kind the game data defines, by key. */
   readonly beltKinds: ReadonlyMap<string, BeltKindView>;
@@ -63,6 +67,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   names: new Map<string, string>(),
   planetClasses: new Map<string, PlanetClassView>(),
   moonScale: VANILLA_MOON_SCALE,
+  radii: VANILLA_SYSTEM_RADII,
   starClasses: new Map<string, StarClassView>(),
   beltKinds: new Map<string, BeltKindView>(),
   initializerClasses: new Map<string, string>(),
@@ -86,6 +91,7 @@ export const sameSources = sameFields<SystemSources>({
   names: true,
   planetClasses: true,
   moonScale: true,
+  radii: true,
   starClasses: true,
   beltKinds: true,
   initializerClasses: true,
@@ -133,6 +139,7 @@ export function readSystemSources(id: number | null): SystemSources {
     names,
     planetClasses: data.planetClasses,
     moonScale: moonScaleOf(data),
+    radii: systemRadiiOf(data),
     starClasses: data.starClasses,
     beltKinds: beltKindsBy(data.summary?.belt_kinds ?? NO_BELT_KINDS),
     initializerClasses: data.initializerClasses,

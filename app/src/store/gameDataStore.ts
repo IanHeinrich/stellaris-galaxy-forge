@@ -4,6 +4,8 @@ import * as ipc from "../api/ipc";
 import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataChanged } from "../generated/GameDataChanged";
 import type { GameDataSummary } from "../generated/GameDataSummary";
+import type { SystemRadii } from "../generated/SystemRadii";
+import { VANILLA_SYSTEM_RADII } from "../generated/constants";
 import type { InitializerView } from "../generated/InitializerView";
 import type { KindCount } from "../generated/KindCount";
 import type { LGateModTouch } from "../generated/LGateModTouch";
@@ -487,6 +489,11 @@ function rememberInstallPath(path: string): void {
   } catch {
     return;
   }
+}
+
+/** How the install sizes a system, or how vanilla does before game data loads. */
+export function systemRadiiOf(s: { summary: GameDataSummary | null }): SystemRadii {
+  return s.summary?.system_radii ?? VANILLA_SYSTEM_RADII;
 }
 
 /** The install's moon scale, or the vanilla one before game data loads. */

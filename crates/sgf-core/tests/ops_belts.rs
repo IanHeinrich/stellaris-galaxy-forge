@@ -355,3 +355,79 @@ fn a_belt_added_to_a_system_with_discovery_lands_before_it() {
     let arm_at = after.find("\n\t\tarm=").expect("arm");
     assert!(belts_at < discovery_at && discovery_at < arm_at, "{after}");
 }
+
+/// System 1's bodies reach 157.41 and its inner radius is 186.71. A belt added at 200
+/// reaches past both, so the inner radius grows to 230 with it, as a body's move grows it,
+/// and undo takes both back.
+#[test]
+fn a_belt_added_past_the_inner_radius_grows_it() {
+    let mut session = open_4_5();
+    let result = snapshot_step(
+        &mut session,
+        "belt_added_past_the_inner_radius",
+        add_belt(1, "rocky_asteroid_belt", 200.0),
+    );
+    assert_eq!(
+        result.entry.description,
+        "Added a rocky_asteroid_belt belt at radius 200 to system #1; \
+         set the inner radius of system #1 from 186.71 to 230"
+    );
+    let Op::Batch { ops, .. } = &result.inverse else {
+        panic!("a batch, not {:?}", result.inverse);
+    };
+    assert_eq!(ops[..], [remove_belt(1, 0), set_inner_radius(1, 186.71)]);
+    round_trip(open_4_5(), add_belt(1, "rocky_asteroid_belt", 200.0));
+}
+
+/// System 140's icy belt at 90 moved out to 400 grows its inner radius to 430.
+#[test]
+fn a_belt_moved_past_the_inner_radius_grows_it() {
+    let mut session = open_4_5();
+    let result = snapshot_step(
+        &mut session,
+        "belt_moved_past_the_inner_radius",
+        set_belt_radius(140, 1, 400.0),
+    );
+    assert!(
+        system_entity(&session, 140).contains("\t\tinner_radius=430\n"),
+        "{}",
+        system_entity(&session, 140)
+    );
+    let Op::Batch { ops, .. } = &result.inverse else {
+        panic!("a batch, not {:?}", result.inverse);
+    };
+    assert!(
+        matches!(
+            ops[..],
+            [
+                Op::SetSaveBeltRadius {
+                    system: 140,
+                    index: 1,
+                    radius: 90.0
+                },
+                Op::SetSaveInnerRadius { system: 140, .. }
+            ]
+        ),
+        "{ops:?}"
+    );
+    round_trip(open_4_5(), set_belt_radius(140, 1, 400.0));
+}
+
+/// With a belt at 200, system 1's inner radius may not be set inside the belt.
+#[test]
+fn the_inner_radius_floor_counts_belts() {
+    let mut session = open_4_5();
+    session
+        .apply(add_belt(1, "rocky_asteroid_belt", 200.0))
+        .expect("the belt");
+    let error = session
+        .apply(set_inner_radius(1, 190.0))
+        .expect_err("inside the belt");
+    assert!(
+        matches!(error, OpError::InnerRadiusTooSmall { least } if least == 200.0),
+        "{error}"
+    );
+    session
+        .apply(set_inner_radius(1, 210.0))
+        .expect("outside the belt");
+}

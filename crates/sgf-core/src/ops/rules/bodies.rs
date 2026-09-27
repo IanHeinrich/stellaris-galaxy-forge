@@ -4,7 +4,58 @@
 //! Each format reads its bodies into [`Body`] frames; a move or a new parent is decided
 //! here, over the frame, and the format then writes the points that changed.
 
-use crate::ops::{INNER_MARGIN, MIN_INNER_RADIUS, OpError};
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+use crate::ops::OpError;
+
+/// How the game sizes a system about what it holds: `NGameplay`'s `SYSTEM_MIN_INNER_RADIUS`,
+/// `SYSTEM_INNER_RADIUS_OFFSET` and `SYSTEM_OUTER_RADIUS_OFFSET`, which mods can override.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SystemRadii {
+    /// The smallest `inner_radius` a system has.
+    pub min_inner: f64,
+    /// How far past its outermost body a system's `inner_radius` lies.
+    pub inner_offset: f64,
+    /// How far past its `inner_radius` a system's `outer_radius` lies.
+    pub outer_offset: f64,
+}
+
+impl SystemRadii {
+    /// The values vanilla Stellaris defines.
+    pub const VANILLA: Self = Self {
+        min_inner: 150.0,
+        inner_offset: 30.0,
+        outer_offset: 100.0,
+    };
+
+    /// The `inner_radius` of a system whose furthest body reaches `reach`.
+    pub fn inner_about(self, reach: f64) -> f64 {
+        self.min_inner.max(reach + self.inner_offset)
+    }
+
+    /// The `outer_radius` of a system whose `inner_radius` is `inner`.
+    pub fn outer(self, inner: f64) -> f64 {
+        inner + self.outer_offset
+    }
+
+    /// The `inner_radius` something now reaching `reach` grows the system's `current` one to,
+    /// when that is past both the current radius less its offset and the `reached` the system
+    /// reached before. `None` when the radius stays; it never shrinks. A reach within the
+    /// stored-orbit slack of the old one is no further: a body moved round its ring lands
+    /// where its drawn radius says, which can sit that far from the point the game wrote.
+    pub fn grown(self, reach: f64, reached: f64, current: f64) -> Option<f64> {
+        let grows = reach > reached + STORED_ORBIT_SLACK && reach + self.inner_offset > current;
+        grows.then(|| self.inner_about(reach))
+    }
+}
+
+impl Default for SystemRadii {
+    fn default() -> Self {
+        Self::VANILLA
+    }
+}
 
 /// The orbit of a planet's first moon, the one the game writes for most moons.
 pub const MOON_RING_FIRST: f64 = 15.0;
@@ -139,14 +190,16 @@ fn reaches_for_the_rule(bodies: &[Body], body: &Body) -> bool {
     bodies.first().is_some_and(|primary| primary.id == body.id) || body.orbit > 0.0
 }
 
-/// How far the furthest body of the frame reaches, an event-placed body at `orbit` zero or
-/// less set aside (see [`reaches_for_the_rule`]). A caller measuring a body its own op is
-/// moving calls [`reach`] on it directly instead, which this exclusion does not touch.
-pub fn system_reach(bodies: &[Body]) -> f64 {
+/// How far the furthest body of the frame or belt of `belts` reaches, a belt reaching its
+/// radius and an event-placed body at `orbit` zero or less set aside (see
+/// [`reaches_for_the_rule`]). A caller measuring a body its own op is moving calls [`reach`]
+/// on it directly instead, which this exclusion does not touch.
+pub fn system_reach(bodies: &[Body], belts: &[f64]) -> f64 {
     bodies
         .iter()
         .filter(|b| reaches_for_the_rule(bodies, b))
         .map(|b| reach(bodies, b))
+        .chain(belts.iter().copied())
         .fold(0.0, f64::max)
 }
 
@@ -270,20 +323,13 @@ pub fn placed(
         .collect())
 }
 
-/// The `inner_radius` a move of body `id` from `before` to `after` grows the system's
-/// `current` one to: the least the new frame allows, when body `id` or a body under it now
-/// reaches past both the current radius less its margin and every body of `before`. `None`
-/// when the radius stays; it never shrinks. A reach within the stored-orbit slack of the old
-/// one is no further: a body moved round its ring lands where its drawn radius says, which
-/// can sit that far from the point the game wrote.
-pub fn grown_inner_radius(before: &[Body], after: &[Body], id: u32, current: f64) -> Option<f64> {
+/// How far body `id` of `after`, or the furthest body under it, reaches.
+pub fn moved_reach(after: &[Body], id: u32) -> f64 {
     let mut moved = descendants(after, id);
     moved.push(id);
-    let reach = moved
+    moved
         .iter()
         .filter_map(|&m| find(after, m))
         .map(|b| reach(after, b))
-        .fold(0.0, f64::max);
-    let grows = reach > system_reach(before) + STORED_ORBIT_SLACK && reach + INNER_MARGIN > current;
-    grows.then(|| MIN_INNER_RADIUS.max(reach + INNER_MARGIN))
+        .fold(0.0, f64::max)
 }

@@ -24,11 +24,8 @@ export const FE_ZONE_DEFAULT_DISTANCE = 40;
 /** How far from the origin, on either axis, a zone's centre may lie. */
 export const FE_ZONE_MAP_EXTENT = 470;
 
-/** The smallest inner radius a system has. */
-export const MIN_INNER_RADIUS = 150;
-
-/** How far past its outermost body a system's inner radius lies. */
-export const INNER_MARGIN = 30;
+/** How vanilla sizes a system, for when no game data gives the install's defines. */
+export const VANILLA_SYSTEM_RADII = { min_inner: 150, inner_offset: 30, outer_offset: 100 } as const;
 
 /** The orbit of a planet's first moon. */
 export const MOON_RING_FIRST = 15;

@@ -33,14 +33,16 @@ a release is made.
   it.
 - Asteroid belts in the system view look like their kind. Rocky, icy,
   crystal, debris, empty and space fauna belts each draw differently.
-- A planet moved near or past the system's inner radius moves the inner
-  radius out with it.
+- A planet or belt moved near or past the system's inner radius moves
+  the inner radius out with it.
 - The Issues tab lists bodies that stand in the same place.
 - The planet page has a Ring checkbox to give a planet or moon a ring,
   or take its ring away.
 
 ### Changed
 
+- The system's inner radius follows the defines in your install and
+  mods.
 - The Terraforming checkbox's hint names the techs and ascension perks
   your empire needs, read from the game and your mods.
 - The faint planets in a scenario system whose planets the game rolls

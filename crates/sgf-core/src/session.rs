@@ -23,7 +23,7 @@ use crate::format::scenario::effect;
 use crate::format::{self, Format};
 use crate::library;
 use crate::ops::history::History;
-use crate::ops::{self, Applied, Op, OpError, Subject};
+use crate::ops::{self, Applied, Op, OpError, Subject, SystemRadii};
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError, SystemNode, Wayline};
 use crate::search;
 use crate::validate::{self, Issue, validate};
@@ -84,6 +84,9 @@ pub struct Session {
     /// Undo-stack length when the document was last opened or saved; `None` once that
     /// state has been discarded by a new op after an undo.
     saved_at: Option<usize>,
+    /// How the geometry ops size a system; the vanilla values until the shell sets the
+    /// install's.
+    radii: SystemRadii,
 }
 
 impl Session {
@@ -112,7 +115,18 @@ impl Session {
             details: OnceCell::new(),
             history: History::new(),
             saved_at,
+            radii: SystemRadii::VANILLA,
         })
+    }
+
+    /// How the geometry ops size a system.
+    pub fn radii(&self) -> SystemRadii {
+        self.radii
+    }
+
+    /// Size systems by `radii` from the next op on, as the loaded install's defines give them.
+    pub fn set_radii(&mut self, radii: SystemRadii) {
+        self.radii = radii;
     }
 
     /// Apply `op`, record it for undo and validate. The document is unchanged on error.

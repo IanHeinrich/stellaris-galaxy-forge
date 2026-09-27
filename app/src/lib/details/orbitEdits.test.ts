@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_INNER_RADIUS } from "../../generated/constants";
+import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { ORBIT_SYSTEM_AT, orbitClasses, orbitSystem, saveBody } from "../../test/builders";
@@ -34,7 +34,7 @@ const ASTEROID = 6;
 function frameOf(details: SystemDetails = orbitSystem()): GeometryFrame {
   const planetClasses = orbitClasses();
   const layout = systemLayout(details, null, planetClasses, VANILLA_MOON_SCALE);
-  return { layout, details, planetClasses };
+  return { layout, details, planetClasses, radii: VANILLA_SYSTEM_RADII };
 }
 
 const op = (intent: GeometryIntent, frame = frameOf()) => SAVE_GEOMETRY.op(intent, frame);
@@ -111,12 +111,12 @@ describe("what a save lets the system view edit", () => {
   });
 
   it("edits belts and the inner radius, down to the system's reach or its own value below it", () => {
-    expect(editing).toMatchObject({ belts: true, innerRadius: true, innerFloor: MIN_INNER_RADIUS });
+    expect(editing).toMatchObject({ belts: true, innerRadius: true, innerFloor: 170 });
     const low = SAVE_GEOMETRY.editing(frameOf(orbitSystem({ inner_radius: 140 })));
     expect(low.innerFloor).toBe(140);
     const scar = saveBody(8, "pc_arid", [400, 0], 0, 12);
     const scarred = orbitSystem({ planets: [...orbitSystem().planets, scar] });
-    expect(SAVE_GEOMETRY.editing(frameOf(scarred)).innerFloor).toBe(MIN_INNER_RADIUS);
+    expect(SAVE_GEOMETRY.editing(frameOf(scarred)).innerFloor).toBe(170);
     const planets = [...orbitSystem().planets, saveBody(7, "pc_arid", [0, 180], 180, 12)];
     const wide = SAVE_GEOMETRY.editing(frameOf(orbitSystem({ planets, inner_radius: 260 })));
     expect(wide.innerFloor).toBeCloseTo(180);
@@ -285,7 +285,7 @@ describe("the op each intent makes", () => {
     expect(op(reparent(LONE, LONE))).toEqual({ refused: GEOMETRY_REASONS.itself });
     expect(op(reparent(LONE, 99))).toEqual({ refused: GEOMETRY_REASONS.elsewhere });
     expect(op({ kind: "innerRadius", system: SYSTEM, radius: 100 })).toEqual({
-      refused: innerTooSmall(150),
+      refused: innerTooSmall(170),
     });
     expect(innerTooSmall(154)).toBe("The inner radius can't go below 154");
   });
@@ -416,7 +416,7 @@ describe("a ring world segment", () => {
   const seam = planetClasses.get("pc_arid")!;
   planetClasses.set("pc_ringworld_seam", { ...seam, key: "pc_ringworld_seam", ringworld: true });
   const layout = systemLayout(details, null, planetClasses, VANILLA_MOON_SCALE);
-  const frame: GeometryFrame = { layout, details, planetClasses };
+  const frame: GeometryFrame = { layout, details, planetClasses, radii: VANILLA_SYSTEM_RADII };
 
   it("stays where it is, takes no moons and keeps its parent", () => {
     expect(SAVE_GEOMETRY.editing(frame).bodies.get(SEGMENT)).toEqual({
@@ -653,5 +653,28 @@ describe("helpers", () => {
     ).toBe("icy_asteroid_belt");
     expect(defaultBeltKind(orbitSystem({ belts: [] }))).toBe("rocky_asteroid_belt");
     expect(defaultBeltKind(null)).toBe("rocky_asteroid_belt");
+  });
+});
+
+describe("the inner radius a belt grows", () => {
+  const addBelt = (radius: number): GeometryIntent => ({
+    kind: "addBelt",
+    system: SYSTEM,
+    beltKind: "rocky_asteroid_belt",
+    radius,
+  });
+
+  it("grows past a belt added or moved beyond the system's reach, as the core does", () => {
+    expect(SAVE_GEOMETRY.preview(addBelt(250), frameOf()).innerRadius).toBe(280);
+    expect(SAVE_GEOMETRY.preview(addBelt(150), frameOf()).innerRadius).toBeUndefined();
+    const moved = { kind: "setBeltRadius", system: SYSTEM, index: 1, radius: 300 } as const;
+    expect(SAVE_GEOMETRY.preview(moved, frameOf()).innerRadius).toBe(330);
+  });
+
+  it("sizes the system by the install's radii", () => {
+    const radii = { min_inner: 180, inner_offset: 50, outer_offset: 100 };
+    const frame = { ...frameOf(), radii };
+    expect(SAVE_GEOMETRY.preview(addBelt(250), frame).innerRadius).toBe(300);
+    expect(SAVE_GEOMETRY.editing(frame).innerFloor).toBe(180);
   });
 });

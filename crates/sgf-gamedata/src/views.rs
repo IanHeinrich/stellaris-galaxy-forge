@@ -2,6 +2,7 @@
 //! TypeScript declarations to `app/src/generated/`.
 
 use serde::{Deserialize, Serialize};
+use sgf_core::ops::SystemRadii;
 use ts_rs::TS;
 
 use crate::details;
@@ -167,6 +168,8 @@ pub struct GameDataSummary {
     pub planet_classes: u32,
     pub starbase_levels: u32,
     pub border: BorderDefines,
+    /// How far out a system's inner and outer radii lie, from `NGameplay`.
+    pub system_radii: SystemRadii,
     pub belt_kinds: Vec<BeltKindView>,
     pub localisation_keys: u32,
     pub diagnostics: Vec<DiagnosticView>,
@@ -239,6 +242,7 @@ impl From<&GameData> for GameDataSummary {
             planet_classes: count(gd.planet_classes.len()),
             starbase_levels: count(gd.starbase_levels.len()),
             border: BorderDefines::from(&*gd.border),
+            system_radii: gd.system_radii,
             belt_kinds: gd
                 .asteroid_belts
                 .iter()

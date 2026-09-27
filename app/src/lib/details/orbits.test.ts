@@ -16,7 +16,7 @@ import {
 } from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../geometry/geometry";
-import { MIN_INNER_RADIUS } from "../../generated/constants";
+import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import { discRadius, VANILLA_MOON_SCALE } from "./discs";
 import {
   FIT_MARGIN,
@@ -309,7 +309,7 @@ describe("belts and fit", () => {
       }),
     );
     expect(far.fitRadius).toBe(230 + 30 + FIT_MARGIN);
-    expect(laid(null).fitRadius).toBe(MIN_INNER_RADIUS + FIT_MARGIN);
+    expect(laid(null).fitRadius).toBe(VANILLA_SYSTEM_RADII.min_inner + FIT_MARGIN);
   });
 });
 

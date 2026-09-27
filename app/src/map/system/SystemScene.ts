@@ -210,6 +210,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
         layout: base.layout,
         details: base.details,
         planetClasses: base.planetClasses,
+        radii: base.radii,
       };
       const override = base.geometry.preview(step.intent, frame);
       this.ctx = systemContext(base, { override, marks: step.marks });

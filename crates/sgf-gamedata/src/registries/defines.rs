@@ -1,7 +1,9 @@
 //! `common/defines`: the `NGraphics` constants the map uses to draw territory
-//! borders and moons, and the `NGameplay` ones that set how many deposits a new body rolls.
+//! borders and moons, and the `NGameplay` ones that set how many deposits a new body rolls
+//! and how far out a system's inner and outer radii lie.
 
 use sgf_core::cst::Node;
+use sgf_core::ops::SystemRadii;
 
 use crate::install::script::ParsedDir;
 
@@ -43,6 +45,27 @@ impl BorderDefines {
         }
         out
     }
+}
+
+/// `NGameplay`'s `SYSTEM_MIN_INNER_RADIUS`, `SYSTEM_INNER_RADIUS_OFFSET` and
+/// `SYSTEM_OUTER_RADIUS_OFFSET`, a later value replacing an earlier one and vanilla's
+/// standing for any no file gives.
+pub(crate) fn system_radii(files: &ParsedDir) -> SystemRadii {
+    let mut out = SystemRadii::VANILLA;
+    for (root, src) in files.roots() {
+        for gameplay in root.find_all("NGameplay", src) {
+            for (target, key) in [
+                (&mut out.min_inner, "SYSTEM_MIN_INNER_RADIUS"),
+                (&mut out.inner_offset, "SYSTEM_INNER_RADIUS_OFFSET"),
+                (&mut out.outer_offset, "SYSTEM_OUTER_RADIUS_OFFSET"),
+            ] {
+                if let Some(n) = field(gameplay, key, src) {
+                    *target = n;
+                }
+            }
+        }
+    }
+    out
 }
 
 fn field(node: &Node, key: &str, src: &[u8]) -> Option<f64> {
