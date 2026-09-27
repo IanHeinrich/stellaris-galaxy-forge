@@ -24,7 +24,7 @@ pub use crate::format::save::write::game_tables::SPAWN_BUFFER;
 pub use crate::format::save::write::initializer_counter::initializer_counts;
 pub use crate::format::save::write::name_pool::{free_nebula_names, free_star_names};
 pub use edit::Subject;
-pub(crate) use edit::{Edit, blank_slot, replace_lengths};
+pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths, spliced};
 pub use op::{
     EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaCloud, NebulaFootprint,
     NewSystem, Op, OpError, StarBody, SystemMove,

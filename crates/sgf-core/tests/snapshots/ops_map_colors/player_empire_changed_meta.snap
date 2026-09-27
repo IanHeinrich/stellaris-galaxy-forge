@@ -1,0 +1,15 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+--- meta
++++ meta
+@@ -51,7 +51,7 @@
+ 		"dark_blue"
+ 		"black"
+ 		"grey"
+-		"intense_red"
++		"green"
+ 		"light_pink"
+ 	}
+ 	use_map_color=yes

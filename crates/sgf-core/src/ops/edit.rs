@@ -221,28 +221,14 @@ impl Edit {
         self.splices.push((at..at, text));
     }
 
-    /// Delete one statement inside the entity: the whole line when it is alone on one,
-    /// else the statement and the whitespace that separated it from its neighbour.
+    /// See [`BufEdit::remove_statement`].
     pub fn remove_statement(&mut self, span: Span) {
-        if alone_on_line(&self.buf, span) {
-            return self.remove_lines(span);
-        }
-        let mut start = span.start;
-        while start > 0 && is_blank(self.buf[start - 1]) {
-            start -= 1;
-        }
-        self.splices.push((start..span.end, Vec::new()));
+        self.bytes().remove_statement(span);
     }
 
-    /// Delete every line `span` touches, taking the single-space line the game writes
-    /// between list entries with it.
+    /// See [`BufEdit::remove_lines`].
     pub fn remove_lines(&mut self, span: Span) {
-        let start = self.line_start(span.start);
-        let mut end = self.line_end(span.end);
-        if self.buf[end..].starts_with(b" \n") {
-            end += 2;
-        }
-        self.splices.push((start..end, Vec::new()));
+        self.bytes().remove_lines(span);
     }
 
     /// The start of the line holding `at`.
@@ -308,17 +294,9 @@ impl Edit {
         starts_line(&self.buf, at)
     }
 
-    /// Write `text` as the statement following the one ending at `after`, in the shape that
-    /// statement is written in: on a line of its own when that one ends its line, else
-    /// beside it. Two statements written after the same one land in the order written.
+    /// See [`BufEdit::insert_after`].
     pub fn insert_after(&mut self, after: usize, text: &str) {
-        let end = self.line_end(after);
-        if ends_line(&self.buf, after) && self.buf[..end].ends_with(b"\n") {
-            let line = [&self.indent(after)[..], text.as_bytes(), b"\n"].concat();
-            self.insert(end, line);
-        } else {
-            self.insert(after, format!(" {text}").into_bytes());
-        }
+        self.bytes().insert_after(after, text);
     }
 
     /// Where a line goes last in `node`'s block, and the indentation it takes: the start of
@@ -330,16 +308,9 @@ impl Edit {
         (self.line_start(close), indent)
     }
 
-    /// Write `text` in place of the statement at `span`, which the caller then removes: on
-    /// a line of its own ahead of it when it starts its line, else beside it, where its
-    /// removal leaves off. Without that removal, text beside a statement lands after it.
+    /// See [`BufEdit::insert_before`].
     pub fn insert_before(&mut self, span: Span, text: &str) {
-        if self.starts_line(span.start) {
-            let line = [&self.indent(span.start)[..], text.as_bytes(), b"\n"].concat();
-            self.insert(self.line_start(span.start), line);
-        } else {
-            self.insert(span.end, format!(" {text}").into_bytes());
-        }
+        self.bytes().insert_before(span, text);
     }
 
     /// Write `text` as the first statement of the block whose braces `value` spans, in the
@@ -351,6 +322,87 @@ impl Edit {
                 self.insert(self.line_start(child.start), line);
             }
             _ => self.insert(value.start + 1, format!(" {text}").into_bytes()),
+        }
+    }
+
+    /// See [`BufEdit::replace_statement`].
+    pub fn replace_statement(&mut self, span: Span, text: &str) {
+        self.bytes().replace_statement(span, text);
+    }
+
+    /// The statement's bytes and the splices planned in them, to plan more through.
+    fn bytes(&mut self) -> BufEdit<'_> {
+        BufEdit {
+            buf: &self.buf,
+            splices: &mut self.splices,
+        }
+    }
+}
+
+/// Splices planned in `buf`, laid out as an [`Edit`] lays out its own: for bytes that are
+/// no statement of the document, such as `meta`, or for edits an op plans alike there and
+/// in a statement.
+pub(crate) struct BufEdit<'b> {
+    pub buf: &'b [u8],
+    pub splices: &'b mut Vec<Splice>,
+}
+
+impl BufEdit<'_> {
+    /// Write `text` in place of `span` of the bytes.
+    pub fn replace_span(&mut self, span: Span, text: impl Into<Vec<u8>>) {
+        self.splices.push((span.range(), text.into()));
+    }
+
+    fn insert(&mut self, at: usize, text: Vec<u8>) {
+        self.splices.push((at..at, text));
+    }
+
+    /// Delete one statement: the whole line when it is alone on one, else the statement
+    /// and the whitespace that separated it from its neighbour.
+    pub fn remove_statement(&mut self, span: Span) {
+        if alone_on_line(self.buf, span) {
+            return self.remove_lines(span);
+        }
+        let mut start = span.start;
+        while start > 0 && is_blank(self.buf[start - 1]) {
+            start -= 1;
+        }
+        self.splices.push((start..span.end, Vec::new()));
+    }
+
+    /// Delete every line `span` touches, taking the single-space line the game writes
+    /// between list entries with it.
+    pub fn remove_lines(&mut self, span: Span) {
+        let start = cst::line_start(self.buf, span.start);
+        let mut end = cst::line_end(self.buf, span.end);
+        if self.buf[end..].starts_with(b" \n") {
+            end += 2;
+        }
+        self.splices.push((start..end, Vec::new()));
+    }
+
+    /// Write `text` as the statement following the one ending at `after`, in the shape that
+    /// statement is written in: on a line of its own when that one ends its line, else
+    /// beside it. Two statements written after the same one land in the order written.
+    pub fn insert_after(&mut self, after: usize, text: &str) {
+        let end = cst::line_end(self.buf, after);
+        if ends_line(self.buf, after) && self.buf[..end].ends_with(b"\n") {
+            let line = [cst::indent_of(self.buf, after), text.as_bytes(), b"\n"].concat();
+            self.insert(end, line);
+        } else {
+            self.insert(after, format!(" {text}").into_bytes());
+        }
+    }
+
+    /// Write `text` in place of the statement at `span`, which the caller then removes: on
+    /// a line of its own ahead of it when it starts its line, else beside it, where its
+    /// removal leaves off. Without that removal, text beside a statement lands after it.
+    pub fn insert_before(&mut self, span: Span, text: &str) {
+        if starts_line(self.buf, span.start) {
+            let line = [cst::indent_of(self.buf, span.start), text.as_bytes(), b"\n"].concat();
+            self.insert(cst::line_start(self.buf, span.start), line);
+        } else {
+            self.insert(span.end, format!(" {text}").into_bytes());
         }
     }
 
@@ -437,17 +489,24 @@ pub(crate) fn replace_lengths(
     Ok(n)
 }
 
-/// Apply `splices` to a copy of `buf`, right to left so earlier offsets stay valid.
-/// Ranges must not overlap; insertions sharing an offset land in planning order.
+/// Apply `splices` to a copy of `buf` (see [`spliced`]), naming `subject` when two ranges
+/// overlap.
 pub(super) fn splice(
     subject: Subject,
     buf: &[u8],
-    mut splices: Vec<Splice>,
+    splices: Vec<Splice>,
 ) -> Result<Vec<u8>, OpError> {
+    spliced(buf, splices).map_err(|at| subject.parse_error(at, "edit ranges overlap"))
+}
+
+/// Apply `splices` to a copy of `buf`, right to left so earlier offsets stay valid.
+/// Ranges must not overlap, and the error is the offset where one does; insertions sharing
+/// an offset land in planning order.
+pub(crate) fn spliced(buf: &[u8], mut splices: Vec<Splice>) -> Result<Vec<u8>, usize> {
     splices.sort_by_key(|(r, _)| (r.start, r.end));
     for pair in splices.windows(2) {
         if pair[0].0.end > pair[1].0.start {
-            return Err(subject.parse_error(pair[1].0.start, "edit ranges overlap"));
+            return Err(pair[1].0.start);
         }
     }
     let mut out = buf.to_vec();
